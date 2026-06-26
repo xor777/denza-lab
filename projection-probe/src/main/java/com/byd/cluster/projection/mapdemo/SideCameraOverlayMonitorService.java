@@ -36,6 +36,17 @@ public class SideCameraOverlayMonitorService extends Service {
     private static final int DISPLAY_ID = 4;
     private static final long OVERLAY_DURATION_MS = 300000L;
     private static final int CENTER_EXTEND_PERCENT = 20;
+    private static final boolean USE_HUD_DISHARE_STREAM = false;
+    private static final String LEFT_CAMERA_ID = "0";
+    private static final String RIGHT_CAMERA_ID = "1";
+    private static final int HUD_STREAM_WIDTH = 1280;
+    private static final int HUD_STREAM_HEIGHT = 720;
+    private static final int HUD_CAMERA_WIDTH = 1280;
+    private static final int HUD_CAMERA_HEIGHT = 720;
+    private static final float HUD_CAMERA_SCALE_X = 0.56f;
+    private static final float HUD_CAMERA_SCALE_Y = 1.0f;
+    private static final long HUD_START_AFTER_WINDOW_VISIBLE_MS = 350L;
+    private static final long HUD_OVERLAY_ACTIVE_MS = 6500L;
 
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private ScheduledExecutorService executor;
@@ -45,6 +56,10 @@ public class SideCameraOverlayMonitorService extends Service {
     private boolean lastLeftVisible;
     private boolean lastRightVisible;
     private long lastErrorLogMs;
+    private String pendingHudSide = "";
+    private long lastHudWindowVisibleMs = -1L;
+    private long hudWindowVisibleSinceMs = -1L;
+    private long hudStartedMs = -1L;
 
     @Override
     public void onCreate() {
@@ -127,6 +142,11 @@ public class SideCameraOverlayMonitorService extends Service {
                         + " current=" + currentSide);
             }
 
+            if (USE_HUD_DISHARE_STREAM) {
+                handleHudWindowState(leftVisible, rightVisible);
+                return;
+            }
+
             if (leftVisible) {
                 mainHandler.post(() -> startOverlay("left"));
             } else if (rightVisible) {
@@ -144,12 +164,56 @@ public class SideCameraOverlayMonitorService extends Service {
         }
     }
 
+    private void handleHudWindowState(boolean leftVisible, boolean rightVisible) {
+        long now = System.currentTimeMillis();
+        String visibleSide = leftVisible ? "left" : rightVisible ? "right" : "";
+        if (!visibleSide.isEmpty()) {
+            if (!currentSide.isEmpty() && !currentSide.equals(visibleSide)) {
+                mainHandler.post(() -> stopOverlay("switch pending side"));
+            }
+            if (!visibleSide.equals(pendingHudSide)) {
+                hudWindowVisibleSinceMs = now;
+            }
+            pendingHudSide = visibleSide;
+            lastHudWindowVisibleMs = now;
+            if (currentSide.isEmpty()
+                    && hudWindowVisibleSinceMs > 0L
+                    && now - hudWindowVisibleSinceMs >= HUD_START_AFTER_WINDOW_VISIBLE_MS) {
+                String side = pendingHudSide;
+                pendingHudSide = "";
+                mainHandler.post(() -> startOverlay(side));
+            }
+            return;
+        }
+
+        pendingHudSide = "";
+        lastHudWindowVisibleMs = -1L;
+        hudWindowVisibleSinceMs = -1L;
+        if (!currentSide.isEmpty()) {
+            mainHandler.post(() -> stopOverlay("window hidden"));
+            return;
+        }
+
+        if (!currentSide.isEmpty() && hudStartedMs > 0L
+                && now - hudStartedMs >= HUD_OVERLAY_ACTIVE_MS) {
+            mainHandler.post(() -> stopOverlay("hud timeout"));
+        }
+    }
+
     private void startOverlay(String side) {
         if (side.equals(currentSide)) {
             return;
         }
         if (!currentSide.isEmpty()) {
             stopOverlay("switch to " + side);
+        }
+        if (USE_HUD_DISHARE_STREAM) {
+            startHudDiShareOverlay(side);
+            currentSide = side;
+            hudStartedMs = System.currentTimeMillis();
+            setStatus("hud overlay start " + side);
+            moveToForeground("Showing HUD " + side);
+            return;
         }
         Intent intent = new Intent(this, AvcAidlDashActivity.class);
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
@@ -175,12 +239,64 @@ public class SideCameraOverlayMonitorService extends Service {
         moveToForeground("Showing " + side);
     }
 
+    private void startHudDiShareOverlay(String side) {
+        Intent intent = new Intent(this, HudDiShareActivity.class);
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+                | Intent.FLAG_ACTIVITY_SINGLE_TOP
+                | Intent.FLAG_ACTIVITY_CLEAR_TOP
+                | Intent.FLAG_ACTIVITY_NO_ANIMATION);
+        intent.putExtra("media_stream", true);
+        intent.putExtra("camera_stream", true);
+        intent.putExtra("camera_gl_stream", true);
+        intent.putExtra("pattern", false);
+        intent.putExtra("texture_bridge", false);
+        intent.putExtra("mirror_source", true);
+        intent.putExtra("start_control", true);
+        intent.putExtra("show_image", false);
+        intent.putExtra("debug_ui", false);
+        intent.putExtra("camera_id", "left".equals(side) ? LEFT_CAMERA_ID : RIGHT_CAMERA_ID);
+        intent.putExtra("slot", side);
+        intent.putExtra("stream_width", HUD_STREAM_WIDTH);
+        intent.putExtra("stream_height", HUD_STREAM_HEIGHT);
+        intent.putExtra("camera_width", HUD_CAMERA_WIDTH);
+        intent.putExtra("camera_height", HUD_CAMERA_HEIGHT);
+        intent.putExtra("camera_rotate_degrees", 0);
+        intent.putExtra("camera_draw_scale_x", HUD_CAMERA_SCALE_X);
+        intent.putExtra("camera_draw_scale_y", HUD_CAMERA_SCALE_Y);
+        intent.putExtra("bounds_left", 0);
+        intent.putExtra("bounds_top", 0);
+        intent.putExtra("bounds_right", HUD_STREAM_WIDTH);
+        intent.putExtra("bounds_bottom", HUD_STREAM_HEIGHT);
+        intent.putExtra("start_delay_ms", 650L);
+        intent.putExtra("auto_stop_ms", HUD_OVERLAY_ACTIVE_MS + 1500L);
+        startActivity(intent);
+    }
+
     private void stopOverlay(String reason) {
         if (currentSide.isEmpty()) {
             return;
         }
         String stoppedSide = currentSide;
         currentSide = "";
+        pendingHudSide = "";
+        lastHudWindowVisibleMs = -1L;
+        hudWindowVisibleSinceMs = -1L;
+        hudStartedMs = -1L;
+        if (USE_HUD_DISHARE_STREAM) {
+            boolean finished = HudDiShareActivity.finishActiveInstance();
+            if (!finished) {
+                Intent intent = new Intent(this, HudDiShareActivity.class);
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+                        | Intent.FLAG_ACTIVITY_SINGLE_TOP
+                        | Intent.FLAG_ACTIVITY_CLEAR_TOP
+                        | Intent.FLAG_ACTIVITY_NO_ANIMATION);
+                intent.putExtra(HudDiShareActivity.EXTRA_FINISH, true);
+                startActivity(intent);
+            }
+            setStatus("hud overlay stop " + stoppedSide + " reason=" + reason);
+            moveToForeground("Running");
+            return;
+        }
         boolean finished = AvcAidlDashActivity.finishActiveInstance();
         if (!finished) {
             Intent intent = new Intent(this, AvcAidlDashActivity.class);

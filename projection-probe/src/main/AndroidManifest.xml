@@ -75,6 +75,37 @@
             android:launchMode="singleTop"
             android:noHistory="true"
             android:theme="@style/InvisibleTheme" />
+        <activity
+            android:name=".DiShareProbeActivity"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:finishOnTaskLaunch="true"
+            android:noHistory="true"
+            android:theme="@style/InvisibleTheme" />
+        <activity
+            android:name=".HudImageActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:theme="@style/AppTheme" />
+        <activity
+            android:name=".HudDiShareActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:theme="@style/InvisibleTheme" />
+        <activity
+            android:name=".HudSomeIpProbeActivity"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:finishOnTaskLaunch="true"
+            android:noHistory="true"
+            android:theme="@style/InvisibleTheme" />
+        <activity
+            android:name=".MediaStreamProbeActivity"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:finishOnTaskLaunch="true"
+            android:noHistory="true"
+            android:theme="@style/InvisibleTheme" />
 
         <service
             android:name=".ProjectionCommandService"
@@ -102,6 +133,15 @@
             android:exported="true">
             <intent-filter>
                 <action android:name="com.byd.cluster.projection.mapdemo.COMMAND" />
+            </intent-filter>
+        </receiver>
+
+        <receiver
+            android:name=".DiShareProbeReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.byd.cluster.projection.mapdemo.DISHARE_COMMAND" />
             </intent-filter>
         </receiver>
     </application>
