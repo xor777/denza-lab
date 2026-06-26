@@ -1,7 +1,11 @@
 .gradle/
 /build/
 /app/build/
+/projection-probe/build/
 /dist/
+/captures/
+/reverse/
 /local.properties
 /.idea/
 *.iml
+*.apk
