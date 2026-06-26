@@ -1,11 +1,14 @@
 package com.byd.cluster.projection.mapdemo;
 
+import android.Manifest;
 import android.app.Activity;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.content.pm.PackageManager;
 import android.graphics.Color;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.os.Parcel;
@@ -43,6 +46,7 @@ public class ProjectionProbeActivity extends Activity {
 
     private final SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm:ss.SSS", Locale.US);
     private TextView logView;
+    private ScrollView logScrollView;
     private IBinder projectionBinder;
     private String pendingCommand;
 
@@ -65,9 +69,16 @@ public class ProjectionProbeActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(createContentView());
+        requestNotificationPermission();
         appendLog("package=" + getPackageName());
         setPendingCommand(getIntent());
-        bindProjectionService();
+        if (pendingCommand == null) {
+            appendLog("ready");
+        } else if (isMonitorCommand(pendingCommand)) {
+            runPendingCommand();
+        } else {
+            bindProjectionService();
+        }
     }
 
     @Override
@@ -112,20 +123,24 @@ public class ProjectionProbeActivity extends Activity {
                 LinearLayout.LayoutParams.WRAP_CONTENT
         ));
 
-        row.addView(button("Bind", v -> bindProjectionService()));
-        row.addView(button("Start Full", v -> startProjection(CLUSTER_FULL, MAP_VIEW)));
-        row.addView(button("Start Mini", v -> startProjection(CLUSTER_LEFT, MINI_MAP_CARD)));
-        row.addView(button("Start TBT", v -> startProjection(CLUSTER_LEFT, TBT_CARD)));
-        row.addView(button("Stop All", v -> stopAll()));
+        row.addView(button("Start monitor", v -> {
+            SideCameraOverlayMonitorService.start(this);
+            appendLog("monitor start requested");
+        }));
+        row.addView(button("Stop monitor", v -> {
+            SideCameraOverlayMonitorService.stop(this);
+            appendLog("monitor stop requested");
+        }));
+        row.addView(button("Test ADB", v -> testLocalAdb()));
 
         logView = new TextView(this);
         logView.setTextColor(Color.rgb(200, 230, 255));
         logView.setTextSize(14);
         logView.setLineSpacing(0, 1.08f);
 
-        ScrollView scrollView = new ScrollView(this);
-        scrollView.addView(logView);
-        root.addView(scrollView, new LinearLayout.LayoutParams(
+        logScrollView = new ScrollView(this);
+        logScrollView.addView(logView);
+        root.addView(logScrollView, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 0,
                 1f
@@ -156,10 +171,13 @@ public class ProjectionProbeActivity extends Activity {
     }
 
     private void setPendingCommand(Intent intent) {
-        pendingCommand = intent.getStringExtra("command");
-        if (pendingCommand == null) {
-            pendingCommand = "bind";
+        if (intent != null) {
+            pendingCommand = intent.getStringExtra("command");
         }
+    }
+
+    private static boolean isMonitorCommand(String command) {
+        return "start_monitor".equals(command) || "stop_monitor".equals(command);
     }
 
     private void startProjection(int position, int type) {
@@ -187,6 +205,12 @@ public class ProjectionProbeActivity extends Activity {
             startProjection(CLUSTER_LEFT, TBT_CARD);
         } else if ("stop_all".equals(command)) {
             stopAll();
+        } else if ("start_monitor".equals(command)) {
+            SideCameraOverlayMonitorService.start(this);
+            appendLog("monitor start requested");
+        } else if ("stop_monitor".equals(command)) {
+            SideCameraOverlayMonitorService.stop(this);
+            appendLog("monitor stop requested");
         } else {
             appendLog("command=" + command);
         }
@@ -223,6 +247,30 @@ public class ProjectionProbeActivity extends Activity {
         Log.i(TAG, line);
         if (logView != null) {
             logView.append(line + "\n");
+            if (logScrollView != null) {
+                logScrollView.post(() -> logScrollView.fullScroll(View.FOCUS_DOWN));
+            }
+        }
+    }
+
+    private void testLocalAdb() {
+        appendLog("adb test started");
+        new Thread(() -> {
+            try {
+                String output = new LocalAdbClient(this).shell("echo dash-projection-ok");
+                runOnUiThread(() -> appendLog("adb test: " + output.trim()));
+            } catch (Exception e) {
+                runOnUiThread(() -> appendLog("adb test failed: " + e.getClass().getSimpleName()
+                        + " " + e.getMessage()));
+            }
+        }, "dash-projection-adb-test").start();
+    }
+
+    private void requestNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= 33
+                && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
+                != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[] { Manifest.permission.POST_NOTIFICATIONS }, 7);
         }
     }
 }
