@@ -18,7 +18,7 @@ android {
 androidComponents {
     onVariants(selector().all()) { variant ->
         variant.outputs.forEach { output ->
-            output.outputFileName.set("denza-mirrors-${variant.name}.apk")
+            output.outputFileName.set("denza-mirrors.apk")
         }
     }
 }

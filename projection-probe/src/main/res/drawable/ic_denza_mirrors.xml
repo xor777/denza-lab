@@ -8,27 +8,27 @@
         android:fillColor="#081113"
         android:pathData="M0,0H108V108H0Z" />
     <path
-        android:fillColor="#0FE0C0"
-        android:pathData="M18,18H90V90H18Z" />
-    <path
         android:fillColor="#0B2024"
-        android:pathData="M24,24H84V84H24Z" />
+        android:pathData="M16,16H92V92H16Z" />
     <path
-        android:fillColor="#071113"
-        android:pathData="M34,36H74C80,36 85,41 85,47V64C85,70 80,75 74,75H34C28,75 23,70 23,64V47C23,41 28,36 34,36Z" />
+        android:fillColor="#0FE0C0"
+        android:pathData="M68,66L88,86C91,89 91,94 88,97C85,100 80,100 77,97L57,77Z" />
+    <path
+        android:fillColor="#0FE0C0"
+        android:pathData="M49,17C66,17 80,31 80,48C80,65 66,79 49,79C32,79 18,65 18,48C18,31 32,17 49,17Z" />
+    <path
+        android:fillColor="#081113"
+        android:pathData="M49,26C61,26 71,36 71,48C71,60 61,70 49,70C37,70 27,60 27,48C27,36 37,26 49,26Z" />
     <path
         android:fillColor="#D6FFF6"
-        android:pathData="M12,48C18,40 28,38 38,43V66C28,70 17,66 12,58Z" />
-    <path
-        android:fillColor="#D6FFF6"
-        android:pathData="M96,48C90,40 80,38 70,43V66C80,70 91,66 96,58Z" />
+        android:pathData="M32,48C37,39 44,35 49,35C54,35 61,39 66,48C61,57 54,61 49,61C44,61 37,57 32,48Z" />
     <path
         android:fillColor="#13D8BD"
-        android:pathData="M35,46H73C76,46 78,48 78,51V61C78,64 76,66 73,66H35C32,66 30,64 30,61V51C30,48 32,46 35,46Z" />
+        android:pathData="M49,40C53,40 57,44 57,48C57,52 53,56 49,56C45,56 41,52 41,48C41,44 45,40 49,40Z" />
     <path
         android:fillColor="#082327"
-        android:pathData="M39,50H69C71,50 73,52 73,54V58C73,60 71,62 69,62H39C37,62 35,60 35,58V54C35,52 37,50 39,50Z" />
+        android:pathData="M49,44C51,44 53,46 53,48C53,50 51,52 49,52C47,52 45,50 45,48C45,46 47,44 49,44Z" />
     <path
         android:fillColor="#EFFFFB"
-        android:pathData="M48,77H60V85H48Z" />
+        android:pathData="M45,41C47,41 48,42 48,44C48,46 47,47 45,47C43,47 42,46 42,44C42,42 43,41 45,41Z" />
 </vector>
