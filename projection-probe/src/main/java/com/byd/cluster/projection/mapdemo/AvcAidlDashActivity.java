@@ -47,8 +47,8 @@ public class AvcAidlDashActivity extends Activity {
     private static final long DEFAULT_DURATION_MS = 20000L;
     private static final String DEFAULT_SLOT = "full";
     private static final int DEFAULT_CENTER_EXTEND_PERCENT = 20;
-    private static final float EDGE_SHADE_HEIGHT_RATIO = 0.10f;
-    private static final int EDGE_SHADE_ALPHA = 230;
+    private static final float EDGE_SHADE_HEIGHT_RATIO = 0.20f;
+    private static final int EDGE_SHADE_ALPHA = 179;
     static final String EXTRA_FINISH = "finish";
 
     private final Handler handler = new Handler(Looper.getMainLooper());
