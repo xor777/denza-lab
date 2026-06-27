@@ -15,6 +15,7 @@ import android.util.Log;
 import android.view.Display;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -32,6 +33,10 @@ public class SideCameraOverlayMonitorService extends Service {
     private static final String CHANNEL_ID = "dash_projection_monitor";
     private static final String PREFS_NAME = "side_camera_monitor";
     private static final String KEY_ENABLED = "enabled";
+    private static final String KEY_CAMERA_POSITION_MODE = "camera_position_mode";
+    static final String CAMERA_POSITION_SIDES = "sides";
+    static final String CAMERA_POSITION_CENTER = "center";
+    static final String STATUS_FILE_NAME = "side_camera_monitor_status.txt";
     private static final int NOTIFICATION_ID = 77;
     private static final long POLL_MS = 150L;
     private static final long OVERLAY_RETRY_MS = 1500L;
@@ -256,8 +261,9 @@ public class SideCameraOverlayMonitorService extends Service {
             return false;
         }
 
+        boolean centerMode = CAMERA_POSITION_CENTER.equals(getCameraPositionMode(this));
         int viewpoint = "left".equals(side) ? 3205 : 3204;
-        String slot = "left".equals(side) ? "left" : "right";
+        String slot = centerMode ? "center" : "left".equals(side) ? "left" : "right";
         String cropSource = "left".equals(side) ? "left" : "none";
         try {
             String output = adbClient.shell(buildDashActivityCommand(
@@ -391,7 +397,7 @@ public class SideCameraOverlayMonitorService extends Service {
 
     private void setStatus(String status) {
         Log.i(TAG, status);
-        File statusFile = new File(getFilesDir(), "side_camera_monitor_status.txt");
+        File statusFile = new File(getFilesDir(), STATUS_FILE_NAME);
         try (FileOutputStream output = new FileOutputStream(statusFile, false)) {
             output.write(status.getBytes(StandardCharsets.UTF_8));
             output.write('\n');
@@ -466,6 +472,39 @@ public class SideCameraOverlayMonitorService extends Service {
     static boolean isMonitorEnabled(Context context) {
         return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
                 .getBoolean(KEY_ENABLED, false);
+    }
+
+    static String getCameraPositionMode(Context context) {
+        String mode = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                .getString(KEY_CAMERA_POSITION_MODE, CAMERA_POSITION_SIDES);
+        return CAMERA_POSITION_CENTER.equals(mode) ? CAMERA_POSITION_CENTER : CAMERA_POSITION_SIDES;
+    }
+
+    static void setCameraPositionMode(Context context, String mode) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                .edit()
+                .putString(KEY_CAMERA_POSITION_MODE,
+                        CAMERA_POSITION_CENTER.equals(mode)
+                                ? CAMERA_POSITION_CENTER
+                                : CAMERA_POSITION_SIDES)
+                .apply();
+    }
+
+    static String readStatus(Context context) {
+        File statusFile = new File(context.getFilesDir(), STATUS_FILE_NAME);
+        if (!statusFile.exists()) {
+            return "";
+        }
+        byte[] buffer = new byte[(int) Math.min(statusFile.length(), 4096)];
+        try (FileInputStream input = new FileInputStream(statusFile)) {
+            int read = input.read(buffer);
+            if (read <= 0) {
+                return "";
+            }
+            return new String(buffer, 0, read, StandardCharsets.UTF_8).trim();
+        } catch (IOException e) {
+            return "";
+        }
     }
 
     private void setMonitorEnabled(boolean enabled) {

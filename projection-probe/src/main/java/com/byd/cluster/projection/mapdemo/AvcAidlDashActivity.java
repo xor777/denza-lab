@@ -35,6 +35,7 @@ import android.view.WindowManager;
 import android.widget.FrameLayout;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -49,6 +50,7 @@ public class AvcAidlDashActivity extends Activity {
     private static final int DEFAULT_CENTER_EXTEND_PERCENT = 20;
     private static final float EDGE_SHADE_HEIGHT_RATIO = 0.20f;
     private static final int EDGE_SHADE_ALPHA = 179;
+    private static final String STATUS_FILE_NAME = "avc_aidl_status.txt";
     static final String EXTRA_FINISH = "finish";
 
     private final Handler handler = new Handler(Looper.getMainLooper());
@@ -77,10 +79,13 @@ public class AvcAidlDashActivity extends Activity {
         int centerExtendPercent = Math.max(0, Math.min(100,
                 intent.getIntExtra("center_extend_percent", DEFAULT_CENTER_EXTEND_PERCENT)));
         boolean overlayWindow = intent.getBooleanExtra("overlay_window", true);
+        boolean diagnosticPreview = intent.getBooleanExtra("diagnostic_preview", false);
+        String previewMode = intent.getStringExtra("preview_mode");
         long durationMs = Math.max(1000L, intent.getLongExtra("duration_ms", DEFAULT_DURATION_MS));
         Display display = findClusterDisplay(this, requestedDisplayId);
         if (display == null) {
             Log.i(TAG, "avc aidl display not found id=" + requestedDisplayId);
+            writeStatus(this, "diagnostic preview display not found id=" + requestedDisplayId);
             finishAndRemoveTask();
             return;
         }
@@ -92,7 +97,7 @@ public class AvcAidlDashActivity extends Activity {
                 presentation = null;
             }
             presentation = showPresentation(display, viewpoint, uTurnEnabled, slot,
-                    cropSource, centerExtendPercent, overlayWindow);
+                    cropSource, centerExtendPercent, overlayWindow, diagnosticPreview, previewMode);
             Log.i(TAG, "avc aidl presentation shown displayId=" + display.getDisplayId()
                     + " name=" + display.getName()
                     + " viewpoint=" + viewpoint
@@ -100,9 +105,13 @@ public class AvcAidlDashActivity extends Activity {
                     + " cropSource=" + cropSource
                     + " centerExtendPercent=" + centerExtendPercent
                     + " overlayWindow=" + overlayWindow
+                    + " diagnosticPreview=" + diagnosticPreview
+                    + " previewMode=" + previewMode
                     + " uturn=" + uTurnEnabled);
         } catch (RuntimeException e) {
             Log.i(TAG, "avc aidl presentation show failed", e);
+            writeStatus(this, (diagnosticPreview ? "diagnostic preview" : "avc presentation")
+                    + " failed: " + shortError(e));
             finishAndRemoveTask();
             return;
         }
@@ -112,9 +121,10 @@ public class AvcAidlDashActivity extends Activity {
 
     private AvcPresentation showPresentation(Display display, int viewpoint,
             boolean uTurnEnabled, String slot, String cropSource,
-            int centerExtendPercent, boolean overlayWindow) {
+            int centerExtendPercent, boolean overlayWindow,
+            boolean diagnosticPreview, String previewMode) {
         AvcPresentation first = new AvcPresentation(this, display, viewpoint, uTurnEnabled,
-                slot, cropSource, centerExtendPercent, overlayWindow);
+                slot, cropSource, centerExtendPercent, overlayWindow, diagnosticPreview, previewMode);
         try {
             first.show();
             return first;
@@ -124,7 +134,8 @@ public class AvcAidlDashActivity extends Activity {
             }
             Log.i(TAG, "overlay presentation failed, retrying normal window", e);
             AvcPresentation fallback = new AvcPresentation(this, display, viewpoint,
-                    uTurnEnabled, slot, cropSource, centerExtendPercent, false);
+                    uTurnEnabled, slot, cropSource, centerExtendPercent, false,
+                    diagnosticPreview, previewMode);
             fallback.show();
             return fallback;
         }
@@ -228,6 +239,33 @@ public class AvcAidlDashActivity extends Activity {
         return throwable.getClass().getSimpleName() + " " + message;
     }
 
+    static String readStatus(Context context) {
+        File statusFile = new File(context.getFilesDir(), STATUS_FILE_NAME);
+        if (!statusFile.exists()) {
+            return "";
+        }
+        try (FileInputStream input = new FileInputStream(statusFile)) {
+            byte[] buffer = new byte[(int) Math.min(statusFile.length(), 4096)];
+            int read = input.read(buffer);
+            if (read <= 0) {
+                return "";
+            }
+            return new String(buffer, 0, read, StandardCharsets.UTF_8).trim();
+        } catch (IOException e) {
+            return "";
+        }
+    }
+
+    static void writeStatus(Context context, String status) {
+        File statusFile = new File(context.getFilesDir(), STATUS_FILE_NAME);
+        try (FileOutputStream output = new FileOutputStream(statusFile, false)) {
+            output.write(status.getBytes(StandardCharsets.UTF_8));
+            output.write('\n');
+        } catch (IOException e) {
+            Log.i(TAG, "status file write failed", e);
+        }
+    }
+
     static final class AvcPresentation extends Presentation
             implements SurfaceHolder.Callback, TextureView.SurfaceTextureListener {
         private final int viewpoint;
@@ -236,6 +274,8 @@ public class AvcAidlDashActivity extends Activity {
         private final String cropSource;
         private final int centerExtendPercent;
         private final boolean overlayWindow;
+        private final boolean diagnosticPreview;
+        private final String previewMode;
         private SurfaceView surfaceView;
         private TextureView textureView;
         private AvcAidlClient avcClient;
@@ -263,7 +303,8 @@ public class AvcAidlDashActivity extends Activity {
 
         AvcPresentation(Context outerContext, Display display, int viewpoint,
                 boolean uTurnEnabled, String slot, String cropSource,
-                int centerExtendPercent, boolean overlayWindow) {
+                int centerExtendPercent, boolean overlayWindow,
+                boolean diagnosticPreview, String previewMode) {
             super(outerContext, display);
             this.viewpoint = viewpoint;
             this.uTurnEnabled = uTurnEnabled;
@@ -271,6 +312,8 @@ public class AvcAidlDashActivity extends Activity {
             this.cropSource = cropSource;
             this.centerExtendPercent = centerExtendPercent;
             this.overlayWindow = overlayWindow;
+            this.diagnosticPreview = diagnosticPreview;
+            this.previewMode = previewMode;
         }
 
         @Override
@@ -279,6 +322,13 @@ public class AvcAidlDashActivity extends Activity {
             configurePresentationWindow();
             FrameLayout root = new FrameLayout(getContext());
             root.setBackgroundColor(Color.TRANSPARENT);
+
+            if (diagnosticPreview) {
+                addDiagnosticPreview(root);
+                setContentView(root);
+                setStatus("diagnostic preview shown mode=" + normalizedPreviewMode());
+                return;
+            }
 
             FrameLayout surfaceFrame = new FrameLayout(getContext());
             surfaceFrame.setBackgroundColor(Color.BLACK);
@@ -295,6 +345,25 @@ public class AvcAidlDashActivity extends Activity {
 
             setContentView(root);
             bindAvcService();
+        }
+
+        private void addDiagnosticPreview(FrameLayout root) {
+            String mode = normalizedPreviewMode();
+            if (SideCameraOverlayMonitorService.CAMERA_POSITION_SIDES.equals(mode)) {
+                root.addView(new DiagnosticPreviewView(getContext(), "LEFT"),
+                        buildFrameParamsForSlot("left"));
+                root.addView(new DiagnosticPreviewView(getContext(), "RIGHT"),
+                        buildFrameParamsForSlot("right"));
+                return;
+            }
+            root.addView(new DiagnosticPreviewView(getContext(), "CENTER"),
+                    buildFrameParamsForSlot("center"));
+        }
+
+        private String normalizedPreviewMode() {
+            return SideCameraOverlayMonitorService.CAMERA_POSITION_CENTER.equals(previewMode)
+                    ? SideCameraOverlayMonitorService.CAMERA_POSITION_CENTER
+                    : SideCameraOverlayMonitorService.CAMERA_POSITION_SIDES;
         }
 
         private void configurePresentationWindow() {
@@ -380,7 +449,11 @@ public class AvcAidlDashActivity extends Activity {
         }
 
         private FrameLayout.LayoutParams buildSurfaceFrameParams() {
-            if ("full".equals(slot)) {
+            return buildFrameParamsForSlot(slot);
+        }
+
+        private FrameLayout.LayoutParams buildFrameParamsForSlot(String frameSlot) {
+            if ("full".equals(frameSlot)) {
                 return new FrameLayout.LayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT,
                         ViewGroup.LayoutParams.MATCH_PARENT
@@ -392,11 +465,11 @@ public class AvcAidlDashActivity extends Activity {
             int slotWidth = Math.max(1, metrics.widthPixels / 3);
             int frameWidth = extendedFrameWidth(slotWidth);
             int gravity = Gravity.START;
-            if ("right".equals(slot)) {
+            if ("right".equals(frameSlot)) {
                 gravity = Gravity.END;
-            } else if ("center".equals(slot)) {
+            } else if ("center".equals(frameSlot)) {
                 gravity = Gravity.CENTER_HORIZONTAL;
-                frameWidth = slotWidth;
+                frameWidth = extendedFrameWidth(slotWidth);
             }
             return new FrameLayout.LayoutParams(
                     frameWidth,
@@ -430,6 +503,55 @@ public class AvcAidlDashActivity extends Activity {
 
         private int extendedFrameWidth(int slotWidth) {
             return slotWidth + Math.round(slotWidth * (centerExtendPercent / 100.0f));
+        }
+
+        private static final class DiagnosticPreviewView extends View {
+            private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+            private final String label;
+
+            DiagnosticPreviewView(Context context, String label) {
+                super(context);
+                this.label = label;
+                setWillNotDraw(false);
+            }
+
+            @Override
+            protected void onDraw(Canvas canvas) {
+                int width = getWidth();
+                int height = getHeight();
+                if (width <= 0 || height <= 0) {
+                    return;
+                }
+
+                paint.setStyle(Paint.Style.FILL);
+                paint.setColor(Color.rgb(10, 24, 28));
+                canvas.drawRect(0, 0, width, height, paint);
+
+                paint.setColor(Color.rgb(20, 156, 132));
+                float inset = Math.max(8f, width * 0.04f);
+                canvas.drawRect(inset, inset, width - inset, height - inset, paint);
+
+                paint.setColor(Color.rgb(6, 16, 20));
+                float inner = inset * 2.0f;
+                canvas.drawRect(inner, inner, width - inner, height - inner, paint);
+
+                paint.setStyle(Paint.Style.STROKE);
+                paint.setStrokeWidth(Math.max(3f, width * 0.008f));
+                paint.setColor(Color.rgb(214, 255, 246));
+                canvas.drawRect(inner, inner, width - inner, height - inner, paint);
+
+                paint.setStyle(Paint.Style.FILL);
+                paint.setTextAlign(Paint.Align.CENTER);
+                paint.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
+                paint.setTextSize(Math.max(34f, height * 0.10f));
+                paint.setColor(Color.WHITE);
+                canvas.drawText(label, width / 2f, height * 0.47f, paint);
+
+                paint.setTypeface(android.graphics.Typeface.DEFAULT);
+                paint.setTextSize(Math.max(18f, height * 0.046f));
+                paint.setColor(Color.rgb(190, 226, 229));
+                canvas.drawText("Denza Mirrors check", width / 2f, height * 0.56f, paint);
+            }
         }
 
         private static final class EdgeShadeView extends View {
@@ -579,13 +701,7 @@ public class AvcAidlDashActivity extends Activity {
         }
 
         private void writeStatusFile(String status) {
-            File statusFile = new File(getContext().getFilesDir(), "avc_aidl_status.txt");
-            try (FileOutputStream output = new FileOutputStream(statusFile, false)) {
-                output.write(status.getBytes(StandardCharsets.UTF_8));
-                output.write('\n');
-            } catch (IOException e) {
-                Log.i(TAG, "status file write failed", e);
-            }
+            AvcAidlDashActivity.writeStatus(getContext(), status);
         }
     }
 
