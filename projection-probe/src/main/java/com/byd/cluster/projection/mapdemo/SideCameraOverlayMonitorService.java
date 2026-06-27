@@ -418,7 +418,7 @@ public class SideCameraOverlayMonitorService extends Service {
                 : new Notification.Builder(this);
         return builder
                 .setSmallIcon(android.R.drawable.presence_video_online)
-                .setContentTitle("Dash Projection")
+                .setContentTitle(getString(R.string.app_name))
                 .setContentText(text)
                 .setOngoing(running)
                 .setContentIntent(contentIntent)
@@ -432,7 +432,7 @@ public class SideCameraOverlayMonitorService extends Service {
         }
         NotificationChannel channel = new NotificationChannel(
                 CHANNEL_ID,
-                "Dash Projection",
+                getString(R.string.app_name),
                 NotificationManager.IMPORTANCE_LOW);
         channel.setDescription("Side camera overlay monitor");
         getSystemService(NotificationManager.class).createNotificationChannel(channel);

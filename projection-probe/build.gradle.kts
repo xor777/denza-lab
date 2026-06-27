@@ -14,3 +14,11 @@ android {
         versionName = "0.1.0"
     }
 }
+
+androidComponents {
+    onVariants(selector().all()) { variant ->
+        variant.outputs.forEach { output ->
+            output.outputFileName.set("denza-mirrors-${variant.name}.apk")
+        }
+    }
+}

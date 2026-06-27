@@ -73,6 +73,7 @@ public class ProjectionProbeActivity extends Activity {
         appendLog("package=" + getPackageName());
         setPendingCommand(getIntent());
         if (pendingCommand == null) {
+            startMonitorFromUi("monitor auto-start requested");
             appendLog("ready");
         } else if (isMonitorCommand(pendingCommand)) {
             runPendingCommand();
@@ -86,7 +87,11 @@ public class ProjectionProbeActivity extends Activity {
         super.onNewIntent(intent);
         setIntent(intent);
         setPendingCommand(intent);
-        runPendingCommand();
+        if (pendingCommand == null) {
+            startMonitorFromUi("monitor auto-start requested");
+        } else {
+            runPendingCommand();
+        }
     }
 
     @Override
@@ -105,7 +110,7 @@ public class ProjectionProbeActivity extends Activity {
         root.setBackgroundColor(Color.rgb(5, 7, 10));
 
         TextView title = new TextView(this);
-        title.setText("Dash Projection");
+        title.setText("Denza Mirrors");
         title.setTextColor(Color.WHITE);
         title.setTextSize(26);
         title.setGravity(Gravity.START);
@@ -124,8 +129,7 @@ public class ProjectionProbeActivity extends Activity {
         ));
 
         row.addView(button("Start monitor", v -> {
-            SideCameraOverlayMonitorService.start(this);
-            appendLog("monitor start requested");
+            startMonitorFromUi("monitor start requested");
         }));
         row.addView(button("Stop monitor", v -> {
             SideCameraOverlayMonitorService.stop(this);
@@ -180,6 +184,11 @@ public class ProjectionProbeActivity extends Activity {
         return "start_monitor".equals(command) || "stop_monitor".equals(command);
     }
 
+    private void startMonitorFromUi(String logMessage) {
+        SideCameraOverlayMonitorService.start(this);
+        appendLog(logMessage);
+    }
+
     private void startProjection(int position, int type) {
         int result = transactProjection(TRANSACTION_START, position, type);
         appendLog("start position=" + position + " type=" + type + " result=" + result);
@@ -206,8 +215,7 @@ public class ProjectionProbeActivity extends Activity {
         } else if ("stop_all".equals(command)) {
             stopAll();
         } else if ("start_monitor".equals(command)) {
-            SideCameraOverlayMonitorService.start(this);
-            appendLog("monitor start requested");
+            startMonitorFromUi("monitor start requested");
         } else if ("stop_monitor".equals(command)) {
             SideCameraOverlayMonitorService.stop(this);
             appendLog("monitor stop requested");
