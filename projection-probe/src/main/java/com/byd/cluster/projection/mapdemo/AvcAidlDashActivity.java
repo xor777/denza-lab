@@ -71,7 +71,7 @@ public class AvcAidlDashActivity extends Activity {
                 intent.getIntExtra("center_extend_percent", DEFAULT_CENTER_EXTEND_PERCENT)));
         boolean overlayWindow = intent.getBooleanExtra("overlay_window", true);
         long durationMs = Math.max(1000L, intent.getLongExtra("duration_ms", DEFAULT_DURATION_MS));
-        Display display = findDisplay(requestedDisplayId);
+        Display display = findClusterDisplay(this, requestedDisplayId);
         if (display == null) {
             Log.i(TAG, "avc aidl display not found id=" + requestedDisplayId);
             finishAndRemoveTask();
@@ -182,8 +182,8 @@ public class AvcAidlDashActivity extends Activity {
         finishAndRemoveTask();
     }
 
-    private Display findDisplay(int requestedDisplayId) {
-        DisplayManager displayManager = (DisplayManager) getSystemService(Context.DISPLAY_SERVICE);
+    static Display findClusterDisplay(Context context, int requestedDisplayId) {
+        DisplayManager displayManager = (DisplayManager) context.getSystemService(Context.DISPLAY_SERVICE);
         if (displayManager == null) {
             return null;
         }
@@ -221,7 +221,7 @@ public class AvcAidlDashActivity extends Activity {
         return throwable.getClass().getSimpleName() + " " + message;
     }
 
-    private static final class AvcPresentation extends Presentation
+    static final class AvcPresentation extends Presentation
             implements SurfaceHolder.Callback, TextureView.SurfaceTextureListener {
         private final int viewpoint;
         private final boolean uTurnEnabled;

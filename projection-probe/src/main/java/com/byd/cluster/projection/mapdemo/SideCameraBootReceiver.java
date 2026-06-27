@@ -11,7 +11,7 @@ public class SideCameraBootReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context context, Intent intent) {
         if (intent != null
-                && Intent.ACTION_BOOT_COMPLETED.equals(intent.getAction())
+                && isRestartAction(intent.getAction())
                 && SideCameraOverlayMonitorService.isMonitorEnabled(context)) {
             try {
                 SideCameraOverlayMonitorService.start(context);
@@ -19,5 +19,12 @@ public class SideCameraBootReceiver extends BroadcastReceiver {
                 Log.i(TAG, "boot monitor start failed", e);
             }
         }
+    }
+
+    private static boolean isRestartAction(String action) {
+        return Intent.ACTION_BOOT_COMPLETED.equals(action)
+                || Intent.ACTION_MY_PACKAGE_REPLACED.equals(action)
+                || "android.intent.action.QUICKBOOT_POWERON".equals(action)
+                || "com.htc.intent.action.QUICKBOOT_POWERON".equals(action);
     }
 }

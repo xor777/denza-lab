@@ -12,6 +12,7 @@ import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
 import android.util.Log;
+import android.view.Display;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -33,6 +34,7 @@ public class SideCameraOverlayMonitorService extends Service {
     private static final String KEY_ENABLED = "enabled";
     private static final int NOTIFICATION_ID = 77;
     private static final long POLL_MS = 150L;
+    private static final long OVERLAY_RETRY_MS = 1500L;
     private static final int DISPLAY_ID = 4;
     private static final long OVERLAY_DURATION_MS = 300000L;
     private static final int CENTER_EXTEND_PERCENT = 20;
@@ -53,6 +55,13 @@ public class SideCameraOverlayMonitorService extends Service {
     private LocalAdbClient adbClient;
     private volatile boolean running;
     private String currentSide = "";
+    private final Runnable overlayTimeoutRunnable = () -> {
+        if (!currentSide.isEmpty()) {
+            stopOverlay("timeout");
+        }
+    };
+    private long lastOverlayFailureMs;
+    private String lastOverlayFailureSide = "";
     private boolean lastLeftVisible;
     private boolean lastRightVisible;
     private long lastErrorLogMs;
@@ -90,6 +99,15 @@ public class SideCameraOverlayMonitorService extends Service {
     public void onDestroy() {
         stopMonitor(false);
         super.onDestroy();
+    }
+
+    @Override
+    public void onTaskRemoved(Intent rootIntent) {
+        if (isMonitorEnabled(this)) {
+            moveToForeground("Running");
+            startMonitor();
+        }
+        super.onTaskRemoved(rootIntent);
     }
 
     private void startMonitor() {
@@ -148,11 +166,11 @@ public class SideCameraOverlayMonitorService extends Service {
             }
 
             if (leftVisible) {
-                mainHandler.post(() -> startOverlay("left"));
+                startOverlay("left");
             } else if (rightVisible) {
-                mainHandler.post(() -> startOverlay("right"));
+                startOverlay("right");
             } else if (!currentSide.isEmpty()) {
-                mainHandler.post(() -> stopOverlay("window hidden"));
+                stopOverlay("window hidden");
             }
         } catch (Exception e) {
             long now = System.currentTimeMillis();
@@ -215,28 +233,63 @@ public class SideCameraOverlayMonitorService extends Service {
             moveToForeground("Showing HUD " + side);
             return;
         }
-        Intent intent = new Intent(this, AvcAidlDashActivity.class);
-        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
-                | Intent.FLAG_ACTIVITY_SINGLE_TOP
-                | Intent.FLAG_ACTIVITY_CLEAR_TOP
-                | Intent.FLAG_ACTIVITY_NO_ANIMATION);
-        intent.putExtra("display_id", DISPLAY_ID);
-        intent.putExtra("duration_ms", OVERLAY_DURATION_MS);
-        intent.putExtra("center_extend_percent", CENTER_EXTEND_PERCENT);
-        intent.putExtra("overlay_window", true);
-        if ("left".equals(side)) {
-            intent.putExtra("viewpoint", 3205);
-            intent.putExtra("slot", "left");
-            intent.putExtra("crop_source", "left");
-        } else {
-            intent.putExtra("viewpoint", 3204);
-            intent.putExtra("slot", "right");
-            intent.putExtra("crop_source", "none");
+        if (!startDashActivity(side)) {
+            return;
         }
-        startActivity(intent);
         currentSide = side;
         setStatus("overlay start " + side);
         moveToForeground("Showing " + side);
+    }
+
+    private boolean startDashActivity(String side) {
+        long now = System.currentTimeMillis();
+        if (side.equals(lastOverlayFailureSide)
+                && now - lastOverlayFailureMs < OVERLAY_RETRY_MS) {
+            return false;
+        }
+
+        Display display = AvcAidlDashActivity.findClusterDisplay(this, DISPLAY_ID);
+        if (display == null) {
+            setStatus("overlay display not found id=" + DISPLAY_ID);
+            lastOverlayFailureMs = now;
+            lastOverlayFailureSide = side;
+            return false;
+        }
+
+        int viewpoint = "left".equals(side) ? 3205 : 3204;
+        String slot = "left".equals(side) ? "left" : "right";
+        String cropSource = "left".equals(side) ? "left" : "none";
+        try {
+            String output = adbClient.shell(buildDashActivityCommand(
+                    display.getDisplayId(), viewpoint, slot, cropSource, false));
+            Log.i(TAG, "dash activity shell start output=" + output.trim());
+            mainHandler.removeCallbacks(overlayTimeoutRunnable);
+            mainHandler.postDelayed(overlayTimeoutRunnable, OVERLAY_DURATION_MS);
+            lastOverlayFailureSide = "";
+            return true;
+        } catch (Exception e) {
+            Log.i(TAG, "dash activity start failed", e);
+            setStatus("overlay activity failed: " + shortError(e));
+            lastOverlayFailureMs = System.currentTimeMillis();
+            lastOverlayFailureSide = side;
+            moveToForeground("Overlay failed");
+            return false;
+        }
+    }
+
+    private String buildDashActivityCommand(int displayId, int viewpoint, String slot, String cropSource,
+            boolean finish) {
+        return "am start -W --display " + displayId
+                + " -n " + getPackageName() + "/.AvcAidlDashActivity"
+                + " --ei display_id " + DISPLAY_ID
+                + " --ei viewpoint " + viewpoint
+                + " --es slot " + slot
+                + " --es crop_source " + cropSource
+                + " --ei center_extend_percent " + CENTER_EXTEND_PERCENT
+                + " --ez overlay_window true"
+                + " --ez uturn false"
+                + " --el duration_ms " + OVERLAY_DURATION_MS
+                + " --ez " + AvcAidlDashActivity.EXTRA_FINISH + " " + finish;
     }
 
     private void startHudDiShareOverlay(String side) {
@@ -297,15 +350,16 @@ public class SideCameraOverlayMonitorService extends Service {
             moveToForeground("Running");
             return;
         }
-        boolean finished = AvcAidlDashActivity.finishActiveInstance();
-        if (!finished) {
-            Intent intent = new Intent(this, AvcAidlDashActivity.class);
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
-                    | Intent.FLAG_ACTIVITY_SINGLE_TOP
-                    | Intent.FLAG_ACTIVITY_CLEAR_TOP
-                    | Intent.FLAG_ACTIVITY_NO_ANIMATION);
-            intent.putExtra(AvcAidlDashActivity.EXTRA_FINISH, true);
-            startActivity(intent);
+        mainHandler.removeCallbacks(overlayTimeoutRunnable);
+        if (!AvcAidlDashActivity.finishActiveInstance()) {
+            try {
+                Display display = AvcAidlDashActivity.findClusterDisplay(this, DISPLAY_ID);
+                adbClient.shell(buildDashActivityCommand(
+                        display == null ? DISPLAY_ID : display.getDisplayId(),
+                        3205, "left", "left", true));
+            } catch (Exception e) {
+                Log.i(TAG, "dash activity shell finish failed", e);
+            }
         }
         setStatus("overlay stop " + stoppedSide + " reason=" + reason);
         moveToForeground("Running");
