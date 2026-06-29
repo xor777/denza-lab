@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+
+    <application
+        android:allowBackup="false"
+        android:icon="@drawable/ic_denza_mirrors"
+        android:label="@string/app_name"
+        android:roundIcon="@drawable/ic_denza_mirrors"
+        android:theme="@style/AppTheme">
+
+        <!-- ============================================================== -->
+        <!-- PRODUCT: dashboard side-camera enlargement (dev.denza.mirrors)  -->
+        <!-- ============================================================== -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <activity
+            android:name=".AvcAidlDashActivity"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:finishOnTaskLaunch="true"
+            android:launchMode="singleTop"
+            android:noHistory="true"
+            android:theme="@style/InvisibleTheme" />
+
+        <service
+            android:name=".SideCameraOverlayMonitorService"
+            android:exported="true"
+            android:foregroundServiceType="dataSync" />
+
+        <receiver
+            android:name=".SideCameraBootReceiver"
+            android:enabled="true"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+                <action android:name="com.htc.intent.action.QUICKBOOT_POWERON" />
+            </intent-filter>
+        </receiver>
+
+        <!-- ============================================================== -->
+        <!-- EXPERIMENTAL: research probes (dev.denza.mirrors.probe).        -->
+        <!-- Not a supported product path. See docs/side-camera-findings.md  -->
+        <!-- and docs/dishare-api-notes.md before relying on any of these.   -->
+        <!-- ============================================================== -->
+        <activity
+            android:name=".probe.MapViewActivity"
+            android:exported="true" />
+        <activity
+            android:name=".probe.MiniMapActivity"
+            android:exported="true" />
+        <activity
+            android:name=".probe.MapTbtActivity"
+            android:exported="true" />
+        <activity
+            android:name=".probe.ProjectionCommandActivity"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:finishOnTaskLaunch="true"
+            android:noHistory="true"
+            android:theme="@style/InvisibleTheme" />
+        <activity
+            android:name=".probe.DashPresentationActivity"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:finishOnTaskLaunch="true"
+            android:noHistory="true"
+            android:theme="@style/InvisibleTheme" />
+        <activity
+            android:name=".probe.DashCameraActivity"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:finishOnTaskLaunch="true"
+            android:noHistory="true"
+            android:theme="@style/InvisibleTheme" />
+        <activity
+            android:name=".probe.AvcTurnSignalMonitorActivity"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:finishOnTaskLaunch="true"
+            android:noHistory="true"
+            android:theme="@style/InvisibleTheme" />
+        <activity
+            android:name=".probe.AvcPipHookActivity"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:finishOnTaskLaunch="true"
+            android:launchMode="singleTop"
+            android:noHistory="true"
+            android:theme="@style/InvisibleTheme" />
+        <activity
+            android:name=".probe.DiShareProbeActivity"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:finishOnTaskLaunch="true"
+            android:noHistory="true"
+            android:theme="@style/InvisibleTheme" />
+        <activity
+            android:name=".probe.HudImageActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:theme="@style/AppTheme" />
+        <activity
+            android:name=".probe.HudDiShareActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:theme="@style/InvisibleTheme" />
+        <activity
+            android:name=".probe.HudSomeIpProbeActivity"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:finishOnTaskLaunch="true"
+            android:noHistory="true"
+            android:theme="@style/InvisibleTheme" />
+        <activity
+            android:name=".probe.MediaStreamProbeActivity"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:finishOnTaskLaunch="true"
+            android:noHistory="true"
+            android:theme="@style/InvisibleTheme" />
+
+        <service
+            android:name=".probe.ProjectionCommandService"
+            android:exported="true" />
+        <service
+            android:name=".probe.AvcTurnSignalMonitorService"
+            android:exported="true" />
+
+        <receiver
+            android:name=".probe.ProjectionCommandReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="dev.denza.mirrors.COMMAND" />
+            </intent-filter>
+        </receiver>
+
+        <receiver
+            android:name=".probe.DiShareProbeReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="dev.denza.mirrors.DISHARE_COMMAND" />
+            </intent-filter>
+        </receiver>
+    </application>
+</manifest>

@@ -16,6 +16,6 @@ dependencyResolutionManagement {
 
 rootProject.name = "denza-gateway"
 include(":denza-gateway")
-include(":projection-probe")
+include(":denza-mirrors")
 include(":dishare-bridge")
 include(":denza-apps")
