@@ -6,6 +6,7 @@ import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
+import android.net.Uri;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.text.TextUtils;
@@ -19,6 +20,7 @@ public class MainActivity extends Activity {
     private static final String DISHARE_PACKAGE = "com.byd.dishare";
 
     private Button toggleButton;
+    private Button overlayPermissionButton;
     private Button accessibilityButton;
     private TextView statusText;
     private TextView errorText;
@@ -29,20 +31,21 @@ public class MainActivity extends Activity {
         super.onCreate(savedInstanceState);
         enabled = SimulcastIntegration.isEnabled(this);
         setContentView(buildContent());
-        if (enabled) {
-            SourceKeeperService.start(this);
+        String startupError = enabled ? diagnoseStartError() : null;
+        if (startupError != null) {
+            SimulcastIntegration.setEnabled(this, false);
+            SimulcastOverlayService.stopCurrent(this);
+            enabled = false;
+        } else if (enabled) {
             SimulcastOverlayService.startMonitor(this);
         }
-        refreshUi(null);
+        refreshUi(startupError);
     }
 
     @Override
     protected void onResume() {
         super.onResume();
         enabled = SimulcastIntegration.isEnabled(this);
-        if (enabled) {
-            SourceKeeperService.start(this);
-        }
         refreshUi(null);
         SimulcastOverlayService.hide(this);
     }
@@ -50,13 +53,11 @@ public class MainActivity extends Activity {
     @Override
     protected void onPause() {
         super.onPause();
-        if (SimulcastIntegration.isEnabled(this)) {
-            SourceKeeperService.start(this);
-            // The Simulcast picker overlay is drawn by SimulcastAccessibilityService;
-            // here we only keep the active-share exit button alive.
-            if (SimulcastIntegration.getLastTargetPackage(this) != null) {
-                SimulcastOverlayService.showActiveExit(this);
-            }
+        // The Simulcast picker overlay is drawn by SimulcastAccessibilityService;
+        // here we only keep the active-share exit button alive.
+        if (SimulcastIntegration.isEnabled(this)
+                && SimulcastIntegration.getLastTargetPackage(this) != null) {
+            SimulcastOverlayService.showActiveExit(this);
         }
     }
 
@@ -118,11 +119,25 @@ public class MainActivity extends Activity {
         errorParams.topMargin = dp(12);
         root.addView(errorText, errorParams);
 
+        overlayPermissionButton = new Button(this);
+        overlayPermissionButton.setAllCaps(false);
+        overlayPermissionButton.setTextSize(22);
+        overlayPermissionButton.setTextColor(Color.WHITE);
+        overlayPermissionButton.setText("Разрешить поверх окон");
+        overlayPermissionButton.setBackground(round(Color.rgb(46, 70, 92), dp(10)));
+        overlayPermissionButton.setOnClickListener(view -> openOverlaySettings());
+        LinearLayout.LayoutParams overlayParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, dp(96));
+        overlayParams.leftMargin = dp(32);
+        overlayParams.rightMargin = dp(32);
+        overlayParams.topMargin = dp(28);
+        root.addView(overlayPermissionButton, overlayParams);
+
         accessibilityButton = new Button(this);
         accessibilityButton.setAllCaps(false);
         accessibilityButton.setTextSize(22);
         accessibilityButton.setTextColor(Color.WHITE);
-        accessibilityButton.setText("Включить наложение Simulcast");
+        accessibilityButton.setText("Включить спец. возможности");
         accessibilityButton.setBackground(round(Color.rgb(46, 70, 92), dp(10)));
         accessibilityButton.setOnClickListener(view -> openAccessibilitySettings());
         LinearLayout.LayoutParams a11yParams = new LinearLayout.LayoutParams(
@@ -133,6 +148,10 @@ public class MainActivity extends Activity {
         root.addView(accessibilityButton, a11yParams);
 
         return root;
+    }
+
+    private boolean hasOverlayPermission() {
+        return Settings.canDrawOverlays(this);
     }
 
     private boolean isAccessibilityEnabled() {
@@ -155,6 +174,22 @@ public class MainActivity extends Activity {
         }
     }
 
+    private void openOverlaySettings() {
+        Intent intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                Uri.parse("package:" + getPackageName()))
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        try {
+            startActivity(intent);
+        } catch (RuntimeException e) {
+            try {
+                startActivity(new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+            } catch (RuntimeException ignored) {
+                refreshUi("Откройте настройки и разрешите Denza Apps поверх окон");
+            }
+        }
+    }
+
     private void toggle() {
         if (enabled) {
             stopIntegration();
@@ -168,7 +203,6 @@ public class MainActivity extends Activity {
         if (error != null) {
             SimulcastIntegration.setEnabled(this, false);
             enabled = false;
-            SourceKeeperService.stop(this);
             SimulcastOverlayService.stopCurrent(this);
             refreshUi(error);
             return;
@@ -176,7 +210,6 @@ public class MainActivity extends Activity {
 
         SimulcastIntegration.setEnabled(this, true);
         enabled = true;
-        SourceKeeperService.start(this);
         SimulcastOverlayService.startMonitor(this);
         refreshUi(null);
     }
@@ -186,7 +219,6 @@ public class MainActivity extends Activity {
         SimulcastIntegration.clearLastTargetPackage(this);
         enabled = false;
         SimulcastOverlayService.stopCurrent(this);
-        SourceKeeperService.stop(this);
         refreshUi(null);
     }
 
@@ -194,15 +226,16 @@ public class MainActivity extends Activity {
         if (!isInstalled(DISHARE_PACKAGE)) {
             return "Simulcast не найден";
         }
-        if (!Settings.canDrawOverlays(this)) {
+        if (!hasOverlayPermission()) {
             return "Нет разрешения поверх окон";
         }
         if (SimulcastApps.getSelected(this).isEmpty()) {
             return "Выберите приложения для трансляции";
         }
-        if (installedCount(SourceKeeperService.SLOT_PACKAGES) == 0) {
-            return "Не установлены слоты Simulcast";
-        }
+        // Note: we intentionally do NOT require the Chinese "slot" packages to be
+        // installed. The native App Change row is populated from DiShare's own cloud
+        // metadata, and casting goes straight through the bridge — so a fresh car with
+        // only Russian apps can still enable Simulcast.
         return null;
     }
 
@@ -224,6 +257,14 @@ public class MainActivity extends Activity {
         }
 
         errorText.setText(error == null ? "" : error);
+
+        if (overlayPermissionButton != null) {
+            boolean needOverlay = !hasOverlayPermission();
+            overlayPermissionButton.setVisibility(needOverlay ? View.VISIBLE : View.GONE);
+            if (needOverlay) {
+                statusText.setText("Разрешите Denza Apps показывать окна поверх других приложений.");
+            }
+        }
 
         if (accessibilityButton != null) {
             boolean needA11y = enabled && !isAccessibilityEnabled();

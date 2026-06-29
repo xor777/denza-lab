@@ -142,10 +142,6 @@ public class AppPickerActivity extends Activity {
         SimulcastApps.setSelected(this, selected);
         applyTileStyle(ref);
         updateCounter();
-        // Keep the reserved native slot count in sync with the selection.
-        if (SimulcastIntegration.isEnabled(this)) {
-            SourceKeeperService.start(this);
-        }
     }
 
     private void applyTileStyle(TileRef ref) {

@@ -131,6 +131,17 @@ adb logcat -v time -s DenzaDiShareProbe DiShareControlImpl PackageValidator
 
 ## Simulcast App Change alias path
 
+> SUPERSEDED (2026-06-28). The sections below (alias APKs, `SourceKeeperService`,
+> FLAG_NOT_TOUCHABLE overlay, native-metadata injection) are kept as history. The
+> shipping path is now an **AccessibilityService** (`SimulcastAccessibilityService`)
+> that reads the live DiShare `ShareDialogActivity` node bounds and erases+redraws
+> the App Change row + central preview with the user's chosen apps; casting goes
+> straight through `DiShareProjectionBridge` at `2560x1440`. No alias APKs, no
+> `SourceKeeperService`, no metadata injection. Key gotcha: BYD firmware force-dims
+> `FLAG_NOT_TOUCHABLE` overlays to alpha 0.8 (ignoring explicit alpha), so the
+> opaque cover plate must be a **touchable** window. The native row comes from
+> DiShare's own cloud metadata, so it appears even without our registrations.
+
 Date/context: 2026-06-28, car package `com.byd.dishare`
 `1.5.1.1.23102ef`.
 

@@ -10,19 +10,16 @@ import java.util.List;
 /**
  * The user's chosen casting apps for Simulcast. denza-apps can be installed on any
  * car with any app set, so the row is configurable instead of hard-coded. The
- * overlay paints these over the native row (in order) and the slot registration in
- * {@link SourceKeeperService} reserves exactly this many native slots, so the row
- * looks fully native with no leftover stock icons.
+ * accessibility overlay erases the native App Change row and paints these over it
+ * (in order), so the row looks fully native with no stock icons — no helper APKs or
+ * slot registrations required.
  */
 final class SimulcastApps {
     private static final String PREFS = "simulcast_apps";
     private static final String KEY_SELECTED = "selected_packages";
 
-    /**
-     * Max apps in the row. Bounded by how many native slots we can reserve
-     * ({@link SourceKeeperService#SLOT_PACKAGES}).
-     */
-    static final int MAX_SELECTED = SourceKeeperService.SLOT_PACKAGES.length;
+    /** Max apps in the row (the native row comfortably fits this many). */
+    static final int MAX_SELECTED = 6;
 
     /** Preferred defaults, in row order. Filtered to whatever is installed. */
     static final String[] DEFAULT_PREFERRED = {

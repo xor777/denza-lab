@@ -5,52 +5,33 @@ import android.content.Context;
 import android.content.Intent;
 import android.util.Log;
 
+/**
+ * Forwards DiShare dialog broadcasts (to keep the floating exit control in sync) and
+ * the debug start/stop actions to {@link SimulcastOverlayService}. The Simulcast
+ * picker overlay itself runs from {@link SimulcastAccessibilityService}.
+ */
 public class SimulcastBootReceiver extends BroadcastReceiver {
     private static final String TAG = "DenzaSimulcastBoot";
-    private static final String ACTION_DISHARE_DIALOG_HOME = "action.byd.dishare.DIALOG_HOME";
-    private static final String ACTION_DISHARE_DIALOG_LAUNCHER =
-            "action.byd.dishare.DIALOG_LAUNCHER";
-    private static final String ACTION_DISHARE_DIALOG_CLOSE =
-            "action.byd.dishare.DIALOG_CLOSE";
 
     @Override
     public void onReceive(Context context, Intent intent) {
         String action = intent == null ? null : intent.getAction();
+        if (action == null) {
+            return;
+        }
         Log.i(TAG, "action=" + action);
         boolean enabled = SimulcastIntegration.isEnabled(context);
-        if (enabled) {
-            SourceKeeperService.start(context);
-        }
 
-        if (ACTION_DISHARE_DIALOG_HOME.equals(action)
-                || ACTION_DISHARE_DIALOG_LAUNCHER.equals(action)
-                || ACTION_DISHARE_DIALOG_CLOSE.equals(action)) {
+        if (SimulcastOverlayService.ACTION_DISHARE_DIALOG_HOME.equals(action)
+                || SimulcastOverlayService.ACTION_DISHARE_DIALOG_LAUNCHER.equals(action)
+                || SimulcastOverlayService.ACTION_DISHARE_DIALOG_CLOSE.equals(action)) {
             if (enabled) {
                 forwardToOverlay(context, action, intent);
             }
             return;
         }
-        if (SimulcastOverlayService.ACTION_HIDE.equals(action)) {
-            forwardToOverlay(context, action, intent);
-            return;
-        }
-        if (SimulcastOverlayService.ACTION_ARM_APP_CHANGE.equals(action)) {
-            if (enabled) {
-                forwardToOverlay(context, action, intent);
-            }
-            return;
-        }
-        if (SimulcastOverlayService.ACTION_STOP_CURRENT.equals(action)) {
-            forwardToOverlay(context, action, intent);
-            return;
-        }
-        if (SimulcastOverlayService.ACTION_SHOW.equals(action)) {
-            if (enabled) {
-                forwardToOverlay(context, action, intent);
-            }
-            return;
-        }
-        if (SimulcastOverlayService.ACTION_START_TARGET.equals(action)) {
+        if (SimulcastOverlayService.ACTION_START_TARGET.equals(action)
+                || SimulcastOverlayService.ACTION_STOP_CURRENT.equals(action)) {
             forwardToOverlay(context, action, intent);
         }
     }

@@ -45,9 +45,13 @@ final class SimulcastDialogGeometry {
         this.appSlots = appSlots;
     }
 
-    /** True when the native app row is on screen (user pressed App Change). */
+    /**
+     * True when the native app row is on screen (user pressed App Change). Detected by
+     * the App Change button being gone and the row container present — NOT by the
+     * scrollable {@code app_icon} children, whose bounds change as the row scrolls.
+     */
     boolean isAppPickerOpen() {
-        return !appSlots.isEmpty();
+        return appList != null && appChangeButton == null;
     }
 
     /**
@@ -56,6 +60,8 @@ final class SimulcastDialogGeometry {
      * we only re-apply when DiShare's geometry actually changes.
      */
     boolean sameAs(SimulcastDialogGeometry other) {
+        // Deliberately excludes appSlots: those scroll within the container and would
+        // otherwise make our row recompute (jump/resize) on every native scroll event.
         return other != null
                 && equalRect(dialog, other.dialog)
                 && equalRect(central, other.central)
@@ -63,8 +69,7 @@ final class SimulcastDialogGeometry {
                 && equalRect(fse, other.fse)
                 && equalRect(appChangeButton, other.appChangeButton)
                 && equalRect(close, other.close)
-                && equalRect(appList, other.appList)
-                && appSlots.equals(other.appSlots);
+                && equalRect(appList, other.appList);
     }
 
     private static boolean equalRect(Rect a, Rect b) {

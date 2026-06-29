@@ -2,21 +2,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- QUERY_ALL_PACKAGES lets the app picker list every installed app on any car
+         and resolve icons/labels for the chosen casting apps. -->
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
-
-    <queries>
-        <package android:name="com.byd.dishare" />
-        <package android:name="com.vk.vkvideo" />
-        <package android:name="ru.rutube.app" />
-        <package android:name="ru.yandex.yandexnavi" />
-        <package android:name="ru.yandex.music" />
-        <package android:name="com.tencent.qqlive.audiobox" />
-        <package android:name="com.mgtv.auto" />
-        <package android:name="cn.cmvideo.car.play" />
-        <package android:name="com.youku.car" />
-        <package android:name="com.tencent.qqlive" />
-        <package android:name="com.qiyi.video.pad" />
-    </queries>
 
     <application
         android:allowBackup="false"
@@ -24,9 +12,6 @@
         android:label="@string/app_name"
         android:roundIcon="@drawable/ic_denza_apps"
         android:theme="@style/DenzaAppsTheme">
-        <service
-            android:name=".SourceKeeperService"
-            android:exported="true" />
         <service
             android:name=".SimulcastAccessibilityService"
             android:exported="true"
@@ -42,9 +27,6 @@
             android:name=".SimulcastOverlayService"
             android:exported="true">
             <intent-filter>
-                <action android:name="dev.denza.apps.SHOW_SIMULCAST_OVERLAY" />
-                <action android:name="dev.denza.apps.ARM_SIMULCAST_APP_CHANGE" />
-                <action android:name="dev.denza.apps.HIDE_SIMULCAST_OVERLAY" />
                 <action android:name="dev.denza.apps.START_SIMULCAST_TARGET" />
                 <action android:name="dev.denza.apps.STOP_SIMULCAST_TARGET" />
             </intent-filter>
@@ -62,9 +44,6 @@
                 <action android:name="action.byd.dishare.DIALOG_HOME" />
                 <action android:name="action.byd.dishare.DIALOG_LAUNCHER" />
                 <action android:name="action.byd.dishare.DIALOG_CLOSE" />
-                <action android:name="dev.denza.apps.SHOW_SIMULCAST_OVERLAY" />
-                <action android:name="dev.denza.apps.ARM_SIMULCAST_APP_CHANGE" />
-                <action android:name="dev.denza.apps.HIDE_SIMULCAST_OVERLAY" />
                 <action android:name="dev.denza.apps.START_SIMULCAST_TARGET" />
                 <action android:name="dev.denza.apps.STOP_SIMULCAST_TARGET" />
             </intent-filter>
