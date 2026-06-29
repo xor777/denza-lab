@@ -1,8 +1,8 @@
 .gradle/
 /build/
 **/build/
-/app/build/
-/projection-probe/build/
+/denza-gateway/build/
+/denza-mirrors/build/
 /dist/
 /captures/
 /reverse/
