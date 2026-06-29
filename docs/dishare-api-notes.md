@@ -129,7 +129,7 @@ Watch logs with:
 adb logcat -v time -s DenzaDiShareProbe DiShareControlImpl PackageValidator
 ```
 
-## Simulcast App Change alias path
+## Historical Simulcast App Change alias path
 
 > SUPERSEDED (2026-06-28). The sections below (alias APKs, `SourceKeeperService`,
 > FLAG_NOT_TOUCHABLE overlay, native-metadata injection) are kept as history. The
@@ -159,14 +159,16 @@ Normal shell access cannot write the DiShare cache:
 - `run-as com.byd.dishare` fails because the package is not a debug app
 - the DynaConfig provider can be queried, but insert/update paths are no-op
 
-Practical consequence: the native App Change row can expose whitelisted slots,
-but their visual name/icon may remain the stock Chinese/cloud entry. The current
-working path maps those slots to Russian target apps behind the scenes.
+Practical consequence found during that investigation: the native App Change row
+can expose whitelisted slots, but their visual name/icon may remain the stock
+Chinese/cloud entry. This is no longer the product solution; the current product
+path covers the native row at the accessibility/UI layer and starts selected
+apps directly through `DiShareProjectionBridge`.
 
-Working implementation:
+Historical implementation (not the current product path):
 
-- `denza-apps` starts `SourceKeeperService`, which registers source-only DiShare
-  clients for known whitelisted package names.
+- The old `denza-apps` implementation started `SourceKeeperService`, which
+  registered source-only DiShare clients for known whitelisted package names.
 - `research/simulcast-aliases/launcher` builds tiny APKs that occupy those package names.
 - When native Simulcast starts an alias inside `BYD-Mirror`, the alias calls
   `DiShareProjectionBridge` to start the real Russian target package through the
@@ -331,9 +333,10 @@ tools/dishare_overlay_receiver_test.sh com.vk.vkvideo screen_hud
 tools/dishare_overlay_receiver_test.sh ru.rutube.app screen_fse
 ```
 
-The older `FLAG_NOT_TOUCHABLE` overlay plus `research/simulcast-aliases/launcher` path is
-kept as a useful fallback/research path, but it cannot produce a native-looking
-drag preview because the native Simulcast UI draws its own stock/Chinese icon.
+The older `FLAG_NOT_TOUCHABLE` overlay plus `research/simulcast-aliases/launcher`
+path is parked as fallback/research history. It is not part of the normal
+`denza-apps` install/build flow and cannot produce a native-looking drag preview
+because the native Simulcast UI draws its own stock/Chinese icon.
 
 Known caveats:
 

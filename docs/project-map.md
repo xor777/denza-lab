@@ -26,6 +26,22 @@ library, plus research/tooling areas. Directory names match product names.
 | `research/` | Code that is not built into product APKs (parked experiments, deprecated modules). | Keep failed or permission-blocked probes here, not in app source. Includes `research/simulcast-aliases/` (deprecated) and `research/vehicle-events/` (parked probe). |
 | `reverse/` | Local reverse-engineering input/output, often large. | APKs and extracted binaries must stay untracked. |
 
+## Source Of Truth
+
+Use the code layout as the source of truth for current behavior:
+
+- Gradle modules live in `settings.gradle.kts`.
+- App ids, exported components, and product/probe grouping live in each
+  `AndroidManifest.xml`.
+- Package boundaries (`dev.denza.mirrors` vs `dev.denza.mirrors.probe`) define
+  product vs on-device research code.
+- Docs explain direction and durable findings. If docs disagree with code, fix
+  the closest existing doc instead of adding another status file.
+
+`reverse/` is an untracked local workbench. Keep raw APKs, JADX outputs, captures,
+and extracted binaries there; move only distilled, reusable conclusions into the
+nearest existing doc.
+
 ## Where experiments live
 
 On-car experiments ("poking the car") have a defined home so they don't leak

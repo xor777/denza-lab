@@ -51,7 +51,10 @@ export ANDROID_HOME=/opt/homebrew/share/android-commandlinetools
 - Product apps share car-access code only via `:dishare-bridge`.
 - New "poke the car" code goes to `tools/` (host) or a `…​.probe` package
   (on-device), never into a product package.
-- Record durable findings in `docs/`, not only in chat. Parked code → `research/`.
+- Code, manifests, and Gradle files are the source of truth for current behavior.
+  Docs should map the repo and record verified findings, not duplicate the code.
+- Record durable findings in the closest existing doc, not only in chat. Create a
+  new `.md` only when the topic has a durable owner. Parked code → `research/`.
 - Never commit APKs, reverse-engineered APKs, or large extracted binaries
   (`reverse/`, `captures/`, build outputs are git-ignored).
 - Treat `com.byd.avc` crashes as a hard stop; capture `logcat -b crash -v time`.

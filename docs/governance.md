@@ -40,6 +40,9 @@ Rules:
 
 Record durable knowledge in the repo, not only in chat.
 
+Code is the source of truth for current structure and behavior. Keep docs as
+navigation and evidence, not as a second implementation model:
+
 - Product behavior and user-facing workflows: update `README.md` or a focused doc
   under `docs/`.
 - Reverse-engineering findings: update `docs/*notes*.md`.
@@ -48,6 +51,9 @@ Record durable knowledge in the repo, not only in chat.
   README explaining why it is not built.
 - One-off host scripts: keep under `tools/` and state whether they are production
   candidates or probes.
+- Prefer updating the closest existing doc over creating a new `.md`. Create a
+  new doc only when the topic has a durable owner and would otherwise make an
+  existing file hard to scan.
 
 Every durable note should include:
 
