@@ -9,7 +9,7 @@ library, plus research/tooling areas. Directory names match product names.
 | --- | --- | --- | --- |
 | `denza-gateway/` | `denza-gateway` | SSH gateway from the car LAN to local ADB endpoints on the head unit. | Product app. Keep changes conservative and test with unit tests. |
 | `denza-mirrors/` | `denza-mirrors` | Driver-display side-camera enlargement for turn-signal camera windows. | Prototype/product app. Product code lives in `dev.denza.mirrors`; research probes are isolated in `dev.denza.mirrors.probe`. |
-| `denza-apps/` | `denza-apps` | Head app for Denza features. Adds Russian apps to the native Simulcast App Change row via an accessibility overlay, with a configurable app picker. | Prototype app. Self-contained: only this APK + overlay permission + enabling its accessibility service are needed on any car. |
+| `denza-apps/` | `denza-apps` | Head app for Denza features. Adds Russian apps to the native Simulcast App Change row via an accessibility overlay, with a configurable app picker. | Prototype app. Self-contained: only this APK + in-app local ADB setup after key authorization are needed on any car; the app grants overlay app-op and enables its accessibility service itself. |
 
 ## Shared Android Modules
 
@@ -96,7 +96,7 @@ Research package `dev.denza.mirrors.probe` (not product; promote before relying)
 
 | Component | Status |
 | --- | --- |
-| `MainActivity` | Start/Stop control plus "Выбрать приложения", overlay-permission and accessibility-enable buttons. |
+| `MainActivity` | Start/Stop control plus "Выбрать приложения"; in-app local-ADB setup grants overlay app-op and enables the Simulcast accessibility service. |
 | `AppPickerActivity` | App selection UI — a horizontal slider of all installed apps; tap to mark up to 6 for casting. Defaults to installed-subset of VK Video / Rutube / Kinopoisk / Yandex Navi / VLC / YouTube. |
 | `SimulcastApps` | Persists the chosen casting packages (prefs) and seeds defaults. |
 | `SimulcastAccessibilityService` | Active visual path. Watches the native DiShare `ShareDialogActivity` via accessibility, reads live node bounds, and erases+redraws the App Change row + central preview with the chosen Russian apps; drag → launch through `dishare-bridge`. |
@@ -110,6 +110,7 @@ Research package `dev.denza.mirrors.probe` (not product; promote before relying)
 | --- | --- |
 | `DiShareProjectionBridge` | Active raw binder wrapper for DiShare API/control services. Casts are launched at `2560x1440` so the app renders at native resolution (not the old `1024x576`). |
 | `DiShareScreens` | Screen-discovery wrapper for `getScreens` (available receivers). |
+| `LocalAdbClient`, `AdbKeyStore` | Shared `adbd` shell client for app-side provisioning commands after the user authorizes the generated ADB key. Tries loopback first, then local non-loopback IPv4 addresses because some firmwares expose ADB on WLAN but not `127.0.0.1`. |
 
 ### `research/simulcast-aliases/` (deprecated)
 

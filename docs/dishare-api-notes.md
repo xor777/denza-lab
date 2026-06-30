@@ -290,6 +290,27 @@ Current no-root custom drag approach:
 
 Live verification:
 
+- 2026-06-30 clean-car provisioning follow-up:
+  - the failure mode was `dev.denza.apps` missing from
+    `enabled_accessibility_services`; overlay app-op was already `allow`, but the
+    custom Russian row cannot render until `SimulcastAccessibilityService` is
+    enabled;
+  - `denza-apps` self-repair now uses its generated ADB key to grant
+    `SYSTEM_ALERT_WINDOW` and add
+    `dev.denza.apps/dev.denza.apps.SimulcastAccessibilityService` to secure
+    accessibility settings;
+  - on this car `127.0.0.1:5555` refused local ADB, while the WLAN address
+    `192.168.88.204:5555` worked, so the shared `LocalAdbClient` tries loopback
+    first and then local non-loopback IPv4 addresses;
+  - after installing the APK and pressing Start, the app enabled its own
+    accessibility service, the service was bound by system, and pressing native
+    App Change produced `dev.denza.apps` `SYSTEM_ALERT_WINDOW` overlay windows
+    with the VK/Rutube/Yandex Navi/VLC row visible over DiShare.
+- 2026-06-30 follow-up: the accessibility service now detects the visible native
+  App Change button and draws the Russian row over that area immediately, without
+  clicking the native button. The central source preview overlay also extends
+  lower to cover the native selected-app highlight that was visible as a pink
+  Bilibili edge.
 - 2026-06-28: `captures/simulcast-russian-overlay-preview-wide.png` shows the
   custom Russian row and VK Video selected preview covering the native stock
   App Change row/preview.

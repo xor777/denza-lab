@@ -46,12 +46,12 @@ final class SimulcastDialogGeometry {
     }
 
     /**
-     * True when the native app row is on screen (user pressed App Change). Detected by
-     * the App Change button being gone and the row container present — NOT by the
-     * scrollable {@code app_icon} children, whose bounds change as the row scrolls.
+     * True when there is a stable on-screen area for the custom app picker. If native
+     * App Change is already open this is the real row container; otherwise it is a
+     * synthetic row area derived from the visible App Change button.
      */
     boolean isAppPickerOpen() {
-        return appList != null && appChangeButton == null;
+        return appList != null;
     }
 
     /**
@@ -102,15 +102,29 @@ final class SimulcastDialogGeometry {
             return null;
         }
         List<Rect> slots = allNodeBounds(root, "app_icon");
+        Rect appChangeButton = nodeBounds(root, "switch_share_app");
+        Rect appList = nodeBounds(root, "app_list");
+        if (appList == null && appChangeButton != null) {
+            appList = appListFromButton(appChangeButton);
+        }
         return new SimulcastDialogGeometry(
                 dialog,
                 nodeBounds(root, "central_screen"),
                 nodeBounds(root, "ar_hud_screen"),
                 nodeBounds(root, "fse_screen"),
-                nodeBounds(root, "switch_share_app"),
+                appChangeButton,
                 nodeBounds(root, "close"),
-                nodeBounds(root, "app_list"),
+                appList,
                 slots);
+    }
+
+    private static Rect appListFromButton(Rect button) {
+        int width = Math.round(button.width() * 2.0f);
+        int height = Math.round(button.height() * 1.5f);
+        int centerX = button.centerX();
+        int centerY = button.centerY() - Math.round(button.height() * 0.4f);
+        return new Rect(centerX - width / 2, centerY - height / 2,
+                centerX + width / 2, centerY + height / 2);
     }
 
     private static Rect nodeBounds(AccessibilityNodeInfo root, String id) {

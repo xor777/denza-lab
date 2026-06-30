@@ -250,9 +250,10 @@ public class SimulcastAccessibilityService extends AccessibilityService {
             // visible) so the stock preview is replaced by the selected app's icon.
             Rect c = geo.central;
             int insetX = Math.round(c.width() * 0.065f);
-            int insetY = Math.round(c.height() * 0.10f);
-            centralIconBounds = new Rect(c.left + insetX, c.top + insetY,
-                    c.right - insetX, c.bottom - insetY);
+            int topInset = Math.round(c.height() * 0.10f);
+            int bottomInset = Math.round(c.height() * 0.03f);
+            centralIconBounds = new Rect(c.left + insetX, c.top + topInset,
+                    c.right - insetX, c.bottom - bottomInset);
         }
     }
 

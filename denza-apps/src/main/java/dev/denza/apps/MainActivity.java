@@ -16,15 +16,26 @@ import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
+import dev.denza.disharebridge.LocalAdbClient;
+
+import java.security.GeneralSecurityException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
 public class MainActivity extends Activity {
     private static final String DISHARE_PACKAGE = "com.byd.dishare";
+    private static final String ADB_KEY_COMMENT = "denza-apps@denza";
+    private static final String ACCESSIBILITY_COMPONENT =
+            "dev.denza.apps/dev.denza.apps.SimulcastAccessibilityService";
 
+    private final ExecutorService setupExecutor = Executors.newSingleThreadExecutor();
     private Button toggleButton;
     private Button overlayPermissionButton;
     private Button accessibilityButton;
     private TextView statusText;
     private TextView errorText;
     private boolean enabled;
+    private boolean setupRunning;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -59,6 +70,12 @@ public class MainActivity extends Activity {
                 && SimulcastIntegration.getLastTargetPackage(this) != null) {
             SimulcastOverlayService.showActiveExit(this);
         }
+    }
+
+    @Override
+    protected void onDestroy() {
+        setupExecutor.shutdownNow();
+        super.onDestroy();
     }
 
     private LinearLayout buildContent() {
@@ -125,7 +142,7 @@ public class MainActivity extends Activity {
         overlayPermissionButton.setTextColor(Color.WHITE);
         overlayPermissionButton.setText("Разрешить поверх окон");
         overlayPermissionButton.setBackground(round(Color.rgb(46, 70, 92), dp(10)));
-        overlayPermissionButton.setOnClickListener(view -> openOverlaySettings());
+        overlayPermissionButton.setOnClickListener(view -> repairAppSetup(false, null));
         LinearLayout.LayoutParams overlayParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, dp(96));
         overlayParams.leftMargin = dp(32);
@@ -139,7 +156,7 @@ public class MainActivity extends Activity {
         accessibilityButton.setTextColor(Color.WHITE);
         accessibilityButton.setText("Включить спец. возможности");
         accessibilityButton.setBackground(round(Color.rgb(46, 70, 92), dp(10)));
-        accessibilityButton.setOnClickListener(view -> openAccessibilitySettings());
+        accessibilityButton.setOnClickListener(view -> repairAppSetup(true, null));
         LinearLayout.LayoutParams a11yParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, dp(96));
         a11yParams.leftMargin = dp(32);
@@ -174,20 +191,112 @@ public class MainActivity extends Activity {
         }
     }
 
-    private void openOverlaySettings() {
+    private void repairAppSetup(boolean includeAccessibility, Runnable afterSuccess) {
+        if (setupRunning) {
+            return;
+        }
+        setupRunning = true;
+        refreshUi(null);
+        setupExecutor.execute(() -> {
+            Exception failure = null;
+            try {
+                LocalAdbClient adbClient = new LocalAdbClient(
+                        getApplicationContext(), ADB_KEY_COMMENT);
+                adbClient.shell(buildRepairCommand(includeAccessibility));
+            } catch (Exception e) {
+                failure = e;
+            }
+
+            Exception finalFailure = failure;
+            runOnUiThread(() -> {
+                setupRunning = false;
+                if (finalFailure == null && hasOverlayPermission()
+                        && (!includeAccessibility || isAccessibilityEnabled())) {
+                    refreshUi(null);
+                    if (afterSuccess != null) {
+                        afterSuccess.run();
+                    }
+                    return;
+                }
+                if (finalFailure == null) {
+                    refreshUi("ADB-команда выполнена, но настройка пока не видна. Нажмите ещё раз.");
+                    return;
+                }
+
+                String error = friendlySetupError(finalFailure);
+                if (!includeAccessibility
+                        && shouldTrySystemSettings(finalFailure)
+                        && tryOpenOverlaySettings()) {
+                    refreshUi(error + " Если открылся системный экран, разрешите вручную.");
+                } else if (includeAccessibility && shouldTrySystemSettings(finalFailure)) {
+                    openAccessibilitySettings();
+                    refreshUi(error + " Если открылся системный экран, включите вручную.");
+                } else {
+                    refreshUi(error);
+                }
+            });
+        });
+    }
+
+    private String buildRepairCommand(boolean includeAccessibility) {
+        String packageName = getPackageName();
+        StringBuilder command = new StringBuilder();
+        command.append("cmd appops set ").append(shellQuote(packageName))
+                .append(" SYSTEM_ALERT_WINDOW allow");
+        if (includeAccessibility) {
+            command.append("; svc=").append(shellQuote(ACCESSIBILITY_COMPONENT))
+                    .append("; current=\"$(settings get secure enabled_accessibility_services)\"")
+                    .append("; if [ \"$current\" = \"null\" ] || [ -z \"$current\" ]; then ")
+                    .append("next=\"$svc\"; ")
+                    .append("else case \":$current:\" in *\":$svc:\"*) ")
+                    .append("next=\"$current\";; *) next=\"$current:$svc\";; esac; fi")
+                    .append("; settings put secure enabled_accessibility_services \"$next\"")
+                    .append("; settings put secure accessibility_enabled 1");
+        }
+        return command.toString();
+    }
+
+    private boolean tryOpenOverlaySettings() {
         Intent intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
                 Uri.parse("package:" + getPackageName()))
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         try {
             startActivity(intent);
+            return true;
         } catch (RuntimeException e) {
             try {
                 startActivity(new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION)
                         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+                return true;
             } catch (RuntimeException ignored) {
-                refreshUi("Откройте настройки и разрешите Denza Apps поверх окон");
+                return false;
             }
         }
+    }
+
+    private String friendlySetupError(Exception e) {
+        String message = nullToEmpty(e.getMessage());
+        if (message.contains("authorization pending")) {
+            return "Подтвердите ADB-ключ Denza Apps на экране автомобиля, затем нажмите ещё раз.";
+        }
+        if (message.contains("Connection refused") || message.contains("ECONNREFUSED")) {
+            return "Внутренний ADB не запущен. Включите ADB на машине.";
+        }
+        if (message.contains("timed out") || message.contains("timeout")) {
+            return "Внутренний ADB не ответил вовремя. Проверьте, что ADB включён.";
+        }
+        if (e instanceof GeneralSecurityException) {
+            return "Не удалось подготовить ADB-ключ Denza Apps.";
+        }
+        return "Не удалось настроить Denza Apps через ADB: " + shortError(message, e);
+    }
+
+    private boolean shouldTrySystemSettings(Exception e) {
+        String message = nullToEmpty(e.getMessage());
+        return message.contains("Connection refused")
+                || message.contains("ECONNREFUSED")
+                || message.contains("timed out")
+                || message.contains("timeout");
     }
 
     private void toggle() {
@@ -199,6 +308,20 @@ public class MainActivity extends Activity {
     }
 
     private void startIntegration() {
+        String blockingError = diagnoseBlockingStartError();
+        if (blockingError != null) {
+            SimulcastIntegration.setEnabled(this, false);
+            enabled = false;
+            SimulcastOverlayService.stopCurrent(this);
+            refreshUi(blockingError);
+            return;
+        }
+
+        if (!hasOverlayPermission() || !isAccessibilityEnabled()) {
+            repairAppSetup(true, this::startIntegration);
+            return;
+        }
+
         String error = diagnoseStartError();
         if (error != null) {
             SimulcastIntegration.setEnabled(this, false);
@@ -222,15 +345,26 @@ public class MainActivity extends Activity {
         refreshUi(null);
     }
 
-    private String diagnoseStartError() {
+    private String diagnoseBlockingStartError() {
         if (!isInstalled(DISHARE_PACKAGE)) {
             return "Simulcast не найден";
+        }
+        if (SimulcastApps.getSelected(this).isEmpty()) {
+            return "Выберите приложения для трансляции";
+        }
+        return null;
+    }
+
+    private String diagnoseStartError() {
+        String blockingError = diagnoseBlockingStartError();
+        if (blockingError != null) {
+            return blockingError;
         }
         if (!hasOverlayPermission()) {
             return "Нет разрешения поверх окон";
         }
-        if (SimulcastApps.getSelected(this).isEmpty()) {
-            return "Выберите приложения для трансляции";
+        if (!isAccessibilityEnabled()) {
+            return "Не включено наложение Simulcast в спец. возможностях";
         }
         // Note: we intentionally do NOT require the Chinese "slot" packages to be
         // installed. The native App Change row is populated from DiShare's own cloud
@@ -262,16 +396,28 @@ public class MainActivity extends Activity {
             boolean needOverlay = !hasOverlayPermission();
             overlayPermissionButton.setVisibility(needOverlay ? View.VISIBLE : View.GONE);
             if (needOverlay) {
-                statusText.setText("Разрешите Denza Apps показывать окна поверх других приложений.");
+                overlayPermissionButton.setText(setupRunning
+                        ? "Ожидаю ADB"
+                        : "Разрешить поверх окон");
+                overlayPermissionButton.setEnabled(!setupRunning);
+                statusText.setText(setupRunning
+                        ? "Подтвердите ADB-ключ Denza Apps на экране автомобиля."
+                        : "Разрешите Denza Apps показывать окна поверх других приложений.");
             }
         }
 
         if (accessibilityButton != null) {
-            boolean needA11y = enabled && !isAccessibilityEnabled();
+            boolean needA11y = !isAccessibilityEnabled();
             accessibilityButton.setVisibility(needA11y ? View.VISIBLE : View.GONE);
             if (needA11y) {
-                statusText.setText("Сервис запущен. Включите «наложение Simulcast» в спец. возможностях,"
-                        + " чтобы российские приложения отображались поверх Simulcast.");
+                accessibilityButton.setText(setupRunning
+                        ? "Ожидаю ADB"
+                        : "Включить спец. возможности");
+                accessibilityButton.setEnabled(!setupRunning);
+                statusText.setText(setupRunning
+                        ? "Подтвердите ADB-ключ Denza Apps на экране автомобиля."
+                        : "Включите «наложение Simulcast»,"
+                                + " чтобы российские приложения отображались поверх Simulcast.");
             }
         }
     }
@@ -300,6 +446,21 @@ public class MainActivity extends Activity {
         drawable.setColor(color);
         drawable.setCornerRadius(radius);
         return drawable;
+    }
+
+    private String nullToEmpty(String value) {
+        return value == null ? "" : value;
+    }
+
+    private String shortError(String message, Exception e) {
+        if (!message.isEmpty()) {
+            return message.length() > 90 ? message.substring(0, 90) : message;
+        }
+        return e.getClass().getSimpleName();
+    }
+
+    private String shellQuote(String value) {
+        return "'" + value.replace("'", "'\"'\"'") + "'";
     }
 
     private int dp(int value) {
