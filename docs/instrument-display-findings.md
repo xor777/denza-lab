@@ -1,16 +1,17 @@
 # Instrument Display Findings
 
 This is the durable status page for the instrument-display scene shared by
-Mirrors and navigation. Current implementation status is dated 2026-07-18.
+Mirrors and navigation. Current implementation status is dated 2026-07-19.
 
 ## Product architecture
 
 `denza-apps` owns two transparent presentations in one `ClusterSceneService`,
 matching the two-layer Denza display composition verified on the car:
 
-- a full-size `SurfaceView` on
+- a transparent, positioned `SurfaceView` on
   `shared_fission_bg_XDJAScreenProjection_0` is the base layer for the Yandex
-  Navigator virtual display;
+  Navigator virtual display and can occupy the full, left, center, or right
+  instrument region;
 - a separate `TextureView` presentation on
   `shared_fission_bg_XDJAScreenProjection_1` is the stock-compatible camera
   overlay layer;
@@ -62,10 +63,23 @@ checked again inside the shell-UID boundary before every task mutation. No
 Binder or `Surface` crosses processes and no general shell command execution is
 exposed.
 
-The map layer has the OpenBYD contrast treatment requested for the car: black
-top and bottom gradients, each `90 dp` high and peaking at 80 percent opacity.
-OpenBYD's optional left-edge gradient remains off. Camera gradients are a
-separate layer and keep their already verified Mirrors parameters.
+The persisted map placement has four live-switchable layouts on the verified
+`2560x720` instrument display:
+
+- **Full** uses the whole display at `272 dpi`, with the existing `90 dp` top
+  gradient peaking at 80 percent opacity; its bottom treatment is a `60 px`
+  transparent-to-black fade followed by `90 px` of solid black;
+- **Center** uses `Rect(768, 0 - 1791, 720)` at `320 dpi`, with a stronger
+  `130 dp` top gradient peaking at alpha `250`;
+- **Left** uses `Rect(0, 0 - 1023, 609)` at `272 dpi`, with an alpha-`250`
+  radial shade of radius `192 dp` in the inner top-right corner;
+- **Right** uses `Rect(1537, 100 - 2560, 609)` at `272 dpi` and no gradient,
+  preserving the useful navigation content at the top of that layout.
+
+Changing a placement button while navigation is already projected returns the
+task without focusing it, recreates the virtual display, and projects the same
+task into the new geometry. Camera gradients are a separate layer and keep
+their already verified Mirrors parameters.
 
 The UI state is contextual: **Open**, **To cluster**, then **Return**. The
 picker re-reads the installed subset of the navigation allowlist whenever it is
@@ -159,11 +173,23 @@ and display IDs are evidence from that run, not product constants. The AVC PID
 remained `14737`, the crash buffer was empty, and the user confirmed both
 directions worked well.
 
+The final selectable-layout build with SHA-256
+`ba453c9c1d8757cf9cb7a297c5641f319b21060a1c0f028ee367191ec07d9bb4`
+was installed and accepted on 2026-07-19. Center, left, and right layouts were
+visually tuned on the car. A live left-to-right button switch recreated Yandex
+Navigator task `93` first on `1023x609` display `23`, then on `1023x509`
+display `24`, both at `272 dpi`, without a separate Return/Project action.
+These task and display IDs are evidence from that run, not product constants.
+The final left-gradient build rendered task `101` on `1023x609` display `28`.
+The final Full layout rendered task `107` on `2560x720` display `32` at
+`272 dpi`. The AVC PID remained `14737` and the crash buffer stayed empty
+throughout.
+
 Hardware-dependent behavior still awaiting acceptance:
 
 - N9 rear/overhead Simulcast receivers are implemented by contract but need
   `getScreens`, accessibility-tree, and one-receiver-at-a-time captures;
-- Center placement, processing off, manual preview, and camera-over-map behavior
+- Mirror Center placement, processing off, manual preview, and camera-over-map behavior
   must be repeated on the car;
 - navigation command failure, lost ADB, and APK restart recovery require live
   testing;

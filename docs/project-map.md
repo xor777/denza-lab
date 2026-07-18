@@ -11,7 +11,7 @@ may still use the historical `denza-gateway` directory name.
 | --- | --- | --- | --- |
 | `legacy/denza-gateway/` | `denza-gateway` | SSH gateway from the car LAN to local ADB endpoints on the head unit. | **Legacy.** Maintenance-only; do not add features. Car ADB Gateway supersedes it for new remote-access work. |
 | `apps/denza-mirrors/` | `denza-mirrors` | Original driver-display side-camera enlargement. | **Transition.** Hardware-verified reference kept buildable until the migrated Denza Apps path passes real-car acceptance. Product code lives in `dev.denza.mirrors`; research probes remain isolated in `dev.denza.mirrors.probe`. |
-| `apps/denza-apps/` | `denza-apps` | Consolidated head-unit app for Simulcast, side-camera mirrors, Yandex instrument projection, and stock IVI split routing. | **Active.** Version `0.2.0`; Compose landscape shell, self-recovery, one display resolver, and one shared cluster scene. Isolated mirror cycles, Yandex projection/return, and contextual stock split routing are live-car verified; the known fast mirror-switch AVC crash remains. |
+| `apps/denza-apps/` | `denza-apps` | Consolidated head-unit app for Simulcast, side-camera mirrors, Yandex instrument projection, and stock IVI split routing. | **Active.** Version `0.2.0`; Compose landscape shell, self-recovery, one display resolver, and one shared cluster scene. Isolated mirror cycles, selectable Yandex projection layouts, automatic Map/ADAS following, and contextual stock split routing are live-car verified; the known fast mirror-switch AVC crash remains. |
 | `apps/car-adb-gateway/` | `car-adb-gateway` | Generic relay-only remote ADB gateway. Fixed `adbgw.ru`, one trusted computer, background recovery, no LAN listener. | Product candidate. Local unit/build evidence and the verified relay deployment exist; live-head-unit E2E, API matrix, and soak remain required. |
 
 ## Shared Android Modules
@@ -128,7 +128,7 @@ Research package `dev.denza.mirrors.probe` (not product; promote before relying)
 | `SimulcastBootReceiver` | Forwards DiShare dialog actions and invokes runtime recovery after boot or APK replacement. |
 | `feature.cluster` | Fail-closed cluster display resolver, real-display geometry, and the shared map-base/camera-overlay scene. No fallback display IDs. |
 | `feature.mirrors` | Migrated AVC renderer and window monitor. Uses the shared local ADB client, keeps verified Mirrors geometry/image treatment, and has no probe dependency. |
-| `feature.navigation` | App-owned virtual display, fixed-operation shell task commands, a dynamically filtered navigation picker, and optional memory-only auto-follow of the stock cluster Map mode. Projection and return are live-car verified; no arbitrary shell execution is exposed. |
+| `feature.navigation` | App-owned virtual display, fixed-operation shell task commands, a dynamically filtered navigation picker, persisted full/left/center/right placement, and optional memory-only auto-follow of the stock cluster Map mode. Projection, live layout switching, and return are live-car verified; no arbitrary shell execution is exposed. |
 | `feature.split` | Contextual router for the stock BYD `byd-freeform` roots. Normal launches stay fullscreen; launches originating from the visible stock split scene are assigned to allowlisted left/right panes through fixed local-ADB commands. |
 
 ### `libraries/dishare-bridge/`
