@@ -11,7 +11,7 @@ may still use the historical `denza-gateway` directory name.
 | --- | --- | --- | --- |
 | `legacy/denza-gateway/` | `denza-gateway` | SSH gateway from the car LAN to local ADB endpoints on the head unit. | **Legacy.** Maintenance-only; do not add features. Car ADB Gateway supersedes it for new remote-access work. |
 | `apps/denza-mirrors/` | `denza-mirrors` | Original driver-display side-camera enlargement. | **Transition.** Hardware-verified reference kept buildable until the migrated Denza Apps path passes real-car acceptance. Product code lives in `dev.denza.mirrors`; research probes remain isolated in `dev.denza.mirrors.probe`. |
-| `apps/denza-apps/` | `denza-apps` | Consolidated head-unit app for Simulcast, side-camera mirrors, and Yandex instrument projection. | **Active.** Version `0.2.0`; Compose landscape shell, self-recovery, one display resolver, and one shared cluster scene. Mirrors and navigation code are locally verified but still require live-car acceptance. |
+| `apps/denza-apps/` | `denza-apps` | Consolidated head-unit app for Simulcast, side-camera mirrors, and Yandex instrument projection. | **Active.** Version `0.2.0`; Compose landscape shell, self-recovery, one display resolver, and one shared cluster scene. Isolated mirror cycles and Yandex projection/return are live-car verified; the known fast mirror-switch AVC crash remains. |
 | `apps/car-adb-gateway/` | `car-adb-gateway` | Generic relay-only remote ADB gateway. Fixed `adbgw.ru`, one trusted computer, background recovery, no LAN listener. | Product candidate. Local unit/build evidence and the verified relay deployment exist; live-head-unit E2E, API matrix, and soak remain required. |
 
 ## Shared Android Modules
@@ -128,7 +128,7 @@ Research package `dev.denza.mirrors.probe` (not product; promote before relying)
 | `SimulcastBootReceiver` | Forwards DiShare dialog actions and invokes runtime recovery after boot or APK replacement. |
 | `feature.cluster` | Fail-closed cluster display resolver, real-display geometry, and the shared map-base/camera-overlay scene. No fallback display IDs. |
 | `feature.mirrors` | Migrated AVC renderer and window monitor. Uses the shared local ADB client, keeps verified Mirrors geometry/image treatment, and has no probe dependency. |
-| `feature.navigation` | One-time-token shell proxy and memory-only Yandex task session. The AIDL allowlist exposes no arbitrary shell execution. Hardware verification is pending. |
+| `feature.navigation` | App-owned virtual display plus fixed-operation, one-shot shell task commands and a memory-only Yandex session. Projection and return are live-car verified; no arbitrary shell execution is exposed. |
 
 ### `libraries/dishare-bridge/`
 

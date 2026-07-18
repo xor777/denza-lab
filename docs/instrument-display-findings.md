@@ -53,17 +53,23 @@ client and does not import probe code or the abandoned HUD camera path.
 
 ## Navigation projection
 
-Denza Apps launches a minimal `app_process` under shell UID through the shared
-local ADB client. A random one-time token protects a narrow Binder interface.
-The interface can only create/release the Denza navigation virtual display,
-find an allowlisted `ru.yandex.yandexnavi` task, move it, set its bounds/focus,
-and verify its current display. It exposes no general shell command execution.
+Denza Apps owns the navigation `VirtualDisplay` and its `Surface` in the app
+process. Short-lived `app_process` commands run under shell UID through the
+shared local ADB client and exit after one fixed operation. They can only find
+an allowlisted `ru.yandex.yandexnavi` task, move it, set its bounds/focus, or
+read its current display. No Binder or `Surface` crosses processes and no
+general shell command execution is exposed.
+
+The map layer has the OpenBYD contrast treatment requested for the car: black
+top and bottom gradients, each `90 dp` high and peaking at 80 percent opacity.
+OpenBYD's optional left-edge gradient remains off. Camera gradients are a
+separate layer and keep their already verified Mirrors parameters.
 
 The UI state is contextual: **Open Yandex**, **To cluster**, then **Return**.
-The active session is memory-only and never starts after boot. Proxy death or a
-missing task releases the map surface and enters recovery; releasing the virtual
-display is the final fallback that lets Android return its task to the default
-display.
+The active session is memory-only and never starts after boot. A failed command
+or missing task releases the map surface and enters recovery; releasing the
+virtual display is the final fallback that lets Android return its task to the
+default display.
 
 ## OpenBYD research boundary
 
@@ -82,11 +88,17 @@ placement. OpenBYD is not treated as ground truth.
 ## Verification status and hard stops
 
 Local unit tests and `:denza-apps:assembleDebug` pass. APK
-`581cada3a07ce22ffaa41a7546abf443b9a6292af9d321bed61c1da4dbf2e79f`
+`dbdabeb12811b05889ea8caff52ce19d13892be46033a50fc6b25537b96cb62e`
 was installed on the car on 2026-07-18. With **Sides** and processing enabled,
 one isolated left cycle and one isolated right cycle both opened and closed the
 enlarged image; the monitor ended at `stopped right: window hidden`, the AVC PID
 remained `14737`, and the clean post-install crash buffer stayed empty.
+
+Yandex Navigator task `37` was moved to an app-owned `2560x720` virtual display
+and rendered visibly on the instrument panel. **Return** moved it back to
+display `0`; Android then restored its `2560x1600` bounds and removed the
+virtual display. The task was projected again after installing the gradient
+build. The AVC PID remained `14737` and the crash buffer stayed empty.
 
 Hardware-dependent behavior still awaiting acceptance:
 
@@ -94,8 +106,8 @@ Hardware-dependent behavior still awaiting acceptance:
   `getScreens`, accessibility-tree, and one-receiver-at-a-time captures;
 - Center placement, processing off, manual preview, and camera-over-map behavior
   must be repeated on the car;
-- Yandex task movement, bounds/focus restoration, proxy death, lost ADB, and APK
-  restart require live testing;
+- navigation command failure, lost ADB, and APK restart recovery require live
+  testing;
 - fast left-to-right turn-signal switching is a confirmed crash path while
   Denza Apps owns the AVC display surface. The persistent-Surface candidate did
   not fix it; pause-based operation remains a known compatibility limitation.

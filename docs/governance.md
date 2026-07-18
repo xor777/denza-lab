@@ -120,9 +120,10 @@ package into product code):
   guess.
 - Navigation owns the full-size base surface. Side cameras are overlays and must
   not resize, restart, or duplicate the Yandex task.
-- The shell proxy is an internal fixed-operation capability. Keep its package
-  allowlist and one-time token; never expose arbitrary commands to the UI.
-- Navigation is memory-only and must not start after boot. When the proxy,
+- Navigation shell commands are internal, fixed, short-lived operations. Keep
+  the package allowlist, never pass app-owned Binder objects across processes,
+  and never expose arbitrary commands to the UI.
+- Navigation is memory-only and must not start after boot. When a command,
   display, or task disappears, release the virtual display and prefer returning
   the task to display `0`.
 - Do not run the standalone Denza Mirrors monitor and the Denza Apps monitor
