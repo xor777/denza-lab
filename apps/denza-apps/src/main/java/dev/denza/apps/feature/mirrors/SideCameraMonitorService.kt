@@ -28,9 +28,6 @@ class SideCameraMonitorService : Service() {
     private var lastDisplayResolveMs = 0L
     private var lastStartFailureMs = 0L
     private var overlayStartedMs = 0L
-    private var observedAvcFailure = 0L
-    private var trialBlocked = false
-    private var startupCheckDone = false
 
     override fun onCreate() {
         super.onCreate()
@@ -60,7 +57,6 @@ class SideCameraMonitorService : Service() {
         MirrorsSettings.setEnabled(this, true)
         if (running) return
         running = true
-        observedAvcFailure = ClusterSceneService.avcFailureGeneration()
         executor = Executors.newSingleThreadScheduledExecutor().also { scheduler ->
             scheduler.execute(::grantOverlayPermission)
             scheduler.scheduleWithFixedDelay(::poll, 0L, POLL_MS, TimeUnit.MILLISECONDS)
@@ -90,42 +86,23 @@ class SideCameraMonitorService : Service() {
         if (!running) return
         val now = System.currentTimeMillis()
         val displayId = resolveClusterDisplay(now) ?: return
-        if (!startupCheckDone) {
-            startupCheckDone = true
-            ClusterSceneService.preview(
-                this,
-                MirrorsSettings.position(this),
-                visible = false,
-                durationMs = 1_000L,
-            )
-        }
-
-        val failureGeneration = ClusterSceneService.avcFailureGeneration()
-        if (failureGeneration != observedAvcFailure) {
-            observedAvcFailure = failureGeneration
-            if (currentSide != null) {
-                stopOverlay("com.byd.avc stopped")
-                trialBlocked = true
-                updateNotification("Camera stopped safely")
-            }
-        }
 
         try {
             val windows = adb.shell("dumpsys window visible")
             val left = SideCameraWindowDetector.isLeftVisible(windows, displayId)
             val right = SideCameraWindowDetector.isRightVisible(windows)
-            if (trialBlocked) {
-                if (!left && !right) trialBlocked = false
-                return
-            }
             val requested = when {
                 left -> MirrorSide.LEFT
                 right -> MirrorSide.RIGHT
                 else -> null
             }
             when {
-                requested != null -> startOverlay(requested, now)
-                currentSide != null -> stopOverlay("window hidden")
+                requested == currentSide -> Unit
+                requested == null -> stopOverlay("window hidden")
+                else -> {
+                    if (currentSide != null) stopOverlay("switch to ${requested.name.lowercase()}")
+                    startOverlay(requested, now)
+                }
             }
             if (currentSide != null && now - overlayStartedMs >= OVERLAY_DURATION_MS) {
                 stopOverlay("timeout")
@@ -140,18 +117,18 @@ class SideCameraMonitorService : Service() {
         clusterDisplayId?.let { return it }
         if (now - lastDisplayResolveMs < DISPLAY_RETRY_MS) return null
         lastDisplayResolveMs = now
-        return when (val selection = ClusterDisplayResolver.resolve(this)) {
+        return when (val selection = ClusterDisplayResolver.resolveCameraOverlay(this)) {
             is ClusterDisplaySelection.Selected -> selection.display.id.also {
                 clusterDisplayId = it
             }
             is ClusterDisplaySelection.NeedsVerification -> {
-                setStatus(null, "instrument display is ambiguous")
-                updateNotification("Choose the instrument display in Support")
+                setStatus(null, "camera overlay display is ambiguous")
+                updateNotification("Camera display needs verification")
                 null
             }
             ClusterDisplaySelection.Missing -> {
-                setStatus(null, "instrument display not found")
-                updateNotification("Instrument display not found")
+                setStatus(null, "camera overlay display not found")
+                updateNotification("Camera display not found")
                 null
             }
         }
@@ -160,12 +137,6 @@ class SideCameraMonitorService : Service() {
     private fun startOverlay(side: MirrorSide, now: Long) {
         if (currentSide == side) return
         if (now - lastStartFailureMs < OVERLAY_RETRY_MS) return
-        if (currentSide != null && !ClusterSceneService.hideCameraSync(FINISH_SYNC_TIMEOUT_MS)) {
-            lastStartFailureMs = now
-            setStatus(currentSide, "camera switch did not finish in time")
-            return
-        }
-        currentSide = null
         val config = MirrorCameraConfig(
             side = side,
             position = MirrorsSettings.position(this),

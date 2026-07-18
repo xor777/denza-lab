@@ -45,6 +45,30 @@ class ClusterDisplayResolverTest {
         assertTrue(result is ClusterDisplaySelection.Missing)
     }
 
+    @Test
+    fun cameraOverlayUsesSecondNamedFissionDisplay() {
+        val base = candidate(3, ClusterDisplayResolver.KNOWN_DENZA_DISPLAY, 2560, 720)
+        val overlay = candidate(
+            4,
+            ClusterDisplayResolver.KNOWN_DENZA_CAMERA_OVERLAY_DISPLAY,
+            2560,
+            720,
+        )
+
+        val result = ClusterDisplayResolver.selectCameraOverlay(listOf(base, overlay))
+
+        assertEquals(overlay, (result as ClusterDisplaySelection.Selected).display)
+    }
+
+    @Test
+    fun cameraOverlayDoesNotGuessAnotherWideDisplay() {
+        val result = ClusterDisplayResolver.selectCameraOverlay(
+            listOf(candidate(7, "vendor_cluster_overlay", 2560, 720)),
+        )
+
+        assertTrue(result is ClusterDisplaySelection.Missing)
+    }
+
     private fun candidate(
         id: Int,
         name: String,

@@ -16,6 +16,7 @@ import android.graphics.Shader
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.util.Log
 import android.view.Display
 import android.view.Gravity
 import android.view.Surface
@@ -39,7 +40,8 @@ import java.util.concurrent.atomic.AtomicLong
 /** One instrument-display scene: full-size map base, camera overlay, diagnostics on top. */
 class ClusterSceneService : Service() {
     private val handler = Handler(Looper.getMainLooper())
-    private var presentation: ClusterPresentation? = null
+    private var basePresentation: ClusterPresentation? = null
+    private var cameraPresentation: ClusterPresentation? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -60,7 +62,7 @@ class ClusterSceneService : Service() {
                 visible = intent.getBooleanExtra(EXTRA_VISIBLE, false),
                 durationMs = intent.getLongExtra(EXTRA_DURATION, 1_000L),
             )
-            else -> prepareScene()
+            else -> prepareBaseScene()
         }
         return START_STICKY
     }
@@ -74,70 +76,99 @@ class ClusterSceneService : Service() {
 
     override fun onBind(intent: Intent?): IBinder? = null
 
-    private fun prepareScene(): ClusterPresentation? {
+    private fun prepareBaseScene(): ClusterPresentation? {
         val selection = ClusterDisplayResolver.resolve(this)
+        return prepareScene(selection, overlayWindow = false, cameraLayer = false)
+    }
+
+    private fun prepareCameraScene(): ClusterPresentation? {
+        val selection = ClusterDisplayResolver.resolveCameraOverlay(this)
+        return prepareScene(selection, overlayWindow = true, cameraLayer = true)
+    }
+
+    private fun prepareScene(
+        selection: ClusterDisplaySelection,
+        overlayWindow: Boolean,
+        cameraLayer: Boolean,
+    ): ClusterPresentation? {
         if (selection !is ClusterDisplaySelection.Selected) {
             updateNotification(
                 if (selection is ClusterDisplaySelection.NeedsVerification) {
-                    "Choose the instrument display in Support"
+                    if (cameraLayer) "Camera display needs verification"
+                    else "Choose the instrument display in Support"
                 } else {
-                    "Instrument display not found"
+                    if (cameraLayer) "Camera display not found"
+                    else "Instrument display not found"
                 },
             )
-            stopSelf()
             return null
         }
-        presentation?.let { current ->
+        val currentPresentation = if (cameraLayer) cameraPresentation else basePresentation
+        currentPresentation?.let { current ->
             if (current.display.displayId == selection.display.id) return current
             current.dismiss()
-            presentation = null
+            if (cameraLayer) cameraPresentation = null else basePresentation = null
         }
         val manager = getSystemService(android.hardware.display.DisplayManager::class.java)
         val display = manager?.getDisplay(selection.display.id)
         if (display == null || !display.isValid) {
-            updateNotification("Instrument display disappeared")
-            stopSelf()
+            updateNotification(if (cameraLayer) "Camera display disappeared" else "Instrument display disappeared")
             return null
         }
+        fun show(useOverlayWindow: Boolean): ClusterPresentation =
+            ClusterPresentation(
+                this,
+                display,
+                useOverlayWindow,
+                ::onAvcReady,
+                ::onAvcFailure,
+            ).also { it.show() }
+
         return try {
-            ClusterPresentation(this, display, ::onAvcReady, ::onAvcFailure).also {
-                it.show()
-                presentation = it
-                updateNotification("Instrument display is ready")
+            val shown = try {
+                show(overlayWindow)
+            } catch (overlayError: RuntimeException) {
+                if (!overlayWindow) throw overlayError
+                Log.w(TAG, "Overlay presentation failed; retrying normal camera window", overlayError)
+                show(false)
             }
-        } catch (_: RuntimeException) {
-            updateNotification("Instrument display needs attention")
-            stopSelf()
+            if (cameraLayer) cameraPresentation = shown else basePresentation = shown
+            updateNotification(if (cameraLayer) "Camera display is ready" else "Instrument display is ready")
+            shown
+        } catch (error: RuntimeException) {
+            Log.e(TAG, "Unable to show ${if (cameraLayer) "camera" else "instrument"} presentation", error)
+            updateNotification(if (cameraLayer) "Camera display needs attention" else "Instrument display needs attention")
             null
         }
     }
 
     private fun showCamera(config: MirrorCameraConfig) {
-        val scene = prepareScene() ?: return
+        val scene = prepareCameraScene() ?: return
         handler.removeCallbacksAndMessages(null)
         scene.showCamera(config)
         updateNotification("Showing ${config.side.name.lowercase()} mirror")
     }
 
     private fun hideCamera() {
-        presentation?.hideCamera()
+        cameraPresentation?.dismiss()
+        cameraPresentation = null
         updateNotification("Mirrors are ready")
     }
 
     private fun showMap() {
         val consumer = pendingMapConsumer ?: return
-        val scene = prepareScene() ?: return
+        val scene = prepareBaseScene() ?: return
         pendingMapConsumer = null
         scene.showMap(consumer)
         updateNotification("Navigation display is ready")
     }
 
     private fun hideMap() {
-        presentation?.hideMap()
+        basePresentation?.hideMap()
     }
 
     private fun showPreview(position: MirrorsPosition, visible: Boolean, durationMs: Long) {
-        val scene = prepareScene() ?: return
+        val scene = prepareCameraScene() ?: return
         scene.showDiagnostic(position, visible)
         handler.removeCallbacksAndMessages(null)
         handler.postDelayed({ scene.hideDiagnostic() }, durationMs.coerceIn(250L, 5_000L))
@@ -150,13 +181,16 @@ class ClusterSceneService : Service() {
     private fun onAvcFailure(details: String) {
         lastCameraDetails = details
         avcFailureGeneration.incrementAndGet()
-        presentation?.hideCamera()
+        cameraPresentation?.dismiss()
+        cameraPresentation = null
         updateNotification("Camera stopped safely")
     }
 
     private fun stopScene(stopService: Boolean = true) {
-        presentation?.dismiss()
-        presentation = null
+        cameraPresentation?.dismiss()
+        cameraPresentation = null
+        basePresentation?.dismiss()
+        basePresentation = null
         if (stopService) stopSelf()
     }
 
@@ -190,6 +224,7 @@ class ClusterSceneService : Service() {
     private class ClusterPresentation(
         context: Context,
         display: Display,
+        private val overlayWindow: Boolean,
         private val ready: (String) -> Unit,
         private val failed: (String) -> Unit,
     ) : Presentation(context, display) {
@@ -219,7 +254,9 @@ class ClusterSceneService : Service() {
                         WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
                         WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
                 )
-                setType(WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY)
+                if (overlayWindow) {
+                    setType(WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY)
+                }
             }
 
             val root = FrameLayout(context).apply { setBackgroundColor(Color.TRANSPARENT) }
@@ -255,13 +292,19 @@ class ClusterSceneService : Service() {
         }
 
         override fun dismiss() {
-            if (::renderer.isInitialized) renderer.stop()
-            super.dismiss()
+            // Match the verified Denza Mirrors teardown order. Dismissing the
+            // window first destroys the TextureView surface; only then may the
+            // vendor AVC display be freed. Calling freeDisplay while the
+            // surface is still attached makes libvc_sdk_ui abort after a delay.
+            try {
+                super.dismiss()
+            } finally {
+                if (::renderer.isInitialized) renderer.stop()
+            }
         }
 
         fun showCamera(config: MirrorCameraConfig) {
             hideDiagnostic()
-            renderer.stop()
             val metrics = android.util.DisplayMetrics()
             @Suppress("DEPRECATION")
             display.getRealMetrics(metrics)
@@ -436,6 +479,7 @@ class ClusterSceneService : Service() {
     }
 
     companion object {
+        private const val TAG = "DenzaClusterScene"
         private const val CHANNEL_ID = "denza_cluster_scene"
         private const val NOTIFICATION_ID = 4202
         private const val LEFT_VIEWPOINT = 3205

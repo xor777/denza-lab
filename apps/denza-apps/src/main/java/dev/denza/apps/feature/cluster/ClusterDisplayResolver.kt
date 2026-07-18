@@ -8,6 +8,7 @@ import java.util.Locale
 
 object ClusterDisplayResolver {
     const val KNOWN_DENZA_DISPLAY = "shared_fission_bg_XDJAScreenProjection_0"
+    const val KNOWN_DENZA_CAMERA_OVERLAY_DISPLAY = "shared_fission_bg_XDJAScreenProjection_1"
     private const val PREFS = "denza_cluster"
     private const val PREF_OVERRIDE = "display_override"
     private val excludedNameParts = listOf(
@@ -27,6 +28,30 @@ object ClusterDisplayResolver {
             .getInt(PREF_OVERRIDE, Display.INVALID_DISPLAY)
             .takeIf { it != Display.INVALID_DISPLAY }
         return select(candidates, override)
+    }
+
+    /**
+     * Denza exposes the stock side-camera composition as a second shared
+     * fission display. Mirrors must use that overlay display while navigation
+     * remains on [KNOWN_DENZA_DISPLAY]. Fail closed when the named overlay is
+     * absent instead of guessing a display id.
+     */
+    fun resolveCameraOverlay(context: Context): ClusterDisplaySelection =
+        selectCameraOverlay(candidates(context))
+
+    fun selectCameraOverlay(
+        candidates: List<ClusterDisplayDescriptor>,
+    ): ClusterDisplaySelection {
+        val matches = candidates.filter {
+            it.id != Display.DEFAULT_DISPLAY &&
+                !it.isOwnVirtualDisplay &&
+                it.name == KNOWN_DENZA_CAMERA_OVERLAY_DISPLAY
+        }
+        return when (matches.size) {
+            0 -> ClusterDisplaySelection.Missing
+            1 -> ClusterDisplaySelection.Selected(matches.first())
+            else -> ClusterDisplaySelection.NeedsVerification(matches)
+        }
     }
 
     fun candidates(context: Context): List<ClusterDisplayDescriptor> =
