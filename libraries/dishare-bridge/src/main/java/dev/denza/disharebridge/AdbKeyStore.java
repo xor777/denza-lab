@@ -28,6 +28,7 @@ final class AdbKeyStore {
     private static final int RSA_BITS = 2048;
     private static final int RSA_BYTES = RSA_BITS / 8;
     private static final int RSA_WORDS = RSA_BITS / 32;
+    private static final Object KEY_PAIR_LOCK = new Object();
     private static final byte[] SHA1_DIGEST_INFO_PREFIX = new byte[] {
             0x30, 0x21, 0x30, 0x09, 0x06, 0x05, 0x2b, 0x0e,
             0x03, 0x02, 0x1a, 0x05, 0x00, 0x04, 0x14
@@ -86,32 +87,39 @@ final class AdbKeyStore {
     }
 
     private KeyPair keyPair() throws GeneralSecurityException {
-        if (cachedKeyPair != null) {
-            return cachedKeyPair;
-        }
-        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
-        String privateEncoded = prefs.getString(KEY_PRIVATE, null);
-        String publicEncoded = prefs.getString(KEY_PUBLIC, null);
-        if (privateEncoded != null && publicEncoded != null) {
-            KeyFactory factory = KeyFactory.getInstance("RSA");
-            PrivateKey privateKey = factory.generatePrivate(new PKCS8EncodedKeySpec(
-                    Base64.decode(privateEncoded, Base64.NO_WRAP)));
-            PublicKey publicKey = factory.generatePublic(new X509EncodedKeySpec(
-                    Base64.decode(publicEncoded, Base64.NO_WRAP)));
-            cachedKeyPair = new KeyPair(publicKey, privateKey);
-            return cachedKeyPair;
-        }
+        synchronized (KEY_PAIR_LOCK) {
+            if (cachedKeyPair != null) {
+                return cachedKeyPair;
+            }
+            SharedPreferences prefs = context.getSharedPreferences(
+                    PREFS_NAME, Context.MODE_PRIVATE);
+            String privateEncoded = prefs.getString(KEY_PRIVATE, null);
+            String publicEncoded = prefs.getString(KEY_PUBLIC, null);
+            if (privateEncoded != null && publicEncoded != null) {
+                KeyFactory factory = KeyFactory.getInstance("RSA");
+                PrivateKey privateKey = factory.generatePrivate(new PKCS8EncodedKeySpec(
+                        Base64.decode(privateEncoded, Base64.NO_WRAP)));
+                PublicKey publicKey = factory.generatePublic(new X509EncodedKeySpec(
+                        Base64.decode(publicEncoded, Base64.NO_WRAP)));
+                cachedKeyPair = new KeyPair(publicKey, privateKey);
+                return cachedKeyPair;
+            }
 
-        KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
-        generator.initialize(RSA_BITS);
-        cachedKeyPair = generator.generateKeyPair();
-        prefs.edit()
-                .putString(KEY_PRIVATE, Base64.encodeToString(
-                        cachedKeyPair.getPrivate().getEncoded(), Base64.NO_WRAP))
-                .putString(KEY_PUBLIC, Base64.encodeToString(
-                        cachedKeyPair.getPublic().getEncoded(), Base64.NO_WRAP))
-                .apply();
-        return cachedKeyPair;
+            KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
+            generator.initialize(RSA_BITS);
+            KeyPair generated = generator.generateKeyPair();
+            boolean stored = prefs.edit()
+                    .putString(KEY_PRIVATE, Base64.encodeToString(
+                            generated.getPrivate().getEncoded(), Base64.NO_WRAP))
+                    .putString(KEY_PUBLIC, Base64.encodeToString(
+                            generated.getPublic().getEncoded(), Base64.NO_WRAP))
+                    .commit();
+            if (!stored) {
+                throw new GeneralSecurityException("Unable to persist the ADB key pair");
+            }
+            cachedKeyPair = generated;
+            return cachedKeyPair;
+        }
     }
 
     private static byte[] androidAdbPublicKey(RSAPublicKey publicKey) {

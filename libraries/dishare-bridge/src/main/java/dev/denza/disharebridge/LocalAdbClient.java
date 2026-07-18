@@ -39,6 +39,9 @@ public final class LocalAdbClient {
     private static final int ADB_AUTH_TOKEN = 1;
     private static final int ADB_AUTH_SIGNATURE = 2;
     private static final int ADB_AUTH_RSAPUBLICKEY = 3;
+    private static final long AUTH_PROMPT_COOLDOWN_NANOS = 15_000_000_000L;
+    private static final AuthorizationPromptGate AUTH_PROMPT_GATE =
+            new AuthorizationPromptGate(AUTH_PROMPT_COOLDOWN_NANOS);
 
     private final AdbKeyStore keyStore;
     private final List<String> hosts;
@@ -61,6 +64,9 @@ public final class LocalAdbClient {
             } catch (GeneralSecurityException e) {
                 lastSecurityFailure = e;
             } catch (IOException e) {
+                if (isAuthorizationPending(e)) {
+                    throw e;
+                }
                 lastIoFailure = e;
             }
         }
@@ -142,13 +148,25 @@ public final class LocalAdbClient {
                 if (reply.command != A_AUTH || reply.arg0 != ADB_AUTH_TOKEN) {
                     throw new IOException("Unexpected ADB auth reply " + reply.commandName());
                 }
+                if (!AUTH_PROMPT_GATE.tryAcquire(System.nanoTime())) {
+                    throw authorizationPending();
+                }
                 writeMessage(output, A_AUTH, ADB_AUTH_RSAPUBLICKEY, 0,
                         keyStore.publicKeyPayload());
                 publicKeySent = true;
             } else {
-                throw new IOException("ADB authorization pending; confirm the debugging prompt");
+                throw authorizationPending();
             }
         }
+    }
+
+    private static IOException authorizationPending() {
+        return new IOException("ADB authorization pending; confirm the debugging prompt");
+    }
+
+    static boolean isAuthorizationPending(IOException error) {
+        return error.getMessage() != null
+                && error.getMessage().contains("ADB authorization pending");
     }
 
     private String runShell(InputStream input, OutputStream output, String command)
@@ -250,6 +268,23 @@ public final class LocalAdbClient {
                 (byte) ((command >> 24) & 0xff)
         };
         return new String(bytes, StandardCharsets.US_ASCII);
+    }
+
+    static final class AuthorizationPromptGate {
+        private final long cooldownNanos;
+        private long nextAllowedNanos = Long.MIN_VALUE;
+
+        AuthorizationPromptGate(long cooldownNanos) {
+            this.cooldownNanos = cooldownNanos;
+        }
+
+        synchronized boolean tryAcquire(long nowNanos) {
+            if (nextAllowedNanos != Long.MIN_VALUE && nowNanos < nextAllowedNanos) {
+                return false;
+            }
+            nextAllowedNanos = nowNanos + cooldownNanos;
+            return true;
+        }
     }
 
     private static final class Message {
