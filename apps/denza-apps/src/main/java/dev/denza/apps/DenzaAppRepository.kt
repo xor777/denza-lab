@@ -19,6 +19,8 @@ import dev.denza.apps.feature.mirrors.MirrorsSettings
 import dev.denza.apps.feature.mirrors.SideCameraMonitorService
 import dev.denza.apps.feature.navigation.NavigationCoordinator
 import dev.denza.apps.feature.navigation.NavigationPhase
+import dev.denza.apps.feature.split.SplitScreenCoordinator
+import dev.denza.apps.feature.split.SplitScreenPhase
 import dev.denza.disharebridge.LocalAdbClient
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -41,6 +43,7 @@ data class DenzaUiState(
         desiredEnabled = false,
         status = FeatureStatus.READY,
     ),
+    val splitScreen: FeatureSnapshot = FeatureReducer.disabled(FeatureId.SPLIT_SCREEN),
     val navigationButtonLabel: String = "Открыть Яндекс",
     val selectedAppCount: Int = 0,
     val selectedAppLabels: List<String> = emptyList(),
@@ -70,6 +73,7 @@ object DenzaAppRepository {
 
     fun initialize(context: Context) {
         appContext = context.applicationContext
+        SplitScreenCoordinator.initialize(context) { refresh() }
         refresh()
         reconcileSimulcast(repairMissingSetup = true)
         if (MirrorsSettings.isEnabled(context)) reconcileMirrors()
@@ -78,6 +82,7 @@ object DenzaAppRepository {
 
     fun recoverEnabledFeatures(context: Context) {
         appContext = context.applicationContext
+        SplitScreenCoordinator.initialize(context) { refresh() }
         refresh()
         if (SimulcastIntegration.isEnabled(context)) {
             reconcileSimulcast(repairMissingSetup = true)
@@ -92,6 +97,7 @@ object DenzaAppRepository {
         val desired = SimulcastIntegration.isEnabled(context)
         val snapshot = evaluateSimulcast(context, desired)
         val navigationSession = NavigationCoordinator.snapshot()
+        val splitSession = SplitScreenCoordinator.snapshot()
         mutableState.value = mutableState.value.copy(
             simulcast = snapshot,
             mirrors = evaluateMirrors(context),
@@ -101,6 +107,12 @@ object DenzaAppRepository {
             mirrorsProcessing = MirrorsSettings.processingEnabled(context),
             navigation = navigationSnapshot(navigationSession.phase, navigationSession.message, navigationSession.details),
             navigationButtonLabel = navigationSession.buttonLabel,
+            splitScreen = splitScreenSnapshot(
+                splitSession.enabled,
+                splitSession.phase,
+                splitSession.message,
+                splitSession.details,
+            ),
             technicalDetails = diagnostics(context),
             clusterCandidates = ClusterDisplayResolver.candidates(context),
         )
@@ -220,6 +232,10 @@ object DenzaAppRepository {
 
     fun performNavigationAction() {
         NavigationCoordinator.performPrimaryAction()
+    }
+
+    fun setSplitScreenEnabled(enabled: Boolean) {
+        SplitScreenCoordinator.setEnabled(enabled)
     }
 
     fun selectClusterDisplay(displayId: Int?) {
@@ -391,6 +407,24 @@ object DenzaAppRepository {
         )
     }
 
+    private fun splitScreenSnapshot(
+        enabled: Boolean,
+        phase: SplitScreenPhase,
+        message: String,
+        details: String?,
+    ): FeatureSnapshot = FeatureSnapshot(
+        id = FeatureId.SPLIT_SCREEN,
+        desiredEnabled = enabled,
+        status = when (phase) {
+            SplitScreenPhase.OFF -> FeatureStatus.OFF
+            SplitScreenPhase.STARTING -> FeatureStatus.STARTING
+            SplitScreenPhase.ACTIVE -> FeatureStatus.ACTIVE
+            SplitScreenPhase.ERROR -> FeatureStatus.ERROR
+        },
+        message = message,
+        details = details,
+    )
+
     private fun blockingProblem(context: Context): String? {
         if (!isInstalled(context.packageManager, DISHARE_PACKAGE)) return "Simulcast не найден"
         if (SimulcastApps.getSelected(context).isEmpty()) return "Выберите приложения"
@@ -455,7 +489,9 @@ object DenzaAppRepository {
         appendLine("Состояние зеркал=${mirrorRuntimeLabel(MirrorsSettings.statusDetails(context))}")
         appendLine("Экран приборки=${clusterSelectionLabel(ClusterDisplayResolver.resolve(context))}")
         val navigation = NavigationCoordinator.snapshot()
-        append("Навигация=${navigation.message.ifBlank { navigation.phase.name.lowercase() }}")
+        appendLine("Навигация=${navigation.message.ifBlank { navigation.phase.name.lowercase() }}")
+        val split = SplitScreenCoordinator.snapshot()
+        append("Split screen=${split.message.ifBlank { split.phase.name.lowercase() }}")
     }
 
     private fun yesNo(value: Boolean) = if (value) "Доступен" else "Недоступен"

@@ -5,6 +5,7 @@ enum class FeatureId {
     SIMULCAST,
     MIRRORS,
     NAVIGATION,
+    SPLIT_SCREEN,
 }
 
 /**
