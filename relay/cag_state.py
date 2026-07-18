@@ -9,6 +9,7 @@ import binascii
 import contextlib
 import fcntl
 import hashlib
+import ipaddress
 import json
 import os
 import re
@@ -66,6 +67,18 @@ def generate_code() -> str:
 def sanitize_label(value: str, fallback: str) -> str:
     cleaned = " ".join(value.replace("\x00", "").split()).strip()
     return (cleaned or fallback)[:80]
+
+
+def normalize_endpoint_host(value: str | None, endpoint_mode: str) -> str | None:
+    if endpoint_mode == "unknown":
+        return None
+    try:
+        address = ipaddress.ip_address(value or "")
+    except ValueError as exc:
+        raise StateError("invalid ADB endpoint host") from exc
+    if address.version != 4 or address.is_multicast or address.is_unspecified:
+        raise StateError("invalid ADB endpoint host")
+    return str(address)
 
 
 def parse_public_key(value: str) -> tuple[str, str]:
@@ -289,6 +302,7 @@ class RelayState:
         endpoint_mode = str(payload.get("endpoint_mode", "unknown"))
         if endpoint_mode not in {"unknown", "smart", "raw"}:
             raise StateError("invalid ADB endpoint mode")
+        endpoint_host = normalize_endpoint_host(payload.get("endpoint_host"), endpoint_mode)
 
         with self._locked() as state:
             match = self._find_code(state, "enroll", code)
@@ -322,6 +336,7 @@ class RelayState:
                 "tunnel_fingerprint": tunnel_fingerprint,
                 "inner_host_key": inner_host_key,
                 "endpoint_mode": endpoint_mode,
+                "endpoint_host": endpoint_host,
                 "enabled": True,
                 "created_at": self.clock(),
             }
@@ -338,6 +353,7 @@ class RelayState:
             "relay_device_port": device["relay_port"],
             "inner_host_key": device["inner_host_key"],
             "endpoint_mode": device["endpoint_mode"],
+            "endpoint_host": device.get("endpoint_host"),
             "enabled": device["enabled"],
         }
 
@@ -435,8 +451,10 @@ class RelayState:
             active = state["grants"].get(device_id)
             if not pending:
                 if active and active["client_fingerprint"] == fingerprint:
+                    client = state["clients"].get(fingerprint, {})
                     return {
                         "client_fingerprint": fingerprint,
+                        "client_label": client.get("label", "Computer"),
                         "replaced_fingerprint": active.get("replaced_fingerprint"),
                         "committed": True,
                     }
@@ -444,6 +462,9 @@ class RelayState:
             if pending["client_fingerprint"] != fingerprint:
                 raise StateError("pending computer does not match")
             old_fingerprint = active["client_fingerprint"] if active else None
+            client = state["clients"].get(fingerprint)
+            if not client:
+                raise StateError("pending computer identity is missing")
             state["grants"][device_id] = {
                 "device_id": device_id,
                 "client_fingerprint": fingerprint,
@@ -454,6 +475,7 @@ class RelayState:
             self._remove_pair_codes(state, device_id)
             return {
                 "client_fingerprint": fingerprint,
+                "client_label": client["label"],
                 "replaced_fingerprint": old_fingerprint,
                 "committed": True,
             }
@@ -467,12 +489,16 @@ class RelayState:
             self._remove_pair_codes(state, device_id, request_id)
             return {"aborted": True, "request_id": request_id}
 
-    def set_endpoint(self, device_id: str, endpoint_mode: str) -> dict[str, Any]:
+    def set_endpoint(
+        self, device_id: str, endpoint_mode: str, endpoint_host: str | None
+    ) -> dict[str, Any]:
         if endpoint_mode not in {"unknown", "smart", "raw"}:
             raise StateError("invalid ADB endpoint mode")
+        normalized_host = normalize_endpoint_host(endpoint_host, endpoint_mode)
         with self._locked() as state:
             device = self._require_device(state, device_id)
             device["endpoint_mode"] = endpoint_mode
+            device["endpoint_host"] = normalized_host
             return self._device_bundle(device)
 
     def set_enabled(self, device_id: str, enabled: bool) -> dict[str, Any]:
@@ -489,10 +515,14 @@ class RelayState:
             device = self._require_device(state, device_id)
             active = state["grants"].get(device_id)
             pending = state["pending"].get(device_id)
+            active_client = state["clients"].get(active["client_fingerprint"]) if active else None
+            pending_client = state["clients"].get(pending["client_fingerprint"]) if pending else None
             return {
                 **self._device_bundle(device),
                 "active_client_fingerprint": active["client_fingerprint"] if active else None,
+                "active_client_label": active_client["label"] if active_client else None,
                 "pending_client_fingerprint": pending["client_fingerprint"] if pending else None,
+                "pending_client_label": pending_client["label"] if pending_client else None,
                 "pending_expires_at": pending["expires_at"] if pending else None,
             }
 
@@ -508,7 +538,6 @@ class RelayState:
                 return [
                     self._control_key_line(device)
                     for device in state["devices"].values()
-                    if device["enabled"]
                 ]
             if username == "cag-client":
                 lines: list[str] = []
@@ -639,6 +668,7 @@ def build_parser() -> argparse.ArgumentParser:
     endpoint = subparsers.add_parser("set-endpoint")
     endpoint.add_argument("device_id")
     endpoint.add_argument("endpoint_mode")
+    endpoint.add_argument("endpoint_host", nargs="?")
 
     enabled = subparsers.add_parser("set-enabled")
     enabled.add_argument("device_id")
@@ -672,7 +702,7 @@ def main(argv: list[str] | None = None) -> int:
         elif args.action == "pair-abort":
             print_ok(state.pair_abort(args.device_id, args.request_id))
         elif args.action == "set-endpoint":
-            print_ok(state.set_endpoint(args.device_id, args.endpoint_mode))
+            print_ok(state.set_endpoint(args.device_id, args.endpoint_mode, args.endpoint_host))
         elif args.action == "set-enabled":
             print_ok(state.set_enabled(args.device_id, parse_bool(args.enabled)))
         elif args.action == "device-status":

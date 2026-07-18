@@ -22,8 +22,8 @@ case "${1:-}" in
     exec /opt/cag/cag-state pair-abort "$device_id" "$2"
     ;;
   set-endpoint)
-    [ "$#" -eq 2 ] || exit 2
-    exec /opt/cag/cag-state set-endpoint "$device_id" "$2"
+    [ "$#" -eq 3 ] || exit 2
+    exec /opt/cag/cag-state set-endpoint "$device_id" "$2" "$3"
     ;;
   set-enabled)
     [ "$#" -eq 2 ] || exit 2

@@ -37,6 +37,7 @@ class RelayStateTest(unittest.TestCase):
             "tunnel_public_key": self.device_key,
             "inner_host_key": self.host_key,
             "endpoint_mode": "smart",
+            "endpoint_host": "127.0.0.1",
         }
         return invite, payload, self.state.enroll(invite["code"], payload)
 
@@ -46,6 +47,7 @@ class RelayStateTest(unittest.TestCase):
 
         self.assertEqual(first, second)
         self.assertEqual(20_000, first["relay_device_port"])
+        self.assertEqual("127.0.0.1", first["endpoint_host"])
         self.assertEqual(1, len(self.state.authorized_keys("cag-device")))
         self.assertIn(first["device_id"], self.state.authorized_keys("cag-control")[0])
 
@@ -118,12 +120,12 @@ class RelayStateTest(unittest.TestCase):
         self.assertNotIn(new_key, keys)
         self.assertIsNone(self.state.device_status(device_id)["pending_client_fingerprint"])
 
-    def test_manual_disable_removes_all_forwarding_keys(self):
+    def test_manual_disable_removes_tunnel_and_client_keys(self):
         _, _, device = self.enroll_device()
         device_id = device["device_id"]
         self.state.set_enabled(device_id, False)
         self.assertEqual([], self.state.authorized_keys("cag-device"))
-        self.assertEqual([], self.state.authorized_keys("cag-control"))
+        self.assertEqual(1, len(self.state.authorized_keys("cag-control")))
         self.assertEqual([], self.state.authorized_keys("cag-client"))
 
 
