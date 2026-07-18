@@ -55,21 +55,34 @@ client and does not import probe code or the abandoned HUD camera path.
 
 Denza Apps owns the navigation `VirtualDisplay` and its `Surface` in the app
 process. Short-lived `app_process` commands run under shell UID through the
-shared local ADB client and exit after one fixed operation. They can only find
-an allowlisted `ru.yandex.yandexnavi` task, move it, set its bounds/focus, or
-read its current display. No Binder or `Surface` crosses processes and no
-general shell command execution is exposed.
+shared local ADB client and exit after one fixed operation. They can only find,
+move, resize, focus, or background a task from the closed navigation allowlist:
+Yandex Navigator, Yandex Maps, Google Maps, Waze, and 2GIS. Package identity is
+checked again inside the shell-UID boundary before every task mutation. No
+Binder or `Surface` crosses processes and no general shell command execution is
+exposed.
 
 The map layer has the OpenBYD contrast treatment requested for the car: black
 top and bottom gradients, each `90 dp` high and peaking at 80 percent opacity.
 OpenBYD's optional left-edge gradient remains off. Camera gradients are a
 separate layer and keep their already verified Mirrors parameters.
 
-The UI state is contextual: **Open Yandex**, **To cluster**, then **Return**.
-The active session is memory-only and never starts after boot. A failed command
-or missing task releases the map surface and enters recovery; releasing the
-virtual display is the final fallback that lets Android return its task to the
-default display.
+The UI state is contextual: **Open**, **To cluster**, then **Return**. The
+picker re-reads the installed subset of the navigation allowlist whenever it is
+opened, and the selected package is checked again before an automatic launch.
+The selected package is persisted; the **Auto / By instrument mode** switch and
+active projection session remain memory-only and never start after boot.
+
+While Auto is enabled, Denza Apps checks the selected instrument display once
+per second. A visible exact
+`com.byd.launchermap/com.byd.automap.meter.MeterActivity` task means the stock
+**Map** mode is active; its disappearance means the mode was left. The detector
+uses live root/display relationships and never stores a task, root, or display
+ID. Entering Map projects the selected navigator. Leaving it returns the task
+to display `0`, restores normal bounds, and backgrounds it so the previous IVI
+scene remains visible. A failed command or missing task releases the map
+surface and enters recovery; releasing the virtual display is the final
+fallback that lets Android return its task to the default display.
 
 ## Central IVI split routing
 
@@ -133,6 +146,18 @@ the same time under the stock divider. Switching the feature off moved both
 tasks back to the fullscreen root, and switching it on again succeeded without
 launching either app. The AVC PID remained `14737`, and the post-fix crash
 buffer was empty.
+
+The automatic-navigation build with SHA-256
+`e8f7909a2bfaa1ac2013dbac334e36627378cbaf5b3fdb51d035b9cb012a7326`
+was installed and accepted on the same car. Switching the stock instrument
+theme to **Map** created visible `MeterActivity` task `73` on display `3`; the
+live detector created app-owned display `13` and projected Yandex Navigator
+task `37` in about 1.4 seconds. Switching back produced a new visible stock
+ADAS task `74`, returned task `37` to display `0`, hid it behind the unchanged
+car-settings scene, and removed display `13` in about 2.8 seconds. These task
+and display IDs are evidence from that run, not product constants. The AVC PID
+remained `14737`, the crash buffer was empty, and the user confirmed both
+directions worked well.
 
 Hardware-dependent behavior still awaiting acceptance:
 
