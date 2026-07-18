@@ -1,0 +1,20 @@
+---
+- name: Reboot gateway host
+  hosts: gateways
+  become: true
+  gather_facts: false
+
+  pre_tasks:
+    - name: Require explicit reboot confirmation
+      ansible.builtin.assert:
+        that:
+          - confirm_reboot | default(false) | bool
+        fail_msg: "Re-run with -e confirm_reboot=true to reboot the host."
+
+  tasks:
+    - name: Reboot and wait for SSH
+      ansible.builtin.reboot:
+        reboot_timeout: 600
+        connect_timeout: 10
+        post_reboot_delay: 5
+        test_command: uname -r

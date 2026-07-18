@@ -1,0 +1,135 @@
+---
+- name: Upgrade installed packages
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+    upgrade: dist
+
+- name: Include phased updates when fully upgrading the host  # noqa command-instead-of-module
+  ansible.builtin.command:
+    argv:
+      - apt-get
+      - -y
+      - -o
+      - APT::Get::Always-Include-Phased-Updates=true
+      - -o
+      - Dpkg::Options::=--force-confold
+      - full-upgrade
+  environment:
+    DEBIAN_FRONTEND: noninteractive
+    NEEDRESTART_MODE: a
+    LC_ALL: C
+  register: base_phased_upgrade
+  changed_when: "'0 upgraded, 0 newly installed, 0 to remove' not in base_phased_upgrade.stdout"
+
+- name: Install baseline packages
+  ansible.builtin.apt:
+    name: "{{ base_packages }}"
+    state: present
+
+- name: Create the admin user
+  ansible.builtin.user:
+    name: "{{ admin_user }}"
+    shell: /bin/bash
+    create_home: true
+    groups:
+      - sudo
+    append: true
+    password_lock: true
+
+- name: Create the admin SSH directory
+  ansible.builtin.file:
+    path: "/home/{{ admin_user }}/.ssh"
+    state: directory
+    owner: "{{ admin_user }}"
+    group: "{{ admin_user }}"
+    mode: "0700"
+
+- name: Install the admin SSH key
+  ansible.builtin.copy:
+    dest: "/home/{{ admin_user }}/.ssh/authorized_keys"
+    content: "{{ admin_public_key }}\n"
+    owner: "{{ admin_user }}"
+    group: "{{ admin_user }}"
+    mode: "0600"
+
+- name: Allow passwordless sudo for the admin
+  ansible.builtin.copy:
+    dest: "/etc/sudoers.d/90-{{ admin_user }}"
+    content: "{{ admin_user }} ALL=(ALL:ALL) NOPASSWD: ALL\n"
+    owner: root
+    group: root
+    mode: "0440"
+    validate: /usr/sbin/visudo -cf %s
+
+- name: Enable daily package lists and security upgrades
+  ansible.builtin.copy:
+    dest: /etc/apt/apt.conf.d/20auto-upgrades
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      APT::Periodic::Update-Package-Lists "1";
+      APT::Periodic::Unattended-Upgrade "1";
+
+- name: Keep unattended upgrades non-disruptive
+  ansible.builtin.copy:
+    dest: /etc/apt/apt.conf.d/52gateway-unattended-upgrades
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      Unattended-Upgrade::Automatic-Reboot "false";
+      Unattended-Upgrade::Remove-Unused-Kernel-Packages "true";
+      Unattended-Upgrade::Remove-Unused-Dependencies "true";
+
+- name: Enable unattended upgrades
+  ansible.builtin.service:
+    name: unattended-upgrades
+    enabled: true
+    state: started
+
+- name: Allow SSH through UFW before enabling it
+  community.general.ufw:
+    rule: allow
+    port: "22"
+    proto: tcp
+    comment: OpenSSH
+
+- name: Set the default incoming firewall policy
+  community.general.ufw:
+    direction: incoming
+    policy: deny
+
+- name: Set the default outgoing firewall policy
+  community.general.ufw:
+    direction: outgoing
+    policy: allow
+
+- name: Enable UFW
+  community.general.ufw:
+    state: enabled
+
+- name: Configure a gentle fail2ban SSH jail
+  ansible.builtin.template:
+    src: fail2ban-sshd.local.j2
+    dest: /etc/fail2ban/jail.d/sshd.local
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart fail2ban
+
+- name: Enable fail2ban
+  ansible.builtin.service:
+    name: fail2ban
+    enabled: true
+    state: started
+
+- name: Install safe SSH hygiene settings
+  ansible.builtin.template:
+    src: ssh-base.conf.j2
+    dest: /etc/ssh/sshd_config.d/10-ansible-base-hygiene.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Validate and reload ssh

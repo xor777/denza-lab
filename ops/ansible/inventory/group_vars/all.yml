@@ -1,0 +1,22 @@
+---
+admin_user: dmitry
+admin_public_key: >-
+  ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQDhXQ8OSouVl9XexQ7gkIkqPtKFkY6ICwRg4JSsiquEba7AUZaovr2hMd5XQFaf50MLossiuC7x/Q65uyLwg+rKwLQO6mT5ZlaMKPkj9nysLkCCsbKsjUUGvp+tXSao/znLD5tgll9kwMBXW6ddktPlRL6JD+jnYK5Xl1UK9UJJoDtTGONfay3ySLGg3KyU/E3YOXBtKp3P3XJNTqViFozXgAyadvEIy18bLbr0415l0jGnkBy2VrNSViffe9zVAx+cP2JfVrR4JGuV3ODyfTq4AxirpAhoVxHGyxDFTD03LkFKjuH5qogbY3BkE9x5kLoVzt5/CQk1Ff0SHn4FfUN3No9vQfHTEZkedf7RtgHh3QfqrgORXOUDnTY37Zx9u4g29F+qeaVNq3aQi3Y13sXJWNoN0AhJH944TZBxuIGP86WmeIPrXED50QC3CcmR+HTTiOBmG3AL5gAI9ST2z/yOOqwncWHNszpPbSah9kdLhYZ9BZ/tVU5jWEJrVTHva9DGZpikPQhtKGJNXRZTkUiHkQNBxpwWbqCUGXYP3sLEI0pEyYIPBE2iwzEUuwWN4pyxdD60FaZHA/72YhZ2CoJKODWOdbWMs1JJFidfflEcUfwKVElGARELsd6QDvBZOSWGcxHSXe0itTzm/OywKaivknF6z39Tq1Hnucc+htEv0Q== dmitry
+
+base_packages:
+  - ca-certificates
+  - curl
+  - fail2ban
+  - git
+  - jq
+  - openssh-server
+  - rsync
+  - sudo
+  - ufw
+  - unattended-upgrades
+  - vim
+  - wtmpdb
+
+fail2ban_bantime: 15m
+fail2ban_findtime: 10m
+fail2ban_maxretry: 10

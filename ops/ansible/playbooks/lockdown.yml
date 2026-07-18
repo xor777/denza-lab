@@ -1,0 +1,87 @@
+---
+- name: Disable remote root and password SSH authentication
+  hosts: gateways
+  gather_facts: false
+
+  pre_tasks:
+    - name: Require explicit lockdown confirmation
+      ansible.builtin.assert:
+        that:
+          - confirm_ssh_lockdown | default(false) | bool
+        fail_msg: >-
+          Refusing to change SSH authentication. Re-run with
+          -e confirm_ssh_lockdown=true after verifying the dmitry key login.
+
+    - name: Check the connected SSH user
+      ansible.builtin.command: id -un
+      register: connected_user
+      changed_when: false
+
+    - name: Require a key-authenticated dmitry session
+      ansible.builtin.assert:
+        that:
+          - connected_user.stdout == admin_user
+        fail_msg: >-
+          Lockdown must be run over a working SSH session as {{ admin_user }},
+          not through the temporary root bootstrap connection.
+
+    - name: Verify passwordless sudo before changing SSH
+      ansible.builtin.command: sudo -n true
+      changed_when: false
+
+  tasks:
+    - name: Install SSH authentication lockdown
+      become: true
+      ansible.builtin.copy:
+        dest: /etc/ssh/sshd_config.d/00-ansible-auth-lockdown.conf
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          # Managed by Ansible. Applied only after key-login verification.
+          PubkeyAuthentication yes
+          PasswordAuthentication no
+          KbdInteractiveAuthentication no
+          PermitRootLogin no
+      notify: Validate and reload ssh
+
+    - name: Apply SSH handler before reconnecting
+      ansible.builtin.meta: flush_handlers
+
+    - name: Reset the Ansible SSH connection
+      ansible.builtin.meta: reset_connection
+
+    - name: Verify key access after lockdown
+      ansible.builtin.ping:
+
+    - name: Read effective SSH authentication settings
+      become: true
+      ansible.builtin.command:
+        argv:
+          - /usr/sbin/sshd
+          - -T
+          - -C
+          - user={{ admin_user }},addr=127.0.0.1,host=localhost
+      register: effective_sshd
+      changed_when: false
+
+    - name: Assert effective SSH lockdown
+      ansible.builtin.assert:
+        that:
+          - "'permitrootlogin no' in effective_sshd.stdout"
+          - "'passwordauthentication no' in effective_sshd.stdout"
+          - "'pubkeyauthentication yes' in effective_sshd.stdout"
+
+  handlers:
+    - name: Validate sshd configuration
+      become: true
+      ansible.builtin.command: /usr/sbin/sshd -t
+      changed_when: false
+      listen: Validate and reload ssh
+
+    - name: Reload ssh
+      become: true
+      ansible.builtin.service:
+        name: ssh
+        state: reloaded
+      listen: Validate and reload ssh

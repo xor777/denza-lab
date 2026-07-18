@@ -1,0 +1,93 @@
+---
+- name: Verify gateway host baseline
+  hosts: gateways
+  become: true
+  gather_facts: true
+
+  tasks:
+    - name: Read effective SSH settings
+      ansible.builtin.shell: >-
+        set -o pipefail &&
+        /usr/sbin/sshd -T -C user={{ admin_user }},addr=127.0.0.1,host=localhost |
+        grep -E '^(permitrootlogin|passwordauthentication|pubkeyauthentication|maxauthtries|x11forwarding|allowagentforwarding) '
+      args:
+        executable: /bin/bash
+      register: verify_sshd
+      changed_when: false
+
+    - name: Read firewall status
+      ansible.builtin.command: ufw status verbose
+      register: verify_ufw
+      changed_when: false
+
+    - name: Require SSH lockdown when requested
+      ansible.builtin.assert:
+        that:
+          - "'permitrootlogin no' in verify_sshd.stdout"
+          - "'passwordauthentication no' in verify_sshd.stdout"
+          - "'pubkeyauthentication yes' in verify_sshd.stdout"
+      when: expect_ssh_lockdown | default(false) | bool
+
+    - name: Read fail2ban SSH jail status
+      ansible.builtin.command: fail2ban-client status sshd
+      register: verify_fail2ban
+      changed_when: false
+
+    - name: Verify the admin can sudo without a password
+      ansible.builtin.command: "sudo -u {{ admin_user }} sudo -n true"
+      changed_when: false
+
+    - name: Read the admin SSH key fingerprint
+      ansible.builtin.command: >-
+        ssh-keygen -lf /home/{{ admin_user }}/.ssh/authorized_keys -E sha256
+      register: verify_admin_key
+      changed_when: false
+
+    - name: Check for available package upgrades
+      ansible.builtin.command:
+        argv:
+          - apt-get
+          - -s
+          - -o
+          - APT::Get::Always-Include-Phased-Updates=true
+          - full-upgrade
+      environment:
+        LC_ALL: C
+      register: verify_upgrades
+      changed_when: false
+
+    - name: Require a fully updated host
+      ansible.builtin.assert:
+        that:
+          - "'0 upgraded, 0 newly installed, 0 to remove' in verify_upgrades.stdout"
+
+    - name: Read failed systemd units  # noqa command-instead-of-module
+      ansible.builtin.command: systemctl --failed --no-legend --plain
+      register: verify_failed_units
+      changed_when: false
+
+    - name: Require no failed systemd units
+      ansible.builtin.assert:
+        that:
+          - verify_failed_units.stdout | trim == ""
+
+    - name: Read listening sockets
+      ansible.builtin.command: ss -H -lntup
+      register: verify_sockets
+      changed_when: false
+
+    - name: Check whether a reboot is required
+      ansible.builtin.stat:
+        path: /var/run/reboot-required
+      register: reboot_required
+
+    - name: Show verification summary
+      ansible.builtin.debug:
+        msg:
+          kernel: "{{ ansible_facts['kernel'] }}"
+          sshd: "{{ verify_sshd.stdout_lines }}"
+          ufw: "{{ verify_ufw.stdout_lines }}"
+          fail2ban: "{{ verify_fail2ban.stdout_lines }}"
+          admin_key: "{{ verify_admin_key.stdout }}"
+          listening_sockets: "{{ verify_sockets.stdout_lines }}"
+          reboot_required: "{{ reboot_required.stat.exists }}"

@@ -1,0 +1,15 @@
+---
+- name: Prepare gateway host
+  hosts: gateways
+  become: true
+  gather_facts: true
+
+  pre_tasks:
+    - name: Require Ubuntu
+      ansible.builtin.assert:
+        that:
+          - ansible_facts["distribution"] == "Ubuntu"
+        fail_msg: "This bootstrap currently supports Ubuntu only."
+
+  roles:
+    - role: base

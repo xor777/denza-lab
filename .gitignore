@@ -11,3 +11,6 @@
 /.idea/
 *.iml
 *.apk
+.venv-ansible/
+ops/ansible/.ansible/
+*.retry
