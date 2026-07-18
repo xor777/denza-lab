@@ -22,6 +22,7 @@ class MainActivity : ComponentActivity() {
                     onMirrorsPosition = DenzaAppRepository::setMirrorsPosition,
                     onMirrorsProcessing = DenzaAppRepository::setMirrorsProcessing,
                     onPreviewMirrors = DenzaAppRepository::previewMirrors,
+                    onNavigationAction = DenzaAppRepository::performNavigationAction,
                     onChooseApps = {
                         startActivity(Intent(this, AppPickerActivity::class.java))
                     },

@@ -60,6 +60,13 @@
                 <action android:name="dev.denza.apps.STOP_SIMULCAST_TARGET" />
             </intent-filter>
         </receiver>
+        <receiver
+            android:name=".feature.navigation.ProxyConnectionReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="dev.denza.apps.navigation.PROXY_CONNECTED" />
+            </intent-filter>
+        </receiver>
 
         <activity
             android:name=".AppPickerActivity"

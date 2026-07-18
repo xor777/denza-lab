@@ -73,6 +73,7 @@ fun DenzaAppsRoot(
     onMirrorsPosition: (MirrorsPosition) -> Unit,
     onMirrorsProcessing: (Boolean) -> Unit,
     onPreviewMirrors: () -> Unit,
+    onNavigationAction: () -> Unit,
     onChooseApps: () -> Unit,
 ) {
     val uiState by state.collectAsState()
@@ -168,7 +169,17 @@ fun DenzaAppsRoot(
                         subtitle = "Яндекс на приборке",
                         snapshot = uiState.navigation,
                     ) {
-                        Text("Подключение функции", color = Muted, fontSize = 14.sp)
+                        Button(
+                            onClick = onNavigationAction,
+                            enabled = uiState.navigation.status != FeatureStatus.STARTING &&
+                                uiState.navigation.status != FeatureStatus.RECOVERING,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Accent,
+                                contentColor = Color(0xFF06251C),
+                            ),
+                        ) {
+                            Text(uiState.navigationButtonLabel, fontWeight = FontWeight.SemiBold)
+                        }
                     }
                 }
                 Spacer(Modifier.weight(1f))

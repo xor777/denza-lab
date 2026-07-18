@@ -18,6 +18,8 @@ import android.os.IBinder
 import android.os.Looper
 import android.view.Display
 import android.view.Gravity
+import android.view.Surface
+import android.view.SurfaceHolder
 import android.view.SurfaceView
 import android.view.TextureView
 import android.view.View
@@ -51,6 +53,8 @@ class ClusterSceneService : Service() {
             ACTION_STOP -> stopScene()
             ACTION_HIDE_CAMERA -> hideCamera()
             ACTION_SHOW_CAMERA -> showCamera(intent.cameraConfig())
+            ACTION_SHOW_MAP -> showMap()
+            ACTION_HIDE_MAP -> hideMap()
             ACTION_PREVIEW -> showPreview(
                 position = intent.position(),
                 visible = intent.getBooleanExtra(EXTRA_VISIBLE, false),
@@ -116,6 +120,18 @@ class ClusterSceneService : Service() {
         updateNotification("Mirrors are ready")
     }
 
+    private fun showMap() {
+        val consumer = pendingMapConsumer ?: return
+        val scene = prepareScene() ?: return
+        pendingMapConsumer = null
+        scene.showMap(consumer)
+        updateNotification("Navigation display is ready")
+    }
+
+    private fun hideMap() {
+        presentation?.hideMap()
+    }
+
     private fun showPreview(position: MirrorsPosition, visible: Boolean, durationMs: Long) {
         val scene = prepareScene() ?: return
         scene.showDiagnostic(position, visible)
@@ -179,6 +195,13 @@ class ClusterSceneService : Service() {
         private lateinit var cameraFrame: FrameLayout
         private lateinit var diagnosticLayer: FrameLayout
         private lateinit var renderer: AvcCameraRenderer
+        private var mapConsumer: MapSurfaceConsumer? = null
+        private val mapSurfaceCallback = object : SurfaceHolder.Callback {
+            override fun surfaceCreated(holder: SurfaceHolder) = dispatchMapSurface(holder.surface)
+            override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) =
+                dispatchMapSurface(holder.surface)
+            override fun surfaceDestroyed(holder: SurfaceHolder) = Unit
+        }
 
         override fun onCreate(savedInstanceState: android.os.Bundle?) {
             super.onCreate(savedInstanceState)
@@ -199,6 +222,7 @@ class ClusterSceneService : Service() {
             mapSurface = SurfaceView(context).apply {
                 setZOrderOnTop(false)
                 visibility = View.INVISIBLE
+                holder.addCallback(mapSurfaceCallback)
             }
             root.addView(mapSurface, matchParent())
 
@@ -270,6 +294,17 @@ class ClusterSceneService : Service() {
             )
         }
 
+        fun showMap(consumer: MapSurfaceConsumer) {
+            mapConsumer = consumer
+            mapSurface.visibility = View.VISIBLE
+            dispatchMapSurface(mapSurface.holder.surface)
+        }
+
+        fun hideMap() {
+            mapConsumer = null
+            mapSurface.visibility = View.INVISIBLE
+        }
+
         fun hideCamera() {
             if (::renderer.isInitialized) renderer.stop()
             cameraFrame.visibility = View.GONE
@@ -319,6 +354,19 @@ class ClusterSceneService : Service() {
                 layout.cameraWidth,
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 gravity or Gravity.TOP,
+            )
+        }
+
+        private fun dispatchMapSurface(surface: Surface?) {
+            if (surface == null || !surface.isValid) return
+            val metrics = android.util.DisplayMetrics()
+            @Suppress("DEPRECATION")
+            display.getRealMetrics(metrics)
+            mapConsumer?.onSurface(
+                surface,
+                metrics.widthPixels,
+                metrics.heightPixels,
+                metrics.densityDpi,
             )
         }
 
@@ -393,6 +441,8 @@ class ClusterSceneService : Service() {
         private const val ACTION_SHOW_CAMERA = "dev.denza.apps.cluster.SHOW_CAMERA"
         private const val ACTION_HIDE_CAMERA = "dev.denza.apps.cluster.HIDE_CAMERA"
         private const val ACTION_PREVIEW = "dev.denza.apps.cluster.PREVIEW"
+        private const val ACTION_SHOW_MAP = "dev.denza.apps.cluster.SHOW_MAP"
+        private const val ACTION_HIDE_MAP = "dev.denza.apps.cluster.HIDE_MAP"
         private const val EXTRA_SIDE = "side"
         private const val EXTRA_POSITION = "position"
         private const val EXTRA_PROCESSING = "processing"
@@ -400,6 +450,7 @@ class ClusterSceneService : Service() {
         private const val EXTRA_DURATION = "duration"
 
         @Volatile private var active: ClusterSceneService? = null
+        @Volatile private var pendingMapConsumer: MapSurfaceConsumer? = null
         private val avcFailureGeneration = AtomicLong()
         @Volatile var lastCameraDetails: String = ""
             private set
@@ -426,6 +477,15 @@ class ClusterSceneService : Service() {
                     .putExtra(EXTRA_VISIBLE, visible)
                     .putExtra(EXTRA_DURATION, durationMs),
             )
+        }
+
+        fun showMap(context: Context, consumer: MapSurfaceConsumer) {
+            pendingMapConsumer = consumer
+            start(context, ACTION_SHOW_MAP)
+        }
+
+        fun hideMap(context: Context) {
+            context.startService(serviceIntent(context, ACTION_HIDE_MAP))
         }
 
         fun hideCameraSync(timeoutMs: Long): Boolean {
@@ -455,4 +515,8 @@ class ClusterSceneService : Service() {
         private fun serviceIntent(context: Context, action: String) =
             Intent(context, ClusterSceneService::class.java).setAction(action)
     }
+}
+
+fun interface MapSurfaceConsumer {
+    fun onSurface(surface: Surface, width: Int, height: Int, densityDpi: Int)
 }

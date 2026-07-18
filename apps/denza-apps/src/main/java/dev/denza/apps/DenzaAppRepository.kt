@@ -14,6 +14,8 @@ import dev.denza.apps.feature.cluster.ClusterSceneService
 import dev.denza.apps.feature.mirrors.MirrorsPosition
 import dev.denza.apps.feature.mirrors.MirrorsSettings
 import dev.denza.apps.feature.mirrors.SideCameraMonitorService
+import dev.denza.apps.feature.navigation.NavigationCoordinator
+import dev.denza.apps.feature.navigation.NavigationPhase
 import dev.denza.disharebridge.LocalAdbClient
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -27,9 +29,9 @@ data class DenzaUiState(
     val navigation: FeatureSnapshot = FeatureSnapshot(
         id = FeatureId.NAVIGATION,
         desiredEnabled = false,
-        status = FeatureStatus.UNAVAILABLE,
-        message = "Готовится",
+        status = FeatureStatus.READY,
     ),
+    val navigationButtonLabel: String = "Открыть Яндекс",
     val selectedAppCount: Int = 0,
     val mirrorsPosition: MirrorsPosition = MirrorsPosition.SIDES,
     val mirrorsProcessing: Boolean = true,
@@ -56,18 +58,22 @@ object DenzaAppRepository {
         refresh()
         reconcileSimulcast(repairMissingSetup = true)
         if (MirrorsSettings.isEnabled(context)) reconcileMirrors()
+        NavigationCoordinator.initialize(context) { refresh() }
     }
 
     fun refresh() {
         val context = appContext ?: return
         val desired = SimulcastIntegration.isEnabled(context)
         val snapshot = evaluateSimulcast(context, desired)
+        val navigationSession = NavigationCoordinator.snapshot()
         mutableState.value = mutableState.value.copy(
             simulcast = snapshot,
             mirrors = evaluateMirrors(context),
             selectedAppCount = SimulcastApps.selectedCount(context),
             mirrorsPosition = MirrorsSettings.position(context),
             mirrorsProcessing = MirrorsSettings.processingEnabled(context),
+            navigation = navigationSnapshot(navigationSession.phase, navigationSession.message, navigationSession.details),
+            navigationButtonLabel = navigationSession.buttonLabel,
             technicalDetails = diagnostics(context),
         )
     }
@@ -128,6 +134,10 @@ object DenzaAppRepository {
             )
             else -> refresh()
         }
+    }
+
+    fun performNavigationAction() {
+        NavigationCoordinator.performPrimaryAction()
     }
 
     private fun reconcileMirrors() {
@@ -260,6 +270,30 @@ object DenzaAppRepository {
         }
     }
 
+    private fun navigationSnapshot(
+        phase: NavigationPhase,
+        message: String,
+        details: String?,
+    ): FeatureSnapshot {
+        val status = when (phase) {
+            NavigationPhase.READY -> FeatureStatus.READY
+            NavigationPhase.OPENING,
+            NavigationPhase.PROJECTING,
+            NavigationPhase.RETURNING,
+            -> FeatureStatus.STARTING
+            NavigationPhase.PROJECTED -> FeatureStatus.ACTIVE
+            NavigationPhase.RECOVERING -> FeatureStatus.RECOVERING
+            NavigationPhase.NEEDS_ACTION -> FeatureStatus.NEEDS_ACTION
+        }
+        return FeatureSnapshot(
+            id = FeatureId.NAVIGATION,
+            desiredEnabled = phase == NavigationPhase.PROJECTED,
+            status = status,
+            message = message,
+            details = details,
+        )
+    }
+
     private fun blockingProblem(context: Context): String? {
         if (!isInstalled(context.packageManager, DISHARE_PACKAGE)) return "Simulcast не найден"
         if (SimulcastApps.getSelected(context).isEmpty()) return "Выберите приложения"
@@ -316,7 +350,8 @@ object DenzaAppRepository {
         appendLine("Mirrors position=${MirrorsSettings.position(context)}")
         appendLine("Mirrors processing=${MirrorsSettings.processingEnabled(context)}")
         appendLine("Mirrors runtime=${MirrorsSettings.statusDetails(context)}")
-        append("Cluster selection=${ClusterDisplayResolver.resolve(context)}")
+        appendLine("Cluster selection=${ClusterDisplayResolver.resolve(context)}")
+        append("Navigation=${NavigationCoordinator.snapshot()}")
     }
 
     private fun isInstalled(packageManager: PackageManager, packageName: String): Boolean = try {
