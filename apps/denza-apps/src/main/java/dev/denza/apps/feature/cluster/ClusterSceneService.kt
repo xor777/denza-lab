@@ -230,6 +230,7 @@ class ClusterSceneService : Service() {
     ) : Presentation(context, display) {
         lateinit var mapSurface: SurfaceView
             private set
+        private lateinit var mapShade: View
         private lateinit var cameraTexture: TextureView
         private lateinit var cameraFrame: FrameLayout
         private lateinit var diagnosticLayer: FrameLayout
@@ -266,6 +267,8 @@ class ClusterSceneService : Service() {
                 holder.addCallback(mapSurfaceCallback)
             }
             root.addView(mapSurface, matchParent())
+            mapShade = ProjectionEdgeShadeView(context).apply { visibility = View.INVISIBLE }
+            root.addView(mapShade, matchParent())
 
             cameraFrame = FrameLayout(context).apply {
                 setBackgroundColor(Color.BLACK)
@@ -344,11 +347,13 @@ class ClusterSceneService : Service() {
         fun showMap(consumer: MapSurfaceConsumer) {
             mapConsumer = consumer
             mapSurface.visibility = View.VISIBLE
+            mapShade.visibility = View.VISIBLE
             dispatchMapSurface(mapSurface.holder.surface)
         }
 
         fun hideMap() {
             mapConsumer = null
+            mapShade.visibility = View.INVISIBLE
             mapSurface.visibility = View.INVISIBLE
         }
 
@@ -423,6 +428,31 @@ class ClusterSceneService : Service() {
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 gravity,
             )
+    }
+
+    /** OpenBYD-compatible navigation contrast shades: 90 dp, 80% black. */
+    private class ProjectionEdgeShadeView(context: Context) : View(context) {
+        private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+        private val fadeHeight = (90f * resources.displayMetrics.density).toInt().coerceAtLeast(1)
+
+        override fun onDraw(canvas: Canvas) {
+            val edge = fadeHeight.coerceAtMost(height)
+            val dark = Color.argb(204, 0, 0, 0)
+            val clear = Color.TRANSPARENT
+            paint.shader = LinearGradient(0f, 0f, 0f, edge.toFloat(), dark, clear, Shader.TileMode.CLAMP)
+            canvas.drawRect(0f, 0f, width.toFloat(), edge.toFloat(), paint)
+            paint.shader = LinearGradient(
+                0f,
+                (height - edge).toFloat(),
+                0f,
+                height.toFloat(),
+                clear,
+                dark,
+                Shader.TileMode.CLAMP,
+            )
+            canvas.drawRect(0f, (height - edge).toFloat(), width.toFloat(), height.toFloat(), paint)
+            paint.shader = null
+        }
     }
 
     private class EdgeShadeView(context: Context) : View(context) {
