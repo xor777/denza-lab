@@ -12,6 +12,8 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.LinearGradient
 import android.graphics.Paint
+import android.graphics.PorterDuff
+import android.graphics.PorterDuffXfermode
 import android.graphics.RadialGradient
 import android.graphics.Shader
 import android.os.Handler
@@ -372,8 +374,16 @@ class ClusterSceneService : Service() {
                 heightDp = layout.shadeHeightDp,
                 topAlpha = layout.shadeTopAlpha,
                 bottomAlpha = layout.shadeBottomAlpha,
+                bottomTopAlpha = layout.shadeBottomTopAlpha,
                 bottomFadePx = layout.shadeBottomFadePx,
                 bottomSolidPx = layout.shadeBottomSolidPx,
+                bottomRevealRadiusPx = layout.shadeBottomRevealRadiusPx,
+                bottomRevealHeightPercent = layout.shadeBottomRevealHeightPercent,
+                bottomRevealCenterOffsetPx = layout.shadeBottomRevealCenterOffsetPx,
+                topLeftRevealRadiusPx = layout.shadeTopLeftRevealRadiusPx,
+                topRightRevealRadiusPx = layout.shadeTopRightRevealRadiusPx,
+                topRevealHeightPx = layout.shadeTopRevealHeightPx,
+                centerTopFadePx = layout.shadeCenterTopFadePx,
                 corner = layout.shadeCorner,
             )
             mapSurface.visibility = View.VISIBLE
@@ -485,8 +495,16 @@ class ClusterSceneService : Service() {
         private var fadeHeight = (90f * resources.displayMetrics.density).toInt().coerceAtLeast(1)
         private var shadeTopAlpha = 204
         private var shadeBottomAlpha = 204
+        private var shadeBottomTopAlpha = 0
         private var shadeBottomFadePx = 0
         private var shadeBottomSolidPx = 0
+        private var shadeBottomRevealRadiusPx = 0
+        private var shadeBottomRevealHeightPercent = 0
+        private var shadeBottomRevealCenterOffsetPx = 0
+        private var shadeTopLeftRevealRadiusPx = 0
+        private var shadeTopRightRevealRadiusPx = 0
+        private var shadeTopRevealHeightPx = 0
+        private var shadeCenterTopFadePx = 0
         private var shadeTop = true
         private var shadeBottom = true
         private var shadeCorner: ClusterShadeCorner? = null
@@ -497,8 +515,16 @@ class ClusterSceneService : Service() {
             heightDp: Int,
             topAlpha: Int,
             bottomAlpha: Int,
+            bottomTopAlpha: Int,
             bottomFadePx: Int,
             bottomSolidPx: Int,
+            bottomRevealRadiusPx: Int,
+            bottomRevealHeightPercent: Int,
+            bottomRevealCenterOffsetPx: Int,
+            topLeftRevealRadiusPx: Int,
+            topRightRevealRadiusPx: Int,
+            topRevealHeightPx: Int,
+            centerTopFadePx: Int,
             corner: ClusterShadeCorner?,
         ) {
             shadeTop = top
@@ -507,12 +533,29 @@ class ClusterSceneService : Service() {
             fadeHeight = (heightDp * resources.displayMetrics.density).toInt().coerceAtLeast(1)
             shadeTopAlpha = topAlpha.coerceIn(0, 255)
             shadeBottomAlpha = bottomAlpha.coerceIn(0, 255)
+            shadeBottomTopAlpha = bottomTopAlpha.coerceIn(0, 255)
             shadeBottomFadePx = bottomFadePx.coerceAtLeast(0)
             shadeBottomSolidPx = bottomSolidPx.coerceAtLeast(0)
+            shadeBottomRevealRadiusPx = bottomRevealRadiusPx.coerceAtLeast(0)
+            shadeBottomRevealHeightPercent = bottomRevealHeightPercent.coerceIn(0, 100)
+            shadeBottomRevealCenterOffsetPx = bottomRevealCenterOffsetPx.coerceAtLeast(0)
+            shadeTopLeftRevealRadiusPx = topLeftRevealRadiusPx.coerceAtLeast(0)
+            shadeTopRightRevealRadiusPx = topRightRevealRadiusPx.coerceAtLeast(0)
+            shadeTopRevealHeightPx = topRevealHeightPx.coerceAtLeast(0)
+            shadeCenterTopFadePx = centerTopFadePx.coerceAtLeast(0)
             invalidate()
         }
 
         override fun onDraw(canvas: Canvas) {
+            val revealLayer = if (
+                shadeBottomRevealRadiusPx > 0 ||
+                    shadeTopLeftRevealRadiusPx > 0 ||
+                    shadeTopRightRevealRadiusPx > 0
+            ) {
+                canvas.saveLayer(0f, 0f, width.toFloat(), height.toFloat(), null)
+            } else {
+                null
+            }
             val edge = fadeHeight.coerceAtMost(height)
             val clear = Color.TRANSPARENT
             if (shadeTop) {
@@ -522,26 +565,30 @@ class ClusterSceneService : Service() {
             }
             if (shadeBottom) {
                 val dark = Color.argb(shadeBottomAlpha, 0, 0, 0)
+                val topTint = Color.argb(shadeBottomTopAlpha, 0, 0, 0)
                 val solidHeight = shadeBottomSolidPx.coerceAtMost(height)
                 val fadeHeight = shadeBottomFadePx.coerceAtMost(height - solidHeight)
                 val fadeTop = height - solidHeight - fadeHeight
                 val solidTop = height - solidHeight
-                if (fadeHeight > 0) {
+                val topFade = shadeCenterTopFadePx
+                    .coerceAtMost(fadeTop)
+                if (height > 0) {
                     paint.shader = LinearGradient(
                         0f,
-                        fadeTop.toFloat(),
                         0f,
-                        solidTop.toFloat(),
-                        clear,
-                        dark,
+                        0f,
+                        height.toFloat(),
+                        intArrayOf(topTint, clear, clear, dark, dark),
+                        floatArrayOf(
+                            0f,
+                            topFade.toFloat() / height.toFloat(),
+                            fadeTop.toFloat() / height.toFloat(),
+                            solidTop.toFloat() / height.toFloat(),
+                            1f,
+                        ),
                         Shader.TileMode.CLAMP,
                     )
-                    canvas.drawRect(0f, fadeTop.toFloat(), width.toFloat(), solidTop.toFloat(), paint)
-                }
-                if (solidHeight > 0) {
-                    paint.shader = null
-                    paint.color = dark
-                    canvas.drawRect(0f, solidTop.toFloat(), width.toFloat(), height.toFloat(), paint)
+                    canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paint)
                 }
             }
             shadeCorner?.let { corner ->
@@ -559,7 +606,62 @@ class ClusterSceneService : Service() {
                 val right = if (corner == ClusterShadeCorner.TOP_LEFT) edge.toFloat() else width.toFloat()
                 canvas.drawRect(left.coerceAtLeast(0f), 0f, right.coerceAtMost(width.toFloat()), edge.toFloat(), paint)
             }
+            if (shadeBottomRevealRadiusPx > 0 && shadeBottomRevealHeightPercent > 0) {
+                val centerX = width / 2f
+                val centerY = (height - shadeBottomRevealCenterOffsetPx)
+                    .coerceAtLeast(0)
+                    .toFloat()
+                val radius = shadeBottomRevealRadiusPx.toFloat()
+                val revealSave = canvas.save()
+                canvas.scale(
+                    1f,
+                    shadeBottomRevealHeightPercent / 100f,
+                    centerX,
+                    centerY,
+                )
+                paint.shader = RadialGradient(
+                    centerX,
+                    centerY,
+                    radius,
+                    intArrayOf(Color.WHITE, Color.WHITE, Color.TRANSPARENT),
+                    floatArrayOf(0f, 0.30f, 1f),
+                    Shader.TileMode.CLAMP,
+                )
+                paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.DST_OUT)
+                canvas.drawCircle(centerX, centerY, radius, paint)
+                paint.xfermode = null
+                canvas.restoreToCount(revealSave)
+            }
+            if (shadeTopRevealHeightPx > 0) {
+                listOf(
+                    0f to shadeTopLeftRevealRadiusPx,
+                    width.toFloat() to shadeTopRightRevealRadiusPx,
+                ).forEach { (centerX, radiusPx) ->
+                    if (radiusPx <= 0) return@forEach
+                    val radius = radiusPx.toFloat()
+                    val revealSave = canvas.save()
+                    canvas.scale(
+                        1f,
+                        shadeTopRevealHeightPx / radius,
+                        centerX,
+                        0f,
+                    )
+                    paint.shader = RadialGradient(
+                        centerX,
+                        0f,
+                        radius,
+                        Color.WHITE,
+                        Color.TRANSPARENT,
+                        Shader.TileMode.CLAMP,
+                    )
+                    paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.DST_OUT)
+                    canvas.drawCircle(centerX, 0f, radius, paint)
+                    paint.xfermode = null
+                    canvas.restoreToCount(revealSave)
+                }
+            }
             paint.shader = null
+            revealLayer?.let(canvas::restoreToCount)
         }
     }
 

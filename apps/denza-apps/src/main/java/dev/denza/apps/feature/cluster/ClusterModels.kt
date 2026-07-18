@@ -105,8 +105,7 @@ data class ClusterMapLayout(
         ClusterMapPlacement.RIGHT,
         -> cameraBounds.copy(top = sideTop, bottom = sideBottom)
     }
-    val shadeTop: Boolean = placement == ClusterMapPlacement.FULL ||
-        placement == ClusterMapPlacement.CENTER
+    val shadeTop: Boolean = placement == ClusterMapPlacement.CENTER
     val shadeBottom: Boolean = placement == ClusterMapPlacement.FULL
     val shadeHeightDp: Int = when (placement) {
         ClusterMapPlacement.CENTER -> 130
@@ -121,8 +120,19 @@ data class ClusterMapLayout(
         ClusterMapPlacement.RIGHT -> 0
     }
     val shadeBottomAlpha: Int = if (placement == ClusterMapPlacement.FULL) 255 else 0
+    val shadeBottomTopAlpha: Int = if (placement == ClusterMapPlacement.FULL) 242 else 0
     val shadeBottomFadePx: Int = if (placement == ClusterMapPlacement.FULL) 60 else 0
     val shadeBottomSolidPx: Int = if (placement == ClusterMapPlacement.FULL) 90 else 0
+    val shadeBottomRevealRadiusPx: Int = if (placement == ClusterMapPlacement.FULL) 600 else 0
+    val shadeBottomRevealHeightPercent: Int = if (placement == ClusterMapPlacement.FULL) 55 else 0
+    val shadeBottomRevealCenterOffsetPx: Int = if (placement == ClusterMapPlacement.FULL) 120 else 0
+    val shadeTopLeftRevealRadiusPx: Int =
+        if (placement == ClusterMapPlacement.FULL) displayWidth * 24 / 100 else 0
+    val shadeTopRightRevealRadiusPx: Int =
+        if (placement == ClusterMapPlacement.FULL) displayWidth * 20 / 100 else 0
+    val shadeTopRevealHeightPx: Int =
+        shadeTopRightRevealRadiusPx * 40 / 100 * 4 / 3
+    val shadeCenterTopFadePx: Int = shadeTopRevealHeightPx
     val shadeCorner: ClusterShadeCorner? = when (placement) {
         ClusterMapPlacement.LEFT -> ClusterShadeCorner.TOP_RIGHT
         else -> null
