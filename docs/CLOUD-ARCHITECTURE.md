@@ -52,8 +52,8 @@ ADB 5037/5555 <- sshd 127.0.0.1:2222 <- SSH -R -> 127.0.0.1:device-port <- SSH -
 
 ## 3. Relay
 
-`ops/ansible` configures stock OpenSSH and the commands in `relay/`. Port 22
-remains the administrative endpoint; port 443 serves the application.
+`ops/ansible` configures stock OpenSSH and the commands in `platform/relay/`.
+Port 22 remains the administrative endpoint; port 443 serves the application.
 
 ### 3.1 Restricted Accounts
 
@@ -221,7 +221,7 @@ one current computer and an explicit replacement action.
 
 ## 6. Developer CLI
 
-`cli/` builds one Go binary for macOS and Linux and does not modify
+`platform/cli/` builds one Go binary for macOS and Linux and does not modify
 `~/.ssh/config`. Runtime dependencies are system OpenSSH and Android Platform
 Tools when an ADB command is executed.
 

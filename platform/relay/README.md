@@ -19,7 +19,7 @@ Expired pending records are removed without changing the active grant.
 Run the tests from the repository root:
 
 ```bash
-python3 -m unittest -v relay.tests.test_cag_state
+PYTHONPATH=platform python3 -m unittest -v relay.tests.test_cag_state
 ```
 
 Provisioning and verification are defined in `ops/ansible`. Do not copy these

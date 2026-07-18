@@ -101,7 +101,7 @@
 
 - name: Install the relay state engine
   ansible.builtin.copy:
-    src: "{{ playbook_dir }}/../../../relay/cag_state.py"
+    src: "{{ playbook_dir }}/../../../platform/relay/cag_state.py"
     dest: "{{ relay_host_root }}/cag-state"
     owner: root
     group: root
@@ -109,7 +109,7 @@
 
 - name: Install relay command wrappers
   ansible.builtin.copy:
-    src: "{{ playbook_dir }}/../../../relay/{{ item.src }}"
+    src: "{{ playbook_dir }}/../../../platform/relay/{{ item.src }}"
     dest: "{{ item.dest }}"
     owner: root
     group: root

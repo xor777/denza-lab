@@ -58,7 +58,7 @@ export ANDROID_HOME=/opt/homebrew/share/android-commandlinetools
   migration source, not a new standalone product direction.
 - `:car-adb-gateway` is relay-only. Do not add a LAN listener or configurable
   relay without updating the CAG decision log first.
-- Deploy `relay/` only through `ops/ansible`; keep code/grant transitions locked,
+- Deploy `platform/relay/` only through `ops/ansible`; keep code/grant transitions locked,
   atomic, and covered by relay tests.
 - New "poke the car" code goes to `tools/` (host) or a `…​.probe` package
   (on-device), never into a product package.

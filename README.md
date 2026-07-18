@@ -31,7 +31,7 @@ product code, remote-access infrastructure, and reverse-engineering experiments.
 | **Transition** | [`apps/denza-mirrors/`](apps/denza-mirrors/) | Existing side-camera app and the source for the ongoing camera-feature migration into Denza Apps. No new standalone product direction. |
 | **Legacy** | [`legacy/denza-gateway/`](legacy/denza-gateway/) | Original LAN-only SSH-to-ADB gateway. Kept for maintenance and reference; superseded for new remote-access work. |
 | **Library** | [`libraries/dishare-bridge/`](libraries/dishare-bridge/) | Shared raw DiShare binder integration used by Denza Apps. |
-| **Platform** | [`cli/`](cli/), [`relay/`](relay/), [`ops/ansible/`](ops/ansible/) | Developer CLI, restricted relay control plane, and reproducible server provisioning. |
+| **Platform** | [`platform/cli/`](platform/cli/), [`platform/relay/`](platform/relay/), [`ops/ansible/`](ops/ansible/) | Developer CLI, restricted relay control plane, and reproducible server provisioning. |
 
 Supporting areas have deliberately narrow roles:
 
@@ -86,8 +86,9 @@ apps/
   denza-mirrors/       # transition
 libraries/
   dishare-bridge/
-cli/                   # moved to platform/ in the next mechanical step
-relay/                 # moved to platform/ in the next mechanical step
+platform/
+  cli/
+  relay/
 ops/
 legacy/
   denza-gateway/
@@ -123,7 +124,7 @@ Build transition and legacy apps only when working on them:
 Build and test the developer CLI:
 
 ```bash
-cd cli
+cd platform/cli
 go test ./...
 go build -o cag ./cmd/cag
 ```

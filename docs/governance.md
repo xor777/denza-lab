@@ -8,7 +8,7 @@ Use one of these lanes before editing code:
 
 | Lane | Allowed paths | Rule |
 | --- | --- | --- |
-| Active product | `apps/car-adb-gateway/`, `apps/denza-apps/`, `libraries/dishare-bridge/`, `cli/`, `relay/`, `ops/` | Build/test the affected path, verify hardware-dependent behavior on the car, and update the closest doc. |
+| Active product | `apps/car-adb-gateway/`, `apps/denza-apps/`, `libraries/dishare-bridge/`, `platform/cli/`, `platform/relay/`, `ops/` | Build/test the affected path, verify hardware-dependent behavior on the car, and update the closest doc. |
 | Migration | Production parts of `apps/denza-mirrors/` and corresponding new code in `apps/denza-apps/` | Preserve verified behavior while moving it behind a Denza Apps feature boundary. Avoid unrelated standalone Mirrors features. |
 | Legacy | `legacy/denza-gateway/`; later, the retired Denza Mirrors app | Maintenance and safe-retirement work only. Do not add features or create new dependencies on legacy code. |
 | Prototype | `apps/denza-mirrors/` probe package (`dev.denza.mirrors.probe`), experimental features in `apps/denza-apps/`, `tools/` | Isolate behind flags, settings, or explicit commands. Document the live-test result. |

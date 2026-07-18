@@ -7,7 +7,7 @@ OpenSSH client plus Android Platform Tools for ADB. It never changes
 Build and install it somewhere on `PATH`, for example:
 
 ```bash
-cd cli
+cd platform/cli
 go build -o cag ./cmd/cag
 install -m 0755 cag /usr/local/bin/cag
 ```
