@@ -21,6 +21,16 @@ Current scripts:
   enables the overlay app-op, and opens the app. Requires the APK to be built
   first. (The old Simulcast alias APKs are no longer installed; the accessibility
   overlay replaced them — see `research/simulcast-aliases/`.)
+- `surface_control_mirror_probe.sh`: compiles and runs the shell-UID
+  `SurfaceControlMirrorProbe` against one logical display, then pulls a PNG.
+  Set `ADB_SERIAL` when using a tunnel. It is read-only apart from temporary
+  files under `/data/local/tmp` and is the return point for non-AVC camera
+  capture research.
+- `surface_control_display_overlay_probe.sh`: compiles and runs the shell-UID
+  `SurfaceControlDisplayOverlayProbe` to place a cropped logical-display mirror
+  on another display for at most 30 seconds. It does not call AVC AIDL, removes
+  the layer on exit, and must remain a live-car probe until its z-order, copied
+  controls, and black-output limitations are resolved.
 
 When adding a tool, include:
 
