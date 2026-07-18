@@ -1,34 +1,36 @@
-# Gateway host bootstrap
+# Server Ansible
 
-This directory prepares the Ubuntu VPS without installing the relay project.
-The workflow intentionally separates safe baseline setup from the SSH lockout-risk step.
+Ansible-конфигурация VPS для Car ADB Gateway.
 
-## Local setup
+## Локальная установка
 
 ```bash
 cd ops/ansible
-/opt/homebrew/bin/python3.14 -m venv .venv-ansible
+python3 -m venv .venv-ansible
 .venv-ansible/bin/pip install -r requirements.txt
 .venv-ansible/bin/ansible-galaxy collection install -r requirements.yml
-brew install sshpass
 ```
 
-Do not store the root password in inventory or variables.
+## Настройка сервера
 
-## First bootstrap
+```bash
+.venv-ansible/bin/ansible-playbook playbooks/relay-host.yml
+.venv-ansible/bin/ansible-playbook playbooks/verify-relay-host.yml
+```
 
-Confirm the VPS host key through the provider console, then run:
+Повторный запуск безопасен и приводит сервер к конфигурации из репозитория.
+
+## Развёртывание нового VPS
 
 ```bash
 .venv-ansible/bin/ansible-playbook -u root --ask-pass playbooks/bootstrap.yml
+ssh dmitry@95.179.132.238 'sudo -n true'
+.venv-ansible/bin/ansible-playbook \
+  -e confirm_ssh_lockdown=true \
+  playbooks/lockdown.yml
 ```
 
-This installs all available updates (including phased candidates) and baseline tools,
-creates `dmitry`, installs the public key,
-configures passwordless sudo, UFW, unattended security updates, fail2ban, and safe
-SSHD settings. It deliberately keeps root/password SSH available.
-
-If a kernel update requires a reboot, perform it explicitly:
+Если после обновлений требуется перезагрузка:
 
 ```bash
 .venv-ansible/bin/ansible-playbook -u root --ask-pass \
@@ -36,29 +38,12 @@ If a kernel update requires a reboot, perform it explicitly:
   playbooks/reboot.yml
 ```
 
-## Verify and finish SSH hardening
+Пароли и приватные ключи нельзя хранить в inventory или переменных Ansible.
 
-First verify the key manually in a second terminal:
+## DNS
 
-```bash
-ssh dmitry@95.179.132.238
-sudo -n true
+```text
+A  @  95.179.132.238  TTL 300
 ```
 
-Only after that succeeds, disable remote root and password authentication:
-
-```bash
-.venv-ansible/bin/ansible-playbook \
-  -e confirm_ssh_lockdown=true \
-  playbooks/lockdown.yml
-```
-
-The lockdown playbook refuses to run from a root session, validates `sudo -n`, checks
-the SSH configuration before reload, reconnects as `dmitry`, and verifies the effective
-settings. General verification can be repeated with:
-
-```bash
-.venv-ansible/bin/ansible-playbook \
-  -e expect_ssh_lockdown=true \
-  playbooks/verify.yml
-```
+Запись `AAAA` пока не нужна. Порт 443 используется для SSH, а не HTTPS.

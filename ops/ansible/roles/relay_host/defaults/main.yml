@@ -1,0 +1,15 @@
+---
+relay_host_domain: adbgw.ru
+relay_host_public_ipv4: 95.179.132.238
+relay_host_admin_ssh_port: 22
+relay_host_ssh_port: 443
+relay_host_enrollment_enabled: false
+relay_host_root: /opt/cag
+relay_host_state_group: cag-state
+relay_host_service_accounts:
+  - cag-device
+  - cag-client
+  - cag-enroll
+relay_host_key_accounts:
+  - cag-device
+  - cag-client

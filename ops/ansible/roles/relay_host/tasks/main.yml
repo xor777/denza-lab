@@ -1,0 +1,128 @@
+---
+- name: Install relay host dependencies
+  ansible.builtin.apt:
+    name:
+      - libpam-modules
+      - openssh-client
+      - util-linux
+    state: present
+
+- name: Create the relay state group
+  ansible.builtin.group:
+    name: "{{ relay_host_state_group }}"
+    system: true
+    state: present
+
+- name: Create service-account groups
+  ansible.builtin.group:
+    name: "{{ item }}"
+    system: true
+    state: present
+  loop: "{{ relay_host_service_accounts }}"
+
+- name: Create locked service accounts
+  ansible.builtin.user:
+    name: "{{ item }}"
+    group: "{{ item }}"
+    groups: "{{ [relay_host_state_group] if item == 'cag-enroll' else [] }}"
+    append: true
+    home: "/var/lib/{{ item }}"
+    shell: /bin/bash
+    system: true
+    create_home: true
+    password_lock: true
+  loop: "{{ relay_host_service_accounts }}"
+
+- name: Restrict service-account homes
+  ansible.builtin.file:
+    path: "/var/lib/{{ item }}"
+    state: directory
+    owner: "{{ item }}"
+    group: "{{ item }}"
+    mode: "0750"
+  loop: "{{ relay_host_service_accounts }}"
+
+- name: Create service-account SSH directories
+  ansible.builtin.file:
+    path: "/var/lib/{{ item }}/.ssh"
+    state: directory
+    owner: "{{ item }}"
+    group: "{{ item }}"
+    mode: "0700"
+  loop: "{{ relay_host_key_accounts }}"
+
+- name: Create empty service-account authorized-key stores
+  ansible.builtin.copy:
+    dest: "/var/lib/{{ item }}/.ssh/authorized_keys"
+    content: ""
+    owner: "{{ item }}"
+    group: "{{ item }}"
+    mode: "0600"
+    force: false
+  loop: "{{ relay_host_key_accounts }}"
+
+- name: Create relay state directories
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: root
+    group: "{{ item.group }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - path: "{{ relay_host_root }}"
+      group: root
+      mode: "0755"
+    - path: "{{ relay_host_root }}/state"
+      group: "{{ relay_host_state_group }}"
+      mode: "0750"
+    - path: "{{ relay_host_root }}/state/codes"
+      group: "{{ relay_host_state_group }}"
+      mode: "0770"
+    - path: "{{ relay_host_root }}/state/locks"
+      group: "{{ relay_host_state_group }}"
+      mode: "0770"
+  loop_control:
+    label: "{{ item.path }}"
+
+- name: Create the device registry
+  ansible.builtin.copy:
+    dest: "{{ relay_host_root }}/state/devices.tsv"
+    content: ""
+    owner: root
+    group: "{{ relay_host_state_group }}"
+    mode: "0660"
+    force: false
+
+- name: Create root-managed relay registries
+  ansible.builtin.copy:
+    dest: "{{ relay_host_root }}/state/{{ item }}"
+    content: ""
+    owner: root
+    group: root
+    mode: "0600"
+    force: false
+  loop:
+    - users.tsv
+    - grants.tsv
+
+- name: Enable network time synchronization
+  ansible.builtin.service:
+    name: systemd-timesyncd
+    enabled: true
+    state: started
+
+- name: Allow relay SSH through UFW before opening the listener
+  community.general.ufw:
+    rule: allow
+    port: "{{ relay_host_ssh_port | string }}"
+    proto: tcp
+    comment: CAG relay SSH
+
+- name: Install relay SSH restrictions
+  ansible.builtin.template:
+    src: sshd-relay.conf.j2
+    dest: /etc/ssh/sshd_config.d/20-ansible-cag-relay.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Validate and reload relay ssh

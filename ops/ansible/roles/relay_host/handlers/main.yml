@@ -1,0 +1,11 @@
+---
+- name: Validate relay sshd configuration
+  ansible.builtin.command: /usr/sbin/sshd -t
+  changed_when: false
+  listen: Validate and reload relay ssh
+
+- name: Reload relay ssh
+  ansible.builtin.service:
+    name: ssh
+    state: reloaded
+  listen: Validate and reload relay ssh

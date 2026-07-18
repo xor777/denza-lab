@@ -9,5 +9,5 @@ ignoreip = 127.0.0.1/8 ::1
 
 [sshd]
 enabled = true
-port = ssh
+port = {{ fail2ban_sshd_ports | default('ssh') }}
 mode = normal

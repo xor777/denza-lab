@@ -1,0 +1,52 @@
+# Managed by Ansible. Port 22 remains available for the administrator.
+Port {{ relay_host_admin_ssh_port }}
+Port {{ relay_host_ssh_port }}
+GatewayPorts no
+
+Match User cag-device
+    PasswordAuthentication no
+    KbdInteractiveAuthentication no
+    PubkeyAuthentication yes
+    AllowTcpForwarding remote
+    AllowStreamLocalForwarding no
+    PermitListen 127.0.0.1:*
+    PermitTTY no
+    X11Forwarding no
+    AllowAgentForwarding no
+    PermitTunnel no
+    PermitUserRC no
+    ForceCommand /bin/false
+
+Match User cag-client
+    PasswordAuthentication no
+    KbdInteractiveAuthentication no
+    PubkeyAuthentication yes
+    AllowTcpForwarding local
+    AllowStreamLocalForwarding no
+    PermitOpen 127.0.0.1:*
+    PermitTTY no
+    X11Forwarding no
+    AllowAgentForwarding no
+    PermitTunnel no
+    PermitUserRC no
+    ForceCommand /bin/false
+
+Match User cag-enroll
+    PasswordAuthentication {{ 'yes' if relay_host_enrollment_enabled else 'no' }}
+    KbdInteractiveAuthentication no
+    PubkeyAuthentication no
+    AllowTcpForwarding no
+    AllowStreamLocalForwarding no
+    PermitTTY no
+    X11Forwarding no
+    AllowAgentForwarding no
+    PermitTunnel no
+    PermitUserRC no
+{% if relay_host_enrollment_enabled %}
+    AuthenticationMethods password
+    ForceCommand {{ relay_host_root }}/enroll.sh
+{% else %}
+    ForceCommand /bin/false
+{% endif %}
+
+Match all

@@ -1,0 +1,123 @@
+---
+- name: Verify the Car ADB Gateway relay host
+  hosts: gateways
+  become: true
+  gather_facts: false
+
+  tasks:
+    - name: Read effective cag-device SSH settings
+      ansible.builtin.command:
+        argv:
+          - /usr/sbin/sshd
+          - -T
+          - -C
+          - user=cag-device,addr=127.0.0.1,host=localhost
+      register: relay_verify_device_sshd
+      changed_when: false
+
+    - name: Read effective cag-client SSH settings
+      ansible.builtin.command:
+        argv:
+          - /usr/sbin/sshd
+          - -T
+          - -C
+          - user=cag-client,addr=127.0.0.1,host=localhost
+      register: relay_verify_client_sshd
+      changed_when: false
+
+    - name: Read effective cag-enroll SSH settings
+      ansible.builtin.command:
+        argv:
+          - /usr/sbin/sshd
+          - -T
+          - -C
+          - user=cag-enroll,addr=127.0.0.1,host=localhost
+      register: relay_verify_enroll_sshd
+      changed_when: false
+
+    - name: Require direction-specific forwarding restrictions
+      ansible.builtin.assert:
+        that:
+          - "'port 22' in relay_verify_device_sshd.stdout"
+          - "'port 443' in relay_verify_device_sshd.stdout"
+          - "'allowtcpforwarding remote' in relay_verify_device_sshd.stdout"
+          - "'allowstreamlocalforwarding no' in relay_verify_device_sshd.stdout"
+          - "'permitlisten 127.0.0.1:*' in relay_verify_device_sshd.stdout"
+          - "'forcecommand /bin/false' in relay_verify_device_sshd.stdout"
+          - "'allowtcpforwarding local' in relay_verify_client_sshd.stdout"
+          - "'allowstreamlocalforwarding no' in relay_verify_client_sshd.stdout"
+          - "'permitopen 127.0.0.1:*' in relay_verify_client_sshd.stdout"
+          - "'forcecommand /bin/false' in relay_verify_client_sshd.stdout"
+          - "'allowtcpforwarding no' in relay_verify_enroll_sshd.stdout"
+          - "'passwordauthentication no' in relay_verify_enroll_sshd.stdout"
+          - "'forcecommand /bin/false' in relay_verify_enroll_sshd.stdout"
+
+    - name: Read service-account password states
+      ansible.builtin.command: "passwd -S {{ item }}"
+      loop:
+        - cag-device
+        - cag-client
+        - cag-enroll
+      register: relay_verify_account_states
+      changed_when: false
+
+    - name: Require locked service-account passwords
+      ansible.builtin.assert:
+        that:
+          - "' L ' in item.stdout"
+      loop: "{{ relay_verify_account_states.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    - name: Read listening TCP sockets
+      ansible.builtin.command: ss -H -lnt
+      register: relay_verify_sockets
+      changed_when: false
+
+    - name: Require admin and relay SSH listeners
+      ansible.builtin.assert:
+        that:
+          - "':22 ' in relay_verify_sockets.stdout"
+          - "':443 ' in relay_verify_sockets.stdout"
+
+    - name: Read firewall status
+      ansible.builtin.command: ufw status verbose
+      register: relay_verify_ufw
+      changed_when: false
+
+    - name: Require relay port in the firewall
+      ansible.builtin.assert:
+        that:
+          - "'443/tcp' in relay_verify_ufw.stdout"
+
+    - name: Read time synchronization state
+      ansible.builtin.command: timedatectl show --property=NTPSynchronized --value
+      register: relay_verify_ntp
+      changed_when: false
+
+    - name: Require synchronized time for enrollment TTLs
+      ansible.builtin.assert:
+        that:
+          - relay_verify_ntp.stdout == "yes"
+
+    - name: Read relay host-key fingerprint
+      ansible.builtin.command: >-
+        ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub -E sha256
+      register: relay_verify_host_key
+      changed_when: false
+
+    - name: Resolve the configured relay domain
+      ansible.builtin.command: "getent ahostsv4 {{ relay_host_domain }}"
+      register: relay_verify_dns
+      changed_when: false
+      failed_when: false
+
+    - name: Show relay verification summary
+      ansible.builtin.debug:
+        msg:
+          domain: "{{ relay_host_domain }}"
+          dns: "{{ relay_verify_dns.stdout_lines }}"
+          enrollment_enabled: "{{ relay_host_enrollment_enabled }}"
+          host_key: "{{ relay_verify_host_key.stdout }}"
+          sockets: "{{ relay_verify_sockets.stdout_lines }}"
+          ufw: "{{ relay_verify_ufw.stdout_lines }}"
