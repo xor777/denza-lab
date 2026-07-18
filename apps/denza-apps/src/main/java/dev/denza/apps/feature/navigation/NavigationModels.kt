@@ -1,9 +1,25 @@
 package dev.denza.apps.feature.navigation
 
-object YandexPackagePolicy {
-    const val NAVIGATOR = "ru.yandex.yandexnavi"
+data class NavigationAppDefinition(
+    val packageName: String,
+    val fallbackLabel: String,
+)
 
-    fun isAllowed(packageName: String): Boolean = packageName == NAVIGATOR
+object NavigationAppPolicy {
+    const val DEFAULT_PACKAGE = "ru.yandex.yandexnavi"
+
+    val supported = listOf(
+        NavigationAppDefinition(DEFAULT_PACKAGE, "Яндекс Навигатор"),
+        NavigationAppDefinition("ru.yandex.yandexmaps", "Яндекс Карты"),
+        NavigationAppDefinition("com.google.android.apps.maps", "Google Maps"),
+        NavigationAppDefinition("com.waze", "Waze"),
+        NavigationAppDefinition("ru.dublgis.dgismobile", "2ГИС"),
+    )
+
+    fun isAllowed(packageName: String): Boolean = supported.any { it.packageName == packageName }
+
+    fun fallbackLabel(packageName: String): String =
+        supported.firstOrNull { it.packageName == packageName }?.fallbackLabel ?: "Навигация"
 }
 
 enum class NavigationPhase {
@@ -27,7 +43,7 @@ data class NavigationSession(
         get() = when (phase) {
             NavigationPhase.PROJECTED, NavigationPhase.RETURNING -> "Вернуть"
             NavigationPhase.PROJECTING, NavigationPhase.RECOVERING -> "Проверяю"
-            else -> if (taskId == null) "Открыть Яндекс" else "На приборку"
+            else -> if (taskId == null) "Открыть" else "На приборку"
         }
 }
 

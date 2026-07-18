@@ -28,6 +28,39 @@ object NavigationProxyClient {
     fun findAllowedTask(context: Context, packageName: String): Int =
         intResult(run(context, "find-task", packageName))
 
+    fun projectTask(
+        context: Context,
+        packageName: String,
+        taskId: Int,
+        displayId: Int,
+        width: Int,
+        height: Int,
+    ): Boolean = booleanResult(
+        run(
+            context,
+            "project-task",
+            packageName,
+            taskId.toString(),
+            displayId.toString(),
+            width.toString(),
+            height.toString(),
+        ),
+    )
+
+    fun returnTask(
+        context: Context,
+        packageName: String,
+        taskId: Int,
+        focusNavigation: Boolean,
+    ): Boolean = booleanResult(
+        run(
+            context,
+            if (focusNavigation) "return-task" else "restore-task",
+            packageName,
+            taskId.toString(),
+        ),
+    )
+
     fun createVirtualDisplay(
         context: Context,
         surface: Surface,
@@ -50,11 +83,14 @@ object NavigationProxyClient {
         virtualDisplay!!.display.displayId
     }
 
-    fun moveTask(context: Context, taskId: Int, displayId: Int): Boolean =
-        booleanResult(run(context, "move-task", taskId.toString(), displayId.toString()))
+    fun moveTask(context: Context, packageName: String, taskId: Int, displayId: Int): Boolean =
+        booleanResult(
+            run(context, "move-task", packageName, taskId.toString(), displayId.toString()),
+        )
 
     fun setTaskBounds(
         context: Context,
+        packageName: String,
         taskId: Int,
         left: Int,
         top: Int,
@@ -64,6 +100,7 @@ object NavigationProxyClient {
         run(
             context,
             "set-bounds",
+            packageName,
             taskId.toString(),
             left.toString(),
             top.toString(),
@@ -72,11 +109,14 @@ object NavigationProxyClient {
         ),
     )
 
-    fun focusTask(context: Context, taskId: Int): Boolean =
-        booleanResult(run(context, "focus-task", taskId.toString()))
+    fun focusTask(context: Context, packageName: String, taskId: Int): Boolean =
+        booleanResult(run(context, "focus-task", packageName, taskId.toString()))
 
-    fun taskDisplayId(context: Context, taskId: Int): Int =
-        intResult(run(context, "task-display", taskId.toString()))
+    fun backgroundTask(context: Context, packageName: String, taskId: Int): Boolean =
+        booleanResult(run(context, "background-task", packageName, taskId.toString()))
+
+    fun taskDisplayId(context: Context, packageName: String, taskId: Int): Int =
+        intResult(run(context, "task-display", packageName, taskId.toString()))
 
     fun releaseVirtualDisplay() = synchronized(lock) {
         virtualDisplay?.release()

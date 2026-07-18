@@ -8,10 +8,13 @@ import org.junit.Test
 
 class NavigationModelsTest {
     @Test
-    fun onlyYandexNavigatorIsAllowed() {
-        assertTrue(YandexPackagePolicy.isAllowed("ru.yandex.yandexnavi"))
-        assertFalse(YandexPackagePolicy.isAllowed("com.android.settings"))
-        assertFalse(YandexPackagePolicy.isAllowed("ru.yandex.maps"))
+    fun onlyKnownNavigationAppsAreAllowed() {
+        assertTrue(NavigationAppPolicy.isAllowed("ru.yandex.yandexnavi"))
+        assertTrue(NavigationAppPolicy.isAllowed("ru.yandex.yandexmaps"))
+        assertTrue(NavigationAppPolicy.isAllowed("com.google.android.apps.maps"))
+        assertTrue(NavigationAppPolicy.isAllowed("com.waze"))
+        assertTrue(NavigationAppPolicy.isAllowed("ru.dublgis.dgismobile"))
+        assertFalse(NavigationAppPolicy.isAllowed("com.android.settings"))
     }
 
     @Test

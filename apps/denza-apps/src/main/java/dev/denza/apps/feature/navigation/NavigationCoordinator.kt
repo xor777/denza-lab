@@ -3,6 +3,7 @@ package dev.denza.apps.feature.navigation
 import android.app.ActivityOptions
 import android.content.Context
 import android.content.Intent
+import android.util.Log
 import dev.denza.apps.feature.cluster.ClusterDisplayResolver
 import dev.denza.apps.feature.cluster.ClusterDisplaySelection
 import dev.denza.apps.feature.cluster.ClusterSceneService
@@ -13,49 +14,120 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
 object NavigationCoordinator {
+    private const val TAG = "DenzaNavigation"
+    private const val ADB_KEY_COMMENT = "denza-apps@denza"
+    private const val AUTOMATIC_POLL_SECONDS = 1L
     private val executor = Executors.newSingleThreadScheduledExecutor()
     @Volatile private var context: Context? = null
     @Volatile private var session = NavigationSession()
     @Volatile private var onStateChanged: (() -> Unit)? = null
     @Volatile private var initialized = false
+    @Volatile private var automaticEnabled = false
+    @Volatile private var selectedPackage = NavigationAppPolicy.DEFAULT_PACKAGE
+    private var stockModeDetector: StockClusterModeDetector? = null
+    private var lastStockMapVisible: Boolean? = null
+    private var automaticProjectionActive = false
+    private var pendingAutomaticProjection = false
+    private var pendingAutomaticReturn = false
 
     fun initialize(context: Context, onStateChanged: () -> Unit) {
-        this.context = context.applicationContext
+        val app = context.applicationContext
+        this.context = app
         this.onStateChanged = onStateChanged
         if (initialized) {
             onStateChanged()
             return
         }
         initialized = true
+        selectedPackage = NavigationSettings.selectedPackage(app)
+        val adb = LocalAdbClient(app, ADB_KEY_COMMENT)
+        stockModeDetector = StockClusterModeDetector(adb::shell)
         executor.execute(::discoverTask)
         executor.scheduleWithFixedDelay(::verifyActiveSession, 5L, 5L, TimeUnit.SECONDS)
+        executor.scheduleWithFixedDelay(
+            ::reconcileAutomaticMode,
+            AUTOMATIC_POLL_SECONDS,
+            AUTOMATIC_POLL_SECONDS,
+            TimeUnit.SECONDS,
+        )
     }
 
     fun snapshot(): NavigationSession = session
 
+    fun automaticEnabled(): Boolean = automaticEnabled
+
+    fun selectedPackage(): String = selectedPackage
+
+    fun selectPackage(packageName: String) {
+        val app = context ?: return
+        if (!NavigationAppPolicy.isAllowed(packageName)) return
+        if (!NavigationSettings.isInstalled(app, packageName)) return
+        executor.execute {
+            if (selectedPackage == packageName) {
+                onStateChanged?.invoke()
+                return@execute
+            }
+            automaticProjectionActive = false
+            pendingAutomaticProjection = false
+            pendingAutomaticReturn = false
+            if (session.phase == NavigationPhase.PROJECTED) {
+                returnToCentralDisplay(focusTask = false)
+            }
+            NavigationSettings.setSelectedPackage(app, packageName)
+            selectedPackage = packageName
+            lastStockMapVisible = null
+            discoverTask()
+            if (automaticEnabled) reconcileAutomaticMode()
+        }
+    }
+
+    fun setAutomaticEnabled(enabled: Boolean) {
+        automaticEnabled = enabled
+        onStateChanged?.invoke()
+        executor.execute {
+            lastStockMapVisible = null
+            pendingAutomaticProjection = false
+            pendingAutomaticReturn = false
+            if (enabled) {
+                reconcileAutomaticMode()
+            } else if (automaticProjectionActive) {
+                automaticProjectionActive = false
+                if (session.phase == NavigationPhase.PROJECTED) {
+                    returnToCentralDisplay(focusTask = false)
+                }
+            }
+        }
+    }
+
     fun performPrimaryAction() {
         executor.execute {
             when (session.phase) {
-                NavigationPhase.PROJECTED, NavigationPhase.RETURNING -> returnToCentralDisplay()
+                NavigationPhase.PROJECTED -> {
+                    automaticProjectionActive = false
+                    pendingAutomaticReturn = false
+                    returnToCentralDisplay()
+                }
+                NavigationPhase.RETURNING -> Unit
                 NavigationPhase.PROJECTING, NavigationPhase.OPENING, NavigationPhase.RECOVERING -> Unit
-                else -> if (session.taskId == null) openYandex() else projectToCluster()
+                else -> if (session.taskId == null) openSelectedApp() else projectToCluster()
             }
         }
     }
 
     private fun discoverTask() {
         val app = context ?: return
-        if (!isYandexInstalled(app)) {
+        val packageName = selectedPackage
+        if (!NavigationSettings.isInstalled(app, packageName)) {
             update(
                 NavigationSession(
                     phase = NavigationPhase.NEEDS_ACTION,
-                    message = "Установите Яндекс Навигатор",
+                    message = "Установите выбранный навигатор",
                 ),
             )
             return
         }
         try {
-            val task = NavigationProxyClient.findAllowedTask(app, YandexPackagePolicy.NAVIGATOR)
+            val task = NavigationProxyClient.findAllowedTask(app, packageName)
             update(NavigationSession(taskId = task.takeIf { it >= 0 }))
         } catch (error: Exception) {
             update(
@@ -68,14 +140,15 @@ object NavigationCoordinator {
         }
     }
 
-    private fun openYandex() {
+    private fun openSelectedApp() {
         val app = context ?: return
-        val launch = app.packageManager.getLaunchIntentForPackage(YandexPackagePolicy.NAVIGATOR)
+        val packageName = selectedPackage
+        val launch = app.packageManager.getLaunchIntentForPackage(packageName)
         if (launch == null) {
             update(
                 NavigationSession(
                     phase = NavigationPhase.NEEDS_ACTION,
-                    message = "Установите Яндекс Навигатор",
+                    message = "Установите выбранный навигатор",
                 ),
             )
             return
@@ -90,7 +163,7 @@ object NavigationCoordinator {
             update(
                 session.copy(
                     phase = NavigationPhase.NEEDS_ACTION,
-                    message = "Не удалось открыть Яндекс Навигатор",
+                    message = "Не удалось открыть навигатор",
                     details = error.toString(),
                 ),
             )
@@ -99,10 +172,20 @@ object NavigationCoordinator {
 
     private fun discoverLaunchedTask(attemptsRemaining: Int) {
         val app = context ?: return
+        val packageName = selectedPackage
         try {
-            val task = NavigationProxyClient.findAllowedTask(app, YandexPackagePolicy.NAVIGATOR)
+            val task = NavigationProxyClient.findAllowedTask(app, packageName)
             if (task >= 0) {
                 update(NavigationSession(taskId = task))
+                if (
+                    pendingAutomaticProjection &&
+                    automaticEnabled &&
+                    lastStockMapVisible == true
+                ) {
+                    pendingAutomaticProjection = false
+                    automaticProjectionActive = true
+                    projectToCluster()
+                }
             } else if (attemptsRemaining > 0) {
                 executor.schedule(
                     { discoverLaunchedTask(attemptsRemaining - 1) },
@@ -110,14 +193,16 @@ object NavigationCoordinator {
                     TimeUnit.MILLISECONDS,
                 )
             } else {
+                pendingAutomaticProjection = false
                 update(
                     NavigationSession(
                         phase = NavigationPhase.NEEDS_ACTION,
-                        message = "Дождитесь запуска Яндекс Навигатора",
+                        message = "Дождитесь запуска навигатора",
                     ),
                 )
             }
         } catch (error: Exception) {
+            pendingAutomaticProjection = false
             update(
                 NavigationSession(
                     phase = NavigationPhase.NEEDS_ACTION,
@@ -131,6 +216,7 @@ object NavigationCoordinator {
     private fun projectToCluster() {
         val app = context ?: return
         val taskId = session.taskId ?: return
+        val packageName = selectedPackage
         val selected = ClusterDisplayResolver.resolve(app)
         if (selected !is ClusterDisplaySelection.Selected) {
             update(
@@ -173,20 +259,16 @@ object NavigationCoordinator {
                         density,
                     )
                     check(displayId >= 0) { "virtual display creation failed" }
-                    check(NavigationProxyClient.moveTask(app, taskId, displayId)) {
-                        "task move failed"
-                    }
-                    check(NavigationProxyClient.setTaskBounds(
-                        app,
-                        taskId,
-                        0,
-                        0,
-                        width,
-                        height,
-                    )) { "task bounds failed" }
-                    check(NavigationProxyClient.focusTask(app, taskId)) {
-                        "task focus failed"
-                    }
+                    check(
+                        NavigationProxyClient.projectTask(
+                            app,
+                            packageName,
+                            taskId,
+                            displayId,
+                            width,
+                            height,
+                        ),
+                    ) { "task projection failed" }
                     update(
                         NavigationSession(
                             phase = NavigationPhase.PROJECTED,
@@ -194,7 +276,17 @@ object NavigationCoordinator {
                             virtualDisplayId = displayId,
                         ),
                     )
+                    if (
+                        pendingAutomaticReturn ||
+                        (automaticProjectionActive && lastStockMapVisible == false)
+                    ) {
+                        pendingAutomaticReturn = false
+                        automaticProjectionActive = false
+                        returnToCentralDisplay(focusTask = false)
+                    }
                 } catch (error: Exception) {
+                    automaticProjectionActive = false
+                    pendingAutomaticReturn = false
                     NavigationProxyClient.releaseVirtualDisplay()
                     ClusterSceneService.hideMap(app)
                     update(
@@ -210,20 +302,19 @@ object NavigationCoordinator {
         })
     }
 
-    private fun returnToCentralDisplay() {
+    private fun returnToCentralDisplay(focusTask: Boolean = true) {
         val app = context ?: return
         val taskId = session.taskId
+        val packageName = selectedPackage
         update(session.copy(phase = NavigationPhase.RETURNING, message = "Возвращаю на главный экран"))
         try {
             if (taskId != null) {
-                val currentDisplay = runCatching {
-                    NavigationProxyClient.taskDisplayId(app, taskId)
-                }.getOrDefault(-1)
-                if (currentDisplay > 0) {
-                    NavigationProxyClient.moveTask(app, taskId, 0)
-                }
-                NavigationProxyClient.setTaskBounds(app, taskId, 0, 0, 0, 0)
-                NavigationProxyClient.focusTask(app, taskId)
+                NavigationProxyClient.returnTask(
+                    app,
+                    packageName,
+                    taskId,
+                    focusNavigation = focusTask,
+                )
             }
         } catch (_: Exception) {
             // Releasing the display below is still the safest available fallback.
@@ -240,9 +331,12 @@ object NavigationCoordinator {
         if (current.phase != NavigationPhase.PROJECTED) return
         val taskId = current.taskId ?: return
         val expectedDisplay = current.virtualDisplayId ?: return
+        val packageName = selectedPackage
         try {
-            val actualDisplay = NavigationProxyClient.taskDisplayId(app, taskId)
+            val actualDisplay = NavigationProxyClient.taskDisplayId(app, packageName, taskId)
             if (actualDisplay != expectedDisplay) {
+                automaticProjectionActive = false
+                pendingAutomaticReturn = false
                 NavigationProxyClient.releaseVirtualDisplay()
                 ClusterSceneService.hideMap(app)
                 update(NavigationSession(taskId = taskId.takeIf { actualDisplay >= 0 }))
@@ -255,6 +349,9 @@ object NavigationCoordinator {
     private fun handleCommandFailure() {
         val app = context ?: return
         val previous = session
+        automaticProjectionActive = false
+        pendingAutomaticProjection = false
+        pendingAutomaticReturn = false
         update(NavigationRecovery.proxyLost(previous))
         ClusterSceneService.hideMap(app)
         executor.schedule({
@@ -263,16 +360,61 @@ object NavigationCoordinator {
         }, 800L, TimeUnit.MILLISECONDS)
     }
 
+    private fun reconcileAutomaticMode() {
+        if (!automaticEnabled) return
+        val app = context ?: return
+        val selected = ClusterDisplayResolver.resolve(app)
+        if (selected !is ClusterDisplaySelection.Selected) return
+        val resolvedPackage = NavigationSettings.selectedPackage(app)
+        if (resolvedPackage != selectedPackage && session.phase != NavigationPhase.PROJECTED) {
+            selectedPackage = resolvedPackage
+            discoverTask()
+        }
+        val detector = stockModeDetector ?: return
+        val mapVisible = try {
+            detector.isMapVisible(selected.display.id)
+        } catch (error: Exception) {
+            Log.d(TAG, "stock cluster mode check failed", error)
+            return
+        }
+        if (lastStockMapVisible == mapVisible) return
+        lastStockMapVisible = mapVisible
+        Log.i(TAG, "stock map visible=$mapVisible display=${selected.display.id}")
+        if (mapVisible) onStockMapEntered() else onStockMapExited()
+    }
+
+    private fun onStockMapEntered() {
+        pendingAutomaticReturn = false
+        when (session.phase) {
+            NavigationPhase.READY, NavigationPhase.NEEDS_ACTION -> {
+                if (session.taskId != null) {
+                    automaticProjectionActive = true
+                    projectToCluster()
+                } else {
+                    pendingAutomaticProjection = true
+                    openSelectedApp()
+                }
+            }
+            else -> Unit
+        }
+    }
+
+    private fun onStockMapExited() {
+        pendingAutomaticProjection = false
+        if (!automaticProjectionActive) return
+        when (session.phase) {
+            NavigationPhase.PROJECTED -> {
+                automaticProjectionActive = false
+                returnToCentralDisplay(focusTask = false)
+            }
+            NavigationPhase.PROJECTING -> pendingAutomaticReturn = true
+            else -> automaticProjectionActive = false
+        }
+    }
+
     private fun update(next: NavigationSession) {
         session = next
         onStateChanged?.invoke()
-    }
-
-    private fun isYandexInstalled(context: Context): Boolean = try {
-        context.packageManager.getApplicationInfo(YandexPackagePolicy.NAVIGATOR, 0)
-        true
-    } catch (_: android.content.pm.PackageManager.NameNotFoundException) {
-        false
     }
 
     private fun friendlyProxyError(error: Exception): String {

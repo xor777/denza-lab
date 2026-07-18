@@ -8,14 +8,22 @@ import android.os.Looper;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * One-shot shell-UID task command. It intentionally exposes only fixed
- * operations for the allowlisted Yandex Navigator task and always exits.
+ * operations for an allowlisted navigation task and always exits.
  */
 public final class ClusterProxyMain {
-    private static final String ALLOWED_PACKAGE = "ru.yandex.yandexnavi";
+    private static final Set<String> ALLOWED_PACKAGES = new HashSet<>(Arrays.asList(
+            "ru.yandex.yandexnavi",
+            "ru.yandex.yandexmaps",
+            "com.google.android.apps.maps",
+            "com.waze",
+            "ru.dublgis.dgismobile"));
     private static final String RESULT_PREFIX = "DENZA_RESULT:";
 
     private ClusterProxyMain() {
@@ -30,23 +38,41 @@ public final class ClusterProxyMain {
                 requireCount(args, 2);
                 result(commands.findAllowedTask(args[1]));
                 return;
-            case "move-task":
-                requireCount(args, 3);
-                result(commands.moveTask(integer(args[1]), integer(args[2])));
-                return;
-            case "set-bounds":
+            case "project-task":
                 requireCount(args, 6);
-                result(commands.setTaskBounds(
-                        integer(args[1]), integer(args[2]), integer(args[3]),
+                result(commands.projectTask(
+                        args[1], integer(args[2]), integer(args[3]),
                         integer(args[4]), integer(args[5])));
                 return;
+            case "return-task":
+                requireCount(args, 3);
+                result(commands.returnTask(args[1], integer(args[2]), true));
+                return;
+            case "restore-task":
+                requireCount(args, 3);
+                result(commands.returnTask(args[1], integer(args[2]), false));
+                return;
+            case "move-task":
+                requireCount(args, 4);
+                result(commands.moveTask(args[1], integer(args[2]), integer(args[3])));
+                return;
+            case "set-bounds":
+                requireCount(args, 7);
+                result(commands.setTaskBounds(
+                        args[1], integer(args[2]), integer(args[3]), integer(args[4]),
+                        integer(args[5]), integer(args[6])));
+                return;
             case "focus-task":
-                requireCount(args, 2);
-                result(commands.focusTask(integer(args[1])));
+                requireCount(args, 3);
+                result(commands.focusTask(args[1], integer(args[2])));
+                return;
+            case "background-task":
+                requireCount(args, 3);
+                result(commands.backgroundTask(args[1], integer(args[2])));
                 return;
             case "task-display":
-                requireCount(args, 2);
-                result(commands.taskDisplayId(integer(args[1])));
+                requireCount(args, 3);
+                result(commands.taskDisplayId(args[1], integer(args[2])));
                 return;
             default:
                 throw new IllegalArgumentException("unsupported operation");
@@ -86,15 +112,32 @@ public final class ClusterProxyMain {
         }
 
         int findAllowedTask(String packageName) {
-            if (!ALLOWED_PACKAGE.equals(packageName)) return -1;
+            if (!isAllowedPackage(packageName)) return -1;
             for (ActivityManager.RunningTaskInfo task : tasks()) {
-                if (belongsToAllowedPackage(task)) return task.taskId;
+                if (belongsToPackage(task, packageName)) return task.taskId;
             }
             return -1;
         }
 
-        boolean moveTask(int taskId, int displayId) {
-            enforceTask(taskId);
+        boolean projectTask(
+                String packageName, int taskId, int displayId, int width, int height) {
+            if (!moveTask(packageName, taskId, displayId)) return false;
+            if (!setTaskBounds(packageName, taskId, 0, 0, width, height)) return false;
+            return focusTask(packageName, taskId);
+        }
+
+        boolean returnTask(String packageName, int taskId, boolean focusNavigation) {
+            enforceTask(packageName, taskId);
+            int currentDisplay = taskDisplayId(packageName, taskId);
+            if (currentDisplay > 0 && !moveTask(packageName, taskId, 0)) return false;
+            if (!setTaskBounds(packageName, taskId, 0, 0, 0, 0)) return false;
+            return focusNavigation
+                    ? focusTask(packageName, taskId)
+                    : backgroundTask(packageName, taskId);
+        }
+
+        boolean moveTask(String packageName, int taskId, int displayId) {
+            enforceTask(packageName, taskId);
             return invokeTaskManager(
                     new String[] {"moveRootTaskToDisplay", "moveTaskToDisplay", "moveStackToDisplay"},
                     new Class<?>[] {int.class, int.class},
@@ -102,8 +145,9 @@ public final class ClusterProxyMain {
                     displayId);
         }
 
-        boolean setTaskBounds(int taskId, int left, int top, int right, int bottom) {
-            enforceTask(taskId);
+        boolean setTaskBounds(
+                String packageName, int taskId, int left, int top, int right, int bottom) {
+            enforceTask(packageName, taskId);
             boolean clear = left == 0 && top == 0 && right == 0 && bottom == 0;
             if (!clear && (right <= left || bottom <= top)) {
                 throw new IllegalArgumentException("invalid bounds");
@@ -117,18 +161,34 @@ public final class ClusterProxyMain {
                     0);
         }
 
-        boolean focusTask(int taskId) {
-            enforceTask(taskId);
+        boolean focusTask(String packageName, int taskId) {
+            enforceTask(packageName, taskId);
             return invokeTaskManager(
                     new String[] {"setFocusedTask"},
                     new Class<?>[] {int.class},
                     taskId);
         }
 
-        int taskDisplayId(int taskId) {
-            enforceTask(taskId);
+        boolean backgroundTask(String packageName, int taskId) {
+            enforceTask(packageName, taskId);
+            // Running tasks are ordered front-to-back. Once the navigation
+            // root returns to display 0, the first non-navigation task is the
+            // central scene that was visible before projection.
+            for (ActivityManager.RunningTaskInfo candidate : tasks()) {
+                if (candidate.taskId == taskId || displayIdOf(candidate) != 0) continue;
+                if (belongsToAllowedPackage(candidate) || candidate.topActivity == null) continue;
+                return invokeTaskManager(
+                        new String[] {"setFocusedTask"},
+                        new Class<?>[] {int.class},
+                        candidate.taskId);
+            }
+            return false;
+        }
+
+        int taskDisplayId(String packageName, int taskId) {
+            enforceTask(packageName, taskId);
             for (ActivityManager.RunningTaskInfo task : tasks()) {
-                if (task.taskId == taskId && belongsToAllowedPackage(task)) {
+                if (task.taskId == taskId && belongsToPackage(task, packageName)) {
                     return displayIdOf(task);
                 }
             }
@@ -140,12 +200,25 @@ public final class ClusterProxyMain {
             return manager == null ? java.util.Collections.emptyList() : manager.getRunningTasks(100);
         }
 
-        private boolean belongsToAllowedPackage(ActivityManager.RunningTaskInfo task) {
-            return hasPackage(task.topActivity) || hasPackage(task.baseActivity);
+        private boolean belongsToPackage(
+                ActivityManager.RunningTaskInfo task, String packageName) {
+            return hasPackage(task.topActivity, packageName)
+                    || hasPackage(task.baseActivity, packageName);
         }
 
-        private boolean hasPackage(ComponentName component) {
-            return component != null && ALLOWED_PACKAGE.equals(component.getPackageName());
+        private boolean belongsToAllowedPackage(ActivityManager.RunningTaskInfo task) {
+            for (String packageName : ALLOWED_PACKAGES) {
+                if (belongsToPackage(task, packageName)) return true;
+            }
+            return false;
+        }
+
+        private boolean hasPackage(ComponentName component, String packageName) {
+            return component != null && packageName.equals(component.getPackageName());
+        }
+
+        private boolean isAllowedPackage(String packageName) {
+            return ALLOWED_PACKAGES.contains(packageName);
         }
 
         private int displayIdOf(ActivityManager.RunningTaskInfo task) {
@@ -166,11 +239,14 @@ public final class ClusterProxyMain {
             }
         }
 
-        private void enforceTask(int taskId) {
-            for (ActivityManager.RunningTaskInfo task : tasks()) {
-                if (task.taskId == taskId && belongsToAllowedPackage(task)) return;
+        private void enforceTask(String packageName, int taskId) {
+            if (!isAllowedPackage(packageName)) {
+                throw new SecurityException("package is not allowed for navigation");
             }
-            throw new SecurityException("task is not an allowed Yandex task");
+            for (ActivityManager.RunningTaskInfo task : tasks()) {
+                if (task.taskId == taskId && belongsToPackage(task, packageName)) return;
+            }
+            throw new SecurityException("task is not an allowed navigation task");
         }
 
         private boolean invokeTaskManager(String[] names, Class<?>[] parameterTypes, Object... args) {
