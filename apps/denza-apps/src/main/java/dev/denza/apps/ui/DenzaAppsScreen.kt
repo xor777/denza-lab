@@ -61,7 +61,6 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -73,6 +72,7 @@ import dev.denza.apps.NavigationAppChoice
 import dev.denza.apps.SimulcastAppChoice
 import dev.denza.apps.core.FeatureSnapshot
 import dev.denza.apps.core.FeatureStatus
+import dev.denza.apps.feature.cluster.ClusterMapPlacement
 import dev.denza.apps.feature.mirrors.MirrorsPosition
 import kotlinx.coroutines.flow.StateFlow
 
@@ -101,6 +101,7 @@ fun DenzaAppsRoot(
     onPreviewMirrors: () -> Unit,
     onNavigationAction: () -> Unit,
     onNavigationAutomatic: (Boolean) -> Unit,
+    onNavigationPlacement: (ClusterMapPlacement) -> Unit,
     onChooseNavigationApp: () -> Unit,
     onCloseNavigationPicker: () -> Unit,
     onSelectNavigationApp: (String) -> Unit,
@@ -266,6 +267,27 @@ fun DenzaAppsRoot(
                         snapshot = uiState.navigation,
                     ) {
                         Column(modifier = Modifier.fillMaxWidth()) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            ) {
+                                ClusterMapPlacement.entries.forEach { placement ->
+                                    NavigationPlacementChoice(
+                                        modifier = Modifier.weight(1f),
+                                        text = when (placement) {
+                                            ClusterMapPlacement.FULL -> "Полный"
+                                            ClusterMapPlacement.LEFT -> "Слева"
+                                            ClusterMapPlacement.CENTER -> "Центр"
+                                            ClusterMapPlacement.RIGHT -> "Справа"
+                                        },
+                                        selected = uiState.navigationPlacement == placement,
+                                        enabled = uiState.navigation.status != FeatureStatus.STARTING &&
+                                            uiState.navigation.status != FeatureStatus.RECOVERING,
+                                        onClick = { onNavigationPlacement(placement) },
+                                    )
+                                }
+                            }
+                            Spacer(Modifier.height(10.dp))
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically,
@@ -652,6 +674,44 @@ private fun MirrorChoice(
 }
 
 @Composable
+private fun NavigationPlacementChoice(
+    modifier: Modifier,
+    text: String,
+    selected: Boolean,
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
+    Surface(
+        modifier = modifier
+            .height(38.dp)
+            .clickable(enabled = enabled, onClick = onClick),
+        shape = RoundedCornerShape(12.dp),
+        color = if (selected) Elevated else Color.Transparent,
+        border = BorderStroke(
+            1.dp,
+            when {
+                !enabled -> DisabledMuted
+                selected -> Accent
+                else -> Elevated
+            },
+        ),
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Text(
+                text,
+                color = when {
+                    !enabled -> DisabledMuted
+                    selected -> Accent
+                    else -> Ink
+                },
+                fontSize = 10.sp,
+                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+            )
+        }
+    }
+}
+
+@Composable
 private fun DenzaTheme(content: @Composable () -> Unit) {
     MaterialTheme(
         colorScheme = androidx.compose.material3.darkColorScheme(
@@ -795,7 +855,6 @@ private fun SupportDialog(
     onSelectClusterDisplay: (Int?) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val uriHandler = LocalUriHandler.current
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false),
@@ -837,7 +896,7 @@ private fun SupportDialog(
                     )
                     HelpSection(
                         title = "Навигация",
-                        text = "Выберите навигатор и нажмите «На приборку». С «Авто» он сам появляется в режиме Map и убирается при возврате в ADAS.",
+                        text = "Выберите навигатор и его положение, затем нажмите «На приборку». С «Авто» он сам появляется в режиме Map и убирается при возврате в ADAS.",
                     )
                     HelpSection(
                         title = "Разделённый экран",
@@ -898,16 +957,6 @@ private fun SupportDialog(
                     horizontalArrangement = Arrangement.End,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    if (!showTechnical) {
-                        OutlinedButton(
-                            onClick = { uriHandler.openUri("https://github.com/xor777/denza-lab") },
-                            border = BorderStroke(1.dp, Accent),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Accent),
-                        ) {
-                            Text("Проект и обратная связь")
-                        }
-                        Spacer(Modifier.width(10.dp))
-                    }
                     Button(
                         onClick = onDismiss,
                         colors = ButtonDefaults.buttonColors(

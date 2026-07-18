@@ -24,6 +24,7 @@ class MainActivity : ComponentActivity() {
                     onPreviewMirrors = DenzaAppRepository::previewMirrors,
                     onNavigationAction = DenzaAppRepository::performNavigationAction,
                     onNavigationAutomatic = DenzaAppRepository::setNavigationAutomatic,
+                    onNavigationPlacement = DenzaAppRepository::setNavigationPlacement,
                     onChooseNavigationApp = DenzaAppRepository::showNavigationAppPicker,
                     onCloseNavigationPicker = DenzaAppRepository::hideNavigationAppPicker,
                     onSelectNavigationApp = DenzaAppRepository::selectNavigationApp,

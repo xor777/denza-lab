@@ -13,6 +13,7 @@ import dev.denza.apps.core.FeatureStatus
 import dev.denza.apps.feature.cluster.ClusterDisplayResolver
 import dev.denza.apps.feature.cluster.ClusterDisplayDescriptor
 import dev.denza.apps.feature.cluster.ClusterDisplaySelection
+import dev.denza.apps.feature.cluster.ClusterMapPlacement
 import dev.denza.apps.feature.cluster.ClusterSceneService
 import dev.denza.apps.feature.mirrors.MirrorsPosition
 import dev.denza.apps.feature.mirrors.MirrorsSettings
@@ -55,6 +56,7 @@ data class DenzaUiState(
     val splitScreen: FeatureSnapshot = FeatureReducer.disabled(FeatureId.SPLIT_SCREEN),
     val navigationButtonLabel: String = "Открыть",
     val navigationAutomatic: Boolean = false,
+    val navigationPlacement: ClusterMapPlacement = ClusterMapPlacement.FULL,
     val navigationAppLabel: String = "Яндекс Навигатор",
     val navigationAppChoices: List<NavigationAppChoice> = emptyList(),
     val navigationPickerVisible: Boolean = false,
@@ -122,6 +124,7 @@ object DenzaAppRepository {
             navigation = navigationSnapshot(navigationSession.phase, navigationSession.message, navigationSession.details),
             navigationButtonLabel = navigationSession.buttonLabel,
             navigationAutomatic = NavigationCoordinator.automaticEnabled(),
+            navigationPlacement = NavigationCoordinator.placement(),
             navigationAppLabel = NavigationAppPolicy.fallbackLabel(navigationPackage),
             navigationAppChoices = navigationAppChoices(context, navigationPackage),
             splitScreen = splitScreenSnapshot(
@@ -253,6 +256,10 @@ object DenzaAppRepository {
 
     fun setNavigationAutomatic(enabled: Boolean) {
         NavigationCoordinator.setAutomaticEnabled(enabled)
+    }
+
+    fun setNavigationPlacement(placement: ClusterMapPlacement) {
+        NavigationCoordinator.selectPlacement(placement)
     }
 
     fun showNavigationAppPicker() {
