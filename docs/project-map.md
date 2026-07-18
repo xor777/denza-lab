@@ -10,8 +10,8 @@ may still use the historical `denza-gateway` directory name.
 | Path | APK / product | Purpose | Status |
 | --- | --- | --- | --- |
 | `legacy/denza-gateway/` | `denza-gateway` | SSH gateway from the car LAN to local ADB endpoints on the head unit. | **Legacy.** Maintenance-only; do not add features. Car ADB Gateway supersedes it for new remote-access work. |
-| `apps/denza-mirrors/` | `denza-mirrors` | Driver-display side-camera enlargement for turn-signal camera windows. | **Transition.** Source for the camera migration into Denza Apps. Product code lives in `dev.denza.mirrors`; research probes are isolated in `dev.denza.mirrors.probe`. |
-| `apps/denza-apps/` | `denza-apps` | Consolidated head-unit app for Denza features. Adds supported apps to the native Simulcast App Change row and will absorb Denza Mirrors behavior. | **Active.** Self-contained: the APK performs its local ADB setup after key authorization, grants the overlay app-op, and enables its accessibility service. |
+| `apps/denza-mirrors/` | `denza-mirrors` | Original driver-display side-camera enlargement. | **Transition.** Hardware-verified reference kept buildable until the migrated Denza Apps path passes real-car acceptance. Product code lives in `dev.denza.mirrors`; research probes remain isolated in `dev.denza.mirrors.probe`. |
+| `apps/denza-apps/` | `denza-apps` | Consolidated head-unit app for Simulcast, side-camera mirrors, and Yandex instrument projection. | **Active.** Version `0.2.0`; Compose landscape shell, self-recovery, one display resolver, and one shared cluster scene. Mirrors and navigation code are locally verified but still require live-car acceptance. |
 | `apps/car-adb-gateway/` | `car-adb-gateway` | Generic relay-only remote ADB gateway. Fixed `adbgw.ru`, one trusted computer, background recovery, no LAN listener. | Product candidate. Local unit/build evidence exists; relay deployment, live-head-unit E2E, API matrix, and soak remain required. |
 
 ## Shared Android Modules
@@ -59,11 +59,11 @@ into product code:
 - **Parked / non-built code** → `research/<topic>/` with a README explaining why
   it is not built.
 
-Rule of thumb: product code must not depend on `…​.probe` code. There is one
-known violation today — `SideCameraOverlayMonitorService` (product) drives the
-experimental `HudDiShareActivity` HUD path. It is deliberately left visible (a
-cross-package import) as a cleanup TODO. Resolve that coupling before extracting
-probes into their own module.
+Rule of thumb: product code must not depend on `…​.probe` code. The active Denza
+Apps path follows this rule. The transition-only standalone Mirrors module still
+has one historical violation: `SideCameraOverlayMonitorService` can drive the
+experimental `HudDiShareActivity` HUD path. Do not copy that dependency into the
+consolidated app; remove it when the old module is retired.
 
 When poking expands to a genuinely different area (not camera/DiShare), promote
 the relevant probes into a dedicated experiment module rather than overloading
@@ -118,13 +118,17 @@ Research package `dev.denza.mirrors.probe` (not product; promote before relying)
 
 | Component | Status |
 | --- | --- |
-| `MainActivity` | Start/Stop control plus the app picker; in-app local-ADB setup grants the overlay app-op and enables the Simulcast accessibility service. |
-| `AppPickerActivity` | App selection UI — a horizontal slider of all installed apps; tap to mark up to 6 for casting. Defaults to installed-subset of VK Video / Rutube / Kinopoisk / Yandex Navi / VLC / YouTube. |
+| `MainActivity`, `ui/DenzaAppsScreen` | Landscape-first Compose shell with three independent feature cards and no global Start/Stop. Technical diagnostics are hidden behind Support. |
+| `DenzaAppRepository`, `core/FeatureModels`, `DenzaRuntimeCoordinator` | Separate desired/observed feature state, short user-facing status, boot/package-update recovery, and detailed Support diagnostics. |
+| Compose app picker | In-window horizontal list of installed apps; tap to mark up to 6 for casting. Defaults to the installed subset of VK Video / Rutube / Kinopoisk / Yandex Navi / VLC / YouTube. |
 | `SimulcastApps` | Persists the chosen casting packages (prefs) and seeds defaults. |
-| `SimulcastAccessibilityService` | Active visual path. Watches the native DiShare `ShareDialogActivity` via accessibility, reads live node bounds, and erases+redraws the App Change row + central preview with the chosen Russian apps; drag → launch through `dishare-bridge`. |
-| `SimulcastDialogGeometry` | Reads live geometry (row container, screen cards, App Change button) from the dialog's accessibility node tree. |
+| `SimulcastAccessibilityService`, `ScreenTarget` | Active visual path. Draws the selected app row and only accepts drop zones present in both the accessibility tree and runtime-available `DiShareScreens`; includes HUD, FSE, left/right RSE, and overhead contracts while keeping IVI as source. |
+| `SimulcastDialogGeometry` | Reads live row and receiver geometry from the dialog's accessibility tree instead of assuming fixed HUD/FSE rectangles. |
 | `SimulcastOverlayService` | Casting controller: launches the target through `dishare-bridge` at `2560x1440`, stops it, and shows the floating native exit control over the casting app. No longer draws the dialog overlay. |
-| `SimulcastBootReceiver` | Forwards DiShare dialog broadcasts (to sync the exit control) and debug START/STOP actions. |
+| `SimulcastBootReceiver` | Forwards DiShare dialog actions and invokes runtime recovery after boot or APK replacement. |
+| `feature.cluster` | Fail-closed cluster display resolver, real-display geometry, and the shared map-base/camera-overlay scene. No fallback display IDs. |
+| `feature.mirrors` | Migrated AVC renderer and window monitor. Uses the shared local ADB client, keeps verified Mirrors geometry/image treatment, and has no probe dependency. |
+| `feature.navigation` | One-time-token shell proxy and memory-only Yandex task session. The AIDL allowlist exposes no arbitrary shell execution. Hardware verification is pending. |
 
 ### `libraries/dishare-bridge/`
 
@@ -144,13 +148,12 @@ Research package `dev.denza.mirrors.probe` (not product; promote before relying)
 
 - `car-adb-gateway` is the active generic relay-only connectivity app. It must
   not grow a LAN mode.
-- `denza-apps` is the single active Denza feature app. Its working Simulcast path
-  uses an accessibility overlay that redraws the native App Change row with the
-  user's chosen apps. Supported camera behavior should move here behind a clear
-  feature boundary.
-- `denza-mirrors` is in transition. Use it as the verified source for the camera
-  migration and for fixes needed to complete that migration; do not grow it as a
-  separate product.
+- `denza-apps` is the single active Denza feature app. Simulcast, migrated camera
+  rendering, and Yandex task projection have separate feature packages but share
+  desired/observed state, recovery, and the instrument-display scene.
+- `denza-mirrors` is in transition. Use it as the hardware-verified comparison
+  point while testing the migrated camera path; do not grow it as a separate
+  product.
 - `denza-gateway` is legacy and maintenance-only. The source remains buildable
   for existing installations, but new connectivity work belongs in Car ADB
   Gateway.
@@ -167,15 +170,18 @@ Research package `dev.denza.mirrors.probe` (not product; promote before relying)
 
 ## Planned Directory Cleanup
 
-Keep Denza Mirrors under `apps/` while it is being merged into Denza Apps. Its
-Gradle module name stays stable until the migration is verified.
+Keep Denza Mirrors under `apps/` while the migrated implementation in Denza Apps
+is awaiting real-car acceptance. Its Gradle module name stays stable until that
+verification is complete.
 
 After the migration has been verified on a real head unit:
 
-1. move the supported camera behavior into Denza Apps;
-2. verify the consolidated app on a real head unit;
+1. verify left/right, Sides/Center, processing, preview, and map-plus-camera in
+   Denza Apps on a real head unit;
+2. stop immediately if `com.byd.avc` crashes and keep fast left-to-right marked
+   unresolved until explicitly proven;
 3. remove Denza Mirrors from the default Gradle build;
-4. move its frozen source under `legacy/`.
+4. move its frozen source under `legacy/denza-mirrors` in a separate commit.
 
 ## Build Outputs
 
@@ -184,7 +190,7 @@ Generated APKs are intentionally ignored by Git.
 ```bash
 ./gradlew :denza-gateway:assembleDebug
 ./gradlew :denza-mirrors:assembleDebug
-./gradlew :denza-apps:assembleDebug
+./gradlew :denza-apps:testDebugUnitTest :denza-apps:assembleDebug
 ./gradlew :car-adb-gateway:testDebugUnitTest :car-adb-gateway:assembleDebug
 ```
 

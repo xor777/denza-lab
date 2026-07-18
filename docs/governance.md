@@ -48,7 +48,8 @@ navigation and evidence, not as a second implementation model:
 - Product behavior and user-facing workflows: update `README.md` or a focused doc
   under `docs/`.
 - Reverse-engineering findings: update `docs/*notes*.md`.
-- Camera/turn-signal findings: update `docs/side-camera-findings.md`.
+- Instrument-display, camera, and navigation findings: update
+  `docs/instrument-display-findings.md`.
 - Research code that may be useful later: move it under `research/<topic>/` with a
   README explaining why it is not built.
 - One-off host scripts: keep under `tools/` and state whether they are production
@@ -93,14 +94,13 @@ package into product code):
 
 ## DiShare/Simulcast Rules
 
-- The current product candidate is `denza-apps` + `SimulcastOverlayService`:
-  Denza Apps has one Start/Stop button, then the monitor waits for Simulcast.
-  It does not draw immediately. When the user presses the native App Change
-  button, a touchable Russian app row is drawn with real installed app icons,
-  and drops are translated to `DiShareProjectionBridge` receiver starts.
+- Denza Apps has an independent **Apps** feature card, not a global Start/Stop.
+  Its accessibility layer draws selected installed apps over the native App
+  Change row, and drops are translated to `DiShareProjectionBridge` starts.
 - Runtime receiver support must come from `DiShareScreens.getScreens`. Do not
   hard-code a rear/HUD/passenger screen as usable just because its coordinates
-  are known in reverse-engineered resources.
+  are known in reverse-engineered resources. A drop target must also be visible
+  in the current accessibility tree; `screen_ivi` remains the source.
 - Debug service/broadcast actions are allowed for verification only:
   `dev.denza.apps.START_SIMULCAST_TARGET` and
   `dev.denza.apps.STOP_SIMULCAST_TARGET`. Product UX should remain the normal
@@ -113,6 +113,22 @@ package into product code):
   inconclusive. Reconnect and repeat the exact test before updating the verified
   behavior section.
 
+## Instrument Display Rules
+
+- Resolve the cluster with `ClusterDisplayResolver`; never restore unconditional
+  display IDs such as `2` or `4`. Ambiguity is a Support action, not permission to
+  guess.
+- Navigation owns the full-size base surface. Side cameras are overlays and must
+  not resize, restart, or duplicate the Yandex task.
+- The shell proxy is an internal fixed-operation capability. Keep its package
+  allowlist and one-time token; never expose arbitrary commands to the UI.
+- Navigation is memory-only and must not start after boot. When the proxy,
+  display, or task disappears, release the virtual display and prefer returning
+  the task to display `0`.
+- Do not run the standalone Denza Mirrors monitor and the Denza Apps monitor
+  together. Retire the old module only after real-car acceptance in a separate
+  commit.
+
 ## Git Hygiene
 
 - Keep unrelated product changes and research changes in separate commits.
@@ -123,6 +139,6 @@ package into product code):
 ```bash
 ./gradlew :denza-gateway:testDebugUnitTest :denza-gateway:assembleDebug
 ./gradlew :denza-mirrors:assembleDebug
-./gradlew :denza-apps:assembleDebug
+./gradlew :denza-apps:testDebugUnitTest :denza-apps:assembleDebug
 ./gradlew :car-adb-gateway:testDebugUnitTest :car-adb-gateway:assembleDebug
 ```

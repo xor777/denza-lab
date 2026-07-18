@@ -1,5 +1,7 @@
 .DS_Store
 .gradle/
+.kotlin/
+/.ansible/
 /build/
 **/build/
 /dist/

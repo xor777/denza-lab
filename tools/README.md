@@ -27,5 +27,5 @@ When adding a tool, include:
 - expected ADB serial or tunnel;
 - exact scenario it tests;
 - known side effects;
-- whether the result should update `docs/side-camera-findings.md` or
+- whether the result should update `docs/instrument-display-findings.md` or
   `docs/dishare-api-notes.md`.

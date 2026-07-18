@@ -6,7 +6,7 @@ Use this folder for durable project knowledge.
 | --- | --- |
 | `project-map.md` | Repo structure, app boundaries, build outputs, product direction. |
 | `governance.md` | Rules for product/prototype/research changes and promotion. |
-| `side-camera-findings.md` | Current Denza Mirrors behavior, working paths, failed paths, open issues. |
+| `instrument-display-findings.md` | Instrument-display selection, Mirrors geometry, navigation projection, verification status, and open issues. |
 | `dishare-api-notes.md` | DiShare/HUD reverse-engineering notes and raw API findings. |
 | `CLOUD-ARCHITECTURE.md` | Normative relay-only Car ADB Gateway design and verification status. |
 | `CAR-ADB-GATEWAY-DECISIONS.md` | ADR-lite product/architecture decisions, rationale, evidence, and revisit conditions. |

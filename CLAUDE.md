@@ -22,7 +22,7 @@ still use the historical `denza-gateway` directory name.
 - [docs/project-map.md](docs/project-map.md) — structure and per-component status.
 - [docs/governance.md](docs/governance.md) — product/prototype/research lanes,
   where experiments live, promotion checklist, live-car debugging rules.
-- [docs/side-camera-findings.md](docs/side-camera-findings.md) — Denza Mirrors status.
+- [docs/instrument-display-findings.md](docs/instrument-display-findings.md) — cluster scene, Mirrors, and navigation status.
 - [docs/dishare-api-notes.md](docs/dishare-api-notes.md) — DiShare/HUD findings.
 
 ## Modules
@@ -49,8 +49,9 @@ export ANDROID_HOME=/opt/homebrew/share/android-commandlinetools
 
 ## Conventions
 
-- Product code must not depend on `…​.probe` code. (One known exception is
-  documented in project-map/governance as a cleanup TODO.)
+- Product code must not depend on `…​.probe` code. The active Denza Apps path
+  has no probe dependency; the transition-only standalone Mirrors module still
+  contains a documented historical exception.
 - Product apps share car-access code only via `:dishare-bridge`.
 - Do not add features to `:denza-gateway`. Limit changes to maintenance or work
   required to retire it safely.

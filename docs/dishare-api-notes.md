@@ -256,9 +256,9 @@ instead. On a normal debug APK we cannot write that cache:
 
 Current no-root custom drag approach:
 
-1. `denza-apps` opens the native Simulcast screen and shows
-   `SimulcastOverlayService`.
-2. The overlay draws the Russian app row over the stock App Change row, using
+1. `denza-apps` opens the native Simulcast screen; its accessibility service
+   observes the live dialog geometry.
+2. The accessibility overlay draws the Russian app row over the stock App Change row, using
    real installed target app icons via `PackageManager.getApplicationIcon()`.
 3. The overlay also draws a large selected-app preview over the native stock
    preview, so the visible Simulcast UI presents Russian app icons even though
@@ -270,8 +270,9 @@ Current no-root custom drag approach:
    `window_share_layout_ivi_r`: `screen_hud`, `screen_fse`, `screen_overhead`,
    `screen_rse_l`, `screen_rse_r`, with `screen_ivi` treated as the local/source
    screen.
-6. `SimulcastOverlayService` queries DiShare `getScreens` through
-   `DiShareScreens` and filters drop zones to runtime-available receivers. On the
+6. `SimulcastAccessibilityService` queries DiShare `getScreens` through
+   `DiShareScreens` and intersects runtime-available receivers with receiver
+   nodes visible in the current accessibility tree. On the
    current car the available list is `screen_hud`, `screen_fse`, and
    `screen_ivi`; rear/overhead zones are therefore not accepted even though their
    layout coordinates are known for other models.
@@ -284,9 +285,9 @@ Current no-root custom drag approach:
    - `dev.denza.apps.START_SIMULCAST_TARGET` with extras `targetPackage` and
      `receiver`
    - `dev.denza.apps.STOP_SIMULCAST_TARGET`
-   These are for repeatable ADB verification and for the Denza Apps stop button;
-   the user workflow remains opening Simulcast and dragging the visible Russian
-   app icon.
+   These are for repeatable ADB verification. The user workflow remains opening
+   Simulcast and dragging the visible Russian app icon; there is no global
+   Start/Stop control in Denza Apps.
 
 Live verification:
 
@@ -370,6 +371,26 @@ Known caveats:
 - The no-root path is still valid. The open question is native visual metadata,
   not whether a normal APK can participate in Simulcast.
 
+### Multi-screen receiver contract (2026-07-18)
+
+The product mapping is now explicit and dynamic:
+
+| DiShare receiver | Accessibility node |
+| --- | --- |
+| `screen_hud` | `ar_hud_screen` |
+| `screen_fse` | `fse_screen` |
+| `screen_rse_l` | `left_rse_screen` |
+| `screen_rse_r` | `right_rse_screen` |
+| `screen_overhead` | `overhead_screen` |
+
+`screen_ivi` is always the source and is never accepted as a drop target. A
+temporary `getScreens` failure leaves the desired Simulcast setting intact,
+shows a neutral screen check, retries, and accepts no unconfirmed receiver.
+HUD/FSE remain the only live-verified receivers. N9 rear and overhead support is
+implemented from the contract but must not be called verified until captures of
+`getScreens`, the accessibility tree, and one isolated launch per receiver are
+recorded.
+
 ## HUD camera streaming findings
 
 Working:
@@ -396,6 +417,8 @@ Not working as an ordinary `/data/app` debug APK:
 
 Practical conclusion:
 
-- Keep the default turn-signal prototype on the driver display via `AvcAidlDashActivity`.
-- Treat HUD camera output as experimental unless the APK can run with system/platform
-  privileges or another non-protected frame source is found.
+- The product camera path now stays on the selected driver display through the
+  Denza Apps cluster scene and the migrated AVC AIDL renderer. The standalone
+  `AvcAidlDashActivity` remains only as the transition reference.
+- Treat HUD camera output as experimental unless the APK can run with
+  system/platform privileges or another non-protected frame source is found.
