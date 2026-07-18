@@ -15,8 +15,39 @@ case "${1:-}" in
     [ "$#" -eq 2 ] || exit 2
     exec /opt/cag/cag-state device-status "$2"
     ;;
+  list)
+    [ "$#" -eq 1 ] || exit 2
+    exec /opt/cag/cag-state list-devices
+    ;;
+  remove)
+    [ "$#" -eq 2 ] || exit 2
+    /opt/cag/cag-state remove-device "$2"
+    pkill -u cag-device 2>/dev/null || true
+    pkill -u cag-client 2>/dev/null || true
+    ;;
+  doctor)
+    [ "$#" -eq 1 ] || exit 2
+    exec /opt/cag/cag-state doctor
+    ;;
+  migrate)
+    [ "$#" -eq 1 ] || exit 2
+    exec /opt/cag/cag-state migrate
+    ;;
+  gc)
+    [ "$#" -eq 1 ] || exit 2
+    set +e
+    /opt/cag/cag-state gc --signal-exit
+    result=$?
+    set -e
+    if [ "$result" -eq 10 ]; then
+      pkill -u cag-device 2>/dev/null || true
+      pkill -u cag-client 2>/dev/null || true
+      exit 0
+    fi
+    exit "$result"
+    ;;
   *)
-    echo "usage: cag-admin invite [--ttl SECONDS] | status DEVICE_ID" >&2
+    echo "usage: cag-admin invite [--ttl SECONDS] | list | status DEVICE_ID | remove DEVICE_ID | doctor | migrate | gc" >&2
     exit 2
     ;;
 esac

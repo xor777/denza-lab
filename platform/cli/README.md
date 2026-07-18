@@ -16,6 +16,7 @@ Then pair and connect:
 
 ```bash
 cag pair XXXX-XXXX
+cag pair --new-key XXXX-XXXX
 cag connect
 cag connect -- adb devices
 cag connect -- adb shell
@@ -27,9 +28,12 @@ State is stored in the operating system's user config directory: `~/.config/cag`
 on Linux (respecting `$XDG_CONFIG_HOME`) and `~/Library/Application Support/cag`
 on macOS. `$CAG_CONFIG_DIR` selects an explicit location. The directory contains
 the client key, pinned relay and vehicle host keys, the active device bundle, and
-the SSH control socket. Pairing writes a new active bundle and host key only after
-the vehicle confirms the replacement. A failed or expired replacement therefore
-does not damage an existing pairing.
+the SSH control socket. Pairing writes a temporary bundle and a SHA-256 hash of
+the code, so repeating `cag pair CODE` resumes an interrupted inner handshake
+without another relay submit. `--new-key` stages a new desktop key and promotes
+it only after vehicle confirmation. A failed or expired replacement therefore
+does not damage the previous local identity or active bundle. After success,
+`known_hosts` contains only the relay pin list and the current vehicle host key.
 
 `cag connect` leaves a keepalive-protected SSH tunnel in the background. The
 `disconnect` command closes this Mac's tunnel; it does not disable the relay on

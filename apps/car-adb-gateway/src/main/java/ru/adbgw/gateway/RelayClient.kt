@@ -11,13 +11,13 @@ import org.json.JSONObject
 import java.security.KeyPair
 import java.security.GeneralSecurityException
 import java.time.Duration
-import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
 
 class RelayAccessException(
     message: String,
     cause: Throwable? = null,
     val permanent: Boolean = false,
+    val registrationRejected: Boolean = false,
 ) : Exception(message, cause)
 
 class RelayClient(private val keyStore: SshKeyStore) {
@@ -27,6 +27,7 @@ class RelayClient(private val keyStore: SshKeyStore) {
                 code = code,
                 label = label,
                 tunnelPublicKey = keyStore.tunnelPublicKey,
+                controlPublicKey = keyStore.controlPublicKey,
                 innerHostKey = keyStore.innerHostPublicKey,
                 endpoint = endpoint,
             )
@@ -43,9 +44,8 @@ class RelayClient(private val keyStore: SshKeyStore) {
             }
         }
 
-    suspend fun openPairing(registration: RelayRegistration): PairingWindow =
+    suspend fun openPairing(registration: RelayRegistration, requestId: String): PairingWindow =
         withContext(Dispatchers.IO) {
-            val requestId = UUID.randomUUID().toString()
             RelayProtocol.parsePairingWindow(
                 executeControl(registration, "pair-open $requestId"),
             )
@@ -78,9 +78,15 @@ class RelayClient(private val keyStore: SshKeyStore) {
             )
         }
 
-    suspend fun setEnabled(registration: RelayRegistration, enabled: Boolean) =
+    suspend fun setEnabled(registration: RelayRegistration, enabled: Boolean): RelayRegistration =
         withContext(Dispatchers.IO) {
-            executeControl(registration, "set-enabled $enabled")
+            RelayProtocol.parseRegistration(executeControl(registration, "set-enabled $enabled"))
+        }
+
+    suspend fun renewLease(registration: RelayRegistration): RelayRegistration =
+        withContext(Dispatchers.IO) {
+            val json = RelayProtocol.parseOk(executeControl(registration, "renew-lease"))
+            registration.copy(leaseExpiresAtEpochSeconds = json.getLong("lease_expires_at"))
         }
 
     suspend fun status(registration: RelayRegistration): JSONObject = withContext(Dispatchers.IO) {
@@ -114,7 +120,7 @@ class RelayClient(private val keyStore: SshKeyStore) {
         require(registration.deviceId.matches(Regex("[a-f0-9]{16}")))
         return execute(
             username = "cag-control",
-            keyPair = keyStore.tunnelKeyPair,
+            keyPair = keyStore.controlKeyPair,
             command = command,
             authenticationFailurePermanent = true,
         )
@@ -180,6 +186,7 @@ class RelayClient(private val keyStore: SshKeyStore) {
                 },
                 error,
                 permanent = authenticationFailurePermanent,
+                registrationRejected = authenticationFailurePermanent,
             )
         }
         return session
@@ -188,7 +195,7 @@ class RelayClient(private val keyStore: SshKeyStore) {
     private fun configuredClient(mismatch: AtomicBoolean): SshClient =
         SshClient.setUpDefaultClient().apply {
             serverKeyVerifier = org.apache.sshd.client.keyverifier.ServerKeyVerifier { _, _, serverKey ->
-                val accepted = KeyUtils.getFingerPrint(serverKey) == RELAY_HOST_FINGERPRINT
+                val accepted = KeyUtils.getFingerPrint(serverKey) in RELAY_HOST_FINGERPRINTS
                 if (!accepted) mismatch.set(true)
                 accepted
             }

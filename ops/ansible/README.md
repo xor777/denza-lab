@@ -34,9 +34,36 @@ After configuration, create a single-use invite code. Its default lifetime is
 ssh adbgw.ru sudo cag-admin invite
 ```
 
-Enrollment, pairing, and grant state is stored atomically in
-`/opt/cag/state/state.json` under a shared lock. Codes are time-limited, and five
-invalid attempts from one source trigger a five-minute lockout.
+Enrollment, pairing, and grant state is stored atomically in schema v2 at
+`/opt/cag/state/state.json`. Read-only authorization uses a shared lock; changes
+use an exclusive lock. `cag-authkeys` has ACL read access but is not in the
+writable state group. OpenSSH per-source penalties and fail2ban (`5` attempts in
+`10m`, ban for `15m`) handle source throttling.
+
+## Operator field guide
+
+Routine lifecycle work is automatic. An enabled vehicle renews its 14-day lease
+daily, and `cag-gc.timer` removes expired registrations and unreferenced client
+keys hourly. A disabled vehicle is also forgotten after 14 days. Runtime devices,
+codes, and grants never belong in Ansible variables.
+
+```bash
+# one-time enrollment code
+ssh adbgw.ru sudo cag-admin invite
+
+# inspect current state
+ssh adbgw.ru sudo cag-admin list
+ssh adbgw.ru sudo cag-admin status DEVICE_ID
+ssh adbgw.ru sudo cag-admin doctor
+
+# emergency revoke; active device/client SSH sessions are recycled automatically
+ssh adbgw.ru sudo cag-admin remove DEVICE_ID
+```
+
+No periodic manual cleanup or key rotation is required. Re-enrollment,
+replacement, an incident, or a planned relay host-key change are the key-rotation
+events. Relay host-key rotation is additive: ship the new pin to Android and CLI
+before switching the server key.
 
 ## Provision a New VPS
 

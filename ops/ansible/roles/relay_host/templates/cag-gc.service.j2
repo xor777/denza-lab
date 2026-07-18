@@ -1,0 +1,12 @@
+[Unit]
+Description=Garbage-collect expired Car ADB Gateway registrations
+After=local-fs.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/cag-admin gc
+User=root
+Group=root
+PrivateTmp=true
+ProtectHome=true
+NoNewPrivileges=true

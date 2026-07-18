@@ -129,16 +129,19 @@ class InnerGatewayServer(
         val key = session.getAttribute(candidateKey) ?: return false
         val registration = registrationProvider() ?: return false
         val fingerprint = KeyUtils.getFingerPrint(key)
+        val canonical = PublicKeyEntry.toString(key)
+        if (!stateStore.savePendingPairCommit(PendingPairCommit(canonical, fingerprint))) {
+            onPermanentFailure("Не удалось сохранить незавершённое подключение компьютера")
+            return false
+        }
         return try {
             val commit = runBlocking(Dispatchers.IO) {
                 relayClient.commitPairing(registration, fingerprint)
             }
-            val canonical = PublicKeyEntry.toString(key)
-            if (!stateStore.saveTrustedClient(canonical, commit.clientLabel)) {
+            if (!stateStore.finalizePairCommit(canonical, commit.clientLabel)) {
                 onPermanentFailure("Не удалось сохранить ключ доверенного компьютера")
                 return false
             }
-            stateStore.savePairingWindow(null)
             onPairingCompleted()
             session.setAttribute(clientFingerprint, fingerprint)
             session.setAttribute(clientLabel, commit.clientLabel)
@@ -155,7 +158,7 @@ class InnerGatewayServer(
     private fun activePairingWindow(): PairingWindow? {
         val pairing = stateStore.pairingWindow() ?: return null
         if (!pairing.isActive(Instant.now().epochSecond)) {
-            stateStore.savePairingWindow(null)
+            if (stateStore.pendingPairCommit() == null) stateStore.clearPairing()
             return null
         }
         return pairing

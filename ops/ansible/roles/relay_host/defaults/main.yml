@@ -24,7 +24,6 @@ relay_host_state_accounts:
   - cag-enroll
   - cag-pair
   - cag-control
-  - cag-authkeys
 relay_host_pam_accounts:
   - cag-enroll
   - cag-pair

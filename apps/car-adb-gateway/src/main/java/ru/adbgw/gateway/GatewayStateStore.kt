@@ -28,6 +28,69 @@ class GatewayStateStore(context: Context) {
         .putString(KEY_TRUSTED_CLIENT_LABEL, label)
         .commit()
 
+    fun pairingRequestId(): String? = preferences.getString(KEY_PAIRING_REQUEST, null)
+
+    fun getOrCreatePairingRequestId(create: () -> String): String {
+        pairingRequestId()?.let { return it }
+        val requestId = create()
+        check(preferences.edit().putString(KEY_PAIRING_REQUEST, requestId).commit()) {
+            "Не удалось сохранить запрос подключения"
+        }
+        return requestId
+    }
+
+    fun pendingPairCommit(): PendingPairCommit? {
+        val raw = preferences.getString(KEY_PENDING_PAIR_COMMIT, null) ?: return null
+        return runCatching {
+            val json = JSONObject(raw)
+            PendingPairCommit(
+                publicKey = json.getString("public_key"),
+                fingerprint = json.getString("fingerprint"),
+            )
+        }.getOrNull()
+    }
+
+    fun savePendingPairCommit(value: PendingPairCommit): Boolean = preferences.edit()
+        .putString(
+            KEY_PENDING_PAIR_COMMIT,
+            JSONObject()
+                .put("public_key", value.publicKey)
+                .put("fingerprint", value.fingerprint)
+                .toString(),
+        )
+        .commit()
+
+    fun finalizePairCommit(publicKey: String, label: String): Boolean = preferences.edit()
+        .putString(KEY_TRUSTED_CLIENT_KEY, publicKey)
+        .putString(KEY_TRUSTED_CLIENT_LABEL, label)
+        .remove(KEY_PENDING_PAIR_COMMIT)
+        .remove(KEY_PAIRING)
+        .remove(KEY_PAIRING_REQUEST)
+        .commit()
+
+    fun clearPairing(): Boolean = preferences.edit()
+        .remove(KEY_PAIRING)
+        .remove(KEY_PAIRING_REQUEST)
+        .remove(KEY_PENDING_PAIR_COMMIT)
+        .commit()
+
+    fun clearForReenrollment(): Boolean = preferences.edit()
+        .remove(KEY_REGISTRATION)
+        .remove(KEY_TRUSTED_CLIENT_KEY)
+        .remove(KEY_TRUSTED_CLIENT_LABEL)
+        .remove(KEY_PAIRING)
+        .remove(KEY_PAIRING_REQUEST)
+        .remove(KEY_PENDING_PAIR_COMMIT)
+        .putBoolean(KEY_ENABLED, true)
+        .putBoolean(KEY_KEY_ROTATION_REQUIRED, true)
+        .commit()
+
+    fun isKeyRotationRequired(): Boolean = preferences.getBoolean(KEY_KEY_ROTATION_REQUIRED, false)
+
+    fun finishKeyRotation(): Boolean = preferences.edit()
+        .putBoolean(KEY_KEY_ROTATION_REQUIRED, false)
+        .commit()
+
     fun pairingWindow(): PairingWindow? {
         val raw = preferences.getString(KEY_PAIRING, null) ?: return null
         return runCatching {
@@ -66,6 +129,9 @@ class GatewayStateStore(context: Context) {
         private const val KEY_TRUSTED_CLIENT_KEY = "trusted_client_key"
         private const val KEY_TRUSTED_CLIENT_LABEL = "trusted_client_label"
         private const val KEY_PAIRING = "pairing"
+        private const val KEY_PAIRING_REQUEST = "pairing_request_id"
+        private const val KEY_PENDING_PAIR_COMMIT = "pending_pair_commit"
+        private const val KEY_KEY_ROTATION_REQUIRED = "key_rotation_required"
 
         fun registrationToJson(value: RelayRegistration): JSONObject = JSONObject()
             .put("device_id", value.deviceId)
@@ -75,6 +141,7 @@ class GatewayStateStore(context: Context) {
             .put("endpoint_mode", value.endpointKind?.relayValue ?: "unknown")
             .put("endpoint_host", value.endpointHost ?: JSONObject.NULL)
             .put("enabled", value.enabled)
+            .put("lease_expires_at", value.leaseExpiresAtEpochSeconds)
 
         fun registrationFromJson(json: JSONObject): RelayRegistration = RelayRegistration(
             deviceId = json.getString("device_id"),
@@ -88,6 +155,7 @@ class GatewayStateStore(context: Context) {
             },
             endpointHost = json.optString("endpoint_host").takeIf { it.isNotBlank() && it != "null" },
             enabled = json.optBoolean("enabled", true),
+            leaseExpiresAtEpochSeconds = json.optLong("lease_expires_at", 0L),
         )
     }
 }

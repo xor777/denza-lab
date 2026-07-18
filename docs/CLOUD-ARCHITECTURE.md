@@ -1,9 +1,9 @@
-# Car ADB Gateway — Relay-Only Architecture v3
+# Car ADB Gateway — Relay-Only Architecture
 
 Status: normative description of the implementation in this repository. Updated
-2026-07-18. This relay version was deployed to `adbgw.ru` and passed the live
-Ansible verification; head-unit end-to-end and soak verification remain
-mandatory before production use.
+2026-07-18. The lease/GC lifecycle revision has passed local acceptance and is
+awaiting its Ansible rollout to `adbgw.ru`; head-unit end-to-end and soak
+verification remain mandatory before production use.
 
 Car ADB Gateway is a standalone, vehicle-agnostic Android app for head units
 where ADB is available locally. It can be installed alongside the existing
@@ -79,22 +79,40 @@ can delete an expired record or change data holds
 `/opt/cag/state/locks/state.lock` through `flock`; writes use fsync and an atomic
 rename.
 
-State includes vehicles, client public keys, active grants, pending
-replacements, codes, and per-source rate limits. `AuthorizedKeysCommand`
-dynamically renders restricted key entries from it.
+State schema v2 includes vehicles, separate tunnel and control keys, 14-day
+leases, client public keys, active grants, pending replacements, and codes.
+`AuthorizedKeysCommand` takes a shared read lock and never runs cleanup or
+writes state. Mutations take an exclusive lock, validate the full schema and
+cross-record invariants, fsync the new file, atomically rename it, and fsync the
+state directory.
+
+`cag-authkeys` is not a member of the writable state group. It receives only
+explicit POSIX ACL read/traverse access to the state and lock files. OpenSSH
+and fail2ban own source authentication throttling, so rejected passwords do not
+rewrite the JSON state.
 
 - Enrollment code: `XXXX-XXXX`, default TTL 60 minutes, one vehicle. A retry
   with the same device key after a lost response is idempotent; a different
   device key is rejected.
-- Pairing code: `XXXX-XXXX`, TTL 10 minutes. Five invalid SSH password attempts
-  from one source trigger a five-minute lockout.
+- Pairing code: `XXXX-XXXX`, TTL 10 minutes. Only one pairing window can be open
+  for a vehicle; retrying its request ID returns the same code.
 - The code alphabet excludes `0/O` and `1/I`.
 - Expired pending state is removed without changing the active grant.
+
+Every registration is a 14-day lease. The enabled app renews it before opening
+the tunnel and once per day; explicitly enabling access renews it too. A disabled
+vehicle sends no heartbeat and is forgotten after the same 14 days. An hourly
+systemd timer removes expired devices and their grants, pending records, codes,
+and unreferenced client keys. Ports from `20000..65535` are then reusable.
 
 An administrator creates the initial invite with:
 
 ```bash
 sudo cag-admin invite
+sudo cag-admin list
+sudo cag-admin status DEVICE_ID
+sudo cag-admin remove DEVICE_ID
+sudo cag-admin doctor
 ```
 
 ### 3.3 Two-Phase Computer Replacement
@@ -118,13 +136,15 @@ access until the new computer is confirmed
    authentication.
 
 Failure or expiry before commit leaves the old grant and session unchanged.
-Retries after a lost enrollment, pair-submission, or commit response are safe.
+Android persists the candidate key before relay commit, and the CLI persists a
+temporary bundle plus only a hash of the code. Retries after a lost enrollment,
+pair-submission, commit, local save, or confirmation response resume safely.
 
 ## 4. Android Application
 
 Gradle module: `apps/car-adb-gateway/`; application ID: `ru.adbgw.gateway`;
 minSdk 26.
-ADB, device, and inner host keys live in app-private storage, and Android backup
+ADB, tunnel, control, and inner host keys live in app-private storage, and Android backup
 is disabled ([CAG-010](CAR-ADB-GATEWAY-DECISIONS.md#cag-010)).
 
 ### 4.1 First-Time Setup
@@ -188,8 +208,10 @@ ADB/inner SSH and the relay tunnel are supervised independently:
 - The watchdog restores a missing loopback server without restarting healthy
   components.
 - DNS failures, no network, relay restart, sleep/wake, and temporary ADB loss
-  are recoverable. Host-key mismatch, a revoked device key, and corrupt keys
-  stop automatic retry in a visible fail-closed state.
+  are recoverable. If the lease expired or the device was removed, the app
+  clears stale registration/trust and stages a fresh tunnel/control/inner-host
+  key set for enrollment. Host-key mismatch and corrupt keys remain visible,
+  fail-closed errors.
 
 Force Stop is an Android platform boundary: an ordinary APK cannot restart
 itself afterward until it is opened manually
@@ -228,6 +250,7 @@ Tools when an ADB command is executed.
 
 ```text
 cag pair <CODE>
+cag pair --new-key <CODE>
 cag connect
 cag connect -- adb ...
 cag status
@@ -236,8 +259,11 @@ cag disconnect
 
 State lives in the platform user configuration directory: `~/.config/cag` on
 Linux/XDG and `~/Library/Application Support/cag` on macOS. It contains the
-client key, fixed relay host key, pinned vehicle host key, active bundle, and
-SSH control socket.
+client key, relay host pin list, pinned current vehicle host key, active bundle,
+and SSH control socket. An interrupted pair resumes from temporary state without
+submitting the code again. `--new-key` keeps the replacement key staged until the
+vehicle confirms it; successful replacement leaves only relay pins and the
+current vehicle key in `known_hosts`.
 
 `cag connect` keeps a ControlMaster tunnel in the background with a 30-second
 keepalive. Smart-socket mode uses `ADB_SERVER_SOCKET`; raw-adbd mode allocates a
@@ -258,28 +284,29 @@ free local port and runs `adb connect`.
   reduce this risk.
 - Uninstalling the APK removes private keys and state. A fresh install requires
   a new enrollment invite from an administrator.
+- There is no application-level backup workflow; the accepted recovery boundary
+  is the existing full-VM backup.
 
 ## 8. Verification Status
 
-Completed locally and on `adbgw.ru` on 2026-07-18:
+Completed locally for the lifecycle revision on 2026-07-18:
 
-- relay unit tests for TTL, source lockout, idempotent enrollment, pending
-  rollback, two-phase replacement, and persistent disable;
+- 18 relay unit tests covering schema migration, leases, GC cascades, port
+  wrap/reuse, idempotent submit/commit, shared reads, directory fsync, emergency
+  removal, and the 40-device/12-month bounded-state model;
 - Ansible syntax check and production-profile lint;
 - CLI unit tests, `go vet`, Darwin build, and Linux cross-build;
 - Android unit tests for the state reducer, backoff, endpoint plan, and relay
   protocol;
 - debug APK build with minSdk 26 and targetSdk 36, plus Android lint with no
   errors;
-- Ansible relay deployment and live verification of restricted accounts,
-  direction-specific forwarding, root-owned control-plane files, locked account
-  states, port 22/443 listener separation, UFW, NTP, DNS, and the pinned host
-  key;
-- negative SSH checks proving that unregistered service keys are rejected and
-  that the administrator cannot open a shell on the application listener.
+- local Ansible syntax checks and production-profile lint for ACLs, GC timer,
+  schema doctor, SSH source limits, and fail2ban policy.
 
 Required before production:
 
+- deploy the lifecycle revision through Ansible twice, prove the second run is
+  idempotent, and run live relay verification;
 - complete relay → CLI → inner SSH → real ADB end-to-end verification;
 - verify API levels 26, 31, 34, 35, and 36;
 - test installation and ADB approval, reboot, sleep/wake, network switching,

@@ -9,12 +9,14 @@ object RelayProtocol {
         code: String,
         label: String,
         tunnelPublicKey: String,
+        controlPublicKey: String,
         innerHostKey: String,
         endpoint: AdbEndpoint,
     ): String {
         val payload = JSONObject()
             .put("label", label)
             .put("tunnel_public_key", tunnelPublicKey)
+            .put("control_public_key", controlPublicKey)
             .put("inner_host_key", innerHostKey)
             .put("endpoint_mode", endpoint.kind.relayValue)
             .put("endpoint_host", endpoint.host)
@@ -40,6 +42,7 @@ object RelayProtocol {
             endpointKind = endpointKind(json.optString("endpoint_mode")),
             endpointHost = json.optString("endpoint_host").takeIf { it.isNotBlank() && it != "null" },
             enabled = json.optBoolean("enabled", true),
+            leaseExpiresAtEpochSeconds = json.getLong("lease_expires_at"),
         )
     }
 

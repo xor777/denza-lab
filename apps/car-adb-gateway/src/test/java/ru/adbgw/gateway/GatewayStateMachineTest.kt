@@ -42,9 +42,39 @@ class GatewayStateMachineTest {
                 endpointKind = AdbEndpointKind.SmartSocket,
                 endpointHost = "127.0.0.1",
                 enabled = true,
+                leaseExpiresAtEpochSeconds = 2_000_000_000L,
             ),
             adbState = AdbState.Available,
         )
         assertEquals("Удалённый компьютер работает", enrolled.headline)
+    }
+
+    @Test
+    fun `expired registration returns to enrollment without stale trust state`() {
+        val expired = GatewayStateMachine.reduce(
+            GatewayUiState(
+                initialized = true,
+                registration = RelayRegistration(
+                    deviceId = "0123456789abcdef",
+                    deviceLabel = "Автомобиль",
+                    relayDevicePort = 20_000,
+                    innerHostKey = "ssh-rsa key",
+                    endpointKind = AdbEndpointKind.SmartSocket,
+                    endpointHost = "127.0.0.1",
+                    enabled = true,
+                    leaseExpiresAtEpochSeconds = 1L,
+                ),
+                clientState = ClientState.Active,
+                clientLabel = "Old Mac",
+                pairingWindow = PairingWindow("request", "2345-6789", 100),
+                permanentFailure = "old failure",
+            ),
+            GatewayEvent.RegistrationExpired("Регистрация истекла"),
+        )
+        assertNull(expired.registration)
+        assertNull(expired.clientLabel)
+        assertNull(expired.pairingWindow)
+        assertNull(expired.permanentFailure)
+        assertEquals("Регистрация истекла", expired.message)
     }
 }

@@ -29,6 +29,10 @@ case "${1:-}" in
     [ "$#" -eq 2 ] || exit 2
     exec /opt/cag/cag-state set-enabled "$device_id" "$2"
     ;;
+  renew-lease)
+    [ "$#" -eq 1 ] || exit 2
+    exec /opt/cag/cag-state renew-lease "$device_id"
+    ;;
   status)
     [ "$#" -eq 1 ] || exit 2
     exec /opt/cag/cag-state device-status "$device_id"

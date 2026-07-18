@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 const testInnerKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBERERERERERERERERERERERERERERERERERERERERE="
@@ -18,6 +19,7 @@ const testInnerKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBERERERERERERERERERER
 type fakeRunner struct {
 	configDir        string
 	pairConfirmation bool
+	pairSubmits      int
 	sshCalls         []string
 }
 
@@ -31,7 +33,25 @@ func (runner *fakeRunner) Run(ctx context.Context, env map[string]string, name s
 	joined := strings.Join(args, " ")
 	runner.sshCalls = append(runner.sshCalls, joined)
 	if strings.Contains(joined, "cag-pair@adbgw.ru") {
-		output, err := exec.CommandContext(ctx, "ssh-keygen", "-lf", filepath.Join(runner.configDir, "identity.pub"), "-E", "sha256").Output()
+		runner.pairSubmits++
+		fields := strings.Fields(args[len(args)-1])
+		if len(fields) != 3 {
+			return nil, errors.New("invalid fake pair command")
+		}
+		payloadRaw, err := base64.RawURLEncoding.DecodeString(fields[2])
+		if err != nil {
+			return nil, err
+		}
+		var payload map[string]string
+		if err := json.Unmarshal(payloadRaw, &payload); err != nil {
+			return nil, err
+		}
+		identityPublic := filepath.Join(runner.configDir, "identity.pub")
+		if staged, readErr := os.ReadFile(filepath.Join(runner.configDir, "identity.next.pub")); readErr == nil &&
+			strings.TrimSpace(string(staged)) == payload["public_key"] {
+			identityPublic = filepath.Join(runner.configDir, "identity.next.pub")
+		}
+		output, err := exec.CommandContext(ctx, "ssh-keygen", "-lf", identityPublic, "-E", "sha256").Output()
 		if err != nil {
 			return nil, err
 		}
@@ -45,7 +65,7 @@ func (runner *fakeRunner) Run(ctx context.Context, env map[string]string, name s
 			EndpointMode:      "smart",
 			EndpointHost:      "127.0.0.1",
 			InnerHostKey:      testInnerKey,
-			PairingExpiresAt:  1_700_000_600,
+			PairingExpiresAt:  time.Now().Add(10 * time.Minute).Unix(),
 			RelayDevicePort:   20_000,
 			RelayHost:         relayHost,
 			RelaySSHPort:      relaySSHPort,
@@ -96,11 +116,65 @@ func TestPairPinsRelayAndDeviceAfterConfirmation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(knownHosts), relayHostKey) || !strings.Contains(string(knownHosts), innerAlias("0123456789abcdef")+" "+testInnerKey) {
+	if !strings.Contains(string(knownHosts), relayHostKeys[0]) || !strings.Contains(string(knownHosts), innerAlias("0123456789abcdef")+" "+testInnerKey) {
 		t.Fatalf("host keys were not pinned: %s", knownHosts)
 	}
 	if len(runner.sshCalls) != 2 || !strings.Contains(runner.sshCalls[0], "cag-pair@adbgw.ru") || !strings.Contains(runner.sshCalls[1], "pair-complete") {
 		t.Fatalf("unexpected SSH calls: %#v", runner.sshCalls)
+	}
+}
+
+func TestPairRetryUsesPendingBundleWithoutSecondSubmit(t *testing.T) {
+	app, runner, _ := newTestApp(t, false)
+	if err := app.Run(context.Background(), []string{"pair", "2345-6789"}); err == nil {
+		t.Fatal("pairing unexpectedly succeeded")
+	}
+	pending, err := os.ReadFile(app.path("pending-pair.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Contains(pending, []byte("2345-6789")) {
+		t.Fatal("pending state stored the pairing code")
+	}
+	runner.pairConfirmation = true
+	if err := app.Run(context.Background(), []string{"pair", "2345-6789"}); err != nil {
+		t.Fatal(err)
+	}
+	if runner.pairSubmits != 1 {
+		t.Fatalf("pair-submit ran %d times", runner.pairSubmits)
+	}
+	if _, err := os.Stat(app.path("pending-pair.json")); !errors.Is(err, os.ErrNotExist) {
+		t.Fatal("pending pairing was not removed")
+	}
+}
+
+func TestNewKeyIsPromotedOnlyAfterConfirmation(t *testing.T) {
+	app, runner, _ := newTestApp(t, true)
+	if err := app.Run(context.Background(), []string{"pair", "2345-6789"}); err != nil {
+		t.Fatal(err)
+	}
+	oldIdentity, err := os.ReadFile(app.path("identity"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	runner.pairConfirmation = false
+	if err := app.Run(context.Background(), []string{"pair", "--new-key", "3456-789A"}); err == nil {
+		t.Fatal("replacement unexpectedly succeeded")
+	}
+	stillActive, _ := os.ReadFile(app.path("identity"))
+	if !bytes.Equal(oldIdentity, stillActive) || !fileNonempty(app.path("identity.next")) {
+		t.Fatal("staged replacement modified the active identity")
+	}
+	runner.pairConfirmation = true
+	if err := app.Run(context.Background(), []string{"pair", "3456-789A"}); err != nil {
+		t.Fatal(err)
+	}
+	newIdentity, _ := os.ReadFile(app.path("identity"))
+	if bytes.Equal(oldIdentity, newIdentity) {
+		t.Fatal("confirmed staged identity was not promoted")
+	}
+	if fileNonempty(app.path("identity.next")) {
+		t.Fatal("staged identity was not cleaned up")
 	}
 }
 

@@ -2,6 +2,7 @@ package ru.adbgw.gateway
 
 import android.content.Context
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -16,6 +17,7 @@ class GatewaySupervisor(
     private val relayClient: RelayClient,
     private val onEvent: (GatewayEvent) -> Unit,
     private val onSupportEvent: (String) -> Unit,
+    private val onRegistrationExpired: (String) -> Unit,
 ) {
     private val detector = AdbEndpointDetector()
     private val provisioner = AdbProvisioner(context.applicationContext)
@@ -114,7 +116,7 @@ class GatewaySupervisor(
                     onSupportEvent("Relay получил актуальный адрес ADB")
                 } catch (error: RelayAccessException) {
                     if (error.permanent) {
-                        onEvent(GatewayEvent.PermanentFailure(error.message ?: "Relay отклонил ключ автомобиля"))
+                        handlePermanent(error)
                         return
                     }
                     onSupportEvent("Адрес ADB будет отправлен relay повторно")
@@ -124,15 +126,23 @@ class GatewaySupervisor(
         }
     }
 
-    private suspend fun relayLoop(registration: RelayRegistration) {
+    private suspend fun relayLoop(initialRegistration: RelayRegistration) {
+        var registration = initialRegistration
         var observedGeneration = networkGeneration
+        var nextLeaseRenewalAtMillis = 0L
         while (scope.isActive && stateStore.isEnabled()) {
-            if (endpoint.get() == null || innerServer?.isRunning != true) {
-                delay(1_000)
-                continue
-            }
             onEvent(GatewayEvent.RelayChanged(RelayState.Connecting))
             try {
+                recoverPendingPairCommit(registration)
+                if (System.currentTimeMillis() >= nextLeaseRenewalAtMillis) {
+                    registration = renewLease(registration)
+                    nextLeaseRenewalAtMillis = System.currentTimeMillis() + LEASE_RENEW_INTERVAL_MILLIS
+                }
+                if (endpoint.get() == null || innerServer?.isRunning != true) {
+                    onEvent(GatewayEvent.RelayChanged(RelayState.WaitingForNetwork))
+                    delay(1_000)
+                    continue
+                }
                 val opened = relayClient.openTunnel(registration) { error ->
                     if (error != null) {
                         onSupportEvent("Туннель закрыт: ${error.message ?: error.javaClass.simpleName}")
@@ -143,17 +153,37 @@ class GatewaySupervisor(
                 onEvent(GatewayEvent.RelayChanged(RelayState.Connected))
                 onSupportEvent("Соединение с relay восстановлено")
                 while (scope.isActive && stateStore.isEnabled() && opened.isOpen) {
+                    if (System.currentTimeMillis() >= nextLeaseRenewalAtMillis) {
+                        try {
+                            registration = renewLease(registration)
+                            nextLeaseRenewalAtMillis = System.currentTimeMillis() + LEASE_RENEW_INTERVAL_MILLIS
+                        } catch (error: RelayAccessException) {
+                            if (error.permanent) {
+                                opened.close()
+                                handlePermanent(error)
+                                return
+                            }
+                            nextLeaseRenewalAtMillis = System.currentTimeMillis() + LEASE_RETRY_INTERVAL_MILLIS
+                            onSupportEvent("Продление регистрации будет повторено через пять минут")
+                        }
+                    }
                     delay(2_000)
                 }
                 opened.close()
                 if (tunnel === opened) tunnel = null
             } catch (error: RelayAccessException) {
                 if (error.permanent) {
-                    onEvent(GatewayEvent.PermanentFailure(error.message ?: "Relay отклонил ключ автомобиля"))
+                    handlePermanent(error)
                     return
                 }
                 onEvent(GatewayEvent.RelayChanged(RelayState.WaitingForNetwork))
                 onSupportEvent("Relay временно недоступен")
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Throwable) {
+                onEvent(GatewayEvent.PermanentFailure("Не удалось сохранить состояние подключения"))
+                onSupportEvent("Локальная ошибка состояния: ${error.message ?: error.javaClass.simpleName}")
+                return
             }
 
             if (observedGeneration != networkGeneration) {
@@ -163,6 +193,31 @@ class GatewaySupervisor(
             }
             delay(relayBackoff.nextDelayMillis())
         }
+    }
+
+    private suspend fun renewLease(registration: RelayRegistration): RelayRegistration {
+        val updated = relayClient.renewLease(registration)
+        check(stateStore.saveRegistration(updated)) { "Не удалось сохранить продлённую регистрацию" }
+        onEvent(GatewayEvent.RegistrationChanged(updated))
+        onSupportEvent("Регистрация автомобиля продлена")
+        return updated
+    }
+
+    private suspend fun recoverPendingPairCommit(registration: RelayRegistration) {
+        val pending = stateStore.pendingPairCommit() ?: return
+        val commit = relayClient.commitPairing(registration, pending.fingerprint)
+        check(stateStore.finalizePairCommit(pending.publicKey, commit.clientLabel)) {
+            "Не удалось завершить сохранение ключа компьютера"
+        }
+        onEvent(GatewayEvent.PairingChanged(null))
+        onEvent(GatewayEvent.ClientChanged(ClientState.Waiting, commit.clientLabel, System.currentTimeMillis()))
+        onSupportEvent("Незавершённое подключение компьютера восстановлено")
+    }
+
+    private fun handlePermanent(error: RelayAccessException) {
+        val message = error.message ?: "Relay отклонил ключ автомобиля"
+        if (error.registrationRejected) onRegistrationExpired(message)
+        else onEvent(GatewayEvent.PermanentFailure(message))
     }
 
     @Synchronized
@@ -187,5 +242,10 @@ class GatewaySupervisor(
                 server.close()
                 onSupportEvent("Внутренний шлюз будет перезапущен: ${it.message ?: it.javaClass.simpleName}")
             }
+    }
+
+    companion object {
+        private const val LEASE_RENEW_INTERVAL_MILLIS = 24L * 60L * 60L * 1_000L
+        private const val LEASE_RETRY_INTERVAL_MILLIS = 5L * 60L * 1_000L
     }
 }

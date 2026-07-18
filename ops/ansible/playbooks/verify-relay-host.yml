@@ -112,6 +112,12 @@
           - "'allowtcpforwarding no' in relay_verify_control_sshd.stdout"
           - "'pubkeyauthentication yes' in relay_verify_control_sshd.stdout"
           - "'authorizedkeyscommand /opt/cag/authorized-keys.sh %u' in relay_verify_control_sshd.stdout"
+          - "'logingracetime 20' in relay_verify_device_sshd.stdout"
+          - "'maxauthtries 3' in relay_verify_device_sshd.stdout"
+          - "'maxstartups 30:30:100' in relay_verify_device_sshd.stdout"
+          - "'persourcemaxstartups 10' in relay_verify_device_sshd.stdout"
+          - "'persourcepenalties ' in relay_verify_device_sshd.stdout"
+          - "'persourcepenalties no' not in relay_verify_device_sshd.stdout"
           - "('allowusers ' ~ admin_user) in relay_verify_admin_sshd.stdout"
           - "'allowusers cag-device' in relay_verify_admin_on_relay_sshd.stdout"
           - "'allowusers cag-client' in relay_verify_admin_on_relay_sshd.stdout"
@@ -165,6 +171,94 @@
       loop: "{{ relay_verify_account_states.results }}"
       loop_control:
         label: "{{ item.item }}"
+
+    - name: Read authorized-keys reader groups
+      ansible.builtin.command: id -nG cag-authkeys
+      register: relay_verify_authkeys_groups
+      changed_when: false
+
+    - name: Require authorized-keys reader isolation from the writable state group
+      ansible.builtin.assert:
+        that:
+          - "'cag-state' not in relay_verify_authkeys_groups.stdout.split()"
+
+    - name: Exercise the authorized-keys reader as its service account
+      become: true
+      become_user: cag-authkeys
+      ansible.builtin.command: /opt/cag/cag-state authorized-keys cag-device
+      changed_when: false
+
+    - name: Require the authorized-keys reader cannot write state
+      become: true
+      become_user: cag-authkeys
+      ansible.builtin.command:
+        argv:
+          - test
+          - "!"
+          - -w
+          - "{{ item }}"
+      loop:
+        - /opt/cag/state/state.json
+        - /opt/cag/state/locks/state.lock
+      changed_when: false
+
+    - name: Read relay state ACLs
+      ansible.builtin.command:
+        argv:
+          - getfacl
+          - -cp
+          - "{{ item }}"
+      loop:
+        - /opt/cag/state
+        - /opt/cag/state/locks
+        - /opt/cag/state/state.json
+        - /opt/cag/state/locks/state.lock
+      register: relay_verify_state_acls
+      changed_when: false
+
+    - name: Require explicit authorized-keys read ACLs
+      ansible.builtin.assert:
+        that:
+          - "'user:cag-authkeys:r' in item.stdout"
+          - "'user:cag-authkeys:rw' not in item.stdout"
+      loop: "{{ relay_verify_state_acls.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    - name: Run relay schema and invariant doctor
+      ansible.builtin.command: /usr/local/sbin/cag-admin doctor
+      register: relay_verify_doctor
+      changed_when: false
+
+    - name: Read relay garbage-collection timer state  # noqa command-instead-of-module
+      ansible.builtin.command: "systemctl {{ item }} cag-gc.timer"
+      loop:
+        - is-active
+        - is-enabled
+      register: relay_verify_gc_timer
+      changed_when: false
+
+    - name: Require active and enabled lifecycle cleanup
+      ansible.builtin.assert:
+        that:
+          - relay_verify_gc_timer.results[0].stdout == 'active'
+          - relay_verify_gc_timer.results[1].stdout == 'enabled'
+
+    - name: Read effective fail2ban SSH limits
+      ansible.builtin.command: "fail2ban-client get sshd {{ item }}"
+      loop:
+        - maxretry
+        - findtime
+        - bantime
+      register: relay_verify_fail2ban_limits
+      changed_when: false
+
+    - name: Require bounded SSH authentication retries
+      ansible.builtin.assert:
+        that:
+          - relay_verify_fail2ban_limits.results[0].stdout | int == 5
+          - relay_verify_fail2ban_limits.results[1].stdout | int == 600
+          - relay_verify_fail2ban_limits.results[2].stdout | int == 900
 
     - name: Read listening TCP sockets
       ansible.builtin.command: ss -H -lnt
@@ -222,5 +316,7 @@
           dns: "{{ relay_verify_dns.stdout_lines }}"
           enrollment_enabled: "{{ relay_host_enrollment_enabled }}"
           host_key: "{{ relay_verify_host_key.stdout }}"
+          doctor: "{{ relay_verify_doctor.stdout }}"
+          gc_timer: "{{ relay_verify_gc_timer.results | map(attribute='stdout') | list }}"
           sockets: "{{ relay_verify_sockets.stdout_lines }}"
           ufw: "{{ relay_verify_ufw.stdout_lines }}"

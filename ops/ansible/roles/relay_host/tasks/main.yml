@@ -4,7 +4,9 @@
     name:
       - libpam-modules
       - openssh-client
+      - procps
       - util-linux
+      - acl
     state: present
 
 - name: Create the relay state group
@@ -25,7 +27,7 @@
     name: "{{ item }}"
     group: "{{ item }}"
     groups: "{{ [relay_host_state_group] if item in relay_host_state_accounts else [] }}"
-    append: true
+    append: false
     home: "/var/lib/{{ item }}"
     shell: /bin/bash
     system: true
@@ -93,11 +95,21 @@
   ansible.builtin.copy:
     dest: "{{ relay_host_root }}/state/state.json"
     content: >-
-      {"auth_limits":{},"clients":{},"codes":{},"devices":{},"grants":{},"next_port":20000,"pending":{},"version":1}
+      {"clients":{},"codes":{},"devices":{},"grants":{},"next_port":20000,"pending":{},"version":2}
     owner: root
     group: "{{ relay_host_state_group }}"
     mode: "0660"
     force: false
+
+- name: Create the relay state lock
+  ansible.builtin.file:
+    path: "{{ relay_host_root }}/state/locks/state.lock"
+    state: touch
+    owner: root
+    group: "{{ relay_host_state_group }}"
+    mode: "0660"
+    modification_time: preserve
+    access_time: preserve
 
 - name: Install the relay state engine
   ansible.builtin.copy:
@@ -129,6 +141,96 @@
       dest: /usr/local/sbin/cag-admin
   loop_control:
     label: "{{ item.dest }}"
+
+- name: Migrate and validate relay state schema
+  ansible.builtin.command: "{{ relay_host_root }}/cag-state migrate"
+  changed_when: false
+
+- name: Grant the authorized-keys reader directory traversal
+  ansible.posix.acl:
+    path: "{{ item }}"
+    entity: cag-authkeys
+    etype: user
+    permissions: r-x
+    state: present
+  loop:
+    - "{{ relay_host_root }}/state"
+    - "{{ relay_host_root }}/state/locks"
+
+- name: Preserve authorized-keys read access across atomic replacements
+  ansible.posix.acl:
+    path: "{{ item }}"
+    entity: cag-authkeys
+    etype: user
+    permissions: r-x
+    default: true
+    state: present
+  loop:
+    - "{{ relay_host_root }}/state"
+    - "{{ relay_host_root }}/state/locks"
+
+- name: Grant the authorized-keys reader file access
+  ansible.posix.acl:
+    path: "{{ item }}"
+    entity: cag-authkeys
+    etype: user
+    permissions: r--
+    state: present
+  loop:
+    - "{{ relay_host_root }}/state/state.json"
+    - "{{ relay_host_root }}/state/locks/state.lock"
+
+- name: Apply lifecycle cleanup after schema migration
+  ansible.builtin.command: /usr/local/sbin/cag-admin gc
+  changed_when: false
+
+- name: Inspect retired TSV state files
+  ansible.builtin.stat:
+    path: "{{ relay_host_root }}/state/{{ item }}"
+  loop:
+    - devices.tsv
+    - users.tsv
+    - grants.tsv
+  register: relay_host_legacy_tsv
+
+- name: Refuse to delete non-empty retired TSV state
+  ansible.builtin.assert:
+    that:
+      - not item.stat.exists or item.stat.size == 0
+    fail_msg: "Refusing to delete non-empty legacy state file {{ item.item }}"
+  loop: "{{ relay_host_legacy_tsv.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+
+- name: Remove empty retired TSV state files
+  ansible.builtin.file:
+    path: "{{ relay_host_root }}/state/{{ item.item }}"
+    state: absent
+  when: item.stat.exists
+  loop: "{{ relay_host_legacy_tsv.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+
+- name: Install relay garbage-collection units
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: "/etc/systemd/system/{{ item.dest }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop:
+    - src: cag-gc.service.j2
+      dest: cag-gc.service
+    - src: cag-gc.timer.j2
+      dest: cag-gc.timer
+  register: relay_host_gc_units
+
+- name: Enable hourly relay garbage collection
+  ansible.builtin.systemd_service:
+    name: cag-gc.timer
+    enabled: true
+    state: started
+    daemon_reload: "{{ relay_host_gc_units.changed }}"
 
 - name: Authenticate invite and pairing codes before the system password stack
   ansible.builtin.blockinfile:

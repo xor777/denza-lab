@@ -3,6 +3,7 @@ package cag
 import (
 	"bufio"
 	"context"
+	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -15,16 +16,20 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"time"
 )
 
 const (
 	relayHost       = "adbgw.ru"
 	relaySSHPort    = 443
-	relayHostKey    = "[adbgw.ru]:443 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOIW2f0IkkC+BgYvVE7Mp1AaTqEZ3nTZzdguBBooU0/u"
 	innerUser       = "cag"
 	defaultSmartADB = 5037
 	defaultRawADB   = 5555
 )
+
+var relayHostKeys = []string{
+	"[adbgw.ru]:443 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOIW2f0IkkC+BgYvVE7Mp1AaTqEZ3nTZzdguBBooU0/u",
+}
 
 type DeviceBundle struct {
 	ClientFingerprint string `json:"client_fingerprint"`
@@ -39,6 +44,13 @@ type DeviceBundle struct {
 	RelayDevicePort   int    `json:"relay_device_port"`
 	RelayHost         string `json:"relay_host"`
 	RelaySSHPort      int    `json:"relay_ssh_port"`
+}
+
+type PendingPair struct {
+	CodeHash     string `json:"code_hash"`
+	IdentityName string `json:"identity_name"`
+	CreatedAt    int64  `json:"created_at"`
+	ExpiresAt    int64  `json:"expires_at"`
 }
 
 type commandRunner interface {
@@ -116,10 +128,18 @@ func (app *App) Run(ctx context.Context, args []string) error {
 	}
 	switch args[0] {
 	case "pair":
-		if len(args) != 2 {
-			return errors.New("usage: cag pair XXXX-XXXX")
+		newKey := false
+		var code string
+		switch {
+		case len(args) == 2:
+			code = args[1]
+		case len(args) == 3 && args[1] == "--new-key":
+			newKey = true
+			code = args[2]
+		default:
+			return errors.New("usage: cag pair [--new-key] XXXX-XXXX")
 		}
-		return app.pair(ctx, args[1])
+		return app.pair(ctx, code, newKey)
 	case "connect":
 		return app.connect(ctx, args[1:])
 	case "status":
@@ -149,7 +169,8 @@ func (app *App) Run(ctx context.Context, args []string) error {
 
 func (app *App) usage() {
 	fmt.Fprintln(app.stdout, `Usage:
-  cag pair XXXX-XXXX
+	  cag pair XXXX-XXXX
+	  cag pair --new-key XXXX-XXXX
   cag connect
   cag connect -- adb [arguments...]
   cag status
@@ -170,24 +191,28 @@ func (app *App) ensureConfig() error {
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return fmt.Errorf("read known hosts: %w", err)
 	}
+	var vehicleLine string
 	for _, line := range strings.Split(string(data), "\n") {
-		if line == relayHostKey {
-			return nil
+		if strings.HasPrefix(line, "cag-device-") {
+			vehicleLine = line
 		}
 	}
-	if len(data) > 0 && data[len(data)-1] != '\n' {
-		data = append(data, '\n')
+	expected := relayKnownHosts(vehicleLine)
+	if string(data) == string(expected) {
+		return nil
 	}
-	data = append(data, relayHostKey...)
-	data = append(data, '\n')
-	return writeAtomic(knownHosts, data, 0o600)
+	return writeAtomic(knownHosts, expected, 0o600)
 }
 
 func (app *App) ensureIdentity(ctx context.Context) error {
+	return app.ensureIdentityNamed(ctx, "identity")
+}
+
+func (app *App) ensureIdentityNamed(ctx context.Context, name string) error {
 	if err := app.ensureConfig(); err != nil {
 		return err
 	}
-	privateKey := app.path("identity")
+	privateKey := app.path(name)
 	publicKey := privateKey + ".pub"
 	if fileNonempty(privateKey) && fileNonempty(publicKey) {
 		return nil
@@ -200,6 +225,19 @@ func (app *App) ensureIdentity(ctx context.Context) error {
 		return err
 	}
 	return os.Chmod(publicKey, 0o644)
+}
+
+func relayKnownHosts(vehicleLine string) []byte {
+	var output strings.Builder
+	for _, key := range relayHostKeys {
+		output.WriteString(key)
+		output.WriteByte('\n')
+	}
+	if vehicleLine != "" {
+		output.WriteString(vehicleLine)
+		output.WriteByte('\n')
+	}
+	return []byte(output.String())
 }
 
 func fileNonempty(path string) bool {
@@ -225,63 +263,190 @@ func normalizeCode(value string) (string, error) {
 	return compact.String()[:4] + "-" + compact.String()[4:], nil
 }
 
-func (app *App) pair(ctx context.Context, rawCode string) error {
+func (app *App) pair(ctx context.Context, rawCode string, newKey bool) error {
 	code, err := normalizeCode(rawCode)
 	if err != nil {
 		return err
 	}
-	if err := app.ensureIdentity(ctx); err != nil {
+	if err := app.ensureConfig(); err != nil {
 		return err
 	}
-	publicKey, err := os.ReadFile(app.path("identity.pub"))
-	if err != nil {
-		return fmt.Errorf("read client key: %w", err)
-	}
-	hostname, _ := os.Hostname()
-	payload, err := json.Marshal(map[string]string{
-		"public_key": strings.TrimSpace(string(publicKey)),
-		"label":      hostname,
-	})
+	pending, bundle, rawBundle, err := app.loadPendingPair(codeHash(code))
 	if err != nil {
 		return err
 	}
-	encodedPayload := base64.RawURLEncoding.EncodeToString(payload)
-	output, err := app.runner.Run(ctx, askpassEnvironment(app.executable, code), "ssh", app.relayPairArgs(code, encodedPayload)...)
-	if err != nil {
-		return fmt.Errorf("the relay rejected the code or is unavailable: %w", err)
+	if pending == nil {
+		identityName := "identity"
+		if newKey {
+			identityName = "identity.next"
+			_ = os.Remove(app.path(identityName))
+			_ = os.Remove(app.path(identityName + ".pub"))
+		}
+		pending = &PendingPair{
+			CodeHash:     codeHash(code),
+			IdentityName: identityName,
+			CreatedAt:    time.Now().Unix(),
+		}
+		if err := app.savePendingPair(*pending); err != nil {
+			return err
+		}
 	}
-	bundle, rawBundle, err := parseRelayBundle(output)
+	if err := app.ensureIdentityNamed(ctx, pending.IdentityName); err != nil {
+		return err
+	}
+	if bundle == nil {
+		publicKey, err := os.ReadFile(app.path(pending.IdentityName + ".pub"))
+		if err != nil {
+			return fmt.Errorf("read client key: %w", err)
+		}
+		hostname, _ := os.Hostname()
+		payload, err := json.Marshal(map[string]string{
+			"public_key": strings.TrimSpace(string(publicKey)),
+			"label":      hostname,
+		})
+		if err != nil {
+			return err
+		}
+		encodedPayload := base64.RawURLEncoding.EncodeToString(payload)
+		output, err := app.runner.Run(ctx, askpassEnvironment(app.executable, code), "ssh", app.relayPairArgs(code, encodedPayload)...)
+		if err != nil {
+			return fmt.Errorf("the relay rejected the code or is unavailable: %w", err)
+		}
+		parsed, raw, err := parseRelayBundle(output)
+		if err != nil {
+			return err
+		}
+		bundle = &parsed
+		rawBundle = raw
+		pending.ExpiresAt = parsed.PairingExpiresAt
+		if err := writeAtomic(app.path("pending-device.json"), rawBundle, 0o600); err != nil {
+			return fmt.Errorf("save pending car: %w", err)
+		}
+		if err := app.savePendingPair(*pending); err != nil {
+			return err
+		}
+	}
+	fingerprint, err := app.identityFingerprint(ctx, pending.IdentityName)
 	if err != nil {
 		return err
 	}
-	fingerprint, err := app.identityFingerprint(ctx)
-	if err != nil {
-		return err
-	}
-	if err := validateBundle(bundle, fingerprint); err != nil {
+	if err := validateBundle(*bundle, fingerprint); err != nil {
 		return err
 	}
 
 	temporaryKnownHosts := app.path(fmt.Sprintf(".pair-known-hosts-%d", os.Getpid()))
 	defer os.Remove(temporaryKnownHosts)
-	if err := app.writeKnownHostsForBundle(bundle, temporaryKnownHosts); err != nil {
+	if err := app.writeKnownHostsForBundle(*bundle, temporaryKnownHosts); err != nil {
 		return err
 	}
-	confirmation, err := app.runner.Run(ctx, askpassEnvironment(app.executable, code), "ssh", app.innerArgs(bundle, temporaryKnownHosts, false, "pair-complete")...)
+	confirmation, err := app.runner.Run(
+		ctx,
+		askpassEnvironment(app.executable, code),
+		"ssh",
+		app.innerArgsWithIdentity(*bundle, temporaryKnownHosts, pending.IdentityName, false, "pair-complete")...,
+	)
 	if err != nil {
-		return fmt.Errorf("the car did not confirm pairing; the previous computer still has access: %w", err)
+		return fmt.Errorf("pairing confirmation was interrupted; rerun the same cag pair command: %w", err)
 	}
 	if !strings.HasPrefix(strings.TrimSpace(string(confirmation)), "OK") {
 		return errors.New("the car returned an invalid pairing confirmation")
 	}
-	if err := app.installBundleHostKey(bundle); err != nil {
+	if pending.IdentityName == "identity.next" {
+		if err := app.promoteStagedIdentity(); err != nil {
+			return err
+		}
+	}
+	if err := app.installBundleHostKey(*bundle); err != nil {
 		return err
 	}
 	if err := writeAtomic(app.path("device.json"), rawBundle, 0o600); err != nil {
 		return fmt.Errorf("save paired car: %w", err)
 	}
+	if err := app.clearPendingPair(); err != nil {
+		return err
+	}
 	fmt.Fprintf(app.stdout, "Paired with %s.\n", bundle.DeviceLabel)
 	return nil
+}
+
+func codeHash(code string) string {
+	return fmt.Sprintf("%x", sha256.Sum256([]byte(code)))
+}
+
+func (app *App) savePendingPair(pending PendingPair) error {
+	raw, err := json.Marshal(pending)
+	if err != nil {
+		return err
+	}
+	if err := writeAtomic(app.path("pending-pair.json"), append(raw, '\n'), 0o600); err != nil {
+		return fmt.Errorf("save pending pairing: %w", err)
+	}
+	return nil
+}
+
+func (app *App) loadPendingPair(hash string) (*PendingPair, *DeviceBundle, []byte, error) {
+	raw, err := os.ReadFile(app.path("pending-pair.json"))
+	if errors.Is(err, os.ErrNotExist) {
+		return nil, nil, nil, nil
+	}
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("read pending pairing: %w", err)
+	}
+	var pending PendingPair
+	if json.Unmarshal(raw, &pending) != nil ||
+		(pending.IdentityName != "identity" && pending.IdentityName != "identity.next") {
+		return nil, nil, nil, errors.New("the pending pairing is corrupt")
+	}
+	now := time.Now().Unix()
+	stale := pending.ExpiresAt > 0 && pending.ExpiresAt <= now
+	stale = stale || pending.ExpiresAt == 0 && pending.CreatedAt+30*60 <= now
+	if stale {
+		if err := app.clearPendingPair(); err != nil {
+			return nil, nil, nil, err
+		}
+		return nil, nil, nil, nil
+	}
+	if pending.CodeHash != hash {
+		return nil, nil, nil, errors.New("another pairing is in progress; retry it with the same code")
+	}
+	bundleRaw, err := os.ReadFile(app.path("pending-device.json"))
+	if errors.Is(err, os.ErrNotExist) {
+		return &pending, nil, nil, nil
+	}
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("read pending car: %w", err)
+	}
+	var bundle DeviceBundle
+	if json.Unmarshal(bundleRaw, &bundle) != nil {
+		return nil, nil, nil, errors.New("the pending car bundle is corrupt")
+	}
+	return &pending, &bundle, bundleRaw, nil
+}
+
+func (app *App) promoteStagedIdentity() error {
+	for _, suffix := range []string{"", ".pub"} {
+		data, err := os.ReadFile(app.path("identity.next" + suffix))
+		if err != nil {
+			return fmt.Errorf("read staged client key: %w", err)
+		}
+		mode := os.FileMode(0o600)
+		if suffix == ".pub" {
+			mode = 0o644
+		}
+		if err := writeAtomic(app.path("identity"+suffix), data, mode); err != nil {
+			return fmt.Errorf("install staged client key: %w", err)
+		}
+	}
+	return nil
+}
+
+func (app *App) clearPendingPair() error {
+	for _, name := range []string{"pending-pair.json", "pending-device.json", "identity.next", "identity.next.pub"} {
+		if err := os.Remove(app.path(name)); err != nil && !errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("remove %s: %w", name, err)
+		}
+	}
+	return syncDirectory(app.configDir)
 }
 
 func askpassEnvironment(executable, code string) map[string]string {
@@ -342,8 +507,8 @@ func parseRelayBundle(output []byte) (DeviceBundle, []byte, error) {
 	return bundle, nil, errors.New("the relay returned an invalid response")
 }
 
-func (app *App) identityFingerprint(ctx context.Context) (string, error) {
-	output, err := app.runner.Run(ctx, nil, "ssh-keygen", "-lf", app.path("identity.pub"), "-E", "sha256")
+func (app *App) identityFingerprint(ctx context.Context, identityName string) (string, error) {
+	output, err := app.runner.Run(ctx, nil, "ssh-keygen", "-lf", app.path(identityName+".pub"), "-E", "sha256")
 	if err != nil {
 		return "", fmt.Errorf("read client fingerprint: %w", err)
 	}
@@ -395,23 +560,8 @@ func validPublicKey(value string) bool {
 }
 
 func (app *App) writeKnownHostsForBundle(bundle DeviceBundle, destination string) error {
-	data, err := os.ReadFile(app.path("known_hosts"))
-	if err != nil {
-		return err
-	}
 	alias := innerAlias(bundle.DeviceID)
-	var output strings.Builder
-	for _, line := range strings.Split(string(data), "\n") {
-		if line != "" && !strings.HasPrefix(line, alias+" ") {
-			output.WriteString(line)
-			output.WriteByte('\n')
-		}
-	}
-	output.WriteString(alias)
-	output.WriteByte(' ')
-	output.WriteString(bundle.InnerHostKey)
-	output.WriteByte('\n')
-	return writeAtomic(destination, []byte(output.String()), 0o600)
+	return writeAtomic(destination, relayKnownHosts(alias+" "+bundle.InnerHostKey), 0o600)
 }
 
 func (app *App) installBundleHostKey(bundle DeviceBundle) error {
@@ -438,9 +588,13 @@ func shellQuote(value string) string {
 }
 
 func (app *App) innerArgs(bundle DeviceBundle, knownHosts string, batch bool, command ...string) []string {
+	return app.innerArgsWithIdentity(bundle, knownHosts, "identity", batch, command...)
+}
+
+func (app *App) innerArgsWithIdentity(bundle DeviceBundle, knownHosts, identityName string, batch bool, command ...string) []string {
 	args := []string{
 		"-T",
-		"-i", app.path("identity"),
+		"-i", app.path(identityName),
 		"-o", "IdentitiesOnly=yes",
 		"-o", "StrictHostKeyChecking=yes",
 		"-o", "HostKeyAlias=" + innerAlias(bundle.DeviceID),
@@ -640,5 +794,17 @@ func writeAtomic(path string, data []byte, mode os.FileMode) error {
 	if err := file.Close(); err != nil {
 		return err
 	}
-	return os.Rename(temporary, path)
+	if err := os.Rename(temporary, path); err != nil {
+		return err
+	}
+	return syncDirectory(directory)
+}
+
+func syncDirectory(path string) error {
+	directory, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer directory.Close()
+	return directory.Sync()
 }

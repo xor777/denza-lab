@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import base64
 import binascii
+import copy
 import contextlib
 import fcntl
 import hashlib
@@ -35,10 +36,11 @@ ALLOWED_KEY_TYPES = {
     "ecdsa-sha2-nistp521",
 }
 DEFAULT_RELAY_PORT = 20_000
+MAX_RELAY_PORT = 65_535
 DEFAULT_PAIR_TTL = 600
 DEFAULT_INVITE_TTL = 3_600
-MAX_AUTH_FAILURES = 5
-AUTH_LOCK_SECONDS = 300
+DEVICE_LEASE_SECONDS = 14 * 24 * 60 * 60
+STATE_VERSION = 2
 
 
 class StateError(RuntimeError):
@@ -141,31 +143,42 @@ class RelayState:
     @staticmethod
     def empty() -> dict[str, Any]:
         return {
-            "version": 1,
+            "version": STATE_VERSION,
             "next_port": DEFAULT_RELAY_PORT,
             "devices": {},
             "clients": {},
             "grants": {},
             "pending": {},
             "codes": {},
-            "auth_limits": {},
         }
 
     @contextlib.contextmanager
-    def _locked(self) -> Iterator[dict[str, Any]]:
+    def _read_locked(self) -> Iterator[dict[str, Any]]:
+        try:
+            with self.lock_path.open("r", encoding="utf-8") as lock_file:
+                fcntl.flock(lock_file.fileno(), fcntl.LOCK_SH)
+                yield self._read()
+        except FileNotFoundError as exc:
+            raise StateError("relay state is not initialized") from exc
+
+    @contextlib.contextmanager
+    def _locked(self, clean_transient: bool = True) -> Iterator[dict[str, Any]]:
         self.lock_path.parent.mkdir(parents=True, exist_ok=True)
         self.root.mkdir(parents=True, exist_ok=True)
         with self.lock_path.open("a+", encoding="utf-8") as lock_file:
             os.chmod(self.lock_path, 0o660)
             fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
             state = self._read()
-            self._clean_expired(state)
+            before = self._serialize(state)
+            if clean_transient:
+                self._clean_transient(state)
             try:
                 yield state
             except Exception:
                 raise
             else:
-                self._write(state)
+                if self._serialize(state) != before:
+                    self._write(state)
 
     def _read(self) -> dict[str, Any]:
         if not self.state_path.exists():
@@ -174,14 +187,202 @@ class RelayState:
             state = json.loads(self.state_path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError) as exc:
             raise StateError("relay state is corrupt") from exc
-        if not isinstance(state, dict) or state.get("version") != 1:
+        if not isinstance(state, dict) or state.get("version") not in {1, STATE_VERSION}:
             raise StateError("unsupported relay state version")
-        for field in ("devices", "clients", "grants", "pending", "codes", "auth_limits"):
-            if not isinstance(state.get(field), dict):
-                raise StateError("relay state is corrupt")
+        state = self._migrate(state)
+        self._validate_state(state)
         return state
 
+    def _migrate(self, state: dict[str, Any]) -> dict[str, Any]:
+        if state.get("version") == STATE_VERSION:
+            return state
+        migrated = copy.deepcopy(state)
+        migrated["version"] = STATE_VERSION
+        migrated.pop("auth_limits", None)
+        grace_expires_at = self.clock() + DEVICE_LEASE_SECONDS
+        for device in migrated.get("devices", {}).values():
+            device.setdefault("control_public_key", device.get("tunnel_public_key"))
+            device.setdefault("lease_expires_at", grace_expires_at)
+        return migrated
+
+    def _validate_state(self, state: dict[str, Any]) -> None:
+        if state.get("version") != STATE_VERSION:
+            raise StateError("unsupported relay state version")
+        if set(state) != {
+            "version",
+            "next_port",
+            "devices",
+            "clients",
+            "grants",
+            "pending",
+            "codes",
+        }:
+            raise StateError("relay state is corrupt")
+        for field in ("devices", "clients", "grants", "pending", "codes"):
+            if not isinstance(state.get(field), dict):
+                raise StateError("relay state is corrupt")
+        next_port = state.get("next_port")
+        if type(next_port) is not int or not DEFAULT_RELAY_PORT <= next_port <= MAX_RELAY_PORT:
+            raise StateError("relay state is corrupt")
+        used_ports: set[int] = set()
+        tunnel_fingerprints: set[str] = set()
+        for device_id, device in state["devices"].items():
+            if (
+                not isinstance(device, dict)
+                or set(device)
+                != {
+                    "id",
+                    "label",
+                    "relay_port",
+                    "tunnel_public_key",
+                    "tunnel_fingerprint",
+                    "control_public_key",
+                    "inner_host_key",
+                    "endpoint_mode",
+                    "endpoint_host",
+                    "enabled",
+                    "created_at",
+                    "lease_expires_at",
+                }
+                or device.get("id") != device_id
+            ):
+                raise StateError("relay state is corrupt")
+            self._require_device_id(device_id)
+            for field in ("tunnel_public_key", "control_public_key", "inner_host_key"):
+                canonical_public_key(str(device.get(field, "")))
+            tunnel_fingerprint = public_key_fingerprint(device["tunnel_public_key"])
+            endpoint_mode = device.get("endpoint_mode")
+            if endpoint_mode not in {"unknown", "smart", "raw"}:
+                raise StateError("relay state is corrupt")
+            relay_port = device.get("relay_port")
+            if (
+                type(relay_port) is not int
+                or not DEFAULT_RELAY_PORT <= relay_port <= MAX_RELAY_PORT
+                or relay_port in used_ports
+                or tunnel_fingerprint != device.get("tunnel_fingerprint")
+                or tunnel_fingerprint in tunnel_fingerprints
+                or type(device.get("created_at")) is not int
+                or type(device.get("lease_expires_at")) is not int
+                or type(device.get("enabled")) is not bool
+                or not isinstance(device.get("label"), str)
+                or not 1 <= len(device["label"]) <= 80
+                or normalize_endpoint_host(device.get("endpoint_host"), endpoint_mode)
+                != device.get("endpoint_host")
+            ):
+                raise StateError("relay state is corrupt")
+            used_ports.add(relay_port)
+            tunnel_fingerprints.add(tunnel_fingerprint)
+        for fingerprint, client in state["clients"].items():
+            if (
+                not isinstance(client, dict)
+                or set(client) != {"fingerprint", "public_key", "label", "created_at"}
+                or client.get("fingerprint") != fingerprint
+                or not FINGERPRINT_PATTERN.fullmatch(fingerprint)
+                or not isinstance(client.get("label"), str)
+                or not 1 <= len(client["label"]) <= 80
+                or type(client.get("created_at")) is not int
+            ):
+                raise StateError("relay state is corrupt")
+            if public_key_fingerprint(str(client.get("public_key", ""))) != fingerprint:
+                raise StateError("relay state is corrupt")
+        client_owners: dict[str, str] = {}
+        for device_id, grant in state["grants"].items():
+            if (
+                device_id not in state["devices"]
+                or not isinstance(grant, dict)
+                or set(grant)
+                != {
+                    "device_id",
+                    "client_fingerprint",
+                    "created_at",
+                    "replaced_fingerprint",
+                }
+                or grant.get("device_id") != device_id
+                or grant.get("client_fingerprint") not in state["clients"]
+                or type(grant.get("created_at")) is not int
+                or (
+                    grant.get("replaced_fingerprint") is not None
+                    and not FINGERPRINT_PATTERN.fullmatch(grant["replaced_fingerprint"])
+                )
+            ):
+                raise StateError("relay state is corrupt")
+            owner = client_owners.get(grant["client_fingerprint"])
+            if owner is not None and owner != device_id:
+                raise StateError("relay state is corrupt")
+            client_owners[grant["client_fingerprint"]] = device_id
+        for device_id, pending in state["pending"].items():
+            if (
+                device_id not in state["devices"]
+                or not isinstance(pending, dict)
+                or set(pending)
+                != {
+                    "device_id",
+                    "request_id",
+                    "client_fingerprint",
+                    "expires_at",
+                    "created_at",
+                }
+                or pending.get("device_id") != device_id
+                or pending.get("client_fingerprint") not in state["clients"]
+                or not REQUEST_ID_PATTERN.fullmatch(str(pending.get("request_id", "")))
+                or type(pending.get("expires_at")) is not int
+                or type(pending.get("created_at")) is not int
+            ):
+                raise StateError("relay state is corrupt")
+            owner = client_owners.get(pending["client_fingerprint"])
+            if owner is not None and owner != device_id:
+                raise StateError("relay state is corrupt")
+            client_owners[pending["client_fingerprint"]] = device_id
+        for code_id, record in state["codes"].items():
+            if (
+                not re.fullmatch(r"[a-f0-9]{24}", code_id)
+                or not isinstance(record, dict)
+                or set(record)
+                != {
+                    "kind",
+                    "salt",
+                    "digest",
+                    "expires_at",
+                    "device_id",
+                    "request_id",
+                    "consumed_by",
+                    "recoverable_code",
+                }
+                or record.get("kind") not in {"enroll", "pair"}
+                or not re.fullmatch(r"[a-f0-9]{32}", str(record.get("salt", "")))
+                or not re.fullmatch(r"[a-f0-9]{64}", str(record.get("digest", "")))
+                or type(record.get("expires_at")) is not int
+            ):
+                raise StateError("relay state is corrupt")
+            if record["kind"] == "enroll":
+                if (
+                    record.get("device_id") is not None
+                    or record.get("request_id") is not None
+                    or record.get("recoverable_code") is not None
+                    or (
+                        record.get("consumed_by") is not None
+                        and record["consumed_by"] not in state["devices"]
+                    )
+                ):
+                    raise StateError("relay state is corrupt")
+            else:
+                code = record.get("recoverable_code")
+                if (
+                    record.get("device_id") not in state["devices"]
+                    or not REQUEST_ID_PATTERN.fullmatch(str(record.get("request_id", "")))
+                    or record.get("consumed_by") is not None
+                    or not isinstance(code, str)
+                    or not CODE_PATTERN.fullmatch(code)
+                    or self._code_digest(record["salt"], code) != record["digest"]
+                ):
+                    raise StateError("relay state is corrupt")
+
+    @staticmethod
+    def _serialize(state: dict[str, Any]) -> str:
+        return json.dumps(state, separators=(",", ":"), sort_keys=True)
+
     def _write(self, state: dict[str, Any]) -> None:
+        self._validate_state(state)
         self.root.mkdir(parents=True, exist_ok=True)
         fd, temporary_name = tempfile.mkstemp(prefix=".state.", dir=self.root)
         temporary = Path(temporary_name)
@@ -193,11 +394,16 @@ class RelayState:
                 os.fsync(output.fileno())
             os.chmod(temporary, 0o660)
             os.replace(temporary, self.state_path)
+            directory_fd = os.open(self.root, os.O_RDONLY)
+            try:
+                os.fsync(directory_fd)
+            finally:
+                os.close(directory_fd)
         finally:
             if temporary.exists():
                 temporary.unlink()
 
-    def _clean_expired(self, state: dict[str, Any]) -> None:
+    def _clean_transient(self, state: dict[str, Any]) -> None:
         now = self.clock()
         expired_codes = [key for key, value in state["codes"].items() if value["expires_at"] <= now]
         for key in expired_codes:
@@ -210,12 +416,19 @@ class RelayState:
         ]
         for device_id in expired_pending:
             state["pending"].pop(device_id, None)
+        self._prune_clients(state)
 
-        expired_limits = [
-            key for key, value in state["auth_limits"].items() if value["reset_at"] <= now
-        ]
-        for key in expired_limits:
-            state["auth_limits"].pop(key, None)
+    @staticmethod
+    def _prune_clients(state: dict[str, Any]) -> int:
+        referenced = {
+            value["client_fingerprint"]
+            for collection in (state["grants"], state["pending"])
+            for value in collection.values()
+        }
+        orphaned = [fingerprint for fingerprint in state["clients"] if fingerprint not in referenced]
+        for fingerprint in orphaned:
+            state["clients"].pop(fingerprint, None)
+        return len(orphaned)
 
     def _new_code(
         self,
@@ -275,27 +488,15 @@ class RelayState:
         kind = {"cag-enroll": "enroll", "cag-pair": "pair"}.get(username)
         if kind is None:
             return False
-        source_key = f"{username}:{source or 'unknown'}"
-        with self._locked() as state:
-            limit = state["auth_limits"].get(source_key)
-            now = self.clock()
-            if limit and limit["locked_until"] > now:
-                return False
-            match = self._find_code(state, kind, password)
-            if match:
-                state["auth_limits"].pop(source_key, None)
-                return True
-            attempts = (limit or {}).get("attempts", 0) + 1
-            locked_until = now + AUTH_LOCK_SECONDS if attempts >= MAX_AUTH_FAILURES else 0
-            state["auth_limits"][source_key] = {
-                "attempts": attempts,
-                "locked_until": locked_until,
-                "reset_at": now + AUTH_LOCK_SECONDS,
-            }
-            return False
+        del source
+        with self._read_locked() as state:
+            return self._find_code(state, kind, password) is not None
 
     def enroll(self, code: str, payload: dict[str, Any]) -> dict[str, Any]:
         tunnel_key = canonical_public_key(str(payload.get("tunnel_public_key", "")))
+        control_key = canonical_public_key(str(payload.get("control_public_key", "")))
+        if control_key == tunnel_key:
+            raise StateError("control and tunnel keys must be different")
         inner_host_key = canonical_public_key(str(payload.get("inner_host_key", "")))
         tunnel_fingerprint = public_key_fingerprint(tunnel_key)
         label = sanitize_label(str(payload.get("label", "")), "Android head unit")
@@ -326,19 +527,20 @@ class RelayState:
                 return self._device_bundle(existing)
 
             device_id = secrets.token_hex(8)
-            relay_port = int(state["next_port"])
-            state["next_port"] = relay_port + 1
+            relay_port = self._allocate_port(state)
             device = {
                 "id": device_id,
                 "label": label,
                 "relay_port": relay_port,
                 "tunnel_public_key": tunnel_key,
                 "tunnel_fingerprint": tunnel_fingerprint,
+                "control_public_key": control_key,
                 "inner_host_key": inner_host_key,
                 "endpoint_mode": endpoint_mode,
                 "endpoint_host": endpoint_host,
                 "enabled": True,
                 "created_at": self.clock(),
+                "lease_expires_at": self.clock() + DEVICE_LEASE_SECONDS,
             }
             state["devices"][device_id] = device
             code_record["consumed_by"] = device_id
@@ -355,6 +557,7 @@ class RelayState:
             "endpoint_mode": device["endpoint_mode"],
             "endpoint_host": device.get("endpoint_host"),
             "enabled": device["enabled"],
+            "lease_expires_at": device["lease_expires_at"],
         }
 
     def pair_open(
@@ -375,6 +578,15 @@ class RelayState:
             pending = state["pending"].get(device_id)
             if pending and pending["request_id"] != request_id:
                 raise StateError("another pairing is already pending")
+            active_pair_codes = [
+                record
+                for record in state["codes"].values()
+                if record["kind"] == "pair" and record["device_id"] == device_id
+            ]
+            if active_pair_codes and all(
+                record["request_id"] != request_id for record in active_pair_codes
+            ):
+                raise StateError("another pairing window is already open")
             for code_id, record in state["codes"].items():
                 if (
                     record["kind"] == "pair"
@@ -408,6 +620,10 @@ class RelayState:
                 raise StateError("remote access is disabled")
 
             pending = state["pending"].get(device_id)
+            for collection in (state["grants"], state["pending"]):
+                for owner, record in collection.items():
+                    if owner != device_id and record["client_fingerprint"] == fingerprint:
+                        raise StateError("computer key is already paired to another device")
             if pending:
                 if (
                     pending["client_fingerprint"] != fingerprint
@@ -473,6 +689,7 @@ class RelayState:
             }
             state["pending"].pop(device_id, None)
             self._remove_pair_codes(state, device_id)
+            self._prune_clients(state)
             return {
                 "client_fingerprint": fingerprint,
                 "client_label": client["label"],
@@ -487,6 +704,7 @@ class RelayState:
             if pending and pending["request_id"] == request_id:
                 state["pending"].pop(device_id, None)
             self._remove_pair_codes(state, device_id, request_id)
+            self._prune_clients(state)
             return {"aborted": True, "request_id": request_id}
 
     def set_endpoint(
@@ -505,16 +723,30 @@ class RelayState:
         with self._locked() as state:
             device = self._require_device(state, device_id)
             device["enabled"] = enabled
+            if enabled:
+                device["lease_expires_at"] = self.clock() + DEVICE_LEASE_SECONDS
             if not enabled:
                 state["pending"].pop(device_id, None)
                 self._remove_pair_codes(state, device_id)
+                self._prune_clients(state)
             return self._device_bundle(device)
 
-    def device_status(self, device_id: str) -> dict[str, Any]:
+    def renew_lease(self, device_id: str) -> dict[str, Any]:
         with self._locked() as state:
+            device = self._require_device(state, device_id)
+            device["lease_expires_at"] = self.clock() + DEVICE_LEASE_SECONDS
+            return {
+                "device_id": device_id,
+                "lease_expires_at": device["lease_expires_at"],
+            }
+
+    def device_status(self, device_id: str) -> dict[str, Any]:
+        with self._read_locked() as state:
             device = self._require_device(state, device_id)
             active = state["grants"].get(device_id)
             pending = state["pending"].get(device_id)
+            if pending and pending["expires_at"] <= self.clock():
+                pending = None
             active_client = state["clients"].get(active["client_fingerprint"]) if active else None
             pending_client = state["clients"].get(pending["client_fingerprint"]) if pending else None
             return {
@@ -524,29 +756,132 @@ class RelayState:
                 "pending_client_fingerprint": pending["client_fingerprint"] if pending else None,
                 "pending_client_label": pending_client["label"] if pending_client else None,
                 "pending_expires_at": pending["expires_at"] if pending else None,
+                "lease_expires_at": device["lease_expires_at"],
+            }
+
+    def list_devices(self) -> dict[str, Any]:
+        with self._read_locked() as state:
+            devices = []
+            for device_id in sorted(state["devices"]):
+                device = state["devices"][device_id]
+                active = state["grants"].get(device_id)
+                client = state["clients"].get(active["client_fingerprint"]) if active else None
+                devices.append(
+                    {
+                        "device_id": device_id,
+                        "label": device["label"],
+                        "enabled": device["enabled"],
+                        "relay_port": device["relay_port"],
+                        "lease_expires_at": device["lease_expires_at"],
+                        "client_label": client["label"] if client else None,
+                    }
+                )
+            return {"devices": devices}
+
+    def remove_device(self, device_id: str) -> dict[str, Any]:
+        with self._locked() as state:
+            self._require_device(state, device_id, allow_expired=True)
+            self._remove_device(state, device_id)
+            removed_clients = self._prune_clients(state)
+            return {
+                "device_id": device_id,
+                "removed": True,
+                "removed_clients": removed_clients,
+                "recycle_sessions": True,
+            }
+
+    def gc(self) -> dict[str, Any]:
+        with self._locked(clean_transient=False) as state:
+            now = self.clock()
+            clients_before = len(state["clients"])
+            expired_devices = sorted(
+                device_id
+                for device_id, device in state["devices"].items()
+                if device["lease_expires_at"] <= now
+            )
+            for device_id in expired_devices:
+                self._remove_device(state, device_id)
+            self._clean_transient(state)
+            self._prune_clients(state)
+            return {
+                "removed_devices": len(expired_devices),
+                "removed_clients": clients_before - len(state["clients"]),
+                "recycle_sessions": bool(expired_devices),
+            }
+
+    def migrate(self) -> dict[str, Any]:
+        self.lock_path.parent.mkdir(parents=True, exist_ok=True)
+        self.root.mkdir(parents=True, exist_ok=True)
+        with self.lock_path.open("a+", encoding="utf-8") as lock_file:
+            os.chmod(self.lock_path, 0o660)
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+            raw_version = None
+            if self.state_path.exists():
+                try:
+                    raw_version = json.loads(
+                        self.state_path.read_text(encoding="utf-8")
+                    ).get("version")
+                except (OSError, json.JSONDecodeError, AttributeError) as exc:
+                    raise StateError("relay state is corrupt") from exc
+            state = self._read()
+            migrated = raw_version != STATE_VERSION
+            if migrated:
+                self._write(state)
+            return {
+                "version": state["version"],
+                "devices": len(state["devices"]),
+                "migrated": migrated,
+            }
+
+    def doctor(self) -> dict[str, Any]:
+        with self._read_locked() as state:
+            now = self.clock()
+            referenced = {
+                value["client_fingerprint"]
+                for collection in (state["grants"], state["pending"])
+                for value in collection.values()
+            }
+            orphaned = len(set(state["clients"]) - referenced)
+            expired_devices = sum(
+                device["lease_expires_at"] <= now for device in state["devices"].values()
+            )
+            return {
+                "ok": orphaned == 0 and expired_devices == 0,
+                "version": state["version"],
+                "devices": len(state["devices"]),
+                "clients": len(state["clients"]),
+                "grants": len(state["grants"]),
+                "pending": len(state["pending"]),
+                "codes": len(state["codes"]),
+                "orphaned_clients": orphaned,
+                "expired_devices": expired_devices,
+                "next_port": state["next_port"],
             }
 
     def authorized_keys(self, username: str) -> list[str]:
-        with self._locked() as state:
+        with self._read_locked() as state:
             if username == "cag-device":
                 return [
                     self._device_key_line(device)
                     for device in state["devices"].values()
-                    if device["enabled"]
+                    if device["enabled"] and self._device_active(device)
                 ]
             if username == "cag-control":
                 return [
                     self._control_key_line(device)
                     for device in state["devices"].values()
+                    if self._device_active(device)
                 ]
             if username == "cag-client":
                 lines: list[str] = []
                 for device_id, device in state["devices"].items():
-                    if not device["enabled"]:
+                    if not device["enabled"] or not self._device_active(device):
                         continue
                     fingerprints: set[str] = set()
                     active = state["grants"].get(device_id)
                     pending = state["pending"].get(device_id)
+                    if pending and pending["expires_at"] <= self.clock():
+                        pending = None
                     if active:
                         fingerprints.add(active["client_fingerprint"])
                     if pending:
@@ -570,7 +905,7 @@ class RelayState:
     def _control_key_line(device: dict[str, Any]) -> str:
         return (
             f'restrict,command="/opt/cag/device-control.sh {device["id"]}" '
-            f'{device["tunnel_public_key"]} cag-control:{device["id"]}'
+            f'{device["control_public_key"]} cag-control:{device["id"]}'
         )
 
     @staticmethod
@@ -586,13 +921,50 @@ class RelayState:
         if not DEVICE_ID_PATTERN.fullmatch(device_id):
             raise StateError("invalid device ID")
 
-    @classmethod
-    def _require_device(cls, state: dict[str, Any], device_id: str) -> dict[str, Any]:
-        cls._require_device_id(device_id)
+    def _require_device(
+        self, state: dict[str, Any], device_id: str, allow_expired: bool = False
+    ) -> dict[str, Any]:
+        self._require_device_id(device_id)
         device = state["devices"].get(device_id)
         if not device:
             raise StateError("unknown device")
+        if not allow_expired and not self._device_active(device):
+            raise StateError("device lease expired")
         return device
+
+    def _device_active(self, device: dict[str, Any]) -> bool:
+        return device["lease_expires_at"] > self.clock()
+
+    def _allocate_port(self, state: dict[str, Any]) -> int:
+        used = {device["relay_port"] for device in state["devices"].values()}
+        pool_size = MAX_RELAY_PORT - DEFAULT_RELAY_PORT + 1
+        start = state["next_port"]
+        for offset in range(pool_size):
+            relay_port = DEFAULT_RELAY_PORT + (
+                (start - DEFAULT_RELAY_PORT + offset) % pool_size
+            )
+            if relay_port not in used:
+                state["next_port"] = (
+                    DEFAULT_RELAY_PORT if relay_port == MAX_RELAY_PORT else relay_port + 1
+                )
+                return relay_port
+        raise StateError("relay port pool is exhausted")
+
+    @staticmethod
+    def _remove_device(state: dict[str, Any], device_id: str) -> None:
+        state["devices"].pop(device_id, None)
+        state["grants"].pop(device_id, None)
+        state["pending"].pop(device_id, None)
+        code_ids = [
+            code_id
+            for code_id, record in state["codes"].items()
+            if record.get("device_id") == device_id
+            or record.get("consumed_by") == device_id
+        ]
+        for code_id in code_ids:
+            state["codes"].pop(code_id, None)
+        if not state["devices"]:
+            state["next_port"] = DEFAULT_RELAY_PORT
 
     @staticmethod
     def _remove_pair_codes(
@@ -677,6 +1049,18 @@ def build_parser() -> argparse.ArgumentParser:
     status = subparsers.add_parser("device-status")
     status.add_argument("device_id")
 
+    renew = subparsers.add_parser("renew-lease")
+    renew.add_argument("device_id")
+
+    remove = subparsers.add_parser("remove-device")
+    remove.add_argument("device_id")
+
+    subparsers.add_parser("list-devices")
+    subparsers.add_parser("doctor")
+    subparsers.add_parser("migrate")
+    gc = subparsers.add_parser("gc")
+    gc.add_argument("--signal-exit", action="store_true")
+
     authorized = subparsers.add_parser("authorized-keys")
     authorized.add_argument("username")
     return parser
@@ -705,8 +1089,25 @@ def main(argv: list[str] | None = None) -> int:
             print_ok(state.set_endpoint(args.device_id, args.endpoint_mode, args.endpoint_host))
         elif args.action == "set-enabled":
             print_ok(state.set_enabled(args.device_id, parse_bool(args.enabled)))
+        elif args.action == "renew-lease":
+            print_ok(state.renew_lease(args.device_id))
         elif args.action == "device-status":
             print_ok(state.device_status(args.device_id))
+        elif args.action == "list-devices":
+            print_ok(state.list_devices())
+        elif args.action == "remove-device":
+            print_ok(state.remove_device(args.device_id))
+        elif args.action == "doctor":
+            result = state.doctor()
+            print_ok(result)
+            return 0 if result["ok"] else 3
+        elif args.action == "migrate":
+            print_ok(state.migrate())
+        elif args.action == "gc":
+            result = state.gc()
+            print_ok(result)
+            if args.signal_exit and result["recycle_sessions"]:
+                return 10
         elif args.action == "authorized-keys":
             for line in state.authorized_keys(args.username):
                 print(line)

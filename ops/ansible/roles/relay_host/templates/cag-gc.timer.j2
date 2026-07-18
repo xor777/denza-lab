@@ -1,0 +1,12 @@
+[Unit]
+Description=Hourly Car ADB Gateway lifecycle cleanup
+
+[Timer]
+OnCalendar=hourly
+Persistent=true
+AccuracySec=1m
+RandomizedDelaySec=5m
+Unit=cag-gc.service
+
+[Install]
+WantedBy=timers.target

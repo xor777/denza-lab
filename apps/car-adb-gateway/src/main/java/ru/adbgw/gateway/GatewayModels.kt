@@ -2,7 +2,9 @@ package ru.adbgw.gateway
 
 const val RELAY_HOST = "adbgw.ru"
 const val RELAY_SSH_PORT = 443
-const val RELAY_HOST_FINGERPRINT = "SHA256:w02E2cvN65HmjeC6h9aLY/6zovde3nvqorQPYtNRp6c"
+val RELAY_HOST_FINGERPRINTS = setOf(
+    "SHA256:w02E2cvN65HmjeC6h9aLY/6zovde3nvqorQPYtNRp6c",
+)
 const val INNER_SSH_HOST = "127.0.0.1"
 const val INNER_SSH_PORT = 2222
 const val INNER_SSH_USER = "cag"
@@ -27,6 +29,7 @@ data class RelayRegistration(
     val endpointKind: AdbEndpointKind?,
     val endpointHost: String?,
     val enabled: Boolean,
+    val leaseExpiresAtEpochSeconds: Long,
 )
 
 data class PairingWindow(
@@ -41,6 +44,11 @@ data class PairingWindow(
 data class PairCommitResult(
     val clientLabel: String,
     val replacedFingerprint: String?,
+)
+
+data class PendingPairCommit(
+    val publicKey: String,
+    val fingerprint: String,
 )
 
 enum class AdbState {
@@ -110,6 +118,7 @@ sealed interface GatewayEvent {
     data class PairingChanged(val window: PairingWindow?) : GatewayEvent
     data class EnabledChanged(val enabled: Boolean) : GatewayEvent
     data class RegistrationChanged(val registration: RelayRegistration) : GatewayEvent
+    data class RegistrationExpired(val message: String) : GatewayEvent
     data class BusyChanged(val busy: Boolean, val message: String? = null) : GatewayEvent
     data class PermanentFailure(val message: String) : GatewayEvent
 }
@@ -141,6 +150,18 @@ object GatewayStateMachine {
             connectedSinceMillis = null,
         )
         is GatewayEvent.RegistrationChanged -> current.copy(registration = event.registration)
+        is GatewayEvent.RegistrationExpired -> current.copy(
+            registration = null,
+            enabled = true,
+            relayState = RelayState.WaitingForNetwork,
+            clientState = ClientState.Waiting,
+            clientLabel = null,
+            connectedSinceMillis = null,
+            pairingWindow = null,
+            permanentFailure = null,
+            message = event.message,
+            busy = false,
+        )
         is GatewayEvent.BusyChanged -> current.copy(busy = event.busy, message = event.message)
         is GatewayEvent.PermanentFailure -> current.copy(
             relayState = RelayState.PermanentFailure,

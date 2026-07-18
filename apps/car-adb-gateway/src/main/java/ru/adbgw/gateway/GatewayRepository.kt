@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.time.Instant
+import java.util.UUID
 
 object GatewayRepository {
     private val stateFlow = MutableStateFlow(GatewayUiState())
@@ -31,14 +32,27 @@ object GatewayRepository {
         val app = context.applicationContext
         val store = GatewayStateStore(app)
         val keys = SshKeyStore(app)
+        keys.preserveLegacyControlIdentity(store.registration() != null)
+        val rotationFailure = if (store.isKeyRotationRequired()) {
+            runCatching {
+                keys.rotateForReenrollment()
+                check(store.finishKeyRotation()) { "Не удалось подтвердить смену ключей" }
+            }.exceptionOrNull()
+        } else {
+            null
+        }
         val relay = RelayClient(keys)
         appContext = app
         stateStore = store
         keyStore = keys
         relayClient = relay
         dispatch(GatewayEvent.Initialized(store.registration(), store.isEnabled()))
+        if (rotationFailure != null) {
+            dispatch(GatewayEvent.PermanentFailure("Не удалось подготовить новые ключи автомобиля"))
+        }
         val pairing = store.pairingWindow()?.takeIf { it.isActive(Instant.now().epochSecond) }
         if (pairing != null) dispatch(GatewayEvent.PairingChanged(pairing))
+        else if (store.pairingWindow() != null && store.pendingPairCommit() == null) store.clearPairing()
         store.trustedClientLabel()?.let { label ->
             dispatch(GatewayEvent.ClientChanged(ClientState.Waiting, label, System.currentTimeMillis()))
         }
@@ -57,6 +71,7 @@ object GatewayRepository {
             relayClient = requireRelay(),
             onEvent = ::dispatch,
             onSupportEvent = ::support,
+            onRegistrationExpired = ::handleRegistrationExpired,
         ).also { supervisor = it }
         current.start()
     }
@@ -128,15 +143,18 @@ object GatewayRepository {
                 }
             val registration = requireStore().registration() ?: error("Автомобиль ещё не подключён")
             dispatch(GatewayEvent.BusyChanged(true, "Создаём код"))
-            val pairing = requireRelay().openPairing(registration)
+            val requestId = requireStore().getOrCreatePairingRequestId { UUID.randomUUID().toString() }
+            val pairing = requireRelay().openPairing(registration, requestId)
             check(requireStore().savePairingWindow(pairing)) { "Не удалось сохранить код" }
             dispatch(GatewayEvent.PairingChanged(pairing))
             dispatch(GatewayEvent.BusyChanged(false))
             support("Код подключения компьютера создан на 10 минут")
             pairing
         }.onFailure { error ->
-            dispatch(GatewayEvent.BusyChanged(false, readable(error)))
-            support("Не удалось создать код: ${error.message ?: error.javaClass.simpleName}")
+            if (!handleRegistrationRejection(error)) {
+                dispatch(GatewayEvent.BusyChanged(false, readable(error)))
+                support("Не удалось создать код: ${error.message ?: error.javaClass.simpleName}")
+            }
         }
     }
 
@@ -149,7 +167,15 @@ object GatewayRepository {
         support("Удалённый доступ выключен пользователем")
         if (registration != null) {
             runCatching { requireRelay().setEnabled(registration, false) }
-                .onFailure { support("Relay недоступен; локальный tunnel всё равно остановлен") }
+                .onSuccess { updated ->
+                    requireStore().saveRegistration(updated)
+                    dispatch(GatewayEvent.RegistrationChanged(updated))
+                }
+                .onFailure { error ->
+                    if (!handleRegistrationRejection(error)) {
+                        support("Relay недоступен; локальный tunnel всё равно остановлен")
+                    }
+                }
         }
         GatewayService.stop(requireContext())
     }
@@ -159,14 +185,18 @@ object GatewayRepository {
             val store = requireStore()
             val registration = store.registration() ?: error("Автомобиль ещё не подключён")
             dispatch(GatewayEvent.BusyChanged(true, "Включаем удалённый доступ"))
-            requireRelay().setEnabled(registration, true)
+            val updated = requireRelay().setEnabled(registration, true)
+            check(store.saveRegistration(updated)) { "Не удалось сохранить регистрацию" }
             check(store.setEnabled(true)) { "Не удалось сохранить состояние" }
+            dispatch(GatewayEvent.RegistrationChanged(updated))
             dispatch(GatewayEvent.EnabledChanged(true))
             dispatch(GatewayEvent.BusyChanged(false))
             support("Удалённый доступ включён пользователем")
             GatewayService.start(requireContext())
         }.onFailure { error ->
-            dispatch(GatewayEvent.BusyChanged(false, readable(error)))
+            if (!handleRegistrationRejection(error)) {
+                dispatch(GatewayEvent.BusyChanged(false, readable(error)))
+            }
         }
     }
 
@@ -179,6 +209,35 @@ object GatewayRepository {
         stateFlow.update { current ->
             current.copy(supportEvents = (listOf(entry) + current.supportEvents).take(40))
         }
+    }
+
+    @Synchronized
+    private fun handleRegistrationExpired(message: String) {
+        val store = requireStore()
+        if (store.registration() == null) return
+        supervisor?.stop()
+        if (!store.clearForReenrollment()) {
+            dispatch(GatewayEvent.PermanentFailure("Не удалось очистить истёкшую регистрацию"))
+            return
+        }
+        dispatch(GatewayEvent.RegistrationExpired(message))
+        GatewayService.stop(requireContext())
+        runCatching { requireKeys().rotateForReenrollment() }
+            .onFailure {
+                dispatch(GatewayEvent.PermanentFailure("Не удалось подготовить новые ключи автомобиля"))
+                return
+            }
+        if (!store.finishKeyRotation()) {
+            dispatch(GatewayEvent.PermanentFailure("Не удалось подтвердить смену ключей автомобиля"))
+            return
+        }
+        support("Истёкшая регистрация удалена; для нового подключения созданы новые ключи")
+    }
+
+    private fun handleRegistrationRejection(error: Throwable): Boolean {
+        if (error !is RelayAccessException || !error.registrationRejected) return false
+        handleRegistrationExpired(error.message ?: "Регистрация автомобиля истекла")
+        return true
     }
 
     private fun readable(error: Throwable): String = when (error) {
