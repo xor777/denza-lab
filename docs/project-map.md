@@ -121,7 +121,7 @@ Research package `dev.denza.mirrors.probe` (not product; promote before relying)
 | Component | Status |
 | --- | --- |
 | `MainActivity`, `ui/DenzaAppsScreen` | Landscape-first Compose shell with three primary feature cards, one compact Split screen card, and no global Start/Stop. Technical diagnostics are hidden behind Support. |
-| `DenzaAppRepository`, `core/FeatureModels`, `DenzaRuntimeCoordinator` | Separate desired/observed feature state, short user-facing status, boot/package-update recovery, and detailed Support diagnostics. |
+| `DenzaAppRepository`, `core/FeatureModels`, `DenzaRuntimeCoordinator` | Separate desired/observed feature state, short user-facing status, boot/package-update recovery, and detailed Support diagnostics. The hidden diagnostic view captures raw DiShare receivers, stock Simulcast receiver-card bounds, their usable intersection, and every Android display for N9 rear-screen investigation. |
 | Compose app picker | In-window horizontal list of installed apps; tap to mark up to 6 for casting. Defaults to the installed subset of VK Video / Rutube / Kinopoisk / Yandex Navi / VLC / YouTube. |
 | `SimulcastApps` | Persists the chosen casting packages (prefs) and seeds defaults. |
 | `SimulcastAccessibilityService`, `ScreenTarget` | Active visual path. Draws the selected app row and only accepts drop zones present in both the accessibility tree and runtime-available `DiShareScreens`; includes HUD, FSE, left/right RSE, overhead, and the single-rear `screen_tv` alias while keeping IVI as source. |

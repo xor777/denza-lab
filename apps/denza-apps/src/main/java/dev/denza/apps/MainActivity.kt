@@ -31,6 +31,7 @@ class MainActivity : ComponentActivity() {
                     onToggleSplitScreen = DenzaAppRepository::setSplitScreenEnabled,
                     onToggleHudGuidance = DenzaAppRepository::setHudGuidanceEnabled,
                     onSelectClusterDisplay = DenzaAppRepository::selectClusterDisplay,
+                    onRefreshScreenDiagnostics = DenzaAppRepository::refreshScreenDiagnostics,
                     onChooseApps = DenzaAppRepository::showAppPicker,
                     onCloseAppPicker = DenzaAppRepository::hideAppPicker,
                     onToggleApp = DenzaAppRepository::toggleAppSelection,

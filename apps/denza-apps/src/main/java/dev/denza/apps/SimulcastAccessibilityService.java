@@ -267,6 +267,8 @@ public class SimulcastAccessibilityService extends AccessibilityService {
             screenGeneration++;
         }
         ensureScreenAvailability();
+        SimulcastScreenDiagnostics.recordAccessibilityLayout(
+                geo.receivers, availableReceivers, screenAvailabilityConfirmed);
         // Ignore events from our own overlay windows / native row scrolling: only
         // re-apply when the dialog's stable geometry actually changed.
         boolean geometryChanged = !geo.sameAs(geometry);
@@ -297,6 +299,7 @@ public class SimulcastAccessibilityService extends AccessibilityService {
         DiShareScreens.query(this, DISHARE_PKG, new DiShareScreens.Callback() {
             @Override
             public void onScreens(List<DiShareScreens.Screen> screens) {
+                SimulcastScreenDiagnostics.recordDiShareScreens(screens);
                 HashSet<String> ids = new HashSet<>();
                 for (DiShareScreens.Screen screen : screens) {
                     if (screen.available && screen.screenId != null) {
@@ -307,6 +310,10 @@ public class SimulcastAccessibilityService extends AccessibilityService {
                 screenAvailabilityConfirmed = true;
                 screenQueryRunning = false;
                 screenGeneration++;
+                if (geometry != null) {
+                    SimulcastScreenDiagnostics.recordAccessibilityLayout(
+                            geometry.receivers, availableReceivers, screenAvailabilityConfirmed);
+                }
                 Log.i(TAG, "screens=" + screens
                         + " available receivers=" + availableReceivers);
                 scheduleRefresh();
@@ -314,6 +321,7 @@ public class SimulcastAccessibilityService extends AccessibilityService {
 
             @Override
             public void onFailed(String message) {
+                SimulcastScreenDiagnostics.recordDiShareFailure(message);
                 screenQueryRunning = false;
                 if (!screenAvailabilityConfirmed) {
                     availableReceivers = Collections.emptySet();

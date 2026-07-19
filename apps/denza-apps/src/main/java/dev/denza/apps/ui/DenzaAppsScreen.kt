@@ -111,6 +111,7 @@ fun DenzaAppsRoot(
     onToggleSplitScreen: (Boolean) -> Unit,
     onToggleHudGuidance: (Boolean) -> Unit,
     onSelectClusterDisplay: (Int?) -> Unit,
+    onRefreshScreenDiagnostics: () -> Unit,
     onChooseApps: () -> Unit,
     onCloseAppPicker: () -> Unit,
     onToggleApp: (String) -> Unit,
@@ -386,6 +387,7 @@ fun DenzaAppsRoot(
                 if (titleTaps >= 7) {
                     titleTaps = 0
                     showTechnical = true
+                    onRefreshScreenDiagnostics()
                 }
             },
             onDismiss = {

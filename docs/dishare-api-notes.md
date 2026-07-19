@@ -397,6 +397,24 @@ locally inspected OpenBYD APK enumerates Android `Display` objects, not DiShare
 receivers, so its ability to see a rear display is supporting hardware evidence
 but cannot replace the `getScreens` availability check.
 
+The hidden Denza Apps diagnostic view now captures those three discovery layers
+in one place. Open **Help**, tap **Как пользоваться** seven times, and read:
+
+- `DiShare getScreens` plus one row per raw receiver, including `deviceId`,
+  `screenId`, and `available`;
+- one `Target` row for every supported receiver, showing the expected stock view
+  id, its last observed bounds, DiShare availability, and whether the
+  intersection is usable;
+- every public Android `Display`, including id, name, real size, dpi, reflected
+  type, and flags.
+
+Opening the diagnostic view triggers a fresh `getScreens` query even when the
+stock dialog is closed. Receiver-card rows are the last observed accessibility
+snapshot, so on an N9 first open the stock Simulcast/App Change window once, then
+return to Denza Apps diagnostics. This distinguishes a receiver omitted by
+DiShare from a missing stock card or an Android-only rear display without
+guessing a target id.
+
 ## HUD camera streaming findings
 
 Working:

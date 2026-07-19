@@ -348,6 +348,11 @@ object DenzaAppRepository {
         if (MirrorsSettings.isEnabled(context)) reconcileMirrors()
     }
 
+    fun refreshScreenDiagnostics() {
+        val context = appContext ?: return
+        SimulcastScreenDiagnostics.refresh(context) { refresh() }
+    }
+
     private fun reconcileMirrors() {
         val context = appContext ?: return
         if (!MirrorsSettings.isEnabled(context)) {
@@ -636,6 +641,20 @@ object DenzaAppRepository {
         appendLine("Доступ поверх окон=${yesNo(hasOverlayPermission(context))}")
         appendLine("Управление интерфейсом=${yesNo(isAccessibilityEnabled(context))}")
         appendLine("Сервис трансляции=${yesNo(SimulcastAccessibilityService.isConnected())}")
+        SimulcastScreenDiagnostics.diagnosticLines().forEach { appendLine(it) }
+        val displays = ClusterDisplayResolver.candidates(context)
+        appendLine("Android displays=${displays.size}")
+        displays.forEach { display ->
+            appendLine(
+                "Android display #${display.id}=" +
+                    "name=${display.name.ifBlank { "—" }}; " +
+                    "size=${display.width}×${display.height}; " +
+                    "dpi=${display.densityDpi}; " +
+                    "type=${display.type}; " +
+                    "flags=0x${Integer.toHexString(display.flags)}; " +
+                    "Denza virtual=${if (display.isOwnVirtualDisplay) "да" else "нет"}",
+            )
+        }
         appendLine("Трансляция=${enabledLabel(SimulcastIntegration.isEnabled(context))}")
         appendLine("Выбрано приложений=${SimulcastApps.selectedCount(context)}")
         appendLine("Зеркала=${enabledLabel(MirrorsSettings.isEnabled(context))}")
