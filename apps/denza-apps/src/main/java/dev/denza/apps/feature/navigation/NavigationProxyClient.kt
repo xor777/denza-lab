@@ -19,7 +19,8 @@ object NavigationProxyClient {
     private const val MAIN_CLASS = "dev.denza.apps.feature.navigation.ClusterProxyMain"
     private const val RESULT_PREFIX = "DENZA_RESULT:"
     private val DISPLAY_FLAGS =
-        DisplayManager.VIRTUAL_DISPLAY_FLAG_PRESENTATION or
+        DisplayManager.VIRTUAL_DISPLAY_FLAG_PUBLIC or
+            DisplayManager.VIRTUAL_DISPLAY_FLAG_PRESENTATION or
             DisplayManager.VIRTUAL_DISPLAY_FLAG_OWN_CONTENT_ONLY
 
     private val lock = Any()

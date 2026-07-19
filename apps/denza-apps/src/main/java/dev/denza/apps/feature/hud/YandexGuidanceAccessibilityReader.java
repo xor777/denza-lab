@@ -1,6 +1,8 @@
 package dev.denza.apps.feature.hud;
 
 import android.accessibilityservice.AccessibilityService;
+import android.os.Build;
+import android.util.SparseArray;
 import android.view.accessibility.AccessibilityNodeInfo;
 import android.view.accessibility.AccessibilityWindowInfo;
 
@@ -14,7 +16,21 @@ final class YandexGuidanceAccessibilityReader {
     }
 
     static HudGuidance read(AccessibilityService service) {
-        List<AccessibilityWindowInfo> windows = service.getWindows();
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            SparseArray<List<AccessibilityWindowInfo>> displays = service.getWindowsOnAllDisplays();
+            if (displays != null) {
+                for (int index = 0; index < displays.size(); index++) {
+                    HudGuidance guidance = readWindows(displays.valueAt(index));
+                    if (guidance != null) {
+                        return guidance;
+                    }
+                }
+            }
+        }
+        return readWindows(service.getWindows());
+    }
+
+    private static HudGuidance readWindows(List<AccessibilityWindowInfo> windows) {
         if (windows == null) {
             return null;
         }

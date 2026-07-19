@@ -107,11 +107,19 @@ fallback that lets Android return its task to the default display.
 The compact **HUD hints / Guidance on projection** switch is independent of
 the full Yandex instrument projection. When enabled, the existing Denza Apps
 accessibility service reads only visible, named Yandex Navigator guidance
-nodes. The primary layout exposes the maneuver description and distance,
+nodes across every accessibility display. The primary layout exposes the
+maneuver description and distance,
 remaining route distance, remaining route time, and arrival time. Alternate
 named maneuver nodes cover the second Yandex layout. `text_nextstreet` and
 `text_jointballoon_nextstreet` are used when Yandex makes a next-road label
 visible; otherwise field 10 stays empty instead of repeating the maneuver text.
+
+The app-owned navigation `VirtualDisplay` includes `VIRTUAL_DISPLAY_FLAG_PUBLIC`
+in addition to `PRESENTATION | OWN_CONTENT_ONLY`. Without `PUBLIC`, Android kept
+the projected Yandex window out of `AccessibilityService.getWindowsOnAllDisplays()`
+and HUD guidance stopped as soon as the task moved away from display `0`. The
+reader still falls back to the default-display window list on pre-Android 11
+devices.
 
 The stock HUD road endpoint is
 `com.ts.car.someip.service/.manager.SomeIpServerService`, service ID
@@ -148,6 +156,13 @@ in meters exactly as in the stock navigation implementation. The firmware adds
 a Chinese label beside the summary independently of the strings supplied by
 Denza Apps. The final build was then visually accepted with `51 km` in the
 former ETA slot and `47 min` alongside it.
+
+The same route was then moved to app-owned display `77` (`1023 x 524`, `272
+dpi`). Accessibility registered `Yandex Navi` task `345` on that display, and
+Denza Apps continued publishing the live right-turn update (`30 m`, `51 km`,
+`48 min`) to the HUD. The user visually confirmed that guidance remained on the
+projection while Yandex was shown on the instrument display; the crash buffer
+remained empty.
 
 Updates are deduplicated with a five-second heartbeat. If no valid visible
 route is found for 1.8 seconds, Denza Apps clears the road guidance. Disabling
