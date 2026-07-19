@@ -1,6 +1,7 @@
 package dev.denza.apps.feature.split
 
 import android.content.Context
+import android.os.SystemClock
 import android.util.Log
 import dev.denza.disharebridge.LocalAdbClient
 import java.util.concurrent.Executors
@@ -23,13 +24,17 @@ object SplitScreenCoordinator {
     private const val TAG = "DenzaSplitScreen"
     private const val KEY_COMMENT = "denza-apps@denza"
     private const val POLL_MS = 800L
+    private const val EXTERNAL_TASK_BYPASS_MS = 5_000L
     private val executor = Executors.newSingleThreadExecutor()
+    private val routingLock = Any()
 
     @Volatile private var context: Context? = null
     @Volatile private var session = SplitScreenSession()
     @Volatile private var onStateChanged: (() -> Unit)? = null
     @Volatile private var initialized = false
     @Volatile private var generation = 0L
+    @Volatile private var routingBlockedUntilMs = 0L
+    private var activeRouter: SplitShellRouter? = null
 
     fun initialize(context: Context, onStateChanged: () -> Unit) {
         this.context = context.applicationContext
@@ -45,6 +50,20 @@ object SplitScreenCoordinator {
     }
 
     fun snapshot(): SplitScreenSession = session
+
+    /**
+     * Navigation owns its explicit moves to and from the instrument display.
+     * Forget any pending stock-picker selection and keep the router out of the
+     * way until that move and its configuration changes have settled.
+     */
+    @JvmStatic
+    fun bypassExternalTaskMoves() {
+        val blockedUntil = SystemClock.elapsedRealtime() + EXTERNAL_TASK_BYPASS_MS
+        synchronized(routingLock) {
+            routingBlockedUntilMs = maxOf(routingBlockedUntilMs, blockedUntil)
+            activeRouter?.cancelPendingSelection()
+        }
+    }
 
     fun setEnabled(enabled: Boolean) {
         val app = context ?: return
@@ -86,17 +105,21 @@ object SplitScreenCoordinator {
             ),
         )
         executor.execute {
+            var router: SplitShellRouter? = null
             try {
                 val adb = LocalAdbClient(app, KEY_COMMENT)
-                val router = SplitShellRouter(adb::shell)
-                var lastSplitVisible = router.tick()
+                router = SplitShellRouter(adb::shell)
+                synchronized(routingLock) {
+                    activeRouter = router
+                }
+                var lastSplitVisible = tickUnlessBlocked(router)
                 Log.i(TAG, "stock split visible=$lastSplitVisible")
                 if (!isCurrent(currentGeneration)) return@execute
                 update(SplitScreenSession(enabled = true, phase = SplitScreenPhase.ACTIVE))
                 while (isCurrent(currentGeneration)) {
                     Thread.sleep(POLL_MS)
                     if (isCurrent(currentGeneration)) {
-                        val splitVisible = router.tick()
+                        val splitVisible = tickUnlessBlocked(router)
                         if (splitVisible != lastSplitVisible) {
                             Log.i(TAG, "stock split visible=$splitVisible")
                             lastSplitVisible = splitVisible
@@ -116,12 +139,27 @@ object SplitScreenCoordinator {
                         details = error.toString(),
                     ),
                 )
+            } finally {
+                synchronized(routingLock) {
+                    if (activeRouter === router) activeRouter = null
+                }
             }
         }
     }
 
     private fun isCurrent(value: Long): Boolean =
         generation == value && SplitScreenSettings.isEnabled(context ?: return false)
+
+    private fun tickUnlessBlocked(router: SplitShellRouter): Boolean {
+        return synchronized(routingLock) {
+            if (SystemClock.elapsedRealtime() >= routingBlockedUntilMs) {
+                router.tick()
+            } else {
+                router.cancelPendingSelection()
+                false
+            }
+        }
+    }
 
     private fun update(next: SplitScreenSession) {
         session = next

@@ -24,6 +24,16 @@ internal class SplitShellRouter(
         return leaveSplit()
     }
 
+    /**
+     * Drops the short-lived stock-picker context without moving any tasks.
+     * Explicit task moves owned by another feature must never be interpreted
+     * as the next application selected inside the stock split shell.
+     */
+    fun cancelPendingSelection() {
+        session = null
+        splitWasVisible = false
+    }
+
     private fun observeVisibleSplit(
         pickerPane: SplitRootTask,
         freePane: SplitRootTask,
@@ -90,8 +100,7 @@ internal class SplitShellRouter(
                 run("am stack move-task ${anchor.id} ${freePane.id} true")
                 resize(anchor.id, freePane.bounds)
             }
-        session = null
-        splitWasVisible = false
+        cancelPendingSelection()
     }
 
     private fun resize(taskId: Int, bounds: SplitBounds) {

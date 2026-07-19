@@ -145,6 +145,9 @@ package into product code):
   only the foreground task created or resumed by the immediate picker action:
   first to the empty anchored pane, then to the pane that contained the picker.
   Do not use app package names to choose a pane.
+- Explicit Denza Apps task operations are outside that session. Navigation
+  projection/return and Simulcast start/stop must atomically cancel any pending
+  picker selection and hold split routing until their task changes settle.
 - Split commands remain fixed `am stack move-task` / `am task resize`
   operations through the shared local ADB client; do not expose arbitrary shell
   text to the UI. Exclude Denza Apps and the stock picker/pane packages from

@@ -23,6 +23,7 @@ import android.view.View;
 import android.view.WindowManager;
 import android.widget.Toast;
 
+import dev.denza.apps.feature.split.SplitScreenCoordinator;
 import dev.denza.disharebridge.DiShareProjectionBridge;
 
 /**
@@ -57,6 +58,7 @@ public class SimulcastOverlayService extends Service {
     }
 
     public static void stopCurrent(Context context) {
+        SplitScreenCoordinator.bypassExternalTaskMoves();
         startAction(context, ACTION_STOP_CURRENT);
     }
 
@@ -75,6 +77,7 @@ public class SimulcastOverlayService extends Service {
     /** Launch a target share through the proven bridge path at the given source size. */
     public static void startTarget(Context context, String targetPackage, String receiver,
             int videoWidth, int videoHeight) {
+        SplitScreenCoordinator.bypassExternalTaskMoves();
         try {
             context.startService(new Intent(context, SimulcastOverlayService.class)
                     .setAction(ACTION_START_TARGET)
@@ -191,6 +194,7 @@ public class SimulcastOverlayService extends Service {
 
     private void startTargetByPackage(final String packageName, final String label,
             final String receiver, final int videoWidth, final int videoHeight) {
+        SplitScreenCoordinator.bypassExternalTaskMoves();
         stopBridge();
         SimulcastIntegration.clearLastTargetPackage(this);
         hideActiveShareExit();
@@ -207,6 +211,7 @@ public class SimulcastOverlayService extends Service {
 
                     @Override
                     public void onStarted(Bundle result) {
+                        SplitScreenCoordinator.bypassExternalTaskMoves();
                         Log.i(TAG, packageName + " started "
                                 + DiShareProjectionBridge.bundleToString(result));
                         SimulcastIntegration.setLastTarget(SimulcastOverlayService.this,
@@ -219,6 +224,7 @@ public class SimulcastOverlayService extends Service {
 
                     @Override
                     public void onFailed(String message) {
+                        SplitScreenCoordinator.bypassExternalTaskMoves();
                         Log.w(TAG, packageName + " failed " + message);
                         Toast.makeText(SimulcastOverlayService.this,
                                 "Simulcast не запустил " + label + ": " + message,
@@ -228,6 +234,7 @@ public class SimulcastOverlayService extends Service {
 
                     @Override
                     public void onStopped(String message) {
+                        SplitScreenCoordinator.bypassExternalTaskMoves();
                         Log.i(TAG, packageName + " stopped " + message);
                     }
                 });
@@ -239,6 +246,7 @@ public class SimulcastOverlayService extends Service {
     }
 
     private void stopCurrentShare() {
+        SplitScreenCoordinator.bypassExternalTaskMoves();
         if (activeBridge != null) {
             stopBridge();
             SimulcastIntegration.clearLastTargetPackage(this);
@@ -259,6 +267,7 @@ public class SimulcastOverlayService extends Service {
 
                     @Override
                     public void onFailed(String message) {
+                        SplitScreenCoordinator.bypassExternalTaskMoves();
                         Log.w(TAG, "stop current failed " + message);
                         Toast.makeText(SimulcastOverlayService.this,
                                 "Simulcast не завершился: " + message, Toast.LENGTH_LONG).show();
@@ -266,6 +275,7 @@ public class SimulcastOverlayService extends Service {
 
                     @Override
                     public void onStopped(String message) {
+                        SplitScreenCoordinator.bypassExternalTaskMoves();
                         SimulcastIntegration.clearLastTargetPackage(SimulcastOverlayService.this);
                         hideActiveShareExit();
                         Toast.makeText(SimulcastOverlayService.this,

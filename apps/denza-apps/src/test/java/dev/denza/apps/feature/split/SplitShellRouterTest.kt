@@ -55,6 +55,24 @@ class SplitShellRouterTest {
     }
 
     @Test
+    fun explicitExternalMoveCancelsPendingStockPickerSelection() {
+        val commands = mutableListOf<String>()
+        var snapshot = emptySplitWithStoppedApps
+        val router = SplitShellRouter { command ->
+            commands += command
+            if (command == "am stack list") snapshot else ""
+        }
+
+        assertTrue(router.tick())
+        router.cancelPendingSelection()
+        commands.clear()
+        snapshot = fullscreenVlcLaunch
+
+        assertFalse(router.tick())
+        assertEquals(listOf("am stack list"), commands)
+    }
+
+    @Test
     fun routesSecondSelectedAppToThePickerPane() {
         val commands = mutableListOf<String>()
         var snapshot = emptySplitWithStoppedApps
