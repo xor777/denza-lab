@@ -294,10 +294,12 @@ adb logcat -b crash -d -v time
 adb logcat -d -v time | rg "Denza|PIP2MeterActivity|CompactAlertActivity|Fatal signal"
 ```
 
-Do not run standalone Denza Mirrors and the Denza Apps monitor at the same time.
-The standalone module stays under `apps/` and in the default Gradle build until
-the migrated path passes real-car acceptance. Only then may a separate commit
-move it to `legacy/denza-mirrors`.
+Do not run an installed legacy Denza Mirrors monitor and the Denza Apps monitor
+at the same time. After the accepted isolated mirror scenarios were verified and
+retirement was explicitly chosen, the frozen standalone source moved to
+`legacy/denza-mirrors` and was removed from the root Gradle build on 2026-07-19.
+Denza Apps has no source or Gradle dependency on it. The unaccepted scenarios
+listed above and the rapid side-switch limitation remain open Denza Apps work.
 
 ## Failed or research-only paths
 

@@ -47,7 +47,7 @@ import java.util.regex.Pattern;
 /**
  * Archived research-only service.
  *
- * Keep this outside apps/denza-mirrors/src so it is not compiled into the normal app.
+ * Keep this outside legacy/denza-mirrors/src so it is not compiled into the frozen app.
  * The service reflected BYD vehicle APIs, registered listeners, and sampled safe getters
  * while writing results to app-private files.
  */

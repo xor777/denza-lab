@@ -9,9 +9,8 @@ Use one of these lanes before editing code:
 | Lane | Allowed paths | Rule |
 | --- | --- | --- |
 | Active product | `apps/car-adb-gateway/`, `apps/denza-apps/`, `libraries/dishare-bridge/`, `platform/cli/`, `platform/relay/`, `ops/` | Build/test the affected path, verify hardware-dependent behavior on the car, and update the closest doc. |
-| Migration | Production parts of `apps/denza-mirrors/` and corresponding new code in `apps/denza-apps/` | Preserve verified behavior while moving it behind a Denza Apps feature boundary. Avoid unrelated standalone Mirrors features. |
-| Legacy | `legacy/denza-gateway/`; later, the retired Denza Mirrors app | Maintenance and safe-retirement work only. Do not add features or create new dependencies on legacy code. |
-| Prototype | `apps/denza-mirrors/` probe package (`dev.denza.mirrors.probe`), experimental features in `apps/denza-apps/`, `tools/` | Isolate behind flags, settings, or explicit commands. Document the live-test result. |
+| Legacy | `legacy/denza-gateway/`, `legacy/denza-mirrors/` | Maintenance, frozen reference, and safe-retirement work only. Do not add features or create new dependencies on legacy code. |
+| Prototype | Experimental features in `apps/denza-apps/`, dedicated probe modules, `tools/` | Isolate behind flags, settings, or explicit commands. Document the live-test result. |
 | Research | `research/`, `docs/*notes*`, host-only scripts | Must not be compiled into product APKs unless promoted. |
 
 If an experiment fails, keep the finding in docs or `research/`; do not leave dead
@@ -22,17 +21,17 @@ services, manifest entries, or permissions in the product app.
 "Poking the car" must not leak into product code. Pick the right home:
 
 - **Host-side probes** → `tools/` (shell/python run from the laptop).
-- **On-device probes for an existing product's domain** → a `…​.probe` subpackage
-  of that product module. Today that is `dev.denza.mirrors.probe`; its components
-  are grouped under an EXPERIMENTAL section in the manifest.
+- **On-device probes for an existing product's domain** → a deliberately
+  isolated `…​.probe` subpackage or dedicated experiment module. The old
+  `dev.denza.mirrors.probe` package is frozen with the legacy app.
 - **Parked / non-built code** → `research/<topic>/` with a README.
 
 Rules:
 
-- Product code (`dev.denza.mirrors`) must not depend on `dev.denza.mirrors.probe`.
-  The one current exception — `SideCameraOverlayMonitorService` driving
-  `HudDiShareActivity` — is left as a visible cross-package import and a cleanup
-  TODO; resolve it before extracting probes into a separate module.
+- Active product code must not depend on probe or legacy packages. The frozen
+  Denza Mirrors source retains one historical exception —
+  `SideCameraOverlayMonitorService` drives `HudDiShareActivity` — but no active
+  module depends on that source.
 - When poking expands to a genuinely different area (not camera/DiShare), create a
   dedicated experiment module instead of overloading `denza-mirrors`. Extract any
   helper shared with a product app into a library module (e.g. alongside
@@ -128,9 +127,9 @@ package into product code):
 - Navigation is memory-only and must not start after boot. When a command,
   display, or task disappears, release the virtual display and prefer returning
   the task to display `0`.
-- Do not run the standalone Denza Mirrors monitor and the Denza Apps monitor
-  together. Retire the old module only after real-car acceptance in a separate
-  commit.
+- Do not run an installed legacy Denza Mirrors monitor and the Denza Apps monitor
+  together. Denza Mirrors is excluded from the root Gradle build after accepted
+  live-car checks and an explicit retirement decision.
 
 ## IVI Split-Screen Rules
 
@@ -164,7 +163,6 @@ package into product code):
 
 ```bash
 ./gradlew :denza-gateway:testDebugUnitTest :denza-gateway:assembleDebug
-./gradlew :denza-mirrors:assembleDebug
 ./gradlew :denza-apps:testDebugUnitTest :denza-apps:assembleDebug
 ./gradlew :car-adb-gateway:testDebugUnitTest :car-adb-gateway:assembleDebug
 ```

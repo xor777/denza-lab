@@ -10,7 +10,7 @@ may still use the historical `denza-gateway` directory name.
 | Path | APK / product | Purpose | Status |
 | --- | --- | --- | --- |
 | `legacy/denza-gateway/` | `denza-gateway` | SSH gateway from the car LAN to local ADB endpoints on the head unit. | **Legacy.** Maintenance-only; do not add features. Car ADB Gateway supersedes it for new remote-access work. |
-| `apps/denza-mirrors/` | `denza-mirrors` | Original driver-display side-camera enlargement. | **Transition.** Hardware-verified reference kept buildable until the migrated Denza Apps path passes real-car acceptance. Product code lives in `dev.denza.mirrors`; research probes remain isolated in `dev.denza.mirrors.probe`. |
+| `legacy/denza-mirrors/` | `denza-mirrors` | Original driver-display side-camera enlargement. | **Legacy.** Frozen hardware-verified reference, removed from the root Gradle build after the accepted Denza Apps mirror scenarios were verified on the car. |
 | `apps/denza-apps/` | `denza-apps` | Consolidated head-unit app for Simulcast, side-camera mirrors, Yandex instrument projection, and stock IVI split routing. | **Active.** Version `0.2.0`; Compose landscape shell, self-recovery, one display resolver, and one shared cluster scene. Isolated mirror cycles, selectable Yandex projection layouts, automatic Map/ADAS following, and contextual stock split routing are live-car verified; the known fast mirror-switch AVC crash remains. |
 | `apps/car-adb-gateway/` | `car-adb-gateway` | Generic relay-only remote ADB gateway. Fixed `adbgw.ru`, one trusted computer, background recovery, no LAN listener. | Product candidate. Local unit/build evidence and the verified relay deployment exist; live-head-unit E2E, API matrix, and soak remain required. |
 
@@ -39,8 +39,9 @@ Use the code layout as the source of truth for current behavior:
 - Gradle modules live in `settings.gradle.kts`.
 - App ids, exported components, and product/probe grouping live in each
   `AndroidManifest.xml`.
-- Package boundaries (`dev.denza.mirrors` vs `dev.denza.mirrors.probe`) define
-  product vs on-device research code.
+- Package boundaries define product vs on-device research code. The historical
+  `dev.denza.mirrors` / `dev.denza.mirrors.probe` split is frozen under
+  `legacy/denza-mirrors/`.
 - Docs explain direction and durable findings. If docs disagree with code, fix
   the closest existing doc instead of adding another status file.
 
@@ -54,20 +55,21 @@ On-car experiments ("poking the car") have a defined home so they don't leak
 into product code:
 
 - **Host-side probes** → `tools/` (shell/python scripts run from the laptop).
-- **On-device probes for an existing product's domain** → a `…​.probe`
-  subpackage of that product module (today: `dev.denza.mirrors.probe`).
+- **On-device probes for an existing product's domain** → a deliberately
+  isolated `…​.probe` subpackage of that product module. Historical Mirrors
+  probes remain frozen under `legacy/denza-mirrors/`.
 - **Parked / non-built code** → `research/<topic>/` with a README explaining why
   it is not built.
 
 Rule of thumb: product code must not depend on `…​.probe` code. The active Denza
-Apps path follows this rule. The transition-only standalone Mirrors module still
-has one historical violation: `SideCameraOverlayMonitorService` can drive the
-experimental `HudDiShareActivity` HUD path. Do not copy that dependency into the
-consolidated app; remove it when the old module is retired.
+Apps path follows this rule and has no dependency on the frozen Mirrors source.
+Legacy Denza Mirrors retains one historical violation:
+`SideCameraOverlayMonitorService` can drive the experimental
+`HudDiShareActivity` HUD path. Do not copy that dependency into active code.
 
 When poking expands to a genuinely different area (not camera/DiShare), promote
-the relevant probes into a dedicated experiment module rather than overloading
-`denza-mirrors`.
+the relevant probes into a dedicated experiment module rather than reviving the
+legacy Denza Mirrors app.
 
 ## Component Inventory
 
@@ -94,15 +96,15 @@ the relevant probes into a dedicated experiment module rather than overloading
 | `platform/relay/cag_state.py` + wrappers | Atomic state, expiring codes, source lockout, device enrollment, pending/commit replacement, dynamic restricted keys. Provisioned on `adbgw.ru` through Ansible and live-verified on 2026-07-18. |
 | `platform/cli/cmd/cag` | Go client for `pair`, `connect`, ADB execution, `status`, and `disconnect`; Darwin/Linux builds verified locally. |
 
-### `apps/denza-mirrors/` (`denza-mirrors`)
+### `legacy/denza-mirrors/` (`denza-mirrors`, frozen)
 
 Product package `dev.denza.mirrors`:
 
 | Component | Status |
 | --- | --- |
 | `MainActivity` | Product UI for Denza Mirrors (was `ProjectionProbeActivity`). |
-| `SideCameraOverlayMonitorService`, `SideCameraBootReceiver` | Active dashboard camera monitor path. |
-| `AvcAidlDashActivity` | Active dashboard AVC display path. |
+| `SideCameraOverlayMonitorService`, `SideCameraBootReceiver` | Historical dashboard camera monitor path. |
+| `AvcAidlDashActivity` | Historical dashboard AVC display path. |
 | `LocalAdbClient`, `AdbKeyStore` | Required support for local ADB commands from the app. |
 
 Research package `dev.denza.mirrors.probe` (not product; promote before relying):
@@ -153,9 +155,8 @@ Research package `dev.denza.mirrors.probe` (not product; promote before relying)
 - `denza-apps` is the single active Denza feature app. Simulcast, migrated camera
   rendering, Yandex task projection, and contextual stock split routing have
   separate feature packages but share desired/observed state and recovery.
-- `denza-mirrors` is in transition. Use it as the hardware-verified comparison
-  point while testing the migrated camera path; do not grow it as a separate
-  product.
+- `denza-mirrors` is legacy and excluded from the root Gradle build. Use its
+  frozen source only as a hardware-verified comparison point.
 - `denza-gateway` is legacy and maintenance-only. The source remains buildable
   for existing installations, but new connectivity work belongs in Car ADB
   Gateway.
@@ -170,21 +171,18 @@ Research package `dev.denza.mirrors.probe` (not product; promote before relying)
   BYD getters/listeners was permission-blocked or did not deliver useful
   callbacks.
 
-## Planned Directory Cleanup
+## Completed Denza Mirrors retirement
 
-Keep Denza Mirrors under `apps/` while the migrated implementation in Denza Apps
-is awaiting real-car acceptance. Its Gradle module name stays stable until that
-verification is complete.
+On 2026-07-19, after the accepted isolated mirror scenarios were verified on the
+car and the retirement was explicitly chosen, the standalone source moved to
+`legacy/denza-mirrors/` and was removed from the root Gradle build. Before the
+move, `:denza-mirrors:assembleDebug` passed. The active `:denza-apps` module
+depends only on `:dishare-bridge`; neither its sources nor the shared library
+reference `dev.denza.mirrors` or `:denza-mirrors`.
 
-After the migration has been verified on a real head unit:
-
-1. verify left/right, Sides/Center, processing, preview, and map-plus-camera in
-   Denza Apps on a real head unit;
-2. capture and report any `com.byd.avc` crash as an escalation alert, avoid
-   repeating its suspected trigger, and keep fast left-to-right marked
-   unresolved until explicitly proven;
-3. remove Denza Mirrors from the default Gradle build;
-4. move its frozen source under `legacy/denza-mirrors` in a separate commit.
+The known fast left-to-right AVC crash remains documented rather than hidden by
+the retirement. The frozen app can still be consulted as a source reference,
+but new camera behavior belongs in Denza Apps.
 
 ## Build Outputs
 
@@ -192,7 +190,6 @@ Generated APKs are intentionally ignored by Git.
 
 ```bash
 ./gradlew :denza-gateway:assembleDebug
-./gradlew :denza-mirrors:assembleDebug
 ./gradlew :denza-apps:testDebugUnitTest :denza-apps:assembleDebug
 ./gradlew :car-adb-gateway:testDebugUnitTest :car-adb-gateway:assembleDebug
 ```
@@ -201,7 +198,6 @@ Useful local APK paths:
 
 ```text
 legacy/denza-gateway/build/outputs/apk/debug/denza-gateway.apk
-apps/denza-mirrors/build/outputs/apk/debug/denza-mirrors.apk
 apps/denza-apps/build/outputs/apk/debug/denza-apps.apk
 apps/car-adb-gateway/build/outputs/apk/debug/car-adb-gateway.apk
 ```

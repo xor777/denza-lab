@@ -28,7 +28,7 @@ product code, remote-access infrastructure, and reverse-engineering experiments.
 | --- | --- | --- |
 | **Active** | [`apps/car-adb-gateway/`](apps/car-adb-gateway/) | Generic, relay-only remote ADB gateway with one trusted computer and a self-healing Android service. |
 | **Active** | [`apps/denza-apps/`](apps/denza-apps/) | The single Denza feature app: Simulcast app selection, instrument-display mirrors, and experimental Yandex task projection. |
-| **Transition** | [`apps/denza-mirrors/`](apps/denza-mirrors/) | Hardware-verified camera reference kept buildable until the migrated Denza Apps path passes real-car acceptance. No new standalone product direction. |
+| **Legacy** | [`legacy/denza-mirrors/`](legacy/denza-mirrors/) | Frozen hardware-verified camera reference. Its working behavior has moved into Denza Apps and it is no longer in the root Gradle build. |
 | **Legacy** | [`legacy/denza-gateway/`](legacy/denza-gateway/) | Original LAN-only SSH-to-ADB gateway. Kept for maintenance and reference; superseded for new remote-access work. |
 | **Library** | [`libraries/dishare-bridge/`](libraries/dishare-bridge/) | Shared raw DiShare binder integration used by Denza Apps. |
 | **Platform** | [`platform/cli/`](platform/cli/), [`platform/relay/`](platform/relay/), [`ops/ansible/`](ops/ansible/) | Developer CLI, restricted relay control plane, and reproducible server provisioning. |
@@ -54,7 +54,7 @@ flowchart LR
     Apps --> Scene["Shared instrument scene"]
     Scene --> Cluster["Map base + camera overlay"]
 
-    Mirrors["Denza Mirrors"] -. "feature migration" .-> Apps
+    Mirrors["Legacy Denza Mirrors"] -. "frozen reference" .-> Apps
     Legacy["Denza Gateway"] -. "maintenance only" .-> ADB
 ```
 
@@ -69,24 +69,18 @@ end-to-end encrypted to the Android app. See the
 The repository is **Denza Lab**: the umbrella name describes the work better
 than the historical Denza Gateway product name.
 
-The product cleanup is intentionally staged:
+Active apps live under `apps/`, shared code under `libraries/`, and frozen
+products under `legacy/`. The migrated Mirrors and navigation paths now live in
+Denza Apps behind one instrument-display resolver and scene. The standalone
+Denza Mirrors source is retained only as reference and is not a root Gradle
+module.
 
-1. Keep active and transition apps under `apps/`, shared code under
-   `libraries/`, and frozen products under `legacy/`.
-2. Keep the migrated Mirrors and navigation paths in Denza Apps behind one
-   instrument-display resolver and scene.
-3. Remove Denza Mirrors from the default Gradle build once its replacement is
-   verified on a real head unit.
-4. Move the frozen Denza Mirrors source from `apps/` to `legacy/`.
-
-Gradle module names remain stable even though their source directories are
-grouped by role. During the migration, the repository shape is:
+The repository shape is:
 
 ```text
 apps/
   car-adb-gateway/
   denza-apps/
-  denza-mirrors/       # transition
 libraries/
   dishare-bridge/
 platform/
@@ -95,6 +89,7 @@ platform/
 ops/
 legacy/
   denza-gateway/
+  denza-mirrors/
 docs/  research/  tools/
 ```
 
@@ -117,10 +112,9 @@ export ANDROID_HOME=/opt/homebrew/share/android-commandlinetools
 ./gradlew :denza-apps:testDebugUnitTest :denza-apps:assembleDebug
 ```
 
-Build transition and legacy apps only when working on them:
+Build the legacy gateway only when working on it:
 
 ```bash
-./gradlew :denza-mirrors:assembleDebug
 ./gradlew :denza-gateway:testDebugUnitTest :denza-gateway:assembleDebug
 ```
 

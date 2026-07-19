@@ -7,10 +7,11 @@ Guidance for working in this repository (humans and AI).
 Denza Lab is a monorepo for reverse-engineering a Denza / BYD head unit and
 building useful apps on it. Three concerns are kept separate on purpose:
 
-- **Apps** — Car ADB Gateway and Denza Apps are active; Denza Mirrors is being
-  merged into Denza Apps; Denza Gateway is legacy/maintenance-only.
+- **Apps** — Car ADB Gateway and Denza Apps are active; Denza Mirrors and Denza
+  Gateway are frozen under `legacy/`.
 - **Poking the car** — host scripts in `tools/`, on-device probes in
-  `dev.denza.mirrors.probe`.
+  deliberately isolated probe packages; historical Mirrors probes are frozen
+  with the legacy source.
 - **Knowledge of what works / doesn't** — `docs/` (durable) and `research/`
   (parked code).
 
@@ -30,10 +31,12 @@ still use the historical `denza-gateway` directory name.
 | Gradle | Path | App id / namespace |
 | --- | --- | --- |
 | `:denza-gateway` | `legacy/denza-gateway/` | `dev.denza.gateway` (legacy/maintenance-only) |
-| `:denza-mirrors` | `apps/denza-mirrors/` | `dev.denza.mirrors` (transition) + `dev.denza.mirrors.probe` (research) |
 | `:denza-apps` | `apps/denza-apps/` | `dev.denza.apps` (active consolidation app), depends on `:dishare-bridge` |
 | `:dishare-bridge` | `libraries/dishare-bridge/` | `dev.denza.disharebridge` (library) |
 | `:car-adb-gateway` | `apps/car-adb-gateway/` | `ru.adbgw.gateway` (active product candidate) |
+
+The frozen Denza Mirrors source lives at `legacy/denza-mirrors/` and is not
+included in the root Gradle build.
 
 ## Build
 
@@ -42,7 +45,6 @@ export JAVA_HOME=/opt/homebrew/opt/openjdk
 export ANDROID_HOME=/opt/homebrew/share/android-commandlinetools
 
 ./gradlew :denza-gateway:testDebugUnitTest :denza-gateway:assembleDebug
-./gradlew :denza-mirrors:assembleDebug
 ./gradlew :denza-apps:assembleDebug
 ./gradlew :car-adb-gateway:testDebugUnitTest :car-adb-gateway:assembleDebug
 ```
@@ -50,13 +52,13 @@ export ANDROID_HOME=/opt/homebrew/share/android-commandlinetools
 ## Conventions
 
 - Product code must not depend on `…​.probe` code. The active Denza Apps path
-  has no probe dependency; the transition-only standalone Mirrors module still
-  contains a documented historical exception.
+  has no probe or Denza Mirrors dependency. The frozen standalone Mirrors source
+  retains one documented historical product-to-probe exception.
 - Product apps share car-access code only via `:dishare-bridge`.
 - Do not add features to `:denza-gateway`. Limit changes to maintenance or work
   required to retire it safely.
-- New camera behavior belongs in `:denza-apps`; treat `:denza-mirrors` as the
-  migration source, not a new standalone product direction.
+- New camera behavior belongs in `:denza-apps`; use
+  `legacy/denza-mirrors/` only as a frozen historical reference.
 - `:car-adb-gateway` is relay-only. Do not add a LAN listener or configurable
   relay without updating the CAG decision log first.
 - Deploy `platform/relay/` only through `ops/ansible`; keep code/grant transitions locked,
