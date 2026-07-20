@@ -56,11 +56,19 @@ public final class LocalAdbClient {
     }
 
     public synchronized String shell(String command) throws IOException, GeneralSecurityException {
+        return shell(command, READ_TIMEOUT_MS);
+    }
+
+    public synchronized String shell(String command, int readTimeoutMs)
+            throws IOException, GeneralSecurityException {
+        if (readTimeoutMs < 1) {
+            throw new IllegalArgumentException("readTimeoutMs must be positive");
+        }
         IOException lastIoFailure = null;
         GeneralSecurityException lastSecurityFailure = null;
         for (String host : hosts) {
             try {
-                return shell(host, command);
+                return shell(host, command, readTimeoutMs);
             } catch (GeneralSecurityException e) {
                 lastSecurityFailure = e;
             } catch (IOException e) {
@@ -79,10 +87,11 @@ public final class LocalAdbClient {
         throw new IOException("No ADB hosts available");
     }
 
-    private String shell(String host, String command) throws IOException, GeneralSecurityException {
+    private String shell(String host, String command, int readTimeoutMs)
+            throws IOException, GeneralSecurityException {
         Socket socket = new Socket();
         socket.connect(new InetSocketAddress(host, PORT), CONNECT_TIMEOUT_MS);
-        socket.setSoTimeout(READ_TIMEOUT_MS);
+        socket.setSoTimeout(readTimeoutMs);
         try {
             InputStream input = socket.getInputStream();
             OutputStream output = socket.getOutputStream();

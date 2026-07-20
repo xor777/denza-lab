@@ -33,6 +33,8 @@ object FseAppInstaller {
     private const val FSE_DEVICE_ID = 2
     private const val RESPONSE_TIMEOUT_MS = 90_000L
     private const val POLL_INTERVAL_MS = 750L
+    private const val COPY_BLOCK_BYTES = 4L * 1024L * 1024L
+    private const val COPY_READ_TIMEOUT_MS = 30_000
 
     fun installedApps(context: Context): List<FseInstallApp> {
         val manager = context.packageManager
@@ -98,8 +100,8 @@ object FseAppInstaller {
         val resourceName = "denza-apps-install-$requestId"
         val iviRoot = "/storage/FFFF-FFFC/$resourceName"
         val fseRoot = "/storage/emulated/0/$resourceName"
-        val copyStatus = "/data/local/tmp/denza-fse-copy-$requestId.status"
         val adb = LocalAdbClient(context, ADB_KEY_COMMENT)
+        var installSent = false
 
         return try {
             onProgress("Проверяю пассажирский экран")
@@ -116,9 +118,13 @@ object FseAppInstaller {
                     "echo ${quote(encodedConfig)} | base64 -d > ${quote("$iviRoot/config.json")}",
             )
 
-            onProgress("Копирую APK на пассажирский экран")
-            startCopy(adb, sourcePath, "$iviRoot/wallpaper/Application.apk", copyStatus)
-            awaitCopy(adb, copyStatus, app.apkSizeBytes)
+            copyApk(
+                adb = adb,
+                sourcePath = sourcePath,
+                targetPath = "$iviRoot/wallpaper/Application.apk",
+                expectedBytes = app.apkSizeBytes,
+                onProgress = onProgress,
+            )
 
             onProgress("Устанавливаю ${app.label}")
             val message = JSONObject()
@@ -134,14 +140,15 @@ object FseAppInstaller {
                 .put("app_version_name", packageInfo.versionName.orEmpty())
                 .put("app_version_code", packageInfo.longVersionCode)
             sendCrossMessage(context, message.toString())
+            installSent = true
 
             when (awaitInstallResponse(adb, requestId)) {
                 true -> {
-                    cleanup(adb, iviRoot, copyStatus)
+                    cleanup(adb, iviRoot)
                     FseInstallResult.Installed(app)
                 }
                 false -> {
-                    cleanup(adb, iviRoot, copyStatus)
+                    cleanup(adb, iviRoot)
                     FseInstallResult.Failed("Пассажирский экран отклонил установку")
                 }
                 null -> FseInstallResult.Failed(
@@ -150,6 +157,7 @@ object FseAppInstaller {
                 )
             }
         } catch (error: Exception) {
+            if (!installSent) cleanup(adb, iviRoot)
             FseInstallResult.Failed(friendlyError(error), error.toString())
         }
     }
@@ -161,31 +169,39 @@ object FseAppInstaller {
         if (result != "ready") throw IllegalStateException("FSE storage is not mounted")
     }
 
-    private fun startCopy(
+    private fun copyApk(
         adb: LocalAdbClient,
         sourcePath: String,
         targetPath: String,
-        statusPath: String,
+        expectedBytes: Long,
+        onProgress: (String) -> Unit,
     ) {
-        val worker = "cp ${quote(sourcePath)} ${quote(targetPath)}; " +
-            "echo \$? > ${quote(statusPath)}"
-        adb.shell(
-            "rm -f ${quote(statusPath)}; " +
-                "nohup sh -c ${quote(worker)} </dev/null >/dev/null 2>&1 & echo started",
-        )
-    }
-
-    private fun awaitCopy(adb: LocalAdbClient, statusPath: String, expectedBytes: Long) {
-        val deadline = System.currentTimeMillis() + RESPONSE_TIMEOUT_MS
-        while (System.currentTimeMillis() < deadline) {
-            val result = adb.shell(
-                "if [ -f ${quote(statusPath)} ]; then cat ${quote(statusPath)}; else echo pending; fi",
-            ).trim()
-            if (result == "0") return
-            if (result != "pending") throw IllegalStateException("APK copy failed: $result")
-            Thread.sleep(POLL_INTERVAL_MS)
+        if (expectedBytes <= 0L) throw IllegalStateException("APK copy size is unknown")
+        try {
+            adb.shell("rm -f ${quote(targetPath)}; : > ${quote(targetPath)}")
+            onProgress("Копирование: 0%")
+            val blockCount = (expectedBytes + COPY_BLOCK_BYTES - 1L) / COPY_BLOCK_BYTES
+            repeat(blockCount.toInt()) { block ->
+                val result = adb.shell(
+                    "dd if=${quote(sourcePath)} of=${quote(targetPath)} " +
+                        "bs=$COPY_BLOCK_BYTES skip=$block seek=$block count=1 conv=notrunc " +
+                        ">/dev/null 2>&1; echo \$?",
+                    COPY_READ_TIMEOUT_MS,
+                ).trim()
+                if (result.lineSequence().lastOrNull() != "0") {
+                    throw IllegalStateException("dd exit=$result block=$block")
+                }
+                val copiedBytes = minOf((block + 1L) * COPY_BLOCK_BYTES, expectedBytes)
+                val percent = (copiedBytes * 100L / expectedBytes).toInt()
+                onProgress("Копирование: $percent%")
+            }
+            val actualBytes = adb.shell("stat -c %s ${quote(targetPath)}").trim().toLongOrNull()
+            if (actualBytes != expectedBytes) {
+                throw IllegalStateException("size expected=$expectedBytes actual=$actualBytes")
+            }
+        } catch (error: Exception) {
+            throw IllegalStateException("APK copy failed: ${error.message}", error)
         }
-        throw IllegalStateException("APK copy timed out ($expectedBytes bytes)")
     }
 
     private fun awaitInstallResponse(
@@ -225,13 +241,9 @@ object FseAppInstaller {
     private fun cleanup(
         adb: LocalAdbClient,
         iviRoot: String,
-        copyStatus: String,
     ) {
         runCatching {
-            adb.shell(
-                "rm -rf ${quote(iviRoot)}; " +
-                    "rm -f ${quote(copyStatus)}",
-            )
+            adb.shell("rm -rf ${quote(iviRoot)}")
         }
     }
 
@@ -252,6 +264,8 @@ object FseAppInstaller {
     }
 
     private fun friendlyError(error: Exception): String = when {
+        error.message.orEmpty().contains("APK copy", ignoreCase = true) ->
+            "Не удалось скопировать APK"
         error.message.orEmpty().contains("authorization pending", ignoreCase = true) ->
             "Подтвердите ADB-ключ на экране автомобиля"
         error.message.orEmpty().contains("refused", ignoreCase = true) ->

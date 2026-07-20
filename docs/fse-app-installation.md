@@ -156,8 +156,8 @@ Denza Apps 0.3.0 adds the **Установить приложение** card in 
    their real icon and version; BYD service packages and Chinese-labelled apps
    are omitted from this user-facing list;
 2. checks whether the selected package has a single readable base APK;
-3. copies that APK through the existing FSE SMB mount into a unique temporary
-   resource directory;
+3. copies that APK through the existing FSE SMB mount in synchronous 4 MiB
+   blocks, reports real progress, and verifies the exact final byte size;
 4. sends the stock `set_wallpaper_path` request and waits for the matching
    `res_id` result;
 5. removes the staged APK after an explicit success or failure response.
