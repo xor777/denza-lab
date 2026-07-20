@@ -117,8 +117,8 @@ object YandexGuidanceParser {
         .replace(WHITESPACE, " ")
 
     private val NUMBER = Regex("[0-9]+(?:[.,][0-9]+)?")
-    private val HOURS = Regex("([0-9]+)\\s*(?:ч|час(?:а|ов)?|h|hr|hrs|hour|hours)(?:\\b|$)")
-    private val MINUTES = Regex("([0-9]+)\\s*(?:мин(?:ут[аы]?)?|min|mins|minute|minutes|m)(?:\\b|$)")
+    private val HOURS = Regex("([0-9]+)\\s*(?:ч|час(?:а|ов)?|h|hr|hrs|hour|hours)(?=\\s|$)")
+    private val MINUTES = Regex("([0-9]+)\\s*(?:мин(?:ут[аы]?)?|min|mins|minute|minutes|m)(?=\\s|$)")
     private val WHITESPACE = Regex("\\s+")
 }
 
