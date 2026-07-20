@@ -6,8 +6,8 @@ relay host.
 
 The state engine keeps one schema-v2 JSON document. Authorization reads use a
 shared `flock`; mutations use an exclusive lock, validate all invariants, and
-replace the document atomically with file and directory fsync. Short-lived codes authenticate the two password-only SSH entry
-points:
+replace the document atomically with file and directory fsync. Short-lived codes
+authenticate the two password-only SSH entry points:
 
 - `cag-enroll` registers a device tunnel key and its inner SSH host key;
 - `cag-pair` stages a Mac public key without revoking the current grant.

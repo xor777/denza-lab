@@ -11,7 +11,7 @@ may still use the historical `denza-gateway` directory name.
 | --- | --- | --- | --- |
 | `legacy/denza-gateway/` | `denza-gateway` | SSH gateway from the car LAN to local ADB endpoints on the head unit. | **Legacy.** Maintenance-only; do not add features. Car ADB Gateway supersedes it for new remote-access work. |
 | `legacy/denza-mirrors/` | `denza-mirrors` | Original driver-display side-camera enlargement. | **Legacy.** Frozen hardware-verified reference, removed from the root Gradle build after the accepted Denza Apps mirror scenarios were verified on the car. |
-| `apps/denza-apps/` | `denza-apps` | Consolidated head-unit app for Simulcast, side-camera mirrors, Yandex instrument projection, and stock IVI split routing. | **Active.** Version `0.2.0`; Compose landscape shell, self-recovery, one display resolver, and one shared cluster scene. Isolated mirror cycles, selectable Yandex projection layouts, automatic Map/ADAS following, and contextual stock split routing are live-car verified; the known fast mirror-switch AVC crash remains. |
+| `apps/denza-apps/` | `denza-apps` | Simulcast, side-camera mirrors, navigation and HUD guidance on the instrument display, stock IVI split routing, and passenger-screen app installation. | **Active.** Version `0.3.0`; Compose landscape shell, self-recovery, one display resolver, and one shared cluster scene. Mirror cycles, selectable navigation layouts, HUD guidance, contextual stock split routing, and FSE installation have all been exercised on the author's car. Rapid left-to-right mirror switching remains unsafe. |
 | `apps/car-adb-gateway/` | `car-adb-gateway` | Generic relay-only remote ADB gateway. Fixed `adbgw.ru`, one trusted computer, background recovery, no LAN listener. | Product candidate. Local unit/build evidence and the verified relay deployment exist; live-head-unit E2E, API matrix, and soak remain required. |
 
 ## Shared Android Modules
@@ -28,13 +28,13 @@ may still use the historical `denza-gateway` directory name.
 | `platform/relay/` | Car ADB Gateway relay state engine and restricted SSH/PAM commands. | Deploy only through `ops/ansible`; state updates must remain locked, atomic, and idempotent. |
 | `platform/cli/` | Cross-platform `cag` developer CLI for macOS/Linux. | Do not edit user SSH config; keep relay and vehicle host-key pinning strict. |
 | `ops/ansible/` | Repeatable relay host provisioning and verification. | Never place private keys/passwords in inventory; verify before any live deploy. |
-| `tools/` | Host-side scripts for one-off live experiments, including isolated FSE cross-device probes. | Scripts are not production paths until promoted through `docs/governance.md`. Passenger-screen findings belong in `docs/fse-app-installation.md`. |
-| `research/` | Code that is not built into product APKs (parked experiments, deprecated modules). | Keep failed or permission-blocked probes here, not in app source. Includes `research/simulcast-aliases/` (deprecated) and `research/vehicle-events/` (parked probe). |
+| `tools/` | Host-side scripts for one-off live experiments, including isolated FSE cross-device probes. | Promotion into an app follows `docs/governance.md`. Passenger-screen findings belong in `docs/fse-app-installation.md`. |
+| `research/` | Parked experiments and deprecated modules that stay outside product builds. | Failed or permission-blocked probes live here instead of app source. Current examples are `research/simulcast-aliases/` and `research/vehicle-events/`. |
 | `reverse/` | Local reverse-engineering input/output, often large. | APKs and extracted binaries must stay untracked. |
 
-## Source Of Truth
+## How to read this repository
 
-Use the code layout as the source of truth for current behavior:
+For current behavior, start with the implementation:
 
 - Gradle modules live in `settings.gradle.kts`.
 - App ids, exported components, and product/probe grouping live in each
@@ -42,8 +42,8 @@ Use the code layout as the source of truth for current behavior:
 - Package boundaries define product vs on-device research code. The historical
   `dev.denza.mirrors` / `dev.denza.mirrors.probe` split is frozen under
   `legacy/denza-mirrors/`.
-- Docs explain direction and durable findings. If docs disagree with code, fix
-  the closest existing doc instead of adding another status file.
+- Docs explain direction and preserve field findings. If a page has drifted,
+  correct that page instead of adding another status file.
 
 `reverse/` is an untracked local workbench. Keep raw APKs, JADX outputs, captures,
 and extracted binaries there; move only distilled, reusable conclusions into the
@@ -51,18 +51,17 @@ nearest existing doc.
 
 ## Where experiments live
 
-On-car experiments ("poking the car") have a defined home so they don't leak
-into product code:
+Car experiments have a predictable home:
 
 - **Host-side probes** → `tools/` (shell/python scripts run from the laptop).
-- **On-device probes for an existing product's domain** → a deliberately
-  isolated `…​.probe` subpackage of that product module. Historical Mirrors
-  probes remain frozen under `legacy/denza-mirrors/`.
+- **On-device probes for an existing product's domain** → an isolated
+  `…​.probe` subpackage of that product module. Historical Mirrors probes remain
+  frozen under `legacy/denza-mirrors/`.
 - **Parked / non-built code** → `research/<topic>/` with a README explaining why
   it is not built.
 
-Rule of thumb: product code must not depend on `…​.probe` code. The active Denza
-Apps path follows this rule and has no dependency on the frozen Mirrors source.
+Rule of thumb: keep `…​.probe` code out of product dependencies. Denza Apps has
+no dependency on the frozen Mirrors source.
 Legacy Denza Mirrors retains one historical violation:
 `SideCameraOverlayMonitorService` can drive the experimental
 `HudDiShareActivity` HUD path. Do not copy that dependency into active code.
@@ -120,9 +119,9 @@ Research package `dev.denza.mirrors.probe` (not product; promote before relying)
 
 | Component | Status |
 | --- | --- |
-| `MainActivity`, `ui/DenzaAppsScreen` | Landscape-first Compose shell with three primary feature cards, one compact Split screen card, and no global Start/Stop. Technical diagnostics are hidden behind Support. |
-| `DenzaAppRepository`, `core/FeatureModels`, `DenzaRuntimeCoordinator` | Separate desired/observed feature state, short user-facing status, boot/package-update recovery, and detailed Support diagnostics. The hidden diagnostic view captures raw DiShare receivers, stock Simulcast receiver-card bounds, their usable intersection, and every Android display for N9 rear-screen investigation. |
-| Compose app picker | In-window horizontal list of installed apps; tap to mark up to 6 for casting. Defaults to the installed subset of VK Video / Rutube / Kinopoisk / Yandex Navi / VLC / YouTube. |
+| `MainActivity`, `ui/DenzaAppsScreen` | Landscape-first Compose shell with three main cards (Navigation, Simulcast, Mirrors) and three compact cards (Split screen, HUD hints, passenger-screen installation). Technical diagnostics are hidden in Help. |
+| `DenzaAppRepository`, `core/FeatureModels`, `DenzaRuntimeCoordinator` | Separate desired/observed feature state, short user-facing status, boot/package-update recovery, and detailed Help diagnostics. The hidden diagnostic view captures raw DiShare receivers, stock Simulcast receiver-card bounds, their usable intersection, and every Android display for N9 rear-screen investigation. |
+| Compose app picker | Six-column grid of installed apps; tap to choose up to six for casting. Defaults to the installed subset of VK Video / Rutube / Kinopoisk / Yandex Navigator / VLC / YouTube. |
 | `SimulcastApps` | Persists the chosen casting packages (prefs) and seeds defaults. |
 | `SimulcastAccessibilityService`, `ScreenTarget` | Active visual path. Draws the selected app row and only accepts drop zones present in both the accessibility tree and runtime-available `DiShareScreens`; includes HUD, FSE, left/right RSE, overhead, and the single-rear `screen_tv` alias while keeping IVI as source. |
 | `SimulcastDialogGeometry` | Reads live row and receiver geometry from the dialog's accessibility tree instead of assuming fixed HUD/FSE rectangles. |
@@ -131,8 +130,9 @@ Research package `dev.denza.mirrors.probe` (not product; promote before relying)
 | `feature.cluster` | Fail-closed cluster display resolver, real-display geometry, and the shared map-base/camera-overlay scene. No fallback display IDs. |
 | `feature.hud` | Optional Yandex turn-by-turn bridge. Reads validated visible guidance across all accessibility displays and publishes maneuver, next-road, remaining route distance/time, and optional road text to the stock HUD SOME/IP road topic; unknown or stale guidance fails closed and clears the projection. |
 | `feature.mirrors` | Migrated AVC renderer and window monitor. Uses the shared local ADB client, keeps verified Mirrors geometry/image treatment, and has no probe dependency. |
-| `feature.navigation` | Public app-owned virtual display (so projected guidance remains visible to the HUD accessibility bridge), fixed-operation shell task commands, a dynamically filtered navigation picker, persisted full/left/center/right placement, and optional memory-only auto-follow of the stock cluster Map mode. Projection, live layout switching, return, and HUD guidance while projected are live-car verified; no arbitrary shell execution is exposed. |
+| `feature.navigation` | Public app-owned virtual display, fixed shell operations for task movement, an installed-app picker, and saved full/left/center/right placement. Projection, live layout switching, return, and HUD guidance while projected are live-car verified. Automatic following of the stock Map mode remains implemented but its unfinished UI control is hidden. |
 | `feature.split` | Contextual two-step router for the stock BYD `byd-freeform` roots. Normal launches stay fullscreen; from the stock application picker, the first selected app fills the empty pane and the second replaces the picker through fixed local-ADB commands. |
+| `feature.fse` | Lists suitable launcher apps from the IVI, copies a monolithic APK over the mounted FSE storage, sends the stock wallpaper installation request, and reports copy/install progress. Split APKs are shown but cannot be installed yet. |
 
 ### `libraries/dishare-bridge/`
 
@@ -153,8 +153,8 @@ Research package `dev.denza.mirrors.probe` (not product; promote before relying)
 - `car-adb-gateway` is the active generic relay-only connectivity app. It must
   not grow a LAN mode.
 - `denza-apps` is the single active Denza feature app. Simulcast, migrated camera
-  rendering, Yandex task projection, and contextual stock split routing have
-  separate feature packages but share desired/observed state and recovery.
+  rendering, navigation and HUD guidance, contextual stock split routing, and
+  passenger-screen installation share one UI and runtime state model.
 - `denza-mirrors` is legacy and excluded from the root Gradle build. Use its
   frozen source only as a hardware-verified comparison point.
 - `denza-gateway` is legacy and maintenance-only. The source remains buildable
@@ -173,20 +173,19 @@ Research package `dev.denza.mirrors.probe` (not product; promote before relying)
 
 ## Completed Denza Mirrors retirement
 
-On 2026-07-19, after the accepted isolated mirror scenarios were verified on the
-car and the retirement was explicitly chosen, the standalone source moved to
+On 2026-07-19, after isolated mirror scenarios passed on the car and the
+standalone app was retired, its source moved to
 `legacy/denza-mirrors/` and was removed from the root Gradle build. Before the
 move, `:denza-mirrors:assembleDebug` passed. The active `:denza-apps` module
 depends only on `:dishare-bridge`; neither its sources nor the shared library
 reference `dev.denza.mirrors` or `:denza-mirrors`.
 
-The known fast left-to-right AVC crash remains documented rather than hidden by
-the retirement. The frozen app can still be consulted as a source reference,
-but new camera behavior belongs in Denza Apps.
+The fast left-to-right AVC crash is still documented. The frozen app remains a
+useful hardware reference; new camera work belongs in Denza Apps.
 
 ## Build Outputs
 
-Generated APKs are intentionally ignored by Git.
+Git ignores generated APKs.
 
 ```bash
 ./gradlew :denza-gateway:assembleDebug

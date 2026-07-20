@@ -12,8 +12,9 @@
   <img alt="Project status: active lab" src="https://img.shields.io/badge/status-active_lab-F59E0B?style=for-the-badge">
 </p>
 
-An opinionated monorepo for building useful in-car software without mixing
-product code, remote-access infrastructure, and reverse-engineering experiments.
+A working lab for Denza / BYD head-unit apps, remote access, and the
+reverse-engineering notes behind them. Product code, infrastructure, and
+experiments live in separate parts of the repository.
 
 </div>
 
@@ -38,13 +39,13 @@ product code, remote-access infrastructure, and reverse-engineering experiments.
 | Lifecycle | Component | Purpose |
 | --- | --- | --- |
 | **Active** | [`apps/car-adb-gateway/`](apps/car-adb-gateway/) | Generic, relay-only remote ADB gateway with one trusted computer and a self-healing Android service. |
-| **Active** | [`apps/denza-apps/`](apps/denza-apps/) | The single Denza feature app: Simulcast app selection, instrument-display mirrors, and experimental Yandex task projection. |
+| **Active** | [`apps/denza-apps/`](apps/denza-apps/) | Simulcast, side-camera mirrors, navigation and HUD guidance on the instrument display, stock split-screen routing, and passenger-screen app installation. |
 | **Legacy** | [`legacy/denza-mirrors/`](legacy/denza-mirrors/) | Frozen hardware-verified camera reference. Its working behavior has moved into Denza Apps and it is no longer in the root Gradle build. |
 | **Legacy** | [`legacy/denza-gateway/`](legacy/denza-gateway/) | Original LAN-only SSH-to-ADB gateway. Kept for maintenance and reference; superseded for new remote-access work. |
 | **Library** | [`libraries/dishare-bridge/`](libraries/dishare-bridge/) | Shared raw DiShare binder integration used by Denza Apps. |
 | **Platform** | [`platform/cli/`](platform/cli/), [`platform/relay/`](platform/relay/), [`ops/ansible/`](ops/ansible/) | Developer CLI, restricted relay control plane, and reproducible server provisioning. |
 
-Supporting areas have deliberately narrow roles:
+The rest of the tree is straightforward:
 
 - [`docs/`](docs/) — durable architecture, decisions, and verified findings;
 - [`tools/`](tools/) — host-side probes and live-car utilities;
@@ -64,6 +65,10 @@ flowchart LR
     Bridge --> Car["Denza / BYD services"]
     Apps --> Scene["Shared instrument scene"]
     Scene --> Cluster["Map base + camera overlay"]
+    Apps --> Guidance["HUD guidance"]
+    Guidance --> HUD["Windshield projection"]
+    Apps --> FSE["Passenger-screen installer"]
+    FSE --> Passenger["Passenger FSE"]
 
     Mirrors["Legacy Denza Mirrors"] -. "frozen reference" .-> Apps
     Legacy["Denza Gateway"] -. "maintenance only" .-> ADB
@@ -77,8 +82,8 @@ end-to-end encrypted to the Android app. See the
 
 ## Repository layout
 
-The repository is **Denza Lab**: the umbrella name describes the work better
-than the historical Denza Gateway product name.
+The repository is called **Denza Lab**. Older checkouts may still use the
+historical directory name `denza-gateway`.
 
 Active apps live under `apps/`, shared code under `libraries/`, and frozen
 products under `legacy/`. The migrated Mirrors and navigation paths now live in
@@ -137,8 +142,8 @@ go test ./...
 go build -o cag ./cmd/cag
 ```
 
-Generated APKs and reverse-engineered binaries are intentionally ignored by
-Git. Do not add them to the repository.
+Git ignores generated APKs and reverse-engineered binaries. Keep them out of the
+repository.
 
 ## Car ADB Gateway in 30 seconds
 
@@ -243,7 +248,7 @@ computer's normal ADB key. Approve it at the vehicle before retrying the command
   remote access on the vehicle.
 - **«Отключить удалённый доступ»** in the vehicle app closes current sessions,
   disables the relay grant, and keeps access disabled after reboot.
-- **«Включить удалённый доступ»** in the vehicle app explicitly enables it again.
+- **«Включить удалённый доступ»** in the vehicle app re-enables it.
 
 ### Quick diagnosis
 
@@ -257,8 +262,8 @@ computer's normal ADB key. Approve it at the vehicle before retrying the command
   transient network, relay, and ADB failures are retried automatically.
 - App was force-stopped — open Car ADB Gateway manually. Android does not allow
   an ordinary APK to restart itself after Force Stop.
-- Identity or host-key error — stop and inspect the support details. Identity
-  mismatches fail closed and must not be bypassed.
+- Identity or host-key error — stop and inspect the support details. Resolve the
+  mismatch instead of bypassing the check.
 
 ## Documentation
 
@@ -271,6 +276,5 @@ computer's normal ADB key. Approve it at the vehicle before retrying the command
 - [DiShare API notes](docs/dishare-api-notes.md) — Simulcast and HUD reverse-engineering notes.
 - [FSE app installation](docs/fse-app-installation.md) — verified SMB and cross-device path for passenger-screen APKs.
 
-Code, manifests, and Gradle files remain the source of truth for current
-behavior. Documentation records direction and verified evidence; it should not
-become a second implementation model.
+When a page disagrees with the code, manifest, or Gradle configuration, follow
+the implementation and update that page.

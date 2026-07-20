@@ -60,10 +60,10 @@ ssh adbgw.ru sudo cag-admin doctor
 ssh adbgw.ru sudo cag-admin remove DEVICE_ID
 ```
 
-No periodic manual cleanup or key rotation is required. Re-enrollment,
-replacement, an incident, or a planned relay host-key change are the key-rotation
-events. Relay host-key rotation is additive: ship the new pin to Android and CLI
-before switching the server key.
+The hourly timer handles routine cleanup. Rotate keys for re-enrollment,
+computer replacement, an incident, or a planned relay host-key change. Relay
+host-key rotation is additive: ship the new pin to Android and the CLI before
+switching the server key.
 
 ## Provision a New VPS
 
@@ -91,6 +91,6 @@ Never store passwords or private keys in inventory or Ansible variables.
 A  @  95.179.132.238
 ```
 
-An `AAAA` record is not required yet. Port 443 carries SSH, not HTTPS. The
-verification playbook requires the domain to resolve to this IPv4 address and
-the Ed25519 host-key fingerprint to match the pinned value.
+The relay currently uses only the IPv4 record above. Port 443 carries SSH. The
+verification playbook checks both DNS resolution and the pinned Ed25519 host-key
+fingerprint.

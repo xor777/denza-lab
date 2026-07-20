@@ -31,8 +31,8 @@ the client key, pinned relay and vehicle host keys, the active device bundle, an
 the SSH control socket. Pairing writes a temporary bundle and a SHA-256 hash of
 the code, so repeating `cag pair CODE` resumes an interrupted inner handshake
 without another relay submit. `--new-key` stages a new desktop key and promotes
-it only after vehicle confirmation. A failed or expired replacement therefore
-does not damage the previous local identity or active bundle. After success,
+it only after vehicle confirmation. If replacement fails or expires, the
+previous local identity and active bundle remain usable. After success,
 `known_hosts` contains only the relay pin list and the current vehicle host key.
 
 `cag connect` leaves a keepalive-protected SSH tunnel in the background. The

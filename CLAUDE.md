@@ -1,19 +1,19 @@
 # CLAUDE.md
 
-Guidance for working in this repository (humans and AI).
+Working notes for anyone changing this repository.
 
 ## What this is
 
-Denza Lab is a monorepo for reverse-engineering a Denza / BYD head unit and
-building useful apps on it. Three concerns are kept separate on purpose:
+Denza Lab contains apps for a Denza / BYD head unit, the infrastructure around
+them, and the research that made those apps possible. The tree has three broad
+areas:
 
 - **Apps** — Car ADB Gateway and Denza Apps are active; Denza Mirrors and Denza
   Gateway are frozen under `legacy/`.
-- **Poking the car** — host scripts in `tools/`, on-device probes in
-  deliberately isolated probe packages; historical Mirrors probes are frozen
-  with the legacy source.
-- **Knowledge of what works / doesn't** — `docs/` (durable) and `research/`
-  (parked code).
+- **Experiments** — host scripts in `tools/` and isolated on-device probes;
+  historical Mirrors probes stay with the legacy source.
+- **What we learned** — durable findings in `docs/` and parked code in
+  `research/`.
 
 The GitHub repository is `xor777/denza-lab`. An existing local checkout may
 still use the historical `denza-gateway` directory name.
@@ -52,9 +52,9 @@ export ANDROID_HOME=/opt/homebrew/share/android-commandlinetools
 
 ## Conventions
 
-- Product code must not depend on `…​.probe` code. The active Denza Apps path
-  has no probe or Denza Mirrors dependency. The frozen standalone Mirrors source
-  retains one documented historical product-to-probe exception.
+- Keep `…​.probe` code out of product dependencies. Denza Apps has no probe or
+  Denza Mirrors dependency. The frozen standalone Mirrors source retains one
+  documented historical product-to-probe exception.
 - Product apps share car-access code only via `:dishare-bridge`.
 - Do not add features to `:denza-gateway`. Limit changes to maintenance or work
   required to retire it safely.
@@ -66,12 +66,12 @@ export ANDROID_HOME=/opt/homebrew/share/android-commandlinetools
   atomic, and covered by relay tests.
 - New "poke the car" code goes to `tools/` (host) or a `…​.probe` package
   (on-device), never into a product package.
-- Code, manifests, and Gradle files are the source of truth for current behavior.
-  Docs should map the repo and record verified findings, not duplicate the code.
+- When docs and implementation disagree, follow the code, manifests, and Gradle
+  files, then correct the relevant page.
 - Record durable findings in the closest existing doc, not only in chat. Create a
   new `.md` only when the topic has a durable owner. Parked code → `research/`.
 - Never commit APKs, reverse-engineered APKs, or large extracted binaries
   (`reverse/`, `captures/`, build outputs are git-ignored).
-- Treat `com.byd.avc` crashes as escalation alerts, not automatic hard stops.
-  Capture `logcat -b crash -v time`, notify the user briefly, and continue safe
-  in-scope work without repeating the suspected trigger until it is isolated.
+- Treat a `com.byd.avc` crash as an escalation alert. Capture
+  `logcat -b crash -v time`, tell the user once, and continue safe in-scope work
+  without repeating the suspected trigger until it is isolated.

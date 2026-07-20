@@ -131,16 +131,14 @@ adb logcat -v time -s DenzaDiShareProbe DiShareControlImpl PackageValidator
 
 ## Historical Simulcast App Change alias path
 
-> SUPERSEDED (2026-06-28). The sections below (alias APKs, `SourceKeeperService`,
-> FLAG_NOT_TOUCHABLE overlay, native-metadata injection) are kept as history. The
-> shipping path is now an **AccessibilityService** (`SimulcastAccessibilityService`)
-> that reads the live DiShare `ShareDialogActivity` node bounds and erases+redraws
-> the App Change row + central preview with the user's chosen apps; casting goes
-> straight through `DiShareProjectionBridge` at `2560x1440`. No alias APKs, no
-> `SourceKeeperService`, no metadata injection. Key gotcha: BYD firmware force-dims
-> `FLAG_NOT_TOUCHABLE` overlays to alpha 0.8 (ignoring explicit alpha), so the
-> opaque cover plate must be a **touchable** window. The native row comes from
-> DiShare's own cloud metadata, so it appears even without our registrations.
+> **Archived on 2026-06-28.** The alias APK, `SourceKeeperService`,
+> `FLAG_NOT_TOUCHABLE`, and native-metadata experiments below explain how the
+> current design was reached. Denza Apps now reads the live
+> `ShareDialogActivity` bounds with `SimulcastAccessibilityService`, redraws the
+> App Change row and central preview, and casts through
+> `DiShareProjectionBridge` at `2560x1440`. BYD forces non-touchable overlays to
+> alpha 0.8, so the opaque cover is a touchable window. DiShare still supplies
+> the underlying native row from its cloud metadata.
 
 Date/context: 2026-06-28, car package `com.byd.dishare`
 `1.5.1.1.23102ef`.
@@ -159,13 +157,11 @@ Normal shell access cannot write the DiShare cache:
 - `run-as com.byd.dishare` fails because the package is not a debug app
 - the DynaConfig provider can be queried, but insert/update paths are no-op
 
-Practical consequence found during that investigation: the native App Change row
-can expose whitelisted slots, but their visual name/icon may remain the stock
-Chinese/cloud entry. This is no longer the product solution; the current product
-path covers the native row at the accessibility/UI layer and starts selected
-apps directly through `DiShareProjectionBridge`.
+The native App Change row can expose whitelisted slots while still showing their
+stock Chinese cloud name and icon. The shipped UI covers that row at the
+accessibility layer and starts the chosen app through `DiShareProjectionBridge`.
 
-Historical implementation (not the current product path):
+Historical implementation:
 
 - The old `denza-apps` implementation started `SourceKeeperService`, which
   registered source-only DiShare clients for known whitelisted package names.
@@ -214,11 +210,11 @@ Known limitation:
 
 2026-06-28 native metadata follow-up:
 
-- A normal third-party APK does not need system uid to participate in Simulcast.
-  Live tests already prove a normal `/data/app` package can call DiShare's
-  exported control/API services and launch Russian targets on DiShare virtual
-  displays.
-- The native visual list is a separate problem. Decompiled DiShare code shows
+- A normal `/data/app` package can call DiShare's exported control/API services
+  and launch Russian targets on DiShare virtual displays; system uid is not
+  required for that part.
+- The native visual list comes from a separate data path. Decompiled DiShare
+  code shows
   `ShareAppLocalDataSource` reads `SharedPreferences("config")` key
   `cloud_request_result` and deserializes it as Base64 Java serialization of
   `List<ShareApp>`.
@@ -233,20 +229,20 @@ Known limitation:
 - DiShare has `targetSdkVersion=31` and `usesCleartextTraffic=true`. The icon
   URLs from `appIconUrl`/`backgroundImgUrl` can therefore be plain HTTP, but the
   hard-coded `videoList` request itself is HTTPS.
-- No explicit OkHttp certificate pinning was found in the DiShare client setup,
-  but target SDK 31 means a normal user CA is not enough by default. A no-root
+- The inspected DiShare client setup contains no explicit OkHttp certificate
+  pinning. Target SDK 31 still rejects a normal user CA by default. A no-root
   native-list path may still be possible through a controlled cloud-response or
   proxy experiment, but it must prove TLS trust/routing on the car before it can
   replace the overlay path.
 
 ## No-root native Simulcast row workaround
 
-Goal: make the native Simulcast App Change flow look and behave like it has
-Russian apps without patching `/system` or writing `com.byd.dishare` private data.
+This path makes Russian apps look native in the Simulcast App Change flow while
+leaving `/system` and `com.byd.dishare` private data untouched.
 
-Confirmed blocker: DiShare does not use the installed launcher label/icon for the
-native row. The adapter renders `ShareApp.appIconStr` from the cloud/cache metadata
-instead. On a normal debug APK we cannot write that cache:
+DiShare ignores the installed launcher label and icon for this row. Its adapter
+renders `ShareApp.appIconStr` from cloud/cache metadata, and a normal debug APK
+has no write access to that cache:
 
 - `com.byd.dishare` data is not readable/writable by `shell`
 - `run-as com.byd.dishare` is blocked
@@ -258,8 +254,9 @@ Current no-root custom drag approach:
 
 1. `denza-apps` opens the native Simulcast screen; its accessibility service
    observes the live dialog geometry.
-2. The accessibility overlay draws the Russian app row over the stock App Change row, using
-   real installed target app icons via `PackageManager.getApplicationIcon()`.
+2. The accessibility overlay draws the Russian app row over the stock App
+   Change row, using installed target icons from
+   `PackageManager.getApplicationIcon()`.
 3. The overlay also draws a large selected-app preview over the native stock
    preview, so the visible Simulcast UI presents Russian app icons even though
    DiShare's underlying `ShareApp` metadata is still stock/cloud data.
@@ -280,14 +277,12 @@ Current no-root custom drag approach:
    width (`839dp`) instead of centering on the full physical display. This keeps
    the custom row aligned with the native App Change row when the right side is
    occupied by navigation or another app.
-8. `SimulcastOverlayService` also exposes explicit debug actions for the same
-   code path:
+8. `SimulcastOverlayService` exposes two debug actions for repeatable ADB checks:
    - `dev.denza.apps.START_SIMULCAST_TARGET` with extras `targetPackage` and
      `receiver`
    - `dev.denza.apps.STOP_SIMULCAST_TARGET`
-   These are for repeatable ADB verification. The user workflow remains opening
-   Simulcast and dragging the visible Russian app icon; there is no global
-   Start/Stop control in Denza Apps.
+   The user still opens Simulcast and drags a visible app icon; Denza Apps has no
+   global Start/Stop control.
 
 Live verification:
 
@@ -355,10 +350,10 @@ tools/dishare_overlay_receiver_test.sh com.vk.vkvideo screen_hud
 tools/dishare_overlay_receiver_test.sh ru.rutube.app screen_fse
 ```
 
-The older `FLAG_NOT_TOUCHABLE` overlay plus `research/simulcast-aliases/launcher`
-path is parked as fallback/research history. It is not part of the normal
-`denza-apps` install/build flow and cannot produce a native-looking drag preview
-because the native Simulcast UI draws its own stock/Chinese icon.
+The older `FLAG_NOT_TOUCHABLE` and alias-launcher path stays in `research/` as a
+fallback and record of the investigation. The normal Denza Apps build does not
+use it, and DiShare's own stock icon prevents it from producing a convincing
+drag preview.
 
 Known caveats:
 
@@ -368,12 +363,12 @@ Known caveats:
 - Native DiShare metadata injection is still unresolved. The native row uses
   `ShareApp.appIconStr`/`appName` from DiShare's private cloud/local metadata,
   not the installed APK launcher label/icon.
-- The no-root path is still valid. The open question is native visual metadata,
-  not whether a normal APK can participate in Simulcast.
+- Direct Simulcast control from a normal APK is proven. Native visual metadata
+  remains the open part of the no-root route.
 
 ### Multi-screen receiver contract (2026-07-18)
 
-The product mapping is now explicit and dynamic:
+Denza Apps maps the runtime receivers as follows:
 
 | DiShare receiver | Accessibility node |
 | --- | --- |
@@ -384,18 +379,17 @@ The product mapping is now explicit and dynamic:
 | `screen_overhead` | `overhead_screen` |
 | `screen_tv` | `overhead_screen` (single rear-screen candidate) |
 
-`screen_ivi` is always the source and is never accepted as a drop target. A
-temporary `getScreens` failure leaves the desired Simulcast setting intact,
-shows a neutral screen check, retries, and accepts no unconfirmed receiver.
-HUD/FSE remain the only live-verified receivers. The DiShare implementation also
+`screen_ivi` is the source, so it is excluded from drop targets. A temporary
+`getScreens` failure leaves the Simulcast setting intact, shows a neutral screen
+check, retries, and keeps unconfirmed receivers disabled. HUD and FSE are the
+only receivers verified on the test car. The DiShare implementation also
 exposes a distinct `screen_tv` / `deviceId=tv` contract for configurations with a
 single rear display; Denza Apps maps it to the same visible rear card as
 `screen_overhead`. N9 rear and overhead support is implemented from these
-contracts but must not be called verified until captures of `getScreens`, the
-accessibility tree, and one isolated launch per receiver are recorded. The
-locally inspected OpenBYD APK enumerates Android `Display` objects, not DiShare
-receivers, so its ability to see a rear display is supporting hardware evidence
-but cannot replace the `getScreens` availability check.
+contracts. N9 verification still needs `getScreens`, an accessibility-tree
+capture, and one isolated launch per receiver. OpenBYD enumerates Android
+`Display` objects rather than DiShare receivers; seeing a rear display there is
+useful hardware evidence, but availability still comes from `getScreens`.
 
 The hidden Denza Apps diagnostic view now captures those three discovery layers
 in one place. Open **Help**, tap **Как пользоваться** seven times, and read:
@@ -439,7 +433,7 @@ Not working as an ordinary `/data/app` debug APK:
   `PANORAMA_SCREEN_PROJECTION_STATUS_IVI_TO_INS_SET=1`. That is the stock projection path
   for the instrument display, not a reusable camera frame stream for DiShare.
 
-Practical conclusion:
+What this means:
 
 - The migrated AVC AIDL renderer is still the compatibility path for the
   selected driver display, but it is not safe during a stock AVC surface
@@ -492,8 +486,8 @@ treated as the known unsafe case.
 
 ### Stock-owned non-AIDL candidate (2026-07-18)
 
-The stock cluster projection service is not a general escape hatch. Its Binder
-service resolves the real calling package, accepts only configured system
+The stock cluster projection Binder resolves the real calling package and
+accepts only configured system
 packages, and permits `com.byd.avc` only for
 `CLUSTER_LEFT + PICTURE_IN_PICTURE_CARD`. It rejects Denza Apps and has no right
 PIP contract.
@@ -510,8 +504,8 @@ calling AVC AIDL. Shell UID on this firmware has `ACCESS_SURFACE_FLINGER`,
 - a live stock left camera on display `4`;
 - the live right-camera window from display `0`.
 
-The camera layers were neither secure nor protected in these captures, but the
-path is not a usable product replacement. The live left copy was drawn below the
+The captured camera layers had neither the secure nor protected flag. Even so,
+the path was unusable in the product: the live left copy was drawn below the
 car's physically composited stock display-4 card, producing a duplicate. The
 right source required the stock camera window to remain on the main screen and
 copied its text and controls. A compositor color transform intended to reproduce

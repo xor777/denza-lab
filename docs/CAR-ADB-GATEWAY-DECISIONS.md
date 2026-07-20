@@ -25,7 +25,7 @@ to the replacement. The normative current design lives in
 - **Decision:** Use the `:car-adb-gateway` module and application ID `ru.adbgw.gateway`; the old APK can remain installed alongside it.
 - **Rationale:** This avoids a risky migration and keeps Denza-specific legacy code out of the generic product.
 - **Alternatives:** Rename or replace `denza-gateway`; add cloud access to it.
-- **Consequences and risks:** Two gateway APKs must be distinguished clearly; there is intentionally no compatibility shim.
+- **Consequences and risks:** Two gateway APKs must be distinguished clearly; no compatibility shim connects them.
 - **Evidence:** Separate Gradle module, manifest, package, launcher, and `car-adb-gateway.apk`.
 - **Revisit if:** The legacy LAN app is formally retired.
 

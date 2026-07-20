@@ -1,24 +1,26 @@
 # Car ADB Gateway — Relay-Only Architecture
 
-Status: normative description of the implementation in this repository. Updated
-2026-07-18. The lease/GC lifecycle revision passed local acceptance, an
-idempotent Ansible rollout, and live verification on `adbgw.ru`; head-unit
-end-to-end and soak verification remain mandatory before production use.
+Status: current design of the implementation in this repository, last checked
+2026-07-20. The lease and garbage-collection lifecycle passed local acceptance,
+an idempotent Ansible rollout, and live checks on `adbgw.ru`. Head-unit
+end-to-end and soak tests are still required before production use.
 
 Car ADB Gateway is a standalone, vehicle-agnostic Android app for head units
 where ADB is available locally. It can be installed alongside the existing
 LAN-only Denza Gateway and does not depend on the vehicle brand.
 
-Version 3 has no LAN listener, LAN workflow, or configurable self-hosted relay
+The current design uses one fixed relay and exposes no LAN listener or LAN setup
+flow
 ([CAG-001](CAR-ADB-GATEWAY-DECISIONS.md#cag-001),
 [CAG-002](CAR-ADB-GATEWAY-DECISIONS.md#cag-002),
 [CAG-003](CAR-ADB-GATEWAY-DECISIONS.md#cag-003)). The
-[decision log](CAR-ADB-GATEWAY-DECISIONS.md) records rationale and revision
-history; this document defines current behavior.
+[decision log](CAR-ADB-GATEWAY-DECISIONS.md) records the reasoning and revision
+history.
 
 ## 1. Roles and Access Grants
 
-Public reachability of TCP port 443 does not grant any role access to a vehicle.
+Port 443 is public, but every useful operation still requires one of the grants
+below.
 
 | Role | How authority is obtained | Allowed actions |
 | --- | --- | --- |
@@ -100,7 +102,7 @@ rewrite the JSON state.
 - Expired pending state is removed without changing the active grant.
 
 Every registration is a 14-day lease. The enabled app renews it before opening
-the tunnel and once per day; explicitly enabling access renews it too. A disabled
+the tunnel and once per day; manually enabling access renews it too. A disabled
 vehicle sends no heartbeat and is forgotten after the same 14 days. An hourly
 systemd timer removes expired devices and their grants, pending records, codes,
 and unreferenced client keys. Ports from `20000..65535` are then reusable.
@@ -144,8 +146,8 @@ pair-submission, commit, local save, or confirmation response resume safely.
 
 Gradle module: `apps/car-adb-gateway/`; application ID: `ru.adbgw.gateway`;
 minSdk 26.
-ADB, tunnel, control, and inner host keys live in app-private storage, and Android backup
-is disabled ([CAG-010](CAR-ADB-GATEWAY-DECISIONS.md#cag-010)).
+ADB, tunnel, control, and inner host keys live in app-private storage. Android
+backup is disabled ([CAG-010](CAR-ADB-GATEWAY-DECISIONS.md#cag-010)).
 
 ### 4.1 First-Time Setup
 
@@ -301,7 +303,7 @@ Completed locally and on `adbgw.ru` for the lifecycle revision on 2026-07-18:
 - debug APK build with minSdk 26 and targetSdk 36, plus Android lint with no
   errors;
 - local Ansible syntax checks and production-profile lint for ACLs, GC timer,
-  schema doctor, SSH source limits, and fail2ban policy.
+  schema doctor, SSH source limits, and fail2ban policy;
 - Ansible migrated the empty production registration set from schema v1 to v2,
   removed the three confirmed-empty legacy TSV files, and converged to
   `changed=0` on the second run without creating a test device;

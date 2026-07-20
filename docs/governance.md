@@ -1,34 +1,34 @@
 # Repository Governance
 
-This file is the lightweight operating manual for future work in this repo.
+This page explains where a change belongs and what evidence it needs.
 
 ## Lifecycle and Change Lanes
 
-Use one of these lanes before editing code:
+Choose the lane that matches the change:
 
 | Lane | Allowed paths | Rule |
 | --- | --- | --- |
 | Active product | `apps/car-adb-gateway/`, `apps/denza-apps/`, `libraries/dishare-bridge/`, `platform/cli/`, `platform/relay/`, `ops/` | Build/test the affected path, verify hardware-dependent behavior on the car, and update the closest doc. |
 | Legacy | `legacy/denza-gateway/`, `legacy/denza-mirrors/` | Maintenance, frozen reference, and safe-retirement work only. Do not add features or create new dependencies on legacy code. |
 | Prototype | Experimental features in `apps/denza-apps/`, dedicated probe modules, `tools/` | Isolate behind flags, settings, or explicit commands. Document the live-test result. |
-| Research | `research/`, `docs/*notes*`, host-only scripts | Must not be compiled into product APKs unless promoted. |
+| Research | `research/`, reverse-engineering notes, host-only scripts | Keep it outside product APKs until it has passed the promotion checklist. |
 
 If an experiment fails, keep the finding in docs or `research/`; do not leave dead
 services, manifest entries, or permissions in the product app.
 
 ## Where experiments live
 
-"Poking the car" must not leak into product code. Pick the right home:
+Put experiments where another contributor will expect to find them:
 
 - **Host-side probes** → `tools/` (shell/python run from the laptop).
-- **On-device probes for an existing product's domain** → a deliberately
-  isolated `…​.probe` subpackage or dedicated experiment module. The old
+- **On-device probes for an existing product's domain** → an isolated
+  `…​.probe` subpackage or dedicated experiment module. The old
   `dev.denza.mirrors.probe` package is frozen with the legacy app.
 - **Parked / non-built code** → `research/<topic>/` with a README.
 
 Rules:
 
-- Active product code must not depend on probe or legacy packages. The frozen
+- Keep probe and legacy packages out of active product dependencies. The frozen
   Denza Mirrors source retains one historical exception —
   `SideCameraOverlayMonitorService` drives `HudDiShareActivity` — but no active
   module depends on that source.
@@ -41,8 +41,8 @@ Rules:
 
 Record durable knowledge in the repo, not only in chat.
 
-Code is the source of truth for current structure and behavior. Keep docs as
-navigation and evidence, not as a second implementation model:
+Use docs for navigation and field evidence. If they disagree with current
+structure or behavior, check the code and fix the affected page:
 
 - Product behavior and user-facing workflows: update `README.md` or a focused doc
   under `docs/`.
@@ -80,10 +80,10 @@ package into product code):
 
 ## Live Car Debugging Rules
 
-- Treat `com.byd.avc` crashes as escalation alerts, not automatic hard stops.
-  Capture `logcat -b crash -v time`, document the trigger, and notify the user
-  briefly. Continue safe in-scope work, but do not repeat the suspected trigger
-  until the change is reverted or isolated.
+- Treat a `com.byd.avc` crash as an escalation alert. Capture
+  `logcat -b crash -v time`, document the trigger, and tell the user once.
+  Continue safe in-scope work, but avoid the suspected trigger until the change
+  is reverted or isolated.
 - Keep the last known working APK behavior easy to restore before trying a risky
   experiment.
 - Prefer host-side scripts in `tools/` for speculative probes before adding code
@@ -95,21 +95,21 @@ package into product code):
 
 ## DiShare/Simulcast Rules
 
-- Denza Apps has an independent **Apps** feature card, not a global Start/Stop.
-  Its accessibility layer draws selected installed apps over the native App
-  Change row, and drops are translated to `DiShareProjectionBridge` starts.
+- Denza Apps exposes Simulcast through the **Трансляция** card. Its
+  accessibility layer draws the chosen installed apps over the native App
+  Change row, then translates a drop into a `DiShareProjectionBridge` start.
 - Runtime receiver support must come from `DiShareScreens.getScreens`. Do not
   hard-code a rear/HUD/passenger screen as usable just because its coordinates
   are known in reverse-engineered resources. A drop target must also be visible
   in the current accessibility tree; `screen_ivi` remains the source.
 - Debug service/broadcast actions are allowed for verification only:
   `dev.denza.apps.START_SIMULCAST_TARGET` and
-  `dev.denza.apps.STOP_SIMULCAST_TARGET`. Product UX should remain the normal
-  Simulcast drag flow unless deliberately redesigned.
-- Native App Change metadata remains research. Any `videoList`/proxy/cloud-cache
-  experiment must be run from `tools/dishare_native_metadata_probe.py`, must
-  document setup and revert commands, and must not be baked into the APK until it
-  is verified on the car without breaking normal network or DiShare behavior.
+  `dev.denza.apps.STOP_SIMULCAST_TARGET`. The normal user flow is the stock
+  Simulcast screen with the Denza Apps drag layer.
+- Native App Change metadata remains research. Run `videoList`, proxy, and cloud
+  cache experiments from `tools/dishare_native_metadata_probe.py`, record setup
+  and rollback commands, and keep them out of the APK until the normal network
+  and DiShare flows pass on the car.
 - If an ADB/SSH tunnel drops during a live test, mark runtime evidence as
   inconclusive. Reconnect and repeat the exact test before updating the verified
   behavior section.
@@ -117,16 +117,16 @@ package into product code):
 ## Instrument Display Rules
 
 - Resolve the cluster with `ClusterDisplayResolver`; never restore unconditional
-  display IDs such as `2` or `4`. Ambiguity is a Support action, not permission to
-  guess.
+  display IDs such as `2` or `4`. If the result is ambiguous, show it in
+  diagnostics and leave the feature unavailable.
 - Navigation owns the full-size base surface. Side cameras are overlays and must
   not resize, restart, or duplicate the Yandex task.
 - Navigation shell commands are internal, fixed, short-lived operations. Keep
   the package allowlist, never pass app-owned Binder objects across processes,
   and never expose arbitrary commands to the UI.
-- Navigation is memory-only and must not start after boot. When a command,
-  display, or task disappears, release the virtual display and prefer returning
-  the task to display `0`.
+- Navigation sessions stay in memory and never resume after boot. When a
+  command, display, or task disappears, release the virtual display and return
+  the task to display `0` when possible.
 - Do not run an installed legacy Denza Mirrors monitor and the Denza Apps monitor
   together. Denza Mirrors is excluded from the root Gradle build after accepted
   live-car checks and an explicit retirement decision.
@@ -151,13 +151,13 @@ package into product code):
   operations through the shared local ADB client; do not expose arbitrary shell
   text to the UI. Exclude Denza Apps and the stock picker/pane packages from
   candidate routing.
-- Toggling the feature must not launch an app. Turning it off must return routed
-  tasks to the current fullscreen root and restore the stock pane anchors.
+- The toggle changes routing only. Turning it off returns routed tasks to the
+  current fullscreen root and restores the stock pane anchors.
 
 ## Git Hygiene
 
 - Keep unrelated product changes and research changes in separate commits.
-- If code is intentionally parked for later, put it under `research/` and document it.
+- Put code parked for later under `research/` and document it.
 - If a feature is not working, mark it as blocked or experimental in docs before pushing.
 - Run at least the relevant Gradle build before publishing code changes:
 

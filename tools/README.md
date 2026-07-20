@@ -2,7 +2,9 @@
 
 Host-side scripts for live experiments against the car.
 
-These scripts are probes, not product code. A script can only become part of an Android app after the promotion checklist in `docs/governance.md` is satisfied.
+These scripts run focused experiments from a development computer. Before any
+of this work moves into an Android app, it must pass the promotion checklist in
+`docs/governance.md`.
 
 Current scripts:
 
@@ -12,7 +14,7 @@ Current scripts:
 - `dishare_native_metadata_probe.py`: controlled host-side probe for the native
   DiShare App Change metadata path. It can export real installed Russian app
   icons, generate a `mitmproxy` addon for `videoList`, collect DiShare state, and
-  explicitly set/revert the Android global proxy. Default commands are read-only.
+  set and revert the Android global proxy. Default commands are read-only.
 - `dishare_overlay_receiver_test.sh`: repeatable live verifier for the current
   `denza-apps` overlay path. It starts a selected Russian target package on a
   selected DiShare receiver through `SimulcastOverlayService`, then prints
@@ -41,14 +43,14 @@ Current scripts:
   `docs/fse-app-installation.md`.
 - `fse_upgrade_info_probe.sh`: read-only shell-UID probe for the stock
   `upgrade_server` Binder. It requests only connection, version, and platform
-  information; package transfer and upgrade commands are intentionally absent.
+  information. It contains no package transfer or upgrade commands.
 - `fse_voice_command_probe.sh`: isolated client for the exported AutoVoice test
   input. It can exercise stock voice commands, but it is not a reliable launcher
   for arbitrary passenger-screen apps; the AIMP test opened the IVI app list.
 
-The small JSON files under `fse-apk-wallpaper/` are the exact live-tested FSE
-resource metadata for AIMP and Yandex Navigator. They do not contain APKs. Never
-stage or commit the APK payloads themselves.
+The small JSON files under `fse-apk-wallpaper/` preserve the FSE resource
+metadata used for the AIMP and Yandex Navigator tests. APK payloads stay outside
+Git.
 
 When adding a tool, include:
 

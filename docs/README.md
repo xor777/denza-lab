@@ -12,8 +12,7 @@ Use this folder for durable project knowledge.
 | `CLOUD-ARCHITECTURE.md` | Normative relay-only Car ADB Gateway design and verification status. |
 | `CAR-ADB-GATEWAY-DECISIONS.md` | ADR-lite product/architecture decisions, rationale, evidence, and revisit conditions. |
 
-If a new investigation creates reusable knowledge, update the closest existing
-file first. Add a new doc only when the topic has a durable owner and would make
-an existing file hard to scan. Current behavior should still be read from code,
-manifests, and build files; docs are the map and evidence log, not a second
-source of truth.
+If an investigation produces something worth keeping, update the nearest page.
+Add a new document only when the subject has a clear long-term home and would
+make an existing page unwieldy. For current behavior, check the code, manifests,
+and build files; these pages explain the layout and preserve field evidence.

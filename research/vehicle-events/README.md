@@ -1,7 +1,7 @@
 # Vehicle Event Probe Archive
 
-This folder keeps the research-only vehicle event probe outside the Android app source tree.
-It is not compiled into `denza-mirrors.apk`.
+This archived probe explored BYD vehicle events from a normal app. It stays
+outside the Android source tree and the frozen `denza-mirrors.apk` build.
 
 ## Last Findings
 
@@ -15,7 +15,8 @@ It is not compiled into `denza-mirrors.apk`.
   - `BYDAutoBodyworkDevice postEvent ...`
   - active camera frames for camera ids `2`, `3`, and `10`
   - `com.byd.sr/.cluster.ClusterActivity` rendering on the dashboard
-- Practical production path should stay with the working SR/camera-window monitor, not these app-level vehicle listeners.
+- The SR/camera-window monitor remains the working product trigger. These
+  app-level listeners produced no usable turn-signal callbacks.
 
 ## If Research Resumes
 

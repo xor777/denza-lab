@@ -1,7 +1,7 @@
 # Instrument Display Findings
 
-This is the durable status page for the instrument-display scene shared by
-Mirrors and navigation. Current implementation status is dated 2026-07-19.
+This page tracks the instrument-display scene shared by Mirrors and navigation.
+The implementation summary was last checked against the code on 2026-07-20.
 
 ## Product architecture
 
@@ -15,17 +15,17 @@ matching the two-layer Denza display composition verified on the car:
 - a separate `TextureView` presentation on
   `shared_fission_bg_XDJAScreenProjection_1` is the stock-compatible camera
   overlay layer;
-- camera diagnostics use the same overlay display and are visible only after the user
-  presses **Check** in Denza Apps or chooses a display in hidden Support.
+- camera diagnostics use the same overlay display and appear after the user
+  presses **Проверить камеры** or chooses a display in hidden diagnostics.
 
-`ClusterDisplayResolver` deliberately fails closed. It uses a saved manual
-override, the exact known Denza display name
+`ClusterDisplayResolver` accepts a saved manual override, the exact known Denza
+display name
 `shared_fission_bg_XDJAScreenProjection_0`, `cluster`/`fission` name evidence,
 real dimensions, and display characteristics. The camera overlay is selected
 separately by the exact known name
 `shared_fission_bg_XDJAScreenProjection_1`. It excludes IVI, rear/RSE, overhead,
-DiShare, and Denza Apps' own virtual displays. Neither path falls back to a
-numeric display ID; an absent or ambiguous candidate fails closed.
+DiShare, and Denza Apps' own virtual displays. An absent or ambiguous match
+leaves the feature unavailable instead of guessing a numeric display ID.
 
 ## Mirrors behavior preserved in Denza Apps
 
@@ -59,9 +59,9 @@ process. Short-lived `app_process` commands run under shell UID through the
 shared local ADB client and exit after one fixed operation. They can only find,
 move, resize, focus, or background a task from the closed navigation allowlist:
 Yandex Navigator, Yandex Maps, Google Maps, Waze, and 2GIS. Package identity is
-checked again inside the shell-UID boundary before every task mutation. No
-Binder or `Surface` crosses processes and no general shell command execution is
-exposed.
+checked again inside the shell-UID boundary before every task mutation. Binder
+objects and `Surface` stay in the app process; the shell side exposes only the
+fixed task operations listed above.
 
 The persisted map placement has four live-switchable layouts on the verified
 `2560x720` instrument display:
@@ -77,7 +77,7 @@ The persisted map placement has four live-switchable layouts on the verified
   `130 dp` top gradient peaking at alpha `250`;
 - **Left** uses `Rect(0, 0 - 1023, 609)` at `272 dpi`, with an alpha-`250`
   radial shade of radius `192 dp` in the inner top-right corner;
-- **Right** uses `Rect(1537, 100 - 2560, 609)` at `272 dpi` and no gradient,
+- **Right** uses `Rect(1537, 95 - 2560, 619)` at `272 dpi` and no gradient,
   preserving the useful navigation content at the top of that layout.
 
 Changing a placement button while navigation is already projected returns the
@@ -88,11 +88,12 @@ their already verified Mirrors parameters.
 The UI state is contextual: **Open**, **To cluster**, then **Return**. The
 picker re-reads the installed subset of the navigation allowlist whenever it is
 opened, and the selected package is checked again before an automatic launch.
-The selected package is persisted; the **Auto / By instrument mode** switch and
-active projection session remain memory-only and never start after boot.
+The selected package is saved. Projection sessions stay in memory and end with
+the process. The automatic **Map mode** implementation also remains in code,
+but its unfinished UI switch is hidden in the current build.
 
-While Auto is enabled, Denza Apps checks the selected instrument display once
-per second. A visible exact
+When the hidden automatic mode is enabled in a development build, Denza Apps
+checks the selected instrument display once per second. A visible exact
 `com.byd.launchermap/com.byd.automap.meter.MeterActivity` task means the stock
 **Map** mode is active; its disappearance means the mode was left. The detector
 uses live root/display relationships and never stores a task, root, or display
@@ -137,10 +138,9 @@ Yandex Navigator 29.8.1 also contains a structured AndroidX Car App path. Its
 own projected guidance constructs a `Trip` from destination address, a
 `TravelEstimate` from remaining distance, arrival time, and remaining time,
 and a `Step` from next-road/direction-sign text, maneuver metadata, roundabout
-exit number, and lanes. That path is guarded by Yandex's Android Auto host
-certificate allowlist and is not called or bypassed by Denza Apps. The product
-bridge uses visible accessibility semantics, not OCR or private-code
-injection.
+exit number, and lanes. Yandex protects that path with an Android Auto
+host-certificate allowlist. Denza Apps leaves it untouched and reads the visible
+accessibility semantics; there is no OCR or private-code injection.
 
 On 2026-07-19 the live Yandex route exposed `56 km`, ETA `19:34`, `53 min`, a
 right turn in `20 m`, current speed `0`, and speed limit `20`. Denza Apps bound
@@ -172,8 +172,8 @@ directional image is omitted.
 
 ## Central IVI split routing
 
-The central screen's split mode is the stock BYD `byd-freeform` scene, not a
-Denza Apps overlay. On the tested firmware it contains a large left root
+The central screen uses BYD's stock `byd-freeform` split scene. On the tested
+firmware it contains a large left root
 anchored by `com.android.launcher3` at `Rect(24, 112 - 1680, 1472)` and a small
 right root anchored by `com.byd.launchermap` at
 `Rect(1704, 112 - 2536, 1472)`. Root and task IDs are runtime state and are not
@@ -197,16 +197,16 @@ the picker on the left. Both applications remained visible and interactive in
 the stock split scene.
 
 Turning the switch off moves routed non-shell tasks back to the fullscreen root
-that contains Denza Apps and restores the stock launcher/map anchors. No app is
-started by toggling the switch, and the card intentionally does not expose the
-routing details in its text.
+that contains Denza Apps and restores the stock launcher/map anchors. The toggle
+only changes routing; it does not launch an app. The card keeps this mechanism
+out of its user-facing text.
 
 Navigation and Simulcast own their task transitions independently of this
 router. Starting, projecting, returning, or stopping either feature cancels the
 short-lived picker session before issuing task commands. On 2026-07-19 this was
 live-verified with Split screen still enabled: 2GIS opened fullscreen, moved to
 the app-owned navigation display, and returned through a new fullscreen task
-without entering either stock split pane. 2GIS intentionally exits its process
+without entering either stock split pane. 2GIS exits its process
 during display changes, so navigation revalidates the task and reopens it on the
 central display when Android removes the old task.
 
@@ -217,16 +217,18 @@ SHA-256
 `6eac698da9be9009ae14b9c53acaef070fad160b53286350e27ede08c2fc9669`.
 It moves application tasks to a virtual display from a shell process. Its
 display selection looks for the first `fission`/`cluster`-like display and does
-not coordinate a map layer with side-camera overlays. No project license was
-present in the inspected APK, so OpenBYD is research input only: no decompiled
-code was copied into Denza Apps.
+not coordinate a map layer with side-camera overlays. The inspected APK
+contained no project license. We used it only to understand the approach and
+copied no decompiled code into Denza Apps.
 
-Denza Mirrors remains the stronger reference for camera geometry and central
-placement. OpenBYD is not treated as ground truth.
+Denza Mirrors remains the hardware-tested reference for camera geometry and
+central placement. OpenBYD is supporting research evidence.
 
-## Verification status and escalation alerts
+## Recorded car runs and escalation alerts
 
-Local unit tests and `:denza-apps:assembleDebug` pass. APK
+Local unit tests and `:denza-apps:assembleDebug` pass. The following hashes and
+runtime IDs identify individual acceptance runs; they are historical evidence,
+not current release metadata. APK
 `dbdabeb12811b05889ea8caff52ce19d13892be46033a50fc6b25537b96cb62e`
 was installed on the car on 2026-07-18. With **Sides** and processing enabled,
 one isolated left cycle and one isolated right cycle both opened and closed the
@@ -257,23 +259,23 @@ live detector created app-owned display `13` and projected Yandex Navigator
 task `37` in about 1.4 seconds. Switching back produced a new visible stock
 ADAS task `74`, returned task `37` to display `0`, hid it behind the unchanged
 car-settings scene, and removed display `13` in about 2.8 seconds. These task
-and display IDs are evidence from that run, not product constants. The AVC PID
+and display IDs belong to that run. The AVC PID
 remained `14737`, the crash buffer was empty, and the user confirmed both
 directions worked well.
 
-The final selectable-layout build with SHA-256
+The selectable-layout build with SHA-256
 `7fbe9ff97c9775991fbade2c42d5e5d5b0a1920ddafc46facd1372d30b67cae1`
 was installed and accepted on 2026-07-19. Center, left, and right layouts were
 visually tuned on the car. A live left-to-right button switch recreated Yandex
 Navigator task `93` first on `1023x609` display `23`, then on `1023x509`
 display `24`, both at `272 dpi`, without a separate Return/Project action.
-These task and display IDs are evidence from that run, not product constants.
-The final left-gradient build rendered task `101` on `1023x609` display `28`.
+Those task and display IDs belong to that run. The accepted left-gradient build
+rendered task `101` on `1023x609` display `28`.
 The accepted Full shade rendered task `123` on `2560x720` display `40` at
 `272 dpi`. The AVC PID remained `14737` and the crash buffer stayed empty
 throughout.
 
-Hardware-dependent behavior still awaiting acceptance:
+Hardware-dependent checks still open:
 
 - N9 rear/overhead Simulcast receivers are implemented by contract but need
   `getScreens`, accessibility-tree, and one-receiver-at-a-time captures;
@@ -285,9 +287,9 @@ Hardware-dependent behavior still awaiting acceptance:
   Denza Apps owns the AVC display surface. The persistent-Surface candidate did
   not fix it; pause-based operation remains a known compatibility limitation.
 
-Any crash in `com.byd.avc` is an escalation alert, not an automatic hard stop.
-Notify the user briefly, continue safe in-scope work, and avoid repeating the
-suspected trigger until it is isolated. Collect:
+A `com.byd.avc` crash is an escalation alert. Save the evidence, tell the user
+once, and continue safe work. Avoid repeating the same suspected trigger until
+it has been isolated. Collect:
 
 ```bash
 adb logcat -b crash -d -v time
@@ -295,8 +297,8 @@ adb logcat -d -v time | rg "Denza|PIP2MeterActivity|CompactAlertActivity|Fatal s
 ```
 
 Do not run an installed legacy Denza Mirrors monitor and the Denza Apps monitor
-at the same time. After the accepted isolated mirror scenarios were verified and
-retirement was explicitly chosen, the frozen standalone source moved to
+at the same time. After the isolated mirror scenarios passed and the standalone
+app was retired, its frozen source moved to
 `legacy/denza-mirrors` and was removed from the root Gradle build on 2026-07-19.
 Denza Apps has no source or Gradle dependency on it. The unaccepted scenarios
 listed above and the rapid side-switch limitation remain open Denza Apps work.

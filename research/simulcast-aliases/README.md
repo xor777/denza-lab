@@ -1,10 +1,9 @@
 # Simulcast aliases
 
-> PARKED / DEPRECATED (moved to `research/` on 2026-06-29). This module is no
-> longer in `settings.gradle.kts` and is not built. The `denza-apps`
-> accessibility overlay replaced it. Kept only as a reference/fallback path. To
-> build it again you must re-add `include(":simulcast-aliases:launcher")` (now
-> at `research/simulcast-aliases/launcher`) to `settings.gradle.kts`.
+> **Archived on 2026-06-29.** The Denza Apps accessibility overlay replaced this
+> module, so it was removed from `settings.gradle.kts`. To revisit the experiment,
+> add `include(":simulcast-aliases:launcher")` for
+> `research/simulcast-aliases/launcher` back to the settings file.
 
 Small launcher-only apps that occupy package names already whitelisted by
 `com.byd.dishare` for Simulcast App Change.
@@ -50,15 +49,14 @@ Current verified behavior on 2026-06-28:
   - `com.youku.car` -> `ru.yandex.music`
   - `com.qiyi.video.pad` -> `ru.rutube.app`
 - the first visible Bilibili slot is the real installed `com.bilibili.bilithings`
-  package on the test car. Do not visually label it as a Russian app unless that
-  package is deliberately replaced with an alias APK.
+  package on the test car. It can carry a Russian label only if that package is
+  replaced with an alias APK.
 - direct target shares use `1024x576`; source-only slots use `2560x1440`;
-- normal `startActivity()` fallback is intentionally disabled when the alias is
-  launched inside `BYD-Mirror`, because `MirrorContext` blocks non-whitelisted
-  packages there.
+- the alias skips its normal `startActivity()` fallback inside `BYD-Mirror`
+  because `MirrorContext` blocks non-whitelisted packages there.
 
-This is intentionally separate from `denza-gateway` and `denza-mirrors`; it is a
-Simulcast/DiShare compatibility helper.
+This experiment belongs to Simulcast/DiShare and has no dependency on the two
+legacy apps.
 
 Build (only after re-adding the module to `settings.gradle.kts`):
 
