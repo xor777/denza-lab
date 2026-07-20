@@ -142,6 +142,18 @@ exit number, and lanes. Yandex protects that path with an Android Auto
 host-certificate allowlist. Denza Apps leaves it untouched and reads the visible
 accessibility semantics; there is no OCR or private-code injection.
 
+Static inspection of the installed Yandex Navigator 29.8.1 build on 2026-07-20
+confirmed that its projected maneuver mapper reads
+`ActionMetadata.getLeaveRoundaboutMetadata().getExitNumber()` and passes that
+ordinal to AndroidX Car App. It does not set `roundaboutExitAngle`; the projected
+step receives Yandex's regular maneuver image as a separate icon. The normal
+Yandex UI also has a named `exit_number_text` accessibility view, and its own
+debug fixtures cover at least exits 1, 5, and 7. Denza Apps now reads that view
+with Russian/English instruction parsing as a fallback and draws a schematic
+roundabout: passed exits are thin branches and the target remains the prominent
+arrow. Local tests, APK build, and on-device PNG rendering passed for exits 1,
+2, 3, and 7; live road verification on a real roundabout is still pending.
+
 On 2026-07-19 the live Yandex route exposed `56 km`, ETA `19:34`, `53 min`, a
 right turn in `20 m`, current speed `0`, and speed limit `20`. Denza Apps bound
 the stock SOME/IP service, started the HUD navigation service, and published

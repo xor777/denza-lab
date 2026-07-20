@@ -73,6 +73,9 @@ final class YandexGuidanceAccessibilityReader {
         String remainingDistance = text(root, "textview_eta_distance");
         String remainingTime = text(root, "textview_eta_time");
         String eta = text(root, "textview_eta_arrival");
+        String roundaboutExitNumber = firstNonEmpty(
+                text(root, "exit_number_text"),
+                description(root, "exit_number_text"));
         return YandexGuidanceParser.parse(
                 instruction,
                 nextRoadName,
@@ -80,7 +83,8 @@ final class YandexGuidanceAccessibilityReader {
                 maneuverUnit,
                 remainingDistance,
                 remainingTime,
-                eta);
+                eta,
+                roundaboutExitNumber);
     }
 
     private static String firstNonEmpty(String... values) {

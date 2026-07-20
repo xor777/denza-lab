@@ -21,6 +21,7 @@ class YandexGuidanceParserTest {
 
         requireNotNull(guidance)
         assertEquals(HudManeuver.RIGHT, guidance.maneuver)
+        assertNull(guidance.roundaboutExitNumber)
         assertEquals("Профсоюзная улица", guidance.nextRoadName)
         assertEquals(30, guidance.maneuverDistanceMeters)
         assertEquals(56_000, guidance.remainingDistanceMeters)
@@ -52,6 +53,53 @@ class YandexGuidanceParserTest {
         assertEquals(HudManeuver.RIGHT, YandexGuidanceParser.parseManeuver("Поверните направо на Круглую улицу"))
         assertEquals(HudManeuver.STRAIGHT, YandexGuidanceParser.parseManeuver("Направляйтесь прямо"))
         assertEquals(HudManeuver.UNKNOWN, YandexGuidanceParser.parseManeuver("Take the exit"))
+    }
+
+    @Test
+    fun extractsRoundaboutExitNumberFromDedicatedViewAndInstructions() {
+        assertEquals(7, YandexGuidanceParser.parseRoundaboutExitNumber("7", "Enter the roundabout"))
+        assertEquals(2, YandexGuidanceParser.parseRoundaboutExitNumber("", "На кольце второй съезд"))
+        assertEquals(3, YandexGuidanceParser.parseRoundaboutExitNumber("", "На круговом движении 3-й съезд"))
+        assertEquals(5, YandexGuidanceParser.parseRoundaboutExitNumber("", "Take the 5th exit at the roundabout"))
+        assertEquals(8, YandexGuidanceParser.parseRoundaboutExitNumber("", "At the roundabout, take the eighth exit"))
+        assertNull(YandexGuidanceParser.parseRoundaboutExitNumber("", "Через 300 м въезжайте на кольцо"))
+    }
+
+    @Test
+    fun carriesExitNumberOnlyForRoundaboutManeuvers() {
+        val roundabout = YandexGuidanceParser.parse(
+            instruction = "На кольце третий съезд",
+            nextRoadName = "",
+            maneuverDistance = "120",
+            maneuverUnit = "м",
+            remainingDistance = "",
+            remainingTime = "",
+            eta = "",
+            roundaboutExitNumber = "",
+        )
+        val regularTurn = YandexGuidanceParser.parse(
+            instruction = "Поверните направо",
+            nextRoadName = "",
+            maneuverDistance = "120",
+            maneuverUnit = "м",
+            remainingDistance = "",
+            remainingTime = "",
+            eta = "",
+            roundaboutExitNumber = "4",
+        )
+
+        assertEquals(3, requireNotNull(roundabout).roundaboutExitNumber)
+        assertNull(requireNotNull(regularTurn).roundaboutExitNumber)
+    }
+
+    @Test
+    fun schematicRoundaboutShowsPassedExitsWithoutAssumingTheirAngles() {
+        assertEquals(0, HudSomeIpClient.schematicPassedExitCount(null))
+        assertEquals(0, HudSomeIpClient.schematicPassedExitCount(1))
+        assertEquals(1, HudSomeIpClient.schematicPassedExitCount(2))
+        assertEquals(2, HudSomeIpClient.schematicPassedExitCount(3))
+        assertEquals(6, HudSomeIpClient.schematicPassedExitCount(7))
+        assertEquals(11, HudSomeIpClient.schematicPassedExitCount(20))
     }
 
     @Test
@@ -103,6 +151,7 @@ class YandexGuidanceParserTest {
     fun formatsRouteDistanceForHudSummary() {
         val routeOnly = HudGuidance(
             maneuver = HudManeuver.RIGHT,
+            roundaboutExitNumber = null,
             instruction = "Поверните направо",
             nextRoadName = "",
             maneuverDistanceMeters = 30,

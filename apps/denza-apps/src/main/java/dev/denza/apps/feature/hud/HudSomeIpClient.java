@@ -18,7 +18,7 @@ import android.util.Log;
 
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
-import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 
@@ -38,7 +38,8 @@ final class HudSomeIpClient {
 
     private final Context context;
     private final Handler handler = new Handler(Looper.getMainLooper());
-    private final Map<HudManeuver, byte[]> iconCache = new EnumMap<>(HudManeuver.class);
+    private static final int MAX_SCHEMATIC_ROUNDABOUT_EXIT = 12;
+    private final Map<String, byte[]> iconCache = new HashMap<>();
     private final Runnable shutdownRunnable = this::stopAndUnbind;
     private IBinder binder;
     private boolean bound;
@@ -151,10 +152,11 @@ final class HudSomeIpClient {
     }
 
     private void fireGuidance(HudGuidance guidance) {
-        byte[] icon = iconCache.get(guidance.getManeuver());
+        String iconKey = guidance.getManeuver().name() + ":" + guidance.getRoundaboutExitNumber();
+        byte[] icon = iconCache.get(iconKey);
         if (icon == null) {
-            icon = renderIcon(guidance.getManeuver());
-            iconCache.put(guidance.getManeuver(), icon);
+            icon = renderIcon(guidance.getManeuver(), guidance.getRoundaboutExitNumber());
+            iconCache.put(iconKey, icon);
         }
         int result = fire(TOPIC_HUD_ROAD, buildPayload(false, guidance, ++counter, icon));
         if (result == 0) {
@@ -163,6 +165,7 @@ final class HudSomeIpClient {
                     + " route=" + guidance.getRemainingDistanceMeters()
                     + "m/" + guidance.getRemainingTimeSeconds() + "s"
                     + " eta=" + guidance.getEta()
+                    + " roundaboutExit=" + guidance.getRoundaboutExitNumber()
                     + " road=" + guidance.getNextRoadName());
         } else {
             Log.w(TAG, "publish ret=" + result);
@@ -269,7 +272,7 @@ final class HudSomeIpClient {
         return Math.round(meters / 1000.0) + " км";
     }
 
-    private static byte[] renderIcon(HudManeuver maneuver) {
+    static byte[] renderIcon(HudManeuver maneuver, Integer roundaboutExitNumber) {
         if (maneuver == HudManeuver.UNKNOWN) {
             return new byte[0];
         }
@@ -301,6 +304,7 @@ final class HudSomeIpClient {
         } else if (maneuver == HudManeuver.ROUNDABOUT_LEFT || maneuver == HudManeuver.ROUNDABOUT_RIGHT) {
             canvas.drawArc(48f, 42f, 144f, 138f, 70f, 285f, false, paint);
             canvas.drawLine(96f, 164f, 96f, 138f, paint);
+            drawPassedRoundaboutExits(canvas, paint, roundaboutExitNumber);
             canvas.drawLine(132f, 58f, 158f, 36f, paint);
             drawArrow(canvas, paint, 164f, 30f, -38f);
         } else if (maneuver == HudManeuver.SLIGHT_LEFT || maneuver == HudManeuver.SLIGHT_RIGHT) {
@@ -325,6 +329,45 @@ final class HudSomeIpClient {
         bitmap.compress(Bitmap.CompressFormat.PNG, 100, output);
         bitmap.recycle();
         return output.toByteArray();
+    }
+
+    private static void drawPassedRoundaboutExits(
+            Canvas canvas,
+            Paint maneuverPaint,
+            Integer exitNumber) {
+        int passedExits = schematicPassedExitCount(exitNumber);
+        if (passedExits == 0) {
+            return;
+        }
+        Paint branchPaint = new Paint(maneuverPaint);
+        branchPaint.setStrokeWidth(exitNumber != null && exitNumber > 8 ? 7f : 9f);
+        final float centerX = 96f;
+        final float centerY = 90f;
+        final float innerRadius = 54f;
+        final float outerRadius = 72f;
+        final float entryAngle = 90f;
+        final float targetAngle = 318f;
+        int schematicExitNumber = passedExits + 1;
+        for (int index = 1; index <= passedExits; index++) {
+            float angle = entryAngle
+                    + (targetAngle - entryAngle) * index / schematicExitNumber;
+            double radians = Math.toRadians(angle);
+            float cosine = (float) Math.cos(radians);
+            float sine = (float) Math.sin(radians);
+            canvas.drawLine(
+                    centerX + innerRadius * cosine,
+                    centerY + innerRadius * sine,
+                    centerX + outerRadius * cosine,
+                    centerY + outerRadius * sine,
+                    branchPaint);
+        }
+    }
+
+    static int schematicPassedExitCount(Integer exitNumber) {
+        if (exitNumber == null || exitNumber <= 1) {
+            return 0;
+        }
+        return Math.min(exitNumber, MAX_SCHEMATIC_ROUNDABOUT_EXIT) - 1;
     }
 
     static boolean shouldMirrorIcon(HudManeuver maneuver) {

@@ -20,6 +20,7 @@ enum class HudManeuver(val stockId: Int) {
 
 data class HudGuidance(
     val maneuver: HudManeuver,
+    val roundaboutExitNumber: Int?,
     val instruction: String,
     val nextRoadName: String,
     val maneuverDistanceMeters: Int,
@@ -40,13 +41,20 @@ object YandexGuidanceParser {
         remainingDistance: String?,
         remainingTime: String?,
         eta: String?,
+        roundaboutExitNumber: String? = null,
     ): HudGuidance? {
         val cleanInstruction = instruction.clean()
         if (cleanInstruction.isEmpty()) return null
         val distanceMeters = parseDistance(maneuverDistance.clean(), maneuverUnit.clean())
             ?: return null
+        val maneuver = parseManeuver(cleanInstruction)
         return HudGuidance(
-            maneuver = parseManeuver(cleanInstruction),
+            maneuver = maneuver,
+            roundaboutExitNumber = if (maneuver.isRoundabout()) {
+                parseRoundaboutExitNumber(roundaboutExitNumber.clean(), cleanInstruction)
+            } else {
+                null
+            },
             instruction = cleanInstruction,
             nextRoadName = nextRoadName.clean(),
             maneuverDistanceMeters = distanceMeters,
@@ -116,12 +124,45 @@ object YandexGuidanceParser {
         return if (hours == 0 && minutes == 0) null else hours * 3600 + minutes * 60
     }
 
+    @JvmStatic
+    fun parseRoundaboutExitNumber(explicitValue: String, instruction: String): Int? {
+        POSITIVE_INTEGER.find(explicitValue.clean())
+            ?.groupValues
+            ?.getOrNull(1)
+            ?.toIntOrNull()
+            ?.takeIf { it > 0 }
+            ?.let { return it }
+
+        val value = instruction.lowercase(Locale.ROOT)
+            .replace('ё', 'е')
+            .replace(UNICODE_DASHES, "-")
+        ROUNDABOUT_EXIT_NUMBER_PATTERNS.forEach { pattern ->
+            pattern.find(value)
+                ?.groupValues
+                ?.drop(1)
+                ?.firstOrNull { it.isNotEmpty() }
+                ?.toIntOrNull()
+                ?.takeIf { it > 0 }
+                ?.let { return it }
+        }
+        ROUNDABOUT_EXIT_WORDS.forEach { (pattern, number) ->
+            if (pattern.containsMatchIn(value)) {
+                return number
+            }
+        }
+        return null
+    }
+
+    private fun HudManeuver.isRoundabout(): Boolean =
+        this == HudManeuver.ROUNDABOUT_LEFT || this == HudManeuver.ROUNDABOUT_RIGHT
+
     private fun String?.clean(): String = this.orEmpty()
         .replace('\u00a0', ' ')
         .trim()
         .replace(WHITESPACE, " ")
 
     private val NUMBER = Regex("[0-9]+(?:[.,][0-9]+)?")
+    private val POSITIVE_INTEGER = Regex("(?:^|[^0-9])([0-9]+)(?=$|[^0-9])")
     private val HOURS = Regex("([0-9]+)\\s*(?:ч|час(?:а|ов)?|h|hr|hrs|hour|hours)(?=\\s|$)")
     private val MINUTES = Regex("([0-9]+)\\s*(?:мин(?:ут[аы]?)?|min|mins|minute|minutes|m)(?=\\s|$)")
     private val WHITESPACE = Regex("\\s+")
@@ -130,6 +171,24 @@ object YandexGuidanceParser {
     private val RIGHT_ADJECTIVE = Regex("(?:^|[^\\p{L}])прав(?:ый|ая|ое|ые|ого|ой|ую|ом|ых|ым|ыми)(?=$|[^\\p{L}])")
     private val ROUNDABOUT_RUSSIAN = Regex(
         "(?:^|[^\\p{L}])(?:круг(?:ов\\p{L}*|а|е|у|ом)?|кольц(?:о|а|е|у|ом)|кольцев\\p{L}*\\s+движен\\p{L}*)(?=$|[^\\p{L}])",
+    )
+    private val ROUNDABOUT_EXIT_NUMBER_PATTERNS = listOf(
+        Regex("([0-9]+)(?:-й|-ый|-ой|й|ый|ой)?\\s*(?:съезд|выезд)"),
+        Regex("(?:съезд|выезд)\\s*(?:номер\\s*|#\\s*)?([0-9]+)"),
+        Regex("([0-9]+)(?:st|nd|rd|th)?\\s+exit"),
+        Regex("exit\\s*(?:number\\s*|#\\s*)?([0-9]+)"),
+    )
+    private val ROUNDABOUT_EXIT_WORDS = listOf(
+        Regex("перв(?:ый|ом|ого|ому|ым)\\s+(?:съезд|выезд)|first\\s+exit") to 1,
+        Regex("втор(?:ой|ом|ого|ому|ым)\\s+(?:съезд|выезд)|second\\s+exit") to 2,
+        Regex("трет(?:ий|ьем|ьего|ьему|ьим)\\s+(?:съезд|выезд)|third\\s+exit") to 3,
+        Regex("четверт(?:ый|ом|ого|ому|ым)\\s+(?:съезд|выезд)|fourth\\s+exit") to 4,
+        Regex("пят(?:ый|ом|ого|ому|ым)\\s+(?:съезд|выезд)|fifth\\s+exit") to 5,
+        Regex("шест(?:ой|ом|ого|ому|ым)\\s+(?:съезд|выезд)|sixth\\s+exit") to 6,
+        Regex("седьм(?:ой|ом|ого|ому|ым)\\s+(?:съезд|выезд)|seventh\\s+exit") to 7,
+        Regex("восьм(?:ой|ом|ого|ому|ым)\\s+(?:съезд|выезд)|eighth\\s+exit") to 8,
+        Regex("девят(?:ый|ом|ого|ому|ым)\\s+(?:съезд|выезд)|ninth\\s+exit") to 9,
+        Regex("десят(?:ый|ом|ого|ому|ым)\\s+(?:съезд|выезд)|tenth\\s+exit") to 10,
     )
 }
 
