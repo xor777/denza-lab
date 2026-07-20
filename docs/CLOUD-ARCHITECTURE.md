@@ -57,6 +57,9 @@ ADB 5037/5555 <- sshd 127.0.0.1:2222 <- SSH -R -> 127.0.0.1:device-port <- SSH -
 
 `ops/ansible` configures stock OpenSSH and the commands in `platform/relay/`.
 Port 22 remains the administrative endpoint; port 443 serves the application.
+The administrator web UI listens only on relay loopback port `8787` and is
+reachable through an SSH local-forward on port 22. It has no public listener or
+second login prompt.
 
 ### 3.1 Restricted Accounts
 
@@ -68,6 +71,7 @@ Port 22 remains the administrative endpoint; port 443 serves the application.
 | `cag-pair` | A vehicle pairing code through PAM | Forwarding disabled; forced staging command only. |
 | `cag-control` | A vehicle public key | Forwarding disabled; the per-key forced command is restricted to its device ID. |
 | `cag-authkeys` | No SSH login | Reads state for `AuthorizedKeysCommand`. |
+| `cag-web` | No SSH login | Calls only the allow-listed `cag-admin` operations through sudo; it cannot read or write state directly. |
 
 TTY, shell, X11, agent forwarding, tunnel devices, user RC files, and Unix
 socket forwarding are disabled. The control key stays registered while access
@@ -81,8 +85,10 @@ can delete an expired record or change data holds
 `/opt/cag/state/locks/state.lock` through `flock`; writes use fsync and an atomic
 rename.
 
-State schema v2 includes vehicles, separate tunnel and control keys, 14-day
-leases, client public keys, active grants, pending replacements, and codes.
+State schema v3 includes vehicles, separate tunnel and control keys, 14-day
+leases, client public keys, active grants, pending replacements, and codes. An
+enrollment code may carry one administrator-supplied vehicle label; existing
+v1/v2 state migrates automatically.
 `AuthorizedKeysCommand` takes a shared read lock and never runs cleanup or
 writes state. Mutations take an exclusive lock, validate the full schema and
 cross-record invariants, fsync the new file, atomically rename it, and fsync the
@@ -110,14 +116,31 @@ and unreferenced client keys. Ports from `20000..65535` are then reusable.
 An administrator creates the initial invite with:
 
 ```bash
-sudo cag-admin invite
+sudo cag-admin invite --label "Ivan - Denza N9"
 sudo cag-admin list
 sudo cag-admin status DEVICE_ID
+sudo cag-admin rename DEVICE_ID "Ivan - N9, black"
 sudo cag-admin remove DEVICE_ID
 sudo cag-admin doctor
 ```
 
-### 3.3 Two-Phase Computer Replacement
+### 3.3 Administrator Web UI
+
+The panel is a convenience layer over the same commands. It is installed and
+verified only through Ansible. The administrator opens a local tunnel and then
+visits `http://127.0.0.1:8787`:
+
+```bash
+ssh -N -L 8787:127.0.0.1:8787 adbgw.ru
+```
+
+The page shows the editable vehicle label, current reverse-tunnel listener,
+enabled state, lease deadline, and trusted computer. `Online` means only that
+the assigned loopback listener currently exists; it is not persisted and does
+not add a heartbeat. Removal requires typing the current label and still uses
+the normal cascading `cag-admin remove` path.
+
+### 3.4 Two-Phase Computer Replacement
 
 A vehicle has one trusted computer and one active inner SSH session
 ([CAG-004](CAR-ADB-GATEWAY-DECISIONS.md#cag-004)). Replacement preserves the old

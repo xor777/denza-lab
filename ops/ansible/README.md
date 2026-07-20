@@ -27,14 +27,14 @@ files, PAM, SSH, firewall, and verification. It only initializes
 vehicles, pairing requests, and grants remain mutable runtime state managed by
 `cag-state` and are never replaced by a playbook rerun.
 
-After configuration, create a single-use invite code. Its default lifetime is
-60 minutes:
+After configuration, create a labeled single-use invite code. Its default
+lifetime is 60 minutes:
 
 ```bash
-ssh adbgw.ru sudo cag-admin invite
+ssh adbgw.ru sudo cag-admin invite --label "Ivan - Denza N9"
 ```
 
-Enrollment, pairing, and grant state is stored atomically in schema v2 at
+Enrollment, pairing, and grant state is stored atomically in schema v3 at
 `/opt/cag/state/state.json`. Read-only authorization uses a shared lock; changes
 use an exclusive lock. `cag-authkeys` has ACL read access but is not in the
 writable state group. OpenSSH per-source penalties and fail2ban (`5` attempts in
@@ -47,14 +47,30 @@ daily, and `cag-gc.timer` removes expired registrations and unreferenced client
 keys hourly. A disabled vehicle is also forgotten after 14 days. Runtime devices,
 codes, and grants never belong in Ansible variables.
 
+For routine administration, open an SSH local-forward and visit
+`http://127.0.0.1:8787`:
+
+```bash
+ssh -N -L 8787:127.0.0.1:8787 adbgw.ru
+```
+
+The panel is bound only to relay loopback and uses the administrator SSH key as
+its access boundary. No firewall rule or separate web password is required.
+`Online` means that the assigned reverse-forward listener currently exists;
+`enabled` is the persisted access switch, and the lease is the automatic
+removal deadline.
+
 ```bash
 # one-time enrollment code
-ssh adbgw.ru sudo cag-admin invite
+ssh adbgw.ru sudo cag-admin invite --label "Ivan - Denza N9"
 
 # inspect current state
 ssh adbgw.ru sudo cag-admin list
 ssh adbgw.ru sudo cag-admin status DEVICE_ID
 ssh adbgw.ru sudo cag-admin doctor
+
+# update the human-readable relay label
+ssh adbgw.ru sudo cag-admin rename DEVICE_ID "Ivan - N9, black"
 
 # emergency revoke; active device/client SSH sessions are recycled automatically
 ssh adbgw.ru sudo cag-admin remove DEVICE_ID
@@ -64,6 +80,10 @@ The hourly timer handles routine cleanup. Rotate keys for re-enrollment,
 computer replacement, an incident, or a planned relay host-key change. Relay
 host-key rotation is additive: ship the new pin to Android and the CLI before
 switching the server key.
+
+The CLI remains the recovery and automation interface. Never install or edit
+the web service, sudoers policy, or systemd unit manually; rerun
+`playbooks/relay-host.yml` instead.
 
 ## Provision a New VPS
 
