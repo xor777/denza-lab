@@ -28,7 +28,7 @@ may still use the historical `denza-gateway` directory name.
 | `platform/relay/` | Car ADB Gateway relay state engine and restricted SSH/PAM commands. | Deploy only through `ops/ansible`; state updates must remain locked, atomic, and idempotent. |
 | `platform/cli/` | Cross-platform `cag` developer CLI for macOS/Linux. | Do not edit user SSH config; keep relay and vehicle host-key pinning strict. |
 | `ops/ansible/` | Repeatable relay host provisioning and verification. | Never place private keys/passwords in inventory; verify before any live deploy. |
-| `tools/` | Host-side scripts for one-off live experiments. | Scripts are not production paths until promoted through `docs/governance.md`. |
+| `tools/` | Host-side scripts for one-off live experiments, including isolated FSE cross-device probes. | Scripts are not production paths until promoted through `docs/governance.md`. Passenger-screen findings belong in `docs/fse-app-installation.md`. |
 | `research/` | Code that is not built into product APKs (parked experiments, deprecated modules). | Keep failed or permission-blocked probes here, not in app source. Includes `research/simulcast-aliases/` (deprecated) and `research/vehicle-events/` (parked probe). |
 | `reverse/` | Local reverse-engineering input/output, often large. | APKs and extracted binaries must stay untracked. |
 

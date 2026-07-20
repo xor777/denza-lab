@@ -31,11 +31,29 @@ Current scripts:
   on another display for at most 30 seconds. It does not call AVC AIDL, removes
   the layer on exit, and must remain a live-car probe until its z-order, copied
   controls, and black-output limitations are resolved.
+- `fse_cross_device_probe.sh`: builds an isolated normal-UID APK and performs a
+  read-only query of the stock `BYDCrossDevice` API for the passenger-screen IP
+  and IVI/FSE online state. Set `ADB_SERIAL` when using a tunnel.
+- `fse_cross_message_probe.sh`: builds an isolated normal-UID APK and publishes
+  one caller-supplied JSON message on BYD cross feature `-13631467`. This is a
+  mutating research tool: inspect the JSON before running it. The verified APK
+  installation message and rollback notes live in
+  `docs/fse-app-installation.md`.
+- `fse_upgrade_info_probe.sh`: read-only shell-UID probe for the stock
+  `upgrade_server` Binder. It requests only connection, version, and platform
+  information; package transfer and upgrade commands are intentionally absent.
+- `fse_voice_command_probe.sh`: isolated client for the exported AutoVoice test
+  input. It can exercise stock voice commands, but it is not a reliable launcher
+  for arbitrary passenger-screen apps; the AIMP test opened the IVI app list.
+
+The small JSON files under `fse-apk-wallpaper/` are the exact live-tested FSE
+resource metadata for AIMP and Yandex Navigator. They do not contain APKs. Never
+stage or commit the APK payloads themselves.
 
 When adding a tool, include:
 
 - expected ADB serial or tunnel;
 - exact scenario it tests;
 - known side effects;
-- whether the result should update `docs/instrument-display-findings.md` or
-  `docs/dishare-api-notes.md`.
+- whether the result should update `docs/instrument-display-findings.md`,
+  `docs/dishare-api-notes.md`, or `docs/fse-app-installation.md`.

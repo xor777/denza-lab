@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="dev.denza.tools.fsecrossprobe">
+    <uses-sdk android:minSdkVersion="26" android:targetSdkVersion="27" />
+    <uses-permission android:name="android.permission.INTERNET" />
+    <application
+        android:label="FSE cross-device probe"
+        android:theme="@android:style/Theme.Translucent.NoTitleBar">
+        <activity
+            android:name="dev.denza.tools.FseCrossDeviceProbe"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:noHistory="true" />
+    </application>
+</manifest>

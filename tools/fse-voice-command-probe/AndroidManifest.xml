@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="dev.denza.tools.fsevoiceprobe">
+    <uses-sdk android:minSdkVersion="26" android:targetSdkVersion="31" />
+    <uses-permission android:name="com.android.permission.BYD_AUTO_MATED_TEST" />
+    <queries>
+        <package android:name="com.byd.autovoice" />
+    </queries>
+    <application
+        android:label="FSE voice probe"
+        android:theme="@android:style/Theme.Translucent.NoTitleBar">
+        <activity
+            android:name="dev.denza.tools.FseVoiceCommandProbe"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:noHistory="true" />
+    </application>
+</manifest>

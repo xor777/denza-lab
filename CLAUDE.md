@@ -25,6 +25,7 @@ still use the historical `denza-gateway` directory name.
   where experiments live, promotion checklist, live-car debugging rules.
 - [docs/instrument-display-findings.md](docs/instrument-display-findings.md) — cluster scene, Mirrors, and navigation status.
 - [docs/dishare-api-notes.md](docs/dishare-api-notes.md) — DiShare/HUD findings.
+- [docs/fse-app-installation.md](docs/fse-app-installation.md) — verified passenger-screen app installation path.
 
 ## Modules
 

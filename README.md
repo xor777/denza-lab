@@ -258,6 +258,7 @@ computer's normal ADB key. Approve it at the vehicle before retrying the command
 - [Car ADB Gateway decisions](docs/CAR-ADB-GATEWAY-DECISIONS.md) — ADR-lite rationale and evidence.
 - [Instrument-display findings](docs/instrument-display-findings.md) — display selection, Mirrors, navigation, evidence, and limitations.
 - [DiShare API notes](docs/dishare-api-notes.md) — Simulcast and HUD reverse-engineering notes.
+- [FSE app installation](docs/fse-app-installation.md) — verified SMB and cross-device path for passenger-screen APKs.
 
 Code, manifests, and Gradle files remain the source of truth for current
 behavior. Documentation records direction and verified evidence; it should not
