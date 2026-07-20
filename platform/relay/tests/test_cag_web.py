@@ -237,11 +237,23 @@ class DashboardServiceTest(unittest.TestCase):
         self.assertTrue(removed["removed"])
         self.assertEqual(
             [
-                ("invite", ("--label", "Ivan - N9", "--ttl", "3600")),
+                ("invite", ("--label=Ivan - N9", "--ttl", "3600")),
                 ("rename", (DEVICE_ID, "Ivan - black N9")),
                 ("status", (DEVICE_ID,)),
                 ("remove", (DEVICE_ID,)),
             ],
+            admin.calls,
+        )
+
+    def test_invite_treats_a_leading_dash_label_as_data(self):
+        admin = FakeAdmin()
+        service = DashboardService(admin, FakeProbe(set()))
+
+        result = service.invite("-служебная машина", 3_600)
+
+        self.assertEqual("-служебная машина", result["label"])
+        self.assertEqual(
+            [("invite", ("--label=-служебная машина", "--ttl", "3600"))],
             admin.calls,
         )
 
@@ -307,6 +319,44 @@ class CagWebAppTest(unittest.TestCase):
         self.assertIn("script-src 'nonce-", response.headers["Content-Security-Policy"])
         self.assertEqual("DENY", response.headers["X-Frame-Options"])
         self.assertEqual("no-store", response.headers["Cache-Control"])
+
+    def test_invite_dialog_uses_native_form_semantics_and_neutral_copy(self):
+        html = self.request("GET", "/").body.decode()
+
+        self.assertNotIn("Доступ только через SSH-туннель", html)
+        self.assertIn('placeholder="Например, основная машина"', html)
+        self.assertNotIn('placeholder="Иван — Denza N9"', html)
+        self.assertIn('<form id="invite-form" method="dialog"', html)
+        self.assertIn('id="invite-error"', html)
+        self.assertIn(
+            '<button id="cancel-invite" type="button" class="secondary">Отмена</button>',
+            html,
+        )
+        self.assertIn(
+            '<button id="create-invite" type="submit" class="primary">Создать код</button>',
+            html,
+        )
+        self.assertIn("inviteForm.onsubmit=async event=>", html)
+        self.assertNotIn("getElementById('create-invite').onclick", html)
+
+    def test_invite_dialog_guards_repeats_and_reports_local_errors(self):
+        html = self.request("GET", "/").body.decode()
+
+        self.assertIn("let invitePending=false", html)
+        self.assertIn("if(invitePending)return", html)
+        self.assertIn("setInvitePending(true)", html)
+        self.assertIn("setInvitePending(false)", html)
+        self.assertIn("inviteError.textContent=error.message", html)
+        self.assertIn("inviteError.style.display='block'", html)
+        self.assertIn("finally{setInvitePending(false);}", html)
+
+    def test_async_actions_handle_copy_failures_and_disable_the_clicked_button(self):
+        html = self.request("GET", "/").body.decode()
+
+        self.assertIn("async function copyInviteCode()", html)
+        self.assertIn("Код не удалось скопировать", html)
+        self.assertIn("button.disabled=true", html)
+        self.assertIn("finally{button.disabled=false;}", html)
 
     def test_health_and_api_dashboard_are_json(self):
         health = self.request("GET", "/healthz")

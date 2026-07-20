@@ -27,7 +27,7 @@ case "${1:-}" in
     ;;
   rename)
     [ "$#" -eq 3 ] || exit 2
-    exec /opt/cag/cag-state rename-device "$2" "$3"
+    exec /opt/cag/cag-state rename-device -- "$2" "$3"
     ;;
   doctor)
     [ "$#" -eq 1 ] || exit 2

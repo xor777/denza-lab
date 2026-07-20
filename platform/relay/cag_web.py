@@ -223,8 +223,7 @@ class DashboardService:
         result = require_mapping(
             self.admin.call(
                 "invite",
-                "--label",
-                normalized,
+                f"--label={normalized}",
                 "--ttl",
                 str(ttl_seconds),
             )
@@ -544,17 +543,21 @@ def render_dashboard(data: Mapping[str, Any], csrf_token: str, nonce: str) -> st
 </head>
 <body>
 <main>
-  <header><div><h1>Relay admin</h1><div class="muted">Доступ только через SSH-туннель</div></div><button id="add" class="primary">Добавить машину</button></header>
+  <header><h1>Relay admin</h1><button id="add" class="primary">Добавить машину</button></header>
   <div id="alert" class="alert" role="alert"></div>
   <section class="summary"><span id="health" class="badge {health_class}">{health_text}</span><span id="counts" class="muted">Машин: {doctor['devices']}</span><span id="updated" class="muted"></span></section>
   <section class="panel"><table><thead><tr><th>Машина</th><th>Связь</th><th>Доступ</th><th>Lease</th><th>Компьютер</th><th></th></tr></thead><tbody id="devices">{rows}</tbody></table><div id="empty" class="empty" {'hidden' if devices else ''}>Зарегистрированных машин пока нет</div></section>
 </main>
-<dialog id="invite"><form method="dialog" class="dialog-body"><h2>Добавить машину</h2><label class="field">Название<input id="invite-label" maxlength="80" required placeholder="Иван — Denza N9"></label><label class="field">Код действует<select id="invite-ttl"><option value="900">15 минут</option><option value="3600" selected>60 минут</option><option value="86400">24 часа</option></select></label><div class="dialog-actions"><button value="cancel" class="secondary">Отмена</button><button id="create-invite" value="default" class="primary">Создать код</button></div></form></dialog>
-<dialog id="result"><div class="dialog-body"><h2>Код подключения</h2><div id="result-label" class="muted"></div><code id="result-code" class="code"></code><div id="result-expiry" class="muted"></div><div class="dialog-actions"><button id="copy-code" class="secondary">Копировать</button><button id="close-result" class="primary">Закрыть</button></div></div></dialog>
+<dialog id="invite"><form id="invite-form" method="dialog" class="dialog-body"><h2>Добавить машину</h2><div id="invite-error" class="alert" role="alert"></div><label class="field">Название<input id="invite-label" maxlength="80" required placeholder="Например, основная машина"></label><label class="field">Код действует<select id="invite-ttl"><option value="900">15 минут</option><option value="3600" selected>60 минут</option><option value="86400">24 часа</option></select></label><div class="dialog-actions"><button id="cancel-invite" type="button" class="secondary">Отмена</button><button id="create-invite" type="submit" class="primary">Создать код</button></div></form></dialog>
+<dialog id="result"><div class="dialog-body"><h2>Код подключения</h2><div id="result-label" class="muted"></div><code id="result-code" class="code"></code><div id="result-expiry" class="muted"></div><div id="result-message" class="muted" role="status"></div><div class="dialog-actions"><button id="copy-code" type="button" class="secondary">Копировать</button><button id="close-result" type="button" class="primary">Закрыть</button></div></div></dialog>
 <dialog id="details"><div class="dialog-body"><h2 id="details-title">Детали машины</h2><dl id="details-list"></dl><div class="dialog-actions"><button id="close-details" class="primary">Закрыть</button></div></div></dialog>
 <script nonce="{nonce}">
 const csrf=document.querySelector('meta[name="cag-csrf"]').content;
 const tbody=document.getElementById('devices'), alertBox=document.getElementById('alert');
+const inviteDialog=document.getElementById('invite'), inviteForm=document.getElementById('invite-form'), inviteError=document.getElementById('invite-error');
+const createInvite=document.getElementById('create-invite'), cancelInvite=document.getElementById('cancel-invite');
+const resultDialog=document.getElementById('result'), resultMessage=document.getElementById('result-message');
+let invitePending=false;
 function el(tag,text,cls){{const node=document.createElement(tag);if(text!==undefined)node.textContent=text;if(cls)node.className=cls;return node;}}
 function leaseText(epoch){{const ms=epoch*1000-Date.now();if(ms<=0)return 'истёк';const hours=Math.ceil(ms/3600000);return hours<48?`${{hours}} ч`:`${{Math.ceil(hours/24)}} д`;}}
 function statusText(value){{return value==='online'?'На связи':value==='offline'?'Не подключена':'Неизвестно';}}
@@ -570,12 +573,19 @@ function render(data){{tbody.replaceChildren(...data.devices.map(row));document.
 async function api(path,options={{}}){{const response=await fetch(path,options);const data=await response.json();if(!response.ok)throw new Error(data.error||'Ошибка relay');return data;}}
 async function mutate(path,body){{return api(path,{{method:'POST',headers:{{'Content-Type':'application/json','X-CAG-CSRF':csrf}},body:JSON.stringify(body)}});}}
 function showError(error){{alertBox.textContent=error.message;alertBox.style.display='block';}} function clearError(){{alertBox.style.display='none';}}
+function clearInviteError(){{inviteError.textContent='';inviteError.style.display='none';}}
+function showInviteError(error){{inviteError.textContent=error.message;inviteError.style.display='block';}}
+function setInvitePending(value){{invitePending=value;createInvite.disabled=value;cancelInvite.disabled=value;}}
 async function refresh(){{if(document.hidden||document.querySelector('dialog[open]'))return;try{{render(await api('/api/dashboard'));clearError();}}catch(error){{showError(error);}}}}
-document.getElementById('add').onclick=()=>document.getElementById('invite').showModal();
-document.getElementById('create-invite').onclick=async event=>{{event.preventDefault();const label=document.getElementById('invite-label').value;const ttl=Number(document.getElementById('invite-ttl').value);try{{const data=await mutate('/api/invites',{{label,ttl_seconds:ttl}});document.getElementById('invite').close();document.getElementById('result-label').textContent=data.label;document.getElementById('result-code').textContent=data.code;document.getElementById('result-expiry').textContent=`Действует до ${{new Date(data.expires_at*1000).toLocaleString('ru-RU')}}`;document.getElementById('result').showModal();clearError();}}catch(error){{showError(error);}}}};
-document.getElementById('copy-code').onclick=()=>navigator.clipboard.writeText(document.getElementById('result-code').textContent);
-document.getElementById('close-result').onclick=()=>document.getElementById('result').close();document.getElementById('close-details').onclick=()=>document.getElementById('details').close();
-tbody.onclick=async event=>{{const button=event.target.closest('button[data-action]');if(!button)return;const tr=button.closest('tr'),id=tr.dataset.deviceId,label=tr.dataset.label;try{{if(button.dataset.action==='rename'){{const next=prompt('Новое название машины',label);if(next!==null){{await mutate(`/api/devices/${{id}}/rename`,{{label:next}});await refresh();}}}}else if(button.dataset.action==='remove'){{const confirmLabel=prompt(`Для удаления введите название: ${{label}}`,'');if(confirmLabel!==null){{await mutate(`/api/devices/${{id}}/remove`,{{confirm_label:confirmLabel}});await refresh();}}}}else{{const data=await api(`/api/devices/${{id}}`);document.getElementById('details-title').textContent=data.label;const fields=[['Device ID',data.device_id],['Relay port',data.relay_port],['Endpoint',`${{data.endpoint_mode||'unknown'}} ${{data.endpoint_host||''}}`],['Online',statusText(data.online_status)],['Enabled',data.enabled?'Да':'Нет'],['Lease',new Date(data.lease_expires_at*1000).toLocaleString('ru-RU')],['Активный компьютер',data.active_client_label||'—'],['Fingerprint',data.active_client_fingerprint||'—'],['Pending',data.pending_client_label||'—']];const dl=document.getElementById('details-list');dl.replaceChildren(...fields.flatMap(([k,v])=>[el('dt',k),el('dd',String(v))]));document.getElementById('details').showModal();}}clearError();}}catch(error){{showError(error);}}}};
+document.getElementById('add').onclick=()=>{{inviteForm.reset();clearInviteError();inviteDialog.showModal();}};
+cancelInvite.onclick=()=>{{if(!invitePending)inviteDialog.close('cancel');}};
+inviteDialog.oncancel=event=>{{if(invitePending)event.preventDefault();}};
+inviteForm.onsubmit=async event=>{{event.preventDefault();if(invitePending)return;const label=document.getElementById('invite-label').value;const ttl=Number(document.getElementById('invite-ttl').value);clearInviteError();setInvitePending(true);try{{const data=await mutate('/api/invites',{{label,ttl_seconds:ttl}});inviteDialog.close('created');document.getElementById('result-label').textContent=data.label;document.getElementById('result-code').textContent=data.code;document.getElementById('result-expiry').textContent=`Действует до ${{new Date(data.expires_at*1000).toLocaleString('ru-RU')}}`;resultMessage.textContent='';resultDialog.showModal();clearError();}}catch(error){{showInviteError(error);}}finally{{setInvitePending(false);}}}};
+async function copyInviteCode(){{try{{await navigator.clipboard.writeText(document.getElementById('result-code').textContent);resultMessage.textContent='Код скопирован';}}catch(error){{resultMessage.textContent='Код не удалось скопировать';}}}}
+document.getElementById('copy-code').onclick=copyInviteCode;
+document.getElementById('close-result').onclick=()=>resultDialog.close();document.getElementById('close-details').onclick=()=>document.getElementById('details').close();
+resultDialog.addEventListener('close',()=>{{document.getElementById('result-code').textContent='';resultMessage.textContent='';}});
+tbody.onclick=async event=>{{const button=event.target.closest('button[data-action]');if(!button||button.disabled)return;const tr=button.closest('tr'),id=tr.dataset.deviceId,label=tr.dataset.label;button.disabled=true;try{{if(button.dataset.action==='rename'){{const next=prompt('Новое название машины',label);if(next!==null){{await mutate(`/api/devices/${{id}}/rename`,{{label:next}});await refresh();}}}}else if(button.dataset.action==='remove'){{const confirmLabel=prompt(`Для удаления введите название: ${{label}}`,'');if(confirmLabel!==null){{await mutate(`/api/devices/${{id}}/remove`,{{confirm_label:confirmLabel}});await refresh();}}}}else{{const data=await api(`/api/devices/${{id}}`);document.getElementById('details-title').textContent=data.label;const fields=[['Device ID',data.device_id],['Relay port',data.relay_port],['Endpoint',`${{data.endpoint_mode||'unknown'}} ${{data.endpoint_host||''}}`],['Online',statusText(data.online_status)],['Enabled',data.enabled?'Да':'Нет'],['Lease',new Date(data.lease_expires_at*1000).toLocaleString('ru-RU')],['Активный компьютер',data.active_client_label||'—'],['Fingerprint',data.active_client_fingerprint||'—'],['Pending',data.pending_client_label||'—']];const dl=document.getElementById('details-list');dl.replaceChildren(...fields.flatMap(([k,v])=>[el('dt',k),el('dd',String(v))]));document.getElementById('details').showModal();}}clearError();}}catch(error){{showError(error);}}finally{{button.disabled=false;}}}};
 render({initial_json});setInterval(refresh,15000);document.addEventListener('visibilitychange',refresh);
 </script>
 </body></html>"""

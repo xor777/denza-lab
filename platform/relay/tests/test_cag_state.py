@@ -12,6 +12,7 @@ from relay.cag_state import (
     DEVICE_LEASE_SECONDS,
     RelayState,
     StateError,
+    build_parser,
     public_key_fingerprint,
 )
 
@@ -398,6 +399,24 @@ class RelayStateTest(unittest.TestCase):
         with mock.patch("relay.cag_state.os.fsync", side_effect=tracking_fsync):
             self.state.create_invite()
         self.assertTrue(fsynced_directory)
+
+    def test_admin_wrapper_preserves_a_leading_dash_rename_label(self):
+        wrapper = Path(__file__).resolve().parents[1] / "cag-admin"
+        script = wrapper.read_text(encoding="utf-8")
+
+        self.assertIn(
+            'exec /opt/cag/cag-state rename-device -- "$2" "$3"',
+            script,
+        )
+        parser = build_parser()
+        invite = parser.parse_args(
+            ["create-invite", "--label=-служебная", "--ttl", "3600"]
+        )
+        rename = parser.parse_args(
+            ["rename-device", "--", "0123456789abcdef", "-служебная"]
+        )
+        self.assertEqual("-служебная", invite.label)
+        self.assertEqual("-служебная", rename.label)
 
 
 if __name__ == "__main__":
