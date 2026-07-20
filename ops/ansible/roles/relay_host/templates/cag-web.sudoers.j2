@@ -1,0 +1,9 @@
+Cmnd_Alias CAG_WEB = \
+    /usr/local/sbin/cag-admin list, \
+    /usr/local/sbin/cag-admin doctor, \
+    /usr/local/sbin/cag-admin status *, \
+    /usr/local/sbin/cag-admin invite *, \
+    /usr/local/sbin/cag-admin rename *, \
+    /usr/local/sbin/cag-admin remove *
+
+{{ relay_host_web_user }} ALL=(root) NOPASSWD: CAG_WEB

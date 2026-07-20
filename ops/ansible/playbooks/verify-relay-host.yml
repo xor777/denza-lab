@@ -136,6 +136,7 @@
         - /opt/cag/pair-client.sh
         - /opt/cag/device-control.sh
         - /opt/cag/authorized-keys.sh
+        - /opt/cag/cag-web
         - /usr/local/sbin/cag-admin
       register: relay_verify_control_files
 
@@ -159,6 +160,7 @@
         - cag-pair
         - cag-control
         - cag-authkeys
+        - cag-web
       register: relay_verify_account_states
       changed_when: false
 
@@ -181,6 +183,40 @@
       ansible.builtin.assert:
         that:
           - "'cag-state' not in relay_verify_authkeys_groups.stdout.split()"
+
+    - name: Read relay admin web account details
+      ansible.builtin.getent:
+        database: passwd
+        key: cag-web
+
+    - name: Require a non-login relay admin web account
+      ansible.builtin.assert:
+        that:
+          - ansible_facts.getent_passwd['cag-web'][5] == '/usr/sbin/nologin'
+
+    - name: Read relay admin web groups
+      ansible.builtin.command: id -nG cag-web
+      register: relay_verify_web_groups
+      changed_when: false
+
+    - name: Require relay admin web isolation from writable state
+      ansible.builtin.assert:
+        that:
+          - "'cag-state' not in relay_verify_web_groups.stdout.split()"
+
+    - name: Require relay admin web cannot write state directly
+      become: true
+      become_user: cag-web
+      ansible.builtin.command:
+        argv:
+          - test
+          - "!"
+          - -w
+          - "{{ item }}"
+      loop:
+        - /opt/cag/state/state.json
+        - /opt/cag/state/locks/state.lock
+      changed_when: false
 
     - name: Exercise the authorized-keys reader as its service account
       become: true
@@ -230,6 +266,107 @@
       register: relay_verify_doctor
       changed_when: false
 
+    - name: Validate relay admin web sudo policy
+      ansible.builtin.command: /usr/sbin/visudo -cf /etc/sudoers.d/cag-web
+      changed_when: false
+
+    - name: Exercise allowed relay admin web commands
+      become: true
+      become_user: cag-web
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/sudo
+          - -n
+          - /usr/local/sbin/cag-admin
+          - "{{ item }}"
+      loop:
+        - list
+        - doctor
+      changed_when: false
+      no_log: true
+
+    - name: Attempt a forbidden relay admin web command
+      become: true
+      become_user: cag-web
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/sudo
+          - -n
+          - /usr/local/sbin/cag-admin
+          - migrate
+      register: relay_verify_web_denied_sudo
+      changed_when: false
+      failed_when: false
+
+    - name: Require sudo denial outside the web command allow-list
+      ansible.builtin.assert:
+        that:
+          - relay_verify_web_denied_sudo.rc != 0
+
+    - name: Read relay admin web service state  # noqa command-instead-of-module
+      ansible.builtin.command: "systemctl {{ item }} cag-web.service"
+      loop:
+        - is-active
+        - is-enabled
+      register: relay_verify_web_service
+      changed_when: false
+
+    - name: Require active and enabled relay admin web
+      ansible.builtin.assert:
+        that:
+          - relay_verify_web_service.results[0].stdout == 'active'
+          - relay_verify_web_service.results[1].stdout == 'enabled'
+
+    - name: Read relay admin web hardening properties  # noqa command-instead-of-module
+      ansible.builtin.command: >-
+        systemctl show cag-web.service
+        --property=User
+        --property=Group
+        --property=PrivateTmp
+        --property=PrivateDevices
+        --property=ProtectHome
+        --property=ProtectSystem
+        --property=ProtectKernelTunables
+        --property=ProtectKernelModules
+        --property=ProtectControlGroups
+        --property=RestrictNamespaces
+        --property=MemoryDenyWriteExecute
+        --property=NoNewPrivileges
+        --property=ReadWritePaths
+      register: relay_verify_web_hardening
+      changed_when: false
+
+    - name: Require practical relay admin web hardening
+      ansible.builtin.assert:
+        that:
+          - "'User=cag-web' in relay_verify_web_hardening.stdout"
+          - "'Group=cag-web' in relay_verify_web_hardening.stdout"
+          - "'PrivateTmp=yes' in relay_verify_web_hardening.stdout"
+          - "'PrivateDevices=yes' in relay_verify_web_hardening.stdout"
+          - "'ProtectHome=yes' in relay_verify_web_hardening.stdout"
+          - "'ProtectSystem=strict' in relay_verify_web_hardening.stdout"
+          - "'ProtectKernelTunables=yes' in relay_verify_web_hardening.stdout"
+          - "'ProtectKernelModules=yes' in relay_verify_web_hardening.stdout"
+          - "'ProtectControlGroups=yes' in relay_verify_web_hardening.stdout"
+          - "'RestrictNamespaces=yes' in relay_verify_web_hardening.stdout"
+          - "'MemoryDenyWriteExecute=yes' in relay_verify_web_hardening.stdout"
+          - "'NoNewPrivileges=no' in relay_verify_web_hardening.stdout"
+          - "'ReadWritePaths=/opt/cag/state' in relay_verify_web_hardening.stdout"
+
+    - name: Check relay admin web health over loopback
+      ansible.builtin.uri:
+        url: "http://127.0.0.1:{{ relay_host_web_port }}/healthz"
+        headers:
+          Host: "127.0.0.1:{{ relay_host_web_port }}"
+        return_content: true
+        status_code: 200
+      register: relay_verify_web_health
+
+    - name: Require healthy relay admin web response
+      ansible.builtin.assert:
+        that:
+          - relay_verify_web_health.json.ok | bool
+
     - name: Read relay garbage-collection timer state  # noqa command-instead-of-module
       ansible.builtin.command: "systemctl {{ item }} cag-gc.timer"
       loop:
@@ -270,6 +407,21 @@
         that:
           - "':22 ' in relay_verify_sockets.stdout"
           - "':443 ' in relay_verify_sockets.stdout"
+          - "('127.0.0.1:' ~ relay_host_web_port ~ ' ') in relay_verify_sockets.stdout"
+          - "('0.0.0.0:' ~ relay_host_web_port ~ ' ') not in relay_verify_sockets.stdout"
+          - "('[::]:' ~ relay_host_web_port ~ ' ') not in relay_verify_sockets.stdout"
+
+    - name: Read dynamic client forwarding restrictions
+      ansible.builtin.command: /opt/cag/cag-state authorized-keys cag-client
+      register: relay_verify_client_authorized_keys
+      changed_when: false
+      no_log: true
+
+    - name: Require application identities cannot reach relay admin web
+      ansible.builtin.assert:
+        that:
+          - "('127.0.0.1:' ~ relay_host_web_port) not in relay_verify_client_authorized_keys.stdout"
+      no_log: true
 
     - name: Read firewall status
       ansible.builtin.command: ufw status verbose
@@ -280,6 +432,7 @@
       ansible.builtin.assert:
         that:
           - "'443/tcp' in relay_verify_ufw.stdout"
+          - "(relay_host_web_port | string) not in relay_verify_ufw.stdout"
 
     - name: Read time synchronization state
       ansible.builtin.command: timedatectl show --property=NTPSynchronized --value
@@ -318,5 +471,6 @@
           host_key: "{{ relay_verify_host_key.stdout }}"
           doctor: "{{ relay_verify_doctor.stdout }}"
           gc_timer: "{{ relay_verify_gc_timer.results | map(attribute='stdout') | list }}"
+          web: "{{ relay_verify_web_service.results | map(attribute='stdout') | list }}"
           sockets: "{{ relay_verify_sockets.stdout_lines }}"
           ufw: "{{ relay_verify_ufw.stdout_lines }}"

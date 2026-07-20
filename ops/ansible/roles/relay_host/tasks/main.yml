@@ -15,6 +15,24 @@
     system: true
     state: present
 
+- name: Create the relay admin web group
+  ansible.builtin.group:
+    name: "{{ relay_host_web_user }}"
+    system: true
+    state: present
+
+- name: Create the locked relay admin web account
+  ansible.builtin.user:
+    name: "{{ relay_host_web_user }}"
+    group: "{{ relay_host_web_user }}"
+    groups: []
+    append: false
+    home: /var/lib/cag-web
+    shell: /usr/sbin/nologin
+    system: true
+    create_home: false
+    password_lock: true
+
 - name: Create service-account groups
   ansible.builtin.group:
     name: "{{ item }}"
@@ -95,7 +113,7 @@
   ansible.builtin.copy:
     dest: "{{ relay_host_root }}/state/state.json"
     content: >-
-      {"clients":{},"codes":{},"devices":{},"grants":{},"next_port":20000,"pending":{},"version":2}
+      {"clients":{},"codes":{},"devices":{},"grants":{},"next_port":20000,"pending":{},"version":3}
     owner: root
     group: "{{ relay_host_state_group }}"
     mode: "0660"
@@ -118,6 +136,15 @@
     owner: root
     group: root
     mode: "0755"
+
+- name: Install the relay admin web application
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../../../platform/relay/cag_web.py"
+    dest: "{{ relay_host_root }}/cag-web"
+    owner: root
+    group: root
+    mode: "0755"
+  notify: Restart relay admin web
 
 - name: Install relay command wrappers
   ansible.builtin.copy:
@@ -183,6 +210,33 @@
 - name: Apply lifecycle cleanup after schema migration
   ansible.builtin.command: /usr/local/sbin/cag-admin gc
   changed_when: false
+
+- name: Install the relay admin web sudo policy
+  ansible.builtin.template:
+    src: cag-web.sudoers.j2
+    dest: /etc/sudoers.d/cag-web
+    owner: root
+    group: root
+    mode: "0440"
+    validate: /usr/sbin/visudo -cf %s
+  notify: Restart relay admin web
+
+- name: Install the relay admin web service
+  ansible.builtin.template:
+    src: cag-web.service.j2
+    dest: /etc/systemd/system/cag-web.service
+    owner: root
+    group: root
+    mode: "0644"
+  register: relay_host_web_unit
+  notify: Restart relay admin web
+
+- name: Enable the loopback-only relay admin web service
+  ansible.builtin.systemd_service:
+    name: cag-web.service
+    enabled: true
+    state: started
+    daemon_reload: "{{ relay_host_web_unit.changed }}"
 
 - name: Inspect retired TSV state files
   ansible.builtin.stat:

@@ -9,3 +9,10 @@
     name: ssh
     state: reloaded
   listen: Validate and reload relay ssh
+
+- name: Restart relay admin web
+  ansible.builtin.systemd_service:
+    name: cag-web.service
+    state: restarted
+    daemon_reload: true
+  listen: Restart relay admin web

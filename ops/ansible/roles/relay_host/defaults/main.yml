@@ -6,6 +6,9 @@ relay_host_ssh_port: 443
 relay_host_enrollment_enabled: true
 relay_host_root: /opt/cag
 relay_host_state_group: cag-state
+relay_host_web_user: cag-web
+relay_host_web_listen: 127.0.0.1
+relay_host_web_port: 8787
 relay_host_ed25519_fingerprint: SHA256:w02E2cvN65HmjeC6h9aLY/6zovde3nvqorQPYtNRp6c
 relay_host_pam_account_password_hash: >-
   $6$CAGRelay$7A/mda6Hte4H2xASt0RzA5muFSpKkosILKHUNj8o5NXdpfnb97unQi9C6MhFbIW6IHRds4tzyLsKytuhaov5j1

@@ -1,0 +1,31 @@
+[Unit]
+Description=Car ADB Gateway relay administrator web UI
+After=network.target
+
+[Service]
+Type=simple
+User={{ relay_host_web_user }}
+Group={{ relay_host_web_user }}
+ExecStart={{ relay_host_root }}/cag-web --listen {{ relay_host_web_listen }} --port {{ relay_host_web_port }}
+Restart=on-failure
+RestartSec=2s
+TimeoutStopSec=10s
+PrivateTmp=true
+PrivateDevices=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths={{ relay_host_root }}/state
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+RestrictNamespaces=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+RestrictRealtime=true
+RestrictAddressFamilies=AF_INET AF_UNIX
+SystemCallArchitectures=native
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target
