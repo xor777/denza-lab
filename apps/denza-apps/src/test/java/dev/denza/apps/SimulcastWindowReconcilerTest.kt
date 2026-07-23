@@ -57,10 +57,12 @@ class SimulcastWindowReconcilerTest {
         val result = reconciler.apply(emptyList())
 
         assertEquals(
-            listOf("remove:slot:one", "remove:slot:two", "remove:row", "raise"),
+            listOf("remove:slot:one", "remove:slot:two", "remove:row"),
             host.operations,
         )
         assertTrue(result.semanticRebuild)
+        assertFalse(result.pendingOperations)
+        assertFalse(reconciler.hasAppliedWindows())
 
         host.clear()
         reconciler.apply(emptyList())
@@ -75,12 +77,14 @@ class SimulcastWindowReconcilerTest {
 
         assertEquals(listOf("add:slot:one"), host.operations)
         assertFalse(failed.semanticRebuild)
+        assertTrue(failed.pendingOperations)
 
         host.clear()
         val retried = reconciler.apply(listOf(slot("one", 0)))
 
         assertEquals(listOf("add:slot:one", "raise"), host.operations)
         assertTrue(retried.semanticRebuild)
+        assertFalse(retried.pendingOperations)
     }
 
     @Test
@@ -93,12 +97,14 @@ class SimulcastWindowReconcilerTest {
 
         assertEquals(listOf("update:slot:one"), host.operations)
         assertEquals(0, failed.relayouts)
+        assertTrue(failed.pendingOperations)
 
         host.clear()
         val retried = reconciler.apply(listOf(slot("one", 10)))
 
         assertEquals(listOf("update:slot:one"), host.operations)
         assertEquals(1, retried.relayouts)
+        assertFalse(retried.pendingOperations)
     }
 
     @Test
@@ -111,12 +117,34 @@ class SimulcastWindowReconcilerTest {
 
         assertEquals(listOf("remove:slot:one"), host.operations)
         assertFalse(failed.semanticRebuild)
+        assertTrue(failed.pendingOperations)
+        assertTrue(reconciler.hasAppliedWindows())
 
         host.clear()
         val retried = reconciler.apply(emptyList())
 
-        assertEquals(listOf("remove:slot:one", "raise"), host.operations)
+        assertEquals(listOf("remove:slot:one"), host.operations)
         assertTrue(retried.semanticRebuild)
+        assertFalse(retried.pendingOperations)
+        assertFalse(reconciler.hasAppliedWindows())
+    }
+
+    @Test
+    fun `failed draw layer raise is retried without a semantic rebuild`() {
+        host.failRaise = true
+
+        val failed = reconciler.apply(listOf(slot("one", 0)))
+
+        assertEquals(listOf("add:slot:one", "raise"), host.operations)
+        assertTrue(failed.semanticRebuild)
+        assertTrue(failed.pendingOperations)
+
+        host.clear()
+        val retried = reconciler.apply(listOf(slot("one", 0)))
+
+        assertEquals(listOf("raise"), host.operations)
+        assertFalse(retried.semanticRebuild)
+        assertFalse(retried.pendingOperations)
     }
 
     private fun slot(packageName: String, left: Int) =
@@ -144,6 +172,7 @@ class SimulcastWindowReconcilerTest {
         val failAdds = mutableSetOf<String>()
         val failUpdates = mutableSetOf<String>()
         val failRemoves = mutableSetOf<String>()
+        var failRaise = false
 
         override fun add(spec: SimulcastWindowReconciler.WindowSpec): Boolean {
             operations += "add:${spec.id}"
@@ -160,8 +189,13 @@ class SimulcastWindowReconcilerTest {
             return !failRemoves.remove(spec.id)
         }
 
-        override fun raiseDrawLayer() {
+        override fun raiseDrawLayer(): Boolean {
             operations += "raise"
+            if (failRaise) {
+                failRaise = false
+                return false
+            }
+            return true
         }
 
         fun clear() {

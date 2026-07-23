@@ -50,21 +50,24 @@ final class SimulcastWindowReconciler {
 
         boolean remove(WindowSpec spec);
 
-        void raiseDrawLayer();
+        boolean raiseDrawLayer();
     }
 
     static final class Result {
         final int relayouts;
         final boolean semanticRebuild;
+        final boolean pendingOperations;
 
-        Result(int relayouts, boolean semanticRebuild) {
+        Result(int relayouts, boolean semanticRebuild, boolean pendingOperations) {
             this.relayouts = relayouts;
             this.semanticRebuild = semanticRebuild;
+            this.pendingOperations = pendingOperations;
         }
     }
 
     private final Host host;
     private final LinkedHashMap<String, WindowSpec> applied = new LinkedHashMap<>();
+    private boolean drawLayerRaisePending;
 
     SimulcastWindowReconciler(Host host) {
         this.host = host;
@@ -77,12 +80,15 @@ final class SimulcastWindowReconciler {
         }
 
         boolean semanticRebuild = false;
+        boolean operationFailed = false;
         for (Map.Entry<String, WindowSpec> entry
                 : new LinkedHashMap<>(applied).entrySet()) {
             if (!desired.containsKey(entry.getKey())) {
                 if (host.remove(entry.getValue())) {
                     applied.remove(entry.getKey());
                     semanticRebuild = true;
+                } else {
+                    operationFailed = true;
                 }
             }
         }
@@ -94,22 +100,41 @@ final class SimulcastWindowReconciler {
                 if (host.add(spec)) {
                     applied.put(spec.id, spec);
                     semanticRebuild = true;
+                } else {
+                    operationFailed = true;
                 }
             } else if (!spec.sameGeometry(previous)) {
                 if (host.update(spec)) {
                     applied.put(spec.id, spec);
                     relayouts++;
+                } else {
+                    operationFailed = true;
                 }
             }
         }
 
-        if (semanticRebuild) {
-            host.raiseDrawLayer();
+        if (desired.isEmpty()) {
+            // Dialog close removes the full-screen draw layer separately; raising it
+            // here would recreate an overlay while teardown is in progress.
+            drawLayerRaisePending = false;
+        } else if (semanticRebuild) {
+            drawLayerRaisePending = true;
         }
-        return new Result(relayouts, semanticRebuild);
+        if (drawLayerRaisePending && host.raiseDrawLayer()) {
+            drawLayerRaisePending = false;
+        }
+        return new Result(
+                relayouts,
+                semanticRebuild,
+                operationFailed || drawLayerRaisePending);
+    }
+
+    boolean hasAppliedWindows() {
+        return !applied.isEmpty();
     }
 
     void reset() {
         applied.clear();
+        drawLayerRaisePending = false;
     }
 }

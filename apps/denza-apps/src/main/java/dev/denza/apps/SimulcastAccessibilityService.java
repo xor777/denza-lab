@@ -78,6 +78,7 @@ public class SimulcastAccessibilityService extends AccessibilityService {
     private static final float DRAG_SLOP_DP = 12f;
     private static final long REFRESH_DELAY_MS = 16L;
     private static final long GEOMETRY_STABLE_INTERVAL_MS = 100L;
+    private static final long WINDOW_OPERATION_RETRY_MS = 100L;
     private static final int GEOMETRY_EPSILON_PX = 2;
     private static final long DIALOG_DISAPPEAR_GRACE_MS = 320L;
     private static final long SCREEN_QUERY_RETRY_MS = 2000L;
@@ -119,6 +120,7 @@ public class SimulcastAccessibilityService extends AccessibilityService {
     private int appliedScreenGeneration = -1;
     private long missingDialogSinceMs;
     private boolean dialogObserved;
+    private boolean windowOperationsPending;
     private HudGuidanceAccessibilityMonitor hudGuidanceMonitor;
 
     // Gesture state shared between input windows and the painter.
@@ -313,7 +315,7 @@ public class SimulcastAccessibilityService extends AccessibilityService {
             // stable, without moving or rebuilding any windows.
             if (geometry != null
                     && geo.equivalentWithin(geometry, GEOMETRY_EPSILON_PX)
-                    && compositionChanged) {
+                    && (compositionChanged || windowOperationsPending)) {
                 rebuild(geometry, selectedPackages);
                 reconcileInputWindows();
                 appliedPackages = selectedPackages;
@@ -331,7 +333,10 @@ public class SimulcastAccessibilityService extends AccessibilityService {
         }
 
         boolean geometryChanged = !stableGeometry.sameLayoutAs(geometry);
-        if (geometryChanged || compositionChanged || drawView == null) {
+        if (geometryChanged
+                || compositionChanged
+                || drawView == null
+                || windowOperationsPending) {
             geometry = stableGeometry;
             rebuild(stableGeometry, selectedPackages);
             reconcileInputWindows();
@@ -534,21 +539,29 @@ public class SimulcastAccessibilityService extends AccessibilityService {
                     geometry.central));
         }
         SimulcastWindowReconciler.Result result = windowReconciler.apply(plan);
+        windowOperationsPending = result.pendingOperations;
         SimulcastRuntimeDiagnostics.recordRelayouts(result.relayouts);
         if (result.semanticRebuild) {
             SimulcastRuntimeDiagnostics.recordSemanticRebuild();
+        }
+        if (windowOperationsPending) {
+            handler.removeCallbacks(refreshRunnable);
+            handler.postDelayed(refreshRunnable, WINDOW_OPERATION_RETRY_MS);
         }
         if (centralIconPlateView != null) {
             centralIconPlateView.showTarget(selectedTarget);
         }
     }
 
-    private void raiseDragLayer() {
+    private boolean raiseDragLayer() {
         if (drawView != null) {
-            removeView(drawView);
+            if (!removeView(drawView)) {
+                return false;
+            }
             drawView = null;
         }
         ensureDrawView();
+        return drawView != null;
     }
 
     private SimulcastWindowReconciler.WindowSpec windowSpec(
@@ -641,25 +654,6 @@ public class SimulcastAccessibilityService extends AccessibilityService {
         } catch (RuntimeException error) {
             Log.w(TAG, "update overlay window failed id=" + spec.id, error);
             return false;
-        }
-    }
-
-    private void removeInputWindows() {
-        if (rowPlateView != null) {
-            removeView(rowPlateView);
-            rowPlateView = null;
-        }
-        if (centralIconPlateView != null) {
-            removeView(centralIconPlateView);
-            centralIconPlateView = null;
-        }
-        for (SlotView v : slotViews.values()) {
-            removeView(v);
-        }
-        slotViews.clear();
-        if (centralView != null) {
-            removeView(centralView);
-            centralView = null;
         }
     }
 
@@ -761,8 +755,8 @@ public class SimulcastAccessibilityService extends AccessibilityService {
         }
 
         @Override
-        public void raiseDrawLayer() {
-            SimulcastAccessibilityService.this.raiseDragLayer();
+        public boolean raiseDrawLayer() {
+            return SimulcastAccessibilityService.this.raiseDragLayer();
         }
     }
 
@@ -779,13 +773,30 @@ public class SimulcastAccessibilityService extends AccessibilityService {
     }
 
     private void tearDown() {
-        removeInputWindows();
+        boolean pendingRemoval = false;
         if (windowReconciler != null) {
-            windowReconciler.reset();
+            SimulcastWindowReconciler.Result result =
+                    windowReconciler.apply(Collections.emptyList());
+            SimulcastRuntimeDiagnostics.recordRelayouts(result.relayouts);
+            if (result.semanticRebuild) {
+                SimulcastRuntimeDiagnostics.recordSemanticRebuild();
+            }
+            pendingRemoval = result.pendingOperations
+                    || windowReconciler.hasAppliedWindows();
         }
         if (drawView != null) {
-            removeView(drawView);
-            drawView = null;
+            if (removeView(drawView)) {
+                drawView = null;
+            } else {
+                pendingRemoval = true;
+            }
+        }
+        windowOperationsPending = pendingRemoval;
+        if (!pendingRemoval && windowReconciler != null) {
+            windowReconciler.reset();
+        } else if (pendingRemoval && connected) {
+            handler.removeCallbacks(refreshRunnable);
+            handler.postDelayed(refreshRunnable, WINDOW_OPERATION_RETRY_MS);
         }
         slots.clear();
         geometry = null;
