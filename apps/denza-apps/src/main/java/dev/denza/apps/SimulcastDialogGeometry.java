@@ -63,29 +63,41 @@ final class SimulcastDialogGeometry {
         return appList != null;
     }
 
+    /** Same exact layout, excluding native row slots that can scroll independently. */
+    boolean sameLayoutAs(SimulcastDialogGeometry other) {
+        return equivalentWithin(other, 0);
+    }
+
     /**
-     * Same on-screen layout as {@code other}? Used to ignore the window events our
-     * own overlay windows generate (their add/remove doesn't move the dialog), so
-     * we only re-apply when DiShare's geometry actually changes.
+     * Equivalent on-screen layout within {@code epsilonPx}. Native row slots and the
+     * App Change button are deliberately excluded because they can move independently
+     * inside the stable row container.
      */
-    boolean sameAs(SimulcastDialogGeometry other) {
+    boolean equivalentWithin(SimulcastDialogGeometry other, int epsilonPx) {
         // Deliberately excludes appSlots: those scroll within the container and would
         // otherwise make our row recompute (jump/resize) on every native scroll event.
         return other != null
-                && equalRect(dialog, other.dialog)
-                && equalRect(central, other.central)
-                && equalRect(centralContent, other.centralContent)
-                && receivers.equals(other.receivers)
-                && equalRect(close, other.close)
-                // DiShare replaces the App Change button with a RecyclerView whose
-                // bounds differ only by the native padding. Our synthetic row is
-                // deliberately aligned to that final position, so this transition
-                // must not tear down and recreate every overlay window.
-                && approximatelyEqualRect(appList, other.appList, 24);
+                && approximatelyEqualRect(dialog, other.dialog, epsilonPx)
+                && approximatelyEqualRect(central, other.central, epsilonPx)
+                && approximatelyEqualRect(centralContent, other.centralContent, epsilonPx)
+                && approximatelyEqualMaps(receivers, other.receivers, epsilonPx)
+                && approximatelyEqualRect(close, other.close, epsilonPx)
+                && approximatelyEqualRect(appList, other.appList, epsilonPx);
     }
 
-    private static boolean equalRect(Rect a, Rect b) {
-        return a == null ? b == null : a.equals(b);
+    private static boolean approximatelyEqualMaps(
+            Map<String, Rect> first,
+            Map<String, Rect> second,
+            int tolerancePx) {
+        if (!first.keySet().equals(second.keySet())) {
+            return false;
+        }
+        for (String key : first.keySet()) {
+            if (!approximatelyEqualRect(first.get(key), second.get(key), tolerancePx)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private static boolean approximatelyEqualRect(Rect a, Rect b, int tolerancePx) {

@@ -18,6 +18,7 @@ import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.SystemClock;
 import android.util.Log;
 import android.view.Gravity;
 import android.view.MotionEvent;
@@ -75,6 +76,8 @@ public class SimulcastAccessibilityService extends AccessibilityService {
     private static final float GAP_DP = 12f;
     private static final float DRAG_SLOP_DP = 12f;
     private static final long REFRESH_DELAY_MS = 16L;
+    private static final long GEOMETRY_STABLE_INTERVAL_MS = 100L;
+    private static final int GEOMETRY_EPSILON_PX = 2;
     private static final long DIALOG_DISAPPEAR_GRACE_MS = 320L;
     private static final long SCREEN_QUERY_RETRY_MS = 2000L;
     private static final long SCREEN_QUERY_REFRESH_MS = 30000L;
@@ -91,8 +94,14 @@ public class SimulcastAccessibilityService extends AccessibilityService {
     private DrawView drawView;
     private View rowPlateView;
     private CentralIconPlateView centralIconPlateView;
-    private final List<SlotView> slotViews = new ArrayList<>();
+    private final Map<String, SlotView> slotViews = new HashMap<>();
     private View centralView;
+    private SimulcastWindowReconciler windowReconciler;
+    private final SimulcastGeometryStabilizer<SimulcastDialogGeometry> geometryStabilizer =
+            new SimulcastGeometryStabilizer<>(
+                    GEOMETRY_STABLE_INTERVAL_MS,
+                    GEOMETRY_EPSILON_PX,
+                    SimulcastDialogGeometry::equivalentWithin);
 
     private SimulcastDialogGeometry geometry;
     private final List<Slot> slots = new ArrayList<>();
@@ -100,6 +109,7 @@ public class SimulcastAccessibilityService extends AccessibilityService {
     private Rect eraseBounds;
     private Rect centralIconBounds;
     private Target selectedTarget;
+    private List<String> appliedPackages = Collections.emptyList();
     private Set<String> availableReceivers = Collections.emptySet();
     private boolean screenAvailabilityConfirmed;
     private boolean screenQueryRunning;
@@ -107,6 +117,7 @@ public class SimulcastAccessibilityService extends AccessibilityService {
     private int screenGeneration;
     private int appliedScreenGeneration = -1;
     private long missingDialogSinceMs;
+    private boolean dialogObserved;
     private HudGuidanceAccessibilityMonitor hudGuidanceMonitor;
 
     // Gesture state shared between input windows and the painter.
@@ -125,6 +136,7 @@ public class SimulcastAccessibilityService extends AccessibilityService {
         connected = true;
         instance = this;
         windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
+        windowReconciler = new SimulcastWindowReconciler(new OverlayWindowHost());
         hudGuidanceMonitor = new HudGuidanceAccessibilityMonitor(this);
         hudGuidanceMonitor.attach();
         Log.i(TAG, "service connected");
@@ -220,12 +232,25 @@ public class SimulcastAccessibilityService extends AccessibilityService {
 
     private void refresh() {
         AccessibilityNodeInfo root = findDiShareRoot();
-        // Mid-drag: keep the current overlay; only a vanished dialog cancels it.
+        // Mid-drag: keep the current overlay through transient accessibility gaps.
+        // Only a dialog missing for the full close grace cancels the gesture.
         if (dragging) {
             if (root == null) {
+                long now = SystemClock.elapsedRealtime();
+                if (missingDialogSinceMs == 0L) {
+                    missingDialogSinceMs = now;
+                }
+                long elapsed = now - missingDialogSinceMs;
+                if (elapsed < DIALOG_DISAPPEAR_GRACE_MS) {
+                    handler.postDelayed(
+                            refreshRunnable,
+                            DIALOG_DISAPPEAR_GRACE_MS - elapsed);
+                    return;
+                }
                 cancelDrag();
                 tearDown();
             } else {
+                missingDialogSinceMs = 0L;
                 root.recycle();
             }
             return;
@@ -242,8 +267,8 @@ public class SimulcastAccessibilityService extends AccessibilityService {
             root.recycle();
         }
         if (geo == null || !geo.isAppPickerOpen()) {
-            long now = System.currentTimeMillis();
-            if (drawView != null && geometry != null) {
+            long now = SystemClock.elapsedRealtime();
+            if (dialogObserved) {
                 if (missingDialogSinceMs == 0L) {
                     missingDialogSinceMs = now;
                 }
@@ -259,8 +284,9 @@ public class SimulcastAccessibilityService extends AccessibilityService {
             return;
         }
         missingDialogSinceMs = 0L;
-        boolean newDialog = geometry == null && drawView == null;
+        boolean newDialog = !dialogObserved;
         if (newDialog) {
+            dialogObserved = true;
             availableReceivers = Collections.emptySet();
             screenAvailabilityConfirmed = false;
             lastScreenQueryMs = 0L;
@@ -269,22 +295,43 @@ public class SimulcastAccessibilityService extends AccessibilityService {
         ensureScreenAvailability();
         SimulcastScreenDiagnostics.recordAccessibilityLayout(
                 geo.receivers, availableReceivers, screenAvailabilityConfirmed);
-        // Ignore events from our own overlay windows / native row scrolling: only
-        // re-apply when the dialog's stable geometry actually changed.
-        boolean geometryChanged = !geo.sameAs(geometry);
-        if (drawView != null && !geometryChanged
-                && appliedScreenGeneration == screenGeneration) {
+        List<String> selectedPackages = selectedPackages();
+        boolean compositionChanged = !selectedPackages.equals(appliedPackages);
+
+        SimulcastDialogGeometry stableGeometry =
+                geometryStabilizer.offer(SystemClock.elapsedRealtime(), geo);
+        if (stableGeometry == null) {
+            // Receiver availability is independent from window geometry. Update its
+            // visual state immediately when the already-applied geometry is still
+            // stable, without moving or rebuilding any windows.
+            if (geometry != null
+                    && geo.equivalentWithin(geometry, GEOMETRY_EPSILON_PX)
+                    && compositionChanged) {
+                rebuild(geometry, selectedPackages);
+                reconcileInputWindows();
+                appliedPackages = selectedPackages;
+                invalidateOverlayViews();
+            }
+            if (geometry != null
+                    && geo.equivalentWithin(geometry, GEOMETRY_EPSILON_PX)
+                    && appliedScreenGeneration != screenGeneration) {
+                appliedScreenGeneration = screenGeneration;
+                invalidateOverlayViews();
+            }
+            handler.removeCallbacks(refreshRunnable);
+            handler.postDelayed(refreshRunnable, GEOMETRY_STABLE_INTERVAL_MS);
             return;
         }
-        geometry = geo;
-        if (geometryChanged || drawView == null) {
-            rebuild(geo);
-            layoutInputWindows();
+
+        boolean geometryChanged = !stableGeometry.sameLayoutAs(geometry);
+        if (geometryChanged || compositionChanged || drawView == null) {
+            geometry = stableGeometry;
+            rebuild(stableGeometry, selectedPackages);
+            reconcileInputWindows();
+            appliedPackages = selectedPackages;
         }
         appliedScreenGeneration = screenGeneration;
-        if (drawView != null) {
-            drawView.invalidate();
-        }
+        invalidateOverlayViews();
     }
 
     private void ensureScreenAvailability() {
@@ -358,7 +405,13 @@ public class SimulcastAccessibilityService extends AccessibilityService {
      * container, with fixed native-sized icons, plus the central preview icon and the
      * erase/panel regions. Nothing here reads the scrolling stock icons.
      */
-    private void rebuild(SimulcastDialogGeometry geo) {
+    private List<String> selectedPackages() {
+        List<String> selected = SimulcastApps.getSelected(this);
+        int count = Math.min(selected.size(), SimulcastApps.MAX_SELECTED);
+        return Collections.unmodifiableList(new ArrayList<>(selected.subList(0, count)));
+    }
+
+    private void rebuild(SimulcastDialogGeometry geo, List<String> selected) {
         slots.clear();
         panelBounds = null;
         eraseBounds = null;
@@ -366,8 +419,7 @@ public class SimulcastAccessibilityService extends AccessibilityService {
         if (!geo.isAppPickerOpen() || geo.appList == null) {
             return;
         }
-        List<String> selected = SimulcastApps.getSelected(this);
-        int count = Math.min(selected.size(), SimulcastApps.MAX_SELECTED);
+        int count = selected.size();
         if (count == 0) {
             return;
         }
@@ -444,35 +496,40 @@ public class SimulcastAccessibilityService extends AccessibilityService {
         }
     }
 
-    private void layoutInputWindows() {
-        removeInputWindows();
-        if (windowManager == null) {
+    private void reconcileInputWindows() {
+        if (windowManager == null || windowReconciler == null) {
             return;
         }
+        List<SimulcastWindowReconciler.WindowSpec> plan = new ArrayList<>();
         if (panelBounds != null && !slots.isEmpty()) {
-            rowPlateView = new RowPlateView(this);
-            // Translucent (not OPAQUE) so the rounded panel's corners are transparent;
-            // the plate is touchable, so the firmware keeps it fully opaque anyway.
-            addPlateWindow(rowPlateView, panelBounds, PixelFormat.TRANSLUCENT);
+            plan.add(windowSpec(
+                    "row",
+                    SimulcastWindowReconciler.Kind.ROW_PLATE,
+                    panelBounds));
         }
         if (centralIconBounds != null && selectedTarget != null) {
-            centralIconPlateView = new CentralIconPlateView(this);
-            centralIconPlateView.showTarget(selectedTarget);
-            addPlateWindow(centralIconPlateView, centralIconBounds, PixelFormat.TRANSLUCENT);
+            plan.add(windowSpec(
+                    "central-icon",
+                    SimulcastWindowReconciler.Kind.CENTRAL_ICON,
+                    centralIconBounds));
         }
         for (Slot slot : slots) {
-            SlotView view = new SlotView(this, slot.target);
-            addInputWindow(view, slot.bounds);
-            slotViews.add(view);
+            plan.add(windowSpec(
+                    slotId(slot.target.packageName),
+                    SimulcastWindowReconciler.Kind.SLOT,
+                    slot.bounds));
         }
         if (centralIconBounds != null && geometry != null && geometry.central != null
                 && !slots.isEmpty()) {
-            centralView = new CentralView(this);
-            addInputWindow(centralView, geometry.central);
+            plan.add(windowSpec(
+                    "central-touch",
+                    SimulcastWindowReconciler.Kind.CENTRAL_TOUCH,
+                    geometry.central));
         }
-        // The drag ghost / drop hints must sit above the plates, so (re-)add the
-        // full-screen draw layer last on every relayout.
-        raiseDragLayer();
+        windowReconciler.apply(plan);
+        if (centralIconPlateView != null) {
+            centralIconPlateView.showTarget(selectedTarget);
+        }
     }
 
     private void raiseDragLayer() {
@@ -481,6 +538,32 @@ public class SimulcastAccessibilityService extends AccessibilityService {
             drawView = null;
         }
         ensureDrawView();
+    }
+
+    private SimulcastWindowReconciler.WindowSpec windowSpec(
+            String id,
+            SimulcastWindowReconciler.Kind kind,
+            Rect bounds) {
+        return new SimulcastWindowReconciler.WindowSpec(
+                id,
+                kind,
+                bounds.left,
+                bounds.top,
+                bounds.width(),
+                bounds.height());
+    }
+
+    private String slotId(String packageName) {
+        return "slot:" + packageName;
+    }
+
+    private Slot findSlot(String id) {
+        for (Slot slot : slots) {
+            if (slotId(slot.target.packageName).equals(id)) {
+                return slot;
+            }
+        }
+        return null;
     }
 
     private void addPlateWindow(View view, Rect bounds, int format) {
@@ -524,6 +607,26 @@ public class SimulcastAccessibilityService extends AccessibilityService {
         }
     }
 
+    private void updateWindow(View view, SimulcastWindowReconciler.WindowSpec spec) {
+        if (view == null) {
+            return;
+        }
+        try {
+            WindowManager.LayoutParams params =
+                    (WindowManager.LayoutParams) view.getLayoutParams();
+            if (params == null) {
+                return;
+            }
+            params.width = spec.width;
+            params.height = spec.height;
+            params.x = spec.left;
+            params.y = spec.top;
+            windowManager.updateViewLayout(view, params);
+        } catch (RuntimeException error) {
+            Log.w(TAG, "update overlay window failed id=" + spec.id, error);
+        }
+    }
+
     private void removeInputWindows() {
         if (rowPlateView != null) {
             removeView(rowPlateView);
@@ -533,7 +636,7 @@ public class SimulcastAccessibilityService extends AccessibilityService {
             removeView(centralIconPlateView);
             centralIconPlateView = null;
         }
-        for (SlotView v : slotViews) {
+        for (SlotView v : slotViews.values()) {
             removeView(v);
         }
         slotViews.clear();
@@ -543,7 +646,97 @@ public class SimulcastAccessibilityService extends AccessibilityService {
         }
     }
 
+    private final class OverlayWindowHost implements SimulcastWindowReconciler.Host {
+        @Override
+        public void add(SimulcastWindowReconciler.WindowSpec spec) {
+            Rect bounds = new Rect(
+                    spec.left,
+                    spec.top,
+                    spec.left + spec.width,
+                    spec.top + spec.height);
+            switch (spec.kind) {
+                case ROW_PLATE:
+                    rowPlateView = new RowPlateView(SimulcastAccessibilityService.this);
+                    // Translucent corners let the native dialog body show through.
+                    addPlateWindow(rowPlateView, bounds, PixelFormat.TRANSLUCENT);
+                    break;
+                case CENTRAL_ICON:
+                    centralIconPlateView =
+                            new CentralIconPlateView(SimulcastAccessibilityService.this);
+                    centralIconPlateView.showTarget(selectedTarget);
+                    addPlateWindow(
+                            centralIconPlateView,
+                            bounds,
+                            PixelFormat.TRANSLUCENT);
+                    break;
+                case SLOT:
+                    Slot slot = findSlot(spec.id);
+                    if (slot != null) {
+                        SlotView view =
+                                new SlotView(SimulcastAccessibilityService.this, slot.target);
+                        addInputWindow(view, bounds);
+                        slotViews.put(spec.id, view);
+                    }
+                    break;
+                case CENTRAL_TOUCH:
+                    centralView = new CentralView(SimulcastAccessibilityService.this);
+                    addInputWindow(centralView, bounds);
+                    break;
+            }
+        }
+
+        @Override
+        public void update(SimulcastWindowReconciler.WindowSpec spec) {
+            switch (spec.kind) {
+                case ROW_PLATE:
+                    updateWindow(rowPlateView, spec);
+                    break;
+                case CENTRAL_ICON:
+                    updateWindow(centralIconPlateView, spec);
+                    break;
+                case SLOT:
+                    updateWindow(slotViews.get(spec.id), spec);
+                    break;
+                case CENTRAL_TOUCH:
+                    updateWindow(centralView, spec);
+                    break;
+            }
+        }
+
+        @Override
+        public void remove(SimulcastWindowReconciler.WindowSpec spec) {
+            switch (spec.kind) {
+                case ROW_PLATE:
+                    removeView(rowPlateView);
+                    rowPlateView = null;
+                    break;
+                case CENTRAL_ICON:
+                    removeView(centralIconPlateView);
+                    centralIconPlateView = null;
+                    break;
+                case SLOT:
+                    SlotView slotView = slotViews.remove(spec.id);
+                    if (slotView != null) {
+                        removeView(slotView);
+                    }
+                    break;
+                case CENTRAL_TOUCH:
+                    removeView(centralView);
+                    centralView = null;
+                    break;
+            }
+        }
+
+        @Override
+        public void raiseDrawLayer() {
+            SimulcastAccessibilityService.this.raiseDragLayer();
+        }
+    }
+
     private void removeView(View v) {
+        if (v == null || windowManager == null) {
+            return;
+        }
         try {
             windowManager.removeView(v);
         } catch (RuntimeException ignored) {
@@ -552,6 +745,9 @@ public class SimulcastAccessibilityService extends AccessibilityService {
 
     private void tearDown() {
         removeInputWindows();
+        if (windowReconciler != null) {
+            windowReconciler.reset();
+        }
         if (drawView != null) {
             removeView(drawView);
             drawView = null;
@@ -561,7 +757,11 @@ public class SimulcastAccessibilityService extends AccessibilityService {
         panelBounds = null;
         eraseBounds = null;
         centralIconBounds = null;
+        appliedPackages = Collections.emptyList();
         missingDialogSinceMs = 0L;
+        dialogObserved = false;
+        geometryStabilizer.reset();
+        appliedScreenGeneration = -1;
         dragging = false;
         downTarget = null;
         dragTarget = null;
