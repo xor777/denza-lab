@@ -1,5 +1,6 @@
 package dev.denza.apps.feature.cluster
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.hardware.display.DisplayManager
 import android.util.DisplayMetrics
@@ -133,6 +134,9 @@ object ClusterDisplayResolver {
         )
     }
 
+    // Display#getType is read-only enrichment on the fixed IVI framework; all
+    // selection logic retains public name/metrics fallbacks if reflection fails.
+    @SuppressLint("DiscouragedPrivateApi")
     private fun displayType(display: Display): Int = runCatching {
         val method = Display::class.java.getDeclaredMethod("getType")
         method.isAccessible = true

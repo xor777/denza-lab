@@ -9,7 +9,7 @@ android {
 
     defaultConfig {
         applicationId = "dev.denza.apps"
-        minSdk = 26
+        minSdk = 33
         targetSdk = 33
         versionCode = 6
         versionName = "0.4.2"
@@ -31,6 +31,17 @@ android {
                 output.outputFileName.set("denza-apps.apk")
             }
         }
+    }
+
+    lint {
+        // DiLink 5.1 is pinned to the Android 13 compatibility contract until
+        // firmware validation permits a target SDK upgrade.
+        disable += "OldTargetApi"
+        // Dependency versions are intentionally firmware-qualified as a set.
+        disable += "GradleDependency"
+        // KTX substitutions are stylistic and would add noise to this Java/Kotlin
+        // mixed module without changing the platform contract.
+        disable += "UseKtx"
     }
 }
 

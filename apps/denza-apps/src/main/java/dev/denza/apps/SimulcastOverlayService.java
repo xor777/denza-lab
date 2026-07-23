@@ -12,7 +12,6 @@ import android.graphics.Paint;
 import android.graphics.PixelFormat;
 import android.graphics.RectF;
 import android.graphics.drawable.Drawable;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
@@ -185,11 +184,7 @@ public class SimulcastOverlayService extends Service {
         filter.addAction(ACTION_DISHARE_DIALOG_LAUNCHER);
         filter.addAction(ACTION_DISHARE_DIALOG_CLOSE);
         filter.addAction(Intent.ACTION_CLOSE_SYSTEM_DIALOGS);
-        if (Build.VERSION.SDK_INT >= 33) {
-            registerReceiver(dialogReceiver, filter, Context.RECEIVER_EXPORTED);
-        } else {
-            registerReceiver(dialogReceiver, filter);
-        }
+        registerReceiver(dialogReceiver, filter, Context.RECEIVER_EXPORTED);
     }
 
     private void startTargetByPackage(final String packageName, final String label,
@@ -376,12 +371,32 @@ public class SimulcastOverlayService extends Service {
     /** Floating stop control: native DiShare exit glyph on a dark translucent pill. */
     private final class SimulcastExitButtonView extends View {
         private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final RectF backgroundBounds = new RectF();
         private Drawable exitIcon;
 
         SimulcastExitButtonView(Context context) {
             super(context);
             setWillNotDraw(false);
             setBackgroundColor(Color.TRANSPARENT);
+            exitIcon = context.getDrawable(R.drawable.ic_simulcast_exit);
+        }
+
+        @Override
+        protected void onSizeChanged(int width, int height, int oldWidth, int oldHeight) {
+            float pad = dp(4);
+            backgroundBounds.set(pad, pad, width - pad, height - pad);
+            updateIconBounds();
+        }
+
+        private void updateIconBounds() {
+            if (exitIcon == null || backgroundBounds.isEmpty()) {
+                return;
+            }
+            float glyph =
+                    Math.min(backgroundBounds.width(), backgroundBounds.height()) * 0.56f;
+            int left = Math.round(backgroundBounds.centerX() - glyph / 2f);
+            int top = Math.round(backgroundBounds.centerY() - glyph / 2f);
+            exitIcon.setBounds(left, top, Math.round(left + glyph), Math.round(top + glyph));
         }
 
         @Override
@@ -389,20 +404,11 @@ public class SimulcastOverlayService extends Service {
             super.onDraw(canvas);
             // Native exit control: red ic_exit glyph (#ff4046) on the stock dark
             // translucent background (color_bg_exit_btn #66000000, 8dp corners).
-            float pad = dp(4);
-            RectF background = new RectF(pad, pad, getWidth() - pad, getHeight() - pad);
             paint.setStyle(Paint.Style.FILL);
             paint.setColor(Color.argb(0x66, 0, 0, 0));
-            canvas.drawRoundRect(background, dp(8), dp(8), paint);
+            canvas.drawRoundRect(backgroundBounds, dp(8), dp(8), paint);
 
-            if (exitIcon == null) {
-                exitIcon = getContext().getDrawable(R.drawable.ic_simulcast_exit);
-            }
             if (exitIcon != null) {
-                float glyph = Math.min(background.width(), background.height()) * 0.56f;
-                int left = Math.round(background.centerX() - glyph / 2f);
-                int top = Math.round(background.centerY() - glyph / 2f);
-                exitIcon.setBounds(left, top, Math.round(left + glyph), Math.round(top + glyph));
                 exitIcon.draw(canvas);
             }
         }

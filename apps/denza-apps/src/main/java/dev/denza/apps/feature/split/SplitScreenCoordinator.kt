@@ -1,5 +1,6 @@
 package dev.denza.apps.feature.split
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.os.SystemClock
 import android.util.Log
@@ -20,6 +21,8 @@ data class SplitScreenSession(
  * Normal fullscreen launches are left untouched; routing runs only while both stock panes
  * are visible.
  */
+// The stored value is normalized to applicationContext during initialization.
+@SuppressLint("StaticFieldLeak")
 object SplitScreenCoordinator {
     private const val TAG = "DenzaSplitScreen"
     private const val KEY_COMMENT = "denza-apps@denza"

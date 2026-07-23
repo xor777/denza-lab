@@ -8,9 +8,8 @@ import android.util.Log;
 import dev.denza.apps.core.DenzaRuntimeCoordinator;
 
 /**
- * Forwards DiShare dialog broadcasts (to keep the floating exit control in sync) and
- * the debug start/stop actions to {@link SimulcastOverlayService}. The Simulcast
- * picker overlay itself runs from {@link SimulcastAccessibilityService}.
+ * Forwards trusted platform/DiShare lifecycle broadcasts to keep the floating exit
+ * control in sync. Debug commands live in the debug-only, DUMP-protected receiver.
  */
 public class SimulcastBootReceiver extends BroadcastReceiver {
     private static final String TAG = "DenzaSimulcastBoot";
@@ -42,10 +41,6 @@ public class SimulcastBootReceiver extends BroadcastReceiver {
                 forwardToOverlay(context, action, intent);
             }
             return;
-        }
-        if (SimulcastOverlayService.ACTION_START_TARGET.equals(action)
-                || SimulcastOverlayService.ACTION_STOP_CURRENT.equals(action)) {
-            forwardToOverlay(context, action, intent);
         }
     }
 

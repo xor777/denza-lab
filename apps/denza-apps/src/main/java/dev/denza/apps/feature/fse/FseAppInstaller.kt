@@ -1,5 +1,6 @@
 package dev.denza.apps.feature.fse
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageInfo
@@ -219,6 +220,8 @@ object FseAppInstaller {
         return null
     }
 
+    // BYD's cross-device transport is vendor-only and has no public SDK equivalent.
+    @SuppressLint("PrivateApi")
     private fun sendCrossMessage(context: Context, message: String) {
         val deviceClass = Class.forName("android.cross.device.BYDCrossDevice")
         val device = deviceClass.getMethod("getInstance", Context::class.java)

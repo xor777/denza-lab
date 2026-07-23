@@ -9,7 +9,6 @@ import android.graphics.ColorMatrixColorFilter;
 import android.graphics.Paint;
 import android.graphics.RenderEffect;
 import android.graphics.SurfaceTexture;
-import android.os.Build;
 import android.os.IBinder;
 import android.os.Parcel;
 import android.os.RemoteException;
@@ -163,7 +162,7 @@ public final class AvcCameraRenderer implements TextureView.SurfaceTextureListen
 
     private void applyImageEnhancement(boolean enabled) {
         if (!enabled) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) textureView.setRenderEffect(null);
+            textureView.setRenderEffect(null);
             textureView.setLayerType(View.LAYER_TYPE_NONE, null);
             return;
         }
@@ -182,9 +181,7 @@ public final class AvcCameraRenderer implements TextureView.SurfaceTextureListen
         Paint paint = new Paint();
         paint.setColorFilter(filter);
         textureView.setLayerType(View.LAYER_TYPE_HARDWARE, paint);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            textureView.setRenderEffect(RenderEffect.createColorFilterEffect(filter));
-        }
+        textureView.setRenderEffect(RenderEffect.createColorFilterEffect(filter));
     }
 
     private void releaseSurface() {

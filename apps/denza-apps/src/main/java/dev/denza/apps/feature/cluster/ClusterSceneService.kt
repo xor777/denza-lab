@@ -514,6 +514,13 @@ class ClusterSceneService : Service() {
     /** OpenBYD-compatible navigation contrast shades, strengthened for the center panel. */
     private class ProjectionEdgeShadeView(context: Context) : View(context) {
         private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+        private val eraseMode = PorterDuffXfermode(PorterDuff.Mode.DST_OUT)
+        private var topShader: Shader? = null
+        private var bottomShader: Shader? = null
+        private var cornerShader: Shader? = null
+        private var bottomRevealShader: Shader? = null
+        private var topLeftRevealShader: Shader? = null
+        private var topRightRevealShader: Shader? = null
         private var fadeHeight = (90f * resources.displayMetrics.density).toInt().coerceAtLeast(1)
         private var shadeTopAlpha = 204
         private var shadeBottomAlpha = 204
@@ -565,7 +572,98 @@ class ClusterSceneService : Service() {
             shadeTopRightRevealRadiusPx = topRightRevealRadiusPx.coerceAtLeast(0)
             shadeTopRevealHeightPx = topRevealHeightPx.coerceAtLeast(0)
             shadeCenterTopFadePx = centerTopFadePx.coerceAtLeast(0)
+            rebuildShaders()
             invalidate()
+        }
+
+        override fun onSizeChanged(width: Int, height: Int, oldWidth: Int, oldHeight: Int) {
+            rebuildShaders()
+        }
+
+        private fun rebuildShaders() {
+            if (width <= 0 || height <= 0) {
+                topShader = null
+                bottomShader = null
+                cornerShader = null
+                bottomRevealShader = null
+                topLeftRevealShader = null
+                topRightRevealShader = null
+                return
+            }
+            val edge = fadeHeight.coerceAtMost(height).toFloat()
+            val clear = Color.TRANSPARENT
+            val topDark = Color.argb(shadeTopAlpha, 0, 0, 0)
+            topShader = LinearGradient(
+                0f,
+                0f,
+                0f,
+                edge,
+                topDark,
+                clear,
+                Shader.TileMode.CLAMP,
+            )
+            val bottomDark = Color.argb(shadeBottomAlpha, 0, 0, 0)
+            val topTint = Color.argb(shadeBottomTopAlpha, 0, 0, 0)
+            val solidHeight = shadeBottomSolidPx.coerceAtMost(height)
+            val bottomFadeHeight = shadeBottomFadePx.coerceAtMost(height - solidHeight)
+            val fadeTop = height - solidHeight - bottomFadeHeight
+            val solidTop = height - solidHeight
+            val topFade = shadeCenterTopFadePx.coerceAtMost(fadeTop)
+            bottomShader = LinearGradient(
+                0f,
+                0f,
+                0f,
+                height.toFloat(),
+                intArrayOf(topTint, clear, clear, bottomDark, bottomDark),
+                floatArrayOf(
+                    0f,
+                    topFade.toFloat() / height,
+                    fadeTop.toFloat() / height,
+                    solidTop.toFloat() / height,
+                    1f,
+                ),
+                Shader.TileMode.CLAMP,
+            )
+            cornerShader = shadeCorner?.let { corner ->
+                RadialGradient(
+                    if (corner == ClusterShadeCorner.TOP_LEFT) 0f else width.toFloat(),
+                    0f,
+                    edge.coerceAtLeast(1f),
+                    topDark,
+                    clear,
+                    Shader.TileMode.CLAMP,
+                )
+            }
+            val bottomRadius = shadeBottomRevealRadiusPx.toFloat()
+            val bottomCenterY = (height - shadeBottomRevealCenterOffsetPx)
+                .coerceAtLeast(0)
+                .toFloat()
+            bottomRevealShader = if (bottomRadius > 0f) {
+                RadialGradient(
+                    width / 2f,
+                    bottomCenterY,
+                    bottomRadius,
+                    intArrayOf(Color.WHITE, Color.WHITE, Color.TRANSPARENT),
+                    floatArrayOf(0f, 0.30f, 1f),
+                    Shader.TileMode.CLAMP,
+                )
+            } else {
+                null
+            }
+            topLeftRevealShader = revealShader(0f, shadeTopLeftRevealRadiusPx)
+            topRightRevealShader = revealShader(width.toFloat(), shadeTopRightRevealRadiusPx)
+        }
+
+        private fun revealShader(centerX: Float, radiusPx: Int): Shader? {
+            if (radiusPx <= 0) return null
+            return RadialGradient(
+                centerX,
+                0f,
+                radiusPx.toFloat(),
+                Color.WHITE,
+                Color.TRANSPARENT,
+                Shader.TileMode.CLAMP,
+            )
         }
 
         override fun onDraw(canvas: Canvas) {
@@ -579,51 +677,16 @@ class ClusterSceneService : Service() {
                 null
             }
             val edge = fadeHeight.coerceAtMost(height)
-            val clear = Color.TRANSPARENT
             if (shadeTop) {
-                val dark = Color.argb(shadeTopAlpha, 0, 0, 0)
-                paint.shader = LinearGradient(0f, 0f, 0f, edge.toFloat(), dark, clear, Shader.TileMode.CLAMP)
+                paint.shader = topShader
                 canvas.drawRect(0f, 0f, width.toFloat(), edge.toFloat(), paint)
             }
             if (shadeBottom) {
-                val dark = Color.argb(shadeBottomAlpha, 0, 0, 0)
-                val topTint = Color.argb(shadeBottomTopAlpha, 0, 0, 0)
-                val solidHeight = shadeBottomSolidPx.coerceAtMost(height)
-                val fadeHeight = shadeBottomFadePx.coerceAtMost(height - solidHeight)
-                val fadeTop = height - solidHeight - fadeHeight
-                val solidTop = height - solidHeight
-                val topFade = shadeCenterTopFadePx
-                    .coerceAtMost(fadeTop)
-                if (height > 0) {
-                    paint.shader = LinearGradient(
-                        0f,
-                        0f,
-                        0f,
-                        height.toFloat(),
-                        intArrayOf(topTint, clear, clear, dark, dark),
-                        floatArrayOf(
-                            0f,
-                            topFade.toFloat() / height.toFloat(),
-                            fadeTop.toFloat() / height.toFloat(),
-                            solidTop.toFloat() / height.toFloat(),
-                            1f,
-                        ),
-                        Shader.TileMode.CLAMP,
-                    )
-                    canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paint)
-                }
+                paint.shader = bottomShader
+                canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paint)
             }
             shadeCorner?.let { corner ->
-                val dark = Color.argb(shadeTopAlpha, 0, 0, 0)
-                val centerX = if (corner == ClusterShadeCorner.TOP_LEFT) 0f else width.toFloat()
-                paint.shader = RadialGradient(
-                    centerX,
-                    0f,
-                    edge.toFloat(),
-                    dark,
-                    clear,
-                    Shader.TileMode.CLAMP,
-                )
+                paint.shader = cornerShader
                 val left = if (corner == ClusterShadeCorner.TOP_LEFT) 0f else width - edge.toFloat()
                 val right = if (corner == ClusterShadeCorner.TOP_LEFT) edge.toFloat() else width.toFloat()
                 canvas.drawRect(left.coerceAtLeast(0f), 0f, right.coerceAtMost(width.toFloat()), edge.toFloat(), paint)
@@ -641,62 +704,68 @@ class ClusterSceneService : Service() {
                     centerX,
                     centerY,
                 )
-                paint.shader = RadialGradient(
-                    centerX,
-                    centerY,
-                    radius,
-                    intArrayOf(Color.WHITE, Color.WHITE, Color.TRANSPARENT),
-                    floatArrayOf(0f, 0.30f, 1f),
-                    Shader.TileMode.CLAMP,
-                )
-                paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.DST_OUT)
+                paint.shader = bottomRevealShader
+                paint.xfermode = eraseMode
                 canvas.drawCircle(centerX, centerY, radius, paint)
                 paint.xfermode = null
                 canvas.restoreToCount(revealSave)
             }
             if (shadeTopRevealHeightPx > 0) {
-                listOf(
-                    0f to shadeTopLeftRevealRadiusPx,
-                    width.toFloat() to shadeTopRightRevealRadiusPx,
-                ).forEach { (centerX, radiusPx) ->
-                    if (radiusPx <= 0) return@forEach
-                    val radius = radiusPx.toFloat()
-                    val revealSave = canvas.save()
-                    canvas.scale(
-                        1f,
-                        shadeTopRevealHeightPx / radius,
-                        centerX,
-                        0f,
-                    )
-                    paint.shader = RadialGradient(
-                        centerX,
-                        0f,
-                        radius,
-                        Color.WHITE,
-                        Color.TRANSPARENT,
-                        Shader.TileMode.CLAMP,
-                    )
-                    paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.DST_OUT)
-                    canvas.drawCircle(centerX, 0f, radius, paint)
-                    paint.xfermode = null
-                    canvas.restoreToCount(revealSave)
-                }
+                drawTopReveal(
+                    canvas,
+                    0f,
+                    shadeTopLeftRevealRadiusPx,
+                    topLeftRevealShader,
+                )
+                drawTopReveal(
+                    canvas,
+                    width.toFloat(),
+                    shadeTopRightRevealRadiusPx,
+                    topRightRevealShader,
+                )
             }
             paint.shader = null
             revealLayer?.let(canvas::restoreToCount)
+        }
+
+        private fun drawTopReveal(
+            canvas: Canvas,
+            centerX: Float,
+            radiusPx: Int,
+            shader: Shader?,
+        ) {
+            if (radiusPx <= 0 || shader == null) return
+            val radius = radiusPx.toFloat()
+            val revealSave = canvas.save()
+            canvas.scale(1f, shadeTopRevealHeightPx / radius, centerX, 0f)
+            paint.shader = shader
+            paint.xfermode = eraseMode
+            canvas.drawCircle(centerX, 0f, radius, paint)
+            paint.xfermode = null
+            canvas.restoreToCount(revealSave)
         }
     }
 
     private class EdgeShadeView(context: Context) : View(context) {
         private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+        private var topShader: Shader? = null
+        private var bottomShader: Shader? = null
+        private var fadeHeight = 1
 
-        override fun onDraw(canvas: Canvas) {
-            val fadeHeight = (height * 0.20f).toInt().coerceAtLeast(1)
+        override fun onSizeChanged(width: Int, height: Int, oldWidth: Int, oldHeight: Int) {
+            fadeHeight = (height * 0.20f).toInt().coerceAtLeast(1)
             val dark = Color.argb(179, 0, 0, 0)
             val clear = Color.TRANSPARENT
-            paint.shader = LinearGradient(0f, 0f, 0f, fadeHeight.toFloat(), dark, clear, Shader.TileMode.CLAMP)
-            canvas.drawRect(0f, 0f, width.toFloat(), fadeHeight.toFloat(), paint)
-            paint.shader = LinearGradient(
+            topShader = LinearGradient(
+                0f,
+                0f,
+                0f,
+                fadeHeight.toFloat(),
+                dark,
+                clear,
+                Shader.TileMode.CLAMP,
+            )
+            bottomShader = LinearGradient(
                 0f,
                 (height - fadeHeight).toFloat(),
                 0f,
@@ -705,6 +774,12 @@ class ClusterSceneService : Service() {
                 dark,
                 Shader.TileMode.CLAMP,
             )
+        }
+
+        override fun onDraw(canvas: Canvas) {
+            paint.shader = topShader
+            canvas.drawRect(0f, 0f, width.toFloat(), fadeHeight.toFloat(), paint)
+            paint.shader = bottomShader
             canvas.drawRect(0f, (height - fadeHeight).toFloat(), width.toFloat(), height.toFloat(), paint)
             paint.shader = null
         }

@@ -36,6 +36,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -819,12 +820,6 @@ public class SimulcastAccessibilityService extends AccessibilityService {
                 tearDown();
                 return;
             }
-        } else if (downFromRow && downTarget != null) {
-            // Tap on a row icon selects it; its icon appears on the central screen.
-            selectedTarget = downTarget;
-            if (centralIconPlateView != null) {
-                centralIconPlateView.showTarget(selectedTarget);
-            }
         }
         cancelDrag();
         invalidateOverlayViews();
@@ -933,10 +928,9 @@ public class SimulcastAccessibilityService extends AccessibilityService {
         }
     }
 
-    private RectF localRect(Rect bounds, Rect origin) {
-        RectF out = new RectF(bounds);
+    private void localRect(RectF out, Rect bounds, Rect origin) {
+        out.set(bounds);
         out.offset(-origin.left, -origin.top);
-        return out;
     }
 
     private String loadLabel(String packageName) {
@@ -976,7 +970,9 @@ public class SimulcastAccessibilityService extends AccessibilityService {
         Paint.FontMetrics fm = text.getFontMetrics();
         float baseline = bounds.centerY() - (fm.ascent + fm.descent) / 2f;
         String label = target == null ? "?" : target.label;
-        String letter = label.isEmpty() ? "?" : label.substring(0, 1).toUpperCase();
+        String letter = label.isEmpty()
+                ? "?"
+                : label.substring(0, 1).toUpperCase(Locale.getDefault());
         canvas.drawText(letter, bounds.centerX(), baseline, text);
         canvas.restoreToCount(save);
     }
@@ -1008,10 +1004,20 @@ public class SimulcastAccessibilityService extends AccessibilityService {
     /** Full-screen painter. Never touchable, so the native dialog stays usable. */
     private final class DrawView extends View {
         private final Paint fill = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Paint iconText = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Paint screenText = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final RectF dragBounds = new RectF();
+        private final RectF hintBounds = new RectF();
 
         DrawView(Context context) {
             super(context);
             setWillNotDraw(false);
+            iconText.setTypeface(Typeface.DEFAULT_BOLD);
+            iconText.setTextAlign(Paint.Align.CENTER);
+            screenText.setColor(Color.argb(220, 224, 232, 236));
+            screenText.setTextAlign(Paint.Align.CENTER);
+            screenText.setTypeface(Typeface.DEFAULT_BOLD);
+            screenText.setTextSize(dp(18));
         }
 
         @Override
@@ -1030,15 +1036,15 @@ public class SimulcastAccessibilityService extends AccessibilityService {
             // Floating dragged icon.
             if (dragging && dragTarget != null) {
                 float size = dp(86);
-                RectF b = new RectF(dragX - size / 2f, dragY - size / 2f,
-                        dragX + size / 2f, dragY + size / 2f);
+                dragBounds.set(
+                        dragX - size / 2f,
+                        dragY - size / 2f,
+                        dragX + size / 2f,
+                        dragY + size / 2f);
                 fill.setStyle(Paint.Style.FILL);
                 fill.setColor(Color.argb(70, 0, 0, 0));
                 canvas.drawCircle(dragX + dp(3), dragY + dp(5), size * 0.55f, fill);
-                Paint text = new Paint(Paint.ANTI_ALIAS_FLAG);
-                text.setTypeface(Typeface.DEFAULT_BOLD);
-                text.setTextAlign(Paint.Align.CENTER);
-                drawIcon(canvas, fill, text, dragTarget, b, 0.96f);
+                drawIcon(canvas, fill, iconText, dragTarget, dragBounds, 0.96f);
             }
         }
 
@@ -1046,16 +1052,16 @@ public class SimulcastAccessibilityService extends AccessibilityService {
             if (target == null) {
                 return;
             }
-            RectF b = new RectF(target);
-            b.inset(-dp(10), -dp(10));
+            hintBounds.set(target);
+            hintBounds.inset(-dp(10), -dp(10));
             fill.setStyle(Paint.Style.FILL);
             fill.setColor(active ? Color.argb(70, 31, 194, 142) : Color.argb(20, 255, 255, 255));
-            canvas.drawRoundRect(b, dp(14), dp(14), fill);
+            canvas.drawRoundRect(hintBounds, dp(14), dp(14), fill);
             if (active) {
                 fill.setStyle(Paint.Style.STROKE);
                 fill.setStrokeWidth(dp(2));
                 fill.setColor(Color.argb(210, 31, 194, 142));
-                canvas.drawRoundRect(b, dp(14), dp(14), fill);
+                canvas.drawRoundRect(hintBounds, dp(14), dp(14), fill);
             }
         }
 
@@ -1063,13 +1069,8 @@ public class SimulcastAccessibilityService extends AccessibilityService {
             if (geometry == null || geometry.central == null) {
                 return;
             }
-            Paint text = new Paint(Paint.ANTI_ALIAS_FLAG);
-            text.setColor(Color.argb(220, 224, 232, 236));
-            text.setTextAlign(Paint.Align.CENTER);
-            text.setTypeface(Typeface.DEFAULT_BOLD);
-            text.setTextSize(dp(18));
             canvas.drawText("Проверяю экраны…", geometry.central.centerX(),
-                    geometry.central.bottom + dp(28), text);
+                    geometry.central.bottom + dp(28), screenText);
         }
     }
 
@@ -1077,12 +1078,19 @@ public class SimulcastAccessibilityService extends AccessibilityService {
     private final class RowPlateView extends View {
         private final Paint fill = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final Paint text = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final RectF viewBounds = new RectF();
+        private final RectF iconBounds = new RectF();
 
         RowPlateView(Context context) {
             super(context);
             setWillNotDraw(false);
             text.setTypeface(Typeface.DEFAULT_BOLD);
             text.setTextAlign(Paint.Align.CENTER);
+        }
+
+        @Override
+        protected void onSizeChanged(int width, int height, int oldWidth, int oldHeight) {
+            viewBounds.set(0f, 0f, width, height);
         }
 
         @Override
@@ -1093,13 +1101,14 @@ public class SimulcastAccessibilityService extends AccessibilityService {
             fill.setStyle(Paint.Style.FILL);
             fill.setColor(ROW_PANEL);
             float r = dp(ROW_CORNER_DP);
-            canvas.drawRoundRect(new RectF(0, 0, getWidth(), getHeight()), r, r, fill);
+            canvas.drawRoundRect(viewBounds, r, r, fill);
             if (panelBounds == null) {
                 return;
             }
             for (Slot slot : slots) {
                 float alpha = (dragging && downFromRow && slot.target == dragTarget) ? 0.35f : 1f;
-                drawIcon(canvas, fill, text, slot.target, localRect(slot.bounds, panelBounds), alpha);
+                localRect(iconBounds, slot.bounds, panelBounds);
+                drawIcon(canvas, fill, text, slot.target, iconBounds, alpha);
             }
         }
     }
@@ -1108,7 +1117,10 @@ public class SimulcastAccessibilityService extends AccessibilityService {
     private final class CentralIconPlateView extends View {
         private final Paint fill = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final Paint text = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final RectF cardBounds = new RectF();
+        private final RectF iconBounds = new RectF();
         private Target displayedTarget;
+        private Shader cardShader;
 
         CentralIconPlateView(Context context) {
             super(context);
@@ -1131,7 +1143,38 @@ public class SimulcastAccessibilityService extends AccessibilityService {
             background.setCornerRadius(dp(10));
             background.setStroke(dp(1), Color.argb(42, 255, 255, 255));
             setBackground(background);
+            rebuildSizeDependentDrawing();
             invalidate();
+        }
+
+        @Override
+        protected void onSizeChanged(int width, int height, int oldWidth, int oldHeight) {
+            rebuildSizeDependentDrawing();
+        }
+
+        private void rebuildSizeDependentDrawing() {
+            int width = getWidth();
+            int height = getHeight();
+            cardBounds.set(0f, 0f, width, height);
+            if (width <= 0 || height <= 0) {
+                cardShader = null;
+                iconBounds.setEmpty();
+                return;
+            }
+            int accent = displayedTarget == null
+                    ? Color.rgb(0x38, 0x78, 0xa8)
+                    : displayedTarget.accentColor;
+            cardShader = new RadialGradient(
+                    width * 0.52f,
+                    height * 0.48f,
+                    Math.min(width, height) * 0.62f,
+                    Color.argb(92, Color.red(accent), Color.green(accent), Color.blue(accent)),
+                    Color.TRANSPARENT,
+                    Shader.TileMode.CLAMP);
+            float size = Math.min(width, height) * 0.56f;
+            float left = (width - size) / 2f;
+            float top = (height - size) / 2f;
+            iconBounds.set(left, top, left + size, top + size);
         }
 
         @Override
@@ -1140,30 +1183,16 @@ public class SimulcastAccessibilityService extends AccessibilityService {
             // Use a restrained palette derived from the current app icon. The darker
             // tones keep every icon readable while making the source card feel like a
             // deliberate app-specific surface instead of a black placeholder.
-            int accent = displayedTarget == null
-                    ? Color.rgb(0x38, 0x78, 0xa8)
-                    : displayedTarget.accentColor;
             fill.setStyle(Paint.Style.FILL);
             float r = dp(10);
-            RectF card = new RectF(0, 0, getWidth(), getHeight());
-            fill.setShader(new RadialGradient(
-                    getWidth() * 0.52f,
-                    getHeight() * 0.48f,
-                    Math.min(getWidth(), getHeight()) * 0.62f,
-                    Color.argb(92, Color.red(accent), Color.green(accent), Color.blue(accent)),
-                    Color.TRANSPARENT,
-                    Shader.TileMode.CLAMP));
-            canvas.drawRoundRect(card, r, r, fill);
+            fill.setShader(cardShader);
+            canvas.drawRoundRect(cardBounds, r, r, fill);
             fill.setShader(null);
             if (displayedTarget == null) {
                 return;
             }
-            float size = Math.min(getWidth(), getHeight()) * 0.56f;
-            float left = (getWidth() - size) / 2f;
-            float top = (getHeight() - size) / 2f;
             float alpha = (dragging && !downFromRow) ? 0.4f : 1f;
-            drawIcon(canvas, fill, text, displayedTarget,
-                    new RectF(left, top, left + size, top + size), alpha);
+            drawIcon(canvas, fill, text, displayedTarget, iconBounds, alpha);
         }
     }
 
@@ -1186,7 +1215,11 @@ public class SimulcastAccessibilityService extends AccessibilityService {
                     onMove(event.getRawX(), event.getRawY());
                     return true;
                 case MotionEvent.ACTION_UP:
+                    boolean wasDragging = dragging;
                     onUp(event.getRawX(), event.getRawY());
+                    if (!wasDragging) {
+                        performClick();
+                    }
                     return true;
                 case MotionEvent.ACTION_CANCEL:
                     cancelDrag();
@@ -1195,6 +1228,17 @@ public class SimulcastAccessibilityService extends AccessibilityService {
                 default:
                     return true;
             }
+        }
+
+        @Override
+        public boolean performClick() {
+            super.performClick();
+            selectedTarget = target;
+            if (centralIconPlateView != null) {
+                centralIconPlateView.showTarget(selectedTarget);
+            }
+            invalidateOverlayViews();
+            return true;
         }
     }
 
@@ -1214,7 +1258,11 @@ public class SimulcastAccessibilityService extends AccessibilityService {
                     onMove(event.getRawX(), event.getRawY());
                     return true;
                 case MotionEvent.ACTION_UP:
+                    boolean wasDragging = dragging;
                     onUp(event.getRawX(), event.getRawY());
+                    if (!wasDragging) {
+                        performClick();
+                    }
                     return true;
                 case MotionEvent.ACTION_CANCEL:
                     cancelDrag();
@@ -1223,6 +1271,12 @@ public class SimulcastAccessibilityService extends AccessibilityService {
                 default:
                     return true;
             }
+        }
+
+        @Override
+        public boolean performClick() {
+            super.performClick();
+            return true;
         }
     }
 }

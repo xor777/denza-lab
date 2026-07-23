@@ -1,5 +1,6 @@
 package dev.denza.apps.feature.navigation
 
+import android.annotation.SuppressLint
 import android.app.ActivityOptions
 import android.content.Context
 import android.content.Intent
@@ -15,6 +16,8 @@ import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
+// The stored value is normalized to applicationContext during initialization.
+@SuppressLint("StaticFieldLeak")
 object NavigationCoordinator {
     private const val TAG = "DenzaNavigation"
     private const val ADB_KEY_COMMENT = "denza-apps@denza"

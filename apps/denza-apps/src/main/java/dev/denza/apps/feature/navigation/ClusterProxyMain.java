@@ -1,5 +1,6 @@
 package dev.denza.apps.feature.navigation;
 
+import android.annotation.SuppressLint;
 import android.app.ActivityManager;
 import android.content.ComponentName;
 import android.content.Context;
@@ -79,6 +80,7 @@ public final class ClusterProxyMain {
         }
     }
 
+    @SuppressLint({"PrivateApi", "DiscouragedPrivateApi"})
     private static Context systemContext() throws Exception {
         Class<?> activityThreadClass = Class.forName("android.app.ActivityThread");
         Object activityThread = activityThreadClass.getDeclaredMethod("systemMain").invoke(null);
@@ -253,7 +255,13 @@ public final class ClusterProxyMain {
             throw new SecurityException("task is not an allowed navigation task");
         }
 
-        private boolean invokeTaskManager(String[] names, Class<?>[] parameterTypes, Object... args) {
+        // This shell-UID helper targets the fixed DiLink 5.1 framework surface;
+        // public SDK APIs cannot move an allowlisted task across vendor displays.
+        @SuppressLint({"PrivateApi", "BlockedPrivateApi"})
+        private boolean invokeTaskManager(
+                String[] names,
+                Class<?>[] parameterTypes,
+                Object... args) {
             try {
                 Class<?> managerClass = Class.forName("android.app.ActivityTaskManager");
                 Object service = managerClass.getDeclaredMethod("getService").invoke(null);
