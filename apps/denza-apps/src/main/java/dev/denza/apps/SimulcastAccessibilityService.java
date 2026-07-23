@@ -233,6 +233,7 @@ public class SimulcastAccessibilityService extends AccessibilityService {
 
     private void refresh() {
         AccessibilityNodeInfo root = findDiShareRoot();
+        SimulcastRuntimeDiagnostics.recordRoot(root != null);
         // Mid-drag: keep the current overlay through transient accessibility gaps.
         // Only a dialog missing for the full close grace cancels the gesture.
         if (dragging) {
@@ -263,7 +264,11 @@ public class SimulcastAccessibilityService extends AccessibilityService {
             tearDown();
             return;
         }
+        boolean rootFound = root != null;
         SimulcastDialogGeometry geo = SimulcastDialogGeometry.from(root);
+        if (rootFound && geo == null) {
+            SimulcastRuntimeDiagnostics.recordGeometryParseMiss();
+        }
         if (root != null) {
             root.recycle();
         }
@@ -302,6 +307,7 @@ public class SimulcastAccessibilityService extends AccessibilityService {
         SimulcastDialogGeometry stableGeometry =
                 geometryStabilizer.offer(SystemClock.elapsedRealtime(), geo);
         if (stableGeometry == null) {
+            SimulcastRuntimeDiagnostics.recordUnstableSample();
             // Receiver availability is independent from window geometry. Update its
             // visual state immediately when the already-applied geometry is still
             // stable, without moving or rebuilding any windows.
@@ -527,7 +533,11 @@ public class SimulcastAccessibilityService extends AccessibilityService {
                     SimulcastWindowReconciler.Kind.CENTRAL_TOUCH,
                     geometry.central));
         }
-        windowReconciler.apply(plan);
+        SimulcastWindowReconciler.Result result = windowReconciler.apply(plan);
+        SimulcastRuntimeDiagnostics.recordRelayouts(result.relayouts);
+        if (result.semanticRebuild) {
+            SimulcastRuntimeDiagnostics.recordSemanticRebuild();
+        }
         if (centralIconPlateView != null) {
             centralIconPlateView.showTarget(selectedTarget);
         }

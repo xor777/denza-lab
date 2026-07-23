@@ -23,6 +23,7 @@ data class MirrorTransitionObservation(
     val requestedSide: MirrorSide?,
     val runtime: CameraRuntimeSnapshot,
     val nowMs: Long,
+    val runtimeWindowAmbiguous: Boolean = false,
 )
 
 sealed interface MirrorTransitionCommand {
@@ -66,6 +67,17 @@ object MirrorTransitionReducer {
     )
 
     private fun reduceIdle(observation: MirrorTransitionObservation): MirrorTransitionResult {
+        if (observation.runtimeWindowAmbiguous) {
+            return MirrorTransitionResult(
+                quarantine(
+                    MirrorTransitionState(),
+                    observation.runtime,
+                    observation.nowMs,
+                    "ambiguous AVC windows",
+                ),
+                MirrorTransitionCommand.Hide,
+            )
+        }
         val requested = observation.requestedSide ?: return MirrorTransitionResult(
             MirrorTransitionState(
                 runtimeGeneration = observation.runtime.generation,
@@ -121,6 +133,7 @@ object MirrorTransitionReducer {
     ): MirrorTransitionResult {
         val side = state.side
         val quarantineReason = when {
+            observation.runtimeWindowAmbiguous -> "ambiguous AVC windows"
             observation.requestedSide == null -> "window hidden while camera was starting"
             observation.requestedSide != side -> "direct side switch"
             observation.runtime.phase == CameraRuntimePhase.FAILED -> "AVC failure"
@@ -158,6 +171,17 @@ object MirrorTransitionReducer {
         state: MirrorTransitionState,
         observation: MirrorTransitionObservation,
     ): MirrorTransitionResult {
+        if (observation.runtimeWindowAmbiguous) {
+            return MirrorTransitionResult(
+                quarantine(
+                    state,
+                    observation.runtime,
+                    observation.nowMs,
+                    "ambiguous AVC windows",
+                ),
+                MirrorTransitionCommand.Hide,
+            )
+        }
         if (observation.requestedSide == null) {
             return MirrorTransitionResult(
                 MirrorTransitionState(
@@ -193,7 +217,11 @@ object MirrorTransitionReducer {
     ): MirrorTransitionResult {
         val runtimeInactive = observation.runtime.phase == CameraRuntimePhase.IDLE ||
             observation.runtime.phase == CameraRuntimePhase.FAILED
-        if (observation.requestedSide != null || !runtimeInactive) {
+        if (
+            observation.requestedSide != null ||
+            observation.runtimeWindowAmbiguous ||
+            !runtimeInactive
+        ) {
             return MirrorTransitionResult(
                 state.copy(
                     runtimeGeneration = observation.runtime.generation,

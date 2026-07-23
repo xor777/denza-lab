@@ -116,6 +116,29 @@ class MirrorTransitionReducerTest {
     }
 
     @Test
+    fun ambiguousAvcWindowSetCannotLookLikeNeutralWhileShowing() {
+        val showing = MirrorTransitionState(
+            phase = MirrorTransitionPhase.SHOWING,
+            side = MirrorSide.LEFT,
+            phaseStartedAtMs = 100L,
+            runtimeGeneration = 2L,
+        )
+
+        val ambiguous = MirrorTransitionReducer.reduce(
+            showing,
+            MirrorTransitionObservation(
+                requestedSide = null,
+                runtime = runtime(CameraRuntimePhase.READY, MirrorSide.LEFT, generation = 2L),
+                nowMs = 200L,
+                runtimeWindowAmbiguous = true,
+            ),
+        )
+
+        assertEquals(MirrorTransitionPhase.QUARANTINED, ambiguous.state.phase)
+        assertEquals(MirrorTransitionCommand.Hide, ambiguous.command)
+    }
+
+    @Test
     fun sessionTimeoutQuarantinesInsteadOfRestarting() {
         val showing = MirrorTransitionState(
             phase = MirrorTransitionPhase.SHOWING,

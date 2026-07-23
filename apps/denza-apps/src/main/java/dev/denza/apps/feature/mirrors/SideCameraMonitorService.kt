@@ -89,14 +89,14 @@ class SideCameraMonitorService : Service() {
 
         try {
             val windows = adb.shell("dumpsys window visible")
-            val left = SideCameraWindowDetector.isLeftVisible(windows, displayId)
-            val right = SideCameraWindowDetector.isRightVisible(windows)
-            val requested = when {
-                left -> MirrorSide.LEFT
-                right -> MirrorSide.RIGHT
-                else -> null
-            }
-            applyTransition(requested, now)
+            val detection = SideCameraWindowDetector.analyze(windows, displayId)
+            MirrorWindowDiagnostics.record(detection)
+            val ambiguous = detection.avcCandidateBlocks > 0 &&
+                (
+                    detection.recognizedSide == null ||
+                        detection.unrecognizedCandidates > 0
+                )
+            applyTransition(detection.recognizedSide, now, ambiguous)
         } catch (error: Exception) {
             setStatus(observedSide(), "ADB monitor error: ${shortError(error)}")
             updateNotification("ADB access needs attention")
@@ -124,7 +124,11 @@ class SideCameraMonitorService : Service() {
         }
     }
 
-    private fun applyTransition(requested: MirrorSide?, now: Long) {
+    private fun applyTransition(
+        requested: MirrorSide?,
+        now: Long,
+        runtimeWindowAmbiguous: Boolean,
+    ) {
         val runtime = ClusterSceneService.cameraRuntimeSnapshot()
         val result = MirrorTransitionReducer.reduce(
             transitionState,
@@ -132,6 +136,7 @@ class SideCameraMonitorService : Service() {
                 requestedSide = requested,
                 runtime = runtime,
                 nowMs = now,
+                runtimeWindowAmbiguous = runtimeWindowAmbiguous,
             ),
         )
         transitionState = result.state

@@ -4,7 +4,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.drawable.Drawable
-import android.provider.Settings
 import dev.denza.apps.core.FeatureId
 import dev.denza.apps.core.FeatureReducer
 import dev.denza.apps.core.FeatureSnapshot
@@ -28,11 +27,9 @@ import dev.denza.apps.feature.navigation.NavigationPhase
 import dev.denza.apps.feature.navigation.NavigationSettings
 import dev.denza.apps.feature.split.SplitScreenCoordinator
 import dev.denza.apps.feature.split.SplitScreenPhase
-import dev.denza.disharebridge.LocalAdbClient
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import java.security.GeneralSecurityException
 import java.util.concurrent.Executors
 
 data class SimulcastAppChoice(
@@ -88,8 +85,6 @@ data class DenzaUiState(
 
 /** Android-facing state owner shared by the Compose shell and runtime services. */
 object DenzaAppRepository {
-    private const val DISHARE_PACKAGE = "com.byd.dishare"
-    private const val ADB_KEY_COMMENT = "denza-apps@denza"
     private val executor = Executors.newSingleThreadExecutor()
     private val mutableState = MutableStateFlow(DenzaUiState())
     val state: StateFlow<DenzaUiState> = mutableState.asStateFlow()
@@ -120,8 +115,7 @@ object DenzaAppRepository {
 
     fun refresh() {
         val context = appContext ?: return
-        val desired = SimulcastIntegration.isEnabled(context)
-        val snapshot = evaluateSimulcast(context, desired)
+        val snapshot = SimulcastCoordinator.evaluate(SimulcastCoordinator.inspect(context))
         val navigationSession = NavigationCoordinator.snapshot()
         val navigationPackage = NavigationCoordinator.selectedPackage()
         val splitSession = SplitScreenCoordinator.snapshot()
@@ -147,7 +141,7 @@ object DenzaAppRepository {
                 splitSession.details,
             ),
             hudGuidance = evaluateHudGuidance(context),
-            technicalDetails = diagnostics(context),
+            technicalDetails = supportDiagnostics(context),
             clusterCandidates = ClusterDisplayResolver.candidates(context),
         )
     }
@@ -177,7 +171,9 @@ object DenzaAppRepository {
             SimulcastIntegration.setEnabled(context, true)
         }
         reconcileSimulcast(repairMissingSetup = true)
-        val launch = context.packageManager.getLaunchIntentForPackage(DISHARE_PACKAGE)
+        val launch = context.packageManager.getLaunchIntentForPackage(
+            SimulcastCoordinator.DISHARE_PACKAGE,
+        )
         if (launch == null) {
             mutableState.value = mutableState.value.copy(
                 simulcast = FeatureReducer.needsAction(
@@ -391,18 +387,15 @@ object DenzaAppRepository {
             refresh()
             return
         }
-        if (isAccessibilityEnabled(context) && SimulcastAccessibilityService.isConnected()) {
+        if (
+            SimulcastCoordinator.isAccessibilityEnabled(context) &&
+            SimulcastAccessibilityService.isConnected()
+        ) {
             SimulcastAccessibilityService.requestHudGuidanceRefresh()
             refresh()
             return
         }
-        executor.execute {
-            val failure = try {
-                repairSimulcastAccess(context)
-                null
-            } catch (error: Exception) {
-                error
-            }
+        SimulcastCoordinator.repairAccess(context) { failure ->
             if (failure == null) {
                 SimulcastAccessibilityService.requestHudGuidanceRefresh()
                 refresh()
@@ -410,10 +403,10 @@ object DenzaAppRepository {
                 mutableState.value = mutableState.value.copy(
                     hudGuidance = FeatureReducer.needsAction(
                         FeatureReducer.starting(FeatureId.HUD_GUIDANCE),
-                        friendlySetupError(failure),
+                        SimulcastCoordinator.friendlySetupError(failure),
                         failure.toString(),
                     ),
-                    technicalDetails = diagnostics(context),
+                    technicalDetails = supportDiagnostics(context),
                 )
             }
         }
@@ -456,14 +449,14 @@ object DenzaAppRepository {
                         FeatureReducer.starting(FeatureId.MIRRORS),
                         "Выберите экран в разделе помощи",
                     ),
-                    technicalDetails = diagnostics(context),
+                    technicalDetails = supportDiagnostics(context),
                 )
             ClusterDisplaySelection.Missing -> mutableState.value = mutableState.value.copy(
                 mirrors = FeatureReducer.needsAction(
                     FeatureReducer.starting(FeatureId.MIRRORS),
                     "Приборный экран пока не найден",
                 ),
-                technicalDetails = diagnostics(context),
+                technicalDetails = supportDiagnostics(context),
             )
         }
     }
@@ -473,90 +466,49 @@ object DenzaAppRepository {
         forceRepair: Boolean = false,
     ) {
         val context = appContext ?: return
-        val desired = SimulcastIntegration.isEnabled(context)
-        if (!desired) {
-            refresh()
-            return
-        }
-        val blocking = blockingProblem(context)
-        if (blocking != null) {
-            mutableState.value = mutableState.value.copy(
-                simulcast = FeatureReducer.needsAction(
-                    FeatureReducer.starting(FeatureId.SIMULCAST),
-                    blocking,
-                ),
-                selectedAppCount = SimulcastApps.selectedCount(context),
-                technicalDetails = diagnostics(context),
-            )
-            return
-        }
-        val needsSetup = !hasOverlayPermission(context) ||
-            !isAccessibilityEnabled(context) ||
-            !SimulcastAccessibilityService.isConnected()
-        if (!needsSetup && !forceRepair) {
-            SimulcastOverlayService.startMonitor(context)
-            refresh()
-            return
-        }
-        if (!repairMissingSetup && !forceRepair) {
-            refresh()
-            return
-        }
-
-        mutableState.value = mutableState.value.copy(
-            simulcast = FeatureReducer.recovering(
-                FeatureReducer.starting(FeatureId.SIMULCAST),
-                "Восстанавливаю доступ",
-            ),
-            setupRunning = true,
-        )
-        executor.execute {
-            val failure = try {
-                repairSimulcastAccess(context)
-                null
-            } catch (error: Exception) {
-                error
-            }
-            if (failure == null && hasOverlayPermission(context) && isAccessibilityEnabled(context)) {
-                SimulcastOverlayService.startMonitor(context)
-                mutableState.value = mutableState.value.copy(setupRunning = false)
-                refresh()
-            } else {
-                val message = friendlySetupError(failure)
-                mutableState.value = mutableState.value.copy(
-                    simulcast = FeatureReducer.needsAction(
-                        FeatureReducer.starting(FeatureId.SIMULCAST),
-                        message,
-                        failure?.toString(),
-                    ),
-                    setupRunning = false,
-                    technicalDetails = diagnostics(context),
-                )
+        SimulcastCoordinator.reconcile(
+            context = context,
+            repairMissingSetup = repairMissingSetup,
+            forceRepair = forceRepair,
+        ) { event ->
+            when (event) {
+                SimulcastReconcileEvent.Refresh -> refresh()
+                is SimulcastReconcileEvent.Blocked -> {
+                    mutableState.value = mutableState.value.copy(
+                        simulcast = FeatureReducer.needsAction(
+                            FeatureReducer.starting(FeatureId.SIMULCAST),
+                            event.message,
+                        ),
+                        selectedAppCount = event.selectedAppCount,
+                        technicalDetails = supportDiagnostics(context),
+                    )
+                }
+                SimulcastReconcileEvent.Repairing -> {
+                    mutableState.value = mutableState.value.copy(
+                        simulcast = FeatureReducer.recovering(
+                            FeatureReducer.starting(FeatureId.SIMULCAST),
+                            "Восстанавливаю доступ",
+                        ),
+                        setupRunning = true,
+                    )
+                }
+                SimulcastReconcileEvent.Repaired -> {
+                    mutableState.value = mutableState.value.copy(setupRunning = false)
+                    refresh()
+                }
+                is SimulcastReconcileEvent.RepairFailed -> {
+                    mutableState.value = mutableState.value.copy(
+                        simulcast = FeatureReducer.needsAction(
+                            FeatureReducer.starting(FeatureId.SIMULCAST),
+                            event.message,
+                            event.details,
+                        ),
+                        setupRunning = false,
+                        technicalDetails = supportDiagnostics(context),
+                    )
+                }
             }
         }
-    }
-
-    private fun evaluateSimulcast(context: Context, desired: Boolean): FeatureSnapshot {
-        if (!desired) return FeatureReducer.disabled(FeatureId.SIMULCAST)
-        blockingProblem(context)?.let {
-            return FeatureReducer.needsAction(FeatureReducer.starting(FeatureId.SIMULCAST), it)
-        }
-        if (!hasOverlayPermission(context) || !isAccessibilityEnabled(context)) {
-            return FeatureReducer.needsAction(
-                FeatureReducer.starting(FeatureId.SIMULCAST),
-                "Нужно разрешить доступ",
-            )
-        }
-        if (!SimulcastAccessibilityService.isConnected()) {
-            return FeatureReducer.recovering(
-                FeatureReducer.starting(FeatureId.SIMULCAST),
-                "Восстанавливаю трансляцию",
-            )
-        }
-        return FeatureReducer.ready(
-            FeatureId.SIMULCAST,
-            active = SimulcastIntegration.getLastTargetPackage(context) != null,
-        )
     }
 
     private fun evaluateMirrors(context: Context): FeatureSnapshot {
@@ -589,7 +541,7 @@ object DenzaAppRepository {
                 message = "Яндекс Навигатор не найден",
             )
         }
-        if (!isAccessibilityEnabled(context)) {
+        if (!SimulcastCoordinator.isAccessibilityEnabled(context)) {
             return FeatureReducer.needsAction(
                 FeatureReducer.starting(FeatureId.HUD_GUIDANCE),
                 "Нужно разрешить доступ",
@@ -663,129 +615,8 @@ object DenzaAppRepository {
         )
     }
 
-    private fun blockingProblem(context: Context): String? {
-        if (!isInstalled(context.packageManager, DISHARE_PACKAGE)) return "Simulcast не найден"
-        if (SimulcastApps.getSelected(context).isEmpty()) return "Выберите приложения"
-        return null
-    }
-
-    private fun hasOverlayPermission(context: Context): Boolean = Settings.canDrawOverlays(context)
-
-    private fun isAccessibilityEnabled(context: Context): Boolean {
-        val setting = Settings.Secure.getString(
-            context.contentResolver,
-            Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES,
-        )
-        return SimulcastAccessibilityAccess.isEnabled(setting)
-    }
-
-    private fun repairSimulcastAccess(context: Context) {
-        val adb = LocalAdbClient(context, ADB_KEY_COMMENT)
-        val packageName = shellQuote(context.packageName)
-        adb.shell("cmd appops set $packageName SYSTEM_ALERT_WINDOW allow")
-
-        val current = adb.shell(
-            "settings get secure enabled_accessibility_services",
-        ).trim()
-        val withoutService = SimulcastAccessibilityAccess.withoutService(current)
-        adb.shell(
-            "settings put secure enabled_accessibility_services " +
-                shellQuote(withoutService),
-        )
-        Thread.sleep(250L)
-
-        // Re-read before enabling so another accessibility setting changed during
-        // the short rebind window is preserved.
-        val refreshed = adb.shell(
-            "settings get secure enabled_accessibility_services",
-        ).trim()
-        val withService = SimulcastAccessibilityAccess.withService(refreshed)
-        adb.shell(
-            "settings put secure enabled_accessibility_services " +
-                shellQuote(withService) +
-                "; settings put secure accessibility_enabled 1",
-        )
-    }
-
-    private fun friendlySetupError(error: Exception?): String {
-        if (error == null) return "Нужно подтвердить доступ"
-        val message = error.message.orEmpty()
-        return when {
-            message.contains("authorization pending", ignoreCase = true) ->
-                "Подтвердите ADB-ключ на экране автомобиля"
-            message.contains("refused", ignoreCase = true) -> "Включите ADB на машине"
-            message.contains("timeout", ignoreCase = true) ||
-                message.contains("timed out", ignoreCase = true) -> "ADB пока не отвечает"
-            error is GeneralSecurityException -> "Не удалось подготовить ключ доступа"
-            else -> "Не удалось восстановить доступ"
-        }
-    }
-
-    private fun diagnostics(context: Context): String = buildString {
-        appendLine("Версия=0.3.0")
-        appendLine("DiShare=${yesNo(isInstalled(context.packageManager, DISHARE_PACKAGE))}")
-        appendLine("Доступ поверх окон=${yesNo(hasOverlayPermission(context))}")
-        appendLine("Управление интерфейсом=${yesNo(isAccessibilityEnabled(context))}")
-        appendLine("Сервис трансляции=${yesNo(SimulcastAccessibilityService.isConnected())}")
-        SimulcastScreenDiagnostics.diagnosticLines().forEach { appendLine(it) }
-        val displays = ClusterDisplayResolver.candidates(context)
-        appendLine("Android displays=${displays.size}")
-        displays.forEach { display ->
-            appendLine(
-                "Android display #${display.id}=" +
-                    "name=${display.name.ifBlank { "—" }}; " +
-                    "size=${display.width}×${display.height}; " +
-                    "dpi=${display.densityDpi}; " +
-                    "type=${display.type}; " +
-                    "flags=0x${Integer.toHexString(display.flags)}; " +
-                    "Denza virtual=${if (display.isOwnVirtualDisplay) "да" else "нет"}",
-            )
-        }
-        appendLine("Трансляция=${enabledLabel(SimulcastIntegration.isEnabled(context))}")
-        appendLine("Выбрано приложений=${SimulcastApps.selectedCount(context)}")
-        appendLine("Зеркала=${enabledLabel(MirrorsSettings.isEnabled(context))}")
-        appendLine(
-            "Расположение зеркал=" + if (MirrorsSettings.position(context) == MirrorsPosition.CENTER) {
-                "По центру"
-            } else {
-                "По сторонам"
-            },
-        )
-        appendLine("Улучшение изображения=${enabledLabel(MirrorsSettings.processingEnabled(context))}")
-        appendLine("Состояние зеркал=${mirrorRuntimeLabel(MirrorsSettings.statusDetails(context))}")
-        appendLine("Экран приборки=${clusterSelectionLabel(ClusterDisplayResolver.resolve(context))}")
-        val navigation = NavigationCoordinator.snapshot()
-        appendLine("Навигация=${navigation.message.ifBlank { navigation.phase.name.lowercase() }}")
-        val split = SplitScreenCoordinator.snapshot()
-        appendLine("Split screen=${split.message.ifBlank { split.phase.name.lowercase() }}")
-        appendLine("HUD-подсказки=${enabledLabel(HudGuidanceSettings.isEnabled(context))}")
-        val fseInstaller = mutableState.value.fseInstaller
-        appendLine("Установка FSE=${fseInstaller.message.ifBlank { fseInstaller.status.name.lowercase() }}")
-        fseInstaller.details?.let { appendLine("Детали FSE=$it") }
-        append("Данные HUD=${HudGuidanceRuntime.details()}")
-    }
-
-    private fun yesNo(value: Boolean) = if (value) "Доступен" else "Недоступен"
-
-    private fun enabledLabel(value: Boolean) = if (value) "Включено" else "Выключено"
-
-    private fun mirrorRuntimeLabel(value: String): String = when {
-        value == "monitor running" -> "Монитор работает"
-        value == "monitor stopped" -> "Монитор остановлен"
-        value == "disabled after com.byd.avc failure" -> "Отключены после сбоя штатной камеры"
-        value.startsWith("showing left") -> "Показывается левая камера"
-        value.startsWith("showing right") -> "Показывается правая камера"
-        value.isBlank() -> "Нет данных"
-        else -> value
-    }
-
-    private fun clusterSelectionLabel(selection: ClusterDisplaySelection): String = when (selection) {
-        is ClusterDisplaySelection.Selected -> with(selection.display) {
-            "#$id · ${width}×$height · $name"
-        }
-        is ClusterDisplaySelection.NeedsVerification -> "Нужно выбрать экран"
-        ClusterDisplaySelection.Missing -> "Не найден"
-    }
+    private fun supportDiagnostics(context: Context): String =
+        SupportDiagnostics.build(context, mutableState.value.fseInstaller)
 
     private fun loadAppChoices(context: Context): List<SimulcastAppChoice> {
         val selected = SimulcastApps.getSelected(context)
@@ -829,6 +660,4 @@ object DenzaAppRepository {
     } catch (_: PackageManager.NameNotFoundException) {
         false
     }
-
-    private fun shellQuote(value: String): String = "'${value.replace("'", "'\"'\"'")}'"
 }
