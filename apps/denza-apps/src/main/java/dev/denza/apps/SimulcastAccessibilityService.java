@@ -30,9 +30,12 @@ import android.view.accessibility.AccessibilityNodeInfo;
 import android.view.accessibility.AccessibilityWindowInfo;
 
 import dev.denza.disharebridge.DiShareScreens;
+import dev.denza.apps.feature.cluster.ClusterSceneService;
 import dev.denza.apps.feature.hud.HudGuidanceAccessibilityMonitor;
 import dev.denza.apps.feature.navigation.NavigationSettings;
 import dev.denza.apps.feature.navigation.SteeringWheelNavigationButton;
+import dev.denza.apps.feature.navigation.SteeringWheelPressResult;
+import dev.denza.apps.feature.navigation.SteeringWheelPressSequence;
 import dev.denza.apps.feature.simulcast.SimulcastVideoSizeResolver;
 
 import java.util.ArrayList;
@@ -89,6 +92,10 @@ public class SimulcastAccessibilityService extends AccessibilityService {
     private static volatile SimulcastAccessibilityService instance;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
+    private final SteeringWheelPressSequence steeringWheelPresses =
+            new SteeringWheelPressSequence();
+    private final Runnable steeringWheelFlushRunnable =
+            this::flushSteeringWheelNavigationActions;
     private final Map<String, Target> targetCache = new HashMap<>();
     private final Runnable refreshRunnable = this::refreshSafely;
 
@@ -169,6 +176,10 @@ public class SimulcastAccessibilityService extends AccessibilityService {
     protected boolean onKeyEvent(KeyEvent event) {
         boolean enabled = NavigationSettings.INSTANCE.steeringWheelButtonEnabled(this);
         if (!SteeringWheelNavigationButton.shouldConsume(enabled, event.getKeyCode())) {
+            if (!enabled) {
+                handler.removeCallbacks(steeringWheelFlushRunnable);
+                steeringWheelPresses.reset();
+            }
             return false;
         }
         if (SteeringWheelNavigationButton.shouldTrigger(
@@ -176,10 +187,44 @@ public class SimulcastAccessibilityService extends AccessibilityService {
                 event.getKeyCode(),
                 event.getAction(),
                 event.getRepeatCount())) {
+            long nowMs = SystemClock.uptimeMillis();
+            SteeringWheelPressResult result = steeringWheelPresses.onPress(nowMs);
+            dispatchSteeringWheelNavigationActions(result.getNavigationActionsBefore());
+            handler.removeCallbacks(steeringWheelFlushRunnable);
+            if (result.getToggleDvrCamera()) {
+                Log.i(TAG, "steering-wheel triple press: toggle DVR camera");
+                ClusterSceneService.Companion.toggleDvrCamera(this);
+            } else {
+                handler.postDelayed(
+                        steeringWheelFlushRunnable,
+                        steeringWheelPresses.delayUntilFlush(nowMs));
+            }
+        }
+        return true;
+    }
+
+    private void flushSteeringWheelNavigationActions() {
+        if (!NavigationSettings.INSTANCE.steeringWheelButtonEnabled(this)) {
+            steeringWheelPresses.reset();
+            return;
+        }
+        long nowMs = SystemClock.uptimeMillis();
+        int actions = steeringWheelPresses.flushNavigationActions(nowMs);
+        if (actions == 0) {
+            long retryDelayMs = steeringWheelPresses.delayUntilFlush(nowMs);
+            if (retryDelayMs > 0L) {
+                handler.postDelayed(steeringWheelFlushRunnable, retryDelayMs);
+            }
+            return;
+        }
+        dispatchSteeringWheelNavigationActions(actions);
+    }
+
+    private void dispatchSteeringWheelNavigationActions(int count) {
+        for (int index = 0; index < count; index++) {
             Log.i(TAG, "steering-wheel navigation action");
             DenzaAppRepository.INSTANCE.performNavigationActionFromSteeringWheel(this);
         }
-        return true;
     }
 
     @Override
@@ -193,6 +238,8 @@ public class SimulcastAccessibilityService extends AccessibilityService {
             instance = null;
         }
         handler.removeCallbacks(refreshRunnable);
+        handler.removeCallbacks(steeringWheelFlushRunnable);
+        steeringWheelPresses.reset();
         tearDownHudGuidance();
         tearDown();
         DenzaAppRepository.INSTANCE.refresh();
@@ -206,6 +253,8 @@ public class SimulcastAccessibilityService extends AccessibilityService {
             instance = null;
         }
         handler.removeCallbacks(refreshRunnable);
+        handler.removeCallbacks(steeringWheelFlushRunnable);
+        steeringWheelPresses.reset();
         tearDownHudGuidance();
         tearDown();
         DenzaAppRepository.INSTANCE.refresh();

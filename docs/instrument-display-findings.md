@@ -1,7 +1,7 @@
 # Instrument Display Findings
 
 This page tracks the instrument-display scene shared by Mirrors and navigation.
-The implementation summary was last checked against the code on 2026-07-24.
+The implementation summary was last checked against the code on 2026-07-25.
 
 ## Product architecture
 
@@ -14,7 +14,8 @@ matching the two-layer Denza display composition verified on the car:
   instrument region;
 - a separate `TextureView` presentation on
   `shared_fission_bg_XDJAScreenProjection_1` is the stock-compatible camera
-  overlay layer;
+  overlay layer shared by the mutually exclusive AVC side-camera and Camera2
+  DVR renderers;
 - camera diagnostics use the same overlay display and appear after the user
   presses **Проверить камеры** or chooses a display in hidden diagnostics.
 
@@ -93,7 +94,8 @@ the process. The automatic **Map mode** implementation also remains in code,
 but its unfinished UI switch is hidden in the current build.
 
 The optional **Steering-wheel button** switch binds the Denza configurable
-left-hand key to the same contextual navigation action. It is off by default.
+left-hand key to the contextual navigation action and the front DVR overlay.
+It is off by default.
 On the tested DiLink 5.1 firmware, host-side
 `adb shell getevent -lt /dev/input/event0` identifies the device as
 `simulate-keys`: Linux input code `300` (`AUTO_CUSTOM_KEY`) maps through
@@ -102,12 +104,14 @@ Code `301` (`AUTO_CUSTOM_KEY_LP`) maps separately to Android key code `322` for
 the stock long-press settings flow.
 
 The existing Denza Apps accessibility service requests key-event filtering.
-When the switch is enabled it consumes both phases of key code `321`, invokes
-the navigation action only on the first non-repeated `DOWN`, and leaves key
-code `322` and every unrelated key untouched. When disabled, it does not
-consume `321`, so the stock action continues normally. Denza Apps does not
-rewrite the global `byd_map_package` setting. That stock alternative was
-observed but rejected: `CustomKeyHandler` action `7` reads
+When the switch is enabled it consumes both phases of key code `321` and counts
+first, non-repeated `DOWN` events in a `500 ms` inter-press window. One press
+runs the navigation action after that window; three presses consume the full
+sequence and toggle the processed Camera2 DVR overlay. Key code `322` and every
+unrelated key remain untouched. When disabled, Denza Apps does not consume
+`321`, so the stock action continues normally. Denza Apps does not rewrite the
+global `byd_map_package` setting. That stock alternative was observed but
+rejected: `CustomKeyHandler` action `7` reads
 `byd_map_package=com.byd.launchermap` and sends the package-scoped
 `CUSTOM_NAVI_STANDARD_BROADCAST_RECV` broadcast.
 
@@ -414,3 +418,75 @@ listed above and the rapid side-switch limitation remain open Denza Apps work.
   experiment produced black output. The tools remain host-side research only.
 - The old `HudDiShareActivity`, map demos, and `.probe` camera paths are not part
   of the Denza Apps product implementation.
+
+## Front-camera source evaluation (2026-07-25)
+
+### AVC surround-view source
+
+The isolated module whose historical Gradle name is `:night-vision-probe`
+proved that the parked-car AVC source can be shown without restarting
+`com.byd.avc`. The accepted sequence warmed the stock PIP route, transferred
+the Surface to the same ordinary `Presentation` fallback and black
+`cameraFrame` used by Denza Apps/Mirrors, selected
+`SUB_CAMERA_FRONT=2001`, closed the stock card, and rendered the rightmost
+`57%` into the centered `1023x720` frame. The AVC PID stayed `12288`.
+
+The source is not a useful long-range vision feed. It is the wide-angle
+surround-view/parking composition: bird's-eye occupies the left part and the
+front parking camera occupies the right part. Tone mapping can lift shadows,
+but it cannot recover distant angular detail that the optics did not capture.
+
+The current host wrapper predates the successful stock warm handoff and must
+not be cited as an accepted operator start path. The APK remains short-lived,
+has no launcher/boot entry, and is useful only as source-evaluation evidence.
+
+### DVR Camera2 source: next bounded candidate
+
+Android camera `0` identifies itself through the BYD metadata as `dvr` and was
+already opened successfully by an ordinary debug APK in an earlier live test.
+Current characteristics report `1920x1080` at `30 fps`, aperture `f/1.79`,
+focal length `4.71 mm`, and a `6.4 mm` sensor width, implying roughly a
+`68-degree` horizontal field of view. This is materially narrower than the
+AVM parking source and is the next candidate for evaluation.
+
+Re-verify visually that camera `0` is the forward road-facing DVR view, then
+judge useful distance and low-light detail in a raw centered presentation.
+The 2026-07-25 live evaluation confirmed that this is a forward DVR view. On
+the raw probe its preview needed a `2.0` vertical pixel-aspect correction. A
+centered render transform at `2x` provided the requested crop; the camera
+accepted a matching `SCALER_CROP_REGION` request but did not visibly apply it
+to the preview stream.
+
+Denza Apps `0.4.5` uses the same centered camera frame and render transform.
+Its neutral monochrome runtime shader adaptively favors the cleaner green
+channel only for low-saturation shadows, uses nine spatial samples with
+luminance-edge-aware weights to reduce noise without crossing object edges,
+then applies a shadow-only tone curve, a second shadow-contrast curve, and a
+soft highlight shoulder. Saturated red or blue lights retain
+perceptual-luminance weighting instead of being discarded by the green-channel
+preference. The DVR renderer and AVC side-camera
+renderer are mutually exclusive on the shared camera overlay. With the runtime
+shader active, the product receives the child texture in sensor orientation; a
+live-tuned `-90` degree transform restores the road orientation, and a uniform
+`2x` scale keeps the centered crop without the raw probe's one-axis stretch.
+This first smart monochrome profile was installed and rendered live on the car
+without a shader compilation error or missed vsync. The first tone profile
+flattened the distinction between deep shadow and penumbra; the second profile
+reduces denoising, preserves luminance differences above `0.004`, and applies a
+stronger S-curve within the lifted shadow range. A stronger follow-up
+(`shadowStrength=0.84`, `shadowContrast=0.68`) was rejected in live twilight:
+the frame became nearly uniform gray and a dark car body merged with the shadow
+under it even though fine tree texture remained visible. The product returned
+to `shadowStrength=0.78` and `shadowContrast=0.55`. A true dark-scene check is
+still needed; if large low-contrast objects remain merged, the next candidate
+is dual-scale local contrast rather than a stronger global tone curve.
+
+### ADAS cameras: status signals found, no video endpoint found
+
+The system vocabulary contains health/fault signals for front-view `30` and
+`120` cameras, but Android CameraService exposes only ids `0`, `1`, `2`, `3`,
+and `10`. The installed privileged `AdasAgentService` exposes ADAS
+position/event services and BYDAUTO ADAS permissions; no reusable camera
+Surface, Camera2 id, or video Binder endpoint was identified. Treat access to
+ADAS imagery as unavailable through supported app APIs unless new direct
+evidence appears.
