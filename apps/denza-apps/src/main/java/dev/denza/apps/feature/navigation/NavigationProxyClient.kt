@@ -24,7 +24,9 @@ object NavigationProxyClient {
             DisplayManager.VIRTUAL_DISPLAY_FLAG_OWN_CONTENT_ONLY
 
     private val lock = Any()
+    private val shellLock = Any()
     @Volatile private var virtualDisplay: VirtualDisplay? = null
+    @Volatile private var adbShell: LocalAdbClient.PersistentShellSession? = null
 
     fun findAllowedTask(context: Context, packageName: String): Int =
         intResult(run(context, "find-task", packageName))
@@ -124,14 +126,25 @@ object NavigationProxyClient {
         virtualDisplay = null
     }
 
-    fun disconnect() = releaseVirtualDisplay()
+    fun disconnect() {
+        releaseVirtualDisplay()
+        synchronized(shellLock) {
+            adbShell?.close()
+            adbShell = null
+        }
+    }
 
     private fun run(context: Context, operation: String, vararg arguments: String): String {
         val apk = shellQuote(context.applicationInfo.sourceDir)
         val args = (listOf(operation) + arguments).joinToString(" ") { shellQuote(it) }
         val command = "CLASSPATH=$apk app_process /system/bin --nice-name=denza_nav_cmd " +
             "$MAIN_CLASS $args"
-        return LocalAdbClient(context, KEY_COMMENT).shell(command)
+        val shell = synchronized(shellLock) {
+            adbShell ?: LocalAdbClient(context, KEY_COMMENT)
+                .openPersistentShell()
+                .also { adbShell = it }
+        }
+        return shell.shell(command)
     }
 
     internal fun resultValue(output: String): String = output.lineSequence()

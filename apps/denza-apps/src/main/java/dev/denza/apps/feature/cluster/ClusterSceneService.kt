@@ -552,6 +552,7 @@ class ClusterSceneService : Service() {
             } else {
                 matchParent(Gravity.CENTER)
             }
+            cameraTexture.alpha = 1f
             cameraTexture.setTransform(Matrix())
             cameraEdgeShade.visibility = View.VISIBLE
             cameraFrame.visibility = View.VISIBLE
@@ -579,6 +580,7 @@ class ClusterSceneService : Service() {
                 Gravity.CENTER_HORIZONTAL or Gravity.TOP,
             )
             cameraTexture.layoutParams = matchParent(Gravity.CENTER)
+            cameraTexture.alpha = 1f
             applyDvrTransform(
                 layout = layout,
                 displayHeight = metrics.heightPixels,
@@ -603,6 +605,7 @@ class ClusterSceneService : Service() {
                         centerX,
                         centerY,
                     )
+                    postRotate(DVR_ROTATION_DEGREES, centerX, centerY)
                 },
             )
         }
@@ -1087,8 +1090,9 @@ class ClusterSceneService : Service() {
         private const val EXTRA_VISIBLE = "visible"
         private const val EXTRA_DURATION = "duration"
         private const val EXTRA_MAP_PLACEMENT = "map_placement"
-        private const val DVR_VERTICAL_SCALE = 2.0f
+        private const val DVR_VERTICAL_SCALE = 1.5f
         private const val DVR_RENDER_ZOOM = 2.0f
+        private const val DVR_ROTATION_DEGREES = -90f
 
         @Volatile private var active: ClusterSceneService? = null
         @Volatile private var pendingMapConsumer: MapSurfaceConsumer? = null

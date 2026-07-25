@@ -23,7 +23,7 @@ import java.util.concurrent.TimeUnit
 
 class SideCameraMonitorService : Service() {
     private var executor: ScheduledExecutorService? = null
-    private lateinit var adb: LocalAdbClient
+    private lateinit var adb: LocalAdbClient.PersistentShellSession
     @Volatile private var running = false
     private var transitionState = MirrorTransitionState()
     private var lastPublishedStatus: Pair<MirrorSide?, String>? = null
@@ -32,7 +32,7 @@ class SideCameraMonitorService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        adb = LocalAdbClient(this, "denza-apps@denza")
+        adb = LocalAdbClient(this, "denza-apps@denza").openPersistentShell()
         ensureChannel()
     }
 
@@ -49,6 +49,7 @@ class SideCameraMonitorService : Service() {
 
     override fun onDestroy() {
         stopMonitor(disableDesired = false)
+        adb.close()
         super.onDestroy()
     }
 

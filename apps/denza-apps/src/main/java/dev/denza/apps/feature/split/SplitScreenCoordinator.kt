@@ -109,8 +109,9 @@ object SplitScreenCoordinator {
         )
         executor.execute {
             var router: SplitShellRouter? = null
+            var adb: LocalAdbClient.PersistentShellSession? = null
             try {
-                val adb = LocalAdbClient(app, KEY_COMMENT)
+                adb = LocalAdbClient(app, KEY_COMMENT).openPersistentShell()
                 router = SplitShellRouter(adb::shell)
                 synchronized(routingLock) {
                     activeRouter = router
@@ -146,6 +147,7 @@ object SplitScreenCoordinator {
                 synchronized(routingLock) {
                     if (activeRouter === router) activeRouter = null
                 }
+                adb?.close()
             }
         }
     }

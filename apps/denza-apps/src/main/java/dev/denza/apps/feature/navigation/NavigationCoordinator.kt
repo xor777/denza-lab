@@ -37,6 +37,7 @@ object NavigationCoordinator {
     private var pendingAutomaticProjection = false
     private var pendingAutomaticReturn = false
     private var pendingProjectionAfterOpen = false
+    private var stockAdbShell: LocalAdbClient.PersistentShellSession? = null
 
     fun initialize(context: Context, onStateChanged: () -> Unit) {
         val app = context.applicationContext
@@ -49,7 +50,8 @@ object NavigationCoordinator {
         initialized = true
         selectedPackage = NavigationSettings.selectedPackage(app)
         selectedPlacement = NavigationSettings.placement(app)
-        val adb = LocalAdbClient(app, ADB_KEY_COMMENT)
+        val adb = LocalAdbClient(app, ADB_KEY_COMMENT).openPersistentShell()
+        stockAdbShell = adb
         stockModeDetector = StockClusterModeDetector(adb::shell)
         executor.execute(::discoverTask)
         executor.scheduleWithFixedDelay(::verifyActiveSession, 5L, 5L, TimeUnit.SECONDS)

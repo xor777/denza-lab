@@ -35,12 +35,19 @@ public final class DvrCameraRenderer implements TextureView.SurfaceTextureListen
     private static final float SHADOW_CUTOFF = 0.48f;
     private static final float SHADOW_GAMMA = 0.56f;
     private static final float SHADOW_CONTRAST = 0.55f;
-    private static final float DENOISE_STRENGTH = 0.42f;
-    private static final float EDGE_THRESHOLD = 0.004f;
+    private static final float DENOISE_STRENGTH = 1.0f;
+    private static final float LOWER_MID_DENOISE_STRENGTH = 0.65f;
+    private static final float WIDE_DENOISE_STRENGTH = 0.55f;
+    private static final float DENOISE_DETAIL_RETENTION = 0.25f;
+    private static final float EDGE_THRESHOLD = 0.012f;
     private static final float HIGHLIGHT_START = 0.84f;
     private static final float LOCAL_CONTRAST_STRENGTH = 0.38f;
     private static final float UPPER_LOCAL_CONTRAST_STRENGTH = 0.20f;
     private static final float LOCAL_CONTRAST_RADIUS = 9.0f;
+    private static final CaptureRequest.Key<Byte> BYD_MFNR_MODE =
+            new CaptureRequest.Key<>(
+                    "com.byd.camera.mfnr.mode",
+                    Byte.class);
 
     private final Context context;
     private final TextureView textureView;
@@ -163,6 +170,8 @@ public final class DvrCameraRenderer implements TextureView.SurfaceTextureListen
         }
         try {
             Size previewSize = choosePreviewSize(cameraManager);
+            int noiseReductionMode =
+                    chooseNoiseReductionMode(cameraManager);
             surfaceTexture.setDefaultBufferSize(
                     previewSize.getWidth(),
                     previewSize.getHeight());
@@ -178,7 +187,10 @@ public final class DvrCameraRenderer implements TextureView.SurfaceTextureListen
                                 return;
                             }
                             cameraDevice = camera;
-                            createPreviewSession(surfaceTexture, previewSize);
+                            createPreviewSession(
+                                    surfaceTexture,
+                                    previewSize,
+                                    noiseReductionMode);
                         }
 
                         @Override
@@ -241,9 +253,27 @@ public final class DvrCameraRenderer implements TextureView.SurfaceTextureListen
         return best;
     }
 
+    private int chooseNoiseReductionMode(CameraManager cameraManager)
+            throws CameraAccessException {
+        CameraCharacteristics characteristics =
+                cameraManager.getCameraCharacteristics(CAMERA_ID);
+        int[] availableModes = characteristics.get(
+                CameraCharacteristics
+                        .NOISE_REDUCTION_AVAILABLE_NOISE_REDUCTION_MODES);
+        if (availableModes != null) {
+            for (int mode : availableModes) {
+                if (mode == CaptureRequest.NOISE_REDUCTION_MODE_HIGH_QUALITY) {
+                    return mode;
+                }
+            }
+        }
+        return CaptureRequest.NOISE_REDUCTION_MODE_FAST;
+    }
+
     private void createPreviewSession(
             SurfaceTexture surfaceTexture,
-            Size previewSize) {
+            Size previewSize,
+            int noiseReductionMode) {
         CameraDevice camera = cameraDevice;
         Handler handler = cameraHandler;
         if (camera == null || handler == null || stopping) {
@@ -254,6 +284,20 @@ public final class DvrCameraRenderer implements TextureView.SurfaceTextureListen
             CaptureRequest.Builder request =
                     camera.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
             request.addTarget(previewSurface);
+            request.set(
+                    CaptureRequest.NOISE_REDUCTION_MODE,
+                    noiseReductionMode);
+            request.set(
+                    CaptureRequest.EDGE_MODE,
+                    CaptureRequest.EDGE_MODE_OFF);
+            try {
+                request.set(BYD_MFNR_MODE, (byte) 1);
+            } catch (IllegalArgumentException error) {
+                android.util.Log.w(
+                        "DenzaDvrCamera",
+                        "BYD MFNR request unsupported",
+                        error);
+            }
             camera.createCaptureSession(
                     Collections.singletonList(previewSurface),
                     new CameraCaptureSession.StateCallback() {
@@ -273,8 +317,9 @@ public final class DvrCameraRenderer implements TextureView.SurfaceTextureListen
                                         "camera2 id=" + CAMERA_ID
                                                 + " preview="
                                                 + previewSize.getWidth()
-                                                + "x"
-                                                + previewSize.getHeight());
+                                                + "x" + previewSize.getHeight()
+                                                + " nr="
+                                                + noiseReductionMode);
                             } catch (CameraAccessException
                                     | IllegalStateException error) {
                                 notifyFailure("preview start " + shortError(error));
@@ -322,6 +367,9 @@ public final class DvrCameraRenderer implements TextureView.SurfaceTextureListen
                         + "uniform float shadowGamma;\n"
                         + "uniform float shadowContrast;\n"
                         + "uniform float denoiseStrength;\n"
+                        + "uniform float lowerMidDenoiseStrength;\n"
+                        + "uniform float wideDenoiseStrength;\n"
+                        + "uniform float denoiseDetailRetention;\n"
                         + "uniform float edgeThreshold;\n"
                         + "uniform float highlightStart;\n"
                         + "uniform float localContrastStrength;\n"
@@ -379,15 +427,6 @@ public final class DvrCameraRenderer implements TextureView.SurfaceTextureListen
                         + "+ w0 * n0 + w1 * n1 + w2 * n2 + w3 * n3 "
                         + "+ w4 * n4 + w5 * n5 + w6 * n6 + w7 * n7) "
                         + "/ weightSum;\n"
-                        + "  half delta = center - localMean;\n"
-                        + "  half cleanDetail = sign(delta) * max("
-                        + "abs(delta) - half(edgeThreshold), 0.0);\n"
-                        + "  half filtered = localMean + 0.92 * cleanDetail;\n"
-                        + "  half cutoff = half(shadowCutoff);\n"
-                        + "  half denoiseMask = 1.0 - smoothstep("
-                        + "0.16, cutoff, center);\n"
-                        + "  half base = mix(center, filtered, "
-                        + "half(denoiseStrength) * denoiseMask);\n"
                         + "  half broad0 = adaptiveLuma(cameraFrame.eval("
                         + "p + float2(-localContrastRadius, 0.0)).rgb);\n"
                         + "  half broad1 = adaptiveLuma(cameraFrame.eval("
@@ -396,6 +435,62 @@ public final class DvrCameraRenderer implements TextureView.SurfaceTextureListen
                         + "p + float2(0.0, -localContrastRadius)).rgb);\n"
                         + "  half broad3 = adaptiveLuma(cameraFrame.eval("
                         + "p + float2(0.0, localContrastRadius)).rgb);\n"
+                        + "  half farRadius = half("
+                        + "localContrastRadius * 2.0);\n"
+                        + "  half diagonalRadius = half("
+                        + "localContrastRadius * 1.4142);\n"
+                        + "  half far0 = adaptiveLuma(cameraFrame.eval("
+                        + "p + float2(-farRadius, 0.0)).rgb);\n"
+                        + "  half far1 = adaptiveLuma(cameraFrame.eval("
+                        + "p + float2(farRadius, 0.0)).rgb);\n"
+                        + "  half far2 = adaptiveLuma(cameraFrame.eval("
+                        + "p + float2(0.0, -farRadius)).rgb);\n"
+                        + "  half far3 = adaptiveLuma(cameraFrame.eval("
+                        + "p + float2(0.0, farRadius)).rgb);\n"
+                        + "  half far4 = adaptiveLuma(cameraFrame.eval("
+                        + "p + float2(-diagonalRadius, "
+                        + "-diagonalRadius)).rgb);\n"
+                        + "  half far5 = adaptiveLuma(cameraFrame.eval("
+                        + "p + float2(diagonalRadius, "
+                        + "-diagonalRadius)).rgb);\n"
+                        + "  half far6 = adaptiveLuma(cameraFrame.eval("
+                        + "p + float2(-diagonalRadius, "
+                        + "diagonalRadius)).rgb);\n"
+                        + "  half far7 = adaptiveLuma(cameraFrame.eval("
+                        + "p + float2(diagonalRadius, "
+                        + "diagonalRadius)).rgb);\n"
+                        + "  half bw0 = 0.55 * edgeWeight(center, broad0);\n"
+                        + "  half bw1 = 0.55 * edgeWeight(center, broad1);\n"
+                        + "  half bw2 = 0.55 * edgeWeight(center, broad2);\n"
+                        + "  half bw3 = 0.55 * edgeWeight(center, broad3);\n"
+                        + "  half wideWeightSum = weightSum + bw0 + bw1 "
+                        + "+ bw2 + bw3;\n"
+                        + "  half wideMean = (weightSum * localMean "
+                        + "+ bw0 * broad0 + bw1 * broad1 "
+                        + "+ bw2 * broad2 + bw3 * broad3) "
+                        + "/ wideWeightSum;\n"
+                        + "  half crushMean = (2.0 * localMean + broad0 "
+                        + "+ broad1 + broad2 + broad3 + 0.35 * (far0 "
+                        + "+ far1 + far2 + far3 + far4 + far5 + far6 "
+                        + "+ far7)) / 8.8;\n"
+                        + "  half denoiseMean = mix(wideMean, crushMean, "
+                        + "half(wideDenoiseStrength));\n"
+                        + "  half delta = center - denoiseMean;\n"
+                        + "  half cleanDetail = sign(delta) * max("
+                        + "abs(delta) - half(edgeThreshold), 0.0);\n"
+                        + "  half filtered = denoiseMean "
+                        + "+ half(denoiseDetailRetention) * cleanDetail;\n"
+                        + "  half cutoff = half(shadowCutoff);\n"
+                        + "  half deepDenoiseMask = 1.0 - smoothstep("
+                        + "0.12, 0.38, center);\n"
+                        + "  half denoiseRange = 1.0 - smoothstep("
+                        + "0.58, 0.72, center);\n"
+                        + "  half denoiseAmount = mix("
+                        + "half(lowerMidDenoiseStrength), "
+                        + "half(denoiseStrength), deepDenoiseMask) "
+                        + "* denoiseRange;\n"
+                        + "  half base = mix(center, filtered, "
+                        + "denoiseAmount);\n"
                         + "  half broadMean = (2.0 * localMean + broad0 "
                         + "+ broad1 + broad2 + broad3) / 6.0;\n"
                         + "  half shadowMask = 1.0 - smoothstep("
@@ -420,6 +515,7 @@ public final class DvrCameraRenderer implements TextureView.SurfaceTextureListen
                         + "  half localGain = half(localContrastStrength) "
                         + "* midtoneMask + half(upperLocalContrastStrength) "
                         + "* upperMidtoneMask;\n"
+                        + "  localGain *= 1.0 - 0.55 * denoiseAmount;\n"
                         + "  mapped += localDetail * localGain;\n"
                         + "  half shoulder = half(highlightStart);\n"
                         + "  half highlightT = clamp("
@@ -437,6 +533,15 @@ public final class DvrCameraRenderer implements TextureView.SurfaceTextureListen
         shader.setFloatUniform("shadowGamma", SHADOW_GAMMA);
         shader.setFloatUniform("shadowContrast", SHADOW_CONTRAST);
         shader.setFloatUniform("denoiseStrength", DENOISE_STRENGTH);
+        shader.setFloatUniform(
+                "lowerMidDenoiseStrength",
+                LOWER_MID_DENOISE_STRENGTH);
+        shader.setFloatUniform(
+                "wideDenoiseStrength",
+                WIDE_DENOISE_STRENGTH);
+        shader.setFloatUniform(
+                "denoiseDetailRetention",
+                DENOISE_DETAIL_RETENTION);
         shader.setFloatUniform("edgeThreshold", EDGE_THRESHOLD);
         shader.setFloatUniform("highlightStart", HIGHLIGHT_START);
         shader.setFloatUniform("localContrastStrength", LOCAL_CONTRAST_STRENGTH);
@@ -453,6 +558,9 @@ public final class DvrCameraRenderer implements TextureView.SurfaceTextureListen
                         + "/" + SHADOW_CUTOFF
                         + " contrast=" + SHADOW_CONTRAST
                         + " denoise=" + DENOISE_STRENGTH
+                        + "/" + LOWER_MID_DENOISE_STRENGTH
+                        + "/" + WIDE_DENOISE_STRENGTH
+                        + " detail=" + DENOISE_DETAIL_RETENTION
                         + " localContrast=" + LOCAL_CONTRAST_STRENGTH
                         + "/" + UPPER_LOCAL_CONTRAST_STRENGTH
                         + "@" + LOCAL_CONTRAST_RADIUS);

@@ -6,6 +6,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InterruptedIOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.Inet4Address;
@@ -40,6 +41,8 @@ public final class LocalAdbClient {
     private static final int ADB_AUTH_SIGNATURE = 2;
     private static final int ADB_AUTH_RSAPUBLICKEY = 3;
     private static final long AUTH_PROMPT_COOLDOWN_NANOS = 15_000_000_000L;
+    private static final long RECONNECT_BACKOFF_NANOS = 500_000_000L;
+    private static final int INTERACTIVE_SHELL_LOCAL_ID = 1;
     private static final AuthorizationPromptGate AUTH_PROMPT_GATE =
             new AuthorizationPromptGate(AUTH_PROMPT_COOLDOWN_NANOS);
 
@@ -53,6 +56,18 @@ public final class LocalAdbClient {
     public LocalAdbClient(Context context, String publicKeyComment) {
         keyStore = new AdbKeyStore(context, publicKeyComment);
         hosts = candidateHosts();
+    }
+
+    /**
+     * Creates a lazily connected, long-lived non-interactive shell.
+     *
+     * <p>Commands are executed sequentially inside one {@code shell:sh} ADB stream. This avoids
+     * authenticating a new transport for every poll without depending on repeated logical OPENs,
+     * which are not reliable on every DiLink adbd build. Callers must close the session with their
+     * lifecycle.
+     */
+    public PersistentShellSession openPersistentShell() {
+        return new PersistentShellSession();
     }
 
     public synchronized String shell(String command) throws IOException, GeneralSecurityException {
@@ -204,6 +219,272 @@ public final class LocalAdbClient {
         }
     }
 
+    static int openInteractiveShell(
+            InputStream input,
+            OutputStream output,
+            int localId) throws IOException {
+        writeMessage(output, A_OPEN, localId, 0, "shell:sh\0".getBytes(StandardCharsets.UTF_8));
+        while (true) {
+            Message message = readMessage(input);
+            verifyStreamMessage(message, localId, -1);
+            if (message.command == A_OKAY) {
+                return message.arg0;
+            }
+            if (message.command == A_WRTE) {
+                writeMessage(output, A_OKAY, localId, message.arg0, new byte[0]);
+                continue;
+            }
+            if (message.command == A_CLSE) {
+                writeMessage(output, A_CLSE, localId, message.arg0, new byte[0]);
+                throw new EOFException("ADB interactive shell was rejected");
+            }
+            throw new IOException(
+                    "Unexpected interactive shell message " + message.commandName());
+        }
+    }
+
+    static String runInteractiveCommand(
+            InputStream input,
+            OutputStream output,
+            int localId,
+            int remoteId,
+            String command,
+            String marker) throws IOException {
+        byte[] framedCommand = frameInteractiveCommand(command, marker);
+        if (framedCommand.length > MAX_PAYLOAD) {
+            throw new IOException("ADB interactive command exceeds max payload");
+        }
+        writeMessage(output, A_WRTE, localId, remoteId, framedCommand);
+
+        byte[] markerPrefix = ("\u001e" + marker + ":").getBytes(StandardCharsets.US_ASCII);
+        ByteArrayOutputStream received = new ByteArrayOutputStream();
+        boolean writeAcknowledged = false;
+        FramedShellResult framedResult = null;
+        while (true) {
+            Message message = readMessage(input);
+            verifyStreamMessage(message, localId, remoteId);
+            if (message.command == A_OKAY) {
+                writeAcknowledged = true;
+            } else if (message.command == A_WRTE) {
+                received.write(message.payload);
+                writeMessage(output, A_OKAY, localId, remoteId, new byte[0]);
+                framedResult = findFramedResult(received.toByteArray(), markerPrefix);
+            } else if (message.command == A_CLSE) {
+                writeMessage(output, A_CLSE, localId, remoteId, new byte[0]);
+                throw new EOFException("ADB interactive shell closed during command");
+            } else {
+                throw new IOException(
+                        "Unexpected interactive command message " + message.commandName());
+            }
+            if (writeAcknowledged && framedResult != null) {
+                return framedResult.output;
+            }
+        }
+    }
+
+    private static byte[] frameInteractiveCommand(String command, String marker) {
+        String framed = "(\n"
+                + command
+                + "\n) 2>&1\n"
+                + "__denza_adb_status=$?\n"
+                + "printf '\\036"
+                + marker
+                + ":%s\\037' \"$__denza_adb_status\"\n";
+        return framed.getBytes(StandardCharsets.UTF_8);
+    }
+
+    private static FramedShellResult findFramedResult(byte[] received, byte[] markerPrefix)
+            throws IOException {
+        int markerStart = indexOf(received, markerPrefix, 0);
+        if (markerStart < 0) {
+            return null;
+        }
+        int statusStart = markerStart + markerPrefix.length;
+        int markerEnd = indexOf(received, new byte[] {0x1f}, statusStart);
+        if (markerEnd < 0) {
+            return null;
+        }
+        String statusText = new String(
+                received,
+                statusStart,
+                markerEnd - statusStart,
+                StandardCharsets.US_ASCII);
+        try {
+            Integer.parseInt(statusText);
+        } catch (NumberFormatException error) {
+            throw new IOException("Bad ADB interactive shell status " + statusText, error);
+        }
+        return new FramedShellResult(
+                new String(received, 0, markerStart, StandardCharsets.UTF_8));
+    }
+
+    private static int indexOf(byte[] value, byte[] target, int fromIndex) {
+        int lastStart = value.length - target.length;
+        for (int start = Math.max(0, fromIndex); start <= lastStart; start++) {
+            int offset = 0;
+            while (offset < target.length && value[start + offset] == target[offset]) {
+                offset += 1;
+            }
+            if (offset == target.length) {
+                return start;
+            }
+        }
+        return -1;
+    }
+
+    private static void verifyStreamMessage(Message message, int localId, int remoteId)
+            throws IOException {
+        if (message.arg1 != localId) {
+            throw new IOException(
+                    "Unexpected ADB local stream id " + message.arg1 + " for " + localId);
+        }
+        if (remoteId >= 0 && message.arg0 != remoteId) {
+            throw new IOException(
+                    "Unexpected ADB remote stream id " + message.arg0 + " for " + remoteId);
+        }
+    }
+
+    public final class PersistentShellSession implements AutoCloseable {
+        private final String markerNonce =
+                Long.toUnsignedString(System.nanoTime(), 16);
+        private Socket socket;
+        private InputStream input;
+        private OutputStream output;
+        private int remoteId = -1;
+        private long commandSequence;
+        private long nextConnectAtNanos = Long.MIN_VALUE;
+        private boolean closed;
+
+        public synchronized String shell(String command)
+                throws IOException, GeneralSecurityException {
+            return shell(command, READ_TIMEOUT_MS);
+        }
+
+        public synchronized String shell(String command, int readTimeoutMs)
+                throws IOException, GeneralSecurityException {
+            if (readTimeoutMs < 1) {
+                throw new IllegalArgumentException("readTimeoutMs must be positive");
+            }
+            if (closed) {
+                throw new IOException("Persistent ADB shell is closed");
+            }
+            ensureConnected(readTimeoutMs);
+            String marker = "DENZA_ADB_" + markerNonce + "_"
+                    + Long.toUnsignedString(++commandSequence, 16);
+            try {
+                return runInteractiveCommand(
+                        input,
+                        output,
+                        INTERACTIVE_SHELL_LOCAL_ID,
+                        remoteId,
+                        command,
+                        marker);
+            } catch (IOException error) {
+                closeConnection();
+                scheduleReconnect(RECONNECT_BACKOFF_NANOS);
+                throw error;
+            }
+        }
+
+        private void ensureConnected(int readTimeoutMs)
+                throws IOException, GeneralSecurityException {
+            if (socket != null) {
+                socket.setSoTimeout(readTimeoutMs);
+                return;
+            }
+            waitForReconnectWindow();
+
+            IOException lastIoFailure = null;
+            GeneralSecurityException lastSecurityFailure = null;
+            for (String host : hosts) {
+                Socket candidate = new Socket();
+                try {
+                    candidate.connect(new InetSocketAddress(host, PORT), CONNECT_TIMEOUT_MS);
+                    candidate.setSoTimeout(readTimeoutMs);
+                    InputStream candidateInput = candidate.getInputStream();
+                    OutputStream candidateOutput = candidate.getOutputStream();
+                    connect(candidateInput, candidateOutput);
+                    int candidateRemoteId = openInteractiveShell(
+                            candidateInput,
+                            candidateOutput,
+                            INTERACTIVE_SHELL_LOCAL_ID);
+                    socket = candidate;
+                    input = candidateInput;
+                    output = candidateOutput;
+                    remoteId = candidateRemoteId;
+                    nextConnectAtNanos = Long.MIN_VALUE;
+                    return;
+                } catch (GeneralSecurityException error) {
+                    closeQuietly(candidate);
+                    lastSecurityFailure = error;
+                } catch (IOException error) {
+                    closeQuietly(candidate);
+                    if (isAuthorizationPending(error)) {
+                        scheduleReconnect(AUTH_PROMPT_COOLDOWN_NANOS);
+                        throw error;
+                    }
+                    lastIoFailure = error;
+                }
+            }
+
+            scheduleReconnect(RECONNECT_BACKOFF_NANOS);
+            if (lastSecurityFailure != null) {
+                throw lastSecurityFailure;
+            }
+            if (lastIoFailure != null) {
+                throw lastIoFailure;
+            }
+            throw new IOException("No ADB hosts available");
+        }
+
+        private void waitForReconnectWindow() throws InterruptedIOException {
+            long remainingNanos = nextConnectAtNanos - System.nanoTime();
+            if (nextConnectAtNanos == Long.MIN_VALUE || remainingNanos <= 0L) {
+                return;
+            }
+            long millis = remainingNanos / 1_000_000L;
+            int nanos = (int) (remainingNanos % 1_000_000L);
+            try {
+                Thread.sleep(millis, nanos);
+            } catch (InterruptedException error) {
+                Thread.currentThread().interrupt();
+                InterruptedIOException interrupted =
+                        new InterruptedIOException("Interrupted during ADB reconnect backoff");
+                interrupted.initCause(error);
+                throw interrupted;
+            }
+        }
+
+        private void scheduleReconnect(long delayNanos) {
+            nextConnectAtNanos = System.nanoTime() + delayNanos;
+        }
+
+        @Override
+        public synchronized void close() {
+            closed = true;
+            closeConnection();
+        }
+
+        private void closeConnection() {
+            closeQuietly(socket);
+            socket = null;
+            input = null;
+            output = null;
+            remoteId = -1;
+        }
+    }
+
+    private static void closeQuietly(Socket socket) {
+        if (socket == null) {
+            return;
+        }
+        try {
+            socket.close();
+        } catch (IOException ignored) {
+            // The transport is already unusable; callers handle the original failure.
+        }
+    }
+
     private static Message readMessage(InputStream input) throws IOException {
         byte[] header = readExactly(input, 24);
         ByteBuffer buffer = ByteBuffer.wrap(header).order(ByteOrder.LITTLE_ENDIAN);
@@ -311,6 +592,14 @@ public final class LocalAdbClient {
 
         String commandName() {
             return commandToString(command);
+        }
+    }
+
+    private static final class FramedShellResult {
+        final String output;
+
+        FramedShellResult(String output) {
+            this.output = output;
         }
     }
 }

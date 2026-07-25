@@ -101,7 +101,7 @@ object FseAppInstaller {
         val resourceName = "denza-apps-install-$requestId"
         val iviRoot = "/storage/FFFF-FFFC/$resourceName"
         val fseRoot = "/storage/emulated/0/$resourceName"
-        val adb = LocalAdbClient(context, ADB_KEY_COMMENT)
+        val adb = LocalAdbClient(context, ADB_KEY_COMMENT).openPersistentShell()
         var installSent = false
 
         return try {
@@ -160,10 +160,12 @@ object FseAppInstaller {
         } catch (error: Exception) {
             if (!installSent) cleanup(adb, iviRoot)
             FseInstallResult.Failed(friendlyError(error), error.toString())
+        } finally {
+            adb.close()
         }
     }
 
-    private fun requireFseStorage(adb: LocalAdbClient) {
+    private fun requireFseStorage(adb: LocalAdbClient.PersistentShellSession) {
         val result = adb.shell(
             "if [ -d /storage/FFFF-FFFC ]; then echo ready; else echo missing; fi",
         ).trim()
@@ -171,7 +173,7 @@ object FseAppInstaller {
     }
 
     private fun copyApk(
-        adb: LocalAdbClient,
+        adb: LocalAdbClient.PersistentShellSession,
         sourcePath: String,
         targetPath: String,
         expectedBytes: Long,
@@ -206,7 +208,7 @@ object FseAppInstaller {
     }
 
     private fun awaitInstallResponse(
-        adb: LocalAdbClient,
+        adb: LocalAdbClient.PersistentShellSession,
         requestId: Int,
     ): Boolean? {
         val deadline = System.currentTimeMillis() + RESPONSE_TIMEOUT_MS
@@ -242,7 +244,7 @@ object FseAppInstaller {
         .put("app_version_code", packageInfo.longVersionCode)
 
     private fun cleanup(
-        adb: LocalAdbClient,
+        adb: LocalAdbClient.PersistentShellSession,
         iviRoot: String,
     ) {
         runCatching {

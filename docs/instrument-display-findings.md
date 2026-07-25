@@ -465,14 +465,12 @@ then applies a shadow-only tone curve, a second shadow-contrast curve, and a
 soft highlight shoulder. Saturated red or blue lights retain
 perceptual-luminance weighting instead of being discarded by the green-channel
 preference. The DVR renderer and AVC side-camera
-renderer are mutually exclusive on the shared camera overlay. On the current
-Camera2/TextureView path the product receives camera `0` already aligned with
-the landscape display; an additional `-90` degree transform rotated the result
-left after the surface was recreated and was removed. The live stream remains
-`1920x1080`, but its content needs the same `2.0` vertical pixel-aspect
-correction accepted in the raw probe. In the unrotated product coordinates the
-requested centered `2x` crop therefore uses `2x` horizontal and `4x` vertical
-render scales.
+renderer are mutually exclusive on the shared camera overlay. The active
+Camera2 stream exposes camera `0` in its declared sensor orientation and uses
+the live-accepted `-90°` rotation with a `2x` / `3x` crop. A briefly visible
+left-rotated image after one APK replacement was a frozen buffer: CameraService
+had no active client at that moment. `SurfaceTexture` metadata did not
+distinguish that stale state and must not be used to choose product geometry.
 This first smart monochrome profile was installed and rendered live on the car
 without a shader compilation error or missed vsync. The first tone profile
 flattened the distinction between deep shadow and penumbra; the second profile
@@ -487,8 +485,50 @@ local scale at a `9 px` radius, and adds at most `0.038` luminance of local
 detail across the lower-mid tone window. A second, weaker `0.20` gain reuses
 the same local structure from `0.50` through the upper midtones, while the
 highlight shoulder now starts at `0.84` instead of `0.72`. This keeps the
-accepted deep-shadow lift unchanged and still needs live comparison before any
-noise-profile change.
+accepted deep-shadow lift unchanged. The first isolated noise profile was not
+visibly distinguishable on the live display. The next calibration profile uses
+the existing nine-sample edge-aware blend at `0.88` in deep shadows and `0.34`
+through the lower midtones, raises the noise threshold from `0.004` to `0.012`,
+and retains `0.50` of detail outside that threshold. It still reaches zero by
+luminance `0.62` and does not change either local-contrast band.
+
+After an APK replacement, applying the unrotated path's `2x` / `4x` scales
+together with `-90°` produced the correct orientation but excessive cropping.
+The uniform `2x` sensor-path scale then retained too much of the wide frame and
+looked compressed in the center window. The accepted sensor-oriented candidate
+keeps `-90°` and uses the midpoint `2x` / `3x` scale.
+
+The app-side shader remains spatial and has no frame history. Camera `0`
+advertises all standard Android noise-reduction modes and its live request
+already reports MediaTek 3DNR enabled. Denza Apps now explicitly requests
+Android `HIGH_QUALITY` noise reduction instead of leaving the preview template
+at `FAST`; whether the vendor implementation adds more temporal accumulation is
+opaque and must be judged from motion and noise on the live stream.
+
+The live `HIGH_QUALITY` request was accepted but produced no visible change
+against `FAST`. The following aggressive calibration also requests the
+camera-specific `com.byd.camera.mfnr.mode=1` multi-frame path. Its app-side
+fallback blends the existing edge-aware neighborhood with four protected
+samples at the `9 px` radius, uses full strength in deep shadows and `0.55` in
+lower midtones, and retains only `0.10` of detail above a `0.018` luminance
+threshold. This is intentionally an upper-bound profile for visual comparison,
+not yet an accepted final setting.
+
+That upper-bound profile also produced no obvious live difference. The next
+diagnostic `noise-crush` profile turns camera edge sharpening off, adds eight
+unprotected samples out to `18 px`, blends `95%` toward that broad mean, removes
+all recovered fine detail, and applies at `1.0` / `0.88` strength through
+luminance `0.82`. Local-contrast gain is suppressed by up to `85%` wherever the
+noise filter is active. This deliberately sacrifices texture and may smear
+low-contrast object boundaries; it exists to prove whether the visible grain is
+inside the app's render stage.
+
+The live result showed obvious heavy blur, proving that the visible grain is
+inside the app's render stage. The next midpoint profile keeps the `18 px`
+samples and camera edge sharpening off, but blends only `55%` toward the broad
+mean, restores `25%` of detail above a `0.012` threshold, reduces lower-mid
+strength to `0.65`, ends the filter by luminance `0.72`, and suppresses local
+contrast by at most `55%`.
 
 ### ADAS cameras: status signals found, no video endpoint found
 

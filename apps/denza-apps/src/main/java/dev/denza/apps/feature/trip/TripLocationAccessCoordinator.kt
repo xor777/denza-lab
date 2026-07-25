@@ -121,9 +121,13 @@ object TripLocationAccessCoordinator {
         )
 
     private fun runGrant(context: Context) {
-        val client = LocalAdbClient(context, ADB_KEY_COMMENT)
-        TripLocationAccessPolicy.grantCommands(context.packageName).forEach { command ->
-            client.shell(command)
+        val client = LocalAdbClient(context, ADB_KEY_COMMENT).openPersistentShell()
+        try {
+            TripLocationAccessPolicy.grantCommands(context.packageName).forEach { command ->
+                client.shell(command)
+            }
+        } finally {
+            client.close()
         }
     }
 }
