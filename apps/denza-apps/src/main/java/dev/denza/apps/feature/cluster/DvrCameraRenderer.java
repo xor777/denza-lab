@@ -37,8 +37,9 @@ public final class DvrCameraRenderer implements TextureView.SurfaceTextureListen
     private static final float SHADOW_CONTRAST = 0.55f;
     private static final float DENOISE_STRENGTH = 0.42f;
     private static final float EDGE_THRESHOLD = 0.004f;
-    private static final float HIGHLIGHT_START = 0.72f;
+    private static final float HIGHLIGHT_START = 0.84f;
     private static final float LOCAL_CONTRAST_STRENGTH = 0.38f;
+    private static final float UPPER_LOCAL_CONTRAST_STRENGTH = 0.20f;
     private static final float LOCAL_CONTRAST_RADIUS = 9.0f;
 
     private final Context context;
@@ -324,6 +325,7 @@ public final class DvrCameraRenderer implements TextureView.SurfaceTextureListen
                         + "uniform float edgeThreshold;\n"
                         + "uniform float highlightStart;\n"
                         + "uniform float localContrastStrength;\n"
+                        + "uniform float upperLocalContrastStrength;\n"
                         + "uniform float localContrastRadius;\n"
                         + "half adaptiveLuma(half3 rgb) {\n"
                         + "  half perceptual = dot(rgb, "
@@ -410,10 +412,15 @@ public final class DvrCameraRenderer implements TextureView.SurfaceTextureListen
                         + "* half(shadowContrast) * contrastMask;\n"
                         + "  half midtoneMask = smoothstep(0.16, 0.30, mapped) "
                         + "* (1.0 - smoothstep(0.58, 0.74, mapped));\n"
+                        + "  half upperMidtoneMask = smoothstep("
+                        + "0.50, 0.62, mapped) "
+                        + "* (1.0 - smoothstep(0.82, 0.90, mapped));\n"
                         + "  half localDetail = clamp("
                         + "base - broadMean, -0.10, 0.10);\n"
-                        + "  mapped += localDetail "
-                        + "* half(localContrastStrength) * midtoneMask;\n"
+                        + "  half localGain = half(localContrastStrength) "
+                        + "* midtoneMask + half(upperLocalContrastStrength) "
+                        + "* upperMidtoneMask;\n"
+                        + "  mapped += localDetail * localGain;\n"
                         + "  half shoulder = half(highlightStart);\n"
                         + "  half highlightT = clamp("
                         + "(mapped - shoulder) / max(1.0 - shoulder, 0.001), "
@@ -433,6 +440,9 @@ public final class DvrCameraRenderer implements TextureView.SurfaceTextureListen
         shader.setFloatUniform("edgeThreshold", EDGE_THRESHOLD);
         shader.setFloatUniform("highlightStart", HIGHLIGHT_START);
         shader.setFloatUniform("localContrastStrength", LOCAL_CONTRAST_STRENGTH);
+        shader.setFloatUniform(
+                "upperLocalContrastStrength",
+                UPPER_LOCAL_CONTRAST_STRENGTH);
         shader.setFloatUniform("localContrastRadius", LOCAL_CONTRAST_RADIUS);
         textureView.setRenderEffect(
                 RenderEffect.createRuntimeShaderEffect(shader, "cameraFrame"));
@@ -444,6 +454,7 @@ public final class DvrCameraRenderer implements TextureView.SurfaceTextureListen
                         + " contrast=" + SHADOW_CONTRAST
                         + " denoise=" + DENOISE_STRENGTH
                         + " localContrast=" + LOCAL_CONTRAST_STRENGTH
+                        + "/" + UPPER_LOCAL_CONTRAST_STRENGTH
                         + "@" + LOCAL_CONTRAST_RADIUS);
     }
 

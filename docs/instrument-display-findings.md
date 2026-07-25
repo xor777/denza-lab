@@ -484,8 +484,11 @@ under it even though fine tree texture remained visible. The product returned
 to `shadowStrength=0.78` and `shadowContrast=0.55`. The next bounded profile
 keeps that global curve and the existing denoising unchanged, samples a second
 local scale at a `9 px` radius, and adds at most `0.038` luminance of local
-detail only across the midtone window. This dual-scale local contrast still
-needs live comparison before any noise-profile change.
+detail across the lower-mid tone window. A second, weaker `0.20` gain reuses
+the same local structure from `0.50` through the upper midtones, while the
+highlight shoulder now starts at `0.84` instead of `0.72`. This keeps the
+accepted deep-shadow lift unchanged and still needs live comparison before any
+noise-profile change.
 
 ### ADAS cameras: status signals found, no video endpoint found
 
