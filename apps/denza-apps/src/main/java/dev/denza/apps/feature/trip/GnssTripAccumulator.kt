@@ -65,7 +65,8 @@ class GnssTripAccumulator(
     /** Minimum spacing between retained thread points (meters or seconds). */
     private val routeMinMeters: Double = 25.0,
     private val routeMinSeconds: Double = 4.0,
-    private val routeCapacity: Int = 2000,
+    /** Thread points retained before the spacing doubles (whole trip, bounded). */
+    private val routeCapacity: Int = 1200,
 ) {
     private var hasPrev = false
     private var prevLat = 0.0
@@ -112,8 +113,8 @@ class GnssTripAccumulator(
     private var lastRouteElapsed = -1.0e9
     private var lastRouteLat = 0.0
     private var lastRouteLon = 0.0
-    private var altMinTrip = Double.MAX_VALUE
-    private var altMaxTrip = -Double.MAX_VALUE
+    private var routeSpacingMeters = routeMinMeters
+    private var routeSpacingSeconds = routeMinSeconds
 
     /**
      * Feed one fix. [accumulate] is false before the trip clock has started
@@ -173,10 +174,8 @@ class GnssTripAccumulator(
                     stairStep(elapsedSeconds, accumulate)
                 }
             }
-            if (altitudeSeeded) {
-                altMinTrip = min(altMinTrip, smoothedAltitude)
-                altMaxTrip = max(altMaxTrip, smoothedAltitude)
-                if (accumulate) pushElevation(elapsedSeconds, smoothedAltitude)
+            if (altitudeSeeded && accumulate) {
+                pushElevation(elapsedSeconds, smoothedAltitude)
             }
         }
         pruneClimbWindow(elapsedSeconds)
@@ -244,32 +243,52 @@ class GnssTripAccumulator(
         }
     }
 
-    /** Append a decimated route point (called by the engine with fused colour/energy). */
+    /**
+     * Append a thread point (called by the engine with fused colour/energy/turn).
+     *
+     * Like the elevation series, the thread keeps the WHOLE trip: when the buffer
+     * fills, every second point is dropped and the spacing doubles, so a long
+     * drive thins out evenly instead of losing where it began.
+     */
     fun maybeAddRoutePoint(
         elapsedSeconds: Double,
         latitude: Double,
         longitude: Double,
         timeColor: Double,
         energy: Double,
+        turn: Double,
+        calm: Double,
     ) {
-        val movedEnough = !hasRoutePoints() ||
-            haversine(lastRouteLat, lastRouteLon, latitude, longitude) >= routeMinMeters ||
-            elapsedSeconds - lastRouteElapsed >= routeMinSeconds
+        val movedEnough = routePoints.isEmpty() ||
+            haversine(lastRouteLat, lastRouteLon, latitude, longitude) >= routeSpacingMeters ||
+            elapsedSeconds - lastRouteElapsed >= routeSpacingSeconds
         if (!movedEnough) return
-        val shape = normalizedShape()
-        routePoints.add(RoutePoint(elapsedSeconds, shape, timeColor, energy))
-        while (routePoints.size > routeCapacity) routePoints.removeAt(0)
+        routePoints.add(
+            RoutePoint(
+                elapsedSeconds = elapsedSeconds,
+                distanceMeters = distanceMeters,
+                altitudeMeters = if (altitudeSeeded) smoothedAltitude else 0.0,
+                timeColor = timeColor,
+                energy = energy,
+                turn = turn,
+                calm = calm,
+            ),
+        )
         lastRouteElapsed = elapsedSeconds
         lastRouteLat = latitude
         lastRouteLon = longitude
-    }
-
-    private fun hasRoutePoints(): Boolean = routePoints.isNotEmpty()
-
-    /** Bounded 0..1 shape from where the smoothed altitude sits in the trip band. */
-    private fun normalizedShape(): Double {
-        if (!hasAltitude || altMaxTrip - altMinTrip < 1e-3) return 0.5
-        return ((smoothedAltitude - altMinTrip) / (altMaxTrip - altMinTrip)).coerceIn(0.0, 1.0)
+        if (routePoints.size >= routeCapacity) {
+            var write = 0
+            var read = 0
+            while (read < routePoints.size) {
+                routePoints[write] = routePoints[read]
+                write++
+                read += 2
+            }
+            while (routePoints.size > write) routePoints.removeAt(routePoints.size - 1)
+            routeSpacingMeters *= 2.0
+            routeSpacingSeconds *= 2.0
+        }
     }
 
     /**
@@ -324,17 +343,33 @@ class GnssTripAccumulator(
 
     /**
      * Copy the retained route points into caller-owned buffers (no allocation in
-     * the draw path). Returns the number written. Values are shape (0..1),
-     * time-of-day colour key (0..1) and IMU energy (0..1).
+     * the draw path). Returns the number written: travelled distance (m), raw
+     * altitude (m), time-of-day colour key, IMU energy, turn (rad) and calm.
      */
-    fun copyRouteInto(shapeOut: FloatArray, colorOut: FloatArray, energyOut: FloatArray): Int {
-        val n = minOf(routePoints.size, shapeOut.size, colorOut.size, energyOut.size)
+    fun copyRouteInto(
+        elapsedOut: FloatArray,
+        distanceOut: FloatArray,
+        altitudeOut: FloatArray,
+        colorOut: FloatArray,
+        energyOut: FloatArray,
+        turnOut: FloatArray,
+        calmOut: FloatArray,
+    ): Int {
+        val n = minOf(
+            routePoints.size,
+            elapsedOut.size, distanceOut.size, altitudeOut.size, colorOut.size,
+            energyOut.size, turnOut.size, calmOut.size,
+        )
         val start = routePoints.size - n
         for (i in 0 until n) {
             val p = routePoints[start + i]
-            shapeOut[i] = p.shape.toFloat()
+            elapsedOut[i] = p.elapsedSeconds.toFloat()
+            distanceOut[i] = p.distanceMeters.toFloat()
+            altitudeOut[i] = p.altitudeMeters.toFloat()
             colorOut[i] = p.timeColor.toFloat()
             energyOut[i] = p.energy.toFloat()
+            turnOut[i] = p.turn.toFloat()
+            calmOut[i] = p.calm.toFloat()
         }
         return n
     }

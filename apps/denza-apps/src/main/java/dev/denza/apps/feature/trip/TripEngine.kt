@@ -1,6 +1,7 @@
 package dev.denza.apps.feature.trip
 
 import kotlin.math.abs
+import kotlin.math.exp
 import kotlin.math.hypot
 import kotlin.math.roundToInt
 import kotlin.math.sign
@@ -96,6 +97,12 @@ class TripEngine {
     private val events = ArrayDeque<TripEvent>()
     private var eventLane = 0
 
+    // Thread shaping: a free-running yaw integral and its slow average. Only the
+    // difference is used (how hard we are turning relative to the road's general
+    // direction), so no absolute heading reference is needed.
+    private var headingIntegral = 0.0
+    private var headingSlow = 0.0
+
     // Turn / serpentine / calm / crest detection state.
     private var turnSustain = 0.0
     private var turnArmed = true
@@ -141,6 +148,9 @@ class TripEngine {
         }
         // Feed yaw into the held course so parking turns rotate the compass tape.
         course.onYaw(reading.yawRate, dt)
+
+        headingIntegral += reading.yawRate * dt
+        headingSlow += (headingIntegral - headingSlow) * (1.0 - exp(-dt / HEADING_SLOW_TAU))
     }
 
     fun onLocation(
@@ -184,7 +194,10 @@ class TripEngine {
 
         if (tripStarted) {
             val timeColor = timeColorKey()
-            gnss.maybeAddRoutePoint(elapsedSeconds, latitude, longitude, timeColor, energy01())
+            gnss.maybeAddRoutePoint(
+                elapsedSeconds, latitude, longitude,
+                timeColor, energy01(), headingIntegral - headingSlow, calm01(),
+            )
 
             // Deterministic elevation events.
             if (gnss.windowClimbMeters >= CLIMB_EVENT_METERS) {
@@ -440,10 +453,20 @@ class TripEngine {
     fun copyElevationInto(out: FloatArray): Int = gnss.copyElevationInto(out)
     fun elevationSamples(): List<ElevationSample> = gnss.elevationSamples()
 
+    /** 0..1 calmness from the smoothed agitation; 1 on a smooth road. */
+    fun calm01(): Double = (1.0 - agitation.smoothedAgitation / CALM_FULL_SCALE).coerceIn(0.0, 1.0)
+
     fun routePointCount(): Int = gnss.routePointCount()
     fun routePoints(): List<RoutePoint> = gnss.routePoints()
-    fun copyRouteInto(shape: FloatArray, color: FloatArray, energy: FloatArray): Int =
-        gnss.copyRouteInto(shape, color, energy)
+    fun copyRouteInto(
+        elapsed: FloatArray,
+        distance: FloatArray,
+        altitude: FloatArray,
+        color: FloatArray,
+        energy: FloatArray,
+        turn: FloatArray,
+        calm: FloatArray,
+    ): Int = gnss.copyRouteInto(elapsed, distance, altitude, color, energy, turn, calm)
 
     /** Read-only, allocation-free event access for the renderers. */
     fun eventCount(): Int = events.size
@@ -462,6 +485,12 @@ class TripEngine {
 
         /** Route-thread glow full scale, m/s^2 (a hard corner/brake maxes the glow). */
         private const val ENERGY_FULL_SCALE = 6.0
+
+        /** Smoothed agitation (m/s^2) at which the thread reads as fully unsettled. */
+        private const val CALM_FULL_SCALE = 2.2
+
+        /** Time constant of the slow heading average the thread's turns lean against. */
+        private const val HEADING_SLOW_TAU = 22.0
         const val TRIP_START_SPEED = 2.0
         const val TRIP_START_SUSTAIN_SECONDS = 3.0
         const val CLIMB_EVENT_METERS = 40.0

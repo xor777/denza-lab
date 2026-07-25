@@ -1,30 +1,82 @@
 package dev.denza.apps.feature.trip
 
 import android.graphics.Canvas
+import android.graphics.LinearGradient
 import android.graphics.Paint
+import android.graphics.Path
+import android.graphics.Shader
 import kotlin.math.max
+import kotlin.math.min
 import kotlin.math.roundToInt
 import kotlin.math.sin
 
 /**
- * Mode 3 «Нить» — the whole current trip drawn as one glowing thread scaled to
- * the full panel width as it grows (not a rolling window).
+ * Mode 3 «Нить» — the whole current trip as one growing thread.
  *
- * Horizontal axis is trip progress; the vertical shape is a bounded projection of
- * the route's altitude variation. Each point's colour is the time of day it was
- * driven (dawn blue -> day mint -> golden amber -> evening coral -> night violet,
- * from the real clock + offline sun times when a position is known, otherwise the
- * clock only). Thickness/glow follow the IMU energy at that moment and the head
- * carries a pulsing halo.
+ * Layout: the horizontal axis is travelled distance at a FIXED scale
+ * ([FULL_WIDTH_METERS] across the panel), so the thread starts at the left edge
+ * and creeps right at a rate you can feel. Only once the trip outgrows the panel
+ * does the scale compress, keeping the whole journey visible.
  *
- * The thread lives and dies with the session — nothing is persisted, and there is
- * deliberately no "отпечаток" card, no "сохранён" caption, no journal.
+ * Shape: the baseline is the elevation profile, smoothed and normalised over the
+ * whole trip against a [MIN_SPAN_METERS] minimum span — that minimum is what
+ * keeps flat terrain from being amplified into an oscilloscope trace. On top of
+ * it ride the real turns (gyro heading minus its slow average, smoothed the same
+ * way) and a small jitter from body motion.
+ *
+ * Weight: the core is a single filled outline whose half-width follows body
+ * energy, and the halo is a few continuous strokes of the same centreline. Both
+ * matter — stroking the thread segment by segment made round caps overlap and
+ * beaded the line.
+ *
+ * Sparks fly radially: a burst when a real event fires, a light continuous
+ * scatter on rough roads. Nothing here is persisted; the thread dies with the
+ * session.
  */
 class ThreadRenderer : BaseTripRenderer() {
 
-    private val shape = FloatArray(2000)
-    private val color = FloatArray(2000)
-    private val energy = FloatArray(2000)
+    private val elapsed = FloatArray(ROUTE_MAX)
+    private val dist = FloatArray(ROUTE_MAX)
+    private val alt = FloatArray(ROUTE_MAX)
+    private val color = FloatArray(ROUTE_MAX)
+    private val energy = FloatArray(ROUTE_MAX)
+    private val turn = FloatArray(ROUTE_MAX)
+    private val calm = FloatArray(ROUTE_MAX)
+    private val smoothAlt = FloatArray(ROUTE_MAX)
+    private val smoothTurn = FloatArray(ROUTE_MAX)
+    private val xs = FloatArray(ROUTE_MAX)
+    private val ys = FloatArray(ROUTE_MAX)
+    private val halfWidth = FloatArray(ROUTE_MAX)
+
+    private val centre = Path()
+    private val core = Path()
+
+    // Radial sparks (structure of arrays: nothing is allocated per frame).
+    private val pX = FloatArray(MAX_SPARKS)
+    private val pY = FloatArray(MAX_SPARKS)
+    private val pVX = FloatArray(MAX_SPARKS)
+    private val pVY = FloatArray(MAX_SPARKS)
+    private val pLife = FloatArray(MAX_SPARKS)
+    private val pDecay = FloatArray(MAX_SPARKS)
+    private val pSize = FloatArray(MAX_SPARKS)
+    private var sparkCount = 0
+
+    private val waveX = FloatArray(MAX_WAVES)
+    private val waveY = FloatArray(MAX_WAVES)
+    private val waveR = FloatArray(MAX_WAVES)
+    private val waveLife = FloatArray(MAX_WAVES)
+    private var waveCount = 0
+
+    private var lastEventSeconds = -1.0
+    private var headX = 0f
+    private var headY = 0f
+
+    // Cached core gradient; rebuilt only when its ends actually move.
+    private var gradient: LinearGradient? = null
+    private var gradFrom = 0
+    private var gradTo = 0
+    private var gradX0 = -1f
+    private var gradX1 = -1f
 
     override fun draw(
         canvas: Canvas,
@@ -36,120 +88,341 @@ class ThreadRenderer : BaseTripRenderer() {
         showLocationHint: Boolean,
     ) {
         setSize(w, h)
+        val count = engine.copyRouteInto(elapsed, dist, alt, color, energy, turn, calm)
         label(canvas, "Нить поездки", vx(32f), vy(34f), 18f, TripPalette.alpha(TripPalette.MUTED, 0.85f))
-        drawLegend(canvas)
         if (showLocationHint) {
-            // Bottom-left corner: the header is top-left and the legend is
-            // top-right, so this stays clear of both, of the centred "нить строится"
-            // placeholder, and of the bottom-centre mode dots.
+            // Bottom-left: clear of the header (top-left), the legend (top-right),
+            // the centred placeholder and the bottom-centre mode dots.
             label(canvas, LOCATION_HINT, vx(32f), h - vs(14f), 15f, TripPalette.alpha(TripPalette.MUTED, 0.6f))
         }
+        drawLegend(canvas)
 
-        val count = engine.copyRouteInto(shape, color, energy)
-        if (count < 2) {
+        if (count < 3) {
+            advanceSparks(dtSec)
             if (engine.hasFix()) {
-                label(canvas, "нить строится", w / 2f, h / 2f, 18f, TripPalette.alpha(TripPalette.MUTED, 0.6f), Paint.Align.CENTER)
+                label(
+                    canvas, "нить строится", w / 2f, h / 2f, 18f,
+                    TripPalette.alpha(TripPalette.MUTED, 0.6f), Paint.Align.CENTER,
+                )
             }
             return
         }
 
+        smooth(smoothAlt, alt, count, ALT_SMOOTH_RADIUS, ALT_SMOOTH_PASSES)
+        smooth(smoothTurn, turn, count, TURN_SMOOTH_RADIUS, TURN_SMOOTH_PASSES)
+        layout(count)
+        label(
+            canvas, subtitle(count), vx(32f), vy(58f), 15f,
+            TripPalette.alpha(TripPalette.MUTED, 0.5f),
+        )
+
+        val tint = TripPalette.colorAt(color[count - 1].toDouble())
+        val calmNow = calm[count - 1]
+        drawHalo(canvas, count, tint, calmNow)
+        drawCore(canvas, count, tint)
+        drawWaves(canvas)
+        drawEvents(canvas, engine, count)
+        spawnForNewEvent(engine)
+        emitAmbient(engine, dtSec)
+        advanceSparks(dtSec)
+        drawSparks(canvas)
+        drawHead(canvas, engine, tint, frameTimeSec)
+    }
+
+    /** Distance-based x at a fixed scale until the trip outgrows the panel. */
+    private fun layout(count: Int) {
         val left = vx(32f)
-        val usable = w - vx(64f)
-        val top = vy(80f)
-        val bot = vy(300f)
-        val stride = max(1, Math.ceil(count.toDouble() / MAX_SEGMENTS).toInt())
+        val right = w - vx(32f)
+        val top = vy(104f)
+        val bottom = h - vs(76f)
+        val band = bottom - top
 
-        stroke.style = Paint.Style.STROKE
-        var i = stride
-        while (i < count) {
-            val ua = (i - stride).toFloat() / (count - 1)
-            val ub = i.toFloat() / (count - 1)
-            val ax = left + ua * usable
-            val ay = bot - shape[i - stride] * (bot - top)
-            val bx = left + ub * usable
-            val by = bot - shape[i] * (bot - top)
-            val alpha = (0.3f + 0.7f * ub)
-            stroke.color = TripPalette.alpha(TripPalette.colorAt(color[i].toDouble()), alpha)
-            stroke.strokeWidth = vs(1.2f) + vs(energy[i] * 3.4f)
-            canvas.drawLine(ax, ay, bx, by, stroke)
-            i += stride
+        var minAlt = Float.MAX_VALUE
+        var maxAlt = -Float.MAX_VALUE
+        for (i in 0 until count) {
+            minAlt = min(minAlt, smoothAlt[i])
+            maxAlt = max(maxAlt, smoothAlt[i])
         }
+        val mid = (minAlt + maxAlt) / 2f
+        val span = ThreadLayout.bandSpan(minAlt, maxAlt, MIN_SPAN_METERS)
 
-        drawEvents(canvas, engine, count, left, usable, top, bot)
-        drawHead(canvas, engine, count, left, usable, top, bot, frameTimeSec)
+        val travelled = (dist[count - 1] - dist[0]).coerceAtLeast(0f)
+        val scale = ThreadLayout.horizontalScale(travelled, right - left, FULL_WIDTH_METERS)
+
+        for (i in 0 until count) {
+            xs[i] = left + (dist[i] - dist[0]) * scale
+            val elevation = bottom - (0.5f + (smoothAlt[i] - mid) / span) * band
+            val wiggle = (smoothTurn[i] * TURN_GAIN).coerceIn(-1f, 1f) * band * TURN_AMPLITUDE
+            val jitter = (Math.random().toFloat() - 0.5f) * min(vs(2f), energy[i] * vs(1.1f))
+            ys[i] = elevation + wiggle + jitter
+            halfWidth[i] = vs(1f) + energy[i] * vs(2.4f)
+        }
+        headX = xs[count - 1]
+        headY = ys[count - 1]
     }
 
-    private fun drawHead(
-        canvas: Canvas,
-        engine: TripEngine,
-        count: Int,
-        left: Float,
-        usable: Float,
-        top: Float,
-        bot: Float,
-        frameTimeSec: Double,
-    ) {
-        val hx = left + usable
-        val hy = bot - shape[count - 1] * (bot - top)
-        val c = TripPalette.colorAt(color[count - 1].toDouble())
-        val e = engine.verticalEnergy()
+    private fun subtitle(count: Int): String {
+        val travelled = dist[count - 1] - dist[0]
+        val km = "%.1f".format(travelled / 1000f).replace('.', ',')
+        val state = if (travelled > FULL_WIDTH_METERS) "сжата под экран" else "растёт"
+        return "$km км · $state"
+    }
+
+    /** One continuous curve through all points — never per-segment, or it beads. */
+    private fun buildCentre(count: Int) {
+        centre.rewind()
+        centre.moveTo(xs[0], ys[0])
+        for (i in 1 until count - 1) {
+            centre.quadTo(xs[i], ys[i], (xs[i] + xs[i + 1]) / 2f, (ys[i] + ys[i + 1]) / 2f)
+        }
+        centre.lineTo(xs[count - 1], ys[count - 1])
+    }
+
+    private fun drawHalo(canvas: Canvas, count: Int, tint: Int, calmNow: Float) {
+        buildCentre(count)
+        stroke.style = Paint.Style.STROKE
+        stroke.shader = null
+        for (pass in 0 until HALO_WIDTHS.size) {
+            stroke.color = TripPalette.alpha(tint, HALO_ALPHAS[pass] + calmNow * HALO_CALM_BOOST[pass])
+            stroke.strokeWidth = vs(HALO_WIDTHS[pass])
+            canvas.drawPath(centre, stroke)
+        }
+    }
+
+    private fun drawCore(canvas: Canvas, count: Int, tint: Int) {
+        core.rewind()
+        core.moveTo(xs[0], ys[0] - halfWidth[0])
+        for (i in 1 until count) core.lineTo(xs[i], ys[i] - halfWidth[i])
+        for (i in count - 1 downTo 0) core.lineTo(xs[i], ys[i] + halfWidth[i])
+        core.close()
+
+        val from = TripPalette.alpha(TripPalette.colorAt(color[0].toDouble()), 0.35f)
+        val to = TripPalette.alpha(tint, 0.95f)
+        if (gradient == null || from != gradFrom || to != gradTo ||
+            xs[0] != gradX0 || xs[count - 1] != gradX1
+        ) {
+            gradient = LinearGradient(
+                xs[0], 0f, max(xs[count - 1], xs[0] + 1f), 0f,
+                from, to, Shader.TileMode.CLAMP,
+            )
+            gradFrom = from
+            gradTo = to
+            gradX0 = xs[0]
+            gradX1 = xs[count - 1]
+        }
         fill.style = Paint.Style.FILL
-        fill.color = c
-        fill.setShadowLayer(vs(14f), 0f, 0f, c)
-        canvas.drawCircle(hx, hy, vs(5f) + vs((e * 3.0).toFloat()), fill)
-        fill.clearShadowLayer()
-        stroke.color = TripPalette.alpha(c, 0.35f)
-        stroke.strokeWidth = vs(1.5f)
-        val halo = vs(13f) + vs((sin(frameTimeSec * 3.0) * 3.0).toFloat()) + vs((e * 7.0).toFloat())
-        canvas.drawCircle(hx, hy, halo, stroke)
+        fill.shader = gradient
+        canvas.drawPath(core, fill)
+        fill.shader = null
     }
 
-    private fun drawEvents(
-        canvas: Canvas,
-        engine: TripEngine,
-        count: Int,
-        left: Float,
-        usable: Float,
-        top: Float,
-        bot: Float,
-    ) {
-        val total = engine.elapsedSeconds
-        if (total <= 0.0) return
+    private fun drawEvents(canvas: Canvas, engine: TripEngine, count: Int) {
         val n = engine.eventCount()
-        for (idx in 0 until n) {
-            val e = engine.eventAt(idx)
-            val text = when (e.kind) {
-                TripEventKind.CLIMB -> "подъём +${e.value.roundToInt()} м"
-                TripEventKind.STOP -> "остановка ${e.value.roundToInt()} мин"
+        for (index in 0 until n) {
+            val event = engine.eventAt(index)
+            val text = when (event.kind) {
+                TripEventKind.CLIMB -> "подъём +${event.value.roundToInt()} м"
+                TripEventKind.STOP -> "остановка ${event.value.roundToInt()} мин"
                 TripEventKind.SERPENTINE -> "серпантин"
+                TripEventKind.CALM -> "ровный участок"
                 else -> continue
             }
-            val u = (e.bornElapsedSeconds / total).coerceIn(0.0, 1.0)
-            val pi = (u * (count - 1)).roundToInt().coerceIn(0, count - 1)
-            val x = left + u.toFloat() * usable
-            val y = bot - shape[pi] * (bot - top)
-            val yy = if (e.lane == 0) y - vs(22f) else y + vs(34f)
-            label(canvas, text, x, yy, 17f, TripPalette.alpha(TripPalette.MUTED, 0.85f), Paint.Align.CENTER)
-            if (e.kind == TripEventKind.STOP) {
-                stroke.color = TripPalette.alpha(0xFFFF9E7A.toInt(), 0.8f)
+            // Anchor to the thread point the car was at when the event fired.
+            val at = anchorFor(event.bornElapsedSeconds, count)
+            val x = xs[at].coerceIn(vx(80f), w - vx(80f))
+            val y = if (event.lane == 0) ys[at] - vs(24f) else ys[at] + vs(34f)
+            label(canvas, text, x, y, 17f, TripPalette.alpha(TripPalette.MUTED, 0.85f), Paint.Align.CENTER)
+            if (event.kind == TripEventKind.STOP) {
+                stroke.style = Paint.Style.STROKE
+                stroke.shader = null
+                stroke.color = TripPalette.alpha(STOP_RING, 0.8f)
                 stroke.strokeWidth = vs(2f)
-                canvas.drawCircle(x, y, vs(8f), stroke)
+                canvas.drawCircle(xs[at], ys[at], vs(8f), stroke)
             }
         }
+    }
+
+    private fun anchorFor(seconds: Double, count: Int): Int =
+        ThreadLayout.anchorIndex(elapsed, count, seconds)
+
+    private fun spawnForNewEvent(engine: TripEngine) {
+        val n = engine.eventCount()
+        if (n == 0) return
+        val newest = engine.eventAt(n - 1)
+        if (newest.bornElapsedSeconds <= lastEventSeconds) return
+        lastEventSeconds = newest.bornElapsedSeconds
+        when (newest.kind) {
+            TripEventKind.CLIMB, TripEventKind.STOP,
+            TripEventKind.SERPENTINE, TripEventKind.CREST,
+            -> {
+                emit(EVENT_SPARKS, 1.5f)
+                addWave()
+            }
+            else -> Unit
+        }
+    }
+
+    private fun emitAmbient(engine: TripEngine, dtSec: Double) {
+        val rough = (engine.latestAgitation / AMBIENT_FULL_SCALE).coerceIn(0.0, 1.0)
+        if (Math.random() < rough * dtSec * AMBIENT_RATE) emit(1, 0.5f)
+    }
+
+    private fun emit(n: Int, power: Float) {
+        for (i in 0 until n) {
+            if (sparkCount >= MAX_SPARKS) return
+            val angle = Math.random() * 2.0 * Math.PI
+            val speed = (vs(24f) + Math.random().toFloat() * vs(120f)) * power
+            pX[sparkCount] = headX
+            pY[sparkCount] = headY
+            pVX[sparkCount] = (Math.cos(angle).toFloat()) * speed
+            pVY[sparkCount] = (Math.sin(angle).toFloat()) * speed * 0.8f
+            pLife[sparkCount] = 1f
+            pDecay[sparkCount] = 0.45f + Math.random().toFloat() * 0.5f
+            pSize[sparkCount] = vs(1.5f) + Math.random().toFloat() * vs(2.4f)
+            sparkCount++
+        }
+    }
+
+    private fun advanceSparks(dtSec: Double) {
+        val dt = dtSec.coerceIn(0.0, 0.08).toFloat()
+        val drag = Math.pow(0.62, dt.toDouble()).toFloat()
+        var i = 0
+        while (i < sparkCount) {
+            pVX[i] *= drag
+            pVY[i] = pVY[i] * drag + vs(34f) * dt
+            pX[i] += pVX[i] * dt
+            pY[i] += pVY[i] * dt
+            pLife[i] -= dt * pDecay[i]
+            if (pLife[i] <= 0f) {
+                sparkCount--
+                pX[i] = pX[sparkCount]; pY[i] = pY[sparkCount]
+                pVX[i] = pVX[sparkCount]; pVY[i] = pVY[sparkCount]
+                pLife[i] = pLife[sparkCount]; pDecay[i] = pDecay[sparkCount]
+                pSize[i] = pSize[sparkCount]
+            } else {
+                i++
+            }
+        }
+        var j = 0
+        while (j < waveCount) {
+            waveR[j] += vs(230f) * dt
+            waveLife[j] -= dt * 1.4f
+            if (waveLife[j] <= 0f) {
+                waveCount--
+                waveX[j] = waveX[waveCount]; waveY[j] = waveY[waveCount]
+                waveR[j] = waveR[waveCount]; waveLife[j] = waveLife[waveCount]
+            } else {
+                j++
+            }
+        }
+    }
+
+    private fun drawSparks(canvas: Canvas) {
+        fill.style = Paint.Style.FILL
+        fill.shader = null
+        for (i in 0 until sparkCount) {
+            val a = pLife[i].coerceIn(0f, 1f)
+            fill.color = TripPalette.alpha(SPARK, a * 0.9f)
+            canvas.drawCircle(pX[i], pY[i], pSize[i] * 0.5f * (0.45f + a * 0.55f), fill)
+        }
+    }
+
+    private fun addWave() {
+        if (waveCount >= MAX_WAVES) return
+        waveX[waveCount] = headX
+        waveY[waveCount] = headY
+        waveR[waveCount] = vs(5f)
+        waveLife[waveCount] = 1f
+        waveCount++
+    }
+
+    private fun drawWaves(canvas: Canvas) {
+        stroke.style = Paint.Style.STROKE
+        stroke.shader = null
+        stroke.strokeWidth = vs(1.2f)
+        for (i in 0 until waveCount) {
+            stroke.color = TripPalette.alpha(TripPalette.AMBER, waveLife[i] * 0.32f)
+            canvas.drawCircle(waveX[i], waveY[i], waveR[i], stroke)
+        }
+    }
+
+    private fun drawHead(canvas: Canvas, engine: TripEngine, tint: Int, frameTimeSec: Double) {
+        val e = engine.verticalEnergy().toFloat()
+        fill.style = Paint.Style.FILL
+        fill.shader = null
+        fill.color = tint
+        fill.setShadowLayer(vs(20f), 0f, 0f, tint)
+        canvas.drawCircle(headX, headY, vs(4.2f) + min(vs(3f), e * vs(1.5f)), fill)
+        fill.clearShadowLayer()
+        stroke.style = Paint.Style.STROKE
+        stroke.color = TripPalette.alpha(tint, 0.28f)
+        stroke.strokeWidth = vs(1.4f)
+        val halo = vs(13f) + (sin(frameTimeSec * 3.0).toFloat() * vs(2.5f)) + min(vs(9f), e * vs(6f))
+        canvas.drawCircle(headX, headY, halo, stroke)
     }
 
     private fun drawLegend(canvas: Canvas) {
         val lg = w - vx(32f) - vs(200f)
         fill.style = Paint.Style.FILL
+        fill.shader = null
         for (i in 0 until 100) {
             fill.color = TripPalette.colorAt(i / 99.0)
             canvas.drawRect(lg + i * vs(2f), vy(24f), lg + i * vs(2f) + vs(2f), vy(29f), fill)
         }
         label(canvas, "рассвет", lg, vy(48f), 15f, TripPalette.alpha(TripPalette.MUTED, 0.5f))
-        label(canvas, "вечер", lg + vs(200f), vy(48f), 15f, TripPalette.alpha(TripPalette.MUTED, 0.5f), Paint.Align.RIGHT)
+        label(
+            canvas, "вечер", lg + vs(200f), vy(48f), 15f,
+            TripPalette.alpha(TripPalette.MUTED, 0.5f), Paint.Align.RIGHT,
+        )
+    }
+
+    /** Box blur then binomial passes — the same treatment for altitude and turns. */
+    private fun smooth(out: FloatArray, src: FloatArray, count: Int, radius: Int, passes: Int) {
+        for (i in 0 until count) {
+            var sum = 0f
+            var used = 0
+            for (k in -radius..radius) {
+                val j = i + k
+                if (j < 0 || j >= count) continue
+                sum += src[j]
+                used++
+            }
+            out[i] = sum / used
+        }
+        repeat(passes) {
+            for (i in 1 until count - 1) {
+                out[i] = (out[i - 1] + out[i] * 2f + out[i + 1]) / 4f
+            }
+        }
     }
 
     private companion object {
-        const val MAX_SEGMENTS = 600
+        const val ROUTE_MAX = 1200
+        const val MAX_SPARKS = 140
+        const val MAX_WAVES = 6
+        const val EVENT_SPARKS = 20
+
+        /** Travelled distance that fills the panel before the thread compresses. */
+        const val FULL_WIDTH_METERS = 30_000f
+
+        /** Elevation band never reads narrower than this, so flat roads stay calm. */
+        const val MIN_SPAN_METERS = 60f
+
+        const val ALT_SMOOTH_RADIUS = 3
+        const val ALT_SMOOTH_PASSES = 2
+        const val TURN_SMOOTH_RADIUS = 2
+        const val TURN_SMOOTH_PASSES = 3
+        const val TURN_GAIN = 1.3f
+        const val TURN_AMPLITUDE = 0.11f
+
+        const val AMBIENT_FULL_SCALE = 6.0
+        const val AMBIENT_RATE = 30.0
+
+        val HALO_WIDTHS = floatArrayOf(26f, 15f, 7f)
+        val HALO_ALPHAS = floatArrayOf(0.030f, 0.048f, 0.075f)
+        val HALO_CALM_BOOST = floatArrayOf(0.030f, 0.035f, 0f)
+
+        val SPARK = 0xFFFFDE9B.toInt()
+        val STOP_RING = 0xFFFF9E7A.toInt()
     }
 }

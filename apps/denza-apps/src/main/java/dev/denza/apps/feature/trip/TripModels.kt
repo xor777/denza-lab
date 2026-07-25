@@ -48,15 +48,26 @@ data class ElevationSample(val elapsedSeconds: Double, val altitudeMeters: Doubl
 /**
  * One decimated point of the whole-trip thread (mode 3). Nothing here is
  * persisted; the list lives and dies with the session.
+ *
+ * The thread is laid out along travelled distance, not time, so a stop does not
+ * stretch it. Altitude is kept raw (metres) rather than pre-normalised: the
+ * renderer normalises the whole trip at once against a minimum span, which is
+ * what stops flat terrain from being amplified into mountains.
  */
 data class RoutePoint(
     val elapsedSeconds: Double,
-    /** Bounded, aesthetic vertical shape value in 0..1 (from altitude variation). */
-    val shape: Double,
+    /** Travelled distance at this point, metres — the thread's horizontal axis. */
+    val distanceMeters: Double,
+    /** Smoothed altitude, metres; 0 until altitude is trustworthy. */
+    val altitudeMeters: Double,
     /** Time-of-day colour key in 0..1 (dawn 0 -> day -> golden -> evening -> night 1). */
     val timeColor: Double,
     /** IMU energy at that moment in 0..1, modulating thickness/glow. */
     val energy: Double,
+    /** Heading minus its slow average, radians: how hard the car was turning here. */
+    val turn: Double,
+    /** Calmness in 0..1 (1 = smooth road), widening the soft halo. */
+    val calm: Double,
 )
 
 /**
