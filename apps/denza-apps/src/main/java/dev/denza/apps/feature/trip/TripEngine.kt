@@ -46,6 +46,7 @@ class TripEngine {
 
     private val axis = AxisCalibrator()
     private val speedDynamics = SpeedDynamics()
+    private val longitudinal = LongitudinalFusion()
     private val agitation = AgitationTracker()
     private val buckets = RmsBucketAggregator()
     private val gnss = GnssTripAccumulator()
@@ -70,8 +71,11 @@ class TripEngine {
     var lateralAccel: Double = 0.0
         private set
 
-    /** GNSS-derived longitudinal acceleration, m/s^2. Negative = braking. */
-    val longitudinalAccel: Double get() = speedDynamics.longitudinalAccel
+    /**
+     * Longitudinal acceleration, m/s^2. Negative = braking. GNSS carries the
+     * steady state, the IMU adds the onset — see [LongitudinalFusion].
+     */
+    val longitudinalAccel: Double get() = longitudinal.value
     var verticalAccel: Double = 0.0
         private set
 
@@ -141,6 +145,13 @@ class TripEngine {
         // Physics lateral: centripetal v*w. Uses the smoothed (stale-decaying)
         // GNSS speed, so with no fix there is honestly no claimed lateral.
         lateralAccel = speedDynamics.smoothedSpeed * reading.yawRate
+        longitudinal.update(
+            dt,
+            gnssAccel = speedDynamics.longitudinalAccel,
+            horizontal1 = reading.horizontal1,
+            horizontal2 = reading.horizontal2,
+            lateral = lateralAccel,
+        )
         val a = agitationMagnitude(lateralAccel, longitudinalAccel, reading.vertical)
         latestAgitation = a
         agitation.update(a, abs(reading.vertical), dt)
@@ -180,6 +191,7 @@ class TripEngine {
         maybeStartTrip(nowElapsedMs)
         advance(nowElapsedMs)
         speedDynamics.onFix(currentSpeed, dt)
+        longitudinal.onGnss(speedDynamics.longitudinalAccel)
 
         val prevAlt = gnss.smoothedAltitude
         val hadAlt = gnss.hasAltitude
@@ -489,10 +501,10 @@ class TripEngine {
         private const val VERTICAL_WEIGHT = 1.3
 
         /** Route-thread glow full scale, m/s^2 (a hard corner/brake maxes the glow). */
-        private const val ENERGY_FULL_SCALE = 6.0
+        private const val ENERGY_FULL_SCALE = 2.6
 
         /** Smoothed agitation (m/s^2) at which the thread reads as fully unsettled. */
-        private const val CALM_FULL_SCALE = 2.2
+        private const val CALM_FULL_SCALE = 1.2
 
         /** Time constant of the slow heading average the thread's turns lean against. */
         private const val HEADING_SLOW_TAU = 22.0

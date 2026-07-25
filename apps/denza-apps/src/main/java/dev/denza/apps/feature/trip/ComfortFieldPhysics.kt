@@ -20,17 +20,17 @@ import kotlin.math.min
  */
 class ComfortFieldPhysics(
     /** Acceleration that pushes the membrane to its limit, m/s^2. */
-    private val accelFullScale: Double = 3.5,
+    private val accelFullScale: Double = 1.7,
     private val stiffness: Double = 95.0,
     private val damping: Double = 9.5,
     private val rotationStiffness: Double = 70.0,
     private val rotationDamping: Double = 9.0,
     /** Yaw rate mapped to the rotation limit, rad/s. */
-    private val yawFullScale: Double = 0.24,
+    private val yawFullScale: Double = 0.14,
     /** Hard cap on the tilt, radians (~6 degrees): a hint, not a carousel. */
     private val maxRotationRad: Double = 0.105,
     /** Vertical acceleration that starts throwing ripples, m/s^2. */
-    private val rippleThreshold: Double = 1.6,
+    private val rippleThreshold: Double = 0.6,
     private val rippleMinIntervalSeconds: Double = 0.22,
     /** Ripple travel speed, in field radii per second. */
     private val rippleSpeed: Double = 1.15,
@@ -135,6 +135,6 @@ class ComfortFieldPhysics(
         const val RIPPLE_WIDTH = 0.30
         const val RIPPLE_MAX_RADIUS = 1.6
         const val RIPPLE_MAX_AMPLITUDE = 0.09
-        const val RIPPLE_AMPLITUDE_GAIN = 0.028
+        const val RIPPLE_AMPLITUDE_GAIN = 0.055
     }
 }

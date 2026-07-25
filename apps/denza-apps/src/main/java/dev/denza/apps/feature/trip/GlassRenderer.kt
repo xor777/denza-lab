@@ -275,8 +275,8 @@ class GlassRenderer : BaseTripRenderer() {
         // Tilt gains are rad per m/s^2 against real physics magnitudes: a
         // comfortable 2.5 m/s^2 corner tilts ~0.4 rad (visibly), a normal
         // 2 m/s^2 brake ~0.24 rad — both settle on a smooth highway.
-        const val TILT_GAIN_LATERAL = 0.16
-        const val TILT_GAIN_LONGITUDINAL = 0.12
+        const val TILT_GAIN_LATERAL = 0.30
+        const val TILT_GAIN_LONGITUDINAL = 0.26
         const val MAX_TILT = 0.5
         const val K_TILT = 34.0
         const val C_TILT = 4.2
@@ -285,17 +285,17 @@ class GlassRenderer : BaseTripRenderer() {
         // Steady-state slosh = |a| * gain * tau: ~2 m/s^2 sustains a visible
         // wave without instantly pinning MAX_SLOSH the way the old gain did
         // against real magnitudes.
-        const val SLOSH_GAIN = 8.0
+        const val SLOSH_GAIN = 16.0
         const val MAX_SLOSH = 22.0
         const val RIPPLE_TAU = 0.5
-        const val RIPPLE_GAIN = 26.0
+        const val RIPPLE_GAIN = 44.0
         const val MAX_RIPPLE = 12.0
         const val FREQ_SLOSH = 6.0
         const val FREQ_RIPPLE = 15.0
 
         // Ribbon full scale in m/s^2 RMS: normal driving sits mid-strip, only
         // hard events (>= HIGH_DOT * scale = 4 m/s^2) earn an amber dot.
-        const val RIBBON_SCALE = 5.0
-        const val HIGH_DOT = 0.8
+        const val RIBBON_SCALE = 2.2
+        const val HIGH_DOT = 0.72
     }
 }

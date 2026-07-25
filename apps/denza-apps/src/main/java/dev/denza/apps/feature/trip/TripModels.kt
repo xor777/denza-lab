@@ -36,10 +36,17 @@ enum class TripMode(val storageValue: Int) {
 data class AxisReading(
     /** Linear (gravity-removed) acceleration along the smoothed up axis, m/s^2. Positive = up. */
     val vertical: Double,
-    /** Magnitude of the horizontal linear acceleration, m/s^2 (diagnostic only). */
+    /** Magnitude of the horizontal linear acceleration, m/s^2. */
     val horizontalMagnitude: Double,
     /** Yaw rate about the vertical axis, rad/s. Positive = left turn. */
     val yawRate: Double,
+    /**
+     * Horizontal acceleration in a stable 2D basis fixed to the head unit. The
+     * basis orientation is arbitrary — [LongitudinalFusion] learns which
+     * direction in it points forward.
+     */
+    val horizontal1: Double = 0.0,
+    val horizontal2: Double = 0.0,
 )
 
 /** A single smoothed elevation sample kept in the rolling ~100 s window (mode 1). */

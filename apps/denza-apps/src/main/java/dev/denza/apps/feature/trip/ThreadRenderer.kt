@@ -415,7 +415,7 @@ class ThreadRenderer : BaseTripRenderer() {
         const val TURN_GAIN = 1.3f
         const val TURN_AMPLITUDE = 0.11f
 
-        const val AMBIENT_FULL_SCALE = 6.0
+        const val AMBIENT_FULL_SCALE = 2.6
         const val AMBIENT_RATE = 30.0
 
         val HALO_WIDTHS = floatArrayOf(26f, 15f, 7f)

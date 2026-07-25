@@ -77,7 +77,7 @@ class AxisCalibrator(
         // Vertical component (positive = up).
         val vertical = lx * ux + ly * uy + lz * uz
 
-        // Horizontal residual magnitude (diagnostic only; see class doc).
+        // Horizontal residual.
         val hx = lx - vertical * ux
         val hy = ly - vertical * uy
         val hz = lz - vertical * uz
@@ -86,10 +86,32 @@ class AxisCalibrator(
         // Yaw rate = angular velocity about the up axis.
         val yawRate = gyroX * ux + gyroY * uy + gyroZ * uz
 
+        // A stable 2D basis for the horizontal plane. Its orientation is
+        // arbitrary but FIXED relative to the head unit, which is all
+        // [LongitudinalFusion] needs to learn where "forward" points.
+        var rx = 1.0
+        var ry = 0.0
+        var rz = 0.0
+        if (kotlin.math.abs(ux) > 0.9) { rx = 0.0; ry = 1.0; rz = 0.0 }
+        val dot = rx * ux + ry * uy + rz * uz
+        var e1x = rx - dot * ux
+        var e1y = ry - dot * uy
+        var e1z = rz - dot * uz
+        val e1n = sqrt(e1x * e1x + e1y * e1y + e1z * e1z)
+        if (e1n < 1e-6) {
+            return AxisReading(vertical, horizontalMagnitude, yawRate, 0.0, 0.0)
+        }
+        e1x /= e1n; e1y /= e1n; e1z /= e1n
+        val e2x = uy * e1z - uz * e1y
+        val e2y = uz * e1x - ux * e1z
+        val e2z = ux * e1y - uy * e1x
+
         return AxisReading(
             vertical = vertical,
             horizontalMagnitude = horizontalMagnitude,
             yawRate = yawRate,
+            horizontal1 = hx * e1x + hy * e1y + hz * e1z,
+            horizontal2 = hx * e2x + hy * e2y + hz * e2z,
         )
     }
 }
