@@ -204,31 +204,6 @@ class ClusterSceneService : Service() {
         }
     }
 
-    /**
-     * Fast-switch guard entry: frees the vendor AVC display synchronously so an
-     * in-flight stock camera transition does not find our surface attached.
-     * Runs on the main thread; the accessibility trigger already arrives there.
-     */
-    private fun performEmergencyRelease(reason: String): Boolean {
-        val presentation = cameraPresentation ?: return false
-        val startedAt = android.os.SystemClock.elapsedRealtime()
-        Log.i(TAG, "emergency release: $reason")
-        cameraPresentation = null
-        cameraRuntime.stopping("emergency release: $reason")
-        try {
-            presentation.emergencyRelease()
-        } finally {
-            cameraRuntime.emergencyReleased("emergency released: $reason")
-            updateNotification("Camera released for stock transition")
-        }
-        Log.i(
-            TAG,
-            "emergency window release done in " +
-                "${android.os.SystemClock.elapsedRealtime() - startedAt}ms; vendor free queued",
-        )
-        return true
-    }
-
     private fun showMap(placement: ClusterMapPlacement) {
         val consumer = pendingMapConsumer ?: return
         val scene = prepareBaseScene() ?: return
@@ -438,22 +413,6 @@ class ClusterSceneService : Service() {
                     }
                 }
             }
-        }
-
-        /**
-         * Same order as [dismissAfterSurfaceRelease]; kept as the explicit
-         * fast-switch guard entry. The window is removed synchronously in this
-         * main-loop turn and the vendor release is already queued on the
-         * teardown thread when this returns, so the stock transition finds the
-         * display free within the ~95 ms crash budget without risking the
-         * guard's thread on a dying vendor binder.
-         */
-        fun emergencyRelease() {
-            synchronized(teardownCallbacks) {
-                if (teardownFinished || teardownScheduled) return
-                teardownScheduled = true
-            }
-            scheduleVendorRelease()
         }
 
         private fun completeTeardownCallbacks() {
@@ -1061,21 +1020,6 @@ class ClusterSceneService : Service() {
         }
 
         fun cameraRuntimeSnapshot(): CameraRuntimeSnapshot = cameraRuntime.snapshot()
-
-        /**
-         * Synchronously frees the active camera session for the fast-switch
-         * guard. Returns false when no session is active or the service is not
-         * running. Callers off the main thread fall back to a posted release,
-         * which loses the latency advantage but stays safe.
-         */
-        fun emergencyReleaseCamera(reason: String): Boolean {
-            val service = active ?: return false
-            if (Looper.myLooper() == Looper.getMainLooper()) {
-                return service.performEmergencyRelease(reason)
-            }
-            Handler(Looper.getMainLooper()).post { service.performEmergencyRelease(reason) }
-            return true
-        }
 
         private fun start(context: Context, action: String) {
             context.startForegroundService(serviceIntent(context, action))

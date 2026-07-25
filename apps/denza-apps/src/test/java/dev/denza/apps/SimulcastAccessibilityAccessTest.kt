@@ -22,39 +22,38 @@ class SimulcastAccessibilityAccessTest {
     }
 
     @Test
-    fun `recognizes guard component separately from the simulcast one`() {
-        val guardOnly = "system/service:${SimulcastAccessibilityAccess.GUARD_COMPONENT}"
-        assertTrue(SimulcastAccessibilityAccess.isGuardEnabled(guardOnly))
-        assertFalse(SimulcastAccessibilityAccess.isEnabled(guardOnly))
-        assertTrue(
-            SimulcastAccessibilityAccess.isGuardEnabled(
-                "dev.denza.apps/.feature.mirrors.MirrorGuardAccessibilityService",
-            ),
-        )
-        assertFalse(SimulcastAccessibilityAccess.isGuardEnabled("system/service:voice/service"))
-    }
-
-    @Test
-    fun `rebind removes only owned services and restores both once`() {
-        val original = "system/service:${SimulcastAccessibilityAccess.COMPONENT}" +
-            ":${SimulcastAccessibilityAccess.GUARD_COMPONENT}:voice/service"
+    fun `rebind removes only simulcast service and restores it once`() {
+        val original = "system/service:${SimulcastAccessibilityAccess.COMPONENT}:voice/service"
 
         val disabled = SimulcastAccessibilityAccess.withoutService(original)
         val enabled = SimulcastAccessibilityAccess.withService(disabled)
 
         assertEquals("system/service:voice/service", disabled)
         assertEquals(
-            "system/service:voice/service:${SimulcastAccessibilityAccess.COMPONENT}" +
-                ":${SimulcastAccessibilityAccess.GUARD_COMPONENT}",
+            "system/service:voice/service:${SimulcastAccessibilityAccess.COMPONENT}",
             enabled,
         )
     }
 
     @Test
-    fun `empty Android setting enables both owned services`() {
+    fun `retired guard component is stripped and never restored`() {
+        val withGuard = "system/service:${SimulcastAccessibilityAccess.COMPONENT}" +
+            ":dev.denza.apps/dev.denza.apps.feature.mirrors.MirrorGuardAccessibilityService"
+
+        val disabled = SimulcastAccessibilityAccess.withoutService(withGuard)
+        val enabled = SimulcastAccessibilityAccess.withService(withGuard)
+
+        assertEquals("system/service", disabled)
         assertEquals(
-            "${SimulcastAccessibilityAccess.COMPONENT}" +
-                ":${SimulcastAccessibilityAccess.GUARD_COMPONENT}",
+            "system/service:${SimulcastAccessibilityAccess.COMPONENT}",
+            enabled,
+        )
+    }
+
+    @Test
+    fun `empty Android setting enables only simulcast service`() {
+        assertEquals(
+            SimulcastAccessibilityAccess.COMPONENT,
             SimulcastAccessibilityAccess.withService("null"),
         )
     }

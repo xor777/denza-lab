@@ -251,235 +251,17 @@ class MirrorTransitionReducerTest {
         assertEquals(MirrorTransitionCommand.None, stopping.command)
     }
 
-    @Test
-    fun emergencyReleaseQueuesOppositeSideAfterStableWindow() {
-        val showing = MirrorTransitionState(
-            phase = MirrorTransitionPhase.SHOWING,
-            side = MirrorSide.LEFT,
-            phaseStartedAtMs = 100L,
-            runtimeGeneration = 2L,
-        )
-
-        val quarantined = reduce(
-            state = showing,
-            requested = MirrorSide.RIGHT,
-            runtime = runtime(CameraRuntimePhase.IDLE, generation = 3L, emergency = true),
-            nowMs = 300L,
-            queueEnabled = true,
-        )
-        assertEquals(MirrorTransitionPhase.QUARANTINED, quarantined.state.phase)
-        assertEquals(MirrorQuarantineKind.EMERGENCY, quarantined.state.quarantineKind)
-        assertEquals(MirrorTransitionCommand.Hide, quarantined.command)
-
-        var state = quarantined.state
-        repeat(MirrorTransitionReducer.QUEUE_STABLE_SAMPLES - 1) { index ->
-            val step = reduce(
-                state = state,
-                requested = MirrorSide.RIGHT,
-                runtime = runtime(CameraRuntimePhase.IDLE, generation = 4L + index),
-                nowMs = 400L + index * 100L,
-                queueEnabled = true,
-            )
-            assertEquals(MirrorTransitionCommand.None, step.command)
-            assertEquals(MirrorTransitionPhase.QUARANTINED, step.state.phase)
-            state = step.state
-        }
-
-        val started = reduce(
-            state = state,
-            requested = MirrorSide.RIGHT,
-            runtime = runtime(CameraRuntimePhase.IDLE, generation = 20L),
-            nowMs = 2_000L,
-            queueEnabled = true,
-        )
-        assertEquals(MirrorTransitionPhase.STARTING, started.state.phase)
-        assertEquals(MirrorSide.RIGHT, started.state.side)
-        assertEquals(MirrorTransitionCommand.Show(MirrorSide.RIGHT), started.command)
-    }
-
-    @Test
-    fun queueDisabledKeepsEmergencyQuarantineUntilNeutral() {
-        var state = reduce(
-            state = MirrorTransitionState(
-                phase = MirrorTransitionPhase.SHOWING,
-                side = MirrorSide.LEFT,
-                runtimeGeneration = 2L,
-            ),
-            requested = MirrorSide.RIGHT,
-            runtime = runtime(CameraRuntimePhase.IDLE, generation = 3L, emergency = true),
-            nowMs = 300L,
-            queueEnabled = false,
-        ).state
-
-        repeat(MirrorTransitionReducer.QUEUE_STABLE_SAMPLES + 2) { index ->
-            val step = reduce(
-                state = state,
-                requested = MirrorSide.RIGHT,
-                runtime = runtime(CameraRuntimePhase.IDLE, generation = 4L + index),
-                nowMs = 400L + index * 100L,
-                queueEnabled = false,
-            )
-            assertEquals(MirrorTransitionCommand.None, step.command)
-            assertEquals(MirrorTransitionPhase.QUARANTINED, step.state.phase)
-            state = step.state
-        }
-    }
-
-    @Test
-    fun secondFlipWhileQueuedDowngradesToNeutralWait() {
-        var state = reduce(
-            state = MirrorTransitionState(
-                phase = MirrorTransitionPhase.SHOWING,
-                side = MirrorSide.LEFT,
-                runtimeGeneration = 2L,
-            ),
-            requested = MirrorSide.RIGHT,
-            runtime = runtime(CameraRuntimePhase.IDLE, generation = 3L, emergency = true),
-            nowMs = 300L,
-            queueEnabled = true,
-        ).state
-
-        state = reduce(
-            state = state,
-            requested = MirrorSide.RIGHT,
-            runtime = runtime(CameraRuntimePhase.IDLE, generation = 4L),
-            nowMs = 400L,
-            queueEnabled = true,
-        ).state
-        assertEquals(MirrorSide.RIGHT, state.queuedSide)
-
-        val flipped = reduce(
-            state = state,
-            requested = MirrorSide.LEFT,
-            runtime = runtime(CameraRuntimePhase.IDLE, generation = 5L),
-            nowMs = 500L,
-            queueEnabled = true,
-        )
-        assertEquals(MirrorQuarantineKind.WAIT_NEUTRAL, flipped.state.quarantineKind)
-        assertNull(flipped.state.queuedSide)
-
-        var after = flipped.state
-        repeat(MirrorTransitionReducer.QUEUE_STABLE_SAMPLES + 2) { index ->
-            val step = reduce(
-                state = after,
-                requested = MirrorSide.LEFT,
-                runtime = runtime(CameraRuntimePhase.IDLE, generation = 6L + index),
-                nowMs = 600L + index * 100L,
-                queueEnabled = true,
-            )
-            assertEquals(MirrorTransitionCommand.None, step.command)
-            after = step.state
-        }
-    }
-
-    @Test
-    fun nonEmergencyQuarantineNeverQueues() {
-        var state = reduce(
-            state = MirrorTransitionState(
-                phase = MirrorTransitionPhase.SHOWING,
-                side = MirrorSide.LEFT,
-                runtimeGeneration = 2L,
-            ),
-            requested = MirrorSide.LEFT,
-            runtime = runtime(CameraRuntimePhase.FAILED, MirrorSide.LEFT, generation = 3L),
-            nowMs = 300L,
-            queueEnabled = true,
-        ).state
-        assertEquals(MirrorQuarantineKind.WAIT_NEUTRAL, state.quarantineKind)
-
-        repeat(MirrorTransitionReducer.QUEUE_STABLE_SAMPLES + 2) { index ->
-            val step = reduce(
-                state = state,
-                requested = MirrorSide.RIGHT,
-                runtime = runtime(CameraRuntimePhase.IDLE, generation = 4L + index),
-                nowMs = 400L + index * 100L,
-                queueEnabled = true,
-            )
-            assertEquals(MirrorTransitionCommand.None, step.command)
-            state = step.state
-        }
-    }
-
-    @Test
-    fun neutralExitStillWorksFromEmergencyQuarantine() {
-        var state = reduce(
-            state = MirrorTransitionState(
-                phase = MirrorTransitionPhase.SHOWING,
-                side = MirrorSide.LEFT,
-                runtimeGeneration = 2L,
-            ),
-            requested = MirrorSide.RIGHT,
-            runtime = runtime(CameraRuntimePhase.IDLE, generation = 3L, emergency = true),
-            nowMs = 300L,
-            queueEnabled = true,
-        ).state
-
-        var result: MirrorTransitionResult? = null
-        repeat(MirrorTransitionReducer.NEUTRAL_SAMPLES_TO_RECOVER) { index ->
-            result = reduce(
-                state = state,
-                requested = null,
-                runtime = runtime(CameraRuntimePhase.IDLE, generation = 4L + index),
-                nowMs = 400L + index * 100L,
-                queueEnabled = true,
-            )
-            state = result!!.state
-        }
-        assertEquals(MirrorTransitionPhase.IDLE, state.phase)
-    }
-
-    @Test
-    fun ambiguousSampleResetsQueueProgress() {
-        var state = reduce(
-            state = MirrorTransitionState(
-                phase = MirrorTransitionPhase.SHOWING,
-                side = MirrorSide.LEFT,
-                runtimeGeneration = 2L,
-            ),
-            requested = MirrorSide.RIGHT,
-            runtime = runtime(CameraRuntimePhase.IDLE, generation = 3L, emergency = true),
-            nowMs = 300L,
-            queueEnabled = true,
-        ).state
-
-        repeat(3) { index ->
-            state = reduce(
-                state = state,
-                requested = MirrorSide.RIGHT,
-                runtime = runtime(CameraRuntimePhase.IDLE, generation = 4L + index),
-                nowMs = 400L + index * 100L,
-                queueEnabled = true,
-            ).state
-        }
-        assertEquals(3, state.queuedSideSamples)
-
-        val ambiguous = reduce(
-            state = state,
-            requested = MirrorSide.RIGHT,
-            runtime = runtime(CameraRuntimePhase.IDLE, generation = 8L),
-            nowMs = 800L,
-            queueEnabled = true,
-            ambiguous = true,
-        )
-        assertEquals(0, ambiguous.state.queuedSideSamples)
-        assertEquals(MirrorTransitionPhase.QUARANTINED, ambiguous.state.phase)
-    }
-
     private fun reduce(
         state: MirrorTransitionState,
         requested: MirrorSide?,
         runtime: CameraRuntimeSnapshot,
         nowMs: Long,
-        ambiguous: Boolean = false,
-        queueEnabled: Boolean = false,
     ): MirrorTransitionResult = MirrorTransitionReducer.reduce(
         state,
         MirrorTransitionObservation(
             requestedSide = requested,
             runtime = runtime,
             nowMs = nowMs,
-            runtimeWindowAmbiguous = ambiguous,
-            fastSwitchQueueEnabled = queueEnabled,
         ),
     )
 
@@ -487,12 +269,10 @@ class MirrorTransitionReducerTest {
         phase: CameraRuntimePhase,
         side: MirrorSide? = null,
         generation: Long = 1L,
-        emergency: Boolean = false,
     ) = CameraRuntimeSnapshot(
         phase = phase,
         side = side,
         generation = generation,
         details = phase.name.lowercase(),
-        emergency = emergency,
     )
 }

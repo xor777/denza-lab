@@ -37,19 +37,4 @@ class CameraRuntimeTrackerTest {
         assertEquals(null, idle.side)
         assertEquals(5L, idle.generation)
     }
-
-    @Test
-    fun emergencyReleaseIsIdleButMarkedAndClearedByNextTransition() {
-        val tracker = CameraRuntimeTracker()
-        tracker.starting(MirrorSide.LEFT)
-
-        val released = tracker.emergencyReleased("emergency released: guard")
-        assertEquals(CameraRuntimePhase.IDLE, released.phase)
-        assertEquals(null, released.side)
-        assertEquals(true, released.emergency)
-        assertEquals("emergency released: guard", released.details)
-
-        val next = tracker.starting(MirrorSide.RIGHT)
-        assertEquals(false, next.emergency)
-    }
 }

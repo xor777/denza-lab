@@ -10,18 +10,6 @@ enum class MirrorTransitionPhase {
     QUARANTINED,
 }
 
-enum class MirrorQuarantineKind {
-    /** Recover only after confirmed neutral - the conservative default. */
-    WAIT_NEUTRAL,
-
-    /**
-     * The session was freed by the fast-switch guard before the stock
-     * transition. The vendor display is already clean, so the requested side
-     * may start from the queue once the stock window has stayed stable.
-     */
-    EMERGENCY,
-}
-
 data class MirrorTransitionState(
     val phase: MirrorTransitionPhase = MirrorTransitionPhase.IDLE,
     val side: MirrorSide? = null,
@@ -29,9 +17,6 @@ data class MirrorTransitionState(
     val runtimeGeneration: Long = 0L,
     val neutralSamples: Int = 0,
     val details: String = "",
-    val quarantineKind: MirrorQuarantineKind = MirrorQuarantineKind.WAIT_NEUTRAL,
-    val queuedSide: MirrorSide? = null,
-    val queuedSideSamples: Int = 0,
 )
 
 data class MirrorTransitionObservation(
@@ -39,7 +24,6 @@ data class MirrorTransitionObservation(
     val runtime: CameraRuntimeSnapshot,
     val nowMs: Long,
     val runtimeWindowAmbiguous: Boolean = false,
-    val fastSwitchQueueEnabled: Boolean = false,
 )
 
 sealed interface MirrorTransitionCommand {
@@ -57,7 +41,6 @@ object MirrorTransitionReducer {
     const val START_ACK_TIMEOUT_MS = 1_500L
     const val SESSION_TIMEOUT_MS = 300_000L
     const val NEUTRAL_SAMPLES_TO_RECOVER = 3
-    const val QUEUE_STABLE_SAMPLES = 6
 
     fun reduce(
         state: MirrorTransitionState,
@@ -74,9 +57,6 @@ object MirrorTransitionReducer {
         runtime: CameraRuntimeSnapshot,
         nowMs: Long,
         details: String,
-        kind: MirrorQuarantineKind =
-            if (runtime.emergency) MirrorQuarantineKind.EMERGENCY
-            else MirrorQuarantineKind.WAIT_NEUTRAL,
     ) = state.copy(
         phase = MirrorTransitionPhase.QUARANTINED,
         side = null,
@@ -84,9 +64,6 @@ object MirrorTransitionReducer {
         runtimeGeneration = runtime.generation,
         neutralSamples = 0,
         details = details,
-        quarantineKind = kind,
-        queuedSide = null,
-        queuedSideSamples = 0,
     )
 
     private fun reduceIdle(observation: MirrorTransitionObservation): MirrorTransitionResult {
@@ -97,7 +74,6 @@ object MirrorTransitionReducer {
                     observation.runtime,
                     observation.nowMs,
                     "ambiguous AVC windows",
-                    kind = MirrorQuarantineKind.WAIT_NEUTRAL,
                 ),
                 MirrorTransitionCommand.Hide,
             )
@@ -169,19 +145,7 @@ object MirrorTransitionReducer {
         }
         if (quarantineReason != null) {
             return MirrorTransitionResult(
-                quarantine(
-                    state,
-                    observation.runtime,
-                    observation.nowMs,
-                    quarantineReason,
-                    kind = if (observation.runtimeWindowAmbiguous) {
-                        MirrorQuarantineKind.WAIT_NEUTRAL
-                    } else if (observation.runtime.emergency) {
-                        MirrorQuarantineKind.EMERGENCY
-                    } else {
-                        MirrorQuarantineKind.WAIT_NEUTRAL
-                    },
-                ),
+                quarantine(state, observation.runtime, observation.nowMs, quarantineReason),
                 MirrorTransitionCommand.Hide,
             )
         }
@@ -214,7 +178,6 @@ object MirrorTransitionReducer {
                     observation.runtime,
                     observation.nowMs,
                     "ambiguous AVC windows",
-                    kind = MirrorQuarantineKind.WAIT_NEUTRAL,
                 ),
                 MirrorTransitionCommand.Hide,
             )
@@ -257,94 +220,32 @@ object MirrorTransitionReducer {
         val runtimeInactive = observation.runtime.phase == CameraRuntimePhase.IDLE ||
             observation.runtime.phase == CameraRuntimePhase.FAILED
         if (
-            observation.requestedSide == null &&
-            !observation.runtimeWindowAmbiguous &&
-            runtimeInactive
+            observation.requestedSide != null ||
+            observation.runtimeWindowAmbiguous ||
+            !runtimeInactive
         ) {
-            val neutralSamples = state.neutralSamples + 1
-            return if (neutralSamples >= NEUTRAL_SAMPLES_TO_RECOVER) {
-                MirrorTransitionResult(
-                    MirrorTransitionState(
-                        runtimeGeneration = observation.runtime.generation,
-                        details = "ready after neutral",
-                    ),
-                )
-            } else {
-                MirrorTransitionResult(
-                    state.copy(
-                        runtimeGeneration = observation.runtime.generation,
-                        neutralSamples = neutralSamples,
-                        queuedSideSamples = 0,
-                    ),
-                )
-            }
-        }
-        if (
-            state.quarantineKind == MirrorQuarantineKind.EMERGENCY &&
-            observation.fastSwitchQueueEnabled &&
-            !observation.runtimeWindowAmbiguous &&
-            observation.requestedSide != null
-        ) {
-            return reduceEmergencyQueue(state, observation)
-        }
-        return MirrorTransitionResult(
-            state.copy(
-                runtimeGeneration = observation.runtime.generation,
-                neutralSamples = 0,
-                queuedSideSamples = 0,
-            ),
-        )
-    }
-
-    /**
-     * The guard already freed the vendor display before the stock transition,
-     * so starting the requested side is no more dangerous than a fresh signal
-     * cycle - once the stock window has stayed stable long enough for its own
-     * mode transition to be over. A second flip while queued means the stalk
-     * is still moving; that falls back to the conservative neutral wait.
-     */
-    private fun reduceEmergencyQueue(
-        state: MirrorTransitionState,
-        observation: MirrorTransitionObservation,
-    ): MirrorTransitionResult {
-        val requested = checkNotNull(observation.requestedSide)
-        if (state.queuedSide != null && requested != state.queuedSide) {
             return MirrorTransitionResult(
                 state.copy(
-                    quarantineKind = MirrorQuarantineKind.WAIT_NEUTRAL,
-                    queuedSide = null,
-                    queuedSideSamples = 0,
-                    neutralSamples = 0,
                     runtimeGeneration = observation.runtime.generation,
-                    details = "second flip while queued",
+                    neutralSamples = 0,
                 ),
             )
         }
-        val samples = state.queuedSideSamples + 1
-        if (samples >= QUEUE_STABLE_SAMPLES && observation.runtime.phase == CameraRuntimePhase.IDLE) {
-            return MirrorTransitionResult(
-                state.copy(
-                    phase = MirrorTransitionPhase.STARTING,
-                    side = requested,
-                    phaseStartedAtMs = observation.nowMs,
+        val neutralSamples = state.neutralSamples + 1
+        return if (neutralSamples >= NEUTRAL_SAMPLES_TO_RECOVER) {
+            MirrorTransitionResult(
+                MirrorTransitionState(
                     runtimeGeneration = observation.runtime.generation,
-                    neutralSamples = 0,
-                    quarantineKind = MirrorQuarantineKind.WAIT_NEUTRAL,
-                    queuedSide = null,
-                    queuedSideSamples = 0,
-                    details = "starting ${requested.name.lowercase()} from queue",
+                    details = "ready after neutral",
                 ),
-                MirrorTransitionCommand.Show(requested),
+            )
+        } else {
+            MirrorTransitionResult(
+                state.copy(
+                    runtimeGeneration = observation.runtime.generation,
+                    neutralSamples = neutralSamples,
+                ),
             )
         }
-        return MirrorTransitionResult(
-            state.copy(
-                queuedSide = requested,
-                queuedSideSamples = samples,
-                neutralSamples = 0,
-                runtimeGeneration = observation.runtime.generation,
-                details = "queued ${requested.name.lowercase()} $samples/$QUEUE_STABLE_SAMPLES",
-            ),
-        )
     }
 }

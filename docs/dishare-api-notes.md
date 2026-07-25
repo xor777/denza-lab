@@ -602,6 +602,10 @@ Built on the probe numbers above, in three gated pieces:
   confirmed-neutral wait. Everything is gated by the `fast_switch_guard`
   mirrors setting (default on).
 
+**Outcome: the guard was tried on the car on 2026-07-25 and reverted.** See
+the closing section below; the design notes here stay as the record of what
+was built and why.
+
 Trial protocol (agreed before implementation): baseline isolated cycles must
 stay clean, then at most six deliberate fast left-to-right attempts with
 `logcat -b crash` streaming and the FSM/guard logs captured, including at
@@ -613,6 +617,54 @@ Expected win: a fast flip ends with the stock process alive and the right
 mirror appearing from the queue ~2–3 s later. Losing the race keeps today's
 behavior (stock crash + quarantine recovery), so the trial cannot regress
 the baseline.
+
+### Fast-switch guard trial result: reverted (2026-07-25)
+
+Stationary trial on `0.4.3`. Baseline isolated cycles were clean (left 290 ms
+/ right 212 ms overlay reaction, 110 ms teardowns, zero guard triggers, no
+crashes). Three fast left-to-right attempts all crashed stock `com.byd.avc`
+(`SIGSEGV`, `SEGV_MAPERR`, fault addr `0x90`) 128 ms, 100 ms and 128 ms after
+its opposite window was added — and in all three the guard never fired.
+
+The instrumented third attempt explains why, and closes the whole
+app-side-trigger idea:
+
+- while the stock app is healthy, window events reach an accessibility client
+  in 6–17 ms — the push channel itself is fast, as the probe promised;
+- the app-emitted `TYPE_WINDOW_STATE_CHANGED` for a stock window already runs
+  98–110 ms late even in healthy cycles;
+- in the crash run the system-emitted `TYPE_WINDOWS_CHANGED` events for the
+  new right window were delivered **5.3 s late** (`age=4783ms`), i.e. they sat
+  queued for the entire time the stock process was dying and dumping.
+
+Accessibility delivery, `dumpsys` polling and WindowManager logcat lines all
+sit behind the same WindowManager work that the stock transition itself
+blocks, so no app-visible signal about the flip can exist before the stock
+process has already entered the crashing path. Combined with the falsified
+vehicle-event channel, there is no earlier trigger available to a normal-uid
+app on this firmware.
+
+Reverted: guard accessibility service, its evaluator, the emergency release
+entry points, the `emergency` runtime mark, the emergency quarantine kind and
+its queued opposite side, and the `fast_switch_guard` setting. The retired
+component id stays in `SimulcastAccessibilityAccess`' strip list so an
+installed car does not keep a dangling accessibility entry.
+
+Kept, because both were independently proven in the same trials:
+
+- vendor `freeDisplay` now runs on a dedicated teardown thread. The trials
+  measured 4–5 s binder calls into the crash-dump zombie `com.byd.avc`, which
+  previously froze the app main thread through the quarantine hide ("hide did
+  not finish within 250ms" plus a 5 s stall); after the change the same
+  situation logs `vendor display freed in 0ms`.
+- the mirror-path logging (`DenzaMirrorMonitor` transitions/commands and the
+  scene teardown marks) that made all of this diagnosable.
+
+Standing conclusion: fast left-to-right switching cannot be fixed from a
+normal-uid app on DiLink 5.1. The quarantine remains the accepted behavior —
+the flip costs the right mirror for that cycle, the stock crash is not
+preventable by us, and state recovery is automatic. Revisit only with
+platform-signature privileges or a non-AVC frame source.
 
 ### Stock-owned non-AIDL candidate (2026-07-18)
 

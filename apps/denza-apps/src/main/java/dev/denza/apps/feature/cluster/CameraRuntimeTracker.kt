@@ -23,21 +23,16 @@ class CameraRuntimeTracker {
     fun idle(details: String): CameraRuntimeSnapshot =
         publish(CameraRuntimePhase.IDLE, null, details)
 
-    fun emergencyReleased(details: String): CameraRuntimeSnapshot =
-        publish(CameraRuntimePhase.IDLE, null, details, emergency = true)
-
     private fun publish(
         phase: CameraRuntimePhase,
         side: MirrorSide?,
         details: String,
-        emergency: Boolean = false,
     ): CameraRuntimeSnapshot = current.updateAndGet { previous ->
         CameraRuntimeSnapshot(
             phase = phase,
             side = side,
             generation = previous.generation + 1L,
             details = details,
-            emergency = emergency,
         )
     }
 }

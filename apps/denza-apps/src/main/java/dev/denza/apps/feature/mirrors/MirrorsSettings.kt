@@ -19,18 +19,8 @@ object MirrorsSettings {
     private const val PROCESSING = "processing"
     private const val OBSERVED_SIDE = "observed_side"
     private const val STATUS_DETAILS = "status_details"
-    private const val FAST_SWITCH_GUARD = "fast_switch_guard"
 
     fun isEnabled(context: Context): Boolean = prefs(context).getBoolean(ENABLED, false)
-
-    /** Gates both the emergency-release trigger and the queued opposite side. */
-    fun fastSwitchGuardEnabled(context: Context): Boolean =
-        prefs(context).getBoolean(FAST_SWITCH_GUARD, true)
-
-    @SuppressLint("UseKtx")
-    fun setFastSwitchGuardEnabled(context: Context, enabled: Boolean) {
-        prefs(context).edit().putBoolean(FAST_SWITCH_GUARD, enabled).apply()
-    }
 
     @SuppressLint("UseKtx")
     fun setEnabled(context: Context, enabled: Boolean) {

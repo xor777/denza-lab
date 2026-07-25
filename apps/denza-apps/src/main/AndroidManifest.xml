@@ -49,17 +49,6 @@
             android:name=".SimulcastOverlayService"
             android:exported="false" />
         <service
-            android:name=".feature.mirrors.MirrorGuardAccessibilityService"
-            android:exported="true"
-            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
-            <intent-filter>
-                <action android:name="android.accessibilityservice.AccessibilityService" />
-            </intent-filter>
-            <meta-data
-                android:name="android.accessibilityservice"
-                android:resource="@xml/mirror_guard_a11y_service" />
-        </service>
-        <service
             android:name=".feature.cluster.ClusterSceneService"
             android:exported="false" />
         <service
