@@ -8,39 +8,106 @@ import android.view.accessibility.AccessibilityEvent
 import dev.denza.apps.feature.cluster.ClusterSceneService
 
 /**
- * Fast-switch guard. Subscribes only to window-state events with zero
- * notification timeout (see mirror_guard_a11y_service.xml) and, when a stock
- * camera window changes while our AVC session is live, synchronously frees
- * the vendor display via [ClusterSceneService.emergencyReleaseCamera] on this
- * same main-thread callback. Measured trigger latency is +30-71 ms after the
- * stock window add against the ~95-174 ms crash budget.
+ * Fast-switch guard. Subscribes to window events with zero notification
+ * timeout (see mirror_guard_a11y_service.xml) and, when a stock camera window
+ * appears while our AVC session is live, synchronously frees the vendor
+ * display via [ClusterSceneService.emergencyReleaseCamera] on this same
+ * main-thread callback.
  *
- * Separate from SimulcastAccessibilityService so the Simulcast overlay keeps
- * its 100 ms event batching. Kill switch without reinstall: remove this
- * component from `enabled_accessibility_services`.
+ * The system-emitted TYPE_WINDOWS_CHANGED path is the one that matters: the
+ * app-emitted TYPE_WINDOW_STATE_CHANGED event never arrived in the live crash
+ * scenario because the stock main thread was already dying (2026-07-25 trial,
+ * crash 127 ms after window add). New windows are identified by their window
+ * title against a snapshot of known window ids, so our own overlay windows do
+ * not self-trigger.
+ *
+ * Kill switch without reinstall: remove this component from
+ * `enabled_accessibility_services`.
  */
 class MirrorGuardAccessibilityService : AccessibilityService() {
 
+    private val knownWindowIds = HashSet<Int>()
+
     override fun onServiceConnected() {
         Log.i(TAG, "guard connected")
+        snapshotWindows()
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event == null) return
         val runtime = ClusterSceneService.cameraRuntimeSnapshot()
-        if (
-            !MirrorGuardEvaluator.shouldTrigger(
-                event.packageName,
-                runtime.phase,
-                MirrorsSettings.fastSwitchGuardEnabled(this),
-            )
-        ) {
+        val guardEnabled = MirrorsSettings.fastSwitchGuardEnabled(this)
+
+        if (!MirrorGuardEvaluator.armed(runtime.phase, guardEnabled)) {
+            // Keep the id snapshot fresh while disarmed so arming starts from
+            // the current window population, not a stale one.
+            if (event.eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED) {
+                snapshotWindows()
+            }
             return
         }
+
+        when (event.eventType) {
+            AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED ->
+                if (
+                    MirrorGuardEvaluator.shouldTriggerOnState(
+                        event.packageName,
+                        runtime.phase,
+                        guardEnabled,
+                    )
+                ) {
+                    trigger("state event", event)
+                }
+
+            AccessibilityEvent.TYPE_WINDOWS_CHANGED -> {
+                if (event.windowChanges and AccessibilityEvent.WINDOWS_CHANGE_ADDED == 0) {
+                    return
+                }
+                val newTitles = collectNewWindowTitles()
+                if (
+                    MirrorGuardEvaluator.shouldTriggerOnNewWindows(
+                        newTitles,
+                        runtime.phase,
+                        guardEnabled,
+                    )
+                ) {
+                    trigger("new window ${newTitles.filterNotNull().joinToString()}", event)
+                }
+            }
+        }
+    }
+
+    private fun trigger(source: String, event: AccessibilityEvent) {
         val eventAgeMs = SystemClock.uptimeMillis() - event.eventTime
-        val reason = "guard window event age=${eventAgeMs}ms session=${runtime.side}"
+        val runtime = ClusterSceneService.cameraRuntimeSnapshot()
+        val reason = "guard $source age=${eventAgeMs}ms session=${runtime.side}"
         Log.i(TAG, "trigger: $reason")
         ClusterSceneService.emergencyReleaseCamera(reason)
+        snapshotWindows()
+    }
+
+    /** Returns titles of windows not present in the last snapshot, updating it. */
+    private fun collectNewWindowTitles(): List<CharSequence?> {
+        val current = windows ?: return emptyList()
+        val titles = ArrayList<CharSequence?>(2)
+        val currentIds = HashSet<Int>(current.size)
+        for (window in current) {
+            currentIds.add(window.id)
+            if (window.id !in knownWindowIds) {
+                titles.add(window.title)
+            }
+        }
+        knownWindowIds.clear()
+        knownWindowIds.addAll(currentIds)
+        return titles
+    }
+
+    private fun snapshotWindows() {
+        val current = windows ?: return
+        knownWindowIds.clear()
+        for (window in current) {
+            knownWindowIds.add(window.id)
+        }
     }
 
     override fun onInterrupt() {
@@ -48,6 +115,7 @@ class MirrorGuardAccessibilityService : AccessibilityService() {
 
     override fun onUnbind(intent: Intent?): Boolean {
         Log.i(TAG, "guard disconnected")
+        knownWindowIds.clear()
         return super.onUnbind(intent)
     }
 

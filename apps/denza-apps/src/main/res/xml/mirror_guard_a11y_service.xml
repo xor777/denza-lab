@@ -1,10 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Fast-switch guard: window-state events only, zero notification timeout.
-     A separate service from the Simulcast one so the guard reacts within the
-     ~95 ms vendor crash budget without unbatching the content-changed flood
-     the Simulcast overlay subscribes to. -->
+<!-- Fast-switch guard: window events only, zero notification timeout.
+     typeWindowsChanged is the load-bearing trigger: it is emitted by the
+     system when a window is added, so it still fires when the stock camera
+     app's main thread is already dying in its native transition - the
+     app-emitted typeWindowStateChanged proved to vanish exactly in the crash
+     scenario (live trial 2026-07-25). Window retrieval is needed to identify
+     the added window's owner. Separate from the Simulcast service so its
+     content-changed flood stays batched. -->
 <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
-    android:accessibilityEventTypes="typeWindowStateChanged"
+    android:accessibilityEventTypes="typeWindowStateChanged|typeWindowsChanged"
     android:accessibilityFeedbackType="feedbackGeneric"
+    android:accessibilityFlags="flagRetrieveInteractiveWindows"
+    android:canRetrieveWindowContent="true"
     android:notificationTimeout="0"
     android:description="@string/mirror_guard_a11y_desc" />

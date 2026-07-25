@@ -223,7 +223,8 @@ class ClusterSceneService : Service() {
         }
         Log.i(
             TAG,
-            "emergency release done in ${android.os.SystemClock.elapsedRealtime() - startedAt}ms",
+            "emergency window release done in " +
+                "${android.os.SystemClock.elapsedRealtime() - startedAt}ms; vendor free queued",
         )
         return true
     }
@@ -396,26 +397,43 @@ class ClusterSceneService : Service() {
         }
 
         fun dismissAfterSurfaceRelease(onComplete: (() -> Unit)? = null) {
-            onComplete?.let(teardownCallbacks::add)
-            if (teardownFinished) {
-                completeTeardownCallbacks()
-                return
+            synchronized(teardownCallbacks) {
+                onComplete?.let(teardownCallbacks::add)
+                if (teardownFinished) {
+                    // Drain outside the monitor via the shared completion path.
+                } else if (teardownScheduled) {
+                    return
+                } else {
+                    teardownScheduled = true
+                    scheduleVendorRelease()
+                    return
+                }
             }
-            if (teardownScheduled) return
-            teardownScheduled = true
+            completeTeardownCallbacks()
+        }
 
-            // Remove the window first so the last camera buffer cannot remain
-            // visible while the vendor freeDisplay binder call is running.
-            // The next main-loop turn preserves the verified surface-before-
-            // freeDisplay order without blocking the window-removal transaction.
+        // Remove the window first so the last camera buffer cannot remain
+        // visible while the vendor freeDisplay binder call is running. The
+        // binder call then runs on the dedicated teardown thread: it keeps the
+        // verified surface-before-freeDisplay order (the post executes strictly
+        // after dismiss returned) and cannot freeze the main thread when the
+        // vendor process is a crash-dump zombie - live trials measured 4-5 s
+        // blocked binder calls into com.byd.avc right after its SIGSEGV.
+        private fun scheduleVendorRelease() {
             try {
                 super.dismiss()
             } finally {
-                Handler(Looper.getMainLooper()).post {
+                vendorTeardownHandler.post {
+                    val startedAt = android.os.SystemClock.elapsedRealtime()
                     try {
                         if (::renderer.isInitialized) renderer.stop()
                     } finally {
-                        teardownFinished = true
+                        synchronized(teardownCallbacks) { teardownFinished = true }
+                        Log.i(
+                            TAG,
+                            "vendor display freed in " +
+                                "${android.os.SystemClock.elapsedRealtime() - startedAt}ms",
+                        )
                         completeTeardownCallbacks()
                     }
                 }
@@ -423,33 +441,28 @@ class ClusterSceneService : Service() {
         }
 
         /**
-         * Same window-before-freeDisplay order as [dismissAfterSurfaceRelease]
-         * but completed synchronously in this main-loop turn. This is the
-         * original verified standalone Denza Mirrors teardown; the deferred
-         * variant stays the default because it never blocks the caller on the
-         * vendor binder call. Used only by the fast-switch guard, where the
-         * stock transition must find the vendor display free within the
-         * ~95 ms crash budget.
+         * Same order as [dismissAfterSurfaceRelease]; kept as the explicit
+         * fast-switch guard entry. The window is removed synchronously in this
+         * main-loop turn and the vendor release is already queued on the
+         * teardown thread when this returns, so the stock transition finds the
+         * display free within the ~95 ms crash budget without risking the
+         * guard's thread on a dying vendor binder.
          */
         fun emergencyRelease() {
-            if (teardownFinished) return
-            teardownScheduled = true
-            try {
-                super.dismiss()
-            } finally {
-                try {
-                    if (::renderer.isInitialized) renderer.stop()
-                } finally {
-                    teardownFinished = true
-                    completeTeardownCallbacks()
-                }
+            synchronized(teardownCallbacks) {
+                if (teardownFinished || teardownScheduled) return
+                teardownScheduled = true
             }
+            scheduleVendorRelease()
         }
 
         private fun completeTeardownCallbacks() {
-            if (!teardownFinished) return
-            val callbacks = teardownCallbacks.toList()
-            teardownCallbacks.clear()
+            val callbacks = synchronized(teardownCallbacks) {
+                if (!teardownFinished) return
+                val drained = teardownCallbacks.toList()
+                teardownCallbacks.clear()
+                drained
+            }
             callbacks.forEach { it() }
         }
 
@@ -965,6 +978,14 @@ class ClusterSceneService : Service() {
         @Volatile private var active: ClusterSceneService? = null
         @Volatile private var pendingMapConsumer: MapSurfaceConsumer? = null
         private val cameraRuntime = CameraRuntimeTracker()
+
+        // Vendor binder calls (freeDisplay) run here so a crash-dump zombie
+        // com.byd.avc cannot freeze the app main thread or the guard.
+        private val vendorTeardownHandler by lazy {
+            val thread = android.os.HandlerThread("denza-avc-teardown")
+            thread.start()
+            Handler(thread.looper)
+        }
         @Volatile var lastCameraDetails: String = ""
             private set
 
