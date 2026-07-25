@@ -6,6 +6,7 @@ import android.graphics.Path
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.exp
+import kotlin.math.hypot
 import kotlin.math.min
 import kotlin.math.sin
 import kotlin.math.tan
@@ -13,12 +14,13 @@ import kotlin.math.tan
 /**
  * Mode 2 «Стакан» — the comfort glass.
  *
- * The liquid is driven by the real calibrated IMU and is deliberately MORE liquid
- * and MORE active than the prototype: the surface-tilt spring is under-damped, two
- * wave modes run at once (a fundamental slosh plus a faster ripple), lateral
- * acceleration visibly sloshes it, vertical impulses raise ripples, there is a
- * slight meniscus at the walls, and steam wisps appear when calm for >3 s — while
- * it still settles when the car is smooth. No spilled-drop particles, no "пролито".
+ * The liquid is driven by the real physics channels (v*w lateral, GNSS-derived
+ * longitudinal, gravity-projected vertical) and is deliberately MORE liquid and
+ * MORE active than the prototype: the surface-tilt spring is under-damped, two
+ * wave modes run at once (a fundamental slosh plus a faster ripple), corners AND
+ * braking visibly slosh it, vertical impulses raise ripples, there is a slight
+ * meniscus at the walls, and steam wisps appear when calm for >3 s — while it
+ * still settles when the car is smooth. No spilled-drop particles, no "пролито".
  *
  * The right side is the body-motion ribbon: agitation aggregated into ~0.45 s RMS
  * buckets, a smooth mirrored envelope through the bucket values, advancing one
@@ -67,17 +69,24 @@ class GlassRenderer : BaseTripRenderer() {
     private fun advancePhysics(engine: TripEngine, dtSec: Double) {
         val dt = dtSec.coerceIn(0.0, 0.08)
         val lateral = engine.lateralAccel
+        val longitudinal = engine.longitudinalAccel
         val vertical = engine.verticalAccel
 
         // Under-damped tilt spring: lower stiffness + low damping so it keeps
         // living for a while after a corner instead of snapping back.
-        val target = (lateral * TILT_GAIN).coerceIn(-MAX_TILT, MAX_TILT)
+        // Tilt target blends both horizontal channels: engine lateral is positive
+        // in a LEFT turn (v*w), and positive tilt piles the liquid LEFT, so the
+        // lateral term is negated to slosh OUTWARD; braking (longitudinal < 0)
+        // visibly surges the liquid the other way.
+        val target = (-lateral * TILT_GAIN_LATERAL - longitudinal * TILT_GAIN_LONGITUDINAL)
+            .coerceIn(-MAX_TILT, MAX_TILT)
         tiltVel += (-K_TILT * (tilt - target) - C_TILT * tiltVel) * dt
         tilt += tiltVel * dt
 
-        // Fundamental slosh grows with lateral energy and decays slowly.
+        // Fundamental slosh grows with horizontal (corner + brake) energy and
+        // decays slowly.
         sloshAmp *= exp(-dt / SLOSH_TAU)
-        sloshAmp += abs(lateral) * SLOSH_GAIN * dt
+        sloshAmp += hypot(lateral, longitudinal) * SLOSH_GAIN * dt
         sloshAmp = min(sloshAmp, MAX_SLOSH)
 
         // Ripple is kicked by vertical impulses (change in vertical accel).
@@ -262,19 +271,31 @@ class GlassRenderer : BaseTripRenderer() {
     private companion object {
         val COFFEE = 0xD1B06A3A.toInt()
         val COFFEE_FOAM = 0xFFFFD9A8.toInt()
-        const val TILT_GAIN = 0.16
+
+        // Tilt gains are rad per m/s^2 against real physics magnitudes: a
+        // comfortable 2.5 m/s^2 corner tilts ~0.4 rad (visibly), a normal
+        // 2 m/s^2 brake ~0.24 rad — both settle on a smooth highway.
+        const val TILT_GAIN_LATERAL = 0.16
+        const val TILT_GAIN_LONGITUDINAL = 0.12
         const val MAX_TILT = 0.5
         const val K_TILT = 34.0
         const val C_TILT = 4.2
         const val SLOSH_TAU = 1.4
-        const val SLOSH_GAIN = 34.0
+
+        // Steady-state slosh = |a| * gain * tau: ~2 m/s^2 sustains a visible
+        // wave without instantly pinning MAX_SLOSH the way the old gain did
+        // against real magnitudes.
+        const val SLOSH_GAIN = 8.0
         const val MAX_SLOSH = 22.0
         const val RIPPLE_TAU = 0.5
         const val RIPPLE_GAIN = 26.0
         const val MAX_RIPPLE = 12.0
         const val FREQ_SLOSH = 6.0
         const val FREQ_RIPPLE = 15.0
-        const val RIBBON_SCALE = 2.5
+
+        // Ribbon full scale in m/s^2 RMS: normal driving sits mid-strip, only
+        // hard events (>= HIGH_DOT * scale = 4 m/s^2) earn an amber dot.
+        const val RIBBON_SCALE = 5.0
         const val HIGH_DOT = 0.8
     }
 }

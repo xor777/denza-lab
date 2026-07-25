@@ -15,11 +15,12 @@ import kotlin.math.sin
  * Mode 1 «Рейс» — the aviation panel.
  *
  * All motion comes from real sensors: the artificial horizon leans with the
- * calibrated lateral acceleration and pitches with the GNSS climb rate; the
- * compass tape follows the GNSS bearing with an offline sun marker; the centre
- * thread is the smoothed GNSS altitude of the last ~100 s with a head halo that
- * swells with IMU vertical energy. The roll/pitch-to-degrees mapping is an
- * aesthetic choice (approximated), not a calibrated attitude estimate.
+ * physics lateral acceleration (GNSS speed x yaw rate) and pitches with the GNSS
+ * climb rate; the compass tape follows the GNSS bearing with an offline sun
+ * marker; the centre strip is the WHOLE trip's smoothed GNSS altitude, decimated
+ * to the strip width, with a head halo that swells with IMU vertical energy. The
+ * roll/pitch-to-degrees mapping is an aesthetic choice (approximated), not a
+ * calibrated attitude estimate.
  */
 class FlightRenderer : BaseTripRenderer() {
 
@@ -201,6 +202,7 @@ class FlightRenderer : BaseTripRenderer() {
         val x1 = vx(1360f)
         val top = vy(136f)
         val bot = vy(290f)
+        // Whole trip, decimated to the strip width by copyElevationInto.
         val count = engine.copyElevationInto(elevBuf)
         if (count > 1) {
             var mn = Float.MAX_VALUE
@@ -209,8 +211,15 @@ class FlightRenderer : BaseTripRenderer() {
                 mn = min(mn, elevBuf[i])
                 mx = max(mx, elevBuf[i])
             }
+            // +-10 m padding, then enforce a minimum displayed span so flat
+            // terrain does not amplify GPS altitude noise into fake mountains.
             mn -= 10f
             mx += 10f
+            if (mx - mn < MIN_ELEVATION_SPAN_M) {
+                val mid = (mn + mx) / 2f
+                mn = mid - MIN_ELEVATION_SPAN_M / 2f
+                mx = mid + MIN_ELEVATION_SPAN_M / 2f
+            }
             val span = max(1f, mx - mn)
             val step = (x1 - x0) / max(1, count - 1)
             linePath.rewind()
@@ -327,5 +336,8 @@ class FlightRenderer : BaseTripRenderer() {
     private companion object {
         const val ROLL_GAIN = 8.0
         const val EVENT_LIFETIME = 70.0
+
+        /** Minimum altitude span the strip may display, meters. */
+        const val MIN_ELEVATION_SPAN_M = 40f
     }
 }
