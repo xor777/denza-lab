@@ -74,6 +74,10 @@ class TripEngine {
     val longitudinalAccel: Double get() = speedDynamics.longitudinalAccel
     var verticalAccel: Double = 0.0
         private set
+
+    /** Yaw rate about the vertical axis, rad/s. Positive = left turn. */
+    var yawRate: Double = 0.0
+        private set
     var latestAgitation: Double = 0.0
         private set
     var currentSpeed: Double = 0.0
@@ -133,6 +137,7 @@ class TripEngine {
             dt,
         )
         verticalAccel = reading.vertical
+        yawRate = reading.yawRate
         // Physics lateral: centripetal v*w. Uses the smoothed (stale-decaying)
         // GNSS speed, so with no fix there is honestly no claimed lateral.
         lateralAccel = speedDynamics.smoothedSpeed * reading.yawRate

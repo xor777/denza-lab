@@ -14,13 +14,14 @@ import kotlin.math.sin
 /**
  * Mode 1 «Рейс» — the aviation panel.
  *
- * All motion comes from real sensors: the artificial horizon leans with the
- * physics lateral acceleration (GNSS speed x yaw rate) and pitches with the GNSS
- * climb rate; the compass tape follows the GNSS bearing with an offline sun
- * marker; the centre strip is the WHOLE trip's smoothed GNSS altitude, decimated
- * to the strip width, with a head halo that swells with IMU vertical energy. The
- * roll/pitch-to-degrees mapping is an aesthetic choice (approximated), not a
- * calibrated attitude estimate.
+ * All motion comes from real sensors: the left slot is the comfort field, an
+ * elastic membrane showing what passengers actually feel (it replaced an
+ * artificial horizon, which tells a driver nothing in a car); the compass tape
+ * follows the GNSS bearing with an offline sun marker; the centre strip is the
+ * WHOLE trip's smoothed GNSS altitude, decimated to the strip width, with a head
+ * halo that swells with IMU vertical energy.
+ *
+ * The field carries no caption of its own — it is read, not measured.
  */
 class FlightRenderer : BaseTripRenderer() {
 
@@ -28,6 +29,11 @@ class FlightRenderer : BaseTripRenderer() {
     private val linePath = Path()
     private val fillPath = Path()
     private val elevBuf = FloatArray(320)
+
+    private val field = ComfortFieldPhysics()
+    private val fieldX = Array(FIELD_N) { FloatArray(FIELD_N) }
+    private val fieldY = Array(FIELD_N) { FloatArray(FIELD_N) }
+    private val fieldLoad = Array(FIELD_N) { FloatArray(FIELD_N) }
 
     override fun draw(
         canvas: Canvas,
@@ -39,74 +45,108 @@ class FlightRenderer : BaseTripRenderer() {
         showLocationHint: Boolean,
     ) {
         setSize(w, h)
-        drawHorizon(canvas, engine)
+        drawComfortField(canvas, engine, dtSec)
         drawCompass(canvas, engine)
         drawElevation(canvas, engine)
         drawColumn(canvas, engine)
         if (showLocationHint) {
             // Right data column: its GNSS rows (Высота/Закат) are hidden without a
-            // fix, so the lower part of that column is empty. Keeps well clear of
-            // the "крен · тангаж" caption under the horizon on the far left.
+            // fix, so the lower part of that column is empty — and far from the
+            // captionless field in the left slot.
             label(canvas, LOCATION_HINT, vx(1436f), vy(320f), 16f, TripPalette.alpha(TripPalette.MUTED, 0.85f))
         }
     }
 
-    private fun drawHorizon(canvas: Canvas, engine: TripEngine) {
-        val cx = vx(175f)
-        val cy = vy(192f)
-        val r = vs(112f)
-        label(canvas, "Авиагоризонт", cx, vy(38f), 18f, TripPalette.alpha(TripPalette.MUTED, 0.8f), Paint.Align.CENTER)
-
-        val rollDeg = (-engine.lateralAccel * ROLL_GAIN).coerceIn(-35.0, 35.0)
-        val pitchDeg = (engine.variometer() * 3.0 + engine.verticalAccel * 1.4).coerceIn(-18.0, 18.0)
-        val roll = rollDeg * PI / 180.0
-        val pitchPx = (pitchDeg * vs(4.2f))
-
-        canvas.save()
-        clip.rewind()
-        clip.addCircle(cx, cy, r, Path.Direction.CW)
-        canvas.clipPath(clip)
-        canvas.save()
-        canvas.translate(cx, cy)
-        canvas.rotate(roll.toFloat() * 180f / PI.toFloat())
-        // Ground fill under the horizon line.
-        fill.style = Paint.Style.FILL
-        fill.color = TripPalette.alpha(TripPalette.MINT, 0.08f)
-        canvas.drawRect(vs(-240f), pitchPx.toFloat(), vs(240f), vs(240f), fill)
-        stroke.color = TripPalette.MINT
-        stroke.strokeWidth = vs(2f)
-        canvas.drawLine(vs(-240f), pitchPx.toFloat(), vs(240f), pitchPx.toFloat(), stroke)
-        // Pitch ladder.
-        stroke.color = TripPalette.alpha(TripPalette.MUTED, 0.35f)
-        stroke.strokeWidth = vs(1f)
-        var d = -15
-        while (d <= 15) {
-            if (d != 0) {
-                val yy = pitchPx + d * vs(4.2f)
-                canvas.drawLine(vs(-26f), yy.toFloat(), vs(26f), yy.toFloat(), stroke)
-            }
-            d += 5
-        }
-        canvas.restore()
-        canvas.restore()
-
-        // Bezel + fixed amber wing marker.
-        stroke.color = TripPalette.alpha(TripPalette.MUTED, 0.4f)
-        stroke.strokeWidth = vs(1.5f)
-        canvas.drawCircle(cx, cy, r, stroke)
-        stroke.color = TripPalette.AMBER
-        stroke.strokeWidth = vs(3f)
-        canvas.drawLine(cx - vs(40f), cy, cx - vs(14f), cy, stroke)
-        canvas.drawLine(cx + vs(14f), cy, cx + vs(40f), cy, stroke)
-        fill.color = TripPalette.AMBER
-        canvas.drawCircle(cx, cy, vs(3f), fill)
-
-        label(
-            canvas,
-            "крен ${fmt1(rollDeg)}° · тангаж ${fmt1(pitchDeg)}°",
-            cx, vy(342f), 17f, TripPalette.alpha(TripPalette.MUTED, 0.9f), Paint.Align.CENTER,
+    /**
+     * The comfort field: a lattice of thin lines pinned at its edges, pulled by
+     * the acceleration the cabin is under, rotated slightly by the rate of turn,
+     * and rippled by vertical impacts. On a smooth road it settles back into a
+     * plain grid on its own.
+     */
+    private fun drawComfortField(canvas: Canvas, engine: TripEngine, dtSec: Double) {
+        field.update(
+            dtSec,
+            lateral = engine.lateralAccel,
+            longitudinal = engine.longitudinalAccel,
+            vertical = engine.verticalAccel,
+            yawRate = engine.yawRate,
         )
+
+        val cx = vx(175f)
+        val cy = vy(186f)
+        val r = vs(118f)
+        val pull = r * FIELD_PULL
+        val cosR = cos(field.rotationRad).toFloat()
+        val sinR = sin(field.rotationRad).toFloat()
+        val half = (FIELD_N - 1) / 2f
+
+        for (row in 0 until FIELD_N) {
+            for (col in 0 until FIELD_N) {
+                val u = (col - half) / half
+                val v = (row - half) / half
+                // Rotate the rest lattice, then displace it.
+                val rx = u * r
+                val ry = v * r
+                val bx = cx + rx * cosR - ry * sinR
+                val by = cy + rx * sinR + ry * cosR
+
+                // Edges are pinned, so the middle travels furthest — a membrane,
+                // not a sliding picture.
+                val pin = max(0f, 1f - (u * u + v * v) * FIELD_EDGE_PIN)
+                var dx = field.offsetX.toFloat() * pull * pin
+                var dy = field.offsetY.toFloat() * pull * pin
+
+                val dist = hypot(bx - cx, by - cy)
+                if (dist > 0.001f) {
+                    val ripple = field.rippleDisplacementAt((dist / r).toDouble()).toFloat() * r
+                    dx += (bx - cx) / dist * ripple
+                    dy += (by - cy) / dist * ripple
+                }
+                fieldX[row][col] = bx + dx
+                fieldY[row][col] = by + dy
+                fieldLoad[row][col] = min(1f, hypot(dx, dy) / (r * FIELD_LOAD_SCALE))
+            }
+        }
+
+        stroke.style = Paint.Style.STROKE
+        stroke.strokeWidth = vs(1f)
+        for (row in 0 until FIELD_N) {
+            var load = 0f
+            linePath.rewind()
+            for (col in 0 until FIELD_N) {
+                if (col == 0) linePath.moveTo(fieldX[row][col], fieldY[row][col])
+                else linePath.lineTo(fieldX[row][col], fieldY[row][col])
+                load += fieldLoad[row][col]
+            }
+            stroke.color = TripPalette.alpha(TripPalette.MINT, FIELD_BASE_ALPHA + FIELD_LOAD_ALPHA * load / FIELD_N)
+            canvas.drawPath(linePath, stroke)
+        }
+        for (col in 0 until FIELD_N) {
+            var load = 0f
+            linePath.rewind()
+            for (row in 0 until FIELD_N) {
+                if (row == 0) linePath.moveTo(fieldX[row][col], fieldY[row][col])
+                else linePath.lineTo(fieldX[row][col], fieldY[row][col])
+                load += fieldLoad[row][col]
+            }
+            stroke.color = TripPalette.alpha(TripPalette.MINT, FIELD_BASE_ALPHA + FIELD_LOAD_ALPHA * load / FIELD_N)
+            canvas.drawPath(linePath, stroke)
+        }
+
+        // Where the cabin itself sits inside the field.
+        val mx = cx + field.offsetX.toFloat() * pull
+        val my = cy + field.offsetY.toFloat() * pull
+        stroke.color = TripPalette.alpha(TripPalette.AMBER, 0.85f)
+        stroke.strokeWidth = vs(1.5f)
+        canvas.drawLine(mx - vs(9f), my, mx - vs(3f), my, stroke)
+        canvas.drawLine(mx + vs(3f), my, mx + vs(9f), my, stroke)
+        fill.style = Paint.Style.FILL
+        fill.shader = null
+        fill.color = TripPalette.alpha(TripPalette.AMBER, 0.9f)
+        canvas.drawCircle(mx, my, vs(2f), fill)
     }
+
+    private fun hypot(x: Float, y: Float): Float = kotlin.math.sqrt(x * x + y * y)
 
     private fun drawCompass(canvas: Canvas, engine: TripEngine) {
         val x0 = vx(395f)
@@ -334,7 +374,20 @@ class FlightRenderer : BaseTripRenderer() {
     private fun fmt1(v: Double): String = "%.1f".format(v).replace('.', ',')
 
     private companion object {
-        const val ROLL_GAIN = 8.0
+        /** Lattice resolution of the comfort field. */
+        const val FIELD_N = 11
+
+        /** How far the membrane's centre travels at full acceleration, in radii. */
+        const val FIELD_PULL = 0.46f
+
+        /** How hard the rim holds: 1 pins the edges, 0 slides the whole lattice. */
+        const val FIELD_EDGE_PIN = 0.62f
+
+        /** Displacement (in radii) at which a line reaches full brightness. */
+        const val FIELD_LOAD_SCALE = 0.28f
+        const val FIELD_BASE_ALPHA = 0.17f
+        const val FIELD_LOAD_ALPHA = 0.5f
+
         const val EVENT_LIFETIME = 70.0
 
         /** Minimum altitude span the strip may display, meters. */
