@@ -192,7 +192,7 @@ public class SimulcastAccessibilityService extends AccessibilityService {
             dispatchSteeringWheelNavigationActions(result.getNavigationActionsBefore());
             handler.removeCallbacks(steeringWheelFlushRunnable);
             if (result.getToggleDvrCamera()) {
-                Log.i(TAG, "steering-wheel triple press: toggle DVR camera");
+                Log.i(TAG, "steering-wheel double press: toggle DVR camera");
                 ClusterSceneService.Companion.toggleDvrCamera(this);
             } else {
                 handler.postDelayed(

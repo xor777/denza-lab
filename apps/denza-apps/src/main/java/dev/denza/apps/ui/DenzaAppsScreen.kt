@@ -219,7 +219,7 @@ fun DenzaAppsRoot(
                             Spacer(Modifier.height(10.dp))
                             SettingsSwitchRow(
                                 title = "Кнопка ★ на руле",
-                                subtitle = "1× навигация · 3× передняя камера",
+                                subtitle = "1× навигация · 2× передняя камера",
                                 checked = uiState.navigationSteeringWheelButton,
                                 onCheckedChange = onNavigationSteeringWheelButton,
                                 controlEnabled = uiState.navigation.status != FeatureStatus.STARTING &&

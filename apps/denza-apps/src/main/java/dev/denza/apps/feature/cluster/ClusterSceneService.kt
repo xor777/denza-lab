@@ -599,11 +599,10 @@ class ClusterSceneService : Service() {
                 Matrix().apply {
                     setScale(
                         DVR_RENDER_ZOOM,
-                        DVR_RENDER_ZOOM,
+                        DVR_VERTICAL_SCALE * DVR_RENDER_ZOOM,
                         centerX,
                         centerY,
                     )
-                    postRotate(DVR_ROTATION_DEGREES, centerX, centerY)
                 },
             )
         }
@@ -1088,8 +1087,8 @@ class ClusterSceneService : Service() {
         private const val EXTRA_VISIBLE = "visible"
         private const val EXTRA_DURATION = "duration"
         private const val EXTRA_MAP_PLACEMENT = "map_placement"
+        private const val DVR_VERTICAL_SCALE = 2.0f
         private const val DVR_RENDER_ZOOM = 2.0f
-        private const val DVR_ROTATION_DEGREES = -90f
 
         @Volatile private var active: ClusterSceneService? = null
         @Volatile private var pendingMapConsumer: MapSurfaceConsumer? = null

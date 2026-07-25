@@ -38,6 +38,8 @@ public final class DvrCameraRenderer implements TextureView.SurfaceTextureListen
     private static final float DENOISE_STRENGTH = 0.42f;
     private static final float EDGE_THRESHOLD = 0.004f;
     private static final float HIGHLIGHT_START = 0.72f;
+    private static final float LOCAL_CONTRAST_STRENGTH = 0.38f;
+    private static final float LOCAL_CONTRAST_RADIUS = 9.0f;
 
     private final Context context;
     private final TextureView textureView;
@@ -321,6 +323,8 @@ public final class DvrCameraRenderer implements TextureView.SurfaceTextureListen
                         + "uniform float denoiseStrength;\n"
                         + "uniform float edgeThreshold;\n"
                         + "uniform float highlightStart;\n"
+                        + "uniform float localContrastStrength;\n"
+                        + "uniform float localContrastRadius;\n"
                         + "half adaptiveLuma(half3 rgb) {\n"
                         + "  half perceptual = dot(rgb, "
                         + "half3(0.2627, 0.6780, 0.0593));\n"
@@ -382,6 +386,16 @@ public final class DvrCameraRenderer implements TextureView.SurfaceTextureListen
                         + "0.16, cutoff, center);\n"
                         + "  half base = mix(center, filtered, "
                         + "half(denoiseStrength) * denoiseMask);\n"
+                        + "  half broad0 = adaptiveLuma(cameraFrame.eval("
+                        + "p + float2(-localContrastRadius, 0.0)).rgb);\n"
+                        + "  half broad1 = adaptiveLuma(cameraFrame.eval("
+                        + "p + float2(localContrastRadius, 0.0)).rgb);\n"
+                        + "  half broad2 = adaptiveLuma(cameraFrame.eval("
+                        + "p + float2(0.0, -localContrastRadius)).rgb);\n"
+                        + "  half broad3 = adaptiveLuma(cameraFrame.eval("
+                        + "p + float2(0.0, localContrastRadius)).rgb);\n"
+                        + "  half broadMean = (2.0 * localMean + broad0 "
+                        + "+ broad1 + broad2 + broad3) / 6.0;\n"
                         + "  half shadowMask = 1.0 - smoothstep("
                         + "cutoff * 0.48, cutoff, base);\n"
                         + "  half blackOffset = 0.050 * (1.0 - base);\n"
@@ -394,6 +408,12 @@ public final class DvrCameraRenderer implements TextureView.SurfaceTextureListen
                         + "0.36, 0.66, mapped);\n"
                         + "  mapped += (mapped - 0.16) "
                         + "* half(shadowContrast) * contrastMask;\n"
+                        + "  half midtoneMask = smoothstep(0.16, 0.30, mapped) "
+                        + "* (1.0 - smoothstep(0.58, 0.74, mapped));\n"
+                        + "  half localDetail = clamp("
+                        + "base - broadMean, -0.10, 0.10);\n"
+                        + "  mapped += localDetail "
+                        + "* half(localContrastStrength) * midtoneMask;\n"
                         + "  half shoulder = half(highlightStart);\n"
                         + "  half highlightT = clamp("
                         + "(mapped - shoulder) / max(1.0 - shoulder, 0.001), "
@@ -412,6 +432,8 @@ public final class DvrCameraRenderer implements TextureView.SurfaceTextureListen
         shader.setFloatUniform("denoiseStrength", DENOISE_STRENGTH);
         shader.setFloatUniform("edgeThreshold", EDGE_THRESHOLD);
         shader.setFloatUniform("highlightStart", HIGHLIGHT_START);
+        shader.setFloatUniform("localContrastStrength", LOCAL_CONTRAST_STRENGTH);
+        shader.setFloatUniform("localContrastRadius", LOCAL_CONTRAST_RADIUS);
         textureView.setRenderEffect(
                 RenderEffect.createRuntimeShaderEffect(shader, "cameraFrame"));
         android.util.Log.i(
@@ -420,7 +442,9 @@ public final class DvrCameraRenderer implements TextureView.SurfaceTextureListen
                         + " shadow=" + SHADOW_STRENGTH
                         + "/" + SHADOW_CUTOFF
                         + " contrast=" + SHADOW_CONTRAST
-                        + " denoise=" + DENOISE_STRENGTH);
+                        + " denoise=" + DENOISE_STRENGTH
+                        + " localContrast=" + LOCAL_CONTRAST_STRENGTH
+                        + "@" + LOCAL_CONTRAST_RADIUS);
     }
 
     private void clearTextureView() {

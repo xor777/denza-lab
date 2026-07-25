@@ -106,7 +106,7 @@ the stock long-press settings flow.
 The existing Denza Apps accessibility service requests key-event filtering.
 When the switch is enabled it consumes both phases of key code `321` and counts
 first, non-repeated `DOWN` events in a `500 ms` inter-press window. One press
-runs the navigation action after that window; three presses consume the full
+runs the navigation action after that window; two presses consume the full
 sequence and toggle the processed Camera2 DVR overlay. Key code `322` and every
 unrelated key remain untouched. When disabled, Denza Apps does not consume
 `321`, so the stock action continues normally. Denza Apps does not rewrite the
@@ -465,10 +465,14 @@ then applies a shadow-only tone curve, a second shadow-contrast curve, and a
 soft highlight shoulder. Saturated red or blue lights retain
 perceptual-luminance weighting instead of being discarded by the green-channel
 preference. The DVR renderer and AVC side-camera
-renderer are mutually exclusive on the shared camera overlay. With the runtime
-shader active, the product receives the child texture in sensor orientation; a
-live-tuned `-90` degree transform restores the road orientation, and a uniform
-`2x` scale keeps the centered crop without the raw probe's one-axis stretch.
+renderer are mutually exclusive on the shared camera overlay. On the current
+Camera2/TextureView path the product receives camera `0` already aligned with
+the landscape display; an additional `-90` degree transform rotated the result
+left after the surface was recreated and was removed. The live stream remains
+`1920x1080`, but its content needs the same `2.0` vertical pixel-aspect
+correction accepted in the raw probe. In the unrotated product coordinates the
+requested centered `2x` crop therefore uses `2x` horizontal and `4x` vertical
+render scales.
 This first smart monochrome profile was installed and rendered live on the car
 without a shader compilation error or missed vsync. The first tone profile
 flattened the distinction between deep shadow and penumbra; the second profile
@@ -477,9 +481,11 @@ stronger S-curve within the lifted shadow range. A stronger follow-up
 (`shadowStrength=0.84`, `shadowContrast=0.68`) was rejected in live twilight:
 the frame became nearly uniform gray and a dark car body merged with the shadow
 under it even though fine tree texture remained visible. The product returned
-to `shadowStrength=0.78` and `shadowContrast=0.55`. A true dark-scene check is
-still needed; if large low-contrast objects remain merged, the next candidate
-is dual-scale local contrast rather than a stronger global tone curve.
+to `shadowStrength=0.78` and `shadowContrast=0.55`. The next bounded profile
+keeps that global curve and the existing denoising unchanged, samples a second
+local scale at a `9 px` radius, and adds at most `0.038` luminance of local
+detail only across the midtone window. This dual-scale local contrast still
+needs live comparison before any noise-profile change.
 
 ### ADAS cameras: status signals found, no video endpoint found
 

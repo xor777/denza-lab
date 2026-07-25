@@ -70,27 +70,15 @@ class SteeringWheelNavigationButtonTest {
     }
 
     @Test
-    fun `triple press toggles camera without navigation actions`() {
+    fun `double press toggles camera without navigation actions`() {
         val sequence = SteeringWheelPressSequence(timeoutMs = 500L)
 
         assertFalse(sequence.onPress(nowMs = 1_000L).toggleDvrCamera)
-        assertFalse(sequence.onPress(nowMs = 1_250L).toggleDvrCamera)
-        val third = sequence.onPress(nowMs = 1_500L)
+        val second = sequence.onPress(nowMs = 1_250L)
 
-        assertTrue(third.toggleDvrCamera)
-        assertEquals(0, third.navigationActionsBefore)
-        assertEquals(0, sequence.flushNavigationActions(nowMs = 2_000L))
-    }
-
-    @Test
-    fun `two presses retain two navigation actions when sequence expires`() {
-        val sequence = SteeringWheelPressSequence(timeoutMs = 500L)
-
-        sequence.onPress(nowMs = 1_000L)
-        sequence.onPress(nowMs = 1_300L)
-
-        assertEquals(0, sequence.flushNavigationActions(nowMs = 1_799L))
-        assertEquals(2, sequence.flushNavigationActions(nowMs = 1_800L))
+        assertTrue(second.toggleDvrCamera)
+        assertEquals(0, second.navigationActionsBefore)
+        assertEquals(0, sequence.flushNavigationActions(nowMs = 1_750L))
     }
 
     @Test

@@ -6,11 +6,11 @@ data class SteeringWheelPressResult(
 )
 
 /**
- * Delays the normal ★ action just long enough to distinguish a triple press.
+ * Delays the normal ★ action just long enough to distinguish a double press.
  *
- * One or two presses retain their original number of navigation actions after
- * the inter-press window expires. Three presses consume the whole sequence and
- * request the DVR camera toggle instead.
+ * One press retains the navigation action after the inter-press window expires.
+ * Two presses consume the whole sequence and request the DVR camera toggle
+ * instead.
  */
 class SteeringWheelPressSequence(
     private val timeoutMs: Long = DEFAULT_TIMEOUT_MS,
@@ -30,7 +30,7 @@ class SteeringWheelPressSequence(
         }
         pressCount += 1
         lastPressAtMs = nowMs
-        if (pressCount == TRIPLE_PRESS_COUNT) {
+        if (pressCount == DOUBLE_PRESS_COUNT) {
             reset()
             return SteeringWheelPressResult(
                 navigationActionsBefore = navigationActionsBefore,
@@ -61,6 +61,6 @@ class SteeringWheelPressSequence(
 
     companion object {
         const val DEFAULT_TIMEOUT_MS = 500L
-        private const val TRIPLE_PRESS_COUNT = 3
+        private const val DOUBLE_PRESS_COUNT = 2
     }
 }
