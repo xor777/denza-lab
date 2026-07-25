@@ -457,7 +457,7 @@ centered render transform at `2x` provided the requested crop; the camera
 accepted a matching `SCALER_CROP_REGION` request but did not visibly apply it
 to the preview stream.
 
-Denza Apps `0.5.0` uses the same centered camera frame and render transform.
+Denza Apps `0.5.1` uses the same centered camera frame and render transform.
 Its neutral monochrome runtime shader adaptively favors the cleaner green
 channel only for low-saturation shadows, uses nine spatial samples with
 luminance-edge-aware weights to reduce noise without crossing object edges,
