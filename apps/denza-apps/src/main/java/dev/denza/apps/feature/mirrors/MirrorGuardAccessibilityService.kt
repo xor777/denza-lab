@@ -37,6 +37,7 @@ class MirrorGuardAccessibilityService : AccessibilityService() {
         if (event == null) return
         val runtime = ClusterSceneService.cameraRuntimeSnapshot()
         val guardEnabled = MirrorsSettings.fastSwitchGuardEnabled(this)
+        logWindowEvent(event, runtime)
 
         if (!MirrorGuardEvaluator.armed(runtime.phase, guardEnabled)) {
             // Keep the id snapshot fresh while disarmed so arming starts from
@@ -74,6 +75,32 @@ class MirrorGuardAccessibilityService : AccessibilityService() {
                     trigger("new window ${newTitles.filterNotNull().joinToString()}", event)
                 }
             }
+        }
+    }
+
+    /**
+     * Delivery-latency diagnostics: the first two live fast-switch attempts
+     * crashed with the guard silent, and without this line it is impossible to
+     * tell "the event never came" from "the event came too late or while
+     * disarmed". Window-level events are low-volume, so this stays on
+     * whenever the mirrors feature is enabled.
+     */
+    private fun logWindowEvent(
+        event: AccessibilityEvent,
+        runtime: dev.denza.apps.feature.cluster.CameraRuntimeSnapshot,
+    ) {
+        if (!MirrorsSettings.isEnabled(this)) return
+        val age = SystemClock.uptimeMillis() - event.eventTime
+        when (event.eventType) {
+            AccessibilityEvent.TYPE_WINDOWS_CHANGED -> Log.i(
+                TAG,
+                "ev windows changes=0x${Integer.toHexString(event.windowChanges)}" +
+                    " age=${age}ms phase=${runtime.phase}",
+            )
+            AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED -> Log.i(
+                TAG,
+                "ev state pkg=${event.packageName} age=${age}ms phase=${runtime.phase}",
+            )
         }
     }
 
