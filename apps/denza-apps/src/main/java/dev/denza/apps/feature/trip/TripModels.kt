@@ -26,26 +26,20 @@ enum class TripMode(val storageValue: Int) {
 }
 
 /**
- * Result of projecting one raw IMU sample onto vehicle axes.
+ * Result of projecting one raw IMU sample onto the gravity (vertical) axis.
  *
- * `vertical`/`horizontalMagnitude` are calibrated from the smoothed gravity
- * vector and are trustworthy as soon as gravity settles. `lateral`/`longitudinal`
- * are only meaningful once [calibrated] is true; before convergence the engine
- * falls back to [horizontalMagnitude] (magnitude-only agitation).
+ * All three figures are trustworthy as soon as gravity settles (a few seconds).
+ * Lateral/longitudinal acceleration are deliberately NOT derived from the IMU
+ * anymore — the engine computes them from physics (GNSS speed x yaw rate, and
+ * the GNSS speed derivative; see [AxisCalibrator] and [SpeedDynamics]).
  */
 data class AxisReading(
     /** Linear (gravity-removed) acceleration along the smoothed up axis, m/s^2. Positive = up. */
     val vertical: Double,
-    /** Magnitude of the horizontal linear acceleration, m/s^2. */
+    /** Magnitude of the horizontal linear acceleration, m/s^2 (diagnostic only). */
     val horizontalMagnitude: Double,
-    /** Lateral (cornering) acceleration, m/s^2. Only meaningful when [calibrated]. */
-    val lateral: Double,
-    /** Longitudinal (accel/brake) acceleration, m/s^2. Only meaningful when [calibrated]. */
-    val longitudinal: Double,
-    /** Yaw rate about the vertical axis, rad/s. */
+    /** Yaw rate about the vertical axis, rad/s. Positive = left turn. */
     val yawRate: Double,
-    /** True once the lateral/longitudinal split has converged from yaw correlation. */
-    val calibrated: Boolean,
 )
 
 /** A single smoothed elevation sample kept in the rolling ~100 s window (mode 1). */

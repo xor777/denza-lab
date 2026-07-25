@@ -1,5 +1,6 @@
 package dev.denza.apps.feature.trip
 
+import kotlin.math.abs
 import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.exp
@@ -12,8 +13,29 @@ import kotlin.math.sqrt
  * Derives journey geometry from ~1 Hz standard-Android GNSS fixes.
  *
  * Nothing here is persisted. Ground speed is used internally only (distance
- * gating, stop detection) and is deliberately never exposed for display — the
- * cluster/HUD/navigator already show speed.
+ * gating, stop detection, altitude-integrity gating) and is deliberately never
+ * exposed for display — the cluster/HUD/navigator already show speed.
+ *
+ * Altitude integrity (first live drive findings):
+ *  - A fix seeds or updates the altitude channel only when its reported vertical
+ *    accuracy is decent (<= [maxVerticalAccuracyMeters]). Without a reported
+ *    accuracy, seeding additionally requires [seedConsistencyFixes] consecutive
+ *    fixes that agree within [seedConsistencyBandMeters] — one cold-fix garbage
+ *    altitude must never seed the smoother.
+ *  - While ground speed < [climbFreezeSpeed] the smoother HOLDS its value, the
+ *    variometer decays to zero, and trip climb is frozen: parked GPS altitude
+ *    wander (+-12 m observed) must not read as climbing.
+ *  - On the parked->moving transition the smoother re-seeds at the current fix
+ *    and the climb rest point re-anchors there, so baseline drift across a stop
+ *    can never turn into phantom climb.
+ *  - Trip climb accumulates via a rest-point stair-step: only when the smoothed
+ *    altitude clears the last rest point by >= [climbStepMeters] does the gain
+ *    count (and the rest point follows the altitude down through descents), so
+ *    a random walk cannot inflate the total while real hills still count.
+ *
+ * The elevation series is the WHOLE trip, decimated: samples are kept at a
+ * minimum interval that doubles every time the buffer fills, so the strip always
+ * spans the trip at bounded memory (like the route thread).
  *
  * Pure and JVM-testable.
  */
@@ -24,8 +46,22 @@ class GnssTripAccumulator(
     private val varioTau: Double = 3.0,
     /** Below this ground speed (m/s) the car is treated as stopped. */
     private val stopSpeed: Double = 0.5,
-    /** Rolling window kept for the mode-1 elevation thread, seconds. */
-    private val elevationWindowSeconds: Double = 100.0,
+    /** Below this ground speed (m/s) the altitude channel freezes (no climb, vario decays). */
+    private val climbFreezeSpeed: Double = 1.0,
+    /** Variometer decay time constant while frozen, seconds. */
+    private val varioFreezeTau: Double = 1.5,
+    /** Stair-step: smoothed altitude must clear the rest point by this much to count. */
+    private val climbStepMeters: Double = 3.0,
+    /** Worst acceptable reported vertical accuracy for the altitude channel, meters. */
+    private val maxVerticalAccuracyMeters: Double = 20.0,
+    /** Without reported accuracy: consecutive agreeing fixes required to seed. */
+    private val seedConsistencyFixes: Int = 3,
+    /** Without reported accuracy: max spread between consecutive seeding fixes, meters. */
+    private val seedConsistencyBandMeters: Double = 15.0,
+    /** Whole-trip elevation series: retained samples before the interval doubles. */
+    private val elevationCapacity: Int = 720,
+    /** Initial spacing of retained elevation samples, seconds. */
+    elevationBaseIntervalSeconds: Double = 1.0,
     /** Minimum spacing between retained thread points (meters or seconds). */
     private val routeMinMeters: Double = 25.0,
     private val routeMinSeconds: Double = 4.0,
@@ -43,8 +79,9 @@ class GnssTripAccumulator(
     private var altitudeSeeded = false
     var smoothedAltitude: Double = 0.0
         private set
-    var hasAltitude: Boolean = false
-        private set
+
+    /** True only once the altitude channel has been (accuracy-gated) seeded. */
+    val hasAltitude: Boolean get() = altitudeSeeded
     var variometer: Double = 0.0
         private set
 
@@ -53,20 +90,35 @@ class GnssTripAccumulator(
         private set
     private var stopLabelArmed = true
 
-    /** Positive climb over the current elevation window (drives "набор +N м"). */
+    /** Positive climb over the current climb window (drives "набор +N м"). */
     var windowClimbMeters: Double = 0.0
         private set
 
-    private val elevation = ArrayDeque<ElevationSample>()
+    // Stair-step climb state.
+    private var restPointAltitude = 0.0
+    private var pendingReanchor = false
+    private var wasClimbMoving = false
+
+    // Seeding-without-accuracy consistency state.
+    private var pendingSeedAltitude = 0.0
+    private var pendingSeedCount = 0
+
+    // Whole-trip elevation series (decimated) and its running band.
+    private val elevation = ArrayList<ElevationSample>()
+    private var elevationIntervalSeconds = elevationBaseIntervalSeconds
+    private var lastElevationElapsed = -1.0e9
+
     private val routePoints = ArrayList<RoutePoint>()
     private var lastRouteElapsed = -1.0e9
     private var lastRouteLat = 0.0
     private var lastRouteLon = 0.0
-    private var altMinWindow = Double.MAX_VALUE
-    private var altMaxWindow = -Double.MAX_VALUE
+    private var altMinTrip = Double.MAX_VALUE
+    private var altMaxTrip = -Double.MAX_VALUE
 
     /**
-     * Feed one fix.
+     * Feed one fix. [accumulate] is false before the trip clock has started
+     * (movement-gated in the engine): the altitude smoother still warms up and
+     * seeds, but distance, climb, the elevation series, and stop labelling wait.
      *
      * @return true when a new 15-minute stop threshold was crossed this update.
      */
@@ -75,14 +127,18 @@ class GnssTripAccumulator(
         longitude: Double,
         altitude: Double,
         hasAltitudeFix: Boolean,
+        verticalAccuracyMeters: Double,
+        hasVerticalAccuracy: Boolean,
         speed: Double,
         elapsedSeconds: Double,
         dt: Double,
+        accumulate: Boolean,
     ): Boolean {
         val step = dt.coerceIn(0.0, 5.0)
+        val climbMoving = speed >= climbFreezeSpeed
 
-        // Distance: accumulate only while moving so parked GPS jitter does not drift.
-        if (hasPrev && speed >= stopSpeed) {
+        // Distance: only in-trip and only while moving so GPS jitter never drifts.
+        if (accumulate && hasPrev && speed >= stopSpeed) {
             val d = haversine(prevLat, prevLon, latitude, longitude)
             if (d < 400.0) distanceMeters += d // reject single-fix GPS glitches
         }
@@ -90,32 +146,50 @@ class GnssTripAccumulator(
         prevLon = longitude
         hasPrev = true
 
-        // Altitude smoothing + climb + variometer.
-        if (hasAltitudeFix) {
-            hasAltitude = true
-            if (!altitudeSeeded) {
-                smoothedAltitude = altitude
-                altitudeSeeded = true
-            } else {
-                val prev = smoothedAltitude
-                val a = 1.0 - exp(-step / altitudeTau)
-                smoothedAltitude += (altitude - smoothedAltitude) * a
-                val delta = smoothedAltitude - prev
-                if (delta > 0) tripClimbMeters += delta
-                val rate = if (step > 0) delta / step else 0.0
-                val av = 1.0 - exp(-step / varioTau)
-                variometer += (rate - variometer) * av
-                pushWindowClimb(elapsedSeconds, max(0.0, delta))
-            }
-            pushElevation(elapsedSeconds, smoothedAltitude)
+        // Altitude channel.
+        if (!climbMoving) {
+            // Parked/creeping: the variometer decays to zero and the smoother
+            // holds below; re-anchor everything at the next real movement.
+            variometer *= exp(-step / varioFreezeTau)
+            pendingReanchor = true
         }
-
-        // Heading/course now lives in the engine's CourseTracker (fed the bearing
-        // + speed + IMU yaw), so this accumulator stays position/elevation-only.
+        if (hasAltitudeFix && altitudeAcceptable(hasVerticalAccuracy, verticalAccuracyMeters)) {
+            if (!altitudeSeeded) {
+                maybeSeed(altitude, hasVerticalAccuracy)
+            } else if (climbMoving) {
+                if (pendingReanchor) {
+                    // Resuming movement: re-seed at the current fix so parked GPS
+                    // baseline drift can never surface as climb or vario.
+                    smoothedAltitude = altitude
+                    restPointAltitude = altitude
+                    pendingReanchor = false
+                } else {
+                    val prev = smoothedAltitude
+                    val a = 1.0 - exp(-step / altitudeTau)
+                    smoothedAltitude += (altitude - smoothedAltitude) * a
+                    val rate = if (step > 0) (smoothedAltitude - prev) / step else 0.0
+                    val av = 1.0 - exp(-step / varioTau)
+                    variometer += (rate - variometer) * av
+                    stairStep(elapsedSeconds, accumulate)
+                }
+            }
+            if (altitudeSeeded) {
+                altMinTrip = min(altMinTrip, smoothedAltitude)
+                altMaxTrip = max(altMaxTrip, smoothedAltitude)
+                if (accumulate) pushElevation(elapsedSeconds, smoothedAltitude)
+            }
+        }
+        pruneClimbWindow(elapsedSeconds)
+        wasClimbMoving = climbMoving
 
         // Stop detection: label crossings at 15 minutes, re-arm on movement.
+        // Waits for the trip like every other accumulation.
         val crossed: Boolean
-        if (speed < stopSpeed) {
+        if (!accumulate) {
+            currentStopSeconds = 0.0
+            stopLabelArmed = true
+            crossed = false
+        } else if (speed < stopSpeed) {
             val before = currentStopSeconds
             currentStopSeconds += step
             crossed = stopLabelArmed && before < STOP_THRESHOLD_SECONDS &&
@@ -128,6 +202,46 @@ class GnssTripAccumulator(
         }
 
         return crossed
+    }
+
+    /** Accuracy gate for the altitude channel (seeded or not). */
+    private fun altitudeAcceptable(hasVacc: Boolean, vacc: Double): Boolean =
+        !hasVacc || vacc <= maxVerticalAccuracyMeters
+
+    /** Seed the smoother; without reported accuracy, demand consistent fixes. */
+    private fun maybeSeed(altitude: Double, hasVacc: Boolean) {
+        if (!hasVacc) {
+            pendingSeedCount =
+                if (pendingSeedCount > 0 && abs(altitude - pendingSeedAltitude) <= seedConsistencyBandMeters) {
+                    pendingSeedCount + 1
+                } else {
+                    1
+                }
+            pendingSeedAltitude = altitude
+            if (pendingSeedCount < seedConsistencyFixes) return
+        }
+        altitudeSeeded = true
+        smoothedAltitude = altitude
+        restPointAltitude = altitude
+        pendingReanchor = false
+    }
+
+    /**
+     * Rest-point stair-step: descents drag the rest point down; a climb counts
+     * only once it clears the rest point by [climbStepMeters], then the rest
+     * point moves up. Random-walk noise below the step never accumulates.
+     */
+    private fun stairStep(elapsedSeconds: Double, accumulate: Boolean) {
+        if (smoothedAltitude < restPointAltitude) {
+            restPointAltitude = smoothedAltitude
+        } else if (smoothedAltitude - restPointAltitude >= climbStepMeters) {
+            val gain = smoothedAltitude - restPointAltitude
+            restPointAltitude = smoothedAltitude
+            if (accumulate) {
+                tripClimbMeters += gain
+                climbWindow.addLast(ElevationSample(elapsedSeconds, gain))
+            }
+        }
     }
 
     /** Append a decimated route point (called by the engine with fused colour/energy). */
@@ -152,31 +266,41 @@ class GnssTripAccumulator(
 
     private fun hasRoutePoints(): Boolean = routePoints.isNotEmpty()
 
-    /** Bounded 0..1 shape from where the smoothed altitude sits in its window band. */
+    /** Bounded 0..1 shape from where the smoothed altitude sits in the trip band. */
     private fun normalizedShape(): Double {
-        if (!hasAltitude || altMaxWindow - altMinWindow < 1e-3) return 0.5
-        return ((smoothedAltitude - altMinWindow) / (altMaxWindow - altMinWindow)).coerceIn(0.0, 1.0)
+        if (!hasAltitude || altMaxTrip - altMinTrip < 1e-3) return 0.5
+        return ((smoothedAltitude - altMinTrip) / (altMaxTrip - altMinTrip)).coerceIn(0.0, 1.0)
     }
 
+    /**
+     * Whole-trip elevation series: keep one sample per [elevationIntervalSeconds];
+     * when the buffer fills, drop every second sample and double the interval so
+     * the series always spans the whole trip with bounded memory.
+     */
     private fun pushElevation(elapsedSeconds: Double, altitudeMeters: Double) {
-        elevation.addLast(ElevationSample(elapsedSeconds, altitudeMeters))
-        while (elevation.isNotEmpty() &&
-            elapsedSeconds - elevation.first().elapsedSeconds > elevationWindowSeconds
+        if (elevation.isNotEmpty() &&
+            elapsedSeconds - lastElevationElapsed < elevationIntervalSeconds
         ) {
-            elevation.removeFirst()
+            return
         }
-        altMinWindow = Double.MAX_VALUE
-        altMaxWindow = -Double.MAX_VALUE
-        for (s in elevation) {
-            altMinWindow = min(altMinWindow, s.altitudeMeters)
-            altMaxWindow = max(altMaxWindow, s.altitudeMeters)
+        elevation.add(ElevationSample(elapsedSeconds, altitudeMeters))
+        lastElevationElapsed = elapsedSeconds
+        if (elevation.size >= elevationCapacity) {
+            var write = 0
+            var read = 0
+            while (read < elevation.size) {
+                elevation[write] = elevation[read]
+                write++
+                read += 2
+            }
+            while (elevation.size > write) elevation.removeAt(elevation.size - 1)
+            elevationIntervalSeconds *= 2.0
         }
     }
 
     private val climbWindow = ArrayDeque<ElevationSample>()
 
-    private fun pushWindowClimb(elapsedSeconds: Double, positiveDelta: Double) {
-        if (positiveDelta > 0) climbWindow.addLast(ElevationSample(elapsedSeconds, positiveDelta))
+    private fun pruneClimbWindow(elapsedSeconds: Double) {
         while (climbWindow.isNotEmpty() &&
             elapsedSeconds - climbWindow.first().elapsedSeconds > CLIMB_WINDOW_SECONDS
         ) {
@@ -215,14 +339,24 @@ class GnssTripAccumulator(
         return n
     }
 
-    /** Copy elevation altitudes into [out], newest last; returns count written. */
+    /**
+     * Copy elevation altitudes into [out], oldest first / newest last. When the
+     * series holds more samples than [out], it is stride-decimated evenly across
+     * the WHOLE trip so the caller always sees start-to-now. Returns the count.
+     */
     fun copyElevationInto(out: FloatArray): Int {
-        var i = 0
-        for (s in elevation) {
-            if (i >= out.size) break
-            out[i++] = s.altitudeMeters.toFloat()
+        val n = elevation.size
+        if (n == 0 || out.isEmpty()) return 0
+        if (n <= out.size) {
+            for (i in 0 until n) out[i] = elevation[i].altitudeMeters.toFloat()
+            return n
         }
-        return i
+        val m = out.size
+        for (i in 0 until m) {
+            val src = (i.toLong() * (n - 1) / (m - 1)).toInt()
+            out[i] = elevation[src].altitudeMeters.toFloat()
+        }
+        return m
     }
 
     companion object {

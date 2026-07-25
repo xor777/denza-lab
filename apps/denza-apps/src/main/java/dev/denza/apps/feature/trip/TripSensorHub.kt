@@ -24,20 +24,25 @@ import java.util.TimeZone
  * [TripEngine]. Everything runs on the main looper so the engine is only ever
  * touched from one thread and the renderer can read it lock-free.
  *
+ * The hub (and its engine) is process-scoped via [TripSession]: `stop()`
+ * unregisters the sensors but deliberately KEEPS the engine, so reopening the
+ * panel resumes the same trip instead of resetting it. The engine's own
+ * movement gate decides when the trip clock actually starts.
+ *
  * Only product-usable sources are wired here (see docs/vehicle-data-findings.md):
  * TYPE_ACCELEROMETER / TYPE_GYROSCOPE / TYPE_GRAVITY at ~30 Hz, the standard GNSS
  * provider at ~1 Hz, and the app's existing validated Yandex guidance via
  * [HudGuidanceRuntime]. No DiCar getters, no BYD events, no vendor SCP sensors.
  */
-class TripSensorHub(private val context: Context) : SensorEventListener, LocationListener {
+class TripSensorHub(context: Context) : SensorEventListener, LocationListener {
 
-    private val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as? SensorManager
-    private val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as? LocationManager
+    private val appContext = context.applicationContext
+    private val sensorManager = appContext.getSystemService(Context.SENSOR_SERVICE) as? SensorManager
+    private val locationManager = appContext.getSystemService(Context.LOCATION_SERVICE) as? LocationManager
     private val handler = Handler(Looper.getMainLooper())
 
-    /** The live engine, or null while stopped. Read on the main thread only. */
-    var engine: TripEngine? = null
-        private set
+    /** The process-lifetime engine. Never reset; read on the main thread only. */
+    val engine = TripEngine()
 
     var running: Boolean = false
         private set
@@ -45,18 +50,21 @@ class TripSensorHub(private val context: Context) : SensorEventListener, Locatio
     var locationGranted: Boolean = false
         private set
 
+    /** Host (activity) context, held only while running, for the dialog fallback. */
+    private var hostContext: Context? = null
+
     private val gravity = DoubleArray(3)
     private var haveGravity = false
     private val gyro = DoubleArray(3)
     private var lastGuidancePollMs = 0L
     private var runtimeFallbackRequested = false
 
-    fun start() {
+    fun start(host: Context? = null) {
         if (running) return
         running = true
+        hostContext = host
         haveGravity = false
         gyro[0] = 0.0; gyro[1] = 0.0; gyro[2] = 0.0
-        engine = TripEngine(SystemClock.elapsedRealtime())
         registerSensor(Sensor.TYPE_GRAVITY)
         registerSensor(Sensor.TYPE_GYROSCOPE)
         registerSensor(Sensor.TYPE_ACCELEROMETER)
@@ -66,15 +74,15 @@ class TripSensorHub(private val context: Context) : SensorEventListener, Locatio
     fun stop() {
         if (!running) return
         running = false
+        hostContext = null
         sensorManager?.unregisterListener(this)
         runCatching { locationManager?.removeUpdates(this) }
-        engine = null
         haveGravity = false
     }
 
     /** Drive time-based derivations (countdown, timers) each rendered frame. */
     fun tick() {
-        engine?.onTick(SystemClock.elapsedRealtime())
+        engine.onTick(SystemClock.elapsedRealtime())
     }
 
     private fun registerSensor(type: Int) {
@@ -96,7 +104,7 @@ class TripSensorHub(private val context: Context) : SensorEventListener, Locatio
             startLocationUpdates()
             return
         }
-        TripLocationAccessCoordinator.ensureAccess(context) {
+        TripLocationAccessCoordinator.ensureAccess(appContext) {
             // May run on a background thread; hop back to the main looper.
             handler.post {
                 if (!running) return@post
@@ -121,10 +129,10 @@ class TripSensorHub(private val context: Context) : SensorEventListener, Locatio
         }
     }
 
-    /** Last-resort runtime prompt, asked at most once per panel session. */
+    /** Last-resort runtime prompt, asked at most once per process. */
     private fun requestRuntimeFallback() {
         if (runtimeFallbackRequested) return
-        val activity = context.findActivity() ?: return
+        val activity = hostContext?.findActivity() ?: return
         runtimeFallbackRequested = true
         ActivityCompat.requestPermissions(
             activity,
@@ -143,13 +151,13 @@ class TripSensorHub(private val context: Context) : SensorEventListener, Locatio
     }
 
     fun hasLocationPermission(): Boolean =
-        context.checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) ==
+        appContext.checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) ==
             PackageManager.PERMISSION_GRANTED ||
-            context.checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) ==
+            appContext.checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) ==
             PackageManager.PERMISSION_GRANTED
 
     override fun onSensorChanged(event: SensorEvent) {
-        val eng = engine ?: return
+        if (!running) return
         when (event.sensor.type) {
             Sensor.TYPE_GRAVITY -> {
                 gravity[0] = event.values[0].toDouble()
@@ -173,7 +181,7 @@ class TripSensorHub(private val context: Context) : SensorEventListener, Locatio
                 val gx = if (haveGravity) gravity[0] else ax
                 val gy = if (haveGravity) gravity[1] else ay
                 val gz = if (haveGravity) gravity[2] else az
-                eng.onImu(now, ax, ay, az, gx, gy, gz, gyro[0], gyro[1], gyro[2])
+                engine.onImu(now, ax, ay, az, gx, gy, gz, gyro[0], gyro[1], gyro[2])
                 pollGuidance(now)
             }
         }
@@ -182,11 +190,11 @@ class TripSensorHub(private val context: Context) : SensorEventListener, Locatio
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) = Unit
 
     override fun onLocationChanged(location: Location) {
-        val eng = engine ?: return
+        if (!running) return
         val now = SystemClock.elapsedRealtime()
         val wall = System.currentTimeMillis()
         val tzOffsetMinutes = TimeZone.getDefault().getOffset(wall) / 60_000
-        eng.onLocation(
+        engine.onLocation(
             nowElapsedMs = now,
             wallMs = wall,
             tzOffsetMinutes = tzOffsetMinutes,
@@ -194,6 +202,12 @@ class TripSensorHub(private val context: Context) : SensorEventListener, Locatio
             longitude = location.longitude,
             altitude = if (location.hasAltitude()) location.altitude else 0.0,
             hasAltitude = location.hasAltitude(),
+            verticalAccuracyMeters = if (location.hasVerticalAccuracy()) {
+                location.verticalAccuracyMeters.toDouble()
+            } else {
+                -1.0
+            },
+            hasVerticalAccuracy = location.hasVerticalAccuracy(),
             bearing = location.bearing.toDouble(),
             hasBearing = location.hasBearing(),
             speed = location.speed.toDouble(),
@@ -205,7 +219,7 @@ class TripSensorHub(private val context: Context) : SensorEventListener, Locatio
         if (nowElapsedMs - lastGuidancePollMs < GUIDANCE_POLL_MS) return
         lastGuidancePollMs = nowElapsedMs
         val remaining = HudGuidanceRuntime.remaining(SystemClock.uptimeMillis())
-        engine?.onGuidance(
+        engine.onGuidance(
             distanceMeters = remaining?.distanceMeters,
             timeSeconds = remaining?.timeSeconds,
             valid = remaining != null,

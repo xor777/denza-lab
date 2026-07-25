@@ -3,8 +3,13 @@ package dev.denza.apps.feature.trip
 import kotlin.math.exp
 
 /**
- * Turns the per-sample agitation magnitude (m/s^2, from [AxisCalibrator]) into
- * the comfort figures shown in mode 2 and the halo energy used in mode 1.
+ * Turns the per-sample agitation magnitude (m/s^2, blended in [TripEngine] from
+ * the physics lateral/longitudinal channels plus weighted vertical) into the
+ * comfort figures shown in mode 2 and the halo energy used in mode 1.
+ *
+ * Tuning is against realistic physics magnitudes (comfortable corner ~2-3 m/s^2,
+ * normal brake ~1.5-3 m/s^2, bump spikes ~2-6 m/s^2 vertical): smooth city
+ * driving should score ~80-90, aggressive driving ~50-70.
  *
  * Pure and JVM-testable.
  */
@@ -12,9 +17,9 @@ class AgitationTracker(
     /** Smoothing time constant for the comfort EMA, seconds. */
     private val emaTau: Double = 2.5,
     /** Agitation above this (m/s^2) counts as a "splash" and resets the calm timer. */
-    private val impulseThreshold: Double = 1.6,
+    private val impulseThreshold: Double = 3.5,
     /** Maps the smoothed agitation onto the 0..100 smoothness score. */
-    private val scoreGain: Double = 42.0,
+    private val scoreGain: Double = 13.0,
 ) {
     private var seeded = false
 

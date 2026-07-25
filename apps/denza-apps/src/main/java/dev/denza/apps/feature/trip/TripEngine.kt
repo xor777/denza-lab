@@ -14,22 +14,37 @@ import kotlin.math.sign
  * unit-tested on the JVM; the Android adapters ([TripSensorHub]) push samples in
  * and the renderers read the derived state out, all on the main thread.
  *
- * Trip semantics (user's explicit decision): a trip starts the instant the panel
- * starts. Everything counts — no minimum distance, no movement gate. Stops longer
- * than 15 minutes only add a label; they never end the trip. Nothing about a trip
- * is persisted.
+ * Dynamics come from physics, not IMU statistics (first live drive finding):
+ *  - lateral = GNSS ground speed x gyro yaw rate (v*w, centripetal). Positive =
+ *    left turn. Always available, no calibration.
+ *  - longitudinal = derivative of smoothed GNSS ground speed ([SpeedDynamics]).
+ *    Positive = accelerating, negative = braking.
+ *  - vertical = gravity-projected IMU residual ([AxisCalibrator]) — unchanged.
+ *  - agitation = |lateral| (+) |longitudinal| (+) weighted |vertical|, blended
+ *    as a vector magnitude.
+ *
+ * Trip semantics (revised after the first live drive): the engine lives for the
+ * whole process ([TripSession]), so reopening the panel never resets the trip.
+ * The trip CLOCK starts at the first sustained movement (speed >=
+ * [TRIP_START_SPEED] held for [TRIP_START_SUSTAIN_SECONDS]); before that
+ * «В пути» shows 0:00 and distance/climb/route/event accumulation waits.
+ * Sensors stop while the panel is hidden — the resulting data gaps are honest —
+ * but elapsed time is wall-clock from the trip start. Stops longer than 15
+ * minutes only add a label; they never end the trip. Nothing is persisted.
  *
  * Deterministic event thresholds (documented once, here):
  *  - CLIMB  ("набор/подъём +N м"): positive climb within the last 40 s >= 40 m.
- *  - TURN   ("вираж"): |yaw rate| >= 0.25 rad/s sustained for >= 2.0 s.
- *  - CALM   ("ровный участок"): agitation < 0.4 m/s^2 and |vario| < 0.25 m/s for >= 20 s.
+ *  - TURN   ("вираж"): |yaw rate| >= 0.35 rad/s sustained >= 2.5 s at > 5 m/s.
+ *  - CALM   ("ровный участок"): agitation < 0.9 m/s^2, |vario| < 0.25 m/s and
+ *           speed > 3 m/s throughout a 20 s window (never while standing).
  *  - CREST  ("гребень N м"): smoothed variometer crosses +0.2 -> -0.2 m/s.
  *  - STOP   ("остановка N мин"): ground speed < 0.5 m/s for >= 15 min (from GNSS).
  *  - SERPENTINE ("серпантин"): >= 4 yaw-sign reversals (|yaw| >= 0.2) within 30 s while moving.
  */
-class TripEngine(private val startElapsedMs: Long) {
+class TripEngine {
 
     private val axis = AxisCalibrator()
+    private val speedDynamics = SpeedDynamics()
     private val agitation = AgitationTracker()
     private val buckets = RmsBucketAggregator()
     private val gnss = GnssTripAccumulator()
@@ -40,18 +55,28 @@ class TripEngine(private val startElapsedMs: Long) {
     private var lastFixMs = 0L
     private var haveFix = false
 
-    // Latest instantaneous IMU-derived signals (read per frame by the renderers).
+    // Movement-gated trip clock.
+    var tripStarted: Boolean = false
+        private set
+    private var tripStartElapsedMs = 0L
+    private var movementCandidateMs = -1L
+
+    // Latest instantaneous derived signals (read per frame by the renderers).
     var elapsedSeconds: Double = 0.0
         private set
+
+    /** Centripetal lateral acceleration v*w, m/s^2. Positive = left turn. */
     var lateralAccel: Double = 0.0
         private set
+
+    /** GNSS-derived longitudinal acceleration, m/s^2. Negative = braking. */
+    val longitudinalAccel: Double get() = speedDynamics.longitudinalAccel
     var verticalAccel: Double = 0.0
         private set
     var latestAgitation: Double = 0.0
         private set
     var currentSpeed: Double = 0.0
         private set
-    val calibrated: Boolean get() = axis.isCalibrated
 
     // Guidance (validated Yandex only; fail-closed). The Android adapter decides
     // validity via HudGuidanceRuntime.remaining(); the engine just holds the last
@@ -93,29 +118,27 @@ class TripEngine(private val startElapsedMs: Long) {
         haveImu = true
         advance(nowElapsedMs)
 
+        speedDynamics.onIdle(dt)
         val reading = axis.update(
             ax, ay, az,
             gravX, gravY, gravZ,
             gyroX, gyroY, gyroZ,
-            currentSpeed, dt,
+            dt,
         )
         verticalAccel = reading.vertical
-        lateralAccel = if (reading.calibrated) {
-            reading.lateral
-        } else {
-            // Conservative fallback while the split has not converged: a signed
-            // horizontal proxy using the turn direction (yaw), so the glass still
-            // sloshes the right way without claiming a real lateral calibration.
-            reading.horizontalMagnitude * sign(reading.yawRate)
-        }
-        val a = agitationMagnitude(reading)
+        // Physics lateral: centripetal v*w. Uses the smoothed (stale-decaying)
+        // GNSS speed, so with no fix there is honestly no claimed lateral.
+        lateralAccel = speedDynamics.smoothedSpeed * reading.yawRate
+        val a = agitationMagnitude(lateralAccel, longitudinalAccel, reading.vertical)
         latestAgitation = a
         agitation.update(a, abs(reading.vertical), dt)
         buckets.add(a, dt)
 
-        detectTurn(reading.yawRate, dt)
-        detectSerpentine(reading.yawRate)
-        detectCalm(a, dt)
+        if (tripStarted) {
+            detectTurn(reading.yawRate, dt)
+            detectSerpentine(reading.yawRate)
+            detectCalm(a, dt)
+        }
         // Feed yaw into the held course so parking turns rotate the compass tape.
         course.onYaw(reading.yawRate, dt)
     }
@@ -128,6 +151,8 @@ class TripEngine(private val startElapsedMs: Long) {
         longitude: Double,
         altitude: Double,
         hasAltitude: Boolean,
+        verticalAccuracyMeters: Double,
+        hasVerticalAccuracy: Boolean,
         bearing: Double,
         hasBearing: Boolean,
         speed: Double,
@@ -137,13 +162,17 @@ class TripEngine(private val startElapsedMs: Long) {
         lastFixMs = nowElapsedMs
         haveFix = true
         currentSpeed = speed.coerceAtLeast(0.0)
+        maybeStartTrip(nowElapsedMs)
         advance(nowElapsedMs)
+        speedDynamics.onFix(currentSpeed, dt)
 
         val prevAlt = gnss.smoothedAltitude
         val hadAlt = gnss.hasAltitude
         val crossedStop = gnss.onFix(
-            latitude, longitude, altitude, hasAltitude,
-            speed, elapsedSeconds, dt,
+            latitude, longitude,
+            altitude, hasAltitude, verticalAccuracyMeters, hasVerticalAccuracy,
+            currentSpeed, elapsedSeconds, dt,
+            accumulate = tripStarted,
         )
         course.onFix(hasBearing, bearing, speed, dt)
 
@@ -153,27 +182,29 @@ class TripEngine(private val startElapsedMs: Long) {
         lastWallMs = wallMs
         updateSun()
 
-        val timeColor = timeColorKey()
-        gnss.maybeAddRoutePoint(elapsedSeconds, latitude, longitude, timeColor, energy01())
+        if (tripStarted) {
+            val timeColor = timeColorKey()
+            gnss.maybeAddRoutePoint(elapsedSeconds, latitude, longitude, timeColor, energy01())
 
-        // Deterministic elevation events.
-        if (gnss.windowClimbMeters >= CLIMB_EVENT_METERS) {
-            emit(TripEventKind.CLIMB, gnss.windowClimbMeters)
-            gnss.consumeWindowClimb()
-        }
-        if (hadAlt && gnss.hasAltitude) {
-            val newSign = when {
-                gnss.variometer > CREST_VARIO -> 1
-                gnss.variometer < -CREST_VARIO -> -1
-                else -> 0
+            // Deterministic elevation events.
+            if (gnss.windowClimbMeters >= CLIMB_EVENT_METERS) {
+                emit(TripEventKind.CLIMB, gnss.windowClimbMeters)
+                gnss.consumeWindowClimb()
             }
-            if (prevVarioSign > 0 && newSign < 0 && gnss.smoothedAltitude >= prevAlt - 2.0) {
-                emit(TripEventKind.CREST, gnss.smoothedAltitude)
+            if (hadAlt && gnss.hasAltitude) {
+                val newSign = when {
+                    gnss.variometer > CREST_VARIO -> 1
+                    gnss.variometer < -CREST_VARIO -> -1
+                    else -> 0
+                }
+                if (prevVarioSign > 0 && newSign < 0 && gnss.smoothedAltitude >= prevAlt - 2.0) {
+                    emit(TripEventKind.CREST, gnss.smoothedAltitude)
+                }
+                if (newSign != 0) prevVarioSign = newSign
             }
-            if (newSign != 0) prevVarioSign = newSign
-        }
-        if (crossedStop) {
-            emit(TripEventKind.STOP, gnss.currentStopSeconds / 60.0)
+            if (crossedStop) {
+                emit(TripEventKind.STOP, gnss.currentStopSeconds / 60.0)
+            }
         }
     }
 
@@ -194,14 +225,37 @@ class TripEngine(private val startElapsedMs: Long) {
         if (haveSun) updateSunCountdown(nowElapsedMs)
     }
 
+    /**
+     * The trip clock starts at the first sustained movement — reading gear/Drive
+     * is impossible for a normal APK (BYDAUTO permissions), so movement is the
+     * honest proxy. The clock is credited from the moment movement began, not
+     * from when the sustain gate confirmed it.
+     */
+    private fun maybeStartTrip(nowElapsedMs: Long) {
+        if (tripStarted) return
+        if (currentSpeed >= TRIP_START_SPEED) {
+            if (movementCandidateMs < 0) movementCandidateMs = nowElapsedMs
+            if ((nowElapsedMs - movementCandidateMs) / 1000.0 >= TRIP_START_SUSTAIN_SECONDS) {
+                tripStarted = true
+                tripStartElapsedMs = movementCandidateMs
+            }
+        } else {
+            movementCandidateMs = -1L
+        }
+    }
+
     private fun advance(nowElapsedMs: Long) {
-        elapsedSeconds = (nowElapsedMs - startElapsedMs).coerceAtLeast(0L) / 1000.0
+        elapsedSeconds = if (tripStarted) {
+            (nowElapsedMs - tripStartElapsedMs).coerceAtLeast(0L) / 1000.0
+        } else {
+            0.0
+        }
     }
 
     // ---- event detection ----------------------------------------------------
 
     private fun detectTurn(yawRate: Double, dt: Double) {
-        if (abs(yawRate) >= TURN_YAW) {
+        if (abs(yawRate) >= TURN_YAW && currentSpeed > TURN_MIN_SPEED) {
             turnSustain += dt
             if (turnArmed && turnSustain >= TURN_SUSTAIN_SECONDS) {
                 emit(TripEventKind.TURN, 0.0)
@@ -232,7 +286,11 @@ class TripEngine(private val startElapsedMs: Long) {
     }
 
     private fun detectCalm(agitationNow: Double, dt: Double) {
-        val flat = agitationNow < CALM_AGITATION && abs(gnss.variometer) < CALM_VARIO
+        // A light-stop must never count as a "ровный участок": the whole calm
+        // window has to be driven (speed > CALM_MIN_SPEED throughout).
+        val flat = agitationNow < CALM_AGITATION &&
+            abs(gnss.variometer) < CALM_VARIO &&
+            currentSpeed > CALM_MIN_SPEED
         if (flat) {
             calmFlatSeconds += dt
             if (calmFlatArmed && calmFlatSeconds >= CALM_FLAT_SECONDS) {
@@ -394,19 +452,26 @@ class TripEngine(private val startElapsedMs: Long) {
     /** Snapshot copy for tests. */
     fun events(): List<TripEvent> = events.toList()
 
-    private fun energy01(): Double = (latestAgitation / 3.0).coerceIn(0.0, 1.0)
+    private fun energy01(): Double = (latestAgitation / ENERGY_FULL_SCALE).coerceIn(0.0, 1.0)
 
-    private fun agitationMagnitude(r: AxisReading): Double =
-        hypot(r.horizontalMagnitude, abs(r.vertical) * VERTICAL_WEIGHT)
+    private fun agitationMagnitude(lateral: Double, longitudinal: Double, vertical: Double): Double =
+        hypot(hypot(lateral, longitudinal), vertical * VERTICAL_WEIGHT)
 
     companion object {
         private const val VERTICAL_WEIGHT = 1.3
+
+        /** Route-thread glow full scale, m/s^2 (a hard corner/brake maxes the glow). */
+        private const val ENERGY_FULL_SCALE = 6.0
+        const val TRIP_START_SPEED = 2.0
+        const val TRIP_START_SUSTAIN_SECONDS = 3.0
         const val CLIMB_EVENT_METERS = 40.0
         const val CREST_VARIO = 0.2
-        const val TURN_YAW = 0.25
-        const val TURN_SUSTAIN_SECONDS = 2.0
-        const val CALM_AGITATION = 0.4
+        const val TURN_YAW = 0.35
+        const val TURN_SUSTAIN_SECONDS = 2.5
+        const val TURN_MIN_SPEED = 5.0
+        const val CALM_AGITATION = 0.9
         const val CALM_VARIO = 0.25
+        const val CALM_MIN_SPEED = 3.0
         const val CALM_FLAT_SECONDS = 20.0
         const val SERPENTINE_YAW = 0.2
         const val SERPENTINE_WINDOW_SECONDS = 30.0

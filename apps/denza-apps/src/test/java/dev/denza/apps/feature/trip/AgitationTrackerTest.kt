@@ -14,20 +14,34 @@ class AgitationTrackerTest {
     }
 
     @Test
-    fun sustainedAgitationLowersScoreDeterministically() {
+    fun smoothCityDrivingScoresEightyToNinety() {
         val tracker = AgitationTracker()
-        // agitation 1.0 m/s^2 sustained => score ~= 100 - 42 = 58.
-        repeat(400) { tracker.update(agitation = 1.0, verticalAbs = 0.2, dt = 0.1) }
-        assertEquals(58.0, tracker.smoothnessScore.toDouble(), 2.0)
+        // ~1 m/s^2 smoothed agitation is a normal city mix of gentle corners,
+        // braking, and pavement texture with the physics channels.
+        repeat(400) { tracker.update(agitation = 1.0, verticalAbs = 0.3, dt = 0.1) }
+        assertTrue("score=${tracker.smoothnessScore}", tracker.smoothnessScore in 80..90)
     }
 
     @Test
-    fun calmTimerGrowsWhileSmoothAndResetsOnImpulse() {
+    fun aggressiveDrivingScoresFiftyToSeventy() {
+        val tracker = AgitationTracker()
+        // ~3 m/s^2 smoothed = sustained hard corners/braking (comfortable corner
+        // is 2-3 m/s^2 peak, so 3 sustained is genuinely aggressive).
+        repeat(400) { tracker.update(agitation = 3.0, verticalAbs = 0.8, dt = 0.1) }
+        assertTrue("score=${tracker.smoothnessScore}", tracker.smoothnessScore in 50..70)
+    }
+
+    @Test
+    fun calmTimerSurvivesNormalDrivingAndResetsOnHardImpulse() {
         val tracker = AgitationTracker()
         repeat(50) { tracker.update(agitation = 0.3, verticalAbs = 0.1, dt = 0.1) }
         assertTrue(tracker.calmSeconds > 4.0)
-        // A splash above the 1.6 m/s^2 impulse threshold resets it.
-        tracker.update(agitation = 3.0, verticalAbs = 1.0, dt = 0.1)
+        // A comfortable corner (~3 m/s^2, below the 3.5 impulse threshold) must
+        // NOT reset "Без всплесков".
+        tracker.update(agitation = 3.0, verticalAbs = 0.5, dt = 0.1)
+        assertTrue(tracker.calmSeconds > 4.0)
+        // A hard impulse above the threshold resets it.
+        tracker.update(agitation = 4.0, verticalAbs = 2.0, dt = 0.1)
         assertEquals(0.0, tracker.calmSeconds, 1e-9)
     }
 }
