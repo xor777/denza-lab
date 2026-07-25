@@ -17,7 +17,9 @@ import kotlin.math.abs
 /**
  * The trip panel itself: a lean custom View that draws directly on the screen
  * background (no card, no border, no frame), runs a Choreographer loop throttled
- * to <=30 FPS, owns the sensor/GNSS hub, and cycles the three renderers.
+ * to <=30 FPS, attaches to the process-scoped [TripSession] hub, and cycles the
+ * three renderers. Relaunching the activity re-attaches to the same trip — the
+ * view never owns or resets the engine.
  *
  * The whole panel is gated by the compile-time [TripPanelFlag]; when it is off,
  * Compose never adds this view, so nothing here runs.
@@ -30,7 +32,7 @@ import kotlin.math.abs
 @SuppressLint("ViewConstructor")
 class TripPanelView(context: Context) : View(context), Choreographer.FrameCallback {
 
-    private val hub = TripSensorHub(context)
+    private val hub = TripSession.hub(context)
     private val renderers = arrayOf(FlightRenderer(), GlassRenderer(), ThreadRenderer())
     private var mode: TripMode = TripSettings.mode(context)
 
@@ -112,7 +114,7 @@ class TripPanelView(context: Context) : View(context), Choreographer.FrameCallba
     private fun startLoop() {
         if (looping) return
         looping = true
-        hub.start()
+        hub.start(context)
         startNs = System.nanoTime()
         lastDrawNs = 0L
         lastFrameNs = 0L
@@ -137,7 +139,7 @@ class TripPanelView(context: Context) : View(context), Choreographer.FrameCallba
     }
 
     override fun onDraw(canvas: Canvas) {
-        val engine = hub.engine ?: return
+        val engine = hub.engine
         if (width <= 0 || height <= 0) return
         val now = System.nanoTime()
         val dt = if (lastFrameNs == 0L) 1.0 / 30.0 else (now - lastFrameNs) / 1_000_000_000.0
