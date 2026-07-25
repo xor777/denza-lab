@@ -36,27 +36,34 @@ final class HudSomeIpClient {
     private static final long SVC_HUD_NAVI = 3097367205183488L;
     private static final long TOPIC_HUD_ROAD = 1127042368241665L;
     private static final long SHUTDOWN_DELAY_MS = 350L;
+    private static final long RECOVERY_DELAY_MS = 1000L;
 
     private final Context context;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private static final int MAX_SCHEMATIC_ROUNDABOUT_EXIT = 12;
     private final Map<String, byte[]> iconCache = new HashMap<>();
     private final Runnable shutdownRunnable = this::stopAndUnbind;
+    private final Runnable recoveryRunnable = () -> {
+        recoveryScheduled = false;
+        recoverConnection();
+    };
     private IBinder binder;
     private boolean bound;
     private boolean serviceStarted;
+    private boolean recoveryScheduled;
     private HudGuidance pending;
     private int counter;
 
     private final ServiceConnection connection = new ServiceConnection() {
         @Override
         public void onServiceConnected(ComponentName name, IBinder service) {
+            cancelRecovery();
             binder = service;
-            serviceStarted = startSomeIpService();
-            Log.i(TAG, "connected " + name.flattenToShortString() + " start=" + serviceStarted);
-            HudGuidance guidance = pending;
-            if (serviceStarted && guidance != null) {
-                fireGuidance(guidance);
+            Log.i(TAG, "connected " + name.flattenToShortString());
+            if (pending != null) {
+                startSessionAndPublishPending();
+            } else {
+                HudSomeIpRuntime.onIdle();
             }
         }
 
@@ -65,23 +72,14 @@ final class HudSomeIpClient {
             binder = null;
             serviceStarted = false;
             Log.w(TAG, "disconnected " + name.flattenToShortString());
+            scheduleRecovery("Штатный сервис HUD отключился");
         }
 
         @Override
         public void onBindingDied(ComponentName name) {
             Log.w(TAG, "binding died " + name.flattenToShortString());
-            binder = null;
-            serviceStarted = false;
-            if (bound) {
-                try {
-                    context.unbindService(this);
-                } catch (RuntimeException ignored) {
-                }
-                bound = false;
-            }
-            if (pending != null) {
-                handler.postDelayed(HudSomeIpClient.this::ensureConnected, 500L);
-            }
+            resetBinding();
+            scheduleRecovery("Привязка к штатному HUD потеряна");
         }
     };
 
@@ -93,17 +91,22 @@ final class HudSomeIpClient {
         handler.removeCallbacks(shutdownRunnable);
         pending = guidance;
         ensureConnected();
-        if (serviceStarted) {
+        if (binder != null && !serviceStarted) {
+            startSessionAndPublishPending();
+        } else if (serviceStarted) {
             fireGuidance(guidance);
         }
     }
 
     void clear() {
         pending = null;
+        cancelRecovery();
         if (serviceStarted) {
             int result = fire(TOPIC_HUD_ROAD, buildPayload(true, null, ++counter));
+            HudSomeIpRuntime.onFireResult(result);
             Log.i(TAG, "clear ret=" + result);
         }
+        HudSomeIpRuntime.onIdle();
     }
 
     void shutdown() {
@@ -116,24 +119,32 @@ final class HudSomeIpClient {
     private void ensureConnected() {
         handler.removeCallbacks(shutdownRunnable);
         if (bound) {
+            if (binder == null && pending != null) {
+                scheduleRecovery("Ожидаю переподключение штатного HUD");
+            }
             return;
         }
+        HudSomeIpRuntime.onBinding();
         Intent intent = new Intent(ACTION);
         intent.setComponent(new ComponentName(PACKAGE, SERVICE));
         intent.setType(context.getPackageName());
         try {
             bound = context.bindService(intent, connection, Context.BIND_AUTO_CREATE);
             Log.i(TAG, "bind=" + bound);
+            if (!bound) {
+                scheduleRecovery("Штатный сервис HUD не принял подключение");
+            }
         } catch (RuntimeException error) {
             bound = false;
             Log.e(TAG, "bind failed", error);
+            scheduleRecovery("Ошибка подключения к штатному HUD");
         }
     }
 
-    private boolean startSomeIpService() {
+    private int startSomeIpService() {
         IBinder service = binder;
         if (service == null) {
-            return false;
+            return -100;
         }
         Parcel data = Parcel.obtain();
         Parcel reply = Parcel.obtain();
@@ -142,13 +153,29 @@ final class HudSomeIpClient {
             data.writeLong(SVC_HUD_NAVI);
             service.transact(TX_START, data, reply, 0);
             reply.readException();
-            return reply.readInt() == 0;
+            return reply.readInt();
         } catch (RuntimeException | RemoteException error) {
             Log.e(TAG, "start failed", error);
-            return false;
+            return -200;
         } finally {
             reply.recycle();
             data.recycle();
+        }
+    }
+
+    private void startSessionAndPublishPending() {
+        HudSomeIpRuntime.onStarting();
+        int result = startSomeIpService();
+        HudSomeIpRuntime.onStartResult(result);
+        serviceStarted = result == 0;
+        Log.i(TAG, "start ret=" + result);
+        if (!serviceStarted) {
+            scheduleRecovery("Не удалось запустить сессию HUD: " + result);
+            return;
+        }
+        HudGuidance guidance = pending;
+        if (guidance != null) {
+            fireGuidance(guidance);
         }
     }
 
@@ -166,6 +193,7 @@ final class HudSomeIpClient {
             }
         }
         int result = fire(TOPIC_HUD_ROAD, buildPayload(false, guidance, ++counter, icon));
+        HudSomeIpRuntime.onFireResult(result);
         if (result == 0) {
             Log.i(TAG, "published " + guidance.getInstruction() + " "
                     + guidance.getManeuverDistanceMeters() + "m"
@@ -176,6 +204,48 @@ final class HudSomeIpClient {
                     + " road=" + guidance.getNextRoadName());
         } else {
             Log.w(TAG, "publish ret=" + result);
+            serviceStarted = false;
+            scheduleRecovery("Штатный HUD отклонил подсказку: " + result);
+        }
+    }
+
+    private void scheduleRecovery(String reason) {
+        if (pending == null) {
+            return;
+        }
+        if (recoveryScheduled) {
+            return;
+        }
+        HudSomeIpRuntime.onRecovering(reason);
+        recoveryScheduled = true;
+        handler.postDelayed(recoveryRunnable, RECOVERY_DELAY_MS);
+    }
+
+    private void cancelRecovery() {
+        handler.removeCallbacks(recoveryRunnable);
+        recoveryScheduled = false;
+    }
+
+    private void recoverConnection() {
+        if (pending == null) {
+            return;
+        }
+        resetBinding();
+        ensureConnected();
+    }
+
+    private void resetBinding() {
+        IBinder oldBinder = binder;
+        boolean wasBound = bound;
+        binder = null;
+        serviceStarted = false;
+        bound = false;
+        if (wasBound || oldBinder != null) {
+            try {
+                context.unbindService(connection);
+            } catch (RuntimeException error) {
+                Log.w(TAG, "reset unbind failed", error);
+            }
         }
     }
 
@@ -206,6 +276,7 @@ final class HudSomeIpClient {
     }
 
     private void stopAndUnbind() {
+        cancelRecovery();
         IBinder service = binder;
         if (serviceStarted && service != null) {
             Parcel data = Parcel.obtain();
@@ -233,6 +304,7 @@ final class HudSomeIpClient {
             }
             bound = false;
         }
+        HudSomeIpRuntime.onIdle("Сессия HUD остановлена");
     }
 
     private static byte[] buildPayload(boolean clear, HudGuidance guidance, int counter) {

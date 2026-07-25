@@ -12,6 +12,7 @@ import dev.denza.apps.feature.hud.HudGuidanceRuntime
 import dev.denza.apps.feature.hud.HudGuidanceSettings
 import dev.denza.apps.feature.hud.HudNotificationAccessCoordinator
 import dev.denza.apps.feature.hud.HudNotificationArtworkRuntime
+import dev.denza.apps.feature.hud.HudSomeIpRuntime
 import dev.denza.apps.feature.mirrors.MirrorSide
 import dev.denza.apps.feature.mirrors.MirrorWindowDiagnostics
 import dev.denza.apps.feature.mirrors.MirrorsPosition
@@ -103,6 +104,15 @@ object SupportDiagnostics {
             add("Стрелка HUD=${hudArtwork.source.name.lowercase().replace('_', '-')}")
             add("Состояние графики HUD=${hudArtwork.detail}")
             hudArtwork.lastFailure?.let { add("Последний fallback HUD=$it") }
+            val hudDelivery = HudSomeIpRuntime.snapshot()
+            add(
+                "Доставка HUD=" +
+                    "phase=${hudDelivery.phase.name.lowercase()}; " +
+                    "start=${hudDelivery.lastStartResult ?: "—"}; " +
+                    "fire=${hudDelivery.lastFireResult ?: "—"}; " +
+                    "recovery=${hudDelivery.recoveryAttempts}; " +
+                    "details=${hudDelivery.detail}",
+            )
             add(
                 "Установка FSE=" +
                     fseInstaller.message.ifBlank { fseInstaller.status.name.lowercase() },
