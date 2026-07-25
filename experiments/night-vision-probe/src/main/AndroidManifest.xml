@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-feature
+        android:name="android.hardware.camera"
+        android:required="false" />
+
+    <queries>
+        <package android:name="com.byd.avc" />
+    </queries>
+
+    <application
+        android:allowBackup="false"
+        android:label="Front camera source probe"
+        android:supportsRtl="true"
+        android:theme="@style/ProbeInvisibleTheme">
+        <activity
+            android:name=".NightVisionProbeActivity"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:noHistory="true"
+            android:screenOrientation="landscape"
+            android:theme="@style/ProbeInvisibleTheme" />
+        <activity
+            android:name=".DvrCameraProbeActivity"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:noHistory="true"
+            android:screenOrientation="landscape"
+            android:theme="@style/ProbeInvisibleTheme" />
+    </application>
+</manifest>

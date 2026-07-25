@@ -34,6 +34,7 @@ still use the historical `denza-gateway` directory name.
 | `:denza-gateway` | `legacy/denza-gateway/` | `dev.denza.gateway` (legacy/maintenance-only) |
 | `:denza-apps` | `apps/denza-apps/` | `dev.denza.apps` (active consolidation app), depends on `:dishare-bridge` |
 | `:dishare-bridge` | `libraries/dishare-bridge/` | `dev.denza.disharebridge` (library) |
+| `:night-vision-probe` | `experiments/night-vision-probe/` | `dev.denza.nightvision.probe` (isolated front-camera source evaluation) |
 | `:car-adb-gateway` | `apps/car-adb-gateway/` | `ru.adbgw.gateway` (active product candidate) |
 
 The frozen Denza Mirrors source lives at `legacy/denza-mirrors/` and is not
@@ -47,6 +48,7 @@ export ANDROID_HOME=/opt/homebrew/share/android-commandlinetools
 
 ./gradlew :denza-gateway:testDebugUnitTest :denza-gateway:assembleDebug
 ./gradlew :denza-apps:assembleDebug
+./gradlew :night-vision-probe:assembleDebug
 ./gradlew :car-adb-gateway:testDebugUnitTest :car-adb-gateway:assembleDebug
 ```
 
