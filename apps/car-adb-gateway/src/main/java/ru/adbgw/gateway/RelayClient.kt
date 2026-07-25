@@ -1,10 +1,13 @@
 package ru.adbgw.gateway
 
+import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.apache.sshd.client.SshClient
 import org.apache.sshd.client.session.ClientSession
 import org.apache.sshd.common.config.keys.KeyUtils
+import org.apache.sshd.common.NamedFactory
+import org.apache.sshd.common.signature.Signature
 import org.apache.sshd.common.util.net.SshdSocketAddress
 import org.apache.sshd.core.CoreModuleProperties
 import org.json.JSONObject
@@ -178,6 +181,13 @@ class RelayClient(private val keyStore: SshKeyStore) {
             session.auth().verify(Duration.ofSeconds(12))
         } catch (error: Throwable) {
             runCatching { session.close(true) }
+            if (mismatch.get()) {
+                throw RelayAccessException(
+                    "Relay identity changed; connection stopped for safety",
+                    error,
+                    permanent = true,
+                )
+            }
             throw RelayAccessException(
                 if (authenticationFailurePermanent) {
                     "Relay rejected the registered vehicle key"
@@ -194,9 +204,17 @@ class RelayClient(private val keyStore: SshKeyStore) {
 
     private fun configuredClient(mismatch: AtomicBoolean): SshClient =
         SshClient.setUpDefaultClient().apply {
+            signatureFactories = preferPinnedHostKeyAlgorithm(signatureFactories)
             serverKeyVerifier = org.apache.sshd.client.keyverifier.ServerKeyVerifier { _, _, serverKey ->
-                val accepted = KeyUtils.getFingerPrint(serverKey) in RELAY_HOST_FINGERPRINTS
-                if (!accepted) mismatch.set(true)
+                val fingerprint = KeyUtils.getFingerPrint(serverKey)
+                val accepted = fingerprint in RELAY_HOST_FINGERPRINTS
+                if (!accepted) {
+                    mismatch.set(true)
+                    Log.e(
+                        "CarAdbGateway",
+                        "Rejected relay host key algorithm=${serverKey.algorithm} fingerprint=$fingerprint",
+                    )
+                }
                 accepted
             }
             CoreModuleProperties.HEARTBEAT_INTERVAL.set(this, Duration.ofSeconds(30))
@@ -225,7 +243,15 @@ class RelayClient(private val keyStore: SshKeyStore) {
             permanent = true,
         )
         else -> RelayAccessException("Relay connection failed", error, permanent = false)
-    }
+        }
+}
+
+internal fun preferPinnedHostKeyAlgorithm(
+    factories: List<NamedFactory<Signature>>,
+): List<NamedFactory<Signature>> {
+    val pinned = factories.filter { it.name == "ssh-ed25519" }
+    require(pinned.isNotEmpty()) { "Pinned relay host-key algorithm is unavailable" }
+    return pinned + factories.filterNot { it.name == "ssh-ed25519" }
 }
 
 private fun Throwable.causeSequence(): Sequence<Throwable> = generateSequence(this) { it.cause }

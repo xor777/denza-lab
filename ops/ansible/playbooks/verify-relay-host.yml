@@ -126,6 +126,22 @@
           - "'allowusers cag-control' in relay_verify_admin_on_relay_sshd.stdout"
           - "('allowusers ' ~ admin_user) in relay_verify_device_on_admin_sshd.stdout"
 
+    - name: Read relay PAM code-auth policy
+      ansible.builtin.slurp:
+        src: /etc/pam.d/sshd
+      register: relay_verify_pam_sshd
+
+    - name: Require successful CAG codes to finish PAM authentication
+      ansible.builtin.assert:
+        that:
+          - >-
+            'auth [success=done default=ignore] pam_exec.so expose_authtok quiet '
+            '/opt/cag/check-code.sh'
+            in (relay_verify_pam_sshd.content | b64decode)
+          - >-
+            'auth [success=1 default=ignore] pam_exec.so'
+            not in (relay_verify_pam_sshd.content | b64decode)
+
     - name: Verify relay control-plane files
       ansible.builtin.stat:
         path: "{{ item }}"

@@ -292,7 +292,7 @@
     marker: "# {mark} ANSIBLE MANAGED CAG CODE AUTH"
     insertbefore: '^@include common-auth'
     block: |
-      auth [success=1 default=ignore] pam_exec.so expose_authtok quiet {{ relay_host_root }}/check-code.sh
+      auth [success=done default=ignore] pam_exec.so expose_authtok quiet {{ relay_host_root }}/check-code.sh
 
 - name: Enable network time synchronization
   ansible.builtin.service:

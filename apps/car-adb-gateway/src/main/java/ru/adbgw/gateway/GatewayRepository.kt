@@ -2,6 +2,7 @@ package ru.adbgw.gateway
 
 import android.content.Context
 import android.os.Build
+import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -30,6 +31,7 @@ object GatewayRepository {
     fun initialize(context: Context) {
         if (appContext != null) return
         val app = context.applicationContext
+        SshdRuntime.initialize(app.filesDir.toPath())
         val store = GatewayStateStore(app)
         val keys = SshKeyStore(app)
         keys.preserveLegacyControlIdentity(store.registration() != null)
@@ -128,6 +130,7 @@ object GatewayRepository {
             support("Регистрация автомобиля завершена")
             GatewayService.start(requireContext())
         }.onFailure { error ->
+            Log.e("CarAdbGateway", "Registration failed", error)
             dispatch(GatewayEvent.BusyChanged(false, readable(error)))
             support("Регистрация не удалась: ${error.message ?: error.javaClass.simpleName}")
         }

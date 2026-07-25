@@ -11,7 +11,7 @@ public final class LocalAdbClientTest {
     @Test
     public void authorizationPendingStopsHostFallback() {
         assertTrue(LocalAdbClient.isAuthorizationPending(
-                new IOException("ADB authorization pending; confirm the debugging prompt")));
+                new IOException("ADB authorization pending; confirm the ADB request")));
         assertFalse(LocalAdbClient.isAuthorizationPending(
                 new IOException("Connection refused")));
     }

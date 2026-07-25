@@ -1,6 +1,7 @@
 package ru.adbgw.gateway
 
 import android.Manifest
+import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -14,7 +15,6 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,14 +24,20 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Computer
@@ -50,6 +56,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -62,18 +69,21 @@ import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -81,13 +91,18 @@ import java.text.DateFormat
 import java.util.Date
 import kotlin.math.max
 
-private val Background = Color(0xFFF1F3EE)
-private val Ink = Color(0xFF17211B)
-private val Muted = Color(0xFF667068)
+private val Background = Color(0xFF090E0C)
+private val Ink = Color(0xFFF1F5F2)
+private val Muted = Color(0xFFA3ADA6)
 private val Accent = Color(0xFFC9F27B)
-private val AccentDark = Color(0xFF557925)
-private val CardColor = Color(0xFFFAFBF8)
-private val Danger = Color(0xFFB84036)
+private val OnAccent = Color(0xFF14200F)
+private val AccentDark = Color(0xFFAEDC68)
+private val CardColor = Color(0xFF141B17)
+private val CardStrong = Color(0xFF101713)
+private val InputColor = Color(0xFF1B241F)
+private val Outline = Color(0xFF354139)
+private val WarningSurface = Color(0xFF4A3715)
+private val Danger = Color(0xFFFF786D)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -102,14 +117,20 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 private fun GatewayTheme(content: @Composable () -> Unit) {
-    val colors = androidx.compose.material3.lightColorScheme(
-        primary = Ink,
-        onPrimary = Color.White,
-        secondary = AccentDark,
+    val colors = androidx.compose.material3.darkColorScheme(
+        primary = Accent,
+        onPrimary = OnAccent,
+        secondary = Accent,
+        onSecondary = OnAccent,
         background = Background,
+        onBackground = Ink,
         surface = CardColor,
         onSurface = Ink,
+        surfaceVariant = InputColor,
+        onSurfaceVariant = Muted,
+        outline = Outline,
         error = Danger,
+        onError = Color(0xFF270806),
     )
     MaterialTheme(colorScheme = colors, content = content)
 }
@@ -119,7 +140,8 @@ private fun GatewayApp() {
     val context = LocalContext.current
     val state by GatewayRepository.state.collectAsState()
     val scope = rememberCoroutineScope()
-    var inviteCode by remember { mutableStateOf("") }
+    var inviteCode by rememberSaveable { mutableStateOf("") }
+    var enrollmentError by rememberSaveable { mutableStateOf<String?>(null) }
     var showEnrollmentWarning by remember { mutableStateOf(false) }
     var showPairingWarning by remember { mutableStateOf(false) }
     var showDisableConfirmation by remember { mutableStateOf(false) }
@@ -130,15 +152,30 @@ private fun GatewayApp() {
     ) { }
 
     LaunchedEffect(Unit) {
-        if (Build.VERSION.SDK_INT >= 33) permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         if (!state.isEnrolled) GatewayRepository.prepareAdb()
+    }
+    LaunchedEffect(state.isEnrolled) {
+        val notificationGranted = ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.POST_NOTIFICATIONS,
+        ) == PackageManager.PERMISSION_GRANTED
+        if (shouldRequestNotificationPermission(
+                sdkInt = Build.VERSION.SDK_INT,
+                isEnrolled = state.isEnrolled,
+                permissionGranted = notificationGranted,
+            )
+        ) {
+            permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
     }
 
     Surface(modifier = Modifier.fillMaxSize(), color = Background) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 52.dp, vertical = 34.dp),
+                .windowInsetsPadding(WindowInsets.safeDrawing)
+                .imePadding()
+                .padding(horizontal = 52.dp, vertical = 24.dp),
         ) {
             Header(state, onSupport = { showSupport = true })
             Spacer(Modifier.height(28.dp))
@@ -146,7 +183,11 @@ private fun GatewayApp() {
                 OnboardingScreen(
                     state = state,
                     code = inviteCode,
-                    onCodeChanged = { inviteCode = normalizeCodeInput(it) },
+                    errorMessage = enrollmentError,
+                    onCodeChanged = {
+                        inviteCode = normalizeCodeInput(it)
+                        enrollmentError = null
+                    },
                     onRetry = { scope.launch { GatewayRepository.prepareAdb() } },
                     onEnroll = { showEnrollmentWarning = true },
                 )
@@ -169,7 +210,14 @@ private fun GatewayApp() {
             onDismiss = { showEnrollmentWarning = false },
             onConfirm = {
                 showEnrollmentWarning = false
-                scope.launch { GatewayRepository.enroll(inviteCode) }
+                enrollmentError = null
+                scope.launch {
+                    val result = GatewayRepository.enroll(inviteCode)
+                    if (result.isFailure) {
+                        enrollmentError = GatewayRepository.state.value.message
+                            ?: "Не удалось подключить автомобиль"
+                    }
+                }
             },
         )
     }
@@ -222,7 +270,7 @@ private fun Header(state: GatewayUiState, onSupport: () -> Unit) {
         Box(
             modifier = Modifier
                 .size(38.dp)
-                .background(Ink, RoundedCornerShape(11.dp)),
+                .background(InputColor, RoundedCornerShape(11.dp)),
             contentAlignment = Alignment.Center,
         ) {
             Box(Modifier.size(13.dp).background(Accent, CircleShape))
@@ -235,17 +283,22 @@ private fun Header(state: GatewayUiState, onSupport: () -> Unit) {
         Spacer(Modifier.weight(1f))
         val chipColor by animateColorAsState(
             when {
-                !state.enabled -> Color(0xFFE5E7E2)
+                !state.enabled -> InputColor
                 state.relayState == RelayState.Connected -> Accent
-                else -> Color(0xFFFFE3A3)
+                else -> WarningSurface
             },
             label = "statusColor",
         )
+        val chipContentColor = if (state.relayState == RelayState.Connected && state.enabled) {
+            OnAccent
+        } else {
+            Ink
+        }
         Row(
             modifier = Modifier.background(chipColor, RoundedCornerShape(100.dp)).padding(horizontal = 18.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Box(Modifier.size(8.dp).background(Ink, CircleShape))
+            Box(Modifier.size(8.dp).background(chipContentColor, CircleShape))
             Spacer(Modifier.width(9.dp))
             Text(
                 when {
@@ -255,6 +308,7 @@ private fun Header(state: GatewayUiState, onSupport: () -> Unit) {
                 },
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Medium,
+                color = chipContentColor,
             )
         }
         Spacer(Modifier.width(10.dp))
@@ -270,11 +324,19 @@ private fun Header(state: GatewayUiState, onSupport: () -> Unit) {
 private fun OnboardingScreen(
     state: GatewayUiState,
     code: String,
+    errorMessage: String?,
     onCodeChanged: (String) -> Unit,
     onRetry: () -> Unit,
     onEnroll: () -> Unit,
 ) {
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(vertical = 12.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
         Card(
             modifier = Modifier.widthIn(max = 900.dp).fillMaxWidth(0.72f),
             colors = CardDefaults.cardColors(containerColor = CardColor),
@@ -290,7 +352,11 @@ private fun OnboardingScreen(
                 }
                 Spacer(Modifier.height(24.dp))
                 Text(
-                    if (state.adbState == AdbState.Available) "Введите код подключения" else "Разрешите доступ к системе",
+                    if (state.adbState == AdbState.Available) {
+                        "Введите код подключения"
+                    } else {
+                        "Подтвердите запрос ADB"
+                    },
                     fontSize = 34.sp,
                     lineHeight = 40.sp,
                     fontWeight = FontWeight.SemiBold,
@@ -300,10 +366,10 @@ private fun OnboardingScreen(
                 Spacer(Modifier.height(12.dp))
                 Text(
                     when (state.adbState) {
-                        AdbState.AuthorizationRequired -> "Подтвердите системный запрос отладки на экране Android, затем нажмите «Проверить снова»."
+                        AdbState.AuthorizationRequired -> "Подтвердите системный запрос ADB на экране автомобиля, затем нажмите «Проверить снова»."
                         AdbState.Available -> "Получите одноразовый код у администратора сервиса. Он нужен только при первой настройке этого автомобиля."
-                        AdbState.Unavailable -> "ADB пока недоступен. Проверьте, что отладка включена в настройках автомобиля."
-                        else -> "Приложение проверяет локальный системный доступ. При первом запуске Android покажет стандартный запрос подтверждения."
+                        AdbState.Unavailable -> "ADB пока недоступен. Проверьте, что ADB включён в настройках автомобиля."
+                        else -> "Приложение проверяет локальный ADB. При первом запуске Android покажет запрос подтверждения."
                     },
                     modifier = Modifier.widthIn(max = 680.dp),
                     fontSize = 18.sp,
@@ -321,8 +387,19 @@ private fun OnboardingScreen(
                         modifier = Modifier.height(62.dp).widthIn(min = 300.dp),
                         shape = RoundedCornerShape(18.dp),
                     ) {
-                        if (state.busy) CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.dp, color = Color.White)
+                        if (state.busy) CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.dp, color = OnAccent)
                         else Text("Подключить автомобиль", fontSize = 17.sp)
+                    }
+                    errorMessage?.let {
+                        Spacer(Modifier.height(14.dp))
+                        Text(
+                            it,
+                            modifier = Modifier.widthIn(max = 680.dp),
+                            color = Danger,
+                            fontSize = 15.sp,
+                            lineHeight = 21.sp,
+                            textAlign = TextAlign.Center,
+                        )
                     }
                 } else {
                     Button(
@@ -331,17 +408,13 @@ private fun OnboardingScreen(
                         modifier = Modifier.height(62.dp).widthIn(min = 260.dp),
                         shape = RoundedCornerShape(18.dp),
                     ) {
-                        if (state.busy) CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.dp, color = Color.White)
+                        if (state.busy) CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.dp, color = OnAccent)
                         else {
                             Icon(Icons.Outlined.Refresh, null)
                             Spacer(Modifier.width(10.dp))
                             Text("Проверить снова", fontSize = 17.sp)
                         }
                     }
-                }
-                state.message?.let {
-                    Spacer(Modifier.height(18.dp))
-                    Text(it, fontSize = 14.sp, color = if (state.adbState == AdbState.Available) AccentDark else Muted)
                 }
             }
         }
@@ -350,38 +423,30 @@ private fun OnboardingScreen(
 
 @Composable
 private fun CodeEntry(value: String, onValueChange: (String) -> Unit, enabled: Boolean) {
-    BasicTextField(
+    val keyboard = LocalSoftwareKeyboardController.current
+    OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
         enabled = enabled,
         singleLine = true,
-        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Characters),
-        cursorBrush = SolidColor(Ink),
-        textStyle = TextStyle(color = Color.Transparent, fontSize = 1.sp),
-        decorationBox = { innerTextField ->
-            Box {
-                Box(Modifier.size(1.dp).alpha(0f)) { innerTextField() }
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    repeat(8) { index ->
-                        if (index == 4) {
-                            Box(Modifier.width(12.dp).height(58.dp), contentAlignment = Alignment.Center) {
-                                Text("–", color = Muted, fontSize = 24.sp)
-                            }
-                        }
-                        val char = value.getOrNull(index)?.toString().orEmpty()
-                        Box(
-                            modifier = Modifier
-                                .size(58.dp)
-                                .background(Color.White, RoundedCornerShape(14.dp))
-                                .border(1.5.dp, if (char.isNotEmpty()) Ink else Color(0xFFD5D9D2), RoundedCornerShape(14.dp)),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Text(char, color = Ink, fontSize = 23.sp, fontWeight = FontWeight.SemiBold)
-                        }
-                    }
-                }
-            }
-        },
+        modifier = Modifier
+            .fillMaxWidth(0.72f)
+            .widthIn(min = 360.dp, max = 520.dp),
+        label = { Text("Код подключения") },
+        placeholder = { Text("XXXXXXXX", modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center) },
+        textStyle = MaterialTheme.typography.headlineSmall.copy(
+            color = Ink,
+            fontWeight = FontWeight.SemiBold,
+            letterSpacing = 4.sp,
+            textAlign = TextAlign.Center,
+        ),
+        keyboardOptions = KeyboardOptions(
+            capitalization = KeyboardCapitalization.Characters,
+            keyboardType = KeyboardType.Ascii,
+            imeAction = ImeAction.Done,
+        ),
+        keyboardActions = KeyboardActions(onDone = { keyboard?.hide() }),
+        shape = RoundedCornerShape(18.dp),
     )
 }
 
@@ -418,7 +483,7 @@ private fun StatusCard(state: GatewayUiState, modifier: Modifier = Modifier) {
     } else 1f
     Card(
         modifier = modifier,
-        colors = CardDefaults.cardColors(containerColor = Ink),
+        colors = CardDefaults.cardColors(containerColor = CardStrong),
         shape = RoundedCornerShape(32.dp),
     ) {
         Column(modifier = Modifier.fillMaxSize().padding(42.dp)) {
@@ -543,7 +608,7 @@ private fun ActionPanel(
                     modifier = Modifier.fillMaxWidth().height(70.dp),
                     shape = RoundedCornerShape(20.dp),
                 ) {
-                    if (state.busy) CircularProgressIndicator(Modifier.size(22.dp), color = Color.White, strokeWidth = 2.dp)
+                    if (state.busy) CircularProgressIndicator(Modifier.size(22.dp), color = OnAccent, strokeWidth = 2.dp)
                     else Text("Включить удалённый доступ", fontSize = 17.sp)
                 }
             }
@@ -699,6 +764,12 @@ private fun relativeTime(millis: Long): String = when {
     millis < 60_000 -> "${millis / 1_000} сек. назад"
     else -> "${millis / 60_000} мин. назад"
 }
+
+internal fun shouldRequestNotificationPermission(
+    sdkInt: Int,
+    isEnrolled: Boolean,
+    permissionGranted: Boolean,
+): Boolean = sdkInt >= 33 && isEnrolled && !permissionGranted
 
 private fun normalizeCodeInput(value: String): String = value
     .filter(Char::isLetterOrDigit)

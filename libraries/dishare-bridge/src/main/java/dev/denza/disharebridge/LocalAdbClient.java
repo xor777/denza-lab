@@ -170,7 +170,7 @@ public final class LocalAdbClient {
     }
 
     private static IOException authorizationPending() {
-        return new IOException("ADB authorization pending; confirm the debugging prompt");
+        return new IOException("ADB authorization pending; confirm the ADB request");
     }
 
     static boolean isAuthorizationPending(IOException error) {

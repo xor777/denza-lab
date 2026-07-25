@@ -9,7 +9,7 @@ import java.net.Socket
 import java.nio.charset.StandardCharsets
 
 class AdbAuthorizationRequiredException(cause: Throwable? = null) :
-    Exception("Подтвердите системный запрос отладки по USB на экране", cause)
+    Exception("Подтвердите запрос ADB на экране автомобиля", cause)
 
 class AdbProvisioner(context: Context) {
     private val appContext = context.applicationContext
