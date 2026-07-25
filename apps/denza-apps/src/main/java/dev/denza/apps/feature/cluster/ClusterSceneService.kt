@@ -553,6 +553,9 @@ class ClusterSceneService : Service() {
                 matchParent(Gravity.CENTER)
             }
             cameraTexture.alpha = 1f
+            cameraTexture.rotation = 0f
+            cameraTexture.scaleX = 1f
+            cameraTexture.scaleY = 1f
             cameraTexture.setTransform(Matrix())
             cameraEdgeShade.visibility = View.VISIBLE
             cameraFrame.visibility = View.VISIBLE
@@ -597,17 +600,12 @@ class ClusterSceneService : Service() {
         ) {
             val centerX = layout.cameraWidth / 2f
             val centerY = displayHeight / 2f
-            cameraTexture.setTransform(
-                Matrix().apply {
-                    setScale(
-                        DVR_RENDER_ZOOM,
-                        DVR_VERTICAL_SCALE * DVR_RENDER_ZOOM,
-                        centerX,
-                        centerY,
-                    )
-                    postRotate(DVR_ROTATION_DEGREES, centerX, centerY)
-                },
-            )
+            cameraTexture.setTransform(Matrix())
+            cameraTexture.pivotX = centerX
+            cameraTexture.pivotY = centerY
+            cameraTexture.scaleX = DVR_RENDER_ZOOM
+            cameraTexture.scaleY = DVR_VERTICAL_SCALE * DVR_RENDER_ZOOM
+            cameraTexture.rotation = DVR_ROTATION_DEGREES
         }
 
         fun showMap(placement: ClusterMapPlacement, consumer: MapSurfaceConsumer) {

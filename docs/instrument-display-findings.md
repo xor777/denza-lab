@@ -471,6 +471,10 @@ the live-accepted `-90°` rotation with a `2x` / `3x` crop. A briefly visible
 left-rotated image after one APK replacement was a frozen buffer: CameraService
 had no active client at that moment. `SurfaceTexture` metadata did not
 distinguish that stale state and must not be used to choose product geometry.
+Camera `0` advertises only `SCALER_ROTATE_AND_CROP_NONE`, which Denza Apps now
+requests explicitly. Rotation and crop are applied as outer View properties
+after the texture is composed; the internal `TextureView` matrix remains
+identity so it cannot combine differently with a recreated buffer surface.
 This first smart monochrome profile was installed and rendered live on the car
 without a shader compilation error or missed vsync. The first tone profile
 flattened the distinction between deep shadow and penumbra; the second profile
@@ -529,6 +533,21 @@ samples and camera edge sharpening off, but blends only `55%` toward the broad
 mean, restores `25%` of detail above a `0.012` threshold, reduces lower-mid
 strength to `0.65`, ends the filter by luminance `0.72`, and suppresses local
 contrast by at most `55%`.
+
+That midpoint retained a visible artificial ripple from its sparse `18 px`
+sampling and still looked overprocessed. The next balanced profile removes the
+far ring entirely, replaces it with eight symmetric `4.5 px` samples, restores
+camera `FAST` edge processing, and uses `0.78` / `0.36` strength with `42%`
+detail retention. Only `12%` of the protected `9 px` mean is mixed in, the
+effect ends by luminance `0.66`, and local contrast is reduced by at most `20%`.
+
+The balanced profile still created false texture in low-contrast areas even
+though strong edges looked cleaner. All app-side spatial denoising was therefore
+removed. The accepted monochrome fusion, shadow curve, two-band local contrast,
+highlight roll-off, and geometry remain unchanged; Camera2 `HIGH_QUALITY`,
+MediaTek 3DNR, and BYD MFNR stay enabled as the hardware baseline. Any further
+software denoising must use a separate motion-aware temporal pipeline rather
+than sparse single-frame sampling.
 
 ### ADAS cameras: status signals found, no video endpoint found
 

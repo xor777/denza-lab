@@ -35,11 +35,6 @@ public final class DvrCameraRenderer implements TextureView.SurfaceTextureListen
     private static final float SHADOW_CUTOFF = 0.48f;
     private static final float SHADOW_GAMMA = 0.56f;
     private static final float SHADOW_CONTRAST = 0.55f;
-    private static final float DENOISE_STRENGTH = 1.0f;
-    private static final float LOWER_MID_DENOISE_STRENGTH = 0.65f;
-    private static final float WIDE_DENOISE_STRENGTH = 0.55f;
-    private static final float DENOISE_DETAIL_RETENTION = 0.25f;
-    private static final float EDGE_THRESHOLD = 0.012f;
     private static final float HIGHLIGHT_START = 0.84f;
     private static final float LOCAL_CONTRAST_STRENGTH = 0.38f;
     private static final float UPPER_LOCAL_CONTRAST_STRENGTH = 0.20f;
@@ -289,7 +284,10 @@ public final class DvrCameraRenderer implements TextureView.SurfaceTextureListen
                     noiseReductionMode);
             request.set(
                     CaptureRequest.EDGE_MODE,
-                    CaptureRequest.EDGE_MODE_OFF);
+                    CaptureRequest.EDGE_MODE_FAST);
+            request.set(
+                    CaptureRequest.SCALER_ROTATE_AND_CROP,
+                    CaptureRequest.SCALER_ROTATE_AND_CROP_NONE);
             try {
                 request.set(BYD_MFNR_MODE, (byte) 1);
             } catch (IllegalArgumentException error) {
@@ -366,11 +364,6 @@ public final class DvrCameraRenderer implements TextureView.SurfaceTextureListen
                         + "uniform float shadowCutoff;\n"
                         + "uniform float shadowGamma;\n"
                         + "uniform float shadowContrast;\n"
-                        + "uniform float denoiseStrength;\n"
-                        + "uniform float lowerMidDenoiseStrength;\n"
-                        + "uniform float wideDenoiseStrength;\n"
-                        + "uniform float denoiseDetailRetention;\n"
-                        + "uniform float edgeThreshold;\n"
                         + "uniform float highlightStart;\n"
                         + "uniform float localContrastStrength;\n"
                         + "uniform float upperLocalContrastStrength;\n"
@@ -435,62 +428,8 @@ public final class DvrCameraRenderer implements TextureView.SurfaceTextureListen
                         + "p + float2(0.0, -localContrastRadius)).rgb);\n"
                         + "  half broad3 = adaptiveLuma(cameraFrame.eval("
                         + "p + float2(0.0, localContrastRadius)).rgb);\n"
-                        + "  half farRadius = half("
-                        + "localContrastRadius * 2.0);\n"
-                        + "  half diagonalRadius = half("
-                        + "localContrastRadius * 1.4142);\n"
-                        + "  half far0 = adaptiveLuma(cameraFrame.eval("
-                        + "p + float2(-farRadius, 0.0)).rgb);\n"
-                        + "  half far1 = adaptiveLuma(cameraFrame.eval("
-                        + "p + float2(farRadius, 0.0)).rgb);\n"
-                        + "  half far2 = adaptiveLuma(cameraFrame.eval("
-                        + "p + float2(0.0, -farRadius)).rgb);\n"
-                        + "  half far3 = adaptiveLuma(cameraFrame.eval("
-                        + "p + float2(0.0, farRadius)).rgb);\n"
-                        + "  half far4 = adaptiveLuma(cameraFrame.eval("
-                        + "p + float2(-diagonalRadius, "
-                        + "-diagonalRadius)).rgb);\n"
-                        + "  half far5 = adaptiveLuma(cameraFrame.eval("
-                        + "p + float2(diagonalRadius, "
-                        + "-diagonalRadius)).rgb);\n"
-                        + "  half far6 = adaptiveLuma(cameraFrame.eval("
-                        + "p + float2(-diagonalRadius, "
-                        + "diagonalRadius)).rgb);\n"
-                        + "  half far7 = adaptiveLuma(cameraFrame.eval("
-                        + "p + float2(diagonalRadius, "
-                        + "diagonalRadius)).rgb);\n"
-                        + "  half bw0 = 0.55 * edgeWeight(center, broad0);\n"
-                        + "  half bw1 = 0.55 * edgeWeight(center, broad1);\n"
-                        + "  half bw2 = 0.55 * edgeWeight(center, broad2);\n"
-                        + "  half bw3 = 0.55 * edgeWeight(center, broad3);\n"
-                        + "  half wideWeightSum = weightSum + bw0 + bw1 "
-                        + "+ bw2 + bw3;\n"
-                        + "  half wideMean = (weightSum * localMean "
-                        + "+ bw0 * broad0 + bw1 * broad1 "
-                        + "+ bw2 * broad2 + bw3 * broad3) "
-                        + "/ wideWeightSum;\n"
-                        + "  half crushMean = (2.0 * localMean + broad0 "
-                        + "+ broad1 + broad2 + broad3 + 0.35 * (far0 "
-                        + "+ far1 + far2 + far3 + far4 + far5 + far6 "
-                        + "+ far7)) / 8.8;\n"
-                        + "  half denoiseMean = mix(wideMean, crushMean, "
-                        + "half(wideDenoiseStrength));\n"
-                        + "  half delta = center - denoiseMean;\n"
-                        + "  half cleanDetail = sign(delta) * max("
-                        + "abs(delta) - half(edgeThreshold), 0.0);\n"
-                        + "  half filtered = denoiseMean "
-                        + "+ half(denoiseDetailRetention) * cleanDetail;\n"
                         + "  half cutoff = half(shadowCutoff);\n"
-                        + "  half deepDenoiseMask = 1.0 - smoothstep("
-                        + "0.12, 0.38, center);\n"
-                        + "  half denoiseRange = 1.0 - smoothstep("
-                        + "0.58, 0.72, center);\n"
-                        + "  half denoiseAmount = mix("
-                        + "half(lowerMidDenoiseStrength), "
-                        + "half(denoiseStrength), deepDenoiseMask) "
-                        + "* denoiseRange;\n"
-                        + "  half base = mix(center, filtered, "
-                        + "denoiseAmount);\n"
+                        + "  half base = center;\n"
                         + "  half broadMean = (2.0 * localMean + broad0 "
                         + "+ broad1 + broad2 + broad3) / 6.0;\n"
                         + "  half shadowMask = 1.0 - smoothstep("
@@ -515,7 +454,6 @@ public final class DvrCameraRenderer implements TextureView.SurfaceTextureListen
                         + "  half localGain = half(localContrastStrength) "
                         + "* midtoneMask + half(upperLocalContrastStrength) "
                         + "* upperMidtoneMask;\n"
-                        + "  localGain *= 1.0 - 0.55 * denoiseAmount;\n"
                         + "  mapped += localDetail * localGain;\n"
                         + "  half shoulder = half(highlightStart);\n"
                         + "  half highlightT = clamp("
@@ -532,17 +470,6 @@ public final class DvrCameraRenderer implements TextureView.SurfaceTextureListen
         shader.setFloatUniform("shadowCutoff", SHADOW_CUTOFF);
         shader.setFloatUniform("shadowGamma", SHADOW_GAMMA);
         shader.setFloatUniform("shadowContrast", SHADOW_CONTRAST);
-        shader.setFloatUniform("denoiseStrength", DENOISE_STRENGTH);
-        shader.setFloatUniform(
-                "lowerMidDenoiseStrength",
-                LOWER_MID_DENOISE_STRENGTH);
-        shader.setFloatUniform(
-                "wideDenoiseStrength",
-                WIDE_DENOISE_STRENGTH);
-        shader.setFloatUniform(
-                "denoiseDetailRetention",
-                DENOISE_DETAIL_RETENTION);
-        shader.setFloatUniform("edgeThreshold", EDGE_THRESHOLD);
         shader.setFloatUniform("highlightStart", HIGHLIGHT_START);
         shader.setFloatUniform("localContrastStrength", LOCAL_CONTRAST_STRENGTH);
         shader.setFloatUniform(
@@ -557,10 +484,7 @@ public final class DvrCameraRenderer implements TextureView.SurfaceTextureListen
                         + " shadow=" + SHADOW_STRENGTH
                         + "/" + SHADOW_CUTOFF
                         + " contrast=" + SHADOW_CONTRAST
-                        + " denoise=" + DENOISE_STRENGTH
-                        + "/" + LOWER_MID_DENOISE_STRENGTH
-                        + "/" + WIDE_DENOISE_STRENGTH
-                        + " detail=" + DENOISE_DETAIL_RETENTION
+                        + " denoise=hardware-only"
                         + " localContrast=" + LOCAL_CONTRAST_STRENGTH
                         + "/" + UPPER_LOCAL_CONTRAST_STRENGTH
                         + "@" + LOCAL_CONTRAST_RADIUS);
