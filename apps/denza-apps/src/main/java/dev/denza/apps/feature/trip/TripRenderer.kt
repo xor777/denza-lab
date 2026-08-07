@@ -6,13 +6,13 @@ import android.graphics.Paint
 import android.graphics.Typeface
 
 /**
- * Palette for the canvas renderers. These mirror the app's existing Compose
+ * Palette for the canvas rendering. These mirror the app's existing Compose
  * theme constants (see ui/DenzaAppsScreen.kt) rather than inventing new hues:
  * dark background, mint accent, amber warning, ink text, muted labels.
  *
- * The mode-3 time-of-day stops (dawn blue -> day mint -> golden amber -> evening
- * coral -> night violet) are the palette the feature spec defines for that
- * specific mapping.
+ * The journey-thread time-of-day stops (dawn blue -> day mint -> golden amber ->
+ * evening coral -> night violet) are the palette the feature spec defines for
+ * that specific mapping.
  */
 object TripPalette {
     val MINT = 0xFF73E0BD.toInt() // Accent
@@ -48,16 +48,24 @@ object TripPalette {
     }
 }
 
-/** One drawable panel mode. Rendering and animation happen on the main thread. */
-interface TripRenderer {
+/**
+ * Coordinate + text helpers for the panel renderer. The panel was designed in a
+ * virtual 1850x360 space (the free zone's design ratio); we map that space onto
+ * whatever width/height is actually free, keeping the vertical proportions and
+ * stretching horizontally. All Paint/Path objects are preallocated — nothing is
+ * allocated in the hot draw path. Rendering and animation happen on the main
+ * thread.
+ */
+abstract class BaseTripRenderer {
+
     /**
      * @param frameTimeSec monotonic seconds since the panel started (for phase)
-     * @param dtSec seconds since the previous drawn frame (for spring integration)
-     * @param showLocationHint when true, draw the muted "no location access" hint;
-     *   each mode places it in an area that stays clear of its own captions/stats/
-     *   ribbon/legend in both the GNSS and no-GNSS states.
+     * @param dtSec seconds since the previous drawn frame (for physics integration)
+     * @param showLocationHint when true, draw the muted "no location access" hint
+     *   in an area that stays clear of the panel's own captions and figures in
+     *   both the GNSS and no-GNSS states.
      */
-    fun draw(
+    abstract fun draw(
         canvas: Canvas,
         w: Float,
         h: Float,
@@ -66,16 +74,6 @@ interface TripRenderer {
         dtSec: Double,
         showLocationHint: Boolean,
     )
-}
-
-/**
- * Shared coordinate + text helpers. The three concepts were designed in a virtual
- * 1850x360 space (the free zone's design ratio); we map that space onto whatever
- * width/height is actually free, keeping the vertical proportions and stretching
- * horizontally. All Paint/Path objects are preallocated — nothing is allocated in
- * the hot draw path.
- */
-abstract class BaseTripRenderer : TripRenderer {
     protected var w: Float = 0f
     protected var h: Float = 0f
     private var sx: Float = 1f

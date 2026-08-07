@@ -5,17 +5,19 @@ import android.graphics.LinearGradient
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.Shader
+import android.graphics.Typeface
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
 import kotlin.math.sin
 
 /**
- * Mode 3 «Нить» — the whole current trip as one growing thread.
+ * The whole current trip as one growing thread, drawn into a caller-given rect
+ * (the centre of the collapsed trip panel).
  *
  * Layout: the horizontal axis is travelled distance at a FIXED scale
- * ([FULL_WIDTH_METERS] across the panel), so the thread starts at the left edge
- * and creeps right at a rate you can feel. Only once the trip outgrows the panel
+ * ([FULL_WIDTH_METERS] across the rect), so the thread starts at the left edge
+ * and creeps right at a rate you can feel. Only once the trip outgrows the rect
  * does the scale compress, keeping the whole journey visible.
  *
  * Shape: the baseline is the elevation profile, smoothed and normalised over the
@@ -33,7 +35,7 @@ import kotlin.math.sin
  * scatter on rough roads. Nothing here is persisted; the thread dies with the
  * session.
  */
-class ThreadRenderer : BaseTripRenderer() {
+class JourneyThreadDrawer {
 
     private val elapsed = FloatArray(ROUTE_MAX)
     private val dist = FloatArray(ROUTE_MAX)
@@ -50,6 +52,14 @@ class ThreadRenderer : BaseTripRenderer() {
 
     private val centre = Path()
     private val core = Path()
+
+    private val fill = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeCap = Paint.Cap.ROUND
+        strokeJoin = Paint.Join.ROUND
+    }
+    private val labelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { typeface = Typeface.SANS_SERIF }
 
     // Radial sparks (structure of arrays: nothing is allocated per frame).
     private val pX = FloatArray(MAX_SPARKS)
@@ -71,6 +81,13 @@ class ThreadRenderer : BaseTripRenderer() {
     private var headX = 0f
     private var headY = 0f
 
+    // Rect and scale of the current frame (set at the top of draw()).
+    private var left = 0f
+    private var right = 0f
+    private var top = 0f
+    private var bottom = 0f
+    private var unit = 1f
+
     // Cached core gradient; rebuilt only when its ends actually move.
     private var gradient: LinearGradient? = null
     private var gradFrom = 0
@@ -78,30 +95,29 @@ class ThreadRenderer : BaseTripRenderer() {
     private var gradX0 = -1f
     private var gradX1 = -1f
 
-    override fun draw(
+    fun draw(
         canvas: Canvas,
-        w: Float,
-        h: Float,
         engine: TripEngine,
         frameTimeSec: Double,
         dtSec: Double,
-        showLocationHint: Boolean,
+        left: Float,
+        right: Float,
+        top: Float,
+        bottom: Float,
+        unit: Float,
     ) {
-        setSize(w, h)
+        this.left = left
+        this.right = right
+        this.top = top
+        this.bottom = bottom
+        this.unit = unit
         val count = engine.copyRouteInto(elapsed, dist, alt, color, energy, turn, calm)
-        label(canvas, "Нить поездки", vx(32f), vy(34f), 18f, TripPalette.alpha(TripPalette.MUTED, 0.85f))
-        if (showLocationHint) {
-            // Bottom-left: clear of the header (top-left), the legend (top-right),
-            // the centred placeholder and the bottom-centre mode dots.
-            label(canvas, LOCATION_HINT, vx(32f), h - vs(14f), 15f, TripPalette.alpha(TripPalette.MUTED, 0.6f))
-        }
-        drawLegend(canvas)
 
         if (count < 3) {
             advanceSparks(dtSec)
             if (engine.hasFix()) {
                 label(
-                    canvas, "нить строится", w / 2f, h / 2f, 18f,
+                    canvas, "нить строится", (left + right) / 2f, (top + bottom) / 2f, 18f,
                     TripPalette.alpha(TripPalette.MUTED, 0.6f), Paint.Align.CENTER,
                 )
             }
@@ -111,10 +127,6 @@ class ThreadRenderer : BaseTripRenderer() {
         smooth(smoothAlt, alt, count, ALT_SMOOTH_RADIUS, ALT_SMOOTH_PASSES)
         smooth(smoothTurn, turn, count, TURN_SMOOTH_RADIUS, TURN_SMOOTH_PASSES)
         layout(count)
-        label(
-            canvas, subtitle(count), vx(32f), vy(58f), 15f,
-            TripPalette.alpha(TripPalette.MUTED, 0.5f),
-        )
 
         val tint = TripPalette.colorAt(color[count - 1].toDouble())
         val calmNow = calm[count - 1]
@@ -129,12 +141,26 @@ class ThreadRenderer : BaseTripRenderer() {
         drawHead(canvas, engine, tint, frameTimeSec)
     }
 
-    /** Distance-based x at a fixed scale until the trip outgrows the panel. */
+    /** Scale a size authored in virtual (360-tall) units to canvas pixels. */
+    private fun vs(size: Float): Float = size * unit
+
+    private fun label(
+        canvas: Canvas,
+        text: String,
+        x: Float,
+        y: Float,
+        sizeV: Float,
+        color: Int,
+        align: Paint.Align = Paint.Align.LEFT,
+    ) {
+        labelPaint.textSize = vs(sizeV)
+        labelPaint.color = color
+        labelPaint.textAlign = align
+        canvas.drawText(text, x, y, labelPaint)
+    }
+
+    /** Distance-based x at a fixed scale until the trip outgrows the rect. */
     private fun layout(count: Int) {
-        val left = vx(32f)
-        val right = w - vx(32f)
-        val top = vy(104f)
-        val bottom = h - vs(76f)
         val band = bottom - top
 
         var minAlt = Float.MAX_VALUE
@@ -159,13 +185,6 @@ class ThreadRenderer : BaseTripRenderer() {
         }
         headX = xs[count - 1]
         headY = ys[count - 1]
-    }
-
-    private fun subtitle(count: Int): String {
-        val travelled = dist[count - 1] - dist[0]
-        val km = "%.1f".format(travelled / 1000f).replace('.', ',')
-        val state = if (travelled > FULL_WIDTH_METERS) "сжата под экран" else "растёт"
-        return "$km км · $state"
     }
 
     /** One continuous curve through all points — never per-segment, or it beads. */
@@ -228,8 +247,8 @@ class ThreadRenderer : BaseTripRenderer() {
                 else -> continue
             }
             // Anchor to the thread point the car was at when the event fired.
-            val at = anchorFor(event.bornElapsedSeconds, count)
-            val x = xs[at].coerceIn(vx(80f), w - vx(80f))
+            val at = ThreadLayout.anchorIndex(elapsed, count, event.bornElapsedSeconds)
+            val x = xs[at].coerceIn(left + vs(70f), right - vs(70f))
             val y = if (event.lane == 0) ys[at] - vs(24f) else ys[at] + vs(34f)
             label(canvas, text, x, y, 17f, TripPalette.alpha(TripPalette.MUTED, 0.85f), Paint.Align.CENTER)
             if (event.kind == TripEventKind.STOP) {
@@ -241,9 +260,6 @@ class ThreadRenderer : BaseTripRenderer() {
             }
         }
     }
-
-    private fun anchorFor(seconds: Double, count: Int): Int =
-        ThreadLayout.anchorIndex(elapsed, count, seconds)
 
     private fun spawnForNewEvent(engine: TripEngine) {
         val n = engine.eventCount()
@@ -361,21 +377,6 @@ class ThreadRenderer : BaseTripRenderer() {
         canvas.drawCircle(headX, headY, halo, stroke)
     }
 
-    private fun drawLegend(canvas: Canvas) {
-        val lg = w - vx(32f) - vs(200f)
-        fill.style = Paint.Style.FILL
-        fill.shader = null
-        for (i in 0 until 100) {
-            fill.color = TripPalette.colorAt(i / 99.0)
-            canvas.drawRect(lg + i * vs(2f), vy(24f), lg + i * vs(2f) + vs(2f), vy(29f), fill)
-        }
-        label(canvas, "рассвет", lg, vy(48f), 15f, TripPalette.alpha(TripPalette.MUTED, 0.5f))
-        label(
-            canvas, "вечер", lg + vs(200f), vy(48f), 15f,
-            TripPalette.alpha(TripPalette.MUTED, 0.5f), Paint.Align.RIGHT,
-        )
-    }
-
     /** Box blur then binomial passes — the same treatment for altitude and turns. */
     private fun smooth(out: FloatArray, src: FloatArray, count: Int, radius: Int, passes: Int) {
         for (i in 0 until count) {
@@ -402,7 +403,7 @@ class ThreadRenderer : BaseTripRenderer() {
         const val MAX_WAVES = 6
         const val EVENT_SPARKS = 20
 
-        /** Travelled distance that fills the panel before the thread compresses. */
+        /** Travelled distance that fills the rect before the thread compresses. */
         const val FULL_WIDTH_METERS = 30_000f
 
         /** Elevation band never reads narrower than this, so flat roads stay calm. */

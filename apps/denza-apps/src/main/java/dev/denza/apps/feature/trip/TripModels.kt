@@ -9,22 +9,6 @@ package dev.denza.apps.feature.trip
  * boundary these types deliberately stay inside.
  */
 
-/** The three panel concepts the user cycles through by tapping the panel. */
-enum class TripMode(val storageValue: Int) {
-    FLIGHT(0),
-    GLASS(1),
-    THREAD(2),
-    ;
-
-    fun next(): TripMode = entries[(ordinal + 1) % entries.size]
-
-    fun previous(): TripMode = entries[(ordinal - 1 + entries.size) % entries.size]
-
-    companion object {
-        fun fromStorage(value: Int): TripMode = entries.firstOrNull { it.storageValue == value } ?: FLIGHT
-    }
-}
-
 /**
  * Result of projecting one raw IMU sample onto the gravity (vertical) axis.
  *
@@ -49,11 +33,11 @@ data class AxisReading(
     val horizontal2: Double = 0.0,
 )
 
-/** A single smoothed elevation sample kept in the rolling ~100 s window (mode 1). */
+/** A single (elapsed seconds, meters) sample, used by the climb window. */
 data class ElevationSample(val elapsedSeconds: Double, val altitudeMeters: Double)
 
 /**
- * One decimated point of the whole-trip thread (mode 3). Nothing here is
+ * One decimated point of the whole-trip journey thread. Nothing here is
  * persisted; the list lives and dies with the session.
  *
  * The thread is laid out along travelled distance, not time, so a stop does not
@@ -78,17 +62,17 @@ data class RoutePoint(
 )
 
 /**
- * A drifting/positioned event caption with a deterministic trigger. The renderer
- * turns [kind] + [value] into mode-appropriate Russian text (a CLIMB is "набор"
- * in mode 1 and "подъём" in mode 3), so the model stays presentation-free.
+ * A positioned event caption with a deterministic trigger. The renderer turns
+ * [kind] + [value] into Russian text (e.g. a CLIMB is "подъём +N м"), so the
+ * model stays presentation-free.
  */
 data class TripEvent(
     val kind: TripEventKind,
     /** Meters for CLIMB/DESCENT/CREST; minutes for STOP; unused otherwise. */
     val value: Double,
-    /** Trip time (seconds) at which the event fired; anchors both layouts. */
+    /** Trip time (seconds) at which the event fired; anchors the layout. */
     val bornElapsedSeconds: Double,
-    /** 0/1 lane to avoid overlap in the drifting/thread layout. */
+    /** 0/1 lane to avoid overlapping captions along the thread. */
     val lane: Int,
 )
 
