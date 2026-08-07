@@ -7,13 +7,13 @@ import kotlin.math.roundToInt
 import kotlin.math.sign
 
 /**
- * The single shared data engine behind all three renderers.
+ * The single shared data engine behind the trip panel.
  *
  * Everything is fed from product-usable inputs only (standard IMU, standard
  * GNSS, offline sun math, and the app's existing validated Yandex guidance).
  * The engine is pure Kotlin with no Android imports so the derived logic can be
  * unit-tested on the JVM; the Android adapters ([TripSensorHub]) push samples in
- * and the renderers read the derived state out, all on the main thread.
+ * and the renderer reads the derived state out, all on the main thread.
  *
  * Dynamics come from physics, not IMU statistics (first live drive finding):
  *  - lateral = GNSS ground speed x gyro yaw rate (v*w, centripetal). Positive =
@@ -48,7 +48,6 @@ class TripEngine {
     private val speedDynamics = SpeedDynamics()
     private val longitudinal = LongitudinalFusion()
     private val agitation = AgitationTracker()
-    private val buckets = RmsBucketAggregator()
     private val gnss = GnssTripAccumulator()
     private val course = CourseTracker()
 
@@ -155,7 +154,6 @@ class TripEngine {
         val a = agitationMagnitude(lateralAccel, longitudinalAccel, reading.vertical)
         latestAgitation = a
         agitation.update(a, abs(reading.vertical), dt)
-        buckets.add(a, dt)
 
         if (tripStarted) {
             detectTurn(reading.yawRate, dt)
@@ -418,8 +416,9 @@ class TripEngine {
     }
 
     /**
-     * Time-of-day colour key 0..1 for the mode-3 thread: dawn(0) -> day -> golden
-     * -> evening -> night(1). Uses sun times when available, else the clock only.
+     * Time-of-day colour key 0..1 for the journey thread: dawn(0) -> day ->
+     * golden -> evening -> night(1). Uses sun times when available, else the
+     * clock only.
      */
     private fun timeColorKey(): Double {
         if (!haveSun) return 0.25
@@ -439,10 +438,8 @@ class TripEngine {
         }.coerceIn(0.0, 1.0)
     }
 
-    // ---- read surface for renderers ----------------------------------------
+    // ---- read surface for the renderer --------------------------------------
 
-    fun agitationScore(): Int = agitation.smoothnessScore
-    fun calmSeconds(): Double = agitation.calmSeconds
     fun verticalEnergy(): Double = agitation.verticalEnergy
     fun smoothedAltitude(): Double = gnss.smoothedAltitude
     fun hasAltitude(): Boolean = gnss.hasAltitude
@@ -462,14 +459,6 @@ class TripEngine {
         return GuidanceRemaining(guidanceDistance, guidanceTime)
     }
 
-    fun bucketCount(): Int = buckets.count
-    fun bucketPartial(): Double = buckets.partialRms
-    fun copyBucketsInto(out: FloatArray): Int = buckets.copyInto(out)
-
-    fun elevationCount(): Int = gnss.elevationCount()
-    fun copyElevationInto(out: FloatArray): Int = gnss.copyElevationInto(out)
-    fun elevationSamples(): List<ElevationSample> = gnss.elevationSamples()
-
     /** 0..1 calmness from the smoothed agitation; 1 on a smooth road. */
     fun calm01(): Double = (1.0 - agitation.smoothedAgitation / CALM_FULL_SCALE).coerceIn(0.0, 1.0)
 
@@ -485,7 +474,7 @@ class TripEngine {
         calm: FloatArray,
     ): Int = gnss.copyRouteInto(elapsed, distance, altitude, color, energy, turn, calm)
 
-    /** Read-only, allocation-free event access for the renderers. */
+    /** Read-only, allocation-free event access for the renderer. */
     fun eventCount(): Int = events.size
     fun eventAt(index: Int): TripEvent = events[index]
 

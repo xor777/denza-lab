@@ -33,10 +33,6 @@ import kotlin.math.sqrt
  *    count (and the rest point follows the altitude down through descents), so
  *    a random walk cannot inflate the total while real hills still count.
  *
- * The elevation series is the WHOLE trip, decimated: samples are kept at a
- * minimum interval that doubles every time the buffer fills, so the strip always
- * spans the trip at bounded memory (like the route thread).
- *
  * Pure and JVM-testable.
  */
 class GnssTripAccumulator(
@@ -58,10 +54,6 @@ class GnssTripAccumulator(
     private val seedConsistencyFixes: Int = 3,
     /** Without reported accuracy: max spread between consecutive seeding fixes, meters. */
     private val seedConsistencyBandMeters: Double = 15.0,
-    /** Whole-trip elevation series: retained samples before the interval doubles. */
-    private val elevationCapacity: Int = 720,
-    /** Initial spacing of retained elevation samples, seconds. */
-    elevationBaseIntervalSeconds: Double = 1.0,
     /** Minimum spacing between retained thread points (meters or seconds). */
     private val routeMinMeters: Double = 25.0,
     private val routeMinSeconds: Double = 4.0,
@@ -104,11 +96,6 @@ class GnssTripAccumulator(
     private var pendingSeedAltitude = 0.0
     private var pendingSeedCount = 0
 
-    // Whole-trip elevation series (decimated) and its running band.
-    private val elevation = ArrayList<ElevationSample>()
-    private var elevationIntervalSeconds = elevationBaseIntervalSeconds
-    private var lastElevationElapsed = -1.0e9
-
     private val routePoints = ArrayList<RoutePoint>()
     private var lastRouteElapsed = -1.0e9
     private var lastRouteLat = 0.0
@@ -119,7 +106,7 @@ class GnssTripAccumulator(
     /**
      * Feed one fix. [accumulate] is false before the trip clock has started
      * (movement-gated in the engine): the altitude smoother still warms up and
-     * seeds, but distance, climb, the elevation series, and stop labelling wait.
+     * seeds, but distance, climb, the thread, and stop labelling wait.
      *
      * @return true when a new 15-minute stop threshold was crossed this update.
      */
@@ -173,9 +160,6 @@ class GnssTripAccumulator(
                     variometer += (rate - variometer) * av
                     stairStep(elapsedSeconds, accumulate)
                 }
-            }
-            if (altitudeSeeded && accumulate) {
-                pushElevation(elapsedSeconds, smoothedAltitude)
             }
         }
         pruneClimbWindow(elapsedSeconds)
@@ -291,32 +275,6 @@ class GnssTripAccumulator(
         }
     }
 
-    /**
-     * Whole-trip elevation series: keep one sample per [elevationIntervalSeconds];
-     * when the buffer fills, drop every second sample and double the interval so
-     * the series always spans the whole trip with bounded memory.
-     */
-    private fun pushElevation(elapsedSeconds: Double, altitudeMeters: Double) {
-        if (elevation.isNotEmpty() &&
-            elapsedSeconds - lastElevationElapsed < elevationIntervalSeconds
-        ) {
-            return
-        }
-        elevation.add(ElevationSample(elapsedSeconds, altitudeMeters))
-        lastElevationElapsed = elapsedSeconds
-        if (elevation.size >= elevationCapacity) {
-            var write = 0
-            var read = 0
-            while (read < elevation.size) {
-                elevation[write] = elevation[read]
-                write++
-                read += 2
-            }
-            while (elevation.size > write) elevation.removeAt(elevation.size - 1)
-            elevationIntervalSeconds *= 2.0
-        }
-    }
-
     private val climbWindow = ArrayDeque<ElevationSample>()
 
     private fun pruneClimbWindow(elapsedSeconds: Double) {
@@ -336,8 +294,6 @@ class GnssTripAccumulator(
         windowClimbMeters = 0.0
     }
 
-    fun elevationSamples(): List<ElevationSample> = elevation.toList()
-    fun elevationCount(): Int = elevation.size
     fun routePointCount(): Int = routePoints.size
     fun routePoints(): List<RoutePoint> = routePoints.toList()
 
@@ -372,26 +328,6 @@ class GnssTripAccumulator(
             calmOut[i] = p.calm.toFloat()
         }
         return n
-    }
-
-    /**
-     * Copy elevation altitudes into [out], oldest first / newest last. When the
-     * series holds more samples than [out], it is stride-decimated evenly across
-     * the WHOLE trip so the caller always sees start-to-now. Returns the count.
-     */
-    fun copyElevationInto(out: FloatArray): Int {
-        val n = elevation.size
-        if (n == 0 || out.isEmpty()) return 0
-        if (n <= out.size) {
-            for (i in 0 until n) out[i] = elevation[i].altitudeMeters.toFloat()
-            return n
-        }
-        val m = out.size
-        for (i in 0 until m) {
-            val src = (i.toLong() * (n - 1) / (m - 1)).toInt()
-            out[i] = elevation[src].altitudeMeters.toFloat()
-        }
-        return m
     }
 
     companion object {

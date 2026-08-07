@@ -173,35 +173,6 @@ class GnssTripAccumulatorTest {
     }
 
     @Test
-    fun elevationSeriesSpansTheWholeTripDecimated() {
-        val acc = GnssTripAccumulator(elevationCapacity = 100)
-        repeat(1000) { i ->
-            acc.fix(elapsed = i.toDouble(), speed = 10.0, alt = 100.0 + i * 0.1, hasAlt = true)
-        }
-        val samples = acc.elevationSamples()
-        assertTrue("count=${samples.size}", samples.size in 2..100)
-        // Still spans start to now — never a rolling window.
-        assertTrue("first=${samples.first().elapsedSeconds}", samples.first().elapsedSeconds <= 1.0)
-        assertTrue("last=${samples.last().elapsedSeconds}", samples.last().elapsedSeconds >= 950.0)
-    }
-
-    @Test
-    fun copyElevationIntoDecimatesAcrossTheWholeSeries() {
-        val acc = GnssTripAccumulator()
-        repeat(600) { i ->
-            acc.fix(elapsed = i.toDouble(), speed = 10.0, alt = 100.0 + i * 1.0, hasAlt = true)
-        }
-        val out = FloatArray(100)
-        val n = acc.copyElevationInto(out)
-        assertEquals(100, n)
-        val samples = acc.elevationSamples()
-        assertEquals(samples.first().altitudeMeters.toFloat(), out[0], 1e-3f)
-        assertEquals(samples.last().altitudeMeters.toFloat(), out[n - 1], 1e-3f)
-        // Monotonic input stays monotonic through decimation.
-        for (i in 1 until n) assertTrue(out[i] >= out[i - 1])
-    }
-
-    @Test
     fun stopLongerThanFifteenMinutesCrossesExactlyOnce() {
         val acc = GnssTripAccumulator()
         var crossings = 0
