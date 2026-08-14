@@ -502,6 +502,47 @@ The uniform `2x` sensor-path scale then retained too much of the wide frame and
 looked compressed in the center window. The accepted sensor-oriented candidate
 keeps `-90°` and uses the midpoint `2x` / `3x` scale.
 
+The `2026-08-14` live session resolved why the required rotation flip-flopped
+across the earlier calibrations: the DVR stream's delivered orientation depends
+on whether the factory driving recorder is actively recording camera `0` at the
+moment Denza Apps opens it. With the recorder recording, frames arrive
+pre-rotated and the fixed `-90°` shows the image sideways; with the recorder
+off, frames arrive sensor-oriented and `-90°` is correct. Toggling the recorder
+off restored the upright image immediately on the next open. The gear itself is
+not the trigger: shifting `D` → `P` with the camera open does not flip the live
+image, a fresh open in `P` stayed sideways, and cycling the stock 360 view does
+not reset the state. The recorder toggle is delivered as the
+`android.intent.action.AUTO_VIDEO_BUTTON` broadcast, received by `com.byd.avc`
+(the same fragile AVC process; do not poke it as a probe). Recorder state is
+not readable from system properties or settings (`getprop` / `settings list`
+diffs across the toggle are clean), so a product selector must either observe
+the delivered frames (e.g. `SurfaceTexture#getTransformMatrix`, untested for
+this distinction) or listen for the button broadcast, which is an event, not a
+state. The vendor `bmmcameraserver` runs its own camera3 stack below the public
+camera service (it streamed HAL cameras `2`, `3`, and `10` continuously through
+the whole session), and the camera service event log shows HAL-level
+open/close activity on camera `0` with no matching public client, so camera `0`
+is effectively multiplexed with the vendor pipeline. MediaTek vendor tags in
+the `com.mediatek.singlehwsetting` section (`module`, `sourcecrop`,
+`transform`, `videostream`, `warpmap*`) are the HAL-side geometry knobs that
+plausibly implement the recorder-dependent transform.
+
+Continued live A/B later the same evening falsified the recorder correlation
+itself: the dashcam (`com.byd.cdr`, writing 2-minute segments with an
+in-progress `.cpy` file under the stick's `Recorder/Normal/`) recorded
+continuously through upright and sideways activations alike, gear `D` produced
+both orientations across app reinstalls, and four consecutive parked
+activations stayed upright. The vendor state machine is not externally
+predictable, and the delivered frames are metadata-identical in both states,
+so no in-app selector survives contact with the evidence. The bounded
+per-session probe in `DvrCameraRenderer` (`files/dvr_probe.log` plus
+`dvr_frame_*.png`, readable via `run-as`; logcat is suppressed wholesale for
+app processes on this firmware) stays in the build and keeps collecting
+orientation evidence whenever the camera runs. The cluster DVR camera toggle
+is retired behind `ClusterDvrFlag` until a selector is accepted; the candidate
+on the shelf is a frame-content detector keyed on the fisheye vignette
+position, choosing between the two known geometry presets.
+
 The app-side shader remains spatial and has no frame history. Camera `0`
 advertises all standard Android noise-reduction modes and its live request
 already reports MediaTek 3DNR enabled. Denza Apps now explicitly requests

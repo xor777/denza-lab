@@ -191,6 +191,10 @@ class ClusterSceneService : Service() {
     }
 
     private fun toggleDvrCamera() {
+        if (!ClusterDvrFlag.ENABLED) {
+            Log.i(TAG, "DVR camera toggle ignored: feature retired, see ClusterDvrFlag")
+            return
+        }
         if (dvrCameraVisible) {
             hideDvrCamera()
             return
