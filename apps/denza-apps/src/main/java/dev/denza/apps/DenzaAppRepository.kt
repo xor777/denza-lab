@@ -109,6 +109,7 @@ object DenzaAppRepository {
     fun recoverEnabledFeatures(context: Context) {
         appContext = context.applicationContext
         SplitScreenCoordinator.initialize(context) { refresh() }
+        NavigationCoordinator.initialize(context) { refresh() }
         refresh()
         if (SimulcastIntegration.isEnabled(context)) {
             reconcileSimulcast(repairMissingSetup = true)
@@ -630,6 +631,13 @@ object DenzaAppRepository {
 
     private fun loadAppChoices(context: Context): List<SimulcastAppChoice> {
         val selected = SimulcastApps.getSelected(context)
+        return loadLaunchableAppChoices(context, selected)
+    }
+
+    private fun loadLaunchableAppChoices(
+        context: Context,
+        selected: Collection<String>,
+    ): List<SimulcastAppChoice> {
         val selectedOrder = selected.withIndex().associate { it.value to it.index }
         val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
         val seen = HashSet<String>()

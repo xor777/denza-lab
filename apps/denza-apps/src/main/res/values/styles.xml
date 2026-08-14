@@ -7,4 +7,7 @@
         <item name="android:statusBarColor">#080A0C</item>
         <item name="android:windowBackground">#080A0C</item>
     </style>
+    <style name="DenzaAppsLauncherTheme" parent="@android:style/Theme.NoDisplay">
+        <item name="android:windowDisablePreview">true</item>
+    </style>
 </resources>

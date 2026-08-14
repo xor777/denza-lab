@@ -480,7 +480,11 @@ private fun SplitScreenCard(
         )
         return
     }
-    val subtitle = if (snapshot.status == FeatureStatus.ERROR) "Ошибка запуска" else "Управление окнами"
+    val subtitle = if (snapshot.status == FeatureStatus.ERROR) {
+        "Ошибка запуска"
+    } else {
+        "Управление окнами"
+    }
     CompactToggleCard(
         modifier = modifier,
         icon = Icons.Outlined.VerticalSplit,

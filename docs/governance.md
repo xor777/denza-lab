@@ -154,9 +154,10 @@ package into product code):
   projection/return and Simulcast start/stop must atomically cancel any pending
   picker selection and hold split routing until their task changes settle.
 - Split commands remain fixed `am stack move-task` / `am task resize`
-  operations through the shared local ADB client; do not expose arbitrary shell
-  text to the UI. Exclude Denza Apps and the stock picker/pane packages from
-  candidate routing.
+  operations through the shared local ADB client. Same-root promotion uses one
+  fixed shell-UID `setFocusedTask` helper that accepts only the id of an existing
+  launchable task; do not expose arbitrary shell text to the UI. Exclude Denza
+  Apps and the stock picker/pane packages from candidate routing.
 - The toggle changes routing only. Turning it off returns routed tasks to the
   current fullscreen root and restores the stock pane anchors.
 

@@ -1,14 +1,165 @@
 # Split screen findings
 
-The factory split screen is gone in this firmware. This page records what was
-removed, what merely looks removed, and which of the remaining routes are worth
-anyone's time.
+> **Superseded on 2026-08-14.** The earlier verdict that native split was gone
+> was wrong. The historical failed routes remain below because they explain
+> what not to retry, but they are not the current conclusion.
 
 Established on the live car (DiLink5.1, `BYD AUTO`, Android 13 / API 33) on
 2026-08-14, after the firmware update that changed the app-launch button to open
 a plain fullscreen picker.
 
-## Verdict
+## Current verdict
+
+Native BYD split is reachable from user space without `/system` changes. The
+working route is:
+
+1. when the first launchable app appears, add it and the Denza Apps split
+   placeholder to the firmware's runtime split list through `activity_task`
+   transaction 125;
+2. open the split gate through transaction 126 when needed;
+3. obtain the live primary and secondary root ids through transaction 118 and
+   move the neutral placeholder into the narrow primary root and the app into
+   the wide secondary root with `am stack move-task`;
+4. if the native divider is still collapsed, drag the real
+   `multi-divider-shadow` input window to a balanced position;
+5. read the resulting root bounds and apply them to the two tasks with
+   `am task resize` so both apps receive a configuration change and rebuild
+   their layouts for the panes.
+
+The recovered DiLink 6/OpenBYD category route
+(`START_IVI_PRIMARY` / `START_IVI_SECOND`) was also tested, but this firmware
+ignored it or produced duplicate fullscreen tasks. The working MVP does not
+relaunch either app. A live run placed Яндекс Навигатор in root 2 at
+`[24,112][856,1472]` and Яндекс Музыка in root 3 at
+`[880,112][2536,1472]`; transaction 30 returned area mode `3`. Moving the tasks
+alone left their old fullscreen bounds and visibly clipped both UIs. Explicitly
+resizing each task to its root bounds made both apps immediately relayout.
+
+A live single-app run then proved that the firmware cannot keep native split
+with an actually empty root: removing the last task from one side immediately
+changed area mode `3` to fullscreen mode `4`. A dedicated, non-interactive
+`SplitPlaceholderActivity` therefore holds the narrow root. On 2026-08-14 the
+installed MVP produced:
+
+```
+root 2  [24,112][856,1472]    SplitPlaceholderActivity  visible=true
+root 3  [880,112][2536,1472]  Yandex Music             visible=true
+area mode = 3
+```
+
+The placeholder intentionally contains only “Откройте второе приложение”. It
+is the stable seam where the custom all-app picker can be added later without
+changing the native split routing.
+
+The UI has one global toggle rather than an app whitelist: while it is on, the
+first launchable app is moved into native split beside the placeholder. A later
+distinct launchable app replaces the placeholder through the existing native
+pair route. While the toggle is off, no routing is performed.
+`dev.denza.apps` itself is explicitly launched with
+`byd.intent.category.START_IVI_FULL`, so the control UI stays fullscreen even
+when a native pair was already open.
+
+The coordinator observes ordinary launcher starts after they occur; it cannot
+intercept the launcher before the second app draws. Polling is therefore 200 ms
+and a short fullscreen frame can still be visible.
+
+### Internal Activity transitions
+
+The remaining fullscreen escape was not app-specific. On the Huawei/UI7 path,
+`BydSmartMultiIviController.isSupportSplit(Task)` rejects a task before checking
+the runtime split list when `Task.isResizeable()` is false. A rejected task is
+reparented to the full IVI root. Moving it back afterwards caused two rapid
+configuration changes; Yandex Music reproduced this as a false "No internet
+connection" state even though the validated Wi-Fi network and playback remained
+available.
+
+Android's global `force_resizable_activities` setting is the system-level gate
+for that check. This ROM's `WindowManagerService.SettingsObserver` watches it at
+runtime and updates `ActivityTaskManagerService.mForceResizableActivities`, so
+neither a reboot nor a `/system` change is required. With the value set to `1`,
+the same Yandex Music artist transition stayed in its native split root without
+an intermediate fullscreen reparent or a corrective task move.
+
+The split toggle now leases this global setting: it records the exact original
+state (`missing`, `0`, or `1`) before enabling the override, reasserts it after
+process recovery, and restores the original state when split is disabled. An
+external setting change made while split is active is preserved. The earlier
+reactive "move the escaped task back" workaround was removed.
+
+The native swap gesture is supported. Static SystemUI inspection and live tests
+show that it does not move the child tasks between roots: it reverses the two
+StageCoordinator positions, so root 2 and root 3 keep their identities while
+their bounds exchange. The router therefore stores a task for each native root
+and observes the roots' physical order instead of forcing the apps back to a
+hard-coded side. Both forms were proven live on 2026-08-14:
+
+```
+placeholder + Yandex Music  -> swap -> both tasks remain visible
+VLC + Yandex Music          -> swap -> both tasks remain visible
+```
+
+The coordinator logged `native pair swapped` in both runs and left all task
+movement to the native shell. It also refreshes a pane member from the visible
+top task, while treating `SplitScreenListActivity` as a temporary overlay. This
+keeps the other half of the pair stable when the stock selector is opened and
+provides the state model the custom picker can reuse.
+
+The same rule applies after one pane is closed and the survivor expands. A
+manual divider pull can put the stock selector into either native root, and its
+physical side or width may no longer match the firmware's primary/secondary
+names. The router now retains the survivor's native-root affinity, observes the
+selector root as the explicit vacancy, and moves only the newly launched task
+into that vacancy. It never reparents the surviving app merely to recreate a
+hard-coded primary/secondary order.
+
+### Routing state machine
+
+The earlier `armed` / `entering` / `active` implementation was still too eager:
+it treated area mode `3` as success even when the expected app was below
+`SplitScreenListActivity`. A live failure left RUTUBE in the correct native root
+while the picker remained on top, so the screen showed Navigator plus the
+picker and RUTUBE appeared to be missing.
+
+Routing is now a pure reducer with three pieces of durable intent:
+
+- `anchor`: the app the user kept;
+- `vacancy`: the native root explicitly freed by a picker or collapse, plus
+  the task ids that were already below the picker;
+- `target`: the exact expected `root -> task` pair while a transition is in
+  progress.
+
+Every 200 ms the reducer compares this intent with a fresh `am stack list`
+snapshot. A target is complete only when area mode is `3`, both expected tasks
+are the top tasks of their assigned roots, no picker covers either app, and the
+task bounds equal the current root bounds. Correction is limited to the
+specific mismatch: move a task from the wrong root, promote it within the same
+root, balance the divider, or resize stale bounds. Identical observations do
+not repeat a successful shell mutation.
+
+The initial `app + placeholder` target is the one intentional exception: the
+stock picker is the visible UI owned by the placeholder pane, so a picker above
+that placeholder confirms the pane instead of triggering an endless promotion.
+If another eligible app launches fullscreen before that target settles, it
+atomically supersedes the placeholder and inherits the placeholder's root.
+Mutation deduplication is keyed by the target and requested actions, not by raw
+`am stack list` text, because vendor stack dumps contain irrelevant changing
+state.
+
+A visible stock picker is also an explicit destination even after an earlier
+pair target exists. If the firmware launches the user's next foreground app in
+the opposite, usually wider root, that launch supersedes the stale picker
+target and only the new foreground task is moved into the picker's root. Apps
+merely revealed underneath the moved task are not interpreted as additional
+launches.
+
+The intent is persisted before a mutation, so an APK replacement or ADB shell
+restart can continue an unfinished target. Unknown picker state after restart
+is only observed; it is never guessed into a pair. Navigation and Simulcast
+task moves clear pending intent and the first snapshot after their quiet period
+becomes the new baseline. A supervisor outside the reducer reconnects the
+persistent ADB shell without changing the state-machine rules.
+
+## Historical verdict (incorrect)
 
 **The official split is dead and cannot be revived from user space.** The
 picker survived; the placement behind it did not. Reviving it means modifying
@@ -194,7 +345,7 @@ The IME question that prompted this test never got a clean answer, and no longer
 matters: the keyboard did come up, but on the main display, because the app had
 already escaped there.
 
-## Where this leaves it
+## Historical conclusion (incorrect)
 
 Every route out of user space is now closed:
 

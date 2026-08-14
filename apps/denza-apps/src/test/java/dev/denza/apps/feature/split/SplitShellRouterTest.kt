@@ -7,299 +7,278 @@ import org.junit.Test
 
 class SplitShellRouterTest {
     @Test
-    fun leavesFullscreenLaunchesUntouched() {
-        val commands = mutableListOf<String>()
-        val router = SplitShellRouter { command ->
-            commands += command
-            if (command == "am stack list") fullscreenDenzaApps else ""
-        }
+    fun firstSnapshotStartsPlaceholderAndPersistsTargetBeforeMutation() {
+        val fake = FakeShell(fullscreen(APP_A, 10))
+        val store = FakeStateStore()
+        val router = router(fake, store)
 
         assertFalse(router.tick())
-        assertEquals(listOf("am stack list"), commands)
+
+        assertEquals(APP_A, store.memory.target?.first?.packageName)
+        assertEquals(PLACEHOLDER_PACKAGE, store.memory.target?.second?.packageName)
+        assertTrue(fake.commands.any { it == "am start -n $PLACEHOLDER_COMPONENT -f 0x18010000" })
+        assertTrue(fake.commands.indexOf("service call activity_task 126 i32 1") < fake.commands.indexOf("am start -n $PLACEHOLDER_COMPONENT -f 0x18010000"))
     }
 
     @Test
-    fun doesNotPrepositionHardcodedAppsWhenEmptyStockSplitAppears() {
-        val commands = mutableListOf<String>()
-        val router = SplitShellRouter { command ->
-            commands += command
-            if (command == "am stack list") emptySplitWithStoppedApps else ""
-        }
+    fun identicalSnapshotDoesNotRepeatSuccessfulMutation() {
+        val fake = FakeShell(fullscreen(APP_A, 10))
+        fake.varyIrrelevantStackText = true
+        val router = router(fake)
+        router.tick()
+        val startsAfterFirstTick = fake.commands.count { it.startsWith("am start ") }
 
-        assertTrue(router.tick())
-        assertEquals(listOf("am stack list"), commands)
+        repeat(20) { router.tick() }
+
+        assertEquals(startsAfterFirstTick, fake.commands.count { it.startsWith("am start ") })
     }
 
     @Test
-    fun routesFirstSelectedAppToTheFreePane() {
-        val commands = mutableListOf<String>()
-        var snapshot = emptySplitWithStoppedApps
-        val router = SplitShellRouter { command ->
-            commands += command
-            if (command == "am stack list") snapshot else ""
-        }
+    fun executorConvergesPlacementDividerAndBoundsOneObservedStepAtATime() {
+        val fake = FakeShell(fullscreen(APP_A, 10))
+        val router = router(fake)
+        router.tick()
+        fake.commands.clear()
 
-        assertTrue(router.tick())
-        commands.clear()
-        snapshot = fullscreenVlcLaunch
+        fake.stack = placeholderAndAppFullscreen()
+        router.tick()
+        assertTrue(fake.commands.any { it == "am stack move-task 10 3 true" })
+        assertTrue(fake.commands.any { it == "am stack move-task 99 2 true" })
 
+        fake.commands.clear()
+        fake.area = 4
+        fake.stack = pair(APP_A to 10, PLACEHOLDER_PACKAGE to 99, taskBoundsMatchRoots = false)
+        fake.stackAfterSwipe = pair(APP_A to 10, PLACEHOLDER_PACKAGE to 99)
+        router.tick()
+        assertTrue(fake.commands.any { it.startsWith("input swipe ") })
+
+        fake.commands.clear()
+        router.tick()
+        assertTrue(fake.commands.isNotEmpty())
+        assertFalse(fake.commands.any { it.startsWith("am stack move-task ") })
+
+        fake.commands.clear()
         assertTrue(router.tick())
-        assertEquals(
-            listOf(
-                "am stack list",
-                "am stack move-task 70 2 true",
-                "am task resize 70 1704 112 2536 1472",
-            ),
-            commands,
+        assertFalse(fake.commands.any { it.startsWith("am start ") })
+    }
+
+    @Test
+    fun persistedTargetPromotesCorrectTaskAbovePickerWithoutMovingNeighbor() {
+        val target = SplitPairTarget(
+            first = expected(10, APP_A, 3),
+            second = expected(20, APP_B, 2),
         )
+        val store = FakeStateStore(SplitRoutingMemory(target = target))
+        val fake = FakeShell(targetAppUnderPicker())
+        fake.area = 3
+        val router = router(fake, store)
+
+        assertFalse(router.tick())
+
+        assertTrue(fake.commands.any { it.contains("SplitTaskProxyMain focus-task 20") })
+        assertFalse(fake.commands.any { it == "am stack move-task 10 2 true" })
+        assertFalse(fake.commands.any { it == "am stack move-task 10 3 true" })
     }
 
     @Test
-    fun explicitExternalMoveCancelsPendingStockPickerSelection() {
-        val commands = mutableListOf<String>()
-        var snapshot = emptySplitWithStoppedApps
-        val router = SplitShellRouter { command ->
-            commands += command
-            if (command == "am stack list") snapshot else ""
-        }
+    fun persistedTargetSurvivesRouterRecreation() {
+        val store = FakeStateStore()
+        val firstFake = FakeShell(fullscreen(APP_A, 10))
+        router(firstFake, store).tick()
+        assertTrue(store.memory.target != null)
 
-        assertTrue(router.tick())
+        val recoveredFake = FakeShell(placeholderAndAppFullscreen())
+        val recovered = router(recoveredFake, store)
+        recovered.tick()
+
+        assertTrue(recoveredFake.commands.any { it == "am stack move-task 10 3 true" })
+        assertTrue(recoveredFake.commands.any { it == "am stack move-task 99 2 true" })
+    }
+
+    @Test
+    fun externalMoveAcceptsNextSnapshotAsBaselineWithoutShellMutation() {
+        val fake = FakeShell(fullscreen(APP_A, 10))
+        val store = FakeStateStore()
+        val router = router(fake, store)
         router.cancelPendingSelection()
-        commands.clear()
-        snapshot = fullscreenVlcLaunch
 
         assertFalse(router.tick())
-        assertEquals(listOf("am stack list"), commands)
+
+        assertEquals(APP_A, store.memory.anchor?.packageName)
+        assertFalse(fake.commands.any { it.startsWith("am start ") })
+        assertFalse(fake.commands.any { it.startsWith("am stack move-task ") })
     }
 
     @Test
-    fun routesSecondSelectedAppToThePickerPane() {
-        val commands = mutableListOf<String>()
-        var snapshot = emptySplitWithStoppedApps
-        val router = SplitShellRouter { command ->
-            commands += command
-            if (command == "am stack list") snapshot else ""
-        }
-
-        assertTrue(router.tick())
-        snapshot = fullscreenVlcLaunch
-        assertTrue(router.tick())
-        snapshot = splitWithVlcInFreePane
-        assertTrue(router.tick())
-        commands.clear()
-        snapshot = fullscreenMapsLaunch
-
-        assertTrue(router.tick())
-        assertEquals(
-            listOf(
-                "am stack list",
-                "am stack move-task 81 3 true",
-                "am task resize 81 24 112 1680 1472",
-            ),
-            commands,
-        )
-    }
-
-    @Test
-    fun resumesWithThePickerAsSecondDestinationAfterProcessRestart() {
-        val commands = mutableListOf<String>()
-        var snapshot = splitWithVlcInFreePane
-        val router = SplitShellRouter { command ->
-            commands += command
-            if (command == "am stack list") snapshot else ""
-        }
-
-        assertTrue(router.tick())
-        commands.clear()
-        snapshot = fullscreenMapsLaunch
-
-        assertTrue(router.tick())
-        assertEquals(
-            listOf(
-                "am stack list",
-                "am stack move-task 81 3 true",
-                "am task resize 81 24 112 1680 1472",
-            ),
-            commands,
-        )
-    }
-
-    @Test
-    fun doesNotRouteAThirdLaunchAfterBothPanesAreFilled() {
-        val commands = mutableListOf<String>()
-        var snapshot = emptySplitWithStoppedApps
-        val router = SplitShellRouter { command ->
-            commands += command
-            if (command == "am stack list") snapshot else ""
-        }
-
-        assertTrue(router.tick())
-        snapshot = fullscreenVlcLaunch
-        assertTrue(router.tick())
-        snapshot = splitWithVlcInFreePane
-        assertTrue(router.tick())
-        snapshot = fullscreenMapsLaunch
-        assertTrue(router.tick())
-        snapshot = splitWithBothApps
-        assertTrue(router.tick())
-        commands.clear()
-        snapshot = fullscreenVideoLaunch
-
-        assertFalse(router.tick())
-        assertEquals(listOf("am stack list"), commands)
-    }
-
-    @Test
-    fun disableReturnsAnyRoutedAppsAndRestoresStockAnchors() {
-        val commands = mutableListOf<String>()
-        val router = SplitShellRouter { command ->
-            commands += command
-            if (command == "am stack list") splitWithBothAppsAndDenzaRoot else ""
-        }
+    fun disableClosesOnlyGateOwnedByRouterAndClearsPersistedIntent() {
+        val fake = FakeShell(fullscreen(APP_A, 10))
+        val store = FakeStateStore()
+        val router = router(fake, store)
+        router.tick()
+        fake.commands.clear()
 
         router.disable()
 
-        assertEquals(
-            listOf(
-                "am stack list",
-                "am stack move-task 81 4 false",
-                "am task resize 81 0 0 2560 1600",
-                "am stack move-task 70 4 false",
-                "am task resize 70 0 0 2560 1600",
-                "am stack move-task 24 3 true",
-                "am task resize 24 24 112 1680 1472",
-                "am stack move-task 20 2 true",
-                "am task resize 20 1704 112 2536 1472",
-            ),
-            commands,
-        )
+        assertEquals(listOf("service call activity_task 126 i32 0"), fake.commands)
+        assertEquals(SplitRoutingMemory(), store.memory)
+        assertTrue(store.cleared)
     }
 
-    @Test
-    fun disableIgnoresFullscreenHomeRootAndLeavesExpandedStockAnchorsInPlace() {
-        val commands = mutableListOf<String>()
-        val router = SplitShellRouter { command ->
-            commands += command
-            if (command == "am stack list") expandedSplitWithFullscreenHomeRoot else ""
+    private fun router(
+        fake: FakeShell,
+        store: FakeStateStore = FakeStateStore(),
+    ) = SplitShellRouter(
+        shell = fake::execute,
+        apkPath = "/data/app/dev.denza.apps/base.apk",
+        eligibleApps = {
+            mapOf(
+                APP_A to "$APP_A/$APP_A.MainActivity",
+                APP_B to "$APP_B/$APP_B.MainActivity",
+            )
+        },
+        pause = fake.pauses::add,
+        stateStore = store,
+    )
+
+    private class FakeStateStore(
+        var memory: SplitRoutingMemory = SplitRoutingMemory(),
+    ) : SplitRoutingStateStore {
+        var cleared = false
+
+        override fun load(): SplitRoutingMemory = memory
+
+        override fun save(memory: SplitRoutingMemory) {
+            this.memory = memory
         }
 
-        router.disable()
-
-        assertEquals(
-            listOf("am stack list"),
-            commands,
-        )
+        override fun clear() {
+            memory = SplitRoutingMemory()
+            cleared = true
+        }
     }
 
-    @Test
-    fun identifiesStockSplitByComponentWhenHomeRootAppearsFirst() {
-        val panes = SplitTaskSnapshot.parse(expandedSplitWithFullscreenHomeRoot).stockPanes()
+    private class FakeShell(var stack: String) {
+        var area = 4
+        var gate = false
+        var stackAfterSwipe: String? = null
+        var varyIrrelevantStackText = false
+        var stackReadCount = 0
+        val supported = mutableSetOf<String>()
+        val commands = mutableListOf<String>()
+        val pauses = mutableListOf<Long>()
 
-        assertEquals(3, panes?.picker?.id)
-        assertEquals(2, panes?.free?.id)
+        fun execute(command: String): String {
+            commands += command
+            return when {
+                command == "service call activity_task 118 i32 1" -> intParcel(2)
+                command == "service call activity_task 118 i32 2" -> intParcel(3)
+                command == "service call activity_task 30" -> intParcel(area)
+                command == "service call activity_task 123" -> intParcel(if (gate) 1 else 0)
+                command == "service call activity_task 126 i32 1" -> {
+                    gate = true
+                    voidParcel()
+                }
+                command == "service call activity_task 126 i32 0" -> {
+                    gate = false
+                    voidParcel()
+                }
+                command.startsWith("service call activity_task 112 s16 ") ->
+                    intParcel(if (quotedArgument(command) in supported) 1 else 0)
+                command.startsWith("service call activity_task 125 s16 ") -> {
+                    supported += quotedArgument(command)
+                    voidParcel()
+                }
+                command == "am stack list" -> if (varyIrrelevantStackText) {
+                    "$stack\nignored-frame=${stackReadCount++}"
+                } else {
+                    stack
+                }
+                command.startsWith("am start ") -> ""
+                command.startsWith("am stack move-task ") -> ""
+                command.startsWith("am task resize ") -> ""
+                command.contains("SplitTaskProxyMain focus-task ") ->
+                    "DENZA_SPLIT_RESULT:true"
+                command == "dumpsys input" -> DIVIDER
+                command.startsWith("input swipe ") -> {
+                    area = 3
+                    stackAfterSwipe?.let { stack = it }
+                    ""
+                }
+                else -> error("Unexpected command: $command")
+            }
+        }
+
+        private fun quotedArgument(command: String): String =
+            command.substringAfter("s16 '").substringBeforeLast("'")
+
+        private fun intParcel(value: Int): String =
+            "Result: Parcel(00000000 ${"%08x".format(value)} '........')"
+
+        private fun voidParcel(): String = "Result: Parcel(00000000 '....')"
     }
 
     private companion object {
-        val fullscreenDenzaApps = """
+        const val APP_A = "ru.yandex.yandexnavi"
+        const val APP_B = "ru.yandex.music"
+        const val PLACEHOLDER_PACKAGE = "dev.denza.apps"
+        const val PLACEHOLDER_ACTIVITY =
+            "dev.denza.apps.feature.split.SplitPlaceholderActivity"
+        const val PLACEHOLDER_COMPONENT = "$PLACEHOLDER_PACKAGE/$PLACEHOLDER_ACTIVITY"
+        const val PICKER_ACTIVITY = "com.android.launcher3.SplitScreenListActivity"
+        const val DIVIDER = "name='Embedded{multi-divider-shadow}', frame=[-67,0][108,1600]"
+
+        fun expected(id: Int, packageName: String, rootId: Int) = SplitExpectedTask(
+            id = id,
+            packageName = packageName,
+            activityName = "$packageName.MainActivity",
+            preferredRootId = rootId,
+        )
+
+        fun fullscreen(packageName: String, taskId: Int): String = """
             RootTask id=4 bounds=[0,0][2560,1600] displayId=0 userId=0
-              taskId=58: dev.denza.apps/dev.denza.apps.MainActivity bounds=[0,0][2560,1600] userId=0 visible=true topActivity=ComponentInfo{dev.denza.apps/dev.denza.apps.MainActivity}
+              taskId=$taskId: $packageName/$packageName.MainActivity bounds=[0,0][2560,1600] userId=0 visible=true topActivity=ComponentInfo{$packageName/$packageName.MainActivity}
 
-            RootTask id=3 bounds=[24,112][1680,1472] displayId=0 userId=0
-              taskId=24: com.android.launcher3/com.android.launcher3.Launcher bounds=[24,112][1680,1472] userId=0 visible=false topActivity=ComponentInfo{com.android.launcher3/com.android.launcher3.Launcher}
-
-            RootTask id=2 bounds=[1704,112][2536,1472] displayId=0 userId=0
-              taskId=20: com.byd.launchermap/com.byd.automap.activity.MainActivity bounds=[1704,112][2536,1472] userId=0 visible=false topActivity=ComponentInfo{com.byd.launchermap/com.byd.automap.activity.MainActivity}
+            RootTask id=2 bounds=[24,112][856,1472] displayId=0 userId=0
+            RootTask id=3 bounds=[880,112][2536,1472] displayId=0 userId=0
         """.trimIndent()
 
-        val emptySplitWithStoppedApps = """
-            RootTask id=3 bounds=[24,112][1680,1472] displayId=0 userId=0
-              taskId=24: com.android.launcher3/com.android.launcher3.Launcher bounds=[24,112][1680,1472] userId=0 visible=true topActivity=ComponentInfo{com.byd.auto_photo/com.byd.auto_photo.MainActivity}
-              taskId=42: com.byd.auto_photo/com.byd.auto_photo.MainActivity bounds=[24,112][1680,1472] userId=0 visible=true topActivity=ComponentInfo{com.byd.auto_photo/com.byd.auto_photo.MainActivity}
-
-            RootTask id=2 bounds=[1704,112][2536,1472] displayId=0 userId=0
-              taskId=20: com.byd.launchermap/com.byd.automap.activity.MainActivity bounds=[1704,112][2536,1472] userId=0 visible=true topActivity=ComponentInfo{com.byd.launchermap/com.byd.automap.activity.MainActivity}
-
-            RootTask id=47 bounds=[0,0][2560,1600] displayId=0 userId=0
-              taskId=47: ru.yandex.music/ru.yandex.music.main.MainScreenActivity bounds=[0,0][2560,1600] userId=0 visible=false topActivity=ComponentInfo{ru.yandex.music/ru.yandex.music.main.MainScreenActivity}
-
-            RootTask id=70 bounds=[0,0][2560,1600] displayId=0 userId=0
-              taskId=70: org.videolan.vlc/org.videolan.vlc.StartActivity bounds=[0,0][2560,1600] userId=0 visible=false topActivity=ComponentInfo{org.videolan.vlc/org.videolan.vlc.StartActivity}
-        """.trimIndent()
-
-        val fullscreenVlcLaunch = emptySplitWithStoppedApps
-            .replace("visible=true", "visible=false")
-            .replace(
-                "taskId=70: org.videolan.vlc/org.videolan.vlc.StartActivity bounds=[0,0][2560,1600] userId=0 visible=false",
-                "taskId=70: org.videolan.vlc/org.videolan.vlc.StartActivity bounds=[0,0][2560,1600] userId=0 visible=true",
-            )
-
-        val splitWithVlcInFreePane = """
-            RootTask id=3 bounds=[24,112][1680,1472] displayId=0 userId=0
-              taskId=24: com.android.launcher3/com.android.launcher3.Launcher bounds=[24,112][1680,1472] userId=0 visible=true topActivity=ComponentInfo{com.byd.auto_photo/com.byd.auto_photo.MainActivity}
-              taskId=42: com.byd.auto_photo/com.byd.auto_photo.MainActivity bounds=[24,112][1680,1472] userId=0 visible=true topActivity=ComponentInfo{com.byd.auto_photo/com.byd.auto_photo.MainActivity}
-
-            RootTask id=2 bounds=[1704,112][2536,1472] displayId=0 userId=0
-              taskId=20: com.byd.launchermap/com.byd.automap.activity.MainActivity bounds=[1704,112][2536,1472] userId=0 visible=true topActivity=ComponentInfo{org.videolan.vlc/org.videolan.vlc.StartActivity}
-              taskId=70: org.videolan.vlc/org.videolan.vlc.StartActivity bounds=[1704,112][2536,1472] userId=0 visible=true topActivity=ComponentInfo{org.videolan.vlc/org.videolan.vlc.StartActivity}
-        """.trimIndent()
-
-        val fullscreenMapsLaunch = """
-            RootTask id=3 bounds=[24,112][1680,1472] displayId=0 userId=0
-              taskId=24: com.android.launcher3/com.android.launcher3.Launcher bounds=[24,112][1680,1472] userId=0 visible=false topActivity=ComponentInfo{com.android.launcher3/com.android.launcher3.Launcher}
-
-            RootTask id=2 bounds=[1704,112][2536,1472] displayId=0 userId=0
-              taskId=20: com.byd.launchermap/com.byd.automap.activity.MainActivity bounds=[1704,112][2536,1472] userId=0 visible=false topActivity=ComponentInfo{org.videolan.vlc/org.videolan.vlc.StartActivity}
-              taskId=70: org.videolan.vlc/org.videolan.vlc.StartActivity bounds=[1704,112][2536,1472] userId=0 visible=false topActivity=ComponentInfo{org.videolan.vlc/org.videolan.vlc.StartActivity}
-
-            RootTask id=81 bounds=[0,0][2560,1600] displayId=0 userId=0
-              taskId=81: ru.yandex.yandexmaps/ru.yandex.yandexmaps.MainActivity bounds=[0,0][2560,1600] userId=0 visible=true topActivity=ComponentInfo{ru.yandex.yandexmaps/ru.yandex.yandexmaps.MainActivity}
-        """.trimIndent()
-
-        val splitWithBothApps = """
-            RootTask id=3 bounds=[24,112][1680,1472] displayId=0 userId=0
-              taskId=24: com.android.launcher3/com.android.launcher3.Launcher bounds=[24,112][1680,1472] userId=0 visible=true topActivity=ComponentInfo{ru.yandex.yandexmaps/ru.yandex.yandexmaps.MainActivity}
-              taskId=81: ru.yandex.yandexmaps/ru.yandex.yandexmaps.MainActivity bounds=[24,112][1680,1472] userId=0 visible=true topActivity=ComponentInfo{ru.yandex.yandexmaps/ru.yandex.yandexmaps.MainActivity}
-
-            RootTask id=2 bounds=[1704,112][2536,1472] displayId=0 userId=0
-              taskId=20: com.byd.launchermap/com.byd.automap.activity.MainActivity bounds=[1704,112][2536,1472] userId=0 visible=true topActivity=ComponentInfo{org.videolan.vlc/org.videolan.vlc.StartActivity}
-              taskId=70: org.videolan.vlc/org.videolan.vlc.StartActivity bounds=[1704,112][2536,1472] userId=0 visible=true topActivity=ComponentInfo{org.videolan.vlc/org.videolan.vlc.StartActivity}
-        """.trimIndent()
-
-        val fullscreenVideoLaunch = """
-            RootTask id=91 bounds=[0,0][2560,1600] displayId=0 userId=0
-              taskId=91: com.vk.vkvideo/com.vk.video.screens.main.MainActivity bounds=[0,0][2560,1600] userId=0 visible=true topActivity=ComponentInfo{com.vk.vkvideo/com.vk.video.screens.main.MainActivity}
-
-            RootTask id=3 bounds=[24,112][1680,1472] displayId=0 userId=0
-              taskId=24: com.android.launcher3/com.android.launcher3.Launcher bounds=[24,112][1680,1472] userId=0 visible=false topActivity=ComponentInfo{ru.yandex.yandexmaps/ru.yandex.yandexmaps.MainActivity}
-              taskId=81: ru.yandex.yandexmaps/ru.yandex.yandexmaps.MainActivity bounds=[24,112][1680,1472] userId=0 visible=false topActivity=ComponentInfo{ru.yandex.yandexmaps/ru.yandex.yandexmaps.MainActivity}
-
-            RootTask id=2 bounds=[1704,112][2536,1472] displayId=0 userId=0
-              taskId=20: com.byd.launchermap/com.byd.automap.activity.MainActivity bounds=[1704,112][2536,1472] userId=0 visible=false topActivity=ComponentInfo{org.videolan.vlc/org.videolan.vlc.StartActivity}
-              taskId=70: org.videolan.vlc/org.videolan.vlc.StartActivity bounds=[1704,112][2536,1472] userId=0 visible=false topActivity=ComponentInfo{org.videolan.vlc/org.videolan.vlc.StartActivity}
-        """.trimIndent()
-
-        val splitWithBothAppsAndDenzaRoot = splitWithBothApps + """
-
+        fun placeholderAndAppFullscreen(): String = """
             RootTask id=4 bounds=[0,0][2560,1600] displayId=0 userId=0
-              taskId=58: dev.denza.apps/dev.denza.apps.MainActivity bounds=[0,0][2560,1600] userId=0 visible=false topActivity=ComponentInfo{dev.denza.apps/dev.denza.apps.MainActivity}
+              taskId=99: $PLACEHOLDER_COMPONENT bounds=[0,0][2560,1600] userId=0 visible=true topActivity=ComponentInfo{$PLACEHOLDER_COMPONENT}
+              taskId=10: $APP_A/$APP_A.MainActivity bounds=[0,0][2560,1600] userId=0 visible=true topActivity=ComponentInfo{$PLACEHOLDER_COMPONENT}
+
+            RootTask id=2 bounds=[24,112][856,1472] displayId=0 userId=0
+            RootTask id=3 bounds=[880,112][2536,1472] displayId=0 userId=0
         """.trimIndent()
 
-        val expandedSplitWithFullscreenHomeRoot = """
-            RootTask id=1 bounds=[0,0][2560,1600] displayId=0 userId=0
-             configuration={winConfig={mActivityType=home}}
-              taskId=110: com.android.launcher3/com.android.launcher3.home.MainActivity bounds=[0,0][2560,1600] userId=0 visible=false topActivity=ComponentInfo{com.android.launcher3/com.android.launcher3.home.MainActivity}
+        fun pair(
+            wide: Pair<String, Int>,
+            narrow: Pair<String, Int>,
+            taskBoundsMatchRoots: Boolean = true,
+        ): String {
+            val wideBounds = if (taskBoundsMatchRoots) "[880,112][2536,1472]" else "[0,0][2560,1600]"
+            val narrowBounds = if (taskBoundsMatchRoots) "[24,112][856,1472]" else "[0,0][2560,1600]"
+            val narrowActivity = if (narrow.first == PLACEHOLDER_PACKAGE) {
+                PLACEHOLDER_ACTIVITY
+            } else {
+                "${narrow.first}.MainActivity"
+            }
+            return """
+                RootTask id=2 bounds=[24,112][856,1472] displayId=0 userId=0
+                  taskId=${narrow.second}: ${narrow.first}/$narrowActivity bounds=$narrowBounds userId=0 visible=true topActivity=ComponentInfo{${narrow.first}/$narrowActivity}
 
-            RootTask id=3 bounds=[0,0][2560,1600] displayId=0 userId=0
-             configuration={winConfig={mActivityType=standard}}
-              taskId=122: com.android.launcher3/com.android.launcher3.Launcher bounds=[0,0][2560,1600] userId=0 visible=true topActivity=ComponentInfo{com.android.launcher3/com.android.launcher3.Launcher}
+                RootTask id=3 bounds=[880,112][2536,1472] displayId=0 userId=0
+                  taskId=${wide.second}: ${wide.first}/${wide.first}.MainActivity bounds=$wideBounds userId=0 visible=true topActivity=ComponentInfo{${wide.first}/${wide.first}.MainActivity}
+            """.trimIndent()
+        }
 
-            RootTask id=2 bounds=[1704,112][2536,1472] displayId=0 userId=0
-             configuration={winConfig={mActivityType=standard}}
-              taskId=115: com.byd.launchermap/com.byd.automap.activity.EmptyJumpActivity bounds=[1704,112][2536,1472] userId=0 visible=false topActivity=ComponentInfo{com.byd.launchermap/com.byd.automap.activity.MainActivity}
+        fun targetAppUnderPicker(): String = """
+            RootTask id=2 bounds=[24,112][856,1472] displayId=0 userId=0
+              taskId=202: com.android.launcher3/$PICKER_ACTIVITY bounds=[24,112][856,1472] userId=0 visible=true topActivity=ComponentInfo{com.android.launcher3/$PICKER_ACTIVITY}
+              taskId=20: $APP_B/$APP_B.MainActivity bounds=[24,112][856,1472] userId=0 visible=true topActivity=ComponentInfo{com.android.launcher3/$PICKER_ACTIVITY}
 
-            RootTask id=4 bounds=[0,0][2560,1600] displayId=0 userId=0
-             configuration={winConfig={mActivityType=standard}}
-              taskId=146: dev.denza.apps/dev.denza.apps.MainActivity bounds=[0,0][2560,1600] userId=0 visible=false topActivity=ComponentInfo{dev.denza.apps/dev.denza.apps.MainActivity}
+            RootTask id=3 bounds=[880,112][2536,1472] displayId=0 userId=0
+              taskId=10: $APP_A/$APP_A.MainActivity bounds=[880,112][2536,1472] userId=0 visible=true topActivity=ComponentInfo{$APP_A/$APP_A.MainActivity}
         """.trimIndent()
     }
 }

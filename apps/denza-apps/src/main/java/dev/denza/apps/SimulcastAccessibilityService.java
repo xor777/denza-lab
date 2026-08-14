@@ -30,6 +30,7 @@ import android.view.accessibility.AccessibilityNodeInfo;
 import android.view.accessibility.AccessibilityWindowInfo;
 
 import dev.denza.disharebridge.DiShareScreens;
+import dev.denza.apps.core.DenzaRuntimeCoordinator;
 import dev.denza.apps.feature.cluster.ClusterSceneService;
 import dev.denza.apps.feature.hud.HudGuidanceAccessibilityMonitor;
 import dev.denza.apps.feature.navigation.NavigationSettings;
@@ -150,7 +151,10 @@ public class SimulcastAccessibilityService extends AccessibilityService {
         hudGuidanceMonitor = new HudGuidanceAccessibilityMonitor(this);
         hudGuidanceMonitor.attach();
         Log.i(TAG, "service connected");
-        DenzaAppRepository.INSTANCE.refresh();
+        // The system can recreate this long-lived process without reopening MainActivity
+        // (notably after an APK replacement). Recover desired runtimes here so a persisted
+        // split toggle never remains visually on while its router is absent.
+        DenzaRuntimeCoordinator.INSTANCE.recover(this);
         scheduleRefresh();
     }
 

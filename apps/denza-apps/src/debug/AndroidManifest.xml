@@ -9,6 +9,7 @@
             <intent-filter>
                 <action android:name="dev.denza.apps.START_SIMULCAST_TARGET" />
                 <action android:name="dev.denza.apps.STOP_SIMULCAST_TARGET" />
+                <action android:name="dev.denza.apps.NAVIGATION_PRIMARY" />
             </intent-filter>
         </receiver>
     </application>

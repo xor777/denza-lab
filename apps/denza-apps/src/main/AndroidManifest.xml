@@ -95,7 +95,18 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:launchMode="singleTop">
+            android:launchMode="singleTop" />
+        <activity
+            android:name=".feature.split.SplitPlaceholderActivity"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:resizeableActivity="true"
+            android:taskAffinity="dev.denza.apps.split.placeholder" />
+        <activity
+            android:name=".DenzaLauncherActivity"
+            android:exported="true"
+            android:theme="@style/DenzaAppsLauncherTheme">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
