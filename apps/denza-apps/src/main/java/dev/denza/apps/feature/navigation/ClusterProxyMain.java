@@ -106,7 +106,7 @@ public final class ClusterProxyMain {
         System.out.println(RESULT_PREFIX + value);
     }
 
-    private static final class Commands {
+    static final class Commands {
         private final Context context;
 
         Commands(Context context) {
@@ -144,10 +144,20 @@ public final class ClusterProxyMain {
 
         boolean moveTask(String packageName, int taskId, int displayId) {
             enforceTask(packageName, taskId);
-            return invokeTaskManager(
-                    new String[] {"moveRootTaskToDisplay", "moveTaskToDisplay", "moveStackToDisplay"},
-                    new Class<?>[] {int.class, int.class},
+            int rootTaskId = rootTaskIdContaining(taskId);
+            if (rootTaskId < 0) return false;
+            if (rootTaskId != taskId && !invokeTaskManager(
+                    new String[] {"moveTaskToRootTask"},
+                    new Class<?>[] {int.class, int.class, boolean.class},
                     taskId,
+                    rootTaskId,
+                    true)) {
+                return false;
+            }
+            return invokeTaskManager(
+                    new String[] {"moveRootTaskToDisplay", "moveStackToDisplay"},
+                    new Class<?>[] {int.class, int.class},
+                    rootTaskId,
                     displayId);
         }
 
@@ -253,6 +263,50 @@ public final class ClusterProxyMain {
                 if (task.taskId == taskId && belongsToPackage(task, packageName)) return;
             }
             throw new SecurityException("task is not an allowed navigation task");
+        }
+
+        private int rootTaskIdContaining(int taskId) {
+            try {
+                Class<?> managerClass = Class.forName("android.app.ActivityTaskManager");
+                Object service = managerClass.getDeclaredMethod("getService").invoke(null);
+                Method method = service.getClass().getMethod("getAllRootTaskInfos");
+                method.setAccessible(true);
+                Object result = method.invoke(service);
+                if (!(result instanceof List<?>)) return -1;
+
+                List<?> rootInfos = (List<?>) result;
+                int[] rootTaskIds = new int[rootInfos.size()];
+                int[][] childTaskIds = new int[rootInfos.size()][];
+                for (int index = 0; index < rootInfos.size(); index++) {
+                    Object info = rootInfos.get(index);
+                    rootTaskIds[index] = info.getClass().getField("taskId").getInt(info);
+                    childTaskIds[index] = (int[]) info.getClass()
+                            .getField("childTaskIds")
+                            .get(info);
+                }
+                return containingRootId(taskId, rootTaskIds, childTaskIds);
+            } catch (ReflectiveOperationException | RuntimeException ignored) {
+                return -1;
+            }
+        }
+
+        static int containingRootId(
+                int taskId,
+                int[] rootTaskIds,
+                int[][] childTaskIds) {
+            if (rootTaskIds == null || childTaskIds == null
+                    || rootTaskIds.length != childTaskIds.length) {
+                return -1;
+            }
+            for (int index = 0; index < rootTaskIds.length; index++) {
+                if (rootTaskIds[index] == taskId) return rootTaskIds[index];
+                int[] children = childTaskIds[index];
+                if (children == null) continue;
+                for (int childTaskId : children) {
+                    if (childTaskId == taskId) return rootTaskIds[index];
+                }
+            }
+            return -1;
         }
 
         // This shell-UID helper targets the fixed DiLink 5.1 framework surface;

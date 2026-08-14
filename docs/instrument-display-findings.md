@@ -86,6 +86,13 @@ task without focusing it, recreates the virtual display, and projects the same
 task into the new geometry. Camera gradients are a separate layer and keep
 their already verified Mirrors parameters.
 
+When the selected navigator is a child of a native IVI split root, its task id
+is not a valid argument to `moveRootTaskToDisplay`. The projection proxy resolves
+the containing root through `getAllRootTaskInfos`, promotes the selected
+navigation task inside that root, and moves the root as one pane. Returning the
+same root to display 0 preserves its native split identity, side, and task
+history instead of recreating the navigator fullscreen.
+
 The UI state is contextual: **Open**, **To cluster**, then **Return**. The
 picker re-reads the installed subset of the navigation allowlist whenever it is
 opened, and the selected package is checked again before an automatic launch.
