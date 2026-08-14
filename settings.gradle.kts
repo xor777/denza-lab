@@ -28,5 +28,8 @@ project(":dishare-bridge").projectDir = file("libraries/dishare-bridge")
 include(":night-vision-probe")
 project(":night-vision-probe").projectDir = file("experiments/night-vision-probe")
 
+include(":audio-probe")
+project(":audio-probe").projectDir = file("experiments/audio-probe")
+
 include(":denza-gateway")
 project(":denza-gateway").projectDir = file("legacy/denza-gateway")

@@ -30,6 +30,7 @@ may still use the historical `denza-gateway` directory name.
 | `ops/ansible/` | Repeatable relay host provisioning and verification. | Never place private keys/passwords in inventory; verify before any live deploy. |
 | `tools/` | Host-side scripts for one-off live experiments, including isolated FSE cross-device probes. | Promotion into an app follows `docs/governance.md`. Passenger-screen findings belong in `docs/fse-app-installation.md`. |
 | `experiments/night-vision-probe/` | Short-lived, host-driven front-camera source evaluation APK; the directory keeps its historical working name. | Research only. The AVC picture is a wide-angle parking-camera composition with little useful detail at distance. |
+| `experiments/audio-probe/` | Short-lived, host-driven evaluation of audio capture paths for a spectrum analyser. | Research only, question answered. `Visualizer` on session 0 reads other apps' audio; `AudioPlaybackCapture` returns silence. See [audio-capture-findings.md](audio-capture-findings.md). |
 | `research/` | Parked experiments and deprecated modules that stay outside product builds. | Failed or permission-blocked probes live here instead of app source. Current examples are `research/simulcast-aliases/` and `research/vehicle-events/`. |
 | `reverse/` | Local reverse-engineering input/output, often large. | APKs and extracted binaries must stay untracked. |
 
@@ -145,6 +146,13 @@ Research package `dev.denza.mirrors.probe` (not product; promote before relying)
 | `NightVisionProbeActivity` | Historical class name for a short-lived source evaluator. Live work proved AVC `SUB_CAMERA_FRONT` (`2001`) can be handed to the Denza Apps/Mirrors presentation shape, then cropped to the rightmost `57%` in the centered `1023x720` camera frame. The source is the wide-angle surround-view composition and contains little useful detail at distance. |
 | `tools/night_vision_probe.sh` | Research safety wrapper, not a product/operator feature. Its original `start` flow predates the accepted stock warm-handoff sequence; retain it for build/install/preflight/status evidence until the experiment is either repurposed for the DVR source or removed. |
 
+### `experiments/audio-probe/`
+
+| Component | Status |
+| --- | --- |
+| `AudioCaptureProbeActivity` | Answers whether a non-privileged app can observe what the car is playing. `Visualizer` on audio session 0 works and is source-agnostic; verified against VLC to a hundredth of a decibel and against live Yandex Music. Carries a reference-tone mode used to calibrate the misreported sample rate. |
+| `PlaybackCaptureService` | `AudioPlaybackCapture` via `MediaProjection`. Initialises and reads frames, but every sample is zero while audio is audibly playing — the path is unusable here, and any recheck must assert on levels rather than status. |
+
 ### `libraries/dishare-bridge/`
 
 | Component | Status |
@@ -202,6 +210,7 @@ Git ignores generated APKs.
 ./gradlew :denza-gateway:assembleDebug
 ./gradlew :denza-apps:testDebugUnitTest :denza-apps:assembleDebug
 ./gradlew :night-vision-probe:assembleDebug
+./gradlew :audio-probe:assembleDebug
 ./gradlew :car-adb-gateway:testDebugUnitTest :car-adb-gateway:assembleDebug
 ```
 
@@ -211,6 +220,7 @@ Useful local APK paths:
 legacy/denza-gateway/build/outputs/apk/debug/denza-gateway.apk
 apps/denza-apps/build/outputs/apk/debug/denza-apps.apk
 experiments/night-vision-probe/build/outputs/apk/debug/night-vision-probe.apk
+experiments/audio-probe/build/outputs/apk/debug/audio-probe.apk
 apps/car-adb-gateway/build/outputs/apk/debug/car-adb-gateway.apk
 ```
 
