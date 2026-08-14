@@ -64,6 +64,20 @@
             android:name=".feature.mirrors.SideCameraMonitorService"
             android:exported="false"
             android:foregroundServiceType="dataSync" />
+        <service
+            android:name=".feature.weather.WeatherAdapterService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync"
+            android:process=":weather" />
+        <receiver
+            android:name=".feature.weather.WeatherAdapterReceiver"
+            android:enabled="true"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
         <receiver
             android:name=".SimulcastBootReceiver"
             android:directBootAware="true"

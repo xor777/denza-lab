@@ -36,6 +36,7 @@ import dev.denza.apps.feature.navigation.NavigationSettings;
 import dev.denza.apps.feature.navigation.SteeringWheelNavigationButton;
 import dev.denza.apps.feature.navigation.SteeringWheelPressResult;
 import dev.denza.apps.feature.navigation.SteeringWheelPressSequence;
+import dev.denza.apps.feature.weather.WeatherAdapterScheduler;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -157,6 +158,10 @@ public class SimulcastAccessibilityService extends AccessibilityService {
     public void onAccessibilityEvent(AccessibilityEvent event) {
         if (event == null) {
             return;
+        }
+        CharSequence eventPackage = event.getPackageName();
+        if (eventPackage != null && "com.byd.weatherdata".contentEquals(eventPackage)) {
+            WeatherAdapterScheduler.onNativeWeatherVisible(this);
         }
         HudGuidanceAccessibilityMonitor hudMonitor = hudGuidanceMonitor;
         if (hudMonitor != null) {

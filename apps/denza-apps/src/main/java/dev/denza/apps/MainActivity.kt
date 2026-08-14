@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.core.view.WindowCompat
+import dev.denza.apps.feature.weather.WeatherAdapterScheduler
 import dev.denza.apps.ui.DenzaAppsRoot
 
 class MainActivity : ComponentActivity() {
@@ -11,6 +12,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, false)
         DenzaAppRepository.initialize(this)
+        WeatherAdapterScheduler.ensureScheduled(this)
         setContent(
             content = {
                 DenzaAppsRoot(
