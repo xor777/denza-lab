@@ -130,12 +130,18 @@ class SpectrumLevels(
      */
     fun normalise(magnitudes: DoubleArray, out: FloatArray, dtSec: Double) {
         var loudest = SILENCE_DB
+        var rawLoudest = SILENCE_DB
         for (band in 0 until bandCount) {
-            val db = toDecibels(magnitudes[band]) + tiltDb[band]
+            val rawDb = toDecibels(magnitudes[band])
+            val db = rawDb + tiltDb[band]
+            if (rawDb > rawLoudest) rawLoudest = rawDb
             if (db > loudest) loudest = db
             out[band] = db.toFloat()
         }
-        signalDb = loudest - tiltDb[0]
+        // Spectral tilt is a drawing correction, not real signal gain. Using
+        // the tilted maximum here let quiet high-frequency hiss cross the gate
+        // by up to ~18 dB and made the whole display look over-sensitive.
+        signalDb = rawLoudest
 
         // The scale's top sits a little above the loudest band rather than on it:
         // pinned exactly, every band within a decibel of the loudest clamped to
@@ -169,7 +175,10 @@ class SpectrumLevels(
         const val INITIAL_CEILING_DB = -18.0
         const val MIN_CEILING_DB = -46.0
         const val SIGNAL_GATE_DB = -58.0
-        const val CEILING_HEADROOM_DB = 3.0
+        // Five decibels keeps a steady loudest band at about 87.5% of the
+        // 40 dB scale. The previous 3 dB value held it at 92.5% at any cabin
+        // volume, so even quiet playback looked almost full-scale.
+        const val CEILING_HEADROOM_DB = 5.0
         const val CEILING_ATTACK_PER_SEC = 8.0
         const val CEILING_RELEASE_PER_SEC = 0.25
     }

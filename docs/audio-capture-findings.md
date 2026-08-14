@@ -87,6 +87,11 @@ touches the microphone. That is a UX question, not a technical blocker.
 - The FFT is 8-bit, so resolution above roughly 5 kHz is coarse; the top bands
   sat near a constant floor. Log-spaced bands and a dB (not linear) magnitude
   mapping are what make the low end legible.
+- Keep the signal gate on the raw per-band dB values. The visual spectral tilt
+  adds as much as roughly 18 dB at the top of the range; applying the gate after
+  that correction turns quiet treble hiss into false playback. The automatic
+  scale retains 5 dB above its recent loudest corrected band, leaving about
+  12.5% steady-state headroom instead of pumping quiet audio almost full-height.
 - Session 0 already carries a vendor effect chain (`Effect ID 11`) on
   `AudioOut_D`. Attaching a Visualizer alongside it caused no observed trouble.
 

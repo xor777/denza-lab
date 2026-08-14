@@ -128,14 +128,15 @@ class SpectrumLevelsTest {
     }
 
     @Test
-    fun `a loud band reports signal and reaches the top of the scale`() {
+    fun `a loud steady band reports signal while retaining visible headroom`() {
         val (levels, _) = prepared()
         val magnitudes = DoubleArray(BANDS)
         magnitudes[10] = 90.0
         val out = FloatArray(BANDS)
         repeat(30) { levels.normalise(magnitudes, out, 1.0 / 30.0) }
         assertTrue(levels.hasSignal())
-        assertTrue("loud band should be near full height, was ${out[10]}", out[10] > 0.9f)
+        assertTrue("loud band should remain prominent, was ${out[10]}", out[10] > 0.85f)
+        assertTrue("steady audio should retain headroom, was ${out[10]}", out[10] < 0.9f)
     }
 
     @Test
@@ -155,6 +156,35 @@ class SpectrumLevelsTest {
             "quiet material should climb once the gain adapts ($immediate -> ${out[10]})",
             out[10] > immediate + 0.3f,
         )
+        assertTrue(
+            "quiet material should not be pumped almost to full height: ${out[10]}",
+            out[10] < 0.9f,
+        )
+    }
+
+    @Test
+    fun `spectral tilt cannot promote sub-gate treble noise into a signal`() {
+        val (levels, _) = prepared()
+        val hiss = DoubleArray(BANDS) { 0.1 }
+        val out = FloatArray(BANDS)
+
+        levels.normalise(hiss, out, 1.0 / 30.0)
+
+        assertTrue("fixture must exercise treble tilt", out[BANDS - 1] > out[0])
+        assertFalse("visual tilt must not alter the raw signal gate", levels.hasSignal())
+    }
+
+    @Test
+    fun `raw audio just above the gate remains a signal at every frequency`() {
+        for (band in intArrayOf(0, BANDS / 2, BANDS - 1)) {
+            val (levels, _) = prepared()
+            val audio = DoubleArray(BANDS)
+            audio[band] = 0.2
+
+            levels.normalise(audio, FloatArray(BANDS), 1.0 / 30.0)
+
+            assertTrue("band $band should pass the raw signal gate", levels.hasSignal())
+        }
     }
 
     @Test
