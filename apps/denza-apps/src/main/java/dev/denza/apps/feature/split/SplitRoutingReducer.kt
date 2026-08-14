@@ -20,10 +20,23 @@ internal data class SplitPairTarget(
     fun panes(): List<SplitExpectedTask> = listOf(first, second)
 }
 
+internal data class SplitStablePair(
+    val first: SplitExpectedTask,
+    val second: SplitExpectedTask,
+    val lastFocusedRootId: Int?,
+) {
+    fun panes(): List<SplitExpectedTask> = listOf(first, second)
+
+    fun pane(rootId: Int): SplitExpectedTask? = panes().firstOrNull {
+        it.preferredRootId == rootId
+    }
+}
+
 internal data class SplitRoutingMemory(
     val anchor: SplitExpectedTask? = null,
     val vacancy: SplitVacancy? = null,
     val target: SplitPairTarget? = null,
+    val stablePair: SplitStablePair? = null,
 )
 
 internal data class SplitRoutingObservation(
@@ -74,21 +87,81 @@ internal object SplitRoutingReducer {
         memory: SplitRoutingMemory,
         observation: SplitRoutingObservation,
     ): SplitRoutingDecision {
+        homeForeground(observation)?.let {
+            return SplitRoutingDecision(
+                memory = if (memory.target != null) memory.withoutTransition() else memory,
+                actions = listOf(SplitRoutingAction.CloseOwnedGate),
+                event = "routing intent cleared by Home",
+            )
+        }
+
         interruptingTask(observation)?.let { task ->
             return SplitRoutingDecision(
-                memory = SplitRoutingMemory(),
+                memory = memory.withoutTransition(),
                 actions = listOf(SplitRoutingAction.CloseOwnedGate),
                 event = "routing intent cleared by ${task.packageName}",
             )
         }
 
         memory.target?.let { target ->
+            freshForegroundOutside(target, observation)?.let { fresh ->
+                return supersedeTarget(memory, target, fresh, observation)
+            }
             return convergeTarget(memory, target, observation)
         }
 
         val selection = selectionSurface(observation)
         if (selection != null) {
             return observeSelection(memory, observation, selection)
+        }
+
+        memory.stablePair?.let { stablePair ->
+            val foreground = observation.snapshot.foregroundTask()
+            if (foreground != null && foreground.isEligibleApp(observation)) {
+                val rememberedPane = stablePair.panes().firstOrNull { foreground.matches(it) }
+                if (
+                    rememberedPane == null ||
+                    foreground.rootId != rememberedPane.preferredRootId
+                ) {
+                    return beginStableReplacement(
+                        stablePair = stablePair,
+                        candidate = foreground,
+                        observation = observation,
+                        preferredRootId = memory.vacancy?.rootId,
+                    )
+                }
+            }
+
+            observedStablePair(observation, stablePair)?.let { refreshed ->
+                return SplitRoutingDecision(
+                    memory = SplitRoutingMemory(stablePair = refreshed),
+                    splitVisible = true,
+                    event = if (refreshed != stablePair) "stable native pair refreshed" else null,
+                )
+            }
+
+            if (observation.area in EXPANDED_AREAS) {
+                val survivor = visibleLaunchCandidate(observation)
+                    ?.takeIf { task -> stablePair.panes().any { task.matches(it) } }
+                if (survivor != null) {
+                    val survivorRoot = stablePair.panes()
+                        .firstOrNull { survivor.matches(it) }
+                        ?.preferredRootId
+                        ?: widerRoot(observation)
+                    return SplitRoutingDecision(
+                        memory = SplitRoutingMemory(
+                            anchor = survivor.toExpected(survivorRoot),
+                            vacancy = observation.otherRoot(survivorRoot)?.let { rootId ->
+                                SplitVacancy(rootId, baselineTaskIds(observation, rootId), false)
+                            },
+                        ),
+                        actions = listOf(SplitRoutingAction.CloseOwnedGate),
+                        event = "expanded stable survivor: ${survivor.packageName}",
+                    )
+                }
+            }
+
+            return SplitRoutingDecision(memory = memory)
         }
 
         memory.anchor?.let { rememberedAnchor ->
@@ -122,10 +195,10 @@ internal object SplitRoutingReducer {
             }
 
             if (observation.area == AREA_BALANCED_SPLIT) {
-                val stable = stableVisiblePair(observation)
-                if (stable) {
+                val stablePair = observedStablePair(observation, previous = null)
+                if (stablePair != null || stableVisiblePair(observation)) {
                     return SplitRoutingDecision(
-                        memory = SplitRoutingMemory(),
+                        memory = SplitRoutingMemory(stablePair = stablePair),
                         splitVisible = true,
                         event = "stable native pair adopted",
                     )
@@ -136,8 +209,9 @@ internal object SplitRoutingReducer {
         }
 
         if (observation.area == AREA_BALANCED_SPLIT && stableVisiblePair(observation)) {
+            val stablePair = observedStablePair(observation, previous = null)
             return SplitRoutingDecision(
-                memory = SplitRoutingMemory(),
+                memory = SplitRoutingMemory(stablePair = stablePair),
                 splitVisible = true,
                 event = "stable native pair adopted",
             )
@@ -162,6 +236,10 @@ internal object SplitRoutingReducer {
                     restorePlaceholderAfterRecovery = selection.isPlaceholder(),
                 ),
             )
+        }
+
+        observedStablePair(observation, previous = null)?.let { stablePair ->
+            return SplitRoutingMemory(stablePair = stablePair)
         }
 
         if (observation.area in EXPANDED_AREAS) {
@@ -200,6 +278,7 @@ internal object SplitRoutingReducer {
                     candidate = replacement,
                     vacancyRootId = selectionPane.preferredRootId,
                     observation = observation,
+                    baseMemory = memory,
                 )
             }
         }
@@ -213,6 +292,7 @@ internal object SplitRoutingReducer {
                     candidate = replacement,
                     vacancyRootId = placeholderPane.preferredRootId,
                     observation = observation,
+                    baseMemory = memory,
                 )
             }
         }
@@ -231,14 +311,19 @@ internal object SplitRoutingReducer {
                     pane.activityName == PLACEHOLDER_ACTIVITY &&
                     resolveExpected(pane, observation.snapshot) == null
             }
-            return SplitRoutingDecision(
-                memory = nextMemory,
-                actions = if (missingPlaceholder) {
-                    listOf(SplitRoutingAction.LaunchPlaceholder)
-                } else {
-                    emptyList()
-                },
-                event = if (missingPlaceholder) "placeholder required" else null,
+            if (missingPlaceholder) {
+                return SplitRoutingDecision(
+                    memory = nextMemory,
+                    actions = listOf(SplitRoutingAction.LaunchPlaceholder),
+                    event = "placeholder required",
+                )
+            }
+            return abandonMissingTarget(
+                memory = memory,
+                target = target,
+                firstTask = firstTask,
+                secondTask = secondTask,
+                observation = observation,
             )
         }
 
@@ -315,7 +400,15 @@ internal object SplitRoutingReducer {
                 ),
             )
         } else {
-            SplitRoutingMemory()
+            SplitRoutingMemory(
+                stablePair = SplitStablePair(
+                    first = firstTask.toExpected(target.first.preferredRootId),
+                    second = secondTask.toExpected(target.second.preferredRootId),
+                    lastFocusedRootId = focusedNativeRoot(observation)
+                        ?: memory.stablePair?.lastFocusedRootId
+                        ?: target.second.preferredRootId,
+                ),
+            )
         }
         return SplitRoutingDecision(
             memory = completedMemory,
@@ -353,14 +446,167 @@ internal object SplitRoutingReducer {
         if (anchor != null && existingVacancy != null) {
             val candidate = findCandidate(anchor, vacancy, observation)
             if (candidate != null) {
-                return beginPair(anchor, candidate, vacancy.rootId, observation)
+                return beginPair(
+                    anchor = anchor,
+                    candidate = candidate,
+                    vacancyRootId = vacancy.rootId,
+                    observation = observation,
+                    baseMemory = memory,
+                )
             }
         }
 
         return SplitRoutingDecision(
-            memory = SplitRoutingMemory(anchor = anchor, vacancy = vacancy),
+            memory = SplitRoutingMemory(
+                anchor = anchor,
+                vacancy = vacancy,
+                stablePair = memory.stablePair,
+            ),
             splitVisible = observation.area == AREA_BALANCED_SPLIT,
             event = "selection surface observed in root ${selection.rootId}",
+        )
+    }
+
+    private fun supersedeTarget(
+        memory: SplitRoutingMemory,
+        target: SplitPairTarget,
+        fresh: SplitTask,
+        observation: SplitRoutingObservation,
+    ): SplitRoutingDecision {
+        memory.stablePair?.let { stablePair ->
+            return beginStableReplacement(stablePair, fresh, observation)
+        }
+
+        val selection = selectionSurface(observation)
+        if (selection != null) {
+            val replaced = target.panes().firstOrNull { it.preferredRootId == selection.rootId }
+            val companion = replaced?.let { pane -> target.panes().firstOrNull { it !== pane } }
+            val resolvedCompanion = companion?.let {
+                resolveExpected(it, observation.snapshot)?.toExpected(it.preferredRootId)
+            }
+            if (resolvedCompanion != null) {
+                return beginPair(
+                    anchor = resolvedCompanion,
+                    candidate = fresh,
+                    vacancyRootId = selection.rootId,
+                    observation = observation,
+                )
+            }
+        }
+
+        val placeholder = target.panes().firstOrNull { it.isPlaceholder() }
+        val companion = placeholder?.let { pane -> target.panes().firstOrNull { it !== pane } }
+        val resolvedCompanion = companion?.let {
+            resolveExpected(it, observation.snapshot)?.toExpected(it.preferredRootId)
+        }
+        if (placeholder != null && resolvedCompanion != null) {
+            return beginPair(
+                anchor = resolvedCompanion,
+                candidate = fresh,
+                vacancyRootId = placeholder.preferredRootId,
+                observation = observation,
+            )
+        }
+
+        val baseline = baseline(observation)
+        val freshMemory = if (baseline.anchor?.packageName == fresh.packageName) {
+            baseline
+        } else {
+            val preferredRoot = fresh.rootId.takeIf { it in observation.nativeRootIds }
+                ?: widerRoot(observation)
+            SplitRoutingMemory(anchor = fresh.toExpected(preferredRoot))
+        }
+        return SplitRoutingDecision(
+            memory = freshMemory,
+            actions = if (observation.area in EXPANDED_AREAS) {
+                listOf(SplitRoutingAction.CloseOwnedGate)
+            } else {
+                emptyList()
+            },
+            splitVisible = observation.area == AREA_BALANCED_SPLIT && stableVisiblePair(observation),
+            event = "stale target replaced by ${fresh.packageName}",
+        )
+    }
+
+    private fun abandonMissingTarget(
+        memory: SplitRoutingMemory,
+        target: SplitPairTarget,
+        firstTask: SplitTask?,
+        secondTask: SplitTask?,
+        observation: SplitRoutingObservation,
+    ): SplitRoutingDecision {
+        memory.stablePair
+            ?.takeIf { stablePair ->
+                stablePair.panes().all { resolveExpected(it, observation.snapshot) != null }
+            }
+            ?.let { stablePair ->
+                return SplitRoutingDecision(
+                    memory = SplitRoutingMemory(stablePair = stablePair),
+                    event = "replacement abandoned because a target member disappeared",
+                )
+            }
+
+        val present = firstTask ?: secondTask
+        val missing = if (firstTask == null) target.first else target.second
+        if (present == null) {
+            return SplitRoutingDecision(
+                memory = baseline(observation),
+                event = "target abandoned because both members disappeared",
+            )
+        }
+
+        val presentExpected = if (present.rootId in observation.nativeRootIds) {
+            present.toExpected(present.rootId)
+        } else {
+            val original = if (firstTask != null) target.first else target.second
+            present.toExpected(original.preferredRootId)
+        }
+        val vacancyRoot = observation.otherRoot(presentExpected.preferredRootId)
+            ?: missing.preferredRootId.takeIf { it in observation.nativeRootIds }
+        return SplitRoutingDecision(
+            memory = SplitRoutingMemory(
+                anchor = presentExpected,
+                vacancy = vacancyRoot?.let {
+                    SplitVacancy(
+                        rootId = it,
+                        baselineTaskIds = baselineTaskIds(observation, it),
+                        restorePlaceholderAfterRecovery = false,
+                    )
+                },
+            ),
+            event = "target abandoned because ${missing.packageName} disappeared",
+        )
+    }
+
+    private fun beginStableReplacement(
+        stablePair: SplitStablePair,
+        candidate: SplitTask,
+        observation: SplitRoutingObservation,
+        preferredRootId: Int? = null,
+    ): SplitRoutingDecision {
+        val rememberedPane = stablePair.panes().firstOrNull { candidate.matches(it) }
+        val explicitDestinationRoot = selectionSurface(observation)?.rootId
+        val lastFocusedRootId = stablePair.lastFocusedRootId
+        val destinationRoot = when {
+            explicitDestinationRoot != null -> explicitDestinationRoot
+            preferredRootId != null && preferredRootId in observation.nativeRootIds ->
+                preferredRootId
+            rememberedPane != null -> rememberedPane.preferredRootId
+            lastFocusedRootId != null && lastFocusedRootId in observation.nativeRootIds ->
+                observation.otherRoot(lastFocusedRootId)
+                    ?: widerRoot(observation)
+            else -> widerRoot(observation)
+        }
+        val anchorRoot = observation.otherRoot(destinationRoot)
+            ?: return SplitRoutingDecision(memory = SplitRoutingMemory(stablePair = stablePair))
+        val anchor = stablePair.pane(anchorRoot)
+            ?: return SplitRoutingDecision(memory = SplitRoutingMemory(stablePair = stablePair))
+        return beginPair(
+            anchor = anchor,
+            candidate = candidate,
+            vacancyRootId = destinationRoot,
+            observation = observation,
+            baseMemory = SplitRoutingMemory(stablePair = stablePair),
         )
     }
 
@@ -402,6 +648,7 @@ internal object SplitRoutingReducer {
         candidate: SplitTask,
         vacancyRootId: Int,
         observation: SplitRoutingObservation,
+        baseMemory: SplitRoutingMemory = SplitRoutingMemory(),
     ): SplitRoutingDecision {
         val anchorRootId = observation.otherRoot(vacancyRootId)
             ?: anchor.preferredRootId
@@ -412,6 +659,7 @@ internal object SplitRoutingReducer {
             ),
             observation,
             event = "pair target: ${anchor.packageName} + ${candidate.packageName}",
+            baseMemory = baseMemory,
         )
     }
 
@@ -419,8 +667,9 @@ internal object SplitRoutingReducer {
         target: SplitPairTarget,
         observation: SplitRoutingObservation,
         event: String,
+        baseMemory: SplitRoutingMemory = SplitRoutingMemory(),
     ): SplitRoutingDecision = convergeTarget(
-        memory = SplitRoutingMemory(target = target),
+        memory = baseMemory.copy(anchor = null, vacancy = null, target = target),
         original = target,
         observation = observation,
     ).copy(event = event)
@@ -463,12 +712,58 @@ internal object SplitRoutingReducer {
             task.isEligibleApp(observation) && !task.matches(expected)
         }
 
+    private fun freshForegroundOutside(
+        target: SplitPairTarget,
+        observation: SplitRoutingObservation,
+    ): SplitTask? = observation.snapshot.foregroundTask()
+        ?.takeIf { foreground ->
+            foreground.isEligibleApp(observation) &&
+                target.panes().none { expected -> foreground.matches(expected) }
+        }
+
+    private fun homeForeground(observation: SplitRoutingObservation): SplitTask? {
+        val topRootAndTask = observation.snapshot.roots.asSequence()
+            .filter { it.displayId == 0 }
+            .mapNotNull { root -> topTask(root)?.let { root to it } }
+            .firstOrNull()
+            ?: return null
+        return topRootAndTask.second.takeIf { topRootAndTask.first.activityType == "home" }
+    }
+
     private fun stableVisiblePair(observation: SplitRoutingObservation): Boolean =
         observation.nativeRootIds.all { rootId ->
             val root = observation.snapshot.root(rootId) ?: return@all false
             val top = topTask(root) ?: return@all false
             top.isManagedMember(observation) && top.bounds == root.bounds
         }
+
+    private fun observedStablePair(
+        observation: SplitRoutingObservation,
+        previous: SplitStablePair?,
+    ): SplitStablePair? {
+        if (observation.area != AREA_BALANCED_SPLIT) return null
+        val firstRoot = observation.snapshot.root(observation.firstNativeRootId) ?: return null
+        val secondRoot = observation.snapshot.root(observation.secondNativeRootId) ?: return null
+        val firstTask = topTask(firstRoot)
+            ?.takeIf { it.isEligibleApp(observation) && it.bounds == firstRoot.bounds }
+            ?: return null
+        val secondTask = topTask(secondRoot)
+            ?.takeIf { it.isEligibleApp(observation) && it.bounds == secondRoot.bounds }
+            ?: return null
+        return SplitStablePair(
+            first = firstTask.toExpected(firstRoot.id),
+            second = secondTask.toExpected(secondRoot.id),
+            lastFocusedRootId = focusedNativeRoot(observation)
+                ?: previous?.lastFocusedRootId?.takeIf { it in observation.nativeRootIds },
+        )
+    }
+
+    private fun focusedNativeRoot(observation: SplitRoutingObservation): Int? =
+        observation.snapshot.foregroundTask()
+            ?.takeIf { task ->
+                task.rootId in observation.nativeRootIds && task.isEligibleApp(observation)
+            }
+            ?.rootId
 
     private fun selectionSurface(observation: SplitRoutingObservation): SplitTask? =
         observation.nativeRootIds.asSequence()
@@ -571,6 +866,9 @@ internal object SplitRoutingReducer {
 
     private fun SplitExpectedTask.isPlaceholder(): Boolean =
         packageName == DENZA_PACKAGE && activityName == PLACEHOLDER_ACTIVITY
+
+    private fun SplitRoutingMemory.withoutTransition(): SplitRoutingMemory =
+        stablePair?.let { SplitRoutingMemory(stablePair = it) } ?: SplitRoutingMemory()
 
     private const val AREA_BALANCED_SPLIT = 3
     private val EXPANDED_AREAS = setOf(1, 2, 4)

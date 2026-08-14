@@ -124,9 +124,91 @@ class SplitShellRouterTest {
         assertTrue(store.cleared)
     }
 
+    @Test
+    fun visibilityFlappingHasBoundedPromotionAttemptsAndAbandonsTarget() {
+        val store = FakeStateStore(
+            SplitRoutingMemory(
+                target = SplitPairTarget(
+                    first = expected(10, APP_A, 3),
+                    second = expected(20, APP_B, 2),
+                ),
+            ),
+        )
+        val fake = FakeShell(flappingPair(appAVisible = true, appBVisible = false))
+        fake.area = 3
+        var now = 0L
+        val router = router(fake, store, nowMs = { now })
+
+        repeat(24) { index ->
+            fake.stack = flappingPair(
+                appAVisible = index % 2 == 0,
+                appBVisible = index % 2 != 0,
+            )
+            router.tick()
+            now += 1_100L
+        }
+
+        assertTrue(
+            fake.commands.count { it.contains("SplitTaskProxyMain focus-task ") } <= 3,
+        )
+        assertEquals(null, store.memory.target)
+    }
+
+    @Test
+    fun failedThirdAppReplacementRetainsOriginalStablePair() {
+        val stablePair = SplitStablePair(
+            first = expected(10, APP_A, 2),
+            second = expected(20, APP_B, 3),
+            lastFocusedRootId = 2,
+        )
+        val store = FakeStateStore(
+            SplitRoutingMemory(
+                target = SplitPairTarget(
+                    first = stablePair.first,
+                    second = expected(30, APP_C, 3),
+                ),
+                stablePair = stablePair,
+            ),
+        )
+        val fake = FakeShell(fullscreenWithHiddenPair(APP_C, 30))
+        var now = 0L
+        val router = router(fake, store, nowMs = { now })
+
+        repeat(4) {
+            router.tick()
+            now += 1_100L
+        }
+
+        assertEquals(stablePair, store.memory.stablePair)
+        assertEquals(null, store.memory.target)
+        assertEquals(3, fake.commands.count { it == "am stack move-task 30 3 true" })
+    }
+
+    @Test
+    fun unchangedExpandedBaselineDoesNotRepeatCloseMutationOrEvent() {
+        val fake = FakeShell(fullscreen(APP_A, 10))
+        val events = mutableListOf<String>()
+        val router = SplitShellRouter(
+            shell = fake::execute,
+            apkPath = "/data/app/dev.denza.apps/base.apk",
+            eligibleApps = { mapOf(APP_A to "$APP_A/$APP_A.MainActivity") },
+            pause = fake.pauses::add,
+            onEvent = events::add,
+        )
+        router.cancelPendingSelection()
+        router.tick()
+        fake.commands.clear()
+
+        repeat(20) { router.tick() }
+
+        assertTrue(fake.commands.none { it == "service call activity_task 126 i32 0" })
+        assertTrue(events.count { it.startsWith("expanded anchor preserved") } <= 1)
+    }
+
     private fun router(
         fake: FakeShell,
         store: FakeStateStore = FakeStateStore(),
+        nowMs: () -> Long = System::currentTimeMillis,
     ) = SplitShellRouter(
         shell = fake::execute,
         apkPath = "/data/app/dev.denza.apps/base.apk",
@@ -134,9 +216,11 @@ class SplitShellRouterTest {
             mapOf(
                 APP_A to "$APP_A/$APP_A.MainActivity",
                 APP_B to "$APP_B/$APP_B.MainActivity",
+                APP_C to "$APP_C/$APP_C.MainActivity",
             )
         },
         pause = fake.pauses::add,
+        nowMs = nowMs,
         stateStore = store,
     )
 
@@ -220,6 +304,7 @@ class SplitShellRouterTest {
     private companion object {
         const val APP_A = "ru.yandex.yandexnavi"
         const val APP_B = "ru.yandex.music"
+        const val APP_C = "ru.rutube.app"
         const val PLACEHOLDER_PACKAGE = "dev.denza.apps"
         const val PLACEHOLDER_ACTIVITY =
             "dev.denza.apps.feature.split.SplitPlaceholderActivity"
@@ -240,6 +325,17 @@ class SplitShellRouterTest {
 
             RootTask id=2 bounds=[24,112][856,1472] displayId=0 userId=0
             RootTask id=3 bounds=[880,112][2536,1472] displayId=0 userId=0
+        """.trimIndent()
+
+        fun fullscreenWithHiddenPair(packageName: String, taskId: Int): String = """
+            RootTask id=4 bounds=[0,0][2560,1600] displayId=0 userId=0
+              taskId=$taskId: $packageName/$packageName.MainActivity bounds=[0,0][2560,1600] userId=0 visible=true topActivity=ComponentInfo{$packageName/$packageName.MainActivity}
+
+            RootTask id=2 bounds=[24,112][856,1472] displayId=0 userId=0
+              taskId=10: $APP_A/$APP_A.MainActivity bounds=[24,112][856,1472] userId=0 visible=false topActivity=ComponentInfo{$APP_A/$APP_A.MainActivity}
+
+            RootTask id=3 bounds=[880,112][2536,1472] displayId=0 userId=0
+              taskId=20: $APP_B/$APP_B.MainActivity bounds=[880,112][2536,1472] userId=0 visible=false topActivity=ComponentInfo{$APP_B/$APP_B.MainActivity}
         """.trimIndent()
 
         fun placeholderAndAppFullscreen(): String = """
@@ -279,6 +375,14 @@ class SplitShellRouterTest {
 
             RootTask id=3 bounds=[880,112][2536,1472] displayId=0 userId=0
               taskId=10: $APP_A/$APP_A.MainActivity bounds=[880,112][2536,1472] userId=0 visible=true topActivity=ComponentInfo{$APP_A/$APP_A.MainActivity}
+        """.trimIndent()
+
+        fun flappingPair(appAVisible: Boolean, appBVisible: Boolean): String = """
+            RootTask id=2 bounds=[24,112][856,1472] displayId=0 userId=0
+              taskId=20: $APP_B/$APP_B.MainActivity bounds=[24,112][856,1472] userId=0 visible=$appBVisible topActivity=ComponentInfo{$APP_B/$APP_B.MainActivity}
+
+            RootTask id=3 bounds=[880,112][2536,1472] displayId=0 userId=0
+              taskId=10: $APP_A/$APP_A.MainActivity bounds=[880,112][2536,1472] userId=0 visible=$appAVisible topActivity=ComponentInfo{$APP_A/$APP_A.MainActivity}
         """.trimIndent()
     }
 }

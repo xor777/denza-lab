@@ -373,6 +373,249 @@ class SplitRoutingReducerTest {
     }
 
     @Test
+    fun stablePairRemembersBothRootsAndTheLastFocusedPane() {
+        val decision = reduce(
+            SplitRoutingMemory(),
+            observation(
+                area = 3,
+                // am stack list puts the focused root first.
+                roots = listOf(
+                    root(ROOT_WIDE, WIDE, APP_B_TASK.copy(rootId = ROOT_WIDE, bounds = WIDE)),
+                    root(ROOT_NARROW, NARROW, APP_A_TASK.copy(rootId = ROOT_NARROW, bounds = NARROW)),
+                ),
+            ),
+        )
+
+        assertTrue(decision.splitVisible)
+        assertEquals(APP_A, decision.memory.stablePair?.pane(ROOT_NARROW)?.packageName)
+        assertEquals(APP_B, decision.memory.stablePair?.pane(ROOT_WIDE)?.packageName)
+        assertEquals(ROOT_WIDE, decision.memory.stablePair?.lastFocusedRootId)
+    }
+
+    @Test
+    fun fullscreenThirdAppReplacesPaneOppositeLastFocusWithoutPlaceholder() {
+        val memory = stableMemory(lastFocusedRootId = ROOT_NARROW)
+        val decision = reduce(
+            memory,
+            fullscreenThirdAppObservation(APP_C_TASK),
+        )
+
+        assertEquals(APP_A, decision.memory.target?.first?.packageName)
+        assertEquals(ROOT_NARROW, decision.memory.target?.first?.preferredRootId)
+        assertEquals(APP_C, decision.memory.target?.second?.packageName)
+        assertEquals(ROOT_WIDE, decision.memory.target?.second?.preferredRootId)
+        assertEquals(
+            listOf(SplitRoutingAction.PlaceTask(APP_C_TASK.id, ROOT_WIDE, promoteInPlace = false)),
+            decision.actions,
+        )
+        assertFalse(decision.actions.any { it is SplitRoutingAction.LaunchPlaceholder })
+        assertFalse(decision.actions.any { action ->
+            action is SplitRoutingAction.PlaceTask && action.taskId == APP_A_TASK.id
+        })
+    }
+
+    @Test
+    fun fullscreenThirdAppPreservesFocusedWidePaneAndReplacesNarrowPane() {
+        val memory = stableMemory(lastFocusedRootId = ROOT_WIDE)
+        val decision = reduce(
+            memory,
+            fullscreenThirdAppObservation(APP_C_TASK),
+        )
+
+        assertEquals(APP_B, decision.memory.target?.first?.packageName)
+        assertEquals(ROOT_WIDE, decision.memory.target?.first?.preferredRootId)
+        assertEquals(APP_C, decision.memory.target?.second?.packageName)
+        assertEquals(ROOT_NARROW, decision.memory.target?.second?.preferredRootId)
+        assertEquals(
+            listOf(SplitRoutingAction.PlaceTask(APP_C_TASK.id, ROOT_NARROW, promoteInPlace = false)),
+            decision.actions,
+        )
+        assertFalse(decision.actions.any { it is SplitRoutingAction.LaunchPlaceholder })
+    }
+
+    @Test
+    fun fullscreenThirdAppUsesWidePaneWhenFocusIsUnknown() {
+        val decision = reduce(
+            stableMemory(lastFocusedRootId = null),
+            fullscreenThirdAppObservation(APP_C_TASK),
+        )
+
+        assertEquals(APP_A, decision.memory.target?.first?.packageName)
+        assertEquals(ROOT_NARROW, decision.memory.target?.first?.preferredRootId)
+        assertEquals(ROOT_WIDE, decision.memory.target?.second?.preferredRootId)
+    }
+
+    @Test
+    fun firmwarePlacementDoesNotOverrideOppositeLastFocusPolicy() {
+        val decision = reduce(
+            stableMemory(lastFocusedRootId = ROOT_NARROW),
+            observation(
+                area = 3,
+                roots = listOf(
+                    root(
+                        ROOT_NARROW,
+                        NARROW,
+                        APP_C_TASK.copy(rootId = ROOT_NARROW, bounds = NARROW),
+                        APP_A_TASK.copy(
+                            rootId = ROOT_NARROW,
+                            bounds = NARROW,
+                            topPackageName = APP_C,
+                        ),
+                    ),
+                    root(ROOT_WIDE, WIDE, APP_B_TASK.copy(rootId = ROOT_WIDE, bounds = WIDE)),
+                ),
+            ),
+        )
+
+        assertEquals(APP_A, decision.memory.target?.first?.packageName)
+        assertEquals(ROOT_NARROW, decision.memory.target?.first?.preferredRootId)
+        assertEquals(APP_C, decision.memory.target?.second?.packageName)
+        assertEquals(ROOT_WIDE, decision.memory.target?.second?.preferredRootId)
+        assertEquals(
+            listOf(SplitRoutingAction.PlaceTask(APP_C_TASK.id, ROOT_WIDE, false)),
+            decision.actions,
+        )
+    }
+
+    @Test
+    fun explicitPickerPaneWinsOverLastFocusForThirdApp() {
+        val pickerFrame = observation(
+            area = 3,
+            roots = listOf(
+                root(
+                    ROOT_NARROW,
+                    NARROW,
+                    picker(ROOT_NARROW),
+                    APP_A_TASK.copy(rootId = ROOT_NARROW, bounds = NARROW),
+                ),
+                root(ROOT_WIDE, WIDE, APP_B_TASK.copy(rootId = ROOT_WIDE, bounds = WIDE)),
+            ),
+        )
+        val waiting = reduce(stableMemory(lastFocusedRootId = ROOT_NARROW), pickerFrame)
+        val chosen = reduce(
+            waiting.memory,
+            observation(
+                area = 4,
+                roots = listOf(
+                    root(ROOT_FULL, FULL, APP_C_TASK),
+                    root(
+                        ROOT_NARROW,
+                        NARROW,
+                        picker(ROOT_NARROW),
+                        APP_A_TASK.copy(rootId = ROOT_NARROW, bounds = NARROW),
+                    ),
+                    root(ROOT_WIDE, WIDE, APP_B_TASK.copy(rootId = ROOT_WIDE, bounds = WIDE)),
+                ),
+            ),
+        )
+
+        assertEquals(APP_B, chosen.memory.target?.first?.packageName)
+        assertEquals(ROOT_WIDE, chosen.memory.target?.first?.preferredRootId)
+        assertEquals(APP_C, chosen.memory.target?.second?.packageName)
+        assertEquals(ROOT_NARROW, chosen.memory.target?.second?.preferredRootId)
+        assertFalse(chosen.actions.any { it is SplitRoutingAction.LaunchPlaceholder })
+    }
+
+    @Test
+    fun rememberedPickerPaneWinsIfPickerClosesAlongsideThirdAppLaunch() {
+        val pickerFrame = observation(
+            area = 3,
+            roots = listOf(
+                root(
+                    ROOT_NARROW,
+                    NARROW,
+                    picker(ROOT_NARROW),
+                    APP_A_TASK.copy(rootId = ROOT_NARROW, bounds = NARROW),
+                ),
+                root(ROOT_WIDE, WIDE, APP_B_TASK.copy(rootId = ROOT_WIDE, bounds = WIDE)),
+            ),
+        )
+        val waiting = reduce(stableMemory(lastFocusedRootId = ROOT_NARROW), pickerFrame)
+        val chosen = reduce(waiting.memory, fullscreenThirdAppObservation(APP_C_TASK))
+
+        assertEquals(APP_B, chosen.memory.target?.first?.packageName)
+        assertEquals(ROOT_WIDE, chosen.memory.target?.first?.preferredRootId)
+        assertEquals(APP_C, chosen.memory.target?.second?.packageName)
+        assertEquals(ROOT_NARROW, chosen.memory.target?.second?.preferredRootId)
+    }
+
+    @Test
+    fun stableAppOpenedInOppositePaneReturnsToItsRememberedRoot() {
+        val decision = reduce(
+            stableMemory(lastFocusedRootId = ROOT_WIDE),
+            observation(
+                area = 3,
+                roots = listOf(
+                    root(
+                        ROOT_WIDE,
+                        WIDE,
+                        APP_A_TASK.copy(rootId = ROOT_WIDE, bounds = WIDE),
+                        APP_B_TASK.copy(
+                            rootId = ROOT_WIDE,
+                            bounds = WIDE,
+                            topPackageName = APP_A,
+                        ),
+                    ),
+                    root(ROOT_NARROW, NARROW),
+                ),
+            ),
+        )
+
+        assertEquals(APP_B, decision.memory.target?.first?.packageName)
+        assertEquals(ROOT_WIDE, decision.memory.target?.first?.preferredRootId)
+        assertEquals(APP_A, decision.memory.target?.second?.packageName)
+        assertEquals(ROOT_NARROW, decision.memory.target?.second?.preferredRootId)
+        assertEquals(
+            listOf(SplitRoutingAction.PlaceTask(APP_A_TASK.id, ROOT_NARROW, false)),
+            decision.actions,
+        )
+    }
+
+    @Test
+    fun disappearingThirdAppRestoresTheOriginalStablePairIntent() {
+        val replacing = reduce(
+            stableMemory(lastFocusedRootId = ROOT_NARROW),
+            fullscreenThirdAppObservation(APP_C_TASK),
+        )
+        val recovered = reduce(
+            replacing.memory,
+            observation(
+                area = 3,
+                roots = listOf(
+                    root(ROOT_NARROW, NARROW, APP_A_TASK.copy(rootId = ROOT_NARROW, bounds = NARROW)),
+                    root(ROOT_WIDE, WIDE, APP_B_TASK.copy(rootId = ROOT_WIDE, bounds = WIDE)),
+                ),
+            ),
+        )
+
+        assertNull(recovered.memory.target)
+        assertEquals(APP_A, recovered.memory.stablePair?.pane(ROOT_NARROW)?.packageName)
+        assertEquals(APP_B, recovered.memory.stablePair?.pane(ROOT_WIDE)?.packageName)
+        assertTrue(recovered.actions.isEmpty())
+    }
+
+    @Test
+    fun latestFullscreenLaunchSupersedesEarlierThirdAppForTheSamePane() {
+        val replacingC = reduce(
+            stableMemory(lastFocusedRootId = ROOT_NARROW),
+            fullscreenThirdAppObservation(APP_C_TASK),
+        )
+        val appD = task(40, APP_D, "$APP_D.MainActivity", ROOT_FULL, FULL)
+        val replacingD = reduce(
+            replacingC.memory,
+            fullscreenThirdAppObservation(appD, extraHiddenTask = APP_C_TASK),
+        )
+
+        assertEquals(APP_A, replacingD.memory.target?.first?.packageName)
+        assertEquals(APP_D, replacingD.memory.target?.second?.packageName)
+        assertEquals(ROOT_WIDE, replacingD.memory.target?.second?.preferredRootId)
+        assertEquals(
+            listOf(SplitRoutingAction.PlaceTask(appD.id, ROOT_WIDE, promoteInPlace = false)),
+            replacingD.actions,
+        )
+    }
+
+    @Test
     fun launcherFramesPreserveAnchorAndNeverMoveTasks() {
         var memory = SplitRoutingMemory(
             anchor = APP_A_TASK.toExpected(ROOT_WIDE),
@@ -446,9 +689,91 @@ class SplitRoutingReducerTest {
             assertFalse(decision.actions.any { action ->
                 action is SplitRoutingAction.PlaceTask && action.taskId == 10
             })
-            assertEquals(APP_B, decision.memory.target?.second?.packageName)
+            assertNull(decision.memory.target)
+            assertEquals(APP_A, decision.memory.anchor?.packageName)
             memory = decision.memory
         }
+    }
+
+    @Test
+    fun freshFullscreenAppCancelsHiddenStalePairWithoutPromotingIt() {
+        val staleTarget = target(APP_A_TASK, ROOT_WIDE, APP_B_TASK, ROOT_NARROW)
+        val decision = reduce(
+            SplitRoutingMemory(target = staleTarget),
+            observation(
+                area = 4,
+                roots = listOf(
+                    root(ROOT_FULL, FULL, APP_C_TASK),
+                    root(
+                        ROOT_NARROW,
+                        NARROW,
+                        APP_B_TASK.copy(rootId = ROOT_NARROW, bounds = NARROW, visible = false),
+                    ),
+                    root(
+                        ROOT_WIDE,
+                        WIDE,
+                        APP_A_TASK.copy(rootId = ROOT_WIDE, bounds = WIDE, visible = false),
+                    ),
+                ),
+            ),
+        )
+
+        assertNull(decision.memory.target)
+        assertEquals(APP_C, decision.memory.anchor?.packageName)
+        assertFalse(decision.actions.any { it is SplitRoutingAction.PlaceTask })
+    }
+
+    @Test
+    fun freshFullscreenAppCancelsTargetWhenOneMemberDisappeared() {
+        val staleTarget = target(APP_A_TASK, ROOT_WIDE, APP_B_TASK, ROOT_NARROW)
+        val decision = reduce(
+            SplitRoutingMemory(target = staleTarget),
+            observation(
+                area = 4,
+                roots = listOf(
+                    root(ROOT_FULL, FULL, APP_C_TASK),
+                    root(ROOT_NARROW, NARROW),
+                    root(
+                        ROOT_WIDE,
+                        WIDE,
+                        APP_A_TASK.copy(rootId = ROOT_WIDE, bounds = WIDE, visible = false),
+                    ),
+                ),
+            ),
+        )
+
+        assertNull(decision.memory.target)
+        assertEquals(APP_C, decision.memory.anchor?.packageName)
+        assertFalse(decision.actions.any { it is SplitRoutingAction.PlaceTask })
+    }
+
+    @Test
+    fun homeCancelsUnfinishedPairWithoutRestoringHiddenMembers() {
+        val launcher = task(1, LAUNCHER, "com.android.launcher3.Launcher", ROOT_FULL, FULL)
+        val decision = reduce(
+            SplitRoutingMemory(
+                target = target(APP_A_TASK, ROOT_WIDE, APP_B_TASK, ROOT_NARROW),
+            ),
+            observation(
+                area = 4,
+                roots = listOf(
+                    root(ROOT_FULL, FULL, launcher, activityType = "home"),
+                    root(
+                        ROOT_NARROW,
+                        NARROW,
+                        APP_B_TASK.copy(rootId = ROOT_NARROW, bounds = NARROW, visible = false),
+                    ),
+                    root(
+                        ROOT_WIDE,
+                        WIDE,
+                        APP_A_TASK.copy(rootId = ROOT_WIDE, bounds = WIDE, visible = false),
+                    ),
+                ),
+            ),
+        )
+
+        assertNull(decision.memory.target)
+        assertFalse(decision.actions.any { it is SplitRoutingAction.PlaceTask })
     }
 
     private fun reduce(
@@ -492,6 +817,41 @@ class SplitRoutingReducerTest {
         ),
     )
 
+    private fun stableMemory(lastFocusedRootId: Int?): SplitRoutingMemory = SplitRoutingMemory(
+        stablePair = SplitStablePair(
+            first = APP_A_TASK.toExpected(ROOT_NARROW),
+            second = APP_B_TASK.toExpected(ROOT_WIDE),
+            lastFocusedRootId = lastFocusedRootId,
+        ),
+    )
+
+    private fun fullscreenThirdAppObservation(
+        app: SplitTask,
+        extraHiddenTask: SplitTask? = null,
+    ): SplitRoutingObservation = observation(
+        area = 4,
+        roots = listOfNotNull(
+            root(ROOT_FULL, FULL, app),
+            extraHiddenTask?.let { hidden ->
+                root(
+                    ROOT_FULL + 1,
+                    FULL,
+                    hidden.copy(rootId = ROOT_FULL + 1, visible = false),
+                )
+            },
+            root(
+                ROOT_NARROW,
+                NARROW,
+                APP_A_TASK.copy(rootId = ROOT_NARROW, bounds = NARROW, visible = false),
+            ),
+            root(
+                ROOT_WIDE,
+                WIDE,
+                APP_B_TASK.copy(rootId = ROOT_WIDE, bounds = WIDE, visible = false),
+            ),
+        ),
+    )
+
     private fun observation(
         area: Int,
         roots: List<SplitRootTask>,
@@ -501,7 +861,7 @@ class SplitRoutingReducerTest {
         firstNativeRootId = ROOT_NARROW,
         secondNativeRootId = ROOT_WIDE,
         snapshot = SplitTaskSnapshot(roots),
-        eligiblePackages = setOf(APP_A, APP_B, APP_C),
+        eligiblePackages = setOf(APP_A, APP_B, APP_C, APP_D),
         recovering = recovering,
     )
 
@@ -571,6 +931,7 @@ class SplitRoutingReducerTest {
         const val APP_A = "ru.yandex.yandexnavi"
         const val APP_B = "ru.yandex.music"
         const val APP_C = "ru.rutube.app"
+        const val APP_D = "com.vk.vkvideo"
         const val LAUNCHER = "com.android.launcher3"
         const val PICKER_ACTIVITY = "com.android.launcher3.SplitScreenListActivity"
         const val PLACEHOLDER_PACKAGE = "dev.denza.apps"

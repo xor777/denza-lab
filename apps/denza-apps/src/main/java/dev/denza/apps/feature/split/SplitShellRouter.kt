@@ -5,7 +5,7 @@ internal class SplitShellRouter(
     private val apkPath: String,
     private val eligibleApps: () -> Map<String, String>,
     private val pause: (Long) -> Unit = Thread::sleep,
-    @Suppress("unused") private val nowMs: () -> Long = System::currentTimeMillis,
+    private val nowMs: () -> Long = System::currentTimeMillis,
     private val onEvent: (String) -> Unit = {},
     private val stateStore: SplitRoutingStateStore? = null,
 ) {
@@ -15,7 +15,12 @@ internal class SplitShellRouter(
     private var firstNativeRootId: Int? = null
     private var secondNativeRootId: Int? = null
     private var gateOwnedByUs = false
-    private var lastMutationKey: String? = null
+    private var mutationTargetKey: String? = null
+    private var mutationSceneKey: String? = null
+    private var mutationAttempts = 0
+    private var lastMutationAtMs = Long.MIN_VALUE
+    private var abandonedSceneKey: String? = null
+    private var lastNonTargetMutationKey: String? = null
     private val supportedPackages = mutableSetOf<String>()
 
     fun tick(): Boolean {
@@ -41,11 +46,17 @@ internal class SplitShellRouter(
             recovering = firstObservation,
         )
         firstObservation = false
+        val sceneKey = semanticSceneKey(observation)
+
+        if (abandonedSceneKey == sceneKey) {
+            return area == AREA_BALANCED_SPLIT
+        }
+        abandonedSceneKey = null
 
         if (acceptNextSnapshotAsBaseline) {
             acceptNextSnapshotAsBaseline = false
             updateMemory(SplitRoutingReducer.baseline(observation))
-            lastMutationKey = null
+            resetMutationAttempts()
             onEvent("external task baseline accepted")
             return area == AREA_BALANCED_SPLIT
         }
@@ -57,21 +68,50 @@ internal class SplitShellRouter(
 
         if (decision.actions.isEmpty()) {
             if (memoryChanged) decision.event?.let(onEvent)
-            lastMutationKey = null
+            if (decision.memory.target == null) resetMutationAttempts()
             return decision.splitVisible
         }
 
-        val mutationKey = buildString {
-            append(decision.memory.target)
-            append('|')
-            append(decision.actions)
+        val target = decision.memory.target
+        if (target != null) {
+            lastNonTargetMutationKey = null
+            val targetKey = semanticTargetKey(target)
+            if (targetKey != mutationTargetKey || sceneKey != mutationSceneKey) {
+                mutationTargetKey = targetKey
+                mutationSceneKey = sceneKey
+                mutationAttempts = 0
+                lastMutationAtMs = Long.MIN_VALUE
+            }
+            if (mutationAttempts >= MAX_ATTEMPTS_WITHOUT_PROGRESS) {
+                val fallbackMemory = memory.stablePair
+                    ?.let { SplitRoutingMemory(stablePair = it) }
+                    ?: SplitRoutingReducer.baseline(observation)
+                updateMemory(fallbackMemory)
+                abandonedSceneKey = sceneKey
+                resetMutationAttempts()
+                if (area != AREA_BALANCED_SPLIT) closeOwnedGate()
+                onEvent("routing target abandoned after bounded retries")
+                return false
+            }
+            val now = nowMs()
+            if (
+                mutationAttempts > 0 &&
+                now - lastMutationAtMs < MUTATION_RETRY_BACKOFF_MS
+            ) {
+                return decision.splitVisible
+            }
+            mutationAttempts += 1
+            lastMutationAtMs = now
+        } else {
+            resetMutationAttempts()
+            val mutationKey = "$sceneKey|${decision.actions}"
+            if (mutationKey == lastNonTargetMutationKey) return decision.splitVisible
+            lastNonTargetMutationKey = mutationKey
         }
-        if (mutationKey == lastMutationKey) return decision.splitVisible
 
         decision.event?.let(onEvent)
-        decision.memory.target?.let(::prepareTarget)
+        target?.let(::prepareTarget)
         execute(decision.actions)
-        lastMutationKey = mutationKey
         return decision.splitVisible
     }
 
@@ -83,7 +123,9 @@ internal class SplitShellRouter(
     fun cancelPendingSelection() {
         updateMemory(SplitRoutingMemory())
         acceptNextSnapshotAsBaseline = true
-        lastMutationKey = null
+        abandonedSceneKey = null
+        lastNonTargetMutationKey = null
+        resetMutationAttempts()
     }
 
     /** Stops automation without changing the user's current native layout. */
@@ -91,14 +133,59 @@ internal class SplitShellRouter(
         memory = SplitRoutingMemory()
         stateStore?.clear()
         acceptNextSnapshotAsBaseline = false
-        lastMutationKey = null
+        abandonedSceneKey = null
+        lastNonTargetMutationKey = null
+        resetMutationAttempts()
         closeOwnedGate()
     }
 
     /** Releases the process-owned gate while retaining an unfinished target for recovery. */
     fun closeForRestart() {
-        lastMutationKey = null
+        resetMutationAttempts()
         closeOwnedGate()
+    }
+
+    private fun resetMutationAttempts() {
+        mutationTargetKey = null
+        mutationSceneKey = null
+        mutationAttempts = 0
+        lastMutationAtMs = Long.MIN_VALUE
+    }
+
+    private fun semanticTargetKey(target: SplitPairTarget): String = target.panes()
+        .joinToString("|") { pane ->
+            "${pane.id}:${pane.packageName}:${pane.activityName}:${pane.preferredRootId}"
+        }
+
+    private fun semanticSceneKey(observation: SplitRoutingObservation): String = buildString {
+        append(observation.area)
+        observation.snapshot.roots
+            .filter { it.displayId == 0 }
+            .sortedBy(SplitRootTask::id)
+            .forEach { root ->
+                append("|r:")
+                append(root.id)
+                append(':')
+                append(root.bounds)
+                append(':')
+                append(root.activityType)
+                root.tasks.sortedBy(SplitTask::id).forEach { task ->
+                    append("|t:")
+                    append(task.id)
+                    append(':')
+                    append(task.packageName)
+                    append(':')
+                    append(task.activityName)
+                    append(':')
+                    append(task.rootId)
+                    append(':')
+                    append(task.bounds)
+                    append(':')
+                    append(task.topPackageName)
+                    append(':')
+                    append(task.topActivityName)
+                }
+            }
     }
 
     private fun updateMemory(next: SplitRoutingMemory) {
@@ -251,6 +338,8 @@ internal class SplitShellRouter(
 
     private companion object {
         const val AREA_BALANCED_SPLIT = 3
+        const val MAX_ATTEMPTS_WITHOUT_PROGRESS = 3
+        const val MUTATION_RETRY_BACKOFF_MS = 1_000L
         const val ROOT_SETTLE_MS = 100L
         const val LAYOUT_SETTLE_MS = 100L
         const val PLACEHOLDER_LAUNCH_MS = 100L

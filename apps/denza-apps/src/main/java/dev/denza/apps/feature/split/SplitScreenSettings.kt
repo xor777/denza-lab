@@ -15,6 +15,9 @@ object SplitScreenSettings {
     private const val ROUTING_VACANCY_RESTORE = "routing_vacancy_restore"
     private const val ROUTING_TARGET_FIRST = "routing_target_first"
     private const val ROUTING_TARGET_SECOND = "routing_target_second"
+    private const val ROUTING_STABLE_FIRST = "routing_stable_first"
+    private const val ROUTING_STABLE_SECOND = "routing_stable_second"
+    private const val ROUTING_STABLE_FOCUS_ROOT = "routing_stable_focus_root"
 
     fun isEnabled(context: Context): Boolean =
         SplitScreenFlag.ENABLED &&
@@ -88,7 +91,25 @@ object SplitScreenSettings {
             } else {
                 null
             }
-            return SplitRoutingMemory(anchor = anchor, vacancy = vacancy, target = target)
+            val stableFirst = readTask(ROUTING_STABLE_FIRST)
+            val stableSecond = readTask(ROUTING_STABLE_SECOND)
+            val stablePair = if (stableFirst != null && stableSecond != null) {
+                SplitStablePair(
+                    first = stableFirst,
+                    second = stableSecond,
+                    lastFocusedRootId = preferences
+                        .getInt(ROUTING_STABLE_FOCUS_ROOT, -1)
+                        .takeIf { it > 0 },
+                )
+            } else {
+                null
+            }
+            return SplitRoutingMemory(
+                anchor = anchor,
+                vacancy = vacancy,
+                target = target,
+                stablePair = stablePair,
+            )
         }
 
         @SuppressLint("UseKtx")
@@ -110,6 +131,11 @@ object SplitScreenSettings {
             }
             writeTask(editor, ROUTING_TARGET_FIRST, memory.target?.first)
             writeTask(editor, ROUTING_TARGET_SECOND, memory.target?.second)
+            writeTask(editor, ROUTING_STABLE_FIRST, memory.stablePair?.first)
+            writeTask(editor, ROUTING_STABLE_SECOND, memory.stablePair?.second)
+            memory.stablePair?.lastFocusedRootId?.let { rootId ->
+                editor.putInt(ROUTING_STABLE_FOCUS_ROOT, rootId)
+            }
             check(editor.commit()) { "Failed to persist split routing state" }
         }
 
@@ -150,7 +176,14 @@ object SplitScreenSettings {
             editor.remove(ROUTING_VACANCY_ROOT)
             editor.remove(ROUTING_VACANCY_BASELINE)
             editor.remove(ROUTING_VACANCY_RESTORE)
-            listOf(ROUTING_ANCHOR, ROUTING_TARGET_FIRST, ROUTING_TARGET_SECOND)
+            editor.remove(ROUTING_STABLE_FOCUS_ROOT)
+            listOf(
+                ROUTING_ANCHOR,
+                ROUTING_TARGET_FIRST,
+                ROUTING_TARGET_SECOND,
+                ROUTING_STABLE_FIRST,
+                ROUTING_STABLE_SECOND,
+            )
                 .forEach { prefix ->
                     editor.remove("${prefix}_id")
                     editor.remove("${prefix}_package")

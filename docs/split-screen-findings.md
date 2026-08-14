@@ -141,9 +141,13 @@ stock picker is the visible UI owned by the placeholder pane, so a picker above
 that placeholder confirms the pane instead of triggering an endless promotion.
 If another eligible app launches fullscreen before that target settles, it
 atomically supersedes the placeholder and inherits the placeholder's root.
-Mutation deduplication is keyed by the target and requested actions, not by raw
-`am stack list` text, because vendor stack dumps contain irrelevant changing
-state.
+Mutation retries are keyed by the target and semantic scene progress rather
+than raw `am stack list` text. Root/task identity, placement, top ownership,
+area mode, and bounds count as progress; visibility-bit flapping alone does
+not. The router waits one second between retries, permits at most three
+mutations without progress, then abandons the target and accepts the current
+scene as a fail-closed baseline. The abandoned scene remains suppressed until
+an actual semantic change occurs.
 
 A visible stock picker is also an explicit destination even after an earlier
 pair target exists. If the firmware launches the user's next foreground app in
@@ -152,12 +156,34 @@ target and only the new foreground task is moved into the picker's root. Apps
 merely revealed underneath the moved task are not interpreted as additional
 launches.
 
+Once two eligible apps form a confirmed native pair, the reducer persists both
+root assignments and the last focused root as a stable pair. A third app uses a
+visible or just-observed picker root first. Without an explicit picker, it
+replaces the pane opposite the last focus; if focus is unknown, it replaces the
+wide pane. Reopening an app already in the pair returns it to its remembered
+root. The original stable pair remains the rollback intent until the replacement
+is fully placed, promoted, balanced, and resized, so a disappearing app or
+bounded-retry failure never turns the launch into a new `app + placeholder`
+pair.
+
+For an unfinished target that has no stable pair, a fresh eligible foreground
+app is still authoritative. It replaces the target only when a visible picker
+or placeholder identifies one unambiguous vacancy; otherwise the stale target
+is cancelled and the fresh foreground becomes the baseline without moving
+either old member. Home cancels an unfinished target without promoting hidden
+tasks. If a non-placeholder target member disappears, the surviving member
+becomes the anchor for the known vacancy; if neither remains, the intent is
+cleared.
+
 The intent is persisted before a mutation, so an APK replacement or ADB shell
 restart can continue an unfinished target. Unknown picker state after restart
 is only observed; it is never guessed into a pair. Navigation and Simulcast
 task moves clear pending intent and the first snapshot after their quiet period
-becomes the new baseline. A supervisor outside the reducer reconnects the
-persistent ADB shell without changing the state-machine rules.
+becomes the new baseline. Navigation holds routing only for the physical
+projection/return transition; while it remains on the instrument display,
+ordinary IVI launches can still form their own native pair. A supervisor
+outside the reducer reconnects the persistent ADB shell without changing the
+state-machine rules.
 
 ## Historical verdict (incorrect)
 
