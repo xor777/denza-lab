@@ -56,6 +56,7 @@ public final class DvrCameraRenderer implements TextureView.SurfaceTextureListen
     private Surface previewSurface;
     private boolean opening;
     private boolean firstFrameReported;
+    private int probeFrameCount;
     private volatile boolean stopping = true;
 
     public DvrCameraRenderer(Context context, TextureView textureView, Listener listener) {
@@ -64,11 +65,43 @@ public final class DvrCameraRenderer implements TextureView.SurfaceTextureListen
         this.listener = listener;
     }
 
+    private void probeBitmap(int frame) {
+        try {
+            android.graphics.Bitmap bitmap = textureView.getBitmap(320, 180);
+            if (bitmap == null) {
+                probeLog("bitmap frame=" + frame + " null");
+                return;
+            }
+            java.io.File out = new java.io.File(
+                    context.getFilesDir(),
+                    "dvr_frame_" + System.currentTimeMillis() + "_f" + frame + ".png");
+            try (java.io.FileOutputStream stream = new java.io.FileOutputStream(out)) {
+                bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 90, stream);
+            }
+            bitmap.recycle();
+            probeLog("bitmap frame=" + frame + " -> " + out.getName());
+        } catch (RuntimeException | java.io.IOException error) {
+            probeLog("bitmap failed " + shortError(error));
+        }
+    }
+
+    // logcat is suppressed for app processes on this firmware, so orientation
+    // evidence goes to a file readable via run-as.
+    private void probeLog(String line) {
+        android.util.Log.w("DenzaDvrProbe", line);
+        try (java.io.FileWriter writer = new java.io.FileWriter(
+                new java.io.File(context.getFilesDir(), "dvr_probe.log"), true)) {
+            writer.write(System.currentTimeMillis() + " " + line + "\n");
+        } catch (java.io.IOException ignored) {
+        }
+    }
+
     public void start() {
         stop();
         stopping = false;
         opening = false;
         firstFrameReported = false;
+        probeFrameCount = 0;
         try {
             applySmartMonochromeProcessing();
         } catch (IllegalArgumentException error) {
@@ -124,6 +157,21 @@ public final class DvrCameraRenderer implements TextureView.SurfaceTextureListen
         if (!firstFrameReported) {
             firstFrameReported = true;
             android.util.Log.i("DenzaDvrCamera", "first frame received");
+        }
+        int frame = ++probeFrameCount;
+        // Frame 1 can carry an uninitialized identity matrix; sample later
+        // frames to see the real stream transform.
+        if (frame == 1 || frame == 2 || frame == 5 || frame == 30 || frame == 90) {
+            float[] matrix = new float[16];
+            surfaceTexture.getTransformMatrix(matrix);
+            probeLog(
+                    "frame=" + frame
+                            + " matrix=" + java.util.Arrays.toString(matrix)
+                            + " view=" + textureView.getWidth()
+                            + "x" + textureView.getHeight());
+        }
+        if (frame == 30 || frame == 90) {
+            probeBitmap(frame);
         }
     }
 
@@ -226,6 +274,9 @@ public final class DvrCameraRenderer implements TextureView.SurfaceTextureListen
             return new Size(1920, 1080);
         }
         Size[] sizes = map.getOutputSizes(SurfaceTexture.class);
+        probeLog(
+                "open sensorOrientation="
+                        + characteristics.get(CameraCharacteristics.SENSOR_ORIENTATION));
         if (sizes == null || sizes.length == 0) {
             return new Size(1920, 1080);
         }
