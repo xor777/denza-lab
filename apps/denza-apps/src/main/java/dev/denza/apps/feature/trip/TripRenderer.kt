@@ -49,12 +49,11 @@ object TripPalette {
 }
 
 /**
- * Coordinate + text helpers for the panel renderer. The panel was designed in a
- * virtual 1850x360 space (the free zone's design ratio); we map that space onto
- * whatever width/height is actually free, keeping the vertical proportions and
- * stretching horizontally. All Paint/Path objects are preallocated — nothing is
- * allocated in the hot draw path. Rendering and animation happen on the main
- * thread.
+ * Coordinate + text helpers for the panel renderer. The fullscreen panel uses
+ * its original virtual 1850x360 space; a renderer may select another virtual
+ * space when its content genuinely reflows (the narrow split layout does this).
+ * All Paint/Path objects are preallocated — nothing is allocated in the hot draw
+ * path. Rendering and animation happen on the main thread.
  */
 abstract class BaseTripRenderer {
 
@@ -66,6 +65,7 @@ abstract class BaseTripRenderer {
      * @param showLocationHint when true, draw the muted "no location access" hint
      *   in an area that stays clear of the panel's own captions and figures in
      *   both the GNSS and no-GNSS states.
+     * @param narrowLayout stacks the analyser and trip values for a narrow split pane.
      */
     abstract fun draw(
         canvas: Canvas,
@@ -77,6 +77,7 @@ abstract class BaseTripRenderer {
         frameTimeSec: Double,
         dtSec: Double,
         showLocationHint: Boolean,
+        narrowLayout: Boolean = false,
     )
     protected var w: Float = 0f
     protected var h: Float = 0f
@@ -92,17 +93,22 @@ abstract class BaseTripRenderer {
     protected val labelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { typeface = Typeface.SANS_SERIF }
     protected val valuePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { typeface = Typeface.MONOSPACE }
 
-    protected fun setSize(width: Float, height: Float) {
+    protected fun setSize(
+        width: Float,
+        height: Float,
+        virtualWidth: Float = VIRTUAL_W,
+        virtualHeight: Float = VIRTUAL_H,
+    ) {
         w = width
         h = height
-        sx = width / VIRTUAL_W
-        sy = height / VIRTUAL_H
+        sx = width / virtualWidth
+        sy = height / virtualHeight
     }
 
-    /** Map a virtual x (0..1850) to a canvas x. */
+    /** Map an x from the active virtual layout to the canvas. */
     protected fun vx(x: Float): Float = x * sx
 
-    /** Map a virtual y (0..360) to a canvas y. */
+    /** Map a y from the active virtual layout to the canvas. */
     protected fun vy(y: Float): Float = y * sy
 
     /** Scale a size/radius/stroke by the vertical factor (keeps shapes round). */

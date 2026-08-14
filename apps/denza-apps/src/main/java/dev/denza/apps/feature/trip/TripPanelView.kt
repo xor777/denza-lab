@@ -35,6 +35,14 @@ class TripPanelView(context: Context) : View(context), Choreographer.FrameCallba
     private var lastDrawNs = 0L
     private var lastFrameNs = 0L
 
+    var narrowLayout: Boolean = false
+        set(value) {
+            if (field == value) return
+            field = value
+            requestLayout()
+            invalidate()
+        }
+
     private val lifecycleObserver = object : DefaultLifecycleObserver {
         override fun onResume(owner: LifecycleOwner) = startLoop()
         override fun onPause(owner: LifecycleOwner) = stopLoop()
@@ -99,6 +107,7 @@ class TripPanelView(context: Context) : View(context), Choreographer.FrameCallba
             canvas, width.toFloat(), height.toFloat(), hub.engine, hub.spectrum, hub.nowPlaying,
             frameTime, dt,
             showLocationHint = !hub.locationGranted,
+            narrowLayout = narrowLayout,
         )
     }
 

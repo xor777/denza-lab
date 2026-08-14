@@ -12,9 +12,10 @@ import kotlin.math.sin
 /**
  * The single trip panel screen.
  *
- * The left of the panel is the spectrum analyser ([SpectrumRenderer]), fed by
- * whatever the car is actually playing; the right column holds the
- * remaining-route/elapsed, altitude, climb and daylight figures.
+ * At normal widths the left of the panel is the spectrum analyser
+ * ([SpectrumRenderer]) and the right column holds the trip figures. In the
+ * narrow split layout the analyser spans the full width and those figures stack
+ * underneath it so neither half is horizontally compressed.
  *
  * The panel's original sensor instruments — the hanging mirror toy
  * ([MirrorToyRenderer]), the compass tape and the journey thread
@@ -41,7 +42,22 @@ class TripPanelRenderer : BaseTripRenderer() {
         frameTimeSec: Double,
         dtSec: Double,
         showLocationHint: Boolean,
+        narrowLayout: Boolean,
     ) {
+        if (narrowLayout) {
+            drawNarrow(
+                canvas = canvas,
+                width = w,
+                height = h,
+                engine = engine,
+                spectrum = spectrum,
+                nowPlaying = nowPlaying,
+                frameTimeSec = frameTimeSec,
+                dtSec = dtSec,
+                showLocationHint = showLocationHint,
+            )
+            return
+        }
         setSize(w, h)
         if (TripPanelFlag.LEGACY_INSTRUMENTS) {
             toy.draw(
@@ -66,6 +82,110 @@ class TripPanelRenderer : BaseTripRenderer() {
             // Right data column: its GNSS rows (Высота/Закат) are hidden without a
             // fix, so the lower part of that column is empty.
             label(canvas, LOCATION_HINT, vx(1436f), vy(320f), 16f, TripPalette.alpha(TripPalette.MUTED, 0.85f))
+        }
+    }
+
+    private fun drawNarrow(
+        canvas: Canvas,
+        width: Float,
+        height: Float,
+        engine: TripEngine,
+        spectrum: SpectrumSource,
+        nowPlaying: NowPlayingSource,
+        frameTimeSec: Double,
+        dtSec: Double,
+        showLocationHint: Boolean,
+    ) {
+        setSize(width, height, NARROW_VIRTUAL_W, NARROW_VIRTUAL_H)
+        spectrumRenderer.draw(
+            canvas, spectrum, nowPlaying, frameTimeSec, dtSec,
+            left = vx(NARROW_SPECTRUM_LEFT),
+            right = vx(NARROW_SPECTRUM_RIGHT),
+            top = vy(NARROW_SPECTRUM_TOP),
+            bottom = vy(NARROW_SPECTRUM_BOTTOM),
+            unit = vs(1f),
+        )
+
+        stroke.color = TripPalette.alpha(TripPalette.MUTED, 0.14f)
+        stroke.strokeWidth = vs(1f)
+        canvas.drawLine(
+            vx(NARROW_SPECTRUM_LEFT),
+            vy(NARROW_DIVIDER_Y),
+            vx(NARROW_SPECTRUM_RIGHT),
+            vy(NARROW_DIVIDER_Y),
+            stroke,
+        )
+        drawNarrowColumn(canvas, engine)
+        if (showLocationHint) {
+            label(
+                canvas,
+                LOCATION_HINT,
+                vx(0f),
+                vy(642f),
+                16f,
+                TripPalette.alpha(TripPalette.MUTED, 0.85f),
+            )
+        }
+    }
+
+    private fun drawNarrowColumn(canvas: Canvas, engine: TripEngine) {
+        val guidance = engine.guidance()
+        if (guidance != null) {
+            val parts = buildList {
+                guidance.distanceMeters?.let { add(distanceLabel(it.toDouble())) }
+                guidance.timeSeconds?.let { add(clockHm(it.toLong())) }
+            }
+            row(
+                canvas,
+                0f,
+                318f,
+                "Осталось · навигация",
+                parts.joinToString(" · ").ifBlank { "—" },
+                TripPalette.INK,
+            )
+        } else {
+            val elapsed = engine.elapsedSeconds
+            val timePart = if (elapsed >= 3600) clockHm(elapsed.toLong()) else clockMs(elapsed)
+            row(
+                canvas,
+                0f,
+                318f,
+                "В пути",
+                "$timePart · ${distanceLabel(engine.distanceMeters())}",
+                TripPalette.INK,
+            )
+        }
+
+        val hasAltitude = engine.hasAltitude()
+        val altitude = if (hasAltitude) "${engine.smoothedAltitude().roundToInt()} м" else "—"
+        val altitudeAndRate = if (hasAltitude) {
+            val rate = engine.variometer()
+            val arrow = if (rate >= 0) "↗ +" else "↘ −"
+            "$altitude · $arrow${fmt1(abs(rate))} м/с"
+        } else {
+            altitude
+        }
+        row(canvas, 0f, 394f, "Высота · вариометр", altitudeAndRate, TripPalette.INK)
+        row(
+            canvas,
+            0f,
+            470f,
+            "Набор за поездку",
+            "+${engine.tripClimbMeters().roundToInt()} м",
+            TripPalette.INK,
+        )
+
+        val sun = engine.sunInfo()
+        if (sun.hasPosition && sun.nextEventLabel.isNotEmpty()) {
+            val event = if (sun.nextIsSunset) "Закат" else "Рассвет"
+            val countdown = if (sun.countdownSeconds >= 0) {
+                "${sun.nextEventLabel} · через ${clockHm(sun.countdownSeconds)}"
+            } else {
+                sun.nextEventLabel
+            }
+            row(canvas, 0f, 546f, event, countdown, TripPalette.AMBER)
+        } else {
+            row(canvas, 0f, 546f, "Рассвет · закат", "—", TripPalette.AMBER)
         }
     }
 
@@ -242,5 +362,13 @@ class TripPanelRenderer : BaseTripRenderer() {
         const val SPECTRUM_RIGHT = 1356f
         const val SPECTRUM_TOP = 38f
         const val SPECTRUM_BOTTOM = 338f
+
+        const val NARROW_VIRTUAL_W = 368f
+        const val NARROW_VIRTUAL_H = 660f
+        const val NARROW_SPECTRUM_LEFT = 0f
+        const val NARROW_SPECTRUM_RIGHT = 368f
+        const val NARROW_SPECTRUM_TOP = 20f
+        const val NARROW_SPECTRUM_BOTTOM = 266f
+        const val NARROW_DIVIDER_Y = 286f
     }
 }

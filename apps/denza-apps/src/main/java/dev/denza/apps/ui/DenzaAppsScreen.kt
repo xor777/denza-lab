@@ -5,6 +5,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -15,6 +16,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -65,6 +67,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.painter.BitmapPainter
@@ -73,6 +78,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -92,6 +98,7 @@ import dev.denza.apps.feature.cluster.ClusterMapPlacement
 import dev.denza.apps.feature.fse.FseInstallApp
 import dev.denza.apps.feature.mirrors.MirrorsPosition
 import kotlinx.coroutines.flow.StateFlow
+import kotlin.math.roundToInt
 
 private val Background = Color(0xFF080B0D)
 private val SurfaceColor = Color(0xFF12171B)
@@ -159,6 +166,10 @@ fun DenzaAppsRoot(
     )
     val simulcastActions = FeatureActionPolicy.simulcast(uiState.simulcast)
     val mirrorAction = FeatureActionPolicy.mirrors(uiState.mirrors)
+    val containerWidthPx = LocalWindowInfo.current.containerSize.width
+    val containerWidthDp = with(LocalDensity.current) { containerWidthPx.toDp().value.roundToInt() }
+    val dashboardLayout = DashboardLayoutPolicy.resolve(containerWidthDp)
+    val compactLayout = dashboardLayout == DashboardLayoutMode.NARROW
     val openClusterPicker = {
         onRefreshScreenDiagnostics()
         showClusterPicker = true
@@ -166,19 +177,39 @@ fun DenzaAppsRoot(
 
     DenzaTheme {
         Surface(modifier = Modifier.fillMaxSize(), color = Background) {
-            Box(modifier = Modifier.fillMaxSize()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .then(
+                        if (dashboardLayout == DashboardLayoutMode.HORIZONTAL_SCROLL) {
+                            Modifier.horizontalScroll(rememberScrollState())
+                        } else {
+                            Modifier
+                        },
+                    ),
+            ) {
                 Column(
-                    modifier = Modifier
-                        .fillMaxSize()
+                    modifier = when (dashboardLayout) {
+                        DashboardLayoutMode.WIDE -> Modifier.fillMaxSize()
+                        DashboardLayoutMode.HORIZONTAL_SCROLL -> Modifier
+                            .width(FULL_DASHBOARD_WIDTH)
+                            .fillMaxHeight()
+                        DashboardLayoutMode.NARROW -> Modifier
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState())
+                    }
                         .windowInsetsPadding(WindowInsets.safeDrawing)
-                        .padding(horizontal = 48.dp, vertical = 14.dp),
+                        .padding(
+                            horizontal = if (compactLayout) 24.dp else 48.dp,
+                            vertical = 14.dp,
+                        ),
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(18.dp),
+                    AdaptiveCardGroup(
+                        layout = dashboardLayout,
+                        spacing = 18.dp,
                     ) {
                     FeatureCard(
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier,
                         icon = Icons.Outlined.Map,
                         title = "Навигация",
                         subtitle = uiState.navigationAppLabel,
@@ -260,7 +291,7 @@ fun DenzaAppsRoot(
                         }
                     }
                     FeatureCard(
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier,
                         icon = Icons.Outlined.Apps,
                         title = "Трансляция",
                         subtitle = "Приложения на экранах",
@@ -312,7 +343,7 @@ fun DenzaAppsRoot(
                         }
                     }
                     FeatureCard(
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier,
                         icon = Icons.Outlined.Visibility,
                         title = "Зеркала",
                         subtitle = "Камеры поворотников",
@@ -363,17 +394,17 @@ fun DenzaAppsRoot(
                     }
                     }
                     Spacer(Modifier.height(12.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(18.dp),
+                    AdaptiveCardGroup(
+                        layout = dashboardLayout,
+                        spacing = 18.dp,
                     ) {
                         SplitScreenCard(
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier,
                             snapshot = uiState.splitScreen,
                             onToggle = onToggleSplitScreen,
                         )
                         CompactToggleCard(
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier,
                             icon = Icons.Outlined.Map,
                             title = "HUD-подсказки",
                             subtitle = "Указания на проекции",
@@ -382,7 +413,7 @@ fun DenzaAppsRoot(
                             onRetry = { onToggleHudGuidance(true) },
                         )
                         CompactActionCard(
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier,
                             icon = Icons.Outlined.InstallMobile,
                             title = "Установить приложение",
                             subtitle = uiState.fseInstaller.message.ifBlank {
@@ -393,17 +424,26 @@ fun DenzaAppsRoot(
                         )
                     }
                     Spacer(Modifier.height(10.dp))
-                    // Trip panel lives in the free zone below the cards, drawn
-                    // straight on the background with no card/border/frame. Gated
-                    // by the compile-time TripPanelFlag: when off, the space is
-                    // simply empty and no sensors/location run.
+                    // On full and 2/3 widths the trip panel fills the free zone
+                    // below the cards. In the narrow vertical list it becomes a
+                    // fixed-height stacked analyser/data item. It stays frameless
+                    // in both layouts and is gated by the compile-time flag.
                     if (TripPanelFlag.ENABLED) {
                         AndroidView(
                             factory = { ctx -> TripPanelView(ctx) },
-                            modifier = Modifier.fillMaxWidth().weight(1f),
+                            update = { view -> view.narrowLayout = compactLayout },
+                            modifier = if (compactLayout) {
+                                Modifier.fillMaxWidth().height(NARROW_TRIP_PANEL_HEIGHT)
+                            } else {
+                                Modifier.fillMaxWidth().weight(1f)
+                            },
                         )
                     } else {
-                        Spacer(Modifier.weight(1f))
+                        if (compactLayout) {
+                            Spacer(Modifier.height(14.dp))
+                        } else {
+                            Spacer(Modifier.weight(1f))
+                        }
                     }
                 }
             }
@@ -413,6 +453,7 @@ fun DenzaAppsRoot(
     if (showDiagnostics) {
         DiagnosticsDialog(
             state = uiState,
+            compactLayout = compactLayout,
             onSelectClusterDisplay = onSelectClusterDisplay,
             onDismiss = { showDiagnostics = false },
         )
@@ -420,6 +461,7 @@ fun DenzaAppsRoot(
     if (showClusterPicker) {
         ClusterDisplayPickerDialog(
             displays = uiState.clusterCandidates,
+            compactLayout = compactLayout,
             onSelect = { displayId ->
                 onSelectClusterDisplay(displayId)
                 showClusterPicker = false
@@ -431,6 +473,7 @@ fun DenzaAppsRoot(
     if (uiState.appPickerVisible) {
         AppPickerDialog(
             apps = uiState.appChoices,
+            compactLayout = compactLayout,
             selectedCount = uiState.selectedAppCount,
             message = uiState.appPickerMessage,
             onToggle = onToggleApp,
@@ -440,6 +483,7 @@ fun DenzaAppsRoot(
     if (uiState.navigationPickerVisible) {
         NavigationPickerDialog(
             apps = uiState.navigationAppChoices,
+            compactLayout = compactLayout,
             onSelect = onSelectNavigationApp,
             onDismiss = onCloseNavigationPicker,
         )
@@ -447,6 +491,7 @@ fun DenzaAppsRoot(
     if (uiState.fseInstallerPickerVisible) {
         FseInstallerPickerDialog(
             apps = uiState.fseInstallApps,
+            compactLayout = compactLayout,
             message = uiState.fseInstallerMessage,
             onInstall = onInstallFseApp,
             onDismiss = onCloseFseInstallerPicker,
@@ -455,6 +500,78 @@ fun DenzaAppsRoot(
 }
 
 private const val SPLIT_UNAVAILABLE = "Недоступно в этой прошивке"
+private val FULL_DASHBOARD_WIDTH = 1_280.dp
+private val NARROW_TRIP_PANEL_HEIGHT = 660.dp
+
+/**
+ * Measures the existing cards either as the original equal-width row or as a
+ * full-width vertical stack. The card composables themselves stay unchanged.
+ */
+@Composable
+private fun AdaptiveCardGroup(
+    layout: DashboardLayoutMode,
+    spacing: Dp,
+    content: @Composable () -> Unit,
+) {
+    Layout(content = content) { measurables, constraints ->
+        if (measurables.isEmpty()) {
+            layout(constraints.minWidth, constraints.minHeight) {}
+        } else if (layout == DashboardLayoutMode.NARROW) {
+            val width = constraints.maxWidth
+            val spacingPx = spacing.roundToPx()
+            val childConstraints = Constraints(
+                minWidth = width,
+                maxWidth = width,
+                minHeight = 0,
+                maxHeight = constraints.maxHeight,
+            )
+            val placeables = measurables.map { it.measure(childConstraints) }
+            val measuredHeight = placeables.sumOf { it.height } +
+                spacingPx * (placeables.size - 1)
+            val constrainedHeight = measuredHeight.coerceIn(
+                constraints.minHeight,
+                constraints.maxHeight,
+            )
+            layout(width, constrainedHeight) {
+                var y = 0
+                placeables.forEach { placeable ->
+                    placeable.placeRelative(0, y)
+                    y += placeable.height + spacingPx
+                }
+            }
+        } else {
+            val width = constraints.maxWidth
+            val spacingPx = spacing.roundToPx()
+            val gaps = spacingPx * (measurables.size - 1)
+            val availableWidth = (width - gaps).coerceAtLeast(0)
+            val baseWidth = availableWidth / measurables.size
+            val remainder = availableWidth % measurables.size
+            val placeables = measurables.mapIndexed { index, measurable ->
+                val childWidth = baseWidth + if (index < remainder) 1 else 0
+                measurable.measure(
+                    Constraints(
+                        minWidth = childWidth,
+                        maxWidth = childWidth,
+                        minHeight = 0,
+                        maxHeight = constraints.maxHeight,
+                    ),
+                )
+            }
+            val measuredHeight = placeables.maxOf { it.height }
+            val constrainedHeight = measuredHeight.coerceIn(
+                constraints.minHeight,
+                constraints.maxHeight,
+            )
+            layout(width, constrainedHeight) {
+                var x = 0
+                placeables.forEach { placeable ->
+                    placeable.placeRelative(x, 0)
+                    x += placeable.width + spacingPx
+                }
+            }
+        }
+    }
+}
 
 @Composable
 private fun SplitScreenCard(
@@ -680,8 +797,55 @@ private fun CompactActionCard(
 }
 
 @Composable
+private fun PickerDialogHeader(
+    compactLayout: Boolean,
+    title: String,
+    subtitle: String,
+    actionLabel: String,
+    onAction: () -> Unit,
+) {
+    val copy: @Composable () -> Unit = {
+        Text(
+            title,
+            color = Ink,
+            fontSize = 24.sp,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Text(subtitle, color = Muted, fontSize = 14.sp)
+    }
+    if (compactLayout) {
+        Column {
+            copy()
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+            ) {
+                TextButton(
+                    onClick = onAction,
+                    colors = ButtonDefaults.textButtonColors(contentColor = Accent),
+                ) {
+                    Text(actionLabel)
+                }
+            }
+        }
+    } else {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column { copy() }
+            Spacer(Modifier.weight(1f))
+            TextButton(
+                onClick = onAction,
+                colors = ButtonDefaults.textButtonColors(contentColor = Accent),
+            ) {
+                Text(actionLabel)
+            }
+        }
+    }
+}
+
+@Composable
 private fun AppPickerDialog(
     apps: List<SimulcastAppChoice>,
+    compactLayout: Boolean,
     selectedCount: Int,
     message: String,
     onToggle: (String) -> Unit,
@@ -692,36 +856,26 @@ private fun AppPickerDialog(
         properties = DialogProperties(usePlatformDefaultWidth = false),
     ) {
         Surface(
-            modifier = Modifier.fillMaxWidth(0.92f),
+            modifier = if (compactLayout) Modifier.fillMaxWidth(0.96f)
+            else Modifier.fillMaxWidth(0.92f),
             color = SurfaceColor,
             shape = RoundedCornerShape(26.dp),
         ) {
-            Column(modifier = Modifier.padding(28.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column {
-                        Text(
-                            "Приложения на экранах",
-                            color = Ink,
-                            fontSize = 24.sp,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                        Text("Можно выбрать до 6 · выбрано $selectedCount", color = Muted, fontSize = 14.sp)
-                    }
-                    Spacer(Modifier.weight(1f))
-                    TextButton(
-                        onClick = onDismiss,
-                        colors = ButtonDefaults.textButtonColors(contentColor = Accent),
-                    ) {
-                        Text("Готово")
-                    }
-                }
+            Column(modifier = Modifier.padding(if (compactLayout) 16.dp else 28.dp)) {
+                PickerDialogHeader(
+                    compactLayout = compactLayout,
+                    title = "Приложения на экранах",
+                    subtitle = "Можно выбрать до 6 · выбрано $selectedCount",
+                    actionLabel = "Готово",
+                    onAction = onDismiss,
+                )
                 if (message.isNotBlank()) {
                     Spacer(Modifier.height(8.dp))
                     Text(message, color = Warning, fontSize = 14.sp)
                 }
                 Spacer(Modifier.height(18.dp))
                 LazyVerticalGrid(
-                    columns = GridCells.Fixed(6),
+                    columns = if (compactLayout) GridCells.Adaptive(96.dp) else GridCells.Fixed(6),
                     modifier = Modifier.fillMaxWidth().height(360.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -783,6 +937,7 @@ private fun AppChoiceTile(app: SimulcastAppChoice, onClick: () -> Unit) {
 @Composable
 private fun NavigationPickerDialog(
     apps: List<NavigationAppChoice>,
+    compactLayout: Boolean,
     onSelect: (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -791,30 +946,25 @@ private fun NavigationPickerDialog(
         properties = DialogProperties(usePlatformDefaultWidth = false),
     ) {
         Surface(
-            modifier = Modifier.fillMaxWidth(0.68f),
+            modifier = if (compactLayout) Modifier.fillMaxWidth(0.96f)
+            else Modifier.fillMaxWidth(0.68f),
             color = SurfaceColor,
             shape = RoundedCornerShape(26.dp),
         ) {
-            Column(modifier = Modifier.padding(28.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column {
-                        Text(
-                            "Навигация на приборке",
-                            color = Ink,
-                            fontSize = 24.sp,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                        Text("Установленные приложения", color = Muted, fontSize = 14.sp)
-                    }
-                    Spacer(Modifier.weight(1f))
-                    TextButton(onClick = onDismiss) { Text("Закрыть") }
-                }
+            Column(modifier = Modifier.padding(if (compactLayout) 16.dp else 28.dp)) {
+                PickerDialogHeader(
+                    compactLayout = compactLayout,
+                    title = "Навигация на приборке",
+                    subtitle = "Установленные приложения",
+                    actionLabel = "Закрыть",
+                    onAction = onDismiss,
+                )
                 Spacer(Modifier.height(18.dp))
                 if (apps.isEmpty()) {
                     Text("Поддерживаемые навигаторы не найдены", color = Warning, fontSize = 15.sp)
                 } else {
                     LazyVerticalGrid(
-                        columns = GridCells.Fixed(3),
+                        columns = if (compactLayout) GridCells.Adaptive(96.dp) else GridCells.Fixed(3),
                         modifier = Modifier.fillMaxWidth().heightIn(max = 260.dp),
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                         verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -874,6 +1024,7 @@ private fun NavigationChoiceTile(app: NavigationAppChoice, onClick: () -> Unit) 
 @Composable
 private fun FseInstallerPickerDialog(
     apps: List<FseInstallApp>,
+    compactLayout: Boolean,
     message: String,
     onInstall: (String) -> Unit,
     onDismiss: () -> Unit,
@@ -883,28 +1034,19 @@ private fun FseInstallerPickerDialog(
         properties = DialogProperties(usePlatformDefaultWidth = false),
     ) {
         Surface(
-            modifier = Modifier.fillMaxWidth(0.92f),
+            modifier = if (compactLayout) Modifier.fillMaxWidth(0.96f)
+            else Modifier.fillMaxWidth(0.92f),
             color = SurfaceColor,
             shape = RoundedCornerShape(26.dp),
         ) {
-            Column(modifier = Modifier.padding(28.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column {
-                        Text(
-                            "Установка на пассажирский экран",
-                            color = Ink,
-                            fontSize = 24.sp,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                        Text(
-                            "Выберите приложение с головного устройства",
-                            color = Muted,
-                            fontSize = 14.sp,
-                        )
-                    }
-                    Spacer(Modifier.weight(1f))
-                    TextButton(onClick = onDismiss) { Text("Закрыть") }
-                }
+            Column(modifier = Modifier.padding(if (compactLayout) 16.dp else 28.dp)) {
+                PickerDialogHeader(
+                    compactLayout = compactLayout,
+                    title = "Установка на пассажирский экран",
+                    subtitle = "Выберите приложение с головного устройства",
+                    actionLabel = "Закрыть",
+                    onAction = onDismiss,
+                )
                 if (message.isNotBlank()) {
                     Spacer(Modifier.height(8.dp))
                     Text(message, color = Warning, fontSize = 14.sp)
@@ -914,7 +1056,7 @@ private fun FseInstallerPickerDialog(
                     Text("Приложения не найдены", color = Warning, fontSize = 15.sp)
                 } else {
                     LazyVerticalGrid(
-                        columns = GridCells.Fixed(6),
+                        columns = if (compactLayout) GridCells.Adaptive(96.dp) else GridCells.Fixed(6),
                         modifier = Modifier.fillMaxWidth().height(380.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -1103,6 +1245,7 @@ private fun DenzaTheme(content: @Composable () -> Unit) {
 @Composable
 private fun DiagnosticsDialog(
     state: DenzaUiState,
+    compactLayout: Boolean,
     onSelectClusterDisplay: (Int?) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -1111,11 +1254,12 @@ private fun DiagnosticsDialog(
         properties = DialogProperties(usePlatformDefaultWidth = false),
     ) {
         Surface(
-            modifier = Modifier.fillMaxWidth(0.72f),
+            modifier = if (compactLayout) Modifier.fillMaxWidth(0.96f)
+            else Modifier.fillMaxWidth(0.72f),
             color = SurfaceColor,
             shape = RoundedCornerShape(26.dp),
         ) {
-            Column(modifier = Modifier.padding(28.dp)) {
+            Column(modifier = Modifier.padding(if (compactLayout) 16.dp else 28.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Outlined.Build, null, tint = Accent)
                     Spacer(Modifier.width(12.dp))
@@ -1141,6 +1285,7 @@ private fun DiagnosticsDialog(
                             DiagnosticRow(
                                 label = line.substringBefore('='),
                                 value = line.substringAfter('=', missingDelimiterValue = "—"),
+                                compactLayout = compactLayout,
                             )
                         }
                     Spacer(Modifier.height(8.dp))
@@ -1186,30 +1331,40 @@ private fun DiagnosticsDialog(
 }
 
 @Composable
-private fun DiagnosticRow(label: String, value: String) {
+private fun DiagnosticRow(label: String, value: String, compactLayout: Boolean) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         color = Elevated,
         shape = RoundedCornerShape(12.dp),
     ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                label,
-                color = Muted,
-                fontSize = 13.sp,
-                modifier = Modifier.weight(0.42f),
-            )
-            Text(
-                value,
-                color = Ink,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium,
-                modifier = Modifier.weight(0.58f),
-            )
+        if (compactLayout) {
+            Column(
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Text(label, color = Muted, fontSize = 12.sp)
+                Text(value, color = Ink, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+            }
+        } else {
+            Row(
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    label,
+                    color = Muted,
+                    fontSize = 13.sp,
+                    modifier = Modifier.weight(0.42f),
+                )
+                Text(
+                    value,
+                    color = Ink,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.weight(0.58f),
+                )
+            }
         }
     }
 }
@@ -1456,6 +1611,7 @@ private fun StatusLine(snapshot: FeatureSnapshot) {
 @Composable
 private fun ClusterDisplayPickerDialog(
     displays: List<ClusterDisplayDescriptor>,
+    compactLayout: Boolean,
     onSelect: (Int?) -> Unit,
     onRefresh: () -> Unit,
     onDismiss: () -> Unit,
@@ -1466,11 +1622,12 @@ private fun ClusterDisplayPickerDialog(
         properties = DialogProperties(usePlatformDefaultWidth = false),
     ) {
         Surface(
-            modifier = Modifier.fillMaxWidth(0.56f),
+            modifier = if (compactLayout) Modifier.fillMaxWidth(0.96f)
+            else Modifier.fillMaxWidth(0.56f),
             color = SurfaceColor,
             shape = RoundedCornerShape(26.dp),
         ) {
-            Column(modifier = Modifier.padding(28.dp)) {
+            Column(modifier = Modifier.padding(if (compactLayout) 16.dp else 28.dp)) {
                 Text(
                     "Выберите приборный экран",
                     color = Ink,
@@ -1525,16 +1682,30 @@ private fun ClusterDisplayPickerDialog(
                     }
                 }
                 Spacer(Modifier.height(14.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End,
-                ) {
-                    TextButton(onClick = { onSelect(null) }) {
-                        Text("Определять автоматически", color = Accent)
+                if (compactLayout) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.End,
+                    ) {
+                        TextButton(onClick = { onSelect(null) }) {
+                            Text("Определять автоматически", color = Accent)
+                        }
+                        TextButton(onClick = onDismiss) {
+                            Text("Отмена", color = Muted)
+                        }
                     }
-                    Spacer(Modifier.width(8.dp))
-                    TextButton(onClick = onDismiss) {
-                        Text("Отмена", color = Muted)
+                } else {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End,
+                    ) {
+                        TextButton(onClick = { onSelect(null) }) {
+                            Text("Определять автоматически", color = Accent)
+                        }
+                        Spacer(Modifier.width(8.dp))
+                        TextButton(onClick = onDismiss) {
+                            Text("Отмена", color = Muted)
+                        }
                     }
                 }
             }
