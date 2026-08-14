@@ -106,6 +106,12 @@ package into product code):
   `dev.denza.apps.START_SIMULCAST_TARGET` and
   `dev.denza.apps.STOP_SIMULCAST_TARGET`. The normal user flow is the stock
   Simulcast screen with the Denza Apps drag layer.
+- Target-screen projection uses per-receiver centered aspect-fit bounds. Keep
+  the entire source frame visible, preserve its aspect, and divide unused space
+  symmetrically; do not ship global `wm size`, SurfaceFlinger projection,
+  non-uniform stretch, or crop overrides. Rear/overhead geometry must come from
+  a matched Android display and remains unverified until exercised on that
+  vehicle model.
 - Native App Change metadata remains research. Run `videoList`, proxy, and cloud
   cache experiments from `tools/dishare_native_metadata_probe.py`, record setup
   and rollback commands, and keep them out of the APK until the normal network
