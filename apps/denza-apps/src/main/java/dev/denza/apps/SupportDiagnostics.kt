@@ -8,6 +8,7 @@ import dev.denza.apps.feature.cluster.CameraRuntimeSnapshot
 import dev.denza.apps.feature.cluster.ClusterDisplayResolver
 import dev.denza.apps.feature.cluster.ClusterDisplaySelection
 import dev.denza.apps.feature.cluster.ClusterSceneService
+import dev.denza.apps.feature.fse.FseAppInstaller
 import dev.denza.apps.feature.hud.HudGuidanceRuntime
 import dev.denza.apps.feature.hud.HudGuidanceSettings
 import dev.denza.apps.feature.hud.HudNotificationAccessCoordinator
@@ -118,6 +119,7 @@ object SupportDiagnostics {
                     fseInstaller.message.ifBlank { fseInstaller.status.name.lowercase() },
             )
             fseInstaller.details?.let { add("Детали FSE=$it") }
+            addAll(FseAppInstaller.diagnosticLines(context))
             add("Данные HUD=${HudGuidanceRuntime.details()}")
         }
         return render(

@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
+import android.content.pm.ResolveInfo
 import android.graphics.drawable.Drawable
 import android.util.Base64
 import android.util.Log
@@ -33,6 +34,84 @@ sealed interface FseInstallResult {
     data class Failed(val message: String, val details: String? = null) : FseInstallResult
 }
 
+internal data class FseSplitFileDiagnostic(
+    val declaredName: String,
+    val fileName: String,
+    val isFile: Boolean,
+    val readable: Boolean,
+    val sizeBytes: Long,
+)
+
+internal data class FseApkLayoutDiagnostic(
+    val packageName: String,
+    val label: String,
+    val versionName: String,
+    val launcherSplitName: String?,
+    val baseFileName: String,
+    val baseIsFile: Boolean,
+    val baseReadable: Boolean,
+    val baseSizeBytes: Long,
+    val declaredSplitNames: List<String>,
+    val splitFiles: List<FseSplitFileDiagnostic>,
+)
+
+internal object FseApkLayoutDiagnostics {
+    fun render(
+        candidateCount: Int,
+        layouts: List<FseApkLayoutDiagnostic>,
+    ): List<String> {
+        val splitLayouts = layouts
+            .filter { it.splitFiles.isNotEmpty() }
+            .sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.label })
+        return buildList {
+            add(
+                "FSE APK layouts=" +
+                    "candidates=$candidateCount; " +
+                    "split=${splitLayouts.size}; " +
+                    "monolithic=${(candidateCount - splitLayouts.size).coerceAtLeast(0)}",
+            )
+            if (splitLayouts.isEmpty()) {
+                add("FSE split packages=none")
+                return@buildList
+            }
+            splitLayouts.forEach { layout ->
+                add(
+                    "FSE split ${layout.packageName}=" +
+                        "label=${layout.label}; " +
+                        "version=${layout.versionName.ifBlank { "—" }}; " +
+                        "launcher=${layout.launcherSplitName ?: "base"}; " +
+                        "base=${layout.baseFileName.ifBlank { "—" }}:" +
+                        fileState(
+                            layout.baseIsFile,
+                            layout.baseReadable,
+                            layout.baseSizeBytes,
+                        ) + "; " +
+                        "files=${layout.splitFiles.size}; " +
+                        "names=${layout.declaredSplitNames.size}",
+                )
+                add(
+                    "FSE split names ${layout.packageName}=" +
+                        layout.declaredSplitNames.ifEmpty { listOf("—") }.joinToString(" | "),
+                )
+                add(
+                    "FSE split files ${layout.packageName}=" +
+                        layout.splitFiles.mapIndexed { index, file ->
+                            "${index + 1}:${file.declaredName}:" +
+                                "${file.fileName.ifBlank { "—" }}:" +
+                                fileState(file.isFile, file.readable, file.sizeBytes)
+                        }.joinToString(" | "),
+                )
+            }
+        }
+    }
+
+    private fun fileState(isFile: Boolean, readable: Boolean, sizeBytes: Long): String = when {
+        !isFile -> "missing"
+        !readable -> "not-readable"
+        else -> "${sizeBytes}B"
+    }
+}
+
 private const val FSE_INSTALL_RESULT_SUCCESS = 1
 // FSE 42.1.8.2605219.1 returned -7 after a fresh RUTUBE install became visible.
 // The package is present even though the OEM wallpaper provider reports a warning.
@@ -48,35 +127,31 @@ object FseAppInstaller {
     private const val COPY_BLOCK_BYTES = 4L * 1024L * 1024L
     private const val COPY_READ_TIMEOUT_MS = 30_000
 
+    private data class InstalledPackageCandidate(
+        val packageName: String,
+        val label: String,
+        val resolveInfo: ResolveInfo,
+        val packageInfo: PackageInfo,
+        val applicationInfo: ApplicationInfo,
+    )
+
     fun installedApps(context: Context): List<FseInstallApp> {
         val manager = context.packageManager
-        val launcher = android.content.Intent(android.content.Intent.ACTION_MAIN)
-            .addCategory(android.content.Intent.CATEGORY_LAUNCHER)
-        val seen = HashSet<String>()
-        return manager.queryIntentActivities(launcher, 0)
-            .mapNotNull { resolveInfo ->
-                val packageName = resolveInfo.activityInfo?.packageName ?: return@mapNotNull null
-                if (!seen.add(packageName)) return@mapNotNull null
-                val packageInfo = runCatching { manager.getPackageInfo(packageName, 0) }.getOrNull()
-                    ?: return@mapNotNull null
-                val applicationInfo = packageInfo.applicationInfo ?: return@mapNotNull null
-                val label = resolveInfo.loadLabel(manager).toString().ifBlank { packageName }
-                if (!isPassengerAppCandidate(packageName, applicationInfo, label)) {
-                    return@mapNotNull null
-                }
-                val source = File(applicationInfo.sourceDir.orEmpty())
-                val splitCount = applicationInfo.splitSourceDirs?.size ?: 0
+        return installedPackageCandidates(context)
+            .map { candidate ->
+                val source = File(candidate.applicationInfo.sourceDir.orEmpty())
+                val splitCount = candidate.applicationInfo.splitSourceDirs?.size ?: 0
                 val reason = when {
                     splitCount > 0 -> "Split APK пока не поддерживается"
-                    applicationInfo.sourceDir.isNullOrBlank() -> "APK не найден"
+                    candidate.applicationInfo.sourceDir.isNullOrBlank() -> "APK не найден"
                     !source.isFile -> "APK недоступен"
                     else -> ""
                 }
                 FseInstallApp(
-                    packageName = packageName,
-                    label = label,
-                    icon = runCatching { resolveInfo.loadIcon(manager) }.getOrNull(),
-                    versionName = packageInfo.versionName.orEmpty(),
+                    packageName = candidate.packageName,
+                    label = candidate.label,
+                    icon = runCatching { candidate.resolveInfo.loadIcon(manager) }.getOrNull(),
+                    versionName = candidate.packageInfo.versionName.orEmpty(),
                     apkSizeBytes = source.length(),
                     installable = reason.isEmpty(),
                     unavailableReason = reason,
@@ -86,6 +161,49 @@ object FseAppInstaller {
                 compareByDescending<FseInstallApp> { it.installable }
                     .thenBy(String.CASE_INSENSITIVE_ORDER) { it.label },
             )
+    }
+
+    /**
+     * Passive package-layout evidence for the hidden support screen.
+     *
+     * This uses only PackageManager metadata and file stat calls. It never opens
+     * ADB, copies an APK, or contacts the passenger screen.
+     */
+    fun diagnosticLines(context: Context): List<String> {
+        val candidates = installedPackageCandidates(context)
+        val layouts = candidates.map { candidate ->
+            val base = File(candidate.applicationInfo.sourceDir.orEmpty())
+            val rawDeclaredNames: Array<out String>? = candidate.packageInfo.splitNames
+            val declaredNames = rawDeclaredNames.orEmpty().map { it.trim() }
+            val splitFiles = candidate.applicationInfo.splitSourceDirs
+                ?.mapIndexed { index, path ->
+                    val file = File(path.orEmpty())
+                    FseSplitFileDiagnostic(
+                        declaredName = declaredNames.getOrNull(index)
+                            ?.takeIf { it.isNotBlank() }
+                            ?: "index-${index + 1}",
+                        fileName = file.name,
+                        isFile = file.isFile,
+                        readable = file.canRead(),
+                        sizeBytes = file.length(),
+                    )
+                }
+                .orEmpty()
+            FseApkLayoutDiagnostic(
+                packageName = candidate.packageName,
+                label = candidate.label,
+                versionName = candidate.packageInfo.versionName.orEmpty(),
+                launcherSplitName = candidate.resolveInfo.activityInfo?.splitName
+                    ?.takeIf { it.isNotBlank() },
+                baseFileName = base.name,
+                baseIsFile = base.isFile,
+                baseReadable = base.canRead(),
+                baseSizeBytes = base.length(),
+                declaredSplitNames = declaredNames,
+                splitFiles = splitFiles,
+            )
+        }
+        return FseApkLayoutDiagnostics.render(candidates.size, layouts)
     }
 
     fun install(
@@ -265,6 +383,32 @@ object FseAppInstaller {
             Character.UnicodeScript.of(character.code) == Character.UnicodeScript.HAN
         }
         return !isSystemApp && !isBydPackage && !hasChineseLabel
+    }
+
+    private fun installedPackageCandidates(context: Context): List<InstalledPackageCandidate> {
+        val manager = context.packageManager
+        val launcher = android.content.Intent(android.content.Intent.ACTION_MAIN)
+            .addCategory(android.content.Intent.CATEGORY_LAUNCHER)
+        val seen = HashSet<String>()
+        return manager.queryIntentActivities(launcher, 0)
+            .mapNotNull { resolveInfo ->
+                val packageName = resolveInfo.activityInfo?.packageName ?: return@mapNotNull null
+                if (!seen.add(packageName)) return@mapNotNull null
+                val packageInfo = runCatching { manager.getPackageInfo(packageName, 0) }.getOrNull()
+                    ?: return@mapNotNull null
+                val applicationInfo = packageInfo.applicationInfo ?: return@mapNotNull null
+                val label = resolveInfo.loadLabel(manager).toString().ifBlank { packageName }
+                if (!isPassengerAppCandidate(packageName, applicationInfo, label)) {
+                    return@mapNotNull null
+                }
+                InstalledPackageCandidate(
+                    packageName = packageName,
+                    label = label,
+                    resolveInfo = resolveInfo,
+                    packageInfo = packageInfo,
+                    applicationInfo = applicationInfo,
+                )
+            }
     }
 
     private fun friendlyError(error: Exception): String = when {
