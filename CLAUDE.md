@@ -27,6 +27,7 @@ still use the historical `denza-gateway` directory name.
 - [docs/dishare-api-notes.md](docs/dishare-api-notes.md) — DiShare/HUD findings.
 - [docs/fse-app-installation.md](docs/fse-app-installation.md) — verified passenger-screen app installation path.
 - [docs/audio-capture-findings.md](docs/audio-capture-findings.md) — what a normal app can observe of played audio (spectrum analyser feasibility).
+- [docs/split-screen-findings.md](docs/split-screen-findings.md) — the factory split is dead in this firmware; what survived and the one route left.
 
 ## Modules
 
