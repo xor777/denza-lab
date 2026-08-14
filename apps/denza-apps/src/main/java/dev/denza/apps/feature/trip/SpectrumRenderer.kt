@@ -5,11 +5,14 @@ import android.graphics.BitmapShader
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.LinearGradient
+import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.RectF
 import android.graphics.Shader
 import android.graphics.Typeface
+import kotlin.math.floor
+import kotlin.math.max
 import kotlin.math.roundToInt
 import kotlin.math.sin
 
@@ -51,13 +54,8 @@ class SpectrumRenderer {
     private val bar = RectF()
     private val glyph = Path()
     private val idlePath = Path()
-    private val trackPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        typeface = Typeface.SANS_SERIF
-        textAlign = Paint.Align.LEFT
-    }
-
-    /** Tap targets for the transport controls, in canvas coordinates. */
-    private val controlBounds = Array(3) { RectF() }
+    private val tickerPaint = Paint()
+    private val gridMatrix = Matrix()
 
     private var barShader: LinearGradient? = null
     private var reflectShader: LinearGradient? = null
@@ -73,12 +71,14 @@ class SpectrumRenderer {
     private var laidOutStrip = false
     private var preparedMap = false
     private var idlePhase = 0.0
-    private var marqueePhase = 0f
-    private var labelTitle: String? = null
-    private var labelArtist: String? = null
-    private var labelTextSize = 0f
-    private var trackLabel = ""
-    private var trackLabelWidth = 0f
+    private var marqueeDots = 0f
+    private var tickerTitle: String? = null
+    private var tickerArtist: String? = null
+    private var tickerPitch = 0f
+    private var tickerDots = 0
+    private var tickerBitmap: Bitmap? = null
+    private var dotGrid: Bitmap? = null
+    private var dotGridShader: BitmapShader? = null
 
     private var baselineY = 0f
     private var barTopY = 0f
@@ -137,9 +137,7 @@ class SpectrumRenderer {
         drawBaseline(canvas, left, right, unit, energy)
         drawScanlines(canvas, left, right, top, unit)
         if (strip) {
-            drawNowPlaying(canvas, nowPlaying, left, right, bottom, unit, dtSec)
-        } else {
-            controlBounds.forEach { it.setEmpty() }
+            drawTicker(canvas, nowPlaying, left, right, bottom, unit, dtSec)
         }
         if (!playing) {
             drawIdle(canvas, source, left, right, frameTimeSec, dtSec, unit)
@@ -308,26 +306,20 @@ class SpectrumRenderer {
         fill.shader = null
     }
 
-    /** Which transport control a touch landed on, if any. */
-    enum class Control { PREVIOUS, TOGGLE, NEXT }
-
     /**
-     * Maps a touch to a control. Uses the bounds recorded by the last frame, so
-     * it always matches what the driver can actually see.
+     * The track title as a dot-matrix ticker.
+     *
+     * Two bitmaps do the work. The unlit dot grid is a single cell tiled across
+     * the strip, so the dark matrix costs one rectangle a frame. The lit text is
+     * rendered dot by dot once, when the track changes, into its own bitmap and
+     * then simply blitted — drawing a rectangle per lit dot every frame would be
+     * hundreds of draw calls for something that changes once a song.
+     *
+     * The scroll advances in whole dots rather than smoothly. That is what the
+     * displays this imitates did, and it is also what keeps the lit dots sitting
+     * exactly on the unlit grid instead of sliding between its holes.
      */
-    fun hitTest(x: Float, y: Float): Control? {
-        if (controlBounds[0].contains(x, y)) return Control.PREVIOUS
-        if (controlBounds[1].contains(x, y)) return Control.TOGGLE
-        if (controlBounds[2].contains(x, y)) return Control.NEXT
-        return null
-    }
-
-    /**
-     * The track strip: transport controls, then the title, scrolled only when it
-     * is genuinely too long. A marquee that runs when it does not need to is
-     * just movement in the corner of a driver's eye.
-     */
-    private fun drawNowPlaying(
+    private fun drawTicker(
         canvas: Canvas,
         nowPlaying: NowPlayingSource,
         left: Float,
@@ -336,114 +328,111 @@ class SpectrumRenderer {
         unit: Float,
         dtSec: Double,
     ) {
-        val stripTop = bottom - STRIP_UNITS * unit
-        val centreY = (stripTop + bottom) / 2f
-        val target = unit * 42f
-        val step = target + unit * 8f
-        var x = left + unit * 2f
-        for (index in 0..2) {
-            controlBounds[index].set(x, centreY - target / 2f, x + target, centreY + target / 2f)
-            x += step
+        // Whole pixels per dot: a fractional pitch would blur the matrix and
+        // knock the lit dots off the grid.
+        val pitch = max(2f, (GLYPH_HEIGHT_UNITS * unit / PixelFont.ROWS).roundToInt().toFloat())
+        val gridHeight = pitch * PixelFont.ROWS
+        val stripHeight = STRIP_UNITS * unit
+        val gridTop = bottom - stripHeight + (stripHeight - gridHeight) / 2f
+
+        ensureTicker(nowPlaying, pitch)
+
+        dotGridShader?.let { shader ->
+            gridMatrix.setTranslate(left, gridTop)
+            shader.setLocalMatrix(gridMatrix)
+            fill.shader = shader
+            fill.alpha = 255
+            canvas.drawRect(left, gridTop, right, gridTop + gridHeight, fill)
+            fill.shader = null
         }
 
-        fill.shader = null
-        fill.color = alpha(INK, 0.82f)
-        drawSkipGlyph(canvas, controlBounds[0], unit, forward = false)
-        drawToggleGlyph(canvas, controlBounds[1], unit, nowPlaying.playing)
-        drawSkipGlyph(canvas, controlBounds[2], unit, forward = true)
-
-        val textLeft = x + unit * 14f
-        if (textLeft >= right) return
-        stroke.shader = null
-        stroke.strokeWidth = unit * 1f
-        stroke.color = alpha(MUTED, 0.18f)
-        canvas.drawLine(
-            textLeft - unit * 8f, centreY - target * 0.42f,
-            textLeft - unit * 8f, centreY + target * 0.42f, stroke,
-        )
-
-        trackPaint.textSize = unit * 24f
-        trackPaint.color = alpha(INK, if (nowPlaying.playing) 0.95f else 0.6f)
-        // Composed and measured only when the track actually changes. Doing it
-        // per frame meant a fresh String plus a full text-shaping pass 30 times a
-        // second to answer a question whose answer changes once a song.
-        val text = trackLabel(nowPlaying, trackPaint.textSize)
-        val textWidth = trackLabelWidth
-        val available = right - textLeft
-        val baseline = centreY + unit * 8f
+        val bitmap = tickerBitmap ?: return
+        val visibleDots = ((right - left) / pitch).toInt()
+        val scrolls = tickerDots > visibleDots
+        val cycleDots = tickerDots + TICKER_GAP_DOTS
+        if (scrolls) {
+            marqueeDots += (dtSec * TICKER_DOTS_PER_SEC).toFloat()
+            if (marqueeDots >= cycleDots) marqueeDots -= cycleDots
+        } else {
+            marqueeDots = 0f
+        }
+        val offset = floor(marqueeDots) * pitch
 
         canvas.save()
-        canvas.clipRect(textLeft, stripTop, right, bottom)
-        if (textWidth <= available) {
-            marqueePhase = 0f
-            canvas.drawText(text, textLeft, baseline, trackPaint)
-        } else {
-            val gap = unit * MARQUEE_GAP_UNITS
-            val cycle = textWidth + gap
-            marqueePhase += (dtSec * unit * MARQUEE_SPEED_UNITS_PER_SEC).toFloat()
-            if (marqueePhase >= cycle) marqueePhase -= cycle
-            canvas.drawText(text, textLeft - marqueePhase, baseline, trackPaint)
-            canvas.drawText(text, textLeft - marqueePhase + cycle, baseline, trackPaint)
+        canvas.clipRect(left, gridTop, right, gridTop + gridHeight)
+        // Held well below full: the analyser is the subject here and a ticker at
+        // full brightness pulled the eye straight to the caption instead.
+        tickerPaint.alpha = if (nowPlaying.playing) TICKER_ALPHA else TICKER_ALPHA_PAUSED
+        canvas.drawBitmap(bitmap, left - offset, gridTop, tickerPaint)
+        if (scrolls) {
+            canvas.drawBitmap(bitmap, left - offset + cycleDots * pitch, gridTop, tickerPaint)
         }
         canvas.restore()
     }
 
-    private fun trackLabel(nowPlaying: NowPlayingSource, textSize: Float): String {
-        if (nowPlaying.title == labelTitle &&
-            nowPlaying.artist == labelArtist &&
-            textSize == labelTextSize
+    /** Redraws the dot bitmaps only when the track or the dot pitch changes. */
+    private fun ensureTicker(nowPlaying: NowPlayingSource, pitch: Float) {
+        if (nowPlaying.title == tickerTitle &&
+            nowPlaying.artist == tickerArtist &&
+            pitch == tickerPitch
         ) {
-            return trackLabel
+            return
         }
-        labelTitle = nowPlaying.title
-        labelArtist = nowPlaying.artist
-        labelTextSize = textSize
-        val title = labelTitle.orEmpty()
-        val artist = labelArtist.orEmpty()
-        trackLabel = if (artist.isBlank()) title else "$title \u00b7 $artist"
-        trackLabelWidth = trackPaint.measureText(trackLabel)
-        return trackLabel
+        val pitchChanged = pitch != tickerPitch
+        tickerTitle = nowPlaying.title
+        tickerArtist = nowPlaying.artist
+        tickerPitch = pitch
+        marqueeDots = 0f
+        if (pitchChanged) {
+            buildDotGrid(pitch)
+        }
+
+        val title = tickerTitle.orEmpty()
+        val artist = tickerArtist.orEmpty()
+        val text = PixelFont.prepare(if (artist.isBlank()) title else "$title · $artist")
+        tickerDots = PixelFont.widthInDots(text)
+        tickerBitmap?.recycle()
+        tickerBitmap = null
+        if (tickerDots <= 0) return
+
+        val width = (tickerDots * pitch).toInt().coerceAtLeast(1)
+        val height = (PixelFont.ROWS * pitch).toInt().coerceAtLeast(1)
+        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        val target = Canvas(bitmap)
+        val dot = Paint()
+        dot.color = MINT
+        val size = pitch * DOT_FILL
+        var column = 0
+        for (character in text) {
+            val glyphRows = PixelFont.glyph(character)
+            for (row in 0 until PixelFont.ROWS) {
+                val bits = glyphRows[row]
+                for (col in 0 until PixelFont.COLUMNS) {
+                    if ((bits shr (PixelFont.COLUMNS - 1 - col)) and 1 == 1) {
+                        val x = (column + col) * pitch
+                        val y = row * pitch
+                        target.drawRect(x, y, x + size, y + size, dot)
+                    }
+                }
+            }
+            column += PixelFont.COLUMNS + PixelFont.TRACKING
+        }
+        tickerBitmap = bitmap
     }
 
-    private fun drawToggleGlyph(canvas: Canvas, bounds: RectF, unit: Float, playing: Boolean) {
-        val cx = bounds.centerX()
-        val cy = bounds.centerY()
-        val size = bounds.height() * 0.42f
-        if (playing) {
-            val barWidth = size * 0.34f
-            bar.set(cx - size * 0.55f, cy - size, cx - size * 0.55f + barWidth, cy + size)
-            canvas.drawRoundRect(bar, unit * 1.5f, unit * 1.5f, fill)
-            bar.set(cx + size * 0.55f - barWidth, cy - size, cx + size * 0.55f, cy + size)
-            canvas.drawRoundRect(bar, unit * 1.5f, unit * 1.5f, fill)
-        } else {
-            glyph.rewind()
-            glyph.moveTo(cx - size * 0.5f, cy - size)
-            glyph.lineTo(cx + size * 0.8f, cy)
-            glyph.lineTo(cx - size * 0.5f, cy + size)
-            glyph.close()
-            canvas.drawPath(glyph, fill)
-        }
-    }
-
-    private fun drawSkipGlyph(canvas: Canvas, bounds: RectF, unit: Float, forward: Boolean) {
-        val cx = bounds.centerX()
-        val cy = bounds.centerY()
-        val size = bounds.height() * 0.34f
-        val direction = if (forward) 1f else -1f
-        glyph.rewind()
-        for (wedge in 0..1) {
-            val offset = (wedge - 0.5f) * size * 1.05f * direction
-            glyph.moveTo(cx + offset - size * 0.5f * direction, cy - size)
-            glyph.lineTo(cx + offset + size * 0.5f * direction, cy)
-            glyph.lineTo(cx + offset - size * 0.5f * direction, cy + size)
-            glyph.close()
-        }
-        canvas.drawPath(glyph, fill)
-        bar.set(
-            cx + direction * size * 1.35f - unit * 1.6f, cy - size,
-            cx + direction * size * 1.35f + unit * 1.6f, cy + size,
-        )
-        canvas.drawRoundRect(bar, unit * 1.2f, unit * 1.2f, fill)
+    /** One dot cell, tiled to become the unlit matrix behind the text. */
+    private fun buildDotGrid(pitch: Float) {
+        val cell = pitch.toInt().coerceAtLeast(2)
+        dotGrid?.recycle()
+        val bitmap = Bitmap.createBitmap(cell, cell, Bitmap.Config.ARGB_8888)
+        val target = Canvas(bitmap)
+        target.drawColor(Color.TRANSPARENT)
+        val dot = Paint()
+        dot.color = alpha(MINT, 0.08f)
+        val size = cell * DOT_FILL
+        target.drawRect(0f, 0f, size, size, dot)
+        dotGrid = bitmap
+        dotGridShader = BitmapShader(bitmap, Shader.TileMode.REPEAT, Shader.TileMode.REPEAT)
     }
 
     /** A slow travelling ripple, so a silent car still shows a living panel. */
@@ -502,12 +491,23 @@ class SpectrumRenderer {
         /** Matches the Visualizer's maximum capture size, used for the axis map. */
         const val FFT_CAPTURE_SIZE = 1024
 
-        const val BASELINE_FRACTION = 0.70f
+        // The baseline sits low in its area: the reflection only needs a little
+        // room, and higher up the analyser floated clear of the ticker with dead
+        // space between them.
+        const val BASELINE_FRACTION = 0.85f
         const val BAR_WIDTH_FRACTION = 0.66f
         const val REFLECT_FRACTION = 1.0f
-        const val STRIP_UNITS = 62f
-        const val MARQUEE_SPEED_UNITS_PER_SEC = 42f
-        const val MARQUEE_GAP_UNITS = 90f
+        const val STRIP_UNITS = 58f
+
+        /** Cap height of the ticker. */
+        const val GLYPH_HEIGHT_UNITS = 50f
+
+        /** How much of a dot cell the dot itself fills, leaving the matrix gaps. */
+        const val DOT_FILL = 0.78f
+        const val TICKER_ALPHA = 150
+        const val TICKER_ALPHA_PAUSED = 95
+        const val TICKER_GAP_DOTS = 20
+        const val TICKER_DOTS_PER_SEC = 8.0
         const val SCAN_PITCH_UNITS = 7f
         const val SCAN_DARK_FRACTION = 0.34f
         const val SCAN_ALPHA = 0.42f

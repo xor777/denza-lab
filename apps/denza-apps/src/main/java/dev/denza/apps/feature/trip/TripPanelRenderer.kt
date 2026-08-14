@@ -69,10 +69,6 @@ class TripPanelRenderer : BaseTripRenderer() {
         }
     }
 
-    /** Forwards a touch to the analyser's transport controls. */
-    fun hitTest(x: Float, y: Float): SpectrumRenderer.Control? =
-        if (TripPanelFlag.LEGACY_INSTRUMENTS) null else spectrumRenderer.hitTest(x, y)
-
     private fun drawCompass(canvas: Canvas, engine: TripEngine) {
         val x0 = vx(395f)
         val x1 = vx(1360f)

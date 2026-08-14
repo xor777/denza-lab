@@ -4,7 +4,6 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Canvas
 import android.view.Choreographer
-import android.view.MotionEvent
 import android.view.View
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.Lifecycle
@@ -20,10 +19,7 @@ import androidx.lifecycle.findViewTreeLifecycleOwner
  *
  * The whole panel is gated by the compile-time [TripPanelFlag]; when it is off,
  * Compose never adds this view, so nothing here runs.
- *
- * The only touch the panel accepts is on the analyser's transport controls; a
- * tap anywhere else is ignored, so the panel stays a display rather than a
- * surface the driver can knock out of shape.
+
  *
  * Sensors and rendering are fully stopped when the panel is not visible or the
  * activity is paused. The draw path preallocates all Paint state.
@@ -46,26 +42,6 @@ class TripPanelView(context: Context) : View(context), Choreographer.FrameCallba
 
     init {
         contentDescription = "Панель поездки"
-        isClickable = true
-    }
-
-    override fun onTouchEvent(event: MotionEvent): Boolean {
-        if (event.actionMasked != MotionEvent.ACTION_UP) {
-            return event.actionMasked == MotionEvent.ACTION_DOWN
-        }
-        val control = renderer.hitTest(event.x, event.y) ?: return false
-        when (control) {
-            SpectrumRenderer.Control.PREVIOUS -> hub.nowPlaying.previous()
-            SpectrumRenderer.Control.TOGGLE -> hub.nowPlaying.toggle()
-            SpectrumRenderer.Control.NEXT -> hub.nowPlaying.next()
-        }
-        performClick()
-        return true
-    }
-
-    override fun performClick(): Boolean {
-        super.performClick()
-        return true
     }
 
     override fun onAttachedToWindow() {
