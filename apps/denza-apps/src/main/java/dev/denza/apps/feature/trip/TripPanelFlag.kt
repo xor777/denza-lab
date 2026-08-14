@@ -12,4 +12,17 @@ package dev.denza.apps.feature.trip
  */
 object TripPanelFlag {
     const val ENABLED = true
+
+    /**
+     * The panel's original instruments: the hanging mirror toy, the compass tape
+     * and the journey thread.
+     *
+     * Switched off in favour of the spectrum analyser, which now owns that space.
+     * Nothing was removed — [MirrorToyRenderer], [MirrorToyPhysics],
+     * [JourneyThreadDrawer], [CourseTracker] and their tests are all still here
+     * and still built, and the engine keeps feeding them. Flip this back to
+     * `true` to get them on screen again; the two cannot share the space, so the
+     * analyser yields when they are on.
+     */
+    const val LEGACY_INSTRUMENTS = false
 }

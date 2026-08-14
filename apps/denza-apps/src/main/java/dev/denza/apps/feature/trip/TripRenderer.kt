@@ -61,6 +61,8 @@ abstract class BaseTripRenderer {
     /**
      * @param frameTimeSec monotonic seconds since the panel started (for phase)
      * @param dtSec seconds since the previous drawn frame (for physics integration)
+     * @param spectrum the live output-mix capture feeding the analyser
+     * @param nowPlaying the active media session, for the track strip
      * @param showLocationHint when true, draw the muted "no location access" hint
      *   in an area that stays clear of the panel's own captions and figures in
      *   both the GNSS and no-GNSS states.
@@ -70,6 +72,8 @@ abstract class BaseTripRenderer {
         w: Float,
         h: Float,
         engine: TripEngine,
+        spectrum: SpectrumSource,
+        nowPlaying: NowPlayingSource,
         frameTimeSec: Double,
         dtSec: Double,
         showLocationHint: Boolean,

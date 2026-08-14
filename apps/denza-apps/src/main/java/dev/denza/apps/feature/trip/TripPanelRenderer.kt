@@ -12,12 +12,15 @@ import kotlin.math.sin
 /**
  * The single trip panel screen.
  *
- * Everything moves from real sensors: the left slot is the hanging mirror toy
- * ([MirrorToyRenderer]) swung by the cabin's apparent gravity and made queasy by
- * real manoeuvres; the compass tape follows the GNSS bearing with an offline sun
- * marker; the centre is the whole trip as one journey thread
- * ([JourneyThreadDrawer]); the right column holds the remaining-route/elapsed,
- * altitude, climb and daylight figures.
+ * The left of the panel is the spectrum analyser ([SpectrumRenderer]), fed by
+ * whatever the car is actually playing; the right column holds the
+ * remaining-route/elapsed, altitude, climb and daylight figures.
+ *
+ * The panel's original sensor instruments — the hanging mirror toy
+ * ([MirrorToyRenderer]), the compass tape and the journey thread
+ * ([JourneyThreadDrawer]) — occupied that same space and are now hidden behind
+ * [TripPanelFlag.LEGACY_INSTRUMENTS]. Their code and the engine state driving
+ * them are untouched; only the draw calls are gated.
  */
 class TripPanelRenderer : BaseTripRenderer() {
 
@@ -26,35 +29,49 @@ class TripPanelRenderer : BaseTripRenderer() {
 
     private val toy = MirrorToyRenderer()
     private val thread = JourneyThreadDrawer()
+    private val spectrumRenderer = SpectrumRenderer()
 
     override fun draw(
         canvas: Canvas,
         w: Float,
         h: Float,
         engine: TripEngine,
+        spectrum: SpectrumSource,
+        nowPlaying: NowPlayingSource,
         frameTimeSec: Double,
         dtSec: Double,
         showLocationHint: Boolean,
     ) {
         setSize(w, h)
-        toy.draw(
-            canvas, engine, frameTimeSec, dtSec,
-            cx = vx(TOY_CX), cy = vy(TOY_CY), s = vs(TOY_SCALE), unit = vs(1f), panelHeight = h,
-        )
-        drawCompass(canvas, engine)
-        thread.draw(
-            canvas, engine, frameTimeSec, dtSec,
-            left = vx(THREAD_LEFT), right = vx(THREAD_RIGHT),
-            top = vy(THREAD_TOP), bottom = vy(THREAD_BOTTOM), unit = vs(1f),
-        )
+        if (TripPanelFlag.LEGACY_INSTRUMENTS) {
+            toy.draw(
+                canvas, engine, frameTimeSec, dtSec,
+                cx = vx(TOY_CX), cy = vy(TOY_CY), s = vs(TOY_SCALE), unit = vs(1f), panelHeight = h,
+            )
+            drawCompass(canvas, engine)
+            thread.draw(
+                canvas, engine, frameTimeSec, dtSec,
+                left = vx(THREAD_LEFT), right = vx(THREAD_RIGHT),
+                top = vy(THREAD_TOP), bottom = vy(THREAD_BOTTOM), unit = vs(1f),
+            )
+        } else {
+            spectrumRenderer.draw(
+                canvas, spectrum, nowPlaying, frameTimeSec, dtSec,
+                left = vx(SPECTRUM_LEFT), right = vx(SPECTRUM_RIGHT),
+                top = vy(SPECTRUM_TOP), bottom = vy(SPECTRUM_BOTTOM), unit = vs(1f),
+            )
+        }
         drawColumn(canvas, engine)
         if (showLocationHint) {
             // Right data column: its GNSS rows (Высота/Закат) are hidden without a
-            // fix, so the lower part of that column is empty — and far from the
-            // captionless toy in the left slot.
+            // fix, so the lower part of that column is empty.
             label(canvas, LOCATION_HINT, vx(1436f), vy(320f), 16f, TripPalette.alpha(TripPalette.MUTED, 0.85f))
         }
     }
+
+    /** Forwards a touch to the analyser's transport controls. */
+    fun hitTest(x: Float, y: Float): SpectrumRenderer.Control? =
+        if (TripPanelFlag.LEGACY_INSTRUMENTS) null else spectrumRenderer.hitTest(x, y)
 
     private fun drawCompass(canvas: Canvas, engine: TripEngine) {
         val x0 = vx(395f)
@@ -145,10 +162,13 @@ class TripPanelRenderer : BaseTripRenderer() {
     }
 
     private fun drawColumn(canvas: Canvas, engine: TripEngine) {
-        // Faint dividers (thin lines, not frames).
+        // Faint dividers (thin lines, not frames). The left divider only made
+        // sense as the mirror toy's slot edge; the analyser spans that space.
         stroke.color = TripPalette.alpha(TripPalette.MUTED, 0.14f)
         stroke.strokeWidth = vs(1f)
-        canvas.drawLine(vx(352f), vy(24f), vx(352f), vy(336f), stroke)
+        if (TripPanelFlag.LEGACY_INSTRUMENTS) {
+            canvas.drawLine(vx(352f), vy(24f), vx(352f), vy(336f), stroke)
+        }
         canvas.drawLine(vx(1398f), vy(24f), vx(1398f), vy(336f), stroke)
 
         val rx = vx(1436f)
@@ -214,5 +234,17 @@ class TripPanelRenderer : BaseTripRenderer() {
         const val THREAD_RIGHT = 1356f
         const val THREAD_TOP = 120f
         const val THREAD_BOTTOM = 300f
+
+        // The analyser takes the whole area the three instruments used to share,
+        // stopping short of the data column's divider at 1398.
+        //
+        // Flush against the panel's own left edge: the view is laid out with
+        // fillMaxWidth() in the same column as the feature cards, so x=0 is
+        // already the card edge and any inset here reads as the analyser sitting
+        // crooked against everything above it.
+        const val SPECTRUM_LEFT = 0f
+        const val SPECTRUM_RIGHT = 1356f
+        const val SPECTRUM_TOP = 38f
+        const val SPECTRUM_BOTTOM = 338f
     }
 }

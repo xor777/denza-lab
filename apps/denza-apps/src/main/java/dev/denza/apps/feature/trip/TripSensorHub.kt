@@ -44,6 +44,16 @@ class TripSensorHub(context: Context) : SensorEventListener, LocationListener {
     /** The process-lifetime engine. Never reset; read on the main thread only. */
     val engine = TripEngine()
 
+    /**
+     * The panel's audio capture. Process-scoped like the engine, but unlike the
+     * engine it holds a real system effect, so it is attached and released with
+     * the panel's visibility exactly as the sensors are.
+     */
+    val spectrum = SpectrumSource()
+
+    /** The active media session behind the panel's track strip and controls. */
+    val nowPlaying = NowPlayingSource()
+
     var running: Boolean = false
         private set
 
@@ -69,6 +79,8 @@ class TripSensorHub(context: Context) : SensorEventListener, LocationListener {
         registerSensor(Sensor.TYPE_GYROSCOPE)
         registerSensor(Sensor.TYPE_ACCELEROMETER)
         ensureLocationAccess()
+        spectrum.start(appContext)
+        nowPlaying.start(appContext)
     }
 
     fun stop() {
@@ -77,6 +89,8 @@ class TripSensorHub(context: Context) : SensorEventListener, LocationListener {
         hostContext = null
         sensorManager?.unregisterListener(this)
         runCatching { locationManager?.removeUpdates(this) }
+        spectrum.stop()
+        nowPlaying.stop()
         haveGravity = false
     }
 
