@@ -35,6 +35,7 @@ object NavigationProxyClient {
         context: Context,
         packageName: String,
         taskId: Int,
+        projectionRootTaskId: Int,
         displayId: Int,
         width: Int,
         height: Int,
@@ -44,6 +45,7 @@ object NavigationProxyClient {
             "project-task",
             packageName,
             taskId.toString(),
+            projectionRootTaskId.toString(),
             displayId.toString(),
             width.toString(),
             height.toString(),
@@ -54,6 +56,7 @@ object NavigationProxyClient {
         context: Context,
         packageName: String,
         taskId: Int,
+        origin: NavigationProjectionOrigin,
         focusNavigation: Boolean,
     ): Boolean = booleanResult(
         run(
@@ -61,8 +64,31 @@ object NavigationProxyClient {
             if (focusNavigation) "return-task" else "restore-task",
             packageName,
             taskId.toString(),
+            origin.sourceRootTaskId.toString(),
+            origin.companionTaskId.toString(),
+            origin.companionRootTaskId.toString(),
         ),
     )
+
+    fun projectionOrigin(
+        context: Context,
+        packageName: String,
+        taskId: Int,
+    ): NavigationProjectionOrigin = projectionOriginValue(
+        run(context, "projection-origin", packageName, taskId.toString()),
+    )
+
+    internal fun projectionOriginValue(output: String): NavigationProjectionOrigin {
+        val values = resultValue(output)
+            .split(',')
+            .map { it.toIntOrNull() ?: error("navigation origin is malformed") }
+        check(values.size == 3) { "navigation origin is malformed" }
+        return NavigationProjectionOrigin(
+            sourceRootTaskId = values[0],
+            companionTaskId = values[1],
+            companionRootTaskId = values[2],
+        )
+    }
 
     fun createVirtualDisplay(
         context: Context,
@@ -85,6 +111,9 @@ object NavigationProxyClient {
         ) ?: error("virtual display creation failed")
         virtualDisplay!!.display.displayId
     }
+
+    fun createProjectionRoot(context: Context, displayId: Int): Int =
+        intResult(run(context, "create-root", displayId.toString()))
 
     fun moveTask(context: Context, packageName: String, taskId: Int, displayId: Int): Boolean =
         booleanResult(
@@ -121,6 +150,15 @@ object NavigationProxyClient {
     fun taskDisplayId(context: Context, packageName: String, taskId: Int): Int =
         intResult(run(context, "task-display", packageName, taskId.toString()))
 
+    fun currentVirtualDisplayId(): Int? = synchronized(lock) {
+        virtualDisplay?.display?.displayId
+    }
+
+    fun isVirtualDisplayAlive(expectedDisplayId: Int): Boolean = synchronized(lock) {
+        val display = virtualDisplay?.display ?: return@synchronized false
+        display.displayId == expectedDisplayId && display.isValid
+    }
+
     fun releaseVirtualDisplay() = synchronized(lock) {
         virtualDisplay?.release()
         virtualDisplay = null
@@ -128,6 +166,10 @@ object NavigationProxyClient {
 
     fun disconnect() {
         releaseVirtualDisplay()
+        disconnectShell()
+    }
+
+    fun disconnectShell() {
         synchronized(shellLock) {
             adbShell?.close()
             adbShell = null
@@ -163,4 +205,11 @@ object NavigationProxyClient {
     }
 
     private fun shellQuote(value: String): String = "'${value.replace("'", "'\"'\"'")}'"
+
 }
+
+data class NavigationProjectionOrigin(
+    val sourceRootTaskId: Int,
+    val companionTaskId: Int,
+    val companionRootTaskId: Int,
+)

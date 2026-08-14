@@ -35,6 +35,7 @@ object SplitScreenCoordinator {
     @Volatile private var initialized = false
     @Volatile private var generation = 0L
     @Volatile private var routingBlockedUntilMs = 0L
+    @Volatile private var externalTaskMovesHeld = false
     private var activeRouter: SplitShellRouter? = null
 
     fun initialize(context: Context, onStateChanged: () -> Unit) {
@@ -68,6 +69,36 @@ object SplitScreenCoordinator {
         val blockedUntil = SystemClock.elapsedRealtime() + EXTERNAL_TASK_BYPASS_MS
         synchronized(routingLock) {
             routingBlockedUntilMs = maxOf(routingBlockedUntilMs, blockedUntil)
+            activeRouter?.cancelPendingSelection()
+        }
+    }
+
+    /**
+     * Keeps routing suspended while an external-display task move is actually
+     * in flight. Navigation releases this after the projected central scene is
+     * stable, then acquires it again before returning the task to display 0.
+     */
+    @JvmStatic
+    fun holdExternalTaskMoves() {
+        synchronized(routingLock) {
+            if (!externalTaskMovesHeld) Log.i(TAG, "external task routing held")
+            externalTaskMovesHeld = true
+            activeRouter?.cancelPendingSelection()
+        }
+    }
+
+    /**
+     * Releases the long-lived handoff hold. The operation that acquired the
+     * lease also calls [bypassExternalTaskMoves] before starting, so its settle
+     * deadline is already in force. Extending it again here would leave the
+     * main display unable to form a new pair for several seconds after a
+     * successful navigation projection.
+     */
+    @JvmStatic
+    fun releaseExternalTaskMoves() {
+        synchronized(routingLock) {
+            if (externalTaskMovesHeld) Log.i(TAG, "external task routing released")
+            externalTaskMovesHeld = false
             activeRouter?.cancelPendingSelection()
         }
     }
@@ -225,7 +256,7 @@ object SplitScreenCoordinator {
 
     private fun tickUnlessBlocked(router: SplitShellRouter): Boolean {
         return synchronized(routingLock) {
-            if (SystemClock.elapsedRealtime() >= routingBlockedUntilMs) {
+            if (!externalTaskMovesHeld && SystemClock.elapsedRealtime() >= routingBlockedUntilMs) {
                 router.tick()
             } else {
                 router.cancelPendingSelection()

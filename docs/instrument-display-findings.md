@@ -1,7 +1,8 @@
 # Instrument Display Findings
 
 This page tracks the instrument-display scene shared by Mirrors and navigation.
-The implementation summary was last checked against the code on 2026-07-25.
+The implementation summary was last checked against the code and the live car
+on 2026-08-14.
 
 ## Product architecture
 
@@ -86,12 +87,43 @@ task without focusing it, recreates the virtual display, and projects the same
 task into the new geometry. Camera gradients are a separate layer and keep
 their already verified Mirrors parameters.
 
-When the selected navigator is a child of a native IVI split root, its task id
-is not a valid argument to `moveRootTaskToDisplay`. The projection proxy resolves
-the containing root through `getAllRootTaskInfos`, promotes the selected
-navigation task inside that root, and moves the root as one pane. Returning the
-same root to display 0 preserves its native split identity, side, and task
-history instead of recreating the navigator fullscreen.
+When the selected navigator is a child of a native IVI split root, moving its
+containing root also carries the pane geometry to the instrument display and
+leaves an empty split container on the IVI. The projection proxy instead asks
+the stock task organizer to create a genuinely empty fullscreen root on the
+app-owned virtual display, resolves the navigator's containing root through
+`getAllRootTaskInfos`, and reparents only the navigator task into that empty
+root. The organizer-created root already inherits the full virtual-display
+bounds; only the nested navigator task needs an explicit resize. A standalone
+navigator root keeps the already proven whole-root move path.
+
+An earlier development build used an Activity host as the projection root.
+That topology is forbidden. It put an `ActivityRecord` and the reparented
+navigator `Task` under the same root. At 22:08:50 on 2026-08-14, a tap outside
+focus reached the vendor `Task.resumeTopActivityUncheckedLocked` path, which
+blindly cast the host `ActivityRecord` to `Task`. The resulting
+`ClassCastException` killed `system_server`; the apparent head-unit reboot and
+the subsequent application `DeadSystemException`s were consequences of that
+single failure. The host Activity was removed from the product. Root discovery
+now fails closed unless exactly one new root exists on the expected `Denza
+Navigation` display and its organizer report contains only the root's own task
+id before the navigator is moved. On this firmware an empty organizer root is
+reported as `childTaskIds=[rootTaskId]`, not as an empty array.
+
+Before detaching the navigator, the proxy records its native source root and
+the visible companion task/root. Split routing is held only while the task move
+and its configuration changes are in flight. Once projection has settled, the
+remaining IVI app becomes the router's new baseline, allowing a later launch
+to form an independent IVI pair while navigation remains projected. Return
+acquires the hold again and restores the recorded companion and navigator to
+their original native roots before routing resumes.
+
+The corrected topology was exercised on the live car on 2026-08-14 from a
+native split pane. The navigator moved alone into newly created instrument
+roots at both `2560x720` and the selected partial-map geometry `1023x524`; the
+central companion remained available, `system_server` stayed alive, and the
+user-initiated return restored the navigator to the IVI. Both virtual displays
+were then removed normally, with no crash-buffer entry.
 
 The UI state is contextual: **Open**, **To cluster**, then **Return**. The
 picker re-reads the installed subset of the navigation allowlist whenever it is
@@ -137,9 +169,23 @@ checks the selected instrument display once per second. A visible exact
 uses live root/display relationships and never stores a task, root, or display
 ID. Entering Map projects the selected navigator. Leaving it returns the task
 to display `0`, restores normal bounds, and backgrounds it so the previous IVI
-scene remains visible. A failed command or missing task releases the map
-surface and enters recovery; releasing the virtual display is the final
-fallback that lets Android return its task to the default display.
+scene remains visible.
+
+Starting or stopping DiShare video creates and removes a separate BYD mirror
+display. During that display churn, `ActivityManager.getRunningTasks()` can
+temporarily omit the task that still belongs to the live app-owned navigation
+display. On 2026-08-14 the old watchdog interpreted one such negative lookup
+as an ended projection, released `Denza Navigation`, and Android consequently
+removed the navigator task with its display. The failure was local to Denza
+Apps; `system_server` stayed alive.
+
+Display teardown now fails closed. A negative lookup or shell error preserves
+both the virtual display and map surface and reconnects only the shell. An
+external task move is accepted only after the same positive different display
+is observed twice. Projection-error cleanup follows the same rule: it releases
+a live display only after the task was positively found elsewhere or was
+successfully returned to its recorded native root. If task location or return
+is uncertain, the UI keeps a **Return** action instead of destroying the task.
 
 ## HUD turn-by-turn guidance
 

@@ -86,4 +86,102 @@ class NavigationModelsTest {
             ),
         )
     }
+
+    @Test
+    fun missingTaskObservationNeverAuthorizesProjectionTeardown() {
+        val tracker = NavigationProjectionHealthTracker()
+
+        repeat(5) {
+            assertEquals(
+                NavigationProjectionHealthDecision.Uncertain(-1, 0),
+                tracker.observe(actualDisplayId = -1, expectedDisplayId = 16),
+            )
+        }
+    }
+
+    @Test
+    fun displayChurnRequiresTwoMatchingPositiveDepartureObservations() {
+        val tracker = NavigationProjectionHealthTracker()
+
+        assertEquals(
+            NavigationProjectionHealthDecision.Uncertain(17, 1),
+            tracker.observe(actualDisplayId = 17, expectedDisplayId = 16),
+        )
+        assertEquals(
+            NavigationProjectionHealthDecision.Healthy,
+            tracker.observe(actualDisplayId = 16, expectedDisplayId = 16),
+        )
+        assertEquals(
+            NavigationProjectionHealthDecision.Uncertain(17, 1),
+            tracker.observe(actualDisplayId = 17, expectedDisplayId = 16),
+        )
+        assertEquals(
+            NavigationProjectionHealthDecision.ConfirmedElsewhere(17),
+            tracker.observe(actualDisplayId = 17, expectedDisplayId = 16),
+        )
+    }
+
+    @Test
+    fun differentUnexpectedDisplaysDoNotConfirmAProjectionDeparture() {
+        val tracker = NavigationProjectionHealthTracker()
+
+        assertEquals(
+            NavigationProjectionHealthDecision.Uncertain(17, 1),
+            tracker.observe(actualDisplayId = 17, expectedDisplayId = 16),
+        )
+        assertEquals(
+            NavigationProjectionHealthDecision.Uncertain(3, 1),
+            tracker.observe(actualDisplayId = 3, expectedDisplayId = 16),
+        )
+    }
+
+    @Test
+    fun projectionCleanupCanReleaseWhenOwnedDisplayIsAlreadyGone() {
+        assertEquals(
+            NavigationProjectionCleanupDecision.RELEASE,
+            navigationProjectionCleanupDecision(
+                ownedDisplayId = 16,
+                ownedDisplayAlive = false,
+                actualTaskDisplayId = null,
+            ),
+        )
+    }
+
+    @Test
+    fun projectionCleanupCanReleaseWhenTaskIsPositivelyElsewhere() {
+        assertEquals(
+            NavigationProjectionCleanupDecision.RELEASE,
+            navigationProjectionCleanupDecision(
+                ownedDisplayId = 16,
+                ownedDisplayAlive = true,
+                actualTaskDisplayId = 0,
+            ),
+        )
+    }
+
+    @Test
+    fun projectionCleanupReturnsTaskBeforeReleasingItsLiveDisplay() {
+        assertEquals(
+            NavigationProjectionCleanupDecision.RETURN_THEN_RELEASE,
+            navigationProjectionCleanupDecision(
+                ownedDisplayId = 16,
+                ownedDisplayAlive = true,
+                actualTaskDisplayId = 16,
+            ),
+        )
+    }
+
+    @Test
+    fun projectionCleanupPreservesLiveDisplayWhenTaskLocationIsUnknown() {
+        listOf(null, -1).forEach { actualDisplayId ->
+            assertEquals(
+                NavigationProjectionCleanupDecision.PRESERVE,
+                navigationProjectionCleanupDecision(
+                    ownedDisplayId = 16,
+                    ownedDisplayAlive = true,
+                    actualTaskDisplayId = actualDisplayId,
+                ),
+            )
+        }
+    }
 }

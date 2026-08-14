@@ -21,4 +21,16 @@ class NavigationProxyClientTest {
             NavigationProxyClient.resultValue("permission denied")
         }
     }
+
+    @Test
+    fun parsesStandaloneProjectionOriginWithoutNegativeShellArguments() {
+        assertEquals(
+            NavigationProjectionOrigin(
+                sourceRootTaskId = 23,
+                companionTaskId = 0,
+                companionRootTaskId = 0,
+            ),
+            NavigationProxyClient.projectionOriginValue("DENZA_RESULT:23,0,0"),
+        )
+    }
 }

@@ -23,6 +23,9 @@ object NavigationCoordinator {
     private const val TAG = "DenzaNavigation"
     private const val ADB_KEY_COMMENT = "denza-apps@denza"
     private const val AUTOMATIC_POLL_SECONDS = 1L
+    private const val PROJECTION_SURFACE_TIMEOUT_MS = 5_000L
+    private const val PROJECTION_ROUTING_SETTLE_MS = 900L
+    private const val RETURN_SETTLE_MS = 900L
     private val executor = Executors.newSingleThreadScheduledExecutor()
     @Volatile private var context: Context? = null
     @Volatile private var session = NavigationSession()
@@ -38,6 +41,12 @@ object NavigationCoordinator {
     private var pendingAutomaticReturn = false
     private var pendingProjectionAfterOpen = false
     private var stockAdbShell: LocalAdbClient.PersistentShellSession? = null
+    private var projectedOrigin: NavigationProjectionOrigin? = null
+    private val projectionHealth = NavigationProjectionHealthTracker()
+    private val splitRoutingLease = NavigationSplitRoutingLease(
+        hold = SplitScreenCoordinator::holdExternalTaskMoves,
+        release = SplitScreenCoordinator::releaseExternalTaskMoves,
+    )
 
     fun initialize(context: Context, onStateChanged: () -> Unit) {
         val app = context.applicationContext
@@ -202,6 +211,7 @@ object NavigationCoordinator {
         val launch = app.packageManager.getLaunchIntentForPackage(packageName)
         if (launch == null) {
             pendingProjectionAfterOpen = false
+            splitRoutingLease.release()
             update(
                 NavigationSession(
                     phase = NavigationPhase.NEEDS_ACTION,
@@ -225,6 +235,7 @@ object NavigationCoordinator {
             executor.schedule({ discoverLaunchedTask(5) }, 900L, TimeUnit.MILLISECONDS)
         } catch (error: RuntimeException) {
             pendingProjectionAfterOpen = false
+            splitRoutingLease.release()
             update(
                 session.copy(
                     phase = NavigationPhase.NEEDS_ACTION,
@@ -264,6 +275,7 @@ object NavigationCoordinator {
             } else {
                 pendingAutomaticProjection = false
                 pendingProjectionAfterOpen = false
+                splitRoutingLease.release()
                 update(
                     NavigationSession(
                         phase = NavigationPhase.NEEDS_ACTION,
@@ -275,6 +287,7 @@ object NavigationCoordinator {
         } catch (error: Exception) {
             pendingAutomaticProjection = false
             pendingProjectionAfterOpen = false
+            splitRoutingLease.release()
             val problem = friendlyProxyProblem(error)
             update(
                 NavigationSession(
@@ -348,6 +361,8 @@ object NavigationCoordinator {
             )
             return
         }
+        splitRoutingLease.acquire()
+        projectionHealth.reset()
         update(
             session.copy(
                 phase = NavigationPhase.PROJECTING,
@@ -356,60 +371,96 @@ object NavigationCoordinator {
             ),
         )
         val consumed = AtomicBoolean(false)
-        ClusterSceneService.showMap(app, selectedPlacement, MapSurfaceConsumer { surface, width, height, density ->
-            if (!consumed.compareAndSet(false, true)) return@MapSurfaceConsumer
-            executor.execute {
-                try {
-                    val displayId = NavigationProxyClient.createVirtualDisplay(
-                        app,
-                        surface,
-                        width,
-                        height,
-                        density,
-                    )
-                    check(displayId >= 0) { "virtual display creation failed" }
-                    check(
-                        NavigationProxyClient.projectTask(
-                            app,
-                            packageName,
-                            taskId,
-                            displayId,
-                            width,
-                            height,
-                        ),
-                    ) { "task projection failed" }
-                    update(
-                        NavigationSession(
-                            phase = NavigationPhase.PROJECTED,
-                            taskId = taskId,
-                            virtualDisplayId = displayId,
-                        ),
-                    )
-                    if (
-                        pendingAutomaticReturn ||
-                        (automaticProjectionActive && lastStockMapVisible == false)
-                    ) {
-                        pendingAutomaticReturn = false
-                        automaticProjectionActive = false
-                        returnToCentralDisplay(focusTask = false)
+        try {
+            ClusterSceneService.showMap(
+                app,
+                selectedPlacement,
+                MapSurfaceConsumer { surface, width, height, density ->
+                    if (!consumed.compareAndSet(false, true)) return@MapSurfaceConsumer
+                    executor.execute {
+                        try {
+                            val origin = NavigationProxyClient.projectionOrigin(
+                                app,
+                                packageName,
+                                taskId,
+                            )
+                            check(origin.sourceRootTaskId > 0) {
+                                "navigation source root unavailable"
+                            }
+                            projectedOrigin = origin
+                            val displayId = NavigationProxyClient.createVirtualDisplay(
+                                app,
+                                surface,
+                                width,
+                                height,
+                                density,
+                            )
+                            check(displayId >= 0) { "virtual display creation failed" }
+                            val projectionRootTaskId = if (origin.sourceRootTaskId == taskId) {
+                                0
+                            } else {
+                                NavigationProxyClient.createProjectionRoot(app, displayId)
+                                    .also { check(it > 0) { "projection root creation failed" } }
+                            }
+                            check(
+                                NavigationProxyClient.projectTask(
+                                    app,
+                                    packageName,
+                                    taskId,
+                                    projectionRootTaskId,
+                                    displayId,
+                                    width,
+                                    height,
+                                ),
+                            ) { "task projection failed" }
+                            update(
+                                NavigationSession(
+                                    phase = NavigationPhase.PROJECTED,
+                                    taskId = taskId,
+                                    virtualDisplayId = displayId,
+                                ),
+                            )
+                            projectionHealth.reset()
+                            executor.schedule(
+                                {
+                                    if (session.phase == NavigationPhase.PROJECTED) {
+                                        splitRoutingLease.release()
+                                    }
+                                },
+                                PROJECTION_ROUTING_SETTLE_MS,
+                                TimeUnit.MILLISECONDS,
+                            )
+                            if (
+                                pendingAutomaticReturn ||
+                                (automaticProjectionActive && lastStockMapVisible == false)
+                            ) {
+                                pendingAutomaticReturn = false
+                                automaticProjectionActive = false
+                                returnToCentralDisplay(focusTask = false)
+                            }
+                        } catch (error: Exception) {
+                            failProjection(app, taskId, error)
+                        }
                     }
-                } catch (error: Exception) {
-                    automaticProjectionActive = false
-                    pendingAutomaticReturn = false
-                    NavigationProxyClient.releaseVirtualDisplay()
-                    ClusterSceneService.hideMap(app)
-                    update(
-                        NavigationSession(
-                            phase = NavigationPhase.NEEDS_ACTION,
-                            taskId = taskId,
-                            message = "Повторите перенос навигации",
-                            details = error.toString(),
-                            resolution = FeatureResolution.RETRY,
-                        ),
-                    )
-                }
-            }
-        })
+                },
+            )
+        } catch (error: RuntimeException) {
+            consumed.set(true)
+            failProjection(app, taskId, error)
+            return
+        }
+        executor.schedule(
+            {
+                if (!consumed.compareAndSet(false, true)) return@schedule
+                failProjection(
+                    app,
+                    taskId,
+                    IllegalStateException("navigation surface timed out"),
+                )
+            },
+            PROJECTION_SURFACE_TIMEOUT_MS,
+            TimeUnit.MILLISECONDS,
+        )
     }
 
     private fun returnToCentralDisplay(
@@ -418,8 +469,14 @@ object NavigationCoordinator {
     ) {
         SplitScreenCoordinator.bypassExternalTaskMoves()
         val app = context ?: return
+        splitRoutingLease.acquire()
         val taskId = session.taskId
         val packageName = selectedPackage
+        val origin = projectedOrigin ?: NavigationProjectionOrigin(
+            sourceRootTaskId = taskId ?: -1,
+            companionTaskId = 0,
+            companionRootTaskId = 0,
+        )
         update(
             session.copy(
                 phase = NavigationPhase.RETURNING,
@@ -428,33 +485,53 @@ object NavigationCoordinator {
             ),
         )
         try {
-            if (taskId != null) {
-                NavigationProxyClient.returnTask(
-                    app,
-                    packageName,
-                    taskId,
-                    focusNavigation = focusTask,
-                )
+            if (taskId != null && origin.sourceRootTaskId > 0) {
+                check(
+                    NavigationProxyClient.returnTask(
+                        app,
+                        packageName,
+                        taskId,
+                        origin,
+                        focusNavigation = focusTask,
+                    ),
+                ) { "navigation task return failed" }
             }
-        } catch (_: Exception) {
-            // Releasing the display below is still the safest available fallback.
-        } finally {
-            NavigationProxyClient.releaseVirtualDisplay()
-            ClusterSceneService.hideMap(app)
-            update(NavigationSession(taskId = taskId))
-            if (focusTask || reprojectAfterReturn) {
-                executor.schedule(
-                    {
-                        settleReturnedTask(
-                            packageName = packageName,
-                            focusTask = focusTask,
-                            reprojectAfterReturn = reprojectAfterReturn,
-                        )
-                    },
-                    900L,
-                    TimeUnit.MILLISECONDS,
-                )
-            }
+        } catch (error: Exception) {
+            Log.w(TAG, "navigation task return failed", error)
+            update(
+                session.copy(
+                    phase = NavigationPhase.NEEDS_ACTION,
+                    message = "Повторите возврат навигации",
+                    details = error.toString(),
+                    resolution = FeatureResolution.RETRY,
+                ),
+            )
+            return
+        }
+
+        projectedOrigin = null
+        projectionHealth.reset()
+        NavigationProxyClient.releaseVirtualDisplay()
+        ClusterSceneService.hideMap(app)
+        update(NavigationSession(taskId = taskId))
+        if (focusTask || reprojectAfterReturn) {
+            executor.schedule(
+                {
+                    settleReturnedTask(
+                        packageName = packageName,
+                        focusTask = focusTask,
+                        reprojectAfterReturn = reprojectAfterReturn,
+                    )
+                },
+                RETURN_SETTLE_MS,
+                TimeUnit.MILLISECONDS,
+            )
+        } else {
+            executor.schedule(
+                splitRoutingLease::release,
+                RETURN_SETTLE_MS,
+                TimeUnit.MILLISECONDS,
+            )
         }
     }
 
@@ -463,8 +540,11 @@ object NavigationCoordinator {
         focusTask: Boolean,
         reprojectAfterReturn: Boolean,
     ) {
-        val app = context ?: return
-        if (selectedPackage != packageName) return
+        val app = context
+        if (app == null || selectedPackage != packageName) {
+            splitRoutingLease.release()
+            return
+        }
         val liveTask = try {
             NavigationProxyClient.findAllowedTask(app, packageName)
         } catch (error: Exception) {
@@ -477,15 +557,21 @@ object NavigationCoordinator {
                     resolution = problem.resolution,
                 ),
             )
+            splitRoutingLease.release()
             return
         }
         if (liveTask >= 0) {
             update(NavigationSession(taskId = liveTask))
-            if (reprojectAfterReturn) projectToCluster()
+            if (reprojectAfterReturn) {
+                projectToCluster()
+            } else {
+                splitRoutingLease.release()
+            }
             return
         }
         if (!focusTask && !reprojectAfterReturn) {
             update(NavigationSession())
+            splitRoutingLease.release()
             return
         }
         pendingProjectionAfterOpen = reprojectAfterReturn
@@ -500,33 +586,140 @@ object NavigationCoordinator {
         val taskId = current.taskId ?: return
         val expectedDisplay = current.virtualDisplayId ?: return
         val packageName = selectedPackage
-        try {
-            val actualDisplay = NavigationProxyClient.taskDisplayId(app, packageName, taskId)
-            if (actualDisplay != expectedDisplay) {
-                automaticProjectionActive = false
-                pendingAutomaticReturn = false
-                NavigationProxyClient.releaseVirtualDisplay()
-                ClusterSceneService.hideMap(app)
-                update(NavigationSession(taskId = taskId.takeIf { actualDisplay >= 0 }))
+        if (!NavigationProxyClient.isVirtualDisplayAlive(expectedDisplay)) {
+            Log.w(TAG, "projection display disappeared display=$expectedDisplay task=$taskId")
+            finishExternallyEndedProjection(app, taskId = null)
+            return
+        }
+        val actualDisplay = try {
+            NavigationProxyClient.taskDisplayId(app, packageName, taskId)
+        } catch (error: Exception) {
+            projectionHealth.reset()
+            Log.w(
+                TAG,
+                "projection health check failed; preserving display=$expectedDisplay task=$taskId",
+                error,
+            )
+            NavigationProxyClient.disconnectShell()
+            return
+        }
+        when (val decision = projectionHealth.observe(actualDisplay, expectedDisplay)) {
+            NavigationProjectionHealthDecision.Healthy -> Unit
+            is NavigationProjectionHealthDecision.Uncertain -> Log.w(
+                TAG,
+                "projection health uncertain expected=$expectedDisplay " +
+                    "actual=${decision.actualDisplayId} " +
+                    "confirmation=${decision.confirmationCount}; preserving display",
+            )
+            is NavigationProjectionHealthDecision.ConfirmedElsewhere -> {
+                Log.i(
+                    TAG,
+                    "projection ended externally task=$taskId " +
+                        "display=${decision.actualDisplayId}",
+                )
+                finishExternallyEndedProjection(app, taskId)
             }
-        } catch (_: Exception) {
-            handleCommandFailure()
         }
     }
 
-    private fun handleCommandFailure() {
-        val app = context ?: return
-        val previous = session
+    private fun finishExternallyEndedProjection(app: Context, taskId: Int?) {
         automaticProjectionActive = false
-        pendingAutomaticProjection = false
         pendingAutomaticReturn = false
-        pendingProjectionAfterOpen = false
-        update(NavigationRecovery.proxyLost(previous))
+        projectedOrigin = null
+        projectionHealth.reset()
+        NavigationProxyClient.releaseVirtualDisplay()
         ClusterSceneService.hideMap(app)
+        update(NavigationSession(taskId = taskId))
         executor.schedule({
-            NavigationProxyClient.disconnect()
-            discoverTask()
-        }, 800L, TimeUnit.MILLISECONDS)
+            splitRoutingLease.release()
+        }, RETURN_SETTLE_MS, TimeUnit.MILLISECONDS)
+    }
+
+    private fun failProjection(app: Context, taskId: Int, error: Exception) {
+        Log.w(TAG, "navigation projection failed", error)
+        automaticProjectionActive = false
+        pendingAutomaticReturn = false
+        val origin = projectedOrigin
+        val ownedDisplayId = NavigationProxyClient.currentVirtualDisplayId()
+        val ownedDisplayAlive = ownedDisplayId?.let(
+            NavigationProxyClient::isVirtualDisplayAlive,
+        ) == true
+        val actualTaskDisplayId = if (ownedDisplayAlive) {
+            try {
+                NavigationProxyClient.taskDisplayId(app, selectedPackage, taskId)
+            } catch (locationError: Exception) {
+                Log.w(
+                    TAG,
+                    "projection cleanup location unknown; preserving display=$ownedDisplayId " +
+                        "task=$taskId",
+                    locationError,
+                )
+                NavigationProxyClient.disconnectShell()
+                null
+            }
+        } else {
+            null
+        }
+
+        val cleanupDecision = navigationProjectionCleanupDecision(
+            ownedDisplayId = ownedDisplayId,
+            ownedDisplayAlive = ownedDisplayAlive,
+            actualTaskDisplayId = actualTaskDisplayId,
+        )
+        val safeToRelease = when (cleanupDecision) {
+            NavigationProjectionCleanupDecision.RELEASE -> true
+            NavigationProjectionCleanupDecision.RETURN_THEN_RELEASE -> {
+                if (origin == null) {
+                    false
+                } else {
+                    try {
+                        NavigationProxyClient.returnTask(
+                            app,
+                            selectedPackage,
+                            taskId,
+                            origin,
+                            focusNavigation = false,
+                        )
+                    } catch (returnError: Exception) {
+                        Log.w(TAG, "projection cleanup return failed; preserving display", returnError)
+                        NavigationProxyClient.disconnectShell()
+                        false
+                    }
+                }
+            }
+            NavigationProjectionCleanupDecision.PRESERVE -> false
+        }
+
+        if (!safeToRelease) {
+            projectionHealth.reset()
+            splitRoutingLease.release()
+            update(
+                NavigationSession(
+                    phase = NavigationPhase.PROJECTED,
+                    taskId = taskId,
+                    virtualDisplayId = ownedDisplayId,
+                    message = "Навигация сохранена на приборке; повторите возврат",
+                    details = error.toString(),
+                    resolution = FeatureResolution.RETRY,
+                ),
+            )
+            return
+        }
+
+        projectedOrigin = null
+        projectionHealth.reset()
+        NavigationProxyClient.releaseVirtualDisplay()
+        ClusterSceneService.hideMap(app)
+        splitRoutingLease.release()
+        update(
+            NavigationSession(
+                phase = NavigationPhase.NEEDS_ACTION,
+                taskId = taskId,
+                message = "Повторите перенос навигации",
+                details = error.toString(),
+                resolution = FeatureResolution.RETRY,
+            ),
+        )
     }
 
     private fun reconcileAutomaticMode() {
@@ -615,5 +808,24 @@ object NavigationCoordinator {
                     FeatureResolution.RETRY,
                 )
         }
+    }
+}
+
+internal class NavigationSplitRoutingLease(
+    private val hold: () -> Unit,
+    private val release: () -> Unit,
+) {
+    private var held = false
+
+    fun acquire() {
+        if (held) return
+        held = true
+        hold()
+    }
+
+    fun release() {
+        if (!held) return
+        held = false
+        release.invoke()
     }
 }
