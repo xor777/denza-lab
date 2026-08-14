@@ -44,8 +44,12 @@ internal object NativeWeatherPayload {
         val visibilityKilometres = currentDetails.optDouble("visibility", 10_000.0)
             .let { value -> if (value > 100.0) value / 1_000.0 else value }
             .roundToInt()
-        val updateMillis = current.instant.toEpochMilli()
-        val updateText = current.localTime.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME)
+        val releasedAtMillis = nowMillis
+        val releasedAtText = ZonedDateTime.ofInstant(
+            Instant.ofEpochMilli(releasedAtMillis),
+            zoneId,
+        ).format(DateTimeFormatter.ISO_OFFSET_DATE_TIME)
+        val forecastPointMillis = current.instant.toEpochMilli()
 
         val native = JSONObject()
             .put("ts", nowMillis)
@@ -53,12 +57,12 @@ internal object NativeWeatherPayload {
             .put("city", city(latitude, longitude, zoneId))
             .put("weatherDesc", "Прогноз MET Norway")
             .put("mobilelink", "")
-            .put("updatetime", updateMillis)
+            .put("updatetime", releasedAtMillis)
             .put(
                 "condition",
                 JSONObject()
-                    .put("updatetime", updateMillis)
-                    .put("updatetimeFmt", updateText)
+                    .put("updatetime", releasedAtMillis)
+                    .put("updatetimeFmt", releasedAtText)
                     .put("windgustspeed", (windSpeed * 3.6).roundToInt())
                     .put("realfeel", temperature)
                     .put("realfeelDesc", "")
@@ -95,13 +99,13 @@ internal object NativeWeatherPayload {
             .put(
                 "radar",
                 JSONObject()
-                    .put("dataTime", updateMillis)
+                    .put("dataTime", forecastPointMillis)
                     .put("skycon", current.symbol)
                     .put("dataseries", JSONArray()),
             )
             .put("dailys", dailyForecast(points, latitude, longitude, zoneId, nowMillis))
             .put("aqidays", JSONArray())
-            .put("aqi", unavailableAqi(updateMillis))
+            .put("aqi", unavailableAqi(releasedAtMillis))
             .put("hourlys", hourlyForecast(points, nowMillis))
             .put("alarm", JSONArray())
 

@@ -57,6 +57,11 @@ Each run:
    back. A failed write restores the previous row.
 6. Notifies the launcher and the stock widget provider.
 
+The stock `condition.updatetime` fields contain the actual adapter refresh time.
+The hourly MET forecast-point timestamp is kept separately as forecast metadata;
+using it as `updatetime` would make the native “data released” label appear stuck
+on an exact hour between refreshes.
+
 The adapter intentionally leaves AQI unavailable because Locationforecast does
 not provide air quality. The city label is currently `GPS`; reverse geocoding is
 not required to keep temperature, condition, min/max, and hourly data live.
