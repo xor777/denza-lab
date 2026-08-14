@@ -1,8 +1,8 @@
 # Passenger-screen (FSE) app installation
 
-Status: **working on the test car**. The path was verified on 2026-07-20 on the
-author's Denza Z9GT and is available from Denza Apps 0.3.0. Host-side probes are
-kept for protocol work and recovery.
+Status: **working on the test car**. The path was verified on 2026-07-20 and
+requalified after the 2026-07 firmware update on 2026-08-14. It is available
+from Denza Apps 0.3.0. Host-side probes are kept for protocol work and recovery.
 
 ## What the passenger screen is
 
@@ -168,6 +168,27 @@ seconds before the FSE response arrived:
 FSE_CROSS_WAIT_SECONDS=60 tools/fse_cross_message_probe.sh "$INSTALL_JSON"
 ```
 
+### 2026-07 firmware compatibility
+
+The 2026-08-14 requalification used IVI build
+`eng.build20260705.011226` and FSE SoC `42.1.8.2605219.1` / build
+`eng.build.20260708.175801`. Two compatibility changes were required:
+
+- the legacy interactive ADB shell started echoing the command and a PTY prompt;
+  `LocalAdbClient` now brackets command output with explicit control-character
+  markers and excludes the prompt and echoed command;
+- FSE responses still arrive on cross feature `0xff300015`, but the IVI no
+  longer mirrors their JSON to `Launcher.CrossUtil`. Denza Apps registers an
+  `IBYDCrossListener` before sending and waits for the matching `res_id`
+  callback directly.
+
+This firmware returned `result=-7` after a fresh RUTUBE installation, while the
+package was visibly present on the passenger screen. The integrated flow treats
+both the stock `result=1` and this firmware-qualified `result=-7` as an installed
+outcome. Other numeric results remain failures, and a missing callback remains a
+timeout. The classification is based on live package visibility rather than the
+same numeric value's meaning in the public Android package-manager constants.
+
 ## Live verification
 
 AIMP and Yandex Navigator were copied through the existing SMB mount, installed
@@ -199,13 +220,17 @@ Denza Apps 0.3.0 adds the **Установить приложение** card in 
    blocks, reports real progress, and verifies the exact final byte size;
 4. sends the stock `set_wallpaper_path` request and waits for the matching
    `res_id` result;
-5. removes the staged APK after an explicit success or failure response.
+5. removes the staged APK after an explicit success or failure response;
+6. before a later installation, removes only abandoned
+   `/storage/FFFF-FFFC/denza-apps-install-*` resources left by a timeout or
+   interrupted process.
 
 The user starts each installation by tapping an app; Denza Apps has no batch or
 background installer. Split APK packages remain visible in the picker with the
 label **Split APK пока не поддерживается**. If FSE does not answer before the
-timeout, the UI reports the missing confirmation and leaves the staging path and
-request ID in diagnostics.
+timeout, the UI reports the missing confirmation and leaves the current staging
+path and request ID in diagnostics. The next installation removes that abandoned
+directory before creating its own, so repeated failures cannot accumulate APKs.
 
 ## Known limitations and cleanup
 
@@ -218,8 +243,10 @@ request ID in diagnostics.
   effect has not been exhaustively characterized.
 - Remote uninstall has not been mapped. Use the passenger screen's application
   management UI for rollback.
-- Delete staged resource directories from `/storage/FFFF-FFFC` after they are no
-  longer needed. The installed package is independent of the staged APK after a
-  successful `PackageInstaller` commit.
+- Denza Apps owns and automatically prunes only its
+  `/storage/FFFF-FFFC/denza-apps-install-*` directories. Manual probe resources
+  such as `denza-install-*` remain an operator cleanup responsibility. The
+  installed package is independent of the staged APK after a successful
+  `PackageInstaller` commit.
 - Background, batch, or unattended installation needs a separate product and
   security decision before it is added.

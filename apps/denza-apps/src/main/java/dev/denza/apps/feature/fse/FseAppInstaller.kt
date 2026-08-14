@@ -7,10 +7,16 @@ import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
 import android.graphics.drawable.Drawable
 import android.util.Base64
+import android.util.Log
 import dev.denza.disharebridge.LocalAdbClient
 import org.json.JSONObject
 import java.io.File
+import java.lang.reflect.Proxy
 import java.nio.charset.StandardCharsets
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
 
 data class FseInstallApp(
     val packageName: String,
@@ -27,13 +33,18 @@ sealed interface FseInstallResult {
     data class Failed(val message: String, val details: String? = null) : FseInstallResult
 }
 
+private const val FSE_INSTALL_RESULT_SUCCESS = 1
+// FSE 42.1.8.2605219.1 returned -7 after a fresh RUTUBE install became visible.
+// The package is present even though the OEM wallpaper provider reports a warning.
+private const val FSE_INSTALL_RESULT_PACKAGE_PRESENT_WITH_PROVIDER_WARNING = -7
+
 object FseAppInstaller {
+    private const val TAG = "DenzaApps.FseInstaller"
     private const val ADB_KEY_COMMENT = "denza-apps@denza"
     private const val CROSS_ID_CHANGE_THEME = -13_631_467
     private const val IVI_DEVICE_ID = 1
     private const val FSE_DEVICE_ID = 2
     private const val RESPONSE_TIMEOUT_MS = 90_000L
-    private const val POLL_INTERVAL_MS = 750L
     private const val COPY_BLOCK_BYTES = 4L * 1024L * 1024L
     private const val COPY_READ_TIMEOUT_MS = 30_000
 
@@ -107,6 +118,7 @@ object FseAppInstaller {
         return try {
             onProgress("Проверяю пассажирский экран")
             requireFseStorage(adb)
+            cleanupAbandonedStages(adb)
 
             onProgress("Подготавливаю ${app.label}")
             val config = installConfig(packageInfo, requestId)
@@ -140,22 +152,31 @@ object FseAppInstaller {
                 .put("wallpaper_service", "$packageName/.NoSuchWallpaperService")
                 .put("app_version_name", packageInfo.versionName.orEmpty())
                 .put("app_version_code", packageInfo.longVersionCode)
-            sendCrossMessage(context, message.toString())
-            installSent = true
+            val installResult = FseCrossResponseSession.open(context, requestId).use { cross ->
+                cross.send(message.toString())
+                installSent = true
+                cross.await(RESPONSE_TIMEOUT_MS)
+            }
+            Log.i(TAG, "FSE install result=$installResult requestId=$requestId")
 
-            when (awaitInstallResponse(adb, requestId)) {
-                true -> {
+            when (installResult) {
+                FSE_INSTALL_RESULT_SUCCESS,
+                FSE_INSTALL_RESULT_PACKAGE_PRESENT_WITH_PROVIDER_WARNING,
+                -> {
                     cleanup(adb, iviRoot)
                     FseInstallResult.Installed(app)
-                }
-                false -> {
-                    cleanup(adb, iviRoot)
-                    FseInstallResult.Failed("Пассажирский экран отклонил установку")
                 }
                 null -> FseInstallResult.Failed(
                     "Нет подтверждения от экрана",
                     "staged=$iviRoot; requestId=$requestId",
                 )
+                else -> {
+                    cleanup(adb, iviRoot)
+                    FseInstallResult.Failed(
+                        "Пассажирский экран отклонил установку",
+                        "result=$installResult; requestId=$requestId",
+                    )
+                }
             }
         } catch (error: Exception) {
             if (!installSent) cleanup(adb, iviRoot)
@@ -170,6 +191,13 @@ object FseAppInstaller {
             "if [ -d /storage/FFFF-FFFC ]; then echo ready; else echo missing; fi",
         ).trim()
         if (result != "ready") throw IllegalStateException("FSE storage is not mounted")
+    }
+
+    private fun cleanupAbandonedStages(adb: LocalAdbClient.PersistentShellSession) {
+        val result = adb.shell(abandonedStageCleanupCommand()).trim()
+        if (result != "cleaned") {
+            throw IllegalStateException("FSE staging cleanup failed: $result")
+        }
     }
 
     private fun copyApk(
@@ -205,35 +233,6 @@ object FseAppInstaller {
         } catch (error: Exception) {
             throw IllegalStateException("APK copy failed: ${error.message}", error)
         }
-    }
-
-    private fun awaitInstallResponse(
-        adb: LocalAdbClient.PersistentShellSession,
-        requestId: Int,
-    ): Boolean? {
-        val deadline = System.currentTimeMillis() + RESPONSE_TIMEOUT_MS
-        while (System.currentTimeMillis() < deadline) {
-            val log = adb.shell(
-                "logcat -d -v raw -s Launcher.CrossUtil:I '*:S' | tail -n 120",
-            )
-            FseInstallResponse.result(log, requestId)?.let { return it }
-            Thread.sleep(POLL_INTERVAL_MS)
-        }
-        return null
-    }
-
-    // BYD's cross-device transport is vendor-only and has no public SDK equivalent.
-    @SuppressLint("PrivateApi")
-    private fun sendCrossMessage(context: Context, message: String) {
-        val deviceClass = Class.forName("android.cross.device.BYDCrossDevice")
-        val device = deviceClass.getMethod("getInstance", Context::class.java)
-            .invoke(null, context)
-        val valueClass = Class.forName("android.cross.BYDCrossEventValue")
-        val value = valueClass.getConstructor(ByteArray::class.java)
-            .newInstance(message.toByteArray(StandardCharsets.UTF_8))
-        val result = deviceClass.getMethod("set", IntArray::class.java, valueClass)
-            .invoke(device, intArrayOf(CROSS_ID_CHANGE_THEME), value) as Number
-        if (result.toInt() != 0) throw IllegalStateException("Cross-device send failed: $result")
     }
 
     private fun installConfig(packageInfo: PackageInfo, requestId: Int) = JSONObject()
@@ -286,20 +285,161 @@ object FseAppInstaller {
         1_000_000_000 + ((System.currentTimeMillis() / 1_000L) % 900_000_000L).toInt()
 
     internal fun quote(value: String): String = "'${value.replace("'", "'\"'\"'")}'"
+
+    internal fun abandonedStageCleanupCommand(): String =
+        "for path in /storage/FFFF-FFFC/denza-apps-install-*; do " +
+            "[ -d \"\$path\" ] || continue; " +
+            "rm -rf -- \"\$path\" || exit 1; " +
+            "done; echo cleaned"
+
+    private class FseCrossResponseSession private constructor(
+        private val device: Any,
+        private val deviceClass: Class<*>,
+        private val valueClass: Class<*>,
+        private val listenerClass: Class<*>,
+        private val listener: Any,
+        private val waiter: FseInstallResponseWaiter,
+    ) : AutoCloseable {
+        fun send(message: String) {
+            val value = valueClass.getConstructor(ByteArray::class.java)
+                .newInstance(message.toByteArray(StandardCharsets.UTF_8))
+            val result = deviceClass.getMethod("set", IntArray::class.java, valueClass)
+                .invoke(device, intArrayOf(CROSS_ID_CHANGE_THEME), value) as Number
+            if (result.toInt() != 0) {
+                throw IllegalStateException("Cross-device send failed: $result")
+            }
+        }
+
+        fun await(timeoutMs: Long): Int? = waiter.await(timeoutMs)
+
+        override fun close() {
+            runCatching {
+                deviceClass.getMethod("unregisterListener", listenerClass)
+                    .invoke(device, listener)
+            }
+        }
+
+        companion object {
+            // BYD's cross-device transport is vendor-only and has no public SDK equivalent.
+            @SuppressLint("PrivateApi")
+            fun open(context: Context, requestId: Int): FseCrossResponseSession {
+                val deviceClass = Class.forName("android.cross.device.BYDCrossDevice")
+                val device = requireNotNull(
+                    deviceClass.getMethod("getInstance", Context::class.java)
+                        .invoke(null, context),
+                ) { "BYDCrossDevice is unavailable" }
+                val listenerClass = Class.forName("android.cross.IBYDCrossListener")
+                val eventClass = Class.forName("android.cross.IBYDCrossEvent")
+                val valueClass = Class.forName("android.cross.BYDCrossEventValue")
+                val bufferField = valueClass.getField("bufferDataValue")
+                val waiter = FseInstallResponseWaiter(requestId)
+                val listener = Proxy.newProxyInstance(
+                    context.javaClass.classLoader,
+                    arrayOf(listenerClass),
+                ) { proxy, method, arguments ->
+                    when (method.name) {
+                        "onDataEventChanged" -> {
+                            val eventType = arguments?.getOrNull(0) as? Number
+                            val eventValue = arguments?.getOrNull(1)
+                            if (eventType?.toInt() == CROSS_ID_CHANGE_THEME && eventValue != null) {
+                                val payload = bufferField.get(eventValue) as? ByteArray
+                                Log.i(
+                                    TAG,
+                                    "Received FSE install response bytes=${payload?.size ?: 0}",
+                                )
+                                waiter.onPayload(payload)
+                            }
+                            null
+                        }
+                        "onDataChanged" -> {
+                            val event = arguments?.getOrNull(0)
+                            if (event != null) {
+                                val eventType = eventClass.getMethod("getEventType")
+                                    .invoke(event) as? Number
+                                if (eventType?.toInt() == CROSS_ID_CHANGE_THEME) {
+                                    val payload = eventClass.getMethod("getBufferData")
+                                        .invoke(event) as? ByteArray
+                                    Log.i(
+                                        TAG,
+                                        "Received legacy FSE response bytes=${payload?.size ?: 0}",
+                                    )
+                                    waiter.onPayload(payload)
+                                }
+                            }
+                            null
+                        }
+                        "onError" -> {
+                            Log.w(
+                                TAG,
+                                "FSE cross listener error code=${arguments?.getOrNull(0)} " +
+                                    "message=${arguments?.getOrNull(1)}",
+                            )
+                            null
+                        }
+                        "toString" -> "FseInstallResponseListener"
+                        "hashCode" -> System.identityHashCode(proxy)
+                        "equals" -> proxy === arguments?.getOrNull(0)
+                        else -> null
+                    }
+                }
+                deviceClass.getMethod(
+                    "registerListener",
+                    listenerClass,
+                    IntArray::class.java,
+                ).invoke(device, listener, intArrayOf(CROSS_ID_CHANGE_THEME))
+                return FseCrossResponseSession(
+                    device = device,
+                    deviceClass = deviceClass,
+                    valueClass = valueClass,
+                    listenerClass = listenerClass,
+                    listener = listener,
+                    waiter = waiter,
+                )
+            }
+        }
+    }
+}
+
+internal class FseInstallResponseWaiter(private val requestId: Int) {
+    private val completed = AtomicBoolean(false)
+    private val latch = CountDownLatch(1)
+    private val result = AtomicReference<Int?>()
+
+    fun onPayload(payload: ByteArray?) {
+        if (payload == null) return
+        val response = payload.toString(StandardCharsets.UTF_8)
+        val parsed = FseInstallResponse.code(response, requestId) ?: return
+        if (!completed.compareAndSet(false, true)) return
+        result.set(parsed)
+        latch.countDown()
+    }
+
+    fun await(timeoutMs: Long): Int? {
+        if (!latch.await(timeoutMs, TimeUnit.MILLISECONDS)) return null
+        return result.get()
+    }
+
+    fun isComplete(): Boolean = completed.get()
 }
 
 internal object FseInstallResponse {
     private val requestPattern = Regex("\"res_id\"\\s*:\\s*(-?\\d+)")
-    private val resultPattern = Regex("\"result\"\\s*:\\s*([01])")
+    private val resultPattern = Regex("\"result\"\\s*:\\s*(-?\\d+)")
 
-    fun result(log: String, requestId: Int): Boolean? {
+    fun code(log: String, requestId: Int): Int? {
         return log.lineSequence()
             .filter { "using_wallpaper_result" in it }
             .mapNotNull { line ->
                 val responseId = requestPattern.find(line)?.groupValues?.get(1)?.toIntOrNull()
                 if (responseId != requestId) return@mapNotNull null
-                resultPattern.find(line)?.groupValues?.get(1)?.let { it == "1" }
+                resultPattern.find(line)?.groupValues?.get(1)?.toIntOrNull()
             }
             .lastOrNull()
     }
+
+    fun result(log: String, requestId: Int): Boolean? =
+        code(log, requestId)?.let {
+            it == FSE_INSTALL_RESULT_SUCCESS ||
+                it == FSE_INSTALL_RESULT_PACKAGE_PRESENT_WITH_PROVIDER_WARNING
+        }
 }
