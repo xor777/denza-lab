@@ -31,6 +31,7 @@ may still use the historical `denza-gateway` directory name.
 | `tools/` | Host-side scripts for one-off live experiments, including isolated FSE cross-device probes. | Promotion into an app follows `docs/governance.md`. Passenger-screen findings belong in `docs/fse-app-installation.md`. |
 | `experiments/night-vision-probe/` | Short-lived, host-driven front-camera source evaluation APK; the directory keeps its historical working name. | Research only. The AVC picture is a wide-angle parking-camera composition with little useful detail at distance. |
 | `experiments/audio-probe/` | Short-lived, host-driven evaluation of audio capture paths for a spectrum analyser. | Research only, question answered. `Visualizer` on session 0 reads other apps' audio; `AudioPlaybackCapture` returns silence. See [audio-capture-findings.md](audio-capture-findings.md). |
+| `experiments/display-probe/` | Short-lived evaluation of hosting another app on a display this app owns. | Research only, question answered. A MediaProjection-created public display accepts third-party activities and touch; it cannot be trusted, so windows on it are not focusable. See [split-screen-findings.md](split-screen-findings.md). |
 | `research/` | Parked experiments and deprecated modules that stay outside product builds. | Failed or permission-blocked probes live here instead of app source. Current examples are `research/simulcast-aliases/` and `research/vehicle-events/`. |
 | `reverse/` | Local reverse-engineering input/output, often large. | APKs and extracted binaries must stay untracked. |
 
@@ -211,6 +212,7 @@ Git ignores generated APKs.
 ./gradlew :denza-apps:testDebugUnitTest :denza-apps:assembleDebug
 ./gradlew :night-vision-probe:assembleDebug
 ./gradlew :audio-probe:assembleDebug
+./gradlew :display-probe:assembleDebug
 ./gradlew :car-adb-gateway:testDebugUnitTest :car-adb-gateway:assembleDebug
 ```
 
@@ -221,6 +223,7 @@ legacy/denza-gateway/build/outputs/apk/debug/denza-gateway.apk
 apps/denza-apps/build/outputs/apk/debug/denza-apps.apk
 experiments/night-vision-probe/build/outputs/apk/debug/night-vision-probe.apk
 experiments/audio-probe/build/outputs/apk/debug/audio-probe.apk
+experiments/display-probe/build/outputs/apk/debug/display-probe.apk
 apps/car-adb-gateway/build/outputs/apk/debug/car-adb-gateway.apk
 ```
 

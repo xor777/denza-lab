@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <application
+        android:allowBackup="false"
+        android:label="Display host probe"
+        android:supportsRtl="true"
+        android:theme="@style/ProbeInvisibleTheme">
+        <activity
+            android:name=".DisplayProbeActivity"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:noHistory="true"
+            android:screenOrientation="landscape"
+            android:theme="@style/ProbeInvisibleTheme" />
+        <service
+            android:name=".DisplayProbeService"
+            android:exported="false"
+            android:foregroundServiceType="mediaProjection" />
+    </application>
+</manifest>

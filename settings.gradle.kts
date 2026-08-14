@@ -31,5 +31,8 @@ project(":night-vision-probe").projectDir = file("experiments/night-vision-probe
 include(":audio-probe")
 project(":audio-probe").projectDir = file("experiments/audio-probe")
 
+include(":display-probe")
+project(":display-probe").projectDir = file("experiments/display-probe")
+
 include(":denza-gateway")
 project(":denza-gateway").projectDir = file("legacy/denza-gateway")
