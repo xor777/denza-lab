@@ -203,6 +203,52 @@ limits, cameras, route progress, and destination text; those are research
 inputs until their stock rendering and Yandex source are independently live
 verified.
 
+On 2026-08-14 the updated firmware's native **Navigation Fusion** AR arrow was
+isolated on the same road topic; topic `1127042368241667` is not required. In
+addition to the compact fields above, the working packet carries vehicle
+longitude/latitude (double fields 19/20), speed and altitude (integer fields
+21/22), remaining-route JSON `guideLine` (string field 30), the current
+segment endpoint as `lon,lat,0` in `guidePoint` (string field 31), vehicle
+heading (double field 32), and route ratio (double field 33). The user visually
+confirmed the new flying arrow. Corrected live left/right probes, with the
+maneuver ID, regular icon, and geometry synchronized, were visually
+distinguishable in the expected directions. Arrow colour remains controlled by
+firmware; the road structure has no colour field.
+
+Yandex Navigator 29.8.1 owns a real route polyline internally through MapKit,
+but does not export the active route geometry cross-package. Its private
+guidance service/provider is not callable by Denza Apps, and its exported
+AndroidX Car App step carries maneuver, road, lane, time, and distance data but
+no polyline. Denza Apps therefore uses an explicitly bounded approximation:
+
+- GNSS runs only while HUD guidance is enabled. A course is acquired only from
+  a moving fix at or above `1.5 m/s`, with no more than `20 m` horizontal and
+  `45 degrees` bearing uncertainty. A measured course may be held for 15
+  seconds at a light; the app never invents an initial parked heading.
+- AR activates from 3 through 150 metres for straight, slight, normal, and
+  sharp left/right maneuvers. Unknown maneuvers, U-turns, roundabouts,
+  stale/future fixes, poor accuracy, and a route more than 70 degrees away from
+  the measured heading fail closed to the already verified compact HUD packet.
+- The inferred turn point is anchored in world coordinates, so repeated GNSS
+  fixes cannot drag it forward while Yandex's displayed distance is unchanged.
+  Small distance updates are blended; a distance increase of at least 30
+  metres resets the anchor as a recalculation. Leaving the activation window
+  clears it.
+- The generated line samples the approach and a smooth 35, 90, or 135 degree
+  exit. Field 33 remains `0.0` because proximity is not whole-route progress.
+  AR refreshes every 350 ms. Losing an eligible pose immediately emits a
+  compact packet so the firmware cannot retain stale geometry.
+
+Four synthetic straight/slight/normal/sharp paths and the corrected left/right
+pair were accepted by the live SOME/IP service, cleared, and stopped without
+an Android or AVC crash. The disposable probe was uninstalled. The product
+registered a 200 ms GNSS request on the car. Fourteen JVM mutation tests cover
+the activation boundaries, unsupported maneuvers, stale/imprecise/out-of-order
+fixes, parked-course hold, north/dateline wrap, left/right mirroring, turn
+severity, anchor stability, rerouting, lateral rejection, and exact protobuf
+field numbers/wire types. End-to-end visual validation during a real moving
+Yandex route is intentionally still pending.
+
 Yandex Navigator 29.8.1 also contains a structured AndroidX Car App path. Its
 own projected guidance constructs a `Trip` from destination address, a
 `TravelEstimate` from remaining distance, arrival time, and remaining time,

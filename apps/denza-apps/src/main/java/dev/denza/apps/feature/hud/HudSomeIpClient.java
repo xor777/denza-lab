@@ -52,6 +52,7 @@ final class HudSomeIpClient {
     private boolean serviceStarted;
     private boolean recoveryScheduled;
     private HudGuidance pending;
+    private HudArGeometry pendingArGeometry;
     private int counter;
 
     private final ServiceConnection connection = new ServiceConnection() {
@@ -88,18 +89,24 @@ final class HudSomeIpClient {
     }
 
     void publish(HudGuidance guidance) {
+        publish(guidance, null);
+    }
+
+    void publish(HudGuidance guidance, HudArGeometry arGeometry) {
         handler.removeCallbacks(shutdownRunnable);
         pending = guidance;
+        pendingArGeometry = arGeometry;
         ensureConnected();
         if (binder != null && !serviceStarted) {
             startSessionAndPublishPending();
         } else if (serviceStarted) {
-            fireGuidance(guidance);
+            fireGuidance(guidance, arGeometry);
         }
     }
 
     void clear() {
         pending = null;
+        pendingArGeometry = null;
         cancelRecovery();
         if (serviceStarted) {
             int result = fire(TOPIC_HUD_ROAD, buildPayload(true, null, ++counter));
@@ -175,11 +182,11 @@ final class HudSomeIpClient {
         }
         HudGuidance guidance = pending;
         if (guidance != null) {
-            fireGuidance(guidance);
+            fireGuidance(guidance, pendingArGeometry);
         }
     }
 
-    private void fireGuidance(HudGuidance guidance) {
+    private void fireGuidance(HudGuidance guidance, HudArGeometry arGeometry) {
         byte[] icon = HudNotificationArtworkRuntime.resolve(
                 guidance,
                 SystemClock.uptimeMillis());
@@ -192,7 +199,8 @@ final class HudSomeIpClient {
                 iconCache.put(iconKey, icon);
             }
         }
-        int result = fire(TOPIC_HUD_ROAD, buildPayload(false, guidance, ++counter, icon));
+        int result = fire(TOPIC_HUD_ROAD,
+                buildPayload(false, guidance, ++counter, icon, arGeometry));
         HudSomeIpRuntime.onFireResult(result);
         if (result == 0) {
             Log.i(TAG, "published " + guidance.getInstruction() + " "
@@ -201,7 +209,8 @@ final class HudSomeIpClient {
                     + "m/" + guidance.getRemainingTimeSeconds() + "s"
                     + " eta=" + guidance.getEta()
                     + " roundaboutExit=" + guidance.getRoundaboutExitNumber()
-                    + " road=" + guidance.getNextRoadName());
+                    + " road=" + guidance.getNextRoadName()
+                    + " ar=" + (arGeometry != null));
         } else {
             Log.w(TAG, "publish ret=" + result);
             serviceStarted = false;
@@ -308,14 +317,15 @@ final class HudSomeIpClient {
     }
 
     private static byte[] buildPayload(boolean clear, HudGuidance guidance, int counter) {
-        return buildPayload(clear, guidance, counter, null);
+        return buildPayload(clear, guidance, counter, null, null);
     }
 
     private static byte[] buildPayload(
             boolean clear,
             HudGuidance guidance,
             int counter,
-            byte[] icon) {
+            byte[] icon,
+            HudArGeometry arGeometry) {
         ByteArrayOutputStream message = new ByteArrayOutputStream(256 + (icon == null ? 0 : icon.length));
         intField(message, 2, counter);
         intField(message, 16, clear ? 1 : 2);
@@ -332,8 +342,22 @@ final class HudSomeIpClient {
             stringField(message, 26, routeDistance(guidance));
             stringField(message, 27, guidance.getRemainingTimeText());
             intField(message, 28, guidance.getManeuver().getStockId());
+            if (arGeometry != null) {
+                doubleField(message, 19, arGeometry.getVehicleLongitude());
+                doubleField(message, 20, arGeometry.getVehicleLatitude());
+                intField(message, 21, Math.round(arGeometry.getVehicleSpeedMetersPerSecond()));
+                intField(message, 22, Math.round(arGeometry.getVehicleAltitudeMeters()));
+                stringField(message, 30, arGeometry.getGuideLine());
+                stringField(message, 31, arGeometry.getGuidePoint());
+                doubleField(message, 32, arGeometry.getVehicleHeadingDegrees());
+                doubleField(message, 33, arGeometry.getNavigatingRatio());
+            }
         }
         return embed(1, message.toByteArray());
+    }
+
+    static byte[] buildPayloadForTest(HudGuidance guidance, HudArGeometry arGeometry) {
+        return buildPayload(false, guidance, 1, null, arGeometry);
     }
 
     static String routeDistance(HudGuidance guidance) {
@@ -551,6 +575,18 @@ final class HudSomeIpClient {
     private static void intField(ByteArrayOutputStream output, int field, long value) {
         varint(output, field << 3);
         varint(output, value);
+    }
+
+    private static void doubleField(ByteArrayOutputStream output, int field, double value) {
+        if (!Double.isFinite(value)) {
+            return;
+        }
+        varint(output, (field << 3) | 1);
+        long bits = Double.doubleToRawLongBits(value);
+        for (int index = 0; index < Long.BYTES; index++) {
+            output.write((int) (bits & 0xffL));
+            bits >>>= 8;
+        }
     }
 
     private static void varint(ByteArrayOutputStream output, long value) {
