@@ -101,11 +101,47 @@ touches the microphone. That is a UX question, not a technical blocker.
 - The device is a `user` build; `adb root` is refused and there is no `su`, so
   privileged and `/system/priv-app` routes are closed.
 
+## Bluetooth: verified working
+
+A2DP sink playback **is** captured, confirmed on the live car against BT audio
+from a phone: `signal=true`, `peak = -9.06 dB`, 60/60 reads, and moving bands.
+
+Two wrong theories were tried and killed on the way, both worth recording so
+they are not re-run:
+
+- *"BT is routed to its own bus."* It is not. `dumpsys media.audio_policy` puts
+  BYD's custom `AUDIO_STREAM_BT_MUSIC` in the same `STRATEGY_MEDIA` and on the
+  same `AUDIO_DEVICE_OUT_SPEAKER` as ordinary `AUDIO_STREAM_MUSIC`.
+- *"BT never reaches the mixer as PCM."* It does. While playing, AudioFlinger
+  shows a live track on `AudioOut_D` — the very thread carrying the session 0
+  effect chain — from the bluetooth uid: `Format 0x5 (PCM_FLOAT)`, stereo,
+  44100, `ST=14 (BT_MUSIC)`, `Usg=1`, `CT=5 (BTMUSIC)`.
+
+The apparent failure was in the app, not the platform. See the shared-effect
+note below.
+
+## The session 0 effect is shared, and that bites
+
+Session 0 carries one effect chain for the whole device, so a second client
+attaching a `Visualizer` receives the *existing* instance rather than a fresh
+one — already enabled. `setCaptureSize()` then throws
+`IllegalStateException: setCaptureSize() called in wrong state: 2`, the
+construction fails, and the analyser shows nothing while the capture path itself
+is perfectly healthy. Disable the effect before configuring it.
+
+This also means a probe left attached can break the product app, and vice versa.
+
+## Attaching can fail transiently — retry it
+
+Creating the effect can fail for reasons that pass: the audio server busy, a
+previous client still releasing session 0, the permission grant landing a moment
+later. A one-shot attach at panel start therefore leaves the analyser dead until
+the process restarts, which reads as "it sometimes doesn't start". An attached
+effect can also stop delivering without reporting an error, which looks exactly
+like silence. Both need a watchdog that retries while unattached and rebuilds a
+capture that has gone quiet.
+
 ## Not yet verified
 
-- **Bluetooth A2DP sink playback.** Confirmed only for apps rendering through
-  their own `AudioTrack` (VLC, Yandex Music). The BT sink track sits on the same
-  output thread as the session 0 effect chain, so it is expected to work, but
-  that is an inference and has not been observed.
 - **Apple Music** (`com.apple.android.music`), which may use a protected output
   path that behaves differently.

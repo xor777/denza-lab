@@ -5,6 +5,7 @@ import android.media.audiofx.Visualizer
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
+import android.util.Log
 
 /**
  * Feeds the panel's analyser from whatever the car is playing.
@@ -51,6 +52,8 @@ class SpectrumSource {
         if (running) return
         running = true
         val app = context.applicationContext
+        handler.removeCallbacks(watchdog)
+        handler.postDelayed(watchdog, WATCHDOG_INTERVAL_MS)
         if (TripAudioAccessCoordinator.isGranted(app)) {
             attach()
             return
@@ -72,6 +75,37 @@ class SpectrumSource {
 
     fun stop() {
         running = false
+        handler.removeCallbacks(watchdog)
+        releaseEffect()
+    }
+
+    /**
+     * Keeps the capture alive for as long as the panel is up.
+     *
+     * Two failures were possible and both left the analyser dead until the app
+     * was restarted. Creating the effect can fail for reasons that pass — the
+     * audio server busy, another client still holding session 0 as it shuts
+     * down, the permission landing a moment later — and the old code set
+     * `running` before that attempt, so nothing ever tried again. And an effect
+     * that attaches can go quiet without erroring, which looks identical to
+     * silence. So: retry while unattached, and rebuild if an attached capture
+     * stops delivering.
+     */
+    private val watchdog = object : Runnable {
+        override fun run() {
+            if (!running) return
+            if (!attached) {
+                attach()
+            } else if (SystemClock.uptimeMillis() - lastCaptureUptimeMs > REVIVE_AFTER_MS) {
+                Log.w(TAG, "capture went quiet, rebuilding the effect")
+                releaseEffect()
+                attach()
+            }
+            handler.postDelayed(this, WATCHDOG_INTERVAL_MS)
+        }
+    }
+
+    private fun releaseEffect() {
         attached = false
         val current = visualizer ?: return
         visualizer = null
@@ -99,6 +133,13 @@ class SpectrumSource {
         if (!running || visualizer != null) return
         val outcome = runCatching {
             val effect = Visualizer(GLOBAL_OUTPUT_MIX_SESSION)
+            // The session 0 effect is shared across the device. If anything else
+            // already holds it — another visualiser, or a probe that did not
+            // release cleanly — it comes back already enabled, and configuring an
+            // enabled effect throws IllegalStateException("wrong state: 2").
+            // The analyser would then silently show nothing at all, which is
+            // exactly how a working capture path can look broken.
+            runCatching { effect.enabled = false }
             val captureSize = Visualizer.getCaptureSizeRange()[1]
             effect.captureSize = captureSize
             // AS_PLAYED: the default normalising mode scales silence up into
@@ -127,6 +168,13 @@ class SpectrumSource {
                 true,
             )
             effect.enabled = true
+            Log.i(
+                TAG,
+                "attached captureSize=" + captureSize +
+                    " reportedRate=" + effect.samplingRate +
+                    " enabled=" + effect.enabled +
+                    " scaling=" + effect.scalingMode,
+            )
             bandMap = map
             effect
         }
@@ -134,14 +182,18 @@ class SpectrumSource {
         if (effect == null) {
             // Constructing the effect without RECORD_AUDIO fails with error -3.
             lastFailure = outcome.exceptionOrNull()?.message ?: "аудио недоступно"
+            Log.w(TAG, "attach failed", outcome.exceptionOrNull())
             return
         }
         visualizer = effect
         lastFailure = null
+        lastCaptureUptimeMs = SystemClock.uptimeMillis()
         attached = true
     }
 
     companion object {
+        private const val TAG = "TripSpectrum"
+
         const val BAND_COUNT = 48
 
         /** Audio session 0: the whole output mix rather than one app's track. */
@@ -162,5 +214,7 @@ class SpectrumSource {
         const val MIN_HZ = 45.0
         const val MAX_HZ = 14000.0
         const val STALE_AFTER_MS = 900L
+        const val WATCHDOG_INTERVAL_MS = 2_000L
+        const val REVIVE_AFTER_MS = 4_000L
     }
 }

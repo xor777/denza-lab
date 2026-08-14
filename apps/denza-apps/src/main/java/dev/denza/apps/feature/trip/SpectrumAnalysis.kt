@@ -137,10 +137,13 @@ class SpectrumLevels(
         }
         signalDb = loudest - tiltDb[0]
 
-        // Rise to a louder passage quickly so a track change does not clip; fall
-        // back slowly so quiet passages keep their shape instead of being pumped
-        // back up to full height.
-        val target = loudest.coerceAtLeast(MIN_CEILING_DB)
+        // The scale's top sits a little above the loudest band rather than on it:
+        // pinned exactly, every band within a decibel of the loudest clamped to
+        // full height together and drew as a row of flat-topped bars across the
+        // bass. It rises quickly so a loud passage does not clip on the way in,
+        // and falls back slowly so quiet material keeps its shape instead of
+        // being pumped back up to full height.
+        val target = (loudest + CEILING_HEADROOM_DB).coerceAtLeast(MIN_CEILING_DB)
         val rate = if (target > ceilingDb) CEILING_ATTACK_PER_SEC else CEILING_RELEASE_PER_SEC
         ceilingDb += (target - ceilingDb) * (1.0 - exp(-dtSec * rate))
 
@@ -166,7 +169,8 @@ class SpectrumLevels(
         const val INITIAL_CEILING_DB = -18.0
         const val MIN_CEILING_DB = -46.0
         const val SIGNAL_GATE_DB = -58.0
-        const val CEILING_ATTACK_PER_SEC = 3.0
+        const val CEILING_HEADROOM_DB = 3.0
+        const val CEILING_ATTACK_PER_SEC = 8.0
         const val CEILING_RELEASE_PER_SEC = 0.25
     }
 }
