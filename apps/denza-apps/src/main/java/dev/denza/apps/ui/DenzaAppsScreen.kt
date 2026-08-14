@@ -80,6 +80,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.core.graphics.drawable.toBitmap
 import dev.denza.apps.DenzaUiState
+import dev.denza.apps.feature.split.SplitScreenFlag
 import dev.denza.apps.feature.trip.TripPanelFlag
 import dev.denza.apps.feature.trip.TripPanelView
 import dev.denza.apps.NavigationAppChoice
@@ -453,12 +454,32 @@ fun DenzaAppsRoot(
     }
 }
 
+private const val SPLIT_UNAVAILABLE = "Недоступно в этой прошивке"
+
 @Composable
 private fun SplitScreenCard(
     modifier: Modifier,
     snapshot: FeatureSnapshot,
     onToggle: (Boolean) -> Unit,
 ) {
+    if (!SplitScreenFlag.ENABLED) {
+        // Shown, off and not operable: the feature is gone from the firmware,
+        // not from the app, and a card that simply vanished would read as a bug.
+        CompactToggleCard(
+            modifier = modifier,
+            icon = Icons.Outlined.VerticalSplit,
+            title = "Split screen",
+            subtitle = SPLIT_UNAVAILABLE,
+            snapshot = snapshot.copy(
+                desiredEnabled = false,
+                status = FeatureStatus.UNAVAILABLE,
+                message = SPLIT_UNAVAILABLE,
+            ),
+            onToggle = {},
+            toggleEnabled = false,
+        )
+        return
+    }
     val subtitle = if (snapshot.status == FeatureStatus.ERROR) "Ошибка запуска" else "Управление окнами"
     CompactToggleCard(
         modifier = modifier,
@@ -479,6 +500,7 @@ private fun CompactToggleCard(
     snapshot: FeatureSnapshot,
     onToggle: (Boolean) -> Unit,
     onRetry: (() -> Unit)? = null,
+    toggleEnabled: Boolean = true,
 ) {
     val enabled = snapshot.desiredEnabled
     val attentionSubtitle = when (snapshot.status) {
@@ -554,7 +576,8 @@ private fun CompactToggleCard(
             Switch(
                 checked = enabled,
                 onCheckedChange = onToggle,
-                enabled = snapshot.status != FeatureStatus.STARTING &&
+                enabled = toggleEnabled &&
+                    snapshot.status != FeatureStatus.STARTING &&
                     snapshot.status != FeatureStatus.RECOVERING,
             )
         }
