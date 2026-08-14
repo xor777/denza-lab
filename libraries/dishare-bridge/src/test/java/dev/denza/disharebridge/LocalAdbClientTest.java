@@ -40,9 +40,13 @@ public final class LocalAdbClientTest {
         ByteArrayInputStream input = new ByteArrayInputStream(concat(
                 message("OKAY", 41, 1, ""),
                 message("OKAY", 41, 1, ""),
-                message("WRTE", 41, 1, "first\u001eMARK_1:0"),
+                message("WRTE", 41, 1, "\u001eMARK_1:BEGIN\u001ffirst\u001eMARK_1:0"),
                 message("WRTE", 41, 1, "\u001f"),
-                message("WRTE", 41, 1, "second\u001eMARK_2:7\u001f"),
+                message(
+                        "WRTE",
+                        41,
+                        1,
+                        "\u001eMARK_2:BEGIN\u001fsecond\u001eMARK_2:7\u001f"),
                 message("OKAY", 41, 1, "")));
         ByteArrayOutputStream output = new ByteArrayOutputStream();
 
@@ -70,6 +74,35 @@ public final class LocalAdbClientTest {
         assertTrue(sent.contains("shell:sh"));
         assertTrue(sent.contains("MARK_1"));
         assertTrue(sent.contains("MARK_2"));
+    }
+
+    @Test
+    public void interactiveCommandIgnoresLegacyShellPromptAndEcho() throws Exception {
+        ByteArrayInputStream input = new ByteArrayInputStream(concat(
+                message("OKAY", 41, 1, ""),
+                message(
+                        "WRTE",
+                        41,
+                        1,
+                        "IVI:/ $ printf '\\036MARK_PROMPT:BEGIN\\037'; echoed command\r\n"
+                                + "\u001eMARK_PROMPT:BEGIN\u001f"
+                                + "ready\r\n"
+                                + "\u001eMARK_PROMPT:0\u001f"
+                                + "IVI:/ $ ")));
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+
+        assertEquals(
+                "ready\r\n",
+                LocalAdbClient.runInteractiveCommand(
+                        input,
+                        output,
+                        1,
+                        41,
+                        "if [ -d /storage/FFFF-FFFC ]; then echo ready; else echo missing; fi",
+                        "MARK_PROMPT"));
+        String sent = new String(output.toByteArray(), StandardCharsets.ISO_8859_1);
+        assertTrue(sent.contains("MARK_PROMPT:BEGIN"));
+        assertFalse(sent.contains("/storage/FFFF-FFFC"));
     }
 
     @Test(expected = IOException.class)

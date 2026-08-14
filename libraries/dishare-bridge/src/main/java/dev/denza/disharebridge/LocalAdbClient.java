@@ -19,6 +19,7 @@ import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Enumeration;
 import java.util.List;
 
@@ -256,7 +257,10 @@ public final class LocalAdbClient {
         }
         writeMessage(output, A_WRTE, localId, remoteId, framedCommand);
 
-        byte[] markerPrefix = ("\u001e" + marker + ":").getBytes(StandardCharsets.US_ASCII);
+        byte[] outputStartMarker = ("\u001e" + marker + ":BEGIN\u001f")
+                .getBytes(StandardCharsets.US_ASCII);
+        byte[] statusMarkerPrefix = ("\u001e" + marker + ":")
+                .getBytes(StandardCharsets.US_ASCII);
         ByteArrayOutputStream received = new ByteArrayOutputStream();
         boolean writeAcknowledged = false;
         FramedShellResult framedResult = null;
@@ -268,7 +272,8 @@ public final class LocalAdbClient {
             } else if (message.command == A_WRTE) {
                 received.write(message.payload);
                 writeMessage(output, A_OKAY, localId, remoteId, new byte[0]);
-                framedResult = findFramedResult(received.toByteArray(), markerPrefix);
+                framedResult = findFramedResult(
+                        received.toByteArray(), outputStartMarker, statusMarkerPrefix);
             } else if (message.command == A_CLSE) {
                 writeMessage(output, A_CLSE, localId, remoteId, new byte[0]);
                 throw new EOFException("ADB interactive shell closed during command");
@@ -283,23 +288,37 @@ public final class LocalAdbClient {
     }
 
     private static byte[] frameInteractiveCommand(String command, String marker) {
-        String framed = "(\n"
-                + command
-                + "\n) 2>&1\n"
-                + "__denza_adb_status=$?\n"
+        String encodedCommand = Base64.getEncoder().encodeToString(
+                command.getBytes(StandardCharsets.UTF_8));
+        String framed = "__denza_adb_command=$(printf '%s' '"
+                + encodedCommand
+                + "' | base64 -d); "
+                + "printf '\\036"
+                + marker
+                + ":BEGIN\\037'; "
+                + "( eval \"$__denza_adb_command\" ) 2>&1; "
+                + "__denza_adb_status=$?; "
                 + "printf '\\036"
                 + marker
                 + ":%s\\037' \"$__denza_adb_status\"\n";
         return framed.getBytes(StandardCharsets.UTF_8);
     }
 
-    private static FramedShellResult findFramedResult(byte[] received, byte[] markerPrefix)
+    private static FramedShellResult findFramedResult(
+            byte[] received,
+            byte[] outputStartMarker,
+            byte[] statusMarkerPrefix)
             throws IOException {
-        int markerStart = indexOf(received, markerPrefix, 0);
-        if (markerStart < 0) {
+        int outputMarkerStart = indexOf(received, outputStartMarker, 0);
+        if (outputMarkerStart < 0) {
             return null;
         }
-        int statusStart = markerStart + markerPrefix.length;
+        int outputStart = outputMarkerStart + outputStartMarker.length;
+        int statusMarkerStart = indexOf(received, statusMarkerPrefix, outputStart);
+        if (statusMarkerStart < 0) {
+            return null;
+        }
+        int statusStart = statusMarkerStart + statusMarkerPrefix.length;
         int markerEnd = indexOf(received, new byte[] {0x1f}, statusStart);
         if (markerEnd < 0) {
             return null;
@@ -315,7 +334,11 @@ public final class LocalAdbClient {
             throw new IOException("Bad ADB interactive shell status " + statusText, error);
         }
         return new FramedShellResult(
-                new String(received, 0, markerStart, StandardCharsets.UTF_8));
+                new String(
+                        received,
+                        outputStart,
+                        statusMarkerStart - outputStart,
+                        StandardCharsets.UTF_8));
     }
 
     private static int indexOf(byte[] value, byte[] target, int fromIndex) {
