@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Rect
 import dev.denza.apps.feature.simulcast.ScreenTarget
 import dev.denza.apps.feature.simulcast.SimulcastVideoSizeResolver
+import dev.denza.apps.feature.simulcast.SimulcastVideoBoundsResolver
 import dev.denza.disharebridge.DiShareScreens
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -115,9 +116,20 @@ object SimulcastScreenDiagnostics {
     fun recordCastVideoSize(
         receiverId: String,
         resolution: SimulcastVideoSizeResolver.Resolution,
+    ) = recordCastVideoSize(receiverId, resolution, null)
+
+    @JvmStatic
+    fun recordCastVideoSize(
+        receiverId: String,
+        resolution: SimulcastVideoSizeResolver.Resolution,
+        bounds: SimulcastVideoBoundsResolver.Bounds?,
     ) {
         castStatus = "Последний запуск $receiverId=" +
             "video=${resolution.videoWidth}×${resolution.videoHeight}; " +
+            "target=${resolution.viewportWidth}×${resolution.viewportHeight}; " +
+            (bounds?.let {
+                "bounds=[${it.left},${it.top}][${it.right},${it.bottom}]; "
+            } ?: "") +
             "экран=${if (resolution.matched) "найден" else "не найден"}; " +
             resolution.details
         castUpdatedAtMs = System.currentTimeMillis()

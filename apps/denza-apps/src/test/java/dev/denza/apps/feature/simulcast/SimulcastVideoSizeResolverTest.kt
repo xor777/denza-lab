@@ -36,6 +36,8 @@ class SimulcastVideoSizeResolverTest {
         assertTrue(resolution.matched)
         assertEquals(2560, resolution.videoWidth)
         assertEquals(1600, resolution.videoHeight)
+        assertEquals(1920, resolution.viewportWidth)
+        assertEquals(1200, resolution.viewportHeight)
     }
 
     @Test
@@ -60,6 +62,8 @@ class SimulcastVideoSizeResolverTest {
         assertFalse(resolution.matched)
         assertEquals(2560, resolution.videoWidth)
         assertEquals(1440, resolution.videoHeight)
+        assertEquals(2560, resolution.viewportWidth)
+        assertEquals(1600, resolution.viewportHeight)
     }
 
     @Test
@@ -177,5 +181,17 @@ class SimulcastVideoSizeResolverTest {
 
         assertFalse(SimulcastVideoSizeResolver.resolve("screen_ivi", displays).matched)
         assertFalse(SimulcastVideoSizeResolver.resolve(null, displays).matched)
+    }
+
+    @Test
+    fun matchedTargetCarriesItsOwnViewportInsteadOfIviViewport() {
+        val resolution = SimulcastVideoSizeResolver.resolve(
+            "screen_overhead",
+            listOf(iviDisplay, display(5, "overhead_screen", 2560, 720)),
+        )
+
+        assertTrue(resolution.matched)
+        assertEquals(2560, resolution.viewportWidth)
+        assertEquals(720, resolution.viewportHeight)
     }
 }

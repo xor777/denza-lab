@@ -10,6 +10,7 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.PixelFormat;
+import android.graphics.Rect;
 import android.graphics.RectF;
 import android.graphics.drawable.Drawable;
 import android.os.Bundle;
@@ -22,6 +23,8 @@ import android.view.View;
 import android.view.WindowManager;
 import android.widget.Toast;
 
+import dev.denza.apps.feature.simulcast.SimulcastVideoBoundsResolver;
+import dev.denza.apps.feature.simulcast.SimulcastVideoSizeResolver;
 import dev.denza.apps.feature.split.SplitScreenCoordinator;
 import dev.denza.disharebridge.DiShareProjectionBridge;
 
@@ -40,8 +43,6 @@ public class SimulcastOverlayService extends Service {
     static final String ACTION_STOP_CURRENT = "dev.denza.apps.STOP_SIMULCAST_TARGET";
     static final String EXTRA_TARGET_PACKAGE = "targetPackage";
     static final String EXTRA_RECEIVER = "receiver";
-    private static final String EXTRA_VIDEO_WIDTH = "videoWidth";
-    private static final String EXTRA_VIDEO_HEIGHT = "videoHeight";
     static final String ACTION_DISHARE_DIALOG_HOME = "action.byd.dishare.DIALOG_HOME";
     static final String ACTION_DISHARE_DIALOG_LAUNCHER = "action.byd.dishare.DIALOG_LAUNCHER";
     static final String ACTION_DISHARE_DIALOG_CLOSE = "action.byd.dishare.DIALOG_CLOSE";
@@ -73,17 +74,14 @@ public class SimulcastOverlayService extends Service {
     public static void hide(Context context) {
     }
 
-    /** Launch a target share through the proven bridge path at the given source size. */
-    public static void startTarget(Context context, String targetPackage, String receiver,
-            int videoWidth, int videoHeight) {
+    /** Launch a target share through the proven bridge path and target geometry policy. */
+    public static void startTarget(Context context, String targetPackage, String receiver) {
         SplitScreenCoordinator.bypassExternalTaskMoves();
         try {
             context.startService(new Intent(context, SimulcastOverlayService.class)
                     .setAction(ACTION_START_TARGET)
                     .putExtra(EXTRA_TARGET_PACKAGE, targetPackage)
-                    .putExtra(EXTRA_RECEIVER, receiver)
-                    .putExtra(EXTRA_VIDEO_WIDTH, videoWidth)
-                    .putExtra(EXTRA_VIDEO_HEIGHT, videoHeight));
+                    .putExtra(EXTRA_RECEIVER, receiver));
         } catch (RuntimeException e) {
             Log.i(TAG, "startTarget failed", e);
         }
@@ -105,12 +103,10 @@ public class SimulcastOverlayService extends Service {
         if (ACTION_START_TARGET.equals(action)) {
             String packageName = intent.getStringExtra(EXTRA_TARGET_PACKAGE);
             String receiver = intent.getStringExtra(EXTRA_RECEIVER);
-            int videoWidth = intent.getIntExtra(EXTRA_VIDEO_WIDTH, 0);
-            int videoHeight = intent.getIntExtra(EXTRA_VIDEO_HEIGHT, 0);
             if (packageName != null && !packageName.trim().isEmpty()) {
                 startTargetByPackage(packageName.trim(), resolveLabel(packageName.trim()),
                         receiver == null || receiver.trim().isEmpty()
-                                ? "screen_hud" : receiver.trim(), videoWidth, videoHeight);
+                                ? "screen_hud" : receiver.trim());
             }
             return START_STICKY;
         }
@@ -188,13 +184,22 @@ public class SimulcastOverlayService extends Service {
     }
 
     private void startTargetByPackage(final String packageName, final String label,
-            final String receiver, final int videoWidth, final int videoHeight) {
+            final String receiver) {
         SplitScreenCoordinator.bypassExternalTaskMoves();
         stopBridge();
         SimulcastIntegration.clearLastTargetPackage(this);
         hideActiveShareExit();
+        SimulcastVideoSizeResolver.Resolution videoSize =
+                SimulcastVideoSizeResolver.resolve(this, receiver);
+        SimulcastVideoBoundsResolver.Bounds videoBounds =
+                SimulcastVideoBoundsResolver.resolve(videoSize);
         Log.i(TAG, "start target=" + packageName + " receiver=" + receiver
-                + " video=" + videoWidth + "x" + videoHeight);
+                + " video=" + videoSize.getVideoWidth() + "x" + videoSize.getVideoHeight()
+                + " target=" + videoSize.getViewportWidth() + "x" + videoSize.getViewportHeight()
+                + " bounds=[" + videoBounds.getLeft() + "," + videoBounds.getTop()
+                + "][" + videoBounds.getRight() + "," + videoBounds.getBottom() + "]"
+                + " (" + videoSize.getDetails() + ")");
+        SimulcastScreenDiagnostics.recordCastVideoSize(receiver, videoSize, videoBounds);
         activeBridge = new DiShareProjectionBridge(
                 getApplicationContext(),
                 packageName,
@@ -233,11 +238,10 @@ public class SimulcastOverlayService extends Service {
                         Log.i(TAG, packageName + " stopped " + message);
                     }
                 });
-        if (videoWidth > 0 && videoHeight > 0) {
-            activeBridge.startToReceiver(receiver, videoWidth, videoHeight);
-        } else {
-            activeBridge.startToReceiver(receiver);
-        }
+        activeBridge.startToReceiver(receiver,
+                videoSize.getVideoWidth(), videoSize.getVideoHeight(),
+                new Rect(videoBounds.getLeft(), videoBounds.getTop(),
+                        videoBounds.getRight(), videoBounds.getBottom()));
     }
 
     private void stopCurrentShare() {

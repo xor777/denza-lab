@@ -75,6 +75,7 @@ public final class DiShareProjectionBridge {
     private List<String> receiverOverride;
     private int targetVideoWidth;
     private int targetVideoHeight;
+    private Rect targetVideoBounds;
 
     private final ServiceConnection apiConnection = new ServiceConnection() {
         @Override
@@ -168,12 +169,18 @@ public final class DiShareProjectionBridge {
         startToReceivers(Collections.singletonList(receiver), videoWidth, videoHeight);
     }
 
+    public void startToReceiver(String receiver, int videoWidth, int videoHeight,
+            Rect videoBounds) {
+        start(false, false, Collections.singletonList(receiver),
+                videoWidth, videoHeight, videoBounds);
+    }
+
     public void startToReceivers(List<String> receivers) {
         startToReceivers(receivers, 0, 0);
     }
 
     public void startToReceivers(List<String> receivers, int videoWidth, int videoHeight) {
-        start(false, false, receivers, videoWidth, videoHeight);
+        start(false, false, receivers, videoWidth, videoHeight, null);
     }
 
     public void startSourceOnly() {
@@ -185,11 +192,12 @@ public final class DiShareProjectionBridge {
     }
 
     private void start(boolean sourceOnly, boolean copyCurrentShareTarget) {
-        start(sourceOnly, copyCurrentShareTarget, null, 0, 0);
+        start(sourceOnly, copyCurrentShareTarget, null, 0, 0, null);
     }
 
     private void start(boolean sourceOnly, boolean copyCurrentShareTarget,
-            List<String> receiverOverride, int videoWidth, int videoHeight) {
+            List<String> receiverOverride, int videoWidth, int videoHeight,
+            Rect videoBounds) {
         if (targetPackage == null || targetPackage.trim().isEmpty()) {
             fail("target package is empty");
             return;
@@ -199,11 +207,13 @@ public final class DiShareProjectionBridge {
         this.receiverOverride = sanitizeReceivers(receiverOverride);
         this.targetVideoWidth = sanitizeVideoDimension(videoWidth);
         this.targetVideoHeight = sanitizeVideoDimension(videoHeight);
+        this.targetVideoBounds = sanitizeVideoBounds(videoBounds);
         this.failed = false;
         this.started = false;
         log("start target=" + targetPackage
                 + " copyCurrentShareTarget=" + copyCurrentShareTarget
-                + " video=" + targetVideoWidth + "x" + targetVideoHeight);
+                + " video=" + targetVideoWidth + "x" + targetVideoHeight
+                + " bounds=" + targetVideoBounds);
         Intent intent = new Intent();
         intent.setAction(API_ACTION);
         intent.setPackage(API_PACKAGE);
@@ -248,6 +258,9 @@ public final class DiShareProjectionBridge {
                 : (targetVideoWidth > 0 ? targetVideoWidth : TARGET_VIDEO_WIDTH);
         final int videoHeight = sourceOnly ? SOURCE_VIDEO_HEIGHT
                 : (targetVideoHeight > 0 ? targetVideoHeight : TARGET_VIDEO_HEIGHT);
+        final Rect videoBounds = targetVideoBounds != null
+                ? new Rect(targetVideoBounds)
+                : new Rect(0, 0, videoWidth, videoHeight);
         transactApi(TX_CREATE_CLIENT, new ParcelWriter() {
             @Override
             public void write(Parcel data) {
@@ -268,8 +281,7 @@ public final class DiShareProjectionBridge {
             public void write(Parcel data) {
                 data.writeStrongBinder(apiClient);
                 data.writeInt(1);
-                new Rect(0, 0, videoWidth, videoHeight)
-                        .writeToParcel(data, 0);
+                videoBounds.writeToParcel(data, 0);
             }
         });
         transactApi(TX_SET_GESTURE_SHARE, new ParcelWriter() {
@@ -280,7 +292,8 @@ public final class DiShareProjectionBridge {
             }
         });
         log("api source registered target=" + targetPackage
-                + " size=" + videoWidth + "x" + videoHeight);
+                + " size=" + videoWidth + "x" + videoHeight
+                + " bounds=" + videoBounds);
     }
 
     private void bindControl() {
@@ -369,6 +382,14 @@ public final class DiShareProjectionBridge {
 
     private int sanitizeVideoDimension(int value) {
         return value >= 180 && value <= 4096 ? value : 0;
+    }
+
+    private Rect sanitizeVideoBounds(Rect bounds) {
+        if (bounds == null || bounds.width() < 180 || bounds.height() < 180
+                || bounds.width() > 4096 || bounds.height() > 4096) {
+            return null;
+        }
+        return new Rect(bounds);
     }
 
     private DiShareState readShareState() {

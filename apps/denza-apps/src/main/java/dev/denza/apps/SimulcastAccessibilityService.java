@@ -36,7 +36,6 @@ import dev.denza.apps.feature.navigation.NavigationSettings;
 import dev.denza.apps.feature.navigation.SteeringWheelNavigationButton;
 import dev.denza.apps.feature.navigation.SteeringWheelPressResult;
 import dev.denza.apps.feature.navigation.SteeringWheelPressSequence;
-import dev.denza.apps.feature.simulcast.SimulcastVideoSizeResolver;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -944,14 +943,8 @@ public class SimulcastAccessibilityService extends AccessibilityService {
     }
 
     private void launch(Target target, String receiver) {
-        SimulcastVideoSizeResolver.Resolution videoSize =
-                SimulcastVideoSizeResolver.resolve(this, receiver);
-        Log.i(TAG, "cast " + target.packageName + " -> " + receiver
-                + " video=" + videoSize.getVideoWidth() + "x" + videoSize.getVideoHeight()
-                + " (" + videoSize.getDetails() + ")");
-        SimulcastScreenDiagnostics.recordCastVideoSize(receiver, videoSize);
-        SimulcastOverlayService.startTarget(this, target.packageName, receiver,
-                videoSize.getVideoWidth(), videoSize.getVideoHeight());
+        Log.i(TAG, "cast " + target.packageName + " -> " + receiver);
+        SimulcastOverlayService.startTarget(this, target.packageName, receiver);
     }
 
     private Target targetFor(String packageName) {

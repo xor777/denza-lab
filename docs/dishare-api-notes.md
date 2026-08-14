@@ -284,6 +284,37 @@ Current no-root custom drag approach:
    The user still opens Simulcast and drags a visible app icon; Denza Apps has no
    global Start/Stop control.
 
+### Target-screen centered aspect-fit policy
+
+Firmware fingerprint
+`BYD-AUTO/IVI/IVI:13/TP1A.220624.014/eng.build20260705.011226:user/release-keys`
+ships DiShare `1.5.1.1.1b1f648`. Its `MirrorDisplayWrapper` clamps the mirror
+virtual display to an aspect ratio of at least 16:9. Its receiver `MirrorView`
+then preserves that aspect and centers the surface. A 16:9 stream therefore
+occupies only `2560x1440` on a `2560x1600` panel and leaves 160 black pixels at
+the bottom even though `ProviderActivity` itself is fullscreen.
+
+Denza Apps deliberately uses centered aspect-fit for target screens: it sends a
+`videoViewBounds` rectangle in the target panel's pixel coordinate space that
+keeps the whole firmware stream visible without distortion. On a `2560x1600`
+panel the effective `2560x1440` frame is placed at `[0,80][2560,1520]`, splitting
+the unused height into equal 80-pixel fields. A `1920x1200` rear panel similarly
+uses `[0,60][1920,1140]`. Wider targets are centered horizontally by the same
+rule. A matched target uses its own Android display dimensions; an unmatched
+target falls back to the default IVI viewport instead of assuming a rear-screen
+size. Bounds dimensions outside the bridge's existing `180..4096` envelope are
+rejected.
+
+Live IVI proof on 2026-08-14 created `BYD-Mirror` at `2560x1440`; SurfaceFlinger
+reported the secure receiver surface at `[0,80][2560,1520]` inside the unchanged
+`2560x1600` physical display. VK Video remained uncropped and undistorted, with
+equal 80-pixel fields above and below.
+
+Aspect-fill with symmetric horizontal clipping and a non-uniform stretch were
+evaluated on the IVI on 2026-08-14 but are not the product policy. Rear/FSE/
+overhead panels remain model-specific live verification work; unit tests cover
+their per-target geometry without claiming hardware acceptance.
+
 Live verification:
 
 - 2026-06-30 clean-car provisioning follow-up:

@@ -57,6 +57,8 @@ object SimulcastVideoSizeResolver {
         val videoHeight: Int,
         val matched: Boolean,
         val details: String,
+        val viewportWidth: Int,
+        val viewportHeight: Int,
     )
 
     @JvmStatic
@@ -66,20 +68,20 @@ object SimulcastVideoSizeResolver {
     @JvmStatic
     fun resolve(receiverId: String?, displays: List<ClusterDisplayDescriptor>): Resolution {
         val rule = receiverRules[receiverId]
-            ?: return fallback("receiver has no display mapping")
+            ?: return fallback("receiver has no display mapping", displays)
         val matches = matchDisplays(rule, displays)
         if (matches.isEmpty()) {
-            return fallback("no matching display")
+            return fallback("no matching display", displays)
         }
         val sized = matches.mapNotNull { display ->
             videoSizeFor(display)?.let { size -> display to size }
         }
         if (sized.isEmpty()) {
-            return fallback("matched ${describe(matches)} but sizes are unusable")
+            return fallback("matched ${describe(matches)} but sizes are unusable", displays)
         }
         val sizes = sized.map { (_, size) -> size }.distinct()
         if (sizes.size > 1) {
-            return fallback("ambiguous displays ${describe(sized.map { it.first })}")
+            return fallback("ambiguous displays ${describe(sized.map { it.first })}", displays)
         }
         val (display, size) = sized.first()
         return Resolution(
@@ -87,6 +89,8 @@ object SimulcastVideoSizeResolver {
             videoHeight = size.second,
             matched = true,
             details = "display '${display.name}' ${display.width}x${display.height}",
+            viewportWidth = display.width,
+            viewportHeight = display.height,
         )
     }
 
@@ -143,12 +147,22 @@ object SimulcastVideoSizeResolver {
         return (Math.round(raw / DIMENSION_ALIGNMENT) * DIMENSION_ALIGNMENT).toInt()
     }
 
-    private fun fallback(reason: String): Resolution = Resolution(
-        videoWidth = DEFAULT_VIDEO_WIDTH,
-        videoHeight = DEFAULT_VIDEO_HEIGHT,
-        matched = false,
-        details = "$reason, fallback ${DEFAULT_VIDEO_WIDTH}x$DEFAULT_VIDEO_HEIGHT",
-    )
+    private fun fallback(
+        reason: String,
+        displays: List<ClusterDisplayDescriptor>,
+    ): Resolution {
+        val defaultViewport = displays.firstOrNull { display ->
+            display.id == Display.DEFAULT_DISPLAY && display.width > 0 && display.height > 0
+        }
+        return Resolution(
+            videoWidth = DEFAULT_VIDEO_WIDTH,
+            videoHeight = DEFAULT_VIDEO_HEIGHT,
+            matched = false,
+            details = "$reason, fallback ${DEFAULT_VIDEO_WIDTH}x$DEFAULT_VIDEO_HEIGHT",
+            viewportWidth = defaultViewport?.width ?: DEFAULT_VIDEO_WIDTH,
+            viewportHeight = defaultViewport?.height ?: DEFAULT_VIDEO_HEIGHT,
+        )
+    }
 
     private fun describe(displays: List<ClusterDisplayDescriptor>): String =
         displays.joinToString(prefix = "[", postfix = "]") { display ->
