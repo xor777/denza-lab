@@ -1,4 +1,5 @@
 <resources>
     <string name="app_name">Denza Apps</string>
     <string name="a11y_service_desc">Управляет приложениями в Simulcast и передаёт подсказки Яндекс Навигатора на проекцию.</string>
+    <string name="split_picker_a11y_service_desc">Заменяет штатный список приложений в окне разделения экрана.</string>
 </resources>

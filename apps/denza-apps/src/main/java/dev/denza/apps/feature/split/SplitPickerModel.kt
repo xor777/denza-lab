@@ -23,6 +23,26 @@ internal data class SplitPickerPlacement(
     val packageName: String,
 )
 
+/**
+ * Exact IVI destination selected immediately before a projected navigation task returns.
+ *
+ * A null [pane] means the navigator did not originate from, and cannot safely join, a live
+ * product split root. [fullscreen] means the task is first returned to [rootTaskId] and the
+ * native firmware transition then expands that pane.
+ */
+internal data class SplitNavigationReturnPlan(
+    val pane: SplitPane?,
+    val rootTaskId: Int,
+    val hostTaskId: Int?,
+    val fullscreen: Boolean,
+    val displacedTasks: List<SplitDisplacedTask> = emptyList(),
+)
+
+internal data class SplitDisplacedTask(
+    val taskId: Int,
+    val packageName: String,
+)
+
 internal data class SplitPickerPaneObservation(
     val pane: SplitPane,
     val hostTaskId: Int?,
@@ -34,6 +54,7 @@ internal data class SplitPickerPaneObservation(
 internal interface SplitLastPairStore {
     fun load(pane: SplitPane): String?
     fun saveExclusive(pane: SplitPane, packageName: String): Boolean
+    fun replace(packages: Map<SplitPane, String>): Boolean
 }
 
 /** Persistent ownership for the firmware-global split enable gate. */

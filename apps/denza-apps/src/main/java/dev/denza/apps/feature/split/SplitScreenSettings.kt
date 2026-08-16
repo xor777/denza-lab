@@ -21,6 +21,7 @@ object SplitScreenSettings {
     private const val LAST_PRIMARY_PACKAGE = "picker_last_primary_package_v1"
     private const val LAST_SECONDARY_PACKAGE = "picker_last_secondary_package_v1"
     private const val PICKER_GATE_OWNED = "picker_gate_owned_v1"
+    private const val PICKER_ACCESS_OWNED = "picker_access_owned_v1"
     private const val PICKER_STATE_PRESENT = "picker_state_present_v1"
     private const val PICKER_STATE_ARMED = "picker_state_armed_v1"
     private const val PICKER_STATE_PHASE = "picker_state_phase_v1"
@@ -80,6 +81,21 @@ object SplitScreenSettings {
         PreferencesPickerAutomatonStore(
             context.getSharedPreferences(PREFS, Context.MODE_PRIVATE),
         )
+
+    internal fun nativePickerAccessLeaseStore(
+        context: Context,
+    ): SplitNativePickerAccessLeaseStore = object : SplitNativePickerAccessLeaseStore {
+        private val preferences = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+
+        override fun isOwned(): Boolean = preferences.getBoolean(PICKER_ACCESS_OWNED, false)
+
+        @SuppressLint("UseKtx")
+        override fun setOwned(owned: Boolean): Boolean = preferences.edit().let { editor ->
+            if (owned) editor.putBoolean(PICKER_ACCESS_OWNED, true)
+            else editor.remove(PICKER_ACCESS_OWNED)
+            editor.commit()
+        }
+    }
 
     private class PreferencesPickerAutomatonStore(
         private val preferences: SharedPreferences,
@@ -200,10 +216,18 @@ object SplitScreenSettings {
                 selectedPane = pane,
                 selectedPackage = packageName,
             )
+            return replace(updated)
+        }
+
+        @SuppressLint("UseKtx")
+        override fun replace(packages: Map<SplitPane, String>): Boolean {
+            check(packages.keys.all { it in SplitPane.entries })
+            check(packages.values.none(String::isBlank))
+            check(packages.values.size == packages.values.toSet().size)
             val editor = preferences.edit()
                 .remove(LAST_PRIMARY_PACKAGE)
                 .remove(LAST_SECONDARY_PACKAGE)
-            updated.forEach { (updatedPane, updatedPackage) ->
+            packages.forEach { (updatedPane, updatedPackage) ->
                 editor.putString(updatedPane.preferenceKey, updatedPackage)
             }
             return editor.commit()

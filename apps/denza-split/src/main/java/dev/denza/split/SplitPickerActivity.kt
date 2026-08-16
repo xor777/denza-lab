@@ -139,16 +139,9 @@ class SplitPickerActivity : ComponentActivity() {
     }
 
     override fun onStop() {
-        val stoppedTaskId = taskId
         super.onStop()
-        if (!isChangingConfigurations && visibleReported) {
+        if (!isChangingConfigurations) {
             visibleReported = false
-            sendCommand(
-                method = SplitCommandContract.METHOD_PICKER_STOPPED,
-                extras = Bundle().apply {
-                    putInt(SplitCommandContract.EXTRA_PICKER_TASK_ID, stoppedTaskId)
-                },
-            )
         }
     }
 
@@ -182,7 +175,8 @@ class SplitPickerActivity : ComponentActivity() {
     }
 
     private fun sendCommand(method: String, extras: Bundle): Boolean = runCatching {
-        SplitCommandContract.call(this, method, extras)
+        val error = SplitCommandContract.call(this, method, extras)
+        check(error == null) { error.orEmpty() }
         true
     }.getOrElse {
         message = "Denza Apps не отвечает"

@@ -144,7 +144,7 @@ class SplitPickerAutomatonTest {
     }
 
     @Test
-    fun projectionLeasePreventsPickerResumeFromDeletingNavigator() {
+    fun projectionFreesItsPickerPaneForAnotherApp() {
         val split = state(
             primary = app(10, NAVIGATOR, hostTaskId = 100),
             secondary = app(20, MUSIC, hostTaskId = 200),
@@ -163,7 +163,8 @@ class SplitPickerAutomatonTest {
             ),
         )
 
-        assertEquals(SplitPickerSlotKind.PROJECTED, pickerVisible.state.slot(SplitPane.PRIMARY).kind)
+        assertEquals(SplitPickerSlotKind.PICKER, pickerVisible.state.slot(SplitPane.PRIMARY).kind)
+        assertEquals(100, pickerVisible.state.slot(SplitPane.PRIMARY).hostTaskId)
         assertTrue(pickerVisible.actions.isEmpty())
     }
 

@@ -91,6 +91,10 @@ object SplitScreenCoordinator {
             var adb: LocalAdbClient.PersistentShellSession? = null
             try {
                 adb = LocalAdbClient(app, KEY_COMMENT).openPersistentShell()
+                SplitNativePickerAccessController(
+                    shell = adb::shell,
+                    leaseStore = SplitScreenSettings.nativePickerAccessLeaseStore(app),
+                ).enable()
                 SplitResizeabilityController(
                     shell = adb::shell,
                     leaseStore = SplitScreenSettings.resizeabilityLeaseStore(app),
@@ -105,7 +109,42 @@ object SplitScreenCoordinator {
                     installedPackages = installed,
                 )
                 val split = pickerSession(app, adb::shell)
-                split.requireNoExternalReservedPackages(restorable.values.toSet())
+                val existing = split.existingOwnedSession(PICKER_COMPONENT_SET)
+                if (existing != null) {
+                    clearPickerState()
+                    applyPickerEvent(SplitPickerEvent.OpenRequested)
+                    SplitPane.entries.forEach { pane ->
+                        val live = existing.getValue(pane)
+                        applyPickerEvent(
+                            SplitPickerEvent.NativePickerObserved(pane, live.hostTaskId),
+                        )
+                        applyPickerEvent(
+                            SplitPickerEvent.PickerAttached(pane, live.hostTaskId),
+                        )
+                        if (live.appTaskId != null && live.appPackageName != null) {
+                            applyPickerEvent(
+                                SplitPickerEvent.AppOpened(
+                                    pane = pane,
+                                    hostTaskId = live.hostTaskId,
+                                    taskId = live.appTaskId,
+                                    packageName = live.appPackageName,
+                                ),
+                            )
+                        }
+                    }
+                    syncLastPairFromPickerState(app)
+                    SplitScreenSettings.routingStateStore(app).clear()
+                    update(
+                        SplitScreenSession(
+                            enabled = true,
+                            phase = SplitScreenPhase.ACTIVE,
+                            message = "",
+                        ),
+                    )
+                    Log.i(TAG, "adopted the existing explicit picker session")
+                    postResult(onComplete, null)
+                    return@execute
+                }
                 // An explicit launcher tap is the authoritative start of a new picker session.
                 // Rebuild task identity from the live roots instead of carrying process- or
                 // install-stale host ids into this run. The separately stored last pair remains.
@@ -190,6 +229,9 @@ object SplitScreenCoordinator {
             } finally {
                 adb?.close()
                 pickerOpenInFlight.set(false)
+                // A service event may have been intentionally suppressed while the explicit
+                // pair owned the roots. Reconcile once against the settled native scene.
+                onNativePickerVisible(app)
             }
         }
     }
@@ -222,9 +264,6 @@ object SplitScreenCoordinator {
                     pickerTaskId = pickerTaskId,
                     target = target,
                     pickerComponents = PICKER_COMPONENT_SET,
-                    reservedPackages = SplitPane.entries
-                        .mapNotNull(store::load)
-                        .toSet(),
                 )
                 applyPickerEvent(
                     SplitPickerEvent.AppOpened(
@@ -313,40 +352,14 @@ object SplitScreenCoordinator {
         }
     }
 
-    /** Verifies a stopped picker before treating it as a user-dismissed native pane. */
-    fun onPickerStopped(context: Context, hostTaskId: Int) {
-        val app = context.applicationContext
-        this.context = app
-        ensurePickerStateLoaded(app)
-        if (!SplitScreenSettings.isEnabled(app)) return
-        executor.execute {
-            var adb: LocalAdbClient.PersistentShellSession? = null
-            try {
-                adb = LocalAdbClient(app, KEY_COMMENT).openPersistentShell()
-                val split = pickerSession(app, adb::shell)
-                if (split.observePickerTask(hostTaskId, PICKER_COMPONENT_SET) != null) return@execute
-                val pane = SplitPane.entries.firstOrNull {
-                    currentPickerState().slot(it).hostTaskId == hostTaskId
-                } ?: return@execute
-                val reduction = applyPickerEvent(
-                    SplitPickerEvent.PickerTaskGone(pane, hostTaskId),
-                )
-                executePickerActions(split, reduction.actions)
-            } catch (error: Throwable) {
-                Log.w(TAG, "failed to verify stopped picker pane", error)
-            } finally {
-                adb?.close()
-            }
-        }
-    }
-
     /** Accessibility event for the stock picker created by dragging a fullscreen pane open. */
     @JvmStatic
     fun onNativePickerVisible(context: Context) {
         val app = context.applicationContext
         this.context = app
         ensurePickerStateLoaded(app)
-        if (!SplitScreenSettings.isEnabled(app) ||
+        if (pickerOpenInFlight.get() ||
+            !SplitScreenSettings.isEnabled(app) ||
             !nativePickerEventInFlight.compareAndSet(false, true)
         ) {
             return
@@ -423,6 +436,83 @@ object SplitScreenCoordinator {
             } finally {
                 adb?.close()
             }
+        }
+    }
+
+    /**
+     * Resolves the live IVI destination before Navigation moves its task back from the cluster.
+     * This is synchronous by design: the navigation lease is already held and no router tick may
+     * observe a half-cleared pane between this decision and the task move.
+     */
+    internal fun prepareNavigationReturn(originalRootTaskId: Int): SplitNavigationReturnPlan {
+        val app = context ?: error("Split coordinator is not initialized")
+        ensurePickerStateLoaded(app)
+        val adb = LocalAdbClient(app, KEY_COMMENT).openPersistentShell()
+        try {
+            val split = pickerSession(app, adb::shell)
+            val plan = split.prepareNavigationReturn(
+                originalRootTaskId = originalRootTaskId,
+                pickerComponents = PICKER_COMPONENT_SET,
+            )
+            return plan
+        } finally {
+            adb.close()
+        }
+    }
+
+    internal fun completeNavigationReturn(
+        plan: SplitNavigationReturnPlan,
+        taskId: Int,
+        packageName: String,
+    ) {
+        val app = context ?: return
+        ensurePickerStateLoaded(app)
+        if (plan.fullscreen) {
+            val pane = plan.pane ?: return
+            val adb = LocalAdbClient(app, KEY_COMMENT).openPersistentShell()
+            try {
+                pickerSession(app, adb::shell).returnRecordedTaskFullscreen(
+                    pane = pane,
+                    taskId = taskId,
+                    packageName = packageName,
+                )
+                applyPickerEvent(SplitPickerEvent.HomeObserved)
+            } finally {
+                adb.close()
+            }
+            return
+        }
+
+        val adb = LocalAdbClient(app, KEY_COMMENT).openPersistentShell()
+        try {
+            val split = pickerSession(app, adb::shell)
+            plan.displacedTasks.forEach { displaced ->
+                split.removeRecordedTask(displaced.taskId, displaced.packageName)
+            }
+            val placement = split.verifyNavigationReturned(
+                plan = plan,
+                taskId = taskId,
+                packageName = packageName,
+                pickerComponents = PICKER_COMPONENT_SET,
+            )
+            applyPickerEvent(
+                SplitPickerEvent.PickerBecameTop(
+                    pane = placement.pane,
+                    hostTaskId = placement.hostTaskId,
+                    observedTaskIds = emptySet(),
+                ),
+            )
+            applyPickerEvent(
+                SplitPickerEvent.AppOpened(
+                    pane = placement.pane,
+                    hostTaskId = placement.hostTaskId,
+                    taskId = placement.appTaskId,
+                    packageName = placement.packageName,
+                ),
+            )
+            syncLastPairFromPickerState(app)
+        } finally {
+            adb.close()
         }
     }
 
@@ -515,6 +605,10 @@ object SplitScreenCoordinator {
                     shell = adb::shell,
                     leaseStore = SplitScreenSettings.resizeabilityLeaseStore(app),
                 ).restore()
+                SplitNativePickerAccessController(
+                    shell = adb::shell,
+                    leaseStore = SplitScreenSettings.nativePickerAccessLeaseStore(app),
+                ).restore()
                 clearPickerState()
                 update(SplitScreenSession())
             } catch (error: Throwable) {
@@ -605,6 +699,10 @@ object SplitScreenCoordinator {
             try {
                 if (!isCurrent(currentGeneration)) return@execute
                 adb = LocalAdbClient(app, KEY_COMMENT).openPersistentShell()
+                SplitNativePickerAccessController(
+                    shell = adb::shell,
+                    leaseStore = SplitScreenSettings.nativePickerAccessLeaseStore(app),
+                ).enable()
                 SplitResizeabilityController(
                     shell = adb::shell,
                     leaseStore = SplitScreenSettings.resizeabilityLeaseStore(app),
@@ -753,6 +851,22 @@ object SplitScreenCoordinator {
 
     private fun currentPickerState(): SplitPickerAutomatonState =
         synchronized(pickerStateLock) { pickerState }
+
+    /** Last-pair persistence follows the settled IVI scene, never a historical pane label. */
+    private fun syncLastPairFromPickerState(app: Context) {
+        val state = currentPickerState()
+        val packages = buildMap {
+            SplitPane.entries.forEach { pane ->
+                val slot = state.slot(pane)
+                if (slot.kind == SplitPickerSlotKind.APP) {
+                    slot.packageName?.takeIf(String::isNotBlank)?.let { put(pane, it) }
+                }
+            }
+        }
+        check(SplitScreenSettings.lastPairStore(app).replace(packages)) {
+            "Не удалось сохранить последнюю пару"
+        }
+    }
 
     private fun ensurePickerStateLoaded(app: Context) {
         if (pickerStateLoaded) return

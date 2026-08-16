@@ -50,6 +50,17 @@
                 android:resource="@xml/simulcast_a11y_service" />
         </service>
         <service
+            android:name=".feature.split.SplitNativePickerAccessibilityService"
+            android:exported="true"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/split_picker_a11y_service" />
+        </service>
+        <service
             android:name=".feature.hud.YandexNotificationArtworkListener"
             android:exported="true"
             android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
@@ -71,6 +82,11 @@
             android:permission="dev.denza.apps.permission.CONTROL_SPLIT"
             android:taskAffinity=""
             android:theme="@android:style/Theme.NoDisplay" />
+        <provider
+            android:name=".feature.split.SplitCommandProvider"
+            android:authorities="dev.denza.apps.split"
+            android:exported="true"
+            android:permission="dev.denza.apps.permission.CONTROL_SPLIT" />
         <service
             android:name=".feature.mirrors.SideCameraMonitorService"
             android:exported="false"

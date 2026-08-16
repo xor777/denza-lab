@@ -326,7 +326,14 @@ internal object SplitPickerAutomaton {
         if (event.taskId <= 0 || event.packageName.isBlank()) return unchanged(current)
         val existing = current.slot(event.pane)
         if (existing.hostTaskId != event.hostTaskId ||
-            existing.kind !in setOf(SplitPickerSlotKind.PICKER, SplitPickerSlotKind.ATTACHING)
+            existing.kind !in setOf(
+                SplitPickerSlotKind.PICKER,
+                SplitPickerSlotKind.ATTACHING,
+                // Migration safety for a picker state persisted by builds that reserved the
+                // entire pane while its previous app was projected to another display.
+                SplitPickerSlotKind.PROJECTED,
+                SplitPickerSlotKind.PROJECTED_ATTACHING,
+            )
         ) {
             return unchanged(current)
         }
@@ -429,10 +436,17 @@ internal object SplitPickerAutomaton {
         if (existing.kind != SplitPickerSlotKind.APP || existing.appTaskId != event.taskId) {
             return unchanged(current)
         }
+        // The navigator now belongs to the instrument-display session, not to the IVI pane.
+        // Its permanent picker base is immediately a normal vacancy. Keeping the task encoded
+        // as PROJECTED here used to reserve both pickers through the saved-pair guard and made
+        // the entire split UI unusable until navigation returned.
         return unchanged(
             current.withSlot(
                 event.pane,
-                existing.copy(kind = SplitPickerSlotKind.PROJECTED),
+                SplitPickerSlotState(
+                    kind = SplitPickerSlotKind.PICKER,
+                    hostTaskId = existing.hostTaskId,
+                ),
             ),
         )
     }

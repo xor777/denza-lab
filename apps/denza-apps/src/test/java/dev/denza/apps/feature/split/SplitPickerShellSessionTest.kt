@@ -82,7 +82,7 @@ class SplitPickerShellSessionTest {
         assertEquals(3, fake.area)
         assertTrue(fake.commands.any { it.contains("remove-task 40") })
         assertTrue(fake.commands.any { it.contains("remove-task 41") })
-        assertTrue(fake.commands.any { it == "service call activity_task 115" })
+        assertFalse(fake.commands.any { it == "service call activity_task 115" })
     }
 
     @Test
@@ -96,7 +96,6 @@ class SplitPickerShellSessionTest {
         assertFalse(fake.hasPackage(SECONDARY_ROOT, NAVIGATOR))
         assertEquals(1, fake.taskCount(PRIMARY_ROOT))
         assertEquals(1, fake.taskCount(SECONDARY_ROOT))
-        assertEquals(setOf(102, 103), hosts.values.toSet())
         assertEquals(2, hosts.values.toSet().size)
         assertTrue(fake.hasActivity(PRIMARY_ROOT, PRIMARY_PICKER_ACTIVITY))
         assertTrue(fake.hasActivity(SECONDARY_ROOT, SECONDARY_PICKER_ACTIVITY))
@@ -131,7 +130,7 @@ class SplitPickerShellSessionTest {
 
         session(fake).openPickers(PICKERS, preservedPackages = emptyMap())
 
-        assertTrue(fake.commands.any { it == "service call activity_task 115" })
+        assertFalse(fake.commands.any { it == "service call activity_task 115" })
         SplitPane.entries.forEach { pane ->
             val root = if (pane == SplitPane.PRIMARY) PRIMARY_ROOT else SECONDARY_ROOT
             val picker = PICKERS.getValue(pane)
@@ -163,7 +162,46 @@ class SplitPickerShellSessionTest {
     }
 
     @Test
-    fun hostlessExistingPairReturnsHomeBeforeCreatingNativeHosts() {
+    fun alreadyRunningOwnedSceneIsAdoptedWithoutTaskMutation() {
+        val fake = FakeShell()
+        val split = session(fake)
+        val hosts = split.openPickers(PICKERS, preservedPackages = emptyMap())
+        val navigator = split.selectApp(
+            pickerTaskId = hosts.getValue(SplitPane.PRIMARY),
+            target = SplitLaunchTarget(NAVIGATOR, "$NAVIGATOR/$NAVIGATOR.MainActivity"),
+            pickerComponents = PICKER_COMPONENTS,
+        )
+        fake.commands.clear()
+
+        val existing = split.existingOwnedSession(PICKER_COMPONENTS)
+
+        assertEquals(hosts.getValue(SplitPane.PRIMARY), existing?.get(SplitPane.PRIMARY)?.hostTaskId)
+        assertEquals(navigator.appTaskId, existing?.get(SplitPane.PRIMARY)?.appTaskId)
+        assertEquals(NAVIGATOR, existing?.get(SplitPane.PRIMARY)?.appPackageName)
+        assertEquals(hosts.getValue(SplitPane.SECONDARY), existing?.get(SplitPane.SECONDARY)?.hostTaskId)
+        assertEquals(null, existing?.get(SplitPane.SECONDARY)?.appTaskId)
+        assertFalse(
+            fake.commands.any { command ->
+                command.startsWith("am start ") ||
+                    command.startsWith("am stack move-task ") ||
+                    command.startsWith("am task focus ") ||
+                    command.contains(" remove-task ")
+            },
+        )
+    }
+
+    @Test
+    fun sceneMissingOneOwnedBaseIsNotAdopted() {
+        val fake = FakeShell().apply {
+            area = 3
+            addTask(PRIMARY_ROOT, 40, NAVIGATOR, "$NAVIGATOR.MainActivity")
+        }
+
+        assertEquals(null, session(fake).existingOwnedSession(PICKER_COMPONENTS))
+    }
+
+    @Test
+    fun hostlessExistingPairIsHostedThroughExactPaneCategories() {
         val fake = FakeShell(tx115RequiresHome = true).apply {
             area = 3
             addTask(PRIMARY_ROOT, 40, NAVIGATOR, "$NAVIGATOR.MainActivity")
@@ -180,10 +218,8 @@ class SplitPickerShellSessionTest {
 
         assertTrue(fake.hasActivity(PRIMARY_ROOT, PRIMARY_PICKER_ACTIVITY))
         assertTrue(fake.hasActivity(SECONDARY_ROOT, SECONDARY_PICKER_ACTIVITY))
-        val homeIndex = fake.commands.indexOf("input keyevent KEYCODE_HOME")
-        val enterIndex = fake.commands.indexOf("service call activity_task 115")
-        assertTrue(homeIndex >= 0)
-        assertTrue(enterIndex > homeIndex)
+        assertFalse(fake.commands.any { it == "input keyevent KEYCODE_HOME" })
+        assertFalse(fake.commands.any { it == "service call activity_task 115" })
     }
 
     @Test(expected = IllegalStateException::class)
@@ -216,7 +252,7 @@ class SplitPickerShellSessionTest {
             command.startsWith("am start ") && command.contains("$MUSIC/$MUSIC.MainActivity")
         }
         assertTrue(appLaunch.contains("-f 0x10200000"))
-        assertFalse(appLaunch.contains("byd.intent.category.START_IVI_"))
+        assertTrue(appLaunch.contains("byd.intent.category.START_IVI_SECOND"))
     }
 
     @Test
@@ -326,8 +362,8 @@ class SplitPickerShellSessionTest {
         )
     }
 
-    @Test(expected = IllegalStateException::class)
-    fun establishedPairCannotBeReplacedWhileOneMemberIsProjected() {
+    @Test
+    fun projectedMemberDoesNotBlockDifferentAppFromVacantPane() {
         val fake = FakeShell().apply {
             addTask(EXTERNAL_ROOT, 91, NAVIGATOR, "$NAVIGATOR.MainActivity")
         }
@@ -340,6 +376,9 @@ class SplitPickerShellSessionTest {
             pickerComponents = PICKER_COMPONENTS,
             reservedPackages = setOf(NAVIGATOR),
         )
+
+        assertTrue(fake.hasPackage(EXTERNAL_ROOT, NAVIGATOR))
+        assertEquals("$MUSIC.MainActivity", fake.topActivity(SECONDARY_ROOT))
     }
 
     @Test
@@ -385,7 +424,10 @@ class SplitPickerShellSessionTest {
 
         assertEquals("$NAVIGATOR.MainActivity", fake.topActivity(PRIMARY_ROOT))
         assertTrue(fake.hasActivity(PRIMARY_ROOT, PRIMARY_PICKER_ACTIVITY))
-        assertTrue(fake.commands.any { it == "am task focus 70" })
+        assertTrue(
+            fake.commands.joinToString("\n"),
+            fake.commands.any { it == "am task focus 70" },
+        )
         assertFalse(fake.commands.any { it == "am stack move-task 70 $PRIMARY_ROOT true" })
     }
 
@@ -691,6 +733,7 @@ class SplitPickerShellSessionTest {
                         else -> null
                     }
                     if (pickerRoot != null) {
+                        area = 3
                         tasks.removeAll {
                             it.rootId == pickerRoot &&
                                 (it.packageName == STOCK_PICKER_PACKAGE ||

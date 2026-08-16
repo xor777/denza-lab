@@ -4,6 +4,7 @@
     <uses-permission android:name="dev.denza.apps.permission.CONTROL_SPLIT" />
     <queries>
         <package android:name="dev.denza.apps" />
+        <provider android:authorities="dev.denza.apps.split" />
     </queries>
 
     <application

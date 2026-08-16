@@ -88,9 +88,9 @@ reset_acceptance_state() {
   mode="$("${adb_target[@]}" shell settings get system byd_smart_multi_split_window_mode | tr -d '\r')"
   if ! {
     [[ "$primary" == "com.byd.sr" && "$secondary" == "com.byd.launchermap" &&
-       "$position" == "1" && "$mode" == "100" ]] ||
+       ( "$position" == "1" || "$position" == "2" ) && "$mode" == "100" ]] ||
       [[ "$primary" == "com.android.launcher3" && "$secondary" == "com.byd.launchermap" &&
-         "$position" == "1" && "$mode" == "102" ]]
+         ( "$position" == "1" || "$position" == "2" ) && "$mode" == "102" ]]
   }; then
     echo "SmartMulti rejected the expected baseline: $primary $secondary $position $mode" >&2
     exit 3

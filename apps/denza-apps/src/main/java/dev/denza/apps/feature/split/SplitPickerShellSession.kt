@@ -13,6 +13,52 @@ internal class SplitPickerShellSession(
     private val pause: (Long) -> Unit = Thread::sleep,
     private val gateLeaseStore: SplitGateLeaseStore? = null,
 ) {
+    /**
+     * Adopts an already-running product scene without mutating the firmware roots.
+     *
+     * Package replacement restarts Denza Apps but does not remove the two standalone picker
+     * tasks. Rebuilding that still-valid scene races SmartMulti's own focus/restore controller.
+     * Only accept the scene when both native roots have exactly our permanent base and at most
+     * one ordinary app; anything less certain falls back to the explicit reconstruction path.
+     */
+    fun existingOwnedSession(
+        pickerComponents: Set<String>,
+    ): Map<SplitPane, SplitPickerLivePane>? {
+        if (callInt("service call activity_task 30") != AREA_BALANCED_SPLIT) return null
+        val roots = nativeRootIds()
+        val state = snapshot()
+        return SplitPane.entries.associateWith { pane ->
+            val root = state.root(roots.getValue(pane)) ?: return null
+            val pickers = root.tasks.filter { task ->
+                task.isDenzaPickerBase() && task.matchesAnyComponent(pickerComponents)
+            }
+            if (pickers.size != 1 || root.tasks.size !in 1..MAX_TASKS_PER_PANE) return null
+            val picker = pickers.single()
+            if (picker.bounds != root.bounds) return null
+
+            val top = root.resolvedTopTask() ?: return null
+            val app = if (top.id == picker.id) {
+                if (!picker.matchesAnyTopComponent(pickerComponents)) return null
+                null
+            } else {
+                if (
+                    top.isDenzaPickerBase() ||
+                    top.isNativeSplitBootstrap() ||
+                    top.bounds != root.bounds
+                ) {
+                    return null
+                }
+                top
+            }
+            SplitPickerLivePane(
+                pane = pane,
+                hostTaskId = picker.id,
+                appTaskId = app?.id,
+                appPackageName = app?.packageName,
+            )
+        }
+    }
+
     fun openPickers(
         pickerComponents: Map<SplitPane, String>,
         preservedPackages: Map<SplitPane, String>,
@@ -28,7 +74,7 @@ internal class SplitPickerShellSession(
         // gets control. Explicit PRIMARY/SECONDARY categories create and target the same native
         // roots without consulting that remembered OEM pair.
         val before = snapshot()
-        val pickerTasks = SplitPane.entries.associateWith { pane ->
+        val existingPickerTasks = SplitPane.entries.associateWith { pane ->
             val rootId = rootIds.getValue(pane)
             before.root(rootId)?.tasks
                 ?.filter { task ->
@@ -36,11 +82,50 @@ internal class SplitPickerShellSession(
                         task.matchesComponent(pickerComponents.getValue(pane))
                 }
                 ?.maxByOrNull(SplitTask::id)
-                ?: launchPickerInPane(
+        }
+        val pickerTasks = existingPickerTasks
+            .filterValues { it != null }
+            .mapValuesTo(mutableMapOf()) { (_, task) -> task!! }
+        val assignedIds = pickerTasks.values.mapTo(mutableSetOf(), SplitTask::id)
+        val reusableTasks = before.roots.asSequence()
+            .filter { it.displayId == MAIN_DISPLAY_ID }
+            .flatMap { it.tasks.asSequence() }
+            .filter { task ->
+                task.id !in assignedIds &&
+                    task.isDenzaPickerBase() &&
+                    task.matchesAnyComponent(pickerComponents.values.toSet())
+            }
+            .sortedByDescending(SplitTask::id)
+            .toMutableList()
+        SplitPane.entries.filterNot(pickerTasks::containsKey).forEach { pane ->
+            val picker = reusableTasks.removeFirstOrNull()
+                ?: launchPickerTask(
                     pane = pane,
-                    rootId = rootId,
                     pickerComponent = pickerComponents.getValue(pane),
+                    excludedTaskIds = assignedIds,
                 )
+            assignedIds += picker.id
+            pickerTasks[pane] = picker
+        }
+
+        // Categories are authoritative once the native scene exists. On a truly empty scene
+        // this firmware first creates ordinary fullscreen tasks, so explicitly reparent those
+        // exact tasks into the already-known OEM roots and reveal the real divider once.
+        SplitPane.entries.forEach { pane ->
+            val picker = pickerTasks.getValue(pane)
+            val rootId = rootIds.getValue(pane)
+            if (picker.rootId != rootId) moveTask(picker.id, rootId)
+        }
+        pause(ROOT_SETTLE_MS)
+        if (callInt("service call activity_task 30") != AREA_BALANCED_SPLIT) {
+            dragDividerToBalanced()
+            pause(NATIVE_PICKER_SETTLE_MS)
+        }
+        check(callInt("service call activity_task 30") == AREA_BALANCED_SPLIT) {
+            "Прошивка не раскрыла native split"
+        }
+        SplitPane.entries.forEach { pane ->
+            normalizeTaskToRoot(pickerTasks.getValue(pane).id, rootIds.getValue(pane))
         }
         // A picker is the permanent base of its pane. Never remove the last visible base before
         // the replacement exists: BYD collapses the native roots immediately and restores its
@@ -101,14 +186,9 @@ internal class SplitPickerShellSession(
         val targetRootId = roots.getValue(pane)
         val otherRootId = roots.getValue(pane.other())
 
-        val externalPackages = before.roots.asSequence()
-            .filter { it.displayId != MAIN_DISPLAY_ID }
-            .flatMap { it.tasks.asSequence() }
-            .map(SplitTask::packageName)
-            .toSet()
-        check(externalPackages.none(reservedPackages::contains)) {
-            "Сначала верните приложение с другого экрана"
-        }
+        // Another saved-pair member may legitimately be projected to the instrument display.
+        // That task no longer reserves either IVI pane. Only selecting the exact same external
+        // package is forbidden below.
         check(before.roots.asSequence()
             .filter { it.displayId != MAIN_DISPLAY_ID }
             .flatMap { it.tasks.asSequence() }
@@ -148,7 +228,7 @@ internal class SplitPickerShellSession(
             .forEach(::removeTaskSafely)
 
         val targetTask = selected ?: run {
-            launchTarget(target)
+            launchTarget(target, pane)
             awaitPackageTask(target.packageName)
         }
         promoteTask(targetTask, targetRootId)
@@ -241,6 +321,130 @@ internal class SplitPickerShellSession(
             pickerComponents = pickerComponents,
             reservedPackages = reservedPackages,
         )
+    }
+
+    /**
+     * Chooses and clears one exact product pane before navigation returns from another display.
+     *
+     * Vacancy is authoritative. A single visible picker wins; with two vacancies the original
+     * pane wins. If both panes are occupied, the original pane is cleared so the return never
+     * creates picker + app + navigator in one root. When the native split is no longer active,
+     * the original pane is expanded after the task returns instead.
+     */
+    fun prepareNavigationReturn(
+        originalRootTaskId: Int,
+        pickerComponents: Set<String>,
+    ): SplitNavigationReturnPlan {
+        val roots = nativeRootIds()
+        val originalPane = SplitPane.entries.firstOrNull { pane ->
+            roots.getValue(pane) == originalRootTaskId
+        }
+        if (callInt("service call activity_task 30") != AREA_BALANCED_SPLIT) {
+            return SplitNavigationReturnPlan(
+                pane = originalPane,
+                rootTaskId = originalRootTaskId,
+                hostTaskId = null,
+                fullscreen = true,
+            )
+        }
+
+        val before = snapshot()
+        val pickerByPane = SplitPane.entries.associateWith { pane ->
+            before.root(roots.getValue(pane))?.tasks?.singleOrNull { task ->
+                task.isDenzaPickerBase() && task.matchesAnyComponent(pickerComponents)
+            }
+        }
+        val vacantPanes = SplitPane.entries.filter { pane ->
+            val picker = pickerByPane[pane] ?: return@filter false
+            val root = before.root(roots.getValue(pane)) ?: return@filter false
+            val top = root.resolvedTopTask() ?: return@filter false
+            top.id == picker.id && top.matchesAnyTopComponent(pickerComponents)
+        }
+        val targetPane = when {
+            vacantPanes.size == 1 -> vacantPanes.single()
+            vacantPanes.size == 2 && originalPane != null -> originalPane
+            vacantPanes.size == 2 -> SplitPane.SECONDARY
+            originalPane != null -> originalPane
+            else -> null
+        }
+        if (targetPane == null) {
+            return SplitNavigationReturnPlan(
+                pane = null,
+                rootTaskId = originalRootTaskId,
+                hostTaskId = null,
+                fullscreen = true,
+            )
+        }
+
+        val targetRootId = roots.getValue(targetPane)
+        val picker = pickerByPane[targetPane]
+            ?: return SplitNavigationReturnPlan(
+                pane = originalPane,
+                rootTaskId = originalRootTaskId,
+                hostTaskId = null,
+                fullscreen = true,
+            )
+        val displacedTasks = before.root(targetRootId)?.tasks.orEmpty()
+            .filterNot { it.id == picker.id }
+            .map { task -> SplitDisplacedTask(task.id, task.packageName) }
+        return SplitNavigationReturnPlan(
+            pane = targetPane,
+            rootTaskId = targetRootId,
+            hostTaskId = picker.id,
+            fullscreen = false,
+            displacedTasks = displacedTasks,
+        )
+    }
+
+    fun verifyNavigationReturned(
+        plan: SplitNavigationReturnPlan,
+        taskId: Int,
+        packageName: String,
+        pickerComponents: Set<String>,
+    ): SplitPickerPlacement {
+        var lastError: Throwable? = null
+        repeat(TASK_DISCOVERY_ATTEMPTS) { attempt ->
+            try {
+                return verifyNavigationReturnedOnce(
+                    plan = plan,
+                    taskId = taskId,
+                    packageName = packageName,
+                    pickerComponents = pickerComponents,
+                )
+            } catch (error: Throwable) {
+                lastError = error
+                if (attempt + 1 < TASK_DISCOVERY_ATTEMPTS) {
+                    pause(TASK_DISCOVERY_INTERVAL_MS)
+                }
+            }
+        }
+        throw lastError ?: IllegalStateException("Навигация не вернулась в split-окно")
+    }
+
+    private fun verifyNavigationReturnedOnce(
+        plan: SplitNavigationReturnPlan,
+        taskId: Int,
+        packageName: String,
+        pickerComponents: Set<String>,
+    ): SplitPickerPlacement {
+        val pane = plan.pane ?: error("Не выбран split-контейнер возврата")
+        val hostTaskId = plan.hostTaskId ?: error("Не найден пикер окна возврата")
+        val root = snapshot().root(plan.rootTaskId)
+            ?: error("Split-контейнер возврата исчез")
+        check(root.tasks.any { task ->
+            task.id == hostTaskId &&
+                task.isDenzaPickerBase() &&
+                task.matchesAnyComponent(pickerComponents)
+        }) { "Пикер исчез из окна возврата" }
+        val top = root.resolvedTopTask()
+            ?: error("Навигация не появилась в split-окне")
+        check(top.id == taskId && top.packageName == packageName && top.bounds == root.bounds) {
+            "Навигация не заняла выбранное split-окно"
+        }
+        check(root.tasks.size <= MAX_TASKS_PER_PANE) {
+            "В окне возврата накопилось больше двух задач"
+        }
+        return SplitPickerPlacement(pane, hostTaskId, taskId, packageName)
     }
 
     fun observePane(
@@ -464,6 +668,36 @@ internal class SplitPickerShellSession(
         rootId: Int,
         pickerComponent: String,
     ): SplitTask {
+        startPickerInPane(pane, pickerComponent)
+        pause(PICKER_SETTLE_MS)
+        return awaitTaskMatching { task ->
+            task.rootId == rootId &&
+                task.visible &&
+                task.isDenzaPickerBase() &&
+                task.matchesComponent(pickerComponent) &&
+                task.matchesTopComponent(pickerComponent)
+        }
+    }
+
+    private fun launchPickerTask(
+        pane: SplitPane,
+        pickerComponent: String,
+        excludedTaskIds: Set<Int>,
+    ): SplitTask {
+        startPickerInPane(pane, pickerComponent)
+        pause(PICKER_SETTLE_MS)
+        return awaitTaskMatching { task ->
+            task.id !in excludedTaskIds &&
+                task.rootId > 0 &&
+                task.isDenzaPickerBase() &&
+                task.matchesComponent(pickerComponent)
+        }
+    }
+
+    private fun startPickerInPane(
+        pane: SplitPane,
+        pickerComponent: String,
+    ) {
         val category = when (pane) {
             SplitPane.PRIMARY -> PRIMARY_PICKER_CATEGORY
             SplitPane.SECONDARY -> SECONDARY_PICKER_CATEGORY
@@ -474,14 +708,20 @@ internal class SplitPickerShellSession(
                 "-n ${shellQuote(pickerComponent)} " +
                 "-f $PICKER_LAUNCH_FLAGS",
         )
-        pause(PICKER_SETTLE_MS)
-        return awaitTaskMatching { task ->
-            task.rootId == rootId &&
-                task.visible &&
-                task.isDenzaPickerBase() &&
-                task.matchesComponent(pickerComponent) &&
-                task.matchesTopComponent(pickerComponent)
-        }
+    }
+
+    private fun dragDividerToBalanced() {
+        val inputState = shell("dumpsys input").also(::validateOutput)
+        val dividerLine = inputState.lineSequence().firstOrNull { line ->
+            line.contains("multi-divider-shadow") && line.contains("frame=[")
+        } ?: error("Нативный drag control не появился")
+        val divider = DIVIDER_FRAME_PATTERN.find(dividerLine)
+            ?: error("Нативный drag control не появился")
+        val left = divider.groupValues[1].toInt()
+        val right = divider.groupValues[2].toInt()
+        val startX = ((left + right) / 2).coerceIn(EDGE_INSET, DISPLAY_WIDTH - EDGE_INSET)
+        val endX = if (startX < DISPLAY_WIDTH / 2) LEFT_DIVIDER_X else RIGHT_DIVIDER_X
+        run("input swipe $startX $DIVIDER_Y $endX $DIVIDER_Y $DIVIDER_DRAG_MS")
     }
 
     private fun removeBootstrapIfPresent(previous: SplitTask) {
@@ -502,18 +742,21 @@ internal class SplitPickerShellSession(
             .flatMap { it.tasks.asSequence() }
             .filter { task ->
                 task.id !in keptTaskIds &&
-                pickerComponents.any { component ->
-                    task.matchesComponent(component) || task.matchesTopComponent(component)
-                }
+                    pickerComponents.any { component -> task.matchesComponent(component) }
             }
             .toList()
             .forEach(::removeTaskSafely)
     }
 
-    private fun launchTarget(target: SplitLaunchTarget) {
+    private fun launchTarget(target: SplitLaunchTarget, pane: SplitPane) {
+        val category = when (pane) {
+            SplitPane.PRIMARY -> PRIMARY_PICKER_CATEGORY
+            SplitPane.SECONDARY -> SECONDARY_PICKER_CATEGORY
+        }
         run(
             "am start -a android.intent.action.MAIN " +
                 "-c android.intent.category.LAUNCHER " +
+                "-c $category " +
                 "-n ${shellQuote(target.componentName)} " +
                 "-f $APP_LAUNCH_FLAGS",
         )
@@ -560,8 +803,7 @@ internal class SplitPickerShellSession(
             val picker = root.tasks.firstOrNull {
                 it.id == hostTaskIds.getValue(pane) &&
                     it.isDenzaPickerBase() &&
-                    it.matchesComponent(pickerComponents.getValue(pane)) &&
-                    it.matchesTopComponent(pickerComponents.getValue(pane))
+                    it.matchesComponent(pickerComponents.getValue(pane))
             } ?: error("Пикер ${pane.name} исчез")
             check(picker.bounds == root.bounds) {
                 "Пикер ${pane.name} не принял размер split-контейнера"
@@ -783,6 +1025,12 @@ internal class SplitPickerShellSession(
         const val APP_LAUNCH_SETTLE_MS = 250L
         const val ROOT_SETTLE_MS = 120L
         const val EXIT_SETTLE_MS = 650L
+        const val DISPLAY_WIDTH = 2_560
+        const val EDGE_INSET = 50
+        const val LEFT_DIVIDER_X = 856
+        const val RIGHT_DIVIDER_X = 1_704
+        const val DIVIDER_Y = 800
+        const val DIVIDER_DRAG_MS = 400
         const val STOCK_PICKER_PACKAGE = "com.android.launcher3"
         const val STOCK_PICKER_ACTIVITY = "com.android.launcher3.SplitScreenListActivity"
         const val STOCK_BOOTSTRAP_PACKAGE = "com.byd.sr"
@@ -801,5 +1049,15 @@ internal class SplitPickerShellSession(
         const val SPLIT_PROXY_RESULT_PREFIX = "DENZA_SPLIT_RESULT:"
         val PARCEL_PATTERN = Regex("Parcel\\(([^']+)")
         val WORD_PATTERN = Regex("[0-9a-fA-F]{8}")
+        val DIVIDER_FRAME_PATTERN = Regex(
+            "frame=\\[(-?[0-9]+),-?[0-9]+]\\[(-?[0-9]+),-?[0-9]+]",
+        )
     }
 }
+
+internal data class SplitPickerLivePane(
+    val pane: SplitPane,
+    val hostTaskId: Int,
+    val appTaskId: Int?,
+    val appPackageName: String?,
+)

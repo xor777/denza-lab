@@ -11,6 +11,7 @@ import dev.denza.apps.feature.cluster.ClusterDisplaySelection
 import dev.denza.apps.feature.cluster.ClusterMapPlacement
 import dev.denza.apps.feature.cluster.ClusterSceneService
 import dev.denza.apps.feature.cluster.MapSurfaceConsumer
+import dev.denza.apps.feature.split.SplitNavigationReturnPlan
 import dev.denza.apps.feature.split.SplitScreenCoordinator
 import dev.denza.disharebridge.LocalAdbClient
 import java.util.concurrent.Executors
@@ -485,18 +486,37 @@ object NavigationCoordinator {
                 resolution = null,
             ),
         )
+        var returnedPlan: SplitNavigationReturnPlan? = null
+        var splitReconciliationError: Throwable? = null
         try {
             if (taskId != null && origin.sourceRootTaskId > 0) {
+                val returnPlan = SplitScreenCoordinator.prepareNavigationReturn(
+                    origin.sourceRootTaskId,
+                )
+                // Once projection has settled the IVI pair is independent. Replaying the
+                // companion captured at projection time would overwrite a later picker choice.
+                val liveOrigin = origin.copy(
+                    sourceRootTaskId = returnPlan.rootTaskId,
+                    companionTaskId = 0,
+                    companionRootTaskId = 0,
+                )
                 check(
                     NavigationProxyClient.returnTask(
                         app,
                         packageName,
                         taskId,
-                        origin,
+                        liveOrigin,
                         focusNavigation = focusTask,
                     ),
                 ) { "navigation task return failed" }
-                SplitScreenCoordinator.onProjectionReturned(taskId)
+                returnedPlan = returnPlan
+                splitReconciliationError = runCatching {
+                    SplitScreenCoordinator.completeNavigationReturn(
+                        plan = returnPlan,
+                        taskId = taskId,
+                        packageName = packageName,
+                    )
+                }.exceptionOrNull()
             }
         } catch (error: Exception) {
             Log.w(TAG, "navigation task return failed", error)
@@ -516,6 +536,29 @@ object NavigationCoordinator {
         NavigationProxyClient.releaseVirtualDisplay()
         ClusterSceneService.hideMap(app)
         update(NavigationSession(taskId = taskId))
+        if (splitReconciliationError != null && taskId != null && returnedPlan != null) {
+            Log.w(
+                TAG,
+                "navigation returned but split reconciliation is delayed",
+                splitReconciliationError,
+            )
+            val retryPlan = returnedPlan
+            executor.schedule(
+                {
+                    runCatching {
+                        SplitScreenCoordinator.completeNavigationReturn(
+                            plan = retryPlan,
+                            taskId = taskId,
+                            packageName = packageName,
+                        )
+                    }.onFailure { retryError ->
+                        Log.w(TAG, "delayed split reconciliation failed", retryError)
+                    }
+                },
+                RETURN_SETTLE_MS,
+                TimeUnit.MILLISECONDS,
+            )
+        }
         if (focusTask || reprojectAfterReturn) {
             executor.schedule(
                 {
