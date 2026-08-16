@@ -199,6 +199,19 @@ named maneuver nodes cover the second Yandex layout. `text_nextstreet` and
 `text_jointballoon_nextstreet` are used when Yandex makes a next-road label
 visible; otherwise field 10 stays empty instead of repeating the maneuver text.
 
+The accessibility tree itself is a blocking Binder API and must not be read on
+the app's main looper. A 2026-08-16 live profile with Yandex Navigator beside
+the Denza split picker found the old 350 ms poll spending `12.58 s` of a
+`14.00 s` capture inside `YandexGuidanceAccessibilityReader`, including 1,289
+synchronous waits; the picker consequently missed input and produced repeated
+`500..550 ms` frames. Guidance reads now run on one dedicated worker with a
+single in-flight request, one coalesced trailing request, and lifecycle
+generation checks that discard late results after disable/detach. Only the
+small validated-result transition runs on the main looper. In the repeated
+live scroll profile the reader consumed `0 ms` on the main thread, no frame
+exceeded `57 ms`, the user confirmed smooth scrolling, and the `com.byd.avc`
+crash-buffer fingerprint stayed unchanged.
+
 The app can also use Yandex Navigator's maneuver drawable from its active
 navigation notification. An optional `NotificationListenerService` applies
 Yandex's public `RemoteViews`, accepts only a validated maneuver `ImageView`,

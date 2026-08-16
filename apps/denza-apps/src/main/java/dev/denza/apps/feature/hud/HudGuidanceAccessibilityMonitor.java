@@ -4,21 +4,34 @@ import android.accessibilityservice.AccessibilityService;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
+import android.util.Log;
 import android.view.accessibility.AccessibilityEvent;
+
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /** Polls the visible Yandex guidance model and publishes only fresh, validated instructions. */
 public final class HudGuidanceAccessibilityMonitor {
+    private static final String TAG = "DenzaHudGuidance";
     private static final long POLL_INTERVAL_MS = 350L;
+    private static final long EVENT_REFRESH_DELAY_MS = 40L;
     private static final long LOST_ROUTE_GRACE_MS = 6000L;
     private static final long HEARTBEAT_MS = 5000L;
     private static final long AR_HEARTBEAT_MS = 350L;
 
     private final AccessibilityService service;
     private final Handler handler = new Handler(Looper.getMainLooper());
+    private final ExecutorService readerExecutor = Executors.newSingleThreadExecutor(runnable -> {
+        Thread thread = new Thread(runnable, "denza-hud-guidance-reader");
+        thread.setDaemon(true);
+        return thread;
+    });
     private final HudSomeIpClient someIpClient;
     private final HudArLocationSource locationSource;
     private final HudArApproximationTracker arTracker = new HudArApproximationTracker();
     private final Runnable pollRunnable = this::poll;
+    private final Runnable eventPollRunnable = this::poll;
+    private final SingleFlightReadRunner<HudGuidance> readRunner;
     private boolean attached;
     private boolean cleared = true;
     private long lastSeenMs;
@@ -31,6 +44,11 @@ public final class HudGuidanceAccessibilityMonitor {
         this.service = service;
         this.someIpClient = new HudSomeIpClient(service);
         this.locationSource = new HudArLocationSource(service, pose -> latestPose = pose);
+        this.readRunner = new SingleFlightReadRunner<>(
+                readerExecutor,
+                runnable -> handler.post(runnable),
+                () -> YandexGuidanceAccessibilityReader.read(service),
+                this::onReadFinished);
     }
 
     public void attach() {
@@ -41,6 +59,9 @@ public final class HudGuidanceAccessibilityMonitor {
     public void detach() {
         attached = false;
         handler.removeCallbacks(pollRunnable);
+        handler.removeCallbacks(eventPollRunnable);
+        readRunner.deactivate();
+        readerExecutor.shutdownNow();
         locationSource.stop();
         arTracker.reset();
         latestPose = null;
@@ -54,12 +75,14 @@ public final class HudGuidanceAccessibilityMonitor {
         }
         CharSequence packageName = event == null ? null : event.getPackageName();
         if (packageName == null || "ru.yandex.yandexnavi".contentEquals(packageName)) {
-            schedule(40L);
+            handler.removeCallbacks(eventPollRunnable);
+            handler.postDelayed(eventPollRunnable, EVENT_REFRESH_DELAY_MS);
         }
     }
 
     public void onSettingChanged() {
         handler.removeCallbacks(pollRunnable);
+        handler.removeCallbacks(eventPollRunnable);
         if (!attached) {
             return;
         }
@@ -69,6 +92,7 @@ public final class HudGuidanceAccessibilityMonitor {
         }
         HudGuidanceRuntime.onWaiting();
         locationSource.start();
+        readRunner.activate();
         schedule(0L);
     }
 
@@ -77,9 +101,20 @@ public final class HudGuidanceAccessibilityMonitor {
             clearAndStop();
             return;
         }
+        readRunner.request();
+    }
+
+    private void onReadFinished(HudGuidance guidance, Throwable error) {
+        if (!attached || !HudGuidanceSettings.INSTANCE.isEnabled(service)) {
+            clearAndStop();
+            return;
+        }
+        if (error != null) {
+            Log.w(TAG, "accessibility guidance read failed", error);
+            guidance = null;
+        }
         long now = SystemClock.uptimeMillis();
         long nowElapsed = SystemClock.elapsedRealtime();
-        HudGuidance guidance = YandexGuidanceAccessibilityReader.read(service);
         if (guidance == null) {
             guidance = HudNotificationGuidanceRuntime.resolve(lastGuidance, now);
         }
@@ -112,6 +147,8 @@ public final class HudGuidanceAccessibilityMonitor {
 
     private void clearAndStop() {
         handler.removeCallbacks(pollRunnable);
+        handler.removeCallbacks(eventPollRunnable);
+        readRunner.deactivate();
         if (!cleared) {
             someIpClient.clear();
         }
