@@ -1,6 +1,7 @@
 package dev.denza.apps.feature.weather
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.PackageManager
 import android.location.Location
@@ -48,7 +49,9 @@ internal class WeatherLocationSource(context: Context) {
             appContext.checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) ==
             PackageManager.PERMISSION_GRANTED
 
+    @SuppressLint("MissingPermission")
     private fun lastKnownLocations(): List<Location> {
+        if (!hasLocationPermission()) return emptyList()
         val manager = locationManager ?: return emptyList()
         return runCatching { manager.getProviders(true) }
             .getOrDefault(emptyList())
@@ -59,7 +62,9 @@ internal class WeatherLocationSource(context: Context) {
             }
     }
 
+    @SuppressLint("MissingPermission")
     private fun currentLocation(): Location? {
+        if (!hasLocationPermission()) return null
         val manager = locationManager ?: return null
         val providers = runCatching { manager.getProviders(true) }
             .getOrDefault(emptyList())

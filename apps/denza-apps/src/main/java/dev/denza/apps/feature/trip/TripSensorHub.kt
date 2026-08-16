@@ -1,6 +1,7 @@
 package dev.denza.apps.feature.trip
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
@@ -128,7 +129,15 @@ class TripSensorHub(context: Context) : SensorEventListener, LocationListener {
         }
     }
 
+    @SuppressLint("MissingPermission")
     private fun startLocationUpdates() {
+        // The grant can be revoked between the asynchronous repair callback and
+        // this system call. Re-check here; the annotation only teaches lint the
+        // contract that the explicit guard enforces at runtime.
+        if (!hasLocationPermission()) {
+            locationGranted = false
+            return
+        }
         val lm = locationManager ?: return
         runCatching {
             if (lm.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
