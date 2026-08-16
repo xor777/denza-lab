@@ -24,7 +24,8 @@ internal class SplitPickerShellSession(
     fun existingOwnedSession(
         pickerComponents: Set<String>,
     ): Map<SplitPane, SplitPickerLivePane>? {
-        if (callInt("service call activity_task 30") != AREA_BALANCED_SPLIT) return null
+        val area = callInt("service call activity_task 30")
+        if (area != AREA_BALANCED_SPLIT && area != AREA_FULL_IVI) return null
         val roots = nativeRootIds()
         val state = snapshot()
         return SplitPane.entries.associateWith { pane ->
@@ -36,7 +37,11 @@ internal class SplitPickerShellSession(
             val picker = pickers.single()
             if (picker.bounds != root.bounds) return null
 
-            val top = root.resolvedTopTask() ?: return null
+            val top = if (area == AREA_BALANCED_SPLIT) {
+                root.resolvedTopTask()
+            } else {
+                root.resolvedCoveredTopTask()
+            } ?: return null
             val app = if (top.id == picker.id) {
                 if (!picker.matchesAnyTopComponent(pickerComponents)) return null
                 null
@@ -57,6 +62,33 @@ internal class SplitPickerShellSession(
                 appPackageName = app?.packageName,
             )
         }
+    }
+
+    /** Brings an exact owned pair back above Home/fullscreen without rebuilding either pane. */
+    fun revealOwnedSession(
+        existing: Map<SplitPane, SplitPickerLivePane>,
+        pickerComponents: Set<String>,
+    ): Map<SplitPane, SplitPickerLivePane> {
+        val area = callInt("service call activity_task 30")
+        if (area == AREA_BALANCED_SPLIT) return existing
+        check(area == AREA_FULL_IVI) { "Split-сессия больше не скрыта полноэкранным окном" }
+
+        val focusTaskId = SplitPane.entries.asSequence()
+            .mapNotNull { pane -> existing[pane]?.appTaskId }
+            .firstOrNull()
+            ?: SplitPane.entries.asSequence()
+                .mapNotNull { pane -> existing[pane]?.hostTaskId }
+                .firstOrNull()
+            ?: error("В split-сессии нет задачи для возврата")
+        run("am task focus $focusTaskId")
+        pause(EXIT_SETTLE_MS)
+        check(callInt("service call activity_task 30") == AREA_BALANCED_SPLIT) {
+            "Прошивка не вернула существующий split на экран"
+        }
+        val revealed = existingOwnedSession(pickerComponents)
+            ?: error("Существующая split-сессия изменилась при возврате")
+        check(revealed == existing) { "Состав split-сессии изменился при возврате" }
+        return revealed
     }
 
     fun openPickers(
@@ -998,6 +1030,13 @@ internal class SplitPickerShellSession(
         topPackageName == packageName &&
             topActivityName == activityName
 
+    /** Resolves a native root hidden by area=4, where `am stack list` marks every child hidden. */
+    private fun SplitRootTask.resolvedCoveredTopTask(): SplitTask? {
+        val exact = tasks.filter { task -> task.matchesOwnTopComponent() }
+        if (exact.isNotEmpty()) return exact.first()
+        return tasks.filter { task -> task.packageName == task.topPackageName }.singleOrNull()
+    }
+
     private fun SplitTask.isDenzaPickerBase(): Boolean =
         (packageName == SPLIT_HOST_PACKAGE && activityName == SPLIT_PICKER_ACTIVITY) ||
             (packageName == LEGACY_PICKER_PACKAGE &&
@@ -1010,6 +1049,7 @@ internal class SplitPickerShellSession(
         const val MAIN_DISPLAY_ID = 0
         const val AREA_HOME = 0
         const val AREA_BALANCED_SPLIT = 3
+        const val AREA_FULL_IVI = 4
         const val EXPAND_PRIMARY_MODE = 101
         const val EXPAND_SECONDARY_MODE = 102
         const val APP_LAUNCH_FLAGS = "0x10200000"

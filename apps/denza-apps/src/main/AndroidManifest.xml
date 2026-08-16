@@ -82,6 +82,25 @@
             android:permission="dev.denza.apps.permission.CONTROL_SPLIT"
             android:taskAffinity=""
             android:theme="@android:style/Theme.NoDisplay" />
+        <activity
+            android:name=".feature.split.SplitLauncherEntryActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.NoDisplay" />
+        <activity-alias
+            android:name=".SplitScreenLauncherAlias"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@drawable/ic_split_screen"
+            android:label="@string/split_screen_launcher_name"
+            android:targetActivity=".feature.split.SplitLauncherEntryActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
         <provider
             android:name=".feature.split.SplitCommandProvider"
             android:authorities="dev.denza.apps.split"

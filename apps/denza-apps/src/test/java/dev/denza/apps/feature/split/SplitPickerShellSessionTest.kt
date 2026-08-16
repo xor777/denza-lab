@@ -191,6 +191,39 @@ class SplitPickerShellSessionTest {
     }
 
     @Test
+    fun ownedSceneCoveredByFullscreenIsFocusedInsteadOfRebuilt() {
+        val fake = FakeShell()
+        val split = session(fake)
+        val hosts = split.openPickers(PICKERS, preservedPackages = emptyMap())
+        split.selectApp(
+            pickerTaskId = hosts.getValue(SplitPane.PRIMARY),
+            target = SplitLaunchTarget(NAVIGATOR, "$NAVIGATOR/$NAVIGATOR.MainActivity"),
+            pickerComponents = PICKER_COMPONENTS,
+        )
+        split.selectApp(
+            pickerTaskId = hosts.getValue(SplitPane.SECONDARY),
+            target = SplitLaunchTarget(MUSIC, "$MUSIC/$MUSIC.MainActivity"),
+            pickerComponents = PICKER_COMPONENTS,
+        )
+        fake.area = 4
+        fake.commands.clear()
+
+        val hidden = checkNotNull(split.existingOwnedSession(PICKER_COMPONENTS))
+        val revealed = split.revealOwnedSession(hidden, PICKER_COMPONENTS)
+
+        assertEquals(hidden, revealed)
+        assertEquals(3, fake.area)
+        assertTrue(fake.commands.any { it == "am task focus ${hidden.getValue(SplitPane.PRIMARY).appTaskId}" })
+        assertFalse(
+            fake.commands.any { command ->
+                command.startsWith("am start ") ||
+                    command.startsWith("am stack move-task ") ||
+                    command.contains(" remove-task ")
+            },
+        )
+    }
+
+    @Test
     fun sceneMissingOneOwnedBaseIsNotAdopted() {
         val fake = FakeShell().apply {
             area = 3
@@ -769,6 +802,9 @@ class SplitPickerShellSessionTest {
                     val task = tasks.first { it.id == taskId }
                     tasks.remove(task)
                     tasks += task
+                    if (task.rootId == PRIMARY_ROOT || task.rootId == SECONDARY_ROOT) {
+                        area = 3
+                    }
                     ""
                 }
                 command.contains("SplitTaskProxyMain remove-task ") -> {

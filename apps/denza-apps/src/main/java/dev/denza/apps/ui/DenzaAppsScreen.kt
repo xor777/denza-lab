@@ -585,7 +585,7 @@ private fun SplitScreenCard(
         CompactToggleCard(
             modifier = modifier,
             icon = Icons.Outlined.VerticalSplit,
-            title = "Split screen",
+            title = "Split Screen",
             subtitle = SPLIT_UNAVAILABLE,
             snapshot = snapshot.copy(
                 desiredEnabled = false,
@@ -600,12 +600,12 @@ private fun SplitScreenCard(
     val subtitle = if (snapshot.status == FeatureStatus.ERROR) {
         "Ошибка запуска"
     } else {
-        "Управление окнами"
+        "Иконка в списке приложений"
     }
     CompactToggleCard(
         modifier = modifier,
         icon = Icons.Outlined.VerticalSplit,
-        title = "Split screen",
+        title = "Split Screen",
         subtitle = subtitle,
         snapshot = snapshot,
         onToggle = onToggle,

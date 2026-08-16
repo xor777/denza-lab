@@ -110,6 +110,9 @@ object SplitScreenCoordinator {
                 )
                 val split = pickerSession(app, adb::shell)
                 val existing = split.existingOwnedSession(PICKER_COMPONENT_SET)
+                    ?.let { owned ->
+                        split.revealOwnedSession(owned, PICKER_COMPONENT_SET)
+                    }
                 if (existing != null) {
                     clearPickerState()
                     applyPickerEvent(SplitPickerEvent.OpenRequested)

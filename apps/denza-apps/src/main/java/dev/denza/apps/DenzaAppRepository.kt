@@ -28,8 +28,8 @@ import dev.denza.apps.feature.navigation.NavigationCoordinator
 import dev.denza.apps.feature.navigation.NavigationAppPolicy
 import dev.denza.apps.feature.navigation.NavigationPhase
 import dev.denza.apps.feature.navigation.NavigationSettings
+import dev.denza.apps.feature.split.SplitLauncherIconController
 import dev.denza.apps.feature.split.SplitScreenCoordinator
-import dev.denza.apps.feature.split.SplitScreenPhase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -125,7 +125,7 @@ object DenzaAppRepository {
         val snapshot = SimulcastCoordinator.evaluate(SimulcastCoordinator.inspect(context))
         val navigationSession = NavigationCoordinator.snapshot()
         val navigationPackage = NavigationCoordinator.selectedPackage()
-        val splitSession = SplitScreenCoordinator.snapshot()
+        val splitLauncherVisible = SplitLauncherIconController.isVisible(context)
         val selectedApps = selectedAppChoices(context)
         mutableState.value = mutableState.value.copy(
             simulcast = snapshot,
@@ -148,10 +148,7 @@ object DenzaAppRepository {
             navigationAppLabel = NavigationAppPolicy.fallbackLabel(navigationPackage),
             navigationAppChoices = navigationAppChoices(context, navigationPackage),
             splitScreen = splitScreenSnapshot(
-                splitSession.enabled,
-                splitSession.phase,
-                splitSession.message,
-                splitSession.details,
+                splitLauncherVisible,
             ),
             hudGuidance = evaluateHudGuidance(context),
             technicalDetails = supportDiagnostics(context),
@@ -395,7 +392,20 @@ object DenzaAppRepository {
     }
 
     fun setSplitScreenEnabled(enabled: Boolean) {
-        SplitScreenCoordinator.setEnabled(enabled)
+        val context = appContext ?: return
+        runCatching {
+            SplitLauncherIconController.setVisible(context, enabled)
+        }.onSuccess {
+            refresh()
+        }.onFailure { error ->
+            mutableState.value = mutableState.value.copy(
+                splitScreen = FeatureReducer.failed(
+                    previous = mutableState.value.splitScreen.copy(desiredEnabled = enabled),
+                    message = "Не удалось изменить иконку Split Screen",
+                    details = error.toString(),
+                ),
+            )
+        }
     }
 
     fun setHudGuidanceEnabled(enabled: Boolean) {
@@ -594,22 +604,11 @@ object DenzaAppRepository {
         )
     }
 
-    private fun splitScreenSnapshot(
-        enabled: Boolean,
-        phase: SplitScreenPhase,
-        message: String,
-        details: String?,
-    ): FeatureSnapshot = FeatureSnapshot(
+    private fun splitScreenSnapshot(enabled: Boolean): FeatureSnapshot = FeatureSnapshot(
         id = FeatureId.SPLIT_SCREEN,
         desiredEnabled = enabled,
-        status = when (phase) {
-            SplitScreenPhase.OFF -> FeatureStatus.OFF
-            SplitScreenPhase.STARTING -> FeatureStatus.STARTING
-            SplitScreenPhase.ACTIVE -> FeatureStatus.ACTIVE
-            SplitScreenPhase.ERROR -> FeatureStatus.ERROR
-        },
-        message = message,
-        details = details,
+        status = if (enabled) FeatureStatus.ACTIVE else FeatureStatus.OFF,
+        message = if (enabled) "Иконка Split Screen доступна" else "Иконка Split Screen скрыта",
     )
 
     private fun navigationAppChoices(
