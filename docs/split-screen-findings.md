@@ -209,6 +209,45 @@ placement and swap. Removing tasks, removing the visible picker, or calling
 removal/change replaces the pair with policy defaults only when either stored
 application is missing or disabled.
 
+### Single-package launcher-alias spike (2026-08-16)
+
+An isolated `dev.denza.singlepackage.probe` APK tested whether one installed
+package can expose a permanent control entry and a second launcher entry governed
+by a Denza Apps-style toggle. A fresh install exposed only the control Activity.
+Calling `PackageManager.setComponentEnabledSetting()` from the package added the
+disabled-by-default `SplitEntryAlias` immediately; disabling it returned the
+launcher query to the single control entry, and enabling it again restored both.
+No Launcher3 restart was required. The full cycle was also repeated through the
+real head-unit UI: the in-app switch removed and restored the colored tile in the
+app center while the permanent control tile remained. Tapping the colored tile
+opened `SplitEntryAlias` as task 260, displayed the expected probe toast, and
+produced no crash. Transaction 112 returned `1`, and the package INFO resolver
+selected the pane-neutral `ProbePickerActivity` as designed.
+
+After the operator's split was closed through the Denza Apps toggle, the probe
+created two simultaneous tasks of the same `ProbePickerActivity` and placed them
+at the exact bounds of roots 2 and 3. They were independently addressable and
+visible with area mode `3`. Opening the permanent control entry created a
+separate fullscreen task while both picker tasks remained in place; Back restored
+the two-pane scene. Closing one clean picker expanded the survivor normally, and
+a process-death/cold-start run recreated both tasks. No probe crash was recorded.
+
+Direct shell launches with `START_IVI_PRIMARY` / `START_IVI_SECOND` created two
+independent tasks but placed them in the fullscreen root. The same control test
+failed for the separate picker-only `dev.denza.split`, so this is not caused by
+sharing a package with the permanent launcher Activity. The repeatable cold-start
+path stages the exact SR/LauncherMap baseline tasks in roots 2/3, invokes
+transaction 115 only when collapsed native geometry must be recreated, focuses
+the baseline, creates the two probe tasks, moves and resizes them to the live
+roots, removes the component-validated baseline and stock-picker tasks, and
+refocuses the primary probe. Runtime allowlist transaction 125 is not used.
+
+Firmware persistence is not the restore mechanism for this shape. Explicit task
+movement did not rewrite the remembered pair, and the fullscreen category starts
+also left it unchanged. A one-APK implementation is therefore technically viable,
+but Denza Apps must persist its own last selection and rebuild the picker scene;
+it cannot rely on SmartMulti to remember the same package for both panes.
+
 The corpus used for this contract is `/system/framework/services.jar` SHA-256
 `23a58a4e3c98c50541785390f1234e8c4d7138b5dd170c4f5843bae15b93c019`
 and `/system/framework/framework.jar` SHA-256
