@@ -37,6 +37,7 @@ import dev.denza.apps.feature.navigation.NavigationSettings;
 import dev.denza.apps.feature.navigation.SteeringWheelNavigationButton;
 import dev.denza.apps.feature.navigation.SteeringWheelPressResult;
 import dev.denza.apps.feature.navigation.SteeringWheelPressSequence;
+import dev.denza.apps.feature.split.SplitScreenCoordinator;
 import dev.denza.apps.feature.weather.WeatherAdapterScheduler;
 
 import java.util.ArrayList;
@@ -166,6 +167,13 @@ public class SimulcastAccessibilityService extends AccessibilityService {
         CharSequence eventPackage = event.getPackageName();
         if (eventPackage != null && "com.byd.weatherdata".contentEquals(eventPackage)) {
             WeatherAdapterScheduler.onNativeWeatherVisible(this);
+        }
+        CharSequence eventClass = event.getClassName();
+        if (eventPackage != null
+                && eventClass != null
+                && "com.android.launcher3".contentEquals(eventPackage)
+                && "com.android.launcher3.SplitScreenListActivity".contentEquals(eventClass)) {
+            SplitScreenCoordinator.onNativePickerVisible(this);
         }
         HudGuidanceAccessibilityMonitor hudMonitor = hudGuidanceMonitor;
         if (hudMonitor != null) {

@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
+    <permission
+        android:name="dev.denza.apps.permission.CONTROL_SPLIT"
+        android:protectionLevel="signature" />
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.CAMERA" />
@@ -60,6 +63,14 @@
         <service
             android:name=".feature.cluster.ClusterSceneService"
             android:exported="false" />
+        <activity
+            android:name=".feature.split.SplitCommandActivity"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:noHistory="true"
+            android:permission="dev.denza.apps.permission.CONTROL_SPLIT"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.NoDisplay" />
         <service
             android:name=".feature.mirrors.SideCameraMonitorService"
             android:exported="false"
@@ -95,7 +106,8 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:launchMode="singleTop" />
+            android:launchMode="singleTop"
+            android:taskAffinity="dev.denza.apps.control" />
         <activity
             android:name=".feature.split.SplitPlaceholderActivity"
             android:excludeFromRecents="true"
@@ -106,6 +118,7 @@
         <activity
             android:name=".DenzaLauncherActivity"
             android:exported="true"
+            android:taskAffinity="dev.denza.apps.control"
             android:theme="@style/DenzaAppsLauncherTheme">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

@@ -413,6 +413,7 @@ object NavigationCoordinator {
                                     height,
                                 ),
                             ) { "task projection failed" }
+                            SplitScreenCoordinator.onProjectionStarted(taskId)
                             update(
                                 NavigationSession(
                                     phase = NavigationPhase.PROJECTED,
@@ -495,6 +496,7 @@ object NavigationCoordinator {
                         focusNavigation = focusTask,
                     ),
                 ) { "navigation task return failed" }
+                SplitScreenCoordinator.onProjectionReturned(taskId)
             }
         } catch (error: Exception) {
             Log.w(TAG, "navigation task return failed", error)
@@ -706,6 +708,7 @@ object NavigationCoordinator {
             return
         }
 
+        SplitScreenCoordinator.onProjectionReturned(taskId)
         projectedOrigin = null
         projectionHealth.reset()
         NavigationProxyClient.releaseVirtualDisplay()

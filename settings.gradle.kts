@@ -22,6 +22,12 @@ project(":car-adb-gateway").projectDir = file("apps/car-adb-gateway")
 include(":denza-apps")
 project(":denza-apps").projectDir = file("apps/denza-apps")
 
+include(":denza-split")
+project(":denza-split").projectDir = file("apps/denza-split")
+
+include(":denza-split-launcher")
+project(":denza-split-launcher").projectDir = file("apps/denza-split-launcher")
+
 include(":dishare-bridge")
 project(":dishare-bridge").projectDir = file("libraries/dishare-bridge")
 

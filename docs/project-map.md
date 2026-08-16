@@ -11,7 +11,7 @@ may still use the historical `denza-gateway` directory name.
 | --- | --- | --- | --- |
 | `legacy/denza-gateway/` | `denza-gateway` | SSH gateway from the car LAN to local ADB endpoints on the head unit. | **Legacy.** Maintenance-only; do not add features. Car ADB Gateway supersedes it for new remote-access work. |
 | `legacy/denza-mirrors/` | `denza-mirrors` | Original driver-display side-camera enlargement. | **Legacy.** Frozen hardware-verified reference, removed from the root Gradle build after the accepted Denza Apps mirror scenarios were verified on the car. |
-| `apps/denza-apps/` | `denza-apps` | Simulcast, side-camera mirrors, navigation, a manually toggled processed DVR view, HUD guidance, stock IVI split routing, and passenger-screen app installation. | **Active.** Version `0.5.1`; Compose landscape shell, self-recovery, one display resolver, and one shared cluster scene. Mirror cycles, selectable navigation layouts, HUD guidance, contextual stock split routing, and FSE installation have all been exercised on the author's car. Rapid left-to-right mirror switching remains unsafe. |
+| `apps/denza-apps/` | `denza-apps` | Simulcast, side-camera mirrors, navigation, a manually toggled processed DVR view, HUD guidance, explicit stock-IVI split sessions, and passenger-screen app installation. | **Active.** Version `0.5.1`; Compose landscape shell, self-recovery, one display resolver, and one shared cluster scene. Mirror cycles, selectable navigation layouts, HUD guidance, the former contextual split route, and FSE installation have been exercised on the author's car. The replacement two-picker split startup and native hosting are live-verified; dismissal, divider, and projection acceptance remain. Rapid left-to-right mirror switching remains unsafe. |
 | `apps/car-adb-gateway/` | `car-adb-gateway` | Generic relay-only remote ADB gateway. Fixed `adbgw.ru`, one trusted computer, background recovery, no LAN listener. | Product candidate. Local unit/build evidence and the verified relay deployment exist; live-head-unit E2E, API matrix, and soak remain required. |
 
 ## Shared Android Modules
@@ -137,7 +137,7 @@ Research package `dev.denza.mirrors.probe` (not product; promote before relying)
 | `feature.hud` | Optional Yandex turn-by-turn bridge. Reads validated visible guidance across all accessibility displays and publishes maneuver, next-road, remaining route distance/time, and optional road text to the stock HUD SOME/IP road topic; unknown or stale guidance fails closed and clears the projection. |
 | `feature.mirrors` | Migrated AVC renderer and window monitor. Uses the shared local ADB client, keeps verified Mirrors geometry/image treatment, and has no probe dependency. |
 | `feature.navigation` | Public app-owned virtual display, fixed shell operations for task movement, an installed-app picker, saved full/left/center/right placement, and an opt-in accessibility-filtered steering-wheel key binding. A 500 ms press-sequence recognizer preserves the normal navigation action and reserves a double ★ press for the DVR overlay toggle. Projection, live layout switching, steering-wheel project/return, and HUD guidance while projected are live-car verified. Automatic following of the stock Map mode remains implemented but its unfinished UI control is hidden. |
-| `feature.split` | Contextual two-step router for the stock BYD `byd-freeform` roots. Normal launches stay fullscreen; from the stock application picker, the first selected app fills the empty pane and the second replaces the picker through fixed local-ADB commands. |
+| `feature.split` | Explicit «Разделить экран» launcher plus two standalone, resizeable Denza picker tasks, one per BYD root. Transaction 115 creates the native split substrate, then exact `START_IVI_PRIMARY` / `START_IVI_SECOND` categories place each picker directly in its live root; the unresizeable Launcher3/SR bootstrap tasks are not retained as hosts. A picker tap moves exactly the chosen app above that picker; Denza Apps does not route ordinary foreground launches. The last pair and automaton ownership are persisted, and task cleanup is component-validated through the local-ADB shell helper. The framework owns divider placement; no synthetic drag or corrective host resize is used. Direct category placement and the picker-dismiss/native-drag/reopen cycle are live-proven; divider and projection acceptance remain. |
 | `feature.fse` | Lists suitable launcher apps from the IVI, copies a monolithic APK over the mounted FSE storage, sends the stock wallpaper installation request, and reports copy/install progress. Split APKs are shown but cannot be installed yet. |
 
 ### `experiments/night-vision-probe/`
@@ -173,7 +173,7 @@ Research package `dev.denza.mirrors.probe` (not product; promote before relying)
 - `car-adb-gateway` is the active generic relay-only connectivity app. It must
   not grow a LAN mode.
 - `denza-apps` is the single active Denza feature app. Simulcast, migrated camera
-  rendering, navigation and HUD guidance, contextual stock split routing, and
+  rendering, navigation and HUD guidance, explicit stock split sessions, and
   passenger-screen installation share one UI and runtime state model.
 - `denza-mirrors` is legacy and excluded from the root Gradle build. Use its
   frozen source only as a hardware-verified comparison point.

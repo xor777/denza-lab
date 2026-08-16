@@ -93,6 +93,43 @@ package into product code):
 - Do not commit generated APKs, reverse-engineered APKs, or large extracted
   binaries.
 
+## Firmware Behavior Method
+
+Added 2026-08-16, after the split-automation sessions spent several live days
+rediscovering vendor-controller state one failure at a time. These rules govern
+any work that depends on undocumented firmware behavior.
+
+- The decompiled framework/SystemUI corpus from this exact vehicle, plus
+  read-only dumps from the car, are the primary source for firmware behavior.
+  A live install is a hypothesis test, not an exploration tool.
+- Vendor controllers (SmartMulti, DiShare, and similar) are stateful automatons
+  with persistent memory: settings keys, runtime registration lists, remembered
+  pairs, launcher databases. Before designing against one, write its state
+  contract into the closest findings doc: what persists, where it is stored,
+  whether entries are keyed by package, component, or task, what registers and
+  deregisters an entry, and whether it survives reboot. Confirm each claim
+  statically in the corpus and with a read-only dump before building on it.
+- Before a live run, write down the expected firmware action at each step and
+  the observation that would falsify it. A surprise during the run is a finding
+  about the contract to record, not a bug to patch inline.
+- Start acceptance runs from a documented reset procedure: remove experimental
+  packages, restore the controller's persisted keys to baseline, and verify a
+  clean scene first. Exactly one session installs APKs or mutates car state at
+  a time; an install from a second session invalidates the evidence of the run
+  in progress.
+- When a live run fails, capture the trace first (`am stack list` timeline and
+  the relevant logcat tags), turn it into a reproducing test fixture, and only
+  then fix.
+- Environment transition rules inside unit tests must come from recorded live
+  traces. Do not lock in guessed firmware behavior with tests before it is
+  live-confirmed: green tests against an imagined environment are how the
+  split router kept passing while failing on the car.
+- Do not build automation that competes with a vendor automaton for the same
+  scene. Let the controller own what it insists on owning (restores, divider
+  placement, dismissal semantics); limit our side to operations its code path
+  treats as legal. A post-hoc correction loop that "fixes" firmware decisions
+  is a design smell, not robustness.
+
 ## DiShare/Simulcast Rules
 
 - Denza Apps exposes Simulcast through the **Трансляция** card. Its
@@ -138,6 +175,14 @@ package into product code):
   live-car checks and an explicit retirement decision.
 
 ## IVI Split-Screen Rules
+
+> **2026-08-16:** the toggle/foreground-router contract is retired. The
+> current product contract is the explicit two-picker session in
+> [split-screen-findings.md](split-screen-findings.md), and its package layout
+> is being reworked under the Firmware Behavior Method above. The
+> substrate rules below (stock roots and divider, no replacement split UI,
+> fixed shell operations) still apply; router-specific routing bullets remain
+> only as history for the compiled regression seam.
 
 - Use the stock BYD split roots and divider; do not draw a replacement split UI
   over the central screen.

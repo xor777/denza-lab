@@ -22,12 +22,14 @@ still use the historical `denza-gateway` directory name.
 
 - [docs/project-map.md](docs/project-map.md) — structure and per-component status.
 - [docs/governance.md](docs/governance.md) — product/prototype/research lanes,
-  where experiments live, promotion checklist, live-car debugging rules.
+  where experiments live, promotion checklist, live-car debugging rules, and
+  the firmware behavior method (corpus-first, reset procedure, one owning
+  session).
 - [docs/instrument-display-findings.md](docs/instrument-display-findings.md) — cluster scene, Mirrors, and navigation status.
 - [docs/dishare-api-notes.md](docs/dishare-api-notes.md) — DiShare/HUD findings.
 - [docs/fse-app-installation.md](docs/fse-app-installation.md) — verified passenger-screen app installation path.
 - [docs/audio-capture-findings.md](docs/audio-capture-findings.md) — what a normal app can observe of played audio (spectrum analyser feasibility).
-- [docs/split-screen-findings.md](docs/split-screen-findings.md) — the factory split is dead in this firmware; what survived and the one route left.
+- [docs/split-screen-findings.md](docs/split-screen-findings.md) — live-proven BYD split substrate, retired router, and the explicit two-picker product flow.
 
 ## Modules
 
@@ -71,6 +73,12 @@ export ANDROID_HOME=/opt/homebrew/share/android-commandlinetools
   atomic, and covered by relay tests.
 - New "poke the car" code goes to `tools/` (host) or a `…​.probe` package
   (on-device), never into a product package.
+- Establish firmware behavior corpus-first: read the decompiled
+  framework/SystemUI from this vehicle and read-only car dumps before a live
+  install. Vendor controllers keep persistent state; a live run is a
+  hypothesis test that starts from a documented reset, owned by exactly one
+  session at a time. Full rules: `docs/governance.md`, "Firmware Behavior
+  Method".
 - When docs and implementation disagree, follow the code, manifests, and Gradle
   files, then correct the relevant page.
 - Record durable findings in the closest existing doc, not only in chat. Create a

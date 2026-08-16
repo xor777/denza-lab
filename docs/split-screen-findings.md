@@ -8,7 +8,268 @@ Established on the live car (DiLink5.1, `BYD AUTO`, Android 13 / API 33) on
 2026-08-14, after the firmware update that changed the app-launch button to open
 a plain fullscreen picker.
 
-## Current verdict
+## Product direction: explicit two-picker session
+
+The contextual foreground router was replaced in product code on 2026-08-16 by
+an explicit launcher entry named **«Разделить экран»**. This change is built and
+unit-tested. The separate launcher entry, native split creation, saved-app
+restoration, and picker geometry have since been exercised on the connected
+car. A later live trace showed that embedding a picker Activity into the
+unresizeable Launcher3 host produces a transient fullscreen/Home frame when a
+pane is reopened. The replacement direct-root launch is proven manually and
+now implemented; the complete dismissal/reopen flow still requires operator
+acceptance.
+
+The product contract is deliberately small:
+
+1. launching «Разделить экран» opens the firmware gate when needed, resolves
+   the two live BYD roots, reuses a valid Denza picker already in each root, or
+   launches the pane-neutral picker as a new standalone task through the exact
+   BYD primary/secondary category; it does not call the remembered-pair entry
+   transaction and does not recreate Home as an intermediate scene;
+2. each root keeps one Denza picker base task and at most one selected app task
+   above it; a native bootstrap is removed only after its replacement is
+   observably visible in the correct root;
+3. a picker tap names the destination root before any shell mutation, so no
+   foreground, focus, width, or vacancy guessing is used; after the exact task
+   move, its bounds must equal that root's current bounds, because this firmware
+   can retain the geometry of the pane from which the task came;
+4. dismissing the selected app reveals the picker already underneath it;
+   dismissing the picker collapses that pane normally, while pulling the native
+   drag control open replaces the briefly created stock picker directly in its
+   root without a fullscreen intermediate frame;
+5. the last package selected in each root is persisted and restored the next
+   time the launcher entry is opened;
+6. the same package is rejected in the other root because ordinary Android
+   task reuse cannot provide a reliable two-instance contract.
+
+The exact framework/SystemUI corpus from this vehicle, rather than OpenBYD,
+defines the design. `CustomDividerActivity`,
+`CustomDividerSecondaryActivity`, `DividerUtils`, and `StageCoordinator` show
+the same picker-under-app stack model and keep split alive while a picker base
+remains. The public `StatusBarManager` methods are not used: the exact
+`StatusBarManagerService` returns early for
+`ro.build.ui_platformized=1`. The implementation instead uses the already
+live-proven `activity_task` gate and live root lookup. Transaction 115 is not
+part of the explicit product flow because it restores the firmware's remembered
+pair before our command can establish the picker scene. The product launches two
+tasks of the exact pane-neutral Denza picker component with
+`byd.intent.category.START_IVI_PRIMARY` / `START_IVI_SECOND` and flags
+`0x18010000`. On this DiLink 5.1 car the standalone picker task appeared in its
+target root on its first frame at the root's exact bounds, with no Home frame,
+fullscreen frame, reparent, or corrective resize. The earlier
+`ActivityOptions.setLaunchTaskId` implementation is retired: Launcher3's base
+task is unresizeable, so embedding a resizeable Activity inside it still lets
+the OEM task transition go fullscreen before it is corrected. The shell-UID
+helper is now limited to component-validated focus and removal operations.
+The framework owns divider placement and no synthetic drag is used.
+Selected app tasks still receive one bounded `am task resize` when a verified
+post-move snapshot shows stale bounds; the operation is within the destination
+root and its equality postcondition is mandatory.
+
+The visible entry and the split-capable picker deliberately live in different
+packages. `dev.denza.split.launcher` exposes the single **Разделить экран**
+launcher icon and has no BYD split marker. Its `Theme.NoDisplay` Activity hands
+the command to a signature-protected `Theme.NoDisplay` Activity in Denza Apps.
+This is required by the exact vendor process-start policy: live checks showed
+that both cross-UID `startService` and `ContentResolver.call()` are silently
+discarded while the Denza Apps process is stopped (`skip startServiceLocked`
+and `skip start content provider pro ... ignored`). An explicit Activity start
+is the user-initiated platform path; the command Activity remains in the
+caller's task, accepts only fixed typed commands, and finishes immediately.
+`dev.denza.split`
+contains only the pane-neutral picker and carries the application-level
+`BYD_SUPPORT_SPLIT_ACTIVITY=1` marker. Launcher3 therefore cannot classify the
+visible entry itself as a remembered split member.
+
+The picker package has a `MAIN + CATEGORY_INFO` intent filter, not a launcher
+filter. This is a firmware contract rather than a presentation shortcut: the
+exact `ApplicationPackageManager.getLaunchIntentForPackage()` from this car
+resolves `CATEGORY_INFO` first and `CATEGORY_LAUNCHER` second, while SmartMulti
+restores a remembered pane member through that package-level API. The INFO
+entry lets SmartMulti restore the picker after it has persisted
+`dev.denza.split` without exposing another app icon. Picker selections are
+resolved explicitly from `CATEGORY_LAUNCHER`; they never use
+`getLaunchIntentForPackage()`, so an unrelated app's INFO Activity cannot be
+opened by a picker tap.
+
+The old 200 ms router remains compiled only as a regression/reference seam and
+is not constructed in explicit-picker mode. Navigation and Simulcast therefore
+have no split foreground loop to pause, and Denza Apps never moves an ordinary
+app launch from the car launcher. Task cleanup also no longer calls the nonexistent
+`am task remove`: an `app_process` helper validates task id and base component,
+plus the current top component when the snapshot can identify it reliably,
+before invoking `IActivityTaskManager.removeTask`.
+The firmware gate is global, so the explicit session persists a small ownership
+lease: it closes transaction 126 only if Denza Apps was the caller that opened
+it. A gate already open before the session is left untouched.
+Picker visibility may coincide with Navigation or Simulcast moving the selected
+task elsewhere. Their existing external-move lease suppresses picker reconciliation
+during that interval; the picker flow never tries to reclaim the moved app.
+Selecting or restoring a package whose task is currently on another Android
+display also fails closed and leaves the picker visible. While a member of the
+saved pair is projected, picker selections are paused altogether so Navigation
+can return the original task and companion to their recorded roots. If the
+companion itself was dismissed by gesture during projection, Navigation now
+treats that as a valid picker vacancy instead of failing the entire return.
+SmartMulti handles the native dismissal gesture asymmetrically: a primary task
+is removed, while a secondary task can merely be moved behind the next task.
+When a Denza picker is observably topmost, the automaton may remove only the
+exact app task id and package previously recorded for that pane. There is no
+generic repair/prune pass and a hidden picker in the other pane is never touched.
+This makes dismissal a real close and prevents reselecting an app from
+resurrecting a previously broken task state. Native-picker attach is bounded to
+three attempts per unchanged host and is retried only after an observed failure
+or a fresh host id.
+The Denza picker now mirrors the current Launcher3 split-list geometry: one
+short centered title, two columns in the narrow pane, four in the wide pane,
+`128 x 132 dp` cells, `72 dp` icons, and two-line `16 sp` labels without card
+backgrounds. The exact Launcher3 Activity also proved that its apparent
+gradient is not an opaque color resource: it makes the window transparent and
+enables `UnionWindowManager.setUnionWindowBackgroundBlur`. Denza's picker now
+uses the same window flag and edge-to-edge layout, with a dark gradient only as
+a fallback if that vendor API is unavailable. Live comparison on 2026-08-16
+showed matching title placement and background treatment in adjacent stock and
+Denza picker panes. Its catalog follows the stock app-list visibility contract
+rather than the split-compatibility list: an explicit `ShowInAppList=false`
+from the app's `DynaConfigContentProvider` (or application metadata using that
+exact key) hides the app, while `true` or an absent value keeps it visible. The
+`BYD_SUPPORT_SPLIT_ACTIVITY` marker is deliberately not used as a presentation
+filter.
+
+### Live acceptance status
+
+The 2026-08-16 run confirmed the Home-to-native-host transition, Launcher3 and
+SR bootstrap identities, restoration of Navigator above its stopped secondary
+picker, area mode `3`, and an unchanged `com.byd.avc` crash buffer. A later
+isolated live launch confirmed that a standalone Denza picker using the exact
+BYD primary category starts directly in the narrow root at
+`[24,112][856,1472]` on its first rendered frame. The production replacement
+for both panes is unit-tested. The operator then dismissed one Denza picker,
+observed Music expand normally, and reopened the vacancy with the native drag
+control. Launcher3's stock picker drew directly in the narrow root and remained
+visible for about 1.6 seconds until its accessibility event launched the Denza
+replacement. The replacement's first frame was in the same root at `832 x 1360`;
+area mode stayed `3` throughout the replacement, Music stayed in the other root
+with matching bounds, Home was not shown, and the crash buffer remained empty.
+The brief stock picker is an accepted signal latency, not a global scene rebuild.
+
+The remaining operator run should be intentionally short and observable:
+
+1. update-install the APK and confirm that the app center shows both
+   **Denza Apps** and **Разделить экран**;
+2. launch **Разделить экран** with no usable stored pair and confirm two Denza
+   pickers plus the native drag control;
+3. choose Navigator in one picker and Music in the other, then navigate inside
+   Music far enough to start another Activity; neither task may escape or be
+   moved back by a corrective loop;
+4. repeat app dismissal once with Navigator/Music and confirm that only the
+   recorded task is removed while the other pane remains untouched;
+5. dismiss it again, choose a third app in that picker, and confirm the root
+   contains only its standalone Denza picker task plus the selected app task;
+6. move the divider without swapping and confirm no application changes pane;
+7. disable the Split screen toggle and confirm the focused app expands, both
+   picker tasks disappear, and the drag control is gone;
+8. reopen **Разделить экран** and confirm the last successful pair is restored;
+9. only after the basic flow passes, repeat navigation projection/return and
+   Simulcast checks to prove that removing the foreground router eliminated
+   cross-feature task mutations.
+
+The primary diagnostic tag is `DenzaSplitScreen`. Every failed shell mutation
+also leaves a user-facing message in the picker or the Denza Apps split card.
+
+### SmartMulti persistence contract (exact vehicle corpus, 2026-08-16)
+
+The picker re-entry incident is no longer an open package-keying hypothesis.
+It is explained by the exact framework pulled from this vehicle:
+
+| State | Storage and lifetime | Writer / restore behavior |
+| --- | --- | --- |
+| selected primary package | `Settings.System` key `byd_smart_multi_primary_activity`; survives APK updates and reboot | `changePrimaryActivityForPkg()` posts `updateIviSettings()`; `retriveIviSettings()` accepts the stored package if the application is installed and enabled |
+| selected secondary package | `Settings.System` key `byd_smart_multi_second_activity`; survives APK updates and reboot | same package-level validation and restore |
+| primary side | `Settings.System` key `byd_smart_multi_primary_position` | `1` means primary left, `2` means primary right; a missing value is initialized to `1` |
+| divider mode | `Settings.System` key `byd_smart_multi_split_window_mode` | default/balanced `100`, expanded primary `101`, expanded secondary `102` |
+| runtime split allowlist | in-memory `mPrimaryActivityList` | transaction 125 only appends a package; there is no remove API and the addition disappears with `system_server`/reboot |
+| manifest split support | package `ApplicationInfo.metaData` | `BYD_SUPPORT_SPLIT_ACTIVITY=1` makes the installed package split-capable; the check is not Activity-specific |
+| split gate | static in-memory `mIsEnterSplit` | transaction 126 changes it; on this non-Huawei branch the framework default is `true` |
+
+`startSpecificSplitPair()` restores the two remembered packages. For an
+ordinary package, SmartMulti calls `makeLaunchIntent(package)`, which delegates
+to `PackageManager.getLaunchIntentForPackage()`, adds the exact primary or
+secondary BYD category, and starts the result. A stored installed package with
+no INFO or LAUNCHER Activity passes SmartMulti's package-enabled validation but
+produces a null launch intent later; `startPrimaryActivity()` or
+`startSecondActivity()` then fails and can leave a vacant container. That was
+the structural defect after `dev.denza.split` was made picker-only without an
+INFO restore entry.
+
+The controller also persists changes made by normal split starts, stock-picker
+placement and swap. Removing tasks, removing the visible picker, or calling
+`removeBydAllIviTask()` does not clear the remembered package pair. Package
+removal/change replaces the pair with policy defaults only when either stored
+application is missing or disabled.
+
+The corpus used for this contract is `/system/framework/services.jar` SHA-256
+`23a58a4e3c98c50541785390f1234e8c4d7138b5dd170c4f5843bae15b93c019`
+and `/system/framework/framework.jar` SHA-256
+`aa3acd7738e1fa22c4ec68f69b271fd6938cf7756239c1ac6b30051c0d4fda8c`.
+OpenBYD remains reference material only.
+
+### Acceptance reset
+
+Every product acceptance run records the four settings above, gate state, area
+mode, root/task snapshot, Denza split preferences, and the current
+`force_resizable_activities` value before mutation. On this car the policy
+fallback pair is `com.byd.sr` plus `com.byd.launchermap`, with primary position
+`1`, divider mode `100`, and gate open. When the remembered pair contains the
+experimental picker, the baseline is established by temporarily disabling only
+`dev.denza.split`: SmartMulti's package-change receiver observes that its
+remembered member is unavailable, replaces both in-memory package fields with
+policy defaults, and posts the same values to Settings. The picker is
+immediately re-enabled and the result is verified. A direct primary/secondary
+category launch was explicitly rejected as a reset mechanism: an existing task
+on another display can be reused and the category need not rewrite the selected
+package. Writing Settings alone is also insufficient because it leaves the
+controller's in-memory fields stale until a reload.
+
+A second clean Home baseline was observed after normally closing the two picker
+tasks: `com.android.launcher3 + com.byd.launchermap`, primary position `1`, mode
+`102`, area `0`. This is a firmware-written state, not a Denza Settings rewrite.
+The reset helper accepts and verifies either exact clean tuple, but still
+refuses every other non-Denza remembered pair.
+
+The Denza session is reset separately: restore the exact leased
+`force_resizable_activities` value, clear only `denza_split_screen.xml`, stop
+the three Denza split packages, and return Home. A fully clean runtime
+allowlist additionally requires a controlled head-unit reboot; reinstalling an
+APK does not clear it. One session owns all installation and car mutations for
+the whole run.
+
+Method rules for this class of work live in [governance.md](governance.md),
+"Firmware Behavior Method".
+
+### Navigation projection interaction
+
+The split picker is the permanent base task below a selected navigator. When
+that navigator is projected, the navigation proxy records its native source
+root and the top task in the companion root, creates an empty organizer root on
+the app-owned `Denza Navigation` display, and reparents only the navigator task.
+The picker is revealed in the vacated IVI pane, the other split app stays in
+place, and the native divider remains owned by SmartMulti.
+
+The picker automaton marks that exact task as `PROJECTED` before releasing the
+external-move lease. Selection remains fail-closed while a saved pair member is
+on another Android display; the user must return navigation before replacing
+its pane. On return, the proxy restores the companion if it still exists and
+returns navigation to its recorded root above the same picker. A companion
+dismissed during projection is a valid vacancy. If the user dismisses the
+navigator's picker pane while navigation is projected, return expands the
+navigator fullscreen instead of guessing a new split destination. These rules
+preserve the previously live-proven projection topology; the complete flow
+with the standalone INFO-restorable picker still requires the post-split live
+acceptance run.
+
+## Live-proven substrate (2026-08-14)
 
 Native BYD split is reachable from user space without `/system` changes. The
 working route is:
@@ -26,10 +287,13 @@ working route is:
    `am task resize` so both apps receive a configuration change and rebuild
    their layouts for the panes.
 
-The recovered DiLink 6/OpenBYD category route
-(`START_IVI_PRIMARY` / `START_IVI_SECOND`) was also tested, but this firmware
-ignored it or produced duplicate fullscreen tasks. The working MVP does not
-relaunch either app. A live run placed Яндекс Навигатор in root 2 at
+The recovered DiLink 6/OpenBYD category route was originally rejected for
+arbitrary third-party app launches because this firmware ignored it or produced
+duplicate fullscreen tasks. That result still applies to the former router; it
+does not apply to the exact resizeable Denza picker components, whose direct
+`START_IVI_PRIMARY` / `START_IVI_SECOND` placement was later proven live. The
+working historical MVP did not relaunch either target app. A live run placed
+Яндекс Навигатор in root 2 at
 `[24,112][856,1472]` and Яндекс Музыка in root 3 at
 `[880,112][2536,1472]`; transaction 30 returned area mode `3`. Moving the tasks
 alone left their old fullscreen bounds and visibly clipped both UIs. Explicitly
@@ -51,17 +315,19 @@ The placeholder intentionally contains only “Откройте второе п�
 is the stable seam where the custom all-app picker can be added later without
 changing the native split routing.
 
-The UI has one global toggle rather than an app whitelist: while it is on, the
-first launchable app is moved into native split beside the placeholder. A later
-distinct launchable app replaces the placeholder through the existing native
-pair route. While the toggle is off, no routing is performed.
+The former UI used one global toggle rather than an app whitelist: while it was
+on, the first launchable app was moved into native split beside the placeholder.
+A later distinct launchable app replaced the placeholder through the existing
+native pair route. This behavior is retained below as live evidence but is no
+longer the product interaction.
 `dev.denza.apps` itself is explicitly launched with
 `byd.intent.category.START_IVI_FULL`, so the control UI stays fullscreen even
 when a native pair was already open.
 
-The coordinator observes ordinary launcher starts after they occur; it cannot
+The former coordinator observed ordinary launcher starts after they occurred; it could not
 intercept the launcher before the second app draws. Polling is therefore 200 ms
-and a short fullscreen frame can still be visible.
+and a short fullscreen frame could still be visible. Explicit-picker mode does
+not run this loop.
 
 ### Internal Activity transitions
 
@@ -112,7 +378,7 @@ selector root as the explicit vacancy, and moves only the newly launched task
 into that vacancy. It never reparents the surviving app merely to recreate a
 hard-coded primary/secondary order.
 
-### Routing state machine
+### Former routing state machine
 
 The earlier `armed` / `entering` / `active` implementation was still too eager:
 it treated area mode `3` as success even when the expected app was below

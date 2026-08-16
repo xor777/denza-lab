@@ -8,6 +8,54 @@ import org.junit.Test
 
 class SplitRoutingReducerTest {
     @Test
+    fun orphanPlaceholderNeverKeepsAnEligibleAppHidden() {
+        val decision = reduce(
+            SplitRoutingMemory(),
+            observation(
+                area = 3,
+                roots = listOf(
+                    root(
+                        ROOT_WIDE,
+                        WIDE,
+                        APP_A_TASK.copy(
+                            rootId = ROOT_WIDE,
+                            bounds = WIDE,
+                            visible = false,
+                        ),
+                        task(
+                            id = 99,
+                            packageName = PLACEHOLDER_PACKAGE,
+                            activityName = PLACEHOLDER_ACTIVITY,
+                            rootId = ROOT_WIDE,
+                            bounds = WIDE,
+                            visible = true,
+                        ),
+                    ),
+                    root(
+                        ROOT_NARROW,
+                        NARROW,
+                        picker(ROOT_NARROW),
+                    ),
+                ),
+            ),
+        )
+
+        assertEquals(
+            listOf(
+                SplitRoutingAction.RemoveTask(
+                    taskId = 99,
+                    packageName = PLACEHOLDER_PACKAGE,
+                    activityName = PLACEHOLDER_ACTIVITY,
+                    topPackageName = PLACEHOLDER_PACKAGE,
+                    topActivityName = PLACEHOLDER_ACTIVITY,
+                ),
+            ),
+            decision.actions,
+        )
+        assertEquals(SplitRoutingMemory(), decision.memory)
+    }
+
+    @Test
     fun firstAppCreatesAppAndPlaceholderTarget() {
         val decision = reduce(
             memory = SplitRoutingMemory(),
@@ -514,6 +562,46 @@ class SplitRoutingReducerTest {
         assertEquals(APP_C, chosen.memory.target?.second?.packageName)
         assertEquals(ROOT_NARROW, chosen.memory.target?.second?.preferredRootId)
         assertFalse(chosen.actions.any { it is SplitRoutingAction.LaunchPlaceholder })
+    }
+
+    @Test
+    fun pickerRecoversStableCompanionHiddenBehindTheVisiblePane() {
+        val memory = stableMemory(lastFocusedRootId = ROOT_WIDE).copy(
+            anchor = APP_A_TASK.toExpected(ROOT_WIDE),
+            vacancy = SplitVacancy(
+                rootId = ROOT_NARROW,
+                baselineTaskIds = emptySet(),
+                restorePlaceholderAfterRecovery = false,
+            ),
+        )
+        val observation = observation(
+            area = 3,
+            roots = listOf(
+                root(ROOT_NARROW, NARROW, picker(ROOT_NARROW)),
+                root(
+                    ROOT_WIDE,
+                    WIDE,
+                    APP_A_TASK.copy(rootId = ROOT_WIDE, bounds = WIDE),
+                    APP_B_TASK.copy(
+                        rootId = ROOT_WIDE,
+                        bounds = WIDE,
+                        visible = false,
+                        topPackageName = APP_A,
+                    ),
+                ),
+            ),
+        )
+
+        val decision = reduce(memory, observation)
+
+        assertEquals(APP_A, decision.memory.target?.first?.packageName)
+        assertEquals(ROOT_WIDE, decision.memory.target?.first?.preferredRootId)
+        assertEquals(APP_B, decision.memory.target?.second?.packageName)
+        assertEquals(ROOT_NARROW, decision.memory.target?.second?.preferredRootId)
+        assertEquals(
+            listOf(SplitRoutingAction.PlaceTask(APP_B_TASK.id, ROOT_NARROW, false)),
+            decision.actions,
+        )
     }
 
     @Test

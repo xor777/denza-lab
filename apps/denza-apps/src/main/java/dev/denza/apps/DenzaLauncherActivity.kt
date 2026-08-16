@@ -20,6 +20,7 @@ class DenzaLauncherActivity : Activity() {
         const val CATEGORY_FULL_IVI = "byd.intent.category.START_IVI_FULL"
         // CLEAR_TASK prevents an existing pane instance from consuming the
         // intent in place; BYD then creates/reparents the control task in FULL.
-        const val NATIVE_FULL_LAUNCH_FLAGS = 0x10008000
+        const val NATIVE_FULL_LAUNCH_FLAGS =
+            Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
     }
 }

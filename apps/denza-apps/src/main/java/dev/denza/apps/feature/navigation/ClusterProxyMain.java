@@ -220,13 +220,19 @@ public final class ClusterProxyMain {
             if (companionTaskId > 0 && companionRootTaskId > 0) {
                 if (!isNativeSplitRoot(companionRootTaskId)
                         || !rootExistsOnDisplay(companionRootTaskId, 0)
-                        || !taskExists(companionTaskId)
                         || companionTaskId == taskId) {
                     return false;
                 }
-                if (!resizeTaskUnchecked(companionTaskId, null)) return false;
-                if (!moveTaskToRoot(companionTaskId, companionRootTaskId, true)) return false;
-                if (!resizeTaskUnchecked(companionTaskId, null)) return false;
+                if (taskExists(companionTaskId)) {
+                    if (!resizeTaskUnchecked(companionTaskId, null)) return false;
+                    if (!moveTaskToRoot(companionTaskId, companionRootTaskId, true)) return false;
+                    if (!resizeTaskUnchecked(companionTaskId, null)) return false;
+                } else {
+                    // The user may dismiss the companion while navigation is projected. In the
+                    // explicit split flow its picker base is already waiting in this root, so a
+                    // missing companion is a valid vacancy rather than a failed return contract.
+                    Log.i(TAG, "return without dismissed companion task=" + companionTaskId);
+                }
             }
             if (sourceRootTaskId != taskId && rootExistsOnDisplay(sourceRootTaskId, 0)) {
                 if (!moveTaskToRoot(taskId, sourceRootTaskId, true)) return false;
@@ -287,6 +293,7 @@ public final class ClusterProxyMain {
             return -1;
         }
 
+        @SuppressLint({"PrivateApi", "BlockedPrivateApi"})
         private boolean invokeCreateRootTask(int displayId) {
             try {
                 Class<?> managerClass = Class.forName("android.app.ActivityTaskManager");
@@ -573,6 +580,7 @@ public final class ClusterProxyMain {
             return false;
         }
 
+        @SuppressLint({"PrivateApi", "BlockedPrivateApi"})
         private List<?> rootTaskInfos() {
             try {
                 Class<?> managerClass = Class.forName("android.app.ActivityTaskManager");
@@ -588,6 +596,7 @@ public final class ClusterProxyMain {
             }
         }
 
+        @SuppressLint({"PrivateApi", "BlockedPrivateApi"})
         private List<?> rootTaskInfosOnDisplay(int displayId) {
             try {
                 Class<?> managerClass = Class.forName("android.app.ActivityTaskManager");

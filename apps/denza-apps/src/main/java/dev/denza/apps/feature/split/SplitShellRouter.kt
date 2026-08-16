@@ -11,7 +11,6 @@ internal class SplitShellRouter(
 ) {
     private var memory = stateStore?.load() ?: SplitRoutingMemory()
     private var firstObservation = true
-    private var acceptNextSnapshotAsBaseline = false
     private var firstNativeRootId: Int? = null
     private var secondNativeRootId: Int? = null
     private var gateOwnedByUs = false
@@ -48,18 +47,20 @@ internal class SplitShellRouter(
         firstObservation = false
         val sceneKey = semanticSceneKey(observation)
 
+        SplitRoutingReducer.recoverOrphanPlaceholder(memory, observation)?.let { recovery ->
+            updateMemory(recovery.memory)
+            recovery.event?.let(onEvent)
+            execute(recovery.actions)
+            abandonedSceneKey = null
+            lastNonTargetMutationKey = null
+            resetMutationAttempts()
+            return false
+        }
+
         if (abandonedSceneKey == sceneKey) {
             return area == AREA_BALANCED_SPLIT
         }
         abandonedSceneKey = null
-
-        if (acceptNextSnapshotAsBaseline) {
-            acceptNextSnapshotAsBaseline = false
-            updateMemory(SplitRoutingReducer.baseline(observation))
-            resetMutationAttempts()
-            onEvent("external task baseline accepted")
-            return area == AREA_BALANCED_SPLIT
-        }
 
         val previousMemory = memory
         val decision = SplitRoutingReducer.reduce(previousMemory, observation)
@@ -116,13 +117,13 @@ internal class SplitShellRouter(
     }
 
     /**
-     * Navigation and Simulcast own their explicit task moves. Drop any pending
-     * transition and treat the first snapshot after their quiet period as the
-     * user's new baseline.
+     * Navigation and Simulcast own their explicit task moves. Pause mutation
+     * attempts without discarding the semantic target: after the quiet period
+     * the reducer reconciles that target against the actual new scene. Fresh
+     * foreground, Home, and missing members then cancel or retarget it using
+     * the same fail-closed rules as an ordinary observation.
      */
-    fun cancelPendingSelection() {
-        updateMemory(SplitRoutingMemory())
-        acceptNextSnapshotAsBaseline = true
+    fun pauseForExternalTaskMoves() {
         abandonedSceneKey = null
         lastNonTargetMutationKey = null
         resetMutationAttempts()
@@ -132,7 +133,6 @@ internal class SplitShellRouter(
     fun disable() {
         memory = SplitRoutingMemory()
         stateStore?.clear()
-        acceptNextSnapshotAsBaseline = false
         abandonedSceneKey = null
         lastNonTargetMutationKey = null
         resetMutationAttempts()
@@ -208,6 +208,8 @@ internal class SplitShellRouter(
                     pause(PLACEHOLDER_LAUNCH_MS)
                 }
 
+                is SplitRoutingAction.RemoveTask -> removeTask(action)
+
                 is SplitRoutingAction.PlaceTask -> {
                     if (action.promoteInPlace) {
                         focusTask(action.taskId)
@@ -268,6 +270,23 @@ internal class SplitShellRouter(
             "am task resize $taskId ${bounds.left} ${bounds.top} " +
                 "${bounds.right} ${bounds.bottom}",
         )
+    }
+
+    private fun removeTask(action: SplitRoutingAction.RemoveTask) {
+        check(action.taskId > 0)
+        val output = shell(
+            "CLASSPATH=${shellQuote(apkPath)} app_process /system/bin " +
+                "--nice-name=denza_split_cmd $SPLIT_PROXY_CLASS remove-task ${action.taskId} " +
+                "${shellQuote(action.packageName)} ${shellQuote(action.activityName)} " +
+                "${shellQuote(action.topPackageName ?: "-")} " +
+                "${shellQuote(action.topActivityName ?: "-")}",
+        ).also(::validateOutput)
+        val result = output.lineSequence()
+            .map(String::trim)
+            .lastOrNull { it.startsWith(SPLIT_PROXY_RESULT_PREFIX) }
+            ?.removePrefix(SPLIT_PROXY_RESULT_PREFIX)
+        check(result == "true") { "Не удалось безопасно удалить задачу ${action.taskId}" }
+        pause(ROOT_SETTLE_MS)
     }
 
     private fun focusTask(taskId: Int) {
@@ -384,7 +403,10 @@ internal data class SplitTask(
     val topPackageName: String?,
     val topActivityName: String?,
 ) {
-    val isTop: Boolean get() = visible && packageName == topPackageName
+    val isTop: Boolean
+        get() = visible &&
+            packageName == topPackageName &&
+            (topActivityName == null || activityName == topActivityName)
 }
 
 internal data class SplitRootTask(
@@ -398,8 +420,8 @@ internal data class SplitRootTask(
 internal data class SplitTaskSnapshot(val roots: List<SplitRootTask>) {
     fun foregroundTask(): SplitTask? = roots.asSequence()
         .filter { it.displayId == 0 && it.activityType != HOME_ACTIVITY_TYPE }
-        .flatMap { it.tasks.asSequence() }
-        .firstOrNull(SplitTask::isTop)
+        .mapNotNull(SplitRootTask::resolvedTopTask)
+        .firstOrNull()
 
     fun root(rootId: Int): SplitRootTask? =
         roots.firstOrNull { it.id == rootId && it.displayId == 0 }
@@ -477,4 +499,21 @@ internal data class SplitTaskSnapshot(val roots: List<SplitRootTask>) {
 
         private const val HOME_ACTIVITY_TYPE = "home"
     }
+}
+
+/**
+ * `am stack list` repeats the root's top component on every task line. Package
+ * equality alone is ambiguous when Denza Apps and its placeholder share a
+ * root, so prefer the exact component. Package-only fallback is allowed only
+ * when exactly one visible task can own that top package (normal internal
+ * Activity transitions within one task).
+ */
+internal fun SplitRootTask.resolvedTopTask(): SplitTask? {
+    val packageCandidates = tasks.filter { task ->
+        task.visible && task.packageName == task.topPackageName
+    }
+    val exactCandidates = packageCandidates.filter { task ->
+        task.topActivityName != null && task.activityName == task.topActivityName
+    }
+    return exactCandidates.firstOrNull() ?: packageCandidates.singleOrNull()
 }

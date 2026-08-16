@@ -7,6 +7,27 @@ import org.junit.Test
 
 class SplitShellRouterTest {
     @Test
+    fun orphanPlaceholderIsRemovedBeforeARecoveryBaselineIsAccepted() {
+        val fake = FakeShell(orphanPlaceholderOverAppWithPicker())
+        fake.area = 3
+        val store = FakeStateStore()
+        val router = router(fake, store)
+
+        assertFalse(router.tick())
+
+        assertTrue(
+            fake.commands.any {
+                it.contains("SplitTaskProxyMain remove-task 99") &&
+                    it.contains(PLACEHOLDER_PACKAGE) &&
+                    it.contains(PLACEHOLDER_ACTIVITY)
+            },
+        )
+        assertFalse(fake.commands.any { it.startsWith("am start ") })
+        assertFalse(fake.commands.any { it.startsWith("am stack move-task ") })
+        assertEquals(SplitRoutingMemory(), store.memory)
+    }
+
+    @Test
     fun firstSnapshotStartsPlaceholderAndPersistsTargetBeforeMutation() {
         val fake = FakeShell(fullscreen(APP_A, 10))
         val store = FakeStateStore()
@@ -96,17 +117,38 @@ class SplitShellRouterTest {
     }
 
     @Test
-    fun externalMoveAcceptsNextSnapshotAsBaselineWithoutShellMutation() {
+    fun externalMovePausePreservesPendingTargetAndContinuesConvergence() {
         val fake = FakeShell(fullscreen(APP_A, 10))
         val store = FakeStateStore()
         val router = router(fake, store)
-        router.cancelPendingSelection()
+        router.tick()
+        assertTrue(store.memory.target != null)
+        router.pauseForExternalTaskMoves()
+        fake.stack = placeholderAndAppFullscreen()
+        fake.commands.clear()
 
         assertFalse(router.tick())
 
-        assertEquals(APP_A, store.memory.anchor?.packageName)
-        assertFalse(fake.commands.any { it.startsWith("am start ") })
-        assertFalse(fake.commands.any { it.startsWith("am stack move-task ") })
+        assertEquals(APP_A, store.memory.target?.first?.packageName)
+        assertTrue(fake.commands.any { it == "am stack move-task 10 3 true" })
+        assertTrue(fake.commands.any { it == "am stack move-task 99 2 true" })
+    }
+
+    @Test
+    fun samePackageMainActivityCannotMasqueradeAsTopPlaceholderTask() {
+        val fake = FakeShell(fullscreen(APP_A, 10))
+        val store = FakeStateStore()
+        val router = router(fake, store)
+        router.tick()
+        assertTrue(store.memory.target != null)
+        fake.stack = placeholderAndAppFullscreenWithDenzaMain()
+        fake.commands.clear()
+
+        assertFalse(router.tick())
+
+        assertEquals(APP_A, store.memory.target?.first?.packageName)
+        assertTrue(fake.commands.any { it == "am stack move-task 10 3 true" })
+        assertTrue(fake.commands.any { it == "am stack move-task 99 2 true" })
     }
 
     @Test
@@ -188,14 +230,20 @@ class SplitShellRouterTest {
     fun unchangedExpandedBaselineDoesNotRepeatCloseMutationOrEvent() {
         val fake = FakeShell(fullscreen(APP_A, 10))
         val events = mutableListOf<String>()
+        val store = FakeStateStore(
+            SplitRoutingMemory(
+                anchor = expected(10, APP_A, 3),
+                vacancy = SplitVacancy(2, emptySet(), restorePlaceholderAfterRecovery = false),
+            ),
+        )
         val router = SplitShellRouter(
             shell = fake::execute,
             apkPath = "/data/app/dev.denza.apps/base.apk",
             eligibleApps = { mapOf(APP_A to "$APP_A/$APP_A.MainActivity") },
             pause = fake.pauses::add,
             onEvent = events::add,
+            stateStore = store,
         )
-        router.cancelPendingSelection()
         router.tick()
         fake.commands.clear()
 
@@ -278,6 +326,8 @@ class SplitShellRouterTest {
                     stack
                 }
                 command.startsWith("am start ") -> ""
+                command.contains("SplitTaskProxyMain remove-task ") ->
+                    "DENZA_SPLIT_RESULT:true"
                 command.startsWith("am stack move-task ") -> ""
                 command.startsWith("am task resize ") -> ""
                 command.contains("SplitTaskProxyMain focus-task ") ->
@@ -345,6 +395,25 @@ class SplitShellRouterTest {
 
             RootTask id=2 bounds=[24,112][856,1472] displayId=0 userId=0
             RootTask id=3 bounds=[880,112][2536,1472] displayId=0 userId=0
+        """.trimIndent()
+
+        fun placeholderAndAppFullscreenWithDenzaMain(): String = """
+            RootTask id=4 bounds=[0,0][2560,1600] displayId=0 userId=0
+              taskId=68: dev.denza.apps/dev.denza.apps.DenzaLauncherActivity bounds=[0,0][2560,1600] userId=0 visible=true topActivity=ComponentInfo{$PLACEHOLDER_COMPONENT}
+              taskId=10: $APP_A/$APP_A.MainActivity bounds=[0,0][2560,1600] userId=0 visible=true topActivity=ComponentInfo{$PLACEHOLDER_COMPONENT}
+              taskId=99: $PLACEHOLDER_COMPONENT bounds=[0,0][2560,1600] userId=0 visible=true topActivity=ComponentInfo{$PLACEHOLDER_COMPONENT}
+
+            RootTask id=2 bounds=[24,112][856,1472] displayId=0 userId=0
+            RootTask id=3 bounds=[880,112][2536,1472] displayId=0 userId=0
+        """.trimIndent()
+
+        fun orphanPlaceholderOverAppWithPicker(): String = """
+            RootTask id=3 bounds=[880,112][2536,1472] displayId=0 userId=0
+              taskId=10: $APP_A/$APP_A.MainActivity bounds=[880,112][2536,1472] userId=0 visible=false topActivity=ComponentInfo{$APP_A/$APP_A.MainActivity}
+              taskId=99: $PLACEHOLDER_COMPONENT bounds=[880,112][2536,1472] userId=0 visible=true topActivity=ComponentInfo{$PLACEHOLDER_COMPONENT}
+
+            RootTask id=2 bounds=[24,112][856,1472] displayId=0 userId=0
+              taskId=21: com.android.launcher3/$PICKER_ACTIVITY bounds=[24,112][856,1472] userId=0 visible=true topActivity=ComponentInfo{com.android.launcher3/$PICKER_ACTIVITY}
         """.trimIndent()
 
         fun pair(

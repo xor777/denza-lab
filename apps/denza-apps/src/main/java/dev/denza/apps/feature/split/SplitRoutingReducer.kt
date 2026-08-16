@@ -59,6 +59,14 @@ internal data class SplitRoutingObservation(
 internal sealed interface SplitRoutingAction {
     data object LaunchPlaceholder : SplitRoutingAction
 
+    data class RemoveTask(
+        val taskId: Int,
+        val packageName: String,
+        val activityName: String,
+        val topPackageName: String? = null,
+        val topActivityName: String? = null,
+    ) : SplitRoutingAction
+
     data class PlaceTask(
         val taskId: Int,
         val rootId: Int,
@@ -83,10 +91,31 @@ internal data class SplitRoutingDecision(
 )
 
 internal object SplitRoutingReducer {
+    fun recoverOrphanPlaceholder(
+        memory: SplitRoutingMemory,
+        observation: SplitRoutingObservation,
+    ): SplitRoutingDecision? {
+        if (memory.target != null || memory.anchor != null || memory.stablePair != null) {
+            return null
+        }
+        val orphan = observation.nativeRootIds.asSequence()
+            .mapNotNull { observation.snapshot.root(it) }
+            .mapNotNull(::topTask)
+            .firstOrNull { it.isPlaceholder() }
+            ?: return null
+        return SplitRoutingDecision(
+            memory = SplitRoutingMemory(),
+            actions = listOf(orphan.toRemoveAction()),
+            event = "removing orphan placeholder task ${orphan.id}",
+        )
+    }
+
     fun reduce(
         memory: SplitRoutingMemory,
         observation: SplitRoutingObservation,
     ): SplitRoutingDecision {
+        recoverOrphanPlaceholder(memory, observation)?.let { return it }
+
         homeForeground(observation)?.let {
             return SplitRoutingDecision(
                 memory = if (memory.target != null) memory.withoutTransition() else memory,
@@ -443,6 +472,30 @@ internal object SplitRoutingReducer {
                     selection.isPlaceholder(),
         )
 
+        val anchorTask = anchor?.let { expected ->
+            resolveExpected(expected, observation.snapshot)
+        }
+        val coLocatedCompanion = anchorTask?.let { visible ->
+            memory.stablePair
+                ?.panes()
+                ?.firstOrNull { expected -> !visible.matches(expected) }
+                ?.let { expected -> resolveExpected(expected, observation.snapshot) }
+                ?.takeIf { companion ->
+                    companion.rootId == visible.rootId &&
+                        companion.id != visible.id &&
+                        companion.isEligibleApp(observation)
+                }
+        }
+        if (anchor != null && coLocatedCompanion != null) {
+            return beginPair(
+                anchor = anchor,
+                candidate = coLocatedCompanion,
+                vacancyRootId = vacancy.rootId,
+                observation = observation,
+                baseMemory = memory,
+            )
+        }
+
         if (anchor != null && existingVacancy != null) {
             val candidate = findCandidate(anchor, vacancy, observation)
             if (candidate != null) {
@@ -552,6 +605,13 @@ internal object SplitRoutingReducer {
             return SplitRoutingDecision(
                 memory = baseline(observation),
                 event = "target abandoned because both members disappeared",
+            )
+        }
+        if (present.isPlaceholder()) {
+            return SplitRoutingDecision(
+                memory = SplitRoutingMemory(),
+                actions = listOf(present.toRemoveAction()),
+                event = "target app disappeared; removing placeholder task ${present.id}",
             )
         }
 
@@ -839,7 +899,7 @@ internal object SplitRoutingReducer {
         } ?: observation.secondNativeRootId
 
     private fun topTask(root: SplitRootTask): SplitTask? =
-        root.tasks.firstOrNull(SplitTask::isTop)
+        root.resolvedTopTask()
 
     private fun SplitTask.toExpected(rootId: Int): SplitExpectedTask = SplitExpectedTask(
         id = id,
@@ -847,6 +907,16 @@ internal object SplitRoutingReducer {
         activityName = activityName,
         preferredRootId = rootId,
     )
+
+    private fun SplitTask.toRemoveAction(): SplitRoutingAction.RemoveTask =
+        SplitRoutingAction.RemoveTask(
+            taskId = id,
+            packageName = packageName,
+            activityName = activityName
+                ?: error("Cannot safely remove task $id without a base activity"),
+            topPackageName = topPackageName,
+            topActivityName = topActivityName,
+        )
 
     private fun SplitTask.matches(expected: SplitExpectedTask): Boolean =
         (expected.id != null && id == expected.id && packageName == expected.packageName) ||
