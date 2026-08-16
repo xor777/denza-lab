@@ -132,6 +132,23 @@ The selected package is saved. Projection sessions stay in memory and end with
 the process. The automatic **Map mode** implementation also remains in code,
 but its unfinished UI switch is hidden in the current build.
 
+Both directions now expose the otherwise quiet task-move delay on the main IVI
+display. While Denza Apps' `MainActivity` is not resumed, a centered,
+non-interactive **Переносим…** window with an indeterminate progress indicator
+appears at the start of projection and return. It stays through the return
+settle/reopen check and disappears on success or failure. When the Denza Apps
+window is active, the overlay remains hidden because the Navigation card
+already shows the current transition. This lifecycle is locally unit-tested and
+built; the window still needs visual confirmation on the car.
+
+The overlay's visual tokens match the text-toast resources in this vehicle's
+exact `com.android.systemui.apk` (`text_toast.xml` and
+`toast_background.xml`, SHA-256
+`e6fe427a5668a483cbe699292dad155edb525aa2034e7110f0930843b217ccd4`):
+18sp normal sans-serif text in `#E6FFFFFF`, an opaque `#343942` background,
+8dp corners, 16dp horizontal and 10dp vertical padding, and a 48dp minimum
+height. The live progress indicator occupies the system's 24dp icon slot.
+
 The optional **Steering-wheel button** switch binds the Denza configurable
 left-hand key to the contextual navigation action and the front DVR overlay.
 It is off by default.

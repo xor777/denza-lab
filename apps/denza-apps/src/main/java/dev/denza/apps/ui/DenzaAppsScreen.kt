@@ -251,7 +251,6 @@ fun DenzaAppsRoot(
                             Spacer(Modifier.height(10.dp))
                             SettingsSwitchRow(
                                 title = "Кнопка ★ на руле",
-                                subtitle = "1× навигация · 2× передняя камера",
                                 checked = uiState.navigationSteeringWheelButton,
                                 onCheckedChange = onNavigationSteeringWheelButton,
                                 controlEnabled = uiState.navigation.status != FeatureStatus.STARTING &&
@@ -1178,7 +1177,7 @@ private fun StandardSegmentedChoiceRow(
 @Composable
 private fun SettingsSwitchRow(
     title: String,
-    subtitle: String,
+    subtitle: String? = null,
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
     controlEnabled: Boolean = true,
@@ -1199,13 +1198,15 @@ private fun SettingsSwitchRow(
                     maxLines = 1,
                 )
             },
-            supportingContent = {
-                Text(
-                    subtitle,
-                    color = if (contentActive) Muted else DisabledMuted,
-                    fontSize = 11.sp,
-                    maxLines = 1,
-                )
+            supportingContent = subtitle?.let {
+                {
+                    Text(
+                        it,
+                        color = if (contentActive) Muted else DisabledMuted,
+                        fontSize = 11.sp,
+                        maxLines = 1,
+                    )
+                }
             },
             trailingContent = {
                 Switch(

@@ -220,6 +220,7 @@ object NavigationCoordinator {
                     resolution = FeatureResolution.SELECT_NAVIGATION_APP,
                 ),
             )
+            finishTransfer()
             return
         }
         update(
@@ -245,6 +246,7 @@ object NavigationCoordinator {
                     resolution = FeatureResolution.RETRY,
                 ),
             )
+            finishTransfer()
         }
     }
 
@@ -266,6 +268,8 @@ object NavigationCoordinator {
                     pendingAutomaticProjection = false
                     automaticProjectionActive = true
                     projectToCluster()
+                } else {
+                    finishTransfer()
                 }
             } else if (attemptsRemaining > 0) {
                 executor.schedule(
@@ -284,6 +288,7 @@ object NavigationCoordinator {
                         resolution = FeatureResolution.RETRY,
                     ),
                 )
+                finishTransfer()
             }
         } catch (error: Exception) {
             pendingAutomaticProjection = false
@@ -298,12 +303,14 @@ object NavigationCoordinator {
                     resolution = problem.resolution,
                 ),
             )
+            finishTransfer()
         }
     }
 
     private fun projectToCluster() {
         SplitScreenCoordinator.bypassExternalTaskMoves()
         val app = context ?: return
+        beginTransfer(app)
         val packageName = selectedPackage
         val taskId = try {
             NavigationProxyClient.findAllowedTask(app, packageName)
@@ -317,6 +324,7 @@ object NavigationCoordinator {
                     resolution = problem.resolution,
                 ),
             )
+            finishTransfer()
             return
         }
         if (taskId < 0) {
@@ -344,6 +352,7 @@ object NavigationCoordinator {
                     },
                 ),
             )
+            finishTransfer()
             return
         }
         try {
@@ -360,8 +369,10 @@ object NavigationCoordinator {
                     resolution = problem.resolution,
                 ),
             )
+            finishTransfer()
             return
         }
+        NavigationTransferOverlay.refresh(app)
         splitRoutingLease.acquire()
         projectionHealth.reset()
         update(
@@ -423,19 +434,20 @@ object NavigationCoordinator {
                                 ),
                             )
                             projectionHealth.reset()
+                            val returnImmediately =
+                                pendingAutomaticReturn ||
+                                    (automaticProjectionActive && lastStockMapVisible == false)
                             executor.schedule(
                                 {
                                     if (session.phase == NavigationPhase.PROJECTED) {
                                         splitRoutingLease.release()
+                                        finishTransfer()
                                     }
                                 },
                                 PROJECTION_ROUTING_SETTLE_MS,
                                 TimeUnit.MILLISECONDS,
                             )
-                            if (
-                                pendingAutomaticReturn ||
-                                (automaticProjectionActive && lastStockMapVisible == false)
-                            ) {
+                            if (returnImmediately) {
                                 pendingAutomaticReturn = false
                                 automaticProjectionActive = false
                                 returnToCentralDisplay(focusTask = false)
@@ -471,6 +483,7 @@ object NavigationCoordinator {
     ) {
         SplitScreenCoordinator.bypassExternalTaskMoves()
         val app = context ?: return
+        beginTransfer(app)
         splitRoutingLease.acquire()
         val taskId = session.taskId
         val packageName = selectedPackage
@@ -528,6 +541,7 @@ object NavigationCoordinator {
                     resolution = FeatureResolution.RETRY,
                 ),
             )
+            finishTransfer()
             return
         }
 
@@ -573,7 +587,10 @@ object NavigationCoordinator {
             )
         } else {
             executor.schedule(
-                splitRoutingLease::release,
+                {
+                    splitRoutingLease.release()
+                    finishTransfer()
+                },
                 RETURN_SETTLE_MS,
                 TimeUnit.MILLISECONDS,
             )
@@ -588,6 +605,7 @@ object NavigationCoordinator {
         val app = context
         if (app == null || selectedPackage != packageName) {
             splitRoutingLease.release()
+            finishTransfer()
             return
         }
         val liveTask = try {
@@ -603,6 +621,7 @@ object NavigationCoordinator {
                 ),
             )
             splitRoutingLease.release()
+            finishTransfer()
             return
         }
         if (liveTask >= 0) {
@@ -611,12 +630,14 @@ object NavigationCoordinator {
                 projectToCluster()
             } else {
                 splitRoutingLease.release()
+                finishTransfer()
             }
             return
         }
         if (!focusTask && !reprojectAfterReturn) {
             update(NavigationSession())
             splitRoutingLease.release()
+            finishTransfer()
             return
         }
         pendingProjectionAfterOpen = reprojectAfterReturn
@@ -675,6 +696,7 @@ object NavigationCoordinator {
         NavigationProxyClient.releaseVirtualDisplay()
         ClusterSceneService.hideMap(app)
         update(NavigationSession(taskId = taskId))
+        finishTransfer()
         executor.schedule({
             splitRoutingLease.release()
         }, RETURN_SETTLE_MS, TimeUnit.MILLISECONDS)
@@ -748,6 +770,7 @@ object NavigationCoordinator {
                     resolution = FeatureResolution.RETRY,
                 ),
             )
+            finishTransfer()
             return
         }
 
@@ -766,6 +789,7 @@ object NavigationCoordinator {
                 resolution = FeatureResolution.RETRY,
             ),
         )
+        finishTransfer()
     }
 
     private fun reconcileAutomaticMode() {
@@ -823,6 +847,14 @@ object NavigationCoordinator {
     private fun update(next: NavigationSession) {
         session = next
         onStateChanged?.invoke()
+    }
+
+    private fun beginTransfer(app: Context) {
+        NavigationTransferOverlay.setTransferActive(app, true)
+    }
+
+    private fun finishTransfer() {
+        context?.let { NavigationTransferOverlay.setTransferActive(it, false) }
     }
 
     private data class NavigationProblem(

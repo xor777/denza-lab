@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.core.view.WindowCompat
+import dev.denza.apps.feature.navigation.NavigationTransferOverlay
 import dev.denza.apps.feature.weather.WeatherAdapterScheduler
 import dev.denza.apps.ui.DenzaAppsRoot
 
@@ -49,11 +50,13 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        NavigationTransferOverlay.setMainActivityResumed(this, true)
         DenzaAppRepository.refresh()
         SimulcastOverlayService.hide(this)
     }
 
     override fun onPause() {
+        NavigationTransferOverlay.setMainActivityResumed(this, false)
         super.onPause()
         if (SimulcastIntegration.isEnabled(this) &&
             SimulcastIntegration.getLastTargetPackage(this) != null
