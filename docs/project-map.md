@@ -31,6 +31,7 @@ may still use the historical `denza-gateway` directory name.
 | `tools/` | Host-side scripts for one-off live experiments, including isolated FSE cross-device probes. | Promotion into an app follows `docs/governance.md`. Passenger-screen findings belong in `docs/fse-app-installation.md`. |
 | `experiments/night-vision-probe/` | Short-lived, host-driven front-camera source evaluation APK; the directory keeps its historical working name. | Research only. The AVC picture is a wide-angle parking-camera composition with little useful detail at distance. |
 | `experiments/audio-probe/` | Short-lived, host-driven evaluation of audio capture paths for a spectrum analyser. | Research only, question answered. `Visualizer` on session 0 reads other apps' audio; `AudioPlaybackCapture` returns silence. See [audio-capture-findings.md](audio-capture-findings.md). |
+| `experiments/single-package-split-probe/` | Disposable evaluation of one APK exposing a permanent control icon, a toggle-controlled split icon, and an INFO picker. | Research only. Launcher alias toggling, two same-component picker tasks, control isolation, close, and cold reopen are live-proven. Firmware pair persistence is not usable for restore. See [split-screen-findings.md](split-screen-findings.md). |
 | `experiments/display-probe/` | Short-lived evaluation of hosting another app on a display this app owns. | Research only, question answered. A MediaProjection-created public display accepts third-party activities and touch; it cannot be trusted, so windows on it are not focusable. See [split-screen-findings.md](split-screen-findings.md). |
 | `research/` | Parked experiments and deprecated modules that stay outside product builds. | Failed or permission-blocked probes live here instead of app source. Current examples are `research/simulcast-aliases/` and `research/vehicle-events/`. |
 | `reverse/` | Local reverse-engineering input/output, often large. | APKs and extracted binaries must stay untracked. |
@@ -154,6 +155,14 @@ Research package `dev.denza.mirrors.probe` (not product; promote before relying)
 | `AudioCaptureProbeActivity` | Answers whether a non-privileged app can observe what the car is playing. `Visualizer` on audio session 0 works and is source-agnostic; verified against VLC to a hundredth of a decibel and against live Yandex Music. Carries a reference-tone mode used to calibrate the misreported sample rate. |
 | `PlaybackCaptureService` | `AudioPlaybackCapture` via `MediaProjection`. Initialises and reads frames, but every sample is zero while audio is audibly playing — the path is unusable here, and any recheck must assert on levels rather than status. |
 
+### `experiments/single-package-split-probe/`
+
+| Component | Status |
+| --- | --- |
+| `ProbeControlActivity`, `SplitEntryAlias` | One-package launcher topology probe. The control entry is permanent and the disabled-by-default alias can be added or removed immediately by the package itself without restarting Launcher3. The off/on cycle and alias tap are verified in the real app center UI. |
+| `ProbePickerActivity` | Pane-neutral `MAIN + INFO` target. Two simultaneous tasks of this exact component are live-proven in roots 2/3, including fullscreen control isolation and clean picker close. SmartMulti does not persist the moved same-package pair, so product restore must remain app-owned. |
+| `tools/single_package_split_probe.sh` | Host safety wrapper. Recreates collapsed native geometry through the exact baseline, transaction 115 and focus; creates, identifies, moves and resizes the two probe tasks; removes only exact bootstrap tasks; and never invokes runtime allowlist transaction 125. |
+
 ### `libraries/dishare-bridge/`
 
 | Component | Status |
@@ -212,6 +221,7 @@ Git ignores generated APKs.
 ./gradlew :denza-apps:testDebugUnitTest :denza-apps:assembleDebug
 ./gradlew :night-vision-probe:assembleDebug
 ./gradlew :audio-probe:assembleDebug
+./gradlew :single-package-split-probe:assembleDebug
 ./gradlew :display-probe:assembleDebug
 ./gradlew :car-adb-gateway:testDebugUnitTest :car-adb-gateway:assembleDebug
 ```
@@ -223,6 +233,7 @@ legacy/denza-gateway/build/outputs/apk/debug/denza-gateway.apk
 apps/denza-apps/build/outputs/apk/debug/denza-apps.apk
 experiments/night-vision-probe/build/outputs/apk/debug/night-vision-probe.apk
 experiments/audio-probe/build/outputs/apk/debug/audio-probe.apk
+experiments/single-package-split-probe/build/outputs/apk/debug/single-package-split-probe.apk
 experiments/display-probe/build/outputs/apk/debug/display-probe.apk
 apps/car-adb-gateway/build/outputs/apk/debug/car-adb-gateway.apk
 ```

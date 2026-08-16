@@ -40,5 +40,9 @@ project(":audio-probe").projectDir = file("experiments/audio-probe")
 include(":display-probe")
 project(":display-probe").projectDir = file("experiments/display-probe")
 
+include(":single-package-split-probe")
+project(":single-package-split-probe").projectDir =
+    file("experiments/single-package-split-probe")
+
 include(":denza-gateway")
 project(":denza-gateway").projectDir = file("legacy/denza-gateway")

@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application
+        android:allowBackup="false"
+        android:icon="@drawable/ic_probe_control"
+        android:label="Single-package split probe"
+        android:roundIcon="@drawable/ic_probe_control"
+        android:supportsRtl="true"
+        android:theme="@style/ProbeTheme">
+        <!-- Exact BYD policy under test: this marker applies to the whole package. -->
+        <meta-data
+            android:name="BYD_SUPPORT_SPLIT_ACTIVITY"
+            android:value="1" />
+
+        <!-- Analogue of the permanent Denza Apps launcher entry. -->
+        <activity
+            android:name=".ProbeControlActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:resizeableActivity="false"
+            android:screenOrientation="landscape"
+            android:taskAffinity="dev.denza.singlepackage.probe.control">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- The alias below supplies presentation; this target remains addressable while hidden. -->
+        <activity
+            android:name=".SplitEntryActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.NoDisplay" />
+
+        <!-- Analogue of the optional «Разделить экран» icon. -->
+        <activity-alias
+            android:name=".SplitEntryAlias"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@drawable/ic_split_screen"
+            android:label="Разделить экран — probe"
+            android:targetActivity=".SplitEntryActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <!-- Exact package-level restore seam used by SmartMulti. -->
+        <activity
+            android:name=".ProbePickerActivity"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:launchMode="standard"
+            android:permission="android.permission.DUMP"
+            android:resizeableActivity="true"
+            android:taskAffinity="dev.denza.singlepackage.probe.picker">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.INFO" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>
