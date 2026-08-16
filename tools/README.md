@@ -47,6 +47,26 @@ Current scripts:
 - `fse_voice_command_probe.sh`: isolated client for the exported AutoVoice test
   input. It can exercise stock voice commands, but it is not a reliable launcher
   for arbitrary passenger-screen apps; the AIMP test opened the IVI app list.
+- `navi_role_probe.sh`: hands the map role to a target package and reports the
+  component the system actually starts. Expects `ADB_SERIAL` (the local tunnel,
+  e.g. `127.0.0.1:15555`). It writes `DEFAULT_MAP_SWITCH` through the exported
+  `content://com.byd.autovoice` provider and `Settings.Global.byd_map_package`,
+  then restores both on exit, including on error or Ctrl-C. Side effects: while
+  it runs, voice navigation and the Shortcuts `Navi` commands point at the target
+  package. It needs a manual navigation trigger and **must not** be triggered
+  with key code `321` — that key is the configurable steering-wheel custom key
+  and on this car starts an APA parking scan. Results update
+  `docs/shortcuts-automation-findings.md`.
+- `smartmulti_state.sh`: `snapshot` records the exact SmartMulti persistent
+  pair, gate, area, resizeability lease, package support, Denza split
+  preferences, and live roots. The explicitly mutating `reset` action restores
+  either verified non-Huawei clean tuple (`com.byd.sr + com.byd.launchermap`,
+  mode `100`; or the firmware-written Home tuple
+  `com.android.launcher3 + com.byd.launchermap`, mode `102`) through
+  SmartMulti's package-change fallback for the experimental picker,
+  restores Denza's resizeability lease, clears only Denza split preferences,
+  and returns Home. Runtime transaction-125 additions still require a
+  controlled reboot and are reported as residue.
 
 The small JSON files under `fse-apk-wallpaper/` preserve the FSE resource
 metadata used for the AIMP and Yandex Navigator tests. APK payloads stay outside
