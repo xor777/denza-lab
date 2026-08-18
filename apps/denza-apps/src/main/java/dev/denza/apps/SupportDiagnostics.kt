@@ -8,6 +8,7 @@ import dev.denza.apps.feature.cluster.CameraRuntimeSnapshot
 import dev.denza.apps.feature.cluster.ClusterDisplayResolver
 import dev.denza.apps.feature.cluster.ClusterDisplaySelection
 import dev.denza.apps.feature.cluster.ClusterSceneService
+import dev.denza.apps.feature.adb.AdbRescueCoordinator
 import dev.denza.apps.feature.fse.FseAppInstaller
 import dev.denza.apps.feature.hud.HudGuidanceRuntime
 import dev.denza.apps.feature.hud.HudGuidanceSettings
@@ -51,6 +52,14 @@ object SupportDiagnostics {
             )
             addAll(SimulcastScreenDiagnostics.diagnosticLines())
             add("Android displays=${displays.size}")
+            val adbRescue = AdbRescueCoordinator.snapshot()
+            add(
+                "ADB Rescue=" +
+                    "phase=${adbRescue.phase.name.lowercase().replace('_', '-')}; " +
+                    "pending=${if (adbRescue.requestPending) "да" else "нет"}; " +
+                    "attempts=${adbRescue.attemptCount}",
+            )
+            add("ADB queue recovery=${AdbRescueCoordinator.QUEUE_RECOVERY_STATUS}")
             displays.forEach { display ->
                 add(
                     "Android display #${display.id}=" +

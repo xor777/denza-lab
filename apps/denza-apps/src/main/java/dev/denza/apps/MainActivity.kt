@@ -37,6 +37,11 @@ class MainActivity : ComponentActivity() {
                     onToggleHudGuidance = DenzaAppRepository::setHudGuidanceEnabled,
                     onSelectClusterDisplay = DenzaAppRepository::selectClusterDisplay,
                     onRefreshScreenDiagnostics = DenzaAppRepository::refreshScreenDiagnostics,
+                    onCheckAdbAccess = DenzaAppRepository::checkAdbAccess,
+                    onRequestAdbAuthorizationOnce =
+                        DenzaAppRepository::requestAdbAuthorizationOnce,
+                    onAllowNewAdbAuthorizationAttempt =
+                        DenzaAppRepository::allowNewAdbAuthorizationAttempt,
                     onChooseApps = DenzaAppRepository::showAppPicker,
                     onCloseAppPicker = DenzaAppRepository::hideAppPicker,
                     onToggleApp = DenzaAppRepository::toggleAppSelection,

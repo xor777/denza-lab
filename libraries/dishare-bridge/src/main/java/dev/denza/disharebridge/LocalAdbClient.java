@@ -49,14 +49,74 @@ public final class LocalAdbClient {
 
     private final AdbKeyStore keyStore;
     private final List<String> hosts;
+    private final AuthorizationPolicy authorizationPolicy;
+
+    public enum AuthorizationPolicy {
+        /** Preserve the legacy behaviour for callers which intentionally own the auth prompt. */
+        AUTOMATIC,
+        /** Prove existing trust, but never add a public-key request to the system prompt queue. */
+        PASSIVE
+    }
+
+    public enum AuthorizationRequestResult {
+        ALREADY_AUTHORIZED,
+        REQUEST_SENT
+    }
+
+    public static final class AuthorizationRequiredException extends IOException {
+        AuthorizationRequiredException() {
+            super("ADB authorization required; no request was sent");
+        }
+    }
 
     public LocalAdbClient(Context context) {
-        this(context, null);
+        this(context, null, AuthorizationPolicy.AUTOMATIC);
     }
 
     public LocalAdbClient(Context context, String publicKeyComment) {
+        this(context, publicKeyComment, AuthorizationPolicy.AUTOMATIC);
+    }
+
+    public LocalAdbClient(
+            Context context,
+            String publicKeyComment,
+            AuthorizationPolicy authorizationPolicy) {
         keyStore = new AdbKeyStore(context, publicKeyComment);
         hosts = candidateHosts();
+        this.authorizationPolicy = authorizationPolicy;
+    }
+
+    /**
+     * Submits this client's public key once, or proves that it is already trusted.
+     *
+     * <p>The method closes the transport immediately after the public key is sent. It never
+     * retries and does not wait for the vehicle UI, so the caller must persist its own
+     * one-shot state before invoking it and later verify trust with a passive connection.
+     */
+    public synchronized AuthorizationRequestResult requestAuthorization()
+            throws IOException, GeneralSecurityException {
+        IOException lastIoFailure = null;
+        for (String host : hosts) {
+            Socket socket = new Socket();
+            try {
+                socket.connect(new InetSocketAddress(host, PORT), CONNECT_TIMEOUT_MS);
+            } catch (IOException error) {
+                closeQuietly(socket);
+                lastIoFailure = error;
+                continue;
+            }
+            try {
+                socket.setSoTimeout(READ_TIMEOUT_MS);
+                return connectForAuthorizationRequest(
+                        socket.getInputStream(), socket.getOutputStream());
+            } finally {
+                closeQuietly(socket);
+            }
+        }
+        if (lastIoFailure != null) {
+            throw lastIoFailure;
+        }
+        throw new IOException("No ADB hosts available");
     }
 
     /**
@@ -152,13 +212,26 @@ public final class LocalAdbClient {
 
     private void connect(InputStream input, OutputStream output)
             throws IOException, GeneralSecurityException {
+        connect(input, output, false);
+    }
+
+    private AuthorizationRequestResult connectForAuthorizationRequest(
+            InputStream input,
+            OutputStream output) throws IOException, GeneralSecurityException {
+        return connect(input, output, true);
+    }
+
+    private AuthorizationRequestResult connect(
+            InputStream input,
+            OutputStream output,
+            boolean explicitRequest) throws IOException, GeneralSecurityException {
         writeMessage(output, A_CNXN, ADB_VERSION, MAX_PAYLOAD, "host::\0".getBytes(
                 StandardCharsets.US_ASCII));
         boolean publicKeySent = false;
         while (true) {
             Message message = readMessage(input);
             if (message.command == A_CNXN) {
-                return;
+                return AuthorizationRequestResult.ALREADY_AUTHORIZED;
             }
             if (message.command != A_AUTH || message.arg0 != ADB_AUTH_TOKEN) {
                 throw new IOException("Unexpected ADB handshake message " + message.commandName());
@@ -168,17 +241,28 @@ public final class LocalAdbClient {
                         keyStore.signToken(message.payload));
                 Message reply = readMessage(input);
                 if (reply.command == A_CNXN) {
-                    return;
+                    return AuthorizationRequestResult.ALREADY_AUTHORIZED;
                 }
                 if (reply.command != A_AUTH || reply.arg0 != ADB_AUTH_TOKEN) {
                     throw new IOException("Unexpected ADB auth reply " + reply.commandName());
                 }
-                if (!AUTH_PROMPT_GATE.tryAcquire(System.nanoTime())) {
+                AuthChallengeAction action = authChallengeAction(
+                        authorizationPolicy,
+                        explicitRequest,
+                        false,
+                        explicitRequest || AUTH_PROMPT_GATE.tryAcquire(System.nanoTime()));
+                if (action == AuthChallengeAction.REQUIRE_EXPLICIT_REQUEST) {
+                    throw new AuthorizationRequiredException();
+                }
+                if (action == AuthChallengeAction.REPORT_PENDING) {
                     throw authorizationPending();
                 }
                 writeMessage(output, A_AUTH, ADB_AUTH_RSAPUBLICKEY, 0,
                         keyStore.publicKeyPayload());
                 publicKeySent = true;
+                if (explicitRequest) {
+                    return AuthorizationRequestResult.REQUEST_SENT;
+                }
             } else {
                 throw authorizationPending();
             }
@@ -190,8 +274,34 @@ public final class LocalAdbClient {
     }
 
     static boolean isAuthorizationPending(IOException error) {
-        return error.getMessage() != null
-                && error.getMessage().contains("ADB authorization pending");
+        return error instanceof AuthorizationRequiredException
+                || (error.getMessage() != null
+                && error.getMessage().contains("ADB authorization pending"));
+    }
+
+    enum AuthChallengeAction {
+        SEND_PUBLIC_KEY,
+        REQUIRE_EXPLICIT_REQUEST,
+        REPORT_PENDING
+    }
+
+    static AuthChallengeAction authChallengeAction(
+            AuthorizationPolicy policy,
+            boolean explicitRequest,
+            boolean publicKeySent,
+            boolean promptGateAcquired) {
+        if (publicKeySent) {
+            return AuthChallengeAction.REPORT_PENDING;
+        }
+        if (explicitRequest) {
+            return AuthChallengeAction.SEND_PUBLIC_KEY;
+        }
+        if (policy == AuthorizationPolicy.PASSIVE) {
+            return AuthChallengeAction.REQUIRE_EXPLICIT_REQUEST;
+        }
+        return promptGateAcquired
+                ? AuthChallengeAction.SEND_PUBLIC_KEY
+                : AuthChallengeAction.REPORT_PENDING;
     }
 
     private String runShell(InputStream input, OutputStream output, String command)

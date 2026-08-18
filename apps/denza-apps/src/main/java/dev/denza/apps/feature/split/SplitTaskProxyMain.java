@@ -1,9 +1,11 @@
 package dev.denza.apps.feature.split;
 
 import android.annotation.SuppressLint;
+import android.app.ActivityOptions;
 import android.app.ActivityManager;
 import android.content.ComponentName;
 import android.content.Context;
+import android.content.Intent;
 import android.os.Looper;
 
 import java.lang.reflect.Method;
@@ -34,9 +36,21 @@ public final class SplitTaskProxyMain {
                     optional(args[5])));
             return;
         }
+        if (args.length == 6 && "start-in-task".equals(args[0])) {
+            int taskId = positiveTaskId(args[1]);
+            result(startExactComponentInHostTask(
+                    context,
+                    taskId,
+                    args[2],
+                    args[3],
+                    args[4],
+                    args[5]));
+            return;
+        }
         throw new IllegalArgumentException(
-                "focus-task <id>, or remove-task <id> <basePkg> <baseActivity> "
-                        + "<topPkg|-> <topActivity|-> required");
+                "focus-task <id>, remove-task <id> <basePkg> <baseActivity> "
+                        + "<topPkg|-> <topActivity|->, or start-in-task <id> <hostPkg> "
+                        + "<hostActivity> <targetPkg> <targetActivity> required");
     }
 
     private static void result(boolean value) {
@@ -98,6 +112,71 @@ public final class SplitTaskProxyMain {
         return invokeRemoveTask(taskId);
     }
 
+    @SuppressLint("BlockedPrivateApi")
+    private static boolean startExactComponentInHostTask(
+            Context context,
+            int taskId,
+            String expectedHostPackage,
+            String expectedHostActivity,
+            String targetPackage,
+            String targetActivity) {
+        ActivityManager.RunningTaskInfo selected = findTask(context, taskId);
+        if (selected == null || !matchesBaseIdentity(
+                selected,
+                expectedHostPackage,
+                expectedHostActivity)) {
+            return false;
+        }
+        ComponentName target = new ComponentName(
+                targetPackage,
+                normalizedActivity(targetPackage, targetActivity));
+        Intent launch = new Intent(Intent.ACTION_MAIN)
+                .addCategory(Intent.CATEGORY_LAUNCHER)
+                .setComponent(target);
+        try {
+            ActivityOptions options = ActivityOptions.makeBasic();
+            Method setLaunchTaskId = ActivityOptions.class
+                    .getDeclaredMethod("setLaunchTaskId", int.class);
+            setLaunchTaskId.setAccessible(true);
+            setLaunchTaskId.invoke(options, taskId);
+            return invokeStartActivity(launch, options.toBundle());
+        } catch (ReflectiveOperationException | RuntimeException error) {
+            return false;
+        }
+    }
+
+    @SuppressLint({"PrivateApi", "BlockedPrivateApi"})
+    private static boolean invokeStartActivity(Intent intent, android.os.Bundle options) {
+        try {
+            Class<?> managerClass = Class.forName("android.app.ActivityTaskManager");
+            Object service = managerClass.getDeclaredMethod("getService").invoke(null);
+            for (Method method : service.getClass().getMethods()) {
+                if (!"startActivity".equals(method.getName())
+                        || method.getParameterTypes().length != 11) {
+                    continue;
+                }
+                method.setAccessible(true);
+                Object result = method.invoke(
+                        service,
+                        null,
+                        "com.android.shell",
+                        null,
+                        intent,
+                        null,
+                        null,
+                        null,
+                        0,
+                        0,
+                        null,
+                        options);
+                return result instanceof Integer && (Integer) result >= 0;
+            }
+            return false;
+        } catch (ReflectiveOperationException | RuntimeException error) {
+            return false;
+        }
+    }
+
     /**
      * Vendor `am stack list` reports the launcher alias for a task while
      * {@link ActivityManager.RunningTaskInfo#baseActivity} reports the concrete activity behind
@@ -131,11 +210,13 @@ public final class SplitTaskProxyMain {
             String expectedPackage,
             String expectedActivity) {
         if (actual == null || expectedPackage == null || expectedActivity == null) return false;
-        String normalizedActivity = expectedActivity.startsWith(".")
-                ? expectedPackage + expectedActivity
-                : expectedActivity;
+        String normalizedActivity = normalizedActivity(expectedPackage, expectedActivity);
         return expectedPackage.equals(actual.getPackageName())
                 && normalizedActivity.equals(actual.getClassName());
+    }
+
+    private static String normalizedActivity(String packageName, String activityName) {
+        return activityName.startsWith(".") ? packageName + activityName : activityName;
     }
 
     private static String packageName(ComponentName top, ComponentName base) {

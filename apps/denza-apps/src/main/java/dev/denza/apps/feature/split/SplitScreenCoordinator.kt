@@ -7,6 +7,7 @@ import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
 import android.util.Log
+import dev.denza.apps.adb.DenzaLocalAdb
 import dev.denza.disharebridge.LocalAdbClient
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
@@ -25,7 +26,6 @@ data class SplitScreenSession(
 @SuppressLint("StaticFieldLeak")
 object SplitScreenCoordinator {
     private const val TAG = "DenzaSplitScreen"
-    private const val KEY_COMMENT = "denza-apps@denza"
     private const val POLL_MS = 200L
     private const val RETRY_MS = 1_500L
     private const val EXTERNAL_TASK_BYPASS_MS = 5_000L
@@ -60,10 +60,8 @@ object SplitScreenCoordinator {
         session = SplitScreenSession(enabled = enabled)
         if (enabled) {
             startAsync()
-        } else if (SplitScreenSettings.resizeabilityLeaseStore(context).loadOriginal() != null) {
-            stopAsync()
         } else {
-            onStateChanged()
+            stopAsync()
         }
     }
 
@@ -90,7 +88,7 @@ object SplitScreenCoordinator {
         executor.execute {
             var adb: LocalAdbClient.PersistentShellSession? = null
             try {
-                adb = LocalAdbClient(app, KEY_COMMENT).openPersistentShell()
+                adb = DenzaLocalAdb.client(app).openPersistentShell()
                 SplitNativePickerAccessController(
                     shell = adb::shell,
                     leaseStore = SplitScreenSettings.nativePickerAccessLeaseStore(app),
@@ -109,7 +107,24 @@ object SplitScreenCoordinator {
                     installedPackages = installed,
                 )
                 val split = pickerSession(app, adb::shell)
-                val existing = split.existingOwnedSession(PICKER_COMPONENT_SET)
+                val expectedApps = SplitPane.entries.mapNotNull { pane ->
+                    val slot = currentPickerState().slot(pane)
+                    val taskId = slot.appTaskId
+                    val packageName = slot.packageName
+                    if (
+                        slot.kind == SplitPickerSlotKind.APP &&
+                        taskId != null &&
+                        packageName != null
+                    ) {
+                        pane to SplitPickerExpectedApp(taskId, packageName)
+                    } else {
+                        null
+                    }
+                }.toMap()
+                val existing = split.existingOwnedSession(
+                    PICKER_COMPONENT_SET,
+                    expectedApps,
+                )
                     ?.let { owned ->
                         split.revealOwnedSession(owned, PICKER_COMPONENT_SET)
                     }
@@ -258,7 +273,7 @@ object SplitScreenCoordinator {
             }
             var adb: LocalAdbClient.PersistentShellSession? = null
             try {
-                adb = LocalAdbClient(app, KEY_COMMENT).openPersistentShell()
+                adb = DenzaLocalAdb.client(app).openPersistentShell()
                 SplitResizeabilityController(
                     shell = adb::shell,
                     leaseStore = SplitScreenSettings.resizeabilityLeaseStore(app),
@@ -323,7 +338,7 @@ object SplitScreenCoordinator {
             }
             var adb: LocalAdbClient.PersistentShellSession? = null
             try {
-                adb = LocalAdbClient(app, KEY_COMMENT).openPersistentShell()
+                adb = DenzaLocalAdb.client(app).openPersistentShell()
                 val split = pickerSession(app, adb::shell)
                 val observation = split.observePickerTask(hostTaskId, PICKER_COMPONENT_SET)
                 if (observation == null || !observation.pickerVisible) {
@@ -370,7 +385,7 @@ object SplitScreenCoordinator {
         executor.execute {
             var adb: LocalAdbClient.PersistentShellSession? = null
             try {
-                adb = LocalAdbClient(app, KEY_COMMENT).openPersistentShell()
+                adb = DenzaLocalAdb.client(app).openPersistentShell()
                 val split = pickerSession(app, adb::shell)
                 SplitPane.entries.forEach { pane ->
                     val observation = split.observePane(pane, PICKER_COMPONENT_SET)
@@ -432,7 +447,7 @@ object SplitScreenCoordinator {
         executor.execute {
             var adb: LocalAdbClient.PersistentShellSession? = null
             try {
-                adb = LocalAdbClient(app, KEY_COMMENT).openPersistentShell()
+                adb = DenzaLocalAdb.client(app).openPersistentShell()
                 executePickerActions(pickerSession(app, adb::shell), reduction.actions)
             } catch (error: Throwable) {
                 Log.w(TAG, "failed to return projected task fullscreen", error)
@@ -450,9 +465,17 @@ object SplitScreenCoordinator {
     internal fun prepareNavigationReturn(originalRootTaskId: Int): SplitNavigationReturnPlan {
         val app = context ?: error("Split coordinator is not initialized")
         ensurePickerStateLoaded(app)
-        val adb = LocalAdbClient(app, KEY_COMMENT).openPersistentShell()
+        val adb = DenzaLocalAdb.client(app).openPersistentShell()
         try {
             val split = pickerSession(app, adb::shell)
+            if (!SplitScreenSettings.isEnabled(app)) {
+                return SplitNavigationReturnPlan(
+                    pane = null,
+                    rootTaskId = split.fullIviRootTaskId(),
+                    hostTaskId = null,
+                    fullscreen = true,
+                )
+            }
             val plan = split.prepareNavigationReturn(
                 originalRootTaskId = originalRootTaskId,
                 pickerComponents = PICKER_COMPONENT_SET,
@@ -472,7 +495,7 @@ object SplitScreenCoordinator {
         ensurePickerStateLoaded(app)
         if (plan.fullscreen) {
             val pane = plan.pane ?: return
-            val adb = LocalAdbClient(app, KEY_COMMENT).openPersistentShell()
+            val adb = DenzaLocalAdb.client(app).openPersistentShell()
             try {
                 pickerSession(app, adb::shell).returnRecordedTaskFullscreen(
                     pane = pane,
@@ -486,7 +509,7 @@ object SplitScreenCoordinator {
             return
         }
 
-        val adb = LocalAdbClient(app, KEY_COMMENT).openPersistentShell()
+        val adb = DenzaLocalAdb.client(app).openPersistentShell()
         try {
             val split = pickerSession(app, adb::shell)
             plan.displacedTasks.forEach { displaced ->
@@ -596,29 +619,48 @@ object SplitScreenCoordinator {
             }
             var adb: LocalAdbClient.PersistentShellSession? = null
             try {
-                adb = LocalAdbClient(app, KEY_COMMENT).openPersistentShell()
-                if (EXPLICIT_PICKER_MODE) {
-                    pickerSession(app, adb::shell)
-                        .closePickers(
-                            PICKER_COMPONENTS,
-                            expectedHostTaskIds,
-                        )
+                adb = DenzaLocalAdb.client(app).openPersistentShell()
+                val failures = mutableListOf<Throwable>()
+                fun cleanup(step: () -> Unit) {
+                    runCatching(step).exceptionOrNull()?.let(failures::add)
                 }
-                SplitResizeabilityController(
-                    shell = adb::shell,
-                    leaseStore = SplitScreenSettings.resizeabilityLeaseStore(app),
-                ).restore()
-                SplitNativePickerAccessController(
-                    shell = adb::shell,
-                    leaseStore = SplitScreenSettings.nativePickerAccessLeaseStore(app),
-                ).restore()
-                clearPickerState()
+
+                if (EXPLICIT_PICKER_MODE) {
+                    cleanup {
+                        pickerSession(app, adb::shell)
+                            .closePickers(
+                                PICKER_COMPONENTS,
+                                expectedHostTaskIds,
+                            )
+                    }
+                }
+                // These leases are independent. A late foreground change must not leave global
+                // resizeability or picker accessibility enabled merely because scene validation
+                // failed after the native split had already closed.
+                cleanup {
+                    SplitResizeabilityController(
+                        shell = adb::shell,
+                        leaseStore = SplitScreenSettings.resizeabilityLeaseStore(app),
+                    ).restore()
+                }
+                cleanup {
+                    SplitNativePickerAccessController(
+                        shell = adb::shell,
+                        leaseStore = SplitScreenSettings.nativePickerAccessLeaseStore(app),
+                    ).restore()
+                }
+                cleanup(::clearPickerState)
+
+                failures.firstOrNull()?.let { first ->
+                    failures.drop(1).forEach(first::addSuppressed)
+                    throw first
+                }
                 update(SplitScreenSession())
             } catch (error: Throwable) {
                 if (generation != stopGeneration || SplitScreenSettings.isEnabled(app)) {
                     return@execute
                 }
-                Log.w(TAG, "failed to restore resizeability", error)
+                Log.w(TAG, "failed to finish split shutdown", error)
                 update(
                     SplitScreenSession(
                         phase = SplitScreenPhase.ERROR,
@@ -701,7 +743,7 @@ object SplitScreenCoordinator {
             var adb: LocalAdbClient.PersistentShellSession? = null
             try {
                 if (!isCurrent(currentGeneration)) return@execute
-                adb = LocalAdbClient(app, KEY_COMMENT).openPersistentShell()
+                adb = DenzaLocalAdb.client(app).openPersistentShell()
                 SplitNativePickerAccessController(
                     shell = adb::shell,
                     leaseStore = SplitScreenSettings.nativePickerAccessLeaseStore(app),
@@ -739,7 +781,7 @@ object SplitScreenCoordinator {
         var adb: LocalAdbClient.PersistentShellSession? = null
         try {
             if (!isCurrent(currentGeneration)) return
-            adb = LocalAdbClient(app, KEY_COMMENT).openPersistentShell()
+            adb = DenzaLocalAdb.client(app).openPersistentShell()
             SplitResizeabilityController(
                 shell = adb::shell,
                 leaseStore = SplitScreenSettings.resizeabilityLeaseStore(app),
@@ -914,6 +956,8 @@ object SplitScreenCoordinator {
     private fun friendlyError(error: Throwable, fallback: String): String {
         val text = error.message.orEmpty()
         return when {
+            text.contains("authorization required", ignoreCase = true) ->
+                "Откройте ADB Rescue в диагностике"
             text.contains("authorization pending", ignoreCase = true) ->
                 "Подтвердите ADB-ключ на экране автомобиля"
             text.contains("refused", ignoreCase = true) -> "Включите ADB на машине"

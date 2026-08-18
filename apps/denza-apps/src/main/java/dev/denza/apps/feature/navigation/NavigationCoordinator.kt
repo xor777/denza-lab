@@ -5,6 +5,7 @@ import android.app.ActivityOptions
 import android.content.Context
 import android.content.Intent
 import android.util.Log
+import dev.denza.apps.adb.DenzaLocalAdb
 import dev.denza.apps.core.FeatureResolution
 import dev.denza.apps.feature.cluster.ClusterDisplayResolver
 import dev.denza.apps.feature.cluster.ClusterDisplaySelection
@@ -22,7 +23,6 @@ import java.util.concurrent.atomic.AtomicBoolean
 @SuppressLint("StaticFieldLeak")
 object NavigationCoordinator {
     private const val TAG = "DenzaNavigation"
-    private const val ADB_KEY_COMMENT = "denza-apps@denza"
     private const val AUTOMATIC_POLL_SECONDS = 1L
     private const val PROJECTION_SURFACE_TIMEOUT_MS = 5_000L
     private const val PROJECTION_ROUTING_SETTLE_MS = 900L
@@ -60,7 +60,7 @@ object NavigationCoordinator {
         initialized = true
         selectedPackage = NavigationSettings.selectedPackage(app)
         selectedPlacement = NavigationSettings.placement(app)
-        val adb = LocalAdbClient(app, ADB_KEY_COMMENT).openPersistentShell()
+        val adb = DenzaLocalAdb.client(app).openPersistentShell()
         stockAdbShell = adb
         stockModeDetector = StockClusterModeDetector(adb::shell)
         executor.execute(::discoverTask)
@@ -356,7 +356,7 @@ object NavigationCoordinator {
             return
         }
         try {
-            LocalAdbClient(app, "denza-apps@denza").shell(
+            DenzaLocalAdb.client(app).shell(
                 "cmd appops set ${app.packageName} SYSTEM_ALERT_WINDOW allow",
             )
         } catch (error: Exception) {
@@ -865,6 +865,11 @@ object NavigationCoordinator {
     private fun friendlyProxyProblem(error: Exception): NavigationProblem {
         val text = error.message.orEmpty()
         return when {
+            text.contains("authorization required", ignoreCase = true) ->
+                NavigationProblem(
+                    "Откройте ADB Rescue в диагностике",
+                    FeatureResolution.CONFIRM_ON_CAR,
+                )
             text.contains("authorization pending", ignoreCase = true) ->
                 NavigationProblem(
                     "Подтвердите запрос на экране автомобиля",

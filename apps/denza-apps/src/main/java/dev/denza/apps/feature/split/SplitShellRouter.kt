@@ -509,11 +509,21 @@ internal data class SplitTaskSnapshot(val roots: List<SplitRootTask>) {
  * Activity transitions within one task).
  */
 internal fun SplitRootTask.resolvedTopTask(): SplitTask? {
+    val soleVisible = tasks.singleOrNull { task -> task.visible }
+    if (soleVisible != null) return soleVisible
     val packageCandidates = tasks.filter { task ->
         task.visible && task.packageName == task.topPackageName
     }
     val exactCandidates = packageCandidates.filter { task ->
         task.topActivityName != null && task.activityName == task.topActivityName
     }
-    return exactCandidates.firstOrNull() ?: packageCandidates.singleOrNull()
+    exactCandidates.firstOrNull()?.let { return it }
+    packageCandidates.singleOrNull()?.let { return it }
+    return tasks.singleOrNull { task ->
+        task.visible &&
+            task.packageName == SPLIT_HOST_PACKAGE &&
+            task.activityName == SPLIT_APP_HOST_ACTIVITY &&
+            task.topPackageName != null &&
+            task.topPackageName != task.packageName
+    }
 }

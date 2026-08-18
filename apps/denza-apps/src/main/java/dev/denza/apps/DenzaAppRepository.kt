@@ -14,6 +14,8 @@ import dev.denza.apps.feature.cluster.ClusterDisplayDescriptor
 import dev.denza.apps.feature.cluster.ClusterDisplaySelection
 import dev.denza.apps.feature.cluster.ClusterMapPlacement
 import dev.denza.apps.feature.cluster.ClusterSceneService
+import dev.denza.apps.feature.adb.AdbRescueCoordinator
+import dev.denza.apps.feature.adb.AdbRescueSnapshot
 import dev.denza.apps.feature.fse.FseAppInstaller
 import dev.denza.apps.feature.fse.FseInstallApp
 import dev.denza.apps.feature.fse.FseInstallResult
@@ -30,6 +32,10 @@ import dev.denza.apps.feature.navigation.NavigationPhase
 import dev.denza.apps.feature.navigation.NavigationSettings
 import dev.denza.apps.feature.split.SplitLauncherIconController
 import dev.denza.apps.feature.split.SplitScreenCoordinator
+import dev.denza.apps.feature.split.SplitScreenPhase
+import dev.denza.apps.feature.split.SplitScreenSession
+import dev.denza.apps.feature.split.SplitScreenSettings
+import dev.denza.apps.feature.split.SplitScreenToggleController
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -77,6 +83,7 @@ data class DenzaUiState(
     val mirrorsPosition: MirrorsPosition = MirrorsPosition.SIDES,
     val mirrorsProcessing: Boolean = true,
     val setupRunning: Boolean = false,
+    val adbRescue: AdbRescueSnapshot = AdbRescueSnapshot(),
     val technicalDetails: String = "",
     val clusterCandidates: List<ClusterDisplayDescriptor> = emptyList(),
     val appPickerVisible: Boolean = false,
@@ -98,7 +105,9 @@ object DenzaAppRepository {
 
     fun initialize(context: Context) {
         appContext = context.applicationContext
+        AdbRescueCoordinator.initialize(context)
         SplitScreenCoordinator.initialize(context) { refresh() }
+        reconcileSplitScreenToggle(context)
         refresh()
         reconcileSimulcast(repairMissingSetup = true)
         if (MirrorsSettings.isEnabled(context)) reconcileMirrors()
@@ -108,7 +117,9 @@ object DenzaAppRepository {
 
     fun recoverEnabledFeatures(context: Context) {
         appContext = context.applicationContext
+        AdbRescueCoordinator.initialize(context)
         SplitScreenCoordinator.initialize(context) { refresh() }
+        reconcileSplitScreenToggle(context)
         NavigationCoordinator.initialize(context) { refresh() }
         refresh()
         if (SimulcastIntegration.isEnabled(context)) {
@@ -126,6 +137,7 @@ object DenzaAppRepository {
         val navigationSession = NavigationCoordinator.snapshot()
         val navigationPackage = NavigationCoordinator.selectedPackage()
         val splitLauncherVisible = SplitLauncherIconController.isVisible(context)
+        val splitScreenSession = SplitScreenCoordinator.snapshot()
         val selectedApps = selectedAppChoices(context)
         mutableState.value = mutableState.value.copy(
             simulcast = snapshot,
@@ -148,9 +160,11 @@ object DenzaAppRepository {
             navigationAppLabel = NavigationAppPolicy.fallbackLabel(navigationPackage),
             navigationAppChoices = navigationAppChoices(context, navigationPackage),
             splitScreen = splitScreenSnapshot(
-                splitLauncherVisible,
+                launcherVisible = splitLauncherVisible,
+                session = splitScreenSession,
             ),
             hudGuidance = evaluateHudGuidance(context),
+            adbRescue = AdbRescueCoordinator.snapshot(),
             technicalDetails = supportDiagnostics(context),
             clusterCandidates = ClusterDisplayResolver.candidates(context),
         )
@@ -394,14 +408,21 @@ object DenzaAppRepository {
     fun setSplitScreenEnabled(enabled: Boolean) {
         val context = appContext ?: return
         runCatching {
-            SplitLauncherIconController.setVisible(context, enabled)
+            SplitScreenToggleController.setEnabled(
+                enabled = enabled,
+                launcherVisible = { SplitLauncherIconController.isVisible(context) },
+                setLauncherVisible = { visible ->
+                    SplitLauncherIconController.setVisible(context, visible)
+                },
+                setRuntimeEnabled = SplitScreenCoordinator::setEnabled,
+            )
         }.onSuccess {
             refresh()
         }.onFailure { error ->
             mutableState.value = mutableState.value.copy(
                 splitScreen = FeatureReducer.failed(
                     previous = mutableState.value.splitScreen.copy(desiredEnabled = enabled),
-                    message = "Не удалось изменить иконку Split Screen",
+                    message = "Не удалось изменить Split Screen",
                     details = error.toString(),
                 ),
             )
@@ -470,6 +491,21 @@ object DenzaAppRepository {
     fun refreshScreenDiagnostics() {
         val context = appContext ?: return
         SimulcastScreenDiagnostics.refresh(context) { refresh() }
+    }
+
+    fun checkAdbAccess() {
+        val context = appContext ?: return
+        AdbRescueCoordinator.checkAccess(context) { refresh() }
+    }
+
+    fun requestAdbAuthorizationOnce() {
+        val context = appContext ?: return
+        AdbRescueCoordinator.requestOnce(context) { refresh() }
+    }
+
+    fun allowNewAdbAuthorizationAttempt() {
+        val context = appContext ?: return
+        AdbRescueCoordinator.allowNewAttempt(context) { refresh() }
     }
 
     private fun reconcileMirrors() {
@@ -604,12 +640,43 @@ object DenzaAppRepository {
         )
     }
 
-    private fun splitScreenSnapshot(enabled: Boolean): FeatureSnapshot = FeatureSnapshot(
-        id = FeatureId.SPLIT_SCREEN,
-        desiredEnabled = enabled,
-        status = if (enabled) FeatureStatus.ACTIVE else FeatureStatus.OFF,
-        message = if (enabled) "Иконка Split Screen доступна" else "Иконка Split Screen скрыта",
-    )
+    private fun splitScreenSnapshot(
+        launcherVisible: Boolean,
+        session: SplitScreenSession,
+    ): FeatureSnapshot {
+        val status = when (session.phase) {
+            SplitScreenPhase.OFF -> FeatureStatus.OFF
+            SplitScreenPhase.STARTING -> FeatureStatus.STARTING
+            SplitScreenPhase.ACTIVE -> FeatureStatus.ACTIVE
+            SplitScreenPhase.ERROR -> FeatureStatus.ERROR
+        }
+        return FeatureSnapshot(
+            id = FeatureId.SPLIT_SCREEN,
+            desiredEnabled = launcherVisible,
+            status = status,
+            message = session.message.ifBlank {
+                if (launcherVisible) {
+                    "Иконка Split Screen доступна"
+                } else {
+                    "Иконка Split Screen скрыта"
+                }
+            },
+            details = session.details,
+        )
+    }
+
+    /**
+     * The launcher icon is the persisted user-facing toggle. Older builds changed only the
+     * component state, so repair that one-time mismatch before recovering the split runtime.
+     */
+    private fun reconcileSplitScreenToggle(context: Context) {
+        val launcherVisible = SplitLauncherIconController.isVisible(context)
+        SplitScreenToggleController.reconcile(
+            launcherVisible = launcherVisible,
+            runtimeEnabled = SplitScreenSettings.isEnabled(context),
+            setRuntimeEnabled = SplitScreenCoordinator::setEnabled,
+        )
+    }
 
     private fun navigationAppChoices(
         context: Context,

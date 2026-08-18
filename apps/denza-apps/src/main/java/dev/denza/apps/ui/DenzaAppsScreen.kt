@@ -95,6 +95,8 @@ import dev.denza.apps.core.FeatureSnapshot
 import dev.denza.apps.core.FeatureStatus
 import dev.denza.apps.feature.cluster.ClusterDisplayDescriptor
 import dev.denza.apps.feature.cluster.ClusterMapPlacement
+import dev.denza.apps.feature.adb.AdbRescueCoordinator
+import dev.denza.apps.feature.adb.AdbRescuePhase
 import dev.denza.apps.feature.fse.FseInstallApp
 import dev.denza.apps.feature.mirrors.MirrorsPosition
 import kotlinx.coroutines.flow.StateFlow
@@ -135,6 +137,9 @@ fun DenzaAppsRoot(
     onToggleHudGuidance: (Boolean) -> Unit,
     onSelectClusterDisplay: (Int?) -> Unit,
     onRefreshScreenDiagnostics: () -> Unit,
+    onCheckAdbAccess: () -> Unit,
+    onRequestAdbAuthorizationOnce: () -> Unit,
+    onAllowNewAdbAuthorizationAttempt: () -> Unit,
     onChooseApps: () -> Unit,
     onCloseAppPicker: () -> Unit,
     onToggleApp: (String) -> Unit,
@@ -454,6 +459,9 @@ fun DenzaAppsRoot(
             state = uiState,
             compactLayout = compactLayout,
             onSelectClusterDisplay = onSelectClusterDisplay,
+            onCheckAdbAccess = onCheckAdbAccess,
+            onRequestAdbAuthorizationOnce = onRequestAdbAuthorizationOnce,
+            onAllowNewAdbAuthorizationAttempt = onAllowNewAdbAuthorizationAttempt,
             onDismiss = { showDiagnostics = false },
         )
     }
@@ -1248,6 +1256,9 @@ private fun DiagnosticsDialog(
     state: DenzaUiState,
     compactLayout: Boolean,
     onSelectClusterDisplay: (Int?) -> Unit,
+    onCheckAdbAccess: () -> Unit,
+    onRequestAdbAuthorizationOnce: () -> Unit,
+    onAllowNewAdbAuthorizationAttempt: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     Dialog(
@@ -1279,6 +1290,53 @@ private fun DiagnosticsDialog(
                         .verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
+                    val adbBusy = state.adbRescue.phase == AdbRescuePhase.CHECKING ||
+                        state.adbRescue.phase == AdbRescuePhase.REQUESTING
+                    Text("ADB Rescue", color = Ink, fontWeight = FontWeight.SemiBold)
+                    DiagnosticRow(
+                        label = "Состояние",
+                        value = state.adbRescue.message,
+                        compactLayout = compactLayout,
+                    )
+                    state.adbRescue.details?.let { details ->
+                        Text(details, color = Muted, fontSize = 13.sp)
+                    }
+                    OutlinedButton(
+                        onClick = onCheckAdbAccess,
+                        enabled = !adbBusy,
+                        modifier = Modifier.fillMaxWidth(),
+                        border = BorderStroke(1.dp, Elevated),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Ink),
+                    ) {
+                        Text("Проверить доступ")
+                    }
+                    if (state.adbRescue.canRequest) {
+                        Button(
+                            onClick = onRequestAdbAuthorizationOnce,
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Accent,
+                                contentColor = Color(0xFF06251C),
+                            ),
+                        ) {
+                            Text("Отправить один запрос", fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+                    if (state.adbRescue.canResetAttempt) {
+                        TextButton(
+                            onClick = onAllowNewAdbAuthorizationAttempt,
+                            modifier = Modifier.align(Alignment.End),
+                        ) {
+                            Text("Разрешить новую попытку", color = Warning)
+                        }
+                    }
+                    Text(
+                        AdbRescueCoordinator.QUEUE_RECOVERY_STATUS,
+                        color = Warning,
+                        fontSize = 12.sp,
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    Text("Технические сведения", color = Ink, fontWeight = FontWeight.SemiBold)
                     state.technicalDetails
                         .lineSequence()
                         .filter { it.isNotBlank() }

@@ -23,6 +23,7 @@ internal class SplitPickerShellSession(
      */
     fun existingOwnedSession(
         pickerComponents: Set<String>,
+        expectedApps: Map<SplitPane, SplitPickerExpectedApp> = emptyMap(),
     ): Map<SplitPane, SplitPickerLivePane>? {
         val area = callInt("service call activity_task 30")
         if (area != AREA_BALANCED_SPLIT && area != AREA_FULL_IVI) return null
@@ -41,6 +42,7 @@ internal class SplitPickerShellSession(
                 root.resolvedTopTask()
             } else {
                 root.resolvedCoveredTopTask()
+                    ?: root.resolveExpectedCoveredApp(expectedApps[pane])
             } ?: return null
             val app = if (top.id == picker.id) {
                 if (!picker.matchesAnyTopComponent(pickerComponents)) return null
@@ -59,7 +61,7 @@ internal class SplitPickerShellSession(
                 pane = pane,
                 hostTaskId = picker.id,
                 appTaskId = app?.id,
-                appPackageName = app?.packageName,
+                appPackageName = app?.effectivePackageName(),
             )
         }
     }
@@ -224,7 +226,7 @@ internal class SplitPickerShellSession(
         check(before.roots.asSequence()
             .filter { it.displayId != MAIN_DISPLAY_ID }
             .flatMap { it.tasks.asSequence() }
-            .none { it.packageName == target.packageName }
+            .none { it.effectivePackageName() == target.packageName }
         ) {
             "Приложение уже открыто на другом экране"
         }
@@ -232,16 +234,14 @@ internal class SplitPickerShellSession(
             ?.firstOrNull {
                 it.id == pickerTaskId &&
                     it.isDenzaPickerBase() &&
-                    it.matchesAnyComponent(pickerComponents) &&
-                    it.matchesAnyTopComponent(pickerComponents)
+                    it.matchesAnyComponent(pickerComponents)
             }
-        check(pickerHost != null &&
-            pickerHost.visible &&
-            pickerHost.matchesAnyTopComponent(pickerComponents)
+        check(pickerHost != null) { "Пикер этого окна больше не найден" }
+        check(
+            before.root(otherRootId)
+                ?.resolvedTopTask()
+                ?.effectivePackageName() != target.packageName,
         ) {
-            "Пикер этого окна больше не найден"
-        }
-        check(before.root(otherRootId)?.resolvedTopTask()?.packageName != target.packageName) {
             "Одно приложение нельзя открыть в двух окнах"
         }
         ensureSupported(target.packageName)
@@ -249,54 +249,200 @@ internal class SplitPickerShellSession(
         val existingCandidates = before.roots.asSequence()
             .filter { it.displayId == MAIN_DISPLAY_ID }
             .flatMap { it.tasks.asSequence() }
-            .filter { it.packageName == target.packageName }
+            .filter { it.effectivePackageName() == target.packageName }
             .sortedByDescending(SplitTask::id)
             .toList()
-        val selected = existingCandidates.firstOrNull()
 
+        // A picker tap is authoritative proof that this pane is being selected. Clear every
+        // task above its exact permanent base before requiring the picker to be the root top.
+        // This also recovers a transparent SplitAppHostActivity left by an interrupted launch;
+        // otherwise that input window can remain focused over the visible picker forever.
         before.root(targetRootId)?.tasks.orEmpty()
             .filterNot { it.id == pickerHost.id }
-            .filterNot { selected != null && it.id == selected.id }
+            .forEach(::removeTaskSafely)
+        existingCandidates.asSequence()
+            .filterNot { candidate -> candidate.rootId == targetRootId }
             .forEach(::removeTaskSafely)
 
-        val targetTask = selected ?: run {
-            launchTarget(target, pane)
-            awaitPackageTask(target.packageName)
+        val clearedPicker = snapshot().root(targetRootId)?.tasks?.firstOrNull { task ->
+            task.id == pickerHost.id &&
+                task.isDenzaPickerBase() &&
+                task.matchesAnyComponent(pickerComponents)
         }
-        promoteTask(targetTask, targetRootId)
-        normalizeTaskToRoot(targetTask.id, targetRootId)
-        pause(ROOT_SETTLE_MS)
+        check(
+            clearedPicker != null &&
+                clearedPicker.visible &&
+                clearedPicker.matchesAnyTopComponent(pickerComponents)
+        ) { "Пикер этого окна не освободился перед запуском приложения" }
 
-        val after = snapshot()
-        val root = after.root(targetRootId)
-            ?: error("Split-контейнер выбранного окна исчез")
-        check(root.tasks.any {
-            it.id == pickerHost.id &&
-                it.isDenzaPickerBase() &&
-                it.matchesAnyComponent(pickerComponents)
-        }) {
-            "Пикер был удалён из окна"
+        var targetTask: SplitTask? = null
+        try {
+            val launchedTask = launchTargetWithFallback(
+                target = target,
+                pane = pane,
+                rootId = targetRootId,
+                pickerTaskId = pickerHost.id,
+                pickerComponents = pickerComponents,
+            )
+            targetTask = launchedTask
+            normalizeTaskToRoot(launchedTask.id, targetRootId)
+            pause(ROOT_SETTLE_MS)
+
+            val after = snapshot()
+            val root = after.root(targetRootId)
+                ?: error("Split-контейнер выбранного окна исчез")
+            check(root.tasks.any {
+                it.id == pickerHost.id &&
+                    it.isDenzaPickerBase() &&
+                    it.matchesAnyComponent(pickerComponents)
+            }) {
+                "Пикер был удалён из окна"
+            }
+            val top = root.resolvedTopTask()
+                ?: error("В выбранном split-окне нет верхней задачи")
+            check(top.id == launchedTask.id && top.effectivePackageName() == target.packageName) {
+                "Приложение ${target.packageName} не стало верхним в выбранном окне"
+            }
+            check(top.bounds == root.bounds) {
+                "Приложение ${target.packageName} не приняло размер выбранного окна"
+            }
+            check(callInt("service call activity_task 30") == AREA_BALANCED_SPLIT) {
+                "Split не перешёл в рабочее состояние"
+            }
+            check(root.tasks.size <= MAX_TASKS_PER_PANE) {
+                "В split-контейнере накопилось больше двух задач"
+            }
+            return SplitPickerPlacement(
+                pane = pane,
+                hostTaskId = pickerHost.id,
+                appTaskId = top.id,
+                packageName = target.packageName,
+            )
+        } catch (error: Throwable) {
+            targetTask?.let { failedTask ->
+                runCatching {
+                    snapshot().roots.asSequence()
+                        .filter { it.displayId == MAIN_DISPLAY_ID }
+                        .flatMap { it.tasks.asSequence() }
+                        .firstOrNull { task -> task.id == failedTask.id }
+                        ?.let(::removeTaskSafely)
+                }.exceptionOrNull()?.let(error::addSuppressed)
+            }
+            throw error
         }
-        val top = root.resolvedTopTask()
-            ?: error("В выбранном split-окне нет верхней задачи")
-        check(top.packageName == target.packageName) {
-            "Приложение ${target.packageName} не стало верхним в выбранном окне"
+    }
+
+    /**
+     * Stable-host launch is an optional upgrade over the live-proven direct BYD launch.
+     * Never let an incomplete host attempt weaken the baseline: remove its exact artifacts,
+     * prove the permanent picker is interactive again, then fall back to the old command.
+     */
+    private fun launchTargetWithFallback(
+        target: SplitLaunchTarget,
+        pane: SplitPane,
+        rootId: Int,
+        pickerTaskId: Int,
+        pickerComponents: Set<String>,
+    ): SplitTask {
+        // singleTask/singleInstance launchers cannot join the host task by Android contract.
+        // Trying still lets SmartMulti place their new task in the opposite pane, causing a
+        // global split rebalance before we can correct it. Keep those launchers on the proven
+        // direct BYD path from the outset; this is a platform property, not an app allowlist.
+        if (target.launchMode >= LAUNCH_MODE_SINGLE_TASK) {
+            return launchTargetDirectIntoRoot(target, pane, rootId)
         }
-        check(top.bounds == root.bounds) {
-            "Приложение ${target.packageName} не приняло размер выбранного окна"
+
+        val hostResult = runCatching {
+            launchTargetInStableHost(target, pane, rootId)
         }
-        check(callInt("service call activity_task 30") == AREA_BALANCED_SPLIT) {
-            "Split не перешёл в рабочее состояние"
+        hostResult.getOrNull()?.let { return it }
+        val hostError = hostResult.exceptionOrNull()
+            ?: error("Host-запуск завершился без результата")
+
+        try {
+            removeTargetPackageTasks(target.packageName)
+            requirePickerReady(rootId, pickerTaskId, pickerComponents)
+        } catch (cleanupError: Throwable) {
+            cleanupError.addSuppressed(hostError)
+            throw cleanupError
         }
-        check(root.tasks.size <= MAX_TASKS_PER_PANE) {
-            "В split-контейнере накопилось больше двух задач"
+
+        return try {
+            launchTargetDirectIntoRoot(target, pane, rootId)
+        } catch (directError: Throwable) {
+            runCatching { removeTargetPackageTasks(target.packageName) }
+                .exceptionOrNull()
+                ?.let(directError::addSuppressed)
+            runCatching { requirePickerReady(rootId, pickerTaskId, pickerComponents) }
+                .exceptionOrNull()
+                ?.let(directError::addSuppressed)
+            directError.addSuppressed(hostError)
+            throw directError
         }
-        return SplitPickerPlacement(
-            pane = pane,
-            hostTaskId = pickerHost.id,
-            appTaskId = top.id,
-            packageName = target.packageName,
+    }
+
+    private fun launchTargetDirectIntoRoot(
+        target: SplitLaunchTarget,
+        pane: SplitPane,
+        rootId: Int,
+    ): SplitTask {
+        val direct = launchTargetDirect(target, pane)
+        promoteTask(direct, rootId)
+        pause(ROOT_SETTLE_MS)
+        return snapshot().root(rootId)?.tasks?.firstOrNull { task ->
+            task.id == direct.id && task.packageName == target.packageName
+        } ?: error("Прямой запуск не вошёл в выбранное окно")
+    }
+
+    private fun launchTargetDirect(
+        target: SplitLaunchTarget,
+        pane: SplitPane,
+    ): SplitTask {
+        ensureGateOpen()
+        val category = when (pane) {
+            SplitPane.PRIMARY -> PRIMARY_PICKER_CATEGORY
+            SplitPane.SECONDARY -> SECONDARY_PICKER_CATEGORY
+        }
+        run(
+            "am start -a android.intent.action.MAIN " +
+                "-c android.intent.category.LAUNCHER " +
+                "-c $category " +
+                "-n ${shellQuote(target.componentName)} " +
+                "-f $APP_LAUNCH_FLAGS",
         )
+        pause(APP_LAUNCH_SETTLE_MS)
+        return awaitTaskMatching { task -> task.packageName == target.packageName }
+    }
+
+    private fun removeTargetPackageTasks(packageName: String) {
+        snapshot().roots.asSequence()
+            .filter { it.displayId == MAIN_DISPLAY_ID }
+            .flatMap { it.tasks.asSequence() }
+            .filter { task ->
+                task.packageName == packageName ||
+                    (task.isDenzaAppHost() && task.topPackageName == packageName)
+            }
+            .toList()
+            .forEach(::removeTaskSafely)
+    }
+
+    private fun requirePickerReady(
+        rootId: Int,
+        pickerTaskId: Int,
+        pickerComponents: Set<String>,
+    ) {
+        val root = snapshot().root(rootId)
+            ?: error("Split-контейнер исчез после неудачного host-запуска")
+        val picker = root.tasks.singleOrNull { task ->
+            task.id == pickerTaskId &&
+                task.isDenzaPickerBase() &&
+                task.matchesAnyComponent(pickerComponents)
+        } ?: error("Постоянный пикер потерян после неудачного host-запуска")
+        check(
+            root.tasks.size == 1 &&
+                picker.visible &&
+                picker.matchesAnyTopComponent(pickerComponents)
+        ) { "Host-запуск не освободил пикер для безопасного fallback" }
     }
 
     /**
@@ -309,7 +455,7 @@ internal class SplitPickerShellSession(
         val projectedReservedPackage = snapshot().roots.asSequence()
             .filter { it.displayId != MAIN_DISPLAY_ID }
             .flatMap { it.tasks.asSequence() }
-            .map(SplitTask::packageName)
+            .map { task -> task.effectivePackageName() }
             .firstOrNull(reservedPackages::contains)
         check(projectedReservedPackage == null) {
             "Сначала верните приложение с другого экрана"
@@ -336,7 +482,7 @@ internal class SplitPickerShellSession(
         val top = root.resolvedTopTask()
         if (
             top != null &&
-            top.packageName == target.packageName &&
+            top.effectivePackageName() == target.packageName &&
             top.id != pickerTaskId &&
             top.bounds == root.bounds
         ) {
@@ -344,7 +490,7 @@ internal class SplitPickerShellSession(
                 pane = pane,
                 hostTaskId = pickerTaskId,
                 appTaskId = top.id,
-                packageName = top.packageName,
+                packageName = top.effectivePackageName(),
             )
         }
         return selectApp(
@@ -418,7 +564,7 @@ internal class SplitPickerShellSession(
             )
         val displacedTasks = before.root(targetRootId)?.tasks.orEmpty()
             .filterNot { it.id == picker.id }
-            .map { task -> SplitDisplacedTask(task.id, task.packageName) }
+            .map { task -> SplitDisplacedTask(task.id, task.effectivePackageName()) }
         return SplitNavigationReturnPlan(
             pane = targetPane,
             rootTaskId = targetRootId,
@@ -470,7 +616,11 @@ internal class SplitPickerShellSession(
         }) { "Пикер исчез из окна возврата" }
         val top = root.resolvedTopTask()
             ?: error("Навигация не появилась в split-окне")
-        check(top.id == taskId && top.packageName == packageName && top.bounds == root.bounds) {
+        check(
+            top.id == taskId &&
+                top.effectivePackageName() == packageName &&
+                top.bounds == root.bounds,
+        ) {
             "Навигация не заняла выбранное split-окно"
         }
         check(root.tasks.size <= MAX_TASKS_PER_PANE) {
@@ -554,7 +704,10 @@ internal class SplitPickerShellSession(
         val task = snapshot().roots.asSequence()
             .filter { it.displayId == MAIN_DISPLAY_ID }
             .flatMap { it.tasks.asSequence() }
-            .firstOrNull { it.id == taskId && it.packageName == packageName }
+            .firstOrNull {
+                it.id == taskId &&
+                    (it.effectivePackageName() == packageName || it.isDenzaAppHost())
+            }
             ?: return false
         check(!task.isDenzaPickerBase()) { "Нельзя удалить host-пикер как приложение" }
         removeTaskSafely(task)
@@ -571,7 +724,7 @@ internal class SplitPickerShellSession(
         snapshot().root(rootId)?.tasks.orEmpty()
             .filter { task ->
                 task.id != pickerTaskId &&
-                    task.packageName == packageName &&
+                    task.effectivePackageName() == packageName &&
                     !task.isDenzaPickerBase()
             }
             .forEach(::removeTaskSafely)
@@ -597,7 +750,7 @@ internal class SplitPickerShellSession(
         val task = before.roots.asSequence()
             .filter { it.displayId == MAIN_DISPLAY_ID }
             .flatMap { it.tasks.asSequence() }
-            .firstOrNull { it.id == taskId && it.packageName == packageName }
+            .firstOrNull { it.id == taskId && it.effectivePackageName() == packageName }
             ?: return
         val paneRootId = nativeRootIds().getValue(pane)
         if (task.rootId != paneRootId) return
@@ -613,72 +766,107 @@ internal class SplitPickerShellSession(
     }
 
     /**
-     * Ends only a session that still contains one of our picker base tasks. The selected app is
-     * expanded through the firmware's own 101/102 mode transition; unrelated native split state
-     * is left untouched.
+     * Ends native split instead of merely expanding one pane. Firmware modes 101/102 retain the
+     * hidden peer root and divider, so disabled means: close the gate, move the exact foreground
+     * task to the full IVI root, then remove only picker and unselected host artifacts.
      */
     fun closePickers(
         pickerComponents: Map<SplitPane, String>,
         expectedHostTaskIds: Set<Int>? = null,
     ) {
         val before = snapshot()
+        val expectedNativeHosts = expectedHostTaskIds.orEmpty()
         val pickerTasks = before.roots.asSequence()
             .filter { it.displayId == MAIN_DISPLAY_ID }
             .flatMap { it.tasks.asSequence() }
             .filter { task ->
-                (task.isNativeSplitBootstrap() &&
-                    (expectedHostTaskIds == null || task.id in expectedHostTaskIds)) ||
+                task.isStockSplitPicker() ||
+                    (task.isStockSplitBootstrap() && task.id in expectedNativeHosts) ||
                     pickerComponents.values.any { component -> task.matchesComponent(component) } ||
                     LEGACY_PICKER_COMPONENTS.any { component -> task.matchesComponent(component) }
             }
             .toList()
-        if (pickerTasks.isEmpty()) {
-            closeOwnedGate()
-            return
-        }
-        val roots = nativeRootIds()
+        val pickerTaskIds = pickerTasks.mapTo(mutableSetOf(), SplitTask::id)
+        // `am stack list` orders roots by z-order, not by product ownership. A visible picker
+        // may therefore be reported before the real application in the peer pane. Do not turn
+        // that into "no foreground"; keep walking visible root tops until an actual user task
+        // is found.
+        val foreground = before.roots.asSequence()
+            .filter { root -> root.displayId == MAIN_DISPLAY_ID && root.activityType != "home" }
+            .mapNotNull(SplitRootTask::resolvedTopTask)
+            .firstOrNull { task ->
+                task.id !in pickerTaskIds &&
+                    !task.isDenzaPickerBase() &&
+                    !task.isNativeSplitBootstrap()
+            }
+        val hostArtifacts = before.roots.asSequence()
+            .filter { it.displayId == MAIN_DISPLAY_ID }
+            .flatMap { it.tasks.asSequence() }
+            .filter { task -> task.isDenzaAppHost() && task.id != foreground?.id }
+            .toList()
 
-        val focusedRootId = before.foregroundTask()
-            ?.takeIf { task ->
-                pickerComponents.values.none { component -> task.matchesComponent(component) }
+        closeGateForDisabledProduct()
+
+        if (foreground != null) {
+            val fullRootId = fullIviRootTaskId()
+            if (foreground.rootId != fullRootId) {
+                moveTask(foreground.id, fullRootId)
             }
-            ?.rootId
-        val selectedPane = SplitPane.entries.firstOrNull { pane ->
-            roots.getValue(pane) == focusedRootId
-        } ?: SplitPane.entries.firstOrNull { pane ->
-            before.root(roots.getValue(pane))
-                ?.resolvedTopTask()
-                ?.let { top ->
-                    pickerComponents.values.none { component -> top.matchesComponent(component) }
-                }
-                ?: false
-        }
-        if (selectedPane != null) {
-            val expandedMode = when (selectedPane) {
-                SplitPane.PRIMARY -> EXPAND_PRIMARY_MODE
-                SplitPane.SECONDARY -> EXPAND_SECONDARY_MODE
-            }
-            callVoid("service call activity_task 114 i32 $expandedMode")
+            normalizeTaskToRoot(foreground.id, fullRootId)
             pause(EXIT_SETTLE_MS)
         } else {
-            // With two bare pickers there is no user app to promote.
             run("input keyevent KEYCODE_HOME")
             pause(EXIT_SETTLE_MS)
         }
 
         val current = snapshot()
-        pickerTasks.forEach { previous ->
+        (pickerTasks + hostArtifacts).distinctBy(SplitTask::id).forEach { previous ->
             current.roots.asSequence()
                 .filter { it.displayId == MAIN_DISPLAY_ID }
                 .flatMap { it.tasks.asSequence() }
                 .firstOrNull { it.id == previous.id && it.packageName == previous.packageName }
                 ?.let(::removeTaskSafely)
         }
-        closeOwnedGate()
-        check(callInt("service call activity_task 30") != AREA_BALANCED_SPLIT) {
-            "Прошивка не закрыла split-сессию"
+
+        val after = snapshot()
+        if (foreground != null) {
+            val fullRootId = fullIviRootTaskId()
+            when (val area = callInt("service call activity_task 30")) {
+                AREA_HOME -> Unit // The user explicitly left while cleanup was in flight.
+                AREA_FULL_IVI -> {
+                    val fullRoot = after.root(fullRootId)
+                        ?: error("Полноэкранный IVI-контейнер исчез")
+                    val moved = fullRoot.tasks.firstOrNull { it.id == foreground.id }
+                    if (moved != null) {
+                        check(moved.bounds == fullRoot.bounds) {
+                            "Выбранное приложение не приняло полноэкранный размер"
+                        }
+                    } else {
+                        // Foreground identity is not stable while the user can press Home or
+                        // launch another app. Accept that authoritative replacement only when
+                        // it is itself a real, full-size task in the full IVI root.
+                        val replacement = fullRoot.resolvedTopTask()
+                        check(
+                            replacement != null &&
+                                !replacement.isDenzaPickerBase() &&
+                                !replacement.isNativeSplitBootstrap() &&
+                                replacement.bounds == fullRoot.bounds
+                        ) { "Полноэкранное приложение исчезло во время выключения" }
+                    }
+                }
+                else -> error("Прошивка сохранила split после выключения: area=$area")
+            }
+        } else {
+            check(callInt("service call activity_task 30") == AREA_HOME) {
+                "Пустой split не закрылся на домашний экран"
+            }
         }
     }
+
+    fun fullIviRootTaskId(): Int =
+        callInt("service call activity_task 118 i32 $AREA_FULL_IVI").also { rootId ->
+            check(rootId > 0) { "Прошивка не вернула полноэкранный IVI-контейнер" }
+        }
 
     private fun prunePane(
         rootId: Int,
@@ -687,7 +875,9 @@ internal class SplitPickerShellSession(
     ) {
         val tasks = snapshot().root(rootId)?.tasks.orEmpty()
         val preserved = tasks
-            .filter { it.packageName == preservedPackage && it.id != hostTaskId }
+            .filter {
+                it.effectivePackageName() == preservedPackage && it.id != hostTaskId
+            }
             .maxByOrNull(SplitTask::id)
         tasks.asSequence()
             .filterNot { it.id == hostTaskId }
@@ -780,19 +970,114 @@ internal class SplitPickerShellSession(
             .forEach(::removeTaskSafely)
     }
 
-    private fun launchTarget(target: SplitLaunchTarget, pane: SplitPane) {
+    private fun launchTargetInStableHost(
+        target: SplitLaunchTarget,
+        pane: SplitPane,
+        rootId: Int,
+    ): SplitTask {
+        // The short-lived launcher entry is itself a fullscreen task. On this firmware it can
+        // close mIsEnterSplit after openPickers() established the native roots, so the gate must
+        // be reasserted at the actual split launch boundary.
+        ensureGateOpen()
         val category = when (pane) {
             SplitPane.PRIMARY -> PRIMARY_PICKER_CATEGORY
             SplitPane.SECONDARY -> SECONDARY_PICKER_CATEGORY
         }
-        run(
-            "am start -a android.intent.action.MAIN " +
-                "-c android.intent.category.LAUNCHER " +
-                "-c $category " +
-                "-n ${shellQuote(target.componentName)} " +
-                "-f $APP_LAUNCH_FLAGS",
-        )
-        pause(APP_LAUNCH_SETTLE_MS)
+        val existingHostIds = snapshot().roots.asSequence()
+            .filter { it.displayId == MAIN_DISPLAY_ID }
+            .flatMap { it.tasks.asSequence() }
+            .filter { task -> task.isDenzaAppHost() }
+            .mapTo(mutableSetOf(), SplitTask::id)
+        var host: SplitTask? = null
+        try {
+            val targetClass = target.componentName.substringAfter('/', missingDelimiterValue = "")
+            check(targetClass.isNotBlank()) { "Некорректный компонент приложения" }
+            run(
+                "am start -a android.intent.action.MAIN " +
+                    "-c $category " +
+                    "-n ${shellQuote(SPLIT_APP_HOST_COMPONENT)} " +
+                    "--es ${shellQuote(SPLIT_HOST_TARGET_PACKAGE_EXTRA)} " +
+                    "${shellQuote(target.packageName)} " +
+                    "--es ${shellQuote(SPLIT_HOST_TARGET_ACTIVITY_EXTRA)} " +
+                    "${shellQuote(targetClass)} " +
+                    "-f $PICKER_LAUNCH_FLAGS",
+            )
+            pause(HOST_LAUNCH_SETTLE_MS)
+            host = awaitTaskMatching { task ->
+                task.id !in existingHostIds && task.rootId == rootId && task.isDenzaAppHost()
+            }
+            pause(APP_LAUNCH_SETTLE_MS)
+            var launched = awaitLaunchedTarget(host.id, target.packageName)
+            if (launched.id != host.id) {
+                // Activity-context launchers with singleTask/redirect semantics may create their
+                // real task in the opposite native root. Move the exact observed task before
+                // removing the host; dropping the host first can collapse SmartMulti's pane.
+                if (launched.rootId != rootId) {
+                    moveTask(launched.id, rootId)
+                    pause(ROOT_SETTLE_MS)
+                    launched = snapshot().root(rootId)?.tasks?.firstOrNull { task ->
+                        task.id == launched.id && task.packageName == target.packageName
+                    } ?: error("Запущенная задача ${launched.id} не вошла в выбранное окно")
+                }
+                removeAppHostIfPresent(host.id)
+                host = null
+            }
+            return launched
+        } catch (error: Throwable) {
+            val failedHostIds = buildSet {
+                host?.id?.let(::add)
+                snapshot().roots.asSequence()
+                    .filter { it.displayId == MAIN_DISPLAY_ID }
+                    .flatMap { it.tasks.asSequence() }
+                    .filter { task -> task.id !in existingHostIds && task.isDenzaAppHost() }
+                    .mapTo(this, SplitTask::id)
+            }
+            failedHostIds.forEach { taskId ->
+                runCatching { removeAppHostIfPresent(taskId) }
+                    .exceptionOrNull()
+                    ?.let(error::addSuppressed)
+            }
+            throw error
+        }
+    }
+
+    private fun removeAppHostIfPresent(taskId: Int) {
+        snapshot().roots.asSequence()
+            .filter { it.displayId == MAIN_DISPLAY_ID }
+            .flatMap { it.tasks.asSequence() }
+            .firstOrNull { task -> task.id == taskId && task.isDenzaAppHost() }
+            ?.let(::removeTaskSafely)
+    }
+
+    /**
+     * Normal launcher Activities can be added above the host. Redirect launchers such as Waze
+     * may instead finish before attachment and let their real Activity create a new task. Prefer
+     * that real package-owned task, but retain the exact host as a fallback after the redirect
+     * window has elapsed. Existing tasks for the package were removed before launch, so a
+     * package-owned candidate is unambiguous here.
+     */
+    private fun awaitLaunchedTarget(hostTaskId: Int, packageName: String): SplitTask {
+        var hostedFallback: SplitTask? = null
+        repeat(TASK_DISCOVERY_ATTEMPTS) { attempt ->
+            val tasks = snapshot().roots.asSequence()
+                .filter { it.displayId == MAIN_DISPLAY_ID }
+                .flatMap { it.tasks.asSequence() }
+                .toList()
+            tasks.asSequence()
+                .filter { task ->
+                    task.id != hostTaskId && task.packageName == packageName
+                }
+                .maxByOrNull(SplitTask::id)
+                ?.let { return it }
+            tasks.firstOrNull { task ->
+                task.id == hostTaskId &&
+                    task.isDenzaAppHost() &&
+                    task.topPackageName == packageName
+            }?.let { hostedFallback = it }
+            if (attempt + 1 < TASK_DISCOVERY_ATTEMPTS) pause(TASK_DISCOVERY_INTERVAL_MS)
+        }
+        return hostedFallback
+            ?: error("Запущенная задача $packageName не появилась в ActivityTaskManager")
     }
 
     private fun awaitBootstrapTask(rootId: Int): SplitTask {
@@ -803,10 +1088,6 @@ internal class SplitPickerShellSession(
             if (attempt + 1 < TASK_DISCOVERY_ATTEMPTS) pause(TASK_DISCOVERY_INTERVAL_MS)
         }
         error("Прошивка не создала стартовую задачу split-контейнера")
-    }
-
-    private fun awaitPackageTask(packageName: String): SplitTask = awaitTaskMatching {
-        it.packageName == packageName
     }
 
     private fun awaitTaskMatching(predicate: (SplitTask) -> Boolean): SplitTask {
@@ -920,11 +1201,10 @@ internal class SplitPickerShellSession(
     }
 
     private fun ensureGateOpen() {
-        if (callBoolean("service call activity_task 123")) return
+        // On this DiLink 5.1 build tx123 is `isCanSplit()`: for the BYD platform branch it is
+        // a constant capability answer, not the current mIsEnterSplit value. Only tx126 changes
+        // the mutable gate, and it is idempotent in the firmware.
         callVoid("service call activity_task 126 i32 1")
-        check(callBoolean("service call activity_task 123")) {
-            "Прошивка не разрешила открыть split"
-        }
         val store = gateLeaseStore ?: return
         if (!store.setOwned(true)) {
             runCatching { callVoid("service call activity_task 126 i32 0") }
@@ -932,16 +1212,10 @@ internal class SplitPickerShellSession(
         }
     }
 
-    private fun closeOwnedGate() {
+    private fun closeGateForDisabledProduct() {
         val store = gateLeaseStore
-        if (store != null && !store.isOwned()) return
-        if (callBoolean("service call activity_task 123")) {
-            callVoid("service call activity_task 126 i32 0")
-            check(!callBoolean("service call activity_task 123")) {
-                "Прошивка не закрыла split-gate"
-            }
-        }
-        if (store != null) {
+        callVoid("service call activity_task 126 i32 0")
+        if (store != null && store.isOwned()) {
             check(store.setOwned(false)) { "Не удалось освободить split-gate" }
         }
     }
@@ -1023,8 +1297,13 @@ internal class SplitPickerShellSession(
         components.any { component -> matchesTopComponent(component) }
 
     private fun SplitTask.isNativeSplitBootstrap(): Boolean =
-        (packageName == STOCK_PICKER_PACKAGE && activityName == STOCK_PICKER_ACTIVITY) ||
-            (packageName == STOCK_BOOTSTRAP_PACKAGE && activityName == STOCK_BOOTSTRAP_ACTIVITY)
+        isStockSplitPicker() || isStockSplitBootstrap()
+
+    private fun SplitTask.isStockSplitPicker(): Boolean =
+        packageName == STOCK_PICKER_PACKAGE && activityName == STOCK_PICKER_ACTIVITY
+
+    private fun SplitTask.isStockSplitBootstrap(): Boolean =
+        packageName == STOCK_BOOTSTRAP_PACKAGE && activityName == STOCK_BOOTSTRAP_ACTIVITY
 
     private fun SplitTask.matchesOwnTopComponent(): Boolean =
         topPackageName == packageName &&
@@ -1037,15 +1316,36 @@ internal class SplitPickerShellSession(
         return tasks.filter { task -> task.packageName == task.topPackageName }.singleOrNull()
     }
 
+    /**
+     * `am stack list` hides every child when a fullscreen root covers split and repeats only the
+     * old root-top component. Exact persisted task id plus package identity is the narrow proof
+     * that lets us reveal that owned scene without guessing which hidden child was top.
+     */
+    private fun SplitRootTask.resolveExpectedCoveredApp(
+        expected: SplitPickerExpectedApp?,
+    ): SplitTask? {
+        expected ?: return null
+        val task = tasks.singleOrNull { candidate -> candidate.id == expected.taskId }
+            ?: return null
+        val identityMatches = task.packageName == expected.packageName ||
+            (task.isDenzaAppHost() && task.topPackageName == expected.packageName)
+        return task.takeIf { identityMatches && it.bounds == bounds }
+    }
+
     private fun SplitTask.isDenzaPickerBase(): Boolean =
         (packageName == SPLIT_HOST_PACKAGE && activityName == SPLIT_PICKER_ACTIVITY) ||
             (packageName == LEGACY_PICKER_PACKAGE &&
                 activityName in setOf(LEGACY_PRIMARY_PICKER_ACTIVITY, LEGACY_SECONDARY_PICKER_ACTIVITY))
 
+    private fun SplitTask.isDenzaAppHost(): Boolean =
+        packageName == SPLIT_HOST_PACKAGE && activityName == SPLIT_APP_HOST_ACTIVITY
+
+    private fun SplitTask.effectivePackageName(): String =
+        if (isDenzaAppHost()) topPackageName ?: packageName else packageName
+
     private fun shellQuote(value: String): String = "'${value.replace("'", "'\\''")}'"
 
     private companion object {
-        const val SPLIT_HOST_PACKAGE = "dev.denza.split"
         const val MAIN_DISPLAY_ID = 0
         const val AREA_HOME = 0
         const val AREA_BALANCED_SPLIT = 3
@@ -1057,12 +1357,14 @@ internal class SplitPickerShellSession(
         const val PRIMARY_PICKER_CATEGORY = "byd.intent.category.START_IVI_PRIMARY"
         const val SECONDARY_PICKER_CATEGORY = "byd.intent.category.START_IVI_SECOND"
         const val MAX_TASKS_PER_PANE = 2
+        const val LAUNCH_MODE_SINGLE_TASK = 2
         const val TASK_DISCOVERY_ATTEMPTS = 12
         const val TASK_DISCOVERY_INTERVAL_MS = 100L
         const val PICKER_SETTLE_MS = 150L
         const val HOME_SETTLE_MS = 650L
         const val NATIVE_PICKER_SETTLE_MS = 450L
         const val APP_LAUNCH_SETTLE_MS = 250L
+        const val HOST_LAUNCH_SETTLE_MS = 100L
         const val ROOT_SETTLE_MS = 120L
         const val EXIT_SETTLE_MS = 650L
         const val DISPLAY_WIDTH = 2_560
@@ -1075,7 +1377,6 @@ internal class SplitPickerShellSession(
         const val STOCK_PICKER_ACTIVITY = "com.android.launcher3.SplitScreenListActivity"
         const val STOCK_BOOTSTRAP_PACKAGE = "com.byd.sr"
         const val STOCK_BOOTSTRAP_ACTIVITY = "com.byd.sr.MainActivity"
-        const val SPLIT_PICKER_ACTIVITY = "dev.denza.split.SplitPickerActivity"
         const val LEGACY_PICKER_PACKAGE = "dev.denza.apps"
         const val LEGACY_PRIMARY_PICKER_ACTIVITY =
             "dev.denza.apps.feature.split.SplitPrimaryPickerActivity"

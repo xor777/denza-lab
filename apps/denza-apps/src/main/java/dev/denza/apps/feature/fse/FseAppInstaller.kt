@@ -9,6 +9,7 @@ import android.content.pm.ResolveInfo
 import android.graphics.drawable.Drawable
 import android.util.Base64
 import android.util.Log
+import dev.denza.apps.adb.DenzaLocalAdb
 import dev.denza.disharebridge.LocalAdbClient
 import org.json.JSONObject
 import java.io.File
@@ -119,7 +120,6 @@ private const val FSE_INSTALL_RESULT_PACKAGE_PRESENT_WITH_PROVIDER_WARNING = -7
 
 object FseAppInstaller {
     private const val TAG = "DenzaApps.FseInstaller"
-    private const val ADB_KEY_COMMENT = "denza-apps@denza"
     private const val CROSS_ID_CHANGE_THEME = -13_631_467
     private const val IVI_DEVICE_ID = 1
     private const val FSE_DEVICE_ID = 2
@@ -230,7 +230,7 @@ object FseAppInstaller {
         val resourceName = "denza-apps-install-$requestId"
         val iviRoot = "/storage/FFFF-FFFC/$resourceName"
         val fseRoot = "/storage/emulated/0/$resourceName"
-        val adb = LocalAdbClient(context, ADB_KEY_COMMENT).openPersistentShell()
+        val adb = DenzaLocalAdb.client(context).openPersistentShell()
         var installSent = false
 
         return try {
@@ -414,6 +414,8 @@ object FseAppInstaller {
     private fun friendlyError(error: Exception): String = when {
         error.message.orEmpty().contains("APK copy", ignoreCase = true) ->
             "Не удалось скопировать APK"
+        error.message.orEmpty().contains("authorization required", ignoreCase = true) ->
+            "Откройте ADB Rescue в диагностике"
         error.message.orEmpty().contains("authorization pending", ignoreCase = true) ->
             "Подтвердите ADB-ключ на экране автомобиля"
         error.message.orEmpty().contains("refused", ignoreCase = true) ->

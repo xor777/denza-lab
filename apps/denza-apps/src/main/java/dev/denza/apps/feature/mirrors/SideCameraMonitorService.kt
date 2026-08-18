@@ -12,6 +12,7 @@ import android.util.Log
 import dev.denza.apps.MainActivity
 import dev.denza.apps.R
 import dev.denza.apps.DenzaAppRepository
+import dev.denza.apps.adb.DenzaLocalAdb
 import dev.denza.apps.feature.cluster.ClusterDisplayResolver
 import dev.denza.apps.feature.cluster.ClusterDisplaySelection
 import dev.denza.apps.feature.cluster.ClusterSceneService
@@ -32,7 +33,7 @@ class SideCameraMonitorService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        adb = LocalAdbClient(this, "denza-apps@denza").openPersistentShell()
+        adb = DenzaLocalAdb.client(this).openPersistentShell()
         ensureChannel()
     }
 

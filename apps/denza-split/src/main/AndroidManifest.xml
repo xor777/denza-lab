@@ -38,5 +38,22 @@
             </intent-filter>
         </activity>
 
+        <!--
+            A selected app is launched above this inert base in a separate task. The stable,
+            resizeable split-capable base keeps SmartMulti from reclassifying a task from its
+            temporary launcher/redirect Activity and also prevents last-Activity cleanup during
+            a cold start. The whole task is still disposable, so the native dismiss gesture
+            reveals SplitPickerActivity in the independent task below it.
+        -->
+        <activity
+            android:name=".SplitAppHostActivity"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:launchMode="standard"
+            android:permission="android.permission.DUMP"
+            android:resizeableActivity="true"
+            android:taskAffinity="dev.denza.split"
+            android:theme="@style/DenzaSplitAppHostTheme" />
+
     </application>
 </manifest>

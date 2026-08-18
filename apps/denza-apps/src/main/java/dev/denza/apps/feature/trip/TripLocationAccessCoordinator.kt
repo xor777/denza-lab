@@ -3,6 +3,7 @@ package dev.denza.apps.feature.trip
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
+import dev.denza.apps.adb.DenzaLocalAdb
 import dev.denza.disharebridge.LocalAdbClient
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
@@ -60,7 +61,6 @@ internal data class TripLocationAccessDiagnostics(
 )
 
 object TripLocationAccessCoordinator {
-    private const val ADB_KEY_COMMENT = "denza-apps@denza"
     private val executor = Executors.newSingleThreadExecutor()
     private val repairRunning = AtomicBoolean(false)
 
@@ -121,7 +121,7 @@ object TripLocationAccessCoordinator {
         )
 
     private fun runGrant(context: Context) {
-        val client = LocalAdbClient(context, ADB_KEY_COMMENT).openPersistentShell()
+        val client = DenzaLocalAdb.client(context).openPersistentShell()
         try {
             TripLocationAccessPolicy.grantCommands(context.packageName).forEach { command ->
                 client.shell(command)

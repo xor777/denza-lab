@@ -154,6 +154,66 @@ area mode stayed `3` throughout the replacement, Music stayed in the other root
 with matching bounds, Home was not shown, and the crash buffer remained empty.
 The brief stock picker is an accepted signal latency, not a global scene rebuild.
 
+The selected-app stable host is an optional ratchet above the previously proven
+direct BYD launch, never a replacement for it. On the 2026-08-16 17:47 live
+Music selection, SmartMulti created host task `#395` in the requested secondary
+root and then reparented the host with Music into the primary root. Denza Apps
+removed that exact failed host task, proved that the permanent secondary picker
+was visible and alone again, and automatically retried the old fixed launch
+(`START_IVI_SECOND`, flags `0x10200000`). Music task `#396` then appeared in the
+secondary root at `[880,112][2536,1472]`; Navigator task `#394` remained in the
+primary root, no host task remained, and the crash buffer stayed empty. This is
+the required failure contract: a host experiment may improve apps that launch
+deep Activities, but a rejected or misplaced host can degrade only to the old
+direct behavior. It may not leave a transparent input window, remove a picker,
+or prevent the next selection. This trace is a permanent regression fixture.
+The operator then interacted with Music and confirmed that it remained usable;
+a settled follow-up dump still showed the same direct task `#396` in the
+secondary root with exact bounds and no Music fullscreen escape or broken
+network state. A separate Navigator selection completed as task `#399` in the
+primary root and its temporary host `#398` was gone after settlement.
+
+### Technical debt: selected-app host
+
+`SplitAppHostActivity` remains an experimental compatibility layer, not part of
+the proven firmware contract. A host can keep a deep Activity in the picker's
+task, but SmartMulti may also reparent the host and trigger a global split
+rebalance. The current platform-level guard bypasses the host for launcher
+Activities declared `singleTask` or `singleInstance`, and every failed host
+attempt must fall back to the live-proven direct BYD launch after removing only
+its exact artifacts. This contains the known Navigator case without introducing
+an application allowlist.
+
+The guard is not a complete launch-topology model: launcher aliases, runtime
+redirects, and deep Activities with a different task contract can still escape
+the host. Do not extend it with per-app patches. Before promoting the host into
+the stable contract, decide from vehicle framework traces whether selected apps
+can be hosted without a SmartMulti scene rebuild; otherwise remove the host and
+retain the direct launch as the product baseline.
+
+The Split Screen toggle shutdown contract failed live acceptance on 2026-08-16.
+An older installed build had left the launcher alias disabled while
+`policy_enabled_v2=true`, area mode `3`, and the resizeability lease were still
+active. The repaired wiring correctly set the runtime policy to `false`, removed
+the picker state, and restored `force_resizable_activities` to its missing
+baseline. Immediately after package replacement the area temporarily read `0`,
+but the next normal Navigator launch entered an expanded native split container:
+area `2`, persisted divider mode `102`, a visible drag control, and a hidden
+Launcher3 `SplitScreenListActivity` in the other root. Navigator's apparent
+fullscreen bounds therefore did not prove a standalone fullscreen task.
+
+The corpus explains the failure. Modes `101` and `102` only resize one SmartMulti
+container to full bounds and move the other container behind it; they do not end
+the native split topology. The old ownership lease also deliberately left an
+already-open transaction-126 gate open. Packages previously added to the
+runtime split list consequently re-enter the SmartMulti roots on an ordinary
+launch even while the product toggle is off. The pure toggle synchronization
+test covers only icon/runtime persistence, not this firmware teardown. A real
+shutdown must close the gate for the duration of the disabled product state,
+move the selected task to the area-4 full IVI root, remove only owned picker/host
+artifacts, and prove that a subsequent ordinary app launch remains in area `4`
+without the divider. This is not yet live-accepted.
+
 The remaining operator run should be intentionally short and observable:
 
 1. update-install the APK and confirm that the app center shows both

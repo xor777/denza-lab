@@ -6,7 +6,7 @@ import android.content.Intent
 import android.os.SystemClock
 import android.provider.Settings
 import android.util.Log
-import dev.denza.disharebridge.LocalAdbClient
+import dev.denza.apps.adb.DenzaLocalAdb
 
 internal class WeatherAdapterController(context: Context) {
     private val appContext = context.applicationContext
@@ -66,7 +66,7 @@ internal class WeatherAdapterController(context: Context) {
     /** One-time upgrade cleanup for builds that contained the earlier selective-proxy spike. */
     private fun cleanupLegacyOwnedProxy() {
         val ownedProxy = WeatherAdapterState.ownedProxy(appContext) ?: return
-        val adb = LocalAdbClient(appContext, "denza-apps-weather@denza")
+        val adb = DenzaLocalAdb.client(appContext)
         val currentProxy = adb.shell(
             "settings get global http_proxy",
             SHELL_TIMEOUT_MILLIS,

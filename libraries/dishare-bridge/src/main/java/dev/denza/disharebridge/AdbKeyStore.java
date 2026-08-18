@@ -2,11 +2,25 @@ package dev.denza.disharebridge;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.util.AtomicFile;
 import android.util.Base64;
 
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.RandomAccessFile;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.channels.FileChannel;
+import java.nio.channels.FileLock;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.security.KeyFactory;
@@ -25,6 +39,10 @@ final class AdbKeyStore {
     private static final String KEY_PRIVATE = "private_pkcs8";
     private static final String KEY_PUBLIC = "public_x509";
     private static final String DEFAULT_PUBLIC_KEY_COMMENT = "denza@local-adb";
+    private static final String KEY_FILE_NAME = "adb_auth_key_v1";
+    private static final String LOCK_FILE_NAME = "adb_auth_key.lock";
+    private static final int KEY_FILE_MAGIC = 0x44414b31;
+    private static final int MAX_ENCODED_KEY_BYTES = 16 * 1024;
     private static final int RSA_BITS = 2048;
     private static final int RSA_BYTES = RSA_BITS / 8;
     private static final int RSA_WORDS = RSA_BITS / 32;
@@ -91,35 +109,112 @@ final class AdbKeyStore {
             if (cachedKeyPair != null) {
                 return cachedKeyPair;
             }
-            SharedPreferences prefs = context.getSharedPreferences(
-                    PREFS_NAME, Context.MODE_PRIVATE);
-            String privateEncoded = prefs.getString(KEY_PRIVATE, null);
-            String publicEncoded = prefs.getString(KEY_PUBLIC, null);
-            if (privateEncoded != null && publicEncoded != null) {
-                KeyFactory factory = KeyFactory.getInstance("RSA");
-                PrivateKey privateKey = factory.generatePrivate(new PKCS8EncodedKeySpec(
-                        Base64.decode(privateEncoded, Base64.NO_WRAP)));
-                PublicKey publicKey = factory.generatePublic(new X509EncodedKeySpec(
-                        Base64.decode(publicEncoded, Base64.NO_WRAP)));
-                cachedKeyPair = new KeyPair(publicKey, privateKey);
-                return cachedKeyPair;
+            File storageDirectory = context.getNoBackupFilesDir();
+            if (!storageDirectory.isDirectory() && !storageDirectory.mkdirs()) {
+                throw new GeneralSecurityException("Unable to create ADB key directory");
             }
+            File lockFile = new File(storageDirectory, LOCK_FILE_NAME);
+            try (RandomAccessFile lockAccess = new RandomAccessFile(lockFile, "rw");
+                    FileChannel lockChannel = lockAccess.getChannel();
+                    FileLock ignored = lockChannel.lock()) {
+                AtomicFile keyFile = new AtomicFile(new File(storageDirectory, KEY_FILE_NAME));
+                if (keyFile.getBaseFile().isFile()) {
+                    try (FileInputStream input = keyFile.openRead()) {
+                        cachedKeyPair = readKeyPair(input);
+                        return cachedKeyPair;
+                    }
+                }
 
-            KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
-            generator.initialize(RSA_BITS);
-            KeyPair generated = generator.generateKeyPair();
-            boolean stored = prefs.edit()
-                    .putString(KEY_PRIVATE, Base64.encodeToString(
-                            generated.getPrivate().getEncoded(), Base64.NO_WRAP))
-                    .putString(KEY_PUBLIC, Base64.encodeToString(
-                            generated.getPublic().getEncoded(), Base64.NO_WRAP))
-                    .commit();
-            if (!stored) {
-                throw new GeneralSecurityException("Unable to persist the ADB key pair");
+                SharedPreferences prefs = context.getSharedPreferences(
+                        PREFS_NAME, Context.MODE_PRIVATE);
+                String privateEncoded = prefs.getString(KEY_PRIVATE, null);
+                String publicEncoded = prefs.getString(KEY_PUBLIC, null);
+                if ((privateEncoded == null) != (publicEncoded == null)) {
+                    throw new GeneralSecurityException("Incomplete persisted ADB key pair");
+                }
+                if (privateEncoded != null) {
+                    cachedKeyPair = decodeLegacyKeyPair(privateEncoded, publicEncoded);
+                    writeKeyPair(keyFile, cachedKeyPair);
+                    return cachedKeyPair;
+                }
+
+                KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
+                generator.initialize(RSA_BITS);
+                KeyPair generated = generator.generateKeyPair();
+                writeKeyPair(keyFile, generated);
+                prefs.edit()
+                        .putString(KEY_PRIVATE, Base64.encodeToString(
+                                generated.getPrivate().getEncoded(), Base64.NO_WRAP))
+                        .putString(KEY_PUBLIC, Base64.encodeToString(
+                                generated.getPublic().getEncoded(), Base64.NO_WRAP))
+                        .commit();
+                cachedKeyPair = generated;
+                return cachedKeyPair;
+            } catch (IOException error) {
+                throw new GeneralSecurityException("Unable to load the ADB key pair", error);
             }
-            cachedKeyPair = generated;
-            return cachedKeyPair;
         }
+    }
+
+    private static KeyPair decodeLegacyKeyPair(String privateEncoded, String publicEncoded)
+            throws GeneralSecurityException {
+        KeyFactory factory = KeyFactory.getInstance("RSA");
+        PrivateKey privateKey = factory.generatePrivate(new PKCS8EncodedKeySpec(
+                Base64.decode(privateEncoded, Base64.NO_WRAP)));
+        PublicKey publicKey = factory.generatePublic(new X509EncodedKeySpec(
+                Base64.decode(publicEncoded, Base64.NO_WRAP)));
+        return new KeyPair(publicKey, privateKey);
+    }
+
+    private static void writeKeyPair(AtomicFile keyFile, KeyPair keyPair)
+            throws GeneralSecurityException {
+        FileOutputStream rawOutput = null;
+        try {
+            rawOutput = keyFile.startWrite();
+            writeKeyPair(rawOutput, keyPair);
+            keyFile.finishWrite(rawOutput);
+            rawOutput = null;
+        } catch (IOException error) {
+            if (rawOutput != null) {
+                keyFile.failWrite(rawOutput);
+            }
+            throw new GeneralSecurityException("Unable to persist the ADB key pair", error);
+        }
+    }
+
+    static void writeKeyPair(OutputStream output, KeyPair keyPair) throws IOException {
+        byte[] privateEncoded = keyPair.getPrivate().getEncoded();
+        byte[] publicEncoded = keyPair.getPublic().getEncoded();
+        DataOutputStream data = new DataOutputStream(new BufferedOutputStream(output));
+        data.writeInt(KEY_FILE_MAGIC);
+        data.writeInt(privateEncoded.length);
+        data.write(privateEncoded);
+        data.writeInt(publicEncoded.length);
+        data.write(publicEncoded);
+        data.flush();
+    }
+
+    static KeyPair readKeyPair(InputStream input) throws IOException, GeneralSecurityException {
+        DataInputStream data = new DataInputStream(new BufferedInputStream(input));
+        if (data.readInt() != KEY_FILE_MAGIC) {
+            throw new GeneralSecurityException("Unrecognized ADB key file");
+        }
+        byte[] privateEncoded = readEncodedKey(data, "private");
+        byte[] publicEncoded = readEncodedKey(data, "public");
+        KeyFactory factory = KeyFactory.getInstance("RSA");
+        PrivateKey privateKey = factory.generatePrivate(new PKCS8EncodedKeySpec(privateEncoded));
+        PublicKey publicKey = factory.generatePublic(new X509EncodedKeySpec(publicEncoded));
+        return new KeyPair(publicKey, privateKey);
+    }
+
+    private static byte[] readEncodedKey(DataInputStream input, String label) throws IOException {
+        int length = input.readInt();
+        if (length < 1 || length > MAX_ENCODED_KEY_BYTES) {
+            throw new IOException("Invalid encoded ADB " + label + " key length " + length);
+        }
+        byte[] encoded = new byte[length];
+        input.readFully(encoded);
+        return encoded;
     }
 
     private static byte[] androidAdbPublicKey(RSAPublicKey publicKey) {

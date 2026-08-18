@@ -3,12 +3,12 @@ package dev.denza.apps
 import android.content.Context
 import android.content.pm.PackageManager
 import android.provider.Settings
+import dev.denza.apps.adb.DenzaLocalAdb
 import dev.denza.apps.core.FeatureId
 import dev.denza.apps.core.FeatureReducer
 import dev.denza.apps.core.FeatureResolution
 import dev.denza.apps.core.FeatureSnapshot
 import dev.denza.apps.core.FeatureStatus
-import dev.denza.disharebridge.LocalAdbClient
 import java.security.GeneralSecurityException
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
@@ -72,7 +72,6 @@ sealed interface SimulcastReconcileEvent {
  */
 object SimulcastCoordinator {
     const val DISHARE_PACKAGE = "com.byd.dishare"
-    private const val ADB_KEY_COMMENT = "denza-apps@denza"
     private val executor = Executors.newSingleThreadExecutor()
     private val repairRunning = AtomicBoolean(false)
 
@@ -216,7 +215,7 @@ object SimulcastCoordinator {
     }
 
     private fun repairAccessNow(context: Context) {
-        val adb = LocalAdbClient(context, ADB_KEY_COMMENT).openPersistentShell()
+        val adb = DenzaLocalAdb.client(context).openPersistentShell()
         try {
             val packageName = shellQuote(context.packageName)
             adb.shell("cmd appops set $packageName SYSTEM_ALERT_WINDOW allow")
@@ -253,6 +252,11 @@ object SimulcastCoordinator {
         }
         val message = error.message.orEmpty()
         return when {
+            message.contains("authorization required", ignoreCase = true) ->
+                SimulcastSetupProblem(
+                    message = "Откройте ADB Rescue в диагностике",
+                    resolution = FeatureResolution.CONFIRM_ON_CAR,
+                )
             message.contains("authorization pending", ignoreCase = true) ->
                 SimulcastSetupProblem(
                     message = "Подтвердите запрос на экране автомобиля",

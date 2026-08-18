@@ -4,6 +4,7 @@ import android.content.Context
 import android.hardware.display.DisplayManager
 import android.hardware.display.VirtualDisplay
 import android.view.Surface
+import dev.denza.apps.adb.DenzaLocalAdb
 import dev.denza.disharebridge.LocalAdbClient
 
 /**
@@ -15,7 +16,6 @@ import dev.denza.disharebridge.LocalAdbClient
  * shell-UID commands perform only the allowlisted task operations below.
  */
 object NavigationProxyClient {
-    private const val KEY_COMMENT = "denza-apps@denza"
     private const val MAIN_CLASS = "dev.denza.apps.feature.navigation.ClusterProxyMain"
     private const val RESULT_PREFIX = "DENZA_RESULT:"
     private val DISPLAY_FLAGS =
@@ -182,7 +182,7 @@ object NavigationProxyClient {
         val command = "CLASSPATH=$apk app_process /system/bin --nice-name=denza_nav_cmd " +
             "$MAIN_CLASS $args"
         val shell = synchronized(shellLock) {
-            adbShell ?: LocalAdbClient(context, KEY_COMMENT)
+            adbShell ?: DenzaLocalAdb.client(context)
                 .openPersistentShell()
                 .also { adbShell = it }
         }

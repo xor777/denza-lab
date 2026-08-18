@@ -3,7 +3,7 @@ package dev.denza.apps.feature.hud
 import android.content.ComponentName
 import android.content.Context
 import android.provider.Settings
-import dev.denza.disharebridge.LocalAdbClient
+import dev.denza.apps.adb.DenzaLocalAdb
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -66,7 +66,6 @@ internal data class HudNotificationAccessDiagnostics(
 )
 
 object HudNotificationAccessCoordinator {
-    private const val ADB_KEY_COMMENT = "denza-apps@denza"
     private const val ENABLED_NOTIFICATION_LISTENERS = "enabled_notification_listeners"
     private val executor = Executors.newSingleThreadExecutor()
     private val repairRunning = AtomicBoolean(false)
@@ -104,7 +103,7 @@ object HudNotificationAccessCoordinator {
                 HudNotificationAccessRepair(
                     isEnabled = { isAccessEnabled(app) },
                     grant = {
-                        LocalAdbClient(app, ADB_KEY_COMMENT).shell(
+                        DenzaLocalAdb.client(app).shell(
                             HudNotificationAccessPolicy.allowCommand(
                                 component.flattenToString(),
                             ),

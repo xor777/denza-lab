@@ -14,12 +14,29 @@ enum class SplitPane(val areaId: Int) {
 internal data class SplitLaunchTarget(
     val packageName: String,
     val componentName: String,
+    val launchMode: Int = 0,
 )
+
+internal const val SPLIT_HOST_PACKAGE = "dev.denza.split"
+internal const val SPLIT_PICKER_ACTIVITY = "dev.denza.split.SplitPickerActivity"
+internal const val SPLIT_APP_HOST_ACTIVITY = "dev.denza.split.SplitAppHostActivity"
+internal const val SPLIT_APP_HOST_COMPONENT =
+    "$SPLIT_HOST_PACKAGE/$SPLIT_APP_HOST_ACTIVITY"
+internal const val SPLIT_HOST_TARGET_PACKAGE_EXTRA =
+    "dev.denza.split.extra.TARGET_PACKAGE"
+internal const val SPLIT_HOST_TARGET_ACTIVITY_EXTRA =
+    "dev.denza.split.extra.TARGET_ACTIVITY"
 
 internal data class SplitPickerPlacement(
     val pane: SplitPane,
     val hostTaskId: Int,
     val appTaskId: Int,
+    val packageName: String,
+)
+
+/** Persisted task identity used only to verify an owned scene hidden by a fullscreen window. */
+internal data class SplitPickerExpectedApp(
+    val taskId: Int,
     val packageName: String,
 )
 

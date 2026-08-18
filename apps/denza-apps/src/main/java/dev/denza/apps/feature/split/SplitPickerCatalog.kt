@@ -34,6 +34,7 @@ internal object SplitPickerCatalog {
                     packageName = packageName,
                     componentName = ComponentName(packageName, activityInfo.name)
                         .flattenToShortString(),
+                    launchMode = activityInfo.launchMode,
                 )
             }
             .also { cached = it }

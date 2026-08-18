@@ -88,6 +88,16 @@ class SimulcastCoordinatorTest {
     }
 
     @Test
+    fun `passive authorization failure points to ADB Rescue`() {
+        val problem = SimulcastCoordinator.setupProblem(
+            IllegalStateException("ADB authorization required; no request was sent"),
+        )
+
+        assertEquals("Откройте ADB Rescue в диагностике", problem.message)
+        assertEquals(FeatureResolution.CONFIRM_ON_CAR, problem.resolution)
+    }
+
+    @Test
     fun `only repairing event keeps setup progress active`() {
         assertTrue(SimulcastReconcileEvent.Repairing.setupRunning)
         assertFalse(SimulcastReconcileEvent.Refresh.setupRunning)

@@ -21,8 +21,39 @@ public final class LocalAdbClientTest {
     public void authorizationPendingStopsHostFallback() {
         assertTrue(LocalAdbClient.isAuthorizationPending(
                 new IOException("ADB authorization pending; confirm the ADB request")));
+        assertTrue(LocalAdbClient.isAuthorizationPending(
+                new LocalAdbClient.AuthorizationRequiredException()));
         assertFalse(LocalAdbClient.isAuthorizationPending(
                 new IOException("Connection refused")));
+    }
+
+    @Test
+    public void passiveClientNeverSubmitsPublicKey() {
+        assertEquals(
+                LocalAdbClient.AuthChallengeAction.REQUIRE_EXPLICIT_REQUEST,
+                LocalAdbClient.authChallengeAction(
+                        LocalAdbClient.AuthorizationPolicy.PASSIVE,
+                        false,
+                        false,
+                        true));
+    }
+
+    @Test
+    public void explicitRequestCanSubmitExactlyOnePublicKey() {
+        assertEquals(
+                LocalAdbClient.AuthChallengeAction.SEND_PUBLIC_KEY,
+                LocalAdbClient.authChallengeAction(
+                        LocalAdbClient.AuthorizationPolicy.PASSIVE,
+                        true,
+                        false,
+                        true));
+        assertEquals(
+                LocalAdbClient.AuthChallengeAction.REPORT_PENDING,
+                LocalAdbClient.authChallengeAction(
+                        LocalAdbClient.AuthorizationPolicy.PASSIVE,
+                        true,
+                        true,
+                        true));
     }
 
     @Test
