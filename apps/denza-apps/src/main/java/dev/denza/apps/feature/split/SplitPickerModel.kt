@@ -17,15 +17,15 @@ internal data class SplitLaunchTarget(
     val launchMode: Int = 0,
 )
 
-internal const val SPLIT_HOST_PACKAGE = "dev.denza.split"
-internal const val SPLIT_PICKER_ACTIVITY = "dev.denza.split.SplitPickerActivity"
-internal const val SPLIT_APP_HOST_ACTIVITY = "dev.denza.split.SplitAppHostActivity"
+internal const val SPLIT_HOST_PACKAGE = "dev.denza.apps"
+internal const val SPLIT_PICKER_ACTIVITY = "dev.denza.apps.feature.split.SplitPickerActivity"
+internal const val SPLIT_APP_HOST_ACTIVITY = "dev.denza.apps.feature.split.SplitAppHostActivity"
 internal const val SPLIT_APP_HOST_COMPONENT =
     "$SPLIT_HOST_PACKAGE/$SPLIT_APP_HOST_ACTIVITY"
 internal const val SPLIT_HOST_TARGET_PACKAGE_EXTRA =
-    "dev.denza.split.extra.TARGET_PACKAGE"
+    "dev.denza.apps.extra.SPLIT_TARGET_PACKAGE"
 internal const val SPLIT_HOST_TARGET_ACTIVITY_EXTRA =
-    "dev.denza.split.extra.TARGET_ACTIVITY"
+    "dev.denza.apps.extra.SPLIT_TARGET_ACTIVITY"
 
 internal data class SplitPickerPlacement(
     val pane: SplitPane,

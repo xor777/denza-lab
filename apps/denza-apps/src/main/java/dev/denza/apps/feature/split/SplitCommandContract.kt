@@ -1,4 +1,4 @@
-package dev.denza.split
+package dev.denza.apps.feature.split
 
 import android.content.Context
 import android.net.Uri

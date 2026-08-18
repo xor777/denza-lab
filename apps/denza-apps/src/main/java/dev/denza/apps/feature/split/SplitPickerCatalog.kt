@@ -107,10 +107,5 @@ internal object SplitPickerVisibilityPolicy {
         else -> null
     }
 
-    private val EXCLUDED_PACKAGES = setOf(
-        "dev.denza.apps",
-        "dev.denza.split",
-        "dev.denza.split.launcher",
-        "com.android.launcher3",
-    )
+    private val EXCLUDED_PACKAGES = setOf("dev.denza.apps", "com.android.launcher3")
 }

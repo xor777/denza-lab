@@ -354,8 +354,8 @@ class SplitPickerShellSessionTest {
         assertEquals(WAZE, placement.packageName)
         assertEquals("$WAZE.MainActivity", fake.taskBaseActivity(placement.appTaskId))
         assertTrue(fake.hasPackage(SECONDARY_ROOT, WAZE))
-        assertFalse(fake.hasPackage(PRIMARY_ROOT, SPLIT_HOST_PACKAGE))
-        assertFalse(fake.hasPackage(SECONDARY_ROOT, SPLIT_HOST_PACKAGE))
+        assertFalse(fake.hasActivity(PRIMARY_ROOT, SPLIT_APP_HOST_ACTIVITY))
+        assertFalse(fake.hasActivity(SECONDARY_ROOT, SPLIT_APP_HOST_ACTIVITY))
         assertEquals(2, fake.taskCount(SECONDARY_ROOT))
         assertTrue(fake.commands.any { it.contains("remove-task ") && it.contains(SPLIT_HOST_PACKAGE) })
     }
@@ -374,7 +374,7 @@ class SplitPickerShellSessionTest {
 
         assertEquals(NAVIGATOR, placement.packageName)
         assertEquals("$NAVIGATOR.MainActivity", fake.topActivity(PRIMARY_ROOT))
-        assertFalse(fake.hasPackage(PRIMARY_ROOT, SPLIT_HOST_PACKAGE))
+        assertFalse(fake.hasActivity(PRIMARY_ROOT, SPLIT_APP_HOST_ACTIVITY))
         assertEquals(2, fake.taskCount(PRIMARY_ROOT))
         val hostLaunchIndex = fake.commands.indexOfFirst { it.contains(SPLIT_APP_HOST_COMPONENT) }
         val hostCleanupIndex = fake.commands.indexOfFirst {
@@ -408,8 +408,8 @@ class SplitPickerShellSessionTest {
 
         assertEquals(MUSIC, placement.packageName)
         assertEquals("$MUSIC.MainActivity", fake.topActivity(SECONDARY_ROOT))
-        assertFalse(fake.hasPackage(PRIMARY_ROOT, SPLIT_HOST_PACKAGE))
-        assertFalse(fake.hasPackage(SECONDARY_ROOT, SPLIT_HOST_PACKAGE))
+        assertFalse(fake.hasActivity(PRIMARY_ROOT, SPLIT_APP_HOST_ACTIVITY))
+        assertFalse(fake.hasActivity(SECONDARY_ROOT, SPLIT_APP_HOST_ACTIVITY))
         assertEquals(2, fake.taskCount(SECONDARY_ROOT))
         val hostCleanupIndex = fake.commands.indexOfFirst {
             it.contains("remove-task ") && it.contains(SPLIT_HOST_PACKAGE)
@@ -441,7 +441,7 @@ class SplitPickerShellSessionTest {
         }.onSuccess { error("Expected both launch strategies to fail") }
 
         assertEquals(PRIMARY_PICKER_ACTIVITY, fake.topActivity(PRIMARY_ROOT))
-        assertFalse(fake.hasPackage(PRIMARY_ROOT, SPLIT_HOST_PACKAGE))
+        assertFalse(fake.hasActivity(PRIMARY_ROOT, SPLIT_APP_HOST_ACTIVITY))
         assertFalse(fake.hasPackage(PRIMARY_ROOT, NAVIGATOR))
         assertEquals(1, fake.taskCount(PRIMARY_ROOT))
     }
@@ -1245,13 +1245,10 @@ class SplitPickerShellSessionTest {
         const val LAUNCHER_PACKAGE = "com.android.launcher3"
         const val LAUNCHER_ACTIVITY = "com.android.launcher3.Launcher"
         const val STOCK_BOOTSTRAP_PACKAGE = "com.byd.sr"
-        const val PRIMARY_PICKER_ACTIVITY =
-            "dev.denza.apps.feature.split.SplitPrimaryPickerActivity"
-        const val SECONDARY_PICKER_ACTIVITY =
-            "dev.denza.apps.feature.split.SplitSecondaryPickerActivity"
-        const val SPLIT_APP_HOST_ACTIVITY = "dev.denza.split.SplitAppHostActivity"
-        const val PRIMARY_PICKER = "dev.denza.apps/$PRIMARY_PICKER_ACTIVITY"
-        const val SECONDARY_PICKER = "dev.denza.apps/$SECONDARY_PICKER_ACTIVITY"
+        const val PRIMARY_PICKER_ACTIVITY = SPLIT_PICKER_ACTIVITY
+        const val SECONDARY_PICKER_ACTIVITY = PRIMARY_PICKER_ACTIVITY
+        const val PRIMARY_PICKER = "$SPLIT_HOST_PACKAGE/$PRIMARY_PICKER_ACTIVITY"
+        const val SECONDARY_PICKER = "$SPLIT_HOST_PACKAGE/$SECONDARY_PICKER_ACTIVITY"
         val PICKERS = mapOf(
             SplitPane.PRIMARY to PRIMARY_PICKER,
             SplitPane.SECONDARY to SECONDARY_PICKER,

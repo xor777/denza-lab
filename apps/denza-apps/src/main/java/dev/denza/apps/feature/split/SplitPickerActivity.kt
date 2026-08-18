@@ -1,4 +1,4 @@
-package dev.denza.split
+package dev.denza.apps.feature.split
 
 import android.content.Context
 import android.content.Intent
@@ -91,9 +91,8 @@ class SplitPickerActivity : ComponentActivity() {
     }
 
     /**
-     * Bundling the anonymous local receiver writes its concrete picker-only class name. The
-     * Denza Apps process cannot load that class. A Parcel round-trip produces the framework
-     * ResultReceiver proxy while retaining the original receiver's binder callback.
+     * A Parcel round-trip produces the framework ResultReceiver proxy, so the provider boundary
+     * never needs to deserialize the anonymous receiver implementation.
      */
     private val remoteResultReceiver by lazy {
         val parcel = Parcel.obtain()
@@ -149,7 +148,7 @@ class SplitPickerActivity : ComponentActivity() {
         if (catalogRequested) return
         catalogRequested = true
         CATALOG_EXECUTOR.execute {
-            val loaded = SplitPickerCatalog.load(applicationContext)
+            val loaded = SplitPickerAppCatalog.load(applicationContext)
             runOnUiThread {
                 if (!isDestroyed) {
                     apps = loaded
@@ -218,7 +217,7 @@ internal object SplitPickerWindowStyle {
     private const val TAG = "DenzaSplitPicker"
 }
 
-internal object SplitPickerCatalog {
+internal object SplitPickerAppCatalog {
     @Volatile private var cached: List<SplitPickerApp>? = null
 
     @Synchronized
@@ -316,12 +315,7 @@ internal object SplitPickerCatalog {
     private const val APP_DETAILS_ACTIVITY = "android.app.AppDetailsActivity"
     private const val SHOW_IN_APP_LIST = "ShowInAppList"
     private const val DYNA_CONFIG_PROVIDER_SUFFIX = "DynaConfigContentProvider"
-    private val EXCLUDED_PACKAGES = setOf(
-        "dev.denza.apps",
-        "dev.denza.split",
-        "dev.denza.split.launcher",
-        "com.android.launcher3",
-    )
+    private val EXCLUDED_PACKAGES = setOf("dev.denza.apps", "com.android.launcher3")
 }
 
 @Composable

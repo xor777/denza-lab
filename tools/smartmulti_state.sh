@@ -15,8 +15,7 @@ snapshot() {
   echo "force_resizable=$("${adb_target[@]}" shell settings get global force_resizable_activities | tr -d '\r')"
   echo "gate=$("${adb_target[@]}" shell service call activity_task 123 | tr -d '\r')"
   echo "area=$("${adb_target[@]}" shell service call activity_task 30 | tr -d '\r')"
-  "${adb_target[@]}" shell service call activity_task 112 s16 dev.denza.split
-  "${adb_target[@]}" shell service call activity_task 112 s16 dev.denza.split.launcher
+  "${adb_target[@]}" shell service call activity_task 112 s16 dev.denza.apps
   "${adb_target[@]}" shell run-as dev.denza.apps cat shared_prefs/denza_split_screen.xml \
     2>/dev/null || true
   "${adb_target[@]}" shell am stack list
@@ -47,27 +46,25 @@ reset_acceptance_state() {
   fi
 
   restore_resizeability_lease
-  "${adb_target[@]}" shell am force-stop dev.denza.split.launcher
-  "${adb_target[@]}" shell am force-stop dev.denza.split
   "${adb_target[@]}" shell am force-stop dev.denza.apps
   "${adb_target[@]}" shell input keyevent KEYCODE_HOME
 
   local primary secondary position mode
   primary="$("${adb_target[@]}" shell settings get system byd_smart_multi_primary_activity | tr -d '\r')"
   secondary="$("${adb_target[@]}" shell settings get system byd_smart_multi_second_activity | tr -d '\r')"
-  if [[ "$primary" == "dev.denza.split" || "$secondary" == "dev.denza.split" ]]; then
+  if [[ "$primary" == "dev.denza.apps" || "$secondary" == "dev.denza.apps" ]]; then
     # The package-change receiver is the firmware's exact supported path for replacing an
-    # unavailable remembered member in both memory and Settings. A temporary disable is scoped
-    # to our picker and is immediately rolled back even if verification fails.
+    # unavailable remembered member in both memory and Settings. The reset temporarily disables
+    # the one product package and immediately rolls it back even if verification fails.
     local picker_disabled=1
     trap '
       if [[ "${picker_disabled:-0}" == "1" ]]; then
-        "${adb_target[@]}" shell pm enable --user 0 dev.denza.split >/dev/null || true
+        "${adb_target[@]}" shell pm enable --user 0 dev.denza.apps >/dev/null || true
       fi
     ' EXIT
-    "${adb_target[@]}" shell pm disable-user --user 0 dev.denza.split >/dev/null
+    "${adb_target[@]}" shell pm disable-user --user 0 dev.denza.apps >/dev/null
     sleep 0.8
-    "${adb_target[@]}" shell pm enable --user 0 dev.denza.split >/dev/null
+    "${adb_target[@]}" shell pm enable --user 0 dev.denza.apps >/dev/null
     picker_disabled=0
     trap - EXIT
     sleep 0.5
@@ -98,8 +95,6 @@ reset_acceptance_state() {
 
   "${adb_target[@]}" shell input keyevent KEYCODE_HOME
   sleep 0.5
-  "${adb_target[@]}" shell am force-stop dev.denza.split.launcher
-  "${adb_target[@]}" shell am force-stop dev.denza.split
   "${adb_target[@]}" shell am force-stop dev.denza.apps
   "${adb_target[@]}" shell run-as dev.denza.apps \
     rm -f shared_prefs/denza_split_screen.xml

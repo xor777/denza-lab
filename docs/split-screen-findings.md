@@ -67,31 +67,30 @@ Selected app tasks still receive one bounded `am task resize` when a verified
 post-move snapshot shows stale bounds; the operation is within the destination
 root and its equality postcondition is mandatory.
 
-The visible entry and the split-capable picker deliberately live in different
-packages. `dev.denza.split.launcher` exposes the single **Разделить экран**
-launcher icon and has no BYD split marker. Its `Theme.NoDisplay` Activity hands
-the command to a signature-protected `Theme.NoDisplay` Activity in Denza Apps.
-This is required by the exact vendor process-start policy: live checks showed
-that both cross-UID `startService` and `ContentResolver.call()` are silently
-discarded while the Denza Apps process is stopped (`skip startServiceLocked`
-and `skip start content provider pro ... ignored`). An explicit Activity start
-is the user-initiated platform path; the command Activity remains in the
-caller's task, accepts only fixed typed commands, and finishes immediately.
-`dev.denza.split`
-contains only the pane-neutral picker and carries the application-level
-`BYD_SUPPORT_SPLIT_ACTIVITY=1` marker. Launcher3 therefore cannot classify the
-visible entry itself as a remembered split member.
+Starting with Denza Apps v0.5.3, the launcher entry, pane-neutral picker, and
+stable app host live in the single installed package `dev.denza.apps`. The
+**Разделить экран** tile is a disabled-by-default `activity-alias`; the in-app
+toggle changes that alias and the matching runtime state together. Tapping it starts the embedded
+`Theme.NoDisplay` entry, which opens the explicit picker session directly. No
+second APK, package, installation step, or cross-UID command handoff exists.
+The application carries `BYD_SUPPORT_SPLIT_ACTIVITY=1`, while exact component
+checks keep the permanent Denza Apps control task distinct from the two picker
+tasks.
 
-The picker package has a `MAIN + CATEGORY_INFO` intent filter, not a launcher
-filter. This is a firmware contract rather than a presentation shortcut: the
-exact `ApplicationPackageManager.getLaunchIntentForPackage()` from this car
-resolves `CATEGORY_INFO` first and `CATEGORY_LAUNCHER` second, while SmartMulti
-restores a remembered pane member through that package-level API. The INFO
-entry lets SmartMulti restore the picker after it has persisted
-`dev.denza.split` without exposing another app icon. Picker selections are
-resolved explicitly from `CATEGORY_LAUNCHER`; they never use
-`getLaunchIntentForPackage()`, so an unrelated app's INFO Activity cannot be
-opened by a picker tap.
+The embedded picker Activity has a `MAIN + CATEGORY_INFO` intent filter, not a
+launcher filter. This preserves the proven firmware resolver seam without
+adding another always-visible icon. Product restore does not depend on
+SmartMulti remembering the same package twice: Denza Apps persists the last
+selection and rebuilds two independent tasks of the same picker component. App
+choices are still resolved explicitly from `CATEGORY_LAUNCHER`, so an unrelated
+app's INFO Activity cannot be opened by a picker tap.
+
+Before this one-APK migration, live experiments used separate
+`dev.denza.split.launcher` and `dev.denza.split` packages. Those experiments
+established that cross-UID service/provider starts can be discarded while
+Denza Apps is stopped. The finding remains historical evidence, but the current
+same-package entry calls the coordinator in-process and does not cross that
+vendor process-start boundary.
 
 The old 200 ms router remains compiled only as a regression/reference seam and
 is not constructed in explicit-picker mode. Navigation and Simulcast therefore
@@ -321,8 +320,8 @@ mode, root/task snapshot, Denza split preferences, and the current
 `force_resizable_activities` value before mutation. On this car the policy
 fallback pair is `com.byd.sr` plus `com.byd.launchermap`, with primary position
 `1`, divider mode `100`, and gate open. When the remembered pair contains the
-experimental picker, the baseline is established by temporarily disabling only
-`dev.denza.split`: SmartMulti's package-change receiver observes that its
+product picker, the baseline is established by temporarily disabling only
+`dev.denza.apps`: SmartMulti's package-change receiver observes that its
 remembered member is unavailable, replaces both in-memory package fields with
 policy defaults, and posts the same values to Settings. The picker is
 immediately re-enabled and the result is verified. A direct primary/secondary
@@ -339,7 +338,7 @@ refuses every other non-Denza remembered pair.
 
 The Denza session is reset separately: restore the exact leased
 `force_resizable_activities` value, clear only `denza_split_screen.xml`, stop
-the three Denza split packages, and return Home. A fully clean runtime
+the single Denza Apps package, and return Home. A fully clean runtime
 allowlist additionally requires a controlled head-unit reboot; reinstalling an
 APK does not clear it. One session owns all installation and car mutations for
 the whole run.

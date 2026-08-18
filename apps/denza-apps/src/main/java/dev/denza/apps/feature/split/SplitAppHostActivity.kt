@@ -1,4 +1,4 @@
-package dev.denza.split
+package dev.denza.apps.feature.split
 
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
@@ -44,7 +44,7 @@ class SplitAppHostActivity : ComponentActivity() {
     }
 
     private companion object {
-        const val EXTRA_TARGET_PACKAGE = "dev.denza.split.extra.TARGET_PACKAGE"
-        const val EXTRA_TARGET_ACTIVITY = "dev.denza.split.extra.TARGET_ACTIVITY"
+        const val EXTRA_TARGET_PACKAGE = SPLIT_HOST_TARGET_PACKAGE_EXTRA
+        const val EXTRA_TARGET_ACTIVITY = SPLIT_HOST_TARGET_ACTIVITY_EXTRA
     }
 }

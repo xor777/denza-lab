@@ -981,7 +981,6 @@ object SplitScreenCoordinator {
     private val EXCLUDED_PACKAGES = setOf(
         "com.android.launcher3",
         "dev.denza.apps",
-        "dev.denza.split",
     )
 
     private val PICKER_COMPONENTS = mapOf(
@@ -990,6 +989,6 @@ object SplitScreenCoordinator {
     )
 
     private const val PICKER_COMPONENT =
-        "dev.denza.split/dev.denza.split.SplitPickerActivity"
+        "$SPLIT_HOST_PACKAGE/$SPLIT_PICKER_ACTIVITY"
     private val PICKER_COMPONENT_SET = setOf(PICKER_COMPONENT)
 }

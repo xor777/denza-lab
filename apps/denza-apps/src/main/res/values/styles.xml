@@ -10,4 +10,17 @@
     <style name="DenzaAppsLauncherTheme" parent="@android:style/Theme.NoDisplay">
         <item name="android:windowDisablePreview">true</item>
     </style>
+    <style name="DenzaAppsSplitPickerTheme" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:windowActionModeOverlay">true</item>
+        <item name="android:windowNoTitle">true</item>
+    </style>
+    <style name="DenzaAppsSplitHostTheme" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:windowActionModeOverlay">true</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:backgroundDimEnabled">false</item>
+        <item name="android:colorAccent">@android:color/transparent</item>
+    </style>
 </resources>
