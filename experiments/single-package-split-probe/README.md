@@ -7,6 +7,12 @@ can safely share one Android package.
 This is not product code. Its package is `dev.denza.singlepackage.probe`, and it must be
 removed after the run.
 
+The conclusion was adopted in Denza Apps `0.5.3`: the permanent control entry,
+toggle-controlled split alias, and two pane-neutral picker tasks now live in the
+single `dev.denza.apps` package. Product restore is app-owned and does not depend
+on SmartMulti remembering the same package twice. This probe remains only as
+reproducible evidence for that decision.
+
 ## Hypothesis
 
 One package can expose a permanent launcher Activity plus a disabled-by-default launcher

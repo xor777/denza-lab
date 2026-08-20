@@ -11,14 +11,16 @@ a plain fullscreen picker.
 ## Product direction: explicit two-picker session
 
 The contextual foreground router was replaced in product code on 2026-08-16 by
-an explicit launcher entry named **«Разделить экран»**. This change is built and
-unit-tested. The separate launcher entry, native split creation, saved-app
-restoration, and picker geometry have since been exercised on the connected
-car. A later live trace showed that embedding a picker Activity into the
+an explicit launcher entry named **«Разделить экран»**. The final one-package
+path passed live acceptance on 2026-08-18, including alias visibility, native
+split creation, saved-app restoration, picker dismissal/reopen, divider
+movement, full-screen control entry/return, and toggle shutdown. Navigation
+projection/return against that final picker topology passed on 2026-08-19. A
+later live trace had shown that embedding a picker Activity into the
 unresizeable Launcher3 host produces a transient fullscreen/Home frame when a
-pane is reopened. The replacement direct-root launch is proven manually and
-now implemented; the complete dismissal/reopen flow still requires operator
-acceptance.
+pane is reopened; the accepted product instead launches a standalone picker
+directly into the requested BYD root. Simulcast still needs its own focused
+cross-feature acceptance pass, as recorded below.
 
 The product contract is deliberately small:
 

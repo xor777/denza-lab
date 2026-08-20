@@ -102,7 +102,10 @@ adb shell content query --uri content://com.byd.autovoice/PersonBean --where "SE
 # Row: 0 _id=43, SETTING=DEFAULT_MAP_SWITCH, VALUE=com.byd.launchermap
 ```
 
-Reading is proven. Writing through `content update` is **not yet proven**.
+Reading was proven during the initial inspection. The later bounded spike below
+also proved that shell UID can write this row through `content update` and
+restore the original value; third-party destination handoff remains a separate
+unproven question.
 
 ### The launch target is resolved, not hard-coded
 

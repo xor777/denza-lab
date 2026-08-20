@@ -176,35 +176,44 @@ any work that depends on undocumented firmware behavior.
 
 ## IVI Split-Screen Rules
 
-> **2026-08-16:** the toggle/foreground-router contract is retired. The
-> current product contract is the explicit two-picker session in
-> [split-screen-findings.md](split-screen-findings.md), and its package layout
-> is being reworked under the Firmware Behavior Method above. The
-> substrate rules below (stock roots and divider, no replacement split UI,
-> fixed shell operations) still apply; router-specific routing bullets remain
-> only as history for the compiled regression seam.
+> **2026-08-18:** the toggle/foreground-router contract is retired. The
+> live-accepted product contract is the one-package explicit two-picker session
+> in [split-screen-findings.md](split-screen-findings.md). The former router
+> remains compiled only as a regression/reference seam; do not use its
+> foreground-routing behavior as current product policy.
 
 - Use the stock BYD split roots and divider; do not draw a replacement split UI
   over the central screen.
-- Resolve panes from the `com.android.launcher3` and `com.byd.launchermap`
-  anchors and their live bounds. Root/task IDs are observations, never constants.
-- A normal launch outside the visible stock split scene must remain fullscreen.
-  Route only the immediate launch context that originated from the stock split
-  scene.
-- Treat the visible stock application picker as a short two-step session. Route
-  only the foreground task created or resumed by the immediate picker action:
-  first to the empty anchored pane, then to the pane that contained the picker.
-  Do not use app package names to choose a pane.
-- Explicit Denza Apps task operations are outside that session. Navigation
-  projection/return and Simulcast start/stop must atomically cancel any pending
-  picker selection and hold split routing until their task changes settle.
-- Split commands remain fixed `am stack move-task` / `am task resize`
-  operations through the shared local ADB client. Same-root promotion uses one
-  fixed shell-UID `setFocusedTask` helper that accepts only the id of an existing
-  launchable task; do not expose arbitrary shell text to the UI. Exclude Denza
-  Apps and the stock picker/pane packages from candidate routing.
-- The toggle changes routing only. Turning it off returns routed tasks to the
-  current fullscreen root and restores the stock pane anchors.
+- Keep the permanent Denza Apps launcher and the disabled-by-default Split
+  Screen `activity-alias` in `dev.denza.apps`. The in-app toggle must change the
+  alias and runtime policy together; no second split APK or cross-UID handoff is
+  part of the product.
+- Resolve the two live BYD roots and their current bounds for every session.
+  Root and task IDs are observations, never constants.
+- Launch one pane-neutral `MAIN + CATEGORY_INFO` picker task into each root
+  through the exact `START_IVI_PRIMARY` / `START_IVI_SECOND` categories. Do not
+  use transaction 115 or the firmware's remembered pair as product restore.
+- A picker selection names its destination root before any mutation. Move only
+  that selected app, validate the resulting component and bounds, and reject the
+  same package in both roots rather than claiming unsupported multi-instance
+  behavior.
+- Persist the last selected package per root in Denza Apps and rebuild the pair
+  from component-validated state. Remove only exact picker/host/control
+  artifacts owned by the current session.
+- Keep shell operations fixed and narrow. Task focus/removal helpers must
+  validate the task id and component; selected-app resize is bounded and must
+  prove equality with the destination root afterward. Never expose arbitrary
+  shell text to the UI.
+- Navigation projection/return and Simulcast moves hold picker reconciliation
+  through an external-move lease. While a selected task is on another display,
+  the split automaton must not reclaim or prune it.
+- Treat full-screen control entry/return as an explicit scene transition: move
+  the exact control task to the stable full-IVI root, then on return close that
+  task, normalize through Home, discard only invalidated Denza picker identities,
+  and rebuild the persisted pair.
+- Turning the toggle off must close Denza-owned split state, remove owned picker
+  and host tasks, restore the leased global resizeability setting, and leave a
+  subsequent ordinary launch outside the split topology.
 
 ## Git Hygiene
 

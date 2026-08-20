@@ -1,7 +1,8 @@
 # Vehicle Data Availability Findings
 
-Status: live-car investigation on 2026-07-24, with the earlier vehicle-event
-probe results from 2026-06-27 retained where relevant.
+Status: live-car availability investigation on 2026-07-24, with the earlier
+vehicle-event probe results from 2026-06-27 retained where relevant and current
+product wiring checked against the code on 2026-08-20.
 
 This page records which vehicle and journey signals a normal Denza Apps APK can
 actually use. It distinguishes product-usable sources from values that are
@@ -80,10 +81,13 @@ No `com.byd.avc` crash was observed during these read-only checks.
 | High-level DiCar Binder APIs | battery, energy flow, range, charging, pedals, steering, tires, air quality | getter surface exists; useful calls blocked | signature/privileged BYD permissions | Blocked | Not a product source |
 | Raw BYDAuto events/system logs | speed logs, bodywork/settings/safety-belt/PM2.5 events, other CAN-derived events | speed log about 1 Hz; other events vary; some logs are high-rate | system log access / protected BYD permissions | Shell/system only | Diagnostics only |
 
-The proposed `30 Hz` IMU sampling and `30 FPS` rendering rate for the road-thread
-and body-motion experiments is a design target, not a measured product
-implementation. It is within the standard sensor's advertised range, but CPU,
-thermal, and rendering cost still need profiling in Denza Apps.
+The `30 Hz` standard-IMU sampling and at-most-`30 FPS` rendering design is now
+implemented in the compile-time-enabled Denza Apps trip/spectrum panel.
+`TripSensorHub` registers gravity, gyroscope, and accelerometer with a
+`33,333 us` sampling-period hint, reads standard GNSS at approximately `1 Hz`,
+and reuses the validated Yandex guidance runtime. This records current product
+wiring, not a fresh performance claim: CPU, thermal, actual delivered sensor
+rate, and long-drive behavior still need a retained live profile.
 
 ## Android inertial sensors
 

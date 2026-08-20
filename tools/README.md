@@ -11,6 +11,10 @@ Current scripts:
 - `side_camera_overlay_monitor.sh`: older host-side monitor for side-camera windows and turn-light logcat events.
 - `turn_signal_overlay_monitor.sh`: older PIP/turn-signal overlay experiment.
 - `avc_alert_overlay_monitor.sh`: older AVC alert/window monitor experiment.
+- `a11y-window-timing-probe.sh`: captures accessibility window-push timing for
+  the side-camera transition investigation. It is a diagnostic observer, not a
+  production trigger; avoid running it beside another high-frequency
+  accessibility client.
 - `dishare_native_metadata_probe.py`: controlled host-side probe for the native
   DiShare App Change metadata path. It can export real installed Russian app
   icons, generate a `mitmproxy` addon for `videoList`, collect DiShare state, and
@@ -60,6 +64,13 @@ Current scripts:
   with key code `321` — that key is the configurable steering-wheel custom key
   and on this car starts an APA parking scan. Results update
   `docs/shortcuts-automation-findings.md`.
+- `night_vision_probe.sh`: build/install/preflight wrapper for the isolated
+  front-camera source evaluator. Its original `start` flow predates the accepted
+  stock warm-handoff sequence; use it for bounded research evidence, not as a
+  product camera control.
+- `single_package_split_probe.sh`: guarded live-car wrapper for the disposable
+  one-package split experiment. It snapshots SmartMulti state, operates only on
+  exact probe components, and never invokes runtime allowlist transaction 125.
 - `smartmulti_state.sh`: `snapshot` records the exact SmartMulti persistent
   pair, gate, area, resizeability lease, package support, Denza split
   preferences, and live roots. The explicitly mutating `reset` action restores
@@ -80,5 +91,4 @@ When adding a tool, include:
 - expected ADB serial or tunnel;
 - exact scenario it tests;
 - known side effects;
-- whether the result should update `docs/instrument-display-findings.md`,
-  `docs/dishare-api-notes.md`, or `docs/fse-app-installation.md`.
+- which closest focused page under `docs/` owns the durable result.

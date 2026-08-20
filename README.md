@@ -39,7 +39,7 @@ experiments live in separate parts of the repository.
 | Lifecycle | Component | Purpose |
 | --- | --- | --- |
 | **Active** | [`apps/car-adb-gateway/`](apps/car-adb-gateway/) | Generic, relay-only remote ADB gateway with one trusted computer and a self-healing Android service. |
-| **Active** | [`apps/denza-apps/`](apps/denza-apps/) | Simulcast, side-camera mirrors, navigation and HUD guidance on the instrument display, stock split-screen routing, and passenger-screen app installation. |
+| **Active** | [`apps/denza-apps/`](apps/denza-apps/) | Simulcast, side-camera mirrors, navigation and HUD guidance, explicit stock split-screen sessions, trip/spectrum display, native weather adaptation, and passenger-screen app installation. |
 | **Legacy** | [`legacy/denza-mirrors/`](legacy/denza-mirrors/) | Frozen hardware-verified camera reference. Its working behavior has moved into Denza Apps and it is no longer in the root Gradle build. |
 | **Legacy** | [`legacy/denza-gateway/`](legacy/denza-gateway/) | Original LAN-only SSH-to-ADB gateway. Kept for maintenance and reference; superseded for new remote-access work. |
 | **Library** | [`libraries/dishare-bridge/`](libraries/dishare-bridge/) | Shared raw DiShare binder integration used by Denza Apps. |
@@ -48,6 +48,7 @@ experiments live in separate parts of the repository.
 The rest of the tree is straightforward:
 
 - [`docs/`](docs/) — durable architecture, decisions, and verified findings;
+- [`experiments/`](experiments/) — isolated on-device probes included in the root build;
 - [`tools/`](tools/) — host-side probes and live-car utilities;
 - [`research/`](research/) — parked or non-built experiments;
 - `reverse/` — ignored local workspace for extracted artifacts and captures.
@@ -100,6 +101,7 @@ platform/
   cli/
   relay/
 ops/
+experiments/
 legacy/
   denza-gateway/
   denza-mirrors/
@@ -111,14 +113,14 @@ docs/  research/  tools/
 Requirements:
 
 - JDK 17;
-- Android SDK platforms 36 and 37;
+- Android SDK platform 37;
 - Android Platform Tools;
 - Go for the `cag` CLI.
 
 On a Homebrew-based macOS setup:
 
 ```bash
-export JAVA_HOME=/opt/homebrew/opt/openjdk
+export JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home
 export ANDROID_HOME=/opt/homebrew/share/android-commandlinetools
 
 ./gradlew :car-adb-gateway:testDebugUnitTest :car-adb-gateway:assembleDebug
@@ -270,8 +272,15 @@ computer's normal ADB key. Approve it at the vehicle before retrying the command
 - [Car ADB Gateway architecture](docs/CLOUD-ARCHITECTURE.md) — normative relay-only design.
 - [Car ADB Gateway decisions](docs/CAR-ADB-GATEWAY-DECISIONS.md) — ADR-lite rationale and evidence.
 - [Instrument-display findings](docs/instrument-display-findings.md) — display selection, Mirrors, navigation, evidence, and limitations.
+- [ADB authorization recovery](docs/adb-authorization-recovery.md) — passive startup gate, one-shot authorization, and stuck-queue boundary.
 - [DiShare API notes](docs/dishare-api-notes.md) — Simulcast and HUD reverse-engineering notes.
 - [FSE app installation](docs/fse-app-installation.md) — verified SMB and cross-device path for passenger-screen APKs.
+- [Split-screen findings](docs/split-screen-findings.md) — explicit one-package picker flow, live acceptance, and retired routes.
+- [Vehicle-data findings](docs/vehicle-data-findings.md) — usable GNSS/IMU inputs and blocked BYD/CAN surfaces.
+- [Audio-capture findings](docs/audio-capture-findings.md) — output-mix spectrum source and product boundaries.
+- [Weather-adapter findings](docs/weather-adapter-findings.md) — native provider contract and MET Norway adapter.
+- [Shortcuts automation findings](docs/shortcuts-automation-findings.md) — stock automation limits and map-role bridge.
+- [CarPlay findings](docs/carplay-findings.md) — hardware/software evidence and unsupported routes.
 
 When a page disagrees with the code, manifest, or Gradle configuration, follow
 the implementation and update that page.

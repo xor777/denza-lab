@@ -21,6 +21,7 @@ still use the historical `denza-gateway` directory name.
 ## Read before changing code
 
 - [docs/project-map.md](docs/project-map.md) — structure and per-component status.
+- [docs/README.md](docs/README.md) — index of topic-specific durable findings.
 - [docs/governance.md](docs/governance.md) — product/prototype/research lanes,
   where experiments live, promotion checklist, live-car debugging rules, and
   the firmware behavior method (corpus-first, reset procedure, one owning
@@ -30,6 +31,9 @@ still use the historical `denza-gateway` directory name.
 - [docs/fse-app-installation.md](docs/fse-app-installation.md) — verified passenger-screen app installation path.
 - [docs/audio-capture-findings.md](docs/audio-capture-findings.md) — what a normal app can observe of played audio (spectrum analyser feasibility).
 - [docs/split-screen-findings.md](docs/split-screen-findings.md) — live-proven BYD split substrate, retired router, and the explicit two-picker product flow.
+- [docs/adb-authorization-recovery.md](docs/adb-authorization-recovery.md) — passive local-ADB startup gate and bounded recovery flow.
+- [docs/vehicle-data-findings.md](docs/vehicle-data-findings.md) — product-usable GNSS/IMU inputs and blocked vehicle-data boundaries.
+- [docs/weather-adapter-findings.md](docs/weather-adapter-findings.md) — native weather-provider contract and adapter status.
 
 ## Modules
 
@@ -40,6 +44,7 @@ still use the historical `denza-gateway` directory name.
 | `:dishare-bridge` | `libraries/dishare-bridge/` | `dev.denza.disharebridge` (library) |
 | `:night-vision-probe` | `experiments/night-vision-probe/` | `dev.denza.nightvision.probe` (isolated front-camera source evaluation) |
 | `:audio-probe` | `experiments/audio-probe/` | `dev.denza.audio.probe` (isolated audio capture path evaluation) |
+| `:display-probe` | `experiments/display-probe/` | `dev.denza.display.probe` (isolated app-owned display evaluation) |
 | `:single-package-split-probe` | `experiments/single-package-split-probe/` | `dev.denza.singlepackage.probe` (disposable launcher-alias and same-package picker evaluation) |
 | `:car-adb-gateway` | `apps/car-adb-gateway/` | `ru.adbgw.gateway` (active product candidate) |
 
@@ -49,12 +54,14 @@ included in the root Gradle build.
 ## Build
 
 ```bash
-export JAVA_HOME=/opt/homebrew/opt/openjdk
+export JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home
 export ANDROID_HOME=/opt/homebrew/share/android-commandlinetools
 
 ./gradlew :denza-gateway:testDebugUnitTest :denza-gateway:assembleDebug
 ./gradlew :denza-apps:assembleDebug
 ./gradlew :night-vision-probe:assembleDebug
+./gradlew :audio-probe:assembleDebug
+./gradlew :display-probe:assembleDebug
 ./gradlew :single-package-split-probe:assembleDebug
 ./gradlew :car-adb-gateway:testDebugUnitTest :car-adb-gateway:assembleDebug
 ```

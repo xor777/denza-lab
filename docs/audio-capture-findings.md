@@ -20,6 +20,21 @@ specific to the app that happens to be playing.
 | `AudioPlaybackCapture` via `MediaProjection` | Initialises, then returns pure silence |
 | Cabin microphone | Not pursued — the output mix makes it unnecessary |
 
+## Product adoption
+
+The Denza Apps trip/spectrum panel is compile-time enabled and uses this
+session-0 `Visualizer` path through `SpectrumSource`. While the panel is visible,
+the same process-scoped hub also reads the active media session and the standard
+Android IMU/GNSS inputs described in
+[vehicle-data-findings.md](vehicle-data-findings.md). Detaching the panel or
+pausing the Activity releases the visualizer and stops those inputs.
+
+The older mirror-toy, compass, and journey-thread presentation is hidden by
+`TripPanelFlag.LEGACY_INSTRUMENTS=false`; that does not disable the trip runtime
+or the spectrum analyser. The entire panel has no runtime preference. Disabling
+it requires setting `TripPanelFlag.ENABLED=false` and rebuilding, which also
+prevents its sensor, location, audio, and media-session work from starting.
+
 ## Evidence
 
 The probe was tested against a signal of known amplitude so that a pass could

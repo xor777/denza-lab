@@ -619,7 +619,7 @@ The current host wrapper predates the successful stock warm handoff and must
 not be cited as an accepted operator start path. The APK remains short-lived,
 has no launcher/boot entry, and is useful only as source-evaluation evidence.
 
-### DVR Camera2 source: next bounded candidate
+### DVR Camera2 source: verified renderer, product path retired
 
 Android camera `0` identifies itself through the BYD metadata as `dvr` and was
 already opened successfully by an ordinary debug APK in an earlier live test.

@@ -277,7 +277,9 @@ Current no-root custom drag approach:
    width (`839dp`) instead of centering on the full physical display. This keeps
    the custom row aligned with the native App Change row when the right side is
    occupied by navigation or another app.
-8. `SimulcastOverlayService` exposes two debug actions for repeatable ADB checks:
+8. The debug build exposes a `SimulcastDebugReceiver` bridge for two repeatable
+   ADB checks. The receiver requires `android.permission.DUMP` and forwards the
+   validated command to the non-exported `SimulcastOverlayService`:
    - `dev.denza.apps.START_SIMULCAST_TARGET` with extras `targetPackage` and
      `receiver`
    - `dev.denza.apps.STOP_SIMULCAST_TARGET`
@@ -358,13 +360,13 @@ Repeatable debug commands after installing the current APK:
 ./gradlew :denza-apps:assembleDebug
 tools/install_denza_apps_simulcast.sh
 
-adb shell am startservice \
+adb shell am broadcast \
   -a dev.denza.apps.START_SIMULCAST_TARGET \
   -p dev.denza.apps \
   --es targetPackage com.vk.vkvideo \
   --es receiver screen_hud
 
-adb shell am startservice \
+adb shell am broadcast \
   -a dev.denza.apps.STOP_SIMULCAST_TARGET \
   -p dev.denza.apps
 ```
