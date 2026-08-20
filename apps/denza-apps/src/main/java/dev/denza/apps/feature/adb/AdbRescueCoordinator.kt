@@ -177,13 +177,18 @@ object AdbRescueCoordinator {
     @Volatile
     private var current = AdbRescueSnapshot()
 
+    @Volatile
+    private var initialized = false
+
     fun initialize(context: Context) {
+        if (initialized) return
         val prefs = context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         current = AdbRescuePolicy.initial(
             requestPending = prefs.getBoolean(KEY_REQUEST_PENDING, false),
             attemptCount = prefs.getInt(KEY_ATTEMPT_COUNT, 0),
             lastAttemptAtMillis = prefs.getLong(KEY_LAST_ATTEMPT_AT, 0L),
         )
+        initialized = true
     }
 
     fun snapshot(): AdbRescueSnapshot = current

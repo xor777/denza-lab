@@ -148,6 +148,7 @@ class HudArApproximationTracker {
 
         val previousKey = stepKey
         val previousDistance = reportedDistanceMeters
+        var anchorRebased = false
         if (previousKey != key || guidePoint == null) {
             stepKey = key
             guidePoint = destination(
@@ -180,19 +181,36 @@ class HudArApproximationTracker {
                     guidePoint = candidate
                     incomingHeadingDegrees = pose.headingDegrees
                 }
-                // A large lateral mutation with a decreasing distance is more
-                // likely a noisy bearing than a new route. Preserve the anchor.
+                else -> {
+                    // Keeping the old point here can fold a nominal left/right
+                    // line back across the car when the course mutates. Rebase,
+                    // but suppress this sample until the new anchor is stable.
+                    guidePoint = candidate
+                    incomingHeadingDegrees = pose.headingDegrees
+                    anchorRebased = true
+                }
             }
             reportedDistanceMeters = distance
             anchorPoseCapturedAtMs = pose.capturedAtElapsedMs
         }
 
         val turn = guidePoint ?: return null
+        if (anchorRebased) {
+            clearCachedGeometry()
+            return null
+        }
         val vehicle = GeoPoint(pose.latitude, pose.longitude)
         val remaining = distanceMeters(vehicle, turn)
         if (remaining !in MIN_GUIDE_POINT_DISTANCE_METERS..MAX_GUIDE_POINT_DISTANCE_METERS) return null
         val approachHeading = bearingDegrees(vehicle, turn)
         if (abs(shortestHeadingDelta(pose.headingDegrees, approachHeading)) > MAX_APPROACH_ERROR_DEGREES) {
+            return null
+        }
+        // The point is only an approximation derived from the course captured
+        // at the beginning of this instruction. Once the live approach no
+        // longer agrees with that course, omitting AR is safer than drawing a
+        // geometrically plausible but semantically wrong turn.
+        if (abs(shortestHeadingDelta(incomingHeadingDegrees, approachHeading)) > MAX_ANCHOR_HEADING_ERROR_DEGREES) {
             return null
         }
         if (cachedPose == pose && cachedKey == key && cachedDistanceMeters == distance &&
@@ -205,10 +223,10 @@ class HudArApproximationTracker {
             vehicle = vehicle,
             turn = turn,
             approachHeading = approachHeading,
-            exitHeading = blendHeading(approachHeading, incomingHeadingDegrees, EXIT_HEADING_ANCHOR_WEIGHT),
+            exitHeading = approachHeading,
             maneuver = guidance.maneuver,
         )
-        if (line.size < 3 || line.any { !it.latitude.isFinite() || !it.longitude.isFinite() }) return null
+        if (!guideLineIsSafe(line, approachHeading, guidance.maneuver)) return null
         val geometry = HudArGeometry(
             vehicleLatitude = pose.latitude,
             vehicleLongitude = pose.longitude,
@@ -232,6 +250,10 @@ class HudArApproximationTracker {
         incomingHeadingDegrees = 0.0
         reportedDistanceMeters = null
         anchorPoseCapturedAtMs = 0L
+        clearCachedGeometry()
+    }
+
+    private fun clearCachedGeometry() {
         cachedPose = null
         cachedKey = null
         cachedDistanceMeters = null
@@ -275,6 +297,7 @@ class HudArApproximationTracker {
         val turnAngle = turnAngleDegrees(maneuver)
         var cursor = turn
         val curveSteps = when (maneuver) {
+            HudManeuver.U_TURN_LEFT, HudManeuver.U_TURN_RIGHT -> 6
             HudManeuver.SLIGHT_LEFT, HudManeuver.SLIGHT_RIGHT -> 5
             HudManeuver.SHARP_LEFT, HudManeuver.SHARP_RIGHT -> 3
             HudManeuver.LEFT, HudManeuver.RIGHT -> 4
@@ -288,6 +311,41 @@ class HudArApproximationTracker {
             result += cursor
         }
         return result
+    }
+
+    /** Final semantic guard at the wire boundary: a right command must only bend right, etc. */
+    private fun guideLineIsSafe(
+        line: List<GeoPoint>,
+        approachHeading: Double,
+        maneuver: HudManeuver,
+    ): Boolean {
+        if (line.size < 3 || line.any { !it.latitude.isFinite() || !it.longitude.isFinite() }) {
+            return false
+        }
+        val expected = turnAngleDegrees(maneuver)
+        val maximumDeflection = if (maneuver.isUTurn()) {
+            MAX_U_TURN_DEFLECTION_DEGREES
+        } else {
+            MAX_REGULAR_EXIT_DEFLECTION_DEGREES
+        }
+        val exitSegments = line.zipWithNext().takeLast(EXIT_STEPS)
+        if (exitSegments.size != EXIT_STEPS) return false
+        val deflections = exitSegments.map { (from, to) ->
+            if (distanceMeters(from, to) < MIN_VALID_SEGMENT_METERS) return false
+            shortestHeadingDelta(approachHeading, bearingDegrees(from, to))
+        }
+        if (expected == 0.0) {
+            return deflections.all { abs(it) <= STRAIGHT_DEFLECTION_TOLERANCE_DEGREES }
+        }
+        val direction = if (expected > 0.0) 1.0 else -1.0
+        val directed = deflections.map { it * direction }
+        if (directed.any { it < -DIRECTION_TOLERANCE_DEGREES || it > maximumDeflection }) {
+            return false
+        }
+        if (directed.zipWithNext().any { (before, after) -> after + PROGRESSION_TOLERANCE_DEGREES < before }) {
+            return false
+        }
+        return abs(directed.last() - abs(expected)) <= TERMINAL_DEFLECTION_TOLERANCE_DEGREES
     }
 
     private fun List<GeoPoint>.toGuideLineJson(): String = buildString(size * 32) {
@@ -323,14 +381,24 @@ class HudArApproximationTracker {
         const val MAX_POSE_AGE_MS = 2_500L
         const val MAX_POSE_ACCURACY_METERS = 20.0
         const val MAX_APPROACH_ERROR_DEGREES = 70.0
+        const val MAX_ANCHOR_HEADING_ERROR_DEGREES = 45.0
         const val MAX_ANCHOR_BLEND_METERS = 35.0
         const val ROUTE_RESET_DISTANCE_JUMP_METERS = 30
         const val ANCHOR_BLEND = 0.35
-        const val EXIT_HEADING_ANCHOR_WEIGHT = 0.5
         const val APPROACH_POINT_SPACING_METERS = 8.0
         const val EXIT_POINT_SPACING_METERS = 6.0
         const val MAX_APPROACH_STEPS = 24
         const val EXIT_STEPS = 8
+        const val MIN_VALID_SEGMENT_METERS = 4.0
+        const val STRAIGHT_DEFLECTION_TOLERANCE_DEGREES = 8.0
+        const val DIRECTION_TOLERANCE_DEGREES = 2.0
+        const val PROGRESSION_TOLERANCE_DEGREES = 3.0
+        const val TERMINAL_DEFLECTION_TOLERANCE_DEGREES = 6.0
+        const val MAX_REGULAR_EXIT_DEFLECTION_DEGREES = 165.0
+        const val MAX_U_TURN_DEFLECTION_DEGREES = 179.0
+        // Exact 180 aliases left and right in shortest-angle arithmetic. Stop
+        // five degrees short so the requested U-turn direction stays explicit.
+        const val U_TURN_DEFLECTION_DEGREES = 175.0
 
         fun supports(maneuver: HudManeuver): Boolean = when (maneuver) {
             HudManeuver.STRAIGHT,
@@ -340,6 +408,8 @@ class HudArApproximationTracker {
             HudManeuver.SLIGHT_RIGHT,
             HudManeuver.SHARP_LEFT,
             HudManeuver.SHARP_RIGHT,
+            HudManeuver.U_TURN_LEFT,
+            HudManeuver.U_TURN_RIGHT,
             -> true
             else -> false
         }
@@ -351,8 +421,13 @@ class HudArApproximationTracker {
             HudManeuver.SLIGHT_RIGHT -> 35.0
             HudManeuver.RIGHT -> 90.0
             HudManeuver.SHARP_RIGHT -> 135.0
+            HudManeuver.U_TURN_LEFT -> -U_TURN_DEFLECTION_DEGREES
+            HudManeuver.U_TURN_RIGHT -> U_TURN_DEFLECTION_DEGREES
             else -> 0.0
         }
+
+        fun HudManeuver.isUTurn(): Boolean =
+            this == HudManeuver.U_TURN_LEFT || this == HudManeuver.U_TURN_RIGHT
 
         fun normalizeHeading(value: Double): Double = ((value % 360.0) + 360.0) % 360.0
 

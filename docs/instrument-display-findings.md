@@ -2,7 +2,7 @@
 
 This page tracks the instrument-display scene shared by Mirrors and navigation.
 The implementation summary was last checked against the code and the live car
-on 2026-08-14.
+on 2026-08-19.
 
 ## Product architecture
 
@@ -86,6 +86,43 @@ Changing a placement button while navigation is already projected returns the
 task without focusing it, recreates the virtual display, and projects the same
 task into the new geometry. Camera gradients are a separate layer and keep
 their already verified Mirrors parameters.
+
+### Capturing navigation and the Waze layout experiment
+
+For GL navigators, a screenshot of the physical cluster display is not enough
+to establish what the app rendered. The navigation output is nested through an
+app-owned `SurfaceView`; mirroring display `3` can therefore produce a black or
+stale frame while the `Denza Navigation` virtual display is still presenting
+new buffers. The repeatable diagnostic sequence is:
+
+1. resolve the current `Denza Navigation` display id from `dumpsys display`;
+2. capture that logical display directly with
+   `tools/surface_control_mirror_probe.sh <display-id> ... 1` to inspect the
+   navigator layout;
+3. capture display `3` separately only to check the final placement against the
+   stock cluster composition.
+
+This method captured Waze 5.22.0.3 directly on the live car on 2026-08-19.
+With an active route, **Full** (`2560x720@272`) and **Right**
+(`1023x524@272`) rendered the route, map controls, vehicle marker, and bottom
+bar. The marker was above the bar in both direct captures. **Center**
+(`1023x720@320`) remained black at 5, 15, 30, 45, and 60 seconds, despite the
+Waze `SurfaceView` and the virtual-display sink both continuing to queue
+frames. **Left** (`1023x609@272`) also produced black source frames and could
+leave later projections black until a normal return to the IVI forced Waze
+through another display configuration.
+
+Host-only overrides tested `1920x720`, `1536x1080`, and `1440x1014` with
+densities from 240 through 320. A same-aspect enlarged viewport could
+occasionally render a frame with the marker above the lower bar, but the result
+did not reproduce on the next clean run and could become black after the next
+input or lifecycle transition. The wide viewport also letterboxed inside the
+center region. All overrides were reset before return. No Waze-specific product
+change is justified by this experiment: neither a different resolution nor a
+density alone produced a deterministic center layout. An attempt to precreate
+the viewport with an Activity-backed root hit the already documented vendor
+`ActivityRecord`-to-`Task` cast failure and was abandoned immediately; that
+topology remains forbidden and is not a Waze candidate.
 
 When the selected navigator is a child of a native IVI split root, moving its
 containing root also carries the pane geometry to the instrument display and
@@ -308,29 +345,42 @@ no polyline. Denza Apps therefore uses an explicitly bounded approximation:
   a moving fix at or above `1.5 m/s`, with no more than `20 m` horizontal and
   `45 degrees` bearing uncertainty. A measured course may be held for 15
   seconds at a light; the app never invents an initial parked heading.
-- AR activates from 3 through 150 metres for straight, slight, normal, and
-  sharp left/right maneuvers. Unknown maneuvers, U-turns, roundabouts,
-  stale/future fixes, poor accuracy, and a route more than 70 degrees away from
-  the measured heading fail closed to the already verified compact HUD packet.
+- AR activates from 3 through 150 metres for straight, slight, normal, sharp,
+  and U-turn left/right maneuvers. A U-turn has its own progressive 175-degree
+  curve, so it can only be emitted from an explicit Yandex U-turn instruction;
+  the regular turn guards remain capped below reversal. Unknown maneuvers,
+  roundabouts, stale/future fixes, poor accuracy, and a route more than 70
+  degrees away from the measured heading fail closed to the already verified
+  compact HUD packet.
 - The inferred turn point is anchored in world coordinates, so repeated GNSS
   fixes cannot drag it forward while Yandex's displayed distance is unchanged.
   Small distance updates are blended; a distance increase of at least 30
-  metres resets the anchor as a recalculation. Leaving the activation window
-  clears it.
-- The generated line samples the approach and a smooth 35, 90, or 135 degree
-  exit. Field 33 remains `0.0` because proximity is not whole-route progress.
-  AR refreshes every 350 ms. Losing an eligible pose immediately emits a
-  compact packet so the firmware cannot retain stale geometry.
+  metres resets the anchor as a recalculation. A large lateral course mutation
+  now rebases the approximation and suppresses that sample instead of folding
+  an old anchor across the car. The next stable sample may resume AR. Leaving
+  the activation window clears the anchor.
+- The historical anchor course and the live approach must agree within 45
+  degrees. The exit is derived from the live approach rather than blended with
+  the stale anchor course. Immediately before serialization, a semantic guard
+  rejects degenerate segments, a bend in the direction opposite the maneuver,
+  a non-progressing exit, or a terminal deflection inconsistent with the
+  requested 35/90/135/175-degree maneuver. Only an explicit U-turn may exceed
+  the regular 165-degree reversal ceiling.
+- Field 33 remains `0.0` because proximity is not whole-route progress. AR
+  refreshes every 350 ms. Losing an eligible pose immediately emits a compact
+  packet so the firmware cannot retain stale geometry.
 
 Four synthetic straight/slight/normal/sharp paths and the corrected left/right
 pair were accepted by the live SOME/IP service, cleared, and stopped without
 an Android or AVC crash. The disposable probe was uninstalled. The product
-registered a 200 ms GNSS request on the car. Fourteen JVM mutation tests cover
+registered a 200 ms GNSS request on the car. Nineteen JVM mutation tests cover
 the activation boundaries, unsupported maneuvers, stale/imprecise/out-of-order
-fixes, parked-course hold, north/dateline wrap, left/right mirroring, turn
-severity, anchor stability, rerouting, lateral rejection, and exact protobuf
-field numbers/wire types. End-to-end visual validation during a real moving
-Yandex route is intentionally still pending.
+fixes, parked-course hold, north/dateline wrap, left/right mirroring, U-turn
+direction and return heading, turn severity, anchor stability, rerouting,
+lateral rebasing, stale-course rejection, wire-boundary turn semantics, and
+exact protobuf field numbers/wire types. End-to-end visual validation during a
+real moving Yandex route, including the new U-turn geometry, is intentionally
+still pending.
 
 Yandex Navigator 29.8.1 also contains a structured AndroidX Car App path. Its
 own projected guidance constructs a `Trip` from destination address, a

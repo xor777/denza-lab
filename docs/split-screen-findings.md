@@ -77,6 +77,16 @@ The application carries `BYD_SUPPORT_SPLIT_ACTIVITY=1`, while exact component
 checks keep the permanent Denza Apps control task distinct from the two picker
 tasks.
 
+The package marker is evaluated by this firmware before an Activity's
+`onCreate`, so `resizeableActivity=false` and a `Theme.NoDisplay` launcher do
+not stop the permanent control entry from consuming a live pane. The product
+therefore treats control entry/return as an explicit scene transition. A
+windowless launcher starts the single control task, a service moves that exact
+task directly to the stable full-IVI root, and Back first closes that task,
+normalizes the organizer through Home, removes only the now-invalid Denza
+picker task identities, and rebuilds the persisted pair. `MainActivity` does
+not run a second promotion loop or a competing ADB session.
+
 The embedded picker Activity has a `MAIN + CATEGORY_INFO` intent filter, not a
 launcher filter. This preserves the proven firmware resolver seam without
 adding another always-visible icon. Product restore does not depend on
@@ -138,6 +148,34 @@ filter.
 
 ### Live acceptance status
 
+The final one-package path passed live acceptance on 2026-08-18 with Denza Apps
+`0.5.3` (`versionCode=13`, debug APK SHA-256
+`fc73e558221e6e953b4ddc1eaf180c2ae77ded05d89b5cca418e63b7cfac8470`). With
+the toggle enabled, the real app center exposed both **Denza Apps** and
+**Split Screen** from the single `dev.denza.apps` installation. The companion
+restored 2GIS and Apple Music above two exact Denza picker bases in roots 2/3;
+transaction 30 returned area `3`. Dragging the native divider from the narrow
+left layout to the wide left layout preserved the physical app sides and
+changed only the root geometry.
+
+Launching Denza Apps from that active pair produced one full-screen
+`MainActivity` task in root 4 with area `4`. Back then created fresh picker
+tasks `#224/#225` and restored 2GIS `#226` plus Apple Music `#228`; area returned
+to `3`, each root contained exactly one base and one app, and the AVC crash
+buffer remained empty. The fresh identities are required: an earlier run
+proved that reusing a picker task consumed by the package-level control launch
+fails with `Задача приложения 192 не вошла в split-контейнер`. The regression
+test now requires the exact control task to disappear, Home to be confirmed,
+and invalidated picker components to be removed before reconstruction.
+
+Disabling the toggle from the full-screen control UI removed the companion
+alias, removed the owned picker tasks, restored
+`force_resizable_activities` to its missing/`null` baseline, and left the
+control task full screen in area `4`. The final neutral check after Home was
+area `0`, one launcher activity (Denza Apps only), policy disabled, and no AVC
+crash. The guarded reset tool intentionally refused to overwrite the unrelated
+remembered OEM pair `com.android.launcher3 + com.byd.sr`.
+
 The 2026-08-16 run confirmed the Home-to-native-host transition, Launcher3 and
 SR bootstrap identities, restoration of Navigator above its stopped secondary
 picker, area mode `3`, and an unchanged `com.byd.avc` crash buffer. A later
@@ -190,7 +228,7 @@ the stable contract, decide from vehicle framework traces whether selected apps
 can be hosted without a SmartMulti scene rebuild; otherwise remove the host and
 retain the direct launch as the product baseline.
 
-The Split Screen toggle shutdown contract failed live acceptance on 2026-08-16.
+The Split Screen toggle shutdown contract failed its first live acceptance on 2026-08-16.
 An older installed build had left the launcher alias disabled while
 `policy_enabled_v2=true`, area mode `3`, and the resizeability lease were still
 active. The repaired wiring correctly set the runtime policy to `false`, removed
@@ -211,28 +249,12 @@ test covers only icon/runtime persistence, not this firmware teardown. A real
 shutdown must close the gate for the duration of the disabled product state,
 move the selected task to the area-4 full IVI root, remove only owned picker/host
 artifacts, and prove that a subsequent ordinary app launch remains in area `4`
-without the divider. This is not yet live-accepted.
-
-The remaining operator run should be intentionally short and observable:
-
-1. update-install the APK and confirm that the app center shows both
-   **Denza Apps** and **Разделить экран**;
-2. launch **Разделить экран** with no usable stored pair and confirm two Denza
-   pickers plus the native drag control;
-3. choose Navigator in one picker and Music in the other, then navigate inside
-   Music far enough to start another Activity; neither task may escape or be
-   moved back by a corrective loop;
-4. repeat app dismissal once with Navigator/Music and confirm that only the
-   recorded task is removed while the other pane remains untouched;
-5. dismiss it again, choose a third app in that picker, and confirm the root
-   contains only its standalone Denza picker task plus the selected app task;
-6. move the divider without swapping and confirm no application changes pane;
-7. disable the Split screen toggle and confirm the focused app expands, both
-   picker tasks disappear, and the drag control is gone;
-8. reopen **Разделить экран** and confirm the last successful pair is restored;
-9. only after the basic flow passes, repeat navigation projection/return and
-   Simulcast checks to prove that removing the foreground router eliminated
-   cross-feature task mutations.
+without the divider. The 2026-08-18 run above closes this debt: shutdown now
+ends in area `4` with no picker tasks, restores the global resizeability lease,
+and a later Home transition reaches area `0`. Navigation projection/return with
+the final standalone-picker and control-return implementation was subsequently
+closed by the 2026-08-19 run below. Simulcast must still remain free of
+cross-feature task mutations in its own acceptance pass.
 
 The primary diagnostic tag is `DenzaSplitScreen`. Every failed shell mutation
 also leaves a user-facing message in the picker or the Denza Apps split card.
@@ -364,8 +386,21 @@ dismissed during projection is a valid vacancy. If the user dismisses the
 navigator's picker pane while navigation is projected, return expands the
 navigator fullscreen instead of guessing a new split destination. These rules
 preserve the previously live-proven projection topology; the complete flow
-with the standalone INFO-restorable picker still requires the post-split live
-acceptance run.
+with the standalone INFO-restorable picker passed its post-split live acceptance
+run on 2026-08-19.
+
+That run began with a verified owned pair: 2GIS above the primary picker and
+Yandex Music above the secondary picker, with area mode `3`. Denza Apps then
+opened fullscreen in area `4`, projected only 2GIS to the app-owned display,
+and left both picker roots and Yandex Music hidden on the IVI. Return first
+matched those hidden roots against the persisted task/package identities and
+revealed the exact owned session before asking the firmware for the vacant
+pane. The final scene was again area `3`, with 2GIS on the primary side and
+Yandex Music on the secondary side; the navigation display was removed and the
+crash buffer remained empty. 2GIS recreated its own task during return, so the
+acceptance criterion is the verified package/root topology rather than reuse of
+an obsolete numeric task id. The tested debug APK SHA-256 was
+`ffe54ebfebc82a45099c6f8bca46e680d11aa76ff2527407181b8ea167d54bf7`.
 
 ## Live-proven substrate (2026-08-14)
 

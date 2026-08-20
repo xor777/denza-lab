@@ -97,6 +97,9 @@ import dev.denza.apps.feature.cluster.ClusterDisplayDescriptor
 import dev.denza.apps.feature.cluster.ClusterMapPlacement
 import dev.denza.apps.feature.adb.AdbRescueCoordinator
 import dev.denza.apps.feature.adb.AdbRescuePhase
+import dev.denza.apps.feature.adb.AdbStartupGatePolicy
+import dev.denza.apps.feature.adb.AdbStartupOverlayModel
+import dev.denza.apps.feature.adb.AdbStartupPrimaryAction
 import dev.denza.apps.feature.fse.FseInstallApp
 import dev.denza.apps.feature.mirrors.MirrorsPosition
 import kotlinx.coroutines.flow.StateFlow
@@ -150,6 +153,7 @@ fun DenzaAppsRoot(
     val uiState by state.collectAsState()
     var showClusterPicker by remember { mutableStateOf(false) }
     var showDiagnostics by remember { mutableStateOf(false) }
+    var showAdbRecovery by remember { mutableStateOf(false) }
     // Hidden diagnostics entry: 7 quick taps on the Трансляция card header, each
     // within 3 s of the previous, opens the diagnostics dialog. No affordance.
     var diagnosticsTaps by remember { mutableIntStateOf(0) }
@@ -175,6 +179,8 @@ fun DenzaAppsRoot(
     val containerWidthDp = with(LocalDensity.current) { containerWidthPx.toDp().value.roundToInt() }
     val dashboardLayout = DashboardLayoutPolicy.resolve(containerWidthDp)
     val compactLayout = dashboardLayout == DashboardLayoutMode.NARROW
+    val adbStartupOverlay = AdbStartupGatePolicy.overlay(uiState.adbRescue)
+    val adbStartupBlocked = uiState.adbRescue.phase != AdbRescuePhase.TRUSTED
     val openClusterPicker = {
         onRefreshScreenDiagnostics()
         showClusterPicker = true
@@ -432,7 +438,7 @@ fun DenzaAppsRoot(
                     // below the cards. In the narrow vertical list it becomes a
                     // fixed-height stacked analyser/data item. It stays frameless
                     // in both layouts and is gated by the compile-time flag.
-                    if (TripPanelFlag.ENABLED) {
+                    if (TripPanelFlag.ENABLED && !adbStartupBlocked) {
                         AndroidView(
                             factory = { ctx -> TripPanelView(ctx) },
                             update = { view -> view.narrowLayout = compactLayout },
@@ -504,11 +510,221 @@ fun DenzaAppsRoot(
             onDismiss = onCloseFseInstallerPicker,
         )
     }
+    if (adbStartupOverlay.visible) {
+        AdbStartupOverlay(
+            model = adbStartupOverlay,
+            onPrimaryAction = {
+                when (adbStartupOverlay.primaryAction) {
+                    AdbStartupPrimaryAction.NONE -> Unit
+                    AdbStartupPrimaryAction.CHECK_ACCESS -> onCheckAdbAccess()
+                    AdbStartupPrimaryAction.REQUEST_AUTHORIZATION ->
+                        onRequestAdbAuthorizationOnce()
+                }
+            },
+            onOpenRecovery = { showAdbRecovery = true },
+        )
+    }
+    if (adbStartupBlocked && !adbStartupOverlay.visible) {
+        // The normal passive check is intentionally invisible, but no control can race it and
+        // start feature work before the global prerequisite has been proven.
+        val startupInteractionSource = remember { MutableInteractionSource() }
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .clickable(
+                    interactionSource = startupInteractionSource,
+                    indication = null,
+                    onClick = {},
+                ),
+        )
+    }
+    if (showAdbRecovery && adbStartupOverlay.visible) {
+        AdbRecoveryDialog(
+            state = uiState,
+            onCheckAdbAccess = onCheckAdbAccess,
+            onRequestAdbAuthorizationOnce = onRequestAdbAuthorizationOnce,
+            onAllowNewAdbAuthorizationAttempt = onAllowNewAdbAuthorizationAttempt,
+            onDismiss = { showAdbRecovery = false },
+        )
+    }
 }
 
 private const val SPLIT_UNAVAILABLE = "Недоступно в этой прошивке"
 private val FULL_DASHBOARD_WIDTH = 1_280.dp
 private val NARROW_TRIP_PANEL_HEIGHT = 660.dp
+
+@Composable
+private fun AdbStartupOverlay(
+    model: AdbStartupOverlayModel,
+    onPrimaryAction: () -> Unit,
+    onOpenRecovery: () -> Unit,
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.78f))
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = {},
+            )
+            .windowInsetsPadding(WindowInsets.safeDrawing)
+            .padding(32.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Card(
+            modifier = Modifier.fillMaxWidth(0.72f),
+            colors = CardDefaults.cardColors(containerColor = SurfaceColor),
+            shape = RoundedCornerShape(28.dp),
+            border = BorderStroke(1.dp, Elevated),
+        ) {
+            Column(
+                modifier = Modifier.padding(horizontal = 40.dp, vertical = 34.dp),
+                verticalArrangement = Arrangement.spacedBy(18.dp),
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    if (model.busy) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(42.dp),
+                            color = Accent,
+                            strokeWidth = 4.dp,
+                        )
+                    } else {
+                        Icon(
+                            Icons.Outlined.Build,
+                            contentDescription = null,
+                            modifier = Modifier.size(44.dp),
+                            tint = if (model.recoveryAvailable) Warning else Muted,
+                        )
+                    }
+                    Text(
+                        model.title,
+                        color = Ink,
+                        fontSize = 30.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+                Text(
+                    model.message,
+                    color = Muted,
+                    fontSize = 19.sp,
+                    lineHeight = 28.sp,
+                )
+                if (model.primaryLabel != null) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End),
+                    ) {
+                        if (model.recoveryAvailable) {
+                            OutlinedButton(
+                                onClick = onOpenRecovery,
+                                border = BorderStroke(1.dp, Warning),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Ink),
+                            ) {
+                                Text("Восстановить ADB", fontWeight = FontWeight.SemiBold)
+                            }
+                        }
+                        Button(
+                            onClick = onPrimaryAction,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Accent,
+                                contentColor = Color(0xFF06251C),
+                            ),
+                        ) {
+                            Text(model.primaryLabel, fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AdbRecoveryDialog(
+    state: DenzaUiState,
+    onCheckAdbAccess: () -> Unit,
+    onRequestAdbAuthorizationOnce: () -> Unit,
+    onAllowNewAdbAuthorizationAttempt: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+    ) {
+        Card(
+            modifier = Modifier.fillMaxWidth(0.68f),
+            colors = CardDefaults.cardColors(containerColor = SurfaceColor),
+            shape = RoundedCornerShape(28.dp),
+            border = BorderStroke(1.dp, Elevated),
+        ) {
+            Column(
+                modifier = Modifier.padding(32.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Text(
+                    "Восстановление ADB",
+                    color = Ink,
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(state.adbRescue.message, color = Ink, fontSize = 20.sp)
+                state.adbRescue.details?.let { details ->
+                    Text(details, color = Muted, fontSize = 17.sp)
+                }
+                OutlinedButton(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = onCheckAdbAccess,
+                    enabled = state.adbRescue.phase != AdbRescuePhase.CHECKING &&
+                        state.adbRescue.phase != AdbRescuePhase.REQUESTING,
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = Ink,
+                        disabledContentColor = DisabledMuted,
+                    ),
+                ) {
+                    Text("Проверить доступ", fontWeight = FontWeight.SemiBold)
+                }
+                if (state.adbRescue.canRequest) {
+                    Button(
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = onRequestAdbAuthorizationOnce,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Accent,
+                            contentColor = Color(0xFF06251C),
+                        ),
+                    ) {
+                        Text("Отправить один запрос", fontWeight = FontWeight.SemiBold)
+                    }
+                }
+                if (state.adbRescue.canResetAttempt) {
+                    TextButton(
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = onAllowNewAdbAuthorizationAttempt,
+                    ) {
+                        Text("Разрешить новую попытку", color = Warning)
+                    }
+                }
+                Text(
+                    AdbRescueCoordinator.QUEUE_RECOVERY_STATUS,
+                    color = Warning,
+                    fontSize = 16.sp,
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                ) {
+                    TextButton(onClick = onDismiss) {
+                        Text("Закрыть", color = Accent, fontWeight = FontWeight.SemiBold)
+                    }
+                }
+            }
+        }
+    }
+}
 
 /**
  * Measures the existing cards either as the original equal-width row or as a

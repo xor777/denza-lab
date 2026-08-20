@@ -13,6 +13,46 @@ internal class SplitPickerShellSession(
     private val pause: (Long) -> Unit = Thread::sleep,
     private val gateLeaseStore: SplitGateLeaseStore? = null,
 ) {
+    /** Waits until a foreground control task has actually left the native organizer. */
+    fun awaitTaskRemoved(taskId: Int) {
+        check(taskId > 0) { "Control task id is unavailable" }
+        repeat(TASK_REMOVAL_ATTEMPTS) { attempt ->
+            val present = snapshot().roots.any { root -> root.tasks.any { it.id == taskId } }
+            if (!present) return
+            if (attempt + 1 < TASK_REMOVAL_ATTEMPTS) pause(TASK_REMOVAL_INTERVAL_MS)
+        }
+        error("Control-задача $taskId не закрылась")
+    }
+
+    /** Establishes the only live-proven neutral state before rebuilding a consumed split pair. */
+    fun prepareControlReturn(taskId: Int) {
+        awaitTaskRemoved(taskId)
+        run("input keyevent KEYCODE_HOME")
+        pause(HOME_SETTLE_MS)
+        check(callInt("service call activity_task 30") == AREA_HOME) {
+            "Прошивка не перешла на домашний экран перед восстановлением split"
+        }
+    }
+
+    /** Removes picker identities invalidated when BYD consumed the old pair for control UI. */
+    fun discardInvalidatedPickerBases(pickerComponents: Set<String>) {
+        val invalidated = snapshot().roots.asSequence()
+            .filter { it.displayId == MAIN_DISPLAY_ID }
+            .flatMap { it.tasks.asSequence() }
+            .filter { task ->
+                task.isDenzaPickerBase() && task.matchesAnyComponent(pickerComponents)
+            }
+            .toList()
+        invalidated.forEach(::removeTaskSafely)
+        val remainingIds = snapshot().roots.asSequence()
+            .filter { it.displayId == MAIN_DISPLAY_ID }
+            .flatMap { it.tasks.asSequence() }
+            .mapTo(mutableSetOf(), SplitTask::id)
+        check(invalidated.none { it.id in remainingIds }) {
+            "Прошивка сохранила недействительный picker-task"
+        }
+    }
+
     /**
      * Adopts an already-running product scene without mutating the firmware roots.
      *
@@ -353,7 +393,7 @@ internal class SplitPickerShellSession(
         }
 
         val hostResult = runCatching {
-            launchTargetInStableHost(target, pane, rootId)
+            launchTargetInStableHost(target, pane, rootId, pickerComponents)
         }
         hostResult.getOrNull()?.let { return it }
         val hostError = hostResult.exceptionOrNull()
@@ -512,10 +552,15 @@ internal class SplitPickerShellSession(
     fun prepareNavigationReturn(
         originalRootTaskId: Int,
         pickerComponents: Set<String>,
+        expectedApps: Map<SplitPane, SplitPickerExpectedApp> = emptyMap(),
     ): SplitNavigationReturnPlan {
         val roots = nativeRootIds()
         val originalPane = SplitPane.entries.firstOrNull { pane ->
             roots.getValue(pane) == originalRootTaskId
+        }
+        val hiddenOwnedSession = existingOwnedSession(pickerComponents, expectedApps)
+        if (hiddenOwnedSession != null) {
+            revealOwnedSession(hiddenOwnedSession, pickerComponents)
         }
         if (callInt("service call activity_task 30") != AREA_BALANCED_SPLIT) {
             return SplitNavigationReturnPlan(
@@ -974,6 +1019,7 @@ internal class SplitPickerShellSession(
         target: SplitLaunchTarget,
         pane: SplitPane,
         rootId: Int,
+        pickerComponents: Set<String>,
     ): SplitTask {
         // The short-lived launcher entry is itself a fullscreen task. On this firmware it can
         // close mIsEnterSplit after openPickers() established the native roots, so the gate must
@@ -1004,7 +1050,7 @@ internal class SplitPickerShellSession(
             )
             pause(HOST_LAUNCH_SETTLE_MS)
             host = awaitTaskMatching { task ->
-                task.id !in existingHostIds && task.rootId == rootId && task.isDenzaAppHost()
+                task.id !in existingHostIds && task.isDenzaAppHost()
             }
             pause(APP_LAUNCH_SETTLE_MS)
             var launched = awaitLaunchedTarget(host.id, target.packageName)
@@ -1019,8 +1065,34 @@ internal class SplitPickerShellSession(
                         task.id == launched.id && task.packageName == target.packageName
                     } ?: error("Запущенная задача ${launched.id} не вошла в выбранное окно")
                 }
+                val displacedHostRootId = host.rootId.takeIf { it != rootId }
                 removeAppHostIfPresent(host.id)
+                if (displacedHostRootId != null) {
+                    // BYD may report the newly exposed task as visible/top while leaving its
+                    // surface black after removing a host that raced into the other pane.
+                    // Briefly focus that exact exposed task, then return focus to the selected
+                    // app. This asks SmartMulti to redraw both roots without moving either task.
+                    val exposed = snapshot().root(displacedHostRootId)?.resolvedTopTask()
+                        ?: error("Другое split-окно не восстановилось после удаления host")
+                    check(
+                        !exposed.isDenzaAppHost() &&
+                            (!exposed.isDenzaPickerBase() ||
+                                exposed.matchesAnyComponent(pickerComponents)),
+                    ) { "В другом split-окне появился неизвестный host" }
+                    run("am task focus ${exposed.id}")
+                    pause(ROOT_SETTLE_MS)
+                    run("am task focus ${launched.id}")
+                    pause(ROOT_SETTLE_MS)
+                }
                 host = null
+            } else {
+                // SmartMulti can reparent the host before the first shell snapshot. Keep
+                // observing long enough for a redirect-owned task to appear, but never accept
+                // a still-hosted app in the opposite pane: that case remains on the proven
+                // cleanup + direct-launch fallback path.
+                check(launched.rootId == rootId) {
+                    "Host-задача приложения оказалась в другом split-окне"
+                }
             }
             return launched
         } catch (error: Throwable) {
@@ -1360,6 +1432,8 @@ internal class SplitPickerShellSession(
         const val LAUNCH_MODE_SINGLE_TASK = 2
         const val TASK_DISCOVERY_ATTEMPTS = 12
         const val TASK_DISCOVERY_INTERVAL_MS = 100L
+        const val TASK_REMOVAL_ATTEMPTS = 30
+        const val TASK_REMOVAL_INTERVAL_MS = 100L
         const val PICKER_SETTLE_MS = 150L
         const val HOME_SETTLE_MS = 650L
         const val NATIVE_PICKER_SETTLE_MS = 450L

@@ -15,7 +15,10 @@ import dev.denza.apps.feature.cluster.ClusterDisplaySelection
 import dev.denza.apps.feature.cluster.ClusterMapPlacement
 import dev.denza.apps.feature.cluster.ClusterSceneService
 import dev.denza.apps.feature.adb.AdbRescueCoordinator
+import dev.denza.apps.feature.adb.AdbRescuePhase
 import dev.denza.apps.feature.adb.AdbRescueSnapshot
+import dev.denza.apps.feature.adb.AdbStartupEntryAction
+import dev.denza.apps.feature.adb.AdbStartupGatePolicy
 import dev.denza.apps.feature.fse.FseAppInstaller
 import dev.denza.apps.feature.fse.FseInstallApp
 import dev.denza.apps.feature.fse.FseInstallResult
@@ -36,10 +39,12 @@ import dev.denza.apps.feature.split.SplitScreenPhase
 import dev.denza.apps.feature.split.SplitScreenSession
 import dev.denza.apps.feature.split.SplitScreenSettings
 import dev.denza.apps.feature.split.SplitScreenToggleController
+import dev.denza.apps.feature.weather.WeatherAdapterScheduler
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicBoolean
 
 data class SimulcastAppChoice(
     val packageName: String,
@@ -97,6 +102,7 @@ data class DenzaUiState(
 /** Android-facing state owner shared by the Compose shell and runtime services. */
 object DenzaAppRepository {
     private val executor = Executors.newSingleThreadExecutor()
+    private val adbRuntimeStarted = AtomicBoolean(false)
     private val mutableState = MutableStateFlow(DenzaUiState())
     val state: StateFlow<DenzaUiState> = mutableState.asStateFlow()
 
@@ -104,35 +110,23 @@ object DenzaAppRepository {
     private var appContext: Context? = null
 
     fun initialize(context: Context) {
-        appContext = context.applicationContext
-        AdbRescueCoordinator.initialize(context)
-        SplitScreenCoordinator.initialize(context) { refresh() }
-        reconcileSplitScreenToggle(context)
-        refresh()
-        reconcileSimulcast(repairMissingSetup = true)
-        if (MirrorsSettings.isEnabled(context)) reconcileMirrors()
-        NavigationCoordinator.initialize(context) { refresh() }
-        reconcileHudNotificationAccess(context)
+        initializeAdbGate(context.applicationContext)
     }
 
     fun recoverEnabledFeatures(context: Context) {
-        appContext = context.applicationContext
-        AdbRescueCoordinator.initialize(context)
-        SplitScreenCoordinator.initialize(context) { refresh() }
-        reconcileSplitScreenToggle(context)
-        NavigationCoordinator.initialize(context) { refresh() }
-        refresh()
-        if (SimulcastIntegration.isEnabled(context)) {
-            reconcileSimulcast(repairMissingSetup = true)
-        }
-        if (MirrorsSettings.isEnabled(context)) {
-            reconcileMirrors()
-        }
-        reconcileHudNotificationAccess(context)
+        initializeAdbGate(context.applicationContext)
     }
 
     fun refresh() {
         val context = appContext ?: return
+        val adbRescue = AdbRescueCoordinator.snapshot()
+        if (adbRescue.phase != AdbRescuePhase.TRUSTED || !adbRuntimeStarted.get()) {
+            // Keep the last healthy dashboard (or its neutral first-launch defaults) behind the
+            // startup overlay. Individual feature probes must not turn a missing global ADB
+            // prerequisite into a wall of unrelated errors.
+            mutableState.value = mutableState.value.copy(adbRescue = adbRescue)
+            return
+        }
         val snapshot = SimulcastCoordinator.evaluate(SimulcastCoordinator.inspect(context))
         val navigationSession = NavigationCoordinator.snapshot()
         val navigationPackage = NavigationCoordinator.selectedPackage()
@@ -164,7 +158,7 @@ object DenzaAppRepository {
                 session = splitScreenSession,
             ),
             hudGuidance = evaluateHudGuidance(context),
-            adbRescue = AdbRescueCoordinator.snapshot(),
+            adbRescue = adbRescue,
             technicalDetails = supportDiagnostics(context),
             clusterCandidates = ClusterDisplayResolver.candidates(context),
         )
@@ -495,17 +489,53 @@ object DenzaAppRepository {
 
     fun checkAdbAccess() {
         val context = appContext ?: return
-        AdbRescueCoordinator.checkAccess(context) { refresh() }
+        AdbRescueCoordinator.checkAccess(context) { onAdbRescueChanged(context) }
     }
 
     fun requestAdbAuthorizationOnce() {
         val context = appContext ?: return
-        AdbRescueCoordinator.requestOnce(context) { refresh() }
+        AdbRescueCoordinator.requestOnce(context) { onAdbRescueChanged(context) }
     }
 
     fun allowNewAdbAuthorizationAttempt() {
         val context = appContext ?: return
-        AdbRescueCoordinator.allowNewAttempt(context) { refresh() }
+        AdbRescueCoordinator.allowNewAttempt(context) {
+            refresh()
+            checkAdbAccess()
+        }
+    }
+
+    private fun initializeAdbGate(context: Context) {
+        appContext = context.applicationContext
+        AdbRescueCoordinator.initialize(context)
+        refresh()
+        when (AdbStartupGatePolicy.entryAction(AdbRescueCoordinator.snapshot().phase)) {
+            // UNKNOWN is the one automatic startup probe. All other unresolved outcomes stay
+            // latched until the user explicitly presses a button in the blocking overlay.
+            AdbStartupEntryAction.CHECK_ACCESS -> checkAdbAccess()
+            AdbStartupEntryAction.START_RUNTIME -> startAdbRuntime(context)
+            AdbStartupEntryAction.NONE -> Unit
+        }
+    }
+
+    private fun onAdbRescueChanged(context: Context) {
+        if (AdbRescueCoordinator.snapshot().phase == AdbRescuePhase.TRUSTED) {
+            startAdbRuntime(context)
+        }
+        refresh()
+    }
+
+    private fun startAdbRuntime(context: Context) {
+        if (!adbRuntimeStarted.compareAndSet(false, true)) return
+        val app = context.applicationContext
+        SplitScreenCoordinator.initialize(app) { refresh() }
+        reconcileSplitScreenToggle(app)
+        NavigationCoordinator.initialize(app) { refresh() }
+        WeatherAdapterScheduler.ensureScheduled(app)
+        refresh()
+        reconcileSimulcast(repairMissingSetup = true)
+        if (MirrorsSettings.isEnabled(app)) reconcileMirrors()
+        reconcileHudNotificationAccess(app)
     }
 
     private fun reconcileMirrors() {

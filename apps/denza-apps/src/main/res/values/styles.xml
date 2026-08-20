@@ -7,9 +7,6 @@
         <item name="android:statusBarColor">#080A0C</item>
         <item name="android:windowBackground">#080A0C</item>
     </style>
-    <style name="DenzaAppsLauncherTheme" parent="@android:style/Theme.NoDisplay">
-        <item name="android:windowDisablePreview">true</item>
-    </style>
     <style name="DenzaAppsSplitPickerTheme" parent="@android:style/Theme.Material.NoActionBar">
         <item name="android:fontFamily">sans</item>
         <item name="android:windowActionModeOverlay">true</item>

@@ -161,7 +161,8 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:launchMode="singleTop"
+            android:launchMode="singleTask"
+            android:resizeableActivity="false"
             android:taskAffinity="dev.denza.apps.control" />
         <activity
             android:name=".feature.split.SplitPlaceholderActivity"
@@ -172,13 +173,18 @@
             android:taskAffinity="dev.denza.apps.split.placeholder" />
         <activity
             android:name=".DenzaLauncherActivity"
+            android:excludeFromRecents="true"
             android:exported="true"
-            android:taskAffinity="dev.denza.apps.control"
-            android:theme="@style/DenzaAppsLauncherTheme">
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.NoDisplay">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <service
+            android:name=".DenzaControlLaunchService"
+            android:exported="false" />
     </application>
 </manifest>

@@ -88,8 +88,6 @@ class HudArApproximationTest {
         }
         listOf(
             HudManeuver.UNKNOWN,
-            HudManeuver.U_TURN_LEFT,
-            HudManeuver.U_TURN_RIGHT,
             HudManeuver.ROUNDABOUT_LEFT,
             HudManeuver.ROUNDABOUT_RIGHT,
         ).forEach { maneuver ->
@@ -153,6 +151,28 @@ class HudArApproximationTest {
         assertTrue("slight=$slight normal=$normal", slight in 10.0..<normal)
         assertTrue("normal=$normal sharp=$sharp", normal < sharp)
         assertTrue("sharp=$sharp", sharp < 170.0)
+    }
+
+    @Test
+    fun `left and right u turns mirror and finish on the return heading`() {
+        val left = geometry(HudManeuver.U_TURN_LEFT)
+        val right = geometry(HudManeuver.U_TURN_RIGHT)
+        val leftPoint = parseGuidePoint(left.guidePoint)
+        val rightPoint = parseGuidePoint(right.guidePoint)
+        val leftLine = parseGuideLine(left.guideLine)
+        val rightLine = parseGuideLine(right.guideLine)
+
+        assertEquals(-175.0, terminalDeflection(left), 2.0)
+        assertEquals(175.0, terminalDeflection(right), 2.0)
+        assertTrue(leftLine.last().longitude < leftPoint.longitude)
+        assertTrue(rightLine.last().longitude > rightPoint.longitude)
+        assertEquals(
+            abs(leftLine.last().longitude - leftPoint.longitude),
+            abs(rightLine.last().longitude - rightPoint.longitude),
+            2e-6,
+        )
+        assertTrue(leftLine.last().latitude < leftPoint.latitude)
+        assertTrue(rightLine.last().latitude < rightPoint.latitude)
     }
 
     @Test
@@ -220,6 +240,103 @@ class HudArApproximationTest {
                 NOW + 500L,
             ),
         )
+    }
+
+    @Test
+    fun `stale incoming course cannot turn a right instruction into a reversal`() {
+        val tracker = HudArApproximationTracker()
+        assertNotNull(
+            tracker.resolve(
+                guidance(maneuver = HudManeuver.RIGHT, distance = 100),
+                pose(headingDegrees = 0.0),
+                NOW,
+            ),
+        )
+
+        val foldedApproach = pose(
+            latitude = LATITUDE + metersToLatitude(150.0),
+            longitude = LONGITUDE + metersToLongitude(42.0),
+            headingDegrees = 220.0,
+            capturedAtElapsedMs = NOW + 500L,
+        )
+        assertNull(
+            tracker.resolve(
+                guidance(maneuver = HudManeuver.RIGHT, distance = 100),
+                foldedApproach,
+                NOW + 500L,
+            ),
+        )
+    }
+
+    @Test
+    fun `moderately curved approach keeps terminal direction tied to the maneuver`() {
+        val tracker = HudArApproximationTracker()
+        assertNotNull(
+            tracker.resolve(
+                guidance(maneuver = HudManeuver.RIGHT, distance = 100),
+                pose(headingDegrees = 0.0),
+                NOW,
+            ),
+        )
+        val curvedApproach = pose(
+            latitude = LATITUDE + metersToLatitude(61.7),
+            longitude = LONGITUDE - metersToLongitude(32.1),
+            headingDegrees = 40.0,
+            capturedAtElapsedMs = NOW + 500L,
+        )
+
+        val geometry = tracker.resolve(
+            guidance(maneuver = HudManeuver.RIGHT, distance = 100),
+            curvedApproach,
+            NOW + 500L,
+        )!!
+
+        assertEquals(90.0, terminalDeflection(geometry), 2.0)
+    }
+
+    @Test
+    fun `every generated maneuver keeps its semantic direction across compass headings`() {
+        val expectedDeflections = mapOf(
+            HudManeuver.STRAIGHT to 0.0,
+            HudManeuver.SLIGHT_LEFT to -35.0,
+            HudManeuver.LEFT to -90.0,
+            HudManeuver.SHARP_LEFT to -135.0,
+            HudManeuver.SLIGHT_RIGHT to 35.0,
+            HudManeuver.RIGHT to 90.0,
+            HudManeuver.SHARP_RIGHT to 135.0,
+            HudManeuver.U_TURN_LEFT to -175.0,
+            HudManeuver.U_TURN_RIGHT to 175.0,
+        )
+
+        expectedDeflections.forEach { (maneuver, expected) ->
+            for (heading in 0 until 360 step 15) {
+                val geometry = HudArApproximationTracker().resolve(
+                    guidance(maneuver = maneuver, distance = 100),
+                    pose(headingDegrees = heading.toDouble()),
+                    NOW,
+                )
+                assertNotNull("maneuver=$maneuver heading=$heading", geometry)
+                assertEquals(
+                    "maneuver=$maneuver heading=$heading",
+                    expected,
+                    terminalDeflection(checkNotNull(geometry)),
+                    2.0,
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `rebased lateral mutation skips one sample then recovers without stale geometry`() {
+        val tracker = HudArApproximationTracker()
+        assertNotNull(tracker.resolve(guidance(distance = 100), pose(headingDegrees = 0.0), NOW))
+        val changedCourse = pose(
+            headingDegrees = 90.0,
+            capturedAtElapsedMs = NOW + 500L,
+        )
+
+        assertNull(tracker.resolve(guidance(distance = 90), changedCourse, NOW + 500L))
+        assertNotNull(tracker.resolve(guidance(distance = 90), changedCourse, NOW + 600L))
     }
 
     @Test
@@ -330,6 +447,13 @@ class HudArApproximationTest {
         return abs(bearingDegrees(guidePoint, last))
     }
 
+    private fun terminalDeflection(geometry: HudArGeometry): Double {
+        val line = parseGuideLine(geometry.guideLine)
+        val approach = bearingDegrees(line.first(), parseGuidePoint(geometry.guidePoint))
+        val terminal = bearingDegrees(line[line.lastIndex - 1], line.last())
+        return ((terminal - approach + 540.0) % 360.0) - 180.0
+    }
+
     private data class Point(val latitude: Double, val longitude: Double)
 
     private fun parseGuidePoint(value: String): Point {
@@ -365,6 +489,9 @@ class HudArApproximationTest {
     }
 
     private fun metersToLatitude(value: Double): Double = value / 111_195.0
+
+    private fun metersToLongitude(value: Double): Double =
+        value / (111_195.0 * cos(Math.toRadians(LATITUDE)))
 
     private data class WireField(val wireType: Int, val bytes: ByteArray) {
         fun doubleValue(): Double = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN).double

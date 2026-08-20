@@ -68,7 +68,31 @@ object SplitScreenCoordinator {
     fun snapshot(): SplitScreenSession = session
 
     /** Opens the explicit two-picker product flow from its launcher icon. */
-    fun openPickerSession(context: Context, onComplete: (String?) -> Unit = {}) {
+    fun openPickerSession(context: Context, onComplete: (String?) -> Unit = {}) =
+        openPickerSession(context, null, onComplete)
+
+    /**
+     * Restores the saved split scene after the full-screen control panel closes.
+     *
+     * BYD applies split capability at package level, so launching Denza Apps can consume one
+     * native pane before application code runs. Rebuilding while that control task still exists
+     * leaves the firmware in a picker-only intermediate scene. This transition therefore waits
+     * for the exact control task to leave ActivityTaskManager before it mutates the split roots.
+     */
+    fun restorePickerSessionAfterControl(
+        context: Context,
+        controlTaskId: Int,
+        onComplete: (String?) -> Unit = {},
+    ) {
+        require(controlTaskId > 0) { "Control task id is unavailable" }
+        openPickerSession(context, controlTaskId, onComplete)
+    }
+
+    private fun openPickerSession(
+        context: Context,
+        controlTaskId: Int?,
+        onComplete: (String?) -> Unit,
+    ) {
         val app = context.applicationContext
         this.context = app
         ensurePickerStateLoaded(app)
@@ -89,6 +113,11 @@ object SplitScreenCoordinator {
             var adb: LocalAdbClient.PersistentShellSession? = null
             try {
                 adb = DenzaLocalAdb.client(app).openPersistentShell()
+                val split = pickerSession(app, adb::shell)
+                if (controlTaskId != null) {
+                    split.prepareControlReturn(controlTaskId)
+                    split.discardInvalidatedPickerBases(PICKER_COMPONENT_SET)
+                }
                 SplitNativePickerAccessController(
                     shell = adb::shell,
                     leaseStore = SplitScreenSettings.nativePickerAccessLeaseStore(app),
@@ -106,24 +135,9 @@ object SplitScreenCoordinator {
                     secondaryPackage = store.load(SplitPane.SECONDARY),
                     installedPackages = installed,
                 )
-                val split = pickerSession(app, adb::shell)
-                val expectedApps = SplitPane.entries.mapNotNull { pane ->
-                    val slot = currentPickerState().slot(pane)
-                    val taskId = slot.appTaskId
-                    val packageName = slot.packageName
-                    if (
-                        slot.kind == SplitPickerSlotKind.APP &&
-                        taskId != null &&
-                        packageName != null
-                    ) {
-                        pane to SplitPickerExpectedApp(taskId, packageName)
-                    } else {
-                        null
-                    }
-                }.toMap()
                 val existing = split.existingOwnedSession(
                     PICKER_COMPONENT_SET,
-                    expectedApps,
+                    expectedPickerApps(),
                 )
                     ?.let { owned ->
                         split.revealOwnedSession(owned, PICKER_COMPONENT_SET)
@@ -479,6 +493,7 @@ object SplitScreenCoordinator {
             val plan = split.prepareNavigationReturn(
                 originalRootTaskId = originalRootTaskId,
                 pickerComponents = PICKER_COMPONENT_SET,
+                expectedApps = expectedPickerApps(),
             )
             return plan
         } finally {
@@ -896,6 +911,22 @@ object SplitScreenCoordinator {
 
     private fun currentPickerState(): SplitPickerAutomatonState =
         synchronized(pickerStateLock) { pickerState }
+
+    private fun expectedPickerApps(): Map<SplitPane, SplitPickerExpectedApp> =
+        SplitPane.entries.mapNotNull { pane ->
+            val slot = currentPickerState().slot(pane)
+            val taskId = slot.appTaskId
+            val packageName = slot.packageName
+            if (
+                slot.kind == SplitPickerSlotKind.APP &&
+                taskId != null &&
+                packageName != null
+            ) {
+                pane to SplitPickerExpectedApp(taskId, packageName)
+            } else {
+                null
+            }
+        }.toMap()
 
     /** Last-pair persistence follows the settled IVI scene, never a historical pane label. */
     private fun syncLastPairFromPickerState(app: Context) {

@@ -27,7 +27,10 @@ Current scripts:
   `SurfaceControlMirrorProbe` against one logical display, then pulls a PNG.
   Set `ADB_SERIAL` when using a tunnel. It is read-only apart from temporary
   files under `/data/local/tmp` and is the return point for non-AVC camera
-  capture research.
+  capture research. For a GL navigator, capture the app-owned `Denza
+  Navigation` display directly to inspect its real layout; a display-3 capture
+  can be black or stale at the nested `SurfaceView` boundary and should be used
+  separately only to verify cluster placement.
 - `surface_control_display_overlay_probe.sh`: compiles and runs the shell-UID
   `SurfaceControlDisplayOverlayProbe` to place a cropped logical-display mirror
   on another display for at most 30 seconds. It does not call AVC AIDL, removes

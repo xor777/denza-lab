@@ -3,24 +3,27 @@ package dev.denza.apps
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
+import dev.denza.apps.feature.split.SplitScreenSettings
 
-/** Keeps the control app out of an already-open BYD split layout. */
+/** Windowless launcher boundary that never becomes a member of the active split pair. */
 class DenzaLauncherActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        startActivity(
-            Intent(this, MainActivity::class.java)
-                .addCategory(CATEGORY_FULL_IVI)
-                .addFlags(NATIVE_FULL_LAUNCH_FLAGS),
-        )
+        if (SplitScreenSettings.isEnabled(this)) {
+            // Keep the chosen pane non-empty while the windowless entry finishes. The service
+            // immediately moves this exact singleTask control task to root 4; the picker/app
+            // stack underneath therefore never hits SmartMulti's empty-pane collapse path.
+            startActivity(
+                Intent(this, MainActivity::class.java)
+                    .putExtra(MainActivity.EXTRA_RESTORE_SPLIT_ON_BACK, true)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+            )
+            startService(Intent(this, DenzaControlLaunchService::class.java))
+        } else {
+            startActivity(
+                Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+            )
+        }
         finish()
-    }
-
-    private companion object {
-        const val CATEGORY_FULL_IVI = "byd.intent.category.START_IVI_FULL"
-        // CLEAR_TASK prevents an existing pane instance from consuming the
-        // intent in place; BYD then creates/reparents the control task in FULL.
-        const val NATIVE_FULL_LAUNCH_FLAGS =
-            Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
     }
 }
