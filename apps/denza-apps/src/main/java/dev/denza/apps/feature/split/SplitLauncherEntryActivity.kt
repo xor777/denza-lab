@@ -14,11 +14,15 @@ class SplitLauncherEntryActivity : Activity() {
         val launchOverlay = SplitLaunchOverlay.begin(applicationContext)
         try {
             SplitScreenCoordinator.openPickerSession(applicationContext) { error ->
-                launchOverlay.close()
+                if (error == null) {
+                    launchOverlay.close()
+                } else {
+                    launchOverlay.closeImmediately()
+                }
                 showError(error)
             }
         } catch (error: Throwable) {
-            launchOverlay.close()
+            launchOverlay.closeImmediately()
             Log.e(TAG, "Split Screen launch failed", error)
             showError(USER_ERROR)
         } finally {

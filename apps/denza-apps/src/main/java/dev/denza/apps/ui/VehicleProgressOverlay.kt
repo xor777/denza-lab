@@ -51,6 +51,8 @@ internal class VehicleProgressOverlay(
 
     private var windowManager: WindowManager? = null
     private var overlayView: View? = null
+    private var overlayParams: WindowManager.LayoutParams? = null
+    private var removeRetryCount = 0
 
     fun setVisible(context: Context, visible: Boolean) {
         appContext = context.applicationContext
@@ -68,7 +70,18 @@ internal class VehicleProgressOverlay(
     }
 
     private fun show(context: Context) {
-        if (overlayView?.isAttachedToWindow == true) return
+        val attached = overlayView
+        if (attached?.isAttachedToWindow == true) {
+            attached.visibility = View.VISIBLE
+            attached.isClickable = inputMode == VehicleProgressOverlayInputMode.BLOCK_SCREEN
+            overlayParams?.let { params ->
+                params.flags = desiredFlags()
+                runCatching { windowManager?.updateViewLayout(attached, params) }
+                    .onFailure { Log.i(TAG, "$windowTitle overlay re-arm failed", it) }
+            }
+            removeRetryCount = 0
+            return
+        }
         val manager = context.getSystemService(WindowManager::class.java)
         val view = createWindowView(context)
         val blocksScreen = inputMode == VehicleProgressOverlayInputMode.BLOCK_SCREEN
@@ -80,12 +93,7 @@ internal class VehicleProgressOverlay(
                 WindowManager.LayoutParams.WRAP_CONTENT
             },
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
-                if (blocksScreen) 0 else {
-                    WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
-                        WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
-                },
+            desiredFlags(),
             PixelFormat.TRANSLUCENT,
         ).apply {
             gravity = Gravity.CENTER
@@ -95,6 +103,8 @@ internal class VehicleProgressOverlay(
             manager.addView(view, params)
             windowManager = manager
             overlayView = view
+            overlayParams = params
+            removeRetryCount = 0
         } catch (error: RuntimeException) {
             Log.i(TAG, "$windowTitle overlay unavailable", error)
         }
@@ -102,14 +112,48 @@ internal class VehicleProgressOverlay(
 
     private fun hide() {
         val view = overlayView ?: return
-        overlayView = null
-        try {
-            windowManager?.removeViewImmediate(view)
-        } catch (error: RuntimeException) {
-            Log.i(TAG, "$windowTitle overlay already removed", error)
-        } finally {
-            windowManager = null
+        val manager = windowManager
+        // Release input first. Even if removal fails, the stale surface cannot keep the car UI
+        // blocked while the bounded WindowManager retries run.
+        view.isClickable = false
+        view.visibility = View.INVISIBLE
+        overlayParams?.let { params ->
+            params.flags = params.flags or
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
+            runCatching { manager?.updateViewLayout(view, params) }
+                .onFailure { Log.i(TAG, "$windowTitle overlay input release failed", it) }
         }
+        try {
+            manager?.removeViewImmediate(view)
+        } catch (error: RuntimeException) {
+            Log.i(TAG, "$windowTitle overlay removal failed", error)
+            runCatching { manager?.removeView(view) }
+                .onFailure { Log.i(TAG, "$windowTitle overlay fallback removal failed", it) }
+        }
+        if (!view.isAttachedToWindow) {
+            overlayView = null
+            windowManager = null
+            overlayParams = null
+            removeRetryCount = 0
+        } else if (removeRetryCount < MAX_REMOVE_RETRIES) {
+            removeRetryCount += 1
+            view.postDelayed(::renderLatestState, REMOVE_RETRY_MS)
+        } else {
+            Log.w(TAG, "$windowTitle overlay remained attached but input was released")
+        }
+    }
+
+    private fun desiredFlags(): Int {
+        val inputFlags = if (inputMode == VehicleProgressOverlayInputMode.BLOCK_SCREEN) {
+            0
+        } else {
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
+        }
+        return WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or inputFlags
     }
 
     private fun createWindowView(context: Context): View {
@@ -184,5 +228,7 @@ internal class VehicleProgressOverlay(
 
     private companion object {
         const val TAG = "DenzaProgressOverlay"
+        const val MAX_REMOVE_RETRIES = 3
+        const val REMOVE_RETRY_MS = 100L
     }
 }
