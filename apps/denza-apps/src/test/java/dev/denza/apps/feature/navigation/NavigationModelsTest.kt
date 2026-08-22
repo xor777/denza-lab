@@ -9,6 +9,86 @@ import org.junit.Test
 
 class NavigationModelsTest {
     @Test
+    fun primaryActionRejectsUninitializedPendingAndTransitionStates() {
+        val ready = NavigationSession()
+
+        assertNull(NavigationPrimaryActionPolicy.action(false, true, true, false, ready))
+        assertNull(NavigationPrimaryActionPolicy.action(true, false, true, false, ready))
+        assertNull(NavigationPrimaryActionPolicy.action(true, true, true, true, ready))
+        assertNull(NavigationPrimaryActionPolicy.action(true, true, false, false, ready))
+        listOf(
+            NavigationPhase.OPENING,
+            NavigationPhase.PROJECTING,
+            NavigationPhase.RETURNING,
+            NavigationPhase.RECOVERING,
+        ).forEach { phase ->
+            assertNull(
+                NavigationPrimaryActionPolicy.action(
+                    initialized = true,
+                    hasContext = true,
+                    selectedAppInstalled = true,
+                    actionPending = false,
+                    session = ready.copy(phase = phase),
+                ),
+            )
+        }
+        listOf(
+            FeatureResolution.SELECT_NAVIGATION_APP,
+            FeatureResolution.SELECT_CLUSTER_DISPLAY,
+        ).forEach { resolution ->
+            assertNull(
+                NavigationPrimaryActionPolicy.action(
+                    initialized = true,
+                    hasContext = true,
+                    selectedAppInstalled = true,
+                    actionPending = false,
+                    session = ready.copy(
+                        phase = NavigationPhase.NEEDS_ACTION,
+                        resolution = resolution,
+                    ),
+                ),
+            )
+        }
+    }
+
+    @Test
+    fun primaryActionSelectsExactlyOneExecutableCommand() {
+        assertEquals(
+            NavigationPrimaryAction.OPEN,
+            NavigationPrimaryActionPolicy.action(
+                initialized = true,
+                hasContext = true,
+                selectedAppInstalled = true,
+                actionPending = false,
+                session = NavigationSession(),
+            ),
+        )
+        assertEquals(
+            NavigationPrimaryAction.PROJECT,
+            NavigationPrimaryActionPolicy.action(
+                initialized = true,
+                hasContext = true,
+                selectedAppInstalled = true,
+                actionPending = false,
+                session = NavigationSession(taskId = 12),
+            ),
+        )
+        assertEquals(
+            NavigationPrimaryAction.RETURN,
+            NavigationPrimaryActionPolicy.action(
+                initialized = true,
+                hasContext = true,
+                selectedAppInstalled = false,
+                actionPending = false,
+                session = NavigationSession(
+                    phase = NavigationPhase.PROJECTED,
+                    taskId = 12,
+                ),
+            ),
+        )
+    }
+
+    @Test
     fun onlyKnownNavigationAppsAreAllowed() {
         assertTrue(NavigationAppPolicy.isAllowed("ru.yandex.yandexnavi"))
         assertTrue(NavigationAppPolicy.isAllowed("ru.yandex.yandexmaps"))

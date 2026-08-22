@@ -265,10 +265,18 @@ fun DenzaAppsRoot(
                             Spacer(Modifier.height(10.dp))
                             SettingsSwitchRow(
                                 title = "Кнопка ★ на руле",
+                                subtitle = when {
+                                    !uiState.navigationSteeringWheelButton ->
+                                        "Штатное действие не перехватывается"
+                                    uiState.navigationSteeringWheelButtonRepairing ->
+                                        "Восстанавливаю системный доступ…"
+                                    uiState.navigationSteeringWheelButtonReady ->
+                                        "Перехват активен"
+                                    else ->
+                                        "Системный доступ недоступен"
+                                },
                                 checked = uiState.navigationSteeringWheelButton,
                                 onCheckedChange = onNavigationSteeringWheelButton,
-                                controlEnabled = uiState.navigation.status != FeatureStatus.STARTING &&
-                                    uiState.navigation.status != FeatureStatus.RECOVERING,
                             )
                             Spacer(Modifier.height(10.dp))
                             Row(

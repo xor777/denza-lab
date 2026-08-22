@@ -1,7 +1,7 @@
 package dev.denza.apps.feature.navigation
 
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -61,35 +61,53 @@ class SteeringWheelNavigationButtonTest {
     }
 
     @Test
-    fun `single press becomes one navigation action after timeout`() {
-        val sequence = SteeringWheelPressSequence(timeoutMs = 500L)
+    fun `each press dispatches immediately without double-press recognition`() {
+        val interceptor = SteeringWheelKeyInterceptor()
+        var actions = 0
+        val dispatch = SteeringWheelNavigationAction {
+            actions += 1
+            true
+        }
 
-        assertEquals(SteeringWheelPressResult(), sequence.onPress(nowMs = 1_000L))
-        assertEquals(0, sequence.flushNavigationActions(nowMs = 1_499L))
-        assertEquals(1, sequence.flushNavigationActions(nowMs = 1_500L))
+        assertTrue(interceptor.onKeyEvent(true, 321, 0, 0, dispatch))
+        assertTrue(interceptor.onKeyEvent(true, 321, 1, 0, dispatch))
+        assertTrue(interceptor.onKeyEvent(true, 321, 0, 0, dispatch))
+        assertTrue(interceptor.onKeyEvent(true, 321, 1, 0, dispatch))
+        assertEquals(2, actions)
     }
 
     @Test
-    fun `double press toggles camera without navigation actions`() {
-        val sequence = SteeringWheelPressSequence(timeoutMs = 500L)
+    fun `rejected navigation leaves the complete press to the stock handler`() {
+        val interceptor = SteeringWheelKeyInterceptor()
+        val reject = SteeringWheelNavigationAction { false }
 
-        assertFalse(sequence.onPress(nowMs = 1_000L).toggleDvrCamera)
-        val second = sequence.onPress(nowMs = 1_250L)
-
-        assertTrue(second.toggleDvrCamera)
-        assertEquals(0, second.navigationActionsBefore)
-        assertEquals(0, sequence.flushNavigationActions(nowMs = 1_750L))
+        assertFalse(interceptor.onKeyEvent(true, 321, 0, 0, reject))
+        assertFalse(interceptor.onKeyEvent(true, 321, 0, 1, reject))
+        assertFalse(interceptor.onKeyEvent(true, 321, 1, 0, reject))
     }
 
     @Test
-    fun `late press flushes the prior sequence and starts a new one`() {
-        val sequence = SteeringWheelPressSequence(timeoutMs = 500L)
+    fun `accepted navigation owns repeats and release without redispatching`() {
+        val interceptor = SteeringWheelKeyInterceptor()
+        var actions = 0
+        val accept = SteeringWheelNavigationAction {
+            actions += 1
+            true
+        }
 
-        sequence.onPress(nowMs = 1_000L)
-        val late = sequence.onPress(nowMs = 1_700L)
+        assertTrue(interceptor.onKeyEvent(true, 321, 0, 0, accept))
+        assertTrue(interceptor.onKeyEvent(true, 321, 0, 1, accept))
+        assertTrue(interceptor.onKeyEvent(true, 321, 1, 0, accept))
+        assertEquals(1, actions)
+    }
 
-        assertEquals(1, late.navigationActionsBefore)
-        assertFalse(late.toggleDvrCamera)
-        assertEquals(1, sequence.flushNavigationActions(nowMs = 2_200L))
+    @Test
+    fun `disabling interception mid-press still owns the matching release`() {
+        val interceptor = SteeringWheelKeyInterceptor()
+        val accept = SteeringWheelNavigationAction { true }
+
+        assertTrue(interceptor.onKeyEvent(true, 321, 0, 0, accept))
+        assertTrue(interceptor.onKeyEvent(false, 321, 1, 0, accept))
+        assertFalse(interceptor.onKeyEvent(false, 321, 1, 0, accept))
     }
 }

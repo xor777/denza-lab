@@ -26,3 +26,52 @@ object SteeringWheelNavigationButton {
             action == ACTION_DOWN &&
             repeatCount == 0
 }
+
+fun interface SteeringWheelNavigationAction {
+    fun perform(): Boolean
+}
+
+/**
+ * Owns one physical ★ press only after navigation accepts its initial DOWN.
+ * There is intentionally no timing or multi-press state: every new DOWN is an
+ * independent navigation request.
+ */
+class SteeringWheelKeyInterceptor {
+    private var pressOwned = false
+
+    fun onKeyEvent(
+        enabled: Boolean,
+        keyCode: Int,
+        action: Int,
+        repeatCount: Int,
+        navigationAction: SteeringWheelNavigationAction,
+    ): Boolean {
+        if (keyCode != SteeringWheelNavigationButton.KEY_CODE) return false
+        if (!enabled) {
+            val consume = pressOwned
+            if (action == ACTION_UP) pressOwned = false
+            return consume
+        }
+        if (
+            SteeringWheelNavigationButton.shouldTrigger(
+                enabled = enabled,
+                keyCode = keyCode,
+                action = action,
+                repeatCount = repeatCount,
+            )
+        ) {
+            pressOwned = navigationAction.perform()
+        }
+        val consume = pressOwned
+        if (action == ACTION_UP) pressOwned = false
+        return consume
+    }
+
+    fun reset() {
+        pressOwned = false
+    }
+
+    private companion object {
+        const val ACTION_UP = 1
+    }
+}

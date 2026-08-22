@@ -187,8 +187,7 @@ exact `com.android.systemui.apk` (`text_toast.xml` and
 height. The live progress indicator occupies the system's 24dp icon slot.
 
 The optional **Steering-wheel button** switch binds the Denza configurable
-left-hand key to the contextual navigation action and the front DVR overlay.
-It is off by default.
+left-hand key only to the contextual navigation action. It is off by default.
 On the tested DiLink 5.1 firmware, host-side
 `adb shell getevent -lt /dev/input/event0` identifies the device as
 `simulate-keys`: Linux input code `300` (`AUTO_CUSTOM_KEY`) maps through
@@ -197,14 +196,21 @@ Code `301` (`AUTO_CUSTOM_KEY_LP`) maps separately to Android key code `322` for
 the stock long-press settings flow.
 
 The existing Denza Apps accessibility service requests key-event filtering.
-When the switch is enabled it consumes both phases of key code `321` and counts
-first, non-repeated `DOWN` events in a `500 ms` inter-press window. One press
-runs the navigation action after that window; two presses consume the full
-sequence and toggle the processed Camera2 DVR overlay. Key code `322` and every
-unrelated key remain untouched. When disabled, Denza Apps does not consume
-`321`, so the stock action continues normally. Denza Apps does not rewrite the
-global `byd_map_package` setting. That stock alternative was observed but
-rejected: `CustomKeyHandler` action `7` reads
+When the switch is enabled, each first, non-repeated `DOWN` for key code `321`
+immediately asks navigation to accept one contextual action. There is no timer,
+sequence counter, or double-press behavior. The app consumes that press's
+`DOWN`, repeats, and `UP` only after navigation accepts the action; while a
+transfer is already pending, during a transition, or while an app/display choice
+is required, the complete press remains available to the stock handler. Key code
+`322` and every unrelated key remain untouched. When disabled, Denza Apps does
+not consume `321`, so the stock action continues normally.
+
+The persisted switch also owns readiness of the shared accessibility service.
+Turning it on, boot/package recovery, and an observed service disconnect all
+request the same serialized self-repair independently of whether Simulcast is
+enabled. The card distinguishes the saved switch state from observed readiness.
+Denza Apps does not rewrite the global `byd_map_package` setting. That stock
+alternative was observed but rejected: `CustomKeyHandler` action `7` reads
 `byd_map_package=com.byd.launchermap` and sends the package-scoped
 `CUSTOM_NAVI_STANDARD_BROADCAST_RECV` broadcast.
 

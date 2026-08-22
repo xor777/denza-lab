@@ -44,6 +44,7 @@ object NavigationCoordinator {
     private var stockAdbShell: LocalAdbClient.PersistentShellSession? = null
     private var projectedOrigin: NavigationProjectionOrigin? = null
     private val projectionHealth = NavigationProjectionHealthTracker()
+    private val primaryActionPending = AtomicBoolean(false)
     private val splitRoutingLease = NavigationSplitRoutingLease(
         hold = SplitScreenCoordinator::holdExternalTaskMoves,
         release = SplitScreenCoordinator::releaseExternalTaskMoves,
@@ -152,20 +153,44 @@ object NavigationCoordinator {
         }
     }
 
-    fun performPrimaryAction() {
+    fun performPrimaryAction(): Boolean {
+        val app = context ?: return false
+        val selectedAppInstalled = NavigationSettings.isInstalled(app, selectedPackage)
+        if (NavigationPrimaryActionPolicy.action(
+            initialized = initialized,
+            hasContext = true,
+            selectedAppInstalled = selectedAppInstalled,
+            actionPending = primaryActionPending.get(),
+            session = session,
+        ) == null) return false
+        if (!primaryActionPending.compareAndSet(false, true)) return false
+        val action = NavigationPrimaryActionPolicy.action(
+            initialized = initialized,
+            hasContext = true,
+            selectedAppInstalled = selectedAppInstalled,
+            actionPending = false,
+            session = session,
+        ) ?: run {
+            primaryActionPending.set(false)
+            return false
+        }
         SplitScreenCoordinator.bypassExternalTaskMoves()
         executor.execute {
-            when (session.phase) {
-                NavigationPhase.PROJECTED -> {
-                    automaticProjectionActive = false
-                    pendingAutomaticReturn = false
-                    returnToCentralDisplay()
+            try {
+                when (action) {
+                    NavigationPrimaryAction.RETURN -> {
+                        automaticProjectionActive = false
+                        pendingAutomaticReturn = false
+                        returnToCentralDisplay()
+                    }
+                    NavigationPrimaryAction.OPEN -> openSelectedApp()
+                    NavigationPrimaryAction.PROJECT -> projectToCluster()
                 }
-                NavigationPhase.RETURNING -> Unit
-                NavigationPhase.PROJECTING, NavigationPhase.OPENING, NavigationPhase.RECOVERING -> Unit
-                else -> if (session.taskId == null) openSelectedApp() else projectToCluster()
+            } finally {
+                primaryActionPending.set(false)
             }
         }
+        return true
     }
 
     fun onClusterDisplaySelected() {
