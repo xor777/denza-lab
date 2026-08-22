@@ -35,6 +35,7 @@ still use the historical `denza-gateway` directory name.
 - [docs/adb-authorization-recovery.md](docs/adb-authorization-recovery.md) — passive local-ADB startup gate and bounded recovery flow.
 - [docs/vehicle-data-findings.md](docs/vehicle-data-findings.md) — GNSS/IMU for a normal APK; `autoservice` FID protocol for shell-UID BMS/HV/12V reads.
 - [docs/weather-adapter-findings.md](docs/weather-adapter-findings.md) — native weather-provider contract and adapter status.
+- [docs/shortcuts-automation-findings.md](docs/shortcuts-automation-findings.md) — Shortcuts If/Then catalog; `DEFAULT_MAP_SWITCH` live-launches a third-party package (`102000`).
 
 ## Modules
 

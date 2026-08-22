@@ -15,7 +15,7 @@ Use this folder for durable project knowledge.
 | `fse-app-installation.md` | Passenger-screen Android discovery, SMB delivery, stock cross-device install trigger, verification, and limitations. |
 | `split-screen-findings.md` | Live-proven BYD split substrate, explicit one-package picker flow, acceptance evidence, and retired approaches. |
 | `weather-adapter-findings.md` | Stock BYD weather-provider contract, MET Norway adapter, cache/write behavior, and live proof. |
-| `shortcuts-automation-findings.md` | Stock Shortcuts limits, map-role switches, reversible shell probe, and safety boundary. |
+| `shortcuts-automation-findings.md` | Shortcuts If/Then catalog, PersonBean map-role switch, live `102000` launch of Yandex Navigator, and why a Chinese-app disguise does not win. |
 | `carplay-findings.md` | Vehicle hardware/software evidence around CarPlay, PhoneLink/Fission boundaries, and unsupported hypotheses. |
 | `CLOUD-ARCHITECTURE.md` | Normative relay-only Car ADB Gateway design and verification status. |
 | `CAR-ADB-GATEWAY-DECISIONS.md` | ADR-lite product/architecture decisions, rationale, evidence, and revisit conditions. |
