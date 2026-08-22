@@ -320,7 +320,7 @@ object SplitScreenCoordinator {
                         packageName = placement.packageName,
                     ),
                 )
-                check(store.saveExclusive(placement.pane, packageName)) {
+                check(store.save(placement.pane, packageName)) {
                     "Не удалось сохранить последнюю пару"
                 }
                 SplitPickerNotice.publish(app, "")
@@ -1120,7 +1120,7 @@ object SplitScreenCoordinator {
             text.contains("timeout", ignoreCase = true) -> "ADB пока не отвечает"
             text.startsWith("Приложение уже открыто на другом экране") -> text
             text.startsWith("Сначала верните приложение с другого экрана") -> text
-            text.startsWith("Одно приложение нельзя открыть в двух окнах") -> text
+            text.startsWith("Это приложение не поддерживает два окна") -> text
             else -> fallback
         }
     }

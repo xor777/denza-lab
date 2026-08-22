@@ -70,7 +70,7 @@ internal data class SplitPickerPaneObservation(
 
 internal interface SplitLastPairStore {
     fun load(pane: SplitPane): String?
-    fun saveExclusive(pane: SplitPane, packageName: String): Boolean
+    fun save(pane: SplitPane, packageName: String): Boolean
     fun replace(packages: Map<SplitPane, String>): Boolean
 }
 
@@ -108,7 +108,6 @@ internal object SplitPickerSelectionPolicy {
             primaryPackage?.takeIf(String::isNotBlank)?.let { put(SplitPane.PRIMARY, it) }
             secondaryPackage?.takeIf(String::isNotBlank)?.let { put(SplitPane.SECONDARY, it) }
             put(selectedPane, selectedPackage)
-            if (get(selectedPane.other()) == selectedPackage) remove(selectedPane.other())
         }
     }
 
@@ -118,9 +117,7 @@ internal object SplitPickerSelectionPolicy {
         installedPackages: Set<String>,
     ): Map<SplitPane, String> {
         val primary = primaryPackage?.takeIf(installedPackages::contains)
-        val secondary = secondaryPackage
-            ?.takeIf(installedPackages::contains)
-            ?.takeUnless { it == primary }
+        val secondary = secondaryPackage?.takeIf(installedPackages::contains)
         return buildMap {
             primary?.let { put(SplitPane.PRIMARY, it) }
             secondary?.let { put(SplitPane.SECONDARY, it) }

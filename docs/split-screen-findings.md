@@ -43,8 +43,12 @@ The product contract is deliberately small:
    fullscreen intermediate frame;
 5. the last package selected in each root is persisted and restored the next
    time the launcher entry is opened;
-6. the same package is rejected in the other root because ordinary Android
-   task reuse cannot provide a reliable two-instance contract.
+6. the same package may be selected in both roots when its launcher creates a
+   distinct task for the second window; the engine excludes every pre-existing
+   task id from launch discovery and preserves its original root. A launcher
+   with `singleTask`/`singleInstance` semantics, or an app that redirects back
+   to its existing task, fails with an app-specific two-window message without
+   deleting or adopting the first window.
 
 The exact framework/SystemUI corpus from this vehicle, rather than OpenBYD,
 defines the design. `CustomDividerActivity`,
@@ -96,8 +100,9 @@ The embedded picker Activity has a `MAIN + CATEGORY_INFO` intent filter, not a
 launcher filter. This preserves the proven firmware resolver seam without
 adding another always-visible icon. Product restore does not depend on
 SmartMulti remembering the same package twice: Denza Apps persists the last
-selection for fallback reconstruction while a valid live pair is adopted by
-exact task identity. App choices are still resolved explicitly from
+selection independently for both panes, including equal package names, for
+fallback reconstruction while a valid live pair is adopted by distinct task
+identity. App choices are still resolved explicitly from
 `CATEGORY_LAUNCHER`, so an unrelated app's INFO Activity cannot be opened by a
 picker tap.
 Both the visible catalog and the engine-side launch resolver are rebuilt from
@@ -169,6 +174,19 @@ Denza Apps `0.5.4` (`versionCode=14`, debug APK SHA-256
 With the picker visible and the Denza Apps PID unchanged at `329`, uninstalling
 the probe removed its tile immediately and reinstalling it restored the tile
 immediately. The probe package was removed after acceptance.
+
+On 2026-08-22 equal-package selection passed live acceptance with Denza Apps
+`0.5.4` (`versionCode=14`, debug APK SHA-256
+`f7fefc23a407059d81c22c184bf7ff493b54476e94ac5cc861e97ea4ea690388`).
+AppGallery created two independent windows: its existing package-owned task
+`#355` stayed in root 3 while a new stable-host task `#356` opened in root 2.
+Removing only `#356` revealed picker `#351`, preserved task `#355`, and updated
+the saved pair to a single remaining AppGallery selection. The negative path
+used 2GIS, whose `singleTask` launcher was already task `#357` in root 2.
+Selecting 2GIS from picker `#353` in root 3 displayed **«Это приложение не
+поддерживает два окна»** before launch: task `#357` kept its identity and root,
+picker `#353` remained selected, no second 2GIS task appeared, and the Denza
+Apps and AVC crash buffers remained empty.
 
 On 2026-08-22 the native divider exposed a firmware behavior that the original
 automaton model did not represent. When the divider crossed from a narrow-left

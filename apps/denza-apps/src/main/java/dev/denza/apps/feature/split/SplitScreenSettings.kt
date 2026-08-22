@@ -223,7 +223,7 @@ object SplitScreenSettings {
             ?.takeIf(String::isNotBlank)
 
         @SuppressLint("UseKtx")
-        override fun saveExclusive(pane: SplitPane, packageName: String): Boolean {
+        override fun save(pane: SplitPane, packageName: String): Boolean {
             val updated = SplitPickerSelectionPolicy.updatedPair(
                 primaryPackage = load(SplitPane.PRIMARY),
                 secondaryPackage = load(SplitPane.SECONDARY),
@@ -237,7 +237,6 @@ object SplitScreenSettings {
         override fun replace(packages: Map<SplitPane, String>): Boolean {
             check(packages.keys.all { it in SplitPane.entries })
             check(packages.values.none(String::isBlank))
-            check(packages.values.size == packages.values.toSet().size)
             val editor = preferences.edit()
                 .remove(LAST_PRIMARY_PACKAGE)
                 .remove(LAST_SECONDARY_PACKAGE)

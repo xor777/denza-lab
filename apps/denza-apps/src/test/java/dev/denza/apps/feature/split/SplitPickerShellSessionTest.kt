@@ -121,9 +121,12 @@ class SplitPickerShellSessionTest {
     }
 
     @Test
-    fun restorationDropsMissingAndDuplicatePackages() {
+    fun restorationDropsMissingPackagesAndKeepsDuplicatePackages() {
         assertEquals(
-            mapOf(SplitPane.PRIMARY to NAVIGATOR),
+            mapOf(
+                SplitPane.PRIMARY to NAVIGATOR,
+                SplitPane.SECONDARY to NAVIGATOR,
+            ),
             SplitPickerSelectionPolicy.restorablePair(
                 primaryPackage = NAVIGATOR,
                 secondaryPackage = NAVIGATOR,
@@ -163,7 +166,10 @@ class SplitPickerShellSessionTest {
             afterSecondary,
         )
         assertEquals(
-            mapOf(SplitPane.PRIMARY to MUSIC),
+            mapOf(
+                SplitPane.PRIMARY to MUSIC,
+                SplitPane.SECONDARY to MUSIC,
+            ),
             SplitPickerSelectionPolicy.updatedPair(
                 primaryPackage = NAVIGATOR,
                 secondaryPackage = MUSIC,
@@ -834,14 +840,14 @@ class SplitPickerShellSessionTest {
         assertFalse(fake.commands.any { it.startsWith("am task focus ") })
     }
 
-    @Test(expected = IllegalStateException::class)
-    fun engineFailsClosedWhenSamePackageAlreadyLivesInOtherPane() {
+    @Test
+    fun engineCreatesIndependentTaskWhenSamePackageAlreadyLivesInOtherPane() {
         val fake = FakeShell()
         val split = session(fake)
         val pickers = split.openPickers(PICKERS, preservedPackages = emptyMap())
         fake.addTask(PRIMARY_ROOT, 90, MUSIC, "$MUSIC.MainActivity")
 
-        split.selectApp(
+        val placement = split.selectApp(
             pickerTaskId = pickers.getValue(SplitPane.SECONDARY),
             target = SplitLaunchTarget(
                 MUSIC,
@@ -849,6 +855,63 @@ class SplitPickerShellSessionTest {
             ),
             pickerComponents = PICKER_COMPONENTS,
         )
+
+        assertTrue(fake.hasTask(90))
+        assertTrue(fake.hasPackage(PRIMARY_ROOT, MUSIC))
+        assertTrue(fake.hasPackage(SECONDARY_ROOT, MUSIC))
+        assertTrue(placement.appTaskId != 90)
+        assertEquals(2, fake.taskCount(SECONDARY_ROOT))
+    }
+
+    @Test
+    fun singleTaskDuplicateIsRejectedWithoutTouchingExistingWindow() {
+        val fake = FakeShell()
+        val split = session(fake)
+        val pickers = split.openPickers(PICKERS, preservedPackages = emptyMap())
+        fake.addTask(PRIMARY_ROOT, 90, MUSIC, "$MUSIC.MainActivity")
+        fake.commands.clear()
+
+        val error = runCatching {
+            split.selectApp(
+                pickerTaskId = pickers.getValue(SplitPane.SECONDARY),
+                target = SplitLaunchTarget(
+                    MUSIC,
+                    "$MUSIC/$MUSIC.MainActivity",
+                    launchMode = 2,
+                ),
+                pickerComponents = PICKER_COMPONENTS,
+            )
+        }.exceptionOrNull()
+
+        assertEquals("Это приложение не поддерживает два окна", error?.message)
+        assertTrue(fake.hasTask(90))
+        assertEquals(PRIMARY_ROOT, fake.taskRoot(90))
+        assertEquals(SECONDARY_PICKER_ACTIVITY, fake.topActivity(SECONDARY_ROOT))
+        assertFalse(fake.commands.any { it.startsWith("am start ") })
+    }
+
+    @Test
+    fun redirectToExistingTaskIsRestoredBeforeDuplicateFailure() {
+        val fake = FakeShell(reuseExistingTargetOnLaunch = true)
+        val split = session(fake)
+        val pickers = split.openPickers(PICKERS, preservedPackages = emptyMap())
+        fake.addTask(PRIMARY_ROOT, 90, MUSIC, "$MUSIC.MainActivity")
+
+        val error = runCatching {
+            split.selectApp(
+                pickerTaskId = pickers.getValue(SplitPane.SECONDARY),
+                target = SplitLaunchTarget(MUSIC, "$MUSIC/$MUSIC.MainActivity"),
+                pickerComponents = PICKER_COMPONENTS,
+            )
+        }.exceptionOrNull()
+
+        assertEquals("Это приложение не поддерживает два окна", error?.message)
+        assertTrue(fake.hasTask(90))
+        assertEquals(PRIMARY_ROOT, fake.taskRoot(90))
+        assertEquals("$MUSIC.MainActivity", fake.topActivity(PRIMARY_ROOT))
+        assertEquals(SECONDARY_PICKER_ACTIVITY, fake.topActivity(SECONDARY_ROOT))
+        assertFalse(fake.hasActivity(PRIMARY_ROOT, SPLIT_APP_HOST_ACTIVITY))
+        assertFalse(fake.hasActivity(SECONDARY_ROOT, SPLIT_APP_HOST_ACTIVITY))
     }
 
     @Test(expected = IllegalStateException::class)
@@ -889,7 +952,7 @@ class SplitPickerShellSessionTest {
     }
 
     @Test
-    fun appHiddenUnderOtherPickerCanMoveToChosenPane() {
+    fun appHiddenUnderOtherPickerIsPreservedWhenDuplicateOpens() {
         val fake = FakeShell().apply {
             addTask(PRIMARY_ROOT, 70, MUSIC, "$MUSIC.MainActivity")
         }
@@ -906,7 +969,7 @@ class SplitPickerShellSessionTest {
         )
 
         assertEquals(PRIMARY_PICKER_ACTIVITY, fake.topActivity(PRIMARY_ROOT))
-        assertFalse(fake.hasPackage(PRIMARY_ROOT, MUSIC))
+        assertTrue(fake.hasPackage(PRIMARY_ROOT, MUSIC))
         assertEquals("$MUSIC.MainActivity", fake.topActivity(SECONDARY_ROOT))
     }
 
@@ -1156,6 +1219,7 @@ class SplitPickerShellSessionTest {
         private val hostTargetLaunchSucceeds: Boolean = true,
         private val hostMovesToOppositeRootOnTargetStart: Boolean = false,
         private val directTargetLaunchSucceeds: Boolean = true,
+        private val reuseExistingTargetOnLaunch: Boolean = false,
         private val redirectOnStartPackage: String? = null,
         private val redirectHostMovesToOppositeRoot: Boolean = false,
         private val secondaryBootstrapPackage: String? = null,
@@ -1204,6 +1268,8 @@ class SplitPickerShellSessionTest {
         fun taskCount(rootId: Int): Int = tasks.count { it.rootId == rootId }
 
         fun taskBounds(taskId: Int): SplitBounds = tasks.first { it.id == taskId }.bounds
+
+        fun taskRoot(taskId: Int): Int = tasks.first { it.id == taskId }.rootId
 
         fun moveTask(taskId: Int, rootId: Int) {
             val task = tasks.first { it.id == taskId }
@@ -1343,6 +1409,22 @@ class SplitPickerShellSessionTest {
                     } else {
                         tasks.removeAll { it.activityName == activityName }
                     }
+                    if (
+                        reuseExistingTargetOnLaunch &&
+                        component !in PICKERS.values &&
+                        component != SPLIT_APP_HOST_COMPONENT
+                    ) {
+                        val reused = tasks.firstOrNull { task ->
+                            task.effectivePackageName() == packageName
+                        }
+                        if (reused != null) {
+                            tasks.remove(reused)
+                            reused.rootId = pickerRoot ?: FULL_ROOT
+                            reused.bounds = pickerRoot?.let(::bounds) ?: FULL
+                            tasks += reused
+                            return "Starting: Intent"
+                        }
+                    }
                     val launchedTask = Task(
                         id = nextTaskId++,
                         packageName = packageName,
@@ -1368,7 +1450,20 @@ class SplitPickerShellSessionTest {
                         } else {
                             rawTargetActivity
                         }
-                        if (targetPackage == redirectOnStartPackage) {
+                        val reused = if (reuseExistingTargetOnLaunch) {
+                            tasks.firstOrNull { task ->
+                                task.id != launchedTask.id &&
+                                    task.effectivePackageName() == targetPackage
+                            }
+                        } else {
+                            null
+                        }
+                        if (reused != null) {
+                            tasks.remove(reused)
+                            reused.rootId = launchedTask.rootId
+                            reused.bounds = bounds(launchedTask.rootId)
+                            tasks += reused
+                        } else if (targetPackage == redirectOnStartPackage) {
                             val selectedRoot = launchedTask.rootId
                             val oppositeRoot = when (selectedRoot) {
                                 PRIMARY_ROOT -> SECONDARY_ROOT
@@ -1543,6 +1638,9 @@ class SplitPickerShellSessionTest {
                 ?.groupValues
                 ?.get(1)
                 ?: error("Missing $key in $command")
+
+        private fun Task.effectivePackageName(): String =
+            hostedComponent?.substringBefore('/') ?: packageName
 
         private fun intParcel(value: Int): String =
             "Result: Parcel(00000000 ${"%08x".format(value)} '........')"
