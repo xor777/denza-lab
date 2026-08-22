@@ -1,5 +1,6 @@
 package dev.denza.apps.feature.navigation
 
+import dev.denza.apps.ui.VehicleProgressOverlayStyle
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -36,13 +37,13 @@ class NavigationTransferOverlayTest {
 
     @Test
     fun visualTokensMatchTheVehicleSystemToast() {
-        assertEquals(0xFF343942.toInt(), NavigationTransferOverlayStyle.backgroundColor)
-        assertEquals(0xE6FFFFFF.toInt(), NavigationTransferOverlayStyle.foregroundColor)
-        assertEquals(8, NavigationTransferOverlayStyle.cornerRadiusDp)
-        assertEquals(16, NavigationTransferOverlayStyle.horizontalPaddingDp)
-        assertEquals(10, NavigationTransferOverlayStyle.verticalPaddingDp)
-        assertEquals(48, NavigationTransferOverlayStyle.minimumHeightDp)
-        assertEquals(24, NavigationTransferOverlayStyle.indicatorSizeDp)
-        assertEquals(18f, NavigationTransferOverlayStyle.textSizeSp)
+        assertEquals(0xFF343942.toInt(), VehicleProgressOverlayStyle.backgroundColor)
+        assertEquals(0xE6FFFFFF.toInt(), VehicleProgressOverlayStyle.foregroundColor)
+        assertEquals(8, VehicleProgressOverlayStyle.cornerRadiusDp)
+        assertEquals(16, VehicleProgressOverlayStyle.horizontalPaddingDp)
+        assertEquals(10, VehicleProgressOverlayStyle.verticalPaddingDp)
+        assertEquals(48, VehicleProgressOverlayStyle.minimumHeightDp)
+        assertEquals(24, VehicleProgressOverlayStyle.indicatorSizeDp)
+        assertEquals(18f, VehicleProgressOverlayStyle.textSizeSp)
     }
 }

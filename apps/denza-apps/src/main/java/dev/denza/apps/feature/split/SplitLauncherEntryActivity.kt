@@ -11,9 +11,14 @@ import android.widget.Toast
 class SplitLauncherEntryActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val launchOverlay = SplitLaunchOverlay.begin(applicationContext)
         try {
-            SplitScreenCoordinator.openPickerSession(applicationContext, ::showError)
+            SplitScreenCoordinator.openPickerSession(applicationContext) { error ->
+                launchOverlay.close()
+                showError(error)
+            }
         } catch (error: Throwable) {
+            launchOverlay.close()
             Log.e(TAG, "Split Screen launch failed", error)
             showError(USER_ERROR)
         } finally {
