@@ -453,6 +453,7 @@ object SplitScreenCoordinator {
             SplitAccessibilityEventPolicy.target(packageName, className = null) ==
             SplitAccessibilityEventTarget.HOME
         ) {
+            Log.i(TAG, "Home hint received from global accessibility observer")
             onHomeVisible(context)
         }
     }

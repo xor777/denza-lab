@@ -14,20 +14,20 @@ class SplitNativePickerAccessControllerTest {
         val shell = FakeAccessibilitySettings(listOf(system, split)) {
             timeline += "write:${it.joinToString(":")}"
         }
-        val lease = FakeAccessLease(owned = true, configurationVersion = 3)
+        val lease = FakeAccessLease(owned = true, configurationVersion = 4)
 
         SplitNativePickerAccessController(
             shell = shell::run,
             leaseStore = lease,
-            pauseAfterDisable = { timeline += "unbind-settled" },
+            pauseAfterDisable = { timeline += "unbind-settled:$it" },
         ).enable()
 
         assertEquals(listOf(listOf(system), listOf(system, split)), shell.writes)
         assertEquals(
-            listOf("write:$system", "unbind-settled", "write:$system:$split"),
+            listOf("write:$system", "unbind-settled:1000", "write:$system:$split"),
             timeline,
         )
-        assertEquals(4, lease.configurationVersion())
+        assertEquals(5, lease.configurationVersion())
     }
 
     @Test

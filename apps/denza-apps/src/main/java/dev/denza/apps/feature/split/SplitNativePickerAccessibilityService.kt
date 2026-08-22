@@ -22,7 +22,8 @@ internal object SplitAccessibilityEventPolicy {
 /** Exact event source for the stock picker and an authority-checked Home gate suspension. */
 class SplitNativePickerAccessibilityService : AccessibilityService() {
     override fun onServiceConnected() {
-        Log.i(TAG, "service connected")
+        val packages = serviceInfo.packageNames?.joinToString().orEmpty().ifBlank { "<all>" }
+        Log.i(TAG, "service connected packages=$packages")
         if (SplitScreenSettings.isEnabled(this)) {
             // A reconnect may happen after Home was already shown. The coordinator still requires
             // firmware area 0 and an owned gate before it mutates anything.
@@ -41,12 +42,13 @@ class SplitNativePickerAccessibilityService : AccessibilityService() {
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        when (
-            SplitAccessibilityEventPolicy.target(
-                packageName = event?.packageName?.toString(),
-                className = event?.className?.toString(),
-            )
-        ) {
+        val packageName = event?.packageName?.toString()
+        val className = event?.className?.toString()
+        val target = SplitAccessibilityEventPolicy.target(packageName, className)
+        if (target != SplitAccessibilityEventTarget.IGNORE) {
+            Log.i(TAG, "window event target=$target package=$packageName class=$className")
+        }
+        when (target) {
             SplitAccessibilityEventTarget.STOCK_PICKER ->
                 SplitScreenCoordinator.onNativePickerVisible(this)
             SplitAccessibilityEventTarget.HOME ->
@@ -66,7 +68,7 @@ class SplitNativePickerAccessibilityService : AccessibilityService() {
 internal class SplitNativePickerAccessController(
     private val shell: (String) -> String,
     private val leaseStore: SplitNativePickerAccessLeaseStore,
-    private val pauseAfterDisable: () -> Unit = { Thread.sleep(250L) },
+    private val pauseAfterDisable: (Long) -> Unit = Thread::sleep,
 ) {
     fun enable() {
         val current = read()
@@ -78,7 +80,7 @@ internal class SplitNativePickerAccessController(
         try {
             if (alreadyEnabled) {
                 write(withoutService)
-                pauseAfterDisable()
+                pauseAfterDisable(REBIND_SETTLE_MS)
             }
             write(withoutService + COMPONENT)
             check(read().any(ALIASES::contains)) {
@@ -138,10 +140,11 @@ internal class SplitNativePickerAccessController(
     private companion object {
         const val COMPONENT =
             "dev.denza.apps/dev.denza.apps.feature.split.SplitNativePickerAccessibilityService"
-        // Version 3 removed the XML package filter. Version 4 also waits for the asynchronous
-        // Android unbind before adding the component back; otherwise the setting changes while
-        // AccessibilityManager keeps the stale bound instance alive.
-        const val CONFIGURATION_VERSION = 4
+        // Version 3 removed the XML package filter. Versions 4-5 wait for the asynchronous
+        // Android unbind before adding the component back; live firmware showed that 250 ms was
+        // still racy, while one second consistently produced a new unfiltered service instance.
+        const val CONFIGURATION_VERSION = 5
+        const val REBIND_SETTLE_MS = 1_000L
         val ALIASES = setOf(
             COMPONENT,
             "dev.denza.apps/.feature.split.SplitNativePickerAccessibilityService",
