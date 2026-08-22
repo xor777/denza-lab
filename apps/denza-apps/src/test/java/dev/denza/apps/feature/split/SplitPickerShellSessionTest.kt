@@ -7,6 +7,81 @@ import org.junit.Test
 
 class SplitPickerShellSessionTest {
     @Test
+    fun nativePickerReplacementWaitsForCommittedSplitAndReleasedDivider() {
+        var areaReads = 0
+        var inputReads = 0
+        var pauses = 0
+        val session = SplitPickerShellSession(
+            shell = { command ->
+                when (command) {
+                    "service call activity_task 30" -> {
+                        areaReads += 1
+                        intParcel(if (areaReads < 2) 2 else 3)
+                    }
+                    "dumpsys input" -> {
+                        inputReads += 1
+                        if (inputReads == 1) ACTIVE_DIVIDER_TOUCH else NO_ACTIVE_TOUCH
+                    }
+                    else -> error("Unexpected command: $command")
+                }
+            },
+            apkPath = "/tmp/denza-apps.apk",
+            pause = { pauses += 1 },
+        )
+
+        assertTrue(session.awaitNativePickerCommit())
+        assertEquals(4, areaReads)
+        assertEquals(3, inputReads)
+        assertEquals(3, pauses)
+    }
+
+    @Test
+    fun cancelledNativePickerDragRejectsTransientBalancedAreaAfterRelease() {
+        var areaReads = 0
+        var inputReads = 0
+        val session = SplitPickerShellSession(
+            shell = { command ->
+                when (command) {
+                    "service call activity_task 30" -> {
+                        areaReads += 1
+                        intParcel(if (areaReads <= 2) 3 else 2)
+                    }
+                    "dumpsys input" -> {
+                        inputReads += 1
+                        if (inputReads == 1) ACTIVE_DIVIDER_TOUCH else NO_ACTIVE_TOUCH
+                    }
+                    else -> error("Unexpected command: $command")
+                }
+            },
+            apkPath = "/tmp/denza-apps.apk",
+            pause = {},
+        )
+
+        assertFalse(session.awaitNativePickerCommit())
+        assertTrue(areaReads > 2)
+        assertEquals(2, inputReads)
+    }
+
+    @Test
+    fun cancelledNativePickerDragDoesNotStartReplacement() {
+        var reads = 0
+        var pauses = 0
+        val session = SplitPickerShellSession(
+            shell = { command ->
+                assertEquals("service call activity_task 30", command)
+                reads += 1
+                intParcel(2)
+            },
+            apkPath = "/tmp/denza-apps.apk",
+            pause = { pauses += 1 },
+        )
+
+        assertFalse(session.awaitNativePickerCommit())
+        assertTrue(reads > 1)
+        assertEquals(reads - 1, pauses)
+    }
+
+    @Test
     fun panesHaveStableOpposites() {
         assertEquals(SplitPane.SECONDARY, SplitPane.PRIMARY.other())
         assertEquals(SplitPane.PRIMARY, SplitPane.SECONDARY.other())
@@ -1686,6 +1761,17 @@ class SplitPickerShellSessionTest {
     }
 
     private companion object {
+        const val ACTIVE_DIVIDER_TOUCH = """
+            Input Dispatcher State:
+              TouchStatesByDisplay:
+                0: down=true, split=true, deviceId=-1, source=0x00001002
+                  Windows:
+                    0: name='Embedded{multi-divider-shadow}'
+        """
+        const val NO_ACTIVE_TOUCH = """
+            Input Dispatcher State:
+              TouchStates: <no displays touched>
+        """
         const val NAVIGATOR = "ru.yandex.yandexnavi"
         const val MUSIC = "ru.yandex.music"
         const val WAZE = "com.waze"

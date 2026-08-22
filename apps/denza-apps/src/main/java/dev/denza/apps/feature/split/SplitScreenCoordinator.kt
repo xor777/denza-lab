@@ -444,10 +444,7 @@ object SplitScreenCoordinator {
 
     /** Accessibility event for the stock picker created by dragging a fullscreen pane open. */
     @JvmStatic
-    fun onNativePickerVisible(
-        context: Context,
-        onComplete: (() -> Unit)? = null,
-    ): Boolean {
+    fun onNativePickerVisible(context: Context): Boolean {
         val app = context.applicationContext
         this.context = app
         ensurePickerStateLoaded(app)
@@ -463,6 +460,10 @@ object SplitScreenCoordinator {
                 try {
                     adb = DenzaLocalAdb.client(app).openPersistentShell()
                     val split = pickerSession(app, adb::shell)
+                    // Accessibility observes SplitScreenListActivity while the finger is still
+                    // moving. Prepare the shell in the background, but do not inspect or mutate
+                    // either root until BYD is balanced and the active pointer has been released.
+                    if (!split.awaitNativePickerCommit()) return@execute
                     SplitPane.entries.forEach { pane ->
                         val observation = split.observePane(pane, PICKER_COMPONENT_SET)
                         val hostTaskId = observation.hostTaskId ?: return@forEach
@@ -495,8 +496,6 @@ object SplitScreenCoordinator {
                     Log.w(TAG, "failed to host picker in native vacancy", error)
                 } finally {
                     nativePickerEventInFlight.set(false)
-                    runCatching { onComplete?.invoke() }
-                        .onFailure { Log.w(TAG, "native picker completion failed", it) }
                     runCatching { adb?.close() }
                         .onFailure { Log.w(TAG, "native picker shell close failed", it) }
                 }
@@ -504,8 +503,6 @@ object SplitScreenCoordinator {
         } catch (error: RuntimeException) {
             Log.w(TAG, "failed to schedule native picker replacement", error)
             nativePickerEventInFlight.set(false)
-            runCatching { onComplete?.invoke() }
-                .onFailure { Log.w(TAG, "native picker completion failed", it) }
             return false
         }
         return true

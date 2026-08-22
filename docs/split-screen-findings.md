@@ -38,9 +38,10 @@ The product contract is deliberately small:
    can retain the geometry of the pane from which the task came;
 4. dismissing the selected app reveals the picker already underneath it;
    dismissing the picker collapses that pane normally, while pulling the native
-   drag control open immediately covers the stock picker with a pane-local,
-   touch-blocking transition and replaces it directly in its root without a
-   fullscreen intermediate frame;
+   drag control remains fully native and unobscured; its accessibility event
+   only primes a background shell, and replacement starts after balanced area
+   `3` remains stable with no active pointer, without a fullscreen intermediate
+   frame;
 5. the last package selected in each root is persisted and restored the next
    time the launcher entry is opened;
 6. the same package may be selected in both roots when its launcher creates a
@@ -297,6 +298,26 @@ timed tap launched no stock app, Denza picker task `#272` replaced the native
 task in the same root, and persisted state was `SPLIT` with `PICKER/PICKER`
 slots (`#272/#270`). Area mode stayed `3`; no Home frame or foreign task was
 introduced.
+
+That overlay path was superseded later on 2026-08-22. A controlled slow edge
+drag proved that BYD can expose the stock picker and even report area `3` while
+the pointer is still down, so both the touch-blocking overlay and area-only gate
+were too early. The current service creates no window. It primes only the
+background shell, waits for area `3`, waits until `dumpsys input` reports no
+active pointer, and requires the released balanced state on two consecutive
+samples before it can inspect or mutate either root. Cancelling back to area
+`2` therefore leaves the fullscreen task and persisted automaton untouched.
+
+The final candidate (`6d2f7a4a1baf8a25226551f0261fb687a47abe1205dcc78d9285c498d16b0a8e`)
+passed both live branches. During an active injected edge drag, only the native
+Launcher3 picker was present; no Denza window or accessibility overlay appeared.
+After release, Denza picker task `#471` replaced it in primary root `2`, 2GIS
+task `#462` stayed in secondary root `3`, area was `3`, and the automaton was
+`SPLIT` with `PICKER/APP`. After collapsing again, a short cancelled drag left
+area `2`, 2GIS task `#462` fullscreen, and the automaton exactly
+`FULL` with `CLOSED/APP`; it created no Denza picker and logged no attach
+failure. Yandex Music remained actively playing (`PlaybackState=3`) throughout
+this acceptance run, and the AVC crash buffer stayed empty.
 
 The selected-app stable host is an optional ratchet above the previously proven
 direct BYD launch, never a replacement for it. On the 2026-08-16 17:47 live

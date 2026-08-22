@@ -14,6 +14,39 @@ internal class SplitPickerShellSession(
     private val gateLeaseStore: SplitGateLeaseStore? = null,
 ) {
     /**
+     * Waits read-only while the user is dragging the native divider.
+     *
+     * BYD exposes the stock picker Activity before the drop is accepted and can report balanced
+     * area 3 while the pointer is still down. No task operation may run until both signals settle
+     * because launching our picker would steal the still-active divider gesture.
+     */
+    fun awaitNativePickerCommit(): Boolean {
+        var releasedBalancedSamples = 0
+        repeat(NATIVE_PICKER_COMMIT_ATTEMPTS) { attempt ->
+            val balanced = callInt("service call activity_task 30") == AREA_BALANCED_SPLIT
+            releasedBalancedSamples = if (balanced && !hasActivePointer(shell("dumpsys input"))) {
+                releasedBalancedSamples + 1
+            } else {
+                0
+            }
+            if (releasedBalancedSamples >= NATIVE_PICKER_RELEASED_SAMPLES) return true
+            if (attempt + 1 < NATIVE_PICKER_COMMIT_ATTEMPTS) {
+                pause(NATIVE_PICKER_COMMIT_INTERVAL_MS)
+            }
+        }
+        return false
+    }
+
+    private fun hasActivePointer(inputDump: String): Boolean {
+        val stateStart = inputDump.indexOf("TouchStatesByDisplay:")
+        if (stateStart < 0) return false
+        val stateEnd = inputDump.indexOf("\n  Display:", startIndex = stateStart)
+            .takeIf { it >= 0 }
+            ?: inputDump.length
+        return inputDump.substring(stateStart, stateEnd).contains("down=true")
+    }
+
+    /**
      * Adopts an already-running product scene without mutating the firmware roots.
      *
      * Package replacement restarts Denza Apps but does not remove the two standalone picker
@@ -1680,6 +1713,9 @@ internal class SplitPickerShellSession(
         const val LAUNCH_MODE_SINGLE_TASK = 2
         const val TASK_DISCOVERY_ATTEMPTS = 12
         const val TASK_DISCOVERY_INTERVAL_MS = 100L
+        const val NATIVE_PICKER_COMMIT_ATTEMPTS = 60
+        const val NATIVE_PICKER_COMMIT_INTERVAL_MS = 100L
+        const val NATIVE_PICKER_RELEASED_SAMPLES = 2
         const val DIVIDER_RECONCILE_SETTLE_MS = 1_500L
         const val PICKER_SETTLE_MS = 150L
         const val NATIVE_PICKER_SETTLE_MS = 450L
