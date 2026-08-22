@@ -20,14 +20,22 @@ internal object SimulcastAccessibilityAccess {
 
     fun isEnabled(setting: String?): Boolean = entries(setting).any(aliases::contains)
 
-    fun withoutService(setting: String?): String = entries(setting)
-        .filterNot(ownedAliases::contains)
+    fun isEnabledEntries(entries: List<String>): Boolean = entries.any(aliases::contains)
+
+    fun withoutService(setting: String?): String = withoutServiceEntries(entries(setting))
         .joinToString(":")
 
-    fun withService(setting: String?): String = buildList {
-        addAll(entries(setting).filterNot(ownedAliases::contains))
+    fun withoutServiceEntries(entries: List<String>): List<String> = entries
+        .filterNot(ownedAliases::contains)
+        .distinct()
+
+    fun withService(setting: String?): String = withServiceEntries(entries(setting))
+        .joinToString(":")
+
+    fun withServiceEntries(entries: List<String>): List<String> = buildList {
+        addAll(withoutServiceEntries(entries))
         add(COMPONENT)
-    }.joinToString(":")
+    }
 
     private fun entries(setting: String?): List<String> = setting
         ?.trim()

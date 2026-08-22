@@ -4,6 +4,7 @@ import android.accessibilityservice.AccessibilityService
 import android.content.Intent
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
+import dev.denza.apps.AccessibilityServiceSettings
 import dev.denza.apps.AccessibilitySettingsMutationLock
 
 internal enum class SplitAccessibilityEventTarget { STOCK_PICKER, HOME, IGNORE }
@@ -19,6 +20,28 @@ internal object SplitAccessibilityEventPolicy {
     private const val STOCK_PICKER_PACKAGE = "com.android.launcher3"
     private const val STOCK_PICKER_ACTIVITY = "com.android.launcher3.SplitScreenListActivity"
     private const val HOME_PACKAGE = "com.byd.mycar"
+}
+
+internal object SplitNativePickerAccessibilityAccess {
+    const val COMPONENT =
+        "dev.denza.apps/dev.denza.apps.feature.split.SplitNativePickerAccessibilityService"
+    const val CONFIGURATION_VERSION = 6
+
+    private val aliases = setOf(
+        COMPONENT,
+        "dev.denza.apps/.feature.split.SplitNativePickerAccessibilityService",
+    )
+
+    fun isEnabled(entries: List<String>): Boolean = entries.any(aliases::contains)
+
+    fun withoutService(entries: List<String>): List<String> = entries
+        .filterNot(aliases::contains)
+        .distinct()
+
+    fun withService(entries: List<String>): List<String> = buildList {
+        addAll(withoutService(entries))
+        add(COMPONENT)
+    }
 }
 
 /** Exact event source for the stock picker and an authority-checked Home gate suspension. */
@@ -89,38 +112,49 @@ internal class SplitNativePickerAccessController(
     private val pauseAfterDisable: (Long) -> Unit = Thread::sleep,
     private val isConnected: () -> Boolean = SplitNativePickerAccessibilityService::isConnected,
 ) {
-    fun enable(forceRebind: Boolean = false) = AccessibilitySettingsMutationLock.withLock {
-        val current = read()
-        val alreadyEnabled = current.any(ALIASES::contains)
+    private val settings = AccessibilityServiceSettings(shell)
+
+    fun enable() = AccessibilitySettingsMutationLock.withLock {
+        val current = settings.read()
+        val alreadyEnabled = SplitNativePickerAccessibilityAccess.isEnabled(current)
         if (
             alreadyEnabled &&
-            leaseStore.configurationVersion() >= CONFIGURATION_VERSION &&
-            isConnected() &&
-            !forceRebind
+            leaseStore.configurationVersion() >=
+            SplitNativePickerAccessibilityAccess.CONFIGURATION_VERSION &&
+            isConnected()
         ) {
             return@withLock
         }
 
-        val withoutService = current.filterNot(ALIASES::contains)
+        val withoutService = SplitNativePickerAccessibilityAccess.withoutService(current)
         val wasOwned = leaseStore.isOwned()
         try {
             if (alreadyEnabled) {
-                write(withoutService, ensureAccessibilityEnabled = false)
+                settings.write(withoutService, ensureAccessibilityEnabled = false)
                 pauseAfterDisable(REBIND_SETTLE_MS)
             }
-            write(withoutService + COMPONENT, ensureAccessibilityEnabled = true)
-            check(read().any(ALIASES::contains)) {
+            settings.write(
+                SplitNativePickerAccessibilityAccess.withService(withoutService),
+                ensureAccessibilityEnabled = true,
+            )
+            check(SplitNativePickerAccessibilityAccess.isEnabled(settings.read())) {
                 "Система не включила наблюдение за штатным picker"
             }
             check(leaseStore.setOwned(true)) {
                 "Не удалось сохранить владение наблюдением за picker"
             }
-            check(leaseStore.setConfigurationVersion(CONFIGURATION_VERSION)) {
+            check(
+                leaseStore.setConfigurationVersion(
+                    SplitNativePickerAccessibilityAccess.CONFIGURATION_VERSION,
+                ),
+            ) {
                 "Не удалось сохранить версию наблюдения за picker"
             }
         } catch (error: Throwable) {
             if (alreadyEnabled) {
-                runCatching { write(current, ensureAccessibilityEnabled = true) }
+                runCatching {
+                    settings.write(current, ensureAccessibilityEnabled = true)
+                }
             }
             runCatching { leaseStore.setOwned(wasOwned) }
             throw error
@@ -129,13 +163,13 @@ internal class SplitNativePickerAccessController(
 
     fun restore() = AccessibilitySettingsMutationLock.withLock {
         if (!leaseStore.isOwned()) return@withLock
-        val current = read()
-        if (current.any(ALIASES::contains)) {
-            write(
-                current.filterNot(ALIASES::contains),
+        val current = settings.read()
+        if (SplitNativePickerAccessibilityAccess.isEnabled(current)) {
+            settings.write(
+                SplitNativePickerAccessibilityAccess.withoutService(current),
                 ensureAccessibilityEnabled = false,
             )
-            check(read().none(ALIASES::contains)) {
+            check(!SplitNativePickerAccessibilityAccess.isEnabled(settings.read())) {
                 "Система не выключила наблюдение за штатным picker"
             }
         }
@@ -144,48 +178,14 @@ internal class SplitNativePickerAccessController(
         }
     }
 
-    private fun read(): List<String> = shell(
-        "settings get secure enabled_accessibility_services",
-    ).trim()
-        .takeUnless { it.isEmpty() || it == "null" }
-        ?.split(':')
-        ?.map(String::trim)
-        ?.filter(String::isNotEmpty)
-        ?.distinct()
-        .orEmpty()
-
-    private fun write(entries: List<String>, ensureAccessibilityEnabled: Boolean) {
-        val value = entries.distinct().joinToString(":")
-        val command = buildString {
-            append("settings put secure enabled_accessibility_services ${shellQuote(value)}")
-            if (ensureAccessibilityEnabled) {
-                append("; settings put secure accessibility_enabled 1")
-            }
-        }
-        val output = shell(command)
-        check(
-            !output.contains("Error", ignoreCase = true) &&
-                !output.contains("Exception", ignoreCase = true),
-        ) { output.trim().ifBlank { "settings command failed" } }
-    }
-
-    private fun shellQuote(value: String): String = "'${value.replace("'", "'\\''")}'"
-
     private companion object {
-        const val COMPONENT =
-            "dev.denza.apps/dev.denza.apps.feature.split.SplitNativePickerAccessibilityService"
         // Version 3 removed the XML package filter. Versions 4-5 wait for the asynchronous
         // Android unbind before adding the component back; live firmware showed that 250 ms was
         // still racy, while one second consistently produced a new unfiltered service instance.
         // Version 6 leaves accessibility_enabled untouched during the unbind half. Re-enabling it
         // before Android completes the removal can produce a formally bound service that receives
         // no window events on this firmware.
-        const val CONFIGURATION_VERSION = 6
         const val REBIND_SETTLE_MS = 1_000L
-        val ALIASES = setOf(
-            COMPONENT,
-            "dev.denza.apps/.feature.split.SplitNativePickerAccessibilityService",
-        )
     }
 }
 

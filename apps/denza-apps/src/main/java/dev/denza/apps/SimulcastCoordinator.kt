@@ -9,7 +9,7 @@ import dev.denza.apps.core.FeatureReducer
 import dev.denza.apps.core.FeatureResolution
 import dev.denza.apps.core.FeatureSnapshot
 import dev.denza.apps.core.FeatureStatus
-import dev.denza.apps.feature.split.SplitScreenCoordinator
+import dev.denza.apps.feature.split.SplitScreenSettings
 import java.security.GeneralSecurityException
 import java.util.concurrent.Executors
 
@@ -218,35 +218,19 @@ object SimulcastCoordinator {
     }
 
     private fun repairAccessNow(context: Context) {
-        AccessibilitySettingsMutationLock.withLock {
-            val adb = DenzaLocalAdb.client(context).openPersistentShell()
-            try {
-                val packageName = shellQuote(context.packageName)
-                adb.shell("cmd appops set $packageName SYSTEM_ALERT_WINDOW allow")
-
-                val current = adb.shell(
-                    "settings get secure enabled_accessibility_services",
-                ).trim()
-                adb.shell(
-                    "settings put secure enabled_accessibility_services " +
-                        shellQuote(SimulcastAccessibilityAccess.withoutService(current)),
-                )
-                Thread.sleep(250L)
-
-                // Preserve accessibility services changed by another actor during rebind.
-                val refreshed = adb.shell(
-                    "settings get secure enabled_accessibility_services",
-                ).trim()
-                adb.shell(
-                    "settings put secure enabled_accessibility_services " +
-                        shellQuote(SimulcastAccessibilityAccess.withService(refreshed)) +
-                        "; settings put secure accessibility_enabled 1",
-                )
-            } finally {
-                adb.close()
-            }
+        val adb = DenzaLocalAdb.client(context).openPersistentShell()
+        try {
+            val packageName = shellQuote(context.packageName)
+            adb.shell("cmd appops set $packageName SYSTEM_ALERT_WINDOW allow")
+            DenzaAccessibilityRepairController(
+                shell = adb::shell,
+                splitLeaseStore = SplitScreenSettings.nativePickerAccessLeaseStore(context),
+            ).repair(
+                ensureSplit = SplitScreenSettings.isEnabled(context),
+            )
+        } finally {
+            adb.close()
         }
-        SplitScreenCoordinator.rebindNativePickerAccessAfterGlobalMutation(context)
     }
 
     fun setupProblem(error: Throwable?): SimulcastSetupProblem {

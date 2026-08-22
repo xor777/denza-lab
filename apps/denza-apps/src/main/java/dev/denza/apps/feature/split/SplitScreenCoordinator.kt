@@ -458,21 +458,6 @@ object SplitScreenCoordinator {
         }
     }
 
-    /** Re-establishes Split last after another owner changed the shared accessibility setting. */
-    internal fun rebindNativePickerAccessAfterGlobalMutation(context: Context) {
-        val app = context.applicationContext
-        if (!SplitScreenSettings.isEnabled(app)) return
-        val adb = DenzaLocalAdb.client(app).openPersistentShell()
-        try {
-            SplitNativePickerAccessController(
-                shell = adb::shell,
-                leaseStore = SplitScreenSettings.nativePickerAccessLeaseStore(app),
-            ).enable(forceRebind = true)
-        } finally {
-            adb.close()
-        }
-    }
-
     /** A Home accessibility event is only a hint; firmware area 0 is the mutation authority. */
     @JvmStatic
     fun onHomeVisible(context: Context) {
