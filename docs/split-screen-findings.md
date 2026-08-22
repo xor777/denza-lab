@@ -324,9 +324,13 @@ drag proved that BYD can expose the stock picker and even report area `3` while
 the pointer is still down, so both the touch-blocking overlay and area-only gate
 were too early. The current service creates no window. It primes only the
 background shell, waits for area `3`, waits until `dumpsys input` reports no
-active pointer, and requires the released balanced state on two consecutive
-samples before it can inspect or mutate either root. Cancelling back to area
-`2` therefore leaves the fullscreen task and persisted automaton untouched.
+active pointer, and requires the released balanced state on ten consecutive
+100 ms samples before it can inspect or mutate either root. Five released
+non-balanced samples cancel the attempt; an active pointer is observed
+read-only for at most 150 samples. The area and pointer guards are repeated
+immediately before the stock-picker observation and again inside picker attach.
+Cancelling back to area `1/2` therefore leaves the fullscreen task and persisted
+automaton untouched.
 
 The final candidate (`6d2f7a4a1baf8a25226551f0261fb687a47abe1205dcc78d9285c498d16b0a8e`)
 passed both live branches. During an active injected edge drag, only the native
@@ -338,6 +342,55 @@ area `2`, 2GIS task `#462` fullscreen, and the automaton exactly
 `FULL` with `CLOSED/APP`; it created no Denza picker and logged no attach
 failure. Yandex Music remained actively playing (`PlaybackState=3`) throughout
 this acceptance run, and the AVC crash buffer stayed empty.
+
+### Explicit restore progress window and bounded close (2026-08-22)
+
+The user-invoked **Split Screen** launcher is a separate boundary from native
+edge discovery. Only that explicit launcher acquires a full-screen progress
+window. It uses the vehicle's SystemUI toast colors, typography, spinner and
+centered card with **«Запускаем разделение экрана…»**; edge drag and picker
+replacement never create this window.
+
+The window lifecycle is lease-based. Every request has its own 700 ms minimum
+display time and an unconditional 15 second hard deadline. A normal completion
+releases only its own lease after the minimum, an error releases it immediately,
+and stale or repeated timers are idempotent. Overlapping requests remain visible
+only while at least one live lease remains. Removal first makes the view
+invisible and changes it to `NOT_TOUCHABLE | NOT_FOCUSABLE`, then attempts
+`removeViewImmediate`, falls back to `removeView`, and retries a still-attached
+view three times at 100 ms intervals. A failed WindowManager removal therefore
+cannot leave an input-blocking surface behind.
+
+The deterministic tests cover completion before the minimum, a missing
+coordinator callback at the hard deadline, immediate error after a scheduled
+normal close, overlapping leases, repeated close and stale deadlines. The live
+run used commit `0f4dfd1` and APK SHA-256
+`d2430a1662a40534e216542ca1965dbdbeed0096b920baa7d73f64c33fa61946`.
+The progress card was visible 500 ms after the launcher tap and absent after the
+restore settled; nine seconds after launch there was no `Denza split launch`
+window and the input target was Yandex Music. A tap then reached Music and
+changed its media session to `PlaybackState=3`.
+
+### Final edge collapse and fullscreen picker reveal (2026-08-22)
+
+Area `1/2` identifies only the surviving native root, not the automaton's former
+logical pane. During collapse BYD may move the survivor app across roots and
+detach one or both permanent picker bases. Reconciliation therefore matches the
+previous owner by exact host/app task ids, requires the other native root to be
+empty, and reattaches only the exact surviving picker below its app. A failed
+reattach rolls that host back to its original root. `TYPE_WINDOWS_CHANGED` is
+only a wake-up hint; all topology checks happen again before a mutation.
+
+The final live sequence restored bare picker task `704` beside Yandex Music task
+`706` above picker `705`. Collapsing the bare-picker edge produced area `2`,
+left `705/706` fullscreen, and persisted `FULL` with the other slot `CLOSED`.
+No Denza overlay appeared during or after the gesture. Pressing Back removed
+only Music task `706`, revealed the same fullscreen picker `705`, and changed
+the automaton to `FULL`, `SECONDARY=PICKER`; the stale app, package and saved-pair
+keys were cleared. Selecting Yandex Music from that picker created task `707`
+above the same host, restored `SECONDARY=APP`, and playback was returned to
+`PlaybackState=3`. Both Denza accessibility services remained enabled and the
+accessibility crash set was empty.
 
 The selected-app stable host is an optional ratchet above the previously proven
 direct BYD launch, never a replacement for it. On the 2026-08-16 17:47 live
