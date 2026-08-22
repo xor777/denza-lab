@@ -89,13 +89,14 @@ internal class SplitNativePickerAccessController(
     private val pauseAfterDisable: (Long) -> Unit = Thread::sleep,
     private val isConnected: () -> Boolean = SplitNativePickerAccessibilityService::isConnected,
 ) {
-    fun enable() = AccessibilitySettingsMutationLock.withLock {
+    fun enable(forceRebind: Boolean = false) = AccessibilitySettingsMutationLock.withLock {
         val current = read()
         val alreadyEnabled = current.any(ALIASES::contains)
         if (
             alreadyEnabled &&
             leaseStore.configurationVersion() >= CONFIGURATION_VERSION &&
-            isConnected()
+            isConnected() &&
+            !forceRebind
         ) {
             return@withLock
         }

@@ -9,6 +9,7 @@ import dev.denza.apps.core.FeatureReducer
 import dev.denza.apps.core.FeatureResolution
 import dev.denza.apps.core.FeatureSnapshot
 import dev.denza.apps.core.FeatureStatus
+import dev.denza.apps.feature.split.SplitScreenCoordinator
 import java.security.GeneralSecurityException
 import java.util.concurrent.Executors
 
@@ -245,6 +246,7 @@ object SimulcastCoordinator {
                 adb.close()
             }
         }
+        SplitScreenCoordinator.rebindNativePickerAccessAfterGlobalMutation(context)
     }
 
     fun setupProblem(error: Throwable?): SimulcastSetupProblem {

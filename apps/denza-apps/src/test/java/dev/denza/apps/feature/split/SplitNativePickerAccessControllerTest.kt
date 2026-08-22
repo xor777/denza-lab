@@ -6,6 +6,24 @@ import org.junit.Test
 
 class SplitNativePickerAccessControllerTest {
     @Test
+    fun connectedServiceIsReboundLastAfterAnotherOwnerChangedGlobalSetting() {
+        val split =
+            "dev.denza.apps/dev.denza.apps.feature.split.SplitNativePickerAccessibilityService"
+        val system = "com.android.systemui/.custom.StatusBarAccessibilityService"
+        val shell = FakeAccessibilitySettings(listOf(system, split))
+        val lease = FakeAccessLease(owned = true, configurationVersion = 5)
+
+        SplitNativePickerAccessController(
+            shell = shell::run,
+            leaseStore = lease,
+            pauseAfterDisable = {},
+            isConnected = { true },
+        ).enable(forceRebind = true)
+
+        assertEquals(listOf(listOf(system), listOf(system, split)), shell.writes)
+    }
+
+    @Test
     fun currentSettingIsReboundWhenFirmwareLeftServiceCrashedAfterBoot() {
         val split =
             "dev.denza.apps/dev.denza.apps.feature.split.SplitNativePickerAccessibilityService"
