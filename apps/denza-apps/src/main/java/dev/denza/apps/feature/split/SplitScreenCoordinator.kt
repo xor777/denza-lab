@@ -35,6 +35,7 @@ object SplitScreenCoordinator {
     private val executor = Executors.newSingleThreadExecutor()
     private val pickerOpenInFlight = AtomicBoolean(false)
     private val nativePickerEventInFlight = AtomicBoolean(false)
+    private val dividerReconcileInFlight = AtomicBoolean(false)
     private val routingLock = Any()
     private val pickerStateLock = Any()
 
@@ -369,6 +370,7 @@ object SplitScreenCoordinator {
             try {
                 adb = DenzaLocalAdb.client(app).openPersistentShell()
                 val split = pickerSession(app, adb::shell)
+                reconcileOwnedSession(app, split, "picker visible")
                 val observation = split.observePickerTask(hostTaskId, PICKER_COMPONENT_SET)
                 if (observation == null || !observation.pickerVisible) {
                     postResult(onComplete, null)
@@ -397,6 +399,47 @@ object SplitScreenCoordinator {
             } finally {
                 adb?.close()
             }
+        }
+    }
+
+    /**
+     * BYD preserves the logical picker hosts during a native divider resize, but swaps the app
+     * tasks between those hosts to keep the apps on their visual side. Adopt that settled native
+     * topology before any later picker lifecycle event can close the app recorded for the old
+     * side.
+     */
+    fun onDividerResized(context: Context) {
+        val app = context.applicationContext
+        this.context = app
+        ensurePickerStateLoaded(app)
+        if (pickerOpenInFlight.get() ||
+            !SplitScreenSettings.isEnabled(app) ||
+            externalTaskMutationInFlight() ||
+            !dividerReconcileInFlight.compareAndSet(false, true)
+        ) {
+            return
+        }
+        try {
+            executor.execute {
+                var adb: LocalAdbClient.PersistentShellSession? = null
+                try {
+                    adb = DenzaLocalAdb.client(app).openPersistentShell()
+                    reconcileOwnedSession(
+                        app = app,
+                        split = pickerSession(app, adb::shell),
+                        reason = "divider resized",
+                    )
+                } catch (error: Throwable) {
+                    Log.w(TAG, "failed to reconcile resized split", error)
+                } finally {
+                    runCatching { adb?.close() }
+                        .onFailure { Log.w(TAG, "divider resize shell close failed", it) }
+                    dividerReconcileInFlight.set(false)
+                }
+            }
+        } catch (error: RuntimeException) {
+            dividerReconcileInFlight.set(false)
+            Log.w(TAG, "failed to schedule split resize reconciliation", error)
         }
     }
 
@@ -959,6 +1002,31 @@ object SplitScreenCoordinator {
                     )
             }
         }
+    }
+
+    private fun reconcileOwnedSession(
+        app: Context,
+        split: SplitPickerShellSession,
+        reason: String,
+    ): Boolean {
+        val live = split.existingOwnedSession(PICKER_COMPONENT_SET) ?: return false
+        val before = currentPickerState()
+        val reduction = applyPickerEvent(
+            SplitPickerEvent.DividerResized(
+                panes = live.mapValues { (_, pane) ->
+                    SplitPickerObservedPane(
+                        hostTaskId = pane.hostTaskId,
+                        appTaskId = pane.appTaskId,
+                        packageName = pane.appPackageName,
+                    )
+                },
+            ),
+        )
+        if (reduction.state != before) {
+            syncLastPairFromPickerState(app)
+            Log.i(TAG, "reconciled explicit picker session after $reason")
+        }
+        return true
     }
 
     private fun applyPickerEvent(event: SplitPickerEvent): SplitPickerReduction =

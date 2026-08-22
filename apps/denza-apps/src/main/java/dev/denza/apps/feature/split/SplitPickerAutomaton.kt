@@ -36,10 +36,18 @@ internal data class SplitPickerAutomatonState(
         slots[pane] ?: SplitPickerSlotState()
 }
 
+internal data class SplitPickerObservedPane(
+    val hostTaskId: Int,
+    val appTaskId: Int? = null,
+    val packageName: String? = null,
+)
+
 internal sealed interface SplitPickerEvent {
     data object OpenRequested : SplitPickerEvent
     data object HomeObserved : SplitPickerEvent
-    data object DividerResized : SplitPickerEvent
+    data class DividerResized(
+        val panes: Map<SplitPane, SplitPickerObservedPane>,
+    ) : SplitPickerEvent
     data object ToggleOff : SplitPickerEvent
 
     data class NativePickerObserved(
@@ -131,7 +139,7 @@ internal object SplitPickerAutomaton {
         SplitPickerEvent.OpenRequested -> open(current)
         SplitPickerEvent.HomeObserved -> idle(current, armed = current.armed)
         SplitPickerEvent.ToggleOff -> idle(current, armed = false)
-        SplitPickerEvent.DividerResized -> unchanged(current)
+        is SplitPickerEvent.DividerResized -> dividerResized(current, event)
         is SplitPickerEvent.NativePickerObserved -> nativePicker(current, event)
         is SplitPickerEvent.PickerAttached -> pickerAttached(current, event)
         is SplitPickerEvent.PickerAttachFailed -> pickerAttachFailed(current, event)
@@ -150,6 +158,51 @@ internal object SplitPickerAutomaton {
                 phase = SplitPickerPhase.OPENING,
             ),
             actions = listOf(SplitPickerAction.PrepareNativeSession),
+        )
+    }
+
+    private fun dividerResized(
+        current: SplitPickerAutomatonState,
+        event: SplitPickerEvent.DividerResized,
+    ): SplitPickerReduction {
+        if (!current.armed || current.phase == SplitPickerPhase.IDLE) return unchanged(current)
+        if (event.panes.keys != SplitPane.entries.toSet()) return unchanged(current)
+        val observed = SplitPane.entries.map { pane -> event.panes.getValue(pane) }
+        if (observed.any { pane ->
+                pane.hostTaskId <= 0 ||
+                    ((pane.appTaskId == null) != (pane.packageName == null)) ||
+                    (pane.appTaskId != null &&
+                        (pane.appTaskId <= 0 || pane.packageName.isNullOrBlank()))
+            }
+        ) {
+            return unchanged(current)
+        }
+        if (observed.map { it.hostTaskId }.distinct().size != SplitPane.entries.size) {
+            return unchanged(current)
+        }
+        val appTaskIds = observed.mapNotNull { it.appTaskId }
+        if (appTaskIds.distinct().size != appTaskIds.size) return unchanged(current)
+
+        val slots = event.panes.mapValues { (_, pane) ->
+            if (pane.appTaskId == null) {
+                SplitPickerSlotState(
+                    kind = SplitPickerSlotKind.PICKER,
+                    hostTaskId = pane.hostTaskId,
+                )
+            } else {
+                SplitPickerSlotState(
+                    kind = SplitPickerSlotKind.APP,
+                    hostTaskId = pane.hostTaskId,
+                    appTaskId = pane.appTaskId,
+                    packageName = pane.packageName,
+                )
+            }
+        }
+        return unchanged(
+            current.copy(
+                phase = phaseFor(slots),
+                slots = slots,
+            ),
         )
     }
 

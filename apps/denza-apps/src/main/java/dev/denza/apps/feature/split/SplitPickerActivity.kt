@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.graphics.Color as AndroidColor
 import android.graphics.drawable.ColorDrawable
@@ -191,6 +192,19 @@ class SplitPickerActivity : ComponentActivity() {
         }
     }
 
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        runCatching {
+            SplitCommandContract.call(
+                this,
+                SplitCommandContract.METHOD_DIVIDER_RESIZED,
+                Bundle.EMPTY,
+            )
+        }.onFailure { error ->
+            Log.w(TAG, "Failed to report split divider resize", error)
+        }
+    }
+
     private fun refreshCatalogAsync() {
         if (catalogRequested) return
         catalogRequested = true
@@ -232,6 +246,7 @@ class SplitPickerActivity : ComponentActivity() {
     }
 
     private companion object {
+        const val TAG = "DenzaSplitPicker"
         const val PICKER_HIDDEN_SETTLE_MS = 500L
         val CATALOG_EXECUTOR = Executors.newSingleThreadExecutor()
     }

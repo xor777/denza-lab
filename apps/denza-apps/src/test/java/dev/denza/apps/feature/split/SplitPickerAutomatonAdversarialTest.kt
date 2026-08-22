@@ -55,6 +55,12 @@ class SplitPickerAutomatonAdversarialTest {
     fun homeAndToggleOffCannotBeUndoneByLateEvents() {
         val active = activePair()
         val lateEvents = listOf(
+            SplitPickerEvent.DividerResized(
+                panes = mapOf(
+                    SplitPane.PRIMARY to SplitPickerObservedPane(100, 20, MUSIC),
+                    SplitPane.SECONDARY to SplitPickerObservedPane(200, 10, NAVIGATOR),
+                ),
+            ),
             SplitPickerEvent.PickerBecameTop(SplitPane.PRIMARY, 100, setOf(10, 100)),
             SplitPickerEvent.PickerTaskGone(SplitPane.SECONDARY, 200),
             SplitPickerEvent.PickerAttached(SplitPane.PRIMARY, 100),
@@ -84,7 +90,16 @@ class SplitPickerAutomatonAdversarialTest {
             0 -> SplitPickerEvent.OpenRequested
             1 -> SplitPickerEvent.HomeObserved
             2 -> SplitPickerEvent.ToggleOff
-            3 -> SplitPickerEvent.DividerResized
+            3 -> SplitPickerEvent.DividerResized(
+                panes = if (random.nextBoolean()) {
+                    mapOf(
+                        SplitPane.PRIMARY to SplitPickerObservedPane(100, 10, NAVIGATOR),
+                        SplitPane.SECONDARY to SplitPickerObservedPane(200, 20, MUSIC),
+                    )
+                } else {
+                    emptyMap()
+                },
+            )
             4 -> SplitPickerEvent.NativePickerObserved(pane, host)
             5 -> SplitPickerEvent.PickerAttached(pane, host)
             6 -> SplitPickerEvent.AppOpened(pane, host, task, packageName)

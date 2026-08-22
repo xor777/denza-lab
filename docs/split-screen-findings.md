@@ -154,6 +154,32 @@ filter.
 
 ### Live acceptance status
 
+On 2026-08-22 the native divider exposed a firmware behavior that the original
+automaton model did not represent. When the divider crossed from a narrow-left
+layout to a wide-left layout, BYD kept each permanent Denza picker in its
+logical root but swapped the two app tasks between those roots to preserve
+their visual sides. Before the fix, roots 2/3 contained Apple Music and 2GIS in
+the opposite logical slots from the persisted automaton. Closing 2GIS then
+recorded Apple as closed and retained 2GIS as the survivor. Opening Denza Apps
+and returning happened to heal that stale state by adopting the complete live
+scene, but the interval before that return was unsafe.
+
+The picker Activities now report their native configuration changes, and the
+coordinator atomically adopts a strict two-root owned-session snapshot. The
+same adoption runs before a visible-picker event as a race-safe fallback. The
+live retest used Denza Apps `0.5.4` (`versionCode=14`, debug APK SHA-256
+`950d48bf0649b61f8e17efbf0d3cefcbcd84aece918c229adf63c666e475c5db`).
+After each divider move, the persisted host/app mapping matched the exact live
+roots; four rapid back-and-forth moves preserved both task ids and processes.
+Closing 2GIS after a move left a picker plus Apple Music and removed only 2GIS
+from the saved pair. Opening Denza Apps and pressing Back then adopted those
+same picker/app tasks without reconstruction. Dismissing the remaining picker
+collapsed its pane and left Apple Music fullscreen, matching the product
+contract. The OEM strings `Release to display in 1/3 screen` and
+`Release to display in 2/3 screen` are the normal divider-drop preview: the
+live overlay showed the correct app icon on both sides, not an unknown or
+missing application.
+
 On 2026-08-22 a saved-pair vacancy regression was reproduced and fixed on the
 live car. A native caption swipe removed Yandex Music and revealed its Denza
 picker, but the automaton's `PICKER` state was not copied to the separately

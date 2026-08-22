@@ -153,7 +153,7 @@ class SplitPickerAutomatonTest {
     }
 
     @Test
-    fun dividerResizeCannotSwapLogicalSlots() {
+    fun dividerResizeAdoptsAppsSwappedAcrossLogicalHosts() {
         val split = state(
             primary = app(10, NAVIGATOR, hostTaskId = 100),
             secondary = app(20, MUSIC, hostTaskId = 200),
@@ -161,11 +161,77 @@ class SplitPickerAutomatonTest {
 
         val result = SplitPickerAutomaton.reduce(
             split,
-            SplitPickerEvent.DividerResized,
+            SplitPickerEvent.DividerResized(
+                panes = mapOf(
+                    SplitPane.PRIMARY to SplitPickerObservedPane(100, 20, MUSIC),
+                    SplitPane.SECONDARY to SplitPickerObservedPane(200, 10, NAVIGATOR),
+                ),
+            ),
         )
 
-        assertEquals(split, result.state)
+        assertEquals(app(20, MUSIC, hostTaskId = 100), result.state.slot(SplitPane.PRIMARY))
+        assertEquals(app(10, NAVIGATOR, hostTaskId = 200), result.state.slot(SplitPane.SECONDARY))
+        assertEquals(SplitPickerPhase.SPLIT, result.state.phase)
         assertTrue(result.actions.isEmpty())
+    }
+
+    @Test
+    fun dividerResizeAdoptsLivePickerVacancyBeforeItsVisibilityEvent() {
+        val stale = state(
+            primary = app(20, MUSIC, hostTaskId = 100),
+            secondary = app(10, NAVIGATOR, hostTaskId = 200),
+        )
+
+        val result = SplitPickerAutomaton.reduce(
+            stale,
+            SplitPickerEvent.DividerResized(
+                panes = mapOf(
+                    SplitPane.PRIMARY to SplitPickerObservedPane(hostTaskId = 100),
+                    SplitPane.SECONDARY to SplitPickerObservedPane(200, 20, MUSIC),
+                ),
+            ),
+        )
+
+        assertEquals(picker(100), result.state.slot(SplitPane.PRIMARY))
+        assertEquals(app(20, MUSIC, hostTaskId = 200), result.state.slot(SplitPane.SECONDARY))
+        assertEquals(
+            mapOf(SplitPane.SECONDARY to MUSIC),
+            SplitPickerSelectionPolicy.settledPair(result.state),
+        )
+        assertTrue(result.actions.isEmpty())
+    }
+
+    @Test
+    fun incompleteOrInvalidResizeObservationCannotCorruptTheAutomaton() {
+        val split = state(
+            primary = app(10, NAVIGATOR, hostTaskId = 100),
+            secondary = app(20, MUSIC, hostTaskId = 200),
+        )
+        val invalidEvents = listOf(
+            SplitPickerEvent.DividerResized(
+                panes = mapOf(
+                    SplitPane.PRIMARY to SplitPickerObservedPane(100, 20, MUSIC),
+                ),
+            ),
+            SplitPickerEvent.DividerResized(
+                panes = mapOf(
+                    SplitPane.PRIMARY to SplitPickerObservedPane(100, 20, MUSIC),
+                    SplitPane.SECONDARY to SplitPickerObservedPane(100, 10, NAVIGATOR),
+                ),
+            ),
+            SplitPickerEvent.DividerResized(
+                panes = mapOf(
+                    SplitPane.PRIMARY to SplitPickerObservedPane(100, 20, null),
+                    SplitPane.SECONDARY to SplitPickerObservedPane(200, 10, NAVIGATOR),
+                ),
+            ),
+        )
+
+        invalidEvents.forEach { event ->
+            val result = SplitPickerAutomaton.reduce(split, event)
+            assertEquals(split, result.state)
+            assertTrue(result.actions.isEmpty())
+        }
     }
 
     @Test

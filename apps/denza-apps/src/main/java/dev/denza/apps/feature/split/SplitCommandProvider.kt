@@ -33,6 +33,8 @@ class SplitCommandProvider : ContentProvider() {
                     app,
                     extras.requireTaskId(),
                 )
+                SplitCommandContract.METHOD_DIVIDER_RESIZED ->
+                    SplitScreenCoordinator.onDividerResized(app)
                 SplitCommandContract.METHOD_SELECT -> {
                     val receiver = extras.resultReceiver()
                     SplitScreenCoordinator.selectApp(
