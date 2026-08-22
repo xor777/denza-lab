@@ -6,6 +6,20 @@ import org.junit.Test
 
 class SplitNativePickerAccessControllerTest {
     @Test
+    fun packageFilteredVersionIsReboundForUnfilteredConfiguration() {
+        val split =
+            "dev.denza.apps/dev.denza.apps.feature.split.SplitNativePickerAccessibilityService"
+        val system = "com.android.systemui/.custom.StatusBarAccessibilityService"
+        val shell = FakeAccessibilitySettings(listOf(system, split))
+        val lease = FakeAccessLease(owned = true, configurationVersion = 2)
+
+        SplitNativePickerAccessController(shell::run, lease).enable()
+
+        assertEquals(listOf(listOf(system), listOf(system, split)), shell.writes)
+        assertEquals(3, lease.configurationVersion())
+    }
+
+    @Test
     fun staleEnabledServiceIsReboundWithoutLosingOtherServices() {
         val split =
             "dev.denza.apps/dev.denza.apps.feature.split.SplitNativePickerAccessibilityService"
@@ -47,9 +61,8 @@ class SplitNativePickerAccessControllerTest {
 
     private class FakeAccessLease(
         private var owned: Boolean,
+        private var configurationVersion: Int = 0,
     ) : SplitNativePickerAccessLeaseStore {
-        private var configurationVersion = 0
-
         override fun isOwned(): Boolean = owned
 
         override fun setOwned(owned: Boolean): Boolean {

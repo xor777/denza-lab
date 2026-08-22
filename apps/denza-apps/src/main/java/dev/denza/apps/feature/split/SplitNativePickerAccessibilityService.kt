@@ -134,7 +134,10 @@ internal class SplitNativePickerAccessController(
     private companion object {
         const val COMPONENT =
             "dev.denza.apps/dev.denza.apps.feature.split.SplitNativePickerAccessibilityService"
-        const val CONFIGURATION_VERSION = 2
+        // Version 3 removes the XML package filter. This firmware keeps a stale copy of
+        // packageNames across APK replacement, so filtering belongs in
+        // SplitAccessibilityEventPolicy where it cannot be cached by AccessibilityManager.
+        const val CONFIGURATION_VERSION = 3
         val ALIASES = setOf(
             COMPONENT,
             "dev.denza.apps/.feature.split.SplitNativePickerAccessibilityService",
