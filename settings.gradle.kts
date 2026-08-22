@@ -38,5 +38,9 @@ include(":single-package-split-probe")
 project(":single-package-split-probe").projectDir =
     file("experiments/single-package-split-probe")
 
+include(":speaker-lift-yandex-probe")
+project(":speaker-lift-yandex-probe").projectDir =
+    file("experiments/speaker-lift-yandex-probe")
+
 include(":denza-gateway")
 project(":denza-gateway").projectDir = file("legacy/denza-gateway")

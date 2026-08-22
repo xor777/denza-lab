@@ -9,6 +9,7 @@ Use this folder for durable project knowledge.
 | `adb-authorization-recovery.md` | Denza Apps local-ADB startup gate, one-shot authorization flow, stuck-queue boundary, and acceptance status. |
 | `instrument-display-findings.md` | Instrument-display selection, Mirrors geometry, navigation projection, verification status, and open issues. |
 | `audio-capture-findings.md` | Verified output-mix spectrum source, calibration, permissions, product adoption, and remaining audio checks. |
+| `speaker-lift-findings.md` | Devialet flip covers; confirmed stock LOCAL `playById` raise path, rejected BT/FID hypotheses, and the isolated Yandex-open normal-UID probe. |
 | `vehicle-data-findings.md` | Live-car matrix of usable GNSS/IMU/journey data, blocked DiCar getters, `autoservice` FID protocol, widget allowlist, and product boundaries. |
 | `stock-russian-locale.md` | Captured BYD Settings locale behavior, stock Russian resources, and the narrow verified Denza Apps toggle. |
 | `dishare-api-notes.md` | DiShare/HUD reverse-engineering notes and raw API findings. |

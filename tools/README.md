@@ -71,6 +71,23 @@ Current scripts:
 - `single_package_split_probe.sh`: guarded live-car wrapper for the disposable
   one-package split experiment. It snapshots SmartMulti state, operates only on
   exact probe components, and never invokes runtime allowlist transaction 125.
+- `speaker_lift_probe.sh`: builds and runs the shell-UID `SpeakerLiftProbe`
+  (app_process dex, no APK install) for the Devialet pop-out cover
+  investigation: read-only FID/dumpsys `capture`, `focus`/`tone` stream-14
+  impersonation, intArray-shaped FID SETs via the framework's own client, and
+  `AudioSystem.setParameters`. SETs never hand-craft autoservice parcels.
+  Default serial `127.0.0.1:5555`; durable results belong to
+  `docs/speaker-lift-findings.md`.
+- `speaker_lift_local_pulse.sh`: runs the separately verified stock
+  MediaCenter LOCAL `playById`/pause path. Unlike the stream-14 impersonation
+  probe, this path extended the covers from a clean retracted state. Its input
+  is an already indexed local track's canonical IVI path or signed MediaCenter
+  music ID.
+- `speaker_lift_yandex_probe.sh`: builds and owns the disposable normal-UID
+  `speaker-lift-yandex-probe` APK. `install` preserves existing accessibility
+  services, prepares the exact proven one-second LOCAL chime, and enables a
+  no-Activity observer that pulses MediaCenter when `ru.yandex.music` opens.
+  `disable` and `uninstall` remove only this probe's component/package.
 - `smartmulti_state.sh`: `snapshot` records the exact SmartMulti persistent
   pair, gate, area, resizeability lease, package support, Denza split
   preferences, and live roots. The explicitly mutating `reset` action restores

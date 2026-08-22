@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Speaker lift Yandex probe</string>
+    <string name="accessibility_service_description">Raises the verified Devialet speaker covers when Yandex Music opens.</string>
+</resources>
