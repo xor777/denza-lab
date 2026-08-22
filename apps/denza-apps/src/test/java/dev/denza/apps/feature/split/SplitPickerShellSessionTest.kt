@@ -1003,6 +1003,27 @@ class SplitPickerShellSessionTest {
     }
 
     @Test
+    fun transientPostLaunchAreaDoesNotDeleteSuccessfullyPlacedApp() {
+        val fake = FakeShell(transientAreaReadsAfterDirectLaunch = 1)
+        val split = session(fake)
+        val pickers = split.openPickers(PICKERS, preservedPackages = emptyMap())
+
+        val placement = split.selectApp(
+            pickerTaskId = pickers.getValue(SplitPane.SECONDARY),
+            target = SplitLaunchTarget(
+                MUSIC,
+                "$MUSIC/$MUSIC.MainActivity",
+                launchMode = 2,
+            ),
+            pickerComponents = PICKER_COMPONENTS,
+        )
+
+        assertEquals(SECONDARY_ROOT, fake.taskRoot(placement.appTaskId))
+        assertEquals("$MUSIC.MainActivity", fake.topActivity(SECONDARY_ROOT))
+        assertFalse(fake.commands.any { it.contains("remove-task ${placement.appTaskId} ") })
+    }
+
+    @Test
     fun redirectToExistingTaskIsRestoredBeforeDuplicateFailure() {
         val fake = FakeShell(reuseExistingTargetOnLaunch = true)
         val split = session(fake)
@@ -1331,6 +1352,7 @@ class SplitPickerShellSessionTest {
         private val tx115RequiresHome: Boolean = false,
         private val nativeBootstrapStartsFullscreen: Boolean = false,
         private val renderEmptyNativeRootMarker: Boolean = false,
+        private val transientAreaReadsAfterDirectLaunch: Int = 0,
     ) {
         data class Task(
             val id: Int,
@@ -1349,6 +1371,7 @@ class SplitPickerShellSessionTest {
         private var nextTaskId = 100
         private var fullForegroundReplaced = false
         private var disappearOnNextRemove = false
+        private var transientAreaReadsRemaining = 0
         private val supported = mutableSetOf<String>()
         private val tasks = mutableListOf<Task>()
 
@@ -1474,7 +1497,14 @@ class SplitPickerShellSessionTest {
                 command == "service call activity_task 118 i32 1" -> intParcel(PRIMARY_ROOT)
                 command == "service call activity_task 118 i32 2" -> intParcel(SECONDARY_ROOT)
                 command == "service call activity_task 118 i32 4" -> intParcel(FULL_ROOT)
-                command == "service call activity_task 30" -> intParcel(area)
+                command == "service call activity_task 30" -> {
+                    if (transientAreaReadsRemaining > 0) {
+                        transientAreaReadsRemaining -= 1
+                        intParcel(2)
+                    } else {
+                        intParcel(area)
+                    }
+                }
                 command.startsWith("service call activity_task 112 s16 ") ->
                     intParcel(if (quotedArgument(command) in supported) 1 else 0)
                 command.startsWith("service call activity_task 125 s16 ") -> {
@@ -1539,6 +1569,12 @@ class SplitPickerShellSessionTest {
                         bounds = pickerRoot?.let(::bounds) ?: FULL,
                     )
                     tasks += launchedTask
+                    if (
+                        component !in PICKERS.values &&
+                        component != SPLIT_APP_HOST_COMPONENT
+                    ) {
+                        transientAreaReadsRemaining = transientAreaReadsAfterDirectLaunch
+                    }
                     if (
                         component == SPLIT_APP_HOST_COMPONENT &&
                         hostTargetLaunchSucceeds

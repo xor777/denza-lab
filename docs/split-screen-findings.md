@@ -587,6 +587,33 @@ visible, the package-local channel rendered the full text **«Не все при
 and dismissing it again restored **«Выберите приложение»** and removed the
 persisted notice key.
 
+### Restore confirmation race (2026-08-22)
+
+A package-replace acceptance run exposed a false restoration failure. The
+firmware had already launched and drawn 2GIS above its permanent picker, but a
+single post-launch area/top sample still described the preceding transition.
+The selection path treated that one stale sample as authoritative, entered its
+failure cleanup, and removed the visible 2GIS task itself. Both picker tasks
+then displayed the persisted partial-restore notice even though the target app
+had launched successfully.
+
+Post-launch confirmation now requires the complete scene to agree twice in a
+row: the exact app task is top in the requested root, the permanent picker base
+is still present, bounds match, the native area is correct, and any pre-existing
+same-package tasks remain in their original roots. A transient mismatch is
+polled for up to two seconds; cleanup runs only when the scene never stabilizes.
+The regression test first reproduced the old self-removal from one transient
+area response and then passed without any `remove-task` command.
+
+The live acceptance repeated the package-replace boundary. Updating Denza Apps
+removed the old picker tasks and temporarily expanded 2GIS task 481. A fresh
+**«Разделить экран»** launch created picker bases 484/485 and cold-restored 2GIS
+as task 486 above base 485. After settling, area was `3`, the persisted automaton
+was `PICKER + APP`, no restore notice was visible, and no Denza Apps or AVC crash
+was recorded. Yandex Music remained in `PlaybackState=3` throughout. The
+installed APK SHA-256 was
+`24eed1f3c5247293489040a378f7a2c20d0a20406c212691593c44147149bb3f`.
+
 The corpus used for this contract is `/system/framework/services.jar` SHA-256
 `23a58a4e3c98c50541785390f1234e8c4d7138b5dd170c4f5843bae15b93c019`
 and `/system/framework/framework.jar` SHA-256

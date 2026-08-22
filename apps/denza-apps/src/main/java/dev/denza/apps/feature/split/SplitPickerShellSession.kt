@@ -480,36 +480,15 @@ internal class SplitPickerShellSession(
             normalizeTaskToRoot(launchedTask.id, targetRootId)
             pause(ROOT_SETTLE_MS)
 
-            val after = snapshot()
-            val root = after.root(targetRootId)
-                ?: error("Split-контейнер выбранного окна исчез")
-            check(root.tasks.any {
-                it.id == pickerHost.id &&
-                    it.isDenzaPickerBase() &&
-                    it.matchesAnyComponent(pickerComponents)
-            }) {
-                "Пикер был удалён из окна"
-            }
-            val top = root.resolvedTopTask()
-                ?: error("В выбранном split-окне нет верхней задачи")
-            check(top.id == launchedTask.id && top.effectivePackageName() == target.packageName) {
-                "Приложение ${target.packageName} не стало верхним в выбранном окне"
-            }
-            check(top.bounds == root.bounds) {
-                "Приложение ${target.packageName} не приняло размер выбранного окна"
-            }
-            check(callInt("service call activity_task 30") == expectedArea) {
-                "Split не перешёл в рабочее состояние"
-            }
-            check(root.tasks.size <= MAX_TASKS_PER_PANE) {
-                "В split-контейнере накопилось больше двух задач"
-            }
-            requirePreservedTargetTasks(target.packageName, preservedTargetTaskRoots)
-            return SplitPickerPlacement(
+            return awaitSelectedAppPlacement(
                 pane = pane,
-                hostTaskId = pickerHost.id,
-                appTaskId = top.id,
-                packageName = target.packageName,
+                rootId = targetRootId,
+                pickerHost = pickerHost,
+                launchedTask = launchedTask,
+                target = target,
+                pickerComponents = pickerComponents,
+                expectedArea = expectedArea,
+                preservedTargetTaskRoots = preservedTargetTaskRoots,
             )
         } catch (error: Throwable) {
             runCatching {
@@ -522,6 +501,95 @@ internal class SplitPickerShellSession(
             }.exceptionOrNull()?.let(error::addSuppressed)
             throw error
         }
+    }
+
+    /**
+     * BYD publishes task placement before its split-area controller has necessarily committed the
+     * same transition. Treat the launch as successful only after the complete scene agrees twice;
+     * otherwise a single stale area/top sample would make cleanup delete an already visible app.
+     */
+    private fun awaitSelectedAppPlacement(
+        pane: SplitPane,
+        rootId: Int,
+        pickerHost: SplitTask,
+        launchedTask: SplitTask,
+        target: SplitLaunchTarget,
+        pickerComponents: Set<String>,
+        expectedArea: Int,
+        preservedTargetTaskRoots: Map<Int, Int>,
+    ): SplitPickerPlacement {
+        var stableSamples = 0
+        var lastError: Throwable? = null
+        repeat(APP_PLACEMENT_CONFIRM_ATTEMPTS) { attempt ->
+            val sample = runCatching {
+                selectedAppPlacement(
+                    pane = pane,
+                    rootId = rootId,
+                    pickerHost = pickerHost,
+                    launchedTask = launchedTask,
+                    target = target,
+                    pickerComponents = pickerComponents,
+                    expectedArea = expectedArea,
+                    preservedTargetTaskRoots = preservedTargetTaskRoots,
+                )
+            }
+            sample.getOrNull()?.let { placement ->
+                stableSamples += 1
+                if (stableSamples >= APP_PLACEMENT_STABLE_SAMPLES) return placement
+            }
+            sample.exceptionOrNull()?.let { error ->
+                stableSamples = 0
+                lastError = error
+            }
+            if (attempt + 1 < APP_PLACEMENT_CONFIRM_ATTEMPTS) {
+                pause(APP_PLACEMENT_CONFIRM_INTERVAL_MS)
+            }
+        }
+        throw lastError ?: IllegalStateException(
+            "Запуск ${target.packageName} не достиг устойчивого состояния",
+        )
+    }
+
+    private fun selectedAppPlacement(
+        pane: SplitPane,
+        rootId: Int,
+        pickerHost: SplitTask,
+        launchedTask: SplitTask,
+        target: SplitLaunchTarget,
+        pickerComponents: Set<String>,
+        expectedArea: Int,
+        preservedTargetTaskRoots: Map<Int, Int>,
+    ): SplitPickerPlacement {
+        val root = snapshot().root(rootId)
+            ?: error("Split-контейнер выбранного окна исчез")
+        check(root.tasks.any {
+            it.id == pickerHost.id &&
+                it.isDenzaPickerBase() &&
+                it.matchesAnyComponent(pickerComponents)
+        }) {
+            "Пикер был удалён из окна"
+        }
+        val top = root.resolvedTopTask()
+            ?: error("В выбранном split-окне нет верхней задачи")
+        check(top.id == launchedTask.id && top.effectivePackageName() == target.packageName) {
+            "Приложение ${target.packageName} не стало верхним в выбранном окне"
+        }
+        check(top.bounds == root.bounds) {
+            "Приложение ${target.packageName} не приняло размер выбранного окна"
+        }
+        check(callInt("service call activity_task 30") == expectedArea) {
+            "Split не перешёл в рабочее состояние"
+        }
+        check(root.tasks.size <= MAX_TASKS_PER_PANE) {
+            "В split-контейнере накопилось больше двух задач"
+        }
+        requirePreservedTargetTasks(target.packageName, preservedTargetTaskRoots)
+        return SplitPickerPlacement(
+            pane = pane,
+            hostTaskId = pickerHost.id,
+            appTaskId = top.id,
+            packageName = target.packageName,
+        )
     }
 
     /**
@@ -1720,6 +1788,9 @@ internal class SplitPickerShellSession(
         const val PICKER_SETTLE_MS = 150L
         const val NATIVE_PICKER_SETTLE_MS = 450L
         const val APP_LAUNCH_SETTLE_MS = 250L
+        const val APP_PLACEMENT_CONFIRM_ATTEMPTS = 20
+        const val APP_PLACEMENT_CONFIRM_INTERVAL_MS = 100L
+        const val APP_PLACEMENT_STABLE_SAMPLES = 2
         const val HOST_LAUNCH_SETTLE_MS = 100L
         const val ROOT_SETTLE_MS = 120L
         const val EXIT_SETTLE_MS = 650L
