@@ -23,6 +23,7 @@ internal object NativeWeatherPayload {
         forecast: JSONObject,
         latitude: Double,
         longitude: Double,
+        locationLabel: WeatherLocationLabel? = null,
         nowMillis: Long = System.currentTimeMillis(),
         zoneId: ZoneId = ZoneId.systemDefault(),
     ): String {
@@ -54,7 +55,7 @@ internal object NativeWeatherPayload {
         val native = JSONObject()
             .put("ts", nowMillis)
             .put("citycode", "GPS")
-            .put("city", city(latitude, longitude, zoneId))
+            .put("city", city(latitude, longitude, zoneId, locationLabel))
             .put("weatherDesc", "Прогноз MET Norway")
             .put("mobilelink", "")
             .put("updatetime", releasedAtMillis)
@@ -117,27 +118,36 @@ internal object NativeWeatherPayload {
             .toString()
     }
 
-    private fun city(latitude: Double, longitude: Double, zoneId: ZoneId): JSONObject =
-        JSONObject()
+    private fun city(
+        latitude: Double,
+        longitude: Double,
+        zoneId: ZoneId,
+        locationLabel: WeatherLocationLabel?,
+    ): JSONObject {
+        val cityName = locationLabel?.city ?: "GPS"
+        val regionName = locationLabel?.region ?: cityName
+        val countryName = locationLabel?.countryName.orEmpty()
+        val countryCode = locationLabel?.countryCode.orEmpty()
+        return JSONObject()
             .put("citycode", "GPS")
-            .put("provincename", "GPS")
-            .put("name", "GPS")
+            .put("provincename", regionName)
+            .put("name", cityName)
             .put("co", longitude.toString())
             .put("ca", latitude.toString())
             .put("timezone", zoneId.id)
-            .put("parentcity", "GPS")
+            .put("parentcity", cityName)
             .put("level", 3)
-            .put("englishCityName", "GPS")
-            .put("countryCode", "")
-            .put("countryname", "")
-            .put("englishCountryName", "")
+            .put("englishCityName", cityName)
+            .put("countryCode", countryCode)
+            .put("countryname", countryName)
+            .put("englishCountryName", countryName)
             .put(
                 "supplementalAdminAreas",
                 JSONArray().put(
                     JSONObject()
                         .put("id", "GPS")
-                        .put("localizedName", "GPS")
-                        .put("englishName", "GPS")
+                        .put("localizedName", regionName)
+                        .put("englishName", regionName)
                         .put("level", 2),
                 ),
             )
@@ -145,10 +155,11 @@ internal object NativeWeatherPayload {
                 "administrativearea",
                 JSONObject()
                     .put("id", "GPS")
-                    .put("localizedname", "GPS")
-                    .put("englishName", "GPS")
+                    .put("localizedname", regionName)
+                    .put("englishName", regionName)
                     .put("level", 1),
             )
+    }
 
     private fun dailyForecast(
         points: List<ForecastPoint>,

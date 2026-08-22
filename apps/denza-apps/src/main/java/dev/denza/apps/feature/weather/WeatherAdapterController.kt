@@ -17,6 +17,10 @@ internal class WeatherAdapterController(context: Context) {
         return try {
             cleanupLegacyOwnedProxy()
             val coordinates = WeatherLocationSource(appContext).resolve()
+            val locationLabel = AndroidWeatherGeocoder(appContext).resolve(
+                coordinates.latitude,
+                coordinates.longitude,
+            )
             val forecast = MetNorwayClient(appContext).forecast(
                 coordinates.latitude,
                 coordinates.longitude,
@@ -25,6 +29,7 @@ internal class WeatherAdapterController(context: Context) {
                 forecast,
                 coordinates.latitude,
                 coordinates.longitude,
+                locationLabel = locationLabel,
             )
 
             ensureNativeRefreshObserver()

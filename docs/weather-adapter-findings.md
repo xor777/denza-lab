@@ -1,7 +1,9 @@
 # Native weather adapter findings
 
-Validated on 2026-08-14 against DiLink 5.1 and the stock
-`com.byd.weatherdata` package version `2.9.36.260424`.
+The provider/write path was validated on 2026-08-14 against DiLink 5.1 and the
+stock `com.byd.weatherdata` package version `2.9.36.260424`. Android Geocoder
+city labels were added and locally build-verified on 2026-08-22; their
+availability and returned fields still need a live-car check.
 
 ## Problem
 
@@ -47,15 +49,18 @@ Each run:
 1. Selects the newest standard Android last-known location. A fresh fix is used
    immediately; otherwise the adapter asks enabled providers for a current fix.
    Coordinates already stored by native weather are the final fallback.
-2. Requests MET Norway Locationforecast using an identifying User-Agent and
+2. Asks the Android 13 platform `Geocoder` for a Russian localized city label.
+   It prefers locality, then district, then region, and keeps `GPS` if the
+   platform service is absent, times out, or returns no usable name.
+3. Requests MET Norway Locationforecast using an identifying User-Agent and
    `Proxy.NO_PROXY`.
-3. Honors HTTP expiry/`Last-Modified` caching and permits a stale forecast for at
+4. Honors HTTP expiry/`Last-Modified` caching and permits a stale forecast for at
    most six hours after a network failure.
-4. Maps MET symbols and wind data into the stock weather IDs and complete native
+5. Maps MET symbols and wind data into the stock weather IDs and complete native
    JSON shape.
-5. Snapshots the existing native row, replaces it, and verifies an exact read
+6. Snapshots the existing native row, replaces it, and verifies an exact read
    back. A failed write restores the previous row.
-6. Notifies the launcher and the stock widget provider.
+7. Notifies the launcher and the stock widget provider.
 
 The stock `condition.updatetime` fields contain the actual adapter refresh time.
 The hourly MET forecast-point timestamp is kept separately as forecast metadata;
@@ -63,8 +68,9 @@ using it as `updatetime` would make the native “data released” label appear 
 on an exact hour between refreshes.
 
 The adapter intentionally leaves AQI unavailable because Locationforecast does
-not provide air quality. The city label is currently `GPS`; reverse geocoding is
-not required to keep temperature, condition, min/max, and hourly data live.
+not provide air quality. Reverse geocoding is best-effort and independent of
+the forecast: a missing city result leaves the label as `GPS` without blocking
+temperature, condition, min/max, or hourly data.
 
 MET Norway usage references:
 
@@ -109,6 +115,10 @@ Mutation probes also established that:
   major firmware update.
 - MET Norway is an external free service with attribution and caching
   requirements, not an availability SLA.
+- Android `Geocoder` availability, accuracy, and localization are platform
+  best-effort behavior. The adapter bounds it with a five-second timeout and a
+  `GPS` fallback, but the DiLink implementation has not yet been exercised on
+  the car.
 - A one-time migration cleanup recognizes a proxy owned by the earlier lab spike
   and removes only that exact value. The production refresh path never installs a
   proxy.
