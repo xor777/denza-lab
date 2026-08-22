@@ -69,13 +69,27 @@ internal class SplitNativePickerAccessController(
 ) {
     fun enable() {
         val current = read()
-        if (current.any(ALIASES::contains)) return
-        write(current.filterNot(ALIASES::contains) + COMPONENT)
-        check(read().any(ALIASES::contains)) {
-            "Система не включила наблюдение за штатным picker"
-        }
-        check(leaseStore.setOwned(true)) {
-            "Не удалось сохранить владение наблюдением за picker"
+        val alreadyEnabled = current.any(ALIASES::contains)
+        if (alreadyEnabled && leaseStore.configurationVersion() >= CONFIGURATION_VERSION) return
+
+        val withoutService = current.filterNot(ALIASES::contains)
+        val wasOwned = leaseStore.isOwned()
+        if (alreadyEnabled) write(withoutService)
+        try {
+            write(withoutService + COMPONENT)
+            check(read().any(ALIASES::contains)) {
+                "Система не включила наблюдение за штатным picker"
+            }
+            check(leaseStore.setOwned(true)) {
+                "Не удалось сохранить владение наблюдением за picker"
+            }
+            check(leaseStore.setConfigurationVersion(CONFIGURATION_VERSION)) {
+                "Не удалось сохранить версию наблюдения за picker"
+            }
+        } catch (error: Throwable) {
+            if (alreadyEnabled) runCatching { write(current) }
+            runCatching { leaseStore.setOwned(wasOwned) }
+            throw error
         }
     }
 
@@ -120,6 +134,7 @@ internal class SplitNativePickerAccessController(
     private companion object {
         const val COMPONENT =
             "dev.denza.apps/dev.denza.apps.feature.split.SplitNativePickerAccessibilityService"
+        const val CONFIGURATION_VERSION = 2
         val ALIASES = setOf(
             COMPONENT,
             "dev.denza.apps/.feature.split.SplitNativePickerAccessibilityService",
@@ -130,4 +145,6 @@ internal class SplitNativePickerAccessController(
 internal interface SplitNativePickerAccessLeaseStore {
     fun isOwned(): Boolean
     fun setOwned(owned: Boolean): Boolean
+    fun configurationVersion(): Int = 0
+    fun setConfigurationVersion(version: Int): Boolean = true
 }

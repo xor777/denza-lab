@@ -22,6 +22,8 @@ object SplitScreenSettings {
     private const val LAST_SECONDARY_PACKAGE = "picker_last_secondary_package_v1"
     private const val PICKER_GATE_OWNED = "picker_gate_owned_v1"
     private const val PICKER_ACCESS_OWNED = "picker_access_owned_v1"
+    private const val PICKER_ACCESS_CONFIGURATION_VERSION =
+        "picker_access_configuration_version_v1"
     private const val PICKER_STATE_PRESENT = "picker_state_present_v1"
     private const val PICKER_STATE_ARMED = "picker_state_armed_v1"
     private const val PICKER_STATE_PHASE = "picker_state_phase_v1"
@@ -109,6 +111,14 @@ object SplitScreenSettings {
             else editor.remove(PICKER_ACCESS_OWNED)
             editor.commit()
         }
+
+        override fun configurationVersion(): Int =
+            preferences.getInt(PICKER_ACCESS_CONFIGURATION_VERSION, 0)
+
+        @SuppressLint("UseKtx")
+        override fun setConfigurationVersion(version: Int): Boolean = preferences.edit()
+            .putInt(PICKER_ACCESS_CONFIGURATION_VERSION, version)
+            .commit()
     }
 
     private class PreferencesPickerAutomatonStore(
