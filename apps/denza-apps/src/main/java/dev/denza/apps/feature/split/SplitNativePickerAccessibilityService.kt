@@ -105,10 +105,10 @@ internal class SplitNativePickerAccessController(
         val wasOwned = leaseStore.isOwned()
         try {
             if (alreadyEnabled) {
-                write(withoutService)
+                write(withoutService, ensureAccessibilityEnabled = false)
                 pauseAfterDisable(REBIND_SETTLE_MS)
             }
-            write(withoutService + COMPONENT)
+            write(withoutService + COMPONENT, ensureAccessibilityEnabled = true)
             check(read().any(ALIASES::contains)) {
                 "Система не включила наблюдение за штатным picker"
             }
@@ -119,7 +119,9 @@ internal class SplitNativePickerAccessController(
                 "Не удалось сохранить версию наблюдения за picker"
             }
         } catch (error: Throwable) {
-            if (alreadyEnabled) runCatching { write(current) }
+            if (alreadyEnabled) {
+                runCatching { write(current, ensureAccessibilityEnabled = true) }
+            }
             runCatching { leaseStore.setOwned(wasOwned) }
             throw error
         }
@@ -129,7 +131,10 @@ internal class SplitNativePickerAccessController(
         if (!leaseStore.isOwned()) return@withLock
         val current = read()
         if (current.any(ALIASES::contains)) {
-            write(current.filterNot(ALIASES::contains))
+            write(
+                current.filterNot(ALIASES::contains),
+                ensureAccessibilityEnabled = false,
+            )
             check(read().none(ALIASES::contains)) {
                 "Система не выключила наблюдение за штатным picker"
             }
@@ -149,12 +154,15 @@ internal class SplitNativePickerAccessController(
         ?.distinct()
         .orEmpty()
 
-    private fun write(entries: List<String>) {
+    private fun write(entries: List<String>, ensureAccessibilityEnabled: Boolean) {
         val value = entries.distinct().joinToString(":")
-        val output = shell(
-            "settings put secure enabled_accessibility_services ${shellQuote(value)}; " +
-                "settings put secure accessibility_enabled 1",
-        )
+        val command = buildString {
+            append("settings put secure enabled_accessibility_services ${shellQuote(value)}")
+            if (ensureAccessibilityEnabled) {
+                append("; settings put secure accessibility_enabled 1")
+            }
+        }
+        val output = shell(command)
         check(
             !output.contains("Error", ignoreCase = true) &&
                 !output.contains("Exception", ignoreCase = true),
@@ -169,7 +177,10 @@ internal class SplitNativePickerAccessController(
         // Version 3 removed the XML package filter. Versions 4-5 wait for the asynchronous
         // Android unbind before adding the component back; live firmware showed that 250 ms was
         // still racy, while one second consistently produced a new unfiltered service instance.
-        const val CONFIGURATION_VERSION = 5
+        // Version 6 leaves accessibility_enabled untouched during the unbind half. Re-enabling it
+        // before Android completes the removal can produce a formally bound service that receives
+        // no window events on this firmware.
+        const val CONFIGURATION_VERSION = 6
         const val REBIND_SETTLE_MS = 1_000L
         val ALIASES = setOf(
             COMPONENT,
