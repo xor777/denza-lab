@@ -7,7 +7,7 @@ import android.view.accessibility.AccessibilityEvent
 import dev.denza.apps.AccessibilityServiceSettings
 import dev.denza.apps.AccessibilitySettingsMutationLock
 
-internal enum class SplitAccessibilityEventTarget { STOCK_PICKER, HOME, IGNORE }
+internal enum class SplitAccessibilityEventTarget { STOCK_PICKER, PRODUCT_PICKER, HOME, IGNORE }
 
 internal object SplitAccessibilityEventPolicy {
     fun isTopologyHint(eventType: Int): Boolean =
@@ -16,12 +16,17 @@ internal object SplitAccessibilityEventPolicy {
     fun target(packageName: String?, className: String?): SplitAccessibilityEventTarget = when {
         packageName == STOCK_PICKER_PACKAGE && className == STOCK_PICKER_ACTIVITY ->
             SplitAccessibilityEventTarget.STOCK_PICKER
+        packageName == PRODUCT_PICKER_PACKAGE && className == PRODUCT_PICKER_ACTIVITY ->
+            SplitAccessibilityEventTarget.PRODUCT_PICKER
         packageName == HOME_PACKAGE -> SplitAccessibilityEventTarget.HOME
         else -> SplitAccessibilityEventTarget.IGNORE
     }
 
     private const val STOCK_PICKER_PACKAGE = "com.android.launcher3"
     private const val STOCK_PICKER_ACTIVITY = "com.android.launcher3.SplitScreenListActivity"
+    private const val PRODUCT_PICKER_PACKAGE = "dev.denza.apps"
+    private const val PRODUCT_PICKER_ACTIVITY =
+        "dev.denza.apps.feature.split.SplitPickerActivity"
     private const val HOME_PACKAGE = "com.byd.mycar"
 }
 
@@ -86,6 +91,8 @@ class SplitNativePickerAccessibilityService : AccessibilityService() {
         when (target) {
             SplitAccessibilityEventTarget.STOCK_PICKER ->
                 SplitScreenCoordinator.onNativePickerVisible(this)
+            SplitAccessibilityEventTarget.PRODUCT_PICKER ->
+                SplitScreenCoordinator.onProductPickerVisible(this)
             SplitAccessibilityEventTarget.HOME ->
                 SplitScreenCoordinator.onHomeVisible(this)
             SplitAccessibilityEventTarget.IGNORE -> Unit

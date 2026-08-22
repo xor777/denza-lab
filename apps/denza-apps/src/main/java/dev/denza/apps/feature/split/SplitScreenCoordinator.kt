@@ -313,7 +313,7 @@ object SplitScreenCoordinator {
     /** Exact picker reveal event; only the recorded app task can be removed. */
     fun onPickerVisible(
         context: Context,
-        hostTaskId: Int,
+        hostTaskId: Int?,
         onComplete: (String?) -> Unit = {},
     ) {
         val app = context.applicationContext
@@ -336,23 +336,32 @@ object SplitScreenCoordinator {
             try {
                 adb = DenzaLocalAdb.client(app).openPersistentShell()
                 val split = pickerSession(app, adb::shell)
+                val resolvedHostTaskId = hostTaskId
+                    ?: split.singleVisiblePickerTaskId(PICKER_COMPONENT_SET)
+                    ?: run {
+                        postResult(onComplete, null)
+                        return@execute
+                    }
                 if (!reconcileOwnedSession(app, split, "picker visible")) {
                     postResult(onComplete, null)
                     return@execute
                 }
-                val observation = split.observePickerTask(hostTaskId, PICKER_COMPONENT_SET)
+                val observation = split.observePickerTask(
+                    resolvedHostTaskId,
+                    PICKER_COMPONENT_SET,
+                )
                 if (observation == null || !observation.pickerVisible) {
                     postResult(onComplete, null)
                     return@execute
                 }
                 val pane = observation.pane
                 applyPickerEvent(
-                    SplitPickerEvent.PickerAttached(pane, hostTaskId),
+                    SplitPickerEvent.PickerAttached(pane, resolvedHostTaskId),
                 )
                 val reduction = applyPickerEvent(
                     SplitPickerEvent.PickerBecameTop(
                         pane = pane,
-                        hostTaskId = hostTaskId,
+                        hostTaskId = resolvedHostTaskId,
                         observedTaskIds = observation.observedTaskIds,
                     ),
                 )
@@ -369,6 +378,11 @@ object SplitScreenCoordinator {
                 adb?.close()
             }
         }
+    }
+
+    /** Exact product-picker window hint; the shell snapshot must resolve one visible task. */
+    fun onProductPickerVisible(context: Context) {
+        onPickerVisible(context = context, hostTaskId = null)
     }
 
     /**

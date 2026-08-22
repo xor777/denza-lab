@@ -678,6 +678,26 @@ class SplitPickerShellSessionTest {
     }
 
     @Test
+    fun visibleProductPickerHintResolvesOnlyOneExactNativeTask() {
+        val fake = FakeShell()
+        val split = session(fake)
+        val hosts = split.openPickers(PICKERS, preservedPackages = emptyMap())
+
+        assertEquals(null, split.singleVisiblePickerTaskId(PICKER_COMPONENTS))
+
+        split.selectApp(
+            pickerTaskId = hosts.getValue(SplitPane.PRIMARY),
+            target = SplitLaunchTarget(MUSIC, "$MUSIC/$MUSIC.MainActivity"),
+            pickerComponents = PICKER_COMPONENTS,
+        )
+
+        assertEquals(
+            hosts.getValue(SplitPane.SECONDARY),
+            split.singleVisiblePickerTaskId(PICKER_COMPONENTS),
+        )
+    }
+
+    @Test
     fun collapsedPickerRehostRollsBackWhenNativeAreaChangesDuringMutation() {
         val fake = FakeShell()
         val split = session(fake)

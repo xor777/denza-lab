@@ -63,5 +63,13 @@ class SplitNativePickerEventPolicyTest {
                 className = "ru.yandex.yandexnavi.core.NavigatorActivity",
             ),
         )
+        assertEquals(
+            SplitAccessibilityEventTarget.PRODUCT_PICKER,
+            SplitAccessibilityEventPolicy.target(
+                packageName = "dev.denza.apps",
+                className = "dev.denza.apps.feature.split.SplitPickerActivity",
+            ),
+        )
     }
+
 }

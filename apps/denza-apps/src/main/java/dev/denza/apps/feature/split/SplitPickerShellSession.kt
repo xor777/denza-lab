@@ -1108,6 +1108,23 @@ internal class SplitPickerShellSession(
         )
     }
 
+    /** Resolves a product-picker window hint only when one native root has one visible picker. */
+    fun singleVisiblePickerTaskId(pickerComponents: Set<String>): Int? {
+        val roots = nativeRootIds()
+        val state = snapshot()
+        return roots.values.asSequence()
+            .mapNotNull(state::root)
+            .flatMap { root -> root.tasks.asSequence() }
+            .filter { task ->
+                task.visible &&
+                    task.isDenzaPickerBase() &&
+                    task.matchesAnyTopComponent(pickerComponents)
+            }
+            .map(SplitTask::id)
+            .toList()
+            .singleOrNull()
+    }
+
     fun attachPicker(
         pane: SplitPane,
         hostTaskId: Int,
