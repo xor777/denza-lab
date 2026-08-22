@@ -25,10 +25,10 @@ import dev.denza.apps.feature.fse.FseInstallResult
 import dev.denza.apps.feature.hud.HudGuidanceRuntime
 import dev.denza.apps.feature.hud.HudGuidanceSettings
 import dev.denza.apps.feature.hud.HudNotificationAccessCoordinator
-import dev.denza.apps.feature.locale.StockLocaleOverride
 import dev.denza.apps.feature.locale.StockRussianLocaleChange
 import dev.denza.apps.feature.locale.StockRussianLocaleCoordinator
 import dev.denza.apps.feature.locale.StockRussianLocaleSnapshot
+import dev.denza.apps.feature.locale.StockRussianLocaleStatus
 import dev.denza.apps.feature.mirrors.MirrorDisplayReadiness
 import dev.denza.apps.feature.mirrors.MirrorsPosition
 import dev.denza.apps.feature.mirrors.MirrorsSettings
@@ -110,6 +110,7 @@ data class DenzaUiState(
 /** Android-facing state owner shared by the Compose shell and runtime services. */
 object DenzaAppRepository {
     private val executor = Executors.newSingleThreadExecutor()
+    private val localeExecutor = Executors.newSingleThreadExecutor()
     private val adbRuntimeStarted = AtomicBoolean(false)
     private val mutableState = MutableStateFlow(DenzaUiState())
     val state: StateFlow<DenzaUiState> = mutableState.asStateFlow()
@@ -532,45 +533,28 @@ object DenzaAppRepository {
         val context = appContext ?: return
         val current = mutableState.value
         if (current.stockRussianLocale.running) return
-        if (current.adbRescue.phase != AdbRescuePhase.TRUSTED) {
-            mutableState.value = current.copy(
-                stockRussianLocale = StockRussianLocaleSnapshot(
-                    enabled = current.stockRussianLocale.enabled,
-                    message = "Нужен доверенный локальный ADB",
-                    details = current.adbRescue.details,
-                ),
-            )
-            return
-        }
-
+        val result = runCatching { StockRussianLocaleCoordinator.inspect(context) }
         mutableState.value = current.copy(
-            stockRussianLocale = current.stockRussianLocale.copy(
-                running = true,
-                message = "Проверяю штатную локаль…",
-                details = null,
+            stockRussianLocale = result.fold(
+                onSuccess = { status -> localeSnapshot(status) },
+                onFailure = { error -> localeFailure(error) },
             ),
         )
-        executor.execute {
-            val result = runCatching { StockRussianLocaleCoordinator.inspect(context) }
-            mutableState.value = mutableState.value.copy(
-                stockRussianLocale = result.fold(
-                    onSuccess = { override -> localeSnapshot(override) },
-                    onFailure = { error -> localeFailure(error) },
-                ),
-            )
-        }
     }
 
     fun setStockRussianLocaleEnabled(enabled: Boolean) {
         val context = appContext ?: return
         val current = mutableState.value
         if (current.stockRussianLocale.running) return
-        if (current.adbRescue.phase != AdbRescuePhase.TRUSTED) {
+        val permissionReady = StockRussianLocaleCoordinator.hasPermission(context)
+        if (!permissionReady && current.adbRescue.phase != AdbRescuePhase.TRUSTED) {
             mutableState.value = current.copy(
                 stockRussianLocale = StockRussianLocaleSnapshot(
                     enabled = current.stockRussianLocale.enabled,
+                    permissionReady = false,
                     message = "Нужен доверенный локальный ADB",
-                    details = current.adbRescue.details,
+                    details = "ADB нужен один раз для системного разрешения. После этого язык " +
+                        "переключается напрямую.",
                 ),
             )
             return
@@ -579,11 +563,15 @@ object DenzaAppRepository {
         mutableState.value = current.copy(
             stockRussianLocale = current.stockRussianLocale.copy(
                 running = true,
-                message = if (enabled) "Включаю ru-RU…" else "Возвращаю язык системы…",
+                message = when {
+                    !permissionReady -> "Один раз подготавливаю доступ…"
+                    enabled -> "Включаю ru-RU напрямую…"
+                    else -> "Возвращаю язык системы напрямую…"
+                },
                 details = null,
             ),
         )
-        executor.execute {
+        localeExecutor.execute {
             val result = runCatching {
                 StockRussianLocaleCoordinator.setEnabled(context, enabled)
             }
@@ -591,8 +579,8 @@ object DenzaAppRepository {
                 stockRussianLocale = result.fold(
                     onSuccess = { (change, override) ->
                         localeSnapshot(
-                            override = override,
-                            unchanged = change == StockRussianLocaleChange.ALREADY_SET,
+                            status = override,
+                            reapplied = change == StockRussianLocaleChange.REAPPLIED,
                         )
                     },
                     onFailure = { error ->
@@ -830,16 +818,24 @@ object DenzaAppRepository {
         SupportDiagnostics.build(context, mutableState.value.fseInstaller)
 
     private fun localeSnapshot(
-        override: StockLocaleOverride,
-        unchanged: Boolean = false,
+        status: StockRussianLocaleStatus,
+        reapplied: Boolean = false,
     ): StockRussianLocaleSnapshot = StockRussianLocaleSnapshot(
-        enabled = override.russianEnabled,
+        enabled = status.enabled,
+        permissionReady = status.permissionReady,
         message = when {
-            override.russianEnabled && unchanged -> "Русский уже включён для BYD Настроек"
-            override.russianEnabled -> "Русский включён. Переоткройте BYD Настройки"
-            override.usesSystemDefault && unchanged -> "Используется язык системы"
-            override.usesSystemDefault -> "Русский выключен. Используется язык системы"
-            else -> "Русский выключен. App-locale: ${override.tags.joinToString()}"
+            status.enabled == null && status.permissionReady ->
+                "Выберите «Вкл» или «Выкл» один раз"
+            status.enabled == null ->
+                "Первый выбор подготовит системное разрешение"
+            status.enabled && reapplied ->
+                "Русский повторно применён. Переоткройте BYD Настройки"
+            status.enabled ->
+                "Русский включён. Переоткройте BYD Настройки"
+            !status.enabled && reapplied ->
+                "Язык системы повторно применён"
+            else ->
+                "Русский выключен. Используется язык системы"
         },
     )
 
@@ -848,6 +844,7 @@ object DenzaAppRepository {
         previousEnabled: Boolean? = mutableState.value.stockRussianLocale.enabled,
     ): StockRussianLocaleSnapshot = StockRussianLocaleSnapshot(
         enabled = previousEnabled,
+        permissionReady = appContext?.let(StockRussianLocaleCoordinator::hasPermission) == true,
         message = "Не удалось изменить штатную локаль",
         details = error.message ?: error.toString(),
     )

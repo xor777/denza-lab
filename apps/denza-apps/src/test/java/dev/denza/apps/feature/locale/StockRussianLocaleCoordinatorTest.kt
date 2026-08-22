@@ -2,119 +2,101 @@ package dev.denza.apps.feature.locale
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class StockRussianLocaleCoordinatorTest {
     @Test
-    fun readsRussianOverrideFromAndroidLocaleServiceOutput() {
-        val repair = StockRussianLocaleRepair {
-            "Locales for com.byd.carsettings for user 0 are [ru-RU]"
-        }
+    fun inspectReturnsUnknownBeforeDenzaAppsHasAppliedAChoice() {
+        val repair = StockRussianLocaleRepair(
+            readSavedState = { null },
+            writeDirectLocale = {},
+            saveState = {},
+        )
 
-        val override = repair.inspect()
-
-        assertTrue(override.russianEnabled)
-        assertFalse(override.usesSystemDefault)
+        assertNull(repair.inspect())
     }
 
     @Test
-    fun enablingRussianWritesOnePackageAndVerifiesIt() {
-        val commands = mutableListOf<String>()
-        val outputs = ArrayDeque(
-            listOf(
-                "Locales for com.byd.carsettings for user 0 are []",
-                "",
-                "Locales for com.byd.carsettings for user 0 are [ru-RU]",
-            ),
+    fun enablingRussianUsesDirectWriterThenSavesChoice() {
+        val calls = mutableListOf<String>()
+        var saved: Boolean? = null
+        val repair = StockRussianLocaleRepair(
+            readSavedState = { saved },
+            writeDirectLocale = { enabled -> calls += "direct:$enabled" },
+            saveState = { enabled ->
+                calls += "save:$enabled"
+                saved = enabled
+            },
         )
-        val repair = StockRussianLocaleRepair { command ->
-            commands += command
-            outputs.removeFirst()
-        }
 
-        val (change, override) = repair.setEnabled(true)
+        val change = repair.setEnabled(true)
 
         assertEquals(StockRussianLocaleChange.CHANGED, change)
-        assertTrue(override.russianEnabled)
-        assertEquals(
-            listOf(
-                "cmd locale get-app-locales com.byd.carsettings",
-                "cmd locale set-app-locales com.byd.carsettings --locales ru-RU",
-                "cmd locale get-app-locales com.byd.carsettings",
-            ),
-            commands,
-        )
+        assertEquals(listOf("direct:true", "save:true"), calls)
+        assertTrue(saved == true)
     }
 
     @Test
-    fun disablingRussianClearsOverrideAndVerifiesIt() {
-        val commands = mutableListOf<String>()
-        val outputs = ArrayDeque(
-            listOf(
-                "Locales for com.byd.carsettings for user 0 are [ru-RU]",
-                "",
-                "Locales for com.byd.carsettings for user 0 are []",
-            ),
+    fun disablingRussianUsesAnEmptyLocaleListChoice() {
+        var directChoice: Boolean? = null
+        var saved = true
+        val repair = StockRussianLocaleRepair(
+            readSavedState = { saved },
+            writeDirectLocale = { enabled -> directChoice = enabled },
+            saveState = { enabled -> saved = enabled },
         )
-        val repair = StockRussianLocaleRepair { command ->
-            commands += command
-            outputs.removeFirst()
-        }
 
-        val (change, override) = repair.setEnabled(false)
+        val change = repair.setEnabled(false)
 
         assertEquals(StockRussianLocaleChange.CHANGED, change)
-        assertTrue(override.usesSystemDefault)
+        assertFalse(directChoice ?: true)
+        assertFalse(saved)
+        assertEquals("", StockRussianLocalePolicy.languageTags(false))
+    }
+
+    @Test
+    fun matchingSavedChoiceIsStillReappliedToRepairExternalDrift() {
+        var directCalls = 0
+        val repair = StockRussianLocaleRepair(
+            readSavedState = { true },
+            writeDirectLocale = { directCalls += 1 },
+            saveState = {},
+        )
+
+        val change = repair.setEnabled(true)
+
+        assertEquals(StockRussianLocaleChange.REAPPLIED, change)
+        assertEquals(1, directCalls)
+    }
+
+    @Test
+    fun failedDirectWriteDoesNotSaveMisleadingState() {
+        var saveCalls = 0
+        val repair = StockRussianLocaleRepair(
+            readSavedState = { false },
+            writeDirectLocale = { throw SecurityException("permission denied") },
+            saveState = { saveCalls += 1 },
+        )
+
+        val error = runCatching { repair.setEnabled(true) }.exceptionOrNull()
+
+        assertTrue(error is SecurityException)
+        assertEquals(0, saveCalls)
+    }
+
+    @Test
+    fun permissionGrantCommandIsFixedToThisOneDevelopmentPermission() {
         assertEquals(
-            listOf(
-                "cmd locale get-app-locales com.byd.carsettings",
-                "cmd locale set-app-locales com.byd.carsettings",
-                "cmd locale get-app-locales com.byd.carsettings",
-            ),
-            commands,
+            "pm grant dev.denza.apps android.permission.CHANGE_CONFIGURATION",
+            StockRussianLocalePolicy.permissionGrantCommand("dev.denza.apps"),
         )
     }
 
     @Test
-    fun alreadyEnabledRussianSkipsMutation() {
-        val commands = mutableListOf<String>()
-        val repair = StockRussianLocaleRepair { command ->
-            commands += command
-            "Locales for com.byd.carsettings for user 0 are [ru-RU]"
-        }
-
-        val (change, _) = repair.setEnabled(true)
-
-        assertEquals(StockRussianLocaleChange.ALREADY_SET, change)
-        assertEquals(listOf("cmd locale get-app-locales com.byd.carsettings"), commands)
-    }
-
-    @Test(expected = IllegalStateException::class)
-    fun failedEnableVerificationFailsClosed() {
-        val outputs = ArrayDeque(
-            listOf(
-                "Locales for com.byd.carsettings for user 0 are []",
-                "",
-                "Locales for com.byd.carsettings for user 0 are []",
-            ),
-        )
-
-        StockRussianLocaleRepair { outputs.removeFirst() }.setEnabled(true)
-    }
-
-    @Test(expected = IllegalStateException::class)
-    fun malformedReadResponseFailsBeforeMutation() {
-        var calls = 0
-        val repair = StockRussianLocaleRepair {
-            calls += 1
-            "Unknown package com.byd.carsettings"
-        }
-
-        try {
-            repair.setEnabled(true)
-        } finally {
-            assertEquals(1, calls)
-        }
+    fun enabledChoiceMapsOnlyToStockRussianTag() {
+        assertEquals("ru-RU", StockRussianLocalePolicy.languageTags(true))
+        assertEquals("com.byd.carsettings", StockRussianLocalePolicy.TARGET_PACKAGE)
     }
 }

@@ -1568,38 +1568,78 @@ private fun DiagnosticsDialog(
                         color = Elevated,
                         shape = RoundedCornerShape(12.dp),
                     ) {
-                        ListItem(
-                            headlineContent = {
-                                Text(
-                                    "Русский в BYD Настройках",
-                                    color = Ink,
-                                    fontWeight = FontWeight.Medium,
-                                )
-                            },
-                            supportingContent = {
-                                Text(
-                                    state.stockRussianLocale.message,
-                                    color = Muted,
-                                    fontSize = 12.sp,
-                                )
-                            },
-                            trailingContent = {
-                                if (state.stockRussianLocale.running) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(28.dp),
-                                        color = Accent,
-                                        strokeWidth = 3.dp,
+                        Column {
+                            val localeControlEnabled =
+                                state.stockRussianLocale.permissionReady ||
+                                    state.adbRescue.phase == AdbRescuePhase.TRUSTED
+                            ListItem(
+                                headlineContent = {
+                                    Text(
+                                        "Русский в BYD Настройках",
+                                        color = Ink,
+                                        fontWeight = FontWeight.Medium,
                                     )
-                                } else {
-                                    Switch(
-                                        checked = state.stockRussianLocale.enabled == true,
-                                        onCheckedChange = onSetStockRussianLocaleEnabled,
-                                        enabled = state.adbRescue.phase == AdbRescuePhase.TRUSTED,
+                                },
+                                supportingContent = {
+                                    Text(
+                                        state.stockRussianLocale.message,
+                                        color = Muted,
+                                        fontSize = 12.sp,
                                     )
+                                },
+                                trailingContent = {
+                                    when {
+                                        state.stockRussianLocale.running -> {
+                                            CircularProgressIndicator(
+                                                modifier = Modifier.size(28.dp),
+                                                color = Accent,
+                                                strokeWidth = 3.dp,
+                                            )
+                                        }
+                                        state.stockRussianLocale.enabled != null -> {
+                                            Switch(
+                                                checked = state.stockRussianLocale.enabled,
+                                                onCheckedChange = onSetStockRussianLocaleEnabled,
+                                                enabled = localeControlEnabled,
+                                            )
+                                        }
+                                    }
+                                },
+                                colors = ListItemDefaults.colors(
+                                    containerColor = Color.Transparent,
+                                ),
+                            )
+                            if (
+                                !state.stockRussianLocale.running &&
+                                state.stockRussianLocale.enabled == null
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(start = 16.dp, end = 16.dp, bottom = 12.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                ) {
+                                    OutlinedButton(
+                                        onClick = { onSetStockRussianLocaleEnabled(false) },
+                                        enabled = localeControlEnabled,
+                                        modifier = Modifier.weight(1f),
+                                    ) {
+                                        Text("Выкл")
+                                    }
+                                    Button(
+                                        onClick = { onSetStockRussianLocaleEnabled(true) },
+                                        enabled = localeControlEnabled,
+                                        modifier = Modifier.weight(1f),
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = Accent,
+                                            contentColor = Color(0xFF06251C),
+                                        ),
+                                    ) {
+                                        Text("Вкл", fontWeight = FontWeight.SemiBold)
+                                    }
                                 }
-                            },
-                            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                        )
+                            }
+                        }
                     }
                     Text(
                         "Только ru-RU для com.byd.carsettings; без словаря и перевода поверх.",

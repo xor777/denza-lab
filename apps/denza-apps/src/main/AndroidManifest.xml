@@ -21,6 +21,12 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Android 13 package-aware LocaleManager requires this development permission when
+         changing another package. Denza Apps grants it once through its already trusted,
+         passive local ADB client; locale switches themselves do not use ADB. -->
+    <uses-permission
+        android:name="android.permission.CHANGE_CONFIGURATION"
+        tools:ignore="ProtectedPermissions" />
     <!-- QUERY_ALL_PACKAGES lets the app picker list every installed app on any car
          and resolve icons/labels for the chosen casting apps; a fixed <queries>
          list cannot represent user-installed launchable apps. -->

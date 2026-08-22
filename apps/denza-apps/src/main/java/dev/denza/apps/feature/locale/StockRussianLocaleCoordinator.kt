@@ -1,105 +1,167 @@
 package dev.denza.apps.feature.locale
 
 import android.content.Context
+import android.content.pm.PackageManager
+import android.os.LocaleList
 import dev.denza.apps.adb.DenzaLocalAdb
+import java.lang.reflect.InvocationTargetException
 
 data class StockRussianLocaleSnapshot(
     val enabled: Boolean? = null,
+    val permissionReady: Boolean = false,
     val running: Boolean = false,
     val message: String = "Состояние не проверено",
     val details: String? = null,
 )
 
-internal data class StockLocaleOverride(
-    val tags: Set<String>,
-) {
-    val russianEnabled: Boolean
-        get() = StockRussianLocalePolicy.RUSSIAN_TAG in tags
-
-    val usesSystemDefault: Boolean
-        get() = tags.isEmpty()
-}
+internal data class StockRussianLocaleStatus(
+    val enabled: Boolean?,
+    val permissionReady: Boolean,
+)
 
 internal enum class StockRussianLocaleChange {
-    ALREADY_SET,
+    REAPPLIED,
     CHANGED,
 }
 
 internal object StockRussianLocalePolicy {
     const val TARGET_PACKAGE = "com.byd.carsettings"
     const val RUSSIAN_TAG = "ru-RU"
+    const val CHANGE_CONFIGURATION_PERMISSION =
+        "android.permission.CHANGE_CONFIGURATION"
 
-    private val localeListPattern = Regex("""\[([^]]*)]""")
+    fun languageTags(enabled: Boolean): String = if (enabled) RUSSIAN_TAG else ""
 
-    fun readCommand(): String = "cmd locale get-app-locales $TARGET_PACKAGE"
-
-    fun writeCommand(enabled: Boolean): String = if (enabled) {
-        "cmd locale set-app-locales $TARGET_PACKAGE --locales $RUSSIAN_TAG"
-    } else {
-        // Android 13 defines an omitted --locales option as an empty locale list. That removes
-        // the app override and returns the stock app to the system language.
-        "cmd locale set-app-locales $TARGET_PACKAGE"
-    }
-
-    fun parseOverride(output: String): StockLocaleOverride? {
-        val encoded = localeListPattern.findAll(output).lastOrNull()?.groupValues?.get(1)
-            ?: return null
-        val tags = encoded
-            .split(',')
-            .map(String::trim)
-            .filter(String::isNotEmpty)
-            .toSet()
-        return StockLocaleOverride(tags)
-    }
+    fun permissionGrantCommand(packageName: String): String =
+        "pm grant $packageName $CHANGE_CONFIGURATION_PERMISSION"
 }
 
 internal class StockRussianLocaleRepair(
-    private val shell: (String) -> String,
+    private val readSavedState: () -> Boolean?,
+    private val writeDirectLocale: (Boolean) -> Unit,
+    private val saveState: (Boolean) -> Unit,
 ) {
-    fun inspect(): StockLocaleOverride = readOverride()
+    fun inspect(): Boolean? = readSavedState()
 
-    fun setEnabled(enabled: Boolean): Pair<StockRussianLocaleChange, StockLocaleOverride> {
-        val before = readOverride()
-        val alreadySet = if (enabled) before.russianEnabled else before.usesSystemDefault
-        if (alreadySet) return StockRussianLocaleChange.ALREADY_SET to before
+    fun setEnabled(enabled: Boolean): StockRussianLocaleChange {
+        val previous = readSavedState()
 
-        shell(StockRussianLocalePolicy.writeCommand(enabled))
-        val after = readOverride()
-        check(if (enabled) after.russianEnabled else after.usesSystemDefault) {
-            "Locale override verification failed: expected " +
-                (if (enabled) StockRussianLocalePolicy.RUSSIAN_TAG else "system default") +
-                ", observed ${after.tags.ifEmpty { setOf("<empty>") }}"
-        }
-        return StockRussianLocaleChange.CHANGED to after
-    }
+        // Reapply even when our saved value already matches. Another app can change the system
+        // override, while Android does not let an ordinary app read another package's locale.
+        writeDirectLocale(enabled)
+        saveState(enabled)
 
-    private fun readOverride(): StockLocaleOverride {
-        val output = shell(StockRussianLocalePolicy.readCommand())
-        return checkNotNull(StockRussianLocalePolicy.parseOverride(output)) {
-            "Unexpected locale service response: ${output.trim().take(500)}"
+        return if (previous == enabled) {
+            StockRussianLocaleChange.REAPPLIED
+        } else {
+            StockRussianLocaleChange.CHANGED
         }
     }
 }
 
 internal object StockRussianLocaleCoordinator {
-    fun inspect(context: Context): StockLocaleOverride = withRepair(context) { inspect() }
+    private const val PREFERENCES = "stock_russian_locale"
+    private const val ENABLED_KEY = "enabled"
+    private const val PERMISSION_GRANT_TIMEOUT_MS = 2_500
+
+    fun inspect(context: Context): StockRussianLocaleStatus {
+        val app = context.applicationContext
+        return StockRussianLocaleStatus(
+            enabled = repair(app).inspect(),
+            permissionReady = hasPermission(app),
+        )
+    }
 
     fun setEnabled(
         context: Context,
         enabled: Boolean,
-    ): Pair<StockRussianLocaleChange, StockLocaleOverride> = withRepair(context) {
-        setEnabled(enabled)
+    ): Pair<StockRussianLocaleChange, StockRussianLocaleStatus> {
+        val app = context.applicationContext
+        ensurePermission(app)
+        val change = repair(app).setEnabled(enabled)
+        return change to StockRussianLocaleStatus(
+            enabled = enabled,
+            permissionReady = true,
+        )
     }
 
-    private fun <T> withRepair(
+    fun hasPermission(context: Context): Boolean =
+        context.checkSelfPermission(StockRussianLocalePolicy.CHANGE_CONFIGURATION_PERMISSION) ==
+            PackageManager.PERMISSION_GRANTED
+
+    private fun ensurePermission(context: Context) {
+        if (hasPermission(context)) return
+
+        val output = DenzaLocalAdb.client(context).shell(
+            StockRussianLocalePolicy.permissionGrantCommand(context.packageName),
+            PERMISSION_GRANT_TIMEOUT_MS,
+        )
+        check(hasPermission(context)) {
+            buildString {
+                append("Не удалось один раз выдать CHANGE_CONFIGURATION через локальный ADB")
+                output.trim().takeIf(String::isNotEmpty)?.let {
+                    append(": ")
+                    append(it.take(500))
+                }
+            }
+        }
+    }
+
+    private fun repair(context: Context): StockRussianLocaleRepair {
+        val preferences = context.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE)
+        return StockRussianLocaleRepair(
+            readSavedState = {
+                if (preferences.contains(ENABLED_KEY)) {
+                    preferences.getBoolean(ENABLED_KEY, false)
+                } else {
+                    null
+                }
+            },
+            writeDirectLocale = { enabled -> setDirectLocale(context, enabled) },
+            saveState = { enabled ->
+                check(preferences.edit().putBoolean(ENABLED_KEY, enabled).commit()) {
+                    "Системная локаль изменена, но Denza Apps не сохранил состояние переключателя"
+                }
+            },
+        )
+    }
+
+    private fun setDirectLocale(
         context: Context,
-        block: StockRussianLocaleRepair.() -> T,
-    ): T {
-        val session = DenzaLocalAdb.client(context.applicationContext).openPersistentShell()
-        return try {
-            StockRussianLocaleRepair { command -> session.shell(command) }.block()
-        } finally {
-            session.close()
+        enabled: Boolean,
+    ) {
+        val localeManager = checkNotNull(context.getSystemService(Context.LOCALE_SERVICE)) {
+            "Сервис LocaleManager недоступен на этой прошивке"
+        }
+        val locales = StockRussianLocalePolicy.languageTags(enabled).let { tags ->
+            if (tags.isEmpty()) LocaleList.getEmptyLocaleList() else LocaleList.forLanguageTags(tags)
+        }
+        val method = try {
+            localeManager.javaClass.getDeclaredMethod(
+                "setApplicationLocales",
+                String::class.java,
+                LocaleList::class.java,
+            ).apply { isAccessible = true }
+        } catch (error: ReflectiveOperationException) {
+            throw IllegalStateException(
+                "Прошивка не предоставляет прямой пакетный LocaleManager",
+                error,
+            )
+        }
+
+        try {
+            method.invoke(localeManager, StockRussianLocalePolicy.TARGET_PACKAGE, locales)
+        } catch (error: InvocationTargetException) {
+            val cause = error.targetException ?: error
+            throw IllegalStateException(
+                "LocaleManager не изменил локаль BYD Настроек: ${cause.message ?: cause}",
+                cause,
+            )
+        } catch (error: ReflectiveOperationException) {
+            throw IllegalStateException(
+                "Не удалось вызвать прямой LocaleManager для BYD Настроек",
+                error,
+            )
         }
     }
 }
