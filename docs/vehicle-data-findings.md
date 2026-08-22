@@ -2,8 +2,9 @@
 
 Status: live-car availability investigation on 2026-07-24, with the earlier
 vehicle-event probe results from 2026-06-27 retained where relevant, product
-wiring checked against the code on 2026-08-20, and a shell-UID `autoservice`
-FID read on 2026-08-22.
+wiring checked against the code on 2026-08-20, a shell-UID `autoservice`
+FID read on 2026-08-22, and the vehicle panel wired to that allowlist the same
+day (built and unit-tested; not yet exercised on the car).
 
 This page records which vehicle and journey signals a normal Denza Apps APK can
 actually use. It distinguishes product-usable sources from values that are
@@ -261,7 +262,8 @@ autoservice: [android.gui.BYDAutoServer]
 | --- | --- | --- |
 | `5` | `getInt(dev, fid)` | |
 | `7` | `getFloat(dev, fid)` — IEEE-754 bits in the parcel int | |
-| `6` | `setInt` (BYDMate) | never from research or product |
+| `6` | `setInt(dev, fid, value, binder)` — pass a `null` binder | speaker-cover SET is documented in [speaker-lift-findings.md](speaker-lift-findings.md); do not probe other write FIDs |
+| `10` / `12` (and similar array/float methods) | | **Do not** call with `i32`-only parcels. Wrong arity SIGSEGV’d `/system/bin/autoservice` on 2026-08-22 (recovered; not `com.byd.avc`). |
 
 Device types from `android.hardware.bydauto.BYDAutoConstants` (MapHelper stub
 JAR; live `dev` values match):
@@ -270,6 +272,7 @@ JAR; live `dev` values match):
 | --- | --- | --- |
 | AC | `1000` | cabin/out temps, CO2 |
 | bodywork | `1001` | 12V, cell count, doors, hood |
+| audio | `1002` | speaker flip / RLSA / amp config — [speaker-lift-findings.md](speaker-lift-findings.md) |
 | power | `1005` | LV / HV state flags |
 | energy | `1006` | 12V twin, 50 km split |
 | instrument | `1007` | tyre temps, some trip figures |
@@ -339,7 +342,7 @@ Cell delta has no FID: compute max − min locally.
 | 12V = float volts | `0x415ccccd` → 13.80 |
 | SOC % = float (also int twin) | 43.0 |
 | Odometer km = int / 10 | 118927 → 11892.7 km (BYDMate convention, plausible) |
-| Remaining energy kWh = int / 10 | 432 → 43.2 kWh; 432 / 0.43 ≈ 100 kWh pack |
+| ~~Remaining energy kWh = int / 10~~ **falsified 2026-08-22** | `0x44700028` is the BMS state of charge in tenths of a percent: `432` against a 43 % display, `616` against a 62 % display. The "43.2 / 0.43 ≈ 100 kWh pack" inference was circular — a state of charge divided by itself always lands near 100. The owner puts this pack under 40 kWh, and the stock home widget reports 23.2 kWh/100 km over 50 km, which fits a ~38 kWh plug-in hybrid, not a 100 kWh EV |
 | Tyre pressure bar = int / 100 | 287 → 2.87 bar |
 | Charge gun 2 = AC connected | BYDMate table; SOC rose during the session |
 | Pack V cross-check | 166 cells × 3.315 V ≈ 550 V = `CHARGING_CHARGE_BATTERY_VOLT` |
@@ -361,7 +364,7 @@ flags or placeholders. A product widget polls only the rows below.
 | BMS | Pack temp avg/min/max | `0x44700038` / `0x44700010` / `0x44700020` | 1014 | 5 | 68 / 67 / 69 | °C = raw − 40 |
 | BMS | Cell min/max | `0x44600010` / `0x44600030` | 1014 | 5 | 3313 / 3317 | mV; Δ local |
 | BMS | Series cell count | `0x43A00008` | 1001 | 5 | 166 | cells |
-| BMS | Remaining energy | `0x44700028` | 1014 | 5 | 432 | likely kWh ×10 |
+| BMS | BMS state of charge | `0x44700028` | 1014 | 5 | 432 / 616 | percent ×10, **not** energy — see the scales table |
 | HV | Pack voltage | `0x44400008` | 1009 | 5 | 550 | V |
 | HV | Front/rear bus | `0x46407020` / `0x46407010` | 1039 | 5 | 551 / 551 | V |
 | HV | Charge power | `0x32300018` | 1009 | 7 | 2.4 | kW |
@@ -372,7 +375,7 @@ flags or placeholders. A product widget polls only the rows below.
 | Range | Remaining EV range | `0x4A50203E` | 1014 | 5 | 67 | km |
 | Trip | Odometer | `0x4A502010` | 1014 | 5 | 118927 | km ×10 |
 | Trip | Lifetime kWh / kWh/100 | `0x3D906030` / `0x4A501030` | 1014 | 7 | 997.9 / 6.5 | |
-| Trip | Last 50 km equivalent | `0x4A507032` | 1014 | 7 | 6.6 | kWh/100 km |
+| Trip | Last 50 km equivalent | `0x4A507032` | 1014 | 7 | 6.6 | **not kWh/100 km** — the stock home widget showed 23.2 kWh/100 km for the same 50 km window on 2026-08-22 |
 | Trip | 50 km split drive/AC/aux | `0x35903831` / `0x35903838` / `0x35903841` | 1006 | 5 | 91 / 4 / 5 | % |
 | Charge | Gun | `0x34400032` | 1009 | 5 | 2 | 2 = AC connected |
 | Charge | SOC on charger | `0x32300010` | 1009 | 5 | 43 | % |
@@ -394,6 +397,26 @@ Open: no FID on this firmware reproduced the third-party “rear motor 40 °C”
 card; `STATISTIC_INSTANTANEOUS_CURRENT` scale unknown. Next action: one
 moving-drive capture of current, pack power, and rear-motor FIDs, then stop
 scanning the catalog.
+
+## Shipped panel wiring (2026-08-22)
+
+`feature.vehicle` in Denza Apps is the second page of the swipeable bottom
+panel. It is the only product consumer of this document's allowlist.
+
+| Decision | Where | Why |
+| --- | --- | --- |
+| Read transacts only (`5`, `7`) | `VehicleSignals.kt` | `setInt` (`6`) must never appear in a product package; a unit test asserts the built command never contains it |
+| Shell identity, PASSIVE policy | `VehicleTelemetryHub` via `DenzaLocalAdb` | Proves existing trust, never enqueues an authorization prompt; an untrusted key leaves the page empty with the reason |
+| One batched command per sweep | `AutoserviceShell.command` | 6 hot ids at panel cadence and 29 cold ids every 10–30 s would otherwise be one ADB round trip each |
+| `echo @@<index>` before each call | `AutoserviceShell.parse` | A feature id that prints nothing on this generation cannot shift the following answers onto the wrong signals |
+| Plausibility gate per unit | `VehicleKind.accepts` | Sentinels and max-range placeholders are dropped by what the unit can physically be, not by a blacklist — `255` stays a legal 2.55 bar and an illegal 215 °C |
+| Hot values never carried over | `VehicleTelemetryHub` | A stale kilowatt figure is worse than a dash; cold values do carry over between sweeps |
+| Odometer, not GNSS, for distance | `ConsumptionLog` | The page needs no location permission and keeps its histogram with the trip page closed |
+| Pack-power sign in one constant | `VehicleConvention` | The convention is inferred from the parked charging session, not proven; the drive capture flips one line if it is wrong |
+| No shell until the page is opened | `VehiclePanelView.syncHub` | A session that never swipes to the page costs the car nothing |
+
+Unit tests cover the command shape, the marker alignment, the proven scales, the
+sentinel and plausibility rules, and the consumption accumulator.
 
 ## Legacy BYDAuto events and system logs
 
@@ -447,7 +470,7 @@ in this vehicle-data investigation.
 | Road-surface memory | GNSS + calibrated vertical motion stored locally | Deferred; needs repeat-drive validation and false-positive analysis |
 | Maintenance summary | exported car-status rows | Units/state semantics need confirmation |
 | Regeneration/energy display | no qualified instantaneous current yet | Do not label `35721` as amps |
-| Technical BMS / 12V / HV widget | `autoservice` allowlist via `DenzaLocalAdb` | Shell-only; short allowlist; no `BYDAUTO_*` in the manifest |
+| Technical BMS / 12V / HV widget | `autoservice` allowlist via `DenzaLocalAdb` | Built as `feature.vehicle`; shell-only, short allowlist, no `BYDAUTO_*` in the manifest |
 | Tyre / climate / PM2.5 | same Binder, different `dev` | Same privilege path; still blocked from app UID |
 
 The current road-thread/body-field prototypes use simulated values. They show a
@@ -498,9 +521,23 @@ GNSS/IMU (unchanged from 2026-07-24):
 
 1. One moving-drive capture of pack power, `STATISTIC_INSTANTANEOUS_CURRENT`,
    motor rpm/temp, and the rear-motor FID candidates.
-2. Confirm remaining-energy ×10 and odometer ×10 against the cluster.
-3. Poll the allowlist through `DenzaLocalAdb` from a debug build; fail closed
-   when ADB is untrusted. Do not add `BYDAUTO_*` permissions.
+2. Establish the real pack size from the owner's paperwork or one full charge
+   session. Nothing on this Binder gives it: `0x44700028` turned out to be a
+   second state of charge, and the panel no longer pretends otherwise.
+3. Confirm the pack-power sign in motion: acceleration must read positive with
+   `VehicleConvention.POWER_POSITIVE_IS_DISCHARGE = true`. If it reads negative,
+   flip that one constant.
+4. Measure traction-voltage sag under load. On this LFP pack the resting voltage
+   is flat across the charge window — 550 V at 43 %, 551 V at 62 % — so current
+   is the only thing that moves it. The panel shows it as context, not as a
+   gauge, until that sag figure exists.
+5. Cross-check the odometer against the trip panel's GNSS distance over the same
+   stretch; the consumption histogram's axis rests on the ×10 scale, and the
+   stock home widget's 23.2 kWh/100 km over 50 km is the number it should land
+   near.
+6. Record `sweepMillis` from the panel's snapshot over a drive: it is the cost of
+   one batched `service call` sweep and decides whether the hot cadence can move
+   below 700 ms.
 
 Until the drive capture, the honest **app-UID** boundary remains GNSS plus
 standard IMU plus fail-closed Yandex guidance. The honest **shell-UID**
