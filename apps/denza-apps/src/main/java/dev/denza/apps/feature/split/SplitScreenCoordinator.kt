@@ -1060,7 +1060,7 @@ object SplitScreenCoordinator {
                 },
             )
         } else {
-            val expectedPanes = resizeExpectation(before) ?: return false
+            val expectedPanes = collapseExpectation(before) ?: return false
             val collapsed = split.collapsedOwnedSession(
                 pickerComponents = PICKER_COMPONENT_SET,
                 expectedPanes = expectedPanes,
@@ -1101,6 +1101,28 @@ object SplitScreenCoordinator {
             }
         }
         return panes
+    }
+
+    private fun collapseExpectation(
+        state: SplitPickerAutomatonState,
+    ): Map<SplitPane, SplitPickerObservedPane>? {
+        val panes = mutableMapOf<SplitPane, SplitPickerObservedPane>()
+        SplitPane.entries.forEach { pane ->
+            val slot = state.slot(pane)
+            when (slot.kind) {
+                SplitPickerSlotKind.CLOSED -> Unit
+                SplitPickerSlotKind.PICKER -> panes[pane] = SplitPickerObservedPane(
+                    hostTaskId = slot.hostTaskId ?: return null,
+                )
+                SplitPickerSlotKind.APP -> panes[pane] = SplitPickerObservedPane(
+                    hostTaskId = slot.hostTaskId ?: return null,
+                    appTaskId = slot.appTaskId ?: return null,
+                    packageName = slot.packageName ?: return null,
+                )
+                else -> return null
+            }
+        }
+        return panes.takeIf { it.isNotEmpty() }
     }
 
     private fun applyPickerEvent(event: SplitPickerEvent): SplitPickerReduction =

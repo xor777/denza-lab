@@ -654,9 +654,6 @@ class SplitPickerShellSessionTest {
         val collapsed = split.collapsedOwnedSession(
             pickerComponents = PICKER_COMPONENTS,
             expectedPanes = mapOf(
-                SplitPane.PRIMARY to SplitPickerObservedPane(
-                    hostTaskId = hosts.getValue(SplitPane.PRIMARY),
-                ),
                 SplitPane.SECONDARY to SplitPickerObservedPane(
                     hostTaskId = hosts.getValue(SplitPane.SECONDARY),
                     appTaskId = music.appTaskId,

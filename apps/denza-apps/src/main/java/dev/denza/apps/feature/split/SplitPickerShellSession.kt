@@ -247,7 +247,9 @@ internal class SplitPickerShellSession(
             AREA_SECONDARY_FULL -> SplitPane.SECONDARY
             else -> return null
         }
-        if (expectedPanes.keys != SplitPane.entries.toSet()) return null
+        if (expectedPanes.isEmpty() || !SplitPane.entries.toSet().containsAll(expectedPanes.keys)) {
+            return null
+        }
         if (expectedPanes.values.any { expected ->
                 expected.hostTaskId <= 0 ||
                     ((expected.appTaskId == null) != (expected.packageName == null)) ||
@@ -296,9 +298,9 @@ internal class SplitPickerShellSession(
             SplitPickerObservedPane(hostTaskId = expected.hostTaskId)
         }
 
-        val closedIds = expectedPanes.getValue(previousOwner.other()).let { pane ->
+        val closedIds = expectedPanes[previousOwner.other()]?.let { pane ->
             setOfNotNull(pane.hostTaskId, pane.appTaskId)
-        }
+        }.orEmpty()
         val closedTasksInNativeRoots = state.roots.asSequence()
             .filter { candidate -> candidate.displayId == MAIN_DISPLAY_ID }
             .flatMap { candidate -> candidate.tasks.asSequence() }
