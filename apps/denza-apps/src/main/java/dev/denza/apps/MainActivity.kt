@@ -65,6 +65,10 @@ class MainActivity : ComponentActivity() {
                         DenzaAppRepository::requestAdbAuthorizationOnce,
                     onAllowNewAdbAuthorizationAttempt =
                         DenzaAppRepository::allowNewAdbAuthorizationAttempt,
+                    onRefreshStockRussianLocale =
+                        DenzaAppRepository::refreshStockRussianLocale,
+                    onSetStockRussianLocaleEnabled =
+                        DenzaAppRepository::setStockRussianLocaleEnabled,
                     onChooseApps = DenzaAppRepository::showAppPicker,
                     onCloseAppPicker = DenzaAppRepository::hideAppPicker,
                     onToggleApp = DenzaAppRepository::toggleAppSelection,

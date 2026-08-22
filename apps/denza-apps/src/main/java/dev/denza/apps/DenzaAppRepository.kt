@@ -25,6 +25,10 @@ import dev.denza.apps.feature.fse.FseInstallResult
 import dev.denza.apps.feature.hud.HudGuidanceRuntime
 import dev.denza.apps.feature.hud.HudGuidanceSettings
 import dev.denza.apps.feature.hud.HudNotificationAccessCoordinator
+import dev.denza.apps.feature.locale.StockLocaleOverride
+import dev.denza.apps.feature.locale.StockRussianLocaleChange
+import dev.denza.apps.feature.locale.StockRussianLocaleCoordinator
+import dev.denza.apps.feature.locale.StockRussianLocaleSnapshot
 import dev.denza.apps.feature.mirrors.MirrorDisplayReadiness
 import dev.denza.apps.feature.mirrors.MirrorsPosition
 import dev.denza.apps.feature.mirrors.MirrorsSettings
@@ -89,6 +93,7 @@ data class DenzaUiState(
     val mirrorsProcessing: Boolean = true,
     val setupRunning: Boolean = false,
     val adbRescue: AdbRescueSnapshot = AdbRescueSnapshot(),
+    val stockRussianLocale: StockRussianLocaleSnapshot = StockRussianLocaleSnapshot(),
     val technicalDetails: String = "",
     val clusterCandidates: List<ClusterDisplayDescriptor> = emptyList(),
     val appPickerVisible: Boolean = false,
@@ -505,6 +510,81 @@ object DenzaAppRepository {
         }
     }
 
+    fun refreshStockRussianLocale() {
+        val context = appContext ?: return
+        val current = mutableState.value
+        if (current.stockRussianLocale.running) return
+        if (current.adbRescue.phase != AdbRescuePhase.TRUSTED) {
+            mutableState.value = current.copy(
+                stockRussianLocale = StockRussianLocaleSnapshot(
+                    enabled = current.stockRussianLocale.enabled,
+                    message = "Нужен доверенный локальный ADB",
+                    details = current.adbRescue.details,
+                ),
+            )
+            return
+        }
+
+        mutableState.value = current.copy(
+            stockRussianLocale = current.stockRussianLocale.copy(
+                running = true,
+                message = "Проверяю штатную локаль…",
+                details = null,
+            ),
+        )
+        executor.execute {
+            val result = runCatching { StockRussianLocaleCoordinator.inspect(context) }
+            mutableState.value = mutableState.value.copy(
+                stockRussianLocale = result.fold(
+                    onSuccess = { override -> localeSnapshot(override) },
+                    onFailure = { error -> localeFailure(error) },
+                ),
+            )
+        }
+    }
+
+    fun setStockRussianLocaleEnabled(enabled: Boolean) {
+        val context = appContext ?: return
+        val current = mutableState.value
+        if (current.stockRussianLocale.running) return
+        if (current.adbRescue.phase != AdbRescuePhase.TRUSTED) {
+            mutableState.value = current.copy(
+                stockRussianLocale = StockRussianLocaleSnapshot(
+                    enabled = current.stockRussianLocale.enabled,
+                    message = "Нужен доверенный локальный ADB",
+                    details = current.adbRescue.details,
+                ),
+            )
+            return
+        }
+
+        mutableState.value = current.copy(
+            stockRussianLocale = current.stockRussianLocale.copy(
+                running = true,
+                message = if (enabled) "Включаю ru-RU…" else "Возвращаю язык системы…",
+                details = null,
+            ),
+        )
+        executor.execute {
+            val result = runCatching {
+                StockRussianLocaleCoordinator.setEnabled(context, enabled)
+            }
+            mutableState.value = mutableState.value.copy(
+                stockRussianLocale = result.fold(
+                    onSuccess = { (change, override) ->
+                        localeSnapshot(
+                            override = override,
+                            unchanged = change == StockRussianLocaleChange.ALREADY_SET,
+                        )
+                    },
+                    onFailure = { error ->
+                        localeFailure(error, previousEnabled = current.stockRussianLocale.enabled)
+                    },
+                ),
+            )
+        }
+    }
+
     private fun initializeAdbGate(context: Context) {
         appContext = context.applicationContext
         AdbRescueCoordinator.initialize(context)
@@ -724,6 +804,29 @@ object DenzaAppRepository {
 
     private fun supportDiagnostics(context: Context): String =
         SupportDiagnostics.build(context, mutableState.value.fseInstaller)
+
+    private fun localeSnapshot(
+        override: StockLocaleOverride,
+        unchanged: Boolean = false,
+    ): StockRussianLocaleSnapshot = StockRussianLocaleSnapshot(
+        enabled = override.russianEnabled,
+        message = when {
+            override.russianEnabled && unchanged -> "Русский уже включён для BYD Настроек"
+            override.russianEnabled -> "Русский включён. Переоткройте BYD Настройки"
+            override.usesSystemDefault && unchanged -> "Используется язык системы"
+            override.usesSystemDefault -> "Русский выключен. Используется язык системы"
+            else -> "Русский выключен. App-locale: ${override.tags.joinToString()}"
+        },
+    )
+
+    private fun localeFailure(
+        error: Throwable,
+        previousEnabled: Boolean? = mutableState.value.stockRussianLocale.enabled,
+    ): StockRussianLocaleSnapshot = StockRussianLocaleSnapshot(
+        enabled = previousEnabled,
+        message = "Не удалось изменить штатную локаль",
+        details = error.message ?: error.toString(),
+    )
 
     private fun loadAppChoices(context: Context): List<SimulcastAppChoice> {
         val selected = SimulcastApps.getSelected(context)

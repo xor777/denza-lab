@@ -143,6 +143,8 @@ fun DenzaAppsRoot(
     onCheckAdbAccess: () -> Unit,
     onRequestAdbAuthorizationOnce: () -> Unit,
     onAllowNewAdbAuthorizationAttempt: () -> Unit,
+    onRefreshStockRussianLocale: () -> Unit,
+    onSetStockRussianLocaleEnabled: (Boolean) -> Unit,
     onChooseApps: () -> Unit,
     onCloseAppPicker: () -> Unit,
     onToggleApp: (String) -> Unit,
@@ -165,6 +167,7 @@ fun DenzaAppsRoot(
         if (diagnosticsTaps >= 7) {
             diagnosticsTaps = 0
             onRefreshScreenDiagnostics()
+            onRefreshStockRussianLocale()
             showDiagnostics = true
         }
     }
@@ -468,6 +471,7 @@ fun DenzaAppsRoot(
             onCheckAdbAccess = onCheckAdbAccess,
             onRequestAdbAuthorizationOnce = onRequestAdbAuthorizationOnce,
             onAllowNewAdbAuthorizationAttempt = onAllowNewAdbAuthorizationAttempt,
+            onSetStockRussianLocaleEnabled = onSetStockRussianLocaleEnabled,
             onDismiss = { showDiagnostics = false },
         )
     }
@@ -1475,6 +1479,7 @@ private fun DiagnosticsDialog(
     onCheckAdbAccess: () -> Unit,
     onRequestAdbAuthorizationOnce: () -> Unit,
     onAllowNewAdbAuthorizationAttempt: () -> Unit,
+    onSetStockRussianLocaleEnabled: (Boolean) -> Unit,
     onDismiss: () -> Unit,
 ) {
     Dialog(
@@ -1551,6 +1556,54 @@ private fun DiagnosticsDialog(
                         color = Warning,
                         fontSize = 12.sp,
                     )
+                    Spacer(Modifier.height(12.dp))
+                    Text("Штатный русский", color = Ink, fontWeight = FontWeight.SemiBold)
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        color = Elevated,
+                        shape = RoundedCornerShape(12.dp),
+                    ) {
+                        ListItem(
+                            headlineContent = {
+                                Text(
+                                    "Русский в BYD Настройках",
+                                    color = Ink,
+                                    fontWeight = FontWeight.Medium,
+                                )
+                            },
+                            supportingContent = {
+                                Text(
+                                    state.stockRussianLocale.message,
+                                    color = Muted,
+                                    fontSize = 12.sp,
+                                )
+                            },
+                            trailingContent = {
+                                if (state.stockRussianLocale.running) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(28.dp),
+                                        color = Accent,
+                                        strokeWidth = 3.dp,
+                                    )
+                                } else {
+                                    Switch(
+                                        checked = state.stockRussianLocale.enabled == true,
+                                        onCheckedChange = onSetStockRussianLocaleEnabled,
+                                        enabled = state.adbRescue.phase == AdbRescuePhase.TRUSTED,
+                                    )
+                                }
+                            },
+                            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                        )
+                    }
+                    Text(
+                        "Только ru-RU для com.byd.carsettings; без словаря и перевода поверх.",
+                        color = Muted,
+                        fontSize = 12.sp,
+                    )
+                    state.stockRussianLocale.details?.let { details ->
+                        Text(details, color = Warning, fontSize = 12.sp)
+                    }
                     Spacer(Modifier.height(12.dp))
                     Text("Технические сведения", color = Ink, fontWeight = FontWeight.SemiBold)
                     state.technicalDetails

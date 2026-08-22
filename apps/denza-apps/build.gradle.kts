@@ -11,8 +11,8 @@ android {
         applicationId = "dev.denza.apps"
         minSdk = 33
         targetSdk = 33
-        versionCode = 13
-        versionName = "0.5.3"
+        versionCode = 14
+        versionName = "0.5.4"
     }
 
     buildFeatures {
