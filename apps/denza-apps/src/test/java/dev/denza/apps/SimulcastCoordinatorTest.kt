@@ -10,24 +10,6 @@ import org.junit.Test
 
 class SimulcastCoordinatorTest {
     @Test
-    fun `accessibility binding must stay quiet before dependent rebind`() {
-        val tracker = AccessibilityBindingSettleTracker(requiredStableSamples = 3)
-        val settled = "Binding services:{}\nCrashed services:{}"
-
-        assertFalse(tracker.observe(connected = false, accessibilityDump = settled))
-        assertFalse(tracker.observe(connected = true, accessibilityDump = settled))
-        assertFalse(
-            tracker.observe(
-                connected = true,
-                accessibilityDump = "Binding services:{Denza}\nCrashed services:{}",
-            ),
-        )
-        assertFalse(tracker.observe(connected = true, accessibilityDump = settled))
-        assertFalse(tracker.observe(connected = true, accessibilityDump = settled))
-        assertTrue(tracker.observe(connected = true, accessibilityDump = settled))
-    }
-
-    @Test
     fun `ready status requires permissions and connected accessibility runtime`() {
         val ready = SimulcastCoordinator.evaluate(
             SimulcastEnvironment(

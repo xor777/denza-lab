@@ -66,21 +66,6 @@ sealed interface SimulcastReconcileEvent {
     }
 }
 
-/** Requires a quiet AccessibilityManager lifecycle, not merely an enabled component entry. */
-internal class AccessibilityBindingSettleTracker(
-    private val requiredStableSamples: Int,
-) {
-    private var stableSamples = 0
-
-    fun observe(connected: Boolean, accessibilityDump: String): Boolean {
-        val settled = connected &&
-            accessibilityDump.contains("Binding services:{}") &&
-            accessibilityDump.contains("Crashed services:{}")
-        stableSamples = if (settled) stableSamples + 1 else 0
-        return stableSamples >= requiredStableSamples
-    }
-}
-
 /**
  * Owns Simulcast setup and recovery. UI state remains in [DenzaAppRepository];
  * this component reports bounded lifecycle events back to that facade.
@@ -257,38 +242,12 @@ object SimulcastCoordinator {
                         shellQuote(SimulcastAccessibilityAccess.withService(refreshed)) +
                         "; settings put secure accessibility_enabled 1",
                 )
-
-                // The BYD AccessibilityManager can report the newly added service as connected
-                // while it is still rebuilding its event-routing table. Rebinding Split during
-                // that overlap leaves both services formally bound, but the Split service never
-                // receives Home/window events. Require a sustained quiet lifecycle before Split
-                // performs the final, separately owned rebind.
-                val settleTracker = AccessibilityBindingSettleTracker(
-                    requiredStableSamples = ACCESSIBILITY_STABLE_SAMPLES,
-                )
-                val settled = (0 until ACCESSIBILITY_SETTLE_ATTEMPTS).any { attempt ->
-                    val ready = settleTracker.observe(
-                        connected = SimulcastAccessibilityService.isConnected(),
-                        accessibilityDump = adb.shell("dumpsys accessibility"),
-                    )
-                    if (!ready && attempt + 1 < ACCESSIBILITY_SETTLE_ATTEMPTS) {
-                        Thread.sleep(ACCESSIBILITY_SETTLE_INTERVAL_MS)
-                    }
-                    ready
-                }
-                check(settled) {
-                    "AccessibilityManager не завершил подключение Denza Apps"
-                }
             } finally {
                 adb.close()
             }
         }
         SplitScreenCoordinator.rebindNativePickerAccessAfterGlobalMutation(context)
     }
-
-    private const val ACCESSIBILITY_STABLE_SAMPLES = 8
-    private const val ACCESSIBILITY_SETTLE_ATTEMPTS = 40
-    private const val ACCESSIBILITY_SETTLE_INTERVAL_MS = 250L
 
     fun setupProblem(error: Throwable?): SimulcastSetupProblem {
         if (error == null) {
