@@ -638,6 +638,46 @@ class SplitPickerShellSessionTest {
     }
 
     @Test
+    fun fullscreenAppDismissalAdoptsItsExactPickerAsTheSurvivor() {
+        val fake = FakeShell()
+        val split = session(fake)
+        val hosts = split.openPickers(PICKERS, preservedPackages = emptyMap())
+        val music = split.selectApp(
+            pickerTaskId = hosts.getValue(SplitPane.SECONDARY),
+            target = SplitLaunchTarget(MUSIC, "$MUSIC/$MUSIC.MainActivity"),
+            pickerComponents = PICKER_COMPONENTS,
+        )
+        fake.dismissPane(PRIMARY_ROOT)
+        fake.moveTask(music.appTaskId, FULL_ROOT)
+        fake.commands.clear()
+
+        val collapsed = split.collapsedOwnedSession(
+            pickerComponents = PICKER_COMPONENTS,
+            expectedPanes = mapOf(
+                SplitPane.PRIMARY to SplitPickerObservedPane(
+                    hostTaskId = hosts.getValue(SplitPane.PRIMARY),
+                ),
+                SplitPane.SECONDARY to SplitPickerObservedPane(
+                    hostTaskId = hosts.getValue(SplitPane.SECONDARY),
+                    appTaskId = music.appTaskId,
+                    packageName = music.packageName,
+                ),
+            ),
+        )
+
+        assertEquals(SplitPane.SECONDARY, collapsed?.pane)
+        assertEquals(hosts.getValue(SplitPane.SECONDARY), collapsed?.hostTaskId)
+        assertEquals(null, collapsed?.appTaskId)
+        assertFalse(
+            fake.commands.any { command ->
+                command.startsWith("am start ") ||
+                    command.startsWith("am stack move-task ") ||
+                    command.contains(" remove-task ")
+            },
+        )
+    }
+
+    @Test
     fun collapsedPickerRehostRollsBackWhenNativeAreaChangesDuringMutation() {
         val fake = FakeShell()
         val split = session(fake)

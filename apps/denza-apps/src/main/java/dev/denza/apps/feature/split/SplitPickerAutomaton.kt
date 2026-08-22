@@ -216,13 +216,26 @@ internal object SplitPickerAutomaton {
         }
         val previousOwners = SplitPane.entries.filter { pane ->
             val slot = current.slot(pane)
-            slot.hostTaskId == event.pane.hostTaskId &&
-                slot.appTaskId == event.pane.appTaskId &&
-                slot.packageName == event.pane.packageName
+            slot.hostTaskId == event.pane.hostTaskId
         }
         if (previousOwners.size != 1) return unchanged(current)
-        val collapsed = current.slot(previousOwners.single().other())
+        val previousOwner = previousOwners.single()
+        val previousSurvivor = current.slot(previousOwner)
+        val collapsed = current.slot(previousOwner.other())
         val actions = buildList {
+            if (
+                event.pane.appTaskId == null &&
+                previousSurvivor.kind == SplitPickerSlotKind.APP &&
+                previousSurvivor.appTaskId != null &&
+                previousSurvivor.packageName != null
+            ) {
+                add(
+                    SplitPickerAction.RemoveExactTask(
+                        taskId = previousSurvivor.appTaskId,
+                        packageName = previousSurvivor.packageName,
+                    ),
+                )
+            }
             if (
                 collapsed.kind == SplitPickerSlotKind.APP &&
                 collapsed.appTaskId != null &&

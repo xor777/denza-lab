@@ -267,22 +267,34 @@ internal class SplitPickerShellSession(
         val survivorRootId = roots.getValue(survivor)
         val root = state.root(survivorRootId) ?: return null
         val previousOwners = expectedPanes.filter { (_, expected) ->
-            if (expected.appTaskId != null) {
+            val hostMatches = root.tasks.any { task ->
+                task.id == expected.hostTaskId &&
+                    task.isDenzaPickerBase() &&
+                    task.matchesAnyComponent(pickerComponents)
+            }
+            val appMatches = expected.appTaskId?.let { expectedAppTaskId ->
                 root.tasks.any { task ->
-                    task.id == expected.appTaskId &&
+                    task.id == expectedAppTaskId &&
                         task.effectivePackageName() == expected.packageName &&
                         !task.isDenzaPickerBase()
                 }
-            } else {
-                root.tasks.any { task ->
-                    task.id == expected.hostTaskId &&
-                        task.isDenzaPickerBase() &&
-                        task.matchesAnyComponent(pickerComponents)
-                }
-            }
+            } ?: false
+            hostMatches || appMatches
         }
         if (previousOwners.size != 1) return null
         val (previousOwner, expected) = previousOwners.entries.single()
+        val liveAppPresent = expected.appTaskId?.let { expectedAppTaskId ->
+            root.tasks.any { task ->
+                task.id == expectedAppTaskId &&
+                    task.effectivePackageName() == expected.packageName &&
+                    !task.isDenzaPickerBase()
+            }
+        } == true
+        val survivorExpected = if (liveAppPresent) {
+            expected
+        } else {
+            SplitPickerObservedPane(hostTaskId = expected.hostTaskId)
+        }
 
         val closedIds = expectedPanes.getValue(previousOwner.other()).let { pane ->
             setOfNotNull(pane.hostTaskId, pane.appTaskId)
@@ -293,7 +305,10 @@ internal class SplitPickerShellSession(
             .any { task -> task.id in closedIds && task.rootId in nativeRootIds }
         if (closedTasksInNativeRoots) return null
 
-        val expectedIds = setOfNotNull(expected.hostTaskId, expected.appTaskId)
+        val expectedIds = setOfNotNull(
+            survivorExpected.hostTaskId,
+            survivorExpected.appTaskId,
+        )
         if (root.tasks.any { task -> !task.isEmptyRootMarker() && task.id !in expectedIds }) {
             return null
         }
@@ -334,15 +349,15 @@ internal class SplitPickerShellSession(
         val settled = settledCollapsedPane(
             survivor = survivor,
             rootId = survivorRootId,
-            expected = expected,
+            expected = survivorExpected,
             pickerComponents = pickerComponents,
         )
         if (settled != null) return settled
         val rollbackRootId = reattachedFromRootId ?: return null
         val error = IllegalStateException(
-            "Split изменился после возврата picker ${expected.hostTaskId}",
+            "Split изменился после возврата picker ${survivorExpected.hostTaskId}",
         )
-        runCatching { moveTask(expected.hostTaskId, rollbackRootId, toTop = false) }
+        runCatching { moveTask(survivorExpected.hostTaskId, rollbackRootId, toTop = false) }
             .onFailure(error::addSuppressed)
         throw error
     }

@@ -212,6 +212,30 @@ class SplitPickerAutomatonTest {
     }
 
     @Test
+    fun fullscreenAppDismissalKeepsItsPickerAndRemovesOnlyTheExactApp() {
+        val full = state(
+            primary = closed(),
+            secondary = app(20, MUSIC, hostTaskId = 200),
+        )
+
+        val result = SplitPickerAutomaton.reduce(
+            full,
+            SplitPickerEvent.PaneCollapsed(
+                survivor = SplitPane.SECONDARY,
+                pane = SplitPickerObservedPane(hostTaskId = 200),
+            ),
+        )
+
+        assertEquals(SplitPickerPhase.FULL, result.state.phase)
+        assertEquals(closed(), result.state.slot(SplitPane.PRIMARY))
+        assertEquals(picker(200), result.state.slot(SplitPane.SECONDARY))
+        assertEquals(
+            listOf(SplitPickerAction.RemoveExactTask(20, MUSIC)),
+            result.actions,
+        )
+    }
+
+    @Test
     fun invalidNativeEdgeCollapseCannotCorruptTheAutomaton() {
         val split = state(
             primary = app(10, NAVIGATOR, hostTaskId = 100),
