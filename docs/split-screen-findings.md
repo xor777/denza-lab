@@ -162,6 +162,26 @@ filter.
 
 ### Live acceptance status
 
+On 2026-08-22 the post-reboot accessibility recovery and Home boundary passed
+live acceptance with Denza Apps `0.5.4` (`versionCode=14`, debug APK SHA-256
+`323adab9b9a3152bb338023b69d2a60157ac36aab2f85923f5c709b63212db51`).
+The firmware can retain enabled-component settings while leaving a Denza
+accessibility service crashed or unbound. Recovery is therefore one ordered
+application-level transaction: temporarily remove both Denza components,
+restore the app-wide Simulcast service, then restore the dedicated Split
+observer last. It preserves every foreign component and rolls the previous
+setting back if the sequence fails. After a cold process start, both Denza
+services were bound, the accessibility binding/crash sets were empty, and the
+pre-existing speaker-lift, SystemUI, and stock voice services remained enabled.
+
+The same acceptance opened Yandex Navigator plus Yandex Music in area `3`, then
+pressed Home. The automaton moved from `SPLIT` to `IDLE`, area became `0`, and
+only the Denza-owned firmware gate was closed; the saved pair and its ownership
+lease remained available for an explicit later restore. Launching Navigator
+normally from Home then produced one fullscreen area-`4` task, with no ADAS
+task or stale saved companion. Reopening **«Разделить экран»** restored the
+original Navigator/Music pair in area `3`.
+
 On 2026-08-22 the process-lifetime catalog cache was reproduced with the
 repository's isolated `dev.denza.singlepackage.probe` launcher APK. The package
 was installed and immediately queryable through `PackageManager`, but an
