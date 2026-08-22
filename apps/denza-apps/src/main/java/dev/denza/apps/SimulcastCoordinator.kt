@@ -11,7 +11,6 @@ import dev.denza.apps.core.FeatureSnapshot
 import dev.denza.apps.core.FeatureStatus
 import java.security.GeneralSecurityException
 import java.util.concurrent.Executors
-import java.util.concurrent.atomic.AtomicBoolean
 
 data class SimulcastEnvironment(
     val desired: Boolean,
@@ -73,7 +72,7 @@ sealed interface SimulcastReconcileEvent {
 object SimulcastCoordinator {
     const val DISHARE_PACKAGE = "com.byd.dishare"
     private val executor = Executors.newSingleThreadExecutor()
-    private val repairRunning = AtomicBoolean(false)
+    private val accessibilityRepair = AccessibilityRepairSingleFlight()
 
     fun inspect(context: Context): SimulcastEnvironment = SimulcastEnvironment(
         desired = SimulcastIntegration.isEnabled(context),
@@ -150,19 +149,12 @@ object SimulcastCoordinator {
             onEvent(SimulcastReconcileEvent.Refresh)
             return
         }
-        if (!repairRunning.compareAndSet(false, true)) {
-            onEvent(SimulcastReconcileEvent.Repairing)
-            return
-        }
-
         onEvent(SimulcastReconcileEvent.Repairing)
-        executor.execute {
-            val failure = runCatching { repairAccessNow(context) }.exceptionOrNull()
+        repairAccess(context) { failure ->
             val latestEnvironment = inspect(context)
             val repaired = failure == null &&
                 latestEnvironment.overlayAllowed &&
                 latestEnvironment.accessibilityEnabled
-            repairRunning.set(false)
             if (!latestEnvironment.desired) {
                 onEvent(SimulcastReconcileEvent.Refresh)
             } else if (latestEnvironment.blocker != null) {
@@ -189,10 +181,18 @@ object SimulcastCoordinator {
     }
 
     fun repairAccess(context: Context, onComplete: (Throwable?) -> Unit) {
-        executor.execute {
-            onComplete(runCatching { repairAccessNow(context) }.exceptionOrNull())
+        if (!accessibilityRepair.join(onComplete)) return
+        try {
+            executor.execute {
+                val failure = runCatching { repairAccessNow(context) }.exceptionOrNull()
+                accessibilityRepair.complete(failure)
+            }
+        } catch (error: RuntimeException) {
+            accessibilityRepair.complete(error)
         }
     }
+
+    fun isAccessibilityRepairRunning(): Boolean = accessibilityRepair.isRunning()
 
     fun hasOverlayPermission(context: Context): Boolean = Settings.canDrawOverlays(context)
 
@@ -203,6 +203,8 @@ object SimulcastCoordinator {
         )
         return SimulcastAccessibilityAccess.isEnabled(setting)
     }
+
+    fun isAccessibilityConnected(): Boolean = SimulcastAccessibilityService.isConnected()
 
     private fun blocker(context: Context): SimulcastBlocker? {
         if (!isInstalled(context.packageManager, DISHARE_PACKAGE)) {

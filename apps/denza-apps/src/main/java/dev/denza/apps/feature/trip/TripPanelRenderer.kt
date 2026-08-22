@@ -121,7 +121,7 @@ class TripPanelRenderer : BaseTripRenderer() {
                 canvas,
                 LOCATION_HINT,
                 vx(0f),
-                vy(642f),
+                vy(618f),
                 16f,
                 TripPalette.alpha(TripPalette.MUTED, 0.85f),
             )
@@ -283,9 +283,9 @@ class TripPanelRenderer : BaseTripRenderer() {
         stroke.color = TripPalette.alpha(TripPalette.MUTED, 0.14f)
         stroke.strokeWidth = vs(1f)
         if (TripPanelFlag.LEGACY_INSTRUMENTS) {
-            canvas.drawLine(vx(352f), vy(24f), vx(352f), vy(336f), stroke)
+            canvas.drawLine(vx(352f), vy(24f), vx(352f), vy(324f), stroke)
         }
-        canvas.drawLine(vx(1398f), vy(24f), vx(1398f), vy(336f), stroke)
+        canvas.drawLine(vx(1398f), vy(24f), vx(1398f), vy(324f), stroke)
 
         val rx = vx(1436f)
         val guidance = engine.guidance()
@@ -361,14 +361,14 @@ class TripPanelRenderer : BaseTripRenderer() {
         const val SPECTRUM_LEFT = 0f
         const val SPECTRUM_RIGHT = 1356f
         const val SPECTRUM_TOP = 38f
-        const val SPECTRUM_BOTTOM = 338f
+        const val SPECTRUM_BOTTOM = 324f
 
         const val NARROW_VIRTUAL_W = 368f
         const val NARROW_VIRTUAL_H = 660f
         const val NARROW_SPECTRUM_LEFT = 0f
         const val NARROW_SPECTRUM_RIGHT = 368f
         const val NARROW_SPECTRUM_TOP = 20f
-        const val NARROW_SPECTRUM_BOTTOM = 266f
+        const val NARROW_SPECTRUM_BOTTOM = 258f
         const val NARROW_DIVIDER_Y = 286f
     }
 }

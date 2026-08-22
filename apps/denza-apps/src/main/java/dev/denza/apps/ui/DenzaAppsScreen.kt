@@ -81,14 +81,12 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.core.graphics.drawable.toBitmap
 import dev.denza.apps.DenzaUiState
 import dev.denza.apps.feature.split.SplitScreenFlag
 import dev.denza.apps.feature.trip.TripPanelFlag
-import dev.denza.apps.feature.trip.TripPanelView
 import dev.denza.apps.NavigationAppChoice
 import dev.denza.apps.SimulcastAppChoice
 import dev.denza.apps.core.FeatureSnapshot
@@ -265,10 +263,18 @@ fun DenzaAppsRoot(
                             Spacer(Modifier.height(10.dp))
                             SettingsSwitchRow(
                                 title = "Кнопка ★ на руле",
+                                subtitle = when {
+                                    !uiState.navigationSteeringWheelButton ->
+                                        "Штатное действие не перехватывается"
+                                    uiState.navigationSteeringWheelButtonRepairing ->
+                                        "Восстанавливаю системный доступ…"
+                                    uiState.navigationSteeringWheelButtonReady ->
+                                        "Перехват активен"
+                                    else ->
+                                        "Системный доступ недоступен"
+                                },
                                 checked = uiState.navigationSteeringWheelButton,
                                 onCheckedChange = onNavigationSteeringWheelButton,
-                                controlEnabled = uiState.navigation.status != FeatureStatus.STARTING &&
-                                    uiState.navigation.status != FeatureStatus.RECOVERING,
                             )
                             Spacer(Modifier.height(10.dp))
                             Row(
@@ -437,14 +443,13 @@ fun DenzaAppsRoot(
                         )
                     }
                     Spacer(Modifier.height(10.dp))
-                    // On full and 2/3 widths the trip panel fills the free zone
-                    // below the cards. In the narrow vertical list it becomes a
-                    // fixed-height stacked analyser/data item. It stays frameless
-                    // in both layouts and is gated by the compile-time flag.
+                    // On full and 2/3 widths the swipeable bottom panel fills the
+                    // free zone below the cards. In the narrow vertical list it
+                    // becomes a fixed-height stacked item. It stays frameless in
+                    // both layouts and is gated by the compile-time flag.
                     if (TripPanelFlag.ENABLED && !adbStartupBlocked) {
-                        AndroidView(
-                            factory = { ctx -> TripPanelView(ctx) },
-                            update = { view -> view.narrowLayout = compactLayout },
+                        BottomPanelPager(
+                            compactLayout = compactLayout,
                             modifier = if (compactLayout) {
                                 Modifier.fillMaxWidth().height(NARROW_TRIP_PANEL_HEIGHT)
                             } else {

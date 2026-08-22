@@ -47,7 +47,54 @@ data class NavigationSession(
             NavigationPhase.PROJECTED, NavigationPhase.RETURNING -> "Вернуть"
             NavigationPhase.PROJECTING, NavigationPhase.RECOVERING -> "Проверяю"
             else -> if (taskId == null) "Открыть" else "На приборку"
+    }
+}
+
+internal enum class NavigationPrimaryAction {
+    OPEN,
+    PROJECT,
+    RETURN,
+}
+
+/** Admission policy shared by UI and steering-wheel navigation commands. */
+internal object NavigationPrimaryActionPolicy {
+    fun action(
+        initialized: Boolean,
+        hasContext: Boolean,
+        selectedAppInstalled: Boolean,
+        actionPending: Boolean,
+        session: NavigationSession,
+    ): NavigationPrimaryAction? {
+        if (!initialized || !hasContext || actionPending) return null
+        if (session.phase == NavigationPhase.PROJECTED) {
+            return NavigationPrimaryAction.RETURN
         }
+        if (!selectedAppInstalled) return null
+        if (
+            session.phase == NavigationPhase.NEEDS_ACTION &&
+            (
+                session.resolution == FeatureResolution.SELECT_NAVIGATION_APP ||
+                    session.resolution == FeatureResolution.SELECT_CLUSTER_DISPLAY
+            )
+        ) {
+            return null
+        }
+        return when (session.phase) {
+            NavigationPhase.READY,
+            NavigationPhase.NEEDS_ACTION,
+            -> if (session.taskId == null) {
+                NavigationPrimaryAction.OPEN
+            } else {
+                NavigationPrimaryAction.PROJECT
+            }
+            NavigationPhase.OPENING,
+            NavigationPhase.PROJECTING,
+            NavigationPhase.RETURNING,
+            NavigationPhase.RECOVERING,
+            NavigationPhase.PROJECTED,
+            -> null
+        }
+    }
 }
 
 object NavigationRecovery {

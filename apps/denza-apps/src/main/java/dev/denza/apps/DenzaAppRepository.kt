@@ -37,6 +37,7 @@ import dev.denza.apps.feature.navigation.NavigationCoordinator
 import dev.denza.apps.feature.navigation.NavigationAppPolicy
 import dev.denza.apps.feature.navigation.NavigationPhase
 import dev.denza.apps.feature.navigation.NavigationSettings
+import dev.denza.apps.feature.navigation.SteeringWheelNavigationAccessCoordinator
 import dev.denza.apps.feature.split.SplitLauncherIconController
 import dev.denza.apps.feature.split.SplitScreenCoordinator
 import dev.denza.apps.feature.split.SplitScreenPhase
@@ -82,6 +83,8 @@ data class DenzaUiState(
     val navigationButtonLabel: String = "Открыть",
     val navigationAutomatic: Boolean = false,
     val navigationSteeringWheelButton: Boolean = false,
+    val navigationSteeringWheelButtonReady: Boolean = false,
+    val navigationSteeringWheelButtonRepairing: Boolean = false,
     val navigationPlacement: ClusterMapPlacement = ClusterMapPlacement.FULL,
     val navigationAppLabel: String = "Яндекс Навигатор",
     val navigationAppChoices: List<NavigationAppChoice> = emptyList(),
@@ -135,6 +138,7 @@ object DenzaAppRepository {
         val snapshot = SimulcastCoordinator.evaluate(SimulcastCoordinator.inspect(context))
         val navigationSession = NavigationCoordinator.snapshot()
         val navigationPackage = NavigationCoordinator.selectedPackage()
+        val steeringWheelAccess = SteeringWheelNavigationAccessCoordinator.inspect(context)
         val splitLauncherVisible = SplitLauncherIconController.isVisible(context)
         val splitScreenSession = SplitScreenCoordinator.snapshot()
         val selectedApps = selectedAppChoices(context)
@@ -154,7 +158,11 @@ object DenzaAppRepository {
             ),
             navigationButtonLabel = navigationSession.buttonLabel,
             navigationAutomatic = NavigationCoordinator.automaticEnabled(),
-            navigationSteeringWheelButton = NavigationSettings.steeringWheelButtonEnabled(context),
+            navigationSteeringWheelButton = steeringWheelAccess.desired,
+            navigationSteeringWheelButtonReady = steeringWheelAccess.ready,
+            navigationSteeringWheelButtonRepairing =
+                steeringWheelAccess.desired &&
+                    SteeringWheelNavigationAccessCoordinator.isRepairing(),
             navigationPlacement = NavigationCoordinator.placement(),
             navigationAppLabel = NavigationAppPolicy.fallbackLabel(navigationPackage),
             navigationAppChoices = navigationAppChoices(context, navigationPackage),
@@ -362,11 +370,11 @@ object DenzaAppRepository {
         NavigationCoordinator.performPrimaryAction()
     }
 
-    fun performNavigationActionFromSteeringWheel(context: Context) {
+    fun performNavigationActionFromSteeringWheel(context: Context): Boolean {
         if (appContext == null) {
             initialize(context.applicationContext)
         }
-        NavigationCoordinator.performPrimaryAction()
+        return NavigationCoordinator.performPrimaryAction()
     }
 
     fun setNavigationAutomatic(enabled: Boolean) {
@@ -376,7 +384,17 @@ object DenzaAppRepository {
     fun setNavigationSteeringWheelButton(enabled: Boolean) {
         val context = appContext ?: return
         NavigationSettings.setSteeringWheelButtonEnabled(context, enabled)
-        refresh()
+        if (enabled) {
+            reconcileNavigationSteeringWheelAccess(context)
+        } else {
+            refresh()
+        }
+    }
+
+    fun recoverNavigationSteeringWheelAccess(context: Context) {
+        val app = appContext ?: context.applicationContext
+        if (!NavigationSettings.steeringWheelButtonEnabled(app)) return
+        reconcileNavigationSteeringWheelAccess(app)
     }
 
     fun setNavigationPlacement(placement: ClusterMapPlacement) {
@@ -613,6 +631,7 @@ object DenzaAppRepository {
         NavigationCoordinator.initialize(app) { refresh() }
         WeatherAdapterScheduler.ensureScheduled(app)
         refresh()
+        reconcileNavigationSteeringWheelAccess(app)
         reconcileSimulcast(repairMissingSetup = true)
         if (MirrorsSettings.isEnabled(app)) reconcileMirrors()
         reconcileHudNotificationAccess(app)
@@ -639,6 +658,11 @@ object DenzaAppRepository {
     private fun reconcileHudNotificationAccess(context: Context) {
         if (!HudGuidanceSettings.isEnabled(context)) return
         HudNotificationAccessCoordinator.ensureAccess(context) { refresh() }
+    }
+
+    private fun reconcileNavigationSteeringWheelAccess(context: Context) {
+        SteeringWheelNavigationAccessCoordinator.reconcile(context) { refresh() }
+        refresh()
     }
 
     private fun reconcileSimulcast(

@@ -1,4 +1,4 @@
-package dev.denza.apps.feature.trip
+package dev.denza.apps.feature.vehicle
 
 import android.annotation.SuppressLint
 import android.content.Context
@@ -11,33 +11,33 @@ import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.findViewTreeLifecycleOwner
 
 /**
- * The trip panel itself: a lean custom View that draws directly on the screen
- * background (no card, no border, no frame), runs a Choreographer loop throttled
- * to <=30 FPS, attaches to the process-scoped [TripSession] hub, and draws the
- * single [TripPanelRenderer] screen. Relaunching the activity re-attaches to the
- * same trip — the view never owns or resets the engine. Touches do nothing.
+ * The vehicle page of the bottom panel: a frameless custom View that draws
+ * [VehiclePanelRenderer] from whatever [VehicleTelemetryHub] last published.
  *
- * The whole panel is gated by the compile-time [TripPanelFlag]; when it is off,
- * Compose never adds this view, so nothing here runs.
-
+ * Two separate switches, deliberately:
  *
- * Sensors and rendering are fully stopped when the panel is detached or the
- * activity is paused. Swiping to the panel's other page stops only the drawing
- * (see [pageVisible]); the trip keeps recording. The draw path preallocates all
- * Paint state.
+ *  - the hub runs while the panel is attached and the activity is resumed, even
+ *    when the other page is the one on screen. That is what keeps the
+ *    consumption histogram continuous across a swipe.
+ *  - the draw loop runs only while this page is the visible one ([pageVisible]),
+ *    so the invisible neighbour costs nothing to render.
+ *
+ * The loop is capped at 15 FPS and only redraws when the snapshot actually
+ * changed — the page is instruments, not animation. Charging is the one
+ * exception: the battery's next segment breathes, so those frames keep coming.
  */
 @SuppressLint("ViewConstructor")
-class TripPanelView(context: Context) : View(context), Choreographer.FrameCallback {
+internal class VehiclePanelView(context: Context) : View(context), Choreographer.FrameCallback {
 
-    private val hub = TripSession.hub(context)
-    private val renderer = TripPanelRenderer()
+    private val hub = VehicleSession.hub(context)
+    private val renderer = VehiclePanelRenderer()
 
     private var looping = false
     private var attached = false
     private var resumed = false
     private var startNs = 0L
     private var lastDrawNs = 0L
-    private var lastFrameNs = 0L
+    private var lastSnapshot: VehicleTelemetry? = null
 
     var narrowLayout: Boolean = false
         set(value) {
@@ -47,15 +47,12 @@ class TripPanelView(context: Context) : View(context), Choreographer.FrameCallba
             invalidate()
         }
 
-    /**
-     * False while the panel's other page is on screen. The sensor hub keeps
-     * running — the trip is still happening, and GNSS gaps would be real data
-     * loss — but nothing is drawn for a page nobody can see.
-     */
     var pageVisible: Boolean = true
         set(value) {
             if (field == value) return
             field = value
+            hub.setActive(value)
+            syncHub()
             syncLoop()
             if (value) invalidate()
         }
@@ -63,7 +60,7 @@ class TripPanelView(context: Context) : View(context), Choreographer.FrameCallba
     private val lifecycleObserver = object : DefaultLifecycleObserver {
         override fun onResume(owner: LifecycleOwner) {
             resumed = true
-            hub.start(context)
+            syncHub()
             syncLoop()
         }
 
@@ -75,12 +72,13 @@ class TripPanelView(context: Context) : View(context), Choreographer.FrameCallba
     }
 
     init {
-        contentDescription = "Панель поездки"
+        contentDescription = "Панель машины"
     }
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
         attached = true
+        hub.setActive(pageVisible)
         val lifecycle = findViewTreeLifecycleOwner()?.lifecycle
         if (lifecycle != null) {
             lifecycle.addObserver(lifecycleObserver)
@@ -88,7 +86,7 @@ class TripPanelView(context: Context) : View(context), Choreographer.FrameCallba
         } else {
             resumed = true
         }
-        if (resumed) hub.start(context)
+        syncHub()
         syncLoop()
     }
 
@@ -100,6 +98,14 @@ class TripPanelView(context: Context) : View(context), Choreographer.FrameCallba
         super.onDetachedFromWindow()
     }
 
+    /**
+     * The hub polls while the panel is alive, but not before this page has been
+     * opened once: a session that never swipes here never touches the car.
+     */
+    private fun syncHub() {
+        if (attached && resumed && (pageVisible || hub.visited)) hub.start() else hub.stop()
+    }
+
     private fun syncLoop() {
         if (attached && resumed && pageVisible) startLoop() else stopLoop()
     }
@@ -109,7 +115,6 @@ class TripPanelView(context: Context) : View(context), Choreographer.FrameCallba
         looping = true
         startNs = System.nanoTime()
         lastDrawNs = 0L
-        lastFrameNs = 0L
         Choreographer.getInstance().postFrameCallback(this)
     }
 
@@ -124,27 +129,27 @@ class TripPanelView(context: Context) : View(context), Choreographer.FrameCallba
         Choreographer.getInstance().postFrameCallback(this)
         if (lastDrawNs != 0L && frameTimeNanos - lastDrawNs < MIN_FRAME_NS) return
         lastDrawNs = frameTimeNanos
-        hub.tick()
-        invalidate()
+        val snapshot = hub.snapshot
+        if (snapshot !== lastSnapshot || snapshot.charging) {
+            lastSnapshot = snapshot
+            invalidate()
+        }
     }
 
     override fun onDraw(canvas: Canvas) {
         if (width <= 0 || height <= 0) return
-        val now = System.nanoTime()
-        val dt = if (lastFrameNs == 0L) 1.0 / 30.0 else (now - lastFrameNs) / 1_000_000_000.0
-        lastFrameNs = now
-        val frameTime = (now - startNs) / 1_000_000_000.0
-        // The renderer places the "no location access" hint in an area that
-        // stays clear of its own layout.
+        val frameTimeSec = (System.nanoTime() - startNs) / 1_000_000_000.0
         renderer.draw(
-            canvas, width.toFloat(), height.toFloat(), hub.engine, hub.spectrum, hub.nowPlaying,
-            frameTime, dt,
-            showLocationHint = !hub.locationGranted,
+            canvas = canvas,
+            width = width.toFloat(),
+            height = height.toFloat(),
+            telemetry = hub.snapshot,
+            frameTimeSec = frameTimeSec,
             narrowLayout = narrowLayout,
         )
     }
 
     private companion object {
-        const val MIN_FRAME_NS = 1_000_000_000L / 30L
+        const val MIN_FRAME_NS = 1_000_000_000L / 15L
     }
 }
