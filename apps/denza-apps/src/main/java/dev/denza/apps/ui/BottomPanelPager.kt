@@ -13,6 +13,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -54,7 +55,11 @@ internal fun BottomPanelPager(
                         view.narrowLayout = compactLayout
                         view.pageVisible = settledPage == TRIP_PAGE
                     },
-                    modifier = Modifier.fillMaxSize(),
+                    // A hosted View is positioned through Compose's own view
+                    // container, where the pager's clip does not reach it: without
+                    // this the neighbouring page draws over its slot and leaves a
+                    // sliver of the other page on screen.
+                    modifier = Modifier.fillMaxSize().clipToBounds(),
                 )
 
                 else -> AndroidView(
@@ -63,7 +68,7 @@ internal fun BottomPanelPager(
                         view.narrowLayout = compactLayout
                         view.pageVisible = settledPage == VEHICLE_PAGE
                     },
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier.fillMaxSize().clipToBounds(),
                 )
             }
         }
