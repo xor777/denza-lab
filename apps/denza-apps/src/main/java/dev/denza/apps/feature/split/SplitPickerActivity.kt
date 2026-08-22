@@ -1,7 +1,9 @@
 package dev.denza.apps.feature.split
 
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Color as AndroidColor
@@ -59,6 +61,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import androidx.core.graphics.drawable.toBitmap
 import androidx.core.view.WindowCompat
 import java.util.concurrent.Executors
@@ -75,6 +78,7 @@ internal data class SplitPickerApp(
  */
 class SplitPickerActivity : ComponentActivity() {
     private var message by mutableStateOf("")
+    private var recoveryNotice by mutableStateOf("")
     private var busy by mutableStateOf(false)
     private var apps by mutableStateOf<List<SplitPickerApp>>(emptyList())
     private var catalogRequested = false
@@ -82,6 +86,13 @@ class SplitPickerActivity : ComponentActivity() {
     private var visibleReported = false
     private val lifecycleHandler by lazy { Handler(mainLooper) }
     private var stoppedTaskId: Int? = null
+    private var noticeReceiverRegistered = false
+    private val noticeReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action != SplitPickerNotice.ACTION_CHANGED) return
+            recoveryNotice = intent.getStringExtra(SplitPickerNotice.EXTRA_MESSAGE).orEmpty()
+        }
+    }
     private val stoppedReporter = Runnable {
         val stoppedId = stoppedTaskId ?: return@Runnable
         stoppedTaskId = null
@@ -119,6 +130,7 @@ class SplitPickerActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        recoveryNotice = SplitPickerNotice.current(this)
         val nativeBackgroundBlur = SplitPickerWindowStyle.apply(this)
         refreshCatalogAsync()
         setContent {
@@ -127,12 +139,26 @@ class SplitPickerActivity : ComponentActivity() {
                     apps = apps,
                     catalogLoading = catalogLoading,
                     busy = busy,
-                    message = message,
+                    message = message.ifBlank { recoveryNotice },
                     nativeBackgroundBlur = nativeBackgroundBlur,
                     onSelect = ::select,
                 )
             }
         }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        if (!noticeReceiverRegistered) {
+            ContextCompat.registerReceiver(
+                this,
+                noticeReceiver,
+                IntentFilter(SplitPickerNotice.ACTION_CHANGED),
+                ContextCompat.RECEIVER_NOT_EXPORTED,
+            )
+            noticeReceiverRegistered = true
+        }
+        recoveryNotice = SplitPickerNotice.current(this)
     }
 
     override fun onResume() {
@@ -152,6 +178,10 @@ class SplitPickerActivity : ComponentActivity() {
     }
 
     override fun onStop() {
+        if (noticeReceiverRegistered) {
+            unregisterReceiver(noticeReceiver)
+            noticeReceiverRegistered = false
+        }
         super.onStop()
         if (!isChangingConfigurations) {
             visibleReported = false
@@ -179,6 +209,7 @@ class SplitPickerActivity : ComponentActivity() {
         if (busy) return
         busy = true
         message = ""
+        SplitPickerNotice.publish(applicationContext, "")
         val delivered = sendCommand(
             method = SplitCommandContract.METHOD_SELECT,
             extras = Bundle().apply {

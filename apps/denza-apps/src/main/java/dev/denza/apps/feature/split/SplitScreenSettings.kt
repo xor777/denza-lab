@@ -25,6 +25,7 @@ object SplitScreenSettings {
     private const val PICKER_STATE_PRESENT = "picker_state_present_v1"
     private const val PICKER_STATE_ARMED = "picker_state_armed_v1"
     private const val PICKER_STATE_PHASE = "picker_state_phase_v1"
+    private const val PICKER_NOTICE = "picker_notice_v1"
 
     fun isEnabled(context: Context): Boolean =
         SplitScreenFlag.ENABLED &&
@@ -81,6 +82,19 @@ object SplitScreenSettings {
         PreferencesPickerAutomatonStore(
             context.getSharedPreferences(PREFS, Context.MODE_PRIVATE),
         )
+
+    internal fun loadPickerNotice(context: Context): String =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .getString(PICKER_NOTICE, null)
+            .orEmpty()
+
+    @SuppressLint("UseKtx")
+    internal fun savePickerNotice(context: Context, message: String) {
+        val editor = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+        if (message.isBlank()) editor.remove(PICKER_NOTICE)
+        else editor.putString(PICKER_NOTICE, message)
+        check(editor.commit()) { "Failed to persist split picker notice" }
+    }
 
     internal fun nativePickerAccessLeaseStore(
         context: Context,

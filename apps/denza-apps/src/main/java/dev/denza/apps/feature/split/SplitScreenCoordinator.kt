@@ -26,6 +26,8 @@ data class SplitScreenSession(
 @SuppressLint("StaticFieldLeak")
 object SplitScreenCoordinator {
     private const val TAG = "DenzaSplitScreen"
+    private const val RESTORE_FAILURE_NOTICE =
+        "Не все приложения восстановлены. Выберите приложение вручную"
     private const val POLL_MS = 200L
     private const val RETRY_MS = 1_500L
     private const val EXTERNAL_TASK_BYPASS_MS = 5_000L
@@ -145,6 +147,7 @@ object SplitScreenCoordinator {
                         split.revealOwnedSession(owned, PICKER_COMPONENT_SET)
                     }
                 if (existing != null) {
+                    SplitPickerNotice.publish(app, "")
                     clearPickerState()
                     applyPickerEvent(SplitPickerEvent.OpenRequested)
                     SplitPane.entries.forEach { pane ->
@@ -244,8 +247,9 @@ object SplitScreenCoordinator {
                     }
                 }
                 val message = if (restoreFailures.isEmpty()) "" else {
-                    "Окна открыты; часть приложений не восстановлена"
+                    RESTORE_FAILURE_NOTICE
                 }
+                SplitPickerNotice.publish(app, message)
                 update(
                     SplitScreenSession(
                         enabled = true,
@@ -258,6 +262,7 @@ object SplitScreenCoordinator {
                 Log.w(TAG, "failed to open explicit picker session", error)
                 runCatching { applyPickerEvent(SplitPickerEvent.HomeObserved) }
                 val message = friendlyError(error, "Не удалось открыть разделение экрана")
+                runCatching { SplitPickerNotice.publish(app, message) }
                 update(
                     SplitScreenSession(
                         enabled = true,
@@ -317,6 +322,7 @@ object SplitScreenCoordinator {
                 check(store.saveExclusive(placement.pane, packageName)) {
                     "Не удалось сохранить последнюю пару"
                 }
+                SplitPickerNotice.publish(app, "")
                 update(SplitScreenSession(enabled = true, phase = SplitScreenPhase.ACTIVE))
                 postResult(onComplete, null)
             } catch (error: Throwable) {

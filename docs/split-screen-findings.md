@@ -424,6 +424,28 @@ phase `SPLIT`, both slots `APP`, hosts 223/225, and apps 226/227. The exact APK
 SHA-256 was
 `845e12be07855862522bf6956a9d4572cb15d351736ebfd3a0410573aaa499b1`.
 
+### Picker-visible partial-restore notice (2026-08-22)
+
+A live Home-to-recents fallback once restored Yandex Music in task 235 above
+picker 232 while leaving picker 234 without its saved 2GIS task. The control
+panel was already closed, so its in-memory warning could not explain the empty
+pane. This confirms that the missing picker feedback was a user-visible defect;
+the same fallback can also succeed completely, so the notice must not be stale.
+
+Restore outcomes now publish a persisted, package-local notice shared by both
+independent picker tasks. A picker already on screen receives the update through
+a non-exported runtime receiver; one that becomes visible after failed cleanup
+loads the same value in `onStart`. Successful adoption or reconstruction clears
+the notice, and a real picker selection clears it before the next attempt.
+
+The installed acceptance APK SHA-256 was
+`adfc2c47500c4fcebd1001343efc6fbdb3e1ce7446c1ffcfb9a626a6ce2eaefb`.
+A complete fallback restored both apps without a notice. With picker task 250
+visible, the package-local channel rendered the full text **«Не все приложения
+восстановлены. Выберите приложение вручную»** above the catalog. Selecting 2GIS
+and dismissing it again restored **«Выберите приложение»** and removed the
+persisted notice key.
+
 The corpus used for this contract is `/system/framework/services.jar` SHA-256
 `23a58a4e3c98c50541785390f1234e8c4d7138b5dd170c4f5843bae15b93c019`
 and `/system/framework/framework.jar` SHA-256
