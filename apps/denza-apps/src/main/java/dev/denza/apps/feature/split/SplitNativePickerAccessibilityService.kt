@@ -1,6 +1,7 @@
 package dev.denza.apps.feature.split
 
 import android.accessibilityservice.AccessibilityService
+import android.content.Intent
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 
@@ -22,6 +23,7 @@ internal object SplitAccessibilityEventPolicy {
 /** Exact event source for the stock picker and an authority-checked Home gate suspension. */
 class SplitNativePickerAccessibilityService : AccessibilityService() {
     override fun onServiceConnected() {
+        connected = true
         val packages = serviceInfo.packageNames?.joinToString().orEmpty().ifBlank { "<all>" }
         Log.i(TAG, "service connected packages=$packages")
         if (SplitScreenSettings.isEnabled(this)) {
@@ -59,8 +61,23 @@ class SplitNativePickerAccessibilityService : AccessibilityService() {
 
     override fun onInterrupt() = Unit
 
-    private companion object {
-        const val TAG = "DenzaSplitPickerA11y"
+    override fun onUnbind(intent: Intent?): Boolean {
+        connected = false
+        return super.onUnbind(intent)
+    }
+
+    override fun onDestroy() {
+        connected = false
+        super.onDestroy()
+    }
+
+    companion object {
+        private const val TAG = "DenzaSplitPickerA11y"
+
+        @Volatile
+        private var connected = false
+
+        internal fun isConnected(): Boolean = connected
     }
 }
 
@@ -69,11 +86,18 @@ internal class SplitNativePickerAccessController(
     private val shell: (String) -> String,
     private val leaseStore: SplitNativePickerAccessLeaseStore,
     private val pauseAfterDisable: (Long) -> Unit = Thread::sleep,
+    private val isConnected: () -> Boolean = SplitNativePickerAccessibilityService::isConnected,
 ) {
     fun enable() {
         val current = read()
         val alreadyEnabled = current.any(ALIASES::contains)
-        if (alreadyEnabled && leaseStore.configurationVersion() >= CONFIGURATION_VERSION) return
+        if (
+            alreadyEnabled &&
+            leaseStore.configurationVersion() >= CONFIGURATION_VERSION &&
+            isConnected()
+        ) {
+            return
+        }
 
         val withoutService = current.filterNot(ALIASES::contains)
         val wasOwned = leaseStore.isOwned()

@@ -6,6 +6,24 @@ import org.junit.Test
 
 class SplitNativePickerAccessControllerTest {
     @Test
+    fun currentSettingIsReboundWhenFirmwareLeftServiceCrashedAfterBoot() {
+        val split =
+            "dev.denza.apps/dev.denza.apps.feature.split.SplitNativePickerAccessibilityService"
+        val system = "com.android.systemui/.custom.StatusBarAccessibilityService"
+        val shell = FakeAccessibilitySettings(listOf(system, split))
+        val lease = FakeAccessLease(owned = true, configurationVersion = 5)
+
+        SplitNativePickerAccessController(
+            shell = shell::run,
+            leaseStore = lease,
+            pauseAfterDisable = {},
+            isConnected = { false },
+        ).enable()
+
+        assertEquals(listOf(listOf(system), listOf(system, split)), shell.writes)
+    }
+
+    @Test
     fun unsettledVersionIsReboundAfterAndroidProcessesDisable() {
         val split =
             "dev.denza.apps/dev.denza.apps.feature.split.SplitNativePickerAccessibilityService"
@@ -39,13 +57,21 @@ class SplitNativePickerAccessControllerTest {
         val shell = FakeAccessibilitySettings(listOf(system, voice, split))
         val lease = FakeAccessLease(owned = true)
 
-        SplitNativePickerAccessController(shell::run, lease).enable()
+        SplitNativePickerAccessController(
+            shell = shell::run,
+            leaseStore = lease,
+            isConnected = { true },
+        ).enable()
 
         assertEquals(listOf(system, voice, split), shell.services)
         assertEquals(listOf(listOf(system, voice), listOf(system, voice, split)), shell.writes)
         assertTrue(lease.isOwned())
 
-        SplitNativePickerAccessController(shell::run, lease).enable()
+        SplitNativePickerAccessController(
+            shell = shell::run,
+            leaseStore = lease,
+            isConnected = { true },
+        ).enable()
 
         assertEquals(2, shell.writes.size)
     }
