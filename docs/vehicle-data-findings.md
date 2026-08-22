@@ -433,9 +433,14 @@ dropped by the plausibility gate — the catalog is correct for this firmware.
 The cost is almost all fixed: about 4–5 ms per additional call against roughly
 130 ms of shell and first-process overhead. Batching is therefore what makes the
 panel affordable, and widening the hot set is nearly free, while shortening the
-interval is what actually costs the car. With `ACTIVE_HOT_MS = 700` the real hot
-period is about 850 ms; the 10-second sweep that carries the cold set costs about
-280 ms.
+interval is what actually costs the car.
+
+That measurement set the shipped cadence. The hot interval is `300 ms`, so a
+fresh power figure lands about twice a second and the shell is busy about a third
+of the time — but only while the vehicle page is the one on screen. The cold set
+still joins every 10 s, a sweep that costs about 280 ms. Splitting the hot set
+any finer would buy nothing: a one-call batch costs almost what a five-call batch
+costs.
 
 Two readings from the same session are worth keeping:
 
@@ -566,8 +571,8 @@ GNSS/IMU (unchanged from 2026-07-24):
    stock home widget's 23.2 kWh/100 km over 50 km is the number it should land
    near.
 6. ~~Record `sweepMillis`~~ **done**: the hot batch costs 129–195 ms and the full
-   sweep 270–287 ms, so the hot interval has room to drop toward 400 ms if the
-   panel needs a livelier power reading.
+   sweep 270–287 ms. The hot interval was set to 300 ms on that evidence; what
+   remains is to confirm on a drive that the car keeps up with it under load.
 
 Until the drive capture, the honest **app-UID** boundary remains GNSS plus
 standard IMU plus fail-closed Yandex guidance. The honest **shell-UID**

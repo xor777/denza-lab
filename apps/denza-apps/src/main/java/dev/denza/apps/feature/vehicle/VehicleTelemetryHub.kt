@@ -26,9 +26,10 @@ import kotlinx.coroutines.launch
  * permission is declared, no `app_process` proxy is spawned, and only the read
  * transacts (5 and 7) are ever issued. See docs/vehicle-data-findings.md.
  *
- * Cadence: the hot set (power, charge, voltages, odometer) is one small batched
- * command; the cold set (pack, drivetrain, tyres, cabin, charging) joins it
- * every few seconds. While the vehicle page is not the one on screen the hub
+ * Cadence: the hot set (power, state of charge, voltages, odometer) is one small
+ * batched command roughly twice a second; the cold set (pack, drivetrain, tyres,
+ * cabin, charging) joins it every ten seconds. Splitting the hot set finer would
+ * buy nothing — a one-call batch costs almost what a five-call batch costs. While the vehicle page is not the one on screen the hub
  * keeps running at a slow cadence — that is what keeps the consumption
  * histogram continuous — and it stops completely with the panel.
  *
@@ -175,7 +176,16 @@ internal class VehicleTelemetryHub(context: Context) {
     private companion object {
         const val TAG = "DenzaVehicle"
 
-        const val ACTIVE_HOT_MS = 700L
+        /**
+         * Measured on the car: a batch costs about 130 ms of fixed shell and
+         * process overhead plus 4–5 ms per call, so the hot batch of five takes
+         * roughly 150 ms whatever the interval. The interval is therefore the
+         * only real cost knob. At 300 ms the panel lands a fresh power figure
+         * about twice a second — enough for a number that follows the pedal —
+         * while the shell stays busy about a third of the time, and only while
+         * this page is the one on screen.
+         */
+        const val ACTIVE_HOT_MS = 300L
         const val ACTIVE_COLD_MS = 10_000L
         const val IDLE_HOT_MS = 2_500L
         const val IDLE_COLD_MS = 30_000L
