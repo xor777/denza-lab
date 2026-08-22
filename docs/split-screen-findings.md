@@ -84,18 +84,21 @@ The package marker is evaluated by this firmware before an Activity's
 not stop the permanent control entry from consuming a live pane. The product
 therefore treats control entry/return as an explicit scene transition. A
 windowless launcher starts the single control task, a service moves that exact
-task directly to the stable full-IVI root, and Back first closes that task,
-normalizes the organizer through Home, removes only the now-invalid Denza
-picker task identities, and rebuilds the persisted pair. `MainActivity` does
-not run a second promotion loop or a competing ADB session.
+task directly to the stable full-IVI root, and Back first closes that task. The
+coordinator then adopts the exact picker/app tasks when both owned roots still
+pass the strict topology check. Home normalization, invalid picker removal, and
+persisted-pair reconstruction remain the fail-closed fallback when either root
+is missing or ambiguous. `MainActivity` does not run a second promotion loop or
+a competing ADB session.
 
 The embedded picker Activity has a `MAIN + CATEGORY_INFO` intent filter, not a
 launcher filter. This preserves the proven firmware resolver seam without
 adding another always-visible icon. Product restore does not depend on
 SmartMulti remembering the same package twice: Denza Apps persists the last
-selection and rebuilds two independent tasks of the same picker component. App
-choices are still resolved explicitly from `CATEGORY_LAUNCHER`, so an unrelated
-app's INFO Activity cannot be opened by a picker tap.
+selection for fallback reconstruction while a valid live pair is adopted by
+exact task identity. App choices are still resolved explicitly from
+`CATEGORY_LAUNCHER`, so an unrelated app's INFO Activity cannot be opened by a
+picker tap.
 
 Before this one-APK migration, live experiments used separate
 `dev.denza.split.launcher` and `dev.denza.split` packages. Those experiments
@@ -177,11 +180,12 @@ Launching Denza Apps from that active pair produced one full-screen
 `MainActivity` task in root 4 with area `4`. Back then created fresh picker
 tasks `#224/#225` and restored 2GIS `#226` plus Apple Music `#228`; area returned
 to `3`, each root contained exactly one base and one app, and the AVC crash
-buffer remained empty. The fresh identities are required: an earlier run
-proved that reusing a picker task consumed by the package-level control launch
-fails with `Задача приложения 192 не вошла в split-контейнер`. The regression
-test now requires the exact control task to disappear, Home to be confirmed,
-and invalidated picker components to be removed before reconstruction.
+buffer remained empty. This was the original recovery-only implementation. An
+earlier run proved that blindly reusing a picker task from an unverified
+package-level control topology can fail with
+`Задача приложения 192 не вошла в split-контейнер`; current code therefore
+reuses identities only after strict two-root ownership checks, and retains this
+Home/reconstruction sequence for the rejected-scene fallback.
 
 Disabling the toggle from the full-screen control UI removed the companion
 alias, removed the owned picker tasks, restored
@@ -389,6 +393,36 @@ idempotent: an already-gone recorded task is accepted only after a fresh
 snapshot confirms that its numeric id no longer exists. No Home transition,
 warning, toast, or crash was observed. The exact installed debug APK SHA-256
 was `065f04189fe95ea57f2acddf7de9efca65a03f3ac8c86a8a7385de946f5e1c89`.
+
+### Identity-preserving return from Denza Apps (2026-08-22)
+
+A clean live reproduction started with Yandex Music in stable-host task 201
+above picker 198 and 2GIS in task 202 above picker 199. Opening the real
+`MAIN + LAUNCHER` Denza Apps entry moved control task 204 to full-IVI root 4
+without removing the covered split roots. The old return implementation then
+forced Home and reconstructed the pair as picker tasks 205/207 plus application
+tasks 208/209; 2GIS also changed process from PID 21530 to 21536. The continuity
+finding is therefore real, not an inference from animation.
+
+An A/B transition used the same full-IVI move but closed the control task
+without Home/reconstruction. SmartMulti exposed the original picker tasks
+214/216 and application tasks 217/218 with both application PIDs unchanged.
+The coordinator now waits for the exact control task to disappear, gives the
+firmware a bounded settle interval, and adopts only a scene with exactly one
+owned picker base and at most one exact full-root application per pane. If that
+check fails, it still enters the proven Home fallback and rebuilds the saved
+pair. This keeps normal Back identity-preserving without weakening recovery for
+partial or foreign topology.
+
+Final installed acceptance first presented an intentionally incomplete scene
+after package replacement; the strict check rejected it and the fallback rebuilt
+picker tasks 223/225 with Yandex Music task 226 and 2GIS task 227. A subsequent
+real launcher entry created fullscreen control task 229. One Back removed only
+229 and returned the same 223/225/226/227 tasks; Yandex Music stayed at PID
+21505 and 2GIS at PID 25664. Persisted automaton state matched the live roots:
+phase `SPLIT`, both slots `APP`, hosts 223/225, and apps 226/227. The exact APK
+SHA-256 was
+`845e12be07855862522bf6956a9d4572cb15d351736ebfd3a0410573aaa499b1`.
 
 The corpus used for this contract is `/system/framework/services.jar` SHA-256
 `23a58a4e3c98c50541785390f1234e8c4d7138b5dd170c4f5843bae15b93c019`

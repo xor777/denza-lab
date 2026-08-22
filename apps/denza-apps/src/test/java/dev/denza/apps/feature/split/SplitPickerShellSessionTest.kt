@@ -7,7 +7,7 @@ import org.junit.Test
 
 class SplitPickerShellSessionTest {
     @Test
-    fun controlReturnWaitsUntilExactTaskIsGoneThenRequiresHome() {
+    fun controlReturnWaitsUntilExactTaskIsGoneWithoutMutatingTheScene() {
         var snapshots = 0
         var pauses = 0
         val commands = mutableListOf<String>()
@@ -26,9 +26,6 @@ class SplitPickerShellSessionTest {
                             "RootTask id=4 bounds=[0,0][2560,1600] displayId=0 userId=0"
                         }
                     }
-                    "input keyevent KEYCODE_HOME" -> ""
-                    "service call activity_task 30" ->
-                        "Result: Parcel(00000000 00000000   '........')"
                     else -> error("Unexpected command: $command")
                 }
             },
@@ -36,14 +33,66 @@ class SplitPickerShellSessionTest {
             pause = { pauses += 1 },
         )
 
-        session.prepareControlReturn(154)
+        session.awaitTaskRemoved(154)
 
         assertEquals(2, snapshots)
-        assertEquals(2, pauses)
-        assertTrue(commands.indexOf("input keyevent KEYCODE_HOME") > 0)
-        assertTrue(
-            commands.indexOf("service call activity_task 30") >
-                commands.indexOf("input keyevent KEYCODE_HOME"),
+        assertEquals(1, pauses)
+        assertFalse(commands.any { it == "input keyevent KEYCODE_HOME" })
+    }
+
+    @Test
+    fun invalidControlReturnUsesHomeBeforeRebuilding() {
+        val commands = mutableListOf<String>()
+        val session = SplitPickerShellSession(
+            shell = { command ->
+                commands += command
+                when (command) {
+                    "input keyevent KEYCODE_HOME" -> ""
+                    "service call activity_task 30" ->
+                        "Result: Parcel(00000000 00000000   '........')"
+                    else -> error("Unexpected command: $command")
+                }
+            },
+            apkPath = "/tmp/denza-apps.apk",
+            pause = {},
+        )
+
+        session.prepareControlFallback()
+
+        assertEquals(
+            listOf("input keyevent KEYCODE_HOME", "service call activity_task 30"),
+            commands,
+        )
+    }
+
+    @Test
+    fun controlReturnWaitsForOwnedRootsToSettleBeforeFallback() {
+        var settled = false
+        var pauses = 0
+        val session = SplitPickerShellSession(
+            shell = { command ->
+                when (command) {
+                    "service call activity_task 30" ->
+                        intParcel(if (settled) 3 else 0)
+                    "service call activity_task 118 i32 1" -> intParcel(PRIMARY_ROOT)
+                    "service call activity_task 118 i32 2" -> intParcel(SECONDARY_ROOT)
+                    "am stack list" -> ownedPickerPairStack()
+                    else -> error("Unexpected command: $command")
+                }
+            },
+            apkPath = "/tmp/denza-apps.apk",
+            pause = {
+                pauses += 1
+                settled = true
+            },
+        )
+
+        val owned = session.awaitExistingOwnedSession(PICKER_COMPONENTS)
+
+        assertEquals(1, pauses)
+        assertEquals(
+            setOf(SplitPane.PRIMARY, SplitPane.SECONDARY),
+            checkNotNull(owned).keys,
         )
     }
 
@@ -1077,6 +1126,16 @@ class SplitPickerShellSessionTest {
         pause = {},
         gateLeaseStore = gateLeaseStore,
     )
+
+    private fun ownedPickerPairStack(): String = """
+        RootTask id=$PRIMARY_ROOT bounds=[24,112][856,1472] displayId=0 userId=0
+          taskId=40: $SPLIT_HOST_PACKAGE/$PRIMARY_PICKER_ACTIVITY bounds=[24,112][856,1472] userId=0 visible=true topActivity=ComponentInfo{$SPLIT_HOST_PACKAGE/$PRIMARY_PICKER_ACTIVITY}
+        RootTask id=$SECONDARY_ROOT bounds=[880,112][2536,1472] displayId=0 userId=0
+          taskId=41: $SPLIT_HOST_PACKAGE/$SECONDARY_PICKER_ACTIVITY bounds=[880,112][2536,1472] userId=0 visible=true topActivity=ComponentInfo{$SPLIT_HOST_PACKAGE/$SECONDARY_PICKER_ACTIVITY}
+    """.trimIndent()
+
+    private fun intParcel(value: Int): String =
+        "Result: Parcel(00000000 ${"%08x".format(value)} '........')"
 
     private class FakeGateLease(
         private var owned: Boolean = false,

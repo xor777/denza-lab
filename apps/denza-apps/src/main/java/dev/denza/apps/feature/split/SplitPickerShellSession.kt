@@ -24,9 +24,8 @@ internal class SplitPickerShellSession(
         error("Control-задача $taskId не закрылась")
     }
 
-    /** Establishes the only live-proven neutral state before rebuilding a consumed split pair. */
-    fun prepareControlReturn(taskId: Int) {
-        awaitTaskRemoved(taskId)
+    /** Establishes the neutral state used only when an existing owned pair cannot be adopted. */
+    fun prepareControlFallback() {
         run("input keyevent KEYCODE_HOME")
         pause(HOME_SETTLE_MS)
         check(callInt("service call activity_task 30") == AREA_HOME) {
@@ -104,6 +103,20 @@ internal class SplitPickerShellSession(
                 appPackageName = app?.effectivePackageName(),
             )
         }
+    }
+
+    /** Allows SmartMulti to expose the preserved roots after the control task disappears. */
+    fun awaitExistingOwnedSession(
+        pickerComponents: Set<String>,
+        expectedApps: Map<SplitPane, SplitPickerExpectedApp> = emptyMap(),
+    ): Map<SplitPane, SplitPickerLivePane>? {
+        repeat(CONTROL_RETURN_DISCOVERY_ATTEMPTS) { attempt ->
+            existingOwnedSession(pickerComponents, expectedApps)?.let { return it }
+            if (attempt + 1 < CONTROL_RETURN_DISCOVERY_ATTEMPTS) {
+                pause(CONTROL_RETURN_DISCOVERY_INTERVAL_MS)
+            }
+        }
+        return null
     }
 
     /** Brings an exact owned pair back above Home/fullscreen without rebuilding either pane. */
@@ -1472,6 +1485,8 @@ internal class SplitPickerShellSession(
         const val TASK_DISCOVERY_INTERVAL_MS = 100L
         const val TASK_REMOVAL_ATTEMPTS = 30
         const val TASK_REMOVAL_INTERVAL_MS = 100L
+        const val CONTROL_RETURN_DISCOVERY_ATTEMPTS = 8
+        const val CONTROL_RETURN_DISCOVERY_INTERVAL_MS = 100L
         const val PICKER_SETTLE_MS = 150L
         const val HOME_SETTLE_MS = 650L
         const val NATIVE_PICKER_SETTLE_MS = 450L
