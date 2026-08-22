@@ -10,6 +10,9 @@ import dev.denza.apps.AccessibilitySettingsMutationLock
 internal enum class SplitAccessibilityEventTarget { STOCK_PICKER, HOME, IGNORE }
 
 internal object SplitAccessibilityEventPolicy {
+    fun isTopologyHint(eventType: Int): Boolean =
+        eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED
+
     fun target(packageName: String?, className: String?): SplitAccessibilityEventTarget = when {
         packageName == STOCK_PICKER_PACKAGE && className == STOCK_PICKER_ACTIVITY ->
             SplitAccessibilityEventTarget.STOCK_PICKER
@@ -68,6 +71,12 @@ class SplitNativePickerAccessibilityService : AccessibilityService() {
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
+        if (event != null && SplitAccessibilityEventPolicy.isTopologyHint(event.eventType)) {
+            // Hidden picker Activities do not consistently receive a configuration callback when
+            // BYD collapses an edge. TYPE_WINDOWS_CHANGED is only a hint; the coordinator waits
+            // for settlement and requires an exact owned topology before any mutation.
+            SplitScreenCoordinator.onDividerResized(this)
+        }
         val packageName = event?.packageName?.toString()
         val className = event?.className?.toString()
         val target = SplitAccessibilityEventPolicy.target(packageName, className)

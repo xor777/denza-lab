@@ -1,9 +1,31 @@
 package dev.denza.apps.feature.split
 
+import android.view.accessibility.AccessibilityEvent
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class SplitNativePickerEventPolicyTest {
+    @Test
+    fun onlyWindowsChangedIsATopologyReconciliationHint() {
+        assertTrue(
+            SplitAccessibilityEventPolicy.isTopologyHint(
+                AccessibilityEvent.TYPE_WINDOWS_CHANGED,
+            ),
+        )
+        assertFalse(
+            SplitAccessibilityEventPolicy.isTopologyHint(
+                AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED,
+            ),
+        )
+        assertFalse(
+            SplitAccessibilityEventPolicy.isTopologyHint(
+                AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED,
+            ),
+        )
+    }
+
     @Test
     fun stockPickerAndHomeAreRoutedToDifferentAuthoritativeChecks() {
         assertEquals(
