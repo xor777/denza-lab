@@ -1013,6 +1013,19 @@ internal class SplitPickerShellSession(
     ): SplitPickerPaneObservation? {
         val roots = nativeRootIds()
         val state = snapshot()
+        // BYD can temporarily strand both permanent picker bases in one root while moving the
+        // visible app to the other during divider resize. That is not a picker reveal: emitting
+        // one here would erase the recorded APP ownership before reconcileDividerResize repairs
+        // the bases. Fail closed until every native root has at most one picker identity.
+        if (
+            roots.values.mapNotNull(state::root).any { root ->
+                root.tasks.count { task ->
+                    task.isDenzaPickerBase() && task.matchesAnyComponent(pickerComponents)
+                } > 1
+            }
+        ) {
+            return null
+        }
         val pane = SplitPane.entries.firstOrNull { candidate ->
             state.root(roots.getValue(candidate))?.tasks?.any { task ->
                 task.id == hostTaskId &&

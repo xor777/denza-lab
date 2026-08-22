@@ -335,7 +335,10 @@ object SplitScreenCoordinator {
             try {
                 adb = DenzaLocalAdb.client(app).openPersistentShell()
                 val split = pickerSession(app, adb::shell)
-                reconcileOwnedSession(app, split, "picker visible")
+                if (!reconcileOwnedSession(app, split, "picker visible")) {
+                    postResult(onComplete, null)
+                    return@execute
+                }
                 val observation = split.observePickerTask(hostTaskId, PICKER_COMPONENT_SET)
                 if (observation == null || !observation.pickerVisible) {
                     postResult(onComplete, null)

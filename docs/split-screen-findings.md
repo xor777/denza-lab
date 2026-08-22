@@ -559,11 +559,28 @@ application can occupy a pane without taking ownership away from picker
 lifecycle reconciliation. The accepted APK SHA-256 was
 `32d82fc20e18e694fb7e7438766c356ef87ba32e9a774152c58d00203160e150`.
 
-The same boundary pass also reproduced a separate unresolved divider defect.
-After moving the wide side with 2GIS task 434 open, the firmware placed both
-picker tasks 432/438 in one root and left 2GIS alone in the other, while the
-automaton incorrectly persisted `PICKER + PICKER`. This resize/reconciliation
-case is not part of the ordinary-launch fix and remains open.
+The same boundary pass also reproduced a separate divider defect. After moving
+the wide side with 2GIS task 434 open, the firmware placed both picker tasks
+432/438 in one root and left 2GIS alone in the other, while the automaton
+incorrectly persisted `PICKER + PICKER`.
+
+The fix treats a root containing both permanent picker bases as an unsettled
+firmware transition, not as a picker reveal. A picker-visible callback now also
+stops if the complete owned session cannot be reconciled, so it cannot mutate
+the automaton before the delayed divider repair uses the previous `APP`
+expectation. An exact regression reproduces the two-bases/one-root topology and
+requires `observePickerTask()` to emit no visible-picker observation.
+
+Live acceptance reproduced the same transition after dragging the divider from
+the narrow picker side toward a wide picker side. At release, picker bases
+484/485 were temporarily together in one root while 2GIS task 486 was alone in
+the other; the persisted state remained `PICKER + APP`. The delayed repair put
+base 485 back under task 486, left base 484 in the other root, adopted the
+firmware's swapped pane identities as `APP + PICKER`, and kept area `3`. No app
+task was removed, no restore notice appeared, Yandex Music remained in
+`PlaybackState=3`, and the crash buffer contained no Denza Apps or AVC failure.
+The installed APK SHA-256 was
+`24eed1f3c5247293489040a378f7a2c20d0a20406c212691593c44147149bb3f`.
 
 ### Picker-visible partial-restore notice (2026-08-22)
 

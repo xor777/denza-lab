@@ -327,6 +327,32 @@ class SplitPickerShellSessionTest {
     }
 
     @Test
+    fun transientResizeWithBothPickerBasesInOneRootEmitsNoVisiblePickerObservation() {
+        val fake = FakeShell()
+        val split = session(fake)
+        val hosts = split.openPickers(PICKERS, preservedPackages = emptyMap())
+        val navigator = split.selectApp(
+            pickerTaskId = hosts.getValue(SplitPane.SECONDARY),
+            target = SplitLaunchTarget(NAVIGATOR, "$NAVIGATOR/$NAVIGATOR.MainActivity"),
+            pickerComponents = PICKER_COMPONENTS,
+        )
+
+        // Live BYD resize transient: the visible app is alone in one native root while both
+        // permanent picker bases temporarily share the other. Treating the top picker as a
+        // settled reveal would overwrite the still-live APP slot before resize repair runs.
+        fake.moveTask(navigator.appTaskId, PRIMARY_ROOT)
+        fake.moveTask(hosts.getValue(SplitPane.PRIMARY), SECONDARY_ROOT)
+
+        assertEquals(
+            null,
+            split.observePickerTask(
+                hosts.getValue(SplitPane.PRIMARY),
+                PICKER_COMPONENTS,
+            ),
+        )
+    }
+
+    @Test
     fun dividerResizeDoesNotGuessOwnershipWithoutARecordedApp() {
         val fake = FakeShell()
         val split = session(fake)
