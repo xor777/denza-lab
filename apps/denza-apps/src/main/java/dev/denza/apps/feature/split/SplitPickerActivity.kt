@@ -85,7 +85,6 @@ class SplitPickerActivity : ComponentActivity() {
     private var catalogLoadInFlight = false
     private var catalogReloadPending = false
     private var catalogLoading by mutableStateOf(true)
-    private var visibleReported = false
     private val lifecycleHandler by lazy { Handler(mainLooper) }
     private var stoppedTaskId: Int? = null
     private var noticeReceiverRegistered = false
@@ -186,16 +185,14 @@ class SplitPickerActivity : ComponentActivity() {
         super.onResume()
         lifecycleHandler.removeCallbacks(stoppedReporter)
         stoppedTaskId = null
-        if (!visibleReported) {
-            visibleReported = true
-            val delivered = sendCommand(
-                method = SplitCommandContract.METHOD_PICKER_VISIBLE,
-                extras = Bundle().apply {
-                    putInt(SplitCommandContract.EXTRA_PICKER_TASK_ID, taskId)
-                },
-            )
-            if (!delivered) visibleReported = false
-        }
+        // A picker can resume with the same Activity instance after its covered app was dismissed.
+        // Report every real resume; coordinator reconciliation is idempotent and identity-checked.
+        sendCommand(
+            method = SplitCommandContract.METHOD_PICKER_VISIBLE,
+            extras = Bundle().apply {
+                putInt(SplitCommandContract.EXTRA_PICKER_TASK_ID, taskId)
+            },
+        )
     }
 
     override fun onStop() {
@@ -209,7 +206,6 @@ class SplitPickerActivity : ComponentActivity() {
         }
         super.onStop()
         if (!isChangingConfigurations) {
-            visibleReported = false
             stoppedTaskId = taskId
             lifecycleHandler.removeCallbacks(stoppedReporter)
             lifecycleHandler.postDelayed(stoppedReporter, PICKER_HIDDEN_SETTLE_MS)
