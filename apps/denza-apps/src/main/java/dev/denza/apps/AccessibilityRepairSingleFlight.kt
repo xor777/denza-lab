@@ -1,5 +1,15 @@
 package dev.denza.apps
 
+import java.util.concurrent.locks.ReentrantLock
+import kotlin.concurrent.withLock
+
+/** Serializes every read/modify/rebind transaction on the shared accessibility setting. */
+internal object AccessibilitySettingsMutationLock {
+    private val lock = ReentrantLock(true)
+
+    fun <T> withLock(block: () -> T): T = lock.withLock(block)
+}
+
 /** Joins all current accessibility owners to one serialized system rebind. */
 internal class AccessibilityRepairSingleFlight {
     private val lock = Any()

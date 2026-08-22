@@ -4,6 +4,7 @@ import android.accessibilityservice.AccessibilityService
 import android.content.Intent
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
+import dev.denza.apps.AccessibilitySettingsMutationLock
 
 internal enum class SplitAccessibilityEventTarget { STOCK_PICKER, HOME, IGNORE }
 
@@ -88,7 +89,7 @@ internal class SplitNativePickerAccessController(
     private val pauseAfterDisable: (Long) -> Unit = Thread::sleep,
     private val isConnected: () -> Boolean = SplitNativePickerAccessibilityService::isConnected,
 ) {
-    fun enable() {
+    fun enable() = AccessibilitySettingsMutationLock.withLock {
         val current = read()
         val alreadyEnabled = current.any(ALIASES::contains)
         if (
@@ -96,7 +97,7 @@ internal class SplitNativePickerAccessController(
             leaseStore.configurationVersion() >= CONFIGURATION_VERSION &&
             isConnected()
         ) {
-            return
+            return@withLock
         }
 
         val withoutService = current.filterNot(ALIASES::contains)
@@ -123,8 +124,8 @@ internal class SplitNativePickerAccessController(
         }
     }
 
-    fun restore() {
-        if (!leaseStore.isOwned()) return
+    fun restore() = AccessibilitySettingsMutationLock.withLock {
+        if (!leaseStore.isOwned()) return@withLock
         val current = read()
         if (current.any(ALIASES::contains)) {
             write(current.filterNot(ALIASES::contains))
