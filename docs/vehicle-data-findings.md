@@ -418,6 +418,36 @@ panel. It is the only product consumer of this document's allowlist.
 Unit tests cover the command shape, the marker alignment, the proven scales, the
 sentinel and plausibility rules, and the consumption accumulator.
 
+### Measured on the car (2026-08-22, second session, parked on AC charge)
+
+All 33 allowlist signals answered, none returned a sentinel, and none was
+dropped by the plausibility gate — the catalog is correct for this firmware.
+
+| Batch | Calls | Wall time on the head unit |
+| --- | --- | --- |
+| Shell baseline (two `date` calls, no reads) | 0 | 7–11 ms |
+| One `service call` | 1 | 14–22 ms |
+| Hot batch | 5 | 129–195 ms |
+| Hot + cold batch | 33 | 270–287 ms |
+
+The cost is almost all fixed: about 4–5 ms per additional call against roughly
+130 ms of shell and first-process overhead. Batching is therefore what makes the
+panel affordable, and widening the hot set is nearly free, while shortening the
+interval is what actually costs the car. With `ACTIVE_HOT_MS = 700` the real hot
+period is about 850 ms; the 10-second sweep that carries the cold set costs about
+280 ms.
+
+Two readings from the same session are worth keeping:
+
+- the cell window moved from 3313–3317 mV at 43 % to 3352–3358 mV at 72 %, and
+  the pack from 550 V to 557 V. The LFP curve is flat, not frozen; the knee
+  starts showing above roughly 70 %.
+- vendor range read 128 km at 72 % SOC. Against the stock home widget's
+  23.2 kWh/100 km over 50 km that implies a pack in the low forties of kWh,
+  which agrees with the owner's "under 40" and rules out the falsified 100 kWh
+  figure. It is an estimate from two vendor-derived numbers, not a measurement,
+  and the panel does not display it.
+
 ## Legacy BYDAuto events and system logs
 
 The archived 2026-06-27 probe under
@@ -535,9 +565,9 @@ GNSS/IMU (unchanged from 2026-07-24):
    stretch; the consumption histogram's axis rests on the ×10 scale, and the
    stock home widget's 23.2 kWh/100 km over 50 km is the number it should land
    near.
-6. Record `sweepMillis` from the panel's snapshot over a drive: it is the cost of
-   one batched `service call` sweep and decides whether the hot cadence can move
-   below 700 ms.
+6. ~~Record `sweepMillis`~~ **done**: the hot batch costs 129–195 ms and the full
+   sweep 270–287 ms, so the hot interval has room to drop toward 400 ms if the
+   panel needs a livelier power reading.
 
 Until the drive capture, the honest **app-UID** boundary remains GNSS plus
 standard IMU plus fail-closed Yandex guidance. The honest **shell-UID**
