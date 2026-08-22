@@ -82,9 +82,10 @@ internal class SplitLaunchOverlayController(
         }
 
         fun closeImmediately() {
-            if (closeRequested.compareAndSet(false, true)) {
-                finishNow(leaseId)
-            }
+            // An error may be reported after a normal close already scheduled the minimum-time
+            // release. The error path always wins and must remove this lease immediately.
+            closeRequested.set(true)
+            finishNow(leaseId)
         }
     }
 }

@@ -46,6 +46,19 @@ class SplitLaunchOverlayTest {
     }
 
     @Test
+    fun errorCloseOverridesAlreadyScheduledMinimumTimeClose() {
+        val fixture = Fixture()
+        val lease = fixture.controller.begin()
+
+        lease.close()
+        lease.closeImmediately()
+
+        assertEquals(listOf(true, false), fixture.rendered)
+        fixture.runAll()
+        assertEquals(listOf(true, false), fixture.rendered)
+    }
+
+    @Test
     fun overlappingRequestsStayVisibleUntilEveryLeaseEnds() {
         val fixture = Fixture()
         val first = fixture.controller.begin()
