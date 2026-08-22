@@ -105,6 +105,67 @@ internal class SplitPickerShellSession(
         }
     }
 
+    /**
+     * Adopts the one owned root left by a native edge collapse.
+     *
+     * Area 1/2 identifies the surviving logical pane. The collapsed root must be empty, every
+     * task identity previously recorded for it must have left both native roots, and the survivor
+     * must still satisfy the permanent picker-base invariant. BYD may retain the dismissed tasks
+     * as detached hidden roots; the coordinator removes those exact artifacts after adoption.
+     * This is deliberately separate from [existingOwnedSession], whose callers require an intact
+     * two-root scene.
+     */
+    fun collapsedOwnedSession(
+        pickerComponents: Set<String>,
+        expectedTaskIds: Map<SplitPane, Set<Int>> = emptyMap(),
+    ): SplitPickerLivePane? {
+        val survivor = when (callInt("service call activity_task 30")) {
+            AREA_PRIMARY_FULL -> SplitPane.PRIMARY
+            AREA_SECONDARY_FULL -> SplitPane.SECONDARY
+            else -> return null
+        }
+        val collapsed = survivor.other()
+        val roots = nativeRootIds()
+        val state = snapshot()
+        val collapsedRoot = state.root(roots.getValue(collapsed))
+        if (collapsedRoot?.tasks.orEmpty().any { task -> !task.isEmptyRootMarker() }) return null
+
+        val nativeRootIds = roots.values.toSet()
+        val trackedTasks = state.roots.asSequence()
+            .filter { root -> root.displayId == MAIN_DISPLAY_ID }
+            .flatMap { root -> root.tasks.asSequence() }
+            .filter { task -> task.id in expectedTaskIds[collapsed].orEmpty() }
+        if (trackedTasks.any { task -> task.rootId in nativeRootIds }) return null
+
+        val root = state.root(roots.getValue(survivor)) ?: return null
+        val pickers = root.tasks.filter { task ->
+            task.isDenzaPickerBase() && task.matchesAnyComponent(pickerComponents)
+        }
+        if (pickers.size != 1 || root.tasks.size !in 1..MAX_TASKS_PER_PANE) return null
+        val picker = pickers.single()
+        if (picker.bounds != root.bounds) return null
+        val top = root.resolvedTopTask() ?: return null
+        val app = if (top.id == picker.id) {
+            if (!picker.matchesAnyTopComponent(pickerComponents)) return null
+            null
+        } else {
+            if (
+                top.isDenzaPickerBase() ||
+                top.isNativeSplitBootstrap() ||
+                top.bounds != root.bounds
+            ) {
+                return null
+            }
+            top
+        }
+        return SplitPickerLivePane(
+            pane = survivor,
+            hostTaskId = picker.id,
+            appTaskId = app?.id,
+            appPackageName = app?.effectivePackageName(),
+        )
+    }
+
     /** Allows SmartMulti to expose the preserved roots after the control task disappears. */
     fun awaitExistingOwnedSession(
         pickerComponents: Set<String>,

@@ -362,6 +362,78 @@ class SplitPickerShellSessionTest {
     }
 
     @Test
+    fun nativeEdgeCollapseAdoptsOnlyTheSurvivingOwnedRoot() {
+        val fake = FakeShell()
+        val split = session(fake)
+        val hosts = split.openPickers(PICKERS, preservedPackages = emptyMap())
+        val navigator = split.selectApp(
+            pickerTaskId = hosts.getValue(SplitPane.PRIMARY),
+            target = SplitLaunchTarget(NAVIGATOR, "$NAVIGATOR/$NAVIGATOR.MainActivity"),
+            pickerComponents = PICKER_COMPONENTS,
+        )
+        fake.dismissPane(PRIMARY_ROOT)
+        fake.commands.clear()
+
+        val collapsed = split.collapsedOwnedSession(
+            pickerComponents = PICKER_COMPONENTS,
+            expectedTaskIds = mapOf(
+                SplitPane.PRIMARY to setOf(
+                    hosts.getValue(SplitPane.PRIMARY),
+                    navigator.appTaskId,
+                ),
+                SplitPane.SECONDARY to setOf(hosts.getValue(SplitPane.SECONDARY)),
+            ),
+        )
+
+        assertEquals(SplitPane.SECONDARY, collapsed?.pane)
+        assertEquals(hosts.getValue(SplitPane.SECONDARY), collapsed?.hostTaskId)
+        assertEquals(null, collapsed?.appTaskId)
+        assertFalse(
+            fake.commands.any { command ->
+                command.startsWith("am start ") ||
+                    command.startsWith("am stack move-task ") ||
+                    command.startsWith("am task focus ") ||
+                    command.contains(" remove-task ")
+            },
+        )
+    }
+
+    @Test
+    fun nativeEdgeCollapseAcceptsRecordedTaskDetachedOutsideNativeRoots() {
+        val fake = FakeShell()
+        val split = session(fake)
+        val hosts = split.openPickers(PICKERS, preservedPackages = emptyMap())
+        val vanishedHost = hosts.getValue(SplitPane.PRIMARY)
+        fake.dismissPane(PRIMARY_ROOT)
+        fake.addTask(FULL_ROOT, vanishedHost, SPLIT_HOST_PACKAGE, PRIMARY_PICKER_ACTIVITY)
+
+        val collapsed = split.collapsedOwnedSession(
+            pickerComponents = PICKER_COMPONENTS,
+            expectedTaskIds = mapOf(SplitPane.PRIMARY to setOf(vanishedHost)),
+        )
+
+        assertEquals(SplitPane.SECONDARY, collapsed?.pane)
+        assertEquals(hosts.getValue(SplitPane.SECONDARY), collapsed?.hostTaskId)
+    }
+
+    @Test
+    fun nativeEdgeCollapseRejectsTrackedTaskStillInCollapsedNativeRoot() {
+        val fake = FakeShell()
+        val split = session(fake)
+        val hosts = split.openPickers(PICKERS, preservedPackages = emptyMap())
+        val vanishedHost = hosts.getValue(SplitPane.PRIMARY)
+        fake.dismissPane(PRIMARY_ROOT)
+        fake.addTask(PRIMARY_ROOT, vanishedHost, SPLIT_HOST_PACKAGE, PRIMARY_PICKER_ACTIVITY)
+
+        val collapsed = split.collapsedOwnedSession(
+            pickerComponents = PICKER_COMPONENTS,
+            expectedTaskIds = mapOf(SplitPane.PRIMARY to setOf(vanishedHost)),
+        )
+
+        assertEquals(null, collapsed)
+    }
+
+    @Test
     fun hostlessExistingPairIsHostedThroughExactPaneCategories() {
         val fake = FakeShell(tx115RequiresHome = true).apply {
             area = 3

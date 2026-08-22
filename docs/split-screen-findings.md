@@ -214,6 +214,25 @@ contract. The OEM strings `Release to display in 1/3 screen` and
 live overlay showed the correct app icon on both sides, not an unknown or
 missing application.
 
+A separate native edge-collapse path originally left the automaton stale. BYD
+changed area `3` to area `1/2`, expanded the survivor, and detached the closed
+picker/app into hidden standalone roots; the two-root resize observer therefore
+kept the old `SPLIT` state and saved pair indefinitely. The live fix used Denza
+Apps `0.5.4` (`versionCode=14`, debug APK SHA-256
+`cd03c99961e58a5b43758f239c7111ac4ff79992f6f4b67bd7978078698b2bba`).
+It accepts a one-root observation only when area identifies the survivor, the
+other native root is empty, all recorded closed-pane identities have left both
+native roots, and the survivor still has exactly one Denza picker base plus at
+most one app. The automaton then records `FULL`, clears the closed slot and
+removes only its exact detached artifacts. Collapsing primary picker `#365`
+plus 2GIS `#367` left secondary picker `#366` fullscreen, cleared the saved
+pair, and removed both detached tasks; reopening created picker `#369` and
+settled as `PICKER/PICKER`. In the user-facing inverse case, secondary 2GIS
+task `#370` stayed fullscreen above picker `#366` when bare primary picker
+`#369` was closed; persisted state was `PRIMARY=CLOSED`, `SECONDARY=APP`, phase
+`FULL`, with only 2GIS in the saved pair. No Denza Apps or AVC crash was
+recorded.
+
 On 2026-08-22 a saved-pair vacancy regression was reproduced and fixed on the
 live car. A native caption swipe removed Yandex Music and revealed its Denza
 picker, but the automaton's `PICKER` state was not copied to the separately

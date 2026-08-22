@@ -48,6 +48,12 @@ internal sealed interface SplitPickerEvent {
     data class DividerResized(
         val panes: Map<SplitPane, SplitPickerObservedPane>,
     ) : SplitPickerEvent
+
+    data class PaneCollapsed(
+        val survivor: SplitPane,
+        val pane: SplitPickerObservedPane,
+    ) : SplitPickerEvent
+
     data object ToggleOff : SplitPickerEvent
 
     data class NativePickerObserved(
@@ -140,6 +146,7 @@ internal object SplitPickerAutomaton {
         SplitPickerEvent.HomeObserved -> idle(current, armed = current.armed)
         SplitPickerEvent.ToggleOff -> idle(current, armed = false)
         is SplitPickerEvent.DividerResized -> dividerResized(current, event)
+        is SplitPickerEvent.PaneCollapsed -> paneCollapsed(current, event)
         is SplitPickerEvent.NativePickerObserved -> nativePicker(current, event)
         is SplitPickerEvent.PickerAttached -> pickerAttached(current, event)
         is SplitPickerEvent.PickerAttachFailed -> pickerAttachFailed(current, event)
@@ -168,13 +175,7 @@ internal object SplitPickerAutomaton {
         if (!current.armed || current.phase == SplitPickerPhase.IDLE) return unchanged(current)
         if (event.panes.keys != SplitPane.entries.toSet()) return unchanged(current)
         val observed = SplitPane.entries.map { pane -> event.panes.getValue(pane) }
-        if (observed.any { pane ->
-                pane.hostTaskId <= 0 ||
-                    ((pane.appTaskId == null) != (pane.packageName == null)) ||
-                    (pane.appTaskId != null &&
-                        (pane.appTaskId <= 0 || pane.packageName.isNullOrBlank()))
-            }
-        ) {
+        if (observed.any { pane -> !pane.isValid() }) {
             return unchanged(current)
         }
         if (observed.map { it.hostTaskId }.distinct().size != SplitPane.entries.size) {
@@ -205,6 +206,64 @@ internal object SplitPickerAutomaton {
             ),
         )
     }
+
+    private fun paneCollapsed(
+        current: SplitPickerAutomatonState,
+        event: SplitPickerEvent.PaneCollapsed,
+    ): SplitPickerReduction {
+        if (!current.armed || current.phase == SplitPickerPhase.IDLE || !event.pane.isValid()) {
+            return unchanged(current)
+        }
+        val collapsed = current.slot(event.survivor.other())
+        val actions = buildList {
+            if (
+                collapsed.kind == SplitPickerSlotKind.APP &&
+                collapsed.appTaskId != null &&
+                collapsed.packageName != null
+            ) {
+                add(
+                    SplitPickerAction.RemoveExactTask(
+                        taskId = collapsed.appTaskId,
+                        packageName = collapsed.packageName,
+                    ),
+                )
+            }
+            collapsed.hostTaskId?.let { hostTaskId ->
+                add(SplitPickerAction.RemovePickerArtifact(hostTaskId))
+            }
+        }
+        val slots = current.slots.toMutableMap().apply {
+            put(event.survivor, event.pane.toSlot())
+            put(event.survivor.other(), SplitPickerSlotState())
+        }
+        return SplitPickerReduction(
+            state = current.copy(
+                phase = phaseFor(slots),
+                slots = slots,
+            ),
+            actions = actions,
+        )
+    }
+
+    private fun SplitPickerObservedPane.isValid(): Boolean =
+        hostTaskId > 0 &&
+            ((appTaskId == null) == (packageName == null)) &&
+            (appTaskId == null || (appTaskId > 0 && !packageName.isNullOrBlank()))
+
+    private fun SplitPickerObservedPane.toSlot(): SplitPickerSlotState =
+        if (appTaskId == null) {
+            SplitPickerSlotState(
+                kind = SplitPickerSlotKind.PICKER,
+                hostTaskId = hostTaskId,
+            )
+        } else {
+            SplitPickerSlotState(
+                kind = SplitPickerSlotKind.APP,
+                hostTaskId = hostTaskId,
+                appTaskId = appTaskId,
+                packageName = packageName,
+            )
+        }
 
     private fun nativePicker(
         current: SplitPickerAutomatonState,

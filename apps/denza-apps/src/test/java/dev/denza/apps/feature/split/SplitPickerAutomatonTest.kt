@@ -153,6 +153,57 @@ class SplitPickerAutomatonTest {
     }
 
     @Test
+    fun nativeEdgeCollapseAtomicallyClosesVanishedPaneAndAdoptsSurvivor() {
+        val stale = state(
+            primary = app(10, NAVIGATOR, hostTaskId = 100),
+            secondary = picker(200),
+        )
+
+        val result = SplitPickerAutomaton.reduce(
+            stale,
+            SplitPickerEvent.PaneCollapsed(
+                survivor = SplitPane.SECONDARY,
+                pane = SplitPickerObservedPane(hostTaskId = 200),
+            ),
+        )
+
+        assertEquals(SplitPickerPhase.FULL, result.state.phase)
+        assertEquals(closed(), result.state.slot(SplitPane.PRIMARY))
+        assertEquals(picker(200), result.state.slot(SplitPane.SECONDARY))
+        assertTrue(SplitPickerSelectionPolicy.settledPair(result.state).isEmpty())
+        assertEquals(
+            listOf(
+                SplitPickerAction.RemoveExactTask(10, NAVIGATOR),
+                SplitPickerAction.RemovePickerArtifact(100),
+            ),
+            result.actions,
+        )
+    }
+
+    @Test
+    fun invalidNativeEdgeCollapseCannotCorruptTheAutomaton() {
+        val split = state(
+            primary = app(10, NAVIGATOR, hostTaskId = 100),
+            secondary = picker(200),
+        )
+
+        val result = SplitPickerAutomaton.reduce(
+            split,
+            SplitPickerEvent.PaneCollapsed(
+                survivor = SplitPane.SECONDARY,
+                pane = SplitPickerObservedPane(
+                    hostTaskId = 0,
+                    appTaskId = 20,
+                    packageName = MUSIC,
+                ),
+            ),
+        )
+
+        assertEquals(split, result.state)
+        assertTrue(result.actions.isEmpty())
+    }
+
+    @Test
     fun dividerResizeAdoptsAppsSwappedAcrossLogicalHosts() {
         val split = state(
             primary = app(10, NAVIGATOR, hostTaskId = 100),

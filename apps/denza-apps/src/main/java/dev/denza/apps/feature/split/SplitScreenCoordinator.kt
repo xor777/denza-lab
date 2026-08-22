@@ -1009,9 +1009,9 @@ object SplitScreenCoordinator {
         split: SplitPickerShellSession,
         reason: String,
     ): Boolean {
-        val live = split.existingOwnedSession(PICKER_COMPONENT_SET) ?: return false
         val before = currentPickerState()
-        val reduction = applyPickerEvent(
+        val live = split.existingOwnedSession(PICKER_COMPONENT_SET)
+        val event = if (live != null) {
             SplitPickerEvent.DividerResized(
                 panes = live.mapValues { (_, pane) ->
                     SplitPickerObservedPane(
@@ -1020,12 +1020,31 @@ object SplitScreenCoordinator {
                         packageName = pane.appPackageName,
                     )
                 },
-            ),
-        )
+            )
+        } else {
+            val expectedTaskIds = SplitPane.entries.associateWith { pane ->
+                val slot = before.slot(pane)
+                setOfNotNull(slot.hostTaskId, slot.appTaskId)
+            }
+            val collapsed = split.collapsedOwnedSession(
+                pickerComponents = PICKER_COMPONENT_SET,
+                expectedTaskIds = expectedTaskIds,
+            ) ?: return false
+            SplitPickerEvent.PaneCollapsed(
+                survivor = collapsed.pane,
+                pane = SplitPickerObservedPane(
+                    hostTaskId = collapsed.hostTaskId,
+                    appTaskId = collapsed.appTaskId,
+                    packageName = collapsed.appPackageName,
+                ),
+            )
+        }
+        val reduction = applyPickerEvent(event)
         if (reduction.state != before) {
             syncLastPairFromPickerState(app)
             Log.i(TAG, "reconciled explicit picker session after $reason")
         }
+        executePickerActions(split, reduction.actions)
         return true
     }
 
