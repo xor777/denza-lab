@@ -385,6 +385,40 @@ object SplitScreenCoordinator {
         }
     }
 
+    /**
+     * Reconciles a picker that stopped without treating an ordinary app launch as a pane close.
+     * A selected app leaves its permanent picker in the same native root; the BYD dismiss
+     * gesture reparents that exact picker task outside both roots before expanding its peer pane.
+     */
+    fun onPickerHidden(context: Context, hostTaskId: Int) {
+        val app = context.applicationContext
+        this.context = app
+        ensurePickerStateLoaded(app)
+        if (!SplitScreenSettings.isEnabled(app)) return
+        val pane = SplitPane.entries.firstOrNull {
+            currentPickerState().slot(it).hostTaskId == hostTaskId
+        } ?: return
+        executor.execute {
+            var adb: LocalAdbClient.PersistentShellSession? = null
+            try {
+                adb = DenzaLocalAdb.client(app).openPersistentShell()
+                val split = pickerSession(app, adb::shell)
+                if (split.observePickerTask(hostTaskId, PICKER_COMPONENT_SET) != null) {
+                    return@execute
+                }
+                val reduction = applyPickerEvent(
+                    SplitPickerEvent.PickerTaskGone(pane, hostTaskId),
+                )
+                syncLastPairFromPickerState(app)
+                executePickerActions(split, reduction.actions)
+            } catch (error: Throwable) {
+                Log.w(TAG, "failed to reconcile hidden picker $hostTaskId", error)
+            } finally {
+                adb?.close()
+            }
+        }
+    }
+
     /** Accessibility event for the stock picker created by dragging a fullscreen pane open. */
     @JvmStatic
     fun onNativePickerVisible(context: Context) {
@@ -885,8 +919,8 @@ object SplitScreenCoordinator {
                 }
                 is SplitPickerAction.RemoveExactTask ->
                     split.removeRecordedTask(action.taskId, action.packageName)
-                is SplitPickerAction.ClosePickerAndGoHome ->
-                    split.closeHostedPickerAndGoHome(action.hostTaskId)
+                is SplitPickerAction.RemovePickerArtifact ->
+                    split.removePickerArtifact(action.hostTaskId, PICKER_COMPONENT_SET)
                 is SplitPickerAction.ReturnTaskFullscreen ->
                     split.returnRecordedTaskFullscreen(
                         pane = action.pane,

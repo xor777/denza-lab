@@ -80,6 +80,18 @@ class SplitPickerActivity : ComponentActivity() {
     private var catalogRequested = false
     private var catalogLoading by mutableStateOf(true)
     private var visibleReported = false
+    private val lifecycleHandler by lazy { Handler(mainLooper) }
+    private var stoppedTaskId: Int? = null
+    private val stoppedReporter = Runnable {
+        val stoppedId = stoppedTaskId ?: return@Runnable
+        stoppedTaskId = null
+        sendCommand(
+            method = SplitCommandContract.METHOD_PICKER_HIDDEN,
+            extras = Bundle().apply {
+                putInt(SplitCommandContract.EXTRA_PICKER_TASK_ID, stoppedId)
+            },
+        )
+    }
 
     private val resultReceiver by lazy {
         object : ResultReceiver(Handler(mainLooper)) {
@@ -125,6 +137,8 @@ class SplitPickerActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        lifecycleHandler.removeCallbacks(stoppedReporter)
+        stoppedTaskId = null
         if (!visibleReported) {
             visibleReported = true
             val delivered = sendCommand(
@@ -141,6 +155,9 @@ class SplitPickerActivity : ComponentActivity() {
         super.onStop()
         if (!isChangingConfigurations) {
             visibleReported = false
+            stoppedTaskId = taskId
+            lifecycleHandler.removeCallbacks(stoppedReporter)
+            lifecycleHandler.postDelayed(stoppedReporter, PICKER_HIDDEN_SETTLE_MS)
         }
     }
 
@@ -184,6 +201,7 @@ class SplitPickerActivity : ComponentActivity() {
     }
 
     private companion object {
+        const val PICKER_HIDDEN_SETTLE_MS = 500L
         val CATALOG_EXECUTOR = Executors.newSingleThreadExecutor()
     }
 }

@@ -344,6 +344,31 @@ also left it unchanged. A one-APK implementation is therefore technically viable
 but Denza Apps must persist its own last selection and rebuild the picker scene;
 it cannot rely on SmartMulti to remember the same package for both panes.
 
+### Fullscreen survivor after picker dismissal (2026-08-22)
+
+Closing one of two empty product pickers is a supported exit from split, not a
+request to go Home. The firmware expands the surviving picker in its native root
+and reports area mode `1` or `2`. On this firmware the dismissed picker may first
+be reparented outside roots 2/3, while the now-empty native root is rendered by
+`am stack list` as its own `taskId=<root>: unknown` marker.
+
+The product state follows that topology: the stopped picker reports its exact
+task id, the coordinator distinguishes a permanent picker covered by a selected
+app from one that actually left both native roots, and only the latter produces
+`PickerTaskGone`. The automaton clears that slot, keeps the survivor in phase
+`FULL`, and removes the detached picker artifact. Selecting an app from the
+survivor accepts the matching fullscreen area instead of requiring balanced
+area `3`; the empty-root marker is not treated as a peer application.
+
+Live acceptance used a clean `PICKER/PICKER` pair in tasks 174/175. Dismissing
+the focused primary picker produced area `2`, removed task 174, and persisted
+`PRIMARY=CLOSED`, `SECONDARY=PICKER`, phase `FULL`. Selecting 2GIS then created
+task 176 above permanent picker task 175; both had bounds `[0,0][2560,1600]`,
+area remained `2`, and the automaton persisted `SECONDARY=APP` with 2GIS as the
+package. No Home command, coordinator error, or crash was observed. The exact
+installed debug APK SHA-256 was
+`26c1fe7603fb62b69845c3a2544c1a12462ac06c9af38b1dcae9079afc4b3cc6`.
+
 The corpus used for this contract is `/system/framework/services.jar` SHA-256
 `23a58a4e3c98c50541785390f1234e8c4d7138b5dd170c4f5843bae15b93c019`
 and `/system/framework/framework.jar` SHA-256

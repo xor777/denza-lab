@@ -6,6 +6,7 @@ import android.os.Bundle
 
 internal object SplitCommandContract {
     const val METHOD_PICKER_VISIBLE = "picker_visible"
+    const val METHOD_PICKER_HIDDEN = "picker_hidden"
     const val METHOD_SELECT = "select"
 
     const val EXTRA_PICKER_TASK_ID = "dev.denza.apps.extra.SPLIT_PICKER_TASK_ID"

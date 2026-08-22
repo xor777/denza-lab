@@ -100,7 +100,7 @@ internal sealed interface SplitPickerAction {
         val packageName: String,
     ) : SplitPickerAction
 
-    data class ClosePickerAndGoHome(
+    data class RemovePickerArtifact(
         val hostTaskId: Int,
     ) : SplitPickerAction
 
@@ -402,30 +402,22 @@ internal object SplitPickerAutomaton {
         if (existing.kind == SplitPickerSlotKind.PROJECTED ||
             existing.kind == SplitPickerSlotKind.PROJECTED_ATTACHING
         ) {
-            return unchanged(
-                current.withSlot(
+            return SplitPickerReduction(
+                state = current.withSlot(
                     event.pane,
                     existing.copy(
                         hostTaskId = null,
                         userClosedWhileProjected = true,
                     ),
                 ),
+                actions = listOf(SplitPickerAction.RemovePickerArtifact(event.hostTaskId)),
             )
         }
 
-        val otherPane = event.pane.other()
-        val other = current.slot(otherPane)
-        if (other.kind == SplitPickerSlotKind.PICKER && other.hostTaskId != null) {
-            val cleared = current.copy(
-                phase = SplitPickerPhase.IDLE,
-                slots = SplitPane.entries.associateWith { SplitPickerSlotState() },
-            )
-            return SplitPickerReduction(
-                cleared,
-                listOf(SplitPickerAction.ClosePickerAndGoHome(other.hostTaskId)),
-            )
-        }
-        return unchanged(current.withSlot(event.pane, SplitPickerSlotState()))
+        return SplitPickerReduction(
+            state = current.withSlot(event.pane, SplitPickerSlotState()),
+            actions = listOf(SplitPickerAction.RemovePickerArtifact(event.hostTaskId)),
+        )
     }
 
     private fun projectionStarted(

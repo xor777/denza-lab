@@ -259,6 +259,13 @@ internal class SplitPickerShellSession(
         } ?: error("Пикер больше не находится в split-контейнере")
         val targetRootId = roots.getValue(pane)
         val otherRootId = roots.getValue(pane.other())
+        val expectedArea = expectedSelectionArea(
+            pane = pane,
+            currentArea = callInt("service call activity_task 30"),
+            otherRootVacant = before.root(otherRootId)
+                ?.tasks
+                ?.all { it.isEmptyRootMarker() } == true,
+        )
 
         // Another saved-pair member may legitimately be projected to the instrument display.
         // That task no longer reserves either IVI pane. Only selecting the exact same external
@@ -346,7 +353,7 @@ internal class SplitPickerShellSession(
             check(top.bounds == root.bounds) {
                 "Приложение ${target.packageName} не приняло размер выбранного окна"
             }
-            check(callInt("service call activity_task 30") == AREA_BALANCED_SPLIT) {
+            check(callInt("service call activity_task 30") == expectedArea) {
                 "Split не перешёл в рабочее состояние"
             }
             check(root.tasks.size <= MAX_TASKS_PER_PANE) {
@@ -759,6 +766,21 @@ internal class SplitPickerShellSession(
         return true
     }
 
+    /** Removes only the exact permanent picker reparented out of its dismissed native pane. */
+    fun removePickerArtifact(taskId: Int, pickerComponents: Set<String>): Boolean {
+        val task = snapshot().roots.asSequence()
+            .filter { it.displayId == MAIN_DISPLAY_ID }
+            .flatMap { it.tasks.asSequence() }
+            .firstOrNull {
+                it.id == taskId &&
+                    it.isDenzaPickerBase() &&
+                    it.matchesAnyComponent(pickerComponents)
+            }
+            ?: return false
+        removeTaskSafely(task)
+        return true
+    }
+
     /** Removes only a failed restoration candidate left below the exact picker pane. */
     fun discardFailedRestoration(
         pane: SplitPane,
@@ -773,17 +795,6 @@ internal class SplitPickerShellSession(
                     !task.isDenzaPickerBase()
             }
             .forEach(::removeTaskSafely)
-    }
-
-    fun closeHostedPickerAndGoHome(hostTaskId: Int) {
-        val host = snapshot().roots.asSequence()
-            .filter { it.displayId == MAIN_DISPLAY_ID }
-            .flatMap { it.tasks.asSequence() }
-            .firstOrNull { it.id == hostTaskId && it.isDenzaPickerBase() }
-            ?: return
-        removeTaskSafely(host)
-        run("input keyevent KEYCODE_HOME")
-        pause(EXIT_SETTLE_MS)
     }
 
     fun returnRecordedTaskFullscreen(
@@ -1415,11 +1426,32 @@ internal class SplitPickerShellSession(
     private fun SplitTask.effectivePackageName(): String =
         if (isDenzaAppHost()) topPackageName ?: packageName else packageName
 
+    private fun expectedSelectionArea(
+        pane: SplitPane,
+        currentArea: Int,
+        otherRootVacant: Boolean,
+    ): Int = when {
+        currentArea == AREA_BALANCED_SPLIT -> AREA_BALANCED_SPLIT
+        currentArea == pane.fullArea && otherRootVacant -> currentArea
+        else -> error("Пикер больше не находится в рабочем окне")
+    }
+
+    private fun SplitTask.isEmptyRootMarker(): Boolean =
+        id == rootId && packageName == "unknown" && activityName == null
+
+    private val SplitPane.fullArea: Int
+        get() = when (this) {
+            SplitPane.PRIMARY -> AREA_PRIMARY_FULL
+            SplitPane.SECONDARY -> AREA_SECONDARY_FULL
+        }
+
     private fun shellQuote(value: String): String = "'${value.replace("'", "'\\''")}'"
 
     private companion object {
         const val MAIN_DISPLAY_ID = 0
         const val AREA_HOME = 0
+        const val AREA_PRIMARY_FULL = 1
+        const val AREA_SECONDARY_FULL = 2
         const val AREA_BALANCED_SPLIT = 3
         const val AREA_FULL_IVI = 4
         const val EXPAND_PRIMARY_MODE = 101

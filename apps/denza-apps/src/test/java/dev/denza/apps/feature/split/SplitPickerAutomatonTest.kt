@@ -120,7 +120,10 @@ class SplitPickerAutomatonTest {
 
         assertEquals(SplitPickerPhase.FULL, closed.state.phase)
         assertEquals(SplitPickerSlotKind.CLOSED, closed.state.slot(SplitPane.SECONDARY).kind)
-        assertTrue(closed.actions.isEmpty())
+        assertEquals(
+            listOf(SplitPickerAction.RemovePickerArtifact(200)),
+            closed.actions,
+        )
 
         val staleResume = SplitPickerAutomaton.reduce(
             closed.state,
@@ -135,7 +138,7 @@ class SplitPickerAutomatonTest {
     }
 
     @Test
-    fun closingOneOfTwoBarePickersExitsInsteadOfLeavingFullscreenPicker() {
+    fun closingOneOfTwoBarePickersLeavesThePeerPickerFullscreen() {
         val split = state(primary = picker(100), secondary = picker(200))
 
         val result = SplitPickerAutomaton.reduce(
@@ -143,10 +146,10 @@ class SplitPickerAutomatonTest {
             SplitPickerEvent.PickerTaskGone(SplitPane.PRIMARY, hostTaskId = 100),
         )
 
-        assertEquals(SplitPickerPhase.IDLE, result.state.phase)
+        assertEquals(SplitPickerPhase.FULL, result.state.phase)
         assertEquals(closed(), result.state.slot(SplitPane.PRIMARY))
-        assertEquals(closed(), result.state.slot(SplitPane.SECONDARY))
-        assertEquals(listOf(SplitPickerAction.ClosePickerAndGoHome(200)), result.actions)
+        assertEquals(picker(200), result.state.slot(SplitPane.SECONDARY))
+        assertEquals(listOf(SplitPickerAction.RemovePickerArtifact(100)), result.actions)
     }
 
     @Test

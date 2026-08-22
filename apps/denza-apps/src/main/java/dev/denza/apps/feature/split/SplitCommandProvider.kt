@@ -29,6 +29,10 @@ class SplitCommandProvider : ContentProvider() {
                     extras.requireTaskId(),
                     ::showError,
                 )
+                SplitCommandContract.METHOD_PICKER_HIDDEN -> SplitScreenCoordinator.onPickerHidden(
+                    app,
+                    extras.requireTaskId(),
+                )
                 SplitCommandContract.METHOD_SELECT -> {
                     val receiver = extras.resultReceiver()
                     SplitScreenCoordinator.selectApp(

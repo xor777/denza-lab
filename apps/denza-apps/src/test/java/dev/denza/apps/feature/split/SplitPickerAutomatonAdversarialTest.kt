@@ -177,11 +177,10 @@ class SplitPickerAutomatonAdversarialTest {
                     }
                     assertTrue(action.taskId in observed)
                 }
-                is SplitPickerAction.ClosePickerAndGoHome -> {
+                is SplitPickerAction.RemovePickerArtifact -> {
                     val gone = event as? SplitPickerEvent.PickerTaskGone
                     assertNotNull(gone)
-                    assertEquals(SplitPickerSlotKind.PICKER, before.slot(gone!!.pane).kind)
-                    assertEquals(SplitPickerSlotKind.PICKER, before.slot(gone.pane.other()).kind)
+                    assertEquals(gone?.hostTaskId, action.hostTaskId)
                 }
                 is SplitPickerAction.ReturnTaskFullscreen -> {
                     val returned = event as? SplitPickerEvent.ProjectionReturned

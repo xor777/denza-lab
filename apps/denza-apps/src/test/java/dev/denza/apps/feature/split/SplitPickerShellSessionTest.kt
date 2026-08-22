@@ -365,6 +365,29 @@ class SplitPickerShellSessionTest {
         assertEquals(SPLIT_APP_HOST_ACTIVITY, fake.taskBaseActivity(placement.appTaskId))
     }
 
+    @Test
+    fun pickerTapAfterPeerDismissalKeepsSelectedAppFullscreen() {
+        val fake = FakeShell(renderEmptyNativeRootMarker = true)
+        val split = session(fake)
+        val pickers = split.openPickers(PICKERS, preservedPackages = emptyMap())
+        fake.dismissPane(PRIMARY_ROOT)
+
+        val placement = split.selectApp(
+            pickerTaskId = pickers.getValue(SplitPane.SECONDARY),
+            target = SplitLaunchTarget(
+                MUSIC,
+                "$MUSIC/$MUSIC.MainActivity",
+            ),
+            pickerComponents = PICKER_COMPONENTS,
+        )
+
+        assertEquals(2, fake.area)
+        assertEquals(FULL, fake.taskBounds(placement.appTaskId))
+        assertEquals("$MUSIC.MainActivity", fake.topActivity(SECONDARY_ROOT))
+        assertTrue(fake.hasActivity(SECONDARY_ROOT, SECONDARY_PICKER_ACTIVITY))
+        assertFalse(fake.commands.any { it == "input keyevent KEYCODE_HOME" })
+    }
+
     /**
      * Live trace 2026-08-16 17:52:09: Navigator's singleTask launcher could not remain above
      * host #398. It created #399 in the opposite root and made SmartMulti rebuild both panes.
@@ -1063,6 +1086,7 @@ class SplitPickerShellSessionTest {
         private val secondaryBootstrapPackage: String? = null,
         private val tx115RequiresHome: Boolean = false,
         private val nativeBootstrapStartsFullscreen: Boolean = false,
+        private val renderEmptyNativeRootMarker: Boolean = false,
     ) {
         data class Task(
             val id: Int,
@@ -1138,6 +1162,17 @@ class SplitPickerShellSessionTest {
                     (it.activityName == activityName ||
                         it.hostedComponent?.substringAfter('/') == activityName)
             }
+        }
+
+        fun dismissPane(rootId: Int) {
+            tasks.removeAll { it.rootId == rootId }
+            val remainingRoot = when (rootId) {
+                PRIMARY_ROOT -> SECONDARY_ROOT
+                SECONDARY_ROOT -> PRIMARY_ROOT
+                else -> error("Not a split pane: $rootId")
+            }
+            area = if (remainingRoot == PRIMARY_ROOT) 1 else 2
+            tasks.filter { it.rootId == remainingRoot }.forEach { it.bounds = FULL }
         }
 
         fun shell(command: String): String {
@@ -1219,7 +1254,7 @@ class SplitPickerShellSessionTest {
                         else -> null
                     }
                     if (pickerRoot != null) {
-                        area = 3
+                        if (area != fullArea(pickerRoot)) area = 3
                         tasks.removeAll {
                             it.rootId == pickerRoot &&
                                 (it.packageName == STOCK_PICKER_PACKAGE ||
@@ -1311,7 +1346,7 @@ class SplitPickerShellSessionTest {
                     tasks.remove(task)
                     tasks += task
                     if (task.rootId == PRIMARY_ROOT || task.rootId == SECONDARY_ROOT) {
-                        area = 3
+                        if (area != fullArea(task.rootId)) area = 3
                     }
                     ""
                 }
@@ -1372,6 +1407,16 @@ class SplitPickerShellSessionTest {
                         "[${rootBounds.right},${rootBounds.bottom}] " +
                         "displayId=${if (rootId == EXTERNAL_ROOT) 2 else 0} userId=0",
                 )
+                if (
+                    renderEmptyNativeRootMarker &&
+                    rootTasks.isEmpty() &&
+                    rootId in setOf(PRIMARY_ROOT, SECONDARY_ROOT)
+                ) {
+                    appendLine(
+                        "  taskId=$rootId: unknown bounds=[${rootBounds.left},${rootBounds.top}]" +
+                            "[${rootBounds.right},${rootBounds.bottom}] userId=0 visible=false",
+                    )
+                }
                 val top = rootTasks.lastOrNull()
                 val topPackage = top?.hostedComponent?.substringBefore('/') ?: top?.packageName
                 val topActivity = top?.hostedComponent?.substringAfter('/') ?: top?.activityName
@@ -1393,9 +1438,15 @@ class SplitPickerShellSessionTest {
         }
 
         private fun bounds(rootId: Int): SplitBounds = when (rootId) {
-            PRIMARY_ROOT -> PRIMARY_BOUNDS
-            SECONDARY_ROOT -> SECONDARY_BOUNDS
+            PRIMARY_ROOT -> if (area == 1) FULL else PRIMARY_BOUNDS
+            SECONDARY_ROOT -> if (area == 2) FULL else SECONDARY_BOUNDS
             else -> FULL
+        }
+
+        private fun fullArea(rootId: Int): Int = when (rootId) {
+            PRIMARY_ROOT -> 1
+            SECONDARY_ROOT -> 2
+            else -> -1
         }
 
         private fun quotedArgument(command: String): String =
