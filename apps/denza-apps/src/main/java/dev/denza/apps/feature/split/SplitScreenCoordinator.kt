@@ -515,11 +515,15 @@ object SplitScreenCoordinator {
                     // either root until BYD is balanced and the active pointer has been released.
                     if (!split.awaitNativePickerCommit()) return@execute
                     SplitPane.entries.forEach { pane ->
+                        if (!split.nativePickerMutationAllowed()) return@execute
                         val observation = split.observePane(pane, PICKER_COMPONENT_SET)
                         val hostTaskId = observation.hostTaskId ?: return@forEach
                         if (!observation.nativeHostVisible || observation.pickerVisible) {
                             return@forEach
                         }
+                        // The shell snapshot can race the final phase of an edge collapse. Never
+                        // publish ATTACHING or run a task command after area/pointer changed.
+                        if (!split.nativePickerMutationAllowed()) return@execute
                         val reduction = applyPickerEvent(
                             SplitPickerEvent.NativePickerObserved(
                                 pane,
@@ -1042,13 +1046,10 @@ object SplitScreenCoordinator {
                 },
             )
         } else {
-            val expectedTaskIds = SplitPane.entries.associateWith { pane ->
-                val slot = before.slot(pane)
-                setOfNotNull(slot.hostTaskId, slot.appTaskId)
-            }
+            val expectedPanes = resizeExpectation(before) ?: return false
             val collapsed = split.collapsedOwnedSession(
                 pickerComponents = PICKER_COMPONENT_SET,
-                expectedTaskIds = expectedTaskIds,
+                expectedPanes = expectedPanes,
             ) ?: return false
             SplitPickerEvent.PaneCollapsed(
                 survivor = collapsed.pane,

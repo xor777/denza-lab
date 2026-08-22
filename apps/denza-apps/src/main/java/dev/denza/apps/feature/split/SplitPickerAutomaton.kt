@@ -214,7 +214,14 @@ internal object SplitPickerAutomaton {
         if (!current.armed || current.phase == SplitPickerPhase.IDLE || !event.pane.isValid()) {
             return unchanged(current)
         }
-        val collapsed = current.slot(event.survivor.other())
+        val previousOwners = SplitPane.entries.filter { pane ->
+            val slot = current.slot(pane)
+            slot.hostTaskId == event.pane.hostTaskId &&
+                slot.appTaskId == event.pane.appTaskId &&
+                slot.packageName == event.pane.packageName
+        }
+        if (previousOwners.size != 1) return unchanged(current)
+        val collapsed = current.slot(previousOwners.single().other())
         val actions = buildList {
             if (
                 collapsed.kind == SplitPickerSlotKind.APP &&

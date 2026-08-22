@@ -181,6 +181,37 @@ class SplitPickerAutomatonTest {
     }
 
     @Test
+    fun nativeEdgeCollapseCleansPreviousPeerWhenAppMovesAcrossNativePanes() {
+        val stale = state(
+            primary = app(10, MUSIC, hostTaskId = 100),
+            secondary = app(20, NAVIGATOR, hostTaskId = 200),
+        )
+
+        val result = SplitPickerAutomaton.reduce(
+            stale,
+            SplitPickerEvent.PaneCollapsed(
+                survivor = SplitPane.SECONDARY,
+                pane = SplitPickerObservedPane(
+                    hostTaskId = 100,
+                    appTaskId = 10,
+                    packageName = MUSIC,
+                ),
+            ),
+        )
+
+        assertEquals(SplitPickerPhase.FULL, result.state.phase)
+        assertEquals(closed(), result.state.slot(SplitPane.PRIMARY))
+        assertEquals(app(10, MUSIC, hostTaskId = 100), result.state.slot(SplitPane.SECONDARY))
+        assertEquals(
+            listOf(
+                SplitPickerAction.RemoveExactTask(20, NAVIGATOR),
+                SplitPickerAction.RemovePickerArtifact(200),
+            ),
+            result.actions,
+        )
+    }
+
+    @Test
     fun invalidNativeEdgeCollapseCannotCorruptTheAutomaton() {
         val split = state(
             primary = app(10, NAVIGATOR, hostTaskId = 100),

@@ -22,20 +22,33 @@ internal class SplitPickerShellSession(
      */
     fun awaitNativePickerCommit(): Boolean {
         var releasedBalancedSamples = 0
+        var releasedNonBalancedSamples = 0
         repeat(NATIVE_PICKER_COMMIT_ATTEMPTS) { attempt ->
             val balanced = callInt("service call activity_task 30") == AREA_BALANCED_SPLIT
-            releasedBalancedSamples = if (balanced && !hasActivePointer(shell("dumpsys input"))) {
-                releasedBalancedSamples + 1
+            val pointerActive = hasActivePointer(shell("dumpsys input"))
+            if (pointerActive) {
+                releasedBalancedSamples = 0
+                releasedNonBalancedSamples = 0
+            } else if (balanced) {
+                releasedBalancedSamples += 1
+                releasedNonBalancedSamples = 0
             } else {
-                0
+                releasedBalancedSamples = 0
+                releasedNonBalancedSamples += 1
             }
             if (releasedBalancedSamples >= NATIVE_PICKER_RELEASED_SAMPLES) return true
+            if (releasedNonBalancedSamples >= NATIVE_PICKER_CANCELLED_SAMPLES) return false
             if (attempt + 1 < NATIVE_PICKER_COMMIT_ATTEMPTS) {
                 pause(NATIVE_PICKER_COMMIT_INTERVAL_MS)
             }
         }
         return false
     }
+
+    /** Final read-only guard immediately before a stock-picker observation becomes a mutation. */
+    fun nativePickerMutationAllowed(): Boolean =
+        callInt("service call activity_task 30") == AREA_BALANCED_SPLIT &&
+            !hasActivePointer(shell("dumpsys input"))
 
     /**
      * Closes only the split gate owned by this product after Home is authoritative.
@@ -216,56 +229,150 @@ internal class SplitPickerShellSession(
     /**
      * Adopts the one owned root left by a native edge collapse.
      *
-     * Area 1/2 identifies the surviving logical pane. The collapsed root must be empty, every
-     * task identity previously recorded for it must have left both native roots, and the survivor
-     * must still satisfy the permanent picker-base invariant. BYD may retain the dismissed tasks
-     * as detached hidden roots; the coordinator removes those exact artifacts after adoption.
+     * Area 1/2 identifies the surviving native pane, but not the previous logical owner. DiLink
+     * may move the surviving app across the two native roots and detach both permanent picker
+     * bases while it collapses the divider. Match the survivor by exact recorded task identities,
+     * reattach only that app's exact picker base when necessary, and require the other native root
+     * to be empty. BYD may retain the dismissed tasks as detached hidden roots; the coordinator
+     * removes only those exact recorded artifacts after adoption.
      * This is deliberately separate from [existingOwnedSession], whose callers require an intact
      * two-root scene.
      */
     fun collapsedOwnedSession(
         pickerComponents: Set<String>,
-        expectedTaskIds: Map<SplitPane, Set<Int>> = emptyMap(),
+        expectedPanes: Map<SplitPane, SplitPickerObservedPane>,
     ): SplitPickerLivePane? {
         val survivor = when (callInt("service call activity_task 30")) {
             AREA_PRIMARY_FULL -> SplitPane.PRIMARY
             AREA_SECONDARY_FULL -> SplitPane.SECONDARY
             else -> return null
         }
-        val collapsed = survivor.other()
+        if (expectedPanes.keys != SplitPane.entries.toSet()) return null
+        if (expectedPanes.values.any { expected ->
+                expected.hostTaskId <= 0 ||
+                    ((expected.appTaskId == null) != (expected.packageName == null)) ||
+                    (expected.appTaskId != null &&
+                        (expected.appTaskId <= 0 || expected.packageName.isNullOrBlank()))
+            }
+        ) {
+            return null
+        }
+
         val roots = nativeRootIds()
         val state = snapshot()
-        val collapsedRoot = state.root(roots.getValue(collapsed))
+        val collapsedRoot = state.root(roots.getValue(survivor.other()))
         if (collapsedRoot?.tasks.orEmpty().any { task -> !task.isEmptyRootMarker() }) return null
 
         val nativeRootIds = roots.values.toSet()
-        val trackedTasks = state.roots.asSequence()
-            .filter { root -> root.displayId == MAIN_DISPLAY_ID }
-            .flatMap { root -> root.tasks.asSequence() }
-            .filter { task -> task.id in expectedTaskIds[collapsed].orEmpty() }
-        if (trackedTasks.any { task -> task.rootId in nativeRootIds }) return null
-
-        val root = state.root(roots.getValue(survivor)) ?: return null
-        val pickers = root.tasks.filter { task ->
-            task.isDenzaPickerBase() && task.matchesAnyComponent(pickerComponents)
-        }
-        if (pickers.size != 1 || root.tasks.size !in 1..MAX_TASKS_PER_PANE) return null
-        val picker = pickers.single()
-        if (picker.bounds != root.bounds) return null
-        val top = root.resolvedTopTask() ?: return null
-        val app = if (top.id == picker.id) {
-            if (!picker.matchesAnyTopComponent(pickerComponents)) return null
-            null
-        } else {
-            if (
-                top.isDenzaPickerBase() ||
-                top.isNativeSplitBootstrap() ||
-                top.bounds != root.bounds
-            ) {
-                return null
+        val survivorRootId = roots.getValue(survivor)
+        val root = state.root(survivorRootId) ?: return null
+        val previousOwners = expectedPanes.filter { (_, expected) ->
+            if (expected.appTaskId != null) {
+                root.tasks.any { task ->
+                    task.id == expected.appTaskId &&
+                        task.effectivePackageName() == expected.packageName &&
+                        !task.isDenzaPickerBase()
+                }
+            } else {
+                root.tasks.any { task ->
+                    task.id == expected.hostTaskId &&
+                        task.isDenzaPickerBase() &&
+                        task.matchesAnyComponent(pickerComponents)
+                }
             }
-            top
         }
+        if (previousOwners.size != 1) return null
+        val (previousOwner, expected) = previousOwners.entries.single()
+
+        val closedIds = expectedPanes.getValue(previousOwner.other()).let { pane ->
+            setOfNotNull(pane.hostTaskId, pane.appTaskId)
+        }
+        val closedTasksInNativeRoots = state.roots.asSequence()
+            .filter { candidate -> candidate.displayId == MAIN_DISPLAY_ID }
+            .flatMap { candidate -> candidate.tasks.asSequence() }
+            .any { task -> task.id in closedIds && task.rootId in nativeRootIds }
+        if (closedTasksInNativeRoots) return null
+
+        val expectedIds = setOfNotNull(expected.hostTaskId, expected.appTaskId)
+        if (root.tasks.any { task -> !task.isEmptyRootMarker() && task.id !in expectedIds }) {
+            return null
+        }
+
+        val pickerInRoot = root.tasks.singleOrNull { task ->
+            task.id == expected.hostTaskId &&
+                task.isDenzaPickerBase() &&
+                task.matchesAnyComponent(pickerComponents)
+        }
+        var reattachedFromRootId: Int? = null
+        if (pickerInRoot == null) {
+            val detachedPicker = state.roots.asSequence()
+                .filter { candidate -> candidate.displayId == MAIN_DISPLAY_ID }
+                .flatMap { candidate -> candidate.tasks.asSequence() }
+                .singleOrNull { task ->
+                    task.id == expected.hostTaskId &&
+                        task.rootId !in nativeRootIds &&
+                        task.isDenzaPickerBase() &&
+                        task.matchesAnyComponent(pickerComponents)
+                }
+                ?: return null
+            val originalRootId = detachedPicker.rootId
+            try {
+                moveTask(detachedPicker.id, survivorRootId, toTop = false)
+                reattachedFromRootId = originalRootId
+                pause(ROOT_SETTLE_MS)
+                check(callInt("service call activity_task 30") == survivor.fullArea) {
+                    "Split изменился при возврате picker ${detachedPicker.id}"
+                }
+                normalizeTaskToRoot(detachedPicker.id, survivorRootId)
+            } catch (error: Throwable) {
+                runCatching { moveTask(detachedPicker.id, originalRootId, toTop = false) }
+                    .onFailure(error::addSuppressed)
+                throw error
+            }
+        }
+
+        val settled = settledCollapsedPane(
+            survivor = survivor,
+            rootId = survivorRootId,
+            expected = expected,
+            pickerComponents = pickerComponents,
+        )
+        if (settled != null) return settled
+        val rollbackRootId = reattachedFromRootId ?: return null
+        val error = IllegalStateException(
+            "Split изменился после возврата picker ${expected.hostTaskId}",
+        )
+        runCatching { moveTask(expected.hostTaskId, rollbackRootId, toTop = false) }
+            .onFailure(error::addSuppressed)
+        throw error
+    }
+
+    private fun settledCollapsedPane(
+        survivor: SplitPane,
+        rootId: Int,
+        expected: SplitPickerObservedPane,
+        pickerComponents: Set<String>,
+    ): SplitPickerLivePane? {
+        val settledRoot = snapshot().root(rootId) ?: return null
+        val picker = settledRoot.tasks.singleOrNull { task ->
+            task.id == expected.hostTaskId &&
+                task.isDenzaPickerBase() &&
+                task.matchesAnyComponent(pickerComponents)
+        } ?: return null
+        if (picker.bounds != settledRoot.bounds) return null
+        val app = expected.appTaskId?.let { appTaskId ->
+            settledRoot.tasks.singleOrNull { task ->
+                task.id == appTaskId &&
+                    task.effectivePackageName() == expected.packageName &&
+                    !task.isDenzaPickerBase() &&
+                    !task.isNativeSplitBootstrap() &&
+                    task.bounds == settledRoot.bounds
+            } ?: return null
+        }
+        if (settledRoot.tasks.size != if (app == null) 1 else MAX_TASKS_PER_PANE) return null
+        val top = settledRoot.resolvedTopTask() ?: return null
+        if (top.id != (app?.id ?: picker.id)) return null
+        if (app == null && !picker.matchesAnyTopComponent(pickerComponents)) return null
         return SplitPickerLivePane(
             pane = survivor,
             hostTaskId = picker.id,
@@ -995,6 +1102,9 @@ internal class SplitPickerShellSession(
         val host = snapshot().root(rootId)?.tasks
             ?.firstOrNull { it.id == hostTaskId && it.isNativeSplitBootstrap() }
             ?: error("Штатный host выбранного окна исчез")
+        check(nativePickerMutationAllowed()) {
+            "Нативный split изменился перед запуском picker"
+        }
         val picker = launchPickerInPane(pane, rootId, pickerComponent)
         removeBootstrapIfPresent(host)
         pause(ROOT_SETTLE_MS)
@@ -1737,9 +1847,13 @@ internal class SplitPickerShellSession(
         const val LAUNCH_MODE_SINGLE_TASK = 2
         const val TASK_DISCOVERY_ATTEMPTS = 12
         const val TASK_DISCOVERY_INTERVAL_MS = 100L
-        const val NATIVE_PICKER_COMMIT_ATTEMPTS = 60
+        const val NATIVE_PICKER_COMMIT_ATTEMPTS = 150
         const val NATIVE_PICKER_COMMIT_INTERVAL_MS = 100L
-        const val NATIVE_PICKER_RELEASED_SAMPLES = 2
+        // Two 100 ms samples were live-proven insufficient: edge collapse can expose area 3 for
+        // substantially longer before settling to area 1/2. One second keeps this path read-only
+        // through that firmware transition without drawing a window over the user's gesture.
+        const val NATIVE_PICKER_RELEASED_SAMPLES = 10
+        const val NATIVE_PICKER_CANCELLED_SAMPLES = 5
         const val HOME_CONFIRM_ATTEMPTS = 6
         const val HOME_CONFIRM_INTERVAL_MS = 100L
         const val DIVIDER_RECONCILE_SETTLE_MS = 1_500L

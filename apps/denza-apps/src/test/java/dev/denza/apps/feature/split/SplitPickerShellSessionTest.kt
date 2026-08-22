@@ -30,9 +30,9 @@ class SplitPickerShellSessionTest {
         )
 
         assertTrue(session.awaitNativePickerCommit())
-        assertEquals(4, areaReads)
-        assertEquals(3, inputReads)
-        assertEquals(3, pauses)
+        assertEquals(11, areaReads)
+        assertEquals(11, inputReads)
+        assertEquals(10, pauses)
     }
 
     @Test
@@ -44,7 +44,7 @@ class SplitPickerShellSessionTest {
                 when (command) {
                     "service call activity_task 30" -> {
                         areaReads += 1
-                        intParcel(if (areaReads <= 2) 3 else 2)
+                        intParcel(if (areaReads <= 8) 3 else 2)
                     }
                     "dumpsys input" -> {
                         inputReads += 1
@@ -58,8 +58,8 @@ class SplitPickerShellSessionTest {
         )
 
         assertFalse(session.awaitNativePickerCommit())
-        assertTrue(areaReads > 2)
-        assertEquals(2, inputReads)
+        assertEquals(13, areaReads)
+        assertEquals(13, inputReads)
     }
 
     @Test
@@ -68,17 +68,79 @@ class SplitPickerShellSessionTest {
         var pauses = 0
         val session = SplitPickerShellSession(
             shell = { command ->
-                assertEquals("service call activity_task 30", command)
-                reads += 1
-                intParcel(2)
+                when (command) {
+                    "service call activity_task 30" -> {
+                        reads += 1
+                        intParcel(2)
+                    }
+                    "dumpsys input" -> NO_ACTIVE_TOUCH
+                    else -> error("Unexpected command: $command")
+                }
             },
             apkPath = "/tmp/denza-apps.apk",
             pause = { pauses += 1 },
         )
 
         assertFalse(session.awaitNativePickerCommit())
-        assertTrue(reads > 1)
+        assertEquals(5, reads)
         assertEquals(reads - 1, pauses)
+    }
+
+    @Test
+    fun activeDividerCommitWaitIsBoundedWithoutMutation() {
+        var areaReads = 0
+        var inputReads = 0
+        var pauses = 0
+        val session = SplitPickerShellSession(
+            shell = { command ->
+                when (command) {
+                    "service call activity_task 30" -> {
+                        areaReads += 1
+                        intParcel(3)
+                    }
+                    "dumpsys input" -> {
+                        inputReads += 1
+                        ACTIVE_DIVIDER_TOUCH
+                    }
+                    else -> error("Unexpected command: $command")
+                }
+            },
+            apkPath = "/tmp/denza-apps.apk",
+            pause = { pauses += 1 },
+        )
+
+        assertFalse(session.awaitNativePickerCommit())
+        assertEquals(150, areaReads)
+        assertEquals(150, inputReads)
+        assertEquals(149, pauses)
+    }
+
+    @Test
+    fun nativePickerMutationIsRejectedWhenAreaChangesAfterCommitWait() {
+        var areaReads = 0
+        var inputReads = 0
+        val session = SplitPickerShellSession(
+            shell = { command ->
+                when (command) {
+                    "service call activity_task 30" -> {
+                        areaReads += 1
+                        intParcel(if (areaReads <= 10) 3 else 2)
+                    }
+                    "dumpsys input" -> {
+                        inputReads += 1
+                        NO_ACTIVE_TOUCH
+                    }
+                    else -> error("Unexpected command: $command")
+                }
+            },
+            apkPath = "/tmp/denza-apps.apk",
+            pause = {},
+        )
+
+        assertTrue(session.awaitNativePickerCommit())
+        assertFalse(session.nativePickerMutationAllowed())
+        assertEquals(11, areaReads)
+        assertEquals(10, inputReads)
     }
 
     @Test
@@ -442,12 +504,15 @@ class SplitPickerShellSessionTest {
 
         val collapsed = split.collapsedOwnedSession(
             pickerComponents = PICKER_COMPONENTS,
-            expectedTaskIds = mapOf(
-                SplitPane.PRIMARY to setOf(
-                    hosts.getValue(SplitPane.PRIMARY),
-                    navigator.appTaskId,
+            expectedPanes = mapOf(
+                SplitPane.PRIMARY to SplitPickerObservedPane(
+                    hostTaskId = hosts.getValue(SplitPane.PRIMARY),
+                    appTaskId = navigator.appTaskId,
+                    packageName = navigator.packageName,
                 ),
-                SplitPane.SECONDARY to setOf(hosts.getValue(SplitPane.SECONDARY)),
+                SplitPane.SECONDARY to SplitPickerObservedPane(
+                    hostTaskId = hosts.getValue(SplitPane.SECONDARY),
+                ),
             ),
         )
 
@@ -475,7 +540,12 @@ class SplitPickerShellSessionTest {
 
         val collapsed = split.collapsedOwnedSession(
             pickerComponents = PICKER_COMPONENTS,
-            expectedTaskIds = mapOf(SplitPane.PRIMARY to setOf(vanishedHost)),
+            expectedPanes = mapOf(
+                SplitPane.PRIMARY to SplitPickerObservedPane(vanishedHost),
+                SplitPane.SECONDARY to SplitPickerObservedPane(
+                    hosts.getValue(SplitPane.SECONDARY),
+                ),
+            ),
         )
 
         assertEquals(SplitPane.SECONDARY, collapsed?.pane)
@@ -493,10 +563,128 @@ class SplitPickerShellSessionTest {
 
         val collapsed = split.collapsedOwnedSession(
             pickerComponents = PICKER_COMPONENTS,
-            expectedTaskIds = mapOf(SplitPane.PRIMARY to setOf(vanishedHost)),
+            expectedPanes = mapOf(
+                SplitPane.PRIMARY to SplitPickerObservedPane(vanishedHost),
+                SplitPane.SECONDARY to SplitPickerObservedPane(
+                    hosts.getValue(SplitPane.SECONDARY),
+                ),
+            ),
         )
 
         assertEquals(null, collapsed)
+    }
+
+    @Test
+    fun nativeEdgeCollapseRehostsExactPickerBehindAppMovedToSurvivorRoot() {
+        val fake = FakeShell()
+        val split = session(fake)
+        val hosts = split.openPickers(PICKERS, preservedPackages = emptyMap())
+        val music = split.selectApp(
+            pickerTaskId = hosts.getValue(SplitPane.PRIMARY),
+            target = SplitLaunchTarget(MUSIC, "$MUSIC/$MUSIC.MainActivity"),
+            pickerComponents = PICKER_COMPONENTS,
+        )
+        val navigator = split.selectApp(
+            pickerTaskId = hosts.getValue(SplitPane.SECONDARY),
+            target = SplitLaunchTarget(NAVIGATOR, "$NAVIGATOR/$NAVIGATOR.MainActivity"),
+            pickerComponents = PICKER_COMPONENTS,
+        )
+
+        // Live DiLink 5.1 trace: area 2/root 3 survived, but BYD moved the app previously
+        // recorded in PRIMARY there and detached both permanent picker bases.
+        fake.moveTask(hosts.getValue(SplitPane.PRIMARY), FULL_ROOT)
+        fake.moveTask(hosts.getValue(SplitPane.SECONDARY), FULL_ROOT)
+        fake.moveTask(navigator.appTaskId, FULL_ROOT)
+        fake.moveTask(music.appTaskId, FULL_ROOT)
+        fake.area = 2
+        fake.moveTask(music.appTaskId, SECONDARY_ROOT)
+        fake.commands.clear()
+
+        val collapsed = split.collapsedOwnedSession(
+            pickerComponents = PICKER_COMPONENTS,
+            expectedPanes = mapOf(
+                SplitPane.PRIMARY to SplitPickerObservedPane(
+                    hostTaskId = hosts.getValue(SplitPane.PRIMARY),
+                    appTaskId = music.appTaskId,
+                    packageName = music.packageName,
+                ),
+                SplitPane.SECONDARY to SplitPickerObservedPane(
+                    hostTaskId = hosts.getValue(SplitPane.SECONDARY),
+                    appTaskId = navigator.appTaskId,
+                    packageName = navigator.packageName,
+                ),
+            ),
+        )
+
+        assertEquals(SplitPane.SECONDARY, collapsed?.pane)
+        assertEquals(hosts.getValue(SplitPane.PRIMARY), collapsed?.hostTaskId)
+        assertEquals(music.appTaskId, collapsed?.appTaskId)
+        assertEquals(MUSIC, collapsed?.appPackageName)
+        assertEquals(SECONDARY_ROOT, fake.taskRoot(hosts.getValue(SplitPane.PRIMARY)))
+        assertEquals(music.appTaskId.toString(), fake.topTaskId(SECONDARY_ROOT)?.toString())
+        assertTrue(
+            fake.commands.any {
+                it == "am stack move-task ${hosts.getValue(SplitPane.PRIMARY)} " +
+                    "$SECONDARY_ROOT false"
+            },
+        )
+        assertFalse(
+            fake.commands.any { command ->
+                command.startsWith("am start ") ||
+                    command.startsWith("am task focus ") ||
+                    command.contains(" remove-task ")
+            },
+        )
+    }
+
+    @Test
+    fun collapsedPickerRehostRollsBackWhenNativeAreaChangesDuringMutation() {
+        val fake = FakeShell()
+        val split = session(fake)
+        val hosts = split.openPickers(PICKERS, preservedPackages = emptyMap())
+        val music = split.selectApp(
+            pickerTaskId = hosts.getValue(SplitPane.PRIMARY),
+            target = SplitLaunchTarget(MUSIC, "$MUSIC/$MUSIC.MainActivity"),
+            pickerComponents = PICKER_COMPONENTS,
+        )
+        fake.moveTask(hosts.getValue(SplitPane.PRIMARY), FULL_ROOT)
+        fake.moveTask(hosts.getValue(SplitPane.SECONDARY), FULL_ROOT)
+        fake.moveTask(music.appTaskId, FULL_ROOT)
+        fake.area = 2
+        fake.moveTask(music.appTaskId, SECONDARY_ROOT)
+        fake.destabilizeAreaOnNextShellMove()
+        fake.commands.clear()
+
+        val result = runCatching {
+            split.collapsedOwnedSession(
+                pickerComponents = PICKER_COMPONENTS,
+                expectedPanes = mapOf(
+                    SplitPane.PRIMARY to SplitPickerObservedPane(
+                        hostTaskId = hosts.getValue(SplitPane.PRIMARY),
+                        appTaskId = music.appTaskId,
+                        packageName = music.packageName,
+                    ),
+                    SplitPane.SECONDARY to SplitPickerObservedPane(
+                        hostTaskId = hosts.getValue(SplitPane.SECONDARY),
+                    ),
+                ),
+            )
+        }
+
+        assertTrue(result.isFailure)
+        assertEquals(FULL_ROOT, fake.taskRoot(hosts.getValue(SplitPane.PRIMARY)))
+        assertTrue(
+            fake.commands.any {
+                it == "am stack move-task ${hosts.getValue(SplitPane.PRIMARY)} " +
+                    "$SECONDARY_ROOT false"
+            },
+        )
+        assertTrue(
+            fake.commands.any {
+                it == "am stack move-task ${hosts.getValue(SplitPane.PRIMARY)} $FULL_ROOT false"
+            },
+        )
+        assertFalse(fake.commands.any { it.contains(" remove-task ") })
     }
 
     @Test
@@ -1362,6 +1550,7 @@ class SplitPickerShellSessionTest {
         private var nextTaskId = 100
         private var fullForegroundReplaced = false
         private var disappearOnNextRemove = false
+        private var destabilizeAreaOnNextShellMove = false
         private var transientAreaReadsRemaining = 0
         private val supported = mutableSetOf<String>()
         private val tasks = mutableListOf<Task>()
@@ -1406,6 +1595,8 @@ class SplitPickerShellSessionTest {
                 task.hostedComponent?.substringAfter('/') ?: task.activityName
             }
 
+        fun topTaskId(rootId: Int): Int? = tasks.lastOrNull { it.rootId == rootId }?.id
+
         fun isGateOpen(): Boolean = gate
 
         fun promoteActivity(rootId: Int, activityName: String) {
@@ -1439,6 +1630,10 @@ class SplitPickerShellSessionTest {
 
         fun disappearOnNextRemove() {
             disappearOnNextRemove = true
+        }
+
+        fun destabilizeAreaOnNextShellMove() {
+            destabilizeAreaOnNextShellMove = true
         }
 
         fun shell(command: String): String {
@@ -1673,6 +1868,10 @@ class SplitPickerShellSessionTest {
                             val firstInRoot = tasks.indexOfFirst { it.rootId == rootId }
                             if (firstInRoot >= 0) tasks.add(firstInRoot, task) else tasks += task
                         }
+                    }
+                    if (destabilizeAreaOnNextShellMove) {
+                        destabilizeAreaOnNextShellMove = false
+                        area = 3
                     }
                     if (rootId == FULL_ROOT) area = 4
                     ""
