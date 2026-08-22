@@ -2,23 +2,23 @@ package dev.denza.apps.feature.trip
 
 import android.graphics.Canvas
 import android.graphics.Color
-import android.graphics.Paint
-import android.graphics.Typeface
+import dev.denza.apps.feature.panel.PanelCanvas
+import dev.denza.apps.feature.panel.PanelPalette
 
 /**
- * Palette for the canvas rendering. These mirror the app's existing Compose
- * theme constants (see ui/DenzaAppsScreen.kt) rather than inventing new hues:
- * dark background, mint accent, amber warning, ink text, muted labels.
+ * Palette for the trip panel.
  *
- * The journey-thread time-of-day stops (dawn blue -> day mint -> golden amber ->
- * evening coral -> night violet) are the palette the feature spec defines for
- * that specific mapping.
+ * The shared hues live in [PanelPalette] — every canvas panel in the app draws
+ * with the same dark background, mint accent, amber warning, ink text and muted
+ * labels. What is specific to this feature is the journey thread's time-of-day
+ * ramp (dawn blue -> day mint -> golden amber -> evening coral -> night violet),
+ * which the feature spec defines for that one mapping.
  */
 object TripPalette {
-    val MINT = 0xFF73E0BD.toInt() // Accent
-    val AMBER = 0xFFF2C46D.toInt() // Warning
-    val INK = 0xFFF3F7F8.toInt()
-    val MUTED = 0xFF9AA7AD.toInt()
+    val MINT = PanelPalette.MINT
+    val AMBER = PanelPalette.AMBER
+    val INK = PanelPalette.INK
+    val MUTED = PanelPalette.MUTED
 
     // Time-of-day stops for the journey thread.
     private val STOPS = arrayOf(
@@ -42,20 +42,16 @@ object TripPalette {
         return Color.rgb(r, g, bl)
     }
 
-    fun alpha(color: Int, a: Float): Int {
-        val clamped = (a.coerceIn(0f, 1f) * 255).toInt()
-        return (color and 0x00FFFFFF) or (clamped shl 24)
-    }
+    fun alpha(color: Int, a: Float): Int = PanelPalette.alpha(color, a)
 }
 
 /**
- * Coordinate + text helpers for the panel renderer. The fullscreen panel uses
- * its original virtual 1850x360 space; a renderer may select another virtual
- * space when its content genuinely reflows (the narrow split layout does this).
- * All Paint/Path objects are preallocated — nothing is allocated in the hot draw
- * path. Rendering and animation happen on the main thread.
+ * The trip panel's renderer contract on top of the shared [PanelCanvas] drawing
+ * kit. The fullscreen panel uses its original virtual 1850x360 space; a renderer
+ * may select another virtual space when its content genuinely reflows (the
+ * narrow split layout does this).
  */
-abstract class BaseTripRenderer {
+abstract class BaseTripRenderer : PanelCanvas() {
 
     /**
      * @param frameTimeSec monotonic seconds since the panel started (for phase)
@@ -79,70 +75,9 @@ abstract class BaseTripRenderer {
         showLocationHint: Boolean,
         narrowLayout: Boolean = false,
     )
-    protected var w: Float = 0f
-    protected var h: Float = 0f
-    private var sx: Float = 1f
-    private var sy: Float = 1f
 
-    protected val fill = Paint(Paint.ANTI_ALIAS_FLAG)
-    protected val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.STROKE
-        strokeCap = Paint.Cap.ROUND
-        strokeJoin = Paint.Join.ROUND
-    }
-    protected val labelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { typeface = Typeface.SANS_SERIF }
-    protected val valuePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { typeface = Typeface.MONOSPACE }
-
-    protected fun setSize(
-        width: Float,
-        height: Float,
-        virtualWidth: Float = VIRTUAL_W,
-        virtualHeight: Float = VIRTUAL_H,
-    ) {
-        w = width
-        h = height
-        sx = width / virtualWidth
-        sy = height / virtualHeight
-    }
-
-    /** Map an x from the active virtual layout to the canvas. */
-    protected fun vx(x: Float): Float = x * sx
-
-    /** Map a y from the active virtual layout to the canvas. */
-    protected fun vy(y: Float): Float = y * sy
-
-    /** Scale a size/radius/stroke by the vertical factor (keeps shapes round). */
-    protected fun vs(size: Float): Float = size * sy
-
-    protected fun label(
-        canvas: Canvas,
-        text: String,
-        x: Float,
-        y: Float,
-        sizeV: Float,
-        color: Int,
-        align: Paint.Align = Paint.Align.LEFT,
-    ) {
-        labelPaint.textSize = vs(sizeV)
-        labelPaint.color = color
-        labelPaint.textAlign = align
-        canvas.drawText(text, x, y, labelPaint)
-    }
-
-    protected fun value(
-        canvas: Canvas,
-        text: String,
-        x: Float,
-        y: Float,
-        sizeV: Float,
-        color: Int,
-        align: Paint.Align = Paint.Align.LEFT,
-    ) {
-        valuePaint.textSize = vs(sizeV)
-        valuePaint.color = color
-        valuePaint.textAlign = align
-        canvas.drawText(text, x, y, valuePaint)
-    }
+    protected fun setSize(width: Float, height: Float) =
+        setSize(width, height, VIRTUAL_W, VIRTUAL_H)
 
     companion object {
         const val VIRTUAL_W = 1850f
