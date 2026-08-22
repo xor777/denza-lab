@@ -74,8 +74,14 @@ internal class SplitPickerShellSession(
             val top = if (area == AREA_BALANCED_SPLIT) {
                 root.resolvedTopTask()
             } else {
-                root.resolvedCoveredTopTask()
-                    ?: root.resolveExpectedCoveredApp(expectedApps[pane])
+                val expected = expectedApps[pane]
+                if (expected != null) {
+                    root.resolveExpectedCoveredApp(expected)
+                } else {
+                    root.resolvedCoveredTopTask()?.takeIf { task ->
+                        task.isDenzaPickerBase() && task.matchesAnyComponent(pickerComponents)
+                    }
+                }
             } ?: return null
             val app = if (top.id == picker.id) {
                 if (!picker.matchesAnyTopComponent(pickerComponents)) return null
@@ -426,14 +432,11 @@ internal class SplitPickerShellSession(
                     it.matchesAnyComponent(pickerComponents)
             }
         check(pickerHost != null) { "Пикер этого окна больше не найден" }
-        val duplicatePeerTasks = before.roots.asSequence()
-            .filter { it.displayId == MAIN_DISPLAY_ID }
-            .flatMap { it.tasks.asSequence() }
-            .filter { task ->
-                task.rootId != targetRootId &&
-                    task.effectivePackageName() == target.packageName
-            }
-            .toList()
+        // Only the other native pane is a live duplicate. After OEM collapse the old app task
+        // can linger briefly in the hidden full-IVI root; a subsequent launch legitimately
+        // replaces that stale task and must not be rejected or "preserved" as another window.
+        val duplicatePeerTasks = before.root(otherRootId)?.tasks.orEmpty()
+            .filter { task -> task.effectivePackageName() == target.packageName }
         check(duplicatePeerTasks.isEmpty() || target.launchMode < LAUNCH_MODE_SINGLE_TASK) {
             "Это приложение не поддерживает два окна"
         }
@@ -464,18 +467,18 @@ internal class SplitPickerShellSession(
             .toList()
         val baselineTaskIds = baselineTasks.mapTo(mutableSetOf(), SplitTask::id)
         val preservedTargetTaskRoots = baselineTasks.asSequence()
-            .filter { task -> task.effectivePackageName() == target.packageName }
+            .filter { task ->
+                task.rootId == otherRootId &&
+                    task.effectivePackageName() == target.packageName
+            }
             .associate { task -> task.id to task.rootId }
 
         try {
-            val launchedTask = launchTargetWithFallback(
+            val launchedTask = launchTargetDirectIntoRoot(
                 target = target,
                 pane = pane,
                 rootId = targetRootId,
-                pickerTaskId = pickerHost.id,
-                pickerComponents = pickerComponents,
-                baselineTaskIds = baselineTaskIds,
-                preservedTargetTaskRoots = preservedTargetTaskRoots,
+                excludedTaskIds = preservedTargetTaskRoots.keys,
             )
             normalizeTaskToRoot(launchedTask.id, targetRootId)
             pause(ROOT_SETTLE_MS)
@@ -592,91 +595,6 @@ internal class SplitPickerShellSession(
         )
     }
 
-    /**
-     * Stable-host launch is an optional upgrade over the live-proven direct BYD launch.
-     * Never let an incomplete host attempt weaken the baseline: remove its exact artifacts,
-     * prove the permanent picker is interactive again, then fall back to the old command.
-     */
-    private fun launchTargetWithFallback(
-        target: SplitLaunchTarget,
-        pane: SplitPane,
-        rootId: Int,
-        pickerTaskId: Int,
-        pickerComponents: Set<String>,
-        baselineTaskIds: Set<Int>,
-        preservedTargetTaskRoots: Map<Int, Int>,
-    ): SplitTask {
-        // singleTask/singleInstance launchers cannot join the host task by Android contract.
-        // Trying still lets SmartMulti place their new task in the opposite pane, causing a
-        // global split rebalance before we can correct it. Keep those launchers on the proven
-        // direct BYD path from the outset; this is a platform property, not an app allowlist.
-        if (target.launchMode >= LAUNCH_MODE_SINGLE_TASK) {
-            return launchTargetDirectIntoRoot(
-                target = target,
-                pane = pane,
-                rootId = rootId,
-                excludedTaskIds = preservedTargetTaskRoots.keys,
-            )
-        }
-
-        val hostResult = runCatching {
-            launchTargetInStableHost(
-                target = target,
-                pane = pane,
-                rootId = rootId,
-                pickerComponents = pickerComponents,
-                excludedTargetTaskIds = preservedTargetTaskRoots.keys,
-            )
-        }
-        hostResult.getOrNull()?.let { return it }
-        val hostError = hostResult.exceptionOrNull()
-            ?: error("Host-запуск завершился без результата")
-
-        try {
-            cleanupLaunchAttempt(
-                packageName = target.packageName,
-                baselineTaskIds = baselineTaskIds,
-                preservedTargetTaskRoots = preservedTargetTaskRoots,
-            )
-            requirePickerReady(rootId, pickerTaskId, pickerComponents)
-        } catch (cleanupError: Throwable) {
-            cleanupError.addSuppressed(hostError)
-            throw cleanupError
-        }
-
-        return try {
-            launchTargetDirectIntoRoot(
-                target = target,
-                pane = pane,
-                rootId = rootId,
-                excludedTaskIds = preservedTargetTaskRoots.keys,
-            )
-        } catch (directError: Throwable) {
-            runCatching {
-                cleanupLaunchAttempt(
-                    packageName = target.packageName,
-                    baselineTaskIds = baselineTaskIds,
-                    preservedTargetTaskRoots = preservedTargetTaskRoots,
-                )
-            }
-                .exceptionOrNull()
-                ?.let(directError::addSuppressed)
-            runCatching { requirePickerReady(rootId, pickerTaskId, pickerComponents) }
-                .exceptionOrNull()
-                ?.let(directError::addSuppressed)
-            if (preservedTargetTaskRoots.isNotEmpty()) {
-                val unsupported = IllegalStateException(
-                    "Это приложение не поддерживает два окна",
-                    directError,
-                )
-                unsupported.addSuppressed(hostError)
-                throw unsupported
-            }
-            directError.addSuppressed(hostError)
-            throw directError
-        }
-    }
-
     private fun launchTargetDirectIntoRoot(
         target: SplitLaunchTarget,
         pane: SplitPane,
@@ -706,7 +624,11 @@ internal class SplitPickerShellSession(
                 "-c android.intent.category.LAUNCHER " +
                 "-c $category " +
                 "-n ${shellQuote(target.componentName)} " +
-                "-f $APP_LAUNCH_FLAGS",
+                "-f " + if (target.launchMode >= LAUNCH_MODE_SINGLE_TASK) {
+                    SINGLE_TASK_APP_LAUNCH_FLAGS
+                } else {
+                    ORDINARY_APP_LAUNCH_FLAGS
+                },
         )
         pause(APP_LAUNCH_SETTLE_MS)
         return awaitTaskMatching { task ->
@@ -1786,7 +1708,8 @@ internal class SplitPickerShellSession(
         const val AREA_FULL_IVI = 4
         const val EXPAND_PRIMARY_MODE = 101
         const val EXPAND_SECONDARY_MODE = 102
-        const val APP_LAUNCH_FLAGS = "0x10200000"
+        const val ORDINARY_APP_LAUNCH_FLAGS = "0x18200000"
+        const val SINGLE_TASK_APP_LAUNCH_FLAGS = "0x10200000"
         const val PICKER_LAUNCH_FLAGS = "0x18010000"
         const val PRIMARY_PICKER_CATEGORY = "byd.intent.category.START_IVI_PRIMARY"
         const val SECONDARY_PICKER_CATEGORY = "byd.intent.category.START_IVI_SECOND"

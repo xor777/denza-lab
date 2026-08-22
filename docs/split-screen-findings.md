@@ -340,6 +340,10 @@ primary root and its temporary host `#398` was gone after settlement.
 
 ### Technical debt: selected-app host
 
+> **Retired on 2026-08-22.** This section preserves the intermediate host
+> experiment. Active picker selection now launches the chosen application as
+> its own Android task; `SplitAppHostActivity` is no longer on the launch path.
+
 `SplitAppHostActivity` remains an experimental compatibility layer, not part of
 the proven firmware contract. A host can keep a deep Activity in the picker's
 task, but SmartMulti may also reparent the host and trigger a global split
@@ -483,6 +487,9 @@ installed debug APK SHA-256 was
 `26c1fe7603fb62b69845c3a2544c1a12462ac06c9af38b1dcae9079afc4b3cc6`.
 
 ### One-Back completion for stable-host apps (2026-08-22)
+
+> **Superseded later on 2026-08-22.** The host lifecycle below is historical.
+> Selected apps now use their own tasks and ordinary Android Back behavior.
 
 Ordinary standard-launch-mode apps run above a resizeable
 `SplitAppHostActivity` in a task separate from the permanent picker. The host
@@ -630,6 +637,50 @@ was `PICKER + APP`, no restore notice was visible, and no Denza Apps or AVC cras
 was recorded. Yandex Music remained in `PlaybackState=3` throughout. The
 installed APK SHA-256 was
 `24eed1f3c5247293489040a378f7a2c20d0a20406c212691593c44147149bb3f`.
+
+### Native task identity in the divider overlay (2026-08-22)
+
+The native divider overlay exposed the remaining cost of the selected-app host.
+Albums was visibly running, but the firmware displayed the Denza Apps icon next
+to **Release to close window**. The task snapshot explained the mismatch:
+task 487 had base activity `dev.denza.apps/.feature.split.SplitAppHostActivity`
+and only its top activity belonged to `com.byd.auto_photo`. SmartMulti renders
+the overlay from the task's base identity, so no icon patch in the picker could
+make that topology truthful.
+
+Active selection now launches every target directly into the chosen BYD root.
+Ordinary launcher Activities use `NEW_TASK | MULTIPLE_TASK |
+RESET_TASK_IF_NEEDED` (`0x18200000`), which gives the pane an app-owned task and
+retains support for two windows of a standard-launch-mode application.
+`singleTask` and `singleInstance` launchers keep `0x10200000`; their Android task
+contract still rejects a second live pane. Hidden area-4 adoption was tightened
+at the same boundary: an application is accepted only by its persisted exact
+task id and package, while an unrecorded hidden child may identify only an exact
+picker base.
+
+The first live pass restored 2GIS as app-owned task 491 and Albums as app-owned
+task 492 above picker bases 489/490. During a divider drag the native overlay
+then showed the real 2GIS and Albums icons, with no Denza Apps icon. Deliberately
+releasing in the close zone exposed one more restoration race: the closed
+Albums task 492 lingered in the hidden full-IVI root, the firmware replaced it
+with task 497 on reopen, and the duplicate guard incorrectly treated the stale
+task as a peer that had to survive. The failure cleanup consequently removed
+the correct new task.
+
+Only a same-package task in the other native split root is now protected as a
+live duplicate. A stale task outside both roots may be replaced by the firmware
+without turning a successful launch into cleanup. The regression fixture
+replaces such a full-IVI task during launch and requires the app-owned split
+task to remain. The complete unit, lint, and debug-build gate passed.
+
+Final live acceptance installed APK SHA-256
+`4a5d8d8c8bf6f5cbbadc997ba18fa2e63d80012281e573c7b72677d0b6b8db45`.
+The exact collapse-to-reopen sequence recreated picker bases 504/505, restored
+2GIS as task 506 and Albums as task 507, and remained settled as `APP + APP`
+after the full confirmation period. Both app tasks had their own package as the
+base identity; no restoration notice, product `remove-task`, Denza Apps crash,
+or AVC denial was recorded. Yandex Music was returned to
+`PlaybackState=3` after the acceptance run.
 
 The corpus used for this contract is `/system/framework/services.jar` SHA-256
 `23a58a4e3c98c50541785390f1234e8c4d7138b5dd170c4f5843bae15b93c019`
