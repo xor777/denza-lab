@@ -6,17 +6,28 @@ import org.junit.Test
 
 class SplitNativePickerAccessControllerTest {
     @Test
-    fun packageFilteredVersionIsReboundForUnfilteredConfiguration() {
+    fun unsettledVersionIsReboundAfterAndroidProcessesDisable() {
         val split =
             "dev.denza.apps/dev.denza.apps.feature.split.SplitNativePickerAccessibilityService"
         val system = "com.android.systemui/.custom.StatusBarAccessibilityService"
-        val shell = FakeAccessibilitySettings(listOf(system, split))
-        val lease = FakeAccessLease(owned = true, configurationVersion = 2)
+        val timeline = mutableListOf<String>()
+        val shell = FakeAccessibilitySettings(listOf(system, split)) {
+            timeline += "write:${it.joinToString(":")}"
+        }
+        val lease = FakeAccessLease(owned = true, configurationVersion = 3)
 
-        SplitNativePickerAccessController(shell::run, lease).enable()
+        SplitNativePickerAccessController(
+            shell = shell::run,
+            leaseStore = lease,
+            pauseAfterDisable = { timeline += "unbind-settled" },
+        ).enable()
 
         assertEquals(listOf(listOf(system), listOf(system, split)), shell.writes)
-        assertEquals(3, lease.configurationVersion())
+        assertEquals(
+            listOf("write:$system", "unbind-settled", "write:$system:$split"),
+            timeline,
+        )
+        assertEquals(4, lease.configurationVersion())
     }
 
     @Test
@@ -39,7 +50,10 @@ class SplitNativePickerAccessControllerTest {
         assertEquals(2, shell.writes.size)
     }
 
-    private class FakeAccessibilitySettings(initial: List<String>) {
+    private class FakeAccessibilitySettings(
+        initial: List<String>,
+        private val onWrite: (List<String>) -> Unit = {},
+    ) {
         var services = initial
         val writes = mutableListOf<List<String>>()
 
@@ -53,6 +67,7 @@ class SplitNativePickerAccessControllerTest {
                     .split(':')
                     .filter(String::isNotBlank)
                 writes += services
+                onWrite(services)
                 ""
             }
             else -> error("Unexpected command: $command")

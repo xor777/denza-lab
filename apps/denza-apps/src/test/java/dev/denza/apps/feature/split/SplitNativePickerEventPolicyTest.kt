@@ -21,6 +21,13 @@ class SplitNativePickerEventPolicyTest {
             ),
         )
         assertEquals(
+            SplitAccessibilityEventTarget.HOME,
+            SplitAccessibilityEventPolicy.target(
+                packageName = "com.byd.mycar",
+                className = null,
+            ),
+        )
+        assertEquals(
             SplitAccessibilityEventTarget.IGNORE,
             SplitAccessibilityEventPolicy.target(
                 packageName = "com.android.launcher3",

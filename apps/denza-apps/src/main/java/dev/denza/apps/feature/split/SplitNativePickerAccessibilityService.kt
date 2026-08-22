@@ -66,6 +66,7 @@ class SplitNativePickerAccessibilityService : AccessibilityService() {
 internal class SplitNativePickerAccessController(
     private val shell: (String) -> String,
     private val leaseStore: SplitNativePickerAccessLeaseStore,
+    private val pauseAfterDisable: () -> Unit = { Thread.sleep(250L) },
 ) {
     fun enable() {
         val current = read()
@@ -74,8 +75,11 @@ internal class SplitNativePickerAccessController(
 
         val withoutService = current.filterNot(ALIASES::contains)
         val wasOwned = leaseStore.isOwned()
-        if (alreadyEnabled) write(withoutService)
         try {
+            if (alreadyEnabled) {
+                write(withoutService)
+                pauseAfterDisable()
+            }
             write(withoutService + COMPONENT)
             check(read().any(ALIASES::contains)) {
                 "Система не включила наблюдение за штатным picker"
@@ -134,10 +138,10 @@ internal class SplitNativePickerAccessController(
     private companion object {
         const val COMPONENT =
             "dev.denza.apps/dev.denza.apps.feature.split.SplitNativePickerAccessibilityService"
-        // Version 3 removes the XML package filter. This firmware keeps a stale copy of
-        // packageNames across APK replacement, so filtering belongs in
-        // SplitAccessibilityEventPolicy where it cannot be cached by AccessibilityManager.
-        const val CONFIGURATION_VERSION = 3
+        // Version 3 removed the XML package filter. Version 4 also waits for the asynchronous
+        // Android unbind before adding the component back; otherwise the setting changes while
+        // AccessibilityManager keeps the stale bound instance alive.
+        const val CONFIGURATION_VERSION = 4
         val ALIASES = setOf(
             COMPONENT,
             "dev.denza.apps/.feature.split.SplitNativePickerAccessibilityService",

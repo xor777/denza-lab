@@ -446,6 +446,17 @@ object SplitScreenCoordinator {
         }
     }
 
+    /** Accepts only Home from the app-wide observer; all other global window traffic is ignored. */
+    @JvmStatic
+    fun onGlobalAccessibilityWindowChanged(context: Context, packageName: String?) {
+        if (
+            SplitAccessibilityEventPolicy.target(packageName, className = null) ==
+            SplitAccessibilityEventTarget.HOME
+        ) {
+            onHomeVisible(context)
+        }
+    }
+
     /** A Home accessibility event is only a hint; firmware area 0 is the mutation authority. */
     @JvmStatic
     fun onHomeVisible(context: Context) {

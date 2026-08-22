@@ -160,6 +160,16 @@ public class SimulcastAccessibilityService extends AccessibilityService {
             return;
         }
         CharSequence eventPackage = event.getPackageName();
+        int type = event.getEventType();
+        if ((type == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
+                || type == AccessibilityEvent.TYPE_WINDOWS_CHANGED)) {
+            // This already-global observer is an update-stable fallback for the dedicated split
+            // observer. The coordinator still requires an owned gate and firmware area 0 before
+            // it mutates SmartMulti state, so forwarding the hint cannot open or close split.
+            SplitScreenCoordinator.onGlobalAccessibilityWindowChanged(
+                    this,
+                    eventPackage == null ? null : eventPackage.toString());
+        }
         if (eventPackage != null && "com.byd.weatherdata".contentEquals(eventPackage)) {
             WeatherAdapterScheduler.onNativeWeatherVisible(this);
         }
@@ -170,7 +180,6 @@ public class SimulcastAccessibilityService extends AccessibilityService {
         if (hudMonitor != null) {
             hudMonitor.onAccessibilityEvent(event);
         }
-        int type = event.getEventType();
         if (type != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
                 && type != AccessibilityEvent.TYPE_WINDOWS_CHANGED
                 && type != AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) {
