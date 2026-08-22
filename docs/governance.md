@@ -207,10 +207,10 @@ any work that depends on undocumented firmware behavior.
 - Navigation projection/return and Simulcast moves hold picker reconciliation
   through an external-move lease. While a selected task is on another display,
   the split automaton must not reclaim or prune it.
-- Treat full-screen control entry/return as an explicit scene transition: move
-  the exact control task to the stable full-IVI root, then on return close that
-  task, normalize through Home, discard only invalidated Denza picker identities,
-  and rebuild the persisted pair.
+- Treat Denza Apps as an ordinary selectable application. Its launcher and
+  `MainActivity` must not call the split coordinator, rewrite persisted slots,
+  normalize through Home, or reconstruct the pair on Back; picker lifecycle
+  remains the sole owner of automaton reconciliation.
 - Turning the toggle off must close Denza-owned split state, remove owned picker
   and host tasks, restore the leased global resizeability setting, and leave a
   subsequent ordinary launch outside the split topology.

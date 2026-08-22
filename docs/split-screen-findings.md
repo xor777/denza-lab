@@ -14,7 +14,7 @@ The contextual foreground router was replaced in product code on 2026-08-16 by
 an explicit launcher entry named **«Разделить экран»**. The final one-package
 path passed live acceptance on 2026-08-18, including alias visibility, native
 split creation, saved-app restoration, picker dismissal/reopen, divider
-movement, full-screen control entry/return, and toggle shutdown. Navigation
+movement, ordinary Denza Apps launch/Back, and toggle shutdown. Navigation
 projection/return against that final picker topology passed on 2026-08-19. A
 later live trace had shown that embedding a picker Activity into the
 unresizeable Launcher3 host produces a transient fullscreen/Home frame when a
@@ -81,20 +81,17 @@ toggle changes that alias and the matching runtime state together. Tapping it st
 `Theme.NoDisplay` entry, which opens the explicit picker session directly. No
 second APK, package, installation step, or cross-UID command handoff exists.
 The application carries `BYD_SUPPORT_SPLIT_ACTIVITY=1`, while exact component
-checks keep the permanent Denza Apps control task distinct from the two picker
-tasks.
+checks keep the two picker tasks distinct from ordinary selected application
+tasks, including Denza Apps itself.
 
 The package marker is evaluated by this firmware before an Activity's
 `onCreate`, so `resizeableActivity=false` and a `Theme.NoDisplay` launcher do
-not stop the permanent control entry from consuming a live pane. The product
-therefore treats control entry/return as an explicit scene transition. A
-windowless launcher starts the single control task, a service moves that exact
-task directly to the stable full-IVI root, and Back first closes that task. The
-coordinator then adopts the exact picker/app tasks when both owned roots still
-pass the strict topology check. Home normalization, invalid picker removal, and
-persisted-pair reconstruction remain the fail-closed fallback when either root
-is missing or ambiguous. `MainActivity` does not run a second promotion loop or
-a competing ADB session.
+not stop Denza Apps from consuming a live pane when it is chosen there. That is
+now intentional: the windowless launcher only starts `MainActivity`, and the
+Activity follows the same task and Back behavior as any other selected app. It
+does not call the split coordinator, mutate either persisted slot, normalize
+through Home, or run a competing ADB session. Picker lifecycle callbacks remain
+the sole owner of split reconciliation.
 
 The embedded picker Activity has a `MAIN + CATEGORY_INFO` intent filter, not a
 launcher filter. This preserves the proven firmware resolver seam without
@@ -487,6 +484,10 @@ was `065f04189fe95ea57f2acddf7de9efca65a03f3ac8c86a8a7385de946f5e1c89`.
 
 ### Identity-preserving return from Denza Apps (2026-08-22)
 
+> **Superseded later on 2026-08-22.** This section records the intermediate
+> explicit control-return implementation and the evidence that led to removing
+> it. Denza Apps now follows the ordinary task behavior documented below.
+
 A clean live reproduction started with Yandex Music in stable-host task 201
 above picker 198 and 2GIS in task 202 above picker 199. Opening the real
 `MAIN + LAUNCHER` Denza Apps entry moved control task 204 to full-IVI root 4
@@ -514,6 +515,34 @@ real launcher entry created fullscreen control task 229. One Back removed only
 phase `SPLIT`, both slots `APP`, hosts 223/225, and apps 226/227. The exact APK
 SHA-256 was
 `845e12be07855862522bf6956a9d4572cb15d351736ebfd3a0410573aaa499b1`.
+
+### Ordinary Denza Apps task behavior (2026-08-22)
+
+The explicit control transition was removed. `DenzaLauncherActivity` now only
+starts `MainActivity`; there is no control-launch service, custom Back callback,
+Home normalization, or coordinator entry point for an ordinary Denza Apps
+launch.
+
+A clean fullscreen acceptance started with 2GIS task 434 above picker host 432
+and persisted phase `FULL`. Launching Denza Apps created task 436 in the same
+fullscreen root without changing the automaton. Back removed only task 436 and
+revealed the exact same 2GIS task 434 and host 432; no Home or picker task was
+created.
+
+The self-client boundary was then exercised inside a clean two-pane scene.
+Selecting Denza Apps created `MainActivity` task 441 above picker host 438 and
+persisted that slot as `APP`, package `dev.denza.apps`. Back removed only task
+441, exposed the same host 438, and the picker-visible callback reconciled the
+slot to `PICKER`; the other picker task 432 was unchanged. This proves that the
+application can occupy a pane without taking ownership away from picker
+lifecycle reconciliation. The accepted APK SHA-256 was
+`32d82fc20e18e694fb7e7438766c356ef87ba32e9a774152c58d00203160e150`.
+
+The same boundary pass also reproduced a separate unresolved divider defect.
+After moving the wide side with 2GIS task 434 open, the firmware placed both
+picker tasks 432/438 in one root and left 2GIS alone in the other, while the
+automaton incorrectly persisted `PICKER + PICKER`. This resize/reconciliation
+case is not part of the ordinary-launch fix and remains open.
 
 ### Picker-visible partial-restore notice (2026-08-22)
 

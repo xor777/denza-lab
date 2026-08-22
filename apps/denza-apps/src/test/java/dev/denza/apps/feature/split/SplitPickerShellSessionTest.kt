@@ -7,117 +7,9 @@ import org.junit.Test
 
 class SplitPickerShellSessionTest {
     @Test
-    fun controlReturnWaitsUntilExactTaskIsGoneWithoutMutatingTheScene() {
-        var snapshots = 0
-        var pauses = 0
-        val commands = mutableListOf<String>()
-        val session = SplitPickerShellSession(
-            shell = { command ->
-                commands += command
-                when (command) {
-                    "am stack list" -> {
-                        snapshots += 1
-                        if (snapshots == 1) {
-                            """
-                            RootTask id=4 bounds=[0,0][2560,1600] displayId=0 userId=0
-                              taskId=154: dev.denza.apps/dev.denza.apps.MainActivity bounds=[0,0][2560,1600] userId=0 visible=true topActivity=ComponentInfo{dev.denza.apps/dev.denza.apps.MainActivity}
-                            """.trimIndent()
-                        } else {
-                            "RootTask id=4 bounds=[0,0][2560,1600] displayId=0 userId=0"
-                        }
-                    }
-                    else -> error("Unexpected command: $command")
-                }
-            },
-            apkPath = "/tmp/denza-apps.apk",
-            pause = { pauses += 1 },
-        )
-
-        session.awaitTaskRemoved(154)
-
-        assertEquals(2, snapshots)
-        assertEquals(1, pauses)
-        assertFalse(commands.any { it == "input keyevent KEYCODE_HOME" })
-    }
-
-    @Test
-    fun invalidControlReturnUsesHomeBeforeRebuilding() {
-        val commands = mutableListOf<String>()
-        val session = SplitPickerShellSession(
-            shell = { command ->
-                commands += command
-                when (command) {
-                    "input keyevent KEYCODE_HOME" -> ""
-                    "service call activity_task 30" ->
-                        "Result: Parcel(00000000 00000000   '........')"
-                    else -> error("Unexpected command: $command")
-                }
-            },
-            apkPath = "/tmp/denza-apps.apk",
-            pause = {},
-        )
-
-        session.prepareControlFallback()
-
-        assertEquals(
-            listOf("input keyevent KEYCODE_HOME", "service call activity_task 30"),
-            commands,
-        )
-    }
-
-    @Test
-    fun controlReturnWaitsForOwnedRootsToSettleBeforeFallback() {
-        var settled = false
-        var pauses = 0
-        val session = SplitPickerShellSession(
-            shell = { command ->
-                when (command) {
-                    "service call activity_task 30" ->
-                        intParcel(if (settled) 3 else 0)
-                    "service call activity_task 118 i32 1" -> intParcel(PRIMARY_ROOT)
-                    "service call activity_task 118 i32 2" -> intParcel(SECONDARY_ROOT)
-                    "am stack list" -> ownedPickerPairStack()
-                    else -> error("Unexpected command: $command")
-                }
-            },
-            apkPath = "/tmp/denza-apps.apk",
-            pause = {
-                pauses += 1
-                settled = true
-            },
-        )
-
-        val owned = session.awaitExistingOwnedSession(PICKER_COMPONENTS)
-
-        assertEquals(1, pauses)
-        assertEquals(
-            setOf(SplitPane.PRIMARY, SplitPane.SECONDARY),
-            checkNotNull(owned).keys,
-        )
-    }
-
-    @Test
     fun panesHaveStableOpposites() {
         assertEquals(SplitPane.SECONDARY, SplitPane.PRIMARY.other())
         assertEquals(SplitPane.PRIMARY, SplitPane.SECONDARY.other())
-    }
-
-    @Test
-    fun controlReturnDiscardsOnlyInvalidatedPickerBases() {
-        val fake = FakeShell().apply {
-            addTask(PRIMARY_ROOT, 40, NAVIGATOR, "$NAVIGATOR.MainActivity")
-        }
-        val split = session(fake)
-        split.openPickers(
-            PICKERS,
-            preservedPackages = mapOf(SplitPane.PRIMARY to NAVIGATOR),
-        )
-
-        split.discardInvalidatedPickerBases(PICKER_COMPONENTS)
-
-        assertFalse(fake.hasActivity(PRIMARY_ROOT, PRIMARY_PICKER_ACTIVITY))
-        assertFalse(fake.hasActivity(SECONDARY_ROOT, SECONDARY_PICKER_ACTIVITY))
-        assertTrue(fake.hasActivity(PRIMARY_ROOT, "$NAVIGATOR.MainActivity"))
     }
 
     @Test
@@ -1334,13 +1226,6 @@ class SplitPickerShellSessionTest {
         pause = {},
         gateLeaseStore = gateLeaseStore,
     )
-
-    private fun ownedPickerPairStack(): String = """
-        RootTask id=$PRIMARY_ROOT bounds=[24,112][856,1472] displayId=0 userId=0
-          taskId=40: $SPLIT_HOST_PACKAGE/$PRIMARY_PICKER_ACTIVITY bounds=[24,112][856,1472] userId=0 visible=true topActivity=ComponentInfo{$SPLIT_HOST_PACKAGE/$PRIMARY_PICKER_ACTIVITY}
-        RootTask id=$SECONDARY_ROOT bounds=[880,112][2536,1472] displayId=0 userId=0
-          taskId=41: $SPLIT_HOST_PACKAGE/$SECONDARY_PICKER_ACTIVITY bounds=[880,112][2536,1472] userId=0 visible=true topActivity=ComponentInfo{$SPLIT_HOST_PACKAGE/$SECONDARY_PICKER_ACTIVITY}
-    """.trimIndent()
 
     private fun intParcel(value: Int): String =
         "Result: Parcel(00000000 ${"%08x".format(value)} '........')"

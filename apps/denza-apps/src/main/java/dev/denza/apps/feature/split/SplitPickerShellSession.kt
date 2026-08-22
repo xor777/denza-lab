@@ -13,45 +13,6 @@ internal class SplitPickerShellSession(
     private val pause: (Long) -> Unit = Thread::sleep,
     private val gateLeaseStore: SplitGateLeaseStore? = null,
 ) {
-    /** Waits until a foreground control task has actually left the native organizer. */
-    fun awaitTaskRemoved(taskId: Int) {
-        check(taskId > 0) { "Control task id is unavailable" }
-        repeat(TASK_REMOVAL_ATTEMPTS) { attempt ->
-            val present = snapshot().roots.any { root -> root.tasks.any { it.id == taskId } }
-            if (!present) return
-            if (attempt + 1 < TASK_REMOVAL_ATTEMPTS) pause(TASK_REMOVAL_INTERVAL_MS)
-        }
-        error("Control-задача $taskId не закрылась")
-    }
-
-    /** Establishes the neutral state used only when an existing owned pair cannot be adopted. */
-    fun prepareControlFallback() {
-        run("input keyevent KEYCODE_HOME")
-        pause(HOME_SETTLE_MS)
-        check(callInt("service call activity_task 30") == AREA_HOME) {
-            "Прошивка не перешла на домашний экран перед восстановлением split"
-        }
-    }
-
-    /** Removes picker identities invalidated when BYD consumed the old pair for control UI. */
-    fun discardInvalidatedPickerBases(pickerComponents: Set<String>) {
-        val invalidated = snapshot().roots.asSequence()
-            .filter { it.displayId == MAIN_DISPLAY_ID }
-            .flatMap { it.tasks.asSequence() }
-            .filter { task ->
-                task.isDenzaPickerBase() && task.matchesAnyComponent(pickerComponents)
-            }
-            .toList()
-        invalidated.forEach(::removeTaskSafely)
-        val remainingIds = snapshot().roots.asSequence()
-            .filter { it.displayId == MAIN_DISPLAY_ID }
-            .flatMap { it.tasks.asSequence() }
-            .mapTo(mutableSetOf(), SplitTask::id)
-        check(invalidated.none { it.id in remainingIds }) {
-            "Прошивка сохранила недействительный picker-task"
-        }
-    }
-
     /**
      * Adopts an already-running product scene without mutating the firmware roots.
      *
@@ -252,20 +213,6 @@ internal class SplitPickerShellSession(
             appTaskId = app?.id,
             appPackageName = app?.effectivePackageName(),
         )
-    }
-
-    /** Allows SmartMulti to expose the preserved roots after the control task disappears. */
-    fun awaitExistingOwnedSession(
-        pickerComponents: Set<String>,
-        expectedApps: Map<SplitPane, SplitPickerExpectedApp> = emptyMap(),
-    ): Map<SplitPane, SplitPickerLivePane>? {
-        repeat(CONTROL_RETURN_DISCOVERY_ATTEMPTS) { attempt ->
-            existingOwnedSession(pickerComponents, expectedApps)?.let { return it }
-            if (attempt + 1 < CONTROL_RETURN_DISCOVERY_ATTEMPTS) {
-                pause(CONTROL_RETURN_DISCOVERY_INTERVAL_MS)
-            }
-        }
-        return null
     }
 
     /** Brings an exact owned pair back above Home/fullscreen without rebuilding either pane. */
@@ -1733,13 +1680,8 @@ internal class SplitPickerShellSession(
         const val LAUNCH_MODE_SINGLE_TASK = 2
         const val TASK_DISCOVERY_ATTEMPTS = 12
         const val TASK_DISCOVERY_INTERVAL_MS = 100L
-        const val TASK_REMOVAL_ATTEMPTS = 30
-        const val TASK_REMOVAL_INTERVAL_MS = 100L
-        const val CONTROL_RETURN_DISCOVERY_ATTEMPTS = 8
-        const val CONTROL_RETURN_DISCOVERY_INTERVAL_MS = 100L
         const val DIVIDER_RECONCILE_SETTLE_MS = 1_500L
         const val PICKER_SETTLE_MS = 150L
-        const val HOME_SETTLE_MS = 650L
         const val NATIVE_PICKER_SETTLE_MS = 450L
         const val APP_LAUNCH_SETTLE_MS = 250L
         const val HOST_LAUNCH_SETTLE_MS = 100L

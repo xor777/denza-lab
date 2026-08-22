@@ -71,30 +71,9 @@ object SplitScreenCoordinator {
     fun snapshot(): SplitScreenSession = session
 
     /** Opens the explicit two-picker product flow from its launcher icon. */
-    fun openPickerSession(context: Context, onComplete: (String?) -> Unit = {}) =
-        openPickerSession(context, null, onComplete)
-
-    /**
-     * Restores the saved split scene after the full-screen control panel closes.
-     *
-     * BYD applies split capability at package level, so launching Denza Apps can consume one
-     * native pane before application code runs. The return first waits for that exact task to
-     * leave ActivityTaskManager, then adopts an intact owned pair without changing task identity.
-     * A neutral Home rebuild remains the fail-closed path for an incomplete or ambiguous pair.
-     */
-    fun restorePickerSessionAfterControl(
+    fun openPickerSession(
         context: Context,
-        controlTaskId: Int,
         onComplete: (String?) -> Unit = {},
-    ) {
-        require(controlTaskId > 0) { "Control task id is unavailable" }
-        openPickerSession(context, controlTaskId, onComplete)
-    }
-
-    private fun openPickerSession(
-        context: Context,
-        controlTaskId: Int?,
-        onComplete: (String?) -> Unit,
     ) {
         val app = context.applicationContext
         this.context = app
@@ -117,9 +96,6 @@ object SplitScreenCoordinator {
             try {
                 adb = DenzaLocalAdb.client(app).openPersistentShell()
                 val split = pickerSession(app, adb::shell)
-                if (controlTaskId != null) {
-                    split.awaitTaskRemoved(controlTaskId)
-                }
                 SplitNativePickerAccessController(
                     shell = adb::shell,
                     leaseStore = SplitScreenSettings.nativePickerAccessLeaseStore(app),
@@ -138,11 +114,7 @@ object SplitScreenCoordinator {
                     installedPackages = installed,
                 )
                 val expectedApps = expectedPickerApps()
-                val owned = if (controlTaskId != null) {
-                    split.awaitExistingOwnedSession(PICKER_COMPONENT_SET, expectedApps)
-                } else {
-                    split.existingOwnedSession(PICKER_COMPONENT_SET, expectedApps)
-                }
+                val owned = split.existingOwnedSession(PICKER_COMPONENT_SET, expectedApps)
                 val existing = owned
                     ?.let { owned ->
                         split.revealOwnedSession(owned, PICKER_COMPONENT_SET)
@@ -182,13 +154,6 @@ object SplitScreenCoordinator {
                     Log.i(TAG, "adopted the existing explicit picker session")
                     postResult(onComplete, null)
                     return@execute
-                }
-                if (controlTaskId != null) {
-                    // The normal return path keeps both native roots and their application
-                    // tasks intact. Only enter the destructive neutral-state recovery when the
-                    // strict owned-session check proves that exact scene cannot be adopted.
-                    split.prepareControlFallback()
-                    split.discardInvalidatedPickerBases(PICKER_COMPONENT_SET)
                 }
                 // An explicit launcher tap is the authoritative start of a new picker session.
                 // Rebuild task identity from the live roots instead of carrying process- or
