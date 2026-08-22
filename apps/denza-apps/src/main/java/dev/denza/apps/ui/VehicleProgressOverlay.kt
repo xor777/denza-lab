@@ -8,6 +8,7 @@ import android.graphics.drawable.GradientDrawable
 import android.provider.Settings
 import android.util.Log
 import android.view.Gravity
+import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
 import android.widget.FrameLayout
@@ -159,7 +160,7 @@ internal class VehicleProgressOverlay(
     private fun createWindowView(context: Context): View {
         val card = createCard(context)
         if (inputMode == VehicleProgressOverlayInputMode.PASS_THROUGH) return card
-        return FrameLayout(context).apply {
+        return TouchShieldFrameLayout(context).apply {
             isClickable = true
             isFocusable = false
             importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
@@ -225,6 +226,20 @@ internal class VehicleProgressOverlay(
 
     private fun Context.dp(value: Int): Int =
         (value * resources.displayMetrics.density + 0.5f).toInt()
+
+    private class TouchShieldFrameLayout(context: Context) : FrameLayout(context) {
+        override fun onInterceptTouchEvent(event: MotionEvent): Boolean = true
+
+        override fun onTouchEvent(event: MotionEvent): Boolean {
+            if (event.actionMasked == MotionEvent.ACTION_UP) performClick()
+            return true
+        }
+
+        override fun performClick(): Boolean {
+            super.performClick()
+            return true
+        }
+    }
 
     private companion object {
         const val TAG = "DenzaProgressOverlay"
