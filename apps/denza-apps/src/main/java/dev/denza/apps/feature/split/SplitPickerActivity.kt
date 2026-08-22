@@ -329,9 +329,9 @@ internal object SplitPickerAppCatalog {
                 val activityInfo = info.activityInfo ?: return@mapNotNull null
                 val packageName = activityInfo.packageName
                 if (
-                    activityInfo.name == APP_DETAILS_ACTIVITY ||
-                    !isVisible(
+                    !SplitPickerVisibilityPolicy.isLauncherVisible(
                         packageName = packageName,
+                        activityName = activityInfo.name,
                         showInAppList = readShowInAppList(context, packageName),
                     ) ||
                     !seen.add(packageName)
@@ -362,7 +362,7 @@ internal object SplitPickerAppCatalog {
             ?.takeIf { it.containsKey(SHOW_IN_APP_LIST) }
             ?.get(SHOW_IN_APP_LIST)
             ?.toString()
-            ?.let(::parseShowInAppList)
+            ?.let(SplitPickerVisibilityPolicy::parseShowInAppList)
             ?.let { return it }
 
         val authorities = packageInfo.providers
@@ -390,7 +390,7 @@ internal object SplitPickerAppCatalog {
                 )?.use { cursor ->
                     val index = cursor.getColumnIndex(SHOW_IN_APP_LIST)
                     if (index < 0 || !cursor.moveToFirst() || cursor.isNull(index)) null
-                    else parseShowInAppList(cursor.getString(index))
+                    else SplitPickerVisibilityPolicy.parseShowInAppList(cursor.getString(index))
                 }
             }.getOrNull()
             if (value != null) return value
@@ -398,21 +398,8 @@ internal object SplitPickerAppCatalog {
         return null
     }
 
-    private fun isVisible(packageName: String, showInAppList: Boolean?): Boolean =
-        packageName.isNotBlank() &&
-            packageName !in EXCLUDED_PACKAGES &&
-            showInAppList != false
-
-    private fun parseShowInAppList(value: String): Boolean? = when (value.trim().lowercase()) {
-        "true", "1", "yes", "on" -> true
-        "false", "0", "no", "off" -> false
-        else -> null
-    }
-
-    private const val APP_DETAILS_ACTIVITY = "android.app.AppDetailsActivity"
     private const val SHOW_IN_APP_LIST = "ShowInAppList"
     private const val DYNA_CONFIG_PROVIDER_SUFFIX = "DynaConfigContentProvider"
-    private val EXCLUDED_PACKAGES = setOf("dev.denza.apps", "com.android.launcher3")
 }
 
 @Composable

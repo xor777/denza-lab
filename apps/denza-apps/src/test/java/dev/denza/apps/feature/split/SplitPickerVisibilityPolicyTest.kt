@@ -44,16 +44,25 @@ class SplitPickerVisibilityPolicyTest {
     }
 
     @Test
-    fun denzaAndStockLauncherStayHiddenEvenWhenProviderSaysVisible() {
-        assertFalse(
-            visible(
+    fun denzaControlLauncherIsVisibleButSplitAliasAndStockLauncherStayHidden() {
+        assertTrue(
+            launcherVisible(
                 packageName = "dev.denza.apps",
+                activityName = "dev.denza.apps.DenzaLauncherActivity",
                 showInAppList = true,
             ),
         )
         assertFalse(
-            visible(
+            launcherVisible(
+                packageName = "dev.denza.apps",
+                activityName = "dev.denza.apps.SplitScreenLauncherAlias",
+                showInAppList = true,
+            ),
+        )
+        assertFalse(
+            launcherVisible(
                 packageName = "com.android.launcher3",
+                activityName = "com.android.launcher3.Launcher",
                 showInAppList = true,
             ),
         )
@@ -64,6 +73,16 @@ class SplitPickerVisibilityPolicyTest {
         showInAppList: Boolean? = null,
     ): Boolean = SplitPickerVisibilityPolicy.isVisible(
         packageName = packageName,
+        showInAppList = showInAppList,
+    )
+
+    private fun launcherVisible(
+        packageName: String,
+        activityName: String,
+        showInAppList: Boolean? = null,
+    ): Boolean = SplitPickerVisibilityPolicy.isLauncherVisible(
+        packageName = packageName,
+        activityName = activityName,
         showInAppList = showInAppList,
     )
 }

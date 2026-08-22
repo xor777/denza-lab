@@ -18,9 +18,9 @@ internal object SplitPickerCatalog {
                 val activityInfo = info.activityInfo ?: return@mapNotNull null
                 val packageName = activityInfo.packageName
                 if (
-                    activityInfo.name == APP_DETAILS_ACTIVITY ||
-                    !SplitPickerVisibilityPolicy.isVisible(
+                    !SplitPickerVisibilityPolicy.isLauncherVisible(
                         packageName = packageName,
+                        activityName = activityInfo.name,
                         showInAppList = readShowInAppList(context, packageName),
                     ) ||
                     !seen.add(packageName)
@@ -88,12 +88,17 @@ internal object SplitPickerCatalog {
         return null
     }
 
-    private const val APP_DETAILS_ACTIVITY = "android.app.AppDetailsActivity"
     private const val SHOW_IN_APP_LIST = "ShowInAppList"
     private const val DYNA_CONFIG_PROVIDER_SUFFIX = "DynaConfigContentProvider"
 }
 
 internal object SplitPickerVisibilityPolicy {
+    fun isLauncherVisible(
+        packageName: String,
+        activityName: String,
+        showInAppList: Boolean?,
+    ): Boolean = activityName !in EXCLUDED_ACTIVITIES && isVisible(packageName, showInAppList)
+
     fun isVisible(packageName: String, showInAppList: Boolean?): Boolean =
         packageName.isNotBlank() && packageName !in EXCLUDED_PACKAGES && showInAppList != false
 
@@ -103,5 +108,9 @@ internal object SplitPickerVisibilityPolicy {
         else -> null
     }
 
-    private val EXCLUDED_PACKAGES = setOf("dev.denza.apps", "com.android.launcher3")
+    private val EXCLUDED_PACKAGES = setOf("com.android.launcher3")
+    private val EXCLUDED_ACTIVITIES = setOf(
+        "android.app.AppDetailsActivity",
+        "dev.denza.apps.SplitScreenLauncherAlias",
+    )
 }
