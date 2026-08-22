@@ -1235,7 +1235,13 @@ internal class SplitPickerShellSession(
             .map(String::trim)
             .lastOrNull { it.startsWith(SPLIT_PROXY_RESULT_PREFIX) }
             ?.removePrefix(SPLIT_PROXY_RESULT_PREFIX)
-        check(result == "true") { "Не удалось безопасно удалить задачу ${task.id}" }
+        if (result != "true") {
+            val taskStillExists = snapshot().roots.asSequence()
+                .flatMap { it.tasks.asSequence() }
+                .any { it.id == task.id }
+            check(!taskStillExists) { "Не удалось безопасно удалить задачу ${task.id}" }
+            return
+        }
         pause(ROOT_SETTLE_MS)
     }
 

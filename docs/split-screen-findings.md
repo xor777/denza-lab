@@ -369,6 +369,27 @@ package. No Home command, coordinator error, or crash was observed. The exact
 installed debug APK SHA-256 was
 `26c1fe7603fb62b69845c3a2544c1a12462ac06c9af38b1dcae9079afc4b3cc6`.
 
+### One-Back completion for stable-host apps (2026-08-22)
+
+Ordinary standard-launch-mode apps run above a resizeable
+`SplitAppHostActivity` in a task separate from the permanent picker. The host
+must remain for the target's lifetime, but it must not become an empty,
+transparent input window after the target handles Back. The host now records
+that a successfully requested target has covered it; when the target leaves and
+the host resumes, it removes its own task. Launch remains an ordinary
+`startActivity`, because launching for a result changed Yandex Music's Back
+behavior on this firmware and sent the whole split scene behind Home.
+
+The accepted live run started Yandex Music above picker task 198 in stable-host
+task 200. One Back removed both Yandex Music and task 200, made picker 198 the
+focused input window, retained balanced area `3`, changed the automaton from
+`PRIMARY=APP` to `PRIMARY=PICKER`, and removed Yandex Music from the saved pair.
+The concurrent picker-visible callback also proved exact task removal
+idempotent: an already-gone recorded task is accepted only after a fresh
+snapshot confirms that its numeric id no longer exists. No Home transition,
+warning, toast, or crash was observed. The exact installed debug APK SHA-256
+was `065f04189fe95ea57f2acddf7de9efca65a03f3ac8c86a8a7385de946f5e1c89`.
+
 The corpus used for this contract is `/system/framework/services.jar` SHA-256
 `23a58a4e3c98c50541785390f1234e8c4d7138b5dd170c4f5843bae15b93c019`
 and `/system/framework/framework.jar` SHA-256

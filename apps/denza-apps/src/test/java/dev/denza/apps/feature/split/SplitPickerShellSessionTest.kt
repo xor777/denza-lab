@@ -935,6 +935,22 @@ class SplitPickerShellSessionTest {
     }
 
     @Test
+    fun recordedTaskRemovalAcceptsAConcurrentExactTaskDisappearance() {
+        val fake = FakeShell()
+        val split = session(fake)
+        val pickers = split.openPickers(PICKERS, preservedPackages = emptyMap())
+        val placement = split.selectApp(
+            pickerTaskId = pickers.getValue(SplitPane.SECONDARY),
+            target = SplitLaunchTarget(MUSIC, "$MUSIC/$MUSIC.MainActivity"),
+            pickerComponents = PICKER_COMPONENTS,
+        )
+        fake.disappearOnNextRemove()
+
+        assertTrue(split.removeRecordedTask(placement.appTaskId, MUSIC))
+        assertFalse(fake.hasTask(placement.appTaskId))
+    }
+
+    @Test
     fun observingHiddenPickerNeverPrunesVisibleApp() {
         val fake = FakeShell()
         val split = session(fake)
@@ -1103,6 +1119,7 @@ class SplitPickerShellSessionTest {
         private var homeVisible = false
         private var nextTaskId = 100
         private var fullForegroundReplaced = false
+        private var disappearOnNextRemove = false
         private val supported = mutableSetOf<String>()
         private val tasks = mutableListOf<Task>()
 
@@ -1173,6 +1190,10 @@ class SplitPickerShellSessionTest {
             }
             area = if (remainingRoot == PRIMARY_ROOT) 1 else 2
             tasks.filter { it.rootId == remainingRoot }.forEach { it.bounds = FULL }
+        }
+
+        fun disappearOnNextRemove() {
+            disappearOnNextRemove = true
         }
 
         fun shell(command: String): String {
@@ -1352,6 +1373,11 @@ class SplitPickerShellSessionTest {
                 }
                 command.contains("SplitTaskProxyMain remove-task ") -> {
                     val taskId = command.substringAfter("remove-task ").substringBefore(' ').toInt()
+                    if (disappearOnNextRemove) {
+                        disappearOnNextRemove = false
+                        tasks.removeAll { it.id == taskId }
+                        return "DENZA_SPLIT_RESULT:false"
+                    }
                     val removedTask = tasks.firstOrNull { it.id == taskId }
                     val removed = tasks.removeAll { it.id == taskId }
                     if (
