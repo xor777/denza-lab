@@ -82,16 +82,24 @@ class SplitPickerActivity : ComponentActivity() {
     private var recoveryNotice by mutableStateOf("")
     private var busy by mutableStateOf(false)
     private var apps by mutableStateOf<List<SplitPickerApp>>(emptyList())
-    private var catalogRequested = false
+    private var catalogLoadInFlight = false
+    private var catalogReloadPending = false
     private var catalogLoading by mutableStateOf(true)
     private var visibleReported = false
     private val lifecycleHandler by lazy { Handler(mainLooper) }
     private var stoppedTaskId: Int? = null
     private var noticeReceiverRegistered = false
+    private var packageReceiverRegistered = false
     private val noticeReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action != SplitPickerNotice.ACTION_CHANGED) return
             recoveryNotice = intent.getStringExtra(SplitPickerNotice.EXTRA_MESSAGE).orEmpty()
+        }
+    }
+    private val packageReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action !in PACKAGE_CHANGE_ACTIONS) return
+            refreshCatalogAsync()
         }
     }
     private val stoppedReporter = Runnable {
@@ -133,7 +141,6 @@ class SplitPickerActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         recoveryNotice = SplitPickerNotice.current(this)
         val nativeBackgroundBlur = SplitPickerWindowStyle.apply(this)
-        refreshCatalogAsync()
         setContent {
             SplitPickerTheme {
                 SplitPickerScreen(
@@ -159,7 +166,20 @@ class SplitPickerActivity : ComponentActivity() {
             )
             noticeReceiverRegistered = true
         }
+        if (!packageReceiverRegistered) {
+            ContextCompat.registerReceiver(
+                this,
+                packageReceiver,
+                IntentFilter().apply {
+                    PACKAGE_CHANGE_ACTIONS.forEach(::addAction)
+                    addDataScheme("package")
+                },
+                ContextCompat.RECEIVER_EXPORTED,
+            )
+            packageReceiverRegistered = true
+        }
         recoveryNotice = SplitPickerNotice.current(this)
+        refreshCatalogAsync()
     }
 
     override fun onResume() {
@@ -182,6 +202,10 @@ class SplitPickerActivity : ComponentActivity() {
         if (noticeReceiverRegistered) {
             unregisterReceiver(noticeReceiver)
             noticeReceiverRegistered = false
+        }
+        if (packageReceiverRegistered) {
+            unregisterReceiver(packageReceiver)
+            packageReceiverRegistered = false
         }
         super.onStop()
         if (!isChangingConfigurations) {
@@ -206,14 +230,21 @@ class SplitPickerActivity : ComponentActivity() {
     }
 
     private fun refreshCatalogAsync() {
-        if (catalogRequested) return
-        catalogRequested = true
+        if (catalogLoadInFlight) {
+            catalogReloadPending = true
+            return
+        }
+        catalogLoadInFlight = true
+        catalogReloadPending = false
+        if (apps.isEmpty()) catalogLoading = true
         CATALOG_EXECUTOR.execute {
             val loaded = SplitPickerAppCatalog.load(applicationContext)
             runOnUiThread {
+                catalogLoadInFlight = false
                 if (!isDestroyed) {
                     apps = loaded
                     catalogLoading = false
+                    if (catalogReloadPending) refreshCatalogAsync()
                 }
             }
         }
@@ -248,6 +279,12 @@ class SplitPickerActivity : ComponentActivity() {
     private companion object {
         const val TAG = "DenzaSplitPicker"
         const val PICKER_HIDDEN_SETTLE_MS = 500L
+        val PACKAGE_CHANGE_ACTIONS = setOf(
+            Intent.ACTION_PACKAGE_ADDED,
+            Intent.ACTION_PACKAGE_CHANGED,
+            Intent.ACTION_PACKAGE_REMOVED,
+            Intent.ACTION_PACKAGE_REPLACED,
+        )
         val CATALOG_EXECUTOR = Executors.newSingleThreadExecutor()
     }
 }
@@ -282,11 +319,8 @@ internal object SplitPickerWindowStyle {
 }
 
 internal object SplitPickerAppCatalog {
-    @Volatile private var cached: List<SplitPickerApp>? = null
-
     @Synchronized
     fun load(context: Context): List<SplitPickerApp> {
-        cached?.let { return it }
         val launcher = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
         val seen = HashSet<String>()
         return context.packageManager
@@ -313,7 +347,6 @@ internal object SplitPickerAppCatalog {
                 )
             }
             .sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER, SplitPickerApp::label))
-            .also { cached = it }
     }
 
     @Suppress("DEPRECATION")

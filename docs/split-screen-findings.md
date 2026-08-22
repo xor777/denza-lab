@@ -100,6 +100,11 @@ selection for fallback reconstruction while a valid live pair is adopted by
 exact task identity. App choices are still resolved explicitly from
 `CATEGORY_LAUNCHER`, so an unrelated app's INFO Activity cannot be opened by a
 picker tap.
+Both the visible catalog and the engine-side launch resolver are rebuilt from
+the current `PackageManager` state instead of living for the lifetime of the
+Denza Apps process. A visible picker listens for package add/remove/change
+broadcasts, and every picker `onStart` refreshes again so packages changed while
+an app covered the picker are also reflected when it returns.
 
 Before this one-APK migration, live experiments used separate
 `dev.denza.split.launcher` and `dev.denza.split` packages. Those experiments
@@ -153,6 +158,17 @@ exact key) hides the app, while `true` or an absent value keeps it visible. The
 filter.
 
 ### Live acceptance status
+
+On 2026-08-22 the process-lifetime catalog cache was reproduced with the
+repository's isolated `dev.denza.singlepackage.probe` launcher APK. The package
+was installed and immediately queryable through `PackageManager`, but an
+already-running Denza picker did not show its tile; only restarting the Denza
+Apps process made **Single-package split probe** appear. The live fix used
+Denza Apps `0.5.4` (`versionCode=14`, debug APK SHA-256
+`0c4faba46ee7a10ff3207e98c2a3e6686db3c007d10d16c3fc2f456732547c24`).
+With the picker visible and the Denza Apps PID unchanged at `329`, uninstalling
+the probe removed its tile immediately and reinstalling it restored the tile
+immediately. The probe package was removed after acceptance.
 
 On 2026-08-22 the native divider exposed a firmware behavior that the original
 automaton model did not represent. When the divider crossed from a narrow-left

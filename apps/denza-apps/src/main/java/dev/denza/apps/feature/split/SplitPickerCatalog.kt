@@ -8,11 +8,8 @@ import android.net.Uri
 
 /** Engine-side launch catalog. The visible picker owns icons and labels in its own package. */
 internal object SplitPickerCatalog {
-    @Volatile private var cached: List<SplitLaunchTarget>? = null
-
     @Synchronized
     fun load(context: Context): List<SplitLaunchTarget> {
-        cached?.let { return it }
         val launcher = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
         val seen = HashSet<String>()
         return context.packageManager
@@ -37,7 +34,6 @@ internal object SplitPickerCatalog {
                     launchMode = activityInfo.launchMode,
                 )
             }
-            .also { cached = it }
     }
 
     fun resolve(context: Context, packageName: String): SplitLaunchTarget? =
