@@ -85,6 +85,28 @@ class SplitPickerAutomatonTest {
     }
 
     @Test
+    fun revealedPickerDropsDismissedAppFromTheRestorablePair() {
+        val active = state(
+            primary = app(140, MUSIC, hostTaskId = 138),
+            secondary = app(141, NAVIGATOR, hostTaskId = 139),
+        )
+
+        val revealed = SplitPickerAutomaton.reduce(
+            active,
+            SplitPickerEvent.PickerBecameTop(
+                pane = SplitPane.PRIMARY,
+                hostTaskId = 138,
+                observedTaskIds = setOf(138, 139, 141),
+            ),
+        )
+
+        assertEquals(
+            mapOf(SplitPane.SECONDARY to NAVIGATOR),
+            SplitPickerSelectionPolicy.settledPair(revealed.state),
+        )
+    }
+
+    @Test
     fun swipingPickerClosesPaneAndNeverRecreatesIt() {
         val split = state(
             primary = app(10, NAVIGATOR, hostTaskId = 100),

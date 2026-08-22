@@ -370,6 +370,7 @@ object SplitScreenCoordinator {
                         observedTaskIds = observation.observedTaskIds,
                     ),
                 )
+                syncLastPairFromPickerState(app)
                 executePickerActions(split, reduction.actions)
                 postResult(onComplete, null)
             } catch (error: Throwable) {
@@ -930,15 +931,7 @@ object SplitScreenCoordinator {
 
     /** Last-pair persistence follows the settled IVI scene, never a historical pane label. */
     private fun syncLastPairFromPickerState(app: Context) {
-        val state = currentPickerState()
-        val packages = buildMap {
-            SplitPane.entries.forEach { pane ->
-                val slot = state.slot(pane)
-                if (slot.kind == SplitPickerSlotKind.APP) {
-                    slot.packageName?.takeIf(String::isNotBlank)?.let { put(pane, it) }
-                }
-            }
-        }
+        val packages = SplitPickerSelectionPolicy.settledPair(currentPickerState())
         check(SplitScreenSettings.lastPairStore(app).replace(packages)) {
             "Не удалось сохранить последнюю пару"
         }

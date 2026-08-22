@@ -87,6 +87,16 @@ internal interface SplitPickerAutomatonStore {
 }
 
 internal object SplitPickerSelectionPolicy {
+    fun settledPair(state: SplitPickerAutomatonState): Map<SplitPane, String> =
+        buildMap {
+            SplitPane.entries.forEach { pane ->
+                val slot = state.slot(pane)
+                if (slot.kind == SplitPickerSlotKind.APP) {
+                    slot.packageName?.takeIf(String::isNotBlank)?.let { put(pane, it) }
+                }
+            }
+        }
+
     fun updatedPair(
         primaryPackage: String?,
         secondaryPackage: String?,

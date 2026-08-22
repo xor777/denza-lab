@@ -150,6 +150,19 @@ filter.
 
 ### Live acceptance status
 
+On 2026-08-22 a saved-pair vacancy regression was reproduced and fixed on the
+live car. A native caption swipe removed Yandex Music and revealed its Denza
+picker, but the automaton's `PICKER` state was not copied to the separately
+persisted last pair; after Home and a fresh **«Разделить экран»** launch,
+Music was incorrectly restored. Visible-picker reconciliation now persists the
+settled automaton immediately. The retest used Denza Apps `0.5.4`
+(`versionCode=14`, debug APK SHA-256
+`d1c8f59e28a0ba3d4cfe3387864ef190c4047eadac2a9fe6243f6af1ab726ebc`): the
+same native swipe removed Music from both the live pane and the last pair, and
+after Home plus a fresh launcher entry the pane remained on its picker while
+only Navigator was restored in the other root. No Denza Apps or `com.byd.avc`
+crash was recorded.
+
 The final one-package path passed live acceptance on 2026-08-18 with Denza Apps
 `0.5.3` (`versionCode=13`, debug APK SHA-256
 `fc73e558221e6e953b4ddc1eaf180c2ae77ded05d89b5cca418e63b7cfac8470`). With
