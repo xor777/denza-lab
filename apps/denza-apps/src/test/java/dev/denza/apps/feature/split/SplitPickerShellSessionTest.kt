@@ -305,6 +305,79 @@ class SplitPickerShellSessionTest {
     }
 
     @Test
+    fun dividerResizeRepairsPickerBaseStrandedAwayFromItsRecordedApp() {
+        val fake = FakeShell()
+        val split = session(fake)
+        val hosts = split.openPickers(PICKERS, preservedPackages = emptyMap())
+        val navigator = split.selectApp(
+            pickerTaskId = hosts.getValue(SplitPane.SECONDARY),
+            target = SplitLaunchTarget(NAVIGATOR, "$NAVIGATOR/$NAVIGATOR.MainActivity"),
+            pickerComponents = PICKER_COMPONENTS,
+        )
+        val previous = mapOf(
+            SplitPane.PRIMARY to SplitPickerObservedPane(
+                hostTaskId = hosts.getValue(SplitPane.PRIMARY),
+            ),
+            SplitPane.SECONDARY to SplitPickerObservedPane(
+                hostTaskId = hosts.getValue(SplitPane.SECONDARY),
+                appTaskId = navigator.appTaskId,
+                packageName = navigator.packageName,
+            ),
+        )
+
+        // The live BYD resize keeps the two visible surfaces on their visual sides, but leaves
+        // the hidden base of the app in the old root. The result has both picker bases together.
+        fake.moveTask(navigator.appTaskId, PRIMARY_ROOT)
+        fake.moveTask(hosts.getValue(SplitPane.PRIMARY), SECONDARY_ROOT)
+        fake.preserveBoundsOnShellMove = true
+        fake.commands.clear()
+
+        val repaired = split.reconcileDividerResize(PICKER_COMPONENTS, previous)
+
+        assertEquals(
+            hosts.getValue(SplitPane.SECONDARY),
+            repaired?.get(SplitPane.PRIMARY)?.hostTaskId,
+        )
+        assertEquals(navigator.appTaskId, repaired?.get(SplitPane.PRIMARY)?.appTaskId)
+        assertEquals(
+            hosts.getValue(SplitPane.PRIMARY),
+            repaired?.get(SplitPane.SECONDARY)?.hostTaskId,
+        )
+        assertEquals(null, repaired?.get(SplitPane.SECONDARY)?.appTaskId)
+        assertTrue(
+            fake.commands.any { command ->
+                command == "am stack move-task ${hosts.getValue(SplitPane.SECONDARY)} " +
+                    "$PRIMARY_ROOT false"
+            },
+        )
+        assertTrue(
+            fake.commands.any { command ->
+                command.startsWith(
+                    "am task resize ${hosts.getValue(SplitPane.SECONDARY)} ",
+                )
+            },
+        )
+    }
+
+    @Test
+    fun dividerResizeDoesNotGuessOwnershipWithoutARecordedApp() {
+        val fake = FakeShell()
+        val split = session(fake)
+        val hosts = split.openPickers(PICKERS, preservedPackages = emptyMap())
+        val previous = SplitPane.entries.associateWith { pane ->
+            SplitPickerObservedPane(hostTaskId = hosts.getValue(pane))
+        }
+        fake.moveTask(hosts.getValue(SplitPane.PRIMARY), SECONDARY_ROOT)
+        fake.commands.clear()
+
+        val repaired = split.reconcileDividerResize(PICKER_COMPONENTS, previous)
+
+        assertEquals(null, repaired)
+        assertFalse(fake.commands.any { command -> command.startsWith("am stack move-task ") })
+        assertFalse(fake.commands.any { command -> command.startsWith("am task resize ") })
+    }
+
+    @Test
     fun ownedSceneCoveredByFullscreenIsFocusedInsteadOfRebuilt() {
         val fake = FakeShell()
         val split = session(fake)
@@ -1310,6 +1383,7 @@ class SplitPickerShellSessionTest {
 
         val commands = mutableListOf<String>()
         var area = 4
+        var preserveBoundsOnShellMove = false
         private var gate = initialGate
         private var homeVisible = false
         private var nextTaskId = 100
@@ -1576,13 +1650,19 @@ class SplitPickerShellSessionTest {
                     val parts = command.split(' ')
                     val taskId = parts[3].toInt()
                     val rootId = parts[4].toInt()
+                    val toTop = parts[5].toBoolean()
                     val task = tasks.first { it.id == taskId }
                     val changedRoot = task.rootId != rootId
                     if (changedRoot) {
                         tasks.remove(task)
                         task.rootId = rootId
-                        task.bounds = bounds(rootId)
-                        tasks += task
+                        if (!preserveBoundsOnShellMove) task.bounds = bounds(rootId)
+                        if (toTop) {
+                            tasks += task
+                        } else {
+                            val firstInRoot = tasks.indexOfFirst { it.rootId == rootId }
+                            if (firstInRoot >= 0) tasks.add(firstInRoot, task) else tasks += task
+                        }
                     }
                     if (rootId == FULL_ROOT) area = 4
                     ""

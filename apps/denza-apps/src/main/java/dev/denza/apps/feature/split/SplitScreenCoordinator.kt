@@ -403,10 +403,9 @@ object SplitScreenCoordinator {
     }
 
     /**
-     * BYD preserves the logical picker hosts during a native divider resize, but swaps the app
-     * tasks between those hosts to keep the apps on their visual side. Adopt that settled native
-     * topology before any later picker lifecycle event can close the app recorded for the old
-     * side.
+     * BYD may swap only the visible top tasks during a divider resize and strand a hidden picker
+     * base in the old root. Wait for the native transition, repair exact recorded ownership when
+     * necessary, then adopt the settled topology before later lifecycle events can overwrite it.
      */
     fun onDividerResized(context: Context) {
         val app = context.applicationContext
@@ -428,6 +427,7 @@ object SplitScreenCoordinator {
                         app = app,
                         split = pickerSession(app, adb::shell),
                         reason = "divider resized",
+                        settleDividerResize = true,
                     )
                 } catch (error: Throwable) {
                     Log.w(TAG, "failed to reconcile resized split", error)
@@ -1008,9 +1008,17 @@ object SplitScreenCoordinator {
         app: Context,
         split: SplitPickerShellSession,
         reason: String,
+        settleDividerResize: Boolean = false,
     ): Boolean {
         val before = currentPickerState()
-        val live = split.existingOwnedSession(PICKER_COMPONENT_SET)
+        val live = if (settleDividerResize) {
+            split.reconcileDividerResize(
+                pickerComponents = PICKER_COMPONENT_SET,
+                previousPanes = resizeExpectation(before).orEmpty(),
+            )
+        } else {
+            split.existingOwnedSession(PICKER_COMPONENT_SET)
+        }
         val event = if (live != null) {
             SplitPickerEvent.DividerResized(
                 panes = live.mapValues { (_, pane) ->
@@ -1046,6 +1054,26 @@ object SplitScreenCoordinator {
         }
         executePickerActions(split, reduction.actions)
         return true
+    }
+
+    private fun resizeExpectation(
+        state: SplitPickerAutomatonState,
+    ): Map<SplitPane, SplitPickerObservedPane>? {
+        val panes = mutableMapOf<SplitPane, SplitPickerObservedPane>()
+        SplitPane.entries.forEach { pane ->
+            val slot = state.slot(pane)
+            val hostTaskId = slot.hostTaskId ?: return null
+            panes[pane] = when (slot.kind) {
+                SplitPickerSlotKind.PICKER -> SplitPickerObservedPane(hostTaskId)
+                SplitPickerSlotKind.APP -> SplitPickerObservedPane(
+                    hostTaskId = hostTaskId,
+                    appTaskId = slot.appTaskId ?: return null,
+                    packageName = slot.packageName ?: return null,
+                )
+                else -> return null
+            }
+        }
+        return panes
     }
 
     private fun applyPickerEvent(event: SplitPickerEvent): SplitPickerReduction =

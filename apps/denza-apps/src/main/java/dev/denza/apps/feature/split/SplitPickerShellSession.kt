@@ -106,6 +106,94 @@ internal class SplitPickerShellSession(
     }
 
     /**
+     * Waits for BYD's divider transition, then repairs only recorded picker/app ownership.
+     *
+     * DiLink can keep the two visible surfaces on their visual sides while moving only the top
+     * app tasks between native roots. A hidden permanent picker base can consequently remain in
+     * the old root beside the other picker. The previous automaton state is the narrow proof of
+     * which exact host belongs under which exact app; anything incomplete or changed fails closed.
+     */
+    fun reconcileDividerResize(
+        pickerComponents: Set<String>,
+        previousPanes: Map<SplitPane, SplitPickerObservedPane>,
+    ): Map<SplitPane, SplitPickerLivePane>? {
+        pause(DIVIDER_RECONCILE_SETTLE_MS)
+        existingOwnedSession(pickerComponents)?.let { return it }
+        if (callInt("service call activity_task 30") != AREA_BALANCED_SPLIT) return null
+        if (previousPanes.keys != SplitPane.entries.toSet()) return null
+
+        val observed = SplitPane.entries.map { pane -> previousPanes.getValue(pane) }
+        if (
+            observed.any { pane ->
+                pane.hostTaskId <= 0 ||
+                    ((pane.appTaskId == null) != (pane.packageName == null))
+            } ||
+            observed.map { pane -> pane.hostTaskId }.distinct().size != observed.size ||
+            observed.mapNotNull { pane -> pane.appTaskId }.let { ids ->
+                ids.isEmpty() || ids.distinct().size != ids.size
+            }
+        ) {
+            return null
+        }
+
+        val roots = nativeRootIds()
+        val nativeRootIds = roots.values.toSet()
+        val state = snapshot()
+        val mainTasks = state.roots.asSequence()
+            .filter { root -> root.displayId == MAIN_DISPLAY_ID }
+            .flatMap { root -> root.tasks.asSequence() }
+            .toList()
+        val hosts = previousPanes.mapValues { (_, pane) ->
+            mainTasks.singleOrNull { task ->
+                task.id == pane.hostTaskId &&
+                    task.isDenzaPickerBase() &&
+                    task.matchesAnyComponent(pickerComponents)
+            } ?: return null
+        }
+
+        val desiredRoots = mutableMapOf<SplitPane, Int>()
+        previousPanes.forEach { (pane, previous) ->
+            val appTaskId = previous.appTaskId ?: return@forEach
+            val packageName = previous.packageName ?: return null
+            val app = mainTasks.singleOrNull { task ->
+                task.id == appTaskId &&
+                    task.rootId in nativeRootIds &&
+                    task.effectivePackageName() == packageName
+            } ?: return null
+            val root = state.root(app.rootId) ?: return null
+            if (app.bounds != root.bounds) return null
+            desiredRoots[pane] = app.rootId
+        }
+        if (desiredRoots.values.distinct().size != desiredRoots.size) return null
+
+        val vacantPanes = SplitPane.entries.filterNot(desiredRoots::containsKey)
+        val vacantRoots = nativeRootIds - desiredRoots.values.toSet()
+        if (vacantPanes.size != vacantRoots.size) return null
+        if (vacantPanes.size == 1) {
+            desiredRoots[vacantPanes.single()] = vacantRoots.single()
+        }
+        if (desiredRoots.values.toSet() != nativeRootIds) return null
+
+        var moved = false
+        SplitPane.entries.forEach { pane ->
+            val host = hosts.getValue(pane)
+            val targetRootId = desiredRoots.getValue(pane)
+            if (host.rootId != targetRootId) {
+                moveTask(host.id, targetRootId, toTop = false)
+                moved = true
+            }
+        }
+        if (moved) pause(ROOT_SETTLE_MS)
+        SplitPane.entries.forEach { pane ->
+            normalizeTaskToRoot(
+                taskId = hosts.getValue(pane).id,
+                rootId = desiredRoots.getValue(pane),
+            )
+        }
+        return existingOwnedSession(pickerComponents)
+    }
+
+    /**
      * Adopts the one owned root left by a native edge collapse.
      *
      * Area 1/2 identifies the surviving logical pane. The collapsed root must be empty, every
@@ -1420,9 +1508,9 @@ internal class SplitPickerShellSession(
         pause(ROOT_SETTLE_MS)
     }
 
-    private fun moveTask(taskId: Int, rootId: Int) {
+    private fun moveTask(taskId: Int, rootId: Int, toTop: Boolean = true) {
         check(taskId > 0 && rootId > 0)
-        run("am stack move-task $taskId $rootId true")
+        run("am stack move-task $taskId $rootId $toTop")
     }
 
     private fun promoteTask(task: SplitTask, targetRootId: Int) {
@@ -1649,6 +1737,7 @@ internal class SplitPickerShellSession(
         const val TASK_REMOVAL_INTERVAL_MS = 100L
         const val CONTROL_RETURN_DISCOVERY_ATTEMPTS = 8
         const val CONTROL_RETURN_DISCOVERY_INTERVAL_MS = 100L
+        const val DIVIDER_RECONCILE_SETTLE_MS = 1_500L
         const val PICKER_SETTLE_MS = 150L
         const val HOME_SETTLE_MS = 650L
         const val NATIVE_PICKER_SETTLE_MS = 450L
