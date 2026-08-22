@@ -36,6 +36,7 @@ object SplitScreenCoordinator {
     private val pickerOpenInFlight = AtomicBoolean(false)
     private val nativePickerEventInFlight = AtomicBoolean(false)
     private val dividerReconcileInFlight = AtomicBoolean(false)
+    private val homeGateSuspendInFlight = AtomicBoolean(false)
     private val routingLock = Any()
     private val pickerStateLock = Any()
 
@@ -442,6 +443,40 @@ object SplitScreenCoordinator {
             } finally {
                 adb?.close()
             }
+        }
+    }
+
+    /** A Home accessibility event is only a hint; firmware area 0 is the mutation authority. */
+    @JvmStatic
+    fun onHomeVisible(context: Context) {
+        val app = context.applicationContext
+        this.context = app
+        ensurePickerStateLoaded(app)
+        if (!SplitScreenSettings.isEnabled(app) ||
+            !homeGateSuspendInFlight.compareAndSet(false, true)
+        ) {
+            return
+        }
+        try {
+            executor.execute {
+                var adb: LocalAdbClient.PersistentShellSession? = null
+                try {
+                    adb = DenzaLocalAdb.client(app).openPersistentShell()
+                    if (pickerSession(app, adb::shell).suspendOwnedGateForHome()) {
+                        applyPickerEvent(SplitPickerEvent.HomeObserved)
+                        Log.i(TAG, "suspended owned split gate after Home")
+                    }
+                } catch (error: Throwable) {
+                    Log.w(TAG, "failed to suspend split gate after Home", error)
+                } finally {
+                    homeGateSuspendInFlight.set(false)
+                    runCatching { adb?.close() }
+                        .onFailure { Log.w(TAG, "Home gate shell close failed", it) }
+                }
+            }
+        } catch (error: RuntimeException) {
+            homeGateSuspendInFlight.set(false)
+            Log.w(TAG, "failed to schedule Home gate suspension", error)
         }
     }
 

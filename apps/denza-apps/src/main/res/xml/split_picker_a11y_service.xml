@@ -5,5 +5,5 @@
     android:accessibilityFlags="flagDefault|flagRetrieveInteractiveWindows"
     android:canRetrieveWindowContent="true"
     android:notificationTimeout="50"
-    android:packageNames="com.android.launcher3"
+    android:packageNames="com.android.launcher3,com.byd.mycar"
     android:description="@string/split_picker_a11y_service_desc" />

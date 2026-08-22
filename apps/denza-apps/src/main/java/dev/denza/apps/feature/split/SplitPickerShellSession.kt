@@ -37,6 +37,26 @@ internal class SplitPickerShellSession(
         return false
     }
 
+    /**
+     * Closes only the split gate owned by this product after Home is authoritative.
+     *
+     * DiLink retains a separate global "last split pair" and otherwise resurrects that OEM pair
+     * when the user launches either remembered member from Home. Keep the lease so the next
+     * explicit Split Screen launch can reopen the gate, but never touch a gate we did not acquire.
+     */
+    fun suspendOwnedGateForHome(): Boolean {
+        val store = gateLeaseStore ?: return false
+        if (!store.isOwned()) return false
+        repeat(HOME_CONFIRM_ATTEMPTS) { attempt ->
+            if (callInt("service call activity_task 30") == AREA_HOME) {
+                callVoid("service call activity_task 126 i32 0")
+                return true
+            }
+            if (attempt + 1 < HOME_CONFIRM_ATTEMPTS) pause(HOME_CONFIRM_INTERVAL_MS)
+        }
+        return false
+    }
+
     private fun hasActivePointer(inputDump: String): Boolean {
         val stateStart = inputDump.indexOf("TouchStatesByDisplay:")
         if (stateStart < 0) return false
@@ -1720,6 +1740,8 @@ internal class SplitPickerShellSession(
         const val NATIVE_PICKER_COMMIT_ATTEMPTS = 60
         const val NATIVE_PICKER_COMMIT_INTERVAL_MS = 100L
         const val NATIVE_PICKER_RELEASED_SAMPLES = 2
+        const val HOME_CONFIRM_ATTEMPTS = 6
+        const val HOME_CONFIRM_INTERVAL_MS = 100L
         const val DIVIDER_RECONCILE_SETTLE_MS = 1_500L
         const val PICKER_SETTLE_MS = 150L
         const val NATIVE_PICKER_SETTLE_MS = 450L

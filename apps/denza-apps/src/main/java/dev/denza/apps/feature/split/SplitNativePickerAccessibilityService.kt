@@ -4,32 +4,61 @@ import android.accessibilityservice.AccessibilityService
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 
-/** Exact event source for the stock picker created by the SmartMulti divider gesture. */
+internal enum class SplitAccessibilityEventTarget { STOCK_PICKER, HOME, IGNORE }
+
+internal object SplitAccessibilityEventPolicy {
+    fun target(packageName: String?, className: String?): SplitAccessibilityEventTarget = when {
+        packageName == STOCK_PICKER_PACKAGE && className == STOCK_PICKER_ACTIVITY ->
+            SplitAccessibilityEventTarget.STOCK_PICKER
+        packageName == HOME_PACKAGE -> SplitAccessibilityEventTarget.HOME
+        else -> SplitAccessibilityEventTarget.IGNORE
+    }
+
+    private const val STOCK_PICKER_PACKAGE = "com.android.launcher3"
+    private const val STOCK_PICKER_ACTIVITY = "com.android.launcher3.SplitScreenListActivity"
+    private const val HOME_PACKAGE = "com.byd.mycar"
+}
+
+/** Exact event source for the stock picker and an authority-checked Home gate suspension. */
 class SplitNativePickerAccessibilityService : AccessibilityService() {
     override fun onServiceConnected() {
         Log.i(TAG, "service connected")
         if (SplitScreenSettings.isEnabled(this)) {
-            // The coordinator mutates only after a stable, released area 3. Starting the read-only
-            // wait here also handles a picker that was visible while the service bound.
-            SplitScreenCoordinator.onNativePickerVisible(this)
+            // A reconnect may happen after Home was already shown. The coordinator still requires
+            // firmware area 0 and an owned gate before it mutates anything.
+            SplitScreenCoordinator.onHomeVisible(this)
+            // Do not start the intentionally long drag-settle wait merely because the service
+            // reconnected. Run it only when the exact stock picker is already in a visible window.
+            val stockPickerVisible = windows.any { window ->
+                val root = window.root ?: return@any false
+                SplitAccessibilityEventPolicy.target(
+                    packageName = root.packageName?.toString(),
+                    className = root.className?.toString(),
+                ) == SplitAccessibilityEventTarget.STOCK_PICKER
+            }
+            if (stockPickerVisible) SplitScreenCoordinator.onNativePickerVisible(this)
         }
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        if (event?.packageName?.toString() != STOCK_PICKER_PACKAGE ||
-            event.className?.toString() != STOCK_PICKER_ACTIVITY
+        when (
+            SplitAccessibilityEventPolicy.target(
+                packageName = event?.packageName?.toString(),
+                className = event?.className?.toString(),
+            )
         ) {
-            return
+            SplitAccessibilityEventTarget.STOCK_PICKER ->
+                SplitScreenCoordinator.onNativePickerVisible(this)
+            SplitAccessibilityEventTarget.HOME ->
+                SplitScreenCoordinator.onHomeVisible(this)
+            SplitAccessibilityEventTarget.IGNORE -> Unit
         }
-        SplitScreenCoordinator.onNativePickerVisible(this)
     }
 
     override fun onInterrupt() = Unit
 
     private companion object {
         const val TAG = "DenzaSplitPickerA11y"
-        const val STOCK_PICKER_PACKAGE = "com.android.launcher3"
-        const val STOCK_PICKER_ACTIVITY = "com.android.launcher3.SplitScreenListActivity"
     }
 }
 

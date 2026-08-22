@@ -1233,6 +1233,47 @@ class SplitPickerShellSessionTest {
     }
 
     @Test
+    fun homeSuspendsOwnedGateButKeepsLeaseForExplicitReopen() {
+        val fake = FakeShell()
+        val lease = FakeGateLease()
+        val split = session(fake, lease)
+        split.openPickers(PICKERS, preservedPackages = emptyMap())
+        fake.area = 0
+
+        assertTrue(split.suspendOwnedGateForHome())
+
+        assertFalse(fake.isGateOpen())
+        assertTrue(lease.isOwned())
+
+        split.openPickers(PICKERS, preservedPackages = emptyMap())
+
+        assertTrue(fake.isGateOpen())
+        assertTrue(lease.isOwned())
+    }
+
+    @Test
+    fun homeNeverClosesGateOwnedByAnotherComponent() {
+        val fake = FakeShell(initialGate = true).apply { area = 0 }
+        val lease = FakeGateLease(owned = false)
+
+        assertFalse(session(fake, lease).suspendOwnedGateForHome())
+
+        assertTrue(fake.isGateOpen())
+        assertFalse(fake.commands.any { it == "service call activity_task 126 i32 0" })
+    }
+
+    @Test
+    fun nonHomeEventNeverSuspendsOwnedGate() {
+        val fake = FakeShell(initialGate = true).apply { area = 3 }
+        val lease = FakeGateLease(owned = true)
+
+        assertFalse(session(fake, lease).suspendOwnedGateForHome())
+
+        assertTrue(fake.isGateOpen())
+        assertTrue(lease.isOwned())
+    }
+
+    @Test
     fun ownedGateIsRecoveredEvenWhenPickerTasksHaveAlreadyGone() {
         val fake = FakeShell(initialGate = true)
         val lease = FakeGateLease(owned = true)
