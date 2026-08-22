@@ -1,8 +1,9 @@
 # Vehicle Data Availability Findings
 
 Status: live-car availability investigation on 2026-07-24, with the earlier
-vehicle-event probe results from 2026-06-27 retained where relevant and current
-product wiring checked against the code on 2026-08-20.
+vehicle-event probe results from 2026-06-27 retained where relevant, product
+wiring checked against the code on 2026-08-20, and a shell-UID `autoservice`
+FID read on 2026-08-22.
 
 This page records which vehicle and journey signals a normal Denza Apps APK can
 actually use. It distinguishes product-usable sources from values that are
@@ -27,14 +28,19 @@ The practical product inputs are:
 - Denza Apps' existing accessibility-derived Yandex guidance while a valid
   navigation scene is visible.
 
-The following must not be treated as product-available today:
+The following must not be treated as product-available to a normal `/data/app`
+identity (no `BYDAUTO_*_GET`, no Binder from the app process):
 
-- battery state of charge, energy flow, charging state, or electric range;
-- accelerator/brake position, steering angle, or gear;
-- tire pressure or tire temperature;
-- cabin PM2.5, CO2, or climate values;
+- accelerator/brake position, steering angle, or gear via DiCar getters;
+- tire / climate / PM2.5 / BMS via DiCar getters;
 - raw BYD event traffic seen in system `logcat`;
 - regeneration power inferred from the unsigned/raw trip arrays.
+
+The same BMS, HV, 12V, motor, tyre, climate, and air values **do** exist on
+the native `autoservice` Binder (`android.gui.BYDAutoServer`). A trusted
+local-ADB `shell` UID can read them with `service call autoservice`. That is
+how third-party dashboards on this head unit get the numbers. Protocol,
+scales, and the widget allowlist: [autoservice FID protocol](#autoservice-fid-protocol).
 
 ## Test environment
 
@@ -48,8 +54,9 @@ The following must not be treated as product-available today:
 | Temporary probe package | `dev.denza.tools.vehicledatareadprobe` |
 | Probe identity | normal app UID; no BYD/system permissions |
 
-The temporary probe was uninstalled after the run. Denza Apps was not modified.
-No `com.byd.avc` crash was observed during these read-only checks.
+The temporary probe was uninstalled after the 2026-07-24 run. The 2026-08-22
+`autoservice` reads used only `service list` and `service call`; Denza Apps was
+not modified. No `com.byd.avc` crash was observed.
 
 ## Evidence labels
 
@@ -78,7 +85,8 @@ No `com.byd.avc` crash was observed during these read-only checks.
 | GNSS status/extras | satellite and signal-quality information | event-driven with GNSS fixes/status | standard runtime location permission | Confirmed Android surface | Optional diagnostics, not a primary dashboard metric |
 | `com.byd.carStatusProvider` | maintenance fields, issue fields, raw fuel/electric trip arrays | update cadence unknown; provider supports change notifications | provider exported with no read permission | Readable but unqualified | Query/observe only; do not label raw arrays as consumption or regeneration |
 | Yandex guidance through Denza Apps accessibility | maneuver, next road, remaining route distance/time, optional road text | event-driven; only while validated guidance is visible and fresh | enabled Denza Apps accessibility service | Existing product path | Usable with the current fail-closed/staleness rules |
-| High-level DiCar Binder APIs | battery, energy flow, range, charging, pedals, steering, tires, air quality | getter surface exists; useful calls blocked | signature/privileged BYD permissions | Blocked | Not a product source |
+| High-level DiCar Binder APIs | battery, energy flow, range, charging, pedals, steering, tires, air quality | getter surface exists; useful calls blocked | signature/privileged BYD permissions | Blocked | Not a product source from app UID |
+| `autoservice` (`android.gui.BYDAutoServer`) | SOC, SoH, pack temps, cell mV, 12V, HV, charge, motors, tyres, climate, PM2.5 | on-demand `service call` from shell | shell UID via local ADB; app UID blocked | Shell/system only | Poll a short allowlist through `DenzaLocalAdb`; never from the app process |
 | Raw BYDAuto events/system logs | speed logs, bodywork/settings/safety-belt/PM2.5 events, other CAN-derived events | speed log about 1 Hz; other events vary; some logs are high-rate | system log access / protected BYD permissions | Shell/system only | Diagnostics only |
 
 The `30 Hz` standard-IMU sampling and at-most-`30 FPS` rendering design is now
@@ -220,9 +228,172 @@ Transport access did not imply data access. Representative getter results:
 | current trip info | `20001`, invalid property key format |
 | energy-consumption API version/type | success with value `1`; capability metadata only |
 
-The conclusion is fail-closed: none of these blocked values should appear in a
-Denza Apps design unless a later normal-product APK test proves a supported
-permission path.
+The conclusion for a **normal app UID** is still fail-closed: do not add
+`BYDAUTO_*` permissions to the product manifest, and do not call these
+high-level getters from `dev.denza.apps` process identity.
+
+The 2026-07-24 probe also returned `20001` invalid property key format for
+trip info. The keys it needed were not names like `battery_level`; they are
+the hex CAN feature IDs from the DiLink catalog (`com.byd.feature.*`), for
+example `"0x44700038"`. That catalog gap, plus never calling the native
+`autoservice` Binder from shell, is why BMS/cell/12V looked unavailable.
+
+## autoservice FID protocol
+
+Live-verified 2026-08-22 on this DiLink 5.1 IVI over `adb -s 127.0.0.1:5555`.
+The car was parked and on AC charge (gun=2, ~2.4 kW, SOC rose 42→43 % during
+the session). Read-only `service call` only: no APK install, no `app_process`,
+no writes, `dumpsys autoservice` returns empty.
+
+**Result: working** for shell UID. **Blocked** for a normal app UID. Same
+Binder third-party dashboards use (BYDMate `AutoserviceClient`, EV Pro
+local-ADB layer, OpenBYD privileged proxy). OpenBYD's `app_process` +
+`BydContextWrapper.checkPermission()==0` is unnecessary for reads: a one-shot
+`service call` from shell is enough.
+
+### Binder
+
+```text
+autoservice: [android.gui.BYDAutoServer]
+```
+
+| Transact | Meaning | Do not use |
+| --- | --- | --- |
+| `5` | `getInt(dev, fid)` | |
+| `7` | `getFloat(dev, fid)` — IEEE-754 bits in the parcel int | |
+| `6` | `setInt` (BYDMate) | never from research or product |
+
+Device types from `android.hardware.bydauto.BYDAutoConstants` (MapHelper stub
+JAR; live `dev` values match):
+
+| Family | `dev` | Used for |
+| --- | --- | --- |
+| AC | `1000` | cabin/out temps, CO2 |
+| bodywork | `1001` | 12V, cell count, doors, hood |
+| power | `1005` | LV / HV state flags |
+| energy | `1006` | 12V twin, 50 km split |
+| instrument | `1007` | tyre temps, some trip figures |
+| PM2.5 | `1008` | in/out µg/m³ |
+| charging | `1009` | pack V, current, gun, charge power |
+| gearbox | `1011` | EPB, park switch |
+| engine | `1012` | pack power kW, motor rpm |
+| speed | `1013` | speed / pedal (parked = 0) |
+| statistic / BMS | `1014` | SOC, SoH, cells, pack temp, odo |
+| tyre | `1016` | pressures |
+| OTA | `1032` | 12V alias |
+| GB | `1039` | motor temps, bus V, insulation |
+| sensor | `1043` | slope, windshield humidity |
+
+Hex feature IDs (`fid`) come from the MapHelper-bundled catalog
+`reverse/maphelper-jadx/sources/com/byd/feature/{statistics,energy,gb,charging,…}`.
+The catalog is ~8000 constants; most are SET/CONFIG/FAULT. Motor temp IDs are
+generation-specific (`GB_FRONT_MOTOR_TEMP` vs `_DM40` vs `_DM40_464`); this
+car answers on the `_DM40_464` set.
+
+### How to read
+
+```bash
+# getInt — pass fid as a signed 32-bit decimal (high bit set → negative)
+adb -s 127.0.0.1:5555 shell service call autoservice 5 i32 <dev> i32 <fid>
+# getFloat
+adb -s 127.0.0.1:5555 shell service call autoservice 7 i32 <dev> i32 <fid>
+```
+
+Stdout: `Result: Parcel(00000000 XXXXXXXX   '....')`. The second 32-bit word
+is the payload.
+
+```python
+import struct
+word = int("XXXXXXXX", 16)
+sint = word - 2**32 if word >= 2**31 else word
+flt  = struct.unpack(">f", bytes.fromhex("XXXXXXXX"))[0]
+```
+
+From Denza Apps, the same command goes through the existing local-ADB client
+(`DenzaLocalAdb.client(context).shell(...)`), not through
+`BYDAutoStatisticDevice.get()` in the app process. Do not add `BYDAUTO_*`
+permissions to the product manifest. Do not spawn a long-lived `app_process`
+proxy.
+
+If transact 5 returns −10013, retry 7 (and vice versa).
+
+### Sentinels — do not display
+
+| Parcel / value | Meaning |
+| --- | --- |
+| `0xffffd8e3` (−10013) | wrong transact or direction |
+| `0xffffd8e5` (−10011) | no data / not on this generation |
+| `0xbf800000` (−1.0f) | invalid float |
+| `0xffffffd8` (−40) | often “no sensor” (also a real −40 °C offset-zero) |
+| `255`, `4095`, `1023`, `205`, `40.95`, `6153.5` | max-range placeholders, common on V2L/VTOV |
+
+Cell delta has no FID: compute max − min locally.
+
+### Scales proven or likely on this car
+
+| Rule | Evidence |
+| --- | --- |
+| Pack temp °C = int − 40 | avg raw 68 → 28 °C vs third-party 29.0 °C |
+| Motor / IPM / tyre / climate °C = int as-is | front motor 31 matched the screenshot card |
+| Cell voltage V = int / 1000 | 3313 → 3.313 V |
+| 12V = float volts | `0x415ccccd` → 13.80 |
+| SOC % = float (also int twin) | 43.0 |
+| Odometer km = int / 10 | 118927 → 11892.7 km (BYDMate convention, plausible) |
+| Remaining energy kWh = int / 10 | 432 → 43.2 kWh; 432 / 0.43 ≈ 100 kWh pack |
+| Tyre pressure bar = int / 100 | 287 → 2.87 bar |
+| Charge gun 2 = AC connected | BYDMate table; SOC rose during the session |
+| Pack V cross-check | 166 cells × 3.315 V ≈ 550 V = `CHARGING_CHARGE_BATTERY_VOLT` |
+
+Unproven — do not label in a UI until a moving capture: `STATISTIC_INSTANTANEOUS_CURRENT`
+(raw 35721), available-power 72, LV-side current 28 vs 2.8 A, driving-time 56.3
+hours vs minutes, max chg/dchg 759/3641.
+
+## Widget allowlist (2026-08-22)
+
+Filtered scan: 1156 telemetry-named FIDs (skipped SET/CONFIG/FAULT and
+ADAS/settings/audio/lights) → 676 non-sentinel parcels. Most are door-actuator
+flags or placeholders. A product widget polls only the rows below.
+
+| Group | Signal | FID | dev | tx | Session value | Decode |
+| --- | --- | --- | --- | --- | --- | --- |
+| BMS | SOC | `0x4A505038` | 1014 | 7 | 43 | % |
+| BMS | SoH | `0x44400028` | 1014 | 5 | 99 | % |
+| BMS | Pack temp avg/min/max | `0x44700038` / `0x44700010` / `0x44700020` | 1014 | 5 | 68 / 67 / 69 | °C = raw − 40 |
+| BMS | Cell min/max | `0x44600010` / `0x44600030` | 1014 | 5 | 3313 / 3317 | mV; Δ local |
+| BMS | Series cell count | `0x43A00008` | 1001 | 5 | 166 | cells |
+| BMS | Remaining energy | `0x44700028` | 1014 | 5 | 432 | likely kWh ×10 |
+| HV | Pack voltage | `0x44400008` | 1009 | 5 | 550 | V |
+| HV | Front/rear bus | `0x46407020` / `0x46407010` | 1039 | 5 | 551 / 551 | V |
+| HV | Charge power | `0x32300018` | 1009 | 7 | 2.4 | kW |
+| HV | Charge current | `0x44400018` | 1009 | 7 | −4.4 | A; sign not proven |
+| HV | Engine/pack power | `0x14400020` | 1012 | 5 | −2 | kW |
+| HV | Insulation | `0x43A00018` | 1039 | 5 | 13051 | likely kΩ |
+| 12V | Voltage | `0x43400028` | 1001 | 7 | 13.8 | V (energy twin `0x36D00020` / 1006) |
+| Range | Remaining EV range | `0x4A50203E` | 1014 | 5 | 67 | km |
+| Trip | Odometer | `0x4A502010` | 1014 | 5 | 118927 | km ×10 |
+| Trip | Lifetime kWh / kWh/100 | `0x3D906030` / `0x4A501030` | 1014 | 7 | 997.9 / 6.5 | |
+| Trip | Last 50 km equivalent | `0x4A507032` | 1014 | 7 | 6.6 | kWh/100 km |
+| Trip | 50 km split drive/AC/aux | `0x35903831` / `0x35903838` / `0x35903841` | 1006 | 5 | 91 / 4 / 5 | % |
+| Charge | Gun | `0x34400032` | 1009 | 5 | 2 | 2 = AC connected |
+| Charge | SOC on charger | `0x32300010` | 1009 | 5 | 43 | % |
+| Charge | Time remaining h/min | `0x32300028` / `0x32300030` | 1009 | 5 | 9 / 17 | |
+| Motor | Front temp / IPM | `0x46406018` / `0x46406010` | 1039 | 5 | 31 / 26 | °C raw |
+| Motor | Rear L/R temp | `0x285001A8` / `0x285001B0` | 1039 | 5 | 29 / 31 | °C raw; not the third-party 40 °C card |
+| Motor | rpm front/rear | `0x44100008` / `0x25100008` | 1012 | 5 | 0 / 0 | |
+| Tyre | Pressure LF/RF/LR/RR | `0x99000124` / `28` / `2c` / `30` | 1016 | 5 | 287 / 287 / 285 / 287 | kPa → bar /100 |
+| Tyre | Temp LF/RF/LR/RR | `0x4A50A018` / `24` / `30` / `3c` | 1007 | 5 | 25 / 24 / 23 / 23 | °C raw |
+| Climate | Inside / filtered / out | `0x3D800030` / `0x4EB06010` / `0x40400038` | 1000 | 5 | 23 / 26 / 21 | °C |
+| Climate | Main / passenger set | `0x40400028` / `0x40400030` | 1000 | 5 | 23 / 24 | °C |
+| Air | PM2.5 in / out | `0x4F600010` / `0x4F60001C` | 1008 | 5 | 9 / 19 | µg/m³ |
+| Air | CO2 outside | `0x35B00018` | 1000 | 5 | 300 | ppm-ish |
+| Cabin | Windshield humidity / surface | `0x3B400008` / `0x3B400010` | 1043 | 7 | 19.5 / 28 | % / °C |
+| Cabin | Slope | `0x2230002C` | 1043 | 5 | −4 | deg-ish |
+| Body | EPB / park switch | `0x21800011` / `0x05500030` | 1011 | 5 | 3 / 1 | parked |
+
+Open: no FID on this firmware reproduced the third-party “rear motor 40 °C”
+card; `STATISTIC_INSTANTANEOUS_CURRENT` scale unknown. Next action: one
+moving-drive capture of current, pack power, and rear-motor FIDs, then stop
+scanning the catalog.
 
 ## Legacy BYDAuto events and system logs
 
@@ -275,8 +446,9 @@ in this vehicle-data investigation.
 | Route remaining time/distance | existing validated Yandex accessibility guidance | Only while guidance is visible and fresh |
 | Road-surface memory | GNSS + calibrated vertical motion stored locally | Deferred; needs repeat-drive validation and false-positive analysis |
 | Maintenance summary | exported car-status rows | Units/state semantics need confirmation |
-| Regeneration/energy display | no qualified source | Do not implement |
-| Tire/cabin/charging display | protected DiCar getters | Do not implement |
+| Regeneration/energy display | no qualified instantaneous current yet | Do not label `35721` as amps |
+| Technical BMS / 12V / HV widget | `autoservice` allowlist via `DenzaLocalAdb` | Shell-only; short allowlist; no `BYDAUTO_*` in the manifest |
+| Tyre / climate / PM2.5 | same Binder, different `dev` | Same privilege path; still blocked from app UID |
 
 The current road-thread/body-field prototypes use simulated values. They show a
 candidate visual mapping only; they are not live-car evidence.
@@ -294,6 +466,8 @@ adb -s 127.0.0.1:5555 shell content query \
   --uri content://com.byd.carStatusProvider/car_status
 adb -s 127.0.0.1:5555 shell content query \
   --uri content://com.byd.carStatusProvider/dicare_record
+adb -s 127.0.0.1:5555 shell service call autoservice 5 i32 1014 i32 1147142160
+adb -s 127.0.0.1:5555 shell service call autoservice 7 i32 1001 i32 1128267816
 ```
 
 Reverse inputs inspected locally and intentionally not committed:
@@ -302,6 +476,7 @@ Reverse inputs inspected locally and intentionally not committed:
 /system/priv-app/DiCarServer/DiCarServer.apk
 /system/priv-app/BydClusterApp/BydClusterApp.apk
 /system/priv-app/CarStatusProvider/CarStatusProvider.apk
+MapHelper.apk  (bundled com.byd.feature.* FID catalog + BYDAutoConstants)
 ```
 
 The first shell-only `app_process` harness was killed and was abandoned. An
@@ -312,21 +487,21 @@ above. These were probe-process failures, not vehicle-process failures.
 
 ## Next useful validation
 
-Before product code is added:
+GNSS/IMU (unchanged from 2026-07-24):
 
-1. Build an isolated normal-APK recorder for standard accelerometer, gyroscope,
+1. Isolated normal-APK recorder for standard accelerometer, gyroscope,
    gravity/linear acceleration, and GNSS.
-2. Record a short normal drive with the head unit untouched during motion.
-3. Calibrate longitudinal/lateral/vertical axes and quantify stationary noise.
-4. Correlate turns, braking, elevation changes, and road impulses with the
-   recorded trace.
-5. Profile a 30 Hz sensor loop and 30 FPS renderer for CPU, frame time, and
-   thermal impact.
-6. Separately register the vendor SCP sensors and document whether a normal APK
-   receives and can interpret their payload.
-7. Observe `car_status` changes during the same drive without writing to the
-   provider; identify the producer and units before using any trip array.
+2. Short drive with the head unit untouched; calibrate vehicle axes.
+3. Profile the 30 Hz sensor loop for CPU/thermal.
 
-Until those checks pass, the honest product boundary is GNSS plus standard
-Android IMU data, with existing fail-closed navigation guidance where
-applicable.
+`autoservice` widget (2026-08-22; stop catalog scanning):
+
+1. One moving-drive capture of pack power, `STATISTIC_INSTANTANEOUS_CURRENT`,
+   motor rpm/temp, and the rear-motor FID candidates.
+2. Confirm remaining-energy ×10 and odometer ×10 against the cluster.
+3. Poll the allowlist through `DenzaLocalAdb` from a debug build; fail closed
+   when ADB is untrusted. Do not add `BYDAUTO_*` permissions.
+
+Until the drive capture, the honest **app-UID** boundary remains GNSS plus
+standard IMU plus fail-closed Yandex guidance. The honest **shell-UID**
+boundary is the widget allowlist above.

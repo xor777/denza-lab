@@ -9,7 +9,7 @@ Use this folder for durable project knowledge.
 | `adb-authorization-recovery.md` | Denza Apps local-ADB startup gate, one-shot authorization flow, stuck-queue boundary, and acceptance status. |
 | `instrument-display-findings.md` | Instrument-display selection, Mirrors geometry, navigation projection, verification status, and open issues. |
 | `audio-capture-findings.md` | Verified output-mix spectrum source, calibration, permissions, product adoption, and remaining audio checks. |
-| `vehicle-data-findings.md` | Live-car matrix of usable GNSS/IMU/journey data, blocked BYD/CAN getters, frequencies, probes, and product boundaries. |
+| `vehicle-data-findings.md` | Live-car matrix of usable GNSS/IMU/journey data, blocked DiCar getters, `autoservice` FID protocol, widget allowlist, and product boundaries. |
 | `stock-russian-locale.md` | Captured BYD Settings locale behavior, stock Russian resources, and the narrow verified Denza Apps toggle. |
 | `dishare-api-notes.md` | DiShare/HUD reverse-engineering notes and raw API findings. |
 | `fse-app-installation.md` | Passenger-screen Android discovery, SMB delivery, stock cross-device install trigger, verification, and limitations. |
