@@ -1,11 +1,16 @@
 package dev.denza.apps.feature.split
 
 import android.accessibilityservice.AccessibilityService
+import android.graphics.Rect
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 
 /** Exact event source for the stock picker created by the SmartMulti divider gesture. */
 class SplitNativePickerAccessibilityService : AccessibilityService() {
+    private val interactionBlocker by lazy {
+        SplitNativePickerInteractionBlocker(this)
+    }
+
     override fun onServiceConnected() {
         Log.i(TAG, "service connected")
         if (SplitScreenSettings.isEnabled(this)) {
@@ -20,10 +25,29 @@ class SplitNativePickerAccessibilityService : AccessibilityService() {
         ) {
             return
         }
-        SplitScreenCoordinator.onNativePickerVisible(this)
+        if (interactionBlocker.isShowing()) return
+
+        interactionBlocker.show(event.source?.let { source ->
+            Rect().also(source::getBoundsInScreen).takeIf { it.hasArea() }
+        })
+        val scheduled = SplitScreenCoordinator.onNativePickerVisible(this) {
+            interactionBlocker.hide()
+        }
+        if (!scheduled) {
+            interactionBlocker.hide()
+        }
     }
 
-    override fun onInterrupt() = Unit
+    override fun onInterrupt() {
+        interactionBlocker.hide()
+    }
+
+    override fun onDestroy() {
+        interactionBlocker.hide()
+        super.onDestroy()
+    }
+
+    private fun Rect.hasArea(): Boolean = width() > 0 && height() > 0
 
     private companion object {
         const val TAG = "DenzaSplitPickerA11y"

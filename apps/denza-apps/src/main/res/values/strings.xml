@@ -3,5 +3,6 @@
     <string name="split_screen_launcher_name">Split Screen</string>
     <string name="a11y_service_desc">Управляет приложениями в Simulcast и передаёт подсказки Яндекс Навигатора на проекцию.</string>
     <string name="split_picker_a11y_service_desc">Заменяет штатный список приложений в окне разделения экрана.</string>
+    <string name="split_picker_replacing_text">Открываю выбор приложений…</string>
     <string name="navigation_transfer_overlay_text">Переносим…</string>
 </resources>

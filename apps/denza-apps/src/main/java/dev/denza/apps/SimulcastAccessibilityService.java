@@ -168,13 +168,9 @@ public class SimulcastAccessibilityService extends AccessibilityService {
         if (eventPackage != null && "com.byd.weatherdata".contentEquals(eventPackage)) {
             WeatherAdapterScheduler.onNativeWeatherVisible(this);
         }
-        CharSequence eventClass = event.getClassName();
-        if (eventPackage != null
-                && eventClass != null
-                && "com.android.launcher3".contentEquals(eventPackage)
-                && "com.android.launcher3.SplitScreenListActivity".contentEquals(eventClass)) {
-            SplitScreenCoordinator.onNativePickerVisible(this);
-        }
+        // The dedicated split accessibility service owns stock-picker replacement. It must
+        // install its interaction blocker before scheduling the asynchronous shell mutation;
+        // forwarding the same event here can win that race without the blocker.
         HudGuidanceAccessibilityMonitor hudMonitor = hudGuidanceMonitor;
         if (hudMonitor != null) {
             hudMonitor.onAccessibilityEvent(event);

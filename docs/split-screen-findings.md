@@ -38,8 +38,9 @@ The product contract is deliberately small:
    can retain the geometry of the pane from which the task came;
 4. dismissing the selected app reveals the picker already underneath it;
    dismissing the picker collapses that pane normally, while pulling the native
-   drag control open replaces the briefly created stock picker directly in its
-   root without a fullscreen intermediate frame;
+   drag control open immediately covers the stock picker with a pane-local,
+   touch-blocking transition and replaces it directly in its root without a
+   fullscreen intermediate frame;
 5. the last package selected in each root is persisted and restored the next
    time the launcher entry is opened;
 6. the same package is rejected in the other root because ordinary Android
@@ -203,12 +204,23 @@ BYD primary category starts directly in the narrow root at
 `[24,112][856,1472]` on its first rendered frame. The production replacement
 for both panes is unit-tested. The operator then dismissed one Denza picker,
 observed Music expand normally, and reopened the vacancy with the native drag
-control. Launcher3's stock picker drew directly in the narrow root and remained
-visible for about 1.6 seconds until its accessibility event launched the Denza
-replacement. The replacement's first frame was in the same root at `832 x 1360`;
-area mode stayed `3` throughout the replacement, Music stayed in the other root
-with matching bounds, Home was not shown, and the crash buffer remained empty.
-The brief stock picker is an accepted signal latency, not a global scene rebuild.
+control. The original implementation left Launcher3's stock picker interactive
+for about 1.6 seconds until its accessibility event launched the Denza
+replacement. A 2026-08-22 live race proved that this was not merely visual: a
+tap 250 ms after the drag selected the stock map tile, launched
+`com.byd.launchermap` as task `#261`, skipped the Denza picker, and left the live
+pane outside the persisted automaton.
+
+The dedicated split accessibility service now owns that event exclusively. It
+adds a `TYPE_ACCESSIBILITY_OVERLAY` over the exact stock-picker bounds before it
+schedules the local-ADB replacement, consumes touches there, and removes the
+overlay after replacement completion or a fail-closed error. The generic
+Simulcast accessibility service no longer races the dedicated handler. On the
+final live A/B, the overlay showed **«Открываю выбор приложений…»**, the same
+timed tap launched no stock app, Denza picker task `#272` replaced the native
+task in the same root, and persisted state was `SPLIT` with `PICKER/PICKER`
+slots (`#272/#270`). Area mode stayed `3`; no Home frame or foreign task was
+introduced.
 
 The selected-app stable host is an optional ratchet above the previously proven
 direct BYD launch, never a replacement for it. On the 2026-08-16 17:47 live

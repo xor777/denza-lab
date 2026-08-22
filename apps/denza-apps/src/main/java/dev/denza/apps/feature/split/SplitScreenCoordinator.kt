@@ -436,7 +436,10 @@ object SplitScreenCoordinator {
 
     /** Accessibility event for the stock picker created by dragging a fullscreen pane open. */
     @JvmStatic
-    fun onNativePickerVisible(context: Context) {
+    fun onNativePickerVisible(
+        context: Context,
+        onComplete: (() -> Unit)? = null,
+    ): Boolean {
         val app = context.applicationContext
         this.context = app
         ensurePickerStateLoaded(app)
@@ -444,48 +447,60 @@ object SplitScreenCoordinator {
             !SplitScreenSettings.isEnabled(app) ||
             !nativePickerEventInFlight.compareAndSet(false, true)
         ) {
-            return
+            return false
         }
-        executor.execute {
-            var adb: LocalAdbClient.PersistentShellSession? = null
-            try {
-                adb = DenzaLocalAdb.client(app).openPersistentShell()
-                val split = pickerSession(app, adb::shell)
-                SplitPane.entries.forEach { pane ->
-                    val observation = split.observePane(pane, PICKER_COMPONENT_SET)
-                    val hostTaskId = observation.hostTaskId ?: return@forEach
-                    if (!observation.nativeHostVisible || observation.pickerVisible) {
-                        return@forEach
-                    }
-                    val reduction = applyPickerEvent(
-                        SplitPickerEvent.NativePickerObserved(
-                            pane,
-                            hostTaskId,
-                            observation.observedTaskIds,
-                        ),
-                    )
-                    val attachRequested = reduction.actions.any {
-                        it is SplitPickerAction.AttachPicker
-                    }
-                    try {
-                        executePickerActions(split, reduction.actions)
-                    } catch (error: Throwable) {
-                        if (attachRequested) {
-                            applyPickerEvent(
-                                SplitPickerEvent.PickerAttachFailed(pane, hostTaskId),
-                            )
+        try {
+            executor.execute {
+                var adb: LocalAdbClient.PersistentShellSession? = null
+                try {
+                    adb = DenzaLocalAdb.client(app).openPersistentShell()
+                    val split = pickerSession(app, adb::shell)
+                    SplitPane.entries.forEach { pane ->
+                        val observation = split.observePane(pane, PICKER_COMPONENT_SET)
+                        val hostTaskId = observation.hostTaskId ?: return@forEach
+                        if (!observation.nativeHostVisible || observation.pickerVisible) {
+                            return@forEach
                         }
-                        Log.w(TAG, "failed to attach picker in $pane", error)
-                        return@forEach
+                        val reduction = applyPickerEvent(
+                            SplitPickerEvent.NativePickerObserved(
+                                pane,
+                                hostTaskId,
+                                observation.observedTaskIds,
+                            ),
+                        )
+                        val attachRequested = reduction.actions.any {
+                            it is SplitPickerAction.AttachPicker
+                        }
+                        try {
+                            executePickerActions(split, reduction.actions)
+                        } catch (error: Throwable) {
+                            if (attachRequested) {
+                                applyPickerEvent(
+                                    SplitPickerEvent.PickerAttachFailed(pane, hostTaskId),
+                                )
+                            }
+                            Log.w(TAG, "failed to attach picker in $pane", error)
+                            return@forEach
+                        }
                     }
+                } catch (error: Throwable) {
+                    Log.w(TAG, "failed to host picker in native vacancy", error)
+                } finally {
+                    nativePickerEventInFlight.set(false)
+                    runCatching { onComplete?.invoke() }
+                        .onFailure { Log.w(TAG, "native picker completion failed", it) }
+                    runCatching { adb?.close() }
+                        .onFailure { Log.w(TAG, "native picker shell close failed", it) }
                 }
-            } catch (error: Throwable) {
-                Log.w(TAG, "failed to host picker in native vacancy", error)
-            } finally {
-                adb?.close()
-                nativePickerEventInFlight.set(false)
             }
+        } catch (error: RuntimeException) {
+            Log.w(TAG, "failed to schedule native picker replacement", error)
+            nativePickerEventInFlight.set(false)
+            runCatching { onComplete?.invoke() }
+                .onFailure { Log.w(TAG, "native picker completion failed", it) }
+            return false
         }
+        return true
     }
 
     @JvmStatic
