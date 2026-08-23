@@ -81,18 +81,3 @@ internal interface SplitGateLeaseStore {
     fun isOwned(): Boolean
     fun setOwned(owned: Boolean): Boolean
 }
-
-internal object SplitPickerSelectionPolicy {
-    fun restorablePair(
-        primaryPackage: String?,
-        secondaryPackage: String?,
-        installedPackages: Set<String>,
-    ): Map<SplitPane, String> {
-        val primary = primaryPackage?.takeIf(installedPackages::contains)
-        val secondary = secondaryPackage?.takeIf(installedPackages::contains)
-        return buildMap {
-            primary?.let { put(SplitPane.PRIMARY, it) }
-            secondary?.let { put(SplitPane.SECONDARY, it) }
-        }
-    }
-}

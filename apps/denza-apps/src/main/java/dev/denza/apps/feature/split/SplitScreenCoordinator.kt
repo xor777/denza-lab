@@ -313,13 +313,10 @@ object SplitScreenCoordinator {
 
     /**
      * Read from [SplitLaunchCatalogCache], which package events - and only package events - clear
-     * (1.4.2). Neither read here may scan on the open path: doing so used to wake every launchable
+     * (1.4.2). The read may not scan on the open path: doing so used to wake every launchable
      * BYD process before the first command of the recipe was sent.
      */
     private class AndroidSplitLaunchCatalog(private val app: Context) : SplitLaunchCatalog {
-        override fun installedPackages(): Set<String> =
-            SplitPickerCatalog.load(app).mapTo(mutableSetOf(), SplitLaunchTarget::packageName)
-
         override fun resolve(packageName: String): SplitLaunchTarget? =
             SplitPickerCatalog.resolve(app, packageName)
     }

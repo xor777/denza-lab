@@ -1003,11 +1003,10 @@ internal object ReboundObserver {
 
 /** Denza Apps is an ordinary row of it, with no exception of any kind (U3, 1.4.3). */
 internal object FakeCatalog : SplitLaunchCatalog {
-    override fun installedPackages(): Set<String> =
-        setOf(NAVIGATOR, MUSIC, WAZE, RADIO, SPLIT_HOST_PACKAGE)
+    val installed: Set<String> = setOf(NAVIGATOR, MUSIC, WAZE, RADIO, SPLIT_HOST_PACKAGE)
 
     override fun resolve(packageName: String): SplitLaunchTarget? =
-        if (packageName in installedPackages()) {
+        if (packageName in installed) {
             SplitLaunchTarget(packageName, "$packageName/$packageName.MainActivity")
         } else {
             null

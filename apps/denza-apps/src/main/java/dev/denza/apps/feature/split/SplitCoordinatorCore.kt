@@ -96,10 +96,14 @@ internal fun interface SplitNoticeSink {
     fun publish(message: String)
 }
 
-/** The launch catalog, rebuilt from the current package state on every read (1.4.2). */
+/**
+ * The launch catalog, rebuilt from the current package state on every read (1.4.2).
+ *
+ * It answers one package at a time on purpose: an open needs the two the slots name and nothing
+ * else, and asking for the whole launcher list used to wake every launchable process on the car
+ * before the first command of the recipe was sent.
+ */
 internal interface SplitLaunchCatalog {
-    fun installedPackages(): Set<String>
-
     fun resolve(packageName: String): SplitLaunchTarget?
 }
 

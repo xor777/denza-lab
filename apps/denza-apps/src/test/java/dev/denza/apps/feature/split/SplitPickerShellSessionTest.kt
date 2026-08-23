@@ -150,29 +150,6 @@ class SplitPickerShellSessionTest {
     }
 
     @Test
-    fun restorationDropsMissingPackagesAndKeepsDuplicatePackages() {
-        assertEquals(
-            mapOf(
-                SplitPane.PRIMARY to NAVIGATOR,
-                SplitPane.SECONDARY to NAVIGATOR,
-            ),
-            SplitPickerSelectionPolicy.restorablePair(
-                primaryPackage = NAVIGATOR,
-                secondaryPackage = NAVIGATOR,
-                installedPackages = setOf(NAVIGATOR),
-            ),
-        )
-        assertEquals(
-            mapOf(SplitPane.SECONDARY to MUSIC),
-            SplitPickerSelectionPolicy.restorablePair(
-                primaryPackage = "missing.app",
-                secondaryPackage = MUSIC,
-                installedPackages = setOf(MUSIC),
-            ),
-        )
-    }
-
-    @Test
     fun explicitOpenCreatesTwoPickerBasesAndPrunesOldPaneTasks() {
         val fake = FakeShell().apply {
             addTask(PRIMARY_ROOT, 40, NAVIGATOR, "$NAVIGATOR.MainActivity")

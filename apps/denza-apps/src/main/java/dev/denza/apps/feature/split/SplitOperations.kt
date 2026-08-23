@@ -553,12 +553,13 @@ internal class OpenOperation(
         if (!working.enabled) return null
         mark(op, "dequeued")
         settle(SplitFact.OpenRequested)
-        val restorable = SplitPickerSelectionPolicy.restorablePair(
-            primaryPackage = (working.slot(SplitPane.PRIMARY) as? SplitSlot.App)?.packageName,
-            secondaryPackage = (working.slot(SplitPane.SECONDARY) as? SplitSlot.App)?.packageName,
-            installedPackages = work.catalog.installedPackages(),
-        )
-        mark(op, "catalog-ready")
+        // The durable slots are the selection, and nothing else has to be asked (1.13.1). Scanning
+        // the launcher catalogue here cost 815 ms of every open just to filter out a package that
+        // is no longer installed - and the pane that meets one degrades to a fresh picker with a
+        // visible notice below anyway (1.3.2), which is the same answer for one tenth of the wait.
+        val restorable = SplitPane.entries.mapNotNull { pane ->
+            (working.slot(pane) as? SplitSlot.App)?.let { slot -> pane to slot.packageName }
+        }.toMap()
         // Read-only: adoption is decided from a live snapshot before a single mutation (1.3.5).
         //
         // Nothing is swallowed here. "There is no scene of ours" is answered with `null` by the
