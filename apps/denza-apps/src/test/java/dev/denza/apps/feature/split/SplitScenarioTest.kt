@@ -820,12 +820,14 @@ class SplitScenarioTest {
      */
     @Test
     fun openingAfterHomeRaisesTheSameLiveSceneInsteadOfRebuildingIt() {
-        val car = car(FakeShell().apply { liveProductScene(withApps = true) })
+        val car = car(FakeShell())
         val core = car.core(SplitDurable(enabled = true, slots = APP_PAIR))
         core.initialize {}
-        // Первый тап усыновляет живую сцену: с этого момента процесс знает её точные задачи.
+        // Первый тап строит сцену: с этого момента процесс знает её точные задачи, а gate - наш.
         core.openPickerSession()
         car.barrier()
+        val living = car.fake.taskIds(PRIMARY_ROOT) + car.fake.taskIds(SECONDARY_ROOT)
+        assertEquals(4, living.size)
         car.fake.area = 0
         core.homeVisible()
         car.barrier()
@@ -845,8 +847,11 @@ class SplitScenarioTest {
             car.fake.isGateOpen(),
         )
         assertFalse(car.commands().any { it.contains(" remove-task ") })
-        assertTrue(car.fake.hasTask(PRIMARY_APP_TASK))
-        assertTrue(car.fake.hasTask(SECONDARY_APP_TASK))
+        assertEquals(
+            "те же самые задачи, все четыре",
+            living,
+            car.fake.taskIds(PRIMARY_ROOT) + car.fake.taskIds(SECONDARY_ROOT),
+        )
         assertEquals("сцена снова на экране", 3, car.fake.area)
         assertTrue(
             car.diagnostics.any { it.contains("scene-read: adoptable") },
