@@ -198,6 +198,224 @@ class SplitScenarioTest {
 
     // endregion
 
+    // region live red P1.2 - the reentrant lease, the launch echo and the loop they made
+
+    @Test
+    fun reentrantLeaseRebindCannotKillTheOpenItServes() {
+        // live red P1.2, триггер 1: OPEN первым делом берёт picker-access; со стёртыми prefs это
+        // полный ре-байнд сервиса, а свежий сервис отчитывается координатору синхронно, изнутри
+        // той самой операции, которая его и подняла
+        val car = car(FakeShell())
+        var built: SplitCoordinatorCore? = null
+        val observer = ReentrantPickerAccessLease(
+            onServiceConnected = { ReboundObserver.report(built!!, stockPickerVisible = false) },
+        )
+        val core = car.core(
+            SplitDurable(enabled = true),
+            leases = listOf(FakeLease(SplitLeaseKind.RESIZEABILITY, RESIZE_KEY), observer),
+        )
+        built = core
+        core.initialize {}
+        val results = Collections.synchronizedList(mutableListOf<String?>())
+
+        car.shells.blockAt(GATE_OPEN)
+        core.openPickerSession(results::add)
+        assertTrue(car.shells.awaitBlocked())
+        assertEquals("наблюдатель поднят внутри операции", 1, observer.enables.get())
+        assertTrue(
+            "и это именно ре-байнд сервиса, а не запись флага",
+            car.commands().any { it.startsWith("settings put secure ") },
+        )
+        // И даже Home, дошедший до актора мимо координатора, не отнимает право мутировать (§4 п.2).
+        val home = homeThatReachedTheActor(car)
+        car.shells.release()
+        car.barrier()
+
+        assertEquals("тап довёл сцену до конца", listOf<String?>(null), results.toList())
+        assertEquals(SplitOutcome.Committed, home.outcome)
+        assertEquals(
+            "ноль отмен: единственный терминал операции - committed",
+            listOf("${SplitCoordinatorCore.OPEN_LABEL} outcome=committed reason=-"),
+            car.diagnostics.filter { it.startsWith("${SplitCoordinatorCore.OPEN_LABEL} outcome=") },
+        )
+        assertEquals(
+            "переподключение наблюдателя вообще не заявляет Home (инвариант 8)",
+            emptyList<String>(),
+            car.diagnostics.filter { it.contains(SplitCoordinatorCore.HOME_LABEL) },
+        )
+        assertEquals("сцена построена и записана одним коммитом", 1, car.store.commits)
+        assertEquals(PICKER_PAIR, car.store.load().slots)
+        assertEquals(1, car.fake.taskCount(PRIMARY_ROOT))
+        assertEquals(1, car.fake.taskCount(SECONDARY_ROOT))
+        assertTrue("наблюдатель остался нашим", observer.isOwned())
+        assertEquals(1, car.overlay.closed())
+    }
+
+    @Test
+    fun launchEchoHomeHintIsDroppedWhileOpenRuns() {
+        // live red P1.2, триггер 6: кнопка живёт на Home (com.byd.mycar), NoDisplay-entry апп-центр
+        // не убирает, и оконное эхо запуска приходит спустя сотни миллисекунд после тапа. Это тот
+        // же экран, с которого запускали, а не новость про него (1.3.9, §4 п.2)
+        val car = car(FakeShell())
+        val core = car.core(SplitDurable(enabled = true))
+        core.initialize {}
+        val results = Collections.synchronizedList(mutableListOf<String?>())
+
+        car.shells.blockAt(GATE_OPEN)
+        core.openPickerSession(results::add)
+        assertTrue(car.shells.awaitBlocked())
+        repeat(ECHOES) { core.homeVisible() }
+        val home = homeThatReachedTheActor(car)
+        car.shells.release()
+        car.barrier()
+
+        assertEquals(
+            "каждое эхо дропнуто одной строкой и ни одной операцией",
+            ECHOES,
+            car.diagnostics.count { it.startsWith(HOME_HINT_DROPPED) },
+        )
+        assertEquals(
+            "и под подсказку не открыта ни одна сессия - работал только сам запуск",
+            1,
+            car.shells.opened.get(),
+        )
+        assertEquals(SplitOutcome.Committed, home.outcome)
+        assertEquals("запуск дошёл до сцены", listOf<String?>(null), results.toList())
+        assertEquals(PICKER_PAIR, car.store.load().slots)
+        assertEquals(1, car.store.commits)
+        assertEquals(1, car.fake.taskCount(PRIMARY_ROOT))
+        assertEquals(1, car.fake.taskCount(SECONDARY_ROOT))
+    }
+
+    @Test
+    fun openFailureKeepsPickerAccessLease() {
+        // live red P1.2, петля 5: провалившийся OPEN отпускал наблюдателя, и следующий тап начинал
+        // с полного ре-байнда - то есть с той же воронки. Инфраструктурный lease переживает провал
+        val car = car(
+            FakeShell().apply {
+                liveProductScene()
+                setGlobal(RESIZE_KEY, "0")
+                // Сцена жива, но накрыта чужим полноэкранным окном: открытие её поднимает.
+                area = 4
+            },
+        )
+        var built: SplitCoordinatorCore? = null
+        val observer = ReentrantPickerAccessLease(
+            onServiceConnected = { ReboundObserver.report(built!!, stockPickerVisible = false) },
+        )
+        val core = car.core(
+            SplitDurable(enabled = true, slots = PICKER_PAIR),
+            leases = listOf(FakeLease(SplitLeaseKind.RESIZEABILITY, RESIZE_KEY), observer),
+        )
+        built = core
+        core.initialize {}
+        val results = Collections.synchronizedList(mutableListOf<String?>())
+
+        car.shells.failOn("am task focus $PRIMARY_PICKER_TASK")
+        core.openPickerSession(results::add)
+        car.barrier()
+
+        assertEquals(listOf(SplitCoordinatorCore.OPEN_FAILURE), results.toList())
+        assertEquals(
+            "настройка, которую сцена вытеснила, возвращена",
+            listOf("settings put global $RESIZE_KEY 0"),
+            car.commands().filter { it.startsWith("settings put global ") }.takeLast(1),
+        )
+        assertTrue("а наблюдатель остался нашим", observer.isOwned())
+        assertEquals("его никто даже не пробовал отпустить", 0, observer.restores.get())
+
+        // Второй тап застаёт наблюдателя поднятым: цикла «ре-байнд на каждый тап» больше нет.
+        car.clearCommands()
+        core.openPickerSession()
+        car.barrier()
+
+        assertEquals(2, observer.enables.get())
+        assertEquals(
+            "ре-байнда сервиса во втором тапе нет вовсе",
+            emptyList<String>(),
+            car.commands().filter { it.startsWith("settings put secure ") },
+        )
+        assertTrue(observer.isOwned())
+
+        // Отпускает его ровно одно событие - выключение тумблера (1.2).
+        core.setEnabled(false)
+        car.barrier()
+
+        assertFalse("тумблер выключен - наблюдатель отпущен", observer.isOwned())
+        assertEquals(1, observer.restores.get())
+    }
+
+    @Test
+    fun userOpenTerminalsAreAlwaysLogged() {
+        // U5, U6: у тапа не бывает молчаливого исхода. Каждый терминал OPEN - ровно одна строка
+        val committed = car(FakeShell())
+        val succeeding = committed.core(SplitDurable(enabled = true))
+        succeeding.initialize {}
+        succeeding.openPickerSession()
+        // Повторный тап присоединяется к живой операции: один терминал, одна строка (1.3.7).
+        succeeding.openPickerSession()
+        committed.barrier()
+        assertEquals(
+            listOf("${SplitCoordinatorCore.OPEN_LABEL} outcome=committed reason=-"),
+            openTerminals(committed),
+        )
+
+        val expiring = car(FakeShell())
+        val expired = expiring.core(SplitDurable(enabled = true))
+        expired.initialize {}
+        expiring.shells.blockAt(GATE_OPEN)
+        expired.openPickerSession()
+        assertTrue(expiring.shells.awaitBlocked())
+        expiring.clock.advance(PAST_EVERY_BUDGET_MS)
+        expiring.shells.release()
+        expiring.barrier()
+        assertEquals(
+            listOf(
+                "${SplitCoordinatorCore.OPEN_LABEL} outcome=cancelled " +
+                    "reason=${SplitCancelReason.DEADLINE}",
+            ),
+            openTerminals(expiring),
+        )
+
+        val broken = car(FakeShell())
+        val failing = broken.core(SplitDurable(enabled = true))
+        failing.initialize {}
+        broken.shells.failOn(GATE_OPEN)
+        failing.openPickerSession()
+        broken.barrier()
+        assertEquals(
+            listOf(
+                "${SplitCoordinatorCore.OPEN_LABEL} outcome=rolled-back reason=$SPLIT_ADB_DROPPED",
+            ),
+            openTerminals(broken),
+        )
+
+        val switched = car(FakeShell())
+        val toggled = switched.core(SplitDurable(enabled = true))
+        toggled.initialize {}
+        switched.shells.blockAt(GATE_OPEN)
+        toggled.openPickerSession()
+        assertTrue(switched.shells.awaitBlocked())
+        toggled.setEnabled(false)
+        switched.shells.release()
+        switched.barrier()
+        assertEquals(
+            listOf(
+                "${SplitCoordinatorCore.OPEN_LABEL} outcome=cancelled " +
+                    "reason=${SplitCancelReason.DISABLE}",
+            ),
+            openTerminals(switched),
+        )
+        assertTrue(
+            "и выключение тумблера тоже отчитывается о себе",
+            switched.diagnostics.any {
+                it.startsWith("${SplitCoordinatorCore.DISABLE_LABEL} outcome=")
+            },
+        )
+    }
+
+    // endregion
+
     // region K5-K6 - the passive storm
 
     @Test
@@ -1157,6 +1375,10 @@ class SplitScenarioTest {
 
     private fun car(fake: FakeShell): SplitCarFixture = SplitCarFixture(fake).also(cars::add)
 
+    /** Every terminal the diagnostic log recorded for a tap on the launcher button. */
+    private fun openTerminals(car: SplitCarFixture): List<String> =
+        car.diagnostics.filter { it.startsWith("${SplitCoordinatorCore.OPEN_LABEL} outcome=") }
+
     /**
      * A confirmed Home that is already inside the actor, whatever the coordinator decided about the
      * hint that produced it.
@@ -1181,6 +1403,12 @@ class SplitScenarioTest {
         const val RESIZE_KEY = "force_resizable_activities"
         const val ACCESS_KEY = "picker_access_enabled"
         const val STOCK_TASK = 55
+
+        /** Сколько оконных эхо апп-центра приходит вслед за одним тапом по кнопке. */
+        const val ECHOES = 5
+
+        /** Начало строки, которой координатор объясняет отброшенную подсказку Home. */
+        const val HOME_HINT_DROPPED = "home hint dropped:"
         const val PROJECTED_NAV_TASK = 88
         const val FOREIGN_TASK = 99
         const val FOREIGN = "com.example.foreign"

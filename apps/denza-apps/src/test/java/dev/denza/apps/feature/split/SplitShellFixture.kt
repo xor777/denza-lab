@@ -97,6 +97,7 @@ internal class FakeShell(
     private val supported = mutableSetOf<String>()
     private val tasks = mutableListOf<Task>()
     private val globals = mutableMapOf<String, String>()
+    private val secure = mutableMapOf<String, String>()
 
     fun addTask(rootId: Int, id: Int, packageName: String, activityName: String) {
         tasks += Task(id, packageName, activityName, rootId, bounds(rootId))
@@ -390,6 +391,19 @@ internal class FakeShell(
             }
             command.startsWith("settings get global ") ->
                 globals[command.removePrefix("settings get global ")] ?: "null"
+            // Secure settings: where the accessibility observer of the picker-access lease lives.
+            // The real controller writes both of its keys as one compound shell statement.
+            command.startsWith("settings get secure ") ->
+                secure[command.removePrefix("settings get secure ")] ?: "null"
+            command.startsWith("settings put secure ") -> {
+                command.split(';').forEach { statement ->
+                    val parts = statement.trim()
+                        .removePrefix("settings put secure ")
+                        .split(' ', limit = 2)
+                    secure[parts[0]] = parts.getOrElse(1) { "" }.trim().trim('\'')
+                }
+                ""
+            }
             else -> error("Unexpected command: $command")
         }
     }
@@ -736,6 +750,93 @@ internal class FakeLease(
         val previous = displaced ?: return
         displaced = null
         shell("settings put global $key $previous")
+    }
+}
+
+/** The picker-access lease store the way wiped preferences hand it over: nothing owned, version 0. */
+internal class FakePickerAccessLeaseStore : SplitNativePickerAccessLeaseStore {
+    @Volatile
+    private var owned = false
+
+    @Volatile
+    private var version = 0
+
+    override fun isOwned(): Boolean = owned
+
+    override fun setOwned(owned: Boolean): Boolean {
+        this.owned = owned
+        return true
+    }
+
+    override fun configurationVersion(): Int = version
+
+    override fun setConfigurationVersion(version: Int): Boolean {
+        this.version = version
+        return true
+    }
+}
+
+/**
+ * The picker-access lease as this car really implements it - and therefore reentrant (live red P1.2).
+ *
+ * [FakeLease] is one shell write and nothing else, which is precisely why the suite stayed green
+ * over a deterministic live failure: the real controller rebinds an accessibility service, and a
+ * freshly bound service calls straight back into the coordinator, synchronously, from inside the
+ * operation that took the lease. This one runs the production [SplitNativePickerAccessController]
+ * against the shared firmware fixture and then makes that call back through [onServiceConnected].
+ */
+internal class ReentrantPickerAccessLease(
+    private val onServiceConnected: () -> Unit,
+    private val leaseStore: FakePickerAccessLeaseStore = FakePickerAccessLeaseStore(),
+) : SplitLeaseController {
+    val enables = AtomicInteger()
+    val restores = AtomicInteger()
+
+    @Volatile
+    private var connected = false
+
+    override val kind: String get() = SplitLeaseKind.PICKER_ACCESS
+
+    fun isOwned(): Boolean = leaseStore.isOwned()
+
+    override fun ownedValue(): String? = if (leaseStore.isOwned()) OWNED else null
+
+    override fun enable(shell: (String) -> String) {
+        enables.incrementAndGet()
+        controller(shell).enable()
+        connected = true
+        onServiceConnected()
+    }
+
+    override fun restore(shell: (String) -> String) {
+        restores.incrementAndGet()
+        controller(shell).restore()
+        connected = false
+    }
+
+    private fun controller(shell: (String) -> String) = SplitNativePickerAccessController(
+        shell = shell,
+        leaseStore = leaseStore,
+        pauseAfterDisable = {},
+        isConnected = { connected },
+    )
+
+    private companion object {
+        const val OWNED = "owned"
+    }
+}
+
+/**
+ * What a freshly bound picker observer reports to the coordinator.
+ *
+ * It is `SplitNativePickerAccessibilityService.onServiceConnected` in one line: reconnecting an
+ * observer is not an event on the screen (invariant 8), so nothing is reported unless the stock
+ * picker really is in a visible window right now. Putting `core.homeVisible()` back in here is the
+ * mutation that reproduces the live red chain of P1.2 - and it must fail the reentrant scenario.
+ */
+internal object ReboundObserver {
+    fun report(core: SplitCoordinatorCore, stockPickerVisible: Boolean) {
+        if (stockPickerVisible) core.nativePickerVisible()
     }
 }
 
