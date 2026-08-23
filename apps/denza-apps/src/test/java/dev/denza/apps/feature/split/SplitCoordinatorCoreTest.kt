@@ -4,10 +4,12 @@ import java.util.Collections
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -322,6 +324,152 @@ class SplitCoordinatorCoreTest {
 
     // endregion
 
+    // region navigation (contract 1.10, priority NAV)
+
+    @Test
+    fun navigationReturnClosesOnlyTheExactVacancyOccupant() {
+        // сценарий 17, 1.10.4/1.10.5: точный Temp закрыт, Nav вернулся, новый сосед не перезапущен
+        val car = Car(FakeShell(initialGate = true).apply { liveProductScene(withApps = true) })
+        val core = car.core(SplitDurable(enabled = true, slots = APP_PAIR))
+        core.initialize {}
+        core.openPickerSession()
+        car.barrier()
+
+        // Навигатор уехал на приборку: его задача покинула панель, пикер снова виден.
+        car.fake.removeActivity(PRIMARY_ROOT, "$NAVIGATOR.MainActivity")
+        core.projectionStarted(PRIMARY_APP_TASK)
+        car.barrier()
+        core.selectApp(PRIMARY_PICKER_TASK, WAZE)
+        car.barrier()
+        val temporary = car.fake.topTaskId(PRIMARY_ROOT)!!
+        core.selectApp(SECONDARY_PICKER_TASK, RADIO)
+        car.barrier()
+        val neighbour = car.fake.topTaskId(SECONDARY_ROOT)!!
+
+        val plan = core.prepareNavigationReturn(PRIMARY_ROOT)
+        car.fake.addTask(PRIMARY_ROOT, RETURNED_NAV_TASK, NAVIGATOR, "$NAVIGATOR.MainActivity")
+        car.clearCommands()
+        core.completeNavigationReturn(plan, RETURNED_NAV_TASK, NAVIGATOR)
+        car.barrier()
+
+        assertEquals(SplitPane.PRIMARY, plan.pane)
+        assertEquals(listOf(temporary), plan.displacedTasks.map(SplitDisplacedTask::taskId))
+        assertFalse("the exact vacancy occupant is closed", car.fake.hasTask(temporary))
+        assertEquals(
+            "and it is the only task the return removes",
+            1,
+            car.commands().count { it.contains(" remove-task ") },
+        )
+        assertTrue("the navigator is back in its pane", car.fake.hasTask(RETURNED_NAV_TASK))
+        assertEquals(RETURNED_NAV_TASK, car.fake.topTaskId(PRIMARY_ROOT))
+        assertTrue("its picker stays the floor of the pane", car.fake.hasTask(PRIMARY_PICKER_TASK))
+        assertEquals("the new neighbour is kept, not restarted", neighbour, car.fake.topTaskId(SECONDARY_ROOT))
+        assertEquals(
+            "the navigator kept its slot and the neighbour got the new one",
+            mapOf(
+                SplitPane.PRIMARY to SplitSlot.App(NAVIGATOR),
+                SplitPane.SECONDARY to SplitSlot.App(RADIO),
+            ),
+            car.store.load().slots,
+        )
+        assertEquals("only the neighbour swap was durable", 1, car.store.commits)
+    }
+
+    @Test
+    fun aFailedNavigationReturnThrowsAndLeavesTheSplitPanelAlone() {
+        // 1.10.7: навигатор остаётся на приборке, ошибку показывает навигация, а не панель split
+        val car = Car(FakeShell(initialGate = true).apply { liveProductScene() })
+        val core = car.core(SplitDurable(enabled = true, slots = PICKER_PAIR))
+        core.initialize {}
+        core.openPickerSession()
+        car.barrier()
+
+        val plan = core.prepareNavigationReturn(PRIMARY_ROOT)
+        val failure = assertThrows(SplitNavigationFailure::class.java) {
+            core.completeNavigationReturn(plan, taskId = 999, packageName = NAVIGATOR)
+        }
+        car.barrier()
+
+        assertEquals("Навигация не заняла выбранное split-окно", failure.message)
+        assertEquals("the split panel is not repainted as broken", SplitScreenPhase.ACTIVE, core.snapshot().phase)
+        assertTrue(
+            "navigation does not borrow the split notice either",
+            car.notices.none(String::isNotBlank),
+        )
+        assertEquals(0, car.store.commits)
+        assertEquals(PICKER_PAIR, car.store.load().slots)
+        assertTrue(car.fake.hasTask(PRIMARY_PICKER_TASK))
+        assertTrue(car.fake.hasTask(SECONDARY_PICKER_TASK))
+    }
+
+    // endregion
+
+    // region K15 - the navigation lease
+
+    @Test
+    fun theNavigationHoldSilencesEveryPassiveHint() {
+        // K15: пока навигация держит задачу, RECONCILE и EDGE не выпускают ни одной команды
+        val car = Car(FakeShell(initialGate = true).apply { liveProductScene() })
+        val core = car.core(SplitDurable(enabled = true, slots = PICKER_PAIR))
+        core.initialize {}
+        core.openPickerSession()
+        car.barrier()
+
+        core.holdExternalTaskMoves()
+        car.clearCommands()
+        repeat(50) { core.dividerResized() }
+        core.pickerVisible(hostTaskId = null)
+        core.pickerHidden(PRIMARY_PICKER_TASK)
+        core.nativePickerVisible()
+        car.barrier()
+
+        assertEquals("the held task belongs to navigation", emptyList<String>(), car.commands())
+
+        core.releaseExternalTaskMoves()
+        core.dividerResized()
+        car.barrier()
+
+        assertTrue("a hint works again the moment navigation lets go", car.commands().isNotEmpty())
+    }
+
+    @Test
+    fun aNavigationReturnOvertakesAQueuedSelectionAndOpen() {
+        // раздел 4: очередь приоритетная, а не FIFO - NAV идёт раньше SELECT и OPEN
+        val car = Car(FakeShell(initialGate = true).apply { liveProductScene() })
+        val core = car.core(SplitDurable(enabled = true, slots = PICKER_PAIR))
+        core.initialize {}
+        core.openPickerSession()
+        car.barrier()
+
+        // Воркер занят, пока все три операции не встанут в очередь: их дедлайны видны на часах.
+        val armed = clock.pendingTimers()
+        val gate = GateSpec { clock.pendingTimers() >= armed + QUEUED_OPERATIONS }
+        actor.submit(gate)
+        assertTrue(gate.entered.await(AWAIT_MS, TimeUnit.MILLISECONDS))
+        car.clearCommands()
+        core.selectApp(SECONDARY_PICKER_TASK, MUSIC)
+        core.openPickerSession()
+        val prepared = AtomicReference<SplitNavigationReturnPlan?>()
+        val navigation = Thread { prepared.set(core.prepareNavigationReturn(PRIMARY_ROOT)) }
+        navigation.start()
+        navigation.join(AWAIT_MS)
+        car.barrier()
+
+        val commands = car.commands()
+        assertNotNull("the navigation return finished", prepared.get())
+        assertEquals(
+            "the navigation lease reads its pane before the queue is served",
+            "service call activity_task 118 i32 1",
+            commands.first(),
+        )
+        assertTrue(
+            "and the queued selection only opens the gate afterwards",
+            commands.indexOf("service call activity_task 126 i32 1") > 0,
+        )
+    }
+
+    // endregion
+
     // region harness
 
     /** One fake car: the firmware fixture plus every seam the coordinator is built from. */
@@ -353,6 +501,8 @@ class SplitCoordinatorCoreTest {
 
         fun commands(): List<String> = synchronized(fake) { fake.commands.toList() }
 
+        fun clearCommands() = synchronized(fake) { fake.commands.clear() }
+
         /** The single worker is the barrier: what it finishes last, it finished after everything. */
         fun barrier() {
             assertNotNull(
@@ -369,6 +519,28 @@ class SplitCoordinatorCoreTest {
         override val joinKey: Any? = null
         override val coalesceKey: Any? = null
         override fun run(op: SplitOperationContext): SplitOutcome = SplitOutcome.Committed
+    }
+
+    /**
+     * Occupies the single worker until [until] holds, so a test can fill the queue and then watch
+     * the order the actor actually serves it in. It never preempts: it is queued while the queue is
+     * empty and is in flight before anything else arrives.
+     */
+    private class GateSpec(private val until: () -> Boolean) : SplitOperationSpec {
+        val entered = CountDownLatch(1)
+
+        override val label = "gate"
+        override val priority = SplitInputPriority.HINT
+        override val durationMs = 120_000L
+        override val joinKey: Any? = null
+        override val coalesceKey: Any? = null
+
+        override fun run(op: SplitOperationContext): SplitOutcome {
+            entered.countDown()
+            val deadline = System.currentTimeMillis() + AWAIT_MS
+            while (!until() && System.currentTimeMillis() < deadline) Thread.sleep(1)
+            return SplitOutcome.Committed
+        }
     }
 
     private class RecordingShellFactory(
@@ -444,7 +616,7 @@ class SplitCoordinatorCoreTest {
     }
 
     private object FakeCatalog : SplitLaunchCatalog {
-        override fun installedPackages(): Set<String> = setOf(NAVIGATOR, MUSIC, WAZE)
+        override fun installedPackages(): Set<String> = setOf(NAVIGATOR, MUSIC, WAZE, RADIO)
 
         override fun resolve(packageName: String): SplitLaunchTarget? =
             if (packageName in installedPackages()) {
@@ -460,7 +632,24 @@ class SplitCoordinatorCoreTest {
         const val AREA_QUERY = "service call activity_task 30"
         const val PRIMARY_PICKER_TASK = 60
         const val SECONDARY_PICKER_TASK = 61
+        const val PRIMARY_APP_TASK = 70
         const val SECONDARY_APP_TASK = 71
+
+        /** The navigator recreates its own task on the way back (live run 2026-08-19). */
+        const val RETURNED_NAV_TASK = 90
+        const val RADIO = "ru.radio.player"
+
+        /** `NAV`, `SELECT` and `OPEN` waiting behind the gate, each with its armed deadline. */
+        const val QUEUED_OPERATIONS = 4
+
+        val PICKER_PAIR = mapOf(
+            SplitPane.PRIMARY to SplitSlot.Picker,
+            SplitPane.SECONDARY to SplitSlot.Picker,
+        )
+        val APP_PAIR = mapOf(
+            SplitPane.PRIMARY to SplitSlot.App(NAVIGATOR),
+            SplitPane.SECONDARY to SplitSlot.App(MUSIC),
+        )
 
         /** A stock split the user built themselves: nothing here belongs to the product. */
         fun FakeShell.stockSplitOfSomeoneElse() {
@@ -473,7 +662,9 @@ class SplitCoordinatorCoreTest {
         fun FakeShell.liveProductScene(withApps: Boolean = false) {
             area = 3
             addTask(PRIMARY_ROOT, PRIMARY_PICKER_TASK, SPLIT_HOST_PACKAGE, PRIMARY_PICKER_ACTIVITY)
-            if (withApps) addTask(PRIMARY_ROOT, 70, NAVIGATOR, "$NAVIGATOR.MainActivity")
+            if (withApps) {
+                addTask(PRIMARY_ROOT, PRIMARY_APP_TASK, NAVIGATOR, "$NAVIGATOR.MainActivity")
+            }
             addTask(
                 SECONDARY_ROOT,
                 SECONDARY_PICKER_TASK,

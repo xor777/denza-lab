@@ -1,7 +1,9 @@
 package dev.denza.apps.feature.split
 
+import java.util.concurrent.atomic.AtomicReference
+
 /**
- * The seven operations of the product, one per input class of contract section 4.
+ * The operations of the product, one per input class of contract section 4.
  *
  * They are written settled-first: an operation runs the live-proven recipe and feeds the automaton
  * what actually happened, instead of asking the automaton to imagine a plan and then trying to make
@@ -590,6 +592,175 @@ internal class EdgeOperation(
 
 // endregion
 
+// region navigation (contract 1.10)
+
+/**
+ * Contract 1.10.1: the navigator went to the instrument cluster.
+ *
+ * The pane is resolved from the live topology - the task id is the navigation lease's own, and it
+ * is checked against a fresh snapshot before it names a pane - and enters the automaton as a
+ * settled fact on the worker, like every other fact (invariant 12).
+ */
+internal class NavProjectionStartedOperation(
+    work: SplitOperationWorkspace,
+    private val taskId: Int,
+) : SplitCoreOperation<Unit>(
+    label = SplitCoordinatorCore.NAV_STARTED_LABEL,
+    priority = SplitInputPriority.NAV,
+    durationMs = NAV_FACT_BUDGET_MS,
+    joinKey = null,
+    coalesceKey = null,
+    work = work,
+) {
+    override fun prepare(op: SplitOperationContext, shell: (String) -> String) = Unit
+
+    override fun apply(op: SplitOperationContext, shell: (String) -> String, plan: Unit) {
+        // The automaton ignores every fact but the toggle while the product is off, so reading the
+        // car here would buy nothing and cost commands (invariant 1).
+        if (!working.enabled) return
+        settle(SplitFact.ProjectionStarted(resolvePane(op) ?: return))
+    }
+
+    private fun resolvePane(op: SplitOperationContext): SplitPane? {
+        val recorded = liveScene.entries.firstOrNull { it.value.appTaskId == taskId }?.key
+        val settled = runCatching {
+            work.split(op).existingOwnedSession(
+                pickerComponents = SPLIT_PICKER_COMPONENT_SET,
+                expectedApps = SplitCoordinatorCore.expectedApps(liveScene),
+            )
+        }.getOrNull()
+            ?.entries
+            ?.firstOrNull { it.value.appTaskId == taskId }
+            ?.key
+        return settled ?: recorded
+    }
+}
+
+/** Contract 1.10.3: the navigator is back; the projection axis and its vacancy record are spent. */
+internal class NavProjectionReturnedOperation(
+    work: SplitOperationWorkspace,
+) : SplitCoreOperation<Unit>(
+    label = SplitCoordinatorCore.NAV_RETURNED_LABEL,
+    priority = SplitInputPriority.NAV,
+    durationMs = NAV_FACT_BUDGET_MS,
+    joinKey = null,
+    coalesceKey = null,
+    work = work,
+) {
+    override fun prepare(op: SplitOperationContext, shell: (String) -> String) = Unit
+
+    override fun apply(op: SplitOperationContext, shell: (String) -> String, plan: Unit) {
+        settle(SplitFact.ProjectionReturned)
+    }
+}
+
+/**
+ * Contract 1.10.3-1.10.6, first half of a return: choose the exact IVI destination.
+ *
+ * The plan is resolved from the live topology immediately before the navigation lease moves the
+ * task, never from a remembered pane: vacancy is what the car shows right now.
+ */
+internal class NavPrepareOperation(
+    work: SplitOperationWorkspace,
+    private val originalRootTaskId: Int,
+    private val prepared: AtomicReference<SplitNavigationReturnPlan?>,
+) : SplitCoreOperation<Unit>(
+    label = SplitCoordinatorCore.NAV_PREPARE_LABEL,
+    priority = SplitInputPriority.NAV,
+    durationMs = NAV_PREPARE_BUDGET_MS,
+    joinKey = SplitCoordinatorCore.NAV_PREPARE_LABEL,
+    coalesceKey = null,
+    work = work,
+) {
+    override fun prepare(op: SplitOperationContext, shell: (String) -> String) = Unit
+
+    override fun apply(op: SplitOperationContext, shell: (String) -> String, plan: Unit) {
+        val split = work.split(op)
+        // With the toggle off the product owns no pane, so the navigator is told to come back
+        // fullscreen. Reading the full-IVI root moves nothing (invariant 1).
+        if (!working.enabled) {
+            prepared.set(
+                SplitNavigationReturnPlan(
+                    pane = null,
+                    rootTaskId = split.fullIviRootTaskId(),
+                    hostTaskId = null,
+                    fullscreen = true,
+                ),
+            )
+            return
+        }
+        prepared.set(
+            split.prepareNavigationReturn(
+                originalRootTaskId = originalRootTaskId,
+                pickerComponents = SPLIT_PICKER_COMPONENT_SET,
+                expectedApps = SplitCoordinatorCore.expectedApps(liveScene),
+            ),
+        )
+    }
+}
+
+/**
+ * Contract 1.10.3-1.10.6, second half: clear the chosen pane, verify the return and settle it.
+ *
+ * The vacancy occupant of the plan is only a hint (invariant 4): `removeRecordedTask` re-reads the
+ * car and removes that exact task id and package or nothing at all (1.10.4). Removal is
+ * irreversible, so the journal says so before the first one.
+ */
+internal class NavCompleteOperation(
+    work: SplitOperationWorkspace,
+    private val returnPlan: SplitNavigationReturnPlan,
+    private val taskId: Int,
+    private val packageName: String,
+) : SplitCoreOperation<Unit>(
+    label = SplitCoordinatorCore.NAV_COMPLETE_LABEL,
+    priority = SplitInputPriority.NAV,
+    durationMs = NAV_COMPLETE_BUDGET_MS,
+    joinKey = SplitCoordinatorCore.NAV_COMPLETE_LABEL,
+    coalesceKey = null,
+    work = work,
+) {
+    override fun prepare(op: SplitOperationContext, shell: (String) -> String) = Unit
+
+    override fun apply(op: SplitOperationContext, shell: (String) -> String, plan: Unit) {
+        val split = work.split(op)
+        // 1.10.6: the pane was collapsed while the navigator was away, so it comes back fullscreen
+        // instead of the product guessing a new split destination.
+        if (returnPlan.fullscreen) {
+            val pane = returnPlan.pane ?: return
+            split.returnRecordedTaskFullscreen(pane, taskId, packageName)
+            settle(SplitFact.HomeConfirmed)
+            return
+        }
+        if (returnPlan.displacedTasks.isNotEmpty()) {
+            pointOfNoReturn(op, "the navigator takes ${returnPlan.pane} back from its occupant")
+            returnPlan.displacedTasks.forEach { displaced ->
+                split.removeRecordedTask(displaced.taskId, displaced.packageName)
+            }
+        }
+        val placement = split.verifyNavigationReturned(
+            plan = returnPlan,
+            taskId = taskId,
+            packageName = packageName,
+            pickerComponents = SPLIT_PICKER_COMPONENT_SET,
+        )
+        liveScene = liveScene + (
+            placement.pane to SplitPickerLivePane(
+                pane = placement.pane,
+                hostTaskId = placement.hostTaskId,
+                appTaskId = placement.appTaskId,
+                appPackageName = placement.packageName,
+            )
+            )
+        settle(SplitFact.ProjectionReturned)
+        // Normally a no-op: the pane kept `APP(navigator)` for the whole projection (to 1.10). It
+        // matters when the firmware handed the navigator the other pane, and then it is the one
+        // durable change this operation commits.
+        settleOccupant(placement.pane, placement.packageName)
+    }
+}
+
+// endregion
+
 // region reconcile
 
 internal sealed interface SplitReconcileKind {
@@ -768,3 +939,14 @@ private const val SELECT_BUDGET_MS = 20_000L
 private const val HOME_BUDGET_MS = 10_000L
 private const val EDGE_BUDGET_MS = 25_000L
 private const val RECONCILE_BUDGET_MS = 30_000L
+
+/**
+ * Navigation budgets (canon: an operation's deadline is fixed at submit time).
+ *
+ * `NAV` outranks `SELECT` and `OPEN` in the queue but never preempts one already in flight, so both
+ * budgets have to cover waiting out the longest predecessor that can be running - a `SELECT` - on
+ * top of the recipe's own worst case.
+ */
+private const val NAV_FACT_BUDGET_MS = 10_000L
+internal const val NAV_PREPARE_BUDGET_MS = 20_000L
+internal const val NAV_COMPLETE_BUDGET_MS = 35_000L

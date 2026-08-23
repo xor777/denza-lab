@@ -1,5 +1,7 @@
 package dev.denza.apps.feature.split
 
+import java.util.concurrent.atomic.AtomicReference
+
 /**
  * The coordinator, without Android.
  *
@@ -95,6 +97,14 @@ internal typealias SplitLiveScene = Map<SplitPane, SplitPickerLivePane>
 
 internal const val SPLIT_RESTORE_FAILURE_NOTICE =
     "Не все приложения восстановлены. Выберите приложение вручную"
+
+/**
+ * What a navigation return throws when the split side of it did not happen (1.10.7).
+ *
+ * It is an [IllegalStateException] on purpose: navigation already treats a thrown return as "stay
+ * on the cluster, show the error, offer a retry", and that contract does not change here.
+ */
+internal class SplitNavigationFailure(message: String) : IllegalStateException(message)
 
 internal class SplitCoordinatorCore(
     private val shellFactory: SplitShellFactory,
@@ -246,83 +256,67 @@ internal class SplitCoordinatorCore(
 
     // endregion
 
-    // region navigation bridge (temporary, wave 5b)
+    // region navigation (contract 1.10, priority NAV)
 
     /**
-     * TODO(wave 5b): actor-ify the navigation path under [SplitInputPriority.NAV].
-     *
-     * Navigation still owns its own synchronous lifecycle exactly as it does today (A.3.9): it holds
-     * the routing lease across the move and cannot afford to queue behind a passive hint. The single
-     * change made here is that the pane is resolved from a live snapshot instead of a persisted task
-     * id, and the result enters the automaton as a settled fact.
+     * Contract 1.10.1. A projection notice is a fact like any other: it is settled on the actor
+     * worker, never on the navigation thread that observed it (invariant 12).
      */
     fun projectionStarted(taskId: Int) {
         ready()
-        val pane = resolveProjectedPane(taskId) ?: return
-        applyBridgeFact(SplitFact.ProjectionStarted(pane))
+        submit { work -> NavProjectionStartedOperation(work, taskId) }
     }
 
-    /** TODO(wave 5b): see [projectionStarted]. */
+    /** Contract 1.10.3: the navigator came back by itself; the projection axis is spent. */
     @Suppress("UNUSED_PARAMETER")
     fun projectionReturned(taskId: Int) {
         ready()
-        applyBridgeFact(SplitFact.ProjectionReturned)
+        submit { work -> NavProjectionReturnedOperation(work) }
     }
 
-    /** TODO(wave 5b): see [projectionStarted]. */
+    /**
+     * Contract 1.10.3-1.10.6, first half of a return.
+     *
+     * Navigation holds its routing lease across the whole move and therefore keeps a synchronous
+     * contract, but the work itself is an ordinary `NAV` operation: it overtakes a queued selection
+     * or open and it is fenced, journalled and deadlined like everything else.
+     */
     fun prepareNavigationReturn(originalRootTaskId: Int): SplitNavigationReturnPlan {
         ready()
-        return withBridgeShell { split ->
-            if (!currentState().enabled) {
-                return@withBridgeShell SplitNavigationReturnPlan(
-                    pane = null,
-                    rootTaskId = split.fullIviRootTaskId(),
-                    hostTaskId = null,
-                    fullscreen = true,
-                )
-            }
-            split.prepareNavigationReturn(
-                originalRootTaskId = originalRootTaskId,
-                pickerComponents = SPLIT_PICKER_COMPONENT_SET,
-                expectedApps = expectedApps(currentLive()),
-            )
-        }
+        val prepared = AtomicReference<SplitNavigationReturnPlan?>()
+        val ticket = submit { work -> NavPrepareOperation(work, originalRootTaskId, prepared) }
+        awaitNavigation(ticket, NAV_PREPARE_BUDGET_MS)
+        return prepared.get() ?: throw SplitNavigationFailure(NAV_PLAN_UNAVAILABLE)
     }
 
-    /** TODO(wave 5b): see [projectionStarted]. */
+    /** Contract 1.10.3-1.10.6, second half: the return is verified, then settled. */
     fun completeNavigationReturn(
         plan: SplitNavigationReturnPlan,
         taskId: Int,
         packageName: String,
     ) {
-        withBridgeShell { split ->
-            if (plan.fullscreen) {
-                val pane = plan.pane ?: return@withBridgeShell
-                split.returnRecordedTaskFullscreen(pane, taskId, packageName)
-                applyBridgeFact(SplitFact.HomeConfirmed)
-                return@withBridgeShell
-            }
-            // 1.10.4: the vacancy occupant is removed by exact identity, never by package.
-            plan.displacedTasks.forEach { displaced ->
-                split.removeRecordedTask(displaced.taskId, displaced.packageName)
-            }
-            val placement = split.verifyNavigationReturned(
-                plan = plan,
-                taskId = taskId,
-                packageName = packageName,
-                pickerComponents = SPLIT_PICKER_COMPONENT_SET,
-            )
-            synchronized(stateLock) {
-                live = live + (
-                    placement.pane to SplitPickerLivePane(
-                        pane = placement.pane,
-                        hostTaskId = placement.hostTaskId,
-                        appTaskId = placement.appTaskId,
-                        appPackageName = placement.packageName,
-                    )
-                    )
-            }
-            applyBridgeFact(SplitFact.ProjectionReturned)
+        ready()
+        val ticket = submit { work -> NavCompleteOperation(work, plan, taskId, packageName) }
+        awaitNavigation(ticket, NAV_COMPLETE_BUDGET_MS)
+    }
+
+    /**
+     * Turns one actor outcome back into the failure contract navigation already had (1.10.7): a
+     * return that did not happen throws, so the navigator stays on the cluster and the error is
+     * shown and retried by navigation's own surface, not by the split panel.
+     *
+     * The wait is the operation's own budget plus a margin, because the budget starts at submit
+     * time and the deadline settles the ticket by itself.
+     */
+    private fun awaitNavigation(ticket: SplitTicket, budgetMs: Long) {
+        val outcome = ticket.await(budgetMs + NAV_AWAIT_MARGIN_MS)
+            ?: throw SplitNavigationFailure("$NAV_FAILURE: операция не завершилась")
+        when (outcome) {
+            is SplitOutcome.Committed -> Unit
+            is SplitOutcome.Cancelled ->
+                throw SplitNavigationFailure("$NAV_FAILURE: ${outcome.reason}")
+            is SplitOutcome.RolledBack -> throw SplitNavigationFailure(outcome.reason)
+            is SplitOutcome.Failed -> throw SplitNavigationFailure(outcome.message)
         }
     }
 
@@ -400,6 +394,12 @@ internal class SplitCoordinatorCore(
     }
 
     private fun finishOperation(label: String, outcome: SplitOutcome) {
+        // 1.10.7: a navigation return that failed is navigation's error, on navigation's surface.
+        // It must not repaint the split panel as broken, and it never owned a busy label there.
+        if (label in NAV_LABELS) {
+            publish()
+            return
+        }
         synchronized(stateLock) {
             busy = busy?.takeIf { it.label != label }
             val fallback = fallbackOf(label)
@@ -471,43 +471,6 @@ internal class SplitCoordinatorCore(
         is SplitOutcome.Failed -> friendlyError(outcome.message, fallback)
     }
 
-    private fun resolveProjectedPane(taskId: Int): SplitPane? {
-        val fromLive = currentLive().entries.firstOrNull { it.value.appTaskId == taskId }?.key
-        val resolved = runCatching {
-            withBridgeShell { split ->
-                split.existingOwnedSession(SPLIT_PICKER_COMPONENT_SET, expectedApps(currentLive()))
-                    ?.entries
-                    ?.firstOrNull { it.value.appTaskId == taskId }
-                    ?.key
-            }
-        }.getOrNull()
-        return resolved ?: fromLive
-    }
-
-    private fun <T> withBridgeShell(block: (SplitPickerShellSession) -> T): T {
-        val handle = shellFactory.open()
-        return try {
-            block(
-                SplitPickerShellSession(
-                    shell = handle::shell,
-                    apkPath = apkPath,
-                    pause = sleeper,
-                    gateLeaseStore = gateLeaseStore,
-                ),
-            )
-        } finally {
-            runCatching(handle::close)
-        }
-    }
-
-    private fun applyBridgeFact(fact: SplitFact) {
-        synchronized(stateLock) {
-            val reduction = SplitAutomaton.reduce(state, fact)
-            state = reduction.state
-        }
-        publish()
-    }
-
     private data class Busy(val label: String, val enabled: Boolean, val message: String)
 
     private data class Failure(val message: String, val details: String)
@@ -520,8 +483,25 @@ internal class SplitCoordinatorCore(
         const val HOME_LABEL = "home"
         const val EDGE_LABEL = "edge"
         const val RECONCILE_LABEL = "reconcile"
+        const val NAV_STARTED_LABEL = "nav-started"
+        const val NAV_RETURNED_LABEL = "nav-returned"
+        const val NAV_PREPARE_LABEL = "nav-prepare"
+        const val NAV_COMPLETE_LABEL = "nav-complete"
+
+        val NAV_LABELS = setOf(
+            NAV_STARTED_LABEL,
+            NAV_RETURNED_LABEL,
+            NAV_PREPARE_LABEL,
+            NAV_COMPLETE_LABEL,
+        )
 
         const val EXTERNAL_TASK_BYPASS_MS = 5_000L
+
+        /** Slack over the operation budget: the deadline itself settles the ticket first. */
+        const val NAV_AWAIT_MARGIN_MS = 5_000L
+
+        const val NAV_FAILURE = "Не удалось вернуть навигацию в окно"
+        const val NAV_PLAN_UNAVAILABLE = "$NAV_FAILURE: возврат уже выполняется"
 
         const val OPEN_FAILURE = "Не удалось открыть разделение экрана"
         const val SELECT_FAILURE = "Не удалось открыть приложение в этом окне"
