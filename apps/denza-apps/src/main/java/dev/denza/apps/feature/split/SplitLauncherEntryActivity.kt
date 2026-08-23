@@ -7,22 +7,18 @@ import android.os.Looper
 import android.util.Log
 import android.widget.Toast
 
-/** Launcher-only boundary that opens the existing, live-verified picker session. */
+/**
+ * Launcher-only boundary that opens the existing, live-verified picker session.
+ *
+ * The waiting window belongs to the operation, not to this Activity: a second tap joins the live
+ * `OPEN` and must not raise a second shield over the same one (1.3.7, K4).
+ */
 class SplitLauncherEntryActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val launchOverlay = SplitLaunchOverlay.begin(applicationContext)
         try {
-            SplitScreenCoordinator.openPickerSession(applicationContext) { error ->
-                if (error == null) {
-                    launchOverlay.close()
-                } else {
-                    launchOverlay.closeImmediately()
-                }
-                showError(error)
-            }
+            SplitScreenCoordinator.openPickerSession(applicationContext, ::showError)
         } catch (error: Throwable) {
-            launchOverlay.closeImmediately()
             Log.e(TAG, "Split Screen launch failed", error)
             showError(USER_ERROR)
         } finally {

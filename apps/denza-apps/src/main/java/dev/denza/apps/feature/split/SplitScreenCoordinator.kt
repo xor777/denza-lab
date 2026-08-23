@@ -7,9 +7,8 @@ import android.os.Looper
 import android.os.SystemClock
 import android.util.Log
 import dev.denza.apps.adb.DenzaLocalAdb
-import dev.denza.disharebridge.LocalAdbClient
 import java.util.concurrent.Executors
-import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.TimeUnit
 
 enum class SplitScreenPhase { OFF, STARTING, ACTIVE, ERROR }
 
@@ -20,225 +19,38 @@ data class SplitScreenSession(
     val details: String? = null,
 )
 
-/** Owns the explicit two-picker BYD split session and the resizeability lease. */
-// The stored value is normalized to applicationContext during initialization.
+/**
+ * The Android boundary of the split product, and nothing else.
+ *
+ * Every decision, every command and every piece of state lives in [SplitCoordinatorCore], which
+ * knows nothing about Android and is therefore covered by ordinary unit tests. What is left here is
+ * what genuinely needs a `Context`: opening a persistent shell, drawing the waiting window, reading
+ * the launcher catalog, borrowing the two global leases and posting a callback to the main thread.
+ */
+// The stored value is normalized to applicationContext on the first call.
 @SuppressLint("StaticFieldLeak")
 object SplitScreenCoordinator {
     private const val TAG = "DenzaSplitScreen"
-    private const val RESTORE_FAILURE_NOTICE =
-        "Не все приложения восстановлены. Выберите приложение вручную"
-    private const val EXTERNAL_TASK_BYPASS_MS = 5_000L
-    private val executor = Executors.newSingleThreadExecutor()
-    private val pickerOpenInFlight = AtomicBoolean(false)
-    private val nativePickerEventInFlight = AtomicBoolean(false)
-    private val dividerReconcileInFlight = AtomicBoolean(false)
-    private val homeGateSuspendInFlight = AtomicBoolean(false)
-    private val routingLock = Any()
-    private val pickerStateLock = Any()
 
-    @Volatile private var context: Context? = null
-    @Volatile private var session = SplitScreenSession()
-    @Volatile private var onStateChanged: (() -> Unit)? = null
-    @Volatile private var initialized = false
-    @Volatile private var generation = 0L
-    @Volatile private var routingBlockedUntilMs = 0L
-    @Volatile private var externalTaskMovesHeld = false
-    @Volatile private var pickerState = SplitPickerAutomatonState()
-    @Volatile private var pickerStateLoaded = false
-
-    fun initialize(context: Context, onStateChanged: () -> Unit) {
-        this.context = context.applicationContext
-        this.onStateChanged = onStateChanged
-        if (initialized) {
-            onStateChanged()
-            return
-        }
-        initialized = true
-        ensurePickerStateLoaded(this.context!!)
-        val enabled = SplitScreenSettings.isEnabled(context)
-        session = SplitScreenSession(enabled = enabled)
-        if (enabled) {
-            startAsync()
-        } else {
-            stopAsync()
-        }
+    private val lock = Any()
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private val timers = Executors.newSingleThreadScheduledExecutor { runnable ->
+        Thread(runnable, "split-clock").apply { isDaemon = true }
     }
 
-    fun snapshot(): SplitScreenSession = session
+    @Volatile private var core: SplitCoordinatorCore? = null
+
+    fun initialize(context: Context, onStateChanged: () -> Unit) {
+        // Read-only by construction: the core loads one durable snapshot, publishes the session and
+        // stops. No scene is restored, no lease is taken, no command is sent (K7, invariant 1).
+        core(context).initialize(onStateChanged)
+    }
+
+    fun snapshot(): SplitScreenSession = core?.snapshot() ?: SplitScreenSession()
 
     /** Opens the explicit two-picker product flow from its launcher icon. */
-    fun openPickerSession(
-        context: Context,
-        onComplete: (String?) -> Unit = {},
-    ) {
-        val app = context.applicationContext
-        this.context = app
-        ensurePickerStateLoaded(app)
-        SplitScreenSettings.setEnabled(app, true)
-        if (!pickerOpenInFlight.compareAndSet(false, true)) {
-            postResult(onComplete, null)
-            return
-        }
-        generation += 1
-        update(
-            SplitScreenSession(
-                enabled = true,
-                phase = SplitScreenPhase.STARTING,
-                message = "Открываю разделение экрана",
-            ),
-        )
-        executor.execute {
-            var adb: LocalAdbClient.PersistentShellSession? = null
-            try {
-                adb = DenzaLocalAdb.client(app).openPersistentShell()
-                val split = pickerSession(app, adb::shell)
-                SplitNativePickerAccessController(
-                    shell = adb::shell,
-                    leaseStore = SplitScreenSettings.nativePickerAccessLeaseStore(app),
-                ).enable()
-                SplitResizeabilityController(
-                    shell = adb::shell,
-                    leaseStore = SplitScreenSettings.resizeabilityLeaseStore(app),
-                ).enable()
-                val store = SplitScreenSettings.lastPairStore(app)
-                val installed = SplitPickerCatalog.load(app).mapTo(mutableSetOf()) {
-                    it.packageName
-                }
-                val restorable = SplitPickerSelectionPolicy.restorablePair(
-                    primaryPackage = store.load(SplitPane.PRIMARY),
-                    secondaryPackage = store.load(SplitPane.SECONDARY),
-                    installedPackages = installed,
-                )
-                val expectedApps = expectedPickerApps()
-                val owned = split.existingOwnedSession(PICKER_COMPONENT_SET, expectedApps)
-                val existing = owned
-                    ?.let { owned ->
-                        split.revealOwnedSession(owned, PICKER_COMPONENT_SET)
-                    }
-                if (existing != null) {
-                    SplitPickerNotice.publish(app, "")
-                    clearPickerState()
-                    applyPickerEvent(SplitPickerEvent.OpenRequested)
-                    SplitPane.entries.forEach { pane ->
-                        val live = existing.getValue(pane)
-                        applyPickerEvent(
-                            SplitPickerEvent.NativePickerObserved(pane, live.hostTaskId),
-                        )
-                        applyPickerEvent(
-                            SplitPickerEvent.PickerAttached(pane, live.hostTaskId),
-                        )
-                        if (live.appTaskId != null && live.appPackageName != null) {
-                            applyPickerEvent(
-                                SplitPickerEvent.AppOpened(
-                                    pane = pane,
-                                    hostTaskId = live.hostTaskId,
-                                    taskId = live.appTaskId,
-                                    packageName = live.appPackageName,
-                                ),
-                            )
-                        }
-                    }
-                    syncLastPairFromPickerState(app)
-                    update(
-                        SplitScreenSession(
-                            enabled = true,
-                            phase = SplitScreenPhase.ACTIVE,
-                            message = "",
-                        ),
-                    )
-                    Log.i(TAG, "adopted the existing explicit picker session")
-                    postResult(onComplete, null)
-                    return@execute
-                }
-                // An explicit launcher tap is the authoritative start of a new picker session.
-                // Rebuild task identity from the live roots instead of carrying process- or
-                // install-stale host ids into this run. The separately stored last pair remains.
-                clearPickerState()
-                applyPickerEvent(
-                    SplitPickerEvent.OpenRequested,
-                )
-                val hostTaskIds = split.openPickers(PICKER_COMPONENTS, restorable)
-                SplitPane.entries.forEach { pane ->
-                    val hostTaskId = hostTaskIds.getValue(pane)
-                    applyPickerEvent(
-                        SplitPickerEvent.NativePickerObserved(pane, hostTaskId),
-                    )
-                    applyPickerEvent(
-                        SplitPickerEvent.PickerAttached(pane, hostTaskId),
-                    )
-                }
-
-                val restoreFailures = mutableListOf<String>()
-                SplitPane.entries.forEach { pane ->
-                    val packageName = restorable[pane] ?: return@forEach
-                    val target = SplitPickerCatalog.resolve(app, packageName)
-                    if (target == null) {
-                        restoreFailures += packageName
-                        return@forEach
-                    }
-                    runCatching {
-                        val placement = split.restoreApp(
-                            pickerTaskId = hostTaskIds.getValue(pane),
-                            target = target,
-                            pickerComponents = PICKER_COMPONENT_SET,
-                            reservedPackages = restorable.values.toSet(),
-                        )
-                        applyPickerEvent(
-                            SplitPickerEvent.AppOpened(
-                                pane = placement.pane,
-                                hostTaskId = placement.hostTaskId,
-                                taskId = placement.appTaskId,
-                                packageName = placement.packageName,
-                            ),
-                        )
-                    }.onFailure {
-                        Log.w(TAG, "failed to restore $packageName in $pane", it)
-                        runCatching {
-                            split.discardFailedRestoration(
-                                pane = pane,
-                                packageName = packageName,
-                                pickerTaskId = hostTaskIds.getValue(pane),
-                            )
-                        }.onFailure { cleanupError ->
-                            Log.w(TAG, "failed to discard stale $packageName in $pane", cleanupError)
-                        }
-                        restoreFailures += packageName
-                    }
-                }
-                val message = if (restoreFailures.isEmpty()) "" else {
-                    RESTORE_FAILURE_NOTICE
-                }
-                SplitPickerNotice.publish(app, message)
-                update(
-                    SplitScreenSession(
-                        enabled = true,
-                        phase = SplitScreenPhase.ACTIVE,
-                        message = message,
-                    ),
-                )
-                postResult(onComplete, null)
-            } catch (error: Throwable) {
-                Log.w(TAG, "failed to open explicit picker session", error)
-                runCatching { applyPickerEvent(SplitPickerEvent.HomeObserved) }
-                val message = friendlyError(error, "Не удалось открыть разделение экрана")
-                runCatching { SplitPickerNotice.publish(app, message) }
-                update(
-                    SplitScreenSession(
-                        enabled = true,
-                        phase = SplitScreenPhase.ERROR,
-                        message = message,
-                        details = error.toString(),
-                    ),
-                )
-                postResult(onComplete, message)
-            } finally {
-                adb?.close()
-                pickerOpenInFlight.set(false)
-                // A service event may have been intentionally suppressed while the explicit
-                // pair owned the roots. Reconcile once against the settled native scene.
-                onNativePickerVisible(app)
-            }
-        }
+    fun openPickerSession(context: Context, onComplete: (String?) -> Unit = {}) {
+        core(context).openPickerSession(onComplete)
     }
 
     /** A picker tap has an exact pane and therefore needs no foreground inference. */
@@ -248,208 +60,27 @@ object SplitScreenCoordinator {
         packageName: String,
         onComplete: (String?) -> Unit = {},
     ) {
-        val app = context.applicationContext
-        this.context = app
-        ensurePickerStateLoaded(app)
-        executor.execute {
-            val store = SplitScreenSettings.lastPairStore(app)
-            val target = SplitPickerCatalog.resolve(app, packageName)
-            if (target == null) {
-                postResult(onComplete, "Приложение больше не найдено")
-                return@execute
-            }
-            var adb: LocalAdbClient.PersistentShellSession? = null
-            try {
-                adb = DenzaLocalAdb.client(app).openPersistentShell()
-                SplitResizeabilityController(
-                    shell = adb::shell,
-                    leaseStore = SplitScreenSettings.resizeabilityLeaseStore(app),
-                ).enable()
-                val placement = pickerSession(app, adb::shell).selectApp(
-                    pickerTaskId = pickerTaskId,
-                    target = target,
-                    pickerComponents = PICKER_COMPONENT_SET,
-                )
-                applyPickerEvent(
-                    SplitPickerEvent.AppOpened(
-                        pane = placement.pane,
-                        hostTaskId = placement.hostTaskId,
-                        taskId = placement.appTaskId,
-                        packageName = placement.packageName,
-                    ),
-                )
-                check(store.save(placement.pane, packageName)) {
-                    "Не удалось сохранить последнюю пару"
-                }
-                SplitPickerNotice.publish(app, "")
-                update(SplitScreenSession(enabled = true, phase = SplitScreenPhase.ACTIVE))
-                postResult(onComplete, null)
-            } catch (error: Throwable) {
-                Log.w(TAG, "failed to open $packageName from picker task $pickerTaskId", error)
-                val message = friendlyError(error, "Не удалось открыть приложение в этом окне")
-                update(
-                    SplitScreenSession(
-                        enabled = true,
-                        phase = SplitScreenPhase.ERROR,
-                        message = message,
-                        details = error.toString(),
-                    ),
-                )
-                postResult(onComplete, message)
-            } finally {
-                adb?.close()
-            }
-        }
+        core(context).selectApp(pickerTaskId, packageName, onComplete)
     }
 
     /** Exact picker reveal event; only the recorded app task can be removed. */
-    fun onPickerVisible(
-        context: Context,
-        hostTaskId: Int?,
-        onComplete: (String?) -> Unit = {},
-    ) {
-        val app = context.applicationContext
-        this.context = app
-        ensurePickerStateLoaded(app)
-        if (!SplitScreenSettings.isEnabled(app)) {
-            postResult(onComplete, null)
-            return
-        }
-        if (externalTaskMutationInFlight()) {
-            postResult(onComplete, null)
-            return
-        }
-        executor.execute {
-            if (externalTaskMutationInFlight()) {
-                postResult(onComplete, null)
-                return@execute
-            }
-            var adb: LocalAdbClient.PersistentShellSession? = null
-            try {
-                adb = DenzaLocalAdb.client(app).openPersistentShell()
-                val split = pickerSession(app, adb::shell)
-                val resolvedHostTaskId = hostTaskId
-                    ?: split.singleVisiblePickerTaskId(PICKER_COMPONENT_SET)
-                    ?: run {
-                        postResult(onComplete, null)
-                        return@execute
-                    }
-                if (!reconcileOwnedSession(app, split, "picker visible")) {
-                    postResult(onComplete, null)
-                    return@execute
-                }
-                val observation = split.observePickerTask(
-                    resolvedHostTaskId,
-                    PICKER_COMPONENT_SET,
-                )
-                if (observation == null || !observation.pickerVisible) {
-                    postResult(onComplete, null)
-                    return@execute
-                }
-                val pane = observation.pane
-                applyPickerEvent(
-                    SplitPickerEvent.PickerAttached(pane, resolvedHostTaskId),
-                )
-                val reduction = applyPickerEvent(
-                    SplitPickerEvent.PickerBecameTop(
-                        pane = pane,
-                        hostTaskId = resolvedHostTaskId,
-                        observedTaskIds = observation.observedTaskIds,
-                    ),
-                )
-                syncLastPairFromPickerState(app)
-                executePickerActions(split, reduction.actions)
-                postResult(onComplete, null)
-            } catch (error: Throwable) {
-                Log.w(TAG, "failed to reconcile visible picker", error)
-                postResult(
-                    onComplete,
-                    friendlyError(error, "Не удалось восстановить окна"),
-                )
-            } finally {
-                adb?.close()
-            }
-        }
+    fun onPickerVisible(context: Context, hostTaskId: Int?, onComplete: (String?) -> Unit = {}) {
+        core(context).pickerVisible(hostTaskId, onComplete)
     }
 
     /** Exact product-picker window hint; the shell snapshot must resolve one visible task. */
     fun onProductPickerVisible(context: Context) {
-        onPickerVisible(context = context, hostTaskId = null)
+        core(context).pickerVisible(hostTaskId = null)
     }
 
-    /**
-     * BYD may swap only the visible top tasks during a divider resize and strand a hidden picker
-     * base in the old root. Wait for the native transition, repair exact recorded ownership when
-     * necessary, then adopt the settled topology before later lifecycle events can overwrite it.
-     */
-    fun onDividerResized(context: Context) {
-        val app = context.applicationContext
-        this.context = app
-        ensurePickerStateLoaded(app)
-        if (pickerOpenInFlight.get() ||
-            !SplitScreenSettings.isEnabled(app) ||
-            externalTaskMutationInFlight() ||
-            !dividerReconcileInFlight.compareAndSet(false, true)
-        ) {
-            return
-        }
-        try {
-            executor.execute {
-                var adb: LocalAdbClient.PersistentShellSession? = null
-                try {
-                    adb = DenzaLocalAdb.client(app).openPersistentShell()
-                    reconcileOwnedSession(
-                        app = app,
-                        split = pickerSession(app, adb::shell),
-                        reason = "divider resized",
-                        settleDividerResize = true,
-                    )
-                } catch (error: Throwable) {
-                    Log.w(TAG, "failed to reconcile resized split", error)
-                } finally {
-                    runCatching { adb?.close() }
-                        .onFailure { Log.w(TAG, "divider resize shell close failed", it) }
-                    dividerReconcileInFlight.set(false)
-                }
-            }
-        } catch (error: RuntimeException) {
-            dividerReconcileInFlight.set(false)
-            Log.w(TAG, "failed to schedule split resize reconciliation", error)
-        }
-    }
-
-    /**
-     * Reconciles a picker that stopped without treating an ordinary app launch as a pane close.
-     * A selected app leaves its permanent picker in the same native root; the BYD dismiss
-     * gesture reparents that exact picker task outside both roots before expanding its peer pane.
-     */
+    /** A picker that left both panel roots is the pane-dismiss gesture (1.6.3, 1.7.4). */
     fun onPickerHidden(context: Context, hostTaskId: Int) {
-        val app = context.applicationContext
-        this.context = app
-        ensurePickerStateLoaded(app)
-        if (!SplitScreenSettings.isEnabled(app)) return
-        val pane = SplitPane.entries.firstOrNull {
-            currentPickerState().slot(it).hostTaskId == hostTaskId
-        } ?: return
-        executor.execute {
-            var adb: LocalAdbClient.PersistentShellSession? = null
-            try {
-                adb = DenzaLocalAdb.client(app).openPersistentShell()
-                val split = pickerSession(app, adb::shell)
-                if (split.observePickerTask(hostTaskId, PICKER_COMPONENT_SET) != null) {
-                    return@execute
-                }
-                val reduction = applyPickerEvent(
-                    SplitPickerEvent.PickerTaskGone(pane, hostTaskId),
-                )
-                syncLastPairFromPickerState(app)
-                executePickerActions(split, reduction.actions)
-            } catch (error: Throwable) {
-                Log.w(TAG, "failed to reconcile hidden picker $hostTaskId", error)
-            } finally {
-                adb?.close()
-            }
-        }
+        core(context).pickerHidden(hostTaskId)
+    }
+
+    /** Every window-topology hint collapses into one queued reconcile (1.8.1-1.8.3). */
+    fun onDividerResized(context: Context) {
+        core(context).dividerResized()
     }
 
     /** Accepts only Home from the app-wide observer; all other global window traffic is ignored. */
@@ -459,7 +90,6 @@ object SplitScreenCoordinator {
             SplitAccessibilityEventPolicy.target(packageName, className = null) ==
             SplitAccessibilityEventTarget.HOME
         ) {
-            Log.i(TAG, "Home hint received from global accessibility observer")
             onHomeVisible(context)
         }
     }
@@ -467,168 +97,26 @@ object SplitScreenCoordinator {
     /** A Home accessibility event is only a hint; firmware area 0 is the mutation authority. */
     @JvmStatic
     fun onHomeVisible(context: Context) {
-        val app = context.applicationContext
-        this.context = app
-        ensurePickerStateLoaded(app)
-        if (!SplitScreenSettings.isEnabled(app) ||
-            !homeGateSuspendInFlight.compareAndSet(false, true)
-        ) {
-            return
-        }
-        try {
-            executor.execute {
-                var adb: LocalAdbClient.PersistentShellSession? = null
-                try {
-                    adb = DenzaLocalAdb.client(app).openPersistentShell()
-                    if (pickerSession(app, adb::shell).suspendOwnedGateForHome()) {
-                        applyPickerEvent(SplitPickerEvent.HomeObserved)
-                        Log.i(TAG, "suspended owned split gate after Home")
-                    }
-                } catch (error: Throwable) {
-                    Log.w(TAG, "failed to suspend split gate after Home", error)
-                } finally {
-                    homeGateSuspendInFlight.set(false)
-                    runCatching { adb?.close() }
-                        .onFailure { Log.w(TAG, "Home gate shell close failed", it) }
-                }
-            }
-        } catch (error: RuntimeException) {
-            homeGateSuspendInFlight.set(false)
-            Log.w(TAG, "failed to schedule Home gate suspension", error)
-        }
+        core(context).homeVisible()
     }
 
     /** Accessibility event for the stock picker created by dragging a fullscreen pane open. */
     @JvmStatic
-    fun onNativePickerVisible(context: Context): Boolean {
-        val app = context.applicationContext
-        this.context = app
-        ensurePickerStateLoaded(app)
-        if (pickerOpenInFlight.get() ||
-            !SplitScreenSettings.isEnabled(app) ||
-            !nativePickerEventInFlight.compareAndSet(false, true)
-        ) {
-            return false
-        }
-        try {
-            executor.execute {
-                var adb: LocalAdbClient.PersistentShellSession? = null
-                try {
-                    adb = DenzaLocalAdb.client(app).openPersistentShell()
-                    val split = pickerSession(app, adb::shell)
-                    // Accessibility observes SplitScreenListActivity while the finger is still
-                    // moving. Prepare the shell in the background, but do not inspect or mutate
-                    // either root until BYD is balanced and the active pointer has been released.
-                    if (!split.awaitNativePickerCommit()) return@execute
-                    SplitPane.entries.forEach { pane ->
-                        if (!split.nativePickerMutationAllowed()) return@execute
-                        val observation = split.observePane(pane, PICKER_COMPONENT_SET)
-                        val hostTaskId = observation.hostTaskId ?: return@forEach
-                        if (!observation.nativeHostVisible || observation.pickerVisible) {
-                            return@forEach
-                        }
-                        // The shell snapshot can race the final phase of an edge collapse. Never
-                        // publish ATTACHING or run a task command after area/pointer changed.
-                        if (!split.nativePickerMutationAllowed()) return@execute
-                        val reduction = applyPickerEvent(
-                            SplitPickerEvent.NativePickerObserved(
-                                pane,
-                                hostTaskId,
-                                observation.observedTaskIds,
-                            ),
-                        )
-                        val attachRequested = reduction.actions.any {
-                            it is SplitPickerAction.AttachPicker
-                        }
-                        try {
-                            executePickerActions(split, reduction.actions)
-                        } catch (error: Throwable) {
-                            if (attachRequested) {
-                                applyPickerEvent(
-                                    SplitPickerEvent.PickerAttachFailed(pane, hostTaskId),
-                                )
-                            }
-                            Log.w(TAG, "failed to attach picker in $pane", error)
-                            return@forEach
-                        }
-                    }
-                } catch (error: Throwable) {
-                    Log.w(TAG, "failed to host picker in native vacancy", error)
-                } finally {
-                    nativePickerEventInFlight.set(false)
-                    runCatching { adb?.close() }
-                        .onFailure { Log.w(TAG, "native picker shell close failed", it) }
-                }
-            }
-        } catch (error: RuntimeException) {
-            Log.w(TAG, "failed to schedule native picker replacement", error)
-            nativePickerEventInFlight.set(false)
-            return false
-        }
-        return true
-    }
+    fun onNativePickerVisible(context: Context): Boolean = core(context).nativePickerVisible()
 
     @JvmStatic
     fun onProjectionStarted(taskId: Int) {
-        val pane = SplitPane.entries.firstOrNull {
-            currentPickerState().slot(it).appTaskId == taskId
-        } ?: return
-        applyPickerEvent(
-            SplitPickerEvent.ProjectionStarted(pane, taskId),
-        )
+        core?.projectionStarted(taskId)
     }
 
     @JvmStatic
     fun onProjectionReturned(taskId: Int) {
-        val pane = SplitPane.entries.firstOrNull {
-            currentPickerState().slot(it).appTaskId == taskId
-        } ?: return
-        val reduction = applyPickerEvent(
-            SplitPickerEvent.ProjectionReturned(pane, taskId),
-        )
-        if (reduction.actions.isEmpty()) return
-        val app = context ?: return
-        executor.execute {
-            var adb: LocalAdbClient.PersistentShellSession? = null
-            try {
-                adb = DenzaLocalAdb.client(app).openPersistentShell()
-                executePickerActions(pickerSession(app, adb::shell), reduction.actions)
-            } catch (error: Throwable) {
-                Log.w(TAG, "failed to return projected task fullscreen", error)
-            } finally {
-                adb?.close()
-            }
-        }
+        core?.projectionReturned(taskId)
     }
 
-    /**
-     * Resolves the live IVI destination before Navigation moves its task back from the cluster.
-     * This is synchronous by design: the navigation lease is already held and no router tick may
-     * observe a half-cleared pane between this decision and the task move.
-     */
     internal fun prepareNavigationReturn(originalRootTaskId: Int): SplitNavigationReturnPlan {
-        val app = context ?: error("Split coordinator is not initialized")
-        ensurePickerStateLoaded(app)
-        val adb = DenzaLocalAdb.client(app).openPersistentShell()
-        try {
-            val split = pickerSession(app, adb::shell)
-            if (!SplitScreenSettings.isEnabled(app)) {
-                return SplitNavigationReturnPlan(
-                    pane = null,
-                    rootTaskId = split.fullIviRootTaskId(),
-                    hostTaskId = null,
-                    fullscreen = true,
-                )
-            }
-            val plan = split.prepareNavigationReturn(
-                originalRootTaskId = originalRootTaskId,
-                pickerComponents = PICKER_COMPONENT_SET,
-                expectedApps = expectedPickerApps(),
-            )
-            return plan
-        } finally {
-            adb.close()
-        }
+        val live = core ?: error("Split coordinator is not initialized")
+        return live.prepareNavigationReturn(originalRootTaskId)
     }
 
     internal fun completeNavigationReturn(
@@ -636,460 +124,129 @@ object SplitScreenCoordinator {
         taskId: Int,
         packageName: String,
     ) {
-        val app = context ?: return
-        ensurePickerStateLoaded(app)
-        if (plan.fullscreen) {
-            val pane = plan.pane ?: return
-            val adb = DenzaLocalAdb.client(app).openPersistentShell()
-            try {
-                pickerSession(app, adb::shell).returnRecordedTaskFullscreen(
-                    pane = pane,
-                    taskId = taskId,
-                    packageName = packageName,
-                )
-                applyPickerEvent(SplitPickerEvent.HomeObserved)
-            } finally {
-                adb.close()
-            }
-            return
-        }
-
-        val adb = DenzaLocalAdb.client(app).openPersistentShell()
-        try {
-            val split = pickerSession(app, adb::shell)
-            plan.displacedTasks.forEach { displaced ->
-                split.removeRecordedTask(displaced.taskId, displaced.packageName)
-            }
-            val placement = split.verifyNavigationReturned(
-                plan = plan,
-                taskId = taskId,
-                packageName = packageName,
-                pickerComponents = PICKER_COMPONENT_SET,
-            )
-            applyPickerEvent(
-                SplitPickerEvent.PickerBecameTop(
-                    pane = placement.pane,
-                    hostTaskId = placement.hostTaskId,
-                    observedTaskIds = emptySet(),
-                ),
-            )
-            applyPickerEvent(
-                SplitPickerEvent.AppOpened(
-                    pane = placement.pane,
-                    hostTaskId = placement.hostTaskId,
-                    taskId = placement.appTaskId,
-                    packageName = placement.packageName,
-                ),
-            )
-            syncLastPairFromPickerState(app)
-        } finally {
-            adb.close()
-        }
+        core?.completeNavigationReturn(plan, taskId, packageName)
     }
 
     /**
-     * Navigation owns its explicit moves to and from the instrument display.
-     * Keep the router out of the way until that move and its configuration
-     * changes have settled. The target itself is preserved and reconciled
-     * against the post-move scene instead of being discarded mid-transition.
+     * Navigation owns its explicit moves to and from the instrument display. Passive split
+     * reconciliation stands aside until that move and its configuration changes have settled.
      */
     @JvmStatic
     fun bypassExternalTaskMoves() {
-        val blockedUntil = SystemClock.elapsedRealtime() + EXTERNAL_TASK_BYPASS_MS
-        synchronized(routingLock) {
-            routingBlockedUntilMs = maxOf(routingBlockedUntilMs, blockedUntil)
-        }
+        core?.bypassExternalTaskMoves()
     }
 
-    /**
-     * Keeps routing suspended while an external-display task move is actually
-     * in flight. Navigation releases this after the projected central scene is
-     * stable, then acquires it again before returning the task to display 0.
-     */
+    /** Keeps reconciliation suspended while an external-display task move is actually in flight. */
     @JvmStatic
     fun holdExternalTaskMoves() {
-        synchronized(routingLock) {
-            if (!externalTaskMovesHeld) Log.i(TAG, "external task routing held")
-            externalTaskMovesHeld = true
-        }
+        core?.holdExternalTaskMoves()
+        Log.i(TAG, "external task routing held")
     }
 
-    /**
-     * Releases the long-lived handoff hold. The operation that acquired the
-     * lease also calls [bypassExternalTaskMoves] before starting, so its settle
-     * deadline is already in force. Extending it again here would leave the
-     * main display unable to form a new pair for several seconds after a
-     * successful navigation projection.
-     */
+    /** Releases the long-lived handoff hold; the acquirer's settle deadline is already in force. */
     @JvmStatic
     fun releaseExternalTaskMoves() {
-        synchronized(routingLock) {
-            if (externalTaskMovesHeld) Log.i(TAG, "external task routing released")
-            externalTaskMovesHeld = false
-        }
+        core?.releaseExternalTaskMoves()
+        Log.i(TAG, "external task routing released")
     }
 
     fun setEnabled(enabled: Boolean) {
-        val app = context ?: return
-        SplitScreenSettings.setEnabled(app, enabled)
-        if (enabled) {
-            startAsync()
-            return
-        }
+        core?.setEnabled(enabled)
+    }
 
-        val expectedHostTaskIds = currentPickerState().slots.values
-            .mapNotNullTo(mutableSetOf()) { it.hostTaskId }
-        generation += 1
-        update(
-            SplitScreenSession(
-                phase = SplitScreenPhase.STARTING,
-                message = "Закрываю разделение экрана",
-            ),
+    private fun core(context: Context): SplitCoordinatorCore {
+        core?.let { return it }
+        return synchronized(lock) {
+            core ?: build(context.applicationContext).also { built -> core = built }
+        }
+    }
+
+    private fun build(app: Context): SplitCoordinatorCore {
+        val clock = SystemSplitClock()
+        return SplitCoordinatorCore(
+            shellFactory = SplitShellFactory { persistentShell(app) },
+            clock = clock,
+            store = SplitScreenSettings.stateStore(app),
+            actor = SplitActor(clock),
+            overlayOwner = SplitOverlayOwner { overlayLease(app) },
+            notices = SplitNoticeSink { message -> SplitPickerNotice.publish(app, message) },
+            catalog = AndroidSplitLaunchCatalog(app),
+            gateLeaseStore = SplitScreenSettings.gateLeaseStore(app),
+            leases = listOf(resizeabilityLease(app), pickerAccessLease(app)),
+            apkPath = app.applicationInfo.sourceDir,
+            log = SplitDiagnosticLog { message -> Log.i(TAG, message) },
+            post = { action -> mainHandler.post(action) },
         )
-        stopAsync(expectedHostTaskIds)
     }
 
-    private fun stopAsync(
-        expectedHostTaskIds: Set<Int> = currentPickerState().slots.values
-            .mapNotNullTo(mutableSetOf()) { it.hostTaskId },
-    ) {
-        val app = context ?: return
-        val stopGeneration = generation
-        executor.execute {
-            if (generation != stopGeneration || SplitScreenSettings.isEnabled(app)) {
-                return@execute
-            }
-            var adb: LocalAdbClient.PersistentShellSession? = null
-            try {
-                adb = DenzaLocalAdb.client(app).openPersistentShell()
-                val failures = mutableListOf<Throwable>()
-                fun cleanup(step: () -> Unit) {
-                    runCatching(step).exceptionOrNull()?.let(failures::add)
-                }
+    private fun persistentShell(app: Context): SplitShellHandle {
+        val session = DenzaLocalAdb.client(app).openPersistentShell()
+        return object : SplitShellHandle {
+            override fun shell(command: String): String = session.shell(command)
 
-                cleanup {
-                    pickerSession(app, adb::shell)
-                        .closePickers(
-                            PICKER_COMPONENTS,
-                            expectedHostTaskIds,
-                        )
-                }
-                // These leases are independent. A late foreground change must not leave global
-                // resizeability or picker accessibility enabled merely because scene validation
-                // failed after the native split had already closed.
-                cleanup {
-                    SplitResizeabilityController(
-                        shell = adb::shell,
-                        leaseStore = SplitScreenSettings.resizeabilityLeaseStore(app),
-                    ).restore()
-                }
-                cleanup {
-                    SplitNativePickerAccessController(
-                        shell = adb::shell,
-                        leaseStore = SplitScreenSettings.nativePickerAccessLeaseStore(app),
-                    ).restore()
-                }
-                cleanup(::clearPickerState)
-
-                failures.firstOrNull()?.let { first ->
-                    failures.drop(1).forEach(first::addSuppressed)
-                    throw first
-                }
-                update(SplitScreenSession())
-            } catch (error: Throwable) {
-                if (generation != stopGeneration || SplitScreenSettings.isEnabled(app)) {
-                    return@execute
-                }
-                Log.w(TAG, "failed to finish split shutdown", error)
-                update(
-                    SplitScreenSession(
-                        phase = SplitScreenPhase.ERROR,
-                        message = friendlyError(error, "Не удалось выключить Split screen"),
-                        details = error.toString(),
-                    ),
-                )
-            } finally {
-                adb?.close()
-            }
+            override fun close() = session.close()
         }
     }
 
-    private fun startAsync() {
-        val app = context ?: return
-        generation += 1
-        val currentGeneration = generation
-        update(
-            SplitScreenSession(
-                enabled = true,
-                phase = SplitScreenPhase.STARTING,
-                message = "Подготавливаю Split screen",
-            ),
+    private fun overlayLease(app: Context): SplitOverlayLease {
+        val lease = SplitLaunchOverlay.begin(app)
+        return object : SplitOverlayLease {
+            override fun close() = lease.close()
+
+            override fun closeImmediately() = lease.closeImmediately()
+        }
+    }
+
+    private fun resizeabilityLease(app: Context) = object : SplitLeaseController {
+        override val kind: String get() = SplitLeaseKind.RESIZEABILITY
+
+        override fun ownedValue(): String? =
+            SplitScreenSettings.resizeabilityLeaseStore(app).loadOriginal()?.name
+
+        override fun enable(shell: (String) -> String) = controller(shell).enable()
+
+        override fun restore(shell: (String) -> String) = controller(shell).restore()
+
+        private fun controller(shell: (String) -> String) = SplitResizeabilityController(
+            shell = shell,
+            leaseStore = SplitScreenSettings.resizeabilityLeaseStore(app),
         )
-        executor.execute {
-            var adb: LocalAdbClient.PersistentShellSession? = null
-            try {
-                if (!isCurrent(currentGeneration)) return@execute
-                adb = DenzaLocalAdb.client(app).openPersistentShell()
-                SplitNativePickerAccessController(
-                    shell = adb::shell,
-                    leaseStore = SplitScreenSettings.nativePickerAccessLeaseStore(app),
-                ).enable()
-                SplitResizeabilityController(
-                    shell = adb::shell,
-                    leaseStore = SplitScreenSettings.resizeabilityLeaseStore(app),
-                ).enable()
-                if (isCurrent(currentGeneration)) {
-                    update(SplitScreenSession(enabled = true, phase = SplitScreenPhase.ACTIVE))
-                    // Reattach a custom picker if our process was recreated while a stock
-                    // vacancy was already visible. Hidden hosts are rejected by observation.
-                    onNativePickerVisible(app)
-                }
-            } catch (error: Throwable) {
-                if (!isCurrent(currentGeneration)) return@execute
-                Log.w(TAG, "failed to prepare explicit split mode", error)
-                update(
-                    SplitScreenSession(
-                        enabled = true,
-                        phase = SplitScreenPhase.ERROR,
-                        message = friendlyError(error, "Не удалось подготовить Split screen"),
-                        details = error.toString(),
-                    ),
-                )
-            } finally {
-                adb?.close()
-            }
+    }
+
+    private fun pickerAccessLease(app: Context) = object : SplitLeaseController {
+        override val kind: String get() = SplitLeaseKind.PICKER_ACCESS
+
+        override fun ownedValue(): String? =
+            if (SplitScreenSettings.nativePickerAccessLeaseStore(app).isOwned()) OWNED else null
+
+        override fun enable(shell: (String) -> String) = controller(shell).enable()
+
+        override fun restore(shell: (String) -> String) = controller(shell).restore()
+
+        private fun controller(shell: (String) -> String) = SplitNativePickerAccessController(
+            shell = shell,
+            leaseStore = SplitScreenSettings.nativePickerAccessLeaseStore(app),
+        )
+    }
+
+    private const val OWNED = "owned"
+
+    /** The only source of time in production: monotonic, and its timers are daemon threads. */
+    private class SystemSplitClock : SplitClock {
+        override fun nowMs(): Long = SystemClock.elapsedRealtime()
+
+        override fun schedule(delayMs: Long, action: () -> Unit): SplitCancellable {
+            val scheduled = timers.schedule(action, delayMs, TimeUnit.MILLISECONDS)
+            return SplitCancellable { scheduled.cancel(false) }
         }
     }
 
-    private fun isCurrent(value: Long): Boolean =
-        generation == value && SplitScreenSettings.isEnabled(context ?: return false)
+    /** Rebuilt from the current PackageManager state on every read, never cached (1.4.2). */
+    private class AndroidSplitLaunchCatalog(private val app: Context) : SplitLaunchCatalog {
+        override fun installedPackages(): Set<String> =
+            SplitPickerCatalog.load(app).mapTo(mutableSetOf(), SplitLaunchTarget::packageName)
 
-    private fun externalTaskMutationInFlight(): Boolean = synchronized(routingLock) {
-        externalTaskMovesHeld || SystemClock.elapsedRealtime() < routingBlockedUntilMs
+        override fun resolve(packageName: String): SplitLaunchTarget? =
+            SplitPickerCatalog.resolve(app, packageName)
     }
-
-    private fun update(next: SplitScreenSession) {
-        session = next
-        onStateChanged?.invoke()
-    }
-
-    private fun executePickerActions(
-        split: SplitPickerShellSession,
-        actions: List<SplitPickerAction>,
-    ) {
-        actions.forEach { action ->
-            when (action) {
-                SplitPickerAction.PrepareNativeSession -> Unit
-                is SplitPickerAction.AttachPicker -> {
-                    val pickerTaskId = split.attachPicker(
-                        pane = action.pane,
-                        hostTaskId = action.hostTaskId,
-                        pickerComponent = PICKER_COMPONENT,
-                    )
-                    applyPickerEvent(
-                        SplitPickerEvent.PickerAttached(action.pane, pickerTaskId),
-                    )
-                }
-                is SplitPickerAction.RemoveExactTask ->
-                    split.removeRecordedTask(action.taskId, action.packageName)
-                is SplitPickerAction.RemovePickerArtifact ->
-                    split.removePickerArtifact(action.hostTaskId, PICKER_COMPONENT_SET)
-                is SplitPickerAction.ReturnTaskFullscreen ->
-                    split.returnRecordedTaskFullscreen(
-                        pane = action.pane,
-                        taskId = action.taskId,
-                        packageName = action.packageName,
-                    )
-            }
-        }
-    }
-
-    private fun reconcileOwnedSession(
-        app: Context,
-        split: SplitPickerShellSession,
-        reason: String,
-        settleDividerResize: Boolean = false,
-    ): Boolean {
-        val before = currentPickerState()
-        val live = if (settleDividerResize) {
-            split.reconcileDividerResize(
-                pickerComponents = PICKER_COMPONENT_SET,
-                previousPanes = resizeExpectation(before).orEmpty(),
-            )
-        } else {
-            split.existingOwnedSession(PICKER_COMPONENT_SET)
-        }
-        val event = if (live != null) {
-            SplitPickerEvent.DividerResized(
-                panes = live.mapValues { (_, pane) ->
-                    SplitPickerObservedPane(
-                        hostTaskId = pane.hostTaskId,
-                        appTaskId = pane.appTaskId,
-                        packageName = pane.appPackageName,
-                    )
-                },
-            )
-        } else {
-            val expectedPanes = collapseExpectation(before) ?: return false
-            val collapsed = split.collapsedOwnedSession(
-                pickerComponents = PICKER_COMPONENT_SET,
-                expectedPanes = expectedPanes,
-            ) ?: return false
-            SplitPickerEvent.PaneCollapsed(
-                survivor = collapsed.pane,
-                pane = SplitPickerObservedPane(
-                    hostTaskId = collapsed.hostTaskId,
-                    appTaskId = collapsed.appTaskId,
-                    packageName = collapsed.appPackageName,
-                ),
-            )
-        }
-        val reduction = applyPickerEvent(event)
-        if (reduction.state != before) {
-            syncLastPairFromPickerState(app)
-            Log.i(TAG, "reconciled explicit picker session after $reason")
-        }
-        executePickerActions(split, reduction.actions)
-        return true
-    }
-
-    private fun resizeExpectation(
-        state: SplitPickerAutomatonState,
-    ): Map<SplitPane, SplitPickerObservedPane>? {
-        val panes = mutableMapOf<SplitPane, SplitPickerObservedPane>()
-        SplitPane.entries.forEach { pane ->
-            val slot = state.slot(pane)
-            val hostTaskId = slot.hostTaskId ?: return null
-            panes[pane] = when (slot.kind) {
-                SplitPickerSlotKind.PICKER -> SplitPickerObservedPane(hostTaskId)
-                SplitPickerSlotKind.APP -> SplitPickerObservedPane(
-                    hostTaskId = hostTaskId,
-                    appTaskId = slot.appTaskId ?: return null,
-                    packageName = slot.packageName ?: return null,
-                )
-                else -> return null
-            }
-        }
-        return panes
-    }
-
-    private fun collapseExpectation(
-        state: SplitPickerAutomatonState,
-    ): Map<SplitPane, SplitPickerObservedPane>? {
-        val panes = mutableMapOf<SplitPane, SplitPickerObservedPane>()
-        SplitPane.entries.forEach { pane ->
-            val slot = state.slot(pane)
-            when (slot.kind) {
-                SplitPickerSlotKind.CLOSED -> Unit
-                SplitPickerSlotKind.PICKER -> panes[pane] = SplitPickerObservedPane(
-                    hostTaskId = slot.hostTaskId ?: return null,
-                )
-                SplitPickerSlotKind.APP -> panes[pane] = SplitPickerObservedPane(
-                    hostTaskId = slot.hostTaskId ?: return null,
-                    appTaskId = slot.appTaskId ?: return null,
-                    packageName = slot.packageName ?: return null,
-                )
-                else -> return null
-            }
-        }
-        return panes.takeIf { it.isNotEmpty() }
-    }
-
-    private fun applyPickerEvent(event: SplitPickerEvent): SplitPickerReduction =
-        synchronized(pickerStateLock) {
-            val reduction = SplitPickerAutomaton.reduce(pickerState, event)
-            if (reduction.state != pickerState) {
-                val app = context ?: error("Split coordinator is not initialized")
-                check(
-                    SplitScreenSettings.pickerAutomatonStore(app).save(reduction.state),
-                ) { "Не удалось сохранить состояние split-пикера" }
-                pickerState = reduction.state
-            }
-            reduction
-        }
-
-    private fun currentPickerState(): SplitPickerAutomatonState =
-        synchronized(pickerStateLock) { pickerState }
-
-    private fun expectedPickerApps(): Map<SplitPane, SplitPickerExpectedApp> =
-        SplitPane.entries.mapNotNull { pane ->
-            val slot = currentPickerState().slot(pane)
-            val taskId = slot.appTaskId
-            val packageName = slot.packageName
-            if (
-                slot.kind == SplitPickerSlotKind.APP &&
-                taskId != null &&
-                packageName != null
-            ) {
-                pane to SplitPickerExpectedApp(taskId, packageName)
-            } else {
-                null
-            }
-        }.toMap()
-
-    /** Last-pair persistence follows the settled IVI scene, never a historical pane label. */
-    private fun syncLastPairFromPickerState(app: Context) {
-        val packages = SplitPickerSelectionPolicy.settledPair(currentPickerState())
-        check(SplitScreenSettings.lastPairStore(app).replace(packages)) {
-            "Не удалось сохранить последнюю пару"
-        }
-    }
-
-    private fun ensurePickerStateLoaded(app: Context) {
-        if (pickerStateLoaded) return
-        synchronized(pickerStateLock) {
-            if (pickerStateLoaded) return
-            pickerState = SplitScreenSettings.pickerAutomatonStore(app).load()
-            pickerStateLoaded = true
-        }
-    }
-
-    private fun clearPickerState() {
-        synchronized(pickerStateLock) {
-            val app = context ?: return
-            check(SplitScreenSettings.pickerAutomatonStore(app).clear()) {
-                "Не удалось очистить состояние split-пикера"
-            }
-            pickerState = SplitPickerAutomatonState()
-            pickerStateLoaded = true
-        }
-    }
-
-    private fun postResult(callback: (String?) -> Unit, error: String?) {
-        Handler(Looper.getMainLooper()).post { callback(error) }
-    }
-
-    private fun friendlyError(error: Throwable, fallback: String): String {
-        val text = error.message.orEmpty()
-        return when {
-            text.contains("authorization required", ignoreCase = true) ->
-                "Откройте ADB Rescue в диагностике"
-            text.contains("authorization pending", ignoreCase = true) ->
-                "Подтвердите ADB-ключ на экране автомобиля"
-            text.contains("refused", ignoreCase = true) -> "Включите ADB на машине"
-            text.contains("timeout", ignoreCase = true) -> "ADB пока не отвечает"
-            text.startsWith("Приложение уже открыто на другом экране") -> text
-            text.startsWith("Сначала верните приложение с другого экрана") -> text
-            text.startsWith("Это приложение не поддерживает два окна") -> text
-            else -> fallback
-        }
-    }
-
-    private fun pickerSession(
-        context: Context,
-        shell: (String) -> String,
-    ): SplitPickerShellSession = SplitPickerShellSession(
-        shell = shell,
-        apkPath = context.applicationInfo.sourceDir,
-        gateLeaseStore = SplitScreenSettings.gateLeaseStore(context),
-    )
-
-    private val PICKER_COMPONENTS = mapOf(
-        SplitPane.PRIMARY to PICKER_COMPONENT,
-        SplitPane.SECONDARY to PICKER_COMPONENT,
-    )
-
-    private const val PICKER_COMPONENT =
-        "$SPLIT_HOST_PACKAGE/$SPLIT_PICKER_ACTIVITY"
-    private val PICKER_COMPONENT_SET = setOf(PICKER_COMPONENT)
 }

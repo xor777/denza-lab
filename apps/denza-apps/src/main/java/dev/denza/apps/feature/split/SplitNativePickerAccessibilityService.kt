@@ -75,15 +75,18 @@ class SplitNativePickerAccessibilityService : AccessibilityService() {
         }
     }
 
+    /**
+     * The filter comes first, always.
+     *
+     * A window storm used to reach the coordinator before anything had looked at who sent it
+     * (A.3.5): every single `TYPE_WINDOWS_CHANGED` scheduled work on the one blocking executor.
+     * Now the exact source decides what this event even is, and only then does a topology hint
+     * become a coalesced reconcile that no-ops without a live product scene.
+     */
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        if (event != null && SplitAccessibilityEventPolicy.isTopologyHint(event.eventType)) {
-            // Hidden picker Activities do not consistently receive a configuration callback when
-            // BYD collapses an edge. TYPE_WINDOWS_CHANGED is only a hint; the coordinator waits
-            // for settlement and requires an exact owned topology before any mutation.
-            SplitScreenCoordinator.onDividerResized(this)
-        }
-        val packageName = event?.packageName?.toString()
-        val className = event?.className?.toString()
+        event ?: return
+        val packageName = event.packageName?.toString()
+        val className = event.className?.toString()
         val target = SplitAccessibilityEventPolicy.target(packageName, className)
         if (target != SplitAccessibilityEventTarget.IGNORE) {
             Log.i(TAG, "window event target=$target package=$packageName class=$className")
@@ -96,6 +99,13 @@ class SplitNativePickerAccessibilityService : AccessibilityService() {
             SplitAccessibilityEventTarget.HOME ->
                 SplitScreenCoordinator.onHomeVisible(this)
             SplitAccessibilityEventTarget.IGNORE -> Unit
+        }
+        // Hidden picker Activities do not consistently receive a configuration callback when BYD
+        // collapses an edge, so a window change anywhere is still the signal that our own topology
+        // may have moved underneath us. It is one coalesced hint, and it costs nothing at all
+        // unless a live product scene exists to reconcile.
+        if (SplitAccessibilityEventPolicy.isTopologyHint(event.eventType)) {
+            SplitScreenCoordinator.onDividerResized(this)
         }
     }
 

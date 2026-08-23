@@ -85,7 +85,6 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.core.graphics.drawable.toBitmap
 import dev.denza.apps.DenzaUiState
-import dev.denza.apps.feature.split.SplitScreenFlag
 import dev.denza.apps.feature.trip.TripPanelFlag
 import dev.denza.apps.NavigationAppChoice
 import dev.denza.apps.SimulcastAppChoice
@@ -558,7 +557,6 @@ fun DenzaAppsRoot(
     }
 }
 
-private const val SPLIT_UNAVAILABLE = "Недоступно в этой прошивке"
 private val FULL_DASHBOARD_WIDTH = 1_280.dp
 private val NARROW_TRIP_PANEL_HEIGHT = 660.dp
 
@@ -811,24 +809,6 @@ private fun SplitScreenCard(
     snapshot: FeatureSnapshot,
     onToggle: (Boolean) -> Unit,
 ) {
-    if (!SplitScreenFlag.ENABLED) {
-        // Shown, off and not operable: the feature is gone from the firmware,
-        // not from the app, and a card that simply vanished would read as a bug.
-        CompactToggleCard(
-            modifier = modifier,
-            icon = Icons.Outlined.VerticalSplit,
-            title = "Split Screen",
-            subtitle = SPLIT_UNAVAILABLE,
-            snapshot = snapshot.copy(
-                desiredEnabled = false,
-                status = FeatureStatus.UNAVAILABLE,
-                message = SPLIT_UNAVAILABLE,
-            ),
-            onToggle = {},
-            toggleEnabled = false,
-        )
-        return
-    }
     val subtitle = if (snapshot.status == FeatureStatus.ERROR) {
         "Ошибка запуска"
     } else {

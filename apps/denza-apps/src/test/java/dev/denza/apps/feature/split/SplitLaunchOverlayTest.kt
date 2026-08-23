@@ -23,13 +23,17 @@ class SplitLaunchOverlayTest {
     }
 
     @Test
-    fun hardDeadlineReleasesWindowWithoutCoordinatorCallback() {
+    fun theHardDeadlineIsAnEmergencyShieldRelease() {
+        // §14.6: этот таймер не отменяет операцию - отмену держит дедлайн операции в акторе
+        // (K3). Здесь он гарантирует единственное: пользователь не остаётся с заблокированным
+        // экраном, что бы ни случилось с координатором.
         val fixture = Fixture()
         val lease = fixture.controller.begin()
 
         fixture.advanceTo(SplitLaunchOverlay.MAX_VISIBLE_MS)
-        assertEquals(listOf(true, false), fixture.rendered)
+        assertEquals("the screen is given back to the user", listOf(true, false), fixture.rendered)
 
+        // And a coordinator callback that arrives after that release cannot raise the shield again.
         lease.close()
         fixture.runAll()
         assertEquals(listOf(true, false), fixture.rendered)
@@ -59,7 +63,10 @@ class SplitLaunchOverlayTest {
     }
 
     @Test
-    fun overlappingRequestsStayVisibleUntilEveryLeaseEnds() {
+    fun aSecondOperationNestsInsteadOfDroppingTheShieldEarly() {
+        // 1.3.7 и K4: два тапа - это одна операция и один lease, что доказывает
+        // twoLauncherTapsShareOneOperationOneLeaseAndOneResult. Сюда lease попадает только от
+        // ВТОРОЙ операции, и тогда щит держится, пока его держит хоть одна из них.
         val fixture = Fixture()
         val first = fixture.controller.begin()
         fixture.advanceTo(100)
@@ -67,7 +74,7 @@ class SplitLaunchOverlayTest {
 
         first.close()
         fixture.advanceTo(SplitLaunchOverlay.MIN_VISIBLE_MS)
-        assertTrue(fixture.rendered.last())
+        assertTrue("the second operation still owns the screen", fixture.rendered.last())
 
         second.close()
         fixture.advanceTo(100 + SplitLaunchOverlay.MIN_VISIBLE_MS)

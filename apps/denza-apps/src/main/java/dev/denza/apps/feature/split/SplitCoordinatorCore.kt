@@ -58,6 +58,14 @@ internal interface SplitLaunchCatalog {
  * `null` means the product does not hold this lease, and both [enable] and [restore] are then
  * expected to be side-effect free.
  */
+internal object SplitLeaseKind {
+    /** Android's global `force_resizable_activities`, needed by every pane the product fills. */
+    const val RESIZEABILITY = "resizeability"
+
+    /** The accessibility observer that reports the stock picker of an edge drag (1.8.5). */
+    const val PICKER_ACCESS = "picker-access"
+}
+
 internal interface SplitLeaseController {
     val kind: String
 
@@ -114,6 +122,7 @@ internal class SplitCoordinatorCore(
     private var openTicket: SplitTicket? = null
     private var routingBlockedUntilMs = 0L
     private var externalTaskMovesHeld = false
+    private var loaded = false
 
     @Volatile
     private var session = SplitScreenSession()
@@ -130,17 +139,35 @@ internal class SplitCoordinatorCore(
      */
     fun initialize(onStateChanged: () -> Unit) {
         this.onStateChanged = onStateChanged
-        val durable = store.load()
-        synchronized(stateLock) {
-            state = SplitState(enabled = durable.enabled, slots = durable.slots)
-        }
+        ready()
         publish()
     }
 
-    fun snapshot(): SplitScreenSession = session
+    fun snapshot(): SplitScreenSession {
+        ready()
+        return session
+    }
+
+    /**
+     * Loads the durable snapshot once, on whichever input arrives first.
+     *
+     * An accessibility service can reach the product before the repository has initialised it, and
+     * a coordinator that answered such an event from a default state would act as if the toggle
+     * were off. Loading is a preferences read: it is not a mutation and never becomes one.
+     */
+    private fun ready() {
+        synchronized(stateLock) {
+            if (loaded) return
+            loaded = true
+            val durable = store.load()
+            state = SplitState(enabled = durable.enabled, slots = durable.slots)
+            session = sessionOf()
+        }
+    }
 
     /** Contract 1.2: enabling only arms the product, disabling ends the scene and keeps the pair. */
     fun setEnabled(enabled: Boolean) {
+        ready()
         if (enabled) {
             submitEnable()
             return
@@ -154,6 +181,7 @@ internal class SplitCoordinatorCore(
      * the live one and gets its outcome instead of a premature success (1.3.7, K4).
      */
     fun openPickerSession(onComplete: (String?) -> Unit = {}) {
+        ready()
         // The launcher entry only exists while the toggle is on, so a tap on it is also the
         // authoritative repair of a persisted mismatch. It is a store write and nothing else.
         if (!currentState().enabled) submitEnable()
@@ -174,6 +202,7 @@ internal class SplitCoordinatorCore(
 
     /** Contract 1.5: a picker tap names its pane, so no foreground inference is ever needed. */
     fun selectApp(pickerTaskId: Int, packageName: String, onComplete: (String?) -> Unit = {}) {
+        ready()
         val target = catalog.resolve(packageName)
         if (target == null) {
             post { onComplete("Приложение больше не найдено") }
@@ -185,27 +214,32 @@ internal class SplitCoordinatorCore(
 
     /** Contract 1.6.2, 1.7.1: a revealed picker is a hint that its app may have closed. */
     fun pickerVisible(hostTaskId: Int?, onComplete: (String?) -> Unit = {}) {
+        ready()
         submitReconcile(SplitReconcileKind.PickerVisible(hostTaskId))
             .onComplete { outcome -> report(onComplete, outcome, RECONCILE_FAILURE) }
     }
 
     /** Contract 1.6.3, 1.7.4: a picker that left the panel roots is a dismissed pane. */
     fun pickerHidden(hostTaskId: Int) {
+        ready()
         submitReconcile(SplitReconcileKind.PickerHidden(hostTaskId))
     }
 
     /** Contract 1.8.1-1.8.3: the settled topology after a divider move, coalesced to one. */
     fun dividerResized() {
+        ready()
         submitReconcile(SplitReconcileKind.DividerResized)
     }
 
     /** Contract 1.9.1: Home is the priority event that cancels the work the user walked away from. */
     fun homeVisible() {
+        ready()
         submit { work -> HomeOperation(work) }
     }
 
     /** Contract 1.8.5: the stock picker of an edge drag, only inside a live product scene. */
     fun nativePickerVisible(): Boolean {
+        ready()
         submit { work -> EdgeOperation(work) }
         return true
     }
@@ -223,6 +257,7 @@ internal class SplitCoordinatorCore(
      * id, and the result enters the automaton as a settled fact.
      */
     fun projectionStarted(taskId: Int) {
+        ready()
         val pane = resolveProjectedPane(taskId) ?: return
         applyBridgeFact(SplitFact.ProjectionStarted(pane))
     }
@@ -230,12 +265,14 @@ internal class SplitCoordinatorCore(
     /** TODO(wave 5b): see [projectionStarted]. */
     @Suppress("UNUSED_PARAMETER")
     fun projectionReturned(taskId: Int) {
+        ready()
         applyBridgeFact(SplitFact.ProjectionReturned)
     }
 
     /** TODO(wave 5b): see [projectionStarted]. */
-    fun prepareNavigationReturn(originalRootTaskId: Int): SplitNavigationReturnPlan =
-        withBridgeShell { split ->
+    fun prepareNavigationReturn(originalRootTaskId: Int): SplitNavigationReturnPlan {
+        ready()
+        return withBridgeShell { split ->
             if (!currentState().enabled) {
                 return@withBridgeShell SplitNavigationReturnPlan(
                     pane = null,
@@ -250,6 +287,7 @@ internal class SplitCoordinatorCore(
                 expectedApps = expectedApps(currentLive()),
             )
         }
+    }
 
     /** TODO(wave 5b): see [projectionStarted]. */
     fun completeNavigationReturn(

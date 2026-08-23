@@ -64,11 +64,17 @@ internal data class SplitPickerPaneObservation(
     val observedTaskIds: Set<Int>,
 )
 
-internal interface SplitLastPairStore {
-    fun load(pane: SplitPane): String?
-    fun save(pane: SplitPane, packageName: String): Boolean
-    fun replace(packages: Map<SplitPane, String>): Boolean
-}
+/**
+ * What one pane looked like before a divider move or a collapse.
+ *
+ * These ids are always ephemeral: they come from the live scene the coordinator last verified and
+ * every recipe that receives them re-checks each one against a fresh snapshot (invariant 4).
+ */
+internal data class SplitPickerObservedPane(
+    val hostTaskId: Int,
+    val appTaskId: Int? = null,
+    val packageName: String? = null,
+)
 
 /** Persistent ownership for the firmware-global split enable gate. */
 internal interface SplitGateLeaseStore {
@@ -76,37 +82,7 @@ internal interface SplitGateLeaseStore {
     fun setOwned(owned: Boolean): Boolean
 }
 
-internal interface SplitPickerAutomatonStore {
-    fun load(): SplitPickerAutomatonState
-    fun save(state: SplitPickerAutomatonState): Boolean
-    fun clear(): Boolean
-}
-
 internal object SplitPickerSelectionPolicy {
-    fun settledPair(state: SplitPickerAutomatonState): Map<SplitPane, String> =
-        buildMap {
-            SplitPane.entries.forEach { pane ->
-                val slot = state.slot(pane)
-                if (slot.kind == SplitPickerSlotKind.APP) {
-                    slot.packageName?.takeIf(String::isNotBlank)?.let { put(pane, it) }
-                }
-            }
-        }
-
-    fun updatedPair(
-        primaryPackage: String?,
-        secondaryPackage: String?,
-        selectedPane: SplitPane,
-        selectedPackage: String,
-    ): Map<SplitPane, String> {
-        require(selectedPackage.isNotBlank())
-        return buildMap {
-            primaryPackage?.takeIf(String::isNotBlank)?.let { put(SplitPane.PRIMARY, it) }
-            secondaryPackage?.takeIf(String::isNotBlank)?.let { put(SplitPane.SECONDARY, it) }
-            put(selectedPane, selectedPackage)
-        }
-    }
-
     fun restorablePair(
         primaryPackage: String?,
         secondaryPackage: String?,

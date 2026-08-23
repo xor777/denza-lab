@@ -193,8 +193,12 @@ internal abstract class SplitCoreOperation<P>(
     }
 
     /** Takes the global leases the product borrows, recording what each one displaced. */
-    protected fun enableLeases(op: SplitOperationContext, shell: (String) -> String) {
-        work.leases.forEach { lease ->
+    protected fun enableLeases(
+        op: SplitOperationContext,
+        shell: (String) -> String,
+        kinds: Set<String>,
+    ) {
+        work.leases.filter { lease -> lease.kind in kinds }.forEach { lease ->
             val previous = lease.ownedValue()
             lease.enable(shell)
             op.journal.record(SplitJournalEntry.LeaseEnabled(lease.kind, previous))
@@ -378,7 +382,7 @@ internal class OpenOperation(
 
     override fun apply(op: SplitOperationContext, shell: (String) -> String, plan: SplitOpenPlan) {
         val split = work.split(op)
-        enableLeases(op, shell)
+        enableLeases(op, shell, ALL_LEASES)
         val adopted = plan.adopted
         if (adopted != null) {
             adopt(split.revealOwnedSession(adopted, SPLIT_PICKER_COMPONENT_SET))
@@ -468,7 +472,9 @@ internal class SelectOperation(
 
     override fun apply(op: SplitOperationContext, shell: (String) -> String, plan: Unit) {
         val split = work.split(op)
-        enableLeases(op, shell)
+        // Only resizeability: a tap in a picker must not drag the accessibility observer's
+        // disable/re-enable dance into the middle of a launch the user is watching.
+        enableLeases(op, shell, setOf(SplitLeaseKind.RESIZEABILITY))
         pointOfNoReturn(op, "selecting an app clears the tasks above its picker")
         val settled = split.selectApp(
             pickerTaskId = pickerTaskId,
@@ -754,6 +760,7 @@ internal class ReconcileOperation(
 
 // endregion
 
+private val ALL_LEASES = setOf(SplitLeaseKind.RESIZEABILITY, SplitLeaseKind.PICKER_ACCESS)
 private const val SELECT_JOIN_PREFIX = "select-"
 private const val TOGGLE_BUDGET_MS = 30_000L
 private const val OPEN_BUDGET_MS = 15_000L

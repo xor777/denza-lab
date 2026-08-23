@@ -173,42 +173,6 @@ class SplitPickerShellSessionTest {
     }
 
     @Test
-    fun savingOnePanePreservesDifferentPackageInOtherPane() {
-        val afterPrimary = SplitPickerSelectionPolicy.updatedPair(
-            primaryPackage = null,
-            secondaryPackage = null,
-            selectedPane = SplitPane.PRIMARY,
-            selectedPackage = NAVIGATOR,
-        )
-        val afterSecondary = SplitPickerSelectionPolicy.updatedPair(
-            primaryPackage = afterPrimary[SplitPane.PRIMARY],
-            secondaryPackage = afterPrimary[SplitPane.SECONDARY],
-            selectedPane = SplitPane.SECONDARY,
-            selectedPackage = MUSIC,
-        )
-
-        assertEquals(
-            mapOf(
-                SplitPane.PRIMARY to NAVIGATOR,
-                SplitPane.SECONDARY to MUSIC,
-            ),
-            afterSecondary,
-        )
-        assertEquals(
-            mapOf(
-                SplitPane.PRIMARY to MUSIC,
-                SplitPane.SECONDARY to MUSIC,
-            ),
-            SplitPickerSelectionPolicy.updatedPair(
-                primaryPackage = NAVIGATOR,
-                secondaryPackage = MUSIC,
-                selectedPane = SplitPane.PRIMARY,
-                selectedPackage = MUSIC,
-            ),
-        )
-    }
-
-    @Test
     fun explicitOpenCreatesTwoPickerBasesAndPrunesOldPaneTasks() {
         val fake = FakeShell().apply {
             addTask(PRIMARY_ROOT, 40, NAVIGATOR, "$NAVIGATOR.MainActivity")
