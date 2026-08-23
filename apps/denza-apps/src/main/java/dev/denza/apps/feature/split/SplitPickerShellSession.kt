@@ -561,20 +561,6 @@ internal class SplitPickerShellSession(
         return pickerTasks.mapValues { it.value.id }
     }
 
-    private fun currentBootstrapTasks(
-        rootIds: Map<SplitPane, Int>,
-    ): Map<SplitPane, SplitTask>? {
-        if (callInt("service call activity_task 30") != AREA_BALANCED_SPLIT) return null
-        val state = snapshot()
-        val tasks = SplitPane.entries.associateWith { pane ->
-            state.root(rootIds.getValue(pane))
-                ?.tasks
-                ?.firstOrNull { it.isNativeSplitBootstrap() }
-        }
-        if (tasks.values.any { it == null }) return null
-        return tasks.mapValues { (_, task) -> task!! }
-    }
-
     fun selectApp(
         pickerTaskId: Int,
         target: SplitLaunchTarget,
@@ -1455,16 +1441,6 @@ internal class SplitPickerShellSession(
             }
             .toList()
             .let(::removeTasksSafely)
-    }
-
-    private fun awaitBootstrapTask(rootId: Int): SplitTask {
-        repeat(TASK_DISCOVERY_ATTEMPTS) { attempt ->
-            val root = snapshot().root(rootId)
-            val task = root?.tasks?.firstOrNull { it.isNativeSplitBootstrap() }
-            if (task != null && task.visible) return task
-            if (attempt + 1 < TASK_DISCOVERY_ATTEMPTS) pause(TASK_DISCOVERY_INTERVAL_MS)
-        }
-        error("Прошивка не создала стартовую задачу split-контейнера")
     }
 
     private fun awaitTaskMatching(predicate: (SplitTask) -> Boolean): SplitTask {
