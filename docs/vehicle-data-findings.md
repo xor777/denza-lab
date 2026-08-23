@@ -482,6 +482,67 @@ Two readings from the same session are worth keeping:
   figure. It is an estimate from two vendor-derived numbers, not a measurement,
   and the panel does not display it.
 
+## Combustion side of the hybrid (catalog only, 2026-08-23)
+
+This car is a PHEV and the catalog carries a full combustion set, but **nothing
+below has been read on this vehicle**. These are names and feature ids from
+`reverse/maphelper-jadx/sources/com/byd/feature/`, listed here so the live check
+is one targeted read-only sweep rather than another catalog crawl. Treat every
+row as a candidate until a sweep answers it; motor temperatures already taught
+us that ids are generation-specific (`_DM40_464` on this car).
+
+### Engine itself — `com/byd/feature/engine/Engine.java`, dev `1012`
+
+| Reading | Constant | FID |
+| --- | --- | --- |
+| Engine speed | `ENGINE_SPEED` | `0x14400012` |
+| Engine speed, other generations | `ENGINE_SPEED_20D` / `_324` / `_GB` | `0x20D00008` / `0x32400038` / `0x10D00008` |
+| Running or stopped | `ENGINE_STATE` | `0x10D00038` |
+| Coolant temperature | `ENGINE_ENGINE_COOLANT_TEMPERATURE` | `0x4EB06040` |
+| Thermostat water temperature | `ENERGY_ENGINE_THERMOSTAT_WATER_TEMPERATURE` (+ `_CAN`) | `0x32400048` / `0x30D00008` |
+| Indicated torque | `ENGINE_INDICATED_TORQUE_NM` | `0x32400058` |
+| Boost, actual and target | `ENGINE_ACTUAL_BOOST_PRESSURE` / `_TARGET_` | `0x387000C0` / `0x387000B8` |
+| Charge air temperature | `ENGINE_BOOST_GAS_TEMPERATURE` | `0x387000C8` |
+| Power sent to the pack by the engine | `ENGINE_CHARGE_POWER` | `0x2ED00010` |
+| Knock retard angle, cylinders 1–4 | `ENGINE_CYLINDER_n_KNOCK_RETARD_ANGLE` | `0x32400180` + `0x10` each |
+| Pre-ignition counters A–D | `ENGINE_x_CYLINDER_PRE_IGNITION_COUNTER` | `0x324001C8` + `0x8` each |
+| Catalyst heating | `ENGINE_CATALYST_HEATING_FLAG` | `0x2330002D` |
+| Coolant / oil level flags | `ENGINE_COOLANT_LEVEL` / `ENGINE_OIL_LEVEL` | `0x05500031` / `0x05500038` |
+| Oil, transmission oil, coolant service life | `BODY_OIL_LIFE` and neighbours | `0x4BB000D0` … |
+
+### Fuel
+
+| Reading | Constant | FID | dev |
+| --- | --- | --- | --- |
+| Instantaneous consumption | `ENERGY_INSTANTANEOUS_FUEL_CONSUMPTION` | `0x32400098` | 1006 |
+| Instantaneous consumption, ml | `..._ML` | `0x30D00010` | 1006 |
+| Trip average | `ENERGY_CURRENT_ITINERARY_AVERAGE_FUEL_CONSUMPTION` | `0x3590481F` | 1006 |
+| Average over the last 200 m | `STATISTICS_AVERAGE_INSTANT_FUEL_LAST_200M` (+ `_HEV`) | `0x3D90601C` / `0x46100030` | 1014 |
+| Range on fuel | `STATISTIC_FUEL_DRIVING_RANGE` | `0x4A504038` | 1014 |
+| Low fuel alarm | `INSTRUMENT_FUEL_LOW_ALARM` | `0x4A507027` | 1007 |
+
+No plain "tank level, percent" constant turned up — only the alarm and the
+range. If the sweep confirms that, a fuel gauge has to come from range, which
+is a vendor estimate rather than a measurement.
+
+### Two corrections this reading forced
+
+- **`0x14400020` is `ENGINE_POWER` in the catalog**, and it is the id the panel
+  currently labels pack power. Parked on AC charge it read `-2` while the
+  charging device reported `+2.4` kW with the engine stopped, so it is not the
+  engine's own output — but the label is an assumption, and the drive capture
+  that settles the sign should settle the meaning at the same time. If it turns
+  out to be combustion power, the whole consumption block is mislabelled.
+- **Vehicle speed is in the catalog** as `SPEED_AUTO_SPEED` = `0x94400008`
+  (dev `1013`, and `SPEED_AUTO_SPEED_121` = `0x12100008`), alongside
+  accelerator and brake depth (`0x34200008` / `0x34200010`). An earlier note in
+  this session said speed was absent; that was a search of this document, not
+  of the catalog. With speed the live consumption figure can be instantaneous
+  (power over speed) instead of a rolling odometer window, and a standstill is
+  detectable immediately rather than after five seconds of a still odometer.
+  Note `0x94400008` sets the high bit, so it reaches the shell as
+  `-1807745016`.
+
 ## Legacy BYDAuto events and system logs
 
 The archived 2026-06-27 probe under
