@@ -275,6 +275,26 @@ class SplitActorTest {
     }
 
     @Test
+    fun anExplicitTapOvertakesAStormOfPassiveHints() {
+        // K5, сценарий 22: SELECT не стоит в очереди из ста reconcile и не ждёт их
+        val release = blockedInFlight("blocker", SplitInputPriority.NAV)
+
+        val hints = (0 until 100).map { index ->
+            actor.submit(spec("hint-$index", SplitInputPriority.HINT, coalesceKey = "reconcile"))
+        }
+        val select = actor.submit(spec("select", SplitInputPriority.SELECT, joinKey = SplitPane.PRIMARY))
+        release.countDown()
+
+        assertEquals(SplitOutcome.Committed, select.await(AWAIT_MS))
+        assertEquals(SplitOutcome.Committed, hints.last().await(AWAIT_MS))
+        assertEquals(
+            "one reconcile survives the storm, and the tap runs before it",
+            listOf("blocker", "select", "hint-99"),
+            executed.toList(),
+        )
+    }
+
+    @Test
     fun aCoalescedKeyNeverReplacesTheOperationInFlight() {
         // контракт §7: коалесцирование живёт в очереди; начатая работа не подменяется
         val started = CountDownLatch(1)
