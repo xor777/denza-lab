@@ -325,7 +325,7 @@ class SplitOperationRunnerTest {
         val stored = store.load()
         assertEquals(SplitSlot.App(MUSIC), stored.slot(SplitPane.PRIMARY))
         assertEquals(SplitSlot.Picker, stored.slot(SplitPane.SECONDARY))
-        assertEquals(mapOf("gate" to "0"), stored.leases)
+        assertEquals(1L, stored.revision)
     }
 
     private fun operation(
@@ -456,7 +456,6 @@ class SplitOperationRunnerTest {
                 SplitPane.SECONDARY to SplitSlot.Picker,
             ),
             revision = current.revision + 1,
-            leases = mapOf("gate" to "0"),
         )
     }
 
@@ -479,7 +478,6 @@ class SplitOperationRunnerTest {
                 SplitPane.SECONDARY to SplitSlot.Picker,
             ),
             revision = 1L,
-            leases = mapOf("gate" to "0"),
         )
     }
 }

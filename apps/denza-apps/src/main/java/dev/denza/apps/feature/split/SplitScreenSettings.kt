@@ -55,6 +55,17 @@ object SplitScreenSettings {
                     .commit()
         }
 
+    /**
+     * The single durable store of the product (contract section 6).
+     *
+     * It shares the preferences file with the keys it replaces, because its first load is also
+     * their one-shot migration: reading and deleting them has to happen in one place.
+     */
+    internal fun stateStore(context: Context): SplitStateStore =
+        PreferencesSplitStateStore(
+            context.getSharedPreferences(PREFS, Context.MODE_PRIVATE),
+        )
+
     internal fun lastPairStore(context: Context): SplitLastPairStore =
         PreferencesLastPairStore(
             context.getSharedPreferences(PREFS, Context.MODE_PRIVATE),
