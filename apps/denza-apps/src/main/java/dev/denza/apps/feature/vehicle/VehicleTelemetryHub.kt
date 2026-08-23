@@ -46,11 +46,25 @@ internal class VehicleTelemetryHub(context: Context) {
     var snapshot: VehicleTelemetry = VehicleTelemetry()
         private set
 
+    // Two pages share this hub, so activity is per-page rather than one flag:
+    // the page leaving cannot switch the poll off under the page arriving.
     @Volatile
-    private var active = false
+    private var vehiclePage = false
+
+    @Volatile
+    private var enginePage = false
+
+    private val active: Boolean get() = vehiclePage || enginePage
 
     @Volatile
     private var forceCold = false
+
+    /**
+     * Whether the engine page is the one on screen. The combustion set is most
+     * of the poll and appears nowhere else, so it joins the sweep only here.
+     */
+    @Volatile
+    private var engine = false
 
     private var job: Job? = null
 
@@ -76,13 +90,21 @@ internal class VehicleTelemetryHub(context: Context) {
     }
 
     /**
-     * True while the vehicle page is the visible one. Only the poll cadence
-     * depends on it; the loop itself is owned by the panel's lifecycle.
+     * Called by each page as it comes and goes. Only the poll cadence depends on
+     * this; the loop itself is owned by the panels' lifecycle. The engine page
+     * additionally switches the combustion half of the allowlist in and out,
+     * which is most of the poll and appears nowhere else.
      */
-    fun setActive(value: Boolean) {
+    fun setActive(value: Boolean) = setPageActive(value, vehicle = true)
+
+    fun setEngineActive(value: Boolean) = setPageActive(value, vehicle = false)
+
+    private fun setPageActive(value: Boolean, vehicle: Boolean) {
         if (value) visited = true
-        if (active == value) return
-        active = value
+        if (vehicle) vehiclePage = value else enginePage = value
+        engine = enginePage
+        // Arriving on a page changes which signals are polled, so fill it from a
+        // full sweep rather than leaving half of it dashed for ten seconds.
         if (value) forceCold = true
     }
 
@@ -96,7 +118,8 @@ internal class VehicleTelemetryHub(context: Context) {
             while (isActive) {
                 val session = shell ?: DenzaLocalAdb.client(app).openPersistentShell().also { shell = it }
                 val includeCold = forceCold || SystemClock.elapsedRealtime() >= coldDueAt
-                val batch = if (includeCold) VehicleSignal.HOT + VehicleSignal.COLD else VehicleSignal.HOT
+                val hot = VehicleSignal.sweep(VehiclePoll.HOT, engine)
+                val batch = if (includeCold) hot + VehicleSignal.sweep(VehiclePoll.COLD, engine) else hot
                 val startedAt = SystemClock.elapsedRealtime()
 
                 val output = try {
@@ -123,6 +146,10 @@ internal class VehicleTelemetryHub(context: Context) {
                     forceCold = false
                     coldDueAt = SystemClock.elapsedRealtime() +
                         if (active) ACTIVE_COLD_MS else IDLE_COLD_MS
+                    // Anything the engine set answered stays in `cold` when the
+                    // page leaves; it is a lamp state, not a live figure, and a
+                    // dash on returning to the page would be worse than the last
+                    // known answer.
                     VehicleSignal.COLD.forEach { signal -> parsed[signal]?.let { cold[signal] = it } }
                 }
 

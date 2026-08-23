@@ -418,6 +418,9 @@ panel. It is the only product consumer of this document's allowlist.
 | Live consumption is a rolling window, not the open bar | `ConsumptionLog` | kWh per 100 km has no value at zero speed; folding standstill energy into it made a parked car's reading crawl. The window stops at a standstill, the bars keep the energy |
 | Two type scales, never one | `VehiclePanelRenderer` | A virtual unit is about 0.6 dp at full width and exactly 1 dp in the narrow pane, so a shared constant renders at two different sizes |
 | No block headings in the narrow pane | `VehiclePanelRenderer.drawNarrow` | The hairlines already separate the blocks, and the four headings were what pushed the consumption chart off the bottom of the pane |
+| Combustion signals poll only on the engine page | `VehicleSignal.engineOnly`, `VehicleTelemetryHub.setEngineActive` | The engine set is 21 of 44 signals and appears on no other page. Measured on the car: a full sweep costs 266–315 ms without it and 468–587 ms with it, so the electrical page would have paid double for lamps nobody is looking at |
+| One lamp folded from several feature ids | `EngineLamp` | Four ids report low oil pressure and four report low coolant level; they are generation variants, and reading all of them is cheaper than betting on one |
+| A lamp that never answered is not "healthy" | `LampState.UNKNOWN` | Every lamp read `0` on a healthy car, which proves they are readable, not that they light. A hollow dot makes a weaker claim than a green one |
 
 Unit tests cover the command shape, the marker alignment, the proven scales, the
 sentinel and plausibility rules, and the consumption accumulator including the
@@ -458,6 +461,10 @@ removed from the panel, and polling them was the only reason to read them.
 | One `service call` | 1 | 14–22 ms |
 | Hot batch | 5 | 129–195 ms |
 | Hot + cold batch | 33 | 270–287 ms |
+| Hot batch, electrical page (2026-08-23) | 5 | 56–81 ms |
+| Hot batch, engine page | 8 | 86–104 ms |
+| Hot + cold, electrical page | 23 | 266–315 ms |
+| Hot + cold, engine page | 44 | 468–587 ms |
 
 The cost is almost all fixed: about 4–5 ms per additional call against roughly
 130 ms of shell and first-process overhead. Batching is therefore what makes the

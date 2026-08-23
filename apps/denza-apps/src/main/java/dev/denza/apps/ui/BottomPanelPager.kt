@@ -18,15 +18,16 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import dev.denza.apps.feature.trip.TripPanelView
+import dev.denza.apps.feature.vehicle.EnginePanelView
 import dev.denza.apps.feature.vehicle.VehiclePanelView
 
 /**
  * The bottom panel, swiped as a whole.
  *
  * Page one is the trip page that has always been there (spectrum analyser plus
- * the journey figures); page two reads the car itself over the local ADB shell.
- * Both pages keep their virtual layouts, so the narrow split pane reflows them
- * exactly as before.
+ * the journey figures); page two reads the car's electrical side over the local
+ * ADB shell, and page three its combustion side. Every page keeps its own
+ * virtual layout, so the narrow split pane reflows them exactly as before.
  *
  * `beyondViewportPageCount = 1` is not a scrolling nicety here: it keeps both
  * views attached, which is what keeps each page's data collection running while
@@ -62,11 +63,20 @@ internal fun BottomPanelPager(
                     modifier = Modifier.fillMaxSize().clipToBounds(),
                 )
 
-                else -> AndroidView(
+                VEHICLE_PAGE -> AndroidView(
                     factory = { context -> VehiclePanelView(context) },
                     update = { view ->
                         view.narrowLayout = compactLayout
                         view.pageVisible = settledPage == VEHICLE_PAGE
+                    },
+                    modifier = Modifier.fillMaxSize().clipToBounds(),
+                )
+
+                else -> AndroidView(
+                    factory = { context -> EnginePanelView(context) },
+                    update = { view ->
+                        view.narrowLayout = compactLayout
+                        view.pageVisible = settledPage == ENGINE_PAGE
                     },
                     modifier = Modifier.fillMaxSize().clipToBounds(),
                 )
@@ -113,6 +123,7 @@ private fun PageDots(
 private val DotActive = Color(0xE673E0BD)
 private val DotIdle = Color(0x529AA7AD)
 
-private const val PAGE_COUNT = 2
+private const val PAGE_COUNT = 3
 private const val TRIP_PAGE = 0
 private const val VEHICLE_PAGE = 1
+private const val ENGINE_PAGE = 2

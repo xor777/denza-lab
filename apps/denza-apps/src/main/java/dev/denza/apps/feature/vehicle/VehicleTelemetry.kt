@@ -82,4 +82,36 @@ internal data class VehicleTelemetry(
         )
 
     val hottestMotorC: Double? get() = motorTemps.filterNotNull().maxOrNull()
+
+    // ------------------------------------------------------------- combustion
+
+    /** Null when the engine set has not been polled yet, not "stopped". */
+    val engineRunning: Boolean? get() = this[VehicleSignal.ENGINE_RUNNING]?.let { it >= 1.0 }
+
+    val engineRpm: Double? get() = this[VehicleSignal.ENGINE_RPM]
+
+    /** Kilowatts the engine is putting into the pack; 0 with the engine off. */
+    val generationKw: Double? get() = this[VehicleSignal.GENERATION_KW]
+
+    val generating: Boolean
+        get() = (this[VehicleSignal.GENERATION_STATE] ?: 0.0) >= 1.0 ||
+            (generationKw ?: 0.0) > GENERATION_FLOOR_KW
+
+    /** Worst answer across the ids that carry this lamp. */
+    fun lamp(lamp: EngineLamp): LampState {
+        var seen = false
+        lamp.signals.forEach { signal ->
+            val value = this[signal] ?: return@forEach
+            seen = true
+            if (value >= 1.0) return LampState.ALERT
+        }
+        return if (seen) LampState.OK else LampState.UNKNOWN
+    }
+
+    val lampAlerts: List<EngineLamp> get() = EngineLamp.entries.filter { lamp(it) == LampState.ALERT }
+
+    private companion object {
+        /** Below this a generation reading is rounding, not the engine working. */
+        const val GENERATION_FLOOR_KW = 0.5
+    }
 }

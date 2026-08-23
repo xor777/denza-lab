@@ -65,7 +65,13 @@ internal enum class VehicleKind {
     /** Hours or minutes of a charging estimate. */
     DURATION,
     /** Charge gun state; 2 is "AC connected" on this car. */
-    GUN;
+    GUN,
+    /** Engine revolutions. Scale unproven: read `0` with the engine stopped. */
+    RPM,
+    /** A warning lamp. No number — the cluster would either light it or not. */
+    FLAG,
+    /** Engine displacement in litres. */
+    LITRES;
 
     fun accepts(value: Double): Boolean = when (this) {
         PERCENT -> value in 0.0..100.0
@@ -80,6 +86,9 @@ internal enum class VehicleKind {
         INSULATION -> value in 0.0..100_000.0
         DURATION -> value in 0.0..99.0
         GUN -> value in 0.0..8.0
+        RPM -> value in 0.0..9000.0
+        FLAG -> value in 0.0..255.0
+        LITRES -> value in 0.3..10.0
     }
 }
 
@@ -98,6 +107,14 @@ internal enum class VehicleSignal(
     val kind: VehicleKind,
     val scale: Double = 1.0,
     val offset: Double = 0.0,
+    /**
+     * Read only while the engine page is the one being looked at.
+     *
+     * The combustion set is a third of the whole poll and none of it appears on
+     * the other page, so paying for it there would slow the power figure down
+     * for nothing.
+     */
+    val engineOnly: Boolean = false,
 ) {
     // ---- hot: what the right foot changes ----
     POWER_KW(1012, 0x14400020, VehicleTransact.INT, VehiclePoll.HOT, VehicleKind.POWER_KW),
@@ -136,11 +153,58 @@ internal enum class VehicleSignal(
     CHARGE_KW(1009, 0x32300018, VehicleTransact.FLOAT, VehiclePoll.COLD, VehicleKind.CHARGE_POWER),
     CHARGE_HOURS(1009, 0x32300028, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.DURATION),
     CHARGE_MINUTES(1009, 0x32300030, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.DURATION),
+
+    // ---- combustion side, read only on the engine page ----
+    // Live-verified 2026-08-23 with the engine stopped: every id below answered
+    // and none returned a sentinel. Values were the resting ones (zeros and a
+    // 2.0 litre displacement), so what is proven is that they are readable —
+    // the rpm scale and the generation unit still need a run with the engine on.
+    ENGINE_RPM(1012, 0x14400012, VehicleTransact.INT, VehiclePoll.HOT, VehicleKind.RPM, engineOnly = true),
+    ENGINE_RUNNING(1012, 0x10D00038, VehicleTransact.INT, VehiclePoll.HOT, VehicleKind.FLAG, engineOnly = true),
+
+    /**
+     * What the engine is putting into the pack. On a series-parallel hybrid this
+     * is the figure that says the engine is running as a generator rather than
+     * driving the wheels.
+     *
+     * Not to be confused with `ENGINE_CHARGE_POWER` (`0x2ED00010`), which the
+     * catalog names as if it were this and which in fact tracks pack power — it
+     * read `-2` against a `+2.5` kW wall charge with the engine stopped.
+     */
+    GENERATION_KW(1006, 0x2610001F, VehicleTransact.INT, VehiclePoll.HOT, VehicleKind.POWER_KW, engineOnly = true),
+    GENERATION_STATE(1006, 0x34F0000A, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.FLAG, engineOnly = true),
+    ENGINE_LITRES(1012, 0x40D00008, VehicleTransact.FLOAT, VehiclePoll.COLD, VehicleKind.LITRES, engineOnly = true),
+
+    // Warning lamps. Several ids per lamp are generation variants of the same
+    // signal, the way the motor temperatures were: reading all of them and
+    // taking the worst is cheaper than deciding which one this car uses.
+    COOLANT_LEVEL_LOW_A(1007, 0x3D911028, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.FLAG, engineOnly = true),
+    COOLANT_LEVEL_LOW_B(1007, 0x3D901030, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.FLAG, engineOnly = true),
+    COOLANT_LEVEL_LOW_C(1007, 0x3D95D015, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.FLAG, engineOnly = true),
+    COOLANT_LEVEL_LOW_D(1012, 0x05500031, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.FLAG, engineOnly = true),
+    COOLANT_TEMP_HIGH(1007, 0x3D901016, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.FLAG, engineOnly = true),
+    MOTOR_COOLANT_TEMP_HIGH(1007, 0x3D91102A, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.FLAG, engineOnly = true),
+    OIL_LEVEL_LAMP(1007, 0x4A508040, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.FLAG, engineOnly = true),
+    OIL_LEVEL_LOW(1007, 0x3D901032, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.FLAG, engineOnly = true),
+    OIL_LEVEL_HIGH(1007, 0x3D901033, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.FLAG, engineOnly = true),
+    OIL_PRESSURE_LOW_A(1007, 0x3D911011, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.FLAG, engineOnly = true),
+    OIL_PRESSURE_LOW_B(1007, 0x3D901017, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.FLAG, engineOnly = true),
+    OIL_PRESSURE_LOW_C(1007, 0x29600008, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.FLAG, engineOnly = true),
+    OIL_PRESSURE_LOW_D(1007, 0x3D95D017, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.FLAG, engineOnly = true),
+    OIL_MONITOR_FAULT(1007, 0x3D911029, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.FLAG, engineOnly = true),
+    OIL_LIFE_DUE(1007, 0x24800014, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.FLAG, engineOnly = true),
+    TRANSMISSION_OIL_TEMP_HIGH(1007, 0x3D90102A, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.FLAG, engineOnly = true),
     ;
 
     companion object {
         val HOT: List<VehicleSignal> = entries.filter { it.poll == VehiclePoll.HOT }
         val COLD: List<VehicleSignal> = entries.filter { it.poll == VehiclePoll.COLD }
+
+        /** The sweep for a given page: the engine set joins only when it shows. */
+        fun sweep(poll: VehiclePoll, engine: Boolean): List<VehicleSignal> {
+            val all = if (poll == VehiclePoll.HOT) HOT else COLD
+            return if (engine) all else all.filter { !it.engineOnly }
+        }
     }
 }
 
