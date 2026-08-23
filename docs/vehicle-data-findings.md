@@ -507,6 +507,52 @@ the set answers; the interesting half does not.
 | **Vehicle speed** | `0x94400008` | 1013 | **7** | `0.0` | reaches the shell as `-1807745016` |
 | Accelerator / brake position | `0x34200008` / `0x34200010` | 1013 | 5 | `0` / `0` | |
 
+### Warning flags — all sixteen answer, all read `0` on a healthy car
+
+These are the "lamp" signals: no number, just a state the cluster would light.
+Every one of them answered on device `1007` unless noted, and every one read
+`0`. That proves they are *readable*, not that they *change* — until one of
+them trips, `0` = healthy is the constant names' claim, not a measurement.
+
+| Lamp | FID |
+| --- | --- |
+| Coolant level low | `0x3D911028`, `0x3D901030`, `0x3D95D015`, and `0x05500031` on dev 1012 / 1001 |
+| Coolant temperature high | `0x3D901016` |
+| Motor coolant temperature over high | `0x3D91102A` |
+| Oil level lamp, and its colour | `0x4A508040` / `0x4A508043` |
+| Oil level low / high | `0x3D901032` / `0x3D901033` |
+| Oil pressure low | `0x3D911011`, `0x3D901017`, `0x29600008`, `0x3D95D017` |
+| Oil monitoring system | `0x3D911029` |
+| Oil life indicator | `0x24800014` |
+| Transmission oil temperature high | `0x3D90102A` |
+
+Four separate ids for oil pressure and three for coolant level are generation
+variants of the same lamp, the way the motor temperatures were. Reading all of
+them and OR-ing the result is cheaper than deciding which one this car uses.
+
+### Generation and charge power
+
+| Reading | FID | dev | tx | Value | Note |
+| --- | --- | --- | --- | --- | --- |
+| Power generation value | `0x2610001F` | 1006 | 5 | `0` | engine stopped; the figure the series hybrid generates into the pack |
+| Power generation state | `0x34F0000A` | 1006 | 5 | `0` | |
+| AC charge power | `0x32300018` | 1009 | 7 | `2.5` | already shipped as `CHARGE_KW` |
+| AC charge power, DM twin | `0x2ED0001C` | 1009 | 7 | `2.5` | agrees with the above |
+| Pack power | `0x14400020` | 1012 | 5 | `-2` | negative while charging — confirms `POWER_POSITIVE_IS_DISCHARGE` |
+| `ENGINE_CHARGE_POWER` | `0x2ED00010` | 1009 / 1012 | 5 | `-2` | **not** engine generation: it tracks pack power, and is the int twin of the float above |
+| DC-DC work mode | `0x36D00030` | 1006 | 5 | `2` | |
+
+Two figures that answer but do not mean what their names suggest:
+`INSTRUMENT_DD_EXTERNAL_CHARGE_POWER` (`0x4A508010`) reads `1522.6` and
+`INSTRUMENT_DISCHARGE_POWER` (`0x15100012`) reads `51.1` — lifetime totals or
+percentages, not live kilowatts. Transmission oil temperature
+(`0x34F00030`) is silent on devices 1005 and 1011.
+
+The `155` seen on `BODY_OIL_LIFE` and its neighbours also appears on
+`SETTING_POWER_GENERATION_TRANSMISSION_OIL_LIFE` (`0x38D00060`, dev 1005). Four
+different service-life ids reading the same number is a shared default, not
+four measurements.
+
 ### Did not answer — every candidate, at every device tried
 
 Coolant temperature is the notable miss. `ENGINE_ENGINE_COOLANT_TEMPERATURE`
