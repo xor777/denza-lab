@@ -19,13 +19,9 @@ internal data class SplitLaunchTarget(
 
 internal const val SPLIT_HOST_PACKAGE = "dev.denza.apps"
 internal const val SPLIT_PICKER_ACTIVITY = "dev.denza.apps.feature.split.SplitPickerActivity"
+// The host Activity itself is gone. Its exact component is still matched so that a stale host
+// task left by an older installed version is recognised and cleaned up by identity.
 internal const val SPLIT_APP_HOST_ACTIVITY = "dev.denza.apps.feature.split.SplitAppHostActivity"
-internal const val SPLIT_APP_HOST_COMPONENT =
-    "$SPLIT_HOST_PACKAGE/$SPLIT_APP_HOST_ACTIVITY"
-internal const val SPLIT_HOST_TARGET_PACKAGE_EXTRA =
-    "dev.denza.apps.extra.SPLIT_TARGET_PACKAGE"
-internal const val SPLIT_HOST_TARGET_ACTIVITY_EXTRA =
-    "dev.denza.apps.extra.SPLIT_TARGET_ACTIVITY"
 
 internal data class SplitPickerPlacement(
     val pane: SplitPane,

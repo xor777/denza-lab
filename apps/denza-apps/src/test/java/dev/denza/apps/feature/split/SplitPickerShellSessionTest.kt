@@ -797,7 +797,6 @@ class SplitPickerShellSessionTest {
         }
         assertTrue(appLaunch.contains("-f 0x18200000"))
         assertTrue(appLaunch.contains("byd.intent.category.START_IVI_SECOND"))
-        assertFalse(fake.commands.any { it.contains(SPLIT_APP_HOST_COMPONENT) })
         assertFalse(fake.commands.any { it.contains("SplitTaskProxyMain start-in-task ") })
         assertEquals("$MUSIC.MainActivity", fake.taskBaseActivity(placement.appTaskId))
     }
@@ -847,7 +846,6 @@ class SplitPickerShellSessionTest {
 
         assertEquals(NAVIGATOR, placement.packageName)
         assertEquals("$NAVIGATOR.MainActivity", fake.topActivity(PRIMARY_ROOT))
-        assertFalse(fake.commands.any { it.contains(SPLIT_APP_HOST_COMPONENT) })
         assertTrue(
             fake.commands.any { command ->
                 command.startsWith("am start ") &&
@@ -922,30 +920,6 @@ class SplitPickerShellSessionTest {
         assertFalse(fake.hasActivity(PRIMARY_ROOT, SPLIT_APP_HOST_ACTIVITY))
         assertFalse(fake.hasPackage(PRIMARY_ROOT, NAVIGATOR))
         assertEquals(1, fake.taskCount(PRIMARY_ROOT))
-    }
-
-    @Test
-    fun nextPickerTapRecoversTransparentHostLeftByInterruptedProcess() {
-        val fake = FakeShell()
-        val split = session(fake)
-        val pickers = split.openPickers(PICKERS, preservedPackages = emptyMap())
-        fake.addTask(
-            PRIMARY_ROOT,
-            90,
-            SPLIT_HOST_PACKAGE,
-            SPLIT_APP_HOST_ACTIVITY,
-        )
-
-        val placement = split.selectApp(
-            pickerTaskId = pickers.getValue(SplitPane.PRIMARY),
-            target = SplitLaunchTarget(NAVIGATOR, "$NAVIGATOR/$NAVIGATOR.MainActivity"),
-            pickerComponents = PICKER_COMPONENTS,
-        )
-
-        assertTrue(fake.commands.any { it.contains("remove-task 90 ") })
-        assertEquals(NAVIGATOR, placement.packageName)
-        assertEquals("$NAVIGATOR.MainActivity", fake.topActivity(PRIMARY_ROOT))
-        assertEquals(2, fake.taskCount(PRIMARY_ROOT))
     }
 
     @Test
@@ -1577,12 +1551,8 @@ class SplitPickerShellSessionTest {
         private val capabilityAlwaysTrue: Boolean = false,
         private val replaceFullForegroundDuringPickerCleanup: Boolean = false,
         private val hostingSucceeds: Boolean = true,
-        private val hostTargetLaunchSucceeds: Boolean = true,
-        private val hostMovesToOppositeRootOnTargetStart: Boolean = false,
         private val directTargetLaunchSucceeds: Boolean = true,
-        private val reuseExistingTargetOnLaunch: Boolean = false,
         private val redirectOnStartPackage: String? = null,
-        private val redirectHostMovesToOppositeRoot: Boolean = false,
         private val secondaryBootstrapPackage: String? = null,
         private val tx115RequiresHome: Boolean = false,
         private val nativeBootstrapStartsFullscreen: Boolean = false,
@@ -1596,7 +1566,6 @@ class SplitPickerShellSessionTest {
             var activityName: String,
             var rootId: Int,
             var bounds: SplitBounds,
-            var hostedComponent: String? = null,
         )
 
         val commands = mutableListOf<String>()
@@ -1617,19 +1586,12 @@ class SplitPickerShellSessionTest {
         }
 
         fun hasPackage(rootId: Int, packageName: String): Boolean =
-            tasks.any {
-                it.rootId == rootId &&
-                    (it.packageName == packageName ||
-                        it.hostedComponent?.substringBefore('/') == packageName)
-            }
+            tasks.any { it.rootId == rootId && it.packageName == packageName }
 
         fun hasTask(taskId: Int): Boolean = tasks.any { it.id == taskId }
 
         fun hasActivity(rootId: Int, activityName: String): Boolean =
-            tasks.any {
-                it.rootId == rootId &&
-                    (it.activityName == activityName || it.hostedComponent?.endsWith(activityName) == true)
-            }
+            tasks.any { it.rootId == rootId && it.activityName == activityName }
 
         fun taskCount(rootId: Int): Int = tasks.count { it.rootId == rootId }
 
@@ -1647,10 +1609,8 @@ class SplitPickerShellSessionTest {
 
         fun taskBaseActivity(taskId: Int): String = tasks.first { it.id == taskId }.activityName
 
-        fun topActivity(rootId: Int): String? = tasks.lastOrNull { it.rootId == rootId }
-            ?.let { task ->
-                task.hostedComponent?.substringAfter('/') ?: task.activityName
-            }
+        fun topActivity(rootId: Int): String? =
+            tasks.lastOrNull { it.rootId == rootId }?.activityName
 
         fun topTaskId(rootId: Int): Int? = tasks.lastOrNull { it.rootId == rootId }?.id
 
@@ -1658,20 +1618,14 @@ class SplitPickerShellSessionTest {
 
         fun promoteActivity(rootId: Int, activityName: String) {
             val task = tasks.first {
-                it.rootId == rootId &&
-                    (it.activityName == activityName ||
-                        it.hostedComponent?.substringAfter('/') == activityName)
+                it.rootId == rootId && it.activityName == activityName
             }
             tasks.remove(task)
             tasks += task
         }
 
         fun removeActivity(rootId: Int, activityName: String) {
-            tasks.removeAll {
-                it.rootId == rootId &&
-                    (it.activityName == activityName ||
-                        it.hostedComponent?.substringAfter('/') == activityName)
-            }
+            tasks.removeAll { it.rootId == rootId && it.activityName == activityName }
         }
 
         fun dismissPane(rootId: Int) {
@@ -1768,8 +1722,7 @@ class SplitPickerShellSessionTest {
                     }
                     if (
                         !directTargetLaunchSucceeds &&
-                        component !in PICKERS.values &&
-                        component != SPLIT_APP_HOST_COMPONENT
+                        component !in PICKERS.values
                     ) {
                         return "Error: direct target launch rejected"
                     }
@@ -1789,29 +1742,12 @@ class SplitPickerShellSessionTest {
                         tasks.removeAll { it.activityName == activityName }
                     }
                     if (
-                        reuseExistingTargetOnLaunch &&
-                        component !in PICKERS.values &&
-                        component != SPLIT_APP_HOST_COMPONENT
-                    ) {
-                        val reused = tasks.firstOrNull { task ->
-                            task.effectivePackageName() == packageName
-                        }
-                        if (reused != null) {
-                            tasks.remove(reused)
-                            reused.rootId = pickerRoot ?: FULL_ROOT
-                            reused.bounds = pickerRoot?.let(::bounds) ?: FULL
-                            tasks += reused
-                            return "Starting: Intent"
-                        }
-                    }
-                    if (
                         replaceStaleFullscreenTargetOnLaunch &&
-                        component !in PICKERS.values &&
-                        component != SPLIT_APP_HOST_COMPONENT
+                        component !in PICKERS.values
                     ) {
                         tasks.removeAll { task ->
                             task.rootId == FULL_ROOT &&
-                                task.effectivePackageName() == packageName
+                                task.packageName == packageName
                         }
                     }
                     val launchedTask = Task(
@@ -1822,16 +1758,10 @@ class SplitPickerShellSessionTest {
                         bounds = pickerRoot?.let(::bounds) ?: FULL,
                     )
                     tasks += launchedTask
-                    if (
-                        component !in PICKERS.values &&
-                        component != SPLIT_APP_HOST_COMPONENT
-                    ) {
+                    if (component !in PICKERS.values) {
                         transientAreaReadsRemaining = transientAreaReadsAfterDirectLaunch
                     }
-                    if (
-                        component != SPLIT_APP_HOST_COMPONENT &&
-                        packageName == redirectOnStartPackage
-                    ) {
+                    if (packageName == redirectOnStartPackage) {
                         tasks.remove(launchedTask)
                         tasks += Task(
                             id = nextTaskId++,
@@ -1840,71 +1770,6 @@ class SplitPickerShellSessionTest {
                             rootId = launchedTask.rootId,
                             bounds = launchedTask.bounds,
                         )
-                    }
-                    if (
-                        component == SPLIT_APP_HOST_COMPONENT &&
-                        hostTargetLaunchSucceeds
-                    ) {
-                        val targetPackage = stringExtra(
-                            command,
-                            SPLIT_HOST_TARGET_PACKAGE_EXTRA,
-                        )
-                        val rawTargetActivity = stringExtra(
-                            command,
-                            SPLIT_HOST_TARGET_ACTIVITY_EXTRA,
-                        )
-                        val targetActivity = if (rawTargetActivity.startsWith('.')) {
-                            targetPackage + rawTargetActivity
-                        } else {
-                            rawTargetActivity
-                        }
-                        val reused = if (reuseExistingTargetOnLaunch) {
-                            tasks.firstOrNull { task ->
-                                task.id != launchedTask.id &&
-                                    task.effectivePackageName() == targetPackage
-                            }
-                        } else {
-                            null
-                        }
-                        if (reused != null) {
-                            tasks.remove(reused)
-                            reused.rootId = launchedTask.rootId
-                            reused.bounds = bounds(launchedTask.rootId)
-                            tasks += reused
-                        } else if (targetPackage == redirectOnStartPackage) {
-                            val selectedRoot = launchedTask.rootId
-                            val oppositeRoot = when (selectedRoot) {
-                                PRIMARY_ROOT -> SECONDARY_ROOT
-                                SECONDARY_ROOT -> PRIMARY_ROOT
-                                else -> selectedRoot
-                            }
-                            if (redirectHostMovesToOppositeRoot) {
-                                launchedTask.rootId = oppositeRoot
-                                launchedTask.bounds = bounds(oppositeRoot)
-                            }
-                            val targetRoot = if (redirectHostMovesToOppositeRoot) {
-                                selectedRoot
-                            } else {
-                                oppositeRoot
-                            }
-                            tasks += Task(
-                                id = nextTaskId++,
-                                packageName = targetPackage,
-                                activityName = "$targetPackage.MainActivity",
-                                rootId = targetRoot,
-                                bounds = bounds(targetRoot),
-                            )
-                        } else {
-                            launchedTask.hostedComponent = "$targetPackage/$targetActivity"
-                            if (hostMovesToOppositeRootOnTargetStart) {
-                                launchedTask.rootId = when (launchedTask.rootId) {
-                                    PRIMARY_ROOT -> SECONDARY_ROOT
-                                    SECONDARY_ROOT -> PRIMARY_ROOT
-                                    else -> launchedTask.rootId
-                                }
-                                launchedTask.bounds = bounds(launchedTask.rootId)
-                            }
-                        }
                     }
                     "Starting: Intent"
                 }
@@ -2016,8 +1881,8 @@ class SplitPickerShellSessionTest {
                     )
                 }
                 val top = rootTasks.lastOrNull()
-                val topPackage = top?.hostedComponent?.substringBefore('/') ?: top?.packageName
-                val topActivity = top?.hostedComponent?.substringAfter('/') ?: top?.activityName
+                val topPackage = top?.packageName
+                val topActivity = top?.activityName
                 rootTasks.forEach { task ->
                     append("  taskId=${task.id}: ${task.packageName}/${task.activityName} ")
                     append(
@@ -2049,16 +1914,6 @@ class SplitPickerShellSessionTest {
 
         private fun quotedArgument(command: String): String =
             command.substringAfter("s16 '").substringBeforeLast("'")
-
-        private fun stringExtra(command: String, key: String): String =
-            Regex("--es '${Regex.escape(key)}' '([^']*)'")
-                .find(command)
-                ?.groupValues
-                ?.get(1)
-                ?: error("Missing $key in $command")
-
-        private fun Task.effectivePackageName(): String =
-            hostedComponent?.substringBefore('/') ?: packageName
 
         private fun intParcel(value: Int): String =
             "Result: Parcel(00000000 ${"%08x".format(value)} '........')"

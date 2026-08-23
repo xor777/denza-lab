@@ -102,15 +102,6 @@
             </intent-filter>
         </activity>
         <activity
-            android:name=".feature.split.SplitAppHostActivity"
-            android:excludeFromRecents="true"
-            android:exported="true"
-            android:launchMode="standard"
-            android:permission="android.permission.DUMP"
-            android:resizeableActivity="true"
-            android:taskAffinity="dev.denza.apps.split.host"
-            android:theme="@style/DenzaAppsSplitHostTheme" />
-        <activity
             android:name=".feature.split.SplitLauncherEntryActivity"
             android:excludeFromRecents="true"
             android:exported="false"
@@ -171,13 +162,6 @@
             android:launchMode="singleTask"
             android:resizeableActivity="false"
             android:taskAffinity="dev.denza.apps.control" />
-        <activity
-            android:name=".feature.split.SplitPlaceholderActivity"
-            android:excludeFromRecents="true"
-            android:exported="true"
-            android:launchMode="singleTask"
-            android:resizeableActivity="true"
-            android:taskAffinity="dev.denza.apps.split.placeholder" />
         <activity
             android:name=".DenzaLauncherActivity"
             android:excludeFromRecents="true"
