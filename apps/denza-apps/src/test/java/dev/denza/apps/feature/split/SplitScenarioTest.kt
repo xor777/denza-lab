@@ -806,6 +806,79 @@ class SplitScenarioTest {
         assertEquals(0, car.fake.taskCount(SECONDARY_ROOT))
     }
 
+    /**
+     * Contract 1.9.4 and scenario §11.2, the whole point of правка E.
+     *
+     * Home covers a scene; it does not end one (invariant 5). Acceptance v17 refused every adoption
+     * because the firmware area under Home is 0, rebuilt the pair from scratch, and the music the
+     * user had left playing restarted every single time they came back to it.
+     */
+    @Test
+    fun openingAfterHomeRaisesTheSameLiveSceneInsteadOfRebuildingIt() {
+        val car = car(FakeShell().apply { liveProductScene(withApps = true) })
+        val core = car.core(SplitDurable(enabled = true, slots = APP_PAIR))
+        core.initialize {}
+        // Первый тап усыновляет живую сцену: с этого момента процесс знает её точные задачи.
+        core.openPickerSession()
+        car.barrier()
+        car.fake.area = 0
+        core.homeVisible()
+        car.barrier()
+        car.clearCommands()
+
+        core.openPickerSession()
+        car.barrier()
+
+        assertFalse(
+            "ни одного запуска: приложения те же самые и не перезапускались (U2)",
+            car.commands().any { it.startsWith("am start ") },
+        )
+        assertFalse(car.commands().any { it.contains(" remove-task ") })
+        assertTrue(car.fake.hasTask(PRIMARY_APP_TASK))
+        assertTrue(car.fake.hasTask(SECONDARY_APP_TASK))
+        assertEquals("сцена снова на экране", 3, car.fake.area)
+        assertTrue(
+            car.diagnostics.any { it.contains("scene-read: adoptable") },
+        )
+    }
+
+    /**
+     * Invariant 4: what makes that adoption safe is the identity, and nothing durable remembers it.
+     *
+     * After the process died the scene on screen is still ours, but nothing proves which hidden
+     * child of a covered root is on top - so the open refuses to adopt and goes the build path, and
+     * the log says which pane and which predicate refused instead of "nothing of ours".
+     */
+    @Test
+    fun aSceneNoProcessRemembersIsNotAdoptedFromUnderHome() {
+        val car = car(
+            FakeShell().apply {
+                liveProductScene(withApps = true)
+                area = 0
+            },
+        )
+        val core = car.core(SplitDurable(enabled = true, slots = APP_PAIR))
+        core.initialize {}
+
+        core.openPickerSession()
+        car.barrier()
+
+        assertTrue(
+            "марка называет панель и предикат, а не «ничего нашего»",
+            car.diagnostics.any { line ->
+                line.contains("scene-read: PRIMARY") && line.contains("area=0")
+            },
+        )
+        assertFalse(
+            "но и подстановки чужой догадки нет: усыновления не было",
+            car.diagnostics.any { it.contains("scene-read: adoptable") },
+        )
+        // Пересборка при этом не разрушительна: приложения на местах, и их никто не перезапускал.
+        assertTrue(car.fake.hasTask(PRIMARY_APP_TASK))
+        assertTrue(car.fake.hasTask(SECONDARY_APP_TASK))
+        assertEquals(APP_PAIR, car.store.load().slots)
+    }
+
     @Test
     fun persistedSnapshotIsOneAtomicCommit() {
         // K9, сценарий §11.15: успех - ровно одна запись; отказ записи - никакого частичного состояния

@@ -586,12 +586,12 @@ internal class OpenOperation(
         // operation's ordinary error path, where the user is told (U5). A `getOrNull` around this
         // read turned a dead ADB and a cancelled token alike into "no scene" and then rebuilt the
         // screen on that reading.
-        val adopted = work.split(op).existingOwnedSession(
+        val read = work.split(op).readOwnedSession(
             pickerComponents = SPLIT_PICKER_COMPONENT_SET,
             expectedApps = SplitCoordinatorCore.expectedApps(liveScene),
         )
-        mark(op, if (adopted == null) "scene-read: nothing of ours" else "scene-read: adoptable")
-        return SplitOpenPlan(adopted, restorable)
+        mark(op, "scene-read: ${read.reason}")
+        return SplitOpenPlan(read.scene, restorable)
     }
 
     override fun apply(op: SplitOperationContext, shell: (String) -> String, plan: SplitOpenPlan) {

@@ -117,34 +117,67 @@ internal class SplitPickerShellSession(
     fun existingOwnedSession(
         pickerComponents: Set<String>,
         expectedApps: Map<SplitPane, SplitPickerExpectedApp> = emptyMap(),
-    ): Map<SplitPane, SplitPickerLivePane>? {
+    ): Map<SplitPane, SplitPickerLivePane>? =
+        readOwnedSession(pickerComponents, expectedApps).scene
+
+    /**
+     * The same read, with the reason it refused.
+     *
+     * Acceptance v17 logged `scene-read: nothing of ours` on every single open and there was no way
+     * to tell which predicate of which pane had disagreed - so the product rebuilt a scene that was
+     * alive, restarted the music, and the evidence said nothing about why (U5, 1.3.2).
+     */
+    fun readOwnedSession(
+        pickerComponents: Set<String>,
+        expectedApps: Map<SplitPane, SplitPickerExpectedApp> = emptyMap(),
+    ): SplitSceneRead {
         val area = callInt("service call activity_task 30")
-        if (area != AREA_BALANCED_SPLIT && area != AREA_FULL_IVI) return null
+        if (area != AREA_BALANCED_SPLIT && area != AREA_FULL_IVI && area != AREA_HOME) {
+            return SplitSceneRead(null, "area=$area")
+        }
         val roots = nativeRootIds()
         val state = snapshot()
-        return SplitPane.entries.associateWith { pane ->
-            val root = state.root(roots.getValue(pane)) ?: return null
+        val panes = mutableMapOf<SplitPane, SplitPickerLivePane>()
+        SplitPane.entries.forEach { pane ->
+            val root = state.root(roots.getValue(pane))
+                ?: return SplitSceneRead(null, "$pane: контейнера нет")
             val pickers = root.tasks.filter { task ->
                 task.isDenzaPickerBase() && task.matchesAnyComponent(pickerComponents)
             }
-            if (pickers.size != 1 || root.tasks.size !in 1..MAX_TASKS_PER_PANE) return null
+            if (pickers.size != 1 || root.tasks.size !in 1..MAX_TASKS_PER_PANE) {
+                return SplitSceneRead(
+                    null,
+                    "$pane: пикеров ${pickers.size}, задач ${root.tasks.size}",
+                )
+            }
             val picker = pickers.single()
-            if (picker.bounds != root.bounds) return null
+            if (picker.bounds != root.bounds) {
+                return SplitSceneRead(null, "$pane: пикер не по размеру окна")
+            }
 
-            val top = if (area == AREA_BALANCED_SPLIT) {
-                root.resolvedTopTask()
-            } else {
-                val expected = expectedApps[pane]
-                if (expected != null) {
-                    root.resolveExpectedCoveredApp(expected)
-                } else {
-                    root.resolvedCoveredTopTask()?.takeIf { task ->
-                        task.isDenzaPickerBase() && task.matchesAnyComponent(pickerComponents)
-                    }
+            val expected = expectedApps[pane]
+            val top = when {
+                area == AREA_BALANCED_SPLIT -> root.resolvedTopTask()
+                // The scene is covered, so `am stack list` marks every child hidden and repeats
+                // only the old root-top component. The exact task id and package of the app this
+                // process itself recorded is the narrow proof that lets it be raised (invariant 4).
+                expected != null -> root.resolveExpectedCoveredApp(expected)
+                // No app to name. Under a fullscreen window the pane's own picker reporting itself
+                // is still accepted; under Home nothing is guessed at all - the root holding one
+                // task, our picker, is the proof (правка E1, owner decision 2026-08-23).
+                area == AREA_HOME -> picker.takeIf { root.tasks.size == 1 }
+                else -> root.resolvedCoveredTopTask()?.takeIf { task ->
+                    task.isDenzaPickerBase() && task.matchesAnyComponent(pickerComponents)
                 }
-            } ?: return null
+            } ?: return SplitSceneRead(
+                null,
+                "$pane: верхняя задача не подтверждена (area=$area, " +
+                    "ожидалось ${expected?.taskId ?: "-"})",
+            )
             val app = if (top.id == picker.id) {
-                if (!picker.matchesAnyTopComponent(pickerComponents)) return null
+                if (!picker.matchesAnyTopComponent(pickerComponents)) {
+                    return SplitSceneRead(null, "$pane: пикер не верхний")
+                }
                 null
             } else {
                 if (
@@ -152,17 +185,18 @@ internal class SplitPickerShellSession(
                     top.isNativeSplitBootstrap() ||
                     top.bounds != root.bounds
                 ) {
-                    return null
+                    return SplitSceneRead(null, "$pane: верхняя задача ${top.id} чужая")
                 }
                 top
             }
-            SplitPickerLivePane(
+            panes[pane] = SplitPickerLivePane(
                 pane = pane,
                 hostTaskId = picker.id,
                 appTaskId = app?.id,
                 appPackageName = app?.effectivePackageName(),
             )
         }
+        return SplitSceneRead(panes, "adoptable")
     }
 
     /**
@@ -425,14 +459,22 @@ internal class SplitPickerShellSession(
         )
     }
 
-    /** Brings an exact owned pair back above Home/fullscreen without rebuilding either pane. */
+    /**
+     * Brings an exact owned pair back above Home or a fullscreen window without rebuilding a pane.
+     *
+     * Home is a covered scene like any other (invariant 5, 1.9.1): the pair is alive in the two
+     * panel roots and one focus command is what the contract asks for at 1.9.4, not a rebuild that
+     * restarts the music the user left playing.
+     */
     fun revealOwnedSession(
         existing: Map<SplitPane, SplitPickerLivePane>,
         pickerComponents: Set<String>,
     ): Map<SplitPane, SplitPickerLivePane> {
         val area = callInt("service call activity_task 30")
         if (area == AREA_BALANCED_SPLIT) return existing
-        check(area == AREA_FULL_IVI) { "Split-сессия больше не скрыта полноэкранным окном" }
+        check(area == AREA_FULL_IVI || area == AREA_HOME) {
+            "Split-сессия больше не скрыта: area=$area"
+        }
 
         val focusTaskId = SplitPane.entries.asSequence()
             .mapNotNull { pane -> existing[pane]?.appTaskId }
@@ -2042,6 +2084,17 @@ internal data class SplitPickerLivePane(
  * [failed] names the panes whose remembered app did not come back; each of them is on its own
  * picker, and the operation turns them into the one notice the user reads (1.3.2, U5).
  */
+/**
+ * What one read of the owned scene concluded, and why.
+ *
+ * [reason] is a diagnostic line, never a user-facing message: it names the predicate and the pane
+ * that disagreed, so the next live run says which one it was instead of "nothing of ours".
+ */
+internal class SplitSceneRead(
+    val scene: Map<SplitPane, SplitPickerLivePane>?,
+    val reason: String,
+)
+
 /**
  * A task a build took charge of, and where it was when the build found it.
  *

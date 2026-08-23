@@ -424,6 +424,92 @@ class SplitPickerShellSessionTest {
         )
     }
 
+    /**
+     * 1.9.4 and the whole of правка E: Home covers a scene, it does not end one (invariant 5).
+     *
+     * Acceptance v17 refused every single adoption because the area under Home is 0, rebuilt the
+     * pair from scratch and restarted the music every time the user came back.
+     */
+    @Test
+    fun ownedSceneCoveredByHomeIsRaisedByExactIdentityAlone() {
+        val fake = FakeShell()
+        val split = session(fake)
+        val hosts = split.buildPickers()
+        val navigator = split.selectApp(
+            pickerTaskId = hosts.getValue(SplitPane.PRIMARY),
+            target = launchTargetOf(NAVIGATOR),
+            pickerComponents = PICKER_COMPONENTS,
+        )
+        val music = split.selectApp(
+            pickerTaskId = hosts.getValue(SplitPane.SECONDARY),
+            target = launchTargetOf(MUSIC),
+            pickerComponents = PICKER_COMPONENTS,
+        )
+        fake.area = 0
+        fake.commands.clear()
+
+        // Без точных идентичностей - а их не переживает смерть процесса - адопции нет вовсе.
+        val guessed = split.readOwnedSession(PICKER_COMPONENTS)
+        assertEquals(null, guessed.scene)
+        assertTrue("и марка называет причину", guessed.reason.contains("PRIMARY"))
+
+        val hidden = checkNotNull(
+            split.existingOwnedSession(
+                PICKER_COMPONENTS,
+                mapOf(
+                    SplitPane.PRIMARY to SplitPickerExpectedApp(
+                        navigator.appTaskId,
+                        navigator.packageName,
+                    ),
+                    SplitPane.SECONDARY to SplitPickerExpectedApp(music.appTaskId, music.packageName),
+                ),
+            ),
+        )
+        val revealed = split.revealOwnedSession(hidden, PICKER_COMPONENTS)
+
+        assertEquals(hidden, revealed)
+        assertEquals(3, fake.area)
+        assertTrue(fake.commands.any { it == "am task focus ${navigator.appTaskId}" })
+        assertFalse(
+            "поднятие сцены не двигает и не создаёт ни одной задачи",
+            fake.commands.any { command ->
+                command.startsWith("am start ") ||
+                    command.startsWith("am stack move-task ") ||
+                    command.contains(" remove-task ")
+            },
+        )
+    }
+
+    /** A pane holding nothing but its own picker names no app, and the root itself proves it. */
+    @Test
+    fun aCoveredPaneWithOnlyItsPickerNeedsNoIdentityToBeAdopted() {
+        val fake = FakeShell()
+        val split = session(fake)
+        val hosts = split.buildPickers()
+        val music = split.selectApp(
+            pickerTaskId = hosts.getValue(SplitPane.SECONDARY),
+            target = launchTargetOf(MUSIC),
+            pickerComponents = PICKER_COMPONENTS,
+        )
+        fake.area = 0
+
+        val hidden = split.existingOwnedSession(
+            PICKER_COMPONENTS,
+            mapOf(SplitPane.SECONDARY to SplitPickerExpectedApp(music.appTaskId, music.packageName)),
+        )
+
+        assertEquals(hosts.getValue(SplitPane.PRIMARY), hidden?.get(SplitPane.PRIMARY)?.hostTaskId)
+        assertEquals(null, hidden?.get(SplitPane.PRIMARY)?.appTaskId)
+        assertEquals(music.appTaskId, hidden?.get(SplitPane.SECONDARY)?.appTaskId)
+
+        // И обратное: панель, в которой живёт приложение, под накрытой сценой не усыновляется без
+        // точной идентичности - даже когда прошивка отчитывается нашим пикером как верхним. Иначе
+        // сцена была бы принята как «пикер|пикер», а живое приложение забыто (правка E1).
+        fake.promoteActivity(SECONDARY_ROOT, SECONDARY_PICKER_ACTIVITY)
+
+        assertEquals(null, split.existingOwnedSession(PICKER_COMPONENTS))
+    }
+
     @Test
     fun sceneMissingOneOwnedBaseIsNotAdopted() {
         val fake = FakeShell().apply {
