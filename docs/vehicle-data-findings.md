@@ -414,14 +414,43 @@ panel. It is the only product consumer of this document's allowlist.
 | Odometer, not GNSS, for distance | `ConsumptionLog` | The page needs no location permission and keeps its histogram with the trip page closed |
 | Pack-power sign in one constant | `VehicleConvention` | The convention is inferred from the parked charging session, not proven; the drive capture flips one line if it is wrong |
 | No shell until the page is opened | `VehiclePanelView.syncHub` | A session that never swipes to the page costs the car nothing |
+| One big figure per block | `VehiclePanelRenderer` | Chosen for movement, not abstract importance: charge, traction voltage, the hottest drivetrain reading, consumption. A number that never moves is a supporting line whose colour, not size, raises a hand |
+| Live consumption is a rolling window, not the open bar | `ConsumptionLog` | kWh per 100 km has no value at zero speed; folding standstill energy into it made a parked car's reading crawl. The window stops at a standstill, the bars keep the energy |
+| Two type scales, never one | `VehiclePanelRenderer` | A virtual unit is about 0.6 dp at full width and exactly 1 dp in the narrow pane, so a shared constant renders at two different sizes |
+| No block headings in the narrow pane | `VehiclePanelRenderer.drawNarrow` | The hairlines already separate the blocks, and the four headings were what pushed the consumption chart off the bottom of the pane |
 
 Unit tests cover the command shape, the marker alignment, the proven scales, the
-sentinel and plausibility rules, and the consumption accumulator.
+sentinel and plausibility rules, and the consumption accumulator including the
+standstill rule.
+
+### What the panel does not show, and why
+
+Removed after the owner reviewed it on the car on 2026-08-23:
+
+- **tyre pressures and temperatures.** The car has a native tyre-pressure
+  display; the panel was repeating it. Eight feature ids left the allowlist, and
+  with them the only ones past `0x7fffffff` — the signed-decimal rule still has
+  a test, now over the whole allowlist rather than one tyre id.
+- **cabin and outside temperature.** Both are already on the instrument cluster.
+- **remaining range, BMS state of charge, and pack health in the narrow pane.**
+  Kept at full width, where there is room for a second opinion on the charge.
+
+The three drive motors are now reported separately (front, rear left, rear
+right) rather than as a front/rear pair, with the inverter on its own row: this
+car has three motors, and one of them running away from the others is what the
+row exists to show.
+
+`CHARGE_KW` has its own plausibility gate (`-1..160 kW`) rather than sharing the
+pack-power one (`±600 kW`). The wide gate let a spike through and the panel
+showed a three-hundred-kilowatt charge on a car parked on a household socket.
+Pack power keeps the wide gate: this car really can pull hundreds of kilowatts.
 
 ### Measured on the car (2026-08-22, second session, parked on AC charge)
 
 All 33 allowlist signals answered, none returned a sentinel, and none was
-dropped by the plausibility gate — the catalog is correct for this firmware.
+dropped by the plausibility gate — the catalog is correct for this firmware. The
+shipped allowlist is now 23 signals: tyres and cabin/outside climate were
+removed from the panel, and polling them was the only reason to read them.
 
 | Batch | Calls | Wall time on the head unit |
 | --- | --- | --- |
