@@ -261,8 +261,10 @@ class SplitPickerShellSessionTest {
         )
         fake.commands.clear()
 
-        val existing = split.existingOwnedSession(PICKER_COMPONENTS)
+        val read = split.readOwnedSession(PICKER_COMPONENTS)
+        val existing = read.scene
 
+        assertEquals("adoptable", read.reason)
         assertEquals(hosts.getValue(SplitPane.PRIMARY), existing?.get(SplitPane.PRIMARY)?.hostTaskId)
         assertEquals(navigator.appTaskId, existing?.get(SplitPane.PRIMARY)?.appTaskId)
         assertEquals(NAVIGATOR, existing?.get(SplitPane.PRIMARY)?.appPackageName)
@@ -511,13 +513,20 @@ class SplitPickerShellSessionTest {
     }
 
     @Test
-    fun sceneMissingOneOwnedBaseIsNotAdopted() {
+    fun sceneMissingOneOwnedBaseIsNotAdoptedAndSaysWhich() {
         val fake = FakeShell().apply {
             area = 3
             addTask(PRIMARY_ROOT, 40, NAVIGATOR, "$NAVIGATOR.MainActivity")
         }
 
-        assertEquals(null, session(fake).existingOwnedSession(PICKER_COMPONENTS))
+        val read = session(fake).readOwnedSession(PICKER_COMPONENTS)
+
+        assertEquals(null, read.scene)
+        assertEquals(
+            "марка называет панель и то, что там нашли, а не «ничего нашего»",
+            "PRIMARY: пикеров 0, задач 1",
+            read.reason,
+        )
     }
 
     @Test

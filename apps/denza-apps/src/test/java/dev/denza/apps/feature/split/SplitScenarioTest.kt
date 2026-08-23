@@ -761,6 +761,11 @@ class SplitScenarioTest {
             "восстановление не расчищает панель и не ждёт, пока её пикер станет верхним",
             car.commands().any { it.contains(" remove-task ") },
         )
+        assertEquals(
+            "и постусловие одно на обе панели: два устойчивых сэмпла и финальный read-back",
+            3,
+            car.commands().drop(launches.last().index).count { it == SPLIT_AREA_QUERY },
+        )
         assertEquals(APP_PAIR, car.store.load().slots)
         assertEquals("сцена поднялась и это не ошибка", SplitScreenPhase.ACTIVE, core.snapshot().phase)
     }
