@@ -1385,6 +1385,27 @@ class SplitPickerShellSessionTest {
         assertFalse(fake.commands.any { it.contains("remove-task 70 ") })
     }
 
+    /**
+     * Invariant 3 and 1.9.2: a build cleans up after the product, and after nobody else.
+     *
+     * The retired host Activity is the one artefact outside the panes whose ownership a snapshot
+     * can prove, because it carries our own component. An ordinary task of the same package is the
+     * user's application and is never touched on the strength of its package alone.
+     */
+    @Test
+    fun aBuildRemovesOurOwnStrayHostAndNothingElseOutsideThePanes() {
+        val fake = FakeShell().apply {
+            addTask(FULL_ROOT, 80, SPLIT_HOST_PACKAGE, SPLIT_APP_HOST_ACTIVITY)
+            addTask(FULL_ROOT, 81, WAZE, "$WAZE.MainActivity")
+        }
+
+        session(fake).buildPickers()
+
+        assertFalse("огрызок прошлой версии продукта снят", fake.hasTask(80))
+        assertTrue("чужое приложение не тронуто", fake.hasTask(81))
+        assertEquals(FULL_ROOT, fake.taskRoot(81))
+    }
+
     /** 1.3.2, 1.5.7: the pane whose app did not come back is left on its own picker, and clean. */
     @Test
     fun aRestorationThatFailsLeavesThatPaneOnItsPickerAndTheNeighbourAlone() {

@@ -663,7 +663,14 @@ internal class SplitPickerShellSession(
             settled.root(rootIds.getValue(pane))?.tasks.orEmpty()
                 .filterNot { task -> task.id in keep || task.isEmptyRootMarker() }
         }
-        if (removeTasksSafely(stale)) mutated = true
+        // And our own retired host Activity, wherever an older version of the product left one.
+        // It is the only task outside the panes whose ownership is provable - by our exact
+        // component, never by the package of the app inside it (invariant 3, 1.9.2).
+        val strayHosts = settled.roots.asSequence()
+            .filter { root -> root.displayId == MAIN_DISPLAY_ID }
+            .flatMap { root -> root.tasks.asSequence() }
+            .filter { task -> task.isDenzaAppHost() }
+        if (removeTasksSafely((stale + strayHosts).distinctBy(SplitTask::id))) mutated = true
         if (launching.isNotEmpty()) {
             mutated = true
             launchApps(
