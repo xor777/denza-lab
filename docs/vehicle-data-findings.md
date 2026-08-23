@@ -577,10 +577,54 @@ speed (`0x46C00040`).
 
 The silence clusters by feature-id prefix rather than by subject: the whole
 `0x324`, `0x387` and `0x30D` families are quiet, including `ENGINE_SPEED_324`
-while `ENGINE_SPEED` on `0x144` answers. That points at generation — the same
-lesson the motor temperatures taught with `_DM40_464` — rather than at the
-engine being stopped. **One repeat sweep with the engine running settles it**,
-and it is the same read-only script.
+while `ENGINE_SPEED` on `0x144` answers.
+
+**Settled 2026-08-23 with the engine running.** Two sampling runs across full
+start/stop cycles re-read every silent id at about 1.4 Hz: not one of them ever
+answered. Coolant temperature, thermostat water temperature, indicated torque,
+boost, per-cylinder knock, instantaneous fuel consumption and water-pump speed
+stay sentinel with the engine turning. This firmware does not carry them — it is
+the feature-id generation, not the engine state, and there is nothing further to
+try short of a different id family surfacing.
+
+`INSTRUMENT_WATER_TEMP_METER_PERCENT` (`0x4A509018`) held `409.5` through both
+runs, engine hot or cold, which confirms it as a placeholder rather than a gauge.
+
+### Measured start/stop cycle (2026-08-23, parked, gun disconnected)
+
+| t | rpm | state | generation | pack power | inverter |
+| --- | --- | --- | --- | --- | --- |
+| 0.0 s | 0 | 0 | 0, state 0 | +1 kW | 26 °C |
+| 6.7 s | 1619 | 3 | 0, state 0 | −6 kW | 26 °C |
+| 7.4 s | 1572 | 3 | 8 kW, state 1 | −8 kW | 26 °C |
+| 9–60 s | 1321 | 3 | 8–10 kW, state 1 | −8…−10 kW | 27 → 32 °C |
+| 62.7 s | 1321 | 3 | 0, **state 2** | −8 kW | 32 °C |
+| 64.8 s | 242 | 3 | 0, state 2 | +1 kW | 32 °C |
+| 65.5 s | 0 | 0 | 0, state 2 | +1 kW | 32 °C |
+| 68 s + | 0 | 0 | 0, state 0 | +1 kW | 32 → 28 °C |
+
+What that pins down:
+
+- **Revolutions are real rpm.** A 1619 start peak, a 1321 generation set-point
+  held for a minute, 242 spinning down. `ENGINE_SPEED_20D` and `_GB` track it
+  within about 40 rpm, so any of the three will do.
+- **`ENGINE_STATE` is `0` stopped and `3` running**, including through the
+  spin-down. No other value appeared.
+- **Generation is in kilowatts.** It mirrored pack power exactly at every
+  sample — `8` against `-8`, `10` against `-10` — which is the cross-check that
+  settles the unit, and it independently re-confirms the discharge-positive sign
+  convention.
+- **`GENERATION_STATE` is `0` idle, `1` generating, `2` shutting down.** State
+  `2` arrives a second and a half before the engine stops, with the kilowatt
+  figure already at zero, so only `1` may count as generating.
+- **The inverter is the one thermal reading the generation path has.** It rose
+  26 → 32 °C over a minute of generation and fell back afterwards. With no
+  engine coolant temperature on this firmware, this is what the engine page
+  shows instead — real feedback, not a stand-in.
+- Fuel level held `53 %` and the coolant and oil-pressure lamps held `0` across
+  the whole cycle.
+
+
 
 ### Engine itself — `com/byd/feature/engine/Engine.java`, dev `1012`
 

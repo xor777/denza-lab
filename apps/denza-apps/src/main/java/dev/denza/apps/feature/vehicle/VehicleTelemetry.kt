@@ -85,7 +85,12 @@ internal data class VehicleTelemetry(
 
     // ------------------------------------------------------------- combustion
 
-    /** Null when the engine set has not been polled yet, not "stopped". */
+    /**
+     * Null when the engine set has not been polled yet, which is not the same as
+     * stopped. Measured on the car across a full start/stop cycle this reads `0`
+     * stopped and `3` running, including while spinning down; no other value has
+     * been seen.
+     */
     val engineRunning: Boolean? get() = this[VehicleSignal.ENGINE_RUNNING]?.let { it >= 1.0 }
 
     val engineRpm: Double? get() = this[VehicleSignal.ENGINE_RPM]
@@ -93,8 +98,14 @@ internal data class VehicleTelemetry(
     /** Kilowatts the engine is putting into the pack; 0 with the engine off. */
     val generationKw: Double? get() = this[VehicleSignal.GENERATION_KW]
 
+    /**
+     * Measured 2026-08-23: the state reads `1` while generating and `2` through
+     * the shutdown, where the kilowatt figure has already fallen to zero and the
+     * engine is only spinning down. Only `1` counts, so the page stops claiming
+     * generation a second and a half before the engine actually stops.
+     */
     val generating: Boolean
-        get() = (this[VehicleSignal.GENERATION_STATE] ?: 0.0) >= 1.0 ||
+        get() = this[VehicleSignal.GENERATION_STATE] == GENERATION_ON ||
             (generationKw ?: 0.0) > GENERATION_FLOOR_KW
 
     /** Worst answer across the ids that carry this lamp. */
@@ -113,5 +124,8 @@ internal data class VehicleTelemetry(
     private companion object {
         /** Below this a generation reading is rounding, not the engine working. */
         const val GENERATION_FLOOR_KW = 0.5
+
+        /** `2` is the shutdown transition, not generation. */
+        const val GENERATION_ON = 1.0
     }
 }

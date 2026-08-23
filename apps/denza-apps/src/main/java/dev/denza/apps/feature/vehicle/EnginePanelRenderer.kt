@@ -8,6 +8,7 @@ import dev.denza.apps.feature.panel.PanelCanvas
 import dev.denza.apps.feature.panel.PanelPalette
 import java.util.Locale
 import kotlin.math.roundToInt
+import kotlin.math.sqrt
 
 /**
  * The engine page: the combustion half of a series-parallel hybrid.
@@ -95,7 +96,11 @@ internal class EnginePanelRenderer : PanelCanvas() {
         figure(canvas, vx(660f), vy(152f), t.generationKw, "кВт", t.generating)
         icon(canvas, icons?.flow, vx(660f), vy(206f) - vs(22f), vs(26f), generationColor(t))
         label(canvas, generationState(t), vx(694f), vy(206f), sizeState, generationColor(t))
-        dialGauge(canvas, vx(660f), vx(1140f), vy(236f), vs(24f), t.generationKw, GENERATION_MAX, GENERATION_STEP, t.generating)
+        label(canvas, inverterLine(t), vx(1140f), vy(206f), sizeState, inverterColor(t), Paint.Align.RIGHT)
+        dialGauge(
+            canvas, vx(660f), vx(1140f), vy(236f), vs(24f), t.generationKw, GENERATION_MAX, GENERATION_STEP,
+            t.generating, ticks = GENERATION_TICKS, squareRoot = true,
+        )
 
         hairline(canvas, vx(1160f), vy(24f), vx(1160f), vy(312f))
 
@@ -123,9 +128,13 @@ internal class EnginePanelRenderer : PanelCanvas() {
 
         label(canvas, "генерация", vx(0f), vy(196f), sizeLabel, muted())
         figure(canvas, vx(368f), vy(202f), t.generationKw, "кВт", t.generating, Paint.Align.RIGHT)
-        dialGauge(canvas, vx(0f), vx(368f), vy(218f), vs(16f), t.generationKw, GENERATION_MAX, GENERATION_STEP, t.generating)
+        dialGauge(
+            canvas, vx(0f), vx(368f), vy(218f), vs(16f), t.generationKw, GENERATION_MAX, GENERATION_STEP,
+            t.generating, ticks = GENERATION_TICKS, squareRoot = true,
+        )
         icon(canvas, icons?.flow, vx(0f), vy(278f) - vs(13f), vs(16f), generationColor(t))
         label(canvas, generationState(t), vx(21f), vy(278f), sizeState, generationColor(t))
+        label(canvas, inverterLine(t), vx(368f), vy(278f), sizeState, inverterColor(t), Paint.Align.RIGHT)
 
         hairline(canvas, vx(0f), vy(298f), vx(368f), vy(298f))
 
@@ -185,18 +194,22 @@ internal class EnginePanelRenderer : PanelCanvas() {
         max: Double,
         step: Double,
         live: Boolean,
+        ticks: DoubleArray? = null,
+        squareRoot: Boolean = false,
     ) {
         fill.color = PanelPalette.alpha(PanelPalette.MUTED, 0.10f)
         canvas.drawRect(x0, y, x1, y + height, fill)
 
-        fun position(v: Double): Float = x0 + (x1 - x0) * (v / max).coerceIn(0.0, 1.0).toFloat()
+        fun position(v: Double): Float {
+            val share = (v / max).coerceIn(0.0, 1.0)
+            return x0 + (x1 - x0) * (if (squareRoot) sqrt(share) else share).toFloat()
+        }
 
         stroke.color = PanelPalette.alpha(PanelPalette.MUTED, 0.32f)
         stroke.strokeWidth = vs(1f)
-        var tick = step
-        while (tick < max) {
+        val marks = ticks ?: DoubleArray(((max - step) / step).toInt().coerceAtLeast(0)) { step * (it + 1) }
+        marks.forEach { tick ->
             canvas.drawLine(position(tick), y + height, position(tick), y + height + vs(4f), stroke)
-            tick += step
         }
         label(canvas, "0", x0, y + height + vs(sizeTiny * 1.35f), sizeTiny, muted(0.5f))
         label(
@@ -293,6 +306,25 @@ internal class EnginePanelRenderer : PanelCanvas() {
     private fun generationColor(t: VehicleTelemetry): Int =
         if (t.generating) PanelPalette.BLUE else muted(0.7f)
 
+    /**
+     * The only temperature this page can honestly show. There is no engine
+     * coolant reading on this firmware, but the inverter carries the generated
+     * power and answers — it climbed 26 → 32 °C across a minute of generation on
+     * 2026-08-23 and fell back afterwards, so it is real thermal feedback on the
+     * generation path rather than a stand-in number.
+     */
+    private fun inverterLine(t: VehicleTelemetry): String =
+        t[VehicleSignal.INVERTER_C]?.let { "инвертор ${it.roundToInt()} °C" } ?: "инвертор —"
+
+    private fun inverterColor(t: VehicleTelemetry): Int {
+        val celsius = t[VehicleSignal.INVERTER_C] ?: return muted(0.5f)
+        return when {
+            celsius > INVERTER_HOT_C -> PanelPalette.DANGER
+            celsius > INVERTER_WARM_C -> PanelPalette.AMBER
+            else -> muted(0.7f)
+        }
+    }
+
     private fun muted(alpha: Float = 0.85f): Int = PanelPalette.alpha(PanelPalette.MUTED, alpha)
 
     private fun fmt(value: Double, digits: Int): String =
@@ -315,11 +347,28 @@ internal class EnginePanelRenderer : PanelCanvas() {
         const val NARROW_STATE = 14f
         const val NARROW_FIGURE = 34f
 
-        /** Plausible spans, not measured ones. See the class comment. */
-        const val RPM_MAX = 7000.0
+        /**
+         * Revolutions are real rpm, confirmed against a start/stop cycle on the
+         * car: 1619 at the start peak, a 1321 generation set-point, 242 spinning
+         * down. The span is the engine's, not the observed range — a generating
+         * engine should visibly sit at the bottom of it.
+         */
+        const val RPM_MAX = 6000.0
         const val RPM_STEP = 1000.0
-        const val GENERATION_MAX = 80.0
-        const val GENERATION_STEP = 20.0
+
+        /**
+         * Generation is in kilowatts, confirmed by pack power mirroring it
+         * exactly (`8` against `-8`, `10` against `-10`). Idle generation is
+         * around 10 kW while the generator's ceiling is several times that, so
+         * the dial is square-root like the vehicle page's power bar: linear
+         * would leave the needle pinned near zero for the common case.
+         */
+        const val GENERATION_MAX = 100.0
+        const val GENERATION_STEP = 0.0
+        val GENERATION_TICKS = doubleArrayOf(10.0, 25.0, 50.0)
+
+        const val INVERTER_WARM_C = 70.0
+        const val INVERTER_HOT_C = 85.0
 
         const val READING = "Читаю данные машины…"
         const val NO_DATA = "Нет доступа к данным машины"

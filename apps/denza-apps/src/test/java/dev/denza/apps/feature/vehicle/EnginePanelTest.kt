@@ -73,6 +73,48 @@ class EnginePanelTest {
     }
 
     @Test
+    fun theShutdownStateIsNotGeneration() {
+        // Captured on the car: the state goes 1 -> 2 a second and a half before
+        // the engine stops, with the kilowatt figure already back at zero. A
+        // `>= 1` test would have kept claiming generation through the spin-down.
+        val t = telemetry(
+            VehicleSignal.GENERATION_STATE to 2.0,
+            VehicleSignal.GENERATION_KW to 0.0,
+        )
+        assertFalse(t.generating)
+    }
+
+    @Test
+    fun theMeasuredStartStopCycleReadsTheWayThePageDrawsIt() {
+        // 2026-08-23, parked: 0/0 stopped, then rpm 1619 with state 3 before
+        // generation came online, a 1321 set-point at 8-10 kW, then spin-down.
+        val stopped = telemetry(VehicleSignal.ENGINE_RUNNING to 0.0, VehicleSignal.ENGINE_RPM to 0.0)
+        assertFalse(stopped.engineRunning!!)
+        assertFalse(stopped.generating)
+
+        val starting = telemetry(
+            VehicleSignal.ENGINE_RUNNING to 3.0,
+            VehicleSignal.ENGINE_RPM to 1619.0,
+            VehicleSignal.GENERATION_KW to 0.0,
+            VehicleSignal.GENERATION_STATE to 0.0,
+        )
+        assertTrue(starting.engineRunning!!)
+        assertFalse(starting.generating)
+
+        val generating = telemetry(
+            VehicleSignal.ENGINE_RUNNING to 3.0,
+            VehicleSignal.ENGINE_RPM to 1321.0,
+            VehicleSignal.GENERATION_KW to 8.0,
+            VehicleSignal.GENERATION_STATE to 1.0,
+            VehicleSignal.POWER_KW to -8.0,
+        )
+        assertTrue(generating.generating)
+        // Generation and pack power mirrored each other exactly, which is what
+        // proves the generation figure is in kilowatts.
+        assertEquals(-generating.loadKw!!, generating.generationKw!!, 1e-9)
+    }
+
+    @Test
     fun theCombustionReadsMeasuredOnTheCarDecodeAsThemselves() {
         // 2026-08-23, engine stopped: rpm and running both read 0, displacement
         // came back as a float and matched this car's 2.0 T.
