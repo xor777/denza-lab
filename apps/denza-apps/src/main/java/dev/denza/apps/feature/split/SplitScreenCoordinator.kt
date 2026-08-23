@@ -173,7 +173,8 @@ object SplitScreenCoordinator {
     private fun build(app: Context): SplitCoordinatorCore {
         val clock = SystemSplitClock()
         return SplitCoordinatorCore(
-            shellFactory = SplitShellFactory { persistentShell(app) },
+            // One handshake for the process, not one per operation (1.13.3).
+            shellFactory = SplitPersistentShell { persistentShell(app) },
             clock = clock,
             store = SplitScreenSettings.stateStore(app),
             actor = SplitActor(clock),

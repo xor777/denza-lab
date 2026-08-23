@@ -28,6 +28,52 @@ class SplitCoordinatorCoreTest {
         cars.forEach(SplitCarFixture::close)
     }
 
+    // region the one transport of the process
+
+    /**
+     * 1.13.3: an operation may not pay for an ADB handshake it does not need.
+     *
+     * Connect, authenticate and open an interactive shell cost the same whether the operation that
+     * follows sends two reads or builds a whole scene, and the product used to pay it per operation.
+     */
+    @Test
+    fun everyOperationSharesOneHandshakeAndADeadLinkEndsIt() {
+        val handshakes = mutableListOf<CountingTransport>()
+        val closed = mutableListOf<CountingTransport>()
+        val shell = SplitPersistentShell {
+            CountingTransport(closed::add).also(handshakes::add)
+        }
+
+        shell.open().let { first ->
+            first.shell("am stack list")
+            first.shell("service call activity_task 30")
+            first.close()
+        }
+        shell.open().let { second ->
+            second.shell("am stack list")
+            second.close()
+        }
+
+        assertEquals("one handshake, three commands, two operations", 1, handshakes.size)
+        assertEquals(3, handshakes.single().commands.size)
+        assertEquals("and closing a lease closes nothing", emptyList<CountingTransport>(), closed)
+
+        // 1.11.4: the link stopped answering. A cached dead pipe would make every later operation
+        // fail the same way, so the failing command takes the transport with it.
+        handshakes.single().failNext = true
+        val broken = shell.open()
+        assertThrows(IllegalStateException::class.java) { broken.shell("am stack list") }
+        assertEquals(listOf(handshakes.single()), closed)
+
+        shell.open().shell("am stack list")
+        assertEquals("the next operation reconnects", 2, handshakes.size)
+
+        shell.close()
+        assertEquals("and shutdown closes what is left", handshakes.toList(), closed)
+    }
+
+    // endregion
+
     // region cold initialisation is read-only
 
     @Test
@@ -389,6 +435,25 @@ class SplitCoordinatorCoreTest {
     // endregion
 
     private fun car(fake: FakeShell): SplitCarFixture = SplitCarFixture(fake).also(cars::add)
+
+    /** One ADB transport: what it was asked, and whether it was ever really closed. */
+    private class CountingTransport(private val onClose: (CountingTransport) -> Unit) :
+        SplitShellHandle {
+        val commands = mutableListOf<String>()
+
+        var failNext = false
+
+        override fun shell(command: String): String {
+            if (failNext) {
+                failNext = false
+                throw IllegalStateException(SPLIT_ADB_DROPPED)
+            }
+            commands += command
+            return ""
+        }
+
+        override fun close() = onClose(this)
+    }
 
     private companion object {
         /** The hold, `NAV`, `SELECT` and `OPEN` behind it, each with its armed deadline. */

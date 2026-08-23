@@ -30,6 +30,56 @@ internal fun interface SplitShellFactory {
     fun open(): SplitShellHandle
 }
 
+/**
+ * One ADB transport for the whole process, leased to one operation at a time.
+ *
+ * Opening an interactive shell on this car is a full handshake - connect, authenticate, open - and
+ * the product used to pay it per operation: a reconcile that sent two reads paid exactly what a
+ * whole open paid. So the transport outlives the operation, and what an operation gets is a handle
+ * whose `close` releases nothing. Nothing about the fence changes: every command still goes through
+ * the operation's own token check before it is sent (contract 7, invariant 10).
+ *
+ * A command that fails takes the transport down with it. The usual reason one fails is that the
+ * link stopped answering, and a cached dead pipe would turn a single broken operation into every
+ * later one failing the same way (1.11.4); the next lease performs a fresh handshake instead.
+ */
+internal class SplitPersistentShell(
+    private val connect: SplitShellFactory,
+) : SplitShellFactory, AutoCloseable {
+
+    private val lock = Any()
+    private var transport: SplitShellHandle? = null
+
+    override fun open(): SplitShellHandle = object : SplitShellHandle {
+        override fun shell(command: String): String {
+            val live = synchronized(lock) {
+                transport ?: connect.open().also { opened -> transport = opened }
+            }
+            return try {
+                live.shell(command)
+            } catch (error: Throwable) {
+                discard(live)
+                throw error
+            }
+        }
+
+        /** The transport belongs to the process, not to this operation. */
+        override fun close() = Unit
+    }
+
+    override fun close() {
+        val live = synchronized(lock) { transport.also { transport = null } }
+        live?.let { runCatching(it::close) }
+    }
+
+    private fun discard(dead: SplitShellHandle) {
+        val closing = synchronized(lock) {
+            transport.takeIf { live -> live === dead }?.also { transport = null }
+        }
+        closing?.let { runCatching(it::close) }
+    }
+}
+
 /** The waiting window of one `OPEN` (1.3.1). Closing twice is inert. */
 internal interface SplitOverlayLease {
     fun close()
@@ -403,8 +453,10 @@ internal class SplitCoordinatorCore(
 
     // endregion
 
+    /** The worker is joined first, so nothing is still holding the transport when it closes. */
     fun shutdown() {
         actor.shutdown()
+        (shellFactory as? AutoCloseable)?.let { closeable -> runCatching(closeable::close) }
     }
 
     // region internals
