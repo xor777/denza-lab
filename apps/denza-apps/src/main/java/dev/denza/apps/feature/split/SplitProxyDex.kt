@@ -35,14 +35,24 @@ internal class SplitStagedProxyDex(
     @Volatile
     private var resolved: String? = null
 
+    @Volatile
+    private var refusals = 0
+
     override fun entry(shell: (String) -> String): String {
         resolved?.let { return it }
-        val entry = runCatching { stage(shell) }.getOrElse { error ->
-            log("thin split proxy unavailable, loading it from the apk: ${error.message ?: error}")
-            apkPath
-        }
-        resolved = entry
-        return entry
+        return runCatching { stage(shell) }
+            .onSuccess { staged -> resolved = staged }
+            .getOrElse { error ->
+                log(
+                    "thin split proxy unavailable, loading it from the apk: " +
+                        (error.message ?: error),
+                )
+                // A flaky link on the first try must not pin the slow path for the whole process,
+                // but neither may every removal keep paying for the attempt.
+                refusals += 1
+                if (refusals >= MAX_REFUSALS) resolved = apkPath
+                apkPath
+            }
     }
 
     private fun stage(shell: (String) -> String): String {
@@ -62,11 +72,16 @@ internal class SplitStagedProxyDex(
         return path
     }
 
+    // The redirection is silenced before it is attempted: the transport merges stderr into the
+    // answer, and "cannot open" is not a size.
     private fun sizeOf(shell: (String) -> String, path: String): Int =
-        shell("wc -c < '$path' 2>/dev/null").trim().toIntOrNull() ?: -1
+        shell("wc -c 2>/dev/null < '$path'").trim().toIntOrNull() ?: -1
 
     internal companion object {
         const val ASSET = "split-task-proxy.jar"
+
+        /** After this many refusals the car has answered: the APK is the classpath. */
+        private const val MAX_REFUSALS = 3
 
         private const val DIRECTORY = "/data/local/tmp"
         private const val PREFIX = "denza-split-proxy-"

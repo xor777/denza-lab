@@ -65,6 +65,16 @@ class SplitStagedProxyDexTest {
         assertEquals(SPLIT_APK_PATH, proxy.entry { error("read-only filesystem") })
     }
 
+    /** A flaky link on one call must not pin the slow classpath for the whole process. */
+    @Test
+    fun oneRefusalIsNotTheCarsFinalAnswer() {
+        val proxy = proxy()
+
+        assertEquals(SPLIT_APK_PATH, proxy.entry { error("adb link dropped") })
+
+        assertEquals("/data/local/tmp/denza-split-proxy-17.jar", proxy.entry(::shell))
+    }
+
     /** A truncated write is worse than none: it would be a classpath that cannot be loaded. */
     @Test
     fun aPartiallyWrittenProxyIsRefused() {
