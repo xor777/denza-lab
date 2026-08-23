@@ -69,6 +69,11 @@ internal data class SplitState(
  *
  * A fact is an established observation ("the task left the panel roots"), never a raw event
  * ("onStop arrived", "TYPE_WINDOWS_CHANGED blinked") — contract section 7, invariant 8.
+ *
+ * Three of them have no producer yet, and the rows they close are therefore automaton-only until
+ * one exists: [SceneEndedSettled] (1.7.5, scenario 30 - "clear all"), [PackageRemoved] (1.5.6, an
+ * uninstall while a picker is open) and [AppLaunchFailed] (1.5.7 as a plan rather than as the
+ * notice the failing operation already publishes).
  */
 internal sealed interface SplitFact {
     data class ToggleChanged(val enabled: Boolean) : SplitFact
@@ -114,6 +119,11 @@ internal sealed interface SplitFact {
  * Returning a projected navigator is deliberately absent: it is an actor operation running under
  * the navigation lease ([SplitInputPriority.NAV]), not something the automaton schedules. The
  * automaton only hears about the return that already happened ([SplitFact.ProjectionReturned]).
+ *
+ * The operations are written settled-first, so today only `DisableOperation` reads a plan, and it
+ * reads whether the list is empty rather than which variant it holds: "the toggle went off over a
+ * scene that needs a teardown". The variants are the automaton's own statement of which teardown
+ * the contract asks for (1.2.3 versus 1.2.4-1.2.5) and are asserted as such by its tests.
  */
 internal sealed interface SplitPlan {
     data class BuildScene(val slots: Map<SplitPane, SplitSlot>) : SplitPlan

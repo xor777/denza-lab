@@ -9,7 +9,15 @@ package dev.denza.apps.feature.split
  * final read-back, which is exactly what this file mechanises.
  */
 
-/** One reversible thing an operation did. Task and root ids live here and nowhere durable. */
+/**
+ * One reversible thing an operation did. Task and root ids live here and nowhere durable.
+ *
+ * The operations record two of these today - [LeaseEnabled] and [PointOfNoReturn] - because the
+ * recipes that create, move and remove tasks own their own local repair and their own
+ * postconditions ([SplitShellRollbackExecutor]). The rest are the vocabulary section 7.6 asks the
+ * journal to speak, and [SplitRollback] handles each of them, so an operation that starts
+ * recording one gets an exact inverse instead of a new special case.
+ */
 internal sealed interface SplitJournalEntry {
     /** We opened the firmware-global gate; [prevOpen] is what it was before. */
     data class GateOpened(val prevOpen: Boolean) : SplitJournalEntry

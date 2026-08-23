@@ -860,6 +860,14 @@ internal class SplitPickerShellSession(
      * A projected saved member makes its native pane reservation ambiguous. Reopening or
      * replacing either pane while that task is on another Android display would make the later
      * navigation return race the new scene. Keep the native roots untouched until return.
+     *
+     * **Known gap (2026-08-23).** Nothing calls this. `reservedPackages` is still threaded from
+     * `OpenOperation` through [restoreApp] into [selectApp], and [selectApp] ignores it, so the
+     * guard of the obligation to 1.10 is currently off - only the narrower "this exact target is
+     * already on another display" check inside [selectApp] runs. Both the recipe and the parameter
+     * are kept rather than deleted because the message below is a live-proven product error the
+     * coordinator still translates for the user; rewiring it is a behaviour change and belongs to
+     * its own commit with its own scenario test.
      */
     fun requireNoExternalReservedPackages(reservedPackages: Set<String>) {
         if (reservedPackages.isEmpty()) return

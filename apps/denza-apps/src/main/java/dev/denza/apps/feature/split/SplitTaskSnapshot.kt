@@ -36,11 +36,6 @@ internal data class SplitRootTask(
 )
 
 internal data class SplitTaskSnapshot(val roots: List<SplitRootTask>) {
-    fun foregroundTask(): SplitTask? = roots.asSequence()
-        .filter { it.displayId == 0 && it.activityType != HOME_ACTIVITY_TYPE }
-        .mapNotNull(SplitRootTask::resolvedTopTask)
-        .firstOrNull()
-
     fun root(rootId: Int): SplitRootTask? =
         roots.firstOrNull { it.id == rootId && it.displayId == 0 }
 
@@ -114,8 +109,6 @@ internal data class SplitTaskSnapshot(val roots: List<SplitRootTask>) {
             right = groupValues[start + 2].toInt(),
             bottom = groupValues[start + 3].toInt(),
         )
-
-        private const val HOME_ACTIVITY_TYPE = "home"
     }
 }
 
