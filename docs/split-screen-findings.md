@@ -10,6 +10,17 @@ a plain fullscreen picker.
 
 ## Product direction: explicit two-picker session
 
+**2026-08-23.** The product was moved onto the contract core described in
+[split-screen-product-contract.md](split-screen-product-contract.md), which is
+now the normative source for split screen: one pure automaton, one priority
+actor, journalled and fenced operations over the unchanged live recipes, and
+one atomic durable snapshot. The retired router, transparent app host and
+placeholder were deleted from the tree together with the persisted task ids;
+nothing durable can name a task or root any more. The record below is the
+journal of live proof and stays as it is - none of it was re-run. Live
+confirmation of the rebuilt core is deferred until the car is available and
+will follow section 12 of the contract.
+
 The contextual foreground router was replaced in product code on 2026-08-16 by
 an explicit launcher entry named **«Разделить экран»**. The final one-package
 path passed live acceptance on 2026-08-18, including alias visibility, native
