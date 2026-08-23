@@ -66,6 +66,17 @@ internal object SplitLeaseKind {
 
     /** The accessibility observer that reports the stock picker of an edge drag (1.8.5). */
     const val PICKER_ACCESS = "picker-access"
+
+    /**
+     * Infrastructure leases: idempotent, invisible to the user, and released by `DISABLE` alone.
+     *
+     * They are deliberately kept out of the operation journal. Taking [PICKER_ACCESS] re-binds the
+     * accessibility service, and giving it back on every failed operation made each attempt undo
+     * the observer the next attempt would have to build again - a loop the user sees as a button
+     * that does nothing at all. Nothing on screen depends on this lease, so keeping it costs the
+     * user nothing; the toggle-off path still gives back every lease the product holds (1.2).
+     */
+    val ROLLBACK_EXEMPT: Set<String> = setOf(PICKER_ACCESS)
 }
 
 internal interface SplitLeaseController {
@@ -261,9 +272,27 @@ internal class SplitCoordinatorCore(
         submit { work -> PackageRemovedOperation(work, packageName) }
     }
 
-    /** Contract 1.9.1: Home is the priority event that cancels the work the user walked away from. */
+    /**
+     * Contract 1.9.1: Home is the priority event that cancels the scene work the user walked away
+     * from - and it is a *hint* until this guard says otherwise (contract 4.2, invariant 8).
+     *
+     * Two hints never become a Home event at all. One is the window echo of a launch: the button
+     * lives on Home, so the app centre is on screen for a few hundred milliseconds after the tap
+     * that asked to leave it - Home there is not news, it is the screen the open started from
+     * (1.3.9). The other is any Home hint with nothing of ours to suspend: no scene and no gate we
+     * borrowed means there is nothing this operation could do but open a shell session and read.
+     */
     fun homeVisible() {
         ready()
+        val openInFlight = synchronized(stateLock) { openTicket?.isComplete == false }
+        if (openInFlight) {
+            log.log("home hint dropped: a user-requested open is running (contract 4.2)")
+            return
+        }
+        if (currentState().scene == null && !gateLeaseStore.isOwned()) {
+            log.log("home hint dropped: no live scene and no gate lease of ours (invariant 8)")
+            return
+        }
         submit { work -> HomeOperation(work) }
     }
 

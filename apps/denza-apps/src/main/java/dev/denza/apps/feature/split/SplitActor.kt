@@ -83,7 +83,12 @@ internal enum class SplitInputPriority {
     /** Toggle off: cancels every unfinished operation. */
     DISABLE,
 
-    /** A confirmed Home: cancels the work the user just walked away from. */
+    /**
+     * A confirmed Home: cancels the scene work the user just walked away from.
+     *
+     * Never the explicit `OPEN` below it (contract 4.2): that one is the action the user asked
+     * for while looking at Home, and only its own deadline may end it.
+     */
     HOME,
 
     /** The navigation lease owns the navigator task while it moves. */
@@ -417,9 +422,15 @@ internal class SplitActor(
         const val NO_OPERATION_ID = -1L
         const val SHUTDOWN_JOIN_MS = 1_000L
 
+        /**
+         * Contract 4.2. Home cancels the scene work the user walked away from - a selection, an
+         * edge commit, a passive hint - and never the `OPEN` the user just asked for: an open
+         * starts *from* Home, so Home on the screen is not news about it (1.3.9, invariant 8).
+         * An `OPEN` past its budget still dies, but of its own deadline, and `DISABLE` still
+         * cancels everything.
+         */
         val HOME_VICTIMS = setOf(
             SplitInputPriority.SELECT,
-            SplitInputPriority.OPEN,
             SplitInputPriority.EDGE,
             SplitInputPriority.HINT,
         )

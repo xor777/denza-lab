@@ -37,27 +37,85 @@ class SplitScenarioTest {
     // region K1-K4 - one tap, one operation, one window
 
     @Test
-    fun openThenHomeCancelsOperationAndForbidsLateMutations() {
-        // K1, сценарий §11.7: Home побеждает мгновенно, поздних команд нет, хранилище прежнее
-        val car = car(FakeShell())
-        val core = car.core(SplitDurable(enabled = true))
+    fun homeCancelsSceneWorkButNeverAUserRequestedOpenWithinBudget() {
+        // K1 в редакции §4 п.2 (2ef2e67), сценарий §11.7. Три части одной нормы:
+        //  - Home отменяет работу над сценой, от которой пользователь ушёл (SELECT);
+        //  - только что запрошенный OPEN он не отменяет: запуск идёт с Home, и Home на экране -
+        //    не новость про него, а экран, с которого его и запросили (1.3.9);
+        //  - сверх бюджета OPEN убивает его собственный дедлайн, и поверх Home позже ничего
+        //    не появляется (1.3.8).
+
+        // 1. Очередь: Home обгоняет и снимает работу над сценой.
+        val scene = car(FakeShell().apply { liveProductScene() })
+        val living = scene.core(SplitDurable(enabled = true, slots = PICKER_PAIR))
+        living.initialize {}
+        living.openPickerSession()
+        scene.barrier()
+        val committed = scene.store.commits
+        scene.clearCommands()
+        val selected = Collections.synchronizedList(mutableListOf<String?>())
+
+        val hold = scene.hold()
+        living.selectApp(PRIMARY_PICKER_TASK, WAZE, selected::add)
+        living.homeVisible()
+        hold.release()
+        scene.barrier()
+
+        assertFalse(
+            "the selection the user walked away from never reached the car",
+            scene.commands().any { it.startsWith("am start ") },
+        )
+        assertEquals("и это не ошибка: пользователь сам нажал Home", listOf<String?>(null), selected.toList())
+        assertEquals(committed, scene.store.commits)
+        assertEquals(PICKER_PAIR, scene.store.load().slots)
+
+        // 2. Тот же Home поверх начатого OPEN: сцена, которую заказали, появляется.
+        val opening = car(FakeShell())
+        val core = opening.core(SplitDurable(enabled = true))
         core.initialize {}
         val results = Collections.synchronizedList(mutableListOf<String?>())
 
-        car.shells.blockAt(SPLIT_AREA_QUERY)
+        opening.shells.blockAt(GATE_OPEN)
         core.openPickerSession(results::add)
-        assertTrue(car.shells.awaitBlocked())
+        assertTrue(opening.shells.awaitBlocked())
         core.homeVisible()
-        val before = car.commands().size
-        car.shells.release()
-        car.barrier()
+        // И даже Home, дошедший до актора мимо координатора, не отбирает у него право мутировать.
+        val home = homeThatReachedTheActor(opening)
+        opening.shells.release()
+        opening.barrier()
 
-        assertEquals("only the command Home raced was ever sent", before + 1, car.commands().size)
-        assertEquals("nothing of the cancelled open was persisted", 0, car.store.commits)
-        assertEquals(SplitDurable(enabled = true), car.store.load())
-        assertEquals(1, car.overlay.begun.get())
-        assertEquals("the waiting window is released, not left over Home", 1, car.overlay.closed())
-        assertEquals("Home is what the user asked for, not an error", listOf<String?>(null), results.toList())
+        assertEquals("никто не отменил заказанный запуск", listOf<String?>(null), results.toList())
+        assertEquals(SplitOutcome.Committed, home.outcome)
+        assertEquals("сцена построена и записана одним коммитом", 1, opening.store.commits)
+        assertEquals(PICKER_PAIR, opening.store.load().slots)
+        assertEquals(1, opening.fake.taskCount(PRIMARY_ROOT))
+        assertEquals(1, opening.fake.taskCount(SECONDARY_ROOT))
+        assertEquals(1, opening.overlay.begun.get())
+        assertEquals("окно ожидания снято ровно один раз", 1, opening.overlay.closed())
+
+        // 3. Сверх бюджета: дедлайн, и после него на экране не появляется ничего.
+        val expiring = car(FakeShell())
+        val expired = expiring.core(SplitDurable(enabled = true))
+        expired.initialize {}
+        val lateResults = Collections.synchronizedList(mutableListOf<String?>())
+
+        expiring.shells.blockAt(GATE_OPEN)
+        expired.openPickerSession(lateResults::add)
+        assertTrue(expiring.shells.awaitBlocked())
+        expiring.clock.advance(PAST_EVERY_BUDGET_MS)
+        expiring.shells.release()
+        expiring.barrier()
+
+        assertEquals(
+            "просроченный запуск говорит пользователю, что произошло (1.3.8, U5)",
+            listOf("${SplitCoordinatorCore.OPEN_FAILURE}: превышено время ожидания. Попробуйте ещё раз"),
+            lateResults.toList(),
+        )
+        assertEquals("и не пишет ничего", 0, expiring.store.commits)
+        assertEquals("ни одна панель не получила позднего окна", 0, expiring.fake.taskCount(PRIMARY_ROOT))
+        assertEquals(0, expiring.fake.taskCount(SECONDARY_ROOT))
+        assertFalse("gate, который успели открыть, закрыт откатом", expiring.fake.isGateOpen())
+        assertEquals(1, expiring.overlay.closed())
     }
 
     @Test
@@ -217,7 +275,7 @@ class SplitScenarioTest {
             FakeShell().apply {
                 liveProductScene()
                 setGlobal(RESIZE_KEY, "0")
-                setGlobal(ACCESS_KEY, "1")
+                setGlobal(ACCESS_KEY, "0")
                 // Сцена жива, но накрыта чужим полноэкранным окном: открытие её поднимает.
                 area = 4
             },
@@ -237,9 +295,13 @@ class SplitScenarioTest {
         car.barrier()
 
         assertEquals(
-            "both borrowed leases are given back, newest first",
-            listOf("settings put global $ACCESS_KEY 1", "settings put global $RESIZE_KEY 0"),
-            car.commands().filter { it.startsWith("settings put global ") }.takeLast(2),
+            "the setting the scene displaced is given back exactly as it was found",
+            listOf("settings put global $RESIZE_KEY 0"),
+            car.commands().filter { it.startsWith("settings put global ") }.takeLast(1),
+        )
+        assertFalse(
+            "а инфраструктурный наблюдатель не отпущен: его отпускает только DISABLE",
+            car.commands().contains("settings put global $ACCESS_KEY 0"),
         )
         assertEquals("a rolled back operation persists nothing", 0, car.store.commits)
         assertEquals(PICKER_PAIR, car.store.load().slots)
@@ -250,8 +312,8 @@ class SplitScenarioTest {
 
         // Вторая половина K8: сбой уже ПОСЛЕ созданных задач. `OpenOperation` намеренно не падает
         // от неудавшегося восстановления - оно деградирует в уведомление (1.3.2) - поэтому право
-        // мутировать теряется единственным способом, каким оно теряется на машине после первой
-        // мутации: пользователь нажал Home (1.3.9, §11.7). Отыгрывается тот же журнал.
+        // мутировать теряется единственным способом, каким оно теряется у начатого пользователем
+        // запуска после §4 п.2: истёк его собственный бюджет (1.3.8). Отыгрывается тот же журнал.
         val building = car(FakeShell())
         val rebuilt = building.core(SplitDurable(enabled = true, slots = APP_PAIR))
         rebuilt.initialize {}
@@ -267,7 +329,7 @@ class SplitScenarioTest {
         assertTrue("и gate открыли именно мы", building.gateLease.isOwned())
         building.clearCommands()
 
-        rebuilt.homeVisible()
+        building.clock.advance(PAST_EVERY_BUDGET_MS)
         building.shells.release()
         building.barrier()
 
@@ -283,7 +345,11 @@ class SplitScenarioTest {
         assertFalse(building.gateLease.isOwned())
         assertEquals("отменённое открытие не пишет ничего", 0, building.store.commits)
         assertEquals(APP_PAIR, building.store.load().slots)
-        assertEquals("Home - это то, о чём попросили", listOf<String?>(null), rebuiltResults.toList())
+        assertEquals(
+            "а пользователю сказано, что ожидание истекло (1.3.8, U5)",
+            listOf("${SplitCoordinatorCore.OPEN_FAILURE}: превышено время ожидания. Попробуйте ещё раз"),
+            rebuiltResults.toList(),
+        )
     }
 
     @Test
@@ -1090,6 +1156,25 @@ class SplitScenarioTest {
     // endregion
 
     private fun car(fake: FakeShell): SplitCarFixture = SplitCarFixture(fake).also(cars::add)
+
+    /**
+     * A confirmed Home that is already inside the actor, whatever the coordinator decided about the
+     * hint that produced it.
+     *
+     * It is how the priority table of §4 is read end to end: the coordinator may drop a hint before
+     * it becomes work, but if one ever does become work, an `OPEN` still keeps its right to mutate.
+     */
+    private fun homeThatReachedTheActor(car: SplitCarFixture): SplitTicket = car.actor.submit(
+        object : SplitOperationSpec {
+            override val label: String = SplitCoordinatorCore.HOME_LABEL
+            override val priority = SplitInputPriority.HOME
+            override val durationMs = 30_000L
+            override val joinKey: Any? = null
+            override val coalesceKey: Any? = null
+
+            override fun run(op: SplitOperationContext): SplitOutcome = SplitOutcome.Committed
+        },
+    )
 
     private companion object {
         const val GATE_OPEN = "service call activity_task 126 i32 1"

@@ -59,9 +59,11 @@ class SplitNativePickerAccessibilityService : AccessibilityService() {
         val packages = serviceInfo.packageNames?.joinToString().orEmpty().ifBlank { "<all>" }
         Log.i(TAG, "service connected packages=$packages")
         if (SplitScreenSettings.isEnabled(this)) {
-            // A reconnect may happen after Home was already shown. The coordinator still requires
-            // firmware area 0 and an owned gate before it mutates anything.
-            SplitScreenCoordinator.onHomeVisible(this)
+            // Invariant 8, contract 4.2: reconnecting an observer is not an event on the screen.
+            // This service is re-bound by the very lease an `OPEN` takes on its way in, so a Home
+            // synthesised here would be a hint the product manufactured about the screen its own
+            // launch started from - and it used to cancel that launch. The observer reports only
+            // what it actually observes now.
             // Do not start the intentionally long drag-settle wait merely because the service
             // reconnected. Run it only when the exact stock picker is already in a visible window.
             val stockPickerVisible = windows.any { window ->

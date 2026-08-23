@@ -63,36 +63,43 @@ class SplitActorTest {
     }
 
     @Test
-    fun homeOvertakesAndCancelsAQueuedOpen() {
-        // контракт §4.2, 1.3.9: Home не может стоять в очереди за работой, которую он отменяет
+    fun homeOvertakesTheQueueAndCancelsSceneWorkButNotAQueuedOpen() {
+        // контракт §4.2, 1.3.9: Home не может стоять в очереди за работой, которую он отменяет -
+        // но пользовательский OPEN он не отменяет: запуск идёт с Home, Home на экране не новость
         val release = blockedInFlight("blocker", SplitInputPriority.NAV)
         val open = actor.submit(spec("open", SplitInputPriority.OPEN))
+        val select = actor.submit(
+            spec("select", SplitInputPriority.SELECT, joinKey = SplitPane.PRIMARY),
+        )
 
         val home = actor.submit(spec("home", SplitInputPriority.HOME))
 
         assertEquals(
-            "the queued open is settled by the submit itself",
+            "the queued scene work is settled by the submit itself",
             SplitOutcome.Cancelled(SplitCancelReason.HOME),
-            open.outcome,
+            select.outcome,
         )
+        assertNull("the tap the user just made is left alone", open.outcome)
         release.countDown()
         assertEquals(SplitOutcome.Committed, home.await(AWAIT_MS))
-        assertEquals(listOf("blocker", "home"), executed.toList())
+        assertEquals(SplitOutcome.Committed, open.await(AWAIT_MS))
+        assertEquals(listOf("blocker", "home", "open"), executed.toList())
     }
 
     @Test
-    fun homeCancelsAnOpenInFlightAtItsNextFence() {
-        // K1, контракт 1.3.9, инвариант 10: после Home ни одной команды старой операции
+    fun homeCancelsSceneWorkInFlightAtItsNextFenceAndSparesTheOpen() {
+        // K1, контракт §4.2, 1.3.9, инвариант 10: после Home ни одной команды отменённой операции,
+        // и ни одной отнятой у той, которую пользователь только что запросил
         val started = CountDownLatch(1)
         val release = gate()
-        val open = actor.submit(
-            spec("open", SplitInputPriority.OPEN) { op ->
+        val select = actor.submit(
+            spec("select", SplitInputPriority.SELECT, joinKey = SplitPane.PRIMARY) { op ->
                 val shell = op.fencedShell(::shell)
                 shell("am stack list")
                 started.countDown()
                 release.await()
                 shell("am task move-to-back 42")
-                executed += "open"
+                executed += "select"
                 SplitOutcome.Committed
             },
         )
@@ -101,10 +108,34 @@ class SplitActorTest {
         val home = actor.submit(spec("home", SplitInputPriority.HOME))
         release.countDown()
 
-        assertEquals(SplitOutcome.Cancelled(SplitCancelReason.HOME), open.await(AWAIT_MS))
+        assertEquals(SplitOutcome.Cancelled(SplitCancelReason.HOME), select.await(AWAIT_MS))
         assertEquals(SplitOutcome.Committed, home.await(AWAIT_MS))
         assertEquals("no command of the cancelled operation reached the shell", listOf("am stack list"), commands.toList())
         assertEquals(listOf("home"), executed.toList())
+
+        // Та же подсказка поверх начатого OPEN не отнимает у него ничего (§4 п.2).
+        val openStarted = CountDownLatch(1)
+        val openRelease = gate()
+        val open = actor.submit(
+            spec("open", SplitInputPriority.OPEN) { op ->
+                val shell = op.fencedShell(::shell)
+                openStarted.countDown()
+                openRelease.await()
+                shell("am start picker")
+                executed += "open"
+                SplitOutcome.Committed
+            },
+        )
+        assertTrue(openStarted.await(AWAIT_MS, TimeUnit.MILLISECONDS))
+        val second = actor.submit(spec("home-again", SplitInputPriority.HOME))
+        openRelease.countDown()
+
+        assertEquals(SplitOutcome.Committed, open.await(AWAIT_MS))
+        assertEquals(SplitOutcome.Committed, second.await(AWAIT_MS))
+        assertTrue(
+            "the open the user asked for reached the car after the Home hint",
+            commands.contains("am start picker"),
+        )
     }
 
     @Test

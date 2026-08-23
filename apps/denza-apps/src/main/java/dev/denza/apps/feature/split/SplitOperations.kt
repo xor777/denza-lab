@@ -256,7 +256,14 @@ internal abstract class SplitCoreOperation<P>(
         return reduction.plans
     }
 
-    /** Takes the global leases the product borrows, recording what each one displaced. */
+    /**
+     * Takes the global leases the product borrows, recording what each one displaced.
+     *
+     * Only the leases a rollback is allowed to give back are journalled
+     * ([SplitLeaseKind.ROLLBACK_EXEMPT]): an infrastructure lease is idempotent and survives a
+     * failed operation, so that a second attempt starts from an observer that is already bound
+     * instead of rebuilding what its own predecessor tore down.
+     */
     protected fun enableLeases(
         op: SplitOperationContext,
         shell: (String) -> String,
@@ -265,6 +272,7 @@ internal abstract class SplitCoreOperation<P>(
         work.leases.filter { lease -> lease.kind in kinds }.forEach { lease ->
             val previous = lease.ownedValue()
             lease.enable(shell)
+            if (lease.kind in SplitLeaseKind.ROLLBACK_EXEMPT) return@forEach
             op.journal.record(SplitJournalEntry.LeaseEnabled(lease.kind, previous))
         }
     }
