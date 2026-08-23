@@ -1,5 +1,6 @@
 package dev.denza.apps.feature.split
 
+import dev.denza.apps.ui.VehicleProgressOverlayStyle
 import java.util.PriorityQueue
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -7,6 +8,21 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class SplitLaunchOverlayTest {
+    /**
+     * 1.13.2, live defect of the vertical slice: the shield took the input and showed the rebuild.
+     *
+     * It was a fully transparent touch blocker, so the user watched the firmware's remembered
+     * companion flash up, a settings card appear in the neighbouring pane and an empty picker sit
+     * where the music was about to come back - during a wait that claimed to be a wait. An opaque
+     * ground is the whole of that fix, which is why it is asserted rather than left to a colour.
+     */
+    @Test
+    fun theBlockingShieldHidesWhatIsBehindIt() {
+        val alpha = (VehicleProgressOverlayStyle.scrimColor ushr 24) and 0xFF
+
+        assertEquals("the wait is not a window onto the rebuild", 0xFF, alpha)
+    }
+
     @Test
     fun callbackCannotHideBeforeMinimumVisibleTime() {
         val fixture = Fixture()

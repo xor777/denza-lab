@@ -21,6 +21,18 @@ import androidx.annotation.StringRes
 internal object VehicleProgressOverlayStyle {
     val backgroundColor: Int = 0xFF343942.toInt()
     val foregroundColor: Int = 0xE6FFFFFF.toInt()
+
+    /**
+     * What a blocking wait actually shows the user (contract 1.13.2, "ожидание честное").
+     *
+     * The shield used to take the input and nothing else: it was fully transparent, so the car went
+     * on showing every intermediate window underneath it - the firmware's own remembered companion
+     * flashing up, a half-built pane, an empty picker where an app is about to be. That is dirty
+     * waiting, and dirty waiting is red at any duration. The scrim is opaque and matches the dark
+     * ground of the picker the wait usually ends on, so the transition into the finished scene reads
+     * as one move rather than as a flicker.
+     */
+    val scrimColor: Int = 0xFF23262C.toInt()
     const val cornerRadiusDp = 8
     const val horizontalPaddingDp = 16
     const val verticalPaddingDp = 10
@@ -118,7 +130,13 @@ internal class VehicleProgressOverlay(
             desiredFlags(),
             PixelFormat.TRANSLUCENT,
         ).apply {
-            gravity = Gravity.CENTER
+            // A shield is measured against the whole display, not against the area left over by the
+            // system bars: an uncovered strip is still somewhere an intermediate window can appear.
+            gravity = if (blocksScreen) Gravity.TOP or Gravity.START else Gravity.CENTER
+            if (blocksScreen) {
+                layoutInDisplayCutoutMode =
+                    WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
+            }
             setTitle(windowTitle)
         }
         try {
@@ -168,14 +186,16 @@ internal class VehicleProgressOverlay(
     }
 
     private fun desiredFlags(): Int {
-        val inputFlags = if (inputMode == VehicleProgressOverlayInputMode.BLOCK_SCREEN) {
-            0
-        } else {
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
-                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
+        if (inputMode == VehicleProgressOverlayInputMode.BLOCK_SCREEN) {
+            // No limits: the shield is laid out over the whole display, system bars included, so
+            // there is no strip of the screen the user can watch the rebuild through (1.13.2).
+            return WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
         }
-        return WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or inputFlags
+        return WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+            WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+            WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
     }
 
     private fun createWindowView(context: Context): View {
@@ -184,6 +204,8 @@ internal class VehicleProgressOverlay(
         return TouchShieldFrameLayout(context).apply {
             isClickable = true
             isFocusable = false
+            // 1.13.2: while the wait runs, the only thing on screen is the wait.
+            setBackgroundColor(VehicleProgressOverlayStyle.scrimColor)
             importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
             addView(
                 card,
