@@ -147,6 +147,7 @@ internal class VehicleTelemetryHub(context: Context) {
                     values = merged,
                     consumption = log.buckets,
                     currentConsumption = log.current,
+                    stationary = log.stationary,
                     sweepMillis = sweepMillis,
                 )
 

@@ -24,10 +24,10 @@ class ConsumptionLogTest {
     }
 
     @Test
-    fun aBarClosesEveryHalfKilometre() {
+    fun aBarClosesEveryTwoHundredMetres() {
         val log = ConsumptionLog()
-        // 20 kW held for 5 x 6 s covers 0.5 km and spends 0.1667 kWh.
-        log.drive(steps = 5, powerKw = 20.0)
+        // 20 kW held for 2 x 6 s covers 0.2 km and spends 0.0667 kWh.
+        log.drive(steps = 2, powerKw = 20.0)
         assertEquals(1, log.buckets.size)
         assertEquals(33.33, log.buckets.single(), 0.01)
     }
@@ -35,12 +35,12 @@ class ConsumptionLogTest {
     @Test
     fun regenerationMakesABarNegative() {
         val log = ConsumptionLog()
-        log.drive(steps = 5, powerKw = -12.0)
+        log.drive(steps = 2, powerKw = -12.0)
         assertEquals(-20.0, log.buckets.single(), 0.01)
     }
 
     @Test
-    fun theOpenBarReadsOnceItCoversEnoughRoad() {
+    fun theLiveFigureNeedsRoadBeforeItReads() {
         val log = ConsumptionLog()
         log.sample(100.0, 24.0, 0.0)
         log.sample(100.05, 24.0, 3.0)
@@ -51,29 +51,60 @@ class ConsumptionLogTest {
     }
 
     @Test
+    fun theLiveFigureFollowsTheRecentRoadNotTheWholeTrip() {
+        val log = ConsumptionLog()
+        log.drive(steps = 20, powerKw = 10.0)
+        log.drive(steps = 3, powerKw = 60.0, fromKm = 102.0)
+        // The window holds 0.3 km, so the long gentle stretch has fallen out of
+        // it entirely and only the last three hard slices are left.
+        assertEquals(100.0, log.current!!, 0.5)
+    }
+
+    @Test
+    fun standingStillStopsTheLiveFigureInsteadOfLettingItDrift() {
+        val log = ConsumptionLog()
+        log.drive(steps = 4, powerKw = 20.0)
+        assertEquals(33.33, log.current!!, 0.01)
+        // Parked on charge: the odometer holds while power goes negative. This
+        // is the reported defect — the figure used to crawl downward as if the
+        // car were still covering road.
+        repeat(10) { log.sample(100.4, -2.0, 6.0) }
+        assertTrue(log.stationary)
+        assertNull(log.current)
+    }
+
+    @Test
+    fun energySpentStandingStillStaysInTheBar() {
+        val log = ConsumptionLog()
+        log.sample(100.0, 0.0, 0.0)
+        log.sample(100.1, 0.0, 6.0)
+        // Thirty seconds of idling at 6 kW, then the bar closes.
+        repeat(5) { log.sample(100.1, 6.0, 6.0) }
+        log.sample(100.2, 0.0, 6.0)
+        assertEquals(0.05 / 0.2 * 100.0, log.buckets.single(), 0.01)
+    }
+
+    @Test
     fun aGapInSamplingDoesNotIntegrateEnergyItDidNotSee() {
         val log = ConsumptionLog()
         log.sample(100.0, 30.0, 0.0)
         // The panel was away for four minutes; the odometer moved, but the
         // energy for that road was never sampled.
         log.sample(100.4, 30.0, 240.0)
-        log.sample(100.5, 30.0, 6.0)
-        assertEquals(1, log.buckets.size)
-        // Only the last 6 s of energy is in the bar, spread over 0.5 km.
-        assertEquals(30.0 * 6.0 / 3600.0 / 0.5 * 100.0, log.buckets.single(), 0.01)
+        assertEquals(0.0, log.buckets.single(), 1e-9)
     }
 
     @Test
-    fun anOdometerJumpDropsTheOpenBarInsteadOfInventingConsumption() {
+    fun anOdometerJumpDropsTheOpenWorkInsteadOfInventingConsumption() {
         val log = ConsumptionLog()
         log.sample(100.0, 30.0, 0.0)
-        log.sample(100.2, 30.0, 6.0)
+        log.sample(100.1, 30.0, 6.0)
         // Driven with the panel closed: the odometer is 40 km further on.
         log.sample(140.0, 30.0, 6.0)
         assertTrue(log.buckets.isEmpty())
         assertNull(log.current)
         // Accumulation resumes from the new anchor.
-        log.drive(steps = 5, powerKw = 20.0, fromKm = 140.0)
+        log.drive(steps = 2, powerKw = 20.0, fromKm = 140.0)
         assertEquals(1, log.buckets.size)
     }
 
@@ -92,20 +123,20 @@ class ConsumptionLogTest {
         var odometer = 100.0
         repeat(5) { index ->
             log.sample(odometer, (index + 1) * 10.0, 0.0)
-            repeat(5) {
+            repeat(2) {
                 odometer += 0.1
                 log.sample(odometer, (index + 1) * 10.0, 6.0)
             }
         }
         assertEquals(3, log.buckets.size)
         // The oldest bars fell off; the newest is the last power level.
-        assertEquals(50.0 * 30.0 / 3600.0 / 0.5 * 100.0, log.buckets.last(), 0.1)
+        assertEquals(50.0 * 12.0 / 3600.0 / 0.2 * 100.0, log.buckets.last(), 0.1)
     }
 
     @Test
     fun resetForgetsEverything() {
         val log = ConsumptionLog()
-        log.drive(steps = 5, powerKw = 20.0)
+        log.drive(steps = 2, powerKw = 20.0)
         log.reset()
         assertTrue(log.buckets.isEmpty())
         assertNull(log.current)

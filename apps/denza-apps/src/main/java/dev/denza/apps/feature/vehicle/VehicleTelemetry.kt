@@ -28,6 +28,8 @@ internal data class VehicleTelemetry(
     val consumption: List<Double> = emptyList(),
     /** The bar in progress, or the last closed one. */
     val currentConsumption: Double? = null,
+    /** True while the odometer is not advancing; the live figure holds off. */
+    val stationary: Boolean = false,
     /** Milliseconds the last shell sweep took; kept for diagnostics, not shown. */
     val sweepMillis: Int = 0,
 ) {
