@@ -482,14 +482,52 @@ Two readings from the same session are worth keeping:
   figure. It is an estimate from two vendor-derived numbers, not a measurement,
   and the panel does not display it.
 
-## Combustion side of the hybrid (catalog only, 2026-08-23)
+## Combustion side of the hybrid (2026-08-23)
 
-This car is a PHEV and the catalog carries a full combustion set, but **nothing
-below has been read on this vehicle**. These are names and feature ids from
-`reverse/maphelper-jadx/sources/com/byd/feature/`, listed here so the live check
-is one targeted read-only sweep rather than another catalog crawl. Treat every
-row as a candidate until a sweep answers it; motor temperatures already taught
-us that ids are generation-specific (`_DM40_464` on this car).
+This car is a PHEV and the catalog carries a full combustion set. Candidates
+were taken from `reverse/maphelper-jadx/sources/com/byd/feature/` and then read
+on the car in two read-only sweeps, **engine stopped, car parked**. Roughly half
+the set answers; the interesting half does not.
+
+### Answered on this car, engine stopped
+
+| Reading | FID | dev | tx | Value | Note |
+| --- | --- | --- | --- | --- | --- |
+| Fuel level | `0x4A507040` | 1014 | 5 | `53` | percent, `STATISTIC_FUEL_PERCENTAGE` |
+| Range on fuel | `0x4A504038` | 1014 / 1007 | 5 | `491` | km; consistent with 53 % of the tank |
+| Engine speed | `0x14400012` | 1012 | 5 | `0` | rpm; `_20D` `0x20D00008` and `_GB` `0x10D00008` agree |
+| Engine running | `0x10D00038` | 1012 | 5 | `0` | stopped |
+| Displacement | `0x40D00008` | 1012 | **7** | `2.0` | litres — matches this car's 2.0 T |
+| Engine code | `0x40D00028` | 1012 | 5 | `26` | unknown enum |
+| Catalyst heating | `0x2330002D` | 1012 | 5 | `1` | |
+| Coolant level flag | `0x05500031` | 1012 | 5 | `0` | |
+| Oil level | `0x05500038` | 1012 | 5 | `27` | not a 0/1 flag; scale unknown |
+| Oil / transmission / blade-coolant service life | `0x4BB000D0` / `D8` / `E8` | 1001 | 5 | `155` each | identical across all three, so probably not per-item |
+| High water temperature warning | `0x3D911018` | 1007 | 5 | `0` | flag only, not a temperature |
+| **Vehicle speed** | `0x94400008` | 1013 | **7** | `0.0` | reaches the shell as `-1807745016` |
+| Accelerator / brake position | `0x34200008` / `0x34200010` | 1013 | 5 | `0` / `0` | |
+
+### Did not answer — every candidate, at every device tried
+
+Coolant temperature is the notable miss. `ENGINE_ENGINE_COOLANT_TEMPERATURE`
+(`0x4EB06040`) returned the sentinel at devices 1000, 1006, 1007, 1012, 1014 and
+1039; so did `ENERGY_ENGINE_THERMOSTAT_WATER_TEMPERATURE` (`0x32400048`, and its
+`_CAN` twin `0x30D00008`) and `STATISTIC_WATER_TEMPERATURE` (`0x3D956038`).
+`INSTRUMENT_WATER_TEMP_METER_PERCENT` (`0x4A509018`) answers as a float but
+reads `409.5`, a placeholder rather than a gauge position.
+
+Also silent: indicated torque (`0x32400058`), boost actual and target
+(`0x387000C0` / `B8`), charge-air temperature (`0x387000C8`), per-cylinder knock
+retard (`0x32400180`…), pre-ignition counters (`0x324001C8`…), instantaneous
+fuel consumption (`0x32400098`, and `_ML` `0x30D00010`), and engine water-pump
+speed (`0x46C00040`).
+
+The silence clusters by feature-id prefix rather than by subject: the whole
+`0x324`, `0x387` and `0x30D` families are quiet, including `ENGINE_SPEED_324`
+while `ENGINE_SPEED` on `0x144` answers. That points at generation — the same
+lesson the motor temperatures taught with `_DM40_464` — rather than at the
+engine being stopped. **One repeat sweep with the engine running settles it**,
+and it is the same read-only script.
 
 ### Engine itself — `com/byd/feature/engine/Engine.java`, dev `1012`
 
@@ -533,15 +571,15 @@ is a vendor estimate rather than a measurement.
   engine's own output — but the label is an assumption, and the drive capture
   that settles the sign should settle the meaning at the same time. If it turns
   out to be combustion power, the whole consumption block is mislabelled.
-- **Vehicle speed is in the catalog** as `SPEED_AUTO_SPEED` = `0x94400008`
-  (dev `1013`, and `SPEED_AUTO_SPEED_121` = `0x12100008`), alongside
-  accelerator and brake depth (`0x34200008` / `0x34200010`). An earlier note in
-  this session said speed was absent; that was a search of this document, not
-  of the catalog. With speed the live consumption figure can be instantaneous
-  (power over speed) instead of a rolling odometer window, and a standstill is
-  detectable immediately rather than after five seconds of a still odometer.
-  Note `0x94400008` sets the high bit, so it reaches the shell as
-  `-1807745016`.
+- **Vehicle speed exists and reads**: `SPEED_AUTO_SPEED` = `0x94400008`
+  (dev `1013`), on transact **7** as a float, `0.0` parked. `SPEED_AUTO_SPEED_121`
+  = `0x12100008` agrees. An earlier note in this session said speed was absent;
+  that was a search of this document, not of the catalog. With speed the live
+  consumption figure can be instantaneous (power over speed) instead of a
+  rolling odometer window, and a standstill is detectable immediately rather
+  than after five seconds of a still odometer. Note `0x94400008` sets the high
+  bit, so it reaches the shell as `-1807745016` — the signed-decimal rule the
+  tyre ids used to cover.
 
 ## Legacy BYDAuto events and system logs
 
