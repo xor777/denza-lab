@@ -3,9 +3,9 @@ package dev.denza.apps.feature.split
 /**
  * Explicit, command-driven split session.
  *
- * Unlike [SplitShellRouter], this class never watches or interprets arbitrary foreground
- * launches. Every mutation starts from either the dedicated launcher or a tap in a picker,
- * so the destination pane and expected component are known before any task is moved.
+ * This class never watches or interprets arbitrary foreground launches. Every mutation starts
+ * from either the dedicated launcher or a tap in a picker, so the destination pane and expected
+ * component are known before any task is moved.
  */
 internal class SplitPickerShellSession(
     private val shell: (String) -> String,

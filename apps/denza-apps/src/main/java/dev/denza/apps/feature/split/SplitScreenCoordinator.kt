@@ -2,7 +2,6 @@ package dev.denza.apps.feature.split
 
 import android.annotation.SuppressLint
 import android.content.Context
-import android.content.Intent
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
@@ -28,10 +27,7 @@ object SplitScreenCoordinator {
     private const val TAG = "DenzaSplitScreen"
     private const val RESTORE_FAILURE_NOTICE =
         "Не все приложения восстановлены. Выберите приложение вручную"
-    private const val POLL_MS = 200L
-    private const val RETRY_MS = 1_500L
     private const val EXTERNAL_TASK_BYPASS_MS = 5_000L
-    private const val EXPLICIT_PICKER_MODE = true
     private val executor = Executors.newSingleThreadExecutor()
     private val pickerOpenInFlight = AtomicBoolean(false)
     private val nativePickerEventInFlight = AtomicBoolean(false)
@@ -49,7 +45,6 @@ object SplitScreenCoordinator {
     @Volatile private var externalTaskMovesHeld = false
     @Volatile private var pickerState = SplitPickerAutomatonState()
     @Volatile private var pickerStateLoaded = false
-    private var activeRouter: SplitShellRouter? = null
 
     fun initialize(context: Context, onStateChanged: () -> Unit) {
         this.context = context.applicationContext
@@ -144,7 +139,6 @@ object SplitScreenCoordinator {
                         }
                     }
                     syncLastPairFromPickerState(app)
-                    SplitScreenSettings.routingStateStore(app).clear()
                     update(
                         SplitScreenSession(
                             enabled = true,
@@ -173,8 +167,6 @@ object SplitScreenCoordinator {
                         SplitPickerEvent.PickerAttached(pane, hostTaskId),
                     )
                 }
-                // The old foreground router must never resume an intent after the explicit flow.
-                SplitScreenSettings.routingStateStore(app).clear()
 
                 val restoreFailures = mutableListOf<String>()
                 SplitPane.entries.forEach { pane ->
@@ -706,7 +698,6 @@ object SplitScreenCoordinator {
         val blockedUntil = SystemClock.elapsedRealtime() + EXTERNAL_TASK_BYPASS_MS
         synchronized(routingLock) {
             routingBlockedUntilMs = maxOf(routingBlockedUntilMs, blockedUntil)
-            activeRouter?.pauseForExternalTaskMoves()
         }
     }
 
@@ -720,7 +711,6 @@ object SplitScreenCoordinator {
         synchronized(routingLock) {
             if (!externalTaskMovesHeld) Log.i(TAG, "external task routing held")
             externalTaskMovesHeld = true
-            activeRouter?.pauseForExternalTaskMoves()
         }
     }
 
@@ -747,7 +737,6 @@ object SplitScreenCoordinator {
             return
         }
 
-        SplitScreenSettings.routingStateStore(app).clear()
         val expectedHostTaskIds = currentPickerState().slots.values
             .mapNotNullTo(mutableSetOf()) { it.hostTaskId }
         generation += 1
@@ -778,14 +767,12 @@ object SplitScreenCoordinator {
                     runCatching(step).exceptionOrNull()?.let(failures::add)
                 }
 
-                if (EXPLICIT_PICKER_MODE) {
-                    cleanup {
-                        pickerSession(app, adb::shell)
-                            .closePickers(
-                                PICKER_COMPONENTS,
-                                expectedHostTaskIds,
-                            )
-                    }
+                cleanup {
+                    pickerSession(app, adb::shell)
+                        .closePickers(
+                            PICKER_COMPONENTS,
+                            expectedHostTaskIds,
+                        )
                 }
                 // These leases are independent. A late foreground change must not leave global
                 // resizeability or picker accessibility enabled merely because scene validation
@@ -828,60 +815,6 @@ object SplitScreenCoordinator {
     }
 
     private fun startAsync() {
-        if (EXPLICIT_PICKER_MODE) {
-            prepareExplicitModeAsync()
-            return
-        }
-        val app = context ?: return
-        generation += 1
-        val currentGeneration = generation
-        update(
-            SplitScreenSession(
-                enabled = true,
-                phase = SplitScreenPhase.STARTING,
-                message = "Включаю маршрутизацию",
-            ),
-        )
-        executor.execute {
-            while (isCurrent(currentGeneration)) {
-                try {
-                    runRoutingSession(app, currentGeneration)
-                    return@execute
-                } catch (error: InterruptedException) {
-                    Thread.currentThread().interrupt()
-                    return@execute
-                } catch (error: Throwable) {
-                    if (!isCurrent(currentGeneration)) return@execute
-                    Log.w(TAG, "routing failed; retrying", error)
-                    update(
-                        SplitScreenSession(
-                            enabled = true,
-                            phase = SplitScreenPhase.ERROR,
-                            message = friendlyError(error, "Восстанавливаю Split screen"),
-                            details = error.toString(),
-                        ),
-                    )
-                    try {
-                        Thread.sleep(RETRY_MS)
-                    } catch (_: InterruptedException) {
-                        Thread.currentThread().interrupt()
-                        return@execute
-                    }
-                    if (isCurrent(currentGeneration)) {
-                        update(
-                            SplitScreenSession(
-                                enabled = true,
-                                phase = SplitScreenPhase.STARTING,
-                                message = "Восстанавливаю маршрутизацию",
-                            ),
-                        )
-                    }
-                }
-            }
-        }
-    }
-
-    private fun prepareExplicitModeAsync() {
         val app = context ?: return
         generation += 1
         val currentGeneration = generation
@@ -905,7 +838,6 @@ object SplitScreenCoordinator {
                     shell = adb::shell,
                     leaseStore = SplitScreenSettings.resizeabilityLeaseStore(app),
                 ).enable()
-                SplitScreenSettings.routingStateStore(app).clear()
                 if (isCurrent(currentGeneration)) {
                     update(SplitScreenSession(enabled = true, phase = SplitScreenPhase.ACTIVE))
                     // Reattach a custom picker if our process was recreated while a stock
@@ -929,70 +861,8 @@ object SplitScreenCoordinator {
         }
     }
 
-    private fun runRoutingSession(app: Context, currentGeneration: Long) {
-        var router: SplitShellRouter? = null
-        var adb: LocalAdbClient.PersistentShellSession? = null
-        try {
-            if (!isCurrent(currentGeneration)) return
-            adb = DenzaLocalAdb.client(app).openPersistentShell()
-            SplitResizeabilityController(
-                shell = adb::shell,
-                leaseStore = SplitScreenSettings.resizeabilityLeaseStore(app),
-            ).enable()
-            if (!isCurrent(currentGeneration)) return
-            val apps = launchableApps(app)
-            router = SplitShellRouter(
-                shell = adb::shell,
-                apkPath = app.applicationInfo.sourceDir,
-                eligibleApps = { apps },
-                onEvent = { Log.i(TAG, it) },
-                stateStore = SplitScreenSettings.routingStateStore(app),
-            )
-            synchronized(routingLock) {
-                activeRouter = router
-            }
-            var lastSplitVisible = tickUnlessBlocked(router)
-            Log.i(TAG, "native split visible=$lastSplitVisible")
-            if (!isCurrent(currentGeneration)) return
-            update(SplitScreenSession(enabled = true, phase = SplitScreenPhase.ACTIVE))
-            while (isCurrent(currentGeneration)) {
-                Thread.sleep(POLL_MS)
-                if (isCurrent(currentGeneration)) {
-                    val splitVisible = tickUnlessBlocked(router)
-                    if (splitVisible != lastSplitVisible) {
-                        Log.i(TAG, "native split visible=$splitVisible")
-                        lastSplitVisible = splitVisible
-                    }
-                }
-            }
-        } finally {
-            runCatching {
-                if (SplitScreenSettings.isEnabled(app)) {
-                    router?.closeForRestart()
-                } else {
-                    router?.disable()
-                }
-            }.onFailure { Log.w(TAG, "failed to close split gate", it) }
-            synchronized(routingLock) {
-                if (activeRouter === router) activeRouter = null
-            }
-            adb?.close()
-        }
-    }
-
     private fun isCurrent(value: Long): Boolean =
         generation == value && SplitScreenSettings.isEnabled(context ?: return false)
-
-    private fun tickUnlessBlocked(router: SplitShellRouter): Boolean {
-        return synchronized(routingLock) {
-            if (!externalTaskMovesHeld && SystemClock.elapsedRealtime() >= routingBlockedUntilMs) {
-                router.tick()
-            } else {
-                router.pauseForExternalTaskMoves()
-                false
-            }
-        }
-    }
 
     private fun externalTaskMutationInFlight(): Boolean = synchronized(routingLock) {
         externalTaskMovesHeld || SystemClock.elapsedRealtime() < routingBlockedUntilMs
@@ -1189,22 +1059,6 @@ object SplitScreenCoordinator {
         Handler(Looper.getMainLooper()).post { callback(error) }
     }
 
-    private fun launchableApps(context: Context): Map<String, String> {
-        val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
-        return context.packageManager.queryIntentActivities(launcherIntent, 0)
-            .mapNotNull { info -> info.activityInfo?.packageName }
-            .distinct()
-            .filterNot { it in EXCLUDED_PACKAGES }
-            .mapNotNull { packageName ->
-                val component = context.packageManager.getLaunchIntentForPackage(packageName)
-                ?.component
-                ?.flattenToString()
-                ?: return@mapNotNull null
-                packageName to component
-            }
-            .toMap()
-    }
-
     private fun friendlyError(error: Throwable, fallback: String): String {
         val text = error.message.orEmpty()
         return when {
@@ -1228,11 +1082,6 @@ object SplitScreenCoordinator {
         shell = shell,
         apkPath = context.applicationInfo.sourceDir,
         gateLeaseStore = SplitScreenSettings.gateLeaseStore(context),
-    )
-
-    private val EXCLUDED_PACKAGES = setOf(
-        "com.android.launcher3",
-        "dev.denza.apps",
     )
 
     private val PICKER_COMPONENTS = mapOf(
