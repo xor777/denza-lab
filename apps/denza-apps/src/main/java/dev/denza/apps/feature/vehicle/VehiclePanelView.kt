@@ -30,7 +30,7 @@ import androidx.lifecycle.findViewTreeLifecycleOwner
 internal class VehiclePanelView(context: Context) : View(context), Choreographer.FrameCallback {
 
     private val hub = VehicleSession.hub(context)
-    private val renderer = VehiclePanelRenderer()
+    private val renderer = VehiclePanelRenderer().apply { icons = VehicleIcons(context) }
 
     private var looping = false
     private var attached = false

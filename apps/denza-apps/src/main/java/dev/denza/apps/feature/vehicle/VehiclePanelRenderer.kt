@@ -3,7 +3,9 @@ package dev.denza.apps.feature.vehicle
 import android.graphics.Canvas
 import android.graphics.DashPathEffect
 import android.graphics.Paint
+import android.graphics.Path
 import android.graphics.RectF
+import android.graphics.drawable.Drawable
 import dev.denza.apps.feature.panel.PanelCanvas
 import dev.denza.apps.feature.panel.PanelPalette
 import java.util.Locale
@@ -12,7 +14,9 @@ import kotlin.math.floor
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
+import kotlin.math.sign
 import kotlin.math.sin
+import kotlin.math.sqrt
 
 /**
  * The vehicle page: the car read as instruments rather than as advice.
@@ -20,15 +24,26 @@ import kotlin.math.sin
  * Four blocks, in the order a driver asks about them: how much charge is left,
  * what the electrics are doing, how hot everything is, and what the last few
  * kilometres cost. At full width they sit side by side behind hairline
- * dividers; in the narrow split pane they stack, and the least urgent rows drop
- * out rather than compress.
+ * dividers; in the narrow split pane they stack.
+ *
+ * Each block has exactly one figure at full size and everything else beneath
+ * it. The big figure is chosen for movement, not for importance in the
+ * abstract: charge, traction voltage (which sags under load), the hottest
+ * thing on board, and consumption over the last few hundred metres. A number
+ * that never moves — the 12 V rail, the cell window, insulation — is a
+ * supporting line, and its colour, not its size, is what raises a hand.
  *
  * Type size is the first constraint, not an afterthought. At full width this
  * virtual space maps onto roughly 1280 x 211 dp, so one virtual unit is about
  * 0.6 dp — a "16" caption would render at 9 dp, half the size of the smallest
- * text in the cards above. Sizes here are chosen against that ratio, which is
- * why the full-width layout carries fewer lines than the narrow one, where a
- * unit happens to be a dp.
+ * text in the cards above. In the narrow pane the panel is a fixed 660 dp tall
+ * against a 660-unit layout, so a unit is a dp. The two layouts therefore do
+ * not share a single number, and the shared elements read the fields set in
+ * [draw] rather than either set of constants.
+ *
+ * The narrow pane drops all four block headings. Space there is the scarce
+ * resource, the hairlines already separate the blocks, and the headings were
+ * what pushed the consumption chart off the bottom of the pane.
  *
  * Every reading is nullable. A value that did not answer, or that could not be
  * true for its unit, is drawn as a dash — the panel never fills a gap with zero,
@@ -36,23 +51,22 @@ import kotlin.math.sin
  * else.
  *
  * What the electrical block does and does not tell you: this is an LFP pack, so
- * traction voltage barely moves with charge (550 V at 43 %, 551 V at 62 %) and
- * the 12 V rail is held by the DC-DC. Both are quiet indicators — they matter
- * when they leave their band, not while they sit in it. The live number in that
- * block is the cell spread, which widens under load and with age. Traction
- * voltage does move with current, but that is a moving-car reading; the sag
- * figure waits for the drive capture in docs/vehicle-data-findings.md.
+ * traction voltage barely moves with charge (550 V at 43 %, 551 V at 62 %). It
+ * does move with current, which is why it is the block's live figure and why
+ * its gauge spans a deliberately narrow band — sag under load is the whole
+ * signal. The 12 V rail is held by the DC-DC and says nothing by its value,
+ * everything by leaving its band.
  */
 internal class VehiclePanelRenderer : PanelCanvas() {
 
     private val rect = RectF()
+    private val path = Path()
     private var dashUnit = 0f
     private var dash: DashPathEffect? = null
 
-    // The two layouts do not share a type scale. At full width one virtual unit
-    // is about 0.6 dp, in the narrow pane it is a dp, so the same number means
-    // two very different sizes on screen. The shared elements below read these
-    // instead of the full-width constants.
+    /** Set by the view once it has a context; the renderer itself has none. */
+    var icons: VehicleIcons? = null
+
     private var sizeHeader = WIDE_HEADER
     private var sizeLabel = WIDE_LABEL
     private var sizeValue = WIDE_VALUE
@@ -103,139 +117,106 @@ internal class VehiclePanelRenderer : PanelCanvas() {
 
         // ---- battery ----
         label(canvas, "Батарея", vx(0f), vy(46f), sizeHeader, muted())
-        value(
-            canvas,
-            if (soc == null) "—" else "${soc.roundToInt()} %",
-            vx(0f), vy(142f), 72f, socColor, bold = true,
-        )
         batteryGlyph(
             canvas,
             x = vx(240f), y = vy(78f), boxWidth = vx(180f), boxHeight = vs(74f),
             fraction = (soc ?: 0.0) / 100.0, filled = soc != null,
             color = socColor, charging = t.charging, frameTimeSec = frameTimeSec,
         )
-        label(canvas, packSummaryLine(t), vx(0f), vy(196f), sizeLabel, muted())
-        label(canvas, rangeLine(t), vx(0f), vy(242f), sizeValue, PanelPalette.alpha(PanelPalette.INK, 0.92f))
-        label(canvas, flowLine(t), vx(0f), vy(290f), sizeLabel, flowColor(t))
+        percentFigure(canvas, rightX = vx(214f), centreY = vy(115f), value = soc, sizeV = 72f, color = socColor)
+        label(canvas, rangeLine(t), vx(0f), vy(210f), sizeValue, PanelPalette.alpha(PanelPalette.INK, 0.92f))
+        label(canvas, packSummaryLine(t), vx(0f), vy(252f), sizeLabel, muted())
+        if (t.charging) {
+            icon(canvas, icons?.charging, vx(0f), vy(296f) - vs(22f), vs(27f), PanelPalette.BLUE)
+            label(canvas, chargeLine(t), vx(34f), vy(296f), sizeLabel, PanelPalette.BLUE)
+        }
 
         hairline(canvas, vx(462f), vy(24f), vx(462f), vy(312f))
 
         // ---- electrics ----
         label(canvas, "Электрика", vx(500f), vy(46f), sizeHeader, muted())
-        label(canvas, "бортовая сеть", vx(500f), vy(110f), sizeLabel, muted())
-        val rail = t[VehicleSignal.RAIL_12V]
-        value(canvas, volts(rail, 1), vx(890f), vy(112f), 40f, railColor(rail), Paint.Align.RIGHT)
-        voltGauge(canvas, vx(500f), vx(890f), vy(130f), vs(18f), rail)
+        val traction = t[VehicleSignal.PACK_VOLT]
+        label(canvas, "тяга", vx(500f), vy(118f), sizeLabel, muted())
+        value(canvas, volts(traction, 0), vx(890f), vy(126f), 46f, tractionColor(traction), Paint.Align.RIGHT, bold = true)
+        tractionGauge(canvas, vx(500f), vx(890f), vy(142f), vs(20f), traction)
 
-        label(canvas, "ячейки", vx(500f), vy(210f), sizeLabel, muted())
-        value(canvas, cellWindowText(t), vx(890f), vy(210f), 26f, PanelPalette.INK, Paint.Align.RIGHT)
-        label(canvas, "разброс", vx(500f), vy(254f), sizeLabel, muted())
-        value(canvas, spreadText(t), vx(890f), vy(254f), 28f, spreadColor(t), Paint.Align.RIGHT)
-        label(canvas, tractionLine(t), vx(500f), vy(300f), sizeTiny, muted(0.75f))
+        val rail = t[VehicleSignal.RAIL_12V]
+        label(canvas, "бортовая сеть", vx(500f), vy(218f), sizeLabel, muted())
+        value(canvas, volts(rail, 1), vx(890f), vy(218f), sizeValue, railColor(rail), Paint.Align.RIGHT)
+        label(canvas, "ячейки ${cellWindowText(t)}", vx(500f), vy(262f), sizeLabel, muted())
+        value(canvas, spreadText(t), vx(890f), vy(262f), 28f, spreadColor(t), Paint.Align.RIGHT)
+        label(canvas, packDetailLine(t), vx(500f), vy(300f), sizeTiny, muted(0.75f))
 
         hairline(canvas, vx(922f), vy(24f), vx(922f), vy(312f))
 
         // ---- temperatures ----
         label(canvas, "Температуры", vx(960f), vy(46f), sizeHeader, muted())
-        val nameX = vx(960f)
-        val trackStart = vx(1130f)
-        val trackEnd = vx(1270f)
-        val valueX = vx(1350f)
-        tempRow(
-            canvas, nameX, trackStart, trackEnd, valueX, vy(120f), "батарея",
-            t[VehicleSignal.PACK_TEMP_AVG], PACK_BAND_LO, PACK_BAND_HI,
-            t[VehicleSignal.PACK_TEMP_MIN], t[VehicleSignal.PACK_TEMP_MAX], sizeValue,
-        )
-        tempRow(
-            canvas, nameX, trackStart, trackEnd, valueX, vy(176f), "моторы",
-            warmerMotor(t), DRIVE_BAND_LO, DRIVE_BAND_HI, null, null, sizeValue, motorPairText(t),
-        )
-        tempRow(
-            canvas, nameX, trackStart, trackEnd, valueX, vy(232f), "за бортом",
-            t[VehicleSignal.OUTSIDE_TEMP_C], OUTSIDE_BAND_LO, OUTSIDE_BAND_HI, null, null, sizeValue,
-        )
-        tempRow(
-            canvas, nameX, trackStart, trackEnd, valueX, vy(288f), "в салоне",
-            t[VehicleSignal.CABIN_TEMP_C], CABIN_BAND_LO, CABIN_BAND_HI, null, null, sizeValue,
-        )
+        temperatureRows(canvas, nameX = vx(960f), trackStart = vx(1120f), trackEnd = vx(1200f), valueX = vx(1382f), t = t,
+            rowY = floatArrayOf(vy(132f), vy(200f), vy(268f)))
 
         hairline(canvas, vx(1382f), vy(24f), vx(1382f), vy(312f))
 
         // ---- consumption ----
-        label(canvas, "Расход, кВт·ч/100", vx(1420f), vy(46f), sizeLabel, muted())
-        value(canvas, currentConsumption(t), vx(1850f), vy(46f), sizeLabel, PanelPalette.INK, Paint.Align.RIGHT)
-        kmChart(canvas, vx(1420f), vx(1850f), vy(86f), vy(250f), t.consumption, compact = false)
-        label(canvas, tyreLine(t), vx(1420f), vy(300f), sizeLabel, tyreColor(t))
+        label(canvas, "Расход", vx(1420f), vy(46f), sizeHeader, muted())
+        consumptionFigure(canvas, vx(1850f), vy(60f), 46f, t)
+        powerBar(canvas, vx(1420f), vx(1850f), vy(92f), vs(22f), t)
+        powerReadout(canvas, vx(1420f), vx(1850f), vy(146f), t, textSize = sizeValue)
+        kmChart(canvas, vx(1420f), vx(1850f), vy(168f), vy(288f), t.consumption, compact = false)
     }
 
     /**
-     * The narrow pane is a dp-for-unit layout, so it can carry more lines than
-     * the full-width one — but only if each line owns its own row. The figures
-     * that share a row here are checked against each other's width: the state of
-     * charge sits to the right of the battery, and the pack summary and the
-     * charge/load line are separate rows rather than one long caption.
+     * The narrow pane is a dp-for-unit layout with no block headings, so every
+     * figure owns its own row and the rows are checked against each other's
+     * width. The only two things that share a row are the battery glyph and the
+     * state of charge, which is sized and centred against the glyph rather than
+     * placed on a baseline of its own.
      */
     private fun drawNarrow(canvas: Canvas, t: VehicleTelemetry, frameTimeSec: Double) {
         val soc = t[VehicleSignal.SOC_PERCENT]
         val socColor = socColor(soc, t.charging)
 
         // ---- battery ----
-        label(canvas, "Батарея", vx(0f), vy(34f), sizeHeader, muted())
         batteryGlyph(
             canvas,
-            x = vx(0f), y = vy(50f), boxWidth = vx(236f), boxHeight = vs(70f),
+            x = vx(0f), y = vy(14f), boxWidth = vx(196f), boxHeight = vs(62f),
             fraction = (soc ?: 0.0) / 100.0, filled = soc != null,
             color = socColor, charging = t.charging, frameTimeSec = frameTimeSec,
         )
-        value(
-            canvas,
-            if (soc == null) "—" else "${soc.roundToInt()} %",
-            vx(368f), vy(108f), 40f, socColor, Paint.Align.RIGHT, bold = true,
-        )
-        label(canvas, rangeLine(t), vx(0f), vy(154f), sizeLabel, PanelPalette.alpha(PanelPalette.INK, 0.92f))
-        label(canvas, packSummaryLine(t), vx(0f), vy(180f), NARROW_SECONDARY, muted())
-        label(canvas, flowLine(t), vx(0f), vy(204f), NARROW_SECONDARY, flowColor(t))
+        percentFigure(canvas, rightX = vx(368f), centreY = vy(45f), value = soc, sizeV = 46f, color = socColor)
+        if (t.charging) {
+            icon(canvas, icons?.charging, vx(0f), vy(100f) - vs(13f), vs(16f), PanelPalette.BLUE)
+            label(canvas, chargeLine(t), vx(21f), vy(100f), NARROW_SECONDARY, PanelPalette.BLUE)
+        }
 
-        hairline(canvas, vx(0f), vy(220f), vx(368f), vy(220f))
+        hairline(canvas, vx(0f), vy(116f), vx(368f), vy(116f))
 
         // ---- electrics ----
-        label(canvas, "Электрика", vx(0f), vy(246f), sizeHeader, muted())
-        label(canvas, "бортовая сеть", vx(0f), vy(278f), sizeLabel, muted())
-        val rail = t[VehicleSignal.RAIL_12V]
-        value(canvas, volts(rail, 1), vx(368f), vy(280f), 26f, railColor(rail), Paint.Align.RIGHT)
-        voltGauge(canvas, vx(0f), vx(368f), vy(292f), vs(12f), rail)
-        label(canvas, "ячейки ${cellWindowText(t)}", vx(0f), vy(346f), sizeLabel, muted())
-        value(canvas, spreadText(t), vx(368f), vy(346f), sizeValue, spreadColor(t), Paint.Align.RIGHT)
-        label(canvas, tractionLine(t), vx(0f), vy(374f), NARROW_SECONDARY, muted(0.75f))
+        val traction = t[VehicleSignal.PACK_VOLT]
+        label(canvas, "тяга", vx(0f), vy(150f), sizeLabel, muted())
+        value(canvas, volts(traction, 0), vx(368f), vy(156f), 32f, tractionColor(traction), Paint.Align.RIGHT, bold = true)
+        tractionGauge(canvas, vx(0f), vx(368f), vy(170f), vs(16f), traction)
 
-        hairline(canvas, vx(0f), vy(392f), vx(368f), vy(392f))
+        val rail = t[VehicleSignal.RAIL_12V]
+        label(canvas, "бортовая сеть", vx(0f), vy(228f), sizeLabel, muted())
+        value(canvas, volts(rail, 1), vx(368f), vy(228f), 20f, railColor(rail), Paint.Align.RIGHT)
+        label(canvas, "ячейки ${cellWindowText(t)}", vx(0f), vy(254f), NARROW_SECONDARY, muted())
+        value(canvas, spreadText(t), vx(368f), vy(254f), 16f, spreadColor(t), Paint.Align.RIGHT)
+        label(canvas, packDetailLine(t), vx(0f), vy(276f), sizeTiny, muted(0.75f))
+
+        hairline(canvas, vx(0f), vy(292f), vx(368f), vy(292f))
 
         // ---- temperatures ----
-        label(canvas, "Температуры", vx(0f), vy(418f), sizeHeader, muted())
-        val nameX = vx(0f)
-        val trackStart = vx(104f)
-        val trackEnd = vx(244f)
-        val valueX = vx(368f)
-        tempRow(
-            canvas, nameX, trackStart, trackEnd, valueX, vy(454f), "батарея",
-            t[VehicleSignal.PACK_TEMP_AVG], PACK_BAND_LO, PACK_BAND_HI,
-            t[VehicleSignal.PACK_TEMP_MIN], t[VehicleSignal.PACK_TEMP_MAX], sizeValue,
-        )
-        tempRow(
-            canvas, nameX, trackStart, trackEnd, valueX, vy(494f), "моторы",
-            warmerMotor(t), DRIVE_BAND_LO, DRIVE_BAND_HI, null, null, sizeValue, motorPairText(t),
-        )
-        tempRow(
-            canvas, nameX, trackStart, trackEnd, valueX, vy(534f), "за бортом",
-            t[VehicleSignal.OUTSIDE_TEMP_C], OUTSIDE_BAND_LO, OUTSIDE_BAND_HI, null, null, sizeValue,
-        )
+        temperatureRows(canvas, nameX = vx(0f), trackStart = vx(104f), trackEnd = vx(244f), valueX = vx(368f), t = t,
+            rowY = floatArrayOf(vy(322f), vy(364f), vy(406f)))
 
-        hairline(canvas, vx(0f), vy(556f), vx(368f), vy(556f))
+        hairline(canvas, vx(0f), vy(430f), vx(368f), vy(430f))
 
         // ---- consumption ----
-        label(canvas, "Расход, кВт·ч/100", vx(0f), vy(582f), sizeHeader, muted())
-        value(canvas, currentConsumption(t), vx(368f), vy(582f), sizeValue, PanelPalette.INK, Paint.Align.RIGHT)
-        kmChart(canvas, vx(0f), vx(368f), vy(596f), vy(632f), t.consumption, compact = true)
+        label(canvas, "расход", vx(0f), vy(464f), sizeLabel, muted())
+        consumptionFigure(canvas, vx(368f), vy(470f), 32f, t)
+        powerBar(canvas, vx(0f), vx(368f), vy(484f), vs(20f), t)
+        powerReadout(canvas, vx(0f), vx(368f), vy(526f), t, textSize = 18f)
+        kmChart(canvas, vx(0f), vx(368f), vy(542f), vy(634f), t.consumption, compact = true)
     }
 
     // --------------------------------------------------------------- elements
@@ -295,40 +276,172 @@ internal class VehiclePanelRenderer : PanelCanvas() {
     }
 
     /**
-     * The 12 V rail against its healthy band. The band is the point: the DC-DC
-     * holds this number steady while the car is on, so it says nothing by its
-     * value and everything by leaving the green stretch.
+     * A percentage as one composed figure: the number, then a smaller sign a
+     * fixed fraction of the type size away, the pair centred on [centreY]
+     * rather than sitting on a baseline. A plain "72 %" string put the sign a
+     * full monospace cell away and left the whole figure riding low against the
+     * battery beside it.
      */
-    private fun voltGauge(canvas: Canvas, x0: Float, x1: Float, y: Float, height: Float, volts: Double?) {
+    private fun percentFigure(canvas: Canvas, rightX: Float, centreY: Float, value: Double?, sizeV: Float, color: Int) {
+        val baseline = centreY + vs(sizeV * FIGURE_CENTRE)
+        if (value == null) {
+            value(canvas, "—", rightX, baseline, sizeV, color, Paint.Align.RIGHT, bold = true)
+            return
+        }
+        val signSize = sizeV * 0.5f
+        val gap = vs(sizeV * 0.12f)
+        value(canvas, "%", rightX, baseline, signSize, PanelPalette.alpha(color, 0.75f), Paint.Align.RIGHT, bold = true)
+        val signWidth = valueWidth("%", signSize, bold = true)
+        value(canvas, "${value.roundToInt()}", rightX - signWidth - gap, baseline, sizeV, color, Paint.Align.RIGHT, bold = true)
+    }
+
+    /**
+     * Traction voltage against a deliberately narrow span. The pack sits near
+     * 550 V across most of the charge window, so a wide scale would show a
+     * needle that never moves; over [TRACTION_LO]..[TRACTION_HI] the sag under
+     * acceleration and the lift under regeneration are both visible.
+     */
+    private fun tractionGauge(canvas: Canvas, x0: Float, x1: Float, y: Float, height: Float, volts: Double?) {
         fill.color = PanelPalette.alpha(PanelPalette.MUTED, 0.10f)
         canvas.drawRect(x0, y, x1, y + height, fill)
 
         fun position(v: Double): Float =
-            x0 + (x1 - x0) * ((v - RAIL_LO) / (RAIL_HI - RAIL_LO)).coerceIn(0.0, 1.0).toFloat()
+            x0 + (x1 - x0) * ((v - TRACTION_LO) / (TRACTION_HI - TRACTION_LO)).coerceIn(0.0, 1.0).toFloat()
 
-        fill.color = PanelPalette.alpha(PanelPalette.MINT, 0.16f)
-        canvas.drawRect(position(RAIL_GOOD_LO), y, position(RAIL_GOOD_HI), y + height, fill)
+        fill.color = PanelPalette.alpha(PanelPalette.MINT, 0.14f)
+        canvas.drawRect(position(TRACTION_BAND_LO), y, position(TRACTION_BAND_HI), y + height, fill)
 
         stroke.color = PanelPalette.alpha(PanelPalette.MUTED, 0.35f)
         stroke.strokeWidth = vs(1f)
-        var tick = RAIL_LO
-        while (tick <= RAIL_HI) {
+        var tick = TRACTION_LO
+        while (tick <= TRACTION_HI) {
             canvas.drawLine(position(tick), y + height, position(tick), y + height + vs(5f), stroke)
-            tick += 1.0
+            tick += TRACTION_STEP
         }
-        val scaleY = y + height + vs(sizeTiny * 0.8f)
-        label(canvas, "${RAIL_LO.roundToInt()}", x0, scaleY, sizeTiny, muted(0.5f))
-        label(canvas, "${RAIL_HI.roundToInt()}", x1, scaleY, sizeTiny, muted(0.5f), Paint.Align.RIGHT)
+        val scaleY = y + height + vs(sizeTiny * 1.3f)
+        label(canvas, "${TRACTION_LO.roundToInt()}", x0, scaleY, sizeTiny, muted(0.5f))
+        label(canvas, "${TRACTION_HI.roundToInt()} В", x1, scaleY, sizeTiny, muted(0.5f), Paint.Align.RIGHT)
 
         if (volts == null) return
-        fill.color = railColor(volts)
-        canvas.drawRect(position(volts) - vs(1.4f), y - vs(5f), position(volts) + vs(1.4f), y + height + vs(5f), fill)
+        needle(canvas, position(volts), y, height, tractionColor(volts))
+    }
+
+    /** A triangular pointer sitting on a track — the one dial flourish here. */
+    private fun needle(canvas: Canvas, x: Float, y: Float, height: Float, color: Int) {
+        val wing = vs(6f)
+        path.reset()
+        path.moveTo(x, y + height * 0.55f)
+        path.lineTo(x - wing, y - vs(6f))
+        path.lineTo(x + wing, y - vs(6f))
+        path.close()
+        fill.color = color
+        canvas.drawPath(path, fill)
+        canvas.drawRect(x - vs(1.2f), y, x + vs(1.2f), y + height, fill)
+    }
+
+    /**
+     * Pack power, centred on zero: right is energy leaving the battery, left is
+     * energy coming back. This is the block's always-live element — unlike
+     * kWh/100 km it is defined at a standstill, which is where the panel spends
+     * a good part of its life.
+     *
+     * The scale is square-root, not linear. A linear bar over the few hundred
+     * kilowatts this car can actually pull would leave cruising pinned to the
+     * centre; square root spends most of the travel on the first 50 kW and
+     * still never hits the end stop.
+     */
+    private fun powerBar(canvas: Canvas, x0: Float, x1: Float, y: Float, height: Float, t: VehicleTelemetry) {
+        val centre = (x0 + x1) / 2f
+        val halfWidth = (x1 - x0) / 2f
+
+        fill.color = PanelPalette.alpha(PanelPalette.MUTED, 0.10f)
+        canvas.drawRect(x0, y, x1, y + height, fill)
+
+        stroke.color = PanelPalette.alpha(PanelPalette.MUTED, 0.3f)
+        stroke.strokeWidth = vs(1f)
+        POWER_TICKS_KW.forEach { kw ->
+            val offset = halfWidth * powerPosition(kw)
+            canvas.drawLine(centre + offset, y + height, centre + offset, y + height + vs(4f), stroke)
+            canvas.drawLine(centre - offset, y + height, centre - offset, y + height + vs(4f), stroke)
+        }
+
+        val kw = flowKw(t)
+        if (kw != null) {
+            val offset = halfWidth * powerPosition(kw)
+            fill.color = if (kw < 0.0) {
+                PanelPalette.alpha(PanelPalette.BLUE, 0.9f)
+            } else {
+                PanelPalette.mix(PanelPalette.MINT, PanelPalette.AMBER, min(1.0, abs(kw) / POWER_WARM_KW).toFloat())
+            }
+            canvas.drawRect(min(centre, centre + offset), y, max(centre, centre + offset), y + height, fill)
+        }
+
+        fill.color = PanelPalette.alpha(PanelPalette.INK, 0.55f)
+        canvas.drawRect(centre - vs(1f), y - vs(3f), centre + vs(1f), y + height + vs(3f), fill)
+    }
+
+    private fun powerPosition(kw: Double): Float =
+        (sign(kw) * sqrt(min(1.0, abs(kw) / POWER_FULL_KW))).toFloat()
+
+    /** The kilowatt figure under the bar, with the direction spelled out. */
+    private fun powerReadout(canvas: Canvas, x0: Float, x1: Float, y: Float, t: VehicleTelemetry, textSize: Float) {
+        val kw = flowKw(t)
+        val glyph = vs(sizeTiny * 1.3f)
+        icon(canvas, icons?.flow, x0, y - glyph * 0.82f, glyph, flowColor(t))
+        label(canvas, flowWord(t), x0 + glyph * 1.2f, y, sizeTiny, muted(0.8f))
+        val text = kw?.let { "${if (it < -0.05) "−" else ""}${fmt(abs(it), 1)} кВт" } ?: "— кВт"
+        value(canvas, text, x1, y, textSize, flowColor(t), Paint.Align.RIGHT)
+    }
+
+    /**
+     * A Material Symbol tinted and placed by its top-left corner. Everything the
+     * panel draws is laid out in virtual units, so [size] is one too.
+     */
+    private fun icon(canvas: Canvas, drawable: Drawable?, x: Float, top: Float, size: Float, color: Int) {
+        if (drawable == null) return
+        drawable.setTint(color)
+        drawable.setBounds(
+            x.roundToInt(), top.roundToInt(),
+            (x + size).roundToInt(), (top + size).roundToInt(),
+        )
+        drawable.draw(canvas)
+    }
+
+    private fun temperatureRows(
+        canvas: Canvas,
+        nameX: Float,
+        trackStart: Float,
+        trackEnd: Float,
+        valueX: Float,
+        t: VehicleTelemetry,
+        rowY: FloatArray,
+    ) {
+        tempRow(
+            canvas, nameX, trackStart, trackEnd, valueX, rowY[0], "батарея",
+            t[VehicleSignal.PACK_TEMP_AVG], PACK_BAND_LO, PACK_BAND_HI,
+            marks = listOf(t[VehicleSignal.PACK_TEMP_MIN], t[VehicleSignal.PACK_TEMP_MAX]),
+        )
+        tempRow(
+            canvas, nameX, trackStart, trackEnd, valueX, rowY[1], "инверторы",
+            t[VehicleSignal.INVERTER_C], DRIVE_BAND_LO, DRIVE_BAND_HI,
+        )
+        // Three motors, three marks, three numbers: this car drives one front
+        // and two rear units, and one of them running away from the others is
+        // exactly what the row exists to show. A single averaged figure would
+        // hide it.
+        tempRow(
+            canvas, nameX, trackStart, trackEnd, valueX, rowY[2], "моторы",
+            t.hottestMotorC, DRIVE_BAND_LO, DRIVE_BAND_HI,
+            marks = t.motorTemps,
+            text = t.motorTemps.joinToString("·") { it?.roundToInt()?.toString() ?: "—" },
+        )
     }
 
     /**
      * One temperature: name, a track carrying the range this reading is supposed
-     * to live in, a bar to the value, and the number. Pack rows also mark the
-     * coldest and hottest cell group, which is where a failing pack shows first.
+     * to live in, a bar to the value, and the number. Marks on the track are the
+     * readings the bar cannot show — the coldest and hottest cell group, or each
+     * individual motor.
      */
     private fun tempRow(
         canvas: Canvas,
@@ -341,9 +454,7 @@ internal class VehiclePanelRenderer : PanelCanvas() {
         celsius: Double?,
         bandLo: Double,
         bandHi: Double,
-        spreadLo: Double?,
-        spreadHi: Double?,
-        textSize: Float,
+        marks: List<Double?> = emptyList(),
         text: String? = null,
     ) {
         label(canvas, name, nameX, y + vs(5f), sizeLabel, muted())
@@ -361,24 +472,24 @@ internal class VehiclePanelRenderer : PanelCanvas() {
         if (celsius != null) {
             fill.color = color
             canvas.drawRect(trackStart, y - height / 2f, position(celsius), y + height / 2f, fill)
-            if (spreadLo != null && spreadHi != null) {
-                fill.color = PanelPalette.alpha(PanelPalette.INK, 0.5f)
-                canvas.drawRect(position(spreadLo) - vs(1f), y - height, position(spreadLo) + vs(1f), y + height, fill)
-                canvas.drawRect(position(spreadHi) - vs(1f), y - height, position(spreadHi) + vs(1f), y + height, fill)
-            }
+        }
+        fill.color = PanelPalette.alpha(PanelPalette.INK, 0.5f)
+        marks.filterNotNull().forEach { mark ->
+            canvas.drawRect(position(mark) - vs(1f), y - height, position(mark) + vs(1f), y + height, fill)
         }
         // Zero mark, so a reading below freezing is obvious without reading it.
         fill.color = PanelPalette.alpha(PanelPalette.INK, 0.28f)
         canvas.drawRect(position(0.0) - vs(0.5f), y - height, position(0.0) + vs(0.5f), y + height, fill)
 
         val readout = text ?: celsius?.let { "${it.roundToInt()} °C" } ?: "—"
-        value(canvas, readout, valueX, y + vs(7f), textSize, color, Paint.Align.RIGHT)
+        value(canvas, readout, valueX, y + vs(7f), sizeValue, color, Paint.Align.RIGHT)
     }
 
     /**
-     * Consumption per half-kilometre, newest on the right, coloured against the
-     * window's own average: a hill and the descent after it read as a shape
-     * rather than as a column of numbers.
+     * Consumption per slice of road, newest on the right, growing up from a zero
+     * line that is not at the bottom of the chart: a slice that gave more back
+     * than it took hangs below it. Downhill and a hard regenerative stop are
+     * shapes here, not missing bars.
      */
     private fun kmChart(
         canvas: Canvas,
@@ -389,44 +500,46 @@ internal class VehiclePanelRenderer : PanelCanvas() {
         values: List<Double>,
         compact: Boolean,
     ) {
-        hairline(canvas, x0, y1, x1, y1, 0.22f)
-        hairline(canvas, x0, y0, x1, y0, 0.07f)
+        val zeroY = y0 + (y1 - y0) * ABOVE_ZERO_SHARE
+        hairline(canvas, x0, zeroY, x1, zeroY, 0.28f)
         if (values.isEmpty()) {
-            label(canvas, EMPTY_CHART, x0, (y0 + y1) / 2f, sizeLabel, muted(0.6f))
+            label(canvas, EMPTY_CHART, x0, zeroY - vs(sizeLabel * 0.6f), sizeLabel, muted(0.6f))
             return
         }
 
-        val top = max(CHART_MIN_TOP, values.max())
-        val scale = ceilToStep(top, 10.0)
+        val positives = values.filter { it > 0.0 }
+        val posScale = ceilToStep(max(CHART_MIN_TOP, positives.maxOrNull() ?: 0.0), 10.0)
+        val negScale = ceilToStep(max(CHART_MIN_BOTTOM, values.minOrNull()?.let { -it } ?: 0.0), 5.0)
         val average = values.average()
-        if (!compact) {
-            label(canvas, "${scale.roundToInt()}", x0 + vs(3f), y0 + vs(18f), sizeTiny, muted(0.45f))
-        }
+        val reference = if (positives.isEmpty()) posScale / 2.0 else positives.average()
 
         val slot = (x1 - x0) / values.size
-        val barWidth = slot * 0.66f
-        values.forEachIndexed { index, value ->
-            // A slice that gave more back than it took has no bar to draw; it
-            // gets a stub in the regeneration colour so it reads as "returned",
-            // not as "missing".
-            val height = max(vs(3f), (y1 - y0) * (value / scale).coerceIn(0.0, 1.0).toFloat())
+        val barWidth = slot * BAR_FILL
+        values.forEachIndexed { index, v ->
             val left = x0 + index * slot + (slot - barWidth) / 2f
-            if (value < 0.0) {
-                fill.color = PanelPalette.alpha(PanelPalette.BLUE, if (index == values.lastIndex) 1f else 0.72f)
-                canvas.drawRect(left, y1 - vs(3f), left + barWidth, y1, fill)
+            val newest = index == values.lastIndex
+            if (v < 0.0) {
+                val depth = (y1 - zeroY) * (-v / negScale).coerceIn(0.0, 1.0).toFloat()
+                fill.color = PanelPalette.alpha(PanelPalette.BLUE, if (newest) 1f else 0.72f)
+                canvas.drawRect(left, zeroY, left + barWidth, zeroY + max(vs(2f), depth), fill)
                 return@forEachIndexed
             }
+            val height = max(vs(2f), (zeroY - y0) * (v / posScale).coerceIn(0.0, 1.0).toFloat())
             val color = when {
-                value <= average * 0.85 -> PanelPalette.MINT
-                value <= average * 1.15 -> PanelPalette.mix(PanelPalette.MINT, PanelPalette.AMBER, 0.55f)
-                value <= average * 1.5 -> PanelPalette.AMBER
+                v <= reference * 0.85 -> PanelPalette.MINT
+                v <= reference * 1.15 -> PanelPalette.mix(PanelPalette.MINT, PanelPalette.AMBER, 0.55f)
+                v <= reference * 1.5 -> PanelPalette.AMBER
                 else -> PanelPalette.DANGER
             }
-            fill.color = if (index == values.lastIndex) color else PanelPalette.alpha(color, 0.72f)
-            canvas.drawRect(left, y1 - height, left + barWidth, y1, fill)
+            fill.color = if (newest) color else PanelPalette.alpha(color, 0.72f)
+            canvas.drawRect(left, zeroY - height, left + barWidth, zeroY, fill)
         }
 
-        val averageY = y1 - (y1 - y0) * (average / scale).coerceIn(0.0, 1.0).toFloat()
+        val averageY = if (average >= 0.0) {
+            zeroY - (zeroY - y0) * (average / posScale).coerceIn(0.0, 1.0).toFloat()
+        } else {
+            zeroY + (y1 - zeroY) * (-average / negScale).coerceIn(0.0, 1.0).toFloat()
+        }
         stroke.color = PanelPalette.alpha(PanelPalette.INK, 0.45f)
         stroke.strokeWidth = vs(1f)
         stroke.pathEffect = dashEffect()
@@ -438,8 +551,11 @@ internal class VehiclePanelRenderer : PanelCanvas() {
                 canvas, "средний ${fmt(average, 1)}", x1, averageY - vs(8f), sizeTiny,
                 PanelPalette.alpha(PanelPalette.INK, 0.6f), Paint.Align.RIGHT,
             )
-            label(canvas, "−${fmt(values.size * ConsumptionLog.DEFAULT_BUCKET_KM, 1)} км", x0, y1 + vs(24f), sizeTiny, muted(0.5f))
-            label(canvas, "сейчас", x1, y1 + vs(24f), sizeTiny, muted(0.5f), Paint.Align.RIGHT)
+            label(
+                canvas, "−${fmt(values.size * ConsumptionLog.DEFAULT_BUCKET_KM, 1)} км",
+                x0, y1 + vs(20f), sizeTiny, muted(0.5f),
+            )
+            label(canvas, "сейчас", x1, y1 + vs(20f), sizeTiny, muted(0.5f), Paint.Align.RIGHT)
         }
     }
 
@@ -456,8 +572,9 @@ internal class VehiclePanelRenderer : PanelCanvas() {
 
     /**
      * The BMS's own state of charge next to pack health. The BMS figure is
-     * deliberately kept: it is the same quantity the dashboard shows, read from
-     * the other side, and a growing gap between them is worth seeing.
+     * deliberately kept at full width: it is the same quantity the dashboard
+     * shows, read from the other side, and a growing gap between them is worth
+     * seeing. The narrow pane has no room to spend on a second opinion.
      */
     private fun packSummaryLine(t: VehicleTelemetry): String {
         val bms = t[VehicleSignal.BMS_SOC_PERCENT]?.let { "BMS ${fmt(it, 1)} %" } ?: "BMS —"
@@ -468,19 +585,12 @@ internal class VehiclePanelRenderer : PanelCanvas() {
     private fun rangeLine(t: VehicleTelemetry): String =
         t[VehicleSignal.RANGE_KM]?.let { "запас хода ${it.roundToInt()} км" } ?: "запас хода —"
 
-    private fun flowLine(t: VehicleTelemetry): String {
-        if (t.charging) {
-            val power = t[VehicleSignal.CHARGE_KW]?.let { "заряд ${fmt(it, 1)} кВт" } ?: "заряд —"
-            val hours = t[VehicleSignal.CHARGE_HOURS]?.roundToInt()
-            val minutes = t[VehicleSignal.CHARGE_MINUTES]?.roundToInt()
-            if (hours == null && minutes == null) return power
-            return "$power · полный ${hours ?: 0}:${pad2(minutes ?: 0)}"
-        }
-        val load = t.loadKw ?: return "мощность —"
-        return when {
-            load < -0.5 -> "рекуперация ${(-load).roundToInt()} кВт"
-            else -> "нагрузка ${load.roundToInt()} кВт"
-        }
+    private fun chargeLine(t: VehicleTelemetry): String {
+        val power = t[VehicleSignal.CHARGE_KW]?.let { "${fmt(it, 1)} кВт" } ?: "—"
+        val hours = t[VehicleSignal.CHARGE_HOURS]?.roundToInt()
+        val minutes = t[VehicleSignal.CHARGE_MINUTES]?.roundToInt()
+        if (hours == null && minutes == null) return power
+        return "$power · полный ${hours ?: 0}:${pad2(minutes ?: 0)}"
     }
 
     private fun cellWindowText(t: VehicleTelemetry): String {
@@ -491,40 +601,42 @@ internal class VehiclePanelRenderer : PanelCanvas() {
     private fun spreadText(t: VehicleTelemetry): String =
         t.cellSpreadMv?.let { "${it.roundToInt()} мВ" } ?: "—"
 
-    /**
-     * Traction voltage and insulation, both quiet by nature: an LFP pack holds
-     * its voltage flat across the middle of the charge window, and insulation
-     * only means something when it collapses.
-     */
-    private fun tractionLine(t: VehicleTelemetry): String {
-        val pack = t[VehicleSignal.PACK_VOLT]?.let { "тяга ${it.roundToInt()} В" } ?: "тяга —"
+    /** What the pack is made of, and the one number that only matters broken. */
+    private fun packDetailLine(t: VehicleTelemetry): String {
         val cells = t[VehicleSignal.CELL_COUNT]?.let { "${it.roundToInt()} ячеек" }
         val insulation = t.insulationMohm?.let { "изоляция ${fmt(it, 1)} МОм" }
-        return listOfNotNull(pack, cells, insulation).joinToString(" · ")
+        return listOfNotNull(cells, insulation).joinToString(" · ").ifEmpty { "—" }
     }
 
-    private fun tyreLine(t: VehicleTelemetry): String {
-        val pressures = t.tyrePressures.joinToString(" · ") { it?.let { bar -> fmt(bar, 2) } ?: "—" }
-        val hottest = t.tyreTemperatures.filterNotNull().maxOrNull()
-        val suffix = hottest?.let { " · до ${it.roundToInt()} °C" } ?: ""
-        return "шины $pressures бар$suffix"
+    /**
+     * The figure that moves with the road, and the word that replaces it when
+     * there is no road: energy per kilometre has no value at zero speed, so a
+     * standing car says so rather than showing a bare dash that reads as a
+     * broken sensor. The power bar right below keeps reading either way.
+     */
+    private fun consumptionFigure(canvas: Canvas, rightX: Float, baseline: Float, sizeV: Float, t: VehicleTelemetry) {
+        val reading = t.currentConsumption
+        if (reading != null) {
+            val color = if (reading < 0.0) PanelPalette.BLUE else PanelPalette.INK
+            value(canvas, fmt(reading, 1), rightX, baseline, sizeV, color, Paint.Align.RIGHT, bold = true)
+            return
+        }
+        val text = if (t.stationary) STANDING else "—"
+        value(canvas, text, rightX, baseline, sizeV * 0.55f, muted(0.7f), Paint.Align.RIGHT)
     }
 
-    private fun currentConsumption(t: VehicleTelemetry): String =
-        t.currentConsumption?.let { "сейчас ${fmt(it, 1)}" } ?: "сейчас —"
-
-    private fun motorPairText(t: VehicleTelemetry): String {
-        val front = t[VehicleSignal.MOTOR_FRONT_C]?.roundToInt()?.toString() ?: "—"
-        val rear = t.motorRearC?.roundToInt()?.toString() ?: "—"
-        return "$front/$rear"
+    /** Pack power as the panel talks about it: charging is negative flow too. */
+    private fun flowKw(t: VehicleTelemetry): Double? {
+        if (t.charging) t[VehicleSignal.CHARGE_KW]?.let { return -abs(it) }
+        return t.loadKw
     }
 
-    private fun warmerMotor(t: VehicleTelemetry): Double? {
-        val front = t[VehicleSignal.MOTOR_FRONT_C]
-        val rear = t.motorRearC
+    private fun flowWord(t: VehicleTelemetry): String {
+        val kw = flowKw(t) ?: return "поток"
         return when {
-            front != null && rear != null -> max(front, rear)
-            else -> front ?: rear
+            t.charging -> "заряд"
+            kw < -REGEN_FLOOR_KW -> "рекуперация"
+            else -> "нагрузка"
         }
     }
 
@@ -552,6 +664,12 @@ internal class VehiclePanelRenderer : PanelCanvas() {
         else -> PanelPalette.MINT
     }
 
+    private fun tractionColor(volts: Double?): Int = when {
+        volts == null -> muted(0.6f)
+        volts < TRACTION_BAND_LO || volts > TRACTION_BAND_HI -> PanelPalette.AMBER
+        else -> PanelPalette.INK
+    }
+
     private fun spreadColor(t: VehicleTelemetry): Int {
         val spread = t.cellSpreadMv ?: return muted(0.6f)
         return when {
@@ -562,20 +680,11 @@ internal class VehiclePanelRenderer : PanelCanvas() {
     }
 
     private fun flowColor(t: VehicleTelemetry): Int {
-        if (t.charging) return PanelPalette.BLUE
-        val load = t.loadKw ?: return muted()
-        return if (load < -0.5) PanelPalette.BLUE else muted()
-    }
-
-    private fun tyreColor(t: VehicleTelemetry): Int {
-        val known = t.tyrePressures.filterNotNull()
-        if (known.size < 4) return muted()
-        val mean = known.average()
-        val worst = known.maxOf { abs(it - mean) }
-        return if (worst >= TYRE_SPREAD_ALERT_BAR || known.min() < TYRE_LOW_BAR) {
-            PanelPalette.DANGER
-        } else {
-            muted()
+        val kw = flowKw(t) ?: return muted()
+        return when {
+            t.charging -> PanelPalette.BLUE
+            kw < -REGEN_FLOOR_KW -> PanelPalette.BLUE
+            else -> PanelPalette.mix(PanelPalette.MINT, PanelPalette.AMBER, min(1.0, kw / POWER_WARM_KW).toFloat())
         }
     }
 
@@ -600,7 +709,7 @@ internal class VehiclePanelRenderer : PanelCanvas() {
     private fun pad2(value: Int): String = if (value < 10) "0$value" else value.toString()
 
     private fun ceilToStep(value: Double, step: Double): Double =
-        kotlin.math.ceil(value / step) * step
+        max(step, kotlin.math.ceil(value / step) * step)
 
     private companion object {
         const val WIDE_W = 1850f
@@ -615,8 +724,7 @@ internal class VehiclePanelRenderer : PanelCanvas() {
         const val WIDE_VALUE = 30f
         const val WIDE_HEADER = 30f
 
-        // Narrow pane: the panel is a fixed 660 dp tall against a 660-unit
-        // layout, so a unit is a dp and these are the sizes as drawn.
+        // Narrow pane: a unit is a dp, so these are the sizes as drawn.
         const val NARROW_TINY = 12f
         const val NARROW_LABEL = 15f
         const val NARROW_VALUE = 18f
@@ -624,6 +732,12 @@ internal class VehiclePanelRenderer : PanelCanvas() {
 
         /** Supporting lines under a figure; small on purpose, still legible. */
         const val NARROW_SECONDARY = 14f
+
+        /**
+         * Baseline offset that puts a line of type's optical centre on a given
+         * y. Roughly the cap-height half of the sans/mono faces in use.
+         */
+        const val FIGURE_CENTRE = 0.36f
 
         const val SEGMENTS = 12
 
@@ -635,25 +749,44 @@ internal class VehiclePanelRenderer : PanelCanvas() {
         const val PACK_BAND_HI = 40.0
         const val DRIVE_BAND_LO = 0.0
         const val DRIVE_BAND_HI = 70.0
-        const val OUTSIDE_BAND_LO = 3.0
-        const val OUTSIDE_BAND_HI = 35.0
-        const val CABIN_BAND_LO = 18.0
-        const val CABIN_BAND_HI = 26.0
 
-        const val RAIL_LO = 11.0
-        const val RAIL_HI = 15.0
         const val RAIL_GOOD_LO = 12.8
         const val RAIL_GOOD_HI = 14.6
 
+        // 166 LFP cells sit near 550 V and rarely leave this stretch; the span is
+        // narrow so that sag under load actually moves the needle.
+        const val TRACTION_LO = 490.0
+        const val TRACTION_HI = 610.0
+        const val TRACTION_STEP = 20.0
+        const val TRACTION_BAND_LO = 520.0
+        const val TRACTION_BAND_HI = 590.0
+
+        /** Full deflection of the power bar's square-root scale. */
+        const val POWER_FULL_KW = 300.0
+
+        /** Where the load colour has finished warming from mint to amber. */
+        const val POWER_WARM_KW = 120.0
+
+        /** Below this a negative reading is noise, not regeneration. */
+        const val REGEN_FLOOR_KW = 0.5
+
+        val POWER_TICKS_KW = doubleArrayOf(20.0, 60.0, 150.0)
+
         const val CELL_SPREAD_WATCH_MV = 25.0
         const val CELL_SPREAD_ALERT_MV = 40.0
-        const val TYRE_SPREAD_ALERT_BAR = 0.18
-        const val TYRE_LOW_BAR = 2.3
 
         const val CHART_MIN_TOP = 10.0
+        const val CHART_MIN_BOTTOM = 5.0
+
+        /** Share of the chart above the zero line; the rest is regeneration. */
+        const val ABOVE_ZERO_SHARE = 0.74f
+
+        /** Bars nearly touch: the shape of the run matters more than each bar. */
+        const val BAR_FILL = 0.82f
 
         const val READING = "Читаю данные машины…"
         const val NO_DATA = "Нет доступа к данным машины"
-        const val EMPTY_CHART = "накапливаю первые полкилометра"
+        const val EMPTY_CHART = "накапливаю первые 200 метров"
+        const val STANDING = "стоим"
     }
 }

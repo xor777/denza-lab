@@ -26,7 +26,7 @@ internal data class VehicleTelemetry(
     val values: Map<VehicleSignal, Double> = emptyMap(),
     /** Closed consumption bars, oldest first, kWh/100 km. */
     val consumption: List<Double> = emptyList(),
-    /** The bar in progress, or the last closed one. */
+    /** Consumption over the last few hundred metres; null while standing. */
     val currentConsumption: Double? = null,
     /** True while the odometer is not advancing; the live figure holds off. */
     val stationary: Boolean = false,
@@ -68,30 +68,18 @@ internal data class VehicleTelemetry(
     val insulationMohm: Double?
         get() = this[VehicleSignal.INSULATION_KOHM]?.let { it / 1000.0 }
 
-    val tyrePressures: List<Double?>
+    /**
+     * The car's three drive motors in layout order: front, rear left, rear
+     * right. The rear pair is per-side, not per-axle, so three separate
+     * readings is the honest shape — one of them running hotter than the others
+     * is exactly what the row is there to show.
+     */
+    val motorTemps: List<Double?>
         get() = listOf(
-            this[VehicleSignal.TYRE_PRESSURE_LF],
-            this[VehicleSignal.TYRE_PRESSURE_RF],
-            this[VehicleSignal.TYRE_PRESSURE_LR],
-            this[VehicleSignal.TYRE_PRESSURE_RR],
+            this[VehicleSignal.MOTOR_FRONT_C],
+            this[VehicleSignal.MOTOR_REAR_LEFT_C],
+            this[VehicleSignal.MOTOR_REAR_RIGHT_C],
         )
 
-    val tyreTemperatures: List<Double?>
-        get() = listOf(
-            this[VehicleSignal.TYRE_TEMP_LF],
-            this[VehicleSignal.TYRE_TEMP_RF],
-            this[VehicleSignal.TYRE_TEMP_LR],
-            this[VehicleSignal.TYRE_TEMP_RR],
-        )
-
-    /** The hotter of the two rear sensors; the pair is per-side, not per-axle. */
-    val motorRearC: Double?
-        get() {
-            val left = this[VehicleSignal.MOTOR_REAR_LEFT_C]
-            val right = this[VehicleSignal.MOTOR_REAR_RIGHT_C]
-            return when {
-                left != null && right != null -> maxOf(left, right)
-                else -> left ?: right
-            }
-        }
+    val hottestMotorC: Double? get() = motorTemps.filterNotNull().maxOrNull()
 }

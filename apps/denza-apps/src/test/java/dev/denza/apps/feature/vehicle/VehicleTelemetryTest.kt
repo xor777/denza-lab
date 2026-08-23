@@ -62,18 +62,20 @@ class VehicleTelemetryTest {
         assertNull(t.cellWindowVolt)
         assertNull(t.cellSpreadMv)
         assertNull(t.loadKw)
-        assertNull(t.motorRearC)
-        assertTrue(t.tyrePressures.all { it == null })
+        assertNull(t.hottestMotorC)
+        assertTrue(t.motorTemps.all { it == null })
         assertFalse(t.charging)
     }
 
     @Test
-    fun theWarmerRearSensorIsTheOneWorthShowing() {
+    fun allThreeMotorsAreReportedAndTheHottestLeadsTheRow() {
         val t = telemetry(
+            VehicleSignal.MOTOR_FRONT_C to 34.0,
             VehicleSignal.MOTOR_REAR_LEFT_C to 29.0,
             VehicleSignal.MOTOR_REAR_RIGHT_C to 31.0,
         )
-        assertEquals(31.0, t.motorRearC!!, 1e-9)
+        assertEquals(listOf(34.0, 29.0, 31.0), t.motorTemps)
+        assertEquals(34.0, t.hottestMotorC!!, 1e-9)
     }
 
     @Test

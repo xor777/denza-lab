@@ -48,10 +48,15 @@ internal enum class VehicleKind {
     LOW_VOLT,
     /** Celsius. `-40` exactly is the vendor's "no sensor" marker, not a reading. */
     TEMPERATURE,
-    /** Bar, after the kPa/100 scale. */
-    PRESSURE,
     MILLIVOLT,
+    /** Pack power. This car really can pull hundreds of kilowatts. */
     POWER_KW,
+    /**
+     * Power arriving from a charger, which cannot reach pack-power figures. The
+     * separate gate exists because the wider one let a spike through: the panel
+     * showed a three-hundred-kilowatt charge on a car parked on AC.
+     */
+    CHARGE_POWER,
     /** Range or odometer, kilometres. */
     DISTANCE_KM,
     COUNT,
@@ -67,9 +72,9 @@ internal enum class VehicleKind {
         HIGH_VOLT -> value in 60.0..1000.0
         LOW_VOLT -> value in 6.0..18.0
         TEMPERATURE -> value in -50.0..150.0 && value != -40.0
-        PRESSURE -> value in 0.3..6.0
         MILLIVOLT -> value in 1000.0..5000.0
         POWER_KW -> value in -600.0..600.0
+        CHARGE_POWER -> value in -1.0..160.0
         DISTANCE_KM -> value in 0.0..2_000_000.0
         COUNT -> value in 1.0..1000.0
         INSULATION -> value in 0.0..100_000.0
@@ -101,7 +106,7 @@ internal enum class VehicleSignal(
     RAIL_12V(1001, 0x43400028, VehicleTransact.FLOAT, VehiclePoll.HOT, VehicleKind.LOW_VOLT),
     ODOMETER_KM(1014, 0x4A502010, VehicleTransact.INT, VehiclePoll.HOT, VehicleKind.DISTANCE_KM, scale = 0.1),
 
-    // ---- cold: pack, drivetrain, cabin, charging ----
+    // ---- cold: pack, drivetrain, charging ----
     SOH_PERCENT(1014, 0x44400028, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.PERCENT),
 
     /**
@@ -123,26 +128,12 @@ internal enum class VehicleSignal(
     RANGE_KM(1014, 0x4A50203E, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.DISTANCE_KM),
     INSULATION_KOHM(1039, 0x43A00018, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.INSULATION),
     MOTOR_FRONT_C(1039, 0x46406018, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.TEMPERATURE),
-    MOTOR_IPM_C(1039, 0x46406010, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.TEMPERATURE),
+    INVERTER_C(1039, 0x46406010, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.TEMPERATURE),
     MOTOR_REAR_LEFT_C(1039, 0x285001A8, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.TEMPERATURE),
     MOTOR_REAR_RIGHT_C(1039, 0x285001B0, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.TEMPERATURE),
 
-    // Tyre feature ids run past 0x7fffffff, so they are written as the signed
-    // 32-bit word `service call` expects.
-    TYRE_PRESSURE_LF(1016, 0x99000124.toInt(), VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.PRESSURE, scale = 0.01),
-    TYRE_PRESSURE_RF(1016, 0x99000128.toInt(), VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.PRESSURE, scale = 0.01),
-    TYRE_PRESSURE_LR(1016, 0x9900012C.toInt(), VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.PRESSURE, scale = 0.01),
-    TYRE_PRESSURE_RR(1016, 0x99000130.toInt(), VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.PRESSURE, scale = 0.01),
-    TYRE_TEMP_LF(1007, 0x4A50A018, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.TEMPERATURE),
-    TYRE_TEMP_RF(1007, 0x4A50A024, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.TEMPERATURE),
-    TYRE_TEMP_LR(1007, 0x4A50A030, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.TEMPERATURE),
-    TYRE_TEMP_RR(1007, 0x4A50A03C, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.TEMPERATURE),
-
-    CABIN_TEMP_C(1000, 0x3D800030, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.TEMPERATURE),
-    OUTSIDE_TEMP_C(1000, 0x40400038, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.TEMPERATURE),
-
     CHARGE_GUN(1009, 0x34400032, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.GUN),
-    CHARGE_KW(1009, 0x32300018, VehicleTransact.FLOAT, VehiclePoll.COLD, VehicleKind.POWER_KW),
+    CHARGE_KW(1009, 0x32300018, VehicleTransact.FLOAT, VehiclePoll.COLD, VehicleKind.CHARGE_POWER),
     CHARGE_HOURS(1009, 0x32300028, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.DURATION),
     CHARGE_MINUTES(1009, 0x32300030, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.DURATION),
     ;

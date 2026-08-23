@@ -9,15 +9,26 @@ import org.junit.Test
 class AutoserviceShellTest {
 
     @Test
-    fun commandTagsEveryCallAndPassesSignedFeatureIds() {
+    fun commandTagsEveryCallAndPassesFeatureIdsAsSignedDecimals() {
         val command = AutoserviceShell.command(
-            listOf(VehicleSignal.POWER_KW, VehicleSignal.TYRE_PRESSURE_LF),
+            listOf(VehicleSignal.POWER_KW, VehicleSignal.PACK_VOLT),
         )
         assertEquals(
             "echo @@0; service call autoservice 5 i32 1012 i32 339738656; " +
-                "echo @@1; service call autoservice 5 i32 1016 i32 -1728052956",
+                "echo @@1; service call autoservice 5 i32 1009 i32 1145045000",
             command,
         )
+    }
+
+    @Test
+    fun everyAllowlistFeatureIdSurvivesTheTripToTheShell() {
+        val command = AutoserviceShell.command(VehicleSignal.entries)
+        VehicleSignal.entries.forEach { signal ->
+            assertTrue(signal.name, command.contains("i32 ${signal.device} i32 ${signal.fid}"))
+        }
+        // `service call` reads i32, so a feature id past 0x7fffffff has to
+        // arrive as a negative decimal. Nothing may reach the shell as hex.
+        assertFalse(command.contains("0x"))
     }
 
     @Test
@@ -93,8 +104,6 @@ class AutoserviceShellTest {
         assertEquals(61.6, AutoserviceShell.decode(VehicleSignal.BMS_SOC_PERCENT, 616)!!, 1e-9)
         // Odometer is tenths of a kilometre: 118927 -> 11892.7.
         assertEquals(11892.7, AutoserviceShell.decode(VehicleSignal.ODOMETER_KM, 118927)!!, 1e-6)
-        // Tyre pressure is kPa: 287 -> 2.87 bar.
-        assertEquals(2.87, AutoserviceShell.decode(VehicleSignal.TYRE_PRESSURE_LF, 287)!!, 1e-9)
         // 12 V rail arrives as float bits.
         assertEquals(13.8, AutoserviceShell.decode(VehicleSignal.RAIL_12V, 0x415CCCCD)!!, 1e-4)
         // Charge power, float, 2.4 kW on the household socket.
@@ -112,6 +121,10 @@ class AutoserviceShellTest {
         assertNull(AutoserviceShell.decode(VehicleSignal.SOC_PERCENT, 0x42FA0000)) // 125.0f
         // The traction pack is not a 12 V battery.
         assertNull(AutoserviceShell.decode(VehicleSignal.PACK_VOLT, 12))
+        // No charger delivers 300 kW to this car; the panel showed one once.
+        assertNull(AutoserviceShell.decode(VehicleSignal.CHARGE_KW, 0x43960000))
+        // Pack power is a different gate: this car really can pull 300 kW.
+        assertEquals(300.0, AutoserviceShell.decode(VehicleSignal.POWER_KW, 300)!!, 1e-9)
     }
 
     @Test
@@ -122,7 +135,7 @@ class AutoserviceShellTest {
         assertEquals(VehicleSignal.entries.size, hot.size + cold.size)
         assertTrue(VehicleSignal.POWER_KW in hot)
         assertTrue(VehicleSignal.ODOMETER_KM in hot)
-        assertTrue(VehicleSignal.TYRE_TEMP_RR in cold)
+        assertTrue(VehicleSignal.MOTOR_REAR_RIGHT_C in cold)
     }
 
     @Test
