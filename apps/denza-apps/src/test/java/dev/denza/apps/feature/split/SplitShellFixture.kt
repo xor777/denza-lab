@@ -1,8 +1,13 @@
 package dev.denza.apps.feature.split
 
+import java.util.Collections
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
+
 /**
  * The shared firmware fixture: one fake `am`/`service call` surface, one fake gate lease and the
- * task topology every split test speaks in.
+ * task topology every split test speaks in - plus the fake car the coordinator scenarios drive.
  *
  * It lives here rather than inside one test class because the shell recipes and the coordinator
  * that drives them have to be tested against the *same* firmware, not against two hand-made
@@ -58,6 +63,7 @@ internal class FakeGateLease(
 
 internal class FakeShell(
     initialGate: Boolean = false,
+    firstTaskId: Int = 100,
     private val capabilityAlwaysTrue: Boolean = false,
     private val replaceFullForegroundDuringPickerCleanup: Boolean = false,
     private val hostingSucceeds: Boolean = true,
@@ -83,16 +89,22 @@ internal class FakeShell(
     var preserveBoundsOnShellMove = false
     private var gate = initialGate
     private var homeVisible = false
-    private var nextTaskId = 100
+    private var nextTaskId = firstTaskId
     private var fullForegroundReplaced = false
     private var disappearOnNextRemove = false
     private var destabilizeAreaOnNextShellMove = false
     private var transientAreaReadsRemaining = 0
     private val supported = mutableSetOf<String>()
     private val tasks = mutableListOf<Task>()
+    private val globals = mutableMapOf<String, String>()
 
     fun addTask(rootId: Int, id: Int, packageName: String, activityName: String) {
         tasks += Task(id, packageName, activityName, rootId, bounds(rootId))
+    }
+
+    /** Seeds a firmware-global setting a lease will displace, without recording a command. */
+    fun setGlobal(key: String, value: String) {
+        globals[key] = value
     }
 
     fun hasPackage(rootId: Int, packageName: String): Boolean =
@@ -367,6 +379,14 @@ internal class FakeShell(
                 homeVisible = true
                 ""
             }
+            // The firmware-global settings a lease borrows and gives back (contract, to 1.12).
+            command.startsWith("settings put global ") -> {
+                val parts = command.removePrefix("settings put global ").split(' ', limit = 2)
+                globals[parts[0]] = parts.getOrElse(1) { "" }
+                ""
+            }
+            command.startsWith("settings get global ") ->
+                globals[command.removePrefix("settings get global ")] ?: "null"
             else -> error("Unexpected command: $command")
         }
     }
@@ -430,3 +450,338 @@ internal class FakeShell(
 
     private fun voidParcel(): String = "Result: Parcel(00000000 '....')"
 }
+
+// region the fake car: the coordinator harness of appendix B.3
+
+internal const val SPLIT_AWAIT_MS = 5_000L
+internal const val SPLIT_APK_PATH = "/data/app/dev.denza.apps/base.apk"
+internal const val SPLIT_AREA_QUERY = "service call activity_task 30"
+internal const val SPLIT_ADB_DROPPED = "adb link dropped"
+
+internal const val PRIMARY_PICKER_TASK = 60
+internal const val SECONDARY_PICKER_TASK = 61
+internal const val PRIMARY_APP_TASK = 70
+internal const val SECONDARY_APP_TASK = 71
+
+/** The navigator recreates its own task on the way back (live run 2026-08-19). */
+internal const val RETURNED_NAV_TASK = 90
+internal const val RADIO = "ru.radio.player"
+
+internal val PICKER_PAIR = mapOf(
+    SplitPane.PRIMARY to SplitSlot.Picker,
+    SplitPane.SECONDARY to SplitSlot.Picker,
+)
+internal val APP_PAIR = mapOf(
+    SplitPane.PRIMARY to SplitSlot.App(NAVIGATOR),
+    SplitPane.SECONDARY to SplitSlot.App(MUSIC),
+)
+
+/** A stock split the user built themselves: nothing here belongs to the product. */
+internal fun FakeShell.stockSplitOfSomeoneElse() {
+    area = 3
+    addTask(PRIMARY_ROOT, 40, STOCK_PICKER_PACKAGE, STOCK_PICKER_ACTIVITY)
+    addTask(SECONDARY_ROOT, 41, MUSIC, "$MUSIC.MainActivity")
+}
+
+/** A live product scene: one permanent picker base per pane, optionally with its app. */
+internal fun FakeShell.liveProductScene(withApps: Boolean = false) {
+    area = 3
+    addTask(PRIMARY_ROOT, PRIMARY_PICKER_TASK, SPLIT_HOST_PACKAGE, PRIMARY_PICKER_ACTIVITY)
+    if (withApps) addTask(PRIMARY_ROOT, PRIMARY_APP_TASK, NAVIGATOR, "$NAVIGATOR.MainActivity")
+    addTask(SECONDARY_ROOT, SECONDARY_PICKER_TASK, SPLIT_HOST_PACKAGE, SECONDARY_PICKER_ACTIVITY)
+    if (withApps) addTask(SECONDARY_ROOT, SECONDARY_APP_TASK, MUSIC, "$MUSIC.MainActivity")
+}
+
+/**
+ * What the car still shows after Denza Apps was killed: our two permanent picker bases, one of
+ * them bare and reporting itself, the other still carrying its app.
+ */
+internal fun FakeShell.sceneLeftByADeadProcess() {
+    area = 3
+    addTask(PRIMARY_ROOT, PRIMARY_PICKER_TASK, SPLIT_HOST_PACKAGE, PRIMARY_PICKER_ACTIVITY)
+    addTask(SECONDARY_ROOT, SECONDARY_PICKER_TASK, SPLIT_HOST_PACKAGE, SECONDARY_PICKER_ACTIVITY)
+    addTask(SECONDARY_ROOT, SECONDARY_APP_TASK, MUSIC, "$MUSIC.MainActivity")
+}
+
+/**
+ * One fake car: the firmware fixture above plus every seam [SplitCoordinatorCore] is built from.
+ *
+ * The oracle every scenario reads is what actually reached this car - the ordered command journal,
+ * the per-operation shell sessions, the atomic store, the overlay lease counter - never a
+ * restatement of the code under test (contract 10.3.2).
+ */
+internal class SplitCarFixture(
+    val fake: FakeShell,
+    val clock: FakeSplitClock = FakeSplitClock(),
+    val store: CountingStore = CountingStore(),
+) {
+    val actor = SplitActor(clock)
+    val shells = RecordingShellFactory(fake)
+    val overlay = CountingOverlay()
+    val gateLease = FakeGateLease()
+    val notices: MutableList<String> = Collections.synchronizedList(mutableListOf())
+    val diagnostics: MutableList<String> = Collections.synchronizedList(mutableListOf())
+
+    private var built: SplitCoordinatorCore? = null
+
+    fun core(
+        initial: SplitDurable,
+        leases: List<SplitLeaseController> = emptyList(),
+    ): SplitCoordinatorCore {
+        store.seed(initial)
+        return SplitCoordinatorCore(
+            shellFactory = shells,
+            clock = clock,
+            store = store,
+            actor = actor,
+            overlayOwner = overlay,
+            notices = notices::add,
+            catalog = FakeCatalog,
+            gateLeaseStore = gateLease,
+            leases = leases,
+            apkPath = SPLIT_APK_PATH,
+            sleeper = {},
+            log = diagnostics::add,
+        ).also { core -> built = core }
+    }
+
+    fun commands(): List<String> = synchronized(fake) { fake.commands.toList() }
+
+    /** What each operation sent through its own shell session, in the order the sessions opened. */
+    fun sessions(): List<List<String>> = shells.sessions()
+
+    fun clearCommands() {
+        synchronized(fake) { fake.commands.clear() }
+        shells.clearSessions()
+    }
+
+    /** Everything that could have changed the screen; reads are deliberately not listed. */
+    fun mutations(): List<String> = commands().filter(::isMutation)
+
+    /** Occupies the single worker so a test can fill the queue and watch the order it is served. */
+    fun hold(until: () -> Boolean = { false }): SplitWorkerHold {
+        val held = SplitWorkerHold(until)
+        actor.submit(held)
+        check(held.entered.await(SPLIT_AWAIT_MS, TimeUnit.MILLISECONDS)) {
+            "the worker never picked the hold up"
+        }
+        return held
+    }
+
+    /** The single worker is the barrier: what it finishes last, it finished after everything. */
+    fun barrier() {
+        checkNotNull(actor.submit(BarrierSpec).await(SPLIT_AWAIT_MS)) {
+            "the actor did not drain in time"
+        }
+    }
+
+    fun close() {
+        built?.shutdown()
+        actor.shutdown()
+    }
+
+    private companion object {
+        fun isMutation(command: String): Boolean =
+            command.startsWith("am start ") ||
+                command.startsWith("am stack move-task ") ||
+                command.startsWith("am task focus ") ||
+                command.startsWith("am task resize ") ||
+                command.startsWith("input ") ||
+                command.startsWith("settings put global ") ||
+                command.contains(" remove-task ") ||
+                command.startsWith("service call activity_task 114 ") ||
+                command.startsWith("service call activity_task 115") ||
+                command.startsWith("service call activity_task 125 ") ||
+                command.startsWith("service call activity_task 126 ")
+    }
+}
+
+/**
+ * The shell seam, with the two injections a scenario needs: a command the operation is parked on,
+ * and a command the ADB link drops on.
+ *
+ * A dropped command is recorded in [sessions] as attempted but never reaches [FakeShell], which is
+ * exactly what a link failure means: the car did not see it.
+ */
+internal class RecordingShellFactory(private val fake: FakeShell) : SplitShellFactory {
+    val opened = AtomicInteger()
+
+    private val recorded = mutableListOf<MutableList<String>>()
+
+    @Volatile
+    private var blockAt: String? = null
+
+    @Volatile
+    private var failAt: String? = null
+
+    @Volatile
+    private var reached = CountDownLatch(0)
+
+    @Volatile
+    private var gate = CountDownLatch(0)
+
+    fun sessions(): List<List<String>> =
+        synchronized(recorded) { recorded.map { session -> session.toList() } }
+
+    fun clearSessions() = synchronized(recorded) { recorded.clear() }
+
+    /** Parks the next occurrence of [command] until [release]; one arming, one park. */
+    fun blockAt(command: String) {
+        reached = CountDownLatch(1)
+        gate = CountDownLatch(1)
+        blockAt = command
+    }
+
+    fun awaitBlocked(): Boolean = reached.await(SPLIT_AWAIT_MS, TimeUnit.MILLISECONDS)
+
+    fun release() = gate.countDown()
+
+    /** Drops the link on the next occurrence of [command]; one arming, one failure. */
+    fun failOn(command: String) {
+        failAt = command
+    }
+
+    override fun open(): SplitShellHandle {
+        opened.incrementAndGet()
+        val session = mutableListOf<String>()
+        synchronized(recorded) { recorded += session }
+        return object : SplitShellHandle {
+            override fun shell(command: String): String {
+                if (command == blockAt) {
+                    blockAt = null
+                    reached.countDown()
+                    gate.await(SPLIT_AWAIT_MS, TimeUnit.MILLISECONDS)
+                }
+                synchronized(recorded) { session += command }
+                if (command == failAt) {
+                    failAt = null
+                    throw IllegalStateException(SPLIT_ADB_DROPPED)
+                }
+                return synchronized(fake) { fake.shell(command) }
+            }
+
+            override fun close() = Unit
+        }
+    }
+}
+
+/** The atomic durable store of contract section 6, counting writes and able to refuse one (K9). */
+internal class CountingStore : SplitStateStore {
+    @Volatile
+    private var current = SplitDurable()
+
+    @Volatile
+    var commits: Int = 0
+        private set
+
+    @Volatile
+    var accept: Boolean = true
+
+    fun seed(snapshot: SplitDurable) {
+        current = snapshot
+        commits = 0
+    }
+
+    override fun load(): SplitDurable = current
+
+    override fun commit(next: SplitDurable): Boolean {
+        commits += 1
+        if (!accept) return false
+        current = next
+        return true
+    }
+}
+
+internal class CountingOverlay : SplitOverlayOwner {
+    val begun = AtomicInteger()
+    private val released = AtomicInteger()
+
+    fun closed(): Int = released.get()
+
+    override fun begin(): SplitOverlayLease {
+        begun.incrementAndGet()
+        return object : SplitOverlayLease {
+            private val done = AtomicInteger()
+
+            override fun close() {
+                if (done.compareAndSet(0, 1)) released.incrementAndGet()
+            }
+
+            override fun closeImmediately() = close()
+        }
+    }
+}
+
+/** One firmware-global setting the product borrows and gives back exactly as it found it. */
+internal class FakeLease(
+    override val kind: String,
+    private val key: String,
+) : SplitLeaseController {
+    private var displaced: String? = null
+
+    override fun ownedValue(): String? = displaced
+
+    override fun enable(shell: (String) -> String) {
+        if (displaced != null) return
+        displaced = shell("settings get global $key").trim()
+        shell("settings put global $key 1")
+    }
+
+    override fun restore(shell: (String) -> String) {
+        val previous = displaced ?: return
+        displaced = null
+        shell("settings put global $key $previous")
+    }
+}
+
+/** Denza Apps is an ordinary row of it, with no exception of any kind (U3, 1.4.3). */
+internal object FakeCatalog : SplitLaunchCatalog {
+    override fun installedPackages(): Set<String> =
+        setOf(NAVIGATOR, MUSIC, WAZE, RADIO, SPLIT_HOST_PACKAGE)
+
+    override fun resolve(packageName: String): SplitLaunchTarget? =
+        if (packageName in installedPackages()) {
+            SplitLaunchTarget(packageName, "$packageName/$packageName.MainActivity")
+        } else {
+            null
+        }
+}
+
+internal object BarrierSpec : SplitOperationSpec {
+    override val label = "barrier"
+    override val priority = SplitInputPriority.HINT
+    override val durationMs = 60_000L
+    override val joinKey: Any? = null
+    override val coalesceKey: Any? = null
+
+    override fun run(op: SplitOperationContext): SplitOutcome = SplitOutcome.Committed
+}
+
+/**
+ * Occupies the single worker until [until] holds or [release] is called, so a test can fill the
+ * queue and then watch the order the actor actually serves it in. It never preempts: it is queued
+ * while the queue is empty and is in flight before anything else arrives.
+ */
+internal class SplitWorkerHold(private val until: () -> Boolean = { false }) : SplitOperationSpec {
+    val entered = CountDownLatch(1)
+    private val released = CountDownLatch(1)
+
+    override val label = "hold"
+    override val priority = SplitInputPriority.HINT
+    override val durationMs = 120_000L
+    override val joinKey: Any? = null
+    override val coalesceKey: Any? = null
+
+    fun release() = released.countDown()
+
+    override fun run(op: SplitOperationContext): SplitOutcome {
+        entered.countDown()
+        val deadline = System.currentTimeMillis() + SPLIT_AWAIT_MS
+        while (released.count > 0L && !until() && System.currentTimeMillis() < deadline) {
+            Thread.sleep(1)
+        }
+        return SplitOutcome.Committed
+    }
+}
+
+// endregion

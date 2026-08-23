@@ -1,6 +1,7 @@
 package dev.denza.apps.feature.split
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
@@ -328,6 +329,90 @@ class SplitOperationRunnerTest {
         assertEquals(1L, stored.revision)
     }
 
+    @Test
+    fun aNavigationReturnMarksThePointOfNoReturnBeforeItRemovesATask() {
+        // §7.6 и канон: удаление необратимо, поэтому журнал говорит об этом ДО самой команды
+        val fake = FakeShell().apply {
+            area = 3
+            addTask(PRIMARY_ROOT, PRIMARY_PICKER_TASK, SPLIT_HOST_PACKAGE, PRIMARY_PICKER_ACTIVITY)
+            addTask(PRIMARY_ROOT, VACANCY_TASK, WAZE, "$WAZE.MainActivity")
+            addTask(PRIMARY_ROOT, RETURNED_NAV_TASK, NAVIGATOR, "$NAVIGATOR.MainActivity")
+            addTask(
+                SECONDARY_ROOT,
+                SECONDARY_PICKER_TASK,
+                SPLIT_HOST_PACKAGE,
+                SECONDARY_PICKER_ACTIVITY,
+            )
+        }
+        val op = context(deadlineAtMs = Long.MAX_VALUE)
+        val journalWhenRemoving = mutableListOf<List<SplitJournalEntry>>()
+        val work = navigationWorkspace(fake) { command ->
+            if (command.contains(" remove-task ")) journalWhenRemoving += op.journal.entries()
+        }
+        val plan = SplitNavigationReturnPlan(
+            pane = SplitPane.PRIMARY,
+            rootTaskId = PRIMARY_ROOT,
+            hostTaskId = PRIMARY_PICKER_TASK,
+            fullscreen = false,
+            displacedTasks = listOf(SplitDisplacedTask(VACANCY_TASK, WAZE)),
+        )
+
+        val outcome = NavCompleteOperation(
+            work = work,
+            returnPlan = plan,
+            taskId = RETURNED_NAV_TASK,
+            packageName = NAVIGATOR,
+        ).run(op)
+
+        assertEquals(SplitOutcome.Committed, outcome)
+        assertEquals("ровно одно удаление - точный обитатель вакансии", 1, journalWhenRemoving.size)
+        assertTrue(
+            "точка невозврата уже в журнале, когда команда удаления уходит в машину",
+            journalWhenRemoving.single().any { it is SplitJournalEntry.PointOfNoReturn },
+        )
+        assertTrue(
+            "и она первая запись операции: до неё эта операция ничего не меняла",
+            op.journal.entries().first() is SplitJournalEntry.PointOfNoReturn,
+        )
+        assertFalse("вытесненная задача действительно удалена", fake.hasTask(VACANCY_TASK))
+    }
+
+    /** One workspace with no leases and no publication: only the journal is under test here. */
+    private fun navigationWorkspace(
+        fake: FakeShell,
+        onCommand: (String) -> Unit,
+    ): SplitOperationWorkspace = SplitOperationWorkspace(
+        shellFactory = {
+            object : SplitShellHandle {
+                override fun shell(command: String): String {
+                    onCommand(command)
+                    return fake.shell(command)
+                }
+
+                override fun close() = Unit
+            }
+        },
+        store = store,
+        catalog = FakeCatalog,
+        notices = {},
+        leases = emptyList(),
+        gateLeaseStore = FakeGateLease(),
+        apkPath = SPLIT_APK_PATH,
+        sleeper = {},
+        diagnostics = {},
+        readState = {
+            SplitState(
+                enabled = true,
+                slots = APP_PAIR,
+                scene = SplitScene.Split,
+                projectedPane = SplitPane.PRIMARY,
+            )
+        },
+        readLive = { emptyMap() },
+        externalMoveInFlight = { false },
+        publisher = { _, _, _ -> },
+    )
+
     private fun operation(
         planned: Boolean = true,
         readBackOk: Boolean = true,
@@ -462,6 +547,7 @@ class SplitOperationRunnerTest {
     private companion object {
         const val MUSIC = "ru.yandex.music"
         const val PICKER = "dev.denza.apps/.feature.split.SplitPickerActivity"
+        const val VACANCY_TASK = 75
 
         val PLANNED_COMMANDS = listOf(
             "am stack list",
