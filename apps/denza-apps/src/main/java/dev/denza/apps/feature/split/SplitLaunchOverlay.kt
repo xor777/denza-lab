@@ -95,7 +95,15 @@ internal class SplitLaunchOverlayController(
  * Native edge-drag discovery never calls this owner and remains fully firmware-controlled.
  */
 internal object SplitLaunchOverlay {
-    internal const val MIN_VISIBLE_MS = 700L
+    /**
+     * How long the shield stays up once the scene behind it is ready.
+     *
+     * It exists so that a very quick operation does not flash a window for fifty milliseconds. It
+     * was 700 ms while the shield was transparent, where holding it cost the user nothing they
+     * could see; now that it is opaque, every millisecond past the end of the work is a finished
+     * scene deliberately kept off the screen. Long enough to read as one transition, and no longer.
+     */
+    internal const val MIN_VISIBLE_MS = 300L
     internal const val MAX_VISIBLE_MS = 15_000L
 
     /**

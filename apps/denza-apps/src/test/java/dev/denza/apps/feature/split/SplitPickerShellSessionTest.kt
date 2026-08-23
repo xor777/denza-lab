@@ -909,6 +909,35 @@ class SplitPickerShellSessionTest {
     }
 
     /**
+     * 1.13: a settle is for something that happened.
+     *
+     * Two pickers already sitting in their own roots settle nothing, and the whole point of the
+     * open path finding them alive is not to pay for them again.
+     */
+    @Test
+    fun anOpenThatMovedNothingWaitsForNothing() {
+        val fake = FakeShell().apply { liveProductScene() }
+        var settled = 0L
+        val topology = SplitTopologyCache()
+        fake.carChanged += topology::invalidate
+        val split = SplitPickerShellSession(
+            shell = fake::shell,
+            apkPath = SPLIT_APK_PATH,
+            settle = { millis -> settled += millis },
+            gateLeaseStore = FakeGateLease(),
+            topology = topology,
+        )
+
+        split.openPickers(PICKERS, preservedPackages = emptyMap())
+
+        assertEquals(
+            "nothing moved, nothing was removed, nothing had to settle",
+            0L,
+            settled,
+        )
+    }
+
+    /**
      * 1.13.3: the removals are the same exact-identity calls, but they cost one class load, not one
      * each. Loading the proxy dominates a removal by an order of magnitude on this car.
      */

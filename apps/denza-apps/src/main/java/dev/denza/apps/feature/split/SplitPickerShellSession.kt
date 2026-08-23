@@ -442,8 +442,7 @@ internal class SplitPickerShellSession(
                 .firstOrNull()
             ?: error("В split-сессии нет задачи для возврата")
         run("am task focus $focusTaskId")
-        pause(EXIT_SETTLE_MS)
-        check(callInt("service call activity_task 30") == AREA_BALANCED_SPLIT) {
+        check(awaitArea(EXIT_SETTLE_MS) { it == AREA_BALANCED_SPLIT }) {
             "Прошивка не вернула существующий split на экран"
         }
         val revealed = existingOwnedSession(pickerComponents)
@@ -504,21 +503,32 @@ internal class SplitPickerShellSession(
         // Categories are authoritative once the native scene exists. On a truly empty scene
         // this firmware first creates ordinary fullscreen tasks, so explicitly reparent those
         // exact tasks into the already-known OEM roots and reveal the real divider once.
+        var reparented = false
         SplitPane.entries.forEach { pane ->
             val picker = pickerTasks.getValue(pane)
             val rootId = rootIds.getValue(pane)
-            if (picker.rootId != rootId) moveTask(picker.id, rootId)
+            if (picker.rootId != rootId) {
+                moveTask(picker.id, rootId)
+                reparented = true
+            }
         }
-        pause(ROOT_SETTLE_MS)
+        // A settle is for something that happened: two pickers already in their roots settle
+        // nothing (1.13, "не заставлять ждать там, где ждать нечего").
+        if (reparented) pause(ROOT_SETTLE_MS)
         if (callInt("service call activity_task 30") != AREA_BALANCED_SPLIT) {
             dragDividerToBalanced()
-            pause(NATIVE_PICKER_SETTLE_MS)
+            check(awaitArea(NATIVE_PICKER_SETTLE_MS) { it == AREA_BALANCED_SPLIT }) {
+                "Прошивка не раскрыла native split"
+            }
         }
         check(callInt("service call activity_task 30") == AREA_BALANCED_SPLIT) {
             "Прошивка не раскрыла native split"
         }
+        var changed = reparented
         SplitPane.entries.forEach { pane ->
-            normalizeTaskToRoot(pickerTasks.getValue(pane).id, rootIds.getValue(pane))
+            if (normalizeTaskToRoot(pickerTasks.getValue(pane).id, rootIds.getValue(pane))) {
+                changed = true
+            }
         }
         // A picker is the permanent base of its pane. Never remove the last visible base before
         // the replacement exists: BYD collapses the native roots immediately and restores its
@@ -526,17 +536,22 @@ internal class SplitPickerShellSession(
         SplitPane.entries.forEach { pane ->
             val rootId = rootIds.getValue(pane)
             val picker = pickerTasks.getValue(pane)
-            prunePane(
+            val pruned = prunePane(
                 rootId = rootId,
                 hostTaskId = picker.id,
                 preservedPackage = preservedPackages[pane],
             )
+            if (pruned) changed = true
         }
-        removeUnkeptPickerTasks(
-            pickerComponents = pickerComponents.values.toSet() + LEGACY_PICKER_COMPONENTS,
-            keptTaskIds = pickerTasks.values.mapTo(mutableSetOf(), SplitTask::id),
-        )
-        pause(ROOT_SETTLE_MS)
+        if (
+            removeUnkeptPickerTasks(
+                pickerComponents = pickerComponents.values.toSet() + LEGACY_PICKER_COMPONENTS,
+                keptTaskIds = pickerTasks.values.mapTo(mutableSetOf(), SplitTask::id),
+            )
+        ) {
+            changed = true
+        }
+        if (changed) pause(ROOT_SETTLE_MS)
         verifyPickerTasks(
             pickerComponents = pickerComponents,
             rootIds = rootIds,
@@ -1229,8 +1244,7 @@ internal class SplitPickerShellSession(
             "service call activity_task 114 i32 " +
                 if (pane == SplitPane.PRIMARY) EXPAND_PRIMARY_MODE else EXPAND_SECONDARY_MODE,
         )
-        pause(EXIT_SETTLE_MS)
-        check(callInt("service call activity_task 30") != AREA_BALANCED_SPLIT) {
+        check(awaitArea(EXIT_SETTLE_MS) { it != AREA_BALANCED_SPLIT }) {
             "Возвращённое приложение осталось в закрытом split-контейнере"
         }
     }
@@ -1339,18 +1353,19 @@ internal class SplitPickerShellSession(
             check(rootId > 0) { "Прошивка не вернула полноэкранный IVI-контейнер" }
         }
 
+    /** @return whether anything was actually removed from the pane. */
     private fun prunePane(
         rootId: Int,
         hostTaskId: Int,
         preservedPackage: String?,
-    ) {
+    ): Boolean {
         val tasks = snapshot().root(rootId)?.tasks.orEmpty()
         val preserved = tasks
             .filter {
                 it.effectivePackageName() == preservedPackage && it.id != hostTaskId
             }
             .maxByOrNull(SplitTask::id)
-        removeTasksSafely(
+        return removeTasksSafely(
             tasks.filterNot { it.id == hostTaskId }
                 .filterNot { preserved != null && it.id == preserved.id },
         )
@@ -1426,11 +1441,12 @@ internal class SplitPickerShellSession(
         removeTaskSafely(current)
     }
 
+    /** @return whether any stale picker task was actually removed. */
     private fun removeUnkeptPickerTasks(
         pickerComponents: Set<String>,
         keptTaskIds: Set<Int>,
-    ) {
-        snapshot().roots.asSequence()
+    ): Boolean {
+        return snapshot().roots.asSequence()
             .filter { it.displayId == MAIN_DISPLAY_ID }
             .flatMap { it.tasks.asSequence() }
             .filter { task ->
@@ -1507,8 +1523,9 @@ internal class SplitPickerShellSession(
      * the proxy dominates the cost of a removal by an order of magnitude, so a batch of three used
      * to be three whole class loads and three settle pauses for work the firmware does at once.
      */
-    private fun removeTasksSafely(tasks: List<SplitTask>) {
-        if (tasks.isEmpty()) return
+    /** @return whether any of them was actually removed. */
+    private fun removeTasksSafely(tasks: List<SplitTask>): Boolean {
+        if (tasks.isEmpty()) return false
         val arguments = tasks.joinToString(" ") { task ->
             val baseActivity = task.activityName ?: error("У задачи ${task.id} нет base activity")
             // `am stack list` repeats the root top component on hidden child lines. It is a valid
@@ -1535,7 +1552,9 @@ internal class SplitPickerShellSession(
                 error("Не удалось безопасно удалить задачу ${task.id}")
             }
         }
-        if (refused.size < tasks.size) pause(ROOT_SETTLE_MS)
+        if (refused.size == tasks.size) return false
+        pause(ROOT_SETTLE_MS)
+        return true
     }
 
     /** One `DENZA_SPLIT_RESULT:<taskId>=<bool>` line per task the proxy was asked about. */
@@ -1565,12 +1584,13 @@ internal class SplitPickerShellSession(
         }
     }
 
-    private fun normalizeTaskToRoot(taskId: Int, rootId: Int) {
+    /** @return whether the task actually had to be resized. */
+    private fun normalizeTaskToRoot(taskId: Int, rootId: Int): Boolean {
         val beforeRoot = snapshot().root(rootId)
             ?: error("Split-контейнер $rootId исчез")
         val beforeTask = beforeRoot.tasks.firstOrNull { it.id == taskId }
             ?: error("Задача приложения $taskId не вошла в split-контейнер")
-        if (beforeTask.bounds == beforeRoot.bounds) return
+        if (beforeTask.bounds == beforeRoot.bounds) return false
         check(beforeRoot.bounds.hasArea()) { "Split-контейнер $rootId не имеет размера" }
         val bounds = beforeRoot.bounds
         run(
@@ -1584,6 +1604,25 @@ internal class SplitPickerShellSession(
             ?: error("Задача приложения $taskId исчезла после изменения размера")
         check(afterTask.bounds == afterRoot.bounds) {
             "Задача приложения $taskId не приняла размер split-контейнера"
+        }
+        return true
+    }
+
+    /**
+     * Waits for the firmware's own split area to reach a state, and not one slice longer.
+     *
+     * The recipes used to sleep out a whole settle before looking even once, which on a transition
+     * the firmware had already finished was the user waiting for nothing at all (1.13). The budget
+     * and the mutation that precedes it are unchanged; what is gone is the sleeping through it.
+     */
+    private fun awaitArea(budgetMs: Long, matches: (Int) -> Boolean): Boolean {
+        var waited = 0L
+        while (true) {
+            if (matches(callInt("service call activity_task 30"))) return true
+            if (waited >= budgetMs) return false
+            val slice = minOf(AREA_POLL_INTERVAL_MS, budgetMs - waited)
+            pause(slice)
+            waited += slice
         }
     }
 
@@ -1801,6 +1840,7 @@ internal class SplitPickerShellSession(
         const val APP_PLACEMENT_STABLE_SAMPLES = 2
         const val ROOT_SETTLE_MS = 120L
         const val EXIT_SETTLE_MS = 650L
+        const val AREA_POLL_INTERVAL_MS = 100L
         const val DISPLAY_WIDTH = 2_560
         const val EDGE_INSET = 50
         const val LEFT_DIVIDER_X = 856
