@@ -183,9 +183,30 @@ object SplitScreenCoordinator {
             gateLeaseStore = SplitScreenSettings.gateLeaseStore(app),
             leases = listOf(resizeabilityLease(app), pickerAccessLease(app)),
             apkPath = app.applicationInfo.sourceDir,
+            proxyClasspath = stagedProxy(app),
             appLabel = { packageName -> applicationLabel(app, packageName) },
             log = SplitDiagnosticLog { message -> Log.i(TAG, message) },
             post = { action -> mainHandler.post(action) },
+        )
+    }
+
+    /**
+     * The one-class jar the build packs, staged where the shell user can read it (1.13.3).
+     *
+     * The version tag is what makes an update stage a fresh copy: a jar named after the version
+     * that produced it can never be the previous build's proxy, and the previous build's copies are
+     * swept away when a new one is written.
+     */
+    @Suppress("DEPRECATION")
+    private fun stagedProxy(app: Context): SplitProxyClasspath {
+        val version = runCatching {
+            app.packageManager.getPackageInfo(app.packageName, 0).longVersionCode.toString()
+        }.getOrDefault("unknown")
+        return SplitStagedProxyDex(
+            apkPath = app.applicationInfo.sourceDir,
+            versionTag = version,
+            jar = { app.assets.open(SplitStagedProxyDex.ASSET).use { it.readBytes() } },
+            log = { message -> Log.i(TAG, message) },
         )
     }
 

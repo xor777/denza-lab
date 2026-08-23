@@ -17,6 +17,8 @@ internal class SplitPickerShellSession(
      * which makes a stand-alone session share reads only within itself.
      */
     private val topology: SplitTopologyCache = SplitTopologyCache(),
+    /** Where the shell-UID proxy is loaded from; the APK is the always-valid fallback. */
+    private val proxyClasspath: SplitProxyClasspath = SplitProxyClasspath { apkPath },
 ) {
     private val send = shell
 
@@ -614,9 +616,9 @@ internal class SplitPickerShellSession(
         // task above its exact permanent base before requiring the picker to be the root top.
         // This also recovers a transparent SplitAppHostActivity left by an interrupted launch;
         // otherwise that input window can remain focused over the visible picker forever.
-        before.root(targetRootId)?.tasks.orEmpty()
-            .filterNot { it.id == pickerHost.id }
-            .forEach(::removeTaskSafely)
+        removeTasksSafely(
+            before.root(targetRootId)?.tasks.orEmpty().filterNot { it.id == pickerHost.id },
+        )
 
         val clearedState = snapshot()
         val clearedPicker = clearedState.root(targetRootId)?.tasks?.firstOrNull { task ->
@@ -819,7 +821,7 @@ internal class SplitPickerShellSession(
                     )
             }
             .toList()
-            .forEach(::removeTaskSafely)
+            .let(::removeTasksSafely)
         restorePreservedTargetTasks(packageName, preservedTargetTaskRoots)
     }
 
@@ -1190,13 +1192,13 @@ internal class SplitPickerShellSession(
         pickerTaskId: Int,
     ) {
         val rootId = nativeRootIds().getValue(pane)
-        snapshot().root(rootId)?.tasks.orEmpty()
-            .filter { task ->
+        removeTasksSafely(
+            snapshot().root(rootId)?.tasks.orEmpty().filter { task ->
                 task.id != pickerTaskId &&
                     task.effectivePackageName() == packageName &&
                     !task.isDenzaPickerBase()
-            }
-            .forEach(::removeTaskSafely)
+            },
+        )
     }
 
     fun returnRecordedTaskFullscreen(
@@ -1278,13 +1280,14 @@ internal class SplitPickerShellSession(
         }
 
         val current = snapshot()
-        (pickerTasks + hostArtifacts).distinctBy(SplitTask::id).forEach { previous ->
-            current.roots.asSequence()
-                .filter { it.displayId == MAIN_DISPLAY_ID }
-                .flatMap { it.tasks.asSequence() }
-                .firstOrNull { it.id == previous.id && it.packageName == previous.packageName }
-                ?.let(::removeTaskSafely)
-        }
+        removeTasksSafely(
+            (pickerTasks + hostArtifacts).distinctBy(SplitTask::id).mapNotNull { previous ->
+                current.roots.asSequence()
+                    .filter { it.displayId == MAIN_DISPLAY_ID }
+                    .flatMap { it.tasks.asSequence() }
+                    .firstOrNull { it.id == previous.id && it.packageName == previous.packageName }
+            },
+        )
 
         val after = snapshot()
         if (foreground != null) {
@@ -1337,10 +1340,10 @@ internal class SplitPickerShellSession(
                 it.effectivePackageName() == preservedPackage && it.id != hostTaskId
             }
             .maxByOrNull(SplitTask::id)
-        tasks.asSequence()
-            .filterNot { it.id == hostTaskId }
-            .filterNot { preserved != null && it.id == preserved.id }
-            .forEach(::removeTaskSafely)
+        removeTasksSafely(
+            tasks.filterNot { it.id == hostTaskId }
+                .filterNot { preserved != null && it.id == preserved.id },
+        )
     }
 
     private fun launchPickerInPane(
@@ -1425,7 +1428,7 @@ internal class SplitPickerShellSession(
                     pickerComponents.any { component -> task.matchesComponent(component) }
             }
             .toList()
-            .forEach(::removeTaskSafely)
+            .let(::removeTasksSafely)
     }
 
     private fun awaitBootstrapTask(rootId: Int): SplitTask {
@@ -1484,31 +1487,57 @@ internal class SplitPickerShellSession(
         }
     }
 
-    private fun removeTaskSafely(task: SplitTask) {
-        val baseActivity = task.activityName ?: error("У задачи ${task.id} нет base activity")
-        // `am stack list` repeats the root top component on hidden child lines. It is a valid
-        // task-top postcondition only when this task itself is resolved as top.
-        val topPackage = task.topPackageName.takeIf { task.isTop } ?: "-"
-        val topActivity = task.topActivityName.takeIf { task.isTop } ?: "-"
-        val output = shell(
-            "CLASSPATH=${shellQuote(apkPath)} app_process /system/bin " +
-                "--nice-name=denza_split_cmd $SPLIT_PROXY_CLASS remove-task ${task.id} " +
-                "${shellQuote(task.packageName)} ${shellQuote(baseActivity)} " +
-                "${shellQuote(topPackage)} ${shellQuote(topActivity)}",
-        ).also(::validateOutput)
-        val result = output.lineSequence()
-            .map(String::trim)
-            .lastOrNull { it.startsWith(SPLIT_PROXY_RESULT_PREFIX) }
-            ?.removePrefix(SPLIT_PROXY_RESULT_PREFIX)
-        if (result != "true") {
-            val taskStillExists = snapshot().roots.asSequence()
-                .flatMap { it.tasks.asSequence() }
-                .any { it.id == task.id }
-            check(!taskStillExists) { "Не удалось безопасно удалить задачу ${task.id}" }
-            return
+    private fun removeTaskSafely(task: SplitTask) = removeTasksSafely(listOf(task))
+
+    /**
+     * Removes exactly these tasks, in this order, with one invocation of the proxy.
+     *
+     * The removals themselves are the same exact-identity calls they have always been; what changed
+     * is that a recipe clearing several tasks no longer starts `app_process` several times. Loading
+     * the proxy dominates the cost of a removal by an order of magnitude, so a batch of three used
+     * to be three whole class loads and three settle pauses for work the firmware does at once.
+     */
+    private fun removeTasksSafely(tasks: List<SplitTask>) {
+        if (tasks.isEmpty()) return
+        val arguments = tasks.joinToString(" ") { task ->
+            val baseActivity = task.activityName ?: error("У задачи ${task.id} нет base activity")
+            // `am stack list` repeats the root top component on hidden child lines. It is a valid
+            // task-top postcondition only when this task itself is resolved as top.
+            val topPackage = task.topPackageName.takeIf { task.isTop } ?: "-"
+            val topActivity = task.topActivityName.takeIf { task.isTop } ?: "-"
+            "${task.id} ${shellQuote(task.packageName)} ${shellQuote(baseActivity)} " +
+                "${shellQuote(topPackage)} ${shellQuote(topActivity)}"
         }
-        pause(ROOT_SETTLE_MS)
+        val classpath = proxyClasspath.entry(::shell)
+        val output = shell(
+            "CLASSPATH=${shellQuote(classpath)} app_process /system/bin " +
+                "--nice-name=denza_split_cmd $SPLIT_PROXY_CLASS remove-task $arguments",
+        ).also(::validateOutput)
+        val removed = parseRemovals(output)
+        val refused = tasks.filterNot { task -> removed[task.id] == true }
+        if (refused.isNotEmpty()) {
+            // A task the proxy would not take is only a failure if it is still there: the firmware
+            // may have finished the very dismissal that made us ask.
+            val living = snapshot().roots.asSequence()
+                .flatMap { root -> root.tasks.asSequence() }
+                .mapTo(mutableSetOf(), SplitTask::id)
+            refused.firstOrNull { task -> task.id in living }?.let { task ->
+                error("Не удалось безопасно удалить задачу ${task.id}")
+            }
+        }
+        if (refused.size < tasks.size) pause(ROOT_SETTLE_MS)
     }
+
+    /** One `DENZA_SPLIT_RESULT:<taskId>=<bool>` line per task the proxy was asked about. */
+    private fun parseRemovals(output: String): Map<Int, Boolean> = output.lineSequence()
+        .map(String::trim)
+        .filter { line -> line.startsWith(SPLIT_PROXY_RESULT_PREFIX) }
+        .mapNotNull { line ->
+            val result = line.removePrefix(SPLIT_PROXY_RESULT_PREFIX)
+            val taskId = result.substringBefore('=').toIntOrNull() ?: return@mapNotNull null
+            taskId to (result.substringAfter('=', missingDelimiterValue = "") == "true")
+        }
+        .toMap()
 
     private fun moveTask(taskId: Int, rootId: Int, toTop: Boolean = true) {
         check(taskId > 0 && rootId > 0)

@@ -191,6 +191,33 @@ internal class FakeShell(
 
     private fun changed() = carChanged.forEach { listener -> listener() }
 
+    private fun removeExactTask(taskId: Int): Boolean {
+        if (disappearOnNextRemove) {
+            disappearOnNextRemove = false
+            tasks.removeAll { it.id == taskId }
+            return false
+        }
+        val removedTask = tasks.firstOrNull { it.id == taskId }
+        val removed = tasks.removeAll { it.id == taskId }
+        if (
+            replaceFullForegroundDuringPickerCleanup &&
+            !fullForegroundReplaced &&
+            removedTask?.packageName == STOCK_PICKER_PACKAGE
+        ) {
+            tasks.removeAll { it.rootId == FULL_ROOT }
+            tasks += Task(
+                id = nextTaskId++,
+                packageName = LAUNCHER_PACKAGE,
+                activityName = LAUNCHER_ACTIVITY,
+                rootId = FULL_ROOT,
+                bounds = FULL,
+            )
+            area = 4
+            fullForegroundReplaced = true
+        }
+        return removed
+    }
+
     fun shell(command: String): String {
         commands += command
         return when {
@@ -353,31 +380,15 @@ internal class FakeShell(
                 ""
             }
             command.contains("SplitTaskProxyMain remove-task ") -> {
-                val taskId = command.substringAfter("remove-task ").substringBefore(' ').toInt()
-                if (disappearOnNextRemove) {
-                    disappearOnNextRemove = false
-                    tasks.removeAll { it.id == taskId }
-                    return "DENZA_SPLIT_RESULT:false"
-                }
-                val removedTask = tasks.firstOrNull { it.id == taskId }
-                val removed = tasks.removeAll { it.id == taskId }
-                if (
-                    replaceFullForegroundDuringPickerCleanup &&
-                    !fullForegroundReplaced &&
-                    removedTask?.packageName == STOCK_PICKER_PACKAGE
-                ) {
-                    tasks.removeAll { it.rootId == FULL_ROOT }
-                    tasks += Task(
-                        id = nextTaskId++,
-                        packageName = LAUNCHER_PACKAGE,
-                        activityName = LAUNCHER_ACTIVITY,
-                        rootId = FULL_ROOT,
-                        bounds = FULL,
-                    )
-                    area = 4
-                    fullForegroundReplaced = true
-                }
-                "DENZA_SPLIT_RESULT:$removed"
+                // One invocation, any number of tasks, one answer line each - the proxy's own
+                // contract, so a batched recipe learns exactly which removals happened.
+                command.substringAfter("remove-task ")
+                    .split(' ')
+                    .chunked(5)
+                    .mapNotNull { group -> group.firstOrNull()?.toIntOrNull() }
+                    .joinToString("\n") { taskId ->
+                        "DENZA_SPLIT_RESULT:$taskId=${removeExactTask(taskId)}"
+                    }
             }
             command.startsWith("am task resize ") -> {
                 val parts = command.split(' ')

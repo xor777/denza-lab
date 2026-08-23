@@ -22,6 +22,7 @@ internal class SplitOperationWorkspace(
     val leases: List<SplitLeaseController>,
     private val gateLeaseStore: SplitGateLeaseStore,
     private val apkPath: String,
+    private val proxyClasspath: SplitProxyClasspath = SplitProxyClasspath { apkPath },
     /** The human name of a package; the package itself is the honest fallback (1.3.2). */
     val appLabel: (String) -> String = { it },
     private val clock: SplitClock,
@@ -47,6 +48,7 @@ internal class SplitOperationWorkspace(
         leases = leases,
         apkPath = apkPath,
         clock = clock,
+        proxyClasspath = proxyClasspath,
     )
 
     /**
@@ -93,6 +95,7 @@ internal class SplitOperationWorkspace(
             settle = op.fencedPause(sleeper),
             gateLeaseStore = gateLeaseStore,
             topology = topology,
+            proxyClasspath = proxyClasspath,
         ).also { built -> session = built }
     }
 
@@ -134,6 +137,7 @@ internal class SplitShellRollbackExecutor(
     private val apkPath: String,
     private val clock: SplitClock,
     private val budgetMs: Long = ROLLBACK_BUDGET_MS,
+    private val proxyClasspath: SplitProxyClasspath = SplitProxyClasspath { apkPath },
 ) : RollbackExecutor {
 
     private var deadlineAtMs: Long? = null
@@ -169,16 +173,17 @@ internal class SplitShellRollbackExecutor(
         check(taskId > 0 && packageName.isNotBlank() && activityName.isNotBlank()) {
             "task $taskId cannot be addressed by \"$component\""
         }
+        val classpath = proxyClasspath.entry(::budgeted)
         val output = budgeted(
-            "CLASSPATH=${quoted(apkPath)} app_process /system/bin " +
+            "CLASSPATH=${quoted(classpath)} app_process /system/bin " +
                 "--nice-name=denza_split_cmd ${SplitTaskProxyMain::class.java.name} " +
                 "remove-task $taskId ${quoted(packageName)} ${quoted(activityName)} '-' '-'",
         )
-        val result = output.lineSequence()
+        val removed = output.lineSequence()
             .map(String::trim)
-            .lastOrNull { line -> line.startsWith(TASK_PROXY_RESULT_PREFIX) }
-            ?.removePrefix(TASK_PROXY_RESULT_PREFIX)
-        check(result == "true") { "task $taskId was not removed: ${output.trim()}" }
+            .filter { line -> line.startsWith(TASK_PROXY_RESULT_PREFIX) }
+            .any { line -> line.removePrefix(TASK_PROXY_RESULT_PREFIX) == "$taskId=true" }
+        check(removed) { "task $taskId was not removed: ${output.trim()}" }
     }
 
     override fun moveTask(taskId: Int, toRootId: Int) {

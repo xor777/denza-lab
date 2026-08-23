@@ -134,6 +134,7 @@ internal class SplitCoordinatorCore(
     private val gateLeaseStore: SplitGateLeaseStore,
     private val leases: List<SplitLeaseController>,
     private val apkPath: String,
+    private val proxyClasspath: SplitProxyClasspath = SplitProxyClasspath { apkPath },
     /** The human name of a package, for the one surface that names apps to the user (1.3.2). */
     private val appLabel: (String) -> String = { it },
     private val sleeper: (Long) -> Unit = Thread::sleep,
@@ -419,6 +420,7 @@ internal class SplitCoordinatorCore(
             leases = leases,
             gateLeaseStore = gateLeaseStore,
             apkPath = apkPath,
+            proxyClasspath = proxyClasspath,
             appLabel = appLabel,
             clock = clock,
             sleeper = sleeper,

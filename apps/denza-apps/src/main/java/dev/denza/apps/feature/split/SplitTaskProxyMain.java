@@ -25,15 +25,21 @@ public final class SplitTaskProxyMain {
             result(focusLaunchableTask(context, taskId));
             return;
         }
-        if (args.length == 6 && "remove-task".equals(args[0])) {
-            int taskId = positiveTaskId(args[1]);
-            result(removeExactTask(
-                    context,
-                    taskId,
-                    args[2],
-                    args[3],
-                    optional(args[4]),
-                    optional(args[5])));
+        // One invocation, any number of tasks. Loading this class costs far more than the removals
+        // themselves, so a recipe that clears several tasks asks for them all at once; the answer
+        // stays one line per task so the caller still learns exactly which ones went.
+        if (args.length >= 6 && args.length % 5 == 1 && "remove-task".equals(args[0])) {
+            for (int at = 1; at < args.length; at += 5) {
+                int taskId = positiveTaskId(args[at]);
+                result(taskId, removeExactTask(
+                        context,
+                        taskId,
+                        args[at + 1],
+                        args[at + 2],
+                        optional(args[at + 3]),
+                        optional(args[at + 4])));
+            }
+            System.exit(0);
             return;
         }
         if (args.length == 6 && "start-in-task".equals(args[0])) {
@@ -48,8 +54,8 @@ public final class SplitTaskProxyMain {
             return;
         }
         throw new IllegalArgumentException(
-                "focus-task <id>, remove-task <id> <basePkg> <baseActivity> "
-                        + "<topPkg|-> <topActivity|->, or start-in-task <id> <hostPkg> "
+                "focus-task <id>, remove-task (<id> <basePkg> <baseActivity> "
+                        + "<topPkg|-> <topActivity|->)+, or start-in-task <id> <hostPkg> "
                         + "<hostActivity> <targetPkg> <targetActivity> required");
     }
 
@@ -59,6 +65,12 @@ public final class SplitTaskProxyMain {
         // ActivityThread/system Binder setup can keep app_process alive after main returns.
         // This helper is deliberately one-shot, just like ClusterProxyMain.
         System.exit(0);
+    }
+
+    /** One line per task of a batch, so a caller of many learns the fate of each. */
+    private static void result(int taskId, boolean value) {
+        System.out.println(RESULT_PREFIX + taskId + "=" + value);
+        System.out.flush();
     }
 
     private static int positiveTaskId(String raw) {

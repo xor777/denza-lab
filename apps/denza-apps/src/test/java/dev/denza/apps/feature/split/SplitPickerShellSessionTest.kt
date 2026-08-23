@@ -908,6 +908,35 @@ class SplitPickerShellSessionTest {
         assertFalse(fake.isGateOpen())
     }
 
+    /**
+     * 1.13.3: the removals are the same exact-identity calls, but they cost one class load, not one
+     * each. Loading the proxy dominates a removal by an order of magnitude on this car.
+     */
+    @Test
+    fun clearingSeveralTasksStartsTheProxyOnce() {
+        val fake = FakeShell()
+        val split = session(fake)
+        val pickers = split.openPickers(PICKERS, preservedPackages = emptyMap())
+        split.selectApp(
+            pickerTaskId = pickers.getValue(SplitPane.SECONDARY),
+            target = SplitLaunchTarget(MUSIC, "$MUSIC/$MUSIC.MainActivity"),
+            pickerComponents = PICKER_COMPONENTS,
+        )
+        val before = fake.commands.size
+
+        split.closePickers(PICKERS)
+
+        val proxyCalls = fake.commands.drop(before).filter { it.contains(" remove-task ") }
+        assertEquals("one class load, not one per task", 1, proxyCalls.size)
+        val groups = proxyCalls.single().substringAfter(" remove-task ").split(' ').chunked(5)
+        assertEquals(
+            "both picker bases are named in that one call, five arguments each",
+            pickers.values.map(Int::toString).sorted(),
+            groups.map { group -> group.first() }.sorted(),
+        )
+        assertTrue(groups.all { group -> group.size == 5 })
+    }
+
     @Test
     fun disabledProductEndsItsOwnSceneWithoutClosingAGateItNeverOpened() {
         // Обязательство к 1.12 и решение №2: закрывать можно только собственный gate.
