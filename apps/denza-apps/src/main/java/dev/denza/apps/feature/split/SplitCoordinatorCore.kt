@@ -241,6 +241,18 @@ internal class SplitCoordinatorCore(
         submitReconcile(SplitReconcileKind.DividerResized)
     }
 
+    /**
+     * Contract 1.5.6: an uninstall observed by a picker that is on screen right now.
+     *
+     * It is a hint like any other and it costs no command; section 6 keeps the lazy rule as the
+     * safety net for a removal that happened while nothing of ours was listening.
+     */
+    fun packageRemoved(packageName: String) {
+        ready()
+        if (packageName.isBlank()) return
+        submit { work -> PackageRemovedOperation(work, packageName) }
+    }
+
     /** Contract 1.9.1: Home is the priority event that cancels the work the user walked away from. */
     fun homeVisible() {
         ready()
@@ -483,6 +495,7 @@ internal class SplitCoordinatorCore(
         const val HOME_LABEL = "home"
         const val EDGE_LABEL = "edge"
         const val RECONCILE_LABEL = "reconcile"
+        const val PACKAGE_REMOVED_LABEL = "package-removed"
         const val NAV_STARTED_LABEL = "nav-started"
         const val NAV_RETURNED_LABEL = "nav-returned"
         const val NAV_PREPARE_LABEL = "nav-prepare"

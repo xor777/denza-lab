@@ -838,6 +838,135 @@ class SplitScenarioTest {
     }
 
     @Test
+    fun clearAllInRecentsEndsTheSceneAndTheNextOpenShowsFreshPickers() {
+        // 1.7.5, §11.30 вторая половина: очищенное не воскресает, следующий тап - два свежих пикера
+        val car = car(FakeShell().apply { liveProductScene(withApps = true) })
+        val core = car.core(SplitDurable(enabled = true, slots = APP_PAIR))
+        core.initialize {}
+        core.openPickerSession()
+        car.barrier()
+        assertEquals(APP_PAIR, car.store.load().slots)
+
+        // «Очистить всё» уносит с главного дисплея всё, до чего дотягивается Recents.
+        listOf(PRIMARY_ROOT, SECONDARY_ROOT).forEach(car.fake::dismissPane)
+        car.fake.area = 4
+        car.clearCommands()
+        core.dividerResized()
+        car.barrier()
+
+        assertEquals(
+            "ни одна панель не оставляет себе закрытое приложение",
+            PICKER_PAIR,
+            car.store.load().slots,
+        )
+        assertEquals("и это только наблюдение: ни одной мутации", emptyList<String>(), car.mutations())
+
+        car.clearCommands()
+        core.openPickerSession()
+        car.barrier()
+
+        val launches = car.commands().filter { it.startsWith("am start ") }
+        assertEquals(
+            "следующий тап строит ровно два пикера",
+            2,
+            launches.count { it.contains(SPLIT_PICKER_ACTIVITY) },
+        )
+        assertFalse(
+            "и ничего не воскрешает (инвариант 6)",
+            launches.any { it.contains(NAVIGATOR) || it.contains(MUSIC) },
+        )
+    }
+
+    @Test
+    fun aCoveredSceneIsNeverMistakenForAnEndedOne() {
+        // инвариант 5: Home и чужое полноэкранное окно прячут сцену, задачи которой живы в снапшоте
+        val car = car(FakeShell().apply { liveProductScene(withApps = true) })
+        val core = car.core(SplitDurable(enabled = true, slots = APP_PAIR))
+        core.initialize {}
+        core.openPickerSession()
+        car.barrier()
+        val commits = car.store.commits
+
+        // Чужое приложение на весь экран: панельные root'ы по-прежнему держат наши задачи.
+        car.fake.addTask(FULL_ROOT, FOREIGN_TASK, FOREIGN, "$FOREIGN.MainActivity")
+        car.fake.area = 4
+        car.clearCommands()
+        repeat(5) { core.dividerResized() }
+        car.barrier()
+        core.pickerVisible(hostTaskId = null)
+        car.barrier()
+
+        assertEquals("сцена скрыта, а не закрыта", APP_PAIR, car.store.load().slots)
+        assertEquals("скрытая сцена ничего не переписывает", commits, car.store.commits)
+        assertEquals(emptyList<String>(), car.mutations())
+        assertTrue(car.fake.hasTask(PRIMARY_APP_TASK))
+        assertTrue(car.fake.hasTask(SECONDARY_APP_TASK))
+    }
+
+    @Test
+    fun anUninstallWhileThePickerIsOpenFreesThatPaneWithoutOneCommand() {
+        // 1.5.6 и §6: удалённое приложение не может остаться выбором панели
+        val car = car(FakeShell().apply { liveProductScene(withApps = true) })
+        val core = car.core(SplitDurable(enabled = true, slots = APP_PAIR))
+        core.initialize {}
+        core.openPickerSession()
+        car.barrier()
+        val opened = car.shells.opened.get()
+        car.clearCommands()
+
+        core.packageRemoved(MUSIC)
+        car.barrier()
+
+        assertEquals(
+            mapOf(
+                SplitPane.PRIMARY to SplitSlot.App(NAVIGATOR),
+                SplitPane.SECONDARY to SplitSlot.Picker,
+            ),
+            car.store.load().slots,
+        )
+        assertEquals("уведомление об удалении не трогает машину", emptyList<String>(), car.commands())
+        assertEquals("и не открывает даже сессию", opened, car.shells.opened.get())
+        assertTrue("сосед продолжает жить", car.fake.hasTask(PRIMARY_APP_TASK))
+
+        val commits = car.store.commits
+        core.packageRemoved(WAZE)
+        car.barrier()
+
+        assertEquals("пакета нет ни в одном слоте - писать нечего", commits, car.store.commits)
+        assertEquals(emptyList<String>(), car.commands())
+    }
+
+    @Test
+    fun aFailedSelectionPublishesTheAutomatonNoticeExactlyOnce() {
+        // 1.5.7: панель остаётся на пикере, сосед не тронут, сообщение ровно одно
+        val car = car(FakeShell(directTargetLaunchSucceeds = false).apply { liveProductScene() })
+        val core = car.core(SplitDurable(enabled = true, slots = PICKER_PAIR))
+        core.initialize {}
+        core.openPickerSession()
+        car.barrier()
+        val neighbour = car.fake.topTaskId(SECONDARY_ROOT)
+        val results = Collections.synchronizedList(mutableListOf<String?>())
+
+        core.selectApp(PRIMARY_PICKER_TASK, NAVIGATOR, results::add)
+        car.barrier()
+
+        assertEquals(
+            "план автомата - единственный источник сообщения, и оно одно",
+            listOf(SplitCoordinatorCore.SELECT_FAILURE),
+            car.notices.filter(String::isNotBlank),
+        )
+        assertEquals(listOf(SplitCoordinatorCore.SELECT_FAILURE), results.toList())
+        assertEquals("хранилище не тронуто", 0, car.store.commits)
+        assertEquals(PICKER_PAIR, car.store.load().slots)
+        assertEquals(
+            "панель снова на своём пикере",
+            PRIMARY_PICKER_ACTIVITY,
+            car.fake.topActivity(PRIMARY_ROOT),
+        )
+        assertEquals("сосед не тронут", neighbour, car.fake.topTaskId(SECONDARY_ROOT))
+    }
+
+    @Test
     fun toggleOffDuringProjectionCancelsTheReturnAndKeepsTheNavigatorSlot() {
         // сценарий §11.31, контракт 1.10.8
         val car = car(FakeShell(initialGate = true).apply { liveProductScene(withApps = true) })
@@ -892,6 +1021,7 @@ class SplitScenarioTest {
         const val ACCESS_KEY = "picker_access_enabled"
         const val STOCK_TASK = 55
         const val PROJECTED_NAV_TASK = 88
+        const val FOREIGN_TASK = 99
         const val FOREIGN = "com.example.foreign"
 
         /** Дальше любого бюджета операции, так что таймер актора точно сработал. */

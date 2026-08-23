@@ -99,6 +99,7 @@ class SplitPickerActivity : ComponentActivity() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action !in PACKAGE_CHANGE_ACTIONS) return
             refreshCatalogAsync()
+            reportUninstall(intent)
         }
     }
     private val stoppedReporter = Runnable {
@@ -223,6 +224,21 @@ class SplitPickerActivity : ComponentActivity() {
         }.onFailure { error ->
             Log.w(TAG, "Failed to report split divider resize", error)
         }
+    }
+
+    /**
+     * Contract 1.5.6: the catalog list is only half of it - a pane that still remembers the
+     * uninstalled package has to give itself back to its picker.
+     *
+     * Only a real uninstall qualifies. The removal half of an update carries `EXTRA_REPLACING` and
+     * the package comes straight back, so treating it as a removal would drop a live selection for
+     * no reason (1.11.2).
+     */
+    private fun reportUninstall(intent: Intent?) {
+        if (intent?.action != Intent.ACTION_PACKAGE_REMOVED) return
+        if (intent.getBooleanExtra(Intent.EXTRA_REPLACING, false)) return
+        val removed = intent.data?.schemeSpecificPart?.takeIf(String::isNotBlank) ?: return
+        SplitScreenCoordinator.onPackageRemoved(applicationContext, removed)
     }
 
     private fun refreshCatalogAsync() {

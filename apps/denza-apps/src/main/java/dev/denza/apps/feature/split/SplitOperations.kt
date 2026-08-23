@@ -154,6 +154,14 @@ internal abstract class SplitCoreOperation<P>(
     /** Published on commit; `null` leaves whatever notice the product already shows. */
     protected var settledNotice: String? = null
 
+    /**
+     * Message the automaton planned for a failure this operation already settled as a fact.
+     *
+     * It is deliberately separate from [settledNotice]: that one belongs to a committed outcome,
+     * and reusing it would make a rejected commit publish the success message.
+     */
+    protected var plannedFailureNotice: String? = null
+
     final override fun plan(op: SplitOperationContext, shell: (String) -> String): P? {
         working = work.state()
         liveScene = work.live()
@@ -246,7 +254,15 @@ internal abstract class SplitCoreOperation<P>(
             is SplitOutcome.Failed -> outcome.message
             else -> return
         }
-        failed(SplitCoordinatorCore.friendlyError(reason, SplitCoordinatorCore.fallbackOf(label)))
+        // U5, once. When the automaton already answered this exact failure with a plan, that plan
+        // is the message; translating the raw reason on top of it would say the same thing twice.
+        failed(
+            plannedFailureNotice
+                ?: SplitCoordinatorCore.friendlyError(
+                    reason,
+                    SplitCoordinatorCore.fallbackOf(label),
+                ),
+        )
     }
 
     /** U5: an operation that owns a user-visible surface says so when it fails. */
@@ -477,11 +493,16 @@ internal class SelectOperation(
         // disable/re-enable dance into the middle of a launch the user is watching.
         enableLeases(op, shell, setOf(SplitLeaseKind.RESIZEABILITY))
         pointOfNoReturn(op, "selecting an app clears the tasks above its picker")
-        val settled = split.selectApp(
-            pickerTaskId = pickerTaskId,
-            target = target,
-            pickerComponents = SPLIT_PICKER_COMPONENT_SET,
-        )
+        val settled = try {
+            split.selectApp(
+                pickerTaskId = pickerTaskId,
+                target = target,
+                pickerComponents = SPLIT_PICKER_COMPONENT_SET,
+            )
+        } catch (error: Throwable) {
+            settleLaunchFailure(error)
+            throw error
+        }
         placement = settled
         settle(SplitFact.SelectionRequested(settled.pane, settled.packageName))
         liveScene = liveScene + (
@@ -515,7 +536,68 @@ internal class SelectOperation(
         return true
     }
 
+    /**
+     * Contract 1.5.7. The recipe has already put the pane back on its picker and kept the
+     * neighbour out of it; what was missing was the fact. The automaton answers it with the plan
+     * that carries the message, so the text the user reads is produced where every other product
+     * decision is produced rather than by this catch block.
+     *
+     * The pane comes from the live scene the operation started with - a picker task id names its
+     * pane and nothing else does - so a failure this process cannot place stays a plain failure.
+     */
+    private fun settleLaunchFailure(error: Throwable) {
+        val pane = liveScene.entries
+            .firstOrNull { (_, observed) -> observed.hostTaskId == pickerTaskId }
+            ?.key
+            ?: return
+        val reason = SplitCoordinatorCore.friendlyError(
+            error.message,
+            SplitCoordinatorCore.SELECT_FAILURE,
+        )
+        plannedFailureNotice = settle(SplitFact.AppLaunchFailed(pane, reason))
+            .filterIsInstance<SplitPlan.Notice>()
+            .firstOrNull()
+            ?.text
+    }
+
     override fun failed(message: String) = work.notices.publish(message)
+}
+
+// endregion
+
+// region package removal
+
+/**
+ * Contract 1.5.6: an app was uninstalled while its picker was on screen.
+ *
+ * The picker's own package receiver is what makes this prompt, and it exists only while a picker
+ * is alive; the lazy rule of section 6 stays the safety net for every removal nobody was listening
+ * for. The operation sends not one command: an uninstall is a package fact and the panes it
+ * touches are durable slots, so the whole operation is a guard plus a fact.
+ */
+internal class PackageRemovedOperation(
+    work: SplitOperationWorkspace,
+    private val packageName: String,
+) : SplitCoreOperation<Boolean>(
+    label = SplitCoordinatorCore.PACKAGE_REMOVED_LABEL,
+    priority = SplitInputPriority.HINT,
+    durationMs = PACKAGE_REMOVED_BUDGET_MS,
+    joinKey = null,
+    coalesceKey = PACKAGE_REMOVED_COALESCE_PREFIX + packageName,
+    work = work,
+) {
+    override fun prepare(op: SplitOperationContext, shell: (String) -> String): Boolean =
+        working.enabled && recorded()
+
+    override fun apply(op: SplitOperationContext, shell: (String) -> String, plan: Boolean) {
+        if (!plan) return
+        settle(SplitFact.PackageRemoved(packageName))
+    }
+
+    /** Anywhere the product still claims this package: a durable slot or a projected vacancy. */
+    private fun recorded(): Boolean =
+        working.slots.values.any { slot -> slot is SplitSlot.App && slot.packageName == packageName } ||
+            working.vacancyApp.containsValue(packageName)
 }
 
 // endregion
@@ -805,11 +887,15 @@ internal class ReconcileOperation(
         // Nothing below means anything without a scene axis. A hint that can only come from a live
         // product scene is allowed to prove one first (1.11.3); everything else fails closed here.
         if (working.scene == null && !adoptOwnedScene(split)) return
-        when (kind) {
+        val proven = when (kind) {
             SplitReconcileKind.DividerResized -> reconcileScene(op, split, settleResize = true)
             is SplitReconcileKind.PickerVisible -> pickerVisible(op, split, kind.hostTaskId)
             is SplitReconcileKind.PickerHidden -> pickerHidden(op, split, kind.hostTaskId)
         }
+        // Only once no recipe could prove anything about this scene is "it is gone" a candidate
+        // explanation at all - a collapse, a resize repair and a revealed picker all get to speak
+        // first, and each of them proves the scene still exists (1.7.5).
+        if (!proven) settleSceneEnded(split)
     }
 
     /**
@@ -848,16 +934,27 @@ internal class ReconcileOperation(
      * A revealed picker means the task that covered it is gone (1.6.2, 1.7.1-1.7.3). The recorded
      * app is removed only when this very snapshot still lists it in that root: that is the rule the
      * old automaton used, and it is what keeps a crash and a Back indistinguishable and safe.
+     *
+     * @return whether the scene was proven to still exist by this hint.
      */
     private fun pickerVisible(
         op: SplitOperationContext,
         split: SplitPickerShellSession,
         requestedHostTaskId: Int?,
-    ) {
+    ): Boolean {
         val hostTaskId = requestedHostTaskId
             ?: split.singleVisiblePickerTaskId(SPLIT_PICKER_COMPONENT_SET)
-            ?: return
-        if (!reconcileScene(op, split, settleResize = false)) return
+            ?: return false
+        if (!reconcileScene(op, split, settleResize = false)) return false
+        closeRevealedApp(op, split, hostTaskId)
+        return true
+    }
+
+    private fun closeRevealedApp(
+        op: SplitOperationContext,
+        split: SplitPickerShellSession,
+        hostTaskId: Int,
+    ) {
         val observation = split.observePickerTask(hostTaskId, SPLIT_PICKER_COMPONENT_SET) ?: return
         if (!observation.pickerVisible) return
         val pane = observation.pane
@@ -874,22 +971,58 @@ internal class ReconcileOperation(
     /**
      * A picker that left both panel roots is the dismiss gesture, and only then (1.6.3, 1.7.4).
      * A hidden picker under a live app is Android reclaiming an invisible Activity, never a close.
+     *
+     * @return whether this hint closed a pane. Everything else it can observe - an unknown host, a
+     * live app above the picker, a picker still in its panel root - is left to the scene check.
      */
     private fun pickerHidden(
         op: SplitOperationContext,
         split: SplitPickerShellSession,
         hostTaskId: Int,
-    ) {
+    ): Boolean {
         val pane = liveScene.entries
             .firstOrNull { (_, observed) -> observed.hostTaskId == hostTaskId }
             ?.key
-            ?: return
-        if (liveScene.getValue(pane).appTaskId != null) return
-        if (split.observePickerTask(hostTaskId, SPLIT_PICKER_COMPONENT_SET) != null) return
+            ?: return false
+        if (liveScene.getValue(pane).appTaskId != null) return false
+        if (split.observePickerTask(hostTaskId, SPLIT_PICKER_COMPONENT_SET) != null) return false
         pointOfNoReturn(op, "removing the dismissed picker of $pane")
         split.removePickerArtifact(hostTaskId, SPLIT_PICKER_COMPONENT_SET)
         liveScene = liveScene - pane
         settle(SplitFact.PickerPaneClosedSettled(pane))
+        return true
+    }
+
+    /**
+     * Contract 1.7.5 and scenario 30: "Clear all" in Recents, and every other way a whole scene can
+     * stop existing while this process is not looking at it.
+     *
+     * The proof is **existence**, never visibility (invariant 5). Home, Recents and a foreign
+     * fullscreen app all *cover* a scene whose tasks are still listed in the two panel roots, so
+     * none of them can ever reach the fact below; only a fresh snapshot in which not one task of
+     * the verified scene is left in either panel root can. Nothing is remembered beyond the
+     * ephemeral live hint the operations already keep (invariant 4), and the check reads: no
+     * mutation, no point of no return, one settled fact.
+     *
+     * The automaton then keeps the projected navigator's slot and turns every other `APP` into
+     * `PICKER`, which is what makes the next open show fresh pickers instead of resurrecting what
+     * the user cleared (1.3.4, invariant 6).
+     */
+    private fun settleSceneEnded(split: SplitPickerShellSession): Boolean {
+        if (working.scene == null) return false
+        val recorded = liveScene.values.flatMapTo(mutableSetOf()) { observed ->
+            listOfNotNull(observed.hostTaskId, observed.appTaskId)
+        }
+        if (recorded.isEmpty()) return false
+        val living = runCatching {
+            SplitPane.entries.flatMapTo(mutableSetOf()) { pane ->
+                split.observePane(pane, SPLIT_PICKER_COMPONENT_SET).observedTaskIds
+            }
+        }.getOrNull() ?: return false
+        if (recorded.any { taskId -> taskId in living }) return false
+        liveScene = emptyMap()
+        settle(SplitFact.SceneEndedSettled)
+        return true
     }
 
     /**
@@ -973,12 +1106,16 @@ internal class ReconcileOperation(
 
 private val ALL_LEASES = setOf(SplitLeaseKind.RESIZEABILITY, SplitLeaseKind.PICKER_ACCESS)
 private const val SELECT_JOIN_PREFIX = "select-"
+private const val PACKAGE_REMOVED_COALESCE_PREFIX = "package-removed-"
 private const val TOGGLE_BUDGET_MS = 30_000L
 private const val OPEN_BUDGET_MS = 15_000L
 private const val SELECT_BUDGET_MS = 20_000L
 private const val HOME_BUDGET_MS = 10_000L
 private const val EDGE_BUDGET_MS = 25_000L
 private const val RECONCILE_BUDGET_MS = 30_000L
+
+/** No shell at all, so the only thing this budget covers is waiting out the queue ahead of it. */
+private const val PACKAGE_REMOVED_BUDGET_MS = 30_000L
 
 /**
  * Navigation budgets (canon: an operation's deadline is fixed at submit time).

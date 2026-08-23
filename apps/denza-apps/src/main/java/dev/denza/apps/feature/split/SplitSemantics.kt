@@ -70,10 +70,10 @@ internal data class SplitState(
  * A fact is an established observation ("the task left the panel roots"), never a raw event
  * ("onStop arrived", "TYPE_WINDOWS_CHANGED blinked") — contract section 7, invariant 8.
  *
- * Three of them have no producer yet, and the rows they close are therefore automaton-only until
- * one exists: [SceneEndedSettled] (1.7.5, scenario 30 - "clear all"), [PackageRemoved] (1.5.6, an
- * uninstall while a picker is open) and [AppLaunchFailed] (1.5.7 as a plan rather than as the
- * notice the failing operation already publishes).
+ * Every one of them has a producer: `ReconcileOperation` settles the topology facts including
+ * [SceneEndedSettled] (1.7.5, scenario 30 - "clear all"), `PackageRemovedOperation` settles
+ * [PackageRemoved] from what a live picker saw (1.5.6), and `SelectOperation` settles
+ * [AppLaunchFailed] so that 1.5.7 is answered by a plan rather than by a private publish.
  */
 internal sealed interface SplitFact {
     data class ToggleChanged(val enabled: Boolean) : SplitFact

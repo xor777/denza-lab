@@ -83,6 +83,11 @@ object SplitScreenCoordinator {
         core(context).dividerResized()
     }
 
+    /** An uninstall a live picker saw: no pane may keep a package that is gone (1.5.6). */
+    fun onPackageRemoved(context: Context, packageName: String) {
+        core(context).packageRemoved(packageName)
+    }
+
     /** Accepts only Home from the app-wide observer; all other global window traffic is ignored. */
     @JvmStatic
     fun onGlobalAccessibilityWindowChanged(context: Context, packageName: String?) {
