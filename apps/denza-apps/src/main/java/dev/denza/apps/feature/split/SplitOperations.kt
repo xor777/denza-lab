@@ -25,6 +25,7 @@ internal class SplitOperationWorkspace(
     private val proxyClasspath: SplitProxyClasspath = SplitProxyClasspath { apkPath },
     /** The human name of a package; the package itself is the honest fallback (1.3.2). */
     val appLabel: (String) -> String = { it },
+    private val logMirror: () -> List<String> = { emptyList() },
     private val clock: SplitClock,
     private val sleeper: (Long) -> Unit,
     private val diagnostics: SplitDiagnosticLog,
@@ -110,6 +111,21 @@ internal class SplitOperationWorkspace(
         }
         topology.invalidate()
         open?.let { runCatching(it::close) }
+    }
+
+    /**
+     * Carries what the product recorded through the one channel this car is proven to accept.
+     *
+     * It costs one command, and only on an operation that was already talking to the firmware: an
+     * operation that decided to do nothing opens no session and mirrors nothing (invariant 1, K6,
+     * K7), and one that lost its token sends nothing at all, log line included (invariant 10) -
+     * whatever it recorded waits for the next operation that still owns its mutations.
+     */
+    fun mirrorDiagnostics() {
+        val handle = synchronized(handleLock) { handle } ?: return
+        val lines = runCatching(logMirror).getOrDefault(emptyList())
+        if (lines.isEmpty()) return
+        runCatching { handle.shell(SplitDiagnostics.mirrorCommand(lines)) }
     }
 
     private fun openedHandle(): SplitShellHandle = synchronized(handleLock) {
@@ -277,6 +293,21 @@ internal abstract class SplitCoreOperation<P>(
         )
     }
 
+    /**
+     * One step of an operation, in milliseconds since the user asked for it (1.13).
+     *
+     * The clock starts at submit time rather than at dequeue, because a tap that waited behind
+     * another operation waited for the user too; the deadline the actor fixed then is what carries
+     * that instant into the run. A handful of these per operation is the whole instrument: enough
+     * to say which step of an open the seconds went into, and never a line per command.
+     */
+    protected fun mark(op: SplitOperationContext, step: String) {
+        work.log("$label +${op.clock.nowMs() - requestedAtMs(op)}ms $step")
+    }
+
+    /** When the user asked: the actor fixed the deadline one budget after the submit. */
+    private fun requestedAtMs(op: SplitOperationContext): Long = op.token.deadlineAtMs - durationMs
+
     protected fun settle(fact: SplitFact): List<SplitPlan> {
         val reduction = SplitAutomaton.reduce(working, fact)
         working = reduction.state
@@ -415,6 +446,7 @@ internal class SplitOperationLifecycle(
         val outcome = try {
             operation.run(op)
         } finally {
+            if (op.token.isAlive(op.clock.nowMs())) workspace.mirrorDiagnostics()
             workspace.close()
         }
         operation.finished(outcome)
@@ -510,12 +542,14 @@ internal class OpenOperation(
 
     override fun prepare(op: SplitOperationContext, shell: (String) -> String): SplitOpenPlan? {
         if (!working.enabled) return null
+        mark(op, "dequeued")
         settle(SplitFact.OpenRequested)
         val restorable = SplitPickerSelectionPolicy.restorablePair(
             primaryPackage = (working.slot(SplitPane.PRIMARY) as? SplitSlot.App)?.packageName,
             secondaryPackage = (working.slot(SplitPane.SECONDARY) as? SplitSlot.App)?.packageName,
             installedPackages = work.catalog.installedPackages(),
         )
+        mark(op, "catalog-ready")
         // Read-only: adoption is decided from a live snapshot before a single mutation (1.3.5).
         //
         // Nothing is swallowed here. "There is no scene of ours" is answered with `null` by the
@@ -527,15 +561,18 @@ internal class OpenOperation(
             pickerComponents = SPLIT_PICKER_COMPONENT_SET,
             expectedApps = SplitCoordinatorCore.expectedApps(liveScene),
         )
+        mark(op, if (adopted == null) "scene-read: nothing of ours" else "scene-read: adoptable")
         return SplitOpenPlan(adopted, restorable)
     }
 
     override fun apply(op: SplitOperationContext, shell: (String) -> String, plan: SplitOpenPlan) {
         val split = work.split(op)
         enableLeases(op, shell, ALL_LEASES)
+        mark(op, "leases-taken")
         val adopted = plan.adopted
         if (adopted != null) {
             adopt(split.revealOwnedSession(adopted, SPLIT_PICKER_COMPONENT_SET))
+            mark(op, "revealed")
             return
         }
         build(op, split, plan.restorable)
@@ -563,6 +600,7 @@ internal class OpenOperation(
         // nothing (contract, to 1.12).
         op.journal.record(SplitJournalEntry.GateOpened(prevOpen = work.gateOwned()))
         val hostTaskIds = split.openPickers(SPLIT_PICKER_COMPONENTS, restorable)
+        mark(op, "pickers-launched")
         hostTaskIds.values.forEach { taskId ->
             recordCreated(op, preexisting, taskId, SPLIT_PICKER_COMPONENT)
         }
@@ -599,6 +637,7 @@ internal class OpenOperation(
                 failures += packageName
             }
         }
+        if (restorable.isNotEmpty()) mark(op, "apps-restored")
         liveScene = panes
         settle(SplitFact.BuildSceneSucceeded(sceneSlots(panes)))
         settledNotice =

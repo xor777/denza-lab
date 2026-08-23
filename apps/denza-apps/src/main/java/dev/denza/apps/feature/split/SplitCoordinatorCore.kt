@@ -145,6 +145,11 @@ internal class SplitCoordinatorCore(
     private val appLabel: (String) -> String = { it },
     private val sleeper: (Long) -> Unit = Thread::sleep,
     private val log: SplitDiagnosticLog = SplitDiagnosticLog {},
+    /**
+     * Lines the sink cannot prove reached anyone, handed to whatever operation next has a shell
+     * open. Empty by default: a test's sink is its own oracle and needs no second channel.
+     */
+    private val logMirror: () -> List<String> = { emptyList() },
     private val post: (() -> Unit) -> Unit = { action -> action() },
 ) {
     private val stateLock = Any()
@@ -428,6 +433,7 @@ internal class SplitCoordinatorCore(
             apkPath = apkPath,
             proxyClasspath = proxyClasspath,
             appLabel = appLabel,
+            logMirror = logMirror,
             clock = clock,
             sleeper = sleeper,
             diagnostics = log,
@@ -437,8 +443,11 @@ internal class SplitCoordinatorCore(
             publisher = ::publishSettled,
         )
         val operation = factory(workspace)
+        val requestedAtMs = clock.nowMs()
         val ticket = actor.submit(SplitOperationLifecycle(operation, workspace))
-        ticket.onComplete { outcome -> finishOperation(operation.label, outcome) }
+        ticket.onComplete { outcome ->
+            finishOperation(operation.label, outcome, clock.nowMs() - requestedAtMs)
+        }
         return ticket
     }
 
@@ -452,7 +461,7 @@ internal class SplitCoordinatorCore(
         nextNotice?.let(notices::publish)
     }
 
-    private fun finishOperation(label: String, outcome: SplitOutcome) {
+    private fun finishOperation(label: String, outcome: SplitOutcome, elapsedMs: Long) {
         // 1.10.7: a navigation return that failed is navigation's error, on navigation's surface.
         // It must not repaint the split panel as broken, and it never owned a busy label there.
         if (label in NAV_LABELS) {
@@ -472,7 +481,7 @@ internal class SplitCoordinatorCore(
         // U5, U6: an action the user performed never ends in silence. Whatever became of it -
         // committed, cancelled, rolled back, refused - exactly one line says so, so that a tap
         // which produced no visible change is still explainable afterwards.
-        if (label in USER_LABELS) log.log(terminalOf(label, outcome))
+        if (label in USER_LABELS) log.log(terminalOf(label, outcome, elapsedMs))
         synchronized(stateLock) {
             busy = busy?.takeIf { it.label != label }
             failure = when {
@@ -593,15 +602,18 @@ internal class SplitCoordinatorCore(
             SELECT_LABEL,
         )
 
-        /** One line, one terminal: what the user asked for, what became of it and why. */
-        fun terminalOf(label: String, outcome: SplitOutcome): String {
+        /**
+         * One line, one terminal: what the user asked for, what became of it, why - and how long
+         * they waited for it, counted from the tap rather than from the dequeue (1.13).
+         */
+        fun terminalOf(label: String, outcome: SplitOutcome, elapsedMs: Long): String {
             val (settled, reason) = when (outcome) {
                 is SplitOutcome.Committed -> "committed" to null
                 is SplitOutcome.Cancelled -> "cancelled" to outcome.reason
                 is SplitOutcome.RolledBack -> "rolled-back" to outcome.reason
                 is SplitOutcome.Failed -> "failed" to outcome.message
             }
-            return "$label outcome=$settled reason=${reason ?: "-"}"
+            return "$label outcome=$settled reason=${reason ?: "-"} in ${elapsedMs}ms"
         }
 
         const val EXTERNAL_TASK_BYPASS_MS = 5_000L

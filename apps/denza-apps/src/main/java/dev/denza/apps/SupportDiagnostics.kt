@@ -21,6 +21,7 @@ import dev.denza.apps.feature.mirrors.MirrorsPosition
 import dev.denza.apps.feature.mirrors.MirrorsSettings
 import dev.denza.apps.feature.mirrors.SideCameraDetection
 import dev.denza.apps.feature.navigation.NavigationCoordinator
+import dev.denza.apps.feature.split.SplitDiagnostics
 import dev.denza.apps.feature.split.SplitScreenCoordinator
 
 data class SupportDiagnosticsHeader(
@@ -95,6 +96,10 @@ object SupportDiagnostics {
             add("Навигация=${navigation.message.ifBlank { navigation.phase.name.lowercase() }}")
             val split = SplitScreenCoordinator.snapshot()
             add("Split screen=${split.message.ifBlank { split.phase.name.lowercase() }}")
+            // U5: a diagnostic nobody can read is a silent failure. `Log.i` from this application
+            // cannot be proven to reach logcat on this firmware, so the last lines the split
+            // product recorded are readable here, with no logcat involved at all.
+            SplitDiagnostics.recent(SPLIT_LOG_LINES).forEach { line -> add("Split log=$line") }
             add("HUD-подсказки=${enabledLabel(HudGuidanceSettings.isEnabled(context))}")
             val hudNotificationAccess = HudNotificationAccessCoordinator.diagnostics(context)
             add(
@@ -212,4 +217,7 @@ object SupportDiagnostics {
     } catch (_: PackageManager.NameNotFoundException) {
         false
     }
+
+    /** Enough to cover one open and its terminal without turning the report into a log file. */
+    private const val SPLIT_LOG_LINES = 40
 }

@@ -236,7 +236,7 @@ class SplitScenarioTest {
         assertEquals(
             "ноль отмен: единственный терминал операции - committed",
             listOf("${SplitCoordinatorCore.OPEN_LABEL} outcome=committed reason=-"),
-            car.diagnostics.filter { it.startsWith("${SplitCoordinatorCore.OPEN_LABEL} outcome=") },
+            openTerminals(car),
         )
         assertEquals(
             "переподключение наблюдателя вообще не заявляет Home (инвариант 8)",
@@ -411,6 +411,67 @@ class SplitScenarioTest {
             switched.diagnostics.any {
                 it.startsWith("${SplitCoordinatorCore.DISABLE_LABEL} outcome=")
             },
+        )
+    }
+
+    /**
+     * U5 and the live blank of the vertical slice: two whole open runs, not one line of the tag.
+     *
+     * `Log.i` from this application cannot be proven to reach anyone on this firmware, while the
+     * same tag written from the shell does. So an operation that is talking to the car anyway
+     * carries what the product recorded over that channel too - once, at the end, never a session
+     * of its own, and never past the fence.
+     */
+    @Test
+    fun whatTheProductRecordsAlsoLeavesByAChannelTheCarAccepts() {
+        val car = car(FakeShell())
+        val core = car.core(SplitDurable(enabled = true, slots = PICKER_PAIR))
+        core.initialize {}
+
+        core.openPickerSession()
+        car.barrier()
+
+        val mirrored = car.commands().filter { it.startsWith("log -t ${SplitDiagnostics.TAG} ") }
+        assertEquals("one command, at the end of the operation", 1, mirrored.size)
+        assertTrue(
+            "and it carries the step timings the diagnosis needs",
+            mirrored.single().contains("${SplitCoordinatorCore.OPEN_LABEL} +"),
+        )
+        assertTrue(
+            car.diagnostics.any { it.startsWith("${SplitCoordinatorCore.OPEN_LABEL} +") },
+        )
+
+        // A second operation carries what the first could not: its own terminal, logged after the
+        // first shell had already closed.
+        car.clearCommands()
+        core.openPickerSession()
+        car.barrier()
+
+        assertTrue(
+            "the terminal of the first open is not lost, only late",
+            car.commands()
+                .filter { it.startsWith("log -t ") }
+                .any { it.contains("${SplitCoordinatorCore.OPEN_LABEL} outcome=committed") },
+        )
+    }
+
+    /** Invariant 10: a cancelled operation sends nothing more - not even a diagnostic line. */
+    @Test
+    fun anExpiredOperationDoesNotEvenMirrorItsOwnDiagnostics() {
+        val car = car(FakeShell())
+        val core = car.core(SplitDurable(enabled = true))
+        core.initialize {}
+
+        car.shells.blockAt(GATE_OPEN)
+        core.openPickerSession()
+        assertTrue(car.shells.awaitBlocked())
+        car.clock.advance(PAST_EVERY_BUDGET_MS)
+        car.shells.release()
+        car.barrier()
+
+        assertEquals(
+            emptyList<String>(),
+            car.commands().filter { it.startsWith("log -t ") },
         )
     }
 
@@ -1514,8 +1575,10 @@ class SplitScenarioTest {
     private fun car(fake: FakeShell): SplitCarFixture = SplitCarFixture(fake).also(cars::add)
 
     /** Every terminal the diagnostic log recorded for a tap on the launcher button. */
-    private fun openTerminals(car: SplitCarFixture): List<String> =
-        car.diagnostics.filter { it.startsWith("${SplitCoordinatorCore.OPEN_LABEL} outcome=") }
+    /** Terminals without their duration: the wait is measured by the acceptance, not by a unit test. */
+    private fun openTerminals(car: SplitCarFixture): List<String> = car.diagnostics
+        .filter { it.startsWith("${SplitCoordinatorCore.OPEN_LABEL} outcome=") }
+        .map { line -> line.substringBefore(" in ") }
 
     /**
      * A confirmed Home that is already inside the actor, whatever the coordinator decided about the

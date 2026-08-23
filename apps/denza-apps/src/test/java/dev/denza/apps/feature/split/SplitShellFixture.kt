@@ -453,6 +453,8 @@ internal class FakeShell(
                 system[parts[0]] = parts.getOrElse(1) { "" }.trim().trim('\'')
                 ""
             }
+            // The one channel this firmware is proven to accept for our tag (U5).
+            command.startsWith("log -t ") -> ""
             command.startsWith("settings delete system ") -> {
                 system.remove(command.removePrefix("settings delete system "))
                 ""
@@ -592,6 +594,9 @@ internal class SplitCarFixture(
     val notices: MutableList<String> = Collections.synchronizedList(mutableListOf())
     val diagnostics: MutableList<String> = Collections.synchronizedList(mutableListOf())
 
+    /** Lines no proven channel has carried yet - the production sink's second half (U5). */
+    private val unmirrored: MutableList<String> = Collections.synchronizedList(mutableListOf())
+
     private var built: SplitCoordinatorCore? = null
 
     fun core(
@@ -613,7 +618,13 @@ internal class SplitCarFixture(
             apkPath = SPLIT_APK_PATH,
             appLabel = appLabel,
             sleeper = {},
-            log = diagnostics::add,
+            log = { line ->
+                diagnostics += line
+                unmirrored += line
+            },
+            logMirror = {
+                synchronized(unmirrored) { unmirrored.toList().also { unmirrored.clear() } }
+            },
         ).also { core -> built = core }
     }
 
