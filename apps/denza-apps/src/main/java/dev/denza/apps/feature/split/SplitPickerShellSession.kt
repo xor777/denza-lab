@@ -1561,12 +1561,16 @@ internal class SplitPickerShellSession(
         }
     }
 
+    /**
+     * The gate is firmware-global, so it is closed by exactly one rule: we opened it, therefore we
+     * close it (contract, to 1.12; invariant 1). A gate that was already open when our session
+     * started, or that belongs to a stock split the user built themselves, is left alone.
+     */
     private fun closeGateForDisabledProduct() {
-        val store = gateLeaseStore
+        val store = gateLeaseStore ?: return
+        if (!store.isOwned()) return
         callVoid("service call activity_task 126 i32 0")
-        if (store != null && store.isOwned()) {
-            check(store.setOwned(false)) { "Не удалось освободить split-gate" }
-        }
+        check(store.setOwned(false)) { "Не удалось освободить split-gate" }
     }
 
     private fun ensureSupported(packageName: String) {
