@@ -751,6 +751,15 @@ with task 497 on reopen, and the duplicate guard incorrectly treated the stale
 task as a peer that had to survive. The failure cleanup consequently removed
 the correct new task.
 
+> Superseded at code level on 2026-08-23 (wave 3, not yet live-verified):
+> `MULTIPLE_TASK` is now set for exactly one case, a second copy of a package the
+> other pane still holds. Every other launch - a restore, and a tap on a package
+> nothing else is showing - uses `0x10200000` and is handed back the task the
+> package already has. Acceptance v17 showed the old rule creating a fresh Yandex
+> Music on every open (#44 → #66 → #81) and leaving the playing one outside the
+> panes, which is what 1.3.2 and U2 forbid. Live confirmation is owed on the
+> `launchMode` of both Yandex applications.
+
 Only a same-package task in the other native split root is now protected as a
 live duplicate. A stale task outside both roots may be replaced by the firmware
 without turning a successful launch into cleanup. The regression fixture

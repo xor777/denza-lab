@@ -104,6 +104,15 @@ internal object SplitLaunchOverlay {
      * scene deliberately kept off the screen. Long enough to read as one transition, and no longer.
      */
     internal const val MIN_VISIBLE_MS = 300L
+
+    /**
+     * The emergency ceiling of 1.3.8, and deliberately not the responsiveness norm of 1.13.4.
+     *
+     * Ten seconds is the longest an operation may take to a result or an honest error; fifteen is
+     * the line past which the *window* has to come down whatever the operation thinks it is doing,
+     * so that a hung run can never hold the input. Lowering this to the norm would take the shield
+     * off a scene still being built.
+     */
     internal const val MAX_VISIBLE_MS = 15_000L
 
     /**
