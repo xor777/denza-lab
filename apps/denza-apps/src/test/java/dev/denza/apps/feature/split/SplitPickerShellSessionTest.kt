@@ -229,7 +229,7 @@ class SplitPickerShellSessionTest {
     }
 
     @Test
-    fun explicitOpenHostsPickersInNativeTasksWithoutSyntheticDividerDrag() {
+    fun explicitOpenPlacesPickersInNativePaneRootsWithoutSyntheticDividerDrag() {
         val fake = FakeShell().apply {
             addTask(PRIMARY_ROOT, 40, NAVIGATOR, "$NAVIGATOR.MainActivity")
             addTask(SECONDARY_ROOT, 41, MUSIC, "$MUSIC.MainActivity")
@@ -539,7 +539,7 @@ class SplitPickerShellSessionTest {
     }
 
     @Test
-    fun nativeEdgeCollapseRehostsExactPickerBehindAppMovedToSurvivorRoot() {
+    fun nativeEdgeCollapseReattachesExactPickerBehindAppMovedToSurvivorRoot() {
         val fake = FakeShell()
         val split = session(fake)
         val hosts = split.openPickers(PICKERS, preservedPackages = emptyMap())
@@ -659,7 +659,7 @@ class SplitPickerShellSessionTest {
     }
 
     @Test
-    fun collapsedPickerRehostRollsBackWhenNativeAreaChangesDuringMutation() {
+    fun collapsedPickerReattachRollsBackWhenNativeAreaChangesDuringMutation() {
         val fake = FakeShell()
         val split = session(fake)
         val hosts = split.openPickers(PICKERS, preservedPackages = emptyMap())
@@ -709,7 +709,7 @@ class SplitPickerShellSessionTest {
     }
 
     @Test
-    fun hostlessExistingPairIsHostedThroughExactPaneCategories() {
+    fun existingPairWithoutPickerBasesGetsThemThroughExactPaneCategories() {
         val fake = FakeShell(tx115RequiresHome = true).apply {
             area = 3
             addTask(PRIMARY_ROOT, 40, NAVIGATOR, "$NAVIGATOR.MainActivity")
@@ -789,11 +789,12 @@ class SplitPickerShellSessionTest {
     }
 
     /**
-     * Live trace 2026-08-16 17:52:09: Navigator's singleTask launcher could not remain above
-     * host #398. It created #399 in the opposite root and made SmartMulti rebuild both panes.
+     * Live trace 2026-08-16 17:52:09, from the retired host era: Navigator's singleTask launcher
+     * could not remain above host #398. It created #399 in the opposite root and made SmartMulti
+     * rebuild both panes. That is why a target is launched straight into its own pane.
      */
     @Test
-    fun singleTaskLauncherBypassesHostAndUsesDirectLaunch() {
+    fun singleTaskLauncherIsPlacedByDirectLaunchIntoItsPane() {
         val fake = FakeShell()
         val split = session(fake)
         val pickers = split.openPickers(PICKERS, preservedPackages = emptyMap())
