@@ -45,6 +45,9 @@ object SplitScreenCoordinator {
         // Read-only by construction: the core loads one durable snapshot, publishes the session and
         // stops. No scene is restored, no lease is taken, no command is sent (K7, invariant 1).
         core(context).initialize(onStateChanged)
+        // Not a command and not a mutation: a PackageManager read on a background thread, so the
+        // first tap does not have to wait for it (1.13.1).
+        SplitPickerCatalog.warm(context)
     }
 
     fun snapshot(): SplitScreenSession = core?.snapshot() ?: SplitScreenSession()
@@ -265,7 +268,11 @@ object SplitScreenCoordinator {
         }
     }
 
-    /** Rebuilt from the current PackageManager state on every read, never cached (1.4.2). */
+    /**
+     * Read from [SplitLaunchCatalogCache], which package events - and only package events - clear
+     * (1.4.2). Neither read here may scan on the open path: doing so used to wake every launchable
+     * BYD process before the first command of the recipe was sent.
+     */
     private class AndroidSplitLaunchCatalog(private val app: Context) : SplitLaunchCatalog {
         override fun installedPackages(): Set<String> =
             SplitPickerCatalog.load(app).mapTo(mutableSetOf(), SplitLaunchTarget::packageName)

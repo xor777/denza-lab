@@ -81,10 +81,12 @@ class SplitPickerActivity : ComponentActivity() {
     private var message by mutableStateOf("")
     private var recoveryNotice by mutableStateOf("")
     private var busy by mutableStateOf(false)
-    private var apps by mutableStateOf<List<SplitPickerApp>>(emptyList())
+    // U6, 1.13.2: a picker that comes back to an already-scanned catalog shows the apps at once.
+    // "Загружаю приложения…" is honest only while there is genuinely nothing to show yet.
+    private var apps by mutableStateOf(SplitPickerAppCatalog.cached().orEmpty())
     private var catalogLoadInFlight = false
     private var catalogReloadPending = false
-    private var catalogLoading by mutableStateOf(true)
+    private var catalogLoading by mutableStateOf(apps.isEmpty())
     private val lifecycleHandler by lazy { Handler(mainLooper) }
     private var stoppedTaskId: Int? = null
     private var noticeReceiverRegistered = false
@@ -98,6 +100,9 @@ class SplitPickerActivity : ComponentActivity() {
     private val packageReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action !in PACKAGE_CHANGE_ACTIONS) return
+            // This receiver may well run before the cache's own, and a reload that read the old
+            // list would put the removed app straight back on screen (1.4.2, 1.5.6).
+            SplitLaunchCatalogCache.invalidate()
             refreshCatalogAsync()
             reportUninstall(intent)
         }
@@ -291,12 +296,7 @@ class SplitPickerActivity : ComponentActivity() {
     private companion object {
         const val TAG = "DenzaSplitPicker"
         const val PICKER_HIDDEN_SETTLE_MS = 500L
-        val PACKAGE_CHANGE_ACTIONS = setOf(
-            Intent.ACTION_PACKAGE_ADDED,
-            Intent.ACTION_PACKAGE_CHANGED,
-            Intent.ACTION_PACKAGE_REMOVED,
-            Intent.ACTION_PACKAGE_REPLACED,
-        )
+        val PACKAGE_CHANGE_ACTIONS = SplitLaunchCatalogCache.PACKAGE_CHANGE_ACTIONS
         val CATALOG_EXECUTOR = Executors.newSingleThreadExecutor()
     }
 }
@@ -331,8 +331,13 @@ internal object SplitPickerWindowStyle {
 }
 
 internal object SplitPickerAppCatalog {
-    @Synchronized
-    fun load(context: Context): List<SplitPickerApp> {
+    fun load(context: Context): List<SplitPickerApp> =
+        SplitLaunchCatalogCache.apps(context) { scan(context) }
+
+    /** The already-scanned list, so a re-created picker paints its grid on the first frame. */
+    fun cached(): List<SplitPickerApp>? = SplitLaunchCatalogCache.cachedApps()
+
+    private fun scan(context: Context): List<SplitPickerApp> {
         val launcher = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
         val seen = HashSet<String>()
         return context.packageManager
