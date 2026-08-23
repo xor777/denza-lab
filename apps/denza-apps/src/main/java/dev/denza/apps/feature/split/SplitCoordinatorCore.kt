@@ -95,8 +95,14 @@ internal fun interface SplitDiagnosticLog {
  */
 internal typealias SplitLiveScene = Map<SplitPane, SplitPickerLivePane>
 
-internal const val SPLIT_RESTORE_FAILURE_NOTICE =
-    "Не все приложения восстановлены. Выберите приложение вручную"
+/**
+ * What a partial restore leaves on screen (1.3.2, U5).
+ *
+ * It names the apps that did not come back, because the pane the user is looking at is also the
+ * place they can repair it: the picker of that pane is right there, with those apps in its list.
+ */
+internal fun splitRestoreFailureNotice(labels: List<String>): String =
+    "Не восстановлено: ${labels.joinToString(", ")}. Выберите приложение вручную"
 
 /**
  * What a navigation return throws when the split side of it did not happen (1.10.7).
@@ -117,6 +123,8 @@ internal class SplitCoordinatorCore(
     private val gateLeaseStore: SplitGateLeaseStore,
     private val leases: List<SplitLeaseController>,
     private val apkPath: String,
+    /** The human name of a package, for the one surface that names apps to the user (1.3.2). */
+    private val appLabel: (String) -> String = { it },
     private val sleeper: (Long) -> Unit = Thread::sleep,
     private val log: SplitDiagnosticLog = SplitDiagnosticLog {},
     private val post: (() -> Unit) -> Unit = { action -> action() },
@@ -382,6 +390,7 @@ internal class SplitCoordinatorCore(
             leases = leases,
             gateLeaseStore = gateLeaseStore,
             apkPath = apkPath,
+            appLabel = appLabel,
             clock = clock,
             sleeper = sleeper,
             diagnostics = log,
@@ -413,16 +422,24 @@ internal class SplitCoordinatorCore(
             publish()
             return
         }
+        // U5: an error is shown where the user acted. Nobody asked for a reconciliation, an edge
+        // hint, a Home teardown or an uninstall sweep, so a failed one paints no error card and
+        // publishes no notice - it becomes one line of the diagnostic log and nothing else.
+        val quiet = label in BACKGROUND_LABELS
+        val reason = when (outcome) {
+            is SplitOutcome.RolledBack -> outcome.reason
+            is SplitOutcome.Failed -> outcome.message
+            else -> null
+        }
+        if (quiet && reason != null) log.log("background $label failed quietly: $reason")
         synchronized(stateLock) {
             busy = busy?.takeIf { it.label != label }
-            val fallback = fallbackOf(label)
-            failure = when (outcome) {
-                is SplitOutcome.Committed -> null
-                is SplitOutcome.Cancelled -> failure
-                is SplitOutcome.RolledBack ->
-                    Failure(friendlyError(outcome.reason, fallback), outcome.reason)
-                is SplitOutcome.Failed ->
-                    Failure(friendlyError(outcome.message, fallback), outcome.message)
+            failure = when {
+                outcome is SplitOutcome.Committed -> null
+                // A cancellation is what the user asked for, and a quiet failure is nobody's error:
+                // both leave whatever the panel already showed exactly as it was (1.3.8, U5).
+                reason == null || quiet -> failure
+                else -> Failure(friendlyError(reason, fallbackOf(label)), reason)
             }
             if (label == OPEN_LABEL) openTicket = null
         }
@@ -477,7 +494,8 @@ internal class SplitCoordinatorCore(
     private fun errorOf(outcome: SplitOutcome, fallback: String): String? = when (outcome) {
         is SplitOutcome.Committed -> null
         is SplitOutcome.Cancelled -> when (outcome.reason) {
-            SplitCancelReason.DEADLINE -> "$fallback: превышено время ожидания"
+            SplitCancelReason.DEADLINE ->
+                "$fallback: превышено время ожидания. Попробуйте ещё раз"
             else -> null
         }
         is SplitOutcome.RolledBack -> friendlyError(outcome.reason, fallback)
@@ -507,6 +525,14 @@ internal class SplitCoordinatorCore(
             NAV_RETURNED_LABEL,
             NAV_PREPARE_LABEL,
             NAV_COMPLETE_LABEL,
+        )
+
+        /** Work nobody requested: its failures are diagnostics, never an error card (U5). */
+        val BACKGROUND_LABELS = setOf(
+            RECONCILE_LABEL,
+            EDGE_LABEL,
+            HOME_LABEL,
+            PACKAGE_REMOVED_LABEL,
         )
 
         const val EXTERNAL_TASK_BYPASS_MS = 5_000L
@@ -570,7 +596,8 @@ internal class SplitCoordinatorCore(
                 text.contains("authorization pending", ignoreCase = true) ->
                     "Подтвердите ADB-ключ на экране автомобиля"
                 text.contains("refused", ignoreCase = true) -> "Включите ADB на машине"
-                text.contains("timeout", ignoreCase = true) -> "ADB пока не отвечает"
+                text.contains("timeout", ignoreCase = true) ->
+                    "ADB пока не отвечает. Попробуйте ещё раз"
                 text.startsWith("Приложение уже открыто на другом экране") -> text
                 text.startsWith("Это приложение не поддерживает два окна") -> text
                 else -> fallback

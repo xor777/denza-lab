@@ -530,6 +530,7 @@ internal class SplitCarFixture(
     fun core(
         initial: SplitDurable,
         leases: List<SplitLeaseController> = emptyList(),
+        appLabel: (String) -> String = { it },
     ): SplitCoordinatorCore {
         store.seed(initial)
         return SplitCoordinatorCore(
@@ -543,6 +544,7 @@ internal class SplitCarFixture(
             gateLeaseStore = gateLease,
             leases = leases,
             apkPath = SPLIT_APK_PATH,
+            appLabel = appLabel,
             sleeper = {},
             log = diagnostics::add,
         ).also { core -> built = core }

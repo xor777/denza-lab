@@ -73,7 +73,7 @@ class SplitCommandProvider : ContentProvider() {
     private fun Bundle?.requireTaskId(): Int =
         this?.getInt(SplitCommandContract.EXTRA_PICKER_TASK_ID, -1)
             ?.also { require(it > 0) }
-            ?: error("Пикер не найден")
+            ?: error("Окно устарело. Попробуйте ещё раз")
 
     @Suppress("DEPRECATION")
     private fun Bundle?.resultReceiver(): ResultReceiver? =

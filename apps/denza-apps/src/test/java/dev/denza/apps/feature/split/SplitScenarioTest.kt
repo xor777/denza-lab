@@ -110,8 +110,8 @@ class SplitScenarioTest {
         assertEquals(0, car.store.commits)
         assertEquals("the window is released the moment the deadline fires", 1, car.overlay.closed())
         assertEquals(
-            "and the user is told, instead of watching a spinner forever (U5)",
-            listOf("${SplitCoordinatorCore.OPEN_FAILURE}: превышено время ожидания"),
+            "and the user is told what happened and what to do (U5)",
+            listOf("${SplitCoordinatorCore.OPEN_FAILURE}: превышено время ожидания. Попробуйте ещё раз"),
             results.toList(),
         )
     }
@@ -1004,6 +1004,45 @@ class SplitScenarioTest {
     }
 
     @Test
+    fun partialRestoreNamesTheMissingApps() {
+        // 1.3.2, U5: чего не удалось восстановить - названо по имени и выбирается вручную
+        val car = car(FakeShell())
+        val core = car.core(
+            SplitDurable(enabled = true, slots = APP_PAIR),
+            // Ровно то, что подставляет продакшен: имя из PackageManager, а не имя пакета.
+            appLabel = { packageName -> if (packageName == MUSIC) MUSIC_LABEL else packageName },
+        )
+        core.initialize {}
+        val results = Collections.synchronizedList(mutableListOf<String?>())
+
+        // Вторая панель не поднялась: прошивка не ответила на запуск ровно этого пакета.
+        car.shells.failOn("service call activity_task 112 s16 '$MUSIC'")
+        core.openPickerSession(results::add)
+        car.barrier()
+
+        assertEquals(
+            "пользователь читает имя приложения и знает, что делать дальше",
+            listOf("Не восстановлено: $MUSIC_LABEL. Выберите приложение вручную"),
+            car.notices.filter(String::isNotBlank),
+        )
+        assertEquals("тап удался - это не ошибка операции", listOf<String?>(null), results.toList())
+        assertEquals("и карточка не краснеет", SplitScreenPhase.ACTIVE, core.snapshot().phase)
+        assertEquals(
+            "названная панель ждёт ручного выбора, а сосед восстановлен",
+            mapOf(
+                SplitPane.PRIMARY to SplitSlot.App(NAVIGATOR),
+                SplitPane.SECONDARY to SplitSlot.Picker,
+            ),
+            car.store.load().slots,
+        )
+        assertEquals(
+            "и это её собственный пикер, а не чужое окно",
+            SECONDARY_PICKER_ACTIVITY,
+            car.fake.topActivity(SECONDARY_ROOT),
+        )
+    }
+
+    @Test
     fun toggleOffDuringProjectionCancelsTheReturnAndKeepsTheNavigatorSlot() {
         // сценарий §11.31, контракт 1.10.8
         val car = car(FakeShell(initialGate = true).apply { liveProductScene(withApps = true) })
@@ -1060,6 +1099,9 @@ class SplitScenarioTest {
         const val PROJECTED_NAV_TASK = 88
         const val FOREIGN_TASK = 99
         const val FOREIGN = "com.example.foreign"
+
+        /** What `PackageManager` calls [MUSIC] on this car; the picker shows exactly this. */
+        const val MUSIC_LABEL = "Яндекс Музыка"
 
         /** Дальше любого бюджета операции, так что таймер актора точно сработал. */
         const val PAST_EVERY_BUDGET_MS = 120_000L

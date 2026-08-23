@@ -4,7 +4,9 @@ import java.util.concurrent.atomic.AtomicReference
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -227,6 +229,57 @@ class SplitCoordinatorCoreTest {
 
     // endregion
 
+    // region U5 - an error belongs where the user acted
+
+    @Test
+    fun backgroundReconcileFailureNeverPaintsTheErrorCard() {
+        // U5: сбой фоновой сверки не трогает ни экран, ни карточку - только диагностический лог
+        val car = car(FakeShell(initialGate = true).apply { liveProductScene(withApps = true) })
+        val core = car.core(SplitDurable(enabled = true, slots = APP_PAIR))
+        core.initialize {}
+        core.openPickerSession()
+        car.barrier()
+        car.clearCommands()
+
+        // Связь обрывается посреди сверки, о которой пользователь не просил.
+        car.shells.failOn("am stack list")
+        core.dividerResized()
+        car.barrier()
+
+        val settled = core.snapshot()
+        assertNotEquals("никто не просил эту работу", SplitScreenPhase.ERROR, settled.phase)
+        assertEquals(SplitScreenPhase.ACTIVE, settled.phase)
+        assertEquals("сцена на экране осталась прежней и молчит", "", settled.message)
+        assertNull(settled.details)
+        assertEquals(
+            "и ни одного сообщения пользователю",
+            emptyList<String>(),
+            car.notices.filter(String::isNotBlank),
+        )
+        assertEquals(
+            "но сбой не потерян: он ушёл в диагностический лог",
+            listOf("background reconcile failed quietly: $SPLIT_ADB_DROPPED"),
+            car.diagnostics.filter { it.startsWith("background ") },
+        )
+
+        // Контраст: тот же оборванный ADB в операции, которую пользователь запросил сам.
+        val tapped = car(FakeShell())
+        val tappedCore = tapped.core(SplitDurable(enabled = true))
+        tappedCore.initialize {}
+
+        tapped.shells.failOn(GATE_OPEN)
+        tappedCore.openPickerSession()
+        tapped.barrier()
+
+        val visible = tappedCore.snapshot()
+        assertEquals("тап по кнопке - действие пользователя", SplitScreenPhase.ERROR, visible.phase)
+        assertEquals(SplitCoordinatorCore.OPEN_FAILURE, visible.message)
+        assertEquals(SPLIT_ADB_DROPPED, visible.details)
+        assertTrue(tapped.notices.contains(SplitCoordinatorCore.OPEN_FAILURE))
+    }
+
+    // endregion
+
     // region the firmware allowlist and the gate (contract 1.12)
 
     @Test
@@ -340,5 +393,8 @@ class SplitCoordinatorCoreTest {
     private companion object {
         /** The hold, `NAV`, `SELECT` and `OPEN` behind it, each with its armed deadline. */
         const val QUEUED_OPERATIONS = 4
+
+        /** The firmware gate every built scene needs, and therefore a mutation an open cannot skip. */
+        const val GATE_OPEN = "service call activity_task 126 i32 1"
     }
 }

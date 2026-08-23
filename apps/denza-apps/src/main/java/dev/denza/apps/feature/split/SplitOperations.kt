@@ -22,6 +22,8 @@ internal class SplitOperationWorkspace(
     val leases: List<SplitLeaseController>,
     private val gateLeaseStore: SplitGateLeaseStore,
     private val apkPath: String,
+    /** The human name of a package; the package itself is the honest fallback (1.3.2). */
+    val appLabel: (String) -> String = { it },
     private val clock: SplitClock,
     private val sleeper: (Long) -> Unit,
     private val diagnostics: SplitDiagnosticLog,
@@ -556,7 +558,8 @@ internal class OpenOperation(
         }
         liveScene = panes
         settle(SplitFact.BuildSceneSucceeded(sceneSlots(panes)))
-        settledNotice = if (failures.isEmpty()) "" else SPLIT_RESTORE_FAILURE_NOTICE
+        settledNotice =
+            if (failures.isEmpty()) "" else splitRestoreFailureNotice(failures.map(work.appLabel))
     }
 
     override fun failed(message: String) = work.notices.publish(message)
