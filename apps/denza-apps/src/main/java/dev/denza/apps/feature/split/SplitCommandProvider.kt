@@ -10,12 +10,17 @@ import android.os.Looper
 import android.os.ResultReceiver
 import android.util.Log
 import android.widget.Toast
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
 
 /**
  * In-session command boundary for picker tasks.
  *
- * The provider is private to the one Denza Apps package. Keeping picker events here is essential:
- * an Activity command would join the caller task and make SmartMulti reparent that whole picker.
+ * The provider is private to the one Denza Apps package, and it is the *only* way into the
+ * coordinator from a picker: the picker runs in its own process, so a direct call there would build
+ * a second coordinator with its own actor, its own shell and its own opinion about the durable
+ * state (invariant 12). Keeping picker events here also matters for the firmware: an Activity
+ * command would join the caller task and make SmartMulti reparent that whole picker.
  */
 class SplitCommandProvider : ContentProvider() {
     override fun onCreate(): Boolean = true
@@ -24,17 +29,25 @@ class SplitCommandProvider : ContentProvider() {
         val app = context?.applicationContext ?: return result(USER_ERROR)
         return try {
             when (method) {
-                SplitCommandContract.METHOD_PICKER_VISIBLE -> SplitScreenCoordinator.onPickerVisible(
-                    app,
-                    extras.requireTaskId(),
-                    ::showError,
-                )
-                SplitCommandContract.METHOD_PICKER_HIDDEN -> SplitScreenCoordinator.onPickerHidden(
-                    app,
-                    extras.requireTaskId(),
-                )
+                // 1.13.1, U6: a picker reporting a window event must not wait for the coordinator
+                // to load its store, queue an operation and answer. Nothing about these three is
+                // synchronous to the caller - they are notices, and the picker has a frame to draw.
+                SplitCommandContract.METHOD_PICKER_VISIBLE -> {
+                    val taskId = extras.requireTaskId()
+                    detached { SplitScreenCoordinator.onPickerVisible(app, taskId, ::showError) }
+                }
+                SplitCommandContract.METHOD_PICKER_HIDDEN -> {
+                    val taskId = extras.requireTaskId()
+                    detached { SplitScreenCoordinator.onPickerHidden(app, taskId) }
+                }
                 SplitCommandContract.METHOD_DIVIDER_RESIZED ->
-                    SplitScreenCoordinator.onDividerResized(app)
+                    detached { SplitScreenCoordinator.onDividerResized(app) }
+                SplitCommandContract.METHOD_PACKAGE_REMOVED -> {
+                    val packageName = extras?.getString(SplitCommandContract.EXTRA_PACKAGE_NAME)
+                        ?.takeIf(String::isNotBlank)
+                        ?: error("Не указан пакет")
+                    detached { SplitScreenCoordinator.onPackageRemoved(app, packageName) }
+                }
                 SplitCommandContract.METHOD_SELECT -> {
                     val receiver = extras.resultReceiver()
                     SplitScreenCoordinator.selectApp(
@@ -58,6 +71,19 @@ class SplitCommandProvider : ContentProvider() {
         } catch (error: Throwable) {
             Log.e(TAG, "Split command failed: $method", error)
             result(USER_ERROR)
+        }
+    }
+
+    /**
+     * Runs the notice off the caller's thread, in the order the notices arrived.
+     *
+     * One thread, so `picker_visible` can never overtake the `picker_hidden` that preceded it, and
+     * a thread of its own, because the thread this is protecting is a main thread - the picker's
+     * while it is drawing its first frame, and this process's while it does everything else.
+     */
+    private fun detached(action: () -> Unit) {
+        NOTICES.execute {
+            runCatching(action).onFailure { error -> Log.e(TAG, "Split notice failed", error) }
         }
     }
 
@@ -104,5 +130,10 @@ class SplitCommandProvider : ContentProvider() {
     private companion object {
         const val TAG = "DenzaSplitCommand"
         const val USER_ERROR = "Не удалось открыть разделение экрана"
+
+        /** One thread: these notices are ordered, and none of them belongs on a main thread. */
+        val NOTICES: ExecutorService = Executors.newSingleThreadExecutor { runnable ->
+            Thread(runnable, "split-notices").apply { isDaemon = true }
+        }
     }
 }

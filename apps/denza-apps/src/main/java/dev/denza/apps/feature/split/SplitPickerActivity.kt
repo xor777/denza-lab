@@ -33,6 +33,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -87,6 +88,17 @@ class SplitPickerActivity : ComponentActivity() {
     private var catalogLoadInFlight = false
     private var catalogReloadPending = false
     private var catalogLoading by mutableStateOf(apps.isEmpty())
+
+    /**
+     * 1.13.1, U6: whether this picker has ever actually been on screen.
+     *
+     * A restored pair creates two pickers and immediately covers both with applications. Composing
+     * the grid for them - a hundred tiles with a bitmap each - costs the main thread of this process
+     * exactly as much as if the user were looking at it, and during an open that thread is the one
+     * drawing the waiting window. A covered picker paints one cheap frame and nothing else; the
+     * grid is built by the first real `onResume`.
+     */
+    private var revealed by mutableStateOf(false)
     private val lifecycleHandler by lazy { Handler(mainLooper) }
     private var stoppedTaskId: Int? = null
     private var noticeReceiverRegistered = false
@@ -150,6 +162,7 @@ class SplitPickerActivity : ComponentActivity() {
             SplitPickerTheme {
                 SplitPickerScreen(
                     apps = apps,
+                    revealed = revealed,
                     catalogLoading = catalogLoading,
                     busy = busy,
                     message = message.ifBlank { recoveryNotice },
@@ -189,6 +202,7 @@ class SplitPickerActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        revealed = true
         lifecycleHandler.removeCallbacks(stoppedReporter)
         stoppedTaskId = null
         // A picker can resume with the same Activity instance after its covered app was dismissed.
@@ -243,7 +257,14 @@ class SplitPickerActivity : ComponentActivity() {
         if (intent?.action != Intent.ACTION_PACKAGE_REMOVED) return
         if (intent.getBooleanExtra(Intent.EXTRA_REPLACING, false)) return
         val removed = intent.data?.schemeSpecificPart?.takeIf(String::isNotBlank) ?: return
-        SplitScreenCoordinator.onPackageRemoved(applicationContext, removed)
+        // Through the provider like everything else: this Activity is its own process, and the
+        // coordinator lives in exactly one of them (invariant 12).
+        sendCommand(
+            method = SplitCommandContract.METHOD_PACKAGE_REMOVED,
+            extras = Bundle().apply {
+                putString(SplitCommandContract.EXTRA_PACKAGE_NAME, removed)
+            },
+        )
     }
 
     private fun refreshCatalogAsync() {
@@ -271,7 +292,10 @@ class SplitPickerActivity : ComponentActivity() {
         if (busy) return
         busy = true
         message = ""
-        SplitPickerNotice.publish(applicationContext, "")
+        // Only on screen. The persisted notice belongs to whoever published it, and clearing it
+        // here would put a synchronous preferences write on the thread that has to answer the tap
+        // within a second (U6); the operation clears it on its own outcome.
+        recoveryNotice = ""
         val delivered = sendCommand(
             method = SplitCommandContract.METHOD_SELECT,
             extras = Bundle().apply {
@@ -435,6 +459,7 @@ private fun SplitPickerTheme(content: @Composable () -> Unit) {
 @Composable
 private fun SplitPickerScreen(
     apps: List<SplitPickerApp>,
+    revealed: Boolean,
     catalogLoading: Boolean,
     busy: Boolean,
     message: String,
@@ -449,13 +474,16 @@ private fun SplitPickerScreen(
         ) {
             val columnCount = if (maxWidth >= WidePaneMinimumWidth) 4 else 2
             Column(
-                modifier = Modifier.fillMaxSize(),
+                // Contract scenario 16: the pane draws its own decorations, so the header keeps
+                // clear of the status bar by the inset the window actually has - a hard 42 dp cut
+                // the title off in the fullscreen picker a Back leaves behind (1.6.3).
+                modifier = Modifier.fillMaxSize().statusBarsPadding(),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Text(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 42.dp, bottom = 14.dp),
+                        .padding(top = 12.dp, bottom = 14.dp),
                     text = message.ifBlank { "Выберите приложение" },
                     color = if (message.isBlank()) PrimaryText else Warning,
                     fontSize = 20.sp,
@@ -464,7 +492,10 @@ private fun SplitPickerScreen(
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
-                if (catalogLoading || apps.isEmpty()) {
+                if (!revealed) {
+                    // One cheap frame for a picker nobody is looking at yet (1.13.1).
+                    Spacer(Modifier.weight(1f))
+                } else if (catalogLoading || apps.isEmpty()) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Text(
                             text = if (catalogLoading) {

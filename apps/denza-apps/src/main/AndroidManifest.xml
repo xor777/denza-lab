@@ -86,6 +86,14 @@
             CATEGORY_INFO lets SmartMulti restore the picker component for this split-capable
             package without exposing another always-on launcher entry.
         -->
+        <!--
+            The picker runs in its own process. Building two Compose grids of a hundred tiles is
+            work for a main thread, and on the shared one it is the very thread that draws the
+            waiting window of the open that created those pickers - the "frozen spinner" of
+            acceptance v17. Its only way into the coordinator is the provider below, which now
+            really is a Binder boundary; the launch catalogue cache becomes per-process, which
+            costs nothing because the picker is the one that loads the icons anyway.
+        -->
         <activity
             android:name=".feature.split.SplitPickerActivity"
             android:configChanges="orientation|screenLayout|screenSize|smallestScreenSize"
@@ -93,6 +101,7 @@
             android:exported="true"
             android:launchMode="standard"
             android:permission="android.permission.DUMP"
+            android:process=":picker"
             android:resizeableActivity="true"
             android:taskAffinity="dev.denza.apps.split.picker"
             android:theme="@style/DenzaAppsSplitPickerTheme">
