@@ -558,7 +558,6 @@ internal class SplitCoordinatorCore(
                 text.contains("refused", ignoreCase = true) -> "Включите ADB на машине"
                 text.contains("timeout", ignoreCase = true) -> "ADB пока не отвечает"
                 text.startsWith("Приложение уже открыто на другом экране") -> text
-                text.startsWith("Сначала верните приложение с другого экрана") -> text
                 text.startsWith("Это приложение не поддерживает два окна") -> text
                 else -> fallback
             }

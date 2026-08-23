@@ -1203,6 +1203,7 @@ class SplitPickerShellSessionTest {
 
     @Test
     fun projectedMemberDoesNotBlockDifferentAppFromVacantPane() {
+        // 1.10.2: занять вакансию временным приложением - обычный выбор; спроецирован не он
         val fake = FakeShell().apply {
             addTask(EXTERNAL_ROOT, 91, NAVIGATOR, "$NAVIGATOR.MainActivity")
         }
@@ -1213,7 +1214,6 @@ class SplitPickerShellSessionTest {
             pickerTaskId = pickers.getValue(SplitPane.SECONDARY),
             target = SplitLaunchTarget(MUSIC, "$MUSIC/$MUSIC.MainActivity"),
             pickerComponents = PICKER_COMPONENTS,
-            reservedPackages = setOf(NAVIGATOR),
         )
 
         assertTrue(fake.hasPackage(EXTERNAL_ROOT, NAVIGATOR))

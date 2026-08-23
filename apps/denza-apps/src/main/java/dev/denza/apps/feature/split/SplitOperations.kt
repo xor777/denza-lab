@@ -423,7 +423,6 @@ internal class OpenOperation(
                     pickerTaskId = hostTaskIds.getValue(pane),
                     target = target,
                     pickerComponents = SPLIT_PICKER_COMPONENT_SET,
-                    reservedPackages = restorable.values.toSet(),
                 )
             }.onSuccess { placement ->
                 panes[placement.pane] = SplitPickerLivePane(
