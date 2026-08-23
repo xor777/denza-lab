@@ -772,13 +772,17 @@ internal sealed interface SplitReconcileKind {
 }
 
 /**
- * Contract 1.6-1.8: the passive class of inputs.
+ * Contract 1.6-1.8, 1.11.3: the passive class of inputs.
  *
  * It is the only operation allowed to decide it has nothing to do - and it decides that before
- * opening a shell, so a hundred window hints over a disabled product, or over a scene that does not
- * exist, cost exactly zero commands (K6, invariant 8). What it does do is translate the settled
- * topology the recipes report into facts; the removal rules below are the ones the previous picker
- * automaton earned on the car and are kept verbatim in meaning.
+ * opening a shell, so a hundred window hints over a disabled product cost exactly zero commands
+ * (K6, invariant 8). What it does do is translate the settled topology the recipes report into
+ * facts; the removal rules below are the ones the previous picker automaton earned on the car and
+ * are kept verbatim in meaning.
+ *
+ * It is also the only way back after a process death. The scene is not durable and must not be, so
+ * a restarted process starts with none - but the pickers on the screen are still ours, and a hint
+ * that can only come from them is allowed to prove that scene again and take it back.
  */
 internal class ReconcileOperation(
     work: SplitOperationWorkspace,
@@ -791,17 +795,54 @@ internal class ReconcileOperation(
     coalesceKey = coalesceKeyOf(kind),
     work = work,
 ) {
-    override fun prepare(op: SplitOperationContext, shell: (String) -> String): Boolean =
-        working.enabled && working.scene != null && !work.externalMoveInFlight()
+    override fun prepare(op: SplitOperationContext, shell: (String) -> String): Boolean {
+        if (!working.enabled || work.externalMoveInFlight()) return false
+        return working.scene != null || adoptable()
+    }
 
     override fun apply(op: SplitOperationContext, shell: (String) -> String, plan: Boolean) {
         if (!plan) return
         val split = work.split(op)
+        // Nothing below means anything without a scene axis. A hint that can only come from a live
+        // product scene is allowed to prove one first (1.11.3); everything else fails closed here.
+        if (working.scene == null && !adoptOwnedScene(split)) return
         when (kind) {
             SplitReconcileKind.DividerResized -> reconcileScene(op, split, settleResize = true)
             is SplitReconcileKind.PickerVisible -> pickerVisible(op, split, kind.hostTaskId)
             is SplitReconcileKind.PickerHidden -> pickerHidden(op, split, kind.hostTaskId)
         }
+    }
+
+    /**
+     * Which hints may look for a scene this process never built (contract 1.11.3, scenario 19).
+     *
+     * Our own picker reporting itself visible can only happen inside a live product scene, so it
+     * carries the claim by itself. A divider move is ambient, so it may only try while a pair is
+     * still remembered. A hidden picker is the dismiss gesture (1.6.3) and adopts nothing.
+     */
+    private fun adoptable(): Boolean = when (kind) {
+        is SplitReconcileKind.PickerVisible -> true
+        SplitReconcileKind.DividerResized ->
+            working.slots.values.any { slot -> slot != SplitSlot.Closed }
+        is SplitReconcileKind.PickerHidden -> false
+    }
+
+    /**
+     * Re-adopts the scene a dead process left running on the screen.
+     *
+     * Nothing is remembered across the death and nothing may be (invariant 4): the scene is proven
+     * again from the car by our exact picker components and the live root topology, never by a task
+     * id. `existingOwnedSession` is read-only, so a foreign split - or anything it cannot fully
+     * prove - simply yields nothing and the operation commits without a single mutation
+     * (invariant 2). Adoption observes and accepts; it never launches or moves a task.
+     */
+    private fun adoptOwnedScene(split: SplitPickerShellSession): Boolean {
+        val settled = runCatching { split.existingOwnedSession(SPLIT_PICKER_COMPONENT_SET) }
+            .getOrNull()
+            ?: return false
+        liveScene = settled
+        settle(SplitFact.BuildSceneSucceeded(sceneSlots(settled)))
+        return working.scene != null
     }
 
     /**

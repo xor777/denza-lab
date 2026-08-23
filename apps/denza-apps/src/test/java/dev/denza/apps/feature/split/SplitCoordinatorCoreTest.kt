@@ -108,20 +108,25 @@ class SplitCoordinatorCoreTest {
     // region K6 - passive hints without a scene
 
     @Test
-    fun hintsWithoutALiveSceneNeverOpenAShell() {
-        // K6, сценарий 22: пассивные события не порождают работу до фильтрации
+    fun hintsWithoutALiveSceneNeverMutateAnything() {
+        // K6, сценарий 22: сто подсказок не дают ни одной мутации. Продуктовая подсказка
+        // «пикер виден» теперь имеет право посмотреть, есть ли наша сцена (1.11.3) - и только.
         val car = Car(FakeShell(initialGate = true).apply { stockSplitOfSomeoneElse() })
         val core = car.core(SplitDurable(enabled = true))
         core.initialize {}
 
         repeat(100) { core.dividerResized() }
-        core.pickerVisible(hostTaskId = null)
         core.pickerHidden(hostTaskId = 60)
         core.nativePickerVisible()
         car.barrier()
 
-        assertEquals("no scene means no work at all", 0, car.shells.opened.get())
+        assertEquals("an ambient hint without a pair is not work", 0, car.shells.opened.get())
         assertEquals(emptyList<String>(), car.commands())
+
+        core.pickerVisible(hostTaskId = null)
+        car.barrier()
+
+        assertEquals("and the hint that may look, only looks", emptyList<String>(), car.mutations())
         assertEquals(0, car.store.commits)
     }
 
@@ -139,6 +144,125 @@ class SplitCoordinatorCoreTest {
 
         assertEquals(0, car.shells.opened.get())
         assertEquals(emptyList<String>(), car.commands())
+    }
+
+    // endregion
+
+    // region 1.11.3 - a scene that outlived the process
+
+    @Test
+    fun aPickerHintReAdoptsTheOwnedSceneAndUnblocksTheEdgePath() {
+        // 1.11.3: процесс умер под живой сценой; пикер сообщает о себе - сцена усыновлена
+        val car = Car(FakeShell(initialGate = true).apply { sceneLeftByADeadProcess() })
+        val core = car.core(SplitDurable(enabled = true))
+        core.initialize {}
+
+        core.nativePickerVisible()
+        car.barrier()
+        assertEquals("without a scene the edge path is still silent", emptyList<String>(), car.commands())
+
+        core.pickerVisible(hostTaskId = null)
+        car.barrier()
+
+        assertEquals(
+            "adoption observes and accepts; it never launches or moves a task",
+            emptyList<String>(),
+            car.mutations(),
+        )
+        assertEquals(
+            "the panes the car actually shows become the pair",
+            mapOf(
+                SplitPane.PRIMARY to SplitSlot.Picker,
+                SplitPane.SECONDARY to SplitSlot.App(MUSIC),
+            ),
+            car.store.load().slots,
+        )
+        assertEquals(1, car.store.commits)
+        assertTrue(car.fake.hasTask(PRIMARY_PICKER_TASK))
+        assertTrue(car.fake.hasTask(SECONDARY_APP_TASK))
+
+        car.clearCommands()
+        core.nativePickerVisible()
+        car.barrier()
+
+        assertTrue("and the edge path reaches the car again", car.commands().isNotEmpty())
+    }
+
+    @Test
+    fun aDividerHintWithARememberedPairReAdoptsWithoutMovingATask() {
+        // сценарий 19: оба приложения продолжают работать, ничего не двигается
+        val car = Car(FakeShell(initialGate = true).apply { liveProductScene(withApps = true) })
+        val core = car.core(SplitDurable(enabled = true, slots = APP_PAIR))
+        core.initialize {}
+        assertEquals(emptyList<String>(), car.commands())
+
+        core.dividerResized()
+        car.barrier()
+
+        assertEquals(emptyList<String>(), car.mutations())
+        assertEquals("the remembered pair was already the truth", 0, car.store.commits)
+        assertEquals(APP_PAIR, car.store.load().slots)
+        assertEquals(PRIMARY_ROOT, car.fake.taskRoot(PRIMARY_APP_TASK))
+        assertEquals(SECONDARY_ROOT, car.fake.taskRoot(SECONDARY_APP_TASK))
+
+        car.clearCommands()
+        core.nativePickerVisible()
+        car.barrier()
+
+        assertTrue("the scene axis is back", car.commands().isNotEmpty())
+    }
+
+    @Test
+    fun aDividerHintWithoutARememberedPairStaysSilent() {
+        // раздел 4: пассивная подсказка сама по себе не даёт права искать сцену
+        val car = Car(FakeShell(initialGate = true).apply { liveProductScene(withApps = true) })
+        val core = car.core(SplitDurable(enabled = true))
+        core.initialize {}
+
+        repeat(20) { core.dividerResized() }
+        car.barrier()
+
+        assertEquals(0, car.shells.opened.get())
+        assertEquals(emptyList<String>(), car.commands())
+        assertEquals(0, car.store.commits)
+    }
+
+    @Test
+    fun aHintOverSomeoneElsesSplitAdoptsNothing() {
+        // инвариант 2: чужой split не наш, сколько бы подсказок ни пришло
+        val car = Car(FakeShell(initialGate = true).apply { stockSplitOfSomeoneElse() })
+        val core = car.core(SplitDurable(enabled = true, slots = APP_PAIR))
+        core.initialize {}
+
+        core.pickerVisible(hostTaskId = null)
+        core.dividerResized()
+        car.barrier()
+
+        assertEquals(emptyList<String>(), car.mutations())
+        assertEquals(0, car.store.commits)
+        assertEquals(APP_PAIR, car.store.load().slots)
+        assertEquals(1, car.fake.taskCount(PRIMARY_ROOT))
+        assertEquals(1, car.fake.taskCount(SECONDARY_ROOT))
+        assertEquals(3, car.fake.area)
+        assertTrue(car.fake.isGateOpen())
+    }
+
+    @Test
+    fun hintsWhileDisabledAdoptNothingEvenWithARememberedPair() {
+        // инвариант 1, K7: выключенный продукт не усыновляет ничего и ни по какому поводу
+        val car = Car(FakeShell(initialGate = true).apply { liveProductScene(withApps = true) })
+        val core = car.core(SplitDurable(enabled = false, slots = APP_PAIR))
+        core.initialize {}
+
+        core.pickerVisible(hostTaskId = null)
+        core.pickerHidden(PRIMARY_PICKER_TASK)
+        repeat(20) { core.dividerResized() }
+        core.nativePickerVisible()
+        car.barrier()
+
+        assertEquals(0, car.shells.opened.get())
+        assertEquals(emptyList<String>(), car.commands())
+        assertEquals(0, car.store.commits)
     }
 
     // endregion
@@ -503,6 +627,20 @@ class SplitCoordinatorCoreTest {
 
         fun clearCommands() = synchronized(fake) { fake.commands.clear() }
 
+        /** Everything that could have changed the screen; reads are deliberately not listed. */
+        fun mutations(): List<String> = commands().filter { command ->
+            command.startsWith("am start ") ||
+                command.startsWith("am stack move-task ") ||
+                command.startsWith("am task focus ") ||
+                command.startsWith("am task resize ") ||
+                command.startsWith("input ") ||
+                command.contains(" remove-task ") ||
+                command.startsWith("service call activity_task 114 ") ||
+                command.startsWith("service call activity_task 115") ||
+                command.startsWith("service call activity_task 125 ") ||
+                command.startsWith("service call activity_task 126 ")
+        }
+
         /** The single worker is the barrier: what it finishes last, it finished after everything. */
         fun barrier() {
             assertNotNull(
@@ -672,6 +810,22 @@ class SplitCoordinatorCoreTest {
                 SECONDARY_PICKER_ACTIVITY,
             )
             if (withApps) addTask(SECONDARY_ROOT, SECONDARY_APP_TASK, MUSIC, "$MUSIC.MainActivity")
+        }
+
+        /**
+         * What the car still shows after Denza Apps was killed: our two permanent picker bases,
+         * one of them bare and reporting itself, the other still carrying its app.
+         */
+        fun FakeShell.sceneLeftByADeadProcess() {
+            area = 3
+            addTask(PRIMARY_ROOT, PRIMARY_PICKER_TASK, SPLIT_HOST_PACKAGE, PRIMARY_PICKER_ACTIVITY)
+            addTask(
+                SECONDARY_ROOT,
+                SECONDARY_PICKER_TASK,
+                SPLIT_HOST_PACKAGE,
+                SECONDARY_PICKER_ACTIVITY,
+            )
+            addTask(SECONDARY_ROOT, SECONDARY_APP_TASK, MUSIC, "$MUSIC.MainActivity")
         }
     }
 
