@@ -26,7 +26,7 @@ class SplitPickerShellSessionTest {
                 }
             },
             apkPath = "/tmp/denza-apps.apk",
-            pause = { pauses += 1 },
+            settle = { pauses += 1 },
         )
 
         assertTrue(session.awaitNativePickerCommit())
@@ -54,7 +54,7 @@ class SplitPickerShellSessionTest {
                 }
             },
             apkPath = "/tmp/denza-apps.apk",
-            pause = {},
+            settle = {},
         )
 
         assertFalse(session.awaitNativePickerCommit())
@@ -78,7 +78,7 @@ class SplitPickerShellSessionTest {
                 }
             },
             apkPath = "/tmp/denza-apps.apk",
-            pause = { pauses += 1 },
+            settle = { pauses += 1 },
         )
 
         assertFalse(session.awaitNativePickerCommit())
@@ -106,7 +106,7 @@ class SplitPickerShellSessionTest {
                 }
             },
             apkPath = "/tmp/denza-apps.apk",
-            pause = { pauses += 1 },
+            settle = { pauses += 1 },
         )
 
         assertFalse(session.awaitNativePickerCommit())
@@ -134,7 +134,7 @@ class SplitPickerShellSessionTest {
                 }
             },
             apkPath = "/tmp/denza-apps.apk",
-            pause = {},
+            settle = {},
         )
 
         assertTrue(session.awaitNativePickerCommit())
@@ -1514,12 +1514,20 @@ class SplitPickerShellSessionTest {
     private fun session(
         fake: FakeShell,
         gateLeaseStore: SplitGateLeaseStore = FakeGateLease(),
-    ) = SplitPickerShellSession(
-        shell = fake::shell,
-        apkPath = "/data/app/dev.denza.apps/base.apk",
-        pause = {},
-        gateLeaseStore = gateLeaseStore,
-    )
+    ): SplitPickerShellSession {
+        // One session shares its two topology reads for as long as nothing could have moved a
+        // task. In the car that means "no command and no settle pause since"; here it additionally
+        // means "and the test did not reach into the firmware behind the session's back".
+        val topology = SplitTopologyCache()
+        fake.carChanged += topology::invalidate
+        return SplitPickerShellSession(
+            shell = fake::shell,
+            apkPath = "/data/app/dev.denza.apps/base.apk",
+            settle = {},
+            gateLeaseStore = gateLeaseStore,
+            topology = topology,
+        )
+    }
 
     private fun intParcel(value: Int): String =
         "Result: Parcel(00000000 ${"%08x".format(value)} '........')"

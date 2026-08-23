@@ -1,5 +1,67 @@
 package dev.denza.apps.feature.split
 
+/**
+ * The two topology reads of one operation, shared for as long as nothing can have changed them.
+ *
+ * `am stack list` and the two `activity_task 118` calls that name the panel roots are by far the
+ * chattiest part of every recipe, and one operation used to repeat them up to five times before its
+ * first mutation - three whole `am stack list` for a single open. They describe the same instant, so
+ * they are read once and handed to every reader until something happens that could move a task.
+ *
+ * What may invalidate is deliberately a *deny*-by-default rule, held in one place
+ * ([isTopologyRead]): only the handful of commands that provably cannot move a task keep the shared
+ * read alive, every other command drops it, and so does every settle pause - a polling recipe like
+ * `awaitTaskMatching` must see the car again on each attempt, not its own first sample forever.
+ *
+ * This is not an "atomic snapshot": consistency still comes from the token check around every
+ * mutation and from each recipe's own postcondition on a fresh read (contract section 7).
+ */
+internal class SplitTopologyCache {
+    private val lock = Any()
+    private var roots: Map<SplitPane, Int>? = null
+    private var state: SplitTaskSnapshot? = null
+
+    fun invalidate() {
+        synchronized(lock) {
+            roots = null
+            state = null
+        }
+    }
+
+    fun roots(read: () -> Map<SplitPane, Int>): Map<SplitPane, Int> {
+        synchronized(lock) { roots }?.let { return it }
+        val fresh = read()
+        synchronized(lock) { roots = fresh }
+        return fresh
+    }
+
+    fun state(read: () -> SplitTaskSnapshot): SplitTaskSnapshot {
+        synchronized(lock) { state }?.let { return it }
+        val fresh = read()
+        synchronized(lock) { state = fresh }
+        return fresh
+    }
+
+    companion object {
+        /** Commands that cannot move, create or destroy a task. Everything else invalidates. */
+        fun isTopologyRead(command: String): Boolean =
+            command == "am stack list" ||
+                READS.any { read -> command.startsWith(read) }
+
+        /**
+         * `activity_task` 30 is the current area, 112 is-split-capable, 118 the root of an area;
+         * `settings get` and `dumpsys` are how the two global leases and the pointer are read.
+         */
+        private val READS = listOf(
+            "service call activity_task 30",
+            "service call activity_task 112 ",
+            "service call activity_task 118 ",
+            "settings get ",
+            "dumpsys ",
+        )
+    }
+}
+
 internal data class SplitBounds(
     val left: Int,
     val top: Int,

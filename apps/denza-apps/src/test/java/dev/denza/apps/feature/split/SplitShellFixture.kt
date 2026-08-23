@@ -85,6 +85,17 @@ internal class FakeShell(
     )
 
     val commands = mutableListOf<String>()
+
+    /**
+     * What the firmware did without a command from us.
+     *
+     * A shared topology read ([SplitTopologyCache]) may not survive one: out of band is exactly the
+     * case a session cannot deduce from its own traffic, and in the car it is only ever seen by the
+     * next read after a command or a settle pause. Registering here is how a test says "and now the
+     * car changed underneath you".
+     */
+    val carChanged = mutableListOf<() -> Unit>()
+
     var area = 4
     var preserveBoundsOnShellMove = false
     private var gate = initialGate
@@ -101,6 +112,7 @@ internal class FakeShell(
 
     fun addTask(rootId: Int, id: Int, packageName: String, activityName: String) {
         tasks += Task(id, packageName, activityName, rootId, bounds(rootId))
+        changed()
     }
 
     /** Seeds a firmware-global setting a lease will displace, without recording a command. */
@@ -131,6 +143,7 @@ internal class FakeShell(
         task.rootId = rootId
         task.bounds = bounds(rootId)
         tasks += task
+        changed()
     }
 
     fun taskBaseActivity(taskId: Int): String = tasks.first { it.id == taskId }.activityName
@@ -148,10 +161,12 @@ internal class FakeShell(
         }
         tasks.remove(task)
         tasks += task
+        changed()
     }
 
     fun removeActivity(rootId: Int, activityName: String) {
         tasks.removeAll { it.rootId == rootId && it.activityName == activityName }
+        changed()
     }
 
     fun dismissPane(rootId: Int) {
@@ -163,6 +178,7 @@ internal class FakeShell(
         }
         area = if (remainingRoot == PRIMARY_ROOT) 1 else 2
         tasks.filter { it.rootId == remainingRoot }.forEach { it.bounds = FULL }
+        changed()
     }
 
     fun disappearOnNextRemove() {
@@ -172,6 +188,8 @@ internal class FakeShell(
     fun destabilizeAreaOnNextShellMove() {
         destabilizeAreaOnNextShellMove = true
     }
+
+    private fun changed() = carChanged.forEach { listener -> listener() }
 
     fun shell(command: String): String {
         commands += command
@@ -576,6 +594,9 @@ internal class SplitCarFixture(
 
     /** Everything that could have changed the screen; reads are deliberately not listed. */
     fun mutations(): List<String> = commands().filter(::isMutation)
+
+    /** The read-only prologue of an operation: everything it asked before it changed anything. */
+    fun readsBeforeFirstMutation(): List<String> = commands().takeWhile { !isMutation(it) }
 
     /** Occupies the single worker so a test can fill the queue and watch the order it is served. */
     fun hold(until: () -> Boolean = { false }): SplitWorkerHold {

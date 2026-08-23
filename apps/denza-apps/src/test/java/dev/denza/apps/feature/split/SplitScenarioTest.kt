@@ -463,6 +463,63 @@ class SplitScenarioTest {
         assertEquals(0, car.store.commits)
     }
 
+    /**
+     * 1.13: what the user is made to wait for before anything happens at all.
+     *
+     * An open used to read the whole task topology three times and the two panel roots six times
+     * before its first command reached the firmware - `prepare` built one session and `apply` built
+     * another, and `observedTaskIds` asked each pane separately. They all describe the same instant
+     * and are now read once. The leases of a steady-state open only read their settings, so nothing
+     * between the planning read and the recipe can move a task.
+     */
+    @Test
+    fun oneOpenReadsTheWholeTopologyOnceBeforeItsFirstMutation() {
+        val car = car(FakeShell())
+        val core = car.core(SplitDurable(enabled = true, slots = PICKER_PAIR))
+        core.initialize {}
+        car.clearCommands()
+
+        core.openPickerSession()
+        car.barrier()
+
+        val prologue = car.readsBeforeFirstMutation()
+        assertEquals(
+            "one `am stack list` answers planning, ownership bookkeeping and the recipe alike",
+            1,
+            prologue.count { it == "am stack list" },
+        )
+        assertEquals(
+            "and the two panel roots are asked for once, not once per reader",
+            2,
+            prologue.count { it.startsWith("service call activity_task 118 ") },
+        )
+    }
+
+    /** But a settle pause is a promise that the car moved, so what follows it is read again. */
+    @Test
+    fun aSettlePauseEndsTheSharedTopologyRead() {
+        val topology = SplitTopologyCache()
+        var reads = 0
+        val session = SplitPickerShellSession(
+            shell = { command ->
+                if (command == "am stack list") reads += 1
+                FakeShell().apply { liveProductScene() }.shell(command)
+            },
+            apkPath = SPLIT_APK_PATH,
+            settle = {},
+            topology = topology,
+        )
+
+        session.observePane(SplitPane.PRIMARY, PICKER_COMPONENTS)
+        session.observePane(SplitPane.SECONDARY, PICKER_COMPONENTS)
+        assertEquals(1, reads)
+
+        topology.invalidate()
+        session.observePane(SplitPane.PRIMARY, PICKER_COMPONENTS)
+
+        assertEquals(2, reads)
+    }
+
     // endregion
 
     // region K7 - the disabled product is invisible

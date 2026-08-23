@@ -8,11 +8,36 @@ package dev.denza.apps.feature.split
  * component are known before any task is moved.
  */
 internal class SplitPickerShellSession(
-    private val shell: (String) -> String,
+    shell: (String) -> String,
     private val apkPath: String,
-    private val pause: (Long) -> Unit = Thread::sleep,
+    private val settle: (Long) -> Unit = Thread::sleep,
     private val gateLeaseStore: SplitGateLeaseStore? = null,
+    /**
+     * The topology reads of the operation this session belongs to. The default is a private one,
+     * which makes a stand-alone session share reads only within itself.
+     */
+    private val topology: SplitTopologyCache = SplitTopologyCache(),
 ) {
+    private val send = shell
+
+    /**
+     * Every command of every recipe, in the order the recipe sends it - unchanged, and the one
+     * place that decides whether the shared topology read may outlive it (deny by default).
+     */
+    private fun shell(command: String): String {
+        if (!SplitTopologyCache.isTopologyRead(command)) topology.invalidate()
+        return send(command)
+    }
+
+    /**
+     * Every settle pause of every recipe. It drops the shared topology read first: a recipe that
+     * waits is a recipe that expects the car to have changed underneath it.
+     */
+    private fun pause(millis: Long) {
+        topology.invalidate()
+        settle(millis)
+    }
+
     /**
      * Waits read-only while the user is dragging the native divider.
      *
@@ -1523,9 +1548,11 @@ internal class SplitPickerShellSession(
         }
     }
 
-    private fun nativeRootIds(): Map<SplitPane, Int> = SplitPane.entries.associateWith { pane ->
-        callInt("service call activity_task 118 i32 ${pane.areaId}").also { rootId ->
-            check(rootId > 0) { "Прошивка не вернула split-контейнер ${pane.areaId}" }
+    private fun nativeRootIds(): Map<SplitPane, Int> = topology.roots {
+        SplitPane.entries.associateWith { pane ->
+            callInt("service call activity_task 118 i32 ${pane.areaId}").also { rootId ->
+                check(rootId > 0) { "Прошивка не вернула split-контейнер ${pane.areaId}" }
+            }
         }
     }
 
@@ -1562,9 +1589,8 @@ internal class SplitPickerShellSession(
         }
     }
 
-    private fun snapshot(): SplitTaskSnapshot {
-        val output = shell("am stack list").also(::validateOutput)
-        return SplitTaskSnapshot.parse(output)
+    private fun snapshot(): SplitTaskSnapshot = topology.state {
+        SplitTaskSnapshot.parse(shell("am stack list").also(::validateOutput))
     }
 
     private fun callBoolean(command: String): Boolean = callInt(command) != 0

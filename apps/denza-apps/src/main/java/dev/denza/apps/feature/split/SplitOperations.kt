@@ -36,6 +36,11 @@ internal class SplitOperationWorkspace(
     private val handleLock = Any()
     private var handle: SplitShellHandle? = null
 
+    /** Shared by every read of this operation, dropped by every command that could move a task. */
+    private val topology = SplitTopologyCache()
+
+    private var session: SplitPickerShellSession? = null
+
     val rollback: RollbackExecutor = SplitShellRollbackExecutor(
         shell = ::shell,
         gateLeaseStore = gateLeaseStore,
@@ -58,6 +63,10 @@ internal class SplitOperationWorkspace(
                     command.removePrefix(ALLOWLIST_COMMAND_PREFIX),
             )
         }
+        // The one place that decides whether the shared topology read survives a command. It sits
+        // here rather than inside the session because the leases this operation takes go straight
+        // to the raw shell, and a lease that moved a task would otherwise leave a stale read behind.
+        if (!SplitTopologyCache.isTopologyRead(command)) topology.invalidate()
         return openedHandle().shell(command)
     }
 
@@ -70,20 +79,33 @@ internal class SplitOperationWorkspace(
 
     fun log(message: String) = diagnostics.log(message)
 
-    /** The live recipes, with the fence woven through every command and every settle pause. */
-    fun split(op: SplitOperationContext): SplitPickerShellSession = SplitPickerShellSession(
-        shell = op.fencedShell(::shell),
-        apkPath = apkPath,
-        pause = op.fencedPause(sleeper),
-        gateLeaseStore = gateLeaseStore,
-    )
+    /**
+     * The live recipes, with the fence woven through every command and every settle pause.
+     *
+     * One operation gets exactly one session, so the reads of its planning phase and the reads of
+     * its mutation phase are the same shared topology - an open used to open three `am stack list`
+     * before it sent a single command, because `prepare` and `apply` each built their own.
+     */
+    fun split(op: SplitOperationContext): SplitPickerShellSession = synchronized(handleLock) {
+        session ?: SplitPickerShellSession(
+            shell = op.fencedShell(::shell),
+            apkPath = apkPath,
+            settle = op.fencedPause(sleeper),
+            gateLeaseStore = gateLeaseStore,
+            topology = topology,
+        ).also { built -> session = built }
+    }
 
     fun publish(state: SplitState, live: SplitLiveScene, notice: String?) {
         publisher(state, live, notice)
     }
 
     override fun close() {
-        val open = synchronized(handleLock) { handle.also { handle = null } }
+        val open = synchronized(handleLock) {
+            session = null
+            handle.also { handle = null }
+        }
+        topology.invalidate()
         open?.let { runCatching(it::close) }
     }
 
