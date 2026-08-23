@@ -15,6 +15,7 @@ Use this folder for durable project knowledge.
 | `dishare-api-notes.md` | DiShare/HUD reverse-engineering notes and raw API findings. |
 | `fse-app-installation.md` | Passenger-screen Android discovery, SMB delivery, stock cross-device install trigger, verification, and limitations. |
 | `split-screen-findings.md` | Live-proven BYD split substrate, explicit one-package picker flow, acceptance evidence, and retired approaches. |
+| `split-screen-product-contract.md` | Normative Split Screen contract: user-visible combinatorics, invariants, single-automaton core, delete-first policy, test-audit verdict, live acceptance protocol. Owns the product contract where it diverges from findings. |
 | `weather-adapter-findings.md` | Stock BYD weather-provider contract, MET Norway adapter, cache/write behavior, and live proof. |
 | `shortcuts-automation-findings.md` | Shortcuts If/Then catalog, PersonBean map-role switch, live `102000` launch of Yandex Navigator, and why a Chinese-app disguise does not win. |
 | `carplay-findings.md` | Vehicle hardware/software evidence around CarPlay, PhoneLink/Fission boundaries, and unsupported hypotheses. |

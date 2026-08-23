@@ -31,6 +31,7 @@ still use the historical `denza-gateway` directory name.
 - [docs/fse-app-installation.md](docs/fse-app-installation.md) — verified passenger-screen app installation path.
 - [docs/audio-capture-findings.md](docs/audio-capture-findings.md) — what a normal app can observe of played audio (spectrum analyser feasibility).
 - [docs/split-screen-findings.md](docs/split-screen-findings.md) — live-proven BYD split substrate, retired router, and the explicit two-picker product flow.
+- [docs/split-screen-product-contract.md](docs/split-screen-product-contract.md) — normative Split Screen contract: user-visible combinatorics, invariants, single-automaton core, delete-first policy, test-audit verdict, and the live acceptance protocol. Owns the product contract where it diverges from findings.
 - [docs/stock-russian-locale.md](docs/stock-russian-locale.md) — captured BYD Settings locale behavior and the narrow native-resource toggle.
 - [docs/adb-authorization-recovery.md](docs/adb-authorization-recovery.md) — passive local-ADB startup gate and bounded recovery flow.
 - [docs/vehicle-data-findings.md](docs/vehicle-data-findings.md) — GNSS/IMU for a normal APK; `autoservice` FID protocol for shell-UID BMS/HV/12V reads.
