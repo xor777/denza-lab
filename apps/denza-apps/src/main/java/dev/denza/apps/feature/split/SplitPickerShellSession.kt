@@ -451,21 +451,58 @@ internal class SplitPickerShellSession(
         return revealed
     }
 
-    fun openPickers(
+    /**
+     * The whole scene in one recipe: the two permanent picker bases and the apps above them.
+     *
+     * It used to be two - `openPickers`, then one `restoreApp` per pane, which fell through to the
+     * same `selectApp` a user tap runs - and the two of them repeated everything: the gate, the
+     * roots, the snapshot, and a postcondition that measured one pane at a time and only up to the
+     * moment the *other* pane had not been launched yet. That is the "picker over an app" defect of
+     * acceptance v17, and it is why restoring a saved pair took eleven seconds where a fresh open
+     * took three.
+     *
+     * Every command it sends was already sent before; what is new is the order. One preamble, one
+     * pass over the roots, both launches back to back, and one postcondition measured over the
+     * whole scene twice (contract 7.7 then adds the operation's own read-back on top).
+     *
+     * The pickers stay the mechanism and the floor: this firmware ignores the pane categories for
+     * third-party apps and refuses to hold a split whose root is empty (1.4.1, findings), so the
+     * phases go, not the pickers.
+     */
+    fun buildScene(
         pickerComponents: Map<SplitPane, String>,
-        preservedPackages: Map<SplitPane, String>,
-    ): Map<SplitPane, Int> {
+        targets: Map<SplitPane, SplitLaunchTarget>,
+        /**
+         * Every task the recipe took charge of, reported the moment it has one rather than at the
+         * end: a build the fence stops halfway still owes an undo for what it already did
+         * (invariant 10). The caller decides which of them it created and which it only moved.
+         */
+        onTask: (SplitBuiltTask) -> Unit = {},
+    ): SplitSceneBuild {
         check(pickerComponents.keys == SplitPane.entries.toSet()) {
             "Нужны оба split-пикера"
         }
+        // Phase 1 - the preamble, once for the whole scene.
         ensureGateOpen()
         ensureSupported(SPLIT_HOST_PACKAGE)
+        val failed = mutableSetOf<SplitPane>()
+        val wanted = mutableMapOf<SplitPane, SplitLaunchTarget>()
+        targets.forEach { (pane, target) ->
+            // A package the firmware will not accept into split is a restore failure of that pane
+            // and of nothing else: the neighbour and the pickers are unaffected (1.3.2, U5).
+            runCatching { ensureSupported(target.packageName) }
+                .onSuccess { wanted[pane] = target }
+                .onFailure { failed += pane }
+        }
         val rootIds = nativeRootIds()
         // Do not enter through activity_task tx115 here. BYD remembers split-capable packages
         // globally and may restore an unrelated OEM companion (notably ADAS) before our launcher
         // gets control. Explicit PRIMARY/SECONDARY categories create and target the same native
         // roots without consulting that remembered OEM pair.
         val before = snapshot()
+
+        // Phase 2 - the roots. A picker already in its pane is adopted, never rebuilt.
+        var mutated = false
         val existingPickerTasks = SplitPane.entries.associateWith { pane ->
             val rootId = rootIds.getValue(pane)
             before.root(rootId)?.tasks
@@ -495,9 +532,19 @@ internal class SplitPickerShellSession(
                     pane = pane,
                     pickerComponent = pickerComponents.getValue(pane),
                     excludedTaskIds = assignedIds,
-                )
+                ).also { mutated = true }
             assignedIds += picker.id
             pickerTasks[pane] = picker
+        }
+        pickerTasks.forEach { (pane, picker) ->
+            onTask(
+                SplitBuiltTask(
+                    taskId = picker.id,
+                    component = pickerComponents.getValue(pane),
+                    fromRootId = picker.rootId,
+                    toRootId = rootIds.getValue(pane),
+                ),
+            )
         }
 
         // Categories are authoritative once the native scene exists. On a truly empty scene
@@ -514,52 +561,181 @@ internal class SplitPickerShellSession(
         }
         // A settle is for something that happened: two pickers already in their roots settle
         // nothing (1.13, "не заставлять ждать там, где ждать нечего").
-        if (reparented) pause(ROOT_SETTLE_MS)
+        if (reparented) {
+            mutated = true
+            pause(ROOT_SETTLE_MS)
+        }
         if (callInt("service call activity_task 30") != AREA_BALANCED_SPLIT) {
+            mutated = true
             dragDividerToBalanced()
             check(awaitArea(NATIVE_PICKER_SETTLE_MS) { it == AREA_BALANCED_SPLIT }) {
                 "Прошивка не раскрыла native split"
             }
         }
-        check(callInt("service call activity_task 30") == AREA_BALANCED_SPLIT) {
-            "Прошивка не раскрыла native split"
-        }
-        var changed = reparented
-        SplitPane.entries.forEach { pane ->
-            if (normalizeTaskToRoot(pickerTasks.getValue(pane).id, rootIds.getValue(pane))) {
-                changed = true
+
+        // Phase 3 - the apps. One read decides which pane still needs a launch at all.
+        val hostTaskIds = pickerTasks.mapValues { (_, picker) -> picker.id }
+        val settled = snapshot()
+        val appTaskIds = mutableMapOf<SplitPane, Int>()
+        val launching = mutableMapOf<SplitPane, SplitLaunchTarget>()
+        wanted.forEach { (pane, target) ->
+            val root = settled.root(rootIds.getValue(pane))
+            val top = root?.resolvedTopTask()
+            if (
+                root != null &&
+                top != null &&
+                top.id != hostTaskIds.getValue(pane) &&
+                top.effectivePackageName() == target.packageName &&
+                top.bounds == root.bounds
+            ) {
+                // U2, 1.3.2: this pane is already showing exactly that app. Nothing is relaunched
+                // over a living one - the shared postcondition below still has to prove it.
+                appTaskIds[pane] = top.id
+                onTask(
+                    SplitBuiltTask(
+                        taskId = top.id,
+                        component = target.componentName,
+                        fromRootId = top.rootId,
+                        toRootId = top.rootId,
+                    ),
+                )
+            } else {
+                launching[pane] = target
             }
         }
-        // A picker is the permanent base of its pane. Never remove the last visible base before
-        // the replacement exists: BYD collapses the native roots immediately and restores its
-        // own remembered companion on the next launch.
+        // A pane is its picker plus at most one app, so whatever else a previous session or a
+        // native ending left in one has to go before this scene can be proven. It is the rule the
+        // two blind `prunePane` calls used to run, now decided from the read above and sent as a
+        // single call: a clean pane costs nothing at all, and the copy of the package this pane is
+        // about to show is kept so that restoring it reuses the task instead of restarting it (U2).
+        val stale = SplitPane.entries.flatMap { pane ->
+            val target = wanted[pane]?.packageName
+            val keep = setOfNotNull(
+                hostTaskIds.getValue(pane),
+                appTaskIds[pane],
+                settled.root(rootIds.getValue(pane))?.tasks
+                    ?.filter { task -> task.effectivePackageName() == target }
+                    ?.maxByOrNull(SplitTask::id)
+                    ?.id,
+            )
+            settled.root(rootIds.getValue(pane))?.tasks.orEmpty()
+                .filterNot { task -> task.id in keep || task.isEmptyRootMarker() }
+        }
+        if (removeTasksSafely(stale)) mutated = true
+        if (launching.isNotEmpty()) {
+            mutated = true
+            launchApps(
+                rootIds = rootIds,
+                launching = launching,
+                // A pane is in `appTaskIds` only because its top already *is* that target, so the
+                // package each pane will hold is simply the one its slot named.
+                paneApps = SplitPane.entries.associateWith { pane -> wanted[pane]?.packageName },
+                appTaskIds = appTaskIds,
+                failed = failed,
+                onTask = onTask,
+            )
+        }
+
+        // Both bases and both apps take the size of their pane in one pass, and then the whole
+        // scene is confirmed once instead of one pane at a time.
         SplitPane.entries.forEach { pane ->
-            val rootId = rootIds.getValue(pane)
-            val picker = pickerTasks.getValue(pane)
-            val pruned = prunePane(
-                rootId = rootId,
-                hostTaskId = picker.id,
-                preservedPackage = preservedPackages[pane],
-            )
-            if (pruned) changed = true
+            if (normalizeTaskToRoot(hostTaskIds.getValue(pane), rootIds.getValue(pane))) {
+                mutated = true
+            }
         }
-        if (
-            removeUnkeptPickerTasks(
-                pickerComponents = pickerComponents.values.toSet() + LEGACY_PICKER_COMPONENTS,
-                keptTaskIds = pickerTasks.values.mapTo(mutableSetOf(), SplitTask::id),
-            )
-        ) {
-            changed = true
+        appTaskIds.keys.toList().forEach { pane ->
+            runCatching { normalizeTaskToRoot(appTaskIds.getValue(pane), rootIds.getValue(pane)) }
+                .onSuccess { resized -> if (resized) mutated = true }
+                .onFailure {
+                    appTaskIds -= pane
+                    failed += pane
+                }
         }
-        if (changed) pause(ROOT_SETTLE_MS)
-        verifyPickerTasks(
-            pickerComponents = pickerComponents,
-            rootIds = rootIds,
-            hostTaskIds = pickerTasks.mapValues { it.value.id },
-            preservedPackages = preservedPackages,
+        // 1.3.2: a pane whose app did not come back keeps its picker, and nothing of the app.
+        failed.forEach { pane ->
+            val packageName = targets[pane]?.packageName ?: return@forEach
+            val discarded = runCatching {
+                discardFailedRestoration(pane, packageName, hostTaskIds.getValue(pane))
+            }
+            if (discarded.getOrDefault(false)) mutated = true
+        }
+        return SplitSceneBuild(
+            panes = awaitScenePlacement(
+                pickerComponents = pickerComponents,
+                rootIds = rootIds,
+                hostTaskIds = hostTaskIds,
+                appTaskIds = appTaskIds,
+                stableSamples = if (mutated) APP_PLACEMENT_STABLE_SAMPLES else 1,
+            ),
+            failed = failed,
         )
-        return pickerTasks.mapValues { it.value.id }
     }
+
+    /**
+     * Both launches, back to back, and one settle for the pair.
+     *
+     * The only case that cannot be batched is the same package in both panes: after the fact both
+     * launches answer to the same predicate, so there is no way to tell which task belongs to which
+     * pane. That one is launched a pane at a time.
+     */
+    private fun launchApps(
+        rootIds: Map<SplitPane, Int>,
+        launching: Map<SplitPane, SplitLaunchTarget>,
+        paneApps: Map<SplitPane, String?>,
+        appTaskIds: MutableMap<SplitPane, Int>,
+        failed: MutableSet<SplitPane>,
+        onTask: (SplitBuiltTask) -> Unit,
+    ) {
+        val separable = launching.values.distinctBy(SplitLaunchTarget::packageName).size ==
+            launching.size
+        val groups = if (separable) {
+            listOf(launching)
+        } else {
+            launching.entries.map { (pane, target) -> mapOf(pane to target) }
+        }
+        val taken = mutableSetOf<Int>()
+        groups.forEach { group ->
+            val started = group.filter { (pane, target) ->
+                runCatching { startTargetInPane(pane, target, secondInstanceOf(pane, paneApps)) }
+                    .onFailure { failed += pane }
+                    .isSuccess
+            }
+            if (started.isEmpty()) return@forEach
+            pause(APP_LAUNCH_SETTLE_MS)
+            started.forEach { (pane, target) ->
+                runCatching {
+                    awaitTaskMatching { task ->
+                        task.id !in taken && task.packageName == target.packageName
+                    }
+                }.onSuccess { task ->
+                    taken += task.id
+                    onTask(
+                        SplitBuiltTask(
+                            taskId = task.id,
+                            component = target.componentName,
+                            fromRootId = task.rootId,
+                            toRootId = rootIds.getValue(pane),
+                        ),
+                    )
+                    promoteTask(task, rootIds.getValue(pane))
+                    appTaskIds[pane] = task.id
+                }.onFailure { failed += pane }
+            }
+        }
+        if (appTaskIds.isNotEmpty()) pause(ROOT_SETTLE_MS)
+    }
+
+    /**
+     * Whether this launch has to become a task of its own (1.5.2).
+     *
+     * Everything else reuses the task the package already has, which is exactly what makes a
+     * restore keep the app that is already playing (U2) instead of leaving an orphan behind it.
+     * `PRIMARY` is launched first, so it is `SECONDARY` that needs the second instance.
+     */
+    private fun secondInstanceOf(pane: SplitPane, paneApps: Map<SplitPane, String?>): Boolean =
+        pane == SplitPane.SECONDARY &&
+            paneApps[SplitPane.PRIMARY] != null &&
+            paneApps[SplitPane.PRIMARY] == paneApps[SplitPane.SECONDARY]
 
     fun selectApp(
         pickerTaskId: Int,
@@ -649,6 +825,9 @@ internal class SplitPickerShellSession(
                 target = target,
                 pane = pane,
                 rootId = targetRootId,
+                // 1.5.2, and only here: the other pane still holds this package, so this tap asks
+                // for a genuinely independent second window rather than for the task it already has.
+                secondInstance = duplicatePeerTasks.isNotEmpty(),
                 excludedTaskIds = preservedTargetTaskRoots.keys,
             )
             normalizeTaskToRoot(launchedTask.id, targetRootId)
@@ -770,9 +949,14 @@ internal class SplitPickerShellSession(
         target: SplitLaunchTarget,
         pane: SplitPane,
         rootId: Int,
+        secondInstance: Boolean,
         excludedTaskIds: Set<Int> = emptySet(),
     ): SplitTask {
-        val direct = launchTargetDirect(target, pane, excludedTaskIds)
+        startTargetInPane(pane, target, secondInstance)
+        pause(APP_LAUNCH_SETTLE_MS)
+        val direct = awaitTaskMatching { task ->
+            task.id !in excludedTaskIds && task.packageName == target.packageName
+        }
         promoteTask(direct, rootId)
         pause(ROOT_SETTLE_MS)
         return snapshot().root(rootId)?.tasks?.firstOrNull { task ->
@@ -780,12 +964,21 @@ internal class SplitPickerShellSession(
         } ?: error("Прямой запуск не вошёл в выбранное окно")
     }
 
-    private fun launchTargetDirect(
-        target: SplitLaunchTarget,
+    /**
+     * The one launch command of the product, in the pane's own category.
+     *
+     * [secondInstance] is the only thing that decides whether `FLAG_ACTIVITY_MULTIPLE_TASK` is set,
+     * and it is true for exactly one situation: the same package being opened a second time while
+     * the other pane still holds it (1.5.2). Everywhere else the flag is absent, so the firmware
+     * hands back the task the package already has - the whole point of a restore, which used to
+     * start a fresh copy behind a splash screen and leave the playing one orphaned outside the
+     * panes (acceptance v17: music #44 -> #66 -> #81).
+     */
+    private fun startTargetInPane(
         pane: SplitPane,
-        excludedTaskIds: Set<Int> = emptySet(),
-    ): SplitTask {
-        ensureGateOpen()
+        target: SplitLaunchTarget,
+        secondInstance: Boolean,
+    ) {
         val category = when (pane) {
             SplitPane.PRIMARY -> PRIMARY_PICKER_CATEGORY
             SplitPane.SECONDARY -> SECONDARY_PICKER_CATEGORY
@@ -795,16 +988,8 @@ internal class SplitPickerShellSession(
                 "-c android.intent.category.LAUNCHER " +
                 "-c $category " +
                 "-n ${shellQuote(target.componentName)} " +
-                "-f " + if (target.launchMode >= LAUNCH_MODE_SINGLE_TASK) {
-                    SINGLE_TASK_APP_LAUNCH_FLAGS
-                } else {
-                    ORDINARY_APP_LAUNCH_FLAGS
-                },
+                "-f " + if (secondInstance) SECOND_INSTANCE_FLAGS else APP_LAUNCH_FLAGS,
         )
-        pause(APP_LAUNCH_SETTLE_MS)
-        return awaitTaskMatching { task ->
-            task.id !in excludedTaskIds && task.packageName == target.packageName
-        }
     }
 
     private fun cleanupLaunchAttempt(
@@ -859,6 +1044,16 @@ internal class SplitPickerShellSession(
         }
     }
 
+    /**
+     * Every task the main display holds right now.
+     *
+     * A mutating operation reads it before its first command, because a launch without
+     * `MULTIPLE_TASK` hands back the task the package already had - wherever on the screen that
+     * was. Journalling one of those as "created" would let an unwind close an application the user
+     * was already running (invariant 3, U2).
+     */
+    fun livingTaskIds(): Set<Int> = mainDisplayTasks().mapTo(mutableSetOf(), SplitTask::id)
+
     private fun mainDisplayTasks(): List<SplitTask> = snapshot().roots.asSequence()
         .filter { it.displayId == MAIN_DISPLAY_ID }
         .flatMap { it.tasks.asSequence() }
@@ -881,43 +1076,6 @@ internal class SplitPickerShellSession(
                 picker.visible &&
                 picker.matchesAnyTopComponent(pickerComponents)
         ) { "Host-запуск не освободил пикер для безопасного fallback" }
-    }
-
-    fun restoreApp(
-        pickerTaskId: Int,
-        target: SplitLaunchTarget,
-        pickerComponents: Set<String>,
-    ): SplitPickerPlacement {
-        val roots = nativeRootIds()
-        val before = snapshot()
-        val pane = SplitPane.entries.firstOrNull { candidate ->
-            before.root(roots.getValue(candidate))?.tasks?.any { task ->
-                task.id == pickerTaskId &&
-                    task.isDenzaPickerBase() &&
-                    task.matchesAnyComponent(pickerComponents)
-            } == true
-        } ?: error("Пикер больше не находится в split-контейнере")
-        val root = before.root(roots.getValue(pane))
-            ?: error("Split-контейнер сохранённого приложения исчез")
-        val top = root.resolvedTopTask()
-        if (
-            top != null &&
-            top.effectivePackageName() == target.packageName &&
-            top.id != pickerTaskId &&
-            top.bounds == root.bounds
-        ) {
-            return SplitPickerPlacement(
-                pane = pane,
-                hostTaskId = pickerTaskId,
-                appTaskId = top.id,
-                packageName = top.effectivePackageName(),
-            )
-        }
-        return selectApp(
-            pickerTaskId = pickerTaskId,
-            target = target,
-            pickerComponents = pickerComponents,
-        )
     }
 
     /**
@@ -1196,14 +1354,18 @@ internal class SplitPickerShellSession(
         return tasks.map(SplitTask::id)
     }
 
-    /** Removes only a failed restoration candidate left below the exact picker pane. */
-    fun discardFailedRestoration(
+    /**
+     * Removes only a failed restoration candidate left below the exact picker pane.
+     *
+     * @return whether anything was actually removed.
+     */
+    private fun discardFailedRestoration(
         pane: SplitPane,
         packageName: String,
         pickerTaskId: Int,
-    ) {
+    ): Boolean {
         val rootId = nativeRootIds().getValue(pane)
-        removeTasksSafely(
+        return removeTasksSafely(
             snapshot().root(rootId)?.tasks.orEmpty().filter { task ->
                 task.id != pickerTaskId &&
                     task.effectivePackageName() == packageName &&
@@ -1339,24 +1501,6 @@ internal class SplitPickerShellSession(
             check(rootId > 0) { "Прошивка не вернула полноэкранный IVI-контейнер" }
         }
 
-    /** @return whether anything was actually removed from the pane. */
-    private fun prunePane(
-        rootId: Int,
-        hostTaskId: Int,
-        preservedPackage: String?,
-    ): Boolean {
-        val tasks = snapshot().root(rootId)?.tasks.orEmpty()
-        val preserved = tasks
-            .filter {
-                it.effectivePackageName() == preservedPackage && it.id != hostTaskId
-            }
-            .maxByOrNull(SplitTask::id)
-        return removeTasksSafely(
-            tasks.filterNot { it.id == hostTaskId }
-                .filterNot { preserved != null && it.id == preserved.id },
-        )
-    }
-
     private fun launchPickerInPane(
         pane: SplitPane,
         rootId: Int,
@@ -1427,22 +1571,6 @@ internal class SplitPickerShellSession(
         removeTaskSafely(current)
     }
 
-    /** @return whether any stale picker task was actually removed. */
-    private fun removeUnkeptPickerTasks(
-        pickerComponents: Set<String>,
-        keptTaskIds: Set<Int>,
-    ): Boolean {
-        return snapshot().roots.asSequence()
-            .filter { it.displayId == MAIN_DISPLAY_ID }
-            .flatMap { it.tasks.asSequence() }
-            .filter { task ->
-                task.id !in keptTaskIds &&
-                    pickerComponents.any { component -> task.matchesComponent(component) }
-            }
-            .toList()
-            .let(::removeTasksSafely)
-    }
-
     private fun awaitTaskMatching(predicate: (SplitTask) -> Boolean): SplitTask {
         repeat(TASK_DISCOVERY_ATTEMPTS) { attempt ->
             snapshot().roots.asSequence()
@@ -1456,37 +1584,89 @@ internal class SplitPickerShellSession(
         error("Запущенная задача не появилась в ActivityTaskManager")
     }
 
-    private fun verifyPickerTasks(
+    /**
+     * The postcondition of a whole built scene, on a fresh read, twice.
+     *
+     * BYD publishes task placement before its split-area controller has necessarily committed the
+     * same transition, so one agreeing sample is not proof. What changed is the *subject*: the
+     * previous recipe confirmed one pane at a time and, on a restore, confirmed the first pane
+     * before the second had even been launched - which is exactly how an open could end with a
+     * picker drawn over a live application. A build that moved nothing has no transition to wait
+     * out and is confirmed by a single sample (1.13).
+     */
+    private fun awaitScenePlacement(
         pickerComponents: Map<SplitPane, String>,
         rootIds: Map<SplitPane, Int>,
         hostTaskIds: Map<SplitPane, Int>,
-        preservedPackages: Map<SplitPane, String>,
-    ) {
+        appTaskIds: Map<SplitPane, Int>,
+        stableSamples: Int,
+    ): Map<SplitPane, SplitPickerLivePane> {
+        var stable = 0
+        var lastError: Throwable? = null
+        repeat(APP_PLACEMENT_CONFIRM_ATTEMPTS) { attempt ->
+            val sample = runCatching {
+                scenePlacement(pickerComponents, rootIds, hostTaskIds, appTaskIds)
+            }
+            sample.getOrNull()?.let { placement ->
+                stable += 1
+                if (stable >= stableSamples) return placement
+            }
+            sample.exceptionOrNull()?.let { error ->
+                stable = 0
+                lastError = error
+            }
+            if (attempt + 1 < APP_PLACEMENT_CONFIRM_ATTEMPTS) {
+                pause(APP_PLACEMENT_CONFIRM_INTERVAL_MS)
+            }
+        }
+        throw lastError ?: IllegalStateException("Сцена не достигла устойчивого состояния")
+    }
+
+    /** One sample: one `am stack list` and one area read for both panes together. */
+    private fun scenePlacement(
+        pickerComponents: Map<SplitPane, String>,
+        rootIds: Map<SplitPane, Int>,
+        hostTaskIds: Map<SplitPane, Int>,
+        appTaskIds: Map<SplitPane, Int>,
+    ): Map<SplitPane, SplitPickerLivePane> {
         val state = snapshot()
-        SplitPane.entries.forEach { pane ->
+        val panes = SplitPane.entries.associateWith { pane ->
             val root = state.root(rootIds.getValue(pane))
                 ?: error("Split-контейнер ${pane.name} исчез")
-            val picker = root.tasks.firstOrNull {
-                it.id == hostTaskIds.getValue(pane) &&
-                    it.isDenzaPickerBase() &&
-                    it.matchesComponent(pickerComponents.getValue(pane))
+            val hostTaskId = hostTaskIds.getValue(pane)
+            val picker = root.tasks.firstOrNull { task ->
+                task.id == hostTaskId &&
+                    task.isDenzaPickerBase() &&
+                    task.matchesComponent(pickerComponents.getValue(pane))
             } ?: error("Пикер ${pane.name} исчез")
             check(picker.bounds == root.bounds) {
                 "Пикер ${pane.name} не принял размер split-контейнера"
             }
-            if (preservedPackages[pane] == null) {
-                check(
-                    picker.visible &&
-                        picker.matchesTopComponent(pickerComponents.getValue(pane)),
-                ) { "Пикер ${pane.name} перекрыт посторонней задачей" }
-            }
             check(root.tasks.size <= MAX_TASKS_PER_PANE) {
                 "В ${pane.name} накопилось больше двух задач"
+            }
+            val top = root.resolvedTopTask() ?: error("В ${pane.name} нет верхней задачи")
+            val appTaskId = appTaskIds[pane]
+            if (appTaskId == null) {
+                check(
+                    top.id == hostTaskId &&
+                        picker.matchesTopComponent(pickerComponents.getValue(pane)),
+                ) { "Пикер ${pane.name} перекрыт посторонней задачей" }
+                SplitPickerLivePane(pane, hostTaskId, null, null)
+            } else {
+                check(top.id == appTaskId) {
+                    "Приложение не стало верхним в ${pane.name}"
+                }
+                check(top.bounds == root.bounds) {
+                    "Приложение не приняло размер ${pane.name}"
+                }
+                SplitPickerLivePane(pane, hostTaskId, top.id, top.effectivePackageName())
             }
         }
         check(callInt("service call activity_task 30") == AREA_BALANCED_SPLIT) {
             "Нативный split не активировался"
         }
+        return panes
     }
 
     private fun removeTaskSafely(task: SplitTask) = removeTasksSafely(listOf(task))
@@ -1789,8 +1969,11 @@ internal class SplitPickerShellSession(
         const val AREA_FULL_IVI = 4
         const val EXPAND_PRIMARY_MODE = 101
         const val EXPAND_SECONDARY_MODE = 102
-        const val ORDINARY_APP_LAUNCH_FLAGS = "0x18200000"
-        const val SINGLE_TASK_APP_LAUNCH_FLAGS = "0x10200000"
+        /** `NEW_TASK | RESET_TASK_IF_NEEDED`: the package's own task, whichever one that is. */
+        const val APP_LAUNCH_FLAGS = "0x10200000"
+
+        /** The same plus `MULTIPLE_TASK`: a second, independent copy and nothing else (1.5.2). */
+        const val SECOND_INSTANCE_FLAGS = "0x18200000"
         const val PICKER_LAUNCH_FLAGS = "0x18010000"
         const val PRIMARY_PICKER_CATEGORY = "byd.intent.category.START_IVI_PRIMARY"
         const val SECONDARY_PICKER_CATEGORY = "byd.intent.category.START_IVI_SECOND"
@@ -1851,4 +2034,29 @@ internal data class SplitPickerLivePane(
     val hostTaskId: Int,
     val appTaskId: Int?,
     val appPackageName: String?,
+)
+
+/**
+ * What one [SplitPickerShellSession.buildScene] settled.
+ *
+ * [failed] names the panes whose remembered app did not come back; each of them is on its own
+ * picker, and the operation turns them into the one notice the user reads (1.3.2, U5).
+ */
+/**
+ * A task a build took charge of, and where it was when the build found it.
+ *
+ * [fromRootId] is what makes an unwind exact for a task the build did not create: a restore reuses
+ * the task its package already had and reparents it into a pane, and putting that one back where it
+ * came from is the honest inverse (contract 7.6, invariant 9).
+ */
+internal data class SplitBuiltTask(
+    val taskId: Int,
+    val component: String,
+    val fromRootId: Int,
+    val toRootId: Int,
+)
+
+internal class SplitSceneBuild(
+    val panes: Map<SplitPane, SplitPickerLivePane>,
+    val failed: Set<SplitPane>,
 )

@@ -683,18 +683,24 @@ class SplitScenarioTest {
         // от неудавшегося восстановления - оно деградирует в уведомление (1.3.2) - поэтому право
         // мутировать теряется единственным способом, каким оно теряется у начатого пользователем
         // запуска после §4 п.2: истёк его собственный бюджет (1.3.8). Отыгрывается тот же журнал.
-        val building = car(FakeShell())
+        // Навигатор уже работает - его задачу восстановление переиспользует, а не создаёт.
+        val building = car(FakeShell().apply { addTask(FULL_ROOT, LIVING_APP, NAVIGATOR, "$NAVIGATOR.MainActivity") })
         val rebuilt = building.core(SplitDurable(enabled = true, slots = APP_PAIR))
         rebuilt.initialize {}
         val rebuiltResults = Collections.synchronizedList(mutableListOf<String?>())
 
-        // Пикеры и первое приложение уже созданы; второе ещё даже не спрашивали у прошивки.
-        building.shells.blockAt("service call activity_task 112 s16 '$MUSIC'")
+        // Оба пикера уже созданы, навигатор уже запрошен у прошивки - и она вернула его же задачу.
+        building.shells.blockAt(appLaunch("START_IVI_SECOND", MUSIC))
         rebuilt.openPickerSession(rebuiltResults::add)
         assertTrue(building.shells.awaitBlocked())
-        val createdLast = building.fake.topTaskId(PRIMARY_ROOT)!!
+        val createdLast = building.fake.topTaskId(SECONDARY_ROOT)!!
         val created = building.fake.taskIds(PRIMARY_ROOT) + building.fake.taskIds(SECONDARY_ROOT)
-        assertEquals("открытие успело создать два пикера и приложение", 3, created.size)
+        assertEquals("открытие успело создать два пикера", 2, created.size)
+        assertTrue(
+            "и запуск навигатора не создал второй копии - это его прежняя задача",
+            building.fake.hasTask(LIVING_APP),
+        )
+        assertEquals(LIVING_APP, building.fake.taskIds(FULL_ROOT).single())
         assertTrue("и gate открыли именно мы", building.gateLease.isOwned())
         building.clearCommands()
 
@@ -707,7 +713,11 @@ class SplitScenarioTest {
         }
         assertEquals("откат снимает ровно созданное - и ничего сверх", created.toSet(), removed.toSet())
         assertEquals("самое новое уходит первым", createdLast, removed.first())
-        assertEquals(3, removed.size)
+        assertEquals(2, removed.size)
+        assertTrue(
+            "U2: приложение, которое операция лишь переиспользовала, откат не трогает",
+            building.fake.hasTask(LIVING_APP),
+        )
         assertEquals("панели пусты, как до тапа", 0, building.fake.taskCount(PRIMARY_ROOT))
         assertEquals(0, building.fake.taskCount(SECONDARY_ROOT))
         assertFalse("gate, который открыли мы, закрыт", building.fake.isGateOpen())
@@ -719,6 +729,81 @@ class SplitScenarioTest {
             listOf("${SplitCoordinatorCore.OPEN_FAILURE}: превышено время ожидания. Попробуйте ещё раз"),
             rebuiltResults.toList(),
         )
+    }
+
+    /**
+     * The other half of the eleven seconds: a restore used to be two whole selections in a row.
+     *
+     * Each of them cleared its pane, waited for its own picker to become the root top, launched,
+     * and then confirmed *that one pane* - the second one not even started yet. Both launches now
+     * go out together and one postcondition covers the pair.
+     */
+    @Test
+    fun restoringAPairLaunchesBothPanesBeforeItWaitsForEither() {
+        val car = car(FakeShell())
+        val core = car.core(SplitDurable(enabled = true, slots = APP_PAIR))
+        core.initialize {}
+        car.clearCommands()
+
+        core.openPickerSession()
+        car.barrier()
+
+        val launches = car.commands().withIndex().filter { (_, command) ->
+            command.startsWith("am start ") && !command.contains(SPLIT_PICKER_ACTIVITY)
+        }
+        assertEquals("одно приложение - один запуск", 2, launches.size)
+        assertEquals(
+            "и оба уходят подряд: между ними продукт ничего не ждёт и ни о чём не спрашивает",
+            1,
+            launches.last().index - launches.first().index,
+        )
+        assertFalse(
+            "восстановление не расчищает панель и не ждёт, пока её пикер станет верхним",
+            car.commands().any { it.contains(" remove-task ") },
+        )
+        assertEquals(APP_PAIR, car.store.load().slots)
+        assertEquals("сцена поднялась и это не ошибка", SplitScreenPhase.ACTIVE, core.snapshot().phase)
+    }
+
+    /**
+     * Contract 7.7, and the "picker over an application" defect of acceptance v17.
+     *
+     * The recipe's own postcondition is measured while the scene is still being built; the operation
+     * commits only after one more read of the whole thing. A pane that lost its app in between makes
+     * the open roll back rather than record a scene that is not there (invariant 9).
+     */
+    @Test
+    fun anOpenCommitsOnlyWhatTheWholeSceneStillReadsBack() {
+        val car = car(FakeShell())
+        val results = Collections.synchronizedList(mutableListOf<String?>())
+        val core = car.core(
+            SplitDurable(
+                enabled = true,
+                slots = mapOf(
+                    SplitPane.PRIMARY to SplitSlot.App(NAVIGATOR),
+                    SplitPane.SECONDARY to SplitSlot.Picker,
+                ),
+            ),
+        ) { line ->
+            // Ровно между постусловием рецепта и финальным read-back панель теряет приложение.
+            if (line.contains(SCENE_BUILT)) {
+                car.fake.removeActivity(PRIMARY_ROOT, "$NAVIGATOR.MainActivity")
+            }
+        }
+        core.initialize {}
+
+        core.openPickerSession(results::add)
+        car.barrier()
+
+        assertEquals("частичная сцена не объявляется успехом", 0, car.store.commits)
+        assertEquals(listOf(SplitCoordinatorCore.OPEN_FAILURE), results.toList())
+        assertEquals(
+            "и выбор панели остаётся тем, что помнил продукт (1.3.2)",
+            SplitSlot.App(NAVIGATOR),
+            car.store.load().slot(SplitPane.PRIMARY),
+        )
+        assertEquals("а созданные пикеры сняты откатом", 0, car.fake.taskCount(PRIMARY_ROOT))
+        assertEquals(0, car.fake.taskCount(SECONDARY_ROOT))
     }
 
     @Test
@@ -1709,6 +1794,12 @@ class SplitScenarioTest {
 
     private fun car(fake: FakeShell): SplitCarFixture = SplitCarFixture(fake).also(cars::add)
 
+    /** The exact launch a build sends for one pane, so a scenario can park the operation on it. */
+    private fun appLaunch(category: String, packageName: String): String =
+        "am start -a android.intent.action.MAIN -c android.intent.category.LAUNCHER " +
+            "-c byd.intent.category.$category -n '$packageName/$packageName.MainActivity' " +
+            "-f 0x10200000"
+
     /** Every terminal the diagnostic log recorded for a tap on the launcher button. */
     /** Terminals without their duration: the wait is measured by the acceptance, not by a unit test. */
     private fun openTerminals(car: SplitCarFixture): List<String> = car.diagnostics
@@ -1747,6 +1838,12 @@ class SplitScenarioTest {
         /** Начало строки, которой координатор объясняет отброшенную подсказку Home. */
         const val HOME_HINT_DROPPED = "home hint dropped:"
         const val PROJECTED_NAV_TASK = 88
+
+        /** An application already running when the tap arrived; a restore reuses it (U2). */
+        const val LIVING_APP = 55
+
+        /** The step mark an open records the moment its recipe is done and before the read-back. */
+        const val SCENE_BUILT = "scene-built"
         const val FOREIGN_TASK = 99
         const val FOREIGN = "com.example.foreign"
 

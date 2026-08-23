@@ -46,6 +46,9 @@ internal val PICKERS = mapOf(
     SplitPane.SECONDARY to SECONDARY_PICKER,
 )
 internal val PICKER_COMPONENTS = PICKERS.values.toSet()
+/** `Intent.FLAG_ACTIVITY_MULTIPLE_TASK`: the one bit that decides new task or existing one. */
+internal const val FLAG_ACTIVITY_MULTIPLE_TASK = 0x08000000L
+
 internal val FULL = SplitBounds(0, 0, 2560, 1600)
 internal val PRIMARY_BOUNDS = SplitBounds(24, 112, 856, 1472)
 internal val SECONDARY_BOUNDS = SplitBounds(880, 112, 2536, 1472)
@@ -308,7 +311,11 @@ internal class FakeShell(
                 ) {
                     return "Error: direct target launch rejected"
                 }
+                // The pane categories route the product's own picker and nothing else: this
+                // firmware ignores them for third-party components, which is exactly why every
+                // recipe follows a launch with `promoteTask` (split-screen-findings, live).
                 val pickerRoot = when {
+                    component !in PICKERS.values -> null
                     command.contains("byd.intent.category.START_IVI_PRIMARY") -> PRIMARY_ROOT
                     command.contains("byd.intent.category.START_IVI_SECOND") -> SECONDARY_ROOT
                     else -> null
@@ -320,8 +327,6 @@ internal class FakeShell(
                             (it.packageName == STOCK_PICKER_PACKAGE ||
                                 it.packageName == STOCK_BOOTSTRAP_PACKAGE)
                     }
-                } else {
-                    tasks.removeAll { it.activityName == activityName }
                 }
                 if (
                     replaceStaleFullscreenTargetOnLaunch &&
@@ -332,13 +337,37 @@ internal class FakeShell(
                             task.packageName == packageName
                     }
                 }
-                val launchedTask = Task(
-                    id = nextTaskId++,
-                    packageName = packageName,
-                    activityName = activityName,
-                    rootId = pickerRoot ?: FULL_ROOT,
-                    bounds = pickerRoot?.let(::bounds) ?: FULL,
-                )
+                val destination = pickerRoot ?: FULL_ROOT
+                // What the launch flags mean to the firmware, and the whole of the difference:
+                // without `FLAG_ACTIVITY_MULTIPLE_TASK` a package that already has a task keeps it
+                // - it is brought to the destination, splash and all - and with the flag a second,
+                // independent task is created next to it (1.5.2).
+                val flags = command.substringAfter("-f 0x", "")
+                    .trim()
+                    .toLongOrNull(radix = 16)
+                    ?: 0L
+                val reused = if (flags and FLAG_ACTIVITY_MULTIPLE_TASK != 0L) {
+                    null
+                } else {
+                    tasks.lastOrNull { task ->
+                        task.packageName == packageName && task.rootId != EXTERNAL_ROOT
+                    }
+                }
+                val launchedTask = if (reused != null) {
+                    tasks.remove(reused)
+                    reused.activityName = activityName
+                    reused.rootId = destination
+                    reused.bounds = bounds(destination)
+                    reused
+                } else {
+                    Task(
+                        id = nextTaskId++,
+                        packageName = packageName,
+                        activityName = activityName,
+                        rootId = destination,
+                        bounds = bounds(destination),
+                    )
+                }
                 tasks += launchedTask
                 if (component !in PICKERS.values) {
                     transientAreaReadsRemaining = transientAreaReadsAfterDirectLaunch
@@ -567,6 +596,18 @@ internal val APP_PAIR = mapOf(
     SplitPane.SECONDARY to SplitSlot.App(MUSIC),
 )
 
+/** The two permanent picker bases a build settled, by pane. */
+internal fun SplitSceneBuild.hostIds(): Map<SplitPane, Int> =
+    panes.mapValues { (_, observed) -> observed.hostTaskId }
+
+/** The whole scene with nothing above the pickers - what an open with no saved pair asks for. */
+internal fun SplitPickerShellSession.buildPickers(): Map<SplitPane, Int> =
+    buildScene(PICKERS, emptyMap()).hostIds()
+
+/** A restore of one remembered package into one pane, the way an open asks for it. */
+internal fun launchTargetOf(packageName: String, launchMode: Int = 0): SplitLaunchTarget =
+    SplitLaunchTarget(packageName, "$packageName/$packageName.MainActivity", launchMode)
+
 /** A stock split the user built themselves: nothing here belongs to the product. */
 internal fun FakeShell.stockSplitOfSomeoneElse() {
     area = 3
@@ -622,6 +663,13 @@ internal class SplitCarFixture(
         initial: SplitDurable,
         leases: List<SplitLeaseController> = emptyList(),
         appLabel: (String) -> String = { it },
+        /**
+         * Runs on the worker as each diagnostic line is recorded.
+         *
+         * It is the seam for "and right here the car changed underneath you": the step marks of an
+         * operation are the only points inside one that a scenario can name from outside it.
+         */
+        onDiagnostic: (String) -> Unit = {},
     ): SplitCoordinatorCore {
         store.seed(initial)
         return SplitCoordinatorCore(
@@ -640,6 +688,7 @@ internal class SplitCarFixture(
             log = { line ->
                 diagnostics += line
                 unmirrored += line
+                onDiagnostic(line)
             },
             logMirror = {
                 synchronized(unmirrored) { unmirrored.toList().also { unmirrored.clear() } }

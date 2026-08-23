@@ -150,22 +150,26 @@ class SplitPickerShellSessionTest {
     }
 
     @Test
-    fun explicitOpenCreatesTwoPickerBasesAndPrunesOldPaneTasks() {
+    fun explicitOpenCreatesTwoPickerBasesAndClearsOldPaneTasks() {
         val fake = FakeShell().apply {
             addTask(PRIMARY_ROOT, 40, NAVIGATOR, "$NAVIGATOR.MainActivity")
             addTask(SECONDARY_ROOT, 41, MUSIC, "$MUSIC.MainActivity")
         }
         val split = session(fake)
 
-        split.openPickers(PICKERS, preservedPackages = emptyMap())
+        split.buildPickers()
 
         assertEquals(PRIMARY_PICKER_ACTIVITY, fake.topActivity(PRIMARY_ROOT))
         assertEquals(SECONDARY_PICKER_ACTIVITY, fake.topActivity(SECONDARY_ROOT))
         assertFalse(fake.hasPackage(PRIMARY_ROOT, NAVIGATOR))
         assertFalse(fake.hasPackage(SECONDARY_ROOT, MUSIC))
         assertEquals(3, fake.area)
-        assertTrue(fake.commands.any { it.contains("remove-task 40") })
-        assertTrue(fake.commands.any { it.contains("remove-task 41") })
+        // 1.13.3: both panes are cleared by one decision and one invocation of the proxy, where
+        // the two blind per-pane sweeps used to load it twice.
+        val removals = fake.commands.filter { it.contains(" remove-task ") }
+        assertEquals(1, removals.size)
+        assertTrue(removals.single().contains("remove-task 40 "))
+        assertTrue(removals.single().contains(" 41 "))
         assertFalse(fake.commands.any { it == "service call activity_task 115" })
     }
 
@@ -173,7 +177,7 @@ class SplitPickerShellSessionTest {
     fun liveFirmwarePickerPlusBootstrapAppBecomesTwoPickerBases() {
         val fake = FakeShell(secondaryBootstrapPackage = STOCK_BOOTSTRAP_PACKAGE)
 
-        val hosts = session(fake).openPickers(PICKERS, preservedPackages = emptyMap())
+        val hosts = session(fake).buildPickers()
 
         assertEquals(PRIMARY_PICKER_ACTIVITY, fake.topActivity(PRIMARY_ROOT))
         assertEquals(SECONDARY_PICKER_ACTIVITY, fake.topActivity(SECONDARY_ROOT))
@@ -212,7 +216,7 @@ class SplitPickerShellSessionTest {
             addTask(SECONDARY_ROOT, 41, MUSIC, "$MUSIC.MainActivity")
         }
 
-        session(fake).openPickers(PICKERS, preservedPackages = emptyMap())
+        session(fake).buildPickers()
 
         assertFalse(fake.commands.any { it == "service call activity_task 115" })
         SplitPane.entries.forEach { pane ->
@@ -238,7 +242,7 @@ class SplitPickerShellSessionTest {
     fun fullscreenNativeHostIsReplacedByPickerAlreadyInLiveRootBounds() {
         val fake = FakeShell(nativeBootstrapStartsFullscreen = true)
 
-        val hosts = session(fake).openPickers(PICKERS, preservedPackages = emptyMap())
+        val hosts = session(fake).buildPickers()
 
         assertEquals(PRIMARY_BOUNDS, fake.taskBounds(hosts.getValue(SplitPane.PRIMARY)))
         assertEquals(SECONDARY_BOUNDS, fake.taskBounds(hosts.getValue(SplitPane.SECONDARY)))
@@ -249,7 +253,7 @@ class SplitPickerShellSessionTest {
     fun alreadyRunningOwnedSceneIsAdoptedWithoutTaskMutation() {
         val fake = FakeShell()
         val split = session(fake)
-        val hosts = split.openPickers(PICKERS, preservedPackages = emptyMap())
+        val hosts = split.buildPickers()
         val navigator = split.selectApp(
             pickerTaskId = hosts.getValue(SplitPane.PRIMARY),
             target = SplitLaunchTarget(NAVIGATOR, "$NAVIGATOR/$NAVIGATOR.MainActivity"),
@@ -278,7 +282,7 @@ class SplitPickerShellSessionTest {
     fun dividerResizeRepairsPickerBaseStrandedAwayFromItsRecordedApp() {
         val fake = FakeShell()
         val split = session(fake)
-        val hosts = split.openPickers(PICKERS, preservedPackages = emptyMap())
+        val hosts = split.buildPickers()
         val navigator = split.selectApp(
             pickerTaskId = hosts.getValue(SplitPane.SECONDARY),
             target = SplitLaunchTarget(NAVIGATOR, "$NAVIGATOR/$NAVIGATOR.MainActivity"),
@@ -333,7 +337,7 @@ class SplitPickerShellSessionTest {
     fun transientResizeWithBothPickerBasesInOneRootEmitsNoVisiblePickerObservation() {
         val fake = FakeShell()
         val split = session(fake)
-        val hosts = split.openPickers(PICKERS, preservedPackages = emptyMap())
+        val hosts = split.buildPickers()
         val navigator = split.selectApp(
             pickerTaskId = hosts.getValue(SplitPane.SECONDARY),
             target = SplitLaunchTarget(NAVIGATOR, "$NAVIGATOR/$NAVIGATOR.MainActivity"),
@@ -359,7 +363,7 @@ class SplitPickerShellSessionTest {
     fun dividerResizeDoesNotGuessOwnershipWithoutARecordedApp() {
         val fake = FakeShell()
         val split = session(fake)
-        val hosts = split.openPickers(PICKERS, preservedPackages = emptyMap())
+        val hosts = split.buildPickers()
         val previous = SplitPane.entries.associateWith { pane ->
             SplitPickerObservedPane(hostTaskId = hosts.getValue(pane))
         }
@@ -377,7 +381,7 @@ class SplitPickerShellSessionTest {
     fun ownedSceneCoveredByFullscreenIsFocusedInsteadOfRebuilt() {
         val fake = FakeShell()
         val split = session(fake)
-        val hosts = split.openPickers(PICKERS, preservedPackages = emptyMap())
+        val hosts = split.buildPickers()
         val navigator = split.selectApp(
             pickerTaskId = hosts.getValue(SplitPane.PRIMARY),
             target = SplitLaunchTarget(NAVIGATOR, "$NAVIGATOR/$NAVIGATOR.MainActivity"),
@@ -434,7 +438,7 @@ class SplitPickerShellSessionTest {
     fun nativeEdgeCollapseAdoptsOnlyTheSurvivingOwnedRoot() {
         val fake = FakeShell()
         val split = session(fake)
-        val hosts = split.openPickers(PICKERS, preservedPackages = emptyMap())
+        val hosts = split.buildPickers()
         val navigator = split.selectApp(
             pickerTaskId = hosts.getValue(SplitPane.PRIMARY),
             target = SplitLaunchTarget(NAVIGATOR, "$NAVIGATOR/$NAVIGATOR.MainActivity"),
@@ -474,7 +478,7 @@ class SplitPickerShellSessionTest {
     fun nativeEdgeCollapseAcceptsRecordedTaskDetachedOutsideNativeRoots() {
         val fake = FakeShell()
         val split = session(fake)
-        val hosts = split.openPickers(PICKERS, preservedPackages = emptyMap())
+        val hosts = split.buildPickers()
         val vanishedHost = hosts.getValue(SplitPane.PRIMARY)
         fake.dismissPane(PRIMARY_ROOT)
         fake.addTask(FULL_ROOT, vanishedHost, SPLIT_HOST_PACKAGE, PRIMARY_PICKER_ACTIVITY)
@@ -497,7 +501,7 @@ class SplitPickerShellSessionTest {
     fun nativeEdgeCollapseRejectsTrackedTaskStillInCollapsedNativeRoot() {
         val fake = FakeShell()
         val split = session(fake)
-        val hosts = split.openPickers(PICKERS, preservedPackages = emptyMap())
+        val hosts = split.buildPickers()
         val vanishedHost = hosts.getValue(SplitPane.PRIMARY)
         fake.dismissPane(PRIMARY_ROOT)
         fake.addTask(PRIMARY_ROOT, vanishedHost, SPLIT_HOST_PACKAGE, PRIMARY_PICKER_ACTIVITY)
@@ -519,7 +523,7 @@ class SplitPickerShellSessionTest {
     fun nativeEdgeCollapseReattachesExactPickerBehindAppMovedToSurvivorRoot() {
         val fake = FakeShell()
         val split = session(fake)
-        val hosts = split.openPickers(PICKERS, preservedPackages = emptyMap())
+        val hosts = split.buildPickers()
         val music = split.selectApp(
             pickerTaskId = hosts.getValue(SplitPane.PRIMARY),
             target = SplitLaunchTarget(MUSIC, "$MUSIC/$MUSIC.MainActivity"),
@@ -582,7 +586,7 @@ class SplitPickerShellSessionTest {
     fun fullscreenAppDismissalAdoptsItsExactPickerAsTheSurvivor() {
         val fake = FakeShell()
         val split = session(fake)
-        val hosts = split.openPickers(PICKERS, preservedPackages = emptyMap())
+        val hosts = split.buildPickers()
         val music = split.selectApp(
             pickerTaskId = hosts.getValue(SplitPane.SECONDARY),
             target = SplitLaunchTarget(MUSIC, "$MUSIC/$MUSIC.MainActivity"),
@@ -619,7 +623,7 @@ class SplitPickerShellSessionTest {
     fun visibleProductPickerHintResolvesOnlyOneExactNativeTask() {
         val fake = FakeShell()
         val split = session(fake)
-        val hosts = split.openPickers(PICKERS, preservedPackages = emptyMap())
+        val hosts = split.buildPickers()
 
         assertEquals(null, split.singleVisiblePickerTaskId(PICKER_COMPONENTS))
 
@@ -639,7 +643,7 @@ class SplitPickerShellSessionTest {
     fun collapsedPickerReattachRollsBackWhenNativeAreaChangesDuringMutation() {
         val fake = FakeShell()
         val split = session(fake)
-        val hosts = split.openPickers(PICKERS, preservedPackages = emptyMap())
+        val hosts = split.buildPickers()
         val music = split.selectApp(
             pickerTaskId = hosts.getValue(SplitPane.PRIMARY),
             target = SplitLaunchTarget(MUSIC, "$MUSIC/$MUSIC.MainActivity"),
@@ -693,16 +697,22 @@ class SplitPickerShellSessionTest {
             addTask(SECONDARY_ROOT, 41, MUSIC, "$MUSIC.MainActivity")
         }
 
-        session(fake).openPickers(
+        val built = session(fake).buildScene(
             PICKERS,
-            preservedPackages = mapOf(
-                SplitPane.PRIMARY to NAVIGATOR,
-                SplitPane.SECONDARY to MUSIC,
+            mapOf(
+                SplitPane.PRIMARY to launchTargetOf(NAVIGATOR),
+                SplitPane.SECONDARY to launchTargetOf(MUSIC),
             ),
         )
 
+        assertEquals("оба приложения на месте", emptySet<SplitPane>(), built.failed)
         assertTrue(fake.hasActivity(PRIMARY_ROOT, PRIMARY_PICKER_ACTIVITY))
         assertTrue(fake.hasActivity(SECONDARY_ROOT, SECONDARY_PICKER_ACTIVITY))
+        assertEquals("$NAVIGATOR.MainActivity", fake.topActivity(PRIMARY_ROOT))
+        assertEquals("$MUSIC.MainActivity", fake.topActivity(SECONDARY_ROOT))
+        // U2: the two tasks the panes already held are the two that came back.
+        assertEquals(40, built.panes.getValue(SplitPane.PRIMARY).appTaskId)
+        assertEquals(41, built.panes.getValue(SplitPane.SECONDARY).appTaskId)
         assertFalse(fake.commands.any { it == "input keyevent KEYCODE_HOME" })
         assertFalse(fake.commands.any { it == "service call activity_task 115" })
     }
@@ -711,14 +721,14 @@ class SplitPickerShellSessionTest {
     fun explicitOpenFailsClosedWhenNativePaneLaunchIsRejected() {
         val fake = FakeShell(hostingSucceeds = false)
 
-        session(fake).openPickers(PICKERS, preservedPackages = emptyMap())
+        session(fake).buildPickers()
     }
 
     @Test
     fun pickerTapPlacesOrdinaryAppTaskAboveItsOwnPicker() {
         val fake = FakeShell()
         val split = session(fake)
-        val pickers = split.openPickers(PICKERS, preservedPackages = emptyMap())
+        val pickers = split.buildPickers()
 
         val placement = split.selectApp(
             pickerTaskId = pickers.getValue(SplitPane.SECONDARY),
@@ -736,7 +746,7 @@ class SplitPickerShellSessionTest {
         val appLaunch = fake.commands.first { command ->
             command.startsWith("am start ") && command.contains("'$MUSIC/$MUSIC.MainActivity'")
         }
-        assertTrue(appLaunch.contains("-f 0x18200000"))
+        assertTrue("обычный выбор переиспользует задачу пакета", appLaunch.contains("-f 0x10200000"))
         assertTrue(appLaunch.contains("byd.intent.category.START_IVI_SECOND"))
         assertFalse(fake.commands.any { it.contains("SplitTaskProxyMain start-in-task ") })
         assertEquals("$MUSIC.MainActivity", fake.taskBaseActivity(placement.appTaskId))
@@ -746,7 +756,7 @@ class SplitPickerShellSessionTest {
     fun pickerTapAfterPeerDismissalKeepsSelectedAppFullscreen() {
         val fake = FakeShell(renderEmptyNativeRootMarker = true)
         val split = session(fake)
-        val pickers = split.openPickers(PICKERS, preservedPackages = emptyMap())
+        val pickers = split.buildPickers()
         fake.dismissPane(PRIMARY_ROOT)
 
         val placement = split.selectApp(
@@ -774,7 +784,7 @@ class SplitPickerShellSessionTest {
     fun singleTaskLauncherIsPlacedByDirectLaunchIntoItsPane() {
         val fake = FakeShell()
         val split = session(fake)
-        val pickers = split.openPickers(PICKERS, preservedPackages = emptyMap())
+        val pickers = split.buildPickers()
 
         val placement = split.selectApp(
             pickerTaskId = pickers.getValue(SplitPane.PRIMARY),
@@ -802,7 +812,7 @@ class SplitPickerShellSessionTest {
     fun redirectLauncherRecordsRealOrdinaryTask() {
         val fake = FakeShell(redirectOnStartPackage = WAZE)
         val split = session(fake)
-        val pickers = split.openPickers(PICKERS, preservedPackages = emptyMap())
+        val pickers = split.buildPickers()
 
         val placement = split.selectApp(
             pickerTaskId = pickers.getValue(SplitPane.SECONDARY),
@@ -819,7 +829,7 @@ class SplitPickerShellSessionTest {
         assertTrue(fake.commands.any { command ->
             command.startsWith("am start ") &&
                 command.contains("'$WAZE/$WAZE.FreeMapAppActivity'") &&
-                command.contains("-f 0x18200000")
+                command.contains("-f 0x10200000")
         })
     }
 
@@ -827,7 +837,7 @@ class SplitPickerShellSessionTest {
     fun redirectedOrdinaryTaskStaysInSelectedPane() {
         val fake = FakeShell(redirectOnStartPackage = MUSIC)
         val split = session(fake)
-        val pickers = split.openPickers(PICKERS, preservedPackages = emptyMap())
+        val pickers = split.buildPickers()
 
         val placement = split.selectApp(
             pickerTaskId = pickers.getValue(SplitPane.SECONDARY),
@@ -848,7 +858,7 @@ class SplitPickerShellSessionTest {
             directTargetLaunchSucceeds = false,
         )
         val split = session(fake)
-        val pickers = split.openPickers(PICKERS, preservedPackages = emptyMap())
+        val pickers = split.buildPickers()
 
         runCatching {
             split.selectApp(
@@ -868,7 +878,7 @@ class SplitPickerShellSessionTest {
     fun closeMovesSelectedAppToFullRootAndRemovesOnlyPickerBases() {
         val fake = FakeShell()
         val split = session(fake)
-        val pickers = split.openPickers(PICKERS, preservedPackages = emptyMap())
+        val pickers = split.buildPickers()
         split.selectApp(
             pickerTaskId = pickers.getValue(SplitPane.SECONDARY),
             target = SplitLaunchTarget(MUSIC, "$MUSIC/$MUSIC.MainActivity"),
@@ -905,7 +915,7 @@ class SplitPickerShellSessionTest {
             topology = topology,
         )
 
-        split.openPickers(PICKERS, preservedPackages = emptyMap())
+        split.buildPickers()
 
         assertEquals(
             "nothing moved, nothing was removed, nothing had to settle",
@@ -922,7 +932,7 @@ class SplitPickerShellSessionTest {
     fun clearingSeveralTasksStartsTheProxyOnce() {
         val fake = FakeShell()
         val split = session(fake)
-        val pickers = split.openPickers(PICKERS, preservedPackages = emptyMap())
+        val pickers = split.buildPickers()
         split.selectApp(
             pickerTaskId = pickers.getValue(SplitPane.SECONDARY),
             target = SplitLaunchTarget(MUSIC, "$MUSIC/$MUSIC.MainActivity"),
@@ -1022,7 +1032,7 @@ class SplitPickerShellSessionTest {
     fun projectedTaskWhosePickerWasClosedReturnsFullscreenInItsRecordedPane() {
         val fake = FakeShell()
         val split = session(fake)
-        val pickers = split.openPickers(PICKERS, preservedPackages = emptyMap())
+        val pickers = split.buildPickers()
         val placement = split.selectApp(
             pickerTaskId = pickers.getValue(SplitPane.PRIMARY),
             target = SplitLaunchTarget(NAVIGATOR, "$NAVIGATOR/$NAVIGATOR.MainActivity"),
@@ -1044,7 +1054,7 @@ class SplitPickerShellSessionTest {
     fun fullscreenReturnWithWrongTaskIdentityIsANoOp() {
         val fake = FakeShell()
         val split = session(fake)
-        split.openPickers(PICKERS, preservedPackages = emptyMap())
+        split.buildPickers()
         val before = fake.commands.size
 
         split.returnRecordedTaskFullscreen(SplitPane.PRIMARY, 999, NAVIGATOR)
@@ -1059,7 +1069,7 @@ class SplitPickerShellSessionTest {
     fun navigationReturnRevealsVerifiedHiddenSplitBeforeChoosingVacantPane() {
         val fake = FakeShell()
         val split = session(fake)
-        val pickers = split.openPickers(PICKERS, preservedPackages = emptyMap())
+        val pickers = split.buildPickers()
         val navigator = split.selectApp(
             pickerTaskId = pickers.getValue(SplitPane.PRIMARY),
             target = SplitLaunchTarget(NAVIGATOR, "$NAVIGATOR/$NAVIGATOR.MainActivity"),
@@ -1097,7 +1107,7 @@ class SplitPickerShellSessionTest {
     fun navigationReturnDoesNotRevealHiddenSplitWithMismatchedPersistedIdentity() {
         val fake = FakeShell()
         val split = session(fake)
-        val pickers = split.openPickers(PICKERS, preservedPackages = emptyMap())
+        val pickers = split.buildPickers()
         val navigator = split.selectApp(
             pickerTaskId = pickers.getValue(SplitPane.PRIMARY),
             target = SplitLaunchTarget(NAVIGATOR, "$NAVIGATOR/$NAVIGATOR.MainActivity"),
@@ -1132,7 +1142,7 @@ class SplitPickerShellSessionTest {
     fun engineCreatesIndependentTaskWhenSamePackageAlreadyLivesInOtherPane() {
         val fake = FakeShell()
         val split = session(fake)
-        val pickers = split.openPickers(PICKERS, preservedPackages = emptyMap())
+        val pickers = split.buildPickers()
         fake.addTask(PRIMARY_ROOT, 90, MUSIC, "$MUSIC.MainActivity")
 
         val placement = split.selectApp(
@@ -1155,7 +1165,7 @@ class SplitPickerShellSessionTest {
     fun staleFullscreenTaskReplacedDuringLaunchIsNotProtectedAsPeerWindow() {
         val fake = FakeShell(replaceStaleFullscreenTargetOnLaunch = true)
         val split = session(fake)
-        val pickers = split.openPickers(PICKERS, preservedPackages = emptyMap())
+        val pickers = split.buildPickers()
         fake.addTask(FULL_ROOT, 90, MUSIC, "$MUSIC.MainActivity")
 
         val placement = split.selectApp(
@@ -1174,7 +1184,7 @@ class SplitPickerShellSessionTest {
     fun singleTaskDuplicateIsRejectedWithoutTouchingExistingWindow() {
         val fake = FakeShell()
         val split = session(fake)
-        val pickers = split.openPickers(PICKERS, preservedPackages = emptyMap())
+        val pickers = split.buildPickers()
         fake.addTask(PRIMARY_ROOT, 90, MUSIC, "$MUSIC.MainActivity")
         fake.commands.clear()
 
@@ -1201,7 +1211,7 @@ class SplitPickerShellSessionTest {
     fun transientPostLaunchAreaDoesNotDeleteSuccessfullyPlacedApp() {
         val fake = FakeShell(transientAreaReadsAfterDirectLaunch = 1)
         val split = session(fake)
-        val pickers = split.openPickers(PICKERS, preservedPackages = emptyMap())
+        val pickers = split.buildPickers()
 
         val placement = split.selectApp(
             pickerTaskId = pickers.getValue(SplitPane.SECONDARY),
@@ -1224,7 +1234,7 @@ class SplitPickerShellSessionTest {
             addTask(EXTERNAL_ROOT, 91, NAVIGATOR, "$NAVIGATOR.MainActivity")
         }
         val split = session(fake)
-        val pickers = split.openPickers(PICKERS, preservedPackages = emptyMap())
+        val pickers = split.buildPickers()
 
         split.selectApp(
             pickerTaskId = pickers.getValue(SplitPane.PRIMARY),
@@ -1243,7 +1253,7 @@ class SplitPickerShellSessionTest {
             addTask(EXTERNAL_ROOT, 91, NAVIGATOR, "$NAVIGATOR.MainActivity")
         }
         val split = session(fake)
-        val pickers = split.openPickers(PICKERS, preservedPackages = emptyMap())
+        val pickers = split.buildPickers()
 
         split.selectApp(
             pickerTaskId = pickers.getValue(SplitPane.SECONDARY),
@@ -1255,86 +1265,64 @@ class SplitPickerShellSessionTest {
         assertEquals("$MUSIC.MainActivity", fake.topActivity(SECONDARY_ROOT))
     }
 
+    /**
+     * U2 and the identity half of acceptance v17: restoring a standard app must not start a second
+     * copy of it.
+     *
+     * `FLAG_ACTIVITY_MULTIPLE_TASK` on the restore path is what made every open create a fresh
+     * Yandex Music behind a splash screen (#44 -> #66 -> #81) and leave the playing one stranded
+     * outside the panes. Without it the firmware hands back the task the package already has.
+     */
     @Test
-    fun appHiddenUnderOtherPickerIsPreservedWhenDuplicateOpens() {
+    fun restoringAStandardAppReusesItsTaskAndLeavesNoneBehind() {
         val fake = FakeShell().apply {
-            addTask(PRIMARY_ROOT, 70, MUSIC, "$MUSIC.MainActivity")
+            area = 4
+            // What the last session left running, out of both panel roots.
+            addTask(FULL_ROOT, 70, MUSIC, "$MUSIC.MainActivity")
         }
-        val split = session(fake)
-        val pickers = split.openPickers(
+
+        val built = session(fake).buildScene(
             PICKERS,
-            preservedPackages = mapOf(SplitPane.PRIMARY to MUSIC),
+            mapOf(SplitPane.PRIMARY to launchTargetOf(MUSIC)),
         )
 
-        split.selectApp(
-            pickerTaskId = pickers.getValue(SplitPane.SECONDARY),
-            target = SplitLaunchTarget(MUSIC, "$MUSIC/$MUSIC.MainActivity"),
-            pickerComponents = PICKER_COMPONENTS,
-        )
-
-        assertEquals(PRIMARY_PICKER_ACTIVITY, fake.topActivity(PRIMARY_ROOT))
-        assertTrue(fake.hasPackage(PRIMARY_ROOT, MUSIC))
-        assertEquals("$MUSIC.MainActivity", fake.topActivity(SECONDARY_ROOT))
+        assertEquals(emptySet<SplitPane>(), built.failed)
+        assertEquals("та же задача, а не новая", 70, built.panes.getValue(SplitPane.PRIMARY).appTaskId)
+        assertEquals(PRIMARY_ROOT, fake.taskRoot(70))
+        assertEquals("и второй копии не появилось", emptyList<Int>(), fake.taskIds(FULL_ROOT))
+        assertEquals(2, fake.taskIds(PRIMARY_ROOT).size)
+        assertEquals(1, fake.taskIds(SECONDARY_ROOT).size)
+        val launch = fake.commands.single { command ->
+            command.startsWith("am start ") && command.contains("'$MUSIC/")
+        }
+        assertTrue("без MULTIPLE_TASK", launch.contains("-f 0x10200000"))
+        assertFalse(fake.commands.any { it.contains("remove-task 70 ") })
     }
 
+    /** 1.3.2, 1.5.7: the pane whose app did not come back is left on its own picker, and clean. */
     @Test
-    fun preservedStandaloneAppIsReplacedByOrdinaryTaskDuringRestoration() {
-        val fake = FakeShell().apply {
+    fun aRestorationThatFailsLeavesThatPaneOnItsPickerAndTheNeighbourAlone() {
+        val fake = FakeShell(directTargetLaunchSucceeds = false).apply {
             addTask(PRIMARY_ROOT, 70, NAVIGATOR, "$NAVIGATOR.MainActivity")
         }
-        val split = session(fake)
-        val pickers = split.openPickers(
+
+        val built = session(fake).buildScene(
             PICKERS,
-            preservedPackages = mapOf(SplitPane.PRIMARY to NAVIGATOR),
+            mapOf(SplitPane.PRIMARY to launchTargetOf(NAVIGATOR)),
         )
 
+        assertEquals(setOf(SplitPane.PRIMARY), built.failed)
+        assertEquals(null, built.panes.getValue(SplitPane.PRIMARY).appTaskId)
+        assertFalse("огрызка не осталось", fake.hasTask(70))
         assertEquals(PRIMARY_PICKER_ACTIVITY, fake.topActivity(PRIMARY_ROOT))
-
-        split.selectApp(
-            pickerTaskId = pickers.getValue(SplitPane.PRIMARY),
-            target = SplitLaunchTarget(NAVIGATOR, "$NAVIGATOR/$NAVIGATOR.MainActivity"),
-            pickerComponents = PICKER_COMPONENTS,
-        )
-
-        assertEquals("$NAVIGATOR.MainActivity", fake.topActivity(PRIMARY_ROOT))
-        assertTrue(fake.hasActivity(PRIMARY_ROOT, PRIMARY_PICKER_ACTIVITY))
-        assertFalse(fake.hasTask(70))
-        assertTrue(
-            fake.commands.any { command ->
-                command.startsWith("am start ") &&
-                    command.contains("'$NAVIGATOR/$NAVIGATOR.MainActivity'") &&
-                    command.contains("-f 0x18200000")
-            },
-        )
-    }
-
-    @Test
-    fun failedRestorationDiscardRemovesOnlyTheStaleAppBelowPicker() {
-        val fake = FakeShell().apply {
-            addTask(PRIMARY_ROOT, 70, NAVIGATOR, "$NAVIGATOR.MainActivity")
-        }
-        val split = session(fake)
-        val pickers = split.openPickers(
-            PICKERS,
-            preservedPackages = mapOf(SplitPane.PRIMARY to NAVIGATOR),
-        )
-
-        split.discardFailedRestoration(
-            pane = SplitPane.PRIMARY,
-            packageName = NAVIGATOR,
-            pickerTaskId = pickers.getValue(SplitPane.PRIMARY),
-        )
-
-        assertFalse(fake.hasPackage(PRIMARY_ROOT, NAVIGATOR))
-        assertTrue(fake.hasActivity(PRIMARY_ROOT, PRIMARY_PICKER_ACTIVITY))
-        assertTrue(fake.commands.any { it.contains("remove-task 70 ") })
+        assertEquals("сосед не тронут", SECONDARY_PICKER_ACTIVITY, fake.topActivity(SECONDARY_ROOT))
     }
 
     @Test
     fun revealedPickerRemovesOnlyTheRecordedDismissedTask() {
         val fake = FakeShell()
         val split = session(fake)
-        val pickers = split.openPickers(PICKERS, preservedPackages = emptyMap())
+        val pickers = split.buildPickers()
         val placement = split.selectApp(
             pickerTaskId = pickers.getValue(SplitPane.SECONDARY),
             target = SplitLaunchTarget(MUSIC, "$MUSIC/$MUSIC.MainActivity"),
@@ -1355,7 +1343,7 @@ class SplitPickerShellSessionTest {
     fun recordedTaskRemovalAcceptsAConcurrentExactTaskDisappearance() {
         val fake = FakeShell()
         val split = session(fake)
-        val pickers = split.openPickers(PICKERS, preservedPackages = emptyMap())
+        val pickers = split.buildPickers()
         val placement = split.selectApp(
             pickerTaskId = pickers.getValue(SplitPane.SECONDARY),
             target = SplitLaunchTarget(MUSIC, "$MUSIC/$MUSIC.MainActivity"),
@@ -1371,7 +1359,7 @@ class SplitPickerShellSessionTest {
     fun observingHiddenPickerNeverPrunesVisibleApp() {
         val fake = FakeShell()
         val split = session(fake)
-        val pickers = split.openPickers(PICKERS, preservedPackages = emptyMap())
+        val pickers = split.buildPickers()
         split.selectApp(
             pickerTaskId = pickers.getValue(SplitPane.SECONDARY),
             target = SplitLaunchTarget(MUSIC, "$MUSIC/$MUSIC.MainActivity"),
@@ -1390,7 +1378,7 @@ class SplitPickerShellSessionTest {
     fun missingPickerIsNeverRebuiltByObservation() {
         val fake = FakeShell()
         val split = session(fake)
-        val pickers = split.openPickers(PICKERS, preservedPackages = emptyMap())
+        val pickers = split.buildPickers()
         split.selectApp(
             pickerTaskId = pickers.getValue(SplitPane.SECONDARY),
             target = SplitLaunchTarget(MUSIC, "$MUSIC/$MUSIC.MainActivity"),
@@ -1416,7 +1404,7 @@ class SplitPickerShellSessionTest {
         val ownedFake = FakeShell()
         val ownedLease = FakeGateLease()
         val ownedSession = session(ownedFake, ownedLease)
-        ownedSession.openPickers(PICKERS, preservedPackages = emptyMap())
+        ownedSession.buildPickers()
 
         assertTrue(ownedLease.isOwned())
         assertTrue(ownedFake.isGateOpen())
@@ -1434,7 +1422,7 @@ class SplitPickerShellSessionTest {
         )
         val externalLease = FakeGateLease()
         val externalSession = session(externalFake, externalLease)
-        externalSession.openPickers(PICKERS, preservedPackages = emptyMap())
+        externalSession.buildPickers()
         externalSession.closePickers(PICKERS)
 
         assertFalse(externalLease.isOwned())
@@ -1464,7 +1452,7 @@ class SplitPickerShellSessionTest {
             capabilityAlwaysTrue = true,
         )
 
-        session(fake).openPickers(PICKERS, preservedPackages = emptyMap())
+        session(fake).buildPickers()
 
         assertTrue(fake.isGateOpen())
         assertTrue(fake.commands.any { it == "service call activity_task 126 i32 1" })
@@ -1475,7 +1463,7 @@ class SplitPickerShellSessionTest {
         val fake = FakeShell()
         val lease = FakeGateLease()
         val split = session(fake, lease)
-        split.openPickers(PICKERS, preservedPackages = emptyMap())
+        split.buildPickers()
         fake.area = 0
 
         assertTrue(split.suspendOwnedGateForHome())
@@ -1483,7 +1471,7 @@ class SplitPickerShellSessionTest {
         assertFalse(fake.isGateOpen())
         assertTrue(lease.isOwned())
 
-        split.openPickers(PICKERS, preservedPackages = emptyMap())
+        split.buildPickers()
 
         assertTrue(fake.isGateOpen())
         assertTrue(lease.isOwned())

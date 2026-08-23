@@ -113,6 +113,15 @@ internal class SplitOperationWorkspace(
         publisher(state, live, notice)
     }
 
+    /**
+     * Contract 7.7: a read-back is by definition a read this operation has not taken yet.
+     *
+     * The area query the recipes end on is a topology *read*, so it deliberately keeps the shared
+     * `am stack list` alive - which is right everywhere inside a recipe and wrong for the one read
+     * that has to prove the settled scene from the car.
+     */
+    fun dropSharedReads() = topology.invalidate()
+
     override fun close() {
         val open = synchronized(handleLock) {
             session = null
@@ -286,8 +295,9 @@ internal abstract class SplitCoreOperation<P>(
 
     /**
      * Step 7. The read-back is not re-implemented here: every recipe this layer calls already ends
-     * in its own live-proven postcondition (`verifyPickerTasks`, `awaitSelectedAppPlacement`,
-     * `attachPicker`'s top check, `closePickers`' area check), measured on a fresh snapshot.
+     * in its own live-proven postcondition (`awaitScenePlacement`, `awaitSelectedAppPlacement`,
+     * `attachPicker`'s top check, `closePickers`' area check), measured on a fresh snapshot. The
+     * two operations that own a whole scene - `OPEN` and `SELECT` - override this and read it back.
      */
     override fun readBack(op: SplitOperationContext, shell: (String) -> String, plan: P): Boolean =
         true
@@ -382,11 +392,20 @@ internal abstract class SplitCoreOperation<P>(
     }
 
     /** The ids the two panes hold right now, or `null` when the topology cannot be read at all. */
-    protected fun observedTaskIds(split: SplitPickerShellSession): Set<Int>? = runCatching {
+    protected fun paneTaskIds(split: SplitPickerShellSession): Set<Int>? = runCatching {
         SplitPane.entries.flatMapTo(mutableSetOf()) { pane ->
             split.observePane(pane, SPLIT_PICKER_COMPONENT_SET).observedTaskIds
         }
     }.getOrNull()
+
+    /**
+     * Everything already running before this operation's first mutation, for [recordCreated].
+     *
+     * It is the whole main display rather than the two panes: a restore reuses the task its package
+     * already had, and that task usually lives outside the panes - fullscreen, or in the background.
+     */
+    protected fun preexistingTaskIds(split: SplitPickerShellSession): Set<Int>? =
+        runCatching { split.livingTaskIds() }.getOrNull()
 
     /**
      * The slots a live topology proves - with one exception: a projected pane keeps `APP(navigator)`
@@ -600,58 +619,71 @@ internal class OpenOperation(
         split: SplitPickerShellSession,
         restorable: Map<SplitPane, String>,
     ) {
-        // One read before the first mutation: whatever the recipes hand back that is not in here
+        // One read before the first mutation: whatever the recipe hands back that is not in here
         // is a task this operation created, and therefore a task this operation owes an undo for.
-        val preexisting = observedTaskIds(split)
-        pointOfNoReturn(op, "building the scene prunes stale picker and app tasks")
-        // `openPickers` opens the firmware gate on its way in and takes the lease for it. The entry
+        val preexisting = preexistingTaskIds(split)
+        // A package the catalogue cannot resolve was uninstalled while the slot remembered it: its
+        // pane degrades to a fresh picker, and it is named in the one notice at the end (1.3.2).
+        val unresolved = mutableListOf<String>()
+        val targets = restorable.mapNotNull { (pane, packageName) ->
+            val target = work.catalog.resolve(packageName)
+            if (target == null) {
+                unresolved += packageName
+                null
+            } else {
+                pane to target
+            }
+        }.toMap()
+        pointOfNoReturn(op, "building the scene clears what its panes still hold")
+        // `buildScene` opens the firmware gate on its way in and takes the lease for it. The entry
         // is recorded before the recipe, not after, so a failure inside the recipe can still close
         // it; the undo consults the lease, so an entry for a gate the recipe never reached costs
         // nothing (contract, to 1.12).
         op.journal.record(SplitJournalEntry.GateOpened(prevOpen = work.gateOwned()))
-        val hostTaskIds = split.openPickers(SPLIT_PICKER_COMPONENTS, restorable)
-        mark(op, "pickers-launched")
-        hostTaskIds.values.forEach { taskId ->
-            recordCreated(op, preexisting, taskId, SPLIT_PICKER_COMPONENT)
-        }
-        val panes = SplitPane.entries.associateWithTo(mutableMapOf()) { pane ->
-            SplitPickerLivePane(pane, hostTaskIds.getValue(pane), null, null)
-        }
-        val failures = mutableListOf<String>()
-        SplitPane.entries.forEach { pane ->
-            val packageName = restorable[pane] ?: return@forEach
-            val target = work.catalog.resolve(packageName)
-            if (target == null) {
-                failures += packageName
-                return@forEach
-            }
-            runCatching {
-                split.restoreApp(
-                    pickerTaskId = hostTaskIds.getValue(pane),
-                    target = target,
-                    pickerComponents = SPLIT_PICKER_COMPONENT_SET,
-                )
-            }.onSuccess { placement ->
-                recordCreated(op, preexisting, placement.appTaskId, target.componentName)
-                panes[placement.pane] = SplitPickerLivePane(
-                    pane = placement.pane,
-                    hostTaskId = placement.hostTaskId,
-                    appTaskId = placement.appTaskId,
-                    appPackageName = placement.packageName,
-                )
-            }.onFailure { error ->
-                work.log("failed to restore $packageName in $pane: $error")
-                runCatching {
-                    split.discardFailedRestoration(pane, packageName, hostTaskIds.getValue(pane))
+        val built = split.buildScene(SPLIT_PICKER_COMPONENTS, targets) { task ->
+            // A task that was already running is one this build only borrowed: its inverse is the
+            // root it came from, never a removal (U2). Everything else this build made itself.
+            if (preexisting != null && task.taskId in preexisting) {
+                if (task.fromRootId != task.toRootId) {
+                    op.journal.record(
+                        SplitJournalEntry.TaskMoved(task.taskId, task.fromRootId, task.toRootId),
+                    )
                 }
-                failures += packageName
+            } else {
+                recordCreated(op, preexisting, task.taskId, task.component)
             }
         }
-        if (restorable.isNotEmpty()) mark(op, "apps-restored")
-        liveScene = panes
-        settle(SplitFact.BuildSceneSucceeded(sceneSlots(panes)))
+        mark(op, "scene-built")
+        val failures = unresolved + built.failed.mapNotNull { pane -> restorable[pane] }
+        failures.forEach { packageName -> work.log("failed to restore $packageName") }
+        liveScene = built.panes
+        settle(SplitFact.BuildSceneSucceeded(sceneSlots(built.panes)))
         settledNotice =
             if (failures.isEmpty()) "" else splitRestoreFailureNotice(failures.map(work.appLabel))
+    }
+
+    /**
+     * Step 7 of section 7, and the answer to the "picker over an application" defect of acceptance
+     * v17: the whole scene is read once more, from the car, and has to be exactly the scene the
+     * recipe just proved.
+     *
+     * The reveal path already ends in this very read - `revealOwnedSession` refuses unless what came
+     * back equals what it raised - so only a build pays for it. A pane that lost its app between its
+     * own postcondition and this read makes the operation roll back rather than commit `APP` for
+     * something that is no longer there (invariant 9).
+     */
+    override fun readBack(
+        op: SplitOperationContext,
+        shell: (String) -> String,
+        plan: SplitOpenPlan,
+    ): Boolean {
+        if (plan.adopted != null) return true
+        work.dropSharedReads()
+        val settled = runCatching {
+            work.split(op).existingOwnedSession(SPLIT_PICKER_COMPONENT_SET)
+        }.getOrNull() ?: return false
+        mark(op, "read-back")
+        return settled == liveScene
     }
 
     override fun failed(message: String) = work.notices.publish(message)
@@ -686,7 +718,7 @@ internal class SelectOperation(
         // Only resizeability: a tap in a picker must not drag the accessibility observer's
         // disable/re-enable dance into the middle of a launch the user is watching.
         enableLeases(op, shell, setOf(SplitLeaseKind.RESIZEABILITY))
-        val preexisting = observedTaskIds(split)
+        val preexisting = preexistingTaskIds(split)
         pointOfNoReturn(op, "selecting an app clears the tasks above its picker")
         val settled = try {
             split.selectApp(
@@ -721,6 +753,7 @@ internal class SelectOperation(
      */
     override fun readBack(op: SplitOperationContext, shell: (String) -> String, plan: Unit): Boolean {
         val chosen = placement ?: return false
+        work.dropSharedReads()
         runCatching { work.split(op).existingOwnedSession(SPLIT_PICKER_COMPONENT_SET) }
             .getOrNull()
             ?.let { settled ->
@@ -1255,7 +1288,7 @@ internal class ReconcileOperation(
             listOfNotNull(observed.hostTaskId, observed.appTaskId)
         }
         if (recorded.isEmpty()) return false
-        val living = observedTaskIds(split) ?: return false
+        val living = paneTaskIds(split) ?: return false
         if (recorded.any { taskId -> taskId in living }) return false
         val ownPickers = liveScene.values.map(SplitPickerLivePane::hostTaskId)
         liveScene = emptyMap()
