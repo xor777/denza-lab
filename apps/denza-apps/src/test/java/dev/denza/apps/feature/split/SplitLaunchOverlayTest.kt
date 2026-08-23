@@ -18,9 +18,11 @@ class SplitLaunchOverlayTest {
      */
     @Test
     fun theBlockingShieldHidesWhatIsBehindIt() {
-        val alpha = (VehicleProgressOverlayStyle.scrimColor ushr 24) and 0xFF
+        VehicleProgressOverlayStyle.scrimGradient.forEach { color ->
+            val alpha = (color ushr 24) and 0xFF
 
-        assertEquals("the wait is not a window onto the rebuild", 0xFF, alpha)
+            assertEquals("the wait is not a window onto the rebuild", 0xFF, alpha)
+        }
     }
 
     @Test

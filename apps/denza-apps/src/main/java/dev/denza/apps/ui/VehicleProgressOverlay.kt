@@ -32,7 +32,11 @@ internal object VehicleProgressOverlayStyle {
      * ground of the picker the wait usually ends on, so the transition into the finished scene reads
      * as one move rather than as a flicker.
      */
-    val scrimColor: Int = 0xFF23262C.toInt()
+    /**
+     * Opaque top-to-bottom backdrop in the app's own dark palette: the shield must hide the
+     * rebuild (1.13.2), but it does not have to look like a flat grey void while doing so.
+     */
+    val scrimGradient: IntArray = intArrayOf(0xFF161A21.toInt(), 0xFF0B0E13.toInt())
     const val cornerRadiusDp = 8
     const val horizontalPaddingDp = 16
     const val verticalPaddingDp = 10
@@ -205,7 +209,10 @@ internal class VehicleProgressOverlay(
             isClickable = true
             isFocusable = false
             // 1.13.2: while the wait runs, the only thing on screen is the wait.
-            setBackgroundColor(VehicleProgressOverlayStyle.scrimColor)
+            background = GradientDrawable(
+                GradientDrawable.Orientation.TOP_BOTTOM,
+                VehicleProgressOverlayStyle.scrimGradient,
+            )
             importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
             addView(
                 card,
