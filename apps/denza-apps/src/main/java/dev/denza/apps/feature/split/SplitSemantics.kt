@@ -1,0 +1,146 @@
+package dev.denza.apps.feature.split
+
+/**
+ * Pure semantic axes of the split product: the vocabulary of the contract automaton.
+ *
+ * Nothing here knows about ADB, time, threads or task/root ids (contract sections 2 and 7,
+ * invariant 4). The axes are deliberately independent: the durable selection lives in [SplitSlot],
+ * the live product scene in [SplitScene], and its visibility in [SceneVisibility].
+ */
+
+private val CLOSED_SLOTS: Map<SplitPane, SplitSlot> =
+    SplitPane.entries.associateWith { SplitSlot.Closed }
+
+/** Durable content of one pane (contract 2.2). A slot never carries a task or root id. */
+internal sealed interface SplitSlot {
+    /** The pane does not exist: nothing of ours is shown there and nothing may be revived. */
+    data object Closed : SplitSlot
+
+    /** The permanent floor of a live pane (contract 1.4.1). */
+    data object Picker : SplitSlot
+
+    /** A user-selected application. Both panes may independently hold the same package (1.5.2). */
+    data class App(val packageName: String) : SplitSlot
+}
+
+/**
+ * Existence and shape of the live product scene (contract 2.3).
+ *
+ * The scene never duplicates pane content: what each pane holds is stated once, in
+ * [SplitState.slots]. `null` scene means there is no product scene at all.
+ */
+internal sealed interface SplitScene {
+    /** Both panes are on screen. */
+    data object Split : SplitScene
+
+    /** Only [pane] survived; the opposite pane is closed. */
+    data class Full(val pane: SplitPane) : SplitScene
+}
+
+/** Whether an existing scene is on screen or hidden behind Home, Recents or a foreign window. */
+internal enum class SceneVisibility {
+    VISIBLE,
+    COVERED,
+}
+
+/**
+ * The whole semantic state of the product.
+ *
+ * @param enabled the user toggle (contract 2.1). While it is off the product is inert.
+ * @param slots durable projection of both panes; the single source of truth for pane content.
+ * @param scene the live product scene, or `null` when there is none.
+ * @param visibility visibility of an existing scene; meaningless while [scene] is `null`.
+ * @param projectedPane pane whose navigator is temporarily on the instrument cluster (1.10).
+ * @param vacancyApp ephemeral app occupying a projected pane's vacancy; lost on any restart.
+ */
+internal data class SplitState(
+    val enabled: Boolean = false,
+    val slots: Map<SplitPane, SplitSlot> = CLOSED_SLOTS,
+    val scene: SplitScene? = null,
+    val visibility: SceneVisibility = SceneVisibility.VISIBLE,
+    val projectedPane: SplitPane? = null,
+    val vacancyApp: Map<SplitPane, String> = emptyMap(),
+) {
+    fun slot(pane: SplitPane): SplitSlot = slots[pane] ?: SplitSlot.Closed
+}
+
+/**
+ * Settled facts: the only input of the automaton.
+ *
+ * A fact is an established observation ("the task left the panel roots"), never a raw event
+ * ("onStop arrived", "TYPE_WINDOWS_CHANGED blinked") — contract section 7, invariant 8.
+ */
+internal sealed interface SplitFact {
+    data class ToggleChanged(val enabled: Boolean) : SplitFact
+
+    data object OpenRequested : SplitFact
+
+    data class SelectionRequested(val pane: SplitPane, val packageName: String) : SplitFact
+
+    data class AppLaunchConfirmed(val pane: SplitPane, val packageName: String) : SplitFact
+
+    data class AppLaunchFailed(val pane: SplitPane, val reason: String) : SplitFact
+
+    /** Back, close gesture, swipe from Recents or a crash: all of them are one closure (1.7.3). */
+    data class AppClosedSettled(val pane: SplitPane) : SplitFact
+
+    data class PaneCollapsedSettled(val survivor: SplitPane) : SplitFact
+
+    data class PickerPaneClosedSettled(val pane: SplitPane) : SplitFact
+
+    data object SceneEndedSettled : SplitFact
+
+    data object HomeConfirmed : SplitFact
+
+    data object SceneRevealed : SplitFact
+
+    data class EdgeCommitConfirmed(val vacantPane: SplitPane) : SplitFact
+
+    data class ProjectionStarted(val pane: SplitPane) : SplitFact
+
+    data object ProjectionReturned : SplitFact
+
+    data class PackageRemoved(val packageName: String) : SplitFact
+
+    data class BuildSceneSucceeded(val slots: Map<SplitPane, SplitSlot>) : SplitFact
+}
+
+/**
+ * High-level intents produced by the automaton.
+ *
+ * Concrete shell steps, identity checks and rollback belong to the operation runner; a plan only
+ * says what the product wants to happen.
+ */
+internal sealed interface SplitPlan {
+    data class BuildScene(val slots: Map<SplitPane, SplitSlot>) : SplitPlan
+
+    data object RevealScene : SplitPlan
+
+    data class LaunchApp(val pane: SplitPane, val packageName: String) : SplitPlan
+
+    data class AttachPicker(val pane: SplitPane) : SplitPlan
+
+    /** Toggle-off over two live apps: the focused one stays fullscreen (1.2.3). */
+    data object EndSplitFocusedFullscreen : SplitPlan
+
+    /** Toggle-off over a scene containing at least one of our pickers (1.2.4, 1.2.5). */
+    data object RemoveProductPickers : SplitPlan
+
+    data object SuspendOwnedGate : SplitPlan
+
+    /**
+     * Return of a projected navigator to its pane.
+     *
+     * No settled fact produces this plan yet: [SplitFact.ProjectionReturned] reports a return that
+     * already happened. A `NavigationReturnRequested` fact has to exist before the automaton can
+     * ask for one.
+     */
+    data class ReturnNavigation(val pane: SplitPane) : SplitPlan
+
+    data class Notice(val text: String) : SplitPlan
+}
+
+internal data class SplitReduction(
+    val state: SplitState,
+    val plans: List<SplitPlan> = emptyList(),
+)
