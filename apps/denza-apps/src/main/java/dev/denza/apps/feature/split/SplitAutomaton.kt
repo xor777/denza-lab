@@ -174,13 +174,20 @@ internal object SplitAutomaton {
     /**
      * Contract 1.7.5: "Clear all" leaves nothing running, so every live app gives its pane back to
      * the picker. The next open shows fresh pickers instead of reviving what the user cleared.
+     *
+     * A projected navigator is the one exception (scenario 30): its task lives on the instrument
+     * cluster, which Recents does not reach, so it was never closed. Its pane keeps `APP(nav)` and
+     * the projection survives - otherwise the return would have nowhere to come back to.
      */
     private fun sceneEnded(state: SplitState): SplitReduction {
         state.scene ?: return unchanged(state)
+        val projected = state.projectedPane
         return settled(
             state,
             state
-                .withSlots { _, slot -> if (slot is SplitSlot.App) SplitSlot.Picker else slot }
+                .withSlots { pane, slot ->
+                    if (slot is SplitSlot.App && pane != projected) SplitSlot.Picker else slot
+                }
                 .copy(scene = null, visibility = SceneVisibility.VISIBLE),
         )
     }

@@ -110,6 +110,10 @@ internal sealed interface SplitFact {
  *
  * Concrete shell steps, identity checks and rollback belong to the operation runner; a plan only
  * says what the product wants to happen.
+ *
+ * Returning a projected navigator is deliberately absent: it is an actor operation running under
+ * the navigation lease ([SplitInputPriority.NAV]), not something the automaton schedules. The
+ * automaton only hears about the return that already happened ([SplitFact.ProjectionReturned]).
  */
 internal sealed interface SplitPlan {
     data class BuildScene(val slots: Map<SplitPane, SplitSlot>) : SplitPlan
@@ -127,15 +131,6 @@ internal sealed interface SplitPlan {
     data object RemoveProductPickers : SplitPlan
 
     data object SuspendOwnedGate : SplitPlan
-
-    /**
-     * Return of a projected navigator to its pane.
-     *
-     * No settled fact produces this plan yet: [SplitFact.ProjectionReturned] reports a return that
-     * already happened. A `NavigationReturnRequested` fact has to exist before the automaton can
-     * ask for one.
-     */
-    data class ReturnNavigation(val pane: SplitPane) : SplitPlan
 
     data class Notice(val text: String) : SplitPlan
 }

@@ -344,6 +344,30 @@ class SplitAutomatonTest {
     }
 
     @Test
+    fun clearAllDuringProjectionKeepsTheNavigatorSlot() {
+        // контракт сц. 30
+        val projected = split(SplitSlot.App(NAVIGATOR), SplitSlot.App(MUSIC)).copy(
+            projectedPane = SplitPane.PRIMARY,
+            vacancyApp = mapOf(SplitPane.PRIMARY to TEMP),
+        )
+
+        val cleared = SplitAutomaton.reduce(projected, SplitFact.SceneEndedSettled).state
+        val returned = SplitAutomaton.reduce(cleared, SplitFact.ProjectionReturned).state
+
+        assertNull(cleared.scene)
+        assertEquals(
+            "Recents cannot reach the cluster, so the navigator was never closed",
+            SplitSlot.App(NAVIGATOR),
+            cleared.slot(SplitPane.PRIMARY),
+        )
+        assertEquals(SplitPane.PRIMARY, cleared.projectedPane)
+        assertEquals(mapOf(SplitPane.PRIMARY to TEMP), cleared.vacancyApp)
+        assertEquals("everything on the IVI screen was cleared", SplitSlot.Picker, cleared.slot(SplitPane.SECONDARY))
+        assertEquals("the navigator still has a pane to come back to", SplitSlot.App(NAVIGATOR), returned.slot(SplitPane.PRIMARY))
+        assertNull(returned.projectedPane)
+    }
+
+    @Test
     fun collapsingAPaneClosesItAndExpandsTheSurvivor() {
         // контракт 1.8.2
         val live = split(SplitSlot.App(MUSIC), SplitSlot.App(NAVIGATOR))
