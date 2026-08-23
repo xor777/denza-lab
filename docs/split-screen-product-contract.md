@@ -890,11 +890,15 @@ live-подтверждения — оно идёт по разделу 12.
 clock, fake атомарный store, детерминированная подача событий.
 
 Материализовано в `SplitScenarioTest.kt` (коммит 1 волны 6): все пятнадцать
-тестов существуют под точными именами таблицы.
+тестов существуют под точными именами таблицы. K1 переписан под норму §4 п.2
+(редакция 2026-08-23) и носит имя новой нормы; рядом с каркасом живут четыре
+регрессии живого красного P1.2 — `reentrantLeaseRebindCannotKillTheOpenItServes`,
+`launchEchoHomeHintIsDroppedWhileOpenRuns`, `openFailureKeepsPickerAccessLease`,
+`userOpenTerminalsAreAlwaysLogged`.
 
 | # | Тест | Проверяет | Сц. |
 |---|---|---|---|
-| K1 | `openThenHomeCancelsOperationAndForbidsLateMutations` | после Home журнал не содержит команд старого `operationId`; overlay снят; store прежний | 7 |
+| K1 | `homeCancelsSceneWorkButNeverAUserRequestedOpenWithinBudget` | Home снимает работу над сценой (`SELECT`) и не трогает запрошенный `OPEN`; сверх бюджета `OPEN` отменяет его собственный дедлайн, поздних мутаций и поздних окон нет; store прежний | 7 |
 | K2 | `toggleOffDuringOpenFencesEveryLateCommand` | `DISABLE` в середине `OPEN`: ноль последующих task/gate-команд и записей | 8 |
 | K3 | `overlayDeadlineCancelsOperationNotOnlyWindow` | fake clock → deadline: операция `CANCELLED`, журнал после deadline пуст, ввод свободен | 10 |
 | K4 | `twoLauncherTapsShareOneOperationAndOneLease` | второй тап присоединяется: одна последовательность, один lease, общий результат | 11 |
