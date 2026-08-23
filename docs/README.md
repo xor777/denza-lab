@@ -19,8 +19,8 @@ Use this folder for durable project knowledge.
 | `weather-adapter-findings.md` | Stock BYD weather-provider contract, MET Norway adapter, cache/write behavior, and live proof. |
 | `shortcuts-automation-findings.md` | Shortcuts If/Then catalog, PersonBean map-role switch, live `102000` launch of Yandex Navigator, and why a Chinese-app disguise does not win. |
 | `carplay-findings.md` | Vehicle hardware/software evidence around CarPlay, PhoneLink/Fission boundaries, and unsupported hypotheses. |
-| `CLOUD-ARCHITECTURE.md` | Normative relay-only Car ADB Gateway design and verification status. |
-| `CAR-ADB-GATEWAY-DECISIONS.md` | ADR-lite product/architecture decisions, rationale, evidence, and revisit conditions. |
+| `car-adb-gateway-architecture.md` | Normative relay-only Car ADB Gateway design and verification status. |
+| `car-adb-gateway-decision-log.md` | ADR-lite product/architecture decisions, rationale, evidence, and revisit conditions. |
 
 If an investigation produces something worth keeping, update the nearest page.
 Add a new document only when the subject has a clear long-term home and would

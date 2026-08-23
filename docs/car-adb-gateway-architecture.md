@@ -11,10 +11,10 @@ LAN-only Denza Gateway and does not depend on the vehicle brand.
 
 The current design uses one fixed relay and exposes no LAN listener or LAN setup
 flow
-([CAG-001](CAR-ADB-GATEWAY-DECISIONS.md#cag-001),
-[CAG-002](CAR-ADB-GATEWAY-DECISIONS.md#cag-002),
-[CAG-003](CAR-ADB-GATEWAY-DECISIONS.md#cag-003)). The
-[decision log](CAR-ADB-GATEWAY-DECISIONS.md) records the reasoning and revision
+([CAG-001](car-adb-gateway-decision-log.md#cag-001),
+[CAG-002](car-adb-gateway-decision-log.md#cag-002),
+[CAG-003](car-adb-gateway-decision-log.md#cag-003)). The
+[decision log](car-adb-gateway-decision-log.md) records the reasoning and revision
 history.
 
 ## 1. Roles and Access Grants
@@ -46,12 +46,12 @@ ADB 5037/5555 <- sshd 127.0.0.1:2222 <- SSH -R -> 127.0.0.1:device-port <- SSH -
 - Vehicle ports on the VPS are also reachable only through relay loopback.
 - `adbgw.ru:443` and its Ed25519 fingerprint are embedded in Android and the
   CLI. A mismatch is a permanent, fail-closed error, not a reason to retry
-  forever ([CAG-003](CAR-ADB-GATEWAY-DECISIONS.md#cag-003)).
+  forever ([CAG-003](car-adb-gateway-decision-log.md#cag-003)).
 - The relay sees outer identities and key-to-port assignments. Inner SSH between
   the computer and the vehicle remains end-to-end encrypted.
 - During the first one-code bootstrap, the fixed relay is trusted as the source
   of the inner host key. The CLI pins that key afterward
-  ([CAG-006](CAR-ADB-GATEWAY-DECISIONS.md#cag-006)).
+  ([CAG-006](car-adb-gateway-decision-log.md#cag-006)).
 
 ## 3. Relay
 
@@ -143,9 +143,9 @@ the normal cascading `cag-admin remove` path.
 ### 3.4 Two-Phase Computer Replacement
 
 A vehicle has one trusted computer and one active inner SSH session
-([CAG-004](CAR-ADB-GATEWAY-DECISIONS.md#cag-004)). Replacement preserves the old
+([CAG-004](car-adb-gateway-decision-log.md#cag-004)). Replacement preserves the old
 access until the new computer is confirmed
-([CAG-005](CAR-ADB-GATEWAY-DECISIONS.md#cag-005)):
+([CAG-005](car-adb-gateway-decision-log.md#cag-005)):
 
 1. The authorized vehicle creates a pairing request and displays the code.
 2. `cag pair CODE` submits the new public key. The relay stores it as pending
@@ -170,14 +170,14 @@ pair-submission, commit, local save, or confirmation response resume safely.
 Gradle module: `apps/car-adb-gateway/`; application ID: `ru.adbgw.gateway`;
 minSdk 26.
 ADB, tunnel, control, and inner host keys live in app-private storage. Android
-backup is disabled ([CAG-010](CAR-ADB-GATEWAY-DECISIONS.md#cag-010)).
+backup is disabled ([CAG-010](car-adb-gateway-decision-log.md#cag-010)).
 
 ### 4.1 First-Time Setup
 
 1. The app creates its own ADB RSA key when it first attempts a local shell.
 2. If raw adbd requires authorization, Android shows the standard system
    dialog. The user approves it and taps the retry action
-   ([CAG-007](CAR-ADB-GATEWAY-DECISIONS.md#cag-007)).
+   ([CAG-007](car-adb-gateway-decision-log.md#cag-007)).
 3. The app verifies shell access and makes a best-effort attempt to apply
    available device-idle and background app-op settings through the authorized
    local ADB connection.
@@ -201,7 +201,7 @@ Android authorization dialog. This is expected.
 Onboarding, ADB, relay, client, enabled state, pairing, and permanent failure are
 independent state-machine dimensions. The main screen translates them into
 simple statuses and never parses or records ADB commands
-([CAG-008](CAR-ADB-GATEWAY-DECISIONS.md#cag-008)).
+([CAG-008](car-adb-gateway-decision-log.md#cag-008)).
 
 Activity is based on reliable SSH events:
 
@@ -219,7 +219,7 @@ under Support.
 
 The foreground service uses `specialUse`, `START_STICKY`, boot and package-update
 receivers, and a default network callback. It does not use `dataSync` or a
-permanent WakeLock ([CAG-011](CAR-ADB-GATEWAY-DECISIONS.md#cag-011)).
+permanent WakeLock ([CAG-011](car-adb-gateway-decision-log.md#cag-011)).
 
 ADB/inner SSH and the relay tunnel are supervised independently:
 
@@ -240,7 +240,7 @@ ADB/inner SSH and the relay tunnel are supervised independently:
 
 Force Stop is an Android platform boundary: an ordinary APK cannot restart
 itself afterward until it is opened manually
-([CAG-012](CAR-ADB-GATEWAY-DECISIONS.md#cag-012)).
+([CAG-012](car-adb-gateway-decision-log.md#cag-012)).
 
 ### 4.5 Manual Disconnect
 
@@ -248,7 +248,7 @@ The disconnect action closes inner sessions and the tunnel, persists
 `enabled=false`, and makes a best-effort request to disable forwarding on the
 relay. The service does not start after reboot. Re-enabling requires an explicit
 user action and a successful short control connection
-([CAG-009](CAR-ADB-GATEWAY-DECISIONS.md#cag-009)).
+([CAG-009](car-adb-gateway-decision-log.md#cag-009)).
 
 ## 5. User Interface
 
@@ -258,7 +258,7 @@ and one disconnect-remote-access action. SSH, PAM, forwarding, smart sockets,
 and fingerprints appear only under Support.
 
 Two separate full-access warnings
-([CAG-013](CAR-ADB-GATEWAY-DECISIONS.md#cag-013)) appear:
+([CAG-013](car-adb-gateway-decision-log.md#cag-013)) appear:
 
 1. before first vehicle enrollment;
 2. before every developer pairing code is displayed.

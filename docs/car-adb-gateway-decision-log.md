@@ -3,7 +3,7 @@
 This is an ADR-lite log of product and architecture decisions. Accepted entries
 are never deleted: when direction changes, mark an entry `Superseded` and link
 to the replacement. The normative current design lives in
-[CLOUD-ARCHITECTURE.md](CLOUD-ARCHITECTURE.md).
+[car-adb-gateway-architecture.md](car-adb-gateway-architecture.md).
 
 <a id="cag-001"></a>
 ## CAG-001 — Relay Only, No LAN Mode

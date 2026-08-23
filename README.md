@@ -75,8 +75,8 @@ flowchart LR
 Car ADB Gateway never exposes ADB or SSH on the vehicle network. The vehicle
 opens the outbound relay connection, while the developer's SSH connection stays
 end-to-end encrypted to the Android app. See the
-[architecture](docs/CLOUD-ARCHITECTURE.md) and
-[decision log](docs/CAR-ADB-GATEWAY-DECISIONS.md) for the security model.
+[architecture](docs/car-adb-gateway-architecture.md) and
+[decision log](docs/car-adb-gateway-decision-log.md) for the security model.
 
 ## Repository layout
 
@@ -269,8 +269,8 @@ computer's normal ADB key. Approve it at the vehicle before retrying the command
 - [Project map](docs/project-map.md) — component boundaries, lifecycle, and build outputs.
 - [Repository governance](docs/governance.md) — active, migration, legacy, and research rules.
 - [Docs index](docs/README.md) — ownership of durable knowledge.
-- [Car ADB Gateway architecture](docs/CLOUD-ARCHITECTURE.md) — normative relay-only design.
-- [Car ADB Gateway decisions](docs/CAR-ADB-GATEWAY-DECISIONS.md) — ADR-lite rationale and evidence.
+- [Car ADB Gateway architecture](docs/car-adb-gateway-architecture.md) — normative relay-only design.
+- [Car ADB Gateway decisions](docs/car-adb-gateway-decision-log.md) — ADR-lite rationale and evidence.
 - [Instrument-display findings](docs/instrument-display-findings.md) — display selection, Mirrors, navigation, evidence, and limitations.
 - [ADB authorization recovery](docs/adb-authorization-recovery.md) — passive startup gate, one-shot authorization, and stuck-queue boundary.
 - [DiShare API notes](docs/dishare-api-notes.md) — Simulcast and HUD reverse-engineering notes.
