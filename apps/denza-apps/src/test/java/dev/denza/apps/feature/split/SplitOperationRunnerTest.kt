@@ -377,6 +377,68 @@ class SplitOperationRunnerTest {
         assertFalse("вытесненная задача действительно удалена", fake.hasTask(VACANCY_TASK))
     }
 
+    @Test
+    fun theRollbackExecutorRemovesTheExactTaskAndClosesOnlyItsOwnGate() {
+        // канон: откат работает по сырому shell и по exact identity записи журнала
+        val fake = FakeShell(initialGate = true).apply {
+            area = 3
+            addTask(PRIMARY_ROOT, PRIMARY_PICKER_TASK, SPLIT_HOST_PACKAGE, PRIMARY_PICKER_ACTIVITY)
+            addTask(SECONDARY_ROOT, SECONDARY_PICKER_TASK, SPLIT_HOST_PACKAGE, SECONDARY_PICKER_ACTIVITY)
+        }
+        val lease = FakeGateLease(owned = true)
+
+        executor(fake, lease).apply {
+            removeTask(PRIMARY_PICKER_TASK, "$SPLIT_HOST_PACKAGE/$SPLIT_PICKER_ACTIVITY")
+            closeGate()
+        }
+
+        assertFalse("названная задача удалена", fake.hasTask(PRIMARY_PICKER_TASK))
+        assertTrue("и только она", fake.hasTask(SECONDARY_PICKER_TASK))
+        assertTrue(
+            "адресация - точный id",
+            fake.commands.any { it.contains(" remove-task $PRIMARY_PICKER_TASK ") },
+        )
+        assertFalse(fake.isGateOpen())
+        assertFalse("вместе с gate отдан и его lease", lease.isOwned())
+    }
+
+    @Test
+    fun theRollbackExecutorLeavesAGateItDoesNotOwn() {
+        // инвариант 1 и обязательство к 1.12: чужой gate не закрывается даже в откате
+        val fake = FakeShell(initialGate = true)
+
+        executor(fake, FakeGateLease()).closeGate()
+
+        assertTrue(fake.isGateOpen())
+        assertEquals(emptyList<String>(), fake.commands)
+    }
+
+    @Test
+    fun theRollbackExecutorStopsWhenItsOwnBudgetIsSpent() {
+        // канон: у отката собственный временной бюджет - иначе мёртвая связь держит воркер
+        val fake = FakeShell()
+        val rollback = executor(fake, FakeGateLease(), budgetMs = 1_000L)
+        rollback.openGate()
+
+        clock.now = 1_001L
+        assertThrows(IllegalStateException::class.java) { rollback.openGate() }
+
+        assertEquals("после исчерпания бюджета ни одной команды", 1, fake.commands.size)
+    }
+
+    private fun executor(
+        fake: FakeShell,
+        lease: SplitGateLeaseStore,
+        budgetMs: Long = 10_000L,
+    ) = SplitShellRollbackExecutor(
+        shell = fake::shell,
+        gateLeaseStore = lease,
+        leases = emptyList(),
+        apkPath = SPLIT_APK_PATH,
+        clock = clock,
+        budgetMs = budgetMs,
+    )
+
     /** One workspace with no leases and no publication: only the journal is under test here. */
     private fun navigationWorkspace(
         fake: FakeShell,
@@ -398,6 +460,7 @@ class SplitOperationRunnerTest {
         leases = emptyList(),
         gateLeaseStore = FakeGateLease(),
         apkPath = SPLIT_APK_PATH,
+        clock = clock,
         sleeper = {},
         diagnostics = {},
         readState = {

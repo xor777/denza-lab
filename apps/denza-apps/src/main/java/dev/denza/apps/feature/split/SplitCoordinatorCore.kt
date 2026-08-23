@@ -382,6 +382,7 @@ internal class SplitCoordinatorCore(
             leases = leases,
             gateLeaseStore = gateLeaseStore,
             apkPath = apkPath,
+            clock = clock,
             sleeper = sleeper,
             diagnostics = log,
             readState = ::currentState,

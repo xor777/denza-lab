@@ -117,6 +117,9 @@ internal class FakeShell(
 
     fun taskCount(rootId: Int): Int = tasks.count { it.rootId == rootId }
 
+    /** Every task of a root, oldest first - the order the firmware itself reports them in. */
+    fun taskIds(rootId: Int): List<Int> = tasks.filter { it.rootId == rootId }.map(Task::id)
+
     fun taskBounds(taskId: Int): SplitBounds = tasks.first { it.id == taskId }.bounds
 
     fun taskRoot(taskId: Int): Int = tasks.first { it.id == taskId }.rootId

@@ -22,6 +22,7 @@ internal class SplitOperationWorkspace(
     val leases: List<SplitLeaseController>,
     private val gateLeaseStore: SplitGateLeaseStore,
     private val apkPath: String,
+    private val clock: SplitClock,
     private val sleeper: (Long) -> Unit,
     private val diagnostics: SplitDiagnosticLog,
     private val readState: () -> SplitState,
@@ -33,7 +34,13 @@ internal class SplitOperationWorkspace(
     private val handleLock = Any()
     private var handle: SplitShellHandle? = null
 
-    val rollback: RollbackExecutor = SplitShellRollbackExecutor(::shell, gateLeaseStore, leases)
+    val rollback: RollbackExecutor = SplitShellRollbackExecutor(
+        shell = ::shell,
+        gateLeaseStore = gateLeaseStore,
+        leases = leases,
+        apkPath = apkPath,
+        clock = clock,
+    )
 
     /**
      * The raw shell. It is opened on the first command and never before: an operation that decides
@@ -55,6 +62,9 @@ internal class SplitOperationWorkspace(
     fun state(): SplitState = readState()
 
     fun live(): SplitLiveScene = readLive()
+
+    /** Whether the product currently holds the firmware-global gate lease (contract, to 1.12). */
+    fun gateOwned(): Boolean = gateLeaseStore.isOwned()
 
     fun log(message: String) = diagnostics.log(message)
 
@@ -88,37 +98,79 @@ internal class SplitOperationWorkspace(
  * The inverse of the journal, on the raw shell and with no token of its own (canon: a rollback runs
  * precisely because the operation's token is already dead).
  *
- * Only the entries the operations actually record are undoable here. Task creation and task moves
- * are not journalled by any operation: the recipes that create and move tasks own their local repair
- * and their own postconditions, and re-creating a removed task is not something a rollback can
- * honestly do (invariant 9).
+ * It has a time budget instead: the reason an operation is being unwound is often that the link
+ * stopped answering, and an unwind that hangs on a dead link would hold the single worker - and
+ * therefore Home and the toggle - hostage. The budget is armed by the first command of the unwind,
+ * so an operation that never mutated anything never arms one.
  */
 internal class SplitShellRollbackExecutor(
     private val shell: (String) -> String,
     private val gateLeaseStore: SplitGateLeaseStore,
     private val leases: List<SplitLeaseController>,
+    private val apkPath: String,
+    private val clock: SplitClock,
+    private val budgetMs: Long = ROLLBACK_BUDGET_MS,
 ) : RollbackExecutor {
+
+    private var deadlineAtMs: Long? = null
 
     /** Contract, to 1.12: a gate is closed only by the lease that opened it. */
     override fun closeGate() {
         if (!gateLeaseStore.isOwned()) return
-        shell("service call activity_task 126 i32 0")
+        budgeted("service call activity_task 126 i32 0")
         gateLeaseStore.setOwned(false)
     }
 
     override fun openGate() {
-        shell("service call activity_task 126 i32 1")
+        budgeted("service call activity_task 126 i32 1")
     }
 
     override fun restoreLease(kind: String, prevValue: String?) {
-        leases.firstOrNull { lease -> lease.kind == kind }?.restore(shell)
+        leases.firstOrNull { lease -> lease.kind == kind }?.restore(::budgeted)
     }
 
-    override fun removeTask(taskId: Int, component: String): Unit =
-        error("task $taskId belongs to a recipe that owns its own repair")
+    /**
+     * Undo of a [SplitJournalEntry.TaskCreated]: this exact task, by id and by the component the
+     * operation launched, and nothing else (invariant 3).
+     *
+     * The proxy is the same shell-UID helper the recipes use, but the call is deliberately the
+     * narrower one: a rollback has no fresh snapshot to assert a top identity from, so it passes
+     * none and lets the proxy verify the base identity alone. A proxy that will not confirm the
+     * removal is a rollback failure, not a silent success - the journal said we created this task
+     * moments ago.
+     */
+    override fun removeTask(taskId: Int, component: String) {
+        val packageName = component.substringBefore('/')
+        val activityName = component.substringAfter('/', missingDelimiterValue = "")
+        check(taskId > 0 && packageName.isNotBlank() && activityName.isNotBlank()) {
+            "task $taskId cannot be addressed by \"$component\""
+        }
+        val output = budgeted(
+            "CLASSPATH=${quoted(apkPath)} app_process /system/bin " +
+                "--nice-name=denza_split_cmd ${SplitTaskProxyMain::class.java.name} " +
+                "remove-task $taskId ${quoted(packageName)} ${quoted(activityName)} '-' '-'",
+        )
+        val result = output.lineSequence()
+            .map(String::trim)
+            .lastOrNull { line -> line.startsWith(TASK_PROXY_RESULT_PREFIX) }
+            ?.removePrefix(TASK_PROXY_RESULT_PREFIX)
+        check(result == "true") { "task $taskId was not removed: ${output.trim()}" }
+    }
 
     override fun moveTask(taskId: Int, toRootId: Int) {
-        shell("am stack move-task $taskId $toRootId true")
+        budgeted("am stack move-task $taskId $toRootId true")
+    }
+
+    private fun budgeted(command: String): String {
+        val deadline = deadlineAtMs ?: (clock.nowMs() + budgetMs).also { deadlineAtMs = it }
+        check(clock.nowMs() <= deadline) { "rollback budget spent before: $command" }
+        return shell(command)
+    }
+
+    private fun quoted(value: String): String = "'${value.replace("'", "'\\''")}'"
+
+    private companion object {
+        const val TASK_PROXY_RESULT_PREFIX = "DENZA_SPLIT_RESULT:"
     }
 }
 
@@ -219,6 +271,41 @@ internal abstract class SplitCoreOperation<P>(
     protected fun pointOfNoReturn(op: SplitOperationContext, reason: String) {
         op.journal.record(SplitJournalEntry.PointOfNoReturn(reason))
     }
+
+    /**
+     * Records a task this operation is proven to have created, so a later failure can take it back.
+     *
+     * [preexisting] is the set of ids the panes already held when the operation started looking.
+     * `null` means the operation could not read it, and then nothing is recorded at all: a recipe
+     * may legitimately hand back a task it adopted rather than launched - `openPickers` reuses a
+     * still-living picker base, `restoreApp` keeps a still-living app (1.3.2, U2) - and removing one
+     * of those on a rollback would destroy exactly what the contract promises to preserve.
+     */
+    protected fun recordCreated(
+        op: SplitOperationContext,
+        preexisting: Set<Int>?,
+        taskId: Int,
+        component: String,
+    ) {
+        if (preexisting == null || taskId in preexisting) return
+        op.journal.record(SplitJournalEntry.TaskCreated(taskId, component))
+    }
+
+    /**
+     * Records a removal that already happened. It is irreversible by nature (a removed task cannot
+     * be recreated), so the entry exists to be reported rather than executed - which is also why
+     * the package identity the recipe verified is enough to name it.
+     */
+    protected fun recordRemoved(op: SplitOperationContext, taskId: Int, identity: String) {
+        op.journal.record(SplitJournalEntry.TaskRemoved(taskId, identity))
+    }
+
+    /** The ids the two panes hold right now, or `null` when the topology cannot be read at all. */
+    protected fun observedTaskIds(split: SplitPickerShellSession): Set<Int>? = runCatching {
+        SplitPane.entries.flatMapTo(mutableSetOf()) { pane ->
+            split.observePane(pane, SPLIT_PICKER_COMPONENT_SET).observedTaskIds
+        }
+    }.getOrNull()
 
     /**
      * The slots a live topology proves - with one exception: a projected pane keeps `APP(navigator)`
@@ -421,8 +508,19 @@ internal class OpenOperation(
         split: SplitPickerShellSession,
         restorable: Map<SplitPane, String>,
     ) {
+        // One read before the first mutation: whatever the recipes hand back that is not in here
+        // is a task this operation created, and therefore a task this operation owes an undo for.
+        val preexisting = observedTaskIds(split)
         pointOfNoReturn(op, "building the scene prunes stale picker and app tasks")
+        // `openPickers` opens the firmware gate on its way in and takes the lease for it. The entry
+        // is recorded before the recipe, not after, so a failure inside the recipe can still close
+        // it; the undo consults the lease, so an entry for a gate the recipe never reached costs
+        // nothing (contract, to 1.12).
+        op.journal.record(SplitJournalEntry.GateOpened(prevOpen = work.gateOwned()))
         val hostTaskIds = split.openPickers(SPLIT_PICKER_COMPONENTS, restorable)
+        hostTaskIds.values.forEach { taskId ->
+            recordCreated(op, preexisting, taskId, SPLIT_PICKER_COMPONENT)
+        }
         val panes = SplitPane.entries.associateWithTo(mutableMapOf()) { pane ->
             SplitPickerLivePane(pane, hostTaskIds.getValue(pane), null, null)
         }
@@ -441,6 +539,7 @@ internal class OpenOperation(
                     pickerComponents = SPLIT_PICKER_COMPONENT_SET,
                 )
             }.onSuccess { placement ->
+                recordCreated(op, preexisting, placement.appTaskId, target.componentName)
                 panes[placement.pane] = SplitPickerLivePane(
                     pane = placement.pane,
                     hostTaskId = placement.hostTaskId,
@@ -492,6 +591,7 @@ internal class SelectOperation(
         // Only resizeability: a tap in a picker must not drag the accessibility observer's
         // disable/re-enable dance into the middle of a launch the user is watching.
         enableLeases(op, shell, setOf(SplitLeaseKind.RESIZEABILITY))
+        val preexisting = observedTaskIds(split)
         pointOfNoReturn(op, "selecting an app clears the tasks above its picker")
         val settled = try {
             split.selectApp(
@@ -504,6 +604,7 @@ internal class SelectOperation(
             throw error
         }
         placement = settled
+        recordCreated(op, preexisting, settled.appTaskId, target.componentName)
         settle(SplitFact.SelectionRequested(settled.pane, settled.packageName))
         liveScene = liveScene + (
             settled.pane to SplitPickerLivePane(
@@ -662,6 +763,9 @@ internal class EdgeOperation(
             runCatching {
                 split.attachPicker(pane, hostTaskId, SPLIT_PICKER_COMPONENT)
             }.onSuccess { pickerTaskId ->
+                // `attachPicker` refuses unless the pane's host is the stock bootstrap, so the
+                // picker it returns is always one it just launched: no adoption is possible here.
+                op.journal.record(SplitJournalEntry.TaskCreated(pickerTaskId, SPLIT_PICKER_COMPONENT))
                 liveScene = liveScene + (pane to SplitPickerLivePane(pane, pickerTaskId, null, null))
                 settle(SplitFact.EdgeCommitConfirmed(pane))
             }.onFailure { error ->
@@ -815,7 +919,9 @@ internal class NavCompleteOperation(
         if (returnPlan.displacedTasks.isNotEmpty()) {
             pointOfNoReturn(op, "the navigator takes ${returnPlan.pane} back from its occupant")
             returnPlan.displacedTasks.forEach { displaced ->
-                split.removeRecordedTask(displaced.taskId, displaced.packageName)
+                if (split.removeRecordedTask(displaced.taskId, displaced.packageName)) {
+                    recordRemoved(op, displaced.taskId, displaced.packageName)
+                }
             }
         }
         val placement = split.verifyNavigationReturned(
@@ -963,7 +1069,9 @@ internal class ReconcileOperation(
         val packageName = observed.appPackageName ?: return
         if (appTaskId !in observation.observedTaskIds) return
         pointOfNoReturn(op, "the app of $pane left its pane")
-        split.removeRecordedTask(appTaskId, packageName)
+        if (split.removeRecordedTask(appTaskId, packageName)) {
+            recordRemoved(op, appTaskId, packageName)
+        }
         liveScene = liveScene + (pane to observed.copy(appTaskId = null, appPackageName = null))
         settle(SplitFact.AppClosedSettled(pane))
     }
@@ -987,7 +1095,9 @@ internal class ReconcileOperation(
         if (liveScene.getValue(pane).appTaskId != null) return false
         if (split.observePickerTask(hostTaskId, SPLIT_PICKER_COMPONENT_SET) != null) return false
         pointOfNoReturn(op, "removing the dismissed picker of $pane")
-        split.removePickerArtifact(hostTaskId, SPLIT_PICKER_COMPONENT_SET)
+        if (split.removePickerArtifact(hostTaskId, SPLIT_PICKER_COMPONENT_SET)) {
+            recordRemoved(op, hostTaskId, SPLIT_PICKER_COMPONENT)
+        }
         liveScene = liveScene - pane
         settle(SplitFact.PickerPaneClosedSettled(pane))
         return true
@@ -1014,11 +1124,7 @@ internal class ReconcileOperation(
             listOfNotNull(observed.hostTaskId, observed.appTaskId)
         }
         if (recorded.isEmpty()) return false
-        val living = runCatching {
-            SplitPane.entries.flatMapTo(mutableSetOf()) { pane ->
-                split.observePane(pane, SPLIT_PICKER_COMPONENT_SET).observedTaskIds
-            }
-        }.getOrNull() ?: return false
+        val living = observedTaskIds(split) ?: return false
         if (recorded.any { taskId -> taskId in living }) return false
         liveScene = emptyMap()
         settle(SplitFact.SceneEndedSettled)
@@ -1074,11 +1180,14 @@ internal class ReconcileOperation(
         pointOfNoReturn(op, "the collapse closed the peer of $survivor for good")
         if (collapsed.appTaskId == null) {
             // The survivor kept its base but lost its app: that exact task is what collapsed away.
-            previous[previousOwner]?.let { owner -> removeRecordedApp(split, owner) }
+            previous[previousOwner]?.let { owner -> removeRecordedApp(op, split, owner) }
         }
         closed?.let { pane ->
-            removeRecordedApp(split, pane)
+            removeRecordedApp(op, split, pane)
             runCatching { split.removePickerArtifact(pane.hostTaskId, SPLIT_PICKER_COMPONENT_SET) }
+                .onSuccess { removed ->
+                    if (removed) recordRemoved(op, pane.hostTaskId, SPLIT_PICKER_COMPONENT)
+                }
                 .onFailure { error -> work.log("failed to remove the collapsed picker: $error") }
         }
         liveScene = mapOf(survivor to collapsed)
@@ -1086,10 +1195,15 @@ internal class ReconcileOperation(
         settleOccupant(survivor, collapsed.appPackageName)
     }
 
-    private fun removeRecordedApp(split: SplitPickerShellSession, observed: SplitPickerLivePane) {
+    private fun removeRecordedApp(
+        op: SplitOperationContext,
+        split: SplitPickerShellSession,
+        observed: SplitPickerLivePane,
+    ) {
         val taskId = observed.appTaskId ?: return
         val packageName = observed.appPackageName ?: return
         runCatching { split.removeRecordedTask(taskId, packageName) }
+            .onSuccess { removed -> if (removed) recordRemoved(op, taskId, packageName) }
             .onFailure { error -> work.log("failed to remove the collapsed app task: $error") }
     }
 
@@ -1116,6 +1230,14 @@ private const val RECONCILE_BUDGET_MS = 30_000L
 
 /** No shell at all, so the only thing this budget covers is waiting out the queue ahead of it. */
 private const val PACKAGE_REMOVED_BUDGET_MS = 30_000L
+
+/**
+ * How long an unwind may keep the single worker while it puts things back.
+ *
+ * It is short on purpose: an operation is usually being unwound because the link stopped
+ * answering, and Home and the toggle are waiting behind this thread.
+ */
+private const val ROLLBACK_BUDGET_MS = 10_000L
 
 /**
  * Navigation budgets (canon: an operation's deadline is fixed at submit time).

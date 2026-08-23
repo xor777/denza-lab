@@ -12,11 +12,11 @@ package dev.denza.apps.feature.split
 /**
  * One reversible thing an operation did. Task and root ids live here and nowhere durable.
  *
- * The operations record two of these today - [LeaseEnabled] and [PointOfNoReturn] - because the
- * recipes that create, move and remove tasks own their own local repair and their own
- * postconditions ([SplitShellRollbackExecutor]). The rest are the vocabulary section 7.6 asks the
- * journal to speak, and [SplitRollback] handles each of them, so an operation that starts
- * recording one gets an exact inverse instead of a new special case.
+ * The operations record all of these but [TaskMoved]: no recipe reports which task it moved out of
+ * which root, and a journal entry the operation would have to guess at is worse than none
+ * (invariant 3). The entry stays because [SplitRollback] speaks the whole vocabulary of section
+ * 7.6, so an operation that one day can observe a move gets an exact inverse rather than a new
+ * special case.
  */
 internal sealed interface SplitJournalEntry {
     /** We opened the firmware-global gate; [prevOpen] is what it was before. */

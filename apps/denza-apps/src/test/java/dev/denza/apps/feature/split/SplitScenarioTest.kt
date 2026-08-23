@@ -247,6 +247,43 @@ class SplitScenarioTest {
         assertTrue(car.fake.hasTask(SECONDARY_PICKER_TASK))
         assertEquals(4, car.fake.area)
         assertEquals(listOf(SplitCoordinatorCore.OPEN_FAILURE), results.toList())
+
+        // Вторая половина K8: сбой уже ПОСЛЕ созданных задач. `OpenOperation` намеренно не падает
+        // от неудавшегося восстановления - оно деградирует в уведомление (1.3.2) - поэтому право
+        // мутировать теряется единственным способом, каким оно теряется на машине после первой
+        // мутации: пользователь нажал Home (1.3.9, §11.7). Отыгрывается тот же журнал.
+        val building = car(FakeShell())
+        val rebuilt = building.core(SplitDurable(enabled = true, slots = APP_PAIR))
+        rebuilt.initialize {}
+        val rebuiltResults = Collections.synchronizedList(mutableListOf<String?>())
+
+        // Пикеры и первое приложение уже созданы; второе ещё даже не спрашивали у прошивки.
+        building.shells.blockAt("service call activity_task 112 s16 '$MUSIC'")
+        rebuilt.openPickerSession(rebuiltResults::add)
+        assertTrue(building.shells.awaitBlocked())
+        val createdLast = building.fake.topTaskId(PRIMARY_ROOT)!!
+        val created = building.fake.taskIds(PRIMARY_ROOT) + building.fake.taskIds(SECONDARY_ROOT)
+        assertEquals("открытие успело создать два пикера и приложение", 3, created.size)
+        assertTrue("и gate открыли именно мы", building.gateLease.isOwned())
+        building.clearCommands()
+
+        rebuilt.homeVisible()
+        building.shells.release()
+        building.barrier()
+
+        val removed = building.commands().mapNotNull { command ->
+            command.substringAfter(" remove-task ", "").substringBefore(' ').toIntOrNull()
+        }
+        assertEquals("откат снимает ровно созданное - и ничего сверх", created.toSet(), removed.toSet())
+        assertEquals("самое новое уходит первым", createdLast, removed.first())
+        assertEquals(3, removed.size)
+        assertEquals("панели пусты, как до тапа", 0, building.fake.taskCount(PRIMARY_ROOT))
+        assertEquals(0, building.fake.taskCount(SECONDARY_ROOT))
+        assertFalse("gate, который открыли мы, закрыт", building.fake.isGateOpen())
+        assertFalse(building.gateLease.isOwned())
+        assertEquals("отменённое открытие не пишет ничего", 0, building.store.commits)
+        assertEquals(APP_PAIR, building.store.load().slots)
+        assertEquals("Home - это то, о чём попросили", listOf<String?>(null), rebuiltResults.toList())
     }
 
     @Test
