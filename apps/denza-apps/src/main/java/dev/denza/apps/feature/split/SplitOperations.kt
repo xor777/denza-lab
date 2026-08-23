@@ -600,6 +600,9 @@ internal class OpenOperation(
         mark(op, "leases-taken")
         val adopted = plan.adopted
         if (adopted != null) {
+            // Raising a covered scene reopens the gate Home suspended (contract, to 1.12), so the
+            // entry goes in before the recipe, exactly as it does on the build path below.
+            op.journal.record(SplitJournalEntry.GateOpened(prevOpen = work.gateOwned()))
             adopt(split.revealOwnedSession(adopted, SPLIT_PICKER_COMPONENT_SET))
             mark(op, "revealed")
             return

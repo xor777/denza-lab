@@ -829,6 +829,8 @@ class SplitScenarioTest {
         car.fake.area = 0
         core.homeVisible()
         car.barrier()
+        assertFalse("Home приостановил наш gate (1.9.1)", car.fake.isGateOpen())
+        assertTrue("но аренда осталась нашей", car.gateLease.isOwned())
         car.clearCommands()
 
         core.openPickerSession()
@@ -837,6 +839,10 @@ class SplitScenarioTest {
         assertFalse(
             "ни одного запуска: приложения те же самые и не перезапускались (U2)",
             car.commands().any { it.startsWith("am start ") },
+        )
+        assertTrue(
+            "подъём собственной сцены - возобновление сессии, и gate снова открыт (к 1.12)",
+            car.fake.isGateOpen(),
         )
         assertFalse(car.commands().any { it.contains(" remove-task ") })
         assertTrue(car.fake.hasTask(PRIMARY_APP_TASK))

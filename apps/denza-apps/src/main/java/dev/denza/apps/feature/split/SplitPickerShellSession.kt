@@ -475,6 +475,10 @@ internal class SplitPickerShellSession(
         check(area == AREA_FULL_IVI || area == AREA_HOME) {
             "Split-сессия больше не скрыта: area=$area"
         }
+        // Contract 5, to 1.12: raising our own scene again is the explicit resumption of this
+        // session, and Home suspended the gate this session had opened (1.9.1). A scene that is
+        // already on screen returns above and asks for nothing.
+        ensureGateOpen()
 
         val focusTaskId = SplitPane.entries.asSequence()
             .mapNotNull { pane -> existing[pane]?.appTaskId }
