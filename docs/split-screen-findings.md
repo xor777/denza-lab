@@ -805,6 +805,34 @@ the whole run.
 Method rules for this class of work live in [governance.md](governance.md),
 "Firmware Behavior Method".
 
+### What a session now borrows and gives back (2026-08-23, code)
+
+Two things changed underneath the reset procedure above and both are visible to
+an acceptance run.
+
+The four `byd_smart_multi_*` keys are a product lease. A session journals them
+with one compound `settings get system` read before its first mutation and
+compare-and-restores them when the scene ends - natively, by toggle-off or by
+teardown - writing back only the keys that actually differ, and deleting a key
+that was unset when the session started. Nothing is restored while the scene is
+alive. The gate is closed on the same terminal, still by the single rule "we
+opened it". The live defect this closes: after a Denza session the firmware
+kept `byd_smart_multi_primary_activity = dev.denza.apps`, and launching Denza
+Apps from the dock on a clean Home brought ADAS up beside it.
+
+The shell-UID task proxy no longer loads the 62 MB application APK. The build
+packs `SplitTaskProxyMain` into a 3.7 KB jar (`assets/split-task-proxy.jar`),
+and the product stages it as `/data/local/tmp/denza-split-proxy-<versionCode>.jar`
+through the shell that is open anyway, sweeping older copies away. Every failure
+path falls back to `CLASSPATH=<apk>`, the previous behaviour. An acceptance
+baseline should therefore expect that file to appear, and a full reset may
+delete it: it is re-staged on demand.
+
+The `DenzaSplitScreen` tag is also mirrored through `log -t` at the end of any
+operation that had a shell open and still owned its token, because this
+application's own `Log.i` could not be shown to reach the buffer on this
+firmware. The same lines are readable in the support report ("Split log=").
+
 ### Navigation projection interaction
 
 The split picker is the permanent base task below a selected navigator. When

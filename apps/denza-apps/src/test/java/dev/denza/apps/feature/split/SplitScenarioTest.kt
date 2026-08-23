@@ -1397,6 +1397,108 @@ class SplitScenarioTest {
         assertEquals("the next open starts from two fresh pickers", PICKER_PAIR, car.store.load().slots)
     }
 
+    /**
+     * Contract 1.6, redaction 2026-08-23: наперекор прошивке продукт не идёт.
+     *
+     * When the firmware ends the split itself - the second native outcome of 1.6.3, `startDockOrHome`
+     * plus `removeIviStack` - the product's whole reaction is cleanup. It does not rebuild the
+     * scene, does not re-enter split, does not launch anything, and a storm of further hints adds
+     * nothing at all (invariant 8, 1.6.4).
+     */
+    @Test
+    fun aSystemTeardownIsAnsweredWithCleanupAndNothingElse() {
+        val car = car(FakeShell().apply { liveProductScene(withApps = true) })
+        val core = car.core(SplitDurable(enabled = true, slots = APP_PAIR))
+        core.initialize {}
+        core.openPickerSession()
+        car.barrier()
+        val commits = car.store.commits
+        car.clearCommands()
+
+        // The firmware took the whole scene down and went Home.
+        listOf(PRIMARY_ROOT, SECONDARY_ROOT).forEach(car.fake::dismissPane)
+        car.fake.area = 0
+        repeat(10) { core.dividerResized() }
+        car.barrier()
+
+        assertEquals(
+            "the panes give themselves back to their pickers and nothing is revived",
+            PICKER_PAIR,
+            car.store.load().slots,
+        )
+        assertFalse("nothing is launched", car.commands().any { it.startsWith("am start ") })
+        assertFalse(
+            "the split is not re-entered",
+            car.commands().any { it.startsWith("service call activity_task 115") },
+        )
+        assertFalse(
+            "and no task is moved back into a pane",
+            car.commands().any { it.startsWith("am stack move-task ") },
+        )
+        assertEquals("one settled fact, one commit", commits + 1, car.store.commits)
+
+        car.clearCommands()
+        repeat(10) { core.dividerResized() }
+        car.barrier()
+        // A later hint may still look - a pair is remembered, so a scene of ours could be back on
+        // screen - but looking is all it may ever do (invariant 8, 1.4.4).
+        assertEquals(
+            "and there is nothing left for a later hint to act on",
+            emptyList<String>(),
+            car.mutations(),
+        )
+        assertEquals("nor anything left to persist", commits + 1, car.store.commits)
+    }
+
+    /**
+     * Contract 1.8.1: the divider comes to rest on the firmware's own detents rather than where the
+     * finger let go, and that is the native outcome, not something to correct.
+     */
+    @Test
+    fun aDividerThatStoppedAtAFirmwareDetentIsAcceptedAsItIs() {
+        val car = car(FakeShell().apply { liveProductScene(withApps = true) })
+        val core = car.core(SplitDurable(enabled = true, slots = APP_PAIR))
+        core.initialize {}
+        core.openPickerSession()
+        car.barrier()
+        car.clearCommands()
+
+        core.dividerResized()
+        car.barrier()
+
+        assertFalse(
+            "the product never drags the divider back to where the user released it",
+            car.commands().any { it.startsWith("input swipe ") },
+        )
+        assertEquals("both apps keep their exact tasks", PRIMARY_APP_TASK, car.fake.topTaskId(PRIMARY_ROOT))
+        assertEquals(SECONDARY_APP_TASK, car.fake.topTaskId(SECONDARY_ROOT))
+        assertEquals(APP_PAIR, car.store.load().slots)
+    }
+
+    /**
+     * Contract 1.13.1: the tap is answered before anything else happens at all.
+     *
+     * The waiting window is the visible reply to the gesture, so it is up while the operation is
+     * still queued behind another one - the user may not watch a dead screen while the actor is
+     * busy elsewhere (1.3.1, U6).
+     */
+    @Test
+    fun theWaitingWindowIsUpBeforeTheOperationSendsAnything() {
+        val car = car(FakeShell())
+        val core = car.core(SplitDurable(enabled = true, slots = PICKER_PAIR))
+        core.initialize {}
+        val hold = car.hold()
+
+        core.openPickerSession()
+
+        assertEquals("the shield answers the tap, not the worker", 1, car.overlay.begun.get())
+        assertEquals("and nothing has reached the car yet", emptyList<String>(), car.commands())
+
+        hold.release()
+        car.barrier()
+        assertEquals(1, car.overlay.closed())
+    }
+
     @Test
     fun aCoveredSceneIsNeverMistakenForAnEndedOne() {
         // инвариант 5: Home и чужое полноэкранное окно прячут сцену, задачи которой живы в снапшоте
