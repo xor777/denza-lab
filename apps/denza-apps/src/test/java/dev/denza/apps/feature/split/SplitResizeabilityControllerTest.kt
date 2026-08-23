@@ -4,6 +4,11 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 
+private const val COMPOUND_ENABLE =
+    "settings get global force_resizable_activities; " +
+        "settings put global force_resizable_activities 1; " +
+        "settings get global force_resizable_activities"
+
 class SplitResizeabilityControllerTest {
     @Test
     fun enableCapturesMissingValueAndEnablesOverride() {
@@ -14,11 +19,8 @@ class SplitResizeabilityControllerTest {
         assertEquals(SplitGlobalSettingValue.ENABLED, fake.current)
         assertEquals(SplitGlobalSettingValue.MISSING, fake.original)
         assertEquals(
-            listOf(
-                "settings get global force_resizable_activities",
-                "settings put global force_resizable_activities 1",
-                "settings get global force_resizable_activities",
-            ),
+            "1.13.3: the open path pays one round trip for this lease, not three",
+            listOf(COMPOUND_ENABLE),
             fake.commands,
         )
     }
@@ -33,13 +35,7 @@ class SplitResizeabilityControllerTest {
         fake.controller().enable()
 
         assertEquals(SplitGlobalSettingValue.MISSING, fake.original)
-        assertEquals(
-            listOf(
-                "settings get global force_resizable_activities",
-                "settings get global force_resizable_activities",
-            ),
-            fake.commands,
-        )
+        assertEquals(listOf(COMPOUND_ENABLE), fake.commands)
     }
 
     @Test
@@ -117,28 +113,32 @@ class SplitResizeabilityControllerTest {
             return true
         }
 
+        /** A shell, so a chain of statements answers one line per `get` and nothing else. */
         private fun shell(command: String): String {
             commands += command
-            return when (command) {
-                "settings get global force_resizable_activities" -> when (current) {
-                    SplitGlobalSettingValue.MISSING -> "null"
-                    SplitGlobalSettingValue.DISABLED -> "0"
-                    SplitGlobalSettingValue.ENABLED -> "1"
-                }
-                "settings delete global force_resizable_activities" -> {
-                    current = SplitGlobalSettingValue.MISSING
-                    ""
-                }
-                "settings put global force_resizable_activities 0" -> {
-                    current = SplitGlobalSettingValue.DISABLED
-                    ""
-                }
-                "settings put global force_resizable_activities 1" -> {
-                    current = SplitGlobalSettingValue.ENABLED
-                    ""
-                }
-                else -> error("Unexpected command: $command")
+            return command.split(';').mapNotNull { statement -> run(statement.trim()) }
+                .joinToString("\n")
+        }
+
+        private fun run(statement: String): String? = when (statement) {
+            "settings get global force_resizable_activities" -> when (current) {
+                SplitGlobalSettingValue.MISSING -> "null"
+                SplitGlobalSettingValue.DISABLED -> "0"
+                SplitGlobalSettingValue.ENABLED -> "1"
             }
+            "settings delete global force_resizable_activities" -> {
+                current = SplitGlobalSettingValue.MISSING
+                null
+            }
+            "settings put global force_resizable_activities 0" -> {
+                current = SplitGlobalSettingValue.DISABLED
+                null
+            }
+            "settings put global force_resizable_activities 1" -> {
+                current = SplitGlobalSettingValue.ENABLED
+                null
+            }
+            else -> error("Unexpected statement: $statement")
         }
     }
 }

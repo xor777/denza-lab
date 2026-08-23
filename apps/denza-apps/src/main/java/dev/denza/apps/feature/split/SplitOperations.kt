@@ -66,6 +66,15 @@ internal class SplitOperationWorkspace(
                     command.removePrefix(ALLOWLIST_COMMAND_PREFIX),
             )
         }
+        // Contract 5, to 1.12: resizeability is the other firmware-global thing a session borrows,
+        // and acceptance v17 read a defect out of the product's silence about it. Every write of it
+        // - taking the lease and giving it back alike - says so, exactly like the allowlist above.
+        if (
+            command.contains(RESIZEABILITY_SETTING) &&
+            (command.contains("settings put ") || command.contains("settings delete "))
+        ) {
+            diagnostics.log("firmware resizeability lease: $command")
+        }
         // The one place that decides whether the shared topology read survives a command. It sits
         // here rather than inside the session because the leases this operation takes go straight
         // to the raw shell, and a lease that moved a task would otherwise leave a stale read behind.

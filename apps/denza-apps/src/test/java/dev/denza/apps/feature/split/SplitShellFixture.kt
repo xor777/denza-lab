@@ -128,6 +128,9 @@ internal class FakeShell(
 
     fun system(key: String): String? = system[key]
 
+    /** What the firmware holds for a global setting a lease borrowed (contract, to 1.12). */
+    fun globalValue(key: String): String? = globals[key]
+
     fun hasPackage(rootId: Int, packageName: String): Boolean =
         tasks.any { it.rootId == rootId && it.packageName == packageName }
 
@@ -421,13 +424,29 @@ internal class FakeShell(
                 ""
             }
             // The firmware-global settings a lease borrows and gives back (contract, to 1.12).
-            command.startsWith("settings put global ") -> {
-                val parts = command.removePrefix("settings put global ").split(' ', limit = 2)
-                globals[parts[0]] = parts.getOrElse(1) { "" }
-                ""
-            }
-            command.startsWith("settings get global ") ->
-                globals[command.removePrefix("settings get global ")] ?: "null"
+            // The resizeability lease reads, writes and verifies in one compound statement, so the
+            // fake answers a chain the same way the shell does: one line per `get`, nothing else.
+            command.startsWith("settings get global ") ||
+                command.startsWith("settings put global ") ||
+                command.startsWith("settings delete global ") ->
+                command.split(';').mapNotNull { raw ->
+                    val statement = raw.trim()
+                    when {
+                        statement.startsWith("settings get global ") ->
+                            globals[statement.removePrefix("settings get global ")] ?: "null"
+                        statement.startsWith("settings put global ") -> {
+                            val parts = statement.removePrefix("settings put global ")
+                                .split(' ', limit = 2)
+                            globals[parts[0]] = parts.getOrElse(1) { "" }
+                            null
+                        }
+                        statement.startsWith("settings delete global ") -> {
+                            globals.remove(statement.removePrefix("settings delete global "))
+                            null
+                        }
+                        else -> error("Unexpected statement: $statement")
+                    }
+                }.joinToString("\n")
             // Secure settings: where the accessibility observer of the picker-access lease lives.
             // The real controller writes both of its keys as one compound shell statement.
             command.startsWith("settings get secure ") ->
@@ -673,7 +692,8 @@ internal class SplitCarFixture(
                 command.startsWith("am task focus ") ||
                 command.startsWith("am task resize ") ||
                 command.startsWith("input ") ||
-                command.startsWith("settings put global ") ||
+                command.contains("settings put global ") ||
+                command.contains("settings delete global ") ||
                 command.contains(" remove-task ") ||
                 command.startsWith("service call activity_task 114 ") ||
                 command.startsWith("service call activity_task 115") ||
@@ -838,6 +858,43 @@ internal class SmartMultiLease(
 
     override fun restore(shell: (String) -> String) =
         SplitSmartMultiController(shell, store).restore()
+}
+
+/**
+ * The real resizeability lease over the fake firmware (contract 5, to 1.12).
+ *
+ * Like [SmartMultiLease] it is the product's own controller rather than a stand-in, so a scenario
+ * sees the commands this lease really sends - including the compound statement the open path pays
+ * one round trip for - and the diagnostic line the contract owes for each of them.
+ */
+internal class ResizeabilityLease(
+    private val store: FakeResizeabilityLeaseStore = FakeResizeabilityLeaseStore(),
+) : SplitLeaseController {
+    override val kind: String get() = SplitLeaseKind.RESIZEABILITY
+
+    override fun ownedValue(): String? = store.loadOriginal()?.name
+
+    override fun enable(shell: (String) -> String) =
+        SplitResizeabilityController(shell, store).enable()
+
+    override fun restore(shell: (String) -> String) =
+        SplitResizeabilityController(shell, store).restore()
+}
+
+internal class FakeResizeabilityLeaseStore : SplitResizeabilityLeaseStore {
+    private var original: SplitGlobalSettingValue? = null
+
+    override fun loadOriginal(): SplitGlobalSettingValue? = original
+
+    override fun saveOriginal(value: SplitGlobalSettingValue): Boolean {
+        original = value
+        return true
+    }
+
+    override fun clearOriginal(): Boolean {
+        original = null
+        return true
+    }
 }
 
 internal class FakeSmartMultiLeaseStore : SplitSmartMultiLeaseStore {

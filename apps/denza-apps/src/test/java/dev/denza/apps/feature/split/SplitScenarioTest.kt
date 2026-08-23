@@ -455,6 +455,39 @@ class SplitScenarioTest {
         )
     }
 
+    /**
+     * Contract 5, to 1.12: every write of the firmware-global resizeability setting is recorded.
+     *
+     * Acceptance v17 raised defect 11 - "the product silently changes `force_resizable_activities`"
+     * - out of nothing but the product's silence: the lease was taken and given back exactly as the
+     * contract says, and no line anywhere said so. The taking is one compound statement now, which
+     * is precisely the shape a naive "starts with settings put" filter would miss.
+     */
+    @Test
+    fun everyWriteOfTheBorrowedResizeabilitySettingIsRecorded() {
+        val car = car(FakeShell().apply { setGlobal(RESIZE_KEY, "0") })
+        val core = car.core(SplitDurable(enabled = true), leases = listOf(ResizeabilityLease()))
+        core.initialize {}
+
+        core.openPickerSession()
+        car.barrier()
+
+        val taken = car.diagnostics.filter { it.startsWith(RESIZEABILITY_LEASE_LINE) }
+        assertEquals("одна строка на взятие аренды", 1, taken.size)
+        assertTrue(
+            "и она называет и настройку, и что с ней сделали",
+            taken.single().contains("settings put global $RESIZE_KEY 1"),
+        )
+
+        core.setEnabled(false)
+        car.barrier()
+
+        val all = car.diagnostics.filter { it.startsWith(RESIZEABILITY_LEASE_LINE) }
+        assertEquals("и одна на возврат", 2, all.size)
+        assertTrue(all.last().contains("settings put global $RESIZE_KEY 0"))
+        assertEquals("а вернули ровно то, что застали", "0", car.fake.globalValue(RESIZE_KEY))
+    }
+
     /** Invariant 10: a cancelled operation sends nothing more - not even a diagnostic line. */
     @Test
     fun anExpiredOperationDoesNotEvenMirrorItsOwnDiagnostics() {
@@ -1704,6 +1737,7 @@ class SplitScenarioTest {
     private companion object {
         const val GATE_OPEN = "service call activity_task 126 i32 1"
         const val RESIZE_KEY = "force_resizable_activities"
+        const val RESIZEABILITY_LEASE_LINE = "firmware resizeability lease:"
         const val ACCESS_KEY = "picker_access_enabled"
         const val STOCK_TASK = 55
 
