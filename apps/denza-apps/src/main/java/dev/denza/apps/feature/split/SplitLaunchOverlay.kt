@@ -98,11 +98,22 @@ internal object SplitLaunchOverlay {
     internal const val MIN_VISIBLE_MS = 700L
     internal const val MAX_VISIBLE_MS = 15_000L
 
+    /**
+     * U5: an open with no waiting window is not allowed to look like an open with nothing
+     * happening. The picker notice is the surface that survives a missing overlay permission,
+     * and it names the one thing the user can actually do about it.
+     */
+    internal const val UNAVAILABLE_NOTICE =
+        "Окно ожидания не показано: разрешите Denza Apps показ поверх других окон"
+
     private val mainHandler = Handler(Looper.getMainLooper())
     private val overlay = VehicleProgressOverlay(
         textRes = R.string.split_launch_overlay_text,
         windowTitle = "Denza split launch",
         inputMode = VehicleProgressOverlayInputMode.BLOCK_SCREEN,
+        onUnavailable = {
+            appContext?.let { context -> SplitPickerNotice.publish(context, UNAVAILABLE_NOTICE) }
+        },
     )
 
     @Volatile

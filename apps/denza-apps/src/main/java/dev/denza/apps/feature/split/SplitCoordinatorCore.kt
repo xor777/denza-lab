@@ -216,7 +216,7 @@ internal class SplitCoordinatorCore(
         if (!currentState().enabled) submitEnable()
         val joined = synchronized(stateLock) { openTicket?.takeUnless(SplitTicket::isComplete) }
         if (joined != null) {
-            joined.onComplete { outcome -> report(onComplete, outcome, OPEN_FAILURE) }
+            joined.onComplete { outcome -> report(onComplete, OPEN_LABEL, outcome) }
             return
         }
         val overlay = overlayOwner.begin()
@@ -225,7 +225,7 @@ internal class SplitCoordinatorCore(
         synchronized(stateLock) { openTicket = ticket }
         ticket.onComplete { outcome ->
             if (outcome is SplitOutcome.Committed) overlay.close() else overlay.closeImmediately()
-            report(onComplete, outcome, OPEN_FAILURE)
+            report(onComplete, OPEN_LABEL, outcome)
         }
     }
 
@@ -238,14 +238,14 @@ internal class SplitCoordinatorCore(
             return
         }
         submit { work -> SelectOperation(work, pickerTaskId, target) }
-            .onComplete { outcome -> report(onComplete, outcome, SELECT_FAILURE) }
+            .onComplete { outcome -> report(onComplete, SELECT_LABEL, outcome) }
     }
 
     /** Contract 1.6.2, 1.7.1: a revealed picker is a hint that its app may have closed. */
     fun pickerVisible(hostTaskId: Int?, onComplete: (String?) -> Unit = {}) {
         ready()
         submitReconcile(SplitReconcileKind.PickerVisible(hostTaskId))
-            .onComplete { outcome -> report(onComplete, outcome, RECONCILE_FAILURE) }
+            .onComplete { outcome -> report(onComplete, RECONCILE_LABEL, outcome) }
     }
 
     /** Contract 1.6.3, 1.7.4: a picker that left the panel roots is a dismissed pane. */
@@ -461,6 +461,10 @@ internal class SplitCoordinatorCore(
             else -> null
         }
         if (quiet && reason != null) log.log("background $label failed quietly: $reason")
+        // U5, U6: an action the user performed never ends in silence. Whatever became of it -
+        // committed, cancelled, rolled back, refused - exactly one line says so, so that a tap
+        // which produced no visible change is still explainable afterwards.
+        if (label in USER_LABELS) log.log(terminalOf(label, outcome))
         synchronized(stateLock) {
             busy = busy?.takeIf { it.label != label }
             failure = when {
@@ -512,23 +516,32 @@ internal class SplitCoordinatorCore(
         )
     }
 
-    private fun report(callback: (String?) -> Unit, outcome: SplitOutcome, fallback: String) {
-        post { callback(errorOf(outcome, fallback)) }
+    private fun report(callback: (String?) -> Unit, label: String, outcome: SplitOutcome) {
+        post { callback(errorOf(label, outcome)) }
     }
 
     /**
-     * A user who pressed Home or turned the toggle off got exactly what they asked for; only a
-     * deadline or a real failure is an error worth a message (1.3.8, U5).
+     * A user who turned the toggle off got exactly what they asked for, and a Home over scene work
+     * is answered by the screen itself (1.5.8); everything else that ends an action the user
+     * performed is worth a message (1.3.8, U5).
      */
-    private fun errorOf(outcome: SplitOutcome, fallback: String): String? = when (outcome) {
-        is SplitOutcome.Committed -> null
-        is SplitOutcome.Cancelled -> when (outcome.reason) {
-            SplitCancelReason.DEADLINE ->
-                "$fallback: превышено время ожидания. Попробуйте ещё раз"
-            else -> null
+    private fun errorOf(label: String, outcome: SplitOutcome): String? {
+        val fallback = fallbackOf(label)
+        return when (outcome) {
+            is SplitOutcome.Committed -> null
+            is SplitOutcome.Cancelled -> when (outcome.reason) {
+                SplitCancelReason.DEADLINE ->
+                    "$fallback: превышено время ожидания. Попробуйте ещё раз"
+                // The user asked for both of these, and the process going away is nobody's error.
+                SplitCancelReason.DISABLE, SplitCancelReason.SHUTDOWN -> null
+                // Unreachable for an open since contract 4.2: only its own deadline or the toggle
+                // may end it. Should one ever get through again, the user reads an error instead
+                // of watching a tap do nothing at all - silence is the one outcome U5 forbids.
+                else -> if (label == OPEN_LABEL) fallback else null
+            }
+            is SplitOutcome.RolledBack -> friendlyError(outcome.reason, fallback)
+            is SplitOutcome.Failed -> friendlyError(outcome.message, fallback)
         }
-        is SplitOutcome.RolledBack -> friendlyError(outcome.reason, fallback)
-        is SplitOutcome.Failed -> friendlyError(outcome.message, fallback)
     }
 
     private data class Busy(val label: String, val enabled: Boolean, val message: String)
@@ -563,6 +576,25 @@ internal class SplitCoordinatorCore(
             HOME_LABEL,
             PACKAGE_REMOVED_LABEL,
         )
+
+        /** Work a person performed: every terminal of it is recorded, whatever it was (U5, U6). */
+        val USER_LABELS = setOf(
+            ENABLE_LABEL,
+            DISABLE_LABEL,
+            OPEN_LABEL,
+            SELECT_LABEL,
+        )
+
+        /** One line, one terminal: what the user asked for, what became of it and why. */
+        fun terminalOf(label: String, outcome: SplitOutcome): String {
+            val (settled, reason) = when (outcome) {
+                is SplitOutcome.Committed -> "committed" to null
+                is SplitOutcome.Cancelled -> "cancelled" to outcome.reason
+                is SplitOutcome.RolledBack -> "rolled-back" to outcome.reason
+                is SplitOutcome.Failed -> "failed" to outcome.message
+            }
+            return "$label outcome=$settled reason=${reason ?: "-"}"
+        }
 
         const val EXTERNAL_TASK_BYPASS_MS = 5_000L
 

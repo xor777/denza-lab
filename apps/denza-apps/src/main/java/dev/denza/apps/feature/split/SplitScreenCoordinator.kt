@@ -5,6 +5,7 @@ import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
+import android.provider.Settings
 import android.util.Log
 import dev.denza.apps.adb.DenzaLocalAdb
 import java.util.concurrent.Executors
@@ -205,6 +206,13 @@ object SplitScreenCoordinator {
     }
 
     private fun overlayLease(app: Context): SplitOverlayLease {
+        // U6: the tap is answered within a second by this window and by nothing else, so an open
+        // that starts without the permission to draw it starts already unable to keep that
+        // promise. The overlay itself tells the user (SplitLaunchOverlay.UNAVAILABLE_NOTICE);
+        // this line is what says so in the log of the operation that began here.
+        if (!Settings.canDrawOverlays(app)) {
+            Log.w(TAG, "open starts with no waiting window: overlay permission is not granted")
+        }
         val lease = SplitLaunchOverlay.begin(app)
         return object : SplitOverlayLease {
             override fun close() = lease.close()

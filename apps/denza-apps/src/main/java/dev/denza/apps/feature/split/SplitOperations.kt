@@ -486,12 +486,16 @@ internal class OpenOperation(
             installedPackages = work.catalog.installedPackages(),
         )
         // Read-only: adoption is decided from a live snapshot before a single mutation (1.3.5).
-        val adopted = runCatching {
-            work.split(op).existingOwnedSession(
-                pickerComponents = SPLIT_PICKER_COMPONENT_SET,
-                expectedApps = SplitCoordinatorCore.expectedApps(liveScene),
-            )
-        }.getOrNull()
+        //
+        // Nothing is swallowed here. "There is no scene of ours" is answered with `null` by the
+        // recipe itself, so a throw can only be the fence or the link - and both belong on the
+        // operation's ordinary error path, where the user is told (U5). A `getOrNull` around this
+        // read turned a dead ADB and a cancelled token alike into "no scene" and then rebuilt the
+        // screen on that reading.
+        val adopted = work.split(op).existingOwnedSession(
+            pickerComponents = SPLIT_PICKER_COMPONENT_SET,
+            expectedApps = SplitCoordinatorCore.expectedApps(liveScene),
+        )
         return SplitOpenPlan(adopted, restorable)
     }
 

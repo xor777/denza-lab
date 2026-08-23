@@ -38,11 +38,18 @@ internal enum class VehicleProgressOverlayInputMode {
     BLOCK_SCREEN,
 }
 
-/** Shared SystemUI-shaped progress window for short car-wide transitions. */
+/**
+ * Shared SystemUI-shaped progress window for short car-wide transitions.
+ *
+ * @param onUnavailable told once, with the reason, when this window cannot be shown at all - the
+ * permission is gone or WindowManager refused it. A wait the user cannot see is exactly the silent
+ * failure U5 forbids, so the owner of the overlay gets to say so on a surface that does work.
+ */
 internal class VehicleProgressOverlay(
     @param:StringRes private val textRes: Int,
     private val windowTitle: String,
     private val inputMode: VehicleProgressOverlayInputMode,
+    private val onUnavailable: (String) -> Unit = {},
 ) {
     @Volatile
     private var appContext: Context? = null
@@ -54,6 +61,7 @@ internal class VehicleProgressOverlay(
     private var overlayView: View? = null
     private var overlayParams: WindowManager.LayoutParams? = null
     private var removeRetryCount = 0
+    private var unavailableReported = false
 
     fun setVisible(context: Context, visible: Boolean) {
         appContext = context.applicationContext
@@ -63,11 +71,24 @@ internal class VehicleProgressOverlay(
 
     private fun renderLatestState() {
         val context = appContext ?: return
-        if (visible && Settings.canDrawOverlays(context)) {
-            show(context)
-        } else {
+        if (!visible) {
             hide()
+            return
         }
+        if (!Settings.canDrawOverlays(context)) {
+            reportUnavailable("permission to draw over other apps is not granted")
+            hide()
+            return
+        }
+        show(context)
+    }
+
+    /** U5: the wait is invisible, so the failure has to be visible somewhere else. Once. */
+    private fun reportUnavailable(reason: String) {
+        Log.w(TAG, "$windowTitle overlay unavailable: $reason")
+        if (unavailableReported) return
+        unavailableReported = true
+        onUnavailable(reason)
     }
 
     private fun show(context: Context) {
@@ -107,7 +128,7 @@ internal class VehicleProgressOverlay(
             overlayParams = params
             removeRetryCount = 0
         } catch (error: RuntimeException) {
-            Log.i(TAG, "$windowTitle overlay unavailable", error)
+            reportUnavailable("window manager refused it: ${error.message ?: error}")
         }
     }
 
