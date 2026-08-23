@@ -284,3 +284,15 @@ computer's normal ADB key. Approve it at the vehicle before retrying the command
 
 When a page disagrees with the code, manifest, or Gradle configuration, follow
 the implementation and update that page.
+
+## License
+
+The original work in this repository is released under the
+[MIT License](LICENSE) — use, modify, and redistribute it freely, including
+commercially, as long as the copyright notice and the license text travel with
+it.
+
+The license covers this project's own source, documentation, and tooling. It
+does not grant rights to third-party material this repository merely describes
+or analyzes: Denza and BYD firmware, their applications, and their trademarks
+remain the property of their owners. Nothing here is redistributed from them.
