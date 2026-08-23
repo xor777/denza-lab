@@ -67,6 +67,12 @@ internal object SplitLeaseKind {
     /** The accessibility observer that reports the stock picker of an edge drag (1.8.5). */
     const val PICKER_ACCESS = "picker-access"
 
+    /** The pair SmartMulti remembers, displaced for as long as a product scene exists (1.12). */
+    const val SMART_MULTI = "smart-multi"
+
+    /** What a session borrows for its own lifetime and gives back the moment that scene ends. */
+    val SESSION_SCOPED: Set<String> = setOf(SMART_MULTI)
+
     /**
      * Infrastructure leases: idempotent, invisible to the user, and released by `DISABLE` alone.
      *

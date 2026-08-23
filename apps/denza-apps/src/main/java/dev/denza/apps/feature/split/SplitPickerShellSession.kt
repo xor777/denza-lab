@@ -1171,18 +1171,28 @@ internal class SplitPickerShellSession(
     }
 
     /** Removes only the exact permanent picker reparented out of its dismissed native pane. */
-    fun removePickerArtifact(taskId: Int, pickerComponents: Set<String>): Boolean {
-        val task = snapshot().roots.asSequence()
+    fun removePickerArtifact(taskId: Int, pickerComponents: Set<String>): Boolean =
+        removePickerArtifacts(listOf(taskId), pickerComponents).isNotEmpty()
+
+    /**
+     * The same exact-identity removal for several of our pickers at once, wherever on the main
+     * display they ended up. An id a fresh snapshot cannot find under our own component is simply
+     * not in the answer: nothing else is ever removed (invariant 3).
+     *
+     * @return the ids that were actually removed.
+     */
+    fun removePickerArtifacts(taskIds: List<Int>, pickerComponents: Set<String>): List<Int> {
+        val tasks = snapshot().roots.asSequence()
             .filter { it.displayId == MAIN_DISPLAY_ID }
             .flatMap { it.tasks.asSequence() }
-            .firstOrNull {
-                it.id == taskId &&
+            .filter {
+                it.id in taskIds &&
                     it.isDenzaPickerBase() &&
                     it.matchesAnyComponent(pickerComponents)
             }
-            ?: return false
-        removeTaskSafely(task)
-        return true
+            .toList()
+        removeTasksSafely(tasks)
+        return tasks.map(SplitTask::id)
     }
 
     /** Removes only a failed restoration candidate left below the exact picker pane. */
@@ -1265,7 +1275,7 @@ internal class SplitPickerShellSession(
             .filter { task -> task.isDenzaAppHost() && task.id != foreground?.id }
             .toList()
 
-        closeGateForDisabledProduct()
+        closeOwnedGate()
 
         if (foreground != null) {
             val fullRootId = fullIviRootTaskId()
@@ -1601,12 +1611,15 @@ internal class SplitPickerShellSession(
      * The gate is firmware-global, so it is closed by exactly one rule: we opened it, therefore we
      * close it (contract, to 1.12; invariant 1). A gate that was already open when our session
      * started, or that belongs to a stock split the user built themselves, is left alone.
+     *
+     * @return whether this call is what closed it.
      */
-    private fun closeGateForDisabledProduct() {
-        val store = gateLeaseStore ?: return
-        if (!store.isOwned()) return
+    fun closeOwnedGate(): Boolean {
+        val store = gateLeaseStore ?: return false
+        if (!store.isOwned()) return false
         callVoid("service call activity_task 126 i32 0")
         check(store.setOwned(false)) { "Не удалось освободить split-gate" }
+        return true
     }
 
     private fun ensureSupported(packageName: String) {

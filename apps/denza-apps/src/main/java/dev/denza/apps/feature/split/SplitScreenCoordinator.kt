@@ -181,7 +181,11 @@ object SplitScreenCoordinator {
             notices = SplitNoticeSink { message -> SplitPickerNotice.publish(app, message) },
             catalog = AndroidSplitLaunchCatalog(app),
             gateLeaseStore = SplitScreenSettings.gateLeaseStore(app),
-            leases = listOf(resizeabilityLease(app), pickerAccessLease(app)),
+            leases = listOf(
+                resizeabilityLease(app),
+                pickerAccessLease(app),
+                smartMultiLease(app),
+            ),
             apkPath = app.applicationInfo.sourceDir,
             proxyClasspath = stagedProxy(app),
             appLabel = { packageName -> applicationLabel(app, packageName) },
@@ -274,6 +278,22 @@ object SplitScreenCoordinator {
         private fun controller(shell: (String) -> String) = SplitNativePickerAccessController(
             shell = shell,
             leaseStore = SplitScreenSettings.nativePickerAccessLeaseStore(app),
+        )
+    }
+
+    private fun smartMultiLease(app: Context) = object : SplitLeaseController {
+        override val kind: String get() = SplitLeaseKind.SMART_MULTI
+
+        override fun ownedValue(): String? =
+            if (SplitScreenSettings.smartMultiLeaseStore(app).loadOriginal() != null) OWNED else null
+
+        override fun enable(shell: (String) -> String) = controller(shell).enable()
+
+        override fun restore(shell: (String) -> String) = controller(shell).restore()
+
+        private fun controller(shell: (String) -> String) = SplitSmartMultiController(
+            shell = shell,
+            leaseStore = SplitScreenSettings.smartMultiLeaseStore(app),
         )
     }
 

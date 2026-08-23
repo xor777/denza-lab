@@ -1255,6 +1255,87 @@ class SplitScenarioTest {
         )
     }
 
+    /**
+     * Contract 1.12 and the live defect of the vertical slice, rated РАЗДРАЖАЕТ.
+     *
+     * The firmware records what a split *was* in four `Settings.System` keys and reads them back
+     * when either remembered package is launched from Home. A Denza session left its own pair
+     * there, so opening Denza Apps from the dock on a clean Home opened it as a second window next
+     * to ADAS - the product initiating a pair nobody asked for (1.9.2, 1.9.3, invariant 11).
+     */
+    @Test
+    fun aNativelyEndedSessionGivesTheFirmwareBackItsRememberedPair() {
+        val car = car(
+            FakeShell().apply {
+                setSystem("byd_smart_multi_primary_activity", LAUNCHER_PACKAGE)
+                setSystem("byd_smart_multi_second_activity", STOCK_BOOTSTRAP_PACKAGE)
+                setSystem("byd_smart_multi_primary_position", "2")
+                setSystem("byd_smart_multi_split_window_mode", "102")
+            },
+        )
+        val core = car.core(
+            SplitDurable(enabled = true, slots = PICKER_PAIR),
+            leases = listOf(SmartMultiLease()),
+        )
+        core.initialize {}
+
+        core.openPickerSession()
+        car.barrier()
+        assertTrue("the session holds the firmware gate", car.fake.isGateOpen())
+        // What the firmware itself writes once a split of ours exists.
+        car.fake.setSystem("byd_smart_multi_primary_activity", SPLIT_HOST_PACKAGE)
+
+        // While the scene is alive nothing is given back - the pair is still in use (1.12).
+        core.dividerResized()
+        car.barrier()
+        assertEquals(SPLIT_HOST_PACKAGE, car.fake.system("byd_smart_multi_primary_activity"))
+
+        // The user ends the split natively: both pickers dismissed, firmware goes Home (1.6.3).
+        listOf(PRIMARY_ROOT, SECONDARY_ROOT).forEach(car.fake::dismissPane)
+        car.fake.area = 0
+        core.dividerResized()
+        car.barrier()
+
+        assertEquals(
+            "the pair the session found is the pair the car is left with",
+            LAUNCHER_PACKAGE,
+            car.fake.system("byd_smart_multi_primary_activity"),
+        )
+        assertEquals(STOCK_BOOTSTRAP_PACKAGE, car.fake.system("byd_smart_multi_second_activity"))
+        assertFalse("and the gate we opened is closed again", car.fake.isGateOpen())
+    }
+
+    /**
+     * Contract 1.6, 1.6.4: after a native ending the product's one duty is to leave nothing behind.
+     *
+     * Forgetting the scene is not enough. The vertical slice met a picker of ours that survived
+     * Back with narrow bounds outside the panel roots - invisible to the check that decides the
+     * scene is over, and still there to spoil the next run.
+     */
+    @Test
+    fun aPickerThatOutlivedANativeEndingIsRemovedWithTheScene() {
+        val car = car(FakeShell().apply { liveProductScene() })
+        val core = car.core(SplitDurable(enabled = true, slots = PICKER_PAIR))
+        core.initialize {}
+        core.openPickerSession()
+        car.barrier()
+
+        // The firmware ended the split: one picker died with its pane, the other was reparented
+        // out of the panel roots and left running.
+        car.fake.addTask(FULL_ROOT, FOREIGN_TASK, FOREIGN, "$FOREIGN.MainActivity")
+        car.fake.moveTask(PRIMARY_PICKER_TASK, FULL_ROOT)
+        car.fake.removeActivity(SECONDARY_ROOT, SECONDARY_PICKER_ACTIVITY)
+        car.fake.area = 0
+        car.clearCommands()
+
+        core.dividerResized()
+        car.barrier()
+
+        assertFalse("the stump does not outlive the scene", car.fake.hasTask(PRIMARY_PICKER_TASK))
+        assertTrue("and nobody else's task is touched", car.fake.hasTask(FOREIGN_TASK))
+        assertEquals("the next open starts from two fresh pickers", PICKER_PAIR, car.store.load().slots)
+    }
+
     @Test
     fun aCoveredSceneIsNeverMistakenForAnEndedOne() {
         // инвариант 5: Home и чужое полноэкранное окно прячут сцену, задачи которой живы в снапшоте

@@ -12,6 +12,7 @@ object SplitScreenSettings {
     private const val PICKER_ACCESS_CONFIGURATION_VERSION =
         "picker_access_configuration_version_v1"
     private const val PICKER_NOTICE = "picker_notice_v1"
+    private const val SMART_MULTI_ORIGINAL = "smart_multi_original_v1"
 
     /**
      * The toggle, read from the one durable snapshot that owns it (contract section 6).
@@ -40,6 +41,33 @@ object SplitScreenSettings {
                 preferences.edit()
                     .remove(FORCE_RESIZABLE_ORIGINAL)
                     .commit()
+        }
+
+    /**
+     * The pair the firmware remembered before this session started (contract 1.12).
+     *
+     * It is durable for the same reason every other lease original is: a process that dies with a
+     * live scene must still be able to give back what it displaced when that scene ends.
+     */
+    internal fun smartMultiLeaseStore(context: Context): SplitSmartMultiLeaseStore =
+        object : SplitSmartMultiLeaseStore {
+            private val preferences =
+                context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+
+            override fun loadOriginal(): Map<String, String?>? =
+                SplitSmartMultiLeaseCodec.decode(
+                    preferences.getString(SMART_MULTI_ORIGINAL, null),
+                )
+
+            @SuppressLint("UseKtx")
+            override fun saveOriginal(values: Map<String, String?>): Boolean = preferences.edit()
+                .putString(SMART_MULTI_ORIGINAL, SplitSmartMultiLeaseCodec.encode(values))
+                .commit()
+
+            @SuppressLint("UseKtx")
+            override fun clearOriginal(): Boolean = preferences.edit()
+                .remove(SMART_MULTI_ORIGINAL)
+                .commit()
         }
 
     /**

@@ -300,6 +300,10 @@ internal abstract class SplitCoreOperation<P>(
             val previous = lease.ownedValue()
             lease.enable(shell)
             if (lease.kind in SplitLeaseKind.ROLLBACK_EXEMPT) return@forEach
+            // A lease the product already held is not this operation's to give back: unwinding it
+            // would end a session over a scene that is still on screen (1.12, "пока сцена жива -
+            // ничего не восстанавливать").
+            if (previous != null) return@forEach
             op.journal.record(SplitJournalEntry.LeaseEnabled(lease.kind, previous))
         }
     }
@@ -1043,7 +1047,35 @@ internal class ReconcileOperation(
         // Only once no recipe could prove anything about this scene is "it is gone" a candidate
         // explanation at all - a collapse, a resize repair and a revealed picker all get to speak
         // first, and each of them proves the scene still exists (1.7.5).
-        if (!proven) settleSceneEnded(split)
+        if (!proven) settleSceneEnded(op, split)
+        // Contract 1.6: the outcome of Back and of a close is the firmware's, and the product's one
+        // duty afterwards is to leave nothing of its own behind - no borrowed firmware setting and
+        // no gate we opened - so that the next tap opens cleanly (1.6.4). Nothing is rebuilt here.
+        if (working.scene == null) endSession(op, shell, split)
+    }
+
+    /**
+     * Gives back what this session borrowed from the firmware, and only that.
+     *
+     * The gate closes by its own single rule ("we opened it"), and the session-scoped leases are
+     * put back by compare-and-restore. What is deliberately *not* released is the infrastructure:
+     * resizeability and the observer belong to the toggle being on, and a session that ended
+     * natively is followed by a button the user can press again (1.2 owns those).
+     */
+    private fun endSession(
+        op: SplitOperationContext,
+        shell: (String) -> String,
+        split: SplitPickerShellSession,
+    ) {
+        runCatching { split.closeOwnedGate() }
+            .onFailure { error -> work.log("failed to close our gate after the scene ended: $error") }
+        work.leases
+            .filter { lease -> lease.kind in SplitLeaseKind.SESSION_SCOPED }
+            .forEach { lease ->
+                runCatching { lease.restore(shell) }.onFailure { error ->
+                    work.log("failed to give back ${lease.kind} after the scene ended: $error")
+                }
+            }
     }
 
     /**
@@ -1159,8 +1191,16 @@ internal class ReconcileOperation(
      * The automaton then keeps the projected navigator's slot and turns every other `APP` into
      * `PICKER`, which is what makes the next open show fresh pickers instead of resurrecting what
      * the user cleared (1.3.4, invariant 6).
+     *
+     * Forgetting is not enough, though: a picker of ours that left the panel roots without dying is
+     * exactly what this check cannot see, and the vertical slice met one - a narrow-bounds stump
+     * that survived Back and spoiled the next run. So the tasks this scene recorded as its own
+     * pickers are removed here, by exact id and component, wherever they ended up (1.6, 1.6.4).
      */
-    private fun settleSceneEnded(split: SplitPickerShellSession): Boolean {
+    private fun settleSceneEnded(
+        op: SplitOperationContext,
+        split: SplitPickerShellSession,
+    ): Boolean {
         if (working.scene == null) return false
         val recorded = liveScene.values.flatMapTo(mutableSetOf()) { observed ->
             listOfNotNull(observed.hostTaskId, observed.appTaskId)
@@ -1168,9 +1208,30 @@ internal class ReconcileOperation(
         if (recorded.isEmpty()) return false
         val living = observedTaskIds(split) ?: return false
         if (recorded.any { taskId -> taskId in living }) return false
+        val ownPickers = liveScene.values.map(SplitPickerLivePane::hostTaskId)
         liveScene = emptyMap()
         settle(SplitFact.SceneEndedSettled)
+        removeOwnPickerStumps(op, split, ownPickers)
         return true
+    }
+
+    /**
+     * The apps are the user's and are never touched here (1.6.2): only the permanent picker bases
+     * this scene created, and only where a fresh snapshot still finds that exact id under our own
+     * component. A removal cannot be undone, so the journal says so before the first one.
+     */
+    private fun removeOwnPickerStumps(
+        op: SplitOperationContext,
+        split: SplitPickerShellSession,
+        taskIds: List<Int>,
+    ) {
+        if (taskIds.isEmpty()) return
+        pointOfNoReturn(op, "a natively ended scene leaves no picker of ours behind")
+        runCatching { split.removePickerArtifacts(taskIds, SPLIT_PICKER_COMPONENT_SET) }
+            .onSuccess { removed ->
+                removed.forEach { taskId -> recordRemoved(op, taskId, SPLIT_PICKER_COMPONENT) }
+            }
+            .onFailure { error -> work.log("failed to remove a picker left behind: $error") }
     }
 
     /**
@@ -1260,7 +1321,11 @@ internal class ReconcileOperation(
 
 // endregion
 
-private val ALL_LEASES = setOf(SplitLeaseKind.RESIZEABILITY, SplitLeaseKind.PICKER_ACCESS)
+private val ALL_LEASES = setOf(
+    SplitLeaseKind.RESIZEABILITY,
+    SplitLeaseKind.PICKER_ACCESS,
+    SplitLeaseKind.SMART_MULTI,
+)
 private const val SELECT_JOIN_PREFIX = "select-"
 private const val PACKAGE_REMOVED_COALESCE_PREFIX = "package-removed-"
 private const val TOGGLE_BUDGET_MS = 30_000L

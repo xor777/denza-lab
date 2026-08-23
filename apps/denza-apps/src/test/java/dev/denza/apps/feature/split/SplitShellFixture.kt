@@ -109,6 +109,7 @@ internal class FakeShell(
     private val tasks = mutableListOf<Task>()
     private val globals = mutableMapOf<String, String>()
     private val secure = mutableMapOf<String, String>()
+    private val system = mutableMapOf<String, String>()
 
     fun addTask(rootId: Int, id: Int, packageName: String, activityName: String) {
         tasks += Task(id, packageName, activityName, rootId, bounds(rootId))
@@ -119,6 +120,13 @@ internal class FakeShell(
     fun setGlobal(key: String, value: String) {
         globals[key] = value
     }
+
+    /** Seeds or reads what SmartMulti remembers; the firmware is its only writer in the car. */
+    fun setSystem(key: String, value: String) {
+        system[key] = value
+    }
+
+    fun system(key: String): String? = system[key]
 
     fun hasPackage(rootId: Int, packageName: String): Boolean =
         tasks.any { it.rootId == rootId && it.packageName == packageName }
@@ -431,6 +439,22 @@ internal class FakeShell(
                         .split(' ', limit = 2)
                     secure[parts[0]] = parts.getOrElse(1) { "" }.trim().trim('\'')
                 }
+                ""
+            }
+            // System settings: the pair SmartMulti remembers (contract 1.12). The firmware writes
+            // it itself, so the fake does too - a scene of ours records the packages of its panes.
+            // The lease reads all four keys with one compound statement.
+            command.startsWith("settings get system ") ->
+                command.split(';').joinToString("\n") { statement ->
+                    system[statement.trim().removePrefix("settings get system ")] ?: "null"
+                }
+            command.startsWith("settings put system ") -> {
+                val parts = command.removePrefix("settings put system ").split(' ', limit = 2)
+                system[parts[0]] = parts.getOrElse(1) { "" }.trim().trim('\'')
+                ""
+            }
+            command.startsWith("settings delete system ") -> {
+                system.remove(command.removePrefix("settings delete system "))
                 ""
             }
             else -> error("Unexpected command: $command")
@@ -782,6 +806,43 @@ internal class FakeLease(
         val previous = displaced ?: return
         displaced = null
         shell("settings put global $key $previous")
+    }
+}
+
+/**
+ * The real SmartMulti lease over the fake firmware (contract 1.12).
+ *
+ * It is the product's own controller rather than a stand-in, because what a scenario has to prove
+ * is the end-to-end consequence: what the car is left holding after the session is over.
+ */
+internal class SmartMultiLease(
+    private val store: SplitSmartMultiLeaseStore = FakeSmartMultiLeaseStore(),
+) : SplitLeaseController {
+    override val kind: String get() = SplitLeaseKind.SMART_MULTI
+
+    override fun ownedValue(): String? = if (store.loadOriginal() != null) "owned" else null
+
+    override fun enable(shell: (String) -> String) =
+        SplitSmartMultiController(shell, store).enable()
+
+    override fun restore(shell: (String) -> String) =
+        SplitSmartMultiController(shell, store).restore()
+}
+
+internal class FakeSmartMultiLeaseStore : SplitSmartMultiLeaseStore {
+    var original: Map<String, String?>? = null
+        private set
+
+    override fun loadOriginal(): Map<String, String?>? = original
+
+    override fun saveOriginal(values: Map<String, String?>): Boolean {
+        original = values
+        return true
+    }
+
+    override fun clearOriginal(): Boolean {
+        original = null
+        return true
     }
 }
 
