@@ -12,8 +12,6 @@ internal enum class SplitPickerSlotKind {
     ATTACHING,
     PICKER,
     APP,
-    PROJECTED,
-    PROJECTED_ATTACHING,
 }
 
 internal data class SplitPickerSlotState(
@@ -154,7 +152,9 @@ internal object SplitPickerAutomaton {
         is SplitPickerEvent.PickerBecameTop -> pickerBecameTop(current, event)
         is SplitPickerEvent.PickerTaskGone -> pickerTaskGone(current, event)
         is SplitPickerEvent.ProjectionStarted -> projectionStarted(current, event)
-        is SplitPickerEvent.ProjectionReturned -> projectionReturned(current, event)
+        // A projected task's pane became an ordinary vacancy the moment it left
+        // (see projectionStarted), so a return has nothing left to reduce here.
+        is SplitPickerEvent.ProjectionReturned -> unchanged(current)
     }
 
     private fun open(current: SplitPickerAutomatonState): SplitPickerReduction {
@@ -348,28 +348,6 @@ internal object SplitPickerAutomaton {
                     actions = listOf(attach) + remove,
                 )
             }
-            SplitPickerSlotKind.PROJECTED,
-            SplitPickerSlotKind.PROJECTED_ATTACHING,
-            -> {
-                if (existing.kind == SplitPickerSlotKind.PROJECTED_ATTACHING &&
-                    existing.hostTaskId == event.hostTaskId
-                ) {
-                    unchanged(current)
-                } else {
-                    SplitPickerReduction(
-                        state = current.withSlot(
-                            event.pane,
-                            existing.copy(
-                                kind = SplitPickerSlotKind.PROJECTED_ATTACHING,
-                                hostTaskId = event.hostTaskId,
-                                userClosedWhileProjected = false,
-                                attachAttempts = nextAttachAttempts,
-                            ),
-                        ),
-                        actions = listOf(attach),
-                    )
-                }
-            }
             SplitPickerSlotKind.ATTACHING -> {
                 if (existing.hostTaskId == event.hostTaskId) unchanged(current)
                 else SplitPickerReduction(
@@ -393,22 +371,9 @@ internal object SplitPickerAutomaton {
         if (event.hostTaskId <= 0) return unchanged(current)
         val existing = current.slot(event.pane)
         if (existing.kind == SplitPickerSlotKind.PICKER ||
-            existing.kind == SplitPickerSlotKind.APP ||
-            existing.kind == SplitPickerSlotKind.PROJECTED
+            existing.kind == SplitPickerSlotKind.APP
         ) {
             return unchanged(current)
-        }
-        if (existing.kind == SplitPickerSlotKind.PROJECTED_ATTACHING) {
-            return unchanged(
-                current.withSlot(
-                    event.pane,
-                    existing.copy(
-                        kind = SplitPickerSlotKind.PROJECTED,
-                        hostTaskId = event.hostTaskId,
-                        attachAttempts = 0,
-                    ),
-                ),
-            )
         }
         if (existing.kind != SplitPickerSlotKind.ATTACHING) return unchanged(current)
         return unchanged(
@@ -441,12 +406,6 @@ internal object SplitPickerAutomaton {
                     ),
                 ),
             )
-            SplitPickerSlotKind.PROJECTED_ATTACHING -> unchanged(
-                current.withSlot(
-                    event.pane,
-                    existing.copy(kind = SplitPickerSlotKind.PROJECTED),
-                ),
-            )
             else -> unchanged(current)
         }
     }
@@ -461,10 +420,6 @@ internal object SplitPickerAutomaton {
             existing.kind !in setOf(
                 SplitPickerSlotKind.PICKER,
                 SplitPickerSlotKind.ATTACHING,
-                // Migration safety for a picker state persisted by builds that reserved the
-                // entire pane while its previous app was projected to another display.
-                SplitPickerSlotKind.PROJECTED,
-                SplitPickerSlotKind.PROJECTED_ATTACHING,
             )
         ) {
             return unchanged(current)
@@ -488,9 +443,7 @@ internal object SplitPickerAutomaton {
     ): SplitPickerReduction {
         val existing = current.slot(event.pane)
         if (existing.hostTaskId != event.hostTaskId) return unchanged(current)
-        if (existing.kind == SplitPickerSlotKind.PROJECTED ||
-            existing.kind == SplitPickerSlotKind.PROJECTED_ATTACHING ||
-            existing.kind == SplitPickerSlotKind.PICKER ||
+        if (existing.kind == SplitPickerSlotKind.PICKER ||
             existing.kind == SplitPickerSlotKind.ATTACHING
         ) {
             return unchanged(current)
@@ -524,28 +477,13 @@ internal object SplitPickerAutomaton {
             return unchanged(current)
         }
         // A hidden picker Activity can be destroyed for memory/configuration reasons while its
-        // separately-tasked app is still visible. Only a visible PICKER (or a projected vacancy)
-        // represents the user's pane-dismiss gesture.
+        // separately-tasked app is still visible. Only a visible PICKER represents the user's
+        // pane-dismiss gesture.
         if (existing.kind == SplitPickerSlotKind.APP ||
             existing.kind == SplitPickerSlotKind.ATTACHING
         ) {
             return unchanged(current)
         }
-        if (existing.kind == SplitPickerSlotKind.PROJECTED ||
-            existing.kind == SplitPickerSlotKind.PROJECTED_ATTACHING
-        ) {
-            return SplitPickerReduction(
-                state = current.withSlot(
-                    event.pane,
-                    existing.copy(
-                        hostTaskId = null,
-                        userClosedWhileProjected = true,
-                    ),
-                ),
-                actions = listOf(SplitPickerAction.RemovePickerArtifact(event.hostTaskId)),
-            )
-        }
-
         return SplitPickerReduction(
             state = current.withSlot(event.pane, SplitPickerSlotState()),
             actions = listOf(SplitPickerAction.RemovePickerArtifact(event.hostTaskId)),
@@ -570,38 +508,6 @@ internal object SplitPickerAutomaton {
                 SplitPickerSlotState(
                     kind = SplitPickerSlotKind.PICKER,
                     hostTaskId = existing.hostTaskId,
-                ),
-            ),
-        )
-    }
-
-    private fun projectionReturned(
-        current: SplitPickerAutomatonState,
-        event: SplitPickerEvent.ProjectionReturned,
-    ): SplitPickerReduction {
-        val existing = current.slot(event.pane)
-        if (existing.kind !in setOf(
-                SplitPickerSlotKind.PROJECTED,
-                SplitPickerSlotKind.PROJECTED_ATTACHING,
-            ) || existing.appTaskId != event.taskId
-        ) {
-            return unchanged(current)
-        }
-        val packageName = existing.packageName ?: return unchanged(current)
-        if (existing.userClosedWhileProjected || existing.hostTaskId == null) {
-            return SplitPickerReduction(
-                state = current.withSlot(event.pane, SplitPickerSlotState()),
-                actions = listOf(
-                    SplitPickerAction.ReturnTaskFullscreen(event.pane, event.taskId, packageName),
-                ),
-            )
-        }
-        return unchanged(
-            current.withSlot(
-                event.pane,
-                existing.copy(
-                    kind = SplitPickerSlotKind.APP,
-                    userClosedWhileProjected = false,
                 ),
             ),
         )
@@ -634,10 +540,7 @@ internal object SplitPickerAutomaton {
         if (values.any { it.kind == SplitPickerSlotKind.ATTACHING }) {
             return SplitPickerPhase.OPENING
         }
-        val occupied = values.count { slot ->
-            slot.kind != SplitPickerSlotKind.CLOSED &&
-                !(slot.kind == SplitPickerSlotKind.PROJECTED && slot.hostTaskId == null)
-        }
+        val occupied = values.count { slot -> slot.kind != SplitPickerSlotKind.CLOSED }
         return when (occupied) {
             0 -> SplitPickerPhase.IDLE
             1 -> SplitPickerPhase.FULL

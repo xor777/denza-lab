@@ -146,15 +146,6 @@ class SplitPickerAutomatonAdversarialTest {
                     assertTrue("$pane app task", (slot.appTaskId ?: -1) > 0)
                     assertTrue("$pane app package", !slot.packageName.isNullOrBlank())
                 }
-                SplitPickerSlotKind.PROJECTED -> {
-                    assertTrue("$pane projected task", (slot.appTaskId ?: -1) > 0)
-                    assertTrue("$pane projected package", !slot.packageName.isNullOrBlank())
-                }
-                SplitPickerSlotKind.PROJECTED_ATTACHING -> {
-                    assertTrue("$pane projected host", (slot.hostTaskId ?: -1) > 0)
-                    assertTrue("$pane projected task", (slot.appTaskId ?: -1) > 0)
-                    assertTrue("$pane projected package", !slot.packageName.isNullOrBlank())
-                }
             }
         }
     }
@@ -201,7 +192,6 @@ class SplitPickerAutomatonAdversarialTest {
                     val returned = event as? SplitPickerEvent.ProjectionReturned
                     assertNotNull(returned)
                     val slot = before.slot(returned!!.pane)
-                    assertEquals(SplitPickerSlotKind.PROJECTED, slot.kind)
                     assertTrue(slot.userClosedWhileProjected || slot.hostTaskId == null)
                     assertEquals(returned.pane, action.pane)
                     assertEquals(returned.taskId, action.taskId)

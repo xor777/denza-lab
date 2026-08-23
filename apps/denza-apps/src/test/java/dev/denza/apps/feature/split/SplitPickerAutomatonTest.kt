@@ -366,64 +366,6 @@ class SplitPickerAutomatonTest {
     }
 
     @Test
-    fun projectedPaneClosedByUserReturnsNavigatorFullscreen() {
-        val projected = state(
-            primary = projected(10, NAVIGATOR, hostTaskId = 100),
-            secondary = app(20, MUSIC, hostTaskId = 200),
-        )
-        val closed = SplitPickerAutomaton.reduce(
-            projected,
-            SplitPickerEvent.PickerTaskGone(SplitPane.PRIMARY, hostTaskId = 100),
-        ).state
-
-        val returned = SplitPickerAutomaton.reduce(
-            closed,
-            SplitPickerEvent.ProjectionReturned(SplitPane.PRIMARY, taskId = 10),
-        )
-
-        assertEquals(
-            listOf(
-                SplitPickerAction.ReturnTaskFullscreen(
-                    SplitPane.PRIMARY,
-                    10,
-                    NAVIGATOR,
-                ),
-            ),
-            returned.actions,
-        )
-        assertEquals(SplitPickerSlotKind.CLOSED, returned.state.slot(SplitPane.PRIMARY).kind)
-    }
-
-    @Test
-    fun reopeningProjectedVacancyReattachesPickerAndRestoresNavigatorToIt() {
-        val projected = state(
-            primary = projected(10, NAVIGATOR, hostTaskId = 100),
-            secondary = app(20, MUSIC, hostTaskId = 200),
-        )
-        val closed = SplitPickerAutomaton.reduce(
-            projected,
-            SplitPickerEvent.PickerTaskGone(SplitPane.PRIMARY, hostTaskId = 100),
-        ).state
-
-        val reopened = SplitPickerAutomaton.reduce(
-            closed,
-            SplitPickerEvent.NativePickerObserved(SplitPane.PRIMARY, hostTaskId = 101),
-        )
-        val returned = SplitPickerAutomaton.reduce(
-            reopened.state,
-            SplitPickerEvent.ProjectionReturned(SplitPane.PRIMARY, taskId = 10),
-        )
-
-        assertEquals(
-            listOf(SplitPickerAction.AttachPicker(SplitPane.PRIMARY, 101)),
-            reopened.actions,
-        )
-        assertEquals(SplitPickerSlotKind.APP, returned.state.slot(SplitPane.PRIMARY).kind)
-        assertEquals(101, returned.state.slot(SplitPane.PRIMARY).hostTaskId)
-        assertTrue(returned.actions.isEmpty())
-    }
-
-    @Test
     fun homeCancelsOpeningAndAllPendingMutations() {
         val opening = SplitPickerAutomaton.reduce(
             SplitPickerAutomatonState(),
@@ -667,17 +609,6 @@ class SplitPickerAutomatonTest {
         hostTaskId: Int,
     ) = SplitPickerSlotState(
         kind = SplitPickerSlotKind.APP,
-        hostTaskId = hostTaskId,
-        appTaskId = taskId,
-        packageName = packageName,
-    )
-
-    private fun projected(
-        taskId: Int,
-        packageName: String,
-        hostTaskId: Int,
-    ) = SplitPickerSlotState(
-        kind = SplitPickerSlotKind.PROJECTED,
         hostTaskId = hostTaskId,
         appTaskId = taskId,
         packageName = packageName,
