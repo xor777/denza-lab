@@ -607,10 +607,17 @@ internal class SplitPickerShellSession(
             }
         }
         // A settle is for something that happened: two pickers already in their roots settle
-        // nothing (1.13, "не заставлять ждать там, где ждать нечего").
+        // nothing (1.13, "не заставлять ждать там, где ждать нечего"). And what did happen is
+        // waited out by condition, not by a blind pause: the read that confirms the reparent is,
+        // through the shared topology cache, the very read the apps phase decides from (правка A3).
         if (reparented) {
             mutated = true
-            pause(ROOT_SETTLE_MS)
+            awaitSnapshotMatching { state ->
+                SplitPane.entries.all { pane ->
+                    state.root(rootIds.getValue(pane))?.tasks
+                        ?.any { task -> task.id == pickerTasks.getValue(pane).id } == true
+                }
+            }
         }
         if (callInt("service call activity_task 30") != AREA_BALANCED_SPLIT) {
             mutated = true
@@ -743,28 +750,56 @@ internal class SplitPickerShellSession(
                     .isSuccess
             }
             if (started.isEmpty()) return@forEach
-            pause(APP_LAUNCH_SETTLE_MS)
-            started.forEach { (pane, target) ->
-                runCatching {
-                    awaitTaskMatching { task ->
+            // One poll answers the whole group from the same reads, and the blind settle that
+            // used to precede the waiting is gone: a restore's task already exists, so the very
+            // first read finds it (правка A2/A3). A pane keeps its first match - exactly what the
+            // per-pane wait did - and a pane the budget leaves unmatched fails alone (1.3.2).
+            val found = linkedMapOf<SplitPane, SplitTask>()
+            awaitSnapshotMatching { state ->
+                val tasks = state.roots.asSequence()
+                    .filter { it.displayId == MAIN_DISPLAY_ID }
+                    .flatMap { it.tasks.asSequence() }
+                    .toList()
+                started.forEach { (pane, target) ->
+                    if (found.containsKey(pane)) return@forEach
+                    tasks.filter { task ->
                         task.id !in taken && task.packageName == target.packageName
                     }
-                }.onSuccess { task ->
-                    taken += task.id
-                    onTask(
-                        SplitBuiltTask(
-                            taskId = task.id,
-                            component = target.componentName,
-                            fromRootId = task.rootId,
-                            toRootId = rootIds.getValue(pane),
-                        ),
-                    )
-                    promoteTask(task, rootIds.getValue(pane))
-                    appTaskIds[pane] = task.id
-                }.onFailure { failed += pane }
+                        .maxByOrNull(SplitTask::id)
+                        ?.let { task ->
+                            taken += task.id
+                            found[pane] = task
+                        }
+                }
+                found.size == started.size
+            }
+            started.forEach { (pane, target) ->
+                val task = found[pane]
+                if (task == null) {
+                    failed += pane
+                    return@forEach
+                }
+                onTask(
+                    SplitBuiltTask(
+                        taskId = task.id,
+                        component = target.componentName,
+                        fromRootId = task.rootId,
+                        toRootId = rootIds.getValue(pane),
+                    ),
+                )
+                promoteTask(task, rootIds.getValue(pane))
+                appTaskIds[pane] = task.id
             }
         }
-        if (appTaskIds.isNotEmpty()) pause(ROOT_SETTLE_MS)
+        // The promotes are waited out by condition as well: every promoted task listed in its
+        // pane root, on a read the following normalize pass then shares (правка A3).
+        if (appTaskIds.isNotEmpty()) {
+            awaitSnapshotMatching { state ->
+                appTaskIds.all { (pane, taskId) ->
+                    state.root(rootIds.getValue(pane))?.tasks?.any { it.id == taskId } == true
+                }
+            }
+        }
     }
 
     /**
@@ -1564,8 +1599,9 @@ internal class SplitPickerShellSession(
         pickerComponent: String,
         excludedTaskIds: Set<Int>,
     ): SplitTask {
+        // No settle prefix: the await below is already a poll, and the blind pause in front of it
+        // was the user waiting out a launch the firmware may have finished (1.13, правка A3).
         startPickerInPane(pane, pickerComponent)
-        pause(PICKER_SETTLE_MS)
         return awaitTaskMatching { task ->
             task.id !in excludedTaskIds &&
                 task.rootId > 0 &&
@@ -1624,6 +1660,23 @@ internal class SplitPickerShellSession(
             if (attempt + 1 < TASK_DISCOVERY_ATTEMPTS) pause(TASK_DISCOVERY_INTERVAL_MS)
         }
         error("Запущенная задача не появилась в ActivityTaskManager")
+    }
+
+    /**
+     * Polls the whole topology until [matches] agrees, within the discovery budget (правка A3).
+     *
+     * It replaces the blind settle a mutation used to sleep out: the first read usually already
+     * agrees - `am stack move-task` reparents synchronously on this firmware - and then the read
+     * doubles, through the shared topology cache, as the next phase's snapshot. A timeout is not
+     * an error here: the recipes that use it end in their own postcondition, which is the honest
+     * judge of whether the car really settled.
+     */
+    private fun awaitSnapshotMatching(matches: (SplitTaskSnapshot) -> Boolean): Boolean {
+        repeat(TASK_DISCOVERY_ATTEMPTS) { attempt ->
+            if (matches(snapshot())) return true
+            if (attempt + 1 < TASK_DISCOVERY_ATTEMPTS) pause(TASK_DISCOVERY_INTERVAL_MS)
+        }
+        return false
     }
 
     /**
