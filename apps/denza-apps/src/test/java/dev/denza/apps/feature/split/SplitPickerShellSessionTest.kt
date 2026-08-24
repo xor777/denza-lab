@@ -1884,6 +1884,65 @@ class SplitPickerShellSessionTest {
         assertTrue(lease.isOwned())
     }
 
+    /**
+     * Правка W5 (1.9.3, диагноз v21 Д3-Б): прежние шесть проб по 100 мс сдавались тихо, gate
+     * оставался открыт над накрытой сценой, и прошивка сама втягивала следующий запуск в
+     * широкую панель. Подтверждение area==0 обязано ретраиться до ~3 с.
+     */
+    @Test
+    fun homeSuspendOutlastsASlowHomeTransition() {
+        val fake = FakeShell(initialGate = true).apply { area = 3 }
+        val lease = FakeGateLease(owned = true)
+        var pauses = 0
+        val split = SplitPickerShellSession(
+            shell = fake::shell,
+            apkPath = "/data/app/dev.denza.apps/base.apk",
+            settle = {
+                pauses += 1
+                if (pauses == 15) fake.area = 0
+            },
+            gateLeaseStore = lease,
+        )
+
+        assertTrue("подтверждение пережило медленный переход", split.suspendOwnedGateForHome())
+        assertFalse(fake.isGateOpen())
+        assertTrue("аренда остаётся для явного возобновления", lease.isOwned())
+        assertTrue(
+            "ретраев больше прежних шести проб",
+            fake.commands.count { it == "service call activity_task 30" } > 6,
+        )
+    }
+
+    @Test
+    fun homeSuspendExhaustsItsBudgetWithoutClosingBlind() {
+        val fake = FakeShell(initialGate = true).apply { area = 3 }
+        val lease = FakeGateLease(owned = true)
+
+        assertFalse(session(fake, lease).suspendOwnedGateForHome())
+
+        assertTrue("gate не закрыт вслепую", fake.isGateOpen())
+        assertTrue(lease.isOwned())
+        val reads = fake.commands.count { it == "service call activity_task 30" }
+        assertTrue("ретраи ограничены бюджетом ~3 с: $reads чтений", reads in 7..40)
+    }
+
+    /** Правка W5, §4: явный ввод пользователя не ждёт ретраи - suspend отдаёт воркер сразу. */
+    @Test
+    fun homeSuspendYieldsToWaitingUserInput() {
+        val fake = FakeShell(initialGate = true).apply { area = 3 }
+        val lease = FakeGateLease(owned = true)
+
+        assertFalse(session(fake, lease).suspendOwnedGateForHome(displaced = { true }))
+
+        assertEquals(
+            "ровно одно чтение: воркер отдан немедленно",
+            1,
+            fake.commands.count { it == "service call activity_task 30" },
+        )
+        assertTrue(fake.isGateOpen())
+        assertTrue(lease.isOwned())
+    }
+
     @Test
     fun homeNeverClosesGateOwnedByAnotherComponent() {
         val fake = FakeShell(initialGate = true).apply { area = 0 }

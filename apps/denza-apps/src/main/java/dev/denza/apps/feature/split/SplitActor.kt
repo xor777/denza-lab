@@ -265,6 +265,18 @@ internal class SplitActor(
         return ticket
     }
 
+    /**
+     * Whether an explicit user request is waiting in the queue right now (правка W5, §4).
+     *
+     * It is the cooperative face of the same rule token preemption enforces: a background
+     * operation §4 does not let a tap cancel - the confirmed Home suspending the gate - may
+     * consult this instead and give the worker up by itself. Read-only and advisory: nothing
+     * here cancels anything.
+     */
+    fun userInputWaiting(): Boolean = lock.withLock {
+        queued.any { entry -> entry.spec.priority in USER_INPUT_PRIORITIES }
+    }
+
     /** Stops the worker and cancels everything still owed. For tests and for process teardown. */
     fun shutdown() {
         var abandoned: List<Entry> = emptyList()
@@ -454,6 +466,13 @@ internal class SplitActor(
          * является и не отменяется.
          */
         val USER_TAP_VICTIMS = setOf(SplitInputPriority.HINT)
+
+        /** Явные запросы пользователя (§4): чьё ожидание в очереди видит [userInputWaiting]. */
+        val USER_INPUT_PRIORITIES = setOf(
+            SplitInputPriority.DISABLE,
+            SplitInputPriority.SELECT,
+            SplitInputPriority.OPEN,
+        )
 
         /** Priority first, submission order inside one priority. */
         val ORDER: Comparator<Entry> = compareBy({ it.spec.priority.ordinal }, { it.sequence })

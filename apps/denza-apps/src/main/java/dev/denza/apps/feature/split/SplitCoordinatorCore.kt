@@ -539,6 +539,7 @@ internal class SplitCoordinatorCore(
             readState = ::currentState,
             readLive = ::currentLive,
             externalMoveInFlight = ::externalTaskMutationInFlight,
+            userInputWaiting = actor::userInputWaiting,
             publisher = ::publishSettled,
         )
         val operation = factory(workspace)

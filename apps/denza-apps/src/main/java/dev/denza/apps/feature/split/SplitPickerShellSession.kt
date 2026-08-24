@@ -83,18 +83,27 @@ internal class SplitPickerShellSession(
      * DiLink retains a separate global "last split pair" and otherwise resurrects that OEM pair
      * when the user launches either remembered member from Home. Keep the lease so the next
      * explicit Split Screen launch can reopen the gate, but never touch a gate we did not acquire.
+     *
+     * Правка W5 (1.9.3, диагноз v21 Д3-Б): закрыть gate при накрытой сцене - обязанность
+     * продукта, надёжно: при открытом gate прошивка сама втягивает split-способный пакет в
+     * широкую панель. Прежние шесть проб по 100 мс сдавались тихо; подтверждение area==0 теперь
+     * ретраится до [HOME_CONFIRM_BUDGET_MS], а [displaced] отдаёт воркер пользовательскому вводу
+     * немедленно - явное действие не ждёт фоновый шум (§4).
      */
-    fun suspendOwnedGateForHome(): Boolean {
+    fun suspendOwnedGateForHome(displaced: () -> Boolean = { false }): Boolean {
         val store = gateLeaseStore ?: return false
         if (!store.isOwned()) return false
-        repeat(HOME_CONFIRM_ATTEMPTS) { attempt ->
+        var waited = 0L
+        while (true) {
             if (callInt("service call activity_task 30") == AREA_HOME) {
                 callVoid("service call activity_task 126 i32 0")
                 return true
             }
-            if (attempt + 1 < HOME_CONFIRM_ATTEMPTS) pause(HOME_CONFIRM_INTERVAL_MS)
+            if (waited >= HOME_CONFIRM_BUDGET_MS || displaced()) return false
+            val slice = minOf(AREA_POLL_INTERVAL_MS, HOME_CONFIRM_BUDGET_MS - waited)
+            pause(slice)
+            waited += slice
         }
-        return false
     }
 
     private fun hasActivePointer(inputDump: String): Boolean {
@@ -2496,8 +2505,12 @@ internal class SplitPickerShellSession(
         // through that firmware transition without drawing a window over the user's gesture.
         const val NATIVE_PICKER_RELEASED_SAMPLES = 10
         const val NATIVE_PICKER_CANCELLED_SAMPLES = 5
-        const val HOME_CONFIRM_ATTEMPTS = 6
-        const val HOME_CONFIRM_INTERVAL_MS = 100L
+        /**
+         * Правка W5: сколько suspend ждёт подтверждения area==0. Тихая сдача после 6×100 мс
+         * оставляла gate открытым над накрытой сценой (v21 Д3, уверенность «gate был открыт»
+         * ~0.8) - и прошивка честно втягивала следующий запуск в широкую панель.
+         */
+        const val HOME_CONFIRM_BUDGET_MS = 3_000L
         const val DIVIDER_RECONCILE_SETTLE_MS = 1_500L
         const val PICKER_SETTLE_MS = 150L
         const val NATIVE_PICKER_SETTLE_MS = 450L

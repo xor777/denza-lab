@@ -2417,6 +2417,63 @@ class SplitScenarioTest {
         )
     }
 
+    /**
+     * Правка W5 (1.9.3, диагноз v21 Д3-Б): не подтвердившееся за ~3 с area==0 - строка в ринг,
+     * не молчание. Закрыть gate при накрытой сцене обязан продукт; при открытом gate прошивка
+     * сама втягивает следующий split-способный запуск в широкую панель, и эта строка -
+     * единственный след, по которому причина читается с support-экрана.
+     */
+    @Test
+    fun anUnconfirmedHomeSuspendWritesARingLineInsteadOfSilence() {
+        val car = car(FakeShell(initialGate = true).apply { liveProductScene(withApps = true) })
+        val core = car.core(SplitDurable(enabled = true, slots = APP_PAIR))
+        car.gateLease.setOwned(true)
+        core.initialize {}
+        core.openPickerSession()
+        car.barrier()
+
+        // Оконный хинт Home пришёл, а area так и не стала 0: мир завис на живом сплите.
+        core.homeVisible()
+        car.barrier()
+
+        assertTrue(
+            "исчерпание ретраев названо в ринге",
+            car.diagnostics.any { it.startsWith("home suspend unconfirmed:") },
+        )
+        assertTrue("gate не закрыт вслепую", car.fake.isGateOpen())
+        assertTrue("и аренда не потеряна", car.gateLease.isOwned())
+    }
+
+    /** Правка W5, §4: тап пользователя не ждёт ретраи подтверждения - suspend отдаёт воркер. */
+    @Test
+    fun aWaitingUserTapDisplacesTheHomeSuspendRetries() {
+        val car = car(FakeShell(initialGate = true).apply { liveProductScene(withApps = true) })
+        val core = car.core(SplitDurable(enabled = true, slots = APP_PAIR))
+        car.gateLease.setOwned(true)
+        core.initialize {}
+        core.openPickerSession()
+        car.barrier()
+        car.clearCommands()
+
+        car.shells.blockAt(SPLIT_AREA_QUERY)
+        core.homeVisible()
+        assertTrue(car.shells.awaitBlocked())
+        core.openPickerSession()
+        car.shells.release()
+        car.barrier()
+
+        assertEquals(
+            "suspend отдал воркер после одного чтения",
+            listOf(SPLIT_AREA_QUERY),
+            car.sessions().first().filterNot { it.startsWith("log -t ") },
+        )
+        assertTrue(
+            car.diagnostics.any { it.startsWith("home suspend displaced by user input") },
+        )
+        assertEquals("и тап получил экран", SplitScreenPhase.ACTIVE, core.snapshot().phase)
+        assertTrue("gate остался при живой сцене", car.fake.isGateOpen())
+    }
+
     /** Мир середины двухпроходного teardown (диагноз v21 К2), общий для проверок правки W3. */
     private fun midTeardownCar(): Pair<SplitCarFixture, SplitCoordinatorCore> {
         val car = car(

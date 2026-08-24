@@ -32,6 +32,8 @@ internal class SplitOperationWorkspace(
     private val readState: () -> SplitState,
     private val readLive: () -> SplitLiveScene,
     val externalMoveInFlight: () -> Boolean,
+    /** Правка W5, §4: явный запрос пользователя ждёт в очереди прямо сейчас. Read-only. */
+    val userInputWaiting: () -> Boolean = { false },
     private val publisher: (SplitState, SplitLiveScene, String?) -> Unit,
 ) : AutoCloseable {
 
@@ -870,7 +872,21 @@ internal class HomeOperation(
     override fun apply(op: SplitOperationContext, shell: (String) -> String, plan: Boolean) {
         if (!plan) return
         // The recipe reads the lease before it reads the car: an unowned gate costs no command.
-        if (work.split(op).suspendOwnedGateForHome()) settle(SplitFact.HomeConfirmed)
+        if (work.split(op).suspendOwnedGateForHome(displaced = work.userInputWaiting)) {
+            settle(SplitFact.HomeConfirmed)
+            return
+        }
+        // Правка W5 (1.9.3, U5): gate наш, а закрыть его не вышло - это не молчание. Втягивание
+        // следующего запуска в широкую панель при открытом gate - нативная механика прошивки,
+        // и строка ниже - единственный след, по которому её причина читается из ринга.
+        if (!work.gateOwned()) return
+        work.log(
+            if (work.userInputWaiting()) {
+                "home suspend displaced by user input: gate остаётся открытым до операции пользователя"
+            } else {
+                "home suspend unconfirmed: area==0 не подтвердилось за ~3с, gate остался открыт (1.9.3)"
+            },
+        )
     }
 }
 
