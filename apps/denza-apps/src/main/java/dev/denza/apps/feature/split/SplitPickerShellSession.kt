@@ -309,14 +309,27 @@ internal class SplitPickerShellSession(
     fun collapsedOwnedSession(
         pickerComponents: Set<String>,
         expectedPanes: Map<SplitPane, SplitPickerObservedPane>,
-    ): SplitPickerLivePane? {
-        val survivor = when (callInt("service call activity_task 30")) {
+    ): SplitPickerLivePane? = readCollapsedSession(pickerComponents, expectedPanes).pane
+
+    /**
+     * The same recipe, with the reason it refused (правка W4, U5).
+     *
+     * Диагноз v21 жил на полной тишине этих веток: во время двухпроходного teardown каждый
+     * fail-closed предикат отказывал честно, и ни одна строка нигде не говорила, который. Команды
+     * рецепта не изменены - имена получили только `null`-ветки.
+     */
+    fun readCollapsedSession(
+        pickerComponents: Set<String>,
+        expectedPanes: Map<SplitPane, SplitPickerObservedPane>,
+    ): SplitCollapseRead {
+        val area = callInt("service call activity_task 30")
+        val survivor = when (area) {
             AREA_PRIMARY_FULL -> SplitPane.PRIMARY
             AREA_SECONDARY_FULL -> SplitPane.SECONDARY
-            else -> return null
+            else -> return SplitCollapseRead(null, "area=$area")
         }
         if (expectedPanes.isEmpty() || !SplitPane.entries.toSet().containsAll(expectedPanes.keys)) {
-            return null
+            return SplitCollapseRead(null, "запись сцены неполна")
         }
         if (expectedPanes.values.any { expected ->
                 expected.hostTaskId <= 0 ||
@@ -325,17 +338,20 @@ internal class SplitPickerShellSession(
                         (expected.appTaskId <= 0 || expected.packageName.isNullOrBlank()))
             }
         ) {
-            return null
+            return SplitCollapseRead(null, "запись сцены неполна")
         }
 
         val roots = nativeRootIds()
         val state = snapshot()
         val collapsedRoot = state.root(roots.getValue(survivor.other()))
-        if (collapsedRoot?.tasks.orEmpty().any { task -> !task.isEmptyRootMarker() }) return null
+        if (collapsedRoot?.tasks.orEmpty().any { task -> !task.isEmptyRootMarker() }) {
+            return SplitCollapseRead(null, "в схлопнутом корне остались задачи")
+        }
 
         val nativeRootIds = roots.values.toSet()
         val survivorRootId = roots.getValue(survivor)
-        val root = state.root(survivorRootId) ?: return null
+        val root = state.root(survivorRootId)
+            ?: return SplitCollapseRead(null, "корень выжившего не читается")
         val previousOwners = expectedPanes.filter { (_, expected) ->
             val hostMatches = root.tasks.any { task ->
                 task.id == expected.hostTaskId &&
@@ -351,7 +367,9 @@ internal class SplitPickerShellSession(
             } ?: false
             hostMatches || appMatches
         }
-        if (previousOwners.size != 1) return null
+        if (previousOwners.size != 1) {
+            return SplitCollapseRead(null, "выживший не опознан: совпадений ${previousOwners.size}")
+        }
         val (previousOwner, expected) = previousOwners.entries.single()
         val liveAppPresent = expected.appTaskId?.let { expectedAppTaskId ->
             root.tasks.any { task ->
@@ -373,14 +391,16 @@ internal class SplitPickerShellSession(
             .filter { candidate -> candidate.displayId == MAIN_DISPLAY_ID }
             .flatMap { candidate -> candidate.tasks.asSequence() }
             .any { task -> task.id in closedIds && task.rootId in nativeRootIds }
-        if (closedTasksInNativeRoots) return null
+        if (closedTasksInNativeRoots) {
+            return SplitCollapseRead(null, "задачи закрытой панели ещё в панельных корнях")
+        }
 
         val expectedIds = setOfNotNull(
             survivorExpected.hostTaskId,
             survivorExpected.appTaskId,
         )
         if (root.tasks.any { task -> !task.isEmptyRootMarker() && task.id !in expectedIds }) {
-            return null
+            return SplitCollapseRead(null, "в корне выжившего лишние задачи")
         }
 
         val pickerInRoot = root.tasks.singleOrNull { task ->
@@ -399,7 +419,7 @@ internal class SplitPickerShellSession(
                         task.isDenzaPickerBase() &&
                         task.matchesAnyComponent(pickerComponents)
                 }
-                ?: return null
+                ?: return SplitCollapseRead(null, "пикер выжившего не найден по identity")
             val originalRootId = detachedPicker.rootId
             try {
                 moveTask(detachedPicker.id, survivorRootId, toTop = false)
@@ -422,8 +442,9 @@ internal class SplitPickerShellSession(
             expected = survivorExpected,
             pickerComponents = pickerComponents,
         )
-        if (settled != null) return settled
-        val rollbackRootId = reattachedFromRootId ?: return null
+        if (settled != null) return SplitCollapseRead(settled, "adopted")
+        val rollbackRootId = reattachedFromRootId
+            ?: return SplitCollapseRead(null, "выживший не устоялся после наблюдения")
         val error = IllegalStateException(
             "Split изменился после возврата picker ${survivorExpected.hostTaskId}",
         )
@@ -486,10 +507,20 @@ internal class SplitPickerShellSession(
     fun collapsedPaneByExistence(
         pickerComponents: Set<String>,
         expectedPanes: Map<SplitPane, SplitPickerObservedPane>,
-    ): SplitPane? {
+    ): SplitPane? = readCollapsedPaneByExistence(pickerComponents, expectedPanes).collapsed
+
+    /** The same proof, with the reason it refused (правка W4, U5). */
+    fun readCollapsedPaneByExistence(
+        pickerComponents: Set<String>,
+        expectedPanes: Map<SplitPane, SplitPickerObservedPane>,
+    ): SplitCollapsedPaneRead {
         val area = callInt("service call activity_task 30")
-        if (area != AREA_PRIMARY_FULL && area != AREA_SECONDARY_FULL) return null
-        if (expectedPanes.keys != SplitPane.entries.toSet()) return null
+        if (area != AREA_PRIMARY_FULL && area != AREA_SECONDARY_FULL) {
+            return SplitCollapsedPaneRead(null, "area=$area")
+        }
+        if (expectedPanes.keys != SplitPane.entries.toSet()) {
+            return SplitCollapsedPaneRead(null, "сцена не записана двухпанельной")
+        }
         if (expectedPanes.values.any { expected ->
                 expected.hostTaskId <= 0 ||
                     ((expected.appTaskId == null) != (expected.packageName == null)) ||
@@ -497,7 +528,7 @@ internal class SplitPickerShellSession(
                         (expected.appTaskId <= 0 || expected.packageName.isNullOrBlank()))
             }
         ) {
-            return null
+            return SplitCollapsedPaneRead(null, "запись сцены неполна")
         }
         val roots = nativeRootIds()
         val state = snapshot()
@@ -518,7 +549,11 @@ internal class SplitPickerShellSession(
             } == true
             !hostPresent && !appPresent
         }
-        return absent.singleOrNull()
+        return when (absent.size) {
+            1 -> SplitCollapsedPaneRead(absent.single(), "collapsed")
+            0 -> SplitCollapsedPaneRead(null, "ни одна панель не покинула панельные корни целиком")
+            else -> SplitCollapsedPaneRead(null, "обе панели покинули корни: конец сцены, не collapse")
+        }
     }
 
     /**
@@ -2526,6 +2561,23 @@ internal data class SplitPickerLivePane(
  */
 internal class SplitSceneRead(
     val scene: Map<SplitPane, SplitPickerLivePane>?,
+    val reason: String,
+)
+
+/**
+ * What one read of a collapsed owned session concluded, and why (правка W4).
+ *
+ * [reason] names the fail-closed predicate that refused - a diagnostic line, never a user-facing
+ * message - so an unproven collapse says which gate disagreed instead of a silent `null` (U5).
+ */
+internal class SplitCollapseRead(
+    val pane: SplitPickerLivePane?,
+    val reason: String,
+)
+
+/** The existence proof's edition of [SplitCollapseRead]: which pane fell, or why it is unknown. */
+internal class SplitCollapsedPaneRead(
+    val collapsed: SplitPane?,
     val reason: String,
 )
 

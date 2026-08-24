@@ -941,6 +941,36 @@ class SplitPickerShellSessionTest {
         assertEquals(null, split.collapsedPaneByExistence(PICKER_COMPONENTS, expected))
     }
 
+    /** Правка W4 (U5): обе collapse-проверки называют отказавший предикат, не молчат `null`-ом. */
+    @Test
+    fun collapseReadsNameTheirRefusedPredicate() {
+        val fake = FakeShell()
+        val split = session(fake)
+        val hosts = split.buildPickers()
+        val expected = mapOf(
+            SplitPane.PRIMARY to SplitPickerObservedPane(hosts.getValue(SplitPane.PRIMARY)),
+            SplitPane.SECONDARY to SplitPickerObservedPane(hosts.getValue(SplitPane.SECONDARY)),
+        )
+
+        assertEquals("area=3", split.readCollapsedSession(PICKER_COMPONENTS, expected).reason)
+        assertEquals(
+            "area=3",
+            split.readCollapsedPaneByExistence(PICKER_COMPONENTS, expected).reason,
+        )
+
+        // Живая «схлопнутая» панель: физика спотыкается о задачи её корня, существование - о
+        // живой host в панельном корне.
+        fake.area = 1
+        assertEquals(
+            "в схлопнутом корне остались задачи",
+            split.readCollapsedSession(PICKER_COMPONENTS, expected).reason,
+        )
+        assertEquals(
+            "ни одна панель не покинула панельные корни целиком",
+            split.readCollapsedPaneByExistence(PICKER_COMPONENTS, expected).reason,
+        )
+    }
+
     @Test
     fun visibleProductPickerHintResolvesOnlyOneExactNativeTask() {
         val fake = FakeShell()

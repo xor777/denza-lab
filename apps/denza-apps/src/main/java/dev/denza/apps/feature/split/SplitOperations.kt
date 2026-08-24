@@ -1178,7 +1178,12 @@ internal class ReconcileOperation(
         // - обычный HINT, пользовательские операции вытесняют его по §4. Отказавший повтор
         // нового не взводит: никаких цепочек и таймерных циклов (U1).
         if (proven || ended) unproven.clear()
-        if (unproven.isNotEmpty() && !recheck) armRecheck(kind)
+        if (unproven.isNotEmpty()) {
+            // Правка W4 (U5): каждая недоказанная сверка оставляет в ринге одну строку с именами
+            // отказавших предикатов - v21 диагностировался на полной тишине этих веток.
+            work.log("reconcile unproven: ${unproven.joinToString("; ")}")
+            if (!recheck) armRecheck(kind)
+        }
         // Contract 1.6: the outcome of Back and of a close is the firmware's, and the product's one
         // duty afterwards is to leave nothing of its own behind - no borrowed firmware setting and
         // no gate we opened - so that the next tap opens cleanly (1.6.4). Nothing is rebuilt here.
@@ -1437,17 +1442,16 @@ internal class ReconcileOperation(
             unproven += "collapse: сцена не записана"
             return false
         }
-        val collapsed = split.collapsedOwnedSession(
+        val physical = split.readCollapsedSession(
             pickerComponents = SPLIT_PICKER_COMPONENT_SET,
             expectedPanes = expected,
         )
+        val collapsed = physical.pane
         if (collapsed != null) {
             adoptCollapse(op, split, collapsed, previous)
             return true
         }
-        if (settleCollapseByExistence(op, split, previous, expected)) return true
-        unproven += "collapse: не доказан ни постусловиями, ни существованием"
-        return false
+        return settleCollapseByExistence(op, split, previous, expected, physical.reason)
     }
 
     /**
@@ -1467,10 +1471,17 @@ internal class ReconcileOperation(
         split: SplitPickerShellSession,
         previous: SplitLiveScene,
         expected: Map<SplitPane, SplitPickerObservedPane>,
+        physicalRefusal: String,
     ): Boolean {
-        val collapsed = runCatching {
-            split.collapsedPaneByExistence(SPLIT_PICKER_COMPONENT_SET, expected)
-        }.getOrNull() ?: return false
+        val read = runCatching {
+            split.readCollapsedPaneByExistence(SPLIT_PICKER_COMPONENT_SET, expected)
+        }.getOrNull()
+        val collapsed = read?.collapsed
+        if (collapsed == null) {
+            // Правка W4 (U5): обе ветви collapse отказали - одна строка называет оба предиката.
+            unproven += "collapse: ${physicalRefusal}; по существованию: ${read?.reason ?: "не прочитано"}"
+            return false
+        }
         val survivor = collapsed.other()
         pointOfNoReturn(op, "the collapse closed $collapsed for good; its app stays alive")
         previous[collapsed]?.let { pane -> removeCollapsedPicker(op, split, pane.hostTaskId) }

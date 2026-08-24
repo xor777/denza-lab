@@ -2390,6 +2390,31 @@ class SplitScenarioTest {
 
         assertEquals("мир решён - повтор не нужен", 0, car.clock.pendingTimers())
         assertEquals(APP_PAIR, car.store.load().slots)
+        assertTrue(
+            "и решённый мир не пишет строку отказа (правка W4)",
+            car.diagnostics.none { it.startsWith("reconcile unproven:") },
+        )
+    }
+
+    /**
+     * Правка W4 (U5, диагноз v21): каждая недоказанная сверка оставляет одну строку с именами
+     * отказавших предикатов - строку на отказ операции, не на предикат-в-цикле. v21
+     * диагностировался на полной тишине этих веток.
+     */
+    @Test
+    fun anUnprovenReconcileNamesItsRefusedPredicatesInOneRingLine() {
+        val (car, core) = midTeardownCar()
+
+        core.dividerResized()
+        car.barrier()
+
+        val lines = car.diagnostics.filter { it.startsWith("reconcile unproven:") }
+        assertEquals("одна строка на отказ операции", 1, lines.size)
+        assertTrue(
+            "и она называет отказавшие предикаты по именам: ${lines.single()}",
+            lines.single().contains("resize: мир не сведён") &&
+                lines.single().contains("ещё в панельных корнях"),
+        )
     }
 
     /** Мир середины двухпроходного teardown (диагноз v21 К2), общий для проверок правки W3. */
