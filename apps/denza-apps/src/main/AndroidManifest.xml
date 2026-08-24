@@ -165,11 +165,19 @@
                 <action android:name="action.byd.dishare.DIALOG_CLOSE" />
             </intent-filter>
         </receiver>
+        <!--
+            The hub is an ordinary resizeable app (U3): a split slot may hold it, and the firmware
+            must be able to keep its task inside a pane. resizeableActivity="false" was an orphaned
+            remnant of de7b570 (it predated the split product's resizeability lease) and made every
+            hub restore bounce out of its pane - the 12.3 s red branch of live acceptance v20 P1.2.
+            configChanges mirror SplitPickerActivity: a pane resize relayouts the Compose dashboard
+            in place instead of recreating the Activity (adaptive 1/3 layout is live-proven).
+        -->
         <activity
             android:name=".MainActivity"
+            android:configChanges="orientation|screenLayout|screenSize|smallestScreenSize"
             android:exported="true"
             android:launchMode="singleTask"
-            android:resizeableActivity="false"
             android:taskAffinity="dev.denza.apps.control" />
         <activity
             android:name=".DenzaLauncherActivity"
