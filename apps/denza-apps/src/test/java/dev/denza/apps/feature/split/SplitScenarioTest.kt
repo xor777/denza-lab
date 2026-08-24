@@ -1958,6 +1958,117 @@ class SplitScenarioTest {
     }
 
     /**
+     * Правка W2 (диагноз v21 Д2/К1, живой грязный ключ 16B): `removeIviStack(clearTotally=true)`
+     * распускает ОБА панельных контейнера, и tx118 с этого момента честно отвечает ≤0. В v21
+     * уборка молча отказывала ровно здесь: строгий check бросал, runCatching делал из успешного
+     * «контейнеров нет» - «нечитаемо, не убираем», и грязный SmartMulti-ключ жил бессрочно; при
+     * следующем открытом gate прошивка сама достаёт запомненный second («ADAS рядом», корпус
+     * BydSmartMultiIviController:530-535). Доказанная пустота обязана доводить уборку до конца
+     * от единственной подсказки, без тапа пользователя.
+     */
+    @Test
+    fun disbandedPanelContainersReadAsProvenEmptinessAndTheCleanupLands() {
+        val car = car(
+            FakeShell(initialGate = true).apply {
+                liveProductScene()
+                setSystem("byd_smart_multi_primary_activity", LAUNCHER_PACKAGE)
+                setSystem("byd_smart_multi_second_activity", STOCK_BOOTSTRAP_PACKAGE)
+                setSystem("byd_smart_multi_primary_position", "2")
+                setSystem("byd_smart_multi_split_window_mode", "102")
+            },
+        )
+        val core = car.core(
+            SplitDurable(enabled = true, slots = PICKER_PAIR),
+            leases = listOf(SmartMultiLease()),
+        )
+        car.gateLease.setOwned(true)
+        core.initialize {}
+        core.openPickerSession()
+        car.barrier()
+        car.fake.setSystem("byd_smart_multi_primary_activity", SPLIT_HOST_PACKAGE)
+
+        // Back в широком пикере: его задача умерла, узкий выброшен живым невидимым, экран Home -
+        // и оба панельных контейнера распущены целиком.
+        car.fake.removeActivity(PRIMARY_ROOT, PRIMARY_PICKER_ACTIVITY)
+        car.fake.detachTask(SECONDARY_PICKER_TASK)
+        car.fake.area = 0
+        car.fake.panelContainersDisbanded = true
+
+        core.homeVisible()
+        car.barrier()
+        assertFalse(car.fake.isGateOpen())
+
+        core.pickerHidden(PRIMARY_PICKER_TASK)
+        car.barrier()
+
+        assertFalse(
+            "огрызок узкого пикера убран по точной identity, где бы он ни оказался",
+            car.fake.hasTask(SECONDARY_PICKER_TASK),
+        )
+        assertEquals(
+            "ключи SmartMulti возвращены compare-and-restore",
+            LAUNCHER_PACKAGE,
+            car.fake.system("byd_smart_multi_primary_activity"),
+        )
+        assertEquals(STOCK_BOOTSTRAP_PACKAGE, car.fake.system("byd_smart_multi_second_activity"))
+        assertFalse("gate закрыт по нашей аренде и аренда возвращена", car.gateLease.isOwned())
+        assertFalse(car.fake.isGateOpen())
+        assertEquals("слоты соответствуют концу сцены", PICKER_PAIR, car.store.load().slots)
+    }
+
+    /**
+     * Правка W2, обратная сторона: транспортная ошибка на tx118 - не «пусто». Обрыв и мусор в
+     * ответе остаются fail-closed («не доказано - не убираем»), и только следующее честное
+     * прочтение доводит уборку.
+     */
+    @Test
+    fun aTransportErrorOnTheCleanupReadStaysFailClosed() {
+        val car = car(
+            FakeShell(initialGate = true).apply {
+                liveProductScene()
+                setSystem("byd_smart_multi_primary_activity", LAUNCHER_PACKAGE)
+                setSystem("byd_smart_multi_second_activity", STOCK_BOOTSTRAP_PACKAGE)
+                setSystem("byd_smart_multi_primary_position", "2")
+                setSystem("byd_smart_multi_split_window_mode", "102")
+            },
+        )
+        val core = car.core(
+            SplitDurable(enabled = true, slots = PICKER_PAIR),
+            leases = listOf(SmartMultiLease()),
+        )
+        car.gateLease.setOwned(true)
+        core.initialize {}
+        core.openPickerSession()
+        car.barrier()
+        car.fake.setSystem("byd_smart_multi_primary_activity", SPLIT_HOST_PACKAGE)
+
+        car.fake.removeActivity(PRIMARY_ROOT, PRIMARY_PICKER_ACTIVITY)
+        car.fake.detachTask(SECONDARY_PICKER_TASK)
+        car.fake.area = 0
+        car.fake.panelContainersDisbanded = true
+
+        core.homeVisible()
+        car.barrier()
+
+        car.shells.failOn("service call activity_task 118 i32 1")
+        core.pickerHidden(PRIMARY_PICKER_TASK)
+        car.barrier()
+
+        assertTrue("не доказано - не убираем", car.fake.hasTask(SECONDARY_PICKER_TASK))
+        assertEquals(
+            "и ключи не трогаются до честного прочтения",
+            SPLIT_HOST_PACKAGE,
+            car.fake.system("byd_smart_multi_primary_activity"),
+        )
+
+        // Мир не изменился, изменился только транспорт: следующее прочтение доводит уборку.
+        core.pickerHidden(PRIMARY_PICKER_TASK)
+        car.barrier()
+        assertFalse(car.fake.hasTask(SECONDARY_PICKER_TASK))
+        assertEquals(LAUNCHER_PACKAGE, car.fake.system("byd_smart_multi_primary_activity"))
+    }
+
+    /**
      * Contract 1.6.3 (редакция bde631c), сценарий §11.16, ветвь узкой панели; ground-v18 B1.
      * Back в УЗКОМ пикере: прошивка сама разворачивает соседа в широкой на весь экран и сама
      * откатывает свои ключи. Пока эта сцена жива, продукт не убирает ничего и не возвращает

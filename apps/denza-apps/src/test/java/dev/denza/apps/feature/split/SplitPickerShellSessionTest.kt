@@ -817,6 +817,58 @@ class SplitPickerShellSessionTest {
         )
     }
 
+    /**
+     * Правка W2 (диагноз v21 Д2/К1): уборочное чтение различает три исхода tx118. Успешное ≤0 по
+     * обеим панелям - доказанная пустота распущенного `clearTotally`-мира; живой мир читается
+     * как раньше; смешанный ответ - «не доказано»; транспортный мусор пробрасывается наверх.
+     */
+    @Test
+    fun cleanupPaneReadDistinguishesDisbandedContainersFromUnreadableOnes() {
+        val fake = FakeShell()
+        val split = session(fake)
+        val hosts = split.buildPickers()
+
+        assertEquals(
+            "живой мир: задачи обоих контейнеров",
+            hosts.values.toSet(),
+            split.paneTaskIdsOrDisbanded(),
+        )
+
+        fake.panelContainersDisbanded = true
+        assertEquals(
+            "оба tx118 ≤0 - доказанная пустота, не отказ чтения",
+            emptySet<Int>(),
+            split.paneTaskIdsOrDisbanded(),
+        )
+    }
+
+    @Test
+    fun aMixedOrGarbageContainerAnswerProvesNothing() {
+        val fake = FakeShell().apply { liveProductScene() }
+        val mixed = SplitPickerShellSession(
+            shell = { command ->
+                if (command == "service call activity_task 118 i32 1") {
+                    intParcel(0)
+                } else {
+                    fake.shell(command)
+                }
+            },
+            apkPath = "/data/app/dev.denza.apps/base.apk",
+            settle = {},
+        )
+        assertEquals("посреди перестройки ничего не доказано", null, mixed.paneTaskIdsOrDisbanded())
+
+        val broken = SplitPickerShellSession(
+            shell = { "garbage" },
+            apkPath = "/data/app/dev.denza.apps/base.apk",
+            settle = {},
+        )
+        assertTrue(
+            "мусор в parcel - транспортная ошибка, она пробрасывается",
+            runCatching { broken.paneTaskIdsOrDisbanded() }.isFailure,
+        )
+    }
+
     @Test
     fun visibleProductPickerHintResolvesOnlyOneExactNativeTask() {
         val fake = FakeShell()

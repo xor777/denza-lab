@@ -391,12 +391,16 @@ internal abstract class SplitCoreOperation<P>(
         op.journal.record(SplitJournalEntry.TaskRemoved(taskId, identity))
     }
 
-    /** The ids the two panes hold right now, or `null` when the topology cannot be read at all. */
-    protected fun paneTaskIds(split: SplitPickerShellSession): Set<Int>? = runCatching {
-        SplitPane.entries.flatMapTo(mutableSetOf()) { pane ->
-            split.observePane(pane, SPLIT_PICKER_COMPONENT_SET).observedTaskIds
-        }
-    }.getOrNull()
+    /**
+     * The ids the two panes hold right now, or `null` when nothing was proven.
+     *
+     * Правка W2 (диагноз v21 Д2/К1): успешный tx118 с ≤0 по обеим панелям - доказанная пустота
+     * распущенного `clearTotally`-мира, а не «нечитаемо»; уборка после него обязана дойти до
+     * проверки членов. Только транспортная ошибка и смешанный ответ остаются `null` - «не
+     * доказано - не убираем».
+     */
+    protected fun paneTaskIds(split: SplitPickerShellSession): Set<Int>? =
+        runCatching { split.paneTaskIdsOrDisbanded() }.getOrNull()
 
     /**
      * Everything already running before this operation's first mutation, for [recordCreated].
