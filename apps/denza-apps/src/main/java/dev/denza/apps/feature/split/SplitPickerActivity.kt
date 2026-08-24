@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -40,6 +41,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Apps
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -82,6 +84,13 @@ class SplitPickerActivity : ComponentActivity() {
     private var message by mutableStateOf("")
     private var recoveryNotice by mutableStateOf("")
     private var busy by mutableStateOf(false)
+
+    /**
+     * Правка W9 (v20 D4): чей запуск сейчас в полёте. Селект на этой машине занимает 3-4.7 с, и
+     * пикер обязан показывать честное ожидание (1.13.2): строку «Открываю…» и крутилку на
+     * выбранной плитке - тап не выглядит проигнорированным. Сбрасывается итогом операции.
+     */
+    private var busyPackage by mutableStateOf<String?>(null)
     // U6, 1.13.2: a picker that comes back to an already-scanned catalog shows the apps at once.
     // "Загружаю приложения…" is honest only while there is genuinely nothing to show yet.
     private var apps by mutableStateOf(SplitPickerAppCatalog.cached().orEmpty())
@@ -134,6 +143,7 @@ class SplitPickerActivity : ComponentActivity() {
         object : ResultReceiver(Handler(mainLooper)) {
             override fun onReceiveResult(resultCode: Int, resultData: Bundle?) {
                 busy = false
+                busyPackage = null
                 message = resultData?.getString(SplitCommandContract.RESULT_ERROR).orEmpty()
             }
         }
@@ -165,6 +175,7 @@ class SplitPickerActivity : ComponentActivity() {
                     revealed = revealed,
                     catalogLoading = catalogLoading,
                     busy = busy,
+                    busyPackage = busyPackage,
                     message = message.ifBlank { recoveryNotice },
                     nativeBackgroundBlur = nativeBackgroundBlur,
                     onSelect = ::select,
@@ -291,6 +302,7 @@ class SplitPickerActivity : ComponentActivity() {
     private fun select(packageName: String) {
         if (busy) return
         busy = true
+        busyPackage = packageName
         message = ""
         // Only on screen. The persisted notice belongs to whoever published it, and clearing it
         // here would put a synchronous preferences write on the thread that has to answer the tap
@@ -304,7 +316,10 @@ class SplitPickerActivity : ComponentActivity() {
                 putParcelable(SplitCommandContract.EXTRA_RESULT_RECEIVER, remoteResultReceiver)
             },
         )
-        if (!delivered) busy = false
+        if (!delivered) {
+            busy = false
+            busyPackage = null
+        }
     }
 
     private fun sendCommand(method: String, extras: Bundle): Boolean = runCatching {
@@ -462,6 +477,7 @@ private fun SplitPickerScreen(
     revealed: Boolean,
     catalogLoading: Boolean,
     busy: Boolean,
+    busyPackage: String?,
     message: String,
     nativeBackgroundBlur: Boolean,
     onSelect: (String) -> Unit,
@@ -480,18 +496,46 @@ private fun SplitPickerScreen(
                 modifier = Modifier.fillMaxSize().statusBarsPadding(),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Text(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 12.dp, bottom = 14.dp),
-                    text = message.ifBlank { "Выберите приложение" },
-                    color = if (message.isBlank()) PrimaryText else Warning,
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Normal,
-                    textAlign = TextAlign.Center,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
+                if (busy) {
+                    // Правка W9 (v20 D4, 1.13.2): запуск на этой машине занимает 3-4.7 с, и всё
+                    // это время заголовок честно говорит, что тап принят и чей запуск идёт.
+                    val busyLabel = apps.firstOrNull { it.packageName == busyPackage }?.label
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 12.dp, bottom = 14.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            color = Accent,
+                            strokeWidth = 2.dp,
+                        )
+                        Spacer(Modifier.width(10.dp))
+                        Text(
+                            text = "Открываю ${busyLabel ?: "приложение"}…",
+                            color = PrimaryText,
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Normal,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                } else {
+                    Text(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 12.dp, bottom = 14.dp),
+                        text = message.ifBlank { "Выберите приложение" },
+                        color = if (message.isBlank()) PrimaryText else Warning,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Normal,
+                        textAlign = TextAlign.Center,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
                 if (!revealed) {
                     // One cheap frame for a picker nobody is looking at yet (1.13.1).
                     Spacer(Modifier.weight(1f))
@@ -525,6 +569,7 @@ private fun SplitPickerScreen(
                                 SplitPickerTile(
                                     app = app,
                                     enabled = !busy,
+                                    launching = busy && app.packageName == busyPackage,
                                     onClick = { onSelect(app.packageName) },
                                 )
                             }
@@ -537,30 +582,46 @@ private fun SplitPickerScreen(
 }
 
 @Composable
-private fun SplitPickerTile(app: SplitPickerApp, enabled: Boolean, onClick: () -> Unit) {
+private fun SplitPickerTile(
+    app: SplitPickerApp,
+    enabled: Boolean,
+    launching: Boolean,
+    onClick: () -> Unit,
+) {
     val bitmap = remember(app.packageName, app.icon) { app.icon?.asImageBitmap() }
     Column(
         modifier = Modifier
             .size(width = 128.dp, height = 132.dp)
-            .alpha(if (enabled) 1f else 0.38f)
+            .alpha(if (enabled || launching) 1f else 0.38f)
             .clickable(enabled = enabled, onClick = onClick)
             .padding(top = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        if (bitmap != null) {
-            Image(
-                painter = BitmapPainter(bitmap),
-                contentDescription = null,
-                modifier = Modifier.size(72.dp),
-                contentScale = ContentScale.Fit,
-            )
-        } else {
-            Icon(
-                imageVector = Icons.Outlined.Apps,
-                contentDescription = null,
-                modifier = Modifier.size(72.dp),
-                tint = SecondaryText,
-            )
+        // Правка W9 (v20 D4): выбранная плитка носит крутилку весь запуск - остальная сетка
+        // пригашена, и тап не выглядит проигнорированным.
+        Box(contentAlignment = Alignment.Center) {
+            if (bitmap != null) {
+                Image(
+                    painter = BitmapPainter(bitmap),
+                    contentDescription = null,
+                    modifier = Modifier.size(72.dp),
+                    contentScale = ContentScale.Fit,
+                )
+            } else {
+                Icon(
+                    imageVector = Icons.Outlined.Apps,
+                    contentDescription = null,
+                    modifier = Modifier.size(72.dp),
+                    tint = SecondaryText,
+                )
+            }
+            if (launching) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(64.dp),
+                    color = Accent,
+                    strokeWidth = 3.dp,
+                )
+            }
         }
         Spacer(Modifier.height(12.dp))
         Text(
