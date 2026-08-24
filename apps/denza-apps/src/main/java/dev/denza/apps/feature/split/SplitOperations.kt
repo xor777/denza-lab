@@ -650,6 +650,9 @@ internal class OpenOperation(
             // survivor back by reparenting instead of launching; a process that remembers
             // nothing passes nothing, and the build launches honestly (invariant 4).
             expectedApps = SplitCoordinatorCore.expectedApps(liveScene),
+            // Правка W6: the same read that decides what this operation owes an undo for also
+            // decides what a failed pane may execute - only what the build itself created.
+            preexistingTaskIds = preexisting,
         ) { task ->
             // A task that was already running is one this build only borrowed: its inverse is the
             // root it came from, never a removal (U2). Everything else this build made itself.

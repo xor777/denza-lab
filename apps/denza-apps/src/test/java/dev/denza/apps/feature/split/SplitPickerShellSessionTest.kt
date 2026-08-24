@@ -1544,7 +1544,14 @@ class SplitPickerShellSessionTest {
         assertEquals(FULL_ROOT, fake.taskRoot(81))
     }
 
-    /** 1.3.2, 1.5.7: the pane whose app did not come back is left on its own picker, and clean. */
+    /**
+     * 1.3.2, 1.5.7: the pane whose app did not come back is left on its own picker, and clean.
+     *
+     * Правка W6: чистота паны не покупается казнью. Задача кандидата жила в панельном корне ДО
+     * этой сборки, а сборка без прочитанного прошлого (`preexistingTaskIds == null`) не может
+     * доказать, что создала её - значит, задача возвращается фоном в полноэкранный root, а не
+     * удаляется (инвариант 3; 1.3.4 - о не-воскрешении, не о казни фоновых задач).
+     */
     @Test
     fun aRestorationThatFailsLeavesThatPaneOnItsPickerAndTheNeighbourAlone() {
         val fake = FakeShell(directTargetLaunchSucceeds = false).apply {
@@ -1558,7 +1565,8 @@ class SplitPickerShellSessionTest {
 
         assertEquals(setOf(SplitPane.PRIMARY), built.failed)
         assertEquals(null, built.panes.getValue(SplitPane.PRIMARY).appTaskId)
-        assertFalse("огрызка не осталось", fake.hasTask(70))
+        assertTrue("пре-существовавшая задача кандидата жива", fake.hasTask(70))
+        assertEquals("она вернулась фоном, не в панель", FULL_ROOT, fake.taskRoot(70))
         assertEquals(PRIMARY_PICKER_ACTIVITY, fake.topActivity(PRIMARY_ROOT))
         assertEquals("сосед не тронут", SECONDARY_PICKER_ACTIVITY, fake.topActivity(SECONDARY_ROOT))
     }

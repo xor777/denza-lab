@@ -534,6 +534,14 @@ internal class SplitPickerShellSession(
          */
         expectedApps: Map<SplitPane, SplitPickerExpectedApp> = emptyMap(),
         /**
+         * The ids already living on the main display before this operation's first mutation
+         * (правка W6). It is the operation's own journal knowledge: a failed pane's candidate may
+         * be removed only when this build provably created it; a pre-existing task is returned to
+         * the background instead. `null` means the past could not be read, and then nothing is
+         * ever removed as "created".
+         */
+        preexistingTaskIds: Set<Int>? = null,
+        /**
          * Every task the recipe took charge of, reported the moment it has one rather than at the
          * end: a build the fence stops halfway still owes an undo for what it already did
          * (invariant 10). The caller decides which of them it created and which it only moved.
@@ -783,10 +791,18 @@ internal class SplitPickerShellSession(
         // Both bases and both apps take the size of their pane from one read, the divergent ones
         // are resized back to back, and one settle and one more read close the whole batch.
         normalizeSceneToRoots(hostTaskIds, appTaskIds, rootIds, failed)
-        // 1.3.2: a pane whose app did not come back keeps its picker, and nothing of the app.
+        // 1.3.2: a pane whose app did not come back keeps its picker - and only what this build
+        // itself created may die with the attempt (правка W6).
         failed.forEach { pane ->
             val packageName = targets[pane]?.packageName ?: return@forEach
-            runCatching { discardFailedRestoration(pane, packageName, hostTaskIds.getValue(pane)) }
+            runCatching {
+                discardFailedRestoration(
+                    pane = pane,
+                    packageName = packageName,
+                    pickerTaskId = hostTaskIds.getValue(pane),
+                    preexistingTaskIds = preexistingTaskIds,
+                )
+            }
         }
         return SplitSceneBuild(
             panes = awaitScenePlacement(
@@ -832,9 +848,12 @@ internal class SplitPickerShellSession(
             // One poll answers the whole group from the same reads, and the blind settle that
             // used to precede the waiting is gone: a restore's task already exists, so the very
             // first read finds it (правка A2/A3). A pane keeps its first match - exactly what the
-            // per-pane wait did - and a pane the budget leaves unmatched fails alone (1.3.2).
+            // per-pane wait did - and a pane the short budget leaves unmatched fails alone,
+            // degrading to its picker with the visible notice of 1.3.2 (правка W5): the red
+            // branch of v20 P1.2 burned two twelve-read budgets (~5 с каждый) against a task the
+            // firmware refused to hold.
             val found = linkedMapOf<SplitPane, SplitTask>()
-            awaitSnapshotMatching { state ->
+            awaitSnapshotMatching(attempts = RESTORE_DISCOVERY_ATTEMPTS) { state ->
                 val tasks = state.roots.asSequence()
                     .filter { it.displayId == MAIN_DISPLAY_ID }
                     .flatMap { it.tasks.asSequence() }
@@ -842,7 +861,9 @@ internal class SplitPickerShellSession(
                 started.forEach { (pane, target) ->
                     if (found.containsKey(pane)) return@forEach
                     tasks.filter { task ->
-                        task.id !in taken && task.packageName == target.packageName
+                        task.id !in taken &&
+                            task.packageName == target.packageName &&
+                            !task.isOwnSplitComponent()
                     }
                         .maxByOrNull(SplitTask::id)
                         ?.let { task ->
@@ -871,9 +892,12 @@ internal class SplitPickerShellSession(
             }
         }
         // The promotes are waited out by condition as well: every promoted task listed in its
-        // pane root, on a read the following normalize pass then shares (правка A3).
+        // pane root, on a read the following normalize pass then shares (правка A3). The budget
+        // is the restore path's short one (правка W5): a reparent lands on the very next read,
+        // and a task the firmware keeps out of the pane is answered by the pane's honest
+        // degradation, not by twelve reads of hope.
         if (appTaskIds.isNotEmpty()) {
-            awaitSnapshotMatching { state ->
+            awaitSnapshotMatching(attempts = RESTORE_DISCOVERY_ATTEMPTS) { state ->
                 appTaskIds.all { (pane, taskId) ->
                     state.root(rootIds.getValue(pane))?.tasks?.any { it.id == taskId } == true
                 }
@@ -1111,7 +1135,9 @@ internal class SplitPickerShellSession(
         startTargetInPane(pane, target, secondInstance)
         pause(APP_LAUNCH_SETTLE_MS)
         val direct = awaitTaskMatching { task ->
-            task.id !in excludedTaskIds && task.packageName == target.packageName
+            task.id !in excludedTaskIds &&
+                task.packageName == target.packageName &&
+                !task.isOwnSplitComponent()
         }
         promoteTask(direct, rootId)
         pause(ROOT_SETTLE_MS)
@@ -1549,23 +1575,38 @@ internal class SplitPickerShellSession(
     }
 
     /**
-     * Removes only a failed restoration candidate left below the exact picker pane.
+     * Clears a failed restoration candidate off the exact picker pane (1.3.2).
      *
-     * @return whether anything was actually removed.
+     * Правка W6 (v20 P1.2): удалить можно только задачу, СОЗДАННУЮ этой операцией. Живой
+     * пре-существовавший таск кандидата - чужое имущество (инвариант 3, U2): деградация паны
+     * его не воскрешает, но и не казнит - он возвращается фоном в полноэкранный root тем же
+     * live-proven reparent'ом, которым его втянули (1.3.4 запрещает воскрешение, а не казнь
+     * фоновых задач). Прошлое, которого операция не читала (`preexistingTaskIds == null`),
+     * трактуется как «не наше»: не доказано создание - не удаляем.
+     *
+     * @return whether the pane actually had to be cleared.
      */
     private fun discardFailedRestoration(
         pane: SplitPane,
         packageName: String,
         pickerTaskId: Int,
+        preexistingTaskIds: Set<Int>?,
     ): Boolean {
         val rootId = nativeRootIds().getValue(pane)
-        return removeTasksSafely(
-            snapshot().root(rootId)?.tasks.orEmpty().filter { task ->
-                task.id != pickerTaskId &&
-                    task.effectivePackageName() == packageName &&
-                    !task.isDenzaPickerBase()
-            },
-        )
+        val candidates = snapshot().root(rootId)?.tasks.orEmpty().filter { task ->
+            task.id != pickerTaskId &&
+                task.effectivePackageName() == packageName &&
+                !task.isDenzaPickerBase()
+        }
+        val (created, borrowed) = candidates.partition { task ->
+            preexistingTaskIds != null && task.id !in preexistingTaskIds
+        }
+        val removed = removeTasksSafely(created)
+        if (borrowed.isEmpty()) return removed
+        val fullRootId = fullIviRootTaskId()
+        borrowed.forEach { task -> moveTask(task.id, fullRootId, toTop = false) }
+        pause(ROOT_SETTLE_MS)
+        return true
     }
 
     fun returnRecordedTaskFullscreen(
@@ -1788,10 +1829,13 @@ internal class SplitPickerShellSession(
      * an error here: the recipes that use it end in their own postcondition, which is the honest
      * judge of whether the car really settled.
      */
-    private fun awaitSnapshotMatching(matches: (SplitTaskSnapshot) -> Boolean): Boolean {
-        repeat(TASK_DISCOVERY_ATTEMPTS) { attempt ->
+    private fun awaitSnapshotMatching(
+        attempts: Int = TASK_DISCOVERY_ATTEMPTS,
+        matches: (SplitTaskSnapshot) -> Boolean,
+    ): Boolean {
+        repeat(attempts) { attempt ->
             if (matches(snapshot())) return true
-            if (attempt + 1 < TASK_DISCOVERY_ATTEMPTS) pause(TASK_DISCOVERY_INTERVAL_MS)
+            if (attempt + 1 < attempts) pause(TASK_DISCOVERY_INTERVAL_MS)
         }
         return false
     }
@@ -2244,6 +2288,15 @@ internal class SplitPickerShellSession(
         }
     }
 
+    /**
+     * Инвариант 3: package сам по себе identity не доказывает. Собственные компоненты продукта -
+     * постоянные пикеры, retired host, штатный bootstrap - не могут быть «найденным приложением»,
+     * даже когда запускается пакет самого продукта (U3). Живая мина v20 P1.2: при self-restore
+     * matcher по одному пакету предпочёл бы свежесозданный пикер пре-существующему таску хаба.
+     */
+    private fun SplitTask.isOwnSplitComponent(): Boolean =
+        isDenzaPickerBase() || isDenzaAppHost() || isNativeSplitBootstrap()
+
     private fun SplitTask.isDenzaPickerBase(): Boolean =
         (packageName == SPLIT_HOST_PACKAGE && activityName == SPLIT_PICKER_ACTIVITY) ||
             (packageName == LEGACY_PICKER_PACKAGE &&
@@ -2297,6 +2350,16 @@ internal class SplitPickerShellSession(
         const val LAUNCH_MODE_SINGLE_TASK = 2
         const val TASK_DISCOVERY_ATTEMPTS = 12
         const val TASK_DISCOVERY_INTERVAL_MS = 100L
+
+        /**
+         * Правка W5 (v20 P1.2): ожидания restore-пути отвечают с первого чтения - запущенная
+         * задача попадает в `am stack list` сразу, тёплый запуск пикера стоит ~0.9 с вместе с
+         * собственным round trip `am start`, а каждое чтение на этой машине само по себе
+         * 250-300 мс. Два прохода покрывают честный случай; не-матч - немедленная деградация
+         * паны в пикер с нотисом 1.3.2 (~1 c ветки вместо двух сгоревших 12-кратных бюджетов
+         * по ~5 с у красной ветки restore).
+         */
+        const val RESTORE_DISCOVERY_ATTEMPTS = 2
         const val NATIVE_PICKER_COMMIT_ATTEMPTS = 150
         const val NATIVE_PICKER_COMMIT_INTERVAL_MS = 100L
         // Two 100 ms samples were live-proven insufficient: edge collapse can expose area 3 for

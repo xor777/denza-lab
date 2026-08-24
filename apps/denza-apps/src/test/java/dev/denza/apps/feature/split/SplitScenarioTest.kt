@@ -1416,6 +1416,10 @@ class SplitScenarioTest {
             car.store.load().slot(SplitPane.PRIMARY),
         )
         assertEquals("сосед не перестроен", neighbour, car.fake.topTaskId(SECONDARY_ROOT))
+        assertTrue(
+            "пикеры-основания не съедены запуском собственного пакета (инвариант 3, правка W5)",
+            car.fake.hasTask(PRIMARY_PICKER_TASK) && car.fake.hasTask(SECONDARY_PICKER_TASK),
+        )
 
         // Закрыли её обычным Back: панель возвращается к своему пикеру.
         car.fake.removeActivity(PRIMARY_ROOT, "$SPLIT_HOST_PACKAGE.MainActivity")
@@ -2265,6 +2269,115 @@ class SplitScenarioTest {
         )
     }
 
+    /**
+     * Правки W5+W6 (живой красный v20 P1.2, open 12.3 с): восстановление пары, чью цель прошивка
+     * не удерживает в панели. Пре-существующий полноэкранный таск кандидата затягивается запуском
+     * в панель и отказывается принимать её границы. Ветка обязана: не сжечь длинные бюджеты
+     * ожиданий, деградировать пану в пикер с нотисом 1.3.2 - и НЕ казнить живой
+     * пре-существовавший таск: он возвращается фоном (инвариант 3, 1.3.4 - о не-воскрешении,
+     * не о казни фоновых задач). Плюс мина matcher'а: при self-restore поиск по одному пакету
+     * предпочёл бы свежесозданный пикер - «восстановленным приложением» не может быть наш
+     * собственный компонент.
+     */
+    @Test
+    fun aFailedRestorationDegradesFastAndSparesThePreexistingTask() {
+        val car = car(
+            FakeShell().apply {
+                addTask(FULL_ROOT, HUB_TASK, SPLIT_HOST_PACKAGE, "$SPLIT_HOST_PACKAGE.MainActivity")
+                refusePaneBoundsFor += SPLIT_HOST_PACKAGE
+                area = 4
+            },
+        )
+        val core = car.core(
+            SplitDurable(
+                enabled = true,
+                slots = mapOf(
+                    SplitPane.PRIMARY to SplitSlot.App(MUSIC),
+                    SplitPane.SECONDARY to SplitSlot.App(SPLIT_HOST_PACKAGE),
+                ),
+            ),
+            appLabel = { packageName ->
+                if (packageName == SPLIT_HOST_PACKAGE) HUB_LABEL else packageName
+            },
+        )
+        core.initialize {}
+
+        core.openPickerSession()
+        car.barrier()
+
+        assertTrue("пре-существовавший таск кандидата жив", car.fake.hasTask(HUB_TASK))
+        assertEquals(
+            "он вернулся фоном в полноэкранный root, а не казнён",
+            FULL_ROOT,
+            car.fake.taskRoot(HUB_TASK),
+        )
+        assertEquals(
+            "панель кандидата деградировала в свой пикер (1.3.2)",
+            SplitSlot.Picker,
+            car.store.load().slot(SplitPane.SECONDARY),
+        )
+        assertEquals(
+            "сосед восстановлен",
+            SplitSlot.App(MUSIC),
+            car.store.load().slot(SplitPane.PRIMARY),
+        )
+        assertEquals(
+            listOf("Не восстановлено: $HUB_LABEL. Выберите приложение вручную"),
+            car.notices.filter(String::isNotBlank),
+        )
+        assertTrue(
+            "оба пикера-основания живы: свой компонент - не «найденное приложение»",
+            SplitPane.entries.all { pane ->
+                car.fake.hasActivity(
+                    if (pane == SplitPane.PRIMARY) PRIMARY_ROOT else SECONDARY_ROOT,
+                    SPLIT_PICKER_ACTIVITY,
+                )
+            },
+        )
+        val stackReads = car.commands().count { it == "am stack list" }
+        assertTrue(
+            "ветка отказа не жжёт длинные бюджеты: $stackReads чтений топологии (потолок 10)",
+            stackReads <= 10,
+        )
+        assertEquals(SplitScreenPhase.ACTIVE, core.snapshot().phase)
+    }
+
+    /** Правка W5: запуск, чья задача так и не появилась, отвечает коротким бюджетом (1.3.2). */
+    @Test
+    fun aRestoreWhoseTaskNeverAppearsFailsWithinTheShortBudget() {
+        val car = car(FakeShell().apply { swallowLaunchOf += WAZE })
+        val core = car.core(
+            SplitDurable(
+                enabled = true,
+                slots = mapOf(
+                    SplitPane.PRIMARY to SplitSlot.App(MUSIC),
+                    SplitPane.SECONDARY to SplitSlot.App(WAZE),
+                ),
+            ),
+        )
+        core.initialize {}
+
+        core.openPickerSession()
+        car.barrier()
+
+        assertEquals(
+            "панель проглоченного запуска ждёт ручного выбора",
+            SplitSlot.Picker,
+            car.store.load().slot(SplitPane.SECONDARY),
+        )
+        assertEquals(SplitSlot.App(MUSIC), car.store.load().slot(SplitPane.PRIMARY))
+        assertEquals(
+            listOf("Не восстановлено: $WAZE. Выберите приложение вручную"),
+            car.notices.filter(String::isNotBlank),
+        )
+        val stackReads = car.commands().count { it == "am stack list" }
+        assertTrue(
+            "короткий бюджет: $stackReads чтений топологии (потолок 9, было бы 18 при 12 попытках)",
+            stackReads <= 9,
+        )
+        assertEquals(SplitScreenPhase.ACTIVE, core.snapshot().phase)
+    }
+
     @Test
     fun toggleOffDuringProjectionCancelsTheReturnAndKeepsTheNavigatorSlot() {
         // сценарий §11.31, контракт 1.10.8
@@ -2369,6 +2482,10 @@ class SplitScenarioTest {
 
         /** What `PackageManager` calls [MUSIC] on this car; the picker shows exactly this. */
         const val MUSIC_LABEL = "Яндекс Музыка"
+
+        /** Пре-существующий полноэкранный таск хаба из живого красного v20 P1.2. */
+        const val HUB_TASK = 99
+        const val HUB_LABEL = "Denza Apps"
 
         /** Дальше любого бюджета операции, так что таймер актора точно сработал. */
         const val PAST_EVERY_BUDGET_MS = 120_000L

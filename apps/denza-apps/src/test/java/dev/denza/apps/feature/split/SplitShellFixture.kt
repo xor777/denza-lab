@@ -102,6 +102,19 @@ internal class FakeShell(
     val commands = mutableListOf<String>()
 
     /**
+     * Пакеты, чьи задачи прошивка не удерживает в панельных root'ах (живой красный v20 P1.2:
+     * singleTask-хаб с resizeableActivity="false"): move в панель сохраняет полноэкранные
+     * границы, а `am task resize` молча отвергается.
+     */
+    val refusePaneBoundsFor = mutableSetOf<String>()
+
+    /**
+     * Пакеты, чей `am start` отвечает успехом, но задача так и не появляется - прошивка
+     * «проглотила» запуск (класс отказа красной ветки restore, правка W5).
+     */
+    val swallowLaunchOf = mutableSetOf<String>()
+
+    /**
      * What the firmware did without a command from us.
      *
      * A shared topology read ([SplitTopologyCache]) may not survive one: out of band is exactly the
@@ -375,6 +388,9 @@ internal class FakeShell(
                             task.packageName == packageName
                     }
                 }
+                if (packageName in swallowLaunchOf) {
+                    return "Starting: Intent"
+                }
                 val destination = pickerRoot ?: FULL_ROOT
                 // What the launch flags mean to the firmware, and the whole of the difference:
                 // without `FLAG_ACTIVITY_MULTIPLE_TASK` a package that already has a task keeps it
@@ -388,7 +404,14 @@ internal class FakeShell(
                     null
                 } else {
                     tasks.lastOrNull { task ->
-                        task.packageName == packageName && task.rootId != EXTERNAL_ROOT
+                        task.packageName == packageName &&
+                            task.rootId != EXTERNAL_ROOT &&
+                            // Реальная прошивка резолвит существующую задачу по компоненту и его
+                            // taskAffinity: задача нашего пикера (affinity ...split.picker)
+                            // никогда не отдаётся запуску MainActivity (affinity ...control) -
+                            // и наоборот (инвариант 3, живая мина v20 P1.2).
+                            (task.activityName == SPLIT_PICKER_ACTIVITY) ==
+                            (activityName == SPLIT_PICKER_ACTIVITY)
                     }
                 }
                 val launchedTask = if (reused != null) {
@@ -429,10 +452,14 @@ internal class FakeShell(
                 val toTop = parts[5].toBoolean()
                 val task = tasks.first { it.id == taskId }
                 val changedRoot = task.rootId != rootId
+                val paneRefusesBounds = task.packageName in refusePaneBoundsFor &&
+                    (rootId == PRIMARY_ROOT || rootId == SECONDARY_ROOT)
                 if (changedRoot) {
                     tasks.remove(task)
                     task.rootId = rootId
-                    if (!preserveBoundsOnShellMove) task.bounds = bounds(rootId)
+                    if (!preserveBoundsOnShellMove && !paneRefusesBounds) {
+                        task.bounds = bounds(rootId)
+                    }
                     if (toTop) {
                         tasks += task
                     } else {
@@ -444,7 +471,9 @@ internal class FakeShell(
                     destabilizeAreaOnNextShellMove = false
                     area = 3
                 }
-                if (rootId == FULL_ROOT) area = 4
+                // Возврат задачи фоном (`toTop=false`) не накрывает экран: полноэкранный root
+                // выходит на передний план только когда задача поднята на его вершину.
+                if (rootId == FULL_ROOT && toTop) area = 4
                 keepPickerOnTopIfConfigured(task)
                 ""
             }
@@ -472,12 +501,15 @@ internal class FakeShell(
             }
             command.startsWith("am task resize ") -> {
                 val parts = command.split(' ')
-                tasks.first { it.id == parts[3].toInt() }.bounds = SplitBounds(
-                    parts[4].toInt(),
-                    parts[5].toInt(),
-                    parts[6].toInt(),
-                    parts[7].toInt(),
-                )
+                val task = tasks.first { it.id == parts[3].toInt() }
+                if (task.packageName !in refusePaneBoundsFor) {
+                    task.bounds = SplitBounds(
+                        parts[4].toInt(),
+                        parts[5].toInt(),
+                        parts[6].toInt(),
+                        parts[7].toInt(),
+                    )
+                }
                 ""
             }
             command == "am stack list" -> renderStack()
