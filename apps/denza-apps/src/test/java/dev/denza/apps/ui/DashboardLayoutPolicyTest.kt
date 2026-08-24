@@ -13,9 +13,10 @@ class DashboardLayoutPolicyTest {
     }
 
     @Test
-    fun `measured two-thirds pane keeps full dashboard in horizontal scroll`() {
+    fun `measured two-thirds pane fits the dashboard into its own width`() {
+        // Правка W8: холст 1280 dp в горизонтальном скролле прятал ~904 px за краем панели 828 dp.
         assertEquals(
-            DashboardLayoutMode.HORIZONTAL_SCROLL,
+            DashboardLayoutMode.MEDIUM,
             DashboardLayoutPolicy.resolve(828),
         )
     }
@@ -35,16 +36,24 @@ class DashboardLayoutPolicyTest {
             DashboardLayoutPolicy.resolve(DashboardLayoutPolicy.NARROW_MAX_WIDTH_DP),
         )
         assertEquals(
-            DashboardLayoutMode.HORIZONTAL_SCROLL,
+            DashboardLayoutMode.MEDIUM,
             DashboardLayoutPolicy.resolve(DashboardLayoutPolicy.NARROW_MAX_WIDTH_DP + 1),
         )
         assertEquals(
-            DashboardLayoutMode.HORIZONTAL_SCROLL,
-            DashboardLayoutPolicy.resolve(DashboardLayoutPolicy.HORIZONTAL_MAX_WIDTH_DP),
+            DashboardLayoutMode.MEDIUM,
+            DashboardLayoutPolicy.resolve(DashboardLayoutPolicy.MEDIUM_MAX_WIDTH_DP),
         )
         assertEquals(
             DashboardLayoutMode.WIDE,
-            DashboardLayoutPolicy.resolve(DashboardLayoutPolicy.HORIZONTAL_MAX_WIDTH_DP + 1),
+            DashboardLayoutPolicy.resolve(DashboardLayoutPolicy.MEDIUM_MAX_WIDTH_DP + 1),
         )
+    }
+
+    @Test
+    fun `card rows follow the mode - whole group, pairs, single column`() {
+        assertEquals(3, DashboardLayoutPolicy.rowCapacity(DashboardLayoutMode.WIDE, 3))
+        assertEquals(2, DashboardLayoutPolicy.rowCapacity(DashboardLayoutMode.MEDIUM, 3))
+        assertEquals(1, DashboardLayoutPolicy.rowCapacity(DashboardLayoutMode.NARROW, 3))
+        assertEquals("пустая группа не делится на ноль", 1, DashboardLayoutPolicy.rowCapacity(DashboardLayoutMode.WIDE, 0))
     }
 }

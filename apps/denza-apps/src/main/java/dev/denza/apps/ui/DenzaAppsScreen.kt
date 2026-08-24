@@ -5,7 +5,6 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -16,7 +15,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -188,24 +186,17 @@ fun DenzaAppsRoot(
 
     DenzaTheme {
         Surface(modifier = Modifier.fillMaxSize(), color = Background) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .then(
-                        if (dashboardLayout == DashboardLayoutMode.HORIZONTAL_SCROLL) {
-                            Modifier.horizontalScroll(rememberScrollState())
-                        } else {
-                            Modifier
-                        },
-                    ),
-            ) {
+            Box(modifier = Modifier.fillMaxSize()) {
+                // Правка W8: дашборд всегда вписывается в ширину своего окна. Панельные ширины
+                // (узкая 1/3 и средняя 2/3) перекомпоновывают карточки и скроллят по вертикали;
+                // горизонтального скролла с холстом 1280 dp больше нет - в панели 828 dp он
+                // прятал ~904 px дашборда за краем.
                 Column(
                     modifier = when (dashboardLayout) {
                         DashboardLayoutMode.WIDE -> Modifier.fillMaxSize()
-                        DashboardLayoutMode.HORIZONTAL_SCROLL -> Modifier
-                            .width(FULL_DASHBOARD_WIDTH)
-                            .fillMaxHeight()
-                        DashboardLayoutMode.NARROW -> Modifier
+                        DashboardLayoutMode.MEDIUM,
+                        DashboardLayoutMode.NARROW,
+                        -> Modifier
                             .fillMaxSize()
                             .verticalScroll(rememberScrollState())
                     }
@@ -442,24 +433,28 @@ fun DenzaAppsRoot(
                         )
                     }
                     Spacer(Modifier.height(10.dp))
-                    // On full and 2/3 widths the swipeable bottom panel fills the
-                    // free zone below the cards. In the narrow vertical list it
-                    // becomes a fixed-height stacked item. It stays frameless in
-                    // both layouts and is gated by the compile-time flag.
+                    // On the full width the swipeable bottom panel fills the free
+                    // zone below the cards. In the two scrolling pane layouts it
+                    // becomes a fixed-height stacked item (weight has no meaning
+                    // inside a vertical scroll). It stays frameless everywhere and
+                    // is gated by the compile-time flag.
                     if (TripPanelFlag.ENABLED && !adbStartupBlocked) {
                         BottomPanelPager(
                             compactLayout = compactLayout,
-                            modifier = if (compactLayout) {
-                                Modifier.fillMaxWidth().height(NARROW_TRIP_PANEL_HEIGHT)
-                            } else {
-                                Modifier.fillMaxWidth().weight(1f)
+                            modifier = when (dashboardLayout) {
+                                DashboardLayoutMode.WIDE ->
+                                    Modifier.fillMaxWidth().weight(1f)
+                                DashboardLayoutMode.MEDIUM ->
+                                    Modifier.fillMaxWidth().height(MEDIUM_TRIP_PANEL_HEIGHT)
+                                DashboardLayoutMode.NARROW ->
+                                    Modifier.fillMaxWidth().height(NARROW_TRIP_PANEL_HEIGHT)
                             },
                         )
                     } else {
-                        if (compactLayout) {
-                            Spacer(Modifier.height(14.dp))
-                        } else {
+                        if (dashboardLayout == DashboardLayoutMode.WIDE) {
                             Spacer(Modifier.weight(1f))
+                        } else {
+                            Spacer(Modifier.height(14.dp))
                         }
                     }
                 }
@@ -557,8 +552,11 @@ fun DenzaAppsRoot(
     }
 }
 
-private val FULL_DASHBOARD_WIDTH = 1_280.dp
 private val NARROW_TRIP_PANEL_HEIGHT = 660.dp
+
+/** Средняя панель 2/3 скроллит по вертикали; нижней панели отдаётся фиксированная высота
+ *  порядка свободной зоны полного дашборда (правка W8; живой прогон уточнит). */
+private val MEDIUM_TRIP_PANEL_HEIGHT = 320.dp
 
 @Composable
 private fun AdbStartupOverlay(
@@ -734,8 +732,10 @@ private fun AdbRecoveryDialog(
 }
 
 /**
- * Measures the existing cards either as the original equal-width row or as a
- * full-width vertical stack. The card composables themselves stay unchanged.
+ * Measures the existing cards as equal-width rows of [DashboardLayoutPolicy.rowCapacity] cards:
+ * the whole group in one row on the full width, two per row in the medium 2/3 pane, a full-width
+ * stack in the narrow 1/3 (правка W8). An odd trailing card takes its whole row. The card
+ * composables themselves stay unchanged.
  */
 @Composable
 private fun AdaptiveCardGroup(
@@ -746,57 +746,44 @@ private fun AdaptiveCardGroup(
     Layout(content = content) { measurables, constraints ->
         if (measurables.isEmpty()) {
             layout(constraints.minWidth, constraints.minHeight) {}
-        } else if (layout == DashboardLayoutMode.NARROW) {
+        } else {
             val width = constraints.maxWidth
             val spacingPx = spacing.roundToPx()
-            val childConstraints = Constraints(
-                minWidth = width,
-                maxWidth = width,
-                minHeight = 0,
-                maxHeight = constraints.maxHeight,
+            val rows = measurables.chunked(
+                DashboardLayoutPolicy.rowCapacity(layout, measurables.size),
             )
-            val placeables = measurables.map { it.measure(childConstraints) }
-            val measuredHeight = placeables.sumOf { it.height } +
-                spacingPx * (placeables.size - 1)
+            val placedRows = rows.map { row ->
+                val gaps = spacingPx * (row.size - 1)
+                val availableWidth = (width - gaps).coerceAtLeast(0)
+                val baseWidth = availableWidth / row.size
+                val remainder = availableWidth % row.size
+                row.mapIndexed { index, measurable ->
+                    val childWidth = baseWidth + if (index < remainder) 1 else 0
+                    measurable.measure(
+                        Constraints(
+                            minWidth = childWidth,
+                            maxWidth = childWidth,
+                            minHeight = 0,
+                            maxHeight = constraints.maxHeight,
+                        ),
+                    )
+                }
+            }
+            val measuredHeight = placedRows.sumOf { row -> row.maxOf { it.height } } +
+                spacingPx * (placedRows.size - 1)
             val constrainedHeight = measuredHeight.coerceIn(
                 constraints.minHeight,
                 constraints.maxHeight,
             )
             layout(width, constrainedHeight) {
                 var y = 0
-                placeables.forEach { placeable ->
-                    placeable.placeRelative(0, y)
-                    y += placeable.height + spacingPx
-                }
-            }
-        } else {
-            val width = constraints.maxWidth
-            val spacingPx = spacing.roundToPx()
-            val gaps = spacingPx * (measurables.size - 1)
-            val availableWidth = (width - gaps).coerceAtLeast(0)
-            val baseWidth = availableWidth / measurables.size
-            val remainder = availableWidth % measurables.size
-            val placeables = measurables.mapIndexed { index, measurable ->
-                val childWidth = baseWidth + if (index < remainder) 1 else 0
-                measurable.measure(
-                    Constraints(
-                        minWidth = childWidth,
-                        maxWidth = childWidth,
-                        minHeight = 0,
-                        maxHeight = constraints.maxHeight,
-                    ),
-                )
-            }
-            val measuredHeight = placeables.maxOf { it.height }
-            val constrainedHeight = measuredHeight.coerceIn(
-                constraints.minHeight,
-                constraints.maxHeight,
-            )
-            layout(width, constrainedHeight) {
-                var x = 0
-                placeables.forEach { placeable ->
-                    placeable.placeRelative(x, 0)
-                    x += placeable.width + spacingPx
+                placedRows.forEach { row ->
+                    var x = 0
+                    row.forEach { placeable ->
+                        placeable.placeRelative(x, y)
+                        x += placeable.width + spacingPx
+                    }
+                    y += row.maxOf { it.height } + spacingPx
                 }
             }
         }
