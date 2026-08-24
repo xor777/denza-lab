@@ -1122,6 +1122,10 @@ internal sealed interface SplitReconcileKind {
 internal class ReconcileOperation(
     work: SplitOperationWorkspace,
     private val kind: SplitReconcileKind,
+    /** Правка W3: этот запуск - отложенный повтор; отказавший повтор нового не взводит (U1). */
+    private val recheck: Boolean = false,
+    /** Правка W3: как взвести ровно один отложенный коалесцированный повтор этого же вида. */
+    private val armRecheck: (SplitReconcileKind) -> Unit = {},
 ) : SplitCoreOperation<Boolean>(
     label = SplitCoordinatorCore.RECONCILE_LABEL,
     priority = SplitInputPriority.HINT,
@@ -1130,6 +1134,16 @@ internal class ReconcileOperation(
     coalesceKey = coalesceKeyOf(kind),
     work = work,
 ) {
+    /**
+     * Ветки «не доказано» этой операции, по имени отказавшего предиката (правка W3/W4, U5).
+     *
+     * Список пуст, когда мир решён: сцена доказана, конец сцены установлен или каждый записанный
+     * член проверен живым под накрытием. Непустой список - топология честно недоказуема прямо
+     * сейчас (двухпроходный teardown прошивки, диагноз v21 Д1/Д2), и тогда взводится один
+     * отложенный повтор.
+     */
+    private val unproven = mutableListOf<String>()
+
     override fun prepare(op: SplitOperationContext, shell: (String) -> String): Boolean {
         if (!working.enabled || work.externalMoveInFlight()) return false
         return working.scene != null || adoptable()
@@ -1153,7 +1167,18 @@ internal class ReconcileOperation(
         // the whole scene out of the panel roots at once and may deliver only a single
         // hidden-picker hint (ground-v18 B2), so the remainder is checked by existence anyway - a
         // survivor still living in a panel root passes untouched (1.6.2).
-        if (!proven || kind is SplitReconcileKind.PickerHidden) settleSceneEnded(op, split)
+        val ended = if (!proven || kind is SplitReconcileKind.PickerHidden) {
+            settleSceneEnded(op, split)
+        } else {
+            false
+        }
+        // Правка W3 (диагноз v21 Д1/Д2): после конца перестройки прошивки новых событий нет, и
+        // никто не перечитывал мир - отказавшая по недоказуемой топологии сверка молчала вечно.
+        // Такая сверка взводит РОВНО ОДИН отложенный коалесцированный повтор своего вида; повтор
+        // - обычный HINT, пользовательские операции вытесняют его по §4. Отказавший повтор
+        // нового не взводит: никаких цепочек и таймерных циклов (U1).
+        if (proven || ended) unproven.clear()
+        if (unproven.isNotEmpty() && !recheck) armRecheck(kind)
         // Contract 1.6: the outcome of Back and of a close is the firmware's, and the product's one
         // duty afterwards is to leave nothing of its own behind - no borrowed firmware setting and
         // no gate we opened - so that the next tap opens cleanly (1.6.4). Nothing is rebuilt here.
@@ -1230,7 +1255,10 @@ internal class ReconcileOperation(
     ): Boolean {
         val hostTaskId = requestedHostTaskId
             ?: split.singleVisiblePickerTaskId(SPLIT_PICKER_COMPONENT_SET)
-            ?: return false
+            ?: run {
+                unproven += "picker-visible: видимый пикер не опознан"
+                return false
+            }
         if (!reconcileScene(op, split, settleResize = false)) return false
         closeRevealedApp(op, split, hostTaskId)
         return true
@@ -1320,20 +1348,38 @@ internal class ReconcileOperation(
             listOfNotNull(observed.hostTaskId, observed.appTaskId)
         }
         if (recorded.isEmpty()) return false
-        val living = paneTaskIds(split) ?: return false
-        if (recorded.any { taskId -> taskId in living }) return false
-        // Инвариант 5 (ред. 2026-08-24): прошивка на Home может опустошить корень сфокусированной
-        // панели - члены живой накрытой сцены отвязаны от панельных корней, но живы, и сиротами
-        // не являются. Пока сцена накрыта и КАЖДЫЙ записанный член жив под своей exact identity
-        // где угодно на main display, сцена существует и уборка не начинается. Мёртвый член -
+        val living = paneTaskIds(split)
+        if (living == null) {
+            unproven += "конец сцены: панельные корни нечитаемы"
+            return false
+        }
+        // Инвариант 5 (ред. 2026-08-24): прошивка на Home может опустошить корень панели - члены
+        // живой накрытой сцены отвязаны от панельных корней, но живы, и сиротами не являются.
+        // Пока сцена накрыта и КАЖДЫЙ записанный член жив под своей exact identity где угодно на
+        // main display, сцена существует, мир решён и уборка не начинается. Мёртвый член -
         // нативный конец (Back в широком пикере при «пикер|пикер», свайп, «очистить всё»,
         // ground-v18 B2), и тогда огрызки наших пикеров убираются ниже, где бы они ни оказались
         // (1.6.3, 1.7.5). Нечитаемая машина решается как и выше: не доказано - не убираем.
         val coveredSceneAlive = runCatching {
             split.sceneCovered() &&
                 split.allRecordedMembersAlive(liveScene, SPLIT_PICKER_COMPONENT_SET)
-        }.getOrNull() ?: return false
-        if (coveredSceneAlive) return false
+        }.getOrNull()
+        if (coveredSceneAlive == null) {
+            unproven += "конец сцены: живость членов нечитаема"
+            return false
+        }
+        if (coveredSceneAlive) {
+            // Полное позитивное доказательство: каждый член жив под накрытием. Более ранние
+            // отказы этой операции - следствие накрытия, а не подвешенного мира (правка W3).
+            unproven.clear()
+            return false
+        }
+        if (recorded.any { taskId -> taskId in living }) {
+            // Член в панельном корне - сцена ещё существует, но целиком мир не доказан (это и
+            // есть середина двухпроходного teardown из диагноза v21 К2): повтор перечитает.
+            unproven += "конец сцены: записанные задачи ещё в панельных корнях"
+            return false
+        }
         val ownPickers = liveScene.values.map(SplitPickerLivePane::hostTaskId)
         liveScene = emptyMap()
         settle(SplitFact.SceneEndedSettled)
@@ -1375,16 +1421,22 @@ internal class ReconcileOperation(
             split.reconcileDividerResize(
                 pickerComponents = SPLIT_PICKER_COMPONENT_SET,
                 previousPanes = SplitCoordinatorCore.resizeExpectation(previous).orEmpty(),
-            )
+            ).also { repaired -> if (repaired == null) unproven += "resize: мир не сведён" }
         } else {
-            split.existingOwnedSession(SPLIT_PICKER_COMPONENT_SET)
+            val read = split.readOwnedSession(SPLIT_PICKER_COMPONENT_SET)
+            if (read.scene == null) unproven += "сцена: ${read.reason}"
+            read.scene
         }
         if (settled != null) {
             liveScene = settled
             settle(SplitFact.BuildSceneSucceeded(sceneSlots(settled)))
             return true
         }
-        val expected = SplitCoordinatorCore.collapseExpectation(previous) ?: return false
+        val expected = SplitCoordinatorCore.collapseExpectation(previous)
+        if (expected == null) {
+            unproven += "collapse: сцена не записана"
+            return false
+        }
         val collapsed = split.collapsedOwnedSession(
             pickerComponents = SPLIT_PICKER_COMPONENT_SET,
             expectedPanes = expected,
@@ -1393,7 +1445,9 @@ internal class ReconcileOperation(
             adoptCollapse(op, split, collapsed, previous)
             return true
         }
-        return settleCollapseByExistence(op, split, previous, expected)
+        if (settleCollapseByExistence(op, split, previous, expected)) return true
+        unproven += "collapse: не доказан ни постусловиями, ни существованием"
+        return false
     }
 
     /**
@@ -1462,8 +1516,12 @@ internal class ReconcileOperation(
             .onFailure { error -> work.log("failed to remove the collapsed picker: $error") }
     }
 
-    private companion object {
-        /** Every passive topology hint collapses to one queued reconcile (section 7, K5). */
+    internal companion object {
+        /**
+         * Every passive topology hint collapses to one queued reconcile (section 7, K5), and the
+         * deferred re-check of правка W3 coalesces by the very same key: one pending repeat per
+         * kind, however many refusals armed it.
+         */
         fun coalesceKeyOf(kind: SplitReconcileKind): Any = when (kind) {
             is SplitReconcileKind.PickerHidden -> "reconcile-hidden-${kind.hostTaskId}"
             else -> "reconcile"

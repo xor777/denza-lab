@@ -208,6 +208,7 @@ internal class SplitCoordinatorCore(
 ) {
     private val stateLock = Any()
     private val routingLock = Any()
+    private val recheckLock = Any()
 
     private var state = SplitState()
     private var live: SplitLiveScene = emptyMap()
@@ -218,6 +219,9 @@ internal class SplitCoordinatorCore(
     private var routingBlockedUntilMs = 0L
     private var externalTaskMovesHeld = false
     private var loaded = false
+
+    /** Правка W3: не более одного отложенного повтора сверки на coalesce-ключ. */
+    private val pendingRechecks = mutableMapOf<Any, SplitCancellable>()
 
     @Volatile
     private var session = SplitScreenSession()
@@ -471,6 +475,7 @@ internal class SplitCoordinatorCore(
 
     /** The worker is joined first, so nothing is still holding the transport when it closes. */
     fun shutdown() {
+        cancelReconcileRechecks()
         actor.shutdown()
         (shellFactory as? AutoCloseable)?.let { closeable -> runCatching(closeable::close) }
     }
@@ -483,8 +488,34 @@ internal class SplitCoordinatorCore(
 
     private fun submitEnable(): SplitTicket = submit { work -> EnableOperation(work) }
 
-    private fun submitReconcile(kind: SplitReconcileKind): SplitTicket =
-        submit { work -> ReconcileOperation(work, kind) }
+    private fun submitReconcile(kind: SplitReconcileKind, recheck: Boolean = false): SplitTicket =
+        submit { work -> ReconcileOperation(work, kind, recheck, ::armReconcileRecheck) }
+
+    /**
+     * Правка W3 (диагноз v21 Д1/Д2): сверка, отказавшая из-за недоказуемой топологии, взводит
+     * РОВНО ОДИН отложенный повтор своего вида (~2 с), коалесцированный тем же ключом: серия
+     * отказов держит один общий таймер. Повтор - обычный HINT: подача явного пользовательского
+     * ввода и подтверждённого Home вытесняет его ещё таймером ([submit]), очередную и полётную
+     * формы - актор по §4. Отказавший повтор нового не взводит (U1, `recheck` в
+     * [ReconcileOperation]) - никаких таймерных циклов.
+     */
+    private fun armReconcileRecheck(kind: SplitReconcileKind) {
+        synchronized(recheckLock) {
+            val key = ReconcileOperation.coalesceKeyOf(kind)
+            if (pendingRechecks.containsKey(key)) return
+            pendingRechecks[key] = clock.schedule(RECONCILE_RECHECK_DELAY_MS) {
+                synchronized(recheckLock) { pendingRechecks.remove(key) }
+                submitReconcile(kind, recheck = true)
+            }
+        }
+    }
+
+    private fun cancelReconcileRechecks() {
+        val cancelled = synchronized(recheckLock) {
+            pendingRechecks.values.toList().also { pendingRechecks.clear() }
+        }
+        cancelled.forEach(SplitCancellable::cancel)
+    }
 
     /**
      * Builds one workspace per operation and wraps the operation in the lifecycle that closes that
@@ -511,6 +542,10 @@ internal class SplitCoordinatorCore(
             publisher = ::publishSettled,
         )
         val operation = factory(workspace)
+        // Правка W3, §4: явный ввод пользователя и подтверждённый Home вытесняют отложенный
+        // повтор сверки так же, как актор вытесняет его очередную и полётную формы - таймер
+        // есть та же HINT-работа, просто ещё не поданная.
+        if (operation.priority in RECHECK_DISPLACING_PRIORITIES) cancelReconcileRechecks()
         val requestedAtMs = clock.nowMs()
         val ticket = actor.submit(SplitOperationLifecycle(operation, workspace))
         ticket.onComplete { outcome ->
@@ -685,6 +720,21 @@ internal class SplitCoordinatorCore(
         }
 
         const val EXTERNAL_TASK_BYPASS_MS = 5_000L
+
+        /**
+         * Правка W3: пауза одного отложенного повтора сверки - за неё двухпроходный teardown
+         * прошивки успевает доехать до конца (диагноз v21: триггеры опережали его на доли
+         * секунды), а пользовательскому вводу она ничего не стоит - повтор вытесняется.
+         */
+        const val RECONCILE_RECHECK_DELAY_MS = 2_000L
+
+        /** Чей сабмит снимает отложенный повтор сверки: явный ввод и подтверждённый Home (§4). */
+        val RECHECK_DISPLACING_PRIORITIES = setOf(
+            SplitInputPriority.DISABLE,
+            SplitInputPriority.HOME,
+            SplitInputPriority.SELECT,
+            SplitInputPriority.OPEN,
+        )
 
         /** Slack over the operation budget: the deadline itself settles the ticket first. */
         const val NAV_AWAIT_MARGIN_MS = 5_000L

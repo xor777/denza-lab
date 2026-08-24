@@ -2276,6 +2276,152 @@ class SplitScenarioTest {
     }
 
     /**
+     * Правка W3 (диагноз v21 Д1/Д2, К2): сверка, отказавшая из-за недоказуемой топологии
+     * (середина двухпроходного teardown: узкий сирота ещё числится в панельном корне), взводит
+     * ровно один отложенный повтор. Повтор перечитывает мир и доводит уборку без тапа
+     * пользователя; удавшийся повтор новых таймеров не оставляет.
+     */
+    @Test
+    fun anUnprovenReconcileArmsOneDeferredRecheckThatFinishesTheCleanup() {
+        val (car, core) = midTeardownCar()
+
+        core.pickerHidden(PRIMARY_PICKER_TASK)
+        car.barrier()
+        assertTrue(
+            "уборка честно отказала: узкий ещё в панельном корне",
+            car.fake.hasTask(SECONDARY_PICKER_TASK),
+        )
+        assertEquals("и взведён ровно один отложенный повтор", 1, car.clock.pendingTimers())
+
+        // Пас 2 прошивки доехал: узкий выброшен живым, контейнеры распущены целиком.
+        car.fake.detachTask(SECONDARY_PICKER_TASK)
+        car.fake.panelContainersDisbanded = true
+
+        car.clock.advance(SplitCoordinatorCore.RECONCILE_RECHECK_DELAY_MS)
+        car.barrier()
+
+        assertFalse(
+            "повтор довёл уборку без тапа пользователя",
+            car.fake.hasTask(SECONDARY_PICKER_TASK),
+        )
+        assertEquals(
+            "ключи SmartMulti возвращены",
+            LAUNCHER_PACKAGE,
+            car.fake.system("byd_smart_multi_primary_activity"),
+        )
+        assertFalse("gate закрыт и аренда возвращена", car.gateLease.isOwned())
+        assertEquals("новых таймеров после удавшегося повтора нет", 0, car.clock.pendingTimers())
+    }
+
+    /** Правка W3: пользовательская операция вытесняет ещё не сработавший повтор по §4. */
+    @Test
+    fun aUserOperationDisplacesThePendingRecheck() {
+        val (car, core) = midTeardownCar()
+
+        core.pickerHidden(PRIMARY_PICKER_TASK)
+        car.barrier()
+        assertEquals(1, car.clock.pendingTimers())
+
+        core.openPickerSession()
+        car.barrier()
+        assertEquals("сабмит тапа снял таймер повтора", 0, car.clock.pendingTimers())
+
+        val sessions = car.sessions().size
+        car.clock.advance(SplitCoordinatorCore.RECONCILE_RECHECK_DELAY_MS * 3)
+        car.barrier()
+        assertEquals("и после паузы ничего не срабатывает", sessions, car.sessions().size)
+    }
+
+    /** Правка W3, U1: отказавший повтор нового не взводит - ни цепочек, ни таймерных циклов. */
+    @Test
+    fun aFailedRecheckArmsNoThirdAttempt() {
+        val (car, core) = midTeardownCar()
+
+        core.pickerHidden(PRIMARY_PICKER_TASK)
+        car.barrier()
+        assertEquals(1, car.clock.pendingTimers())
+
+        // Мир не изменился: повтор отказывает так же честно.
+        car.clock.advance(SplitCoordinatorCore.RECONCILE_RECHECK_DELAY_MS)
+        car.barrier()
+        assertTrue(car.fake.hasTask(SECONDARY_PICKER_TASK))
+        assertEquals("отказавший повтор нового не взводит", 0, car.clock.pendingTimers())
+
+        val sessions = car.sessions().size
+        car.clock.advance(SplitCoordinatorCore.RECONCILE_RECHECK_DELAY_MS * 5)
+        car.barrier()
+        assertEquals("третьей попытки нет", sessions, car.sessions().size)
+    }
+
+    /** Правка W3: серия отказов коалесцируется - один общий повтор на её ключ. */
+    @Test
+    fun aStormOfRefusalsCoalescesIntoOneRecheck() {
+        val (car, core) = midTeardownCar()
+
+        repeat(5) {
+            core.pickerHidden(PRIMARY_PICKER_TASK)
+            car.barrier()
+        }
+        assertEquals("пять отказов держат один общий таймер", 1, car.clock.pendingTimers())
+
+        val sessions = car.sessions().size
+        car.clock.advance(SplitCoordinatorCore.RECONCILE_RECHECK_DELAY_MS)
+        car.barrier()
+        assertEquals("повтор один", sessions + 1, car.sessions().size)
+        assertEquals(0, car.clock.pendingTimers())
+    }
+
+    /**
+     * Правка W3, обратная сторона: решённый мир повторов не взводит. Накрытая сцена, каждый
+     * записанный член которой проверен живым, - полный позитивный ответ, а не отказ сверки.
+     */
+    @Test
+    fun aResolvedCoveredSceneArmsNoRecheck() {
+        val car = car(FakeShell().apply { liveProductScene(withApps = true) })
+        val core = car.core(SplitDurable(enabled = true, slots = APP_PAIR))
+        core.initialize {}
+        core.openPickerSession()
+        car.barrier()
+
+        // Home накрыл живую сцену; оба приложения и оба пикера живы в своих корнях.
+        car.fake.area = 0
+        core.dividerResized()
+        car.barrier()
+
+        assertEquals("мир решён - повтор не нужен", 0, car.clock.pendingTimers())
+        assertEquals(APP_PAIR, car.store.load().slots)
+    }
+
+    /** Мир середины двухпроходного teardown (диагноз v21 К2), общий для проверок правки W3. */
+    private fun midTeardownCar(): Pair<SplitCarFixture, SplitCoordinatorCore> {
+        val car = car(
+            FakeShell(initialGate = true).apply {
+                liveProductScene()
+                setSystem("byd_smart_multi_primary_activity", LAUNCHER_PACKAGE)
+                setSystem("byd_smart_multi_second_activity", STOCK_BOOTSTRAP_PACKAGE)
+                setSystem("byd_smart_multi_primary_position", "2")
+                setSystem("byd_smart_multi_split_window_mode", "102")
+            },
+        )
+        val core = car.core(
+            SplitDurable(enabled = true, slots = PICKER_PAIR),
+            leases = listOf(SmartMultiLease()),
+        )
+        car.gateLease.setOwned(true)
+        core.initialize {}
+        core.openPickerSession()
+        car.barrier()
+        car.fake.setSystem("byd_smart_multi_primary_activity", SPLIT_HOST_PACKAGE)
+
+        // Пас 1 teardown'а: широкий пикер умер, экран Home; узкий ЕЩЁ числится в панельном корне.
+        car.fake.removeActivity(PRIMARY_ROOT, PRIMARY_PICKER_ACTIVITY)
+        car.fake.area = 0
+        core.homeVisible()
+        car.barrier()
+        return car to core
+    }
+
+    /**
      * Contract 1.8.1: the divider comes to rest on the firmware's own detents rather than where the
      * finger let go, and that is the native outcome, not something to correct.
      */
