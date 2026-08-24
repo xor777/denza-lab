@@ -342,11 +342,18 @@ internal class SplitCoordinatorCore(
      * Contract 1.9.1: Home is the priority event that cancels the scene work the user walked away
      * from - and it is a *hint* until this guard says otherwise (contract 4.2, invariant 8).
      *
-     * Two hints never become a Home event at all. One is the window echo of a launch: the button
+     * Three hints never become a Home event at all. One is the window echo of a launch: the button
      * lives on Home, so the app centre is on screen for a few hundred milliseconds after the tap
      * that asked to leave it - Home there is not news, it is the screen the open started from
-     * (1.3.9). The other is any Home hint with nothing of ours to suspend: no scene and no gate we
+     * (1.3.9). The second is any Home hint with nothing of ours to suspend: no scene and no gate we
      * borrowed means there is nothing this operation could do but open a shell session and read.
+     * The third is a Home the automaton has already confirmed - the scene is covered, the gate is
+     * suspended, and the launcher keeps emitting window events for as long as it is on screen.
+     * Each of those used to submit a fresh `HomeOperation`, and submitting one cancels every
+     * queued and in-flight passive hint (section 4) - including the `PICKER_HIDDEN` cleanup that
+     * contract 1.6.3 requires to run exactly there, because the wide-Back ending lands *on* Home
+     * (ground-v18 B2). A cancelled background operation reports nothing, which is why the product
+     * log was silent while the orphan picker and the dirty SmartMulti keys stayed behind.
      */
     fun homeVisible() {
         ready()
@@ -355,8 +362,13 @@ internal class SplitCoordinatorCore(
             log.log("home hint dropped: a user-requested open is running (contract 4.2)")
             return
         }
-        if (currentState().scene == null && !gateLeaseStore.isOwned()) {
+        val state = currentState()
+        if (state.scene == null && !gateLeaseStore.isOwned()) {
             log.log("home hint dropped: no live scene and no gate lease of ours (invariant 8)")
+            return
+        }
+        if (state.scene != null && state.visibility == SceneVisibility.COVERED) {
+            log.log("home hint dropped: the scene is already covered (invariant 8)")
             return
         }
         submit { work -> HomeOperation(work) }

@@ -31,6 +31,12 @@ internal const val WAZE = "com.waze"
 internal const val PRIMARY_ROOT = 2
 internal const val SECONDARY_ROOT = 3
 internal const val FULL_ROOT = 4
+
+/**
+ * Where `removeIviStack` strands a task it threw out of the panel roots: still on the main
+ * display, outside every root the product owns, with its panel bounds preserved (ground-v18).
+ */
+internal const val DETACHED_ROOT = 7
 internal const val EXTERNAL_ROOT = 9
 internal const val STOCK_PICKER_PACKAGE = "com.android.launcher3"
 internal const val STOCK_PICKER_ACTIVITY = "com.android.launcher3.SplitScreenListActivity"
@@ -156,6 +162,18 @@ internal class FakeShell(
         tasks.remove(task)
         task.rootId = rootId
         task.bounds = bounds(rootId)
+        tasks += task
+        changed()
+    }
+
+    /**
+     * The firmware threw this task out of the panel roots (`removeIviStack`, ground-v18): it
+     * stays alive on the main display, invisible, with its panel bounds preserved.
+     */
+    fun detachTask(taskId: Int) {
+        val task = tasks.first { it.id == taskId }
+        tasks.remove(task)
+        task.rootId = DETACHED_ROOT
         tasks += task
         changed()
     }
@@ -512,8 +530,9 @@ internal class FakeShell(
     }
 
     private fun renderStack(): String = buildString {
-        listOf(FULL_ROOT, PRIMARY_ROOT, SECONDARY_ROOT, EXTERNAL_ROOT).forEach { rootId ->
+        listOf(FULL_ROOT, PRIMARY_ROOT, SECONDARY_ROOT, DETACHED_ROOT, EXTERNAL_ROOT).forEach { rootId ->
             val rootTasks = tasks.filter { it.rootId == rootId }
+            if (rootId == DETACHED_ROOT && rootTasks.isEmpty()) return@forEach
             val rootBounds = bounds(rootId)
             appendLine(
                 "RootTask id=$rootId bounds=[${rootBounds.left},${rootBounds.top}]" +
@@ -530,7 +549,9 @@ internal class FakeShell(
                         "[${rootBounds.right},${rootBounds.bottom}] userId=0 visible=false",
                 )
             }
-            val top = rootTasks.lastOrNull()
+            // A task the firmware detached is alive but never visible (ground-v18: the stranded
+            // narrow picker reports `visible=false` with its panel bounds kept).
+            val top = rootTasks.lastOrNull().takeUnless { rootId == DETACHED_ROOT }
             val topPackage = top?.packageName
             val topActivity = top?.activityName
             rootTasks.forEach { task ->

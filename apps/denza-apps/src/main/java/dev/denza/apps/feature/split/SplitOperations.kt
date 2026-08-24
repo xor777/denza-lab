@@ -1131,8 +1131,12 @@ internal class ReconcileOperation(
         }
         // Only once no recipe could prove anything about this scene is "it is gone" a candidate
         // explanation at all - a collapse, a resize repair and a revealed picker all get to speak
-        // first, and each of them proves the scene still exists (1.7.5).
-        if (!proven) settleSceneEnded(op, split)
+        // first, and each of them proves the scene still exists (1.7.5). A pane-close proof is the
+        // one exception: it says nothing about the survivor. The wide-Back ending of 1.6.3 throws
+        // the whole scene out of the panel roots at once and may deliver only a single
+        // hidden-picker hint (ground-v18 B2), so the remainder is checked by existence anyway - a
+        // survivor still living in a panel root passes untouched (1.6.2).
+        if (!proven || kind is SplitReconcileKind.PickerHidden) settleSceneEnded(op, split)
         // Contract 1.6: the outcome of Back and of a close is the firmware's, and the product's one
         // duty afterwards is to leave nothing of its own behind - no borrowed firmware setting and
         // no gate we opened - so that the next tap opens cleanly (1.6.4). Nothing is rebuilt here.

@@ -1658,6 +1658,168 @@ class SplitScenarioTest {
     }
 
     /**
+     * Contract 1.6.3 (редакция bde631c), сценарий §11.16, ветвь широкой панели; машинная правда
+     * ground-v18 B2. Back в ШИРОКОМ пикере при «пикер|пикер»: прошивка сама завершает split
+     * (`startDockOrHome` → `removeIviStack`), широкий пикер умирает вместе с задачей, узкий
+     * выбрасывается из панельных root'ов невидимой задачей, SmartMulti-ключи остаются грязными.
+     *
+     * Продукту с этого места принадлежит только уборка (1.6.4) - и она обязана состояться от
+     * ЕДИНСТВЕННОЙ подсказки, потому что вторая может не прийти вовсе, и посреди шторма оконных
+     * событий Home, потому что нативный конец 1.6.3 происходит именно на Home. Живой прогон v18
+     * показал ровно обратное: тишину в логе, сироту и грязные ключи - каждое эхо Home строило
+     * новую HomeOperation, а её постановка отменяла уборку из очереди (правка C1 волны 4).
+     */
+    @Test
+    fun wideBackAtPickerPickerIsCleanedUpFromOneHintDespiteTheHomeStorm() {
+        val car = car(
+            FakeShell(initialGate = true).apply {
+                liveProductScene()
+                setSystem("byd_smart_multi_primary_activity", LAUNCHER_PACKAGE)
+                setSystem("byd_smart_multi_second_activity", STOCK_BOOTSTRAP_PACKAGE)
+                setSystem("byd_smart_multi_primary_position", "2")
+                setSystem("byd_smart_multi_split_window_mode", "102")
+            },
+        )
+        val core = car.core(
+            SplitDurable(enabled = true, slots = PICKER_PAIR),
+            leases = listOf(SmartMultiLease()),
+        )
+        // The scene on screen is the one this product built a moment ago: the gate is open on
+        // the session's own lease, exactly as the live B2 run had it.
+        car.gateLease.setOwned(true)
+        core.initialize {}
+        core.openPickerSession()
+        car.barrier()
+        // What the firmware itself records while a scene of ours exists.
+        car.fake.setSystem("byd_smart_multi_primary_activity", SPLIT_HOST_PACKAGE)
+
+        // Back in the wide picker: its task dies, the narrow picker is stranded outside the
+        // panel roots with its bounds kept, the screen is Home.
+        car.fake.removeActivity(PRIMARY_ROOT, PRIMARY_PICKER_ACTIVITY)
+        car.fake.detachTask(SECONDARY_PICKER_TASK)
+        car.fake.area = 0
+
+        // The first Home hint is real: it confirms Home and suspends the gate we hold (1.9.1).
+        core.homeVisible()
+        car.barrier()
+        assertFalse(car.fake.isGateOpen())
+        assertTrue("suspension keeps the lease for the next reopen", car.gateLease.isOwned())
+
+        // The launcher goes on emitting window events, and only ONE hidden-picker hint arrives -
+        // the process that hosted the dead picker owes nothing more. The hold keeps the queue
+        // still while the storm and the cleanup demonstrably coexist in it.
+        val hold = car.hold()
+        core.pickerHidden(PRIMARY_PICKER_TASK)
+        repeat(ECHOES) { core.homeVisible() }
+        hold.release()
+        car.barrier()
+
+        assertFalse(
+            "сирота-пикер удалена по точной identity, где бы она ни оказалась",
+            car.fake.hasTask(SECONDARY_PICKER_TASK),
+        )
+        assertEquals(
+            "ключи SmartMulti возвращены compare-and-restore",
+            LAUNCHER_PACKAGE,
+            car.fake.system("byd_smart_multi_primary_activity"),
+        )
+        assertEquals(STOCK_BOOTSTRAP_PACKAGE, car.fake.system("byd_smart_multi_second_activity"))
+        assertFalse("gate закрыт по нашей аренде и аренда возвращена", car.gateLease.isOwned())
+        assertFalse(car.fake.isGateOpen())
+        assertTrue(
+            "шторм отброшен до очереди - он не может отменить уборку (инвариант 8)",
+            car.diagnostics.count { it.contains("the scene is already covered") } >= ECHOES,
+        )
+
+        // 1.6.4: повторный тап после нативного конца - корректное открытие, ничего не воскресло.
+        car.clearCommands()
+        core.openPickerSession()
+        car.barrier()
+        val launches = car.commands().filter { it.startsWith("am start ") }
+        assertEquals(2, launches.count { it.contains(SPLIT_PICKER_ACTIVITY) })
+        assertEquals(SplitScreenPhase.ACTIVE, core.snapshot().phase)
+    }
+
+    /**
+     * Contract 1.6.3 (редакция bde631c), сценарий §11.16, ветвь узкой панели; ground-v18 B1.
+     * Back в УЗКОМ пикере: прошивка сама разворачивает соседа в широкой на весь экран и сама
+     * откатывает свои ключи. Пока эта сцена жива, продукт не убирает ничего и не возвращает
+     * арендованное - его очередь наступает только после конца всей сессии (B1b).
+     */
+    @Test
+    fun narrowBackAtPickerPickerLeavesTheFirmwareOutcomeAlone() {
+        val car = car(
+            FakeShell(initialGate = true).apply {
+                liveProductScene()
+                setSystem("byd_smart_multi_primary_activity", LAUNCHER_PACKAGE)
+                setSystem("byd_smart_multi_second_activity", STOCK_BOOTSTRAP_PACKAGE)
+                setSystem("byd_smart_multi_primary_position", "2")
+                setSystem("byd_smart_multi_split_window_mode", "102")
+            },
+        )
+        val core = car.core(
+            SplitDurable(enabled = true, slots = PICKER_PAIR),
+            leases = listOf(SmartMultiLease()),
+        )
+        // Как и в живом B1: сцену построила эта же сессия, gate открыт по её аренде.
+        car.gateLease.setOwned(true)
+        core.initialize {}
+        core.openPickerSession()
+        car.barrier()
+        car.fake.setSystem("byd_smart_multi_primary_activity", SPLIT_HOST_PACKAGE)
+
+        // Back в узком: его задача умерла, широкий пикер развёрнут прошивкой на весь экран.
+        car.fake.dismissPane(SECONDARY_ROOT)
+        car.clearCommands()
+        core.pickerHidden(SECONDARY_PICKER_TASK)
+        car.barrier()
+
+        assertTrue("выживший пикер прошивки не тронут", car.fake.hasTask(PRIMARY_PICKER_TASK))
+        assertFalse(
+            "продукт ничего не удаляет: исход нативный (1.6)",
+            car.commands().any { it.contains(" remove-task ") },
+        )
+        assertEquals(
+            mapOf(
+                SplitPane.PRIMARY to SplitSlot.Picker,
+                SplitPane.SECONDARY to SplitSlot.Closed,
+            ),
+            car.store.load().slots,
+        )
+        assertTrue("сессия жива - gate остаётся нашим", car.fake.isGateOpen())
+        assertEquals(
+            "и ключи остаются за живой сценой (1.12)",
+            SPLIT_HOST_PACKAGE,
+            car.fake.system("byd_smart_multi_primary_activity"),
+        )
+
+        // B1b: Back в выжившем полноэкранном пикере - прошивка уводит на Home; вот теперь
+        // сессия кончилась, и продукт возвращает всё, что занимал.
+        car.fake.removeActivity(PRIMARY_ROOT, PRIMARY_PICKER_ACTIVITY)
+        car.fake.area = 0
+        core.pickerHidden(PRIMARY_PICKER_TASK)
+        car.barrier()
+
+        assertFalse("gate возвращён с концом сессии", car.fake.isGateOpen())
+        assertFalse(car.gateLease.isOwned())
+        assertEquals(
+            "ключи прошивки восстановлены",
+            LAUNCHER_PACKAGE,
+            car.fake.system("byd_smart_multi_primary_activity"),
+        )
+
+        // 1.6.4: повторный тап и после этого исхода открывается корректно.
+        car.clearCommands()
+        core.openPickerSession()
+        car.barrier()
+        assertEquals(
+            2,
+            car.commands().count { it.startsWith("am start ") && it.contains(SPLIT_PICKER_ACTIVITY) },
+        )
+        assertEquals(SplitScreenPhase.ACTIVE, core.snapshot().phase)
+    }
+
+    /**
      * Contract 1.8.1: the divider comes to rest on the firmware's own detents rather than where the
      * finger let go, and that is the native outcome, not something to correct.
      */
