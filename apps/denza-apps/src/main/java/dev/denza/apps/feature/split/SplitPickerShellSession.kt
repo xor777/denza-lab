@@ -467,6 +467,61 @@ internal class SplitPickerShellSession(
     }
 
     /**
+     * Which recorded pane a native collapse closed, proven by existence alone (правка W1, 1.8.2,
+     * диагноз v21 Д1). Read-only.
+     *
+     * Прошивочный «Release to close» отвязывает задачи живыми, не убивая, и во время его
+     * двухпроходного teardown полный постусловный набор [settledCollapsedPane] честно
+     * недоказуем - тот набор остаётся воротами физического reattach выжившего пикера
+     * ([collapsedOwnedSession]), но не воротами чистки памяти. Сам факт схлопывания доказывается
+     * существованием: при area 1/2 и записанной двухпанельной сцене схлопнута панель, чьи
+     * записанные задачи - host И app, по exact identity - отсутствуют в ОБОИХ панельных root.
+     * Выживший - другая панель.
+     *
+     * Сигнатура отличает схлопывание от краха 1.7.3: у краха host-пикер жив в панельном root и
+     * отсутствует только app - такая панель не схлопнута, это путь APP→PICKER. Панель без
+     * записанного app схлопнута, когда отсутствует её host. Ровно одна полностью отсутствующая
+     * панель; обе исчезли - это конец сцены, его решает existence-проверка конца, не collapse.
+     */
+    fun collapsedPaneByExistence(
+        pickerComponents: Set<String>,
+        expectedPanes: Map<SplitPane, SplitPickerObservedPane>,
+    ): SplitPane? {
+        val area = callInt("service call activity_task 30")
+        if (area != AREA_PRIMARY_FULL && area != AREA_SECONDARY_FULL) return null
+        if (expectedPanes.keys != SplitPane.entries.toSet()) return null
+        if (expectedPanes.values.any { expected ->
+                expected.hostTaskId <= 0 ||
+                    ((expected.appTaskId == null) != (expected.packageName == null)) ||
+                    (expected.appTaskId != null &&
+                        (expected.appTaskId <= 0 || expected.packageName.isNullOrBlank()))
+            }
+        ) {
+            return null
+        }
+        val roots = nativeRootIds()
+        val state = snapshot()
+        val panelTasks = roots.values.mapNotNull(state::root).flatMap(SplitRootTask::tasks)
+        val absent = SplitPane.entries.filter { pane ->
+            val expected = expectedPanes.getValue(pane)
+            val hostPresent = panelTasks.any { task ->
+                task.id == expected.hostTaskId &&
+                    task.isDenzaPickerBase() &&
+                    task.matchesAnyComponent(pickerComponents)
+            }
+            val appPresent = expected.appTaskId?.let { appTaskId ->
+                panelTasks.any { task ->
+                    task.id == appTaskId &&
+                        task.effectivePackageName() == expected.packageName &&
+                        !task.isDenzaPickerBase()
+                }
+            } == true
+            !hostPresent && !appPresent
+        }
+        return absent.singleOrNull()
+    }
+
+    /**
      * Brings an exact owned pair back above Home or a fullscreen window without rebuilding a pane.
      *
      * Home is a covered scene like any other (invariant 5, 1.9.1): the pair is alive in the two

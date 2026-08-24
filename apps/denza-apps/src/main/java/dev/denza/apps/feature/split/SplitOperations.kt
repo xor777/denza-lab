@@ -1388,8 +1388,40 @@ internal class ReconcileOperation(
         val collapsed = split.collapsedOwnedSession(
             pickerComponents = SPLIT_PICKER_COMPONENT_SET,
             expectedPanes = expected,
-        ) ?: return false
-        adoptCollapse(op, split, collapsed, previous)
+        )
+        if (collapsed != null) {
+            adoptCollapse(op, split, collapsed, previous)
+            return true
+        }
+        return settleCollapseByExistence(op, split, previous, expected)
+    }
+
+    /**
+     * Правка W1 (1.8.2, диагноз v21 Д1): факт схлопывания доказывается существованием.
+     *
+     * Полный постусловный набор физической адопции выше остаётся воротами reattach выжившего
+     * пикера, но во время двухпроходного teardown прошивки он честно недоказуем - и в v21 слот
+     * схлопнутой панели не чистился вовсе, а «воскрешение Музыки» было честным восстановлением
+     * незачищенного слота. Панель, чьи записанные задачи (host И app, по exact identity)
+     * отсутствуют в обоих панельных root при area 1/2, схлопнута: её слот закрывается, огрызок
+     * её - и только её - пикера убирается по точной identity, где бы он ни оказался. Таск
+     * приложения пользователя не трогается: прошивка отвязала его живым (1.8.2), и он остаётся
+     * жить в фоне, как при 1.2.3.
+     */
+    private fun settleCollapseByExistence(
+        op: SplitOperationContext,
+        split: SplitPickerShellSession,
+        previous: SplitLiveScene,
+        expected: Map<SplitPane, SplitPickerObservedPane>,
+    ): Boolean {
+        val collapsed = runCatching {
+            split.collapsedPaneByExistence(SPLIT_PICKER_COMPONENT_SET, expected)
+        }.getOrNull() ?: return false
+        val survivor = collapsed.other()
+        pointOfNoReturn(op, "the collapse closed $collapsed for good; its app stays alive")
+        previous[collapsed]?.let { pane -> removeCollapsedPicker(op, split, pane.hostTaskId) }
+        liveScene = liveScene - collapsed
+        settle(SplitFact.PaneCollapsedSettled(survivor))
         return true
     }
 
@@ -1405,35 +1437,29 @@ internal class ReconcileOperation(
             .firstOrNull { (_, observed) -> observed.hostTaskId == collapsed.hostTaskId }
             ?.key
             ?: return
+        // Правка W1 (1.8.2): приложения обеих панелей - собственность пользователя, и прошивка
+        // на схлопывании их не закрывает («Release to close» отвязывает задачу живой). Продукт
+        // убирает только огрызок собственного пикера закрытой панели; убийство записанных app
+        // здесь v21 наблюдал как смерть музыки при живой задаче - удалено.
         val closed = previous[previousOwner.other()]
         pointOfNoReturn(op, "the collapse closed the peer of $survivor for good")
-        if (collapsed.appTaskId == null) {
-            // The survivor kept its base but lost its app: that exact task is what collapsed away.
-            previous[previousOwner]?.let { owner -> removeRecordedApp(op, split, owner) }
-        }
-        closed?.let { pane ->
-            removeRecordedApp(op, split, pane)
-            runCatching { split.removePickerArtifact(pane.hostTaskId, SPLIT_PICKER_COMPONENT_SET) }
-                .onSuccess { removed ->
-                    if (removed) recordRemoved(op, pane.hostTaskId, SPLIT_PICKER_COMPONENT)
-                }
-                .onFailure { error -> work.log("failed to remove the collapsed picker: $error") }
-        }
+        closed?.let { pane -> removeCollapsedPicker(op, split, pane.hostTaskId) }
         liveScene = mapOf(survivor to collapsed)
         settle(SplitFact.PaneCollapsedSettled(survivor))
         settleOccupant(survivor, collapsed.appPackageName)
     }
 
-    private fun removeRecordedApp(
+    /** Only the permanent picker base of the collapsed pane, by exact identity, wherever it is. */
+    private fun removeCollapsedPicker(
         op: SplitOperationContext,
         split: SplitPickerShellSession,
-        observed: SplitPickerLivePane,
+        hostTaskId: Int,
     ) {
-        val taskId = observed.appTaskId ?: return
-        val packageName = observed.appPackageName ?: return
-        runCatching { split.removeRecordedTask(taskId, packageName) }
-            .onSuccess { removed -> if (removed) recordRemoved(op, taskId, packageName) }
-            .onFailure { error -> work.log("failed to remove the collapsed app task: $error") }
+        runCatching { split.removePickerArtifact(hostTaskId, SPLIT_PICKER_COMPONENT_SET) }
+            .onSuccess { removed ->
+                if (removed) recordRemoved(op, hostTaskId, SPLIT_PICKER_COMPONENT)
+            }
+            .onFailure { error -> work.log("failed to remove the collapsed picker: $error") }
     }
 
     private companion object {

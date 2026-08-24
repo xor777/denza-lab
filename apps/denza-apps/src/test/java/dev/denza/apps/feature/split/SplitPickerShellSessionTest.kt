@@ -869,6 +869,78 @@ class SplitPickerShellSessionTest {
         )
     }
 
+    /**
+     * Правка W1 (1.8.2, диагноз v21 Д1): факт схлопывания доказывается существованием - при
+     * area 1/2 схлопнута панель, чьи записанные host И app (по exact identity) отсутствуют в
+     * обоих панельных root. Полный постусловный набор физической адопции остаётся воротами
+     * reattach, не воротами этого факта.
+     */
+    @Test
+    fun collapseByExistenceNamesThePaneWhoseRecordedTasksLeftBothPanelRoots() {
+        val fake = FakeShell()
+        val split = session(fake)
+        val hosts = split.buildPickers()
+        val music = split.selectApp(
+            pickerTaskId = hosts.getValue(SplitPane.SECONDARY),
+            target = SplitLaunchTarget(MUSIC, "$MUSIC/$MUSIC.MainActivity"),
+            pickerComponents = PICKER_COMPONENTS,
+        )
+        // Двухпроходный teardown прошивки: host и app схлопнутой панели отвязаны живыми.
+        fake.detachTask(hosts.getValue(SplitPane.SECONDARY))
+        fake.detachTask(music.appTaskId)
+        fake.area = 1
+        fake.commands.clear()
+
+        val expected = mapOf(
+            SplitPane.PRIMARY to SplitPickerObservedPane(
+                hostTaskId = hosts.getValue(SplitPane.PRIMARY),
+            ),
+            SplitPane.SECONDARY to SplitPickerObservedPane(
+                hostTaskId = hosts.getValue(SplitPane.SECONDARY),
+                appTaskId = music.appTaskId,
+                packageName = music.packageName,
+            ),
+        )
+
+        assertEquals(
+            SplitPane.SECONDARY,
+            split.collapsedPaneByExistence(PICKER_COMPONENTS, expected),
+        )
+        assertFalse(
+            "доказательство по существованию строго read-only",
+            fake.commands.any { command ->
+                command.startsWith("am start ") ||
+                    command.startsWith("am stack move-task ") ||
+                    command.startsWith("am task ") ||
+                    command.contains(" remove-task ")
+            },
+        )
+    }
+
+    @Test
+    fun collapseByExistenceRefusesACrashSignatureAndAWholeSceneEnd() {
+        val fake = FakeShell()
+        val split = session(fake)
+        val hosts = split.buildPickers()
+        val expected = mapOf(
+            SplitPane.PRIMARY to SplitPickerObservedPane(hosts.getValue(SplitPane.PRIMARY)),
+            SplitPane.SECONDARY to SplitPickerObservedPane(hosts.getValue(SplitPane.SECONDARY)),
+        )
+
+        // Сигнатура краха 1.7.3: host жив в панельном root - его панель не схлопнута.
+        fake.area = 1
+        assertEquals(null, split.collapsedPaneByExistence(PICKER_COMPONENTS, expected))
+
+        // Обе панели покинули root'ы - это конец сцены; его решает existence-проверка конца.
+        fake.detachTask(hosts.getValue(SplitPane.PRIMARY))
+        fake.detachTask(hosts.getValue(SplitPane.SECONDARY))
+        assertEquals(null, split.collapsedPaneByExistence(PICKER_COMPONENTS, expected))
+
+        // Вне area 1/2 факт схлопывания не читается вовсе.
+        fake.area = 3
+        assertEquals(null, split.collapsedPaneByExistence(PICKER_COMPONENTS, expected))
+    }
+
     @Test
     fun visibleProductPickerHintResolvesOnlyOneExactNativeTask() {
         val fake = FakeShell()
