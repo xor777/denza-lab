@@ -653,6 +653,9 @@ internal class OpenOperation(
             // Правка W6: the same read that decides what this operation owes an undo for also
             // decides what a failed pane may execute - only what the build itself created.
             preexistingTaskIds = preexisting,
+            // Правка W10: the build's own phases, stamped with the user's waiting time - the next
+            // red branch reads which step the seconds went into straight off the log.
+            onPhase = { phase -> mark(op, phase) },
         ) { task ->
             // A task that was already running is one this build only borrowed: its inverse is the
             // root it came from, never a removal (U2). Everything else this build made itself.

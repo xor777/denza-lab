@@ -626,6 +626,36 @@ class SplitScenarioTest {
     }
 
     /**
+     * Правка W10 (1.13, урок красной ветки v20 P1.2): секунды сборки обязаны раскладываться по
+     * логу без гаданий. Каждая фаза buildScene оставляет метку с временем ожидания пользователя,
+     * тем же счётом от тапа, что и остальные марки операции.
+     */
+    @Test
+    fun anOpenBuildLogsItsPhases() {
+        val car = car(FakeShell())
+        val core = car.core(SplitDurable(enabled = true, slots = APP_PAIR))
+        core.initialize {}
+
+        core.openPickerSession()
+        car.barrier()
+
+        val phaseMark = Regex(
+            "^open \\+\\d+ms (roots-started|roots-placed|apps-launched|scene-normalized|placement-confirmed)$",
+        )
+        assertEquals(
+            "каждая фаза сборки оставила ровно одну метку, в порядке рецепта",
+            listOf(
+                "roots-started",
+                "roots-placed",
+                "apps-launched",
+                "scene-normalized",
+                "placement-confirmed",
+            ),
+            car.diagnostics.mapNotNull { line -> phaseMark.find(line)?.groupValues?.get(1) },
+        )
+    }
+
+    /**
      * Анти-регрессия на доминанту скорости (правка A, измерение v19): один `am stack list` на
      * этой машине стоит 250-300 мс, и пересборка сцены при живых задачах доходила до ~13 таких
      * чтений. Бюджет камеры - восемь: scene-read отказа, before сборки, два ожидания пикеров,

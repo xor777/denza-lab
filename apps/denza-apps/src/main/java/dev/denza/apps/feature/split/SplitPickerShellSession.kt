@@ -542,6 +542,12 @@ internal class SplitPickerShellSession(
          */
         preexistingTaskIds: Set<Int>? = null,
         /**
+         * Правка W10: фазовые метки сборки для диагностического лога. Следующая красная ветка
+         * обязана раскладываться по логу без гаданий: какому шагу достались секунды, говорит
+         * сама операция ("roots-started" ... "placement-confirmed"), а не реконструкция.
+         */
+        onPhase: (String) -> Unit = {},
+        /**
          * Every task the recipe took charge of, reported the moment it has one rather than at the
          * end: a build the fence stops halfway still owes an undo for what it already did
          * (invariant 10). The caller decides which of them it created and which it only moved.
@@ -622,6 +628,7 @@ internal class SplitPickerShellSession(
             )
         }
 
+        onPhase("roots-started")
         // Categories are authoritative once the native scene exists. On a truly empty scene
         // this firmware first creates ordinary fullscreen tasks, so explicitly reparent those
         // exact tasks into the already-known OEM roots and reveal the real divider once.
@@ -656,6 +663,7 @@ internal class SplitPickerShellSession(
                 "Прошивка не раскрыла native split"
             }
         }
+        onPhase("roots-placed")
 
         // Phase 3 - the apps. One read decides which pane still needs a launch at all.
         val hostTaskIds = pickerTasks.mapValues { (_, picker) -> picker.id }
@@ -787,6 +795,7 @@ internal class SplitPickerShellSession(
                 ?: hostTaskIds.getValue(SplitPane.PRIMARY)
             run("am task focus $focusTaskId")
         }
+        onPhase("apps-launched")
 
         // Both bases and both apps take the size of their pane from one read, the divergent ones
         // are resized back to back, and one settle and one more read close the whole batch.
@@ -804,15 +813,15 @@ internal class SplitPickerShellSession(
                 )
             }
         }
-        return SplitSceneBuild(
-            panes = awaitScenePlacement(
-                pickerComponents = pickerComponents,
-                rootIds = rootIds,
-                hostTaskIds = hostTaskIds,
-                appTaskIds = appTaskIds,
-            ),
-            failed = failed,
+        onPhase("scene-normalized")
+        val panes = awaitScenePlacement(
+            pickerComponents = pickerComponents,
+            rootIds = rootIds,
+            hostTaskIds = hostTaskIds,
+            appTaskIds = appTaskIds,
         )
+        onPhase("placement-confirmed")
+        return SplitSceneBuild(panes = panes, failed = failed)
     }
 
     /**
