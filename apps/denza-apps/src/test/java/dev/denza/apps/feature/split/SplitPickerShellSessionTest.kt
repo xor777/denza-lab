@@ -381,6 +381,42 @@ class SplitPickerShellSessionTest {
     }
 
     @Test
+    fun coveredSceneMembershipIsProvedByExactIdentityAcrossTheWholeMainDisplay() {
+        // Инвариант 5 (ред. 2026-08-24): отвязанный прошивкой член накрытой сцены жив где угодно
+        // на main display; проверка существования не ограничена панельными корнями и считает
+        // мёртвым только реально умершую задачу.
+        val fake = FakeShell().apply { liveProductScene(withApps = true) }
+        val split = session(fake)
+        val scene = mapOf(
+            SplitPane.PRIMARY to SplitPickerLivePane(
+                pane = SplitPane.PRIMARY,
+                hostTaskId = PRIMARY_PICKER_TASK,
+                appTaskId = PRIMARY_APP_TASK,
+                appPackageName = NAVIGATOR,
+            ),
+            SplitPane.SECONDARY to SplitPickerLivePane(
+                pane = SplitPane.SECONDARY,
+                hostTaskId = SECONDARY_PICKER_TASK,
+                appTaskId = SECONDARY_APP_TASK,
+                appPackageName = MUSIC,
+            ),
+        )
+
+        assertFalse("живой split не накрыт", split.sceneCovered())
+        fake.area = 0
+        assertTrue("Home накрывает сцену", split.sceneCovered())
+
+        // Прошивка опустошила корень сфокусированной панели: члены отвязаны, но живы.
+        fake.detachTask(PRIMARY_PICKER_TASK)
+        fake.detachTask(PRIMARY_APP_TASK)
+        assertTrue(split.allRecordedMembersAlive(scene, PICKER_COMPONENTS))
+
+        // Мёртвый член - нативный конец, и проверка обязана его увидеть.
+        fake.removeActivity(DETACHED_ROOT, PRIMARY_PICKER_ACTIVITY)
+        assertFalse(split.allRecordedMembersAlive(scene, PICKER_COMPONENTS))
+    }
+
+    @Test
     fun dividerHintOverACoveredSceneSkipsTheSettleAndReadsOnly() {
         // Правка W1 (v20 D1): над накрытой сценой - Home (area 0) или чужое fullscreen-окно
         // (area 4) - дивайдера нет, и реконсил обязан ответить одним чтением area: без слепой

@@ -1432,6 +1432,44 @@ internal class SplitPickerShellSession(
         )
     }
 
+    /**
+     * Whether the firmware currently covers the scene: Home (area 0) and a foreign fullscreen
+     * window (area 4) hide it without ending it (инвариант 5, 1.9.1, 1.11.5). Read-only.
+     */
+    fun sceneCovered(): Boolean =
+        callInt("service call activity_task 30").let { it == AREA_HOME || it == AREA_FULL_IVI }
+
+    /**
+     * Whether every recorded member of the scene is still alive on the main display under its
+     * exact recorded identity - a picker by task id and our own component, an app by task id and
+     * package (инвариант 5, ред. 2026-08-24).
+     *
+     * На Home прошивка может опустошить корень сфокусированной панели, отвязав живые задачи в
+     * display area с сохранёнными панельными границами. Отвязанный член живой накрытой сцены -
+     * не сирота, поэтому эта проверка обязана смотреть весь main display, а не только панельные
+     * корни (панельные корни здесь ничего не доказывают). Мёртвый член - нативный конец: Back в
+     * широком пикере при «пикер|пикер» убивает его задачу (ground-v18 B2), свайп и «очистить всё»
+     * убивают их все. Read-only.
+     */
+    fun allRecordedMembersAlive(
+        scene: Map<SplitPane, SplitPickerLivePane>,
+        pickerComponents: Set<String>,
+    ): Boolean {
+        if (scene.isEmpty()) return false
+        val tasks = mainDisplayTasks()
+        return scene.values.all { observed ->
+            tasks.any { task ->
+                task.id == observed.hostTaskId &&
+                    task.isDenzaPickerBase() &&
+                    task.matchesAnyComponent(pickerComponents)
+            } && (observed.appTaskId == null || tasks.any { task ->
+                task.id == observed.appTaskId &&
+                    task.effectivePackageName() == observed.appPackageName &&
+                    !task.isDenzaPickerBase()
+            })
+        }
+    }
+
     /** Resolves a product-picker window hint only when one native root has one visible picker. */
     fun singleVisiblePickerTaskId(pickerComponents: Set<String>): Int? {
         val roots = nativeRootIds()

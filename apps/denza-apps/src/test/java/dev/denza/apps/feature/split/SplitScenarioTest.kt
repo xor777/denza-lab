@@ -2015,6 +2015,63 @@ class SplitScenarioTest {
         assertEquals(1, car.overlay.closed())
     }
 
+    /**
+     * Инвариант 5 (ред. 2026-08-24), живой красный v20 D1: прошивка на Home опустошает корень
+     * сфокусированной панели, отвязывая живой пикер в display area с панельными бордерами. Его
+     * hidden-хинт - эхо Home, а не жест dismiss: в v20 продукт убивал этот пикер, ярус выживших
+     * к следующему open был пуст, и возврат шёл полной пересборкой с запусками.
+     */
+    @Test
+    fun aHiddenPickerHintOverACoveredSceneIsAHomeEchoNotADismissal() {
+        val car = car(FakeShell())
+        val core = car.core(
+            SplitDurable(
+                enabled = true,
+                slots = mapOf(
+                    SplitPane.PRIMARY to SplitSlot.Picker,
+                    SplitPane.SECONDARY to SplitSlot.App(MUSIC),
+                ),
+            ),
+        )
+        core.initialize {}
+        core.openPickerSession()
+        car.barrier()
+        val pickerP = car.fake.taskIds(PRIMARY_ROOT).single()
+        val commits = car.store.commits
+
+        // Home накрыл сцену, и прошивка выбросила пикерную панель из её корня целиком.
+        car.fake.area = 0
+        core.homeVisible()
+        car.barrier()
+        car.fake.detachTask(pickerP)
+        car.clearCommands()
+
+        core.pickerHidden(pickerP)
+        car.barrier()
+
+        assertTrue("отвязанный пикер накрытой сцены жив: он не сирота", car.fake.hasTask(pickerP))
+        assertFalse(
+            "ни одной команды удаления",
+            car.commands().any { it.contains(" remove-task ") },
+        )
+        assertEquals("и ни одной мутации вообще", emptyList<String>(), car.mutations())
+        assertEquals("слоты панелей не тронуты", commits, car.store.commits)
+        assertEquals(SplitSlot.App(MUSIC), car.store.load().slot(SplitPane.SECONDARY))
+
+        // Возврат кнопкой: выживший возвращён в свой корень, ничего не запущено заново (U2).
+        car.clearCommands()
+        core.openPickerSession()
+        car.barrier()
+
+        assertFalse(
+            "ярус выживших сработал: ни одного запуска",
+            car.commands().any { it.startsWith("am start ") },
+        )
+        assertEquals(PRIMARY_ROOT, car.fake.taskRoot(pickerP))
+        assertEquals(SplitScreenPhase.ACTIVE, core.snapshot().phase)
+        assertEquals(3, car.fake.area)
+    }
+
     @Test
     fun aCoveredSceneIsNeverMistakenForAnEndedOne() {
         // инвариант 5: Home и чужое полноэкранное окно прячут сцену, задачи которой живы в снапшоте

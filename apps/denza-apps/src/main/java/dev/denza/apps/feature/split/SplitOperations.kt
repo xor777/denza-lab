@@ -1250,6 +1250,13 @@ internal class ReconcileOperation(
      * A picker that left both panel roots is the dismiss gesture, and only then (1.6.3, 1.7.4).
      * A hidden picker under a live app is Android reclaiming an invisible Activity, never a close.
      *
+     * Над накрытой сценой жеста dismiss не бывает (инвариант 5, ред. 2026-08-24): прошивка на
+     * Home сама опустошает корень сфокусированной панели, отвязывая живой пикер в display area,
+     * и hidden-хинт здесь - эхо Home. Гард стоит до любых мутаций; жива ли накрытая сцена
+     * целиком, решает existence-проверка [settleSceneEnded]. В v20 этот хинт принимал
+     * Home-накрытие за dismiss и убивал отвязанный пикер - к следующему open ярус выживших
+     * был пуст, и возврат шёл полной пересборкой (D1).
+     *
      * @return whether this hint closed a pane. Everything else it can observe - an unknown host, a
      * live app above the picker, a picker still in its panel root - is left to the scene check.
      */
@@ -1263,6 +1270,7 @@ internal class ReconcileOperation(
             ?.key
             ?: return false
         if (liveScene.getValue(pane).appTaskId != null) return false
+        if (split.sceneCovered()) return false
         if (split.observePickerTask(hostTaskId, SPLIT_PICKER_COMPONENT_SET) != null) return false
         pointOfNoReturn(op, "removing the dismissed picker of $pane")
         if (split.removePickerArtifact(hostTaskId, SPLIT_PICKER_COMPONENT_SET)) {
@@ -1304,6 +1312,18 @@ internal class ReconcileOperation(
         if (recorded.isEmpty()) return false
         val living = paneTaskIds(split) ?: return false
         if (recorded.any { taskId -> taskId in living }) return false
+        // Инвариант 5 (ред. 2026-08-24): прошивка на Home может опустошить корень сфокусированной
+        // панели - члены живой накрытой сцены отвязаны от панельных корней, но живы, и сиротами
+        // не являются. Пока сцена накрыта и КАЖДЫЙ записанный член жив под своей exact identity
+        // где угодно на main display, сцена существует и уборка не начинается. Мёртвый член -
+        // нативный конец (Back в широком пикере при «пикер|пикер», свайп, «очистить всё»,
+        // ground-v18 B2), и тогда огрызки наших пикеров убираются ниже, где бы они ни оказались
+        // (1.6.3, 1.7.5). Нечитаемая машина решается как и выше: не доказано - не убираем.
+        val coveredSceneAlive = runCatching {
+            split.sceneCovered() &&
+                split.allRecordedMembersAlive(liveScene, SPLIT_PICKER_COMPONENT_SET)
+        }.getOrNull() ?: return false
+        if (coveredSceneAlive) return false
         val ownPickers = liveScene.values.map(SplitPickerLivePane::hostTaskId)
         liveScene = emptyMap()
         settle(SplitFact.SceneEndedSettled)
