@@ -381,6 +381,72 @@ class SplitPickerShellSessionTest {
     }
 
     @Test
+    fun dividerHintOverACoveredSceneSkipsTheSettleAndReadsOnly() {
+        // Правка W1 (v20 D1): над накрытой сценой - Home (area 0) или чужое fullscreen-окно
+        // (area 4) - дивайдера нет, и реконсил обязан ответить одним чтением area: без слепой
+        // pause(1500), которая держала единственного воркера ~2 с перед каждым open, и без
+        // чтения топологии. Существование накрытой сцены проверяет вызывающий (инвариант 5).
+        val fake = FakeShell()
+        val settled = mutableListOf<Long>()
+        val split = SplitPickerShellSession(
+            shell = fake::shell,
+            apkPath = "/data/app/dev.denza.apps/base.apk",
+            settle = { millis -> settled += millis },
+        )
+        val previous = mapOf(
+            SplitPane.PRIMARY to SplitPickerObservedPane(hostTaskId = 60),
+            SplitPane.SECONDARY to SplitPickerObservedPane(
+                hostTaskId = 61,
+                appTaskId = 71,
+                packageName = MUSIC,
+            ),
+        )
+
+        listOf(0, 4).forEach { covered ->
+            fake.area = covered
+            fake.commands.clear()
+            settled.clear()
+
+            assertEquals(null, split.reconcileDividerResize(PICKER_COMPONENTS, previous))
+
+            assertEquals(
+                "над area $covered реконсил стоит ровно одно чтение area",
+                listOf("service call activity_task 30"),
+                fake.commands.toList(),
+            )
+            assertEquals("и ни одной паузы", emptyList<Long>(), settled.toList())
+        }
+    }
+
+    @Test
+    fun dividerHintOverALiveAreaStillWaitsOutTheFirmwareSettle() {
+        // Правка W1 меняет только накрытые area: над живым split (area 3) дивайдерный settle
+        // остаётся неизменной частью live-proven рецепта.
+        val fake = FakeShell()
+        val settled = mutableListOf<Long>()
+        val split = SplitPickerShellSession(
+            shell = fake::shell,
+            apkPath = "/data/app/dev.denza.apps/base.apk",
+            settle = { millis -> settled += millis },
+        )
+        fake.area = 3
+
+        split.reconcileDividerResize(
+            PICKER_COMPONENTS,
+            mapOf(
+                SplitPane.PRIMARY to SplitPickerObservedPane(hostTaskId = 60),
+                SplitPane.SECONDARY to SplitPickerObservedPane(
+                    hostTaskId = 61,
+                    appTaskId = 71,
+                    packageName = MUSIC,
+                ),
+            ),
+        )
+
+        assertTrue("settle 1.5 c по-прежнему отрабатывает", 1_500L in settled)
+    }
+
+    @Test
     fun ownedSceneCoveredByFullscreenIsFocusedInsteadOfRebuilt() {
         val fake = FakeShell()
         val split = session(fake)

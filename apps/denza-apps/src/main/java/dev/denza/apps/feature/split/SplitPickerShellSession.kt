@@ -211,6 +211,13 @@ internal class SplitPickerShellSession(
         pickerComponents: Set<String>,
         previousPanes: Map<SplitPane, SplitPickerObservedPane>,
     ): Map<SplitPane, SplitPickerLivePane>? {
+        // Правка W1 (v20 D1): area читается ДО паузы. Над накрытой сценой - Home (0) или чужое
+        // fullscreen-окно (4) - дивайдера нет и settle ждать нечего: оконные эхо жеста возврата
+        // рождали этот реконсил над area 0, слепая pause(1500) держала единственного воркера, и
+        // следующий OPEN стоял за ним ~2 с очереди. Существование накрытой сцены проверяет
+        // вызывающий (инвариант 5); дивайдерный settle остаётся неизменным для живых area.
+        val area = callInt("service call activity_task 30")
+        if (area == AREA_HOME || area == AREA_FULL_IVI) return null
         pause(DIVIDER_RECONCILE_SETTLE_MS)
         existingOwnedSession(pickerComponents)?.let { return it }
         if (callInt("service call activity_task 30") != AREA_BALANCED_SPLIT) return null
