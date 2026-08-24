@@ -25,7 +25,6 @@ internal class SplitOperationWorkspace(
     private val proxyClasspath: SplitProxyClasspath = SplitProxyClasspath { apkPath },
     /** The human name of a package; the package itself is the honest fallback (1.3.2). */
     val appLabel: (String) -> String = { it },
-    private val logMirror: () -> List<String> = { emptyList() },
     private val clock: SplitClock,
     private val sleeper: (Long) -> Unit,
     private val diagnostics: SplitDiagnosticLog,
@@ -131,21 +130,6 @@ internal class SplitOperationWorkspace(
         }
         topology.invalidate()
         open?.let { runCatching(it::close) }
-    }
-
-    /**
-     * Carries what the product recorded through the one channel this car is proven to accept.
-     *
-     * It costs one command, and only on an operation that was already talking to the firmware: an
-     * operation that decided to do nothing opens no session and mirrors nothing (invariant 1, K6,
-     * K7), and one that lost its token sends nothing at all, log line included (invariant 10) -
-     * whatever it recorded waits for the next operation that still owns its mutations.
-     */
-    fun mirrorDiagnostics() {
-        val handle = synchronized(handleLock) { handle } ?: return
-        val lines = runCatching(logMirror).getOrDefault(emptyList())
-        if (lines.isEmpty()) return
-        runCatching { handle.shell(SplitDiagnostics.mirrorCommand(lines)) }
     }
 
     private fun openedHandle(): SplitShellHandle = synchronized(handleLock) {
@@ -480,7 +464,6 @@ internal class SplitOperationLifecycle(
         val outcome = try {
             operation.run(op)
         } finally {
-            if (op.token.isAlive(op.clock.nowMs())) workspace.mirrorDiagnostics()
             workspace.close()
         }
         operation.finished(outcome)

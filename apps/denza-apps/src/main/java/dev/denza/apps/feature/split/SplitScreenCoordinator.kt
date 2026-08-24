@@ -191,7 +191,6 @@ object SplitScreenCoordinator {
             proxyClasspath = stagedProxy(app),
             appLabel = { packageName -> applicationLabel(app, packageName) },
             log = SplitDiagnosticLog(SplitDiagnostics::record),
-            logMirror = SplitDiagnostics::drainForMirror,
             post = { action -> mainHandler.post(action) },
         )
     }

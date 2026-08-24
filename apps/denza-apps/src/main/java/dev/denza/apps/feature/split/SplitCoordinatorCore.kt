@@ -199,11 +199,6 @@ internal class SplitCoordinatorCore(
     private val appLabel: (String) -> String = { it },
     private val sleeper: (Long) -> Unit = Thread::sleep,
     private val log: SplitDiagnosticLog = SplitDiagnosticLog {},
-    /**
-     * Lines the sink cannot prove reached anyone, handed to whatever operation next has a shell
-     * open. Empty by default: a test's sink is its own oracle and needs no second channel.
-     */
-    private val logMirror: () -> List<String> = { emptyList() },
     private val post: (() -> Unit) -> Unit = { action -> action() },
 ) {
     private val stateLock = Any()
@@ -532,7 +527,6 @@ internal class SplitCoordinatorCore(
             apkPath = apkPath,
             proxyClasspath = proxyClasspath,
             appLabel = appLabel,
-            logMirror = logMirror,
             clock = clock,
             sleeper = sleeper,
             diagnostics = log,

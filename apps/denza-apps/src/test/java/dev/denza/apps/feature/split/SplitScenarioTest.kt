@@ -415,15 +415,11 @@ class SplitScenarioTest {
     }
 
     /**
-     * U5 and the live blank of the vertical slice: two whole open runs, not one line of the tag.
-     *
-     * `Log.i` from this application cannot be proven to reach anyone on this firmware, while the
-     * same tag written from the shell does. So an operation that is talking to the car anyway
-     * carries what the product recorded over that channel too - once, at the end, never a session
-     * of its own, and never past the fence.
+     * Правка W6 (диагноз v21 Д4-Ф1): shell-зеркало удалено, канал истины фаз - ринг
+     * support-экрана (§12.1). Что операция пишет фазы в ринг, по-прежнему закреплено здесь.
      */
     @Test
-    fun whatTheProductRecordsAlsoLeavesByAChannelTheCarAccepts() {
+    fun theRingCarriesTheStepTimingsOfAnOpen() {
         val car = car(FakeShell())
         val core = car.core(SplitDurable(enabled = true, slots = PICKER_PAIR))
         core.initialize {}
@@ -431,27 +427,13 @@ class SplitScenarioTest {
         core.openPickerSession()
         car.barrier()
 
-        val mirrored = car.commands().filter { it.startsWith("log -t ${SplitDiagnostics.TAG} ") }
-        assertEquals("one command, at the end of the operation", 1, mirrored.size)
         assertTrue(
-            "and it carries the step timings the diagnosis needs",
-            mirrored.single().contains("${SplitCoordinatorCore.OPEN_LABEL} +"),
-        )
-        assertTrue(
+            "фазовые метки открытия дошли до ринга",
             car.diagnostics.any { it.startsWith("${SplitCoordinatorCore.OPEN_LABEL} +") },
         )
-
-        // A second operation carries what the first could not: its own terminal, logged after the
-        // first shell had already closed.
-        car.clearCommands()
-        core.openPickerSession()
-        car.barrier()
-
-        assertTrue(
-            "the terminal of the first open is not lost, only late",
-            car.commands()
-                .filter { it.startsWith("log -t ") }
-                .any { it.contains("${SplitCoordinatorCore.OPEN_LABEL} outcome=committed") },
+        assertFalse(
+            "и ни одна команда зеркала не ушла в машину",
+            car.commands().any { it.startsWith("log -t ") },
         )
     }
 
@@ -486,26 +468,6 @@ class SplitScenarioTest {
         assertEquals("и одна на возврат", 2, all.size)
         assertTrue(all.last().contains("settings put global $RESIZE_KEY 0"))
         assertEquals("а вернули ровно то, что застали", "0", car.fake.globalValue(RESIZE_KEY))
-    }
-
-    /** Invariant 10: a cancelled operation sends nothing more - not even a diagnostic line. */
-    @Test
-    fun anExpiredOperationDoesNotEvenMirrorItsOwnDiagnostics() {
-        val car = car(FakeShell())
-        val core = car.core(SplitDurable(enabled = true))
-        core.initialize {}
-
-        car.shells.blockAt(GATE_OPEN)
-        core.openPickerSession()
-        assertTrue(car.shells.awaitBlocked())
-        car.clock.advance(PAST_EVERY_BUDGET_MS)
-        car.shells.release()
-        car.barrier()
-
-        assertEquals(
-            emptyList<String>(),
-            car.commands().filter { it.startsWith("log -t ") },
-        )
     }
 
     // endregion
@@ -2465,7 +2427,7 @@ class SplitScenarioTest {
         assertEquals(
             "suspend отдал воркер после одного чтения",
             listOf(SPLIT_AREA_QUERY),
-            car.sessions().first().filterNot { it.startsWith("log -t ") },
+            car.sessions().first(),
         )
         assertTrue(
             car.diagnostics.any { it.startsWith("home suspend displaced by user input") },
