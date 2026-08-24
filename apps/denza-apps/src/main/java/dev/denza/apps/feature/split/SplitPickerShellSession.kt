@@ -520,6 +520,13 @@ internal class SplitPickerShellSession(
         pickerComponents: Map<SplitPane, String>,
         targets: Map<SplitPane, SplitLaunchTarget>,
         /**
+         * The exact identities this process recorded for the apps of a still-living scene
+         * (правка B1, ground-v18 A). A survivor the firmware threw out of the panel roots is
+         * taken back by reparenting that exact task instead of launching; anything the map
+         * cannot prove exactly falls through to the honest launch below (invariant 4).
+         */
+        expectedApps: Map<SplitPane, SplitPickerExpectedApp> = emptyMap(),
+        /**
          * Every task the recipe took charge of, reported the moment it has one rather than at the
          * end: a build the fence stops halfway still owes an undo for what it already did
          * (invariant 10). The caller decides which of them it created and which it only moved.
@@ -572,13 +579,20 @@ internal class SplitPickerShellSession(
             }
             .sortedByDescending(SplitTask::id)
             .toMutableList()
+        var launchedPicker = false
         SplitPane.entries.filterNot(pickerTasks::containsKey).forEach { pane ->
-            val picker = reusableTasks.removeFirstOrNull()
+            // A survivor goes back to its own pane: the panel bounds the firmware preserved on it
+            // name the side it lived on (правка B1, ground-v18). Any remaining survivor still
+            // beats a launch, and only an empty pool launches a fresh picker.
+            val paneBounds = before.root(rootIds.getValue(pane))?.bounds
+            val survivor = reusableTasks.firstOrNull { task -> task.bounds == paneBounds }
+                ?: reusableTasks.firstOrNull()
+            val picker = survivor?.also(reusableTasks::remove)
                 ?: launchPickerTask(
                     pane = pane,
                     pickerComponent = pickerComponents.getValue(pane),
                     excludedTaskIds = assignedIds,
-                )
+                ).also { launchedPicker = true }
             assignedIds += picker.id
             pickerTasks[pane] = picker
         }
@@ -617,7 +631,11 @@ internal class SplitPickerShellSession(
                 }
             }
         }
-        if (callInt("service call activity_task 30") != AREA_BALANCED_SPLIT) {
+        // The synthetic drag backs up exactly one situation: a picker this build launched on a
+        // truly empty scene came up as an ordinary fullscreen task. A scene assembled from
+        // survivors has no divider on screen to drag - at Home there is none - and is raised by
+        // the reveal's own focus command in the apps phase instead (правка B1).
+        if (launchedPicker && callInt("service call activity_task 30") != AREA_BALANCED_SPLIT) {
             dragDividerToBalanced()
             check(awaitArea(NATIVE_PICKER_SETTLE_MS) { it == AREA_BALANCED_SPLIT }) {
                 "Прошивка не раскрыла native split"
@@ -629,29 +647,70 @@ internal class SplitPickerShellSession(
         val settled = snapshot()
         val appTaskIds = mutableMapOf<SplitPane, Int>()
         val launching = mutableMapOf<SplitPane, SplitLaunchTarget>()
+        val adoptedAppIds = mutableListOf<Int>()
         wanted.forEach { (pane, target) ->
             val root = settled.root(rootIds.getValue(pane))
             val top = root?.resolvedTopTask()
-            if (
-                root != null &&
-                top != null &&
-                top.id != hostTaskIds.getValue(pane) &&
-                top.effectivePackageName() == target.packageName &&
-                top.bounds == root.bounds
-            ) {
-                // U2, 1.3.2: this pane is already showing exactly that app. Nothing is relaunched
-                // over a living one - the shared postcondition below still has to prove it.
-                appTaskIds[pane] = top.id
-                onTask(
-                    SplitBuiltTask(
-                        taskId = top.id,
-                        component = target.componentName,
-                        fromRootId = top.rootId,
-                        toRootId = top.rootId,
-                    ),
-                )
+            val covered = root?.resolveExpectedCoveredApp(expectedApps[pane])?.takeIf { task ->
+                task.id != hostTaskIds.getValue(pane) &&
+                    task.effectivePackageName() == target.packageName &&
+                    !task.isDenzaPickerBase() &&
+                    !task.isNativeSplitBootstrap()
+            }
+            val stray = if (covered == null) {
+                strayExpectedApp(settled, rootIds, pane, expectedApps[pane], target)
             } else {
-                launching[pane] = target
+                null
+            }
+            when {
+                root != null &&
+                    top != null &&
+                    top.id != hostTaskIds.getValue(pane) &&
+                    top.effectivePackageName() == target.packageName &&
+                    top.bounds == root.bounds -> {
+                    // U2, 1.3.2: this pane is already showing exactly that app. Nothing is
+                    // relaunched over a living one - the postcondition still has to prove it.
+                    appTaskIds[pane] = top.id
+                    onTask(
+                        SplitBuiltTask(
+                            taskId = top.id,
+                            component = target.componentName,
+                            fromRootId = top.rootId,
+                            toRootId = top.rootId,
+                        ),
+                    )
+                }
+                // Правка B1, U2: the pane still holds the exact recorded task, merely covered or
+                // under its picker. It is adopted and later promoted; nothing is launched.
+                covered != null -> {
+                    appTaskIds[pane] = covered.id
+                    adoptedAppIds += covered.id
+                    onTask(
+                        SplitBuiltTask(
+                            taskId = covered.id,
+                            component = target.componentName,
+                            fromRootId = covered.rootId,
+                            toRootId = covered.rootId,
+                        ),
+                    )
+                }
+                // Правка B1: the firmware threw the exact recorded task out of the panel roots
+                // (ground-v18 A) but kept it alive with its panel bounds. Reparenting it back is
+                // the whole restore of that pane - the very moves that are already live-proven.
+                stray != null -> {
+                    appTaskIds[pane] = stray.id
+                    adoptedAppIds += stray.id
+                    onTask(
+                        SplitBuiltTask(
+                            taskId = stray.id,
+                            component = target.componentName,
+                            fromRootId = stray.rootId,
+                            toRootId = rootIds.getValue(pane),
+                        ),
+                    )
+                    moveTask(stray.id, rootIds.getValue(pane))
+                }
+                else -> launching[pane] = target
             }
         }
         // A pane is its picker plus at most one app, so whatever else a previous session or a
@@ -691,6 +750,27 @@ internal class SplitPickerShellSession(
                 failed = failed,
                 onTask = onTask,
             )
+        }
+        if (adoptedAppIds.isNotEmpty()) {
+            // The reveal's own command, per adopted pane: it orders the exact task above its
+            // picker and raises the covered scene on the way (правка B1, к 1.9.4). Membership is
+            // then confirmed on the read the normalize pass shares.
+            adoptedAppIds.forEach { taskId -> run("am task focus $taskId") }
+            awaitSnapshotMatching { state ->
+                appTaskIds.all { (pane, taskId) ->
+                    state.root(rootIds.getValue(pane))?.tasks?.any { it.id == taskId } == true
+                }
+            }
+        }
+        // A build that launched no picker has nothing that asks the firmware for the split: the
+        // categories raise it only on our own picker starts, and the synthetic drag has no divider
+        // to grab under Home. One focus on an exact owned task - the app if there is one, else a
+        // base - raises the assembled scene the way the reveal does (правка B1, к 1.9.4); a scene
+        // already balanced costs one area read and nothing else.
+        if (!launchedPicker && callInt("service call activity_task 30") != AREA_BALANCED_SPLIT) {
+            val focusTaskId = appTaskIds.values.firstOrNull()
+                ?: hostTaskIds.getValue(SplitPane.PRIMARY)
+            run("am task focus $focusTaskId")
         }
 
         // Both bases and both apps take the size of their pane from one read, the divergent ones
@@ -2086,6 +2166,37 @@ internal class SplitPickerShellSession(
         val identityMatches = task.packageName == expected.packageName ||
             (task.isDenzaAppHost() && task.topPackageName == expected.packageName)
         return task.takeIf { identityMatches && it.bounds == bounds }
+    }
+
+    /**
+     * The exact recorded app of a pane, alive on the main display outside every panel root
+     * (правка B1). The proof mirrors [resolveExpectedCoveredApp]: the persisted task id, the
+     * package identity and the preserved panel bounds equal to the destination root's - anything
+     * less exact returns nothing and the pane is launched honestly (invariant 4).
+     */
+    private fun strayExpectedApp(
+        state: SplitTaskSnapshot,
+        rootIds: Map<SplitPane, Int>,
+        pane: SplitPane,
+        expected: SplitPickerExpectedApp?,
+        target: SplitLaunchTarget,
+    ): SplitTask? {
+        expected ?: return null
+        if (expected.packageName != target.packageName) return null
+        val root = state.root(rootIds.getValue(pane)) ?: return null
+        val nativeRootIds = rootIds.values.toSet()
+        val task = state.roots.asSequence()
+            .filter { candidate -> candidate.displayId == MAIN_DISPLAY_ID }
+            .flatMap { candidate -> candidate.tasks.asSequence() }
+            .singleOrNull { candidate -> candidate.id == expected.taskId }
+            ?: return null
+        return task.takeIf {
+            task.rootId !in nativeRootIds &&
+                task.effectivePackageName() == expected.packageName &&
+                !task.isDenzaPickerBase() &&
+                !task.isNativeSplitBootstrap() &&
+                task.bounds == root.bounds
+        }
     }
 
     private fun SplitTask.isDenzaPickerBase(): Boolean =

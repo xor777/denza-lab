@@ -860,6 +860,113 @@ class SplitScenarioTest {
     }
 
     /**
+     * Правка B1 (волна 4), машинная правда ground-v18 A и живые S8/S21: после Home прошивка не
+     * уничтожает ничего - но может выбросить содержимое одной панели из панельных root'ов, оставив
+     * задачи живыми с сохранёнными панельными бордерами. Адопция тогда честно отказывает, и
+     * пересборка запускала новый пикер и гнала полный restore-цикл (~7 с, с риском перезапуска).
+     *
+     * Сборка теперь возвращает выживших РЕПАРЕНТОМ: пикер - по точному компоненту и панельным
+     * бордерам, приложение - по точной identity из живой сцены (task id + пакет + границы, как
+     * resolveExpectedCoveredApp); поднимает сцену командой reveal. Ни одного запуска.
+     */
+    @Test
+    fun reopeningAfterHomeReassemblesTheSurvivorsWithoutASingleLaunch() {
+        val car = car(FakeShell())
+        val core = car.core(SplitDurable(enabled = true, slots = APP_PAIR))
+        core.initialize {}
+        core.openPickerSession()
+        car.barrier()
+        val pickerP = car.fake.taskIds(PRIMARY_ROOT).first()
+        val appP = car.fake.taskIds(PRIMARY_ROOT).last()
+        val pickerS = car.fake.taskIds(SECONDARY_ROOT).first()
+        val appS = car.fake.taskIds(SECONDARY_ROOT).last()
+
+        car.fake.area = 0
+        core.homeVisible()
+        car.barrier()
+
+        // Что сделала прошивка (ground-v18 A): одна панель выброшена в Tda целиком с бордерами,
+        // во второй пикер оказался поверх накрытого приложения.
+        car.fake.detachTask(pickerP)
+        car.fake.detachTask(appP)
+        car.fake.promoteActivity(SECONDARY_ROOT, SECONDARY_PICKER_ACTIVITY)
+        car.clearCommands()
+
+        core.openPickerSession()
+        car.barrier()
+
+        assertFalse(
+            "ни одного запуска: выжившие возвращены, а не пересозданы (U2)",
+            car.commands().any { it.startsWith("am start ") },
+        )
+        assertEquals("та же задача приложения в своей панели", PRIMARY_ROOT, car.fake.taskRoot(appP))
+        assertEquals(SECONDARY_ROOT, car.fake.taskRoot(appS))
+        assertEquals("и тот же пикер вернулся в свой контейнер", PRIMARY_ROOT, car.fake.taskRoot(pickerP))
+        assertEquals(SECONDARY_ROOT, car.fake.taskRoot(pickerS))
+        assertTrue(
+            "выброшенное возвращено live-proven командами: reparent и focus",
+            car.commands().any { it.startsWith("am stack move-task $appP ") },
+        )
+        assertTrue(car.commands().any { it == "am task focus $appP" })
+        assertEquals("сцена поднята", 3, car.fake.area)
+        assertEquals(APP_PAIR, car.store.load().slots)
+        assertEquals(SplitScreenPhase.ACTIVE, core.snapshot().phase)
+        assertFalse("и ничего не удалялось", car.commands().any { it.contains(" remove-task ") })
+    }
+
+    /**
+     * Правка B1, инвариант 4: без точной identity реюза приложений нет. Процесс, который ничего
+     * не помнит, находит выброшенные задачи с панельными бордерами - и всё равно идёт через
+     * честный запуск: пусть прошивка сама решит, чью задачу отдать. Пикеры - другое дело: их
+     * identity и есть наш компонент (инвариант 3), выжившие возвращаются в свои панели по
+     * бордерам, а не пересоздаются.
+     */
+    @Test
+    fun aProcessThatRemembersNothingDoesNotGuessAtStrandedTasks() {
+        val car = car(
+            FakeShell().apply {
+                liveProductScene(withApps = true)
+                // Прошивка выбросила обе панели целиком, сохранив панельные бордеры (ground-v18).
+                listOf(
+                    PRIMARY_PICKER_TASK,
+                    PRIMARY_APP_TASK,
+                    SECONDARY_PICKER_TASK,
+                    SECONDARY_APP_TASK,
+                ).forEach(::detachTask)
+                area = 0
+            },
+        )
+        val core = car.core(SplitDurable(enabled = true, slots = APP_PAIR))
+        core.initialize {}
+
+        core.openPickerSession()
+        car.barrier()
+
+        assertEquals(
+            "оба приложения приходят честным запуском, не переносом чужой догадки",
+            2,
+            car.commands().count { command ->
+                command.startsWith("am start ") && !command.contains(SPLIT_PICKER_ACTIVITY)
+            },
+        )
+        // Прошивка сама вправе отдать запуску ту же задачу - это её резолюция, не наша догадка.
+        assertEquals(
+            "а вот пикеры не пересозданы: их identity - наш собственный компонент",
+            0,
+            car.commands().count { command ->
+                command.startsWith("am start ") && command.contains(SPLIT_PICKER_ACTIVITY)
+            },
+        )
+        assertEquals(
+            "и каждый вернулся в панель своих бордеров",
+            PRIMARY_ROOT,
+            car.fake.taskRoot(PRIMARY_PICKER_TASK),
+        )
+        assertEquals(SECONDARY_ROOT, car.fake.taskRoot(SECONDARY_PICKER_TASK))
+        assertEquals(SplitScreenPhase.ACTIVE, core.snapshot().phase)
+    }
+
+    /**
      * Invariant 4: what makes that adoption safe is the identity, and nothing durable remembers it.
      *
      * After the process died the scene on screen is still ours, but nothing proves which hidden

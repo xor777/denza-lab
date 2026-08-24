@@ -643,7 +643,14 @@ internal class OpenOperation(
         // it; the undo consults the lease, so an entry for a gate the recipe never reached costs
         // nothing (contract, to 1.12).
         op.journal.record(SplitJournalEntry.GateOpened(prevOpen = work.gateOwned()))
-        val built = split.buildScene(SPLIT_PICKER_COMPONENTS, targets) { task ->
+        val built = split.buildScene(
+            pickerComponents = SPLIT_PICKER_COMPONENTS,
+            targets = targets,
+            // Правка B1: the exact identities this process still holds let the build take a
+            // survivor back by reparenting instead of launching; a process that remembers
+            // nothing passes nothing, and the build launches honestly (invariant 4).
+            expectedApps = SplitCoordinatorCore.expectedApps(liveScene),
+        ) { task ->
             // A task that was already running is one this build only borrowed: its inverse is the
             // root it came from, never a removal (U2). Everything else this build made itself.
             if (preexisting != null && task.taskId in preexisting) {
