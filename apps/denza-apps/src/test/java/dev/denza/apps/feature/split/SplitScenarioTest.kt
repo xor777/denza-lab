@@ -514,7 +514,9 @@ class SplitScenarioTest {
 
     @Test
     fun hundredWindowsHintsDoNotDelaySelect() {
-        // K5, сценарий §11.22: выбор не ждёт очередь из ста reconcile, и они схлопнуты до одного
+        // K5, сценарий §11.22, §4 (ред. 2026-08-24): выбор не ждёт очередь из ста reconcile -
+        // сабмит явного тапа отменяет пассивный шум, и проигравшее событие не воспроизводится
+        // из очереди: следующая сверка придёт со свежим поводом и перечитает мир сама.
         val car = car(FakeShell().apply { liveProductScene() })
         val core = car.core(SplitDurable(enabled = true, slots = PICKER_PAIR))
         core.initialize {}
@@ -529,17 +531,51 @@ class SplitScenarioTest {
         car.barrier()
 
         val sessions = car.sessions()
-        assertEquals("a hundred hints collapse into one reconcile", 2, sessions.size)
+        assertEquals("сто подсказок вытеснены тапом: работает только он", 1, sessions.size)
         assertTrue(
-            "and the explicit tap is served before it",
-            sessions.first().any { it.startsWith("am start ") && it.contains(MUSIC) },
-        )
-        assertEquals(
-            "the reconcile that follows only reads the settled scene",
-            emptyList<String>(),
-            sessions.last().filter { it.startsWith("am start ") || it.contains(" remove-task ") },
+            "and the explicit tap is served at once",
+            sessions.single().any { it.startsWith("am start ") && it.contains(MUSIC) },
         )
         assertEquals(SplitSlot.App(MUSIC), car.store.load().slot(SplitPane.SECONDARY))
+    }
+
+    /**
+     * Правка W2 (§4 ред. 2026-08-24; live v20 D1): оконные эхо первого тапа жеста возврата
+     * рождали reconcile, и OPEN второго тапа стоял в очереди ~2 с за его слепым settle. Сабмит
+     * OPEN обязан отнять у in-flight сверки токен тем же механизмом, что Home: после сабмита ни
+     * одной её команды, воркер достаётся открытию.
+     */
+    @Test
+    fun aUserOpenPreemptsTheInFlightReconcileInsteadOfQueuingBehindIt() {
+        val car = car(FakeShell().apply { liveProductScene(withApps = true) })
+        val core = car.core(SplitDurable(enabled = true, slots = APP_PAIR))
+        core.initialize {}
+        core.openPickerSession()
+        car.barrier()
+        car.clearCommands()
+
+        // Сверка в полёте, запаркованная на своей первой команде.
+        car.shells.blockAt(SPLIT_AREA_QUERY)
+        core.dividerResized()
+        assertTrue(car.shells.awaitBlocked())
+
+        core.openPickerSession()
+        car.shells.release()
+        car.barrier()
+
+        val sessions = car.sessions()
+        assertEquals("сессия сверки и сессия открытия", 2, sessions.size)
+        assertEquals(
+            "после сабмита OPEN сверка не отправила больше ни одной команды",
+            listOf(SPLIT_AREA_QUERY),
+            sessions.first(),
+        )
+        assertTrue(
+            "и открытие получило воркер сразу после её fence",
+            sessions.last().isNotEmpty(),
+        )
+        assertEquals(SplitScreenPhase.ACTIVE, core.snapshot().phase)
+        assertEquals(APP_PAIR, car.store.load().slots)
     }
 
     @Test

@@ -34,6 +34,9 @@ internal interface SplitClock {
 internal object SplitCancelReason {
     const val DISABLE = "disable"
     const val HOME = "home"
+
+    /** An explicit user tap (`OPEN`, `SELECT`) displaced the passive work (contract §4). */
+    const val USER_INPUT = "user-input"
     const val DEADLINE = "deadline"
     const val COALESCED = "coalesced"
     const val SHUTDOWN = "shutdown"
@@ -303,8 +306,10 @@ internal class SplitActor(
 
     /**
      * Contract section 4. `DISABLE` cancels everything unfinished; `HOME` cancels the work the user
-     * walked away from. An in-flight victim only loses its token here: it settles its own ticket
-     * when it unwinds at its next fence, which is what makes "no late mutation" observable.
+     * walked away from; an explicit `OPEN` or `SELECT` cancels the passive hint work it must not
+     * wait behind (§4, ред. 2026-08-24). An in-flight victim only loses its token here: it settles
+     * its own ticket when it unwinds at its next fence, which is what makes "no late mutation"
+     * observable.
      */
     private fun preempt(priority: SplitInputPriority): List<Pair<SplitTicket, String>> {
         val victims: Set<SplitInputPriority>
@@ -317,6 +322,10 @@ internal class SplitActor(
             SplitInputPriority.HOME -> {
                 victims = HOME_VICTIMS
                 reason = SplitCancelReason.HOME
+            }
+            SplitInputPriority.SELECT, SplitInputPriority.OPEN -> {
+                victims = USER_TAP_VICTIMS
+                reason = SplitCancelReason.USER_INPUT
             }
             else -> return emptyList()
         }
@@ -434,6 +443,17 @@ internal class SplitActor(
             SplitInputPriority.EDGE,
             SplitInputPriority.HINT,
         )
+
+        /**
+         * Contract §4 (ред. 2026-08-24): явное действие пользователя не ждёт фоновый шум. Сабмит
+         * `OPEN` или `SELECT` отменяет пассивный hint/reconcile не только в очереди, но и в
+         * полёте - тем же механизмом (токен, fence, откат по журналу), которым Home уже отменяет
+         * их; фоновая сверка перечитает мир после пользовательской операции, а проигравшее
+         * событие из очереди не воспроизводится. Live v20 D1: сверка со слепым settle стоила
+         * пользователю ~2 c очереди перед каждым open. Подтверждённый EDGE-commit шумом не
+         * является и не отменяется.
+         */
+        val USER_TAP_VICTIMS = setOf(SplitInputPriority.HINT)
 
         /** Priority first, submission order inside one priority. */
         val ORDER: Comparator<Entry> = compareBy({ it.spec.priority.ordinal }, { it.sequence })

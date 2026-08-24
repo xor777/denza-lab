@@ -307,7 +307,9 @@ class SplitActorTest {
 
     @Test
     fun anExplicitTapOvertakesAStormOfPassiveHints() {
-        // K5, сценарий 22: SELECT не стоит в очереди из ста reconcile и не ждёт их
+        // K5, сценарий 22, §4 (ред. 2026-08-24): SELECT не стоит в очереди из ста reconcile -
+        // сабмит явного тапа отменяет пассивный шум, и проигравшее событие не воспроизводится:
+        // следующая сверка придёт со свежим поводом и перечитает мир после операции пользователя.
         val release = blockedInFlight("blocker", SplitInputPriority.NAV)
 
         val hints = (0 until 100).map { index ->
@@ -317,12 +319,65 @@ class SplitActorTest {
         release.countDown()
 
         assertEquals(SplitOutcome.Committed, select.await(AWAIT_MS))
-        assertEquals(SplitOutcome.Committed, hints.last().await(AWAIT_MS))
+        hints.forEach { ticket ->
+            assertTrue("${ticket.label} settled by the tap itself", ticket.isComplete)
+        }
         assertEquals(
-            "one reconcile survives the storm, and the tap runs before it",
-            listOf("blocker", "select", "hint-99"),
-            executed.toList(),
+            "the storm's sole survivor is displaced by the tap, not replayed after it",
+            SplitOutcome.Cancelled(SplitCancelReason.USER_INPUT),
+            hints.last().outcome,
         )
+        assertEquals(listOf("blocker", "select"), executed.toList())
+    }
+
+    @Test
+    fun aUserTapCancelsThePassiveHintInFlightAtItsNextFence() {
+        // §4 (ред. 2026-08-24), live v20 D1: OPEN не ждёт in-flight reconcile со слепым settle -
+        // тот теряет токен тем же механизмом, что при Home, и умирает на ближайшем fence.
+        val started = CountDownLatch(1)
+        val release = gate()
+        val hint = actor.submit(
+            spec("hint", SplitInputPriority.HINT, coalesceKey = "reconcile") { op ->
+                val shell = op.fencedShell(::shell)
+                shell("service call activity_task 30")
+                started.countDown()
+                release.await()
+                shell("am stack list")
+                executed += "hint"
+                SplitOutcome.Committed
+            },
+        )
+        assertTrue(started.await(AWAIT_MS, TimeUnit.MILLISECONDS))
+
+        val open = actor.submit(spec("open", SplitInputPriority.OPEN))
+        release.countDown()
+
+        assertEquals(SplitOutcome.Cancelled(SplitCancelReason.USER_INPUT), hint.await(AWAIT_MS))
+        assertEquals(SplitOutcome.Committed, open.await(AWAIT_MS))
+        assertEquals(
+            "после сабмита тапа ни одна команда сверки не дошла до машины",
+            listOf("service call activity_task 30"),
+            commands.toList(),
+        )
+        assertEquals(listOf("open"), executed.toList())
+    }
+
+    @Test
+    fun aUserTapLeavesAConfirmedEdgeCommitAlone() {
+        // §4: вытесняется только пассивный шум - подтверждённый edge-commit не отменяется
+        val release = blockedInFlight("blocker", SplitInputPriority.NAV)
+        val edge = actor.submit(spec("edge", SplitInputPriority.EDGE))
+        val hint = actor.submit(spec("hint", SplitInputPriority.HINT, coalesceKey = "reconcile"))
+
+        val select = actor.submit(
+            spec("select", SplitInputPriority.SELECT, joinKey = SplitPane.PRIMARY),
+        )
+        release.countDown()
+
+        assertEquals(SplitOutcome.Cancelled(SplitCancelReason.USER_INPUT), hint.outcome)
+        assertEquals(SplitOutcome.Committed, edge.await(AWAIT_MS))
+        assertEquals(SplitOutcome.Committed, select.await(AWAIT_MS))
+        assertEquals(listOf("blocker", "select", "edge"), executed.toList())
     }
 
     @Test
