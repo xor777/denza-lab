@@ -2072,6 +2072,71 @@ class SplitScenarioTest {
         assertEquals(3, car.fake.area)
     }
 
+    /**
+     * Правка W4 (v20 D1, цель «возврат после Home ~2 с»): точная форма живого возврата. Прошивка
+     * на Home опустошила ОБА панельных корня до маркеров, отвязав всех четырёх членов с
+     * панельными бордерами; эхо возврата приносит hidden- и divider-хинты. Ярус частичного
+     * reveal обязан пережить шум (W1+W3) и собрать сцену обратно одними move/focus: пустой
+     * корень получает своего выжившего пикера move-task'ом, приложение возвращает stray-ярус,
+     * и ни один участник не запускается заново (U2, 1.9.4).
+     */
+    @Test
+    fun reopeningAfterAFullDetachTakesEverySurvivorBackWithoutALaunch() {
+        val car = car(FakeShell(renderEmptyNativeRootMarker = true))
+        val core = car.core(SplitDurable(enabled = true, slots = APP_PAIR))
+        core.initialize {}
+        core.openPickerSession()
+        car.barrier()
+        val pickers = listOf(
+            car.fake.taskIds(PRIMARY_ROOT).first(),
+            car.fake.taskIds(SECONDARY_ROOT).first(),
+        )
+        val apps = listOf(
+            car.fake.taskIds(PRIMARY_ROOT).last(),
+            car.fake.taskIds(SECONDARY_ROOT).last(),
+        )
+
+        car.fake.area = 0
+        core.homeVisible()
+        car.barrier()
+        (pickers + apps).forEach(car.fake::detachTask)
+        car.clearCommands()
+
+        // Шум накрытой сцены: эхо Home для пикера и оконное эхо жеста возврата.
+        core.pickerHidden(pickers.first())
+        core.dividerResized()
+        car.barrier()
+
+        assertEquals("шум не тронул ни одной задачи", emptyList<String>(), car.mutations())
+        (pickers + apps).forEach { taskId ->
+            assertTrue("задача $taskId пережила накрытие", car.fake.hasTask(taskId))
+        }
+
+        core.openPickerSession()
+        car.barrier()
+
+        assertFalse(
+            "ярус частичного reveal собирает выживших без единого запуска",
+            car.commands().any { it.startsWith("am start ") },
+        )
+        assertFalse(car.commands().any { it.contains(" remove-task ") })
+        assertTrue(
+            "пустой корень получил своего пикера live-proven командой move-task",
+            car.commands().any { it.startsWith("am stack move-task ${pickers.first()} ") },
+        )
+        assertEquals("те же пикеры в своих корнях", PRIMARY_ROOT, car.fake.taskRoot(pickers[0]))
+        assertEquals(SECONDARY_ROOT, car.fake.taskRoot(pickers[1]))
+        assertEquals("те же приложения в своих панелях", PRIMARY_ROOT, car.fake.taskRoot(apps[0]))
+        assertEquals(SECONDARY_ROOT, car.fake.taskRoot(apps[1]))
+        assertEquals("сцена поднята", 3, car.fake.area)
+        assertEquals(APP_PAIR, car.store.load().slots)
+        assertEquals(SplitScreenPhase.ACTIVE, core.snapshot().phase)
+        assertTrue(
+            "отказ адопции называет опустевший корень с его маркером",
+            car.diagnostics.any { it.contains("scene-read:") && it.contains("пикеров 0") },
+        )
+    }
+
     @Test
     fun aCoveredSceneIsNeverMistakenForAnEndedOne() {
         // инвариант 5: Home и чужое полноэкранное окно прячут сцену, задачи которой живы в снапшоте
