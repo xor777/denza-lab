@@ -690,21 +690,9 @@ internal class SplitPickerShellSession(
             )
         }
 
-        // Both bases and both apps take the size of their pane in one pass, and then the whole
-        // scene is confirmed once instead of one pane at a time.
-        SplitPane.entries.forEach { pane ->
-            if (normalizeTaskToRoot(hostTaskIds.getValue(pane), rootIds.getValue(pane))) {
-                mutated = true
-            }
-        }
-        appTaskIds.keys.toList().forEach { pane ->
-            runCatching { normalizeTaskToRoot(appTaskIds.getValue(pane), rootIds.getValue(pane)) }
-                .onSuccess { resized -> if (resized) mutated = true }
-                .onFailure {
-                    appTaskIds -= pane
-                    failed += pane
-                }
-        }
+        // Both bases and both apps take the size of their pane from one read, the divergent ones
+        // are resized back to back, and one settle and one more read close the whole batch.
+        if (normalizeSceneToRoots(hostTaskIds, appTaskIds, rootIds, failed)) mutated = true
         // 1.3.2: a pane whose app did not come back keeps its picker, and nothing of the app.
         failed.forEach { pane ->
             val packageName = targets[pane]?.packageName ?: return@forEach
@@ -1792,6 +1780,82 @@ internal class SplitPickerShellSession(
         } else {
             moveTask(task.id, targetRootId)
         }
+    }
+
+    /**
+     * The whole-scene edition of [normalizeTaskToRoot], for the one recipe that sizes four tasks
+     * at once (правка A1). Every check is the single-task recipe's own - the same root lookup, the
+     * same bounds predicate, the same meaning of a failure - but the snapshot before, the settle
+     * and the snapshot after are paid once for the scene instead of once per task, which on the
+     * car was up to eight `am stack list` and four settles describing the same instant.
+     *
+     * A missing or unresized host is still an error of the whole build; an app that is missing or
+     * refuses its pane's size degrades only that pane, exactly as before (1.3.2).
+     *
+     * @return whether anything actually had to be resized.
+     */
+    private fun normalizeSceneToRoots(
+        hostTaskIds: Map<SplitPane, Int>,
+        appTaskIds: MutableMap<SplitPane, Int>,
+        rootIds: Map<SplitPane, Int>,
+        failed: MutableSet<SplitPane>,
+    ): Boolean {
+        class Resize(val pane: SplitPane, val taskId: Int, val bounds: SplitBounds, val host: Boolean)
+
+        val divergent = mutableListOf<Resize>()
+        val before = snapshot()
+        SplitPane.entries.forEach { pane ->
+            val rootId = rootIds.getValue(pane)
+            val root = before.root(rootId) ?: error("Split-контейнер $rootId исчез")
+            val hostTaskId = hostTaskIds.getValue(pane)
+            val host = root.tasks.firstOrNull { it.id == hostTaskId }
+                ?: error("Задача приложения $hostTaskId не вошла в split-контейнер")
+            if (host.bounds != root.bounds) {
+                check(root.bounds.hasArea()) { "Split-контейнер $rootId не имеет размера" }
+                divergent += Resize(pane, hostTaskId, root.bounds, host = true)
+            }
+            val appTaskId = appTaskIds[pane] ?: return@forEach
+            val app = root.tasks.firstOrNull { it.id == appTaskId }
+            when {
+                app == null -> {
+                    appTaskIds -= pane
+                    failed += pane
+                }
+                app.bounds != root.bounds -> {
+                    check(root.bounds.hasArea()) { "Split-контейнер $rootId не имеет размера" }
+                    divergent += Resize(pane, appTaskId, root.bounds, host = false)
+                }
+            }
+        }
+        if (divergent.isEmpty()) return false
+        divergent.forEach { resize ->
+            run(
+                "am task resize ${resize.taskId} ${resize.bounds.left} ${resize.bounds.top} " +
+                    "${resize.bounds.right} ${resize.bounds.bottom}",
+            )
+        }
+        pause(ROOT_SETTLE_MS)
+        val after = snapshot()
+        divergent.forEach { resize ->
+            val rootId = rootIds.getValue(resize.pane)
+            val root = after.root(rootId)
+            val task = root?.tasks?.firstOrNull { it.id == resize.taskId }
+            if (task != null && task.bounds == root.bounds) return@forEach
+            if (resize.host) {
+                error(
+                    when {
+                        root == null -> "Split-контейнер $rootId исчез после изменения размера"
+                        task == null ->
+                            "Задача приложения ${resize.taskId} исчезла после изменения размера"
+                        else ->
+                            "Задача приложения ${resize.taskId} не приняла размер split-контейнера"
+                    },
+                )
+            }
+            appTaskIds -= resize.pane
+            failed += resize.pane
+        }
+        return true
     }
 
     /** @return whether the task actually had to be resized. */
