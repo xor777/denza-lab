@@ -1130,6 +1130,17 @@ they record what a split *was*, they do not command one. Setting
 `ivi_freeform_window_show=1` changed nothing either, including through a full
 run of the stock picker. All values were restored afterwards.
 
+The corpus explains why, and closes one more idea (wave-4 правка B2, 2026-08-24):
+the forced second-pane insert the firmware performs after our first picker
+start (`dealDockFlagIfNeed` → `startSecondActivity`) launches the **in-memory**
+`mSecondDefaultActivity`, which `retriveIviSettings` loads from
+`byd_smart_multi_second_activity` exactly once at controller init, filtered
+through `BydSmartWmPolicy.getDefaultPkgForPkgName`; no content observer watches
+that key, and the firmware's own `updateIviSettings` periodically rewrites the
+key from memory. A runtime write therefore cannot redirect the insert to our
+picker — it could only matter across a reboot, through the policy filter. The
+product keeps removing the inserted `com.byd.sr` task by exact identity.
+
 ## Dead ends, so they are not re-run
 
 - **`am start --windowingMode`** — tried 5, 6, 100, 101, 102. Every value is

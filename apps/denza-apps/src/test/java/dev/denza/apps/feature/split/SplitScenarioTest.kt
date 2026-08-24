@@ -589,6 +589,42 @@ class SplitScenarioTest {
         )
     }
 
+    /**
+     * Анти-регрессия на доминанту скорости (правка A, измерение v19): один `am stack list` на
+     * этой машине стоит 250-300 мс, и пересборка сцены при живых задачах доходила до ~13 таких
+     * чтений. Бюджет камеры - восемь: scene-read отказа, before сборки, два ожидания пикеров,
+     * одно групповое ожидание запусков, одно подтверждение промоутов, одно подтверждение
+     * пакетного ресайза (его же читает постусловие) и финальный read-back операции. Каждый
+     * возврат к чтению-на-объект, второму сэмплу или ожиданию-на-панель пробивает его.
+     */
+    @Test
+    fun rebuildingOverLivingTasksStaysWithinTheSnapshotBudget() {
+        val car = car(
+            FakeShell().apply {
+                addTask(PRIMARY_ROOT, PRIMARY_APP_TASK, NAVIGATOR, "$NAVIGATOR.MainActivity")
+                addTask(SECONDARY_ROOT, SECONDARY_APP_TASK, MUSIC, "$MUSIC.MainActivity")
+                // Возвращённая прошивкой задача не принимает границы панели сама - как на машине,
+                // где ресайз пересборки реален, а не нулевой.
+                preserveBoundsOnShellMove = true
+                area = 0
+            },
+        )
+        val core = car.core(SplitDurable(enabled = true, slots = APP_PAIR))
+        core.initialize {}
+
+        core.openPickerSession()
+        car.barrier()
+
+        assertEquals(SplitScreenPhase.ACTIVE, core.snapshot().phase)
+        val stackReads = car.commands().count { it == "am stack list" }
+        assertTrue(
+            "пересборка при живых задачах прочитала топологию $stackReads раз (бюджет 8)",
+            stackReads <= 8,
+        )
+        assertTrue("и не перезапустила живое (U2)", car.fake.hasTask(PRIMARY_APP_TASK))
+        assertTrue(car.fake.hasTask(SECONDARY_APP_TASK))
+    }
+
     /** But a settle pause is a promise that the car moved, so what follows it is read again. */
     @Test
     fun aSettlePauseEndsTheSharedTopologyRead() {
@@ -1437,7 +1473,10 @@ class SplitScenarioTest {
 
     @Test
     fun dismissingBothPickersEndsTheSplitSession() {
-        // сценарий §11.16, контракт 1.6.3 и 1.6.4
+        // Контракт 1.6.4: последовательные закрытия панелей, наблюдаемые по топологии. Сам
+        // сценарий §11.16 в редакции bde631c - роль панели-якоря, обе ветви Back - живёт в
+        // wideBackAtPickerPickerIsCleanedUpFromOneHintDespiteTheHomeStorm и
+        // narrowBackAtPickerPickerLeavesTheFirmwareOutcomeAlone ниже.
         val car = car(FakeShell().apply { liveProductScene() })
         val core = car.core(SplitDurable(enabled = true, slots = PICKER_PAIR))
         core.initialize {}
