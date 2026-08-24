@@ -762,8 +762,9 @@ class SplitScenarioTest {
             car.commands().any { it.contains(" remove-task ") },
         )
         assertEquals(
-            "и постусловие одно на обе панели: два устойчивых сэмпла и финальный read-back",
-            3,
+            "и постусловие одно на обе панели: один полный сэмпл, затем финальный read-back " +
+                "операции - вторая независимая проверка той же сцены (правка A4, контракт 7.7)",
+            2,
             car.commands().drop(launches.last().index).count { it == SPLIT_AREA_QUERY },
         )
         assertEquals(APP_PAIR, car.store.load().slots)

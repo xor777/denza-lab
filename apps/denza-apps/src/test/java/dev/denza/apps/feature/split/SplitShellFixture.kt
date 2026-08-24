@@ -84,6 +84,12 @@ internal class FakeShell(
     private val renderEmptyNativeRootMarker: Boolean = false,
     private val transientAreaReadsAfterDirectLaunch: Int = 0,
     private val replaceStaleFullscreenTargetOnLaunch: Boolean = false,
+    /**
+     * The v17 defect class "picker over an application": the firmware reports the app task inside
+     * its pane while its own picker window is still committed on top, so the app never becomes
+     * the visible top of that root (правка A4).
+     */
+    private val pickerStaysAboveApps: Boolean = false,
 ) {
     data class Task(
         val id: Int,
@@ -222,6 +228,20 @@ internal class FakeShell(
     }
 
     private fun changed() = carChanged.forEach { listener -> listener() }
+
+    /** The firmware never commits the app above the picker window (правка A4, defect v17). */
+    private fun keepPickerOnTopIfConfigured(promoted: Task) {
+        if (!pickerStaysAboveApps) return
+        if (promoted.activityName == SPLIT_PICKER_ACTIVITY) return
+        if (promoted.rootId != PRIMARY_ROOT && promoted.rootId != SECONDARY_ROOT) return
+        val picker = tasks.firstOrNull { task ->
+            task.rootId == promoted.rootId &&
+                task.packageName == SPLIT_HOST_PACKAGE &&
+                task.activityName == SPLIT_PICKER_ACTIVITY
+        } ?: return
+        tasks.remove(picker)
+        tasks += picker
+    }
 
     private fun removeExactTask(taskId: Int): Boolean {
         if (disappearOnNextRemove) {
@@ -425,6 +445,7 @@ internal class FakeShell(
                     area = 3
                 }
                 if (rootId == FULL_ROOT) area = 4
+                keepPickerOnTopIfConfigured(task)
                 ""
             }
             command.startsWith("am task focus ") -> {
@@ -435,6 +456,7 @@ internal class FakeShell(
                 if (task.rootId == PRIMARY_ROOT || task.rootId == SECONDARY_ROOT) {
                     if (area != fullArea(task.rootId)) area = 3
                 }
+                keepPickerOnTopIfConfigured(task)
                 ""
             }
             command.contains("SplitTaskProxyMain remove-task ") -> {

@@ -549,7 +549,6 @@ internal class SplitPickerShellSession(
         val before = snapshot()
 
         // Phase 2 - the roots. A picker already in its pane is adopted, never rebuilt.
-        var mutated = false
         val existingPickerTasks = SplitPane.entries.associateWith { pane ->
             val rootId = rootIds.getValue(pane)
             before.root(rootId)?.tasks
@@ -579,7 +578,7 @@ internal class SplitPickerShellSession(
                     pane = pane,
                     pickerComponent = pickerComponents.getValue(pane),
                     excludedTaskIds = assignedIds,
-                ).also { mutated = true }
+                )
             assignedIds += picker.id
             pickerTasks[pane] = picker
         }
@@ -611,7 +610,6 @@ internal class SplitPickerShellSession(
         // waited out by condition, not by a blind pause: the read that confirms the reparent is,
         // through the shared topology cache, the very read the apps phase decides from (правка A3).
         if (reparented) {
-            mutated = true
             awaitSnapshotMatching { state ->
                 SplitPane.entries.all { pane ->
                     state.root(rootIds.getValue(pane))?.tasks
@@ -620,7 +618,6 @@ internal class SplitPickerShellSession(
             }
         }
         if (callInt("service call activity_task 30") != AREA_BALANCED_SPLIT) {
-            mutated = true
             dragDividerToBalanced()
             check(awaitArea(NATIVE_PICKER_SETTLE_MS) { it == AREA_BALANCED_SPLIT }) {
                 "Прошивка не раскрыла native split"
@@ -682,9 +679,8 @@ internal class SplitPickerShellSession(
             .filter { root -> root.displayId == MAIN_DISPLAY_ID }
             .flatMap { root -> root.tasks.asSequence() }
             .filter { task -> task.isDenzaAppHost() }
-        if (removeTasksSafely((stale + strayHosts).distinctBy(SplitTask::id))) mutated = true
+        removeTasksSafely((stale + strayHosts).distinctBy(SplitTask::id))
         if (launching.isNotEmpty()) {
-            mutated = true
             launchApps(
                 rootIds = rootIds,
                 launching = launching,
@@ -699,14 +695,11 @@ internal class SplitPickerShellSession(
 
         // Both bases and both apps take the size of their pane from one read, the divergent ones
         // are resized back to back, and one settle and one more read close the whole batch.
-        if (normalizeSceneToRoots(hostTaskIds, appTaskIds, rootIds, failed)) mutated = true
+        normalizeSceneToRoots(hostTaskIds, appTaskIds, rootIds, failed)
         // 1.3.2: a pane whose app did not come back keeps its picker, and nothing of the app.
         failed.forEach { pane ->
             val packageName = targets[pane]?.packageName ?: return@forEach
-            val discarded = runCatching {
-                discardFailedRestoration(pane, packageName, hostTaskIds.getValue(pane))
-            }
-            if (discarded.getOrDefault(false)) mutated = true
+            runCatching { discardFailedRestoration(pane, packageName, hostTaskIds.getValue(pane)) }
         }
         return SplitSceneBuild(
             panes = awaitScenePlacement(
@@ -714,7 +707,6 @@ internal class SplitPickerShellSession(
                 rootIds = rootIds,
                 hostTaskIds = hostTaskIds,
                 appTaskIds = appTaskIds,
-                stableSamples = if (mutated) APP_PLACEMENT_STABLE_SAMPLES else 1,
             ),
             failed = failed,
         )
@@ -1680,36 +1672,31 @@ internal class SplitPickerShellSession(
     }
 
     /**
-     * The postcondition of a whole built scene, on a fresh read, twice.
+     * The postcondition of a whole built scene: one full agreeing read (правка A4).
      *
      * BYD publishes task placement before its split-area controller has necessarily committed the
-     * same transition, so one agreeing sample is not proof. What changed is the *subject*: the
-     * previous recipe confirmed one pane at a time and, on a restore, confirmed the first pane
-     * before the second had even been launched - which is exactly how an open could end with a
-     * picker drawn over a live application. A build that moved nothing has no transition to wait
-     * out and is confirmed by a single sample (1.13).
+     * same transition, so the loop refuses and retries for as long as any predicate disagrees -
+     * that part is unchanged. What one agreeing read now has to say is everything at once, for
+     * both panes together: the firmware's own area is balanced, each root holds its exact picker
+     * base at the root's size with at most one task above it, and the exact expected task is the
+     * *visible* top at the root's size. The second independent observation this recipe used to
+     * take itself is the operation's own read-back (contract 7.7, `OpenOperation.readBack`), which
+     * re-reads the settled scene from the car after the shared topology is dropped - the guard
+     * that answers the "picker over an application" defect class of acceptance v17.
      */
     private fun awaitScenePlacement(
         pickerComponents: Map<SplitPane, String>,
         rootIds: Map<SplitPane, Int>,
         hostTaskIds: Map<SplitPane, Int>,
         appTaskIds: Map<SplitPane, Int>,
-        stableSamples: Int,
     ): Map<SplitPane, SplitPickerLivePane> {
-        var stable = 0
         var lastError: Throwable? = null
         repeat(APP_PLACEMENT_CONFIRM_ATTEMPTS) { attempt ->
             val sample = runCatching {
                 scenePlacement(pickerComponents, rootIds, hostTaskIds, appTaskIds)
             }
-            sample.getOrNull()?.let { placement ->
-                stable += 1
-                if (stable >= stableSamples) return placement
-            }
-            sample.exceptionOrNull()?.let { error ->
-                stable = 0
-                lastError = error
-            }
+            sample.getOrNull()?.let { placement -> return placement }
+            sample.exceptionOrNull()?.let { error -> lastError = error }
             if (attempt + 1 < APP_PLACEMENT_CONFIRM_ATTEMPTS) {
                 pause(APP_PLACEMENT_CONFIRM_INTERVAL_MS)
             }
@@ -1717,17 +1704,23 @@ internal class SplitPickerShellSession(
         throw lastError ?: IllegalStateException("Сцена не достигла устойчивого состояния")
     }
 
-    /** One sample: one `am stack list` and one area read for both panes together. */
+    /** One sample: one area read and one `am stack list` for both panes together. */
     private fun scenePlacement(
         pickerComponents: Map<SplitPane, String>,
         rootIds: Map<SplitPane, Int>,
         hostTaskIds: Map<SplitPane, Int>,
         appTaskIds: Map<SplitPane, Int>,
     ): Map<SplitPane, SplitPickerLivePane> {
+        // The area first: it is the cheapest predicate and the one still moving right after a
+        // launch, so a polling attempt fails before it pays for a whole topology parse.
+        check(callInt("service call activity_task 30") == AREA_BALANCED_SPLIT) {
+            "Нативный split не активировался"
+        }
         val state = snapshot()
-        val panes = SplitPane.entries.associateWith { pane ->
+        return SplitPane.entries.associateWith { pane ->
             val root = state.root(rootIds.getValue(pane))
                 ?: error("Split-контейнер ${pane.name} исчез")
+            check(root.bounds.hasArea()) { "Split-контейнер ${pane.name} не имеет размера" }
             val hostTaskId = hostTaskIds.getValue(pane)
             val picker = root.tasks.firstOrNull { task ->
                 task.id == hostTaskId &&
@@ -1758,10 +1751,6 @@ internal class SplitPickerShellSession(
                 SplitPickerLivePane(pane, hostTaskId, top.id, top.effectivePackageName())
             }
         }
-        check(callInt("service call activity_task 30") == AREA_BALANCED_SPLIT) {
-            "Нативный split не активировался"
-        }
-        return panes
     }
 
     private fun removeTaskSafely(task: SplitTask) = removeTasksSafely(listOf(task))
@@ -2167,6 +2156,9 @@ internal class SplitPickerShellSession(
         const val APP_LAUNCH_SETTLE_MS = 250L
         const val APP_PLACEMENT_CONFIRM_ATTEMPTS = 20
         const val APP_PLACEMENT_CONFIRM_INTERVAL_MS = 100L
+
+        /** Only the single-pane selection keeps two samples; a built scene ends in the
+         *  operation's own whole-scene read-back instead (правка A4). */
         const val APP_PLACEMENT_STABLE_SAMPLES = 2
         const val ROOT_SETTLE_MS = 120L
         const val EXIT_SETTLE_MS = 650L

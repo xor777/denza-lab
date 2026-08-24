@@ -2,6 +2,7 @@ package dev.denza.apps.feature.split
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -1392,6 +1393,32 @@ class SplitPickerShellSessionTest {
         }
         assertTrue("без MULTIPLE_TASK", launch.contains("-f 0x10200000"))
         assertFalse(fake.commands.any { it.contains("remove-task 70 ") })
+    }
+
+    /**
+     * The v17 defect class "picker over an application", against правка A4.
+     *
+     * The firmware can report the app task inside its pane while the picker window is still
+     * committed above it. The whole-scene postcondition is one full sample now, so that single
+     * sample must refuse a scene whose exact app never becomes the visible top of its root -
+     * otherwise the open would commit APP for a pane the user sees as a picker.
+     */
+    @Test
+    fun aBuildRefusesASceneWhosePickerStaysDrawnOverTheApp() {
+        val fake = FakeShell(pickerStaysAboveApps = true)
+
+        val refusal = runCatching {
+            session(fake).buildScene(
+                PICKERS,
+                mapOf(SplitPane.PRIMARY to launchTargetOf(NAVIGATOR)),
+            )
+        }.exceptionOrNull()
+
+        assertNotNull("сцена с пикером поверх приложения не может быть объявлена успехом", refusal)
+        assertTrue(
+            "и отказ называет ровно этот предикат: ${refusal?.message}",
+            refusal?.message.orEmpty().contains("не стало верхним"),
+        )
     }
 
     /**
