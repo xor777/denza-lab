@@ -10,6 +10,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -66,8 +67,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.Layout
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.painter.BitmapPainter
@@ -173,10 +172,6 @@ fun DenzaAppsRoot(
     )
     val simulcastActions = FeatureActionPolicy.simulcast(uiState.simulcast)
     val mirrorAction = FeatureActionPolicy.mirrors(uiState.mirrors)
-    val containerWidthPx = LocalWindowInfo.current.containerSize.width
-    val containerWidthDp = with(LocalDensity.current) { containerWidthPx.toDp().value.roundToInt() }
-    val dashboardLayout = DashboardLayoutPolicy.resolve(containerWidthDp)
-    val compactLayout = dashboardLayout == DashboardLayoutMode.NARROW
     val adbStartupOverlay = AdbStartupGatePolicy.overlay(uiState.adbRescue)
     val adbStartupBlocked = uiState.adbRescue.phase != AdbRescuePhase.TRUSTED
     val openClusterPicker = {
@@ -184,371 +179,380 @@ fun DenzaAppsRoot(
         showClusterPicker = true
     }
 
-    DenzaTheme {
-        Surface(modifier = Modifier.fillMaxSize(), color = Background) {
-            Box(modifier = Modifier.fillMaxSize()) {
-                // Правка W8: дашборд всегда вписывается в ширину своего окна. Панельные ширины
-                // (узкая 1/3 и средняя 2/3) перекомпоновывают карточки и скроллят по вертикали;
-                // горизонтального скролла с холстом 1280 dp больше нет - в панели 828 dp он
-                // прятал ~904 px дашборда за краем.
-                Column(
-                    modifier = when (dashboardLayout) {
-                        DashboardLayoutMode.WIDE -> Modifier.fillMaxSize()
-                        DashboardLayoutMode.MEDIUM,
-                        DashboardLayoutMode.NARROW,
-                        -> Modifier
-                            .fillMaxSize()
-                            .verticalScroll(rememberScrollState())
-                    }
-                        .windowInsetsPadding(WindowInsets.safeDrawing)
-                        .padding(
-                            horizontal = if (compactLayout) 24.dp else 48.dp,
-                            vertical = 14.dp,
-                        ),
-                ) {
-                    AdaptiveCardGroup(
-                        layout = dashboardLayout,
-                        spacing = 18.dp,
-                    ) {
-                    FeatureCard(
-                        modifier = Modifier,
-                        icon = Icons.Outlined.Map,
-                        title = "Навигация",
-                        subtitle = uiState.navigationAppLabel,
-                        subtitleIcon = selectedNavigationApp?.icon,
-                        subtitleIconKey = selectedNavigationApp?.packageName,
-                        snapshot = uiState.navigation,
-                    ) {
-                        Column(modifier = Modifier.fillMaxWidth()) {
-                            StandardSegmentedChoiceRow(
-                                modifier = Modifier.fillMaxWidth(),
-                                labels = ClusterMapPlacement.entries.map { placement ->
-                                    when (placement) {
-                                        ClusterMapPlacement.FULL -> "Полный"
-                                        ClusterMapPlacement.LEFT -> "Слева"
-                                        ClusterMapPlacement.CENTER -> "Центр"
-                                        ClusterMapPlacement.RIGHT -> "Справа"
-                                    }
-                                },
-                                selectedIndex = ClusterMapPlacement.entries.indexOf(
-                                    uiState.navigationPlacement,
-                                ),
-                                enabled = uiState.navigation.status != FeatureStatus.STARTING &&
-                                    uiState.navigation.status != FeatureStatus.RECOVERING,
-                                onSelect = { index ->
-                                    onNavigationPlacement(ClusterMapPlacement.entries[index])
-                                },
-                            )
-                            if (SHOW_NAVIGATION_AUTOMATIC) {
-                                Spacer(Modifier.height(10.dp))
-                                SettingsSwitchRow(
-                                    title = "Авто",
-                                    subtitle = "По режиму приборки",
-                                    checked = uiState.navigationAutomatic,
-                                    onCheckedChange = onNavigationAutomatic,
-                                    controlEnabled = uiState.navigation.status != FeatureStatus.STARTING &&
-                                        uiState.navigation.status != FeatureStatus.RECOVERING,
-                                )
-                            }
-                            Spacer(Modifier.height(10.dp))
-                            SettingsSwitchRow(
-                                title = "Кнопка ★ на руле",
-                                subtitle = when {
-                                    !uiState.navigationSteeringWheelButton ->
-                                        "Штатное действие не перехватывается"
-                                    uiState.navigationSteeringWheelButtonRepairing ->
-                                        "Восстанавливаю системный доступ…"
-                                    uiState.navigationSteeringWheelButtonReady ->
-                                        "Перехват активен"
-                                    else ->
-                                        "Системный доступ недоступен"
-                                },
-                                checked = uiState.navigationSteeringWheelButton,
-                                onCheckedChange = onNavigationSteeringWheelButton,
-                            )
-                            Spacer(Modifier.height(10.dp))
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                            ) {
-                                FeatureChooserButton(
-                                    modifier = Modifier.weight(1f),
-                                    onClick = onChooseNavigationApp,
-                                    emphasized = navigationActions.chooserEmphasized,
-                                    enabled = uiState.navigation.status != FeatureStatus.STARTING &&
-                                        uiState.navigation.status != FeatureStatus.RECOVERING &&
-                                        uiState.navigation.status != FeatureStatus.ACTIVE,
-                                    text = "Выбрать",
-                                )
-                                Button(
-                                    modifier = Modifier.weight(1f),
-                                    onClick = when (navigationActions.primaryTarget) {
-                                        FeatureActionTarget.SELECT_CLUSTER_DISPLAY -> openClusterPicker
-                                        else -> onNavigationAction
-                                    },
-                                    enabled = navigationActions.primaryEnabled &&
-                                        uiState.navigation.status != FeatureStatus.STARTING &&
-                                        uiState.navigation.status != FeatureStatus.RECOVERING,
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = Accent,
-                                        contentColor = Color(0xFF06251C),
-                                    ),
-                                ) {
-                                    Text(navigationActions.primaryLabel, fontWeight = FontWeight.SemiBold)
-                                }
-                            }
+    // Правка W6 (волна 7): ширина берётся из фактического constraint корневого layout.
+    // LocalWindowInfo.containerSize обновляется только с configuration change, которого
+    // reveal/promote-путь прошивки не шлёт (collapse его шлёт - тот путь и работал), и панель
+    // залипала в чужой ширине до следующего пересоздания окна.
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val dashboardLayout = DashboardLayoutPolicy.resolve(maxWidth.value.roundToInt())
+        val compactLayout = dashboardLayout == DashboardLayoutMode.NARROW
+
+        DenzaTheme {
+            Surface(modifier = Modifier.fillMaxSize(), color = Background) {
+                Box(modifier = Modifier.fillMaxSize()) {
+                    // Правка W8: дашборд всегда вписывается в ширину своего окна. Панельные ширины
+                    // (узкая 1/3 и средняя 2/3) перекомпоновывают карточки и скроллят по вертикали;
+                    // горизонтального скролла с холстом 1280 dp больше нет - в панели 828 dp он
+                    // прятал ~904 px дашборда за краем.
+                    Column(
+                        modifier = when (dashboardLayout) {
+                            DashboardLayoutMode.WIDE -> Modifier.fillMaxSize()
+                            DashboardLayoutMode.MEDIUM,
+                            DashboardLayoutMode.NARROW,
+                            -> Modifier
+                                .fillMaxSize()
+                                .verticalScroll(rememberScrollState())
                         }
-                    }
-                    FeatureCard(
-                        modifier = Modifier,
-                        icon = Icons.Outlined.Apps,
-                        title = "Трансляция",
-                        subtitle = "Приложения на экранах",
-                        snapshot = uiState.simulcast,
-                        switchValue = uiState.simulcast.desiredEnabled,
-                        onSwitch = onToggleSimulcast,
-                        actionsFillRemaining = true,
-                        onHeaderTap = onTransmissionHeaderTap,
+                            .windowInsetsPadding(WindowInsets.safeDrawing)
+                            .padding(
+                                horizontal = if (compactLayout) 24.dp else 48.dp,
+                                vertical = 14.dp,
+                            ),
                     ) {
-                        Column(modifier = Modifier.fillMaxSize()) {
-                            SelectedSimulcastApps(uiState.selectedApps)
-                            Spacer(Modifier.weight(1f))
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                            ) {
-                                FeatureChooserButton(
-                                    modifier = Modifier.weight(1f),
-                                    onClick = onChooseApps,
-                                    emphasized = simulcastActions.chooserEmphasized,
-                                    text = "Выбрать",
-                                )
-                                Button(
-                                    modifier = Modifier.weight(1f),
-                                    onClick = when (simulcastActions.primaryTarget) {
-                                        FeatureActionTarget.RETRY -> onRepairSimulcast
-                                        else -> onLaunchSimulcast
-                                    },
-                                    enabled = simulcastActions.primaryEnabled,
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = if (uiState.simulcast.desiredEnabled) {
-                                            Accent
-                                        } else {
-                                            DisabledElevated
-                                        },
-                                        contentColor = if (uiState.simulcast.desiredEnabled) {
-                                            Color(0xFF06251C)
-                                        } else {
-                                            DisabledInk
-                                        },
-                                    ),
-                                ) {
-                                    Text(
-                                        simulcastActions.primaryLabel,
-                                        fontWeight = FontWeight.SemiBold,
-                                    )
-                                }
-                            }
-                        }
-                    }
-                    FeatureCard(
-                        modifier = Modifier,
-                        icon = Icons.Outlined.Visibility,
-                        title = "Зеркала",
-                        subtitle = "Камеры поворотников",
-                        snapshot = uiState.mirrors,
-                        switchValue = uiState.mirrors.desiredEnabled,
-                        onSwitch = onToggleMirrors,
-                    ) {
-                        Column(modifier = Modifier.fillMaxWidth()) {
-                            StandardSegmentedChoiceRow(
-                                modifier = Modifier.fillMaxWidth(),
-                                labels = listOf("По сторонам", "По центру"),
-                                selectedIndex = when (uiState.mirrorsPosition) {
-                                    MirrorsPosition.SIDES -> 0
-                                    MirrorsPosition.CENTER -> 1
-                                },
-                                contentActive = uiState.mirrors.desiredEnabled,
-                                onSelect = { index ->
-                                    onMirrorsPosition(
-                                        if (index == 0) MirrorsPosition.SIDES
-                                        else MirrorsPosition.CENTER,
-                                    )
-                                },
-                            )
-                            Spacer(Modifier.height(10.dp))
-                            SettingsSwitchRow(
-                                title = "Улучшение изображения",
-                                subtitle = "Ярче и контрастнее",
-                                checked = uiState.mirrorsProcessing,
-                                onCheckedChange = onMirrorsProcessing,
-                                contentActive = uiState.mirrors.desiredEnabled,
-                            )
-                            Spacer(Modifier.height(10.dp))
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                            ) {
-                                OutlinedButton(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    onClick = when (mirrorAction.target) {
-                                        FeatureActionTarget.SELECT_CLUSTER_DISPLAY -> openClusterPicker
-                                        else -> onPreviewMirrors
-                                    },
-                                    enabled = mirrorAction.enabled,
-                                ) {
-                                    Text(mirrorAction.label, fontWeight = FontWeight.SemiBold)
-                                }
-                            }
-                        }
-                    }
-                    }
-                    Spacer(Modifier.height(12.dp))
-                    AdaptiveCardGroup(
-                        layout = dashboardLayout,
-                        spacing = 18.dp,
-                    ) {
-                        SplitScreenCard(
-                            modifier = Modifier,
-                            snapshot = uiState.splitScreen,
-                            onToggle = onToggleSplitScreen,
-                        )
-                        CompactToggleCard(
+                        AdaptiveCardGroup(
+                            layout = dashboardLayout,
+                            spacing = 18.dp,
+                        ) {
+                        FeatureCard(
                             modifier = Modifier,
                             icon = Icons.Outlined.Map,
-                            title = "HUD-подсказки",
-                            subtitle = "Указания на проекции",
-                            snapshot = uiState.hudGuidance,
-                            onToggle = onToggleHudGuidance,
-                            onRetry = { onToggleHudGuidance(true) },
-                        )
-                        CompactActionCard(
+                            title = "Навигация",
+                            subtitle = uiState.navigationAppLabel,
+                            subtitleIcon = selectedNavigationApp?.icon,
+                            subtitleIconKey = selectedNavigationApp?.packageName,
+                            snapshot = uiState.navigation,
+                        ) {
+                            Column(modifier = Modifier.fillMaxWidth()) {
+                                StandardSegmentedChoiceRow(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    labels = ClusterMapPlacement.entries.map { placement ->
+                                        when (placement) {
+                                            ClusterMapPlacement.FULL -> "Полный"
+                                            ClusterMapPlacement.LEFT -> "Слева"
+                                            ClusterMapPlacement.CENTER -> "Центр"
+                                            ClusterMapPlacement.RIGHT -> "Справа"
+                                        }
+                                    },
+                                    selectedIndex = ClusterMapPlacement.entries.indexOf(
+                                        uiState.navigationPlacement,
+                                    ),
+                                    enabled = uiState.navigation.status != FeatureStatus.STARTING &&
+                                        uiState.navigation.status != FeatureStatus.RECOVERING,
+                                    onSelect = { index ->
+                                        onNavigationPlacement(ClusterMapPlacement.entries[index])
+                                    },
+                                )
+                                if (SHOW_NAVIGATION_AUTOMATIC) {
+                                    Spacer(Modifier.height(10.dp))
+                                    SettingsSwitchRow(
+                                        title = "Авто",
+                                        subtitle = "По режиму приборки",
+                                        checked = uiState.navigationAutomatic,
+                                        onCheckedChange = onNavigationAutomatic,
+                                        controlEnabled = uiState.navigation.status != FeatureStatus.STARTING &&
+                                            uiState.navigation.status != FeatureStatus.RECOVERING,
+                                    )
+                                }
+                                Spacer(Modifier.height(10.dp))
+                                SettingsSwitchRow(
+                                    title = "Кнопка ★ на руле",
+                                    subtitle = when {
+                                        !uiState.navigationSteeringWheelButton ->
+                                            "Штатное действие не перехватывается"
+                                        uiState.navigationSteeringWheelButtonRepairing ->
+                                            "Восстанавливаю системный доступ…"
+                                        uiState.navigationSteeringWheelButtonReady ->
+                                            "Перехват активен"
+                                        else ->
+                                            "Системный доступ недоступен"
+                                    },
+                                    checked = uiState.navigationSteeringWheelButton,
+                                    onCheckedChange = onNavigationSteeringWheelButton,
+                                )
+                                Spacer(Modifier.height(10.dp))
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                ) {
+                                    FeatureChooserButton(
+                                        modifier = Modifier.weight(1f),
+                                        onClick = onChooseNavigationApp,
+                                        emphasized = navigationActions.chooserEmphasized,
+                                        enabled = uiState.navigation.status != FeatureStatus.STARTING &&
+                                            uiState.navigation.status != FeatureStatus.RECOVERING &&
+                                            uiState.navigation.status != FeatureStatus.ACTIVE,
+                                        text = "Выбрать",
+                                    )
+                                    Button(
+                                        modifier = Modifier.weight(1f),
+                                        onClick = when (navigationActions.primaryTarget) {
+                                            FeatureActionTarget.SELECT_CLUSTER_DISPLAY -> openClusterPicker
+                                            else -> onNavigationAction
+                                        },
+                                        enabled = navigationActions.primaryEnabled &&
+                                            uiState.navigation.status != FeatureStatus.STARTING &&
+                                            uiState.navigation.status != FeatureStatus.RECOVERING,
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = Accent,
+                                            contentColor = Color(0xFF06251C),
+                                        ),
+                                    ) {
+                                        Text(navigationActions.primaryLabel, fontWeight = FontWeight.SemiBold)
+                                    }
+                                }
+                            }
+                        }
+                        FeatureCard(
                             modifier = Modifier,
-                            icon = Icons.Outlined.InstallMobile,
-                            title = "Установить приложение",
-                            subtitle = uiState.fseInstaller.message.ifBlank {
-                                "На пассажирский экран"
-                            },
-                            snapshot = uiState.fseInstaller,
-                            onClick = onChooseFseApp,
-                        )
-                    }
-                    Spacer(Modifier.height(10.dp))
-                    // On the full width the swipeable bottom panel fills the free
-                    // zone below the cards. In the two scrolling pane layouts it
-                    // becomes a fixed-height stacked item (weight has no meaning
-                    // inside a vertical scroll). It stays frameless everywhere and
-                    // is gated by the compile-time flag.
-                    if (TripPanelFlag.ENABLED && !adbStartupBlocked) {
-                        BottomPanelPager(
-                            compactLayout = compactLayout,
-                            modifier = when (dashboardLayout) {
-                                DashboardLayoutMode.WIDE ->
-                                    Modifier.fillMaxWidth().weight(1f)
-                                DashboardLayoutMode.MEDIUM ->
-                                    Modifier.fillMaxWidth().height(MEDIUM_TRIP_PANEL_HEIGHT)
-                                DashboardLayoutMode.NARROW ->
-                                    Modifier.fillMaxWidth().height(NARROW_TRIP_PANEL_HEIGHT)
-                            },
-                        )
-                    } else {
-                        if (dashboardLayout == DashboardLayoutMode.WIDE) {
-                            Spacer(Modifier.weight(1f))
+                            icon = Icons.Outlined.Apps,
+                            title = "Трансляция",
+                            subtitle = "Приложения на экранах",
+                            snapshot = uiState.simulcast,
+                            switchValue = uiState.simulcast.desiredEnabled,
+                            onSwitch = onToggleSimulcast,
+                            actionsFillRemaining = true,
+                            onHeaderTap = onTransmissionHeaderTap,
+                        ) {
+                            Column(modifier = Modifier.fillMaxSize()) {
+                                SelectedSimulcastApps(uiState.selectedApps)
+                                Spacer(Modifier.weight(1f))
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                ) {
+                                    FeatureChooserButton(
+                                        modifier = Modifier.weight(1f),
+                                        onClick = onChooseApps,
+                                        emphasized = simulcastActions.chooserEmphasized,
+                                        text = "Выбрать",
+                                    )
+                                    Button(
+                                        modifier = Modifier.weight(1f),
+                                        onClick = when (simulcastActions.primaryTarget) {
+                                            FeatureActionTarget.RETRY -> onRepairSimulcast
+                                            else -> onLaunchSimulcast
+                                        },
+                                        enabled = simulcastActions.primaryEnabled,
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = if (uiState.simulcast.desiredEnabled) {
+                                                Accent
+                                            } else {
+                                                DisabledElevated
+                                            },
+                                            contentColor = if (uiState.simulcast.desiredEnabled) {
+                                                Color(0xFF06251C)
+                                            } else {
+                                                DisabledInk
+                                            },
+                                        ),
+                                    ) {
+                                        Text(
+                                            simulcastActions.primaryLabel,
+                                            fontWeight = FontWeight.SemiBold,
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                        FeatureCard(
+                            modifier = Modifier,
+                            icon = Icons.Outlined.Visibility,
+                            title = "Зеркала",
+                            subtitle = "Камеры поворотников",
+                            snapshot = uiState.mirrors,
+                            switchValue = uiState.mirrors.desiredEnabled,
+                            onSwitch = onToggleMirrors,
+                        ) {
+                            Column(modifier = Modifier.fillMaxWidth()) {
+                                StandardSegmentedChoiceRow(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    labels = listOf("По сторонам", "По центру"),
+                                    selectedIndex = when (uiState.mirrorsPosition) {
+                                        MirrorsPosition.SIDES -> 0
+                                        MirrorsPosition.CENTER -> 1
+                                    },
+                                    contentActive = uiState.mirrors.desiredEnabled,
+                                    onSelect = { index ->
+                                        onMirrorsPosition(
+                                            if (index == 0) MirrorsPosition.SIDES
+                                            else MirrorsPosition.CENTER,
+                                        )
+                                    },
+                                )
+                                Spacer(Modifier.height(10.dp))
+                                SettingsSwitchRow(
+                                    title = "Улучшение изображения",
+                                    subtitle = "Ярче и контрастнее",
+                                    checked = uiState.mirrorsProcessing,
+                                    onCheckedChange = onMirrorsProcessing,
+                                    contentActive = uiState.mirrors.desiredEnabled,
+                                )
+                                Spacer(Modifier.height(10.dp))
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                ) {
+                                    OutlinedButton(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        onClick = when (mirrorAction.target) {
+                                            FeatureActionTarget.SELECT_CLUSTER_DISPLAY -> openClusterPicker
+                                            else -> onPreviewMirrors
+                                        },
+                                        enabled = mirrorAction.enabled,
+                                    ) {
+                                        Text(mirrorAction.label, fontWeight = FontWeight.SemiBold)
+                                    }
+                                }
+                            }
+                        }
+                        }
+                        Spacer(Modifier.height(12.dp))
+                        AdaptiveCardGroup(
+                            layout = dashboardLayout,
+                            spacing = 18.dp,
+                        ) {
+                            SplitScreenCard(
+                                modifier = Modifier,
+                                snapshot = uiState.splitScreen,
+                                onToggle = onToggleSplitScreen,
+                            )
+                            CompactToggleCard(
+                                modifier = Modifier,
+                                icon = Icons.Outlined.Map,
+                                title = "HUD-подсказки",
+                                subtitle = "Указания на проекции",
+                                snapshot = uiState.hudGuidance,
+                                onToggle = onToggleHudGuidance,
+                                onRetry = { onToggleHudGuidance(true) },
+                            )
+                            CompactActionCard(
+                                modifier = Modifier,
+                                icon = Icons.Outlined.InstallMobile,
+                                title = "Установить приложение",
+                                subtitle = uiState.fseInstaller.message.ifBlank {
+                                    "На пассажирский экран"
+                                },
+                                snapshot = uiState.fseInstaller,
+                                onClick = onChooseFseApp,
+                            )
+                        }
+                        Spacer(Modifier.height(10.dp))
+                        // On the full width the swipeable bottom panel fills the free
+                        // zone below the cards. In the two scrolling pane layouts it
+                        // becomes a fixed-height stacked item (weight has no meaning
+                        // inside a vertical scroll). It stays frameless everywhere and
+                        // is gated by the compile-time flag.
+                        if (TripPanelFlag.ENABLED && !adbStartupBlocked) {
+                            BottomPanelPager(
+                                compactLayout = compactLayout,
+                                modifier = when (dashboardLayout) {
+                                    DashboardLayoutMode.WIDE ->
+                                        Modifier.fillMaxWidth().weight(1f)
+                                    DashboardLayoutMode.MEDIUM ->
+                                        Modifier.fillMaxWidth().height(MEDIUM_TRIP_PANEL_HEIGHT)
+                                    DashboardLayoutMode.NARROW ->
+                                        Modifier.fillMaxWidth().height(NARROW_TRIP_PANEL_HEIGHT)
+                                },
+                            )
                         } else {
-                            Spacer(Modifier.height(14.dp))
+                            if (dashboardLayout == DashboardLayoutMode.WIDE) {
+                                Spacer(Modifier.weight(1f))
+                            } else {
+                                Spacer(Modifier.height(14.dp))
+                            }
                         }
                     }
                 }
             }
         }
-    }
 
-    if (showDiagnostics) {
-        DiagnosticsDialog(
-            state = uiState,
-            compactLayout = compactLayout,
-            onSelectClusterDisplay = onSelectClusterDisplay,
-            onCheckAdbAccess = onCheckAdbAccess,
-            onRequestAdbAuthorizationOnce = onRequestAdbAuthorizationOnce,
-            onAllowNewAdbAuthorizationAttempt = onAllowNewAdbAuthorizationAttempt,
-            onSetStockRussianLocaleEnabled = onSetStockRussianLocaleEnabled,
-            onDismiss = { showDiagnostics = false },
-        )
-    }
-    if (showClusterPicker) {
-        ClusterDisplayPickerDialog(
-            displays = uiState.clusterCandidates,
-            compactLayout = compactLayout,
-            onSelect = { displayId ->
-                onSelectClusterDisplay(displayId)
-                showClusterPicker = false
-            },
-            onRefresh = onRefreshScreenDiagnostics,
-            onDismiss = { showClusterPicker = false },
-        )
-    }
-    if (uiState.appPickerVisible) {
-        AppPickerDialog(
-            apps = uiState.appChoices,
-            compactLayout = compactLayout,
-            selectedCount = uiState.selectedAppCount,
-            message = uiState.appPickerMessage,
-            onToggle = onToggleApp,
-            onDismiss = onCloseAppPicker,
-        )
-    }
-    if (uiState.navigationPickerVisible) {
-        NavigationPickerDialog(
-            apps = uiState.navigationAppChoices,
-            compactLayout = compactLayout,
-            onSelect = onSelectNavigationApp,
-            onDismiss = onCloseNavigationPicker,
-        )
-    }
-    if (uiState.fseInstallerPickerVisible) {
-        FseInstallerPickerDialog(
-            apps = uiState.fseInstallApps,
-            compactLayout = compactLayout,
-            message = uiState.fseInstallerMessage,
-            onInstall = onInstallFseApp,
-            onDismiss = onCloseFseInstallerPicker,
-        )
-    }
-    if (adbStartupOverlay.visible) {
-        AdbStartupOverlay(
-            model = adbStartupOverlay,
-            onPrimaryAction = {
-                when (adbStartupOverlay.primaryAction) {
-                    AdbStartupPrimaryAction.NONE -> Unit
-                    AdbStartupPrimaryAction.CHECK_ACCESS -> onCheckAdbAccess()
-                    AdbStartupPrimaryAction.REQUEST_AUTHORIZATION ->
-                        onRequestAdbAuthorizationOnce()
-                }
-            },
-            onOpenRecovery = { showAdbRecovery = true },
-        )
-    }
-    if (adbStartupBlocked && !adbStartupOverlay.visible) {
-        // The normal passive check is intentionally invisible, but no control can race it and
-        // start feature work before the global prerequisite has been proven.
-        val startupInteractionSource = remember { MutableInteractionSource() }
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .clickable(
-                    interactionSource = startupInteractionSource,
-                    indication = null,
-                    onClick = {},
-                ),
-        )
-    }
-    if (showAdbRecovery && adbStartupOverlay.visible) {
-        AdbRecoveryDialog(
-            state = uiState,
-            onCheckAdbAccess = onCheckAdbAccess,
-            onRequestAdbAuthorizationOnce = onRequestAdbAuthorizationOnce,
-            onAllowNewAdbAuthorizationAttempt = onAllowNewAdbAuthorizationAttempt,
-            onDismiss = { showAdbRecovery = false },
-        )
+        if (showDiagnostics) {
+            DiagnosticsDialog(
+                state = uiState,
+                compactLayout = compactLayout,
+                onSelectClusterDisplay = onSelectClusterDisplay,
+                onCheckAdbAccess = onCheckAdbAccess,
+                onRequestAdbAuthorizationOnce = onRequestAdbAuthorizationOnce,
+                onAllowNewAdbAuthorizationAttempt = onAllowNewAdbAuthorizationAttempt,
+                onSetStockRussianLocaleEnabled = onSetStockRussianLocaleEnabled,
+                onDismiss = { showDiagnostics = false },
+            )
+        }
+        if (showClusterPicker) {
+            ClusterDisplayPickerDialog(
+                displays = uiState.clusterCandidates,
+                compactLayout = compactLayout,
+                onSelect = { displayId ->
+                    onSelectClusterDisplay(displayId)
+                    showClusterPicker = false
+                },
+                onRefresh = onRefreshScreenDiagnostics,
+                onDismiss = { showClusterPicker = false },
+            )
+        }
+        if (uiState.appPickerVisible) {
+            AppPickerDialog(
+                apps = uiState.appChoices,
+                compactLayout = compactLayout,
+                selectedCount = uiState.selectedAppCount,
+                message = uiState.appPickerMessage,
+                onToggle = onToggleApp,
+                onDismiss = onCloseAppPicker,
+            )
+        }
+        if (uiState.navigationPickerVisible) {
+            NavigationPickerDialog(
+                apps = uiState.navigationAppChoices,
+                compactLayout = compactLayout,
+                onSelect = onSelectNavigationApp,
+                onDismiss = onCloseNavigationPicker,
+            )
+        }
+        if (uiState.fseInstallerPickerVisible) {
+            FseInstallerPickerDialog(
+                apps = uiState.fseInstallApps,
+                compactLayout = compactLayout,
+                message = uiState.fseInstallerMessage,
+                onInstall = onInstallFseApp,
+                onDismiss = onCloseFseInstallerPicker,
+            )
+        }
+        if (adbStartupOverlay.visible) {
+            AdbStartupOverlay(
+                model = adbStartupOverlay,
+                onPrimaryAction = {
+                    when (adbStartupOverlay.primaryAction) {
+                        AdbStartupPrimaryAction.NONE -> Unit
+                        AdbStartupPrimaryAction.CHECK_ACCESS -> onCheckAdbAccess()
+                        AdbStartupPrimaryAction.REQUEST_AUTHORIZATION ->
+                            onRequestAdbAuthorizationOnce()
+                    }
+                },
+                onOpenRecovery = { showAdbRecovery = true },
+            )
+        }
+        if (adbStartupBlocked && !adbStartupOverlay.visible) {
+            // The normal passive check is intentionally invisible, but no control can race it and
+            // start feature work before the global prerequisite has been proven.
+            val startupInteractionSource = remember { MutableInteractionSource() }
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clickable(
+                        interactionSource = startupInteractionSource,
+                        indication = null,
+                        onClick = {},
+                    ),
+            )
+        }
+        if (showAdbRecovery && adbStartupOverlay.visible) {
+            AdbRecoveryDialog(
+                state = uiState,
+                onCheckAdbAccess = onCheckAdbAccess,
+                onRequestAdbAuthorizationOnce = onRequestAdbAuthorizationOnce,
+                onAllowNewAdbAuthorizationAttempt = onAllowNewAdbAuthorizationAttempt,
+                onDismiss = { showAdbRecovery = false },
+            )
+        }
     }
 }
 
