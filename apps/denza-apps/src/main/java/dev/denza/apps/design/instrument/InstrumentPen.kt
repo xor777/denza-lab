@@ -3,7 +3,9 @@ package dev.denza.apps.design.instrument
 import android.graphics.Canvas
 import android.graphics.DashPathEffect
 import android.graphics.Paint
+import android.graphics.RadialGradient
 import android.graphics.RectF
+import android.graphics.Shader
 import android.graphics.Typeface
 import dev.denza.apps.design.DenzaPalette
 
@@ -45,6 +47,12 @@ class InstrumentPen {
     private val oval = RectF()
     private var dashUnit = 0f
     private var dashEffect: DashPathEffect? = null
+
+    private var glowShader: RadialGradient? = null
+    private var glowCentreX = Float.NaN
+    private var glowCentreY = Float.NaN
+    private var glowRadius = Float.NaN
+    private var glowArgb = 0
 
     /**
      * Fit a virtual layout onto the rectangle the view actually got.
@@ -187,6 +195,64 @@ class InstrumentPen {
         // The platform measures angles clockwise; ours run the other way.
         canvas.drawArc(oval, -fromDegrees, -sweep, false, stroke)
         stroke.strokeCap = Paint.Cap.ROUND
+    }
+
+    /**
+     * The soft light a dial pools on the panel around itself.
+     *
+     * Found by accident. Before the dashboard had a ground of its own, the dark scrim that kept each
+     * island legible ran over the vehicle's own lit background and left a halo around the gauge; the
+     * owner saw it on the car and asked for it on purpose. So this is the same shape that scrim was
+     * and the opposite colour: a wide, low-alpha radial lift, strongest at the centre and gone by the
+     * rim.
+     *
+     * It is the one thing on the dashboard that carries no reading. On a black ground a gauge drawn
+     * in strokes alone sits flat, and a low pool of light under it gives the instrument a centre of
+     * gravity without adding anything the driver has to look at.
+     *
+     * The gradient is rebuilt only when its geometry or colour moves - which, on a fixed panel, is
+     * once - because this is drawn on the main thread at the cluster's cadence.
+     */
+    fun glow(
+        canvas: Canvas,
+        centreX: Float,
+        centreY: Float,
+        radiusX: Float,
+        radiusY: Float,
+        color: Int,
+        strength: Float,
+    ) {
+        if (radiusX <= 0f || radiusY <= 0f) return
+        val alpha = (strength.coerceIn(0f, 1f) * 255f).toInt()
+        if (alpha == 0) return
+        val argb = (alpha shl 24) or (color and 0x00FFFFFF)
+        if (
+            glowShader == null ||
+            centreX != glowCentreX ||
+            centreY != glowCentreY ||
+            radiusX != glowRadius ||
+            argb != glowArgb
+        ) {
+            glowCentreX = centreX
+            glowCentreY = centreY
+            glowRadius = radiusX
+            glowArgb = argb
+            val tint = argb and 0x00FFFFFF
+            glowShader = RadialGradient(
+                centreX,
+                centreY,
+                radiusX,
+                intArrayOf(argb, ((alpha * GLOW_MID_PERCENT / 100) shl 24) or tint, tint),
+                floatArrayOf(0f, GLOW_MID_STOP, 1f),
+                Shader.TileMode.CLAMP,
+            )
+        }
+        fill.shader = glowShader
+        val save = canvas.save()
+        canvas.scale(1f, radiusY / radiusX, centreX, centreY)
+        canvas.drawCircle(centreX, centreY, radiusX, fill)
+        canvas.restoreToCount(save)
+        fill.shader = null
     }
 
     /** A filled dot. */
@@ -344,5 +410,17 @@ class InstrumentPen {
         if (cached != null && length == dashUnit) return cached
         dashUnit = length
         return DashPathEffect(floatArrayOf(length, length), 0f).also { dashEffect = it }
+    }
+
+    private companion object {
+        /**
+         * The middle stop of a glow, and how much of its strength is left there.
+         *
+         * Two stops would fall off in a straight line and read as a disc with an edge. Holding most
+         * of the light through the first half and then letting it go is what makes it a pool of
+         * light rather than a shape.
+         */
+        const val GLOW_MID_STOP = 0.5f
+        const val GLOW_MID_PERCENT = 45
     }
 }

@@ -50,6 +50,8 @@ class EnergyGauge(private val pen: InstrumentPen) {
         average: Double?,
         caption: String,
     ) {
+        pen.glow(canvas, centreX, centreY, radius * GLOW_X, radius * GLOW_Y, GLOW_INK, GLOW_STRENGTH)
+
         pen.arc(canvas, centreX, centreY, radius, ARC_FROM, ARC_TO, DenzaPalette.TRACK, density.arcWidth)
 
         EnergyScale.DISCHARGE_TICKS_KW.take(density.dialMarks).forEach { mark ->
@@ -235,6 +237,19 @@ class EnergyGauge(private val pen: InstrumentPen) {
         private const val CHART_HEIGHT = 0.52f
         private const val FIGURE_ABOVE = 0.60f
         private const val CAPTION_BELOW = 0.30f
+
+        /**
+         * The pool of light the dial sits in, in shares of its radius.
+         *
+         * The reach is the shape the old scrim had, because that shape is what produced the halo on
+         * the car that this is a deliberate version of. [GLOW_STRENGTH] is the one number to turn:
+         * it is the alpha at the very centre, and above roughly `0.22` on a black panel the pool
+         * stops reading as light and starts reading as a grey disc.
+         */
+        private const val GLOW_X = 1.28f
+        private const val GLOW_Y = 1.22f
+        private const val GLOW_STRENGTH = 0.16f
+        private val GLOW_INK = DenzaPalette.INK
 
         private const val UNIT = "кВт"
         private const val DASH = "—"
