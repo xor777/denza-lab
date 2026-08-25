@@ -978,6 +978,12 @@ internal class SplitPickerShellSession(
         }
         onPhase("apps-launched")
 
+        // Правка W3 волны 10 (владелец, 2026-08-25): панель после запусков обязана остаться «база
+        // и приложение», и добивается этого сборка, а не постусловие. Всё, что прошивка успела
+        // принести в корень сверх пары, - не повод провалить готовую сцену и оставить экран
+        // пустым: своё убирается, задача пользователя уезжает живой в фон. Предпусковая чистка
+        // выше видит мир ДО запусков и до новоприбывших не достаёт.
+        sweepPanesToBaseAndApp(rootIds, hostTaskIds, appTaskIds, preexistingTaskIds)
         // Both bases and both apps take the size of their pane from one read, the divergent ones
         // are resized back to back, and one settle and one more read close the whole batch.
         normalizeSceneToRoots(hostTaskIds, appTaskIds, rootIds, failed)
@@ -2204,7 +2210,14 @@ internal class SplitPickerShellSession(
                 scenePlacement(pickerComponents, rootIds, hostTaskIds, appTaskIds)
             }
             sample.getOrNull()?.let { placement -> return placement }
-            sample.exceptionOrNull()?.let { error -> lastError = error }
+            sample.exceptionOrNull()?.let { error ->
+                lastError = error
+                // Правка W3 волны 10 (§1.13): состав панели рецепт уже закончил менять, и ждать
+                // его нечем - доведение безнадёжной сборки было чистым ожиданием. Живьём v25 Д1:
+                // 20 проб по 100 мс жгли 7.1-7.5 с поверх готового рецепта и уводили открытие за
+                // потолок в 10 с.
+                if (error is SettledPlacementError) throw error
+            }
             if (attempt + 1 < APP_PLACEMENT_CONFIRM_ATTEMPTS) {
                 pause(APP_PLACEMENT_CONFIRM_INTERVAL_MS)
             }
@@ -2238,8 +2251,10 @@ internal class SplitPickerShellSession(
             check(picker.bounds == root.bounds) {
                 "Пикер ${pane.name} не принял размер split-контейнера"
             }
-            check(root.tasks.size <= MAX_TASKS_PER_PANE) {
-                "В ${pane.name} накопилось больше двух задач"
+            if (root.tasks.size > MAX_TASKS_PER_PANE) {
+                // Не переходный такт прошивки, а состав корня, который рецепт уже закончил менять
+                // (правка W3 волны 10): его выметает [sweepPanesToBaseAndApp], а не ожидание.
+                throw SettledPlacementError("В ${pane.name} накопилось больше двух задач")
             }
             val top = root.resolvedTopTask() ?: error("В ${pane.name} нет верхней задачи")
             val appTaskId = appTaskIds[pane]
@@ -2260,6 +2275,12 @@ internal class SplitPickerShellSession(
             }
         }
     }
+
+    /**
+     * Отказ постусловия, который ожиданием не лечится: мир уже устоялся в том виде, в каком его
+     * оставил рецепт (правка W3 волны 10). Полл сцены пережидает такты прошивки, а не структуру.
+     */
+    private class SettledPlacementError(message: String) : IllegalStateException(message)
 
     private fun removeTaskSafely(task: SplitTask) = removeTasksSafely(listOf(task))
 
@@ -2330,6 +2351,40 @@ internal class SplitPickerShellSession(
         } else {
             moveTask(task.id, targetRootId)
         }
+    }
+
+    /**
+     * Правка W3 волны 10: последнее слово сборки о составе панелей.
+     *
+     * Правило то же, что у предпусковой чистки: панель - это её пикер-база и не больше одного
+     * приложения; своё (собственные компоненты и созданное этой операцией по её же журнальному
+     * чтению) убирается, всё остальное - задача пользователя и уезжает живой в полноэкранный
+     * корень. Отличие одно и оно решающее: этот проход видит мир ПОСЛЕ запусков, то есть тех, кого
+     * прошивка привела в корень сама. Живьём (v25 Д1) именно они делали панель трёхзадачной, а
+     * постусловие превращало готовую сцену в откат в пустоту.
+     *
+     * Чтение здесь одно и оно же достаётся [normalizeSceneToRoots] через общий кэш топологии,
+     * когда двигать не пришлось ничего.
+     */
+    private fun sweepPanesToBaseAndApp(
+        rootIds: Map<SplitPane, Int>,
+        hostTaskIds: Map<SplitPane, Int>,
+        appTaskIds: Map<SplitPane, Int>,
+        preexistingTaskIds: Set<Int>?,
+    ) {
+        val state = snapshot()
+        val surplus = SplitPane.entries.flatMap { pane ->
+            val keep = setOfNotNull(hostTaskIds.getValue(pane), appTaskIds[pane])
+            state.root(rootIds.getValue(pane))?.tasks.orEmpty()
+                .filterNot { task -> task.id in keep || task.isEmptyRootMarker() }
+        }
+        if (surplus.isEmpty()) return
+        val (own, foreign) = surplus.partition { task ->
+            task.isOwnSplitComponent() ||
+                (preexistingTaskIds != null && task.id !in preexistingTaskIds)
+        }
+        removeTasksSafely(own.distinctBy(SplitTask::id))
+        evictToFullRootInBackground(foreign)
     }
 
     /**

@@ -2013,6 +2013,76 @@ class SplitPickerShellSessionTest {
     }
 
     /**
+     * Правка W3 волны 10: задачу, втянутую прошивкой в панель после запусков, выметает сборка.
+     *
+     * Предпусковая чистка видит мир ДО запусков и до новоприбывших не достаёт, а при открытом gate
+     * прошивка втягивает split-способный пакет в панель сама (v21 Д3-Б). Панель обязана остаться
+     * «база и приложение», и пользователь обязан получить сцену - а не откат в пустоту по
+     * предохранителю «больше двух задач».
+     */
+    @Test
+    fun aTaskTheFirmwarePullsInAfterTheLaunchesLeavesThePaneAlive() {
+        val fake = FakeShell().apply {
+            addTask(FULL_ROOT, 90, WAZE, "$WAZE.MainActivity")
+        }
+
+        val built = session(fake).buildScene(
+            pickerComponents = PICKERS,
+            targets = mapOf(SplitPane.SECONDARY to launchTargetOf(MUSIC)),
+            preexistingTaskIds = setOf(90),
+            // Ровно между запусками и чисткой сборки прошивка втягивает чужую задачу в панель.
+            onPhase = { phase -> if (phase == "apps-launched") fake.moveTask(90, SECONDARY_ROOT) },
+        )
+
+        assertEquals(emptySet<SplitPane>(), built.failed)
+        assertEquals(MUSIC, built.panes.getValue(SplitPane.SECONDARY).appPackageName)
+        assertTrue("задача пользователя жива", fake.hasTask(90))
+        assertEquals("и выселена фоном", FULL_ROOT, fake.taskRoot(90))
+        assertEquals(2, fake.taskIds(SECONDARY_ROOT).size)
+    }
+
+    /**
+     * Правка W3 волны 10 (§1.13): состав панели ожиданием не лечится.
+     *
+     * Прошивка втягивает задачу уже ПОСЛЕ чистки сборки, и постусловие честно отказывает. Прежде
+     * этот отказ переспрашивался двадцать раз по 100 мс - живьём 7.1-7.5 с поверх готового
+     * рецепта, из-за которых открытие стоило 11 с. Мир к этому моменту рецепт менять закончил:
+     * переспрашивать нечего.
+     */
+    @Test
+    fun aPaneTheFirmwareOverfillsAfterTheSweepIsRefusedWithoutPolling() {
+        val fake = FakeShell().apply {
+            addTask(FULL_ROOT, 90, WAZE, "$WAZE.MainActivity")
+        }
+        var commandsAtRefusal = 0
+
+        val refusal = runCatching {
+            session(fake).buildScene(
+                pickerComponents = PICKERS,
+                targets = mapOf(SplitPane.SECONDARY to launchTargetOf(MUSIC)),
+                preexistingTaskIds = setOf(90),
+                onPhase = { phase ->
+                    if (phase == "scene-normalized") {
+                        fake.moveTask(90, SECONDARY_ROOT)
+                        commandsAtRefusal = fake.commands.size
+                    }
+                },
+            )
+        }.exceptionOrNull()
+
+        assertNotNull("панель с тремя задачами не объявляется успехом", refusal)
+        assertTrue(
+            "и отказ называет ровно этот предикат: ${refusal?.message}",
+            refusal?.message.orEmpty().contains("больше двух задач"),
+        )
+        assertTrue(
+            "постусловие ответило с первой пробы, а не с двадцатой: " +
+                "${fake.commands.size - commandsAtRefusal} команд",
+            fake.commands.size - commandsAtRefusal <= 4,
+        )
+    }
+
+    /**
      * Invariant 3 and 1.9.2: a build cleans up after the product, and after nobody else.
      *
      * The retired host Activity is the one artefact outside the panes whose ownership a snapshot
