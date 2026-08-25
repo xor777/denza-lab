@@ -241,13 +241,19 @@ class EnergyGauge(private val pen: InstrumentPen) {
         /**
          * The pool of light the dial sits in, in shares of its radius.
          *
-         * The reach is the shape the old scrim had, because that shape is what produced the halo on
-         * the car that this is a deliberate version of. [GLOW_STRENGTH] is the one number to turn:
-         * it is the alpha at the very centre, and above roughly `0.22` on a black panel the pool
-         * stops reading as light and starts reading as a grey disc.
+         * It started at the old scrim's reach, `1.28` by `1.22`, because that shape is what produced
+         * the halo on the car this is a deliberate version of. On the panel that read as a tight
+         * ring rather than a bloom, so it now runs well past the arc: wide enough to reach the inner
+         * edge of the columns either side, and tall enough that the panel's own edge cuts it off
+         * rather than the gradient ending in mid-air.
+         *
+         * Two numbers, two jobs. [GLOW_STRENGTH] is the alpha at the very centre and does not change
+         * with the reach - a wider pool is not a brighter one - and past roughly `0.22` on a black
+         * panel it stops reading as light and starts reading as a grey disc. The reach is how far
+         * that light carries.
          */
-        private const val GLOW_X = 1.28f
-        private const val GLOW_Y = 1.22f
+        private const val GLOW_X = 2.4f
+        private const val GLOW_Y = 1.85f
         private const val GLOW_STRENGTH = 0.16f
         private val GLOW_INK = DenzaPalette.INK
 
