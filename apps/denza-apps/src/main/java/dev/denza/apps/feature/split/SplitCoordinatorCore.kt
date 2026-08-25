@@ -167,15 +167,6 @@ internal fun interface SplitDiagnosticLog {
 internal typealias SplitLiveScene = Map<SplitPane, SplitPickerLivePane>
 
 /**
- * What a partial restore leaves on screen (1.3.2, U5).
- *
- * It names the apps that did not come back, because the pane the user is looking at is also the
- * place they can repair it: the picker of that pane is right there, with those apps in its list.
- */
-internal fun splitRestoreFailureNotice(labels: List<String>): String =
-    "Не восстановлено: ${labels.joinToString(", ")}. Выберите приложение вручную"
-
-/**
  * What a navigation return throws when the split side of it did not happen (1.10.7).
  *
  * It is an [IllegalStateException] on purpose: navigation already treats a thrown return as "stay
@@ -195,8 +186,6 @@ internal class SplitCoordinatorCore(
     private val leases: List<SplitLeaseController>,
     private val apkPath: String,
     private val proxyClasspath: SplitProxyClasspath = SplitProxyClasspath { apkPath },
-    /** The human name of a package, for the one surface that names apps to the user (1.3.2). */
-    private val appLabel: (String) -> String = { it },
     private val sleeper: (Long) -> Unit = Thread::sleep,
     private val log: SplitDiagnosticLog = SplitDiagnosticLog {},
     private val post: (() -> Unit) -> Unit = { action -> action() },
@@ -554,7 +543,6 @@ internal class SplitCoordinatorCore(
             gateLeaseStore = gateLeaseStore,
             apkPath = apkPath,
             proxyClasspath = proxyClasspath,
-            appLabel = appLabel,
             clock = clock,
             sleeper = sleeper,
             diagnostics = log,

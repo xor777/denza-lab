@@ -23,8 +23,6 @@ internal class SplitOperationWorkspace(
     private val gateLeaseStore: SplitGateLeaseStore,
     private val apkPath: String,
     private val proxyClasspath: SplitProxyClasspath = SplitProxyClasspath { apkPath },
-    /** The human name of a package; the package itself is the honest fallback (1.3.2). */
-    val appLabel: (String) -> String = { it },
     private val clock: SplitClock,
     private val sleeper: (Long) -> Unit,
     private val diagnostics: SplitDiagnosticLog,
@@ -652,8 +650,10 @@ internal class OpenOperation(
         failures.forEach { packageName -> work.log("failed to restore $packageName") }
         liveScene = built.panes
         settle(SplitFact.BuildSceneSucceeded(sceneSlots(built.panes)))
-        settledNotice =
-            if (failures.isEmpty()) "" else splitRestoreFailureNotice(failures.map(work.appLabel))
+        // Правка W5 волны 10 (владелец, 2026-08-25): панель на своём пикере - рабочий исход, а не
+        // повод показывать ошибку. Список приложений там же, тап работает, а имя пакета, который
+        // прошивка не подняла, остаётся диагностикой ринга - строкой выше, не окном пользователю.
+        settledNotice = ""
     }
 
     /**

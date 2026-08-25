@@ -189,7 +189,6 @@ object SplitScreenCoordinator {
             ),
             apkPath = app.applicationInfo.sourceDir,
             proxyClasspath = stagedProxy(app),
-            appLabel = { packageName -> applicationLabel(app, packageName) },
             log = SplitDiagnosticLog(SplitDiagnostics::record),
             post = { action -> mainHandler.post(action) },
         )
@@ -214,16 +213,6 @@ object SplitScreenCoordinator {
             log = { message -> Log.i(TAG, message) },
         )
     }
-
-    /**
-     * The name the user knows an app by (1.3.2). A package the system will not name - removed,
-     * hidden, or simply unreadable right now - is reported as itself rather than as nothing.
-     */
-    @Suppress("DEPRECATION")
-    private fun applicationLabel(app: Context, packageName: String): String = runCatching {
-        val packages = app.packageManager
-        packages.getApplicationInfo(packageName, 0).loadLabel(packages).toString()
-    }.getOrDefault(packageName)
 
     private fun persistentShell(app: Context): SplitShellHandle {
         val session = DenzaLocalAdb.client(app).openPersistentShell()

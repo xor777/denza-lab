@@ -3184,15 +3184,16 @@ class SplitScenarioTest {
         assertEquals("сосед не тронут", neighbour, car.fake.topTaskId(SECONDARY_ROOT))
     }
 
+    /**
+     * Правка W5 волны 10 (владелец, 2026-08-25): частичное восстановление - рабочий исход.
+     *
+     * Панель, чьё приложение прошивка не подняла, стоит на своём пикере со списком приложений:
+     * тап работает, и показывать поверх этого ошибку не за чем. Имя пакета остаётся в ринге.
+     */
     @Test
-    fun partialRestoreNamesTheMissingApps() {
-        // 1.3.2, U5: чего не удалось восстановить - названо по имени и выбирается вручную
+    fun partialRestoreLeavesThatPaneUsableAndSaysNothingToTheUser() {
         val car = car(FakeShell())
-        val core = car.core(
-            SplitDurable(enabled = true, slots = APP_PAIR),
-            // Ровно то, что подставляет продакшен: имя из PackageManager, а не имя пакета.
-            appLabel = { packageName -> if (packageName == MUSIC) MUSIC_LABEL else packageName },
-        )
+        val core = car.core(SplitDurable(enabled = true, slots = APP_PAIR))
         core.initialize {}
         val results = Collections.synchronizedList(mutableListOf<String?>())
 
@@ -3202,9 +3203,13 @@ class SplitScenarioTest {
         car.barrier()
 
         assertEquals(
-            "пользователь читает имя приложения и знает, что делать дальше",
-            listOf("Не восстановлено: $MUSIC_LABEL. Выберите приложение вручную"),
+            "пользователю не показано ничего",
+            emptyList<String>(),
             car.notices.filter(String::isNotBlank),
+        )
+        assertTrue(
+            "но диагностика названа в ринге",
+            car.diagnostics.any { it.contains("failed to restore $MUSIC") },
         )
         assertEquals("тап удался - это не ошибка операции", listOf<String?>(null), results.toList())
         assertEquals("и карточка не краснеет", SplitScreenPhase.ACTIVE, core.snapshot().phase)
@@ -3250,9 +3255,6 @@ class SplitScenarioTest {
                     SplitPane.SECONDARY to SplitSlot.App(SPLIT_HOST_PACKAGE),
                 ),
             ),
-            appLabel = { packageName ->
-                if (packageName == SPLIT_HOST_PACKAGE) HUB_LABEL else packageName
-            },
         )
         core.initialize {}
 
@@ -3276,7 +3278,8 @@ class SplitScenarioTest {
             car.store.load().slot(SplitPane.PRIMARY),
         )
         assertEquals(
-            listOf("Не восстановлено: $HUB_LABEL. Выберите приложение вручную"),
+            "рабочий пикер вместо сообщения об ошибке (правка W5 волны 10)",
+            emptyList<String>(),
             car.notices.filter(String::isNotBlank),
         )
         assertTrue(
@@ -3321,7 +3324,8 @@ class SplitScenarioTest {
         )
         assertEquals(SplitSlot.App(MUSIC), car.store.load().slot(SplitPane.PRIMARY))
         assertEquals(
-            listOf("Не восстановлено: $WAZE. Выберите приложение вручную"),
+            "рабочий пикер вместо сообщения об ошибке (правка W5 волны 10)",
+            emptyList<String>(),
             car.notices.filter(String::isNotBlank),
         )
         val stackReads = car.commands().count { it == "am stack list" }
@@ -3434,12 +3438,8 @@ class SplitScenarioTest {
         const val FOREIGN_TASK = 99
         const val FOREIGN = "com.example.foreign"
 
-        /** What `PackageManager` calls [MUSIC] on this car; the picker shows exactly this. */
-        const val MUSIC_LABEL = "Яндекс Музыка"
-
         /** Пре-существующий полноэкранный таск хаба из живого красного v20 P1.2. */
         const val HUB_TASK = 99
-        const val HUB_LABEL = "Denza Apps"
 
         /** Дальше любого бюджета операции, так что таймер актора точно сработал. */
         const val PAST_EVERY_BUDGET_MS = 120_000L

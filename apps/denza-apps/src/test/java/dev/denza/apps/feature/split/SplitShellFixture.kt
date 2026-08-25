@@ -757,7 +757,6 @@ internal class SplitCarFixture(
     fun core(
         initial: SplitDurable,
         leases: List<SplitLeaseController> = emptyList(),
-        appLabel: (String) -> String = { it },
         /**
          * Runs on the worker as each diagnostic line is recorded.
          *
@@ -778,7 +777,6 @@ internal class SplitCarFixture(
             gateLeaseStore = gateLease,
             leases = leases,
             apkPath = SPLIT_APK_PATH,
-            appLabel = appLabel,
             sleeper = {},
             log = { line ->
                 diagnostics += line
