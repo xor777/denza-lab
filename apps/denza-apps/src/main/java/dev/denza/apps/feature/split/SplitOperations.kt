@@ -1334,17 +1334,32 @@ internal class ReconcileOperation(
      * одного - записанные члены живой сцены (exact identity), - это доказанное состояние сцены:
      * закрывать нечего (над пикером не стоит приложение), и мир решён.
      *
-     * Ноль видимых пикеров и любой посторонний среди них остаются прежним «не опознан»: тогда
-     * хинт действительно ничего не доказывает.
+     * Правка W4 волны 10 (приёмка v25, Д3): волна 9 лечила не тот мир. Строка осталась и приходила
+     * ровно по два раза после каждого открытия, приземляющегося в «приложение|приложение», где
+     * видимых пикеров НОЛЬ: обе базы живы, но накрыты приложениями пользователя, и разрешение
+     * «видимых пикеров два и все свои» к этому миру неприменимо по построению. Сцена, все
+     * записанные члены которой живы по exact identity, - доказанное состояние: над пикером стоит
+     * приложение, закрывать нечего, мир решён. Второе чтение здесь то же самое, которым ворота
+     * конца сцены проверяют живость членов.
      *
-     * @return whether this hint proved the scene. Read-only on both branches.
+     * Прежним «не опознан» остаются: посторонний пикер среди видимых, мёртвый член записанной
+     * сцены и нечитаемая машина - тогда хинт действительно ничего не доказывает.
+     *
+     * @return whether this hint proved the scene. Read-only on every branch.
      */
     private fun ownSceneShowsEveryVisiblePicker(split: SplitPickerShellSession): Boolean {
         val recorded = liveScene.values.mapTo(mutableSetOf(), SplitPickerLivePane::hostTaskId)
         val visible = runCatching { split.visiblePickerTaskIds(SPLIT_PICKER_COMPONENT_SET) }
             .getOrNull()
-            .orEmpty()
-        if (visible.size < 2 || !recorded.containsAll(visible)) {
+        if (recorded.isEmpty() || visible == null || !recorded.containsAll(visible)) {
+            unproven += "picker-visible: видимый пикер не опознан"
+            return false
+        }
+        if (visible.isNotEmpty()) return true
+        val membersAlive = runCatching {
+            split.allRecordedMembersAlive(liveScene, SPLIT_PICKER_COMPONENT_SET)
+        }.getOrNull()
+        if (membersAlive != true) {
             unproven += "picker-visible: видимый пикер не опознан"
             return false
         }

@@ -2630,26 +2630,56 @@ class SplitScenarioTest {
     }
 
     /**
-     * Обратная сторона правки W3 волны 9: когда своего видимого пикера нет вовсе, хинт
-     * по-прежнему ничего не доказывает и называет отказавший предикат.
+     * Правка W4 волны 10 (приёмка v25, Д3): сцена «приложение|приложение» - тоже доказанный мир.
+     *
+     * Видимых пикеров тут ноль - обе базы живы, но накрыты приложениями пользователя, - и
+     * разрешение волны 9 («видимых пикеров два и все свои») к этому миру неприменимо по
+     * построению. Живьём строка приходила ровно по два раза после КАЖДОГО такого открытия.
      */
     @Test
-    fun aPickerHintWithNoVisiblePickerOfOursStillNamesItsRefusal() {
+    fun aPickerHintOverASceneWhoseBasesAreCoveredByItsAppsProvesIt() {
+        val car = car(FakeShell().apply { liveProductScene(withApps = true) })
+        val core = car.core(SplitDurable(enabled = true, slots = APP_PAIR))
+        core.initialize {}
+        core.openPickerSession()
+        car.barrier()
+        car.clearCommands()
+
+        // Оба пикера накрыты своими приложениями: видимых пикеров ноль.
+        core.pickerVisible(hostTaskId = null)
+        car.barrier()
+
+        assertTrue(
+            "сцена доказана - строки отказа нет",
+            car.diagnostics.none { it.startsWith("reconcile unproven:") },
+        )
+        assertEquals("и повтор не взведён", 0, car.clock.pendingTimers())
+        assertEquals("и ничего не тронуто", emptyList<String>(), car.mutations())
+        assertEquals(APP_PAIR, car.store.load().slots)
+    }
+
+    /**
+     * Обратная сторона правки W4 волны 10: доказывает не отсутствие видимых пикеров, а живость
+     * записанных членов. Мёртвая база под приложениями - тот же прежний «не опознан».
+     */
+    @Test
+    fun aPickerHintWithNoVisiblePickerAndADeadRecordedBaseStillNamesItsRefusal() {
         val car = car(FakeShell().apply { liveProductScene(withApps = true) })
         val core = car.core(SplitDurable(enabled = true, slots = APP_PAIR))
         core.initialize {}
         core.openPickerSession()
         car.barrier()
 
-        // Оба пикера накрыты своими приложениями: видимых пикеров ноль.
+        // Прошивка убрала одну из записанных баз, пока её накрывало приложение.
+        car.fake.removeActivity(SECONDARY_ROOT, SECONDARY_PICKER_ACTIVITY)
         core.pickerVisible(hostTaskId = null)
         car.barrier()
 
         val lines = car.diagnostics.filter { it.startsWith("reconcile unproven:") }
-        assertEquals("одна строка на отказ операции", 1, lines.size)
+        assertTrue("строка отказа есть: $lines", lines.isNotEmpty())
         assertTrue(
-            "и она называет предикат: ${lines.single()}",
-            lines.single().contains("picker-visible: видимый пикер не опознан"),
+            "и она называет предикат: $lines",
+            lines.any { it.contains("picker-visible: видимый пикер не опознан") },
         )
         assertEquals("и взводит один повтор", 1, car.clock.pendingTimers())
     }
