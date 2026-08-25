@@ -616,8 +616,12 @@ internal class OpenOperation(
         val expected = SplitCoordinatorCore.collapseExpectation(liveScene)
             ?.takeIf { panes -> panes.keys == SplitPane.entries.toSet() }
             ?: return
+        // Правка волны 13 (П2, U5): исключение этого предиката не пропадает молча. Ринг - это
+        // место диагностики, и «не прочитано» без имени виновника стоило волне 12 целого цикла.
         val read = runCatching {
             work.split(op).collapsedPaneByPanelBounds(SPLIT_PICKER_COMPONENT_SET, expected)
+        }.onFailure { error ->
+            mark(op, "collapse before the restore: не прочитано ($error)")
         }.getOrNull() ?: return
         val collapsed = read.collapsed ?: return
         mark(op, "collapse settled before the restore: $collapsed")
@@ -1253,6 +1257,23 @@ internal class ReconcileOperation(
      */
     private val unproven = mutableListOf<String>()
 
+    /**
+     * Одно чтение мира, чья смерть не остаётся тайной (правка волны 13, П2; U5).
+     *
+     * Живой ринг v28 сказал `по границам корней: НЕ ПРОЧИТАНО` - и это всё, что он мог сказать:
+     * `runCatching{}.getOrNull() == null` означает «предикат бросил», но какое именно исключение,
+     * не знал никто, и на его поиск ушёл целый цикл приёмки. Наружу пользователю по-прежнему не
+     * попадает ничего (U5); внутрь, в ринг, попадает текст исключения - иначе следующая красная
+     * ветка снова будет диагностироваться по молчанию.
+     */
+    private fun <T> probe(refusal: String, read: () -> T): T? =
+        runCatching(read).onFailure { error -> unproven += "$refusal ($error)" }.getOrNull()
+
+    /** Тот же отказ для предиката, чей `reason` уже есть: имя причины, либо текст исключения. */
+    private fun Result<SplitCollapsedPaneRead>?.refusal(): String =
+        this?.fold({ read -> read.reason }, { error -> "не прочитано ($error)" })
+            ?: "не спрошено"
+
     override fun prepare(op: SplitOperationContext, shell: (String) -> String): Boolean {
         if (!working.enabled || work.externalMoveInFlight()) return false
         return working.scene != null || adoptable()
@@ -1435,17 +1456,18 @@ internal class ReconcileOperation(
      */
     private fun ownSceneShowsEveryVisiblePicker(split: SplitPickerShellSession): Boolean {
         val recorded = liveScene.values.mapTo(mutableSetOf(), SplitPickerLivePane::hostTaskId)
-        val visible = runCatching { split.visiblePickerTaskIds(SPLIT_PICKER_COMPONENT_SET) }
-            .getOrNull()
-        if (recorded.isEmpty() || visible == null || !recorded.containsAll(visible)) {
+        val visible = probe("picker-visible: видимые пикеры нечитаемы") {
+            split.visiblePickerTaskIds(SPLIT_PICKER_COMPONENT_SET)
+        } ?: return false
+        if (recorded.isEmpty() || !recorded.containsAll(visible)) {
             unproven += "picker-visible: видимый пикер не опознан"
             return false
         }
         if (visible.isNotEmpty()) return true
-        val membersAlive = runCatching {
+        val membersAlive = probe("picker-visible: живость членов нечитаема") {
             split.allRecordedMembersAlive(liveScene, SPLIT_PICKER_COMPONENT_SET)
-        }.getOrNull()
-        if (membersAlive != true) {
+        } ?: return false
+        if (!membersAlive) {
             unproven += "picker-visible: видимый пикер не опознан"
             return false
         }
@@ -1544,19 +1566,12 @@ internal class ReconcileOperation(
             listOfNotNull(observed.hostTaskId, observed.appTaskId)
         }
         if (recorded.isEmpty()) return false
-        val covered = runCatching { split.sceneCovered() }.getOrNull()
-        if (covered == null) {
-            unproven += "конец сцены: area нечитаема"
-            return false
-        }
-        val membersAlive = runCatching {
+        val covered = probe("конец сцены: area нечитаема") { split.sceneCovered() }
+            ?: return false
+        // Нечитаемая машина: не доказано - не убираем.
+        val membersAlive = probe("конец сцены: живость членов нечитаема") {
             split.allRecordedMembersAlive(liveScene, SPLIT_PICKER_COMPONENT_SET)
-        }.getOrNull()
-        if (membersAlive == null) {
-            // Нечитаемая машина: не доказано - не убираем.
-            unproven += "конец сцены: живость членов нечитаема"
-            return false
-        }
+        } ?: return false
         if (membersAlive) {
             if (covered) {
                 // Полное позитивное доказательство: каждый член жив под накрытием. Более ранние
@@ -1577,11 +1592,9 @@ internal class ReconcileOperation(
         // концом, как и прежде (консервативно; «Clear all» этим живёт).
         val appsAnchor = liveScene.values.any { observed -> observed.appTaskId != null }
         if (appsAnchor) {
-            val appsAlive = runCatching { split.allRecordedAppsAlive(liveScene) }.getOrNull()
-            if (appsAlive == null) {
-                unproven += "конец сцены: живость приложений нечитаема"
-                return false
-            }
+            val appsAlive = probe("конец сцены: живость приложений нечитаема") {
+                split.allRecordedAppsAlive(liveScene)
+            } ?: return false
             if (appsAlive) {
                 unproven += "конец сцены: база утрачена, записанные приложения живы - не конец"
                 return false
@@ -1598,10 +1611,10 @@ internal class ReconcileOperation(
         // может быть его полутактом. Жизнь и нечитаемость выше второго чтения не платят. Строка
         // лога встаёт в ринг ДО второго чтения - это шов между двумя тактами доказательства.
         work.log("scene end: якорь мёртв, подтверждаю вторым чтением (правка W2 волны 8)")
-        val confirmed = runCatching {
+        val confirmed = probe("конец сцены: второе чтение нечитаемо") {
             split.confirmSceneEndAnchorDead(liveScene, SPLIT_PICKER_COMPONENT_SET, appsAnchor)
-        }.getOrNull()
-        if (confirmed != true) {
+        } ?: return false
+        if (!confirmed) {
             unproven += "конец сцены: смерть якоря не подтвердилась вторым чтением"
             return false
         }
@@ -1706,24 +1719,24 @@ internal class ReconcileOperation(
     ): Boolean {
         val byExistence = runCatching {
             split.readCollapsedPaneByExistence(SPLIT_PICKER_COMPONENT_SET, expected)
-        }.getOrNull()
+        }
         // Правка волны 12: третье слово - геометрия панельных корней, единственное, которое
         // накрытие не отнимает. Оба предиката выше читают `area` и при 0/4 слепы, а окно area
         // 1/2 живьём короче секунды; спрашивается оно последним, потому что первые два называют
         // ещё и состав выжившей панели, а это доказательство - только имя закрытой.
-        val byBounds = if (byExistence?.collapsed != null) {
+        val byBounds = if (byExistence.getOrNull()?.collapsed != null) {
             null
         } else {
             runCatching {
                 split.collapsedPaneByPanelBounds(SPLIT_PICKER_COMPONENT_SET, expected)
-            }.getOrNull()
+            }
         }
-        val collapsed = byExistence?.collapsed ?: byBounds?.collapsed
+        val collapsed = byExistence.getOrNull()?.collapsed ?: byBounds?.getOrNull()?.collapsed
         if (collapsed == null) {
             // Правка W4 (U5): все ветви collapse отказали - одна строка называет каждый предикат.
             unproven += "collapse: $physicalRefusal" +
-                "; по существованию: ${byExistence?.reason ?: "не прочитано"}" +
-                "; по границам корней: ${byBounds?.reason ?: "не прочитано"}"
+                "; по существованию: ${byExistence.refusal()}" +
+                "; по границам корней: ${byBounds.refusal()}"
             return false
         }
         val survivor = collapsed.other()

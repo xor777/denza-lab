@@ -3147,6 +3147,76 @@ class SplitScenarioTest {
     }
 
     /**
+     * Правка волны 13 (П2, U5): предикат, который УМЕР, называет в ринге своё исключение.
+     *
+     * Живой ринг v28: `по границам корней: НЕ ПРОЧИТАНО` - и это всё, что продукт мог сказать о
+     * целом потерянном цикле. `runCatching{}.getOrNull() == null` означает «бросил», но какое
+     * исключение и откуда, не знал никто; подозрение сняли с `nativeRootIds` вручную, живьём, за
+     * отдельную сессию приёмки. Наружу пользователю по-прежнему ничего (U5), в ринг - текст.
+     *
+     * Мир здесь накрыт (area 0), поэтому первые два предиката collapse честно отказывают по
+     * `area`, ни разу не читая топологию, и первое же `am stack list` операции достаётся ровно
+     * доказательству по границам корней - тому самому, которое молчало.
+     */
+    @Test
+    fun aPredicateThatDiedNamesItsExceptionInTheRing() {
+        val car = car(FakeShell(initialGate = true).apply { liveProductScene(withApps = true) })
+        val core = car.core(SplitDurable(enabled = true, slots = APP_PAIR))
+        core.initialize {}
+        core.openPickerSession()
+        car.barrier()
+        car.clearCommands()
+
+        // Накрытый мир с утраченной базой: конец сцены недоказуем, значит строку отказа не
+        // сотрёт позитивная ветка «все члены живы под накрытием».
+        car.fake.removeActivity(SECONDARY_ROOT, SECONDARY_PICKER_ACTIVITY)
+        car.fake.area = 0
+        car.shells.failOn("am stack list")
+
+        core.dividerResized()
+        car.barrier()
+
+        val lines = car.diagnostics.filter { it.startsWith("reconcile unproven:") }
+        assertEquals(1, lines.size)
+        assertTrue(
+            "ринг называет и предикат, и его исключение: ${lines.single()}",
+            lines.single().contains("по границам корней: не прочитано (") &&
+                lines.single().contains(SPLIT_ADB_DROPPED),
+        )
+    }
+
+    /**
+     * Та же правка на пути открытия: сверка 1.3.4 внутри самого открытия тоже глотала исключение.
+     *
+     * Накрытый мир, первая же команда операции - чтение корней этим предикатом, - и она падает.
+     * Открытие продолжается как обычно (U5: пользователь получает рабочий экран), но причина
+     * молчания предиката попадает в ринг.
+     */
+    @Test
+    fun theOpenSaysWhyItsCollapseCheckCouldNotRead() {
+        val car = car(FakeShell(initialGate = true).apply { liveProductScene(withApps = true) })
+        val core = car.core(SplitDurable(enabled = true, slots = APP_PAIR))
+        core.initialize {}
+        core.openPickerSession()
+        car.barrier()
+        car.clearCommands()
+
+        car.fake.area = 0
+        car.shells.failOn("am stack list")
+
+        core.openPickerSession()
+        car.barrier()
+
+        assertTrue(
+            "ринг называет исключение предиката: ${car.diagnostics}",
+            car.diagnostics.any {
+                it.contains("collapse before the restore: не прочитано (") &&
+                    it.contains(SPLIT_ADB_DROPPED)
+            },
+        )
+    }
+
+    /**
      * Правка W8: шторм одного и того же отказа не спамит ринг - идентичная причина unproven
      * подряд пишется строка-в-строку один раз. Решённый мир сбрасывает подавление: та же
      * причина после решения - снова новость.
