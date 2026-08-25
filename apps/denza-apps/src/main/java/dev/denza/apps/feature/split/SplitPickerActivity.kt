@@ -16,7 +16,6 @@ import android.os.Parcel
 import android.os.ResultReceiver
 import android.util.Log
 import android.view.WindowManager
-import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Image
@@ -82,8 +81,6 @@ internal data class SplitPickerApp(
  * Two independent tasks of this same component may coexist in the two firmware roots.
  */
 class SplitPickerActivity : ComponentActivity() {
-    private var message by mutableStateOf("")
-    private var recoveryNotice by mutableStateOf("")
     private var busy by mutableStateOf(false)
 
     /**
@@ -111,14 +108,7 @@ class SplitPickerActivity : ComponentActivity() {
     private var revealed by mutableStateOf(false)
     private val lifecycleHandler by lazy { Handler(mainLooper) }
     private var stoppedTaskId: Int? = null
-    private var noticeReceiverRegistered = false
     private var packageReceiverRegistered = false
-    private val noticeReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) {
-            if (intent?.action != SplitPickerNotice.ACTION_CHANGED) return
-            recoveryNotice = intent.getStringExtra(SplitPickerNotice.EXTRA_MESSAGE).orEmpty()
-        }
-    }
     private val packageReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action !in PACKAGE_CHANGE_ACTIONS) return
@@ -140,12 +130,18 @@ class SplitPickerActivity : ComponentActivity() {
         )
     }
 
+    /**
+     * The only thing this picker needs to hear back: the selection is over (U5).
+     *
+     * Whatever became of it, this pane is usable - either its app is on screen above the picker,
+     * or the picker itself is, with the whole catalogue and a live tap. Nothing about a launch
+     * that did not happen is worth a sentence, so the grid simply comes back to life.
+     */
     private val resultReceiver by lazy {
         object : ResultReceiver(Handler(mainLooper)) {
             override fun onReceiveResult(resultCode: Int, resultData: Bundle?) {
                 busy = false
                 busyPackage = null
-                message = resultData?.getString(SplitCommandContract.RESULT_ERROR).orEmpty()
             }
         }
     }
@@ -167,7 +163,6 @@ class SplitPickerActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        recoveryNotice = SplitPickerNotice.current(this)
         val nativeBackgroundBlur = SplitPickerWindowStyle.apply(this)
         setContent {
             SplitPickerTheme {
@@ -177,7 +172,6 @@ class SplitPickerActivity : ComponentActivity() {
                     catalogLoading = catalogLoading,
                     busy = busy,
                     busyPackage = busyPackage,
-                    message = message.ifBlank { recoveryNotice },
                     nativeBackgroundBlur = nativeBackgroundBlur,
                     onSelect = ::select,
                 )
@@ -187,15 +181,6 @@ class SplitPickerActivity : ComponentActivity() {
 
     override fun onStart() {
         super.onStart()
-        if (!noticeReceiverRegistered) {
-            ContextCompat.registerReceiver(
-                this,
-                noticeReceiver,
-                IntentFilter(SplitPickerNotice.ACTION_CHANGED),
-                ContextCompat.RECEIVER_NOT_EXPORTED,
-            )
-            noticeReceiverRegistered = true
-        }
         if (!packageReceiverRegistered) {
             ContextCompat.registerReceiver(
                 this,
@@ -208,7 +193,6 @@ class SplitPickerActivity : ComponentActivity() {
             )
             packageReceiverRegistered = true
         }
-        recoveryNotice = SplitPickerNotice.current(this)
         refreshCatalogAsync()
     }
 
@@ -228,10 +212,6 @@ class SplitPickerActivity : ComponentActivity() {
     }
 
     override fun onStop() {
-        if (noticeReceiverRegistered) {
-            unregisterReceiver(noticeReceiver)
-            noticeReceiverRegistered = false
-        }
         if (packageReceiverRegistered) {
             unregisterReceiver(packageReceiver)
             packageReceiverRegistered = false
@@ -304,11 +284,6 @@ class SplitPickerActivity : ComponentActivity() {
         if (busy) return
         busy = true
         busyPackage = packageName
-        message = ""
-        // Only on screen. The persisted notice belongs to whoever published it, and clearing it
-        // here would put a synchronous preferences write on the thread that has to answer the tap
-        // within a second (U6); the operation clears it on its own outcome.
-        recoveryNotice = ""
         val delivered = sendCommand(
             method = SplitCommandContract.METHOD_SELECT,
             extras = Bundle().apply {
@@ -323,13 +298,18 @@ class SplitPickerActivity : ComponentActivity() {
         }
     }
 
+    /**
+     * U5: a command the coordinator never took is not the user's problem either.
+     *
+     * The pane is exactly where it was - this picker, with its catalogue and a live tap - so the
+     * only thing that has to happen is that the grid stops waiting. The failure itself is a log
+     * line of this process, which is the one place it can be read from.
+     */
     private fun sendCommand(method: String, extras: Bundle): Boolean = runCatching {
-        val error = SplitCommandContract.call(this, method, extras)
-        check(error == null) { error.orEmpty() }
+        check(SplitCommandContract.call(this, method, extras)) { "команда не принята" }
         true
-    }.getOrElse {
-        message = "Denza Apps не отвечает"
-        Toast.makeText(applicationContext, message, Toast.LENGTH_LONG).show()
+    }.getOrElse { error ->
+        Log.w(TAG, "Split command $method was not accepted", error)
         false
     }
 
@@ -479,7 +459,6 @@ private fun SplitPickerScreen(
     catalogLoading: Boolean,
     busy: Boolean,
     busyPackage: String?,
-    message: String,
     nativeBackgroundBlur: Boolean,
     onSelect: (String) -> Unit,
 ) {
@@ -509,12 +488,15 @@ private fun SplitPickerScreen(
                 // Правка W7(б): заголовок один и тот же и в покое, и во время запуска. Строка
                 // «Открываю …» дублировала крутилку на выбранной плитке и пригашение сетки -
                 // владелец: «как будто бы лишняя» - и дёргала верхнюю зону панели.
+                // Правка волны 11 (U5): и один и тот же во всех остальных случаях тоже. Заголовок
+                // панели носил тексты отказов - «Не удалось открыть приложение в этом окне»,
+                // «разрешите показ поверх других окон» - поверх работающего списка приложений.
                 Text(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = 12.dp, bottom = 14.dp),
-                    text = message.ifBlank { "Выберите приложение" },
-                    color = if (message.isBlank()) PrimaryText else Warning,
+                    text = "Выберите приложение",
+                    color = PrimaryText,
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Normal,
                     textAlign = TextAlign.Center,
@@ -642,4 +624,3 @@ private val FallbackBackground = Brush.verticalGradient(
 private val PrimaryText = Color(0xFFF2F5F7)
 private val SecondaryText = Color(0xFF98A1A8)
 private val Accent = Color(0xFF52D5C7)
-private val Warning = Color(0xFFFFB4A9)

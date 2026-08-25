@@ -374,7 +374,6 @@ class SplitStoreTest {
         GATE_OWNED to true,
         ACCESS_OWNED to true,
         ACCESS_VERSION to 3,
-        NOTICE to "Не удалось открыть приложение",
     )
 
     /**
@@ -535,6 +534,5 @@ class SplitStoreTest {
         const val GATE_OWNED = "picker_gate_owned_v1"
         const val ACCESS_OWNED = "picker_access_owned_v1"
         const val ACCESS_VERSION = "picker_access_configuration_version_v1"
-        const val NOTICE = "picker_notice_v1"
     }
 }

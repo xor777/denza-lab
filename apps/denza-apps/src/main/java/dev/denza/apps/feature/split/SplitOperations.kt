@@ -18,7 +18,6 @@ internal class SplitOperationWorkspace(
     private val shellFactory: SplitShellFactory,
     val store: SplitStateStore,
     val catalog: SplitLaunchCatalog,
-    val notices: SplitNoticeSink,
     val leases: List<SplitLeaseController>,
     private val gateLeaseStore: SplitGateLeaseStore,
     private val apkPath: String,
@@ -31,7 +30,7 @@ internal class SplitOperationWorkspace(
     val externalMoveInFlight: () -> Boolean,
     /** Правка W5, §4: явный запрос пользователя ждёт в очереди прямо сейчас. Read-only. */
     val userInputWaiting: () -> Boolean = { false },
-    private val publisher: (SplitState, SplitLiveScene, String?) -> Unit,
+    private val publisher: (SplitState, SplitLiveScene) -> Unit,
 ) : AutoCloseable {
 
     private val handleLock = Any()
@@ -108,8 +107,8 @@ internal class SplitOperationWorkspace(
         ).also { built -> session = built }
     }
 
-    fun publish(state: SplitState, live: SplitLiveScene, notice: String?) {
-        publisher(state, live, notice)
+    fun publish(state: SplitState, live: SplitLiveScene) {
+        publisher(state, live)
     }
 
     /**
@@ -249,17 +248,6 @@ internal abstract class SplitCoreOperation<P>(
         private set
 
     protected var liveScene: SplitLiveScene = emptyMap()
-
-    /** Published on commit; `null` leaves whatever notice the product already shows. */
-    protected var settledNotice: String? = null
-
-    /**
-     * Message the automaton planned for a failure this operation already settled as a fact.
-     *
-     * It is deliberately separate from [settledNotice]: that one belongs to a committed outcome,
-     * and reusing it would make a rejected commit publish the success message.
-     */
-    protected var plannedFailureNotice: String? = null
 
     final override fun plan(op: SplitOperationContext, shell: (String) -> String): P? {
         working = work.state()
@@ -407,30 +395,16 @@ internal abstract class SplitCoreOperation<P>(
         }
     }
 
-    /** Called on the worker once the outcome is known, whatever it is. */
+    /**
+     * Called on the worker once the outcome is known, whatever it is.
+     *
+     * Only a committed operation publishes: what a failed one has to leave behind is the state the
+     * user is already looking at, not a repaint of it (invariant 9, U5). What became of it is one
+     * line of the diagnostic ring, written by the coordinator's own terminal.
+     */
     open fun finished(outcome: SplitOutcome) {
-        if (outcome is SplitOutcome.Committed) {
-            work.publish(working, liveScene, settledNotice)
-            return
-        }
-        val reason = when (outcome) {
-            is SplitOutcome.RolledBack -> outcome.reason
-            is SplitOutcome.Failed -> outcome.message
-            else -> return
-        }
-        // U5, once. When the automaton already answered this exact failure with a plan, that plan
-        // is the message; translating the raw reason on top of it would say the same thing twice.
-        failed(
-            plannedFailureNotice
-                ?: SplitCoordinatorCore.friendlyError(
-                    reason,
-                    SplitCoordinatorCore.fallbackOf(label),
-                ),
-        )
+        if (outcome is SplitOutcome.Committed) work.publish(working, liveScene)
     }
-
-    /** U5: an operation that owns a user-visible surface says so when it fails. */
-    protected open fun failed(message: String) = Unit
 }
 
 /**
@@ -530,7 +504,7 @@ internal class SplitOpenPlan(
 
 /**
  * Contract 1.3. A live scene is adopted and raised; otherwise the remembered pair is rebuilt, with
- * every unknown or uninstalled package degrading to a fresh picker and one visible notice.
+ * every unknown or uninstalled package degrading to a fresh picker the user can immediately use.
  */
 internal class OpenOperation(
     work: SplitOperationWorkspace,
@@ -550,8 +524,8 @@ internal class OpenOperation(
         settle(SplitFact.OpenRequested)
         // The durable slots are the selection, and nothing else has to be asked (1.13.1). Scanning
         // the launcher catalogue here cost 815 ms of every open just to filter out a package that
-        // is no longer installed - and the pane that meets one degrades to a fresh picker with a
-        // visible notice below anyway (1.3.2), which is the same answer for one tenth of the wait.
+        // is no longer installed - and the pane that meets one degrades to a fresh picker anyway
+        // (1.3.2), which is the same answer for one tenth of the wait.
         val restorable = SplitPane.entries.mapNotNull { pane ->
             (working.slot(pane) as? SplitSlot.App)?.let { slot -> pane to slot.packageName }
         }.toMap()
@@ -590,7 +564,6 @@ internal class OpenOperation(
         liveScene = revealed
         settle(SplitFact.BuildSceneSucceeded(sceneSlots(revealed)))
         settle(SplitFact.SceneRevealed)
-        settledNotice = ""
     }
 
     private fun build(
@@ -602,7 +575,7 @@ internal class OpenOperation(
         // is a task this operation created, and therefore a task this operation owes an undo for.
         val preexisting = preexistingTaskIds(split)
         // A package the catalogue cannot resolve was uninstalled while the slot remembered it: its
-        // pane degrades to a fresh picker, and it is named in the one notice at the end (1.3.2).
+        // pane degrades to a fresh picker, and its name is one line of the ring (1.3.2, U5).
         val unresolved = mutableListOf<String>()
         val targets = restorable.mapNotNull { (pane, packageName) ->
             val target = work.catalog.resolve(packageName)
@@ -650,10 +623,6 @@ internal class OpenOperation(
         failures.forEach { packageName -> work.log("failed to restore $packageName") }
         liveScene = built.panes
         settle(SplitFact.BuildSceneSucceeded(sceneSlots(built.panes)))
-        // Правка W5 волны 10 (владелец, 2026-08-25): панель на своём пикере - рабочий исход, а не
-        // повод показывать ошибку. Список приложений там же, тап работает, а имя пакета, который
-        // прошивка не подняла, остаётся диагностикой ринга - строкой выше, не окном пользователю.
-        settledNotice = ""
     }
 
     /**
@@ -679,8 +648,6 @@ internal class OpenOperation(
         mark(op, "read-back")
         return settled == liveScene
     }
-
-    override fun failed(message: String) = work.notices.publish(message)
 }
 
 // endregion
@@ -714,16 +681,14 @@ internal class SelectOperation(
         enableLeases(op, shell, setOf(SplitLeaseKind.RESIZEABILITY))
         val preexisting = preexistingTaskIds(split)
         pointOfNoReturn(op, "selecting an app clears the tasks above its picker")
-        val settled = try {
-            split.selectApp(
-                pickerTaskId = pickerTaskId,
-                target = target,
-                pickerComponents = SPLIT_PICKER_COMPONENT_SET,
-            )
-        } catch (error: Throwable) {
-            settleLaunchFailure(error)
-            throw error
-        }
+        // Contract 1.5.7: the recipe has already put the pane back on its picker and kept the
+        // neighbour out of it, so a launch that did not happen needs nothing more from the product
+        // than to stop - the catalogue is on screen and the next tap works (U5).
+        val settled = split.selectApp(
+            pickerTaskId = pickerTaskId,
+            target = target,
+            pickerComponents = SPLIT_PICKER_COMPONENT_SET,
+        )
         placement = settled
         recordCreated(op, preexisting, settled.appTaskId, target.componentName)
         settle(SplitFact.SelectionRequested(settled.pane, settled.packageName))
@@ -755,35 +720,8 @@ internal class SelectOperation(
                 settle(SplitFact.BuildSceneSucceeded(sceneSlots(settled)))
             }
         settleOccupant(chosen.pane, chosen.packageName)
-        settledNotice = ""
         return true
     }
-
-    /**
-     * Contract 1.5.7. The recipe has already put the pane back on its picker and kept the
-     * neighbour out of it; what was missing was the fact. The automaton answers it with the plan
-     * that carries the message, so the text the user reads is produced where every other product
-     * decision is produced rather than by this catch block.
-     *
-     * The pane comes from the live scene the operation started with - a picker task id names its
-     * pane and nothing else does - so a failure this process cannot place stays a plain failure.
-     */
-    private fun settleLaunchFailure(error: Throwable) {
-        val pane = liveScene.entries
-            .firstOrNull { (_, observed) -> observed.hostTaskId == pickerTaskId }
-            ?.key
-            ?: return
-        val reason = SplitCoordinatorCore.friendlyError(
-            error.message,
-            SplitCoordinatorCore.SELECT_FAILURE,
-        )
-        plannedFailureNotice = settle(SplitFact.AppLaunchFailed(pane, reason))
-            .filterIsInstance<SplitPlan.Notice>()
-            .firstOrNull()
-            ?.text
-    }
-
-    override fun failed(message: String) = work.notices.publish(message)
 }
 
 // endregion

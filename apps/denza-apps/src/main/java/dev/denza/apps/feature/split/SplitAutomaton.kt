@@ -19,7 +19,6 @@ internal object SplitAutomaton {
             is SplitFact.BuildSceneSucceeded -> sceneBuilt(state, fact.slots)
             is SplitFact.SelectionRequested -> selectionRequested(state, fact)
             is SplitFact.AppLaunchConfirmed -> launchConfirmed(state, fact)
-            is SplitFact.AppLaunchFailed -> launchFailed(state, fact)
             is SplitFact.AppClosedSettled -> appClosed(state, fact.pane)
             is SplitFact.PaneCollapsedSettled -> paneCollapsed(state, fact.survivor)
             is SplitFact.PickerPaneClosedSettled -> pickerPaneClosed(state, fact.pane)
@@ -117,12 +116,6 @@ internal object SplitAutomaton {
         }
         if (state.slot(fact.pane) != SplitSlot.Picker) return unchanged(state)
         return settled(state, state.withSlot(fact.pane, SplitSlot.App(fact.packageName)))
-    }
-
-    /** Contract 1.5.7: the pane stays on its picker and the failure is visible (U5). */
-    private fun launchFailed(state: SplitState, fact: SplitFact.AppLaunchFailed): SplitReduction {
-        if (state.scene == null) return unchanged(state)
-        return SplitReduction(state, listOf(SplitPlan.Notice(fact.reason)))
     }
 
     /**

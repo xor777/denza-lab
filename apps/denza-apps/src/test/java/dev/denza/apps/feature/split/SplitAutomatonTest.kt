@@ -232,20 +232,6 @@ class SplitAutomatonTest {
     }
 
     @Test
-    fun aFailedLaunchLeavesThePickerAndShowsANotice() {
-        // контракт 1.5.7
-        val live = split(SplitSlot.Picker, SplitSlot.App(NAVIGATOR))
-
-        val result = SplitAutomaton.reduce(
-            live,
-            SplitFact.AppLaunchFailed(SplitPane.PRIMARY, "Не удалось открыть"),
-        )
-
-        assertEquals(listOf(SplitPlan.Notice("Не удалось открыть")), result.plans)
-        assertSame(live, result.state)
-    }
-
-    @Test
     fun uninstallingAPackageReturnsEveryPaneRunningIt() {
         // контракт 1.5.6
         val live = split(SplitSlot.App(MUSIC), SplitSlot.App(MUSIC))
@@ -594,7 +580,6 @@ class SplitAutomatonTest {
             SplitFact.OpenRequested,
             SplitFact.SelectionRequested(SplitPane.PRIMARY, MUSIC),
             SplitFact.AppLaunchConfirmed(SplitPane.PRIMARY, MUSIC),
-            SplitFact.AppLaunchFailed(SplitPane.PRIMARY, "boom"),
             SplitFact.AppClosedSettled(SplitPane.PRIMARY),
             SplitFact.PaneCollapsedSettled(SplitPane.PRIMARY),
             SplitFact.PickerPaneClosedSettled(SplitPane.PRIMARY),

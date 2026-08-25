@@ -53,7 +53,7 @@ class SplitScenarioTest {
         scene.barrier()
         val committed = scene.store.commits
         scene.clearCommands()
-        val selected = Collections.synchronizedList(mutableListOf<String?>())
+        val selected = Collections.synchronizedList(mutableListOf<SplitActionResult>())
 
         val hold = scene.hold()
         living.selectApp(PRIMARY_PICKER_TASK, WAZE, selected::add)
@@ -65,7 +65,7 @@ class SplitScenarioTest {
             "the selection the user walked away from never reached the car",
             scene.commands().any { it.startsWith("am start ") },
         )
-        assertEquals("и это не ошибка: пользователь сам нажал Home", listOf<String?>(null), selected.toList())
+        assertEquals("и это не ошибка: пользователь сам нажал Home", listOf(SplitActionResult.SETTLED), selected.toList())
         assertEquals(committed, scene.store.commits)
         assertEquals(PICKER_PAIR, scene.store.load().slots)
 
@@ -73,7 +73,7 @@ class SplitScenarioTest {
         val opening = car(FakeShell())
         val core = opening.core(SplitDurable(enabled = true))
         core.initialize {}
-        val results = Collections.synchronizedList(mutableListOf<String?>())
+        val results = Collections.synchronizedList(mutableListOf<SplitActionResult>())
 
         opening.shells.blockAt(GATE_OPEN)
         core.openPickerSession(results::add)
@@ -84,7 +84,7 @@ class SplitScenarioTest {
         opening.shells.release()
         opening.barrier()
 
-        assertEquals("никто не отменил заказанный запуск", listOf<String?>(null), results.toList())
+        assertEquals("никто не отменил заказанный запуск", listOf(SplitActionResult.SETTLED), results.toList())
         assertEquals(SplitOutcome.Committed, home.outcome)
         assertEquals("сцена построена и записана одним коммитом", 1, opening.store.commits)
         assertEquals(PICKER_PAIR, opening.store.load().slots)
@@ -97,7 +97,7 @@ class SplitScenarioTest {
         val expiring = car(FakeShell())
         val expired = expiring.core(SplitDurable(enabled = true))
         expired.initialize {}
-        val lateResults = Collections.synchronizedList(mutableListOf<String?>())
+        val lateResults = Collections.synchronizedList(mutableListOf<SplitActionResult>())
 
         expiring.shells.blockAt(GATE_OPEN)
         expired.openPickerSession(lateResults::add)
@@ -107,8 +107,8 @@ class SplitScenarioTest {
         expiring.barrier()
 
         assertEquals(
-            "просроченный запуск говорит пользователю, что произошло (1.3.8, U5)",
-            listOf("${SplitCoordinatorCore.OPEN_FAILURE}: превышено время ожидания. Попробуйте ещё раз"),
+            "просроченный запуск не жалуется пользователю ни на что (U5)",
+            listOf(SplitActionResult.SETTLED),
             lateResults.toList(),
         )
         assertEquals("и не пишет ничего", 0, expiring.store.commits)
@@ -124,7 +124,7 @@ class SplitScenarioTest {
         val car = car(FakeShell())
         val core = car.core(SplitDurable(enabled = true))
         core.initialize {}
-        val results = Collections.synchronizedList(mutableListOf<String?>())
+        val results = Collections.synchronizedList(mutableListOf<SplitActionResult>())
 
         car.shells.blockAt(SPLIT_AREA_QUERY)
         core.openPickerSession(results::add)
@@ -144,7 +144,7 @@ class SplitScenarioTest {
             car.store.load().slots,
         )
         assertEquals(1, car.overlay.closed())
-        assertEquals(listOf<String?>(null), results.toList())
+        assertEquals(listOf(SplitActionResult.SETTLED), results.toList())
     }
 
     @Test
@@ -153,7 +153,7 @@ class SplitScenarioTest {
         val car = car(FakeShell())
         val core = car.core(SplitDurable(enabled = true))
         core.initialize {}
-        val results = Collections.synchronizedList(mutableListOf<String?>())
+        val results = Collections.synchronizedList(mutableListOf<SplitActionResult>())
 
         car.shells.blockAt(SPLIT_AREA_QUERY)
         core.openPickerSession(results::add)
@@ -168,8 +168,8 @@ class SplitScenarioTest {
         assertEquals(0, car.store.commits)
         assertEquals("the window is released the moment the deadline fires", 1, car.overlay.closed())
         assertEquals(
-            "and the user is told what happened and what to do (U5)",
-            listOf("${SplitCoordinatorCore.OPEN_FAILURE}: превышено время ожидания. Попробуйте ещё раз"),
+            "and the user is told nothing at all about it (U5)",
+            listOf(SplitActionResult.SETTLED),
             results.toList(),
         )
     }
@@ -180,7 +180,7 @@ class SplitScenarioTest {
         val car = car(FakeShell())
         val core = car.core(SplitDurable(enabled = true))
         core.initialize {}
-        val results = Collections.synchronizedList(mutableListOf<String?>())
+        val results = Collections.synchronizedList(mutableListOf<SplitActionResult>())
 
         car.shells.blockAt(SPLIT_AREA_QUERY)
         core.openPickerSession(results::add)
@@ -191,7 +191,7 @@ class SplitScenarioTest {
 
         assertEquals("one waiting window for both taps", 1, car.overlay.begun.get())
         assertEquals("one shell session, so one launch sequence", 1, car.shells.opened.get())
-        assertEquals("both callers observe the very same outcome", listOf(null, null), results.toList())
+        assertEquals("both callers observe the very same outcome", listOf(SplitActionResult.SETTLED, SplitActionResult.SETTLED), results.toList())
         assertEquals("one operation is one commit", 1, car.store.commits)
         assertEquals(PICKER_PAIR, car.store.load().slots)
     }
@@ -216,7 +216,7 @@ class SplitScenarioTest {
         )
         built = core
         core.initialize {}
-        val results = Collections.synchronizedList(mutableListOf<String?>())
+        val results = Collections.synchronizedList(mutableListOf<SplitActionResult>())
 
         car.shells.blockAt(GATE_OPEN)
         core.openPickerSession(results::add)
@@ -231,7 +231,7 @@ class SplitScenarioTest {
         car.shells.release()
         car.barrier()
 
-        assertEquals("тап довёл сцену до конца", listOf<String?>(null), results.toList())
+        assertEquals("тап довёл сцену до конца", listOf(SplitActionResult.SETTLED), results.toList())
         assertEquals(SplitOutcome.Committed, home.outcome)
         assertEquals(
             "ноль отмен: единственный терминал операции - committed",
@@ -259,7 +259,7 @@ class SplitScenarioTest {
         val car = car(FakeShell())
         val core = car.core(SplitDurable(enabled = true))
         core.initialize {}
-        val results = Collections.synchronizedList(mutableListOf<String?>())
+        val results = Collections.synchronizedList(mutableListOf<SplitActionResult>())
 
         car.shells.blockAt(GATE_OPEN)
         core.openPickerSession(results::add)
@@ -280,7 +280,7 @@ class SplitScenarioTest {
             car.shells.opened.get(),
         )
         assertEquals(SplitOutcome.Committed, home.outcome)
-        assertEquals("запуск дошёл до сцены", listOf<String?>(null), results.toList())
+        assertEquals("запуск дошёл до сцены", listOf(SplitActionResult.SETTLED), results.toList())
         assertEquals(PICKER_PAIR, car.store.load().slots)
         assertEquals(1, car.store.commits)
         assertEquals(1, car.fake.taskCount(PRIMARY_ROOT))
@@ -309,13 +309,13 @@ class SplitScenarioTest {
         )
         built = core
         core.initialize {}
-        val results = Collections.synchronizedList(mutableListOf<String?>())
+        val results = Collections.synchronizedList(mutableListOf<SplitActionResult>())
 
         car.shells.failOn("am task focus $PRIMARY_PICKER_TASK")
         core.openPickerSession(results::add)
         car.barrier()
 
-        assertEquals(listOf(SplitCoordinatorCore.OPEN_FAILURE), results.toList())
+        assertEquals(listOf(SplitActionResult.SETTLED), results.toList())
         assertEquals(
             "настройка, которую сцена вытеснила, возвращена",
             listOf("settings put global $RESIZE_KEY 0"),
@@ -721,7 +721,7 @@ class SplitScenarioTest {
             ),
         )
         core.initialize {}
-        val results = Collections.synchronizedList(mutableListOf<String?>())
+        val results = Collections.synchronizedList(mutableListOf<SplitActionResult>())
 
         car.shells.failOn("am task focus $PRIMARY_PICKER_TASK")
         core.openPickerSession(results::add)
@@ -741,7 +741,7 @@ class SplitScenarioTest {
         assertTrue("and the starting scene is exactly where it was", car.fake.hasTask(PRIMARY_PICKER_TASK))
         assertTrue(car.fake.hasTask(SECONDARY_PICKER_TASK))
         assertEquals(4, car.fake.area)
-        assertEquals(listOf(SplitCoordinatorCore.OPEN_FAILURE), results.toList())
+        assertEquals(listOf(SplitActionResult.SETTLED), results.toList())
 
         // Вторая половина K8: сбой уже ПОСЛЕ созданных задач. `OpenOperation` намеренно не падает
         // от неудавшегося восстановления - оно деградирует в уведомление (1.3.2) - поэтому право
@@ -751,7 +751,7 @@ class SplitScenarioTest {
         val building = car(FakeShell().apply { addTask(FULL_ROOT, LIVING_APP, NAVIGATOR, "$NAVIGATOR.MainActivity") })
         val rebuilt = building.core(SplitDurable(enabled = true, slots = APP_PAIR))
         rebuilt.initialize {}
-        val rebuiltResults = Collections.synchronizedList(mutableListOf<String?>())
+        val rebuiltResults = Collections.synchronizedList(mutableListOf<SplitActionResult>())
 
         // Оба пикера уже созданы, навигатор уже запрошен у прошивки - и она вернула его же задачу.
         building.shells.blockAt(appLaunch("START_IVI_SECOND", MUSIC))
@@ -789,8 +789,8 @@ class SplitScenarioTest {
         assertEquals("отменённое открытие не пишет ничего", 0, building.store.commits)
         assertEquals(APP_PAIR, building.store.load().slots)
         assertEquals(
-            "а пользователю сказано, что ожидание истекло (1.3.8, U5)",
-            listOf("${SplitCoordinatorCore.OPEN_FAILURE}: превышено время ожидания. Попробуйте ещё раз"),
+            "и об истёкшем ожидании пользователю не сказано ничего (U5)",
+            listOf(SplitActionResult.SETTLED),
             rebuiltResults.toList(),
         )
     }
@@ -845,7 +845,7 @@ class SplitScenarioTest {
     @Test
     fun anOpenCommitsOnlyWhatTheWholeSceneStillReadsBack() {
         val car = car(FakeShell())
-        val results = Collections.synchronizedList(mutableListOf<String?>())
+        val results = Collections.synchronizedList(mutableListOf<SplitActionResult>())
         val core = car.core(
             SplitDurable(
                 enabled = true,
@@ -866,7 +866,7 @@ class SplitScenarioTest {
         car.barrier()
 
         assertEquals("частичная сцена не объявляется успехом", 0, car.store.commits)
-        assertEquals(listOf(SplitCoordinatorCore.OPEN_FAILURE), results.toList())
+        assertEquals(listOf(SplitActionResult.SETTLED), results.toList())
         assertEquals(
             "и выбор панели остаётся тем, что помнил продукт (1.3.2)",
             SplitSlot.App(NAVIGATOR),
@@ -1083,14 +1083,13 @@ class SplitScenarioTest {
         assertEquals(1L, committed.revision)
 
         car.store.accept = false
-        val results = Collections.synchronizedList(mutableListOf<String?>())
+        val results = Collections.synchronizedList(mutableListOf<SplitActionResult>())
         core.selectApp(SECONDARY_PICKER_TASK, MUSIC, results::add)
         car.barrier()
 
         assertEquals("the refused write was attempted exactly once", 2, car.store.commits)
         assertEquals("and left no half of itself behind", committed, car.store.load())
-        assertEquals(listOf(SplitCoordinatorCore.SELECT_FAILURE), results.toList())
-        assertTrue(car.notices.contains(SplitCoordinatorCore.SELECT_FAILURE))
+        assertEquals(listOf(SplitActionResult.SETTLED), results.toList())
     }
 
     // endregion
@@ -1168,7 +1167,7 @@ class SplitScenarioTest {
         core.openPickerSession()
         car.barrier()
         car.clearCommands()
-        val results = Collections.synchronizedList(mutableListOf<String?>())
+        val results = Collections.synchronizedList(mutableListOf<SplitActionResult>())
 
         car.shells.blockAt(GATE_OPEN)
         core.selectApp(PRIMARY_PICKER_TASK, WAZE, results::add)
@@ -1188,7 +1187,7 @@ class SplitScenarioTest {
             PRIMARY_PICKER_ACTIVITY,
             car.fake.topActivity(PRIMARY_ROOT),
         )
-        assertEquals(listOf<String?>(null), results.toList())
+        assertEquals(listOf(SplitActionResult.SETTLED), results.toList())
     }
 
     @Test
@@ -1276,7 +1275,7 @@ class SplitScenarioTest {
             ),
         )
         core.initialize {}
-        val results = Collections.synchronizedList(mutableListOf<String?>())
+        val results = Collections.synchronizedList(mutableListOf<SplitActionResult>())
 
         core.selectApp(PRIMARY_PICKER_TASK, NAVIGATOR, results::add)
         car.barrier()
@@ -1289,8 +1288,7 @@ class SplitScenarioTest {
             ),
             car.store.load().slots,
         )
-        assertEquals(listOf(SplitCoordinatorCore.SELECT_FAILURE), car.notices.toList())
-        assertEquals(listOf(SplitCoordinatorCore.SELECT_FAILURE), results.toList())
+        assertEquals(listOf(SplitActionResult.SETTLED), results.toList())
         assertTrue("the picker of that pane is still there", car.fake.hasTask(PRIMARY_PICKER_TASK))
         assertEquals(PRIMARY_PICKER_ACTIVITY, car.fake.topActivity(PRIMARY_ROOT))
     }
@@ -1639,12 +1637,12 @@ class SplitScenarioTest {
         core.openPickerSession()
         car.barrier()
         car.fake.firmwareChoosesRootFor[SPLIT_HOST_PACKAGE] = PRIMARY_ROOT
-        val results = Collections.synchronizedList(mutableListOf<String?>())
+        val results = Collections.synchronizedList(mutableListOf<SplitActionResult>())
 
         core.selectApp(SECONDARY_PICKER_TASK, SPLIT_HOST_PACKAGE, results::add)
         car.barrier()
 
-        assertEquals("тап удался: ни ошибки, ни нотиса", listOf<String?>(null), results.toList())
+        assertEquals("тап удался: ни ошибки, ни нотиса", listOf(SplitActionResult.SETTLED), results.toList())
         assertEquals(
             "слот записан по фактической стороне прошивки",
             SplitSlot.App(SPLIT_HOST_PACKAGE),
@@ -3155,27 +3153,24 @@ class SplitScenarioTest {
     }
 
     @Test
-    fun aFailedSelectionPublishesTheAutomatonNoticeExactlyOnce() {
-        // 1.5.7: панель остаётся на пикере, сосед не тронут, сообщение ровно одно
+    fun aFailedSelectionLeavesTheWorkingPickerAndSaysNothing() {
+        // 1.5.7, U5: панель остаётся на своём рабочем пикере, сосед не тронут, текста нет
         val car = car(FakeShell(directTargetLaunchSucceeds = false).apply { liveProductScene() })
         val core = car.core(SplitDurable(enabled = true, slots = PICKER_PAIR))
         core.initialize {}
         core.openPickerSession()
         car.barrier()
         val neighbour = car.fake.topTaskId(SECONDARY_ROOT)
-        val results = Collections.synchronizedList(mutableListOf<String?>())
+        val results = Collections.synchronizedList(mutableListOf<SplitActionResult>())
 
         core.selectApp(PRIMARY_PICKER_TASK, NAVIGATOR, results::add)
         car.barrier()
 
-        assertEquals(
-            "план автомата - единственный источник сообщения, и оно одно",
-            listOf(SplitCoordinatorCore.SELECT_FAILURE),
-            car.notices.filter(String::isNotBlank),
-        )
-        assertEquals(listOf(SplitCoordinatorCore.SELECT_FAILURE), results.toList())
+        assertEquals(listOf(SplitActionResult.SETTLED), results.toList())
         assertEquals("хранилище не тронуто", 0, car.store.commits)
         assertEquals(PICKER_PAIR, car.store.load().slots)
+        assertEquals("и карточка молчит", "", core.snapshot().message)
+        assertEquals(SplitScreenPhase.ACTIVE, core.snapshot().phase)
         assertEquals(
             "панель снова на своём пикере",
             PRIMARY_PICKER_ACTIVITY,
@@ -3195,23 +3190,19 @@ class SplitScenarioTest {
         val car = car(FakeShell())
         val core = car.core(SplitDurable(enabled = true, slots = APP_PAIR))
         core.initialize {}
-        val results = Collections.synchronizedList(mutableListOf<String?>())
+        val results = Collections.synchronizedList(mutableListOf<SplitActionResult>())
 
         // Вторая панель не поднялась: прошивка не ответила на запуск ровно этого пакета.
         car.shells.failOn("service call activity_task 112 s16 '$MUSIC'")
         core.openPickerSession(results::add)
         car.barrier()
 
-        assertEquals(
-            "пользователю не показано ничего",
-            emptyList<String>(),
-            car.notices.filter(String::isNotBlank),
-        )
+        assertEquals("пользователю не показано ничего", "", core.snapshot().message)
         assertTrue(
             "но диагностика названа в ринге",
             car.diagnostics.any { it.contains("failed to restore $MUSIC") },
         )
-        assertEquals("тап удался - это не ошибка операции", listOf<String?>(null), results.toList())
+        assertEquals("тап удался - это не ошибка операции", listOf(SplitActionResult.SETTLED), results.toList())
         assertEquals("и карточка не краснеет", SplitScreenPhase.ACTIVE, core.snapshot().phase)
         assertEquals(
             "названная панель ждёт ручного выбора, а сосед восстановлен",
@@ -3279,8 +3270,8 @@ class SplitScenarioTest {
         )
         assertEquals(
             "рабочий пикер вместо сообщения об ошибке (правка W5 волны 10)",
-            emptyList<String>(),
-            car.notices.filter(String::isNotBlank),
+            "",
+            core.snapshot().message,
         )
         assertTrue(
             "оба пикера-основания живы: свой компонент - не «найденное приложение»",
@@ -3325,8 +3316,8 @@ class SplitScenarioTest {
         assertEquals(SplitSlot.App(MUSIC), car.store.load().slot(SplitPane.PRIMARY))
         assertEquals(
             "рабочий пикер вместо сообщения об ошибке (правка W5 волны 10)",
-            emptyList<String>(),
-            car.notices.filter(String::isNotBlank),
+            "",
+            core.snapshot().message,
         )
         val stackReads = car.commands().count { it == "am stack list" }
         assertTrue(

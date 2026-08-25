@@ -5,11 +5,8 @@ import android.content.ContentValues
 import android.database.Cursor
 import android.net.Uri
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
 import android.os.ResultReceiver
 import android.util.Log
-import android.widget.Toast
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
@@ -26,7 +23,7 @@ class SplitCommandProvider : ContentProvider() {
     override fun onCreate(): Boolean = true
 
     override fun call(method: String, arg: String?, extras: Bundle?): Bundle {
-        val app = context?.applicationContext ?: return result(USER_ERROR)
+        val app = context?.applicationContext ?: return accepted(false)
         return try {
             when (method) {
                 // 1.13.1, U6: a picker reporting a window event must not wait for the coordinator
@@ -34,7 +31,7 @@ class SplitCommandProvider : ContentProvider() {
                 // synchronous to the caller - they are notices, and the picker has a frame to draw.
                 SplitCommandContract.METHOD_PICKER_VISIBLE -> {
                     val taskId = extras.requireTaskId()
-                    detached { SplitScreenCoordinator.onPickerVisible(app, taskId, ::showError) }
+                    detached { SplitScreenCoordinator.onPickerVisible(app, taskId) }
                 }
                 SplitCommandContract.METHOD_PICKER_HIDDEN -> {
                     val taskId = extras.requireTaskId()
@@ -56,21 +53,17 @@ class SplitCommandProvider : ContentProvider() {
                         packageName = extras?.getString(SplitCommandContract.EXTRA_PACKAGE_NAME)
                             ?.takeIf(String::isNotBlank)
                             ?: error("Не выбрано приложение"),
-                    ) { error ->
-                        receiver?.send(
-                            0,
-                            Bundle().apply {
-                                putString(SplitCommandContract.RESULT_ERROR, error.orEmpty())
-                            },
-                        ) ?: showError(error)
+                    ) {
+                        // The picker waits for one thing only: that its selection is over (U5).
+                        receiver?.send(0, Bundle.EMPTY)
                     }
                 }
-                else -> return result("Неизвестная команда разделения экрана")
+                else -> return accepted(false)
             }
-            result(null)
+            accepted(true)
         } catch (error: Throwable) {
             Log.e(TAG, "Split command failed: $method", error)
-            result(USER_ERROR)
+            accepted(false)
         }
     }
 
@@ -87,15 +80,6 @@ class SplitCommandProvider : ContentProvider() {
         }
     }
 
-    private fun showError(error: String?) {
-        if (error == null) return
-        Log.w(TAG, error)
-        val app = context?.applicationContext ?: return
-        Handler(Looper.getMainLooper()).post {
-            Toast.makeText(app, error, Toast.LENGTH_LONG).show()
-        }
-    }
-
     private fun Bundle?.requireTaskId(): Int =
         this?.getInt(SplitCommandContract.EXTRA_PICKER_TASK_ID, -1)
             ?.also { require(it > 0) }
@@ -105,8 +89,8 @@ class SplitCommandProvider : ContentProvider() {
     private fun Bundle?.resultReceiver(): ResultReceiver? =
         this?.getParcelable(SplitCommandContract.EXTRA_RESULT_RECEIVER)
 
-    private fun result(error: String?): Bundle = Bundle().apply {
-        putString(SplitCommandContract.RESULT_ERROR, error.orEmpty())
+    private fun accepted(taken: Boolean): Bundle = Bundle().apply {
+        putBoolean(SplitCommandContract.RESULT_ACCEPTED, taken)
     }
 
     override fun query(
@@ -129,7 +113,6 @@ class SplitCommandProvider : ContentProvider() {
 
     private companion object {
         const val TAG = "DenzaSplitCommand"
-        const val USER_ERROR = "Не удалось открыть разделение экрана"
 
         /** One thread: these notices are ordered, and none of them belongs on a main thread. */
         val NOTICES: ExecutorService = Executors.newSingleThreadExecutor { runnable ->

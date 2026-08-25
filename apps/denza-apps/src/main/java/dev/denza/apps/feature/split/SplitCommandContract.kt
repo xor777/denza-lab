@@ -14,13 +14,20 @@ internal object SplitCommandContract {
     const val EXTRA_PICKER_TASK_ID = "dev.denza.apps.extra.SPLIT_PICKER_TASK_ID"
     const val EXTRA_PACKAGE_NAME = "dev.denza.apps.extra.SPLIT_PACKAGE_NAME"
     const val EXTRA_RESULT_RECEIVER = "dev.denza.apps.extra.SPLIT_RESULT_RECEIVER"
-    const val RESULT_ERROR = "dev.denza.apps.result.SPLIT_ERROR"
+
+    /**
+     * Whether the coordinator took the command, and nothing else (U5).
+     *
+     * The boundary used to carry a message back for the picker to paint. It carries an
+     * acknowledgement now: a command the coordinator refused leaves the pane exactly as it was,
+     * which is a usable state, and what went wrong belongs in the ring instead.
+     */
+    const val RESULT_ACCEPTED = "dev.denza.apps.result.SPLIT_ACCEPTED"
 
     private val COMMAND_URI = Uri.parse("content://dev.denza.apps.split")
 
-    fun call(context: Context, method: String, extras: Bundle): String? =
+    fun call(context: Context, method: String, extras: Bundle): Boolean =
         context.contentResolver
             .call(COMMAND_URI, method, null, extras)
-            ?.getString(RESULT_ERROR)
-            ?.takeIf(String::isNotBlank)
+            ?.getBoolean(RESULT_ACCEPTED, false) == true
 }

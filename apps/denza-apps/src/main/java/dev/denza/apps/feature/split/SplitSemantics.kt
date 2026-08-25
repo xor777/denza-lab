@@ -71,9 +71,12 @@ internal data class SplitState(
  * ("onStop arrived", "TYPE_WINDOWS_CHANGED blinked") — contract section 7, invariant 8.
  *
  * Every one of them has a producer: `ReconcileOperation` settles the topology facts including
- * [SceneEndedSettled] (1.7.5, scenario 30 - "clear all"), `PackageRemovedOperation` settles
- * [PackageRemoved] from what a live picker saw (1.5.6), and `SelectOperation` settles
- * [AppLaunchFailed] so that 1.5.7 is answered by a plan rather than by a private publish.
+ * [SceneEndedSettled] (1.7.5, scenario 30 - "clear all") and `PackageRemovedOperation` settles
+ * [PackageRemoved] from what a live picker saw (1.5.6).
+ *
+ * There is deliberately no "the launch failed" fact. A launch that did not happen leaves the pane
+ * exactly as the user left it - on its own picker, with the catalogue on screen and the tap live -
+ * and that pane is a usable state, not an event the product state has to record (1.5.7, U5).
  */
 internal sealed interface SplitFact {
     data class ToggleChanged(val enabled: Boolean) : SplitFact
@@ -83,8 +86,6 @@ internal sealed interface SplitFact {
     data class SelectionRequested(val pane: SplitPane, val packageName: String) : SplitFact
 
     data class AppLaunchConfirmed(val pane: SplitPane, val packageName: String) : SplitFact
-
-    data class AppLaunchFailed(val pane: SplitPane, val reason: String) : SplitFact
 
     /** Back, close gesture, swipe from Recents or a crash: all of them are one closure (1.7.3). */
     data class AppClosedSettled(val pane: SplitPane) : SplitFact
@@ -141,8 +142,6 @@ internal sealed interface SplitPlan {
     data object RemoveProductPickers : SplitPlan
 
     data object SuspendOwnedGate : SplitPlan
-
-    data class Notice(val text: String) : SplitPlan
 }
 
 internal data class SplitReduction(

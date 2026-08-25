@@ -456,7 +456,6 @@ class SplitOperationRunnerTest {
         },
         store = store,
         catalog = FakeCatalog,
-        notices = {},
         leases = emptyList(),
         gateLeaseStore = FakeGateLease(),
         apkPath = SPLIT_APK_PATH,
@@ -473,7 +472,7 @@ class SplitOperationRunnerTest {
         },
         readLive = { emptyMap() },
         externalMoveInFlight = { false },
-        publisher = { _, _, _ -> },
+        publisher = { _, _ -> },
     )
 
     private fun operation(

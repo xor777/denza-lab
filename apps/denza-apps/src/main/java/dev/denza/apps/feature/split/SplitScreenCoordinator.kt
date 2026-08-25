@@ -11,13 +11,19 @@ import dev.denza.apps.adb.DenzaLocalAdb
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
-enum class SplitScreenPhase { OFF, STARTING, ACTIVE, ERROR }
+/**
+ * What the hub card of the split feature shows.
+ *
+ * There is deliberately no `ERROR` phase and no failure detail: the product does not report its
+ * own failures to the user (U5). What is left is the toggle, the honest "this is running right
+ * now" of an operation in flight (1.13.2) and the ordinary armed state.
+ */
+enum class SplitScreenPhase { OFF, STARTING, ACTIVE }
 
 data class SplitScreenSession(
     val enabled: Boolean = false,
     val phase: SplitScreenPhase = SplitScreenPhase.OFF,
     val message: String = "",
-    val details: String? = null,
 )
 
 /**
@@ -53,23 +59,26 @@ object SplitScreenCoordinator {
     fun snapshot(): SplitScreenSession = core?.snapshot() ?: SplitScreenSession()
 
     /** Opens the explicit two-picker product flow from its launcher icon. */
-    fun openPickerSession(context: Context, onComplete: (String?) -> Unit = {}) {
+    internal fun openPickerSession(
+        context: Context,
+        onComplete: (SplitActionResult) -> Unit = {},
+    ) {
         core(context).openPickerSession(onComplete)
     }
 
     /** A picker tap has an exact pane and therefore needs no foreground inference. */
-    fun selectApp(
+    internal fun selectApp(
         context: Context,
         pickerTaskId: Int,
         packageName: String,
-        onComplete: (String?) -> Unit = {},
+        onComplete: (SplitActionResult) -> Unit = {},
     ) {
         core(context).selectApp(pickerTaskId, packageName, onComplete)
     }
 
     /** Exact picker reveal event; only the recorded app task can be removed. */
-    fun onPickerVisible(context: Context, hostTaskId: Int?, onComplete: (String?) -> Unit = {}) {
-        core(context).pickerVisible(hostTaskId, onComplete)
+    fun onPickerVisible(context: Context, hostTaskId: Int?) {
+        core(context).pickerVisible(hostTaskId)
     }
 
     /** Exact product-picker window hint; the shell snapshot must resolve one visible task. */
@@ -179,7 +188,6 @@ object SplitScreenCoordinator {
             store = SplitScreenSettings.stateStore(app),
             actor = SplitActor(clock),
             overlayOwner = SplitOverlayOwner { overlayLease(app) },
-            notices = SplitNoticeSink { message -> SplitPickerNotice.publish(app, message) },
             catalog = AndroidSplitLaunchCatalog(app),
             gateLeaseStore = SplitScreenSettings.gateLeaseStore(app),
             leases = listOf(
@@ -226,10 +234,12 @@ object SplitScreenCoordinator {
     private fun overlayLease(app: Context): SplitOverlayLease {
         // U6: the tap is answered within a second by this window and by nothing else, so an open
         // that starts without the permission to draw it starts already unable to keep that
-        // promise. The overlay itself tells the user (SplitLaunchOverlay.UNAVAILABLE_NOTICE);
-        // this line is what says so in the log of the operation that began here.
+        // promise. The user still gets the scene the open builds, so there is nothing to say to
+        // them (U5); this line is what says so in the ring of the operation that began here.
         if (!Settings.canDrawOverlays(app)) {
-            Log.w(TAG, "open starts with no waiting window: overlay permission is not granted")
+            SplitDiagnostics.record(
+                "open starts with no waiting window: overlay permission is not granted",
+            )
         }
         val lease = SplitLaunchOverlay.begin(app)
         return object : SplitOverlayLease {

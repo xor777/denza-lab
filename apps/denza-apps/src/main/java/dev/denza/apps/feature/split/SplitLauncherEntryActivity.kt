@@ -2,10 +2,7 @@ package dev.denza.apps.feature.split
 
 import android.app.Activity
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
 import android.util.Log
-import android.widget.Toast
 
 /**
  * Launcher-only boundary that opens the existing, live-verified picker session.
@@ -17,25 +14,18 @@ class SplitLauncherEntryActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         try {
-            SplitScreenCoordinator.openPickerSession(applicationContext, ::showError)
+            SplitScreenCoordinator.openPickerSession(applicationContext) { Unit }
         } catch (error: Throwable) {
+            // U5: the tap produced no scene and there is nothing to say about it here. The one
+            // line that explains it is the ring the support screen reads.
             Log.e(TAG, "Split Screen launch failed", error)
-            showError(USER_ERROR)
+            SplitDiagnostics.record("launcher entry failed to submit an open: $error")
         } finally {
             finish()
         }
     }
 
-    private fun showError(error: String?) {
-        if (error == null) return
-        Log.w(TAG, error)
-        Handler(Looper.getMainLooper()).post {
-            Toast.makeText(applicationContext, error, Toast.LENGTH_LONG).show()
-        }
-    }
-
     private companion object {
         const val TAG = "DenzaSplitLauncher"
-        const val USER_ERROR = "Не удалось открыть разделение экрана"
     }
 }

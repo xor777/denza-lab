@@ -1,12 +1,11 @@
 package dev.denza.apps.feature.split
 
+import java.util.Collections
 import java.util.concurrent.atomic.AtomicReference
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -275,7 +274,55 @@ class SplitCoordinatorCoreTest {
 
     // endregion
 
-    // region U5 - an error belongs where the user acted
+    // region U5 - the product produces usable states instead of reporting failures
+
+    /**
+     * U5, 1.11.4: только мёртвый канал управления доходит до поверхности, и только он.
+     *
+     * Отказ рецепта чинить нечем и незачем: панель осталась там, где была, и следующий тап
+     * работает. Мёртвый канал - другое дело: без него не работает ничто, и починка живёт на
+     * своём экране хаба, поэтому вызвавшая поверхность обязана уметь его отличить.
+     */
+    @Test
+    fun onlyADeadChannelIsNamedToTheSurfaceThatAsked() {
+        val car = car(FakeShell())
+        val core = car.core(SplitDurable(enabled = true))
+        core.initialize {}
+        val results = Collections.synchronizedList(mutableListOf<SplitActionResult>())
+
+        car.shells.failOn(GATE_OPEN)
+        core.openPickerSession(results::add)
+        car.barrier()
+
+        assertEquals(
+            "обычный отказ рецепта поверхности не поручают",
+            listOf(SplitActionResult.SETTLED),
+            results.toList(),
+        )
+        assertEquals("и карточка молчит", SplitScreenPhase.ACTIVE, core.snapshot().phase)
+        assertEquals("", core.snapshot().message)
+    }
+
+    /** 1.5.6, U5: пакет исчез между кадром и чтением - тап просто закончился. */
+    @Test
+    fun aSelectionOfAVanishedPackageSettlesQuietlyAndNamesItInTheRing() {
+        val car = car(FakeShell().apply { liveProductScene() })
+        val core = car.core(SplitDurable(enabled = true, slots = PICKER_PAIR))
+        core.initialize {}
+        val results = Collections.synchronizedList(mutableListOf<SplitActionResult>())
+
+        core.selectApp(PRIMARY_PICKER_TASK, "com.gone.forever", results::add)
+        car.barrier()
+
+        assertEquals(listOf(SplitActionResult.SETTLED), results.toList())
+        assertEquals("ни одной команды машине", emptyList<String>(), car.commands())
+        assertEquals(
+            "но ринг называет пакет",
+            listOf("select refused: com.gone.forever больше не установлен"),
+            car.diagnostics.filter { it.startsWith("select refused") },
+        )
+        assertEquals("и карточка молчит", "", core.snapshot().message)
+    }
 
     @Test
     fun backgroundReconcileFailureNeverPaintsTheErrorCard() {
@@ -293,35 +340,39 @@ class SplitCoordinatorCoreTest {
         car.barrier()
 
         val settled = core.snapshot()
-        assertNotEquals("никто не просил эту работу", SplitScreenPhase.ERROR, settled.phase)
         assertEquals(SplitScreenPhase.ACTIVE, settled.phase)
         assertEquals("сцена на экране осталась прежней и молчит", "", settled.message)
-        assertNull(settled.details)
-        assertEquals(
-            "и ни одного сообщения пользователю",
-            emptyList<String>(),
-            car.notices.filter(String::isNotBlank),
-        )
         assertEquals(
             "но сбой не потерян: он ушёл в диагностический лог",
             listOf("background reconcile failed quietly: $SPLIT_ADB_DROPPED"),
             car.diagnostics.filter { it.startsWith("background ") },
         )
 
-        // Контраст: тот же оборванный ADB в операции, которую пользователь запросил сам.
+        // U5: тот же оборванный ADB в операции, которую пользователь запросил сам, молчит на
+        // экране ровно так же - но говорит вызвавшей поверхности единственное, с чем та может
+        // что-то сделать: канал управления мёртв (1.11.4).
         val tapped = car(FakeShell())
         val tappedCore = tapped.core(SplitDurable(enabled = true))
         tappedCore.initialize {}
+        val results = Collections.synchronizedList(mutableListOf<SplitActionResult>())
 
-        tapped.shells.failOn(GATE_OPEN)
-        tappedCore.openPickerSession()
+        tapped.shells.failOn(GATE_OPEN, SPLIT_ADB_UNAUTHORIZED)
+        tappedCore.openPickerSession(results::add)
         tapped.barrier()
 
         val visible = tappedCore.snapshot()
-        assertEquals("тап по кнопке - действие пользователя", SplitScreenPhase.ERROR, visible.phase)
-        assertEquals(SplitCoordinatorCore.OPEN_FAILURE, visible.message)
-        assertEquals(SPLIT_ADB_DROPPED, visible.details)
-        assertTrue(tapped.notices.contains(SplitCoordinatorCore.OPEN_FAILURE))
+        assertEquals("карточка не краснеет и от тапа", SplitScreenPhase.ACTIVE, visible.phase)
+        assertEquals("", visible.message)
+        assertEquals(
+            "но мёртвый канал назван вызвавшей поверхности",
+            listOf(SplitActionResult.CHANNEL_UNAVAILABLE),
+            results.toList(),
+        )
+        assertEquals(
+            "а recipe-отказ - нет: он ничей не ремонт",
+            listOf("open outcome=rolled-back reason=$SPLIT_ADB_UNAUTHORIZED in 0ms"),
+            tapped.diagnostics.filter { it.startsWith("open outcome=") },
+        )
     }
 
     // endregion
@@ -388,9 +439,10 @@ class SplitCoordinatorCoreTest {
             SplitScreenPhase.ACTIVE,
             core.snapshot().phase,
         )
-        assertTrue(
-            "navigation does not borrow the split notice either",
-            car.notices.none(String::isNotBlank),
+        assertEquals(
+            "navigation does not borrow the split card either",
+            "",
+            core.snapshot().message,
         )
         assertEquals(0, car.store.commits)
         assertEquals(PICKER_PAIR, car.store.load().slots)

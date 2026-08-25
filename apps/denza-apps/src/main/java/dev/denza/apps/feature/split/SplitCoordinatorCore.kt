@@ -91,9 +91,19 @@ internal fun interface SplitOverlayOwner {
     fun begin(): SplitOverlayLease
 }
 
-/** Where a user-visible short message goes (U5). */
-internal fun interface SplitNoticeSink {
-    fun publish(message: String)
+/**
+ * What an explicit action of the user ended as, in the only terms a surface may act on (U5).
+ *
+ * The product has no channel for telling the user that something inside it failed: after a tap the
+ * screen is either a scene with applications or a pane on a picker that is ready to be used, and
+ * neither of those needs a sentence. What a surface still has to know is the one thing it can do
+ * something about - the control channel being dead, which nothing about split can work without and
+ * which is repaired on the hub's own screen (1.11.4). Everything else settles as [SETTLED] and is
+ * one line of the diagnostic ring.
+ */
+internal enum class SplitActionResult {
+    SETTLED,
+    CHANNEL_UNAVAILABLE,
 }
 
 /**
@@ -180,7 +190,6 @@ internal class SplitCoordinatorCore(
     private val store: SplitStateStore,
     private val actor: SplitActor,
     private val overlayOwner: SplitOverlayOwner,
-    private val notices: SplitNoticeSink,
     private val catalog: SplitLaunchCatalog,
     private val gateLeaseStore: SplitGateLeaseStore,
     private val leases: List<SplitLeaseController>,
@@ -196,9 +205,7 @@ internal class SplitCoordinatorCore(
 
     private var state = SplitState()
     private var live: SplitLiveScene = emptyMap()
-    private var notice: String = ""
     private var busy: Busy? = null
-    private var failure: Failure? = null
     private var openTicket: SplitTicket? = null
     private var routingBlockedUntilMs = 0L
     private var externalTaskMovesHeld = false
@@ -266,14 +273,14 @@ internal class SplitCoordinatorCore(
      * Contract 1.3. One tap is one cancellable `OPEN` with one waiting window; a second tap joins
      * the live one and gets its outcome instead of a premature success (1.3.7, K4).
      */
-    fun openPickerSession(onComplete: (String?) -> Unit = {}) {
+    fun openPickerSession(onComplete: (SplitActionResult) -> Unit = {}) {
         ready()
         // The launcher entry only exists while the toggle is on, so a tap on it is also the
         // authoritative repair of a persisted mismatch. It is a store write and nothing else.
         if (!currentState().enabled) submitEnable()
         val joined = synchronized(stateLock) { openTicket?.takeUnless(SplitTicket::isComplete) }
         if (joined != null) {
-            joined.onComplete { outcome -> report(onComplete, OPEN_LABEL, outcome) }
+            joined.onComplete { outcome -> report(onComplete, outcome) }
             return
         }
         val overlay = overlayOwner.begin()
@@ -282,27 +289,34 @@ internal class SplitCoordinatorCore(
         synchronized(stateLock) { openTicket = ticket }
         ticket.onComplete { outcome ->
             if (outcome is SplitOutcome.Committed) overlay.close() else overlay.closeImmediately()
-            report(onComplete, OPEN_LABEL, outcome)
+            report(onComplete, outcome)
         }
     }
 
     /** Contract 1.5: a picker tap names its pane, so no foreground inference is ever needed. */
-    fun selectApp(pickerTaskId: Int, packageName: String, onComplete: (String?) -> Unit = {}) {
+    fun selectApp(
+        pickerTaskId: Int,
+        packageName: String,
+        onComplete: (SplitActionResult) -> Unit = {},
+    ) {
         ready()
         val target = catalog.resolve(packageName)
         if (target == null) {
-            post { onComplete("Приложение больше не найдено") }
+            // 1.5.6: the package went away between the frame the user tapped and this read. The
+            // pane keeps its picker, whose own catalogue has already dropped the tile, and the tap
+            // is simply over - there is nothing left to open and nothing worth a sentence (U5).
+            log.log("select refused: $packageName больше не установлен")
+            post { onComplete(SplitActionResult.SETTLED) }
             return
         }
         submit { work -> SelectOperation(work, pickerTaskId, target) }
-            .onComplete { outcome -> report(onComplete, SELECT_LABEL, outcome) }
+            .onComplete { outcome -> report(onComplete, outcome) }
     }
 
     /** Contract 1.6.2, 1.7.1: a revealed picker is a hint that its app may have closed. */
-    fun pickerVisible(hostTaskId: Int?, onComplete: (String?) -> Unit = {}) {
+    fun pickerVisible(hostTaskId: Int?) {
         ready()
         submitReconcile(SplitReconcileKind.PickerVisible(hostTaskId))
-            .onComplete { outcome -> report(onComplete, RECONCILE_LABEL, outcome) }
     }
 
     /** Contract 1.6.3, 1.7.4: a picker that left the panel roots is a dismissed pane. */
@@ -538,7 +552,6 @@ internal class SplitCoordinatorCore(
             shellFactory = shellFactory,
             store = store,
             catalog = catalog,
-            notices = notices,
             leases = leases,
             gateLeaseStore = gateLeaseStore,
             apkPath = apkPath,
@@ -566,13 +579,11 @@ internal class SplitCoordinatorCore(
     }
 
     /** The single writer of semantic state outside the automaton itself: the worker, on commit. */
-    private fun publishSettled(next: SplitState, nextLive: SplitLiveScene, nextNotice: String?) {
+    private fun publishSettled(next: SplitState, nextLive: SplitLiveScene) {
         synchronized(stateLock) {
             state = next
             live = if (next.scene == null) emptyMap() else nextLive
-            if (nextNotice != null) notice = nextNotice
         }
-        nextNotice?.let(notices::publish)
     }
 
     private fun finishOperation(label: String, outcome: SplitOutcome, elapsedMs: Long) {
@@ -582,39 +593,26 @@ internal class SplitCoordinatorCore(
             publish()
             return
         }
-        // U5: an error is shown where the user acted. Nobody asked for a reconciliation, an edge
-        // hint, a Home teardown or an uninstall sweep, so a failed one paints no error card and
-        // publishes no notice - it becomes one line of the diagnostic log and nothing else.
+        // U5: the product does not report its own failures to the user. Nobody asked for a
+        // reconciliation, an edge hint, a Home teardown or an uninstall sweep, so a failed one is
+        // named as background work in the ring and nothing else.
         val quiet = label in BACKGROUND_LABELS
-        val reason = when (outcome) {
-            is SplitOutcome.RolledBack -> outcome.reason
-            is SplitOutcome.Failed -> outcome.message
-            else -> null
-        }
+        val reason = reasonOf(outcome)
         if (quiet && reason != null) log.log("background $label failed quietly: $reason")
-        // U5, U6: an action the user performed never ends in silence. Whatever became of it -
-        // committed, cancelled, rolled back, refused - exactly one line says so, so that a tap
-        // which produced no visible change is still explainable afterwards.
+        // U5, U6: an action the user performed never ends in silence *in the ring*. Whatever
+        // became of it - committed, cancelled, rolled back, refused - exactly one line says so, so
+        // that a tap which produced no visible change is still explainable afterwards. What the
+        // user gets is the screen the operation left standing, never this line.
         if (label in USER_LABELS) log.log(terminalOf(label, outcome, elapsedMs))
         synchronized(stateLock) {
             busy = busy?.takeIf { it.label != label }
-            failure = when {
-                outcome is SplitOutcome.Committed -> null
-                // A cancellation is what the user asked for, and a quiet failure is nobody's error:
-                // both leave whatever the panel already showed exactly as it was (1.3.8, U5).
-                reason == null || quiet -> failure
-                else -> Failure(friendlyError(reason, fallbackOf(label)), reason)
-            }
             if (label == OPEN_LABEL) openTicket = null
         }
         publish()
     }
 
     private fun markBusy(label: String, enabled: Boolean, message: String) {
-        synchronized(stateLock) {
-            busy = Busy(label, enabled, message)
-            failure = null
-        }
+        synchronized(stateLock) { busy = Busy(label, enabled, message) }
         publish()
     }
 
@@ -632,52 +630,19 @@ internal class SplitCoordinatorCore(
             )
         }
         if (!state.enabled) return SplitScreenSession()
-        failure?.let { seen ->
-            return SplitScreenSession(
-                enabled = true,
-                phase = SplitScreenPhase.ERROR,
-                message = seen.message,
-                details = seen.details,
-            )
-        }
-        return SplitScreenSession(
-            enabled = true,
-            phase = SplitScreenPhase.ACTIVE,
-            message = notice,
-        )
+        return SplitScreenSession(enabled = true, phase = SplitScreenPhase.ACTIVE)
     }
 
-    private fun report(callback: (String?) -> Unit, label: String, outcome: SplitOutcome) {
-        post { callback(errorOf(label, outcome)) }
-    }
-
-    /**
-     * A user who turned the toggle off got exactly what they asked for, and a Home over scene work
-     * is answered by the screen itself (1.5.8); everything else that ends an action the user
-     * performed is worth a message (1.3.8, U5).
-     */
-    private fun errorOf(label: String, outcome: SplitOutcome): String? {
-        val fallback = fallbackOf(label)
-        return when (outcome) {
-            is SplitOutcome.Committed -> null
-            is SplitOutcome.Cancelled -> when (outcome.reason) {
-                SplitCancelReason.DEADLINE ->
-                    "$fallback: превышено время ожидания. Попробуйте ещё раз"
-                // The user asked for both of these, and the process going away is nobody's error.
-                SplitCancelReason.DISABLE, SplitCancelReason.SHUTDOWN -> null
-                // Unreachable for an open since contract 4.2: only its own deadline or the toggle
-                // may end it. Should one ever get through again, the user reads an error instead
-                // of watching a tap do nothing at all - silence is the one outcome U5 forbids.
-                else -> if (label == OPEN_LABEL) fallback else null
-            }
-            is SplitOutcome.RolledBack -> friendlyError(outcome.reason, fallback)
-            is SplitOutcome.Failed -> friendlyError(outcome.message, fallback)
+    private fun report(callback: (SplitActionResult) -> Unit, outcome: SplitOutcome) {
+        val result = if (isChannelUnavailable(reasonOf(outcome))) {
+            SplitActionResult.CHANNEL_UNAVAILABLE
+        } else {
+            SplitActionResult.SETTLED
         }
+        post { callback(result) }
     }
 
     private data class Busy(val label: String, val enabled: Boolean, val message: String)
-
-    private data class Failure(val message: String, val details: String)
 
     internal companion object {
         const val ENABLE_LABEL = "enable"
@@ -750,19 +715,20 @@ internal class SplitCoordinatorCore(
         /** Slack over the operation budget: the deadline itself settles the ticket first. */
         const val NAV_AWAIT_MARGIN_MS = 5_000L
 
+        /**
+         * Why a navigation return threw, for navigation's own surface and log (1.10.7).
+         *
+         * It is not a split message: the split panel is never repainted as broken, and the pane
+         * the navigator left keeps its working picker. Navigation owns what it says about its own
+         * retry, and this is the reason string it is handed.
+         */
         const val NAV_FAILURE = "Не удалось вернуть навигацию в окно"
         const val NAV_PLAN_UNAVAILABLE = "$NAV_FAILURE: возврат уже выполняется"
 
-        const val OPEN_FAILURE = "Не удалось открыть разделение экрана"
-        const val SELECT_FAILURE = "Не удалось открыть приложение в этом окне"
-        const val RECONCILE_FAILURE = "Не удалось восстановить окна"
-        const val DISABLE_FAILURE = "Не удалось выключить Split screen"
-
-        fun fallbackOf(label: String): String = when (label) {
-            SELECT_LABEL -> SELECT_FAILURE
-            RECONCILE_LABEL -> RECONCILE_FAILURE
-            DISABLE_LABEL -> DISABLE_FAILURE
-            else -> OPEN_FAILURE
+        fun reasonOf(outcome: SplitOutcome): String? = when (outcome) {
+            is SplitOutcome.RolledBack -> outcome.reason
+            is SplitOutcome.Failed -> outcome.message
+            else -> null
         }
 
         fun expectedApps(live: SplitLiveScene): Map<SplitPane, SplitPickerExpectedApp> =
@@ -798,21 +764,29 @@ internal class SplitCoordinatorCore(
                 observed.appPackageName?.let(SplitSlot::App) ?: SplitSlot.Picker
             }
 
-        fun friendlyError(raw: String?, fallback: String): String {
+        /**
+         * Whether a failure means the control channel itself is not usable (1.11.4).
+         *
+         * The four shapes below are what this car answers with when the local ADB link is not
+         * there: an unauthorised key, a key whose confirmation is still pending, a refused
+         * connection and a link that stopped answering. None of them is a defect of the recipe
+         * that met it - every recipe fails the same way - and none of them can be repaired from a
+         * pane. They are the one failure a surface is allowed to act on, by opening the screen
+         * that repairs the channel; everything else is diagnostics.
+         */
+        fun isChannelUnavailable(raw: String?): Boolean {
             val text = raw.orEmpty()
-            return when {
-                text.contains("authorization required", ignoreCase = true) ->
-                    "Откройте ADB Rescue в диагностике"
-                text.contains("authorization pending", ignoreCase = true) ->
-                    "Подтвердите ADB-ключ на экране автомобиля"
-                text.contains("refused", ignoreCase = true) -> "Включите ADB на машине"
-                text.contains("timeout", ignoreCase = true) ->
-                    "ADB пока не отвечает. Попробуйте ещё раз"
-                text.startsWith("Приложение уже открыто на другом экране") -> text
-                text.startsWith("Это приложение не поддерживает два окна") -> text
-                else -> fallback
+            return CHANNEL_FAILURE_MARKERS.any { marker ->
+                text.contains(marker, ignoreCase = true)
             }
         }
+
+        private val CHANNEL_FAILURE_MARKERS = listOf(
+            "authorization required",
+            "authorization pending",
+            "refused",
+            "timeout",
+        )
     }
 
     // endregion

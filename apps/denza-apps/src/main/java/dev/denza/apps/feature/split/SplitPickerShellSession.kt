@@ -1045,7 +1045,7 @@ internal class SplitPickerShellSession(
             // used to precede the waiting is gone: a restore's task already exists, so the very
             // first read finds it (правка A2/A3). A pane keeps its first match - exactly what the
             // per-pane wait did - and a pane the short budget leaves unmatched fails alone,
-            // degrading to its picker with the visible notice of 1.3.2 (правка W5): the red
+            // degrading to the working picker of 1.3.2 (правка W5): the red
             // branch of v20 P1.2 burned two twelve-read budgets (~5 с каждый) against a task the
             // firmware refused to hold.
             val found = linkedMapOf<SplitPane, SplitTask>()
@@ -2843,7 +2843,7 @@ internal data class SplitPickerLivePane(
  * What one [SplitPickerShellSession.buildScene] settled.
  *
  * [failed] names the panes whose remembered app did not come back; each of them is on its own
- * picker, and the operation turns them into the one notice the user reads (1.3.2, U5).
+ * working picker, and their names are lines of the diagnostic ring (1.3.2, U5).
  */
 /**
  * What one read of the owned scene concluded, and why.

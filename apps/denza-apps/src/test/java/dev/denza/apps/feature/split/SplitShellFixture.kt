@@ -676,6 +676,9 @@ internal const val SPLIT_APK_PATH = "/data/app/dev.denza.apps/base.apk"
 internal const val SPLIT_AREA_QUERY = "service call activity_task 30"
 internal const val SPLIT_ADB_DROPPED = "adb link dropped"
 
+/** What this car answers with when the local ADB key is not trusted yet (1.11.4). */
+internal const val SPLIT_ADB_UNAUTHORIZED = "device unauthorized: authorization required"
+
 internal const val PRIMARY_PICKER_TASK = 60
 internal const val SECONDARY_PICKER_TASK = 61
 internal const val PRIMARY_APP_TASK = 70
@@ -749,7 +752,6 @@ internal class SplitCarFixture(
     val shells = RecordingShellFactory(fake)
     val overlay = CountingOverlay()
     val gateLease = FakeGateLease()
-    val notices: MutableList<String> = Collections.synchronizedList(mutableListOf())
     val diagnostics: MutableList<String> = Collections.synchronizedList(mutableListOf())
 
     private var built: SplitCoordinatorCore? = null
@@ -772,7 +774,6 @@ internal class SplitCarFixture(
             store = store,
             actor = actor,
             overlayOwner = overlay,
-            notices = notices::add,
             catalog = FakeCatalog,
             gateLeaseStore = gateLease,
             leases = leases,
@@ -859,6 +860,9 @@ internal class RecordingShellFactory(private val fake: FakeShell) : SplitShellFa
     private var failAt: String? = null
 
     @Volatile
+    private var failReason: String = SPLIT_ADB_DROPPED
+
+    @Volatile
     private var reached = CountDownLatch(0)
 
     @Volatile
@@ -881,8 +885,9 @@ internal class RecordingShellFactory(private val fake: FakeShell) : SplitShellFa
     fun release() = gate.countDown()
 
     /** Drops the link on the next occurrence of [command]; one arming, one failure. */
-    fun failOn(command: String) {
+    fun failOn(command: String, reason: String = SPLIT_ADB_DROPPED) {
         failAt = command
+        failReason = reason
     }
 
     override fun open(): SplitShellHandle {
@@ -899,7 +904,7 @@ internal class RecordingShellFactory(private val fake: FakeShell) : SplitShellFa
                 synchronized(recorded) { session += command }
                 if (command == failAt) {
                     failAt = null
-                    throw IllegalStateException(SPLIT_ADB_DROPPED)
+                    throw IllegalStateException(failReason)
                 }
                 return synchronized(fake) { fake.shell(command) }
             }
