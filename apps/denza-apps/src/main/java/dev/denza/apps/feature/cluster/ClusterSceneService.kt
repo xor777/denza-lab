@@ -34,6 +34,8 @@ import android.view.WindowManager
 import android.widget.FrameLayout
 import dev.denza.apps.MainActivity
 import dev.denza.apps.R
+import dev.denza.apps.feature.cluster.dashboard.ClusterDashboardLayout
+import dev.denza.apps.feature.cluster.dashboard.ClusterDashboardView
 import dev.denza.apps.feature.mirrors.AvcCameraRenderer
 import dev.denza.apps.feature.mirrors.MirrorCameraConfig
 import dev.denza.apps.feature.mirrors.MirrorSide
@@ -69,6 +71,8 @@ class ClusterSceneService : Service() {
             ACTION_TOGGLE_DVR_CAMERA -> toggleDvrCamera()
             ACTION_SHOW_MAP -> showMap(intent.mapPlacement())
             ACTION_HIDE_MAP -> hideMap()
+            ACTION_SHOW_DASHBOARD -> showDashboard(intent.mapPlacement())
+            ACTION_HIDE_DASHBOARD -> hideDashboard()
             ACTION_PREVIEW -> showPreview(
                 position = intent.position(),
                 visible = intent.getBooleanExtra(EXTRA_VISIBLE, false),
@@ -279,6 +283,15 @@ class ClusterSceneService : Service() {
         updateNotification("Navigation display is ready")
     }
 
+    private fun showDashboard(placement: ClusterMapPlacement) {
+        val scene = prepareBaseScene() ?: return
+        scene.showDashboard(placement)
+    }
+
+    private fun hideDashboard() {
+        basePresentation?.hideDashboard()
+    }
+
     private fun hideMap() {
         basePresentation?.hideMap()
     }
@@ -382,6 +395,7 @@ class ClusterSceneService : Service() {
         lateinit var mapSurface: SurfaceView
             private set
         private lateinit var mapShade: ProjectionEdgeShadeView
+        private lateinit var dashboardLayer: FrameLayout
         private lateinit var cameraTexture: TextureView
         private lateinit var cameraFrame: FrameLayout
         private lateinit var cameraEdgeShade: EdgeShadeView
@@ -389,6 +403,7 @@ class ClusterSceneService : Service() {
         private lateinit var renderer: AvcCameraRenderer
         private lateinit var dvrRenderer: DvrCameraRenderer
         private var cameraSource = CameraSource.NONE
+        private var dashboardPlacement: ClusterMapPlacement? = null
         private var teardownScheduled = false
         private var teardownFinished = false
         private val teardownCallbacks = mutableListOf<() -> Unit>()
@@ -432,6 +447,19 @@ class ClusterSceneService : Service() {
             root.addView(mapSurface, FrameLayout.LayoutParams(1, 1, Gravity.TOP or Gravity.START))
             mapShade = ProjectionEdgeShadeView(context).apply { visibility = View.INVISIBLE }
             root.addView(mapShade, FrameLayout.LayoutParams(1, 1, Gravity.TOP or Gravity.START))
+
+            // After the shade on purpose. The shade darkens whatever is beneath it so a projected
+            // map cannot cover instrument data; the dashboard needs no such protection because it
+            // places its own blocks off the stock graphics to begin with, and darkening it twice
+            // would only cost contrast.
+            dashboardLayer = FrameLayout(context).apply {
+                setBackgroundColor(Color.TRANSPARENT)
+                visibility = View.GONE
+            }
+            root.addView(
+                dashboardLayer,
+                FrameLayout.LayoutParams(1, 1, Gravity.TOP or Gravity.START),
+            )
 
             cameraFrame = FrameLayout(context).apply {
                 setBackgroundColor(Color.BLACK)
@@ -668,6 +696,44 @@ class ClusterSceneService : Service() {
             expectedMapDensityDpi = 0
             mapShade.visibility = View.INVISIBLE
             mapSurface.visibility = View.INVISIBLE
+        }
+
+        /**
+         * Hosts this app's own instrument dashboard in the chosen placement.
+         *
+         * Nothing here touches [mapSurface] or [mapConsumer], so no virtual display is created and
+         * nothing is projected: the dashboard is a plain view drawing into a window we already own.
+         * That is the whole difference from [showMap], and it is what makes this path free of the
+         * shell commands, task moves and vendor surfaces the projection path needs.
+         */
+        fun showDashboard(placement: ClusterMapPlacement) {
+            val metrics = android.util.DisplayMetrics()
+            @Suppress("DEPRECATION")
+            display.getRealMetrics(metrics)
+            val layout = ClusterDashboardLayout(
+                metrics.widthPixels,
+                metrics.heightPixels,
+                placement,
+            )
+            if (!layout.supported) {
+                hideDashboard()
+                return
+            }
+            if (dashboardPlacement != placement || dashboardLayer.childCount == 0) {
+                dashboardPlacement = placement
+                dashboardLayer.removeAllViews()
+                dashboardLayer.addView(ClusterDashboardView(context, layout), matchParent())
+            }
+            dashboardLayer.layoutParams = mapParams(layout.bounds)
+            dashboardLayer.visibility = View.VISIBLE
+        }
+
+        fun hideDashboard() {
+            dashboardPlacement = null
+            dashboardLayer.visibility = View.GONE
+            // Removing the view is what releases the telemetry poll: the dashboard holds it open
+            // for as long as it is attached, precisely because the Activity is not running then.
+            dashboardLayer.removeAllViews()
         }
 
         fun hideCamera() {
@@ -1086,6 +1152,8 @@ class ClusterSceneService : Service() {
         private const val ACTION_PREVIEW_BASE = "dev.denza.apps.cluster.PREVIEW_BASE"
         private const val ACTION_SHOW_MAP = "dev.denza.apps.cluster.SHOW_MAP"
         private const val ACTION_HIDE_MAP = "dev.denza.apps.cluster.HIDE_MAP"
+        private const val ACTION_SHOW_DASHBOARD = "dev.denza.apps.cluster.SHOW_DASHBOARD"
+        private const val ACTION_HIDE_DASHBOARD = "dev.denza.apps.cluster.HIDE_DASHBOARD"
         private const val EXTRA_SIDE = "side"
         private const val EXTRA_POSITION = "position"
         private const val EXTRA_PROCESSING = "processing"
@@ -1168,6 +1236,23 @@ class ClusterSceneService : Service() {
 
         fun hideMap(context: Context) {
             context.startService(serviceIntent(context, ACTION_HIDE_MAP))
+        }
+
+        /**
+         * Shows this app's own instruments on the driver's display.
+         *
+         * Unlike [showMap] this stages nothing beforehand: there is no surface to hand out and no
+         * consumer to register, so the action carries everything the service needs.
+         */
+        fun showDashboard(context: Context, placement: ClusterMapPlacement) {
+            context.startForegroundService(
+                serviceIntent(context, ACTION_SHOW_DASHBOARD)
+                    .putExtra(EXTRA_MAP_PLACEMENT, placement.name),
+            )
+        }
+
+        fun hideDashboard(context: Context) {
+            context.startService(serviceIntent(context, ACTION_HIDE_DASHBOARD))
         }
 
         fun hideCameraSync(timeoutMs: Long): Boolean {

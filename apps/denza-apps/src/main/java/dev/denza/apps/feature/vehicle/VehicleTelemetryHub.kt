@@ -54,7 +54,18 @@ internal class VehicleTelemetryHub(context: Context) {
     @Volatile
     private var enginePage = false
 
-    private val active: Boolean get() = vehiclePage || enginePage
+    /**
+     * The instrument dashboard on the driver's display: the one consumer that is
+     * not a page of this Activity.
+     *
+     * It needs its own flag because it outlives the other two. The cluster draws
+     * precisely while the Activity is paused, which is when both panels call
+     * [stop] on their way out - so this flag is what holds the loop open for it.
+     */
+    @Volatile
+    private var dashboardPage = false
+
+    private val active: Boolean get() = vehiclePage || enginePage || dashboardPage
 
     @Volatile
     private var forceCold = false
@@ -84,7 +95,16 @@ internal class VehicleTelemetryHub(context: Context) {
         job = scope.launch { pollLoop() }
     }
 
+    /**
+     * Stops the poll loop.
+     *
+     * Both panels call this from their own pause and detach, unconditionally and
+     * with no reference count of any kind. That is safe while every consumer is a
+     * page of the same Activity and stops mattering the moment one is not, so the
+     * dashboard's claim is honoured here rather than by a restart race afterwards.
+     */
     fun stop() {
+        if (dashboardPage) return
         job?.cancel()
         job = null
     }
@@ -99,10 +119,34 @@ internal class VehicleTelemetryHub(context: Context) {
 
     fun setEngineActive(value: Boolean) = setPageActive(value, vehicle = false)
 
+    /**
+     * Called by the cluster dashboard as it appears and goes.
+     *
+     * It draws revolutions, generation into the pack and the fluid lamps, so it
+     * opts into the combustion half of the allowlist exactly as the engine page
+     * does - and pays the same price for it, a sweep of roughly half a second
+     * instead of a third of one.
+     *
+     * Unlike a page, it owns the loop as well as the cadence: nothing else is on
+     * screen when the driver is looking at the cluster.
+     */
+    fun setDashboardActive(value: Boolean) {
+        if (dashboardPage == value) return
+        if (value) visited = true
+        dashboardPage = value
+        engine = enginePage || dashboardPage
+        if (value) {
+            forceCold = true
+            start()
+        } else if (!active) {
+            stop()
+        }
+    }
+
     private fun setPageActive(value: Boolean, vehicle: Boolean) {
         if (value) visited = true
         if (vehicle) vehiclePage = value else enginePage = value
-        engine = enginePage
+        engine = enginePage || dashboardPage
         // Arriving on a page changes which signals are polled, so fill it from a
         // full sweep rather than leaving half of it dashed for ten seconds.
         if (value) forceCold = true

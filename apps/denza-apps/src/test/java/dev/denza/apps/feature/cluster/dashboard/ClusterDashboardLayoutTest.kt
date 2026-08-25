@@ -1,0 +1,129 @@
+package dev.denza.apps.feature.cluster.dashboard
+
+import dev.denza.apps.feature.cluster.ClusterMapPlacement
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+/** The verified instrument display: 2560x720, from docs/instrument-display-findings.md. */
+private fun full() = ClusterDashboardLayout(2560, 720, ClusterMapPlacement.FULL)
+
+private fun right() = ClusterDashboardLayout(2560, 720, ClusterMapPlacement.RIGHT)
+
+class ClusterDashboardLayoutTest {
+
+    @Test
+    fun theDashboardOnlyOffersThePlacementsThatHaveRenderedLive() {
+        assertTrue(full().supported)
+        assertTrue(right().supported)
+        assertFalse(ClusterDashboardLayout(2560, 720, ClusterMapPlacement.CENTER).supported)
+        assertFalse(ClusterDashboardLayout(2560, 720, ClusterMapPlacement.LEFT).supported)
+    }
+
+    @Test
+    fun theKeepOutsComeFromTheSameNumbersAsTheMapShade() {
+        val layout = full()
+        // The shade clears by 272 px and its footer is 90 px solid over a 60 px fade.
+        assertEquals(272f / 720f, layout.stockTop, 1e-4f)
+        assertEquals(1f - 150f / 720f, layout.stockBottom, 1e-4f)
+    }
+
+    @Test
+    fun theRightThirdIsClearAllTheWayThroughBecauseItsProtectionIsTheCrop() {
+        val layout = right()
+        assertEquals(0f, layout.stockTop, 1e-4f)
+        assertEquals(1f, layout.stockBottom, 1e-4f)
+        assertTrue(layout.isClear(0.5f, 0f))
+        assertTrue(layout.isClear(0.5f, 1f))
+        // A crop, not a shade, so there are no reveals to place corner blocks in.
+        assertNull(layout.temperatureBlock)
+        assertNull(layout.lampBlock)
+    }
+
+    @Test
+    fun theRightThirdKeepsTheGeometryTheCarWasCapturedWith() {
+        val layout = right()
+        assertEquals(1537, layout.bounds.left)
+        assertEquals(95, layout.bounds.top)
+        assertEquals(2560, layout.bounds.right)
+        assertEquals(619, layout.bounds.bottom)
+        assertEquals(1023, layout.width)
+        assertEquals(524, layout.height)
+    }
+
+    @Test
+    fun theBandBetweenTheStockEdgesIsOursAcrossTheWholeWidth() {
+        val layout = full()
+        val middle = (layout.stockTop + layout.stockBottom) / 2f
+        assertTrue(layout.isClear(0f, middle))
+        assertTrue(layout.isClear(0.5f, middle))
+        assertTrue(layout.isClear(1f, middle))
+    }
+
+    @Test
+    fun theTopCentreIsRefusedAndTheTopCornersAreNot() {
+        val layout = full()
+        val high = layout.stockTop / 3f
+        assertFalse(layout.isClear(0.5f, high))
+        assertTrue(layout.isClear(0.02f, high))
+        assertTrue(layout.isClear(0.98f, high))
+    }
+
+    @Test
+    fun theBottomIsRefusedExceptThroughItsCentralReveal() {
+        val layout = full()
+        val low = layout.stockBottom + (1f - layout.stockBottom) / 2f
+        assertTrue(layout.isClear(0.5f, low))
+        assertFalse(layout.isClear(0.05f, low))
+        assertFalse(layout.isClear(0.95f, low))
+    }
+
+    @Test
+    fun everyBlockThisDesignPlacesStaysOffTheStockGraphics() {
+        val layout = full()
+        assertTrue(layout.isClear(layout.electricBlock))
+        assertTrue(layout.isClear(layout.engineBlock))
+        assertTrue(layout.isClear(requireBox(layout.temperatureBlock)))
+        assertTrue(layout.isClear(requireBox(layout.lampBlock)))
+    }
+
+    @Test
+    fun theTwoInstrumentsDoNotReachIntoTheGauge() {
+        val layout = full()
+        // The gauge radius is a share of height; on the panel it has to be compared in width.
+        val radiusInWidth = layout.gaugeRadius * layout.height / layout.width
+        assertTrue(layout.electricBlock.right < layout.gaugeCentreX - radiusInWidth)
+        assertTrue(layout.engineBlock.left > layout.gaugeCentreX + radiusInWidth)
+    }
+
+    @Test
+    fun theGaugeItselfStaysInsideTheClearGround() {
+        val layout = full()
+        val radiusInWidth = layout.gaugeRadius * layout.height / layout.width
+        // The top of the arc, and the two ends, which hang below the band into the reveal.
+        assertTrue(layout.isClear(layout.gaugeCentreX, layout.gaugeCentreY - layout.gaugeRadius))
+        val endY = layout.gaugeCentreY + layout.gaugeRadius * 0.342f
+        assertTrue(layout.isClear(layout.gaugeCentreX - radiusInWidth * 0.94f, endY))
+        assertTrue(layout.isClear(layout.gaugeCentreX + radiusInWidth * 0.94f, endY))
+    }
+
+    @Test
+    fun aRevealBlockIsSolvedForItsLowerEdgeSoItsWidestPartCannotEscape() {
+        val layout = full()
+        val temperatures = requireBox(layout.temperatureBlock)
+        val lamps = requireBox(layout.lampBlock)
+        // The right reveal is the narrower of the two, so its block must be narrower as well.
+        assertTrue(lamps.right - lamps.left < temperatures.right - temperatures.left)
+        // Both sit above the stock edge, which is what makes them reveal blocks at all.
+        assertTrue(temperatures.bottom < layout.stockTop)
+        assertTrue(lamps.bottom < layout.stockTop)
+    }
+}
+
+private fun requireBox(box: DashboardBox?): DashboardBox {
+    assertNotNull("this placement should offer the block", box)
+    return box!!
+}

@@ -29,6 +29,86 @@ separately by the exact known name
 DiShare, and Denza Apps' own virtual displays. An absent or ambiguous match
 leaves the feature unavailable instead of guessing a numeric display ID.
 
+## App-owned instrument dashboard
+
+Added 2026-08-25. Not yet run on the car.
+
+The same base presentation now also hosts a dashboard of this app's own
+instruments, as a plain `View` drawing on a `Canvas`. It is a third mode
+alongside the map and the camera overlay, and it is by far the cheapest of the
+three: **no virtual display is created and nothing is projected.** The map path
+only ever produced a `Surface` because a `MapSurfaceConsumer` had been staged
+for it; with no consumer registered, `dispatchMapSurface` is a no-op and
+`NavigationProxyClient` is never reached. So the dashboard needs no shell
+command, no task move, and no vendor surface.
+
+Entry points are `ClusterSceneService.showDashboard(context, placement)` and
+`hideDashboard(context)`, on the actions `dev.denza.apps.cluster.SHOW_DASHBOARD`
+and `...HIDE_DASHBOARD`. The dashboard layer sits **after** the shade in the
+presentation's `FrameLayout`, so the shade never darkens it - the dashboard
+protects instrument data by placing its blocks off them, not by dimming itself.
+
+### Where it may draw
+
+`ClusterDashboardLayout` derives the keep-outs from `ClusterMapLayout`'s own
+shade fields rather than restating them, so the two cannot drift. Wherever the
+shade blacks the map out, something stock lives; wherever it cuts a reveal, the
+map was allowed through. On the verified `2560x720` panel that gives, in the
+`FULL` placement:
+
+- a clear band across the whole width from `272 px` to `570 px`;
+- the bottom-centre reveal, radius `600 x 330 px` centred `120 px` above the
+  lower edge, which extends the centre column down to the panel edge;
+- the two top-corner reveals, `614 x 272 px` on the left and `512 x 272 px` on
+  the right.
+
+`RIGHT` (`1023x524` at `Rect(1537, 95 - 2560, 619)`) carries no shade at all -
+its protection is the crop - so all of it is usable. That makes it the safest
+placement and the one to try first.
+
+`CENTER` and `LEFT` are refused by `ClusterDashboardLayout.supported`. `CENTER`
+is the only zone with no successful live render of any navigator on record and
+additionally spends its top `260 px` on a near-opaque gradient; `LEFT`'s keep-out
+is a quarter-disc rather than a band, which no block in this design fits.
+
+**The one number still owed a measurement:** these boundaries were tuned by eye
+against live captures when the shade was built, not measured. Confirm them with
+the display `3` capture described above before treating them as exact. If the
+stock band turns out to be shallower, the dashboard gains room and nothing
+breaks - every block is placed against these values, never against the panel
+edge.
+
+### What it shows, and what it deliberately does not
+
+State of charge and remaining range are **not** drawn. Both are already on the
+stock cluster a few centimetres away, so spending the best real estate on a
+duplicate would be the whole point missed. What the car does not show is drawn
+instead: traction voltage on its own `500-600 V` window, cell spread in
+millivolts, pack health, insulation resistance.
+
+The centre carries instantaneous power on a square-root dial - zero at the top,
+discharge one way, regeneration the other - with the per-200 m consumption
+history nested inside it and the average stated underneath. Left of it is the
+pack, right of it the combustion half, and the two top reveals carry the seven
+temperatures and the eight fluid lamps.
+
+The lamps are a single line, not an inventory: silent while they answer and are
+healthy, naming the fault the moment one is not, and saying plainly when they
+did not answer at all. Their eight names live on the engine page, where there is
+room to read them.
+
+### Telemetry ownership
+
+`VehicleTelemetryHub` gained a third activity flag. The two panel pages call
+`stop()` unconditionally from their own pause and detach with no reference
+count, which is safe only while every consumer is a page of the same Activity.
+The cluster dashboard is alive exactly when that Activity is paused, so
+`setDashboardActive(true)` holds the loop open and `stop()` honours that claim.
+The dashboard also opts into the combustion set, since it draws revolutions,
+generation and the lamps - the same roughly half-second sweep the engine page
+pays for. It redraws at ten frames a second, which is already faster than the
+sweep that feeds it.
+
 ## Mirrors behavior preserved in Denza Apps
 
 The migrated product path preserves the standalone Denza Mirrors renderer as
