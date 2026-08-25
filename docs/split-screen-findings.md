@@ -918,6 +918,30 @@ root 3  [880,112][2536,1472]  Yandex Music             visible=true
 area mode = 3
 ```
 
+### Panel containers are permanent; the live tx30 map (2026-08-24 diagnosis)
+
+Measured live on TP1A.220624.014 (`eng.build20260705.011226`), gestures only:
+
+- Transaction 118 **never returns ≤0 for the two panel areas** on this
+  firmware: `i32 1` (PRIMARY) = root 2 and `i32 2` (SECONDARY) = root 3 are
+  permanent container objects. The decompiled corpus agrees:
+  `getRootTaskIdByAreaId` serves fixed `mPrimaryContainer`/`mSecondContainer`
+  objects, and `removeIviStack`/`removeAllChild` remove a container's
+  *children*, never the container. "Both panel roots empty/gone" is therefore
+  unreachable and proves nothing.
+- An ordinary Home evicts only the SECOND (wide) container's children;
+  PRIMARY children stay put. The narrow picker orphan of a natively ended
+  session consequently never leaves root 2 by itself.
+- Live tx30 (area) map: Home without a scene = `0`; visible split = `3`;
+  Home over a live hidden pair = `0` immediately; a single fullscreen
+  survivor = `1`/`2`; a foreign fullscreen app over a live scene = `4`.
+  "Covered" is area `0` or `4`, and a transitional world can flutter
+  between them.
+- A clean idle scene is stable: picker|picker and a real app pair both
+  survived 90 s untouched and visible (area `3` throughout). The earlier
+  ~50 s idle-teardown observation was state-specific (a dirty,
+  mid-transition world), not a property of every idle scene.
+
 The placeholder intentionally contains only “Откройте второе приложение”. It
 is the stable seam where the custom all-app picker can be added later without
 changing the native split routing.
