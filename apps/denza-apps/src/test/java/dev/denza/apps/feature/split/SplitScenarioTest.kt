@@ -2416,6 +2416,52 @@ class SplitScenarioTest {
     }
 
     /**
+     * Правка волны 12, последняя линия: 1.3.4 решается в самом открытии.
+     *
+     * Пользователь схлопнул панель и сразу нажал плитку - ни Home, ни подсказки, ни сверки между
+     * жестом и открытием. До этой правки открытие честно восстанавливало то, что пользователь
+     * закрыл, потому что верило слоту. Теперь оно спрашивает мир в тот единственный момент, когда
+     * ответ впервые что-то значит, и не платит за это ни одной командой сверх scene-read.
+     */
+    @Test
+    fun anOpenNeverRestoresThePaneTheUserClosed() {
+        val car = car(FakeShell(initialGate = true).apply { liveProductScene(withApps = true) })
+        val core = car.core(SplitDurable(enabled = true, slots = APP_PAIR))
+        core.initialize {}
+        core.openPickerSession()
+        car.barrier()
+        car.clearCommands()
+
+        car.fake.detachTask(SECONDARY_PICKER_TASK)
+        car.fake.detachTask(SECONDARY_APP_TASK)
+        car.fake.stretchPanelRoot(PRIMARY_ROOT)
+        car.fake.area = 1
+
+        // Ни homeVisible, ни dividerResized: сразу плитка.
+        core.openPickerSession()
+        car.barrier()
+
+        assertTrue(
+            "открытие само прочло мир и назвало закрытую панель",
+            car.diagnostics.any { it.contains("collapse settled before the restore: SECONDARY") },
+        )
+        assertEquals(
+            "закрытая панель открывается свежим пикером",
+            SplitSlot.Picker,
+            car.store.load().slot(SplitPane.SECONDARY),
+        )
+        assertEquals(SplitSlot.App(NAVIGATOR), car.store.load().slot(SplitPane.PRIMARY))
+        assertFalse(
+            "музыка не перезапущена",
+            car.commands().any { it.startsWith("am start ") && it.contains(MUSIC) },
+        )
+        assertTrue(
+            "её задача жива и не тронута: прошивка отвязала её, продукт не трогает (1.8.2)",
+            car.fake.hasTask(SECONDARY_APP_TASK),
+        )
+    }
+
+    /**
      * Правка волны 12, третья половина: рецепт может не отказать, а умереть.
      *
      * Живой ринг v27 A1: `background reconcile failed quietly: Split изменился при возврате

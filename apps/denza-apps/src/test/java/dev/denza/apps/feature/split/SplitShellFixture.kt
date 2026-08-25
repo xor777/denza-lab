@@ -520,6 +520,17 @@ internal class FakeShell(
                 // Возврат задачи фоном (`toTop=false`) не накрывает экран: полноэкранный root
                 // выходит на передний план только когда задача поднята на его вершину.
                 if (rootId == FULL_ROOT && toTop) area = 4
+                // Панель, снова получившая задачу рядом с занятой соседкой, восстанавливает
+                // сбалансированный split - и вместе с ним панельные границы обоих контейнеров.
+                if (changedRoot && rootId in setOf(PRIMARY_ROOT, SECONDARY_ROOT) && area != 3) {
+                    val peer = if (rootId == PRIMARY_ROOT) SECONDARY_ROOT else PRIMARY_ROOT
+                    if (tasks.any { it.rootId == peer }) {
+                        area = 3
+                        stretchedRoot = null
+                        tasks.filter { it.rootId == rootId || it.rootId == peer }
+                            .forEach { it.bounds = bounds(it.rootId) }
+                    }
+                }
                 keepPickerOnTopIfConfigured(task)
                 ""
             }
@@ -670,7 +681,9 @@ internal class FakeShell(
     }
 
     private fun bounds(rootId: Int): SplitBounds = when {
-        rootId == stretchedRoot -> FULL
+        // Растяжение живёт ровно до следующего сбалансированного split: накрытие его сохраняет,
+        // новая сборка панелей отменяет.
+        rootId == stretchedRoot && area != 3 -> FULL
         rootId == PRIMARY_ROOT -> if (area == 1) FULL else PRIMARY_BOUNDS
         rootId == SECONDARY_ROOT -> if (area == 2) FULL else SECONDARY_BOUNDS
         else -> FULL

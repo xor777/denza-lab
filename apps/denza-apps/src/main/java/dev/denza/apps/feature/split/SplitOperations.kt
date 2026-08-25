@@ -570,6 +570,9 @@ internal class OpenOperation(
         if (!working.enabled) return null
         mark(op, "dequeued")
         settle(SplitFact.OpenRequested)
+        // 1.3.4 is decided here or nowhere: this is the one moment a pane the user closed can be
+        // brought back, so it is also the one moment worth asking the car again (правка волны 12).
+        settleTheCollapseNobodyRead(op)
         // The durable slots are the selection, and nothing else has to be asked (1.13.1). Scanning
         // the launcher catalogue here cost 815 ms of every open just to filter out a package that
         // is no longer installed - and the pane that meets one degrades to a fresh picker anyway
@@ -591,6 +594,35 @@ internal class OpenOperation(
         )
         mark(op, "scene-read: ${read.reason}")
         return SplitOpenPlan(adoptable(read.scene, restorable, op), restorable)
+    }
+
+    /**
+     * Contract 1.3.4: a pane the user closed is never restored - not even when nobody told the
+     * product it had been closed (правка волны 12).
+     *
+     * Схлопывание доказывает сверка, и обычно она успевает. Живьём, однако, целая серия жестов не
+     * оставила в ринге ни одной строки за 320 секунд: подсказки о движении дивайдера просто не
+     * пришло, доказывать было некому, и слот закрытой панели дожил до этого места как `App(...)`.
+     * Восстановить его отсюда - потерять решение пользователя, поэтому мир спрашивают ещё раз,
+     * ровно в тот момент, когда ответ впервые начинает что-то значить.
+     *
+     * Стоит это ноль команд: [SplitPickerShellSession.collapsedPaneByPanelBounds] читает те же
+     * два `activity_task 118` и тот же `am stack list`, которые следом читает scene-read, и они
+     * общие в пределах операции ([SplitTopologyCache]). Мутаций здесь нет вовсе: огрызок пикера
+     * закрытой панели уберёт сама сборка, которая сейчас переложит обе панели заново.
+     */
+    private fun settleTheCollapseNobodyRead(op: SplitOperationContext) {
+        if (working.scene != SplitScene.Split) return
+        val expected = SplitCoordinatorCore.collapseExpectation(liveScene)
+            ?.takeIf { panes -> panes.keys == SplitPane.entries.toSet() }
+            ?: return
+        val read = runCatching {
+            work.split(op).collapsedPaneByPanelBounds(SPLIT_PICKER_COMPONENT_SET, expected)
+        }.getOrNull() ?: return
+        val collapsed = read.collapsed ?: return
+        mark(op, "collapse settled before the restore: $collapsed")
+        liveScene = liveScene - collapsed
+        settle(SplitFact.PaneCollapsedSettled(collapsed.other()))
     }
 
     /**
