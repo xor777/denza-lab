@@ -412,6 +412,97 @@ class SplitPickerShellSessionTest {
         )
     }
 
+    /**
+     * Правка волны 13 (П3, приёмка v28, дефект 0): приложение с двумя живыми задачами вообще
+     * нельзя было выбрать в панель.
+     *
+     * Живьём: `select outcome=rolled-back reason=Приложение ru.yandex.music не стало верхним в
+     * выбранном окне in 6139ms`, воспроизведено дважды. У Яндекс.Музыки две живые задачи (t316,
+     * t532), прошивка привела в панель обе, верхней стала не запущенная - и постусловие
+     * `top.id == launchedTask.id` объявило откат окну, которое пользователь ВИДЕЛ открытым.
+     * Слот не двигался, продукт не помнил ничего, первый же Home стирал результат. Apple Music с
+     * одной задачей коммитилась штатно за 2.5 с.
+     *
+     * Постусловие спрашивает про ЦЕЛЕВОЕ ПРИЛОЖЕНИЕ (1.5.2, 1.5.3, U5, инвариант 9), слот пишется
+     * по фактической верхней задаче, а лишняя задача пакета - имущество пользователя: она уезжает
+     * живой в фон, её не убивают (инвариант 3, U2).
+     */
+    @Test
+    fun aSelectOfAnAppWithTwoLiveTasksCommitsTheWindowTheUserSees() {
+        val fake = FakeShell()
+        val split = session(fake)
+        val hosts = split.buildPickers()
+        // Две живые задачи пакета вне панелей - ровно то, что читал стек v28 перед тапом.
+        fake.addTask(DETACHED_ROOT, 316, MUSIC, "$MUSIC.MainActivity")
+        fake.addTask(DETACHED_ROOT, 532, MUSIC, "$MUSIC.MainActivity")
+        fake.firmwareDragsEveryTaskOf += MUSIC
+
+        val placement = split.selectApp(
+            pickerTaskId = hosts.getValue(SplitPane.PRIMARY),
+            target = SplitLaunchTarget(MUSIC, "$MUSIC/$MUSIC.MainActivity"),
+            pickerComponents = PICKER_COMPONENTS,
+        )
+
+        assertEquals(SplitPane.PRIMARY, placement.pane)
+        assertEquals(MUSIC, placement.packageName)
+        // Запуск адресовал t532 - продукт сам её и двигал, - а прошивка положила поверх t316.
+        assertTrue(
+            "запуск взял и промоутил именно t532: ${fake.commands}",
+            fake.commands.any { it == "am stack move-task 532 $PRIMARY_ROOT true" },
+        )
+        assertEquals(
+            "слот записан по фактически вставшему окну, а не по адресату запуска",
+            316,
+            placement.appTaskId,
+        )
+        assertEquals(placement.appTaskId, fake.topTaskId(PRIMARY_ROOT))
+        assertEquals(
+            "панель - это её база и одно приложение",
+            listOf(hosts.getValue(SplitPane.PRIMARY), 316),
+            fake.taskIds(PRIMARY_ROOT),
+        )
+        assertTrue("вторая задача пользователя жива", fake.hasTask(532))
+        assertEquals("и уехала живой в фон", FULL_ROOT, fake.taskRoot(532))
+        assertFalse(
+            "её никто не убивал",
+            fake.commands.any { it.contains("remove-task ") && it.contains(" 532 ") },
+        )
+    }
+
+    /**
+     * Обратная сторона той же правки: пакет цели больше не единственное слово постусловия, но
+     * собственный компонент продукта им не становится (инвариант 3, U3).
+     *
+     * Дефект v17 «пикер поверх приложения» в этом мире особенно зол: пикер-база и MainActivity
+     * Denza Apps живут в ОДНОМ пакете, и постусловие по одному пакету записало бы собственную
+     * базу как приложение пользователя. Такая панель - не открытое приложение, а тот же пикер;
+     * это отказ, а отказ оставляет базы стоять (инвариант 9, 1.5.7).
+     */
+    @Test
+    fun aSelectRefusesWhenTheOwnPickerBaseIsWhatStaysOnTop() {
+        val fake = FakeShell(pickerStaysAboveApps = true)
+        val split = session(fake)
+        val hosts = split.buildPickers()
+
+        val refusal = runCatching {
+            split.selectApp(
+                pickerTaskId = hosts.getValue(SplitPane.PRIMARY),
+                target = SplitLaunchTarget(
+                    SPLIT_HOST_PACKAGE,
+                    "$SPLIT_HOST_PACKAGE/$SPLIT_HOST_PACKAGE.MainActivity",
+                ),
+                pickerComponents = PICKER_COMPONENTS,
+            )
+        }.exceptionOrNull()
+
+        assertTrue(
+            "пикер-база того же пакета - не «приложение встало»: ${refusal?.message}",
+            refusal?.message.orEmpty().contains("не стало верхним"),
+        )
+        assertTrue("база панели цела", fake.hasTask(hosts.getValue(SplitPane.PRIMARY)))
+        assertTrue("и база соседа тоже", fake.hasTask(hosts.getValue(SplitPane.SECONDARY)))
+    }
+
     @Test
     fun alreadyRunningOwnedSceneIsAdoptedWithoutTaskMutation() {
         val fake = FakeShell()

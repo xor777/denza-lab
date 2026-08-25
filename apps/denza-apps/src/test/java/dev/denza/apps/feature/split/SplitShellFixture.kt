@@ -141,6 +141,15 @@ internal class FakeShell(
     val firmwareChoosesRootFor = mutableMapOf<String, Int>()
 
     /**
+     * Пакеты, чьи живые задачи прошивка приводит в панель ВСЕ сразу, а не по одной.
+     *
+     * Живьём (приёмка v28, дефект 0): тап по Яндекс.Музыке привёл в узкую панель И t316, И t532,
+     * обе видимые, и верхней стала не та, которую запустил продукт. Задачи, стоящие в соседней
+     * панели, прошивка не трогает - они остаются её содержимым (1.5.2).
+     */
+    val firmwareDragsEveryTaskOf = mutableSetOf<String>()
+
+    /**
      * What the firmware did without a command from us.
      *
      * A shared topology read ([SplitTopologyCache]) may not survive one: out of band is exactly the
@@ -544,6 +553,25 @@ internal class FakeShell(
                     } else {
                         val firstInRoot = tasks.indexOfFirst { it.rootId == rootId }
                         if (firstInRoot >= 0) tasks.add(firstInRoot, task) else tasks += task
+                    }
+                }
+                if (
+                    changedRoot &&
+                    task.packageName in firmwareDragsEveryTaskOf &&
+                    (rootId == PRIMARY_ROOT || rootId == SECONDARY_ROOT)
+                ) {
+                    tasks.filter { sibling ->
+                        sibling.id != task.id &&
+                            sibling.packageName == task.packageName &&
+                            sibling.rootId != PRIMARY_ROOT &&
+                            sibling.rootId != SECONDARY_ROOT &&
+                            sibling.rootId != EXTERNAL_ROOT
+                    }.forEach { sibling ->
+                        tasks.remove(sibling)
+                        sibling.rootId = rootId
+                        sibling.bounds = bounds(rootId)
+                        // Выше запущенной: живьём верхней оказывалась именно соседняя задача.
+                        tasks += sibling
                     }
                 }
                 if (destabilizeAreaOnNextShellMove) {

@@ -1361,14 +1361,25 @@ internal class SplitPickerShellSession(
                     task.isDenzaPickerBase() && task.matchesAnyComponent(pickerComponents)
                 } ?: error("Пикер панели, куда прошивка поставила приложение, не найден")
             }
-            normalizeTaskToRoot(launchedTask.id, settledRootId)
+            // Правка волны 13 (П3, 1.5.2): окном панели становится та задача цели, которая
+            // фактически встала сверху, а не та, которую адресовал запуск.
+            val settledAppTaskId = settledSelectedAppTaskId(
+                rootId = settledRootId,
+                pickerHostTaskId = settledPickerHost.id,
+                target = target,
+                launchedTaskId = launchedTask.id,
+            )
+            sweepRootsToBaseAndApp(
+                keepByRoot = mapOf(settledRootId to setOf(settledPickerHost.id, settledAppTaskId)),
+                preexistingTaskIds = baselineTaskIds,
+            )
+            normalizeTaskToRoot(settledAppTaskId, settledRootId)
             pause(ROOT_SETTLE_MS)
 
             return awaitSelectedAppPlacement(
                 pane = settledPane,
                 rootId = settledRootId,
                 pickerHost = settledPickerHost,
-                launchedTask = launchedTask,
                 target = target,
                 pickerComponents = pickerComponents,
                 expectedArea = expectedArea,
@@ -1396,7 +1407,6 @@ internal class SplitPickerShellSession(
         pane: SplitPane,
         rootId: Int,
         pickerHost: SplitTask,
-        launchedTask: SplitTask,
         target: SplitLaunchTarget,
         pickerComponents: Set<String>,
         expectedArea: Int,
@@ -1410,7 +1420,6 @@ internal class SplitPickerShellSession(
                     pane = pane,
                     rootId = rootId,
                     pickerHost = pickerHost,
-                    launchedTask = launchedTask,
                     target = target,
                     pickerComponents = pickerComponents,
                     expectedArea = expectedArea,
@@ -1434,11 +1443,25 @@ internal class SplitPickerShellSession(
         )
     }
 
+    /**
+     * Постусловие выбора: сверху в панели стоит ЦЕЛЕВОЕ ПРИЛОЖЕНИЕ (правка волны 13, П3).
+     *
+     * Прежде оно требовало, чтобы верхней стала именно та задача, которую адресовал запуск, - и
+     * приёмка v28 показала, чего это стоит: у Яндекс.Музыки две живые задачи (t316, t532),
+     * прошивка привела в панель обе, верхней оказалась не запущенная, и продукт объявил ОТКАТ
+     * окну, которое пользователь видел открытым. Слот не двигался, выбор не запоминался, первый
+     * же Home стирал результат - против 1.5.2 («живая вторая задача пакета - обычный житель
+     * мира»), 1.5.3, U5 и инварианта 9. Apple Music с одной задачей коммитилась штатно.
+     *
+     * Идентичность приложения пользователя доказывает пакет цели, а собственные компоненты
+     * продукта в неё не принимаются (инвариант 3, U3): запуск `dev.denza.apps` - это его
+     * MainActivity, но никогда не пикер-база и не retired host. Слот записывается по фактической
+     * верхней задаче, и она же становится записанной identity панели.
+     */
     private fun selectedAppPlacement(
         pane: SplitPane,
         rootId: Int,
         pickerHost: SplitTask,
-        launchedTask: SplitTask,
         target: SplitLaunchTarget,
         pickerComponents: Set<String>,
         expectedArea: Int,
@@ -1455,7 +1478,7 @@ internal class SplitPickerShellSession(
         }
         val top = root.resolvedTopTask()
             ?: error("В выбранном split-окне нет верхней задачи")
-        check(top.id == launchedTask.id && top.effectivePackageName() == target.packageName) {
+        check(top.effectivePackageName() == target.packageName && !top.isOwnSplitComponent()) {
             "Приложение ${target.packageName} не стало верхним в выбранном окне"
         }
         check(top.bounds == root.bounds) {
@@ -1474,6 +1497,37 @@ internal class SplitPickerShellSession(
             appTaskId = top.id,
             packageName = target.packageName,
         )
+    }
+
+    /**
+     * Какая задача цели стала окном панели - решает мир, а не запуск (правка волны 13, П3).
+     *
+     * Запуск продукта - `am start` без `MULTIPLE_TASK`, то есть «дай задачу пакета, какая есть»,
+     * и прошивка вольна привести в панель не одну (v28: t316 И t532 у Яндекс.Музыки). Верхняя из
+     * них - то, что видит пользователь, и именно она становится приложением панели; запущенная
+     * задача остаётся ответом только тогда, когда мир не назвал верхней ни одну из задач цели.
+     * Собственные компоненты продукта кандидатами не бывают (инвариант 3).
+     */
+    private fun settledSelectedAppTaskId(
+        rootId: Int,
+        pickerHostTaskId: Int,
+        target: SplitLaunchTarget,
+        launchedTaskId: Int,
+    ): Int {
+        val root = snapshot().root(rootId) ?: error("Split-контейнер выбранного окна исчез")
+        val candidates = root.tasks.filter { task ->
+            task.id != pickerHostTaskId &&
+                !task.isEmptyRootMarker() &&
+                !task.isOwnSplitComponent() &&
+                task.effectivePackageName() == target.packageName
+        }
+        val top = root.resolvedTopTask()
+            ?.id
+            ?.takeIf { topId -> candidates.any { candidate -> candidate.id == topId } }
+        return top
+            ?: candidates.firstOrNull { it.id == launchedTaskId }?.id
+            ?: candidates.maxByOrNull(SplitTask::id)?.id
+            ?: launchedTaskId
     }
 
     /**
@@ -2481,13 +2535,33 @@ internal class SplitPickerShellSession(
         appTaskIds: Map<SplitPane, Int>,
         preexistingTaskIds: Set<Int>?,
     ) {
-        val state = snapshot()
         // Обе базы сцены неприкосновенны, в чьём бы корне ни оказались: база не в своей панели -
         // это задача для постусловия, а не повод убить живую базу собственной сцены.
         val bases = hostTaskIds.values.toSet()
-        val surplus = SplitPane.entries.flatMap { pane ->
-            val keep = bases + setOfNotNull(appTaskIds[pane])
-            state.root(rootIds.getValue(pane))?.tasks.orEmpty()
+        sweepRootsToBaseAndApp(
+            keepByRoot = SplitPane.entries.associate { pane ->
+                rootIds.getValue(pane) to (bases + setOfNotNull(appTaskIds[pane]))
+            },
+            preexistingTaskIds = preexistingTaskIds,
+        )
+    }
+
+    /**
+     * Тот же проход для одной панели - его платит и выбор приложения (правка волны 13, П3).
+     *
+     * Прошивка приводит в панель не только то, что попросили: живьём (v28) тап по пакету с двумя
+     * живыми задачами привёл в корень обе. Панель - это её пикер-база и не больше одного
+     * приложения, поэтому лишнее уходит по тому же правилу, что и у сборки: своё и созданное
+     * этой операцией удаляется, задача пользователя уезжает живой в полноэкранный корень
+     * (инвариант 3, U2). Ни одной команды в обычном случае: лишнего нет - выхода нет.
+     */
+    private fun sweepRootsToBaseAndApp(
+        keepByRoot: Map<Int, Set<Int>>,
+        preexistingTaskIds: Set<Int>?,
+    ) {
+        val state = snapshot()
+        val surplus = keepByRoot.flatMap { (rootId, keep) ->
+            state.root(rootId)?.tasks.orEmpty()
                 .filterNot { task -> task.id in keep || task.isEmptyRootMarker() }
         }
         if (surplus.isEmpty()) return
