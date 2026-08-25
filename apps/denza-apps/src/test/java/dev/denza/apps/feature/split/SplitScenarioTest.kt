@@ -2085,11 +2085,10 @@ class SplitScenarioTest {
     /**
      * Правка W2 (волна 7, мёртвая точка «б»): сабмит HomeOperation снимает взведённые повторы
      * сверки (cancelReconcileRechecks), и в v22 уборка, чей повтор был снят, замолкала навсегда.
-     * Подтверждённый Home обязан сам закончиться финальной read-only проверкой «есть ли мёртвый
-     * член» - и при да подать уборку. Правка W2 волны 8 (Ф2): подаёт он её ОТЛОЖЕННЫМ каналом
-     * правки W3, не мгновенным сабмитом - мир не читается в зубы двухпроходного teardown.
-     * Собственный взвод происходит внутри операции, после submit-времени самого Home, так что
-     * сам себя Home не хоронит.
+     * Подтверждённый Home обязан сам подать одну отложенную сверку - каналом правки W3, не
+     * мгновенным сабмитом: мир не читается в зубы двухпроходного teardown. Собственный взвод
+     * происходит внутри операции, после submit-времени самого Home, так что сам себя Home не
+     * хоронит. Волна 12 сняла с Home ещё и решение «а стоит ли»: он подаёт сверку всегда.
      */
     @Test
     fun aConfirmedHomeOverADeadMemberArmsTheDeferredCleanup() {
@@ -2118,7 +2117,7 @@ class SplitScenarioTest {
         )
         assertTrue(
             "и след решения в ринге",
-            car.diagnostics.any { it.startsWith("home confirmed over a dead member") },
+            car.diagnostics.any { it.startsWith("home confirmed: одна отложенная сверка") },
         )
 
         car.clock.advance(SplitCoordinatorCore.RECONCILE_RECHECK_DELAY_MS)
@@ -2433,6 +2432,109 @@ class SplitScenarioTest {
             "музыка не перезапущена",
             car.commands().any { it.startsWith("am start ") && it.contains(MUSIC) },
         )
+    }
+
+    /**
+     * Правка волны 12, вторая половина: подсказки о схлопывании может не прийти вовсе.
+     *
+     * Живой протокол 2026-08-25: одно из схлопываний не оставило в ринге НИ ОДНОЙ строки за 320
+     * секунд - ни отказавшей сверки, ни упавшей: дивайдерной подсказки просто не было, и
+     * доказывать закрытие было некому. Единственная подсказка, которая после накрытия приходит
+     * гарантированно, - сам Home; он и подаёт один отложенный взгляд на накрытый мир.
+     */
+    @Test
+    fun aCollapseNoHintEverReportedIsClosedByTheHomeThatCoveredIt() {
+        val car = car(FakeShell(initialGate = true).apply { liveProductScene(withApps = true) })
+        val core = car.core(SplitDurable(enabled = true, slots = APP_PAIR))
+        car.gateLease.setOwned(true)
+        core.initialize {}
+        core.openPickerSession()
+        car.barrier()
+        car.clearCommands()
+
+        car.fake.detachTask(SECONDARY_PICKER_TASK)
+        car.fake.detachTask(SECONDARY_APP_TASK)
+        car.fake.stretchPanelRoot(PRIMARY_ROOT)
+        car.fake.area = 0
+
+        // Ни dividerResized, ни pickerHidden: продукту о жесте никто не сказал.
+        core.homeVisible()
+        car.barrier()
+
+        assertEquals(
+            "подтверждённый Home взвёл ровно один отложенный взгляд",
+            1,
+            car.clock.pendingTimers(),
+        )
+        assertEquals(
+            "и сам ничего не решил",
+            SplitSlot.App(MUSIC),
+            car.store.load().slot(SplitPane.SECONDARY),
+        )
+
+        car.clock.advance(SplitCoordinatorCore.RECONCILE_RECHECK_DELAY_MS)
+        car.barrier()
+
+        assertEquals(
+            "сверка прочла накрытый мир и закрыла панель, которую закрыл пользователь",
+            SplitSlot.Closed,
+            car.store.load().slot(SplitPane.SECONDARY),
+        )
+        assertEquals(SplitSlot.App(NAVIGATOR), car.store.load().slot(SplitPane.PRIMARY))
+        assertTrue("приложение пользователя живо", car.fake.hasTask(SECONDARY_APP_TASK))
+        assertEquals("и цепочки повторов за собой не оставила", 0, car.clock.pendingTimers())
+    }
+
+    /**
+     * Правка волны 12, третья половина: рецепт может не отказать, а умереть.
+     *
+     * Живой ринг v27 A1: `background reconcile failed quietly: Split изменился при возврате
+     * picker 583` - физическая адопция схлопывания вернула пикера выжившего в его корень, Home
+     * уронил проверку мира сразу после, ход откатился, а исключение унесло с собой и остальные
+     * предикаты collapse, и взвод повтора. Факт закрытия исчезал вместе с операцией.
+     */
+    @Test
+    fun aReconcileThatDiedInsideItsOwnRecipeStillArmsItsOneRepeat() {
+        val car = car(FakeShell(initialGate = true).apply { liveProductScene(withApps = true) })
+        val core = car.core(SplitDurable(enabled = true, slots = APP_PAIR))
+        core.initialize {}
+        core.openPickerSession()
+        car.barrier()
+        car.clearCommands()
+
+        car.fake.detachTask(SECONDARY_PICKER_TASK)
+        car.fake.detachTask(SECONDARY_APP_TASK)
+        car.fake.stretchPanelRoot(PRIMARY_ROOT)
+        // Мир ещё показывает выжившего (area 1/2) - ровно тот такт, в котором физическая
+        // адопция берётся двигать пикера и в котором её роняет пришедший Home.
+        car.fake.area = 1
+        car.shells.failOn("am stack list")
+
+        core.dividerResized()
+        car.barrier()
+
+        assertEquals(
+            "умерший рецепт - такая же недоказанная топология, как отказавший",
+            1,
+            car.clock.pendingTimers(),
+        )
+        assertEquals(
+            "и ничего не записал",
+            SplitSlot.App(MUSIC),
+            car.store.load().slot(SplitPane.SECONDARY),
+        )
+
+        // ...а к моменту повтора Home уже накрыл экран, и оба прежних предиката слепы.
+        car.fake.area = 0
+        car.clock.advance(SplitCoordinatorCore.RECONCILE_RECHECK_DELAY_MS)
+        car.barrier()
+
+        assertEquals(
+            "повтор довёл доказательство",
+            SplitSlot.Closed,
+            car.store.load().slot(SplitPane.SECONDARY),
+        )
+        assertEquals("и новых повторов не взвёл (U1)", 0, car.clock.pendingTimers())
     }
 
     /**
@@ -3355,9 +3457,15 @@ class SplitScenarioTest {
         core.homeVisible()
         car.barrier()
         assertFalse("gate приостановлен Home-ом как обычно", car.fake.isGateOpen())
-        assertTrue(
-            "подтверждённый Home уборку не подал: якорь - живые приложения",
-            car.diagnostics.none { it.startsWith("home confirmed over a dead member") },
+        assertEquals(
+            "Home подал ровно одну отложенную сверку и ничего не решил сам (волна 12)",
+            1,
+            car.clock.pendingTimers(),
+        )
+        assertEquals(
+            "а сам не тронул ни одной задачи - только подвесил gate",
+            emptyList<String>(),
+            car.mutations().filterNot { it == "service call activity_task 126 i32 0" },
         )
 
         // Эхо накрытой сцены: hidden-хинт умершей базы и оконное эхо; плюс их отложенные повторы.
