@@ -71,6 +71,9 @@ RETURN_INK = '#4B9BE0'
 DATA_PEAK = '#FFF8DA'
 WARNING = '#FF9F19'
 BACKGROUND = '#07080A'
+# The cluster's own ground since 2026-08-25: the panel is black, and three per cent
+# of grey is a visible rectangle there while it is nothing on a board in a browser.
+CLUSTER_BG = '#000000'
 INK_55 = 'rgba(218,225,235,0.55)'
 INK_32 = 'rgba(218,225,235,0.32)'
 INK_24 = 'rgba(218,225,235,0.24)'
@@ -350,6 +353,61 @@ def track(left, right, cy, d, fraction, colour, with_track=True):
     return out
 
 
+def bloom(layout, kw):
+    """The pool of light around the dial, at the reach and strength that shipped.
+
+    Found by accident when the old scrim ran over the vehicle's own lit
+    background; kept on purpose. 2.4 by 1.85 radii at 0.16 alpha of INK.
+    """
+    cx, cy = layout.gauge_cx * layout.w, layout.gauge_cy * layout.h
+    r = layout.gauge_r * layout.h
+    return [
+        '<defs><radialGradient id="dialglow">'
+        f'<stop offset="0" stop-color="{INK}" stop-opacity="0.16"/>'
+        f'<stop offset="0.5" stop-color="{INK}" stop-opacity="0.072"/>'
+        f'<stop offset="1" stop-color="{INK}" stop-opacity="0"/>'
+        '</radialGradient></defs>',
+        f'<ellipse cx="{f(cx)}" cy="{f(cy)}" rx="{f(r * 2.4)}" ry="{f(r * 1.85)}" '
+        'fill="url(#dialglow)"/>',
+    ]
+
+
+def engine_trace(x0, x1, baseline, height, rpm, gen):
+    """The sparkline beside the revolutions, as shipped: two runs, no scale."""
+    out = []
+    for values, ceiling, colour, root in ((rpm, 6000.0, INK_55, False),
+                                          (gen, 100.0, RETURN, True)):
+        run = []
+        for i, value in enumerate(values):
+            if value is None:
+                continue
+            share = min(1.0, max(0.0, value / ceiling))
+            if root:
+                share = share ** 0.5
+            run.append((x0 + (x1 - x0) * i / (len(values) - 1), baseline - height * share))
+        if len(run) < 2:
+            continue
+        d = 'M ' + ' L '.join(f'{f(x)} {f(y)}' for x, y in run)
+        out.append(f'<path d="{d}" fill="none" stroke="{colour}" stroke-width="1.9" '
+                   'stroke-linejoin="round" stroke-linecap="round"/>')
+        out.append(f'<circle cx="{f(run[-1][0])}" cy="{f(run[-1][1])}" r="3.9" fill="{colour}"/>')
+    return out
+
+
+def engine_history(sleeping=40, slots=120):
+    """Two minutes of a generating engine. Deterministic, so a board is stable."""
+    rpm, gen = [], []
+    for i in range(slots):
+        if i < sleeping:
+            rpm.append(None)
+            gen.append(None)
+            continue
+        t = (i - sleeping) / float(slots - sleeping)
+        rpm.append(round(900 + 1500 * min(1.0, t * 4) + 120 * ((i * 7) % 5) / 4.0, 1))
+        gen.append(round(max(0.0, 11.0 * min(1.0, (t - 0.10) * 6) + 1.4 * ((i * 5) % 4) / 3.0), 2))
+    return rpm, gen
+
+
 def electric_wide(layout, d, v):
     rows = [text_row(d, d.title), text_row(d, d.figure, LEAD_TITLE),
             rule_row(d, LEAD_FIGURE), text_row(d, d.body, LEAD_GROUP)]
@@ -365,20 +423,32 @@ def electric_wide(layout, d, v):
 
 
 def engine_wide(layout, d, v):
+    """As shipped after the first live run: the tank and the sentence are gone.
+
+    Both were on the vehicle's own cluster a few centimetres away. The room the
+    tank leaves goes to a trace of where the revolutions and the generation have
+    just been, drawn on the figure's own baseline and the height of its digits -
+    no row is added, and the row reads as one object.
+    """
     rows = [text_row(d, d.title), text_row(d, d.figure, LEAD_TITLE),
             rule_row(d, LEAD_FIGURE), text_row(d, d.body, LEAD_GROUP)]
     c = Column(layout, layout.engine, d, rows)
     out = [f'<text class="ttl" x="{f(c.right)}" y="{f(c.next())}" text-anchor="end">ДВИГАТЕЛЬ</text>']
     y = c.next()
     out.append(pair(c.right, y, [('fg', v['rpm'], 0), ('un', 'об/мин', d.rhythm(1))], anchor='end'))
-    out.append(pair(c.left, y, [('rd', v['fuel'], 0, v.get('fuel_colour')),
-                                ('bd', '% бак', d.rhythm(1))]))
+    # The figure's own width, so the trace stops where the digits begin.
+    figure_w = len(v['rpm']) * d.figure * 0.6 + d.rhythm(1) + len('об/мин') * d.body * 0.52
+    rpm_trace, gen_trace = engine_history()
+    out += engine_trace(c.left, c.right - figure_w - d.rhythm(2), y, d.figure * 0.72,
+                        rpm_trace, gen_trace)
     rule = c.next()
     out += track(c.left, c.right, rule, d, v['rpm_fraction'], INK_32)
     if v['generation_fraction']:
         out += track(c.left, c.right, rule, d, v['generation_fraction'], RETURN, with_track=False)
-    out.append(f'<text class="bd" x="{f(c.right)}" y="{f(c.next())}" '
-               f'text-anchor="end">{v["engine_line"]}</text>')
+    # The last row is planned and usually empty: it speaks only for the exception.
+    if v.get('engine_line'):
+        out.append(f'<text class="bd" x="{f(c.right)}" y="{f(c.next())}" '
+                   f'text-anchor="end">{v["engine_line"]}</text>')
     return out
 
 
@@ -516,14 +586,14 @@ HEAD = """<!doctype html>
 
 
 def page(layout, density, body):
-    css = HEAD % dict(bg=BACKGROUND, ink=INK, muted=MUTED, muted_deep=MUTED_DEEP,
+    css = HEAD % dict(bg=CLUSTER_BG, ink=INK, muted=MUTED, muted_deep=MUTED_DEEP,
                       title=f(density.title), title2=f(COMPACT.title), tracking=TITLE_TRACKING,
                       figure=f(density.figure), reading=f(density.reading),
                       reading2=f(COMPACT.reading), body=f(density.body), body2=f(COMPACT.body),
                       tick=f(density.tick))
     w, h = f(layout.w), f(layout.h)
     return (css +
-            f'<div style="width:{w}px; height:{h}px; background:{BACKGROUND}; position:relative;">\n'
+            f'<div style="width:{w}px; height:{h}px; background:{CLUSTER_BG}; position:relative;">\n'
             f'  <svg width="{w}" height="{h}" viewBox="0 0 {w} {h}">\n    ' +
             '\n    '.join(body) +
             f'\n  </svg>\n</div>\n</x-dc>\n'
@@ -584,7 +654,7 @@ RESTING = dict(
     rpm='0', fuel='53', rpm_fraction=0.0,
     generation_fraction=None,
     fuel_fraction=0.53,
-    engine_line='заглушен · 491 км на бензине',
+    engine_line='',
     lamp_line='в норме 6 из 8', lamp_line_brief='в норме 6 из 8', lamp_alert=False,
     lamps=['ok'] * 6 + ['unknown'] * 2,
     pack_c='—', pack_c_colour='rgba(218,225,235,0.40)',
@@ -595,6 +665,7 @@ RESTING = dict(
 def board_full(values, kw, caption, bars):
     layout = Layout('FULL')
     body = keepout(layout)
+    body += bloom(layout, kw)
     body += gauge(layout, WIDE, kw, bars, caption)
     body += electric_wide(layout, WIDE, values)
     body += engine_wide(layout, WIDE, values)
@@ -609,6 +680,7 @@ def board_right(values, kw, caption, bars):
             f'fill="none" stroke="rgba(218,225,235,0.10)"/>',
             f'<text class="keep" x="{f(layout.w / 2)}" y="18" text-anchor="middle">'
             f'КРОП · ШТАТНОЙ ГРАФИКИ НЕТ</text>']
+    body += bloom(layout, kw)
     body += gauge(layout, COMPACT, kw, bars, caption)
     body += electric_narrow(layout, COMPACT, values)
     body += engine_narrow(layout, COMPACT, values)

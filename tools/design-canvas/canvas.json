@@ -113,24 +113,6 @@
       "page": "page-panels"
     },
     {
-      "file": "ClusterFull.dc.html",
-      "x": 0,
-      "y": 0,
-      "w": 1507.6,
-      "h": 424.0,
-      "title": "Приборка · вся полоса",
-      "page": "page-cluster"
-    },
-    {
-      "file": "ClusterRight.dc.html",
-      "x": 0,
-      "y": 520,
-      "w": 601.3,
-      "h": 308.0,
-      "title": "Приборка · правая треть",
-      "page": "page-cluster"
-    },
-    {
       "file": "Kit.dc.html",
       "x": 0,
       "y": 0,
@@ -149,12 +131,48 @@
       "page": "page-palette"
     },
     {
-      "file": "ClusterRest.dc.html",
+      "file": "ClusterNext.dc.html",
+      "x": 0,
+      "y": 0,
+      "w": 1507.6,
+      "h": 424.0,
+      "title": "Приборка · переосмысление",
+      "page": "page-cluster"
+    },
+    {
+      "file": "ClusterFull.dc.html",
       "x": 0,
       "y": 504,
       "w": 1507.6,
       "h": 424.0,
-      "title": "Приборка · покой и заряд",
+      "title": "Приборка · как стоит на машине",
+      "page": "page-cluster"
+    },
+    {
+      "file": "ClusterRest.dc.html",
+      "x": 0,
+      "y": 1008,
+      "w": 1507.6,
+      "h": 424.0,
+      "title": "Приборка · покой и зарядка",
+      "page": "page-cluster"
+    },
+    {
+      "file": "ClusterRight.dc.html",
+      "x": 0,
+      "y": 1512,
+      "w": 601.3,
+      "h": 308.0,
+      "title": "Приборка · правая треть",
+      "page": "page-cluster"
+    },
+    {
+      "file": "ClusterFluids.dc.html",
+      "x": 700,
+      "y": 1512,
+      "w": 832.0,
+      "h": 452.0,
+      "title": "Жидкости · четыре состояния",
       "page": "page-cluster"
     }
   ],
@@ -242,6 +260,6 @@
   ],
   "launch": {
     "view": "canvas",
-    "page": "page-screens"
+    "page": "page-cluster"
   }
 }
