@@ -370,7 +370,12 @@ internal class SplitCoordinatorCore(
             log.log("home hint dropped: the scene is already covered (invariant 8)")
             return
         }
-        submit { work -> HomeOperation(work) }
+        // Правка W2 (волна 7): сабмит Home снимает взведённые повторы сверки ниже, поэтому
+        // подтверждённый Home с мёртвым членом обязан сам подать одну уборочную сверку -
+        // обычный HINT, который прочтёт мир заново и решит его правилами W1.
+        submit { work ->
+            HomeOperation(work) { submitReconcile(SplitReconcileKind.DividerResized) }
+        }
     }
 
     /** Contract 1.8.5: the stock picker of an edge drag, only inside a live product scene. */

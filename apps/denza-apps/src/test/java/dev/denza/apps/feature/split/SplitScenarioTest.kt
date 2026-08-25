@@ -1878,19 +1878,12 @@ class SplitScenarioTest {
         car.fake.detachTask(SECONDARY_PICKER_TASK)
         car.fake.area = 0
 
-        // The first Home hint is real: it confirms Home and suspends the gate we hold (1.9.1).
+        // The first Home hint is real: it confirms Home, suspends the gate we hold (1.9.1) - and,
+        // правка W2, само подаёт уборочную сверку: член сцены мёртв, а hidden-хинт умершего
+        // пикера может не прийти вовсе. Второй barrier дожидается поданной уборки.
         core.homeVisible()
         car.barrier()
         assertFalse(car.fake.isGateOpen())
-        assertTrue("suspension keeps the lease for the next reopen", car.gateLease.isOwned())
-
-        // The launcher goes on emitting window events, and only ONE hidden-picker hint arrives -
-        // the process that hosted the dead picker owes nothing more. The hold keeps the queue
-        // still while the storm and the cleanup demonstrably coexist in it.
-        val hold = car.hold()
-        core.pickerHidden(PRIMARY_PICKER_TASK)
-        repeat(ECHOES) { core.homeVisible() }
-        hold.release()
         car.barrier()
 
         assertFalse(
@@ -1905,9 +1898,19 @@ class SplitScenarioTest {
         assertEquals(STOCK_BOOTSTRAP_PACKAGE, car.fake.system("byd_smart_multi_second_activity"))
         assertFalse("gate закрыт по нашей аренде и аренда возвращена", car.gateLease.isOwned())
         assertFalse(car.fake.isGateOpen())
+
+        // The launcher goes on emitting window events, and the late hidden-picker hint still
+        // arrives - the world is already clean, and the storm changes nothing at all.
+        car.clearCommands()
+        val hold = car.hold()
+        core.pickerHidden(PRIMARY_PICKER_TASK)
+        repeat(ECHOES) { core.homeVisible() }
+        hold.release()
+        car.barrier()
+        assertEquals("шторм над убранным миром ничего не трогает", emptyList<String>(), car.mutations())
         assertTrue(
-            "шторм отброшен до очереди - он не может отменить уборку (инвариант 8)",
-            car.diagnostics.count { it.contains("the scene is already covered") } >= ECHOES,
+            "шторм отброшен до очереди (инвариант 8)",
+            car.diagnostics.count { it.startsWith("home hint dropped:") } >= ECHOES,
         )
 
         // 1.6.4: повторный тап после нативного конца - корректное открытие, ничего не воскресло.
@@ -1976,6 +1979,72 @@ class SplitScenarioTest {
         car.barrier()
         assertFalse(car.fake.hasTask(SECONDARY_PICKER_TASK))
         assertEquals(LAUNCHER_PACKAGE, car.fake.system("byd_smart_multi_primary_activity"))
+    }
+
+    /**
+     * Правка W2 (волна 7, мёртвая точка «б»): сабмит HomeOperation снимает взведённые повторы
+     * сверки (cancelReconcileRechecks), и в v22 уборка, чей повтор был снят, замолкала навсегда.
+     * Подтверждённый Home обязан сам закончиться финальной read-only проверкой «есть ли мёртвый
+     * член» и при да - подать одну уборочную сверку: без единого hidden-хинта и без таймеров.
+     */
+    @Test
+    fun aConfirmedHomeOverADeadMemberSubmitsTheCleanupItself() {
+        val (car, core) = wideBackWorld()
+
+        // Взведённый повтор прошлого отказа - тот самый, который Home похоронит.
+        car.shells.failOn("am stack list")
+        core.pickerHidden(PRIMARY_PICKER_TASK)
+        car.barrier()
+        assertEquals(1, car.clock.pendingTimers())
+
+        core.homeVisible()
+        car.barrier()
+        car.barrier()
+
+        // Часы не двигались: снятый сабмитом Home повтор не срабатывал, уборку подал сам Home.
+        assertFalse(
+            "подтверждённый Home сам подал уборку: сирота убран без hidden-хинта и таймеров",
+            car.fake.hasTask(SECONDARY_PICKER_TASK),
+        )
+        assertEquals(LAUNCHER_PACKAGE, car.fake.system("byd_smart_multi_primary_activity"))
+        assertFalse("gate закрыт и аренда возвращена", car.gateLease.isOwned())
+        assertEquals(0, car.clock.pendingTimers())
+        assertTrue(
+            "и след решения в ринге",
+            car.diagnostics.any { it.startsWith("home confirmed over a dead member") },
+        )
+    }
+
+    /**
+     * Правка W2 (волна 7, мёртвая точка «а»): отменённая вытеснением уборочная сверка кидает
+     * SplitOperationCancelled ДО хвостового armRecheck - в v22 она молчала навсегда. Отмена
+     * обязана перевзводить ровно один отложенный повтор, и повтор доводит уборку.
+     */
+    @Test
+    fun aCancelledCleanupReconcileReArmsItsOwnRecheck() {
+        val (car, core) = wideBackWorld()
+        // Gate не наш: подтверждённый Home тогда молчит (1.9.1), и перевзвод отмены - единственный
+        // путь уборки в этом мире.
+        car.gateLease.setOwned(false)
+
+        // Уборочная сверка в полёте, запаркованная на своей первой команде.
+        car.shells.blockAt(SPLIT_AREA_QUERY)
+        core.dividerResized()
+        assertTrue(car.shells.awaitBlocked())
+
+        // Home вытесняет её (§4) - и раньше хоронил уборку навсегда.
+        core.homeVisible()
+        car.shells.release()
+        car.barrier()
+        assertTrue("сирота ещё жив: уборку отменили", car.fake.hasTask(SECONDARY_PICKER_TASK))
+        assertEquals("отменённая уборка перевзвела ровно один повтор", 1, car.clock.pendingTimers())
+
+        car.clock.advance(SplitCoordinatorCore.RECONCILE_RECHECK_DELAY_MS)
+        car.barrier()
+
+        assertFalse("повтор довёл уборку", car.fake.hasTask(SECONDARY_PICKER_TASK))
+        assertEquals(LAUNCHER_PACKAGE, car.fake.system("byd_smart_multi_primary_activity"))
+        assertEquals(0, car.clock.pendingTimers())
     }
 
     /**

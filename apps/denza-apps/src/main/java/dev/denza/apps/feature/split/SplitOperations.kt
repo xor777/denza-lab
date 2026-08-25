@@ -830,6 +830,13 @@ internal class PackageRemovedOperation(
 /** Contract 1.9.1: Home hides the scene and suspends only a gate this product opened. */
 internal class HomeOperation(
     work: SplitOperationWorkspace,
+    /**
+     * Правка W2 (волна 7): как подать одну уборочную сверку после подтверждённого накрытия с
+     * мёртвым членом. Сабмит HomeOperation сам снимает взведённые повторы сверки (§4), поэтому
+     * подтверждённый Home обязан и заканчиваться собственной финальной read-only проверкой -
+     * иначе он хоронит уборку, которую больше некому перевзвести.
+     */
+    private val requestCleanup: () -> Unit = {},
 ) : SplitCoreOperation<Boolean>(
     label = SplitCoordinatorCore.HOME_LABEL,
     priority = SplitInputPriority.HOME,
@@ -846,6 +853,7 @@ internal class HomeOperation(
         // The recipe reads the lease before it reads the car: an unowned gate costs no command.
         if (work.split(op).suspendOwnedGateForHome(displaced = work.userInputWaiting)) {
             settle(SplitFact.HomeConfirmed)
+            scheduleCleanupOverADeadMember(op)
             return
         }
         // Правка W5 (1.9.3, U5): gate наш, а закрыть его не вышло - это не молчание. Втягивание
@@ -859,6 +867,24 @@ internal class HomeOperation(
                 "home suspend unconfirmed: area==0 не подтвердилось за ~3с, gate остался открыт (1.9.3)"
             },
         )
+    }
+
+    /**
+     * Правка W2: одна финальная read-only проверка подтверждённого Home. Нативный конец 1.6.3
+     * происходит именно на Home, и подтверждённый Home - первая подсказка, которая гарантированно
+     * приходит (hidden-хинт умершего пикера может и не прийти). Мёртвый записанный член под
+     * накрытием - конец сцены (правка W1); сама уборка остаётся сверкой (single writer, §7), Home
+     * лишь подаёт её. Живая накрытая сцена не трогается, нечитаемая машина - «не доказано»:
+     * сверку тогда перевзведёт отменённый повтор или следующая подсказка.
+     */
+    private fun scheduleCleanupOverADeadMember(op: SplitOperationContext) {
+        if (working.scene == null || liveScene.isEmpty()) return
+        val membersAlive = runCatching {
+            work.split(op).allRecordedMembersAlive(liveScene, SPLIT_PICKER_COMPONENT_SET)
+        }.getOrNull() ?: return
+        if (membersAlive) return
+        work.log("home confirmed over a dead member: уборочная сверка подана (правка W2)")
+        requestCleanup()
     }
 }
 
@@ -1138,6 +1164,27 @@ internal class ReconcileOperation(
     }
 
     override fun apply(op: SplitOperationContext, shell: (String) -> String, plan: Boolean) {
+        try {
+            applyReconcile(op, shell, plan)
+        } catch (cancelled: SplitOperationCancelled) {
+            // Правка W2 (волна 7, двойная мёртвая точка перевзвода): отмена вылетает из fence
+            // ДО хвостового armRecheck ниже, а сабмит вытеснившей операции уже снял взведённые
+            // повторы (cancelReconcileRechecks). Без перевзвода здесь вытесненная уборочная
+            // сверка замолкала навсегда. Ровно один отложенный коалесцированный повтор;
+            // DISABLE и SHUTDOWN повтора не взводят - им нечего убирать, - и отменённый повтор
+            // нового не взводит (U1, никаких цепочек).
+            if (
+                !recheck &&
+                cancelled.reason != SplitCancelReason.DISABLE &&
+                cancelled.reason != SplitCancelReason.SHUTDOWN
+            ) {
+                armRecheck(kind)
+            }
+            throw cancelled
+        }
+    }
+
+    private fun applyReconcile(op: SplitOperationContext, shell: (String) -> String, plan: Boolean) {
         if (!plan) return
         val split = work.split(op)
         // Nothing below means anything without a scene axis. A hint that can only come from a live
@@ -1373,6 +1420,10 @@ internal class ReconcileOperation(
             unproven += "конец сцены: член мёртв, но сцена не накрыта"
             return false
         }
+        // Правка W2: конец доказан, дальше - мутации. Уборочные runCatching ниже терпят капризы
+        // машины, но отмена - не каприз: raw fence выносит её сюда целой, до полу-исполненного
+        // конца, и catch в [apply] перевзводит повтор.
+        op.fence()
         val ownPickers = liveScene.values.map(SplitPickerLivePane::hostTaskId)
         liveScene = emptyMap()
         settle(SplitFact.SceneEndedSettled)
