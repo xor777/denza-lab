@@ -4,6 +4,7 @@ import android.graphics.Canvas
 import android.graphics.DashPathEffect
 import android.graphics.Paint
 import android.graphics.RadialGradient
+import android.graphics.Rect
 import android.graphics.RectF
 import android.graphics.Shader
 import android.graphics.Typeface
@@ -45,6 +46,7 @@ class InstrumentPen {
     private val valuePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { typeface = Typeface.MONOSPACE }
 
     private val oval = RectF()
+    private val bounds = Rect()
     private var dashUnit = 0f
     private var dashEffect: DashPathEffect? = null
 
@@ -130,6 +132,20 @@ class InstrumentPen {
     fun valueWidth(text: String, sizeV: Float): Float {
         valuePaint.textSize = v(sizeV)
         return valuePaint.measureText(text)
+    }
+
+    /**
+     * How tall a digit actually comes out, from its baseline up.
+     *
+     * Not the type size: a font's size includes the room above the caps and below the baseline that
+     * accents and descenders live in, and a shape asked to be "as tall as this number" and given the
+     * type size stands visibly taller than the digits beside it. Measured from a real glyph so the
+     * answer stays right if the face ever changes.
+     */
+    fun digitHeight(sizeV: Float): Float {
+        valuePaint.textSize = v(sizeV)
+        valuePaint.getTextBounds(DIGIT, 0, DIGIT.length, bounds)
+        return bounds.height().toFloat()
     }
 
     /**
@@ -253,6 +269,64 @@ class InstrumentPen {
         canvas.drawCircle(centreX, centreY, radiusX, fill)
         canvas.restoreToCount(save)
         fill.shader = null
+    }
+
+    /**
+     * One run of readings over time, oldest at the left, with a dot on the newest.
+     *
+     * The run is always the full width of its axis: [values] carries one entry per slot of that
+     * axis, `null` where nothing was recorded, and a null breaks the line rather than being drawn
+     * through. That is the whole point of it - a straight segment across a gap would claim the
+     * engine held a steady speed through a minute nobody was watching.
+     *
+     * [ceiling] is the top of the box. A reading past it is clamped rather than drawn outside, and
+     * [squareRoot] gives the low end of a wide span room, the way the energy dial does.
+     */
+    fun trace(
+        canvas: Canvas,
+        left: Float,
+        right: Float,
+        top: Float,
+        bottom: Float,
+        values: List<Double?>,
+        ceiling: Double,
+        color: Int,
+        widthV: Float,
+        dotRadiusV: Float,
+        squareRoot: Boolean = false,
+    ) {
+        if (values.size < 2 || ceiling <= 0.0 || right <= left || bottom <= top) return
+        val step = (right - left) / (values.size - 1)
+        val height = bottom - top
+
+        fun yOf(value: Double): Float {
+            val share = (value / ceiling).coerceIn(0.0, 1.0)
+            return bottom - height * (if (squareRoot) kotlin.math.sqrt(share) else share).toFloat()
+        }
+
+        stroke.color = color
+        stroke.strokeWidth = v(widthV)
+        var open = false
+        var lastX = 0f
+        var lastY = 0f
+        values.forEachIndexed { index, value ->
+            if (value == null) {
+                open = false
+                return@forEachIndexed
+            }
+            val x = left + index * step
+            val y = yOf(value)
+            if (open) canvas.drawLine(lastX, lastY, x, y, stroke)
+            lastX = x
+            lastY = y
+            open = true
+        }
+        // A single reading with nothing either side draws no segment at all, so the dot is what
+        // says it arrived.
+        val newest = values.indexOfLast { it != null }
+        if (newest >= 0 && dotRadiusV > 0f) {
+            dot(canvas, left + newest * step, yOf(values[newest]!!), dotRadiusV, color)
+        }
     }
 
     /** A filled dot. */
@@ -422,5 +496,8 @@ class InstrumentPen {
          */
         const val GLOW_MID_STOP = 0.5f
         const val GLOW_MID_PERCENT = 45
+
+        /** Measured rather than assumed; any digit of a monospaced face would do. */
+        const val DIGIT = "0"
     }
 }

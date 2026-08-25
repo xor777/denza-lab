@@ -3,6 +3,7 @@ package dev.denza.apps.feature.cluster.dashboard
 import dev.denza.apps.design.instrument.InstrumentDensity
 import dev.denza.apps.feature.cluster.ClusterMapPlacement
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -89,9 +90,17 @@ class ClusterBlockPlanTest {
             ClusterBlockPlan.electricNarrow(InstrumentDensity.COMPACT).size >
                 ClusterBlockPlan.electricWide(InstrumentDensity.WIDE).size,
         )
-        assertTrue(
-            ClusterBlockPlan.engineNarrow(InstrumentDensity.COMPACT).size >
-                ClusterBlockPlan.engineWide(InstrumentDensity.WIDE).size,
+    }
+
+    @Test
+    fun theEngineBlockIsTheSameShapeInBothSpacesNow() {
+        // It used to spend a narrow row on the tank's own gauge. The tank is gone from this block
+        // entirely - the vehicle's cluster shows it a few centimetres away - so nothing is left that
+        // one space stacks and the other lays out side by side. What differs between them is not the
+        // plan but what the figure row has room for beside the number, which the renderer decides.
+        assertEquals(
+            ClusterBlockPlan.engineWide(InstrumentDensity.WIDE).size,
+            ClusterBlockPlan.engineNarrow(InstrumentDensity.COMPACT).size,
         )
     }
 

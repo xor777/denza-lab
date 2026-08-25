@@ -122,26 +122,32 @@ class ClusterReadoutTest {
     }
 
     @Test
-    fun aStoppedEngineSaysWhatItIsWorthRatherThanJustThatItIsStopped() {
+    fun aStoppedEngineSaysNothingBecauseItsOwnFigureAlreadyDoes() {
+        // It used to say "заглушен · 491 км на бензине". The owner cut both halves on the car and
+        // was right twice: the revolutions on the row above already read the engine's state, and
+        // the range on petrol is on the vehicle's own strip a few centimetres away.
         assertEquals(
-            "заглушен · 491 км на бензине",
-            ClusterReadout.engineLine(generating = false, generationKw = null, running = false, fuelRangeKm = 491.0),
+            "",
+            ClusterReadout.engineLine(generating = false, generationKw = null, running = false),
         )
+        // A running engine that is not generating is also silent: its revolutions are moving.
         assertEquals(
-            "заглушен",
-            ClusterReadout.engineLine(generating = false, generationKw = null, running = false, fuelRangeKm = null),
+            "",
+            ClusterReadout.engineLine(generating = false, generationKw = null, running = true),
         )
+        // What is left is the exception - it is putting something back...
         assertEquals(
             "заряжает 12 кВт",
-            ClusterReadout.engineLine(generating = true, generationKw = 12.0, running = true, fuelRangeKm = 491.0),
+            ClusterReadout.engineLine(generating = true, generationKw = 12.0, running = true),
         )
         assertEquals(
-            "работает",
-            ClusterReadout.engineLine(generating = false, generationKw = null, running = true, fuelRangeKm = 491.0),
+            "заряжает батарею",
+            ClusterReadout.engineLine(generating = true, generationKw = null, running = true),
         )
+        // ...or it never answered at all, which a blank row would hide behind a resting engine.
         assertEquals(
             "двигатель не ответил",
-            ClusterReadout.engineLine(generating = false, generationKw = null, running = null, fuelRangeKm = null),
+            ClusterReadout.engineLine(generating = false, generationKw = null, running = null),
         )
     }
 

@@ -30,6 +30,8 @@ internal data class VehicleTelemetry(
     val currentConsumption: Double? = null,
     /** True while the odometer is not advancing; the live figure holds off. */
     val stationary: Boolean = false,
+    /** The last two minutes of revolutions and generation, on a one-second axis. */
+    val engineTrace: EngineTraceSnapshot = EngineTraceSnapshot.EMPTY,
     /** Milliseconds the last shell sweep took; kept for diagnostics, not shown. */
     val sweepMillis: Int = 0,
 ) {

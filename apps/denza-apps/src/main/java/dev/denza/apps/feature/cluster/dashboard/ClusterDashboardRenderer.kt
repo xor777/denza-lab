@@ -246,16 +246,12 @@ internal class ClusterDashboardRenderer {
             density, DenzaPalette.MUTED_DEEP, Paint.Align.RIGHT,
         )
 
-        val figure = column.next()
-        pen.figure(
+        val row = column.next()
+        val figureWidth = pen.figure(
             canvas, ClusterReadout.whole(t.engineRpm), UNIT_RPM,
-            column.right, figure, density, density.figure, rpmColor(t), align = Paint.Align.RIGHT,
+            column.right, row, density, density.figure, rpmColor(t), align = Paint.Align.RIGHT,
         )
-        pen.figure(
-            canvas, ClusterReadout.whole(t.fuelPercent), FUEL_UNIT,
-            column.left, figure, density, density.reading,
-            levelColor(ClusterReadout.fuelState(t.fuelPercent)), DenzaPalette.MUTED_DEEP,
-        )
+        engineTrace(canvas, column, density, row, figureWidth, t)
 
         revolutions(canvas, column, density, t)
 
@@ -278,23 +274,14 @@ internal class ClusterDashboardRenderer {
             density, DenzaPalette.MUTED_DEEP, Paint.Align.RIGHT,
         )
 
-        pen.figure(
+        val row = column.next()
+        val figureWidth = pen.figure(
             canvas, ClusterReadout.whole(t.engineRpm), UNIT_RPM,
-            column.right, column.next(), density, density.figure, rpmColor(t),
-            align = Paint.Align.RIGHT,
+            column.right, row, density, density.figure, rpmColor(t), align = Paint.Align.RIGHT,
         )
-        revolutions(canvas, column, density, t)
+        engineTrace(canvas, column, density, row, figureWidth, t)
 
-        pen.figure(
-            canvas, ClusterReadout.whole(t.fuelPercent), FUEL_UNIT,
-            column.right, column.next(), density, density.reading,
-            levelColor(ClusterReadout.fuelState(t.fuelPercent)),
-            DenzaPalette.MUTED_DEEP, Paint.Align.RIGHT,
-        )
-        pen.track(
-            canvas, column.left, column.right, column.next(),
-            density.trackHeight, ClusterReadout.fuelFraction(t.fuelPercent), DenzaPalette.ink(0.7f),
-        )
+        revolutions(canvas, column, density, t)
 
         // The narrow layout has no reveal to put the lamps in, so they speak here instead.
         pen.label(
@@ -324,11 +311,51 @@ internal class ClusterDashboardRenderer {
         }
     }
 
+    /**
+     * Where the revolutions and the generation have just been, beside the figure they belong to.
+     *
+     * It takes the room the tank's percentage used to have and adds no row of its own: it stands on
+     * the figure's baseline and is exactly as tall as the figure's digits, so it reads as part of
+     * the number rather than as a second instrument. It runs from the gauge's left edge to where the
+     * digits begin, which makes the row one object - history, then the reading it arrived at.
+     *
+     * Both traces share the box. Their ceilings differ and the box carries no scale, because what it
+     * is for is the pair of shapes: whether the engine spun up before it started putting anything
+     * back, and whether what it puts back is steady. The two current numbers are already on the row.
+     */
+    private fun engineTrace(
+        canvas: Canvas,
+        column: Column,
+        density: InstrumentDensity,
+        baseline: Float,
+        figureWidth: Float,
+        t: VehicleTelemetry,
+    ) {
+        val right = column.right - figureWidth - pen.v(density.rhythm(2f))
+        val top = baseline - pen.digitHeight(density.figure)
+        if (right - column.left < pen.v(TRACE_MIN_WIDTH)) return
+
+        val trace = t.engineTrace
+        pen.trace(
+            canvas, column.left, right, top, baseline,
+            trace.revolutions, ClusterReadout.RPM_FULL, DenzaPalette.ink(0.55f),
+            density.hairline * TRACE_WIDTH, density.dotRadius * TRACE_DOT,
+        )
+        pen.trace(
+            canvas, column.left, right, top, baseline,
+            trace.generationKw, ClusterReadout.GENERATION_FULL_KW, DenzaPalette.RETURN,
+            density.hairline * TRACE_WIDTH, density.dotRadius * TRACE_DOT,
+            // The same square root the generation gauge uses: ordinary generation is around ten
+            // kilowatts of a hundred, and linear would leave it flat on the floor of the box.
+            squareRoot = true,
+        )
+    }
+
     private fun rpmColor(t: VehicleTelemetry): Int =
         if (t.engineRunning == true) DenzaPalette.INK else DenzaPalette.ink(0.55f)
 
     private fun engineLine(t: VehicleTelemetry): String =
-        ClusterReadout.engineLine(t.generating, t.generationKw, t.engineRunning, t.fuelRangeKm)
+        ClusterReadout.engineLine(t.generating, t.generationKw, t.engineRunning)
 
     // ---- the two reveals: temperatures on the left, fluids on the right
 
@@ -522,7 +549,17 @@ internal class ClusterDashboardRenderer {
         const val UNIT_RPM = "об/мин"
         const val SPREAD_UNIT = "мВ разброс"
         const val HEALTH_UNIT = "% ресурс"
-        const val FUEL_UNIT = "% бак"
+        /**
+         * The trace beside the revolutions: a little heavier than a hairline so two of them can
+         * cross without merging, and a dot on the newest reading a touch under the dial's own.
+         *
+         * It is not drawn at all below [TRACE_MIN_WIDTH] units of room. A four-digit reading in a
+         * narrow block can leave almost nothing to its left, and a sparkline two centimetres wide is
+         * a smudge rather than a history.
+         */
+        const val TRACE_WIDTH = 1.6f
+        const val TRACE_DOT = 0.5f
+        const val TRACE_MIN_WIDTH = 60f
         const val PACK_WORD = "батарея"
         const val INVERTER_WORD = "инвертор"
         const val MOTOR_WORD = "моторы"

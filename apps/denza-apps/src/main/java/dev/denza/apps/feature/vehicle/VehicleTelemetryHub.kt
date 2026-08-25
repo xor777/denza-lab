@@ -57,6 +57,12 @@ internal class VehicleTelemetryHub(context: Context) {
 
     private val log = ConsumptionLog(onBucketClosed = ::record)
 
+    /**
+     * Kept in memory only. The consumption journal survives a restart because it is about the road;
+     * two minutes of revolutions is about right now, and a restart is long enough to make it a lie.
+     */
+    private val trace = EngineTrace()
+
     @Volatile
     var snapshot: VehicleTelemetry = VehicleTelemetry()
         private set
@@ -256,6 +262,14 @@ internal class VehicleTelemetryHub(context: Context) {
                 val now = SystemClock.elapsedRealtime()
                 val dtSeconds = if (lastSampleAt == 0L) 0.0 else (now - lastSampleAt) / 1000.0
                 lastSampleAt = now
+                // Sampled on every sweep, including the ones where the combustion set is not being
+                // polled at all: those write empty slots, and an unwatched stretch of the trace is
+                // exactly what a break in it should mean.
+                trace.sample(
+                    atMillis = now,
+                    rpm = parsed[VehicleSignal.ENGINE_RPM],
+                    generationKw = parsed[VehicleSignal.GENERATION_KW],
+                )
                 log.sample(
                     odometerKm = parsed[VehicleSignal.ODOMETER_KM],
                     powerKw = VehicleConvention.load(parsed[VehicleSignal.POWER_KW]),
@@ -275,6 +289,7 @@ internal class VehicleTelemetryHub(context: Context) {
                     consumption = log.buckets,
                     currentConsumption = log.current,
                     stationary = log.stationary,
+                    engineTrace = trace.snapshot(),
                     sweepMillis = sweepMillis,
                 )
 

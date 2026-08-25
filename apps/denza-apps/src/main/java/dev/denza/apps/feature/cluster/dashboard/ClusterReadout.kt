@@ -138,18 +138,21 @@ internal object ClusterReadout {
      * The range left on the tank is what a stopped engine is actually worth, so that is what the
      * line carries when there is nothing happening.
      */
-    fun engineLine(
-        generating: Boolean,
-        generationKw: Double?,
-        running: Boolean?,
-        fuelRangeKm: Double?,
-    ): String = when {
+    /**
+     * The one line the combustion block gets, and usually it gets none.
+     *
+     * It said "заглушен · 488 км на бензине" until the first live run. Both halves were wrong to
+     * draw: the revolutions beside it already read `—` or `0`, so "заглушен" restates the figure
+     * above it, and the range on petrol is on the vehicle's own strip a few centimetres away. What
+     * is left is the exception - the engine is putting something back, or it did not answer at all.
+     * A running engine that is not generating says nothing either: its revolutions are on the row
+     * above, moving.
+     */
+    fun engineLine(generating: Boolean, generationKw: Double?, running: Boolean?): String = when {
         generating && generationKw != null -> "заряжает ${whole(generationKw)} кВт"
         generating -> "заряжает батарею"
-        running == true -> "работает"
-        running == false && fuelRangeKm != null -> "заглушен · ${whole(fuelRangeKm)} км на бензине"
-        running == false -> "заглушен"
-        else -> "двигатель не ответил"
+        running == null -> "двигатель не ответил"
+        else -> ""
     }
 
     /**

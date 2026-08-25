@@ -68,7 +68,18 @@ internal object ClusterBlockPlan {
         DashboardRow.Text(d.body, LEAD_GROUP),
     )
 
-    /** Title, revolutions with the tank beside them, the revolution gauge, one sentence. */
+    /**
+     * Title, revolutions with their own two minutes of history beside them, the gauge, one sentence.
+     *
+     * The figure row used to carry the tank's percentage on its left. The vehicle's own cluster
+     * shows the tank a few centimetres away, so that was a duplicate; the space it leaves goes to a
+     * trace of where the revolutions have just been, which is nowhere else. No row is added: the
+     * trace is drawn the height of the figure's own digits, on the figure's own baseline.
+     *
+     * The last row is usually empty and is planned anyway. It carries a sentence only when the
+     * engine is doing something the rest of the block cannot show - generating, or not answering -
+     * and reserving its height means the block does not jump up the panel the moment it does.
+     */
     fun engineWide(d: InstrumentDensity): List<DashboardRow> = listOf(
         DashboardRow.Text(d.title),
         DashboardRow.Text(d.figure, LEAD_TITLE),
@@ -76,13 +87,11 @@ internal object ClusterBlockPlan {
         DashboardRow.Text(d.body, LEAD_GROUP),
     )
 
-    /** Narrow has the height to give the tank a gauge of its own rather than a bare number. */
+    /** The same four rows: the tank's own gauge went with its percentage. */
     fun engineNarrow(d: InstrumentDensity): List<DashboardRow> = listOf(
         DashboardRow.Text(d.title),
         DashboardRow.Text(d.figure, LEAD_TITLE),
         DashboardRow.Rule(LEAD_FIGURE),
-        DashboardRow.Text(d.reading, LEAD_GROUP),
-        DashboardRow.Rule(LEAD_ROW),
         DashboardRow.Text(d.body, LEAD_GROUP),
     )
 
