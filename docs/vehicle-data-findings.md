@@ -669,6 +669,53 @@ All three are in the panel allowlist as `FUEL_PERCENT`, `FUEL_RANGE_KM` and
 "low", not a threshold of ours: it is the vehicle's own line for this tank, and a
 second opinion beside it would put two answers on one cluster.
 
+## Consumption journal
+
+Added 2026-08-25, on the owner's decision. Not yet run on the car.
+
+The consumption chart used to hold twenty-four bars of 200 m - one window of
+4.8 km - and it lived in the app's process, so it started empty after every
+restart. It now keeps **300 bars of 100 m** and the driver picks the window:
+**3, 10 or 30 km**.
+
+**One hundred metres is one odometer tick**, which is as fine as this vehicle can
+be asked; the odometer arrives in tenths of a kilometre. The log stores that one
+resolution and a window is a *view* of it, so switching windows loses nothing and
+re-records nothing. Ten kilometres folds four buckets to a bar, thirty folds ten,
+and every bucket covers the same road, so folding is a plain mean. Grouping runs
+from the newest end, which keeps any short group at the old end of the chart
+rather than under the bar a driver actually reads.
+
+**The journal is append-only lines, not JSON**, and that is a durability
+decision rather than a taste one. A bar closes every hundred metres - three or
+four seconds at highway speed - and the power goes away without warning when the
+car is switched off. A JSON document must be rewritten whole to add one entry, so
+an interrupted write costs the entire history; a line appended to the end costs
+the tail. Format is `odometer,value`, `%.1f` and `%.3f`, in
+`filesDir/consumption.log`.
+
+**The odometer is stored with each bar**, and that is what makes a restart safe.
+Time cannot say whether a journal describes the last thirty kilometres - the
+entries could be five minutes old and cover a different road - but an odometer
+can. On the first sweep that reports one, anything further back than the longest
+window is dropped, and a journal whose entries sit *ahead* of the car is refused
+outright: the reading went backwards, so it is not this car's journal.
+
+**Any other kind of wrong wipes the file.** Unreadable, unparseable anywhere but
+the last line, larger than the format allows, a write that throws - all end in an
+empty journal, which costs at most the drive so far. A single bad *last* line is
+a write the ignition interrupted and is dropped in silence. `ConsumptionJournal`
+takes no Android dependency so all of this is covered by ordinary unit tests.
+
+Writes are batched ten bars to a flush and each flush is `fsync`ed, so a sudden
+power cut loses at most a kilometre. The file is bounded at 500 lines and trimmed
+back to 300 through a temporary file and a rename; the slack is there so the trim
+runs about once every fifty kilometres instead of on every append.
+
+The window is a setting rather than screen state, because two screens obey it and
+only one can be touched: it is chosen by tapping the chart on the head unit, and
+the driver's cluster - which has no touchscreen - follows.
+
 ### Two corrections this reading forced
 
 - **`0x14400020` is `ENGINE_POWER` in the catalog**, and it is the id the panel

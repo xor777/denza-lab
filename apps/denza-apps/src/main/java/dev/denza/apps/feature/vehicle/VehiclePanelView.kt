@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Canvas
 import android.view.Choreographer
+import android.view.MotionEvent
 import android.view.View
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.Lifecycle
@@ -110,7 +111,13 @@ internal class VehiclePanelView(context: Context) : View(context), Choreographer
         if (attached && resumed && pageVisible) startLoop() else stopLoop()
     }
 
+    /** The window is re-read where it can have changed, not on every frame. */
+    private fun syncWindow() {
+        renderer.window = ConsumptionSettings.window(context)
+    }
+
     private fun startLoop() {
+        syncWindow()
         if (looping) return
         looping = true
         startNs = System.nanoTime()
@@ -134,6 +141,36 @@ internal class VehiclePanelView(context: Context) : View(context), Choreographer
             lastSnapshot = snapshot
             invalidate()
         }
+    }
+
+    /**
+     * A tap on the chart moves to the next window.
+     *
+     * One control, on the thing it controls, and no chrome: this panel has no
+     * widgets and adding a row of chips would mean giving it a second layout
+     * system. The window's name is drawn under the chart, so the tap has
+     * something to have changed.
+     *
+     * The choice is written to settings rather than held here because the
+     * driver's cluster obeys it too and has no touchscreen of its own.
+     */
+    @Suppress("ClickableViewAccessibility")
+    override fun onTouchEvent(event: MotionEvent): Boolean {
+        if (event.actionMasked != MotionEvent.ACTION_UP) {
+            return event.actionMasked == MotionEvent.ACTION_DOWN &&
+                renderer.chartBounds.contains(event.x, event.y)
+        }
+        if (!renderer.chartBounds.contains(event.x, event.y)) return false
+        renderer.window = renderer.window.next
+        ConsumptionSettings.setWindow(context, renderer.window)
+        performClick()
+        invalidate()
+        return true
+    }
+
+    override fun performClick(): Boolean {
+        super.performClick()
+        return true
     }
 
     override fun onDraw(canvas: Canvas) {

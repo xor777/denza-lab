@@ -30,7 +30,28 @@ ROOT = (f'<div style="width:{PANEL_W}px; height:{PANEL_H}px; box-sizing:border-b
         f'padding:{PAD}px;">')
 
 BARS = g.DRIVING_BARS
-BUCKET_KM = 0.2
+BUCKET_KM = g.BUCKET_KM
+
+# The Energy page is where the window is chosen, so it is drawn at the widest of
+# the three - the one that only exists because the journal survives a restart.
+WINDOW = 'LONG'
+
+
+def chips(selected):
+    """The window selector: one row, one selected, every chip the same height.
+
+    The selected chip is filled rather than thicker, which is the rule the whole
+    set follows now - a two-pixel border made the selected card two pixels taller
+    than its neighbours and staggered the row it sat in.
+    """
+    out = []
+    for name, _km, label in g.WINDOWS:
+        on = name == selected
+        style = ('background:#FEEFAB; color:#262D33; font-weight:500;' if on
+                 else 'background:#212429; color:#C5CDD9;')
+        out.append(f'<div style="border-radius:12px; padding:10px 18px; font-size:19px; '
+                   f'border:1px solid rgba(218,225,235,0.16); {style}">{label}</div>')
+    return ''.join(out)
 
 
 def ru(value, digits):
@@ -38,15 +59,20 @@ def ru(value, digits):
 
 
 def energy_board():
-    avg = g.average_consumption(BARS)
-    spent = sum(v for v in BARS if v > 0) * BUCKET_KM / 100
-    back = sum(-v for v in BARS if v < 0) * BUCKET_KM / 100
-    peak = max(BARS)
-    caption = f'{ru(avg, 1)} средний за {ru(len(BARS) * BUCKET_KM, 1)} км'
-    dial = g.gauge_block(700, 350, 291, 268, g.PANEL, 34.0, BARS, caption)
+    km, label = g.window_by_name(WINDOW)
+    tail = BARS[-int(round(km / BUCKET_KM)):]
+    bars, caption, avg, _ = g.chart_for(WINDOW)
+    spent = sum(v for v in tail if v > 0) * BUCKET_KM / 100
+    back = sum(-v for v in tail if v < 0) * BUCKET_KM / 100
+    peak = max(tail)
+    dial = g.gauge_block(640, 320, 291, 268, g.PANEL, 34.0, bars, caption)
 
-    row = ('<div style="border-top:1px solid rgba(218,225,235,0.14); padding-top:18px; '
-           'display:flex; align-items:baseline; gap:14px;">')
+    def stat(title, value, unit):
+        return (f'<div style="border-top:1px solid rgba(218,225,235,0.14); padding-top:12px; '
+                f'display:flex; flex-direction:column; gap:6px;">'
+                f'<div class="lbl">{title}</div>'
+                f'<div style="display:flex; align-items:baseline; gap:10px;">'
+                f'<div class="val">{value}</div><div class="un">{unit}</div></div></div>')
     return f'''<!doctype html>
 <html>
 <head>
@@ -61,7 +87,7 @@ def energy_board():
     body {{ margin:0; background:#07080A; font-family:'Roboto','Segoe UI',system-ui,sans-serif; }}
     a {{ color:#FEEFAB; }} a:hover {{ color:#FFF7D2; }}
     .lbl {{ font-size:15px; letter-spacing:0.12em; font-weight:500; color:#86909B; }}
-    .hero {{ font-size:62px; font-weight:200; color:#DAE1EB; line-height:1; }}
+    .hero {{ font-size:46px; font-weight:200; color:#DAE1EB; line-height:1; }}
     .val {{ font-size:34px; font-weight:200; color:#DAE1EB; line-height:1; }}
     .un {{ font-size:19px; color:#86909B; }}
     .fg {{ font-family:'Roboto Mono',monospace; font-weight:300; font-size:62px; fill:#DAE1EB; }}
@@ -73,7 +99,7 @@ def energy_board():
 </helmet>
 {ROOT}
 
-  <div style="width:700px; flex-shrink:0; display:flex; align-items:center;">
+  <div style="width:640px; flex-shrink:0; display:flex; align-items:center;">
     {dial}
   </div>
 
@@ -87,27 +113,14 @@ def energy_board():
       </div>
     </div>
 
-    {row}
-      <div class="lbl" style="width:150px;">СРЕДНИЙ</div>
-      <div class="val">{ru(avg, 1)}</div>
-      <div class="un">за {ru(len(BARS) * BUCKET_KM, 1)} км</div>
-    </div>
+    {stat('СРЕДНИЙ ЗА ОКНО', ru(avg, 1), 'кВт·ч/100 км')}
+    {stat('ПОТРАЧЕНО', ru(spent - back, 2), f'кВт·ч · вернулось {ru(back, 2)}')}
+    {stat('ХУДШИЙ УЧАСТОК', ru(peak, 0), 'кВт·ч/100 км')}
 
-    {row}
-      <div class="lbl" style="width:150px;">ПОТРАЧЕНО</div>
-      <div class="val">{ru(spent - back, 2)}</div>
-      <div class="un">кВт·ч · вернулось {ru(back, 2)}</div>
-    </div>
-
-    {row}
-      <div class="lbl" style="width:150px;">ХУДШИЙ УЧАСТОК</div>
-      <div class="val">{peak}</div>
-      <div class="un">кВт·ч/100 км</div>
-    </div>
-
-    {row}
-      <div class="lbl" style="width:150px;">ОКНО</div>
-      <div class="un" style="color:#C5CDD9;">{len(BARS)} участка по {int(BUCKET_KM * 1000)} м</div>
+    <div style="border-top:1px solid rgba(218,225,235,0.14); padding-top:12px;
+      display:flex; flex-direction:column; gap:8px;">
+      <div class="lbl">ОКНО · {len(bars)} × {ru(km / len(bars), 1)} км</div>
+      <div style="display:flex; gap:10px;">{chips(WINDOW)}</div>
     </div>
   </div>
 </div>

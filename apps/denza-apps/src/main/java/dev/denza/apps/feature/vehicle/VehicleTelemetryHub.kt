@@ -40,7 +40,22 @@ internal class VehicleTelemetryHub(context: Context) {
 
     private val app = context.applicationContext
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private val log = ConsumptionLog()
+
+    /**
+     * The bars on disk, and the batch waiting to join them.
+     *
+     * Batching is not an optimisation, it is the durability decision: everything
+     * before the last flush survives the ignition, so the batch size is the size
+     * of the hole a sudden power cut leaves. Ten bars is a kilometre of road,
+     * which at any speed worth measuring is well under a minute.
+     */
+    private val journal = ConsumptionJournal.of(app.filesDir) { why ->
+        Log.w(TAG, "Журнал расхода сброшен: $why")
+    }
+    private val pending = ArrayList<ConsumptionSample>(FLUSH_EVERY)
+    private var restored = false
+
+    private val log = ConsumptionLog(onBucketClosed = ::record)
 
     @Volatile
     var snapshot: VehicleTelemetry = VehicleTelemetry()
@@ -107,6 +122,45 @@ internal class VehicleTelemetryHub(context: Context) {
         if (dashboardPage) return
         job?.cancel()
         job = null
+        // The batch is flushed by the loop's own `finally`, not from here: the
+        // journal is single-threaded by design, and a flush launched beside a
+        // cancelling loop would be the one place two threads could meet in it.
+    }
+
+    /**
+     * A bar closed. Hold it until the batch is worth a write.
+     *
+     * Called from the poll loop's own thread, which is the only thread that ever
+     * touches the journal.
+     */
+    private fun record(sample: ConsumptionSample) {
+        pending.add(sample)
+        if (pending.size >= FLUSH_EVERY) flush()
+    }
+
+    private fun flush() {
+        if (pending.isEmpty()) return
+        journal.append(pending)
+        pending.clear()
+    }
+
+    /**
+     * Seed the bars from disk, once, as soon as the car says where it is.
+     *
+     * It waits for an odometer rather than doing this at construction because the
+     * odometer is the only thing that can say whether a journal describes the last
+     * thirty kilometres or a drive that happened with the app closed. A journal
+     * that fails that test is not repaired, it is dropped.
+     */
+    private fun restoreOnce(odometerKm: Double?) {
+        if (restored || odometerKm == null) return
+        restored = true
+        val samples = journal.load()
+        if (samples.isEmpty()) return
+        if (!log.restore(samples, odometerKm, ConsumptionWindow.LONG.km)) {
+            Log.w(TAG, "Журнал расхода от другого одометра, сброшен")
+            journal.clear()
+        }
     }
 
     /**
@@ -197,6 +251,8 @@ internal class VehicleTelemetryHub(context: Context) {
                     VehicleSignal.COLD.forEach { signal -> parsed[signal]?.let { cold[signal] = it } }
                 }
 
+                restoreOnce(parsed[VehicleSignal.ODOMETER_KM])
+
                 val now = SystemClock.elapsedRealtime()
                 val dtSeconds = if (lastSampleAt == 0L) 0.0 else (now - lastSampleAt) / 1000.0
                 lastSampleAt = now
@@ -225,6 +281,7 @@ internal class VehicleTelemetryHub(context: Context) {
                 delay(if (active) ACTIVE_HOT_MS else IDLE_HOT_MS)
             }
         } finally {
+            flush()
             shell?.runCatching { close() }
         }
     }
@@ -246,6 +303,9 @@ internal class VehicleTelemetryHub(context: Context) {
     }
 
     private companion object {
+        /** Bars per journal write: one kilometre of road. */
+        const val FLUSH_EVERY = 10
+
         const val TAG = "DenzaVehicle"
 
         /**

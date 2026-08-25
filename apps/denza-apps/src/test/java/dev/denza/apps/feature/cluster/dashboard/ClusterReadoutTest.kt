@@ -63,12 +63,6 @@ class ClusterReadoutTest {
     }
 
     @Test
-    fun theChartSaysHowFarBackItReaches() {
-        // Twenty-four closed buckets of 200 m is the 4.8 km the vehicle page already draws.
-        assertEquals(4.8, ClusterReadout.chartDistanceKm(List(24) { 18.0 }, 0.2), 1e-9)
-    }
-
-    @Test
     fun theLampLineNamesAFaultAndOtherwiseStaysQuiet() {
         assertEquals("все в норме", ClusterReadout.lampLine(emptyList(), 8, 8))
         assertEquals("перегрев ОЖ", ClusterReadout.lampLine(listOf("перегрев ОЖ"), 8, 8))

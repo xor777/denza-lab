@@ -94,8 +94,15 @@ resistance — and the tank, which matters here precisely because this engine is
 asleep most of the time.
 
 The centre carries instantaneous power on a square-root dial - zero at the top,
-discharge one way, regeneration the other - with the per-200 m consumption
-history nested inside it and the average stated underneath. Left of it is the
+discharge one way, regeneration the other - with the consumption history nested
+inside it and the average stated underneath. How far that history reaches is the
+driver's choice of 3, 10 or 30 km, made by tapping the chart on the head unit and
+followed here: this display has no touchscreen, so the window arrives as a
+setting rather than as an interaction. The bars are folded from the log's own
+100 m buckets - four to a bar at ten kilometres, ten at thirty - so the chart
+keeps about thirty bars whichever window is chosen, and the average is taken from
+the raw buckets rather than the drawn bars, because a part-filled window's oldest
+bar covers less road than the rest. Left of it is the
 pack, right of it the combustion half, and the two top reveals carry the seven
 temperatures and the eight fluid lamps.
 
@@ -147,6 +154,9 @@ cases were drawn out rather than left to a shared "no data":
   its zero line - a bare rule with no bars inside a dial reads as a chart that
   failed. The sentence underneath carries the case instead: `стоим` standing,
   `считаю расход` moving, the average and its distance once there is one.
+  Since the journal survives a restart this is now a short state rather than the
+  first thing seen after every launch - see "Consumption journal" in
+  docs/vehicle-data-findings.md.
 - **A stopped engine.** `заглушен` alone spends a line saying nothing, so the
   line carries what a stopped engine is actually worth: `заглушен · 491 км на
   бензине`.

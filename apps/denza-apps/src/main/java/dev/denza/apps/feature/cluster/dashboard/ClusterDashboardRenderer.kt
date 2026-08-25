@@ -6,7 +6,7 @@ import dev.denza.apps.design.DenzaPalette
 import dev.denza.apps.design.instrument.EnergyGauge
 import dev.denza.apps.design.instrument.InstrumentDensity
 import dev.denza.apps.design.instrument.InstrumentPen
-import dev.denza.apps.feature.vehicle.ConsumptionLog
+import dev.denza.apps.feature.vehicle.ConsumptionWindow
 import dev.denza.apps.feature.vehicle.EngineLamp
 import dev.denza.apps.feature.vehicle.LampState
 import dev.denza.apps.feature.vehicle.VehicleAccess
@@ -55,6 +55,7 @@ internal class ClusterDashboardRenderer {
         height: Float,
         layout: ClusterDashboardLayout,
         telemetry: VehicleTelemetry,
+        window: ConsumptionWindow,
     ) {
         if (!layout.supported) return
         val compact = layout.compact
@@ -66,7 +67,7 @@ internal class ClusterDashboardRenderer {
             return
         }
 
-        energy(canvas, layout, density, telemetry)
+        energy(canvas, layout, density, telemetry, window)
         if (compact) {
             electricNarrow(canvas, layout.electricBlock, density, telemetry)
             engineNarrow(canvas, layout.engineBlock, density, telemetry)
@@ -80,13 +81,22 @@ internal class ClusterDashboardRenderer {
 
     // ---- the centre: power now, and what it cost over the road behind
 
+    /**
+     * The dial, over the window the driver chose on the head unit.
+     *
+     * The average comes from the raw buckets rather than the drawn bars, because
+     * the oldest bar of a part-filled window covers less road than the rest and
+     * would weigh as much as a full one. Every raw bucket is the same hundred
+     * metres, so their mean is the mean of the road.
+     */
     private fun energy(
         canvas: Canvas,
         layout: ClusterDashboardLayout,
         density: InstrumentDensity,
         t: VehicleTelemetry,
+        window: ConsumptionWindow,
     ) {
-        val average = ClusterReadout.averageConsumption(t.consumption)
+        val average = ClusterReadout.averageConsumption(window.raw(t.consumption))
         gauge.draw(
             canvas = canvas,
             centreX = layout.gaugeCentreX * pen.width,
@@ -94,11 +104,11 @@ internal class ClusterDashboardRenderer {
             radius = layout.gaugeRadius * pen.height,
             density = density,
             kilowatts = flowKw(t),
-            bars = t.consumption,
+            bars = window.fold(t.consumption),
             average = average,
             caption = ClusterReadout.chartCaption(
                 average,
-                ClusterReadout.chartDistanceKm(t.consumption, ConsumptionLog.DEFAULT_BUCKET_KM),
+                window.coveredKm(t.consumption),
                 t.stationary,
             ),
         )

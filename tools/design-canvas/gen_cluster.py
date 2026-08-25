@@ -56,6 +56,11 @@ ABOVE_ZERO_SHARE = 0.74
 
 LEAD_TITLE, LEAD_FIGURE, LEAD_GROUP, LEAD_ROW = 2.0, 3.0, 3.0, 2.0
 
+# The consumption log and its three windows, mirroring ConsumptionWindow.
+BUCKET_KM = 0.1
+TARGET_BARS = 30
+WINDOWS = [('SHORT', 3.0, '3 км'), ('MEDIUM', 10.0, '10 км'), ('LONG', 30.0, '30 км')]
+
 INK = '#DAE1EB'
 MUTED = '#86909B'
 MUTED_DEEP = '#6E767F'
@@ -95,6 +100,34 @@ def ceilings(values):
     pos = max(10.0, math.ceil(high / 10.0) * 10.0)
     neg = max(5.0, math.ceil(abs(low) / 5.0) * 5.0)
     return pos, neg
+
+
+def window_by_name(name):
+    for n, km, label in WINDOWS:
+        if n == name:
+            return km, label
+    raise KeyError(name)
+
+
+def fold(all_values, window_km):
+    """The bars a window draws, grouped from the newest end - as the app does."""
+    buckets = int(round(window_km / BUCKET_KM))
+    tail = all_values[-buckets:] if len(all_values) > buckets else list(all_values)
+    per = max(1, -(-buckets // TARGET_BARS))
+    if per == 1 or not tail:
+        return tail
+    bars, end = [], len(tail)
+    while end > 0:
+        start = max(0, end - per)
+        bars.append(sum(tail[start:end]) / (end - start))
+        end = start
+    bars.reverse()
+    return bars
+
+
+def covered_km(all_values, window_km):
+    buckets = int(round(window_km / BUCKET_KM))
+    return min(len(all_values), buckets) * BUCKET_KM
 
 
 def average_consumption(values):
@@ -521,8 +554,15 @@ def gauge_block(width, cx, cy, r, d, kw, bars, caption):
 
 # ---------------------------------------------------------------- the three boards
 
-DRIVING_BARS = [18, 24, 12, -6, 21, 29, 16, -11, 8, 22, 31, 19, -4, 14, 26, 33, 20, 9, -8, 17,
-                28, 23, 11, 25]
+# Thirty kilometres of road at one odometer tick a bar, the way the log keeps it.
+# Deterministic rather than random so a regenerated board is the same board: a
+# long swell for terrain, a short one for traffic, and a recovery dip every
+# couple of kilometres where a descent or a stop gives energy back.
+DRIVING_BARS = [
+    round(20.5 + 11.0 * math.sin(i * 0.37) + 6.0 * math.sin(i * 0.11)
+          - (26.0 if (i + 7) % 23 == 0 else 0.0), 2)
+    for i in range(300)
+]
 
 DRIVING = dict(
     volts='552', spread='4', soh='99', volt_fraction=(552 - 500) / 100,
@@ -575,18 +615,29 @@ def board_right(values, kw, caption, bars):
     return page(layout, COMPACT, body)
 
 
+def chart_for(window_name, all_values=None):
+    """The bars and the sentence a window produces, from one shared dataset."""
+    values = DRIVING_BARS if all_values is None else all_values
+    km, label = window_by_name(window_name)
+    tail = values[-int(round(km / BUCKET_KM)):]
+    avg = average_consumption(tail)
+    covered = covered_km(values, km)
+    caption = (f'{avg:.1f}'.replace('.', ',') +
+               ' средний за ' + f'{covered:.1f}'.replace('.', ',') + ' км')
+    return fold(values, km), caption, avg, label
+
+
 if __name__ == '__main__':
-    avg = average_consumption(DRIVING_BARS)
-    caption = f'{avg:.1f}'.replace('.', ',') + ' средний за 4,8 км'
+    bars, caption, avg, label = chart_for('SHORT')
 
-    open('ClusterFull.dc.html', 'w').write(
-        board_full(DRIVING, 34.0, caption, DRIVING_BARS))
-    open('ClusterRight.dc.html', 'w').write(
-        board_right(DRIVING, 34.0, caption, DRIVING_BARS))
-    open('ClusterRest.dc.html', 'w').write(
-        board_full(RESTING, -2.4, 'стоим', []))
+    open('ClusterFull.dc.html', 'w').write(board_full(DRIVING, 34.0, caption, bars))
+    open('ClusterRight.dc.html', 'w').write(board_right(DRIVING, 34.0, caption, bars))
+    open('ClusterRest.dc.html', 'w').write(board_full(RESTING, -2.4, 'стоим', []))
 
-    print('average', round(avg, 2), 'caption', caption)
+    print('window', label, 'bars', len(bars), 'average', round(avg, 2))
+    for name, km, lbl in WINDOWS:
+        b, c, a, _ = chart_for(name)
+        print(f'  {lbl:6} -> {len(b):3} bars of {km / len(b):.2f} km, "{c}"')
     for name, kw in (('60', 60.0), ('150', 150.0), ('-20', -20.0), ('34', 34.0)):
         print(f'  {name} kW -> {angle_degrees(float(kw)):.2f} deg, '
               f'fraction {sweep_fraction(float(kw)):.3f}')

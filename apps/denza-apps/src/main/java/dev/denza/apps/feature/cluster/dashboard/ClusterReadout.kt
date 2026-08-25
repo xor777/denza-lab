@@ -89,9 +89,6 @@ internal object ClusterReadout {
         return spending.average()
     }
 
-    /** How far the chart reaches back, given how many bars closed. */
-    fun chartDistanceKm(bars: List<Double>, bucketKm: Double): Double = bars.size * bucketKm
-
     /**
      * The sentence under the dial.
      *

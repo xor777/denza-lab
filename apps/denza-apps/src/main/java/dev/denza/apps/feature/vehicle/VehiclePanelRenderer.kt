@@ -59,6 +59,24 @@ import kotlin.math.sqrt
  */
 internal class VehiclePanelRenderer : PanelCanvas() {
 
+    /**
+     * How far back the chart reaches, chosen by the driver and set per frame.
+     *
+     * The log keeps one resolution and every window is a view of it, so switching
+     * costs nothing and loses nothing - see [ConsumptionWindow].
+     */
+    var window: ConsumptionWindow = ConsumptionWindow.DEFAULT
+
+    /**
+     * Where the chart landed on this canvas, in pixels, so the view above can
+     * tell whether a tap was aimed at it.
+     *
+     * A renderer publishing a hit rectangle is not elegant, but the alternatives
+     * are worse: duplicating the layout arithmetic in the view, or giving the
+     * chart a real widget and with it a second layout system on the same panel.
+     */
+    val chartBounds = RectF()
+
     private val rect = RectF()
     private val path = Path()
     private var dashUnit = 0f
@@ -161,7 +179,7 @@ internal class VehiclePanelRenderer : PanelCanvas() {
         consumptionFigure(canvas, vx(1850f), vy(60f), 46f, t)
         powerBar(canvas, vx(1420f), vx(1850f), vy(92f), vs(22f), t)
         powerReadout(canvas, vx(1420f), vx(1850f), vy(146f), t, textSize = sizeValue)
-        kmChart(canvas, vx(1420f), vx(1850f), vy(168f), vy(288f), t.consumption, compact = false)
+        kmChart(canvas, vx(1420f), vx(1850f), vy(168f), vy(288f), t, compact = false)
     }
 
     /**
@@ -216,7 +234,7 @@ internal class VehiclePanelRenderer : PanelCanvas() {
         consumptionFigure(canvas, vx(368f), vy(470f), 32f, t)
         powerBar(canvas, vx(0f), vx(368f), vy(484f), vs(20f), t)
         powerReadout(canvas, vx(0f), vx(368f), vy(526f), t, textSize = 18f)
-        kmChart(canvas, vx(0f), vx(368f), vy(542f), vy(634f), t.consumption, compact = true)
+        kmChart(canvas, vx(0f), vx(368f), vy(542f), vy(634f), t, compact = true)
     }
 
     // --------------------------------------------------------------- elements
@@ -497,9 +515,12 @@ internal class VehiclePanelRenderer : PanelCanvas() {
         x1: Float,
         y0: Float,
         y1: Float,
-        values: List<Double>,
+        t: VehicleTelemetry,
         compact: Boolean,
     ) {
+        val values = window.fold(t.consumption)
+        val covered = window.coveredKm(t.consumption)
+        chartBounds.set(x0, y0, x1, y1)
         val zeroY = y0 + (y1 - y0) * ABOVE_ZERO_SHARE
         hairline(canvas, x0, zeroY, x1, zeroY, 0.28f)
         if (values.isEmpty()) {
@@ -552,7 +573,7 @@ internal class VehiclePanelRenderer : PanelCanvas() {
                 PanelPalette.alpha(PanelPalette.INK, 0.6f), Paint.Align.RIGHT,
             )
             label(
-                canvas, "−${fmt(values.size * ConsumptionLog.DEFAULT_BUCKET_KM, 1)} км",
+                canvas, "−${fmt(covered, 1)} км · окно ${window.label}",
                 x0, y1 + vs(20f), sizeTiny, muted(0.5f),
             )
             label(canvas, "сейчас", x1, y1 + vs(20f), sizeTiny, muted(0.5f), Paint.Align.RIGHT)

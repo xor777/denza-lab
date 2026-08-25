@@ -5,6 +5,8 @@ import android.content.Context
 import android.graphics.Canvas
 import android.view.Choreographer
 import android.view.View
+import dev.denza.apps.feature.vehicle.ConsumptionSettings
+import dev.denza.apps.feature.vehicle.ConsumptionWindow
 import dev.denza.apps.feature.vehicle.VehicleSession
 import dev.denza.apps.feature.vehicle.VehicleTelemetry
 
@@ -29,6 +31,15 @@ internal class ClusterDashboardView(
 
     private val hub = VehicleSession.hub(context)
     private val renderer = ClusterDashboardRenderer()
+
+    /**
+     * The window chosen on the head unit.
+     *
+     * Re-read whenever this view comes back, because that is the only moment it
+     * can have changed: the driver's display has no touchscreen, so the choice is
+     * always made somewhere else and arrives here through the setting.
+     */
+    private var window = ConsumptionWindow.DEFAULT
 
     private var looping = false
     private var lastDrawNs = 0L
@@ -58,6 +69,7 @@ internal class ClusterDashboardView(
     }
 
     private fun startLoop() {
+        window = ConsumptionSettings.window(context)
         if (looping) return
         looping = true
         lastDrawNs = 0L
@@ -91,6 +103,7 @@ internal class ClusterDashboardView(
             height = height.toFloat(),
             layout = layout,
             telemetry = hub.snapshot,
+            window = window,
         )
     }
 
