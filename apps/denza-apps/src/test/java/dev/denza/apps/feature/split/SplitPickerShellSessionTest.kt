@@ -1183,6 +1183,52 @@ class SplitPickerShellSessionTest {
         )
     }
 
+    /**
+     * Правка W1 волны 9, fail-closed: имя схлопнутой панели даёт area, existence его лишь
+     * подтверждает. Панель, покинувшая панельные корни, но названная area ВЫЖИВШЕЙ, - расхождение
+     * двух чтений одного мира (переходный такт; задержавшаяся в корне задача схлопнутой панели), и
+     * ответ на него - отказ: закрыть по нему слот значило бы закрыть выжившую панель и забыть
+     * выбор пользователя.
+     */
+    @Test
+    fun collapseByExistenceRefusesWhenTheAbsentPaneIsTheOneAreaCallsTheSurvivor() {
+        val fake = FakeShell()
+        val split = session(fake)
+        val hosts = split.buildPickers()
+        val navigator = split.selectApp(
+            pickerTaskId = hosts.getValue(SplitPane.PRIMARY),
+            target = SplitLaunchTarget(NAVIGATOR, "$NAVIGATOR/$NAVIGATOR.MainActivity"),
+            pickerComponents = PICKER_COMPONENTS,
+        )
+        val music = split.selectApp(
+            pickerTaskId = hosts.getValue(SplitPane.SECONDARY),
+            target = SplitLaunchTarget(MUSIC, "$MUSIC/$MUSIC.MainActivity"),
+            pickerComponents = PICKER_COMPONENTS,
+        )
+        val expected = mapOf(
+            SplitPane.PRIMARY to SplitPickerObservedPane(
+                hostTaskId = hosts.getValue(SplitPane.PRIMARY),
+                appTaskId = navigator.appTaskId,
+                packageName = navigator.packageName,
+            ),
+            SplitPane.SECONDARY to SplitPickerObservedPane(
+                hostTaskId = hosts.getValue(SplitPane.SECONDARY),
+                appTaskId = music.appTaskId,
+                packageName = music.packageName,
+            ),
+        )
+
+        // Корни покинула ровно одна панель - PRIMARY, - а area называет выжившей её же.
+        fake.detachTask(hosts.getValue(SplitPane.PRIMARY))
+        fake.detachTask(navigator.appTaskId)
+        fake.area = 1
+
+        val read = split.readCollapsedPaneByExistence(PICKER_COMPONENTS, expected)
+
+        assertEquals(null, read.collapsed)
+        assertEquals("панель, покинувшая корни, названа выжившей area=1", read.reason)
+    }
+
     /** Правка W4 (U5): обе collapse-проверки называют отказавший предикат, не молчат `null`-ом. */
     @Test
     fun collapseReadsNameTheirRefusedPredicate() {

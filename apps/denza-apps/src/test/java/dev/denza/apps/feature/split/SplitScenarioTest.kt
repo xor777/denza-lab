@@ -2361,6 +2361,43 @@ class SplitScenarioTest {
     }
 
     /**
+     * Правка W1 волны 9, fail-closed: имя схлопнутой панели даёт area, а не `absent`.
+     *
+     * Мир, где корни покинула ровно одна панель, но area называет выжившей ЕЁ ЖЕ, - расхождение
+     * двух чтений одного мира. Имя, взятое из существования, закрыло бы здесь слот ВЫЖИВШЕЙ
+     * панели и забыло бы выбор пользователя - ровно тот класс «предикат врёт о мире», который
+     * лечили волны 6-9. Ответ - отказ с внятной причиной; мир перечитает отложенный повтор.
+     */
+    @Test
+    fun aCollapseIsRefusedWhenExistenceAndAreaNameDifferentPanes() {
+        val car = car(FakeShell().apply { liveProductScene(withApps = true) })
+        val core = car.core(SplitDurable(enabled = true, slots = APP_PAIR))
+        core.initialize {}
+        core.openPickerSession()
+        car.barrier()
+        val commits = car.store.commits
+        car.clearCommands()
+
+        // Панельные корни покинула узкая PRIMARY - а area называет выжившей её же.
+        car.fake.detachTask(PRIMARY_PICKER_TASK)
+        car.fake.detachTask(PRIMARY_APP_TASK)
+        car.fake.area = 1
+
+        core.dividerResized()
+        car.barrier()
+
+        assertEquals("выбор пользователя не забыт", APP_PAIR, car.store.load().slots)
+        assertEquals("не доказано - не записано", commits, car.store.commits)
+        assertEquals(emptyList<String>(), car.mutations())
+        val lines = car.diagnostics.filter { it.startsWith("reconcile unproven:") }
+        assertEquals(1, lines.size)
+        assertTrue(
+            "и отказ назван: ${lines.single()}",
+            lines.single().contains("панель, покинувшая корни, названа выжившей area=1"),
+        )
+    }
+
+    /**
      * Contract 1.6.3 (редакция bde631c), сценарий §11.16, ветвь узкой панели; ground-v18 B1.
      * Back в УЗКОМ пикере: прошивка сама разворачивает соседа в широкой на весь экран и сама
      * откатывает свои ключи. Пока эта сцена жива, продукт не убирает ничего и не возвращает
