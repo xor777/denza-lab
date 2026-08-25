@@ -3,9 +3,7 @@ package dev.denza.apps.design.instrument
 import android.graphics.Canvas
 import android.graphics.DashPathEffect
 import android.graphics.Paint
-import android.graphics.RadialGradient
 import android.graphics.RectF
-import android.graphics.Shader
 import android.graphics.Typeface
 import dev.denza.apps.design.DenzaPalette
 
@@ -280,39 +278,6 @@ class InstrumentPen {
             half,
             fill,
         )
-    }
-
-    /**
-     * The soft ground an island sits on.
-     *
-     * The cluster dashboard draws over live vehicle graphics rather than over a background of its
-     * own, so each block needs enough darkness under it to stay legible without blanking the panel.
-     * A radial fade does that and still reads as an island; a filled rectangle would read as a
-     * window cut into the car's own instruments.
-     */
-    fun scrim(
-        canvas: Canvas,
-        centreX: Float,
-        centreY: Float,
-        radiusX: Float,
-        radiusY: Float,
-        strength: Float = 0.72f,
-    ) {
-        if (radiusX <= 0f || radiusY <= 0f) return
-        val alpha = (strength.coerceIn(0f, 1f) * 255f).toInt()
-        fill.shader = RadialGradient(
-            centreX,
-            centreY,
-            radiusX,
-            intArrayOf(alpha shl 24, (alpha * 3 / 4) shl 24, 0),
-            floatArrayOf(0f, 0.55f, 1f),
-            Shader.TileMode.CLAMP,
-        )
-        val save = canvas.save()
-        canvas.scale(1f, radiusY / radiusX, centreX, centreY)
-        canvas.drawCircle(centreX, centreY, radiusX, fill)
-        canvas.restoreToCount(save)
-        fill.shader = null
     }
 
     /**

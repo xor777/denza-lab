@@ -93,6 +93,19 @@ class AutoserviceShellTest {
     }
 
     @Test
+    fun aSignalsOwnUnavailableWordIsNotAReadingEither() {
+        // Live on 2026-08-25, engine off and the ECU asleep: rpm answered 0x1FFF - thirteen bits of
+        // ones - and the cluster printed 8191 об/мин. No range gate can catch that; 8191 is a
+        // perfectly ordinary rpm. Only the bit pattern says "not available".
+        assertNull(AutoserviceShell.decode(VehicleSignal.ENGINE_RPM, 0x1FFF))
+        // The word means nothing outside the signal that declared it.
+        assertEquals(8191.0, AutoserviceShell.decode(VehicleSignal.INSULATION_KOHM, 0x1FFF)!!, 1e-9)
+        // And a real reading either side of it still reads.
+        assertEquals(0.0, AutoserviceShell.decode(VehicleSignal.ENGINE_RPM, 0)!!, 1e-9)
+        assertEquals(8190.0, AutoserviceShell.decode(VehicleSignal.ENGINE_RPM, 0x1FFE)!!, 1e-9)
+    }
+
+    @Test
     fun provenScalesFromTheSessionCapture() {
         // Pack temperature: raw 68 read 28 C against a third-party dashboard.
         assertEquals(28.0, AutoserviceShell.decode(VehicleSignal.PACK_TEMP_AVG, 68)!!, 1e-9)

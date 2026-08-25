@@ -76,6 +76,7 @@ internal object AutoserviceShell {
     /** Parcel word -> value in the signal's unit, or null when it cannot be one. */
     fun decode(signal: VehicleSignal, word: Int): Double? {
         if (SENTINEL_WORDS.any { it == word }) return null
+        if (signal.invalid == word) return null
         val raw = when (signal.transact) {
             VehicleTransact.INT -> word.toDouble()
             VehicleTransact.FLOAT -> Float.fromBits(word).toDouble()

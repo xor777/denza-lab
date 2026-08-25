@@ -502,7 +502,7 @@ the set answers; the interesting half does not.
 | --- | --- | --- | --- | --- | --- |
 | Fuel level | `0x4A507040` | 1014 | 5 | `53` | percent, `STATISTIC_FUEL_PERCENTAGE` |
 | Range on fuel | `0x4A504038` | 1014 / 1007 | 5 | `491` | km; consistent with 53 % of the tank |
-| Engine speed | `0x14400012` | 1012 | 5 | `0` | rpm; `_20D` `0x20D00008` and `_GB` `0x10D00008` agree |
+| Engine speed | `0x14400012` | 1012 | 5 | `0` / `0x1FFF` | rpm; `_20D` `0x20D00008` and `_GB` `0x10D00008` agree. **Two different answers on a stopped engine** — see below |
 | Engine running | `0x10D00038` | 1012 | 5 | `0` | stopped |
 | Displacement | `0x40D00008` | 1012 | **7** | `2.0` | litres — matches this car's 2.0 T |
 | Engine code | `0x40D00028` | 1012 | 5 | `26` | unknown enum |
@@ -513,6 +513,30 @@ the set answers; the interesting half does not.
 | High water temperature warning | `0x3D911018` | 1007 | 5 | `0` | flag only, not a temperature |
 | **Vehicle speed** | `0x94400008` | 1013 | **7** | `0.0` | reaches the shell as `-1807745016` |
 | Accelerator / brake position | `0x34200008` / `0x34200010` | 1013 | 5 | `0` / `0` | |
+
+### A resting reading is not the same as a resting ECU
+
+Both sweeps above were taken with the engine stopped, and engine speed answered
+`0` in both. On 2026-08-25, with the dashboard live on the cluster and the car
+parked longer, the same id answered **`0x1FFF`** — thirteen bits, all ones — and
+the panel printed **8191 об/мин** under a stopped engine. `ENGINE_RUNNING` read
+`0` throughout.
+
+That is the CAN convention for "signal not available": a signal says it has
+nothing by setting every bit of its own field. So the difference between the two
+sweeps is not the engine, it is the engine ECU — awake it reports a real zero,
+asleep the gateway hands back the invalid pattern.
+
+The consequence for the allowlist is a general one. `8191` is inside any
+plausible rpm range, so `VehicleKind.accepts` cannot catch it: a range gate
+checks whether a number is *possible*, and this number is possible. Only the bit
+pattern says otherwise, and the pattern is the width of that signal's field —
+`0x1FFF` is nothing at all in thirteen bits and an ordinary number in sixteen.
+`VehicleSignal` therefore carries an optional `invalid` word, checked in
+`AutoserviceShell.decode` against the raw parcel word before any scale or offset.
+`ENGINE_RPM` is the only entry that declares one so far. **Any id whose sweep
+value was a resting `0` is owed the same suspicion**: a resting zero may only
+mean the ECU was awake that day.
 
 ### Warning flags — all sixteen answer, all read `0` on a healthy car
 
@@ -664,10 +688,18 @@ out of range. **That conclusion is withdrawn.** The read-only sweep above found
 steady across a full engine start/stop cycle. The level is a real reading; the
 catalog listing was simply incomplete.
 
-All three are in the panel allowlist as `FUEL_PERCENT`, `FUEL_RANGE_KM` and
-`FUEL_LOW`, on the cold poll and gated to the engine set. The alarm decides
-"low", not a threshold of ours: it is the vehicle's own line for this tank, and a
-second opinion beside it would put two answers on one cluster.
+Two of them are in the panel allowlist as `FUEL_PERCENT` and `FUEL_RANGE_KM`, on
+the cold poll and gated to the engine set.
+
+**`INSTRUMENT_FUEL_LOW_ALARM` was the third and is now out.** It was read here as
+the vehicle's own line for "low" — better than a threshold of ours, because a
+second opinion beside the car's would put two answers on one cluster. The live
+run of 2026-08-25 killed that: it answered `0` on 2026-08-23 and `1` two days
+later against an unchanged `53 %` tank (`488` km of range), so whatever the
+constant names, it is not this tank's alarm. On the cluster it was painting a
+half-full tank in the alert colour. Nothing of ours replaces it: the fuel figure
+raises a watch below 15 % on the percentage alone and never an alert, and the
+stock cluster keeps its own low-fuel lamp a few centimetres away.
 
 ## Consumption journal
 

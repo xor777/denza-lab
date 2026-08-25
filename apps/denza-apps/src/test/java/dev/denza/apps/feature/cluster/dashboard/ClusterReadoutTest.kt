@@ -104,13 +104,15 @@ class ClusterReadoutTest {
     }
 
     @Test
-    fun theCarsOwnLowFuelAlarmOutranksOurPercentage() {
-        // 53 % was the live reading. A tank the car calls low is low even with no level to show.
-        assertEquals(ClusterReadout.Level.NORMAL, ClusterReadout.fuelState(53.0, low = false))
-        assertEquals(ClusterReadout.Level.WATCH, ClusterReadout.fuelState(12.0, low = false))
-        assertEquals(ClusterReadout.Level.ALERT, ClusterReadout.fuelState(12.0, low = true))
-        assertEquals(ClusterReadout.Level.ALERT, ClusterReadout.fuelState(null, low = true))
-        assertEquals(ClusterReadout.Level.UNKNOWN, ClusterReadout.fuelState(null, low = false))
+    fun aHalfFullTankIsNeverAnAlarmOfOurs() {
+        // 53 % is the live reading, and it is the number that caught the defect: an id read here as
+        // the car's low-fuel alarm answered 0 on 2026-08-23 and 1 on 2026-08-25 against exactly this
+        // tank, painting a half-full tank in the alert colour. The alarm belongs to the stock lamp.
+        assertEquals(ClusterReadout.Level.NORMAL, ClusterReadout.fuelState(53.0))
+        assertEquals(ClusterReadout.Level.WATCH, ClusterReadout.fuelState(12.0))
+        assertEquals(ClusterReadout.Level.UNKNOWN, ClusterReadout.fuelState(null))
+        // Even a dry tank stays a watch here; the alert colour is the stock lamp's to give.
+        assertEquals(ClusterReadout.Level.WATCH, ClusterReadout.fuelState(0.0))
     }
 
     @Test

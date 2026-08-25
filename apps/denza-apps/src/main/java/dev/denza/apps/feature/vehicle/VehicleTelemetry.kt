@@ -130,9 +130,6 @@ internal data class VehicleTelemetry(
 
     val fuelRangeKm: Double? get() = this[VehicleSignal.FUEL_RANGE_KM]
 
-    /** The vehicle's own low-fuel threshold for this tank, not a percentage of ours. */
-    val fuelLow: Boolean get() = (this[VehicleSignal.FUEL_LOW] ?: 0.0) >= 1.0
-
     /** Worst answer across the ids that carry this lamp. */
     fun lamp(lamp: EngineLamp): LampState {
         var seen = false

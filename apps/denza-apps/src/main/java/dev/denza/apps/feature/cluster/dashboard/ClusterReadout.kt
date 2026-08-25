@@ -197,13 +197,13 @@ internal object ClusterReadout {
     }
 
     /**
-     * Whether the tank needs attention.
+     * Whether the tank is worth a glance.
      *
-     * The vehicle's own alarm outranks the percentage, including when the percentage did not
-     * answer: a car saying "low fuel" with no level to show is still a car saying low fuel.
+     * Never an alert. The id read here as the vehicle's low-fuel alarm turned out to flip while the
+     * tank did not, and it is gone; the stock cluster keeps its own low-fuel lamp a few centimetres
+     * away, so this figure raises a watch on its own percentage and leaves the alarm to the car.
      */
-    fun fuelState(percent: Double?, low: Boolean): Level = when {
-        low -> Level.ALERT
+    fun fuelState(percent: Double?): Level = when {
         percent == null -> Level.UNKNOWN
         percent <= FUEL_WATCH_PERCENT -> Level.WATCH
         else -> Level.NORMAL

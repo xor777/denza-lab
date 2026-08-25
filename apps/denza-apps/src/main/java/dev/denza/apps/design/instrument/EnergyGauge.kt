@@ -50,8 +50,6 @@ class EnergyGauge(private val pen: InstrumentPen) {
         average: Double?,
         caption: String,
     ) {
-        pen.scrim(canvas, centreX, centreY, radius * SCRIM_X, radius * SCRIM_Y, SCRIM_STRENGTH)
-
         pen.arc(canvas, centreX, centreY, radius, ARC_FROM, ARC_TO, DenzaPalette.TRACK, density.arcWidth)
 
         EnergyScale.DISCHARGE_TICKS_KW.take(density.dialMarks).forEach { mark ->
@@ -237,10 +235,6 @@ class EnergyGauge(private val pen: InstrumentPen) {
         private const val CHART_HEIGHT = 0.52f
         private const val FIGURE_ABOVE = 0.60f
         private const val CAPTION_BELOW = 0.30f
-
-        private const val SCRIM_X = 1.28f
-        private const val SCRIM_Y = 1.22f
-        private const val SCRIM_STRENGTH = 0.78f
 
         private const val UNIT = "кВт"
         private const val DASH = "—"

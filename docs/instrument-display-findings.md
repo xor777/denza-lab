@@ -31,7 +31,8 @@ leaves the feature unavailable instead of guessing a numeric display ID.
 
 ## App-owned instrument dashboard
 
-Added 2026-08-25. Not yet run on the car.
+Added 2026-08-25, and run on the car the same evening. The first live run is
+recorded under "What the first live run changed" below.
 
 The same base presentation now also hosts a dashboard of this app's own
 instruments, as a plain `View` drawing on a `Canvas`. It is a third mode
@@ -47,6 +48,40 @@ Entry points are `ClusterSceneService.showDashboard(context, placement)` and
 and `...HIDE_DASHBOARD`. The dashboard layer sits **after** the shade in the
 presentation's `FrameLayout`, so the shade never darkens it - the dashboard
 protects instrument data by placing its blocks off them, not by dimming itself.
+
+### What the first live run changed
+
+2026-08-25, owner at the wheel, car parked. Three things came back, and all three
+were things no unit test and no board could have found.
+
+**The surface was transparent, and that was wrong.** It was drawn as islands over
+the vehicle's own graphics, each with a radial scrim under it for legibility.
+On the panel that reads as our numbers lying on top of somebody else's, and the
+owner's instruction was immediate: opaque, black. So the renderer now fills its
+whole box with `#000000` first — pure black rather than the design system's
+`BACKGROUND` (`#07080A`), because the panel's own ground is black and three per
+cent of grey is a visible rectangle there while it is invisible on a board viewed
+in a browser. The scrims went with the thing they were compensating for.
+
+The keep-outs in `ClusterDashboardLayout` still matter, but for the other half of
+their reason: the vehicle draws **above** this window as well, so a block placed
+under stock graphics is hidden by them rather than covering them. An opaque
+background is also the cheapest way to finally measure that boundary, which is
+the capture this page has been asking for: whatever the vehicle still draws is
+what is left over the black.
+
+**8191 об/мин on a stopped engine.** Engine speed answered `0x1FFF`, the CAN
+"signal not available" pattern, and the panel printed it as a number. Full
+account, and the general rule it produced, in
+[vehicle-data-findings.md](vehicle-data-findings.md) under "A resting reading is
+not the same as a resting ECU".
+
+**A half-full tank in the alert colour.** The id read as the vehicle's low-fuel
+alarm had flipped `0` → `1` while the tank stayed at `53 %`. It is out of the
+allowlist; the fuel figure now raises a watch on its own percentage and never an
+alert.
+
+The resolver picked display **`4`** for this run, not `3`.
 
 ### How the driver reaches it
 

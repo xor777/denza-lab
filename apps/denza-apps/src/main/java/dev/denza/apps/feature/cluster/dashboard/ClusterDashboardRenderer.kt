@@ -14,12 +14,17 @@ import dev.denza.apps.feature.vehicle.VehicleSignal
 import dev.denza.apps.feature.vehicle.VehicleTelemetry
 
 /**
- * The instrument dashboard the driver sees, drawn as islands over the vehicle's own graphics.
+ * The instrument dashboard the driver sees.
  *
  * Four things about this renderer are deliberate and worth knowing before changing it.
  *
- * **It paints no background.** The cluster is not ours: everything outside a block stays the car's,
- * and each island gets only enough of a scrim under it to stay legible.
+ * **It paints its whole box black.** It did not until 2026-08-25: the first live run showed the
+ * stock graphics through every gap, and a dashboard read over somebody else's needle is not a
+ * dashboard. So the surface is opaque now, and the radial scrims that used to buy each island just
+ * enough legibility are gone with the thing they were compensating for. The keep-outs in
+ * [ClusterDashboardLayout] still matter, but for the other reason: the vehicle draws *above* this
+ * window as well, so a block placed under stock graphics is hidden by them rather than covering
+ * them.
  *
  * **It shows what the car does not.** State of charge and remaining range are already on the stock
  * cluster a few centimetres away, so drawing them here would spend the best real estate on a
@@ -61,6 +66,11 @@ internal class ClusterDashboardRenderer {
         val compact = layout.compact
         val density = if (compact) InstrumentDensity.COMPACT else InstrumentDensity.WIDE
         pen.size(width, height, layout.virtualHeight)
+
+        // Black rather than the design system's near-black `BACKGROUND`: this sits on a panel whose
+        // own ground is black, and three per cent of grey is a visible rectangle there while it is
+        // invisible on the boards, which are viewed in a browser page.
+        canvas.drawColor(BACKGROUND)
 
         if (telemetry.access != VehicleAccess.READY) {
             unavailable(canvas, layout, density, telemetry)
@@ -132,7 +142,6 @@ internal class ClusterDashboardRenderer {
         t: VehicleTelemetry,
     ) {
         val column = Column(box, density, ClusterBlockPlan.electricWide(density))
-        scrimBlock(canvas, box)
 
         pen.title(canvas, TITLE_ELECTRIC, column.left, column.next(), density, DenzaPalette.MUTED_DEEP)
 
@@ -168,7 +177,6 @@ internal class ClusterDashboardRenderer {
         t: VehicleTelemetry,
     ) {
         val column = Column(box, density, ClusterBlockPlan.electricNarrow(density))
-        scrimBlock(canvas, box)
 
         pen.title(canvas, TITLE_ELECTRIC, column.left, column.next(), density, DenzaPalette.MUTED_DEEP)
 
@@ -232,7 +240,6 @@ internal class ClusterDashboardRenderer {
         t: VehicleTelemetry,
     ) {
         val column = Column(box, density, ClusterBlockPlan.engineWide(density))
-        scrimBlock(canvas, box)
 
         pen.title(
             canvas, TITLE_ENGINE, column.right, column.next(),
@@ -247,7 +254,7 @@ internal class ClusterDashboardRenderer {
         pen.figure(
             canvas, ClusterReadout.whole(t.fuelPercent), FUEL_UNIT,
             column.left, figure, density, density.reading,
-            levelColor(ClusterReadout.fuelState(t.fuelPercent, t.fuelLow)), DenzaPalette.MUTED_DEEP,
+            levelColor(ClusterReadout.fuelState(t.fuelPercent)), DenzaPalette.MUTED_DEEP,
         )
 
         revolutions(canvas, column, density, t)
@@ -265,7 +272,6 @@ internal class ClusterDashboardRenderer {
         t: VehicleTelemetry,
     ) {
         val column = Column(box, density, ClusterBlockPlan.engineNarrow(density))
-        scrimBlock(canvas, box)
 
         pen.title(
             canvas, TITLE_ENGINE, column.right, column.next(),
@@ -282,7 +288,7 @@ internal class ClusterDashboardRenderer {
         pen.figure(
             canvas, ClusterReadout.whole(t.fuelPercent), FUEL_UNIT,
             column.right, column.next(), density, density.reading,
-            levelColor(ClusterReadout.fuelState(t.fuelPercent, t.fuelLow)),
+            levelColor(ClusterReadout.fuelState(t.fuelPercent)),
             DenzaPalette.MUTED_DEEP, Paint.Align.RIGHT,
         )
         pen.track(
@@ -329,7 +335,6 @@ internal class ClusterDashboardRenderer {
     private fun temperatures(canvas: Canvas, box: DashboardBox, t: VehicleTelemetry) {
         val density = InstrumentDensity.COMPACT
         val column = Column(box, density, ClusterBlockPlan.temperatures(density))
-        scrimBlock(canvas, box)
 
         pen.title(canvas, TITLE_THERMAL, column.left, column.next(), density, DenzaPalette.MUTED_DEEP)
 
@@ -375,7 +380,6 @@ internal class ClusterDashboardRenderer {
         val density = InstrumentDensity.COMPACT
         val plan = ClusterBlockPlan.lamps(density, EngineLamp.entries.size, LAMP_COLUMNS)
         val column = Column(box, density, plan)
-        scrimBlock(canvas, box)
 
         pen.title(
             canvas, TITLE_FLUIDS, column.right, column.next(),
@@ -420,7 +424,6 @@ internal class ClusterDashboardRenderer {
     ) {
         val cx = layout.gaugeCentreX * pen.width
         val cy = layout.gaugeCentreY * pen.height - layout.gaugeRadius * pen.height * WAITING_ABOVE
-        pen.scrim(canvas, cx, cy, pen.width * 0.22f, pen.height * 0.16f, SCRIM_BLOCK)
         val word = if (t.access == VehicleAccess.STARTING) READING else NO_DATA
         pen.label(canvas, word, cx, cy, density.reading, DenzaPalette.MUTED, Paint.Align.CENTER)
         if (t.message.isNotEmpty()) {
@@ -434,17 +437,6 @@ internal class ClusterDashboardRenderer {
                 Paint.Align.CENTER,
             )
         }
-    }
-
-    private fun scrimBlock(canvas: Canvas, box: DashboardBox) {
-        pen.scrim(
-            canvas,
-            (box.left + box.right) / 2f * pen.width,
-            (box.top + box.bottom) / 2f * pen.height,
-            (box.right - box.left) * pen.width * 0.72f,
-            (box.bottom - box.top) * pen.height * 0.95f,
-            SCRIM_BLOCK,
-        )
     }
 
     private fun levelColor(level: ClusterReadout.Level): Int = when (level) {
@@ -516,8 +508,8 @@ internal class ClusterDashboardRenderer {
     private companion object {
         const val LAMP_COLUMNS = 4
 
-        /** Enough darkness to read against live vehicle graphics, not enough to blank them. */
-        const val SCRIM_BLOCK = 0.7f
+        /** The dashboard's own ground: opaque, and the same black the panel around it is. */
+        const val BACKGROUND = 0xFF000000.toInt()
 
         /** The waiting word sits above the dial's centre, where the figure would be. */
         const val WAITING_ABOVE = 0.3f

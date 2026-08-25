@@ -115,6 +115,17 @@ internal enum class VehicleSignal(
      * for nothing.
      */
     val engineOnly: Boolean = false,
+    /**
+     * The raw word this one signal uses for "no reading", on top of the Binder
+     * sentinels in [AutoserviceShell] that every signal shares.
+     *
+     * A CAN signal says "not available" by setting every bit of its own field,
+     * so the pattern is a property of the signal's width rather than of its
+     * unit: `0x1FFF` is nothing at all in a 13-bit field and an ordinary number
+     * in a 16-bit one. Checked against the word before any scale or offset,
+     * because that is what the bus actually sent.
+     */
+    val invalid: Int? = null,
 ) {
     // ---- hot: what the right foot changes ----
     POWER_KW(1012, 0x14400020, VehicleTransact.INT, VehiclePoll.HOT, VehicleKind.POWER_KW),
@@ -159,7 +170,21 @@ internal enum class VehicleSignal(
     // and none returned a sentinel. Values were the resting ones (zeros and a
     // 2.0 litre displacement), so what is proven is that they are readable —
     // the rpm scale and the generation unit still need a run with the engine on.
-    ENGINE_RPM(1012, 0x14400012, VehicleTransact.INT, VehiclePoll.HOT, VehicleKind.RPM, engineOnly = true),
+    /**
+     * Revolutions, with the bus's own "not available" word refused.
+     *
+     * Read live on 2026-08-25 with the car parked and the engine off: this id
+     * answered `0x1FFF` - thirteen bits, all ones - while `ENGINE_RUNNING` read
+     * `0`, and the panel printed it as **8191 об/мин** on a stopped engine. The
+     * 2026-08-23 session read `0` here, so the difference is the engine ECU:
+     * awake it reports a real zero, asleep the gateway hands back the invalid
+     * pattern. `8191` is inside any plausible rpm range, so no range gate can
+     * catch it - only the pattern can.
+     */
+    ENGINE_RPM(
+        1012, 0x14400012, VehicleTransact.INT, VehiclePoll.HOT, VehicleKind.RPM,
+        engineOnly = true, invalid = 0x1FFF,
+    ),
     ENGINE_RUNNING(1012, 0x10D00038, VehicleTransact.INT, VehiclePoll.HOT, VehicleKind.FLAG, engineOnly = true),
 
     /**
@@ -178,18 +203,19 @@ internal enum class VehicleSignal(
     /**
      * The tank, which on a hybrid is the half of the drivetrain nothing else here reports.
      *
-     * All three read on this car in the read-only sweep of 2026-08-23 and held steady across a full
-     * engine start/stop cycle: level `53`, range `491` km - consistent with each other - and the
-     * alarm `0`. A later paragraph of the same findings page says no plain tank-level constant was
-     * found; that paragraph predates this reading and is wrong.
+     * Both read on this car in the read-only sweep of 2026-08-23 and held steady across a full
+     * engine start/stop cycle: level `53`, range `491` km, consistent with each other, and `488` km
+     * against the same `53` two days later. A later paragraph of the same findings page says no
+     * plain tank-level constant was found; that paragraph predates this reading and is wrong.
      *
-     * The alarm is the authority on "low", not the percentage: it is the vehicle's own threshold for
-     * this tank, and second-guessing it with a number of our own would put two different answers on
-     * one cluster.
+     * A third id, `0x4A507027` on device `1007`, was read here as a low-fuel alarm and is now gone.
+     * It read `0` on 2026-08-23 and `1` on 2026-08-25 against an unchanged `53 %` tank, which is
+     * decisive: whatever it is, it is not this tank's alarm. It was driving the fuel figure to the
+     * alert colour on a half-full tank. Nothing invented replaces it - the stock cluster has its own
+     * low-fuel lamp, and a second opinion on one panel is worse than none.
      */
     FUEL_PERCENT(1014, 0x4A507040, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.PERCENT, engineOnly = true),
     FUEL_RANGE_KM(1014, 0x4A504038, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.DISTANCE_KM, engineOnly = true),
-    FUEL_LOW(1007, 0x4A507027, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.FLAG, engineOnly = true),
 
     // Warning lamps. Several ids per lamp are generation variants of the same
     // signal, the way the motor temperatures were: reading all of them and
