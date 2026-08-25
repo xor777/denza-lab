@@ -27,14 +27,15 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -489,53 +490,35 @@ private fun SplitPickerScreen(
                 .background(if (nativeBackgroundBlur) NativeBlurOverlay else FallbackBackground),
         ) {
             val columnCount = if (maxWidth >= WidePaneMinimumWidth) 4 else 2
+            // Правка W7 волны 7. Contract scenario 16: панель рисует свои декорации сама, и её
+            // окно честно сообщает НУЛЕВОЙ статусбарный inset - нативный drag control BYD висит
+            // ПОВЕРХ панели, не двигая её. Один statusBarsPadding() (f166d42) прижимал заголовок
+            // к самому верху, где он сливался с drag control («раньше было не так»: до f166d42
+            // стоял жёсткий top=42dp). Зазор - максимум из реального inset (полноэкранный пикер,
+            // оставленный Back'ом, 1.6.3: жёсткие 42dp там резали заголовок) и собственного
+            // воздуха панели, вместе с top-паддингом заголовка дающего прежние 42 dp.
+            val statusBarInset = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
             Column(
-                // Contract scenario 16: the pane draws its own decorations, so the header keeps
-                // clear of the status bar by the inset the window actually has - a hard 42 dp cut
-                // the title off in the fullscreen picker a Back leaves behind (1.6.3).
-                modifier = Modifier.fillMaxSize().statusBarsPadding(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(top = maxOf(statusBarInset, HeaderMinTopClearance)),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                if (busy) {
-                    // Правка W9 (v20 D4, 1.13.2): запуск на этой машине занимает 3-4.7 с, и всё
-                    // это время заголовок честно говорит, что тап принят и чей запуск идёт.
-                    val busyLabel = apps.firstOrNull { it.packageName == busyPackage }?.label
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 12.dp, bottom = 14.dp),
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(18.dp),
-                            color = Accent,
-                            strokeWidth = 2.dp,
-                        )
-                        Spacer(Modifier.width(10.dp))
-                        Text(
-                            text = "Открываю ${busyLabel ?: "приложение"}…",
-                            color = PrimaryText,
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Normal,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
-                } else {
-                    Text(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 12.dp, bottom = 14.dp),
-                        text = message.ifBlank { "Выберите приложение" },
-                        color = if (message.isBlank()) PrimaryText else Warning,
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Normal,
-                        textAlign = TextAlign.Center,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
+                // Правка W7(б): заголовок один и тот же и в покое, и во время запуска. Строка
+                // «Открываю …» дублировала крутилку на выбранной плитке и пригашение сетки -
+                // владелец: «как будто бы лишняя» - и дёргала верхнюю зону панели.
+                Text(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 12.dp, bottom = 14.dp),
+                    text = message.ifBlank { "Выберите приложение" },
+                    color = if (message.isBlank()) PrimaryText else Warning,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Normal,
+                    textAlign = TextAlign.Center,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
                 if (!revealed) {
                     // One cheap frame for a picker nobody is looking at yet (1.13.1).
                     Spacer(Modifier.weight(1f))
@@ -641,6 +624,12 @@ private fun SplitPickerTile(
 }
 
 private const val GridCellWidthDp = 170
+
+/**
+ * Правка W7: собственный воздух панели над заголовком. Вместе с top-паддингом заголовка (12 dp)
+ * даёт прежние 42 dp там, где окно панели сообщает нулевой статусбарный inset.
+ */
+private val HeaderMinTopClearance = 30.dp
 private val WidePaneMinimumWidth = 820.dp
 private val Background = Color(0xFF363940)
 private val NativeBlurOverlay = Brush.verticalGradient(listOf(Color.Transparent, Color.Transparent))
