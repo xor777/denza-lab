@@ -942,6 +942,23 @@ Measured live on TP1A.220624.014 (`eng.build20260705.011226`), gestures only:
   collapse that is the cheapest proof of which side went away - the other
   one - and it holds even when the survivor also left the panel roots
   (its picker base dies with the scene in some geometries).
+- **The fullscreen IVI root holds no background tasks.** `tx118 i32 4`
+  names root 4, and root 4 contains one empty marker and nothing else.
+  Every background task lives in a root of its own (`RootTask id=<taskId>`)
+  whose bounds equal the task's own, so a background task carrying "pane"
+  bounds is this machine's norm, not a trace of the product. `am stack
+  move-task <id> 4 false` moves a task out of a pane, but its geometry
+  stays the firmware's business - asking for a resize there is asking
+  nothing of anybody (wave 9 tried; the code was removed in wave 10).
+- **`am start` picks the copy when a package has two live tasks**, and not
+  necessarily the newest one. A launched task can only be resolved by where
+  the firmware put it, never by "the highest id of that package".
+- **Both collapse proofs are blind at area 0/4.** They begin by reading the
+  area and need `1`/`2`; a collapse that the user covers with Home before
+  the passive reconcile samples it can never be proven afterwards, because
+  the area never returns to `1`/`2`.
+- **One full scene-postcondition sample costs ~350 ms** here (area plus one
+  `am stack list`), so a twenty-attempt poll is a 7-second wait.
 - A clean idle scene is stable: picker|picker and a real app pair both
   survived 90 s untouched and visible (area `3` throughout). The earlier
   ~50 s idle-teardown observation was state-specific (a dirty,
