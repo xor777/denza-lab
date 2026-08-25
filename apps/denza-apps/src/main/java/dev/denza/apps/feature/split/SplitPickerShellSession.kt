@@ -565,13 +565,7 @@ internal class SplitPickerShellSession(
         if (expectedPanes.keys != SplitPane.entries.toSet()) {
             return SplitCollapsedPaneRead(null, "сцена не записана двухпанельной")
         }
-        if (expectedPanes.values.any { expected ->
-                expected.hostTaskId <= 0 ||
-                    ((expected.appTaskId == null) != (expected.packageName == null)) ||
-                    (expected.appTaskId != null &&
-                        (expected.appTaskId <= 0 || expected.packageName.isNullOrBlank()))
-            }
-        ) {
+        if (!expectedPanes.isCompleteTwoPaneRecord()) {
             return SplitCollapsedPaneRead(null, "запись сцены неполна")
         }
         val roots = nativeRootIds()
@@ -633,9 +627,20 @@ internal class SplitPickerShellSession(
      *
      * Выжившую панель называет НЕ `area`: на этой прошивке схлопывание всегда отвечает area=2 и
      * переносит выжившего в контейнер SECONDARY, какой бы стороной он ни был до жеста (живьём:
-     * обе стороны дивайдера, обе назвали SECONDARY). Называет её exact identity - чья записанная
-     * пикер-база жива ровно в границах растянутого корня, - и закрытой панель признаётся только
-     * тогда, когда её записанные задачи покинули оба панельных корня. Read-only.
+     * обе стороны дивайдера, обе назвали SECONDARY). Называет её exact identity ОКНА, которое
+     * прошивка растянула, - и закрытой панель признаётся только тогда, когда её записанные задачи
+     * покинули оба панельных корня. Read-only.
+     *
+     * Правка волны 13 (П1, приёмка v28: 4 из 4 схлопываний SECONDARY не доказаны): растягивается
+     * ОКНО панели, а не её база. У панели с приложением это приложение, и её база остаётся на
+     * панельных границах - `v28-targeted` A1 под Home: базы `[24,112][856,1472]` и
+     * `[880,112][2536,1472]`, приложение выжившего t520 `[0,0][2560,1600]` в растянутом корне
+     * `[0,0][2560,1600]`. Волна 12 искала на растянутых границах базу и потому не находила там
+     * никого никогда. У панели БЕЗ приложения окно - сама база, и она растягивается: v25-B(iii),
+     * база выжившего t569 `[0,0][2560,1600] visible=true` при базе закрытой панели t570 на
+     * панельных `[880,112][2536,1472]` (1.8.2: «выживший-пикер - тоже нормальный случай»).
+     * Свежее схлопывание до накрытия растягивает в корне и то и другое (`21-after-dragL`), так
+     * что признак «окно панели на границах растянутого корня» верен в обоих измеренных мирах.
      */
     fun collapsedPaneByPanelBounds(
         pickerComponents: Set<String>,
@@ -644,7 +649,7 @@ internal class SplitPickerShellSession(
         if (expectedPanes.keys != SplitPane.entries.toSet()) {
             return SplitCollapsedPaneRead(null, "сцена не записана двухпанельной")
         }
-        if (expectedPanes.values.any { expected -> expected.hostTaskId <= 0 }) {
+        if (!expectedPanes.isCompleteTwoPaneRecord()) {
             return SplitCollapsedPaneRead(null, "запись сцены неполна")
         }
         val roots = nativeRootIds()
@@ -659,17 +664,16 @@ internal class SplitPickerShellSession(
         val stretchedBounds = paneBounds.getValue(stretched)
         val tasks = mainDisplayTasks()
         val survivors = SplitPane.entries.filter { pane ->
+            val expected = expectedPanes.getValue(pane)
             tasks.any { task ->
-                task.id == expectedPanes.getValue(pane).hostTaskId &&
-                    task.bounds == stretchedBounds &&
-                    task.isDenzaPickerBase() &&
-                    task.matchesAnyComponent(pickerComponents)
+                task.bounds == stretchedBounds &&
+                    task.isRecordedWindowOf(expected, pickerComponents)
             }
         }
         val survivor = survivors.singleOrNull()
             ?: return SplitCollapsedPaneRead(
                 null,
-                "растянутый корень не назван базой: совпадений ${survivors.size}",
+                "растянутое окно не названо панелью: совпадений ${survivors.size}",
             )
         val collapsed = survivor.other()
         val panelTaskIds = roots.values.mapNotNull(state::root)
@@ -685,8 +689,44 @@ internal class SplitPickerShellSession(
                 "задачи закрытой панели ещё в панельных корнях",
             )
         }
-        return SplitCollapsedPaneRead(collapsed, "collapsed: база выжившего растянута на весь экран")
+        val proof = if (expectedPanes.getValue(survivor).appTaskId == null) {
+            "пикер выжившего растянут на весь экран"
+        } else {
+            "приложение выжившего растянуто на весь экран"
+        }
+        return SplitCollapsedPaneRead(collapsed, "collapsed: $proof")
     }
+
+    /**
+     * Записанное ОКНО панели: её приложение, а если приложения в записи нет - её пикер-база.
+     *
+     * Это единственное, что прошивка растягивает на схлопывании (правка волны 13, П1), и
+     * доказывается оно тем же exact identity, что и везде: task id плюс пакет для приложения,
+     * task id плюс собственный компонент для базы (инвариант 3, 4).
+     */
+    private fun SplitTask.isRecordedWindowOf(
+        expected: SplitPickerObservedPane,
+        pickerComponents: Set<String>,
+    ): Boolean = when (val appTaskId = expected.appTaskId) {
+        null -> id == expected.hostTaskId &&
+            isDenzaPickerBase() &&
+            matchesAnyComponent(pickerComponents)
+        else -> id == appTaskId &&
+            effectivePackageName() == expected.packageName &&
+            !isDenzaPickerBase()
+    }
+
+    /**
+     * Записанная сцена, по которой вообще можно судить о мире: у каждой панели есть база, а
+     * приложение записано либо целиком (задача И пакет), либо никак (правка W4, U5).
+     */
+    private fun Map<SplitPane, SplitPickerObservedPane>.isCompleteTwoPaneRecord(): Boolean =
+        values.none { expected ->
+            expected.hostTaskId <= 0 ||
+                ((expected.appTaskId == null) != (expected.packageName == null)) ||
+                (expected.appTaskId != null &&
+                    (expected.appTaskId <= 0 || expected.packageName.isNullOrBlank()))
+        }
 
     /**
      * Brings an exact owned pair back above Home or a fullscreen window without rebuilding a pane.

@@ -2316,10 +2316,12 @@ class SplitScenarioTest {
         car.barrier()
         car.clearCommands()
 
-        // Жест: панель музыки закрыта, её задачи отвязаны живыми, контейнер выжившей растянут.
+        // Жест: панель музыки закрыта, её задачи отвязаны живыми, контейнер выжившей растянут -
+        // и в нём растянуто ПРИЛОЖЕНИЕ выжившего, а база остаётся на панельных границах: ровно
+        // тот мир, который приёмка v28 сняла со стека (правка волны 13, П1).
         car.fake.detachTask(SECONDARY_PICKER_TASK)
         car.fake.detachTask(SECONDARY_APP_TASK)
-        car.fake.stretchPanelRoot(PRIMARY_ROOT)
+        car.fake.stretchPanelRoot(PRIMARY_ROOT, baseKeepsPanelBounds = true)
         // ...и Home накрыл экран прежде, чем хоть одна сверка успела посмотреть.
         car.fake.area = 0
         core.homeVisible()
@@ -2384,7 +2386,7 @@ class SplitScenarioTest {
 
         car.fake.detachTask(SECONDARY_PICKER_TASK)
         car.fake.detachTask(SECONDARY_APP_TASK)
-        car.fake.stretchPanelRoot(PRIMARY_ROOT)
+        car.fake.stretchPanelRoot(PRIMARY_ROOT, baseKeepsPanelBounds = true)
         car.fake.area = 0
 
         // Ни dividerResized, ни pickerHidden: продукту о жесте никто не сказал.
@@ -2434,7 +2436,7 @@ class SplitScenarioTest {
 
         car.fake.detachTask(SECONDARY_PICKER_TASK)
         car.fake.detachTask(SECONDARY_APP_TASK)
-        car.fake.stretchPanelRoot(PRIMARY_ROOT)
+        car.fake.stretchPanelRoot(PRIMARY_ROOT, baseKeepsPanelBounds = true)
         car.fake.area = 1
 
         // Ни homeVisible, ни dividerResized: сразу плитка.
@@ -2462,6 +2464,64 @@ class SplitScenarioTest {
     }
 
     /**
+     * Правка волны 13 (П1, дефект 2 приёмки v28): открытие обязано успевать САМО.
+     *
+     * Измеренная гонка: отложенная сверка накрытого мира приходит через ~5.9 с после Home
+     * (A3: Home 152812062, строка сверки 152817933), а пользователь возвращается через 2.3-3.5 с
+     * (A7, A2) - и успевает раньше. Открытие, которое ждёт фоновую сверку, воскрешает закрытое
+     * (против 1.3.4). Здесь после Home не идёт ни одного такта времени: ни повтора, ни
+     * дивайдерной подсказки, - и решение принимает само открытие.
+     */
+    @Test
+    fun anOpenBeatsTheDeferredRecheckToTheCollapseHomeCovered() {
+        val car = car(FakeShell(initialGate = true).apply { liveProductScene(withApps = true) })
+        val core = car.core(SplitDurable(enabled = true, slots = APP_PAIR))
+        car.gateLease.setOwned(true)
+        core.initialize {}
+        core.openPickerSession()
+        car.barrier()
+        car.clearCommands()
+
+        car.fake.detachTask(SECONDARY_PICKER_TASK)
+        car.fake.detachTask(SECONDARY_APP_TASK)
+        car.fake.stretchPanelRoot(PRIMARY_ROOT, baseKeepsPanelBounds = true)
+        car.fake.area = 0
+        core.homeVisible()
+        car.barrier()
+
+        assertEquals(
+            "отложенная сверка взведена, но пользователь быстрее неё",
+            1,
+            car.clock.pendingTimers(),
+        )
+        assertEquals(
+            "и сама она ещё ничего не решила",
+            SplitSlot.App(MUSIC),
+            car.store.load().slot(SplitPane.SECONDARY),
+        )
+
+        // Пользователь возвращается ДО повтора: часы не двигаются ни на миллисекунду.
+        core.openPickerSession()
+        car.barrier()
+
+        assertTrue(
+            "открытие само прочло накрытый мир и назвало закрытую панель",
+            car.diagnostics.any { it.contains("collapse settled before the restore: SECONDARY") },
+        )
+        assertEquals(
+            "закрытая панель открывается свежим пикером",
+            SplitSlot.Picker,
+            car.store.load().slot(SplitPane.SECONDARY),
+        )
+        assertEquals(SplitSlot.App(NAVIGATOR), car.store.load().slot(SplitPane.PRIMARY))
+        assertFalse(
+            "музыка не перезапущена",
+            car.commands().any { it.startsWith("am start ") && it.contains(MUSIC) },
+        )
+        assertTrue("её задача жива", car.fake.hasTask(SECONDARY_APP_TASK))
+    }
+
+    /**
      * Правка волны 12, третья половина: рецепт может не отказать, а умереть.
      *
      * Живой ринг v27 A1: `background reconcile failed quietly: Split изменился при возврате
@@ -2480,7 +2540,7 @@ class SplitScenarioTest {
 
         car.fake.detachTask(SECONDARY_PICKER_TASK)
         car.fake.detachTask(SECONDARY_APP_TASK)
-        car.fake.stretchPanelRoot(PRIMARY_ROOT)
+        car.fake.stretchPanelRoot(PRIMARY_ROOT, baseKeepsPanelBounds = true)
         // Мир ещё показывает выжившего (area 1/2) - ровно тот такт, в котором физическая
         // адопция берётся двигать пикера и в котором её роняет пришедший Home.
         car.fake.area = 1

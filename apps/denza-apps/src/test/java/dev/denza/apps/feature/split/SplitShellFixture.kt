@@ -59,6 +59,15 @@ internal val FULL = SplitBounds(0, 0, 2560, 1600)
 internal val PRIMARY_BOUNDS = SplitBounds(24, 112, 856, 1472)
 internal val SECONDARY_BOUNDS = SplitBounds(880, 112, 2536, 1472)
 
+/**
+ * Второй детент дивайдера этой машины (v28 commands.log: `x=868` и `x=1692`).
+ *
+ * На нём широкая панель слева, узкая справа, и имена панелей от стороны не зависят: приёмка v28
+ * A3 читает PRIMARY как `[1704,112][2536,1472]`, а SECONDARY как `[24,112][1680,1472]`.
+ */
+internal val MIRRORED_PRIMARY_BOUNDS = SplitBounds(1704, 112, 2536, 1472)
+internal val MIRRORED_SECONDARY_BOUNDS = SplitBounds(24, 112, 1680, 1472)
+
 internal class FakeGateLease(
     private var owned: Boolean = false,
 ) : SplitGateLeaseStore {
@@ -90,6 +99,12 @@ internal class FakeShell(
      * the visible top of that root (правка A4).
      */
     private val pickerStaysAboveApps: Boolean = false,
+    /**
+     * Детент дивайдера этого мира. Живьём измерены два, и оба обязаны быть покрыты там, где
+     * решение принимается по геометрии корней (правка волны 13, проверка B приёмки v28).
+     */
+    private val primaryPaneBounds: SplitBounds = PRIMARY_BOUNDS,
+    private val secondaryPaneBounds: SplitBounds = SECONDARY_BOUNDS,
 ) {
     data class Task(
         val id: Int,
@@ -97,7 +112,10 @@ internal class FakeShell(
         var activityName: String,
         var rootId: Int,
         var bounds: SplitBounds,
-    )
+    ) {
+        val isPickerBase: Boolean
+            get() = packageName == SPLIT_HOST_PACKAGE && activityName == SPLIT_PICKER_ACTIVITY
+    }
 
     val commands = mutableListOf<String>()
 
@@ -254,10 +272,27 @@ internal class FakeShell(
      *
      * Отдельно от [dismissPane] потому, что задачи закрытой панели прошивка отвязывает живыми
      * ([detachTask]), а не удаляет: удаление - это уже «очистить всё».
+     *
+     * Живьём измерены ДВЕ формы одного жеста, и разница между ними решающая (правка волны 13).
+     * Свежее схлопывание (area 1/2) отдаёт полноэкранные границы всем задачам корня, включая
+     * пикер-базу: `21-after-dragL.stack.txt` (RootTask 3 `[0,0][2560,1600]`: база t94 И музыка
+     * t97 обе полноэкранные), v25-A rep3, v25-B bi/bii. Тот же мир после Home оставляет БАЗЕ
+     * ПАНЕЛЬНЫЕ границы, а полноэкранные держит только приложение выжившего: v28-targeted A1
+     * («R658 база [24,112][856,1472], выживший app t520 [0,0][2560,1600]»), A3, v25-A rep1/rep2.
+     * Панель без приложения растягивает саму базу и в накрытом мире: v25-B biii, база t569
+     * `[0,0][2560,1600] visible=true` при закрытой панели с базой t570 на панельных границах.
+     *
+     * [baseKeepsPanelBounds] выбирает вторую форму - ту, на которой сломалась волна 12.
      */
-    fun stretchPanelRoot(rootId: Int) {
+    fun stretchPanelRoot(rootId: Int, baseKeepsPanelBounds: Boolean = false) {
         stretchedRoot = rootId
-        tasks.filter { it.rootId == rootId }.forEach { it.bounds = FULL }
+        val inRoot = tasks.filter { it.rootId == rootId }
+        val stretched = if (baseKeepsPanelBounds) {
+            inRoot.filterNot(Task::isPickerBase).ifEmpty { inRoot }
+        } else {
+            inRoot
+        }
+        stretched.forEach { it.bounds = FULL }
         changed()
     }
 
@@ -277,9 +312,7 @@ internal class FakeShell(
         if (promoted.activityName == SPLIT_PICKER_ACTIVITY) return
         if (promoted.rootId != PRIMARY_ROOT && promoted.rootId != SECONDARY_ROOT) return
         val picker = tasks.firstOrNull { task ->
-            task.rootId == promoted.rootId &&
-                task.packageName == SPLIT_HOST_PACKAGE &&
-                task.activityName == SPLIT_PICKER_ACTIVITY
+            task.rootId == promoted.rootId && task.isPickerBase
         } ?: return
         tasks.remove(picker)
         tasks += picker
@@ -684,8 +717,8 @@ internal class FakeShell(
         // Растяжение живёт ровно до следующего сбалансированного split: накрытие его сохраняет,
         // новая сборка панелей отменяет.
         rootId == stretchedRoot && area != 3 -> FULL
-        rootId == PRIMARY_ROOT -> if (area == 1) FULL else PRIMARY_BOUNDS
-        rootId == SECONDARY_ROOT -> if (area == 2) FULL else SECONDARY_BOUNDS
+        rootId == PRIMARY_ROOT -> if (area == 1) FULL else primaryPaneBounds
+        rootId == SECONDARY_ROOT -> if (area == 2) FULL else secondaryPaneBounds
         else -> FULL
     }
 
