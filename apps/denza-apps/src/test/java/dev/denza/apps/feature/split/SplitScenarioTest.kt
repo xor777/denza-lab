@@ -2297,6 +2297,104 @@ class SplitScenarioTest {
     }
 
     /**
+     * Правка волны 11, звено А (приёмка v25-D): схлопывание, накрытое ранним Home.
+     *
+     * Пользователь схлопнул панель и в пределах пары секунд нажал Home. Сабмит Home вытесняет
+     * дивайдерную сверку - единственную, кто мог прочесть area 1/2, - а её отложенный повтор
+     * приходит уже к area 0/4, где оба доказательства схлопывания слепы навсегда. В v25-D это
+     * видно построчно: три сверки подряд читают area=0/0/4, слот схлопнутой панели остаётся
+     * `App(music)`, и следующее открытие ЧЕСТНО воскрешает то, что пользователь закрыл.
+     *
+     * Доказательство не переехало и не ослабло: тот же предикат существования, то же имя от area.
+     * Его применяет цикл подтверждения накрытия внутри самого Home - последний живой взгляд
+     * продукта на мир до того, как мир уйдёт.
+     */
+    @Test
+    fun aCollapseCoveredByAnEarlyHomeIsStillProvenAndItsPaneStaysClosed() {
+        val car = car(FakeShell(initialGate = true).apply { liveProductScene(withApps = true) })
+        val core = car.core(SplitDurable(enabled = true, slots = APP_PAIR)) { line ->
+            // Мир уходит под Home ровно после того, как схлопывание доказано: дальше area 0.
+            if (line.startsWith("collapse proven before the cover")) car.fake.area = 0
+        }
+        car.gateLease.setOwned(true)
+        core.initialize {}
+        core.openPickerSession()
+        car.barrier()
+        car.clearCommands()
+
+        // Жест: панель музыки схлопнута, её задачи отвязаны живыми, area называет выжившего.
+        car.fake.detachTask(SECONDARY_PICKER_TASK)
+        car.fake.detachTask(SECONDARY_APP_TASK)
+        car.fake.area = 1
+        // Home приходит раньше любой сверки - и снимает её (§4).
+        core.homeVisible()
+        car.barrier()
+
+        assertEquals(
+            "слот схлопнутой панели закрыт, хотя сверку и накрыло Home",
+            SplitSlot.Closed,
+            car.store.load().slot(SplitPane.SECONDARY),
+        )
+        assertEquals(SplitSlot.App(NAVIGATOR), car.store.load().slot(SplitPane.PRIMARY))
+        assertTrue(
+            "приложение пользователя живо: прошивка отвязала его, продукт не трогает (1.8.2)",
+            car.fake.hasTask(SECONDARY_APP_TASK),
+        )
+        assertFalse(
+            "и ни одна команда его не адресовала",
+            car.commands().any { it.contains(" remove-task ") && it.contains(" $SECONDARY_APP_TASK ") },
+        )
+        assertFalse(
+            "огрызок своего пикера убран по точной identity",
+            car.fake.hasTask(SECONDARY_PICKER_TASK),
+        )
+        assertFalse("а gate подвешен, как и на любом Home (1.9.1)", car.fake.isGateOpen())
+
+        // И следующее открытие не воскрешает закрытое (1.3.4).
+        car.clearCommands()
+        core.openPickerSession()
+        car.barrier()
+
+        assertEquals(
+            "закрытая панель открывается свежим пикером",
+            SplitSlot.Picker,
+            car.store.load().slot(SplitPane.SECONDARY),
+        )
+        assertFalse(
+            "музыка не перезапущена",
+            car.commands().any { it.startsWith("am start ") && it.contains(MUSIC) },
+        )
+    }
+
+    /**
+     * Обратная сторона той же правки: ложное закрытие слота хуже пропущенного.
+     *
+     * Одна area, назвавшая выжившего, ничего не закрывает сама по себе - закрывает только уход
+     * записанных задач панели из ОБОИХ панельных корней (правка W1 волны 9). Живая сцена под
+     * переходной area остаётся живой, и выбор пользователя цел.
+     */
+    @Test
+    fun aHomeOverALiveSceneNeverClosesAPaneOnAreaAlone() {
+        val car = car(FakeShell(initialGate = true).apply { liveProductScene(withApps = true) })
+        val core = car.core(SplitDurable(enabled = true, slots = APP_PAIR))
+        car.gateLease.setOwned(true)
+        core.initialize {}
+        core.openPickerSession()
+        car.barrier()
+        car.clearCommands()
+
+        // Обе панели целы, но area на такт показывает одного выжившего.
+        car.fake.area = 1
+        core.homeVisible()
+        car.barrier()
+
+        assertEquals("выбор пользователя цел", APP_PAIR, car.store.load().slots)
+        assertTrue(car.fake.hasTask(SECONDARY_PICKER_TASK))
+        assertTrue(car.fake.hasTask(SECONDARY_APP_TASK))
+        assertEquals("и ни одной мутации", emptyList<String>(), car.mutations())
+    }
+
+    /**
      * Правка W1, регресс воскрешения (1.3.4, 1.8.2): collapse → Home → open. Панель схлопнутой
      * стороны показывает пикер; её живой фоновый таск не втягивается и не перезапускается.
      */

@@ -406,6 +406,24 @@ internal abstract class SplitCoreOperation<P>(
         return slots
     }
 
+    /**
+     * Only the permanent picker base of a pane the user closed, by exact identity, wherever it is.
+     *
+     * The application of that pane is never touched: the firmware detaches it alive ("Release to
+     * close"), it keeps playing, and it is the user's (1.8.2, invariant 3).
+     */
+    protected fun removeCollapsedPicker(
+        op: SplitOperationContext,
+        split: SplitPickerShellSession,
+        hostTaskId: Int,
+    ) {
+        runCatching { split.removePickerArtifact(hostTaskId, SPLIT_PICKER_COMPONENT_SET) }
+            .onSuccess { removed ->
+                if (removed) recordRemoved(op, hostTaskId, SPLIT_PICKER_COMPONENT)
+            }
+            .onFailure { error -> work.log("failed to remove the collapsed picker: $error") }
+    }
+
     /** Moves a pane to `APP(package)` from whatever it held, or back to its picker. */
     protected fun settleOccupant(pane: SplitPane, packageName: String?) {
         val current = working.slot(pane)
@@ -878,13 +896,27 @@ internal class HomeOperation(
     coalesceKey = null,
     work = work,
 ) {
+    /** The pane a collapse closed, proven while the world still showed it (правка волны 11). */
+    private var collapsedBeforeCover: SplitPane? = null
+
+    private var collapseProbes = 0
+
     override fun prepare(op: SplitOperationContext, shell: (String) -> String): Boolean =
         working.enabled
 
     override fun apply(op: SplitOperationContext, shell: (String) -> String, plan: Boolean) {
         if (!plan) return
+        val split = work.split(op)
         // The recipe reads the lease before it reads the car: an unowned gate costs no command.
-        if (work.split(op).suspendOwnedGateForHome(displaced = work.userInputWaiting)) {
+        // Its very first area sample is taken before anything is suspended, which is exactly the
+        // world the passive reconcile would have read had this Home not displaced it (§4), so the
+        // collapse probe rides that loop instead of paying for a read of its own.
+        val suspended = split.suspendOwnedGateForHome(
+            displaced = work.userInputWaiting,
+            onSurvivorArea = { proveCollapseBeforeCover(split) },
+        )
+        settleCollapseBeforeCover(op, split)
+        if (suspended) {
             settle(SplitFact.HomeConfirmed)
             scheduleCleanupOverADeadMember(op)
             return
@@ -900,6 +932,59 @@ internal class HomeOperation(
                 "home suspend unconfirmed: area==0 не подтвердилось за ~3с, gate остался открыт (1.9.3)"
             },
         )
+    }
+
+    /**
+     * Правка волны 11, звено А (приёмка v25-D): схлопывание, накрытое ранним Home.
+     *
+     * Оба доказательства схлопывания начинаются с чтения area и требуют 1/2 (findings, "Both
+     * collapse proofs are blind at area 0/4"). Пользователь, нажавший Home в пределах ~2 с после
+     * жеста, сабмитом Home вытесняет сверку, которая только и могла это прочесть (§4), а её
+     * отложенный повтор приходит к area 0 - и слот схлопнутой панели остаётся `App(...)`: следующее
+     * открытие ЧЕСТНО восстанавливает то, что пользователь закрыл (против 1.3.4 и 1.8.2). Живой
+     * ринг v25-D показывает ровно это: три сверки подряд читают area=0/0/4.
+     *
+     * Правка не спорит с правкой W1 волны 9 и ничего в ней не меняет: имя схлопнутой панели
+     * по-прежнему называет area, а факт - существование, по exact identity. Меняется только
+     * момент: тот же предикат применяется на сэмплах цикла подтверждения накрытия, пока мир ещё
+     * показывает 1/2. Никакого нового таймера и ни одного лишнего чтения на обычном Home: цикл
+     * уже был, он уже читал area, и при area 0/3/4 проба не запускается вовсе.
+     *
+     * Доказательство read-only и подтверждается вторым чтением; попыток не больше [MAX_PROBES] -
+     * мир, который не сошёлся за две, перечитает обычная сверка, а Home не имеет права стоять.
+     */
+    private fun proveCollapseBeforeCover(split: SplitPickerShellSession) {
+        if (collapsedBeforeCover != null || collapseProbes >= MAX_PROBES) return
+        if (working.scene != SplitScene.Split) return
+        val expected = SplitCoordinatorCore.collapseExpectation(liveScene)
+            ?.takeIf { panes -> panes.keys == SplitPane.entries.toSet() }
+            ?: return
+        collapseProbes += 1
+        val read = runCatching {
+            split.confirmedCollapsedPaneByExistence(SPLIT_PICKER_COMPONENT_SET, expected)
+        }.getOrNull() ?: return
+        val collapsed = read.collapsed ?: return
+        collapsedBeforeCover = collapsed
+        work.log("collapse proven before the cover: $collapsed (${read.reason})")
+    }
+
+    /**
+     * Contract 1.8.2: the pane is closed for good, its selection is cleared, and its application
+     * stays alive in the background - the firmware detached it, and it is the user's.
+     *
+     * The fact is settled before [SplitFact.HomeConfirmed] so that the automaton sees what actually
+     * happened in the order it happened: the scene became a single pane, and then Home covered it.
+     */
+    private fun settleCollapseBeforeCover(
+        op: SplitOperationContext,
+        split: SplitPickerShellSession,
+    ) {
+        val collapsed = collapsedBeforeCover ?: return
+        if (working.slot(collapsed.other()) == SplitSlot.Closed) return
+        pointOfNoReturn(op, "the collapse closed $collapsed for good; its app stays alive")
+        liveScene[collapsed]?.let { pane -> removeCollapsedPicker(op, split, pane.hostTaskId) }
+        liveScene = liveScene - collapsed
+        settle(SplitFact.PaneCollapsedSettled(collapsed.other()))
     }
 
     /**
@@ -929,6 +1014,17 @@ internal class HomeOperation(
                 "(правка W2 волны 8)",
         )
         requestCleanup()
+    }
+
+    private companion object {
+        /**
+         * Правка волны 11: сколько раз одна операция Home пытается доказать схлопывание.
+         *
+         * Первая попытка - до подвески, второй мир даёт собственный цикл ожидания. Больше платить
+         * нечем: каждая попытка - это чтение топологии, а Home обязан подвесить gate быстро;
+         * мир, который не сошёлся за две, перечитает обычная сверка своим каналом.
+         */
+        const val MAX_PROBES = 2
     }
 }
 
@@ -1682,19 +1778,6 @@ internal class ReconcileOperation(
         liveScene = mapOf(survivor to collapsed)
         settle(SplitFact.PaneCollapsedSettled(survivor))
         settleOccupant(survivor, collapsed.appPackageName)
-    }
-
-    /** Only the permanent picker base of the collapsed pane, by exact identity, wherever it is. */
-    private fun removeCollapsedPicker(
-        op: SplitOperationContext,
-        split: SplitPickerShellSession,
-        hostTaskId: Int,
-    ) {
-        runCatching { split.removePickerArtifact(hostTaskId, SPLIT_PICKER_COMPONENT_SET) }
-            .onSuccess { removed ->
-                if (removed) recordRemoved(op, hostTaskId, SPLIT_PICKER_COMPONENT)
-            }
-            .onFailure { error -> work.log("failed to remove the collapsed picker: $error") }
     }
 
     internal companion object {
