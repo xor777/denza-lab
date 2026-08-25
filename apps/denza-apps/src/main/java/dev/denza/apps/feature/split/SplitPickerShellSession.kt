@@ -820,6 +820,18 @@ internal class SplitPickerShellSession(
             } else {
                 null
             }
+            // Правка W1 волны 10 (приёмка v25, Д1): живая задача целевого пакета, уже стоящая в
+            // корне ЭТОЙ панели, и есть приложение панели. Прежде её не признавал никто - `covered`
+            // и `stray` требуют точный записанный id, - и панель уходила в ЗАПУСК поверх живой
+            // копии. При двух задачах одного пакета прошивка приносила по `am start` вторую копию,
+            // а поиск по пакету называл первую и втаскивал её следом: в корне оказывались обе
+            // (живьём v25: `music t316+t532 RELAUNCHED into SECONDARY`, три задачи в панели).
+            // Приложение живо - значит панель его показывает, а не запускает копию.
+            val resident = if (covered == null && stray == null) {
+                residentAppInPane(settled, rootIds, pane, hostTaskIds, expectedApps[pane], target)
+            } else {
+                null
+            }
             when {
                 root != null &&
                     top != null &&
@@ -868,6 +880,20 @@ internal class SplitPickerShellSession(
                     )
                     moveTask(stray.id, rootIds.getValue(pane))
                 }
+                // Правка W1 волны 10: приложение панели уже стоит в её корне. Оно поднимается тем
+                // же focus, что и `covered`, и получает размер панели в общем пакетном ресайзе.
+                resident != null -> {
+                    appTaskIds[pane] = resident.id
+                    adoptedAppIds += resident.id
+                    onTask(
+                        SplitBuiltTask(
+                            taskId = resident.id,
+                            component = target.componentName,
+                            fromRootId = resident.rootId,
+                            toRootId = resident.rootId,
+                        ),
+                    )
+                }
                 else -> launching[pane] = target
             }
         }
@@ -881,10 +907,18 @@ internal class SplitPickerShellSession(
             val keep = setOfNotNull(
                 hostTaskIds.getValue(pane),
                 appTaskIds[pane],
-                settled.root(rootIds.getValue(pane))?.tasks
-                    ?.filter { task -> task.effectivePackageName() == target }
-                    ?.maxByOrNull(SplitTask::id)
-                    ?.id,
+                // Правка W1 волны 10: копия пакета в корне бережётся только ради ЗАПУСКА, чтобы он
+                // переиспользовал задачу вместо перезапуска (U2). У панели, чьё приложение уже
+                // найдено, второй экземпляр того же пакета - не запас, а лишняя задача: он уезжает
+                // живым в фон общим правилом ниже, и в корне остаётся «база + приложение».
+                if (appTaskIds[pane] == null) {
+                    settled.root(rootIds.getValue(pane))?.tasks
+                        ?.filter { task -> task.effectivePackageName() == target }
+                        ?.maxByOrNull(SplitTask::id)
+                        ?.id
+                } else {
+                    null
+                },
             )
             settled.root(rootIds.getValue(pane))?.tasks.orEmpty()
                 .filterNot { task -> task.id in keep || task.isEmptyRootMarker() }
@@ -2583,6 +2617,37 @@ internal class SplitPickerShellSession(
                 !task.isNativeSplitBootstrap() &&
                 task.bounds == root.bounds
         }
+    }
+
+    /**
+     * Приложение панели, которое уже в ней живёт (правка W1 волны 10).
+     *
+     * Запуск этого продукта - `am start` без `MULTIPLE_TASK`, то есть «дай задачу пакета, какая
+     * есть». Значит панель, в корне которой такая задача уже стоит, ничего не запускает: она её
+     * принимает. Точность здесь ровно та же, что у самого запуска - пакет, - но исход доказан, а
+     * не заказан: при двух задачах пакета запуск приносил вторую копию поверх первой.
+     *
+     * Инвариант 3 не ослаблен: собственные компоненты продукта (пикер-база, retired host, штатный
+     * bootstrap) не могут быть «найденным приложением» даже когда запускается пакет продукта.
+     * Из нескольких копий предпочитается записанная этим процессом, иначе - свежайшая.
+     */
+    private fun residentAppInPane(
+        state: SplitTaskSnapshot,
+        rootIds: Map<SplitPane, Int>,
+        pane: SplitPane,
+        hostTaskIds: Map<SplitPane, Int>,
+        expected: SplitPickerExpectedApp?,
+        target: SplitLaunchTarget,
+    ): SplitTask? {
+        val root = state.root(rootIds.getValue(pane)) ?: return null
+        val candidates = root.tasks.filter { task ->
+            task.id != hostTaskIds.getValue(pane) &&
+                !task.isEmptyRootMarker() &&
+                !task.isOwnSplitComponent() &&
+                task.effectivePackageName() == target.packageName
+        }
+        return candidates.firstOrNull { task -> task.id == expected?.taskId }
+            ?: candidates.maxByOrNull(SplitTask::id)
     }
 
     /**

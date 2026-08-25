@@ -2036,15 +2036,18 @@ class SplitPickerShellSessionTest {
     /**
      * 1.3.2, 1.5.7: the pane whose app did not come back is left on its own picker, and clean.
      *
-     * Правка W6: чистота паны не покупается казнью. Задача кандидата жила в панельном корне ДО
-     * этой сборки, а сборка без прочитанного прошлого (`preexistingTaskIds == null`) не может
-     * доказать, что создала её - значит, задача возвращается фоном в полноэкранный root, а не
-     * удаляется (инвариант 3; 1.3.4 - о не-воскрешении, не о казни фоновых задач).
+     * Правка W6: чистота паны не покупается казнью. Задача кандидата жила ДО этой сборки, а сборка
+     * без прочитанного прошлого (`preexistingTaskIds == null`) не может доказать, что создала её -
+     * значит, задача остаётся жить фоном, а не удаляется (инвариант 3; 1.3.4 - о не-воскрешении,
+     * не о казни фоновых задач).
+     *
+     * Правка W1 волны 10: кандидат стоит ВНЕ панели. Живой кандидат В панели - уже не отказ, а
+     * готовое приложение панели, и это отдельный тест ниже.
      */
     @Test
     fun aRestorationThatFailsLeavesThatPaneOnItsPickerAndTheNeighbourAlone() {
         val fake = FakeShell(directTargetLaunchSucceeds = false).apply {
-            addTask(PRIMARY_ROOT, 70, NAVIGATOR, "$NAVIGATOR.MainActivity")
+            addTask(FULL_ROOT, 70, NAVIGATOR, "$NAVIGATOR.MainActivity")
         }
 
         val built = session(fake).buildScene(
@@ -2055,9 +2058,101 @@ class SplitPickerShellSessionTest {
         assertEquals(setOf(SplitPane.PRIMARY), built.failed)
         assertEquals(null, built.panes.getValue(SplitPane.PRIMARY).appTaskId)
         assertTrue("пре-существовавшая задача кандидата жива", fake.hasTask(70))
-        assertEquals("она вернулась фоном, не в панель", FULL_ROOT, fake.taskRoot(70))
+        assertEquals("и не тронута", FULL_ROOT, fake.taskRoot(70))
         assertEquals(PRIMARY_PICKER_ACTIVITY, fake.topActivity(PRIMARY_ROOT))
         assertEquals("сосед не тронут", SECONDARY_PICKER_ACTIVITY, fake.topActivity(SECONDARY_ROOT))
+    }
+
+    /**
+     * Правка W1 волны 10 (приёмка v25, Д1): приложение панели уже живёт в ней - его принимают.
+     *
+     * Прошивке даже не отправляют `am start`: фикстура отказывает любому прямому запуску, и сцена
+     * всё равно собирается с этим самым таском. Это и есть требование владельца «если приложение
+     * есть - оно должно быть запущено», и одновременно снятие всего класса «запуск поверх живого».
+     */
+    @Test
+    fun aPaneWhoseAppAlreadyLivesInItAdoptsThatTaskInsteadOfLaunching() {
+        val fake = FakeShell(directTargetLaunchSucceeds = false).apply {
+            addTask(PRIMARY_ROOT, 70, NAVIGATOR, "$NAVIGATOR.MainActivity")
+        }
+
+        val built = session(fake).buildScene(
+            PICKERS,
+            mapOf(SplitPane.PRIMARY to launchTargetOf(NAVIGATOR)),
+        )
+
+        assertEquals("панель не провалилась", emptySet<SplitPane>(), built.failed)
+        assertEquals(70, built.panes.getValue(SplitPane.PRIMARY).appTaskId)
+        assertEquals(PRIMARY_ROOT, fake.taskRoot(70))
+        assertTrue(
+            "и запуска не было вовсе",
+            fake.commands.none { it.startsWith("am start ") && it.contains(NAVIGATOR) },
+        )
+    }
+
+    /**
+     * Живой дефект v25 Д1: у пакета ДВЕ задачи, и обе оказывались в одной панели.
+     *
+     * Прежде панель шла в запуск (точный записанный id не совпадал), прошивка приносила в корень
+     * одну копию, а поиск «максимальный id по всему дисплею» называл другую и втаскивал её следом
+     * `promoteTask`-ом. Постусловие видело три задачи в панели и валило всю сборку - открытие
+     * стоило 11 с и не оставляло пользователю ничего.
+     */
+    @Test
+    fun aSecondTaskOfTheSamePackageNeitherJoinsThePaneNorFailsTheBuild() {
+        val fake = FakeShell().apply {
+            addTask(SECONDARY_ROOT, 70, MUSIC, "$MUSIC.MainActivity")
+            addTask(FULL_ROOT, 71, MUSIC, "$MUSIC.MainActivity")
+        }
+
+        val built = session(fake).buildScene(
+            PICKERS,
+            mapOf(SplitPane.SECONDARY to launchTargetOf(MUSIC)),
+            preexistingTaskIds = setOf(70, 71),
+        )
+
+        assertEquals(emptySet<SplitPane>(), built.failed)
+        assertEquals(70, built.panes.getValue(SplitPane.SECONDARY).appTaskId)
+        assertEquals("вторая копия жива", true, fake.hasTask(71))
+        assertEquals("и осталась вне панели", FULL_ROOT, fake.taskRoot(71))
+        assertEquals(
+            "в панели ровно база и приложение",
+            2,
+            fake.taskIds(SECONDARY_ROOT).size,
+        )
+    }
+
+    /**
+     * Правка W1 волны 10: копия пакета в корне бережётся только ради запуска.
+     *
+     * Панель приняла записанную задачу; вторая копия того же пакета, стоящая рядом в том же корне,
+     * прежде оставалась жить в панели «про запас» - и панель уходила за предел «база + приложение»,
+     * на котором стоит всё постусловие. Второй экземпляр - имущество пользователя: он уезжает
+     * живым в фон, а не удаляется.
+     */
+    @Test
+    fun aSecondCopyBesideTheAdoptedAppLeavesThePaneAlive() {
+        val fake = FakeShell().apply {
+            addTask(SECONDARY_ROOT, 70, MUSIC, "$MUSIC.MainActivity")
+            addTask(SECONDARY_ROOT, 71, MUSIC, "$MUSIC.MainActivity")
+        }
+
+        val built = session(fake).buildScene(
+            PICKERS,
+            mapOf(SplitPane.SECONDARY to launchTargetOf(MUSIC)),
+            expectedApps = mapOf(SplitPane.SECONDARY to SplitPickerExpectedApp(70, MUSIC)),
+            preexistingTaskIds = setOf(70, 71),
+        )
+
+        assertEquals(emptySet<SplitPane>(), built.failed)
+        assertEquals(70, built.panes.getValue(SplitPane.SECONDARY).appTaskId)
+        assertTrue("вторая копия жива", fake.hasTask(71))
+        assertEquals("и выселена фоном", FULL_ROOT, fake.taskRoot(71))
+        assertEquals(
+            "в панели ровно база и приложение",
+            2,
+            fake.taskIds(SECONDARY_ROOT).size,
+        )
     }
 
     @Test
