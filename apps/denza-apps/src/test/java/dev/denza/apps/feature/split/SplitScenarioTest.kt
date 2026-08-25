@@ -1916,11 +1916,13 @@ class SplitScenarioTest {
         car.fake.area = 0
 
         // The first Home hint is real: it confirms Home, suspends the gate we hold (1.9.1) - and,
-        // правка W2, само подаёт уборочную сверку: член сцены мёртв, а hidden-хинт умершего
-        // пикера может не прийти вовсе. Второй barrier дожидается поданной уборки.
+        // правка W2 (в редакции волны 8), взводит уборочную сверку отложенным каналом: член
+        // сцены мёртв, а hidden-хинт умершего пикера может не прийти вовсе. Таймер повтора
+        // дожидается уборки.
         core.homeVisible()
         car.barrier()
         assertFalse(car.fake.isGateOpen())
+        car.clock.advance(SplitCoordinatorCore.RECONCILE_RECHECK_DELAY_MS)
         car.barrier()
 
         assertFalse(
@@ -2022,13 +2024,16 @@ class SplitScenarioTest {
      * Правка W2 (волна 7, мёртвая точка «б»): сабмит HomeOperation снимает взведённые повторы
      * сверки (cancelReconcileRechecks), и в v22 уборка, чей повтор был снят, замолкала навсегда.
      * Подтверждённый Home обязан сам закончиться финальной read-only проверкой «есть ли мёртвый
-     * член» и при да - подать одну уборочную сверку: без единого hidden-хинта и без таймеров.
+     * член» - и при да подать уборку. Правка W2 волны 8 (Ф2): подаёт он её ОТЛОЖЕННЫМ каналом
+     * правки W3, не мгновенным сабмитом - мир не читается в зубы двухпроходного teardown.
+     * Собственный взвод происходит внутри операции, после submit-времени самого Home, так что
+     * сам себя Home не хоронит.
      */
     @Test
-    fun aConfirmedHomeOverADeadMemberSubmitsTheCleanupItself() {
+    fun aConfirmedHomeOverADeadMemberArmsTheDeferredCleanup() {
         val (car, core) = wideBackWorld()
 
-        // Взведённый повтор прошлого отказа - тот самый, который Home похоронит.
+        // Взведённый повтор прошлого отказа - тот самый, который сабмит Home снимает.
         car.shells.failOn("am stack list")
         core.pickerHidden(PRIMARY_PICKER_TASK)
         car.barrier()
@@ -2036,20 +2041,83 @@ class SplitScenarioTest {
 
         core.homeVisible()
         car.barrier()
+        // Второй barrier дренирует всё, что Home мог бы подать мгновенно: до волны 8 здесь
+        // уже не было сироты, теперь мир не читается в зубы teardown-а до таймера повтора.
         car.barrier()
 
-        // Часы не двигались: снятый сабмитом Home повтор не срабатывал, уборку подал сам Home.
-        assertFalse(
-            "подтверждённый Home сам подал уборку: сирота убран без hidden-хинта и таймеров",
+        assertTrue(
+            "уборка не подана мгновенно: мир не читается в зубы teardown-а",
             car.fake.hasTask(SECONDARY_PICKER_TASK),
         )
-        assertEquals(LAUNCHER_PACKAGE, car.fake.system("byd_smart_multi_primary_activity"))
-        assertFalse("gate закрыт и аренда возвращена", car.gateLease.isOwned())
-        assertEquals(0, car.clock.pendingTimers())
+        assertEquals(
+            "подтверждённый Home взвёл ровно один отложенный повтор",
+            1,
+            car.clock.pendingTimers(),
+        )
         assertTrue(
             "и след решения в ринге",
             car.diagnostics.any { it.startsWith("home confirmed over a dead member") },
         )
+
+        car.clock.advance(SplitCoordinatorCore.RECONCILE_RECHECK_DELAY_MS)
+        car.barrier()
+
+        assertFalse("повтор довёл уборку", car.fake.hasTask(SECONDARY_PICKER_TASK))
+        assertEquals(LAUNCHER_PACKAGE, car.fake.system("byd_smart_multi_primary_activity"))
+        assertFalse("gate закрыт и аренда возвращена", car.gateLease.isOwned())
+        assertEquals(0, car.clock.pendingTimers())
+    }
+
+    /**
+     * Правка W2 волны 8, вторая половина: смерть якоря подтверждается вторым чтением через
+     * короткую паузу - только на позитивной ветке, перед мутациями. Член, «мёртвый» на
+     * полутакте двухпроходного teardown и живой вторым чтением, конца не доказывает: уборка
+     * не начинается, отказ назван, мир дочитает отложенный повтор.
+     */
+    @Test
+    fun aMemberDeadForHalfABeatDoesNotEndTheScene() {
+        val fake = FakeShell(initialGate = true).apply { liveProductScene() }
+        val car = car(fake)
+        val core = car.core(
+            SplitDurable(enabled = true, slots = PICKER_PAIR),
+            onDiagnostic = { line ->
+                // Шов между двумя тактами доказательства: к второму чтению прошивка доехала
+                // до конца перестройки, и «мёртвый» член снова в своём панельном корне.
+                if (line.startsWith("scene end:")) {
+                    fake.addTask(
+                        PRIMARY_ROOT,
+                        PRIMARY_PICKER_TASK,
+                        SPLIT_HOST_PACKAGE,
+                        PRIMARY_PICKER_ACTIVITY,
+                    )
+                }
+            },
+        )
+        car.gateLease.setOwned(true)
+        core.initialize {}
+        core.openPickerSession()
+        car.barrier()
+
+        // Полутакт teardown: широкая база на одно чтение отсутствует в снапшоте, экран Home.
+        car.fake.removeActivity(PRIMARY_ROOT, PRIMARY_PICKER_ACTIVITY)
+        car.fake.area = 0
+        car.clearCommands()
+
+        core.pickerHidden(PRIMARY_PICKER_TASK)
+        car.barrier()
+
+        assertTrue(
+            "уборка не началась: второй такт увидел члена живым",
+            car.fake.hasTask(SECONDARY_PICKER_TASK),
+        )
+        assertTrue(car.fake.hasTask(PRIMARY_PICKER_TASK))
+        assertEquals("пара не забыта", PICKER_PAIR, car.store.load().slots)
+        assertFalse(car.commands().any { it.contains(" remove-task ") })
+        assertTrue(
+            "отказ второго чтения назван",
+            car.diagnostics.any { it.contains("не подтвердилась вторым чтением") },
+        )
+        assertEquals("мир дочитает один отложенный повтор", 1, car.clock.pendingTimers())
     }
 
     /**

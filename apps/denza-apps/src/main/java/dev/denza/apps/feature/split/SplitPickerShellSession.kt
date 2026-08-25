@@ -1681,6 +1681,27 @@ internal class SplitPickerShellSession(
         }
     }
 
+    /**
+     * Правка W2 волны 8: одно повторное чтение ворот конца сцены через короткую паузу - только
+     * на позитивной ветке, перед мутациями уборки. Смерть якоря, увиденная в зубы двухпроходного
+     * teardown прошивки, может быть его полутактом (фазовое доказательство v23: 1119 мс между
+     * roots и apps-launched у дефектного open); жизнь и нечитаемость второго чтения не требуют.
+     * Read-only.
+     */
+    fun confirmSceneEndAnchorDead(
+        scene: Map<SplitPane, SplitPickerLivePane>,
+        pickerComponents: Set<String>,
+        appsAnchor: Boolean,
+    ): Boolean {
+        pause(SCENE_END_CONFIRM_SETTLE_MS)
+        val anchorAlive = if (appsAnchor) {
+            allRecordedAppsAlive(scene)
+        } else {
+            allRecordedMembersAlive(scene, pickerComponents)
+        }
+        return !anchorAlive && sceneCovered()
+    }
+
     /** Resolves a product-picker window hint only when one native root has one visible picker. */
     fun singleVisiblePickerTaskId(pickerComponents: Set<String>): Int? {
         val roots = nativeRootIds()
@@ -2585,6 +2606,13 @@ internal class SplitPickerShellSession(
          */
         const val HOME_CONFIRM_BUDGET_MS = 3_000L
         const val DIVIDER_RECONCILE_SETTLE_MS = 1_500L
+
+        /**
+         * Правка W2 волны 8: пауза второго чтения ворот конца сцены. Короче любого teardown-такта
+         * прошивки она быть не обязана - ей достаточно пережить полутакт публикации снапшота;
+         * платится она один раз и только на позитивной ветке, у которой впереди мутации уборки.
+         */
+        const val SCENE_END_CONFIRM_SETTLE_MS = 400L
         const val PICKER_SETTLE_MS = 150L
         const val NATIVE_PICKER_SETTLE_MS = 450L
         const val APP_LAUNCH_SETTLE_MS = 250L
