@@ -1383,9 +1383,17 @@ internal class SplitPickerShellSession(
                 target = target,
                 launchedTaskId = launchedTask.id,
             )
+            // Правка волны 14 (приёмка v29, дефект D): вторая живая задача ВЫБРАННОГО пакета -
+            // законный житель этой панели, а не мусор уборки. Прошивка привела её сюда сама, и
+            // выселение живого ВИДИМОГО окна в полноэкранный корень 4 - это не «уехало в фон»:
+            // корень 4 фоновых задач не держит вовсе (машинная правда волны 10), так что окно
+            // встаёт поверх всей сцены со своими прежними панельными границами. Живьём это
+            // давало битый полуэкран и `select outcome=rolled-back reason=В выбранном split-окне
+            // нет верхней задачи` - обе настоящие панели становились невидимыми (U5, инвариант 9).
             sweepRootsToBaseAndApp(
                 keepByRoot = mapOf(settledRootId to setOf(settledPickerHost.id, settledAppTaskId)),
                 preexistingTaskIds = baselineTaskIds,
+                residentPackage = target.packageName,
             )
             normalizeTaskToRoot(settledAppTaskId, settledRootId)
             pause(ROOT_SETTLE_MS)
@@ -1501,8 +1509,18 @@ internal class SplitPickerShellSession(
         check(callInt("service call activity_task 30") == expectedArea) {
             "Split не перешёл в рабочее состояние"
         }
-        check(root.tasks.size <= MAX_TASKS_PER_PANE) {
-            "В split-контейнере накопилось больше двух задач"
+        // Правка волны 14: панель - это её база и ОДНО приложение, а не две задачи. Живая вторая
+        // задача выбранного пакета лежит под ним и не мешает ничему (1.5.2); посторонняя задача -
+        // мешает, и это по-прежнему отказ.
+        check(
+            root.tasks.none { task ->
+                task.id != pickerHost.id &&
+                    !task.isEmptyRootMarker() &&
+                    (task.isOwnSplitComponent() ||
+                        task.effectivePackageName() != target.packageName)
+            }
+        ) {
+            "В split-контейнере осталась посторонняя задача"
         }
         requirePreservedTargetTasks(target.packageName, preservedTargetTaskRoots)
         return SplitPickerPlacement(
@@ -2568,15 +2586,27 @@ internal class SplitPickerShellSession(
      * приложения, поэтому лишнее уходит по тому же правилу, что и у сборки: своё и созданное
      * этой операцией удаляется, задача пользователя уезжает живой в полноэкранный корень
      * (инвариант 3, U2). Ни одной команды в обычном случае: лишнего нет - выхода нет.
+     *
+     * [residentPackage] - приложение, которое эта панель показывает. Его вторая живая задача
+     * лишней не бывает (1.5.2, правка волны 14): прошивка привела её сюда сама, сверху всё равно
+     * стоит то же самое приложение, и панель на экране правильная. Считать её лишней стоило волне
+     * 13 приёмки v29 - см. [selectApp].
      */
     private fun sweepRootsToBaseAndApp(
         keepByRoot: Map<Int, Set<Int>>,
         preexistingTaskIds: Set<Int>?,
+        residentPackage: String? = null,
     ) {
         val state = snapshot()
         val surplus = keepByRoot.flatMap { (rootId, keep) ->
             state.root(rootId)?.tasks.orEmpty()
-                .filterNot { task -> task.id in keep || task.isEmptyRootMarker() }
+                .filterNot { task ->
+                    task.id in keep ||
+                        task.isEmptyRootMarker() ||
+                        (residentPackage != null &&
+                            !task.isOwnSplitComponent() &&
+                            task.effectivePackageName() == residentPackage)
+                }
         }
         if (surplus.isEmpty()) return
         val (own, foreign) = surplus.partition { task ->

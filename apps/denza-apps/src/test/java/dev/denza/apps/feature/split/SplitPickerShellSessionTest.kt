@@ -424,8 +424,16 @@ class SplitPickerShellSessionTest {
      * одной задачей коммитилась штатно за 2.5 с.
      *
      * Постусловие спрашивает про ЦЕЛЕВОЕ ПРИЛОЖЕНИЕ (1.5.2, 1.5.3, U5, инвариант 9), слот пишется
-     * по фактической верхней задаче, а лишняя задача пакета - имущество пользователя: она уезжает
-     * живой в фон, её не убивают (инвариант 3, U2).
+     * по фактической верхней задаче.
+     *
+     * Правка волны 14 (приёмка v29, дефект D): вторая задача пакета не «уезжает живой в фон» -
+     * она остаётся в панели. Уборка волны 13 выселяла её в полноэкранный корень 4, а корень 4
+     * фоновых задач не держит вовсе (машинная правда волны 10): ВИДИМОЕ окно вставало там поверх
+     * всей сцены со своими прежними панельными границами. Живьём это дало битый полуэкран и
+     * `select outcome=rolled-back reason=В выбранном split-окне нет верхней задачи in 6623ms`
+     * (детерминированно 2/2) - обе настоящие панели становились невидимыми, `resolvedTopTask()`
+     * возвращал null. Прошивка привела эту задачу в панель сама, сверху всё равно стоит выбранное
+     * приложение - панель на экране правильная, и v28 это видел собственными глазами.
      */
     @Test
     fun aSelectOfAnAppWithTwoLiveTasksCommitsTheWindowTheUserSees() {
@@ -457,16 +465,26 @@ class SplitPickerShellSessionTest {
         )
         assertEquals(placement.appTaskId, fake.topTaskId(PRIMARY_ROOT))
         assertEquals(
-            "панель - это её база и одно приложение",
-            listOf(hosts.getValue(SplitPane.PRIMARY), 316),
+            "панель - это её база и ОДНО приложение, каким бы числом задач оно ни жило",
+            listOf(hosts.getValue(SplitPane.PRIMARY), 532, 316),
             fake.taskIds(PRIMARY_ROOT),
         )
-        assertTrue("вторая задача пользователя жива", fake.hasTask(532))
-        assertEquals("и уехала живой в фон", FULL_ROOT, fake.taskRoot(532))
+        assertEquals("вторая задача пакета осталась в панели", PRIMARY_ROOT, fake.taskRoot(532))
+        assertFalse(
+            "и не выселена в полноэкранный корень поверх сцены: ${fake.commands}",
+            fake.commands.any { it == "am stack move-task 532 $FULL_ROOT false" },
+        )
         assertFalse(
             "её никто не убивал",
             fake.commands.any { it.contains("remove-task ") && it.contains(" 532 ") },
         )
+        assertEquals("сцена осталась сбалансированным split", 3, fake.area)
+        // U5 целиком: панель, которую только что собрал выбор, продукт обязан ещё и уметь
+        // прочитать - иначе следующее открытие пересоберёт живую сцену (U2, 1.3.5).
+        val read = split.readOwnedSession(PICKER_COMPONENTS)
+        assertEquals("adoptable", read.reason)
+        assertEquals(316, read.scene?.get(SplitPane.PRIMARY)?.appTaskId)
+        assertEquals(MUSIC, read.scene?.get(SplitPane.PRIMARY)?.appPackageName)
     }
 
     /**
