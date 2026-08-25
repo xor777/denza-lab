@@ -1140,6 +1140,12 @@ internal class ReconcileOperation(
     private val recheck: Boolean = false,
     /** Правка W3: как взвести ровно один отложенный коалесцированный повтор этого же вида. */
     private val armRecheck: (SplitReconcileKind) -> Unit = {},
+    /**
+     * Правка W8: строка отказа для ринга - с подавлением подряд-дублей на стороне координатора.
+     * `null` означает «мир решён»: подавление сбрасывается, и та же причина после решения -
+     * снова новость.
+     */
+    private val reportUnproven: (String?) -> Unit = { line -> line?.let(work::log) },
 ) : SplitCoreOperation<Boolean>(
     label = SplitCoordinatorCore.RECONCILE_LABEL,
     priority = SplitInputPriority.HINT,
@@ -1214,10 +1220,14 @@ internal class ReconcileOperation(
         // нового не взводит: никаких цепочек и таймерных циклов (U1).
         if (proven || ended) unproven.clear()
         if (unproven.isNotEmpty()) {
-            // Правка W4 (U5): каждая недоказанная сверка оставляет в ринге одну строку с именами
-            // отказавших предикатов - v21 диагностировался на полной тишине этих веток.
-            work.log("reconcile unproven: ${unproven.joinToString("; ")}")
+            // Правка W4 (U5): каждая недоказанная сверка оставляет в ринге строку с именами
+            // отказавших предикатов - v21 диагностировался на полной тишине этих веток. Правка
+            // W8: идентичная причина подряд не повторяется строка-в-строку - шторм одного и
+            // того же отказа не заслоняет в ринге ничего нового.
+            reportUnproven("reconcile unproven: ${unproven.joinToString("; ")}")
             if (!recheck) armRecheck(kind)
+        } else {
+            reportUnproven(null)
         }
         // Contract 1.6: the outcome of Back and of a close is the firmware's, and the product's one
         // duty afterwards is to leave nothing of its own behind - no borrowed firmware setting and

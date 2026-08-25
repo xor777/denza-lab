@@ -2443,6 +2443,42 @@ class SplitScenarioTest {
     }
 
     /**
+     * Правка W8: шторм одного и того же отказа не спамит ринг - идентичная причина unproven
+     * подряд пишется строка-в-строку один раз. Решённый мир сбрасывает подавление: та же
+     * причина после решения - снова новость.
+     */
+    @Test
+    fun anIdenticalUnprovenCauseIsWrittenToTheRingOnceUntilTheWorldResolves() {
+        val car = car(FakeShell().apply { liveProductScene(withApps = true) })
+        val core = car.core(SplitDurable(enabled = true, slots = APP_PAIR))
+        core.initialize {}
+        core.openPickerSession()
+        car.barrier()
+
+        car.fake.addTask(PRIMARY_ROOT, FOREIGN_TASK, FOREIGN, "$FOREIGN.MainActivity")
+        repeat(3) {
+            core.dividerResized()
+            car.barrier()
+        }
+        assertEquals(
+            "три идентичных отказа подряд - одна строка",
+            1,
+            car.diagnostics.count { it.startsWith("reconcile unproven:") },
+        )
+
+        // Мир решён: чужая задача ушла, сцена снова читается своей.
+        car.fake.removeActivity(PRIMARY_ROOT, "$FOREIGN.MainActivity")
+        core.dividerResized()
+        car.barrier()
+
+        // Та же причина после решения - снова новость.
+        car.fake.addTask(PRIMARY_ROOT, FOREIGN_TASK, FOREIGN, "$FOREIGN.MainActivity")
+        core.dividerResized()
+        car.barrier()
+        assertEquals(2, car.diagnostics.count { it.startsWith("reconcile unproven:") })
+    }
+
+    /**
      * Правка W5 (1.9.3, диагноз v21 Д3-Б): не подтвердившееся за ~3 с area==0 - строка в ринг,
      * не молчание. Закрыть gate при накрытой сцене обязан продукт; при открытом gate прошивка
      * сама втягивает следующий split-способный запуск в широкую панель, и эта строка -

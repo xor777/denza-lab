@@ -218,6 +218,9 @@ internal class SplitCoordinatorCore(
     /** Правка W3: не более одного отложенного повтора сверки на coalesce-ключ. */
     private val pendingRechecks = mutableMapOf<Any, SplitCancellable>()
 
+    /** Правка W8: последняя причина unproven; идентичная подряд пишется в ринг один раз. */
+    private val lastReconcileUnproven = AtomicReference<String?>(null)
+
     @Volatile
     private var session = SplitScreenSession()
 
@@ -489,7 +492,22 @@ internal class SplitCoordinatorCore(
     private fun submitEnable(): SplitTicket = submit { work -> EnableOperation(work) }
 
     private fun submitReconcile(kind: SplitReconcileKind, recheck: Boolean = false): SplitTicket =
-        submit { work -> ReconcileOperation(work, kind, recheck, ::armReconcileRecheck) }
+        submit { work ->
+            ReconcileOperation(work, kind, recheck, ::armReconcileRecheck, ::reportReconcileUnproven)
+        }
+
+    /**
+     * Правка W8: ринг не спамится штормом одного и того же отказа. Идентичная причина unproven
+     * подряд пишется один раз; решённый мир (`null`) сбрасывает подавление, и та же причина
+     * после решения - снова новость.
+     */
+    private fun reportReconcileUnproven(line: String?) {
+        if (line == null) {
+            lastReconcileUnproven.set(null)
+            return
+        }
+        if (lastReconcileUnproven.getAndSet(line) != line) log.log(line)
+    }
 
     /**
      * Правка W3 (диагноз v21 Д1/Д2): сверка, отказавшая из-за недоказуемой топологии, взводит
