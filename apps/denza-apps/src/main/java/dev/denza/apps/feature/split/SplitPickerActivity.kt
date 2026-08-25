@@ -489,7 +489,9 @@ private fun SplitPickerScreen(
                 .fillMaxSize()
                 .background(if (nativeBackgroundBlur) NativeBlurOverlay else FallbackBackground),
         ) {
-            val columnCount = if (maxWidth >= WidePaneMinimumWidth) 4 else 2
+            // Правка W4 волны 8 (v23 Д3): колонки решает сам констрейнт ширины - панельные виды
+            // пиксельно неизменны, fullscreen перестал рисовать половину себя пустыми полями.
+            val columnCount = splitPickerGridColumnCount(maxWidth.value)
             // Правка W7 волны 7. Contract scenario 16: панель рисует свои декорации сама, и её
             // окно честно сообщает НУЛЕВОЙ статусбарный inset - нативный drag control BYD висит
             // ПОВЕРХ панели, не двигая её. Один statusBarsPadding() (f166d42) прижимал заголовок
@@ -538,7 +540,7 @@ private fun SplitPickerScreen(
                     LazyVerticalGrid(
                         columns = GridCells.Fixed(columnCount),
                         modifier = Modifier
-                            .width((columnCount * GridCellWidthDp).dp)
+                            .width((columnCount * SPLIT_PICKER_GRID_CELL_WIDTH_DP).dp)
                             .weight(1f),
                         contentPadding = PaddingValues(vertical = 16.dp),
                         horizontalArrangement = Arrangement.Center,
@@ -623,14 +625,11 @@ private fun SplitPickerTile(
     }
 }
 
-private const val GridCellWidthDp = 170
-
 /**
  * Правка W7: собственный воздух панели над заголовком. Вместе с top-паддингом заголовка (12 dp)
  * даёт прежние 42 dp там, где окно панели сообщает нулевой статусбарный inset.
  */
 private val HeaderMinTopClearance = 30.dp
-private val WidePaneMinimumWidth = 820.dp
 private val Background = Color(0xFF363940)
 private val NativeBlurOverlay = Brush.verticalGradient(listOf(Color.Transparent, Color.Transparent))
 private val FallbackBackground = Brush.verticalGradient(
