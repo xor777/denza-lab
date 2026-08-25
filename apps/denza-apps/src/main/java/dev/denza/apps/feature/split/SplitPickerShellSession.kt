@@ -86,16 +86,22 @@ internal class SplitPickerShellSession(
      *
      * Правка W5 (1.9.3, диагноз v21 Д3-Б): закрыть gate при накрытой сцене - обязанность
      * продукта, надёжно: при открытом gate прошивка сама втягивает split-способный пакет в
-     * широкую панель. Прежние шесть проб по 100 мс сдавались тихо; подтверждение area==0 теперь
+     * широкую панель. Прежние шесть проб по 100 мс сдавались тихо; подтверждение накрытия теперь
      * ретраится до [HOME_CONFIRM_BUDGET_MS], а [displaced] отдаёт воркер пользовательскому вводу
      * немедленно - явное действие не ждёт фоновый шум (§4).
+     *
+     * Правка W3 волны 7: подтверждение - предикат накрытия ([sceneCovered]: area 0 ИЛИ 4), не
+     * строгое ==0. Карта tx30 живьём (2026-08-25): в переходном грязном мире area дребезжит
+     * 0↔4 - чужое fullscreen-окно поверх накрывает сцену так же честно, как Home (1.11.5), а
+     * жёсткое ==0 сжигало весь бюджет над честно накрытой сценой и оставляло gate открытым.
      */
     fun suspendOwnedGateForHome(displaced: () -> Boolean = { false }): Boolean {
         val store = gateLeaseStore ?: return false
         if (!store.isOwned()) return false
         var waited = 0L
         while (true) {
-            if (callInt("service call activity_task 30") == AREA_HOME) {
+            val area = callInt("service call activity_task 30")
+            if (area == AREA_HOME || area == AREA_FULL_IVI) {
                 callVoid("service call activity_task 126 i32 0")
                 return true
             }

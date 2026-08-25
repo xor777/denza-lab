@@ -1861,6 +1861,39 @@ class SplitPickerShellSessionTest {
         )
     }
 
+    /**
+     * Правка W3 (волна 7, карта tx30 живьём 2026-08-25): чужое fullscreen-окно поверх (area 4)
+     * накрывает сцену так же честно, как Home (1.11.5), и в переходном грязном мире area
+     * дребезжит 0↔4, не обязуясь остановиться на нуле. Жёсткое ==0 сжигало весь бюджет над
+     * честно накрытой сценой и оставляло gate открытым - подтверждение обязано быть предикатом
+     * накрытия.
+     */
+    @Test
+    fun homeSuspendConfirmsOnTheCoverPredicateNotOnAreaZeroAlone() {
+        val fake = FakeShell(initialGate = true).apply { area = 3 }
+        val lease = FakeGateLease(owned = true)
+        var pauses = 0
+        val split = SplitPickerShellSession(
+            shell = fake::shell,
+            apkPath = "/data/app/dev.denza.apps/base.apk",
+            settle = {
+                pauses += 1
+                // Переход дребезжит и оседает на 4: нуля этот мир не покажет никогда.
+                if (pauses == 2) fake.area = 4
+            },
+            gateLeaseStore = lease,
+        )
+
+        assertTrue("накрытие подтверждено без единого area==0", split.suspendOwnedGateForHome())
+        assertFalse(fake.isGateOpen())
+        assertTrue("аренда остаётся для явного возобновления", lease.isOwned())
+        assertEquals(
+            "подтверждение остановилось на первом накрытом чтении",
+            3,
+            fake.commands.count { it == "service call activity_task 30" },
+        )
+    }
+
     @Test
     fun homeSuspendExhaustsItsBudgetWithoutClosingBlind() {
         val fake = FakeShell(initialGate = true).apply { area = 3 }
