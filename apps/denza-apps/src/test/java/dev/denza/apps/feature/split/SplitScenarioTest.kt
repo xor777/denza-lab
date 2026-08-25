@@ -2367,6 +2367,118 @@ class SplitScenarioTest {
     }
 
     /**
+     * Правка волны 12, диагноз v27 A1-A6 (5 из 5) и живой протокол 2026-08-25.
+     *
+     * Пользователь схлопнул панель и накрыл экран Home. Между `area` 3→2 и `area`→0 живьём
+     * проходит ~0.8 с, а дивайдерная сверка начинает свой рецепт слепой паузой в 1.5 с - в это
+     * окно она не смотрит ни разу, и до волны 12 факт закрытия исчезал навсегда: слот оставался
+     * `App(music)`, и следующее открытие ЧЕСТНО воскрешало то, что пользователь закрыл (против
+     * 1.3.4 и 1.8.2). Здесь подсказка приходит уже к накрытому миру - самый поздний случай, - и
+     * схлопывание всё равно доказано: растянутый панельный контейнер выжившего накрытие не
+     * стирает.
+     */
+    @Test
+    fun aCollapseTheCoverHidBeforeAnyReconcileStillClosesItsPane() {
+        val car = car(FakeShell(initialGate = true).apply { liveProductScene(withApps = true) })
+        val core = car.core(SplitDurable(enabled = true, slots = APP_PAIR))
+        car.gateLease.setOwned(true)
+        core.initialize {}
+        core.openPickerSession()
+        car.barrier()
+        car.clearCommands()
+
+        // Жест: панель музыки закрыта, её задачи отвязаны живыми, контейнер выжившей растянут.
+        car.fake.detachTask(SECONDARY_PICKER_TASK)
+        car.fake.detachTask(SECONDARY_APP_TASK)
+        car.fake.stretchPanelRoot(PRIMARY_ROOT)
+        // ...и Home накрыл экран прежде, чем хоть одна сверка успела посмотреть.
+        car.fake.area = 0
+        core.homeVisible()
+        car.barrier()
+        core.dividerResized()
+        car.barrier()
+
+        assertEquals(
+            "слот схлопнутой панели закрыт, хотя мир уже был накрыт",
+            SplitSlot.Closed,
+            car.store.load().slot(SplitPane.SECONDARY),
+        )
+        assertEquals(SplitSlot.App(NAVIGATOR), car.store.load().slot(SplitPane.PRIMARY))
+        assertTrue(
+            "приложение пользователя живо: прошивка отвязала его, продукт не трогает (1.8.2)",
+            car.fake.hasTask(SECONDARY_APP_TASK),
+        )
+        assertFalse(
+            "и ни одна команда его не адресовала",
+            car.commands().any {
+                it.contains(" remove-task ") && it.contains(" $SECONDARY_APP_TASK ")
+            },
+        )
+        assertFalse(
+            "огрызок своего пикера убран по точной identity",
+            car.fake.hasTask(SECONDARY_PICKER_TASK),
+        )
+
+        // И следующее открытие не воскрешает закрытое (1.3.4).
+        car.clearCommands()
+        core.openPickerSession()
+        car.barrier()
+
+        assertEquals(
+            "закрытая панель открывается свежим пикером",
+            SplitSlot.Picker,
+            car.store.load().slot(SplitPane.SECONDARY),
+        )
+        assertFalse(
+            "музыка не перезапущена",
+            car.commands().any { it.startsWith("am start ") && it.contains(MUSIC) },
+        )
+    }
+
+    /**
+     * Обратная сторона той же правки, и она важнее прямой: ложное закрытие теряет выбор
+     * пользователя, пропущенное - нет.
+     *
+     * Проверка B приёмки v27: шесть обычных Home над живой парой, ни одного ложного закрытия.
+     * Обычный Home оставляет обоим панельным контейнерам панельные границы - измерено на машине
+     * 2026-08-25, - и сверка над накрытой живой сценой не имеет права сказать ни слова.
+     */
+    @Test
+    fun aPlainHomeOverALivePairNeverClosesAPane() {
+        val car = car(FakeShell(initialGate = true).apply { liveProductScene(withApps = true) })
+        val core = car.core(SplitDurable(enabled = true, slots = APP_PAIR))
+        car.gateLease.setOwned(true)
+        core.initialize {}
+        core.openPickerSession()
+        car.barrier()
+        car.clearCommands()
+
+        repeat(6) {
+            car.fake.area = 0
+            core.homeVisible()
+            car.barrier()
+            core.dividerResized()
+            car.barrier()
+
+            assertEquals("выбор пользователя цел", APP_PAIR, car.store.load().slots)
+            assertTrue(car.fake.hasTask(PRIMARY_PICKER_TASK))
+            assertTrue(car.fake.hasTask(SECONDARY_PICKER_TASK))
+            assertTrue(car.fake.hasTask(PRIMARY_APP_TASK))
+            assertTrue(car.fake.hasTask(SECONDARY_APP_TASK))
+
+            car.fake.area = 3
+            core.pickerVisible(PRIMARY_PICKER_TASK)
+            car.barrier()
+        }
+
+        assertEquals(
+            "и ни одна задача живой пары не тронута - только подвеска gate самого Home",
+            emptyList<String>(),
+            car.mutations().filterNot { it == "service call activity_task 126 i32 0" },
+        )
+    }
+
+    /**
      * Обратная сторона той же правки: ложное закрытие слота хуже пропущенного.
      *
      * Одна area, назвавшая выжившего, ничего не закрывает сама по себе - закрывает только уход
