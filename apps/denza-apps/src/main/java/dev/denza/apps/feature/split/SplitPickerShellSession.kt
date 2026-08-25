@@ -1840,6 +1840,20 @@ internal class SplitPickerShellSession(
             },
         )
 
+        // Правка W5 волны 7 (приёмочный пропуск DISABLE-sweep): безусловный финальный проход -
+        // СВОИ пикеры по exact identity на всём main display, независимо от того, что успело
+        // попасть в [pickerTasks] до перемещения foreground. Грязный мир с множественными
+        // сиротами добавляет их между снапшотом `before` и уборкой выше, и порядок гонки решал,
+        // выживет ли огрызок. Identity собственного постоянного пикера ([isDenzaPickerBase],
+        // включая legacy-компоненты) не может назвать чужую задачу, поэтому проход безусловен.
+        removeTasksSafely(
+            snapshot().roots.asSequence()
+                .filter { it.displayId == MAIN_DISPLAY_ID }
+                .flatMap { it.tasks.asSequence() }
+                .filter { task -> task.isDenzaPickerBase() }
+                .toList(),
+        )
+
         val after = snapshot()
         if (foreground != null) {
             val fullRootId = fullIviRootTaskId()

@@ -1296,6 +1296,53 @@ class SplitPickerShellSessionTest {
         assertTrue(groups.all { group -> group.size == 5 })
     }
 
+    /**
+     * Правка W5 волны 7 (приёмочный пропуск DISABLE-sweep): грязный мир добавляет сироту-пикера
+     * ПОСЛЕ снапшота `before` - прежняя уборка удаляла только то, что успело попасть в
+     * pickerTasks, и порядок гонки решал, выживет ли огрызок. Финальный проход безусловен:
+     * свои пикеры по exact identity на всём main display, где бы они ни оказались.
+     */
+    @Test
+    fun closeSweepsAnOwnPickerTheFirstSnapshotNeverSaw() {
+        val fake = FakeShell()
+        val topology = SplitTopologyCache()
+        fake.carChanged += topology::invalidate
+        var armed = false
+        var injected = false
+        val split = SplitPickerShellSession(
+            shell = { command ->
+                val output = fake.shell(command)
+                if (armed && !injected && command == "am stack list") {
+                    injected = true
+                    // Сирота всплыл между чтениями закрытия: before-снапшот его не видел.
+                    fake.addTask(
+                        DETACHED_ROOT,
+                        LATE_ORPHAN_TASK,
+                        SPLIT_HOST_PACKAGE,
+                        PRIMARY_PICKER_ACTIVITY,
+                    )
+                }
+                output
+            },
+            apkPath = SPLIT_APK_PATH,
+            settle = {},
+            gateLeaseStore = FakeGateLease(),
+            topology = topology,
+        )
+        split.buildPickers()
+        armed = true
+
+        split.closePickers(PICKERS)
+
+        assertTrue("сирота действительно всплывал посреди закрытия", injected)
+        assertFalse(
+            "поздний сирота убран безусловным финальным проходом по identity",
+            fake.hasTask(LATE_ORPHAN_TASK),
+        )
+        assertFalse(fake.hasActivity(PRIMARY_ROOT, PRIMARY_PICKER_ACTIVITY))
+        assertFalse(fake.hasActivity(SECONDARY_ROOT, SECONDARY_PICKER_ACTIVITY))
+    }
+
     @Test
     fun disabledProductEndsItsOwnSceneWithoutClosingAGateItNeverOpened() {
         // Обязательство к 1.12 и решение №2: закрывать можно только собственный gate.
@@ -2044,4 +2091,9 @@ class SplitPickerShellSessionTest {
 
     private fun intParcel(value: Int): String =
         "Result: Parcel(00000000 ${"%08x".format(value)} '........')"
+
+    private companion object {
+        /** Сирота правки W5: собственный пикер, всплывший после before-снапшота закрытия. */
+        const val LATE_ORPHAN_TASK = 555
+    }
 }
