@@ -1205,6 +1205,173 @@ class SplitPickerShellSessionTest {
         assertEquals("панель, покинувшая корни, названа выжившей area=1", read.reason)
     }
 
+    /**
+     * Правка волны 12: схлопывание доказано после того, как Home уже накрыл экран.
+     *
+     * Живой протокол 2026-08-25 (D2/D4 на машине): пользователь схлопнул панель, нажал Home, и
+     * `area` ушла в 0 через ~0.2 с - оба прежних доказательства с этого мгновения слепы навсегда.
+     * Панельные контейнеры при этом читаются `[1704,112][2536,1472]` и `[0,0][2560,1600]`: один
+     * растянут схлопыванием на весь экран, и накрытие этого не отменяет. Имя выжившей панели даёт
+     * не area, а её собственная пикер-база, живая ровно в границах растянутого корня.
+     */
+    @Test
+    fun collapseByPanelBoundsNamesTheClosedPaneAfterHomeCoveredTheScreen() {
+        val fake = FakeShell()
+        val split = session(fake)
+        val hosts = split.buildPickers()
+        val navigator = split.selectApp(
+            pickerTaskId = hosts.getValue(SplitPane.PRIMARY),
+            target = SplitLaunchTarget(NAVIGATOR, "$NAVIGATOR/$NAVIGATOR.MainActivity"),
+            pickerComponents = PICKER_COMPONENTS,
+        )
+        val music = split.selectApp(
+            pickerTaskId = hosts.getValue(SplitPane.SECONDARY),
+            target = SplitLaunchTarget(MUSIC, "$MUSIC/$MUSIC.MainActivity"),
+            pickerComponents = PICKER_COMPONENTS,
+        )
+        val expected = mapOf(
+            SplitPane.PRIMARY to SplitPickerObservedPane(
+                hostTaskId = hosts.getValue(SplitPane.PRIMARY),
+                appTaskId = navigator.appTaskId,
+                packageName = navigator.packageName,
+            ),
+            SplitPane.SECONDARY to SplitPickerObservedPane(
+                hostTaskId = hosts.getValue(SplitPane.SECONDARY),
+                appTaskId = music.appTaskId,
+                packageName = music.packageName,
+            ),
+        )
+
+        // Жест: панель музыки закрыта, её задачи отвязаны живыми, контейнер выжившей растянут.
+        fake.detachTask(hosts.getValue(SplitPane.SECONDARY))
+        fake.detachTask(music.appTaskId)
+        fake.stretchPanelRoot(PRIMARY_ROOT)
+        // ...и Home накрыл экран прежде, чем кто-либо успел это прочесть.
+        fake.area = 0
+        fake.commands.clear()
+
+        val read = split.collapsedPaneByPanelBounds(PICKER_COMPONENTS, expected)
+
+        assertEquals(SplitPane.SECONDARY, read.collapsed)
+        assertEquals("collapsed: база выжившего растянута на весь экран", read.reason)
+        assertFalse(
+            "доказательство строго read-only",
+            fake.commands.any { command ->
+                command.startsWith("am start ") ||
+                    command.startsWith("am stack move-task ") ||
+                    command.startsWith("am task ") ||
+                    command.contains(" remove-task ")
+            },
+        )
+
+        // Зеркальная сторона дивайдера: растянут другой контейнер, закрыта другая панель.
+        val mirror = FakeShell()
+        val mirrorSplit = session(mirror)
+        val mirrorHosts = mirrorSplit.buildPickers()
+        mirror.detachTask(mirrorHosts.getValue(SplitPane.PRIMARY))
+        mirror.stretchPanelRoot(SECONDARY_ROOT)
+        mirror.area = 0
+        assertEquals(
+            SplitPane.PRIMARY,
+            mirrorSplit.collapsedPaneByPanelBounds(
+                PICKER_COMPONENTS,
+                mapOf(
+                    SplitPane.PRIMARY to
+                        SplitPickerObservedPane(mirrorHosts.getValue(SplitPane.PRIMARY)),
+                    SplitPane.SECONDARY to
+                        SplitPickerObservedPane(mirrorHosts.getValue(SplitPane.SECONDARY)),
+                ),
+            ).collapsed,
+        )
+    }
+
+    /**
+     * Обратная сторона той же правки, и она важнее прямой: ложное закрытие теряет выбор
+     * пользователя, пропущенное - нет.
+     *
+     * Обычный Home над живой парой измерен на машине в тот же день: контейнеры остаются
+     * `[24,112][1680,1472]` и `[1704,112][2536,1472]` - ни один не вложен в другой, и предикат
+     * не имеет права сказать ни слова. Это проверка B приёмки v27 (шесть обычных Home подряд, ни
+     * одного ложного закрытия), выраженная предикатом.
+     */
+    @Test
+    fun collapseByPanelBoundsSaysNothingAboutAPlainHomeOverALivePair() {
+        val fake = FakeShell()
+        val split = session(fake)
+        val hosts = split.buildPickers()
+        val expected = mapOf(
+            SplitPane.PRIMARY to SplitPickerObservedPane(hosts.getValue(SplitPane.PRIMARY)),
+            SplitPane.SECONDARY to SplitPickerObservedPane(hosts.getValue(SplitPane.SECONDARY)),
+        )
+
+        fake.area = 0
+        val read = split.collapsedPaneByPanelBounds(PICKER_COMPONENTS, expected)
+
+        assertEquals(null, read.collapsed)
+        assertEquals("панельные корни не вложены", read.reason)
+
+        // И над чужим полноэкранным окном (area=4) ответ тот же: пара цела.
+        fake.area = 4
+        assertEquals(null, split.collapsedPaneByPanelBounds(PICKER_COMPONENTS, expected).collapsed)
+    }
+
+    /**
+     * Растянутый корень - только первое слово. Пока записанные задачи «закрытой» панели ещё
+     * стоят в панельных корнях, схлопывание не доказано: это переходный такт двухпроходного
+     * teardown, а не решение пользователя.
+     */
+    @Test
+    fun collapseByPanelBoundsRefusesWhileTheClosedPaneStillHoldsAPanelRoot() {
+        val fake = FakeShell()
+        val split = session(fake)
+        val hosts = split.buildPickers()
+        val expected = mapOf(
+            SplitPane.PRIMARY to SplitPickerObservedPane(hosts.getValue(SplitPane.PRIMARY)),
+            SplitPane.SECONDARY to SplitPickerObservedPane(hosts.getValue(SplitPane.SECONDARY)),
+        )
+
+        fake.stretchPanelRoot(PRIMARY_ROOT)
+        fake.area = 0
+
+        assertEquals(
+            "задачи закрытой панели ещё в панельных корнях",
+            split.collapsedPaneByPanelBounds(PICKER_COMPONENTS, expected).reason,
+        )
+
+        // Как только база закрытой панели ушла из корней, имя названо.
+        fake.detachTask(hosts.getValue(SplitPane.SECONDARY))
+        assertEquals(
+            SplitPane.SECONDARY,
+            split.collapsedPaneByPanelBounds(PICKER_COMPONENTS, expected).collapsed,
+        )
+    }
+
+    /**
+     * Процесс, ничего не помнящий, ничего и не утверждает (инвариант 4): без записанной
+     * двухпанельной сцены геометрия корней не значит ничего.
+     */
+    @Test
+    fun collapseByPanelBoundsClaimsNothingWithoutATwoPaneRecord() {
+        val fake = FakeShell()
+        val split = session(fake)
+        val hosts = split.buildPickers()
+        fake.detachTask(hosts.getValue(SplitPane.SECONDARY))
+        fake.stretchPanelRoot(PRIMARY_ROOT)
+        fake.area = 0
+
+        assertEquals(
+            "сцена не записана двухпанельной",
+            split.collapsedPaneByPanelBounds(PICKER_COMPONENTS, emptyMap()).reason,
+        )
+        assertEquals(
+            "сцена не записана двухпанельной",
+            split.collapsedPaneByPanelBounds(
+                PICKER_COMPONENTS,
+                mapOf(SplitPane.PRIMARY to SplitPickerObservedPane(hosts.getValue(SplitPane.PRIMARY))),
+            ).reason,
+        )
+    }
+
     /** Правка W4 (U5): обе collapse-проверки называют отказавший предикат, не молчат `null`-ом. */
     @Test
     fun collapseReadsNameTheirRefusedPredicate() {

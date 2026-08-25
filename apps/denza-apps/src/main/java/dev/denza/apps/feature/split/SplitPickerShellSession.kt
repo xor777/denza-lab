@@ -651,6 +651,82 @@ internal class SplitPickerShellSession(
     }
 
     /**
+     * The collapse proof that outlives the cover: the panel containers keep the geometry the
+     * firmware gave them (диагноз волны 12, живой протокол 2026-08-25).
+     *
+     * Оба прежних доказательства начинают с `area` и слепы при 0/4, а окно, в котором area держит
+     * 1/2, живьём длится меньше секунды: свайп схлопывания отвечает area 3→2 через ~0.8 с, Home
+     * уводит её в 0 через ~0.2 с после касания. Сверка, чей рецепт начинается со слепой паузы
+     * [DIVIDER_RECONCILE_SETTLE_MS], в это окно не смотрит ни разу - и выбор пользователя
+     * теряется навсегда (v27 A1-A6, 5 из 5).
+     *
+     * Прошивка, однако, оставляет след, которого накрытие не стирает: схлопывание РАСТЯГИВАЕТ
+     * панельный контейнер выжившего на весь экран и оставляет его таким. Измерено на этой машине:
+     * - схлопнуто, затем Home: корни (tx118) `[1704,112][2536,1472]` и `[0,0][2560,1600]`, оба
+     *   пусты; пикер-база выжившего жива на весь экран, база закрытой панели мертва или осталась
+     *   панельного размера;
+     * - обычный Home над живой парой: `[1704,112][2536,1472]` и `[24,112][1680,1472]` - ни один
+     *   корень не вложен в другой. Ложное закрытие строго хуже пропущенного, и вложенность
+     *   корней здесь - обязательное первое слово прошивки, а не догадка продукта.
+     *
+     * Выжившую панель называет НЕ `area`: на этой прошивке схлопывание всегда отвечает area=2 и
+     * переносит выжившего в контейнер SECONDARY, какой бы стороной он ни был до жеста (живьём:
+     * обе стороны дивайдера, обе назвали SECONDARY). Называет её exact identity - чья записанная
+     * пикер-база жива ровно в границах растянутого корня, - и закрытой панель признаётся только
+     * тогда, когда её записанные задачи покинули оба панельных корня. Read-only.
+     */
+    fun collapsedPaneByPanelBounds(
+        pickerComponents: Set<String>,
+        expectedPanes: Map<SplitPane, SplitPickerObservedPane>,
+    ): SplitCollapsedPaneRead {
+        if (expectedPanes.keys != SplitPane.entries.toSet()) {
+            return SplitCollapsedPaneRead(null, "сцена не записана двухпанельной")
+        }
+        if (expectedPanes.values.any { expected -> expected.hostTaskId <= 0 }) {
+            return SplitCollapsedPaneRead(null, "запись сцены неполна")
+        }
+        val roots = nativeRootIds()
+        val state = snapshot()
+        val paneBounds = SplitPane.entries.associateWith { pane ->
+            state.root(roots.getValue(pane))?.bounds
+                ?: return SplitCollapsedPaneRead(null, "$pane: контейнера нет")
+        }
+        val stretched = SplitPane.entries.singleOrNull { pane ->
+            paneBounds.getValue(pane).strictlyContains(paneBounds.getValue(pane.other()))
+        } ?: return SplitCollapsedPaneRead(null, "панельные корни не вложены")
+        val stretchedBounds = paneBounds.getValue(stretched)
+        val tasks = mainDisplayTasks()
+        val survivors = SplitPane.entries.filter { pane ->
+            tasks.any { task ->
+                task.id == expectedPanes.getValue(pane).hostTaskId &&
+                    task.bounds == stretchedBounds &&
+                    task.isDenzaPickerBase() &&
+                    task.matchesAnyComponent(pickerComponents)
+            }
+        }
+        val survivor = survivors.singleOrNull()
+            ?: return SplitCollapsedPaneRead(
+                null,
+                "растянутый корень не назван базой: совпадений ${survivors.size}",
+            )
+        val collapsed = survivor.other()
+        val panelTaskIds = roots.values.mapNotNull(state::root)
+            .flatMap(SplitRootTask::tasks)
+            .mapTo(mutableSetOf(), SplitTask::id)
+        val expectedCollapsed = expectedPanes.getValue(collapsed)
+        if (
+            expectedCollapsed.hostTaskId in panelTaskIds ||
+            expectedCollapsed.appTaskId?.let { appTaskId -> appTaskId in panelTaskIds } == true
+        ) {
+            return SplitCollapsedPaneRead(
+                null,
+                "задачи закрытой панели ещё в панельных корнях",
+            )
+        }
+        return SplitCollapsedPaneRead(collapsed, "collapsed: база выжившего растянута на весь экран")
+    }
+
+    /**
      * Brings an exact owned pair back above Home or a fullscreen window without rebuilding a pane.
      *
      * Home is a covered scene like any other (invariant 5, 1.9.1): the pair is alive in the two

@@ -116,6 +116,18 @@ number's own height so what the rhythm buys is a gap between the mark's tip and
 the number's *edge*. Without that last term the nearly-horizontal discharge mark
 put its tip about four pixels inside the first digit.
 
+**The reading is a magnitude.** No minus sign at full regeneration, and that is
+a decision: which way the energy is going is already said twice and said better,
+by the side the fill runs to and by its colour, so a sign would be a third and
+weaker copy. It also costs a whole character where the dial is tightest -
+measured against the arc's chord at the digits' cap line, `-100` left about eight
+pixels of clearance on the full-width layout where `100` leaves thirty.
+
+Three digits is the ceiling the scale can produce, so the worst case is knowable
+in advance rather than on the car: `EnergyGauge.widestReading` and
+`chordAtReading` state it, and a test holds the two against each other for both
+densities.
+
 Section titles carry `0.12em` of tracking through `InstrumentPen.title`, which
 exists as its own method rather than a parameter so the tracking cannot be
 applied at one call site and forgotten at the next.

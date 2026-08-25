@@ -1731,6 +1731,12 @@ internal class ReconcileOperation(
      * её - и только её - пикера убирается по точной identity, где бы он ни оказался. Таск
      * приложения пользователя не трогается: прошивка отвязала его живым (1.8.2), и он остаётся
      * жить в фоне, как при 1.2.3.
+     *
+     * Правка волны 12: у существования есть цена - оно спрашивает `area`, а её ответ 1/2 живёт
+     * меньше секунды. Поэтому за ним стоит третий предикат, читающий геометрию панельных корней
+     * ([SplitPickerShellSession.collapsedPaneByPanelBounds]): растянутый контейнер выжившего
+     * переживает и Home, и чужое полноэкранное окно, так что решение пользователя больше не
+     * зависит от того, успел ли продукт посмотреть в нужную миллисекунду.
      */
     private fun settleCollapseByExistence(
         op: SplitOperationContext,
@@ -1739,13 +1745,26 @@ internal class ReconcileOperation(
         expected: Map<SplitPane, SplitPickerObservedPane>,
         physicalRefusal: String,
     ): Boolean {
-        val read = runCatching {
+        val byExistence = runCatching {
             split.readCollapsedPaneByExistence(SPLIT_PICKER_COMPONENT_SET, expected)
         }.getOrNull()
-        val collapsed = read?.collapsed
+        // Правка волны 12: третье слово - геометрия панельных корней, единственное, которое
+        // накрытие не отнимает. Оба предиката выше читают `area` и при 0/4 слепы, а окно area
+        // 1/2 живьём короче секунды; спрашивается оно последним, потому что первые два называют
+        // ещё и состав выжившей панели, а это доказательство - только имя закрытой.
+        val byBounds = if (byExistence?.collapsed != null) {
+            null
+        } else {
+            runCatching {
+                split.collapsedPaneByPanelBounds(SPLIT_PICKER_COMPONENT_SET, expected)
+            }.getOrNull()
+        }
+        val collapsed = byExistence?.collapsed ?: byBounds?.collapsed
         if (collapsed == null) {
-            // Правка W4 (U5): обе ветви collapse отказали - одна строка называет оба предиката.
-            unproven += "collapse: ${physicalRefusal}; по существованию: ${read?.reason ?: "не прочитано"}"
+            // Правка W4 (U5): все ветви collapse отказали - одна строка называет каждый предикат.
+            unproven += "collapse: $physicalRefusal" +
+                "; по существованию: ${byExistence?.reason ?: "не прочитано"}" +
+                "; по границам корней: ${byBounds?.reason ?: "не прочитано"}"
             return false
         }
         val survivor = collapsed.other()

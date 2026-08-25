@@ -148,6 +148,22 @@ class ClusterDashboardLayoutTest {
     }
 
     @Test
+    fun theWidestReadingTheDialCanShowStillFitsInsideIt() {
+        listOf(full() to InstrumentDensity.WIDE, right() to InstrumentDensity.COMPACT)
+            .forEach { (layout, density) ->
+                val radius = layout.gaugeRadius * layout.virtualHeight
+                val chord = EnergyGauge.chordAtReading(radius, density)
+                val half = EnergyGauge.widestReading(density) / 2f
+                // Three digits is the ceiling: the scale clamps at 300 kW one way and 100 the
+                // other, and the reading is a magnitude, so a sign never takes a fourth character.
+                assertTrue(
+                    "a full-scale reading is $half wide against $chord of arc",
+                    half < chord - density.body,
+                )
+            }
+    }
+
+    @Test
     fun aRevealBlockIsSolvedForItsLowerEdgeSoItsWidestPartCannotEscape() {
         val layout = full()
         val temperatures = requireBox(layout.temperatureBlock)

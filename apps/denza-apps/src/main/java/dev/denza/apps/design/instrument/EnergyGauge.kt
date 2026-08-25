@@ -138,8 +138,17 @@ class EnergyGauge(private val pen: InstrumentPen) {
         )
     }
 
+    /**
+     * The reading, as a magnitude.
+     *
+     * No minus sign, and that is a decision rather than an oversight. Which way the energy is going
+     * is already said twice and said better - the fill runs to the other side of the dial and it is
+     * drawn in [DenzaPalette.RETURN] - so the sign would be a third, weaker copy of the same fact.
+     * It also costs a whole character at the one place the dial is tightest: at full regeneration
+     * "-100" left about eight pixels of clearance against the arc, where "100" leaves thirty.
+     */
     private fun format(kilowatts: Double): String =
-        String.format(java.util.Locale.US, "%.0f", kilowatts)
+        String.format(java.util.Locale.US, "%.0f", kotlin.math.abs(kilowatts))
 
     companion object {
 
@@ -169,6 +178,37 @@ class EnergyGauge(private val pen: InstrumentPen) {
          */
         fun markReach(density: InstrumentDensity): Float =
             MARK_GAP + density.tickLength + density.step + density.tick / 2f
+
+        /**
+         * How wide the widest reading this dial can ever show comes out, in virtual units.
+         *
+         * The scale clamps at three digits, so the worst case is knowable in advance and there is
+         * no reason to find out on the car. The two ratios are estimates of what the type actually
+         * measures - a monospace digit advances 0.6 em, and "кВт" set in Roboto is a little over
+         * 1.7 em of its own size - which is enough for a clearance check that leaves tens of units
+         * of margin, and is not used for placement: [InstrumentPen.figure] measures the real thing.
+         */
+        fun widestReading(density: InstrumentDensity): Float =
+            WIDEST_DIGITS * MONO_ADVANCE * density.figure +
+                density.rhythm(1f) +
+                UNIT_ADVANCE * density.body
+
+        /**
+         * Half the chord of the arc at the height of the reading's cap line, in virtual units.
+         *
+         * The cap line rather than the baseline: that is where the digits are widest and the arc
+         * around them is narrowest, so it is the only height at which the question has an answer.
+         */
+        fun chordAtReading(radius: Float, density: InstrumentDensity): Float {
+            val drop = radius * FIGURE_ABOVE + CAP_HEIGHT * density.figure
+            val squared = radius * radius - drop * drop
+            return if (squared <= 0f) 0f else kotlin.math.sqrt(squared)
+        }
+
+        private const val WIDEST_DIGITS = 3f
+        private const val MONO_ADVANCE = 0.6f
+        private const val UNIT_ADVANCE = 1.72f
+        private const val CAP_HEIGHT = 0.71f
 
         /** The angle of the outermost mark this density labels, for a caller checking clearance. */
         fun outermostMarkDegrees(density: InstrumentDensity): Float = EnergyScale.angleDegrees(

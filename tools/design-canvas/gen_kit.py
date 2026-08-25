@@ -179,10 +179,14 @@ def kit():
         'ПРИБОРКА ВОДИТЕЛЯ · виртуальные единицы, масштаб 1,70 на панели', 'ед')
     ivi_ramp = ramp_rows(IVI_RAMP, 'ГОЛОВНОЕ УСТРОЙСТВО · пиксели 1:1', 'px')
 
-    gauge_wide = g.gauge_block(560, 280, 214, 200, g.PANEL, 34.0, g.DRIVING_BARS,
-                               '20,3 средний за 4,8 км')
-    gauge_small = g.gauge_block(360, 180, 138, 128, g.PANEL_NARROW, -18.0, g.DRIVING_BARS,
-                                '20,3 за 4,8 км')
+    # The specimens sit at the two ends of the scale rather than at a comfortable
+    # reading: three digits is the widest the dial can ever be asked to show, and
+    # a kit that only ever shows 34 kW is a kit that has not been asked the
+    # question.
+    gauge_wide = g.gauge_block(560, 280, 214, 200, g.PANEL, 300.0, g.DRIVING_BARS,
+                               'полная шкала расхода')
+    gauge_small = g.gauge_block(360, 180, 138, 128, g.PANEL_NARROW, -100.0, g.DRIVING_BARS,
+                                'полная рекуперация')
 
     rest = ''.join(
         f'<div style="display:flex; flex-direction:column; gap:10px;">'
@@ -248,8 +252,9 @@ def kit():
         'вопрос. Стороны получают одинаковую дугу и разный размах — 300 кВт наружу против '
         'примерно 100 обратно, — поэтому метки подписаны: пара 60 и 20 на одинаковом отклонении '
         'говорит и про масштаб, и про то, что это не спидометр. Ноль не подписан: там заливка '
-        'исчезает. Слева — расход, справа — рекуперация: одна и та же функция, другой размер и '
-        'другое показание.',
+        'исчезает. Образцы стоят на концах шкалы: три знака — самое широкое, что цифра может '
+        'показать, и она проходит внутри дуги с запасом. Знака минуса нет — направление уже '
+        'сказано дважды, стороной и цветом, а четвёртый знак съедал бы весь запас.',
         f'<div style="display:flex; gap:44px; align-items:flex-end;">{gauge_wide}{gauge_small}</div>')}
 
   <div style="display:grid; grid-template-columns:1fr 1fr; gap:30px;">

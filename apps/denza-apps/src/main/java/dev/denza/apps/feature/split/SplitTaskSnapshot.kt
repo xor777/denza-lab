@@ -73,6 +73,20 @@ internal fun SplitBounds.hasArea(): Boolean = right > left && bottom > top
 
 internal fun SplitBounds.width(): Int = right - left
 
+/**
+ * Whether this rectangle holds the other one and is strictly larger than it.
+ *
+ * Two panel containers side by side never satisfy it in either direction; one stretched over the
+ * whole display satisfies it exactly once. That asymmetry is what tells a collapsed split from a
+ * balanced one long after the screen stopped showing either (волна 12).
+ */
+internal fun SplitBounds.strictlyContains(other: SplitBounds): Boolean =
+    this != other &&
+        left <= other.left &&
+        top <= other.top &&
+        right >= other.right &&
+        bottom >= other.bottom
+
 internal data class SplitTask(
     val id: Int,
     val packageName: String,

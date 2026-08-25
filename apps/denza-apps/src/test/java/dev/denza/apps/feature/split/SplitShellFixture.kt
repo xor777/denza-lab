@@ -134,6 +134,16 @@ internal class FakeShell(
 
     var area = 4
     var preserveBoundsOnShellMove = false
+
+    /**
+     * Панельный контейнер, который прошивка растянула на весь экран схлопыванием.
+     *
+     * Живая правда 2026-08-25: геометрия остаётся за корнем и после накрытия. Схлопнуто и
+     * накрыто Home - корни читаются `[1704,112][2536,1472]` и `[0,0][2560,1600]`; обычный Home
+     * над живой парой оставляет обоим панельные границы. `area` к этому отношения не имеет: она
+     * уходит в 0 сразу, а контейнер остаётся растянутым.
+     */
+    private var stretchedRoot: Int? = null
     private var gate = initialGate
     private var homeVisible = false
     private var nextTaskId = firstTaskId
@@ -236,7 +246,18 @@ internal class FakeShell(
             else -> error("Not a split pane: $rootId")
         }
         area = if (remainingRoot == PRIMARY_ROOT) 1 else 2
-        tasks.filter { it.rootId == remainingRoot }.forEach { it.bounds = FULL }
+        stretchPanelRoot(remainingRoot)
+    }
+
+    /**
+     * Прошивка растянула панельный контейнер выжившего на весь экран - жест «Release to close».
+     *
+     * Отдельно от [dismissPane] потому, что задачи закрытой панели прошивка отвязывает живыми
+     * ([detachTask]), а не удаляет: удаление - это уже «очистить всё».
+     */
+    fun stretchPanelRoot(rootId: Int) {
+        stretchedRoot = rootId
+        tasks.filter { it.rootId == rootId }.forEach { it.bounds = FULL }
         changed()
     }
 
@@ -648,9 +669,10 @@ internal class FakeShell(
         }
     }
 
-    private fun bounds(rootId: Int): SplitBounds = when (rootId) {
-        PRIMARY_ROOT -> if (area == 1) FULL else PRIMARY_BOUNDS
-        SECONDARY_ROOT -> if (area == 2) FULL else SECONDARY_BOUNDS
+    private fun bounds(rootId: Int): SplitBounds = when {
+        rootId == stretchedRoot -> FULL
+        rootId == PRIMARY_ROOT -> if (area == 1) FULL else PRIMARY_BOUNDS
+        rootId == SECONDARY_ROOT -> if (area == 2) FULL else SECONDARY_BOUNDS
         else -> FULL
     }
 
