@@ -38,6 +38,22 @@ internal data class VehicleTelemetry(
 
     val charging: Boolean get() = (this[VehicleSignal.CHARGE_GUN] ?: 0.0) >= 1.0
 
+    val chargeKw: Double? get() = this[VehicleSignal.CHARGE_KW]
+
+    /**
+     * What the car thinks is left of the charge, in minutes.
+     *
+     * The two ids are one estimate in two words, so either alone is still an answer; only both
+     * missing means the car is not estimating.
+     */
+    val chargeMinutesLeft: Int?
+        get() {
+            val hours = this[VehicleSignal.CHARGE_HOURS]
+            val minutes = this[VehicleSignal.CHARGE_MINUTES]
+            if (hours == null && minutes == null) return null
+            return ((hours ?: 0.0) * 60 + (minutes ?: 0.0)).toInt()
+        }
+
     /** Pack power as load: positive leaves the battery. See [VehicleConvention]. */
     val loadKw: Double? get() = VehicleConvention.load(this[VehicleSignal.POWER_KW])
 
@@ -107,6 +123,15 @@ internal data class VehicleTelemetry(
     val generating: Boolean
         get() = this[VehicleSignal.GENERATION_STATE] == GENERATION_ON ||
             (generationKw ?: 0.0) > GENERATION_FLOOR_KW
+
+    // ------------------------------------------------------------------ tank
+
+    val fuelPercent: Double? get() = this[VehicleSignal.FUEL_PERCENT]
+
+    val fuelRangeKm: Double? get() = this[VehicleSignal.FUEL_RANGE_KM]
+
+    /** The vehicle's own low-fuel threshold for this tank, not a percentage of ours. */
+    val fuelLow: Boolean get() = (this[VehicleSignal.FUEL_LOW] ?: 0.0) >= 1.0
 
     /** Worst answer across the ids that carry this lamp. */
     fun lamp(lamp: EngineLamp): LampState {

@@ -656,9 +656,18 @@ What that pins down:
 | Range on fuel | `STATISTIC_FUEL_DRIVING_RANGE` | `0x4A504038` | 1014 |
 | Low fuel alarm | `INSTRUMENT_FUEL_LOW_ALARM` | `0x4A507027` | 1007 |
 
-No plain "tank level, percent" constant turned up — only the alarm and the
-range. If the sweep confirms that, a fuel gauge has to come from range, which
-is a vendor estimate rather than a measurement.
+This catalog listing turned up no plain "tank level, percent" constant, and an
+earlier version of this paragraph concluded a fuel gauge would have to be built
+out of range. **That conclusion is withdrawn.** The read-only sweep above found
+`STATISTIC_FUEL_PERCENTAGE` at `0x4A507040` on device `1014`, and it answered
+`53` — consistent with the `491` km the range id reported in the same sweep, and
+steady across a full engine start/stop cycle. The level is a real reading; the
+catalog listing was simply incomplete.
+
+All three are in the panel allowlist as `FUEL_PERCENT`, `FUEL_RANGE_KM` and
+`FUEL_LOW`, on the cold poll and gated to the engine set. The alarm decides
+"low", not a threshold of ours: it is the vehicle's own line for this tank, and a
+second opinion beside it would put two answers on one cluster.
 
 ### Two corrections this reading forced
 

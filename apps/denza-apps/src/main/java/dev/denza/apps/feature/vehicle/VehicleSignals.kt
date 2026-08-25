@@ -175,6 +175,22 @@ internal enum class VehicleSignal(
     GENERATION_STATE(1006, 0x34F0000A, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.FLAG, engineOnly = true),
     ENGINE_LITRES(1012, 0x40D00008, VehicleTransact.FLOAT, VehiclePoll.COLD, VehicleKind.LITRES, engineOnly = true),
 
+    /**
+     * The tank, which on a hybrid is the half of the drivetrain nothing else here reports.
+     *
+     * All three read on this car in the read-only sweep of 2026-08-23 and held steady across a full
+     * engine start/stop cycle: level `53`, range `491` km - consistent with each other - and the
+     * alarm `0`. A later paragraph of the same findings page says no plain tank-level constant was
+     * found; that paragraph predates this reading and is wrong.
+     *
+     * The alarm is the authority on "low", not the percentage: it is the vehicle's own threshold for
+     * this tank, and second-guessing it with a number of our own would put two different answers on
+     * one cluster.
+     */
+    FUEL_PERCENT(1014, 0x4A507040, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.PERCENT, engineOnly = true),
+    FUEL_RANGE_KM(1014, 0x4A504038, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.DISTANCE_KM, engineOnly = true),
+    FUEL_LOW(1007, 0x4A507027, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.FLAG, engineOnly = true),
+
     // Warning lamps. Several ids per lamp are generation variants of the same
     // signal, the way the motor temperatures were: reading all of them and
     // taking the worst is cheaper than deciding which one this car uses.
