@@ -503,6 +503,39 @@ class SplitPickerShellSessionTest {
         assertTrue("и база соседа тоже", fake.hasTask(hosts.getValue(SplitPane.SECONDARY)))
     }
 
+    /**
+     * И вторая половина того же дефекта: приложение, которое теперь можно ВЫБРАТЬ, должно ещё и
+     * ВОССТАНАВЛИВАТЬСЯ (1.3.2).
+     *
+     * До волны 13 многозадачное приложение не попадало в слот вовсе, поэтому этот путь никогда не
+     * проверялся на нём живьём. Уборка панелей волны 10 покрывает его по построению - она стоит
+     * до постусловия сборки, - и здесь это закреплено на той же измеренной форме мира.
+     */
+    @Test
+    fun aRestoreOfAnAppWithTwoLiveTasksLeavesThePaneWithOneOfThem() {
+        val fake = FakeShell().apply {
+            area = 4
+            addTask(DETACHED_ROOT, 316, MUSIC, "$MUSIC.MainActivity")
+            addTask(DETACHED_ROOT, 532, MUSIC, "$MUSIC.MainActivity")
+            firmwareDragsEveryTaskOf += MUSIC
+        }
+
+        val built = session(fake).buildScene(
+            PICKERS,
+            mapOf(SplitPane.PRIMARY to launchTargetOf(MUSIC)),
+        )
+
+        assertEquals(emptySet<SplitPane>(), built.failed)
+        val app = built.panes.getValue(SplitPane.PRIMARY).appTaskId
+        assertTrue("панель держит одну из живых задач пакета", app == 316 || app == 532)
+        assertEquals(
+            "панель - это её база и одно приложение",
+            listOf(built.panes.getValue(SplitPane.PRIMARY).hostTaskId, app),
+            fake.taskIds(PRIMARY_ROOT),
+        )
+        assertTrue("обе задачи пользователя живы", fake.hasTask(316) && fake.hasTask(532))
+    }
+
     @Test
     fun alreadyRunningOwnedSceneIsAdoptedWithoutTaskMutation() {
         val fake = FakeShell()
