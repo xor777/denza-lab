@@ -938,6 +938,58 @@ class SplitPickerShellSessionTest {
         assertEquals(null, split.existingOwnedSession(PICKER_COMPONENTS))
     }
 
+    /**
+     * Правка волны 14 (приёмка v29, дефект D): панель, где у одного приложения несколько живых
+     * задач, остаётся НАШЕЙ панелью.
+     *
+     * Живьём (v28, дефект 0) тап по Яндекс.Музыке привёл в панельный корень И t316, И t532, обе
+     * видимые, - и экран при этом был правильным: сверху стояло выбранное приложение. Панель -
+     * это её база и ОДНО приложение, а сколькими задачами прошивка это одно приложение
+     * представляет, решает прошивка (1.5.2). Счёт задач вместо счёта приложений объявлял такую
+     * панель чужой, то есть НЕ УСЫНОВЛЯЕМОЙ, - а это значит, что следующее открытие пересобрало
+     * бы живую сцену и перезапустило играющее приложение (U2, 1.3.5).
+     */
+    @Test
+    fun aPaneWhoseAppOwnsSeveralLiveTasksIsStillOurOwnPane() {
+        val fake = FakeShell()
+        val split = session(fake)
+        val hosts = split.buildPickers()
+        fake.addTask(PRIMARY_ROOT, 316, MUSIC, "$MUSIC.MainActivity")
+        fake.addTask(PRIMARY_ROOT, 532, MUSIC, "$MUSIC.MainActivity")
+
+        val read = split.readOwnedSession(PICKER_COMPONENTS)
+
+        assertEquals("adoptable", read.reason)
+        assertEquals(
+            hosts.getValue(SplitPane.PRIMARY),
+            read.scene?.get(SplitPane.PRIMARY)?.hostTaskId,
+        )
+        assertEquals(
+            "окно панели - фактически верхняя задача приложения",
+            532,
+            read.scene?.get(SplitPane.PRIMARY)?.appTaskId,
+        )
+        assertEquals(MUSIC, read.scene?.get(SplitPane.PRIMARY)?.appPackageName)
+    }
+
+    /**
+     * И ровно та граница, ради которой счёт вообще существует: несколько задач одного приложения -
+     * это одно приложение, а вторая ЧУЖАЯ задача под ним - уже не наша панель (инвариант 3).
+     */
+    @Test
+    fun aPaneHidingAForeignTaskUnderItsAppIsStillRefused() {
+        val fake = FakeShell()
+        val split = session(fake)
+        split.buildPickers()
+        fake.addTask(PRIMARY_ROOT, 316, NAVIGATOR, "$NAVIGATOR.MainActivity")
+        fake.addTask(PRIMARY_ROOT, 532, MUSIC, "$MUSIC.MainActivity")
+
+        val read = split.readOwnedSession(PICKER_COMPONENTS)
+
+        assertEquals(null, read.scene)
+        assertEquals("PRIMARY: пикеров 1, задач 3", read.reason)
+    }
+
     @Test
     fun sceneMissingOneOwnedBaseIsNotAdoptedAndSaysWhich() {
         val fake = FakeShell().apply {

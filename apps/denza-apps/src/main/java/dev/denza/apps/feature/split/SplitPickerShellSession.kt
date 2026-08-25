@@ -138,7 +138,8 @@ internal class SplitPickerShellSession(
      * Package replacement restarts Denza Apps but does not remove the two standalone picker
      * tasks. Rebuilding that still-valid scene races SmartMulti's own focus/restore controller.
      * Only accept the scene when both native roots have exactly our permanent base and at most
-     * one ordinary app; anything less certain falls back to the explicit reconstruction path.
+     * one ordinary app - counted as applications, not as tasks, because a live app may legitimately
+     * own several of them (1.5.2); anything less certain falls back to explicit reconstruction.
      */
     fun existingOwnedSession(
         pickerComponents: Set<String>,
@@ -170,13 +171,26 @@ internal class SplitPickerShellSession(
             val pickers = root.tasks.filter { task ->
                 task.isDenzaPickerBase() && task.matchesAnyComponent(pickerComponents)
             }
-            if (pickers.size != 1 || root.tasks.size !in 1..MAX_TASKS_PER_PANE) {
+            val picker = pickers.singleOrNull()
+            // Панель - это её база и ОДНО приложение; сколькими живыми задачами прошивка это одно
+            // приложение представляет, решает прошивка, а не продукт (1.5.2, машинная правда v28:
+            // тап по Яндекс.Музыке привёл в корень И t316, И t532, обе видимые, и панель на экране
+            // была правильной). Счёт задач вместо счёта приложений объявлял такую панель чужой, а
+            // «чужая панель» - это отказ от адопции: следующее открытие пересобрало бы живую
+            // сцену и перезапустило играющее приложение (U2, 1.3.5).
+            val residents = root.tasks.filterNot { task ->
+                task.id == picker?.id || task.isEmptyRootMarker()
+            }
+            if (
+                picker == null ||
+                residents.any { it.isDenzaPickerBase() || it.isNativeSplitBootstrap() } ||
+                residents.distinctBy { it.effectivePackageName() }.size > 1
+            ) {
                 return SplitSceneRead(
                     null,
                     "$pane: пикеров ${pickers.size}, задач ${root.tasks.size}",
                 )
             }
-            val picker = pickers.single()
             if (picker.bounds != root.bounds) {
                 return SplitSceneRead(null, "$pane: пикер не по размеру окна")
             }
