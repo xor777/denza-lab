@@ -303,6 +303,37 @@ class SplitCoordinatorCoreTest {
         assertEquals("", core.snapshot().message)
     }
 
+    /**
+     * 1.11.4: каждая форма, которой эта машина отвечает на мёртвый локальный ADB, доходит до
+     * поверхности как мёртвый канал - и ни одна из них не превращается в текст на панели.
+     *
+     * Формы взяты из живых отказов: неподтверждённый ключ, ключ в ожидании подтверждения,
+     * отказ в соединении и переставший отвечать канал. Ни один рецепт их не переживает, и ни
+     * один не чинится из панели: чинит их свой экран хаба.
+     */
+    @Test
+    fun everyShapeOfADeadLocalAdbReachesTheSurfaceAsADeadChannel() {
+        val shapes = listOf(
+            "device unauthorized: authorization required",
+            "adb: authorization pending on the head unit",
+            "connect failed: connection refused",
+            "shell read timeout after 5000ms",
+        )
+        shapes.forEach { reason ->
+            val car = car(FakeShell())
+            val core = car.core(SplitDurable(enabled = true))
+            core.initialize {}
+            val results = Collections.synchronizedList(mutableListOf<SplitActionResult>())
+
+            car.shells.failOn(GATE_OPEN, reason)
+            core.openPickerSession(results::add)
+            car.barrier()
+
+            assertEquals(reason, listOf(SplitActionResult.CHANNEL_UNAVAILABLE), results.toList())
+            assertEquals("и экран об этом молчит", "", core.snapshot().message)
+        }
+    }
+
     /** 1.5.6, U5: пакет исчез между кадром и чтением - тап просто закончился. */
     @Test
     fun aSelectionOfAVanishedPackageSettlesQuietlyAndNamesItInTheRing() {
