@@ -880,12 +880,12 @@ internal class PackageRemovedOperation(
 internal class HomeOperation(
     work: SplitOperationWorkspace,
     /**
-     * Правка W2 (волна 7): как подать одну уборочную сверку после подтверждённого накрытия с
-     * мёртвым членом. Сабмит HomeOperation сам снимает взведённые повторы сверки (§4), поэтому
-     * подтверждённый Home обязан и заканчиваться собственной финальной read-only проверкой -
-     * иначе он хоронит уборку, которую больше некому перевзвести. Правка W2 волны 8 (Ф2):
-     * канал подачи - отложенный повтор правки W3, не мгновенный сабмит: уборка не читает мир
-     * в зубы двухпроходного teardown, коалесцируется и вытесняется пользовательским вводом.
+     * Правка W2 (волна 7): как подать одну уборочную сверку после подтверждённого накрытия.
+     * Сабмит HomeOperation сам снимает взведённые повторы сверки (§4), поэтому подтверждённый
+     * Home обязан подать один свой - иначе он хоронит проверку, которую больше некому
+     * перевзвести. Правка W2 волны 8 (Ф2): канал подачи - отложенный повтор правки W3, не
+     * мгновенный сабмит: сверка не читает мир в зубы двухпроходного teardown, коалесцируется и
+     * вытесняется пользовательским вводом.
      */
     private val requestCleanup: () -> Unit = {},
 ) : SplitCoreOperation<Boolean>(
@@ -896,11 +896,6 @@ internal class HomeOperation(
     coalesceKey = null,
     work = work,
 ) {
-    /** The pane a collapse closed, proven while the world still showed it (правка волны 11). */
-    private var collapsedBeforeCover: SplitPane? = null
-
-    private var collapseProbes = 0
-
     override fun prepare(op: SplitOperationContext, shell: (String) -> String): Boolean =
         working.enabled
 
@@ -908,14 +903,7 @@ internal class HomeOperation(
         if (!plan) return
         val split = work.split(op)
         // The recipe reads the lease before it reads the car: an unowned gate costs no command.
-        // Its very first area sample is taken before anything is suspended, which is exactly the
-        // world the passive reconcile would have read had this Home not displaced it (§4), so the
-        // collapse probe rides that loop instead of paying for a read of its own.
-        val suspended = split.suspendOwnedGateForHome(
-            displaced = work.userInputWaiting,
-            onSurvivorArea = { proveCollapseBeforeCover(split) },
-        )
-        settleCollapseBeforeCover(op, split)
+        val suspended = split.suspendOwnedGateForHome(displaced = work.userInputWaiting)
         if (suspended) {
             settle(SplitFact.HomeConfirmed)
             requestCoveredSceneRecheck()
@@ -932,59 +920,6 @@ internal class HomeOperation(
                 "home suspend unconfirmed: area==0 не подтвердилось за ~3с, gate остался открыт (1.9.3)"
             },
         )
-    }
-
-    /**
-     * Правка волны 11, звено А (приёмка v25-D): схлопывание, накрытое ранним Home.
-     *
-     * Оба доказательства схлопывания начинаются с чтения area и требуют 1/2 (findings, "Both
-     * collapse proofs are blind at area 0/4"). Пользователь, нажавший Home в пределах ~2 с после
-     * жеста, сабмитом Home вытесняет сверку, которая только и могла это прочесть (§4), а её
-     * отложенный повтор приходит к area 0 - и слот схлопнутой панели остаётся `App(...)`: следующее
-     * открытие ЧЕСТНО восстанавливает то, что пользователь закрыл (против 1.3.4 и 1.8.2). Живой
-     * ринг v25-D показывает ровно это: три сверки подряд читают area=0/0/4.
-     *
-     * Правка не спорит с правкой W1 волны 9 и ничего в ней не меняет: имя схлопнутой панели
-     * по-прежнему называет area, а факт - существование, по exact identity. Меняется только
-     * момент: тот же предикат применяется на сэмплах цикла подтверждения накрытия, пока мир ещё
-     * показывает 1/2. Никакого нового таймера и ни одного лишнего чтения на обычном Home: цикл
-     * уже был, он уже читал area, и при area 0/3/4 проба не запускается вовсе.
-     *
-     * Доказательство read-only и подтверждается вторым чтением; попыток не больше [MAX_PROBES] -
-     * мир, который не сошёлся за две, перечитает обычная сверка, а Home не имеет права стоять.
-     */
-    private fun proveCollapseBeforeCover(split: SplitPickerShellSession) {
-        if (collapsedBeforeCover != null || collapseProbes >= MAX_PROBES) return
-        if (working.scene != SplitScene.Split) return
-        val expected = SplitCoordinatorCore.collapseExpectation(liveScene)
-            ?.takeIf { panes -> panes.keys == SplitPane.entries.toSet() }
-            ?: return
-        collapseProbes += 1
-        val read = runCatching {
-            split.confirmedCollapsedPaneByExistence(SPLIT_PICKER_COMPONENT_SET, expected)
-        }.getOrNull() ?: return
-        val collapsed = read.collapsed ?: return
-        collapsedBeforeCover = collapsed
-        work.log("collapse proven before the cover: $collapsed (${read.reason})")
-    }
-
-    /**
-     * Contract 1.8.2: the pane is closed for good, its selection is cleared, and its application
-     * stays alive in the background - the firmware detached it, and it is the user's.
-     *
-     * The fact is settled before [SplitFact.HomeConfirmed] so that the automaton sees what actually
-     * happened in the order it happened: the scene became a single pane, and then Home covered it.
-     */
-    private fun settleCollapseBeforeCover(
-        op: SplitOperationContext,
-        split: SplitPickerShellSession,
-    ) {
-        val collapsed = collapsedBeforeCover ?: return
-        if (working.slot(collapsed.other()) == SplitSlot.Closed) return
-        pointOfNoReturn(op, "the collapse closed $collapsed for good; its app stays alive")
-        liveScene[collapsed]?.let { pane -> removeCollapsedPicker(op, split, pane.hostTaskId) }
-        liveScene = liveScene - collapsed
-        settle(SplitFact.PaneCollapsedSettled(collapsed.other()))
     }
 
     /**
@@ -1007,17 +942,6 @@ internal class HomeOperation(
         if (working.scene == null || liveScene.isEmpty()) return
         work.log("home confirmed: одна отложенная сверка накрытого мира (правка волны 12)")
         requestCleanup()
-    }
-
-    private companion object {
-        /**
-         * Правка волны 11: сколько раз одна операция Home пытается доказать схлопывание.
-         *
-         * Первая попытка - до подвески, второй мир даёт собственный цикл ожидания. Больше платить
-         * нечем: каждая попытка - это чтение топологии, а Home обязан подвесить gate быстро;
-         * мир, который не сошёлся за две, перечитает обычная сверка своим каналом.
-         */
-        const val MAX_PROBES = 2
     }
 }
 

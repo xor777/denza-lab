@@ -106,15 +106,6 @@ internal class SplitPickerShellSession(
      */
     fun suspendOwnedGateForHome(
         displaced: () -> Boolean = { false },
-        /**
-         * Правка волны 11 (звено А, приёмка v25-D): этот цикл - последний живой взгляд продукта на
-         * мир до накрытия, и пока он ждёт, схлопывание ещё видно. Каждый сэмпл, у которого area
-         * называет ОДНУ выжившую панель (1/2), сообщается наружу: именно этот мир прочла бы
-         * пассивная сверка, которую сабмит Home вытеснил (§4), и после накрытия area в 1/2 уже
-         * не вернётся - схлопывание станет недоказуемым навсегда. Сам предикат не меняется;
-         * меняется только момент, когда его успевают применить.
-         */
-        onSurvivorArea: () -> Unit = {},
     ): Boolean {
         val store = gateLeaseStore ?: return false
         if (!store.isOwned()) return false
@@ -125,7 +116,6 @@ internal class SplitPickerShellSession(
                 callVoid("service call activity_task 126 i32 0")
                 return true
             }
-            if (area == AREA_PRIMARY_FULL || area == AREA_SECONDARY_FULL) onSurvivorArea()
             if (waited >= HOME_CONFIRM_BUDGET_MS || displaced()) return false
             val slice = minOf(AREA_POLL_INTERVAL_MS, HOME_CONFIRM_BUDGET_MS - waited)
             pause(slice)
@@ -560,34 +550,6 @@ internal class SplitPickerShellSession(
         pickerComponents: Set<String>,
         expectedPanes: Map<SplitPane, SplitPickerObservedPane>,
     ): SplitPane? = readCollapsedPaneByExistence(pickerComponents, expectedPanes).collapsed
-
-    /**
-     * The same proof, taken while the world is still moving, and confirmed by a second reading
-     * (правка волны 11, звено А).
-     *
-     * It exists for one moment: the user collapsed a pane and pressed Home within a couple of
-     * seconds, so the reconcile that would have proven the collapse was displaced by the Home
-     * submit (§4), and by the time its deferred repeat runs the area is 0/4 and both proofs are
-     * blind forever (findings, "Both collapse proofs are blind at area 0/4"). The world this reads
-     * is therefore mid-teardown, and a single sample of a mid-teardown world is exactly what
-     * правка W2 волны 8 already refuses to act on: a false close forgets what the user chose, and
-     * that is worse than a missed one. Two readings that name the same pane are the whole
-     * difference; the predicates themselves are wave 9's, unchanged.
-     */
-    fun confirmedCollapsedPaneByExistence(
-        pickerComponents: Set<String>,
-        expectedPanes: Map<SplitPane, SplitPickerObservedPane>,
-    ): SplitCollapsedPaneRead {
-        val first = readCollapsedPaneByExistence(pickerComponents, expectedPanes)
-        val collapsed = first.collapsed ?: return first
-        pause(COLLAPSE_CONFIRM_SETTLE_MS)
-        val second = readCollapsedPaneByExistence(pickerComponents, expectedPanes)
-        if (second.collapsed == collapsed) return second
-        return SplitCollapsedPaneRead(
-            null,
-            "схлопывание не подтвердилось вторым чтением: ${second.reason}",
-        )
-    }
 
     /** The same proof, with the reason it refused (правка W4, U5). */
     fun readCollapsedPaneByExistence(
@@ -2917,16 +2879,6 @@ internal class SplitPickerShellSession(
          */
         const val SCENE_END_CONFIRM_SETTLE_MS = 400L
 
-        /**
-         * Правка волны 11: пауза между двумя чтениями схлопывания под уходящим миром.
-         *
-         * Короче подтверждения конца сцены (400 мс) на порядок причины: там подтверждается
-         * СМЕРТЬ задачи, которую двухпроходный teardown прошивки может показать полутактом; здесь
-         * подтверждается СОСТАВ панельных корней при уже названной area, и второе чтение нужно
-         * лишь чтобы переходный такт не совпал с обоими. Дороже платить нельзя: пауза стоит
-         * пользователю задержки подвески gate на Home.
-         */
-        const val COLLAPSE_CONFIRM_SETTLE_MS = 150L
         const val PICKER_SETTLE_MS = 150L
         const val NATIVE_PICKER_SETTLE_MS = 450L
         const val APP_LAUNCH_SETTLE_MS = 250L
