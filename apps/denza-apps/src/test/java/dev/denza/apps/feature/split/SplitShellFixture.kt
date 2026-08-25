@@ -126,14 +126,6 @@ internal class FakeShell(
 
     var area = 4
     var preserveBoundsOnShellMove = false
-
-    /**
-     * Прошивка распустила ОБА панельных контейнера (`removeIviStack(clearTotally=true)`,
-     * ground-v18 B2/диагноз v21 К1): tx118 отвечает 0 - это УСПЕШНЫЙ ответ «контейнера нет»,
-     * не транспортная ошибка. Обрыв линка - другой исход; его инсценирует
-     * [RecordingShellFactory.failOn], а не этот флаг.
-     */
-    var panelContainersDisbanded = false
     private var gate = initialGate
     private var homeVisible = false
     private var nextTaskId = firstTaskId
@@ -335,10 +327,12 @@ internal class FakeShell(
                 )
                 voidParcel()
             }
-            command == "service call activity_task 118 i32 1" ->
-                intParcel(if (panelContainersDisbanded) 0 else PRIMARY_ROOT)
-            command == "service call activity_task 118 i32 2" ->
-                intParcel(if (panelContainersDisbanded) 0 else SECONDARY_ROOT)
+            // Машинная правда волны 7 (живое чтение 2026-08-25): панельные контейнеры прошивки -
+            // вечные объекты, tx118 НИКОГДА не отвечает ≤0 для панельных областей. «Пустота
+            // панельных корней» недостижима по построению; обрыв линка инсценирует
+            // [RecordingShellFactory.failOn], а не нулевой ответ.
+            command == "service call activity_task 118 i32 1" -> intParcel(PRIMARY_ROOT)
+            command == "service call activity_task 118 i32 2" -> intParcel(SECONDARY_ROOT)
             command == "service call activity_task 118 i32 4" -> intParcel(FULL_ROOT)
             command == "service call activity_task 30" -> {
                 if (transientAreaReadsRemaining > 0) {

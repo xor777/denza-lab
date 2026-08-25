@@ -378,17 +378,6 @@ internal abstract class SplitCoreOperation<P>(
     }
 
     /**
-     * The ids the two panes hold right now, or `null` when nothing was proven.
-     *
-     * Правка W2 (диагноз v21 Д2/К1): успешный tx118 с ≤0 по обеим панелям - доказанная пустота
-     * распущенного `clearTotally`-мира, а не «нечитаемо»; уборка после него обязана дойти до
-     * проверки членов. Только транспортная ошибка и смешанный ответ остаются `null` - «не
-     * доказано - не убираем».
-     */
-    protected fun paneTaskIds(split: SplitPickerShellSession): Set<Int>? =
-        runCatching { split.paneTaskIdsOrDisbanded() }.getOrNull()
-
-    /**
      * Everything already running before this operation's first mutation, for [recordCreated].
      *
      * It is the whole main display rather than the two panes: a restore reuses the task its package
@@ -1327,21 +1316,26 @@ internal class ReconcileOperation(
      * Contract 1.7.5 and scenario 30: "Clear all" in Recents, and every other way a whole scene can
      * stop existing while this process is not looking at it.
      *
-     * The proof is **existence**, never visibility (invariant 5). Home, Recents and a foreign
-     * fullscreen app all *cover* a scene whose tasks are still listed in the two panel roots, so
-     * none of them can ever reach the fact below; only a fresh snapshot in which not one task of
-     * the verified scene is left in either panel root can. Nothing is remembered beyond the
-     * ephemeral live hint the operations already keep (invariant 4), and the check reads: no
-     * mutation, no point of no return, one settled fact.
+     * Правка W1 волны 7 (b1-CORE, живой протокол 2026-08-25): конец сцены доказывается двумя
+     * чтениями - сцена НАКРЫТА ([SplitPickerShellSession.sceneCovered], area 0/4) И хотя бы один
+     * записанный член МЁРТВ по exact identity на всём main display
+     * ([SplitPickerShellSession.allRecordedMembersAlive]). Живая накрытая сцена - ВСЕ члены живы -
+     * не убирается никогда (инвариант 5): прошивка на Home опустошает корень панели, отвязывая
+     * живые задачи, и отвязанный член живой накрытой сцены - не сирота. Мёртвый член под
+     * накрытием - нативный конец: Back в широком пикере при «пикер|пикер», свайп, «очистить всё»
+     * (ground-v18 B2).
+     *
+     * Панельные корни в воротах конца больше не участвуют. Машинная правда волны 7: контейнеры
+     * прошивки - вечные объекты, tx118 никогда не отвечает ≤0, а узкий пикер-сирота нативно
+     * завершённой сцены НИКОГДА сам не покидает свой панельный root - прежние ворота «записанные
+     * задачи ещё в панельных корнях» ждали состояния, которого на этой прошивке не бывает, и
+     * уборка не наступала никогда.
      *
      * The automaton then keeps the projected navigator's slot and turns every other `APP` into
      * `PICKER`, which is what makes the next open show fresh pickers instead of resurrecting what
-     * the user cleared (1.3.4, invariant 6).
-     *
-     * Forgetting is not enough, though: a picker of ours that left the panel roots without dying is
-     * exactly what this check cannot see, and the vertical slice met one - a narrow-bounds stump
-     * that survived Back and spoiled the next run. So the tasks this scene recorded as its own
-     * pickers are removed here, by exact id and component, wherever they ended up (1.6, 1.6.4).
+     * the user cleared (1.3.4, invariant 6). Forgetting is not enough, though: the tasks this
+     * scene recorded as its own pickers are removed here, by exact id and component, wherever
+     * they ended up - including a panel root they never left (1.6, 1.6.4).
      */
     private fun settleSceneEnded(
         op: SplitOperationContext,
@@ -1352,36 +1346,31 @@ internal class ReconcileOperation(
             listOfNotNull(observed.hostTaskId, observed.appTaskId)
         }
         if (recorded.isEmpty()) return false
-        val living = paneTaskIds(split)
-        if (living == null) {
-            unproven += "конец сцены: панельные корни нечитаемы"
+        val covered = runCatching { split.sceneCovered() }.getOrNull()
+        if (covered == null) {
+            unproven += "конец сцены: area нечитаема"
             return false
         }
-        // Инвариант 5 (ред. 2026-08-24): прошивка на Home может опустошить корень панели - члены
-        // живой накрытой сцены отвязаны от панельных корней, но живы, и сиротами не являются.
-        // Пока сцена накрыта и КАЖДЫЙ записанный член жив под своей exact identity где угодно на
-        // main display, сцена существует, мир решён и уборка не начинается. Мёртвый член -
-        // нативный конец (Back в широком пикере при «пикер|пикер», свайп, «очистить всё»,
-        // ground-v18 B2), и тогда огрызки наших пикеров убираются ниже, где бы они ни оказались
-        // (1.6.3, 1.7.5). Нечитаемая машина решается как и выше: не доказано - не убираем.
-        val coveredSceneAlive = runCatching {
-            split.sceneCovered() &&
-                split.allRecordedMembersAlive(liveScene, SPLIT_PICKER_COMPONENT_SET)
+        val membersAlive = runCatching {
+            split.allRecordedMembersAlive(liveScene, SPLIT_PICKER_COMPONENT_SET)
         }.getOrNull()
-        if (coveredSceneAlive == null) {
+        if (membersAlive == null) {
+            // Нечитаемая машина: не доказано - не убираем.
             unproven += "конец сцены: живость членов нечитаема"
             return false
         }
-        if (coveredSceneAlive) {
-            // Полное позитивное доказательство: каждый член жив под накрытием. Более ранние
-            // отказы этой операции - следствие накрытия, а не подвешенного мира (правка W3).
-            unproven.clear()
+        if (membersAlive) {
+            if (covered) {
+                // Полное позитивное доказательство: каждый член жив под накрытием. Более ранние
+                // отказы этой операции - следствие накрытия, а не подвешенного мира (правка W3).
+                unproven.clear()
+            }
             return false
         }
-        if (recorded.any { taskId -> taskId in living }) {
-            // Член в панельном корне - сцена ещё существует, но целиком мир не доказан (это и
-            // есть середина двухпроходного teardown из диагноза v21 К2): повтор перечитает.
-            unproven += "конец сцены: записанные задачи ещё в панельных корнях"
+        if (!covered) {
+            // Мёртвый член при видимой или переходной area (1/2/3): collapse и APP→PICKER
+            // говорят раньше, а недоказуемый остаток перечитает отложенный повтор.
+            unproven += "конец сцены: член мёртв, но сцена не накрыта"
             return false
         }
         val ownPickers = liveScene.values.map(SplitPickerLivePane::hostTaskId)

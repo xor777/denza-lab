@@ -1344,36 +1344,6 @@ internal class SplitPickerShellSession(
      */
     fun livingTaskIds(): Set<Int> = mainDisplayTasks().mapTo(mutableSetOf(), SplitTask::id)
 
-    /**
-     * The task ids the two panel containers hold, for the cleanup path alone (правка W2, диагноз
-     * v21 Д2/К1).
-     *
-     * `removeIviStack(clearTotally=true)` - Back в широком пикере при «пикер|пикер» (1.6.3) -
-     * распускает ОБА панельных контейнера, и tx118 с этого момента честно отвечает ≤0. Это не
-     * отказ чтения, а факт «панельных контейнеров нет»: живых задач в панелях ноль, и уборке
-     * можно идти к проверке членов. Строгий [nativeRootIds] с его `check(rootId > 0)` остаётся
-     * воротами каждого строительного рецепта - сборке контейнеры обязательны.
-     *
-     * Исходы различаются намеренно:
-     *  - оба tx118 ≤ 0 -> пустое множество (доказанная пустота);
-     *  - оба > 0 -> задачи обоих контейнеров, как раньше;
-     *  - смешанный ответ -> `null`: прошивка посреди перестройки, ничего не доказано;
-     *  - транспортная ошибка (обрыв, мусор в parcel) пробрасывается - вызывающий остаётся
-     *    fail-closed, как и до правки.
-     */
-    fun paneTaskIdsOrDisbanded(): Set<Int>? {
-        val roots = SplitPane.entries.map { pane ->
-            callInt("service call activity_task 118 i32 ${pane.areaId}")
-        }
-        if (roots.all { rootId -> rootId <= 0 }) return emptySet()
-        if (roots.any { rootId -> rootId <= 0 }) return null
-        val state = snapshot()
-        return roots
-            .mapNotNull(state::root)
-            .flatMap(SplitRootTask::tasks)
-            .mapTo(mutableSetOf(), SplitTask::id)
-    }
-
     private fun mainDisplayTasks(): List<SplitTask> = snapshot().roots.asSequence()
         .filter { it.displayId == MAIN_DISPLAY_ID }
         .flatMap { it.tasks.asSequence() }

@@ -1920,51 +1920,23 @@ class SplitScenarioTest {
     }
 
     /**
-     * Правка W2 (диагноз v21 Д2/К1, живой грязный ключ 16B): `removeIviStack(clearTotally=true)`
-     * распускает ОБА панельных контейнера, и tx118 с этого момента честно отвечает ≤0. В v21
-     * уборка молча отказывала ровно здесь: строгий check бросал, runCatching делал из успешного
-     * «контейнеров нет» - «нечитаемо, не убираем», и грязный SmartMulti-ключ жил бессрочно; при
-     * следующем открытом gate прошивка сама достаёт запомненный second («ADAS рядом», корпус
-     * BydSmartMultiIviController:530-535). Доказанная пустота обязана доводить уборку до конца
-     * от единственной подсказки, без тапа пользователя.
+     * Правка W1 волны 7 (b1-CORE, живой протокол 2026-08-25): после Back в широком пикере при
+     * «пикер|пикер» area=0 наступает мгновенно, оба tx118 честно > 0 (контейнеры прошивки -
+     * вечные объекты), а узкий пикер-сирота НИКОГДА сам не покидает свой панельный root. Прежние
+     * ворота «записанные задачи ещё в панельных корнях» ждали состояния, которого на этой
+     * прошивке не бывает, и settleSceneEnded не наступал никогда (ядро блокера v22). Конец
+     * доказывается накрытием плюс мёртвым членом, и уборка обязана состояться от первой же
+     * подсказки: сирота убран прямо из панельного корня, ключи возвращены, gate закрыт.
      */
     @Test
-    fun disbandedPanelContainersReadAsProvenEmptinessAndTheCleanupLands() {
-        val car = car(
-            FakeShell(initialGate = true).apply {
-                liveProductScene()
-                setSystem("byd_smart_multi_primary_activity", LAUNCHER_PACKAGE)
-                setSystem("byd_smart_multi_second_activity", STOCK_BOOTSTRAP_PACKAGE)
-                setSystem("byd_smart_multi_primary_position", "2")
-                setSystem("byd_smart_multi_split_window_mode", "102")
-            },
-        )
-        val core = car.core(
-            SplitDurable(enabled = true, slots = PICKER_PAIR),
-            leases = listOf(SmartMultiLease()),
-        )
-        car.gateLease.setOwned(true)
-        core.initialize {}
-        core.openPickerSession()
-        car.barrier()
-        car.fake.setSystem("byd_smart_multi_primary_activity", SPLIT_HOST_PACKAGE)
-
-        // Back в широком пикере: его задача умерла, узкий выброшен живым невидимым, экран Home -
-        // и оба панельных контейнера распущены целиком.
-        car.fake.removeActivity(PRIMARY_ROOT, PRIMARY_PICKER_ACTIVITY)
-        car.fake.detachTask(SECONDARY_PICKER_TASK)
-        car.fake.area = 0
-        car.fake.panelContainersDisbanded = true
-
-        core.homeVisible()
-        car.barrier()
-        assertFalse(car.fake.isGateOpen())
+    fun theWideBackOrphanIsCleanedOutOfItsPanelRootFromTheFirstHint() {
+        val (car, core) = wideBackWorld()
 
         core.pickerHidden(PRIMARY_PICKER_TASK)
         car.barrier()
 
         assertFalse(
-            "огрызок узкого пикера убран по точной identity, где бы он ни оказался",
+            "сирота убран по точной identity прямо из панельного корня, который он не покидал",
             car.fake.hasTask(SECONDARY_PICKER_TASK),
         )
         assertEquals(
@@ -1976,43 +1948,19 @@ class SplitScenarioTest {
         assertFalse("gate закрыт по нашей аренде и аренда возвращена", car.gateLease.isOwned())
         assertFalse(car.fake.isGateOpen())
         assertEquals("слоты соответствуют концу сцены", PICKER_PAIR, car.store.load().slots)
+        assertEquals("мир решён с первой подсказки: повтор не нужен", 0, car.clock.pendingTimers())
     }
 
     /**
-     * Правка W2, обратная сторона: транспортная ошибка на tx118 - не «пусто». Обрыв и мусор в
-     * ответе остаются fail-closed («не доказано - не убираем»), и только следующее честное
-     * прочтение доводит уборку.
+     * Обратная сторона правки W1: транспортная ошибка на чтении живости членов - не «конец».
+     * Обрыв остаётся fail-closed («не доказано - не убираем»), и уборку доводит следующее
+     * честное прочтение.
      */
     @Test
     fun aTransportErrorOnTheCleanupReadStaysFailClosed() {
-        val car = car(
-            FakeShell(initialGate = true).apply {
-                liveProductScene()
-                setSystem("byd_smart_multi_primary_activity", LAUNCHER_PACKAGE)
-                setSystem("byd_smart_multi_second_activity", STOCK_BOOTSTRAP_PACKAGE)
-                setSystem("byd_smart_multi_primary_position", "2")
-                setSystem("byd_smart_multi_split_window_mode", "102")
-            },
-        )
-        val core = car.core(
-            SplitDurable(enabled = true, slots = PICKER_PAIR),
-            leases = listOf(SmartMultiLease()),
-        )
-        car.gateLease.setOwned(true)
-        core.initialize {}
-        core.openPickerSession()
-        car.barrier()
-        car.fake.setSystem("byd_smart_multi_primary_activity", SPLIT_HOST_PACKAGE)
+        val (car, core) = wideBackWorld()
 
-        car.fake.removeActivity(PRIMARY_ROOT, PRIMARY_PICKER_ACTIVITY)
-        car.fake.detachTask(SECONDARY_PICKER_TASK)
-        car.fake.area = 0
-        car.fake.panelContainersDisbanded = true
-
-        core.homeVisible()
-        car.barrier()
-
-        car.shells.failOn("service call activity_task 118 i32 1")
+        car.shells.failOn("am stack list")
         core.pickerHidden(PRIMARY_PICKER_TASK)
         car.barrier()
 
@@ -2238,27 +2186,25 @@ class SplitScenarioTest {
     }
 
     /**
-     * Правка W3 (диагноз v21 Д1/Д2, К2): сверка, отказавшая из-за недоказуемой топологии
-     * (середина двухпроходного teardown: узкий сирота ещё числится в панельном корне), взводит
-     * ровно один отложенный повтор. Повтор перечитывает мир и доводит уборку без тапа
-     * пользователя; удавшийся повтор новых таймеров не оставляет.
+     * Правка W3 в редакции волны 7: единственный честно недоказуемый мир после W1 - нечитаемая
+     * машина. Сверка, отказавшая из-за обрыва чтения, взводит ровно один отложенный повтор;
+     * повтор перечитывает мир и доводит уборку без тапа пользователя, а удавшийся повтор новых
+     * таймеров не оставляет - серия отказов заканчивается решением, не бесконечным повтором (W8).
      */
     @Test
     fun anUnprovenReconcileArmsOneDeferredRecheckThatFinishesTheCleanup() {
-        val (car, core) = midTeardownCar()
+        val (car, core) = wideBackWorld()
 
+        car.shells.failOn("am stack list")
         core.pickerHidden(PRIMARY_PICKER_TASK)
         car.barrier()
         assertTrue(
-            "уборка честно отказала: узкий ещё в панельном корне",
+            "уборка честно отказала: живость членов нечитаема",
             car.fake.hasTask(SECONDARY_PICKER_TASK),
         )
         assertEquals("и взведён ровно один отложенный повтор", 1, car.clock.pendingTimers())
 
-        // Пас 2 прошивки доехал: узкий выброшен живым, контейнеры распущены целиком.
-        car.fake.detachTask(SECONDARY_PICKER_TASK)
-        car.fake.panelContainersDisbanded = true
-
+        // Транспорт ожил; мир тот же - b1-CORE, сирота в своём панельном корне.
         car.clock.advance(SplitCoordinatorCore.RECONCILE_RECHECK_DELAY_MS)
         car.barrier()
 
@@ -2278,8 +2224,9 @@ class SplitScenarioTest {
     /** Правка W3: пользовательская операция вытесняет ещё не сработавший повтор по §4. */
     @Test
     fun aUserOperationDisplacesThePendingRecheck() {
-        val (car, core) = midTeardownCar()
+        val (car, core) = wideBackWorld()
 
+        car.shells.failOn("am stack list")
         core.pickerHidden(PRIMARY_PICKER_TASK)
         car.barrier()
         assertEquals(1, car.clock.pendingTimers())
@@ -2297,13 +2244,15 @@ class SplitScenarioTest {
     /** Правка W3, U1: отказавший повтор нового не взводит - ни цепочек, ни таймерных циклов. */
     @Test
     fun aFailedRecheckArmsNoThirdAttempt() {
-        val (car, core) = midTeardownCar()
+        val (car, core) = wideBackWorld()
 
+        car.shells.failOn("am stack list")
         core.pickerHidden(PRIMARY_PICKER_TASK)
         car.barrier()
         assertEquals(1, car.clock.pendingTimers())
 
-        // Мир не изменился: повтор отказывает так же честно.
+        // Мир не изменился - и транспорт всё ещё мёртв: повтор отказывает так же честно.
+        car.shells.failOn("am stack list")
         car.clock.advance(SplitCoordinatorCore.RECONCILE_RECHECK_DELAY_MS)
         car.barrier()
         assertTrue(car.fake.hasTask(SECONDARY_PICKER_TASK))
@@ -2318,9 +2267,10 @@ class SplitScenarioTest {
     /** Правка W3: серия отказов коалесцируется - один общий повтор на её ключ. */
     @Test
     fun aStormOfRefusalsCoalescesIntoOneRecheck() {
-        val (car, core) = midTeardownCar()
+        val (car, core) = wideBackWorld()
 
         repeat(5) {
+            car.shells.failOn("am stack list")
             core.pickerHidden(PRIMARY_PICKER_TASK)
             car.barrier()
         }
@@ -2361,12 +2311,19 @@ class SplitScenarioTest {
     /**
      * Правка W4 (U5, диагноз v21): каждая недоказанная сверка оставляет одну строку с именами
      * отказавших предикатов - строку на отказ операции, не на предикат-в-цикле. v21
-     * диагностировался на полной тишине этих веток.
+     * диагностировался на полной тишине этих веток. Мир здесь честно не сведён и не кончился:
+     * area 3, все члены живы, но в панели затесалась третья задача.
      */
     @Test
     fun anUnprovenReconcileNamesItsRefusedPredicatesInOneRingLine() {
-        val (car, core) = midTeardownCar()
+        val car = car(FakeShell().apply { liveProductScene(withApps = true) })
+        val core = car.core(SplitDurable(enabled = true, slots = APP_PAIR))
+        core.initialize {}
+        core.openPickerSession()
+        car.barrier()
 
+        // Чужая задача поверх панели: сцена не читается своей, collapse тоже недоказуем.
+        car.fake.addTask(PRIMARY_ROOT, FOREIGN_TASK, FOREIGN, "$FOREIGN.MainActivity")
         core.dividerResized()
         car.barrier()
 
@@ -2375,7 +2332,7 @@ class SplitScenarioTest {
         assertTrue(
             "и она называет отказавшие предикаты по именам: ${lines.single()}",
             lines.single().contains("resize: мир не сведён") &&
-                lines.single().contains("ещё в панельных корнях"),
+                lines.single().contains("collapse:"),
         )
     }
 
@@ -2436,8 +2393,12 @@ class SplitScenarioTest {
         assertTrue("gate остался при живой сцене", car.fake.isGateOpen())
     }
 
-    /** Мир середины двухпроходного teardown (диагноз v21 К2), общий для проверок правки W3. */
-    private fun midTeardownCar(): Pair<SplitCarFixture, SplitCoordinatorCore> {
+    /**
+     * Мир b1-CORE (живой протокол 2026-08-25), общий для проверок правок W1-W3: Back в широком
+     * пикере при «пикер|пикер» - его задача мертва, узкий сирота живёт в СВОЁМ панельном корне
+     * (он не покидает его никогда), area 0 мгновенно, оба tx118 > 0.
+     */
+    private fun wideBackWorld(): Pair<SplitCarFixture, SplitCoordinatorCore> {
         val car = car(
             FakeShell(initialGate = true).apply {
                 liveProductScene()
@@ -2457,11 +2418,9 @@ class SplitScenarioTest {
         car.barrier()
         car.fake.setSystem("byd_smart_multi_primary_activity", SPLIT_HOST_PACKAGE)
 
-        // Пас 1 teardown'а: широкий пикер умер, экран Home; узкий ЕЩЁ числится в панельном корне.
+        // Back в широком: его задача умерла, узкий сирота остался в панельном корне, экран Home.
         car.fake.removeActivity(PRIMARY_ROOT, PRIMARY_PICKER_ACTIVITY)
         car.fake.area = 0
-        core.homeVisible()
-        car.barrier()
         return car to core
     }
 
