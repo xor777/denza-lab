@@ -63,6 +63,19 @@ data class ClusterDashboardLayout(
      */
     val compact: Boolean = placement == ClusterMapPlacement.RIGHT
 
+    /**
+     * The virtual space this placement is drawn in, matching the design's own boards.
+     *
+     * Both land on the panel at the same 1.70 scale - 424 into 720 across the full width, 308 into
+     * 524 in the right third - which is what lets one type ramp serve both: a size of 13 units is
+     * the same number of millimetres on the glass either way.
+     *
+     * It lives here rather than on the density because a density is a set of sizes and a space is a
+     * property of the panel. A block drawn with the narrow ramp inside the wide space - which is
+     * what every corner reveal is - has to be measured against 424, not 308.
+     */
+    val virtualHeight: Float = if (placement == ClusterMapPlacement.RIGHT) 308f else 424f
+
     /** Stock graphics occupy everything above this, except inside the top reveals. */
     val stockTop: Float =
         if (height <= 0) 0f else map.shadeTopRevealHeightPx.toFloat() / height
@@ -139,10 +152,18 @@ data class ClusterDashboardLayout(
     /** The fluid lamps, in the top-right reveal. */
     val lampBlock: DashboardBox? = topReveal(topRightRevealX, fromLeft = false)
 
-    /** Centre of the energy gauge, and its radius as a fraction of the dashboard's height. */
+    /**
+     * Centre of the energy gauge, and its radius as a fraction of the dashboard's height.
+     *
+     * The full-width radius is set by the crown, not by taste: the dial's marks stand outward from
+     * the arc, and straight up is where the clear band's top edge crosses it. At `0.377` the mark
+     * cleared the arc but not the edge - by two pixels, which is exactly the kind of miss that never
+     * shows up in a drawing. `ClusterDashboardLayoutTest` holds this against
+     * `EnergyGauge.topReach`, so a change to the mark length is caught here rather than on the car.
+     */
     val gaugeCentreX: Float = 0.5f
     val gaugeCentreY: Float = if (placement == ClusterMapPlacement.RIGHT) 0.76f else 0.78f
-    val gaugeRadius: Float = if (placement == ClusterMapPlacement.RIGHT) 0.383f else 0.377f
+    val gaugeRadius: Float = if (placement == ClusterMapPlacement.RIGHT) 0.383f else 0.372f
 
     private fun band(left: Float, right: Float): DashboardBox {
         val top = stockTop + (stockBottom - stockTop) * 0.06f
@@ -170,9 +191,16 @@ data class ClusterDashboardLayout(
     }
 
     private companion object {
-        /** Where a reveal block starts and ends, as a share of the reveal's own depth. */
-        const val REVEAL_TOP = 0.16f
-        const val REVEAL_BOTTOM = 0.60f
+        /**
+         * Where a reveal block starts and ends, as a share of the reveal's own depth.
+         *
+         * The bottom edge buys height at the cost of width - the reveal is a quarter-ellipse, so the
+         * lower the block's floor, the narrower the widest rectangle that still fits under the
+         * curve. These two numbers are where the fluid grid and its sentence stop overflowing while
+         * the block stays wide enough to hold that sentence; `ClusterBlockPlanTest` is what says so.
+         */
+        const val REVEAL_TOP = 0.14f
+        const val REVEAL_BOTTOM = 0.70f
 
         /** Kept off the panel edge, and off the curve the reveal is bounded by. */
         const val REVEAL_INSET = 0.017f

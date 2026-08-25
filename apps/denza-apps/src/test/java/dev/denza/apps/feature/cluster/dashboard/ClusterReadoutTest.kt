@@ -70,36 +70,126 @@ class ClusterReadoutTest {
 
     @Test
     fun theLampLineNamesAFaultAndOtherwiseStaysQuiet() {
-        assertEquals("все восемь в норме", ClusterReadout.lampLine(emptyList(), 8))
-        assertEquals("перегрев ОЖ", ClusterReadout.lampLine(listOf("перегрев ОЖ"), 8))
+        assertEquals("все в норме", ClusterReadout.lampLine(emptyList(), 8, 8))
+        assertEquals("перегрев ОЖ", ClusterReadout.lampLine(listOf("перегрев ОЖ"), 8, 8))
         assertEquals(
             "перегрев ОЖ · давление масла",
-            ClusterReadout.lampLine(listOf("перегрев ОЖ", "давление масла"), 8),
+            ClusterReadout.lampLine(listOf("перегрев ОЖ", "давление масла"), 8, 8),
         )
     }
 
     @Test
     fun lampsThatNeverAnsweredAreNotReportedAsHealthy() {
-        assertEquals("жидкости не ответили", ClusterReadout.lampLine(emptyList(), 0))
-        assertEquals("в норме 5 из 8", ClusterReadout.lampLine(emptyList(), 5))
+        assertEquals("жидкости не ответили", ClusterReadout.lampLine(emptyList(), 0, 8))
+        assertEquals("в норме 5 из 8", ClusterReadout.lampLine(emptyList(), 5, 8))
+    }
+
+    @Test
+    fun theLampLineCountsTheCatalogRatherThanASpelledOutNumber() {
+        // A ninth lamp must not leave the healthy line still saying eight.
+        assertEquals("в норме 8 из 9", ClusterReadout.lampLine(emptyList(), 8, 9))
+        assertEquals("все в норме", ClusterReadout.lampLine(emptyList(), 9, 9))
     }
 
     @Test
     fun aSpreadIsOrdinaryUntilItIsNot() {
         // 4 mV was the live reading; the watch line is 25 and the alert line 40.
-        assertEquals(ClusterReadout.Thermal.NORMAL, ClusterReadout.spreadState(4.0))
-        assertEquals(ClusterReadout.Thermal.WARM, ClusterReadout.spreadState(30.0))
-        assertEquals(ClusterReadout.Thermal.HOT, ClusterReadout.spreadState(41.0))
-        assertEquals(ClusterReadout.Thermal.UNKNOWN, ClusterReadout.spreadState(null))
+        assertEquals(ClusterReadout.Level.NORMAL, ClusterReadout.spreadState(4.0))
+        assertEquals(ClusterReadout.Level.WATCH, ClusterReadout.spreadState(30.0))
+        assertEquals(ClusterReadout.Level.ALERT, ClusterReadout.spreadState(41.0))
+        assertEquals(ClusterReadout.Level.UNKNOWN, ClusterReadout.spreadState(null))
     }
 
     @Test
     fun aTemperatureIsWarmBeforeItIsHot() {
         val high = ClusterReadout.PACK_BAND_HIGH_C
-        assertEquals(ClusterReadout.Thermal.NORMAL, ClusterReadout.thermalState(28.0, high))
-        assertEquals(ClusterReadout.Thermal.WARM, ClusterReadout.thermalState(45.0, high))
-        assertEquals(ClusterReadout.Thermal.HOT, ClusterReadout.thermalState(60.0, high))
-        assertEquals(ClusterReadout.Thermal.UNKNOWN, ClusterReadout.thermalState(null, high))
+        assertEquals(ClusterReadout.Level.NORMAL, ClusterReadout.thermalState(28.0, high))
+        assertEquals(ClusterReadout.Level.WATCH, ClusterReadout.thermalState(45.0, high))
+        assertEquals(ClusterReadout.Level.ALERT, ClusterReadout.thermalState(60.0, high))
+        assertEquals(ClusterReadout.Level.UNKNOWN, ClusterReadout.thermalState(null, high))
+    }
+
+    @Test
+    fun theCarsOwnLowFuelAlarmOutranksOurPercentage() {
+        // 53 % was the live reading. A tank the car calls low is low even with no level to show.
+        assertEquals(ClusterReadout.Level.NORMAL, ClusterReadout.fuelState(53.0, low = false))
+        assertEquals(ClusterReadout.Level.WATCH, ClusterReadout.fuelState(12.0, low = false))
+        assertEquals(ClusterReadout.Level.ALERT, ClusterReadout.fuelState(12.0, low = true))
+        assertEquals(ClusterReadout.Level.ALERT, ClusterReadout.fuelState(null, low = true))
+        assertEquals(ClusterReadout.Level.UNKNOWN, ClusterReadout.fuelState(null, low = false))
+    }
+
+    @Test
+    fun aTankIsReadStraightThroughBecauseAFuelGaugeIsWhereLinearIsHonest() {
+        assertEquals(0.53f, ClusterReadout.fuelFraction(53.0)!!, 1e-4f)
+        assertNull(ClusterReadout.fuelFraction(null))
+    }
+
+    @Test
+    fun aStoppedEngineSaysWhatItIsWorthRatherThanJustThatItIsStopped() {
+        assertEquals(
+            "заглушен · 491 км на бензине",
+            ClusterReadout.engineLine(generating = false, generationKw = null, running = false, fuelRangeKm = 491.0),
+        )
+        assertEquals(
+            "заглушен",
+            ClusterReadout.engineLine(generating = false, generationKw = null, running = false, fuelRangeKm = null),
+        )
+        assertEquals(
+            "заряжает 12 кВт",
+            ClusterReadout.engineLine(generating = true, generationKw = 12.0, running = true, fuelRangeKm = 491.0),
+        )
+        assertEquals(
+            "работает",
+            ClusterReadout.engineLine(generating = false, generationKw = null, running = true, fuelRangeKm = 491.0),
+        )
+        assertEquals(
+            "двигатель не ответил",
+            ClusterReadout.engineLine(generating = false, generationKw = null, running = null, fuelRangeKm = null),
+        )
+    }
+
+    @Test
+    fun aChargeReportsTheWaitAndLeavesTheRateToTheDialThatAlreadyShowsIt() {
+        assertEquals("заряжается · осталось 2 ч 15 мин", ClusterReadout.chargeLine(135))
+        assertEquals("заряжается", ClusterReadout.chargeLine(null))
+        // A car that has stopped estimating is still charging.
+        assertEquals("заряжается", ClusterReadout.chargeLine(0))
+    }
+
+    @Test
+    fun theNarrowLayoutKeepsTheWaitAndDropsTheVerbItHasNoRoomFor() {
+        assertEquals("осталось 2 ч 15 мин", ClusterReadout.chargeLine(135, brief = true))
+        assertEquals("заряжается", ClusterReadout.chargeLine(null, brief = true))
+    }
+
+    @Test
+    fun aNarrowLineNamesTheFirstFaultAndCountsTheRestRatherThanHidingThem() {
+        val faults = listOf("давление масла", "перегрев ОЖ", "уровень ОЖ")
+        assertEquals("давление масла +2", ClusterReadout.lampLine(faults, 8, 8, brief = true))
+        // One fault fits either way, so brief changes nothing.
+        assertEquals("давление масла", ClusterReadout.lampLine(faults.take(1), 8, 8, brief = true))
+        assertEquals(
+            "давление масла · перегрев ОЖ · уровень ОЖ",
+            ClusterReadout.lampLine(faults, 8, 8),
+        )
+    }
+
+    @Test
+    fun durationDropsTheHalfThatWouldReadAsZero() {
+        assertEquals("2 ч", ClusterReadout.duration(120))
+        assertEquals("45 мин", ClusterReadout.duration(45))
+        assertEquals("1 ч 5 мин", ClusterReadout.duration(65))
+    }
+
+    @Test
+    fun anEmptyChartSaysWhyItIsEmptyRatherThanRepeatingAFullOnesWords() {
+        assertEquals("стоим", ClusterReadout.chartCaption(null, 0.0, stationary = true))
+        assertEquals("считаю расход", ClusterReadout.chartCaption(null, 0.0, stationary = false))
+        assertEquals(
+            "18,4 средний за 4,8 км",
+            ClusterReadout.chartCaption(18.42, 4.8, stationary = false),
+        )
     }
 
     @Test

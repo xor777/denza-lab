@@ -6,9 +6,12 @@ import kotlin.math.sqrt
 /**
  * Every decision the cluster dashboard makes about a number before it becomes a shape.
  *
- * The renderer below draws; this decides. Keeping the two apart is what makes the dashboard
- * testable at all - the module has no Robolectric and no screenshot harness, so a `Canvas` call is
- * unverifiable by construction while a threshold, a span and a string are not.
+ * The renderer draws; this decides. Keeping the two apart is what makes the dashboard testable at
+ * all - the module has no Robolectric and no screenshot harness, so a `Canvas` call is unverifiable
+ * by construction while a threshold, a span and a string are not.
+ *
+ * Everything here takes plain numbers rather than a telemetry snapshot, so a test states the case it
+ * means instead of assembling a car around it.
  */
 internal object ClusterReadout {
 
@@ -41,8 +44,13 @@ internal object ClusterReadout {
     const val DRIVE_BAND_HIGH_C = 70.0
     const val HOT_MARGIN_C = 15.0
 
-    /** How many lamps the firmware folds the sixteen fluid ids into. */
-    const val LAMP_COUNT = 8
+    /**
+     * Where a tank stops being comfortable, for the amber that precedes the car's own alarm.
+     *
+     * The alarm itself decides [Level.ALERT]; this only decides when to start looking. A threshold
+     * of ours that fired *after* the vehicle's would be worse than none.
+     */
+    const val FUEL_WATCH_PERCENT = 15.0
 
     /** Where a pack voltage falls on its own window, or `null` when nothing answered. */
     fun voltFraction(volts: Double?): Float? {
@@ -63,11 +71,17 @@ internal object ClusterReadout {
         return sqrt((kilowatts / GENERATION_FULL_KW).coerceIn(0.0, 1.0)).toFloat()
     }
 
+    /** How full the tank is, straight through: a fuel gauge is the one place linear is honest. */
+    fun fuelFraction(percent: Double?): Float? {
+        if (percent == null) return null
+        return (percent / 100.0).coerceIn(0.0, 1.0).toFloat()
+    }
+
     /**
      * The mean of a run of consumption bars, over the spending ones only.
      *
-     * Averaging the recovery in would answer a question nobody asks - what the car spent net of
-     * what a hill gave back - and would read lower than any bar on the chart.
+     * Averaging the recovery in would answer a question nobody asks - what the car spent net of what
+     * a hill gave back - and would read lower than any bar on the chart.
      */
     fun averageConsumption(bars: List<Double>): Double? {
         val spending = bars.filter { it >= 0.0 }
@@ -79,38 +93,127 @@ internal object ClusterReadout {
     fun chartDistanceKm(bars: List<Double>, bucketKm: Double): Double = bars.size * bucketKm
 
     /**
+     * The sentence under the dial.
+     *
+     * There are three cases and they are genuinely different, which is why the empty chart does not
+     * simply keep the words of the full one: a car that has not moved yet is not a car whose
+     * consumption failed, and neither is a car that has moved less than one bucket.
+     */
+    fun chartCaption(average: Double?, distanceKm: Double, stationary: Boolean): String = when {
+        average != null -> "${fmt(average, 1)} средний за ${fmt(distanceKm, 1)} км"
+        stationary -> "стоим"
+        else -> "считаю расход"
+    }
+
+    /**
+     * What the pack is doing while a gun is in.
+     *
+     * This replaces the resting detail line rather than joining it: a driver watching a charge wants
+     * to know how long, and insulation resistance can go back to being interesting afterwards.
+     *
+     * The rate is deliberately absent. Charging is drawn as energy arriving, so while a gun is in
+     * the dial's own figure already reads the kilowatts, and repeating them here would be the same
+     * mistake as putting the state of charge on a cluster that already shows one.
+     *
+     * [brief] drops the verb for the narrow layout, where the block is 172 units wide and the sole
+     * question left is how long.
+     */
+    fun chargeLine(minutesLeft: Int?, brief: Boolean = false): String {
+        val left = minutesLeft?.takeIf { it > 0 } ?: return "заряжается"
+        return if (brief) "осталось ${duration(left)}" else "заряжается · осталось ${duration(left)}"
+    }
+
+    /** Hours and minutes, dropping the half that would read as zero. */
+    fun duration(minutes: Int): String {
+        val hours = minutes / 60
+        val rest = minutes % 60
+        return when {
+            hours <= 0 -> "$rest мин"
+            rest == 0 -> "$hours ч"
+            else -> "$hours ч $rest мин"
+        }
+    }
+
+    /**
+     * The combustion half in one line.
+     *
+     * Most of a hybrid's life the engine is off, and "заглушен" alone spends a line saying nothing.
+     * The range left on the tank is what a stopped engine is actually worth, so that is what the
+     * line carries when there is nothing happening.
+     */
+    fun engineLine(
+        generating: Boolean,
+        generationKw: Double?,
+        running: Boolean?,
+        fuelRangeKm: Double?,
+    ): String = when {
+        generating && generationKw != null -> "заряжает ${whole(generationKw)} кВт"
+        generating -> "заряжает батарею"
+        running == true -> "работает"
+        running == false && fuelRangeKm != null -> "заглушен · ${whole(fuelRangeKm)} км на бензине"
+        running == false -> "заглушен"
+        else -> "двигатель не ответил"
+    }
+
+    /**
      * The one line the cluster gives the fluid lamps.
      *
-     * A driver's display shows exceptions, not an inventory: the eight names live on the engine
-     * page. So this is silent praise while everything answers and healthy, and names the fault the
-     * moment one does not - and says so plainly when the lamps simply did not answer, because a
-     * lamp that never reported is not the same as a lamp reporting good news.
+     * A driver's display shows exceptions, not an inventory: the names live on the engine page. So
+     * this is silent praise while everything answers and is healthy, and names the fault the moment
+     * one does not - and says so plainly when the lamps simply did not answer, because a lamp that
+     * never reported is not the same as a lamp reporting good news.
+     *
+     * [total] is passed rather than written into the sentence: the count is a property of the lamp
+     * catalog, and a spelled-out number here went stale the first time that catalog grew.
+     *
+     * [brief] is for the narrow layout, where two joined fault names would run past the block. It
+     * names the first and counts the rest rather than dropping any: a line that silently shows one
+     * of three faults is worse than one that says there are three.
      */
-    fun lampLine(alerts: List<String>, answered: Int): String = when {
+    fun lampLine(alerts: List<String>, answered: Int, total: Int, brief: Boolean = false): String = when {
+        alerts.size > 1 && brief -> "${alerts.first()} +${alerts.size - 1}"
         alerts.isNotEmpty() -> alerts.joinToString(" · ")
         answered <= 0 -> "жидкости не ответили"
-        answered < LAMP_COUNT -> "в норме $answered из $LAMP_COUNT"
-        else -> "все восемь в норме"
+        answered < total -> "в норме $answered из $total"
+        else -> "все в норме"
     }
 
     /** Whether a temperature has left its band, and by enough to stop being merely warm. */
-    fun thermalState(celsius: Double?, bandHigh: Double, bandLow: Double = Double.NEGATIVE_INFINITY): Thermal = when {
-        celsius == null -> Thermal.UNKNOWN
-        celsius > bandHigh + HOT_MARGIN_C -> Thermal.HOT
-        celsius > bandHigh -> Thermal.WARM
-        celsius < bandLow -> Thermal.COLD
-        else -> Thermal.NORMAL
+    fun thermalState(
+        celsius: Double?,
+        bandHigh: Double,
+        bandLow: Double = Double.NEGATIVE_INFINITY,
+    ): Level = when {
+        celsius == null -> Level.UNKNOWN
+        celsius > bandHigh + HOT_MARGIN_C -> Level.ALERT
+        celsius > bandHigh -> Level.WATCH
+        celsius < bandLow -> Level.LOW
+        else -> Level.NORMAL
     }
 
     /** Whether a cell spread is ordinary, worth watching, or worth stopping for. */
-    fun spreadState(millivolts: Double?): Thermal = when {
-        millivolts == null -> Thermal.UNKNOWN
-        millivolts >= SPREAD_ALERT_MV -> Thermal.HOT
-        millivolts >= SPREAD_WATCH_MV -> Thermal.WARM
-        else -> Thermal.NORMAL
+    fun spreadState(millivolts: Double?): Level = when {
+        millivolts == null -> Level.UNKNOWN
+        millivolts >= SPREAD_ALERT_MV -> Level.ALERT
+        millivolts >= SPREAD_WATCH_MV -> Level.WATCH
+        else -> Level.NORMAL
     }
 
-    enum class Thermal { UNKNOWN, COLD, NORMAL, WARM, HOT }
+    /**
+     * Whether the tank needs attention.
+     *
+     * The vehicle's own alarm outranks the percentage, including when the percentage did not
+     * answer: a car saying "low fuel" with no level to show is still a car saying low fuel.
+     */
+    fun fuelState(percent: Double?, low: Boolean): Level = when {
+        low -> Level.ALERT
+        percent == null -> Level.UNKNOWN
+        percent <= FUEL_WATCH_PERCENT -> Level.WATCH
+        else -> Level.NORMAL
+    }
+
+    /** Where a reading sits against the band it is expected to stay in. */
+    enum class Level { UNKNOWN, LOW, NORMAL, WATCH, ALERT }
 
     /** A number with a comma, the way every other panel in this app writes one. */
     fun fmt(value: Double, digits: Int): String =

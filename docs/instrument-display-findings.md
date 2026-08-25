@@ -82,9 +82,16 @@ edge.
 
 State of charge and remaining range are **not** drawn. Both are already on the
 stock cluster a few centimetres away, so spending the best real estate on a
-duplicate would be the whole point missed. What the car does not show is drawn
-instead: traction voltage on its own `500-600 V` window, cell spread in
-millivolts, pack health, insulation resistance.
+duplicate would be the whole point missed. The same rule removed two more
+things later: the charge rate, because a gun in the socket is drawn as energy
+arriving and the dial's own figure already reads those kilowatts; and the 12 V
+rail, which is a diagnostic rather than a driving fact and is already on the
+vehicle page.
+
+What the car does not show is drawn instead: traction voltage on its own
+`500-600 V` window, cell spread in millivolts, pack health, insulation
+resistance — and the tank, which matters here precisely because this engine is
+asleep most of the time.
 
 The centre carries instantaneous power on a square-root dial - zero at the top,
 discharge one way, regeneration the other - with the per-200 m consumption
@@ -92,10 +99,63 @@ history nested inside it and the average stated underneath. Left of it is the
 pack, right of it the combustion half, and the two top reveals carry the seven
 temperatures and the eight fluid lamps.
 
+**The dial's marks carry numbers.** The two sides get the same arc but not the
+same span - this car spends up to `300 kW` and recovers about `100` - so equal
+deflection means very different figures left and right, and an unlabelled
+two-sided arc across the top of a cluster is read as a speedometer. The flanking
+pair, `60` one way and `20` the other at identical deflection, says both things
+at a glance. Zero stays unlabelled: it is where the fill vanishes, and a label
+above it reached two pixels into the vehicle's own graphics.
+`ClusterDashboardLayoutTest` now holds the gauge radius against
+`EnergyGauge.topReach` so a longer mark is caught here rather than on the car.
+
 The lamps are a single line, not an inventory: silent while they answer and are
 healthy, naming the fault the moment one is not, and saying plainly when they
 did not answer at all. Their eight names live on the engine page, where there is
-room to read them.
+room to read them. In the narrow layout the line names the first fault and
+counts the rest (`давление масла +2`) rather than running past the block.
+
+### Rest states
+
+Most of what this dashboard shows is, most of the time, nothing happening. Three
+cases were drawn out rather than left to a shared "no data":
+
+- **The chart before the first bucket closes.** It draws nothing at all, not even
+  its zero line - a bare rule with no bars inside a dial reads as a chart that
+  failed. The sentence underneath carries the case instead: `стоим` standing,
+  `считаю расход` moving, the average and its distance once there is one.
+- **A stopped engine.** `заглушен` alone spends a line saying nothing, so the
+  line carries what a stopped engine is actually worth: `заглушен · 491 км на
+  бензине`.
+- **A charge.** The pack's supporting sentence is taken over entirely by
+  `заряжается · осталось 2 ч 15 мин`; insulation resistance goes back to being
+  interesting when the cable comes out.
+
+### The instrument system underneath
+
+The dashboard is built on a small design layer rather than on constants chosen
+per method, and that layer exists because of what an adversarial audit of the
+design boards found: twenty-seven distinct type sizes where six were declared,
+eighteen radii, thirteen optical stroke weights for one flat-line icon family,
+and four sibling layouts whose first label started at four different heights.
+
+- `InstrumentDensity` is the whole type ramp and rhythm - six rungs, none closer
+  than `1.18x`, so two sizes can never read as the same one. `WIDE` and
+  `COMPACT` are the same ladder at different rungs, not two invented sets, and
+  `InstrumentDensityTest` refuses a size that is not on it.
+- `InstrumentPen` is a drawing surface a component is *handed* rather than
+  inherits, which is what lets `EnergyGauge` exist as one control reusable
+  across the cluster and the two projected panel widths.
+- `ClusterBlockPlan` states each block as rows before anything is drawn, so the
+  block is centred in its box instead of hung from its top, and
+  `ClusterBlockPlanTest` adds the plan up against the box. That test has already
+  earned its place twice: it caught a corner block measured against the wrong
+  virtual space, and it is what says a ninth fluid lamp will not fit the reveal.
+
+Both placements land on the panel at the same `1.70` scale - `424` units into
+`720 px` across the full width, `308` into `524` in the right third - which is
+why one ramp serves both. The virtual space belongs to the layout, not to the
+density: a corner reveal is drawn with the narrow ramp inside the *wide* space.
 
 ### Telemetry ownership
 
@@ -105,9 +165,15 @@ count, which is safe only while every consumer is a page of the same Activity.
 The cluster dashboard is alive exactly when that Activity is paused, so
 `setDashboardActive(true)` holds the loop open and `stop()` honours that claim.
 The dashboard also opts into the combustion set, since it draws revolutions,
-generation and the lamps - the same roughly half-second sweep the engine page
-pays for. It redraws at ten frames a second, which is already faster than the
-sweep that feeds it.
+generation, the tank and the lamps - the same roughly half-second sweep the
+engine page pays for. It redraws at ten frames a second, which is already faster
+than the sweep that feeds it.
+
+The tank joined that set on 2026-08-25: `FUEL_PERCENT` (`0x4A507040`),
+`FUEL_RANGE_KM` (`0x4A504038`) and `FUEL_LOW` (`0x4A507027`), all cold and all
+gated to the engine sweep. They were readable in the 2026-08-23 read-only sweep -
+`53 %` and `491 km`, steady across a start/stop cycle - and are what gives the
+combustion block something to say while the engine is off.
 
 ## Mirrors behavior preserved in Denza Apps
 

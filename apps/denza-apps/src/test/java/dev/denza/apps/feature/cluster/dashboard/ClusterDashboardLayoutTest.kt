@@ -1,5 +1,7 @@
 package dev.denza.apps.feature.cluster.dashboard
 
+import dev.denza.apps.design.instrument.EnergyGauge
+import dev.denza.apps.design.instrument.InstrumentDensity
 import dev.denza.apps.feature.cluster.ClusterMapPlacement
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -108,6 +110,25 @@ class ClusterDashboardLayoutTest {
         val endY = layout.gaugeCentreY + layout.gaugeRadius * 0.342f
         assertTrue(layout.isClear(layout.gaugeCentreX - radiusInWidth * 0.94f, endY))
         assertTrue(layout.isClear(layout.gaugeCentreX + radiusInWidth * 0.94f, endY))
+    }
+
+    @Test
+    fun bothPlacementsLandOnThePanelAtTheSameScaleWhichIsWhyOneRampServesBoth() {
+        assertEquals(1.70f, full().height / full().virtualHeight, 0.01f)
+        assertEquals(1.70f, right().height / right().virtualHeight, 0.01f)
+    }
+
+    @Test
+    fun theGaugesMarksClearTheStockEdgeAndNotJustTheArc() {
+        val layout = full()
+        val density = InstrumentDensity.WIDE
+        val reach = EnergyGauge.topReach(density) / layout.virtualHeight
+        val crown = layout.gaugeCentreY - layout.gaugeRadius - reach
+        assertTrue(
+            "the zero mark reaches $crown, above the stock edge at ${layout.stockTop}",
+            crown > layout.stockTop,
+        )
+        assertTrue(layout.isClear(layout.gaugeCentreX, crown))
     }
 
     @Test
