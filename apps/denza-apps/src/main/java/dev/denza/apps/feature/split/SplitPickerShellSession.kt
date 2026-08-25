@@ -1050,11 +1050,19 @@ internal class SplitPickerShellSession(
                     .toList()
                 started.forEach { (pane, target) ->
                     if (found.containsKey(pane)) return@forEach
-                    tasks.filter { task ->
+                    val candidates = tasks.filter { task ->
                         task.id !in taken &&
                             task.packageName == target.packageName &&
                             !task.isOwnSplitComponent()
                     }
+                    // Правка W2 волны 10 (приёмка v25, Д1): запуск идёт в КАТЕГОРИИ панели, и
+                    // задача, оказавшаяся в её корне, - это и есть ответ прошивки на него. Прежний
+                    // «максимальный id по всему дисплею» при двух задачах пакета называл ДРУГУЮ
+                    // копию и втаскивал её `promoteTask`-ом поверх той, что запуск уже принёс: в
+                    // панели оказывались обе (живьём `music t316+t532 RELAUNCHED into SECONDARY`),
+                    // и постусловие валило всю сборку. Место доказывает больше, чем свежесть.
+                    candidates.filter { task -> task.rootId == rootIds.getValue(pane) }
+                        .ifEmpty { candidates }
                         .maxByOrNull(SplitTask::id)
                         ?.let { task ->
                             taken += task.id

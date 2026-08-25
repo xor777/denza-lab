@@ -2155,6 +2155,38 @@ class SplitPickerShellSessionTest {
         )
     }
 
+    /**
+     * Правка W2 волны 10: когда панель всё-таки запускает, её приложение - то, что принёс запуск.
+     *
+     * Прошивка кладёт этот пакет в панель по своим правилам стороны и переиспользует не самую
+     * свежую его задачу. Прежний резолвер брал максимальный id по всему дисплею, называл ЧУЖУЮ
+     * копию и втаскивал её в панель - там становилось три задачи.
+     */
+    @Test
+    fun aLaunchIsResolvedByTheTaskItPutInThePaneNotByTheNewestOfThePackage() {
+        val fake = FakeShell().apply {
+            firmwareChoosesRootFor[MUSIC] = SECONDARY_ROOT
+            addTask(FULL_ROOT, 71, MUSIC, "$MUSIC.MainActivity")
+            addTask(FULL_ROOT, 70, MUSIC, "$MUSIC.MainActivity")
+        }
+
+        val built = session(fake).buildScene(
+            PICKERS,
+            mapOf(SplitPane.SECONDARY to launchTargetOf(MUSIC)),
+            preexistingTaskIds = setOf(70, 71),
+        )
+
+        assertEquals(emptySet<SplitPane>(), built.failed)
+        assertEquals(
+            "панель показывает ту задачу, которую запуск в неё и положил",
+            70,
+            built.panes.getValue(SplitPane.SECONDARY).appTaskId,
+        )
+        assertTrue("вторая копия жива", fake.hasTask(71))
+        assertEquals("и в панель не попала", FULL_ROOT, fake.taskRoot(71))
+        assertEquals(2, fake.taskIds(SECONDARY_ROOT).size)
+    }
+
     @Test
     fun revealedPickerRemovesOnlyTheRecordedDismissedTask() {
         val fake = FakeShell()
