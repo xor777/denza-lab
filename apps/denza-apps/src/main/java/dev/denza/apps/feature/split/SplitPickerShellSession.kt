@@ -2355,8 +2355,11 @@ internal class SplitPickerShellSession(
         preexistingTaskIds: Set<Int>?,
     ) {
         val state = snapshot()
+        // Обе базы сцены неприкосновенны, в чьём бы корне ни оказались: база не в своей панели -
+        // это задача для постусловия, а не повод убить живую базу собственной сцены.
+        val bases = hostTaskIds.values.toSet()
         val surplus = SplitPane.entries.flatMap { pane ->
-            val keep = setOfNotNull(hostTaskIds.getValue(pane), appTaskIds[pane])
+            val keep = bases + setOfNotNull(appTaskIds[pane])
             state.root(rootIds.getValue(pane))?.tasks.orEmpty()
                 .filterNot { task -> task.id in keep || task.isEmptyRootMarker() }
         }
