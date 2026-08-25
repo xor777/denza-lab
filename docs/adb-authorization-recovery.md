@@ -34,6 +34,13 @@ Denza Apps has one canonical ADB identity and one owner for authorization prompt
 Technical diagnostics remain hidden: tap the `Трансляция` card header seven times, with no more
 than three seconds between taps.
 
+**Known gap (live v29, 2026-08-25).** While the blocking startup overlay is up, that seven-tap
+gesture does not reach the dashboard underneath, so the support ring — the product's only channel
+of truth about what it did — is unreachable exactly when something is wrong. The rescue panel's
+own controls stay usable, but nothing else does. The bullet above promises the hidden dialog keeps
+the same controls; that promise only holds once the gate is passed. Diagnostics should be
+reachable from the gate itself.
+
 ## Operator flow
 
 1. Open Denza Apps. If no overlay remains, the passive startup probe proved existing trust and no
