@@ -250,6 +250,49 @@ class SplitPickerShellSessionTest {
         assertFalse(fake.commands.any { it.startsWith("am task resize ") })
     }
 
+    /**
+     * Правка W4 (волна 7, контракт 1.5.3, live v22 b3): split-способный собственный пакет
+     * прошивка кладёт по СВОИМ правилам стороны - тап в широком пикере, а окно фактически
+     * встаёт в узкую панель поверх её пикера. Прежняя пара «слепая пауза + один снапшот
+     * ВЫБРАННОГО root» объявляла ложный rollback реально вставшему окну («выбрал Denza Apps →
+     * снова пикер, со второго раза открылось»). Успех - задача видимая верхняя в любой из двух
+     * панелей, слот записывается по фактической стороне.
+     */
+    @Test
+    fun aSelectionTheFirmwarePlacesIntoTheOtherPaneIsRecordedByItsActualSide() {
+        val fake = FakeShell()
+        val split = session(fake)
+        val hosts = split.buildPickers()
+        fake.firmwareChoosesRootFor[SPLIT_HOST_PACKAGE] = PRIMARY_ROOT
+
+        val placement = split.selectApp(
+            pickerTaskId = hosts.getValue(SplitPane.SECONDARY),
+            target = SplitLaunchTarget(
+                SPLIT_HOST_PACKAGE,
+                "$SPLIT_HOST_PACKAGE/$SPLIT_HOST_PACKAGE.MainActivity",
+            ),
+            pickerComponents = PICKER_COMPONENTS,
+        )
+
+        assertEquals("слот записан по фактической стороне", SplitPane.PRIMARY, placement.pane)
+        assertEquals(
+            "хозяин панели - пикер фактической стороны",
+            hosts.getValue(SplitPane.PRIMARY),
+            placement.hostTaskId,
+        )
+        assertEquals(SPLIT_HOST_PACKAGE, placement.packageName)
+        assertEquals(
+            "окно фактически видимое верхнее в узкой панели",
+            placement.appTaskId,
+            fake.topTaskId(PRIMARY_ROOT),
+        )
+        assertEquals(
+            "пикер выбранной панели не тронут и снова верхний",
+            hosts.getValue(SplitPane.SECONDARY),
+            fake.topTaskId(SECONDARY_ROOT),
+        )
+    }
+
     @Test
     fun alreadyRunningOwnedSceneIsAdoptedWithoutTaskMutation() {
         val fake = FakeShell()

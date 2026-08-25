@@ -1625,6 +1625,43 @@ class SplitScenarioTest {
         assertEquals("и каждый записан своей операцией", 2, car.store.commits)
     }
 
+    /**
+     * Правка W4 (волна 7, контракт 1.5.3, live v22 b3): тап по собственному хабу в широком
+     * пикере. Прошивка кладёт split-способный собственный пакет по СВОИМ правилам стороны -
+     * окно встаёт в другую панель, и это успех тапа, а не ошибка: слот пишется по фактической
+     * стороне, нотиса и rollback'а нет, обе панели живы.
+     */
+    @Test
+    fun selectingOwnHubLandsOnTheSideTheFirmwareChoseWithoutARollback() {
+        val car = car(FakeShell().apply { liveProductScene() })
+        val core = car.core(SplitDurable(enabled = true, slots = PICKER_PAIR))
+        core.initialize {}
+        core.openPickerSession()
+        car.barrier()
+        car.fake.firmwareChoosesRootFor[SPLIT_HOST_PACKAGE] = PRIMARY_ROOT
+        val results = Collections.synchronizedList(mutableListOf<String?>())
+
+        core.selectApp(SECONDARY_PICKER_TASK, SPLIT_HOST_PACKAGE, results::add)
+        car.barrier()
+
+        assertEquals("тап удался: ни ошибки, ни нотиса", listOf<String?>(null), results.toList())
+        assertEquals(
+            "слот записан по фактической стороне прошивки",
+            SplitSlot.App(SPLIT_HOST_PACKAGE),
+            car.store.load().slot(SplitPane.PRIMARY),
+        )
+        assertEquals(
+            "выбранная панель осталась пикером",
+            SplitSlot.Picker,
+            car.store.load().slot(SplitPane.SECONDARY),
+        )
+        assertFalse(
+            "вставшее окно не казнено ложным rollback'ом",
+            car.commands().any { it.contains(" remove-task ") },
+        )
+        assertEquals(SplitScreenPhase.ACTIVE, core.snapshot().phase)
+    }
+
     @Test
     fun clearAllDuringProjectionNeverClosesTheProjectedNavigator() {
         // сценарий §11.30, контракт 1.7.5 и 1.10: задача на приборке не считается закрытой

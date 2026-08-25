@@ -1118,19 +1118,33 @@ internal class SplitPickerShellSession(
             val launchedTask = launchTargetDirectIntoRoot(
                 target = target,
                 pane = pane,
-                rootId = targetRootId,
+                rootIds = roots,
                 // 1.5.2, and only here: the other pane still holds this package, so this tap asks
                 // for a genuinely independent second window rather than for the task it already has.
                 secondInstance = duplicatePeerTasks.isNotEmpty(),
                 excludedTaskIds = preservedTargetTaskRoots.keys,
             )
-            normalizeTaskToRoot(launchedTask.id, targetRootId)
+            // Правка W4 (волна 7, контракт 1.5.3): сторона - выбор прошивки, продукт записывает
+            // факт. Задача могла встать в другую панель; слот, пикер-хозяин и постусловие берут
+            // фактическую сторону вместо того, чтобы объявлять вставшему окну ложный rollback.
+            val settledPane = SplitPane.entries.first { candidate ->
+                roots.getValue(candidate) == launchedTask.rootId
+            }
+            val settledRootId = roots.getValue(settledPane)
+            val settledPickerHost = if (settledPane == pane) {
+                pickerHost
+            } else {
+                snapshot().root(settledRootId)?.tasks?.firstOrNull { task ->
+                    task.isDenzaPickerBase() && task.matchesAnyComponent(pickerComponents)
+                } ?: error("Пикер панели, куда прошивка поставила приложение, не найден")
+            }
+            normalizeTaskToRoot(launchedTask.id, settledRootId)
             pause(ROOT_SETTLE_MS)
 
             return awaitSelectedAppPlacement(
-                pane = pane,
-                rootId = targetRootId,
-                pickerHost = pickerHost,
+                pane = settledPane,
+                rootId = settledRootId,
+                pickerHost = settledPickerHost,
                 launchedTask = launchedTask,
                 target = target,
                 pickerComponents = pickerComponents,
@@ -1239,10 +1253,19 @@ internal class SplitPickerShellSession(
         )
     }
 
+    /**
+     * Запуск цели с live-proven promote в выбранный root - и подтверждением ПО ФАКТУ (правка W4
+     * волны 7, контракт 1.5.3). Прошивка кладёт split-способный собственный пакет по СВОИМ
+     * правилам стороны и может не отдать promote выбранную панель; прежняя пара «слепая пауза +
+     * один снапшот выбранного root» объявляла ложный rollback фактически вставшему окну (live
+     * v22 b3: «выбрал Denza Apps → снова пикер, со второго раза открылось»). Успех - задача цели
+     * устоялась в ЛЮБОМ из двух панельных root; какой именно, называет её собственный
+     * [SplitTask.rootId]. Ошибка - только когда задача реально никуда не встала.
+     */
     private fun launchTargetDirectIntoRoot(
         target: SplitLaunchTarget,
         pane: SplitPane,
-        rootId: Int,
+        rootIds: Map<SplitPane, Int>,
         secondInstance: Boolean,
         excludedTaskIds: Set<Int> = emptySet(),
     ): SplitTask {
@@ -1253,11 +1276,18 @@ internal class SplitPickerShellSession(
                 task.packageName == target.packageName &&
                 !task.isOwnSplitComponent()
         }
-        promoteTask(direct, rootId)
-        pause(ROOT_SETTLE_MS)
-        return snapshot().root(rootId)?.tasks?.firstOrNull { task ->
-            task.id == direct.id && task.packageName == target.packageName
-        } ?: error("Прямой запуск не вошёл в выбранное окно")
+        promoteTask(direct, rootIds.getValue(pane))
+        var settled: SplitTask? = null
+        awaitSnapshotMatching { state ->
+            settled = rootIds.values.asSequence()
+                .mapNotNull(state::root)
+                .flatMap { root -> root.tasks.asSequence() }
+                .firstOrNull { task ->
+                    task.id == direct.id && task.packageName == target.packageName
+                }
+            settled != null
+        }
+        return settled ?: error("Прямой запуск не вошёл ни в один split-контейнер")
     }
 
     /**

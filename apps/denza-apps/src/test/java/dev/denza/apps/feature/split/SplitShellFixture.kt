@@ -115,6 +115,14 @@ internal class FakeShell(
     val swallowLaunchOf = mutableSetOf<String>()
 
     /**
+     * Правка W4 волны 7 (live v22 b3, контракт 1.5.3): пакеты, которые прошивка кладёт в split
+     * по СВОИМ правилам стороны. `am start` ставит задачу прямо в названный панельный root, а
+     * move-task в ДРУГОЙ панельный root молча игнорируется: окно фактически стоит там, куда его
+     * поставила прошивка, что бы продукт ни просил.
+     */
+    val firmwareChoosesRootFor = mutableMapOf<String, Int>()
+
+    /**
      * What the firmware did without a command from us.
      *
      * A shared topology read ([SplitTopologyCache]) may not survive one: out of band is exactly the
@@ -395,7 +403,10 @@ internal class FakeShell(
                 if (packageName in swallowLaunchOf) {
                     return "Starting: Intent"
                 }
-                val destination = pickerRoot ?: FULL_ROOT
+                val firmwareRoot = firmwareChoosesRootFor[packageName]
+                    .takeIf { component !in PICKERS.values }
+                if (firmwareRoot != null && area != fullArea(firmwareRoot)) area = 3
+                val destination = pickerRoot ?: firmwareRoot ?: FULL_ROOT
                 // What the launch flags mean to the firmware, and the whole of the difference:
                 // without `FLAG_ACTIVITY_MULTIPLE_TASK` a package that already has a task keeps it
                 // - it is brought to the destination, splash and all - and with the flag a second,
@@ -455,6 +466,16 @@ internal class FakeShell(
                 val rootId = parts[4].toInt()
                 val toTop = parts[5].toBoolean()
                 val task = tasks.first { it.id == taskId }
+                val pinnedRoot = firmwareChoosesRootFor[task.packageName]
+                    .takeIf { task.activityName != SPLIT_PICKER_ACTIVITY }
+                if (
+                    pinnedRoot != null &&
+                    rootId in setOf(PRIMARY_ROOT, SECONDARY_ROOT) &&
+                    rootId != pinnedRoot
+                ) {
+                    // Прошивка не отдаёт этой задаче чужую панель: move молча игнорируется.
+                    return ""
+                }
                 val changedRoot = task.rootId != rootId
                 val paneRefusesBounds = task.packageName in refusePaneBoundsFor &&
                     (rootId == PRIMARY_ROOT || rootId == SECONDARY_ROOT)
