@@ -1,6 +1,15 @@
 package dev.denza.apps.feature.split
 
 /**
+ * The phase of a build at which the two panel bases are standing in their roots (правка W10).
+ *
+ * It is a name an operation compares against rather than free text, because invariant 9 hangs a
+ * decision on exactly this instant: past it the panes hold something the recipe has proven, so a
+ * refused open leaves them there instead of taking the screen away from the user (1.3.5, U5).
+ */
+internal const val SPLIT_PHASE_ROOTS_PLACED = "roots-placed"
+
+/**
  * Explicit, command-driven split session.
  *
  * This class never watches or interprets arbitrary foreground launches. Every mutation starts
@@ -798,7 +807,7 @@ internal class SplitPickerShellSession(
                 "Прошивка не раскрыла native split"
             }
         }
-        onPhase("roots-placed")
+        onPhase(SPLIT_PHASE_ROOTS_PLACED)
 
         // Phase 3 - the apps. One read decides which pane still needs a launch at all.
         val hostTaskIds = pickerTasks.mapValues { (_, picker) -> picker.id }

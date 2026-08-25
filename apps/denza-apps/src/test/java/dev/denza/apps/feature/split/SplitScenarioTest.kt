@@ -757,7 +757,6 @@ class SplitScenarioTest {
         building.shells.blockAt(appLaunch("START_IVI_SECOND", MUSIC))
         rebuilt.openPickerSession(rebuiltResults::add)
         assertTrue(building.shells.awaitBlocked())
-        val createdLast = building.fake.topTaskId(SECONDARY_ROOT)!!
         val created = building.fake.taskIds(PRIMARY_ROOT) + building.fake.taskIds(SECONDARY_ROOT)
         assertEquals("открытие успело создать два пикера", 2, created.size)
         assertTrue(
@@ -775,19 +774,21 @@ class SplitScenarioTest {
         val removed = building.commands().mapNotNull { command ->
             command.substringAfter(" remove-task ", "").substringBefore(' ').toIntOrNull()
         }
-        assertEquals("откат снимает ровно созданное - и ничего сверх", created.toSet(), removed.toSet())
-        assertEquals("самое новое уходит первым", createdLast, removed.first())
-        assertEquals(2, removed.size)
+        // Инвариант 9 в новой редакции (владелец, 2026-08-25): базы, которые сборка уже доказала
+        // стоящими в своих корнях, откат не снимает - пустой экран после тапа запрещён. Снимается
+        // только недоказанное поверх них, и панели остаются на своих рабочих пикерах (U5, 1.3.5).
+        assertEquals("созданные базы откат не трогает", emptySet<Int>(), removed.toSet())
         assertTrue(
             "U2: приложение, которое операция лишь переиспользовала, откат не трогает",
             building.fake.hasTask(LIVING_APP),
         )
-        assertEquals("панели пусты, как до тапа", 0, building.fake.taskCount(PRIMARY_ROOT))
-        assertEquals(0, building.fake.taskCount(SECONDARY_ROOT))
-        assertFalse("gate, который открыли мы, закрыт", building.fake.isGateOpen())
-        assertFalse(building.gateLease.isOwned())
+        assertEquals("панель осталась на своей базе", 1, building.fake.taskCount(PRIMARY_ROOT))
+        assertEquals(1, building.fake.taskCount(SECONDARY_ROOT))
+        assertEquals(created.toSet(), (building.fake.taskIds(PRIMARY_ROOT) + building.fake.taskIds(SECONDARY_ROOT)).toSet())
+        assertTrue("а gate держит стоящую сцену открытой", building.fake.isGateOpen())
+        assertTrue(building.gateLease.isOwned())
         assertEquals("отменённое открытие не пишет ничего", 0, building.store.commits)
-        assertEquals(APP_PAIR, building.store.load().slots)
+        assertEquals("и не стирает выбор: пользователь ничего не закрывал", APP_PAIR, building.store.load().slots)
         assertEquals(
             "и об истёкшем ожидании пользователю не сказано ничего (U5)",
             listOf(SplitActionResult.SETTLED),
@@ -836,6 +837,65 @@ class SplitScenarioTest {
     }
 
     /**
+     * Contract 1.3.5 and invariant 9 in their 2026-08-25 wording, and the live defect behind them.
+     *
+     * Acceptance v25 ended a refused restore on "остаток [Brave|music], баз нет": the unwind walked
+     * back past the bases it had just stood up, and a tap on the button produced an empty screen.
+     * The bases stay now - a pane on a working picker is a proven, usable state - and the selection
+     * stays with them, because the user closed nothing.
+     *
+     * The second half is what makes that honest rather than convenient: two pickers standing while
+     * the slots still name two applications are an *unfinished restore*, not an open scene. Neither
+     * a passive reconciliation nor the next tap may read them as "the user chose two empty panes";
+     * the tap finishes the restore.
+     */
+    @Test
+    fun aRefusedOpenKeepsItsPickersAndTheNextTapFinishesTheRestore() {
+        val car = car(FakeShell())
+        val core = car.core(SplitDurable(enabled = true, slots = APP_PAIR))
+        core.initialize {}
+
+        // Базы уже стоят, приложение ещё не доехало - и у операции кончается её собственный бюджет.
+        car.shells.blockAt(appLaunch("START_IVI_SECOND", MUSIC))
+        core.openPickerSession()
+        assertTrue(car.shells.awaitBlocked())
+        car.clock.advance(PAST_EVERY_BUDGET_MS)
+        car.shells.release()
+        car.barrier()
+
+        assertEquals("панель осталась на своей базе, а не пустой", 1, car.fake.taskCount(PRIMARY_ROOT))
+        assertEquals(1, car.fake.taskCount(SECONDARY_ROOT))
+        assertEquals(PRIMARY_PICKER_ACTIVITY, car.fake.topActivity(PRIMARY_ROOT))
+        assertEquals(SECONDARY_PICKER_ACTIVITY, car.fake.topActivity(SECONDARY_ROOT))
+        assertEquals("отказ не пишет ничего", 0, car.store.commits)
+        assertEquals("и не стирает выбор", APP_PAIR, car.store.load().slots)
+
+        // Пикеры на экране - и они сами о себе сообщают. Сверка усыновляет эту сцену, но НЕ имеет
+        // права записать «пикер|пикер»: никто ничего не закрывал (1.3.5).
+        core.pickerVisible(hostTaskId = null)
+        car.barrier()
+
+        assertEquals(
+            "незавершённое восстановление не превращается в выбор пользователя",
+            APP_PAIR,
+            car.store.load().slots,
+        )
+
+        // Второй тап доводит восстановление, а не показывает пикеры готовым результатом.
+        car.clearCommands()
+        core.openPickerSession()
+        car.barrier()
+
+        assertTrue(
+            "тап довёл восстановление до конца, а не усыновил пикеры",
+            car.diagnostics.any { it.contains("ms unfinished restore: ") },
+        )
+        assertTrue(car.fake.hasPackage(PRIMARY_ROOT, NAVIGATOR))
+        assertTrue(car.fake.hasPackage(SECONDARY_ROOT, MUSIC))
+        assertEquals(APP_PAIR, car.store.load().slots)
+    }
+
+    /**
      * Contract 7.7, and the "picker over an application" defect of acceptance v17.
      *
      * The recipe's own postcondition is measured while the scene is still being built; the operation
@@ -872,8 +932,12 @@ class SplitScenarioTest {
             SplitSlot.App(NAVIGATOR),
             car.store.load().slot(SplitPane.PRIMARY),
         )
-        assertEquals("а созданные пикеры сняты откатом", 0, car.fake.taskCount(PRIMARY_ROOT))
-        assertEquals(0, car.fake.taskCount(SECONDARY_ROOT))
+        // Инвариант 9 в новой редакции: базы уже стояли, и отказ их не снимает - пустой экран
+        // после тапа запрещён. Панель остаётся на своём рабочем пикере (U5).
+        assertEquals("база панели осталась стоять", 1, car.fake.taskCount(PRIMARY_ROOT))
+        assertEquals(1, car.fake.taskCount(SECONDARY_ROOT))
+        assertEquals(PRIMARY_PICKER_ACTIVITY, car.fake.topActivity(PRIMARY_ROOT))
+        assertEquals(SECONDARY_PICKER_ACTIVITY, car.fake.topActivity(SECONDARY_ROOT))
     }
 
     /**

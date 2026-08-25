@@ -205,6 +205,17 @@ internal class SplitCoordinatorCore(
 
     private var state = SplitState()
     private var live: SplitLiveScene = emptyMap()
+
+    /**
+     * Panes whose remembered application a refused open left standing on a bare picker (1.3.5).
+     *
+     * Contract 1.3.5 calls that screen an unfinished restore rather than an open scene, and this is
+     * the only thing that tells it apart from a pane the user emptied themselves: the world looks
+     * identical either way, and the difference is that this very process knows it just failed to
+     * stand the app up. It is ephemeral by construction (invariant 4) - a process death loses it,
+     * and then the panes are simply what the car says they are.
+     */
+    private var unfinished: Map<SplitPane, String> = emptyMap()
     private var busy: Busy? = null
     private var openTicket: SplitTicket? = null
     private var routingBlockedUntilMs = 0L
@@ -497,6 +508,16 @@ internal class SplitCoordinatorCore(
 
     internal fun currentLive(): SplitLiveScene = synchronized(stateLock) { live }
 
+    internal fun currentUnfinished(): Map<SplitPane, String> =
+        synchronized(stateLock) { unfinished }
+
+    /** Recorded by an open that refused with its bases already standing (invariant 9, 1.3.5). */
+    private fun markUnfinished(panes: Map<SplitPane, String>) {
+        if (panes.isEmpty()) return
+        synchronized(stateLock) { unfinished = unfinished + panes }
+        log.log("unfinished restore left standing: ${panes.values.joinToString(", ")}")
+    }
+
     private fun submitEnable(): SplitTicket = submit { work -> EnableOperation(work) }
 
     private fun submitReconcile(kind: SplitReconcileKind, recheck: Boolean = false): SplitTicket =
@@ -561,6 +582,8 @@ internal class SplitCoordinatorCore(
             diagnostics = log,
             readState = ::currentState,
             readLive = ::currentLive,
+            readUnfinished = ::currentUnfinished,
+            markUnfinished = ::markUnfinished,
             externalMoveInFlight = ::externalTaskMutationInFlight,
             userInputWaiting = actor::userInputWaiting,
             publisher = ::publishSettled,
@@ -583,6 +606,16 @@ internal class SplitCoordinatorCore(
         synchronized(stateLock) {
             state = next
             live = if (next.scene == null) emptyMap() else nextLive
+            // A restore stops being unfinished the moment a settled scene says so: the pane got
+            // its application, the user chose something else there, the package went away, or the
+            // pane is gone. Without a live scene nothing has been proven about these panes at all,
+            // so the note simply waits (1.3.5).
+            if (next.scene != null) {
+                unfinished = unfinished.filter { (pane, packageName) ->
+                    next.slot(pane) == SplitSlot.App(packageName) &&
+                        nextLive[pane]?.appPackageName == null
+                }
+            }
         }
     }
 

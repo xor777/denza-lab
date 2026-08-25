@@ -27,6 +27,9 @@ internal class SplitOperationWorkspace(
     private val diagnostics: SplitDiagnosticLog,
     private val readState: () -> SplitState,
     private val readLive: () -> SplitLiveScene,
+    /** Panes a refused open left standing on a bare picker (1.3.5); ephemeral, read-only here. */
+    private val readUnfinished: () -> Map<SplitPane, String> = { emptyMap() },
+    private val markUnfinished: (Map<SplitPane, String>) -> Unit = {},
     val externalMoveInFlight: () -> Boolean,
     /** Правка W5, §4: явный запрос пользователя ждёт в очереди прямо сейчас. Read-only. */
     val userInputWaiting: () -> Boolean = { false },
@@ -83,6 +86,10 @@ internal class SplitOperationWorkspace(
     fun state(): SplitState = readState()
 
     fun live(): SplitLiveScene = readLive()
+
+    fun unfinishedRestore(): Map<SplitPane, String> = readUnfinished()
+
+    fun markUnfinishedRestore(panes: Map<SplitPane, String>) = markUnfinished(panes)
 
     /** Whether the product currently holds the firmware-global gate lease (contract, to 1.12). */
     fun gateOwned(): Boolean = gateLeaseStore.isOwned()
@@ -249,9 +256,16 @@ internal abstract class SplitCoreOperation<P>(
 
     protected var liveScene: SplitLiveScene = emptyMap()
 
+    /**
+     * Panes standing on a bare picker only because a refused open did not finish standing their
+     * application up (1.3.5). Read once, at planning time, like every other ephemeral hint.
+     */
+    protected var unfinishedRestore: Map<SplitPane, String> = emptyMap()
+
     final override fun plan(op: SplitOperationContext, shell: (String) -> String): P? {
         working = work.state()
         liveScene = work.live()
+        unfinishedRestore = work.unfinishedRestore()
         return prepare(op, shell)
     }
 
@@ -373,12 +387,22 @@ internal abstract class SplitCoreOperation<P>(
         runCatching { split.livingTaskIds() }.getOrNull()
 
     /**
-     * The slots a live topology proves - with one exception: a projected pane keeps `APP(navigator)`
-     * while its picker is on screen, because that picker is scene content, not slot content (1.10.1).
+     * The slots a live topology proves - with two exceptions, both of them pickers that are scene
+     * content rather than slot content.
+     *
+     * A projected pane keeps `APP(navigator)` while its picker is on screen, because the navigator
+     * is on the cluster and this pane is where it comes back to (1.10.1). A pane of an unfinished
+     * restore keeps `APP(package)` for the same reason one step removed: nobody closed anything
+     * there, a refused open simply did not get as far as the application, and reading that picker
+     * as the user's choice would throw away the very selection the next tap has to finish
+     * restoring (1.3.5, invariant 9).
      */
     protected fun sceneSlots(live: SplitLiveScene): Map<SplitPane, SplitSlot> {
         val slots = SplitCoordinatorCore.slotsOf(live).toMutableMap()
         working.projectedPane?.let { projected -> slots[projected] = working.slot(projected) }
+        unfinishedRestore.forEach { (pane, packageName) ->
+            if (slots[pane] == SplitSlot.Picker) slots[pane] = SplitSlot.App(packageName)
+        }
         return slots
     }
 
@@ -518,6 +542,12 @@ internal class OpenOperation(
 ) {
     override val refusal: String get() = "Split screen выключен"
 
+    /** Правка волны 11: the bases of this build are standing, so a refusal may not take them. */
+    private var rootsPlaced = false
+
+    /** What this open owes the panes: the remembered pair it set out to restore (1.3.2). */
+    private var owed: Map<SplitPane, String> = emptyMap()
+
     override fun prepare(op: SplitOperationContext, shell: (String) -> String): SplitOpenPlan? {
         if (!working.enabled) return null
         mark(op, "dequeued")
@@ -529,6 +559,7 @@ internal class OpenOperation(
         val restorable = SplitPane.entries.mapNotNull { pane ->
             (working.slot(pane) as? SplitSlot.App)?.let { slot -> pane to slot.packageName }
         }.toMap()
+        owed = restorable
         // Read-only: adoption is decided from a live snapshot before a single mutation (1.3.5).
         //
         // Nothing is swallowed here. "There is no scene of ours" is answered with `null` by the
@@ -541,7 +572,30 @@ internal class OpenOperation(
             expectedApps = SplitCoordinatorCore.expectedApps(liveScene),
         )
         mark(op, "scene-read: ${read.reason}")
-        return SplitOpenPlan(read.scene, restorable)
+        return SplitOpenPlan(adoptable(read.scene, restorable, op), restorable)
+    }
+
+    /**
+     * Contract 1.3.5: "открыта" is about the scene that answers the saved selection.
+     *
+     * Two pickers standing while the slots still name two applications are an unfinished restore -
+     * the shape a refused open leaves behind (invariant 9) - and showing them again as a finished
+     * result would quietly turn the user's pair into "two empty panes". Such a scene is not
+     * adopted; the tap finishes it. A projected pane is the standing exception: its picker is
+     * scene content and its navigator is on the cluster, so it is not missing anything (1.10.1).
+     */
+    private fun adoptable(
+        read: SplitLiveScene?,
+        restorable: Map<SplitPane, String>,
+        op: SplitOperationContext,
+    ): SplitLiveScene? {
+        if (read == null) return null
+        val unfinished = restorable.keys.filter { pane ->
+            pane != working.projectedPane && read[pane]?.appPackageName == null
+        }
+        if (unfinished.isEmpty()) return read
+        mark(op, "unfinished restore: ${unfinished.joinToString(", ")}")
+        return null
     }
 
     override fun apply(op: SplitOperationContext, shell: (String) -> String, plan: SplitOpenPlan) {
@@ -603,8 +657,12 @@ internal class OpenOperation(
             // decides what a failed pane may execute - only what the build itself created.
             preexistingTaskIds = preexisting,
             // Правка W10: the build's own phases, stamped with the user's waiting time - the next
-            // red branch reads which step the seconds went into straight off the log.
-            onPhase = { phase -> mark(op, phase) },
+            // red branch reads which step the seconds went into straight off the log. Правка
+            // волны 11: one of those phases is also a decision - see [keepStandingBases].
+            onPhase = { phase ->
+                mark(op, phase)
+                if (phase == SPLIT_PHASE_ROOTS_PLACED) keepStandingBases(op)
+            },
         ) { task ->
             // A task that was already running is one this build only borrowed: its inverse is the
             // root it came from, never a removal (U2). Everything else this build made itself.
@@ -619,10 +677,45 @@ internal class OpenOperation(
             }
         }
         mark(op, "scene-built")
+        // The build finished and every pane is now what the recipe proved it to be, including a
+        // pane it honestly could not restore: that one is a picker of the user's, not an unfinished
+        // restore of ours, and 1.3.2 wants it recorded as the picker it is.
+        unfinishedRestore = emptyMap()
         val failures = unresolved + built.failed.mapNotNull { pane -> restorable[pane] }
         failures.forEach { packageName -> work.log("failed to restore $packageName") }
         liveScene = built.panes
         settle(SplitFact.BuildSceneSucceeded(sceneSlots(built.panes)))
+    }
+
+    /**
+     * Invariant 9, and the defect it was rewritten for: a refused open used to leave a blank screen.
+     *
+     * The rollback walks the journal backwards and stops at the first point of no return, and the
+     * only one an open recorded was written *before* the build started - so every picker base the
+     * build had just stood up was taken back down again, and a red branch of acceptance v25 ended
+     * on "остаток [Brave|music], баз нет": the user tapped a button and got nothing at all.
+     *
+     * The bases are the part of a scene the recipe has actually proven by this point: both of them
+     * are in their panel roots and the firmware is holding the split. A pane on its own picker is a
+     * usable state (U5) - the catalogue is there and the tap works - so past this line the open may
+     * only go forward. What it launched *above* the bases is still unproven and is still taken back
+     * by the unwind, which is what leaves the panes on those pickers.
+     */
+    private fun keepStandingBases(op: SplitOperationContext) {
+        rootsPlaced = true
+        pointOfNoReturn(op, "the panel bases are standing; a refusal leaves the user their pickers")
+    }
+
+    /**
+     * Contract 1.3.5, second half: the pair the refused open did not manage to restore.
+     *
+     * Nobody closed those panes - this open simply did not get as far as their applications - so
+     * the selection is not touched (invariant 9) and the panes are remembered as an unfinished
+     * restore, which is what makes the next tap finish it instead of adopting two empty pickers.
+     */
+    override fun finished(outcome: SplitOutcome) {
+        if (outcome !is SplitOutcome.Committed && rootsPlaced) work.markUnfinishedRestore(owed)
+        super.finished(outcome)
     }
 
     /**
