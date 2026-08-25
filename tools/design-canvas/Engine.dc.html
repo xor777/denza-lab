@@ -1,0 +1,110 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@200;300;400;500;700&amp;family=Roboto+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+  <style>
+    body { margin:0; background:#07080A; font-family:'Roboto','Segoe UI',system-ui,sans-serif; }
+    a { color:#DAE1EB; } a:hover { color:#FFF7D2; }
+    .lbl { font-size:15px; letter-spacing:1.6px; font-weight:500; color:#86909B; }
+    .lamp { display:flex; align-items:center; gap:11px; }
+    .lt { font-size:15px; color:#86909B; }
+  </style>
+</helmet>
+<div style="width:1192px; height:400px; box-sizing:border-box; background:#07080A; display:flex; align-items:stretch; gap:24px; padding:24px;">
+
+  <div style="width:250px; flex-shrink:0; display:flex; flex-direction:column; justify-content:space-between; padding:6px 0;">
+    <div style="display:flex; flex-direction:column; gap:6px;">
+      <div class="lbl">ОБОРОТЫ</div>
+      <div style="display:flex; align-items:baseline; gap:10px;">
+        <div style="font-size:62px; font-weight:200; color:#DAE1EB; line-height:1;">1321</div>
+      </div>
+      <div style="font-size:19px; color:#DAE1EB;">двигатель работает</div>
+    </div>
+    <div style="border-top:1px solid rgba(218,225,235,0.14); padding-top:16px; display:flex; flex-direction:column; gap:6px;">
+      <div class="lbl">ГЕНЕРАЦИЯ В БАТАРЕЮ</div>
+      <div style="display:flex; align-items:baseline; gap:10px;">
+        <div style="font-size:62px; font-weight:200; color:#4B9BE0; line-height:1;">10</div>
+        <div style="font-size:19px; color:#86909B;">кВт</div>
+      </div>
+      <div style="font-size:19px; color:#86909B;">2,0 л · инвертор 32°</div>
+    </div>
+  </div>
+
+  <div style="width:520px; flex-shrink:0;">
+    <svg width="520" height="300" viewBox="0 0 520 300">
+      <line x1="14" y1="240" x2="506" y2="240" stroke="rgba(218,225,235,0.20)" stroke-width="1.5"></line>
+      <line x1="14" y1="150" x2="506" y2="150" stroke="rgba(218,225,235,0.08)" stroke-width="1.5"></line>
+      <line x1="14" y1="60" x2="506" y2="60" stroke="rgba(218,225,235,0.08)" stroke-width="1.5"></line>
+
+      <rect x="14" y="22" width="{{sleptW}}" height="218" fill="rgba(218,225,235,0.03)"></rect>
+      <text x="{{sleptMid}}" y="150" text-anchor="middle" font-size="15" fill="#4A5058">двигатель спал</text>
+      <polyline points="{{rpmPts}}" fill="none" stroke="#C5CDD9" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"></polyline>
+      <polyline points="{{genPts}}" fill="none" stroke="#2D82D7" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" style="filter:drop-shadow(0 0 6px rgba(45,130,215,0.55));"></polyline>
+
+      <circle cx="{{lastX}}" cy="{{rpmLastY}}" r="4.5" fill="#DAE1EB"></circle>
+      <circle cx="{{lastX}}" cy="{{genLastY}}" r="4.5" fill="#4B9BE0"></circle>
+
+      <text x="14" y="272" font-size="15" fill="#6E767F">2 минуты назад</text>
+      <text x="506" y="272" text-anchor="end" font-size="15" fill="#6E767F">сейчас</text>
+
+      <g>
+        <line x1="14" y1="22" x2="34" y2="22" stroke="#C5CDD9" stroke-width="2"></line>
+        <text x="42" y="27" font-size="15" fill="#86909B">обороты</text>
+        <line x1="126" y1="22" x2="146" y2="22" stroke="#2D82D7" stroke-width="2"></line>
+        <text x="154" y="27" font-size="15" fill="#86909B">киловатты в батарею</text>
+      </g>
+    </svg>
+  </div>
+
+  <div style="flex-grow:1; display:flex; flex-direction:column; gap:14px; justify-content:center;">
+    <div class="lbl">ЖИДКОСТИ</div>
+    <div style="display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:15px 18px;">
+      <sc-for list="{{lamps}}" as="l" hint-placeholder-count="8">
+        <div class="lamp">
+          <div style="width:11px; height:11px; border-radius:50%; flex-shrink:0; background: {{l.bg}}; border:1px {{l.bs}} {{l.bd}}; box-sizing:border-box; box-shadow: {{l.gl}};"></div>
+          <div class="lt" style="color: {{l.tc}};">{{l.n}}</div>
+        </div>
+      </sc-for>
+    </div>
+    <div style="border-top:1px solid rgba(218,225,235,0.14); padding-top:12px; font-size:15px; color:#6E767F; line-height:1.45;">Полый кружок — датчик не ответил, а не «всё хорошо».</div>
+  </div>
+</div>
+</x-dc>
+<script data-dc-script data-props='{"$preview":{"width":1192,"height":400}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const rpm = [0,0,0,0,0,0,0,0,0,0,0,0,1180,1619,1502,1408,1355,1330,1318,1326,1321,1315,1324,1319,1328,1316,1322,1327,1314,1321,1325,1318,1323,1320,1317,1326,1319,1322,1321,1321];
+    const gen = [0,0,0,0,0,0,0,0,0,0,0,0,0,0.6,2.4,5.1,7.6,9.2,9.8,10.1,9.9,10.2,10.0,9.8,10.1,10.3,9.9,10.0,10.2,9.8,10.1,9.9,10.2,10.0,9.9,10.1,10.0,9.9,10.1,10.0];
+    const x = (i) => 14 + i * (492 / (rpm.length - 1));
+    const yR = (v) => 240 - (v / 2000) * 200;
+    const yG = (v) => 240 - (v / 20) * 200;
+    // The engine was stopped until here; a run of zeros is absence, not a value.
+    const woke = rpm.findIndex(v => v > 0);
+    const at = (arr, y) => arr.map((v, i) => [i, v]).filter(([i]) => i >= woke)
+      .map(([i, v]) => x(i).toFixed(1) + ',' + y(v).toFixed(1)).join(' ');
+    const rpmPts = at(rpm, yR);
+    const genPts = at(gen, yG);
+    const wokeX = x(woke).toFixed(1);
+    const ok = { bg:'rgba(218,225,235,0.65)', bs:'solid', bd:'rgba(218,225,235,0)', gl:'none', tc:'#86909B' };
+    const unk = { bg:'transparent', bs:'solid', bd:'rgba(218,225,235,0.45)', gl:'none', tc:'#6E767F' };
+    const names = ['уровень ОЖ','перегрев ОЖ','ОЖ мотора','уровень масла','давление масла','контроль масла','ресурс масла','масло КПП'];
+    const lamps = names.map((n, i) => Object.assign({ n }, i === 6 ? unk : ok));
+    return {
+      rpmPts, genPts, lamps, wokeX,
+      sleptW: (x(woke) - 14).toFixed(1),
+      sleptMid: ((x(woke) + 14) / 2).toFixed(1),
+      lastX: x(rpm.length - 1).toFixed(1),
+      rpmLastY: yR(rpm[rpm.length - 1]).toFixed(1),
+      genLastY: yG(gen[gen.length - 1]).toFixed(1)
+    };
+  }
+}
+</script>
+</body>
+</html>

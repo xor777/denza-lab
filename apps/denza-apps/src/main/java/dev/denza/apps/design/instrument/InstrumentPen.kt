@@ -80,6 +80,27 @@ class InstrumentPen {
         canvas.drawText(text, x, y, labelPaint)
     }
 
+    /**
+     * A section name, set in capitals with the ramp's tracking.
+     *
+     * It has a method of its own rather than a parameter on [label] so the tracking cannot be
+     * forgotten at one call site and applied at the next - which is precisely how the design boards
+     * ended up with the same title set two different ways on adjacent artboards.
+     */
+    fun title(
+        canvas: Canvas,
+        text: String,
+        x: Float,
+        baseline: Float,
+        density: InstrumentDensity,
+        color: Int,
+        align: Paint.Align = Paint.Align.LEFT,
+    ) {
+        labelPaint.letterSpacing = density.titleTracking
+        label(canvas, text, x, baseline, density.title, color, align)
+        labelPaint.letterSpacing = 0f
+    }
+
     fun value(
         canvas: Canvas,
         text: String,

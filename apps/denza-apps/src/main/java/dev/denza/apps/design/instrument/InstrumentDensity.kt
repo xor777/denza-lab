@@ -32,8 +32,25 @@ data class InstrumentDensity(
     val body: Float,
     /** A section name, set in capitals - which is why it sits below [body] on the ramp. */
     val title: Float,
+    /**
+     * Letter-spacing for that title, in ems.
+     *
+     * Capitals set solid read as a block rather than as words, so a title carries tracking where
+     * nothing else does. It belongs to the ramp because it is part of what makes the smallest rung
+     * legible: without it the title would have to be a rung larger and would stop being a title.
+     */
+    val titleTracking: Float,
     /** A mark's label on a dial. */
     val tick: Float,
+    /**
+     * How many discharge marks a dial in this space can carry.
+     *
+     * A mark and its number are one thing: an unlabelled mark among labelled ones is the failure
+     * this ramp exists to prevent, so a space that cannot hold the label does not draw the mark
+     * either. In the right third the second mark's number lands 12 units inside the combustion
+     * column, which is how this came to be a number rather than a judgement.
+     */
+    val dialMarks: Int,
     /** The rhythm. Every gap in an instrument is a whole number of these. */
     val step: Float,
     val arcWidth: Float,
@@ -71,7 +88,9 @@ data class InstrumentDensity(
             reading = 24f,
             body = 18f,
             title = 13f,
+            titleTracking = 0.12f,
             tick = 13f,
+            dialMarks = 2,
             step = 8f,
             arcWidth = 10f,
             tickLength = 9f,
@@ -89,7 +108,9 @@ data class InstrumentDensity(
             reading = 18f,
             body = 13f,
             title = 11f,
+            titleTracking = 0.12f,
             tick = 11f,
+            dialMarks = 1,
             step = 6f,
             arcWidth = 7f,
             tickLength = 7f,

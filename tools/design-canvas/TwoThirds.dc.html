@@ -1,0 +1,157 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@200;300;400;500;700&amp;family=Roboto+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+  <style>
+    body { margin:0; background:#07080A; font-family:'Roboto','Segoe UI',system-ui,sans-serif; }
+    a { color:#FEEFAB; } a:hover { color:#FFF7D2; }
+    .lbl { font-size:15px; letter-spacing:1.6px; font-weight:500; color:#86909B; }
+    .chip { position:relative; width:58px; height:58px; border-radius:12px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+    .con { background:#212429; border:1px solid rgba(254,239,171,0.30); }
+    .coff { background:#15181F; border:1px solid rgba(218,225,235,0.10); }
+    .dot { position:absolute; top:8px; right:8px; width:6px; height:6px; border-radius:50%; }
+    .win { border-radius:12px; padding:9px 16px; font-size:15px; }
+    .fg { font-family:'Roboto Mono',monospace; font-weight:300; font-size:62px; fill:#DAE1EB; }
+    .rd { font-family:'Roboto Mono',monospace; font-weight:300; font-size:34px; fill:#DAE1EB; }
+    .un { font-size:19px; fill:#86909B; }
+    .bd { font-size:19px; fill:#6E767F; }
+    .tk { font-family:'Roboto Mono',monospace; font-size:15px; fill:#6E767F; }
+  </style>
+</helmet>
+<div style="width:828px; height:800px; box-sizing:border-box; background:#07080A; display:flex; flex-direction:column; gap:16px; padding:20px 24px 12px 24px;">
+
+  <div style="display:flex; gap:11px;">
+    <sc-for list="{{chips}}" as="c" hint-placeholder-count="11">
+      <div class="chip {{c.cls}}">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="{{c.st}}" stroke-width="2" stroke-linecap="round"><path d="{{c.d}}"></path></svg>
+        <div class="dot" style="background: {{c.dc}};"></div>
+      </div>
+    </sc-for>
+  </div>
+
+  <div>
+      <svg width="780" height="409.8" viewBox="0 0 780 409.8">
+        <path d="M126.9 395.8 A280 280 0 1 1 653.1 395.8" fill="none" stroke="#22262E" stroke-width="14" stroke-linecap="round"/>
+        <path d="M604.2 115.1 L613.3 107.2" stroke="#3F434D" stroke-width="1.8" stroke-linecap="round"/>
+        <text class="tk" x="628.1" y="99.9" text-anchor="middle" style="fill:#6E767F">60</text>
+        <path d="M666.6 240.1 L678.3 237.6" stroke="#3F434D" stroke-width="1.8" stroke-linecap="round"/>
+        <text class="tk" x="697.4" y="238.8" text-anchor="middle" style="fill:#6E767F">150</text>
+        <path d="M175.8 115.1 L166.7 107.2" stroke="rgba(45,130,215,0.60)" stroke-width="1.8" stroke-linecap="round"/>
+        <text class="tk" x="151.9" y="99.9" text-anchor="middle" style="fill:rgba(45,130,215,0.75)">20</text>
+        <path d="M390 17 L390 5" stroke="#6E767F" stroke-width="1.8" stroke-linecap="round"/>
+        <path d="M390 20 A280 280 0 0 1 558.6 76.5" fill="none" stroke="#DAE1EB" stroke-width="14" stroke-linecap="round"/>
+        <circle cx="558.6" cy="76.5" r="10" fill="#FFF8DA"/>
+        <line x1="166" y1="283.2" x2="614" y2="283.2" stroke="rgba(218,225,235,0.24)" stroke-width="1.5"/>
+        <rect x="169.3" y="234.7" width="12" height="48.5" fill="rgba(218,225,235,0.55)"/>
+        <rect x="188" y="218.6" width="12" height="64.6" fill="rgba(218,225,235,0.55)"/>
+        <rect x="206.7" y="250.9" width="12" height="32.3" fill="rgba(218,225,235,0.55)"/>
+        <rect x="225.3" y="283.2" width="12" height="15.1" fill="rgba(45,130,215,0.78)"/>
+        <rect x="244" y="226.6" width="12" height="56.6" fill="rgba(218,225,235,0.55)"/>
+        <rect x="262.7" y="205.1" width="12" height="78.1" fill="rgba(218,225,235,0.55)"/>
+        <rect x="281.3" y="240.1" width="12" height="43.1" fill="rgba(218,225,235,0.55)"/>
+        <rect x="300" y="283.2" width="12" height="27.8" fill="rgba(45,130,215,0.78)"/>
+        <rect x="318.7" y="261.7" width="12" height="21.5" fill="rgba(218,225,235,0.55)"/>
+        <rect x="337.3" y="223.9" width="12" height="59.3" fill="rgba(218,225,235,0.55)"/>
+        <rect x="356" y="199.7" width="12" height="83.5" fill="rgba(218,225,235,0.55)"/>
+        <rect x="374.7" y="232" width="12" height="51.2" fill="rgba(218,225,235,0.55)"/>
+        <rect x="393.3" y="283.2" width="12" height="10.1" fill="rgba(45,130,215,0.78)"/>
+        <rect x="412" y="245.5" width="12" height="37.7" fill="rgba(218,225,235,0.55)"/>
+        <rect x="430.7" y="213.2" width="12" height="70" fill="rgba(218,225,235,0.55)"/>
+        <rect x="449.3" y="194.3" width="12" height="88.9" fill="rgba(218,225,235,0.55)"/>
+        <rect x="468" y="229.3" width="12" height="53.9" fill="rgba(218,225,235,0.55)"/>
+        <rect x="486.7" y="259" width="12" height="24.2" fill="rgba(218,225,235,0.55)"/>
+        <rect x="505.3" y="283.2" width="12" height="20.2" fill="rgba(45,130,215,0.78)"/>
+        <rect x="524" y="237.4" width="12" height="45.8" fill="rgba(218,225,235,0.55)"/>
+        <rect x="542.7" y="207.8" width="12" height="75.4" fill="rgba(218,225,235,0.55)"/>
+        <rect x="561.3" y="221.2" width="12" height="62" fill="rgba(218,225,235,0.55)"/>
+        <rect x="580" y="253.6" width="12" height="29.6" fill="rgba(218,225,235,0.55)"/>
+        <rect x="598.7" y="215.9" width="12" height="67.3" fill="#FFF8DA"/>
+        <line x1="166" y1="228.5" x2="614" y2="228.5" stroke="rgba(254,239,171,0.34)" stroke-width="1.5" stroke-dasharray="5 5"/>
+        <text x="390" y="132" text-anchor="middle"><tspan class="fg">34</tspan><tspan class="un" dx="12">кВт</tspan></text>
+        <text class="bd" x="390" y="384" text-anchor="middle">20,3 средний за 4,8 км</text>
+      </svg>
+  </div>
+
+  <div style="display:flex; gap:18px;">
+    <div style="flex-grow:1; display:flex; flex-direction:column; gap:6px;">
+      <div class="lbl">ЗА 300 М</div>
+      <div style="display:flex; align-items:baseline; gap:8px;">
+        <div style="font-size:46px; font-weight:200; color:#DAE1EB; line-height:1;">16,8</div>
+        <div style="font-size:15px; color:#86909B;">кВт·ч/100</div>
+      </div>
+    </div>
+    <div style="flex-grow:1; display:flex; flex-direction:column; gap:6px; border-left:1px solid rgba(218,225,235,0.14); padding-left:18px;">
+      <div class="lbl">СРЕДНИЙ</div>
+      <div style="display:flex; align-items:baseline; gap:8px;">
+        <div style="font-size:46px; font-weight:200; color:#DAE1EB; line-height:1;">20,3</div>
+        <div style="font-size:15px; color:#86909B;">на 4,8 км</div>
+      </div>
+    </div>
+    <div style="flex-grow:1; display:flex; flex-direction:column; gap:6px; border-left:1px solid rgba(218,225,235,0.14); padding-left:18px;">
+      <div class="lbl">ХУДШИЙ УЧАСТОК</div>
+      <div style="display:flex; align-items:baseline; gap:8px;">
+        <div style="font-size:46px; font-weight:200; color:#DAE1EB; line-height:1;">33</div>
+        <div style="font-size:15px; color:#86909B;">кВт·ч/100</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex; gap:10px; align-items:baseline;">
+    <div class="lbl">ОКНО</div>
+    <div style="font-size:19px; color:#C5CDD9;">4,8 км · 24 участка по 200 м</div>
+  </div>
+
+  <div style="flex-grow:1;"></div>
+
+  <div style="display:flex; justify-content:center; align-items:center; gap:12px;">
+    <div style="width:9px; height:9px; border-radius:50%; background:rgba(218,225,235,0.30);"></div>
+    <div style="width:9px; height:9px; border-radius:50%; background:rgba(254,239,171,0.9);"></div>
+    <div style="width:9px; height:9px; border-radius:50%; background:rgba(218,225,235,0.30);"></div>
+    <div style="width:9px; height:9px; border-radius:50%; background:rgba(218,225,235,0.30);"></div>
+    <div style="width:9px; height:9px; border-radius:50%; background:rgba(218,225,235,0.30);"></div>
+  </div>
+</div>
+</x-dc>
+<script data-dc-script data-props='{"$preview":{"width":828,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const mint = '#FEEFAB', grey = '#6E767F';
+    const on = { cls:'con', st:mint, dc:'#FEEFAB' };
+    const off = { cls:'coff', st:grey, dc:'#3F434D' };
+    const paths = [
+      'M12 3a9 9 0 1 0 0.01 0M12 9a3 3 0 1 0 0.01 0M12 15v6',
+      'M2 8V6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6M2 12a8 8 0 0 1 8 8',
+      'M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12zM12 9a3 3 0 1 0 0.01 0',
+      'M4 5h16a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1zM12 5v14',
+      'M6 13.5l6-6 6 6M5 19h14',
+      'M7 17.5a4 4 0 0 1 0.6-7.96 5.5 5.5 0 0 1 10.6 1.5A3.6 3.6 0 0 1 17.5 17.5z',
+      'M9 3h6a3 3 0 0 1 3 3v12a3 3 0 0 1-3 3H9a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3zM12 11a3 3 0 1 0 0.01 0',
+      'M12 3.5l2.6 5.5 5.9 0.8-4.3 4.2 1 5.9-5.2-2.8-5.2 2.8 1-5.9L3.5 9.8l5.9-0.8z',
+      'M12 3a9 9 0 1 0 0.01 0M3.4 9.5h17.2M3.4 14.5h17.2M12 3a15 15 0 0 0 0 18 15 15 0 0 0 0-18z',
+      'M5 4h14v16H5zM12 7v7M9 11l3 3 3-3',
+      'M4 7h16M4 12h16M4 17h16'
+    ];
+    const states = [on, on, on, off, on, on, on, on, on, off, off];
+    const chips = paths.map((d, i) => Object.assign({ d }, states[i]));
+
+    const zero = 267;
+    const vals = [18,24,12,-6,21,29,16,-11,8,22,31,19,-4,14,26,33,20,9,-8,17,28,23,11,25];
+    const step = 280 / vals.length;
+    const bars = vals.map((v, i) => {
+      const x = 230 + i * step + 1.8;
+      const h = Math.abs(v) * 1.75;
+      if (v >= 0) return { x: x.toFixed(1), y: (zero - h).toFixed(1), h: h.toFixed(1), c: i === vals.length - 1 ? '#FFF8DA' : 'rgba(218,225,235,0.6)' };
+      return { x: x.toFixed(1), y: zero.toFixed(1), h: h.toFixed(1), c: 'rgba(45,130,215,0.72)' };
+    });
+    return { chips, bars };
+  }
+}
+</script>
+</body>
+</html>

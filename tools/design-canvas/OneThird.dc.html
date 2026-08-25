@@ -1,0 +1,136 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@200;300;400;500;700&amp;family=Roboto+Mono:wght@500;700&amp;display=swap" rel="stylesheet">
+  <style>
+    body { margin:0; background:#07080A; font-family:'Roboto','Segoe UI',system-ui,sans-serif; }
+    a { color:#FEEFAB; } a:hover { color:#FFF7D2; }
+    .lbl { font-size:15px; letter-spacing:1.5px; font-weight:500; color:#86909B; }
+    .chip { position:relative; width:52px; height:52px; border-radius:12px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+    .con { background:#212429; border:1px solid rgba(254,239,171,0.30); }
+    .coff { background:#15181F; border:1px solid rgba(218,225,235,0.10); }
+    .dot { position:absolute; top:7px; right:7px; width:6px; height:6px; border-radius:50%; }
+    .led { font-family:'Roboto Mono',monospace; font-weight:700; font-size:24px; letter-spacing:3.5px; color:transparent; background-color:#FEEFAB; background-image:radial-gradient(circle at center, #FEEFAB 41%, transparent 46%); background-size:2.6px 2.6px; -webkit-background-clip:text; background-clip:text; filter:drop-shadow(0 0 6px rgba(254,239,171,0.55)); }
+    .fig { font-size:46px; font-weight:200; color:#DAE1EB; line-height:1; }
+    .un { font-size:19px; color:#86909B; }
+  </style>
+</helmet>
+<div style="width:416px; height:800px; box-sizing:border-box; background:#07080A; display:flex; flex-direction:column; gap:14px; padding:18px 24px 10px 24px;">
+
+  <div style="display:grid; grid-template-columns:repeat(6, minmax(0, 1fr)); gap:9px;">
+    <sc-for list="{{chips}}" as="c" hint-placeholder-count="11">
+      <div class="chip {{c.cls}}">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="{{c.st}}" stroke-width="2.182" stroke-linecap="round"><path d="{{c.d}}"></path></svg>
+        <div class="dot" style="background: {{c.dc}};"></div>
+      </div>
+    </sc-for>
+  </div>
+
+  <div style="display:flex; align-items:center; gap:9px; padding-top:4px;">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="#FEEFAB"><path d="M7 4l12 8-12 8z"></path></svg>
+    <div class="led">M83 · MIDNIGHT CITY</div>
+  </div>
+
+  <div>
+    <div style="position:relative;">
+      <div style="display:flex; align-items:flex-end; justify-content:space-between; height:214px;">
+        <sc-for list="{{bars}}" as="b" hint-placeholder-count="17">
+          <div style="width:14px; display:flex; flex-direction:column; justify-content:flex-end; height:214px;">
+            <div style="height:3px; background:#FFF8DA; box-shadow:0 0 6px rgba(254,239,171,0.9); margin-bottom: {{b.p}}px;"></div>
+            <div style="height: {{b.h}}px; border-radius:2px 2px 0 0; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA); box-shadow:0 0 12px rgba(254,239,171,0.2);"></div>
+          </div>
+        </sc-for>
+      </div>
+      <div style="position:absolute; left:0; right:0; bottom:0; height:214px; background:repeating-linear-gradient(to top, rgba(7,8,10,0) 0px, rgba(7,8,10,0) 7px, #07080A 7px, #07080A 10px); pointer-events:none;"></div>
+    </div>
+    <div style="height:32px; overflow:hidden; opacity:0.14; transform:scaleY(-1); margin-top:3px;">
+      <div style="display:flex; align-items:flex-end; justify-content:space-between; height:32px;">
+        <sc-for list="{{bars}}" as="b" hint-placeholder-count="17">
+          <div style="width:14px; height: {{b.h}}px; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA);"></div>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+
+  <div style="flex-grow:1; display:flex; flex-direction:column; justify-content:space-between; padding-top:4px;">
+    <div style="display:flex; flex-direction:column; gap:7px;">
+      <div class="lbl">В ПУТИ</div>
+      <div style="display:flex; align-items:baseline; gap:14px;">
+        <div class="fig">1:42</div>
+        <div class="un">128 км</div>
+      </div>
+    </div>
+    <div style="border-top:1px solid rgba(218,225,235,0.14); padding-top:16px; display:flex; flex-direction:column; gap:7px;">
+      <div class="lbl">ВЫСОТА</div>
+      <div style="display:flex; align-items:baseline; gap:12px;">
+        <div class="fig">642</div>
+        <div class="un">м</div>
+        <div style="display:flex; align-items:center; gap:6px; margin-left:auto;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="2.667" stroke-linecap="round"><path d="M12 19V6M6.5 11.5 12 6l5.5 5.5"></path></svg>
+          <div style="font-size:19px; color:#FEEFAB;">1,2</div>
+        </div>
+      </div>
+    </div>
+    <div style="border-top:1px solid rgba(218,225,235,0.14); padding-top:16px; display:flex; flex-direction:column; gap:7px;">
+      <div class="lbl">НАБОР ЗА ПОЕЗДКУ</div>
+      <div style="display:flex; align-items:baseline; gap:12px;">
+        <div class="fig">+380</div>
+        <div class="un">м</div>
+      </div>
+    </div>
+    <div style="border-top:1px solid rgba(218,225,235,0.14); padding-top:16px; display:flex; align-items:center; gap:12px;">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#FF9F19" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="13" r="4"></circle><path d="M12 5V3M5.6 7.6 4.2 6.2M18.4 7.6l1.4-1.4M3 19h18"></path></svg>
+      <div style="display:flex; align-items:baseline; gap:12px;">
+        <div style="font-size:34px; font-weight:200; color:#DAE1EB;">19:44</div>
+        <div class="un">закат</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex; justify-content:center; align-items:center; gap:11px; padding-top:2px;">
+    <div style="width:8px; height:8px; border-radius:50%; background:rgba(254,239,171,0.9);"></div>
+    <div style="width:8px; height:8px; border-radius:50%; background:rgba(218,225,235,0.30);"></div>
+    <div style="width:8px; height:8px; border-radius:50%; background:rgba(218,225,235,0.30);"></div>
+    <div style="width:8px; height:8px; border-radius:50%; background:rgba(218,225,235,0.30);"></div>
+    <div style="width:8px; height:8px; border-radius:50%; background:rgba(218,225,235,0.30);"></div>
+  </div>
+</div>
+</x-dc>
+<script data-dc-script data-props='{"$preview":{"width":416,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const mint = '#FEEFAB', grey = '#6E767F';
+    const on = { cls:'con', st:mint, dc:'#FEEFAB' };
+    const off = { cls:'coff', st:grey, dc:'#3F434D' };
+    const paths = [
+      'M12 3a9 9 0 1 0 0.01 0M12 9a3 3 0 1 0 0.01 0M12 15v6',
+      'M2 8V6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6M2 12a8 8 0 0 1 8 8',
+      'M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12zM12 9a3 3 0 1 0 0.01 0',
+      'M4 5h16a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1zM12 5v14',
+      'M6 13.5l6-6 6 6M5 19h14',
+      'M7 17.5a4 4 0 0 1 0.6-7.96 5.5 5.5 0 0 1 10.6 1.5A3.6 3.6 0 0 1 17.5 17.5z',
+      'M9 3h6a3 3 0 0 1 3 3v12a3 3 0 0 1-3 3H9a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3zM12 11a3 3 0 1 0 0.01 0',
+      'M12 3.5l2.6 5.5 5.9 0.8-4.3 4.2 1 5.9-5.2-2.8-5.2 2.8 1-5.9L3.5 9.8l5.9-0.8z',
+      'M12 3a9 9 0 1 0 0.01 0M3.4 9.5h17.2M3.4 14.5h17.2M12 3a15 15 0 0 0 0 18 15 15 0 0 0 0-18z',
+      'M5 4h14v16H5zM12 7v7M9 11l3 3 3-3',
+      'M4 7h16M4 12h16M4 17h16'
+    ];
+    const states = [on, on, on, off, on, on, on, on, on, off, off];
+    const chips = paths.map((d, i) => Object.assign({ d }, states[i]));
+    const bars = [
+      {h:32,p:12},{h:54,p:8},{h:84,p:17},{h:120,p:6},{h:146,p:10},{h:170,p:4},
+      {h:152,p:14},{h:128,p:7},{h:102,p:16},{h:82,p:9},{h:112,p:5},{h:138,p:12},
+      {h:162,p:4},{h:146,p:9},{h:118,p:17},{h:92,p:6},{h:70,p:11}
+    ];
+    return { chips, bars };
+  }
+}
+</script>
+</body>
+</html>

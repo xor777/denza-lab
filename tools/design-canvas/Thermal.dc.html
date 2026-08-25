@@ -1,0 +1,95 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@200;300;400;500;700&amp;family=Roboto+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+  <style>
+    body { margin:0; background:#07080A; font-family:'Roboto','Segoe UI',system-ui,sans-serif; }
+    a { color:#DAE1EB; } a:hover { color:#FFF7D2; }
+    .lbl { font-size:15px; letter-spacing:1.6px; font-weight:500; color:#86909B; }
+  </style>
+</helmet>
+<div style="width:1192px; height:400px; box-sizing:border-box; background:#07080A; display:flex; align-items:stretch; gap:24px; padding:24px;">
+
+  <div style="width:660px; flex-shrink:0;">
+    <svg width="660" height="380" viewBox="0 0 660 380">
+      <path d="M266 44 C266 24 292 14 330 14 C368 14 394 24 394 44 L394 330 C394 350 372 362 330 362 C288 362 266 350 266 330 Z" fill="#15181F" stroke="rgba(218,225,235,0.16)" stroke-width="1.5"></path>
+      <path d="M282 72 C300 62 360 62 378 72" fill="none" stroke="rgba(218,225,235,0.16)" stroke-width="1.5"></path>
+      <path d="M284 312 C302 322 358 322 376 312" fill="none" stroke="rgba(218,225,235,0.16)" stroke-width="1.5"></path>
+
+      <rect x="252" y="82" width="16" height="42" rx="6" fill="#22262E"></rect>
+      <rect x="392" y="82" width="16" height="42" rx="6" fill="#22262E"></rect>
+      <rect x="252" y="268" width="16" height="42" rx="6" fill="#22262E"></rect>
+      <rect x="392" y="268" width="16" height="42" rx="6" fill="#22262E"></rect>
+
+      <circle cx="330" cy="103" r="25" fill="rgba(218,225,235,0.16)" stroke="#DAE1EB" stroke-width="2"></circle>
+      <path d="M305 103 L232 103" stroke="rgba(218,225,235,0.30)" stroke-width="1.5"></path>
+      <text x="222" y="98" text-anchor="end" font-size="24" font-weight="300" fill="#DAE1EB">31°</text>
+      <text x="222" y="122" text-anchor="end" font-size="15" fill="#86909B">передний мотор</text>
+
+      <rect x="308" y="36" width="44" height="26" rx="6" fill="rgba(218,225,235,0.16)" stroke="#DAE1EB" stroke-width="2"></rect>
+      <path d="M352 49 L432 49" stroke="rgba(218,225,235,0.30)" stroke-width="1.5"></path>
+      <text x="442" y="44" font-size="24" font-weight="300" fill="#DAE1EB">32°</text>
+      <text x="442" y="68" font-size="15" fill="#86909B">инвертор</text>
+
+      <rect x="286" y="150" width="88" height="114" rx="12" fill="rgba(218,225,235,0.10)" stroke="#DAE1EB" stroke-width="2"></rect>
+      <path d="M286 209 L232 209" stroke="rgba(218,225,235,0.30)" stroke-width="1.5"></path>
+      <text x="222" y="204" text-anchor="end" font-size="24" font-weight="300" fill="#DAE1EB">28°</text>
+      <text x="222" y="228" text-anchor="end" font-size="15" fill="#86909B">батарея · 27—29</text>
+
+      <circle cx="303" cy="290" r="21" fill="rgba(218,225,235,0.16)" stroke="#DAE1EB" stroke-width="2"></circle>
+      <path d="M282 290 L232 290" stroke="rgba(218,225,235,0.30)" stroke-width="1.5"></path>
+      <text x="222" y="285" text-anchor="end" font-size="24" font-weight="300" fill="#DAE1EB">29°</text>
+      <text x="222" y="309" text-anchor="end" font-size="15" fill="#86909B">задний левый</text>
+
+      <circle cx="357" cy="290" r="21" fill="rgba(218,225,235,0.16)" stroke="#DAE1EB" stroke-width="2"></circle>
+      <path d="M378 290 L432 290" stroke="rgba(218,225,235,0.30)" stroke-width="1.5"></path>
+      <text x="442" y="285" font-size="24" font-weight="300" fill="#DAE1EB">31°</text>
+      <text x="442" y="309" font-size="15" fill="#86909B">задний правый</text>
+    </svg>
+  </div>
+
+  <div style="flex-grow:1; display:flex; flex-direction:column; justify-content:space-between; ">
+
+    <div style="display:flex; flex-direction:column; gap:10px;">
+      <div class="lbl">САМЫЙ ГОРЯЧИЙ УЗЕЛ</div>
+      <div style="display:flex; align-items:baseline; gap:12px;">
+        <div style="font-size:62px; font-weight:200; color:#DAE1EB; line-height:1;">32°</div>
+        <div style="font-size:19px; color:#86909B;">инвертор</div>
+      </div>
+      <div style="font-size:15px; color:#6E767F;">жёлтый после 70°, красный после 85°</div>
+    </div>
+
+    <div style="display:flex; flex-direction:column; gap:12px;">
+      <div class="lbl">БАТАРЕЯ · РАЗБРОС ПО ПАКЕТУ</div>
+      <div style="position:relative; height:14px; border-radius:6px; background:#1B1F25;">
+        <div style="position:absolute; left:35.71%; width:35.71%; top:0; bottom:0; background:rgba(218,225,235,0.14);"></div>
+        <div style="position:absolute; left:52.86%; width:2.86%; top:0; bottom:0; border-radius:2px; background:#DAE1EB; box-shadow:0 0 10px rgba(218,225,235,0.5);"></div>
+        <div style="position:absolute; left:54.29%; top:-5px; bottom:-5px; width:3px; background:#FFF8DA;"></div>
+      </div>
+      <div style="display:flex; justify-content:space-between; font-family:'Roboto Mono',monospace; font-size:15px; color:#6E767F;">
+        <div>&#8722;10°</div>
+        <div style="color:#DAE1EB;">комфорт 15—40°</div>
+        <div>60°</div>
+      </div>
+    </div>
+
+    <div style="border-top:1px solid rgba(218,225,235,0.14); padding-top:14px; display:flex; align-items:flex-start; gap:11px;">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#6E767F" stroke-width="2.526" stroke-linecap="round" style="flex-shrink:0; margin-top:2px;"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5.5"></path><path d="M12 7.6h0.01"></path></svg>
+      <div style="font-size:15px; color:#6E767F; line-height:1.45;">Инвертор один на всю машину — второго датчика в прошивке нет. Температуры ДВС тоже нет.</div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script data-dc-script data-props='{"$preview":{"width":1192,"height":400}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

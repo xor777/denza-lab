@@ -106,8 +106,19 @@ two-sided arc across the top of a cluster is read as a speedometer. The flanking
 pair, `60` one way and `20` the other at identical deflection, says both things
 at a glance. Zero stays unlabelled: it is where the fill vanishes, and a label
 above it reached two pixels into the vehicle's own graphics.
-`ClusterDashboardLayoutTest` now holds the gauge radius against
-`EnergyGauge.topReach` so a longer mark is caught here rather than on the car.
+
+A mark that cannot be labelled is not drawn: `InstrumentDensity.dialMarks` is
+`2` wide and `1` narrow, because in the right third the second mark's number
+lands inside the combustion column. Three tests hold this geometry - the gauge
+radius against `EnergyGauge.topReach` for the crown, the outermost labelled mark
+against `engineBlock.left` for the flank, and `markReach` carries half the
+number's own height so what the rhythm buys is a gap between the mark's tip and
+the number's *edge*. Without that last term the nearly-horizontal discharge mark
+put its tip about four pixels inside the first digit.
+
+Section titles carry `0.12em` of tracking through `InstrumentPen.title`, which
+exists as its own method rather than a parameter so the tracking cannot be
+applied at one call site and forgotten at the next.
 
 The lamps are a single line, not an inventory: silent while they answer and are
 healthy, naming the fault the moment one is not, and saying plainly when they

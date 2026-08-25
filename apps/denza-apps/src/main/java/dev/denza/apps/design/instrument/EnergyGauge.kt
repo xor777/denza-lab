@@ -25,6 +25,11 @@ import dev.denza.apps.design.DenzaPalette
  *
  * Zero is the one mark left unlabelled: it is where the fill vanishes, which needs no caption, and
  * a label above it would reach past the clear band into the vehicle's own graphics.
+ *
+ * How many discharge marks get drawn is [InstrumentDensity.dialMarks], and a mark that cannot be
+ * labelled is not drawn at all - an unlabelled mark standing among labelled ones is the same lie in
+ * miniature. In the right third that leaves the flanking pair alone, because the second mark's
+ * number would land inside the combustion column.
  */
 class EnergyGauge(private val pen: InstrumentPen) {
 
@@ -49,7 +54,7 @@ class EnergyGauge(private val pen: InstrumentPen) {
 
         pen.arc(canvas, centreX, centreY, radius, ARC_FROM, ARC_TO, DenzaPalette.TRACK, density.arcWidth)
 
-        EnergyScale.DISCHARGE_TICKS_KW.forEach { mark ->
+        EnergyScale.DISCHARGE_TICKS_KW.take(density.dialMarks).forEach { mark ->
             marked(canvas, centreX, centreY, radius, density, mark, DenzaPalette.TRACK_MARK, DenzaPalette.MUTED_DEEP)
         }
         EnergyScale.REGEN_TICKS_KW.forEach { mark ->
@@ -120,7 +125,7 @@ class EnergyGauge(private val pen: InstrumentPen) {
     ) {
         val degrees = EnergyScale.angleDegrees(kilowatts, TOP_DEGREES, SIDE_SWEEP)
         pen.tick(canvas, centreX, centreY, radius, degrees, density.tickLength, markColor)
-        val out = radius + pen.v(MARK_GAP + density.tickLength + density.step)
+        val out = radius + pen.v(markReach(density))
         val (x, y) = pen.onArc(centreX, centreY, out, degrees)
         pen.label(
             canvas,
@@ -142,13 +147,35 @@ class EnergyGauge(private val pen: InstrumentPen) {
          * How far past the arc the control reaches straight up, in virtual units.
          *
          * Straight up is where it matters: on the cluster the clear band's top edge runs across the
-         * dial's crown, and everything else the gauge draws outward - the three numbered marks - is
-         * far enough off vertical to be well below that edge. So this is the mark alone, and it is
-         * only the mark because zero carries no label; the label that used to sit above it reached
-         * two pixels into the vehicle's own graphics, which is exactly the sort of thing a caller
-         * cannot check without being told the number.
+         * dial's crown, and everything the gauge draws outward besides - the numbered marks - is far
+         * enough off vertical to be well below that edge. So this is the mark alone, and it is only
+         * the mark because zero carries no label; the label that used to sit above it reached two
+         * pixels into the vehicle's own graphics, which is exactly the sort of thing a caller cannot
+         * check without being told the number.
          */
         fun topReach(density: InstrumentDensity): Float = MARK_GAP + density.tickLength
+
+        /**
+         * How far past the arc a mark's *number* sits, to the centre of that number.
+         *
+         * The last term is half the number's own height, so what the rhythm buys is a gap between
+         * the mark's tip and the number's edge rather than between the tip and the number's middle.
+         * Without it the nearly-horizontal mark on the discharge side put its tip inside the first
+         * digit - about four pixels of it, which is exactly the sort of thing that survives every
+         * review that is not a measurement.
+         *
+         * Sideways is where this matters: it decides whether the dial's own scale can coexist with
+         * the instrument column beside it.
+         */
+        fun markReach(density: InstrumentDensity): Float =
+            MARK_GAP + density.tickLength + density.step + density.tick / 2f
+
+        /** The angle of the outermost mark this density labels, for a caller checking clearance. */
+        fun outermostMarkDegrees(density: InstrumentDensity): Float = EnergyScale.angleDegrees(
+            EnergyScale.DISCHARGE_TICKS_KW.take(density.dialMarks).last(),
+            TOP_DEGREES,
+            SIDE_SWEEP,
+        )
 
         /** The dial dips below the horizon on both sides, so the chart sits in an open bowl. */
         private const val ARC_FROM = 200f

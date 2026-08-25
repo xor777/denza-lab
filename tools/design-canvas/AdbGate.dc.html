@@ -1,0 +1,30 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@200;300;400;500;700&amp;display=swap" rel="stylesheet">
+  <style>
+    body { margin:0; background:#07080A; font-family:'Roboto','Segoe UI',system-ui,sans-serif; }
+    a { color:#FEEFAB; } a:hover { color:#FFF7D2; }
+  </style>
+</helmet>
+<div style="width:1280px; height:800px; box-sizing:border-box; background:#07080A; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:24px;">
+  <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#86909B" stroke-width="0.857" stroke-linecap="round"><path d="M9 12h6"></path><path d="M9.5 9H7a3 3 0 0 0 0 6h2.5"></path><path d="M14.5 15H17a3 3 0 0 0 0-6h-2.5"></path></svg>
+  <div style="color:#DAE1EB; font-size:34px; font-weight:400;">Нет связи с автомобилем</div>
+  <div style="color:#86909B; font-size:19px; line-height:1.55; width:560px; text-align:center;">Denza Apps ждёт доступ к системе автомобиля. Обычно это занимает несколько секунд после запуска.</div>
+  <div style="margin-top:12px; border:1px solid #FEEFAB; border-radius:12px; padding:18px 36px; color:#FEEFAB; font-size:19px; font-weight:500;">Восстановить доступ</div>
+  <div style="color:#6E767F; font-size:15px;">Пока доступа нет, приборы и функции на паузе</div>
+</div>
+</x-dc>
+<script data-dc-script data-props='{"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

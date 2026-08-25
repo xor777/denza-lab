@@ -124,7 +124,7 @@ internal class ClusterDashboardRenderer {
         val column = Column(box, density, ClusterBlockPlan.electricWide(density))
         scrimBlock(canvas, box)
 
-        pen.label(canvas, TITLE_ELECTRIC, column.left, column.next(), density.title, DenzaPalette.MUTED_DEEP)
+        pen.title(canvas, TITLE_ELECTRIC, column.left, column.next(), density, DenzaPalette.MUTED_DEEP)
 
         val volts = t[VehicleSignal.PACK_VOLT]
         val spread = t.cellSpreadMv
@@ -160,7 +160,7 @@ internal class ClusterDashboardRenderer {
         val column = Column(box, density, ClusterBlockPlan.electricNarrow(density))
         scrimBlock(canvas, box)
 
-        pen.label(canvas, TITLE_ELECTRIC, column.left, column.next(), density.title, DenzaPalette.MUTED_DEEP)
+        pen.title(canvas, TITLE_ELECTRIC, column.left, column.next(), density, DenzaPalette.MUTED_DEEP)
 
         val volts = t[VehicleSignal.PACK_VOLT]
         pen.figure(
@@ -224,9 +224,9 @@ internal class ClusterDashboardRenderer {
         val column = Column(box, density, ClusterBlockPlan.engineWide(density))
         scrimBlock(canvas, box)
 
-        pen.label(
+        pen.title(
             canvas, TITLE_ENGINE, column.right, column.next(),
-            density.title, DenzaPalette.MUTED_DEEP, Paint.Align.RIGHT,
+            density, DenzaPalette.MUTED_DEEP, Paint.Align.RIGHT,
         )
 
         val figure = column.next()
@@ -257,9 +257,9 @@ internal class ClusterDashboardRenderer {
         val column = Column(box, density, ClusterBlockPlan.engineNarrow(density))
         scrimBlock(canvas, box)
 
-        pen.label(
+        pen.title(
             canvas, TITLE_ENGINE, column.right, column.next(),
-            density.title, DenzaPalette.MUTED_DEEP, Paint.Align.RIGHT,
+            density, DenzaPalette.MUTED_DEEP, Paint.Align.RIGHT,
         )
 
         pen.figure(
@@ -321,7 +321,7 @@ internal class ClusterDashboardRenderer {
         val column = Column(box, density, ClusterBlockPlan.temperatures(density))
         scrimBlock(canvas, box)
 
-        pen.label(canvas, TITLE_THERMAL, column.left, column.next(), density.title, DenzaPalette.MUTED_DEEP)
+        pen.title(canvas, TITLE_THERMAL, column.left, column.next(), density, DenzaPalette.MUTED_DEEP)
 
         val pack = t[VehicleSignal.PACK_TEMP_AVG]
         val inverter = t[VehicleSignal.INVERTER_C]
@@ -367,9 +367,9 @@ internal class ClusterDashboardRenderer {
         val column = Column(box, density, plan)
         scrimBlock(canvas, box)
 
-        pen.label(
+        pen.title(
             canvas, TITLE_FLUIDS, column.right, column.next(),
-            density.title, DenzaPalette.MUTED_DEEP, Paint.Align.RIGHT,
+            density, DenzaPalette.MUTED_DEEP, Paint.Align.RIGHT,
         )
 
         val step = pen.v(density.lampStep)

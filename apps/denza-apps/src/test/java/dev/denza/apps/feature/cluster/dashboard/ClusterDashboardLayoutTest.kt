@@ -132,6 +132,22 @@ class ClusterDashboardLayoutTest {
     }
 
     @Test
+    fun theDialsOwnNumbersStayOutOfTheColumnBesideIt() {
+        listOf(full() to InstrumentDensity.WIDE, right() to InstrumentDensity.COMPACT)
+            .forEach { (layout, density) ->
+                val unit = layout.height / layout.virtualHeight
+                val radius = layout.gaugeRadius * layout.height
+                val out = radius + EnergyGauge.markReach(density) * unit
+                val degrees = EnergyGauge.outermostMarkDegrees(density)
+                val x = layout.gaugeCentreX * layout.width +
+                    out * kotlin.math.cos(Math.toRadians(degrees.toDouble())).toFloat()
+                // One tick's worth of pad stands in for the half-width of the number itself.
+                val edge = layout.engineBlock.left * layout.width - density.tick * unit
+                assertTrue("the $degrees deg mark reaches $x against a column at $edge", x < edge)
+            }
+    }
+
+    @Test
     fun aRevealBlockIsSolvedForItsLowerEdgeSoItsWidestPartCannotEscape() {
         val layout = full()
         val temperatures = requireBox(layout.temperatureBlock)

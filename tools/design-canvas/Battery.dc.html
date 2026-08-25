@@ -1,0 +1,94 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@200;300;400;500;700&amp;family=Roboto+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+  <style>
+    body { margin:0; background:#07080A; font-family:'Roboto','Segoe UI',system-ui,sans-serif; }
+    a { color:#DAE1EB; } a:hover { color:#FFF7D2; }
+    .lbl { font-size:15px; letter-spacing:1.6px; font-weight:500; color:#86909B; }
+    .row { display:flex; align-items:baseline; gap:12px; }
+    .big { font-size:34px; font-weight:200; color:#DAE1EB; line-height:1; }
+    .unit { font-size:19px; color:#86909B; }
+  </style>
+</helmet>
+<div style="width:1192px; height:400px; box-sizing:border-box; background:#07080A; display:flex; align-items:stretch; gap:24px; padding:24px;">
+
+  <div style="width:340px; flex-shrink:0; position:relative; display:flex; justify-content:center;">
+    <svg width="300" height="300" viewBox="0 0 300 300">
+      <path d="M65.1 234.9 A120 120 0 1 1 234.9 234.9" fill="none" stroke="#22262E" stroke-width="18" stroke-linecap="round"></path>
+      <path d="M65.1 234.9 A120 120 0 1 1 234.9 234.9" fill="none" stroke="#DAE1EB" stroke-width="18" stroke-linecap="round" stroke-dasharray="429.8 620" style="filter:drop-shadow(0 0 10px rgba(218,225,235,0.35));"></path>
+    </svg>
+    <div style="position:absolute; left:0; right:0; top:98px; display:flex; flex-direction:column; align-items:center; gap:2px;">
+      <div style="display:flex; align-items:baseline; gap:6px;">
+        <div style="font-size:82px; font-weight:200; color:#DAE1EB; line-height:1;">76</div>
+        <div style="font-size:24px; color:#86909B;">%</div>
+      </div>
+      <div style="font-size:19px; color:#86909B;">552 В · разряд</div>
+    </div>
+  </div>
+
+  <div style="width:400px; flex-shrink:0; display:flex; flex-direction:column; gap:20px; justify-content:center;">
+    <div class="lbl">ЯЧЕЙКИ · 166 ШТ</div>
+
+    <div style="display:flex; align-items:baseline; gap:12px;">
+      <div style="font-size:62px; font-weight:200; color:#DAE1EB; line-height:1;">4</div>
+      <div style="font-size:19px; color:#86909B;">мВ разброс</div>
+      <div style="margin-left:auto; font-size:19px; color:#DAE1EB;">норма</div>
+    </div>
+
+    <div style="display:flex; flex-direction:column; gap:9px;">
+      <div style="position:relative; height:12px; border-radius:6px; background:#1B1F25;">
+        <div style="position:absolute; left:50%; width:30%; top:0; bottom:0; background:rgba(255,159,25,0.22);"></div>
+        <div style="position:absolute; left:80%; right:0; top:0; bottom:0; border-radius:0 6px 6px 0; background:rgba(255,64,70,0.22);"></div>
+        <div style="position:absolute; left:0; top:0; bottom:0; width:8%; border-radius:6px 0 0 6px; background:#DAE1EB;"></div>
+        <div style="position:absolute; left:8%; top:-4px; bottom:-4px; width:3px; border-radius:2px; background:#FFF8DA; box-shadow:0 0 8px rgba(218,225,235,0.8);"></div>
+      </div>
+      <div style="display:flex; justify-content:space-between; font-family:'Roboto Mono',monospace; font-size:15px; color:#6E767F;">
+        <div>0</div>
+        <div style="color:#C5CDD9;">разброс 4 мВ · следить с 25</div>
+        <div>50 мВ</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="flex-grow:1; display:flex; flex-direction:column; justify-content:space-between; padding:14px 0;">
+    <div style="display:flex; flex-direction:column; gap:6px;">
+      <div class="lbl">РЕСУРС БАТАРЕИ</div>
+      <div class="row">
+        <div style="font-size:46px; font-weight:200; color:#DAE1EB; line-height:1;">99</div>
+        <div style="font-size:24px; color:#86909B;">%</div>
+        <div style="margin-left:auto; font-size:15px; color:#6E767F;">от заводской ёмкости</div>
+      </div>
+    </div>
+    <div style="border-top:1px solid rgba(218,225,235,0.14); padding-top:16px; display:flex; flex-direction:column; gap:6px;">
+      <div class="lbl">ИЗОЛЯЦИЯ</div>
+      <div class="row">
+        <div class="big">13,1</div>
+        <div class="unit">МОм</div>
+        <div style="margin-left:auto; font-size:15px; color:#DAE1EB;">высоковольтный контур цел</div>
+      </div>
+    </div>
+    <div style="border-top:1px solid rgba(218,225,235,0.14); padding-top:16px; display:flex; flex-direction:column; gap:6px;">
+      <div class="lbl">БОРТСЕТЬ 12 В</div>
+      <div class="row">
+        <div class="big">13,8</div>
+        <div class="unit">В</div>
+        <div style="margin-left:auto; font-size:15px; color:#6E767F;">подзаряжается от тяговой</div>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script data-dc-script data-props='{"$preview":{"width":1192,"height":400}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>
