@@ -937,6 +937,11 @@ Measured live on TP1A.220624.014 (`eng.build20260705.011226`), gestures only:
   survivor = `1`/`2`; a foreign fullscreen app over a live scene = `4`.
   "Covered" is area `0` or `4`, and a transitional world can flutter
   between them.
+- A single-survivor area names **which** pane survived, not merely that one
+  did: `1` is the narrow PRIMARY pane, `2` the wide SECONDARY one. After a
+  collapse that is the cheapest proof of which side went away - the other
+  one - and it holds even when the survivor also left the panel roots
+  (its picker base dies with the scene in some geometries).
 - A clean idle scene is stable: picker|picker and a real app pair both
   survived 90 s untouched and visible (area `3` throughout). The earlier
   ~50 s idle-teardown observation was state-specific (a dirty,
