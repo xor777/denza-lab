@@ -549,6 +549,43 @@ class SplitPickerShellSessionTest {
         assertFalse(split.allRecordedMembersAlive(scene, PICKER_COMPONENTS))
     }
 
+    /**
+     * Правка W1 волны 8 (диагноз v23 Д1(а)): якорное чтение приложений различает «база утрачена»
+     * и конец сцены. Выселенная Home-ом база умерла (механизм М2), её приложение отвязано живым:
+     * члены не все живы, но каждый записанный app жив по exact identity на всём main display -
+     * и наоборот, смерть записанного приложения якорь видит.
+     */
+    @Test
+    fun deadPickerBaseWithLivingRecordedAppsIsABaseLossNotASceneEnd() {
+        val fake = FakeShell().apply { liveProductScene(withApps = true) }
+        val split = session(fake)
+        val scene = mapOf(
+            SplitPane.PRIMARY to SplitPickerLivePane(
+                pane = SplitPane.PRIMARY,
+                hostTaskId = PRIMARY_PICKER_TASK,
+                appTaskId = PRIMARY_APP_TASK,
+                appPackageName = NAVIGATOR,
+            ),
+            SplitPane.SECONDARY to SplitPickerLivePane(
+                pane = SplitPane.SECONDARY,
+                hostTaskId = SECONDARY_PICKER_TASK,
+                appTaskId = SECONDARY_APP_TASK,
+                appPackageName = MUSIC,
+            ),
+        )
+        fake.area = 0
+
+        // Home выселил детей широкой панели; база умерла, приложение отвязано живым.
+        fake.detachTask(SECONDARY_APP_TASK)
+        fake.removeActivity(SECONDARY_ROOT, SECONDARY_PICKER_ACTIVITY)
+        assertFalse(split.allRecordedMembersAlive(scene, PICKER_COMPONENTS))
+        assertTrue("каждое записанное приложение живо", split.allRecordedAppsAlive(scene))
+
+        // А вот смерть записанного приложения якорь обязан увидеть.
+        fake.removeActivity(DETACHED_ROOT, "$MUSIC.MainActivity")
+        assertFalse(split.allRecordedAppsAlive(scene))
+    }
+
     @Test
     fun dividerHintOverACoveredSceneSkipsTheSettleAndReadsOnly() {
         // Правка W1 (v20 D1): над накрытой сценой - Home (area 0) или чужое fullscreen-окно

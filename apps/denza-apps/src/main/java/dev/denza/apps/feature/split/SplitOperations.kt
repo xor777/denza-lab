@@ -879,10 +879,18 @@ internal class HomeOperation(
      */
     private fun scheduleCleanupOverADeadMember(op: SplitOperationContext) {
         if (working.scene == null || liveScene.isEmpty()) return
-        val membersAlive = runCatching {
-            work.split(op).allRecordedMembersAlive(liveScene, SPLIT_PICKER_COMPONENT_SET)
+        // Правка W1 волны 8 (диагноз v23 Д1(а)): якорь тот же, что у самой уборки, - записанные
+        // ПРИЛОЖЕНИЯ, когда они есть. Смерть выселенной Home-ом базы при живых приложениях
+        // пользователя (механизм М2) - «база утрачена», не конец, и уборку не подаёт.
+        val appsAnchor = liveScene.values.any { observed -> observed.appTaskId != null }
+        val anchorAlive = runCatching {
+            if (appsAnchor) {
+                work.split(op).allRecordedAppsAlive(liveScene)
+            } else {
+                work.split(op).allRecordedMembersAlive(liveScene, SPLIT_PICKER_COMPONENT_SET)
+            }
         }.getOrNull() ?: return
-        if (membersAlive) return
+        if (anchorAlive) return
         work.log("home confirmed over a dead member: уборочная сверка подана (правка W2)")
         requestCleanup()
     }
@@ -1374,8 +1382,11 @@ internal class ReconcileOperation(
      * stop existing while this process is not looking at it.
      *
      * Правка W1 волны 7 (b1-CORE, живой протокол 2026-08-25): конец сцены доказывается двумя
-     * чтениями - сцена НАКРЫТА ([SplitPickerShellSession.sceneCovered], area 0/4) И хотя бы один
-     * записанный член МЁРТВ по exact identity на всём main display
+     * чтениями - сцена НАКРЫТА ([SplitPickerShellSession.sceneCovered], area 0/4) И мёртв её
+     * ЯКОРЬ по exact identity на всём main display. Правка W1 волны 8 (v23 Д1(а)) сузила якорь:
+     * у сцены с записанными приложениями это только сами приложения
+     * ([SplitPickerShellSession.allRecordedAppsAlive]) - смерть выселенной пикер-базы при живых
+     * приложениях сцену не кончает; у сцены «пикер|пикер» якорь - члены, как в волне 7
      * ([SplitPickerShellSession.allRecordedMembersAlive]). Живая накрытая сцена - ВСЕ члены живы -
      * не убирается никогда (инвариант 5): прошивка на Home опустошает корень панели, отвязывая
      * живые задачи, и отвязанный член живой накрытой сцены - не сирота. Мёртвый член под
@@ -1424,8 +1435,30 @@ internal class ReconcileOperation(
             }
             return false
         }
+        // Правка W1 волны 8 (диагноз v23 Д1(а)): у сцены с записанными ПРИЛОЖЕНИЯМИ якорь конца -
+        // только они. Выселенная Home-ом пикер-база умирает недетерминированно (механизм М2) при
+        // живых приложениях пользователя, и волна 7 засчитывала её смерть концом: слоты → P|P,
+        // пара забыта, возврат давал «пикер|пикер» без сообщения (против 1.9.4/1.3.2). Смерть
+        // базы при живых приложениях - «база утрачена», НЕ конец: сцена и слоты живут, базу
+        // пересоздаст следующий open/reveal (buildScene это уже умеет), и огрызки живой сцены
+        // не трогаются. Сцена «пикер|пикер» (приложений нет) кончается смертью баз, как в
+        // волне 7, - лечение блокера b1-CORE («очистить всё» из пикеров) сохранено буква в
+        // букву. Осознанная асимметрия: смерть записанного ПРИЛОЖЕНИЯ под накрытием остаётся
+        // концом, как и прежде (консервативно; «Clear all» этим живёт).
+        val appsAnchor = liveScene.values.any { observed -> observed.appTaskId != null }
+        if (appsAnchor) {
+            val appsAlive = runCatching { split.allRecordedAppsAlive(liveScene) }.getOrNull()
+            if (appsAlive == null) {
+                unproven += "конец сцены: живость приложений нечитаема"
+                return false
+            }
+            if (appsAlive) {
+                unproven += "конец сцены: база утрачена, записанные приложения живы - не конец"
+                return false
+            }
+        }
         if (!covered) {
-            // Мёртвый член при видимой или переходной area (1/2/3): collapse и APP→PICKER
+            // Мёртвый якорь при видимой или переходной area (1/2/3): collapse и APP→PICKER
             // говорят раньше, а недоказуемый остаток перечитает отложенный повтор.
             unproven += "конец сцены: член мёртв, но сцена не накрыта"
             return false

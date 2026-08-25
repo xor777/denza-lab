@@ -2763,6 +2763,70 @@ class SplitScenarioTest {
         assertTrue(car.fake.hasTask(SECONDARY_APP_TASK))
     }
 
+    /**
+     * Правка W1 волны 8 (приёмка v23, Д1(а); механизм М2): выселенная Home-ом пикер-база SECOND
+     * умирает недетерминированно при ЖИВЫХ приложениях пользователя, и ворота конца волны 7
+     * считали её «мёртвым членом» сцены: слоты → P|P, пара забыта, возврат давал «пикер|пикер»
+     * без сообщения (против 1.9.4/1.3.2). Якорь конца сцены с записанными приложениями - только
+     * сами приложения: смерть базы - «база утрачена», сцена и слоты живут, огрызки живой сцены
+     * не трогаются, а возврат пересоздаёт одну базу и возвращает ту же пару теми же задачами.
+     */
+    @Test
+    fun aDeadEvictedPickerBaseWithLivingAppsDoesNotEndTheScene() {
+        val car = car(FakeShell(initialGate = true).apply { liveProductScene(withApps = true) })
+        val core = car.core(SplitDurable(enabled = true, slots = APP_PAIR))
+        car.gateLease.setOwned(true)
+        core.initialize {}
+        core.openPickerSession()
+        car.barrier()
+
+        // Home выселил детей ШИРОКОЙ панели (инвариант 5); база умерла (М2), приложение живо.
+        car.fake.detachTask(SECONDARY_APP_TASK)
+        car.fake.removeActivity(SECONDARY_ROOT, SECONDARY_PICKER_ACTIVITY)
+        car.fake.area = 0
+        car.clearCommands()
+
+        core.homeVisible()
+        car.barrier()
+        assertFalse("gate приостановлен Home-ом как обычно", car.fake.isGateOpen())
+        assertTrue(
+            "подтверждённый Home уборку не подал: якорь - живые приложения",
+            car.diagnostics.none { it.startsWith("home confirmed over a dead member") },
+        )
+
+        // Эхо накрытой сцены: hidden-хинт умершей базы и оконное эхо; плюс их отложенные повторы.
+        core.pickerHidden(SECONDARY_PICKER_TASK)
+        core.dividerResized()
+        car.barrier()
+        car.clock.advance(SplitCoordinatorCore.RECONCILE_RECHECK_DELAY_MS * 3)
+        car.barrier()
+
+        assertEquals("пара не забыта", APP_PAIR, car.store.load().slots)
+        assertTrue("приложения пользователя живы", car.fake.hasTask(PRIMARY_APP_TASK))
+        assertTrue(car.fake.hasTask(SECONDARY_APP_TASK))
+        assertTrue("огрызки живой сцены не тронуты", car.fake.hasTask(PRIMARY_PICKER_TASK))
+        assertFalse(
+            "ни одна задача не адресована удалением",
+            car.commands().any { it.contains(" remove-task ") },
+        )
+
+        // Возврат: ровно одна пересозданная база, ни одного перезапуска приложений (1.9.4, U2).
+        car.clearCommands()
+        core.openPickerSession()
+        car.barrier()
+        val launches = car.commands().filter { it.startsWith("am start ") }
+        assertEquals(
+            "пересоздана ровно одна база",
+            1,
+            launches.count { it.contains(SPLIT_PICKER_ACTIVITY) },
+        )
+        assertEquals("и это единственный запуск возврата", 1, launches.size)
+        assertEquals("те же задачи в своих панелях", PRIMARY_ROOT, car.fake.taskRoot(PRIMARY_APP_TASK))
+        assertEquals(SECONDARY_ROOT, car.fake.taskRoot(SECONDARY_APP_TASK))
+        assertEquals(APP_PAIR, car.store.load().slots)
+        assertEquals(SplitScreenPhase.ACTIVE, core.snapshot().phase)
+    }
+
     @Test
     fun anUninstallWhileThePickerIsOpenFreesThatPaneWithoutOneCommand() {
         // 1.5.6 и §6: удалённое приложение не может остаться выбором панели

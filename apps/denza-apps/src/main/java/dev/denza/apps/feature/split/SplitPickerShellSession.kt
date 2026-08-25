@@ -1658,6 +1658,29 @@ internal class SplitPickerShellSession(
         }
     }
 
+    /**
+     * Whether every recorded APPLICATION of the scene is still alive on the main display under its
+     * exact recorded identity - task id plus package, never a picker base (правка W1 волны 8,
+     * диагноз v23 Д1(а)).
+     *
+     * У сцены с записанными приложениями это - якорь её конца. Пикер-базы сознательно не
+     * участвуют: выселенная Home-ом база умирает недетерминированно (механизм М2) при живых
+     * приложениях пользователя, и её смерть доказывает лишь утрату базы, не конец сцены.
+     * Read-only.
+     */
+    fun allRecordedAppsAlive(scene: Map<SplitPane, SplitPickerLivePane>): Boolean {
+        val apps = scene.values.filter { observed -> observed.appTaskId != null }
+        check(apps.isNotEmpty()) { "У записанной сцены нет приложений-якорей" }
+        val tasks = mainDisplayTasks()
+        return apps.all { observed ->
+            tasks.any { task ->
+                task.id == observed.appTaskId &&
+                    task.effectivePackageName() == observed.appPackageName &&
+                    !task.isDenzaPickerBase()
+            }
+        }
+    }
+
     /** Resolves a product-picker window hint only when one native root has one visible picker. */
     fun singleVisiblePickerTaskId(pickerComponents: Set<String>): Int? {
         val roots = nativeRootIds()
