@@ -36,6 +36,7 @@ import dev.denza.apps.feature.mirrors.SideCameraMonitorService
 import dev.denza.apps.feature.navigation.NavigationCoordinator
 import dev.denza.apps.feature.navigation.NavigationAppPolicy
 import dev.denza.apps.feature.navigation.NavigationPhase
+import dev.denza.apps.feature.navigation.NavigationPlacementPolicy
 import dev.denza.apps.feature.navigation.NavigationSettings
 import dev.denza.apps.feature.navigation.SteeringWheelNavigationAccessCoordinator
 import dev.denza.apps.feature.split.SplitLauncherIconController
@@ -86,6 +87,8 @@ data class DenzaUiState(
     val navigationSteeringWheelButtonReady: Boolean = false,
     val navigationSteeringWheelButtonRepairing: Boolean = false,
     val navigationPlacement: ClusterMapPlacement = ClusterMapPlacement.FULL,
+    /** Placements the current choice actually has; a single entry means there is nothing to pick. */
+    val navigationPlacements: List<ClusterMapPlacement> = ClusterMapPlacement.entries,
     val navigationAppLabel: String = "Яндекс Навигатор",
     val navigationAppChoices: List<NavigationAppChoice> = emptyList(),
     val navigationPickerVisible: Boolean = false,
@@ -164,7 +167,11 @@ object DenzaAppRepository {
             navigationSteeringWheelButtonRepairing =
                 steeringWheelAccess.desired &&
                     SteeringWheelNavigationAccessCoordinator.isRepairing(),
-            navigationPlacement = NavigationCoordinator.placement(),
+            navigationPlacement = NavigationPlacementPolicy.resolve(
+                navigationPackage,
+                NavigationCoordinator.placement(),
+            ),
+            navigationPlacements = NavigationPlacementPolicy.offered(navigationPackage),
             navigationAppLabel = NavigationAppPolicy.fallbackLabel(navigationPackage),
             navigationAppChoices = navigationAppChoices(context, navigationPackage),
             splitScreen = splitScreenSnapshot(
@@ -803,7 +810,7 @@ object DenzaAppRepository {
     private fun navigationAppChoices(
         context: Context,
         selectedPackage: String,
-    ): List<NavigationAppChoice> = NavigationSettings.installedApps(context).map { definition ->
+    ): List<NavigationAppChoice> = NavigationSettings.choices(context).map { definition ->
         NavigationAppChoice(
             packageName = definition.packageName,
             label = definition.fallbackLabel,

@@ -223,27 +223,33 @@ fun DenzaAppsRoot(
                             snapshot = uiState.navigation,
                         ) {
                             Column(modifier = Modifier.fillMaxWidth()) {
-                                StandardSegmentedChoiceRow(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    labels = ClusterMapPlacement.entries.map { placement ->
-                                        when (placement) {
-                                            ClusterMapPlacement.FULL -> "Полный"
-                                            ClusterMapPlacement.LEFT -> "Слева"
-                                            ClusterMapPlacement.CENTER -> "Центр"
-                                            ClusterMapPlacement.RIGHT -> "Справа"
-                                        }
-                                    },
-                                    selectedIndex = ClusterMapPlacement.entries.indexOf(
-                                        uiState.navigationPlacement,
-                                    ),
-                                    enabled = uiState.navigation.status != FeatureStatus.STARTING &&
-                                        uiState.navigation.status != FeatureStatus.RECOVERING,
-                                    onSelect = { index ->
-                                        onNavigationPlacement(ClusterMapPlacement.entries[index])
-                                    },
-                                )
-                                if (SHOW_NAVIGATION_AUTOMATIC) {
+                                // Our own instruments are drawn for the whole panel and have one
+                                // placement, so the row is absent rather than shown with a single
+                                // live cell and three dead ones.
+                                val placements = uiState.navigationPlacements
+                                if (placements.size > 1) {
+                                    StandardSegmentedChoiceRow(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        labels = placements.map { placement ->
+                                            when (placement) {
+                                                ClusterMapPlacement.FULL -> "Полный"
+                                                ClusterMapPlacement.LEFT -> "Слева"
+                                                ClusterMapPlacement.CENTER -> "Центр"
+                                                ClusterMapPlacement.RIGHT -> "Справа"
+                                            }
+                                        },
+                                        selectedIndex = placements.indexOf(
+                                            uiState.navigationPlacement,
+                                        ),
+                                        enabled = uiState.navigation.status != FeatureStatus.STARTING &&
+                                            uiState.navigation.status != FeatureStatus.RECOVERING,
+                                        onSelect = { index ->
+                                            onNavigationPlacement(placements[index])
+                                        },
+                                    )
                                     Spacer(Modifier.height(10.dp))
+                                }
+                                if (SHOW_NAVIGATION_AUTOMATIC) {
                                     SettingsSwitchRow(
                                         title = "Авто",
                                         subtitle = "По режиму приборки",
@@ -252,8 +258,8 @@ fun DenzaAppsRoot(
                                         controlEnabled = uiState.navigation.status != FeatureStatus.STARTING &&
                                             uiState.navigation.status != FeatureStatus.RECOVERING,
                                     )
+                                    Spacer(Modifier.height(10.dp))
                                 }
-                                Spacer(Modifier.height(10.dp))
                                 SettingsSwitchRow(
                                     title = "Кнопка ★ на руле",
                                     subtitle = when {

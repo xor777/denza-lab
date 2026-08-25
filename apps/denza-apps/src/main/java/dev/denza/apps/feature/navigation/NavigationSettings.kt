@@ -61,6 +61,20 @@ object NavigationSettings {
     fun installedApps(context: Context): List<NavigationAppDefinition> =
         NavigationAppPolicy.supported.filter { isInstalled(context, it.packageName) }
 
+    /**
+     * What the picker offers: every navigator actually installed, and then our own instruments.
+     *
+     * The dashboard is last on purpose. It is always available - it cannot be uninstalled without
+     * uninstalling the picker showing it - so putting it first would move whichever navigator the
+     * driver actually uses one tile along for no reason.
+     *
+     * It is deliberately not part of [installedApps], which is also what the fallback in
+     * [selectedPackage] reads. A car with no navigator on it should still say so and ask for one,
+     * rather than silently settling on our instruments because they happen to be installable-proof.
+     */
+    fun choices(context: Context): List<NavigationAppDefinition> =
+        installedApps(context) + NavigationAppPolicy.dashboard
+
     fun isInstalled(context: Context, packageName: String): Boolean = try {
         context.packageManager.getApplicationInfo(packageName, 0)
         true

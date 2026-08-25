@@ -1,6 +1,7 @@
 package dev.denza.apps.feature.navigation
 
 import dev.denza.apps.core.FeatureResolution
+import dev.denza.apps.feature.cluster.ClusterMapPlacement
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -96,6 +97,122 @@ class NavigationModelsTest {
         assertTrue(NavigationAppPolicy.isAllowed("com.waze"))
         assertTrue(NavigationAppPolicy.isAllowed("ru.dublgis.dgismobile"))
         assertFalse(NavigationAppPolicy.isAllowed("com.android.settings"))
+    }
+
+    @Test
+    fun ourOwnInstrumentsAreOfferedBesideTheNavigators() {
+        val dashboard = NavigationAppPolicy.dashboard.packageName
+
+        assertTrue(NavigationAppPolicy.isDashboard(dashboard))
+        assertTrue(NavigationAppPolicy.isAllowed(dashboard))
+        assertEquals("Приборы", NavigationAppPolicy.fallbackLabel(dashboard))
+        // It is this app, addressed by its real id - not one of the navigators wearing our name.
+        assertEquals("dev.denza.apps", dashboard)
+        assertFalse(NavigationAppPolicy.supported.any { it.packageName == dashboard })
+    }
+
+    @Test
+    fun theDashboardIsPutOnThePanelAndTakenOffItRatherThanOpenedAndReturned() {
+        val idle = NavigationSession(target = NavigationTarget.DASHBOARD)
+        val shown = idle.copy(phase = NavigationPhase.PROJECTED)
+
+        assertEquals("На приборку", idle.buttonLabel)
+        assertEquals("Убрать", shown.buttonLabel)
+        assertEquals(
+            NavigationPrimaryAction.PROJECT,
+            NavigationPrimaryActionPolicy.action(
+                initialized = true,
+                hasContext = true,
+                // Nothing was installed for it and nothing needs to be: the app being asked
+                // about is the one answering.
+                selectedAppInstalled = false,
+                actionPending = false,
+                session = idle,
+            ),
+        )
+        assertEquals(
+            NavigationPrimaryAction.RETURN,
+            NavigationPrimaryActionPolicy.action(
+                initialized = true,
+                hasContext = true,
+                selectedAppInstalled = false,
+                actionPending = false,
+                session = shown,
+            ),
+        )
+    }
+
+    @Test
+    fun theDashboardIsNeverLaunchedAsSomebodyElsesTask() {
+        // A navigator with no task of its own is opened first. There is no such step here, so an
+        // absent task must not turn the button into "Открыть" and send the coordinator hunting for
+        // a launch intent that would only re-open this very app.
+        listOf(null, 12).forEach { taskId ->
+            val session = NavigationSession(
+                target = NavigationTarget.DASHBOARD,
+                taskId = taskId,
+            )
+            assertEquals("На приборку", session.buttonLabel)
+            assertEquals(
+                NavigationPrimaryAction.PROJECT,
+                NavigationPrimaryActionPolicy.action(true, true, true, false, session),
+            )
+        }
+    }
+
+    @Test
+    fun theDashboardWaitsWhileTheDriverPicksTheInstrumentDisplay() {
+        val waiting = NavigationSession(
+            target = NavigationTarget.DASHBOARD,
+            phase = NavigationPhase.NEEDS_ACTION,
+            message = "Выберите приборный экран",
+            resolution = FeatureResolution.SELECT_CLUSTER_DISPLAY,
+        )
+
+        assertNull(NavigationPrimaryActionPolicy.action(true, true, true, false, waiting))
+        // The picker is what resolves it, and the retry after it is the same command as the first
+        // attempt rather than a special recovery path.
+        assertTrue(NavigationRecovery.shouldRetryAfterClusterSelection(waiting))
+        assertEquals(
+            NavigationPrimaryAction.PROJECT,
+            NavigationPrimaryActionPolicy.action(
+                true,
+                true,
+                true,
+                false,
+                waiting.copy(resolution = FeatureResolution.RETRY),
+            ),
+        )
+    }
+
+    @Test
+    fun onlyTheNavigatorHasAnywhereElseToGoOnThePanel() {
+        val dashboard = NavigationAppPolicy.dashboard.packageName
+
+        assertEquals(
+            listOf(ClusterMapPlacement.FULL),
+            NavigationPlacementPolicy.offered(dashboard),
+        )
+        assertEquals(
+            ClusterMapPlacement.entries.toList(),
+            NavigationPlacementPolicy.offered("ru.yandex.yandexnavi"),
+        )
+    }
+
+    @Test
+    fun aPlacementTheChoiceDoesNotOfferFallsBackToTheOneItDoes() {
+        val dashboard = NavigationAppPolicy.dashboard.packageName
+
+        // The navigator's own "Справа" survives being chosen while the dashboard is on the panel:
+        // it is stored untouched, and it is what comes back when a navigator is chosen again.
+        assertEquals(
+            ClusterMapPlacement.FULL,
+            NavigationPlacementPolicy.resolve(dashboard, ClusterMapPlacement.RIGHT),
+        )
+        assertEquals(
+            ClusterMapPlacement.RIGHT,
+            NavigationPlacementPolicy.resolve("ru.yandex.yandexnavi", ClusterMapPlacement.RIGHT),
+        )
     }
 
     @Test

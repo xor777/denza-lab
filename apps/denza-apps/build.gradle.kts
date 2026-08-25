@@ -111,6 +111,10 @@ android {
 
     buildFeatures {
         aidl = true
+        // The navigation picker offers this app's own instruments beside the third-party
+        // navigators, and addresses them by the real application id rather than by a copy of
+        // the string that would quietly stop matching if the id ever moved.
+        buildConfig = true
         compose = true
     }
 

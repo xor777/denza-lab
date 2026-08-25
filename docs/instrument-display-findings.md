@@ -48,6 +48,58 @@ and `...HIDE_DASHBOARD`. The dashboard layer sits **after** the shade in the
 presentation's `FrameLayout`, so the shade never darkens it - the dashboard
 protects instrument data by placing its blocks off them, not by dimming itself.
 
+### How the driver reaches it
+
+Wired into the product on 2026-08-25. The dashboard is **one of the choices in
+the navigation picker**, beside Яндекс Навигатор and the rest, under the label
+`Приборы`. That is the honest place for it: the picker answers one question -
+what the driver's display shows - and this is one more answer to it, not a
+second feature that would have to explain how it relates to the first.
+
+It is addressed by this app's own application id (`BuildConfig.APPLICATION_ID`,
+which is why `buildConfig` is enabled for the module) rather than by an invented
+token, so the picker resolves its label, its icon and its "is it installed"
+through the same `PackageManager` call it already makes for every other tile. It
+is deliberately *not* part of `NavigationSettings.installedApps`, which is what
+the fallback in `selectedPackage` reads: a car with no navigator installed should
+still say so and ask for one, rather than quietly settling on our instruments
+because they cannot be missing.
+
+One thing is on the cluster at a time, and it comes off the way it was put
+there. Choosing the dashboard while a navigator is projected returns that
+navigator to the head unit first; choosing a navigator while the dashboard is up
+takes the dashboard off first. `NavigationSession` carries a `NavigationTarget`
+so the card's one button knows which of the two it is acting on - `На приборку`
+and `Убрать` for the dashboard, `Открыть` / `На приборку` / `Вернуть` for a
+navigator. The target is stamped in `NavigationCoordinator.update`, from the
+current selection, so no call site that builds a fresh session can forget it.
+
+Everything the projection path needs and the dashboard does not is skipped: no
+transfer overlay, no split routing lease, no `bypassExternalTaskMoves`, no task
+discovery, no five-second projection health check, and no participation in
+automatic mode - that mode exists to swap a navigator in for the stock map, and
+the dashboard is on the panel because the driver put it there. Two things are
+**not** skipped. The cluster display is resolved by the coordinator before the
+intent is sent, because a scene service that cannot find the display writes a
+line in its own notification and stops, which the card would never hear about;
+resolving first leaves exactly two outcomes, the instruments or the display
+picker. And the `SYSTEM_ALERT_WINDOW` appop is granted over local ADB first,
+as every feature of this app that opens a window on the cluster does.
+
+**Placement: `FULL` only.** The dial, the two corner blocks and the columns
+beside them are one composition measured against the whole panel, so a third of
+it is not a smaller version of this instrument - it is a different one, and this
+product does not offer that one. A choice of one is not a choice, so the card
+shows no placement row at all for the dashboard rather than a row with one live
+cell and three dead ones (`NavigationPlacementPolicy`). The navigator's own saved
+placement is left untouched while the dashboard is chosen and is still there when
+a navigator is chosen again.
+
+`RIGHT` therefore remains a capability of the renderer - the `COMPACT` ramp, the
+`308`-unit virtual space and their tests all still describe it - without being
+something the product offers. Reinstating it is a one-line change to
+`NavigationPlacementPolicy.offered`.
+
 ### Where it may draw
 
 `ClusterDashboardLayout` derives the keep-outs from `ClusterMapLayout`'s own
@@ -63,8 +115,9 @@ map was allowed through. On the verified `2560x720` panel that gives, in the
   the right.
 
 `RIGHT` (`1023x524` at `Rect(1537, 95 - 2560, 619)`) carries no shade at all -
-its protection is the crop - so all of it is usable. That makes it the safest
-placement and the one to try first.
+its protection is the crop - so all of it is usable. That made it the safest
+placement to draw into, and it is why the narrow ramp exists; the product now
+offers `FULL` alone, for the reason given above.
 
 `CENTER` and `LEFT` are refused by `ClusterDashboardLayout.supported`. `CENTER`
 is the only zone with no successful live render of any navigator on record and

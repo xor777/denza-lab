@@ -35,6 +35,7 @@ object NavigationCoordinator {
     @Volatile private var automaticEnabled = false
     @Volatile private var selectedPackage = NavigationAppPolicy.DEFAULT_PACKAGE
     @Volatile private var selectedPlacement = ClusterMapPlacement.FULL
+    @Volatile private var dashboardOnCluster = false
     private var stockModeDetector: StockClusterModeDetector? = null
     private var lastStockMapVisible: Boolean? = null
     private var automaticProjectionActive = false
@@ -85,6 +86,10 @@ object NavigationCoordinator {
     fun selectPlacement(placement: ClusterMapPlacement) {
         val app = context ?: return
         executor.execute {
+            // The dashboard is drawn for the whole panel and offers no placement row, so a
+            // placement arriving while it is chosen belongs to nothing on screen. Refusing it here
+            // also keeps the navigator's own saved choice intact for when one is picked again.
+            if (dashboardSelected()) return@execute
             if (selectedPlacement == placement) {
                 onStateChanged?.invoke()
                 return@execute
@@ -125,7 +130,13 @@ object NavigationCoordinator {
             pendingAutomaticReturn = false
             pendingProjectionAfterOpen = false
             if (session.phase == NavigationPhase.PROJECTED) {
-                returnToCentralDisplay(focusTask = false)
+                // Whatever is on the cluster belongs to the outgoing choice, and comes off the way
+                // that choice put it there. Read before the new selection is stored.
+                if (dashboardSelected()) {
+                    hideDashboardOnCluster()
+                } else {
+                    returnToCentralDisplay(focusTask = false)
+                }
             }
             NavigationSettings.setSelectedPackage(app, packageName)
             selectedPackage = packageName
@@ -174,17 +185,27 @@ object NavigationCoordinator {
             primaryActionPending.set(false)
             return false
         }
-        SplitScreenCoordinator.bypassExternalTaskMoves()
+        // Only the projection path moves tasks between displays; the dashboard moves none, so it
+        // has no reason to reach into split routing at all.
+        if (!dashboardSelected()) SplitScreenCoordinator.bypassExternalTaskMoves()
         executor.execute {
             try {
                 when (action) {
                     NavigationPrimaryAction.RETURN -> {
                         automaticProjectionActive = false
                         pendingAutomaticReturn = false
-                        returnToCentralDisplay()
+                        if (dashboardSelected()) {
+                            hideDashboardOnCluster()
+                        } else {
+                            returnToCentralDisplay()
+                        }
                     }
                     NavigationPrimaryAction.OPEN -> openSelectedApp()
-                    NavigationPrimaryAction.PROJECT -> projectToCluster()
+                    NavigationPrimaryAction.PROJECT -> if (dashboardSelected()) {
+                        showDashboardOnCluster()
+                    } else {
+                        projectToCluster()
+                    }
                 }
             } finally {
                 primaryActionPending.set(false)
@@ -195,14 +216,91 @@ object NavigationCoordinator {
 
     fun onClusterDisplaySelected() {
         executor.execute {
-            if (NavigationRecovery.shouldRetryAfterClusterSelection(session)) {
-                projectToCluster()
-            }
+            if (!NavigationRecovery.shouldRetryAfterClusterSelection(session)) return@execute
+            if (dashboardSelected()) showDashboardOnCluster() else projectToCluster()
         }
+    }
+
+    private fun dashboardSelected(): Boolean = NavigationAppPolicy.isDashboard(selectedPackage)
+
+    /**
+     * Puts this app's own instruments on the driver's display.
+     *
+     * The display is resolved here rather than left to the scene service because this is the one
+     * place that can answer for it: a service that cannot find the cluster writes a line in its own
+     * notification and stops, which the card would never hear about. Resolving first leaves exactly
+     * two outcomes - the instruments on the panel, or the display picker - which is what the
+     * projection path already offers and what the driver is owed either way.
+     */
+    private fun showDashboardOnCluster() {
+        val app = context ?: return
+        val selected = ClusterDisplayResolver.resolve(app)
+        if (selected !is ClusterDisplaySelection.Selected) {
+            val needsSelection = selected is ClusterDisplaySelection.NeedsVerification
+            update(
+                NavigationSession(
+                    phase = NavigationPhase.NEEDS_ACTION,
+                    message = if (needsSelection) {
+                        "Выберите приборный экран"
+                    } else {
+                        "Повторите поиск приборного экрана"
+                    },
+                    resolution = if (needsSelection) {
+                        FeatureResolution.SELECT_CLUSTER_DISPLAY
+                    } else {
+                        FeatureResolution.RETRY
+                    },
+                ),
+            )
+            return
+        }
+        // The scene's base presentation is a system window. Every feature of this app that opens
+        // one grants itself the appop first, over the same local ADB this card already needs.
+        try {
+            DenzaLocalAdb.client(app).shell(
+                "cmd appops set ${app.packageName} SYSTEM_ALERT_WINDOW allow",
+            )
+        } catch (error: Exception) {
+            val problem = friendlyProxyProblem(error)
+            update(
+                NavigationSession(
+                    phase = NavigationPhase.NEEDS_ACTION,
+                    message = problem.message,
+                    details = error.toString(),
+                    resolution = problem.resolution,
+                ),
+            )
+            return
+        }
+        ClusterSceneService.showDashboard(
+            app,
+            NavigationPlacementPolicy.offered(selectedPackage).first(),
+        )
+        dashboardOnCluster = true
+        update(NavigationSession(phase = NavigationPhase.PROJECTED))
+    }
+
+    private fun hideDashboardOnCluster() {
+        val app = context ?: return
+        ClusterSceneService.hideDashboard(app)
+        dashboardOnCluster = false
+        update(NavigationSession())
     }
 
     private fun discoverTask() {
         val app = context ?: return
+        if (dashboardSelected()) {
+            // Nothing to discover: the dashboard is a view of ours, not somebody else's task. The
+            // only thing worth restating is whether it is currently on the panel.
+            update(
+                if (dashboardOnCluster) {
+                    NavigationSession(phase = NavigationPhase.PROJECTED)
+                } else {
+                    NavigationSession()
+                },
+            )
+            return
+        }
         val packageName = selectedPackage
         if (!NavigationSettings.isInstalled(app, packageName)) {
             update(
@@ -673,6 +771,9 @@ object NavigationCoordinator {
     private fun verifyActiveSession() {
         val app = context ?: return
         val current = session
+        // The dashboard has no task and no display of its own to lose track of; it is a view in a
+        // window this process owns, and it is there for exactly as long as the scene keeps it.
+        if (current.target == NavigationTarget.DASHBOARD) return
         if (current.phase != NavigationPhase.PROJECTED) return
         val taskId = current.taskId ?: return
         val expectedDisplay = current.virtualDisplayId ?: return
@@ -819,6 +920,10 @@ object NavigationCoordinator {
 
     private fun reconcileAutomaticMode() {
         if (!automaticEnabled) return
+        // Automatic mode follows the stock cluster in and out of its map screen so a navigator can
+        // take that screen's place. The dashboard is not a navigator and is never swapped in for
+        // the stock map; it is on the panel when the driver put it there.
+        if (dashboardSelected()) return
         val app = context ?: return
         val selected = ClusterDisplayResolver.resolve(app)
         if (selected !is ClusterDisplaySelection.Selected) return
@@ -869,8 +974,19 @@ object NavigationCoordinator {
         }
     }
 
+    /**
+     * The target is a property of the selection, not of the step being reported, so it is stamped
+     * once here instead of being repeated at every call site that builds a fresh session - and no
+     * future one can forget it and quietly hand the driver a navigator's button.
+     */
     private fun update(next: NavigationSession) {
-        session = next
+        session = next.copy(
+            target = if (dashboardSelected()) {
+                NavigationTarget.DASHBOARD
+            } else {
+                NavigationTarget.NAVIGATOR
+            },
+        )
         onStateChanged?.invoke()
     }
 
