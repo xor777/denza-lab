@@ -1318,12 +1318,36 @@ internal class ReconcileOperation(
     ): Boolean {
         val hostTaskId = requestedHostTaskId
             ?: split.singleVisiblePickerTaskId(SPLIT_PICKER_COMPONENT_SET)
-            ?: run {
-                unproven += "picker-visible: видимый пикер не опознан"
-                return false
-            }
+            ?: return ownSceneShowsEveryVisiblePicker(split)
         if (!reconcileScene(op, split, settleResize = false)) return false
         closeRevealedApp(op, split, hostTaskId)
+        return true
+    }
+
+    /**
+     * Правка W3 волны 9 (приёмка v24, Д3): хинт без host-id над СВОЕЙ сценой - не подвешенный мир.
+     *
+     * Оконное событие пикера приходит без задачи, и её ищет `singleVisiblePickerTaskId` - который
+     * требует РОВНО ОДНОГО видимого пикера в панельных корнях. Сразу после сборки сцены
+     * «пикер|пикер» видимых пикеров ДВА, и каждое открытие оставляло в ринге одну-две строки
+     * «видимый пикер не опознан» со взведённым повтором. Несколько видимых пикеров, и все до
+     * одного - записанные члены живой сцены (exact identity), - это доказанное состояние сцены:
+     * закрывать нечего (над пикером не стоит приложение), и мир решён.
+     *
+     * Ноль видимых пикеров и любой посторонний среди них остаются прежним «не опознан»: тогда
+     * хинт действительно ничего не доказывает.
+     *
+     * @return whether this hint proved the scene. Read-only on both branches.
+     */
+    private fun ownSceneShowsEveryVisiblePicker(split: SplitPickerShellSession): Boolean {
+        val recorded = liveScene.values.mapTo(mutableSetOf(), SplitPickerLivePane::hostTaskId)
+        val visible = runCatching { split.visiblePickerTaskIds(SPLIT_PICKER_COMPONENT_SET) }
+            .getOrNull()
+            .orEmpty()
+        if (visible.size < 2 || !recorded.containsAll(visible)) {
+            unproven += "picker-visible: видимый пикер не опознан"
+            return false
+        }
         return true
     }
 

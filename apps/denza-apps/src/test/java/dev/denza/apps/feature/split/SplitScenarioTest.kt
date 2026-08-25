@@ -2563,6 +2563,85 @@ class SplitScenarioTest {
     }
 
     /**
+     * Правка W3 волны 9 (приёмка v24, Д3): двусмысленный хинт над СВОЕЙ сценой - не отказ.
+     *
+     * Оконное событие пикера приходит без host-id, и задачу ищет `singleVisiblePickerTaskId`,
+     * которому нужен РОВНО ОДИН видимый пикер. Сразу после сборки «пикер|пикер» видимых пикеров
+     * ДВА, и каждое открытие оставляло в ринге одну-две строки «видимый пикер не опознан» со
+     * взведённым повтором. Все видимые пикеры - записанные члены живой сцены: это доказанное
+     * состояние сцены, а не подвешенный мир.
+     */
+    @Test
+    fun anAmbiguousPickerHintOverOurOwnSceneProvesItInsteadOfComplaining() {
+        val car = car(FakeShell().apply { liveProductScene() })
+        val core = car.core(SplitDurable(enabled = true, slots = PICKER_PAIR))
+        core.initialize {}
+        core.openPickerSession()
+        car.barrier()
+        car.clearCommands()
+
+        core.pickerVisible(hostTaskId = null)
+        car.barrier()
+
+        assertTrue(
+            "сцена доказана - строки отказа нет",
+            car.diagnostics.none { it.startsWith("reconcile unproven:") },
+        )
+        assertEquals("и повтор не взведён", 0, car.clock.pendingTimers())
+        assertEquals("и ничего не тронуто", emptyList<String>(), car.mutations())
+        assertEquals(PICKER_PAIR, car.store.load().slots)
+    }
+
+    /**
+     * Обратная сторона правки W3 волны 9: когда своего видимого пикера нет вовсе, хинт
+     * по-прежнему ничего не доказывает и называет отказавший предикат.
+     */
+    @Test
+    fun aPickerHintWithNoVisiblePickerOfOursStillNamesItsRefusal() {
+        val car = car(FakeShell().apply { liveProductScene(withApps = true) })
+        val core = car.core(SplitDurable(enabled = true, slots = APP_PAIR))
+        core.initialize {}
+        core.openPickerSession()
+        car.barrier()
+
+        // Оба пикера накрыты своими приложениями: видимых пикеров ноль.
+        core.pickerVisible(hostTaskId = null)
+        car.barrier()
+
+        val lines = car.diagnostics.filter { it.startsWith("reconcile unproven:") }
+        assertEquals("одна строка на отказ операции", 1, lines.size)
+        assertTrue(
+            "и она называет предикат: ${lines.single()}",
+            lines.single().contains("picker-visible: видимый пикер не опознан"),
+        )
+        assertEquals("и взводит один повтор", 1, car.clock.pendingTimers())
+    }
+
+    /**
+     * И вторая обратная сторона: посторонний пикер среди видимых - не член записанной сцены, и
+     * разрешать по нему нечего. Exact identity, как везде (инвариант 3).
+     */
+    @Test
+    fun aVisiblePickerOutsideTheRecordedSceneKeepsTheOldRefusal() {
+        val car = car(FakeShell().apply { liveProductScene() })
+        val core = car.core(SplitDurable(enabled = true, slots = PICKER_PAIR))
+        core.initialize {}
+        core.openPickerSession()
+        car.barrier()
+
+        // Третья пикер-база нашего компонента, которой записанная сцена не знает, встала поверх
+        // узкой панели: видимых пикеров снова два, но один из них - не член сцены.
+        car.fake.addTask(PRIMARY_ROOT, 62, SPLIT_HOST_PACKAGE, PRIMARY_PICKER_ACTIVITY)
+        core.pickerVisible(hostTaskId = null)
+        car.barrier()
+
+        val lines = car.diagnostics.filter { it.startsWith("reconcile unproven:") }
+        assertEquals(1, lines.size)
+        assertTrue(lines.single().contains("picker-visible: видимый пикер не опознан"))
+        assertEquals(1, car.clock.pendingTimers())
+    }
+
+    /**
      * Правка W4 (U5, диагноз v21): каждая недоказанная сверка оставляет одну строку с именами
      * отказавших предикатов - строку на отказ операции, не на предикат-в-цикле. v21
      * диагностировался на полной тишине этих веток. Мир здесь честно не сведён и не кончился:

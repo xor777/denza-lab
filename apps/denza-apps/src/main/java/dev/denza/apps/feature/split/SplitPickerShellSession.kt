@@ -1719,7 +1719,18 @@ internal class SplitPickerShellSession(
     }
 
     /** Resolves a product-picker window hint only when one native root has one visible picker. */
-    fun singleVisiblePickerTaskId(pickerComponents: Set<String>): Int? {
+    fun singleVisiblePickerTaskId(pickerComponents: Set<String>): Int? =
+        visiblePickerTaskIds(pickerComponents).singleOrNull()
+
+    /**
+     * Every product picker currently visible in a panel root, by task id (правка W3 волны 9).
+     *
+     * The hint that carries no host id is ambiguous only until this list is read: a window event
+     * over a scene of ours whose every visible picker is a recorded member of that scene names no
+     * single task, and proves the scene all the same. Read-only, and the same two reads
+     * [singleVisiblePickerTaskId] already pays for.
+     */
+    fun visiblePickerTaskIds(pickerComponents: Set<String>): List<Int> {
         val roots = nativeRootIds()
         val state = snapshot()
         return roots.values.asSequence()
@@ -1732,7 +1743,6 @@ internal class SplitPickerShellSession(
             }
             .map(SplitTask::id)
             .toList()
-            .singleOrNull()
     }
 
     fun attachPicker(
