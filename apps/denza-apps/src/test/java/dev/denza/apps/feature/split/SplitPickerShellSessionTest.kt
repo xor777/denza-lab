@@ -150,8 +150,15 @@ class SplitPickerShellSessionTest {
         assertEquals(SplitPane.PRIMARY, SplitPane.SECONDARY.other())
     }
 
+    /**
+     * Правка W3 волны 8 (инвариант 3, примечание контракта под 1.5; диагноз v23 Д1(б)): чужая
+     * задача в панельном корне - задача пользователя. Расчищая корень под сцену, сборка выселяет
+     * её живой в полноэкранный root фоном - live-proven `am stack move-task ... false` - и не
+     * шлёт ни одного remove-task. До волны 8 этот же мир кончался казнью обеих задач (живьём:
+     * музыка 332 удалена при пустых targets).
+     */
     @Test
-    fun explicitOpenCreatesTwoPickerBasesAndClearsOldPaneTasks() {
+    fun explicitOpenCreatesTwoPickerBasesAndEvictsOldPaneTasksAlive() {
         val fake = FakeShell().apply {
             addTask(PRIMARY_ROOT, 40, NAVIGATOR, "$NAVIGATOR.MainActivity")
             addTask(SECONDARY_ROOT, 41, MUSIC, "$MUSIC.MainActivity")
@@ -165,13 +172,96 @@ class SplitPickerShellSessionTest {
         assertFalse(fake.hasPackage(PRIMARY_ROOT, NAVIGATOR))
         assertFalse(fake.hasPackage(SECONDARY_ROOT, MUSIC))
         assertEquals(3, fake.area)
-        // 1.13.3: both panes are cleared by one decision and one invocation of the proxy, where
-        // the two blind per-pane sweeps used to load it twice.
-        val removals = fake.commands.filter { it.contains(" remove-task ") }
-        assertEquals(1, removals.size)
-        assertTrue(removals.single().contains("remove-task 40 "))
-        assertTrue(removals.single().contains(" 41 "))
+        assertTrue("задача пользователя жива", fake.hasTask(40))
+        assertTrue(fake.hasTask(41))
+        assertEquals("выселена фоном в полноэкранный root", FULL_ROOT, fake.taskRoot(40))
+        assertEquals(FULL_ROOT, fake.taskRoot(41))
+        assertTrue(fake.commands.any { it == "am stack move-task 40 $FULL_ROOT false" })
+        assertTrue(fake.commands.any { it == "am stack move-task 41 $FULL_ROOT false" })
+        assertFalse(
+            "ни одного remove-task: членство в корне - не приговор",
+            fake.commands.any { it.contains(" remove-task ") },
+        )
         assertFalse(fake.commands.any { it == "service call activity_task 115" })
+    }
+
+    /**
+     * Обратная сторона правки W3: своё по точному компоненту sweep по-прежнему удаляет. Третья
+     * собственная пикер-база, оставшаяся в корне после того, как обе панели получили своих,
+     * казнится, а не выселяется - её identity и есть наш компонент (инвариант 3).
+     */
+    @Test
+    fun aStaleThirdPickerBaseOfOurOwnIsStillRemovedByTheSweep() {
+        val fake = FakeShell().apply {
+            addTask(PRIMARY_ROOT, 40, SPLIT_HOST_PACKAGE, PRIMARY_PICKER_ACTIVITY)
+            addTask(PRIMARY_ROOT, 41, SPLIT_HOST_PACKAGE, PRIMARY_PICKER_ACTIVITY)
+            addTask(SECONDARY_ROOT, 42, SPLIT_HOST_PACKAGE, SECONDARY_PICKER_ACTIVITY)
+        }
+
+        val hosts = session(fake).buildPickers()
+
+        assertEquals("усыновлена старшая база панели", 41, hosts.getValue(SplitPane.PRIMARY))
+        assertEquals(42, hosts.getValue(SplitPane.SECONDARY))
+        assertFalse("лишняя собственная база удалена, не выселена", fake.hasTask(40))
+        assertTrue(fake.commands.any { it.contains(" remove-task ") && it.contains("remove-task 40 ") })
+        assertFalse(fake.commands.any { it == "am stack move-task 40 $FULL_ROOT false" })
+    }
+
+    /**
+     * Правка W3 волны 8 (диагноз v23 Д2, U3): нативно втянутый хаб - наш package, но НЕ наш
+     * компонент - это задача пользователя. Sweep сборки выселяет её живой фоном; пара строится,
+     * и ни один remove-task её не адресует.
+     */
+    @Test
+    fun aNativelyPulledHubTaskIsEvictedAliveWhileThePairBuilds() {
+        val fake = FakeShell().apply {
+            area = 3
+            addTask(PRIMARY_ROOT, 344, SPLIT_HOST_PACKAGE, "$SPLIT_HOST_PACKAGE.MainActivity")
+        }
+
+        val built = session(fake).buildScene(
+            PICKERS,
+            mapOf(
+                SplitPane.PRIMARY to launchTargetOf(NAVIGATOR),
+                SplitPane.SECONDARY to launchTargetOf(MUSIC),
+            ),
+        )
+
+        assertEquals(emptySet<SplitPane>(), built.failed)
+        assertEquals(NAVIGATOR, built.panes.getValue(SplitPane.PRIMARY).appPackageName)
+        assertEquals(MUSIC, built.panes.getValue(SplitPane.SECONDARY).appPackageName)
+        assertTrue("задача хаба жива", fake.hasTask(344))
+        assertEquals("выселена фоном", FULL_ROOT, fake.taskRoot(344))
+        assertTrue(fake.commands.any { it == "am stack move-task 344 $FULL_ROOT false" })
+        assertFalse(fake.commands.any { it.contains("remove-task 344 ") })
+    }
+
+    /**
+     * Тот же класс слепоты в pre-clear тапа (правка W3 волны 8): чужой житель корня выселяется
+     * живым, а удаляется только собственный артефакт по точному компоненту - transparent host
+     * прерванного запуска.
+     */
+    @Test
+    fun aPickerTapEvictsTheForeignOccupantAndRemovesOnlyOurOwnArtifact() {
+        val fake = FakeShell()
+        val split = session(fake)
+        val pickers = split.buildPickers()
+        fake.addTask(SECONDARY_ROOT, 344, SPLIT_HOST_PACKAGE, "$SPLIT_HOST_PACKAGE.MainActivity")
+        fake.addTask(SECONDARY_ROOT, 345, SPLIT_HOST_PACKAGE, SPLIT_APP_HOST_ACTIVITY)
+
+        val placement = split.selectApp(
+            pickerTaskId = pickers.getValue(SplitPane.SECONDARY),
+            target = SplitLaunchTarget(MUSIC, "$MUSIC/$MUSIC.MainActivity"),
+            pickerComponents = PICKER_COMPONENTS,
+        )
+
+        assertEquals(SplitPane.SECONDARY, placement.pane)
+        assertEquals(MUSIC, placement.packageName)
+        assertTrue("чужой житель корня жив", fake.hasTask(344))
+        assertEquals(FULL_ROOT, fake.taskRoot(344))
+        assertTrue(fake.commands.any { it == "am stack move-task 344 $FULL_ROOT false" })
+        assertFalse("собственный host-артефакт удалён по exact компоненту", fake.hasTask(345))
+        assertFalse(fake.commands.any { it.contains("remove-task 344 ") })
     }
 
     @Test

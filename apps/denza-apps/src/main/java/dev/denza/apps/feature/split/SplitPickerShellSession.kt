@@ -842,10 +842,10 @@ internal class SplitPickerShellSession(
             }
         }
         // A pane is its picker plus at most one app, so whatever else a previous session or a
-        // native ending left in one has to go before this scene can be proven. It is the rule the
-        // two blind `prunePane` calls used to run, now decided from the read above and sent as a
-        // single call: a clean pane costs nothing at all, and the copy of the package this pane is
-        // about to show is kept so that restoring it reuses the task instead of restarting it (U2).
+        // native ending left in one has to leave before this scene can be proven. It is the rule
+        // the two blind `prunePane` calls used to run, now decided from the read above; a clean
+        // pane costs nothing at all, and the copy of the package this pane is about to show is
+        // kept so that restoring it reuses the task instead of restarting it (U2).
         val stale = SplitPane.entries.flatMap { pane ->
             val target = wanted[pane]?.packageName
             val keep = setOfNotNull(
@@ -866,7 +866,19 @@ internal class SplitPickerShellSession(
             .filter { root -> root.displayId == MAIN_DISPLAY_ID }
             .flatMap { root -> root.tasks.asSequence() }
             .filter { task -> task.isDenzaAppHost() }
-        removeTasksSafely((stale + strayHosts).distinctBy(SplitTask::id))
+        // Правка W3 волны 8 (инвариант 3, примечание контракта под 1.5; диагноз v23 Д1(б)/Д2):
+        // членство в панельном корне - не приговор. Удаляется только доказуемо своё - собственные
+        // компоненты по exact identity и задачи, СОЗДАННЫЕ этой операцией по её же журнальному
+        // чтению (механика W6). Любая другая задача корня - задача пользователя, чем бы она туда
+        // ни попала (нативное втягивание, прежний выбор), и выселяется живой фоном. Непрочитанное
+        // прошлое (`preexistingTaskIds == null`) трактуется как «не наше»: не доказано создание -
+        // не удаляем.
+        val (executable, foreign) = stale.partition { task ->
+            task.isOwnSplitComponent() ||
+                (preexistingTaskIds != null && task.id !in preexistingTaskIds)
+        }
+        removeTasksSafely((executable + strayHosts).distinctBy(SplitTask::id))
+        evictToFullRootInBackground(foreign)
         if (launching.isNotEmpty()) {
             launchApps(
                 rootIds = rootIds,
@@ -1083,13 +1095,19 @@ internal class SplitPickerShellSession(
         }
         ensureSupported(target.packageName)
 
-        // A picker tap is authoritative proof that this pane is being selected. Clear every
-        // task above its exact permanent base before requiring the picker to be the root top.
-        // This also recovers a transparent SplitAppHostActivity left by an interrupted launch;
-        // otherwise that input window can remain focused over the visible picker forever.
-        removeTasksSafely(
-            before.root(targetRootId)?.tasks.orEmpty().filterNot { it.id == pickerHost.id },
-        )
+        // A picker tap is authoritative proof that this pane is being selected. Free its exact
+        // permanent base before requiring the picker to be the root top. Правка W3 волны 8
+        // (инвариант 3, примечание контракта под 1.5; диагноз v23 Д2): удаляется только своё по
+        // точному компоненту - в частности transparent SplitAppHostActivity прерванного запуска,
+        // чьё input-окно иначе навсегда держит фокус над видимым пикером. Чужая задача в корне -
+        // задача пользователя (нативно втянутый хаб - U3: наш package, не наш компонент) и
+        // выселяется живой фоном; эта операция ещё ничего не создавала, так что «созданного ею»
+        // здесь не бывает.
+        val (ownArtifacts, foreignOccupants) = before.root(targetRootId)?.tasks.orEmpty()
+            .filterNot { task -> task.id == pickerHost.id || task.isEmptyRootMarker() }
+            .partition { task -> task.isOwnSplitComponent() }
+        removeTasksSafely(ownArtifacts)
+        evictToFullRootInBackground(foreignOccupants)
 
         val clearedState = snapshot()
         val clearedPicker = clearedState.root(targetRootId)?.tasks?.firstOrNull { task ->
@@ -1746,9 +1764,21 @@ internal class SplitPickerShellSession(
             preexistingTaskIds != null && task.id !in preexistingTaskIds
         }
         val removed = removeTasksSafely(created)
-        if (borrowed.isEmpty()) return removed
+        return evictToFullRootInBackground(borrowed) || removed
+    }
+
+    /**
+     * Правка W3 волны 8: выселение чужого из панельного корня - живьём, фоном, в полноэкранный
+     * IVI root (примечание контракта под 1.5, инвариант 3). Команда - то же live-proven семейство
+     * `am stack move-task ... false`, которым borrowed-ветка [discardFailedRestoration] возвращала
+     * пре-существовавший таск; новых команд у выселения нет.
+     *
+     * @return whether anything actually had to leave.
+     */
+    private fun evictToFullRootInBackground(tasks: List<SplitTask>): Boolean {
+        if (tasks.isEmpty()) return false
         val fullRootId = fullIviRootTaskId()
-        borrowed.forEach { task -> moveTask(task.id, fullRootId, toTop = false) }
+        tasks.forEach { task -> moveTask(task.id, fullRootId, toTop = false) }
         pause(ROOT_SETTLE_MS)
         return true
     }
