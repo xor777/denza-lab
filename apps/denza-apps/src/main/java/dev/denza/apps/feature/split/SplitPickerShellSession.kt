@@ -1905,6 +1905,13 @@ internal class SplitPickerShellSession(
      * `am stack move-task ... false`, которым borrowed-ветка [discardFailedRestoration] возвращала
      * пре-существовавший таск; новых команд у выселения нет.
      *
+     * Геометрия выселенной задачи принадлежит прошивке, и спорить с ней нечем (машинная правда
+     * 2026-08-25, чтение этой машины). Полноэкранный IVI-корень фоновых задач не держит вовсе -
+     * в нём один пустой маркер, - а всякая фоновая задача живёт в СОБСТВЕННОМ корне
+     * (`RootTask id=<taskId>`), чьи границы равны её собственным: и та, что побывала в панели
+     * (`[880,112][2536,1472]`), и та, что не бывала. Правка W2 волны 9 искала выселенную задачу
+     * среди детей полноэкранного корня и потому не находила никогда - удалена как не работавшая.
+     *
      * @return whether anything actually had to leave.
      */
     private fun evictToFullRootInBackground(tasks: List<SplitTask>): Boolean {
@@ -1912,32 +1919,7 @@ internal class SplitPickerShellSession(
         val fullRootId = fullIviRootTaskId()
         tasks.forEach { task -> moveTask(task.id, fullRootId, toTop = false) }
         pause(ROOT_SETTLE_MS)
-        resizeEvictedToFullRoot(tasks.map(SplitTask::id), fullRootId)
         return true
-    }
-
-    /**
-     * Правка W2 волны 9 (приёмка v24, Д2): выселенная задача переезжает, но остаётся в ПАНЕЛЬНЫХ
-     * границах, тогда как всякая другая фоновая задача полноэкранного корня стоит в его границах
-     * (живьём: хаб `[880,112][2536,1472]` против `[0,0][2560,1600]`). Пользователь встретит её
-     * такой, когда откроет её следующий раз.
-     *
-     * Команда - тот же `am task resize`, которым [normalizeTaskToRoot] исторически лечило
-     * «переехали, но остались в старых границах». Постусловия у неё здесь нет намеренно:
-     * выселение уже состоялось, и косметика не вправе провалить операцию - нечитаемый корень,
-     * корень без размера или задача, которой прошивка отказала в границах, просто пропускаются.
-     */
-    private fun resizeEvictedToFullRoot(taskIds: List<Int>, fullRootId: Int) {
-        val root = snapshot().root(fullRootId) ?: return
-        if (!root.bounds.hasArea()) return
-        root.tasks
-            .filter { task -> task.id in taskIds && task.bounds != root.bounds }
-            .forEach { task ->
-                run(
-                    "am task resize ${task.id} ${root.bounds.left} ${root.bounds.top} " +
-                        "${root.bounds.right} ${root.bounds.bottom}",
-                )
-            }
     }
 
     fun returnRecordedTaskFullscreen(

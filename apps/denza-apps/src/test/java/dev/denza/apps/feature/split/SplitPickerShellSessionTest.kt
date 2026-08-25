@@ -237,39 +237,15 @@ class SplitPickerShellSessionTest {
     }
 
     /**
-     * Правка W2 волны 9 (приёмка v24, Д2): выселенная задача уносила с собой ПАНЕЛЬНУЮ геометрию -
-     * живьём хаб оставался в `[880,112][2536,1472]`, тогда как всякая другая фоновая задача
-     * полноэкранного корня стоит в `[0,0][2560,1600]`. После переезда её границы приводятся к
-     * границам полноэкранного корня тем же `am task resize`.
+     * Геометрия выселенной задачи - дело прошивки (машинная правда 2026-08-25, чтение машины).
+     *
+     * Полноэкранный IVI-корень фоновых задач не держит вовсе, а всякая фоновая задача живёт в
+     * собственном корне, чьи границы равны её собственным, - и побывавшая в панели, и не бывавшая.
+     * Выселение обязано состояться и не обязано ничего перекраивать: продукт переносит задачу
+     * живой и ни на чём не спотыкается.
      */
     @Test
-    fun anEvictedForeignTaskIsGivenTheGeometryOfTheFullRoot() {
-        val fake = FakeShell().apply {
-            area = 3
-            // Прошивка не переразмеряет задачу сама: она переезжает в прежних границах панели.
-            preserveBoundsOnShellMove = true
-            addTask(SECONDARY_ROOT, 344, SPLIT_HOST_PACKAGE, "$SPLIT_HOST_PACKAGE.MainActivity")
-        }
-
-        session(fake).buildPickers()
-
-        assertTrue("задача пользователя жива", fake.hasTask(344))
-        assertEquals("выселена фоном", FULL_ROOT, fake.taskRoot(344))
-        assertEquals("и в границах полноэкранного корня", FULL, fake.taskBounds(344))
-        assertTrue(
-            fake.commands.any {
-                it == "am task resize 344 ${FULL.left} ${FULL.top} ${FULL.right} ${FULL.bottom}"
-            },
-        )
-    }
-
-    /**
-     * Обратная сторона правки W2 волны 9: косметика не вправе провалить выселение. Пакет, которому
-     * прошивка отказывает в чужих границах, переезжает и остаётся при своих - выселение всё равно
-     * состоялось, и ни одна проверка на этом не спотыкается.
-     */
-    @Test
-    fun anEvictedTaskThatRefusesTheFullRootGeometryStillLeavesThePane() {
+    fun anEvictedTaskLeavesThePaneAliveAndKeepsWhateverGeometryTheFirmwareGivesIt() {
         val fake = FakeShell().apply {
             area = 3
             preserveBoundsOnShellMove = true
