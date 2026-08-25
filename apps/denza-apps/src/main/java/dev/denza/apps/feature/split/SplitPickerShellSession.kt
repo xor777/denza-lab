@@ -516,8 +516,17 @@ internal class SplitPickerShellSession(
      *
      * Сигнатура отличает схлопывание от краха 1.7.3: у краха host-пикер жив в панельном root и
      * отсутствует только app - такая панель не схлопнута, это путь APP→PICKER. Панель без
-     * записанного app схлопнута, когда отсутствует её host. Ровно одна полностью отсутствующая
-     * панель; обе исчезли - это конец сцены, его решает existence-проверка конца, не collapse.
+     * записанного app схлопнута, когда отсутствует её host.
+     *
+     * Правка W1 волны 9 (приёмка v24, Д1): когда панельные корни покинули ОБЕ записанные панели,
+     * выжившую называет сама area. Живая геометрия дефекта: схлопывается широкая SECOND справа, а
+     * выжившая узкая уходит fullscreen вместе со смертью своей пикер-базы - её приложение стоит
+     * уже в полноэкранном корне, и из панельных корней пропадают обе. При area 1/2 это не
+     * двусмысленность: карта tx30 (findings) называет выжившую панель поимённо
+     * (AREA_PRIMARY_FULL - PRIMARY, AREA_SECONDARY_FULL - SECONDARY), а схлопнута - другая.
+     * Прежний безусловный отказ этой ветки оставлял слот схлопнутой панели нечищеным, и следующий
+     * open воскрешал её приложение (против 1.8.2 и 1.3.4). Конец сцены здесь ни при чём: он живёт
+     * под накрытием (area 0/4), а до этих строк накрытие не доходит вовсе.
      */
     fun collapsedPaneByExistence(
         pickerComponents: Set<String>,
@@ -530,8 +539,10 @@ internal class SplitPickerShellSession(
         expectedPanes: Map<SplitPane, SplitPickerObservedPane>,
     ): SplitCollapsedPaneRead {
         val area = callInt("service call activity_task 30")
-        if (area != AREA_PRIMARY_FULL && area != AREA_SECONDARY_FULL) {
-            return SplitCollapsedPaneRead(null, "area=$area")
+        val survivorByArea = when (area) {
+            AREA_PRIMARY_FULL -> SplitPane.PRIMARY
+            AREA_SECONDARY_FULL -> SplitPane.SECONDARY
+            else -> return SplitCollapsedPaneRead(null, "area=$area")
         }
         if (expectedPanes.keys != SplitPane.entries.toSet()) {
             return SplitCollapsedPaneRead(null, "сцена не записана двухпанельной")
@@ -567,7 +578,12 @@ internal class SplitPickerShellSession(
         return when (absent.size) {
             1 -> SplitCollapsedPaneRead(absent.single(), "collapsed")
             0 -> SplitCollapsedPaneRead(null, "ни одна панель не покинула панельные корни целиком")
-            else -> SplitCollapsedPaneRead(null, "обе панели покинули корни: конец сцены, не collapse")
+            // Правка W1 волны 9: обе панели вне панельных корней при area 1/2 - выжившую назвала
+            // area, схлопнута другая.
+            else -> SplitCollapsedPaneRead(
+                survivorByArea.other(),
+                "collapsed: выживший назван area=$area",
+            )
         }
     }
 

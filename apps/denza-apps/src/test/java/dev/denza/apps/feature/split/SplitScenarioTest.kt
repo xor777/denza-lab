@@ -2281,6 +2281,86 @@ class SplitScenarioTest {
     }
 
     /**
+     * Правка W1 волны 9, регресс-форма приёмки v24 (дефект 1): та же норма 1.8.2/1.3.4 в
+     * геометрии, где выживший тоже покинул панельные корни.
+     *
+     * Живьём (детерминированно, 2/2): схлопывается ШИРОКАЯ SECOND справа, а выжившая узкая уходит
+     * fullscreen вместе со смертью своей пикер-базы - её приложение стоит уже в полноэкранном
+     * корне. Из панельных корней пропадают ОБЕ записанные панели, и до волны 9 доказательство по
+     * существованию отказывало здесь безусловно: слот схлопнутой панели не чистился, ворота конца
+     * сцены честно говорили «записанные приложения живы - не конец», и следующий open ВОСКРЕШАЛ
+     * схлопнутое приложение. При area 1/2 выжившего называет сама area, и схлопнута - другая.
+     */
+    @Test
+    fun aCollapseIsProvenByAreaWhenTheSurvivorAlsoLeftItsPanelRoot() {
+        val car = car(FakeShell(initialGate = true).apply { liveProductScene(withApps = true) })
+        val core = car.core(SplitDurable(enabled = true, slots = APP_PAIR))
+        car.gateLease.setOwned(true)
+        core.initialize {}
+        core.openPickerSession()
+        car.barrier()
+        val commits = car.store.commits
+        car.clearCommands()
+
+        // Схлопнута широкая SECOND: её host и app прошивка отвязала живыми.
+        car.fake.detachTask(SECONDARY_PICKER_TASK)
+        car.fake.detachTask(SECONDARY_APP_TASK)
+        // Выжившая узкая ушла fullscreen: её база мертва, её приложение - в полноэкранном корне.
+        car.fake.removeActivity(PRIMARY_ROOT, PRIMARY_PICKER_ACTIVITY)
+        car.fake.moveTask(PRIMARY_APP_TASK, FULL_ROOT)
+        car.fake.area = 1
+
+        core.dividerResized()
+        car.barrier()
+
+        assertEquals(
+            "слот схлопнутой панели закрыт, выживший не переписан",
+            mapOf(
+                SplitPane.PRIMARY to SplitSlot.App(NAVIGATOR),
+                SplitPane.SECONDARY to SplitSlot.Closed,
+            ),
+            car.store.load().slots,
+        )
+        assertTrue(
+            "таск приложения схлопнутой панели жив: прошивка отвязала его живым",
+            car.fake.hasTask(SECONDARY_APP_TASK),
+        )
+        assertFalse(
+            "и ни одна команда не адресовала его",
+            car.commands().any { it.contains(" remove-task ") && it.contains(" $SECONDARY_APP_TASK ") },
+        )
+        assertFalse(
+            "огрызок СВОЕГО пикера схлопнутой панели убран по точной identity",
+            car.fake.hasTask(SECONDARY_PICKER_TASK),
+        )
+        assertEquals("и это одна запись", commits + 1, car.store.commits)
+
+        // И следующий open даёт в этой панели пикер, а не воскрешение (1.3.4, 1.8.2).
+        car.fake.area = 0
+        core.homeVisible()
+        car.barrier()
+        car.clearCommands()
+        core.openPickerSession()
+        car.barrier()
+
+        assertEquals(
+            "закрытая панель открывается свежим пикером",
+            SplitSlot.Picker,
+            car.store.load().slot(SplitPane.SECONDARY),
+        )
+        assertTrue("живой фоновый таск музыки продолжает жить", car.fake.hasTask(SECONDARY_APP_TASK))
+        assertNotEquals(
+            "и не втянут обратно в панель",
+            SECONDARY_ROOT,
+            car.fake.taskRoot(SECONDARY_APP_TASK),
+        )
+        assertFalse(
+            "и не перезапущен",
+            car.commands().any { it.startsWith("am start ") && it.contains(MUSIC) },
+        )
+    }
+
+    /**
      * Contract 1.6.3 (редакция bde631c), сценарий §11.16, ветвь узкой панели; ground-v18 B1.
      * Back в УЗКОМ пикере: прошивка сама разворачивает соседа в широкой на весь экран и сама
      * откатывает свои ключи. Пока эта сцена жива, продукт не убирает ничего и не возвращает

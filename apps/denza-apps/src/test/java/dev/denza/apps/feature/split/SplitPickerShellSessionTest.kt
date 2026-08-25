@@ -1049,14 +1049,85 @@ class SplitPickerShellSessionTest {
         fake.area = 1
         assertEquals(null, split.collapsedPaneByExistence(PICKER_COMPONENTS, expected))
 
-        // Обе панели покинули root'ы - это конец сцены; его решает existence-проверка конца.
+        // Обе панели покинули root'ы под НАКРЫТИЕМ - это конец сцены, и решает его
+        // existence-проверка конца, а не collapse (правка W1 волны 9 сюда не дотягивается:
+        // area 0/4 отказывает раньше всех прочих чтений).
         fake.detachTask(hosts.getValue(SplitPane.PRIMARY))
         fake.detachTask(hosts.getValue(SplitPane.SECONDARY))
+        fake.area = 0
+        assertEquals(null, split.collapsedPaneByExistence(PICKER_COMPONENTS, expected))
+        fake.area = 4
         assertEquals(null, split.collapsedPaneByExistence(PICKER_COMPONENTS, expected))
 
         // Вне area 1/2 факт схлопывания не читается вовсе.
         fake.area = 3
         assertEquals(null, split.collapsedPaneByExistence(PICKER_COMPONENTS, expected))
+    }
+
+    /**
+     * Правка W1 волны 9 (приёмка v24, Д1): когда панельные корни покинули ОБЕ записанные панели,
+     * выжившую называет area, а схлопнута - другая. Живая геометрия дефекта: схлопнулась широкая
+     * SECOND справа, выжившая узкая ушла fullscreen вместе со смертью своей пикер-базы, и её
+     * приложение стоит уже в полноэкранном корне. До волны 9 эта ветка отказывала безусловно,
+     * слот схлопнутой панели не чистился, и следующий open воскрешал её приложение.
+     */
+    @Test
+    fun collapseByExistenceNamesTheCollapsedPaneWhenAreaNamesTheSurvivor() {
+        val fake = FakeShell()
+        val split = session(fake)
+        val hosts = split.buildPickers()
+        val navigator = split.selectApp(
+            pickerTaskId = hosts.getValue(SplitPane.PRIMARY),
+            target = SplitLaunchTarget(NAVIGATOR, "$NAVIGATOR/$NAVIGATOR.MainActivity"),
+            pickerComponents = PICKER_COMPONENTS,
+        )
+        val music = split.selectApp(
+            pickerTaskId = hosts.getValue(SplitPane.SECONDARY),
+            target = SplitLaunchTarget(MUSIC, "$MUSIC/$MUSIC.MainActivity"),
+            pickerComponents = PICKER_COMPONENTS,
+        )
+        val expected = mapOf(
+            SplitPane.PRIMARY to SplitPickerObservedPane(
+                hostTaskId = hosts.getValue(SplitPane.PRIMARY),
+                appTaskId = navigator.appTaskId,
+                packageName = navigator.packageName,
+            ),
+            SplitPane.SECONDARY to SplitPickerObservedPane(
+                hostTaskId = hosts.getValue(SplitPane.SECONDARY),
+                appTaskId = music.appTaskId,
+                packageName = music.packageName,
+            ),
+        )
+
+        // Широкая SECOND схлопнута: прошивка отвязала её host и app живыми. Выжившая узкая ушла
+        // fullscreen: её база мертва, её приложение - уже в полноэкранном корне.
+        fake.detachTask(hosts.getValue(SplitPane.SECONDARY))
+        fake.detachTask(music.appTaskId)
+        fake.removeActivity(PRIMARY_ROOT, PRIMARY_PICKER_ACTIVITY)
+        fake.moveTask(navigator.appTaskId, FULL_ROOT)
+        fake.area = 1
+        fake.commands.clear()
+
+        val read = split.readCollapsedPaneByExistence(PICKER_COMPONENTS, expected)
+
+        assertEquals(SplitPane.SECONDARY, read.collapsed)
+        assertEquals("collapsed: выживший назван area=1", read.reason)
+        assertFalse(
+            "доказательство по существованию строго read-only",
+            fake.commands.any { command ->
+                command.startsWith("am start ") ||
+                    command.startsWith("am stack move-task ") ||
+                    command.startsWith("am task ") ||
+                    command.contains(" remove-task ")
+            },
+        )
+
+        // Зеркальная area называет зеркального выжившего.
+        fake.area = 2
+        assertEquals(
+            SplitPane.PRIMARY,
+            split.collapsedPaneByExistence(PICKER_COMPONENTS, expected),
+        )
     }
 
     /** Правка W4 (U5): обе collapse-проверки называют отказавший предикат, не молчат `null`-ом. */
