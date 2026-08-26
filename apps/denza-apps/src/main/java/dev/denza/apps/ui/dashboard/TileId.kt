@@ -27,6 +27,18 @@ enum class TileId {
     SERVICE,
     ;
 
+    /**
+     * Whether a long press on this tile has anywhere to go.
+     *
+     * Three of the nine. The rest are a single switch whose whole configuration is the press that
+     * flips it, or a door that opens its own thing on a short press - and a settings sheet holding
+     * one switch the tile has already got is a sheet that teaches the driver the gesture is
+     * usually empty. A tile that answers this true wears the press-and-hold mark; the others do
+     * not, and their long press does nothing.
+     */
+    val configurable: Boolean
+        get() = this == CLUSTER || this == SIMULCAST || this == MIRRORS
+
     /** The runtime feature behind this tile, when there is one. */
     val feature: FeatureId?
         get() = when (this) {

@@ -37,13 +37,14 @@ fun DashboardGrid(
     ) { index, cell ->
         val tile = tiles[index]
         DenzaTile(
-            icon = iconOf(tile.icon),
+            icon = tileIcon(tile.icon),
             name = tile.name,
             state = tile.state,
             tone = tile.tone,
             caption = tile.caption,
+            hasMore = tile.id.configurable,
             onClick = { DashboardPress.perform(tile, state, actions) },
-            onLongClick = { actions.onOpenSettings(tile.id) },
+            onLongClick = { if (tile.id.configurable) actions.onOpenSettings(tile.id) },
             modifier = cell,
             enabled = enabled,
         )
@@ -51,7 +52,7 @@ fun DashboardGrid(
 }
 
 /** The registry's closed vocabulary of icons, drawn as the boards draw them. */
-private fun iconOf(icon: TileIcon): ImageVector = when (icon) {
+internal fun tileIcon(icon: TileIcon): ImageVector = when (icon) {
     TileIcon.CLUSTER -> DenzaIcons.Cluster
     TileIcon.SIMULCAST -> DenzaIcons.Simulcast
     TileIcon.MIRRORS -> DenzaIcons.Mirrors

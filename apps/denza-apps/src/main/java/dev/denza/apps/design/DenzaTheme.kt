@@ -99,7 +99,8 @@ private val DenzaTypography = Typography().let { base ->
         bodySmall = prose(DenzaMetrics.Type.BODY, FontWeight.Normal),
         labelLarge = name(DenzaMetrics.Type.LABEL, FontWeight.Medium),
         labelMedium = name(DenzaMetrics.Type.BODY, FontWeight.Medium),
-        labelSmall = name(DenzaMetrics.Type.BODY, FontWeight.Medium, tracking = 0.6f),
+        // The board's `letter-spacing:1.6px` on a 15 px tracked capital.
+        labelSmall = name(DenzaMetrics.Type.BODY, FontWeight.Medium, tracking = 1.6f),
     )
 }
 

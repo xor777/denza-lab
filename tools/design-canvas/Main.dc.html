@@ -11,7 +11,11 @@
   <style>
     body { margin:0; background:#07080A; font-family:'Roboto','Segoe UI',system-ui,sans-serif; }
     a { color:#FEEFAB; } a:hover { color:#FFF7D2; }
-    .tile { height:164px; box-sizing:border-box; border-radius:22px; padding:20px; display:flex; flex-direction:column; justify-content:space-between; }
+    .tile { position:relative; height:164px; box-sizing:border-box; border-radius:22px; padding:20px; display:flex; flex-direction:column; justify-content:space-between; }
+    /* press-and-hold mark: this tile has a configurator behind a long press. Bottom right,
+       because bottom left is where the words are; 8 in from both edges, which is where the
+       22 radius has finished curving. Not a target - a sign. */
+    .more { position:absolute; right:8px; bottom:8px; width:0; height:0; border-left:8px solid transparent; border-bottom:8px solid #6E767F; }
     .on { background:#212429; border:1px solid rgba(254,239,171,0.30); box-shadow:0 0 22px rgba(254,239,171,0.07); }
     .off { background:#15181F; border:1px solid rgba(218,225,235,0.10); }
     .nm { font-size:19px; font-weight:500; line-height:1.2; }
@@ -24,6 +28,7 @@
   <div style="display:grid; grid-template-columns:repeat(6, minmax(0, 1fr)); gap:12px;">
 
     <div class="tile on">
+      <div class="more"></div>
       <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><circle cx="12" cy="12" r="3"></circle><path d="M3.2 10.5 L9.1 10.9 M20.8 10.5 L14.9 10.9 M12 15 L12 21"></path></svg>
       <div style="display:flex; flex-direction:column; gap:8px;">
         <div class="nm" style="color:#DAE1EB;">Экран водителя</div>
@@ -32,6 +37,7 @@
     </div>
 
     <div class="tile on">
+      <div class="more"></div>
       <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 20h0.01"></path><path d="M2 16a4 4 0 0 1 4 4"></path><path d="M2 12a8 8 0 0 1 8 8"></path><path d="M2 8V6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6"></path></svg>
       <div style="display:flex; flex-direction:column; gap:8px;">
         <div class="nm" style="color:#DAE1EB;">Трансляция</div>
@@ -40,6 +46,7 @@
     </div>
 
     <div class="tile on">
+      <div class="more"></div>
       <div style="display:flex; align-items:flex-start; justify-content:space-between;">
         <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12z"></path><circle cx="12" cy="12" r="3"></circle></svg>
         <div style="display:flex; align-items:center; gap:6px; padding-top:5px;">

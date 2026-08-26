@@ -61,7 +61,6 @@ internal fun NavigationPickerDialog(
         key = { it.packageName },
         compact = compactLayout,
         onDismiss = onDismiss,
-        actionLabel = "Закрыть",
         emptyText = "Поддерживаемые навигаторы не найдены",
         columns = DenzaMetrics.Component.TILE_COLUMNS_MEDIUM,
     ) { app ->
@@ -91,7 +90,6 @@ internal fun FseInstallerPickerDialog(
         key = { it.packageName },
         compact = compactLayout,
         onDismiss = onDismiss,
-        actionLabel = "Закрыть",
         note = message,
         emptyText = "Приложения не найдены",
     ) { app ->

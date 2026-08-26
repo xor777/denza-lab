@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -20,6 +21,7 @@ import dev.denza.apps.ui.components.DenzaSection
 import dev.denza.apps.ui.components.DenzaSegmentedRow
 import dev.denza.apps.ui.components.DenzaSheet
 import dev.denza.apps.ui.components.DenzaSheetHeader
+import dev.denza.apps.ui.components.DenzaSheetFootnote
 import dev.denza.apps.ui.components.DenzaStatusLine
 import dev.denza.apps.ui.components.DenzaSwitchRow
 
@@ -51,10 +53,9 @@ fun FeatureSheet(
     DenzaSheet(onDismiss = onDismiss, compact = compact) {
         DenzaSheetHeader(
             title = tile.name,
-            subtitle = tile.state,
-            actionLabel = "Готово",
-            onAction = onDismiss,
-            compact = compact,
+            subtitle = purposeOf(id),
+            onDismiss = onDismiss,
+            icon = tileIcon(tile.icon),
         )
         // Whatever the feature has to say for itself, in the colour that state deserves. It is said
         // once, here, rather than by each sheet in its own words.
@@ -83,6 +84,46 @@ fun FeatureSheet(
                 color = DenzaColors.MutedDeep,
             )
         }
+        // Every panel ends the same way: the tile's own action, full width at the foot, and the
+        // note that the tile does it too. The board puts them there because a panel that can only
+        // be configured and not used sends the driver back to the grid to finish the thought.
+        val label = primaryLabel(tile, state)
+        if (label.isNotBlank()) {
+            DenzaPrimaryButton(
+                text = label,
+                onClick = { DashboardPress.perform(tile, state, actions); onDismiss() },
+                modifier = Modifier.fillMaxWidth().height(DenzaMetrics.Component.PRIMARY_HEIGHT),
+                enabled = !busy,
+            )
+            DenzaSheetFootnote("Короткое нажатие на плитку делает то же самое")
+        }
+    }
+}
+
+/** What this panel is for, in the words the board writes under its title. */
+private fun purposeOf(id: TileId): String = when (id) {
+    TileId.CLUSTER -> "Что показывать за рулём"
+    TileId.SIMULCAST -> "Какие приложения уходят на экраны"
+    TileId.MIRRORS -> "Когда показывать камеры и где"
+    else -> ""
+}
+
+/**
+ * The name of the tile's own action, for the button at the foot.
+ *
+ * It reads the same wish the tile's press reads, so the two can never offer opposite things - the
+ * button says "Выключить" exactly when pressing the tile would switch it off.
+ */
+private fun primaryLabel(tile: DashboardTile, state: DenzaUiState): String {
+    val on = DashboardPress.snapshotOf(tile.id, state)?.desiredEnabled == true
+    return when (tile.action) {
+        TileAction.CLUSTER_PROJECT -> state.navigationButtonLabel
+        TileAction.SIMULCAST_LAUNCH -> "Запустить"
+        TileAction.PASSENGER_INSTALL -> "Выбрать приложение"
+        TileAction.SERVICE_OPEN -> "Открыть сервис"
+        TileAction.TOGGLE -> if (on) "Выключить" else "Включить"
+        TileAction.RESOLVE -> "Продолжить"
+        TileAction.SETTINGS -> ""
     }
 }
 

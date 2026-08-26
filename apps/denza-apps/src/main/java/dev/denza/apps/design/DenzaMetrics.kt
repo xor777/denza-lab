@@ -149,6 +149,26 @@ object DenzaMetrics {
         val PICKER_HEIGHT: Dp = 360.dp
 
         /**
+         * The settings panel, measured off `Config.dc.html`.
+         *
+         * It hangs off the right edge for the whole height rather than sitting in the middle of
+         * the screen. A dialog in the centre covers the tile it belongs to and every other tile
+         * equally; a panel at the edge leaves the dashboard visible beside it, so the thing being
+         * configured stays in sight while it is configured.
+         */
+        val SHEET_WIDTH: Dp = 480.dp
+
+        /** The icon well of an application offered inside a settings panel. */
+        val SHEET_APP_ICON: Dp = 44.dp
+
+        /** A panel's one full-width action. */
+        val PRIMARY_HEIGHT: Dp = 62.dp
+
+        /** The panel header's two glyphs: the tile's own icon, and the way out. */
+        val SHEET_HEADER_ICON: Dp = 32.dp
+        val SHEET_CLOSE_ICON: Dp = 26.dp
+
+        /**
          * The bottom strip in the narrow pane.
          *
          * The two wide layouts take their height from the strip's own virtual space instead, so

@@ -106,6 +106,12 @@ object DenzaIcons {
         "M19 17a2 2 0 1 1-4 0a2 2 0 1 1 4 0",
     )
 
+    /** The way out of a settings panel. */
+    val Close: ImageVector = icon(
+        "denza_close",
+        "M6 6l12 12M18 6 6 18",
+    )
+
     /**
      * One stroked vector on the board's 24-unit grid.
      *

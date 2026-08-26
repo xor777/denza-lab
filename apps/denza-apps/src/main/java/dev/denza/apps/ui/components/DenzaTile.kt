@@ -5,6 +5,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -25,6 +26,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -61,6 +63,7 @@ fun DenzaTile(
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier,
     caption: DenzaTileCaption = DenzaTileCaption.SETTING,
+    hasMore: Boolean = false,
     enabled: Boolean = true,
 ) {
     val accent = toneAccent(tone)
@@ -85,11 +88,18 @@ fun DenzaTile(
                 enabled = enabled,
                 onClick = onClick,
                 onLongClick = onLongClick,
-            )
-            .padding(DenzaMetrics.Space.L),
+            ),
     ) {
+        if (hasMore) {
+            PressAndHoldMark(
+                Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(DenzaMetrics.Space.S)
+                    .size(DenzaMetrics.Space.S),
+            )
+        }
         Column(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().padding(DenzaMetrics.Space.L),
             verticalArrangement = Arrangement.SpaceBetween,
         ) {
             Row(
@@ -157,6 +167,30 @@ private fun captionColor(tone: DenzaTileTone, caption: DenzaTileCaption): Color 
     DenzaTileTone.LIVE ->
         if (caption == DenzaTileCaption.READING) DenzaColors.Accent else DenzaColors.Muted
     DenzaTileTone.IDLE, DenzaTileTone.WORKING -> DenzaColors.Muted
+}
+
+/**
+ * The corner that says a long press has somewhere to go.
+ *
+ * The convention a phone keyboard uses for a key with more characters under it, and a Mac button
+ * uses for a menu on hold. It is deliberately not a target: a mark you have to hit would sit on the
+ * face of a tile whose face is already a button, and a miss would run the feature's main action -
+ * which on the mirrors means switching them off. A sign costs nothing to miss.
+ *
+ * It buys discoverability from people who know the convention, and it does not pretend to buy it
+ * from people who do not. What that leaves is the caption, which says what the tile is doing.
+ */
+@Composable
+private fun PressAndHoldMark(modifier: Modifier = Modifier) {
+    Canvas(modifier) {
+        val mark = Path().apply {
+            moveTo(size.width, 0f)
+            lineTo(size.width, size.height)
+            lineTo(0f, size.height)
+            close()
+        }
+        drawPath(mark, DenzaColors.MutedDeep)
+    }
 }
 
 private val BUSY_DOT = 18.dp
