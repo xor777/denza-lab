@@ -8,7 +8,13 @@
 #
 #   OLD  - the frame up to v30: base64 in a command substitution plus two /system/bin/printf.
 #   NEW  - the frame from wave 15: single quoting plus mksh's `print` builtin, chosen by a probe
-#          that writes nothing (see LocalAdbClient.frameInteractiveCommand).
+#          that writes nothing (see LocalAdbClient.frameInteractiveCommand). The marker bytes are
+#          made by the emitter from `\036` and `\037`, never carried inside the command line -
+#          this channel is a terminal, and a control byte there is a keystroke.
+#
+# This measures cost only. Identity of execution is proven by tools/split_frame_pty_identity.py,
+# which goes through the legacy `shell:sh` service the product actually opens; a probe that runs
+# commands one at a time cannot see what a line editor does to them.
 #
 # Usage: tools/split_frame_bench.sh [serial]
 set -e
@@ -21,11 +27,10 @@ run() { label=$1; shift
   t0=$(now); i=0; while [ $i -lt $N ]; do "$@" >/dev/null 2>&1; i=$((i+1)); done; t1=$(now)
   echo "$label $(( (t1-t0)/100000/N ))x0.1ms"; }
 
-E=$(printf '\036'); U=$(printf '\037')
-prelude() { if print -nr '' 2>/dev/null; then __denza_emit() { print -nr "$1"; }; else __denza_emit() { printf '%s' "$1"; }; fi; }
+prelude() { if print -n '' 2>/dev/null; then __denza_emit() { print -n "\036$1\037"; }; else __denza_emit() { printf '\036%s\037' "$1"; }; fi; }
 
 old_frame() { __c=$(printf '%s' "$1" | base64 -d); printf '\036M:BEGIN\037'; ( eval "$__c" ) 2>&1; __s=$?; printf '\036M:%s\037' "$__s"; }
-new_frame() { prelude; __denza_emit "${E}M:BEGIN${U}"; ( eval "$1" ) 2>&1; __s=$?; __denza_emit "${E}M:${__s}${U}"; }
+new_frame() { prelude; __denza_emit 'M:BEGIN'; ( eval "$1" ) 2>&1; __s=$?; __denza_emit "M:${__s}"; }
 
 bare_am()  { am stack list; }
 bare_tx()  { service call activity_task 30; }
@@ -40,7 +45,7 @@ new_set()  { new_frame 'settings get global development_settings_enabled'; }
 echo "sh=$(readlink -f /proc/$$/exe 2>/dev/null || echo /system/bin/sh)"
 echo "print : $(type print 2>&1)"
 echo "printf: $(type printf 2>&1)"
-if print -nr '' 2>/dev/null; then echo "emitter=print (builtin, no process)"; else echo "emitter=printf (a process per marker)"; fi
+if print -n '' 2>/dev/null; then echo "emitter=print (builtin, no process)"; else echo "emitter=printf (a process per marker)"; fi
 echo
 run "bare  am stack list      " bare_am
 run "OLD   am stack list      " old_am

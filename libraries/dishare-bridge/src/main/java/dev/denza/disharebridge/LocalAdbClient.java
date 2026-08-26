@@ -51,14 +51,17 @@ public final class LocalAdbClient {
     /**
      * Picks the marker emitter without writing a byte, so only one of the two can ever write.
      *
-     * <p>{@code print -nr} is an mksh builtin and costs nothing; {@code printf} is a process on
-     * this firmware and costs 7&nbsp;ms. A shell that has neither cannot happen: {@code printf} is
-     * POSIX.
+     * <p>{@code print -n} is an mksh builtin and costs nothing; {@code printf} is a process on this
+     * firmware and costs 6.8&nbsp;ms. A shell that has neither cannot happen: {@code printf} is
+     * POSIX. Both branches take the marker <em>body</em> and add the two frame bytes themselves,
+     * which is what keeps those bytes out of the command line - see
+     * {@link #frameInteractiveCommand}.
      */
     private static final String EMITTER_PRELUDE =
-            "if print -nr '' 2>/dev/null; "
-                    + "then __denza_emit() { print -nr \"$1\"; }; "
-                    + "else __denza_emit() { printf '%s' \"$1\"; }; fi; ";
+            "if print -n '' 2>/dev/null; "
+                    + "then __denza_emit() { print -n \"\\036$1\\037\"; }; "
+                    + "else __denza_emit() { printf '\\036%s\\037' \"$1\"; }; fi; ";
+
     private static final AuthorizationPromptGate AUTH_PROMPT_GATE =
             new AuthorizationPromptGate(AUTH_PROMPT_COOLDOWN_NANOS);
 
@@ -420,31 +423,58 @@ public final class LocalAdbClient {
      * markers was another, because on this head unit {@code printf} is {@code /system/bin/printf}
      * and not a builtin. Measured on the car, 41 repeats each: base64 8.2&nbsp;ms, the two printfs
      * 14.8&nbsp;ms - 23&nbsp;ms of wrapper around an {@code am stack list} that costs 18.7&nbsp;ms
-     * itself, and around a {@code service call} that costs 8.1&nbsp;ms.
+     * itself, and around a {@code service call} that costs 8.1&nbsp;ms. Nothing is weakened to
+     * remove them: the command is single-quoted the way the rest of this project quotes one, which
+     * is exactly what base64 was protecting against, and {@code eval} still receives the very same
+     * single word.
      *
-     * <p>Nothing is weakened to remove them. The command is single-quoted the way every other shell
-     * caller of this project quotes one, which is exactly what base64 was protecting against, and
-     * {@code eval} still receives the very same single word. The markers are written by mksh's
-     * {@code print} builtin - {@code /system/bin/sh} on this firmware family is mksh - and the two
-     * marker bytes travel as themselves rather than as escapes, so neither emitter has to interpret
-     * anything.
+     * <p><b>The frame is printable text, and must stay printable text.</b> The stream it is written
+     * into is the legacy {@code shell:sh} service, which on this adbd hands back a terminal, so
+     * mksh runs its line editor on everything the product types. An editor reads control bytes as
+     * the keystrokes they are: v31 carried the two frame bytes literally inside the command line,
+     * the editor ate them, no answer ever carried a marker, and every single command of the product
+     * timed out. So the marker bytes exist only in the <em>answer</em>: the frame names the marker
+     * in plain characters and the emitter turns {@code \036} and {@code \037} into bytes on its
+     * own side. mksh's {@code print} expands those escapes itself - which is why the builtin is
+     * called without {@code -r}, since {@code -r} is precisely "do not expand" - and the POSIX
+     * fallback puts them in a {@code printf} format string, exactly as the wrapper did before v31.
      *
-     * <p>The emitter is chosen by a probe that <em>writes nothing at all</em> ({@code print -nr ''}
-     * on the empty string) rather than by trying one emitter and falling back on its failure. That
-     * is deliberate: a "try, then fall back" would append a second marker after a first one that
-     * had already been half-written, and a doubled BEGIN marker fails the whole command. Here
-     * exactly one emitter can ever write, and a shell with no usable {@code print} pays the old
-     * price for the markers instead of getting a wrong answer. The prelude is part of every frame
-     * and not of the session, so the frame stays self-contained: nothing about a command depends on
-     * state some earlier command left in the shell.
+     * <p>The emitter is chosen by a probe that writes nothing at all ({@code print -n} on the empty
+     * string) rather than by trying one emitter and falling back on its failure: a "try, then fall
+     * back" would append a second marker after a first one that had already been half-written, and
+     * a doubled BEGIN marker fails the whole command. The prelude is part of every frame and not of
+     * the session, so nothing about a command depends on state an earlier one left in the shell.
      */
-    static byte[] frameInteractiveCommand(String command, String marker) {
+    static byte[] frameInteractiveCommand(String command, String marker) throws IOException {
+        rejectTerminalKeystrokes(command);
         String framed = EMITTER_PRELUDE
-                + "__denza_emit " + singleQuoted(RECORD + marker + ":BEGIN" + UNIT) + "; "
+                + "__denza_emit " + singleQuoted(marker + ":BEGIN") + "; "
                 + "( eval " + singleQuoted(command) + " ) 2>&1; "
                 + "__denza_adb_status=$?; "
-                + "__denza_emit \"" + RECORD + marker + ":$__denza_adb_status" + UNIT + "\"\n";
+                + "__denza_emit \"" + marker + ":$__denza_adb_status\"\n";
         return framed.getBytes(StandardCharsets.UTF_8);
+    }
+
+    /**
+     * Refuses a command that would reach the shell's line editor as keystrokes rather than as text.
+     *
+     * <p>No caller in this project sends one, and this is not the place to start: on this channel a
+     * control byte is a key, and a command carrying one would not fail - it would hang until the
+     * read timeout and roll its operation back with nothing to say about why. A newline is the one
+     * exception, and it is not a guess: it is one of the cases compared byte for byte against the
+     * previous frame on the car, through this very service (tools/split_frame_pty_identity.py).
+     */
+    private static void rejectTerminalKeystrokes(String command) throws IOException {
+        for (int at = 0; at < command.length(); at++) {
+            char symbol = command.charAt(at);
+            if (symbol < 0x20 && symbol != '\n') {
+                throw new IOException(String.format(
+                        "ADB command carries a control character 0x%02x at %d, which the shell's "
+                                + "line editor would read as a keystroke",
+                        (int) symbol,
+                        at));
+            }
+        }
     }
 
     /** The one quoting rule of a POSIX shell: everything is literal until the quote is closed. */

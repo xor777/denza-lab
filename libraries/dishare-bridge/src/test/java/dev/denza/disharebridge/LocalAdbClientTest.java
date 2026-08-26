@@ -2,8 +2,10 @@ package dev.denza.disharebridge;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeTrue;
 
 import java.io.ByteArrayInputStream;
@@ -197,38 +199,67 @@ public final class LocalAdbClientTest {
     }
 
     /**
-     * The wrapper itself starts no process, and cannot write a marker twice.
+     * The wrapper starts no process, cannot write a marker twice, and is printable text.
      *
-     * <p>The second half is the load-bearing one. An emitter picked by "try this, otherwise that"
-     * would append a marker after a first one that had already been half-written, and a doubled
-     * BEGIN marker turns a good answer into a hard transport failure. So there is no {@code ||} in
-     * the frame at all: the probe writes the empty string, and exactly one emitter can ever run.
+     * <p>The last one is not a style rule. The stream the frame is written into is the legacy
+     * {@code shell:sh} service, which on this adbd hands back a terminal, so mksh runs its line
+     * editor over everything the product types and reads a control byte as the keystroke it is.
+     * v31 put the two frame bytes inside the command line, the editor ate them, no answer ever
+     * carried a marker, and every command of the product timed out.
      */
     @Test
-    public void theWrapperStartsNoProcessOfItsOwnAndCannotEmitAMarkerTwice() {
-        String framed = new String(
-                LocalAdbClient.frameInteractiveCommand("echo hi", "MARK"),
-                StandardCharsets.UTF_8);
+    public void theWrapperIsPrintableTextThatStartsNoProcessAndCannotEmitAMarkerTwice()
+            throws Exception {
+        byte[] framed = LocalAdbClient.frameInteractiveCommand("echo hi", "MARK");
+        String text = new String(framed, StandardCharsets.UTF_8);
 
-        assertFalse(framed, framed.contains("base64"));
-        assertFalse("no command substitution in the wrapper", framed.contains("$("));
-        assertFalse("no emitter may run because another one failed", framed.contains("||"));
+        for (byte value : framed) {
+            assertTrue(
+                    "a control byte in the command line is a keystroke to the terminal's line "
+                            + "editor, not data: found 0x"
+                            + Integer.toHexString(value & 0xff) + " in " + text,
+                    (value & 0xff) >= 0x20 || value == '\n');
+        }
+        assertFalse(text, text.contains("base64"));
+        assertFalse("no command substitution in the wrapper", text.contains("$("));
+        assertFalse("no emitter may run because another one failed", text.contains("||"));
         assertTrue("the emitter is chosen by a probe that writes nothing",
-                framed.startsWith("if print -nr '' 2>/dev/null; then "));
-        assertTrue(framed, framed.contains("__denza_emit '\u001eMARK:BEGIN\u001f';"));
-        assertTrue(framed, framed.contains("( eval 'echo hi' ) 2>&1;"));
-        assertTrue("the shell is still waiting on this line", framed.endsWith("\n"));
+                text.startsWith("if print -n '' 2>/dev/null; then "));
+        assertTrue("-r would switch off the escape expansion the markers depend on",
+                text.contains("print -n \"\\036$1\\037\""));
+        assertTrue("the shell is still waiting on this line", text.endsWith("\n"));
         // Pinned character for character against the text that was compared with the previous
-        // frame on the car itself (tools/split_frame_identity.py), so the two cannot drift apart
-        // and leave the proof describing a frame the product no longer sends.
+        // frame on the car itself, through the very service the product opens
+        // (tools/split_frame_pty_identity.py), so the two cannot drift apart and leave the proof
+        // describing a frame the product no longer sends.
         assertEquals(
-                "if print -nr '' 2>/dev/null; then __denza_emit() { print -nr \"$1\"; }; "
-                        + "else __denza_emit() { printf '%s' \"$1\"; }; fi; "
-                        + "__denza_emit '\u001eMARK:BEGIN\u001f'; "
+                "if print -n '' 2>/dev/null; then __denza_emit() { print -n \"\\036$1\\037\"; }; "
+                        + "else __denza_emit() { printf '\\036%s\\037' \"$1\"; }; fi; "
+                        + "__denza_emit 'MARK:BEGIN'; "
                         + "( eval 'echo hi' ) 2>&1; "
                         + "__denza_adb_status=$?; "
-                        + "__denza_emit \"\u001eMARK:$__denza_adb_status\u001f\"\n",
-                framed);
+                        + "__denza_emit \"MARK:$__denza_adb_status\"\n",
+                text);
+    }
+
+    /**
+     * A command that would arrive as keystrokes is refused, not sent and waited on.
+     *
+     * <p>A newline is allowed because it was compared byte for byte against the previous frame on
+     * the car, through the product's own service; a tab is a completion key and nobody sends one.
+     */
+    @Test
+    public void aCommandCarryingKeystrokesIsRefusedRatherThanLeftToTimeOut() throws Exception {
+        assertNotNull(LocalAdbClient.frameInteractiveCommand("echo one\necho two", "MARK"));
+        for (String command : new String[] {
+                "echo\thi", "echo hi\r", "echo \u001ehi", "echo \u0004hi"}) {
+            try {
+                LocalAdbClient.frameInteractiveCommand(command, "MARK");
+                fail("sent as text: " + command);
+            } catch (IOException expected) {
+                assertTrue(expected.getMessage(), expected.getMessage().contains("keystroke"));
+            }
+        }
     }
 
     /**
