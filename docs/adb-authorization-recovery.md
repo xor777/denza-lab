@@ -171,6 +171,22 @@ Until the signal is read, the two instructions cannot be told apart, and copy th
 promises the easy remedy is a guess. The service path is the only remedy true in
 both states.
 
+**The reported car's flag was never read, and the fix assumes it.** The
+reclassification only fires when `adb_enabled` reads 0. Nobody has read that
+value on the car in the screenshot — the reasoning runs the other way, from a
+symptom to a mechanism that can produce it. There is at least one other way to
+reach the same screen: if BYD's service-level "ADB unlock" is a separate gate
+from Android's flag, that car can hold `adb_enabled = 1` with `adbd` listening
+and an untrusted key, which is a genuine `AUTHORIZATION_REQUIRED` that this
+change deliberately leaves alone. In that case the owner still gets an
+instruction they cannot carry out, and the fix misses.
+
+What settles it is three values from that car, not from the reference one:
+`settings get global adb_enabled`, `getprop ro.adb.secure`, and which of the two
+screens it shows. Until then, treat the classification as covering one proven
+mechanism rather than the reported case. The explanation window is the part that
+holds either way, because it names the service path in every state.
+
 ## The persistent shell is a terminal (live v31, 2026-08-26)
 
 Feature clients do not run one command per ADB stream. `LocalAdbClient.openPersistentShell()`
