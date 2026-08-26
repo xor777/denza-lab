@@ -38,6 +38,10 @@ number of them switched the mirrors off in silence.
 
 ## Explaining the channel, and reaching diagnostics past the gate (v35, 2026-08-26)
 
+Status: built and unit-covered; **not yet run on a car**. The two claims that only the car can
+settle are that the seven taps land while the shield is up, and that the label survives the
+narrow pane. Neither has a unit test — the module has no Robolectric and no `compose-ui-test`.
+
 The gate covers the dashboard, and the dashboard is where the **Сервис** tile is. Until v35 that
 meant the support ring — the product's only channel of truth about what it did — was unreachable
 exactly when something was wrong. Two things close that:
