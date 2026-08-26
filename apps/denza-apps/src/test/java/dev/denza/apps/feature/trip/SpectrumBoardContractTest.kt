@@ -94,6 +94,46 @@ class SpectrumBoardContractTest {
         )
     }
 
+    /**
+     * The ticker is a typeface seen through a dot screen, and both numbers come from the board.
+     *
+     * There used to be a hand-written 5x7 matrix font here instead - nine kilobytes of binary
+     * literals with its own Cyrillic set - which no test could have caught, because the board and
+     * the code were not describing the same thing at all. They are now, so this can hold them.
+     */
+    @Test
+    fun theTickerIsTheBoardsTypeAndTheBoardsDotScreen() {
+        val size = number("""\.led \{[^}]*font-size:([\d.]+)px""")
+        val tracking = number("""\.led \{[^}]*letter-spacing:([\d.]+)px""")
+        val cell = number("""\.led \{[^}]*background-size:([\d.]+)px""")
+
+        assertEquals("size", size, SpectrumRenderer.LED_SIZE_UNITS.toDouble(), 1e-4)
+        assertEquals(
+            "tracking",
+            tracking / size,
+            SpectrumRenderer.LED_TRACKING_EM.toDouble(),
+            1e-4,
+        )
+        assertEquals("dot cell", cell, SpectrumRenderer.LED_DOT_CELL_UNITS.toDouble(), 1e-4)
+    }
+
+    /**
+     * The play mark is gone from both, or from neither.
+     *
+     * It was the board's own `M7 4l12 8-12 8z`, and the code matched it to the unit after a live
+     * comparison caught it four dp adrift. The owner then looked at the finished thing and said it
+     * was superfluous, which it was: a title that scrolls does not need a glyph to say it is a
+     * title. This fails if it comes back to one side only.
+     */
+    @Test
+    fun theBoardDrawsNoPlayMarkBesideTheTitle() {
+        assertEquals(
+            "play mark on the board",
+            false,
+            BOARD.readText().contains("M7 4l12 8-12 8z"),
+        )
+    }
+
     private fun number(pattern: String): Double =
         Regex(pattern).find(BOARD.readText())?.groupValues?.get(1)?.toDouble()
             ?: error("the board has nothing matching $pattern")

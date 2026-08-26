@@ -10,11 +10,10 @@ import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.RectF
 import android.graphics.Shader
+import android.graphics.Typeface
 import dev.denza.apps.design.DenzaPalette
 import dev.denza.apps.feature.panel.PanelPalette
-import android.graphics.Typeface
 import kotlin.math.ceil
-import kotlin.math.floor
 import kotlin.math.max
 import kotlin.math.roundToInt
 import kotlin.math.sin
@@ -77,11 +76,11 @@ class SpectrumRenderer {
     private var laidOutStrip = false
     private var preparedMap = false
     private var idlePhase = 0.0
-    private var marqueeDots = 0f
+    private var marqueeUnits = 0f
     private var tickerTitle: String? = null
     private var tickerArtist: String? = null
-    private var tickerPitch = 0f
-    private var tickerDots = 0
+    private var tickerScale = 0f
+    private var tickerWidth = 0f
     private var tickerBitmap: Bitmap? = null
 
     private var baselineY = 0f
@@ -337,17 +336,20 @@ class SpectrumRenderer {
     }
 
     /**
-     * The track title as a dot-matrix ticker.
+     * The track title, as the board writes it.
      *
-     * Two bitmaps do the work. The unlit dot grid is a single cell tiled across
-     * the strip, so the dark matrix costs one rectangle a frame. The lit text is
-     * rendered dot by dot once, when the track changes, into its own bitmap and
-     * then simply blitted — drawing a rectangle per lit dot every frame would be
-     * hundreds of draw calls for something that changes once a song.
+     * The board's `.led` is Roboto Mono Bold at 34 with 5 of tracking, its glyphs filled with a
+     * 3.4-unit dot screen and lit by a soft drop shadow: real letterforms seen through a dot mask,
+     * the way a vacuum-fluorescent panel looks. What was here instead was a hand-written 5x7
+     * matrix font - nine kilobytes of binary literals, capitals only, with its own Cyrillic
+     * variants - which is a different thing altogether and read as one on the car.
      *
-     * The scroll advances in whole dots rather than smoothly. That is what the
-     * displays this imitates did, and it is also what keeps the lit dots sitting
-     * exactly on the unlit grid instead of sliding between its holes.
+     * The dot screen and the letterforms now come from the same two places they come from on the
+     * board: a typeface, and a repeating shader. The font tables are gone.
+     *
+     * Two bitmaps still do the work. The lit text is rendered once, when the track changes, into
+     * its own bitmap and then blitted - the glow is eight offset copies of it, because a real blur
+     * would mean a mask filter on a bitmap every frame and eight blits do not.
      */
     private fun drawTicker(
         canvas: Canvas,
@@ -358,123 +360,98 @@ class SpectrumRenderer {
         unit: Float,
         dtSec: Double,
     ) {
-        // Whole pixels per dot: a fractional pitch would blur the matrix and
-        // knock the lit dots off the grid.
-        val pitch = max(2f, (GLYPH_HEIGHT_UNITS * unit / PixelFont.ROWS).roundToInt().toFloat())
-        val gridHeight = pitch * PixelFont.ROWS
-        val stripHeight = STRIP_UNITS * unit
-        val gridTop = top + (stripHeight - gridHeight) / 2f
-
-        ensureTicker(nowPlaying, pitch)
-
-        // The board draws a play mark and then the title, and nothing else: no field of unlit
-        // dots behind it. That field was the analyser's own width in dim grey, and at a glance it
-        // read as a second, empty instrument sitting above the real one.
-        // The board's mark is a 15 box holding `M7 4l12 8-12 8z` on a 24 grid, so the triangle
-        // itself is inset: 7/24 in from the left, 12/24 wide, 16/24 tall. Drawing it from the box
-        // edge at full size put it 4 dp too far left and made it 1.7x too wide - measured against
-        // the car, which is the only place that difference was ever going to show.
-        val markSize = unit * PLAY_MARK_UNITS
-        val markLeft = left + markSize * MARK_INSET
-        val markWidth = markSize * MARK_WIDTH
-        val markHeight = markSize * MARK_HEIGHT
-        val markTop = gridTop + (gridHeight - markHeight) / 2f
-        glyph.reset()
-        glyph.moveTo(markLeft, markTop)
-        glyph.lineTo(markLeft + markWidth, markTop + markHeight / 2f)
-        glyph.lineTo(markLeft, markTop + markHeight)
-        glyph.close()
-        fill.shader = null
-        fill.color = if (nowPlaying.playing) ACCENT else alpha(ACCENT, 0.45f)
-        canvas.drawPath(glyph, fill)
-        val textLeft = left + markSize + unit * PLAY_MARK_GAP
-
+        ensureTicker(nowPlaying, unit)
         val bitmap = tickerBitmap ?: return
-        val visibleDots = ((right - textLeft) / pitch).toInt()
-        val scrolls = tickerDots > visibleDots
-        val cycleDots = tickerDots + TICKER_GAP_DOTS
+
+        val stripHeight = STRIP_UNITS * unit
+        val textTop = top + (stripHeight - bitmap.height) / 2f
+
+        // The play mark that used to sit here is gone. It was the board's `M7 4l12 8-12 8z` in a
+        // 15 box, drawn to the unit, and it still read as an ornament stuck on the left of a title
+        // that already says what it is by scrolling. The title starts at the strip's own edge now.
+        val visible = right - left
+        val cycle = tickerWidth + TICKER_GAP_UNITS * unit
+        val scrolls = tickerWidth > visible
         if (scrolls) {
-            marqueeDots += (dtSec * TICKER_DOTS_PER_SEC).toFloat()
-            if (marqueeDots >= cycleDots) marqueeDots -= cycleDots
+            marqueeUnits += (dtSec * TICKER_UNITS_PER_SEC).toFloat() * unit
+            if (marqueeUnits >= cycle) marqueeUnits -= cycle
         } else {
-            marqueeDots = 0f
+            marqueeUnits = 0f
         }
-        val offset = floor(marqueeDots) * pitch
 
         canvas.save()
-        canvas.clipRect(textLeft, gridTop, right, gridTop + gridHeight)
-        // The board writes the title in full champagne under a soft drop shadow. It was held at
-        // 150 of 255 here on the reasoning that the analyser is the subject - which it is, and
-        // which the analyser now says for itself by being lit; a title at 59 per cent over a black
-        // panel just reads as olive.
-        val x = textLeft - offset
-        val wrapped = if (scrolls) x + cycleDots * pitch else Float.NaN
-        // The board's `drop-shadow(0 0 7px ...)`, drawn as four offset copies. A real blur here
-        // means a mask filter on a bitmap on every frame; four extra blits do not.
+        canvas.clipRect(left, textTop, right, textTop + bitmap.height)
+        val x = left - marqueeUnits
+        val wrapped = x + cycle
         tickerPaint.alpha = if (nowPlaying.playing) GLOW_ALPHA else GLOW_ALPHA / 2
         val halo = unit * GLOW_UNITS
         for (dx in -1..1) {
             for (dy in -1..1) {
                 if (dx == 0 && dy == 0) continue
-                canvas.drawBitmap(bitmap, x + dx * halo, gridTop + dy * halo, tickerPaint)
+                canvas.drawBitmap(bitmap, x + dx * halo, textTop + dy * halo, tickerPaint)
                 if (scrolls) {
-                    canvas.drawBitmap(bitmap, wrapped + dx * halo, gridTop + dy * halo, tickerPaint)
+                    canvas.drawBitmap(bitmap, wrapped + dx * halo, textTop + dy * halo, tickerPaint)
                 }
             }
         }
         tickerPaint.alpha = if (nowPlaying.playing) 255 else TICKER_ALPHA_PAUSED
-        canvas.drawBitmap(bitmap, x, gridTop, tickerPaint)
-        if (scrolls) canvas.drawBitmap(bitmap, wrapped, gridTop, tickerPaint)
+        canvas.drawBitmap(bitmap, x, textTop, tickerPaint)
+        if (scrolls) canvas.drawBitmap(bitmap, wrapped, textTop, tickerPaint)
         canvas.restore()
     }
 
-    /** Redraws the dot bitmaps only when the track or the dot pitch changes. */
-    private fun ensureTicker(nowPlaying: NowPlayingSource, pitch: Float) {
+    /** Redraws the lit bitmap only when the track or the panel's scale changes. */
+    private fun ensureTicker(nowPlaying: NowPlayingSource, unit: Float) {
         if (nowPlaying.title == tickerTitle &&
             nowPlaying.artist == tickerArtist &&
-            pitch == tickerPitch
+            unit == tickerScale
         ) {
             return
         }
-        val pitchChanged = pitch != tickerPitch
         tickerTitle = nowPlaying.title
         tickerArtist = nowPlaying.artist
-        tickerPitch = pitch
-        marqueeDots = 0f
-        if (pitchChanged) {
-        }
+        tickerScale = unit
+        marqueeUnits = 0f
+        tickerBitmap?.recycle()
+        tickerBitmap = null
+        tickerWidth = 0f
 
         val title = tickerTitle.orEmpty()
         val artist = tickerArtist.orEmpty()
-        val text = PixelFont.prepare(if (artist.isBlank()) title else "$title · $artist")
-        tickerDots = PixelFont.widthInDots(text)
-        tickerBitmap?.recycle()
-        tickerBitmap = null
-        if (tickerDots <= 0) return
+        // Capitals, as the displays this imitates had. The board writes "M83 · MIDNIGHT CITY".
+        val text = (if (artist.isBlank()) title else "$title · $artist").uppercase()
+        if (text.isBlank()) return
 
-        val width = (tickerDots * pitch).toInt().coerceAtLeast(1)
-        val height = (PixelFont.ROWS * pitch).toInt().coerceAtLeast(1)
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+        paint.typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
+        paint.textSize = LED_SIZE_UNITS * unit
+        paint.letterSpacing = LED_TRACKING_EM
+        paint.color = ACCENT
+        paint.shader = dotScreen(LED_DOT_CELL_UNITS * unit)
+
+        val metrics = paint.fontMetrics
+        val width = ceil(paint.measureText(text)).toInt().coerceAtLeast(1)
+        val height = ceil(metrics.descent - metrics.ascent).toInt().coerceAtLeast(1)
         val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-        val target = Canvas(bitmap)
-        val dot = Paint()
-        dot.color = ACCENT
-        val size = pitch * DOT_FILL
-        var column = 0
-        for (character in text) {
-            val glyphRows = PixelFont.glyph(character)
-            for (row in 0 until PixelFont.ROWS) {
-                val bits = glyphRows[row]
-                for (col in 0 until PixelFont.COLUMNS) {
-                    if ((bits shr (PixelFont.COLUMNS - 1 - col)) and 1 == 1) {
-                        val x = (column + col) * pitch
-                        val y = row * pitch
-                        target.drawRect(x, y, x + size, y + size, dot)
-                    }
-                }
-            }
-            column += PixelFont.COLUMNS + PixelFont.TRACKING
-        }
+        Canvas(bitmap).drawText(text, 0f, -metrics.ascent, paint)
         tickerBitmap = bitmap
+        tickerWidth = width.toFloat()
+    }
+
+    /**
+     * The board's `background-image: radial-gradient(...)` at `background-size: 3.4px`, as a tile.
+     *
+     * One dot in one cell, repeated in both directions and used as the text paint's shader, which
+     * is what `background-clip: text` does on the board: the letterforms decide where the dots are
+     * allowed to land, and the screen decides what a letterform is made of.
+     */
+    private fun dotScreen(cell: Float): BitmapShader {
+        val size = max(2, cell.roundToInt())
+        val tile = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val dot = Paint(Paint.ANTI_ALIAS_FLAG)
+        dot.color = ACCENT
+        Canvas(tile).drawCircle(size / 2f, size / 2f, size * LED_DOT_RADIUS, dot)
+        return BitmapShader(tile, Shader.TileMode.REPEAT, Shader.TileMode.REPEAT)
     }
 
     /** A slow travelling ripple, so a silent car still shows a living panel. */
@@ -545,23 +522,28 @@ class SpectrumRenderer {
         const val REFLECT_ALPHA = 36
         const val STRIP_UNITS = 52f
 
-        /** Cap height of the ticker. */
-        const val GLYPH_HEIGHT_UNITS = 34f
+        /** The board's `.led`: `font-size:34px` and `letter-spacing:5px`, which is 5/34 of an em. */
+        const val LED_SIZE_UNITS = 34f
+        const val LED_TRACKING_EM = 5f / 34f
 
-        /** How much of a dot cell the dot itself fills, leaving the matrix gaps. */
-        const val DOT_FILL = 0.78f
+        /**
+         * The dot screen the letterforms are seen through: the board's `background-size:3.4px`,
+         * and a dot whose solid disc is about 58 per cent of the cell across.
+         *
+         * `radial-gradient(circle at center, C 41%, transparent 46%)` measures its stops against
+         * the distance to the cell's farthest corner - half the diagonal, 1.20 of a 3.4 cell - so
+         * the disc's radius is 0.41 of that, and 0.29 of the cell.
+         */
+        const val LED_DOT_CELL_UNITS = 3.4f
+        const val LED_DOT_RADIUS = 0.29f
+
         const val TICKER_ALPHA_PAUSED = 95
         const val GLOW_ALPHA = 46
         const val GLOW_UNITS = 2.2f
-        const val PLAY_MARK_UNITS = 15f
 
-        /** The board's play path inside its own 24-unit viewBox: `M7 4l12 8-12 8z`. */
-        const val MARK_INSET = 7f / 24f
-        const val MARK_WIDTH = 12f / 24f
-        const val MARK_HEIGHT = 16f / 24f
-        const val PLAY_MARK_GAP = 12f
-        const val TICKER_GAP_DOTS = 20
-        const val TICKER_DOTS_PER_SEC = 8.0
+        /** A gap of about two characters between the end of the title and its repeat. */
+        const val TICKER_GAP_UNITS = 96f
+        const val TICKER_UNITS_PER_SEC = 40.0
         const val SCAN_PITCH_UNITS = 11f
         const val SCAN_DARK_FRACTION = 0.273f
         const val BLOOM_BASE_ALPHA = 0.25f
