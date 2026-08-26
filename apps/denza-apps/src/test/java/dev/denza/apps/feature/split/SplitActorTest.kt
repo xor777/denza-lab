@@ -211,6 +211,39 @@ class SplitActorTest {
         assertEquals("a settled operation leaves no armed timer behind", 0, clock.pendingTimers())
     }
 
+    /**
+     * Тот же инвариант, что строкой выше, но в порядке, который его и ломал.
+     *
+     * Дедлайн взводится ПОСЛЕ отпускания замка актора, а воркер к этому моменту уже разбужен и
+     * короткую операцию успевает и выполнить, и снять её дедлайн. Прежняя пара «@Volatile-поле +
+     * `deadline?.cancel()`» снимала в таком порядке ещё не взведённый таймер, и настоящий
+     * оставался на часах до конца бюджета: 5 сирот на 3000 быстрых операций (замерено), а в
+     * сценарном тесте, считающем оставшиеся таймеры, это выглядело редким флейком. Проверяется
+     * ровно решающая пара, поэтому детерминированно и без пауз.
+     */
+    @Test
+    fun aDeadlineDisarmedBeforeItIsArmedCancelsTheLateTimerItself() {
+        val handle = SplitDeadlineHandle()
+        val cancels = AtomicInteger()
+
+        handle.disarm()
+        handle.arm { cancels.incrementAndGet() }
+
+        assertEquals("опоздавший взвод снял себя сам", 1, cancels.get())
+    }
+
+    @Test
+    fun aDeadlineArmedFirstIsCancelledExactlyOnceByTheDisarm() {
+        val handle = SplitDeadlineHandle()
+        val cancels = AtomicInteger()
+
+        handle.arm { cancels.incrementAndGet() }
+        handle.disarm()
+        handle.disarm()
+
+        assertEquals("снятие идемпотентно", 1, cancels.get())
+    }
+
     @Test
     fun aLateResultNeverOverwritesACancelledTicket() {
         // K13, инвариант 10: опоздавший итог отменённой операции не финализирует ticket повторно

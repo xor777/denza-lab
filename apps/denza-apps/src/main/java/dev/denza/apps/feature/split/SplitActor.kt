@@ -23,6 +23,43 @@ internal fun interface SplitCancellable {
     fun cancel()
 }
 
+/**
+ * A timer that may be cancelled before it is even armed.
+ *
+ * Правка волны 17: дедлайн операции взводится ПОСЛЕ отпускания замка актора (иначе взвод стоял бы
+ * под замком очереди), а воркер к этому моменту уже разбужен и короткую операцию успевает и
+ * выполнить, и снять её дедлайн. Прежняя пара «@Volatile-поле + `deadline?.cancel()`» в таком
+ * порядке снимала ещё не взведённый таймер, а настоящий оставался на часах до конца бюджета:
+ * позже он будил `expire` по давно settled-тикету и держал ссылку на завершённую запись. Замерено
+ * на прежнем коде: 5 сирот на 3000 быстрых операций. Здесь взвод и снятие знают друг о друге, и
+ * опоздавший взвод снимает себя сам.
+ */
+internal class SplitDeadlineHandle {
+    private val lock = Any()
+    private var armed: SplitCancellable? = null
+    private var disarmed = false
+
+    fun arm(cancellable: SplitCancellable) {
+        val late = synchronized(lock) {
+            if (disarmed) {
+                true
+            } else {
+                armed = cancellable
+                false
+            }
+        }
+        if (late) cancellable.cancel()
+    }
+
+    fun disarm() {
+        val pending = synchronized(lock) {
+            disarmed = true
+            armed.also { armed = null }
+        }
+        pending?.cancel()
+    }
+}
+
 /** The only source of time and timers in the split core. */
 internal interface SplitClock {
     fun nowMs(): Long
@@ -215,12 +252,9 @@ internal class SplitActor(
         val token: SplitOperationToken,
         val sequence: Long,
     ) {
-        @Volatile
-        var deadline: SplitCancellable? = null
+        val deadline = SplitDeadlineHandle()
 
-        fun disarm() {
-            deadline?.cancel()
-        }
+        fun disarm() = deadline.disarm()
     }
 
     private val lock = ReentrantLock()
@@ -261,7 +295,9 @@ internal class SplitActor(
             queuedEntry.ticket
         }
         cancelled.forEach { (victim, reason) -> victim.finish(SplitOutcome.Cancelled(reason)) }
-        entry?.let { armed -> armed.deadline = clock.schedule(armed.spec.durationMs) { expire(armed) } }
+        entry?.let { armed ->
+            armed.deadline.arm(clock.schedule(armed.spec.durationMs) { expire(armed) })
+        }
         return ticket
     }
 
