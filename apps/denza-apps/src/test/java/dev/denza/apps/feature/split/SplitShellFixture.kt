@@ -864,6 +864,8 @@ internal class SplitCarFixture(
     fun core(
         initial: SplitDurable,
         leases: List<SplitLeaseController> = emptyList(),
+        /** The process-wide shell-UID helper, where a scenario cares what becomes of it (Ф4). */
+        resident: SplitResidentProxy? = null,
         /**
          * Runs on the worker as each diagnostic line is recorded.
          *
@@ -883,6 +885,7 @@ internal class SplitCarFixture(
             gateLeaseStore = gateLease,
             leases = leases,
             apkPath = SPLIT_APK_PATH,
+            resident = resident,
             sleeper = {},
             log = { line ->
                 diagnostics += line

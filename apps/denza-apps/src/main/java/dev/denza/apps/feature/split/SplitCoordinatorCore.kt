@@ -195,6 +195,8 @@ internal class SplitCoordinatorCore(
     private val leases: List<SplitLeaseController>,
     private val apkPath: String,
     private val proxyClasspath: SplitProxyClasspath = SplitProxyClasspath { apkPath },
+    /** The one shell-UID helper of the process, or `null` where there is none to lease. */
+    private val resident: SplitResidentProxy? = null,
     private val sleeper: (Long) -> Unit = Thread::sleep,
     private val log: SplitDiagnosticLog = SplitDiagnosticLog {},
     private val post: (() -> Unit) -> Unit = { action -> action() },
@@ -202,9 +204,11 @@ internal class SplitCoordinatorCore(
     private val stateLock = Any()
     private val routingLock = Any()
     private val recheckLock = Any()
+    private val residentLock = Any()
 
     private var state = SplitState()
     private var live: SplitLiveScene = emptyMap()
+    private var residentRelease: SplitCancellable? = null
 
     /**
      * Panes whose remembered application a refused open left standing on a bare picker (1.3.5).
@@ -498,8 +502,12 @@ internal class SplitCoordinatorCore(
     /** The worker is joined first, so nothing is still holding the transport when it closes. */
     fun shutdown() {
         cancelReconcileRechecks()
+        disarmResidentRelease()
         actor.shutdown()
         (shellFactory as? AutoCloseable)?.let { closeable -> runCatching(closeable::close) }
+        // Ф4: the helper on the car is a process of ours, and it ends with us. Its channel is the
+        // ADB stream it runs on, so closing that is what kills it - nothing is left to reap.
+        resident?.let { helper -> runCatching(helper::close) }
     }
 
     // region internals
@@ -577,6 +585,7 @@ internal class SplitCoordinatorCore(
             gateLeaseStore = gateLeaseStore,
             apkPath = apkPath,
             proxyClasspath = proxyClasspath,
+            resident = resident,
             clock = clock,
             sleeper = sleeper,
             diagnostics = log,
@@ -589,6 +598,8 @@ internal class SplitCoordinatorCore(
             publisher = ::publishSettled,
         )
         val operation = factory(workspace)
+        // Ф4: work is starting, so the idle release the last operation armed is not due after all.
+        disarmResidentRelease()
         // Правка W3, §4: явный ввод пользователя и подтверждённый Home вытесняют отложенный
         // повтор сверки так же, как актор вытесняет его очередную и полётную формы - таймер
         // есть та же HINT-работа, просто ещё не поданная.
@@ -641,7 +652,30 @@ internal class SplitCoordinatorCore(
             busy = busy?.takeIf { it.label != label }
             if (label == OPEN_LABEL) openTicket = null
         }
+        armResidentRelease()
         publish()
+    }
+
+    /**
+     * Ф4: the helper is about 60 MB of PSS on this car, so it may not outlive the work by much.
+     *
+     * The window is deliberately generous next to an operation's own budget: a user tapping
+     * through a scene must never pay to stand a new one up between two of their own taps.
+     */
+    private fun armResidentRelease() {
+        val helper = resident ?: return
+        val armed = clock.schedule(RESIDENT_IDLE_MS) { helper.releaseIfUnused() }
+        synchronized(residentLock) {
+            residentRelease?.cancel()
+            residentRelease = armed
+        }
+    }
+
+    private fun disarmResidentRelease() {
+        synchronized(residentLock) {
+            residentRelease?.cancel()
+            residentRelease = null
+        }
     }
 
     private fun markBusy(label: String, enabled: Boolean, message: String) {
@@ -678,6 +712,9 @@ internal class SplitCoordinatorCore(
     private data class Busy(val label: String, val enabled: Boolean, val message: String)
 
     internal companion object {
+        /** Ф4: how long the shell-UID helper may stand about with no operation needing it. */
+        const val RESIDENT_IDLE_MS = 30_000L
+
         const val ENABLE_LABEL = "enable"
         const val DISABLE_LABEL = "disable"
         const val OPEN_LABEL = "open"

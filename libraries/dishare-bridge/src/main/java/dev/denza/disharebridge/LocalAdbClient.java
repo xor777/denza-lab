@@ -515,6 +515,226 @@ public final class LocalAdbClient {
         }
     }
 
+    /**
+     * Opens a channel to one long-lived shell-UID helper on an ADB stream of its own.
+     *
+     * <p>No socket is listened on and nothing is exposed: this is the same right the product
+     * already exercises for every command, used once for a process that stays. The helper dies
+     * with the stream - closing this session closes the stream, the shell it hangs off goes with
+     * it, and the helper reaches end of file on its own stdin - so there is no state on the car
+     * that can outlive the caller.
+     *
+     * <p>[nonce] must be unique per channel: it is what every answer is wrapped in, so a late or
+     * half-written answer can never be read as the reply to a later request.
+     */
+    public ResidentSession openResidentSession(String nonce) {
+        return new ResidentSession(nonce);
+    }
+
+    public final class ResidentSession implements AutoCloseable {
+        private final String readyMarker;
+        private final String beginMarker;
+        private final String endMarker;
+        private Socket socket;
+        private InputStream input;
+        private OutputStream output;
+        private int remoteId = -1;
+
+        private ResidentSession(String nonce) {
+            readyMarker = "DENZA_SERVE_" + nonce + ":READY";
+            beginMarker = "DENZA_SERVE_" + nonce + ":BEGIN";
+            endMarker = "DENZA_SERVE_" + nonce + ":END";
+        }
+
+        /** Runs [launchCommand] and waits for the helper to say it is up. */
+        public synchronized void start(String launchCommand, int readyTimeoutMs)
+                throws IOException, GeneralSecurityException {
+            if (socket != null) {
+                throw new IOException("this resident session is already running");
+            }
+            IOException lastIoFailure = null;
+            GeneralSecurityException lastSecurityFailure = null;
+            for (String host : hosts) {
+                Socket candidate = new Socket();
+                try {
+                    candidate.connect(new InetSocketAddress(host, PORT), CONNECT_TIMEOUT_MS);
+                    prepareTransport(candidate, readyTimeoutMs);
+                    InputStream candidateInput = candidate.getInputStream();
+                    OutputStream candidateOutput = candidate.getOutputStream();
+                    connect(candidateInput, candidateOutput);
+                    int candidateRemoteId = openInteractiveShell(
+                            candidateInput, candidateOutput, INTERACTIVE_SHELL_LOCAL_ID);
+                    awaitResident(
+                            candidateInput,
+                            candidateOutput,
+                            INTERACTIVE_SHELL_LOCAL_ID,
+                            candidateRemoteId,
+                            launchCommand,
+                            readyMarker);
+                    socket = candidate;
+                    input = candidateInput;
+                    output = candidateOutput;
+                    remoteId = candidateRemoteId;
+                    return;
+                } catch (GeneralSecurityException error) {
+                    closeQuietly(candidate);
+                    lastSecurityFailure = error;
+                } catch (IOException error) {
+                    closeQuietly(candidate);
+                    lastIoFailure = error;
+                }
+            }
+            if (lastSecurityFailure != null) {
+                throw lastSecurityFailure;
+            }
+            if (lastIoFailure != null) {
+                throw lastIoFailure;
+            }
+            throw new IOException("No ADB hosts available");
+        }
+
+        /** One request, one answer. Any failure at all closes the channel; the caller falls back. */
+        public synchronized String request(String line, int readTimeoutMs) throws IOException {
+            if (socket == null) {
+                throw new IOException("the resident helper is not running");
+            }
+            try {
+                socket.setSoTimeout(readTimeoutMs);
+                return runResidentRequest(
+                        input,
+                        output,
+                        INTERACTIVE_SHELL_LOCAL_ID,
+                        remoteId,
+                        line,
+                        beginMarker,
+                        endMarker);
+            } catch (IOException error) {
+                close();
+                throw error;
+            }
+        }
+
+        public synchronized boolean isRunning() {
+            return socket != null;
+        }
+
+        @Override
+        public synchronized void close() {
+            closeQuietly(socket);
+            socket = null;
+            input = null;
+            output = null;
+            remoteId = -1;
+        }
+    }
+
+    static void awaitResident(
+            InputStream input,
+            OutputStream output,
+            int localId,
+            int remoteId,
+            String launchCommand,
+            String readyMarker) throws IOException {
+        exchangeWithResident(
+                input,
+                output,
+                localId,
+                remoteId,
+                launchCommand,
+                received -> received.contains(readyMarker) ? "" : null);
+    }
+
+    static String runResidentRequest(
+            InputStream input,
+            OutputStream output,
+            int localId,
+            int remoteId,
+            String request,
+            String beginMarker,
+            String endMarker) throws IOException {
+        return exchangeWithResident(
+                input,
+                output,
+                localId,
+                remoteId,
+                request,
+                received -> findResidentAnswer(received, beginMarker, endMarker));
+    }
+
+    /**
+     * The payload of a finished answer, or {@code null} while it is still on its way.
+     *
+     * <p>Line endings are deliberately not normalised. Some DiLink builds hand a shell stream that
+     * turns every newline into a carriage return and a newline, and the product's parsers have
+     * always read the car's answers through that; an answer from the helper is read by exactly the
+     * same parsers, so it must arrive in exactly the same shape.
+     */
+    static String findResidentAnswer(String received, String beginMarker, String endMarker)
+            throws IOException {
+        int begin = received.indexOf(beginMarker);
+        if (begin < 0) {
+            return null;
+        }
+        int payloadStart = received.indexOf('\n', begin + beginMarker.length());
+        if (payloadStart < 0) {
+            return null;
+        }
+        payloadStart += 1;
+        int end = received.indexOf(endMarker, payloadStart);
+        if (end < 0) {
+            return null;
+        }
+        int statusEnd = received.indexOf('\n', end);
+        if (statusEnd < 0) {
+            return null;
+        }
+        String status = received.substring(end + endMarker.length(), statusEnd).trim();
+        if (!"ok".equals(status)) {
+            throw new IOException("the resident helper refused: " + status);
+        }
+        return received.substring(payloadStart, end);
+    }
+
+    private interface ResidentScan {
+        /** The finished answer inside [received], or {@code null} to keep reading. */
+        String found(String received) throws IOException;
+    }
+
+    private static String exchangeWithResident(
+            InputStream input,
+            OutputStream output,
+            int localId,
+            int remoteId,
+            String line,
+            ResidentScan scan) throws IOException {
+        byte[] request = (line + "\n").getBytes(StandardCharsets.UTF_8);
+        if (request.length > MAX_PAYLOAD) {
+            throw new IOException("ADB resident request exceeds max payload");
+        }
+        writeMessage(output, A_WRTE, localId, remoteId, request);
+        ByteArrayOutputStream received = new ByteArrayOutputStream();
+        boolean writeAcknowledged = false;
+        while (true) {
+            Message message = readMessage(input);
+            verifyStreamMessage(message, localId, remoteId);
+            if (message.command == A_OKAY) {
+                writeAcknowledged = true;
+            } else if (message.command == A_WRTE) {
+                received.write(message.payload);
+                writeMessage(output, A_OKAY, localId, remoteId, new byte[0]);
+            } else if (message.command == A_CLSE) {
+                writeMessage(output, A_CLSE, localId, remoteId, new byte[0]);
+                throw new EOFException("the resident helper's stream closed");
+            } else {
+                throw new IOException("Unexpected resident message " + message.commandName());
+            }
+            String answer = scan.found(received.toString(StandardCharsets.UTF_8.name()));
+            if (writeAcknowledged && answer != null) {
+                return answer;
+            }
+        }
+    }
+
     public final class PersistentShellSession implements AutoCloseable {
         private final String markerNonce =
                 Long.toUnsignedString(System.nanoTime(), 16);

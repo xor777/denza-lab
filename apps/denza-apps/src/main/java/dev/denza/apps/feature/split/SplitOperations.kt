@@ -22,6 +22,8 @@ internal class SplitOperationWorkspace(
     private val gateLeaseStore: SplitGateLeaseStore,
     private val apkPath: String,
     private val proxyClasspath: SplitProxyClasspath = SplitProxyClasspath { apkPath },
+    /** The process-wide shell-UID helper, leased for this operation like the transport is. */
+    private val resident: SplitResidentProxy? = null,
     private val clock: SplitClock,
     private val sleeper: (Long) -> Unit,
     private val diagnostics: SplitDiagnosticLog,
@@ -85,14 +87,54 @@ internal class SplitOperationWorkspace(
         // here rather than inside the session because the leases this operation takes go straight
         // to the raw shell, and a lease that moved a task would otherwise leave a stale read behind.
         if (!SplitTopologyCache.isTopologyRead(command)) topology.invalidate()
+        // Правка Ф1 волны 15: a command the resident helper may serve is answered by it, in the
+        // words the shell would have used. Anything else, and any failure at all, is sent.
+        residentAnswer(command)?.let { answer -> return answer }
+        return send(command)
+    }
+
+    private fun send(command: String): String {
         val startedAtMs = clock.nowMs()
         try {
             return openedHandle().shell(command)
         } finally {
-            synchronized(budgetLock) {
-                shellCalls += 1
-                shellMs += clock.nowMs() - startedAtMs
-            }
+            record(clock.nowMs() - startedAtMs)
+        }
+    }
+
+    /**
+     * @return the helper's answer, or `null` when the command has to be sent after all.
+     *
+     * An attempt that reached the car and failed is counted like the round trip it was: the budget
+     * line may not make a fallback look free, because it is not.
+     */
+    private fun residentAnswer(command: String): String? {
+        val helper = resident ?: return null
+        val request = SplitResidentRequest.of(command) ?: return null
+        val startedAtMs = clock.nowMs()
+        return when (val answer = helper.answer(request, ::residentLaunchCommand)) {
+            is SplitResidentAnswer.Served -> answer.output.also { record(clock.nowMs() - startedAtMs) }
+            SplitResidentAnswer.Failed -> null.also { record(clock.nowMs() - startedAtMs) }
+            SplitResidentAnswer.NotServed -> null
+        }
+    }
+
+    /**
+     * How the helper is started: the same thin jar and the same class the one-shot path runs.
+     *
+     * `exec` is what makes the helper the shell of its stream rather than a child of it, so
+     * closing that stream is what ends it, with nothing left to reap on the car.
+     */
+    private fun residentLaunchCommand(nonce: String): String {
+        val classpath = proxyClasspath.entry(::send).replace("'", "'\\''")
+        return "CLASSPATH='$classpath' exec app_process /system/bin " +
+            "--nice-name=denza_split_serve ${SplitTaskProxyMain::class.java.name} serve $nonce"
+    }
+
+    private fun record(elapsedMs: Long) {
+        synchronized(budgetLock) {
+            shellCalls += 1
+            shellMs += elapsedMs
         }
     }
 
@@ -132,6 +174,11 @@ internal class SplitOperationWorkspace(
         diagnostics.log(
             "$label: обращений $calls, в shell ${seconds(shell)} с, в паузах ${seconds(pause)} с",
         )
+    }
+
+    /** Ф4: the toggle going off ends the split session, and the helper goes off with it. */
+    fun releaseResident() {
+        resident?.let { helper -> runCatching(helper::close) }
     }
 
     fun state(): SplitState = readState()
@@ -581,6 +628,7 @@ internal class DisableOperation(
         }
         // Independent of the scene, and independent of each other: every restore is a no-op unless
         // this product still owns that lease, so a toggle-off with nothing borrowed stays silent.
+        work.releaseResident()
         val failures = mutableListOf<Throwable>()
         work.leases.forEach { lease ->
             runCatching { lease.restore(shell) }.exceptionOrNull()?.let(failures::add)

@@ -39,6 +39,17 @@ data class SplitScreenSession(
 object SplitScreenCoordinator {
     private const val TAG = "DenzaSplitScreen"
 
+    /**
+     * How long the helper gets to come up, and how long one answer gets.
+     *
+     * Starting one was measured at about 0.4 s on this car, and a car that cannot run it at all
+     * must not cost more than the one-shot call it stands in for did (506-681 ms measured), so the
+     * start budget is a small multiple of the measurement and no more. An answer gets the same
+     * budget as any other command of the transport.
+     */
+    private const val RESIDENT_START_BUDGET_MS = 1_500
+    private const val RESIDENT_REQUEST_BUDGET_MS = 2_500
+
     private val lock = Any()
     private val mainHandler = Handler(Looper.getMainLooper())
     private val timers = Executors.newSingleThreadScheduledExecutor { runnable ->
@@ -197,6 +208,10 @@ object SplitScreenCoordinator {
             ),
             apkPath = app.applicationInfo.sourceDir,
             proxyClasspath = stagedProxy(app),
+            resident = SplitResidentProxy(
+                open = { residentChannel(app) },
+                log = { message -> SplitDiagnostics.record(message) },
+            ),
             log = SplitDiagnosticLog(SplitDiagnostics::record),
             post = { action -> mainHandler.post(action) },
         )
@@ -220,6 +235,27 @@ object SplitScreenCoordinator {
             jar = { app.assets.open(SplitStagedProxyDex.ASSET).use { it.readBytes() } },
             log = { message -> Log.i(TAG, message) },
         )
+    }
+
+    /**
+     * The channel to the one long-lived shell-UID helper: a second ADB stream and nothing else.
+     *
+     * Nothing is listened on and no port is opened; this is the same right the product exercises
+     * for every command it sends. The helper is the shell of that stream, so when the stream goes
+     * - the session closing it, the app dying, the car sleeping - the helper goes with it.
+     */
+    private fun residentChannel(app: Context): SplitResidentChannel {
+        val nonce = java.lang.Long.toUnsignedString(System.nanoTime(), 16)
+        val session = DenzaLocalAdb.client(app).openResidentSession(nonce)
+        return object : SplitResidentChannel {
+            override fun start(launch: (String) -> String) =
+                session.start(launch(nonce), RESIDENT_START_BUDGET_MS)
+
+            override fun request(line: String): String =
+                session.request(line, RESIDENT_REQUEST_BUDGET_MS)
+
+            override fun close() = session.close()
+        }
     }
 
     private fun persistentShell(app: Context): SplitShellHandle {

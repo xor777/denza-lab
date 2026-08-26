@@ -2,6 +2,7 @@ package dev.denza.disharebridge;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeTrue;
 
@@ -280,6 +281,83 @@ public final class LocalAdbClientTest {
             writes += 1;
             super.write(value);
         }
+    }
+
+    /**
+     * Ф1 волны 15: an answer from the resident helper is recognised only when it is whole.
+     *
+     * <p>Everything else the stream may carry - the shell's own noise before the helper started,
+     * half of an answer, a stale one - is not an answer, because the caller's nonce wraps every
+     * one of them and only a complete pair of sentinels ends the wait.
+     */
+    @Test
+    public void aResidentAnswerIsReadOnlyWhenBothSentinelsAreThere() throws Exception {
+        String begin = "DENZA_SERVE_n1:BEGIN";
+        String end = "DENZA_SERVE_n1:END";
+
+        assertNull(LocalAdbClient.findResidentAnswer("noise\n", begin, end));
+        assertNull(LocalAdbClient.findResidentAnswer("noise\n" + begin + "\npart", begin, end));
+        assertNull(LocalAdbClient.findResidentAnswer(
+                "noise\n" + begin + "\nRootTask id=4\n" + end + " ok", begin, end));
+        assertEquals(
+                "RootTask id=4\n",
+                LocalAdbClient.findResidentAnswer(
+                        "shell noise\n" + begin + "\nRootTask id=4\n" + end + " ok\n",
+                        begin,
+                        end));
+        assertEquals(
+                "an empty answer is an answer",
+                "",
+                LocalAdbClient.findResidentAnswer(begin + "\n" + end + " ok\n", begin, end));
+        assertEquals(
+                "a stream that turns newlines into CRLF is read by the same parsers as ever",
+                "RootTask id=4\r\n",
+                LocalAdbClient.findResidentAnswer(
+                        begin + "\r\nRootTask id=4\r\n" + end + " ok\r\n", begin, end));
+    }
+
+    /** A helper that refused is not an answer at all: the caller runs the command it stood in for. */
+    @Test(expected = IOException.class)
+    public void aRefusedResidentAnswerIsAFailureAndNotAnEmptyResult() throws Exception {
+        LocalAdbClient.findResidentAnswer(
+                "DENZA_SERVE_n1:BEGIN\nDENZA_SERVE_n1:END err no activity_task service\n",
+                "DENZA_SERVE_n1:BEGIN",
+                "DENZA_SERVE_n1:END");
+    }
+
+    @Test
+    public void aResidentRequestIsOneLineAndOneAnswerOnTheSameStream() throws Exception {
+        ByteArrayInputStream input = new ByteArrayInputStream(concat(
+                message("OKAY", 41, 1, ""),
+                message("WRTE", 41, 1, "DENZA_SERVE_n1:READY\n"),
+                message("OKAY", 41, 1, ""),
+                message("WRTE", 41, 1, "DENZA_SERVE_n1:BEGIN\nRootTask id=4\n"),
+                message("WRTE", 41, 1, "DENZA_SERVE_n1:END ok\n")));
+        CountingOutputStream output = new CountingOutputStream();
+
+        LocalAdbClient.awaitResident(input, output, 1, 41, "app_process serve n1",
+                "DENZA_SERVE_n1:READY");
+        assertEquals(
+                "RootTask id=4\n",
+                LocalAdbClient.runResidentRequest(
+                        input, output, 1, 41, "world",
+                        "DENZA_SERVE_n1:BEGIN", "DENZA_SERVE_n1:END"));
+
+        String sent = new String(output.toByteArray(), StandardCharsets.ISO_8859_1);
+        assertTrue(sent, sent.contains("app_process serve n1\n"));
+        assertTrue(sent, sent.contains("world\n"));
+    }
+
+    /** The helper's stream going away is a failure, never a silently empty world. */
+    @Test(expected = IOException.class)
+    public void aResidentStreamThatClosesIsAFailure() throws Exception {
+        ByteArrayInputStream input = new ByteArrayInputStream(concat(
+                message("OKAY", 41, 1, ""),
+                message("CLSE", 41, 1, "")));
+
+        LocalAdbClient.runResidentRequest(
+                input, new ByteArrayOutputStream(), 1, 41, "world",
+                "DENZA_SERVE_n1:BEGIN", "DENZA_SERVE_n1:END");
     }
 
     /** What the command prints on its own, with the streams merged exactly as the frame merges. */
