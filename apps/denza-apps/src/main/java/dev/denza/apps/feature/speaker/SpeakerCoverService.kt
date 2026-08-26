@@ -111,6 +111,15 @@ class SpeakerCoverService : Service() {
             stopSelf()
             return START_NOT_STICKY
         }
+        // Switched back on while the process was still winding down. `stopWhenOpen` is set by the
+        // disable path and was never cleared by anything, so a service that survived being turned
+        // off stayed in its stopping mode for the rest of its life: the sample loop took the
+        // wind-down branch, nothing published monitoring again, and the tile turned the spinner
+        // left behind by the last motor command. Off then on is exactly what a driver does.
+        if (stopWhenOpen) {
+            stopWhenOpen = false
+            publishMonitoring()
+        }
         return START_STICKY
     }
 
