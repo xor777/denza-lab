@@ -449,7 +449,16 @@ private fun localeSheet(state: DenzaUiState, actions: DashboardActions) {
     )
 }
 
-private const val SHEET_COLUMNS = 3
+/**
+ * How many applications a row inside a panel holds.
+ *
+ * Four, not three. The panel gives its content 416 dp, so four columns with 12 between them is 95
+ * a tile - room enough for a 44 dp icon well and a name at 15. Three made the four navigation
+ * applications take two rows, and with the help paragraph added the cluster panel then measured
+ * 732 dp in a window 680 tall: the second row of a four-item grid was pushing the switch under it
+ * off the bottom.
+ */
+private const val SHEET_COLUMNS = 4
 
 private fun placementLabel(placement: ClusterMapPlacement): String = when (placement) {
     ClusterMapPlacement.FULL -> "Полный"
