@@ -2,6 +2,7 @@ package dev.denza.disharebridge;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
@@ -400,6 +401,82 @@ public final class LocalAdbClientTest {
         LocalAdbClient.runResidentRequest(
                 input, new ByteArrayOutputStream(), 1, 41, "world",
                 "DENZA_SERVE_n1:BEGIN", "DENZA_SERVE_n1:END");
+    }
+
+    /**
+     * Ф1 волны 16: a command that waited for the session is not a car that was slow.
+     *
+     * <p>This session is shared - a background poll and a user's operation speak through the same
+     * one - so a caller can spend its time queuing without ever touching the car. The ring printed
+     * one number for both until now, and a return path that cost 89 ms a trip had no owner for
+     * 70 of them.
+     */
+    @Test
+    public void timeSpentWaitingForTheSessionIsBookedApartFromTheCar() throws Exception {
+        Object lock = new Object();
+        LocalAdbClient.ShellSpend spend = new LocalAdbClient.ShellSpend();
+        Thread holder = new Thread(() -> {
+            synchronized (lock) {
+                try {
+                    Thread.sleep(120);
+                } catch (InterruptedException interrupted) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+        });
+        holder.start();
+        Thread.sleep(30);
+
+        String answer = LocalAdbClient.timed(lock, spend, spent -> {
+            spent[0] = 7_000_000L;
+            spent[1] = 11_000_000L;
+            return "done";
+        });
+        holder.join();
+
+        assertEquals("done", answer);
+        long[] drained = spend.drain();
+        assertEquals(1, drained[0]);
+        assertTrue("the wait for the session was not booked: " + drained[1],
+                drained[1] >= 50_000_000L);
+        assertEquals(7_000_000L, drained[2]);
+        assertEquals(11_000_000L, drained[3]);
+    }
+
+    /** A command that failed still cost the caller its wait, so it is still counted. */
+    @Test
+    public void aFailedCommandIsStillBookedAndDrainingStartsTheCountAgain() throws Exception {
+        LocalAdbClient.ShellSpend spend = new LocalAdbClient.ShellSpend();
+        try {
+            LocalAdbClient.timed(new Object(), spend, spent -> {
+                spent[0] = 3_000_000L;
+                throw new IOException("the link is gone");
+            });
+            fail("the failure was swallowed");
+        } catch (IOException expected) {
+            assertEquals("the link is gone", expected.getMessage());
+        }
+
+        long[] drained = spend.drain();
+        assertEquals(1, drained[0]);
+        assertEquals(3_000_000L, drained[2]);
+        assertArrayEquals("draining hands the numbers over and starts again",
+                new long[] {0, 0, 0, 0}, spend.drain());
+    }
+
+    /** And one command knows how much of its own time was sending and how much was waiting. */
+    @Test
+    public void oneCommandSaysHowMuchOfItWasSendingAndHowMuchWasWaiting() throws Exception {
+        ByteArrayInputStream input = new ByteArrayInputStream(concat(
+                message("OKAY", 41, 1, ""),
+                message("WRTE", 41, 1, "\u001eMARK_1:BEGIN\u001fanswer\u001eMARK_1:0\u001f")));
+        long[] spent = new long[2];
+
+        LocalAdbClient.runInteractiveCommand(
+                input, new ByteArrayOutputStream(), 1, 41, "echo hi", "MARK_1", spent);
+
+        assertTrue("sending was not measured", spent[0] > 0);
+        assertTrue("waiting for the answer was not measured", spent[1] > 0);
     }
 
     /** What the command prints on its own, with the streams merged exactly as the frame merges. */

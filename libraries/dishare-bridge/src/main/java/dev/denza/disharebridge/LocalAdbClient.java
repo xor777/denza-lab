@@ -379,11 +379,35 @@ public final class LocalAdbClient {
             int remoteId,
             String command,
             String marker) throws IOException {
+        return runInteractiveCommand(input, output, localId, remoteId, command, marker, null);
+    }
+
+    /**
+     * The same command, with two marks so a caller can tell sending from waiting.
+     *
+     * <p>[spent], when given, receives nanoseconds: index 0 is everything up to the command being
+     * handed to the socket, index 1 is the wait for a whole framed answer. That is the only
+     * division that leads anywhere - the first is work this process does and can do less of, the
+     * second is the car, and wave 16 exists because 70 ms of a 89 ms round trip had no owner.
+     */
+    static String runInteractiveCommand(
+            InputStream input,
+            OutputStream output,
+            int localId,
+            int remoteId,
+            String command,
+            String marker,
+            long[] spent) throws IOException {
+        long startedAt = System.nanoTime();
         byte[] framedCommand = frameInteractiveCommand(command, marker);
         if (framedCommand.length > MAX_PAYLOAD) {
             throw new IOException("ADB interactive command exceeds max payload");
         }
         writeMessage(output, A_WRTE, localId, remoteId, framedCommand);
+        long sentAt = System.nanoTime();
+        if (spent != null) {
+            spent[0] += sentAt - startedAt;
+        }
 
         byte[] outputStartMarker = (RECORD + marker + ":BEGIN" + UNIT)
                 .getBytes(StandardCharsets.US_ASCII);
@@ -410,6 +434,9 @@ public final class LocalAdbClient {
                         "Unexpected interactive command message " + message.commandName());
             }
             if (writeAcknowledged && framedResult != null) {
+                if (spent != null) {
+                    spent[1] += System.nanoTime() - sentAt;
+                }
                 return framedResult.output;
             }
         }
@@ -775,36 +802,58 @@ public final class LocalAdbClient {
         private long commandSequence;
         private long nextConnectAtNanos = Long.MIN_VALUE;
         private boolean closed;
+        private final ShellSpend spend = new ShellSpend();
 
-        public synchronized String shell(String command)
+        public String shell(String command)
                 throws IOException, GeneralSecurityException {
             return shell(command, READ_TIMEOUT_MS);
         }
 
-        public synchronized String shell(String command, int readTimeoutMs)
+        /**
+         * One command on the one shell of this session, with its time attributed as it is spent.
+         *
+         * <p>The wait for the session is measured rather than hidden inside the call, because this
+         * session is shared: anything else that speaks to the car through it - a background poll,
+         * another feature - makes a caller queue, and queuing looks exactly like a slow car from
+         * the outside. Wave 16 could not tell those apart, so now the transport says which it was.
+         */
+        public String shell(String command, int readTimeoutMs)
                 throws IOException, GeneralSecurityException {
             if (readTimeoutMs < 1) {
                 throw new IllegalArgumentException("readTimeoutMs must be positive");
             }
-            if (closed) {
-                throw new IOException("Persistent ADB shell is closed");
-            }
-            ensureConnected(readTimeoutMs);
-            String marker = "DENZA_ADB_" + markerNonce + "_"
-                    + Long.toUnsignedString(++commandSequence, 16);
-            try {
-                return runInteractiveCommand(
-                        input,
-                        output,
-                        INTERACTIVE_SHELL_LOCAL_ID,
-                        remoteId,
-                        command,
-                        marker);
-            } catch (IOException error) {
-                closeConnection();
-                scheduleReconnect(RECONNECT_BACKOFF_NANOS);
-                throw error;
-            }
+            return timed(this, spend, spent -> {
+                if (closed) {
+                    throw new IOException("Persistent ADB shell is closed");
+                }
+                ensureConnected(readTimeoutMs);
+                String marker = "DENZA_ADB_" + markerNonce + "_"
+                        + Long.toUnsignedString(++commandSequence, 16);
+                try {
+                    return runInteractiveCommand(
+                            input,
+                            output,
+                            INTERACTIVE_SHELL_LOCAL_ID,
+                            remoteId,
+                            command,
+                            marker,
+                            spent);
+                } catch (IOException error) {
+                    closeConnection();
+                    scheduleReconnect(RECONNECT_BACKOFF_NANOS);
+                    throw error;
+                }
+            });
+        }
+
+        /**
+         * Everything this session has spent since the last call, and it starts counting again.
+         *
+         * <p>Four numbers in nanoseconds: how many commands, how long they waited for the session,
+         * how long it took to hand them to the socket, how long the car took to answer.
+         */
+        public long[] drainTimings() {
+            return spend.drain();
         }
 
         private void ensureConnected(int readTimeoutMs)
@@ -905,6 +954,56 @@ public final class LocalAdbClient {
     static void prepareTransport(Socket socket, int readTimeoutMs) throws SocketException {
         socket.setSoTimeout(readTimeoutMs);
         socket.setTcpNoDelay(true);
+    }
+
+    /** One command of a shared session, with the array it reports its own two marks through. */
+    interface ShellBody {
+        String run(long[] spent) throws IOException, GeneralSecurityException;
+    }
+
+    /**
+     * Runs [body] under [lock] and books the time three ways: queued, sent, answered.
+     *
+     * <p>The wait for the lock is taken before it is held, which is the whole point: a command
+     * that waited for someone else is not a slow car, and until wave 16 the two were one number.
+     * A command that failed is booked as well - the caller waited for it either way.
+     */
+    static String timed(Object lock, ShellSpend spend, ShellBody body)
+            throws IOException, GeneralSecurityException {
+        long requestedAt = System.nanoTime();
+        synchronized (lock) {
+            long waitedNanos = System.nanoTime() - requestedAt;
+            long[] spent = new long[2];
+            try {
+                return body.run(spent);
+            } finally {
+                spend.record(waitedNanos, spent);
+            }
+        }
+    }
+
+    /** The running total of one session, in nanoseconds, handed over and reset on demand. */
+    static final class ShellSpend {
+        private long calls;
+        private long queuedNanos;
+        private long sentNanos;
+        private long answeredNanos;
+
+        synchronized void record(long waitedNanos, long[] spent) {
+            calls += 1;
+            queuedNanos += waitedNanos;
+            sentNanos += spent[0];
+            answeredNanos += spent[1];
+        }
+
+        synchronized long[] drain() {
+            long[] drained = {calls, queuedNanos, sentNanos, answeredNanos};
+            calls = 0;
+            queuedNanos = 0;
+            sentNanos = 0;
+            answeredNanos = 0;
+            return drained;
+        }
     }
 
     private static void closeQuietly(Socket socket) {
