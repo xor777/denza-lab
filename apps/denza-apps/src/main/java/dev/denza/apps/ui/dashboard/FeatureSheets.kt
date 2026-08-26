@@ -15,6 +15,7 @@ import dev.denza.apps.design.DenzaMetrics
 import dev.denza.apps.feature.cluster.ClusterMapPlacement
 import dev.denza.apps.feature.mirrors.MirrorsPosition
 import dev.denza.apps.ui.components.DenzaAppTile
+import dev.denza.apps.ui.components.DenzaTileTone
 import dev.denza.apps.ui.components.DenzaNote
 import dev.denza.apps.ui.components.DenzaTileGrid
 import dev.denza.apps.ui.components.DenzaPrimaryButton
@@ -77,10 +78,20 @@ fun FeatureSheet(
             onDismiss = onDismiss,
             icon = tileIcon(tile.icon),
         )
-        // Whatever the feature has to say for itself, in the colour that state deserves. It is said
-        // once, here, rather than by each sheet in its own words.
+        // Whatever the feature has to say for itself, in the colour that state deserves. It is
+        // said once, here, rather than by each sheet in its own words - and only when the state is
+        // one the driver has to do something about.
+        //
+        // A working feature restating itself is noise, and it is the same rule the tile's caption
+        // follows: something that speaks on a healthy car teaches the driver to stop reading it.
+        // Split screen was heading its panel with "Иконка Split Screen доступна" directly above
+        // the switch that says so, in English, inside a Russian sentence.
+        val speaks = tile.tone == DenzaTileTone.ATTENTION ||
+            tile.tone == DenzaTileTone.BROKEN ||
+            tile.tone == DenzaTileTone.WORKING
         DenzaStatusLine(
-            text = snapshot?.message.orEmpty().takeIf { it != tile.state }.orEmpty(),
+            text = if (speaks) snapshot?.message.orEmpty().takeIf { it != tile.state }.orEmpty()
+            else "",
             tone = tile.tone,
         )
         when (id) {
@@ -112,12 +123,22 @@ fun FeatureSheet(
 }
 
 /** What this panel is for, in the words the board writes under its title. */
+/**
+ * What a panel is for, under its name.
+ *
+ * Exhaustive rather than defaulting to the empty string: a new tile with a panel and no purpose
+ * line is a header that names a feature and says nothing about what the settings under it decide,
+ * and an `else` branch makes that the silent default. Split screen arrived that way and shipped
+ * without one.
+ */
 private fun purposeOf(id: TileId): String = when (id) {
     TileId.CLUSTER -> "Что показывать за рулём"
     TileId.SIMULCAST -> "Какие приложения уходят на экраны"
     TileId.MIRRORS -> "Когда показывать камеры и где"
+    TileId.SPLIT -> "Как делить экран между приложениями"
     TileId.WEATHER -> "Погода для штатного виджета"
-    else -> ""
+    // No panel of their own: nothing to head.
+    TileId.HUD, TileId.SPEAKERS, TileId.LOCALE, TileId.PASSENGER, TileId.SERVICE -> ""
 }
 
 /**
