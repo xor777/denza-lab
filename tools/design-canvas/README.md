@@ -54,7 +54,7 @@ can measure and cannot see is a difference that will be drifted into.
 
 | | rungs | step |
 | --- | --- | --- |
-| Cluster (virtual units, 1.70 on the panel) | 104 · 52 · 34 · 24 · 18 · 13 · 11 | 8 wide, 6 narrow |
+| Cluster (virtual units, 1.70 on the panel) | 52 · 34 · 24 · 18 · 13 · 11 (+ `104`, proposal only) | 8 wide, 6 narrow |
 | Head unit (pixels, 1:1) | 82 · 62 · 46 · 34 · 24 · 19 · 15 | 6 |
 
 Radii are `22 · 12 · 6 · 2` plus a track's own half-height. Borders are one pixel
@@ -62,11 +62,22 @@ Radii are `22 · 12 · 6 · 2` plus a track's own half-height. Borders are one p
 optical weight of `2.0`, so a stroke is `2.0 × 24 ÷ rendered size`.
 
 The cluster ramp is `InstrumentDensity.RAMP` in the app and the boards restate
-it; `gen_cluster.py` is the one place to check that they still agree. `104` is
-the proposal's headline numeral and the only rung added for it - exactly twice
-the old top, so the ladder is extended rather than duplicated. Its first draft
-ran at `58` and `19` beside the ramp's `52` and `18`, which is the drift the
-ramp exists to prevent: a difference you can measure and cannot see.
+it; `gen_cluster.py` is the one place to check that they still agree. That ramp
+is the six rungs from `52` down to `11`, and the app draws nothing else.
+
+`104` is not on it. It is the headline numeral of the proposed cluster and it
+lives on the `gen_next.py` boards alone, because the app does not draw that
+cluster yet and a constant nothing reads is not a ramp rung, it is a promise.
+It is sized as one deliberately - exactly twice `52`, so that adopting the
+proposal extends the ladder rather than starting a second one beside it - and
+it joins `InstrumentDensity.RAMP` on the day the proposal is adopted, in the
+same change, or not at all.
+
+The first draft of those boards ran at `58` and `19` beside the ramp's own `52`
+and `18`, which is the drift the ramp exists to prevent: a difference you can
+measure and cannot see. This page then claimed the two records agreed while
+`104` sat in one and not the other, which is the same failure one level up -
+caught by the parallel session reading both, not by anything here.
 
 ## Regenerating and republishing
 
