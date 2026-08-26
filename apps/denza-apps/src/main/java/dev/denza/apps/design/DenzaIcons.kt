@@ -82,12 +82,6 @@ object DenzaIcons {
         "M9 17.5h6",
     )
 
-    /** The button on the wheel, which the car itself marks with a star. */
-    val SteeringWheelButton: ImageVector = icon(
-        "denza_steering_button",
-        "M12 3.5l2.6 5.5 5.9 0.8-4.3 4.2 1 5.9-5.2-2.8-5.2 2.8 1-5.9L3.5 9.8l5.9-0.8z",
-    )
-
     /** Russian in the car's own settings. */
     val Locale: ImageVector = icon(
         "denza_locale",

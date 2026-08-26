@@ -21,7 +21,6 @@ enum class TileIcon {
     SPLIT,
     HUD,
     SPEAKER,
-    STEERING_WHEEL,
     LOCALE,
     PASSENGER,
     SERVICE,
@@ -101,7 +100,6 @@ object DashboardTiles {
         split(state),
         hud(state),
         speakers(state),
-        steeringWheel(state),
         locale(state),
         passenger(state),
         service(),
@@ -275,31 +273,6 @@ object DashboardTiles {
             action = actionOf(snapshot, TileAction.TOGGLE),
         )
     }
-
-    /**
-     * The custom button on the steering wheel.
-     *
-     * Not a feature of ours at all - the car owns the button, and all this does is decide what it
-     * is pointed at. So the caption names the destination, which is a setting however it is
-     * pressed.
-     */
-    private fun steeringWheel(state: DenzaUiState): DashboardTile {
-        val on = state.navigationSteeringWheelButton
-        return DashboardTile(
-            id = TileId.STEERING_WHEEL,
-            icon = TileIcon.STEERING_WHEEL,
-            name = "Кнопка на руле",
-            state = if (on) "Экран водителя" else "Штатное действие",
-            tone = when {
-                state.navigationSteeringWheelButtonRepairing -> DenzaTileTone.WORKING
-                on -> DenzaTileTone.LIVE
-                else -> DenzaTileTone.IDLE
-            },
-            caption = DenzaTileCaption.SETTING,
-            action = TileAction.TOGGLE,
-        )
-    }
-
     /**
      * Russian inside the car's own settings, which is a switch in stock firmware rather than
      * anything this app draws.

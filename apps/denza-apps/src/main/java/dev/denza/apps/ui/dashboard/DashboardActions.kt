@@ -66,8 +66,6 @@ object DashboardPress {
             TileId.SPLIT -> actions.onToggleSplitScreen(!state.splitScreen.desiredEnabled)
             TileId.HUD -> actions.onToggleHudGuidance(!state.hudGuidance.desiredEnabled)
             TileId.SPEAKERS -> actions.onToggleSpeakerCovers(!state.speakerCovers.desiredEnabled)
-            TileId.STEERING_WHEEL ->
-                actions.onNavigationSteeringWheelButton(!state.navigationSteeringWheelButton)
             // Unknown is not off: a locale nobody has read yet is asked to come on, not to stay as
             // it was, because the driver pressing this tile has said which way they want it.
             TileId.LOCALE ->
@@ -107,7 +105,7 @@ object DashboardPress {
             TileId.HUD -> actions.onToggleHudGuidance(true)
             TileId.SPEAKERS -> actions.onToggleSpeakerCovers(true)
             TileId.PASSENGER -> actions.onChooseFseApp()
-            TileId.STEERING_WHEEL, TileId.LOCALE, TileId.SERVICE -> actions.onOpenSettings(id)
+            TileId.LOCALE, TileId.SERVICE -> actions.onOpenSettings(id)
         }
     }
 

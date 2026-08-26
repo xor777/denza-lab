@@ -22,7 +22,6 @@ enum class TileId {
     SPLIT,
     HUD,
     SPEAKERS,
-    STEERING_WHEEL,
     LOCALE,
     PASSENGER,
     SERVICE,
@@ -38,6 +37,6 @@ enum class TileId {
             HUD -> FeatureId.HUD_GUIDANCE
             SPEAKERS -> FeatureId.SPEAKER_COVERS
             PASSENGER -> FeatureId.FSE_INSTALLER
-            STEERING_WHEEL, LOCALE, SERVICE -> null
+            LOCALE, SERVICE -> null
         }
 }

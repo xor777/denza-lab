@@ -69,7 +69,6 @@ fun FeatureSheet(
             TileId.SPLIT -> splitSheet(state, actions, busy)
             TileId.HUD -> hudSheet(state, actions, busy)
             TileId.SPEAKERS -> SpeakerSheet(state, actions, busy)
-            TileId.STEERING_WHEEL -> steeringWheelSheet(state, actions, busy)
             TileId.LOCALE -> localeSheet(state, actions)
             TileId.PASSENGER -> passengerSheet(state, actions, busy)
             // Service is a door: its short press opens the service screen, and a long press has
@@ -276,22 +275,6 @@ private fun passengerSheet(state: DenzaUiState, actions: DashboardActions, busy:
         )
     }
 }
-
-/**
- * The button on the wheel: one switch, and the car keeps its own behaviour when it is off.
- */
-@Composable
-private fun steeringWheelSheet(state: DenzaUiState, actions: DashboardActions, busy: Boolean) {
-    DenzaSection(title = "Что делает кнопка") {
-        DenzaSwitchRow(
-            title = "Открывать экран водителя",
-            checked = state.navigationSteeringWheelButton,
-            onCheckedChange = actions.onNavigationSteeringWheelButton,
-            enabled = !busy && !state.navigationSteeringWheelButtonRepairing,
-        )
-    }
-}
-
 /** Russian in the car's own settings, which is a switch in stock firmware and nothing of ours. */
 @Composable
 private fun localeSheet(state: DenzaUiState, actions: DashboardActions) {

@@ -21,7 +21,9 @@ class DashboardTilesTest {
 
     @Test
     fun theMainScreenCarriesTheTenReachableTilesAndNothingElse() {
-        // Weather has no user control; every other board entry has a real action behind it.
+        // Weather has no user control, and the wheel button is a switch inside the driver's own
+        // screen rather than a feature of its own - the owner moved it there, so the board's
+        // eleven tiles are nine here.
         assertEquals(
             listOf(
                 TileId.CLUSTER,
@@ -30,7 +32,6 @@ class DashboardTilesTest {
                 TileId.SPLIT,
                 TileId.HUD,
                 TileId.SPEAKERS,
-                TileId.STEERING_WHEEL,
                 TileId.LOCALE,
                 TileId.PASSENGER,
                 TileId.SERVICE,

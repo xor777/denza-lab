@@ -58,7 +58,6 @@ private fun iconOf(icon: TileIcon): ImageVector = when (icon) {
     TileIcon.SPLIT -> DenzaIcons.Split
     TileIcon.HUD -> DenzaIcons.Hud
     TileIcon.SPEAKER -> DenzaIcons.Speaker
-    TileIcon.STEERING_WHEEL -> DenzaIcons.SteeringWheelButton
     TileIcon.LOCALE -> DenzaIcons.Locale
     TileIcon.PASSENGER -> DenzaIcons.Passenger
     TileIcon.SERVICE -> DenzaIcons.Service
