@@ -53,21 +53,23 @@ fun FeatureSheet(
     val busy = snapshot?.status == FeatureStatus.STARTING ||
         snapshot?.status == FeatureStatus.RECOVERING
 
-    val label = primaryLabel(tile, state)
+    val action = panelAction(tile, state, actions, onDismiss)
     DenzaSheet(
         onDismiss = onDismiss,
         compact = compact,
         footer = {
-            if (label.isNotBlank()) {
+            if (action.label.isNotBlank()) {
                 Column(verticalArrangement = Arrangement.spacedBy(DenzaMetrics.Space.M)) {
                     DenzaPrimaryButton(
-                        text = label,
-                        onClick = { DashboardPress.perform(tile, state, actions); onDismiss() },
+                        text = action.label,
+                        onClick = action.onClick,
                         modifier = Modifier.fillMaxWidth()
                             .height(DenzaMetrics.Component.PRIMARY_HEIGHT),
-                        enabled = !busy,
+                        enabled = !busy && action.enabled,
                     )
-                    DenzaSheetFootnote("Короткое нажатие на плитку делает то же самое")
+                    if (action.isTheTilePress) {
+                        DenzaSheetFootnote("Короткое нажатие на плитку делает то же самое")
+                    }
                 }
             }
         },
@@ -142,10 +144,62 @@ private fun purposeOf(id: TileId): String = when (id) {
 }
 
 /**
- * The name of the tile's own action, for the button at the foot.
+ * The one thing a panel's button does.
  *
- * It reads the same wish the tile's press reads, so the two can never offer opposite things - the
- * button says "Выключить" exactly when pressing the tile would switch it off.
+ * Every panel has the same two organs and they never swap jobs: **a switch turns the feature on,
+ * the button at the foot does something**. The button is a verb - "Запустить", "Разделить экран",
+ * "Проверить камеры" - and never an on/off.
+ *
+ * Before this, it was whichever the tile happened to need. Projection and split screen showed a
+ * switch at the top and a verb at the foot; the mirrors panel had no switch at all and put its
+ * on/off in the button as "Выключить" - the same decision offered through two different controls
+ * depending on which panel you opened. Worse, three of the mirrors panel's controls grey out when
+ * the feature is off and nothing in it said why, because the switch that would have said so was
+ * the one thing missing.
+ *
+ * [isTheTilePress] is what the footnote is allowed to promise. The button usually is the tile's
+ * own press said in words, and where it is not - the mirrors panel previews the cameras, it does
+ * not stop watching them - the footnote goes rather than becoming untrue.
+ */
+private data class PanelAction(
+    val label: String,
+    val onClick: () -> Unit,
+    val enabled: Boolean = true,
+    val isTheTilePress: Boolean = true,
+)
+
+private fun panelAction(
+    tile: DashboardTile,
+    state: DenzaUiState,
+    actions: DashboardActions,
+    onDismiss: () -> Unit,
+): PanelAction {
+    val press = { DashboardPress.perform(tile, state, actions); onDismiss() }
+    return when (tile.id) {
+        // Watching or not is the switch's job now, so the foot is free for the only verb this
+        // feature has.
+        TileId.MIRRORS -> PanelAction(
+            label = "Проверить камеры",
+            onClick = { actions.onPreviewMirrors(); onDismiss() },
+            enabled = state.mirrors.desiredEnabled,
+            isTheTilePress = false,
+        )
+        // The tile presses this into a toggle while projection is off; the panel does not, because
+        // the switch above is already that decision.
+        TileId.SIMULCAST -> PanelAction(
+            label = "Запустить",
+            onClick = { actions.onLaunchSimulcast(); onDismiss() },
+            enabled = state.simulcast.desiredEnabled,
+            isTheTilePress = tile.action == TileAction.SIMULCAST_LAUNCH,
+        )
+        else -> PanelAction(label = primaryLabel(tile, state), onClick = press)
+    }
+}
+
+/**
+ * The name of the tile's own action, for the panels whose button is that press.
+ *
+ * It reads the same wish the tile's press reads, so the two can never offer opposite things.
  */
 private fun primaryLabel(tile: DashboardTile, state: DenzaUiState): String {
     val on = DashboardPress.snapshotOf(tile.id, state)?.desiredEnabled == true
@@ -251,6 +305,13 @@ private fun simulcastSheet(state: DenzaUiState, actions: DashboardActions, busy:
 /** Where the turn-indicator cameras appear, and how their picture is treated. */
 @Composable
 private fun mirrorsSheet(state: DenzaUiState, actions: DashboardActions, busy: Boolean) {
+    DenzaSwitchRow(
+        title = "Зеркала",
+        subtitle = "Камеры по поворотникам",
+        checked = state.mirrors.desiredEnabled,
+        onCheckedChange = actions.onToggleMirrors,
+        enabled = !busy,
+    )
     DenzaSection("Где показывать") {
         DenzaSegmentedRow(
             labels = listOf("По сторонам", "По центру"),
@@ -280,12 +341,6 @@ private fun mirrorsSheet(state: DenzaUiState, actions: DashboardActions, busy: B
         checked = state.mirrorsProcessing,
         onCheckedChange = actions.onMirrorsProcessing,
         enabled = state.mirrors.desiredEnabled,
-    )
-    DenzaSecondaryButton(
-        text = "Проверить камеры",
-        onClick = actions.onPreviewMirrors,
-        modifier = Modifier.fillMaxWidth(),
-        enabled = !busy,
     )
 }
 
