@@ -27,6 +27,12 @@ hollow around it. `ClusterBar` spends that height on the histories instead and
 lays the power flat on the horizon itself, growing right to spend and left to
 recover. Everything else is identical, so the choice is the only thing being
 asked.
+Type is the canvas ramp, not a new one. The first draft of these boards ran at
+104 / 58 / 19 / 18 / 14, which broke the rule the ramp exists for twice over: 19
+against 18 is a difference you can measure and cannot see, and 58 against the
+ramp's own 52 is the same drift one board away. The headline numeral is the only
+new rung, and it is exactly twice the old top - so the proposal extends the
+ladder rather than starting a second one beside it.
 """
 import math
 import os
@@ -436,10 +442,10 @@ HEAD = """<!doctype html>
     a { color:#FEEFAB; } a:hover { color:#FFF7D2; }
     text { font-feature-settings:'tnum' 1; font-variant-numeric:tabular-nums; }
     .hero { font-weight:200; font-size:104px; fill:%(ink)s; letter-spacing:-0.02em; }
-    .fig { font-weight:200; font-size:58px; fill:%(ink)s; letter-spacing:-0.01em; }
-    .rd { font-weight:300; font-size:19px; fill:%(ink)s; }
+    .fig { font-weight:200; font-size:52px; fill:%(ink)s; letter-spacing:-0.01em; }
+    .rd { font-weight:300; font-size:18px; fill:%(ink)s; }
     .un { font-weight:400; font-size:18px; fill:%(muted)s; }
-    .bd { font-weight:400; font-size:14px; fill:%(muted_deep)s; }
+    .bd { font-weight:400; font-size:13px; fill:%(muted_deep)s; }
     .ghost { font-size:11px; letter-spacing:0.12em; fill:%(ghost_ink)s; }
   </style>
 </helmet>

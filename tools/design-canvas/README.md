@@ -1,6 +1,6 @@
 # Design canvas
 
-The fifteen artboards behind the Denza Apps redesign, and the tooling that keeps
+The twenty artboards behind the Denza Apps redesign, and the tooling that keeps
 them honest. Published as a Claude Design canvas; these are the sources it is
 seeded from.
 
@@ -23,7 +23,8 @@ that reports what collides.
 | --- | --- |
 | `*.dc.html` | the artboards, one sandboxed document each |
 | `canvas.json` | positions, pages and the launch view |
-| `gen_cluster.py` | emits the three cluster boards and the reusable gauge block |
+| `gen_cluster.py` | emits the three cluster boards as they stand on the car today |
+| `gen_next.py` | emits the proposed cluster: one horizon, two histories, the gauge |
 | `gen_kit.py` | emits the two boards that describe the system, from the system |
 | `panel_frame.py` | the shared frame for the four instrument pages; rebuilds Energy |
 | `normalize.py` | maps type, radii, borders and icon weights onto the scales |
@@ -53,7 +54,7 @@ can measure and cannot see is a difference that will be drifted into.
 
 | | rungs | step |
 | --- | --- | --- |
-| Cluster (virtual units, 1.70 on the panel) | 52 · 34 · 24 · 18 · 13 · 11 | 8 wide, 6 narrow |
+| Cluster (virtual units, 1.70 on the panel) | 104 · 52 · 34 · 24 · 18 · 13 · 11 | 8 wide, 6 narrow |
 | Head unit (pixels, 1:1) | 82 · 62 · 46 · 34 · 24 · 19 · 15 | 6 |
 
 Radii are `22 · 12 · 6 · 2` plus a track's own half-height. Borders are one pixel
@@ -61,12 +62,16 @@ Radii are `22 · 12 · 6 · 2` plus a track's own half-height. Borders are one p
 optical weight of `2.0`, so a stroke is `2.0 × 24 ÷ rendered size`.
 
 The cluster ramp is `InstrumentDensity.RAMP` in the app and the boards restate
-it; `gen_cluster.py` is the one place to check that they still agree.
+it; `gen_cluster.py` is the one place to check that they still agree. `104` is
+the proposal's headline numeral and the only rung added for it - exactly twice
+the old top, so the ladder is extended rather than duplicated. Its first draft
+ran at `58` and `19` beside the ramp's `52` and `18`, which is the drift the
+ramp exists to prevent: a difference you can measure and cannot see.
 
 ## Regenerating and republishing
 
 ```bash
-python3 gen_cluster.py && python3 gen_kit.py && python3 audit.py
+python3 gen_cluster.py && python3 gen_next.py && python3 gen_kit.py && python3 audit.py
 ```
 
 Then seed a fresh payload with the `design` skill's `seed-canvas.mjs` and publish
