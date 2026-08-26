@@ -9,6 +9,10 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.ServerSocket;
+import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
@@ -213,6 +217,69 @@ public final class LocalAdbClientTest {
         assertTrue(framed, framed.contains("__denza_emit '\u001eMARK:BEGIN\u001f';"));
         assertTrue(framed, framed.contains("( eval 'echo hi' ) 2>&1;"));
         assertTrue("the shell is still waiting on this line", framed.endsWith("\n"));
+    }
+
+    /**
+     * Ф3 волны 15: an ADB message reaches the socket in one write, never as a header and a body.
+     *
+     * <p>ADB answers nothing until a whole message has arrived, so a payload that Nagle holds back
+     * waiting for the header's acknowledgement is an answer held back with it - on every single
+     * command, and the product sends dozens to build one scene.
+     */
+    @Test
+    public void everyAdbMessageLeavesInASingleWrite() throws Exception {
+        ByteArrayInputStream input = new ByteArrayInputStream(concat(
+                message("OKAY", 41, 1, ""),
+                message("OKAY", 41, 1, ""),
+                message("WRTE", 41, 1, "\u001eMARK_1:BEGIN\u001fanswer\u001eMARK_1:0\u001f"),
+                message("OKAY", 41, 1, "")));
+        CountingOutputStream output = new CountingOutputStream();
+
+        int remoteId = LocalAdbClient.openInteractiveShell(input, output, 1);
+        LocalAdbClient.runInteractiveCommand(input, output, 1, remoteId, "echo hi", "MARK_1");
+
+        assertEquals(
+                "one write per message: OPEN, WRTE(command), OKAY(payload receipt)",
+                3,
+                output.writes);
+        assertEquals(3, messageHeaders(output.toByteArray()).size());
+    }
+
+    /** The socket seam every ADB connection of this client goes through. */
+    @Test
+    public void everyAdbSocketDisablesNagleAndCarriesTheReadTimeout() throws Exception {
+        try (ServerSocket server = new ServerSocket(0, 1, InetAddress.getLoopbackAddress());
+                Socket socket = new Socket()) {
+            socket.connect(new InetSocketAddress(InetAddress.getLoopbackAddress(),
+                    server.getLocalPort()), 2_000);
+
+            LocalAdbClient.prepareTransport(socket, 1_234);
+
+            assertTrue("Nagle must be off on an ADB socket", socket.getTcpNoDelay());
+            assertEquals(1_234, socket.getSoTimeout());
+        }
+    }
+
+    private static final class CountingOutputStream extends ByteArrayOutputStream {
+        int writes;
+
+        @Override
+        public synchronized void write(byte[] source, int offset, int length) {
+            writes += 1;
+            super.write(source, offset, length);
+        }
+
+        @Override
+        public void write(byte[] source) {
+            writes += 1;
+            super.write(source, 0, source.length);
+        }
+
+        @Override
+        public synchronized void write(int value) {
+            writes += 1;
+            super.write(value);
+        }
     }
 
     /** What the command prints on its own, with the streams merged exactly as the frame merges. */

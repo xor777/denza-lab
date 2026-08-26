@@ -121,7 +121,7 @@ public final class LocalAdbClient {
                 continue;
             }
             try {
-                socket.setSoTimeout(READ_TIMEOUT_MS);
+                prepareTransport(socket, READ_TIMEOUT_MS);
                 return connectForAuthorizationRequest(
                         socket.getInputStream(), socket.getOutputStream());
             } finally {
@@ -182,7 +182,7 @@ public final class LocalAdbClient {
             throws IOException, GeneralSecurityException {
         Socket socket = new Socket();
         socket.connect(new InetSocketAddress(host, PORT), CONNECT_TIMEOUT_MS);
-        socket.setSoTimeout(readTimeoutMs);
+        prepareTransport(socket, readTimeoutMs);
         try {
             InputStream input = socket.getInputStream();
             OutputStream output = socket.getOutputStream();
@@ -560,7 +560,7 @@ public final class LocalAdbClient {
         private void ensureConnected(int readTimeoutMs)
                 throws IOException, GeneralSecurityException {
             if (socket != null) {
-                socket.setSoTimeout(readTimeoutMs);
+                prepareTransport(socket, readTimeoutMs);
                 return;
             }
             waitForReconnectWindow();
@@ -571,7 +571,7 @@ public final class LocalAdbClient {
                 Socket candidate = new Socket();
                 try {
                     candidate.connect(new InetSocketAddress(host, PORT), CONNECT_TIMEOUT_MS);
-                    candidate.setSoTimeout(readTimeoutMs);
+                    prepareTransport(candidate, readTimeoutMs);
                     InputStream candidateInput = candidate.getInputStream();
                     OutputStream candidateOutput = candidate.getOutputStream();
                     connect(candidateInput, candidateOutput);
@@ -645,6 +645,18 @@ public final class LocalAdbClient {
         }
     }
 
+    /**
+     * The two things every ADB socket of this client needs before a single byte goes out.
+     *
+     * <p>Nagle is the one that was missing. ADB is strictly request/response - nothing comes back
+     * until a whole message has arrived - so a delayed segment is a delayed answer, every time,
+     * and the product sends dozens of messages to build one scene.
+     */
+    static void prepareTransport(Socket socket, int readTimeoutMs) throws SocketException {
+        socket.setSoTimeout(readTimeoutMs);
+        socket.setTcpNoDelay(true);
+    }
+
     private static void closeQuietly(Socket socket) {
         if (socket == null) {
             return;
@@ -688,15 +700,19 @@ public final class LocalAdbClient {
         for (byte b : payload) {
             checksum += b & 0xff;
         }
-        ByteBuffer header = ByteBuffer.allocate(24).order(ByteOrder.LITTLE_ENDIAN);
-        header.putInt(command);
-        header.putInt(arg0);
-        header.putInt(arg1);
-        header.putInt(payload.length);
-        header.putInt(checksum);
-        header.putInt(command ^ 0xffffffff);
-        output.write(header.array());
-        output.write(payload);
+        // One message, one write. The header used to go out on its own and the payload after it,
+        // which asks Nagle to hold the payload until the header is acknowledged - the answer to an
+        // ADB message only comes after both halves arrive, so the stall lands on every command.
+        ByteBuffer message = ByteBuffer.allocate(24 + payload.length)
+                .order(ByteOrder.LITTLE_ENDIAN);
+        message.putInt(command);
+        message.putInt(arg0);
+        message.putInt(arg1);
+        message.putInt(payload.length);
+        message.putInt(checksum);
+        message.putInt(command ^ 0xffffffff);
+        message.put(payload);
+        output.write(message.array());
         output.flush();
     }
 
