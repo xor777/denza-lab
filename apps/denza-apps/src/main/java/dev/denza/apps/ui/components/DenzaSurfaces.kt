@@ -112,6 +112,10 @@ fun DenzaSheet(
  * The icon repeats the tile the panel came from. On a screen where the panel covers a third of the
  * dashboard, that is the only thing saying which tile was pressed - and the tile it came from may
  * well be the one now underneath it.
+ *
+ * [onTitleTap] exists for one caller and is null everywhere else: a panel's title answers no touch
+ * unless the panel says otherwise. It is deliberately on the title alone and not on the header, so
+ * the subtitle and the way out keep answering only what they answer.
  */
 @Composable
 fun DenzaSheetHeader(
@@ -120,6 +124,7 @@ fun DenzaSheetHeader(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
     icon: ImageVector? = null,
+    onTitleTap: (() -> Unit)? = null,
 ) {
     Row(
         modifier = modifier.fillMaxWidth(),
@@ -138,7 +143,27 @@ fun DenzaSheetHeader(
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(DenzaMetrics.Space.XS),
         ) {
-            Text(title, style = MaterialTheme.typography.titleLarge, color = DenzaColors.Ink)
+            val titleTaps = remember { MutableInteractionSource() }
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleLarge,
+                color = DenzaColors.Ink,
+                modifier = if (onTitleTap == null) {
+                    Modifier
+                } else {
+                    // The whole line, not the glyphs. A title set at 24 sp is under 30 dp tall,
+                    // which is already below the touch floor this app holds itself to; taking the
+                    // width the column has anyway costs nothing and draws nothing, since the text
+                    // stays where it was.
+                    Modifier
+                        .fillMaxWidth()
+                        .clickable(
+                            interactionSource = titleTaps,
+                            indication = null,
+                            onClick = onTitleTap,
+                        )
+                },
+            )
             if (subtitle.isNotBlank()) {
                 Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = DenzaColors.Muted)
             }

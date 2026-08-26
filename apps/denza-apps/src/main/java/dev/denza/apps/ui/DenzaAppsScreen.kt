@@ -59,8 +59,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -94,6 +92,7 @@ import dev.denza.apps.design.DenzaMetrics
 import dev.denza.apps.design.DenzaTheme
 import dev.denza.apps.feature.cluster.ClusterDisplayDescriptor
 import dev.denza.apps.feature.cluster.ClusterMapPlacement
+import dev.denza.apps.feature.adb.AdbExplainer
 import dev.denza.apps.feature.adb.AdbRescueCoordinator
 import dev.denza.apps.feature.adb.AdbRescuePhase
 import dev.denza.apps.feature.adb.AdbStartupGatePolicy
@@ -102,6 +101,7 @@ import dev.denza.apps.feature.adb.AdbStartupPrimaryAction
 import dev.denza.apps.feature.fse.FseInstallApp
 import dev.denza.apps.feature.mirrors.MirrorsPosition
 import dev.denza.apps.ui.components.DenzaKeyValueRow
+import dev.denza.apps.ui.components.DenzaSecondaryButton
 import dev.denza.apps.ui.components.DenzaSwitchRow
 import dev.denza.apps.ui.dashboard.DashboardActions
 import dev.denza.apps.ui.dashboard.DashboardGrid
@@ -150,11 +150,17 @@ fun DenzaAppsRoot(
     var showClusterPicker by remember { mutableStateOf(false) }
     var showDiagnostics by remember { mutableStateOf(false) }
     var showAdbRecovery by remember { mutableStateOf(false) }
+    var showAdbExplainer by remember { mutableStateOf(false) }
     var settingsFor by remember { mutableStateOf<TileId?>(null) }
     // Service used to be seven quick taps on an undisclosed part of the screen, with no affordance
     // and nothing to tell you it had happened. A live run found the other half of that bargain: a
     // tap that misses the secret door now lands on a tile, and an odd number of them switched the
     // mirrors off in silence. It is a tile of its own, and the strip below is only a strip again.
+    //
+    // The taps came back for one case and only one: the ADB gate covers the dashboard, so it covers
+    // the service tile, and that is precisely when the readings are wanted. They live on the title
+    // of [AdbExplainerSheet], which is a window with no other controls in it - a tap that is not the
+    // seventh has nothing to hit.
     val openService = {
         onRefreshScreenDiagnostics()
         onRefreshStockRussianLocale()
@@ -346,6 +352,18 @@ fun DenzaAppsRoot(
                         }
                     },
                     onOpenRecovery = { showAdbRecovery = true },
+                    onOpenExplainer = { showAdbExplainer = true },
+                )
+            }
+            // The explainer outlives the gate's own visibility check on purpose: it is a window of
+            // its own, and closing it is the owner's to do, not a side effect of the phase changing
+            // underneath it. It is also the only way to the service screen while the gate is up -
+            // the dashboard, and with it the service tile, is behind the shield.
+            if (showAdbExplainer) {
+                AdbExplainerSheet(
+                    compact = compactLayout,
+                    onOpenService = openService,
+                    onDismiss = { showAdbExplainer = false },
                 )
             }
             if (adbStartupBlocked && !adbStartupOverlay.visible) {
@@ -383,6 +401,7 @@ private fun AdbStartupOverlay(
     model: AdbStartupOverlayModel,
     onPrimaryAction: () -> Unit,
     onOpenRecovery: () -> Unit,
+    onOpenExplainer: () -> Unit,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     Box(
@@ -438,6 +457,18 @@ private fun AdbStartupOverlay(
                     fontSize = DenzaMetrics.Type.LABEL,
                     lineHeight = DenzaMetrics.Type.SECTION,
                 )
+                // The cause, under the instruction that is the same for every car in this state.
+                // Without it two different "ADB недоступен" gates are the same screen, and the one
+                // fact the app actually read about this car - that the switch is off - reaches
+                // nobody.
+                model.details?.let { details ->
+                    Text(
+                        details,
+                        color = DenzaColors.Muted,
+                        fontSize = DenzaMetrics.Type.BODY,
+                        lineHeight = DenzaMetrics.Type.LABEL,
+                    )
+                }
                 if (model.primaryLabel != null) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -457,6 +488,17 @@ private fun AdbStartupOverlay(
                             Text(model.primaryLabel, fontWeight = FontWeight.SemiBold)
                         }
                     }
+                }
+                // On its own line, under whatever action the state has, and on every state that
+                // blocks - including the ones with no action at all. It takes the full width rather
+                // than a place in the row above because the row is already two buttons wide and
+                // this gate is drawn at 0.72 of a pane that can be a third of the screen.
+                if (model.explainerAvailable) {
+                    DenzaSecondaryButton(
+                        text = AdbExplainer.OPEN_LABEL,
+                        onClick = onOpenExplainer,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
                 }
             }
         }
