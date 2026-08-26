@@ -27,6 +27,7 @@ object DenzaIcons {
     /** The driver's own screen. A steering wheel, because what goes there is not always a map. */
     val Cluster: ImageVector = icon(
         "denza_cluster",
+        inkLeft = 3.0f,
         "M21 12a9 9 0 1 1-18 0a9 9 0 1 1 18 0",
         "M15 12a3 3 0 1 1-6 0a3 3 0 1 1 6 0",
         "M3.2 10.5 L9.1 10.9 M20.8 10.5 L14.9 10.9 M12 15 L12 21",
@@ -35,6 +36,7 @@ object DenzaIcons {
     /** Projection onto the other screens. */
     val Simulcast: ImageVector = icon(
         "denza_simulcast",
+        inkLeft = 2.0f,
         "M2 20h0.01",
         "M2 16a4 4 0 0 1 4 4",
         "M2 12a8 8 0 0 1 8 8",
@@ -44,6 +46,7 @@ object DenzaIcons {
     /** The turn-indicator cameras: what the car is watching, not what it is recording. */
     val Mirrors: ImageVector = icon(
         "denza_mirrors",
+        inkLeft = 2.0f,
         "M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12z",
         "M15 12a3 3 0 1 1-6 0a3 3 0 1 1 6 0",
     )
@@ -51,6 +54,7 @@ object DenzaIcons {
     /** One surface cut in two. */
     val Split: ImageVector = icon(
         "denza_split",
+        inkLeft = 3.0f,
         "M5 4.5 H19 A2 2 0 0 1 21 6.5 V17.5 A2 2 0 0 1 19 19.5 H5 A2 2 0 0 1 3 17.5 V6.5 " +
             "A2 2 0 0 1 5 4.5 Z",
         "M12 4.5v15",
@@ -59,6 +63,7 @@ object DenzaIcons {
     /** The head-up display: a windscreen with something projected on it, not a map. */
     val Hud: ImageVector = icon(
         "denza_hud",
+        inkLeft = 5.0f,
         "M6 13.5l6-6 6 6",
         "M5 19h14",
     )
@@ -66,6 +71,7 @@ object DenzaIcons {
     /** The motorised speaker cover, matching the dashboard board. */
     val Speaker: ImageVector = icon(
         "denza_speaker",
+        inkLeft = 6.0f,
         "M8 3 H16 A2 2 0 0 1 18 5 V19 A2 2 0 0 1 16 21 H8 A2 2 0 0 1 6 19 V5 " +
             "A2 2 0 0 1 8 3 Z",
         "M15.2 14a3.2 3.2 0 1 1-6.4 0a3.2 3.2 0 1 1 6.4 0",
@@ -75,6 +81,7 @@ object DenzaIcons {
     /** An application sent to the passenger's screen. */
     val Passenger: ImageVector = icon(
         "denza_passenger",
+        inkLeft = 5.0f,
         "M7 2.5 H17 A2 2 0 0 1 19 4.5 V19.5 A2 2 0 0 1 17 21.5 H7 A2 2 0 0 1 5 19.5 V4.5 " +
             "A2 2 0 0 1 7 2.5 Z",
         "M12 6.5v7",
@@ -85,6 +92,7 @@ object DenzaIcons {
     /** Russian in the car's own settings. */
     val Locale: ImageVector = icon(
         "denza_locale",
+        inkLeft = 3.0f,
         "M21 12a9 9 0 1 1-18 0a9 9 0 1 1 18 0",
         "M3.4 9.5h17.2M3.4 14.5h17.2",
         "M12 3a15 15 0 0 0 0 18 15 15 0 0 0 0-18z",
@@ -93,6 +101,7 @@ object DenzaIcons {
     /** Weather: the sun the app supplies, half behind the cloud that is the car's own widget. */
     val Weather: ImageVector = icon(
         "denza_weather",
+        inkLeft = 2.4f,
         "M8 4.8a3.2 3.2 0 1 1 0 6.4a3.2 3.2 0 1 1 0-6.4",
         "M8 2.4v1.4M8 12.2v1.4M2.4 8h1.4M12.2 8h1.4M4.6 4.6l1 1M11.4 4.6l-1 1M4.6 11.4l1-1",
         "M17 20.5H9.5a3.5 3.5 0 0 1 0-7 4.6 4.6 0 0 1 8.7-1 3.9 3.9 0 0 1-1.2 8z",
@@ -108,6 +117,7 @@ object DenzaIcons {
      */
     val Service: ImageVector = icon(
         "denza_service",
+        inkLeft = 4.0f,
         "M4 7h16M4 12h16M4 17h16",
         "M17 7a2 2 0 1 1-4 0a2 2 0 1 1 4 0",
         "M10 12a2 2 0 1 1-4 0a2 2 0 1 1 4 0",
@@ -117,13 +127,20 @@ object DenzaIcons {
     /** The mark on a line that explains rather than instructs. */
     val Note: ImageVector = icon(
         "denza_note",
+        inkLeft = 3.0f,
         "M21 12a9 9 0 1 1-18 0a9 9 0 1 1 18 0",
         "M12 11v5.5",
         "M12 7.6h0.01",
     )
 
-    /** The way out of a settings panel. */
-    val Close: ImageVector = icon(
+    /**
+     * The way out of a settings panel.
+     *
+     * The one icon that is not hung on a left edge. It sits at the far right of a panel header with
+     * nothing under it to line up with, so what matters is that it is centred in the box a finger
+     * aims at - and shifting it left with the rest would have unbalanced exactly that.
+     */
+    val Close: ImageVector = centredIcon(
         "denza_close",
         "M6 6l12 12M18 6 6 18",
     )
@@ -135,7 +152,27 @@ object DenzaIcons {
      * tint as a colour filter over the whole vector, so an icon here never names a colour and can
      * never drift from the palette.
      */
-    private fun icon(name: String, vararg paths: String): ImageVector {
+    /**
+     * One icon, hung on the same left edge as every other.
+     *
+     * [inkLeft] is where this icon's paths actually begin inside the 24 grid, measured rather than
+     * assumed - each set is translated so that becomes [ALIGNED_INK_LEFT], and the twelve of them
+     * then start at one x instead of twelve.
+     *
+     * They did not. The paths span 2.0 (the cast and the eye) to 6.0 (the speaker), which at 30 dp
+     * is five dp of scatter, and the first row of the dashboard ran 3.0, 2.0, 2.0, 3.0, 5.0, 2.4
+     * while the words underneath all started at the same place. The owner picked it out on the car
+     * without a ruler, which is what a misaligned column does.
+     *
+     * Reshaping the outliers was the other option and is the wrong one: a speaker is a tall narrow
+     * box and a windscreen is a wide flat one, and their ink boxes differ because the drawings do.
+     * What can be made the same is where they hang.
+     */
+    /** An icon that answers to its own box rather than to a column of text. */
+    private fun centredIcon(name: String, vararg paths: String): ImageVector =
+        icon(name, ALIGNED_INK_LEFT, *paths)
+
+    private fun icon(name: String, inkLeft: Float, vararg paths: String): ImageVector {
         val builder = ImageVector.Builder(
             name = name,
             defaultWidth = DenzaMetrics.Component.TILE_ICON,
@@ -143,6 +180,7 @@ object DenzaIcons {
             viewportWidth = VIEWPORT,
             viewportHeight = VIEWPORT,
         )
+        builder.addGroup(name = name, translationX = ALIGNED_INK_LEFT - inkLeft)
         paths.forEach { data ->
             builder.addPath(
                 pathData = addPathNodes(data),
@@ -153,8 +191,18 @@ object DenzaIcons {
                 strokeLineJoin = StrokeJoin.Round,
             )
         }
+        builder.clearGroup()
         return builder.build()
     }
+
+    /**
+     * The left edge every icon is hung on, in viewport units.
+     *
+     * Two, which is where the widest of them already began, so nothing had to be moved right and
+     * nothing can be clipped. Half a stroke of 1.6 sits outside the path, so the ink itself lands
+     * 1.2 units - 1.5 dp at 30 - from the box edge, near enough flush with the text below.
+     */
+    const val ALIGNED_INK_LEFT = 2f
 
     /**
      * The ladder's optical weight expressed in viewport units.
