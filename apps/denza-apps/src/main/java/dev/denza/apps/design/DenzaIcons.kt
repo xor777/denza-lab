@@ -106,6 +106,14 @@ object DenzaIcons {
         "M19 17a2 2 0 1 1-4 0a2 2 0 1 1 4 0",
     )
 
+    /** The mark on a line that explains rather than instructs. */
+    val Note: ImageVector = icon(
+        "denza_note",
+        "M21 12a9 9 0 1 1-18 0a9 9 0 1 1 18 0",
+        "M12 11v5.5",
+        "M12 7.6h0.01",
+    )
+
     /** The way out of a settings panel. */
     val Close: ImageVector = icon(
         "denza_close",

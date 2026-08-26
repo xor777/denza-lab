@@ -141,9 +141,10 @@ object DenzaMetrics {
         /** The two-thirds pane; the narrow pane takes one. */
         const val TILE_COLUMNS_MEDIUM: Int = 3
 
-        /** An application offered in a picker. */
-        val APP_TILE: Dp = 116.dp
-        val APP_TILE_ICON: Dp = 52.dp
+        /**
+         * An application offered for choosing: 12 + 44 + 8 + one line of 15 + 12, off the board.
+         */
+        val APP_TILE: Dp = 96.dp
 
         /** How tall a picker's grid may grow before it scrolls. */
         val PICKER_HEIGHT: Dp = 360.dp

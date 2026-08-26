@@ -1,16 +1,24 @@
 package dev.denza.apps.ui.components
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.SegmentedButton
@@ -22,11 +30,13 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.denza.apps.design.DenzaColors
+import dev.denza.apps.design.DenzaIcons
 import dev.denza.apps.design.DenzaMetrics
 
 /**
@@ -89,7 +99,18 @@ fun DenzaSwitchRow(
     }
 }
 
-/** One of a few mutually exclusive choices, all of them visible at once. */
+/**
+ * A choice of three or four, all visible at once, in one bordered strip.
+ *
+ * The board draws it as a single rounded rectangle cut into cells by hairlines, with the chosen
+ * cell filled solid in the accent and its text in the ink that sits on the accent. What this
+ * replaces was Material's own segmented row - pills floating inside a container, each with its own
+ * gap - which at this size read as four separate buttons that happened to be adjacent, and spent
+ * three different greys saying which one was chosen.
+ *
+ * Selection is fill, never a thicker edge: an edge that grows on selection shifts its neighbours by
+ * a pixel and the eye reads the shift rather than the choice.
+ */
 @Composable
 fun DenzaSegmentedRow(
     labels: List<String>,
@@ -98,46 +119,76 @@ fun DenzaSegmentedRow(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
 ) {
-    Surface(
-        modifier = modifier.height(DenzaMetrics.Component.SEGMENT_HEIGHT),
-        color = MaterialTheme.colorScheme.background,
-        shape = MaterialTheme.shapes.medium,
+    val shape = RoundedCornerShape(DenzaMetrics.Radius.M)
+    Row(
+        modifier = modifier
+            .height(DenzaMetrics.Component.SEGMENT_HEIGHT)
+            .clip(shape)
+            .border(BorderStroke(DenzaMetrics.Stroke.HAIRLINE, DenzaColors.ink(0.18f)), shape),
     ) {
-        SingleChoiceSegmentedButtonRow(
-            modifier = Modifier.fillMaxSize().padding(SEGMENT_INSET),
-            space = SEGMENT_INSET,
-        ) {
-            labels.forEachIndexed { index, label ->
-                val selected = index == selectedIndex
-                SegmentedButton(
-                    modifier = Modifier.weight(1f),
-                    selected = selected,
-                    onClick = { onSelect(index) },
-                    enabled = enabled,
-                    shape = RoundedCornerShape(DenzaMetrics.Radius.S),
-                    icon = {},
-                    colors = SegmentedButtonDefaults.colors(
-                        activeContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        activeContentColor = MaterialTheme.colorScheme.primary,
-                        inactiveContainerColor = Color.Transparent,
-                        inactiveContentColor = DenzaColors.Ink,
-                    ),
-                    // Selection is fill and ink, never a thicker edge: a border that grows on
-                    // selection shifts its neighbours, and the eye reads the shift, not the choice.
-                    border = BorderStroke(0.dp, Color.Transparent),
-                    label = {
-                        Text(
-                            text = label,
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-                            maxLines = 1,
-                        )
+        labels.forEachIndexed { index, label ->
+            if (index > 0) {
+                Box(
+                    Modifier
+                        .fillMaxHeight()
+                        .width(DenzaMetrics.Stroke.HAIRLINE)
+                        .background(DenzaColors.ink(0.18f)),
+                )
+            }
+            val selected = index == selectedIndex
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .background(if (selected) DenzaColors.Accent else Color.Transparent)
+                    .clickable(enabled = enabled) { onSelect(index) },
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = if (selected) FontWeight.Medium else FontWeight.Normal,
+                    color = when {
+                        selected -> DenzaColors.OnAccent
+                        enabled -> DenzaColors.MutedDeep
+                        else -> DenzaColors.ink(0.25f)
                     },
+                    maxLines = 1,
                 )
             }
         }
     }
 }
+
+/**
+ * A sentence explaining what a choice above it will actually do.
+ *
+ * The only prose this screen allows itself. It is not an apology for a failure - the app never
+ * writes one of those - it is the part of a setting that cannot be inferred from its name, which on
+ * a car is usually the part that matters.
+ */
+@Composable
+fun DenzaNote(text: String, modifier: Modifier = Modifier) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(DenzaMetrics.Space.M),
+    ) {
+        Icon(
+            imageVector = DenzaIcons.Note,
+            contentDescription = null,
+            tint = DenzaColors.MutedDeep,
+            modifier = Modifier.size(NOTE_ICON).padding(top = DenzaMetrics.Space.XS / 2),
+        )
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodyMedium,
+            color = DenzaColors.MutedDeep,
+        )
+    }
+}
+
+private val NOTE_ICON = 18.dp
+
 
 /** The one action a surface exists to offer. */
 @Composable

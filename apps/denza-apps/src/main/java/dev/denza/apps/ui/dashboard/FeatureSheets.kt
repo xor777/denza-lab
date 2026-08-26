@@ -2,7 +2,6 @@ package dev.denza.apps.ui.dashboard
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.material3.MaterialTheme
@@ -15,6 +14,9 @@ import dev.denza.apps.design.DenzaColors
 import dev.denza.apps.design.DenzaMetrics
 import dev.denza.apps.feature.cluster.ClusterMapPlacement
 import dev.denza.apps.feature.mirrors.MirrorsPosition
+import dev.denza.apps.ui.components.DenzaAppTile
+import dev.denza.apps.ui.components.DenzaNote
+import dev.denza.apps.ui.components.DenzaTileGrid
 import dev.denza.apps.ui.components.DenzaPrimaryButton
 import dev.denza.apps.ui.components.DenzaSecondaryButton
 import dev.denza.apps.ui.components.DenzaSection
@@ -50,7 +52,25 @@ fun FeatureSheet(
     val busy = snapshot?.status == FeatureStatus.STARTING ||
         snapshot?.status == FeatureStatus.RECOVERING
 
-    DenzaSheet(onDismiss = onDismiss, compact = compact) {
+    val label = primaryLabel(tile, state)
+    DenzaSheet(
+        onDismiss = onDismiss,
+        compact = compact,
+        footer = {
+            if (label.isNotBlank()) {
+                Column(verticalArrangement = Arrangement.spacedBy(DenzaMetrics.Space.M)) {
+                    DenzaPrimaryButton(
+                        text = label,
+                        onClick = { DashboardPress.perform(tile, state, actions); onDismiss() },
+                        modifier = Modifier.fillMaxWidth()
+                            .height(DenzaMetrics.Component.PRIMARY_HEIGHT),
+                        enabled = !busy,
+                    )
+                    DenzaSheetFootnote("Короткое нажатие на плитку делает то же самое")
+                }
+            }
+        },
+    ) {
         DenzaSheetHeader(
             title = tile.name,
             subtitle = purposeOf(id),
@@ -84,19 +104,6 @@ fun FeatureSheet(
                 color = DenzaColors.MutedDeep,
             )
         }
-        // Every panel ends the same way: the tile's own action, full width at the foot, and the
-        // note that the tile does it too. The board puts them there because a panel that can only
-        // be configured and not used sends the driver back to the grid to finish the thought.
-        val label = primaryLabel(tile, state)
-        if (label.isNotBlank()) {
-            DenzaPrimaryButton(
-                text = label,
-                onClick = { DashboardPress.perform(tile, state, actions); onDismiss() },
-                modifier = Modifier.fillMaxWidth().height(DenzaMetrics.Component.PRIMARY_HEIGHT),
-                enabled = !busy,
-            )
-            DenzaSheetFootnote("Короткое нажатие на плитку делает то же самое")
-        }
     }
 }
 
@@ -127,32 +134,38 @@ private fun primaryLabel(tile: DashboardTile, state: DenzaUiState): String {
     }
 }
 
-/** What goes on the driver's screen, where it goes, and whether the wheel button reaches it. */
+/**
+ * What goes on the driver's screen, where it goes, and whether the wheel button reaches it.
+ *
+ * The applications are chosen here rather than behind another dialog. A settings panel whose first
+ * control opens a second panel over itself is two surfaces asking one question, and on the board
+ * there is only ever one.
+ */
 @Composable
 private fun clusterSheet(state: DenzaUiState, actions: DashboardActions, busy: Boolean) {
-    DenzaSection("Что показывать") {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(DenzaMetrics.Space.M),
-        ) {
-            DenzaSecondaryButton(
-                text = state.navigationAppLabel,
-                onClick = actions.onChooseNavigationApp,
-                modifier = Modifier.weight(1f),
-                enabled = !busy,
-            )
-            DenzaPrimaryButton(
-                text = state.navigationButtonLabel,
-                onClick = actions.onNavigationAction,
-                modifier = Modifier.weight(1f),
-                enabled = !busy,
-            )
+    if (state.navigationAppChoices.isNotEmpty()) {
+        DenzaSection("Что показывать") {
+            DenzaTileGrid(
+                columns = SHEET_COLUMNS,
+                itemCount = state.navigationAppChoices.size,
+                modifier = Modifier.fillMaxWidth(),
+            ) { index, cell ->
+                val choice = state.navigationAppChoices[index]
+                DenzaAppTile(
+                    label = choice.label,
+                    selected = choice.selected,
+                    onClick = { actions.onSelectNavigationApp(choice.packageName) },
+                    modifier = cell,
+                    icon = choice.icon,
+                    iconKey = choice.packageName,
+                )
+            }
         }
     }
     // Our own instruments are drawn for the whole panel and have one placement, so the row is
     // absent rather than shown with one live cell and three dead ones.
     if (state.navigationPlacements.size > 1) {
-        DenzaSection("Где на экране") {
+        DenzaSection("Размещение") {
             DenzaSegmentedRow(
                 labels = state.navigationPlacements.map(::placementLabel),
                 selectedIndex = state.navigationPlacements.indexOf(state.navigationPlacement)
@@ -161,6 +174,7 @@ private fun clusterSheet(state: DenzaUiState, actions: DashboardActions, busy: B
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !busy,
             )
+            DenzaNote(placementNote(state.navigationPlacement))
         }
     }
     DenzaSwitchRow(
@@ -176,7 +190,7 @@ private fun clusterSheet(state: DenzaUiState, actions: DashboardActions, busy: B
     )
 }
 
-/** Which applications go to the screens, and whether the projection runs at all. */
+/** Which applications go to the screens. */
 @Composable
 private fun simulcastSheet(state: DenzaUiState, actions: DashboardActions, busy: Boolean) {
     DenzaSwitchRow(
@@ -186,27 +200,23 @@ private fun simulcastSheet(state: DenzaUiState, actions: DashboardActions, busy:
         onCheckedChange = actions.onToggleSimulcast,
         enabled = !busy,
     )
-    DenzaSection("Приложения") {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(DenzaMetrics.Space.M),
-        ) {
-            DenzaSecondaryButton(
-                text = if (state.selectedAppCount == 0) {
-                    "Выбрать"
-                } else {
-                    DashboardTiles.applications(state.selectedAppCount)
-                },
-                onClick = actions.onChooseApps,
-                modifier = Modifier.weight(1f),
-                enabled = !busy,
-            )
-            DenzaPrimaryButton(
-                text = "Запустить",
-                onClick = actions.onLaunchSimulcast,
-                modifier = Modifier.weight(1f),
-                enabled = !busy && state.simulcast.desiredEnabled && state.selectedAppCount > 0,
-            )
+    if (state.appChoices.isNotEmpty()) {
+        DenzaSection("Какие приложения") {
+            DenzaTileGrid(
+                columns = SHEET_COLUMNS,
+                itemCount = state.appChoices.size,
+                modifier = Modifier.fillMaxWidth(),
+            ) { index, cell ->
+                val choice = state.appChoices[index]
+                DenzaAppTile(
+                    label = choice.label,
+                    selected = choice.selected,
+                    onClick = { actions.onToggleApp(choice.packageName) },
+                    modifier = cell,
+                    icon = choice.icon,
+                    iconKey = choice.packageName,
+                )
+            }
         }
     }
 }
@@ -214,13 +224,6 @@ private fun simulcastSheet(state: DenzaUiState, actions: DashboardActions, busy:
 /** Where the turn-indicator cameras appear, and how their picture is treated. */
 @Composable
 private fun mirrorsSheet(state: DenzaUiState, actions: DashboardActions, busy: Boolean) {
-    DenzaSwitchRow(
-        title = "Зеркала",
-        subtitle = "Камеры поворотников",
-        checked = state.mirrors.desiredEnabled,
-        onCheckedChange = actions.onToggleMirrors,
-        enabled = !busy,
-    )
     DenzaSection("Где показывать") {
         DenzaSegmentedRow(
             labels = listOf("По сторонам", "По центру"),
@@ -235,6 +238,13 @@ private fun mirrorsSheet(state: DenzaUiState, actions: DashboardActions, busy: B
             },
             modifier = Modifier.fillMaxWidth(),
             enabled = !busy && state.mirrors.desiredEnabled,
+        )
+        DenzaNote(
+            if (state.mirrorsPosition == MirrorsPosition.SIDES) {
+                "Камера появляется с той стороны, куда включён поворотник."
+            } else {
+                "Обе камеры показываются по центру экрана, одна над другой."
+            },
         )
     }
     DenzaSwitchRow(
@@ -329,6 +339,16 @@ private fun localeSheet(state: DenzaUiState, actions: DashboardActions) {
         )
     }
 }
+
+/** What the chosen placement actually does to the strip, which its name cannot say. */
+private fun placementNote(placement: ClusterMapPlacement): String = when (placement) {
+    ClusterMapPlacement.FULL ->
+        "Приборы свёрстаны на всю полосу и обходят штатные элементы."
+    ClusterMapPlacement.LEFT, ClusterMapPlacement.CENTER, ClusterMapPlacement.RIGHT ->
+        "Занята часть полосы. Остальное остаётся штатным."
+}
+
+private const val SHEET_COLUMNS = 3
 
 private fun placementLabel(placement: ClusterMapPlacement): String = when (placement) {
     ClusterMapPlacement.FULL -> "Полный"

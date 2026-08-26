@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -51,6 +52,7 @@ fun DenzaSheet(
     compact: Boolean,
     modifier: Modifier = Modifier,
     dismissOnOutsideTouch: Boolean = true,
+    footer: @Composable () -> Unit = {},
     content: @Composable () -> Unit,
 ) {
     Dialog(
@@ -84,11 +86,21 @@ fun DenzaSheet(
                         else Modifier.width(DenzaMetrics.Component.SHEET_WIDTH),
                     )
                     .background(DenzaColors.SurfaceQuiet)
-                    .padding(DenzaMetrics.Space.XL)
-                    .verticalScroll(rememberScrollState()),
+                    .padding(DenzaMetrics.Space.XL),
                 verticalArrangement = Arrangement.spacedBy(DenzaMetrics.Space.XL),
             ) {
-                content()
+                // The settings scroll and the action does not. The board hangs the action off the
+                // bottom with a growing spacer above it, which is the same statement: whatever a
+                // panel holds, its one action is always in the same place under the same thumb.
+                Column(
+                    modifier = Modifier.weight(1f, fill = false)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(DenzaMetrics.Space.XL),
+                ) {
+                    content()
+                }
+                Spacer(Modifier.weight(1f))
+                footer()
             }
         }
     }
