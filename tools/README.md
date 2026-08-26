@@ -118,6 +118,35 @@ Current scripts:
   and returns Home. Runtime transaction-125 additions still require a
   controlled reboot and are reported as residue.
 
+Four probes measure the ADB shell channel Denza Apps talks to the car through,
+rather than any car behaviour. All four default to serial `127.0.0.1:5555`, are
+read-only, and are safe against a live scene; durable results belong to
+`docs/adb-authorization-recovery.md` and `docs/split-screen-findings.md`.
+
+- `split_frame_pty_identity.py`: proves a command frame on **the channel the
+  product actually opens** — a raw socket to the adb server, `host:transport:`
+  then `shell:sh`, terminal and line editor included. It replays quotes, `$`,
+  newlines, unicode, backslashes, nested quotes, a non-zero status and an
+  `am stack list` large enough to span several ADB messages, and it self-checks
+  by replaying the broken v31 frame and requiring that it still produces no
+  marker. Neither a unit test against `/bin/sh` under a pipe nor `adb shell
+  <command>` has a line editor, so neither can see that class of defect; both
+  passed the frame the car rejected. Any frame change owes a run of this.
+- `split_transport_probe.py`: what one round trip costs, by response size, over
+  the same `shell:sh` service. Six sizes from 3 B to 33 KB, least squares over
+  the results. Measured 20.7 ms per trip and 0.0 ms per kilobyte, which is an
+  upper bound: `127.0.0.1:5555` on the development host is an ssh tunnel, a hop
+  the product does not have.
+- `split_frame_bench.sh`: the wrapper's own cost on the device, bare command
+  against framed, for the three commands the recipes send most. It also reports
+  which emitter the shell picks, because `print` is an mksh builtin here while
+  `printf` is `/system/bin/printf`, a process per call.
+- `split_resident_bench.py`: the resident shell-UID helper — start cost, request
+  latency, PSS, and a byte-for-byte comparison of its `world` answer against
+  `am stack list`. It closes the stream rather than sending `quit`, because
+  dying with the stream is the property the product depends on, and it checks
+  that nothing is left running on the car afterwards.
+
 The small JSON files under `fse-apk-wallpaper/` preserve the FSE resource
 metadata used for the AIMP and Yandex Navigator tests. APK payloads stay outside
 Git.

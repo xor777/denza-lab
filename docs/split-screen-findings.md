@@ -1315,3 +1315,72 @@ All four end at the same wall: this needs a modified system image, not an app.
 If split screen is genuinely wanted, that is the decision to weigh — with the
 usual consequences of a modified `/system` on a `user`-build vehicle — and not
 another week of looking for a command that does not exist.
+
+## What a command costs, and what the budget line measures (live v33, 2026-08-26)
+
+Every recipe of this feature is dominated by talking to the car, not by waiting
+for it: a restore of a saved pair spends 0.1 s in its settle pauses and the rest
+in round trips. So the cost of one round trip is the unit that matters.
+
+**Measured on the car, device-side, medians of 41 repeats:** bare `am stack
+list` (8 KB) 17.7 ms, `service call activity_task 30` 8.0 ms, `settings get`
+17.0 ms. **Measured over the product's own `shell:sh` service**, six response
+sizes from 3 B to 33 KB: **20.7 ms per trip plus 0.0 ms per kilobyte** — 8 KB
+costs the same overhead as `echo hi`. That 20.7 ms is an upper bound; the
+development host reaches `127.0.0.1:5555` through an ssh tunnel the product does
+not have.
+
+Excluded by measurement, each with a number: response size, the terminal
+(`shell:sh` and `exec:sh` differ by ~2 ms), chunking (8 KB arrives in three ADB
+messages, not hundreds), parsing (`SplitTaskSnapshot.parse` over a live 8466-byte
+world: **46 µs**), and the command wrapper (~1 ms since wave 15, ~27 ms before).
+
+**The operation budget line** (support ring, one per operation) reports calls,
+total shell time, the transport's share split into queue / send / answer, parse
+time, and pause time. Live over 28 lines: **queue was 0.0 in every one** — no
+operation ever waited behind the background reconcile on the shared shell — and
+send and parse were 0.0 as well. The whole cost sits in *answer*.
+
+**A warm trip costs 46–50 ms; a cold one 87–103 ms.** The difference is the
+resident helper being born (~0.5 s): its start is inside the operation's shell
+time but invisible to the transport, which never sees a helper request. This is
+why an earlier reading of "89 ms per trip" was neither wrong nor a constant — it
+was an average over cold and warm instances that no instrument then separated.
+
+Consequence for reading old numbers: a restore of a saved pair measures
+1320–1705 ms warm (24 calls) and ~3.5 s cold. A single 2982 ms sample recorded
+before this instrument existed is best read as a cold open, not as evidence that
+restores are slow.
+
+**Honest limit of the instrument.** *Answer* is measured around the blocking
+read loop in our own thread, so "the car is computing" and "our reading thread
+did not get a core" are one number. The car's load average is steadily 24–26,
+which is its normal state, not a spike. Per-trip cost also varies from 5 ms to
+63 ms across command kinds, so "the command itself is negligible" does not hold:
+cheap commands are cheaper by a multiple.
+
+**Helper economics.** A helper request is still a round trip; the helper removes
+only the command's own execution (18.9 ms for `am stack list` becomes 3–9 ms of
+binder work) and the wrapper. Its start costs 476–544 ms. Serving all 28 reads of
+a restore would save 28 × ~12 ms = 336 ms against a 476 ms start, so starting it
+for reads loses on a single operation. That arithmetic changes only if requests
+are batched, since one trip would then replace several.
+
+## Disable from inside a pane leaves the firmware in split (live v33, 2026-08-26)
+
+Pressing the feature's own toggle while Denza Apps itself sits in the wide pane
+of a live scene rolls the operation back: `Прошивка сохранила split после
+выключения: area=2`, 12 calls, 1258 ms. The screen looks switched off and the
+tile then reads as off, so the user is not told, and nothing is left half-drawn.
+The same disable performed with the app fullscreen and the scene hidden commits
+normally.
+
+Two further observations from the same event: the app was in that pane because
+the firmware pulled it in over an open gate (1.9.3), which is the same root as
+the ADAS sighting; and after the rollback the app that went fullscreen was
+Yandex Music from the *narrow* pane, not the focused Denza Apps, against 1.2.3.
+
+The resident helper does not die with the toggle either, despite that being the
+intent recorded when it was added: it survives until its 30-second idle release.
+No orphan process remains afterwards, but a session that ends by the toggle keeps
+one alive for up to half a minute.
