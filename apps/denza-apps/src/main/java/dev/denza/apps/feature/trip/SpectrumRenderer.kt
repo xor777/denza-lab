@@ -10,6 +10,8 @@ import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.RectF
 import android.graphics.Shader
+import dev.denza.apps.design.DenzaPalette
+import dev.denza.apps.feature.panel.PanelPalette
 import android.graphics.Typeface
 import kotlin.math.floor
 import kotlin.math.max
@@ -177,25 +179,25 @@ class SpectrumRenderer {
 
         barShader = LinearGradient(
             0f, baselineY, 0f, barTopY,
-            intArrayOf(DEEP, MINT, AMBER, CORAL),
+            intArrayOf(DEEP, LIVE, AMBER, CORAL),
             floatArrayOf(0f, 0.3f, 0.68f, 1f),
             Shader.TileMode.CLAMP,
         )
         reflectShader = LinearGradient(
             0f, baselineY, 0f, reflectBottomY,
-            intArrayOf(alpha(MINT, 0.34f), alpha(AMBER, 0.12f), alpha(CORAL, 0f)),
+            intArrayOf(alpha(LIVE, 0.34f), alpha(AMBER, 0.12f), alpha(CORAL, 0f)),
             floatArrayOf(0f, 0.45f, 1f),
             Shader.TileMode.CLAMP,
         )
         bloomShader = LinearGradient(
             0f, baselineY, 0f, barTopY,
-            intArrayOf(alpha(MINT, 0.20f), alpha(MINT, 0.05f), alpha(MINT, 0f)),
+            intArrayOf(alpha(LIVE, 0.20f), alpha(LIVE, 0.05f), alpha(LIVE, 0f)),
             floatArrayOf(0f, 0.45f, 1f),
             Shader.TileMode.CLAMP,
         )
         idleShader = LinearGradient(
             left, 0f, right, 0f,
-            intArrayOf(alpha(MINT, 0f), alpha(MINT, 0.22f), alpha(MINT, 0f)),
+            intArrayOf(alpha(LIVE, 0f), alpha(LIVE, 0.22f), alpha(LIVE, 0f)),
             floatArrayOf(0f, 0.5f, 1f),
             Shader.TileMode.CLAMP,
         )
@@ -294,7 +296,7 @@ class SpectrumRenderer {
 
     private fun drawBaseline(canvas: Canvas, left: Float, right: Float, unit: Float, energy: Float) {
         stroke.strokeWidth = unit * 1.6f
-        stroke.color = alpha(MINT, (0.28f + energy * 0.5f).coerceIn(0f, 0.85f))
+        stroke.color = alpha(LIVE, (0.28f + energy * 0.5f).coerceIn(0f, 0.85f))
         canvas.drawLine(left, baselineY, right, baselineY, stroke)
     }
 
@@ -400,7 +402,7 @@ class SpectrumRenderer {
         val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
         val target = Canvas(bitmap)
         val dot = Paint()
-        dot.color = MINT
+        dot.color = LIVE
         val size = pitch * DOT_FILL
         var column = 0
         for (character in text) {
@@ -428,7 +430,7 @@ class SpectrumRenderer {
         val target = Canvas(bitmap)
         target.drawColor(Color.TRANSPARENT)
         val dot = Paint()
-        dot.color = alpha(MINT, 0.08f)
+        dot.color = alpha(LIVE, 0.08f)
         val size = cell * DOT_FILL
         target.drawRect(0f, 0f, size, size, dot)
         dotGrid = bitmap
@@ -479,7 +481,7 @@ class SpectrumRenderer {
     private fun peakColour(peak: Float): Int = when {
         peak > 0.82f -> CORAL
         peak > 0.5f -> AMBER
-        else -> MINT
+        else -> LIVE
     }
 
     private fun alpha(color: Int, a: Float): Int {
@@ -515,11 +517,14 @@ class SpectrumRenderer {
         const val BLOOM_GAIN = 1.4f
         const val IDLE_STEPS = 72
 
-        val DEEP = 0xFF2E8F76.toInt()
-        val MINT = 0xFF73E0BD.toInt()
-        val AMBER = 0xFFF2C46D.toInt()
-        val CORAL = 0xFFFF9E7A.toInt()
-        val MUTED = 0xFF9AA7AD.toInt()
-        val INK = 0xFFF3F7F8.toInt()
+        // The bar ramp, quiet to clipping. It is a reading, so it climbs through ink rather than
+        // through the interface accent: champagne marks what you can press, and a spectrum is not
+        // something you press.
+        val DEEP = DenzaPalette.ink(0.45f)
+        val LIVE = PanelPalette.INK
+        val AMBER = PanelPalette.LIVE
+        val CORAL = PanelPalette.AMBER
+        val MUTED = PanelPalette.MUTED
+        val INK = PanelPalette.INK
     }
 }

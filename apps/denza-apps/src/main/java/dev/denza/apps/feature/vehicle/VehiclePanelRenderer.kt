@@ -326,7 +326,7 @@ internal class VehiclePanelRenderer : PanelCanvas() {
         fun position(v: Double): Float =
             x0 + (x1 - x0) * ((v - TRACTION_LO) / (TRACTION_HI - TRACTION_LO)).coerceIn(0.0, 1.0).toFloat()
 
-        fill.color = PanelPalette.alpha(PanelPalette.MINT, 0.14f)
+        fill.color = PanelPalette.alpha(PanelPalette.LIVE, 0.14f)
         canvas.drawRect(position(TRACTION_BAND_LO), y, position(TRACTION_BAND_HI), y + height, fill)
 
         stroke.color = PanelPalette.alpha(PanelPalette.MUTED, 0.35f)
@@ -389,7 +389,7 @@ internal class VehiclePanelRenderer : PanelCanvas() {
             fill.color = if (kw < 0.0) {
                 PanelPalette.alpha(PanelPalette.BLUE, 0.9f)
             } else {
-                PanelPalette.mix(PanelPalette.MINT, PanelPalette.AMBER, min(1.0, abs(kw) / POWER_WARM_KW).toFloat())
+                PanelPalette.mix(PanelPalette.LIVE, PanelPalette.AMBER, min(1.0, abs(kw) / POWER_WARM_KW).toFloat())
             }
             canvas.drawRect(min(centre, centre + offset), y, max(centre, centre + offset), y + height, fill)
         }
@@ -483,7 +483,7 @@ internal class VehiclePanelRenderer : PanelCanvas() {
 
         fill.color = PanelPalette.alpha(PanelPalette.MUTED, 0.10f)
         canvas.drawRect(trackStart, y - height / 2f, trackEnd, y + height / 2f, fill)
-        fill.color = PanelPalette.alpha(PanelPalette.MINT, 0.13f)
+        fill.color = PanelPalette.alpha(PanelPalette.LIVE, 0.13f)
         canvas.drawRect(position(bandLo), y - height / 2f, position(bandHi), y + height / 2f, fill)
 
         val color = if (celsius == null) muted(0.6f) else tempColor(celsius, bandLo, bandHi)
@@ -547,8 +547,8 @@ internal class VehiclePanelRenderer : PanelCanvas() {
             }
             val height = max(vs(2f), (zeroY - y0) * (v / posScale).coerceIn(0.0, 1.0).toFloat())
             val color = when {
-                v <= reference * 0.85 -> PanelPalette.MINT
-                v <= reference * 1.15 -> PanelPalette.mix(PanelPalette.MINT, PanelPalette.AMBER, 0.55f)
+                v <= reference * 0.85 -> PanelPalette.LIVE
+                v <= reference * 1.15 -> PanelPalette.mix(PanelPalette.LIVE, PanelPalette.AMBER, 0.55f)
                 v <= reference * 1.5 -> PanelPalette.AMBER
                 else -> PanelPalette.DANGER
             }
@@ -668,21 +668,21 @@ internal class VehiclePanelRenderer : PanelCanvas() {
         soc == null -> muted(0.6f)
         soc < 12.0 -> PanelPalette.DANGER
         soc < 25.0 -> PanelPalette.AMBER
-        else -> PanelPalette.MINT
+        else -> PanelPalette.LIVE
     }
 
     private fun tempColor(celsius: Double, bandLo: Double, bandHi: Double): Int = when {
         celsius < bandLo -> PanelPalette.BLUE
         celsius > bandHi + HOT_MARGIN -> PanelPalette.DANGER
         celsius > bandHi -> PanelPalette.AMBER
-        else -> PanelPalette.MINT
+        else -> PanelPalette.LIVE
     }
 
     private fun railColor(volts: Double?): Int = when {
         volts == null -> muted(0.6f)
         volts < RAIL_GOOD_LO -> PanelPalette.DANGER
         volts > RAIL_GOOD_HI -> PanelPalette.AMBER
-        else -> PanelPalette.MINT
+        else -> PanelPalette.LIVE
     }
 
     private fun tractionColor(volts: Double?): Int = when {
@@ -696,7 +696,7 @@ internal class VehiclePanelRenderer : PanelCanvas() {
         return when {
             spread > CELL_SPREAD_ALERT_MV -> PanelPalette.DANGER
             spread > CELL_SPREAD_WATCH_MV -> PanelPalette.AMBER
-            else -> PanelPalette.MINT
+            else -> PanelPalette.LIVE
         }
     }
 
@@ -705,7 +705,7 @@ internal class VehiclePanelRenderer : PanelCanvas() {
         return when {
             t.charging -> PanelPalette.BLUE
             kw < -REGEN_FLOOR_KW -> PanelPalette.BLUE
-            else -> PanelPalette.mix(PanelPalette.MINT, PanelPalette.AMBER, min(1.0, kw / POWER_WARM_KW).toFloat())
+            else -> PanelPalette.mix(PanelPalette.LIVE, PanelPalette.AMBER, min(1.0, kw / POWER_WARM_KW).toFloat())
         }
     }
 

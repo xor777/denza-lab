@@ -245,7 +245,7 @@ class TripPanelRenderer : BaseTripRenderer() {
         canvas.restore()
 
         // Center pointer + course readout.
-        fill.color = TripPalette.alpha(TripPalette.MINT, if (hasHeading) dim else 0.4f)
+        fill.color = TripPalette.alpha(TripPalette.LIVE, if (hasHeading) dim else 0.4f)
         pointerPath.rewind()
         pointerPath.moveTo(tcx, tcy + vs(20f))
         pointerPath.lineTo(tcx - vs(6f), tcy + vs(31f))
@@ -312,7 +312,7 @@ class TripPanelRenderer : BaseTripRenderer() {
             value(
                 canvas,
                 (if (up) "↗ +" else "↘ −") + fmt1(abs(v)) + " м/с",
-                rx + vs(150f), vy(158f), 20f, if (up) TripPalette.MINT else TripPalette.AMBER,
+                rx + vs(150f), vy(158f), 20f, if (up) TripPalette.LIVE else TripPalette.AMBER,
             )
         }
 

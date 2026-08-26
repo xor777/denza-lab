@@ -86,7 +86,7 @@ internal class EnginePanelRenderer : PanelCanvas() {
             label(canvas, "${fmt(it, 1)} л", vx(600f), vy(46f), sizeTiny, muted(0.6f), Paint.Align.RIGHT)
         }
         figure(canvas, vx(0f), vy(152f), t.engineRpm, "об/мин", running)
-        label(canvas, engineState(t), vx(0f), vy(206f), sizeState, if (running) PanelPalette.MINT else muted(0.7f))
+        label(canvas, engineState(t), vx(0f), vy(206f), sizeState, if (running) PanelPalette.LIVE else muted(0.7f))
         dialGauge(canvas, vx(0f), vx(600f), vy(236f), vs(24f), t.engineRpm, RPM_MAX, RPM_STEP, running)
 
         hairline(canvas, vx(620f), vy(24f), vx(620f), vy(312f))
@@ -122,7 +122,7 @@ internal class EnginePanelRenderer : PanelCanvas() {
         }
         figure(canvas, vx(368f), vy(64f), t.engineRpm, "об/мин", running, Paint.Align.RIGHT)
         dialGauge(canvas, vx(0f), vx(368f), vy(80f), vs(16f), t.engineRpm, RPM_MAX, RPM_STEP, running)
-        label(canvas, engineState(t), vx(0f), vy(140f), sizeState, if (running) PanelPalette.MINT else muted(0.7f))
+        label(canvas, engineState(t), vx(0f), vy(140f), sizeState, if (running) PanelPalette.LIVE else muted(0.7f))
 
         hairline(canvas, vx(0f), vy(160f), vx(368f), vy(160f))
 
@@ -218,7 +218,7 @@ internal class EnginePanelRenderer : PanelCanvas() {
         )
 
         if (reading == null) return
-        val color = if (live) PanelPalette.MINT else muted(0.55f)
+        val color = if (live) PanelPalette.LIVE else muted(0.55f)
         fill.color = PanelPalette.alpha(color, 0.75f)
         canvas.drawRect(x0, y, position(reading), y + height, fill)
         needle(canvas, position(reading), y, height, color)
@@ -253,7 +253,7 @@ internal class EnginePanelRenderer : PanelCanvas() {
             }
 
             LampState.OK -> {
-                fill.color = PanelPalette.alpha(PanelPalette.MINT, 0.65f)
+                fill.color = PanelPalette.alpha(PanelPalette.LIVE, 0.65f)
                 canvas.drawCircle(centreX, y - vs(4f), radius, fill)
             }
 

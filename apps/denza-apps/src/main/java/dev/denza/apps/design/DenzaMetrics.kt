@@ -132,6 +132,18 @@ object DenzaMetrics {
         val APP_TILE: Dp = 116.dp
         val APP_TILE_ICON: Dp = 52.dp
 
+        /** How tall a picker's grid may grow before it scrolls. */
+        val PICKER_HEIGHT: Dp = 360.dp
+
+        /**
+         * The bottom strip, where it cannot simply take the space that is left.
+         *
+         * On the full width it takes the free zone by weight. The two scrolling panes have no free
+         * zone - weight means nothing inside a vertical scroll - so they are told a height.
+         */
+        val PANEL_HEIGHT_MEDIUM: Dp = 320.dp
+        val PANEL_HEIGHT_NARROW: Dp = 660.dp
+
         /** A row a finger has to hit. */
         val ROW_HEIGHT: Dp = 56.dp
 

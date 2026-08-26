@@ -4,27 +4,31 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Typeface
+import dev.denza.apps.design.DenzaPalette
 
 /**
- * The colours every canvas panel draws with.
+ * The colours every canvas panel draws with, which are the vehicle's own.
  *
- * These mirror the Compose theme constants in ui/DenzaAppsScreen.kt rather than
- * inventing new hues: dark background, mint accent, amber warning, coral danger,
- * ink text, muted labels. [BLUE] is the cool end the journey thread already used
- * for dawn; the vehicle panel reuses it for everything that flows the other way
- * (regeneration, charging, "too cold").
+ * This used to hold six literals and say in its own docblock that they mirrored the Compose theme
+ * by hand. They did, until they did not: the same six values were copied into the split picker with
+ * one of them a different mint, and neither copy knew the other had moved. So the values are gone
+ * and only the roles are left, resolved from [dev.denza.apps.design.DenzaPalette] - the one palette
+ * read out of this car's own SystemUI.
  *
- * feature.trip keeps its own [dev.denza.apps.feature.trip.TripPalette], which
- * delegates here for the shared colours and adds the journey thread's
- * time-of-day ramp on top.
+ * [LIVE] was called LIVE and meant "the live end of a reading", which is precisely what the vehicle
+ * calls DATA_PEAK: ink lifted towards the accent so the newest value reads first. [BLUE] keeps its
+ * name and becomes the vehicle's own blue, which everything that returns energy is drawn in.
+ *
+ * feature.trip keeps its own [dev.denza.apps.feature.trip.TripPalette], which delegates here for
+ * the shared colours and adds the journey thread's time-of-day ramp on top.
  */
 object PanelPalette {
-    val MINT = 0xFF73E0BD.toInt()
-    val AMBER = 0xFFF2C46D.toInt()
-    val DANGER = 0xFFFF8B91.toInt()
-    val BLUE = 0xFF6EA8FF.toInt()
-    val INK = 0xFFF3F7F8.toInt()
-    val MUTED = 0xFF9AA7AD.toInt()
+    val LIVE = DenzaPalette.DATA_PEAK
+    val AMBER = DenzaPalette.WARNING
+    val DANGER = DenzaPalette.DANGER
+    val BLUE = DenzaPalette.RETURN
+    val INK = DenzaPalette.INK
+    val MUTED = DenzaPalette.MUTED
 
     fun alpha(color: Int, a: Float): Int {
         val clamped = (a.coerceIn(0f, 1f) * 255).toInt()

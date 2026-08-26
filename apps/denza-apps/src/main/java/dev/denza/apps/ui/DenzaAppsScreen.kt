@@ -85,8 +85,12 @@ import dev.denza.apps.DenzaUiState
 import dev.denza.apps.feature.trip.TripPanelFlag
 import dev.denza.apps.NavigationAppChoice
 import dev.denza.apps.SimulcastAppChoice
+import dev.denza.apps.core.FeatureId
 import dev.denza.apps.core.FeatureSnapshot
 import dev.denza.apps.core.FeatureStatus
+import dev.denza.apps.design.DenzaColors
+import dev.denza.apps.design.DenzaMetrics
+import dev.denza.apps.design.DenzaTheme
 import dev.denza.apps.feature.cluster.ClusterDisplayDescriptor
 import dev.denza.apps.feature.cluster.ClusterMapPlacement
 import dev.denza.apps.feature.adb.AdbRescueCoordinator
@@ -96,21 +100,14 @@ import dev.denza.apps.feature.adb.AdbStartupOverlayModel
 import dev.denza.apps.feature.adb.AdbStartupPrimaryAction
 import dev.denza.apps.feature.fse.FseInstallApp
 import dev.denza.apps.feature.mirrors.MirrorsPosition
+import dev.denza.apps.ui.components.DenzaKeyValueRow
+import dev.denza.apps.ui.components.DenzaSwitchRow
+import dev.denza.apps.ui.dashboard.DashboardActions
+import dev.denza.apps.ui.dashboard.DashboardGrid
+import dev.denza.apps.ui.dashboard.FeatureSheet
 import kotlinx.coroutines.flow.StateFlow
 import kotlin.math.roundToInt
 
-private val Background = Color(0xFF080B0D)
-private val SurfaceColor = Color(0xFF12171B)
-private val Elevated = Color(0xFF192126)
-private val Ink = Color(0xFFF3F7F8)
-private val Muted = Color(0xFF9AA7AD)
-private val Accent = Color(0xFF73E0BD)
-private val Warning = Color(0xFFF2C46D)
-private val Danger = Color(0xFFFF8B91)
-private val DisabledSurface = Color(0xFF181A1B)
-private val DisabledElevated = Color(0xFF222426)
-private val DisabledInk = Color(0xFFB7BCBE)
-private val DisabledMuted = Color(0xFF7D8487)
 private const val SHOW_NAVIGATION_AUTOMATIC = false
 
 @Composable
@@ -150,11 +147,14 @@ fun DenzaAppsRoot(
     var showClusterPicker by remember { mutableStateOf(false) }
     var showDiagnostics by remember { mutableStateOf(false) }
     var showAdbRecovery by remember { mutableStateOf(false) }
-    // Hidden diagnostics entry: 7 quick taps on the Трансляция card header, each
-    // within 3 s of the previous, opens the diagnostics dialog. No affordance.
+    var settingsFor by remember { mutableStateOf<FeatureId?>(null) }
+    // Hidden diagnostics entry: 7 quick taps, each within 3 s of the previous, opens the
+    // diagnostics dialog. No affordance. It used to live on the Трансляция card header, which no
+    // longer exists - a tile spends both its gestures on the feature it names - so it moved to the
+    // spectrum strip, the one large surface on this screen that does nothing else when touched.
     var diagnosticsTaps by remember { mutableIntStateOf(0) }
     var lastDiagnosticsTapMs by remember { mutableLongStateOf(0L) }
-    val onTransmissionHeaderTap = {
+    val onDiagnosticsTap = {
         val now = System.currentTimeMillis()
         diagnosticsTaps = if (now - lastDiagnosticsTapMs <= 3000L) diagnosticsTaps + 1 else 1
         lastDiagnosticsTapMs = now
@@ -165,19 +165,33 @@ fun DenzaAppsRoot(
             showDiagnostics = true
         }
     }
-    val selectedNavigationApp = uiState.navigationAppChoices.firstOrNull { it.selected }
-    val navigationActions = FeatureActionPolicy.navigation(
-        uiState.navigation,
-        uiState.navigationButtonLabel,
-    )
-    val simulcastActions = FeatureActionPolicy.simulcast(uiState.simulcast)
-    val mirrorAction = FeatureActionPolicy.mirrors(uiState.mirrors)
     val adbStartupOverlay = AdbStartupGatePolicy.overlay(uiState.adbRescue)
     val adbStartupBlocked = uiState.adbRescue.phase != AdbRescuePhase.TRUSTED
     val openClusterPicker = {
         onRefreshScreenDiagnostics()
         showClusterPicker = true
     }
+    // The twenty-nine callbacks this function still takes, gathered once so a tile and its settings
+    // sheet can be handed the whole vocabulary instead of a hand-picked subset each.
+    val dashboardActions = DashboardActions(
+        onToggleSimulcast = onToggleSimulcast,
+        onLaunchSimulcast = onLaunchSimulcast,
+        onRepairSimulcast = onRepairSimulcast,
+        onChooseApps = onChooseApps,
+        onToggleMirrors = onToggleMirrors,
+        onMirrorsPosition = onMirrorsPosition,
+        onMirrorsProcessing = onMirrorsProcessing,
+        onPreviewMirrors = onPreviewMirrors,
+        onNavigationAction = onNavigationAction,
+        onNavigationPlacement = onNavigationPlacement,
+        onNavigationSteeringWheelButton = onNavigationSteeringWheelButton,
+        onChooseNavigationApp = onChooseNavigationApp,
+        onToggleSplitScreen = onToggleSplitScreen,
+        onToggleHudGuidance = onToggleHudGuidance,
+        onChooseFseApp = onChooseFseApp,
+        onOpenClusterPicker = openClusterPicker,
+        onOpenSettings = { settingsFor = it },
+    )
 
     // Правка W6 (волна 7): ширина берётся из фактического constraint корневого layout.
     // LocalWindowInfo.containerSize обновляется только с configuration change, которого
@@ -188,7 +202,7 @@ fun DenzaAppsRoot(
         val compactLayout = dashboardLayout == DashboardLayoutMode.NARROW
 
         DenzaTheme {
-            Surface(modifier = Modifier.fillMaxSize(), color = Background) {
+            Surface(modifier = Modifier.fillMaxSize(), color = DenzaColors.Background) {
                 Box(modifier = Modifier.fillMaxSize()) {
                     // Правка W8: дашборд всегда вписывается в ширину своего окна. Панельные ширины
                     // (узкая 1/3 и средняя 2/3) перекомпоновывают карточки и скроллят по вертикали;
@@ -205,251 +219,35 @@ fun DenzaAppsRoot(
                         }
                             .windowInsetsPadding(WindowInsets.safeDrawing)
                             .padding(
-                                horizontal = if (compactLayout) 24.dp else 48.dp,
-                                vertical = 14.dp,
+                                horizontal = if (compactLayout) {
+                                    DenzaMetrics.Space.L
+                                } else {
+                                    DenzaMetrics.Space.XXL
+                                },
+                                vertical = DenzaMetrics.Space.L,
                             ),
                     ) {
-                        AdaptiveCardGroup(
-                            layout = dashboardLayout,
-                            spacing = 18.dp,
-                        ) {
-                        FeatureCard(
-                            modifier = Modifier,
-                            icon = Icons.Outlined.Map,
-                            title = "Навигация",
-                            subtitle = uiState.navigationAppLabel,
-                            subtitleIcon = selectedNavigationApp?.icon,
-                            subtitleIconKey = selectedNavigationApp?.packageName,
-                            snapshot = uiState.navigation,
-                        ) {
-                            Column(modifier = Modifier.fillMaxWidth()) {
-                                // Our own instruments are drawn for the whole panel and have one
-                                // placement, so the row is absent rather than shown with a single
-                                // live cell and three dead ones.
-                                val placements = uiState.navigationPlacements
-                                if (placements.size > 1) {
-                                    StandardSegmentedChoiceRow(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        labels = placements.map { placement ->
-                                            when (placement) {
-                                                ClusterMapPlacement.FULL -> "Полный"
-                                                ClusterMapPlacement.LEFT -> "Слева"
-                                                ClusterMapPlacement.CENTER -> "Центр"
-                                                ClusterMapPlacement.RIGHT -> "Справа"
-                                            }
-                                        },
-                                        selectedIndex = placements.indexOf(
-                                            uiState.navigationPlacement,
-                                        ),
-                                        enabled = uiState.navigation.status != FeatureStatus.STARTING &&
-                                            uiState.navigation.status != FeatureStatus.RECOVERING,
-                                        onSelect = { index ->
-                                            onNavigationPlacement(placements[index])
-                                        },
-                                    )
-                                    Spacer(Modifier.height(10.dp))
-                                }
-                                if (SHOW_NAVIGATION_AUTOMATIC) {
-                                    SettingsSwitchRow(
-                                        title = "Авто",
-                                        subtitle = "По режиму приборки",
-                                        checked = uiState.navigationAutomatic,
-                                        onCheckedChange = onNavigationAutomatic,
-                                        controlEnabled = uiState.navigation.status != FeatureStatus.STARTING &&
-                                            uiState.navigation.status != FeatureStatus.RECOVERING,
-                                    )
-                                    Spacer(Modifier.height(10.dp))
-                                }
-                                SettingsSwitchRow(
-                                    title = "Кнопка ★ на руле",
-                                    subtitle = when {
-                                        !uiState.navigationSteeringWheelButton ->
-                                            "Штатное действие не перехватывается"
-                                        uiState.navigationSteeringWheelButtonRepairing ->
-                                            "Восстанавливаю системный доступ…"
-                                        uiState.navigationSteeringWheelButtonReady ->
-                                            "Перехват активен"
-                                        else ->
-                                            "Системный доступ недоступен"
-                                    },
-                                    checked = uiState.navigationSteeringWheelButton,
-                                    onCheckedChange = onNavigationSteeringWheelButton,
-                                )
-                                Spacer(Modifier.height(10.dp))
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                ) {
-                                    FeatureChooserButton(
-                                        modifier = Modifier.weight(1f),
-                                        onClick = onChooseNavigationApp,
-                                        emphasized = navigationActions.chooserEmphasized,
-                                        enabled = uiState.navigation.status != FeatureStatus.STARTING &&
-                                            uiState.navigation.status != FeatureStatus.RECOVERING &&
-                                            uiState.navigation.status != FeatureStatus.ACTIVE,
-                                        text = "Выбрать",
-                                    )
-                                    Button(
-                                        modifier = Modifier.weight(1f),
-                                        onClick = when (navigationActions.primaryTarget) {
-                                            FeatureActionTarget.SELECT_CLUSTER_DISPLAY -> openClusterPicker
-                                            else -> onNavigationAction
-                                        },
-                                        enabled = navigationActions.primaryEnabled &&
-                                            uiState.navigation.status != FeatureStatus.STARTING &&
-                                            uiState.navigation.status != FeatureStatus.RECOVERING,
-                                        colors = ButtonDefaults.buttonColors(
-                                            containerColor = Accent,
-                                            contentColor = Color(0xFF06251C),
-                                        ),
-                                    ) {
-                                        Text(navigationActions.primaryLabel, fontWeight = FontWeight.SemiBold)
-                                    }
-                                }
-                            }
-                        }
-                        FeatureCard(
-                            modifier = Modifier,
-                            icon = Icons.Outlined.Apps,
-                            title = "Трансляция",
-                            subtitle = "Приложения на экранах",
-                            snapshot = uiState.simulcast,
-                            switchValue = uiState.simulcast.desiredEnabled,
-                            onSwitch = onToggleSimulcast,
-                            actionsFillRemaining = true,
-                            onHeaderTap = onTransmissionHeaderTap,
-                        ) {
-                            Column(modifier = Modifier.fillMaxSize()) {
-                                SelectedSimulcastApps(uiState.selectedApps)
-                                Spacer(Modifier.weight(1f))
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                ) {
-                                    FeatureChooserButton(
-                                        modifier = Modifier.weight(1f),
-                                        onClick = onChooseApps,
-                                        emphasized = simulcastActions.chooserEmphasized,
-                                        text = "Выбрать",
-                                    )
-                                    Button(
-                                        modifier = Modifier.weight(1f),
-                                        onClick = when (simulcastActions.primaryTarget) {
-                                            FeatureActionTarget.RETRY -> onRepairSimulcast
-                                            else -> onLaunchSimulcast
-                                        },
-                                        enabled = simulcastActions.primaryEnabled,
-                                        colors = ButtonDefaults.buttonColors(
-                                            containerColor = if (uiState.simulcast.desiredEnabled) {
-                                                Accent
-                                            } else {
-                                                DisabledElevated
-                                            },
-                                            contentColor = if (uiState.simulcast.desiredEnabled) {
-                                                Color(0xFF06251C)
-                                            } else {
-                                                DisabledInk
-                                            },
-                                        ),
-                                    ) {
-                                        Text(
-                                            simulcastActions.primaryLabel,
-                                            fontWeight = FontWeight.SemiBold,
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                        FeatureCard(
-                            modifier = Modifier,
-                            icon = Icons.Outlined.Visibility,
-                            title = "Зеркала",
-                            subtitle = "Камеры поворотников",
-                            snapshot = uiState.mirrors,
-                            switchValue = uiState.mirrors.desiredEnabled,
-                            onSwitch = onToggleMirrors,
-                        ) {
-                            Column(modifier = Modifier.fillMaxWidth()) {
-                                StandardSegmentedChoiceRow(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    labels = listOf("По сторонам", "По центру"),
-                                    selectedIndex = when (uiState.mirrorsPosition) {
-                                        MirrorsPosition.SIDES -> 0
-                                        MirrorsPosition.CENTER -> 1
-                                    },
-                                    contentActive = uiState.mirrors.desiredEnabled,
-                                    onSelect = { index ->
-                                        onMirrorsPosition(
-                                            if (index == 0) MirrorsPosition.SIDES
-                                            else MirrorsPosition.CENTER,
-                                        )
-                                    },
-                                )
-                                Spacer(Modifier.height(10.dp))
-                                SettingsSwitchRow(
-                                    title = "Улучшение изображения",
-                                    subtitle = "Ярче и контрастнее",
-                                    checked = uiState.mirrorsProcessing,
-                                    onCheckedChange = onMirrorsProcessing,
-                                    contentActive = uiState.mirrors.desiredEnabled,
-                                )
-                                Spacer(Modifier.height(10.dp))
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                ) {
-                                    OutlinedButton(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        onClick = when (mirrorAction.target) {
-                                            FeatureActionTarget.SELECT_CLUSTER_DISPLAY -> openClusterPicker
-                                            else -> onPreviewMirrors
-                                        },
-                                        enabled = mirrorAction.enabled,
-                                    ) {
-                                        Text(mirrorAction.label, fontWeight = FontWeight.SemiBold)
-                                    }
-                                }
-                            }
-                        }
-                        }
-                        Spacer(Modifier.height(12.dp))
-                        AdaptiveCardGroup(
-                            layout = dashboardLayout,
-                            spacing = 18.dp,
-                        ) {
-                            SplitScreenCard(
-                                modifier = Modifier,
-                                snapshot = uiState.splitScreen,
-                                onToggle = onToggleSplitScreen,
-                            )
-                            CompactToggleCard(
-                                modifier = Modifier,
-                                icon = Icons.Outlined.Map,
-                                title = "HUD-подсказки",
-                                subtitle = "Указания на проекции",
-                                snapshot = uiState.hudGuidance,
-                                onToggle = onToggleHudGuidance,
-                                onRetry = { onToggleHudGuidance(true) },
-                            )
-                            CompactActionCard(
-                                modifier = Modifier,
-                                icon = Icons.Outlined.InstallMobile,
-                                title = "Установить приложение",
-                                subtitle = uiState.fseInstaller.message.ifBlank {
-                                    "На пассажирский экран"
-                                },
-                                snapshot = uiState.fseInstaller,
-                                onClick = onChooseFseApp,
-                            )
-                        }
-                        Spacer(Modifier.height(10.dp))
-                        // On the full width the swipeable bottom panel fills the free
-                        // zone below the cards. In the two scrolling pane layouts it
-                        // becomes a fixed-height stacked item (weight has no meaning
-                        // inside a vertical scroll). It stays frameless everywhere and
-                        // is gated by the compile-time flag.
+                        DashboardGrid(
+                            state = uiState,
+                            actions = dashboardActions,
+                            columns = when (dashboardLayout) {
+                                DashboardLayoutMode.WIDE ->
+                                    DenzaMetrics.Component.TILE_COLUMNS_WIDE
+                                DashboardLayoutMode.MEDIUM ->
+                                    DenzaMetrics.Component.TILE_COLUMNS_MEDIUM
+                                DashboardLayoutMode.NARROW -> 1
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = !adbStartupBlocked,
+                        )
+                        Spacer(Modifier.height(DenzaMetrics.Space.M))
+                        // Only the spectrum, for now. This strip used to page between three
+                        // instrument panels; the other two are being redrawn against the design
+                        // boards, and a pager holding one page is a pager the finger fights.
                         if (TripPanelFlag.ENABLED && !adbStartupBlocked) {
-                            BottomPanelPager(
+                            SpectrumPanel(
                                 compactLayout = compactLayout,
+                                onHiddenTap = onDiagnosticsTap,
                                 modifier = when (dashboardLayout) {
                                     DashboardLayoutMode.WIDE ->
                                         Modifier.fillMaxWidth().weight(1f)
@@ -463,7 +261,7 @@ fun DenzaAppsRoot(
                             if (dashboardLayout == DashboardLayoutMode.WIDE) {
                                 Spacer(Modifier.weight(1f))
                             } else {
-                                Spacer(Modifier.height(14.dp))
+                                Spacer(Modifier.height(DenzaMetrics.Space.M))
                             }
                         }
                     }
@@ -471,6 +269,15 @@ fun DenzaAppsRoot(
             }
         }
 
+        settingsFor?.let { id ->
+            FeatureSheet(
+                id = id,
+                state = uiState,
+                actions = dashboardActions,
+                compact = compactLayout,
+                onDismiss = { settingsFor = null },
+            )
+        }
         if (showDiagnostics) {
             DiagnosticsDialog(
                 state = uiState,
@@ -562,11 +369,11 @@ fun DenzaAppsRoot(
     }
 }
 
-private val NARROW_TRIP_PANEL_HEIGHT = 660.dp
+private val NARROW_TRIP_PANEL_HEIGHT = DenzaMetrics.Component.PANEL_HEIGHT_NARROW
 
 /** Средняя панель 2/3 скроллит по вертикали; нижней панели отдаётся фиксированная высота
  *  порядка свободной зоны полного дашборда (правка W8; живой прогон уточнит). */
-private val MEDIUM_TRIP_PANEL_HEIGHT = 320.dp
+private val MEDIUM_TRIP_PANEL_HEIGHT = DenzaMetrics.Component.PANEL_HEIGHT_MEDIUM
 
 @Composable
 private fun AdbStartupOverlay(
@@ -585,70 +392,64 @@ private fun AdbStartupOverlay(
                 onClick = {},
             )
             .windowInsetsPadding(WindowInsets.safeDrawing)
-            .padding(32.dp),
+            .padding(DenzaMetrics.Space.XL),
         contentAlignment = Alignment.Center,
     ) {
         Card(
             modifier = Modifier.fillMaxWidth(0.72f),
-            colors = CardDefaults.cardColors(containerColor = SurfaceColor),
-            shape = RoundedCornerShape(28.dp),
-            border = BorderStroke(1.dp, Elevated),
+            shape = RoundedCornerShape(DenzaMetrics.Space.XL),
+            border = BorderStroke(DenzaMetrics.Stroke.HAIRLINE, DenzaColors.SurfaceRaised),
         ) {
             Column(
-                modifier = Modifier.padding(horizontal = 40.dp, vertical = 34.dp),
-                verticalArrangement = Arrangement.spacedBy(18.dp),
+                modifier = Modifier.padding(horizontal = DenzaMetrics.Space.XXL, vertical = DenzaMetrics.Space.XL),
+                verticalArrangement = Arrangement.spacedBy(DenzaMetrics.Space.L),
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(DenzaMetrics.Space.L),
                 ) {
                     if (model.busy) {
                         CircularProgressIndicator(
-                            modifier = Modifier.size(42.dp),
-                            color = Accent,
-                            strokeWidth = 4.dp,
+                            modifier = Modifier.size(DenzaMetrics.Component.SEGMENT_HEIGHT),
+                            color = DenzaColors.Accent,
+                            strokeWidth = DenzaMetrics.Space.XS,
                         )
                     } else {
                         Icon(
                             Icons.Outlined.Build,
                             contentDescription = null,
-                            modifier = Modifier.size(44.dp),
-                            tint = if (model.recoveryAvailable) Warning else Muted,
+                            modifier = Modifier.size(DenzaMetrics.Space.XXL),
+                            tint = if (model.recoveryAvailable) DenzaColors.Warning else DenzaColors.Muted,
                         )
                     }
                     Text(
                         model.title,
-                        color = Ink,
-                        fontSize = 30.sp,
+                        color = DenzaColors.Ink,
+                        fontSize = DenzaMetrics.Type.TITLE,
                         fontWeight = FontWeight.SemiBold,
                     )
                 }
                 Text(
                     model.message,
-                    color = Muted,
-                    fontSize = 19.sp,
-                    lineHeight = 28.sp,
+                    color = DenzaColors.Muted,
+                    fontSize = DenzaMetrics.Type.LABEL,
+                    lineHeight = DenzaMetrics.Type.SECTION,
                 )
                 if (model.primaryLabel != null) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End),
+                        horizontalArrangement = Arrangement.spacedBy(DenzaMetrics.Space.M, Alignment.End),
                     ) {
                         if (model.recoveryAvailable) {
                             OutlinedButton(
                                 onClick = onOpenRecovery,
-                                border = BorderStroke(1.dp, Warning),
-                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Ink),
+                                border = BorderStroke(DenzaMetrics.Stroke.HAIRLINE, DenzaColors.Warning),
                             ) {
                                 Text("Восстановить ADB", fontWeight = FontWeight.SemiBold)
                             }
                         }
                         Button(
                             onClick = onPrimaryAction,
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = Accent,
-                                contentColor = Color(0xFF06251C),
-                            ),
                         ) {
                             Text(model.primaryLabel, fontWeight = FontWeight.SemiBold)
                         }
@@ -673,33 +474,28 @@ private fun AdbRecoveryDialog(
     ) {
         Card(
             modifier = Modifier.fillMaxWidth(0.68f),
-            colors = CardDefaults.cardColors(containerColor = SurfaceColor),
-            shape = RoundedCornerShape(28.dp),
-            border = BorderStroke(1.dp, Elevated),
+            shape = RoundedCornerShape(DenzaMetrics.Space.XL),
+            border = BorderStroke(DenzaMetrics.Stroke.HAIRLINE, DenzaColors.SurfaceRaised),
         ) {
             Column(
-                modifier = Modifier.padding(32.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
+                modifier = Modifier.padding(DenzaMetrics.Space.XL),
+                verticalArrangement = Arrangement.spacedBy(DenzaMetrics.Space.L),
             ) {
                 Text(
                     "Восстановление ADB",
-                    color = Ink,
-                    fontSize = 28.sp,
+                    color = DenzaColors.Ink,
+                    fontSize = DenzaMetrics.Type.SECTION,
                     fontWeight = FontWeight.SemiBold,
                 )
-                Text(state.adbRescue.message, color = Ink, fontSize = 20.sp)
+                Text(state.adbRescue.message, color = DenzaColors.Ink, fontSize = DenzaMetrics.Type.LABEL)
                 state.adbRescue.details?.let { details ->
-                    Text(details, color = Muted, fontSize = 17.sp)
+                    Text(details, color = DenzaColors.Muted, fontSize = DenzaMetrics.Type.BODY)
                 }
                 OutlinedButton(
                     modifier = Modifier.fillMaxWidth(),
                     onClick = onCheckAdbAccess,
                     enabled = state.adbRescue.phase != AdbRescuePhase.CHECKING &&
                         state.adbRescue.phase != AdbRescuePhase.REQUESTING,
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = Ink,
-                        disabledContentColor = DisabledMuted,
-                    ),
                 ) {
                     Text("Проверить доступ", fontWeight = FontWeight.SemiBold)
                 }
@@ -707,10 +503,6 @@ private fun AdbRecoveryDialog(
                     Button(
                         modifier = Modifier.fillMaxWidth(),
                         onClick = onRequestAdbAuthorizationOnce,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Accent,
-                            contentColor = Color(0xFF06251C),
-                        ),
                     ) {
                         Text("Отправить один запрос", fontWeight = FontWeight.SemiBold)
                     }
@@ -720,737 +512,25 @@ private fun AdbRecoveryDialog(
                         modifier = Modifier.fillMaxWidth(),
                         onClick = onAllowNewAdbAuthorizationAttempt,
                     ) {
-                        Text("Разрешить новую попытку", color = Warning)
+                        Text("Разрешить новую попытку", color = DenzaColors.Warning)
                     }
                 }
                 Text(
                     AdbRescueCoordinator.QUEUE_RECOVERY_STATUS,
-                    color = Warning,
-                    fontSize = 16.sp,
+                    color = DenzaColors.Warning,
+                    fontSize = DenzaMetrics.Type.BODY,
                 )
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End,
                 ) {
                     TextButton(onClick = onDismiss) {
-                        Text("Закрыть", color = Accent, fontWeight = FontWeight.SemiBold)
+                        Text("Закрыть", color = DenzaColors.Accent, fontWeight = FontWeight.SemiBold)
                     }
                 }
             }
         }
     }
-}
-
-/**
- * Measures the existing cards as equal-width rows of [DashboardLayoutPolicy.rowCapacity] cards:
- * the whole group in one row on the full width, two per row in the medium 2/3 pane, a full-width
- * stack in the narrow 1/3 (правка W8). An odd trailing card takes its whole row. The card
- * composables themselves stay unchanged.
- */
-@Composable
-private fun AdaptiveCardGroup(
-    layout: DashboardLayoutMode,
-    spacing: Dp,
-    content: @Composable () -> Unit,
-) {
-    Layout(content = content) { measurables, constraints ->
-        if (measurables.isEmpty()) {
-            layout(constraints.minWidth, constraints.minHeight) {}
-        } else {
-            val width = constraints.maxWidth
-            val spacingPx = spacing.roundToPx()
-            val rows = measurables.chunked(
-                DashboardLayoutPolicy.rowCapacity(layout, measurables.size),
-            )
-            val placedRows = rows.map { row ->
-                val gaps = spacingPx * (row.size - 1)
-                val availableWidth = (width - gaps).coerceAtLeast(0)
-                val baseWidth = availableWidth / row.size
-                val remainder = availableWidth % row.size
-                row.mapIndexed { index, measurable ->
-                    val childWidth = baseWidth + if (index < remainder) 1 else 0
-                    measurable.measure(
-                        Constraints(
-                            minWidth = childWidth,
-                            maxWidth = childWidth,
-                            minHeight = 0,
-                            maxHeight = constraints.maxHeight,
-                        ),
-                    )
-                }
-            }
-            val measuredHeight = placedRows.sumOf { row -> row.maxOf { it.height } } +
-                spacingPx * (placedRows.size - 1)
-            val constrainedHeight = measuredHeight.coerceIn(
-                constraints.minHeight,
-                constraints.maxHeight,
-            )
-            layout(width, constrainedHeight) {
-                var y = 0
-                placedRows.forEach { row ->
-                    var x = 0
-                    row.forEach { placeable ->
-                        placeable.placeRelative(x, y)
-                        x += placeable.width + spacingPx
-                    }
-                    y += row.maxOf { it.height } + spacingPx
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun SplitScreenCard(
-    modifier: Modifier,
-    snapshot: FeatureSnapshot,
-    onToggle: (Boolean) -> Unit,
-) {
-    val subtitle = if (snapshot.status == FeatureStatus.ERROR) {
-        "Ошибка запуска"
-    } else {
-        "Иконка в списке приложений"
-    }
-    CompactToggleCard(
-        modifier = modifier,
-        icon = Icons.Outlined.VerticalSplit,
-        title = "Split Screen",
-        subtitle = subtitle,
-        snapshot = snapshot,
-        onToggle = onToggle,
-    )
-}
-
-@Composable
-private fun CompactToggleCard(
-    modifier: Modifier,
-    icon: ImageVector,
-    title: String,
-    subtitle: String,
-    snapshot: FeatureSnapshot,
-    onToggle: (Boolean) -> Unit,
-    onRetry: (() -> Unit)? = null,
-    toggleEnabled: Boolean = true,
-) {
-    val enabled = snapshot.desiredEnabled
-    val attentionSubtitle = when (snapshot.status) {
-        FeatureStatus.NEEDS_ACTION,
-        FeatureStatus.UNAVAILABLE,
-        FeatureStatus.ERROR,
-        -> snapshot.message.ifBlank { subtitle }
-        else -> subtitle
-    }
-    val subtitleColor = when (snapshot.status) {
-        FeatureStatus.NEEDS_ACTION -> Warning
-        FeatureStatus.ERROR -> Danger
-        FeatureStatus.UNAVAILABLE -> Muted
-        else -> if (enabled) Muted else DisabledMuted
-    }
-    val retryLabel = FeatureActionPolicy.compactRetryLabel(snapshot)
-    Card(
-        modifier = modifier.height(96.dp),
-        shape = RoundedCornerShape(22.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (enabled) SurfaceColor else DisabledSurface,
-        ),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .background(
-                        if (enabled) Elevated else DisabledElevated,
-                        RoundedCornerShape(14.dp),
-                    ),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    icon,
-                    null,
-                    tint = if (enabled) Accent else DisabledInk,
-                )
-            }
-            Spacer(Modifier.width(16.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    title,
-                    color = if (enabled) Ink else DisabledInk,
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Text(
-                    attentionSubtitle,
-                    color = subtitleColor,
-                    fontSize = 13.sp,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-            if (snapshot.status == FeatureStatus.STARTING || snapshot.status == FeatureStatus.RECOVERING) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(16.dp),
-                    strokeWidth = 2.dp,
-                    color = Warning,
-                )
-                Spacer(Modifier.width(8.dp))
-            }
-            if (retryLabel != null && onRetry != null) {
-                TextButton(onClick = onRetry) {
-                    Text(retryLabel, fontWeight = FontWeight.SemiBold)
-                }
-                Spacer(Modifier.width(4.dp))
-            }
-            Switch(
-                checked = enabled,
-                onCheckedChange = onToggle,
-                enabled = toggleEnabled &&
-                    snapshot.status != FeatureStatus.STARTING &&
-                    snapshot.status != FeatureStatus.RECOVERING,
-            )
-        }
-    }
-}
-
-@Composable
-private fun FeatureChooserButton(
-    modifier: Modifier,
-    text: String,
-    emphasized: Boolean,
-    enabled: Boolean = true,
-    onClick: () -> Unit,
-) {
-    if (emphasized) {
-        Button(
-            modifier = modifier,
-            enabled = enabled,
-            onClick = onClick,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Accent,
-                contentColor = Color(0xFF06251C),
-            ),
-        ) {
-            Text(text, fontWeight = FontWeight.SemiBold)
-        }
-    } else {
-        OutlinedButton(
-            modifier = modifier,
-            enabled = enabled,
-            onClick = onClick,
-        ) {
-            Text(text, fontWeight = FontWeight.SemiBold)
-        }
-    }
-}
-
-@Composable
-private fun CompactActionCard(
-    modifier: Modifier,
-    icon: ImageVector,
-    title: String,
-    subtitle: String,
-    snapshot: FeatureSnapshot,
-    onClick: () -> Unit,
-) {
-    val busy = snapshot.status == FeatureStatus.STARTING ||
-        snapshot.status == FeatureStatus.RECOVERING
-    val failed = snapshot.status == FeatureStatus.ERROR
-    Card(
-        modifier = modifier
-            .height(96.dp)
-            .clickable(enabled = !busy, onClick = onClick),
-        shape = RoundedCornerShape(22.dp),
-        colors = CardDefaults.cardColors(containerColor = SurfaceColor),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .background(Elevated, RoundedCornerShape(14.dp)),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(icon, null, tint = if (failed) Warning else Accent)
-            }
-            Spacer(Modifier.width(16.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    title,
-                    color = Ink,
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 1,
-                )
-                Text(
-                    subtitle,
-                    color = if (failed) Warning else Muted,
-                    fontSize = 13.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-            if (busy) {
-                Spacer(Modifier.width(12.dp))
-                CircularProgressIndicator(
-                    modifier = Modifier.size(20.dp),
-                    strokeWidth = 2.dp,
-                    color = Warning,
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun PickerDialogHeader(
-    compactLayout: Boolean,
-    title: String,
-    subtitle: String,
-    actionLabel: String,
-    onAction: () -> Unit,
-) {
-    val copy: @Composable () -> Unit = {
-        Text(
-            title,
-            color = Ink,
-            fontSize = 24.sp,
-            fontWeight = FontWeight.SemiBold,
-        )
-        Text(subtitle, color = Muted, fontSize = 14.sp)
-    }
-    if (compactLayout) {
-        Column {
-            copy()
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End,
-            ) {
-                TextButton(
-                    onClick = onAction,
-                    colors = ButtonDefaults.textButtonColors(contentColor = Accent),
-                ) {
-                    Text(actionLabel)
-                }
-            }
-        }
-    } else {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Column { copy() }
-            Spacer(Modifier.weight(1f))
-            TextButton(
-                onClick = onAction,
-                colors = ButtonDefaults.textButtonColors(contentColor = Accent),
-            ) {
-                Text(actionLabel)
-            }
-        }
-    }
-}
-
-@Composable
-private fun AppPickerDialog(
-    apps: List<SimulcastAppChoice>,
-    compactLayout: Boolean,
-    selectedCount: Int,
-    message: String,
-    onToggle: (String) -> Unit,
-    onDismiss: () -> Unit,
-) {
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false),
-    ) {
-        Surface(
-            modifier = if (compactLayout) Modifier.fillMaxWidth(0.96f)
-            else Modifier.fillMaxWidth(0.92f),
-            color = SurfaceColor,
-            shape = RoundedCornerShape(26.dp),
-        ) {
-            Column(modifier = Modifier.padding(if (compactLayout) 16.dp else 28.dp)) {
-                PickerDialogHeader(
-                    compactLayout = compactLayout,
-                    title = "Приложения на экранах",
-                    subtitle = "Можно выбрать до 6 · выбрано $selectedCount",
-                    actionLabel = "Готово",
-                    onAction = onDismiss,
-                )
-                if (message.isNotBlank()) {
-                    Spacer(Modifier.height(8.dp))
-                    Text(message, color = Warning, fontSize = 14.sp)
-                }
-                Spacer(Modifier.height(18.dp))
-                LazyVerticalGrid(
-                    columns = if (compactLayout) GridCells.Adaptive(96.dp) else GridCells.Fixed(6),
-                    modifier = Modifier.fillMaxWidth().height(360.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    items(apps, key = { it.packageName }) { app ->
-                        AppChoiceTile(
-                            app = app,
-                            onClick = { onToggle(app.packageName) },
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun AppChoiceTile(app: SimulcastAppChoice, onClick: () -> Unit) {
-    val shape = RoundedCornerShape(18.dp)
-    val bitmap = remember(app.packageName, app.icon) {
-        app.icon?.toBitmap(128, 128)?.asImageBitmap()
-    }
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(114.dp)
-            .then(if (app.selected) Modifier.border(2.dp, Accent, shape) else Modifier)
-            .clickable(onClick = onClick),
-        shape = shape,
-        colors = CardDefaults.cardColors(containerColor = Elevated),
-    ) {
-        Column(
-            modifier = Modifier.fillMaxSize().padding(8.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-        ) {
-            if (bitmap != null) {
-                Image(
-                    painter = BitmapPainter(bitmap),
-                    contentDescription = null,
-                    modifier = Modifier.size(54.dp),
-                    contentScale = ContentScale.Fit,
-                )
-            } else {
-                Icon(Icons.Outlined.Apps, null, modifier = Modifier.size(50.dp), tint = Muted)
-            }
-            Spacer(Modifier.height(4.dp))
-            Text(
-                app.label,
-                color = if (app.selected) Accent else Ink,
-                fontSize = 12.sp,
-                fontWeight = if (app.selected) FontWeight.SemiBold else FontWeight.Normal,
-                maxLines = 2,
-            )
-        }
-    }
-}
-
-@Composable
-private fun NavigationPickerDialog(
-    apps: List<NavigationAppChoice>,
-    compactLayout: Boolean,
-    onSelect: (String) -> Unit,
-    onDismiss: () -> Unit,
-) {
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false),
-    ) {
-        Surface(
-            modifier = if (compactLayout) Modifier.fillMaxWidth(0.96f)
-            else Modifier.fillMaxWidth(0.68f),
-            color = SurfaceColor,
-            shape = RoundedCornerShape(26.dp),
-        ) {
-            Column(modifier = Modifier.padding(if (compactLayout) 16.dp else 28.dp)) {
-                PickerDialogHeader(
-                    compactLayout = compactLayout,
-                    title = "Навигация на приборке",
-                    subtitle = "Установленные приложения",
-                    actionLabel = "Закрыть",
-                    onAction = onDismiss,
-                )
-                Spacer(Modifier.height(18.dp))
-                if (apps.isEmpty()) {
-                    Text("Поддерживаемые навигаторы не найдены", color = Warning, fontSize = 15.sp)
-                } else {
-                    LazyVerticalGrid(
-                        columns = if (compactLayout) GridCells.Adaptive(96.dp) else GridCells.Fixed(3),
-                        modifier = Modifier.fillMaxWidth().heightIn(max = 260.dp),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp),
-                    ) {
-                        items(apps, key = { it.packageName }) { app ->
-                            NavigationChoiceTile(app = app) { onSelect(app.packageName) }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun NavigationChoiceTile(app: NavigationAppChoice, onClick: () -> Unit) {
-    val shape = RoundedCornerShape(18.dp)
-    val bitmap = remember(app.packageName, app.icon) {
-        app.icon?.toBitmap(128, 128)?.asImageBitmap()
-    }
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(116.dp)
-            .then(if (app.selected) Modifier.border(2.dp, Accent, shape) else Modifier)
-            .clickable(onClick = onClick),
-        shape = shape,
-        colors = CardDefaults.cardColors(containerColor = Elevated),
-    ) {
-        Column(
-            modifier = Modifier.fillMaxSize().padding(10.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-        ) {
-            if (bitmap != null) {
-                Image(
-                    painter = BitmapPainter(bitmap),
-                    contentDescription = null,
-                    modifier = Modifier.size(54.dp),
-                    contentScale = ContentScale.Fit,
-                )
-            } else {
-                Icon(Icons.Outlined.Map, null, modifier = Modifier.size(50.dp), tint = Muted)
-            }
-            Spacer(Modifier.height(5.dp))
-            Text(
-                app.label,
-                color = if (app.selected) Accent else Ink,
-                fontSize = 13.sp,
-                fontWeight = if (app.selected) FontWeight.SemiBold else FontWeight.Normal,
-                maxLines = 2,
-            )
-        }
-    }
-}
-
-@Composable
-private fun FseInstallerPickerDialog(
-    apps: List<FseInstallApp>,
-    compactLayout: Boolean,
-    message: String,
-    onInstall: (String) -> Unit,
-    onDismiss: () -> Unit,
-) {
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false),
-    ) {
-        Surface(
-            modifier = if (compactLayout) Modifier.fillMaxWidth(0.96f)
-            else Modifier.fillMaxWidth(0.92f),
-            color = SurfaceColor,
-            shape = RoundedCornerShape(26.dp),
-        ) {
-            Column(modifier = Modifier.padding(if (compactLayout) 16.dp else 28.dp)) {
-                PickerDialogHeader(
-                    compactLayout = compactLayout,
-                    title = "Установка на пассажирский экран",
-                    subtitle = "Выберите приложение с головного устройства",
-                    actionLabel = "Закрыть",
-                    onAction = onDismiss,
-                )
-                if (message.isNotBlank()) {
-                    Spacer(Modifier.height(8.dp))
-                    Text(message, color = Warning, fontSize = 14.sp)
-                }
-                Spacer(Modifier.height(18.dp))
-                if (apps.isEmpty()) {
-                    Text("Приложения не найдены", color = Warning, fontSize = 15.sp)
-                } else {
-                    LazyVerticalGrid(
-                        columns = if (compactLayout) GridCells.Adaptive(96.dp) else GridCells.Fixed(6),
-                        modifier = Modifier.fillMaxWidth().height(380.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        items(apps, key = { it.packageName }) { app ->
-                            FseInstallChoiceTile(app = app) { onInstall(app.packageName) }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun FseInstallChoiceTile(app: FseInstallApp, onClick: () -> Unit) {
-    val bitmap = remember(app.packageName, app.icon) {
-        app.icon?.toBitmap(128, 128)?.asImageBitmap()
-    }
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(126.dp)
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (app.installable) Elevated else DisabledSurface,
-        ),
-    ) {
-        Column(
-            modifier = Modifier.fillMaxSize().padding(8.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-        ) {
-            if (bitmap != null) {
-                Image(
-                    painter = BitmapPainter(bitmap),
-                    contentDescription = null,
-                    modifier = Modifier.size(50.dp),
-                    contentScale = ContentScale.Fit,
-                )
-            } else {
-                Icon(
-                    Icons.Outlined.Apps,
-                    null,
-                    modifier = Modifier.size(46.dp),
-                    tint = DisabledMuted,
-                )
-            }
-            Spacer(Modifier.height(4.dp))
-            Text(
-                app.label,
-                color = if (app.installable) Ink else DisabledInk,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Medium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Text(
-                if (app.installable) app.versionName.ifBlank { "Готово к установке" }
-                else app.unavailableReason,
-                color = if (app.installable) Muted else DisabledMuted,
-                fontSize = 9.sp,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
-    }
-}
-
-@Composable
-private fun StandardSegmentedChoiceRow(
-    modifier: Modifier,
-    labels: List<String>,
-    selectedIndex: Int,
-    enabled: Boolean = true,
-    contentActive: Boolean = true,
-    onSelect: (Int) -> Unit,
-) {
-    Surface(
-        modifier = modifier.height(42.dp),
-        color = if (contentActive) Background else DisabledSurface,
-        shape = RoundedCornerShape(12.dp),
-    ) {
-        SingleChoiceSegmentedButtonRow(
-            modifier = Modifier.fillMaxSize().padding(3.dp),
-            space = 3.dp,
-        ) {
-            labels.forEachIndexed { index, label ->
-                val selected = index == selectedIndex
-                SegmentedButton(
-                    modifier = Modifier.weight(1f),
-                    selected = selected,
-                    onClick = { onSelect(index) },
-                    enabled = enabled,
-                    shape = RoundedCornerShape(9.dp),
-                    icon = {},
-                    colors = SegmentedButtonDefaults.colors(
-                        activeContainerColor = if (contentActive) Elevated else DisabledElevated,
-                        activeContentColor = if (contentActive) Accent else DisabledInk,
-                        inactiveContainerColor = Color.Transparent,
-                        inactiveContentColor = if (contentActive) Ink else DisabledInk,
-                    ),
-                    border = BorderStroke(0.dp, Color.Transparent),
-                    label = {
-                        Text(
-                            label,
-                            fontSize = 11.sp,
-                            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-                            maxLines = 1,
-                        )
-                    },
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun SettingsSwitchRow(
-    title: String,
-    subtitle: String? = null,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
-    controlEnabled: Boolean = true,
-    contentActive: Boolean = true,
-) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        color = if (contentActive) Elevated else DisabledElevated,
-        shape = RoundedCornerShape(14.dp),
-    ) {
-        ListItem(
-            headlineContent = {
-                Text(
-                    title,
-                    color = if (contentActive) Ink else DisabledInk,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Medium,
-                    maxLines = 1,
-                )
-            },
-            supportingContent = subtitle?.let {
-                {
-                    Text(
-                        it,
-                        color = if (contentActive) Muted else DisabledMuted,
-                        fontSize = 11.sp,
-                        maxLines = 1,
-                    )
-                }
-            },
-            trailingContent = {
-                Switch(
-                    checked = checked,
-                    onCheckedChange = onCheckedChange,
-                    enabled = controlEnabled,
-                    colors = if (contentActive) {
-                        SwitchDefaults.colors()
-                    } else {
-                        SwitchDefaults.colors(
-                            checkedThumbColor = DisabledInk,
-                            checkedTrackColor = DisabledMuted,
-                        )
-                    },
-                )
-            },
-            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-        )
-    }
-}
-
-@Composable
-private fun DenzaTheme(content: @Composable () -> Unit) {
-    MaterialTheme(
-        colorScheme = androidx.compose.material3.darkColorScheme(
-            primary = Accent,
-            onPrimary = Color(0xFF06251C),
-            background = Background,
-            surface = SurfaceColor,
-            onSurface = Ink,
-            error = Danger,
-        ),
-        content = content,
-    )
 }
 
 @Composable
@@ -1471,45 +551,44 @@ private fun DiagnosticsDialog(
         Surface(
             modifier = if (compactLayout) Modifier.fillMaxWidth(0.96f)
             else Modifier.fillMaxWidth(0.72f),
-            color = SurfaceColor,
-            shape = RoundedCornerShape(26.dp),
+            color = DenzaColors.Surface,
+            shape = RoundedCornerShape(DenzaMetrics.Space.XL),
         ) {
-            Column(modifier = Modifier.padding(if (compactLayout) 16.dp else 28.dp)) {
+            Column(modifier = Modifier.padding(if (compactLayout) DenzaMetrics.Space.L else DenzaMetrics.Space.XL)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Outlined.Build, null, tint = Accent)
-                    Spacer(Modifier.width(12.dp))
+                    Icon(Icons.Outlined.Build, null, tint = DenzaColors.Accent)
+                    Spacer(Modifier.width(DenzaMetrics.Space.M))
                     Text(
                         "Диагностика",
-                        color = Ink,
-                        fontSize = 24.sp,
+                        color = DenzaColors.Ink,
+                        fontSize = DenzaMetrics.Type.SECTION,
                         fontWeight = FontWeight.SemiBold,
                     )
                 }
-                Spacer(Modifier.height(22.dp))
+                Spacer(Modifier.height(DenzaMetrics.Space.L))
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(max = 430.dp)
+                        .heightIn(max = DenzaMetrics.Component.PICKER_HEIGHT)
                         .verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(DenzaMetrics.Space.S),
                 ) {
                     val adbBusy = state.adbRescue.phase == AdbRescuePhase.CHECKING ||
                         state.adbRescue.phase == AdbRescuePhase.REQUESTING
-                    Text("ADB Rescue", color = Ink, fontWeight = FontWeight.SemiBold)
-                    DiagnosticRow(
+                    Text("ADB Rescue", color = DenzaColors.Ink, fontWeight = FontWeight.SemiBold)
+                    DenzaKeyValueRow(
                         label = "Состояние",
                         value = state.adbRescue.message,
-                        compactLayout = compactLayout,
+                        stacked = compactLayout,
                     )
                     state.adbRescue.details?.let { details ->
-                        Text(details, color = Muted, fontSize = 13.sp)
+                        Text(details, color = DenzaColors.Muted, fontSize = DenzaMetrics.Type.BODY)
                     }
                     OutlinedButton(
                         onClick = onCheckAdbAccess,
                         enabled = !adbBusy,
                         modifier = Modifier.fillMaxWidth(),
-                        border = BorderStroke(1.dp, Elevated),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Ink),
+                        border = BorderStroke(DenzaMetrics.Stroke.HAIRLINE, DenzaColors.SurfaceRaised),
                     ) {
                         Text("Проверить доступ")
                     }
@@ -1517,10 +596,6 @@ private fun DiagnosticsDialog(
                         Button(
                             onClick = onRequestAdbAuthorizationOnce,
                             modifier = Modifier.fillMaxWidth(),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = Accent,
-                                contentColor = Color(0xFF06251C),
-                            ),
                         ) {
                             Text("Отправить один запрос", fontWeight = FontWeight.SemiBold)
                         }
@@ -1530,20 +605,20 @@ private fun DiagnosticsDialog(
                             onClick = onAllowNewAdbAuthorizationAttempt,
                             modifier = Modifier.align(Alignment.End),
                         ) {
-                            Text("Разрешить новую попытку", color = Warning)
+                            Text("Разрешить новую попытку", color = DenzaColors.Warning)
                         }
                     }
                     Text(
                         AdbRescueCoordinator.QUEUE_RECOVERY_STATUS,
-                        color = Warning,
-                        fontSize = 12.sp,
+                        color = DenzaColors.Warning,
+                        fontSize = DenzaMetrics.Type.BODY,
                     )
-                    Spacer(Modifier.height(12.dp))
-                    Text("Штатный русский", color = Ink, fontWeight = FontWeight.SemiBold)
+                    Spacer(Modifier.height(DenzaMetrics.Space.M))
+                    Text("Штатный русский", color = DenzaColors.Ink, fontWeight = FontWeight.SemiBold)
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
-                        color = Elevated,
-                        shape = RoundedCornerShape(12.dp),
+                        color = DenzaColors.SurfaceRaised,
+                        shape = RoundedCornerShape(DenzaMetrics.Space.M),
                     ) {
                         Column {
                             val localeControlEnabled =
@@ -1553,24 +628,24 @@ private fun DiagnosticsDialog(
                                 headlineContent = {
                                     Text(
                                         "Русский в BYD Настройках",
-                                        color = Ink,
+                                        color = DenzaColors.Ink,
                                         fontWeight = FontWeight.Medium,
                                     )
                                 },
                                 supportingContent = {
                                     Text(
                                         state.stockRussianLocale.message,
-                                        color = Muted,
-                                        fontSize = 12.sp,
+                                        color = DenzaColors.Muted,
+                                        fontSize = DenzaMetrics.Type.BODY,
                                     )
                                 },
                                 trailingContent = {
                                     when {
                                         state.stockRussianLocale.running -> {
                                             CircularProgressIndicator(
-                                                modifier = Modifier.size(28.dp),
-                                                color = Accent,
-                                                strokeWidth = 3.dp,
+                                                modifier = Modifier.size(DenzaMetrics.Space.XL),
+                                                color = DenzaColors.Accent,
+                                                strokeWidth = DenzaMetrics.Space.XS,
                                             )
                                         }
                                         state.stockRussianLocale.enabled != null -> {
@@ -1593,8 +668,8 @@ private fun DiagnosticsDialog(
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(start = 16.dp, end = 16.dp, bottom = 12.dp),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        .padding(start = DenzaMetrics.Space.L, end = DenzaMetrics.Space.L, bottom = DenzaMetrics.Space.M),
+                                    horizontalArrangement = Arrangement.spacedBy(DenzaMetrics.Space.S),
                                 ) {
                                     OutlinedButton(
                                         onClick = { onSetStockRussianLocaleEnabled(false) },
@@ -1607,10 +682,6 @@ private fun DiagnosticsDialog(
                                         onClick = { onSetStockRussianLocaleEnabled(true) },
                                         enabled = localeControlEnabled,
                                         modifier = Modifier.weight(1f),
-                                        colors = ButtonDefaults.buttonColors(
-                                            containerColor = Accent,
-                                            contentColor = Color(0xFF06251C),
-                                        ),
                                     ) {
                                         Text("Вкл", fontWeight = FontWeight.SemiBold)
                                     }
@@ -1620,34 +691,33 @@ private fun DiagnosticsDialog(
                     }
                     Text(
                         "Только ru-RU для com.byd.carsettings; без словаря и перевода поверх.",
-                        color = Muted,
-                        fontSize = 12.sp,
+                        color = DenzaColors.Muted,
+                        fontSize = DenzaMetrics.Type.BODY,
                     )
                     state.stockRussianLocale.details?.let { details ->
-                        Text(details, color = Warning, fontSize = 12.sp)
+                        Text(details, color = DenzaColors.Warning, fontSize = DenzaMetrics.Type.BODY)
                     }
-                    Spacer(Modifier.height(12.dp))
-                    Text("Технические сведения", color = Ink, fontWeight = FontWeight.SemiBold)
+                    Spacer(Modifier.height(DenzaMetrics.Space.M))
+                    Text("Технические сведения", color = DenzaColors.Ink, fontWeight = FontWeight.SemiBold)
                     state.technicalDetails
                         .lineSequence()
                         .filter { it.isNotBlank() }
                         .forEach { line ->
-                            DiagnosticRow(
+                            DenzaKeyValueRow(
                                 label = line.substringBefore('='),
                                 value = line.substringAfter('=', missingDelimiterValue = "—"),
-                                compactLayout = compactLayout,
+                                stacked = compactLayout,
                             )
                         }
-                    Spacer(Modifier.height(8.dp))
-                    Text("Выбор экрана приборки", color = Ink, fontWeight = FontWeight.SemiBold)
+                    Spacer(Modifier.height(DenzaMetrics.Space.S))
+                    Text("Выбор экрана приборки", color = DenzaColors.Ink, fontWeight = FontWeight.SemiBold)
                     state.clusterCandidates
                         .filter { it.id != 0 && !it.isOwnVirtualDisplay }
                         .forEach { display ->
                             OutlinedButton(
                                 onClick = { onSelectClusterDisplay(display.id) },
                                 modifier = Modifier.fillMaxWidth(),
-                                border = BorderStroke(1.dp, Elevated),
-                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Ink),
+                                border = BorderStroke(DenzaMetrics.Stroke.HAIRLINE, DenzaColors.SurfaceRaised),
                             ) {
                                 Text("#${display.id} · ${display.width}×${display.height} · ${display.name}")
                             }
@@ -1656,10 +726,10 @@ private fun DiagnosticsDialog(
                         onClick = { onSelectClusterDisplay(null) },
                         modifier = Modifier.align(Alignment.End),
                     ) {
-                        Text("Определять автоматически", color = Accent)
+                        Text("Определять автоматически", color = DenzaColors.Accent)
                     }
                 }
-                Spacer(Modifier.height(22.dp))
+                Spacer(Modifier.height(DenzaMetrics.Space.L))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End,
@@ -1667,294 +737,12 @@ private fun DiagnosticsDialog(
                 ) {
                     Button(
                         onClick = onDismiss,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Accent,
-                            contentColor = Color(0xFF06251C),
-                        ),
                     ) {
                         Text("Закрыть", fontWeight = FontWeight.SemiBold)
                     }
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun DiagnosticRow(label: String, value: String, compactLayout: Boolean) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        color = Elevated,
-        shape = RoundedCornerShape(12.dp),
-    ) {
-        if (compactLayout) {
-            Column(
-                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                Text(label, color = Muted, fontSize = 12.sp)
-                Text(value, color = Ink, fontSize = 14.sp, fontWeight = FontWeight.Medium)
-            }
-        } else {
-            Row(
-                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    label,
-                    color = Muted,
-                    fontSize = 13.sp,
-                    modifier = Modifier.weight(0.42f),
-                )
-                Text(
-                    value,
-                    color = Ink,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium,
-                    modifier = Modifier.weight(0.58f),
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun FeatureCard(
-    modifier: Modifier,
-    icon: ImageVector,
-    title: String,
-    subtitle: String,
-    subtitleIcon: Drawable? = null,
-    subtitleIconKey: String? = null,
-    snapshot: FeatureSnapshot,
-    switchValue: Boolean? = null,
-    switchEnabled: Boolean = true,
-    onSwitch: ((Boolean) -> Unit)? = null,
-    actionsFillRemaining: Boolean = false,
-    onHeaderTap: (() -> Unit)? = null,
-    actions: @Composable () -> Unit,
-) {
-    val featureEnabled = switchValue != false
-    val headerInteraction = remember { MutableInteractionSource() }
-    Card(
-        modifier = modifier.height(314.dp),
-        shape = RoundedCornerShape(22.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (featureEnabled) SurfaceColor else DisabledSurface,
-        ),
-    ) {
-        Column(modifier = Modifier.fillMaxSize().padding(18.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .background(
-                            if (featureEnabled) Elevated else DisabledElevated,
-                            RoundedCornerShape(12.dp),
-                        ),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        icon,
-                        null,
-                        modifier = Modifier.size(22.dp),
-                        tint = if (featureEnabled) Accent else DisabledInk,
-                    )
-                }
-                Spacer(Modifier.width(12.dp))
-                Text(
-                    title,
-                    color = if (featureEnabled) Ink else DisabledInk,
-                    fontSize = 21.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier
-                        .weight(1f)
-                        .then(
-                            if (onHeaderTap != null) {
-                                Modifier.clickable(
-                                    interactionSource = headerInteraction,
-                                    indication = null,
-                                    onClick = onHeaderTap,
-                                )
-                            } else {
-                                Modifier
-                            },
-                        ),
-                    maxLines = 1,
-                )
-                if (switchValue != null && onSwitch != null) {
-                    Switch(
-                        checked = switchValue,
-                        onCheckedChange = onSwitch,
-                        enabled = switchEnabled,
-                    )
-                }
-            }
-            Spacer(Modifier.height(10.dp))
-            val showAttentionInstruction =
-                snapshot.status == FeatureStatus.NEEDS_ACTION && snapshot.message.isNotBlank()
-            if (showAttentionInstruction) {
-                AttentionInstruction(snapshot.message)
-            } else {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    if (subtitleIcon != null) {
-                        CompactAppIcon(
-                            icon = subtitleIcon,
-                            key = subtitleIconKey.orEmpty(),
-                            fallback = icon,
-                        )
-                        Spacer(Modifier.width(7.dp))
-                    }
-                    Text(
-                        subtitle,
-                        color = if (featureEnabled) Muted else DisabledMuted,
-                        fontSize = 13.sp,
-                        modifier = Modifier.weight(1f),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Spacer(Modifier.width(10.dp))
-                    StatusLine(snapshot)
-                }
-            }
-            if (!showAttentionInstruction && snapshot.message.isNotBlank()) {
-                Spacer(Modifier.height(5.dp))
-                Text(
-                    snapshot.message,
-                    color = when (snapshot.status) {
-                        FeatureStatus.ERROR -> Danger
-                        else -> Muted
-                    },
-                    fontSize = 12.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-            if (actionsFillRemaining) {
-                Spacer(Modifier.height(10.dp))
-                Box(modifier = Modifier.fillMaxWidth().weight(1f)) { actions() }
-            } else {
-                Spacer(Modifier.weight(1f))
-                Box(modifier = Modifier.fillMaxWidth()) { actions() }
-            }
-        }
-    }
-}
-
-@Composable
-private fun AttentionInstruction(message: String) {
-    Row(
-        modifier = Modifier.fillMaxWidth().heightIn(min = 32.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(Modifier.size(8.dp).background(Warning, CircleShape))
-        Spacer(Modifier.width(8.dp))
-        Text(
-            message,
-            modifier = Modifier.weight(1f),
-            color = Warning,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.Medium,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-        )
-    }
-}
-
-@Composable
-private fun SelectedSimulcastApps(apps: List<SimulcastAppChoice>) {
-    if (apps.isEmpty()) {
-        Text("Приложения не выбраны", color = Muted, fontSize = 12.sp)
-        return
-    }
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            apps.take(6).forEach { app ->
-                Surface(
-                    modifier = Modifier.size(32.dp),
-                    color = Elevated,
-                    shape = RoundedCornerShape(9.dp),
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        CompactAppIcon(
-                            icon = app.icon,
-                            key = app.packageName,
-                            fallback = Icons.Outlined.Apps,
-                            size = 26.dp,
-                        )
-                    }
-                }
-            }
-        }
-        Spacer(Modifier.width(10.dp))
-        Text(
-            "выбрано ${apps.size} из 6",
-            color = Muted,
-            fontSize = 12.sp,
-            maxLines = 1,
-        )
-    }
-}
-
-@Composable
-private fun CompactAppIcon(
-    icon: Drawable?,
-    key: String,
-    fallback: ImageVector,
-    size: Dp = 18.dp,
-) {
-    val bitmap = remember(key, icon) {
-        icon?.toBitmap(48, 48)?.asImageBitmap()
-    }
-    if (bitmap != null) {
-        Image(
-            painter = BitmapPainter(bitmap),
-            contentDescription = null,
-            modifier = Modifier.size(size),
-            contentScale = ContentScale.Fit,
-        )
-    } else {
-        Icon(fallback, null, modifier = Modifier.size(size), tint = Muted)
-    }
-}
-
-@Composable
-private fun StatusLine(snapshot: FeatureSnapshot) {
-    val color = when (snapshot.status) {
-        FeatureStatus.READY, FeatureStatus.ACTIVE -> Accent
-        FeatureStatus.STARTING, FeatureStatus.RECOVERING -> Warning
-        FeatureStatus.NEEDS_ACTION -> Warning
-        FeatureStatus.ERROR -> Danger
-        else -> Muted
-    }
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        if (snapshot.status == FeatureStatus.STARTING || snapshot.status == FeatureStatus.RECOVERING) {
-            CircularProgressIndicator(
-                modifier = Modifier.size(12.dp),
-                strokeWidth = 2.dp,
-                color = color,
-            )
-        } else {
-            Box(Modifier.size(8.dp).background(color, CircleShape))
-        }
-        Spacer(Modifier.width(6.dp))
-        Text(
-            when (snapshot.status) {
-                FeatureStatus.OFF -> "Выключено"
-                FeatureStatus.STARTING -> "Запускаю"
-                FeatureStatus.READY -> "Готово"
-                FeatureStatus.ACTIVE -> "Работает"
-                FeatureStatus.RECOVERING -> "Восстанавливаю"
-                FeatureStatus.NEEDS_ACTION -> "Нужно действие"
-                FeatureStatus.UNAVAILABLE -> "Пока недоступно"
-                FeatureStatus.ERROR -> "Ошибка"
-            },
-            color = color,
-            fontWeight = FontWeight.Medium,
-            fontSize = 12.sp,
-            maxLines = 1,
-        )
     }
 }
 
@@ -1974,37 +762,33 @@ private fun ClusterDisplayPickerDialog(
         Surface(
             modifier = if (compactLayout) Modifier.fillMaxWidth(0.96f)
             else Modifier.fillMaxWidth(0.56f),
-            color = SurfaceColor,
-            shape = RoundedCornerShape(26.dp),
+            color = DenzaColors.Surface,
+            shape = RoundedCornerShape(DenzaMetrics.Space.XL),
         ) {
-            Column(modifier = Modifier.padding(if (compactLayout) 16.dp else 28.dp)) {
+            Column(modifier = Modifier.padding(if (compactLayout) DenzaMetrics.Space.L else DenzaMetrics.Space.XL)) {
                 Text(
                     "Выберите приборный экран",
-                    color = Ink,
-                    fontSize = 24.sp,
+                    color = DenzaColors.Ink,
+                    fontSize = DenzaMetrics.Type.SECTION,
                     fontWeight = FontWeight.SemiBold,
                 )
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(DenzaMetrics.Space.S))
                 Text(
                     "После выбора на экране появится короткая проверка",
-                    color = Muted,
-                    fontSize = 14.sp,
+                    color = DenzaColors.Muted,
+                    fontSize = DenzaMetrics.Type.BODY,
                 )
-                Spacer(Modifier.height(20.dp))
+                Spacer(Modifier.height(DenzaMetrics.Space.L))
                 if (choices.isEmpty()) {
                     Text(
                         "Приборные экраны пока не найдены",
-                        color = Warning,
-                        fontSize = 15.sp,
+                        color = DenzaColors.Warning,
+                        fontSize = DenzaMetrics.Type.BODY,
                     )
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(DenzaMetrics.Space.L))
                     Button(
                         modifier = Modifier.fillMaxWidth(),
                         onClick = onRefresh,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Accent,
-                            contentColor = Color(0xFF06251C),
-                        ),
                     ) {
                         Text("Повторить поиск", fontWeight = FontWeight.SemiBold)
                     }
@@ -2012,16 +796,15 @@ private fun ClusterDisplayPickerDialog(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .heightIn(max = 350.dp)
+                            .heightIn(max = DenzaMetrics.Component.PICKER_HEIGHT)
                             .verticalScroll(rememberScrollState()),
-                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalArrangement = Arrangement.spacedBy(DenzaMetrics.Space.M),
                     ) {
                         choices.forEachIndexed { index, display ->
                             OutlinedButton(
                                 modifier = Modifier.fillMaxWidth(),
                                 onClick = { onSelect(display.id) },
-                                border = BorderStroke(1.dp, Elevated),
-                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Ink),
+                                border = BorderStroke(DenzaMetrics.Stroke.HAIRLINE, DenzaColors.SurfaceRaised),
                             ) {
                                 Text(
                                     "Экран ${index + 1} · ${display.width}×${display.height}",
@@ -2031,17 +814,17 @@ private fun ClusterDisplayPickerDialog(
                         }
                     }
                 }
-                Spacer(Modifier.height(14.dp))
+                Spacer(Modifier.height(DenzaMetrics.Space.M))
                 if (compactLayout) {
                     Column(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalAlignment = Alignment.End,
                     ) {
                         TextButton(onClick = { onSelect(null) }) {
-                            Text("Определять автоматически", color = Accent)
+                            Text("Определять автоматически", color = DenzaColors.Accent)
                         }
                         TextButton(onClick = onDismiss) {
-                            Text("Отмена", color = Muted)
+                            Text("Отмена", color = DenzaColors.Muted)
                         }
                     }
                 } else {
@@ -2050,11 +833,11 @@ private fun ClusterDisplayPickerDialog(
                         horizontalArrangement = Arrangement.End,
                     ) {
                         TextButton(onClick = { onSelect(null) }) {
-                            Text("Определять автоматически", color = Accent)
+                            Text("Определять автоматически", color = DenzaColors.Accent)
                         }
-                        Spacer(Modifier.width(8.dp))
+                        Spacer(Modifier.width(DenzaMetrics.Space.S))
                         TextButton(onClick = onDismiss) {
-                            Text("Отмена", color = Muted)
+                            Text("Отмена", color = DenzaColors.Muted)
                         }
                     }
                 }

@@ -15,7 +15,7 @@ import dev.denza.apps.feature.panel.PanelPalette
  * which the feature spec defines for that one mapping.
  */
 object TripPalette {
-    val MINT = PanelPalette.MINT
+    val LIVE = PanelPalette.LIVE
     val AMBER = PanelPalette.AMBER
     val INK = PanelPalette.INK
     val MUTED = PanelPalette.MUTED
