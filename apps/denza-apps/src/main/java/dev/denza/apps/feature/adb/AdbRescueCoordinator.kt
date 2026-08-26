@@ -32,8 +32,11 @@ data class AdbRescueSnapshot(
     /** What the last reading of Android's own switch said, and therefore what decided the phase. */
     val systemSwitch: AdbSystemSwitch = AdbSystemSwitch.UNKNOWN,
 ) {
+    // The single request is also a slot in Android's prompt queue. Never offer to spend it where
+    // the system has already said no prompt can be drawn.
     val canRequest: Boolean
-        get() = phase == AdbRescuePhase.AUTHORIZATION_REQUIRED && !requestPending
+        get() = phase == AdbRescuePhase.AUTHORIZATION_REQUIRED && !requestPending &&
+            systemSwitch != AdbSystemSwitch.DISABLED
 
     val canResetAttempt: Boolean
         get() = requestPending && phase != AdbRescuePhase.CHECKING &&
@@ -57,6 +60,16 @@ internal enum class AdbRequestOutcome {
 internal object AdbRescuePolicy {
     const val SYSTEM_SWITCH_OFF_DETAIL =
         "Отладка по ADB выключена в системе автомобиля; системный запрос не появится"
+
+    /**
+     * Whether the single attempt may be spent, given a switch read at the moment of the press.
+     *
+     * The phase is already checked before this point, so the switch is the only condition that can
+     * still refuse here — a car whose flag was unreadable when it was classified, or one switched
+     * off between the check and the press.
+     */
+    fun maySubmit(previous: AdbRescueSnapshot, systemSwitch: AdbSystemSwitch): Boolean =
+        previous.canRequest && systemSwitch != AdbSystemSwitch.DISABLED
 
     /**
      * The state of a car that answers, refuses this key, and can never draw the prompt that would
@@ -146,15 +159,20 @@ internal object AdbRescuePolicy {
         }
     }
 
-    fun requesting(previous: AdbRescueSnapshot, attemptAtMillis: Long): AdbRescueSnapshot =
-        previous.copy(
-            phase = AdbRescuePhase.REQUESTING,
-            message = "Отправляю один запрос…",
-            details = "Повторов в фоне не будет",
-            requestPending = true,
-            attemptCount = previous.attemptCount + 1,
-            lastAttemptAtMillis = attemptAtMillis,
-        )
+    fun requesting(
+        previous: AdbRescueSnapshot,
+        attemptAtMillis: Long,
+        systemSwitch: AdbSystemSwitch,
+    ): AdbRescueSnapshot = previous.copy(
+        phase = AdbRescuePhase.REQUESTING,
+        message = "Отправляю один запрос…",
+        details = "Повторов в фоне не будет",
+        requestPending = true,
+        attemptCount = previous.attemptCount + 1,
+        lastAttemptAtMillis = attemptAtMillis,
+        // The reading that let the attempt through, recorded where support can see it.
+        systemSwitch = systemSwitch,
+    )
 
     fun afterRequest(
         previous: AdbRescueSnapshot,
@@ -262,7 +280,18 @@ object AdbRescueCoordinator {
         val before = current
         if (!before.canRequest || !running.compareAndSet(false, true)) return
         val app = context.applicationContext
-        val request = AdbRescuePolicy.requesting(before, System.currentTimeMillis())
+        // The attempt is spent for good — a latch that survives restarts, plus a slot in Android's
+        // own prompt queue, which is where the documented stuck-queue failure comes from. Both are
+        // wasted on a car that cannot draw the prompt, so the switch is re-read here rather than
+        // trusted from the last check, and refusing costs the user nothing.
+        val systemSwitch = AdbSystemSwitchReader.read(app)
+        if (!AdbRescuePolicy.maySubmit(before, systemSwitch)) {
+            current = AdbRescuePolicy.systemSwitchOff(before)
+            running.set(false)
+            onChanged()
+            return
+        }
+        val request = AdbRescuePolicy.requesting(before, System.currentTimeMillis(), systemSwitch)
         if (!persistAttempt(app, request)) {
             running.set(false)
             current = before.copy(

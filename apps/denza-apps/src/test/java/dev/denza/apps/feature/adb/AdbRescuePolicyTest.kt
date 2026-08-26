@@ -49,10 +49,11 @@ class AdbRescuePolicyTest {
             AdbCheckOutcome.AUTHORIZATION_REQUIRED,
             AdbSystemSwitch.ENABLED,
         )
-        val requesting = AdbRescuePolicy.requesting(required, 42L)
+        val requesting = AdbRescuePolicy.requesting(required, 42L, AdbSystemSwitch.ENABLED)
         val sent = AdbRescuePolicy.afterRequest(requesting, AdbRequestOutcome.REQUEST_SENT)
 
         assertEquals(1, sent.attemptCount)
+        assertEquals(AdbSystemSwitch.ENABLED, sent.systemSwitch)
         assertEquals(AdbRescuePhase.AWAITING_CONFIRMATION, sent.phase)
         assertTrue(sent.requestPending)
         assertFalse(sent.canRequest)
@@ -65,7 +66,7 @@ class AdbRescuePolicyTest {
             AdbCheckOutcome.AUTHORIZATION_REQUIRED,
             AdbSystemSwitch.ENABLED,
         )
-        val requesting = AdbRescuePolicy.requesting(required, 42L)
+        val requesting = AdbRescuePolicy.requesting(required, 42L, AdbSystemSwitch.ENABLED)
         val failed = AdbRescuePolicy.afterRequest(
             requesting,
             AdbRequestOutcome.UNAVAILABLE,
@@ -150,5 +151,64 @@ class AdbRescuePolicyTest {
         assertTrue(checked.requestPending)
         assertEquals(1, checked.attemptCount)
         assertTrue(checked.canResetAttempt)
+    }
+
+    @Test
+    fun `refusing the one shot on an off switch spends nothing`() {
+        val required = AdbRescuePolicy.afterCheck(
+            AdbRescuePolicy.initial(false, 0, 0L),
+            AdbCheckOutcome.AUTHORIZATION_REQUIRED,
+            AdbSystemSwitch.UNKNOWN,
+        )
+        val refused = AdbRescuePolicy.systemSwitchOff(required)
+
+        assertEquals(AdbRescuePhase.UNAVAILABLE, refused.phase)
+        assertEquals(0, refused.attemptCount)
+        assertFalse(refused.requestPending)
+        assertEquals(0L, refused.lastAttemptAtMillis)
+        assertEquals(AdbSystemSwitch.DISABLED, refused.systemSwitch)
+    }
+
+    @Test
+    fun `a switch read at the press refuses the attempt the classification let through`() {
+        val required = AdbRescuePolicy.afterCheck(
+            AdbRescuePolicy.initial(false, 0, 0L),
+            AdbCheckOutcome.AUTHORIZATION_REQUIRED,
+            AdbSystemSwitch.UNKNOWN,
+        )
+
+        assertFalse(AdbRescuePolicy.maySubmit(required, AdbSystemSwitch.DISABLED))
+        assertTrue(AdbRescuePolicy.maySubmit(required, AdbSystemSwitch.ENABLED))
+        assertTrue(AdbRescuePolicy.maySubmit(required, AdbSystemSwitch.UNKNOWN))
+    }
+
+    @Test
+    fun `the send records the switch that allowed it, not the one from the last check`() {
+        val required = AdbRescuePolicy.afterCheck(
+            AdbRescuePolicy.initial(false, 0, 0L),
+            AdbCheckOutcome.AUTHORIZATION_REQUIRED,
+            AdbSystemSwitch.UNKNOWN,
+        )
+
+        val requesting = AdbRescuePolicy.requesting(required, 42L, AdbSystemSwitch.ENABLED)
+
+        assertEquals(AdbSystemSwitch.ENABLED, requesting.systemSwitch)
+    }
+
+    @Test
+    fun `a spent latch is not resubmitted whatever the switch says`() {
+        val pending = AdbRescuePolicy.initial(true, 1, 42L)
+
+        assertFalse(AdbRescuePolicy.maySubmit(pending, AdbSystemSwitch.ENABLED))
+    }
+
+    @Test
+    fun `an off switch withdraws the one shot offer even in the authorization phase`() {
+        val stale = AdbRescueSnapshot(
+            phase = AdbRescuePhase.AUTHORIZATION_REQUIRED,
+            systemSwitch = AdbSystemSwitch.DISABLED,
+        )
+
+        assertFalse(stale.canRequest)
     }
 }
