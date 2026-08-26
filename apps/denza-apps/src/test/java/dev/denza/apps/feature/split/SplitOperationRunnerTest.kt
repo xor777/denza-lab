@@ -461,7 +461,7 @@ class SplitOperationRunnerTest {
         apkPath = SPLIT_APK_PATH,
         clock = clock,
         sleeper = {},
-        diagnostics = {},
+        diagnostics = { _, _ -> },
         readState = {
             SplitState(
                 enabled = true,

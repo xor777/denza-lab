@@ -263,6 +263,16 @@ object SplitScreenCoordinator {
         return object : SplitShellHandle {
             override fun shell(command: String): String = session.shell(command)
 
+            override fun drainSpend(): SplitShellSpend {
+                val drained = session.drainTimings()
+                return SplitShellSpend(
+                    calls = drained[0],
+                    queuedMs = drained[1] / 1_000_000L,
+                    sentMs = drained[2] / 1_000_000L,
+                    answeredMs = drained[3] / 1_000_000L,
+                )
+            }
+
             override fun close() = session.close()
         }
     }

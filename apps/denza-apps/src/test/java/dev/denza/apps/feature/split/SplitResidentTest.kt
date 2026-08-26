@@ -249,7 +249,10 @@ class SplitResidentTest {
         workspace.reportBudget("open")
 
         assertEquals(
-            listOf("open: обращений 3, в shell 0.0 с, в паузах 0.0 с"),
+            listOf(
+                "open: обращений 3, в shell 0.0 с (очередь 0.0, отправка 0.0, ответ 0.0), " +
+                    "разбор 0.0 с, в паузах 0.0 с",
+            ),
             diagnostics.filter { line -> line.startsWith("open:") },
         )
     }
@@ -397,7 +400,7 @@ class SplitResidentTest {
             override fun schedule(delayMs: Long, action: () -> Unit) = SplitCancellable {}
         },
         sleeper = {},
-        diagnostics = { line -> diagnostics(line) },
+        diagnostics = { line, _ -> diagnostics(line) },
         readState = { SplitState() },
         readLive = { emptyMap() },
         externalMoveInFlight = { false },

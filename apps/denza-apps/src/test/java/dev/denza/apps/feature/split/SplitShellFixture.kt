@@ -859,6 +859,10 @@ internal class SplitCarFixture(
     val gateLease = FakeGateLease()
     val diagnostics: MutableList<String> = Collections.synchronizedList(mutableListOf())
 
+    /** The subset the ring keeps in its own lane, where background work may not evict a run. */
+    val backgroundDiagnostics: MutableList<String> =
+        Collections.synchronizedList(mutableListOf())
+
     private var built: SplitCoordinatorCore? = null
 
     fun core(
@@ -887,8 +891,9 @@ internal class SplitCarFixture(
             apkPath = SPLIT_APK_PATH,
             resident = resident,
             sleeper = {},
-            log = { line ->
+            log = { line, background ->
                 diagnostics += line
+                if (background) backgroundDiagnostics += line
                 onDiagnostic(line)
             },
         ).also { core -> built = core }

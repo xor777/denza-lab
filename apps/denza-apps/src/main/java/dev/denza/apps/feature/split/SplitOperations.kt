@@ -48,6 +48,8 @@ internal class SplitOperationWorkspace(
     private var shellCalls = 0
     private var shellMs = 0L
     private var pauseMs = 0L
+    private var parseMs = 0L
+    private var spend = SplitShellSpend()
 
     private var session: SplitPickerShellSession? = null
 
@@ -139,6 +141,17 @@ internal class SplitOperationWorkspace(
     }
 
     /**
+     * Turning an answer into the model, which is neither the car's time nor the transport's.
+     *
+     * A world read is 8 KB of text and three regular expressions per line of it, on a head unit
+     * whose load average sits at 25. That is not obviously cheap, and until wave 16 it was in
+     * neither of the two numbers the ring printed - so it could be anything at all.
+     */
+    internal fun recordParse(elapsedMs: Long) {
+        synchronized(budgetLock) { parseMs += elapsedMs }
+    }
+
+    /**
      * Every settle pause of every recipe, for the same reason [shell] is the one funnel of commands.
      *
      * A recipe waits on the firmware far more often than it talks to it, so an operation that is
@@ -165,14 +178,23 @@ internal class SplitOperationWorkspace(
         val calls: Int
         val shell: Long
         val pause: Long
+        val parse: Long
         synchronized(budgetLock) {
             calls = shellCalls
             shell = shellMs
             pause = pauseMs
+            parse = parseMs
         }
         if (calls == 0 && pause == 0L) return
+        // Правка Ф1 волны 16: the transport says which part of its own time was queuing behind
+        // another speaker, which was handing the bytes over and which was the car answering. Only
+        // the last of those is the car being slow; the other two are ours to fix, and telling them
+        // apart is the whole reason this line exists.
         diagnostics.log(
-            "$label: обращений $calls, в shell ${seconds(shell)} с, в паузах ${seconds(pause)} с",
+            "$label: обращений $calls, в shell ${seconds(shell)} с " +
+                "(очередь ${seconds(spend.queuedMs)}, отправка ${seconds(spend.sentMs)}, " +
+                "ответ ${seconds(spend.answeredMs)}), разбор ${seconds(parse)} с, " +
+                "в паузах ${seconds(pause)} с",
         )
     }
 
@@ -209,6 +231,7 @@ internal class SplitOperationWorkspace(
             gateLeaseStore = gateLeaseStore,
             topology = topology,
             proxyClasspath = proxyClasspath,
+            parsed = ::recordParse,
         ).also { built -> session = built }
     }
 
@@ -228,6 +251,9 @@ internal class SplitOperationWorkspace(
     override fun close() {
         val open = synchronized(handleLock) {
             session = null
+            // The transport is asked what it spent while it is still ours to ask; the lease is
+            // released on the very next line and the numbers go with it.
+            handle?.let { live -> spend = live.drainSpend() }
             handle.also { handle = null }
         }
         topology.invalidate()

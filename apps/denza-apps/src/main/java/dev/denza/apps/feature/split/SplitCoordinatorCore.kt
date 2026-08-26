@@ -19,9 +19,26 @@ internal val SPLIT_PICKER_COMPONENTS: Map<SplitPane, String> =
 
 internal val SPLIT_PICKER_COMPONENT_SET: Set<String> = setOf(SPLIT_PICKER_COMPONENT)
 
+/**
+ * What the transport spent, in the only division that leads to a different fix (правка Ф1 волны 16).
+ *
+ * A round trip on the return path cost 89 ms while the command itself cost 8-18 ms on the car and
+ * the wrapper 1 ms, and nothing said where the rest went. Queuing behind another speaker, handing
+ * the bytes over, and waiting for the car are three different defects with three different cures.
+ */
+internal data class SplitShellSpend(
+    val calls: Long = 0,
+    val queuedMs: Long = 0,
+    val sentMs: Long = 0,
+    val answeredMs: Long = 0,
+)
+
 /** One persistent shell for one operation. Closed by the operation lifecycle, never left open. */
 internal interface SplitShellHandle : AutoCloseable {
     fun shell(command: String): String
+
+    /** Everything spent since the last call; zero from a transport that cannot say. */
+    fun drainSpend(): SplitShellSpend = SplitShellSpend()
 
     override fun close()
 }
@@ -62,6 +79,9 @@ internal class SplitPersistentShell(
                 throw error
             }
         }
+
+        override fun drainSpend(): SplitShellSpend =
+            synchronized(lock) { transport }?.drainSpend() ?: SplitShellSpend()
 
         /** The transport belongs to the process, not to this operation. */
         override fun close() = Unit
@@ -161,8 +181,16 @@ internal interface SplitLeaseController {
 
 /** Diagnostic sink for facts the contract requires to be recorded, notably tx125 (1.12). */
 internal fun interface SplitDiagnosticLog {
-    fun log(message: String)
+    fun log(message: String, background: Boolean)
 }
+
+/**
+ * A line of an operation, which is what the ring exists for; the background lanes say so instead.
+ *
+ * Правка Ф3 волны 16: background work writes whenever it looks at the car, and it must not be
+ * able to push the lines of the operation somebody is reading the ring for off the screen.
+ */
+internal fun SplitDiagnosticLog.log(message: String) = log(message, background = false)
 
 /**
  * The ephemeral live topology of the product scene: which task is the permanent picker base of a
@@ -198,7 +226,7 @@ internal class SplitCoordinatorCore(
     /** The one shell-UID helper of the process, or `null` where there is none to lease. */
     private val resident: SplitResidentProxy? = null,
     private val sleeper: (Long) -> Unit = Thread::sleep,
-    private val log: SplitDiagnosticLog = SplitDiagnosticLog {},
+    private val log: SplitDiagnosticLog = SplitDiagnosticLog { _, _ -> },
     private val post: (() -> Unit) -> Unit = { action -> action() },
 ) {
     private val stateLock = Any()
@@ -577,6 +605,10 @@ internal class SplitCoordinatorCore(
      * workspace and publishes its state, on the worker thread, whatever the outcome.
      */
     private fun submit(factory: (SplitOperationWorkspace) -> SplitCoreOperation<*>): SplitTicket {
+        // Which lane this operation's lines belong to is known only once it is built, and every
+        // line it writes is written later, on the worker - so the lane is resolved before the
+        // actor can reach it and read from there (правка Ф3 волны 16).
+        val backgroundLane = BooleanArray(1)
         val workspace = SplitOperationWorkspace(
             shellFactory = shellFactory,
             store = store,
@@ -588,7 +620,7 @@ internal class SplitCoordinatorCore(
             resident = resident,
             clock = clock,
             sleeper = sleeper,
-            diagnostics = log,
+            diagnostics = { line, background -> log.log(line, background || backgroundLane[0]) },
             readState = ::currentState,
             readLive = ::currentLive,
             readUnfinished = ::currentUnfinished,
@@ -598,6 +630,7 @@ internal class SplitCoordinatorCore(
             publisher = ::publishSettled,
         )
         val operation = factory(workspace)
+        backgroundLane[0] = operation.label in BACKGROUND_LABELS
         // Ф4: work is starting, so the idle release the last operation armed is not due after all.
         disarmResidentRelease()
         // Правка W3, §4: явный ввод пользователя и подтверждённый Home вытесняют отложенный
@@ -642,7 +675,9 @@ internal class SplitCoordinatorCore(
         // named as background work in the ring and nothing else.
         val quiet = label in BACKGROUND_LABELS
         val reason = reasonOf(outcome)
-        if (quiet && reason != null) log.log("background $label failed quietly: $reason")
+        if (quiet && reason != null) {
+            log.log("background $label failed quietly: $reason", background = true)
+        }
         // U5, U6: an action the user performed never ends in silence *in the ring*. Whatever
         // became of it - committed, cancelled, rolled back, refused - exactly one line says so, so
         // that a tap which produced no visible change is still explainable afterwards. What the

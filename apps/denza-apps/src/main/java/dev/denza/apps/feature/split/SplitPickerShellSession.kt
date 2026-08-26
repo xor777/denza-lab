@@ -28,6 +28,13 @@ internal class SplitPickerShellSession(
     private val topology: SplitTopologyCache = SplitTopologyCache(),
     /** Where the shell-UID proxy is loaded from; the APK is the always-valid fallback. */
     private val proxyClasspath: SplitProxyClasspath = SplitProxyClasspath { apkPath },
+    /**
+     * Milliseconds spent turning an answer into the model, reported to the operation's budget.
+     *
+     * Every parse of this session goes through it, so the ring can say whether a slow operation
+     * was slow because of the car or because of 8 KB of text and a regular expression per line.
+     */
+    private val parsed: (Long) -> Unit = {},
 ) {
     private val send = shell
 
@@ -2780,20 +2787,33 @@ internal class SplitPickerShellSession(
     }
 
     private fun snapshot(): SplitTaskSnapshot = topology.state {
-        SplitTaskSnapshot.parse(shell("am stack list").also(::validateOutput))
+        val answer = shell("am stack list").also(::validateOutput)
+        measured { SplitTaskSnapshot.parse(answer) }
+    }
+
+    /** One pair of marks around the work that is neither the car's nor the transport's. */
+    private inline fun <T> measured(read: () -> T): T {
+        val startedAt = System.nanoTime()
+        try {
+            return read()
+        } finally {
+            parsed((System.nanoTime() - startedAt) / 1_000_000L)
+        }
     }
 
     private fun callBoolean(command: String): Boolean = callInt(command) != 0
 
     private fun callInt(command: String): Int {
         val output = shell(command).also(::validateOutput)
-        val parcel = PARCEL_PATTERN.find(output)?.groupValues?.get(1)
-            ?: error("Некорректный ответ activity_task")
-        val words = WORD_PATTERN.findAll(parcel).map { it.value }.toList()
-        check(words.size >= 2 && words[0].toLong(16) == 0L) {
-            "Ошибка activity_task: ${output.trim()}"
+        return measured {
+            val parcel = PARCEL_PATTERN.find(output)?.groupValues?.get(1)
+                ?: error("Некорректный ответ activity_task")
+            val words = WORD_PATTERN.findAll(parcel).map { it.value }.toList()
+            check(words.size >= 2 && words[0].toLong(16) == 0L) {
+                "Ошибка activity_task: ${output.trim()}"
+            }
+            words[1].toLong(16).toInt()
         }
-        return words[1].toLong(16).toInt()
     }
 
     private fun callVoid(command: String) {

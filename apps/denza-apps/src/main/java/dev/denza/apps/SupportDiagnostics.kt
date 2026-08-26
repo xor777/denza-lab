@@ -99,7 +99,8 @@ object SupportDiagnostics {
             // U5: a diagnostic nobody can read is a silent failure. `Log.i` from this application
             // cannot be proven to reach logcat on this firmware, so the last lines the split
             // product recorded are readable here, with no logcat involved at all.
-            SplitDiagnostics.recent(SPLIT_LOG_LINES).forEach { line -> add("Split log=$line") }
+            SplitDiagnostics.recent(SPLIT_LOG_LINES, SPLIT_BACKGROUND_LOG_LINES)
+                .forEach { line -> add("Split log=$line") }
             add("HUD-подсказки=${enabledLabel(HudGuidanceSettings.isEnabled(context))}")
             val hudNotificationAccess = HudNotificationAccessCoordinator.diagnostics(context)
             add(
@@ -218,6 +219,13 @@ object SupportDiagnostics {
         false
     }
 
-    /** Enough to cover one open and its terminal without turning the report into a log file. */
-    private const val SPLIT_LOG_LINES = 40
+    /**
+     * Enough to cover one open and its terminal without turning the report into a log file.
+     *
+     * The two are counted apart because they used to compete: the background reconcile writes
+     * whenever it looks at the car, and on the v32 acceptance that pushed the lines of the very
+     * operation being measured off the screen inside a minute (правка Ф3 волны 16).
+     */
+    private const val SPLIT_LOG_LINES = 48
+    private const val SPLIT_BACKGROUND_LOG_LINES = 12
 }
