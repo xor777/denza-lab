@@ -25,21 +25,41 @@ Denza Apps has one canonical ADB identity and one owner for authorization prompt
   main process and `:weather` process from racing to create different first-install keys.
 - The startup overlay exposes the explicit **ADB Rescue** panel. A denied passive check enables
   **Отправить один запрос**; that action submits the public key once and closes the transport
-  without retrying. The hidden diagnostics dialog retains the same controls for support use.
+  without retrying. The diagnostics screen retains the same controls for support use.
 - A persisted one-shot latch prevents process or activity restarts from rearming the request.
   After submission, only a passive check is automatic. **Разрешить новую попытку** merely clears
   the app latch; it does not submit a key and does not clear Android's system queue.
 - No key material, endpoint, or token is included in support diagnostics.
 
-Technical diagnostics remain hidden: tap the `Трансляция` card header seven times, with no more
-than three seconds between taps.
+Technical diagnostics are an ordinary **Сервис** tile on the dashboard. They were a seven-tap
+gesture on the `Трансляция` card header until v33; a live run found the other half of that
+bargain, because a tap that missed the undisclosed target landed on a tile instead, and an odd
+number of them switched the mirrors off in silence.
 
-**Known gap (live v29, 2026-08-25).** While the blocking startup overlay is up, that seven-tap
-gesture does not reach the dashboard underneath, so the support ring — the product's only channel
-of truth about what it did — is unreachable exactly when something is wrong. The rescue panel's
-own controls stay usable, but nothing else does. The bullet above promises the hidden dialog keeps
-the same controls; that promise only holds once the gate is passed. Diagnostics should be
-reachable from the gate itself.
+## Explaining the channel, and reaching diagnostics past the gate (v35, 2026-08-26)
+
+The gate covers the dashboard, and the dashboard is where the **Сервис** tile is. Until v35 that
+meant the support ring — the product's only channel of truth about what it did — was unreachable
+exactly when something was wrong. Two things close that:
+
+- Every blocking state of the gate offers **Что такое ADB**, which opens one window with the same
+  two paragraphs for all of them: what the channel is, and that it is opened at the car by someone
+  with the equipment. The copy deliberately does not branch. A car whose switch is off and a car
+  whose key is untrusted are different problems with the same answer for the owner, and writing
+  that answer twice would be two records of one fact.
+- Seven taps on that window's title, within three seconds of each other, open the service screen.
+  The gesture is safe *here* for the reason it was unsafe on the dashboard: the window has no other
+  controls in it, so a tap that is not the seventh has nothing to hit.
+
+The window can be touched at all because it is a `Dialog`, so the platform gives it a window above
+the activity, while the gate's shield is a full-screen `clickable` inside the activity's own
+window. The recovery panel has reached the owner by that same route since v29.
+
+What *does* differ between the two states is the cause, and that goes on the gate itself, under
+the instruction. It carries a classification and never a failure label: a disabled switch is named
+outright because it is a reading, an unreadable flag stays silent because absence of evidence is
+not evidence of an off switch, and exception names like `ConnectException` stay on the service
+screen where they mean something to whoever is reading them.
 
 ## Operator flow
 
