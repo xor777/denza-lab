@@ -29,6 +29,8 @@ data class AdbRescueSnapshot(
     val requestPending: Boolean = false,
     val attemptCount: Int = 0,
     val lastAttemptAtMillis: Long = 0L,
+    /** What the last reading of Android's own switch said, and therefore what decided the phase. */
+    val systemSwitch: AdbSystemSwitch = AdbSystemSwitch.UNKNOWN,
 ) {
     val canRequest: Boolean
         get() = phase == AdbRescuePhase.AUTHORIZATION_REQUIRED && !requestPending
@@ -53,6 +55,21 @@ internal enum class AdbRequestOutcome {
 }
 
 internal object AdbRescuePolicy {
+    const val SYSTEM_SWITCH_OFF_DETAIL =
+        "Отладка по ADB выключена в системе автомобиля; системный запрос не появится"
+
+    /**
+     * The state of a car that answers, refuses this key, and can never draw the prompt that would
+     * fix it. The one-shot latch and the attempt counter are left exactly as they were: nothing
+     * was submitted, so nothing was spent.
+     */
+    fun systemSwitchOff(previous: AdbRescueSnapshot): AdbRescueSnapshot = previous.copy(
+        phase = AdbRescuePhase.UNAVAILABLE,
+        message = "Локальный ADB сейчас недоступен",
+        details = SYSTEM_SWITCH_OFF_DETAIL,
+        systemSwitch = AdbSystemSwitch.DISABLED,
+    )
+
     fun initial(
         requestPending: Boolean,
         attemptCount: Int,
@@ -82,37 +99,51 @@ internal object AdbRescuePolicy {
     fun afterCheck(
         previous: AdbRescueSnapshot,
         outcome: AdbCheckOutcome,
+        systemSwitch: AdbSystemSwitch,
         failure: String? = null,
-    ): AdbRescueSnapshot = when (outcome) {
-        AdbCheckOutcome.TRUSTED -> previous.copy(
-            phase = AdbRescuePhase.TRUSTED,
-            message = "ADB-доступ подтверждён",
-            details = "Denza Apps использует уже доверенный ключ",
-            requestPending = false,
-        )
-        AdbCheckOutcome.AUTHORIZATION_REQUIRED -> if (previous.requestPending) {
-            previous.copy(
-                phase = AdbRescuePhase.AWAITING_CONFIRMATION,
-                message = "Запрос отправлен, но доступ ещё не выдан",
-                details = "Разрешите запрос на экране машины, затем нажмите «Проверить доступ»",
+    ): AdbRescueSnapshot {
+        val base = previous.copy(systemSwitch = systemSwitch)
+        return when (outcome) {
+            // A completed handshake outranks the flag: whatever the switch says, this key is
+            // trusted and the transport works.
+            AdbCheckOutcome.TRUSTED -> base.copy(
+                phase = AdbRescuePhase.TRUSTED,
+                message = "ADB-доступ подтверждён",
+                details = "Denza Apps использует уже доверенный ключ",
+                requestPending = false,
             )
-        } else {
-            previous.copy(
-                phase = AdbRescuePhase.AUTHORIZATION_REQUIRED,
-                message = "Нужно разрешение ADB для Denza Apps",
-                details = "Можно вручную отправить ровно один запрос",
+            // A refused key means one of two different things, and only the switch separates them.
+            // Off is the service state; enabled and unreadable both keep the request path, because
+            // an unreadable flag is not a reason to send a working car to a service centre.
+            AdbCheckOutcome.AUTHORIZATION_REQUIRED -> when (systemSwitch) {
+                AdbSystemSwitch.DISABLED -> systemSwitchOff(base)
+                AdbSystemSwitch.ENABLED,
+                AdbSystemSwitch.UNKNOWN,
+                -> if (base.requestPending) {
+                    base.copy(
+                        phase = AdbRescuePhase.AWAITING_CONFIRMATION,
+                        message = "Запрос отправлен, но доступ ещё не выдан",
+                        details = "Разрешите запрос на экране машины, затем нажмите «Проверить доступ»",
+                    )
+                } else {
+                    base.copy(
+                        phase = AdbRescuePhase.AUTHORIZATION_REQUIRED,
+                        message = "Нужно разрешение ADB для Denza Apps",
+                        details = "Можно вручную отправить ровно один запрос",
+                    )
+                }
+            }
+            AdbCheckOutcome.UNAVAILABLE -> base.copy(
+                phase = AdbRescuePhase.UNAVAILABLE,
+                message = "Локальный ADB сейчас недоступен",
+                details = failure,
+            )
+            AdbCheckOutcome.ERROR -> base.copy(
+                phase = AdbRescuePhase.ERROR,
+                message = "Не удалось проверить ADB",
+                details = failure,
             )
         }
-        AdbCheckOutcome.UNAVAILABLE -> previous.copy(
-            phase = AdbRescuePhase.UNAVAILABLE,
-            message = "Локальный ADB сейчас недоступен",
-            details = failure,
-        )
-        AdbCheckOutcome.ERROR -> previous.copy(
-            phase = AdbRescuePhase.ERROR,
-            message = "Не удалось проверить ADB",
-            details = failure,
-        )
     }
 
     fun requesting(previous: AdbRescueSnapshot, attemptAtMillis: Long): AdbRescueSnapshot =
@@ -218,7 +249,10 @@ object AdbRescueCoordinator {
             if (outcome == AdbCheckOutcome.TRUSTED) {
                 persistPending(app, pending = false)
             }
-            current = AdbRescuePolicy.afterCheck(current, outcome, failure)
+            // Read as late as possible, so the flag that classifies the outcome is as fresh as
+            // the outcome itself.
+            val systemSwitch = AdbSystemSwitchReader.read(app)
+            current = AdbRescuePolicy.afterCheck(current, outcome, systemSwitch, failure)
             running.set(false)
             onChanged()
         }
