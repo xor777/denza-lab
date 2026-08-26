@@ -8,7 +8,11 @@ import android.util.Log
 import dev.denza.apps.MainActivity
 
 /**
- * Launcher-only boundary that opens the existing, live-verified picker session.
+ * The boundary that opens the existing, live-verified picker session.
+ *
+ * Two doors reach it now - the desktop icon and a press on the dashboard's split tile - and both
+ * come through here on purpose. A second way of splitting the screen would be a second thing to
+ * keep working; this is the same one, entered from somewhere else.
  *
  * The waiting window belongs to the operation, not to this Activity: a second tap joins the live
  * `OPEN` and must not raise a second shield over the same one (1.3.7, K4).

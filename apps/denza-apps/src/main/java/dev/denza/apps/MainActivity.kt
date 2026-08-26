@@ -31,6 +31,8 @@ class MainActivity : ComponentActivity() {
                     onCloseNavigationPicker = DenzaAppRepository::hideNavigationAppPicker,
                     onSelectNavigationApp = DenzaAppRepository::selectNavigationApp,
                     onToggleSplitScreen = DenzaAppRepository::setSplitScreenEnabled,
+                    onLaunchSplitScreen = DenzaAppRepository::launchSplitScreen,
+                    onSetWeatherEnabled = DenzaAppRepository::setWeatherEnabled,
                     onToggleHudGuidance = DenzaAppRepository::setHudGuidanceEnabled,
                     onToggleSpeakerCovers = DenzaAppRepository::setSpeakerCoversEnabled,
                     onSelectClusterDisplay = DenzaAppRepository::selectClusterDisplay,

@@ -94,7 +94,11 @@ fun FeatureSheet(
             TileId.PASSENGER -> passengerSheet(state, actions, busy)
             // Service is a door: its short press opens the service screen, and a long press has
             // nothing else of its own to open.
-            TileId.SERVICE -> Unit
+            // Neither opens a panel: one is a door that opens its own thing, the other a
+            // single switch the press already flips.
+            TileId.WEATHER,
+            TileId.SERVICE,
+            -> Unit
         }
         val details = snapshot?.details
         if (details != null) {
@@ -112,6 +116,7 @@ private fun purposeOf(id: TileId): String = when (id) {
     TileId.CLUSTER -> "Что показывать за рулём"
     TileId.SIMULCAST -> "Какие приложения уходят на экраны"
     TileId.MIRRORS -> "Когда показывать камеры и где"
+    TileId.WEATHER -> "Погода для штатного виджета"
     else -> ""
 }
 
@@ -126,6 +131,7 @@ private fun primaryLabel(tile: DashboardTile, state: DenzaUiState): String {
     return when (tile.action) {
         TileAction.CLUSTER_PROJECT -> state.navigationButtonLabel
         TileAction.SIMULCAST_LAUNCH -> "Запустить"
+        TileAction.SPLIT_LAUNCH -> "Разделить экран"
         TileAction.PASSENGER_INSTALL -> "Выбрать приложение"
         TileAction.SERVICE_OPEN -> "Открыть сервис"
         TileAction.TOGGLE -> if (on) "Выключить" else "Включить"

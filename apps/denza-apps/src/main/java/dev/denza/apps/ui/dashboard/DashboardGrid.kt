@@ -58,6 +58,7 @@ internal fun tileIcon(icon: TileIcon): ImageVector = when (icon) {
     TileIcon.MIRRORS -> DenzaIcons.Mirrors
     TileIcon.SPLIT -> DenzaIcons.Split
     TileIcon.HUD -> DenzaIcons.Hud
+    TileIcon.WEATHER -> DenzaIcons.Weather
     TileIcon.SPEAKER -> DenzaIcons.Speaker
     TileIcon.LOCALE -> DenzaIcons.Locale
     TileIcon.PASSENGER -> DenzaIcons.Passenger

@@ -31,6 +31,8 @@ data class DashboardActions(
     val onChooseNavigationApp: () -> Unit,
     val onSelectNavigationApp: (String) -> Unit,
     val onToggleSplitScreen: (Boolean) -> Unit,
+    val onLaunchSplitScreen: () -> Unit,
+    val onSetWeatherEnabled: (Boolean) -> Unit,
     val onToggleHudGuidance: (Boolean) -> Unit,
     val onToggleSpeakerCovers: (Boolean) -> Unit,
     val onSetStockRussianLocale: (Boolean) -> Unit,
@@ -56,6 +58,7 @@ object DashboardPress {
             TileAction.PASSENGER_INSTALL -> actions.onChooseFseApp()
             TileAction.SERVICE_OPEN -> actions.onOpenService()
             TileAction.SETTINGS -> actions.onOpenSettings(tile.id)
+            TileAction.SPLIT_LAUNCH -> actions.onLaunchSplitScreen()
             TileAction.TOGGLE -> toggle(tile.id, state, actions)
             TileAction.RESOLVE -> resolve(tile, state, actions)
         }
@@ -65,16 +68,17 @@ object DashboardPress {
         when (id) {
             TileId.SIMULCAST -> actions.onToggleSimulcast(!state.simulcast.desiredEnabled)
             TileId.MIRRORS -> actions.onToggleMirrors(!state.mirrors.desiredEnabled)
-            TileId.SPLIT -> actions.onToggleSplitScreen(!state.splitScreen.desiredEnabled)
             TileId.HUD -> actions.onToggleHudGuidance(!state.hudGuidance.desiredEnabled)
             TileId.SPEAKERS -> actions.onToggleSpeakerCovers(!state.speakerCovers.desiredEnabled)
+            TileId.WEATHER -> actions.onSetWeatherEnabled(!state.weatherEnabled)
             // Unknown is not off: a locale nobody has read yet is asked to come on, not to stay as
             // it was, because the driver pressing this tile has said which way they want it.
             TileId.LOCALE ->
                 actions.onSetStockRussianLocale(state.stockRussianLocale.enabled != true)
             // None of these is a thing that is on or off, so none can be toggled; the registry
             // never asks, and answering with their settings beats answering with nothing.
-            TileId.CLUSTER, TileId.PASSENGER, TileId.SERVICE -> actions.onOpenSettings(id)
+            TileId.CLUSTER, TileId.SPLIT, TileId.PASSENGER, TileId.SERVICE ->
+                actions.onOpenSettings(id)
         }
     }
 
@@ -107,7 +111,8 @@ object DashboardPress {
             TileId.HUD -> actions.onToggleHudGuidance(true)
             TileId.SPEAKERS -> actions.onToggleSpeakerCovers(true)
             TileId.PASSENGER -> actions.onChooseFseApp()
-            TileId.LOCALE, TileId.SERVICE -> actions.onOpenSettings(id)
+            // Weather has nothing to retry: it is an alarm, not a handshake.
+            TileId.LOCALE, TileId.WEATHER, TileId.SERVICE -> actions.onOpenSettings(id)
         }
     }
 

@@ -30,6 +30,16 @@ class WeatherAdapterService : Service() {
         startForeground(NOTIFICATION_ID, notification())
         if (!running.compareAndSet(false, true)) return START_NOT_STICKY
         val reason = intent?.getStringExtra(EXTRA_REASON) ?: REASON_PERIODIC
+        // Switched off is switched off whoever woke us - a stale alarm, a boot receiver, the
+        // native app coming to the front. Nothing is fetched and nothing is rescheduled.
+        if (!WeatherAdapterState.enabled(applicationContext)) {
+            Log.i(TAG, "refresh skipped: weather is switched off")
+            WeatherAdapterScheduler.cancel(applicationContext)
+            running.set(false)
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            stopSelf()
+            return START_NOT_STICKY
+        }
         refreshJob = scope.launch {
             Log.i(TAG, "refresh started reason=$reason")
             try {

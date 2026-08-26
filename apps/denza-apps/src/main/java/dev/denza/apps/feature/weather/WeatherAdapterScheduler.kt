@@ -14,6 +14,10 @@ object WeatherAdapterScheduler {
 
     fun ensureScheduled(context: Context) {
         val app = context.applicationContext
+        if (!WeatherAdapterState.enabled(app)) {
+            cancel(app)
+            return
+        }
         val nowElapsed = SystemClock.elapsedRealtime()
         val next = WeatherAdapterState.nextAlarmElapsed(app)
         if (next <= nowElapsed || next > nowElapsed + WeatherAdapterConfig.REFRESH_INTERVAL_MILLIS * 2) {
@@ -25,8 +29,16 @@ object WeatherAdapterScheduler {
         }
     }
 
+    /** Stop feeding the car: the pending alarm goes, and nothing reschedules it. */
+    fun cancel(context: Context) {
+        val app = context.applicationContext
+        app.getSystemService(AlarmManager::class.java)?.cancel(alarmIntent(app))
+        WeatherAdapterState.setNextAlarmElapsed(app, 0L)
+    }
+
     @JvmStatic
     fun onNativeWeatherVisible(context: Context) {
+        if (!WeatherAdapterState.enabled(context.applicationContext)) return
         val now = SystemClock.elapsedRealtime()
         val previous = lastForegroundTriggerElapsed.get()
         if (previous != 0L && now - previous < FOREGROUND_DEBOUNCE_MILLIS) return

@@ -90,6 +90,14 @@ object DenzaIcons {
         "M12 3a15 15 0 0 0 0 18 15 15 0 0 0 0-18z",
     )
 
+    /** Weather: the sun the app supplies, half behind the cloud that is the car's own widget. */
+    val Weather: ImageVector = icon(
+        "denza_weather",
+        "M8 4.8a3.2 3.2 0 1 1 0 6.4a3.2 3.2 0 1 1 0-6.4",
+        "M8 2.4v1.4M8 12.2v1.4M2.4 8h1.4M12.2 8h1.4M4.6 4.6l1 1M11.4 4.6l-1 1M4.6 11.4l1-1",
+        "M17 20.5H9.5a3.5 3.5 0 0 1 0-7 4.6 4.6 0 0 1 8.7-1 3.9 3.9 0 0 1-1.2 8z",
+    )
+
     /**
      * Service: the car's own state and the things that keep the app talking to it.
      *

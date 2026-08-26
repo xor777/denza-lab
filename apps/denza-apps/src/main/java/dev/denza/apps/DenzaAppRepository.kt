@@ -48,7 +48,9 @@ import dev.denza.apps.feature.split.SplitScreenToggleController
 import dev.denza.apps.feature.speaker.SpeakerCoverRuntime
 import dev.denza.apps.feature.speaker.SpeakerCoverService
 import dev.denza.apps.feature.speaker.SpeakerCoverSettings
+import dev.denza.apps.feature.split.SplitLauncherEntryActivity
 import dev.denza.apps.feature.weather.WeatherAdapterScheduler
+import dev.denza.apps.feature.weather.WeatherAdapterState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -103,6 +105,7 @@ data class DenzaUiState(
     val setupRunning: Boolean = false,
     val adbRescue: AdbRescueSnapshot = AdbRescueSnapshot(),
     val stockRussianLocale: StockRussianLocaleSnapshot = StockRussianLocaleSnapshot(),
+    val weatherEnabled: Boolean = true,
     val technicalDetails: String = "",
     val clusterCandidates: List<ClusterDisplayDescriptor> = emptyList(),
     val appPickerVisible: Boolean = false,
@@ -569,6 +572,37 @@ object DenzaAppRepository {
         )
     }
 
+    /**
+     * Whether the car is fed weather at all.
+     *
+     * There is no coordinator behind this and no handshake to wait for: the adapter either has a
+     * standing alarm or it does not, so the press is the whole of the operation and the state can
+     * be reported the moment it is written.
+     */
+    /**
+     * Split the screen now, through the same door the launcher icon opens.
+     *
+     * Not a second way of doing it - literally the same entry activity, so the flow a driver gets
+     * from the tile is the flow they get from the desktop, and there is one of it to keep working.
+     */
+    fun launchSplitScreen() {
+        val context = appContext ?: return
+        runCatching {
+            context.startActivity(
+                Intent(context, SplitLauncherEntryActivity::class.java)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+            )
+        }
+    }
+
+    fun setWeatherEnabled(enabled: Boolean) {
+        val context = appContext ?: return
+        WeatherAdapterState.setEnabled(context, enabled)
+        if (enabled) WeatherAdapterScheduler.ensureScheduled(context)
+        else WeatherAdapterScheduler.cancel(context)
+        mutableState.value = mutableState.value.copy(weatherEnabled = enabled)
+    }
+
     fun setStockRussianLocaleEnabled(enabled: Boolean) {
         val context = appContext ?: return
         val current = mutableState.value
@@ -645,6 +679,9 @@ object DenzaAppRepository {
         reconcileSplitScreenToggle(app)
         NavigationCoordinator.initialize(app) { refresh() }
         WeatherAdapterScheduler.ensureScheduled(app)
+        mutableState.value = mutableState.value.copy(
+            weatherEnabled = WeatherAdapterState.enabled(app),
+        )
         refresh()
         reconcileNavigationSteeringWheelAccess(app)
         reconcileSimulcast(repairMissingSetup = true)

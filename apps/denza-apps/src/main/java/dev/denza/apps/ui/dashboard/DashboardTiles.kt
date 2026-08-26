@@ -20,6 +20,7 @@ enum class TileIcon {
     MIRRORS,
     SPLIT,
     HUD,
+    WEATHER,
     SPEAKER,
     LOCALE,
     PASSENGER,
@@ -43,6 +44,9 @@ enum class TileAction {
 
     /** Turn the feature on or off. For a watcher, that is the whole of it. */
     TOGGLE,
+
+    /** Split the screen now - the same entry the launcher icon opens. */
+    SPLIT_LAUNCH,
 
     /** Choose an application to put on the passenger screen. */
     PASSENGER_INSTALL,
@@ -90,8 +94,9 @@ object DashboardTiles {
     /**
      * Every tile on the main screen, in the order `Config.dc.html` places them.
      *
-     * The board draws eleven; ten of them are here. Weather is the remaining adapter that runs
-     * unconditionally with nothing to switch, so it stays out instead of becoming an inert tile.
+     * Ten, and the board draws the same ten. Weather was the one that used to be missing: the
+     * adapter ran unconditionally with nothing to switch, so a tile for it would have been inert.
+     * It has a switch now, so it has a tile.
      */
     fun of(state: DenzaUiState): List<DashboardTile> = listOf(
         cluster(state),
@@ -99,6 +104,7 @@ object DashboardTiles {
         mirrors(state),
         split(state),
         hud(state),
+        weather(state),
         speakers(state),
         locale(state),
         passenger(state),
@@ -212,10 +218,14 @@ object DashboardTiles {
     }
 
     /**
-     * Split screen, which is one launcher icon either present or absent.
+     * Split screen.
      *
-     * Its caption never takes the accent: "the icon is on the desktop" is the switch said twice,
-     * and the tone has already said it.
+     * The press splits the screen, by the same entry the launcher icon opens - which is what
+     * somebody reaching for a tile called "Разделение экрана" is after. Showing and hiding that
+     * icon is housekeeping and lives behind the long press.
+     *
+     * Its caption never takes the accent: "the icon is on the desktop" is a setting, and it is not
+     * a reading of anything the feature is doing.
      */
     private fun split(state: DenzaUiState): DashboardTile {
         val snapshot = state.splitScreen
@@ -231,7 +241,7 @@ object DashboardTiles {
             },
             tone = toneOf(snapshot),
             caption = DenzaTileCaption.SETTING,
-            action = actionOf(snapshot, TileAction.TOGGLE),
+            action = actionOf(snapshot, TileAction.SPLIT_LAUNCH),
         )
     }
 
@@ -254,6 +264,24 @@ object DashboardTiles {
             action = actionOf(snapshot, TileAction.TOGGLE),
         )
     }
+
+    /**
+     * Weather supplied to the car's own widget.
+     *
+     * Nothing of ours draws a forecast: the app fetches one and hands it to the stock widget, so
+     * the only thing there is to decide is whether it keeps doing that. No coordinator, no
+     * handshake - an alarm either stands or it does not, which is why this tile reads its state
+     * straight rather than through a snapshot.
+     */
+    private fun weather(state: DenzaUiState): DashboardTile = DashboardTile(
+        id = TileId.WEATHER,
+        icon = TileIcon.WEATHER,
+        name = "Погода",
+        state = if (state.weatherEnabled) "Данные для виджета" else "Данные не уходят",
+        tone = if (state.weatherEnabled) DenzaTileTone.LIVE else DenzaTileTone.IDLE,
+        caption = DenzaTileCaption.SETTING,
+        action = TileAction.TOGGLE,
+    )
 
     /** Motorised speaker covers, driven by app, MediaSession and output-mix signals. */
     private fun speakers(state: DenzaUiState): DashboardTile {
