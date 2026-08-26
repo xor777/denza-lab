@@ -12,6 +12,7 @@ enum class SpeakerCoverRuntimePhase {
     MONITORING,
     COMMANDING,
     DEGRADED,
+    FAILED,
 }
 
 data class SpeakerCoverRuntimeState(
@@ -78,6 +79,21 @@ object SpeakerCoverRuntime {
                 desiredEnabled = true,
                 status = FeatureStatus.RECOVERING,
                 message = runtime.message.ifBlank { "Восстанавливаю автоматику" },
+                details = runtime.details,
+            )
+            // Recovery that has stopped being plausible.
+            //
+            // DEGRADED draws a spinner, and the automaton retries on a 30-second cooldown for as
+            // long as the process lives - so a command that genuinely cannot succeed turned that
+            // spinner for the rest of the day, promising work that was never going to finish. It
+            // is the same shape of lie the startup spinner used to tell. After a few tries the
+            // feature says it is broken instead, and the retries carry on quietly underneath: if
+            // one lands, the phase moves back on its own.
+            SpeakerCoverRuntimePhase.FAILED -> FeatureSnapshot(
+                id = FeatureId.SPEAKER_COVERS,
+                desiredEnabled = true,
+                status = FeatureStatus.ERROR,
+                message = runtime.message.ifBlank { "Крышки не отвечают" },
                 details = runtime.details,
             )
         }

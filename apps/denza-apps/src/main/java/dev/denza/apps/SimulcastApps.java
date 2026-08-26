@@ -82,11 +82,18 @@ final class SimulcastApps {
         return out;
     }
 
+    /**
+     * Installed <em>and openable</em>: a package with no launcher entry is not an app to cast.
+     *
+     * This used to ask only whether the package existed, which is a different question and a
+     * strictly larger set - framework components and headless services answer yes. Anything the
+     * driver is offered is found by asking the launcher, so a package that passed here and not
+     * there was counted on the tile ("6 приложений") while the panel below it drew five.
+     */
     static boolean isInstalled(PackageManager pm, String packageName) {
         try {
-            pm.getApplicationInfo(packageName, 0);
-            return true;
-        } catch (PackageManager.NameNotFoundException e) {
+            return pm.getLaunchIntentForPackage(packageName) != null;
+        } catch (RuntimeException e) {
             return false;
         }
     }

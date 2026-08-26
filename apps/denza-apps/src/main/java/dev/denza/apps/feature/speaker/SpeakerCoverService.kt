@@ -38,6 +38,7 @@ class SpeakerCoverService : Service() {
     private var destroyed = false
     private var audioAvailable = false
     private var windingDown = false
+    private var motorFailures = 0
 
     private val sampleLoop = object : Runnable {
         override fun run() {
@@ -188,16 +189,23 @@ class SpeakerCoverService : Service() {
                     nowMs = SystemClock.uptimeMillis(),
                 )
                 if (result.isSuccess) {
+                    motorFailures = 0
                     if (windingDown && next == null && automaton.pendingAction == null) {
                         stopSelf()
                         return@post
                     }
                     publishMonitoring()
                 } else {
+                    motorFailures += 1
                     Log.w(TAG, "motor command failed action=${request.action}", result.exceptionOrNull())
+                    val giveUp = motorFailures >= MOTOR_FAILURES_BEFORE_BROKEN
                     publish(
-                        SpeakerCoverRuntimePhase.DEGRADED,
-                        "Повторю команду автоматически",
+                        if (giveUp) {
+                            SpeakerCoverRuntimePhase.FAILED
+                        } else {
+                            SpeakerCoverRuntimePhase.DEGRADED
+                        },
+                        if (giveUp) "Крышки не отвечают" else "Повторю команду автоматически",
                         result.exceptionOrNull()?.toString(),
                     )
                 }
@@ -298,6 +306,15 @@ class SpeakerCoverService : Service() {
         private const val CHANNEL_ID = "denza_speaker_covers"
         private const val NOTIFICATION_ID = 18_889
         private const val SAMPLE_INTERVAL_MS = 200L
+
+        /**
+         * How many commands may fail before the tile stops promising a recovery.
+         *
+         * The automaton keeps retrying on its own cooldown either way. This only decides when the
+         * screen stops drawing a spinner over it, because a spinner that turns all day is a worse
+         * answer than "не отвечает".
+         */
+        private const val MOTOR_FAILURES_BEFORE_BROKEN = 3
         private const val ACTION_DISABLE_AND_OPEN =
             "dev.denza.apps.action.DISABLE_SPEAKER_COVERS_AND_OPEN"
         private const val ACTION_RAISE = "dev.denza.apps.action.RAISE_SPEAKER_COVERS"
