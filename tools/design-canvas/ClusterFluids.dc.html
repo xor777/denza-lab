@@ -7,14 +7,16 @@
 <body>
 <x-dc>
 <helmet>
-  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&amp;family=Roboto+Mono:wght@200;300;400&amp;display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@200;300;400;500&amp;display=swap" rel="stylesheet">
   <style>
     body { margin:0; background:#000000; font-family:'Roboto','Segoe UI',system-ui,sans-serif; }
     a { color:#FEEFAB; } a:hover { color:#FFF7D2; }
-    .fg { font-family:'Roboto Mono',monospace; font-weight:200; font-size:52px; fill:#DAE1EB; }
-    .rd2 { font-family:'Roboto Mono',monospace; font-weight:300; font-size:18px; fill:#DAE1EB; }
-    .un { font-size:18px; fill:#86909B; }
-    .bd2 { font-size:13px; fill:#6E767F; }
+    text { font-feature-settings:'tnum' 1; font-variant-numeric:tabular-nums; }
+    .hero { font-weight:200; font-size:104px; fill:#DAE1EB; letter-spacing:-0.02em; }
+    .fig { font-weight:200; font-size:58px; fill:#DAE1EB; letter-spacing:-0.01em; }
+    .rd { font-weight:300; font-size:19px; fill:#DAE1EB; }
+    .un { font-weight:400; font-size:18px; fill:#86909B; }
+    .bd { font-weight:400; font-size:14px; fill:#6E767F; }
     .ghost { font-size:11px; letter-spacing:0.12em; fill:#2C3138; }
   </style>
 </helmet>
@@ -22,28 +24,29 @@
   <svg width="832" height="452" viewBox="0 0 832 452">
     <g transform="translate(24,24)">
     <rect x="0" y="0" width="380" height="190" rx="14" fill="#0A0B0D" stroke="rgba(218,225,235,0.10)"/>
-    <text class="ghost" x="22" y="174">всё в норме · угол пуст</text>
+    <text x="358" y="44" text-anchor="end"><tspan class="rd">550</tspan><tspan class="bd" dx="5">В</tspan><tspan class="rd" dx="26">3</tspan><tspan class="bd" dx="5">мВ</tspan><tspan class="rd" dx="26">96</tspan><tspan class="bd" dx="5">ячеек</tspan></text>
+    <text class="ghost" x="22" y="174">всё в норме · угол держит батарею</text>
     </g>
     <g transform="translate(428,24)">
     <rect x="0" y="0" width="380" height="190" rx="14" fill="#0A0B0D" stroke="rgba(218,225,235,0.10)"/>
-    <text class="bd2" x="358" y="44" text-anchor="end" style="fill:#FF9F19">жидкости · 5 из 8</text>
+    <text class="bd" x="358" y="44" text-anchor="end" style="fill:#FF9F19">жидкости · 5 из 8</text>
     <text class="ghost" x="22" y="174">часть не ответила</text>
     </g>
     <g transform="translate(24,238)">
     <rect x="0" y="0" width="380" height="190" rx="14" fill="#0A0B0D" stroke="rgba(218,225,235,0.10)"/>
     <circle cx="353" cy="39" r="4.4" fill="#FF4046"/>
-    <text class="rd2" x="340" y="44" text-anchor="end" style="fill:#FF4046">давление масла</text>
+    <text class="rd" x="340" y="44" text-anchor="end" style="fill:#FF4046">давление масла</text>
     <text class="ghost" x="22" y="174">одна неисправность</text>
     </g>
     <g transform="translate(428,238)">
     <rect x="0" y="0" width="380" height="190" rx="14" fill="#0A0B0D" stroke="rgba(218,225,235,0.10)"/>
     <circle cx="353" cy="39" r="4.4" fill="#FF4046"/>
-    <text class="rd2" x="340" y="44" text-anchor="end" style="fill:#FF4046">давление масла</text>
-    <circle cx="353" cy="65" r="4.4" fill="#FF4046"/>
-    <text class="rd2" x="340" y="70" text-anchor="end" style="fill:#FF4046">уровень ОЖ</text>
-    <circle cx="353" cy="91" r="4.4" fill="#FF4046"/>
-    <text class="rd2" x="340" y="96" text-anchor="end" style="fill:#FF4046">масло КПП</text>
-    <text class="bd2" x="358" y="122" text-anchor="end" style="fill:#FF4046">и ещё 1</text>
+    <text class="rd" x="340" y="44" text-anchor="end" style="fill:#FF4046">давление масла</text>
+    <circle cx="353" cy="66" r="4.4" fill="#FF4046"/>
+    <text class="rd" x="340" y="71" text-anchor="end" style="fill:#FF4046">уровень ОЖ</text>
+    <circle cx="353" cy="93" r="4.4" fill="#FF4046"/>
+    <text class="rd" x="340" y="98" text-anchor="end" style="fill:#FF4046">масло КПП</text>
+    <text class="bd" x="358" y="125" text-anchor="end" style="fill:#FF4046">и ещё 1</text>
     <text class="ghost" x="22" y="174">четыре</text>
     </g>
   </svg>

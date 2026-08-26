@@ -131,48 +131,75 @@
       "page": "page-palette"
     },
     {
-      "file": "ClusterNext.dc.html",
+      "file": "ClusterDial.dc.html",
       "x": 0,
-      "y": 0,
+      "y": 0.0,
       "w": 1507.6,
       "h": 424.0,
-      "title": "Приборка · переосмысление",
+      "title": "Приборка · шкала насечками",
+      "page": "page-cluster"
+    },
+    {
+      "file": "ClusterNext.dc.html",
+      "x": 0,
+      "y": 504.0,
+      "w": 1507.6,
+      "h": 424.0,
+      "title": "Приборка · шкала дугой",
+      "page": "page-cluster"
+    },
+    {
+      "file": "ClusterRegen.dc.html",
+      "x": 0,
+      "y": 1008.0,
+      "w": 1507.6,
+      "h": 424.0,
+      "title": "Приборка · отдаём в батарею",
+      "page": "page-cluster"
+    },
+    {
+      "file": "ClusterEdge.dc.html",
+      "x": 0,
+      "y": 1512.0,
+      "w": 1507.6,
+      "h": 424.0,
+      "title": "Приборка · цифры по краям",
       "page": "page-cluster"
     },
     {
       "file": "ClusterFull.dc.html",
       "x": 0,
-      "y": 504,
+      "y": 2016.0,
       "w": 1507.6,
       "h": 424.0,
-      "title": "Приборка · как стоит на машине",
+      "title": "Приборка · что стоит на машине сейчас",
       "page": "page-cluster"
     },
     {
       "file": "ClusterRest.dc.html",
       "x": 0,
-      "y": 1008,
+      "y": 2520.0,
       "w": 1507.6,
       "h": 424.0,
       "title": "Приборка · покой и зарядка",
       "page": "page-cluster"
     },
     {
-      "file": "ClusterRight.dc.html",
-      "x": 0,
-      "y": 1512,
-      "w": 601.3,
-      "h": 308.0,
-      "title": "Приборка · правая треть",
-      "page": "page-cluster"
-    },
-    {
       "file": "ClusterFluids.dc.html",
-      "x": 700,
-      "y": 1512,
+      "x": 0,
+      "y": 3024.0,
       "w": 832.0,
       "h": 452.0,
       "title": "Жидкости · четыре состояния",
+      "page": "page-cluster"
+    },
+    {
+      "file": "ClusterRight.dc.html",
+      "x": 912,
+      "y": 3024.0,
+      "w": 601.3,
+      "h": 308.0,
+      "title": "Приборка · правая треть",
       "page": "page-cluster"
     }
   ],

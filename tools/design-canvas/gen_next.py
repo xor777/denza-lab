@@ -1,25 +1,34 @@
 #!/usr/bin/env python3
 """
-The cluster, second pass: the middle is ours after all.
+The cluster, third pass: one horizon, and a rule for the colour.
 
-The first pass was built on a wrong premise. The vehicle's own car model sits
-dead centre, so the layout moved everything out to the halves to keep clear of
-it - but the car is only the parked state, the driving state is the ADAS road
-rendering in the same place, and an opaque black ground covers both. Nothing of
-the vehicle's centre composition survives under us. The middle is free, and a
-layout that gives it away is giving away the best real estate on the panel.
+The second pass put the right facts at defensible coordinates and never made a
+picture. Rendered at panel size the failure is plain: five objects floating on
+black at positions that do not relate to each other, the negative space pooled
+in one huge empty bowl under the arc and another in the top right, the two
+"symmetric" histories sitting at different heights on different baselines, and
+the largest object on the panel - a 666-pixel arc - saying one number that is
+also printed inside it.
 
-So: the power gauge takes the middle as a half circle, its quiet numbers inside
-it, and the two histories flank it. Every figure sits above its own history
-rather than beside it, because a figure beside a chart changes width as it
-counts and drags the chart left and right under the eye.
+So this pass starts from a skeleton instead of from a list of facts:
 
-What is not drawn matters as much. The vehicle computes an average consumption
-and shows a tank, so this shows neither. Titles over a number whose unit already
-names it are labels a driver has no time for, and they are gone with the axis
-captions. What is left has to be legible in one glance, which is the only test
-this panel has to pass.
+  one hairline runs the whole width at y=318. Everything rests on it. The two
+  histories sit on it, the power gauge springs from it, every figure stands
+  above it, and nothing is placed anywhere the line does not explain.
+
+And one rule for the colour, which is the same rule everywhere on the panel:
+  ink is energy leaving the pack, blue is energy coming back. Above the line is
+  spending, below the line is returning. Regeneration dips below it in blue and
+  so does the engine's generation, because they are the same event.
+
+Two boards, differing in exactly one decision - the middle. `ClusterNext` keeps
+the half circle, sized so its interior is filled by the numeral rather than
+hollow around it. `ClusterBar` spends that height on the histories instead and
+lays the power flat on the horizon itself, growing right to spend and left to
+recover. Everything else is identical, so the choice is the only thing being
+asked.
 """
+import math
 import os
 
 import gen_cluster as g
@@ -27,7 +36,6 @@ import gen_cluster as g
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 W, H = 1507.6, 424.0          # the FULL placement's virtual space
-PX = 720.0 / H                # virtual -> real pixels on the verified panel
 
 BLACK = '#000000'
 INK = g.INK
@@ -36,154 +44,277 @@ MUTED_DEEP = g.MUTED_DEEP
 RETURN = g.RETURN
 RETURN_INK = g.RETURN_INK
 TRACK = g.TRACK
-TRACK_MARK = g.TRACK_MARK
 DANGER = '#FF4046'
 WARNING = g.WARNING
-GHOST = '#15181C'
 GHOST_INK = '#2C3138'
+QUIET = 'rgba(218,225,235,0.26)'
 
 f = g.f
 
-# ---------------------------------------------------------------- the panel
+# ---------------------------------------------------------------- the skeleton
 
-# What the vehicle still puts on top of us, if anything. The centre is settled:
-# the car model and the ADAS road rendering are both under our black ground and
-# neither survives it. The two strips are the open question - the photograph that
-# showed them was taken while our background was still transparent.
-STOCK_TOP_H = 85.0
-STOCK_TOP_X0, STOCK_TOP_X1 = 495.0, 1214.0
-STOCK_BOTTOM_Y = 365.0
+M = 30.0                      # the margin every outer edge keeps
+CORNER_Y = 42.0               # the small row, hard against the top
+FIGURE_Y = 132.0              # every large figure stands on this baseline
+BAND_TOP = 174.0              # nothing drawn by a history reaches above this
+HORIZON = 344.0               # the line the whole panel rests on
+DIP = 50.0                    # how far below it anything returning may reach
 
-CALIBRATION = (
-    'One question left: does the black ground cover the vehicle\'s own top row '
-    'and bottom strip as it covers ADAS? If it does, this panel is 2560x720 of '
-    'ours and both bands below are free. A numbered grid drawn on the black and '
-    'one photograph answers it.'
-)
+GAUGE_CX = W / 2
+GAUGE_R = HORIZON - BAND_TOP  # so the arc's crown lands on the histories' ceiling
+CENTRE_HALF = GAUGE_R         # the middle column both boards reserve
+GAP = 44.0
 
-# Rows. Both halves use the same three, so the eye finds the same thing at the
-# same height on either side of the gauge.
-CORNER_Y, CORNER_Y2 = 34.0, 62.0
-FIGURE_Y = 150.0
-CHART_TOP, CHART_BOTTOM = 178.0, 330.0
+LEFT_X0, LEFT_X1 = M, GAUGE_CX - CENTRE_HALF - GAP
+RIGHT_X0, RIGHT_X1 = GAUGE_CX + CENTRE_HALF + GAP, W - M
 
-LEFT_X0, LEFT_X1 = 26.0, 470.0
-RIGHT_X0, RIGHT_X1 = W - 470.0, W - 26.0
-
-GAUGE_CX, GAUGE_CY, GAUGE_R = W / 2, 330.0, 196.0
 FULL_DISCHARGE_KW, FULL_REGEN_KW = 300.0, 100.0
+USE_CEILING, USE_FLOOR = 16.0, 10.0
+RPM_CEILING, GEN_FLOOR = 1800.0, 8.0
 
 
-def ghost():
+def defs():
+    """The two blurs the whole panel borrows.
+
+    The owner kept one accident from the first live run - a faint halo the dial
+    threw when the background was still transparent - and it is the only thing
+    on this panel that gives the black any material. So it is deliberate now: a
+    wide bloom for the gauge, a narrow one under every drawn line. On the car
+    these are a BlurMaskFilter on the same Paint, which is what makes them worth
+    designing with rather than admiring in a browser.
+    """
     return [
-        f'<rect x="{f(STOCK_TOP_X0)}" y="0" width="{f(STOCK_TOP_X1 - STOCK_TOP_X0)}" '
-        f'height="{f(STOCK_TOP_H)}" fill="{GHOST}"/>',
-        f'<rect x="0" y="{f(STOCK_BOTTOM_Y)}" width="{f(W)}" height="{f(H - STOCK_BOTTOM_Y)}" '
-        f'fill="{GHOST}"/>',
-        f'<text class="ghost" x="{f(STOCK_TOP_X0 + 12)}" y="{f(STOCK_TOP_H - 9)}">'
-        f'ШТАТНОЕ · ПЕРЕКРЫВАЕМ ЛИ</text>',
-        f'<text class="ghost" x="{f(LEFT_X0)}" y="{f(H - 13)}">ШТАТНОЕ · ПЕРЕКРЫВАЕМ ЛИ</text>',
+        '<defs>',
+        '<filter id="soft" x="-40%" y="-40%" width="180%" height="180%">'
+        '<feGaussianBlur stdDeviation="4.5"/></filter>',
+        '<filter id="bloom" x="-45%" y="-45%" width="190%" height="190%">'
+        '<feGaussianBlur stdDeviation="11"/></filter>',
+        '</defs>',
     ]
 
 
-# ---------------------------------------------------------------- the gauge
+def horizon():
+    """The one line. Drawn first, under everything, and never interrupted."""
+    return [f'<line x1="{f(M)}" y1="{f(HORIZON)}" x2="{f(W - M)}" y2="{f(HORIZON)}" '
+            f'stroke="rgba(218,225,235,0.10)" stroke-width="1.1"/>']
+
+
+def pool(cx, cy, rx, ry, kw, strength=0.20):
+    """The soft ground the owner liked, kept because black alone has no material."""
+    tint = RETURN_INK if kw < 0 else INK
+    ident = f'pool{abs(int(cx))}'
+    return [
+        '<defs>',
+        f'<radialGradient id="{ident}">'
+        f'<stop offset="0" stop-color="{tint}" stop-opacity="{strength}"/>'
+        f'<stop offset="0.5" stop-color="{tint}" stop-opacity="{strength * 0.36:.3f}"/>'
+        f'<stop offset="1" stop-color="{tint}" stop-opacity="0"/></radialGradient>',
+        '</defs>',
+        f'<ellipse cx="{f(cx)}" cy="{f(cy)}" rx="{f(rx)}" ry="{f(ry)}" fill="url(#{ident})"/>',
+    ]
+
+
+# ---------------------------------------------------------------- the middle
 
 def gauge_degrees(kw):
-    """Zero at the top, discharge clockwise, recovery anticlockwise.
+    """Zero at the top, spending clockwise, recovering anticlockwise.
 
-    Square root, the way the energy scale has always worked here: this car pulls
-    three hundred kilowatts and spends most of its life under thirty, so a linear
-    half circle would leave every ordinary reading in the first few degrees.
+    Square root, as every energy scale here works: the car pulls three hundred
+    kilowatts and spends most of its life under thirty, so a linear half circle
+    would leave every ordinary reading inside the first few degrees.
     """
     if kw >= 0:
-        return 90.0 - 90.0 * min(1.0, (kw / FULL_DISCHARGE_KW)) ** 0.5
-    return 90.0 + 90.0 * min(1.0, (-kw / FULL_REGEN_KW)) ** 0.5
+        return 90.0 - 90.0 * min(1.0, kw / FULL_DISCHARGE_KW) ** 0.5
+    return 90.0 + 90.0 * min(1.0, -kw / FULL_REGEN_KW) ** 0.5
 
 
-def power_gauge(kw, readings):
-    """The half circle, and the three quiet numbers standing inside it.
+def power_arc(kw, reading):
+    """The half circle, sized so the numeral fills it.
 
-    A half circle rather than the old 220-degree arc because a flat base is what
-    makes it read as one shape at a glance instead of a ring with a bite out of
-    it, and because its ends land exactly on the horizon - full recovery to the
-    left, full power to the right, no arithmetic to do.
+    The previous arc was a third larger and held a small number rattling around
+    in the middle of it - the biggest object on the panel enclosing the biggest
+    void. Radius now equals the height of the histories, which lands its crown
+    exactly on their ceiling and makes the interior a place for the figure to
+    live rather than a hole. The value arc is a solid colour, not a gradient:
+    the colour is carrying the rule, and a gradient across it says nothing and
+    muddies the one thing the shape is for.
     """
-    cx, cy, r = GAUGE_CX, GAUGE_CY, GAUGE_R
-    out = [
-        '<defs>',
-        f'<linearGradient id="gauge" x1="0" y1="0" x2="1" y2="0">'
-        f'<stop offset="0" stop-color="{RETURN}"/>'
-        f'<stop offset="0.5" stop-color="{INK}" stop-opacity="0.55"/>'
-        f'<stop offset="1" stop-color="{INK}"/></linearGradient>',
-        f'<radialGradient id="pool">'
-        f'<stop offset="0" stop-color="{RETURN_INK if kw < 0 else INK}" stop-opacity="0.20"/>'
-        f'<stop offset="0.55" stop-color="{RETURN_INK if kw < 0 else INK}" stop-opacity="0.08"/>'
-        f'<stop offset="1" stop-color="{RETURN_INK if kw < 0 else INK}" stop-opacity="0"/>'
-        f'</radialGradient>',
-        '</defs>',
-        f'<ellipse cx="{f(cx)}" cy="{f(cy - r * 0.28)}" rx="{f(r * 2.3)}" ry="{f(r * 1.7)}" '
-        f'fill="url(#pool)"/>',
+    cx, cy, r = GAUGE_CX, HORIZON, GAUGE_R
+    colour = RETURN if kw < 0 else INK
+    out = pool(cx, cy - r * 0.30, r * 2.15, r * 1.55, kw)
+    out += [
         f'<path d="{g.arc_path(cx, cy, r, 180.0, 0.0)}" fill="none" stroke="{TRACK}" '
-        f'stroke-width="10" stroke-linecap="round"/>',
+        f'stroke-width="5" stroke-linecap="round"/>',
     ]
-
-    # One mark either side of the top, and nothing labelled: the ends are the
-    # span and the top is zero, which is every number this shape owes.
-    for mark in (60.0, -20.0):
-        deg = gauge_degrees(mark)
-        x0, y0 = g.polar(cx, cy, r + 4, deg)
-        x1, y1 = g.polar(cx, cy, r + 13, deg)
-        colour = RETURN if mark < 0 else TRACK_MARK
-        out.append(f'<path d="M{f(x0)} {f(y0)} L{f(x1)} {f(y1)}" stroke="{colour}" '
-                   f'stroke-width="1.8" stroke-linecap="round"/>')
-
     deg = gauge_degrees(kw)
-    if abs(deg - 90.0) > 0.5:
-        out.append(f'<path d="{g.arc_path(cx, cy, r, 90.0, deg)}" fill="none" '
-                   f'stroke="url(#gauge)" stroke-width="10" stroke-linecap="round"/>')
-    hx, hy = g.polar(cx, cy, r, deg)
-    out.append(f'<circle cx="{f(hx)}" cy="{f(hy)}" r="7" fill="{RETURN if kw < 0 else INK}"/>')
+    if abs(deg - 90.0) > 0.4:
+        value = g.arc_path(cx, cy, r, 90.0, deg)
+        out.append(f'<path d="{value}" fill="none" stroke="{colour}" stroke-width="15" '
+                   f'stroke-linecap="round" filter="url(#bloom)" opacity="0.85"/>')
+        out.append(f'<path d="{value}" fill="none" stroke="{colour}" stroke-width="13" '
+                   f'stroke-linecap="round"/>')
+    out += hero(cx, reading)
+    return out
 
-    out.append(g.pair(cx, cy - 46, [('fg', readings['kw'], 0), ('un', 'кВт', 10)],
-                      anchor='middle'))
-    out.append(g.pair(cx, cy - 12, [('rd2', readings['volts'], 0), ('bd2', 'В', 5),
-                                    ('rd2', readings['spread'], 18), ('bd2', 'мВ', 5),
-                                    ('rd2', readings['cells'], 18), ('bd2', 'ячеек', 5)],
-                      anchor='middle'))
+
+def hero(cx, reading):
+    """The one numeral the panel is built around, lit like the arc around it."""
+    run = g.pair(cx, HORIZON - 34, [('hero', reading, 0), ('un', 'кВт', 12)], anchor='middle')
+    glow = run.replace('<text ', '<text filter="url(#soft)" opacity="0.55" ', 1)
+    return [glow, run]
+
+
+TICKS = 37
+
+
+def power_dial(kw, reading):
+    """The same half circle drawn as marks instead of as a band.
+
+    A ring of fine marks lit up to the value reads as an instrument rather than
+    as a progress bar, and it gives the shape a texture that a solid band on
+    black cannot have. Two lonely unlabelled ticks looked like dirt in the last
+    pass; forty-six of them, evenly spaced, read as craft - the difference is
+    whether the eye can see the system they belong to.
+    """
+    cx, cy, r = GAUGE_CX, HORIZON, GAUGE_R
+    colour = RETURN if kw < 0 else INK
+    value_deg = gauge_degrees(kw)
+    out = pool(cx, cy - r * 0.30, r * 2.15, r * 1.55, kw)
+    lit = []
+    for i in range(TICKS):
+        deg = 180.0 - 180.0 * i / (TICKS - 1)
+        on = (90.0 >= deg >= value_deg) if kw >= 0 else (90.0 <= deg <= value_deg)
+        long = abs(deg - 90.0) < 0.5
+        x0, y0 = g.polar(cx, cy, r - (20 if on else (15 if long else 10)), deg)
+        x1, y1 = g.polar(cx, cy, r, deg)
+        mark = (f'<path d="M{f(x0)} {f(y0)} L{f(x1)} {f(y1)}" stroke="{colour if on else TRACK}" '
+                f'stroke-width="{3.6 if on else 1.9}" stroke-linecap="round"/>')
+        (lit if on else out).append(mark)
+    if lit:
+        out.append(f'<g filter="url(#bloom)" opacity="0.8">{"".join(lit)}</g>')
+        out += lit
+    out += hero(cx, reading)
+    return out
+
+
+def power_bar(kw, reading):
+    """The same flow laid flat on the horizon, for a panel shaped like this one.
+
+    Three and a half to one is a letterbox, and a letterbox wants horizontal
+    instruments. Spending grows right of the centre in ink, recovering grows
+    left of it in blue - the same rule the histories obey a metre either side.
+    """
+    cx, y = GAUGE_CX, HORIZON
+    colour = RETURN if kw < 0 else INK
+    half, thick = CENTRE_HALF, 13.0
+    share = min(1.0, abs(kw) / (FULL_DISCHARGE_KW if kw >= 0 else FULL_REGEN_KW)) ** 0.5
+    end = cx + half * share * (1 if kw >= 0 else -1)
+    out = pool(cx, y - 26, half * 2.1, 96.0, kw, strength=0.16)
+    out += [
+        f'<rect x="{f(cx - half)}" y="{f(y - 2.0)}" width="{f(half * 2)}" height="4" rx="2" '
+        f'fill="{TRACK}"/>',
+        f'<rect x="{f(min(cx, end))}" y="{f(y - thick / 2)}" width="{f(abs(end - cx))}" '
+        f'height="{f(thick)}" rx="{f(thick / 2)}" fill="{colour}"/>',
+        f'<circle cx="{f(end)}" cy="{f(y)}" r="9" fill="{colour}"/>',
+    ]
+    out.append(g.pair(cx, FIGURE_Y, [('fig', reading, 0), ('un', 'кВт', 11)], anchor='middle'))
     return out
 
 
 # ---------------------------------------------------------------- the histories
 
-def line(ident, x0, x1, y0, y1, values, ceiling, colour, root=False, signed=False,
-         floor=None, fill=0.22):
-    """One history as a line with a fade under it, oldest at the left.
+def split_sign(points):
+    """Cut a run wherever its character changes, so each piece has one colour.
 
-    A line rather than the bars the first pass drew: bars count things and this is
-    a continuous quantity, and at this width thirty of them read as a fence rather
-    than as a shape. A `None` breaks the run instead of being drawn through, so a
-    stretch nobody watched looks like one.
+    Three characters, not two. Above the line is spending and below it is
+    returning - that rule only means anything if the drawing obeys it, and the
+    pass before last drew a recovery dip in the same white as the climb above
+    it. The third is rest: an exact nought is a reading, not a gap, and drawing
+    it brightly along the horizon put a second, brighter horizon across the
+    right of the panel. It is drawn faintly instead, which is what nothing
+    happening should look like.
 
-    A signed run gets its own scale each way. The first draft gave both directions
-    the same span from a zero line a third of the way up, so every recovery dip
-    ran straight out of the bottom of the box - the sort of thing that is obvious
-    the moment it is rendered and invisible in the arithmetic.
+    A sign change is interpolated so the two colours meet exactly on the line;
+    a change in or out of rest already sits on the line and only needs the two
+    pieces to share their vertex.
     """
-    n = len(values)
-    if n < 2:
+    def character(value):
+        return 0 if value == 0 else (1 if value > 0 else -1)
+
+    segments, run, kind = [], [], None
+    for i, (x, value) in enumerate(points):
+        this = character(value)
+        if kind is None:
+            kind, run = this, [(x, value)]
+        elif this == kind:
+            run.append((x, value))
+        elif this == 0:
+            run.append((x, value))
+            segments.append((kind, run))
+            kind, run = 0, [(x, value)]
+        elif kind == 0:
+            segments.append((0, run))
+            kind, run = this, [points[i - 1], (x, value)]
+        else:
+            px, pv = points[i - 1]
+            cross = px + (x - px) * (pv / (pv - value))
+            run.append((cross, 0.0))
+            segments.append((kind, run))
+            kind, run = this, [(cross, 0.0), (x, value)]
+    if len(run) > 1:
+        segments.append((kind, run))
+    return segments
+
+
+def history(ident, x0, x1, values, ceiling, floor=None, root=False, fill=0.13,
+            up_colour=INK, down_colour=RETURN, dot=True):
+    """One run of readings resting on the horizon, oldest at the left.
+
+    Above the line is drawn against `ceiling` and below it against `floor`,
+    because the panel has more room above the line than below and pretending
+    otherwise ran every recovery dip out of the bottom of the box two passes
+    ago. The fade under the line is anchored to the horizon and strongest there,
+    which is the only way an area a third of the way up the box is visible at
+    all - a fade anchored to the ceiling spends its opacity on empty air.
+
+    A `None` breaks the run instead of being drawn through, so a stretch nobody
+    watched looks like one.
+    """
+    if len(values) < 2:
         return []
-    step = (x1 - x0) / (n - 1)
-    if signed:
-        base = y1 - (y1 - y0) * 0.34
-        up, down = base - y0, y1 - base
-    else:
-        base = y1
-        up, down = y1 - y0, 0.0
-    out = ['<defs>',
-           f'<linearGradient id="{ident}" x1="0" y1="0" x2="0" y2="1">'
-           f'<stop offset="0" stop-color="{colour}" stop-opacity="{fill}"/>'
-           f'<stop offset="1" stop-color="{colour}" stop-opacity="0"/></linearGradient>',
-           '</defs>']
+    step = (x1 - x0) / (len(values) - 1)
+    up, down = HORIZON - BAND_TOP, DIP
+
+    # The span is the run's own, never smaller than the one asked for. A fixed
+    # ceiling picked from the physics - six thousand revolutions, forty kilowatt
+    # hours - is honest and draws every ordinary run as a low ripple along the
+    # bottom of a tall empty box, which is what the last pass looked like. The
+    # floor keeps a quiet run quiet instead of amplifying its noise to full
+    # height, and the headroom keeps a peak off the ceiling.
+    seen = [abs(x) for x in values if x is not None]
+    peak_up = max([x for x in values if x is not None and x > 0] or [0.0])
+    peak_down = max([-x for x in values if x is not None and x < 0] or [0.0])
+    ceiling = max(ceiling, peak_up * 1.12)
+    floor = max(floor or ceiling, peak_down * 1.18)
+    del seen
+
+    def height(value):
+        if value >= 0:
+            share = min(1.0, value / ceiling)
+            return HORIZON - up * (share ** 0.5 if root else share)
+        share = min(1.0, -value / (floor or ceiling))
+        return HORIZON + down * (share ** 0.5 if root else share)
+
+    out = ['<defs>']
+    for suffix, colour, y_far in (('u', up_colour, BAND_TOP), ('d', down_colour, HORIZON + DIP)):
+        out.append(f'<linearGradient id="{ident}{suffix}" gradientUnits="userSpaceOnUse" '
+                   f'x1="0" y1="{f(HORIZON)}" x2="0" y2="{f(y_far)}">'
+                   f'<stop offset="0" stop-color="{colour}" stop-opacity="{fill}"/>'
+                   f'<stop offset="0.45" stop-color="{colour}" stop-opacity="{fill * 0.34:.3f}"/>'
+                   f'<stop offset="1" stop-color="{colour}" stop-opacity="0"/>'
+                   f'</linearGradient>')
+    out.append('</defs>')
+
     runs, run = [], []
     for i, value in enumerate(values):
         if value is None:
@@ -191,86 +322,100 @@ def line(ident, x0, x1, y0, y1, values, ceiling, colour, root=False, signed=Fals
                 runs.append(run)
             run = []
             continue
-        if value >= 0:
-            share = min(1.0, value / ceiling)
-            if root:
-                share = share ** 0.5
-            y = base - up * share
-        else:
-            share = min(1.0, -value / (floor or ceiling))
-            y = base + down * share
-        run.append((x0 + i * step, y))
+        run.append((x0 + i * step, value))
     if len(run) > 1:
         runs.append(run)
+
     last = None
     for run in runs:
-        d = 'M ' + ' L '.join(f'{f(x)} {f(y)}' for x, y in run)
-        out.append(f'<path d="{d} L {f(run[-1][0])} {f(base)} L {f(run[0][0])} {f(base)} Z" '
-                   f'fill="url(#{ident})"/>')
-        out.append(f'<path d="{d}" fill="none" stroke="{colour}" stroke-width="2" '
-                   f'stroke-linejoin="round" stroke-linecap="round"/>')
+        for sign, part in split_sign(run):
+            colour = QUIET if sign == 0 else (up_colour if sign > 0 else down_colour)
+            shade = f'{ident}d' if sign < 0 else f'{ident}u'
+            d = 'M ' + ' L '.join(f'{f(x)} {f(height(v))}' for x, v in part)
+            out.append(f'<path d="{d} L {f(part[-1][0])} {f(HORIZON)} '
+                       f'L {f(part[0][0])} {f(HORIZON)} Z" fill="url(#{shade})"/>')
+            out.append(f'<path d="{d}" fill="none" stroke="{colour}" stroke-width="2.2" '
+                       f'stroke-linejoin="round" stroke-linecap="round" '
+                       f'filter="url(#soft)"/>')
+            out.append(f'<path d="{d}" fill="none" stroke="{colour}" stroke-width="2.2" '
+                       f'stroke-linejoin="round" stroke-linecap="round"/>')
         last = run[-1]
-    if signed:
-        out.insert(3, f'<line x1="{f(x0)}" y1="{f(base)}" x2="{f(x1)}" y2="{f(base)}" '
-                      f'stroke="rgba(218,225,235,0.14)" stroke-width="1.1"/>')
-    if last:
-        out.append(f'<circle cx="{f(last[0])}" cy="{f(last[1])}" r="4" fill="{colour}"/>')
+    if last and dot:
+        colour = (QUIET if last[1] == 0 else
+                  (up_colour if last[1] > 0 else down_colour))
+        out.append(f'<circle cx="{f(last[0])}" cy="{f(height(last[1]))}" r="4.5" '
+                   f'fill="{colour}"/>')
     return out
 
 
-def energy_half(v):
-    out = [g.pair(LEFT_X0, CORNER_Y, [('rd2', v['pack_c'], 0), ('bd2', '° батарея', 5),
-                                      ('rd2', v['inverter_c'], 20), ('bd2', '° инвертор', 5)]),
-           g.pair(LEFT_X0, CORNER_Y2, [('rd2', v['motors_c'], 0), ('bd2', '° моторы', 5)])]
-    out.append(g.pair(LEFT_X0, FIGURE_Y, [('fg', v['use'], 0), ('un', 'кВт·ч/100 км', 10)]))
-    out += line('uses', LEFT_X0, LEFT_X1, CHART_TOP, CHART_BOTTOM, v['use_trace'], 40.0,
-                INK, signed=True, floor=30.0)
+def energy_side(v, inward=False):
+    """Temperatures, the figure, and three kilometres of what it cost.
+
+    `inward` moves the type from the panel's outer edge to the inner end of its
+    own history. Two and a half thousand pixels is wider than a driver's central
+    vision, and a numeral parked at the far edge is read by the part of the eye
+    that cannot read numerals; a shape parked there is read perfectly well. So
+    the inward arrangement puts every digit within one glance of the centre and
+    spends the periphery on the curves, which is what the periphery is good at.
+    """
+    x = LEFT_X1 if inward else LEFT_X0
+    anchor = 'end' if inward else 'start'
+    out = [g.pair(x, CORNER_Y,
+                  [('rd', v['pack_c'] + '°', 0), ('bd', 'батарея', 7),
+                   ('rd', v['inverter_c'] + '°', 26), ('bd', 'инвертор', 7),
+                   ('rd', v['motor_c'] + '°', 26), ('bd', 'моторы', 7)], anchor=anchor),
+           g.pair(x, FIGURE_Y, [('fig', v['use'], 0), ('un', 'кВт·ч/100 км', 11)],
+                  anchor=anchor)]
+    out += history('use', LEFT_X0, LEFT_X1, v['use_trace'], USE_CEILING, floor=USE_FLOOR)
     return out
 
 
-def engine_half(v):
-    out = fluids(v['fluids'])
-    out.append(g.pair(RIGHT_X1, FIGURE_Y, [('fg', v['rpm'], 0), ('un', 'об/мин', 10)],
-                      anchor='end'))
-    out += line('rpms', RIGHT_X0, RIGHT_X1, CHART_TOP, CHART_BOTTOM, v['rpm_trace'], 6000.0,
-                'rgba(218,225,235,0.62)')
-    out += line('gens', RIGHT_X0, RIGHT_X1, CHART_TOP, CHART_BOTTOM, v['gen_trace'], 60.0,
-                RETURN, fill=0.30)
+def engine_side(v, inward=False):
+    x = RIGHT_X0 if inward else RIGHT_X1
+    anchor = 'start' if inward else 'end'
+    out = list(fluids(v['fluids'], v, x_right=x, anchor=anchor))
+    out.append(g.pair(x, FIGURE_Y, [('fig', v['rpm'], 0), ('un', 'об/мин', 11)],
+                      anchor=anchor))
+    out += history('rpm', RIGHT_X0, RIGHT_X1, v['rpm_trace'], RPM_CEILING, fill=0.22)
+    out += history('gen', RIGHT_X0, RIGHT_X1, [None if x is None else -x for x in v['gen_trace']],
+                   GEN_FLOOR, floor=GEN_FLOOR, fill=0.34, dot=False)
     return out
 
 
 # ---------------------------------------------------------------- the exception
 
-FLUID_ROW = 26.0
+FLUID_ROW = 27.0
 
 
-def fluids(state, x_right=None, y0=CORNER_Y):
-    """Silent while nothing is wrong, and the fault itself when something is.
+def fluids(state, v, x_right=None, y0=CORNER_Y, anchor='end'):
+    """The pack's own numbers, until a fluid has something more urgent to say.
 
-    Eight anonymous dots in a grid was an inventory, and a driver's display is
-    not for inventories: a red dot in the fifth position of a grid nobody
-    memorised says only "something", two say "two somethings", and the sentence
-    that named them ran out of the corner. Nothing at all is the right drawing
-    for a healthy car - there is no reading to take - so the corner stays empty
-    and names the faults, worst first, the moment there are any.
+    The corner used to be empty while the car was healthy, which left the top
+    right of the panel a void against a dense top left. It carries the three
+    readings nothing else on this car reports - pack voltage, cell spread, cell
+    count - and a fault takes the corner from them, because a fault outranks
+    them and there is no honest way to show both in one corner.
     """
     x = RIGHT_X1 if x_right is None else x_right
+    side = -1 if anchor == 'end' else 1
     kind, names, answered, total = state
     if kind == 'ok':
-        return []
+        return [g.pair(x, y0, [('rd', v['volts'], 0), ('bd', 'В', 5),
+                               ('rd', v['spread'], 26), ('bd', 'мВ', 5),
+                               ('rd', v['cells'], 26), ('bd', 'ячеек', 5)], anchor=anchor)]
     if kind in ('partial', 'silent'):
         text = f'жидкости · {answered} из {total}' if kind == 'partial' else 'жидкости молчат'
-        return [f'<text class="bd2" x="{f(x)}" y="{f(y0)}" text-anchor="end" '
+        return [f'<text class="bd" x="{f(x)}" y="{f(y0)}" text-anchor="{anchor}" '
                 f'style="fill:{WARNING}">{text}</text>']
     out = []
     for i, name in enumerate(names[:3]):
         row = y0 + i * FLUID_ROW
-        out.append(f'<circle cx="{f(x - 5)}" cy="{f(row - 5)}" r="4.4" fill="{DANGER}"/>')
-        out.append(f'<text class="rd2" x="{f(x - 18)}" y="{f(row)}" text-anchor="end" '
-                   f'style="fill:{DANGER}">{name}</text>')
+        out.append(f'<circle cx="{f(x + side * 5)}" cy="{f(row - 5)}" r="4.4" fill="{DANGER}"/>')
+        out.append(f'<text class="rd" x="{f(x + side * 18)}" y="{f(row)}" '
+                   f'text-anchor="{anchor}" style="fill:{DANGER}">{name}</text>')
     if len(names) > 3:
-        out.append(f'<text class="bd2" x="{f(x)}" y="{f(y0 + 3 * FLUID_ROW)}" '
-                   f'text-anchor="end" style="fill:{DANGER}">и ещё {len(names) - 3}</text>')
+        out.append(f'<text class="bd" x="{f(x)}" y="{f(y0 + 3 * FLUID_ROW)}" '
+                   f'text-anchor="{anchor}" style="fill:{DANGER}">и ещё {len(names) - 3}</text>')
     return out
 
 
@@ -285,14 +430,16 @@ HEAD = """<!doctype html>
 <body>
 <x-dc>
 <helmet>
-  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&amp;family=Roboto+Mono:wght@200;300;400&amp;display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@200;300;400;500&amp;display=swap" rel="stylesheet">
   <style>
     body { margin:0; background:%(bg)s; font-family:'Roboto','Segoe UI',system-ui,sans-serif; }
     a { color:#FEEFAB; } a:hover { color:#FFF7D2; }
-    .fg { font-family:'Roboto Mono',monospace; font-weight:200; font-size:52px; fill:%(ink)s; }
-    .rd2 { font-family:'Roboto Mono',monospace; font-weight:300; font-size:18px; fill:%(ink)s; }
-    .un { font-size:18px; fill:%(muted)s; }
-    .bd2 { font-size:13px; fill:%(muted_deep)s; }
+    text { font-feature-settings:'tnum' 1; font-variant-numeric:tabular-nums; }
+    .hero { font-weight:200; font-size:104px; fill:%(ink)s; letter-spacing:-0.02em; }
+    .fig { font-weight:200; font-size:58px; fill:%(ink)s; letter-spacing:-0.01em; }
+    .rd { font-weight:300; font-size:19px; fill:%(ink)s; }
+    .un { font-weight:400; font-size:18px; fill:%(muted)s; }
+    .bd { font-weight:400; font-size:14px; fill:%(muted_deep)s; }
     .ghost { font-size:11px; letter-spacing:0.12em; fill:%(ghost_ink)s; }
   </style>
 </helmet>
@@ -314,27 +461,74 @@ def page(body, width=W, height=H):
 
 # ---------------------------------------------------------------- the data
 
-def engine_history(sleeping=34, slots=120):
+def use_history(n=36):
+    """Three kilometres of city driving, with the braking actually in it.
+
+    The last pass folded a synthetic run into thirty raw buckets and drew the
+    noise: an oscilloscope trace, not a shape. Recovery is a ramp, not a spike,
+    so the dips here are shaped like the braking that causes them - which is the
+    only way the blue below the line means anything on a mock-up.
+    """
+    out = []
+    for i in range(n):
+        t = i / (n - 1.0)
+        v = 18.4 + 5.4 * math.sin(t * 4.6 + 0.6) + 2.2 * math.sin(t * 11.0 + 1.9)
+        for centre, depth, width in ((0.21, 36.0, 0.045), (0.57, 30.0, 0.055),
+                                     (0.87, 22.0, 0.038)):
+            v -= depth * math.exp(-((t - centre) ** 2) / (2 * width ** 2))
+        out.append(round(v, 2))
+    return out
+
+
+def engine_history(sleeping=30, slots=90):
+    """Two minutes of the engine, including the minute it spent switched off.
+
+    Nought is a reading and the last pass drew it as a gap, which left the right
+    half of the panel visibly less occupied than the left for no reason a driver
+    could see. A stopped engine is a flat run along the horizon - true, and it
+    fills its box.
+    """
     rpm, gen = [], []
     for i in range(slots):
         if i < sleeping:
-            rpm.append(None)
-            gen.append(None)
+            rpm.append(0.0)
+            gen.append(0.0)
             continue
         t = (i - sleeping) / float(slots - sleeping)
-        rpm.append(round(900 + 1500 * min(1.0, t * 4) + 120 * ((i * 7) % 5) / 4.0, 1))
-        gen.append(round(max(0.0, 11.0 * min(1.0, (t - 0.10) * 6) + 1.4 * ((i * 5) % 4) / 3.0), 2))
+        ramp = min(1.0, t * 3.2)
+        rpm.append(round(940 + 1480 * ramp + 55 * math.sin(i * 0.31), 1))
+        gen.append(round(max(0.0, 12.4 * min(1.0, (t - 0.08) * 4.6)
+                             + 0.6 * math.sin(i * 0.44)), 2))
     return rpm, gen
 
 
 def values():
+    rpm_trace, gen_trace = engine_history()
     return dict(
         kw='34', volts='550', spread='3', cells='96',
-        use='16,8', use_trace=g.fold(g.DRIVING_BARS, 12.0),
-        rpm='2418', rpm_trace=engine_history()[0], gen_trace=engine_history()[1],
-        pack_c='18', inverter_c='17', motors_c='20 · 25 · 25',
+        use='16,8', use_trace=use_history(),
+        rpm='2418', rpm_trace=rpm_trace, gen_trace=gen_trace,
+        pack_c='18', inverter_c='17', motor_c='25',
         fluids=('ok', [], 8, 8),
     )
+
+
+def recovering():
+    """The same panel while the car is giving energy back, and the engine asleep.
+
+    Worth drawing because it is the state that proves the rule: one glance and
+    everything that means "coming back" is blue at once - the lit run on the
+    dial, the tail of the consumption history, and the engine's flat nought
+    where its generation would be. Nothing has to be read.
+    """
+    v = values()
+    trace = list(v['use_trace'])
+    for i in range(len(trace) - 7, len(trace)):
+        t = (i - (len(trace) - 8)) / 7.0
+        trace[i] = round(-6.0 - 20.0 * t, 2)
+    v.update(kw='38', use='9,4', use_trace=trace, rpm='0',
+             rpm_trace=[0.0] * 90, gen_trace=[0.0] * 90)
+    return v
 
 
 FLUID_NAMES = ['давление масла', 'уровень ОЖ', 'масло КПП', 'уровень масла']
@@ -342,25 +536,37 @@ FLUID_NAMES = ['давление масла', 'уровень ОЖ', 'масло
 
 def build():
     v = values()
-    body = ghost() + power_gauge(34.0, v) + energy_half(v) + engine_half(v)
-    open(os.path.join(HERE, 'ClusterNext.dc.html'), 'w').write(page(body))
+    kw = 34.0
+
+    r = recovering()
+    boards = [
+        ('ClusterNext', power_arc(kw, v['kw']), True, v),
+        ('ClusterDial', power_dial(kw, v['kw']), True, v),
+        ('ClusterEdge', power_arc(kw, v['kw']), False, v),
+        ('ClusterRegen', power_dial(-38.0, r['kw']), True, r),
+    ]
+    for name, middle, inward, data in boards:
+        body = (defs() + horizon() + middle
+                + energy_side(data, inward) + engine_side(data, inward))
+        open(os.path.join(HERE, name + '.dc.html'), 'w').write(page(body))
 
     cell_w, cell_h = 380.0, 190.0
     states = [('ok', [], 8, 8), ('partial', [], 5, 8),
               ('alert', FLUID_NAMES[:1], 8, 8), ('alert', FLUID_NAMES, 8, 8)]
-    labels = ['всё в норме · угол пуст', 'часть не ответила', 'одна неисправность', 'четыре']
+    labels = ['всё в норме · угол держит батарею', 'часть не ответила',
+              'одна неисправность', 'четыре']
     body = []
     for i, state in enumerate(states):
         ox, oy = 24 + (i % 2) * (cell_w + 24), 24 + (i // 2) * (cell_h + 24)
         body.append(f'<g transform="translate({f(ox)},{f(oy)})">')
         body.append(f'<rect x="0" y="0" width="{f(cell_w)}" height="{f(cell_h)}" rx="14" '
                     f'fill="#0A0B0D" stroke="rgba(218,225,235,0.10)"/>')
-        body += fluids(state, x_right=cell_w - 22, y0=44.0)
+        body += fluids(state, v, x_right=cell_w - 22, y0=44.0)
         body.append(f'<text class="ghost" x="22" y="{f(cell_h - 16)}">{labels[i]}</text>')
         body.append('</g>')
     open(os.path.join(HERE, 'ClusterFluids.dc.html'), 'w').write(
         page(body, width=24 + 2 * (cell_w + 24), height=24 + 2 * (cell_h + 24)))
-    print('ClusterNext, ClusterFluids')
+    print('ClusterNext, ClusterDial, ClusterEdge, ClusterFluids')
 
 
 if __name__ == '__main__':
