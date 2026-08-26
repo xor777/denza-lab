@@ -190,6 +190,26 @@ measure and cannot see. This page then claimed the two records agreed while
 `104` sat in one and not the other, which is the same failure one level up -
 caught by the parallel session reading both, not by anything here.
 
+## Application icons come off the car
+
+The boards used to draw an application as its initial in a well - "Я", "Н", "2".
+It looked tidy in a way the screen never will: real icons are square, saturated
+and drawn by six different vendors with six different ideas about padding, and a
+row of them is the thing that actually has to hold together. A board that draws
+letters is not showing the problem.
+
+So the icons on `Config.dc.html` are the car's own, cropped out of a screenshot of
+the panel and embedded as base64. Not pulled from the APKs and re-rendered - taken
+as the head unit draws them, adaptive-icon shaping and all. The code was never at
+fault here: `DenzaAppTile` has always taken a `Drawable` from the PackageManager
+and only falls back to the initial when there is genuinely no icon.
+
+Comparing the two also settled an order. The board put our own instruments first;
+the app puts them last, on the reasoning that they are the one choice that can
+never be missing, so leading with them pushes whichever navigator the driver
+actually uses one tile along. That is an argument about the driver's hand rather
+than about implementation, so the board gave way.
+
 ## The boards and the code are joined
 
 A board and the screen it designs are two records of one decision, and for a
