@@ -86,7 +86,13 @@ fun DenzaSheet(
                         else Modifier.width(DenzaMetrics.Component.SHEET_WIDTH),
                     )
                     .background(DenzaColors.SurfaceQuiet)
-                    .padding(DenzaMetrics.Space.XL),
+                    // A rung lower down the sides than across them: the window is 680 dp tall and
+                    // a panel with a header, its settings, an action and a footnote does not fit
+                    // 32 top and bottom. Measured on the board, which overflowed by 7 dp.
+                    .padding(
+                        horizontal = DenzaMetrics.Space.XL,
+                        vertical = DenzaMetrics.Space.L,
+                    ),
                 verticalArrangement = Arrangement.spacedBy(DenzaMetrics.Space.XL),
             ) {
                 // The settings scroll and the action does not. The board hangs the action off the

@@ -22,7 +22,7 @@
     .led { font-family:'Roboto Mono',monospace; font-weight:700; font-size:34px; letter-spacing:5px; color:transparent; background-color:#FEEFAB; background-image:radial-gradient(circle at center, #FEEFAB 41%, transparent 46%); background-size:3.4px 3.4px; -webkit-background-clip:text; background-clip:text; filter:drop-shadow(0 0 7px rgba(254,239,171,0.55)); }
   </style>
 </helmet>
-<div style="width:1280px; height:800px; box-sizing:border-box; background:#07080A; display:flex; flex-direction:column; gap:12px; padding:20px 44px 12px 44px;">
+<div style="width:1280px; height:680px; box-sizing:border-box; background:#07080A; display:flex; flex-direction:column; gap:12px; padding:20px 44px 12px 44px;">
 
   <div style="display:grid; grid-template-columns:repeat(6, minmax(0, 1fr)); gap:12px;">
 
@@ -88,13 +88,6 @@
       </div>
     </div>
 
-    <div class="tile on">
-      <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5l2.6 5.5 5.9 0.8-4.3 4.2 1 5.9-5.2-2.8-5.2 2.8 1-5.9L3.5 9.8l5.9-0.8z"></path></svg>
-      <div style="display:flex; flex-direction:column; gap:5px;">
-        <div class="nm" style="color:#DAE1EB;">Кнопка на руле</div>
-        <div class="st" style="color:#86909B;">Экран водителя</div>
-      </div>
-    </div>
 
     <div class="tile on">
       <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="12" r="9"></circle><path d="M3.4 9.5h17.2M3.4 14.5h17.2"></path><path d="M12 3a15 15 0 0 0 0 18 15 15 0 0 0 0-18z"></path></svg>
@@ -185,7 +178,7 @@
   </div>
 </div>
 </x-dc>
-<script data-dc-script data-props='{"$preview":{"width":1280,"height":800}}'>
+<script data-dc-script data-props='{"$preview":{"width":1280,"height":680}}'>
 class Component extends DCLogic {
   renderVals() {
     return {
