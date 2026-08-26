@@ -27,8 +27,8 @@ class SplitOperationBudgetTest {
         workspace.reportBudget("open")
 
         assertEquals(
-            listOf("open: обращений 2, в shell 0.2 с (очередь 0.0, отправка 0.0, ответ 0.0), "
-                + "разбор 0.0 с, в паузах 0.6 с"),
+            listOf("open: обращений 2, в shell 0.2 с, транспорт (очередь 0.0, отправка 0.0, "
+                + "ответ 0.0), разбор 0.0 с, в паузах 0.6 с"),
             diagnostics,
         )
     }
@@ -42,8 +42,8 @@ class SplitOperationBudgetTest {
         workspace.reportBudget("reconcile")
 
         assertEquals(
-            listOf("reconcile: обращений 1, в shell 0.9 с (очередь 0.0, отправка 0.0, ответ 0.0), "
-                + "разбор 0.0 с, в паузах 0.0 с"),
+            listOf("reconcile: обращений 1, в shell 0.9 с, транспорт (очередь 0.0, отправка 0.0, "
+                + "ответ 0.0), разбор 0.0 с, в паузах 0.0 с"),
             diagnostics,
         )
     }
@@ -65,8 +65,8 @@ class SplitOperationBudgetTest {
         workspace.reportBudget("open")
 
         assertEquals(
-            listOf("open: обращений 1, в shell 3.9 с (очередь 0.0, отправка 0.0, ответ 0.0), "
-                + "разбор 0.0 с, в паузах 0.0 с"),
+            listOf("open: обращений 1, в shell 3.9 с, транспорт (очередь 0.0, отправка 0.0, "
+                + "ответ 0.0), разбор 0.0 с, в паузах 0.0 с"),
             diagnostics,
         )
     }
@@ -94,8 +94,8 @@ class SplitOperationBudgetTest {
             assertTrue("the open sent nothing at all", reached > 0)
             assertEquals(
                 listOf(
-                    "open: обращений $reached, в shell 0.0 с (очередь 0.0, отправка 0.0, " +
-                        "ответ 0.0), разбор 0.0 с, в паузах 0.0 с",
+                    "open: обращений $reached, в shell 0.0 с, транспорт (очередь 0.0, " +
+                        "отправка 0.0, ответ 0.0), разбор 0.0 с, в паузах 0.0 с",
                 ),
                 car.diagnostics.filter { line -> line.startsWith("open: обращений ") },
             )
@@ -124,8 +124,8 @@ class SplitOperationBudgetTest {
 
         assertEquals(
             listOf(
-                "open: обращений 1, в shell 0.0 с (очередь 0.9, отправка 0.1, ответ 1.6), " +
-                    "разбор 0.0 с, в паузах 0.0 с",
+                "open: обращений 1, в shell 0.0 с, транспорт (очередь 0.9, отправка 0.1, " +
+                    "ответ 1.6), разбор 0.0 с, в паузах 0.0 с",
             ),
             diagnostics,
         )
@@ -144,8 +144,8 @@ class SplitOperationBudgetTest {
 
         assertEquals(
             listOf(
-                "open: обращений 1, в shell 0.0 с (очередь 0.0, отправка 0.0, ответ 0.0), " +
-                    "разбор 0.7 с, в паузах 0.0 с",
+                "open: обращений 1, в shell 0.0 с, транспорт (очередь 0.0, отправка 0.0, " +
+                    "ответ 0.0), разбор 0.7 с, в паузах 0.0 с",
             ),
             diagnostics,
         )

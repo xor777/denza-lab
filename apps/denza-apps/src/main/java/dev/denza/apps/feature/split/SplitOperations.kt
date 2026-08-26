@@ -190,11 +190,15 @@ internal class SplitOperationWorkspace(
         // another speaker, which was handing the bytes over and which was the car answering. Only
         // the last of those is the car being slow; the other two are ours to fix, and telling them
         // apart is the whole reason this line exists.
+        //
+        // The three are named as the transport's own share rather than folded into `в shell`,
+        // because they are not the same total: a command the resident helper served never touched
+        // this session, and `в shell` is the wall time of every round trip either way.
         diagnostics.log(
-            "$label: обращений $calls, в shell ${seconds(shell)} с " +
-                "(очередь ${seconds(spend.queuedMs)}, отправка ${seconds(spend.sentMs)}, " +
-                "ответ ${seconds(spend.answeredMs)}), разбор ${seconds(parse)} с, " +
-                "в паузах ${seconds(pause)} с",
+            "$label: обращений $calls, в shell ${seconds(shell)} с, " +
+                "транспорт (очередь ${seconds(spend.queuedMs)}, " +
+                "отправка ${seconds(spend.sentMs)}, ответ ${seconds(spend.answeredMs)}), " +
+                "разбор ${seconds(parse)} с, в паузах ${seconds(pause)} с",
         )
     }
 

@@ -250,8 +250,8 @@ class SplitResidentTest {
 
         assertEquals(
             listOf(
-                "open: обращений 3, в shell 0.0 с (очередь 0.0, отправка 0.0, ответ 0.0), " +
-                    "разбор 0.0 с, в паузах 0.0 с",
+                "open: обращений 3, в shell 0.0 с, транспорт (очередь 0.0, отправка 0.0, " +
+                    "ответ 0.0), разбор 0.0 с, в паузах 0.0 с",
             ),
             diagnostics.filter { line -> line.startsWith("open:") },
         )
