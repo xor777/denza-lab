@@ -42,6 +42,11 @@ internal class SplitOperationWorkspace(
     /** Shared by every read of this operation, dropped by every command that could move a task. */
     private val topology = SplitTopologyCache()
 
+    private val budgetLock = Any()
+    private var shellCalls = 0
+    private var shellMs = 0L
+    private var pauseMs = 0L
+
     private var session: SplitPickerShellSession? = null
 
     val rollback: RollbackExecutor = SplitShellRollbackExecutor(
@@ -80,7 +85,53 @@ internal class SplitOperationWorkspace(
         // here rather than inside the session because the leases this operation takes go straight
         // to the raw shell, and a lease that moved a task would otherwise leave a stale read behind.
         if (!SplitTopologyCache.isTopologyRead(command)) topology.invalidate()
-        return openedHandle().shell(command)
+        val startedAtMs = clock.nowMs()
+        try {
+            return openedHandle().shell(command)
+        } finally {
+            synchronized(budgetLock) {
+                shellCalls += 1
+                shellMs += clock.nowMs() - startedAtMs
+            }
+        }
+    }
+
+    /**
+     * Every settle pause of every recipe, for the same reason [shell] is the one funnel of commands.
+     *
+     * A recipe waits on the firmware far more often than it talks to it, so an operation that is
+     * slow because it is waiting and an operation that is slow because it is asking are two
+     * different defects. The budget line separates them (правка Ф5 волны 15).
+     */
+    fun pause(millis: Long) {
+        val startedAtMs = clock.nowMs()
+        try {
+            sleeper(millis)
+        } finally {
+            synchronized(budgetLock) { pauseMs += clock.nowMs() - startedAtMs }
+        }
+    }
+
+    /**
+     * What this operation cost the car, in the only two currencies it spends: обращения и ожидание.
+     *
+     * One line per operation, written after the operation is over and its transport released, so a
+     * later wave can say whether it made the same scene cheaper instead of guessing. An operation
+     * that touched nothing says nothing (invariant 1, K6/K7).
+     */
+    fun reportBudget(label: String) {
+        val calls: Int
+        val shell: Long
+        val pause: Long
+        synchronized(budgetLock) {
+            calls = shellCalls
+            shell = shellMs
+            pause = pauseMs
+        }
+        if (calls == 0 && pause == 0L) return
+        diagnostics.log(
+            "$label: обращений $calls, в shell ${seconds(shell)} с, в паузах ${seconds(pause)} с",
+        )
     }
 
     fun state(): SplitState = readState()
@@ -107,7 +158,7 @@ internal class SplitOperationWorkspace(
         session ?: SplitPickerShellSession(
             shell = op.fencedShell(::shell),
             apkPath = apkPath,
-            settle = op.fencedPause(sleeper),
+            settle = op.fencedPause(::pause),
             gateLeaseStore = gateLeaseStore,
             topology = topology,
             proxyClasspath = proxyClasspath,
@@ -142,6 +193,9 @@ internal class SplitOperationWorkspace(
 
     private companion object {
         const val ALLOWLIST_COMMAND_PREFIX = "service call activity_task 125 s16 "
+
+        /** Tenths of a second, without a locale of its own; the ring is read, not parsed. */
+        fun seconds(millis: Long): String = "${millis / 1000}.${millis % 1000 / 100}"
     }
 }
 
@@ -450,8 +504,9 @@ internal abstract class SplitCoreOperation<P>(
 }
 
 /**
- * Wraps one operation so that its shell is always closed and its settled state is always published
- * on the worker thread, immediately after the run, for every outcome.
+ * Wraps one operation so that its shell is always closed, its price is always written and its
+ * settled state is always published on the worker thread, immediately after the run, for every
+ * outcome.
  */
 internal class SplitOperationLifecycle(
     private val operation: SplitCoreOperation<*>,
@@ -468,6 +523,9 @@ internal class SplitOperationLifecycle(
             operation.run(op)
         } finally {
             workspace.close()
+            // Правка Ф5 волны 15: the price of the operation, counted by the funnel every command
+            // and every settle pause of it went through, written once the transport is released.
+            workspace.reportBudget(operation.label)
         }
         operation.finished(outcome)
         return outcome
