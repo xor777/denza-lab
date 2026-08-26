@@ -26,6 +26,11 @@ still use the historical `denza-gateway` directory name.
   where experiments live, promotion checklist, live-car debugging rules, and
   the firmware behavior method (corpus-first, reset procedure, one owning
   session).
+- [tools/design-canvas/README.md](tools/design-canvas/README.md) — the twenty
+  artboards the head unit and cluster are drawn from, the two type ramps, how to
+  render a board and how to measure one, and the unit tests that fail when a
+  board and the app disagree. Read it before changing anything under
+  `apps/denza-apps/src/main/java/dev/denza/apps/ui/` or `.../design/`.
 - [docs/instrument-display-findings.md](docs/instrument-display-findings.md) — cluster scene, Mirrors, and navigation status.
 - [docs/dishare-api-notes.md](docs/dishare-api-notes.md) — DiShare/HUD findings.
 - [docs/fse-app-installation.md](docs/fse-app-installation.md) — verified passenger-screen app installation path.
@@ -94,8 +99,15 @@ export ANDROID_HOME=/opt/homebrew/share/android-commandlinetools
   hypothesis test that starts from a documented reset, owned by exactly one
   session at a time. Full rules: `docs/governance.md`, "Firmware Behavior
   Method".
+- UI work starts at the board, not at the screen. `tools/design-canvas/` holds
+  the design; render the board with `shot.py` and put it beside a screenshot of
+  the car before calling a screen finished. Numbers copied off a board are not
+  the same as a screen that looks like it - the first cut matched every value
+  and matched nothing that could be seen.
 - When docs and implementation disagree, follow the code, manifests, and Gradle
-  files, then correct the relevant page.
+  files, then correct the relevant page. A design board is the exception: it and
+  the code are both normative, they are joined by `MainBoardContractTest` and
+  `SpectrumBoardContractTest`, and they move in one change or neither moves.
 - Record durable findings in the closest existing doc, not only in chat. Create a
   new `.md` only when the topic has a durable owner. Parked code → `research/`.
 - Never commit APKs, reverse-engineered APKs, or large extracted binaries

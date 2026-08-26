@@ -29,6 +29,7 @@ that reports what collides.
 | `panel_frame.py` | the shared frame for the four instrument pages; rebuilds Energy |
 | `normalize.py` | maps type, radii, borders and icon weights onto the scales |
 | `audit.py` | opens every board in headless Chrome and reports what collides |
+| `shot.py` | renders one board to a PNG at panel pixels, so it can be looked at |
 
 ## Running the audit
 
@@ -44,6 +45,27 @@ Nothing may sit outside the ramps below.
 
 It knows about occlusion: text under a modal scrim is covered, not colliding, and
 adjacent cells of a segmented control are meant to touch.
+
+## Looking at a board
+
+```bash
+python3 shot.py Main --scale 2
+```
+
+PNGs land in `_shots/`, untracked. Scale 1 is the 1280x800 the head-unit boards
+are drawn in; scale 2 is the 2560x1600 the screen actually has, which is what to
+compare a screenshot of the car against.
+
+A board is not just its `<x-dc>` body: the `<script data-dc-script>` block after
+`</x-dc>` holds the data every `<sc-for>` loops over - the spectrum's bars, a
+picker's applications. A renderer that takes the body alone shows an empty field
+and gives no sign it dropped anything. That happened here, and the empty picture
+was believed over the board: the owner was told the spectrum analyser had never
+been designed while it sat in `Main.dc.html`, drawn, with its own data.
+
+So every line `shot.py` prints ends with `loops: N left: M` - the loops the board
+declares against the ones still standing in the rendered DOM. `left: 0` is the
+only good answer. Anything else is marked HOLES, and the picture is not evidence.
 
 ## The two ramps
 
@@ -70,9 +92,10 @@ Radii are `22 · 12 · 6 · 2` plus a track's own half-height. Borders are one p
 optical weight of `2.0`, so a stroke is `2.0 × 24 ÷ rendered size`.
 
 Sizes that belong to one component rather than to a ladder are named rather than
-placed: the tile is `164`, its icon `26`, an application tile `116` with a `52`
-icon, a picker's grid stops growing at `360`, a row a finger has to hit is `56`
-and a segmented control `42`. They live beside the ladders in `DenzaMetrics` so
+placed: the tile is `164`, its icon `30`, an application tile `96` with a `44`
+icon, a settings panel `480` on the right edge with a `62` action under it, a
+picker's grid stops growing at `360`, a row a finger has to hit is `56` and a
+segmented control `42`. They live beside the ladders in `DenzaMetrics` so
 that a fixed height is a decision with a name on it rather than a number typed
 where it was needed.
 
@@ -99,6 +122,31 @@ measure and cannot see. This page then claimed the two records agreed while
 `104` sat in one and not the other, which is the same failure one level up -
 caught by the parallel session reading both, not by anything here.
 
+## The boards and the code are joined
+
+A board and the screen it designs are two records of one decision, and for a
+while nothing compared them. `audit.py` measures the boards against themselves,
+`DenzaMetricsTest` measures the ladders against themselves, and the only thing
+joining the two was somebody remembering. It did not hold: the first cut of the
+head-unit screen carried every number off `Main.dc.html` and looked nothing like
+it, because the board hangs a tile's words off the bottom edge and the code
+stacked them from the top.
+
+So two unit tests in `:denza-apps` parse the boards at test time and assert the
+Kotlin matches:
+
+| | |
+| --- | --- |
+| `MainBoardContractTest` | reads `Main.dc.html` - tile height, padding, radius, the `space-between` that hangs the words apart, both text styles with their leading, icon size and stroke, grid columns and gap, page margins |
+| `SpectrumBoardContractTest` | reads the analyser out of the same board - band count, bar width fraction, peak height, corner radius, gradient stop, reflection crop and opacity, scanline pitch |
+
+They fail in both directions on purpose. Editing a board without the code breaks
+them, and so does editing the code without the board - which means neither record
+can move alone, and a design change that never reached the app cannot pass CI
+looking finished. What they cannot do is run Compose: they prove the constants
+and the declarations agree, not that the drawn result does. That still takes
+`shot.py` beside a screenshot of the car, which is the step that was skipped.
+
 ## Regenerating and republishing
 
 ```bash
@@ -106,5 +154,13 @@ python3 gen_cluster.py && python3 gen_next.py && python3 gen_kit.py && python3 a
 ```
 
 Then seed a fresh payload with the `design` skill's `seed-canvas.mjs` and publish
-to the existing artifact URL. `normalize.py` and `panel_frame.py` are one-shot
+to the existing canvas, pinned to the runtime it was built for:
+
+    https://claude.ai/code/artifact/f97891c4-0dd3-4467-a879-6a1d59ea8f73
+    contract 0.1.31
+
+That page is the owner's private artifact - the link is here so the canvas can be
+updated rather than forked, not because it opens for everyone. Publishing to a new
+URL leaves two canvases drifting apart, which is the failure this whole directory
+exists to prevent. `normalize.py` and `panel_frame.py` are one-shot
 migrations kept for the record; running them again is harmless but unnecessary.
