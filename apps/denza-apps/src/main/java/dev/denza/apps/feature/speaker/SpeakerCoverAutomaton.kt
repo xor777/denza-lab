@@ -8,16 +8,17 @@ enum class SpeakerCoverPosition {
 }
 
 /**
- * One serialized motor operation.
+ * One serialized motor operation: where the covers should end up, nothing more.
  *
- * [ESTABLISH_OPEN] is the one-time unknown-state sequence: close, then open. The
- * amplifier command is edge-triggered, so a bare open cannot move a fresh car
- * whose last firmware value is already open.
+ * There used to be a third, `ESTABLISH_OPEN`, standing for close-then-open on a car whose cover
+ * position was unknown - the amplifier property is edge-triggered, so a bare open cannot move a car
+ * whose last written value is already open. That belonged here only by accident: the edge is a fact
+ * about the protocol, not about where the covers are, and [SpeakerCoverMotor] now settles it from
+ * the value it remembers writing. Asking for a position is all this ever meant.
  */
 enum class SpeakerCoverMotorAction {
     OPEN,
     CLOSE,
-    ESTABLISH_OPEN,
 }
 
 data class SpeakerCoverMotorRequest(
@@ -65,6 +66,26 @@ class SpeakerCoverAutomaton(
         lastSampleAtMs = null
         lastSampleHadSignal = false
         consecutiveSoundMs = 0L
+        return reconcile(nowMs)
+    }
+
+    /**
+     * The driver moved the covers from the panel.
+     *
+     * A hand on a button outranks whatever the ear was concluding, so this becomes the wish - and
+     * the sound counters restart, or lowering the covers during a track would be undone by the very
+     * next frame of it. The three-second fallback can still raise them again afterwards; that is
+     * the automation working, and the panel says so in as many words.
+     */
+    fun onManualPosition(open: Boolean, nowMs: Long): SpeakerCoverMotorRequest? {
+        desiredOpen = open
+        desiredReason = "вручную"
+        confirmedSilenceMs = 0L
+        consecutiveSoundMs = 0L
+        lastSampleAtMs = null
+        lastSampleHadSignal = false
+        // A hand also clears a cooldown: the driver pressing a button is not the retry timer.
+        retryNotBeforeMs = 0L
         return reconcile(nowMs)
     }
 
@@ -129,9 +150,7 @@ class SpeakerCoverAutomaton(
         pendingAction = null
         if (success) {
             position = when (action) {
-                SpeakerCoverMotorAction.OPEN,
-                SpeakerCoverMotorAction.ESTABLISH_OPEN,
-                -> SpeakerCoverPosition.OPEN
+                SpeakerCoverMotorAction.OPEN -> SpeakerCoverPosition.OPEN
                 SpeakerCoverMotorAction.CLOSE -> SpeakerCoverPosition.CLOSED
             }
             retryNotBeforeMs = 0L
@@ -145,9 +164,7 @@ class SpeakerCoverAutomaton(
         if (pendingAction != null || nowMs < retryNotBeforeMs) return null
         val targetOpen = desiredOpen ?: return null
         val action = when {
-            targetOpen && position == SpeakerCoverPosition.UNKNOWN ->
-                SpeakerCoverMotorAction.ESTABLISH_OPEN
-            targetOpen && position == SpeakerCoverPosition.CLOSED -> SpeakerCoverMotorAction.OPEN
+            targetOpen && position != SpeakerCoverPosition.OPEN -> SpeakerCoverMotorAction.OPEN
             !targetOpen && position != SpeakerCoverPosition.CLOSED -> SpeakerCoverMotorAction.CLOSE
             else -> return null
         }

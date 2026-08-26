@@ -7,18 +7,18 @@ import org.junit.Test
 class SpeakerCoverAutomatonTest {
 
     @Test
-    fun unknownPositionUsesAnEdgeSequenceForTheFirstOpen() {
+    fun unknownPositionAsksForOpenLikeAnyOtherPosition() {
         val automaton = SpeakerCoverAutomaton()
 
         assertEquals(
-            SpeakerCoverMotorAction.ESTABLISH_OPEN,
+            SpeakerCoverMotorAction.OPEN,
             automaton.onImmediateOpen(0L, "known app")?.action,
         )
         assertNull(automaton.onImmediateOpen(1L, "MediaSession"))
 
         assertNull(
             automaton.onMotorResult(
-                SpeakerCoverMotorAction.ESTABLISH_OPEN,
+                SpeakerCoverMotorAction.OPEN,
                 success = true,
                 nowMs = 2L,
             ),
@@ -34,7 +34,7 @@ class SpeakerCoverAutomatonTest {
         assertNull(automaton.onAudioSample(1_000L, hasSignal = true))
         assertNull(automaton.onAudioSample(2_000L, hasSignal = true))
         assertEquals(
-            SpeakerCoverMotorAction.ESTABLISH_OPEN,
+            SpeakerCoverMotorAction.OPEN,
             automaton.onAudioSample(3_000L, hasSignal = true)?.action,
         )
     }
@@ -50,7 +50,7 @@ class SpeakerCoverAutomatonTest {
         assertNull(automaton.onAudioSample(3_000L, hasSignal = true))
         assertNull(automaton.onAudioSample(4_000L, hasSignal = true))
         assertEquals(
-            SpeakerCoverMotorAction.ESTABLISH_OPEN,
+            SpeakerCoverMotorAction.OPEN,
             automaton.onAudioSample(5_000L, hasSignal = true)?.action,
         )
     }
@@ -136,6 +136,6 @@ class SpeakerCoverAutomatonTest {
 
         assertNull(automaton.onMotorResult(first.action, success = false, nowMs = 10L))
         assertNull(automaton.onTick(109L))
-        assertEquals(SpeakerCoverMotorAction.ESTABLISH_OPEN, automaton.onTick(110L)?.action)
+        assertEquals(SpeakerCoverMotorAction.OPEN, automaton.onTick(110L)?.action)
     }
 }

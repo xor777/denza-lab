@@ -37,13 +37,13 @@ class SpeakerCoverService : Service() {
     private var lastProcessedCaptureMs = -1L
     private var destroyed = false
     private var audioAvailable = false
-    private var stopWhenOpen = false
+    private var windingDown = false
 
     private val sampleLoop = object : Runnable {
         override fun run() {
             if (destroyed) return
             val now = SystemClock.uptimeMillis()
-            if (stopWhenOpen) {
+            if (windingDown) {
                 automaton.onTick(now)?.let(::execute)
                 handler.postDelayed(this, SAMPLE_INTERVAL_MS)
                 return
@@ -93,34 +93,44 @@ class SpeakerCoverService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_DISABLE_AND_OPEN) {
-            stopWhenOpen = true
-            val request = automaton.onImmediateOpen(
-                SystemClock.uptimeMillis(),
-                "автоматика выключена",
+            byHand(open = true, thenStop = true)
+            return START_NOT_STICKY
+        }
+        // Raise and lower are the panel's own two buttons, and they answer whether or not the
+        // automation is switched on - the covers are the car's, not the feature's. With it off, the
+        // process exists only long enough to send the command.
+        if (intent?.action == ACTION_RAISE || intent?.action == ACTION_LOWER) {
+            byHand(
+                open = intent.action == ACTION_RAISE,
+                thenStop = !SpeakerCoverSettings.isEnabled(this),
             )
-            if (request != null) {
-                execute(request)
-            } else if (automaton.pendingAction == null &&
-                automaton.position == SpeakerCoverPosition.OPEN
-            ) {
-                stopSelf()
-            }
             return START_NOT_STICKY
         }
         if (!SpeakerCoverSettings.isEnabled(this)) {
             stopSelf()
             return START_NOT_STICKY
         }
-        // Switched back on while the process was still winding down. `stopWhenOpen` is set by the
+        // Switched back on while the process was still winding down. `windingDown` is set by the
         // disable path and was never cleared by anything, so a service that survived being turned
         // off stayed in its stopping mode for the rest of its life: the sample loop took the
         // wind-down branch, nothing published monitoring again, and the tile turned the spinner
         // left behind by the last motor command. Off then on is exactly what a driver does.
-        if (stopWhenOpen) {
-            stopWhenOpen = false
+        if (windingDown) {
+            windingDown = false
             publishMonitoring()
         }
         return START_STICKY
+    }
+
+    /** A position asked for from the panel, which the automation then believes. */
+    private fun byHand(open: Boolean, thenStop: Boolean) {
+        windingDown = thenStop
+        val request = automaton.onManualPosition(open, SystemClock.uptimeMillis())
+        if (request != null) {
+            execute(request)
+        } else if (thenStop && automaton.pendingAction == null) {
+            stopSelf()
+        }
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -161,9 +171,7 @@ class SpeakerCoverService : Service() {
         publish(
             SpeakerCoverRuntimePhase.COMMANDING,
             when (request.action) {
-                SpeakerCoverMotorAction.OPEN,
-                SpeakerCoverMotorAction.ESTABLISH_OPEN,
-                -> "Открываю крышки"
+                SpeakerCoverMotorAction.OPEN -> "Открываю крышки"
                 SpeakerCoverMotorAction.CLOSE -> "Закрываю крышки"
             },
             details = request.reason,
@@ -180,10 +188,7 @@ class SpeakerCoverService : Service() {
                     nowMs = SystemClock.uptimeMillis(),
                 )
                 if (result.isSuccess) {
-                    if (stopWhenOpen &&
-                        automaton.position == SpeakerCoverPosition.OPEN &&
-                        next == null
-                    ) {
+                    if (windingDown && next == null && automaton.pendingAction == null) {
                         stopSelf()
                         return@post
                     }
@@ -295,6 +300,8 @@ class SpeakerCoverService : Service() {
         private const val SAMPLE_INTERVAL_MS = 200L
         private const val ACTION_DISABLE_AND_OPEN =
             "dev.denza.apps.action.DISABLE_SPEAKER_COVERS_AND_OPEN"
+        private const val ACTION_RAISE = "dev.denza.apps.action.RAISE_SPEAKER_COVERS"
+        private const val ACTION_LOWER = "dev.denza.apps.action.LOWER_SPEAKER_COVERS"
 
         @Volatile
         private var active: SpeakerCoverService? = null
@@ -306,6 +313,18 @@ class SpeakerCoverService : Service() {
             } else {
                 app.stopService(Intent(app, SpeakerCoverService::class.java))
             }
+        }
+
+        fun raise(context: Context) = byHand(context, ACTION_RAISE)
+
+        fun lower(context: Context) = byHand(context, ACTION_LOWER)
+
+        private fun byHand(context: Context, action: String) {
+            val app = context.applicationContext
+            ContextCompat.startForegroundService(
+                app,
+                Intent(app, SpeakerCoverService::class.java).setAction(action),
+            )
         }
 
         fun disableAndOpen(context: Context) {

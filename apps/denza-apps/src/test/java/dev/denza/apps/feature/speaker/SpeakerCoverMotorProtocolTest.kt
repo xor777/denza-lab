@@ -42,6 +42,35 @@ class SpeakerCoverMotorProtocolTest {
         assertFalse(SpeakerCoverMotorProtocol.accepted("Result: Parcel('....')"))
     }
 
+    /**
+     * The rule that stopped the covers twitching on every switch-on.
+     *
+     * The old code sent in-then-out whenever it did not know where the covers were, and the car
+     * showed exactly that: two movements, 350 ms apart. A break is needed only when a plain write
+     * would repeat the value the property already holds.
+     */
+    @Test
+    fun aBreakIsNeededOnlyWhenThePropertyAlreadyHoldsTheValueWeWant() {
+        val open = SpeakerCoverMotorProtocol.OPEN
+        val close = SpeakerCoverMotorProtocol.CLOSE
+
+        assertFalse(SpeakerCoverMotorProtocol.needsEdgeBreak(lastWritten = close, target = open))
+        assertFalse(SpeakerCoverMotorProtocol.needsEdgeBreak(lastWritten = open, target = close))
+        assertTrue(SpeakerCoverMotorProtocol.needsEdgeBreak(lastWritten = open, target = open))
+        assertTrue(SpeakerCoverMotorProtocol.needsEdgeBreak(lastWritten = close, target = close))
+    }
+
+    /** Before the first command ever sent, the firmware's value could be either one. */
+    @Test
+    fun anUnwrittenPropertyIsPaidForOnce() {
+        assertTrue(
+            SpeakerCoverMotorProtocol.needsEdgeBreak(
+                lastWritten = null,
+                target = SpeakerCoverMotorProtocol.OPEN,
+            ),
+        )
+    }
+
     @Test
     fun theCommandIsTheDocumentedOne() {
         // AUDIO_RLSA_STATE_SET is 0x16300025 = 372244517, driven as an edge: 1 out, 2 in.

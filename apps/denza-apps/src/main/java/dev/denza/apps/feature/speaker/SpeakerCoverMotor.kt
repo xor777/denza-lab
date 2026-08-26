@@ -30,34 +30,64 @@ internal object SpeakerCoverMotorProtocol {
         return last.toLongOrNull(16)?.toInt() == 1
     }
 
+    fun opposite(value: Int): Int = if (value == OPEN) CLOSE else OPEN
+
+    /**
+     * Whether writing [target] on its own would move nothing.
+     *
+     * The property is edge-triggered, so only a *change* of value reaches the motor. A car whose
+     * last written value is already [target] needs the opposite sent first to make one. We are the
+     * only writer, so [lastWritten] is knowable - except before our first ever command, where the
+     * firmware's value could be either and the break has to be paid once.
+     */
+    fun needsEdgeBreak(lastWritten: Int?, target: Int): Boolean = lastWritten != opposite(target)
+
     const val OPEN = 1
     const val CLOSE = 2
 }
 
 internal object SpeakerCoverMotor {
+    /**
+     * Send the covers where they are wanted, in one visible movement wherever that is possible.
+     *
+     * This used to answer the edge-triggered property by always sending in-then-out whenever it did
+     * not know where the covers were - two commands 350 ms apart, which from the driver's seat is
+     * the covers twitching. That is what the car showed: дёрг-дёрг on every switch-on.
+     *
+     * The mistake was treating one unknown as two. Where the covers *are* is the automaton's
+     * business and can change behind our back, because the amplifier lowers them on its own. What
+     * the property last *saw* is ours alone - we are its only writer - so it can simply be
+     * remembered. Knowing it, the break is needed only when the value we want is the value already
+     * there; and in that case the opposite command asks a motor that is already at that end to go
+     * there again, which moves nothing. Either way the driver sees one movement.
+     */
     fun execute(
         context: Context,
         action: SpeakerCoverMotorAction,
         pause: (Long) -> Unit = Thread::sleep,
     ): String {
+        val target = when (action) {
+            SpeakerCoverMotorAction.OPEN -> SpeakerCoverMotorProtocol.OPEN
+            SpeakerCoverMotorAction.CLOSE -> SpeakerCoverMotorProtocol.CLOSE
+        }
         val session = DenzaLocalAdb.client(context).openPersistentShell()
         return try {
-            when (action) {
-                SpeakerCoverMotorAction.OPEN -> call(session, SpeakerCoverMotorProtocol.OPEN)
-                SpeakerCoverMotorAction.CLOSE -> call(session, SpeakerCoverMotorProtocol.CLOSE)
-                SpeakerCoverMotorAction.ESTABLISH_OPEN -> {
-                    val closed = call(session, SpeakerCoverMotorProtocol.CLOSE)
-                    pause(ESTABLISH_EDGE_PAUSE_MS)
-                    val opened = call(session, SpeakerCoverMotorProtocol.OPEN)
-                    "$closed\n$opened"
-                }
+            val lastWritten = SpeakerCoverSettings.lastCommandValue(context)
+            val prelude = if (SpeakerCoverMotorProtocol.needsEdgeBreak(lastWritten, target)) {
+                val broken = call(context, session, SpeakerCoverMotorProtocol.opposite(target))
+                pause(EDGE_BREAK_PAUSE_MS)
+                "$broken\n"
+            } else {
+                ""
             }
+            prelude + call(context, session, target)
         } finally {
             session.close()
         }
     }
 
     private fun call(
+        context: Context,
         session: dev.denza.disharebridge.LocalAdbClient.PersistentShellSession,
         value: Int,
     ): String {
@@ -65,8 +95,12 @@ internal object SpeakerCoverMotor {
         check(SpeakerCoverMotorProtocol.accepted(output)) {
             output.trim().ifBlank { "autoservice returned no cover acknowledgement" }
         }
+        // Written before the pair is finished on purpose: a process killed between the two halves
+        // of a break leaves a true record of what the property saw, not a hopeful one.
+        SpeakerCoverSettings.rememberCommandValue(context, value)
         return output
     }
 
-    private const val ESTABLISH_EDGE_PAUSE_MS = 350L
+    /** The only knob left if a break ever does become visible on a car. */
+    private const val EDGE_BREAK_PAUSE_MS = 350L
 }
