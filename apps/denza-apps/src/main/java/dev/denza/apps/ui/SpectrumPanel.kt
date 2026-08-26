@@ -10,11 +10,8 @@ import dev.denza.apps.feature.trip.TripPanelView
 /**
  * The strip under the dashboard: the spectrum analyser and the journey's figures.
  *
- * This used to be a pager over three pages - the spectrum, the car's electrical side and its
- * combustion side. The other two are being redrawn against the design boards, and one page behind a
- * pager is worse than no pager at all: the strip still takes the horizontal drag, so a finger that
- * meant to swipe gets a shrug instead of a page. So it is one view again, and the pager comes back
- * when there is something to page to.
+ * This is intentionally one non-interactive view. The former pager and its
+ * vehicle pages are not mounted in the current screen.
  *
  * It answers no touch at all. It carried the hidden diagnostics gesture for exactly one wave, on
  * the reasoning that it was the largest surface on the screen that did nothing when touched - which
@@ -30,7 +27,6 @@ internal fun SpectrumPanel(
         factory = { context -> TripPanelView(context) },
         update = { view ->
             view.narrowLayout = compactLayout
-            view.pageVisible = true
         },
         // A hosted View is positioned through Compose's own view container, where a parent's clip
         // does not reach it on its own.

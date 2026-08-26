@@ -90,13 +90,11 @@ not modified. No `com.byd.avc` crash was observed.
 | `autoservice` (`android.gui.BYDAutoServer`) | SOC, SoH, pack temps, cell mV, 12V, HV, charge, motors, tyres, climate, PM2.5 | on-demand `service call` from shell | shell UID via local ADB; app UID blocked | Shell/system only | Poll a short allowlist through `DenzaLocalAdb`; never from the app process |
 | Raw BYDAuto events/system logs | speed logs, bodywork/settings/safety-belt/PM2.5 events, other CAN-derived events | speed log about 1 Hz; other events vary; some logs are high-rate | system log access / protected BYD permissions | Shell/system only | Diagnostics only |
 
-The `30 Hz` standard-IMU sampling and at-most-`30 FPS` rendering design is now
-implemented in the compile-time-enabled Denza Apps trip/spectrum panel.
-`TripSensorHub` registers gravity, gyroscope, and accelerometer with a
-`33,333 us` sampling-period hint, reads standard GNSS at approximately `1 Hz`,
-and reuses the validated Yandex guidance runtime. This records current product
-wiring, not a fresh performance claim: CPU, thermal, actual delivered sensor
-rate, and long-drive behavior still need a retained live profile.
+The current Denza Apps trip/spectrum panel reads standard GNSS at approximately
+`1 Hz` and reuses the validated Yandex guidance runtime. Its earlier `30 Hz`
+gravity/gyroscope/accelerometer pipeline fed only a permanently hidden
+presentation and was removed from product code on 2026-08-26. The sensor
+findings below remain useful research evidence, not current product wiring.
 
 ## Android inertial sensors
 
@@ -858,7 +856,8 @@ above. These were probe-process failures, not vehicle-process failures.
 
 ## Next useful validation
 
-GNSS/IMU (unchanged from 2026-07-24):
+GNSS/IMU research (unchanged from 2026-07-24; use an isolated probe rather than
+restoring this pipeline to the product):
 
 1. Isolated normal-APK recorder for standard accelerometer, gyroscope,
    gravity/linear acceleration, and GNSS.

@@ -17,14 +17,8 @@ import androidx.lifecycle.findViewTreeLifecycleOwner
  * single [TripPanelRenderer] screen. Relaunching the activity re-attaches to the
  * same trip — the view never owns or resets the engine. Touches do nothing.
  *
- * The whole panel is gated by the compile-time [TripPanelFlag]; when it is off,
- * Compose never adds this view, so nothing here runs.
-
- *
- * Sensors and rendering are fully stopped when the panel is detached or the
- * activity is paused. Swiping to the panel's other page stops only the drawing
- * (see [pageVisible]); the trip keeps recording. The draw path preallocates all
- * Paint state.
+ * Inputs and rendering stop when the panel is detached or the activity is
+ * paused. The draw path preallocates all Paint state.
  */
 @SuppressLint("ViewConstructor")
 class TripPanelView(context: Context) : View(context), Choreographer.FrameCallback {
@@ -45,19 +39,6 @@ class TripPanelView(context: Context) : View(context), Choreographer.FrameCallba
             field = value
             requestLayout()
             invalidate()
-        }
-
-    /**
-     * False while the panel's other page is on screen. The sensor hub keeps
-     * running — the trip is still happening, and GNSS gaps would be real data
-     * loss — but nothing is drawn for a page nobody can see.
-     */
-    var pageVisible: Boolean = true
-        set(value) {
-            if (field == value) return
-            field = value
-            syncLoop()
-            if (value) invalidate()
         }
 
     private val lifecycleObserver = object : DefaultLifecycleObserver {
@@ -101,7 +82,7 @@ class TripPanelView(context: Context) : View(context), Choreographer.FrameCallba
     }
 
     private fun syncLoop() {
-        if (attached && resumed && pageVisible) startLoop() else stopLoop()
+        if (attached && resumed) startLoop() else stopLoop()
     }
 
     private fun startLoop() {

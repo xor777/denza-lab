@@ -48,13 +48,11 @@ class ClusterSceneService : Service() {
     private enum class CameraSource {
         NONE,
         AVC,
-        DVR,
     }
 
     private val handler = Handler(Looper.getMainLooper())
     private var basePresentation: ClusterPresentation? = null
     private var cameraPresentation: ClusterPresentation? = null
-    private var dvrCameraVisible = false
 
     override fun onCreate() {
         super.onCreate()
@@ -68,7 +66,6 @@ class ClusterSceneService : Service() {
             ACTION_STOP -> stopScene()
             ACTION_HIDE_CAMERA -> hideCamera()
             ACTION_SHOW_CAMERA -> showCamera(intent.cameraConfig())
-            ACTION_TOGGLE_DVR_CAMERA -> toggleDvrCamera()
             ACTION_SHOW_MAP -> showMap(intent.mapPlacement())
             ACTION_HIDE_MAP -> hideMap()
             ACTION_SHOW_DASHBOARD -> showDashboard(intent.mapPlacement())
@@ -145,8 +142,6 @@ class ClusterSceneService : Service() {
                 useOverlayWindow,
                 ::onAvcReady,
                 ::onAvcFailure,
-                ::onDvrReady,
-                ::onDvrFailure,
             ).also { it.show() }
 
         return try {
@@ -182,7 +177,6 @@ class ClusterSceneService : Service() {
         }
         try {
             handler.removeCallbacksAndMessages(null)
-            dvrCameraVisible = false
             scene.showCamera(config)
             updateNotification("Starting ${config.side.name.lowercase()} mirror")
         } catch (error: RuntimeException) {
@@ -191,61 +185,6 @@ class ClusterSceneService : Service() {
             cameraPresentation?.dismiss()
             cameraPresentation = null
             updateNotification("Camera stopped safely")
-        }
-    }
-
-    private fun toggleDvrCamera() {
-        if (!ClusterDvrFlag.ENABLED) {
-            Log.i(TAG, "DVR camera toggle ignored: feature retired, see ClusterDvrFlag")
-            return
-        }
-        if (dvrCameraVisible) {
-            hideDvrCamera()
-            return
-        }
-        if (
-            checkSelfPermission(android.Manifest.permission.CAMERA) !=
-            android.content.pm.PackageManager.PERMISSION_GRANTED
-        ) {
-            Log.w(TAG, "DVR camera toggle rejected: CAMERA permission missing")
-            updateNotification("Grant camera access to Denza Apps")
-            return
-        }
-        val mirrorPhase = cameraRuntime.snapshot().phase
-        if (
-            mirrorPhase == CameraRuntimePhase.STARTING ||
-            mirrorPhase == CameraRuntimePhase.READY ||
-            mirrorPhase == CameraRuntimePhase.STOPPING
-        ) {
-            Log.i(TAG, "DVR camera toggle ignored while side camera is active")
-            updateNotification("Side camera is active")
-            return
-        }
-        val scene = prepareCameraScene() ?: return
-        try {
-            handler.removeCallbacksAndMessages(null)
-            dvrCameraVisible = true
-            scene.showDvrCamera()
-            updateNotification("Front camera is active")
-        } catch (error: RuntimeException) {
-            dvrCameraVisible = false
-            Log.e(TAG, "Unable to start DVR camera", error)
-            cameraPresentation?.dismiss()
-            cameraPresentation = null
-            updateNotification("Front camera stopped safely")
-        }
-    }
-
-    private fun hideDvrCamera() {
-        dvrCameraVisible = false
-        val presentation = cameraPresentation
-        cameraPresentation = null
-        if (presentation == null) {
-            updateNotification("Front camera is off")
-            return
-        }
-        presentation.dismissAfterSurfaceRelease {
-            updateNotification("Front camera is off")
         }
     }
 
@@ -329,25 +268,7 @@ class ClusterSceneService : Service() {
         updateNotification("Camera stopped safely")
     }
 
-    private fun onDvrReady(details: String) {
-        if (!dvrCameraVisible) return
-        lastCameraDetails = details
-        Log.i(TAG, "DVR camera ready: $details")
-        updateNotification("Front camera is active")
-    }
-
-    private fun onDvrFailure(details: String) {
-        if (!dvrCameraVisible) return
-        dvrCameraVisible = false
-        lastCameraDetails = details
-        Log.w(TAG, "DVR camera failed: $details")
-        cameraPresentation?.dismiss()
-        cameraPresentation = null
-        updateNotification("Front camera stopped safely")
-    }
-
     private fun stopScene(stopService: Boolean = true) {
-        dvrCameraVisible = false
         cameraRuntime.idle("scene stopped")
         cameraPresentation?.dismiss()
         cameraPresentation = null
@@ -389,8 +310,6 @@ class ClusterSceneService : Service() {
         private val overlayWindow: Boolean,
         private val ready: (String) -> Unit,
         private val failed: (String) -> Unit,
-        private val dvrReady: (String) -> Unit,
-        private val dvrFailed: (String) -> Unit,
     ) : Presentation(context, display) {
         lateinit var mapSurface: SurfaceView
             private set
@@ -401,7 +320,6 @@ class ClusterSceneService : Service() {
         private lateinit var cameraEdgeShade: EdgeShadeView
         private lateinit var diagnosticLayer: FrameLayout
         private lateinit var renderer: AvcCameraRenderer
-        private lateinit var dvrRenderer: DvrCameraRenderer
         private var cameraSource = CameraSource.NONE
         private var dashboardPlacement: ClusterMapPlacement? = null
         private var teardownScheduled = false
@@ -484,14 +402,6 @@ class ClusterSceneService : Service() {
                 override fun onReady(details: String) = ready(details)
                 override fun onFailure(details: String) = failed(details)
             })
-            dvrRenderer = DvrCameraRenderer(
-                context,
-                cameraTexture,
-                object : DvrCameraRenderer.Listener {
-                    override fun onReady(details: String) = dvrReady(details)
-                    override fun onFailure(details: String) = dvrFailed(details)
-                },
-            )
         }
 
         override fun dismiss() {
@@ -598,48 +508,6 @@ class ClusterSceneService : Service() {
             )
         }
 
-        fun showDvrCamera() {
-            stopActiveCamera()
-            hideDiagnostic()
-            val metrics = android.util.DisplayMetrics()
-            @Suppress("DEPRECATION")
-            display.getRealMetrics(metrics)
-            val layout = ClusterLayout(
-                metrics.widthPixels,
-                metrics.heightPixels,
-                ClusterCameraPosition.CENTER,
-            )
-            cameraFrame.layoutParams = FrameLayout.LayoutParams(
-                layout.cameraWidth,
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                Gravity.CENTER_HORIZONTAL or Gravity.TOP,
-            )
-            cameraTexture.layoutParams = matchParent(Gravity.CENTER)
-            cameraTexture.alpha = 1f
-            applyDvrTransform(
-                layout = layout,
-                displayHeight = metrics.heightPixels,
-            )
-            cameraEdgeShade.visibility = View.GONE
-            cameraFrame.visibility = View.VISIBLE
-            cameraSource = CameraSource.DVR
-            dvrRenderer.start()
-        }
-
-        private fun applyDvrTransform(
-            layout: ClusterLayout,
-            displayHeight: Int,
-        ) {
-            val centerX = layout.cameraWidth / 2f
-            val centerY = displayHeight / 2f
-            cameraTexture.setTransform(Matrix())
-            cameraTexture.pivotX = centerX
-            cameraTexture.pivotY = centerY
-            cameraTexture.scaleX = DVR_RENDER_ZOOM
-            cameraTexture.scaleY = DVR_VERTICAL_SCALE * DVR_RENDER_ZOOM
-            cameraTexture.rotation = DVR_ROTATION_DEGREES
-        }
-
         fun showMap(placement: ClusterMapPlacement, consumer: MapSurfaceConsumer) {
             val metrics = android.util.DisplayMetrics()
             @Suppress("DEPRECATION")
@@ -744,7 +612,6 @@ class ClusterSceneService : Service() {
         private fun stopActiveCamera() {
             when (cameraSource) {
                 CameraSource.AVC -> if (::renderer.isInitialized) renderer.stop()
-                CameraSource.DVR -> if (::dvrRenderer.isInitialized) dvrRenderer.stop()
                 CameraSource.NONE -> Unit
             }
             cameraSource = CameraSource.NONE
@@ -1147,7 +1014,6 @@ class ClusterSceneService : Service() {
         private const val ACTION_STOP = "dev.denza.apps.cluster.STOP"
         private const val ACTION_SHOW_CAMERA = "dev.denza.apps.cluster.SHOW_CAMERA"
         private const val ACTION_HIDE_CAMERA = "dev.denza.apps.cluster.HIDE_CAMERA"
-        private const val ACTION_TOGGLE_DVR_CAMERA = "dev.denza.apps.cluster.TOGGLE_DVR_CAMERA"
         private const val ACTION_PREVIEW = "dev.denza.apps.cluster.PREVIEW"
         private const val ACTION_PREVIEW_BASE = "dev.denza.apps.cluster.PREVIEW_BASE"
         private const val ACTION_SHOW_MAP = "dev.denza.apps.cluster.SHOW_MAP"
@@ -1160,9 +1026,6 @@ class ClusterSceneService : Service() {
         private const val EXTRA_VISIBLE = "visible"
         private const val EXTRA_DURATION = "duration"
         private const val EXTRA_MAP_PLACEMENT = "map_placement"
-        private const val DVR_VERTICAL_SCALE = 1.5f
-        private const val DVR_RENDER_ZOOM = 2.0f
-        private const val DVR_ROTATION_DEGREES = -90f
 
         @Volatile private var active: ClusterSceneService? = null
         @Volatile private var pendingMapConsumer: MapSurfaceConsumer? = null
@@ -1186,12 +1049,6 @@ class ClusterSceneService : Service() {
                 .putExtra(EXTRA_POSITION, config.position.name)
                 .putExtra(EXTRA_PROCESSING, config.processingEnabled)
             context.startForegroundService(intent)
-        }
-
-        fun toggleDvrCamera(context: Context) {
-            context.startForegroundService(
-                serviceIntent(context, ACTION_TOGGLE_DVR_CAMERA),
-            )
         }
 
         fun preview(

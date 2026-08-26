@@ -71,29 +71,4 @@ class SolarMathTest {
         assertTrue(!day.hasEvents)
     }
 
-    @Test
-    fun solarNoonElevationAndAzimuthAreSane() {
-        // Moscow solar noon (~12:31 local) on the solstice: high sun, due south.
-        val local = SolarMath.LocalTime(SolarMath.CivilDate(2026, 6, 21), 751.3)
-        val (azimuth, elevation) = SolarMath.position(
-            local,
-            latitudeDeg = 55.7558,
-            longitudeDeg = 37.6173,
-            tzOffsetMinutes = 180,
-        )
-        assertTrue("elevation=$elevation", elevation in 54.0..61.0)
-        assertTrue("azimuth=$azimuth", azimuth in 168.0..192.0)
-    }
-
-    @Test
-    fun nightSunIsBelowHorizon() {
-        val local = SolarMath.LocalTime(SolarMath.CivilDate(2026, 6, 21), 60.0) // 01:00 local
-        val (_, elevation) = SolarMath.position(
-            local,
-            latitudeDeg = 55.7558,
-            longitudeDeg = 37.6173,
-            tzOffsetMinutes = 180,
-        )
-        assertTrue("elevation=$elevation", elevation < 0.0)
-    }
 }

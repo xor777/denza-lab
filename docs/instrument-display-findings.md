@@ -15,8 +15,8 @@ matching the two-layer Denza display composition verified on the car:
   instrument region;
 - a separate `TextureView` presentation on
   `shared_fission_bg_XDJAScreenProjection_1` is the stock-compatible camera
-  overlay layer shared by the mutually exclusive AVC side-camera and Camera2
-  DVR renderers;
+  overlay layer used by the AVC side-camera renderer; the retired Camera2 DVR
+  renderer no longer ships in Denza Apps;
 - camera diagnostics use the same overlay display and appear after the user
   presses **Проверить камеры** or chooses a display in hidden diagnostics.
 
@@ -111,9 +111,8 @@ current selection, so no call site that builds a fresh session can forget it.
 
 Everything the projection path needs and the dashboard does not is skipped: no
 transfer overlay, no split routing lease, no `bypassExternalTaskMoves`, no task
-discovery, no five-second projection health check, and no participation in
-automatic mode - that mode exists to swap a navigator in for the stock map, and
-the dashboard is on the panel because the driver put it there. Two things are
+discovery, and no five-second projection health check. The former hidden
+automatic stock-Map follower was removed from the product. Two things are
 **not** skipped. The cluster display is resolved by the coordinator before the
 intent is sent, because a scene service that cannot find the display writes a
 line in its own notification and stops, which the card would never hear about;
@@ -489,14 +488,16 @@ at `2560x720`; the next press returned it to display `0` and removed display
 `13`. The user confirmed both directions worked correctly. These task and
 display IDs belong only to that run.
 
-When the hidden automatic mode is enabled in a development build, Denza Apps
-checks the selected instrument display once per second. A visible exact
+The former hidden automatic mode checked the selected instrument display once
+per second. A visible exact
 `com.byd.launchermap/com.byd.automap.meter.MeterActivity` task means the stock
 **Map** mode is active; its disappearance means the mode was left. The detector
 uses live root/display relationships and never stores a task, root, or display
 ID. Entering Map projects the selected navigator. Leaving it returns the task
 to display `0`, restores normal bounds, and backgrounds it so the previous IVI
-scene remains visible.
+scene remains visible. This implementation, its persistent ADB shell, and the
+one-second poll were removed on 2026-08-26 because no product UI could enable
+the mode. Manual projection and return remain supported.
 
 Starting or stopping DiShare video creates and removes a separate BYD mirror
 display. During that display churn, `ActivityManager.getRunningTasks()` can
@@ -909,16 +910,16 @@ centered render transform at `2x` provided the requested crop; the camera
 accepted a matching `SCALER_CROP_REGION` request but did not visibly apply it
 to the preview stream.
 
-Denza Apps `0.5.1` uses the same centered camera frame and render transform.
-Its neutral monochrome runtime shader adaptively favors the cleaner green
-channel only for low-saturation shadows, uses nine spatial samples with
+Denza Apps `0.5.1` used the same centered camera frame and render transform.
+Its neutral monochrome runtime shader adaptively favored the cleaner green
+channel only for low-saturation shadows, used nine spatial samples with
 luminance-edge-aware weights to reduce noise without crossing object edges,
-then applies a shadow-only tone curve, a second shadow-contrast curve, and a
-soft highlight shoulder. Saturated red or blue lights retain
+then applied a shadow-only tone curve, a second shadow-contrast curve, and a
+soft highlight shoulder. Saturated red or blue lights retained
 perceptual-luminance weighting instead of being discarded by the green-channel
-preference. The DVR renderer and AVC side-camera
-renderer are mutually exclusive on the shared camera overlay. The active
-Camera2 stream exposes camera `0` in its declared sensor orientation and uses
+preference. The DVR renderer and AVC side-camera renderer were mutually
+exclusive on the shared camera overlay. The evaluated Camera2 stream exposed
+camera `0` in its declared sensor orientation and used
 the live-accepted `-90°` rotation with a `2x` / `3x` crop. A briefly visible
 left-rotated image after one APK replacement was a frozen buffer: CameraService
 had no active client at that moment. `SurfaceTexture` metadata did not
@@ -989,11 +990,11 @@ predictable, and the delivered frames are metadata-identical in both states,
 so no in-app selector survives contact with the evidence. The bounded
 per-session probe in `DvrCameraRenderer` (`files/dvr_probe.log` plus
 `dvr_frame_*.png`, readable via `run-as`; logcat is suppressed wholesale for
-app processes on this firmware) stays in the build and keeps collecting
-orientation evidence whenever the camera runs. The cluster DVR camera toggle
-is retired behind `ClusterDvrFlag` until a selector is accepted; the candidate
-on the shelf is a frame-content detector keyed on the fisheye vignette
-position, choosing between the two known geometry presets.
+app processes on this firmware) collected orientation evidence while that
+renderer remained compiled. On 2026-08-26 the renderer, probe, product toggle,
+and Denza Apps camera capability were deleted instead of retaining an
+unreachable research path. Any future frame-content experiment belongs in an
+isolated probe rather than the product APK.
 
 The app-side shader remains spatial and has no frame history. Camera `0`
 advertises all standard Android noise-reduction modes and its live request

@@ -86,7 +86,6 @@ data class DenzaUiState(
         status = FeatureStatus.READY,
     ),
     val navigationButtonLabel: String = "Открыть",
-    val navigationAutomatic: Boolean = false,
     val navigationSteeringWheelButton: Boolean = false,
     val navigationSteeringWheelButtonReady: Boolean = false,
     val navigationSteeringWheelButtonRepairing: Boolean = false,
@@ -165,7 +164,6 @@ object DenzaAppRepository {
                 navigationSession.resolution,
             ),
             navigationButtonLabel = navigationSession.buttonLabel,
-            navigationAutomatic = NavigationCoordinator.automaticEnabled(),
             navigationSteeringWheelButton = steeringWheelAccess.desired,
             navigationSteeringWheelButtonReady = steeringWheelAccess.ready,
             navigationSteeringWheelButtonRepairing =
@@ -393,10 +391,6 @@ object DenzaAppRepository {
             initialize(context.applicationContext)
         }
         return NavigationCoordinator.performPrimaryAction()
-    }
-
-    fun setNavigationAutomatic(enabled: Boolean) {
-        NavigationCoordinator.setAutomaticEnabled(enabled)
     }
 
     fun setNavigationSteeringWheelButton(enabled: Boolean) {

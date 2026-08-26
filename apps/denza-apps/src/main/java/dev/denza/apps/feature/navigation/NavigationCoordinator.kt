@@ -14,7 +14,6 @@ import dev.denza.apps.feature.cluster.ClusterSceneService
 import dev.denza.apps.feature.cluster.MapSurfaceConsumer
 import dev.denza.apps.feature.split.SplitNavigationReturnPlan
 import dev.denza.apps.feature.split.SplitScreenCoordinator
-import dev.denza.disharebridge.LocalAdbClient
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
@@ -23,7 +22,6 @@ import java.util.concurrent.atomic.AtomicBoolean
 @SuppressLint("StaticFieldLeak")
 object NavigationCoordinator {
     private const val TAG = "DenzaNavigation"
-    private const val AUTOMATIC_POLL_SECONDS = 1L
     private const val PROJECTION_SURFACE_TIMEOUT_MS = 5_000L
     private const val PROJECTION_ROUTING_SETTLE_MS = 900L
     private const val RETURN_SETTLE_MS = 900L
@@ -32,17 +30,10 @@ object NavigationCoordinator {
     @Volatile private var session = NavigationSession()
     @Volatile private var onStateChanged: (() -> Unit)? = null
     @Volatile private var initialized = false
-    @Volatile private var automaticEnabled = false
     @Volatile private var selectedPackage = NavigationAppPolicy.DEFAULT_PACKAGE
     @Volatile private var selectedPlacement = ClusterMapPlacement.FULL
     @Volatile private var dashboardOnCluster = false
-    private var stockModeDetector: StockClusterModeDetector? = null
-    private var lastStockMapVisible: Boolean? = null
-    private var automaticProjectionActive = false
-    private var pendingAutomaticProjection = false
-    private var pendingAutomaticReturn = false
     private var pendingProjectionAfterOpen = false
-    private var stockAdbShell: LocalAdbClient.PersistentShellSession? = null
     private var projectedOrigin: NavigationProjectionOrigin? = null
     private val projectionHealth = NavigationProjectionHealthTracker()
     private val primaryActionPending = AtomicBoolean(false)
@@ -62,22 +53,11 @@ object NavigationCoordinator {
         initialized = true
         selectedPackage = NavigationSettings.selectedPackage(app)
         selectedPlacement = NavigationSettings.placement(app)
-        val adb = DenzaLocalAdb.client(app).openPersistentShell()
-        stockAdbShell = adb
-        stockModeDetector = StockClusterModeDetector(adb::shell)
         executor.execute(::discoverTask)
         executor.scheduleWithFixedDelay(::verifyActiveSession, 5L, 5L, TimeUnit.SECONDS)
-        executor.scheduleWithFixedDelay(
-            ::reconcileAutomaticMode,
-            AUTOMATIC_POLL_SECONDS,
-            AUTOMATIC_POLL_SECONDS,
-            TimeUnit.SECONDS,
-        )
     }
 
     fun snapshot(): NavigationSession = session
-
-    fun automaticEnabled(): Boolean = automaticEnabled
 
     fun selectedPackage(): String = selectedPackage
 
@@ -103,16 +83,11 @@ object NavigationCoordinator {
                 return@execute
             }
             val wasProjected = session.phase == NavigationPhase.PROJECTED
-            val wasAutomatic = automaticProjectionActive
             NavigationSettings.setPlacement(app, placement)
             selectedPlacement = placement
             onStateChanged?.invoke()
             if (!wasProjected) return@execute
-
-            val shouldReproject = !wasAutomatic ||
-                (automaticEnabled && lastStockMapVisible == true)
-            automaticProjectionActive = wasAutomatic && shouldReproject
-            returnToCentralDisplay(focusTask = false, reprojectAfterReturn = shouldReproject)
+            returnToCentralDisplay(focusTask = false, reprojectAfterReturn = true)
         }
     }
 
@@ -125,9 +100,6 @@ object NavigationCoordinator {
                 onStateChanged?.invoke()
                 return@execute
             }
-            automaticProjectionActive = false
-            pendingAutomaticProjection = false
-            pendingAutomaticReturn = false
             pendingProjectionAfterOpen = false
             if (session.phase == NavigationPhase.PROJECTED) {
                 // Whatever is on the cluster belongs to the outgoing choice, and comes off the way
@@ -140,27 +112,7 @@ object NavigationCoordinator {
             }
             NavigationSettings.setSelectedPackage(app, packageName)
             selectedPackage = packageName
-            lastStockMapVisible = null
             discoverTask()
-            if (automaticEnabled) reconcileAutomaticMode()
-        }
-    }
-
-    fun setAutomaticEnabled(enabled: Boolean) {
-        automaticEnabled = enabled
-        onStateChanged?.invoke()
-        executor.execute {
-            lastStockMapVisible = null
-            pendingAutomaticProjection = false
-            pendingAutomaticReturn = false
-            if (enabled) {
-                reconcileAutomaticMode()
-            } else if (automaticProjectionActive) {
-                automaticProjectionActive = false
-                if (session.phase == NavigationPhase.PROJECTED) {
-                    returnToCentralDisplay(focusTask = false)
-                }
-            }
         }
     }
 
@@ -192,8 +144,6 @@ object NavigationCoordinator {
             try {
                 when (action) {
                     NavigationPrimaryAction.RETURN -> {
-                        automaticProjectionActive = false
-                        pendingAutomaticReturn = false
                         if (dashboardSelected()) {
                             hideDashboardOnCluster()
                         } else {
@@ -383,14 +333,6 @@ object NavigationCoordinator {
                 if (pendingProjectionAfterOpen) {
                     pendingProjectionAfterOpen = false
                     projectToCluster()
-                } else if (
-                    pendingAutomaticProjection &&
-                    automaticEnabled &&
-                    lastStockMapVisible == true
-                ) {
-                    pendingAutomaticProjection = false
-                    automaticProjectionActive = true
-                    projectToCluster()
                 } else {
                     finishTransfer()
                 }
@@ -401,7 +343,6 @@ object NavigationCoordinator {
                     TimeUnit.MILLISECONDS,
                 )
             } else {
-                pendingAutomaticProjection = false
                 pendingProjectionAfterOpen = false
                 splitRoutingLease.release()
                 update(
@@ -414,7 +355,6 @@ object NavigationCoordinator {
                 finishTransfer()
             }
         } catch (error: Exception) {
-            pendingAutomaticProjection = false
             pendingProjectionAfterOpen = false
             splitRoutingLease.release()
             val problem = friendlyProxyProblem(error)
@@ -557,9 +497,6 @@ object NavigationCoordinator {
                                 ),
                             )
                             projectionHealth.reset()
-                            val returnImmediately =
-                                pendingAutomaticReturn ||
-                                    (automaticProjectionActive && lastStockMapVisible == false)
                             executor.schedule(
                                 {
                                     if (session.phase == NavigationPhase.PROJECTED) {
@@ -570,11 +507,6 @@ object NavigationCoordinator {
                                 PROJECTION_ROUTING_SETTLE_MS,
                                 TimeUnit.MILLISECONDS,
                             )
-                            if (returnImmediately) {
-                                pendingAutomaticReturn = false
-                                automaticProjectionActive = false
-                                returnToCentralDisplay(focusTask = false)
-                            }
                         } catch (error: Exception) {
                             failProjection(app, taskId, error)
                         }
@@ -815,8 +747,6 @@ object NavigationCoordinator {
     }
 
     private fun finishExternallyEndedProjection(app: Context, taskId: Int?) {
-        automaticProjectionActive = false
-        pendingAutomaticReturn = false
         projectedOrigin = null
         projectionHealth.reset()
         NavigationProxyClient.releaseVirtualDisplay()
@@ -830,8 +760,6 @@ object NavigationCoordinator {
 
     private fun failProjection(app: Context, taskId: Int, error: Exception) {
         Log.w(TAG, "navigation projection failed", error)
-        automaticProjectionActive = false
-        pendingAutomaticReturn = false
         val origin = projectedOrigin
         val ownedDisplayId = NavigationProxyClient.currentVirtualDisplayId()
         val ownedDisplayAlive = ownedDisplayId?.let(
@@ -916,62 +844,6 @@ object NavigationCoordinator {
             ),
         )
         finishTransfer()
-    }
-
-    private fun reconcileAutomaticMode() {
-        if (!automaticEnabled) return
-        // Automatic mode follows the stock cluster in and out of its map screen so a navigator can
-        // take that screen's place. The dashboard is not a navigator and is never swapped in for
-        // the stock map; it is on the panel when the driver put it there.
-        if (dashboardSelected()) return
-        val app = context ?: return
-        val selected = ClusterDisplayResolver.resolve(app)
-        if (selected !is ClusterDisplaySelection.Selected) return
-        val resolvedPackage = NavigationSettings.selectedPackage(app)
-        if (resolvedPackage != selectedPackage && session.phase != NavigationPhase.PROJECTED) {
-            selectedPackage = resolvedPackage
-            discoverTask()
-        }
-        val detector = stockModeDetector ?: return
-        val mapVisible = try {
-            detector.isMapVisible(selected.display.id)
-        } catch (error: Exception) {
-            Log.d(TAG, "stock cluster mode check failed", error)
-            return
-        }
-        if (lastStockMapVisible == mapVisible) return
-        lastStockMapVisible = mapVisible
-        Log.i(TAG, "stock map visible=$mapVisible display=${selected.display.id}")
-        if (mapVisible) onStockMapEntered() else onStockMapExited()
-    }
-
-    private fun onStockMapEntered() {
-        pendingAutomaticReturn = false
-        when (session.phase) {
-            NavigationPhase.READY, NavigationPhase.NEEDS_ACTION -> {
-                if (session.taskId != null) {
-                    automaticProjectionActive = true
-                    projectToCluster()
-                } else {
-                    pendingAutomaticProjection = true
-                    openSelectedApp()
-                }
-            }
-            else -> Unit
-        }
-    }
-
-    private fun onStockMapExited() {
-        pendingAutomaticProjection = false
-        if (!automaticProjectionActive) return
-        when (session.phase) {
-            NavigationPhase.PROJECTED -> {
-                automaticProjectionActive = false
-                returnToCentralDisplay(focusTask = false)
-            }
-            NavigationPhase.PROJECTING -> pendingAutomaticReturn = true
-            else -> automaticProjectionActive = false
-        }
     }
 
     /**

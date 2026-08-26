@@ -389,10 +389,9 @@ that opens Denza Apps:
    Privilege path remains `DenzaLocalAdb` shell writes to PersonBean, same as
    the locale grant.
 
-`StockClusterModeDetector` must be re-checked if `DEFAULT_MAP_SWITCH` moves:
-automatic Map-mode following looks for a visible BYD `MeterActivity` task and
-will go quiet if that task never appears. That is an acceptable trade if the
-feature stays hidden; it is a product bug if the control is shown.
+The former hidden automatic Map-mode follower and its
+`StockClusterModeDetector` were removed on 2026-08-26. Moving
+`DEFAULT_MAP_SWITCH` therefore no longer changes Denza Apps projection state.
 
 Related RF work: the per-app `ru-RU` override for `com.byd.carsettings` in
 [stock-russian-locale.md](stock-russian-locale.md). Shortcuts UI strings stay
@@ -448,8 +447,8 @@ not what this car does.
 
 The map role is shared by voice "navigate to", the Shortcuts `102000` family,
 and the cluster Map mode. The stock map is China-only and this car stays in RF,
-so the role has little to lose — but `StockClusterModeDetector` needs
-re-checking if the role moves.
+so the role has little to lose. Denza Apps no longer follows the stock cluster
+Map task automatically.
 
 The music role is shared by voice "open/play music" and Shortcuts `104451`.
 Taking it from `com.byd.mediacenter` is more user-visible than taking the

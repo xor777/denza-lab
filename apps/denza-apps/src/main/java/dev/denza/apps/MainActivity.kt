@@ -24,7 +24,6 @@ class MainActivity : ComponentActivity() {
                     onMirrorsProcessing = DenzaAppRepository::setMirrorsProcessing,
                     onPreviewMirrors = DenzaAppRepository::previewMirrors,
                     onNavigationAction = DenzaAppRepository::performNavigationAction,
-                    onNavigationAutomatic = DenzaAppRepository::setNavigationAutomatic,
                     onNavigationSteeringWheelButton =
                         DenzaAppRepository::setNavigationSteeringWheelButton,
                     onNavigationPlacement = DenzaAppRepository::setNavigationPlacement,

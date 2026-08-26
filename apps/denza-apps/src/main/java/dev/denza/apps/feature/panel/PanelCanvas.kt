@@ -20,7 +20,7 @@ import dev.denza.apps.design.DenzaPalette
  * name and becomes the vehicle's own blue, which everything that returns energy is drawn in.
  *
  * feature.trip keeps its own [dev.denza.apps.feature.trip.TripPalette], which delegates here for
- * the shared colours and adds the journey thread's time-of-day ramp on top.
+ * the shared colours.
  */
 object PanelPalette {
     val LIVE = DenzaPalette.DATA_PEAK

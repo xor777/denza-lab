@@ -1,95 +1,11 @@
 package dev.denza.apps.feature.trip
 
-/**
- * Pure, Android-free data model for the trip panel.
- *
- * The whole feature is fed exclusively by product-usable inputs (standard Android
- * GNSS, standard IMU sensors, offline sun math, and the app's existing validated
- * Yandex accessibility guidance). See docs/vehicle-data-findings.md for the
- * boundary these types deliberately stay inside.
- */
-
-/**
- * Result of projecting one raw IMU sample onto the gravity (vertical) axis.
- *
- * All three figures are trustworthy as soon as gravity settles (a few seconds).
- * Lateral/longitudinal acceleration are deliberately NOT derived from the IMU
- * anymore — the engine computes them from physics (GNSS speed x yaw rate, and
- * the GNSS speed derivative; see [AxisCalibrator] and [SpeedDynamics]).
- */
-data class AxisReading(
-    /** Linear (gravity-removed) acceleration along the smoothed up axis, m/s^2. Positive = up. */
-    val vertical: Double,
-    /** Magnitude of the horizontal linear acceleration, m/s^2. */
-    val horizontalMagnitude: Double,
-    /** Yaw rate about the vertical axis, rad/s. Positive = left turn. */
-    val yawRate: Double,
-    /**
-     * Horizontal acceleration in a stable 2D basis fixed to the head unit. The
-     * basis orientation is arbitrary — [LongitudinalFusion] learns which
-     * direction in it points forward.
-     */
-    val horizontal1: Double = 0.0,
-    val horizontal2: Double = 0.0,
-)
-
-/** A single (elapsed seconds, meters) sample, used by the climb window. */
-data class ElevationSample(val elapsedSeconds: Double, val altitudeMeters: Double)
-
-/**
- * One decimated point of the whole-trip journey thread. Nothing here is
- * persisted; the list lives and dies with the session.
- *
- * The thread is laid out along travelled distance, not time, so a stop does not
- * stretch it. Altitude is kept raw (metres) rather than pre-normalised: the
- * renderer normalises the whole trip at once against a minimum span, which is
- * what stops flat terrain from being amplified into mountains.
- */
-data class RoutePoint(
-    val elapsedSeconds: Double,
-    /** Travelled distance at this point, metres — the thread's horizontal axis. */
-    val distanceMeters: Double,
-    /** Smoothed altitude, metres; 0 until altitude is trustworthy. */
-    val altitudeMeters: Double,
-    /** Time-of-day colour key in 0..1 (dawn 0 -> day -> golden -> evening -> night 1). */
-    val timeColor: Double,
-    /** IMU energy at that moment in 0..1, modulating thickness/glow. */
-    val energy: Double,
-    /** Heading minus its slow average, radians: how hard the car was turning here. */
-    val turn: Double,
-    /** Calmness in 0..1 (1 = smooth road), widening the soft halo. */
-    val calm: Double,
-)
-
-/**
- * A positioned event caption with a deterministic trigger. The renderer turns
- * [kind] + [value] into Russian text (e.g. a CLIMB is "подъём +N м"), so the
- * model stays presentation-free.
- */
-data class TripEvent(
-    val kind: TripEventKind,
-    /** Meters for CLIMB/DESCENT/CREST; minutes for STOP; unused otherwise. */
-    val value: Double,
-    /** Trip time (seconds) at which the event fired; anchors the layout. */
-    val bornElapsedSeconds: Double,
-    /** 0/1 lane to avoid overlapping captions along the thread. */
-    val lane: Int,
-)
-
-enum class TripEventKind { CLIMB, DESCENT, TURN, CALM, CREST, STOP, SERPENTINE }
-
 /** Remaining-route figures sourced only from validated Yandex guidance. */
 data class GuidanceRemaining(val distanceMeters: Int?, val timeSeconds: Int?)
 
 /** Offline sun facts for the current position. */
 data class SunInfo(
-    val hasPosition: Boolean,
-    val azimuthDeg: Double,
-    val elevationDeg: Double,
-    /** True when the next daylight boundary is a sunset (daytime), false before dawn. */
     val nextIsSunset: Boolean,
-    /** Local clock label of the next boundary, e.g. "19:48". Empty when unknown. */
     val nextEventLabel: String,
-    /** Seconds until the next boundary, or -1 when unknown / polar day-night. */
     val countdownSeconds: Long,
 )

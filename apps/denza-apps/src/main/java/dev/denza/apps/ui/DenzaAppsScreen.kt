@@ -81,7 +81,6 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.core.graphics.drawable.toBitmap
 import dev.denza.apps.DenzaUiState
 import dev.denza.apps.feature.trip.BaseTripRenderer
-import dev.denza.apps.feature.trip.TripPanelFlag
 import dev.denza.apps.NavigationAppChoice
 import dev.denza.apps.SimulcastAppChoice
 import dev.denza.apps.core.FeatureId
@@ -110,8 +109,6 @@ import dev.denza.apps.ui.dashboard.TileId
 import kotlinx.coroutines.flow.StateFlow
 import kotlin.math.roundToInt
 
-private const val SHOW_NAVIGATION_AUTOMATIC = false
-
 @Composable
 fun DenzaAppsRoot(
     state: StateFlow<DenzaUiState>,
@@ -123,7 +120,6 @@ fun DenzaAppsRoot(
     onMirrorsProcessing: (Boolean) -> Unit,
     onPreviewMirrors: () -> Unit,
     onNavigationAction: () -> Unit,
-    onNavigationAutomatic: (Boolean) -> Unit,
     onNavigationSteeringWheelButton: (Boolean) -> Unit,
     onNavigationPlacement: (ClusterMapPlacement) -> Unit,
     onChooseNavigationApp: () -> Unit,
@@ -243,10 +239,9 @@ fun DenzaAppsRoot(
                             enabled = !adbStartupBlocked,
                         )
                         Spacer(Modifier.height(DenzaMetrics.Space.M))
-                        // Only the spectrum, for now. This strip used to page between three
-                        // instrument panels; the other two are being redrawn against the design
-                        // boards, and a pager holding one page is a pager the finger fights.
-                        if (TripPanelFlag.ENABLED && !adbStartupBlocked) {
+                        // The current product strip is one spectrum/trip panel. The former pager
+                        // and its vehicle pages are not mounted on this screen.
+                        if (!adbStartupBlocked) {
                             SpectrumPanel(
                                 compactLayout = compactLayout,
                                 modifier = when (dashboardLayout) {

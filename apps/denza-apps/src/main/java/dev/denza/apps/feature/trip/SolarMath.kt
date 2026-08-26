@@ -1,21 +1,18 @@
 package dev.denza.apps.feature.trip
 
 import kotlin.math.PI
-import kotlin.math.abs
 import kotlin.math.acos
-import kotlin.math.asin
 import kotlin.math.cos
 import kotlin.math.floor
 import kotlin.math.sin
 import kotlin.math.tan
 
 /**
- * Self-contained NOAA solar position / sunrise-sunset math.
+ * Self-contained NOAA sunrise/sunset math.
  *
  * No network, no dependencies. Implements the equations published in the NOAA
  * "General Solar Position Calculations" note (the same ones behind the NOAA
- * Solar Calculator spreadsheet). Angles are in degrees unless noted; azimuth is
- * measured clockwise from geographic north (0 = N, 90 = E, 180 = S, 270 = W).
+ * Solar Calculator spreadsheet). Angles are in degrees unless noted.
  *
  * All inputs are explicit so the whole thing is unit-testable on the JVM with no
  * Android clock or timezone involved.
@@ -131,39 +128,6 @@ object SolarMath {
             alwaysUp = false,
             alwaysDown = false,
         )
-    }
-
-    /** Solar azimuth (clockwise from north) and elevation for a local instant. */
-    fun position(
-        local: LocalTime,
-        latitudeDeg: Double,
-        longitudeDeg: Double,
-        tzOffsetMinutes: Int,
-    ): Pair<Double, Double> {
-        val doy = dayOfYear(local.date)
-        val hourUtc = local.minutesOfDay / 60.0 - tzOffsetMinutes / 60.0
-        val g = gamma(doy, hourUtc)
-        val eqTime = equationOfTime(g)
-        val decl = declination(g)
-        // True solar time (minutes) then hour angle (deg, 0 at solar noon).
-        val timeOffset = eqTime + 4.0 * longitudeDeg - tzOffsetMinutes.toDouble()
-        val trueSolarMin = local.minutesOfDay + timeOffset
-        val haDeg = trueSolarMin / 4.0 - 180.0
-        val haRad = haDeg.toRadians()
-        val latRad = latitudeDeg.toRadians()
-        val sinElev = sin(latRad) * sin(decl) + cos(latRad) * cos(decl) * cos(haRad)
-        val elev = asin(sinElev.coerceIn(-1.0, 1.0))
-        val cosElev = cos(elev)
-        val azimuth = if (abs(cosElev) < 1e-6) {
-            if (haDeg > 0) 180.0 else 0.0
-        } else {
-            val cosAz = ((sin(decl) - sin(latRad) * sinElev) / (cos(latRad) * cosElev))
-                .coerceIn(-1.0, 1.0)
-            var az = acos(cosAz).toDegrees() // 0..180 measured from north
-            if (haDeg > 0) az = 360.0 - az // afternoon -> western half
-            az
-        }
-        return azimuth to elev.toDegrees()
     }
 
     private fun wrapMinutes(minutes: Double): Double {
