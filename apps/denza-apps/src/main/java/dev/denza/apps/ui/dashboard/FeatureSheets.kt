@@ -9,7 +9,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import dev.denza.apps.DenzaUiState
-import dev.denza.apps.core.FeatureId
 import dev.denza.apps.core.FeatureStatus
 import dev.denza.apps.design.DenzaColors
 import dev.denza.apps.design.DenzaMetrics
@@ -38,7 +37,7 @@ import dev.denza.apps.ui.components.DenzaSwitchRow
  */
 @Composable
 fun FeatureSheet(
-    id: FeatureId,
+    id: TileId,
     state: DenzaUiState,
     actions: DashboardActions,
     compact: Boolean,
@@ -46,7 +45,8 @@ fun FeatureSheet(
 ) {
     val tile = DashboardTiles.of(state).first { it.id == id }
     val snapshot = DashboardPress.snapshotOf(id, state)
-    val busy = snapshot.status == FeatureStatus.STARTING || snapshot.status == FeatureStatus.RECOVERING
+    val busy = snapshot?.status == FeatureStatus.STARTING ||
+        snapshot?.status == FeatureStatus.RECOVERING
 
     DenzaSheet(onDismiss = onDismiss, compact = compact) {
         DenzaSheetHeader(
@@ -59,20 +59,27 @@ fun FeatureSheet(
         // Whatever the feature has to say for itself, in the colour that state deserves. It is said
         // once, here, rather than by each sheet in its own words.
         DenzaStatusLine(
-            text = if (snapshot.message == tile.state) "" else snapshot.message,
+            text = snapshot?.message.orEmpty().takeIf { it != tile.state }.orEmpty(),
             tone = tile.tone,
         )
         when (id) {
-            FeatureId.NAVIGATION -> clusterSheet(state, actions, busy)
-            FeatureId.SIMULCAST -> simulcastSheet(state, actions, busy)
-            FeatureId.MIRRORS -> mirrorsSheet(state, actions, busy)
-            FeatureId.SPLIT_SCREEN -> splitSheet(state, actions, busy)
-            FeatureId.HUD_GUIDANCE -> hudSheet(state, actions, busy)
-            FeatureId.FSE_INSTALLER -> passengerSheet(state, actions, busy)
+            TileId.CLUSTER -> clusterSheet(state, actions, busy)
+            TileId.SIMULCAST -> simulcastSheet(state, actions, busy)
+            TileId.MIRRORS -> mirrorsSheet(state, actions, busy)
+            TileId.SPLIT -> splitSheet(state, actions, busy)
+            TileId.HUD -> hudSheet(state, actions, busy)
+            TileId.SPEAKERS -> SpeakerSheet(state, actions, busy)
+            TileId.STEERING_WHEEL -> steeringWheelSheet(state, actions, busy)
+            TileId.LOCALE -> localeSheet(state, actions)
+            TileId.PASSENGER -> passengerSheet(state, actions, busy)
+            // Service is a door: its short press opens the service screen, and a long press has
+            // nothing else of its own to open.
+            TileId.SERVICE -> Unit
         }
-        if (snapshot.details != null) {
+        val details = snapshot?.details
+        if (details != null) {
             Text(
-                text = snapshot.details,
+                text = details,
                 style = MaterialTheme.typography.bodyMedium,
                 color = DenzaColors.MutedDeep,
             )
@@ -229,6 +236,26 @@ private fun hudSheet(state: DenzaUiState, actions: DashboardActions, busy: Boole
     )
 }
 
+/** Playback-driven opening with a deliberately long, silence-only close delay. */
+@Composable
+private fun SpeakerSheet(state: DenzaUiState, actions: DashboardActions, busy: Boolean) {
+    DenzaSwitchRow(
+        title = "Автоматика крышек",
+        subtitle = "Закрывать через 30 минут без звука",
+        checked = state.speakerCovers.desiredEnabled,
+        onCheckedChange = actions.onToggleSpeakerCovers,
+        enabled = !busy,
+    )
+    DenzaSection("Как открываются") {
+        Text(
+            text = "Сразу для известных аудио- и видеоприложений или активной MediaSession; " +
+                "после 3 секунд звука — резервно для остальных.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = DenzaColors.Muted,
+        )
+    }
+}
+
 /** The passenger's screen has one thing to do, so the sheet is that one thing. */
 @Composable
 private fun passengerSheet(state: DenzaUiState, actions: DashboardActions, busy: Boolean) {
@@ -246,6 +273,35 @@ private fun passengerSheet(state: DenzaUiState, actions: DashboardActions, busy:
             onClick = actions.onChooseFseApp,
             modifier = Modifier.fillMaxWidth(),
             enabled = !busy,
+        )
+    }
+}
+
+/**
+ * The button on the wheel: one switch, and the car keeps its own behaviour when it is off.
+ */
+@Composable
+private fun steeringWheelSheet(state: DenzaUiState, actions: DashboardActions, busy: Boolean) {
+    DenzaSection(title = "Что делает кнопка") {
+        DenzaSwitchRow(
+            title = "Открывать экран водителя",
+            checked = state.navigationSteeringWheelButton,
+            onCheckedChange = actions.onNavigationSteeringWheelButton,
+            enabled = !busy && !state.navigationSteeringWheelButtonRepairing,
+        )
+    }
+}
+
+/** Russian in the car's own settings, which is a switch in stock firmware and nothing of ours. */
+@Composable
+private fun localeSheet(state: DenzaUiState, actions: DashboardActions) {
+    val locale = state.stockRussianLocale
+    DenzaSection(title = "Штатные настройки") {
+        DenzaSwitchRow(
+            title = "Русский язык",
+            checked = locale.enabled == true,
+            onCheckedChange = actions.onSetStockRussianLocale,
+            enabled = locale.permissionReady && !locale.running,
         )
     }
 }

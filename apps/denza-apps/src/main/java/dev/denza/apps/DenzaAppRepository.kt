@@ -45,6 +45,9 @@ import dev.denza.apps.feature.split.SplitScreenPhase
 import dev.denza.apps.feature.split.SplitScreenSession
 import dev.denza.apps.feature.split.SplitScreenSettings
 import dev.denza.apps.feature.split.SplitScreenToggleController
+import dev.denza.apps.feature.speaker.SpeakerCoverRuntime
+import dev.denza.apps.feature.speaker.SpeakerCoverService
+import dev.denza.apps.feature.speaker.SpeakerCoverSettings
 import dev.denza.apps.feature.weather.WeatherAdapterScheduler
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -76,6 +79,7 @@ data class DenzaUiState(
     ),
     val splitScreen: FeatureSnapshot = FeatureReducer.disabled(FeatureId.SPLIT_SCREEN),
     val hudGuidance: FeatureSnapshot = FeatureReducer.disabled(FeatureId.HUD_GUIDANCE),
+    val speakerCovers: FeatureSnapshot = FeatureReducer.disabled(FeatureId.SPEAKER_COVERS),
     val fseInstaller: FeatureSnapshot = FeatureSnapshot(
         id = FeatureId.FSE_INSTALLER,
         desiredEnabled = false,
@@ -179,10 +183,16 @@ object DenzaAppRepository {
                 session = splitScreenSession,
             ),
             hudGuidance = evaluateHudGuidance(context),
+            speakerCovers = SpeakerCoverRuntime.featureSnapshot(context),
             adbRescue = adbRescue,
             technicalDetails = supportDiagnostics(context),
             clusterCandidates = ClusterDisplayResolver.candidates(context),
         )
+        // The stock locale is a tile on the main screen now, so it has to be read like every other
+        // tile's state. It used to be probed only when the diagnostics dialog opened, which was
+        // fine while it lived behind seven taps and is not fine on a tile that would otherwise sit
+        // there saying "не проверено" until somebody happened to open service.
+        refreshStockRussianLocale()
     }
 
     fun setSimulcastEnabled(enabled: Boolean) {
@@ -497,6 +507,22 @@ object DenzaAppRepository {
         }
     }
 
+    fun setSpeakerCoversEnabled(enabled: Boolean) {
+        val context = appContext ?: return
+        SpeakerCoverSettings.setEnabled(context, enabled)
+        if (enabled) {
+            mutableState.value = mutableState.value.copy(
+                speakerCovers = FeatureReducer.starting(FeatureId.SPEAKER_COVERS),
+            )
+            SpeakerCoverService.reconcile(context)
+        } else {
+            // A close command suppresses the amplifier's stock auto-lift for this ignition
+            // cycle. Leave the covers physically open when the user turns our automation off.
+            SpeakerCoverService.disableAndOpen(context)
+            refresh()
+        }
+    }
+
     fun selectClusterDisplay(displayId: Int?) {
         val context = appContext ?: return
         ClusterDisplayResolver.saveOverride(context, displayId)
@@ -630,6 +656,7 @@ object DenzaAppRepository {
         reconcileSimulcast(repairMissingSetup = true)
         if (MirrorsSettings.isEnabled(app)) reconcileMirrors()
         reconcileHudNotificationAccess(app)
+        SpeakerCoverService.reconcile(app)
     }
 
     private fun reconcileMirrors() {

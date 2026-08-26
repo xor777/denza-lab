@@ -53,18 +53,11 @@ class DenzaMetricsTest {
         assertEquals(15f, DenzaMetrics.Type.RUNGS.last().value, 1e-4f)
     }
 
-    @Test
-    fun aTileIsTallEnoughToHoldItsOwnTwoLinesWithRoomToSpare() {
-        // Name, state line and the padding either side, measured off Main.dc.html. If a rung moves
-        // and this stops holding, the tile has to be re-measured on the board first.
-        val content = DenzaMetrics.Type.LABEL.value * LINE_HEIGHT +
-            DenzaMetrics.Type.BODY.value * LINE_HEIGHT +
-            DenzaMetrics.Space.L.value * 2
-        assertTrue(
-            "a tile of ${DenzaMetrics.Component.TILE_HEIGHT} cannot hold $content",
-            DenzaMetrics.Component.TILE_HEIGHT.value > content,
-        )
-    }
+    // How tall a tile has to be now lives in MainBoardContractTest, measured against the board
+    // rather than against itself. The version that lived here added one line of name to one line of
+    // caption, never came near the ceiling, and passed for a whole wave while the real case - two
+    // lines over two, which is what "Пассажирский экран" draws - was losing its second line to an
+    // ellipsis on the car.
 
     @Test
     fun aRowIsBigEnoughForAFinger() {

@@ -98,6 +98,19 @@ object DenzaMetrics {
         val BODY: TextUnit = 15.sp
 
         val RUNGS: List<TextUnit> = listOf(DISPLAY, HEADLINE, TITLE, SECTION, LABEL, BODY)
+
+        /**
+         * Leading for a name, a figure or a label - the board's `.nm`.
+         *
+         * A name that wraps is still one name, so its two lines sit closer than two lines of prose
+         * would. This is not decoration: at 19 sp the difference between 1.2 and 1.3 is 2.5 dp a
+         * line, and a tile that holds a two-line name over a two-line caption has about that much
+         * room in hand.
+         */
+        const val LEADING_TIGHT: Float = 1.2f
+
+        /** Leading for anything read as a sentence - the board's `.st`. */
+        const val LEADING_BODY: Float = 1.3f
     }
 
     /**
@@ -119,8 +132,8 @@ object DenzaMetrics {
         /** The dashboard tile, measured off Main.dc.html. */
         val TILE_HEIGHT: Dp = 164.dp
 
-        /** The tile's icon. */
-        val TILE_ICON: Dp = 26.dp
+        /** The tile's icon, at the size the board draws it. */
+        val TILE_ICON: Dp = 30.dp
 
         /** How many tiles a full-width dashboard puts in one row. */
         const val TILE_COLUMNS_WIDE: Int = 6
@@ -136,12 +149,12 @@ object DenzaMetrics {
         val PICKER_HEIGHT: Dp = 360.dp
 
         /**
-         * The bottom strip, where it cannot simply take the space that is left.
+         * The bottom strip in the narrow pane.
          *
-         * On the full width it takes the free zone by weight. The two scrolling panes have no free
-         * zone - weight means nothing inside a vertical scroll - so they are told a height.
+         * The two wide layouts take their height from the strip's own virtual space instead, so
+         * that it is never drawn onto a canvas of a shape it was not laid out for; only the narrow
+         * pane, which reflows into a space of its own, is told a number.
          */
-        val PANEL_HEIGHT_MEDIUM: Dp = 320.dp
         val PANEL_HEIGHT_NARROW: Dp = 660.dp
 
         /** A row a finger has to hit. */

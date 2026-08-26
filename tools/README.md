@@ -78,11 +78,30 @@ Current scripts:
   `AudioSystem.setParameters`. SETs never hand-craft autoservice parcels.
   Default serial `127.0.0.1:5555`; durable results belong to
   `docs/speaker-lift-findings.md`.
+- `audio_fid_sweep.sh` + `audio-fids-dev1002.txt`: read-only sweep of every
+  audio FID this firmware defines (762 entries, generated from the car's own
+  `com.byd.feature.audio.Audio` catalog), plus the media-state FIDs on devices
+  1007/1023. `capture` snapshots a state, `diff` compares two. Only
+  `autoservice` transact 5. Use it instead of eyeballing a handful of FIDs: a
+  sweep across a real cover raise showed the amp reports nothing at all.
+- `speaker_lift_ab.sh`: wraps any action in a before/after sweep and prints the
+  delta, e.g. `speaker_lift_ab.sh localpulse tools/speaker_lift_local_pulse.sh
+  play-path <path>`.
+- `vehicle_speaker_pulse.sh` + `VehicleSpeakerPulse.java`: shell-UID
+  `app_process` probe for the stock "IVI uses the vehicle speaker" path —
+  `setUseVehicleSpeaker`, `isStreamAllowed`, and a plain `MediaPlayer` on a
+  local file. Every run prints the audio-scene and flip FIDs before and after
+  and tails the broker's own logcat lines, so a negative result is provably a
+  negative and not a call that never fired. `prepare` builds and pushes without
+  firing; `run dryrun` resolves every symbol and warns when
+  `requestUseVehicleSpeaker` would be a no-op. All three modes were falsified
+  as cover motors on 2026-08-25.
 - `speaker_lift_local_pulse.sh`: runs the separately verified stock
-  MediaCenter LOCAL `playById`/pause path. Unlike the stream-14 impersonation
-  probe, this path extended the covers from a clean retracted state. Its input
-  is an already indexed local track's canonical IVI path or signed MediaCenter
-  music ID.
+  MediaCenter LOCAL `playById`/pause path. It does extend the covers, but it is
+  superseded: `AUDIO_RLSA_STATE_SET` (`0x16300025`, `1` out / `2` in) moves them
+  both ways silently. Keep this one as the stock-shaped positive control. Its
+  input is an already indexed local track's canonical IVI path or signed
+  MediaCenter music ID.
 - `speaker_lift_yandex_probe.sh`: builds and owns the disposable normal-UID
   `speaker-lift-yandex-probe` APK. `install` preserves existing accessibility
   services, prepares the exact proven one-second LOCAL chime, and enables a

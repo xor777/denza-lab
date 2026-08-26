@@ -3,6 +3,7 @@ package dev.denza.apps.ui.dashboard
 import dev.denza.apps.DenzaUiState
 import dev.denza.apps.core.FeatureId
 import dev.denza.apps.core.FeatureResolution
+import dev.denza.apps.core.FeatureSnapshot
 import dev.denza.apps.feature.cluster.ClusterMapPlacement
 import dev.denza.apps.feature.mirrors.MirrorsPosition
 
@@ -11,8 +12,8 @@ import dev.denza.apps.feature.mirrors.MirrorsPosition
  *
  * The screen used to take twenty-nine separate lambdas and hand each one down by name, which is why
  * adding a feature meant editing a signature, a call site and an activity together. They are the
- * same twenty-nine callbacks; they simply travel as one thing now, so a tile and its settings sheet
- * can be handed the whole vocabulary and pick what they need.
+ * same callbacks; they simply travel as one thing now, so a tile and its settings sheet can be
+ * handed the whole vocabulary and pick what they need.
  */
 data class DashboardActions(
     val onToggleSimulcast: (Boolean) -> Unit,
@@ -29,9 +30,12 @@ data class DashboardActions(
     val onChooseNavigationApp: () -> Unit,
     val onToggleSplitScreen: (Boolean) -> Unit,
     val onToggleHudGuidance: (Boolean) -> Unit,
+    val onToggleSpeakerCovers: (Boolean) -> Unit,
+    val onSetStockRussianLocale: (Boolean) -> Unit,
     val onChooseFseApp: () -> Unit,
     val onOpenClusterPicker: () -> Unit,
-    val onOpenSettings: (FeatureId) -> Unit,
+    val onOpenService: () -> Unit,
+    val onOpenSettings: (TileId) -> Unit,
 )
 
 /**
@@ -48,21 +52,29 @@ object DashboardPress {
             TileAction.CLUSTER_PROJECT -> actions.onNavigationAction()
             TileAction.SIMULCAST_LAUNCH -> actions.onLaunchSimulcast()
             TileAction.PASSENGER_INSTALL -> actions.onChooseFseApp()
+            TileAction.SERVICE_OPEN -> actions.onOpenService()
             TileAction.SETTINGS -> actions.onOpenSettings(tile.id)
             TileAction.TOGGLE -> toggle(tile.id, state, actions)
             TileAction.RESOLVE -> resolve(tile, state, actions)
         }
     }
 
-    private fun toggle(id: FeatureId, state: DenzaUiState, actions: DashboardActions) {
+    private fun toggle(id: TileId, state: DenzaUiState, actions: DashboardActions) {
         when (id) {
-            FeatureId.SIMULCAST -> actions.onToggleSimulcast(!state.simulcast.desiredEnabled)
-            FeatureId.MIRRORS -> actions.onToggleMirrors(!state.mirrors.desiredEnabled)
-            FeatureId.SPLIT_SCREEN -> actions.onToggleSplitScreen(!state.splitScreen.desiredEnabled)
-            FeatureId.HUD_GUIDANCE -> actions.onToggleHudGuidance(!state.hudGuidance.desiredEnabled)
-            // Neither of these is a thing that is on or off, so neither can be toggled; the
-            // registry never asks, and answering with their settings beats answering with nothing.
-            FeatureId.NAVIGATION, FeatureId.FSE_INSTALLER -> actions.onOpenSettings(id)
+            TileId.SIMULCAST -> actions.onToggleSimulcast(!state.simulcast.desiredEnabled)
+            TileId.MIRRORS -> actions.onToggleMirrors(!state.mirrors.desiredEnabled)
+            TileId.SPLIT -> actions.onToggleSplitScreen(!state.splitScreen.desiredEnabled)
+            TileId.HUD -> actions.onToggleHudGuidance(!state.hudGuidance.desiredEnabled)
+            TileId.SPEAKERS -> actions.onToggleSpeakerCovers(!state.speakerCovers.desiredEnabled)
+            TileId.STEERING_WHEEL ->
+                actions.onNavigationSteeringWheelButton(!state.navigationSteeringWheelButton)
+            // Unknown is not off: a locale nobody has read yet is asked to come on, not to stay as
+            // it was, because the driver pressing this tile has said which way they want it.
+            TileId.LOCALE ->
+                actions.onSetStockRussianLocale(state.stockRussianLocale.enabled != true)
+            // None of these is a thing that is on or off, so none can be toggled; the registry
+            // never asks, and answering with their settings beats answering with nothing.
+            TileId.CLUSTER, TileId.PASSENGER, TileId.SERVICE -> actions.onOpenSettings(id)
         }
     }
 
@@ -73,7 +85,8 @@ object DashboardPress {
      * feature has its own way of trying, which is why this is a table and not one call.
      */
     private fun resolve(tile: DashboardTile, state: DenzaUiState, actions: DashboardActions) {
-        when (DashboardTiles.resolutionOf(snapshotOf(tile.id, state))) {
+        val snapshot = snapshotOf(tile.id, state)
+        when (snapshot?.let(DashboardTiles::resolutionOf)) {
             FeatureResolution.SELECT_APPS -> actions.onChooseApps()
             FeatureResolution.SELECT_NAVIGATION_APP -> actions.onChooseNavigationApp()
             FeatureResolution.SELECT_CLUSTER_DISPLAY -> actions.onOpenClusterPicker()
@@ -85,23 +98,28 @@ object DashboardPress {
         }
     }
 
-    private fun retry(id: FeatureId, actions: DashboardActions) {
+    private fun retry(id: TileId, actions: DashboardActions) {
         when (id) {
-            FeatureId.SIMULCAST -> actions.onRepairSimulcast()
-            FeatureId.NAVIGATION -> actions.onNavigationAction()
-            FeatureId.MIRRORS -> actions.onToggleMirrors(true)
-            FeatureId.SPLIT_SCREEN -> actions.onToggleSplitScreen(true)
-            FeatureId.HUD_GUIDANCE -> actions.onToggleHudGuidance(true)
-            FeatureId.FSE_INSTALLER -> actions.onChooseFseApp()
+            TileId.SIMULCAST -> actions.onRepairSimulcast()
+            TileId.CLUSTER -> actions.onNavigationAction()
+            TileId.MIRRORS -> actions.onToggleMirrors(true)
+            TileId.SPLIT -> actions.onToggleSplitScreen(true)
+            TileId.HUD -> actions.onToggleHudGuidance(true)
+            TileId.SPEAKERS -> actions.onToggleSpeakerCovers(true)
+            TileId.PASSENGER -> actions.onChooseFseApp()
+            TileId.STEERING_WHEEL, TileId.LOCALE, TileId.SERVICE -> actions.onOpenSettings(id)
         }
     }
 
-    fun snapshotOf(id: FeatureId, state: DenzaUiState) = when (id) {
+    /** The runtime snapshot behind a tile, or null for the tiles the runtime does not model. */
+    fun snapshotOf(id: TileId, state: DenzaUiState): FeatureSnapshot? = when (id.feature) {
         FeatureId.SIMULCAST -> state.simulcast
         FeatureId.MIRRORS -> state.mirrors
         FeatureId.NAVIGATION -> state.navigation
         FeatureId.SPLIT_SCREEN -> state.splitScreen
         FeatureId.HUD_GUIDANCE -> state.hudGuidance
+        FeatureId.SPEAKER_COVERS -> state.speakerCovers
         FeatureId.FSE_INSTALLER -> state.fseInstaller
+        null -> null
     }
 }

@@ -33,6 +33,7 @@ class MainActivity : ComponentActivity() {
                     onSelectNavigationApp = DenzaAppRepository::selectNavigationApp,
                     onToggleSplitScreen = DenzaAppRepository::setSplitScreenEnabled,
                     onToggleHudGuidance = DenzaAppRepository::setHudGuidanceEnabled,
+                    onToggleSpeakerCovers = DenzaAppRepository::setSpeakerCoversEnabled,
                     onSelectClusterDisplay = DenzaAppRepository::selectClusterDisplay,
                     onRefreshScreenDiagnostics = DenzaAppRepository::refreshScreenDiagnostics,
                     onCheckAdbAccess = DenzaAppRepository::checkAdbAccess,

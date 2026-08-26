@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -40,10 +41,15 @@ import dev.denza.apps.design.DenzaMetrics
  *
  * So the tile carries no controls at all. A short press does the feature's own main action - put the
  * instruments on the cluster, start the projection, raise the speakers - and a long press opens its
- * settings. Nothing on the face of the tile can be pressed by accident on a moving car, and the
- * caption says what is *configured* rather than naming a state: "6 applications", not "enabled".
+ * settings. Nothing on the face of the tile can be pressed by accident on a moving car.
  *
- * [tone] carries the state before any word is read; see [DenzaTileTone].
+ * The composition is the board's: the icon at the top edge, the words at the bottom edge, and the
+ * slack between them rather than under them. The first cut stacked all three from the top and left
+ * the bottom third of every tile empty - the same numbers as the board, in the wrong order, which
+ * is how a screen ends up looking nothing like its design while matching it on paper.
+ *
+ * [tone] carries the state before any word is read; see [DenzaTileTone]. [caption] decides whether
+ * the line under the name is worth the accent; see [DenzaTileCaption].
  */
 @Composable
 fun DenzaTile(
@@ -54,6 +60,7 @@ fun DenzaTile(
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier,
+    caption: DenzaTileCaption = DenzaTileCaption.SETTING,
     enabled: Boolean = true,
 ) {
     val accent = toneAccent(tone)
@@ -82,12 +89,12 @@ fun DenzaTile(
             .padding(DenzaMetrics.Space.L),
     ) {
         Column(
-            modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(DenzaMetrics.Space.S),
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.SpaceBetween,
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
+                verticalAlignment = Alignment.Top,
             ) {
                 Icon(
                     imageVector = icon,
@@ -105,20 +112,22 @@ fun DenzaTile(
                     }
                 }
             }
-            Text(
-                text = name,
-                style = MaterialTheme.typography.titleMedium,
-                color = if (enabled) DenzaColors.Ink else DenzaColors.Muted,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Text(
-                text = state,
-                style = MaterialTheme.typography.bodyMedium,
-                color = toneCaption(tone),
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
+            Column(verticalArrangement = Arrangement.spacedBy(DenzaMetrics.Space.S)) {
+                Text(
+                    text = name,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = if (enabled) DenzaColors.Ink else DenzaColors.Muted,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = state,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = captionColor(tone, caption),
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
     }
 }
@@ -137,16 +146,17 @@ private fun toneAccent(tone: DenzaTileTone): Color = when (tone) {
 /**
  * The state line.
  *
- * On a live tile the caption is the reading - "6 applications", "Instruments, on screen" - and it
- * takes the accent, because on a working tile that line is the thing worth looking at. Everywhere
- * else it stays muted, and only a state the driver has to act on gets an alarm colour: a caption
- * that shouts on a healthy car teaches the driver to stop reading captions.
+ * Only two things earn a colour other than grey here: a live tile whose caption is a reading of
+ * what the feature is doing, and a state the driver has to act on. A caption that shouts on a
+ * healthy car teaches the driver to stop reading captions, and a screen where most captions shout
+ * has no way left to say that one of them matters.
  */
-private fun toneCaption(tone: DenzaTileTone): Color = when (tone) {
-    DenzaTileTone.LIVE -> DenzaColors.Accent
-    DenzaTileTone.IDLE, DenzaTileTone.WORKING -> DenzaColors.Muted
+private fun captionColor(tone: DenzaTileTone, caption: DenzaTileCaption): Color = when (tone) {
     DenzaTileTone.ATTENTION -> DenzaColors.Warning
     DenzaTileTone.BROKEN -> DenzaColors.Danger
+    DenzaTileTone.LIVE ->
+        if (caption == DenzaTileCaption.READING) DenzaColors.Accent else DenzaColors.Muted
+    DenzaTileTone.IDLE, DenzaTileTone.WORKING -> DenzaColors.Muted
 }
 
 private val BUSY_DOT = 18.dp

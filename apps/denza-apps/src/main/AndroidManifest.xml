@@ -142,6 +142,9 @@
             android:exported="false"
             android:foregroundServiceType="dataSync"
             android:process=":weather" />
+        <service
+            android:name=".feature.speaker.SpeakerCoverService"
+            android:exported="false" />
         <receiver
             android:name=".feature.weather.WeatherAdapterReceiver"
             android:enabled="true"

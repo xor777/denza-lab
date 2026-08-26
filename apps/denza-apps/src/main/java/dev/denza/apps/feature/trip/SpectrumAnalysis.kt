@@ -7,6 +7,25 @@ import kotlin.math.log10
 import kotlin.math.pow
 import kotlin.math.sqrt
 
+/** Raw, un-tilted output-mix level shared by drawing and background automation. */
+object SpectrumSignal {
+    fun loudestDb(magnitudes: DoubleArray): Double {
+        var loudest = SpectrumLevels.SILENCE_DB
+        for (magnitude in magnitudes) {
+            val db = if (magnitude <= 0.0) {
+                SpectrumLevels.SILENCE_DB
+            } else {
+                20.0 * log10(magnitude / SpectrumLevels.FULL_SCALE)
+            }
+            if (db > loudest) loudest = db
+        }
+        return loudest
+    }
+
+    fun hasSignal(magnitudes: DoubleArray): Boolean =
+        loudestDb(magnitudes) > SpectrumLevels.SIGNAL_GATE_DB
+}
+
 /**
  * Log-spaced band layout over the Visualizer's FFT output.
  *

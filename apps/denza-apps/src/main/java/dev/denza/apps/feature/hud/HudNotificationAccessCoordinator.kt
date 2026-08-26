@@ -69,6 +69,8 @@ object HudNotificationAccessCoordinator {
     private const val ENABLED_NOTIFICATION_LISTENERS = "enabled_notification_listeners"
     private val executor = Executors.newSingleThreadExecutor()
     private val repairRunning = AtomicBoolean(false)
+    private val callbackLock = Any()
+    private val pendingCallbacks = mutableListOf<() -> Unit>()
 
     @Volatile
     private var phase = HudNotificationAccessPhase.IDLE
@@ -86,11 +88,26 @@ object HudNotificationAccessCoordinator {
             onComplete?.invoke()
             return
         }
-        if (isAccessEnabled(app)) {
+        ensureListenerAccess(app, onComplete)
+    }
+
+    /**
+     * The same enabled listener is also the app's token for MediaSessionManager.
+     * Speaker automation needs that access even when HUD guidance itself is off.
+     */
+    fun ensureMediaSessionAccess(context: Context, onComplete: (() -> Unit)? = null) {
+        ensureListenerAccess(context.applicationContext, onComplete)
+    }
+
+    private fun ensureListenerAccess(context: Context, onComplete: (() -> Unit)?) {
+        if (isAccessEnabled(context)) {
             phase = HudNotificationAccessPhase.ENABLED
             lastFailure = null
             onComplete?.invoke()
             return
+        }
+        if (onComplete != null) {
+            synchronized(callbackLock) { pendingCallbacks += onComplete }
         }
         if (!repairRunning.compareAndSet(false, true)) {
             return
@@ -99,11 +116,11 @@ object HudNotificationAccessCoordinator {
         phase = HudNotificationAccessPhase.REPAIRING
         executor.execute {
             val result = runCatching {
-                val component = listenerComponent(app)
+                val component = listenerComponent(context)
                 HudNotificationAccessRepair(
-                    isEnabled = { isAccessEnabled(app) },
+                    isEnabled = { isAccessEnabled(context) },
                     grant = {
-                        DenzaLocalAdb.client(app).shell(
+                        DenzaLocalAdb.client(context).shell(
                             HudNotificationAccessPolicy.allowCommand(
                                 component.flattenToString(),
                             ),
@@ -119,7 +136,10 @@ object HudNotificationAccessCoordinator {
                 lastFailure = result.exceptionOrNull()?.toString()
             }
             repairRunning.set(false)
-            onComplete?.invoke()
+            val callbacks = synchronized(callbackLock) {
+                pendingCallbacks.toList().also { pendingCallbacks.clear() }
+            }
+            callbacks.forEach { it.invoke() }
         }
     }
 

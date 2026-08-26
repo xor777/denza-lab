@@ -34,6 +34,7 @@ import dev.denza.apps.core.DenzaRuntimeCoordinator;
 import dev.denza.apps.feature.hud.HudGuidanceAccessibilityMonitor;
 import dev.denza.apps.feature.navigation.NavigationSettings;
 import dev.denza.apps.feature.navigation.SteeringWheelKeyInterceptor;
+import dev.denza.apps.feature.speaker.SpeakerCoverService;
 import dev.denza.apps.feature.split.SplitScreenCoordinator;
 import dev.denza.apps.feature.weather.WeatherAdapterScheduler;
 
@@ -161,6 +162,9 @@ public class SimulcastAccessibilityService extends AccessibilityService {
         }
         CharSequence eventPackage = event.getPackageName();
         int type = event.getEventType();
+        if (type == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED && eventPackage != null) {
+            SpeakerCoverService.onForegroundPackage(eventPackage.toString());
+        }
         if ((type == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
                 || type == AccessibilityEvent.TYPE_WINDOWS_CHANGED)) {
             // This already-global observer is an update-stable fallback for the dedicated split

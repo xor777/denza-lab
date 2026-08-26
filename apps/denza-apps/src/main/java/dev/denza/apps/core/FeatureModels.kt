@@ -7,6 +7,7 @@ enum class FeatureId {
     NAVIGATION,
     SPLIT_SCREEN,
     HUD_GUIDANCE,
+    SPEAKER_COVERS,
     FSE_INSTALLER,
 }
 

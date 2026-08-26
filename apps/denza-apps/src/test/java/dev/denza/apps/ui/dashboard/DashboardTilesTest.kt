@@ -20,17 +20,20 @@ import org.junit.Test
 class DashboardTilesTest {
 
     @Test
-    fun theMainScreenCarriesTheSixFeaturesThatAreOnItAndNothingElse() {
-        // Only what is already on the main screen. Weather and the speakers have tiles on the
-        // design board and no toggle anywhere in the app, so they are a later wave, not a move.
+    fun theMainScreenCarriesTheTenReachableTilesAndNothingElse() {
+        // Weather has no user control; every other board entry has a real action behind it.
         assertEquals(
             listOf(
-                FeatureId.NAVIGATION,
-                FeatureId.SIMULCAST,
-                FeatureId.MIRRORS,
-                FeatureId.SPLIT_SCREEN,
-                FeatureId.HUD_GUIDANCE,
-                FeatureId.FSE_INSTALLER,
+                TileId.CLUSTER,
+                TileId.SIMULCAST,
+                TileId.MIRRORS,
+                TileId.SPLIT,
+                TileId.HUD,
+                TileId.SPEAKERS,
+                TileId.STEERING_WHEEL,
+                TileId.LOCALE,
+                TileId.PASSENGER,
+                TileId.SERVICE,
             ),
             DashboardTiles.of(DenzaUiState()).map { it.id },
         )
@@ -78,13 +81,13 @@ class DashboardTilesTest {
     @Test
     fun pressingAProjectionThatIsOffTurnsItOnRatherThanTryingToStartIt() {
         val off = DenzaUiState(simulcast = snapshot(FeatureStatus.OFF, enabled = false))
-        assertEquals(TileAction.TOGGLE, off.tile(FeatureId.SIMULCAST).action)
+        assertEquals(TileAction.TOGGLE, off.tile(TileId.SIMULCAST).action)
 
         val on = DenzaUiState(
             simulcast = snapshot(FeatureStatus.READY, enabled = true),
             selectedAppCount = 2,
         )
-        assertEquals(TileAction.SIMULCAST_LAUNCH, on.tile(FeatureId.SIMULCAST).action)
+        assertEquals(TileAction.SIMULCAST_LAUNCH, on.tile(TileId.SIMULCAST).action)
     }
 
     @Test
@@ -97,13 +100,13 @@ class DashboardTilesTest {
                 resolution = FeatureResolution.SELECT_APPS,
             ),
         )
-        assertEquals(TileAction.RESOLVE, waiting.tile(FeatureId.SIMULCAST).action)
+        assertEquals(TileAction.RESOLVE, waiting.tile(TileId.SIMULCAST).action)
     }
 
     @Test
     fun aFeatureThisCarDoesNotHaveOpensItsSettingsBecauseNothingElseCanSayWhy() {
         val absent = DenzaUiState(mirrors = snapshot(FeatureStatus.UNAVAILABLE))
-        assertEquals(TileAction.SETTINGS, absent.tile(FeatureId.MIRRORS).action)
+        assertEquals(TileAction.SETTINGS, absent.tile(TileId.MIRRORS).action)
     }
 
     @Test
@@ -111,7 +114,7 @@ class DashboardTilesTest {
         // NEEDS_ACTION without a resolution is a state the reducer can produce; sending the press
         // to a chooser that does not exist would leave the tile inert.
         val stuck = DenzaUiState(mirrors = snapshot(FeatureStatus.NEEDS_ACTION, enabled = true))
-        assertEquals(TileAction.TOGGLE, stuck.tile(FeatureId.MIRRORS).action)
+        assertEquals(TileAction.TOGGLE, stuck.tile(TileId.MIRRORS).action)
     }
 
     @Test
@@ -120,10 +123,10 @@ class DashboardTilesTest {
             simulcast = snapshot(FeatureStatus.READY, enabled = true),
             selectedAppCount = 6,
         )
-        assertEquals("6 приложений", chosen.tile(FeatureId.SIMULCAST).state)
+        assertEquals("6 приложений", chosen.tile(TileId.SIMULCAST).state)
 
         val none = DenzaUiState(simulcast = snapshot(FeatureStatus.READY, enabled = true))
-        assertEquals("Выберите приложения", none.tile(FeatureId.SIMULCAST).state)
+        assertEquals("Выберите приложения", none.tile(TileId.SIMULCAST).state)
     }
 
     @Test
@@ -132,10 +135,10 @@ class DashboardTilesTest {
             navigation = snapshot(FeatureStatus.ACTIVE, enabled = true),
             navigationAppLabel = "Приборы",
         )
-        assertEquals("Приборы · на экране", projected.tile(FeatureId.NAVIGATION).state)
+        assertEquals("Приборы · на экране", projected.tile(TileId.CLUSTER).state)
 
         val idle = DenzaUiState(navigationAppLabel = "Приборы")
-        assertEquals("Приборы", idle.tile(FeatureId.NAVIGATION).state)
+        assertEquals("Приборы", idle.tile(TileId.CLUSTER).state)
     }
 
     @Test
@@ -147,7 +150,7 @@ class DashboardTilesTest {
                 message = "Выберите экран",
             ),
         )
-        assertEquals("Выберите экран", waiting.tile(FeatureId.MIRRORS).state)
+        assertEquals("Выберите экран", waiting.tile(TileId.MIRRORS).state)
     }
 
     @Test
@@ -178,7 +181,7 @@ class DashboardTilesTest {
         }
     }
 
-    private fun DenzaUiState.tile(id: FeatureId): DashboardTile =
+    private fun DenzaUiState.tile(id: TileId): DashboardTile =
         DashboardTiles.of(this).first { it.id == id }
 
     private fun snapshot(
@@ -200,6 +203,7 @@ class DashboardTilesTest {
         navigation = snapshot(status),
         splitScreen = snapshot(status),
         hudGuidance = snapshot(status),
+        speakerCovers = snapshot(status),
         fseInstaller = snapshot(status),
     )
 }

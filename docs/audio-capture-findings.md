@@ -23,17 +23,21 @@ specific to the app that happens to be playing.
 ## Product adoption
 
 The Denza Apps trip/spectrum panel is compile-time enabled and uses this
-session-0 `Visualizer` path through `SpectrumSource`. While the panel is visible,
-the same process-scoped hub also reads the active media session and the standard
-Android IMU/GNSS inputs described in
+session-0 `Visualizer` path through `SpectrumSource`. The process-scoped source
+is reference-counted: the visible panel and the optional speaker-cover
+foreground service can share the one global effect without detaching each
+other. While the panel is visible, the same hub also reads the active media
+session and the standard Android IMU/GNSS inputs described in
 [vehicle-data-findings.md](vehicle-data-findings.md). Detaching the panel or
 pausing the Activity releases the visualizer and stops those inputs.
 
 The older mirror-toy, compass, and journey-thread presentation is hidden by
 `TripPanelFlag.LEGACY_INSTRUMENTS=false`; that does not disable the trip runtime
 or the spectrum analyser. The entire panel has no runtime preference. Disabling
-it requires setting `TripPanelFlag.ENABLED=false` and rebuilding, which also
-prevents its sensor, location, audio, and media-session work from starting.
+it requires setting `TripPanelFlag.ENABLED=false` and rebuilding, which
+prevents the panel's sensor, location, audio, and media-session work from
+starting. Speaker-cover automation can still own the shared audio source
+independently when its persistent user toggle is enabled.
 
 ## Evidence
 

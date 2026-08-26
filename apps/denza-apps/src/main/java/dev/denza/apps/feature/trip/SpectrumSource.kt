@@ -6,6 +6,8 @@ import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
 import android.util.Log
+import java.util.Collections
+import java.util.IdentityHashMap
 
 /**
  * Feeds the panel's analyser from whatever the car is playing.
@@ -42,15 +44,23 @@ class SpectrumSource {
     var lastFailure: String? = null
         private set
 
-    private var running = false
+    /**
+     * Session 0 exposes one shared effect, so every in-process consumer must use
+     * this owner set instead of constructing another Visualizer. The trip panel
+     * and the speaker-cover foreground service can therefore overlap safely.
+     */
+    private val owners: MutableSet<Any> =
+        Collections.newSetFromMap(IdentityHashMap<Any, Boolean>())
+
+    private val running: Boolean
+        get() = owners.isNotEmpty()
 
     /** Band centre frequencies for the axis; null until attached. */
     val centreHz: DoubleArray?
         get() = bandMap?.centreHz
 
-    fun start(context: Context) {
-        if (running) return
-        running = true
+    fun start(context: Context, owner: Any = defaultOwner) {
+        if (!owners.add(owner)) return
         val app = context.applicationContext
         handler.removeCallbacks(watchdog)
         handler.postDelayed(watchdog, WATCHDOG_INTERVAL_MS)
@@ -73,8 +83,9 @@ class SpectrumSource {
         }
     }
 
-    fun stop() {
-        running = false
+    fun stop(owner: Any = defaultOwner) {
+        owners.remove(owner)
+        if (running) return
         handler.removeCallbacks(watchdog)
         releaseEffect()
     }
@@ -123,10 +134,20 @@ class SpectrumSource {
      *   caller can settle the display instead of freezing it on the last frame.
      */
     fun snapshot(out: DoubleArray): Boolean {
-        if (!attached) return false
-        if (SystemClock.uptimeMillis() - lastCaptureUptimeMs > STALE_AFTER_MS) return false
+        return snapshotAt(out) != null
+    }
+
+    /**
+     * Copies a fresh frame and returns its capture time. Callers can ignore a
+     * frame they already processed instead of treating repeated polls as more
+     * observed audio.
+     */
+    fun snapshotAt(out: DoubleArray): Long? {
+        if (!attached) return null
+        val capturedAt = lastCaptureUptimeMs
+        if (SystemClock.uptimeMillis() - capturedAt > STALE_AFTER_MS) return null
         synchronized(lock) { shared.copyInto(out) }
-        return true
+        return capturedAt
     }
 
     private fun attach() {
@@ -193,6 +214,8 @@ class SpectrumSource {
 
     companion object {
         private const val TAG = "TripSpectrum"
+
+        private val defaultOwner = Any()
 
         const val BAND_COUNT = 48
 

@@ -82,6 +82,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.core.graphics.drawable.toBitmap
 import dev.denza.apps.DenzaUiState
+import dev.denza.apps.feature.trip.BaseTripRenderer
 import dev.denza.apps.feature.trip.TripPanelFlag
 import dev.denza.apps.NavigationAppChoice
 import dev.denza.apps.SimulcastAppChoice
@@ -105,6 +106,7 @@ import dev.denza.apps.ui.components.DenzaSwitchRow
 import dev.denza.apps.ui.dashboard.DashboardActions
 import dev.denza.apps.ui.dashboard.DashboardGrid
 import dev.denza.apps.ui.dashboard.FeatureSheet
+import dev.denza.apps.ui.dashboard.TileId
 import kotlinx.coroutines.flow.StateFlow
 import kotlin.math.roundToInt
 
@@ -129,6 +131,7 @@ fun DenzaAppsRoot(
     onSelectNavigationApp: (String) -> Unit,
     onToggleSplitScreen: (Boolean) -> Unit,
     onToggleHudGuidance: (Boolean) -> Unit,
+    onToggleSpeakerCovers: (Boolean) -> Unit,
     onSelectClusterDisplay: (Int?) -> Unit,
     onRefreshScreenDiagnostics: () -> Unit,
     onCheckAdbAccess: () -> Unit,
@@ -147,23 +150,15 @@ fun DenzaAppsRoot(
     var showClusterPicker by remember { mutableStateOf(false) }
     var showDiagnostics by remember { mutableStateOf(false) }
     var showAdbRecovery by remember { mutableStateOf(false) }
-    var settingsFor by remember { mutableStateOf<FeatureId?>(null) }
-    // Hidden diagnostics entry: 7 quick taps, each within 3 s of the previous, opens the
-    // diagnostics dialog. No affordance. It used to live on the Трансляция card header, which no
-    // longer exists - a tile spends both its gestures on the feature it names - so it moved to the
-    // spectrum strip, the one large surface on this screen that does nothing else when touched.
-    var diagnosticsTaps by remember { mutableIntStateOf(0) }
-    var lastDiagnosticsTapMs by remember { mutableLongStateOf(0L) }
-    val onDiagnosticsTap = {
-        val now = System.currentTimeMillis()
-        diagnosticsTaps = if (now - lastDiagnosticsTapMs <= 3000L) diagnosticsTaps + 1 else 1
-        lastDiagnosticsTapMs = now
-        if (diagnosticsTaps >= 7) {
-            diagnosticsTaps = 0
-            onRefreshScreenDiagnostics()
-            onRefreshStockRussianLocale()
-            showDiagnostics = true
-        }
+    var settingsFor by remember { mutableStateOf<TileId?>(null) }
+    // Service used to be seven quick taps on an undisclosed part of the screen, with no affordance
+    // and nothing to tell you it had happened. A live run found the other half of that bargain: a
+    // tap that misses the secret door now lands on a tile, and an odd number of them switched the
+    // mirrors off in silence. It is a tile of its own, and the strip below is only a strip again.
+    val openService = {
+        onRefreshScreenDiagnostics()
+        onRefreshStockRussianLocale()
+        showDiagnostics = true
     }
     val adbStartupOverlay = AdbStartupGatePolicy.overlay(uiState.adbRescue)
     val adbStartupBlocked = uiState.adbRescue.phase != AdbRescuePhase.TRUSTED
@@ -188,8 +183,11 @@ fun DenzaAppsRoot(
         onChooseNavigationApp = onChooseNavigationApp,
         onToggleSplitScreen = onToggleSplitScreen,
         onToggleHudGuidance = onToggleHudGuidance,
+        onToggleSpeakerCovers = onToggleSpeakerCovers,
+        onSetStockRussianLocale = onSetStockRussianLocaleEnabled,
         onChooseFseApp = onChooseFseApp,
         onOpenClusterPicker = openClusterPicker,
+        onOpenService = openService,
         onOpenSettings = { settingsFor = it },
     )
 
@@ -200,6 +198,9 @@ fun DenzaAppsRoot(
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val dashboardLayout = DashboardLayoutPolicy.resolve(maxWidth.value.roundToInt())
         val compactLayout = dashboardLayout == DashboardLayoutMode.NARROW
+        val sideMargin = if (compactLayout) DenzaMetrics.Space.L else DenzaMetrics.Space.XXL
+        val contentWidth = (maxWidth - sideMargin * 2).value.coerceAtLeast(1f)
+        val panelHeight = BaseTripRenderer.heightFor(contentWidth).dp
 
         DenzaTheme {
             Surface(modifier = Modifier.fillMaxSize(), color = DenzaColors.Background) {
@@ -218,14 +219,7 @@ fun DenzaAppsRoot(
                                 .verticalScroll(rememberScrollState())
                         }
                             .windowInsetsPadding(WindowInsets.safeDrawing)
-                            .padding(
-                                horizontal = if (compactLayout) {
-                                    DenzaMetrics.Space.L
-                                } else {
-                                    DenzaMetrics.Space.XXL
-                                },
-                                vertical = DenzaMetrics.Space.L,
-                            ),
+                            .padding(horizontal = sideMargin, vertical = DenzaMetrics.Space.L),
                     ) {
                         DashboardGrid(
                             state = uiState,
@@ -247,133 +241,140 @@ fun DenzaAppsRoot(
                         if (TripPanelFlag.ENABLED && !adbStartupBlocked) {
                             SpectrumPanel(
                                 compactLayout = compactLayout,
-                                onHiddenTap = onDiagnosticsTap,
                                 modifier = when (dashboardLayout) {
-                                    DashboardLayoutMode.WIDE ->
-                                        Modifier.fillMaxWidth().weight(1f)
-                                    DashboardLayoutMode.MEDIUM ->
-                                        Modifier.fillMaxWidth().height(MEDIUM_TRIP_PANEL_HEIGHT)
+                                    // The strip draws in a virtual space of its own, and the two
+                                    // wide layouts hand it a box of the same shape. It used to get
+                                    // whatever height was left over, which on this screen was about
+                                    // twice its own: every stroke came out drawn on a canvas
+                                    // stretched vertically, which is why the analyser read as a
+                                    // sparse ripple rather than the columns the board draws.
+                                    DashboardLayoutMode.WIDE,
+                                    DashboardLayoutMode.MEDIUM,
+                                    ->
+                                        Modifier.fillMaxWidth().height(panelHeight)
+                                    // The narrow pane genuinely reflows and has its own space.
                                     DashboardLayoutMode.NARROW ->
                                         Modifier.fillMaxWidth().height(NARROW_TRIP_PANEL_HEIGHT)
                                 },
                             )
+                        }
+                        if (dashboardLayout == DashboardLayoutMode.WIDE) {
+                            Spacer(Modifier.weight(1f))
                         } else {
-                            if (dashboardLayout == DashboardLayoutMode.WIDE) {
-                                Spacer(Modifier.weight(1f))
-                            } else {
-                                Spacer(Modifier.height(DenzaMetrics.Space.M))
-                            }
+                            Spacer(Modifier.height(DenzaMetrics.Space.M))
                         }
                     }
                 }
             }
-        }
+            // Every dialog on this screen lives inside the theme, which is not where they
+            // started. The first cut closed DenzaTheme around the dashboard alone, so the
+            // whole dialog layer fell through to Material's own defaults and drew its
+            // buttons in Material purple - on a screen whose entire point was that there is
+            // one palette. A theme that wraps only the easy half is not a theme.
 
-        settingsFor?.let { id ->
-            FeatureSheet(
-                id = id,
-                state = uiState,
-                actions = dashboardActions,
-                compact = compactLayout,
-                onDismiss = { settingsFor = null },
-            )
-        }
-        if (showDiagnostics) {
-            DiagnosticsDialog(
-                state = uiState,
-                compactLayout = compactLayout,
-                onSelectClusterDisplay = onSelectClusterDisplay,
-                onCheckAdbAccess = onCheckAdbAccess,
-                onRequestAdbAuthorizationOnce = onRequestAdbAuthorizationOnce,
-                onAllowNewAdbAuthorizationAttempt = onAllowNewAdbAuthorizationAttempt,
-                onSetStockRussianLocaleEnabled = onSetStockRussianLocaleEnabled,
-                onDismiss = { showDiagnostics = false },
-            )
-        }
-        if (showClusterPicker) {
-            ClusterDisplayPickerDialog(
-                displays = uiState.clusterCandidates,
-                compactLayout = compactLayout,
-                onSelect = { displayId ->
-                    onSelectClusterDisplay(displayId)
-                    showClusterPicker = false
-                },
-                onRefresh = onRefreshScreenDiagnostics,
-                onDismiss = { showClusterPicker = false },
-            )
-        }
-        if (uiState.appPickerVisible) {
-            AppPickerDialog(
-                apps = uiState.appChoices,
-                compactLayout = compactLayout,
-                selectedCount = uiState.selectedAppCount,
-                message = uiState.appPickerMessage,
-                onToggle = onToggleApp,
-                onDismiss = onCloseAppPicker,
-            )
-        }
-        if (uiState.navigationPickerVisible) {
-            NavigationPickerDialog(
-                apps = uiState.navigationAppChoices,
-                compactLayout = compactLayout,
-                onSelect = onSelectNavigationApp,
-                onDismiss = onCloseNavigationPicker,
-            )
-        }
-        if (uiState.fseInstallerPickerVisible) {
-            FseInstallerPickerDialog(
-                apps = uiState.fseInstallApps,
-                compactLayout = compactLayout,
-                message = uiState.fseInstallerMessage,
-                onInstall = onInstallFseApp,
-                onDismiss = onCloseFseInstallerPicker,
-            )
-        }
-        if (adbStartupOverlay.visible) {
-            AdbStartupOverlay(
-                model = adbStartupOverlay,
-                onPrimaryAction = {
-                    when (adbStartupOverlay.primaryAction) {
-                        AdbStartupPrimaryAction.NONE -> Unit
-                        AdbStartupPrimaryAction.CHECK_ACCESS -> onCheckAdbAccess()
-                        AdbStartupPrimaryAction.REQUEST_AUTHORIZATION ->
-                            onRequestAdbAuthorizationOnce()
-                    }
-                },
-                onOpenRecovery = { showAdbRecovery = true },
-            )
-        }
-        if (adbStartupBlocked && !adbStartupOverlay.visible) {
-            // The normal passive check is intentionally invisible, but no control can race it and
-            // start feature work before the global prerequisite has been proven.
-            val startupInteractionSource = remember { MutableInteractionSource() }
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clickable(
-                        interactionSource = startupInteractionSource,
-                        indication = null,
-                        onClick = {},
-                    ),
-            )
-        }
-        if (showAdbRecovery && adbStartupOverlay.visible) {
-            AdbRecoveryDialog(
-                state = uiState,
-                onCheckAdbAccess = onCheckAdbAccess,
-                onRequestAdbAuthorizationOnce = onRequestAdbAuthorizationOnce,
-                onAllowNewAdbAuthorizationAttempt = onAllowNewAdbAuthorizationAttempt,
-                onDismiss = { showAdbRecovery = false },
-            )
+            settingsFor?.let { id ->
+                FeatureSheet(
+                    id = id,
+                    state = uiState,
+                    actions = dashboardActions,
+                    compact = compactLayout,
+                    onDismiss = { settingsFor = null },
+                )
+            }
+            if (showDiagnostics) {
+                DiagnosticsDialog(
+                    state = uiState,
+                    compactLayout = compactLayout,
+                    onSelectClusterDisplay = onSelectClusterDisplay,
+                    onCheckAdbAccess = onCheckAdbAccess,
+                    onRequestAdbAuthorizationOnce = onRequestAdbAuthorizationOnce,
+                    onAllowNewAdbAuthorizationAttempt = onAllowNewAdbAuthorizationAttempt,
+                    onSetStockRussianLocaleEnabled = onSetStockRussianLocaleEnabled,
+                    onDismiss = { showDiagnostics = false },
+                )
+            }
+            if (showClusterPicker) {
+                ClusterDisplayPickerDialog(
+                    displays = uiState.clusterCandidates,
+                    compactLayout = compactLayout,
+                    onSelect = { displayId ->
+                        onSelectClusterDisplay(displayId)
+                        showClusterPicker = false
+                    },
+                    onRefresh = onRefreshScreenDiagnostics,
+                    onDismiss = { showClusterPicker = false },
+                )
+            }
+            if (uiState.appPickerVisible) {
+                AppPickerDialog(
+                    apps = uiState.appChoices,
+                    compactLayout = compactLayout,
+                    selectedCount = uiState.selectedAppCount,
+                    message = uiState.appPickerMessage,
+                    onToggle = onToggleApp,
+                    onDismiss = onCloseAppPicker,
+                )
+            }
+            if (uiState.navigationPickerVisible) {
+                NavigationPickerDialog(
+                    apps = uiState.navigationAppChoices,
+                    compactLayout = compactLayout,
+                    onSelect = onSelectNavigationApp,
+                    onDismiss = onCloseNavigationPicker,
+                )
+            }
+            if (uiState.fseInstallerPickerVisible) {
+                FseInstallerPickerDialog(
+                    apps = uiState.fseInstallApps,
+                    compactLayout = compactLayout,
+                    message = uiState.fseInstallerMessage,
+                    onInstall = onInstallFseApp,
+                    onDismiss = onCloseFseInstallerPicker,
+                )
+            }
+            if (adbStartupOverlay.visible) {
+                AdbStartupOverlay(
+                    model = adbStartupOverlay,
+                    onPrimaryAction = {
+                        when (adbStartupOverlay.primaryAction) {
+                            AdbStartupPrimaryAction.NONE -> Unit
+                            AdbStartupPrimaryAction.CHECK_ACCESS -> onCheckAdbAccess()
+                            AdbStartupPrimaryAction.REQUEST_AUTHORIZATION ->
+                                onRequestAdbAuthorizationOnce()
+                        }
+                    },
+                    onOpenRecovery = { showAdbRecovery = true },
+                )
+            }
+            if (adbStartupBlocked && !adbStartupOverlay.visible) {
+                // The normal passive check is intentionally invisible, but no control can race it and
+                // start feature work before the global prerequisite has been proven.
+                val startupInteractionSource = remember { MutableInteractionSource() }
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clickable(
+                            interactionSource = startupInteractionSource,
+                            indication = null,
+                            onClick = {},
+                        ),
+                )
+            }
+            if (showAdbRecovery && adbStartupOverlay.visible) {
+                AdbRecoveryDialog(
+                    state = uiState,
+                    onCheckAdbAccess = onCheckAdbAccess,
+                    onRequestAdbAuthorizationOnce = onRequestAdbAuthorizationOnce,
+                    onAllowNewAdbAuthorizationAttempt = onAllowNewAdbAuthorizationAttempt,
+                    onDismiss = { showAdbRecovery = false },
+                )
+            }
         }
     }
 }
 
+/** Узкая панель 1/3 перекомпоновывается в собственное виртуальное пространство 368x660. */
 private val NARROW_TRIP_PANEL_HEIGHT = DenzaMetrics.Component.PANEL_HEIGHT_NARROW
-
-/** Средняя панель 2/3 скроллит по вертикали; нижней панели отдаётся фиксированная высота
- *  порядка свободной зоны полного дашборда (правка W8; живой прогон уточнит). */
-private val MEDIUM_TRIP_PANEL_HEIGHT = DenzaMetrics.Component.PANEL_HEIGHT_MEDIUM
 
 @Composable
 private fun AdbStartupOverlay(
@@ -559,7 +560,7 @@ private fun DiagnosticsDialog(
                     Icon(Icons.Outlined.Build, null, tint = DenzaColors.Accent)
                     Spacer(Modifier.width(DenzaMetrics.Space.M))
                     Text(
-                        "Диагностика",
+                        "Сервис",
                         color = DenzaColors.Ink,
                         fontSize = DenzaMetrics.Type.SECTION,
                         fontWeight = FontWeight.SemiBold,

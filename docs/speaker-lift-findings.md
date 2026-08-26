@@ -20,22 +20,133 @@ The covers are a **Devialet speaker-flip** mechanism, not Dynaudio RLSA.
 | Claim | Result |
 | --- | --- |
 | Hardware present | **Yes.** `AUDIO_SPEAKER_FLIP_COVER_CONFIG` (`0x35A000D8`) = 1. `AUDIO_RLSA_COFIG` (`0x4C000010`) = 0. Amp `0x4FD00030` = **7** (`DEVIALET_20_CHANNEL`). Speakers number = 26. |
-| Auto-lift setting | **Already on.** `AUDIO_SPEAKER_FLIP_SETTING_STATUS` (`0x35A000DA`) = 1. That is why stock music and Bluetooth extend the covers without a third-party helper. |
-| Official raise/lower call | **On RLSA cars.** `setInt(audio=1002, AUDIO_RLSA_STATE_SET=0x16300025, 1/2)`. Same FID for voice 升起/降下扬声器 and DiCar `setRLSAEnable`. **This Devialet car has no RLSA** (`AUDIO_RLSA_COFIG=0`), so that SET is a HAL no-op. |
-| Shell `0x16300025=1` | **Parcel `1` = HAL success** (`BYDAutoManager.setInt` maps raw `1` → Java `0`). `AUDIO_RLSA_STATE` stayed 0. Covers did **not** move (user live 2026-08-22). |
+| Auto-lift setting | `AUDIO_SPEAKER_FLIP_SETTING_STATUS` (`0x35A000DA`) read `1` until 2026-08-25 — that is why stock music and Bluetooth extend the covers without a helper. It is the amp's **setting**, not a cover-position readout: it stayed `1` throughout a MediaCenter raise. It now reads `2`; see "Direct cover control". |
+| Direct raise/lower call | **Works on this car** (user live 2026-08-25). `setInt(audio=1002, AUDIO_RLSA_STATE_SET=0x16300025, value)`: `2` retracts the covers, `1` extends them. No audio, no MediaCenter, no reboot. `AUDIO_RLSA_COFIG=0` does **not** make this SET a no-op. |
+| Why the 2026-08-22 run showed nothing | **Null experiment, not a negative result.** The value written was `1` while the amp already reported `1`, and the observable watched was `AUDIO_RLSA_STATE` (`0x4C00000B`), which is always 0 on a Devialet amp. The signal is **edge-triggered** — rewriting the current value cannot move anything. The Devialet-side echo is `AUDIO_SPEAKER_FLIP_SETTING_STATUS` (`0x35A000DA`). |
 | Shell media-source SET | **Wrong lever.** Write changed STATE `1`→`6`, no extend. Live BT with covers out still has STATE **1**. |
 | Play-state / mute SETs | HAL `1`. `AUDIO_MEDIA_SOUND_MUTE_STATE` stayed `1` after SET `0`. Single-int `WORKING_STATE_SET` has no GET. Wrong shape vs stock (stock writes an **intArray** of two FIDs). |
 | Confirmed raise trigger | **Stock LOCAL playback through `com.byd.mediacenter`.** From a clean reboot with the covers retracted, `MediaAction=14` (`playById`) started a 1.729 s local OGG; the user confirmed that the covers extended. The track was `STREAM_MUSIC=3`, not BT stream 14. |
-| Why Yandex Music does not extend | **Not** MCU source/volume, focus attributes, `STREAM_BT_MUSIC=14`, or `startAudioOutput`. The decisive observed difference is that the working player belongs to `com.byd.mediacenter` and reaches native MediaPlayer as `mIsLocalSource=true`. Whether the gate uses package identity or that native local-source flag remains unproved. |
+| Why Yandex Music does not extend | **Not** MCU source/volume, focus attributes, `STREAM_BT_MUSIC=14`, or `startAudioOutput`. Yandex plays through ExoPlayer/`AudioTrack` and never enters `MediaPlayer.startImpl()`. That `startImpl` is the stock Java gate: it calls `AudioManager.isStreamAllowed(stream, pkg)`, and for streams `3/2/0` that call **side-effects** `IviVehicleAudioBroker.setUseVehicleSpeaker()`. `mIsLocalSource` is only `setDataSource(FileDescriptor) → true`; it does **not** drive the motor and does **not** bypass the stream check when the file has an audio track. |
 | Stock Java visualizer call | **Lights only.** `startAudioOutput` → transact **20** → `AtmosphereLampCore` → MCU `[0x43E00040, 0x43E00044] = [2, 1]`. Live 18:46:12. No cover motion. |
 | Normal `/data/app` APK | **Blocked** for `BYDAutoAudioDevice.set` (`android.permission.BYDAUTO_AUDIO_SET`). **Not blocked** for `startAudioOutput`: `BydAudioService` does not check permission or that the caller owns `pkg`. Do not put `BYDAUTO_*` in a product manifest. |
 
-Do not treat “turn on auto-lift” as the missing step. It is already 1. Shell
-`autoservice` SETs, BT-shaped focus/tracks, and the stock visualizer
-`startAudioOutput` path do not move these covers. Do not guess more FIDs. The
-working lever is a short stock LOCAL playback pulse through MediaCenter.
+The lever is `AUDIO_RLSA_STATE_SET`, written as an **edge**. The MediaCenter
+LOCAL pulse below was the first stock-shaped raise, but it is not the product
+path: it is audible, seizes MediaCenter, cannot retract, and stopped raising the
+covers after the first direct `2` latched the amp's auto-lift setting off.
 
-## Confirmed working path (2026-08-22 20:19)
+## Direct cover control (2026-08-25, live-proven both ways)
+
+One FID moves the motor in both directions, with nothing playing:
+
+```bash
+# retract
+adb -s 127.0.0.1:5555 shell "service call autoservice 6 i32 1002 i32 372244517 i32 2 null"
+# extend
+adb -s 127.0.0.1:5555 shell "service call autoservice 6 i32 1002 i32 372244517 i32 1 null"
+```
+
+`372244517` = `0x16300025` = `AUDIO_RLSA_STATE_SET`, device `1002`. Values are
+`DevialetStatusData.SPEAKER_FLIP_COVER_ENABLE = 1` and
+`SPEAKER_FLIP_COVER_DISABLE = 2`. Verified live by the user on 2026-08-25:
+`2` pulled the covers in, `1` pushed them back out, repeatedly.
+
+**Edge, not level.** Writing the value that is already in effect does nothing —
+that is exactly why the 2026-08-22 attempt looked dead. To raise from a state
+that already holds `1`, write `2` first, then `1`.
+
+Raw bytecode of DiCar `CarAmplifierServiceImpl.setRLSAEnable` (jadx `--fallback`,
+because normal decompilation silently drops the Devialet branch and prints an
+empty `if (z) { }`):
+
+```text
+r3 = r1 & 31            # RLSA configs
+if (r3 == 0) goto L37
+if (r6 == 0) goto L3f
+goto L3d
+L37:
+r1 = r1 & 2144          # 0x860 = CommonStatusData.DEVIALET_CONFIGS
+if (r1 == 0) goto L64   # amp not supported
+if (r6 == 0) goto L3f
+L3d: r6 = 1
+L40: setCarProperty("0x16300025", r6)
+L3f: r6 = 2
+```
+
+Both the RLSA branch and the Devialet branch write the **same** FID with the
+**same** `1`/`2`. There is no separate Devialet value and no hidden third
+state. AutoVoice agrees: `MusicHornApiImpl.J()` (`setSpeakerAutomaticLifting`)
+is gated on `p()` = `hasDiWaLeiAutoConfig()` (帝瓦雷 = Devialet, amp ∈ {7,11,18})
+`&& AUDIO_SPEAKER_FLIP_COVER_CONFIG == 1` — both true here — and writes
+`AUDIO_RLSA_STATE_SET`.
+
+### Confirmed: direct retract disables stock auto-lift for the ignition cycle
+
+`AUDIO_SPEAKER_FLIP_SETTING_STATUS` (`0x35A000DA`) is the amp's **auto-lift
+setting**, not a cover-position readout — during the MediaCenter raise it stayed
+`1` while the covers travelled out. Writing `2` moved it `1 → 2`; writing `1`
+afterwards moved the covers but left it reading `2` across repeated reads.
+
+The amp latches into a manual mode on the first `2`. This is not merely a
+cosmetic status: after the covers were retracted and the setting read `2`, the
+previously proven MediaCenter `MediaAction=14` positive control played but did
+**not** extend them. A later direct `1` extends the motor but does not restore
+stock auto-lift. This car exposes no stock speaker auto-lift toggle, and the
+voice-setting path also only writes the same `1`. A power/ignition cycle is the
+remaining expected reset, not yet re-verified after this latch.
+
+Cover position stays unobservable regardless: `AUDIO_SPEAKER_FLIP_COVER_STATUS`
+(`0x3D20001E`) and `AUDIO_SPEAKER_FLIP_COVER_STATUS_SET` (`0x4EF52026`) return
+`−10011` on **all 50** device families, not just on `1002` (swept 2026-08-22).
+
+### Product shape
+
+`BYDAutoAudioDevice.set` needs `android.permission.BYDAUTO_AUDIO_SET`, which must
+not go into a product manifest, so Denza Apps drives this through
+`DenzaLocalAdb` shell, the same route as the BMS FIDs.
+
+## Denza Apps automation (implemented 2026-08-26; live acceptance pending)
+
+The product deliberately replaces the stock auto-lift once enabled. Its
+persistent toggle is off by default and owns a foreground service while on.
+Opening is a three-layer OR:
+
+1. a foreground transition into a known player opens immediately through the
+   existing global accessibility observer;
+2. any active `MediaSession` entering `STATE_PLAYING` opens immediately;
+3. output-mix signal continuously above the calibrated `-58 dB` gate for three
+   seconds opens as the source-agnostic fallback.
+
+The 30-minute clock advances only on fresh session-0 output-mix frames. A new
+immediate-open trigger starts a fresh grace period; after that, 30 minutes of
+confirmed silence sends `2`. Any real sound, including a short system sound,
+resets the full delay. Missing/stale capture does not count as silence; the
+timer pauses until fresh FFT frames return. Motor operations are serialized and
+failed calls retry after 30 seconds.
+
+Because cover position is unreadable and the command is edge-triggered, the
+first open from an unknown process state is an explicit `2`, a 350 ms pause,
+then `1`. Later operations use one edge. Turning automation off first opens the
+covers and only then stops the service, so a user cannot be left with closed
+covers and stock auto-lift already suppressed.
+
+The eager foreground list is the user-approved set:
+
+- stock: `com.byd.mediacenter`, `com.byd.videoplay`, `com.byd.minikaraoke`;
+- music: `ru.yandex.music`, `com.google.android.apps.youtube.music`,
+  `com.spotify.music`, `com.apple.android.music`, `com.uma.musicvk`,
+  `org.videolan.vlc`;
+- video: `com.google.android.youtube`, `com.vk.vkvideo`, `ru.rutube.app`,
+  `ru.kinopoisk`, `ru.ivi.client`, `ru.rt.video.app.mobile`, `ru.mts.mtstv`,
+  `ru.start.androidmobile`, `gpm.tnt_premier`, `com.netflix.mediaclient`,
+  `com.amazon.avod.thirdpartyclient`, `com.plexapp.android`.
+
+The MediaSession and output-mix layers intentionally cover players outside
+this list. The integrated APK, boot recovery, 3-second fallback, and 30-minute
+close still require live-car acceptance; only the underlying motor calls and
+output-mix capture are live-proven independently.
+
+## Superseded working path (2026-08-22 20:19)
 
 This is the first test performed from a known retracted state after a full car
 restart. It did not start Bluetooth or send AVRCP commands.
@@ -84,11 +195,15 @@ list and reached the real player.
 
 ### Product implication
 
-A practical pre-roll is now available: register a very short local clip,
+A practical pre-roll was available: register a very short local clip,
 address it by MediaCenter's canonical-path hash, play it through stock LOCAL,
 then pause MediaCenter and restore the user's previous player. A silent or
 lower-volume clip and the resume hand-off still need a clean retracted-state
 integration test; only the audible 1.729 s stock notification is proven here.
+
+This route is retained as historical evidence only. Direct
+`AUDIO_RLSA_STATE_SET` control is now live-proven both ways and is the product
+path.
 
 ## Yandex-open normal-UID probe (built, live-unverified)
 
@@ -254,11 +369,11 @@ Yandex `AudioTrack` `state:started` `CONTENT_TYPE_UNKNOWN`. No
 has only `0:Owner` — FSE user 999 is not running; the bodywork flag still makes
 `hasFse()` true.
 
-## The call (stock RLSA stack — dead on this car)
+## The call (RLSA stack — this is the working lever)
 
-This is the Dynaudio/voice raise. DiCar `setRLSAEnable` still writes it on
-amp=7. Live: HAL success, no cover motion. The Devialet auto-lift path is
-`startAudioOutput` below.
+Named for Dynaudio RLSA, but on this Devialet amp it is what actually drives the
+flip covers; see "Direct cover control" above for the live proof and the 1/2
+semantics.
 
 ```text
 BYDAutoAudioDevice.set(new int[]{ AUDIO_RLSA_STATE_SET }, intValue)
@@ -349,6 +464,89 @@ music: `usage=USAGE_MEDIA` and `contentType` in `{0, 2, 3, 5}`. That broker
 is **not** the differentiator. At this stage the visualizer allowlist and
 BT-specific stream were hypotheses; both were later rejected by live tests.
 The confirmed working difference is MediaCenter's real LOCAL player path.
+
+### Stock Java API behind that LOCAL pulse (corpus 2026-08-25, live-unverified as a motor)
+
+Firmware zip `Di5.1_34.1.33.2605218.1` is the same build as the connected
+IVI (`apps.setting.product.outswver=34.1.33.2605218.1`,
+`eng.build20260705.011226`). Inner `Android/Target/android.zip` is
+whole-file ciphertext (entropy ~8, no `PK`/`CrAU`); USB recovery decrypts
+it. RapidUpdate uses AES-256-CBC (`AES256Utils`, hex key+IV from package
+metadata / RSA-wrapped `encryptSecretKey`). UpgradeServer uses AES/ECB
+with the strategy `secretKey` for the media ECU. Vendor `audio.primary`
+is SELinux-blocked from shell; the Java/audio policy corpus below is
+pulled from this same live system image.
+
+BYD-patched `android.media.MediaPlayer.startImpl()`:
+
+```text
+Log "start mIsLocalSource = " + mIsLocalSource
+if ((!mIsLocalSource || hasAudioTrack())
+    && !mAudioManager.isStreamAllowed(mStreamType, mCurrentPackage))
+    return;          // do not _start()
+baseStart(0); _start();
+```
+
+`mCurrentPackage` is `ActivityThread.currentPackageName()`.
+`setDataSource(FileDescriptor)` sets `mIsLocalSource=true`; `reset()`
+clears it. For a local **music** file `hasAudioTrack()` is true, so the
+allowlist still runs. `AudioServiceMultiUserImpl.isStreamAllowed` almost
+always returns true except `STREAM_NOTIFICATION=5`. The important part
+is the side effect, not the boolean:
+
+```text
+if (allowed
+    && callingUid != 1013          // not mediaserver
+    && stream ∈ {3, 2, 0, MIN_VALUE})  // MUSIC / RING / VOICE_CALL
+    vehicleAudioBroker.setUseVehicleSpeaker();
+```
+
+`AudioTrack` / ExoPlayer never call this. That is why stream-14 tones
+were audible and did not extend, and why Yandex (ExoPlayer) does not.
+
+`IviVehicleAudioBroker.setUseVehicleSpeaker()`:
+
+```text
+setIviUseSelfAudio(REASON_MEDIA=4)
+  → KeepPlaceHolderFocus(4) is false
+  → abandon only the broker's own placeholder focus (not Yandex)
+  → setUseVehicleSpeakerReasonToMCU(4)
+       BYDAutoSettingDevice.set(
+           SET_USE_AUDIO_SCENE_SET = 0x33F00024 = 871366692,
+           intValue = 4)          // device type 1023
+  → setUseIVIAudioClientToMCU(1)  // RSE_IVI_USE_AUDIO_PAD_TO_RSE_SET, routing
+  → mCurrentUse = TYPE_IVI (1)
+```
+
+Reasons: `1=MUTE 2=RING 3=CALL 4=MEDIA`. Read-only GET on 2026-08-25
+(idle, this session) already returned **4** on both `dev=1023` and
+`dev=1007`, with auto-flip still 1. Scene=MEDIA is therefore not a
+retracted-state latch. MCU may still treat each SET as a pulse; that
+is unproven.
+
+Public / platform calls, **no `BYDAUTO_*` permission** in
+`BydAudioService` (same pattern as `startAudioOutput`):
+
+| Call | Binder |
+| --- | --- |
+| `AudioManager.isStreamAllowed(STREAM_MUSIC, pkg)` | `IBydAudioService` transact **1**, side-effect raise |
+| `VehicleAudioStateManager.getInstance(ctx).setUseVehicleSpeaker()` | transact **30** |
+| `VehicleAudioStateManager.requestUseVehicleSpeaker()` | transact **32** (`setIviUseSelfAudio(4)` only if `mCurrentUse != TYPE_IVI`) |
+| `MediaPlayer.setDataSource(fd); start()` on stream 3 | hits transact 1 from the app UID |
+
+Do **not** shell-`setInt` `0x33F00024` until a watched retracted-state
+run. Prefer the Java/`app_process` path so `Binder.clearCallingIdentity`
+inside the broker owns the MCU write.
+
+Next clean test, covers in after reboot, one owner:
+
+1. Host dex: `VehicleAudioStateManager.setUseVehicleSpeaker()` (or
+   `isStreamAllowed(3, opPackageName)`), no audio. If covers move, the
+   motor is this binder pulse.
+2. If not: a normal-UID `MediaPlayer` on a short local file (not
+   MediaCenter, not ExoPlayer). If that moves them, the product API is
+   MediaPlayer, not MediaCenter `playById`.
+3. Do not retest `startAudioOutput`, RLSA, or instrument `0x33F00030`.
 
 ### Rejected stock visualizer path (`startAudioOutput`)
 
@@ -447,7 +645,7 @@ but also failed; neither is the motor trigger.
 
 | Approach | Status |
 | --- | --- |
-| `AUDIO_RLSA_STATE_SET=1` | **Dead.** HAL success, no motion. DiCar `setRLSAEnable` writes this same FID even on Devialet amp=7. |
+| `AUDIO_RLSA_STATE_SET` 1/2 | **This is the lever.** Live both ways 2026-08-25 — see "Direct cover control". The 2026-08-22 "dead" entry was a null experiment: same value rewritten, wrong observable. |
 | Spoof `0x1B10001C=6` | **Dead.** STATE changed; covers did not. Live BT never uses this STATE. |
 | Spoof instrument `0x33F00030` 26→6 | **Dead.** GET=6; covers did not (clean Yandex, user 2026-08-22). |
 | Single-int `WORKING_STATE_SET` / media mute SET | HAL ack, mute GET unchanged. Stock shape is intArray `[mode, state]` on **two** FIDs. |
@@ -459,10 +657,11 @@ but also failed; neither is the motor trigger.
 ## Hazard log (2026-08-22)
 
 - **Do:** `getInt` transact `5` on the FIDs in the snapshot table.
-- **Bounded:** `setInt` transact `6` of `0x16300025` with `1`/`2` and a `null` binder, only while someone can see the covers, then restore `2` if they moved.
+- **Working control:** `setInt` transact `6` of `0x16300025` with `1` (extend) / `2` (retract) and a `null` binder. Live-proven both ways 2026-08-25. Edge-triggered — rewriting the current value is a no-op. Run it while someone can see the covers.
 - **Do not:** transact `10`/`12`/`14`/`16` with `i32`-only parcels (array/float + binder methods). This session crashed `autoservice` that way; it came back. Not `com.byd.avc`. Stock WORKING_MODE/STATE uses `setIntArray`; do not invent an `i32` parcel for it.
 - **Do not:** add `BYDAUTO_AUDIO_SET` to Denza Apps.
-- **Do not:** keep guessing `autoservice` SET FIDs for cover motion. Retract is power cycle.
+- **Do not:** keep guessing *other* `autoservice` SET FIDs for cover motion. Retract is `0x16300025 = 2`, not a power cycle.
+- **Open side effect:** the first `2` left `AUDIO_SPEAKER_FLIP_SETTING_STATUS` reading `2`, and a later `1` did not restore it. The stock MediaCenter positive control then failed to raise the covers; there is no stock toggle on this car. Treat any direct retract as taking ownership of lift automation until the next ignition/power reset.
 - Instrument spoof restore: Yandex native value is `26`.
 - `startAudioOutput` is done: MCU write proven, no cover motion. Do not repeat it as a motor test.
 
@@ -573,10 +772,39 @@ track itself. `run snap` (read-only FID table via transact 5) can follow any
 step. If the probe logs `WARNING: framework remapped stream 14 -> 3`, that
 run tested nothing — record and move on.
 
-Decision: T1-T3 were negative. The subsequent clean LOCAL `playById` test was
-positive and is the reproducible product direction.
+Decision: T1-T3 were negative. The LOCAL `playById` test was positive, and the
+`AUDIO_RLSA_STATE_SET` edge (2026-08-25) supersedes it as the product direction.
 
 Do not retest `startAudioOutput`, `0x1B10001C`, instrument `0x33F00030`, or
-single-int `0x4EF52026` — all proven dead on 2026-08-22. Do not hand-craft
-autoservice parcels beyond transact 5 (getInt); the probe issues SETs only
-through framework client classes.
+single-int `0x4EF52026` — all proven dead. `AUDIO_RLSA_STATE_SET` is **not** in
+that list: it is the working lever, and any future negative result on it must
+state which value was written, what the previous value was, and that
+`0x35A000DA` was the observable.
+
+## Falsified 2026-08-25: the media-scene path
+
+Both of these fired verifiably and moved nothing, from covers-in with Yandex
+playing (`tools/vehicle_speaker_pulse.sh`):
+
+| Test | Evidence it really ran | Covers |
+| --- | --- | --- |
+| `VehicleAudioStateManager.setUseVehicleSpeaker()` | `IviVehicleAudioBroker: setIviUseSelfAudio ... reason = REASON_MEDIA` → `setUseVehicleSpeakerReasonToMCU reason = 4` → `AbsBYDAutoDevice: set featureID is 33f00024 intValue is 4` | no |
+| plain `MediaPlayer` on the same local OGG, stream 3, not MediaCenter | broker pulse plus `getCurrentDeviceMusicPlayState active config pid = 20087 uid = 2000`, `musicPlayState: true` | no |
+
+The positive control ran straight afterwards in the same dirty session — the
+MediaCenter `playById` pulse still raised the covers — so these are clean
+falsifications, and the "needs a reboot / clean retracted state" worry is dead.
+
+`SET_USE_AUDIO_SCENE_SET` (`0x33F00024`, dev 1023) already reads `4` at idle, so
+scene=MEDIA is not a cover latch and the broker pulse is not the motor.
+
+Sweeping all 762 audio FIDs immediately before and after a real MediaCenter
+raise (`tools/speaker_lift_ab.sh`) produced exactly **one** change in the whole
+set — `INSTRUMENT_MUSIC_SOURCE_SET` `26 → 1` on dev 1007 — and **nothing** on
+dev 1002. The amp reports no cover state at all.
+
+One gate detail worth keeping: native `AudioTrack` also calls `isStreamAllowed`,
+but arrives as **uid 1013** (mediaserver), and
+`AudioServiceMultiUserImpl.isStreamAllowed` fires the broker only when
+`callingUid != 1013`. So only an app-side `MediaPlayer` can ever raise that
+pulse — ExoPlayer/`AudioTrack` cannot, no matter how they are configured.

@@ -80,7 +80,7 @@ class TripSensorHub(context: Context) : SensorEventListener, LocationListener {
         registerSensor(Sensor.TYPE_GYROSCOPE)
         registerSensor(Sensor.TYPE_ACCELEROMETER)
         ensureLocationAccess()
-        spectrum.start(appContext)
+        spectrum.start(appContext, this)
         nowPlaying.start(appContext)
     }
 
@@ -90,7 +90,7 @@ class TripSensorHub(context: Context) : SensorEventListener, LocationListener {
         hostContext = null
         sensorManager?.unregisterListener(this)
         runCatching { locationManager?.removeUpdates(this) }
-        spectrum.stop()
+        spectrum.stop(this)
         nowPlaying.stop()
         haveGravity = false
     }

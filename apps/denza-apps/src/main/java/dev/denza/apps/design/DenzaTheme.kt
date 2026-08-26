@@ -85,28 +85,36 @@ private val DenzaColorScheme = darkColorScheme(
  */
 private val DenzaTypography = Typography().let { base ->
     base.copy(
-        displayLarge = style(DenzaMetrics.Type.DISPLAY, FontWeight.Light),
-        displayMedium = style(DenzaMetrics.Type.DISPLAY, FontWeight.Light),
-        displaySmall = style(DenzaMetrics.Type.HEADLINE, FontWeight.Light),
-        headlineLarge = style(DenzaMetrics.Type.HEADLINE, FontWeight.Normal),
-        headlineMedium = style(DenzaMetrics.Type.TITLE, FontWeight.Normal),
-        headlineSmall = style(DenzaMetrics.Type.SECTION, FontWeight.Medium),
-        titleLarge = style(DenzaMetrics.Type.SECTION, FontWeight.Medium),
-        titleMedium = style(DenzaMetrics.Type.LABEL, FontWeight.Medium),
-        titleSmall = style(DenzaMetrics.Type.BODY, FontWeight.Medium),
-        bodyLarge = style(DenzaMetrics.Type.LABEL, FontWeight.Normal),
-        bodyMedium = style(DenzaMetrics.Type.BODY, FontWeight.Normal),
-        bodySmall = style(DenzaMetrics.Type.BODY, FontWeight.Normal),
-        labelLarge = style(DenzaMetrics.Type.LABEL, FontWeight.Medium),
-        labelMedium = style(DenzaMetrics.Type.BODY, FontWeight.Medium),
-        labelSmall = style(DenzaMetrics.Type.BODY, FontWeight.Medium, tracking = 0.6f),
+        displayLarge = name(DenzaMetrics.Type.DISPLAY, FontWeight.Light),
+        displayMedium = name(DenzaMetrics.Type.DISPLAY, FontWeight.Light),
+        displaySmall = name(DenzaMetrics.Type.HEADLINE, FontWeight.Light),
+        headlineLarge = name(DenzaMetrics.Type.HEADLINE, FontWeight.Normal),
+        headlineMedium = name(DenzaMetrics.Type.TITLE, FontWeight.Normal),
+        headlineSmall = name(DenzaMetrics.Type.SECTION, FontWeight.Medium),
+        titleLarge = name(DenzaMetrics.Type.SECTION, FontWeight.Medium),
+        titleMedium = name(DenzaMetrics.Type.LABEL, FontWeight.Medium),
+        titleSmall = name(DenzaMetrics.Type.BODY, FontWeight.Medium),
+        bodyLarge = prose(DenzaMetrics.Type.LABEL, FontWeight.Normal),
+        bodyMedium = prose(DenzaMetrics.Type.BODY, FontWeight.Normal),
+        bodySmall = prose(DenzaMetrics.Type.BODY, FontWeight.Normal),
+        labelLarge = name(DenzaMetrics.Type.LABEL, FontWeight.Medium),
+        labelMedium = name(DenzaMetrics.Type.BODY, FontWeight.Medium),
+        labelSmall = name(DenzaMetrics.Type.BODY, FontWeight.Medium, tracking = 0.6f),
     )
 }
 
-private fun style(size: TextUnit, weight: FontWeight, tracking: Float = 0f) = TextStyle(
+/** A name, a figure or a label: two lines of it are still one thing, so they sit close. */
+private fun name(size: TextUnit, weight: FontWeight, tracking: Float = 0f) =
+    style(size, weight, DenzaMetrics.Type.LEADING_TIGHT, tracking)
+
+/** Something read as a sentence. */
+private fun prose(size: TextUnit, weight: FontWeight, tracking: Float = 0f) =
+    style(size, weight, DenzaMetrics.Type.LEADING_BODY, tracking)
+
+private fun style(size: TextUnit, weight: FontWeight, leading: Float, tracking: Float) = TextStyle(
     fontSize = size,
     fontWeight = weight,
-    lineHeight = (size.value * LINE_HEIGHT).sp,
+    lineHeight = (size.value * leading).sp,
     letterSpacing = tracking.sp,
 )
 
@@ -118,5 +126,3 @@ private val DenzaShapes = Shapes(
     large = RoundedCornerShape(DenzaMetrics.Radius.L),
     extraLarge = RoundedCornerShape(DenzaMetrics.Radius.L),
 )
-
-private const val LINE_HEIGHT = 1.3f

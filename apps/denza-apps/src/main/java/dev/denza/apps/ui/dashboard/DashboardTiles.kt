@@ -1,10 +1,10 @@
 package dev.denza.apps.ui.dashboard
 
 import dev.denza.apps.DenzaUiState
-import dev.denza.apps.core.FeatureId
 import dev.denza.apps.core.FeatureResolution
 import dev.denza.apps.core.FeatureSnapshot
 import dev.denza.apps.core.FeatureStatus
+import dev.denza.apps.ui.components.DenzaTileCaption
 import dev.denza.apps.ui.components.DenzaTileTone
 
 /**
@@ -20,7 +20,11 @@ enum class TileIcon {
     MIRRORS,
     SPLIT,
     HUD,
+    SPEAKER,
+    STEERING_WHEEL,
+    LOCALE,
     PASSENGER,
+    SERVICE,
 }
 
 /**
@@ -44,6 +48,9 @@ enum class TileAction {
     /** Choose an application to put on the passenger screen. */
     PASSENGER_INSTALL,
 
+    /** Open service: the car's own readings, the app's access, the stock settings it reaches. */
+    SERVICE_OPEN,
+
     /** It cannot go until the driver picks something; the press opens that choice. */
     RESOLVE,
 
@@ -53,11 +60,12 @@ enum class TileAction {
 
 /** One tile, fully decided, with nothing left for the screen to work out. */
 data class DashboardTile(
-    val id: FeatureId,
+    val id: TileId,
     val icon: TileIcon,
     val name: String,
     val state: String,
     val tone: DenzaTileTone,
+    val caption: DenzaTileCaption,
     val action: TileAction,
 )
 
@@ -72,21 +80,31 @@ data class DashboardTile(
  * Here a feature is a row in one list. Its name, the line under it, how it reads at a glance and
  * what pressing it does are all decided in one place and all testable without a screen.
  *
- * Two rules run through every caption below. The line under the name says what is **configured**,
- * not what state the feature is in - "6 applications", never "enabled" - because the name already
- * says which feature it is and the tone already says whether it is working. And nothing here
- * repeats what the car itself shows a few centimetres away.
+ * Three rules run through every caption below. The line under the name says what is **configured**,
+ * not what state the feature is in - "6 приложений", never "включено" - because the name already
+ * says which feature it is and the tone already says whether it is working. It takes the accent
+ * only when it is a reading rather than a setting; see [DenzaTileCaption]. And nothing here repeats
+ * what the car itself shows a few centimetres away.
  */
 object DashboardTiles {
 
-    /** Every tile on the main screen, in the order the design boards place them. */
+    /**
+     * Every tile on the main screen, in the order `Config.dc.html` places them.
+     *
+     * The board draws eleven; ten of them are here. Weather is the remaining adapter that runs
+     * unconditionally with nothing to switch, so it stays out instead of becoming an inert tile.
+     */
     fun of(state: DenzaUiState): List<DashboardTile> = listOf(
         cluster(state),
         simulcast(state),
         mirrors(state),
         split(state),
         hud(state),
+        speakers(state),
+        steeringWheel(state),
+        locale(state),
         passenger(state),
+        service(),
     )
 
     /**
@@ -131,17 +149,19 @@ object DashboardTiles {
     private fun cluster(state: DenzaUiState): DashboardTile {
         val snapshot = state.navigation
         val projected = snapshot.status == FeatureStatus.ACTIVE
+        val waiting = snapshot.status == FeatureStatus.NEEDS_ACTION && snapshot.message.isNotBlank()
         return DashboardTile(
-            id = FeatureId.NAVIGATION,
+            id = TileId.CLUSTER,
             icon = TileIcon.CLUSTER,
             name = "Экран водителя",
             state = when {
-                snapshot.status == FeatureStatus.NEEDS_ACTION && snapshot.message.isNotBlank() ->
-                    snapshot.message
+                waiting -> snapshot.message
                 projected -> "${state.navigationAppLabel} · на экране"
                 else -> state.navigationAppLabel
             },
             tone = toneOf(snapshot),
+            // On the cluster is a reading; merely chosen for it is a setting.
+            caption = if (projected) DenzaTileCaption.READING else DenzaTileCaption.SETTING,
             action = actionOf(snapshot, TileAction.CLUSTER_PROJECT),
         )
     }
@@ -157,7 +177,7 @@ object DashboardTiles {
         val snapshot = state.simulcast
         val ready = if (snapshot.desiredEnabled) TileAction.SIMULCAST_LAUNCH else TileAction.TOGGLE
         return DashboardTile(
-            id = FeatureId.SIMULCAST,
+            id = TileId.SIMULCAST,
             icon = TileIcon.SIMULCAST,
             name = "Трансляция",
             state = when {
@@ -167,6 +187,8 @@ object DashboardTiles {
                 else -> applications(state.selectedAppCount)
             },
             tone = toneOf(snapshot),
+            // A count of chosen applications is as true stopped as running.
+            caption = DenzaTileCaption.SETTING,
             action = actionOf(snapshot, ready),
         )
     }
@@ -174,26 +196,33 @@ object DashboardTiles {
     /** The turn-indicator cameras. A watcher, so its main action is simply whether it watches. */
     private fun mirrors(state: DenzaUiState): DashboardTile {
         val snapshot = state.mirrors
+        val watching = snapshot.desiredEnabled
+        val waiting = snapshot.status == FeatureStatus.NEEDS_ACTION && snapshot.message.isNotBlank()
         return DashboardTile(
-            id = FeatureId.MIRRORS,
+            id = TileId.MIRRORS,
             icon = TileIcon.MIRRORS,
             name = "Зеркала",
             state = when {
-                snapshot.status == FeatureStatus.NEEDS_ACTION && snapshot.message.isNotBlank() ->
-                    snapshot.message
-                snapshot.desiredEnabled -> "Следят за поворотниками"
+                waiting -> snapshot.message
+                watching -> "Следят за поворотниками"
                 else -> "Не следят"
             },
             tone = toneOf(snapshot),
+            caption = if (watching && !waiting) DenzaTileCaption.READING else DenzaTileCaption.SETTING,
             action = actionOf(snapshot, TileAction.TOGGLE),
         )
     }
 
-    /** Split screen, which is one launcher icon either present or absent. */
+    /**
+     * Split screen, which is one launcher icon either present or absent.
+     *
+     * Its caption never takes the accent: "the icon is on the desktop" is the switch said twice,
+     * and the tone has already said it.
+     */
     private fun split(state: DenzaUiState): DashboardTile {
         val snapshot = state.splitScreen
         return DashboardTile(
-            id = FeatureId.SPLIT_SCREEN,
+            id = TileId.SPLIT,
             icon = TileIcon.SPLIT,
             name = "Разделение экрана",
             state = when {
@@ -203,6 +232,7 @@ object DashboardTiles {
                 else -> "Значок скрыт"
             },
             tone = toneOf(snapshot),
+            caption = DenzaTileCaption.SETTING,
             action = actionOf(snapshot, TileAction.TOGGLE),
         )
     }
@@ -210,18 +240,88 @@ object DashboardTiles {
     /** Navigation hints repeated onto the head-up display. */
     private fun hud(state: DenzaUiState): DashboardTile {
         val snapshot = state.hudGuidance
+        val showing = snapshot.desiredEnabled
+        val waiting = snapshot.status == FeatureStatus.NEEDS_ACTION && snapshot.message.isNotBlank()
         return DashboardTile(
-            id = FeatureId.HUD_GUIDANCE,
+            id = TileId.HUD,
             icon = TileIcon.HUD,
             name = "Подсказки на HUD",
             state = when {
-                snapshot.status == FeatureStatus.NEEDS_ACTION && snapshot.message.isNotBlank() ->
-                    snapshot.message
-                snapshot.desiredEnabled -> "Указания на проекции"
+                waiting -> snapshot.message
+                showing -> "Указания на проекции"
                 else -> "Не показываются"
             },
             tone = toneOf(snapshot),
+            caption = if (showing && !waiting) DenzaTileCaption.READING else DenzaTileCaption.SETTING,
             action = actionOf(snapshot, TileAction.TOGGLE),
+        )
+    }
+
+    /** Motorised speaker covers, driven by app, MediaSession and output-mix signals. */
+    private fun speakers(state: DenzaUiState): DashboardTile {
+        val snapshot = state.speakerCovers
+        val waiting = snapshot.status == FeatureStatus.NEEDS_ACTION && snapshot.message.isNotBlank()
+        return DashboardTile(
+            id = TileId.SPEAKERS,
+            icon = TileIcon.SPEAKER,
+            name = "Динамики",
+            state = when {
+                waiting -> snapshot.message
+                snapshot.desiredEnabled -> "Автоматика по звуку"
+                else -> "Автоматика выключена"
+            },
+            tone = toneOf(snapshot),
+            caption = DenzaTileCaption.SETTING,
+            action = actionOf(snapshot, TileAction.TOGGLE),
+        )
+    }
+
+    /**
+     * The custom button on the steering wheel.
+     *
+     * Not a feature of ours at all - the car owns the button, and all this does is decide what it
+     * is pointed at. So the caption names the destination, which is a setting however it is
+     * pressed.
+     */
+    private fun steeringWheel(state: DenzaUiState): DashboardTile {
+        val on = state.navigationSteeringWheelButton
+        return DashboardTile(
+            id = TileId.STEERING_WHEEL,
+            icon = TileIcon.STEERING_WHEEL,
+            name = "Кнопка на руле",
+            state = if (on) "Экран водителя" else "Штатное действие",
+            tone = when {
+                state.navigationSteeringWheelButtonRepairing -> DenzaTileTone.WORKING
+                on -> DenzaTileTone.LIVE
+                else -> DenzaTileTone.IDLE
+            },
+            caption = DenzaTileCaption.SETTING,
+            action = TileAction.TOGGLE,
+        )
+    }
+
+    /**
+     * Russian inside the car's own settings, which is a switch in stock firmware rather than
+     * anything this app draws.
+     */
+    private fun locale(state: DenzaUiState): DashboardTile {
+        val snapshot = state.stockRussianLocale
+        return DashboardTile(
+            id = TileId.LOCALE,
+            icon = TileIcon.LOCALE,
+            name = "Русский в настройках",
+            state = when (snapshot.enabled) {
+                true -> "Включён"
+                false -> "Выключен"
+                null -> "Не проверено"
+            },
+            tone = when {
+                snapshot.running -> DenzaTileTone.WORKING
+                snapshot.enabled == true -> DenzaTileTone.LIVE
+                else -> DenzaTileTone.IDLE
+            },
+            caption = DenzaTileCaption.SETTING,
+            action = TileAction.TOGGLE,
         )
     }
 
@@ -232,14 +332,34 @@ object DashboardTiles {
     private fun passenger(state: DenzaUiState): DashboardTile {
         val snapshot = state.fseInstaller
         return DashboardTile(
-            id = FeatureId.FSE_INSTALLER,
+            id = TileId.PASSENGER,
             icon = TileIcon.PASSENGER,
             name = "Пассажирский экран",
             state = snapshot.message.ifBlank { "Установить приложение" },
             tone = toneOf(snapshot),
+            caption = DenzaTileCaption.SETTING,
             action = actionOf(snapshot, TileAction.PASSENGER_INSTALL),
         )
     }
+
+    /**
+     * Service: the car's own readings, this app's access to it, and what it can reach in the stock
+     * settings.
+     *
+     * It is a door and not a feature, so it wears the quiet surface always - there is nothing about
+     * it to be on or off. It exists because the diagnostics used to be behind seven taps on an
+     * undisclosed part of the screen, which is a door too, just one nobody can find and anybody can
+     * open by accident.
+     */
+    private fun service(): DashboardTile = DashboardTile(
+        id = TileId.SERVICE,
+        icon = TileIcon.SERVICE,
+        name = "Сервис",
+        state = "Всё в норме",
+        tone = DenzaTileTone.IDLE,
+        caption = DenzaTileCaption.SETTING,
+        action = TileAction.SERVICE_OPEN,
+    )
 
     /**
      * "1 приложение", "3 приложения", "6 приложений".
