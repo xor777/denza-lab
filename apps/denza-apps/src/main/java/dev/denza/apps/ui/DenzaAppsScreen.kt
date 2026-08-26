@@ -88,8 +88,9 @@ import dev.denza.apps.core.FeatureSnapshot
 import dev.denza.apps.core.FeatureStatus
 import dev.denza.apps.design.DenzaColors
 import dev.denza.apps.design.DenzaIcons
+import dev.denza.apps.ui.components.DenzaPrimaryButton
 import dev.denza.apps.design.DenzaMetrics
-import dev.denza.apps.ui.components.DenzaSectionLabel
+import dev.denza.apps.ui.components.DenzaSection
 import dev.denza.apps.ui.components.DenzaSheet
 import dev.denza.apps.ui.components.DenzaSheetHeader
 import dev.denza.apps.design.DenzaTheme
@@ -300,7 +301,6 @@ fun DenzaAppsRoot(
                     onCheckAdbAccess = onCheckAdbAccess,
                     onRequestAdbAuthorizationOnce = onRequestAdbAuthorizationOnce,
                     onAllowNewAdbAuthorizationAttempt = onAllowNewAdbAuthorizationAttempt,
-                    onSetStockRussianLocaleEnabled = onSetStockRussianLocaleEnabled,
                     onDismiss = { showDiagnostics = false },
                 )
             }
@@ -597,13 +597,19 @@ private fun DiagnosticsDialog(
     onCheckAdbAccess: () -> Unit,
     onRequestAdbAuthorizationOnce: () -> Unit,
     onAllowNewAdbAuthorizationAttempt: () -> Unit,
-    onSetStockRussianLocaleEnabled: (Boolean) -> Unit,
     onDismiss: () -> Unit,
 ) {
     // The service panel was the last thing on this screen still drawn as a centred Material dialog
     // with its own width, its own header and a "Закрыть" button in the corner - a different
     // surface for the one door the driver reaches for when something is wrong. It is a panel like
-    // the other four now: same edge, same width, same way out.
+    // the other four now: same edge, same width, same way out, and its groups are sections rather
+    // than headings separated by hand-placed spacers.
+    //
+    // Russian in the stock settings used to have a group here as well. It has its own tile with
+    // its own switch, so this was the same decision offered twice - and the second copy sat behind
+    // a door the driver only opens when something is wrong.
+    val adbBusy = state.adbRescue.phase == AdbRescuePhase.CHECKING ||
+        state.adbRescue.phase == AdbRescuePhase.REQUESTING
     DenzaSheet(onDismiss = onDismiss, compact = compactLayout) {
         DenzaSheetHeader(
             title = "Сервис",
@@ -611,166 +617,69 @@ private fun DiagnosticsDialog(
             onDismiss = onDismiss,
             icon = DenzaIcons.Service,
         )
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(DenzaMetrics.Space.S),
-        ) {
-                    val adbBusy = state.adbRescue.phase == AdbRescuePhase.CHECKING ||
-                        state.adbRescue.phase == AdbRescuePhase.REQUESTING
-                    DenzaSectionLabel("Доступ к машине")
+        DenzaSection("Доступ к машине") {
+            DenzaKeyValueRow(label = "Состояние", value = state.adbRescue.message, stacked = true)
+            state.adbRescue.details?.let { details ->
+                Text(details, color = DenzaColors.Muted, fontSize = DenzaMetrics.Type.BODY)
+            }
+            DenzaSecondaryButton(
+                text = "Проверить доступ",
+                onClick = onCheckAdbAccess,
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !adbBusy,
+            )
+            if (state.adbRescue.canRequest) {
+                DenzaPrimaryButton(
+                    text = "Отправить один запрос",
+                    onClick = onRequestAdbAuthorizationOnce,
+                    modifier = Modifier.fillMaxWidth()
+                        .height(DenzaMetrics.Component.PRIMARY_HEIGHT),
+                    enabled = !adbBusy,
+                )
+            }
+            if (state.adbRescue.canResetAttempt) {
+                DenzaSecondaryButton(
+                    text = "Разрешить новую попытку",
+                    onClick = onAllowNewAdbAuthorizationAttempt,
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !adbBusy,
+                )
+            }
+            Text(
+                AdbRescueCoordinator.QUEUE_RECOVERY_STATUS,
+                color = DenzaColors.Warning,
+                fontSize = DenzaMetrics.Type.BODY,
+                lineHeight = DenzaMetrics.Type.LABEL,
+            )
+        }
+        DenzaSection("Технические сведения") {
+            state.technicalDetails
+                .lineSequence()
+                .filter { it.isNotBlank() }
+                .forEach { line ->
                     DenzaKeyValueRow(
-                        label = "Состояние",
-                        value = state.adbRescue.message,
+                        label = line.substringBefore('='),
+                        value = line.substringAfter('=', missingDelimiterValue = "—"),
                         stacked = true,
                     )
-                    state.adbRescue.details?.let { details ->
-                        Text(details, color = DenzaColors.Muted, fontSize = DenzaMetrics.Type.BODY)
-                    }
-                    OutlinedButton(
-                        onClick = onCheckAdbAccess,
-                        enabled = !adbBusy,
-                        modifier = Modifier.fillMaxWidth(),
-                        border = BorderStroke(DenzaMetrics.Stroke.HAIRLINE, DenzaColors.SurfaceRaised),
-                    ) {
-                        Text("Проверить доступ")
-                    }
-                    if (state.adbRescue.canRequest) {
-                        Button(
-                            onClick = onRequestAdbAuthorizationOnce,
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Text("Отправить один запрос", fontWeight = FontWeight.SemiBold)
-                        }
-                    }
-                    if (state.adbRescue.canResetAttempt) {
-                        TextButton(
-                            onClick = onAllowNewAdbAuthorizationAttempt,
-                            modifier = Modifier.align(Alignment.End),
-                        ) {
-                            Text("Разрешить новую попытку", color = DenzaColors.Warning)
-                        }
-                    }
-                    Text(
-                        AdbRescueCoordinator.QUEUE_RECOVERY_STATUS,
-                        color = DenzaColors.Warning,
-                        fontSize = DenzaMetrics.Type.BODY,
-                    )
-                    Spacer(Modifier.height(DenzaMetrics.Space.M))
-                    DenzaSectionLabel("Штатный русский")
-                    Surface(
-                        modifier = Modifier.fillMaxWidth(),
-                        color = DenzaColors.SurfaceRaised,
-                        shape = RoundedCornerShape(DenzaMetrics.Space.M),
-                    ) {
-                        Column {
-                            val localeControlEnabled =
-                                state.stockRussianLocale.permissionReady ||
-                                    state.adbRescue.phase == AdbRescuePhase.TRUSTED
-                            ListItem(
-                                headlineContent = {
-                                    Text(
-                                        "Русский в BYD Настройках",
-                                        color = DenzaColors.Ink,
-                                        fontWeight = FontWeight.Medium,
-                                    )
-                                },
-                                supportingContent = {
-                                    Text(
-                                        state.stockRussianLocale.message,
-                                        color = DenzaColors.Muted,
-                                        fontSize = DenzaMetrics.Type.BODY,
-                                    )
-                                },
-                                trailingContent = {
-                                    when {
-                                        state.stockRussianLocale.running -> {
-                                            CircularProgressIndicator(
-                                                modifier = Modifier.size(DenzaMetrics.Space.XL),
-                                                color = DenzaColors.Accent,
-                                                strokeWidth = DenzaMetrics.Space.XS,
-                                            )
-                                        }
-                                        state.stockRussianLocale.enabled != null -> {
-                                            Switch(
-                                                checked = state.stockRussianLocale.enabled,
-                                                onCheckedChange = onSetStockRussianLocaleEnabled,
-                                                enabled = localeControlEnabled,
-                                            )
-                                        }
-                                    }
-                                },
-                                colors = ListItemDefaults.colors(
-                                    containerColor = Color.Transparent,
-                                ),
-                            )
-                            if (
-                                !state.stockRussianLocale.running &&
-                                state.stockRussianLocale.enabled == null
-                            ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(start = DenzaMetrics.Space.L, end = DenzaMetrics.Space.L, bottom = DenzaMetrics.Space.M),
-                                    horizontalArrangement = Arrangement.spacedBy(DenzaMetrics.Space.S),
-                                ) {
-                                    OutlinedButton(
-                                        onClick = { onSetStockRussianLocaleEnabled(false) },
-                                        enabled = localeControlEnabled,
-                                        modifier = Modifier.weight(1f),
-                                    ) {
-                                        Text("Выкл")
-                                    }
-                                    Button(
-                                        onClick = { onSetStockRussianLocaleEnabled(true) },
-                                        enabled = localeControlEnabled,
-                                        modifier = Modifier.weight(1f),
-                                    ) {
-                                        Text("Вкл", fontWeight = FontWeight.SemiBold)
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    Text(
-                        "Только ru-RU для com.byd.carsettings; без словаря и перевода поверх.",
-                        color = DenzaColors.Muted,
-                        fontSize = DenzaMetrics.Type.BODY,
-                    )
-                    state.stockRussianLocale.details?.let { details ->
-                        Text(details, color = DenzaColors.Warning, fontSize = DenzaMetrics.Type.BODY)
-                    }
-                    Spacer(Modifier.height(DenzaMetrics.Space.M))
-                    DenzaSectionLabel("Технические сведения")
-                    state.technicalDetails
-                        .lineSequence()
-                        .filter { it.isNotBlank() }
-                        .forEach { line ->
-                            DenzaKeyValueRow(
-                                label = line.substringBefore('='),
-                                value = line.substringAfter('=', missingDelimiterValue = "—"),
-                                stacked = true,
-                            )
-                        }
-                    Spacer(Modifier.height(DenzaMetrics.Space.S))
-                    DenzaSectionLabel("Экран приборки")
-                    state.clusterCandidates
-                        .filter { it.id != 0 && !it.isOwnVirtualDisplay }
-                        .forEach { display ->
-                            OutlinedButton(
-                                onClick = { onSelectClusterDisplay(display.id) },
-                                modifier = Modifier.fillMaxWidth(),
-                                border = BorderStroke(DenzaMetrics.Stroke.HAIRLINE, DenzaColors.SurfaceRaised),
-                            ) {
-                                Text("#${display.id} · ${display.width}×${display.height} · ${display.name}")
-                            }
-                        }
-                    TextButton(
-                        onClick = { onSelectClusterDisplay(null) },
-                        modifier = Modifier.align(Alignment.End),
-                    ) {
-                        Text("Определять автоматически", color = DenzaColors.Accent)
-                    }
                 }
+        }
+        DenzaSection("Экран приборки") {
+            state.clusterCandidates
+                .filter { it.id != 0 && !it.isOwnVirtualDisplay }
+                .forEach { display ->
+                    DenzaSecondaryButton(
+                        text = "#${display.id} · ${display.width}×${display.height} · ${display.name}",
+                        onClick = { onSelectClusterDisplay(display.id) },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            DenzaSecondaryButton(
+                text = "Определять автоматически",
+                onClick = { onSelectClusterDisplay(null) },
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
     }
 }
 
