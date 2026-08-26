@@ -218,6 +218,17 @@ public final class LocalAdbClientTest {
         assertTrue(framed, framed.contains("__denza_emit '\u001eMARK:BEGIN\u001f';"));
         assertTrue(framed, framed.contains("( eval 'echo hi' ) 2>&1;"));
         assertTrue("the shell is still waiting on this line", framed.endsWith("\n"));
+        // Pinned character for character against the text that was compared with the previous
+        // frame on the car itself (tools/split_frame_identity.py), so the two cannot drift apart
+        // and leave the proof describing a frame the product no longer sends.
+        assertEquals(
+                "if print -nr '' 2>/dev/null; then __denza_emit() { print -nr \"$1\"; }; "
+                        + "else __denza_emit() { printf '%s' \"$1\"; }; fi; "
+                        + "__denza_emit '\u001eMARK:BEGIN\u001f'; "
+                        + "( eval 'echo hi' ) 2>&1; "
+                        + "__denza_adb_status=$?; "
+                        + "__denza_emit \"\u001eMARK:$__denza_adb_status\u001f\"\n",
+                framed);
     }
 
     /**
