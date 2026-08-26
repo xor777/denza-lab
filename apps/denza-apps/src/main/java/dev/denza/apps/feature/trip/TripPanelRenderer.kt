@@ -329,25 +329,31 @@ class TripPanelRenderer : BaseTripRenderer() {
          *
          * The base class declares 1850x360, a 5.1:1 band from when this strip was thin, and
          * [PanelCanvas] scales x and y independently - so drawing that layout into the board's
-         * 2.85:1 region stretched every stroke in it vertically by about two. Rather than choose
-         * between a distorted panel and a box the board does not draw, the panel is laid out in
-         * the board's own numbers and asks for a box of the board's own shape.
+         * region stretched every stroke in it vertically. Rather than choose between a distorted
+         * panel and a box the board does not draw, the panel is laid out in the board's own
+         * numbers and asks for a box of the board's own shape.
+         *
+         * 296 rather than the 416 this first shipped at, because 416 was never available. The head
+         * unit gives the app 680 dp of height, not the 800 dp of the screen - a system dock takes
+         * 64 below the window and an opaque status band 56 above it, measured off the car. Two
+         * rows of tiles and the page margins take 384 of that, so 296 is what is left. At 416 the
+         * bottom 120 dp of this panel was drawn past the edge of the window and never seen.
          */
         const val WIDE_VIRTUAL_W = 1184f
-        const val WIDE_VIRTUAL_H = 416f
+        const val WIDE_VIRTUAL_H = 296f
 
         // The analyser takes the left, the figures the right, with the board's 30 between them.
         const val SPECTRUM_LEFT = 0f
         const val SPECTRUM_RIGHT = 834f
-        const val SPECTRUM_TOP = 0f
-        const val SPECTRUM_BOTTOM = 416f
+        const val SPECTRUM_TOP = 6f
+        const val SPECTRUM_BOTTOM = 296f
         const val COLUMN_X = 864f
         const val COLUMN_RIGHT = 1184f
 
         // Three blocks hung apart down the full height, as `justify-content: space-between`.
-        const val BLOCK_TOP_1 = 0f
-        const val BLOCK_TOP_2 = 177f
-        const val BLOCK_TOP_3 = 368f
+        const val BLOCK_TOP_1 = 6f
+        const val BLOCK_TOP_2 = 116f
+        const val BLOCK_TOP_3 = 241f
         const val RULE_GAP = 14f
 
         /** The board's `letter-spacing:1.6px` at 15 px, as the em value a paint takes. */
@@ -369,9 +375,9 @@ class TripPanelRenderer : BaseTripRenderer() {
         const val SUN_WEIGHT = 1.846f
         const val SUN_GAP = 12f
         const val SUN_TIME = 34f
-        const val SUN_BASELINE = 408f
+        const val SUN_BASELINE = 281f
 
-        const val HINT_Y = 300f
+        const val HINT_Y = 142f
         const val HINT_SIZE = 15f
 
         const val NARROW_VIRTUAL_W = 368f

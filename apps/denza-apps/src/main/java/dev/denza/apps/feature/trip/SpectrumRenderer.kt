@@ -527,7 +527,7 @@ class SpectrumRenderer {
         // The baseline sits low in its area: the reflection only needs a little
         // room, and higher up the analyser floated clear of the ticker with dead
         // space between them.
-        const val BASELINE_FRACTION = 0.839f
+        const val BASELINE_FRACTION = 0.8319f
         const val BAR_WIDTH_FRACTION = 0.7097f
 
         /** The board's `border-radius:2px 2px 0 0`, its 4-unit cap and its 40-unit crop. */
@@ -536,7 +536,7 @@ class SpectrumRenderer {
         const val PEAK_HALO_ALPHA = 0.30f
         const val REFLECT_UNITS = 40f
         const val REFLECT_ALPHA = 36
-        const val STRIP_UNITS = 48f
+        const val STRIP_UNITS = 52f
 
         /** Cap height of the ticker. */
         const val GLYPH_HEIGHT_UNITS = 34f

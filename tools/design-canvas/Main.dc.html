@@ -23,7 +23,7 @@
     .led { font-family:'Roboto Mono',monospace; font-weight:700; font-size:34px; letter-spacing:5px; color:transparent; background-color:#FEEFAB; background-image:radial-gradient(circle at center, #FEEFAB 41%, transparent 46%); background-size:3.4px 3.4px; -webkit-background-clip:text; background-clip:text; filter:drop-shadow(0 0 7px rgba(254,239,171,0.55)); }
   </style>
 </helmet>
-<div style="width:1280px; height:800px; box-sizing:border-box; background:#07080A; display:flex; flex-direction:column; gap:12px; padding:20px 48px 12px 48px;">
+<div style="width:1280px; height:680px; box-sizing:border-box; background:#07080A; display:flex; flex-direction:column; gap:12px; padding:20px 48px 12px 48px;">
 
   <div style="display:grid; grid-template-columns:repeat(6, minmax(0, 1fr)); gap:12px;">
 
@@ -62,6 +62,7 @@
     </div>
 
     <div class="tile on">
+      <div class="more"></div>
       <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="15" rx="2"></rect><path d="M12 4.5v15"></path></svg>
       <div style="display:flex; flex-direction:column; gap:8px;">
         <div class="nm" style="color:#DAE1EB;">Разделение экрана</div>
@@ -74,6 +75,14 @@
       <div style="display:flex; flex-direction:column; gap:8px;">
         <div class="nm" style="color:#DAE1EB;">Подсказки на HUD</div>
         <div class="st" style="color:#FEEFAB;">Указания на проекции</div>
+      </div>
+    </div>
+
+    <div class="tile on">
+      <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="3.2"></circle><path d="M8 2.4v1.4M8 12.2v1.4M2.4 8h1.4M12.2 8h1.4M4.6 4.6l1 1M11.4 4.6l-1 1M4.6 11.4l1-1"></path><path d="M17 20.5H9.5a3.5 3.5 0 0 1 0-7 4.6 4.6 0 0 1 8.7-1 3.9 3.9 0 0 1-1.2 8z"></path></svg>
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <div class="nm" style="color:#DAE1EB;">Погода</div>
+        <div class="st" style="color:#86909B;">Данные для виджета</div>
       </div>
     </div>
 
@@ -114,22 +123,22 @@
   <div style="flex-grow:1; display:flex; gap:30px; min-height:0; padding-top:6px;">
 
     <div style="flex-grow:1; display:flex; flex-direction:column; justify-content:flex-start; min-width:0;">
-      <div style="display:flex; align-items:center; gap:12px; margin-bottom:14px;">
+      <div style="display:flex; align-items:center; gap:12px; height:52px;">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="#FEEFAB"><path d="M7 4l12 8-12 8z"></path></svg>
         <div class="led">M83 · MIDNIGHT CITY</div>
       </div>
       <div style="position:relative;">
-        <div style="display:flex; align-items:flex-end; gap:9px; height:224px;">
+        <div style="display:flex; align-items:flex-end; gap:9px; height:198px;">
           <sc-for list="{{bars}}" as="b" hint-placeholder-count="26">
-            <div style="width:22px; display:flex; flex-direction:column; justify-content:flex-end; height:224px;">
+            <div style="width:22px; display:flex; flex-direction:column; justify-content:flex-end; height:198px;">
               <div style="height:4px; background:#FFF8DA; border-radius:2px; box-shadow:0 0 7px rgba(254,239,171,0.9); margin-bottom: {{b.p}}px;"></div>
               <div style="height: {{b.h}}px; border-radius:2px 2px 0 0; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA); box-shadow:0 0 16px rgba(254,239,171,0.22);"></div>
             </div>
           </sc-for>
         </div>
-        <div style="position:absolute; left:0; right:0; bottom:0; height:224px; background:repeating-linear-gradient(to top, rgba(7,8,10,0) 0px, rgba(7,8,10,0) 8px, #07080A 8px, #07080A 11px); pointer-events:none;"></div>
+        <div style="position:absolute; left:0; right:0; bottom:0; height:198px; background:repeating-linear-gradient(to top, rgba(7,8,10,0) 0px, rgba(7,8,10,0) 8px, #07080A 8px, #07080A 11px); pointer-events:none;"></div>
       </div>
-      <div style="height:40px; overflow:hidden; opacity:0.14; transform:scaleY(-1); margin-top:3px;">
+      <div style="height:40px; overflow:hidden; opacity:0.14; transform:scaleY(-1);">
         <div style="display:flex; align-items:flex-end; gap:9px; height:40px;">
           <sc-for list="{{bars}}" as="b" hint-placeholder-count="26">
             <div style="width:22px; height: {{b.h}}px; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA);"></div>
@@ -168,16 +177,16 @@
   </div>
 </div>
 </x-dc>
-<script data-dc-script data-props='{"$preview":{"width":1280,"height":800}}'>
+<script data-dc-script data-props='{"$preview":{"width":1280,"height":680}}'>
 class Component extends DCLogic {
   renderVals() {
     return {
       bars: [
-        {h:34,p:14},{h:62,p:9},{h:104,p:20},{h:150,p:7},{h:182,p:12},{h:206,p:5},
-        {h:186,p:16},{h:158,p:8},{h:126,p:18},{h:100,p:11},{h:140,p:6},{h:174,p:14},
-        {h:200,p:4},{h:180,p:11},{h:148,p:20},{h:112,p:8},{h:88,p:13},{h:124,p:6},
-        {h:154,p:16},{h:176,p:5},{h:156,p:12},{h:122,p:19},{h:92,p:8},{h:66,p:13},
-        {h:94,p:6},{h:118,p:15}
+        {h:30,p:13},{h:55,p:8},{h:91,p:17},{h:133,p:6},{h:160,p:11},{h:182,p:4},
+        {h:164,p:14},{h:140,p:7},{h:112,p:16},{h:88,p:10},{h:124,p:5},{h:153,p:13},
+        {h:177,p:4},{h:159,p:10},{h:131,p:17},{h:98,p:7},{h:78,p:12},{h:110,p:5},
+        {h:136,p:14},{h:155,p:4},{h:138,p:11},{h:108,p:16},{h:82,p:7},{h:58,p:12},
+        {h:82,p:5},{h:105,p:13}
       ]
     };
   }

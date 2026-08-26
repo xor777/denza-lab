@@ -90,14 +90,18 @@ def frame(name, body):
     and said nothing. A tool that silently shows six pixels of a board is the same
     tool that silently showed none of the spectrum.
     """
+    m = re.search(r'width:([\d.]+)px;\s*height:([\d.]+)px', body)
     try:
         boards = json.load(open(os.path.join(HERE, 'canvas.json'), encoding='utf-8'))
         for a in boards.get('artboards', ()):
             if a.get('file') == name + '.dc.html' and a.get('w') and a.get('h'):
-                return float(a['w']), float(a['h'])
+                w, h = float(a['w']), float(a['h'])
+                if m and (abs(float(m.group(1)) - w) > 0.5 or abs(float(m.group(2)) - h) > 0.5):
+                    print(f'{name}: board says {m.group(1)}x{m.group(2)}, canvas.json says '
+                          f'{w:g}x{h:g} - rendering the canvas size; one of them is stale')
+                return w, h
     except (OSError, ValueError):
         pass
-    m = re.search(r'width:([\d.]+)px;\s*height:([\d.]+)px', body)
     if not m:
         raise SystemExit(f'{name}: no size in canvas.json and none in the board')
     print(f'{name}: not in canvas.json, guessing the frame from the board')

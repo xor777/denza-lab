@@ -32,7 +32,7 @@ class SpectrumBoardContractTest {
     fun aColumnIsAsWideAsItsShareOfTheRow() {
         // The board writes a width and a gap; the code writes the ratio between them.
         val width = number("""<div style="width:([\d.]+)px; display:flex""")
-        val gap = number("""align-items:flex-end; gap:([\d.]+)px; height:224px""")
+        val gap = number("""align-items:flex-end; gap:([\d.]+)px; height:198px""")
         assertEquals(
             "bar width fraction",
             width / (width + gap),

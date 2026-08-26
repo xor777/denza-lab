@@ -1,5 +1,6 @@
 package dev.denza.apps.design
 
+import dev.denza.apps.feature.trip.TripPanelRenderer
 import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -109,6 +110,41 @@ class MainBoardContractTest {
         )
     }
 
+    @Test
+    fun thePanelIsGivenExactlyWhatTheBoardLeavesIt() {
+        // The bug this exists for: the panel asked for 416 dp of a screen that has 680, while two
+        // rows of tiles and the page margins had already spent 384 of it. The bottom 120 dp was
+        // drawn past the edge of the window and nobody saw it, because nothing anywhere subtracted
+        // one number from the other. This does.
+        val frame = FRAME.find(board()) ?: error("no artboard frame on the board")
+        val height = frame.groupValues[2].toFloat()
+        val page = PAGE_PADDING.find(board()) ?: error("no page padding on the board")
+        val top = page.groupValues[1].toFloat()
+        val bottom = page.groupValues[3].toFloat()
+        val grid = GRID.find(board()) ?: error("no tile grid on the board")
+        val gap = grid.groupValues[2].toFloat()
+
+        val rows = 2
+        val left = height - top - bottom - rows * DenzaMetrics.Component.TILE_HEIGHT.value -
+            (rows - 1) * gap - gap
+        assertEquals(
+            "the board leaves $left dp under the tiles",
+            left,
+            TripPanelRenderer.WIDE_VIRTUAL_H,
+            1e-4f,
+        )
+    }
+
+    @Test
+    fun theBoardIsDrawnOnTheHeightTheCarActuallyGives() {
+        // 680, not the screen's 800: a system dock takes 64 dp below the app's window and an
+        // opaque status band 56 above it. Measured off the car, and the one number that makes
+        // every other number on this board mean anything.
+        val frame = FRAME.find(board()) ?: error("no artboard frame on the board")
+        assertEquals("board width", 1280f, frame.groupValues[1].toFloat(), 1e-4f)
+        assertEquals("board height", 680f, frame.groupValues[2].toFloat(), 1e-4f)
+    }
+
     private fun board(): String = BOARD.readText()
 
     /** One CSS rule's body, whitespace squeezed out so a declaration is one token. */
@@ -134,6 +170,8 @@ class MainBoardContractTest {
 
         val ICON = Regex("""<svg width="([\d.]+)"[^>]*stroke-width="([\d.]+)"""")
         val GRID = Regex("""grid-template-columns:repeat\((\d+),[^;]*;\s*gap:([\d.]+)px""")
-        val PAGE_PADDING = Regex("""padding:([\d.]+)px ([\d.]+)px [\d.]+px [\d.]+px""")
+        val PAGE_PADDING =
+            Regex("""padding:([\d.]+)px ([\d.]+)px ([\d.]+)px ([\d.]+)px""")
+        val FRAME = Regex("""width:([\d.]+)px; height:([\d.]+)px; box-sizing""")
     }
 }
