@@ -179,6 +179,10 @@ object DenzaAppRepository {
             navigationPlacements = NavigationPlacementPolicy.offered(navigationPackage),
             navigationAppLabel = NavigationAppPolicy.fallbackLabel(navigationPackage),
             navigationAppChoices = navigationAppChoices(context, navigationPackage),
+            // Loaded here rather than when a picker asks for it. The projection panel offers this
+            // list inline, and a panel that says "which applications" over an empty space until
+            // some other flow happens to have run is a panel that lies about what it is for.
+            appChoices = loadAppChoices(context),
             splitScreen = splitScreenSnapshot(
                 launcherVisible = splitLauncherVisible,
                 session = splitScreenSession,

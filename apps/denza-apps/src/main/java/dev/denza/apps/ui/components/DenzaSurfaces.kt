@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -95,17 +94,23 @@ fun DenzaSheet(
                     ),
                 verticalArrangement = Arrangement.spacedBy(DenzaMetrics.Space.XL),
             ) {
-                // The settings scroll and the action does not. The board hangs the action off the
-                // bottom with a growing spacer above it, which is the same statement: whatever a
-                // panel holds, its one action is always in the same place under the same thumb.
+                // The settings scroll and the action does not: whatever a panel holds, its one
+                // action is in the same place under the same thumb.
+                //
+                // The settings take every pixel above the action. They used to be `weight(1f,
+                // fill = false)` with a `Spacer(weight(1f))` under them, which reads like "as tall
+                // as they need, then push the action down" and measures as something else
+                // entirely: two children of weight 1 split the space in half, so the settings were
+                // capped at half the panel whatever their size. On the car that silently hid the
+                // mirrors' processing switch and its "check the cameras" button below a scroll
+                // nobody could see the need for, and left the projection panel a void.
                 Column(
-                    modifier = Modifier.weight(1f, fill = false)
+                    modifier = Modifier.weight(1f)
                         .verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(DenzaMetrics.Space.XL),
                 ) {
                     content()
                 }
-                Spacer(Modifier.weight(1f))
                 footer()
             }
         }
