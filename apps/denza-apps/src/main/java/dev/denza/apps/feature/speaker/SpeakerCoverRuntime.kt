@@ -37,9 +37,18 @@ object SpeakerCoverRuntime {
         }
         val runtime = snapshot()
         return when (runtime.phase) {
-            SpeakerCoverRuntimePhase.STOPPED,
-            SpeakerCoverRuntimePhase.STARTING,
-            -> FeatureSnapshot(
+            // Switched on and nothing running yet is not the same as starting up. Both used to
+            // report STARTING, which draws a spinner on the tile - and a stopped watcher never
+            // leaves that phase on its own, so the spinner turned forever, promising work that was
+            // not happening. On is on; the spinner is for the seconds it actually takes.
+            SpeakerCoverRuntimePhase.STOPPED -> FeatureSnapshot(
+                id = FeatureId.SPEAKER_COVERS,
+                desiredEnabled = true,
+                status = FeatureStatus.READY,
+                message = runtime.message.ifBlank { "Автоматика включена" },
+                details = runtime.details,
+            )
+            SpeakerCoverRuntimePhase.STARTING -> FeatureSnapshot(
                 id = FeatureId.SPEAKER_COVERS,
                 desiredEnabled = true,
                 status = FeatureStatus.STARTING,

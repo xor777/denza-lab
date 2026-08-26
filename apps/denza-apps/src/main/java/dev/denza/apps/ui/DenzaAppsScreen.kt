@@ -571,11 +571,6 @@ private fun AdbRecoveryDialog(
                         Text("Разрешить новую попытку", color = DenzaColors.Warning)
                     }
                 }
-                Text(
-                    AdbRescueCoordinator.QUEUE_RECOVERY_STATUS,
-                    color = DenzaColors.Warning,
-                    fontSize = DenzaMetrics.Type.BODY,
-                )
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End,
@@ -645,12 +640,6 @@ private fun DiagnosticsDialog(
                     enabled = !adbBusy,
                 )
             }
-            Text(
-                AdbRescueCoordinator.QUEUE_RECOVERY_STATUS,
-                color = DenzaColors.Warning,
-                fontSize = DenzaMetrics.Type.BODY,
-                lineHeight = DenzaMetrics.Type.LABEL,
-            )
         }
         DenzaSection("Технические сведения") {
             state.technicalDetails

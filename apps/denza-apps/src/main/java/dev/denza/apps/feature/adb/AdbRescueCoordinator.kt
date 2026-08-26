@@ -217,8 +217,16 @@ object AdbRescueCoordinator {
     private const val KEY_ATTEMPT_COUNT = "attempt_count"
     private const val KEY_LAST_ATTEMPT_AT = "last_attempt_at"
     private const val CHECK_MARKER = "DENZA_ADB_RESCUE_OK"
+    /**
+     * A note about this code, not a message to anybody driving.
+     *
+     * It was printed in amber on the service screen and on the recovery dialog, permanently, on
+     * every car - a sentence about an unverified code path, with an English word inside a Russian
+     * one, that no driver can act on and that never goes away. The support report is where a note
+     * like this belongs, and it is the only place it goes now.
+     */
     const val QUEUE_RECOVERY_STATUS =
-        "Очистка системной очереди отключена до live-проверки на машине"
+        "очистка системной очереди отключена до проверки на машине"
 
     private val executor = Executors.newSingleThreadExecutor()
     private val running = AtomicBoolean(false)

@@ -98,13 +98,16 @@ object DashboardTiles {
      * adapter ran unconditionally with nothing to switch, so a tile for it would have been inert.
      * It has a switch now, so it has a tile.
      */
-    fun of(state: DenzaUiState): List<DashboardTile> = listOf(
+    fun of(
+        state: DenzaUiState,
+        nowMillis: Long = System.currentTimeMillis(),
+    ): List<DashboardTile> = listOf(
         cluster(state),
         simulcast(state),
         mirrors(state),
         split(state),
         hud(state),
-        weather(state),
+        weather(state, nowMillis),
         speakers(state),
         locale(state),
         passenger(state),
@@ -273,15 +276,63 @@ object DashboardTiles {
      * handshake - an alarm either stands or it does not, which is why this tile reads its state
      * straight rather than through a snapshot.
      */
-    private fun weather(state: DenzaUiState): DashboardTile = DashboardTile(
-        id = TileId.WEATHER,
-        icon = TileIcon.WEATHER,
-        name = "Погода",
-        state = if (state.weatherEnabled) "Данные для виджета" else "Данные не уходят",
-        tone = if (state.weatherEnabled) DenzaTileTone.LIVE else DenzaTileTone.IDLE,
-        caption = DenzaTileCaption.SETTING,
-        action = TileAction.TOGGLE,
-    )
+    private fun weather(state: DenzaUiState, nowMillis: Long): DashboardTile {
+        // The last thing actually handed to the car, and how long ago - which is what the board
+        // draws, and the only caption here that can be checked against the widget a few
+        // centimetres away. "Данные для виджета" was the switch said twice.
+        val reading = state.weatherTemperature
+        val fresh = reading != null && state.weatherUpdatedMillis > 0L
+        return DashboardTile(
+            id = TileId.WEATHER,
+            icon = TileIcon.WEATHER,
+            name = "Погода",
+            state = when {
+                !state.weatherEnabled -> "Данные не уходят"
+                fresh -> "${degrees(reading)} · ${ago(nowMillis - state.weatherUpdatedMillis)}"
+                else -> "Данных ещё нет"
+            },
+            tone = if (state.weatherEnabled) DenzaTileTone.LIVE else DenzaTileTone.IDLE,
+            caption = if (fresh && state.weatherEnabled) {
+                DenzaTileCaption.READING
+            } else {
+                DenzaTileCaption.SETTING
+            },
+            action = TileAction.TOGGLE,
+        )
+    }
+
+    /** "+14°", "0°", "-3°" - the sign is carried, because below zero is the point of reading it. */
+    fun degrees(value: Int): String = when {
+        value > 0 -> "+$value°"
+        else -> "$value°"
+    }
+
+    /** How long ago, in the coarsest unit that is still true. */
+    fun ago(elapsedMillis: Long): String {
+        val minutes = elapsedMillis / 60_000L
+        return when {
+            elapsedMillis < 0L -> "только что"
+            minutes < 1L -> "только что"
+            minutes < 60L -> "${minutes.toInt()} ${plural(minutes.toInt(), "минуту", "минуты", "минут")} назад"
+            minutes < 24L * 60L -> {
+                val hours = (minutes / 60L).toInt()
+                "$hours ${plural(hours, "час", "часа", "часов")} назад"
+            }
+            else -> "больше суток назад"
+        }
+    }
+
+    /** The last digit decides, and the teens are the exception. */
+    private fun plural(count: Int, one: String, few: String, many: String): String {
+        val tail = count % 100
+        val last = count % 10
+        return when {
+            tail in 11..14 -> many
+            last == 1 -> one
+            last in 2..4 -> few
+            else -> many
+        }
+    }
 
     /** Motorised speaker covers, driven by app, MediaSession and output-mix signals. */
     private fun speakers(state: DenzaUiState): DashboardTile {

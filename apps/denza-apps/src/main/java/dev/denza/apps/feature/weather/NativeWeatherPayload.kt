@@ -19,6 +19,30 @@ import kotlin.math.sin
 import kotlin.math.tan
 
 internal object NativeWeatherPayload {
+    /**
+     * The temperature this forecast reports for right now.
+     *
+     * The dashboard's weather tile shows a reading rather than a restatement of its own switch -
+     * "+14° · 12 минут назад", as `Attention.dc.html` draws it - and this is where that number
+     * comes from. Same point-nearest-to-now the payload itself uses, so the tile and the car's
+     * widget can never disagree about the temperature.
+     */
+    fun currentTemperature(
+        forecast: JSONObject,
+        nowMillis: Long = System.currentTimeMillis(),
+        zoneId: ZoneId = ZoneId.systemDefault(),
+    ): Int? {
+        val timeseries = forecast.optJSONObject("properties")
+            ?.optJSONArray("timeseries") ?: return null
+        val points = (0 until timeseries.length()).mapNotNull { index ->
+            parsePoint(timeseries.optJSONObject(index), zoneId)
+        }
+        if (points.isEmpty()) return null
+        val current = points.minBy { abs(it.instant.toEpochMilli() - nowMillis) }
+        val value = current.details.optDouble("air_temperature", Double.NaN)
+        return if (value.isNaN()) null else value.roundToInt()
+    }
+
     fun build(
         forecast: JSONObject,
         latitude: Double,

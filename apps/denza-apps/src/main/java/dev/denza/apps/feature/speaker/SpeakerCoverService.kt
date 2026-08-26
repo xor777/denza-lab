@@ -83,6 +83,12 @@ class SpeakerCoverService : Service() {
         mediaSessions.start()
         ensureObserverAccess()
         handler.post(sampleLoop)
+        // Startup is over, so say so. `setAudioAvailable` only speaks when the sensor's
+        // availability *changes*, and on a car where it is unavailable from the first tick it
+        // never does - so nothing ever moved the phase off the STARTING published above, and the
+        // dashboard tile turned a spinner for the entire life of the process. The watchers are
+        // running by this line whether or not the sensor answered.
+        publishMonitoring()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -186,28 +192,40 @@ class SpeakerCoverService : Service() {
         }
     }
 
+    /**
+     * The audio sensor coming and going.
+     *
+     * Losing it is not a fault to recover from: the media sessions the head unit publishes are the
+     * other ear, they keep working, and on a car where the sensor is simply unavailable there is
+     * nothing to recover to. Reporting DEGRADED here drew a spinner on the dashboard tile that
+     * turned for as long as the app ran - a feature announcing repair work that was never going to
+     * finish, on a feature that was working.
+     *
+     * The failure is still worth having, so it goes on the panel as the reading's detail rather
+     * than as the feature's state.
+     */
     private fun setAudioAvailable(available: Boolean) {
         if (audioAvailable == available) return
         audioAvailable = available
-        if (available) {
-            publishMonitoring()
-        } else if (automaton.pendingAction == null) {
-            publish(
-                SpeakerCoverRuntimePhase.DEGRADED,
-                "Восстанавливаю датчик звука",
-                spectrum.lastFailure,
-            )
-        }
+        if (automaton.pendingAction == null) publishMonitoring()
     }
 
+    /**
+     * Watching, and by what.
+     *
+     * The automation has two ways to know something is playing: the audio sensor, and the media
+     * sessions the head unit publishes. Losing the first does not stop the second, so the feature
+     * is monitoring either way and says which ear it is using.
+     *
+     * It used to report STARTING without the audio sensor, which drew a spinner on the dashboard
+     * tile - and on a car where that sensor is simply not available, nothing ever moved it on. The
+     * tile turned that spinner indefinitely, promising a startup that had already finished.
+     */
     private fun publishMonitoring() {
         publish(
-            if (audioAvailable) {
-                SpeakerCoverRuntimePhase.MONITORING
-            } else {
-                SpeakerCoverRuntimePhase.STARTING
-            },
-            if (audioAvailable) "Слежу за воспроизведением" else "Подключаю датчик звука",
+            SpeakerCoverRuntimePhase.MONITORING,
+            if (audioAvailable) "Слежу за воспроизведением" else "Слежу за плеерами",
+            if (audioAvailable) null else spectrum.lastFailure,
         )
     }
 

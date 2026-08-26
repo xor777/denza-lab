@@ -32,6 +32,9 @@ internal class WeatherAdapterController(context: Context) {
                 locationLabel = locationLabel,
             )
 
+            NativeWeatherPayload.currentTemperature(forecast)?.let {
+                WeatherAdapterState.setLastTemperature(appContext, it)
+            }
             ensureNativeRefreshObserver()
             nativeStore.replace(payload)
             notifyNativeConsumers()

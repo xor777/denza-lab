@@ -106,6 +106,8 @@ data class DenzaUiState(
     val adbRescue: AdbRescueSnapshot = AdbRescueSnapshot(),
     val stockRussianLocale: StockRussianLocaleSnapshot = StockRussianLocaleSnapshot(),
     val weatherEnabled: Boolean = true,
+    val weatherTemperature: Int? = null,
+    val weatherUpdatedMillis: Long = 0L,
     val technicalDetails: String = "",
     val clusterCandidates: List<ClusterDisplayDescriptor> = emptyList(),
     val appPickerVisible: Boolean = false,
@@ -685,6 +687,8 @@ object DenzaAppRepository {
         WeatherAdapterScheduler.ensureScheduled(app)
         mutableState.value = mutableState.value.copy(
             weatherEnabled = WeatherAdapterState.enabled(app),
+            weatherTemperature = WeatherAdapterState.lastTemperature(app),
+            weatherUpdatedMillis = WeatherAdapterState.lastSuccessMillis(app),
         )
         refresh()
         reconcileNavigationSteeringWheelAccess(app)

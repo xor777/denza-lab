@@ -42,6 +42,42 @@ class DashboardTilesTest {
     }
 
     @Test
+    fun weatherReadsBackWhatTheCarWasGiven() {
+        val now = 1_700_000_000_000L
+        val tile = DashboardTiles.of(
+            DenzaUiState(
+                weatherEnabled = true,
+                weatherTemperature = 14,
+                weatherUpdatedMillis = now - 12 * 60_000L,
+            ),
+            nowMillis = now,
+        ).first { it.id == TileId.WEATHER }
+        assertEquals("+14° · 12 минут назад", tile.state)
+
+        val off = DashboardTiles.of(
+            DenzaUiState(weatherEnabled = false, weatherTemperature = 14),
+            nowMillis = now,
+        ).first { it.id == TileId.WEATHER }
+        assertEquals("Данные не уходят", off.state)
+    }
+
+    @Test
+    fun theReadingCarriesItsSignAndItsAgeInWords() {
+        // Below zero is the whole reason to look at it, so the sign is never dropped.
+        assertEquals("+14°", DashboardTiles.degrees(14))
+        assertEquals("0°", DashboardTiles.degrees(0))
+        assertEquals("-3°", DashboardTiles.degrees(-3))
+
+        assertEquals("только что", DashboardTiles.ago(20_000L))
+        assertEquals("1 минуту назад", DashboardTiles.ago(60_000L))
+        assertEquals("2 минуты назад", DashboardTiles.ago(2 * 60_000L))
+        assertEquals("12 минут назад", DashboardTiles.ago(12 * 60_000L))
+        assertEquals("1 час назад", DashboardTiles.ago(60 * 60_000L))
+        assertEquals("5 часов назад", DashboardTiles.ago(5 * 60 * 60_000L))
+        assertEquals("больше суток назад", DashboardTiles.ago(48L * 60 * 60_000L))
+    }
+
+    @Test
     fun serviceCountsWhatIsWrongInsteadOfClaimingNothingIs() {
         // It shipped with "Всё в норме" as a constant string, which made the one tile whose job is
         // to say something is wrong the one tile incapable of saying it.

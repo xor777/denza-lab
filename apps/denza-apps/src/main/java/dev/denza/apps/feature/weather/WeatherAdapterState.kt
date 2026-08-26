@@ -3,12 +3,14 @@ package dev.denza.apps.feature.weather
 import android.content.Context
 
 internal object WeatherAdapterState {
+    private const val NO_TEMPERATURE = Int.MIN_VALUE
     private const val PREFS_NAME = "weather_adapter_runtime"
     private const val KEY_LAST_ATTEMPT_MILLIS = "last_attempt_millis"
     private const val KEY_LAST_SUCCESS_MILLIS = "last_success_millis"
     private const val KEY_LAST_RESULT = "last_result"
     private const val KEY_NEXT_ALARM_ELAPSED = "next_alarm_elapsed"
     private const val KEY_ENABLED = "enabled"
+    private const val KEY_LAST_TEMPERATURE = "last_temperature"
     // Kept only so an upgrade from the proxy spike can clean up an interrupted run.
     private const val KEY_OWNED_PROXY = "owned_proxy"
 
@@ -37,6 +39,15 @@ internal object WeatherAdapterState {
 
     fun setEnabled(context: Context, value: Boolean) {
         preferences(context).edit().putBoolean(KEY_ENABLED, value).apply()
+    }
+
+    /** The last temperature actually handed to the car, for the tile that reads it back. */
+    fun lastTemperature(context: Context): Int? =
+        preferences(context).getInt(KEY_LAST_TEMPERATURE, NO_TEMPERATURE)
+            .takeIf { it != NO_TEMPERATURE }
+
+    fun setLastTemperature(context: Context, value: Int) {
+        preferences(context).edit().putInt(KEY_LAST_TEMPERATURE, value).apply()
     }
 
     fun lastSuccessMillis(context: Context): Long =
