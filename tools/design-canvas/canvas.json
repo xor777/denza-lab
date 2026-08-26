@@ -73,7 +73,16 @@
       "y": 900,
       "w": 1280,
       "h": 800,
-      "title": "Нет связи",
+      "title": "Заслонка ADB · нет доступа",
+      "page": "page-screens"
+    },
+    {
+      "file": "AdbGateNarrow.dc.html",
+      "x": 2808,
+      "y": 900,
+      "w": 416,
+      "h": 800,
+      "title": "Заслонка ADB · узкая панель",
       "page": "page-screens"
     },
     {

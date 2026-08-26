@@ -26,7 +26,7 @@ still use the historical `denza-gateway` directory name.
   where experiments live, promotion checklist, live-car debugging rules, and
   the firmware behavior method (corpus-first, reset procedure, one owning
   session).
-- [tools/design-canvas/README.md](tools/design-canvas/README.md) — the twenty
+- [tools/design-canvas/README.md](tools/design-canvas/README.md) — the
   artboards the head unit and cluster are drawn from, the two type ramps, how to
   render a board and how to measure one, and the unit tests that fail when a
   board and the app disagree. Read it before changing anything under

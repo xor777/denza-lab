@@ -15,37 +15,41 @@
             display:flex; flex-direction:column; gap:20px; }
     .ttl { color:#DAE1EB; font-size:34px; font-weight:600; line-height:1.2; }
     .msg { color:#86909B; font-size:19px; line-height:1.263; }
-    .why { color:#86909B; font-size:15px; line-height:1.267; }
-    .row { display:flex; gap:12px; justify-content:flex-end; }
+    .row { display:flex; gap:12px; justify-content:flex-end; align-items:flex-start; }
     .btn { box-sizing:border-box; font-size:19px; font-weight:500; line-height:1.2;
            display:flex; align-items:center; justify-content:center; text-align:center; }
     .pill { min-height:40px; border-radius:20px; padding:8px 24px; }
     .fill { background:#FEEFAB; color:#262D33; }
     .edge { border:1px solid #FF9F19; color:#FF9F19; }
+    /* Compose measures a Row's children in order: the first takes what it asks for and the
+       second is handed the remainder, so the outlined action keeps its natural width and the
+       primary one is squeezed into what is left. Flexbox would shrink both together. */
+    .first { flex:0 0 auto; }
+    .rest { flex:0 1 auto; min-width:64px; }
     .more { min-height:42px; border-radius:12px; border:1px solid #484E55; color:#FEEFAB;
             padding:8px 24px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:block;
             text-align:center; line-height:26px; font-size:19px; font-weight:500; box-sizing:border-box; }
   </style>
 </helmet>
-<div style="width:1280px; height:800px; box-sizing:border-box; background:#07080A; position:relative;">
+<div style="width:416px; height:800px; box-sizing:border-box; background:#07080A; position:relative;">
   <div style="position:absolute; inset:0; background:rgba(0,0,0,0.78); box-sizing:border-box;
               padding:32px; display:flex; align-items:center; justify-content:center;">
-    <div class="card" style="width:875.5px; padding:32px 48px;">
+    <div class="card" style="width:352px; padding:32px 20px;">
       <div style="display:flex; align-items:center; gap:20px;">
-        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#86909B" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg>
-        <div class="ttl">ADB недоступен</div>
+        <svg style="flex:0 0 auto;" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#FF9F19" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg>
+        <div class="ttl">Подтвердите доступ к ADB</div>
       </div>
-      <div class="msg">Разблокировать доступ к ADB можно только в условиях сервиса при помощи официального диагностического компьютера. Пожалуйста, обратитесь в сервис для разблокировки доступа к ADB.</div>
-      <div class="why">Отладка по ADB выключена в системе автомобиля; системный запрос не появится</div>
+      <div class="msg">Разрешите системный запрос на экране автомобиля</div>
       <div class="row">
-        <div class="btn pill fill">Проверить снова</div>
+        <div class="btn pill edge first">Восстановить ADB</div>
+        <div class="btn pill fill rest">Я подтвердил — проверить</div>
       </div>
       <div class="more">Что такое ADB</div>
     </div>
   </div>
 </div>
 </x-dc>
-<script data-dc-script data-props='{"$preview":{"width":1280,"height":800}}'>
+<script data-dc-script data-props='{"$preview":{"width":416,"height":800}}'>
 class Component extends DCLogic {
   renderVals() { return {}; }
 }

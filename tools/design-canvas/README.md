@@ -1,6 +1,6 @@
 # Design canvas
 
-The twenty artboards behind the Denza Apps redesign, and the tooling that keeps
+The artboards behind the Denza Apps redesign, and the tooling that keeps
 them honest. Published as a Claude Design canvas; these are the sources it is
 seeded from.
 
@@ -46,6 +46,12 @@ Nothing may sit outside the ramps below.
 It knows about occlusion: text under a modal scrim is covered, not colliding, and
 adjacent cells of a segmented control are meant to touch.
 
+What it does not check is a label overflowing the control it sits in. On
+`AdbGateNarrow.dc.html` the primary action's words run out past both ends of their
+own pill, and the audit reports that board clean: the text is inside the artboard,
+inside its column, and touching nothing it is unrelated to. Until that check
+exists, a narrow board has to be looked at as well as measured.
+
 ## Looking at a board
 
 ```bash
@@ -66,6 +72,23 @@ been designed while it sat in `Main.dc.html`, drawn, with its own data.
 So every line `shot.py` prints ends with `loops: N left: M` - the loops the board
 declares against the ones still standing in the rendered DOM. `left: 0` is the
 only good answer. Anything else is marked HOLES, and the picture is not evidence.
+
+## One screen, two widths
+
+The head unit gives an app three window widths - 1280 dp full screen, 828 dp for
+two thirds, 416 dp for one third - and the third of those is where a design fails
+first. `AdbGate.dc.html` and `AdbGateNarrow.dc.html` are one screen drawn twice for
+exactly that reason: same card, same components, same copy rules, 1280 against 416.
+
+The wide one is comfortable. The narrow one shows a Row measuring its children in
+order - the outlined action takes the width it asks for, the primary action is
+handed what is left, and its label runs out past both ends of the button. That is
+what ships today, drawn rather than described, and it is not fixed by anything on
+the board: a two-button row does not fit 312 dp of card, and which button loses is
+a product decision nobody has made yet.
+
+A fullscreen-only board cannot show any of that, which is why the pair exists.
+Any screen that can appear in a pane deserves the same treatment.
 
 ## The two ramps
 
