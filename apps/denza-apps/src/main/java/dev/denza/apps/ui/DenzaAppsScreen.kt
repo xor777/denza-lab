@@ -87,7 +87,11 @@ import dev.denza.apps.core.FeatureId
 import dev.denza.apps.core.FeatureSnapshot
 import dev.denza.apps.core.FeatureStatus
 import dev.denza.apps.design.DenzaColors
+import dev.denza.apps.design.DenzaIcons
 import dev.denza.apps.design.DenzaMetrics
+import dev.denza.apps.ui.components.DenzaSectionLabel
+import dev.denza.apps.ui.components.DenzaSheet
+import dev.denza.apps.ui.components.DenzaSheetHeader
 import dev.denza.apps.design.DenzaTheme
 import dev.denza.apps.feature.cluster.ClusterDisplayDescriptor
 import dev.denza.apps.feature.cluster.ClusterMapPlacement
@@ -596,42 +600,28 @@ private fun DiagnosticsDialog(
     onSetStockRussianLocaleEnabled: (Boolean) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false),
-    ) {
-        Surface(
-            modifier = if (compactLayout) Modifier.fillMaxWidth(0.96f)
-            else Modifier.fillMaxWidth(0.72f),
-            color = DenzaColors.Surface,
-            shape = RoundedCornerShape(DenzaMetrics.Space.XL),
+    // The service panel was the last thing on this screen still drawn as a centred Material dialog
+    // with its own width, its own header and a "Закрыть" button in the corner - a different
+    // surface for the one door the driver reaches for when something is wrong. It is a panel like
+    // the other four now: same edge, same width, same way out.
+    DenzaSheet(onDismiss = onDismiss, compact = compactLayout) {
+        DenzaSheetHeader(
+            title = "Сервис",
+            subtitle = "Что с машиной и с доступом к ней",
+            onDismiss = onDismiss,
+            icon = DenzaIcons.Service,
+        )
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(DenzaMetrics.Space.S),
         ) {
-            Column(modifier = Modifier.padding(if (compactLayout) DenzaMetrics.Space.L else DenzaMetrics.Space.XL)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Outlined.Build, null, tint = DenzaColors.Accent)
-                    Spacer(Modifier.width(DenzaMetrics.Space.M))
-                    Text(
-                        "Сервис",
-                        color = DenzaColors.Ink,
-                        fontSize = DenzaMetrics.Type.SECTION,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                }
-                Spacer(Modifier.height(DenzaMetrics.Space.L))
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = DenzaMetrics.Component.PICKER_HEIGHT)
-                        .verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(DenzaMetrics.Space.S),
-                ) {
                     val adbBusy = state.adbRescue.phase == AdbRescuePhase.CHECKING ||
                         state.adbRescue.phase == AdbRescuePhase.REQUESTING
-                    Text("ADB Rescue", color = DenzaColors.Ink, fontWeight = FontWeight.SemiBold)
+                    DenzaSectionLabel("Доступ к машине")
                     DenzaKeyValueRow(
                         label = "Состояние",
                         value = state.adbRescue.message,
-                        stacked = compactLayout,
+                        stacked = true,
                     )
                     state.adbRescue.details?.let { details ->
                         Text(details, color = DenzaColors.Muted, fontSize = DenzaMetrics.Type.BODY)
@@ -666,7 +656,7 @@ private fun DiagnosticsDialog(
                         fontSize = DenzaMetrics.Type.BODY,
                     )
                     Spacer(Modifier.height(DenzaMetrics.Space.M))
-                    Text("Штатный русский", color = DenzaColors.Ink, fontWeight = FontWeight.SemiBold)
+                    DenzaSectionLabel("Штатный русский")
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
                         color = DenzaColors.SurfaceRaised,
@@ -750,7 +740,7 @@ private fun DiagnosticsDialog(
                         Text(details, color = DenzaColors.Warning, fontSize = DenzaMetrics.Type.BODY)
                     }
                     Spacer(Modifier.height(DenzaMetrics.Space.M))
-                    Text("Технические сведения", color = DenzaColors.Ink, fontWeight = FontWeight.SemiBold)
+                    DenzaSectionLabel("Технические сведения")
                     state.technicalDetails
                         .lineSequence()
                         .filter { it.isNotBlank() }
@@ -758,11 +748,11 @@ private fun DiagnosticsDialog(
                             DenzaKeyValueRow(
                                 label = line.substringBefore('='),
                                 value = line.substringAfter('=', missingDelimiterValue = "—"),
-                                stacked = compactLayout,
+                                stacked = true,
                             )
                         }
                     Spacer(Modifier.height(DenzaMetrics.Space.S))
-                    Text("Выбор экрана приборки", color = DenzaColors.Ink, fontWeight = FontWeight.SemiBold)
+                    DenzaSectionLabel("Экран приборки")
                     state.clusterCandidates
                         .filter { it.id != 0 && !it.isOwnVirtualDisplay }
                         .forEach { display ->
@@ -781,20 +771,6 @@ private fun DiagnosticsDialog(
                         Text("Определять автоматически", color = DenzaColors.Accent)
                     }
                 }
-                Spacer(Modifier.height(DenzaMetrics.Space.L))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Button(
-                        onClick = onDismiss,
-                    ) {
-                        Text("Закрыть", fontWeight = FontWeight.SemiBold)
-                    }
-                }
-            }
-        }
     }
 }
 

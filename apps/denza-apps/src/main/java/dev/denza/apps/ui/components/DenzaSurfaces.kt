@@ -202,13 +202,26 @@ fun DenzaSection(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(DenzaMetrics.Space.M),
     ) {
-        Text(
-            text = title.uppercase(),
-            style = MaterialTheme.typography.labelSmall,
-            color = DenzaColors.Muted,
-        )
+        DenzaSectionLabel(title)
         content()
     }
+}
+
+/**
+ * The tracked capital on its own, for a panel whose groups are not a tidy nest of columns.
+ *
+ * The service panel is the one place that needs this: its groups are a long flat run of readings
+ * and controls with headings between them, and wrapping each run in a column to get the heading
+ * would be re-nesting a hundred lines to change a font.
+ */
+@Composable
+fun DenzaSectionLabel(title: String, modifier: Modifier = Modifier) {
+    Text(
+        text = title.uppercase(),
+        style = MaterialTheme.typography.labelSmall,
+        color = DenzaColors.Muted,
+        modifier = modifier,
+    )
 }
 
 /**

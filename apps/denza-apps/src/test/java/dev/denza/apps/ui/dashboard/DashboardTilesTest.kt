@@ -42,6 +42,46 @@ class DashboardTilesTest {
     }
 
     @Test
+    fun serviceCountsWhatIsWrongInsteadOfClaimingNothingIs() {
+        // It shipped with "Всё в норме" as a constant string, which made the one tile whose job is
+        // to say something is wrong the one tile incapable of saying it.
+        val healthy = DashboardTiles.of(DenzaUiState()).first { it.id == TileId.SERVICE }
+        assertEquals("Всё в норме", healthy.state)
+        assertEquals(DenzaTileTone.IDLE, healthy.tone)
+
+        val waiting = DashboardTiles.of(
+            DenzaUiState(
+                mirrors = snapshot(FeatureStatus.NEEDS_ACTION),
+                hudGuidance = snapshot(FeatureStatus.NEEDS_ACTION),
+            ),
+        ).first { it.id == TileId.SERVICE }
+        assertEquals("2 функции ждут", waiting.state)
+        assertEquals(DenzaTileTone.ATTENTION, waiting.tone)
+
+        val hurt = DashboardTiles.of(
+            DenzaUiState(
+                mirrors = snapshot(FeatureStatus.NEEDS_ACTION),
+                simulcast = snapshot(FeatureStatus.ERROR),
+            ),
+        ).first { it.id == TileId.SERVICE }
+        // Broken and waiting count together and read amber, which is what `Attention.dc.html`
+        // draws for exactly this pair. Coral here would be the door claiming to be the fault.
+        assertEquals("2 функции ждут", hurt.state)
+        assertEquals(DenzaTileTone.ATTENTION, hurt.tone)
+    }
+
+    @Test
+    fun theCountAgreesWithItsNounAndItsVerb() {
+        // Russian agrees on the last digit and then makes an exception of the teens, so eleven
+        // takes the same form as five and twenty-one the same as one.
+        assertEquals("1 функция", DashboardTiles.featureCount(1))
+        assertEquals("2 функции", DashboardTiles.featureCount(2))
+        assertEquals("5 функций", DashboardTiles.featureCount(5))
+        assertEquals("11 функций", DashboardTiles.featureCount(11))
+        assertEquals("21 функция", DashboardTiles.featureCount(21))
+    }
+
+    @Test
     fun aFeatureThatIsSwitchedOffDoesNotLookLikeAFeatureThatBroke() {
         // The screen this replaces drew both in the same muted grey, so "I turned that off" and
         // "that failed" were one picture.

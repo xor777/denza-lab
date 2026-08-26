@@ -108,7 +108,7 @@ object DashboardTiles {
         speakers(state),
         locale(state),
         passenger(state),
-        service(),
+        service(state),
     )
 
     /**
@@ -352,15 +352,58 @@ object DashboardTiles {
      * undisclosed part of the screen, which is a door too, just one nobody can find and anybody can
      * open by accident.
      */
-    private fun service(): DashboardTile = DashboardTile(
-        id = TileId.SERVICE,
-        icon = TileIcon.SERVICE,
-        name = "Сервис",
-        state = "Всё в норме",
-        tone = DenzaTileTone.IDLE,
-        caption = DenzaTileCaption.SETTING,
-        action = TileAction.SERVICE_OPEN,
-    )
+    private fun service(state: DenzaUiState): DashboardTile {
+        // What the rest of the screen adds up to. "Всё в норме" was a constant, which made the one
+        // tile whose job is to say something is wrong the one tile that could not - and it said so
+        // in champagne on a car with two broken features. `Attention.dc.html` has drawn this as a
+        // count in amber since the boards were made; the code simply never read it.
+        val features = listOf(
+            state.navigation, state.simulcast, state.mirrors, state.splitScreen,
+            state.hudGuidance, state.speakerCovers, state.fseInstaller,
+        )
+        // Broken and waiting counted together, and amber either way, which is what the board
+        // draws: one broken feature and one waiting reads "2 функции ждут". Coral would be this
+        // tile claiming to be the thing that failed, and nothing about a door has failed - it is
+        // the room behind it that needs somebody. The count is how many things need one.
+        val needing = features.count {
+            val tone = toneOf(it)
+            tone == DenzaTileTone.BROKEN || tone == DenzaTileTone.ATTENTION
+        }
+        return DashboardTile(
+            id = TileId.SERVICE,
+            icon = TileIcon.SERVICE,
+            name = "Сервис",
+            state = if (needing > 0) {
+                "${featureCount(needing)} ${verb(needing, "ждёт", "ждут")}"
+            } else {
+                "Всё в норме"
+            },
+            tone = if (needing > 0) DenzaTileTone.ATTENTION else DenzaTileTone.IDLE,
+            // A reading of the car, not a setting - so on a healthy car it stays grey, and when it
+            // is not grey the tone has already said which kind of trouble it is.
+            caption = DenzaTileCaption.READING,
+            action = TileAction.SERVICE_OPEN,
+        )
+    }
+
+    /** "1 функция", "2 функции", "5 функций" - the same teens exception as [applications]. */
+    fun featureCount(count: Int): String {
+        val tail = count % 100
+        val last = count % 10
+        val word = when {
+            tail in 11..14 -> "функций"
+            last == 1 -> "функция"
+            last in 2..4 -> "функции"
+            else -> "функций"
+        }
+        return "$count $word"
+    }
+
+    /** The verb agrees with the noun the count produced, not with the digit. */
+    private fun verb(count: Int, singular: String, plural: String): String {
+        val tail = count % 100
+        return if (tail !in 11..14 && count % 10 == 1) singular else plural
+    }
 
     /**
      * "1 приложение", "3 приложения", "6 приложений".
