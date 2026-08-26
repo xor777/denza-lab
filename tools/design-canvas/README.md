@@ -57,9 +57,29 @@ can measure and cannot see is a difference that will be drifted into.
 | Cluster (virtual units, 1.70 on the panel) | 52 · 34 · 24 · 18 · 13 · 11 (+ `104`, proposal only) | 8 wide, 6 narrow |
 | Head unit (pixels, 1:1) | 82 · 62 · 46 · 34 · 24 · 19 · 15 | 6 |
 
+Spacing on the head unit is `48 · 32 · 20 · 12 · 8 · 4`, six rungs none closer
+than one and a half times the one below: the screen margin, the gap between two
+groups, the padding inside a surface, the gap between neighbours in a group, the
+gap between two lines of one thought, and the gap between a glyph and its word.
+That ladder is newer than the others and it is the one that had no counterpart
+in the app at all - the head unit's screen was spending seventeen adjacent
+values between 4 and 32.
+
 Radii are `22 · 12 · 6 · 2` plus a track's own half-height. Borders are one pixel
 - selection is carried by fill and ink, never by a thicker edge. Icons carry one
 optical weight of `2.0`, so a stroke is `2.0 × 24 ÷ rendered size`.
+
+Sizes that belong to one component rather than to a ladder are named rather than
+placed: the tile is `164`, its icon `26`, an application tile `116` with a `52`
+icon, a picker's grid stops growing at `360`, a row a finger has to hit is `56`
+and a segmented control `42`. They live beside the ladders in `DenzaMetrics` so
+that a fixed height is a decision with a name on it rather than a number typed
+where it was needed.
+
+The head unit's ladders live in `dev.denza.apps.design.DenzaMetrics`, and
+`DenzaMetricsTest` measures the gaps rather than the values - a rung a few per
+cent from its neighbour cannot be chosen deliberately, so the gap is the thing
+worth testing. `Main.dc.html` is drawn on those same numbers.
 
 The cluster ramp is `InstrumentDensity.RAMP` in the app and the boards restate
 it; `gen_cluster.py` is the one place to check that they still agree. That ramp

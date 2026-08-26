@@ -135,12 +135,16 @@ private fun toneAccent(tone: DenzaTileTone): Color = when (tone) {
 }
 
 /**
- * The state line. It stays muted while everything is ordinary - a caption that shouts on a working
- * car teaches the driver to stop reading captions - and takes the alarm colour only when the tone
- * is one the driver has to act on.
+ * The state line.
+ *
+ * On a live tile the caption is the reading - "6 applications", "Instruments, on screen" - and it
+ * takes the accent, because on a working tile that line is the thing worth looking at. Everywhere
+ * else it stays muted, and only a state the driver has to act on gets an alarm colour: a caption
+ * that shouts on a healthy car teaches the driver to stop reading captions.
  */
 private fun toneCaption(tone: DenzaTileTone): Color = when (tone) {
-    DenzaTileTone.LIVE, DenzaTileTone.IDLE, DenzaTileTone.WORKING -> DenzaColors.Muted
+    DenzaTileTone.LIVE -> DenzaColors.Accent
+    DenzaTileTone.IDLE, DenzaTileTone.WORKING -> DenzaColors.Muted
     DenzaTileTone.ATTENTION -> DenzaColors.Warning
     DenzaTileTone.BROKEN -> DenzaColors.Danger
 }
