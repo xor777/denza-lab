@@ -370,12 +370,19 @@ class SpectrumRenderer {
         // The board draws a play mark and then the title, and nothing else: no field of unlit
         // dots behind it. That field was the analyser's own width in dim grey, and at a glance it
         // read as a second, empty instrument sitting above the real one.
+        // The board's mark is a 15 box holding `M7 4l12 8-12 8z` on a 24 grid, so the triangle
+        // itself is inset: 7/24 in from the left, 12/24 wide, 16/24 tall. Drawing it from the box
+        // edge at full size put it 4 dp too far left and made it 1.7x too wide - measured against
+        // the car, which is the only place that difference was ever going to show.
         val markSize = unit * PLAY_MARK_UNITS
-        val markTop = gridTop + (gridHeight - markSize) / 2f
+        val markLeft = left + markSize * MARK_INSET
+        val markWidth = markSize * MARK_WIDTH
+        val markHeight = markSize * MARK_HEIGHT
+        val markTop = gridTop + (gridHeight - markHeight) / 2f
         glyph.reset()
-        glyph.moveTo(left, markTop)
-        glyph.lineTo(left + markSize * 0.86f, markTop + markSize / 2f)
-        glyph.lineTo(left, markTop + markSize)
+        glyph.moveTo(markLeft, markTop)
+        glyph.lineTo(markLeft + markWidth, markTop + markHeight / 2f)
+        glyph.lineTo(markLeft, markTop + markHeight)
         glyph.close()
         fill.shader = null
         fill.color = if (nowPlaying.playing) ACCENT else alpha(ACCENT, 0.45f)
@@ -547,6 +554,11 @@ class SpectrumRenderer {
         const val GLOW_ALPHA = 46
         const val GLOW_UNITS = 2.2f
         const val PLAY_MARK_UNITS = 15f
+
+        /** The board's play path inside its own 24-unit viewBox: `M7 4l12 8-12 8z`. */
+        const val MARK_INSET = 7f / 24f
+        const val MARK_WIDTH = 12f / 24f
+        const val MARK_HEIGHT = 16f / 24f
         const val PLAY_MARK_GAP = 12f
         const val TICKER_GAP_DOTS = 20
         const val TICKER_DOTS_PER_SEC = 8.0

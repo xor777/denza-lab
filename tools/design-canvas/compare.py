@@ -38,6 +38,8 @@ SHOTS = shot.SHOTS
 # Anything under this has never once been a real difference on these boards: it is
 # Skia and Chrome disagreeing about the same glyph at the same size.
 NOISE = 6.0
+# What the app paints behind everything: DenzaTokens.BACKGROUND.
+BACKGROUND = (7, 8, 10)
 
 
 def capture(path):
@@ -46,6 +48,36 @@ def capture(path):
                          check=True, capture_output=True).stdout
     open(path, 'wb').write(png)
     return path
+
+
+def app_window(car):
+    """The rows of a full-screen capture that belong to the app, found in the picture itself.
+
+    A screenshot is the whole 2560x1600 panel; the app owns a band inside it, with an opaque
+    status bar above and the system dock below. Scaling one onto the other squashes every
+    measurement and reports a number about the squashing - which is what this did on its first
+    real run, and it reported 61.7%.
+
+    Nothing is hard-coded and no adb call is needed: the app paints its own background edge to
+    edge, so the longest run of rows whose left margin is that colour is its drawable area.
+    Returns a crop box, or None when the picture does not look like a full screen.
+    """
+    left = 4
+    rows = [abs(car.getpixel((left, y))[0] - BACKGROUND[0]) +
+            abs(car.getpixel((left, y))[1] - BACKGROUND[1]) +
+            abs(car.getpixel((left, y))[2] - BACKGROUND[2]) <= 3
+            for y in range(car.height)]
+    best = run = None
+    for y, hit in enumerate(rows + [False]):
+        if hit and run is None:
+            run = y
+        elif not hit and run is not None:
+            if best is None or y - run > best[1] - best[0]:
+                best = (run, y)
+            run = None
+    if best is None or best[1] - best[0] < car.height // 2:
+        return None
+    return (0, best[0], car.width, best[1])
 
 
 def cells(image, cell):
@@ -68,9 +100,16 @@ def compare(board, car_png, cell, worst):
 
     note = ''
     if ref.size != car.size:
-        note = (f'  board {ref.width}x{ref.height} against car {car.width}x{car.height} '
-                f'- the car image was scaled to the board to compare at all')
-        car = car.resize(ref.size, Image.LANCZOS)
+        window = app_window(car)
+        if window and (window[3] - window[1]) == ref.height and car.width == ref.width:
+            note = (f'  cropped the car to its app window, y {window[1]}..{window[3]} - '
+                    f'a status band above it and the system dock below are not the app')
+            car = car.crop(window)
+        else:
+            note = (f'  board {ref.width}x{ref.height} against car {car.width}x{car.height}, '
+                    f'and the app window could not be found in it - the car image was SCALED, '
+                    f'so every number below is about that and not about the design')
+            car = car.resize(ref.size, Image.LANCZOS)
 
     a, small_a = cells(ref, cell)
     b, small_b = cells(car, cell)
