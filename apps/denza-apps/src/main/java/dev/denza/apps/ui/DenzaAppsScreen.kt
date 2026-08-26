@@ -107,7 +107,10 @@ import dev.denza.apps.feature.mirrors.MirrorsPosition
 import dev.denza.apps.ui.components.DenzaKeyValueRow
 import dev.denza.apps.ui.components.DenzaSecondaryButton
 import dev.denza.apps.ui.components.DenzaSwitchRow
+import dev.denza.apps.ui.components.DenzaNote
+import dev.denza.apps.ui.components.DenzaTileTone
 import dev.denza.apps.ui.dashboard.DashboardActions
+import dev.denza.apps.ui.dashboard.DashboardTiles
 import dev.denza.apps.ui.dashboard.DashboardGrid
 import dev.denza.apps.ui.dashboard.FeatureSheet
 import dev.denza.apps.ui.dashboard.TileId
@@ -601,21 +604,39 @@ private fun DiagnosticsDialog(
     // The service panel was the last thing on this screen still drawn as a centred Material dialog
     // with its own width, its own header and a "Закрыть" button in the corner - a different
     // surface for the one door the driver reaches for when something is wrong. It is a panel like
-    // the other four now: same edge, same width, same way out, and its groups are sections rather
-    // than headings separated by hand-placed spacers.
+    // the others now: same edge, same width, same way out.
     //
-    // Russian in the stock settings used to have a group here as well. It has its own tile with
-    // its own switch, so this was the same decision offered twice - and the second copy sat behind
-    // a door the driver only opens when something is wrong.
+    // What it says has been reordered around the question it is opened with, which is *what is
+    // wrong*. It used to open on a wall: forty readings in key=value, then sixty lines of one
+    // feature's log, then every split APK file of every installable application. The answer was in
+    // there somewhere. Now the panel names the features that need somebody, first and in the words
+    // the tiles use, and the readings are behind a button for the session that wants them.
     val adbBusy = state.adbRescue.phase == AdbRescuePhase.CHECKING ||
         state.adbRescue.phase == AdbRescuePhase.REQUESTING
+    var showTechnical by remember { mutableStateOf(false) }
+    val needing = DashboardTiles.of(state).filter {
+        it.tone == DenzaTileTone.ATTENTION || it.tone == DenzaTileTone.BROKEN
+    }
     DenzaSheet(onDismiss = onDismiss, compact = compactLayout) {
         DenzaSheetHeader(
             title = "Сервис",
-            subtitle = "Что с машиной и с доступом к ней",
+            subtitle = "",
             onDismiss = onDismiss,
             icon = DenzaIcons.Service,
         )
+        DenzaSection(if (needing.isEmpty()) "Состояние" else "Что не так") {
+            if (needing.isEmpty()) {
+                Text(
+                    "Все функции работают.",
+                    color = DenzaColors.Muted,
+                    fontSize = DenzaMetrics.Type.BODY,
+                )
+            } else {
+                needing.forEach { tile ->
+                    DenzaKeyValueRow(label = tile.name, value = tile.state, stacked = true)
+                }
+            }
+        }
         DenzaSection("Доступ к машине") {
             DenzaKeyValueRow(label = "Состояние", value = state.adbRescue.message, stacked = true)
             state.adbRescue.details?.let { details ->
@@ -645,19 +666,21 @@ private fun DiagnosticsDialog(
                 )
             }
         }
-        DenzaSection("Технические сведения") {
-            state.technicalDetails
-                .lineSequence()
-                .filter { it.isNotBlank() }
-                .forEach { line ->
-                    DenzaKeyValueRow(
-                        label = line.substringBefore('='),
-                        value = line.substringAfter('=', missingDelimiterValue = "—"),
-                        stacked = true,
-                    )
-                }
-        }
-        DenzaSection("Экран приборки") {
+        // A list of unlabelled buttons and one called "Определять автоматически", with nothing
+        // saying what any of them were for. The owner read it out on the car and said he did not
+        // understand what the button was, which is the only review that matters: the panel now
+        // says which screen is in use and what choosing another one is for, before offering the
+        // choice.
+        DenzaSection("Приборный экран") {
+            DenzaKeyValueRow(
+                label = "Сейчас",
+                value = state.clusterDisplayLabel,
+                stacked = true,
+            )
+            DenzaNote(
+                "Приложение само находит экран за рулём. Выберите другой, если приборы ушли не " +
+                    "туда.",
+            )
             state.clusterCandidates
                 .filter { it.id != 0 && !it.isOwnVirtualDisplay }
                 .forEach { display ->
@@ -668,10 +691,30 @@ private fun DiagnosticsDialog(
                     )
                 }
             DenzaSecondaryButton(
-                text = "Определять автоматически",
+                text = "Вернуть автоматический выбор",
                 onClick = { onSelectClusterDisplay(null) },
                 modifier = Modifier.fillMaxWidth(),
             )
+        }
+        DenzaSection("Технические сведения") {
+            if (showTechnical) {
+                state.technicalDetails
+                    .lineSequence()
+                    .filter { it.isNotBlank() }
+                    .forEach { line ->
+                        DenzaKeyValueRow(
+                            label = line.substringBefore('='),
+                            value = line.substringAfter('=', missingDelimiterValue = "—"),
+                            stacked = true,
+                        )
+                    }
+            } else {
+                DenzaSecondaryButton(
+                    text = "Показать",
+                    onClick = { showTechnical = true },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
         }
     }
 }

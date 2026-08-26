@@ -25,11 +25,16 @@ object ClusterDisplayResolver {
     fun resolve(context: Context): ClusterDisplaySelection {
         val candidates = candidates(context)
         if (candidates.isEmpty()) return ClusterDisplaySelection.Missing
-        val override = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        return select(candidates, override(context))
+    }
+
+    /** Whether a screen was chosen by hand, which is the difference the service panel reports. */
+    fun hasOverride(context: Context): Boolean = override(context) != null
+
+    private fun override(context: Context): Int? =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .getInt(PREF_OVERRIDE, Display.INVALID_DISPLAY)
             .takeIf { it != Display.INVALID_DISPLAY }
-        return select(candidates, override)
-    }
 
     /**
      * Denza exposes the stock side-camera composition as a second shared

@@ -84,7 +84,7 @@ internal fun FseInstallerPickerDialog(
     onDismiss: () -> Unit,
 ) {
     DenzaPickerSheet(
-        title = "Пассажирский экран",
+        title = "Экран справа",
         subtitle = subtitleFor(apps.size),
         items = apps,
         key = { it.packageName },

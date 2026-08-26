@@ -110,6 +110,8 @@ data class DenzaUiState(
     val weatherUpdatedMillis: Long = 0L,
     val technicalDetails: String = "",
     val clusterCandidates: List<ClusterDisplayDescriptor> = emptyList(),
+    /** Which screen the instruments are going to, said the way the service panel says it. */
+    val clusterDisplayLabel: String = "Определяется автоматически",
     val appPickerVisible: Boolean = false,
     val appChoices: List<SimulcastAppChoice> = emptyList(),
     val appPickerMessage: String = "",
@@ -194,6 +196,7 @@ object DenzaAppRepository {
             adbRescue = adbRescue,
             technicalDetails = supportDiagnostics(context),
             clusterCandidates = ClusterDisplayResolver.candidates(context),
+            clusterDisplayLabel = clusterDisplayLabel(context),
         )
         // The stock locale is a tile on the main screen now, so it has to be read like every other
         // tile's state. It used to be probed only when the diagnostics dialog opened, which was
@@ -540,6 +543,25 @@ object DenzaAppRepository {
     fun lowerSpeakerCovers() {
         appContext?.let(SpeakerCoverService::lower)
     }
+
+    /**
+     * The screen the instruments are on, for the service panel to say before it offers the choice.
+     *
+     * The panel used to show a list of unlabelled buttons and one called "Определять
+     * автоматически", with nothing saying which was in use or what any of them were for.
+     */
+    private fun clusterDisplayLabel(context: Context): String =
+        when (val selection = ClusterDisplayResolver.resolve(context)) {
+            is ClusterDisplaySelection.Selected -> with(selection.display) {
+                if (ClusterDisplayResolver.hasOverride(context)) {
+                    "#$id · ${width}×$height · $name"
+                } else {
+                    "Определён сам: #$id · ${width}×$height"
+                }
+            }
+            is ClusterDisplaySelection.NeedsVerification -> "Нужно выбрать экран"
+            ClusterDisplaySelection.Missing -> "Не найден"
+        }
 
     fun selectClusterDisplay(displayId: Int?) {
         val context = appContext ?: return

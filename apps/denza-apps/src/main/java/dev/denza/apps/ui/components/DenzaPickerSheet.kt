@@ -35,7 +35,7 @@ fun <T> DenzaPickerSheet(
     modifier: Modifier = Modifier,
     note: String = "",
     emptyText: String = "Ничего не найдено",
-    columns: Int = DenzaMetrics.Component.TILE_COLUMNS_WIDE,
+    columns: Int = DenzaMetrics.Component.PICKER_COLUMNS,
     item: @Composable (T) -> Unit,
 ) {
     DenzaSheet(onDismiss = onDismiss, compact = compact, modifier = modifier) {

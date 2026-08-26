@@ -138,6 +138,15 @@ object DenzaMetrics {
         /** How many tiles a full-width dashboard puts in one row. */
         const val TILE_COLUMNS_WIDE: Int = 6
 
+        /**
+         * How many applications a picker puts in one row.
+         *
+         * Not the dashboard's six, which is what it used to borrow. The panel is 480 dp wide and
+         * gives its content 416, so six columns with 8 between them is 62.7 dp a tile - around a
+         * 44 dp icon well, leaving nine either side and eight characters of label. Five is 76.8.
+         */
+        const val PICKER_COLUMNS: Int = 5
+
         /** The two-thirds pane; the narrow pane takes one. */
         const val TILE_COLUMNS_MEDIUM: Int = 3
 
@@ -146,8 +155,15 @@ object DenzaMetrics {
          */
         val APP_TILE: Dp = 96.dp
 
-        /** How tall a picker's grid may grow before it scrolls. */
-        val PICKER_HEIGHT: Dp = 360.dp
+        /**
+         * How tall a picker's grid may grow before it scrolls.
+         *
+         * Five whole rows of [APP_TILE] with [Space.S] between them is 512; this is that plus a
+         * glimpse of the sixth, which is the only thing on the panel saying there is a sixth. It
+         * used to be 360 - three rows and a stub of the fourth - inside a panel 680 dp tall, so the
+         * picker scrolled while a third of the panel below it stayed empty.
+         */
+        val PICKER_HEIGHT: Dp = 540.dp
 
         /**
          * The settings panel, measured off `Config.dc.html`.

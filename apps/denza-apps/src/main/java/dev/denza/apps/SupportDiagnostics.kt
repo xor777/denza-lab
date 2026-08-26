@@ -11,7 +11,6 @@ import dev.denza.apps.feature.cluster.ClusterSceneService
 import dev.denza.apps.feature.adb.AdbRescueCoordinator
 import dev.denza.apps.feature.speaker.SpeakerCoverRuntime
 import dev.denza.apps.feature.adb.AdbSystemSwitch
-import dev.denza.apps.feature.fse.FseAppInstaller
 import dev.denza.apps.feature.hud.HudGuidanceRuntime
 import dev.denza.apps.feature.hud.HudGuidanceSettings
 import dev.denza.apps.feature.hud.HudNotificationAccessCoordinator
@@ -23,7 +22,6 @@ import dev.denza.apps.feature.mirrors.MirrorsPosition
 import dev.denza.apps.feature.mirrors.MirrorsSettings
 import dev.denza.apps.feature.mirrors.SideCameraDetection
 import dev.denza.apps.feature.navigation.NavigationCoordinator
-import dev.denza.apps.feature.split.SplitDiagnostics
 import dev.denza.apps.feature.split.SplitScreenCoordinator
 
 data class SupportDiagnosticsHeader(
@@ -114,11 +112,12 @@ object SupportDiagnostics {
             add("Навигация=${navigation.message.ifBlank { navigation.phase.name.lowercase() }}")
             val split = SplitScreenCoordinator.snapshot()
             add("Split screen=${split.message.ifBlank { split.phase.name.lowercase() }}")
-            // U5: a diagnostic nobody can read is a silent failure. `Log.i` from this application
-            // cannot be proven to reach logcat on this firmware, so the last lines the split
-            // product recorded are readable here, with no logcat involved at all.
-            SplitDiagnostics.recent(SPLIT_LOG_LINES, SPLIT_BACKGROUND_LOG_LINES)
-                .forEach { line -> add("Split log=$line") }
+            // Sixty lines of the split screen's own log used to be spliced in here, on the
+            // reasoning that a diagnostic nobody can read is a silent failure - `Log.i` from this
+            // application cannot be proven to reach logcat on this firmware. True, and it made this
+            // report a log file: the panel a driver opens when something is wrong buried its forty
+            // readings under a scrolling transcript of one feature's background work.
+            // `SplitDiagnostics.recent` is still there for a session that needs it.
             add("HUD-подсказки=${enabledLabel(HudGuidanceSettings.isEnabled(context))}")
             val hudNotificationAccess = HudNotificationAccessCoordinator.diagnostics(context)
             add(
@@ -152,7 +151,9 @@ object SupportDiagnostics {
                     fseInstaller.message.ifBlank { fseInstaller.status.name.lowercase() },
             )
             fseInstaller.details?.let { add("Детали FSE=$it") }
-            addAll(FseAppInstaller.diagnosticLines(context))
+            // And the other wall: `FseAppInstaller.diagnosticLines` names every split APK file of
+            // every installable application, one line each, sizes and all. That is a question about
+            // one install, asked once, and it was being answered on every open.
             add("Данные HUD=${HudGuidanceRuntime.details()}")
         }
         return render(
@@ -243,13 +244,4 @@ object SupportDiagnostics {
         false
     }
 
-    /**
-     * Enough to cover one open and its terminal without turning the report into a log file.
-     *
-     * The two are counted apart because they used to compete: the background reconcile writes
-     * whenever it looks at the car, and on the v32 acceptance that pushed the lines of the very
-     * operation being measured off the screen inside a minute (правка Ф3 волны 16).
-     */
-    private const val SPLIT_LOG_LINES = 48
-    private const val SPLIT_BACKGROUND_LOG_LINES = 12
 }
