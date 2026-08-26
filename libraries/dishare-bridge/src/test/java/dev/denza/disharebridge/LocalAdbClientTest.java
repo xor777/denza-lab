@@ -3,9 +3,11 @@ package dev.denza.disharebridge;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assume.assumeTrue;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -133,7 +135,11 @@ public final class LocalAdbClientTest {
                         "MARK_PROMPT"));
         String sent = new String(output.toByteArray(), StandardCharsets.ISO_8859_1);
         assertTrue(sent.contains("MARK_PROMPT:BEGIN"));
-        assertFalse(sent.contains("/storage/FFFF-FFFC"));
+        // The echo carries the marker back as the four characters `\036`, never as the byte the
+        // frame is found by, so a shell that repeats the command cannot fake the start of an
+        // answer - which is what lets the command itself travel in plain sight, single-quoted.
+        assertTrue(sent.contains(
+                "( eval 'if [ -d /storage/FFFF-FFFC ]; then echo ready; else echo missing; fi' )"));
     }
 
     @Test(expected = IOException.class)
@@ -150,8 +156,137 @@ public final class LocalAdbClientTest {
                 "MARK_WRONG");
     }
 
+    /**
+     * Ф2 волны 15: an arbitrary command survives the frame byte for byte, through a real shell.
+     *
+     * <p>The wrapper stopped decoding base64 in a subprocess and stopped calling
+     * {@code /system/bin/printf} twice, which is 23 ms off every single command on the car. What
+     * protects the command now is single quoting, so identity of execution is proven rather than
+     * assumed: each command is run bare, then run through the frame and read back through the very
+     * parser the transport uses, and the two answers must be the same string.
+     *
+     * <p>The host shell has no {@code print} builtin, so this exercises the {@code printf}
+     * fallback half of the frame; the mksh half was compared against the previous frame on the car
+     * itself for these same cases.
+     */
+    @Test
+    public void framedCommandsExecuteExactlyLikeBareOnes() throws Exception {
+        assumeTrue("this host has no /bin/sh", new File("/bin/sh").canExecute());
+        List<String> commands = Arrays.asList(
+                "echo hi",
+                "echo 'it'\\''s here'",
+                "echo \"double \\\"quoted\\\" text\"",
+                "echo '$HOME $(id) `id` ${x}'",
+                "echo one\necho two",
+                "echo 'привет мир ✓ 日本語'",
+                "echo 'a\\\\b\\tc'",
+                "echo a; echo b",
+                "echo before; exit 7",
+                "echo out; echo err 1>&2",
+                "sh -c 'echo \"nested '\\''quotes'\\''\"'",
+                "printf 'no trailing newline'");
+
+        for (String command : commands) {
+            assertEquals(command, bare(command), throughFrame(command));
+        }
+    }
+
+    /**
+     * The wrapper itself starts no process, and cannot write a marker twice.
+     *
+     * <p>The second half is the load-bearing one. An emitter picked by "try this, otherwise that"
+     * would append a marker after a first one that had already been half-written, and a doubled
+     * BEGIN marker turns a good answer into a hard transport failure. So there is no {@code ||} in
+     * the frame at all: the probe writes the empty string, and exactly one emitter can ever run.
+     */
+    @Test
+    public void theWrapperStartsNoProcessOfItsOwnAndCannotEmitAMarkerTwice() {
+        String framed = new String(
+                LocalAdbClient.frameInteractiveCommand("echo hi", "MARK"),
+                StandardCharsets.UTF_8);
+
+        assertFalse(framed, framed.contains("base64"));
+        assertFalse("no command substitution in the wrapper", framed.contains("$("));
+        assertFalse("no emitter may run because another one failed", framed.contains("||"));
+        assertTrue("the emitter is chosen by a probe that writes nothing",
+                framed.startsWith("if print -nr '' 2>/dev/null; then "));
+        assertTrue(framed, framed.contains("__denza_emit '\u001eMARK:BEGIN\u001f';"));
+        assertTrue(framed, framed.contains("( eval 'echo hi' ) 2>&1;"));
+        assertTrue("the shell is still waiting on this line", framed.endsWith("\n"));
+    }
+
+    /** What the command prints on its own, with the streams merged exactly as the frame merges. */
+    private static String bare(String command) throws Exception {
+        return new String(
+                run(new String[] {"/bin/sh", "-c", command}, new byte[0], null),
+                StandardCharsets.UTF_8);
+    }
+
+    /** The same command through the frame and back through the transport's own parser. */
+    private static String throughFrame(String command) throws Exception {
+        String marker = "MARK_SH";
+        ByteArrayOutputStream leaked = new ByteArrayOutputStream();
+        byte[] answered = run(
+                new String[] {"/bin/sh"},
+                LocalAdbClient.frameInteractiveCommand(command, marker),
+                leaked);
+        // Everything the command says belongs inside the frame, including what it says on stderr,
+        // and the wrapper's own probe may not add a word of its own.
+        assertEquals(
+                "the frame leaked to stderr",
+                "",
+                new String(leaked.toByteArray(), StandardCharsets.UTF_8));
+        ByteArrayInputStream input = new ByteArrayInputStream(concat(
+                message("OKAY", 41, 1, new byte[0]),
+                message("WRTE", 41, 1, answered)));
+        return LocalAdbClient.runInteractiveCommand(
+                input, new ByteArrayOutputStream(), 1, 41, command, marker);
+    }
+
+    /** Runs [argv], feeding [stdin]; stderr is merged into the answer unless a sink is given. */
+    private static byte[] run(String[] argv, byte[] stdin, ByteArrayOutputStream stderrSink)
+            throws Exception {
+        ProcessBuilder builder = new ProcessBuilder(argv);
+        if (stderrSink == null) {
+            builder.redirectErrorStream(true);
+        }
+        Process process = builder.start();
+        Thread drain = null;
+        if (stderrSink != null) {
+            drain = new Thread(() -> {
+                try {
+                    copy(process.getErrorStream(), stderrSink);
+                } catch (IOException ignored) {
+                    // The assertion on the collected bytes is the report; this thread has none.
+                }
+            });
+            drain.start();
+        }
+        process.getOutputStream().write(stdin);
+        process.getOutputStream().close();
+        ByteArrayOutputStream collected = new ByteArrayOutputStream();
+        copy(process.getInputStream(), collected);
+        process.waitFor();
+        if (drain != null) {
+            drain.join();
+        }
+        return collected.toByteArray();
+    }
+
+    private static void copy(java.io.InputStream from, ByteArrayOutputStream into)
+            throws IOException {
+        byte[] buffer = new byte[4096];
+        int read;
+        while ((read = from.read(buffer)) != -1) {
+            into.write(buffer, 0, read);
+        }
+    }
+
     private static byte[] message(String command, int arg0, int arg1, String payload) {
-        byte[] body = payload.getBytes(StandardCharsets.UTF_8);
+        return message(command, arg0, arg1, payload.getBytes(StandardCharsets.UTF_8));
+    }
+
+    private static byte[] message(String command, int arg0, int arg1, byte[] body) {
         int commandValue = command(command);
         int checksum = 0;
         for (byte value : body) {
