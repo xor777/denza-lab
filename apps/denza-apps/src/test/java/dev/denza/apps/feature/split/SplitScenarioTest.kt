@@ -2089,6 +2089,12 @@ class SplitScenarioTest {
      * мгновенным сабмитом: мир не читается в зубы двухпроходного teardown. Собственный взвод
      * происходит внутри операции, после submit-времени самого Home, так что сам себя Home не
      * хоронит. Волна 12 сняла с Home ещё и решение «а стоит ли»: он подаёт сверку всегда.
+     *
+     * Правка волны 17: накрытие теперь может подтвердить и сама сверка, если Home-хинт не пришёл
+     * или пришёл позже (диагноз v33). Мёртвой точки на её пути нет по построению - она ничего не
+     * сабмитит и поэтому ничьих повторов не снимает, - поэтому охраняемое здесь остаётся тем же:
+     * ровно один отложенный повтор стоит, и он доводит уборку до конца. Изменилось только имя
+     * того, кто накрытие подтвердил, и ассерт спрашивает про факт, а не про операцию.
      */
     @Test
     fun aConfirmedHomeOverADeadMemberArmsTheDeferredCleanup() {
@@ -2116,9 +2122,13 @@ class SplitScenarioTest {
             car.clock.pendingTimers(),
         )
         assertTrue(
-            "и след решения в ринге",
-            car.diagnostics.any { it.startsWith("home confirmed: одна отложенная сверка") },
+            "и след решения в ринге - от того, кто накрытие подтвердил",
+            car.diagnostics.any {
+                it.startsWith("home confirmed: одна отложенная сверка") ||
+                    it.startsWith("gate подвешен сверкой")
+            },
         )
+        assertFalse("gate накрытой сцены подвешен в любом случае", car.fake.isGateOpen())
 
         car.clock.advance(SplitCoordinatorCore.RECONCILE_RECHECK_DELAY_MS)
         car.barrier()
@@ -2613,6 +2623,107 @@ class SplitScenarioTest {
             "и ни одна задача живой пары не тронута - только подвеска gate самого Home",
             emptyList<String>(),
             car.mutations().filterNot { it == "service call activity_task 126 i32 0" },
+        )
+    }
+
+    /**
+     * Диагноз v33 (2026-08-26, живьём): Home-хинт может не прийти ВООБЩЕ, и тогда подвеска gate
+     * не начиналась - из восьми обычных Home над живой парой accessibility-событие лаунчера
+     * пришло дважды. `HomeOperation` в остальных шести не запускалась, gate оставался открытым
+     * (перечитан открытым через 65 с), и следующий обычный тап по приложению в доке прошивка
+     * втягивала в split вторым окном - против 1.9.2.
+     *
+     * Здесь воспроизведён именно потерянный хинт: `homeVisible()` не вызывается ни разу, приходит
+     * только оконный шторм, который на машине приходил ВСЕГДА (2-3 сверки в первую секунду после
+     * Home). Начатое продуктом дело обязано доиграться само.
+     */
+    @Test
+    fun aLostHomeHintIsStillFinishedByTheNextReconcile() {
+        val car = car(FakeShell(initialGate = true).apply { liveProductScene(withApps = true) })
+        val core = car.core(SplitDurable(enabled = true, slots = APP_PAIR))
+        car.gateLease.setOwned(true)
+        core.initialize {}
+        core.openPickerSession()
+        car.barrier()
+        car.clearCommands()
+
+        // Home нажат, экран накрыт - и ни одного хинта Home о нём.
+        car.fake.area = 0
+        core.dividerResized()
+        car.barrier()
+
+        assertFalse("gate снят с накрытой сцены", car.fake.isGateOpen())
+        assertTrue(
+            "аренда остаётся: следующий явный запуск откроет gate снова",
+            car.gateLease.isOwned(),
+        )
+        assertEquals("выбор пользователя цел", APP_PAIR, car.store.load().slots)
+        assertTrue(car.fake.hasTask(PRIMARY_APP_TASK))
+        assertTrue(car.fake.hasTask(SECONDARY_APP_TASK))
+        assertEquals(
+            "и ни одной задачи живой пары не тронуто - только подвеска gate",
+            listOf("service call activity_task 126 i32 0"),
+            car.mutations(),
+        )
+    }
+
+    /**
+     * Доигранная подвеска доигрывается ровно один раз: накрытая сцена больше не спрашивает машину
+     * про area, сколько бы оконного шторма ни пришло следом (U1, никаких повторных мутаций).
+     */
+    @Test
+    fun theFinishedGateSuspensionIsNotRepeatedByEveryFurtherReconcile() {
+        val car = car(FakeShell(initialGate = true).apply { liveProductScene(withApps = true) })
+        val core = car.core(SplitDurable(enabled = true, slots = APP_PAIR))
+        car.gateLease.setOwned(true)
+        core.initialize {}
+        core.openPickerSession()
+        car.barrier()
+
+        car.fake.area = 0
+        core.dividerResized()
+        car.barrier()
+        car.clearCommands()
+
+        repeat(5) {
+            core.dividerResized()
+            car.barrier()
+        }
+
+        assertEquals("ни одной повторной подвески", emptyList<String>(), car.mutations())
+        assertEquals(
+            "и ни одного лишнего вопроса про area от самой подвески",
+            emptyList<String>(),
+            car.commands().filter { it == "service call activity_task 126 i32 0" },
+        )
+    }
+
+    /**
+     * Ложное закрытие строго хуже пропущенного: над ВИДИМОЙ живой сценой сверка про gate не
+     * спрашивает и ничего не отправляет, сколько бы её ни дёргали.
+     */
+    @Test
+    fun aReconcileOverAVisibleSceneNeverSuspendsTheGate() {
+        val car = car(FakeShell(initialGate = true).apply { liveProductScene(withApps = true) })
+        val core = car.core(SplitDurable(enabled = true, slots = APP_PAIR))
+        car.gateLease.setOwned(true)
+        core.initialize {}
+        core.openPickerSession()
+        car.barrier()
+        car.clearCommands()
+
+        repeat(3) {
+            car.fake.area = 3
+            core.dividerResized()
+            car.barrier()
+        }
+
+        assertTrue("gate живой сцены остаётся открытым", car.fake.isGateOpen())
+        assertEquals("выбор пользователя цел", APP_PAIR, car.store.load().slots)
+        assertEquals(
+            "и ни одной мутации",
+            emptyList<String>(),
+            car.mutations(),
         )
     }
 

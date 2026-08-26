@@ -2947,6 +2947,61 @@ class SplitPickerShellSessionTest {
         assertTrue(lease.isOwned())
     }
 
+    /**
+     * Правка волны 17: та же подвеска для того, кто уже смотрит на мир и не имеет права ждать в
+     * нём (сверка). Одно чтение - один ответ; аренда остаётся, как и у Home.
+     */
+    @Test
+    fun singleShotSuspendClosesTheOwnedGateOverACoveredScene() {
+        val fake = FakeShell(initialGate = true).apply { area = 0 }
+        val lease = FakeGateLease(owned = true)
+
+        assertTrue(session(fake, lease).suspendOwnedGateIfCovered())
+
+        assertFalse(fake.isGateOpen())
+        assertTrue("аренда остаётся для явного возобновления", lease.isOwned())
+        assertEquals(
+            "ровно одно чтение: ждать здесь нечего",
+            1,
+            fake.commands.count { it == "service call activity_task 30" },
+        )
+    }
+
+    /** Чужое fullscreen-окно накрывает сцену так же честно, как Home (1.11.5). */
+    @Test
+    fun singleShotSuspendAcceptsAForeignFullscreenCoverToo() {
+        val fake = FakeShell(initialGate = true).apply { area = 4 }
+
+        assertTrue(session(fake, FakeGateLease(owned = true)).suspendOwnedGateIfCovered())
+
+        assertFalse(fake.isGateOpen())
+    }
+
+    /** Ложное закрытие строго хуже пропущенного: над видимой сценой не отправляется ничего. */
+    @Test
+    fun singleShotSuspendNeverTouchesTheGateOverAVisibleScene() {
+        val fake = FakeShell(initialGate = true).apply { area = 3 }
+        val lease = FakeGateLease(owned = true)
+
+        assertFalse(session(fake, lease).suspendOwnedGateIfCovered())
+
+        assertTrue(fake.isGateOpen())
+        assertTrue(lease.isOwned())
+        assertFalse(fake.commands.any { it == "service call activity_task 126 i32 0" })
+    }
+
+    /** Правило закрытия одно и то же: gate, который открыли не мы, не наш (инвариант 1, 1.12). */
+    @Test
+    fun singleShotSuspendNeverClosesAGateOwnedByAnotherComponent() {
+        val fake = FakeShell(initialGate = true).apply { area = 0 }
+
+        assertFalse(session(fake, FakeGateLease(owned = false)).suspendOwnedGateIfCovered())
+
+        assertTrue(fake.isGateOpen())
+        assertFalse(fake.commands.any { it == "service call activity_task 30" })
+        assertFalse(fake.commands.any { it == "service call activity_task 126 i32 0" })
+    }
+
     @Test
     fun ownedGateIsRecoveredEvenWhenPickerTasksHaveAlreadyGone() {
         val fake = FakeShell(initialGate = true)

@@ -118,16 +118,38 @@ internal class SplitPickerShellSession(
         if (!store.isOwned()) return false
         var waited = 0L
         while (true) {
-            val area = callInt("service call activity_task 30")
-            if (area == AREA_HOME || area == AREA_FULL_IVI) {
-                callVoid("service call activity_task 126 i32 0")
-                return true
-            }
+            if (suspendOwnedGateIfCovered()) return true
             if (waited >= HOME_CONFIRM_BUDGET_MS || displaced()) return false
             val slice = minOf(AREA_POLL_INTERVAL_MS, HOME_CONFIRM_BUDGET_MS - waited)
             pause(slice)
             waited += slice
         }
+    }
+
+    /**
+     * One read, one decision, no waiting: the same suspension as [suspendOwnedGateForHome], for a
+     * caller that already has a reason to look at the world and no right to block in it.
+     *
+     * Правка волны 17 (живой диагноз v33, 2026-08-26). Подвеска gate висела на ОДНОМ триггере -
+     * accessibility-событии пакета лаунчера, - и живой прогон показал, что событие приходит не
+     * всегда: из восьми обычных Home над живой сценой хинт пришёл дважды, а в шести случаях
+     * `HomeOperation` не запускалась ВООБЩЕ, gate оставался открытым (проверено через 65 с после
+     * Home), и следующий обычный запуск из дока прошивка втягивала в split - против 1.9.2. При
+     * этом на каждый Home приходили TYPE_WINDOWS_CHANGED, то есть сверка мир перечитывала и
+     * накрытие ВИДЕЛА (`collapse: area=0` в живом ринге), но про gate не знала.
+     *
+     * Полномочие мутации здесь то же, что и всегда: не событие, а прочитанная area 0/4
+     * ([sceneCovered], 1.9.1, 1.11.5). Никакого нового канала и никакого таймерного цикла: это
+     * один вопрос машине внутри уже запланированного чтения.
+     *
+     * @return whether this call is what suspended it.
+     */
+    fun suspendOwnedGateIfCovered(): Boolean {
+        val store = gateLeaseStore ?: return false
+        if (!store.isOwned()) return false
+        if (!sceneCovered()) return false
+        callVoid("service call activity_task 126 i32 0")
+        return true
     }
 
     private fun hasActivePointer(inputDump: String): Boolean {

@@ -1488,7 +1488,37 @@ internal class ReconcileOperation(
         // Contract 1.6: the outcome of Back and of a close is the firmware's, and the product's one
         // duty afterwards is to leave nothing of its own behind - no borrowed firmware setting and
         // no gate we opened - so that the next tap opens cleanly (1.6.4). Nothing is rebuilt here.
-        if (working.scene == null) endSession(op, shell, split)
+        if (working.scene == null) endSession(op, shell, split) else finishGateSuspension(split)
+    }
+
+    /**
+     * Доигрывает подвеску gate, которую начал, но не закончил накрытый Home (1.9.2, 1.9.3).
+     *
+     * Диагноз v33 (2026-08-26, живьём): подвеска висела на единственном триггере -
+     * accessibility-событии лаунчера, - и он ненадёжен. Из восьми обычных Home над живой парой
+     * хинт пришёл дважды; в остальных шести `HomeOperation` не запускалась вообще, gate оставался
+     * открытым (перечитан открытым через 65 с после Home), и следующий обычный тап по приложению
+     * в доке прошивка втягивала в split вторым окном - ровно то, что 1.9.2 запрещает. Ветка
+     * `displaced` тут ни при чём: строки «home suspend displaced by user input» в живом ринге не
+     * было ни разу.
+     *
+     * Зато на КАЖДЫЙ такой Home приходил шторм `TYPE_WINDOWS_CHANGED`, то есть эта самая сверка
+     * запускалась (2-3 раза в первую секунду) и накрытие уже видела - `collapse: area=0` стояло в
+     * ринге. Не хватало не сигнала и не времени, а того, чтобы начатое продуктом дело кто-то
+     * довёл до конца. Здесь его доводят: один вопрос машине внутри уже запланированного чтения.
+     *
+     * Полномочие мутации то же, что у самого Home: не событие, а прочитанная area 0/4. Ложное
+     * закрытие строго хуже пропущенного, поэтому спрашивается это только пока мы ЕЩЁ держим свой
+     * gate и ЕЩЁ считаем сцену видимой; над видимой сценой (area 1/2/3) ответ - «нет», и
+     * не отправляется ничего. Сверка - обычный HINT: пользовательский ввод вытесняет её по §4,
+     * как и любую другую фоновую работу.
+     */
+    private fun finishGateSuspension(split: SplitPickerShellSession) {
+        if (working.visibility == SceneVisibility.COVERED) return
+        if (!work.gateOwned()) return
+        if (!split.suspendOwnedGateIfCovered()) return
+        work.log("gate подвешен сверкой: Home-хинт не пришёл, накрытие прочитано (1.9.2)")
+        settle(SplitFact.HomeConfirmed)
     }
 
     /**
