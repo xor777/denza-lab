@@ -9,6 +9,7 @@ import dev.denza.apps.feature.cluster.ClusterDisplayResolver
 import dev.denza.apps.feature.cluster.ClusterDisplaySelection
 import dev.denza.apps.feature.cluster.ClusterSceneService
 import dev.denza.apps.feature.adb.AdbRescueCoordinator
+import dev.denza.apps.feature.adb.AdbSystemSwitch
 import dev.denza.apps.feature.fse.FseAppInstaller
 import dev.denza.apps.feature.hud.HudGuidanceRuntime
 import dev.denza.apps.feature.hud.HudGuidanceSettings
@@ -57,6 +58,9 @@ object SupportDiagnostics {
             add(
                 "ADB Rescue=" +
                     "phase=${adbRescue.phase.name.lowercase().replace('_', '-')}; " +
+                    // The reading that chose that phase. Without it a screenshot of the wrong
+                    // state cannot be told from a screenshot of the right one.
+                    "adb_enabled=${adbSwitchLabel(adbRescue.systemSwitch)}; " +
                     "pending=${if (adbRescue.requestPending) "да" else "нет"}; " +
                     "attempts=${adbRescue.attemptCount}",
             )
@@ -189,6 +193,12 @@ object SupportDiagnostics {
     private fun yesNo(value: Boolean) = if (value) "Доступен" else "Недоступен"
 
     private fun enabledLabel(value: Boolean) = if (value) "Включено" else "Выключено"
+
+    private fun adbSwitchLabel(value: AdbSystemSwitch) = when (value) {
+        AdbSystemSwitch.ENABLED -> "включено"
+        AdbSystemSwitch.DISABLED -> "выключено"
+        AdbSystemSwitch.UNKNOWN -> "не прочитано"
+    }
 
     private fun mirrorRuntimeLabel(value: String): String = when {
         value == "monitor running" -> "Монитор работает"
