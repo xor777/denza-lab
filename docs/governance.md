@@ -86,6 +86,21 @@ package into product code):
   is reverted or isolated.
 - Keep the last known working APK behavior easy to restore before trying a risky
   experiment.
+- **Identify the build on the car by hash, never by version.** `versionCode` is
+  an internal counter that several sessions may build from without bumping, so
+  two different APKs can carry the same number. Compare `sha256sum` of the
+  installed `base.apk` (via `pm path`) against the pinned file, before a run and
+  again after it. On 2026-08-26 a parallel session installed its own build under
+  the same `versionCode 33`; the acceptance run in flight was measuring an
+  instrument that build did not contain, and the whole run was discarded.
+- **The car has one owner at a time, and installing is announced before, not
+  after.** Reading and user gestures can share; an install cannot, because it
+  silently changes what someone else's run is measuring.
+- **Do not describe another session's unlanded work as shipped.** Acceptance
+  briefs must be written from the built commit, not from a teammate's
+  description of what they are building: a brief that named a dashboard tile
+  which existed only in uncommitted work sent an agent looking for a surface the
+  build did not have.
 - Prefer host-side scripts in `tools/` for speculative probes before adding code
   to the Android app.
 - Do not add BYD/system permissions to `AndroidManifest.xml` unless the car has

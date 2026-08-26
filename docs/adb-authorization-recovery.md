@@ -122,6 +122,31 @@ target firmware:
 Until this gate passes, the diagnostics UI reports queue recovery as disabled. Local unit tests and
 an APK build prove only the state machine and packaging, not vehicle behaviour.
 
+## The two states are not actually distinguished (reported 2026-08-26)
+
+The product classifies its ADB situation from the handshake alone: a refused or
+unroutable endpoint becomes **ADB недоступен**, and a completed handshake with an
+untrusted key becomes **Подтвердите доступ к ADB**. Nothing else is consulted —
+`adb_enabled` appears nowhere in the app or the bridge.
+
+A vehicle owner reported the failure this allows, with a screenshot: **Подтвердите
+доступ к ADB** on a car where ADB is not unlocked at all. The mechanism follows
+from the classification: `adbd` answers, so the handshake completes and the key is
+untrusted, so the product asks for a confirmation the system will never render.
+The person is then told to press a button, approve a dialog that cannot appear,
+and press *check* — an instruction that cannot succeed, which is worse than
+silence.
+
+`Settings.Global` carries the distinguishing signal and an ordinary app can read
+it from its own process, with no ADB and no permission: `adb_enabled = 0` means no
+prompt will ever be shown, whatever is enqueued. On the reference car it reads 1,
+alongside `ro.adb.secure = 1` and `ro.debuggable = 0`, so authorization is
+enforced and the untrusted-key state there is genuine.
+
+Until the signal is read, the two instructions cannot be told apart, and copy that
+promises the easy remedy is a guess. The service path is the only remedy true in
+both states.
+
 ## The persistent shell is a terminal (live v31, 2026-08-26)
 
 Feature clients do not run one command per ADB stream. `LocalAdbClient.openPersistentShell()`
