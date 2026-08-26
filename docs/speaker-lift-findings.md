@@ -124,11 +124,25 @@ resets the full delay. Missing/stale capture does not count as silence; the
 timer pauses until fresh FFT frames return. Motor operations are serialized and
 failed calls retry after 30 seconds.
 
-Because cover position is unreadable and the command is edge-triggered, the
-first open from an unknown process state is an explicit `2`, a 350 ms pause,
-then `1`. Later operations use one edge. Turning automation off first opens the
-covers and only then stops the service, so a user cannot be left with closed
-covers and stock auto-lift already suppressed.
+Because the command is edge-triggered, a write that repeats the value the
+property already holds moves nothing. Two different unknowns were conflated here
+until 2026-08-26: *where the covers are*, which is unreadable and can change
+behind the app's back because the amplifier lowers them on its own, and *what the
+property last saw*, which is knowable because this app is its only writer. The
+code answered the first by sending `2`, a 350 ms pause, then `1` whenever cover
+position was unknown - which is every service start - and the owner saw exactly
+that on the car: the covers twitching on every switch-on.
+
+The app now remembers the last value it wrote. A break is needed only when the
+value wanted is the one already there, and in that case the opposite command asks
+a motor already at that end to go there again, which moves nothing. Either way
+the driver sees one movement. The pair is still `2`, 350 ms, `1`, and it is paid
+once per install.
+
+Turning automation off first opens the covers and only then stops the service, so
+a user cannot be left with closed covers and stock auto-lift already suppressed.
+The settings panel also has explicit «Поднять» / «Опустить» buttons, which answer
+whether or not the automation is switched on and tell it where the covers went.
 
 The eager foreground list is the user-approved set:
 
