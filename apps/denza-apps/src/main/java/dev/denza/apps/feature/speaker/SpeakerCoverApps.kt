@@ -37,5 +37,15 @@ object SpeakerCoverApps {
         "com.plexapp.android",
     )
 
+    /**
+     * A handful of the above, by the names on their icons, for the panel's paragraph.
+     *
+     * Not the list - twenty package names is a wall, and a driver reading a settings panel wants to
+     * know the shape of the answer, not its contents. These are the ones most likely to be
+     * recognised; the sentence around them says "known applications", which the rest of
+     * [eagerPackages] also are.
+     */
+    const val EXAMPLES = "Яндекс Музыка, Spotify, YouTube, Кинопоиск, штатный плеер"
+
     fun opensEagerly(packageName: String?): Boolean = packageName in eagerPackages
 }

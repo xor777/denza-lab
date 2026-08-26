@@ -5,6 +5,7 @@ import dev.denza.apps.core.FeatureId
 import dev.denza.apps.core.FeatureResolution
 import dev.denza.apps.core.FeatureSnapshot
 import dev.denza.apps.core.FeatureStatus
+import dev.denza.apps.ui.components.DenzaTileCaption
 import dev.denza.apps.ui.components.DenzaTileTone
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -52,13 +53,13 @@ class DashboardTilesTest {
             ),
             nowMillis = now,
         ).first { it.id == TileId.WEATHER }
-        assertEquals("+14° · 12 минут назад", tile.state)
+        assertEquals("+14°", tile.state)
 
         val off = DashboardTiles.of(
             DenzaUiState(weatherEnabled = false, weatherTemperature = 14),
             nowMillis = now,
         ).first { it.id == TileId.WEATHER }
-        assertEquals("Данные не уходят", off.state)
+        assertEquals("Выключена", off.state)
     }
 
     @Test
@@ -204,19 +205,68 @@ class DashboardTilesTest {
         assertEquals("6 приложений", chosen.tile(TileId.SIMULCAST).state)
 
         val none = DenzaUiState(simulcast = snapshot(FeatureStatus.READY, enabled = true))
-        assertEquals("Выберите приложения", none.tile(TileId.SIMULCAST).state)
+        assertEquals("Нет приложений", none.tile(TileId.SIMULCAST).state)
     }
 
+    /**
+     * The cluster tile names what is chosen, and says it the same way whether or not it is showing.
+     *
+     * It used to add "· на экране" while projecting, which made it the one caption that changed
+     * length when the feature was used - and since the tile stacks its words up from the bottom
+     * edge, the longer version pushed the name up. Being on the cluster is already carried twice:
+     * by the tone, and by the accent the caption takes.
+     */
     @Test
-    fun theClusterTileSaysWhatIsOnItRatherThanRepeatingItsOwnName() {
+    fun theClusterCaptionDoesNotChangeWhenItGoesOnTheScreen() {
         val projected = DenzaUiState(
             navigation = snapshot(FeatureStatus.ACTIVE, enabled = true),
             navigationAppLabel = "Приборы",
         )
-        assertEquals("Приборы · на экране", projected.tile(TileId.CLUSTER).state)
-
         val idle = DenzaUiState(navigationAppLabel = "Приборы")
-        assertEquals("Приборы", idle.tile(TileId.CLUSTER).state)
+
+        assertEquals("Приборы", projected.tile(TileId.CLUSTER).state)
+        assertEquals(projected.tile(TileId.CLUSTER).state, idle.tile(TileId.CLUSTER).state)
+        // What did change is the accent, which is where "on the screen" lives now.
+        assertEquals(DenzaTileCaption.READING, projected.tile(TileId.CLUSTER).caption)
+        assertEquals(DenzaTileCaption.SETTING, idle.tile(TileId.CLUSTER).caption)
+    }
+
+    /**
+     * Nothing a tile writes may need a second line.
+     *
+     * The tile gives a name 147 dp and a caption the same, measured off the wide pane: 1280 dp less
+     * two 48 dp margins, six columns with 12 dp between them, less 20 dp of padding either side.
+     * In Roboto at 19/500 that is about 15 characters for a name and about 19 for a caption at
+     * 15/400 - "Пассажирский экран" measured 194 dp and wrapped, which is how this rule was found.
+     *
+     * Characters are a proxy for dp and this test knows it. The real measurement is the board:
+     * `Main.dc.html` writes the same words at the same sizes in the same width, and `audit.py`
+     * reports anything that overflows. This is here to fail fast in the build, not to replace it.
+     */
+    @Test
+    fun noTileNeedsASecondLineForItsNameOrItsCaption() {
+        val states = listOf(
+            DenzaUiState(),
+            DenzaUiState(
+                navigation = snapshot(FeatureStatus.ACTIVE, enabled = true),
+                navigationAppLabel = "Яндекс Навигатор",
+                simulcast = snapshot(FeatureStatus.READY, enabled = true),
+                selectedAppCount = 6,
+                mirrors = snapshot(FeatureStatus.READY, enabled = true),
+                splitScreen = snapshot(FeatureStatus.READY, enabled = true),
+                hudGuidance = snapshot(FeatureStatus.READY, enabled = true),
+                speakerCovers = snapshot(FeatureStatus.READY, enabled = true),
+                weatherEnabled = true,
+                weatherTemperature = -14,
+                weatherUpdatedMillis = 1L,
+            ),
+        )
+        for (state in states) {
+            for (tile in DashboardTiles.of(state, nowMillis = 2L)) {
+                assertTrue("name too long: ${tile.name}", tile.name.length <= NAME_BUDGET)
+                assertTrue("caption too long: ${tile.state}", tile.state.length <= STATE_BUDGET)
+            }
+        }
     }
 
     @Test
@@ -285,3 +335,9 @@ class DashboardTilesTest {
         fseInstaller = snapshot(status),
     )
 }
+
+/** 147 dp of Roboto at 19/500; "Экран водителя" measures 145. */
+private const val NAME_BUDGET = 15
+
+/** 147 dp at 15/400; "Данных ещё нет" measures 116. */
+private const val STATE_BUDGET = 19

@@ -294,7 +294,7 @@ object DenzaAppRepository {
                 id = FeatureId.FSE_INSTALLER,
                 desiredEnabled = false,
                 status = FeatureStatus.STARTING,
-                message = "Подготавливаю ${app.label}",
+                message = app.label,
             ),
         )
         executor.execute {
@@ -314,7 +314,7 @@ object DenzaAppRepository {
                         id = FeatureId.FSE_INSTALLER,
                         desiredEnabled = false,
                         status = FeatureStatus.READY,
-                        message = "Установлено: ${result.app.label}",
+                        message = result.app.label,
                     ),
                 )
                 is FseInstallResult.Failed -> mutableState.value.copy(
@@ -524,6 +524,21 @@ object DenzaAppRepository {
             SpeakerCoverService.disableAndOpen(context)
             refresh()
         }
+    }
+
+    /**
+     * The panel's two buttons.
+     *
+     * They answer whether or not the automation is switched on: the covers belong to the car, and
+     * "поднять" is a thing to want at a standstill with nothing playing. With the automation on,
+     * the command goes through it so its idea of where the covers are stays true.
+     */
+    fun raiseSpeakerCovers() {
+        appContext?.let(SpeakerCoverService::raise)
+    }
+
+    fun lowerSpeakerCovers() {
+        appContext?.let(SpeakerCoverService::lower)
     }
 
     fun selectClusterDisplay(displayId: Int?) {

@@ -83,11 +83,18 @@ data class DashboardTile(
  * Here a feature is a row in one list. Its name, the line under it, how it reads at a glance and
  * what pressing it does are all decided in one place and all testable without a screen.
  *
- * Three rules run through every caption below. The line under the name says what is **configured**,
- * not what state the feature is in - "6 приложений", never "включено" - because the name already
- * says which feature it is and the tone already says whether it is working. It takes the accent
- * only when it is a reading rather than a setting; see [DenzaTileCaption]. And nothing here repeats
- * what the car itself shows a few centimetres away.
+ * One rule outranks every other here: **a name is one line and a caption is one line, always.**
+ * The tile stacks them from the bottom edge, so a caption that grows to two lines pushes the name up
+ * - and since captions used to change length with state ("Следят за поворотниками" against "Не
+ * следят"), switching a feature on made its name jump. Ten tiles doing that at different moments is
+ * the screen twitching, which is how it read on the car and why this rule now comes first.
+ *
+ * What survives of the older rule: the line says what is **configured** rather than repeating the
+ * name, it takes the accent only when it is a reading rather than a setting (see [DenzaTileCaption]),
+ * and nothing here repeats what the car itself shows a few centimetres away. Where a feature has
+ * nothing configurable to report, on and off is the honest short answer and no longer a forbidden
+ * one - the owner asked for it by name, and a caption invented to avoid saying "включено" is worse
+ * than the word.
  */
 object DashboardTiles {
 
@@ -161,11 +168,11 @@ object DashboardTiles {
             id = TileId.CLUSTER,
             icon = TileIcon.CLUSTER,
             name = "Экран водителя",
-            state = when {
-                waiting -> snapshot.message
-                projected -> "${state.navigationAppLabel} · на экране"
-                else -> state.navigationAppLabel
-            },
+            // The label alone, projected or not. "· на экране" made this the longest caption on
+            // the screen and the only one that changed length when the feature was used, which is
+            // the jump this whole pass exists to remove. Whether it is on the cluster is already
+            // said twice over - by the tone, and by the accent this caption takes below.
+            state = if (waiting) snapshot.message else state.navigationAppLabel,
             tone = toneOf(snapshot),
             // On the cluster is a reading; merely chosen for it is a setting.
             caption = if (projected) DenzaTileCaption.READING else DenzaTileCaption.SETTING,
@@ -190,7 +197,7 @@ object DashboardTiles {
             state = when {
                 snapshot.status == FeatureStatus.NEEDS_ACTION && snapshot.message.isNotBlank() ->
                     snapshot.message
-                state.selectedAppCount == 0 -> "Выберите приложения"
+                state.selectedAppCount == 0 -> "Нет приложений"
                 else -> applications(state.selectedAppCount)
             },
             tone = toneOf(snapshot),
@@ -211,8 +218,8 @@ object DashboardTiles {
             name = "Зеркала",
             state = when {
                 waiting -> snapshot.message
-                watching -> "Следят за поворотниками"
-                else -> "Не следят"
+                watching -> "Включены"
+                else -> "Выключены"
             },
             tone = toneOf(snapshot),
             caption = if (watching && !waiting) DenzaTileCaption.READING else DenzaTileCaption.SETTING,
@@ -235,12 +242,14 @@ object DashboardTiles {
         return DashboardTile(
             id = TileId.SPLIT,
             icon = TileIcon.SPLIT,
-            name = "Разделение экрана",
+            // "Разделение экрана" wrapped onto two lines over a two-line caption, which was the
+            // untidiest tile on the board. The icon says which screen, and the panel says the rest.
+            name = "Разделение",
             state = when {
                 snapshot.status == FeatureStatus.NEEDS_ACTION && snapshot.message.isNotBlank() ->
                     snapshot.message
-                snapshot.desiredEnabled -> "Значок на рабочем столе"
-                else -> "Значок скрыт"
+                snapshot.desiredEnabled -> "Включено"
+                else -> "Выключено"
             },
             tone = toneOf(snapshot),
             caption = DenzaTileCaption.SETTING,
@@ -256,11 +265,11 @@ object DashboardTiles {
         return DashboardTile(
             id = TileId.HUD,
             icon = TileIcon.HUD,
-            name = "Подсказки на HUD",
+            name = "Подсказки",
             state = when {
                 waiting -> snapshot.message
-                showing -> "Указания на проекции"
-                else -> "Не показываются"
+                showing -> "Включены"
+                else -> "Выключены"
             },
             tone = toneOf(snapshot),
             caption = if (showing && !waiting) DenzaTileCaption.READING else DenzaTileCaption.SETTING,
@@ -287,8 +296,11 @@ object DashboardTiles {
             icon = TileIcon.WEATHER,
             name = "Погода",
             state = when {
-                !state.weatherEnabled -> "Данные не уходят"
-                fresh -> "${degrees(reading)} · ${ago(nowMillis - state.weatherUpdatedMillis)}"
+                !state.weatherEnabled -> "Выключена"
+                // The age went with the jump: "+14° · 12 минут назад" is two lines, and it changed
+                // length every minute. The temperature alone is still the one caption on this
+                // screen that can be checked against the widget a few centimetres away.
+                fresh -> degrees(reading)
                 else -> "Данных ещё нет"
             },
             tone = if (state.weatherEnabled) DenzaTileTone.LIVE else DenzaTileTone.IDLE,
@@ -344,8 +356,8 @@ object DashboardTiles {
             name = "Динамики",
             state = when {
                 waiting -> snapshot.message
-                snapshot.desiredEnabled -> "Автоматика по звуку"
-                else -> "Автоматика выключена"
+                snapshot.desiredEnabled -> "Включена"
+                else -> "Выключена"
             },
             tone = toneOf(snapshot),
             caption = DenzaTileCaption.SETTING,
@@ -361,7 +373,7 @@ object DashboardTiles {
         return DashboardTile(
             id = TileId.LOCALE,
             icon = TileIcon.LOCALE,
-            name = "Русский в настройках",
+            name = "Русский язык",
             state = when (snapshot.enabled) {
                 true -> "Включён"
                 false -> "Выключен"
@@ -386,8 +398,13 @@ object DashboardTiles {
         return DashboardTile(
             id = TileId.PASSENGER,
             icon = TileIcon.PASSENGER,
-            name = "Пассажирский экран",
-            state = snapshot.message.ifBlank { "Установить приложение" },
+            // Named for the screen, like the driver's own, and from where the reader is sitting.
+            // "Пассажирский экран" is 194 dp of Roboto at 19/500 in a tile that gives a name 147,
+            // which is why it wrapped; "Экран пассажира" is 162 and wraps too. This is 125.
+            name = "Экран справа",
+            // The application that went over there, in the same words the driver's tile uses for
+            // its own. "Установить приложение" described the machinery instead of the result.
+            state = snapshot.message.ifBlank { "Не выбрано" },
             tone = toneOf(snapshot),
             caption = DenzaTileCaption.SETTING,
             action = actionOf(snapshot, TileAction.PASSENGER_INSTALL),

@@ -28,22 +28,10 @@ enum class TileId {
     SERVICE,
     ;
 
-    /**
-     * Whether a long press on this tile has anywhere to go.
-     *
-     * Four of the ten. The rest are a single switch whose whole configuration is the press that
-     * flips it, or a door that opens its own thing on a short press - and a settings sheet holding
-     * one switch the tile has already got is a sheet that teaches the driver the gesture is
-     * usually empty. A tile that answers this true wears the press-and-hold mark; the others do
-     * not, and their long press does nothing.
-     *
-     * Split screen is here because its press was given to the thing a driver actually wants from
-     * that tile - splitting the screen - which left the launcher icon's switch with nowhere else
-     * to live. That is the shape this pair of gestures is for: the useful action in reach, the
-     * housekeeping behind a hold.
-     */
-    val configurable: Boolean
-        get() = this == CLUSTER || this == SIMULCAST || this == MIRRORS || this == SPLIT
+    // There was a `configurable` here, true for four of the ten, and a long press on the other six
+    // did nothing at all. The argument was that a panel holding one switch teaches the driver the
+    // gesture is usually empty - which was true of the panel, not of the gesture. Every tile has a
+    // panel now, and the six that gained one gained the only place that says what they do.
 
     /** The runtime feature behind this tile, when there is one. */
     val feature: FeatureId?

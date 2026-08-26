@@ -35,6 +35,8 @@ class MainActivity : ComponentActivity() {
                     onSetWeatherEnabled = DenzaAppRepository::setWeatherEnabled,
                     onToggleHudGuidance = DenzaAppRepository::setHudGuidanceEnabled,
                     onToggleSpeakerCovers = DenzaAppRepository::setSpeakerCoversEnabled,
+                    onRaiseSpeakerCovers = DenzaAppRepository::raiseSpeakerCovers,
+                    onLowerSpeakerCovers = DenzaAppRepository::lowerSpeakerCovers,
                     onSelectClusterDisplay = DenzaAppRepository::selectClusterDisplay,
                     onRefreshScreenDiagnostics = DenzaAppRepository::refreshScreenDiagnostics,
                     onCheckAdbAccess = DenzaAppRepository::checkAdbAccess,

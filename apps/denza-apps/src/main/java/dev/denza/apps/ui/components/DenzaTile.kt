@@ -5,7 +5,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -26,7 +25,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -50,6 +48,12 @@ import dev.denza.apps.design.DenzaMetrics
  * the bottom third of every tile empty - the same numbers as the board, in the wrong order, which
  * is how a screen ends up looking nothing like its design while matching it on paper.
  *
+ * **The name is one line and so is the state.** Both used to take two if they needed them, and
+ * since the block is anchored to the bottom edge, a caption growing to two lines shoved the name
+ * upward - so switching the mirrors on moved the word "Зеркала". Ten tiles able to do that at
+ * different moments is a screen that twitches, and it did. Anything longer is elided; the registry
+ * writes captions that fit, and the panel behind the long press is where the long version lives.
+ *
  * [tone] carries the state before any word is read; see [DenzaTileTone]. [caption] decides whether
  * the line under the name is worth the accent; see [DenzaTileCaption].
  */
@@ -63,7 +67,6 @@ fun DenzaTile(
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier,
     caption: DenzaTileCaption = DenzaTileCaption.SETTING,
-    hasMore: Boolean = false,
     enabled: Boolean = true,
 ) {
     val accent = toneAccent(tone)
@@ -90,14 +93,6 @@ fun DenzaTile(
                 onLongClick = onLongClick,
             ),
     ) {
-        if (hasMore) {
-            PressAndHoldMark(
-                Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(DenzaMetrics.Space.S)
-                    .size(DenzaMetrics.Space.S),
-            )
-        }
         Column(
             modifier = Modifier.fillMaxSize().padding(DenzaMetrics.Space.L),
             verticalArrangement = Arrangement.SpaceBetween,
@@ -127,14 +122,14 @@ fun DenzaTile(
                     text = name,
                     style = MaterialTheme.typography.titleMedium,
                     color = if (enabled) DenzaColors.Ink else DenzaColors.Muted,
-                    maxLines = 2,
+                    maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
                     text = state,
                     style = MaterialTheme.typography.bodyMedium,
                     color = captionColor(tone, caption),
-                    maxLines = 2,
+                    maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
             }
@@ -169,29 +164,10 @@ private fun captionColor(tone: DenzaTileTone, caption: DenzaTileCaption): Color 
     DenzaTileTone.IDLE, DenzaTileTone.WORKING -> DenzaColors.Muted
 }
 
-/**
- * The corner that says a long press has somewhere to go.
- *
- * The convention a phone keyboard uses for a key with more characters under it, and a Mac button
- * uses for a menu on hold. It is deliberately not a target: a mark you have to hit would sit on the
- * face of a tile whose face is already a button, and a miss would run the feature's main action -
- * which on the mirrors means switching them off. A sign costs nothing to miss.
- *
- * It buys discoverability from people who know the convention, and it does not pretend to buy it
- * from people who do not. What that leaves is the caption, which says what the tile is doing.
- */
-@Composable
-private fun PressAndHoldMark(modifier: Modifier = Modifier) {
-    Canvas(modifier) {
-        val mark = Path().apply {
-            moveTo(size.width, 0f)
-            lineTo(size.width, size.height)
-            lineTo(0f, size.height)
-            close()
-        }
-        drawPath(mark, DenzaColors.MutedDeep)
-    }
-}
+// The corner mark that used to sit here is gone. It marked the four tiles whose long press led
+// somewhere, in the convention a phone keyboard uses for a key with more characters under it - and
+// on the car it read as something stuck to the tile rather than drawn with it. Every tile has a
+// panel now, so a mark distinguishing them would be on all ten and distinguish nothing.
 
 private val BUSY_DOT = 18.dp
 private val BUSY_STROKE = 2.dp

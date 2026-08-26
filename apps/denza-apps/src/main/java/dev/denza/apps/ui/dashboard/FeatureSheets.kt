@@ -2,6 +2,7 @@ package dev.denza.apps.ui.dashboard
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.material3.MaterialTheme
@@ -14,6 +15,7 @@ import dev.denza.apps.design.DenzaColors
 import dev.denza.apps.design.DenzaMetrics
 import dev.denza.apps.feature.cluster.ClusterMapPlacement
 import dev.denza.apps.feature.mirrors.MirrorsPosition
+import dev.denza.apps.feature.speaker.SpeakerCoverApps
 import dev.denza.apps.ui.components.DenzaAppTile
 import dev.denza.apps.ui.components.DenzaTileTone
 import dev.denza.apps.ui.components.DenzaNote
@@ -37,8 +39,16 @@ import dev.denza.apps.ui.components.DenzaSwitchRow
  * reaching for the tile. The tile now has two gestures and no controls; every control is one
  * deliberate long press away.
  *
- * Each sheet is built from the shared components, so none of them can drift from the others the way
- * the three card shapes did.
+ * **Every tile has one of these, and every one is built the same way**: the switch that turns the
+ * feature on, whatever it has to choose, and then a short paragraph saying what the feature is and
+ * how it behaves. Before this, five tiles had no panel at all - their long press did nothing - and
+ * the panels that existed introduced themselves with a subtitle under the title that mostly said
+ * the name again in other words ("Трансляция" / "Какие приложения уходят на экраны"). The subtitle
+ * is gone and the paragraph took its job, because a sentence at the bottom can explain a feature
+ * and a fragment at the top cannot.
+ *
+ * A panel with nothing to switch is still worth opening: it is the only place that says what the
+ * thing does. That is why the tiles with a single action have one too.
  */
 @Composable
 fun FeatureSheet(
@@ -74,9 +84,10 @@ fun FeatureSheet(
             }
         },
     ) {
+        // No subtitle. The panel says what it is at the bottom, in a sentence, once.
         DenzaSheetHeader(
             title = tile.name,
-            subtitle = purposeOf(id),
+            subtitle = "",
             onDismiss = onDismiss,
             icon = tileIcon(tile.icon),
         )
@@ -102,17 +113,14 @@ fun FeatureSheet(
             TileId.MIRRORS -> mirrorsSheet(state, actions, busy)
             TileId.SPLIT -> splitSheet(state, actions, busy)
             TileId.HUD -> hudSheet(state, actions, busy)
-            TileId.SPEAKERS -> SpeakerSheet(state, actions, busy)
+            TileId.WEATHER -> weatherSheet(state, actions)
+            TileId.SPEAKERS -> speakerSheet(state, actions, busy)
             TileId.LOCALE -> localeSheet(state, actions)
-            TileId.PASSENGER -> passengerSheet(state, actions, busy)
-            // Service is a door: its short press opens the service screen, and a long press has
-            // nothing else of its own to open.
-            // Neither opens a panel: one is a door that opens its own thing, the other a
-            // single switch the press already flips.
-            TileId.WEATHER,
-            TileId.SERVICE,
-            -> Unit
+            // Nothing to switch: the paragraph below is the whole panel, and the button at the
+            // foot is the one thing there is to do.
+            TileId.PASSENGER, TileId.SERVICE -> Unit
         }
+        DenzaNote(helpOf(id))
         val details = snapshot?.details
         if (details != null) {
             Text(
@@ -124,23 +132,46 @@ fun FeatureSheet(
     }
 }
 
-/** What this panel is for, in the words the board writes under its title. */
 /**
- * What a panel is for, under its name.
+ * What the feature is and how it behaves, in the driver's words.
  *
- * Exhaustive rather than defaulting to the empty string: a new tile with a panel and no purpose
- * line is a header that names a feature and says nothing about what the settings under it decide,
- * and an `else` branch makes that the silent default. Split screen arrived that way and shipped
- * without one.
+ * One of these per tile, exhaustively - a new tile cannot ship without writing one, which is the
+ * point of leaving the `when` without an `else`. They replaced a subtitle under the title that had
+ * room for a fragment and used it to say the name again; a sentence has room to say the thing a
+ * driver actually cannot work out by looking, which is what a covered speaker or a turn-indicator
+ * camera does when nobody is watching it.
+ *
+ * Short, present tense, no instructions the screen already gives.
  */
-private fun purposeOf(id: TileId): String = when (id) {
-    TileId.CLUSTER -> "Что показывать за рулём"
-    TileId.SIMULCAST -> "Какие приложения уходят на экраны"
-    TileId.MIRRORS -> "Когда показывать камеры и где"
-    TileId.SPLIT -> "Как делить экран между приложениями"
-    TileId.WEATHER -> "Погода для штатного виджета"
-    // No panel of their own: nothing to head.
-    TileId.HUD, TileId.SPEAKERS, TileId.LOCALE, TileId.PASSENGER, TileId.SERVICE -> ""
+private fun helpOf(id: TileId): String = when (id) {
+    TileId.CLUSTER ->
+        "Выбранное приложение занимает приборную панель за рулём. " +
+            "Короткое нажатие на плитку ставит его туда и убирает обратно."
+    TileId.SIMULCAST ->
+        "Выбранные приложения показываются на пассажирском экране и на экране сзади. " +
+            "Запуск открывает их там сразу."
+    TileId.MIRRORS ->
+        "Когда включён поворотник, на экране появляется камера с этой стороны и пропадает " +
+            "вместе с ним. «По центру» показывает обе камеры одну над другой."
+    TileId.SPLIT ->
+        "При включении на рабочем столе появляется значок разделения экрана. " +
+            "Он открывает выбор двух приложений, которые встанут рядом."
+    TileId.HUD ->
+        "Указания навигатора повторяются на проекции на лобовом стекле."
+    TileId.WEATHER ->
+        "Приложение забирает прогноз и отдаёт его штатному виджету погоды. " +
+            "Своей погоды оно не рисует — виджет остаётся штатным."
+    TileId.SPEAKERS ->
+        "Крышки поднимаются сами, когда что-то играет: сразу для известных приложений " +
+            "(${SpeakerCoverApps.EXAMPLES}) и через три секунды звука для остальных. " +
+            "После получаса тишины они уезжают обратно."
+    TileId.LOCALE ->
+        "Родной русский язык уже встроен в систему — " +
+            "переключатель включает его в штатных настройках машины."
+    TileId.PASSENGER ->
+        "Выбранное приложение устанавливается на экран перед пассажиром."
+    TileId.SERVICE ->
+        "Показания машины, доступ приложения к ней и штатные настройки, до которых оно дотягивается."
 }
 
 /**
@@ -191,6 +222,11 @@ private fun panelAction(
             onClick = { actions.onLaunchSimulcast(); onDismiss() },
             enabled = state.simulcast.desiredEnabled,
             isTheTilePress = tile.action == TileAction.SIMULCAST_LAUNCH,
+        )
+        // Their switch is in the panel, so the foot would only be that switch again.
+        TileId.HUD, TileId.WEATHER, TileId.SPEAKERS, TileId.LOCALE -> PanelAction(
+            label = "",
+            onClick = {},
         )
         else -> PanelAction(label = primaryLabel(tile, state), onClick = press)
     }
@@ -255,17 +291,10 @@ private fun clusterSheet(state: DenzaUiState, actions: DashboardActions, busy: B
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !busy,
             )
-            DenzaNote(placementNote(state.navigationPlacement))
         }
     }
     DenzaSwitchRow(
         title = "Кнопка ★ на руле",
-        subtitle = when {
-            !state.navigationSteeringWheelButton -> "Штатное действие не перехватывается"
-            state.navigationSteeringWheelButtonRepairing -> "Восстанавливаю системный доступ…"
-            state.navigationSteeringWheelButtonReady -> "Перехват активен"
-            else -> "Системный доступ недоступен"
-        },
         checked = state.navigationSteeringWheelButton,
         onCheckedChange = actions.onNavigationSteeringWheelButton,
     )
@@ -275,8 +304,7 @@ private fun clusterSheet(state: DenzaUiState, actions: DashboardActions, busy: B
 @Composable
 private fun simulcastSheet(state: DenzaUiState, actions: DashboardActions, busy: Boolean) {
     DenzaSwitchRow(
-        title = "Трансляция",
-        subtitle = "Приложения на экранах",
+        title = "Поддержка трансляции",
         checked = state.simulcast.desiredEnabled,
         onCheckedChange = actions.onToggleSimulcast,
         enabled = !busy,
@@ -302,12 +330,18 @@ private fun simulcastSheet(state: DenzaUiState, actions: DashboardActions, busy:
     }
 }
 
-/** Where the turn-indicator cameras appear, and how their picture is treated. */
+/**
+ * Where the turn-indicator cameras appear, and how their picture is treated.
+ *
+ * This panel used to say the same thing in four places at once - a subtitle under the switch, a
+ * heading over the row, the row's own two words, and a note under it that changed with the choice.
+ * The controls are the same; everything that was prose about them is now one paragraph at the foot
+ * of the panel, where the other nine tiles keep theirs.
+ */
 @Composable
 private fun mirrorsSheet(state: DenzaUiState, actions: DashboardActions, busy: Boolean) {
     DenzaSwitchRow(
         title = "Зеркала",
-        subtitle = "Камеры по поворотникам",
         checked = state.mirrors.desiredEnabled,
         onCheckedChange = actions.onToggleMirrors,
         enabled = !busy,
@@ -327,17 +361,9 @@ private fun mirrorsSheet(state: DenzaUiState, actions: DashboardActions, busy: B
             modifier = Modifier.fillMaxWidth(),
             enabled = !busy && state.mirrors.desiredEnabled,
         )
-        DenzaNote(
-            if (state.mirrorsPosition == MirrorsPosition.SIDES) {
-                "Камера появляется с той стороны, куда включён поворотник."
-            } else {
-                "Обе камеры показываются по центру экрана, одна над другой."
-            },
-        )
     }
     DenzaSwitchRow(
         title = "Улучшение изображения",
-        subtitle = "Ярче и контрастнее",
         checked = state.mirrorsProcessing,
         onCheckedChange = actions.onMirrorsProcessing,
         enabled = state.mirrors.desiredEnabled,
@@ -348,8 +374,7 @@ private fun mirrorsSheet(state: DenzaUiState, actions: DashboardActions, busy: B
 @Composable
 private fun splitSheet(state: DenzaUiState, actions: DashboardActions, busy: Boolean) {
     DenzaSwitchRow(
-        title = "Разделение экрана",
-        subtitle = "Значок на рабочем столе открывает выбор двух приложений",
+        title = "Значок на рабочем столе",
         checked = state.splitScreen.desiredEnabled,
         onCheckedChange = actions.onToggleSplitScreen,
         enabled = !busy,
@@ -360,74 +385,68 @@ private fun splitSheet(state: DenzaUiState, actions: DashboardActions, busy: Boo
 @Composable
 private fun hudSheet(state: DenzaUiState, actions: DashboardActions, busy: Boolean) {
     DenzaSwitchRow(
-        title = "Подсказки на HUD",
-        subtitle = "Указания навигатора на проекции",
+        title = "Подсказки на проекции",
         checked = state.hudGuidance.desiredEnabled,
         onCheckedChange = actions.onToggleHudGuidance,
         enabled = !busy,
     )
 }
 
-/** Playback-driven opening with a deliberately long, silence-only close delay. */
+/** Whether the app keeps feeding the car's own weather widget. */
 @Composable
-private fun SpeakerSheet(state: DenzaUiState, actions: DashboardActions, busy: Boolean) {
+private fun weatherSheet(state: DenzaUiState, actions: DashboardActions) {
+    DenzaSwitchRow(
+        title = "Данные для виджета",
+        checked = state.weatherEnabled,
+        onCheckedChange = actions.onSetWeatherEnabled,
+    )
+}
+
+/**
+ * Playback-driven opening, and the two buttons that overrule it.
+ *
+ * The buttons answer whether or not the automation is on: the covers belong to the car, and wanting
+ * them up at a standstill with nothing playing is a perfectly ordinary thing. The automation is
+ * told where they went, so it does not immediately argue - though three seconds of music will
+ * still raise them again, which is the paragraph's job to say.
+ */
+@Composable
+private fun speakerSheet(state: DenzaUiState, actions: DashboardActions, busy: Boolean) {
     DenzaSwitchRow(
         title = "Автоматика крышек",
-        subtitle = "Закрывать через 30 минут без звука",
         checked = state.speakerCovers.desiredEnabled,
         onCheckedChange = actions.onToggleSpeakerCovers,
         enabled = !busy,
     )
-    DenzaSection("Как открываются") {
-        Text(
-            text = "Сразу для известных аудио- и видеоприложений или активной MediaSession; " +
-                "после 3 секунд звука — резервно для остальных.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = DenzaColors.Muted,
-        )
-    }
-}
-
-/** The passenger's screen has one thing to do, so the sheet is that one thing. */
-@Composable
-private fun passengerSheet(state: DenzaUiState, actions: DashboardActions, busy: Boolean) {
-    Column(
+    Row(
         modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(DenzaMetrics.Space.M),
+        horizontalArrangement = Arrangement.spacedBy(DenzaMetrics.Space.M),
     ) {
-        Text(
-            text = "Приложение с этого экрана ставится на пассажирский.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = DenzaColors.Muted,
+        DenzaSecondaryButton(
+            text = "Поднять",
+            onClick = actions.onRaiseSpeakerCovers,
+            modifier = Modifier.weight(1f),
+            enabled = !busy,
         )
-        DenzaPrimaryButton(
-            text = "Выбрать приложение",
-            onClick = actions.onChooseFseApp,
-            modifier = Modifier.fillMaxWidth(),
+        DenzaSecondaryButton(
+            text = "Опустить",
+            onClick = actions.onLowerSpeakerCovers,
+            modifier = Modifier.weight(1f),
             enabled = !busy,
         )
     }
 }
+
 /** Russian in the car's own settings, which is a switch in stock firmware and nothing of ours. */
 @Composable
 private fun localeSheet(state: DenzaUiState, actions: DashboardActions) {
     val locale = state.stockRussianLocale
-    DenzaSection(title = "Штатные настройки") {
-        DenzaSwitchRow(
-            title = "Русский язык",
-            checked = locale.enabled == true,
-            onCheckedChange = actions.onSetStockRussianLocale,
-            enabled = locale.permissionReady && !locale.running,
-        )
-    }
-}
-
-/** What the chosen placement actually does to the strip, which its name cannot say. */
-private fun placementNote(placement: ClusterMapPlacement): String = when (placement) {
-    ClusterMapPlacement.FULL ->
-        "Приборы свёрстаны на всю полосу и обходят штатные элементы."
-    ClusterMapPlacement.LEFT, ClusterMapPlacement.CENTER, ClusterMapPlacement.RIGHT ->
-        "Занята часть полосы. Остальное остаётся штатным."
+    DenzaSwitchRow(
+        title = "Русский язык",
+        checked = locale.enabled == true,
+        onCheckedChange = actions.onSetStockRussianLocale,
+        enabled = locale.permissionReady && !locale.running,
+    )
 }
 
 private const val SHEET_COLUMNS = 3

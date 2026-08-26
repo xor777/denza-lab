@@ -42,9 +42,8 @@ fun DashboardGrid(
             state = tile.state,
             tone = tile.tone,
             caption = tile.caption,
-            hasMore = tile.id.configurable,
             onClick = { DashboardPress.perform(tile, state, actions) },
-            onLongClick = { if (tile.id.configurable) actions.onOpenSettings(tile.id) },
+            onLongClick = { actions.onOpenSettings(tile.id) },
             modifier = cell,
             enabled = enabled,
         )

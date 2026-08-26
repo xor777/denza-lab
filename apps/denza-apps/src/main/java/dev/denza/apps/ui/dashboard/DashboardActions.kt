@@ -35,6 +35,8 @@ data class DashboardActions(
     val onSetWeatherEnabled: (Boolean) -> Unit,
     val onToggleHudGuidance: (Boolean) -> Unit,
     val onToggleSpeakerCovers: (Boolean) -> Unit,
+    val onRaiseSpeakerCovers: () -> Unit,
+    val onLowerSpeakerCovers: () -> Unit,
     val onSetStockRussianLocale: (Boolean) -> Unit,
     val onChooseFseApp: () -> Unit,
     val onOpenClusterPicker: () -> Unit,
