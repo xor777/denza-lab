@@ -217,7 +217,15 @@ class SpectrumSource {
 
         private val defaultOwner = Any()
 
-        const val BAND_COUNT = 48
+        /**
+         * Twenty-six columns, which is what the design board draws.
+         *
+         * It was forty-eight, and at the width this panel gets that is a bar about eleven pixels
+         * wide - a picket fence rather than an analyser. Fewer and fatter also means each band
+         * covers more of the spectrum, so a single instrument moves a column instead of
+         * flickering between two.
+         */
+        const val BAND_COUNT = 26
 
         /** Audio session 0: the whole output mix rather than one app's track. */
         const val GLOBAL_OUTPUT_MIX_SESSION = 0

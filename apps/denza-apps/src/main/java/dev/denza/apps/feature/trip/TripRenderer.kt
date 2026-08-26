@@ -85,15 +85,17 @@ abstract class BaseTripRenderer : PanelCanvas() {
         const val LOCATION_HINT = "нет доступа к геолокации"
 
         /**
-         * The height this panel's own layout asks for at [width].
+         * The height the wide panel's layout asks for at [width].
          *
          * [PanelCanvas] scales x and y independently, which is what lets a renderer fill whatever
          * box it is given - and also what silently distorts it when the box is a different shape
-         * from the layout. The full-width dashboard used to hand this strip everything left over
-         * below the tiles, about twice the height its own space asks for, and every circle in it
-         * came out an ellipse. Callers that can choose a height should ask here for it.
+         * from the layout. The dashboard used to hand this strip whatever height was left below
+         * the tiles, and the strip was laid out in a 5:1 band, so every stroke in it came out
+         * stretched about twofold. It is laid out in the board's own 1184x416 now, and this is how
+         * a caller asks for a box of that shape.
          */
-        fun heightFor(width: Float): Float = width * VIRTUAL_H / VIRTUAL_W
+        fun heightFor(width: Float): Float =
+            width * TripPanelRenderer.WIDE_VIRTUAL_H / TripPanelRenderer.WIDE_VIRTUAL_W
 
         fun pad2(n: Int): String = if (n < 10) "0$n" else n.toString()
 
