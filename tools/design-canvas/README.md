@@ -30,6 +30,7 @@ that reports what collides.
 | `normalize.py` | maps type, radii, borders and icon weights onto the scales |
 | `audit.py` | opens every board in headless Chrome and reports what collides |
 | `shot.py` | renders one board to a PNG at panel pixels, so it can be looked at |
+| `compare.py` | lays a board against a screenshot of the car and reports what moved |
 
 ## Running the audit
 
@@ -72,6 +73,50 @@ been designed while it sat in `Main.dc.html`, drawn, with its own data.
 So every line `shot.py` prints ends with `loops: N left: M` - the loops the board
 declares against the ones still standing in the rendered DOM. `left: 0` is the
 only good answer. Anything else is marked HOLES, and the picture is not evidence.
+
+## The canvas the app actually gets
+
+Measured off the car, not assumed:
+
+| | px | dp @2.0 |
+| --- | --- | --- |
+| screen | 2560 x 1600 | 1280 x 800 |
+| app window | 2560 x 1472 | 1280 x 736 |
+| status band over it | 112 tall | 56 |
+| system dock below it | 128 tall | 64 |
+| **what the app can draw** | **2560 x 1360** | **1280 x 680** |
+
+The head-unit boards are 1280 x 800. The app never has 800 dp and never will: the
+dock takes 64 off the bottom before the window even exists, and an opaque status
+band takes 56 more off the top. So every one of those boards is drawn on 120 dp of
+height that does not exist - fifteen per cent - and anything laid out to fill the
+board arrives on the car compressed, scrolled, or off the bottom edge.
+
+Horizontally there is nothing to correct: the background runs edge to edge and the
+first tile starts at 96 px, which is the `48` side margin exactly.
+
+This is the first thing to fix before "pixel perfect" means anything, and it is not
+a fix any single board can carry - it changes what fits on all of them.
+
+## Comparing a board with the car
+
+```bash
+python3 compare.py Main --car screenshot.png
+python3 compare.py Main --capture          # takes one off the vehicle
+```
+
+It renders the board at the car's scale, lays the two side by side with a heat map
+between them, and reports the cells whose mean colour moved, in board coordinates.
+It compares over a grid rather than pixel by pixel on purpose: Skia and Chrome
+rasterise the same glyph differently, and a per-pixel diff reports nothing but
+that. A cell that moves is a layout or a colour that moved.
+
+`--capture` is the only thing in this directory that touches the vehicle.
+
+Read the number with the build in mind. A 62 % difference on a car running last
+week's APK is last week's APK, not a design that has drifted - the comparison is
+only as honest as the pair of things being compared, and it will not tell you which
+one is stale.
 
 ## One screen, two widths
 
