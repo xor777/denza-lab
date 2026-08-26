@@ -343,6 +343,7 @@ fun DenzaAppsRoot(
             if (adbStartupOverlay.visible) {
                 AdbStartupOverlay(
                     model = adbStartupOverlay,
+                    compact = compactLayout,
                     onPrimaryAction = {
                         when (adbStartupOverlay.primaryAction) {
                             AdbStartupPrimaryAction.NONE -> Unit
@@ -399,11 +400,18 @@ private val NARROW_TRIP_PANEL_HEIGHT = DenzaMetrics.Component.PANEL_HEIGHT_NARRO
 @Composable
 private fun AdbStartupOverlay(
     model: AdbStartupOverlayModel,
+    compact: Boolean,
     onPrimaryAction: () -> Unit,
     onOpenRecovery: () -> Unit,
     onOpenExplainer: () -> Unit,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
+    // A pane a third of the screen wide is 416 dp, which leaves this card about 253 dp - and 48 dp
+    // of padding down each side of that spends most of it on nothing. The row of actions already
+    // did not fit there before anything was added to it, and a full-width button loses the end of
+    // its own label. Narrow gets the width back; the wide gate keeps the proportions it had.
+    val cardWidthFraction = if (compact) 1f else 0.72f
+    val cardPadding = if (compact) DenzaMetrics.Space.L else DenzaMetrics.Space.XXL
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -418,12 +426,12 @@ private fun AdbStartupOverlay(
         contentAlignment = Alignment.Center,
     ) {
         Card(
-            modifier = Modifier.fillMaxWidth(0.72f),
+            modifier = Modifier.fillMaxWidth(cardWidthFraction),
             shape = RoundedCornerShape(DenzaMetrics.Space.XL),
             border = BorderStroke(DenzaMetrics.Stroke.HAIRLINE, DenzaColors.SurfaceRaised),
         ) {
             Column(
-                modifier = Modifier.padding(horizontal = DenzaMetrics.Space.XXL, vertical = DenzaMetrics.Space.XL),
+                modifier = Modifier.padding(horizontal = cardPadding, vertical = DenzaMetrics.Space.XL),
                 verticalArrangement = Arrangement.spacedBy(DenzaMetrics.Space.L),
             ) {
                 Row(
