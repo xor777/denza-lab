@@ -243,6 +243,10 @@ class SpeakerCoverService : Service() {
         message: String,
         details: String? = null,
     ) {
+        // Every transition, because the tile can only draw "working" or not: from the screen there
+        // is no telling a motor command in flight from a watcher stuck in startup, and both look
+        // like a spinner that never ends.
+        Log.i(TAG, "phase=$phase message=$message details=${details ?: "—"}")
         SpeakerCoverRuntime.publish(
             SpeakerCoverRuntimeState(
                 phase = phase,

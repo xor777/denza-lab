@@ -9,6 +9,7 @@ import dev.denza.apps.feature.cluster.ClusterDisplayResolver
 import dev.denza.apps.feature.cluster.ClusterDisplaySelection
 import dev.denza.apps.feature.cluster.ClusterSceneService
 import dev.denza.apps.feature.adb.AdbRescueCoordinator
+import dev.denza.apps.feature.speaker.SpeakerCoverRuntime
 import dev.denza.apps.feature.adb.AdbSystemSwitch
 import dev.denza.apps.feature.fse.FseAppInstaller
 import dev.denza.apps.feature.hud.HudGuidanceRuntime
@@ -65,6 +66,19 @@ object SupportDiagnostics {
                     "attempts=${adbRescue.attemptCount}",
             )
             add("ADB queue recovery=${AdbRescueCoordinator.QUEUE_RECOVERY_STATUS}")
+            // The speaker automation's own phase. The tile can only say "working" or not, so when
+            // it sits on "working" there is no way from the screen to tell a motor command in
+            // flight from a watcher that never finished starting - which is exactly the question
+            // this panel exists to answer.
+            SpeakerCoverRuntime.snapshot().let { speaker ->
+                add(
+                    "Крышки динамиков=" +
+                        "phase=${speaker.phase.name.lowercase()}; " +
+                        "position=${speaker.position.name.lowercase()}; " +
+                        "message=${speaker.message.ifBlank { "—" }}; " +
+                        "details=${speaker.details ?: "—"}",
+                )
+            }
             displays.forEach { display ->
                 add(
                     "Android display #${display.id}=" +
