@@ -1384,3 +1384,63 @@ The resident helper does not die with the toggle either, despite that being the
 intent recorded when it was added: it survives until its 30-second idle release.
 No orphan process remains afterwards, but a session that ends by the toggle keeps
 one alive for up to half a minute.
+
+## The Home hint arrives twice in eight, and the open gate is what pulls apps in (live v33, 2026-08-26)
+
+The ADAS sighting and the "wrong app went fullscreen" sighting above share one
+root, and it is not the cooperative `displaced` yielding that was suspected. The
+line `home suspend displaced by user input` never appeared once in a whole live
+session.
+
+Gate suspension hung on a single trigger: an accessibility event whose
+`packageName` is the launcher (`SplitAccessibilityEventPolicy.target`). Live,
+that event arrives about a quarter of the time.
+
+- **Eight ordinary Home presses over a live pair produced the hint twice**
+  (17:45:37, 17:48:00). In the other six the ring holds no `window event
+  target=HOME`, no `home confirmed`, and no `home hint dropped` — `HomeOperation`
+  was never submitted at all.
+- **Without the hint the gate stays open indefinitely.** Home at 17:43:21, then a
+  dock tap at 17:44:26 — 65 seconds later — still produced `area=3`, the firmware
+  pulling a second app in beside it. Waiting longer is not a remedy.
+- **With the hint the contract holds exactly.** 17:48:00 Home → event at
+  17:48:00.997 → `home confirmed` at 17:48:01.429 → dock tap at 17:48:05 gives
+  `area=4`, fullscreen. Repeated twice more with the same result.
+- **The reconcile already saw the covering.** Every Home produced a storm of
+  `TYPE_WINDOWS_CHANGED` and 2–3 reconciles inside the first 0.4–1.7 s, with
+  `collapse: area=0` in the ring. What was missing was never the signal or the
+  time — it was that nothing finished what the product had started.
+- **Which app the firmware pulls in is whatever its own keys remember.** While our
+  scene is built the firmware rewrites only `byd_smart_multi_primary_activity`
+  (`com.android.launcher3` → `ru.yandex.music`, mode `102` → `100`);
+  `second_activity` stayed `com.byd.sr` for the whole session. ADAS in the
+  original sighting and Yandex Navigator in this one are the same mechanism with
+  different remembered keys.
+- Working-path latency: press → event ≈ 0.7–1.0 s; event → `home confirmed`
+  ≈ 0.3–0.4 s.
+- `picker_gate_owned_v1=true` under Home is **not** evidence of an open gate;
+  `suspendOwnedGateForHome` keeps the lease deliberately.
+
+The fix (`0835017`) does not add a channel or a timer. `ReconcileOperation`
+already reads the world on those events; it now also finishes the suspension when
+it still owns the gate and reads area 0/4. Mutation authority stays what it
+always was — a read area, never an event — and over a visible scene (area 1/2/3)
+it sends nothing, because a false close is strictly worse than a missed one.
+
+**Still owed by the car:** that an ordinary dock launch after a lost hint is no
+longer pulled into split, and that focused tasks and the durable pair are
+unchanged by the new suspension. Unit tests cover the other four obligations.
+
+### A contradiction about logcat that is not resolved
+
+The same session reports that `adb logcat -s DenzaSplitScreen
+DenzaSplitPickerA11y` returns the full ring with real timestamps — that `Log.i`
+from `dev.denza.apps` reaches logd on this car. The docstring of
+`SplitDiagnostics.kt` records the opposite from two full runs, and attributes it
+to logd filtering apps by UID (`da09c6a`).
+
+Both are live observations, and nothing so far explains the difference; the
+mechanism claim (UID filtering) is the weakest link, since it was inferred from
+absence rather than read anywhere. Treat the logcat channel as **unconfirmed**
+and keep the in-process ring as the channel of truth until one run settles it.
+Do not remove the ring on the strength of an unexplained contradiction.
