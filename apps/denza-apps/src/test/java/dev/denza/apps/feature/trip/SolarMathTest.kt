@@ -46,6 +46,28 @@ class SolarMathTest {
         assertTrue("sunset=${day.sunsetMinutes}", day.sunsetMinutes in 1268.0..1288.0)
     }
 
+    /**
+     * Late August in Moscow: the sun is down well before nine.
+     *
+     * This is here because of a wrong bug report - mine. Seeing "5:26 рассвет" on the panel at
+     * 20:44 I recorded that the wrong event was being chosen, when after sunset the next event
+     * genuinely is tomorrow's sunrise. The panel was right; the reading was not. Pinning the fact
+     * costs four lines and stops it being rediscovered as a defect a third time.
+     */
+    @Test
+    fun anAugustEveningInMoscowIsAlreadyPastSunset() {
+        val day = SolarMath.daylight(
+            SolarMath.CivilDate(2026, 8, 26),
+            latitudeDeg = 55.75,
+            longitudeDeg = 37.62,
+            tzOffsetMinutes = 180,
+        )
+
+        assertTrue(day.hasEvents)
+        assertTrue("sunset=${day.sunsetMinutes}", day.sunsetMinutes < 20 * 60 + 44)
+        assertTrue("sunrise=${day.sunriseMinutes}", day.sunriseMinutes in 315.0..335.0)
+    }
+
     @Test
     fun equatorEquinoxDayIsAboutTwelveHours() {
         val day = SolarMath.daylight(
