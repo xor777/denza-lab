@@ -121,3 +121,32 @@ target firmware:
 
 Until this gate passes, the diagnostics UI reports queue recovery as disabled. Local unit tests and
 an APK build prove only the state machine and packaging, not vehicle behaviour.
+
+## The persistent shell is a terminal (live v31, 2026-08-26)
+
+Feature clients do not run one command per ADB stream. `LocalAdbClient.openPersistentShell()`
+opens the legacy `shell:sh` service once and writes command lines into it for the life of the
+session, framed by two markers so each answer can be told apart from the next.
+
+On this adbd that service hands back a **PTY**, so `/system/bin/sh` — mksh — starts its line
+editor on the stream. Two consequences follow, and both have now cost a release:
+
+- The shell **echoes** what is written to it. The frame reader has tolerated that echo since
+  2026-08, which is the standing evidence that a terminal is there.
+- The line editor **consumes raw control bytes as key presses**. A frame that carries `0x1E`
+  or `0x1F` as literal bytes inside the command line loses them: the marker never comes back,
+  `findFramedResult` never matches, and every read waits out `READ_TIMEOUT_MS` and fails with
+  `Read timed out`. Live on v31 this took down every ADB-dependent feature at once — split,
+  Simulcast, navigation, mirrors, telemetry, the FSE installer — while ADB Rescue still read
+  *ADB-доступ подтверждён*, because the one-shot `shell:<command>` path was unaffected.
+
+Markers therefore travel as escape text that the shell itself expands, never as bytes on the
+command line.
+
+**A frame is only proven on the channel the product opens.** Neither of the two channels that
+are convenient to test on has a line editor: a unit test against `/bin/sh` under a pipe, and
+`adb shell <command>` from the host, which is the one-shot service. Both accepted the frame that
+the car rejected. Any change to the frame owes a run through an interactive `shell:sh` with a
+terminal attached, over the same cases the unit tests cover: quotes, `$`, newlines, unicode,
+backslashes, nested quotes, a non-zero status, and an output large enough to span several ADB
+messages.
