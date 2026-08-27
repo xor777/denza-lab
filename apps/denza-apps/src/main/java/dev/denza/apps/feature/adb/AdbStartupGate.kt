@@ -76,7 +76,7 @@ object AdbStartupGatePolicy {
             visible = true,
             title = "ADB недоступен",
             message = SERVICE_INSTRUCTION,
-            details = unavailableCause(snapshot.systemSwitch),
+            details = systemSwitchReading(snapshot.systemSwitch),
             primaryLabel = "Проверить снова",
             primaryAction = AdbStartupPrimaryAction.CHECK_ACCESS,
             explainerAvailable = true,
@@ -85,6 +85,7 @@ object AdbStartupGatePolicy {
             visible = true,
             title = "Подтвердите доступ к ADB",
             message = "Для работы Denza Apps разрешите системный запрос ADB на экране автомобиля",
+            details = systemSwitchReading(snapshot.systemSwitch),
             primaryLabel = "Запросить доступ",
             primaryAction = AdbStartupPrimaryAction.REQUEST_AUTHORIZATION,
             recoveryAvailable = true,
@@ -101,6 +102,7 @@ object AdbStartupGatePolicy {
             visible = true,
             title = "Подтвердите доступ к ADB",
             message = "Разрешите системный запрос на экране автомобиля",
+            details = systemSwitchReading(snapshot.systemSwitch),
             primaryLabel = "Я подтвердил — проверить",
             primaryAction = AdbStartupPrimaryAction.CHECK_ACCESS,
             recoveryAvailable = true,
@@ -110,6 +112,7 @@ object AdbStartupGatePolicy {
             visible = true,
             title = "Не удалось проверить ADB",
             message = "Повторите проверку доступа",
+            details = systemSwitchReading(snapshot.systemSwitch),
             primaryLabel = "Проверить снова",
             primaryAction = AdbStartupPrimaryAction.CHECK_ACCESS,
             explainerAvailable = true,
@@ -117,18 +120,24 @@ object AdbStartupGatePolicy {
     }
 
     /**
-     * Which of the two unavailable cars this is, when the switch says so.
+     * Что машина ответила про свой тумблер отладки — на каждом экране, где человек застрял.
      *
-     * A refused key on a car whose ADB switch is off is the one failure the app can name outright,
-     * because it is a reading and not a guess - and it is also the one the shared service copy
-     * above cannot express, since that copy has to hold for a car that simply stopped answering.
-     * An unreadable flag stays silent: absence of evidence is not evidence of an off switch, and
-     * inventing a cause here would be worse than saying nothing.
+     * Первая редакция называла только выключенный тумблер, а включённый и нечитаемый оставляла
+     * пустыми, и рассуждение было такое: отсутствие свидетельства - не свидетельство выключенного
+     * тумблера, выдумывать причину хуже, чем промолчать. Первая половина верна и сейчас. Вторая
+     * оказалась неверной: «прочитать не удалось» - это не выдумка, а ровно то, что произошло, и
+     * молчали мы именно в тех двух случаях, где сами не знаем ответа.
+     *
+     * Практическая цена этого молчания известна поимённо. Владелец сообщил о дефекте скриншотом;
+     * ответить, его ли это случай, оказалось нечем, потому что на снимке нет ни одного факта о
+     * машине - а доступа к той машине у нас нет и не будет. Экран, который честно говорит, что
+     * прочитал, отвечает на такой вопрос сам, без инструкций владельцу и без семи тапов.
+     *
+     * Ни одна из трёх строк ничего не советует: это показание, не диагноз и не отказ.
      */
-    private fun unavailableCause(systemSwitch: AdbSystemSwitch): String? = when (systemSwitch) {
+    private fun systemSwitchReading(systemSwitch: AdbSystemSwitch): String = when (systemSwitch) {
         AdbSystemSwitch.DISABLED -> AdbRescuePolicy.SYSTEM_SWITCH_OFF_DETAIL
-        AdbSystemSwitch.ENABLED,
-        AdbSystemSwitch.UNKNOWN,
-        -> null
+        AdbSystemSwitch.ENABLED -> AdbRescuePolicy.SYSTEM_SWITCH_ON_DETAIL
+        AdbSystemSwitch.UNKNOWN -> AdbRescuePolicy.SYSTEM_SWITCH_UNREADABLE_DETAIL
     }
 }

@@ -2,6 +2,7 @@ package dev.denza.apps.feature.adb
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -153,14 +154,60 @@ class AdbStartupGatePolicyTest {
     }
 
     @Test
-    fun `an unreadable switch invents no cause`() {
-        // Absence of evidence is not evidence of an off switch. A car that stopped answering, and a
-        // car whose flag could not be read, both get the service instruction and nothing else.
-        listOf(AdbSystemSwitch.UNKNOWN, AdbSystemSwitch.ENABLED).forEach { switch ->
-            val model = AdbStartupGatePolicy.overlay(
-                AdbRescueSnapshot(phase = AdbRescuePhase.UNAVAILABLE, systemSwitch = switch),
+    fun `an unreadable switch still invents no cause`() {
+        // Absence of evidence is not evidence of an off switch - that part never changed. What
+        // changed is that saying "could not be read" is itself a reading, not an invention, and the
+        // gate used to stay silent in exactly the two cases where we do not know the answer.
+        val unknown = AdbStartupGatePolicy.overlay(
+            AdbRescueSnapshot(
+                phase = AdbRescuePhase.UNAVAILABLE,
+                systemSwitch = AdbSystemSwitch.UNKNOWN,
+            ),
+        )
+        val on = AdbStartupGatePolicy.overlay(
+            AdbRescueSnapshot(
+                phase = AdbRescuePhase.UNAVAILABLE,
+                systemSwitch = AdbSystemSwitch.ENABLED,
+            ),
+        )
+
+        assertNotEquals(
+            "an unreadable flag must never be reported as a switched-off one",
+            AdbRescuePolicy.SYSTEM_SWITCH_OFF_DETAIL,
+            unknown.details,
+        )
+        assertNotEquals(
+            "nor may it be reported as a switched-on one",
+            on.details,
+            unknown.details,
+        )
+    }
+
+    @Test
+    fun `every stuck screen says what it read, and the three readings differ`() {
+        // The whole point: an owner reports this screen with a photograph, and the photograph has
+        // to answer which of the three cars it is - there is no access to that car and no way to
+        // ask it anything afterwards. Silence on any one of them makes the picture useless.
+        val stuck = listOf(
+            AdbRescuePhase.UNAVAILABLE,
+            AdbRescuePhase.AUTHORIZATION_REQUIRED,
+            AdbRescuePhase.AWAITING_CONFIRMATION,
+            AdbRescuePhase.ERROR,
+        )
+        stuck.forEach { phase ->
+            val readings = AdbSystemSwitch.entries.map { switch ->
+                AdbStartupGatePolicy.overlay(
+                    AdbRescueSnapshot(phase = phase, systemSwitch = switch),
+                ).details
+            }
+            readings.forEach { reading ->
+                assertTrue("$phase left a switch state unsaid", !reading.isNullOrBlank())
+            }
+            assertEquals(
+                "$phase must tell its three readings apart",
+                AdbSystemSwitch.entries.size,
+                readings.toSet().size,
             )
-            assertNull("$switch produced a cause on the gate", model.details)
         }
     }
 
@@ -173,9 +220,14 @@ class AdbStartupGatePolicyTest {
         val noisy = AdbRescueSnapshot(
             phase = AdbRescuePhase.ERROR,
             details = "ConnectException",
+            systemSwitch = AdbSystemSwitch.ENABLED,
         )
 
-        assertNull(AdbStartupGatePolicy.overlay(noisy).details)
+        // The gate carries a reading of the car, never the snapshot's own words.
+        assertEquals(
+            AdbRescuePolicy.SYSTEM_SWITCH_ON_DETAIL,
+            AdbStartupGatePolicy.overlay(noisy).details,
+        )
     }
 
     @Test

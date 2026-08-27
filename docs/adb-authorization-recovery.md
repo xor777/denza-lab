@@ -181,11 +181,31 @@ and an untrusted key, which is a genuine `AUTHORIZATION_REQUIRED` that this
 change deliberately leaves alone. In that case the owner still gets an
 instruction they cannot carry out, and the fix misses.
 
-What settles it is three values from that car, not from the reference one:
-`settings get global adb_enabled`, `getprop ro.adb.secure`, and which of the two
-screens it shows. Until then, treat the classification as covering one proven
-mechanism rather than the reported case. The explanation window is the part that
-holds either way, because it names the service path in every state.
+**The screen now answers this by itself (v38, 2026-08-27).** There is no access to
+that car and no way to ask it anything, but the owner reported the defect with a
+photograph — so the gate was made to carry what it read. Every screen a person
+can be stuck on (`UNAVAILABLE`, `AUTHORIZATION_REQUIRED`, `AWAITING_CONFIRMATION`,
+`ERROR`) states the system switch in plain words, and the three readings are
+deliberately distinct:
+
+- `Отладка по ADB выключена в системе автомобиля`
+- `Отладка по ADB включена в системе автомобиля`
+- `Состояние отладки по ADB прочитать не удалось`
+
+Combined with the title, that is enough to tell the four cases apart from a
+screenshot alone, with no instructions to the owner and no hidden gesture. A
+switched-on flag under **Подтвердите доступ к ADB** means the reported car is a
+genuine untrusted key and this classification never applied to it; a switched-off
+flag under **ADB недоступен** means the fix caught it.
+
+The earlier silence was reasoned as "absence of evidence is not evidence of an
+off switch", which is true and still holds — the app never reports an unreadable
+flag as a switched-off one. What was wrong is that saying *"could not be read"*
+is itself a reading, so the gate stayed silent in exactly the two cases where
+nobody knows the answer.
+
+The explanation window holds either way, because it names the service path in
+every state.
 
 ## The persistent shell is a terminal (live v31, 2026-08-26)
 
