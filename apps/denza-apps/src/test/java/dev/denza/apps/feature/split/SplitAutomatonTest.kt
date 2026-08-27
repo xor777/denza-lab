@@ -1,6 +1,7 @@
 package dev.denza.apps.feature.split
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
@@ -19,7 +20,7 @@ class SplitAutomatonTest {
 
         assertTrue(result.state.enabled)
         assertNull(result.state.scene)
-        assertEquals(emptyList<SplitPlan>(), result.plans)
+        assertFalse("включение ничего не разбирает", result.teardownRequired)
     }
 
     @Test
@@ -29,7 +30,7 @@ class SplitAutomatonTest {
 
         val result = SplitAutomaton.reduce(armed, SplitFact.ToggleChanged(enabled = false))
 
-        assertEquals(emptyList<SplitPlan>(), result.plans)
+        assertFalse("разбирать нечего", result.teardownRequired)
         assertEquals(armed.slots, result.state.slots)
         assertTrue(!result.state.enabled)
     }
@@ -41,7 +42,7 @@ class SplitAutomatonTest {
 
         val result = SplitAutomaton.reduce(live, SplitFact.ToggleChanged(enabled = false))
 
-        assertEquals(listOf(SplitPlan.EndSplitFocusedFullscreen), result.plans)
+        assertTrue("сцену надо разобрать", result.teardownRequired)
         assertEquals(live.slots, result.state.slots)
         assertNull(result.state.scene)
         assertEquals(SceneVisibility.VISIBLE, result.state.visibility)
@@ -54,7 +55,7 @@ class SplitAutomatonTest {
 
         val result = SplitAutomaton.reduce(live, SplitFact.ToggleChanged(enabled = false))
 
-        assertEquals(listOf(SplitPlan.RemoveProductPickers), result.plans)
+        assertTrue("сцену надо разобрать", result.teardownRequired)
         assertEquals(live.slots, result.state.slots)
         assertNull(result.state.scene)
     }
@@ -66,7 +67,7 @@ class SplitAutomatonTest {
 
         val result = SplitAutomaton.reduce(live, SplitFact.ToggleChanged(enabled = false))
 
-        assertEquals(listOf(SplitPlan.RemoveProductPickers), result.plans)
+        assertTrue("сцену надо разобрать", result.teardownRequired)
         assertNull(result.state.scene)
     }
 
@@ -98,60 +99,40 @@ class SplitAutomatonTest {
             SplitFact.BuildSceneSucceeded(live.slots),
         )
 
-        assertEquals(emptyList<SplitPlan>(), on.plans)
-        assertEquals(listOf(SplitPlan.BuildScene(live.slots)), open.plans)
+        assertFalse("включение ничего не разбирает", on.teardownRequired)
         assertEquals(live.slots, rebuilt.state.slots)
         assertEquals(SplitScene.Split, rebuilt.state.scene)
     }
 
+    /**
+     * `OpenRequested` не двигает слоты - ни при каком наборе (1.3.2-1.3.4).
+     *
+     * Здесь было четыре теста, и каждый утверждал СОДЕРЖИМОЕ плана `BuildScene`: какую пару
+     * автомат «просит построить». Плана больше нет, и с ним ушло вычисление `desired`, которое его
+     * наполняло: открытие выводит, что строить, самостоятельно - `OpenOperation.prepare` берёт
+     * `working.slot(pane) as? SplitSlot.App`, - и до автомата за этим никогда не ходило. То есть
+     * проверялось второе, параллельное описание намерения: подмени в нём что угодно, продукт вёл
+     * бы себя так же.
+     *
+     * Настоящее поведение - закрытая панель возвращается свежим пикером, живая переживает
+     * открытие - проверяется в `SplitScenarioTest` против самого рецепта (1.3.2, 1.3.4). Здесь
+     * остаётся то, что принадлежит автомату: слоты двигает settled-факт постройки, а не запрос.
+     */
     @Test
-    fun openWithASavedPairAsksToRebuildTheSamePackages() {
-        // контракт 1.3.2
-        val saved = state(primary = SplitSlot.App(MUSIC), secondary = SplitSlot.App(NAVIGATOR))
-
-        val result = SplitAutomaton.reduce(saved, SplitFact.OpenRequested)
-
-        assertEquals(listOf(SplitPlan.BuildScene(saved.slots)), result.plans)
-        assertSame(saved, result.state)
-    }
-
-    @Test
-    fun openWithoutASelectionAsksForTwoPickers() {
-        // контракт 1.3.3
-        val result = SplitAutomaton.reduce(state(), SplitFact.OpenRequested)
-
-        assertEquals(
-            listOf(
-                SplitPlan.BuildScene(
-                    mapOf(
-                        SplitPane.PRIMARY to SplitSlot.Picker,
-                        SplitPane.SECONDARY to SplitSlot.Picker,
-                    ),
-                ),
-            ),
-            result.plans,
+    fun openRequestedNeverMovesASlotByItself() {
+        val fixtures = mapOf(
+            "сохранённая пара" to
+                state(primary = SplitSlot.App(MUSIC), secondary = SplitSlot.App(NAVIGATOR)),
+            "пустой выбор" to state(),
+            "одна закрытая панель" to
+                state(primary = SplitSlot.App(MUSIC), secondary = SplitSlot.Closed),
         )
-    }
 
-    @Test
-    fun openWithOneClosedPaneKeepsTheAppAndAddsAFreshPicker() {
-        // контракт 1.3.4
-        val half = state(primary = SplitSlot.App(MUSIC), secondary = SplitSlot.Closed)
-
-        val result = SplitAutomaton.reduce(half, SplitFact.OpenRequested)
-
-        assertEquals(
-            listOf(
-                SplitPlan.BuildScene(
-                    mapOf(
-                        SplitPane.PRIMARY to SplitSlot.App(MUSIC),
-                        SplitPane.SECONDARY to SplitSlot.Picker,
-                    ),
-                ),
-            ),
-            result.plans,
-        )
-        assertSame("the closed pane only becomes a picker once the build settles", half, result.state)
+        fixtures.forEach { (name, before) ->
+            val result = SplitAutomaton.reduce(before, SplitFact.OpenRequested)
+            assertSame(name, before, result.state)
+            assertFalse(name, result.teardownRequired)
+        }
     }
 
     @Test
@@ -162,7 +143,6 @@ class SplitAutomatonTest {
 
         val result = SplitAutomaton.reduce(covered, SplitFact.OpenRequested)
 
-        assertEquals(listOf(SplitPlan.RevealScene), result.plans)
         assertSame(covered, result.state)
     }
 
@@ -183,7 +163,6 @@ class SplitAutomatonTest {
 
         assertEquals(SplitScene.Full(SplitPane.PRIMARY), result.state.scene)
         assertEquals(SplitSlot.Closed, result.state.slot(SplitPane.SECONDARY))
-        assertEquals(emptyList<SplitPlan>(), result.plans)
     }
 
     @Test
@@ -200,7 +179,6 @@ class SplitAutomatonTest {
             SplitFact.AppLaunchConfirmed(SplitPane.PRIMARY, MUSIC),
         )
 
-        assertEquals(listOf(SplitPlan.LaunchApp(SplitPane.PRIMARY, MUSIC)), tapped.plans)
         assertSame("the slot follows the confirmation, not the tap", live, tapped.state)
         assertEquals(SplitSlot.App(MUSIC), confirmed.state.slot(SplitPane.PRIMARY))
         assertEquals(SplitSlot.App(NAVIGATOR), confirmed.state.slot(SplitPane.SECONDARY))
@@ -241,7 +219,6 @@ class SplitAutomatonTest {
         assertEquals(SplitSlot.Picker, result.state.slot(SplitPane.PRIMARY))
         assertEquals(SplitSlot.Picker, result.state.slot(SplitPane.SECONDARY))
         assertEquals(SplitScene.Split, result.state.scene)
-        assertEquals(emptyList<SplitPlan>(), result.plans)
     }
 
     @Test
@@ -269,7 +246,6 @@ class SplitAutomatonTest {
 
         assertEquals(SplitSlot.Picker, crashed.state.slot(SplitPane.PRIMARY))
         assertEquals("the neighbour keeps playing", SplitSlot.App(MUSIC), crashed.state.slot(SplitPane.SECONDARY))
-        assertEquals("no auto restart", emptyList<SplitPlan>(), crashed.plans)
         assertSame("a repeated closure observation is inert", crashed.state, settled.state)
     }
 
@@ -315,18 +291,6 @@ class SplitAutomatonTest {
         val reopened = SplitAutomaton.reduce(cleared, SplitFact.OpenRequested)
 
         assertNull(cleared.scene)
-        assertEquals(
-            "the next open shows two fresh pickers, nothing revives",
-            listOf(
-                SplitPlan.BuildScene(
-                    mapOf(
-                        SplitPane.PRIMARY to SplitSlot.Picker,
-                        SplitPane.SECONDARY to SplitSlot.Picker,
-                    ),
-                ),
-            ),
-            reopened.plans,
-        )
     }
 
     @Test
@@ -382,7 +346,6 @@ class SplitAutomatonTest {
             SplitFact.EdgeCommitConfirmed(vacantPane = SplitPane.SECONDARY),
         )
 
-        assertEquals(listOf(SplitPlan.AttachPicker(SplitPane.SECONDARY)), result.plans)
         assertEquals("the live app is not restarted", SplitSlot.App(MUSIC), result.state.slot(SplitPane.PRIMARY))
         assertEquals(SplitSlot.Picker, result.state.slot(SplitPane.SECONDARY))
         assertEquals(SplitScene.Split, result.state.scene)
@@ -396,12 +359,10 @@ class SplitAutomatonTest {
         val home = SplitAutomaton.reduce(live, SplitFact.HomeConfirmed)
         val again = SplitAutomaton.reduce(home.state, SplitFact.HomeConfirmed)
 
-        assertEquals(listOf(SplitPlan.SuspendOwnedGate), home.plans)
         assertEquals(SceneVisibility.COVERED, home.state.visibility)
         assertEquals("Home never clears slots", live.slots, home.state.slots)
         assertEquals(SplitScene.Split, home.state.scene)
         assertSame(home.state, again.state)
-        assertEquals(emptyList<SplitPlan>(), again.plans)
     }
 
     @Test
@@ -426,7 +387,6 @@ class SplitAutomatonTest {
 
         assertEquals(SplitPane.PRIMARY, result.state.projectedPane)
         assertEquals(SplitSlot.App(NAVIGATOR), result.state.slot(SplitPane.PRIMARY))
-        assertEquals(emptyList<SplitPlan>(), result.plans)
     }
 
     @Test
@@ -456,7 +416,6 @@ class SplitAutomatonTest {
         ).state
         val returned = SplitAutomaton.reduce(neighbourReplaced, SplitFact.ProjectionReturned).state
 
-        assertEquals(listOf(SplitPlan.LaunchApp(SplitPane.PRIMARY, TEMP)), tapped.plans)
         assertEquals(mapOf(SplitPane.PRIMARY to TEMP), occupied.vacancyApp)
         assertEquals(
             "the vacancy never overwrites the navigator's slot",
@@ -514,7 +473,7 @@ class SplitAutomatonTest {
         everyFact().filterNot { it is SplitFact.ToggleChanged }.forEach { fact ->
             val result = SplitAutomaton.reduce(off, fact)
             assertSame("disabled product reacted to $fact", off, result.state)
-            assertTrue("disabled product planned $fact -> ${result.plans}", result.plans.isEmpty())
+            assertFalse("disabled product planned a teardown on $fact", result.teardownRequired)
         }
     }
 
@@ -549,7 +508,7 @@ class SplitAutomatonTest {
         impossible.forEach { (before, fact) ->
             val result = SplitAutomaton.reduce(before, fact)
             assertSame("state moved on $fact", before, result.state)
-            assertTrue("plans emitted on $fact: ${result.plans}", result.plans.isEmpty())
+            assertFalse("teardown planned on $fact", result.teardownRequired)
         }
     }
 

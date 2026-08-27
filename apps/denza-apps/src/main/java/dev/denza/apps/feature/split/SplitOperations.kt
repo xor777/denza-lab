@@ -444,10 +444,11 @@ internal abstract class SplitCoreOperation<P>(
     /** When the user asked: the actor fixed the deadline one budget after the submit. */
     private fun requestedAtMs(op: SplitOperationContext): Long = op.token.deadlineAtMs - durationMs
 
-    protected fun settle(fact: SplitFact): List<SplitPlan> {
+    /** @return whether this fact left a scene that still needs tearing down. */
+    protected fun settle(fact: SplitFact): Boolean {
         val reduction = SplitAutomaton.reduce(working, fact)
         working = reduction.state
-        return reduction.plans
+        return reduction.teardownRequired
     }
 
     /**
@@ -647,8 +648,7 @@ internal class DisableOperation(
     override fun prepare(op: SplitOperationContext, shell: (String) -> String): Boolean {
         // No scene means no teardown: a cold process that finds the toggle off, or a repaired
         // mismatch at startup, sends not one command (A.3.1, invariant 1, scenarios 14 and 19).
-        val plans = settle(SplitFact.ToggleChanged(enabled = false))
-        return plans.isNotEmpty()
+        return settle(SplitFact.ToggleChanged(enabled = false))
     }
 
     override fun apply(op: SplitOperationContext, shell: (String) -> String, plan: Boolean) {

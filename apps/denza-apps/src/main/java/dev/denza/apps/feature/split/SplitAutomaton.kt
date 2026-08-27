@@ -39,12 +39,14 @@ internal object SplitAutomaton {
     private fun toggle(state: SplitState, enabled: Boolean): SplitReduction {
         if (state.enabled == enabled) return unchanged(state)
         if (enabled) return settled(state, state.copy(enabled = true))
-        val plans = when {
-            state.scene == null -> emptyList()
-            state.scenePanes().any { state.slot(it) is SplitSlot.Picker } ->
-                listOf(SplitPlan.RemoveProductPickers)
-            state.scene == SplitScene.Split -> listOf(SplitPlan.EndSplitFocusedFullscreen)
-            else -> emptyList()
+        // Какой именно разбор нужен - решает `closePickers` по живой сцене, и проверяется это его
+        // собственными тестами. Здесь остаётся то единственное, что операция и спрашивала: есть ли
+        // вообще что разбирать (1.2.3-1.2.5).
+        val teardownRequired = when {
+            state.scene == null -> false
+            state.scenePanes().any { state.slot(it) is SplitSlot.Picker } -> true
+            state.scene == SplitScene.Split -> true
+            else -> false
         }
         return settled(
             state,
@@ -55,7 +57,7 @@ internal object SplitAutomaton {
                 projectedPane = null,
                 vacancyApp = emptyMap(),
             ),
-            plans,
+            teardownRequired,
         )
     }
 
@@ -65,14 +67,13 @@ internal object SplitAutomaton {
      * the build is settled, so a failed or cancelled open leaves the selection untouched.
      */
     private fun open(state: SplitState): SplitReduction {
-        if (state.scene != null) return SplitReduction(state, listOf(SplitPlan.RevealScene))
-        val desired = SplitPane.entries.associateWith { pane ->
-            when (val slot = state.slot(pane)) {
-                SplitSlot.Closed -> SplitSlot.Picker
-                else -> slot
-            }
-        }
-        return SplitReduction(state, listOf(SplitPlan.BuildScene(desired)))
+        // Запрос открытия ничего не решает и ничего не двигает: слоты меняет только settled-факт
+        // постройки. Здесь считалась `desired` - пара, которую «надо построить», с закрытой
+        // панелью, превращённой в пикер, - и уходила в план `BuildScene`, который никто не
+        // исполнял. Открытие выводит это само (`OpenOperation.prepare`), и второй экземпляр той же
+        // мысли стоил ровно столько, сколько стоит любая копия правила: шанс разойтись с
+        // оригиналом молча.
+        return SplitReduction(state)
     }
 
     private fun sceneBuilt(state: SplitState, slots: Map<SplitPane, SplitSlot>): SplitReduction {
@@ -98,7 +99,7 @@ internal object SplitAutomaton {
         if (state.scene == null || fact.packageName.isBlank()) return unchanged(state)
         val selectable = state.slot(fact.pane) == SplitSlot.Picker || fact.pane == state.projectedPane
         if (!selectable) return unchanged(state)
-        return SplitReduction(state, listOf(SplitPlan.LaunchApp(fact.pane, fact.packageName)))
+        return SplitReduction(state)
     }
 
     private fun launchConfirmed(
@@ -193,7 +194,6 @@ internal object SplitAutomaton {
         return settled(
             state,
             state.copy(visibility = SceneVisibility.COVERED),
-            listOf(SplitPlan.SuspendOwnedGate),
         )
     }
 
@@ -210,7 +210,6 @@ internal object SplitAutomaton {
         return settled(
             state,
             state.withSlot(vacantPane, SplitSlot.Picker).copy(scene = SplitScene.Split),
-            listOf(SplitPlan.AttachPicker(vacantPane)),
         )
     }
 
@@ -290,6 +289,6 @@ internal object SplitAutomaton {
     private fun settled(
         previous: SplitState,
         next: SplitState,
-        plans: List<SplitPlan> = emptyList(),
-    ) = SplitReduction(if (next == previous) previous else next, plans)
+        teardownRequired: Boolean = false,
+    ) = SplitReduction(if (next == previous) previous else next, teardownRequired)
 }

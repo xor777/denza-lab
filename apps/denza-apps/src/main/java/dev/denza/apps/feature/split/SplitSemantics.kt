@@ -126,25 +126,24 @@ internal sealed interface SplitFact {
  * scene that needs a teardown". The variants are the automaton's own statement of which teardown
  * the contract asks for (1.2.3 versus 1.2.4-1.2.5) and are asserted as such by its tests.
  */
-internal sealed interface SplitPlan {
-    data class BuildScene(val slots: Map<SplitPane, SplitSlot>) : SplitPlan
-
-    data object RevealScene : SplitPlan
-
-    data class LaunchApp(val pane: SplitPane, val packageName: String) : SplitPlan
-
-    data class AttachPicker(val pane: SplitPane) : SplitPlan
-
-    /** Toggle-off over two live apps: the focused one stays fullscreen (1.2.3). */
-    data object EndSplitFocusedFullscreen : SplitPlan
-
-    /** Toggle-off over a scene containing at least one of our pickers (1.2.4, 1.2.5). */
-    data object RemoveProductPickers : SplitPlan
-
-    data object SuspendOwnedGate : SplitPlan
-}
-
 internal data class SplitReduction(
     val state: SplitState,
-    val plans: List<SplitPlan> = emptyList(),
+    /**
+     * Единственное, что автомат сообщал операциям помимо состояния: выключили тумблер над сценой,
+     * которую ещё надо разобрать.
+     *
+     * Здесь был `List<SplitPlan>` из семи вариантов - `BuildScene`, `RevealScene`, `LaunchApp`,
+     * `AttachPicker`, `EndSplitFocusedFullscreen`, `RemoveProductPickers`, `SuspendOwnedGate`.
+     * Ни один из них никто не исполнял: они только создавались, а весь продукт читал у списка
+     * ровно одно - пустой он или нет, и ровно в одном месте (`DisableOperation.prepare`). Рецепты
+     * прошивки написаны императивно и выверены на машине; план рядом с ними был вторым описанием
+     * тех же намерений, которое ничего не решает.
+     *
+     * Тесты при этом утверждали конкретные варианты, и оттого выглядели как проверка мутаций,
+     * которыми они не были: подменить один вариант другим - продукт вёл бы себя точно так же.
+     * Это ровно тот случай, который контракт §10.3.2 запрещает называть тестом. Контрактное
+     * различие 1.2.3 (полноэкранным остаётся сфокусированный) проверяется теперь там, где оно
+     * исполняется - `theAppTheUserWasInIsTheOneLeftFullscreen`.
+     */
+    val teardownRequired: Boolean = false,
 )

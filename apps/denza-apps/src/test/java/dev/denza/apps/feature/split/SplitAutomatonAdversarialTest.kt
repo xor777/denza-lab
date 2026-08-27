@@ -68,8 +68,8 @@ class SplitAutomatonAdversarialTest {
                 val result = SplitAutomaton.reduce(off, fact)
                 assertSame("seed=$seed step=$step: disabled product moved on $fact", off, result.state)
                 assertTrue(
-                    "seed=$seed step=$step: disabled product planned $fact -> ${result.plans}",
-                    result.plans.isEmpty(),
+                    "seed=$seed step=$step: disabled product planned a teardown on $fact",
+                    !result.teardownRequired,
                 )
             }
         }
