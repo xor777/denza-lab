@@ -838,3 +838,49 @@ but arrives as **uid 1013** (mediaserver), and
 `AudioServiceMultiUserImpl.isStreamAllowed` fires the broker only when
 `callingUid != 1013`. So only an app-side `MediaPlayer` can ever raise that
 pulse — ExoPlayer/`AudioTrack` cannot, no matter how they are configured.
+
+## The latch: after one successful open, the app cannot open again (live v39, 2026-08-27)
+
+Reported from the seat: Yandex Music was opened, the covers came out and went back
+in about a second later. The obvious reading — our own `2`, 350 ms, `1` pair — is
+wrong twice over. That pair is close-then-open, which reads as in-then-out, and
+more decisively **the app had sent nothing at all**: `last_command_boot` in
+`speaker_covers.xml` stood at 10:26 while the sighting was around 16:40, six hours
+later. Whatever moved the covers, it was not this product. The amplifier lowering
+them on its own is already recorded above.
+
+What the app did instead is nothing, and that is the defect. `reconcile` skips a
+wish equal to the last one asked for, and re-asks only when that ask *failed*:
+
+```kotlin
+if (targetOpen == raised) {
+    val retryDue = askFailed && nowMs - askedAtMs >= retryGuardMs
+    if (!retryDue) return null
+}
+```
+
+`raised` is what this app last asked for, not where the covers are — the field says
+so itself. So one successful open latches the automaton for the life of the
+process: no later signal can raise the covers again. Not three seconds of sustained
+sound, not another player coming to the foreground, not a fresh MediaSession.
+Reproduced: launching Yandex Music deliberately produced zero commands and left
+`last_command_value` untouched, because the same package had already been in a pane
+earlier in that process.
+
+The escape is only a wish that *differs* — thirty minutes of confirmed silence, or a
+manual close — after which an open is a change again.
+
+**Why the obvious fix is not one.** Re-sending `1` moves nothing: the property is
+edge-triggered and already holds `1`. Raising covers the amplifier lowered behind
+the app's back needs the `2`, 350 ms, `1` pair, which is the twitch this feature was
+reported for in the first place.
+
+The asymmetry worth designing around: that pair is invisible exactly when the covers
+are already down, because its close moves nothing and only the open is seen. It is
+visible only when they are up. Nothing on this car can tell those apart, so the
+choice is about which moments are worth paying a possible twitch for. A fresh piece
+of user intent — a known player reaching the foreground, a new active MediaSession —
+is rare, and is the moment when the covers are most likely to be down.
+
+Not fixed: the owner is watching the covers first, since the position is exactly
+what the code cannot see and a person in the seat can.
