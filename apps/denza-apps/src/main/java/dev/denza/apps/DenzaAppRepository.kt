@@ -51,9 +51,7 @@ import dev.denza.apps.feature.speaker.SpeakerCoverSettings
 import dev.denza.apps.feature.split.SplitLauncherEntryActivity
 import dev.denza.apps.feature.weather.WeatherAdapterScheduler
 import dev.denza.apps.feature.weather.WeatherAdapterState
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -125,8 +123,8 @@ object DenzaAppRepository {
     private val executor = Executors.newSingleThreadExecutor()
     private val localeExecutor = Executors.newSingleThreadExecutor()
     private val adbRuntimeStarted = AtomicBoolean(false)
-    private val mutableState = MutableStateFlow(DenzaUiState())
-    val state: StateFlow<DenzaUiState> = mutableState.asStateFlow()
+    private val stateStore = DenzaUiStateStore()
+    val state: StateFlow<DenzaUiState> = stateStore.state
 
     @Volatile
     private var appContext: Context? = null
@@ -146,7 +144,7 @@ object DenzaAppRepository {
             // Keep the last healthy dashboard (or its neutral first-launch defaults) behind the
             // startup overlay. Individual feature probes must not turn a missing global ADB
             // prerequisite into a wall of unrelated errors.
-            mutableState.value = mutableState.value.copy(adbRescue = adbRescue)
+            stateStore.update { current -> current.copy(adbRescue = adbRescue) }
             return
         }
         val snapshot = SimulcastCoordinator.evaluate(SimulcastCoordinator.inspect(context))
@@ -156,48 +154,66 @@ object DenzaAppRepository {
         val splitLauncherVisible = SplitLauncherIconController.isVisible(context)
         val splitScreenSession = SplitScreenCoordinator.snapshot()
         val selectedApps = selectedAppChoices(context)
-        mutableState.value = mutableState.value.copy(
-            simulcast = snapshot,
-            mirrors = evaluateMirrors(context),
-            selectedAppCount = SimulcastApps.selectedCount(context),
-            selectedAppLabels = selectedApps.map(SimulcastAppChoice::label),
-            selectedApps = selectedApps,
-            mirrorsPosition = MirrorsSettings.position(context),
-            mirrorsProcessing = MirrorsSettings.processingEnabled(context),
-            navigation = navigationSnapshot(
-                navigationSession.phase,
-                navigationSession.message,
-                navigationSession.details,
-                navigationSession.resolution,
-            ),
-            navigationButtonLabel = navigationSession.buttonLabel,
-            navigationSteeringWheelButton = steeringWheelAccess.desired,
-            navigationSteeringWheelButtonReady = steeringWheelAccess.ready,
-            navigationSteeringWheelButtonRepairing =
-                steeringWheelAccess.desired &&
-                    SteeringWheelNavigationAccessCoordinator.isRepairing(),
-            navigationPlacement = NavigationPlacementPolicy.resolve(
-                navigationPackage,
-                NavigationCoordinator.placement(),
-            ),
-            navigationPlacements = NavigationPlacementPolicy.offered(navigationPackage),
-            navigationAppLabel = NavigationAppPolicy.fallbackLabel(navigationPackage),
-            navigationAppChoices = navigationAppChoices(context, navigationPackage),
-            // Loaded here rather than when a picker asks for it. The projection panel offers this
-            // list inline, and a panel that says "which applications" over an empty space until
-            // some other flow happens to have run is a panel that lies about what it is for.
-            appChoices = loadAppChoices(context),
-            splitScreen = splitScreenSnapshot(
-                launcherVisible = splitLauncherVisible,
-                session = splitScreenSession,
-            ),
-            hudGuidance = evaluateHudGuidance(context),
-            speakerCovers = SpeakerCoverRuntime.featureSnapshot(context),
-            adbRescue = adbRescue,
-            technicalDetails = supportDiagnostics(context),
-            clusterCandidates = ClusterDisplayResolver.candidates(context),
-            clusterDisplayLabel = clusterDisplayLabel(context),
+        val mirrors = evaluateMirrors(context)
+        val selectedAppCount = SimulcastApps.selectedCount(context)
+        val mirrorsPosition = MirrorsSettings.position(context)
+        val mirrorsProcessing = MirrorsSettings.processingEnabled(context)
+        val navigationSteeringWheelButtonRepairing =
+            steeringWheelAccess.desired && SteeringWheelNavigationAccessCoordinator.isRepairing()
+        val navigationPlacement = NavigationPlacementPolicy.resolve(
+            navigationPackage,
+            NavigationCoordinator.placement(),
         )
+        val navigationPlacements = NavigationPlacementPolicy.offered(navigationPackage)
+        val navigationAppLabel = NavigationAppPolicy.fallbackLabel(navigationPackage)
+        val navigationAppChoices = navigationAppChoices(context, navigationPackage)
+        val appChoices = loadAppChoices(context)
+        val splitScreen = splitScreenSnapshot(
+            launcherVisible = splitLauncherVisible,
+            session = splitScreenSession,
+        )
+        val hudGuidance = evaluateHudGuidance(context)
+        val speakerCovers = SpeakerCoverRuntime.featureSnapshot(context)
+        val technicalDetails = supportDiagnostics(context)
+        val clusterCandidates = ClusterDisplayResolver.candidates(context)
+        val clusterDisplayLabel = clusterDisplayLabel(context)
+        stateStore.update { current ->
+            current.copy(
+                simulcast = snapshot,
+                mirrors = mirrors,
+                selectedAppCount = selectedAppCount,
+                selectedAppLabels = selectedApps.map(SimulcastAppChoice::label),
+                selectedApps = selectedApps,
+                mirrorsPosition = mirrorsPosition,
+                mirrorsProcessing = mirrorsProcessing,
+                navigation = navigationSnapshot(
+                    navigationSession.phase,
+                    navigationSession.message,
+                    navigationSession.details,
+                    navigationSession.resolution,
+                ),
+                navigationButtonLabel = navigationSession.buttonLabel,
+                navigationSteeringWheelButton = steeringWheelAccess.desired,
+                navigationSteeringWheelButtonReady = steeringWheelAccess.ready,
+                navigationSteeringWheelButtonRepairing = navigationSteeringWheelButtonRepairing,
+                navigationPlacement = navigationPlacement,
+                navigationPlacements = navigationPlacements,
+                navigationAppLabel = navigationAppLabel,
+                navigationAppChoices = navigationAppChoices,
+                // Loaded here rather than when a picker asks for it. The projection panel offers
+                // this list inline, and a panel that says "which applications" over an empty space
+                // until some other flow happens to have run is a panel that lies about what it is
+                // for.
+                appChoices = appChoices,
+                splitScreen = splitScreen,
+                hudGuidance = hudGuidance,
+                speakerCovers = speakerCovers,
+                adbRescue = adbRescue,
+                technicalDetails = technicalDetails,
+                clusterCandidates = clusterCandidates,
+                clusterDisplayLabel = clusterDisplayLabel,
+            )
+        }
         // The stock locale is a tile on the main screen now, so it has to be read like every other
         // tile's state. It used to be probed only when the diagnostics dialog opened, which was
         // fine while it lived behind seven taps and is not fine on a tile that would otherwise sit
@@ -214,9 +230,9 @@ object DenzaAppRepository {
             refresh()
             return
         }
-        mutableState.value = mutableState.value.copy(
-            simulcast = FeatureReducer.starting(FeatureId.SIMULCAST),
-        )
+        stateStore.update { current ->
+            current.copy(simulcast = FeatureReducer.starting(FeatureId.SIMULCAST))
+        }
         reconcileSimulcast(repairMissingSetup = true)
     }
 
@@ -234,11 +250,8 @@ object DenzaAppRepository {
             SimulcastCoordinator.DISHARE_PACKAGE,
         )
         if (launch == null) {
-            mutableState.value = mutableState.value.copy(
-                simulcast = SimulcastCoordinator.blockedSnapshot(
-                    SimulcastBlocker.DISHARE_UNAVAILABLE,
-                ),
-            )
+            val blocked = SimulcastCoordinator.blockedSnapshot(SimulcastBlocker.DISHARE_UNAVAILABLE)
+            stateStore.update { current -> current.copy(simulcast = blocked) }
             return
         }
         launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -247,89 +260,65 @@ object DenzaAppRepository {
 
     fun showAppPicker() {
         val context = appContext ?: return
-        mutableState.value = mutableState.value.copy(
-            appPickerVisible = true,
-            appChoices = loadAppChoices(context),
-            appPickerMessage = "",
-        )
+        val appChoices = loadAppChoices(context)
+        stateStore.update { current ->
+            current.copy(
+                appPickerVisible = true,
+                appChoices = appChoices,
+                appPickerMessage = "",
+            )
+        }
     }
 
     fun hideAppPicker() {
-        mutableState.value = mutableState.value.copy(appPickerVisible = false)
+        stateStore.update { current -> current.copy(appPickerVisible = false) }
     }
 
     fun showFseInstallerPicker() {
         val context = appContext ?: return
-        mutableState.value = mutableState.value.copy(
-            fseInstallerPickerVisible = true,
-            fseInstallApps = FseAppInstaller.installedApps(context),
-            fseInstallerMessage = "",
-        )
+        val installedApps = FseAppInstaller.installedApps(context)
+        stateStore.update { current ->
+            current.copy(
+                fseInstallerPickerVisible = true,
+                fseInstallApps = installedApps,
+                fseInstallerMessage = "",
+            )
+        }
     }
 
     fun hideFseInstallerPicker() {
-        mutableState.value = mutableState.value.copy(fseInstallerPickerVisible = false)
+        stateStore.update { current -> current.copy(fseInstallerPickerVisible = false) }
     }
 
     fun installOnPassengerScreen(packageName: String) {
         val context = appContext ?: return
-        val current = mutableState.value
-        if (current.fseInstaller.status == FeatureStatus.STARTING ||
-            current.fseInstaller.status == FeatureStatus.RECOVERING
-        ) {
-            return
-        }
-        val app = current.fseInstallApps.firstOrNull { it.packageName == packageName }
-        if (app == null) {
-            mutableState.value = current.copy(fseInstallerMessage = "Приложение больше не найдено")
-            return
-        }
-        if (!app.installable) {
-            mutableState.value = current.copy(
-                fseInstallerMessage = app.unavailableReason.ifBlank { "APK недоступен" },
-            )
-            return
-        }
-
-        mutableState.value = current.copy(
-            fseInstallerPickerVisible = false,
-            fseInstaller = FeatureSnapshot(
-                id = FeatureId.FSE_INSTALLER,
-                desiredEnabled = false,
-                status = FeatureStatus.STARTING,
-                message = app.label,
-            ),
-        )
+        if (!claimFseInstall(packageName)) return
         executor.execute {
             val result = FseAppInstaller.install(context, packageName) { message ->
-                mutableState.value = mutableState.value.copy(
-                    fseInstaller = FeatureSnapshot(
-                        id = FeatureId.FSE_INSTALLER,
-                        desiredEnabled = false,
-                        status = FeatureStatus.STARTING,
-                        message = message,
-                    ),
+                val progress = FeatureSnapshot(
+                    id = FeatureId.FSE_INSTALLER,
+                    desiredEnabled = false,
+                    status = FeatureStatus.STARTING,
+                    message = message,
+                )
+                stateStore.update { current -> current.copy(fseInstaller = progress) }
+            }
+            val completed = when (result) {
+                is FseInstallResult.Installed -> FeatureSnapshot(
+                    id = FeatureId.FSE_INSTALLER,
+                    desiredEnabled = false,
+                    status = FeatureStatus.READY,
+                    message = result.app.label,
+                )
+                is FseInstallResult.Failed -> FeatureSnapshot(
+                    id = FeatureId.FSE_INSTALLER,
+                    desiredEnabled = false,
+                    status = FeatureStatus.ERROR,
+                    message = result.message,
+                    details = result.details,
                 )
             }
-            mutableState.value = when (result) {
-                is FseInstallResult.Installed -> mutableState.value.copy(
-                    fseInstaller = FeatureSnapshot(
-                        id = FeatureId.FSE_INSTALLER,
-                        desiredEnabled = false,
-                        status = FeatureStatus.READY,
-                        message = result.app.label,
-                    ),
-                )
-                is FseInstallResult.Failed -> mutableState.value.copy(
-                    fseInstaller = FeatureSnapshot(
-                        id = FeatureId.FSE_INSTALLER,
-                        desiredEnabled = false,
-                        status = FeatureStatus.ERROR,
-                        message = result.message,
-                        details = result.details,
-                    ),
-                )
-            }
+            stateStore.update { current -> current.copy(fseInstaller = completed) }
         }
     }
 
@@ -339,19 +328,21 @@ object DenzaAppRepository {
         if (packageName in selected) {
             selected.remove(packageName)
         } else if (selected.size >= SimulcastApps.MAX_SELECTED) {
-            mutableState.value = mutableState.value.copy(
-                appPickerMessage = "Можно выбрать не больше ${SimulcastApps.MAX_SELECTED}",
-            )
+            stateStore.update { current ->
+                current.copy(
+                    appPickerMessage = "Можно выбрать не больше ${SimulcastApps.MAX_SELECTED}",
+                )
+            }
             return
         } else {
             selected.add(packageName)
         }
         SimulcastApps.setSelected(context, selected)
         refresh()
-        mutableState.value = mutableState.value.copy(
-            appChoices = loadAppChoices(context),
-            appPickerMessage = "",
-        )
+        val appChoices = loadAppChoices(context)
+        stateStore.update { current ->
+            current.copy(appChoices = appChoices, appPickerMessage = "")
+        }
     }
 
     fun setMirrorsEnabled(enabled: Boolean) {
@@ -362,9 +353,9 @@ object DenzaAppRepository {
             refresh()
             return
         }
-        mutableState.value = mutableState.value.copy(
-            mirrors = FeatureReducer.starting(FeatureId.MIRRORS),
-        )
+        stateStore.update { current ->
+            current.copy(mirrors = FeatureReducer.starting(FeatureId.MIRRORS))
+        }
         reconcileMirrors()
     }
 
@@ -428,21 +419,24 @@ object DenzaAppRepository {
     fun showNavigationAppPicker() {
         val context = appContext ?: return
         val selected = NavigationCoordinator.selectedPackage()
-        mutableState.value = mutableState.value.copy(
-            navigationAppChoices = navigationAppChoices(context, selected),
-            navigationPickerVisible = true,
-        )
+        val choices = navigationAppChoices(context, selected)
+        stateStore.update { current ->
+            current.copy(
+                navigationAppChoices = choices,
+                navigationPickerVisible = true,
+            )
+        }
     }
 
     fun hideNavigationAppPicker() {
-        mutableState.value = mutableState.value.copy(navigationPickerVisible = false)
+        stateStore.update { current -> current.copy(navigationPickerVisible = false) }
     }
 
     fun selectNavigationApp(packageName: String) {
         val context = appContext ?: return
         if (!NavigationAppPolicy.isAllowed(packageName)) return
         if (!NavigationSettings.isInstalled(context, packageName)) return
-        mutableState.value = mutableState.value.copy(navigationPickerVisible = false)
+        stateStore.update { current -> current.copy(navigationPickerVisible = false) }
         NavigationCoordinator.selectPackage(packageName)
     }
 
@@ -460,13 +454,16 @@ object DenzaAppRepository {
         }.onSuccess {
             refresh()
         }.onFailure { error ->
-            mutableState.value = mutableState.value.copy(
-                splitScreen = FeatureReducer.failed(
-                    previous = mutableState.value.splitScreen.copy(desiredEnabled = enabled),
-                    message = "Не удалось изменить Split Screen",
-                    details = error.toString(),
-                ),
-            )
+            val details = error.toString()
+            stateStore.update { current ->
+                current.copy(
+                    splitScreen = FeatureReducer.failed(
+                        previous = current.splitScreen.copy(desiredEnabled = enabled),
+                        message = "Не удалось изменить Split Screen",
+                        details = details,
+                    ),
+                )
+            }
         }
     }
 
@@ -479,9 +476,9 @@ object DenzaAppRepository {
             return
         }
         HudNotificationAccessCoordinator.ensureAccess(context) { refresh() }
-        mutableState.value = mutableState.value.copy(
-            hudGuidance = FeatureReducer.starting(FeatureId.HUD_GUIDANCE),
-        )
+        stateStore.update { current ->
+            current.copy(hudGuidance = FeatureReducer.starting(FeatureId.HUD_GUIDANCE))
+        }
         if (!isInstalled(context.packageManager, NavigationAppPolicy.DEFAULT_PACKAGE)) {
             refresh()
             return
@@ -500,15 +497,19 @@ object DenzaAppRepository {
                 refresh()
             } else {
                 val problem = SimulcastCoordinator.setupProblem(failure)
-                mutableState.value = mutableState.value.copy(
-                    hudGuidance = FeatureReducer.needsAction(
-                        FeatureReducer.starting(FeatureId.HUD_GUIDANCE),
-                        problem.message,
-                        failure.toString(),
-                        problem.resolution,
-                    ),
-                    technicalDetails = supportDiagnostics(context),
+                val hudGuidance = FeatureReducer.needsAction(
+                    FeatureReducer.starting(FeatureId.HUD_GUIDANCE),
+                    problem.message,
+                    failure.toString(),
+                    problem.resolution,
                 )
+                val technicalDetails = supportDiagnostics(context)
+                stateStore.update { current ->
+                    current.copy(
+                        hudGuidance = hudGuidance,
+                        technicalDetails = technicalDetails,
+                    )
+                }
             }
         }
     }
@@ -517,9 +518,9 @@ object DenzaAppRepository {
         val context = appContext ?: return
         SpeakerCoverSettings.setEnabled(context, enabled)
         if (enabled) {
-            mutableState.value = mutableState.value.copy(
-                speakerCovers = FeatureReducer.starting(FeatureId.SPEAKER_COVERS),
-            )
+            stateStore.update { current ->
+                current.copy(speakerCovers = FeatureReducer.starting(FeatureId.SPEAKER_COVERS))
+            }
             SpeakerCoverService.reconcile(context)
         } else {
             // A close command suppresses the amplifier's stock auto-lift for this ignition
@@ -604,14 +605,30 @@ object DenzaAppRepository {
 
     fun refreshStockRussianLocale() {
         val context = appContext ?: return
-        val current = mutableState.value
-        if (current.stockRussianLocale.running) return
+        val expected = stateStore.snapshot().state.stockRussianLocale
+        if (expected.running) return
         val result = runCatching { StockRussianLocaleCoordinator.inspect(context) }
-        mutableState.value = current.copy(
-            stockRussianLocale = result.fold(
-                onSuccess = { status -> localeSnapshot(status) },
-                onFailure = { error -> localeFailure(error) },
-            ),
+        val permissionReadyOnFailure = result.exceptionOrNull()?.let {
+            StockRussianLocaleCoordinator.hasPermission(context)
+        }
+        stateStore.updateIf(
+            // Unrelated state copies keep this exact slice instance. A locale operation replaces
+            // it, even when it eventually returns to structurally identical values (ABA).
+            predicate = { current -> current.stockRussianLocale === expected },
+            transform = { current ->
+                current.copy(
+                    stockRussianLocale = result.fold(
+                        onSuccess = { status -> localeSnapshot(status) },
+                        onFailure = { error ->
+                            localeFailure(
+                                error = error,
+                                previousEnabled = current.stockRussianLocale.enabled,
+                                permissionReady = permissionReadyOnFailure == true,
+                            )
+                        },
+                    ),
+                )
+            },
         )
     }
 
@@ -643,55 +660,36 @@ object DenzaAppRepository {
         WeatherAdapterState.setEnabled(context, enabled)
         if (enabled) WeatherAdapterScheduler.ensureScheduled(context)
         else WeatherAdapterScheduler.cancel(context)
-        mutableState.value = mutableState.value.copy(weatherEnabled = enabled)
+        stateStore.update { current -> current.copy(weatherEnabled = enabled) }
     }
 
     fun setStockRussianLocaleEnabled(enabled: Boolean) {
         val context = appContext ?: return
-        val current = mutableState.value
-        if (current.stockRussianLocale.running) return
         val permissionReady = StockRussianLocaleCoordinator.hasPermission(context)
-        if (!permissionReady && current.adbRescue.phase != AdbRescuePhase.TRUSTED) {
-            mutableState.value = current.copy(
-                stockRussianLocale = StockRussianLocaleSnapshot(
-                    enabled = current.stockRussianLocale.enabled,
-                    permissionReady = false,
-                    message = "Нужен доверенный локальный ADB",
-                    details = "ADB нужен один раз для системного разрешения. После этого язык " +
-                        "переключается напрямую.",
-                ),
-            )
-            return
-        }
-
-        mutableState.value = current.copy(
-            stockRussianLocale = current.stockRussianLocale.copy(
-                running = true,
-                message = when {
-                    !permissionReady -> "Один раз подготавливаю доступ…"
-                    enabled -> "Включаю ru-RU напрямую…"
-                    else -> "Возвращаю язык системы напрямую…"
-                },
-                details = null,
-            ),
-        )
+        val start = claimStockRussianLocaleChange(enabled, permissionReady) ?: return
         localeExecutor.execute {
             val result = runCatching {
                 StockRussianLocaleCoordinator.setEnabled(context, enabled)
             }
-            mutableState.value = mutableState.value.copy(
-                stockRussianLocale = result.fold(
-                    onSuccess = { (change, override) ->
-                        localeSnapshot(
-                            status = override,
-                            reapplied = change == StockRussianLocaleChange.REAPPLIED,
-                        )
-                    },
-                    onFailure = { error ->
-                        localeFailure(error, previousEnabled = current.stockRussianLocale.enabled)
-                    },
-                ),
+            val permissionReadyOnFailure = result.exceptionOrNull()?.let {
+                StockRussianLocaleCoordinator.hasPermission(context)
+            }
+            val completed = result.fold(
+                onSuccess = { (change, override) ->
+                    localeSnapshot(
+                        status = override,
+                        reapplied = change == StockRussianLocaleChange.REAPPLIED,
+                    )
+                },
+                onFailure = { error ->
+                    localeFailure(
+                        error = error,
+                        previousEnabled = start.previousEnabled,
+                        permissionReady = permissionReadyOnFailure == true,
+                    )
+                },
             )
+            stateStore.update { current -> current.copy(stockRussianLocale = completed) }
         }
     }
 
@@ -722,11 +720,16 @@ object DenzaAppRepository {
         reconcileSplitScreenToggle(app)
         NavigationCoordinator.initialize(app) { refresh() }
         WeatherAdapterScheduler.ensureScheduled(app)
-        mutableState.value = mutableState.value.copy(
-            weatherEnabled = WeatherAdapterState.enabled(app),
-            weatherTemperature = WeatherAdapterState.lastTemperature(app),
-            weatherUpdatedMillis = WeatherAdapterState.lastSuccessMillis(app),
-        )
+        val weatherEnabled = WeatherAdapterState.enabled(app)
+        val weatherTemperature = WeatherAdapterState.lastTemperature(app)
+        val weatherUpdatedMillis = WeatherAdapterState.lastSuccessMillis(app)
+        stateStore.update { current ->
+            current.copy(
+                weatherEnabled = weatherEnabled,
+                weatherTemperature = weatherTemperature,
+                weatherUpdatedMillis = weatherUpdatedMillis,
+            )
+        }
         refresh()
         reconcileNavigationSteeringWheelAccess(app)
         reconcileSimulcast(repairMissingSetup = true)
@@ -746,10 +749,16 @@ object DenzaAppRepository {
                 SideCameraMonitorService.start(context)
                 refresh()
             }
-            else -> mutableState.value = mutableState.value.copy(
-                mirrors = MirrorDisplayReadiness.snapshot(selection, active = false),
-                technicalDetails = supportDiagnostics(context),
-            )
+            else -> {
+                val mirrors = MirrorDisplayReadiness.snapshot(selection, active = false)
+                val technicalDetails = supportDiagnostics(context)
+                stateStore.update { current ->
+                    current.copy(
+                        mirrors = mirrors,
+                        technicalDetails = technicalDetails,
+                    )
+                }
+            }
         }
     }
 
@@ -773,35 +782,58 @@ object DenzaAppRepository {
             repairMissingSetup = repairMissingSetup,
             forceRepair = forceRepair,
         ) { event ->
-            mutableState.value = mutableState.value.copy(setupRunning = event.setupRunning)
             when (event) {
-                SimulcastReconcileEvent.Refresh -> refresh()
+                SimulcastReconcileEvent.Refresh -> {
+                    stateStore.update { current ->
+                        current.copy(setupRunning = event.setupRunning)
+                    }
+                    refresh()
+                }
                 is SimulcastReconcileEvent.Blocked -> {
-                    mutableState.value = mutableState.value.copy(
-                        simulcast = SimulcastCoordinator.blockedSnapshot(event.blocker),
-                        selectedAppCount = event.selectedAppCount,
-                        technicalDetails = supportDiagnostics(context),
-                    )
+                    val simulcast = SimulcastCoordinator.blockedSnapshot(event.blocker)
+                    val technicalDetails = supportDiagnostics(context)
+                    stateStore.update { current ->
+                        current.copy(
+                            setupRunning = event.setupRunning,
+                            simulcast = simulcast,
+                            selectedAppCount = event.selectedAppCount,
+                            technicalDetails = technicalDetails,
+                        )
+                    }
                 }
                 SimulcastReconcileEvent.Repairing -> {
-                    mutableState.value = mutableState.value.copy(
-                        simulcast = FeatureReducer.recovering(
-                            FeatureReducer.starting(FeatureId.SIMULCAST),
-                            "Восстанавливаю доступ",
-                        ),
+                    val simulcast = FeatureReducer.recovering(
+                        FeatureReducer.starting(FeatureId.SIMULCAST),
+                        "Восстанавливаю доступ",
                     )
+                    stateStore.update { current ->
+                        current.copy(
+                            setupRunning = event.setupRunning,
+                            simulcast = simulcast,
+                        )
+                    }
                 }
-                SimulcastReconcileEvent.Repaired -> refresh()
+                SimulcastReconcileEvent.Repaired -> {
+                    stateStore.update { current ->
+                        current.copy(setupRunning = event.setupRunning)
+                    }
+                    refresh()
+                }
                 is SimulcastReconcileEvent.RepairFailed -> {
-                    mutableState.value = mutableState.value.copy(
-                        simulcast = FeatureReducer.needsAction(
-                            FeatureReducer.starting(FeatureId.SIMULCAST),
-                            event.message,
-                            event.details,
-                            event.resolution,
-                        ),
-                        technicalDetails = supportDiagnostics(context),
+                    val simulcast = FeatureReducer.needsAction(
+                        FeatureReducer.starting(FeatureId.SIMULCAST),
+                        event.message,
+                        event.details,
+                        event.resolution,
                     )
+                    val technicalDetails = supportDiagnostics(context)
+                    stateStore.update { current ->
+                        current.copy(
+                            setupRunning = event.setupRunning,
+                            simulcast = simulcast,
+                            technicalDetails = technicalDetails,
+                        )
+                    }
                 }
             }
         }
@@ -924,8 +956,84 @@ object DenzaAppRepository {
         )
     }
 
+    private fun claimFseInstall(packageName: String): Boolean {
+        while (true) {
+            val snapshot = stateStore.snapshot()
+            val current = snapshot.state
+            if (
+                current.fseInstaller.status == FeatureStatus.STARTING ||
+                current.fseInstaller.status == FeatureStatus.RECOVERING
+            ) {
+                return false
+            }
+
+            val app = current.fseInstallApps.firstOrNull { it.packageName == packageName }
+            val shouldStart = app?.installable == true
+            val updated = when {
+                app == null -> current.copy(
+                    fseInstallerMessage = "Приложение больше не найдено",
+                )
+                !app.installable -> current.copy(
+                    fseInstallerMessage = app.unavailableReason.ifBlank { "APK недоступен" },
+                )
+                else -> current.copy(
+                    fseInstallerPickerVisible = false,
+                    fseInstaller = FeatureSnapshot(
+                        id = FeatureId.FSE_INSTALLER,
+                        desiredEnabled = false,
+                        status = FeatureStatus.STARTING,
+                        message = app.label,
+                    ),
+                )
+            }
+            if (stateStore.compareAndSet(snapshot, updated)) return shouldStart
+        }
+    }
+
+    private data class LocaleChangeStart(val previousEnabled: Boolean?)
+
+    private fun claimStockRussianLocaleChange(
+        enabled: Boolean,
+        permissionReady: Boolean,
+    ): LocaleChangeStart? {
+        while (true) {
+            val snapshot = stateStore.snapshot()
+            val current = snapshot.state
+            if (current.stockRussianLocale.running) return null
+
+            if (!permissionReady && current.adbRescue.phase != AdbRescuePhase.TRUSTED) {
+                val blocked = current.copy(
+                    stockRussianLocale = StockRussianLocaleSnapshot(
+                        enabled = current.stockRussianLocale.enabled,
+                        permissionReady = false,
+                        message = "Нужен доверенный локальный ADB",
+                        details = "ADB нужен один раз для системного разрешения. После этого язык " +
+                            "переключается напрямую.",
+                    ),
+                )
+                if (stateStore.compareAndSet(snapshot, blocked)) return null
+                continue
+            }
+
+            val started = current.copy(
+                stockRussianLocale = current.stockRussianLocale.copy(
+                    running = true,
+                    message = when {
+                        !permissionReady -> "Один раз подготавливаю доступ…"
+                        enabled -> "Включаю ru-RU напрямую…"
+                        else -> "Возвращаю язык системы напрямую…"
+                    },
+                    details = null,
+                ),
+            )
+            if (stateStore.compareAndSet(snapshot, started)) {
+                return LocaleChangeStart(current.stockRussianLocale.enabled)
+            }
+        }
+    }
+
     private fun supportDiagnostics(context: Context): String =
-        SupportDiagnostics.build(context, mutableState.value.fseInstaller)
+        SupportDiagnostics.build(context, stateStore.snapshot().state.fseInstaller)
 
     private fun localeSnapshot(
         status: StockRussianLocaleStatus,
@@ -951,10 +1059,11 @@ object DenzaAppRepository {
 
     private fun localeFailure(
         error: Throwable,
-        previousEnabled: Boolean? = mutableState.value.stockRussianLocale.enabled,
+        previousEnabled: Boolean?,
+        permissionReady: Boolean,
     ): StockRussianLocaleSnapshot = StockRussianLocaleSnapshot(
         enabled = previousEnabled,
-        permissionReady = appContext?.let(StockRussianLocaleCoordinator::hasPermission) == true,
+        permissionReady = permissionReady,
         message = "Не удалось изменить штатную локаль",
         details = error.message ?: error.toString(),
     )
