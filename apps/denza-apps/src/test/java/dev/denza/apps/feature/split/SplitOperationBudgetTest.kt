@@ -16,6 +16,37 @@ class SplitOperationBudgetTest {
     private val diagnostics = mutableListOf<String>()
     private val clock = AdvancingClock()
 
+    /**
+     * Контракт §1.13: пользовательская операция укладывается в 10 секунд до результата или честной
+     * ошибки. Ни одного теста на это не было, и все бюджеты, кроме HOME, потолок превышали -
+     * TOGGLE 30 с, OPEN 15 с, SELECT 20 с, - причём под этими числами не лежало ни одного замера.
+     *
+     * Дедлайн отсчитывается от submit, то есть в бюджет входит и ожидание в очереди; поэтому
+     * проверяется само число, а не время исполнения рецепта.
+     *
+     * Сюда входят только те операции, к которым потолок применим. `EDGE` ждёт палец пользователя,
+     * `RECONCILE` фоновая и её никто не ждёт - у обеих в коде написано, почему они снаружи.
+     */
+    @Test
+    fun everyUserVisibleOperationFitsTheContractCeiling() {
+        USER_VISIBLE_BUDGETS_MS.forEach { (label, budget) ->
+            assertTrue(
+                "$label: бюджет $budget мс выше потолка $USER_VISIBLE_CEILING_MS мс (§1.13)",
+                budget <= USER_VISIBLE_CEILING_MS,
+            )
+        }
+    }
+
+    @Test
+    fun theCeilingCoversEveryOperationAUserWaitsFor() {
+        // Инвариант против тихого сужения: убрать операцию из набора - такой же способ «пройти»
+        // проверку выше, как и поднять потолок.
+        assertEquals(
+            setOf("toggle", "open", "select", "home"),
+            USER_VISIBLE_BUDGETS_MS.keys,
+        )
+    }
+
     @Test
     fun budgetCountsEveryCommandAndEverySettleOfTheOperation() {
         val workspace = workspace(commandMs = 120L)

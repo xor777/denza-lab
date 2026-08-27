@@ -1574,3 +1574,32 @@ load-bearing in tests and it is what keeps an unverifiable answer from breaking 
 **The app picker's palette**, moved onto the design system in the same build, renders correctly at
 1/3 and 2/3 pane widths: header, four-column grid, and labels as long as "BYD Настройки" and
 "Denza Apps" all intact, nothing reflowed or clipped.
+
+## What the operations actually cost, and the budgets that now follow from it (live v39, 2026-08-27)
+
+Measured from the ring's own budget lines, on the car:
+
+| Operation | Measured | Budget was | Budget now |
+| --- | --- | --- | --- |
+| open, warm | 911 / 999 / 1025 / 1249 / 1315 / 1510 ms | 15 s | 10 s |
+| open, cold (helper is born: 34 calls against 24) | 3476 ms | | |
+| open, first after an install | 7149 ms | | |
+| select | 1124 / 1248 ms | 20 s | 10 s |
+| disable | 2173 / 2209 ms | 30 s | 10 s |
+| enable | 1 ms | 30 s | 10 s |
+| reconcile (background) | 3–9 calls, under 0.3 s | 30 s | 30 s, and outside the SLA |
+
+Contract §1.13 puts a 10-second ceiling on a user-visible operation, and every budget except HOME
+was above it — with no measurement under any of those numbers and no test asserting any of them.
+The three that a user waits for now sit at the ceiling, which is 1.4× the worst case ever measured
+and about 3× a typical cold open.
+
+**The thin place, named:** the first open after the app updates. 7.1 s against 10 is the only case
+in the set with less than double the headroom, and it is the one to watch. If it grows, the recipe
+is what to shorten — not the ceiling. Verified after this change: a fresh install followed
+immediately by an open still commits and leaves a scene of ours.
+
+Two budgets deliberately stay out of the invariant, each with the reason written where the number
+is. `EDGE` waits on a finger the user is holding on the divider, and killing that at ten seconds
+would be worse than waiting. `RECONCILE` is background work nobody is waiting for; its ceiling
+exists only so a wedged reconcile cannot hold the single worker forever.
