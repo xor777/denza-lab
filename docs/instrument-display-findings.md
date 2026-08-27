@@ -1,8 +1,8 @@
 # Instrument Display Findings
 
 This page tracks the instrument-display scene shared by Mirrors and navigation.
-The implementation summary was last checked against the code and the live car
-on 2026-08-19.
+The implementation summary was last checked against the code on 2026-08-27;
+live-car evidence is current through 2026-08-25.
 
 ## Product architecture
 
@@ -78,8 +78,8 @@ not the same as a resting ECU".
 
 **A half-full tank in the alert colour.** The id read as the vehicle's low-fuel
 alarm had flipped `0` → `1` while the tank stayed at `53 %`. It is out of the
-allowlist; the fuel figure now raises a watch on its own percentage and never an
-alert.
+allowlist. The remaining experimental fuel figure also left the product with
+the retired head-unit pages; the stock cluster owns level, range and alarm.
 
 The resolver picked display **`4`** for this run, not `3`.
 
@@ -172,25 +172,23 @@ stock cluster a few centimetres away, so spending the best real estate on a
 duplicate would be the whole point missed. The same rule removed two more
 things later: the charge rate, because a gun in the socket is drawn as energy
 arriving and the dial's own figure already reads those kilowatts; and the 12 V
-rail, which is a diagnostic rather than a driving fact and is already on the
-vehicle page.
+rail, which is a diagnostic rather than a driving fact. It had been shown on the
+now-retired vehicle page and was deliberately not promoted to the cluster.
 
 What the car does not show is drawn instead: traction voltage on its own
-`500-600 V` window, cell spread in millivolts, pack health, insulation
-resistance — and the tank, which matters here precisely because this engine is
-asleep most of the time.
+`500-600 V` window, cell spread in millivolts, pack health and insulation
+resistance. Fuel level and range stay on the stock cluster; the experimental
+duplicate left with the retired head-unit pages.
 
 The centre carries instantaneous power on a square-root dial - zero at the top,
 discharge one way, regeneration the other - with the consumption history nested
-inside it and the average stated underneath. How far that history reaches is the
-driver's choice of 3, 10 or 30 km, made by tapping the chart on the head unit and
-followed here: this display has no touchscreen, so the window arrives as a
-setting rather than as an interaction. The bars are folded from the log's own
-100 m buckets - four to a bar at ten kilometres, ten at thirty - so the chart
-keeps about thirty bars whichever window is chosen, and the average is taken from
-the raw buckets rather than the drawn bars, because a part-filled window's oldest
-bar covers less road than the rest. Left of it is the
-pack, right of it the combustion half, and the two top reveals carry the seven
+inside it and the average stated underneath. That history is fixed at the latest
+**3 km**, drawn directly from the log's 100 m buckets. The former head-unit panel
+offered a 3/10/30 km tap selector, but the panel, selector, and saved preference
+were deleted on 2026-08-27; the cluster never inherits a hidden choice from an
+older installation. The average is computed from the same thirty hundred-metre
+buckets that are drawn, so it describes exactly the visible road. Left of it is
+the pack, right of it the combustion half, and the two top reveals carry five
 temperatures and the eight fluid lamps.
 
 **The dial's marks carry numbers.** The two sides get the same arc but not the
@@ -226,11 +224,11 @@ Section titles carry `0.12em` of tracking through `InstrumentPen.title`, which
 exists as its own method rather than a parameter so the tracking cannot be
 applied at one call site and forgotten at the next.
 
-The lamps are a single line, not an inventory: silent while they answer and are
-healthy, naming the fault the moment one is not, and saying plainly when they
-did not answer at all. Their eight names live on the engine page, where there is
-room to read them. In the narrow layout the line names the first fault and
-counts the rest (`давление масла +2`) rather than running past the block.
+The lamps report exceptions, not an inventory. The full layout shows one state
+dot for each of the eight lamps and uses the line below to name any alerts or an
+incomplete read. The narrow renderer omits the dot grid; its line names the first
+fault and counts the rest (`давление масла +2`) rather than running past the
+block.
 
 ### Rest states
 
@@ -244,9 +242,9 @@ cases were drawn out rather than left to a shared "no data":
   Since the journal survives a restart this is now a short state rather than the
   first thing seen after every launch - see "Consumption journal" in
   docs/vehicle-data-findings.md.
-- **A stopped engine.** `заглушен` alone spends a line saying nothing, so the
-  line carries what a stopped engine is actually worth: `заглушен · 491 км на
-  бензине`.
+- **A stopped engine.** The rpm figure already says `0`, so the sentence below
+  stays empty. It speaks only for generation or for an engine signal that never
+  answered; fuel range remains on the stock cluster.
 - **A charge.** The pack's supporting sentence is taken over entirely by
   `заряжается · осталось 2 ч 15 мин`; insulation resistance goes back to being
   interesting when the cable comes out.
@@ -264,8 +262,8 @@ and four sibling layouts whose first label started at four different heights.
   `COMPACT` are the same ladder at different rungs, not two invented sets, and
   `InstrumentDensityTest` refuses a size that is not on it.
 - `InstrumentPen` is a drawing surface a component is *handed* rather than
-  inherits, which is what lets `EnergyGauge` exist as one control reusable
-  across the cluster and the two projected panel widths.
+  inherits, which is what lets `EnergyGauge` stay one control across the
+  cluster's `WIDE` and `COMPACT` renderer densities.
 - `ClusterBlockPlan` states each block as rows before anything is drawn, so the
   block is centred in its box instead of hung from its top, and
   `ClusterBlockPlanTest` adds the plan up against the box. That test has already
@@ -279,21 +277,21 @@ density: a corner reveal is drawn with the narrow ramp inside the *wide* space.
 
 ### Telemetry ownership
 
-`VehicleTelemetryHub` gained a third activity flag. The two panel pages call
-`stop()` unconditionally from their own pause and detach with no reference
-count, which is safe only while every consumer is a page of the same Activity.
-The cluster dashboard is alive exactly when that Activity is paused, so
-`setDashboardActive(true)` holds the loop open and `stop()` honours that claim.
-The dashboard also opts into the combustion set, since it draws revolutions,
-generation, the tank and the lamps - the same roughly half-second sweep the
-engine page pays for. It redraws at ten frames a second, which is already faster
-than the sweep that feeds it.
+Since 2026-08-27 the cluster dashboard is the only UI owner of
+`VehicleTelemetryHub`. `setDashboardActive(true)` starts polling when its view
+is attached and visible, and hiding or detaching that view releases the sole
+activity claim. The retired vehicle/engine page flags and their page-dependent
+signal filter are gone. The hub therefore reads the complete six-signal hot set
+and thirty-signal cold set the cluster needs while it is visible, including
+revolutions, generation and the lamps. The view redraws at ten frames a second,
+already faster than the sweep that feeds it.
 
-The tank joined that set on 2026-08-25: `FUEL_PERCENT` (`0x4A507040`),
-`FUEL_RANGE_KM` (`0x4A504038`) and `FUEL_LOW` (`0x4A507027`), all cold and all
-gated to the engine sweep. They were readable in the 2026-08-23 read-only sweep -
-`53 %` and `491 km`, steady across a start/stop cycle - and are what gives the
-combustion block something to say while the engine is off.
+The tank joined the cold set on 2026-08-25: `FUEL_PERCENT` (`0x4A507040`),
+`FUEL_RANGE_KM` (`0x4A504038`) and, briefly, `FUEL_LOW` (`0x4A507027`). The first
+two were readable in the 2026-08-23 read-only sweep - `53 %` and `491 km`, steady
+across a start/stop cycle. `FUEL_LOW` was removed after the first cluster run;
+the level and range followed the retired pages on 2026-08-27 because the current
+cluster renderer does not display them and the stock cluster already does.
 
 ## Mirrors behavior preserved in Denza Apps
 

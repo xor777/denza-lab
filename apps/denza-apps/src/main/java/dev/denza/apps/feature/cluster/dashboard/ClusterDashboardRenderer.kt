@@ -28,11 +28,10 @@ import dev.denza.apps.feature.vehicle.VehicleTelemetry
  *
  * **It shows what the car does not.** State of charge and remaining range are already on the stock
  * cluster a few centimetres away, so drawing them here would spend the best real estate on a
- * duplicate. The pack's voltage, its cell spread, its insulation and its health are nowhere else,
- * and neither is the tank on a car whose engine is asleep most of the time.
+ * duplicate. The pack's voltage, its cell spread, its insulation and its health are nowhere else.
  *
- * **It reports exceptions rather than inventories.** The fluid lamps become one line that is silent
- * while they are healthy; their names live on the engine page, where there is room to read.
+ * **It reports exceptions rather than inventories.** The fluid lamps become one line that is quiet
+ * while they are healthy and names only faults or incomplete reads.
  *
  * **Density follows the room, not the placement.** A block in a corner reveal is small wherever it
  * sits, so it takes [InstrumentDensity.COMPACT] even inside the full-width layout. That is the whole
@@ -60,7 +59,6 @@ internal class ClusterDashboardRenderer {
         height: Float,
         layout: ClusterDashboardLayout,
         telemetry: VehicleTelemetry,
-        window: ConsumptionWindow,
     ) {
         if (!layout.supported) return
         val compact = layout.compact
@@ -77,7 +75,7 @@ internal class ClusterDashboardRenderer {
             return
         }
 
-        energy(canvas, layout, density, telemetry, window)
+        energy(canvas, layout, density, telemetry)
         if (compact) {
             electricNarrow(canvas, layout.electricBlock, density, telemetry)
             engineNarrow(canvas, layout.engineBlock, density, telemetry)
@@ -92,21 +90,19 @@ internal class ClusterDashboardRenderer {
     // ---- the centre: power now, and what it cost over the road behind
 
     /**
-     * The dial, over the window the driver chose on the head unit.
+     * The dial over the fixed three-kilometre consumption window.
      *
-     * The average comes from the raw buckets rather than the drawn bars, because
-     * the oldest bar of a part-filled window covers less road than the rest and
-     * would weigh as much as a full one. Every raw bucket is the same hundred
-     * metres, so their mean is the mean of the road.
+     * The bars and average come from the same tail of hundred-metre buckets, so
+     * the number describes exactly the road visible underneath it.
      */
     private fun energy(
         canvas: Canvas,
         layout: ClusterDashboardLayout,
         density: InstrumentDensity,
         t: VehicleTelemetry,
-        window: ConsumptionWindow,
     ) {
-        val average = ClusterReadout.averageConsumption(window.raw(t.consumption))
+        val bars = ConsumptionWindow.raw(t.consumption)
+        val average = ClusterReadout.averageConsumption(bars)
         gauge.draw(
             canvas = canvas,
             centreX = layout.gaugeCentreX * pen.width,
@@ -114,11 +110,11 @@ internal class ClusterDashboardRenderer {
             radius = layout.gaugeRadius * pen.height,
             density = density,
             kilowatts = flowKw(t),
-            bars = window.fold(t.consumption),
+            bars = bars,
             average = average,
             caption = ClusterReadout.chartCaption(
                 average,
-                window.coveredKm(t.consumption),
+                ConsumptionWindow.coveredKm(t.consumption),
                 t.stationary,
             ),
         )
@@ -218,8 +214,8 @@ internal class ClusterDashboardRenderer {
      * its own, so the same fact never appears twice in one block.
      *
      * The 12 V rail used to end this line and no longer does. It is a diagnostic rather than a
-     * driving fact, it is already on the vehicle page, and at the wide body size the four facts
-     * together measured wider than the block they sat in.
+     * driving fact, and at the wide body size the four facts together measured wider than the block
+     * they sat in. Its poll left with the retired head-unit vehicle page.
      */
     private fun packLine(t: VehicleTelemetry, includeHealth: Boolean): String {
         if (t.charging) return ClusterReadout.chargeLine(t.chargeMinutesLeft, brief = !includeHealth)

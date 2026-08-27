@@ -1,10 +1,13 @@
 # Vehicle Data Availability Findings
 
 Status: live-car availability investigation on 2026-07-24, with the earlier
-vehicle-event probe results from 2026-06-27 retained where relevant, product
-wiring checked against the code on 2026-08-20, a shell-UID `autoservice`
-FID read on 2026-08-22, and the vehicle panel wired to that allowlist the same
-day (built and unit-tested; not yet exercised on the car).
+vehicle-event probe results from 2026-06-27 retained where relevant, a shell-UID
+`autoservice` FID read on 2026-08-22, and the former head-unit vehicle panels
+wired to that allowlist the same day (built and unit-tested then, reviewed on
+the car on 2026-08-23). The cluster dashboard first ran on the car on
+2026-08-25. Product wiring was checked again on 2026-08-27: the head-unit panels
+are deleted, and the cluster dashboard is the only active UI consumer of the
+telemetry backend.
 
 This page records which vehicle and journey signals a normal Denza Apps APK can
 actually use. It distinguishes product-usable sources from values that are
@@ -396,16 +399,19 @@ card; `STATISTIC_INSTANTANEOUS_CURRENT` scale unknown. Next action: one
 moving-drive capture of current, pack power, and rear-motor FIDs, then stop
 scanning the catalog.
 
-## Shipped panel wiring (2026-08-22)
+## Vehicle telemetry wiring (2026-08-22 to 2026-08-27)
 
-`feature.vehicle` in Denza Apps is the second page of the swipeable bottom
-panel. It is the only product consumer of this document's allowlist.
+The `feature.vehicle` backend originally fed the second and third pages of the
+head-unit's swipeable bottom panel. `BottomPanelPager`, `VehiclePanelView`, and
+`EnginePanelView` were retired and deleted on 2026-08-27. The table below
+preserves the decisions behind that live-measured implementation; names of
+deleted views and page-specific gates are historical, not current entry points.
 
-| Decision | Where | Why |
+| Historical decision | Former location | Why |
 | --- | --- | --- |
 | Read transacts only (`5`, `7`) | `VehicleSignals.kt` | `setInt` (`6`) must never appear in a product package; a unit test asserts the built command never contains it |
 | Shell identity, PASSIVE policy | `VehicleTelemetryHub` via `DenzaLocalAdb` | Proves existing trust, never enqueues an authorization prompt; an untrusted key leaves the page empty with the reason |
-| One batched command per sweep | `AutoserviceShell.command` | 6 hot ids at panel cadence and 29 cold ids every 10–30 s would otherwise be one ADB round trip each |
+| One batched command per sweep | `AutoserviceShell.command` | Every id would otherwise be a separate ADB round trip; the current cluster retains the same batching rule |
 | `echo @@<index>` before each call | `AutoserviceShell.parse` | A feature id that prints nothing on this generation cannot shift the following answers onto the wrong signals |
 | Plausibility gate per unit | `VehicleKind.accepts` | Sentinels and max-range placeholders are dropped by what the unit can physically be, not by a blacklist — `255` stays a legal 2.55 bar and an illegal 215 °C |
 | Hot values never carried over | `VehicleTelemetryHub` | A stale kilowatt figure is worse than a dash; cold values do carry over between sweeps |
@@ -420,11 +426,19 @@ panel. It is the only product consumer of this document's allowlist.
 | One lamp folded from several feature ids | `EngineLamp` | Four ids report low oil pressure and four report low coolant level; they are generation variants, and reading all of them is cheaper than betting on one |
 | A lamp that never answered is not "healthy" | `LampState.UNKNOWN` | Every lamp read `0` on a healthy car, which proves they are readable, not that they light. A hollow dot makes a weaker claim than a green one |
 
+The current product consumer is `feature.cluster.dashboard`. Its view owns the
+only polling activity claim: attaching/showing the cluster dashboard starts the
+hub, and hiding/detaching it stops the hub. There are no vehicle-page or
+engine-page lifecycle flags and no page-dependent signal filter. While visible,
+the cluster reads the six hot and thirty cold signals it needs, including the
+combustion readings and lamps. Its consumption history is always rendered over
+the latest **3 km**; no saved head-unit selector is consulted.
+
 Unit tests cover the command shape, the marker alignment, the proven scales, the
 sentinel and plausibility rules, and the consumption accumulator including the
 standstill rule.
 
-### What the panel does not show, and why
+### What the historical head-unit panel did not show, and why
 
 Removed after the owner reviewed it on the car on 2026-08-23:
 
@@ -434,12 +448,14 @@ Removed after the owner reviewed it on the car on 2026-08-23:
   a test, now over the whole allowlist rather than one tyre id.
 - **cabin and outside temperature.** Both are already on the instrument cluster.
 - **remaining range, BMS state of charge, and pack health in the narrow pane.**
-  Kept at full width, where there is room for a second opinion on the charge.
+  At that time they stayed in the full-width page. Range and duplicate BMS state
+  later left the allowlist with the retired pages; pack health remains on the
+  cluster because the stock display does not show it.
 
-The three drive motors are now reported separately (front, rear left, rear
-right) rather than as a front/rear pair, with the inverter on its own row: this
-car has three motors, and one of them running away from the others is what the
-row exists to show.
+The final head-unit panel reported the three drive motors separately (front,
+rear left, rear right) rather than as a front/rear pair, with the inverter on
+its own row: this car has three motors, and one of them running away from the
+others is what the row exists to show.
 
 `CHARGE_KW` has its own plausibility gate (`-1..160 kW`) rather than sharing the
 pack-power one (`±600 kW`). The wide gate let a spike through and the panel
@@ -450,7 +466,7 @@ Pack power keeps the wide gate: this car really can pull hundreds of kilowatts.
 
 All 33 allowlist signals answered, none returned a sentinel, and none was
 dropped by the plausibility gate — the catalog is correct for this firmware. The
-shipped allowlist is now 23 signals: tyres and cabin/outside climate were
+head-unit allowlist then held 23 signals: tyres and cabin/outside climate were
 removed from the panel, and polling them was the only reason to read them.
 
 | Batch | Calls | Wall time on the head unit |
@@ -469,10 +485,11 @@ The cost is almost all fixed: about 4–5 ms per additional call against roughly
 panel affordable, and widening the hot set is nearly free, while shortening the
 interval is what actually costs the car.
 
-That measurement set the shipped cadence. The hot interval is `300 ms`, so a
-fresh power figure lands about twice a second and the shell is busy about a third
-of the time — but only while the vehicle page is the one on screen. The cold set
-still joins every 10 s, a sweep that costs about 280 ms. Splitting the hot set
+That measurement set the `300 ms` hot and `10 s` cold cadence retained by the
+cluster dashboard. A fresh power figure lands about twice a second and the shell
+is busy about a third of the time, but now only while the cluster dashboard is
+visible. Every due sweep includes the full hot or cold set the cluster needs;
+there is no longer an electrical-page/engine-page split. Splitting the hot set
 any finer would buy nothing: a one-call batch costs almost what a five-call batch
 costs.
 
@@ -641,8 +658,8 @@ What that pins down:
   figure already at zero, so only `1` may count as generating.
 - **The inverter is the one thermal reading the generation path has.** It rose
   26 → 32 °C over a minute of generation and fell back afterwards. With no
-  engine coolant temperature on this firmware, this is what the engine page
-  shows instead — real feedback, not a stand-in.
+  engine coolant temperature on this firmware, the retired engine page showed
+  it and the cluster dashboard still does — real feedback, not a stand-in.
 - Fuel level held `53 %` and the coolant and oil-pressure lamps held `0` across
   the whole cycle.
 
@@ -686,8 +703,10 @@ out of range. **That conclusion is withdrawn.** The read-only sweep above found
 steady across a full engine start/stop cycle. The level is a real reading; the
 catalog listing was simply incomplete.
 
-Two of them are in the panel allowlist as `FUEL_PERCENT` and `FUEL_RANGE_KM`, on
-the cold poll and gated to the engine set.
+Two of them entered the historical panel allowlist as `FUEL_PERCENT` and
+`FUEL_RANGE_KM`, on the cold poll and gated to the engine set. Both left the
+product allowlist with the retired pages on 2026-08-27: the current cluster does
+not render them, and the stock cluster already owns both facts.
 
 **`INSTRUMENT_FUEL_LOW_ALARM` was the third and is now out.** It was read here as
 the vehicle's own line for "low" — better than a threshold of ours, because a
@@ -695,9 +714,8 @@ second opinion beside the car's would put two answers on one cluster. The live
 run of 2026-08-25 killed that: it answered `0` on 2026-08-23 and `1` two days
 later against an unchanged `53 %` tank (`488` km of range), so whatever the
 constant names, it is not this tank's alarm. On the cluster it was painting a
-half-full tank in the alert colour. Nothing of ours replaces it: the fuel figure
-raises a watch below 15 % on the percentage alone and never an alert, and the
-stock cluster keeps its own low-fuel lamp a few centimetres away.
+half-full tank in the alert colour. Nothing of ours replaces it; the stock
+cluster keeps the fuel level, range and low-fuel lamp a few centimetres away.
 
 ## Consumption journal
 
@@ -705,16 +723,17 @@ Added 2026-08-25, on the owner's decision. Not yet run on the car.
 
 The consumption chart used to hold twenty-four bars of 200 m - one window of
 4.8 km - and it lived in the app's process, so it started empty after every
-restart. It now keeps **300 bars of 100 m** and the driver picks the window:
-**3, 10 or 30 km**.
+restart. The journal now keeps **300 bars of 100 m**, while the active cluster
+dashboard always displays the latest **3 km**. The retired head-unit panel had
+offered **3, 10 or 30 km**; its selector and saved setting were deleted on
+2026-08-27, so an old installation cannot silently choose the cluster window.
 
 **One hundred metres is one odometer tick**, which is as fine as this vehicle can
 be asked; the odometer arrives in tenths of a kilometre. The log stores that one
-resolution and a window is a *view* of it, so switching windows loses nothing and
-re-records nothing. Ten kilometres folds four buckets to a bar, thirty folds ten,
-and every bucket covers the same road, so folding is a plain mean. Grouping runs
-from the newest end, which keeps any short group at the old end of the chart
-rather than under the bar a driver actually reads.
+resolution. The 30 km span is only the journal's retention horizon; the active
+3 km view takes the newest thirty raw buckets, one per bar. The historical
+10/30 km folding code was removed with the selector rather than preserved as a
+test-only implementation.
 
 **The journal is append-only lines, not JSON**, and that is a durability
 decision rather than a taste one. A bar closes every hundred metres - three or
@@ -727,8 +746,8 @@ the tail. Format is `odometer,value`, `%.1f` and `%.3f`, in
 **The odometer is stored with each bar**, and that is what makes a restart safe.
 Time cannot say whether a journal describes the last thirty kilometres - the
 entries could be five minutes old and cover a different road - but an odometer
-can. On the first sweep that reports one, anything further back than the longest
-window is dropped, and a journal whose entries sit *ahead* of the car is refused
+can. On the first sweep that reports one, anything further back than the 30 km
+retention horizon is dropped, and a journal whose entries sit *ahead* of the car is refused
 outright: the reading went backwards, so it is not this car's journal.
 
 **Any other kind of wrong wipes the file.** Unreadable, unparseable anywhere but
@@ -742,13 +761,14 @@ power cut loses at most a kilometre. The file is bounded at 500 lines and trimme
 back to 300 through a temporary file and a rename; the slack is there so the trim
 runs about once every fifty kilometres instead of on every append.
 
-The window is a setting rather than screen state, because two screens obey it and
-only one can be touched: it is chosen by tapping the chart on the head unit, and
-the driver's cluster - which has no touchscreen - follows.
+The active window is deliberately not a setting. The cluster has no touchscreen
+and is now the only consumer, so it uses the fixed 3 km default every time. The
+removed preference is not read and no hidden selector state survives the
+head-unit panel's retirement.
 
 ### Two corrections this reading forced
 
-- **`0x14400020` is `ENGINE_POWER` in the catalog**, and it is the id the panel
+- **`0x14400020` is `ENGINE_POWER` in the catalog**, and it is the id the cluster
   currently labels pack power. Parked on AC charge it read `-2` while the
   charging device reported `+2.4` kW with the engine stopped, so it is not the
   engine's own output — but the label is an assumption, and the drive capture
@@ -816,7 +836,7 @@ in this vehicle-data investigation.
 | Road-surface memory | GNSS + calibrated vertical motion stored locally | Deferred; needs repeat-drive validation and false-positive analysis |
 | Maintenance summary | exported car-status rows | Units/state semantics need confirmation |
 | Regeneration/energy display | no qualified instantaneous current yet | Do not label `35721` as amps |
-| Technical BMS / 12V / HV widget | `autoservice` allowlist via `DenzaLocalAdb` | Built as `feature.vehicle`; shell-only, short allowlist, no `BYDAUTO_*` in the manifest |
+| Technical BMS / HV cluster dashboard | `autoservice` allowlist via `DenzaLocalAdb` | Cluster-only subset in `feature.vehicle`; shell-only, short allowlist, no `BYDAUTO_*` in the manifest. The old head-unit page and its 12V reading were retired 2026-08-27 |
 | Tyre / climate / PM2.5 | same Binder, different `dev` | Same privilege path; still blocked from app UID |
 
 The current road-thread/body-field prototypes use simulated values. They show a
@@ -876,7 +896,7 @@ restoring this pipeline to the product):
    flip that one constant.
 4. Measure traction-voltage sag under load. On this LFP pack the resting voltage
    is flat across the charge window — 550 V at 43 %, 551 V at 62 % — so current
-   is the only thing that moves it. The panel shows it as context, not as a
+   is the only thing that moves it. The cluster dashboard shows pack voltage as context, not as a
    gauge, until that sag figure exists.
 5. Cross-check the odometer against the trip panel's GNSS distance over the same
    stretch; the consumption histogram's axis rests on the ×10 scale, and the

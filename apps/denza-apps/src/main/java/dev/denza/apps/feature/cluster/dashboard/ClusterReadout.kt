@@ -19,7 +19,7 @@ internal object ClusterReadout {
      * The traction pack's working window.
      *
      * A pack sits between roughly 500 and 600 V in use, so a gauge spanning zero would be a flat
-     * line at four fifths of its length. The vehicle page already narrows it for the same reason.
+     * line at four fifths of its length.
      */
     const val PACK_VOLT_LOW = 500.0
     const val PACK_VOLT_HIGH = 600.0
@@ -44,14 +44,6 @@ internal object ClusterReadout {
     const val DRIVE_BAND_HIGH_C = 70.0
     const val HOT_MARGIN_C = 15.0
 
-    /**
-     * Where a tank stops being comfortable, for the amber that precedes the car's own alarm.
-     *
-     * The alarm itself decides [Level.ALERT]; this only decides when to start looking. A threshold
-     * of ours that fired *after* the vehicle's would be worse than none.
-     */
-    const val FUEL_WATCH_PERCENT = 15.0
-
     /** Where a pack voltage falls on its own window, or `null` when nothing answered. */
     fun voltFraction(volts: Double?): Float? {
         if (volts == null) return null
@@ -69,12 +61,6 @@ internal object ClusterReadout {
     fun generationFraction(kilowatts: Double?): Float? {
         if (kilowatts == null || kilowatts <= 0.0) return null
         return sqrt((kilowatts / GENERATION_FULL_KW).coerceIn(0.0, 1.0)).toFloat()
-    }
-
-    /** How full the tank is, straight through: a fuel gauge is the one place linear is honest. */
-    fun fuelFraction(percent: Double?): Float? {
-        if (percent == null) return null
-        return (percent / 100.0).coerceIn(0.0, 1.0).toFloat()
     }
 
     /**
@@ -132,18 +118,11 @@ internal object ClusterReadout {
     }
 
     /**
-     * The combustion half in one line.
-     *
-     * Most of a hybrid's life the engine is off, and "заглушен" alone spends a line saying nothing.
-     * The range left on the tank is what a stopped engine is actually worth, so that is what the
-     * line carries when there is nothing happening.
-     */
-    /**
      * The one line the combustion block gets, and usually it gets none.
      *
      * It said "заглушен · 488 км на бензине" until the first live run. Both halves were wrong to
      * draw: the revolutions beside it already read `—` or `0`, so "заглушен" restates the figure
-     * above it, and the range on petrol is on the vehicle's own strip a few centimetres away. What
+     * above it, and the stock cluster already carries the range on petrol. What
      * is left is the exception - the engine is putting something back, or it did not answer at all.
      * A running engine that is not generating says nothing either: its revolutions are on the row
      * above, moving.
@@ -158,8 +137,8 @@ internal object ClusterReadout {
     /**
      * The one line the cluster gives the fluid lamps.
      *
-     * A driver's display shows exceptions, not an inventory: the names live on the engine page. So
-     * this is silent praise while everything answers and is healthy, and names the fault the moment
+     * A driver's display shows exceptions, not an inventory. This is quiet while everything
+     * answers and is healthy, and names the fault the moment
      * one does not - and says so plainly when the lamps simply did not answer, because a lamp that
      * never reported is not the same as a lamp reporting good news.
      *
@@ -196,19 +175,6 @@ internal object ClusterReadout {
         millivolts == null -> Level.UNKNOWN
         millivolts >= SPREAD_ALERT_MV -> Level.ALERT
         millivolts >= SPREAD_WATCH_MV -> Level.WATCH
-        else -> Level.NORMAL
-    }
-
-    /**
-     * Whether the tank is worth a glance.
-     *
-     * Never an alert. The id read here as the vehicle's low-fuel alarm turned out to flip while the
-     * tank did not, and it is gone; the stock cluster keeps its own low-fuel lamp a few centimetres
-     * away, so this figure raises a watch on its own percentage and leaves the alarm to the car.
-     */
-    fun fuelState(percent: Double?): Level = when {
-        percent == null -> Level.UNKNOWN
-        percent <= FUEL_WATCH_PERCENT -> Level.WATCH
         else -> Level.NORMAL
     }
 

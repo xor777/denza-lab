@@ -2,19 +2,19 @@ package dev.denza.apps.feature.vehicle
 
 /** What a lamp is saying right now. */
 internal enum class LampState {
-    /** Nothing answered; the panel shows a hollow dot, not a green one. */
+    /** Nothing answered; the dashboard shows a hollow dot, not a green one. */
     UNKNOWN,
     OK,
     ALERT,
 }
 
 /**
- * The engine page's warning lamps, each one folded from the several feature ids
+ * The cluster dashboard's warning lamps, each one folded from the several feature ids
  * that carry it.
  *
  * Four separate ids report low oil pressure on this firmware and four report low
  * coolant level. They are generation variants of the same lamp — the same thing
- * the motor temperatures did with `_DM40_464` — so the panel reads all of them
+ * the motor temperatures did with `_DM40_464` — so the dashboard reads all of them
  * and takes the worst answer rather than betting on which one this car uses.
  *
  * Every one of these read `0` on 2026-08-23 with a healthy car. That proves they

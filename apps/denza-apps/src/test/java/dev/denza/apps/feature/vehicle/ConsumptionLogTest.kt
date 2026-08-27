@@ -2,7 +2,6 @@ package dev.denza.apps.feature.vehicle
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -21,7 +20,6 @@ class ConsumptionLogTest {
         val log = ConsumptionLog()
         log.sample(100.0, 30.0, 6.0)
         assertTrue(log.buckets.isEmpty())
-        assertNull(log.current)
     }
 
     @Test
@@ -41,37 +39,12 @@ class ConsumptionLogTest {
     }
 
     @Test
-    fun theLiveFigureNeedsRoadBeforeItReads() {
-        val log = ConsumptionLog()
-        log.sample(100.0, 24.0, 0.0)
-        log.sample(100.05, 24.0, 3.0)
-        // 50 m is not enough to call it consumption yet.
-        assertNull(log.current)
-        log.sample(100.1, 24.0, 3.0)
-        assertEquals(40.0, log.current!!, 0.01)
-    }
-
-    @Test
-    fun theLiveFigureFollowsTheRecentRoadNotTheWholeTrip() {
-        val log = ConsumptionLog()
-        log.drive(steps = 20, powerKw = 10.0)
-        log.drive(steps = 3, powerKw = 60.0, fromKm = 102.0)
-        // The window holds 0.3 km, so the long gentle stretch has fallen out of
-        // it entirely and only the last three hard slices are left.
-        assertEquals(100.0, log.current!!, 0.5)
-    }
-
-    @Test
-    fun standingStillStopsTheLiveFigureInsteadOfLettingItDrift() {
+    fun standingStillChangesTheDashboardStateWithoutDroppingEnergy() {
         val log = ConsumptionLog()
         log.drive(steps = 4, powerKw = 20.0)
-        assertEquals(33.33, log.current!!, 0.01)
-        // Parked on charge: the odometer holds while power goes negative. This
-        // is the reported defect — the figure used to crawl downward as if the
-        // car were still covering road.
+        // Parked on charge: the odometer holds while power goes negative.
         repeat(10) { log.sample(100.4, -2.0, 6.0) }
         assertTrue(log.stationary)
-        assertNull(log.current)
     }
 
     @Test
@@ -91,7 +64,7 @@ class ConsumptionLogTest {
     fun aGapInSamplingDoesNotIntegrateEnergyItDidNotSee() {
         val log = ConsumptionLog()
         log.sample(100.0, 30.0, 0.0)
-        // The panel was away for four minutes; the odometer moved, but the
+        // The dashboard was away for four minutes; the odometer moved, but the
         // energy for that road was never sampled.
         log.sample(100.4, 30.0, 240.0)
         assertEquals(0.0, log.buckets.single(), 1e-9)
@@ -102,13 +75,11 @@ class ConsumptionLogTest {
         val log = ConsumptionLog()
         log.sample(100.0, 30.0, 0.0)
         log.sample(100.1, 30.0, 6.0)
-        // Driven with the panel closed: the odometer is 40 km further on.
+        // Driven with the dashboard closed: the odometer is 40 km further on.
         log.sample(140.0, 30.0, 6.0)
         // Forty kilometres of road nobody watched must not become a bar. The one
-        // bar that had honestly closed before the jump stays, and the live figure
-        // falls back to it rather than blanking - that fallback is deliberate.
+        // bar that had honestly closed before the jump stays.
         assertEquals(1, log.buckets.size)
-        assertEquals(log.buckets.single(), log.current!!, 1e-9)
         // Accumulation resumes from the new anchor.
         log.drive(steps = 2, powerKw = 20.0, fromKm = 140.0)
         assertEquals(3, log.buckets.size)
@@ -120,7 +91,7 @@ class ConsumptionLogTest {
         log.sample(100.0, 20.0, 0.0)
         log.sample(null, 20.0, 6.0)
         log.sample(100.1, 20.0, 6.0)
-        assertEquals(20.0 * 6.0 / 3600.0 / 0.1 * 100.0, log.current!!, 0.01)
+        assertEquals(20.0 * 6.0 / 3600.0 / 0.1 * 100.0, log.buckets.single(), 0.01)
     }
 
     @Test
@@ -185,6 +156,5 @@ class ConsumptionLogTest {
         log.drive(steps = 2, powerKw = 20.0)
         log.reset()
         assertTrue(log.buckets.isEmpty())
-        assertNull(log.current)
     }
 }

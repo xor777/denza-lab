@@ -1,23 +1,18 @@
 package dev.denza.apps.feature.vehicle
 
 /**
- * Turns a stream of (odometer, pack power) samples into the two consumption
- * figures the panel draws, which are deliberately not the same quantity.
+ * Turns a stream of (odometer, pack power) samples into the consumption bars
+ * the cluster dashboard draws.
  *
- * The **bars** are energy per fixed slice of road, closed one at a time. They
+ * Each bar is energy per fixed slice of road, closed one at a time. They
  * are the honest record: everything the car spent over that slice counts,
  * including the minutes it stood still inside it.
  *
- * The **live figure** is a rolling window over the last [WINDOW_KM] of road,
- * and it stops counting once the car has been standing for [STALL_SECONDS].
- * That split is the fix for a real defect: kWh per 100 km has no value at zero
- * speed, so folding standstill energy into it made a parked car's reading crawl
- * — upward on load, downward on charge — as if the car were still driving.
- * Standing still now reads as no live figure at all, and the bars keep the
- * energy.
+ * [stationary] is tracked separately because the dashboard caption must not
+ * imply that the car is still accumulating road while the odometer is fixed.
  *
- * Distance comes from the vehicle's own odometer rather than GNSS, so the page
- * needs no location permission and keeps working with the trip panel closed.
+ * Distance comes from the vehicle's own odometer rather than GNSS, so the
+ * dashboard needs no location permission.
  * Energy is integrated from pack power over real elapsed time, including
  * regeneration, which is why a downhill slice can read negative.
  *
@@ -39,13 +34,6 @@ internal class ConsumptionLog(
     private var lastOdometerKm: Double? = null
     private var pendingKm = 0.0
     private var pendingKwh = 0.0
-
-    // The live window, oldest first, as two parallel deques so a sample is not
-    // boxed into a Pair on every poll.
-    private val windowKm = ArrayDeque<Double>()
-    private val windowKwh = ArrayDeque<Double>()
-    private var rollingKm = 0.0
-    private var rollingKwh = 0.0
     private var stillSeconds = 0.0
 
     /** Closed bars, oldest first. */
@@ -53,20 +41,6 @@ internal class ConsumptionLog(
 
     /** True once the odometer has not advanced for [STALL_SECONDS]. */
     val stationary: Boolean get() = stillSeconds >= STALL_SECONDS
-
-    /**
-     * Consumption over the last few hundred metres, or null when the number
-     * would be a fiction: while the car stands, and before the window holds
-     * enough road to divide by. A fresh window falls back to the last closed
-     * bar rather than blanking mid-drive.
-     */
-    val current: Double?
-        get() = when {
-            stationary -> null
-            rollingKm >= MIN_WINDOW_KM - KM_EPSILON -> rollingKwh / rollingKm * 100.0
-            closed.isNotEmpty() -> closed.last()
-            else -> null
-        }
 
     /**
      * @param odometerKm the vehicle odometer; null while the read failed
@@ -81,7 +55,7 @@ internal class ConsumptionLog(
 
         val deltaKm = odometerKm - previous
         if (deltaKm < -KM_EPSILON || deltaKm > MAX_JUMP_KM) {
-            // The car was driven with the panel closed, or the reading moved in a
+            // The car was driven with the dashboard closed, or the reading moved in a
             // way a sample interval cannot explain. Drop the open work rather than
             // spreading unknown energy across unknown distance.
             dropOpenWork()
@@ -107,16 +81,6 @@ internal class ConsumptionLog(
             pendingKm = 0.0
             pendingKwh = 0.0
             onBucketClosed(ConsumptionSample(odometerKm, value))
-        }
-
-        if (stationary) return
-        windowKm.addLast(km)
-        windowKwh.addLast(kwh)
-        rollingKm += km
-        rollingKwh += kwh
-        while (windowKm.size > 1 && rollingKm - windowKm.first() >= WINDOW_KM - KM_EPSILON) {
-            rollingKm -= windowKm.removeFirst()
-            rollingKwh -= windowKwh.removeFirst()
         }
     }
 
@@ -156,10 +120,6 @@ internal class ConsumptionLog(
     private fun dropOpenWork() {
         pendingKm = 0.0
         pendingKwh = 0.0
-        windowKm.clear()
-        windowKwh.clear()
-        rollingKm = 0.0
-        rollingKwh = 0.0
         stillSeconds = 0.0
     }
 
@@ -167,33 +127,27 @@ internal class ConsumptionLog(
         /**
          * One odometer tick per bar, which is as fine as this car can be asked.
          *
-         * It was two ticks while the chart had one window of 4.8 km. Now that the
-         * window is chosen - three, ten or thirty kilometres - the log has to hold
-         * the finest resolution any of them wants, because a window is a view of
-         * this and folding down is possible while folding back up is not.
+         * The dashboard shows three kilometres, while the journal retains thirty
+         * at the same resolution so recent history survives a restart.
          */
         const val DEFAULT_BUCKET_KM = 0.1
 
         /**
-         * Thirty kilometres of road, which is the longest window offered.
+         * Thirty kilometres of road retained for restart continuity.
          *
          * Three hundred doubles is about two and a half kilobytes; the cost of
          * this decision is not memory, it is the journal write that keeps it
-         * across a restart. `ConsumptionWindowTest` holds this against
-         * `ConsumptionWindow.LONG`.
+         * across a restart. `ConsumptionWindowTest` holds the display and
+         * retention sizes apart explicitly.
          */
         const val DEFAULT_CAPACITY = 300
 
-        /** Road held by the live figure. */
-        private const val WINDOW_KM = 0.3
+        const val RETENTION_KM = DEFAULT_CAPACITY * DEFAULT_BUCKET_KM
 
-        /** Below this the window is too short to divide by. */
-        private const val MIN_WINDOW_KM = 0.1
-
-        /** Standing this long stops the live figure; the bars keep counting. */
+        /** Standing this long changes the dashboard caption; the bars keep counting. */
         private const val STALL_SECONDS = 5.0
 
-        /** A longer sample gap means the panel was asleep; do not integrate it. */
+        /** A longer sample gap means the dashboard was asleep; do not integrate it. */
         private const val MAX_GAP_SECONDS = 8.0
 
         /** More road than any sample interval can cover; treat as a re-anchor. */

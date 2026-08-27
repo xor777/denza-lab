@@ -13,28 +13,32 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
 
 /**
  * Polls the native `autoservice` allowlist over the local ADB shell and
- * publishes one immutable [VehicleTelemetry] snapshot for the panel to draw.
+ * publishes one immutable [VehicleTelemetry] snapshot for the cluster dashboard.
  *
  * Identity, and why this is not in the app process: these values exist on the
  * `android.gui.BYDAutoServer` Binder, which answers a trusted `shell` UID and
  * refuses ours. The app therefore asks the same way a diagnostic session would —
  * `service call` through [DenzaLocalAdb], whose policy is PASSIVE, so a missing
- * key produces a closed panel and never an authorization prompt. No `BYDAUTO_*`
- * permission is declared, no `app_process` proxy is spawned, and only the read
- * transacts (5 and 7) are ever issued. See docs/vehicle-data-findings.md.
+ * key produces an unavailable dashboard and never an authorization prompt. No
+ * `BYDAUTO_*` permission is declared, no `app_process` proxy is spawned, and
+ * only the read transacts (5 and 7) are ever issued. See
+ * docs/vehicle-data-findings.md.
  *
- * Cadence: the hot set (power, state of charge, voltages, odometer) is one small
- * batched command roughly twice a second; the cold set (pack, drivetrain, tyres,
- * cabin, charging) joins it every ten seconds. Splitting the hot set finer would
- * buy nothing — a one-call batch costs almost what a five-call batch costs. While the vehicle page is not the one on screen the hub
- * keeps running at a slow cadence — that is what keeps the consumption
- * histogram continuous — and it stops completely with the panel.
+ * Cadence: the hot set (pack power and voltage, odometer, engine state and
+ * generation) is one batched command roughly twice a second; pack health,
+ * temperatures, charging estimates and warning lamps join it every ten seconds.
+ * Splitting the hot set finer would buy nothing — a one-call batch costs almost
+ * what a five-call batch costs. The loop runs only while the cluster dashboard
+ * is visible.
  *
  * Threading: the loop runs on [Dispatchers.IO] and only ever writes [snapshot];
- * the renderer reads it from the main thread.
+ * the renderer reads it from the main thread. [VehiclePollLoopGate] also keeps a
+ * cancelled loop inside the single-writer boundary until a blocking shell call
+ * has actually returned and its `finally` block has flushed the journal.
  */
 internal class VehicleTelemetryHub(context: Context) {
 
@@ -67,65 +71,34 @@ internal class VehicleTelemetryHub(context: Context) {
     var snapshot: VehicleTelemetry = VehicleTelemetry()
         private set
 
-    // Two pages share this hub, so activity is per-page rather than one flag:
-    // the page leaving cannot switch the poll off under the page arriving.
+    /** Whether the instrument dashboard on the driver's display is visible. */
     @Volatile
-    private var vehiclePage = false
-
-    @Volatile
-    private var enginePage = false
-
-    /**
-     * The instrument dashboard on the driver's display: the one consumer that is
-     * not a page of this Activity.
-     *
-     * It needs its own flag because it outlives the other two. The cluster draws
-     * precisely while the Activity is paused, which is when both panels call
-     * [stop] on their way out - so this flag is what holds the loop open for it.
-     */
-    @Volatile
-    private var dashboardPage = false
-
-    private val active: Boolean get() = vehiclePage || enginePage || dashboardPage
+    private var dashboardActive = false
 
     @Volatile
     private var forceCold = false
 
-    /**
-     * Whether the engine page is the one on screen. The combustion set is most
-     * of the poll and appears nowhere else, so it joins the sweep only here.
-     */
-    @Volatile
-    private var engine = false
-
     private var job: Job? = null
+    private val loopGate = VehiclePollLoopGate()
 
-    val running: Boolean get() = job?.isActive == true
+    private val running: Boolean get() = job?.isActive == true
 
-    /**
-     * True once the vehicle page has actually been looked at. Before that the
-     * hub never opens a shell: a session that only ever uses the trip page
-     * should cost the car nothing. Afterwards it keeps polling in the background
-     * so the consumption histogram survives a swipe away and back.
-     */
-    var visited: Boolean = false
-        private set
-
-    fun start() {
+    private fun start() {
         if (running) return
-        job = scope.launch { pollLoop() }
+        job = scope.launch {
+            loopGate.run {
+                if (dashboardActive) pollLoop()
+            }
+        }
     }
 
     /**
      * Stops the poll loop.
      *
-     * Both panels call this from their own pause and detach, unconditionally and
-     * with no reference count of any kind. That is safe while every consumer is a
-     * page of the same Activity and stops mattering the moment one is not, so the
-     * dashboard's claim is honoured here rather than by a restart race afterwards.
+     * The loop's `finally` block flushes the pending journal batch before closing
+     * its shell session.
      */
-    fun stop() {
-        if (dashboardPage) return
+    private fun stop() {
         job?.cancel()
         job = null
         // The batch is flushed by the loop's own `finally`, not from here: the
@@ -163,53 +136,28 @@ internal class VehicleTelemetryHub(context: Context) {
         restored = true
         val samples = journal.load()
         if (samples.isEmpty()) return
-        if (!log.restore(samples, odometerKm, ConsumptionWindow.LONG.km)) {
+        if (!log.restore(samples, odometerKm, ConsumptionLog.RETENTION_KM)) {
             Log.w(TAG, "Журнал расхода от другого одометра, сброшен")
             journal.clear()
         }
     }
 
     /**
-     * Called by each page as it comes and goes. Only the poll cadence depends on
-     * this; the loop itself is owned by the panels' lifecycle. The engine page
-     * additionally switches the combustion half of the allowlist in and out,
-     * which is most of the poll and appears nowhere else.
-     */
-    fun setActive(value: Boolean) = setPageActive(value, vehicle = true)
-
-    fun setEngineActive(value: Boolean) = setPageActive(value, vehicle = false)
-
-    /**
      * Called by the cluster dashboard as it appears and goes.
      *
-     * It draws revolutions, generation into the pack and the fluid lamps, so it
-     * opts into the combustion half of the allowlist exactly as the engine page
-     * does - and pays the same price for it, a sweep of roughly half a second
-     * instead of a third of one.
-     *
-     * Unlike a page, it owns the loop as well as the cadence: nothing else is on
-     * screen when the driver is looking at the cluster.
+     * It is the hub's only runtime consumer and therefore owns the loop. A newly
+     * visible dashboard asks for a full cold sweep immediately rather than
+     * leaving slow-changing rows dashed for ten seconds.
      */
     fun setDashboardActive(value: Boolean) {
-        if (dashboardPage == value) return
-        if (value) visited = true
-        dashboardPage = value
-        engine = enginePage || dashboardPage
+        if (dashboardActive == value) return
+        dashboardActive = value
         if (value) {
             forceCold = true
             start()
-        } else if (!active) {
+        } else {
             stop()
         }
-    }
-
-    private fun setPageActive(value: Boolean, vehicle: Boolean) {
-        if (value) visited = true
-        if (vehicle) vehiclePage = value else enginePage = value
-        engine = enginePage || dashboardPage
-        // Arriving on a page changes which signals are polled, so fill it from a
-        // full sweep rather than leaving half of it dashed for ten seconds.
-        if (value) forceCold = true
     }
 
     private suspend fun CoroutineScope.pollLoop() {
@@ -222,10 +170,8 @@ internal class VehicleTelemetryHub(context: Context) {
             while (isActive) {
                 val session = shell ?: DenzaLocalAdb.client(app).openPersistentShell().also { shell = it }
                 val includeCold = forceCold || SystemClock.elapsedRealtime() >= coldDueAt
-                val hot = VehicleSignal.sweep(VehiclePoll.HOT, engine)
-                val batch = if (includeCold) hot + VehicleSignal.sweep(VehiclePoll.COLD, engine) else hot
-                val startedAt = SystemClock.elapsedRealtime()
-
+                val hot = VehicleSignal.HOT
+                val batch = if (includeCold) hot + VehicleSignal.COLD else hot
                 val output = try {
                     session.shell(
                         AutoserviceShell.command(batch),
@@ -243,17 +189,11 @@ internal class VehicleTelemetryHub(context: Context) {
                 }
 
                 backoffMs = FIRST_BACKOFF_MS
-                val sweepMillis = (SystemClock.elapsedRealtime() - startedAt).toInt()
                 val parsed = AutoserviceShell.parse(output, batch)
 
                 if (includeCold) {
                     forceCold = false
-                    coldDueAt = SystemClock.elapsedRealtime() +
-                        if (active) ACTIVE_COLD_MS else IDLE_COLD_MS
-                    // Anything the engine set answered stays in `cold` when the
-                    // page leaves; it is a lamp state, not a live figure, and a
-                    // dash on returning to the page would be worse than the last
-                    // known answer.
+                    coldDueAt = SystemClock.elapsedRealtime() + COLD_INTERVAL_MS
                     VehicleSignal.COLD.forEach { signal -> parsed[signal]?.let { cold[signal] = it } }
                 }
 
@@ -262,9 +202,7 @@ internal class VehicleTelemetryHub(context: Context) {
                 val now = SystemClock.elapsedRealtime()
                 val dtSeconds = if (lastSampleAt == 0L) 0.0 else (now - lastSampleAt) / 1000.0
                 lastSampleAt = now
-                // Sampled on every sweep, including the ones where the combustion set is not being
-                // polled at all: those write empty slots, and an unwatched stretch of the trace is
-                // exactly what a break in it should mean.
+                // Sampled on every sweep so both traces share one time axis.
                 trace.sample(
                     atMillis = now,
                     rpm = parsed[VehicleSignal.ENGINE_RPM],
@@ -278,7 +216,7 @@ internal class VehicleTelemetryHub(context: Context) {
 
                 // Cold values carry over between sweeps — temperatures do not
                 // change in a second. Hot values never do: they are either fresh
-                // or absent, so the panel can't show a stale kilowatt figure.
+                // or absent, so the dashboard cannot show a stale kilowatt figure.
                 val merged = LinkedHashMap<VehicleSignal, Double>(cold)
                 VehicleSignal.HOT.forEach { signal -> parsed[signal]?.let { merged[signal] = it } }
 
@@ -287,13 +225,11 @@ internal class VehicleTelemetryHub(context: Context) {
                     message = if (merged.isEmpty()) NO_ANSWER else "",
                     values = merged,
                     consumption = log.buckets,
-                    currentConsumption = log.current,
                     stationary = log.stationary,
                     engineTrace = trace.snapshot(),
-                    sweepMillis = sweepMillis,
                 )
 
-                delay(if (active) ACTIVE_HOT_MS else IDLE_HOT_MS)
+                delay(HOT_INTERVAL_MS)
             }
         } finally {
             flush()
@@ -313,7 +249,6 @@ internal class VehicleTelemetryHub(context: Context) {
             access = VehicleAccess.UNAVAILABLE,
             message = message,
             consumption = log.buckets,
-            currentConsumption = log.current,
         )
     }
 
@@ -325,17 +260,14 @@ internal class VehicleTelemetryHub(context: Context) {
 
         /**
          * Measured on the car: a batch costs about 130 ms of fixed shell and
-         * process overhead plus 4–5 ms per call, so the hot batch of five takes
+         * process overhead plus 4–5 ms per call, so the hot batch takes
          * roughly 150 ms whatever the interval. The interval is therefore the
-         * only real cost knob. At 300 ms the panel lands a fresh power figure
+         * only real cost knob. At 300 ms the dashboard lands a fresh power figure
          * about twice a second — enough for a number that follows the pedal —
-         * while the shell stays busy about a third of the time, and only while
-         * this page is the one on screen.
+         * while the shell runs only while this dashboard is visible.
          */
-        const val ACTIVE_HOT_MS = 300L
-        const val ACTIVE_COLD_MS = 10_000L
-        const val IDLE_HOT_MS = 2_500L
-        const val IDLE_COLD_MS = 30_000L
+        const val HOT_INTERVAL_MS = 300L
+        const val COLD_INTERVAL_MS = 10_000L
 
         const val HOT_TIMEOUT_MS = 3_000
         const val COLD_TIMEOUT_MS = 8_000
@@ -350,10 +282,30 @@ internal class VehicleTelemetryHub(context: Context) {
 }
 
 /**
+ * Serialises poll-loop lifetimes, including their non-cancellable shell tail.
+ *
+ * `PersistentShellSession.shell()` is a synchronous Java call. Cancelling its
+ * coroutine marks the [Job] inactive but cannot interrupt that call, so a
+ * replacement loop must wait for the old call and `finally` block to leave.
+ */
+internal class VehiclePollLoopGate {
+    private val mutex = Mutex()
+
+    suspend fun run(block: suspend () -> Unit) {
+        mutex.lock()
+        try {
+            block()
+        } finally {
+            mutex.unlock()
+        }
+    }
+}
+
+/**
  * Process-scoped owner of the vehicle hub, mirroring
- * [dev.denza.apps.feature.trip.TripSession]: the view attaches and detaches, the
- * hub and its consumption history outlive activity recreation, and nothing is
- * persisted to disk.
+ * [dev.denza.apps.feature.trip.TripSession]: the view attaches and detaches, while
+ * the hub outlives activity recreation. Closed consumption bars also survive a
+ * process restart through [ConsumptionJournal]; the short engine trace does not.
  */
 internal object VehicleSession {
     private var hub: VehicleTelemetryHub? = null

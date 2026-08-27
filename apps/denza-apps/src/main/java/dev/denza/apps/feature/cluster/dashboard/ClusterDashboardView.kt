@@ -5,20 +5,15 @@ import android.content.Context
 import android.graphics.Canvas
 import android.view.Choreographer
 import android.view.View
-import dev.denza.apps.feature.vehicle.ConsumptionSettings
-import dev.denza.apps.feature.vehicle.ConsumptionWindow
 import dev.denza.apps.feature.vehicle.VehicleSession
 import dev.denza.apps.feature.vehicle.VehicleTelemetry
 
 /**
  * The dashboard's window onto the driver's display.
  *
- * It differs from the two panel views in the bottom pager in one way that matters: there is no
- * lifecycle owner here. A `Presentation` sets no `ViewTreeLifecycleOwner`, so the usual
- * `findViewTreeLifecycleOwner()` returns null and the panels' resume/pause gate silently degrades
- * to "always resumed". Attachment is therefore the only signal this view has, and it is the right
- * one: the presentation adds this view when the driver asked for the dashboard and removes it when
- * they did not, which is exactly when the poll should run.
+ * A `Presentation` has no lifecycle owner, so attachment and window visibility are the lifecycle
+ * signals for this view. The presentation adds it when the driver asks for the dashboard and
+ * removes it when they leave, which is exactly when vehicle polling should run.
  *
  * Ten frames a second is the cap. Nothing here animates; the sweep that feeds it takes roughly half
  * a second once the combustion signals join, so anything faster would redraw identical pixels.
@@ -31,15 +26,6 @@ internal class ClusterDashboardView(
 
     private val hub = VehicleSession.hub(context)
     private val renderer = ClusterDashboardRenderer()
-
-    /**
-     * The window chosen on the head unit.
-     *
-     * Re-read whenever this view comes back, because that is the only moment it
-     * can have changed: the driver's display has no touchscreen, so the choice is
-     * always made somewhere else and arrives here through the setting.
-     */
-    private var window = ConsumptionWindow.DEFAULT
 
     private var looping = false
     private var lastDrawNs = 0L
@@ -69,7 +55,6 @@ internal class ClusterDashboardView(
     }
 
     private fun startLoop() {
-        window = ConsumptionSettings.window(context)
         if (looping) return
         looping = true
         lastDrawNs = 0L
@@ -103,7 +88,6 @@ internal class ClusterDashboardView(
             height = height.toFloat(),
             layout = layout,
             telemetry = hub.snapshot,
-            window = window,
         )
     }
 

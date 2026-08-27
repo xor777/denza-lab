@@ -33,15 +33,15 @@ class AutoserviceShellTest {
 
     @Test
     fun floatSignalsUseTransactSeven() {
-        val command = AutoserviceShell.command(listOf(VehicleSignal.SOC_PERCENT))
-        assertTrue(command.contains("service call autoservice 7 i32 1014"))
+        val command = AutoserviceShell.command(listOf(VehicleSignal.CHARGE_KW))
+        assertTrue(command.contains("service call autoservice 7 i32 1009"))
     }
 
     @Test
     fun parseKeepsAnswersOnTheirOwnSignals() {
         val batch = listOf(
             VehicleSignal.POWER_KW,
-            VehicleSignal.SOC_PERCENT,
+            VehicleSignal.CHARGE_KW,
             VehicleSignal.PACK_VOLT,
         )
         val output = """
@@ -56,7 +56,7 @@ class AutoserviceShellTest {
         val values = AutoserviceShell.parse(output, batch)
 
         assertEquals(43.0, values.getValue(VehicleSignal.POWER_KW), 1e-9)
-        assertEquals(43.0, values.getValue(VehicleSignal.SOC_PERCENT), 1e-6)
+        assertEquals(43.0, values.getValue(VehicleSignal.CHARGE_KW), 1e-6)
         assertEquals(550.0, values.getValue(VehicleSignal.PACK_VOLT), 1e-9)
     }
 
@@ -89,7 +89,7 @@ class AutoserviceShellTest {
         // -10013 (wrong transact), -10011 (no data on this generation), -1.0f.
         assertNull(AutoserviceShell.decode(VehicleSignal.PACK_VOLT, 0xFFFFD8E3.toInt()))
         assertNull(AutoserviceShell.decode(VehicleSignal.PACK_VOLT, 0xFFFFD8E5.toInt()))
-        assertNull(AutoserviceShell.decode(VehicleSignal.RAIL_12V, 0xBF800000.toInt()))
+        assertNull(AutoserviceShell.decode(VehicleSignal.CHARGE_KW, 0xBF800000.toInt()))
     }
 
     @Test
@@ -111,14 +111,10 @@ class AutoserviceShellTest {
         assertEquals(28.0, AutoserviceShell.decode(VehicleSignal.PACK_TEMP_AVG, 68)!!, 1e-9)
         // Cell voltage stays in millivolts; 3313 mV.
         assertEquals(3313.0, AutoserviceShell.decode(VehicleSignal.CELL_MIN_MV, 3313)!!, 1e-9)
-        // 0x44700028 is the BMS state of charge in tenths of a percent, not
-        // remaining energy: 432 against a 43 % display, 616 against a 62 % one.
-        assertEquals(43.2, AutoserviceShell.decode(VehicleSignal.BMS_SOC_PERCENT, 432)!!, 1e-9)
-        assertEquals(61.6, AutoserviceShell.decode(VehicleSignal.BMS_SOC_PERCENT, 616)!!, 1e-9)
+        // Battery health is reported as a whole percent.
+        assertEquals(96.0, AutoserviceShell.decode(VehicleSignal.SOH_PERCENT, 96)!!, 1e-9)
         // Odometer is tenths of a kilometre: 118927 -> 11892.7.
         assertEquals(11892.7, AutoserviceShell.decode(VehicleSignal.ODOMETER_KM, 118927)!!, 1e-6)
-        // 12 V rail arrives as float bits.
-        assertEquals(13.8, AutoserviceShell.decode(VehicleSignal.RAIL_12V, 0x415CCCCD)!!, 1e-4)
         // Charge power, float, 2.4 kW on the household socket.
         assertEquals(2.4, AutoserviceShell.decode(VehicleSignal.CHARGE_KW, 0x4019999A)!!, 1e-4)
     }
@@ -130,8 +126,8 @@ class AutoserviceShellTest {
         assertNull(AutoserviceShell.decode(VehicleSignal.PACK_TEMP_AVG, 255))
         // -40 raw is the vendor's "no sensor" marker on the as-is scales.
         assertNull(AutoserviceShell.decode(VehicleSignal.MOTOR_FRONT_C, -40))
-        // A state of charge cannot exceed 100 %.
-        assertNull(AutoserviceShell.decode(VehicleSignal.SOC_PERCENT, 0x42FA0000)) // 125.0f
+        // Battery health cannot exceed 100 %.
+        assertNull(AutoserviceShell.decode(VehicleSignal.SOH_PERCENT, 125))
         // The traction pack is not a 12 V battery.
         assertNull(AutoserviceShell.decode(VehicleSignal.PACK_VOLT, 12))
         // No charger delivers 300 kW to this car; the panel showed one once.

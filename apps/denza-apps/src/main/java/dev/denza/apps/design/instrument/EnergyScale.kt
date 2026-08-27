@@ -9,8 +9,8 @@ import kotlin.math.sqrt
  *
  * The scale is square-root on both sides, which is not decoration: the car spends almost all of its
  * time under 40 kW while the ceiling is [FULL_DISCHARGE_KW], so a linear needle would live pinned
- * near zero and tell a driver nothing. The same reasoning already governs the vehicle page's power
- * bar and the engine page's generation dial; this object is where that decision now lives once.
+ * near zero and tell a driver nothing. Both the cluster's pack gauge and its generation trace use
+ * the same rule, which lives here once.
  *
  * Zero sits at the top of the arc. Discharge runs one way, regeneration the other, and the two
  * sides carry different spans because the car cannot recover anything like what it can spend.

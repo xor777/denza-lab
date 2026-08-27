@@ -56,10 +56,13 @@ ABOVE_ZERO_SHARE = 0.74
 
 LEAD_TITLE, LEAD_FIGURE, LEAD_GROUP, LEAD_ROW = 2.0, 3.0, 3.0, 2.0
 
-# The consumption log and its three windows, mirroring ConsumptionWindow.
+# The current cluster has one fixed 3 km consumption window. The other entries
+# remain only because panel_frame.py can rebuild the archived Energy concept,
+# whose selector showed all three historical choices.
 BUCKET_KM = 0.1
 TARGET_BARS = 30
 WINDOWS = [('SHORT', 3.0, '3 км'), ('MEDIUM', 10.0, '10 км'), ('LONG', 30.0, '30 км')]
+CURRENT_CLUSTER_WINDOW = 'SHORT'
 
 INK = '#DAE1EB'
 MUTED = '#86909B'
@@ -700,16 +703,13 @@ def chart_for(window_name, all_values=None):
 
 
 if __name__ == '__main__':
-    bars, caption, avg, label = chart_for('SHORT')
+    bars, caption, avg, label = chart_for(CURRENT_CLUSTER_WINDOW)
 
     open('ClusterFull.dc.html', 'w').write(board_full(DRIVING, 34.0, caption, bars))
     open('ClusterRight.dc.html', 'w').write(board_right(DRIVING, 34.0, caption, bars))
     open('ClusterRest.dc.html', 'w').write(board_full(RESTING, -2.4, 'стоим', []))
 
-    print('window', label, 'bars', len(bars), 'average', round(avg, 2))
-    for name, km, lbl in WINDOWS:
-        b, c, a, _ = chart_for(name)
-        print(f'  {lbl:6} -> {len(b):3} bars of {km / len(b):.2f} km, "{c}"')
+    print('fixed cluster window', label, 'bars', len(bars), 'average', round(avg, 2))
     for name, kw in (('60', 60.0), ('150', 150.0), ('-20', -20.0), ('34', 34.0)):
         print(f'  {name} kW -> {angle_degrees(float(kw)):.2f} deg, '
               f'fraction {sweep_fraction(float(kw)):.3f}')

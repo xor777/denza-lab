@@ -45,7 +45,7 @@ internal object AutoserviceShell {
      *
      * A signal is absent from the result when its call printed nothing, when the
      * word is a sentinel, or when the decoded value cannot be true for its unit.
-     * Absent means the panel draws a dash; it never means zero.
+     * Absent means the dashboard draws a dash; it never means zero.
      */
     fun parse(output: String, signals: List<VehicleSignal>): Map<VehicleSignal, Double> {
         val values = LinkedHashMap<VehicleSignal, Double>()

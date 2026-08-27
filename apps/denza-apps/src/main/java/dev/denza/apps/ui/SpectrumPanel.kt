@@ -11,7 +11,7 @@ import dev.denza.apps.feature.trip.TripPanelView
  * The strip under the dashboard: the spectrum analyser and the journey's figures.
  *
  * This is intentionally one non-interactive view. The former pager and its
- * vehicle pages are not mounted in the current screen.
+ * vehicle pages were retired and deleted.
  *
  * It answers no touch at all. It carried the hidden diagnostics gesture for exactly one wave, on
  * the reasoning that it was the largest surface on the screen that did nothing when touched - which

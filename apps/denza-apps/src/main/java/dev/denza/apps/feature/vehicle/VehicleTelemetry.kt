@@ -1,6 +1,6 @@
 package dev.denza.apps.feature.vehicle
 
-/** Why the panel has no numbers, when it has none. */
+/** Why the cluster dashboard has no numbers, when it has none. */
 internal enum class VehicleAccess {
     /** Nothing read yet this session. */
     STARTING,
@@ -14,11 +14,11 @@ internal enum class VehicleAccess {
 
 /**
  * One immutable reading of the car, published by [VehicleTelemetryHub] and drawn
- * by [VehiclePanelRenderer].
+ * by the cluster dashboard.
  *
  * A signal missing from [values] is missing on purpose: the call went
- * unanswered, or the value could not be true for its unit. The renderer draws a
- * dash for it. Nothing here is ever defaulted to zero.
+ * unanswered, or the value could not be true for its unit. The dashboard draws
+ * a dash for it. Nothing here is ever defaulted to zero.
  */
 internal data class VehicleTelemetry(
     val access: VehicleAccess = VehicleAccess.STARTING,
@@ -26,14 +26,10 @@ internal data class VehicleTelemetry(
     val values: Map<VehicleSignal, Double> = emptyMap(),
     /** Closed consumption bars, oldest first, kWh/100 km. */
     val consumption: List<Double> = emptyList(),
-    /** Consumption over the last few hundred metres; null while standing. */
-    val currentConsumption: Double? = null,
-    /** True while the odometer is not advancing; the live figure holds off. */
+    /** True while the odometer is not advancing. */
     val stationary: Boolean = false,
     /** The last two minutes of revolutions and generation, on a one-second axis. */
     val engineTrace: EngineTraceSnapshot = EngineTraceSnapshot.EMPTY,
-    /** Milliseconds the last shell sweep took; kept for diagnostics, not shown. */
-    val sweepMillis: Int = 0,
 ) {
 
     operator fun get(signal: VehicleSignal): Double? = values[signal]
@@ -67,22 +63,6 @@ internal data class VehicleTelemetry(
             return max - min
         }
 
-    /** Cell window as the pack actually reports it, in volts. */
-    val cellWindowVolt: Pair<Double, Double>?
-        get() {
-            val min = this[VehicleSignal.CELL_MIN_MV] ?: return null
-            val max = this[VehicleSignal.CELL_MAX_MV] ?: return null
-            return (min / 1000.0) to (max / 1000.0)
-        }
-
-    val cellAverageVolt: Double?
-        get() {
-            val pack = this[VehicleSignal.PACK_VOLT] ?: return null
-            val cells = this[VehicleSignal.CELL_COUNT] ?: return null
-            if (cells < 1.0) return null
-            return pack / cells
-        }
-
     val insulationMohm: Double?
         get() = this[VehicleSignal.INSULATION_KOHM]?.let { it / 1000.0 }
 
@@ -104,7 +84,7 @@ internal data class VehicleTelemetry(
     // ------------------------------------------------------------- combustion
 
     /**
-     * Null when the engine set has not been polled yet, which is not the same as
+     * Null when the signal has not answered yet, which is not the same as
      * stopped. Measured on the car across a full start/stop cycle this reads `0`
      * stopped and `3` running, including while spinning down; no other value has
      * been seen.
@@ -119,18 +99,12 @@ internal data class VehicleTelemetry(
     /**
      * Measured 2026-08-23: the state reads `1` while generating and `2` through
      * the shutdown, where the kilowatt figure has already fallen to zero and the
-     * engine is only spinning down. Only `1` counts, so the page stops claiming
+     * engine is only spinning down. Only `1` counts, so the dashboard stops claiming
      * generation a second and a half before the engine actually stops.
      */
     val generating: Boolean
         get() = this[VehicleSignal.GENERATION_STATE] == GENERATION_ON ||
             (generationKw ?: 0.0) > GENERATION_FLOOR_KW
-
-    // ------------------------------------------------------------------ tank
-
-    val fuelPercent: Double? get() = this[VehicleSignal.FUEL_PERCENT]
-
-    val fuelRangeKm: Double? get() = this[VehicleSignal.FUEL_RANGE_KM]
 
     /** Worst answer across the ids that carry this lamp. */
     fun lamp(lamp: EngineLamp): LampState {

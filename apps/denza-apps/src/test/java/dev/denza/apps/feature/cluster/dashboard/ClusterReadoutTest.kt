@@ -104,28 +104,10 @@ class ClusterReadoutTest {
     }
 
     @Test
-    fun aHalfFullTankIsNeverAnAlarmOfOurs() {
-        // 53 % is the live reading, and it is the number that caught the defect: an id read here as
-        // the car's low-fuel alarm answered 0 on 2026-08-23 and 1 on 2026-08-25 against exactly this
-        // tank, painting a half-full tank in the alert colour. The alarm belongs to the stock lamp.
-        assertEquals(ClusterReadout.Level.NORMAL, ClusterReadout.fuelState(53.0))
-        assertEquals(ClusterReadout.Level.WATCH, ClusterReadout.fuelState(12.0))
-        assertEquals(ClusterReadout.Level.UNKNOWN, ClusterReadout.fuelState(null))
-        // Even a dry tank stays a watch here; the alert colour is the stock lamp's to give.
-        assertEquals(ClusterReadout.Level.WATCH, ClusterReadout.fuelState(0.0))
-    }
-
-    @Test
-    fun aTankIsReadStraightThroughBecauseAFuelGaugeIsWhereLinearIsHonest() {
-        assertEquals(0.53f, ClusterReadout.fuelFraction(53.0)!!, 1e-4f)
-        assertNull(ClusterReadout.fuelFraction(null))
-    }
-
-    @Test
     fun aStoppedEngineSaysNothingBecauseItsOwnFigureAlreadyDoes() {
         // It used to say "заглушен · 491 км на бензине". The owner cut both halves on the car and
         // was right twice: the revolutions on the row above already read the engine's state, and
-        // the range on petrol is on the vehicle's own strip a few centimetres away.
+        // the stock cluster already carries the range on petrol.
         assertEquals(
             "",
             ClusterReadout.engineLine(generating = false, generationKw = null, running = false),

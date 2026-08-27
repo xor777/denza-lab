@@ -23,14 +23,21 @@ that reports what collides.
 | --- | --- |
 | `*.dc.html` | the artboards, one sandboxed document each |
 | `canvas.json` | positions, pages and the launch view |
-| `gen_cluster.py` | emits the three cluster boards as they stand on the car today |
+| `gen_cluster.py` | emits the three cluster boards as they stand on the car today, with the current fixed 3 km consumption window |
 | `gen_next.py` | emits the proposed cluster: one horizon, two histories, the gauge |
 | `gen_kit.py` | emits the two boards that describe the system, from the system |
-| `panel_frame.py` | the shared frame for the four instrument pages; rebuilds Energy |
+| `panel_frame.py` | archived tooling for the four retired head-unit instrument concepts; rebuilds Energy |
 | `normalize.py` | maps type, radii, borders and icon weights onto the scales |
 | `audit.py` | opens every board in headless Chrome and reports what collides |
 | `shot.py` | renders one board to a PNG at panel pixels, so it can be looked at |
 | `compare.py` | lays a board against a screenshot of the car and reports what moved |
+
+`Energy.dc.html`, `Battery.dc.html`, `Thermal.dc.html`, `Engine.dc.html` and the
+old pager compositions in `OneThird.dc.html` and `TwoThirds.dc.html` are kept as
+historical design evidence. Those head-unit pages are retired and are not a
+current app contract. The active contracts are the head-unit `Main.dc.html`
+spectrum strip and the cluster boards; the cluster consumption history has one
+fixed 3 km window and no selector.
 
 ## Running the audit
 

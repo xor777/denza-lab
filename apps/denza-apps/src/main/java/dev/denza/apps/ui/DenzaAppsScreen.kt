@@ -256,7 +256,7 @@ fun DenzaAppsRoot(
                         )
                         Spacer(Modifier.height(DenzaMetrics.Space.M))
                         // The current product strip is one spectrum/trip panel. The former pager
-                        // and its vehicle pages are not mounted on this screen.
+                        // and its vehicle pages were retired and deleted.
                         if (!adbStartupBlocked) {
                             SpectrumPanel(
                                 compactLayout = compactLayout,

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
-One frame for the four instrument pages, and the Energy page rebuilt on it.
+Historical frame for the four retired head-unit instrument concepts, and the
+archived Energy board rebuilt on it.
 
 The audit measured the four 1192x400 boards a reader flips between and found
 four different grids: root gaps of 28/26/20/24, right insets of 8/0/6/0, band
@@ -32,13 +33,13 @@ ROOT = (f'<div style="width:{PANEL_W}px; height:{PANEL_H}px; box-sizing:border-b
 BARS = g.DRIVING_BARS
 BUCKET_KM = g.BUCKET_KM
 
-# The Energy page is where the window is chosen, so it is drawn at the widest of
-# the three - the one that only exists because the journal survives a restart.
+# The archived Energy concept showed a selector and is drawn at its widest
+# historical choice. The current cluster has one fixed 3 km window instead.
 WINDOW = 'LONG'
 
 
 def chips(selected):
-    """The window selector: one row, one selected, every chip the same height.
+    """The archived window selector: one row, one selected, every chip the same height.
 
     The selected chip is filled rather than thicker, which is the rule the whole
     set follows now - a two-pixel border made the selected card two pixels taller

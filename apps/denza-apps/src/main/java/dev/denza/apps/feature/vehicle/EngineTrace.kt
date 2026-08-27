@@ -3,17 +3,15 @@ package dev.denza.apps.feature.vehicle
 /**
  * Two minutes of the combustion half, as two traces on one time axis.
  *
- * The cluster used to give revolutions a number and a bar, and the tank a percentage beside them.
- * Both are on the vehicle's own cluster a few centimetres away, so both were spending the block on
- * a duplicate. What is nowhere else is the *shape*: whether the engine has just woken, how long it
- * has been holding a generating speed, whether the kilowatts it puts back are steady or sagging.
- * That needs a history, and nothing in this app kept one.
+ * The cluster already gives current revolutions a number and a bar. What is nowhere else is the
+ * *shape*: whether the engine has just woken, how long it has been holding a generating speed, and
+ * whether the kilowatts it puts back are steady or sagging. This trace took the room once spent on
+ * a duplicate tank percentage and keeps that short history on one shared time axis.
  *
- * The axis is time, not sweeps. The poll runs at 300 ms while the dashboard is on screen and at
- * 2.5 s when it is not, and it backs off further when the shell struggles - so a trace of "the last
- * hundred and twenty readings" would silently stretch and shrink. Readings therefore land in fixed
- * one-second slots, and a slot the poll did not reach stays empty rather than being interpolated
- * across: an unwatched minute must look like an unwatched minute.
+ * The axis is time, not sweeps. The poll runs at 300 ms while the dashboard is on screen and backs
+ * off when the shell struggles, so a trace of "the last hundred and twenty readings" would silently
+ * stretch and shrink. Readings therefore land in fixed one-second slots, and a slot the poll did not
+ * reach stays empty rather than being interpolated across.
  */
 internal class EngineTrace(
     private val slotMillis: Long = SLOT_MS,
@@ -31,7 +29,7 @@ internal class EngineTrace(
      *
      * [atMillis] must come from a monotonic clock. Several readings inside one second are ordinary
      * at the dashboard's cadence and the newest of them wins: a slot is a second, and the last
-     * answer in it is the one a driver looking at the panel would have seen.
+     * answer in it is the one a driver looking at the dashboard would have seen.
      */
     fun sample(atMillis: Long, rpm: Double?, generationKw: Double?) {
         val slot = atMillis / slotMillis
@@ -65,7 +63,7 @@ internal class EngineTrace(
     }
 
     /**
-     * The trace as the panel draws it: always [capacity] slots, oldest first, newest last.
+     * The trace as the dashboard draws it: always [capacity] slots, oldest first, newest last.
      *
      * Front-padded rather than returned short, so a chart drawn from it cannot stretch ninety
      * seconds of history across a two-minute axis on its first minute of running.
