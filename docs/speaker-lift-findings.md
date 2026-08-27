@@ -133,11 +133,27 @@ code answered the first by sending `2`, a 350 ms pause, then `1` whenever cover
 position was unknown - which is every service start - and the owner saw exactly
 that on the car: the covers twitching on every switch-on.
 
-The app now remembers the last value it wrote. A break is needed only when the
-value wanted is the one already there, and in that case the opposite command asks
-a motor already at that end to go there again, which moves nothing. Either way
-the driver sees one movement. The pair is still `2`, 350 ms, `1`, and it is paid
-once per install.
+**The model is best effort with a storm guard, and nothing else.** There is no
+believed position: a signal (a known player in the foreground, an active
+MediaSession, three seconds of sustained output, thirty minutes of confirmed
+silence) becomes one command, and the same wish is not sent twice. A repeat would
+be a no-op anyway - the value is already there - so skipping it costs nothing.
+A failed command may be retried once the 30-second guard has passed; without the
+guard, the 5 Hz audio sampler would retry at 5 Hz.
+
+The `2`, 350 ms, `1` pair survives for exactly one case: the first command after
+a boot, when the app has written nothing and the firmware could be holding either
+value. The remembered value is therefore scoped to the boot (wall clock less
+`SystemClock.elapsedRealtime()`, with 30 s of slack), because the amplifier goes
+down with the car and a value remembered across an ignition cycle is a guess that
+fails silently - the write matches, nothing changes, no motor moves, and the
+feature looks dead with nothing to read. Covers are retracted at that point, so
+the pair's close moves nothing and only the open is seen.
+
+The one case that still shows a double movement: the very first command of a boot
+while the stock system has already raised the covers. There is no way to detect
+it - that is the price of an unreadable position, and it is one moment per
+ignition cycle rather than every switch-on.
 
 Turning automation off first opens the covers and only then stops the service, so
 a user cannot be left with closed covers and stock auto-lift already suppressed.

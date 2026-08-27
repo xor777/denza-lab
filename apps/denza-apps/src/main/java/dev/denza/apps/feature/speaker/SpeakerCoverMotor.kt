@@ -33,14 +33,18 @@ internal object SpeakerCoverMotorProtocol {
     fun opposite(value: Int): Int = if (value == OPEN) CLOSE else OPEN
 
     /**
-     * Whether writing [target] on its own would move nothing.
+     * Whether the opposite value has to be sent first to make an edge at all.
      *
-     * The property is edge-triggered, so only a *change* of value reaches the motor. A car whose
-     * last written value is already [target] needs the opposite sent first to make one. We are the
-     * only writer, so [lastWritten] is knowable - except before our first ever command, where the
-     * firmware's value could be either and the break has to be paid once.
+     * Only when nothing is remembered. The property is edge-triggered, so a write only reaches the
+     * motor if it changes the value - and before this app's first command of a boot, the firmware
+     * could be holding either one, so the pair has to be paid once.
+     *
+     * Never for a repeat of a value we ourselves last wrote. Forcing an edge there is a close and
+     * an open 350 ms apart, which on covers that are already out is them twitching - the fault this
+     * feature was reported for. It would only help if the amplifier had lowered them behind our
+     * back, and that case cannot be told from the ordinary one without a sensor there isn't.
      */
-    fun needsEdgeBreak(lastWritten: Int?, target: Int): Boolean = lastWritten != opposite(target)
+    fun needsEdgeBreak(lastWritten: Int?): Boolean = lastWritten == null
 
     const val OPEN = 1
     const val CLOSE = 2
@@ -54,12 +58,11 @@ internal object SpeakerCoverMotor {
      * not know where the covers were - two commands 350 ms apart, which from the driver's seat is
      * the covers twitching. That is what the car showed: дёрг-дёрг on every switch-on.
      *
-     * The mistake was treating one unknown as two. Where the covers *are* is the automaton's
-     * business and can change behind our back, because the amplifier lowers them on its own. What
-     * the property last *saw* is ours alone - we are its only writer - so it can simply be
-     * remembered. Knowing it, the break is needed only when the value we want is the value already
-     * there; and in that case the opposite command asks a motor that is already at that end to go
-     * there again, which moves nothing. Either way the driver sees one movement.
+     * The mistake was treating one unknown as two. Where the covers *are* is unknowable and not
+     * worth pretending about. What the property last *saw* is ours alone - we are its only writer -
+     * so it can simply be remembered, for as long as the firmware holding it has been up. Knowing
+     * it, the pair is needed exactly once per boot and never again: every later command differs
+     * from the last one written, so a single write makes its own edge.
      */
     fun execute(
         context: Context,
@@ -73,7 +76,7 @@ internal object SpeakerCoverMotor {
         val session = DenzaLocalAdb.client(context).openPersistentShell()
         return try {
             val lastWritten = SpeakerCoverSettings.lastCommandValue(context)
-            val prelude = if (SpeakerCoverMotorProtocol.needsEdgeBreak(lastWritten, target)) {
+            val prelude = if (SpeakerCoverMotorProtocol.needsEdgeBreak(lastWritten)) {
                 val broken = call(context, session, SpeakerCoverMotorProtocol.opposite(target))
                 pause(EDGE_BREAK_PAUSE_MS)
                 "$broken\n"

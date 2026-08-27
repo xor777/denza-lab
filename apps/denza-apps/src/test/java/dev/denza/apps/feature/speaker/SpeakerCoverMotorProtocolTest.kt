@@ -43,32 +43,22 @@ class SpeakerCoverMotorProtocolTest {
     }
 
     /**
-     * The rule that stopped the covers twitching on every switch-on.
+     * The rule that stopped the covers twitching, in both directions.
      *
-     * The old code sent in-then-out whenever it did not know where the covers were, and the car
-     * showed exactly that: two movements, 350 ms apart. A break is needed only when a plain write
-     * would repeat the value the property already holds.
+     * A pair is sent only when nothing is remembered - once per boot, before this app has written
+     * anything and the firmware could be holding either value. Once something is remembered, every
+     * command is a single write: the automaton never repeats a wish it already asked for, so the
+     * value always differs from the last one and makes its own edge.
+     *
+     * Forcing a pair on a value we ourselves last wrote is the fault this feature was reported for:
+     * a close and an open 350 ms apart, which on covers already out is them twitching.
      */
     @Test
-    fun aBreakIsNeededOnlyWhenThePropertyAlreadyHoldsTheValueWeWant() {
-        val open = SpeakerCoverMotorProtocol.OPEN
-        val close = SpeakerCoverMotorProtocol.CLOSE
+    fun aPairIsSentOnlyWhenNothingIsRemembered() {
+        assertTrue(SpeakerCoverMotorProtocol.needsEdgeBreak(lastWritten = null))
 
-        assertFalse(SpeakerCoverMotorProtocol.needsEdgeBreak(lastWritten = close, target = open))
-        assertFalse(SpeakerCoverMotorProtocol.needsEdgeBreak(lastWritten = open, target = close))
-        assertTrue(SpeakerCoverMotorProtocol.needsEdgeBreak(lastWritten = open, target = open))
-        assertTrue(SpeakerCoverMotorProtocol.needsEdgeBreak(lastWritten = close, target = close))
-    }
-
-    /** Before the first command ever sent, the firmware's value could be either one. */
-    @Test
-    fun anUnwrittenPropertyIsPaidForOnce() {
-        assertTrue(
-            SpeakerCoverMotorProtocol.needsEdgeBreak(
-                lastWritten = null,
-                target = SpeakerCoverMotorProtocol.OPEN,
-            ),
-        )
+        assertFalse(SpeakerCoverMotorProtocol.needsEdgeBreak(SpeakerCoverMotorProtocol.OPEN))
+        assertFalse(SpeakerCoverMotorProtocol.needsEdgeBreak(SpeakerCoverMotorProtocol.CLOSE))
     }
 
     @Test

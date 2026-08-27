@@ -2,12 +2,14 @@ package dev.denza.apps.feature.speaker
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class SpeakerCoverAutomatonTest {
 
+    /** Asked once. A second signal saying the same thing is not a second command. */
     @Test
-    fun unknownPositionAsksForOpenLikeAnyOtherPosition() {
+    fun theSameWishIsOnlyEverAskedForOnce() {
         val automaton = SpeakerCoverAutomaton()
 
         assertEquals(
@@ -23,7 +25,41 @@ class SpeakerCoverAutomatonTest {
                 nowMs = 2L,
             ),
         )
-        assertEquals(SpeakerCoverPosition.OPEN, automaton.position)
+        assertTrue(automaton.raised == true)
+        // A whole track later, still playing, still nothing to say.
+        assertNull(automaton.onImmediateOpen(600_000L, "another player"))
+        assertNull(automaton.onTick(900_000L))
+    }
+
+    /**
+     * The guard the sampler makes necessary.
+     *
+     * Audio frames arrive five times a second and the wish does not change between them, so a
+     * command that fails would be retried at that rate without this - which is the storm the guard
+     * exists for, not a model of the car.
+     */
+    @Test
+    fun aFailedCommandWaitsOutTheGuardBeforeTheSameWishIsSentAgain() {
+        val automaton = SpeakerCoverAutomaton(retryGuardMs = 100L)
+
+        val first = automaton.onImmediateOpen(0L, "app")!!
+        assertEquals(SpeakerCoverMotorAction.OPEN, first.action)
+        assertNull(automaton.onMotorResult(first.action, success = false, nowMs = 10L))
+        assertNull(automaton.onTick(50L))
+        assertNull(automaton.onTick(99L))
+        assertEquals(SpeakerCoverMotorAction.OPEN, automaton.onTick(100L)?.action)
+    }
+
+    /** The other direction needs no guard at all: a different wish is always worth sending. */
+    @Test
+    fun theOppositeWishGoesOutAtOnce() {
+        val automaton = SpeakerCoverAutomaton()
+        val open = automaton.onImmediateOpen(0L, "app")!!
+        automaton.onMotorResult(open.action, success = true, nowMs = 1L)
+
+        val close = automaton.onManualPosition(open = false, nowMs = 2L)
+        assertEquals(SpeakerCoverMotorAction.CLOSE, close?.action)
+        assertTrue(automaton.raised == false)
     }
 
     @Test
@@ -130,12 +166,7 @@ class SpeakerCoverAutomatonTest {
     }
 
     @Test
-    fun aFailedMotorCommandRetriesAfterItsCooldown() {
-        val automaton = SpeakerCoverAutomaton(retryCooldownMs = 100L)
-        val first = automaton.onImmediateOpen(0L, "app")!!
-
-        assertNull(automaton.onMotorResult(first.action, success = false, nowMs = 10L))
-        assertNull(automaton.onTick(109L))
-        assertEquals(SpeakerCoverMotorAction.OPEN, automaton.onTick(110L)?.action)
+    fun productionGuardIsThirtySeconds() {
+        assertEquals(30_000L, SpeakerCoverAutomaton.RETRY_GUARD_MS)
     }
 }

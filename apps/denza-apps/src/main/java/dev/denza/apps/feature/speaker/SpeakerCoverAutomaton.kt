@@ -1,12 +1,5 @@
 package dev.denza.apps.feature.speaker
 
-/** What the app last established, not a claim about an unreadable position sensor. */
-enum class SpeakerCoverPosition {
-    UNKNOWN,
-    OPEN,
-    CLOSED,
-}
-
 /**
  * One serialized motor operation: where the covers should end up, nothing more.
  *
@@ -36,9 +29,16 @@ class SpeakerCoverAutomaton(
     private val fallbackSoundMs: Long = FALLBACK_SOUND_MS,
     private val closeSilenceMs: Long = CLOSE_SILENCE_MS,
     private val maxConfirmedSampleGapMs: Long = MAX_CONFIRMED_SAMPLE_GAP_MS,
-    private val retryCooldownMs: Long = RETRY_COOLDOWN_MS,
+    private val retryGuardMs: Long = RETRY_GUARD_MS,
 ) {
-    var position: SpeakerCoverPosition = SpeakerCoverPosition.UNKNOWN
+    /**
+     * The last thing this app asked the covers to do, or null before it has asked for anything.
+     *
+     * Deliberately not "where the covers are". There is no sensor, the amplifier lowers them on
+     * its own, and a field named `position` was a claim the app had no way to make - it was only
+     * ever set from our own commands, which is what this says out loud.
+     */
+    var raised: Boolean? = null
         private set
 
     var pendingAction: SpeakerCoverMotorAction? = null
@@ -53,7 +53,8 @@ class SpeakerCoverAutomaton(
     private var desiredOpen: Boolean? = null
     private var lastSampleAtMs: Long? = null
     private var lastSampleHadSignal = false
-    private var retryNotBeforeMs = 0L
+    private var askedAtMs = 0L
+    private var askFailed = false
     private var desiredReason = ""
 
     fun onImmediateOpen(nowMs: Long, reason: String): SpeakerCoverMotorRequest? {
@@ -84,8 +85,6 @@ class SpeakerCoverAutomaton(
         consecutiveSoundMs = 0L
         lastSampleAtMs = null
         lastSampleHadSignal = false
-        // A hand also clears a cooldown: the driver pressing a button is not the retry timer.
-        retryNotBeforeMs = 0L
         return reconcile(nowMs)
     }
 
@@ -148,25 +147,44 @@ class SpeakerCoverAutomaton(
     ): SpeakerCoverMotorRequest? {
         if (pendingAction != action) return null
         pendingAction = null
-        if (success) {
-            position = when (action) {
-                SpeakerCoverMotorAction.OPEN -> SpeakerCoverPosition.OPEN
-                SpeakerCoverMotorAction.CLOSE -> SpeakerCoverPosition.CLOSED
-            }
-            retryNotBeforeMs = 0L
-        } else {
-            retryNotBeforeMs = nowMs + retryCooldownMs
-        }
+        askFailed = !success
         return reconcile(nowMs)
     }
 
+    /**
+     * Best effort, and a guard against saying it twice.
+     *
+     * There is no model of the car here any more. A signal arrives, the command goes out, and that
+     * is the whole of it - what used to be a reconciliation between a wish and a believed position
+     * was two names for one fact, because the believed position was only ever set from the commands
+     * this same object sent. The owner said as much looking at it: there is nothing to keep in step
+     * with, only a thing to ask for.
+     *
+     * What has to stay is the guard. The audio sampler ticks five times a second and the wish is
+     * unchanged between ticks, so without it a playing track would send the same command every
+     * 200 ms - and a command that fails would be retried at that rate too. So: ask once, and ask
+     * again only if the wish changes, or if the last attempt failed and [retryGuardMs] has passed.
+     *
+     * A repeat of a wish that succeeded is skipped rather than sent, and that costs nothing: the
+     * property is edge-triggered, so writing the value it already holds moves no motor. The one
+     * thing that could make such a repeat useful - the amplifier having lowered the covers behind
+     * our back - cannot be told apart from the ordinary case without a sensor, and forcing an edge
+     * on the ordinary case is exactly the twitch this feature was reported for.
+     */
     private fun reconcile(nowMs: Long): SpeakerCoverMotorRequest? {
-        if (pendingAction != null || nowMs < retryNotBeforeMs) return null
+        if (pendingAction != null) return null
         val targetOpen = desiredOpen ?: return null
-        val action = when {
-            targetOpen && position != SpeakerCoverPosition.OPEN -> SpeakerCoverMotorAction.OPEN
-            !targetOpen && position != SpeakerCoverPosition.CLOSED -> SpeakerCoverMotorAction.CLOSE
-            else -> return null
+        if (targetOpen == raised) {
+            val retryDue = askFailed && nowMs - askedAtMs >= retryGuardMs
+            if (!retryDue) return null
+        }
+        raised = targetOpen
+        askedAtMs = nowMs
+        askFailed = false
+        val action = if (targetOpen) {
+            SpeakerCoverMotorAction.OPEN
+        } else {
+            SpeakerCoverMotorAction.CLOSE
         }
         pendingAction = action
         return SpeakerCoverMotorRequest(action, desiredReason)
@@ -176,6 +194,7 @@ class SpeakerCoverAutomaton(
         const val FALLBACK_SOUND_MS = 3_000L
         const val CLOSE_SILENCE_MS = 30L * 60L * 1_000L
         const val MAX_CONFIRMED_SAMPLE_GAP_MS = 1_000L
-        const val RETRY_COOLDOWN_MS = 30_000L
+        /** How long a failed command waits before the same wish may be sent again. */
+        const val RETRY_GUARD_MS = 30_000L
     }
 }

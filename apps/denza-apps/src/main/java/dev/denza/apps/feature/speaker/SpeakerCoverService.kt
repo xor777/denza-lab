@@ -263,7 +263,7 @@ class SpeakerCoverService : Service() {
         SpeakerCoverRuntime.publish(
             SpeakerCoverRuntimeState(
                 phase = phase,
-                position = automaton.position,
+                raised = automaton.raised,
                 message = message,
                 details = details,
             ),

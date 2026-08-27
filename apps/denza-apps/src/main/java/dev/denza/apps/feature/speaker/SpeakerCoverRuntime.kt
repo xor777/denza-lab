@@ -17,7 +17,8 @@ enum class SpeakerCoverRuntimePhase {
 
 data class SpeakerCoverRuntimeState(
     val phase: SpeakerCoverRuntimePhase = SpeakerCoverRuntimePhase.STOPPED,
-    val position: SpeakerCoverPosition = SpeakerCoverPosition.UNKNOWN,
+    /** What the app last asked for, not a reading of the covers - there is no reading. */
+    val raised: Boolean? = null,
     val message: String = "",
     val details: String? = null,
 )
@@ -59,11 +60,7 @@ object SpeakerCoverRuntime {
             SpeakerCoverRuntimePhase.MONITORING -> FeatureSnapshot(
                 id = FeatureId.SPEAKER_COVERS,
                 desiredEnabled = true,
-                status = if (runtime.position == SpeakerCoverPosition.OPEN) {
-                    FeatureStatus.ACTIVE
-                } else {
-                    FeatureStatus.READY
-                },
+                status = if (runtime.raised == true) FeatureStatus.ACTIVE else FeatureStatus.READY,
                 message = runtime.message.ifBlank { "Автоматика работает" },
                 details = runtime.details,
             )

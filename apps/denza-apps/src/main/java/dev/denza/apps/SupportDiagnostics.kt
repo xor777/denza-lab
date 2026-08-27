@@ -72,7 +72,7 @@ object SupportDiagnostics {
                 add(
                     "Крышки динамиков=" +
                         "phase=${speaker.phase.name.lowercase()}; " +
-                        "position=${speaker.position.name.lowercase()}; " +
+                        "asked=${speaker.raised?.let { if (it) "up" else "down" } ?: "—"}; " +
                         "message=${speaker.message.ifBlank { "—" }}; " +
                         "details=${speaker.details ?: "—"}",
                 )
