@@ -132,16 +132,38 @@ object DenzaMetrics {
         /** The dashboard tile, measured off Main.dc.html. */
         val TILE_HEIGHT: Dp = 164.dp
 
-        /** The tile's icon, at the size the board draws it - and the chip's, unchanged. */
+        /** The tile's icon, at the size the board draws it. */
         val TILE_ICON: Dp = 30.dp
 
         /**
-         * The chip's state dot, and how far in from its corner it sits.
+         * The chip's insides, as fractions of the chip.
          *
-         * A chip has no caption, so this is the whole of what it says beyond which feature it is.
+         * At ten features the chip is 68.0 dp in the two-thirds pane and 68.8 in the narrow one,
+         * and these three come to 30, 7 and 9 - which is what they were written as. They are
+         * ratios because a chip is a fraction of its row, so adding a feature shrinks it: an
+         * eleventh puts it at 60.7, and a fixed 30 dp glyph in a 60.7 chip has its top-right
+         * corner under the dot.
+         *
+         * The dot is the whole of what a chip says beyond which feature it is, so it has to stay
+         * clear of the glyph at every size a chip can be.
          */
-        val CHIP_DOT: Dp = 7.dp
-        val CHIP_DOT_INSET: Dp = 9.dp
+        const val CHIP_ICON_RATIO: Float = 30f / 68f
+        const val CHIP_DOT_RATIO: Float = 7f / 68f
+        const val CHIP_DOT_INSET_RATIO: Float = 9f / 68f
+
+        /**
+         * The smallest chip this design has.
+         *
+         * At 52 the glyph is 23 dp. Under that it stops reading at arm's length from a driver's
+         * seat, and the target stops being comfortable - the platform's own floor for something a
+         * finger has to hit is 48, and this keeps a little over it.
+         *
+         * Twelve features fit both panes: one row of twelve at 54.7 dp, two rows of six at 55.3.
+         * A thirteenth is 49.5 and 45.7, and `DashboardLayoutPolicyTest` fails rather than the
+         * screen quietly getting smaller - adding one is a design decision at that point, not an
+         * entry in a registry. `ChipDensity.dc.html` draws all four counts.
+         */
+        val CHIP_MIN: Dp = 52.dp
 
         /**
          * How many tiles a full-width dashboard puts in one row.
@@ -165,18 +187,20 @@ object DenzaMetrics {
         const val PICKER_COLUMNS: Int = 5
 
         /**
-         * How many chips a pane puts in one row.
+         * How many rows of chips the narrow pane uses.
          *
-         * Ten across the two-thirds pane and five across two rows of the narrow one, which makes
-         * the chip 68.0 and 68.8 dp - one object at both widths. Ten features cost a pane 68 dp of
-         * its height this way, against the 516 that ten tiles cost, and what the difference buys
-         * is the analyser: it is the only thing on this screen that moves, and a pane is entered
-         * with two thirds of the display already doing something else.
+         * The two-thirds pane has no matching constant because it has one row: a band of icons is
+         * a toolbar, and a toolbar does not wrap, it fits. So the column count is the number of
+         * features and the chip is its share of the row - which is what makes an eleventh feature
+         * cost every chip 7 dp instead of costing the analyser a whole row of 80.
          *
-         * See [dev.denza.apps.ui.components.DenzaChip], `TwoThirds.dc.html`, `OneThird.dc.html`.
+         * The narrow pane is 392 dp of content and would put ten chips at 26 dp in one row, so it
+         * takes two and the same rule applies inside them.
+         *
+         * See [dev.denza.apps.ui.components.DenzaChip], `TwoThirds.dc.html`, `OneThird.dc.html`,
+         * `ChipDensity.dc.html`.
          */
-        const val CHIP_COLUMNS_MEDIUM: Int = 10
-        const val CHIP_COLUMNS_NARROW: Int = 5
+        const val CHIP_ROWS_NARROW: Int = 2
 
         /**
          * The driver-screen picker's row.

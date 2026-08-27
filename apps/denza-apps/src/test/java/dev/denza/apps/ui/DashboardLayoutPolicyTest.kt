@@ -61,9 +61,9 @@ class DashboardLayoutPolicyTest {
         assertEquals(DenzaMetrics.Space.L, DashboardLayoutPolicy.sideMargin(DashboardLayoutMode.MEDIUM))
         assertEquals(DenzaMetrics.Space.M, DashboardLayoutPolicy.sideMargin(DashboardLayoutMode.NARROW))
 
-        assertEquals(6, DashboardLayoutPolicy.columns(DashboardLayoutMode.WIDE))
-        assertEquals(10, DashboardLayoutPolicy.columns(DashboardLayoutMode.MEDIUM))
-        assertEquals(5, DashboardLayoutPolicy.columns(DashboardLayoutMode.NARROW))
+        assertEquals(6, DashboardLayoutPolicy.columns(DashboardLayoutMode.WIDE, FEATURES))
+        assertEquals(10, DashboardLayoutPolicy.columns(DashboardLayoutMode.MEDIUM, FEATURES))
+        assertEquals(5, DashboardLayoutPolicy.columns(DashboardLayoutMode.NARROW, FEATURES))
 
         // A feature is written out on the full screen and compressed to a chip in a pane.
         assertEquals(false, DashboardLayoutPolicy.chips(DashboardLayoutMode.WIDE))
@@ -76,6 +76,50 @@ class DashboardLayoutPolicyTest {
     }
 
     @Test
+    fun `an eleventh feature costs the chip seven dp and the analyser nothing`() {
+        // The question this answers: what happens when a feature is added. A band of icons is a
+        // toolbar and a toolbar fits rather than wraps, so the chip is its share of the row and an
+        // eleventh makes every chip smaller instead of taking a whole row of 80 dp off the
+        // analyser. `ChipDensity.dc.html` draws ten through thirteen.
+        assertEquals(10, DashboardLayoutPolicy.columns(DashboardLayoutMode.MEDIUM, 10))
+        assertEquals(11, DashboardLayoutPolicy.columns(DashboardLayoutMode.MEDIUM, 11))
+        assertEquals(5, DashboardLayoutPolicy.columns(DashboardLayoutMode.NARROW, 10))
+        assertEquals(6, DashboardLayoutPolicy.columns(DashboardLayoutMode.NARROW, 11))
+        assertEquals(6, DashboardLayoutPolicy.columns(DashboardLayoutMode.NARROW, 12))
+
+        assertEquals(68.0f, DashboardLayoutPolicy.chipWidth(DashboardLayoutMode.MEDIUM, 10).value, 0.05f)
+        assertEquals(60.7f, DashboardLayoutPolicy.chipWidth(DashboardLayoutMode.MEDIUM, 11).value, 0.05f)
+        assertEquals(68.8f, DashboardLayoutPolicy.chipWidth(DashboardLayoutMode.NARROW, 10).value, 0.05f)
+        assertEquals(55.3f, DashboardLayoutPolicy.chipWidth(DashboardLayoutMode.NARROW, 11).value, 0.05f)
+    }
+
+    @Test
+    fun `the dashboard this app ships still leaves a chip worth pressing`() {
+        // The guard, and it is deliberately the thing that fails rather than the screen. Twelve
+        // features fit both panes - 54.7 and 55.3 dp - and a thirteenth is 49.5 and 45.7, under a
+        // floor set by a glyph that has to read at arm's length and a target a finger has to hit.
+        // Adding one past that is a design decision, so it should stop somebody here and not turn
+        // up as chips that quietly got smaller.
+        val floor = DenzaMetrics.Component.CHIP_MIN.value
+        for (mode in listOf(DashboardLayoutMode.MEDIUM, DashboardLayoutMode.NARROW)) {
+            val chip = DashboardLayoutPolicy.chipWidth(mode, FEATURES).value
+            assertTrue(
+                "$FEATURES features put the $mode chip at $chip dp, under the $floor floor - " +
+                    "the panes need a row added or a feature dropped, not a smaller chip",
+                chip >= floor,
+            )
+            assertTrue(
+                "twelve should still fit $mode",
+                DashboardLayoutPolicy.chipWidth(mode, 12).value >= floor,
+            )
+            assertTrue(
+                "and thirteen should not, or this floor means nothing",
+                DashboardLayoutPolicy.chipWidth(mode, 13).value < floor,
+            )
+        }
+    }
+
+    @Test
     fun `a chip row costs a pane a fraction of what a tile row costs`() {
         // The reason a pane has chips at all, as arithmetic rather than as taste. Ten tiles at the
         // width their names need are four rows at 828 dp and five at 416 - 692 and 868 dp of a
@@ -85,10 +129,10 @@ class DashboardLayoutPolicyTest {
             828 to DashboardLayoutMode.MEDIUM,
             416 to DashboardLayoutMode.NARROW,
         )) {
-            val columns = DashboardLayoutPolicy.columns(mode)
+            val columns = DashboardLayoutPolicy.columns(mode, FEATURES)
             val content = window - DashboardLayoutPolicy.sideMargin(mode).value * 2
             val chip = (content - (columns - 1) * DenzaMetrics.Space.M.value) / columns
-            val rows = (10 + columns - 1) / columns
+            val rows = (FEATURES + columns - 1) / columns
             val band = rows * chip + (rows - 1) * DenzaMetrics.Space.M.value
 
             assertTrue("a chip at $window dp is $chip, which is not chip-sized", chip in 60f..76f)
@@ -109,5 +153,10 @@ class DashboardLayoutPolicyTest {
         // past the bottom edge of the window.
         assertEquals(296f, DashboardLayoutPolicy.wholeScreenPanelHeight(1_184f).value, 1e-3f)
         assertEquals(148f, DashboardLayoutPolicy.wholeScreenPanelHeight(592f).value, 1e-3f)
+    }
+
+    private companion object {
+        /** What the dashboard actually carries today; DashboardTilesTest owns the list itself. */
+        const val FEATURES = 10
     }
 }

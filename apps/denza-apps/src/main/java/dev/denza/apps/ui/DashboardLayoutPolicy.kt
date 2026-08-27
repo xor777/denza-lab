@@ -41,17 +41,45 @@ internal object DashboardLayoutPolicy {
     }
 
     /**
-     * How many features stand in one row.
+     * How many features stand in one row, given how many there are.
      *
-     * Six on the full screen, where a feature is a tile with its name and its state written out.
-     * Ten and five in the panes, where it is a chip - see
-     * [dev.denza.apps.ui.components.DenzaChip] for why that is a different object rather than a
-     * smaller one.
+     * Six on the full screen, where a feature is a tile with its name and its state written out
+     * and six is what 1184 dp affords at the width those words need - so a seventh tile wraps to a
+     * third row.
+     *
+     * A pane counts differently, because a chip is not a tile: the band is a toolbar and a toolbar
+     * fits rather than wraps. The two-thirds pane puts every feature in one row and the chip is
+     * its share of it, so an eleventh feature costs each chip 7 dp instead of costing the analyser
+     * a row of 80. The narrow pane does the same inside two rows.
+     *
+     * How far that goes is [DenzaMetrics.Component.CHIP_MIN], and `ChipDensity.dc.html` draws it.
      */
-    fun columns(mode: DashboardLayoutMode): Int = when (mode) {
-        DashboardLayoutMode.WIDE -> DenzaMetrics.Component.TILE_COLUMNS_WIDE
-        DashboardLayoutMode.MEDIUM -> DenzaMetrics.Component.CHIP_COLUMNS_MEDIUM
-        DashboardLayoutMode.NARROW -> DenzaMetrics.Component.CHIP_COLUMNS_NARROW
+    fun columns(mode: DashboardLayoutMode, count: Int): Int {
+        val features = count.coerceAtLeast(1)
+        return when (mode) {
+            DashboardLayoutMode.WIDE -> DenzaMetrics.Component.TILE_COLUMNS_WIDE
+            DashboardLayoutMode.MEDIUM -> features
+            DashboardLayoutMode.NARROW -> {
+                val rows = DenzaMetrics.Component.CHIP_ROWS_NARROW
+                (features + rows - 1) / rows
+            }
+        }
+    }
+
+    /**
+     * How wide a chip comes out in [mode] with [count] features, so a test can say when it is too
+     * small. The window widths are the car's measured three.
+     */
+    fun chipWidth(mode: DashboardLayoutMode, count: Int): Dp {
+        val window = when (mode) {
+            DashboardLayoutMode.WIDE -> 1_280
+            DashboardLayoutMode.MEDIUM -> 828
+            DashboardLayoutMode.NARROW -> 416
+        }
+        val columns = columns(mode, count)
+        val gap = DenzaMetrics.Space.M.value
+        val content = window - sideMargin(mode).value * 2
+        return ((content - (columns - 1) * gap) / columns).dp
     }
 
     /** Whether this width writes a feature out as a tile or compresses it to a chip. */

@@ -210,6 +210,15 @@
       "h": 308.0,
       "title": "Приборка · правая треть",
       "page": "page-cluster"
+    },
+    {
+      "file": "ChipDensity.dc.html",
+      "x": 1424,
+      "y": 1800,
+      "w": 1360,
+      "h": 912,
+      "title": "Панели · сколько иконок влезает",
+      "page": "page-screens"
     }
   ],
   "annotations": [

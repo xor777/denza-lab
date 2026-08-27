@@ -67,7 +67,7 @@ class PaneBoardContractTest {
             )
 
             val width = frame(board).first
-            val columns = DashboardLayoutPolicy.columns(mode)
+            val columns = DashboardLayoutPolicy.columns(mode, 10)
             val rows = if (columns >= 10) 1 else 2
             val chip = (width - side * 2 - (columns - 1) * DenzaMetrics.Space.M.value) / columns
             val chips = rows * chip + (rows - 1) * DenzaMetrics.Space.M.value
@@ -92,20 +92,30 @@ class PaneBoardContractTest {
                 "the chip on $board is not square",
                 boardRule(board, ".chip").contains("aspect-ratio:1"),
             )
-            assertEquals("dot on $board", DenzaMetrics.Component.CHIP_DOT.value, px(board, ".dot", "width"), 1e-4f)
-            assertEquals(
-                "dot inset on $board",
-                DenzaMetrics.Component.CHIP_DOT_INSET.value,
-                px(board, ".dot", "top"),
-                1e-4f,
-            )
-
+            // The glyph and the dot are fractions of the chip, so the board writes what those
+            // fractions come to at the chip its own row gives it.
+            val chip = DashboardLayoutPolicy.chipWidth(
+                if (board == MEDIUM) DashboardLayoutMode.MEDIUM else DashboardLayoutMode.NARROW,
+                10,
+            ).value
             val icon = ICON.find(read(board)) ?: error("no chip icon on $board")
             assertEquals(
                 "icon size on $board",
-                DenzaMetrics.Component.TILE_ICON.value,
+                Math.round(chip * DenzaMetrics.Component.CHIP_ICON_RATIO).toFloat(),
                 icon.groupValues[1].toFloat(),
                 1e-4f,
+            )
+            assertEquals(
+                "dot on $board",
+                chip * DenzaMetrics.Component.CHIP_DOT_RATIO,
+                number(board, """<div class="dot" style="top:[\d.]+px; right:[\d.]+px; width:([\d.]+)px"""),
+                0.05f,
+            )
+            assertEquals(
+                "dot inset on $board",
+                chip * DenzaMetrics.Component.CHIP_DOT_INSET_RATIO,
+                number(board, """<div class="dot" style="top:([\d.]+)px"""),
+                0.05f,
             )
         }
     }
@@ -119,7 +129,7 @@ class PaneBoardContractTest {
             val grid = GRID.find(read(board)) ?: error("no chip grid on $board")
             assertEquals(
                 "columns on $board",
-                DashboardLayoutPolicy.columns(mode),
+                DashboardLayoutPolicy.columns(mode, 10),
                 grid.groupValues[1].toInt(),
             )
             assertEquals("grid gap on $board", DenzaMetrics.Space.M.value, grid.groupValues[2].toFloat(), 1e-4f)

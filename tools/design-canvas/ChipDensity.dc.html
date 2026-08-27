@@ -1,0 +1,439 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@200;300;400;500;700&amp;display=swap" rel="stylesheet">
+  <style>
+    body { margin:0; background:#07080A; font-family:'Roboto','Segoe UI',system-ui,sans-serif; }
+    .chip { position:relative; aspect-ratio:1; box-sizing:border-box; border-radius:12px; display:flex; align-items:center; justify-content:center; }
+    .on { background:#212429; border:1px solid rgba(254,239,171,0.30); box-shadow:0 0 22px rgba(254,239,171,0.07); }
+    .off { background:#15181F; border:1px solid rgba(218,225,235,0.10); }
+    .dot { position:absolute; border-radius:50%; }
+  </style>
+</helmet>
+<div style="width:1360px; box-sizing:border-box; background:#07080A; display:flex; flex-direction:column; gap:48px; padding:48px;">
+  <div style="display:flex; flex-direction:column; gap:14px;">
+    <div style="display:flex; align-items:baseline; gap:14px;">
+      <div style="font-size:24px; font-weight:500; color:#DAE1EB;">10 функций</div>
+      <div style="font-size:15px; letter-spacing:1.6px; font-weight:500; color:#86909B;">2/3 · 68.0   1/3 · 5 x 68.8</div>
+    </div>
+    <div style="display:flex; align-items:flex-start; gap:32px;">
+      <div style="width:788px; display:grid; grid-template-columns:repeat(10, minmax(0, 1fr)); gap:12px;">
+        <div class="chip on">
+          <svg width="30" height="30" viewBox="1 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><circle cx="12" cy="12" r="3"></circle><path d="M3.2 10.5 L9.1 10.9 M20.8 10.5 L14.9 10.9 M12 15 L12 21"></path></svg>
+          <div class="dot" style="top:9px; right:9px; width:7px; height:7px; background:#FEEFAB;"></div>
+        </div>
+        <div class="chip on">
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 20h0.01"></path><path d="M2 16a4 4 0 0 1 4 4"></path><path d="M2 12a8 8 0 0 1 8 8"></path><path d="M2 8V6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6"></path></svg>
+          <div class="dot" style="top:9px; right:9px; width:7px; height:7px; background:#FEEFAB;"></div>
+        </div>
+        <div class="chip on">
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+          <div class="dot" style="top:9px; right:9px; width:7px; height:7px; background:#FEEFAB;"></div>
+        </div>
+        <div class="chip on">
+          <svg width="30" height="30" viewBox="1 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="15" rx="2"></rect><path d="M12 4.5v15"></path></svg>
+          <div class="dot" style="top:9px; right:9px; width:7px; height:7px; background:#FEEFAB;"></div>
+        </div>
+        <div class="chip on">
+          <svg width="30" height="30" viewBox="3 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 13.5l6-6 6 6"></path><path d="M5 19h14"></path></svg>
+          <div class="dot" style="top:9px; right:9px; width:7px; height:7px; background:#FEEFAB;"></div>
+        </div>
+        <div class="chip on">
+          <svg width="30" height="30" viewBox="0.4 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="3.2"></circle><path d="M8 2.4v1.4M8 12.2v1.4M2.4 8h1.4M12.2 8h1.4M4.6 4.6l1 1M11.4 4.6l-1 1M4.6 11.4l1-1"></path><path d="M17 20.5H9.5a3.5 3.5 0 0 1 0-7 4.6 4.6 0 0 1 8.7-1 3.9 3.9 0 0 1-1.2 8z"></path></svg>
+          <div class="dot" style="top:9px; right:9px; width:7px; height:7px; background:#FEEFAB;"></div>
+        </div>
+        <div class="chip on">
+          <svg width="30" height="30" viewBox="4 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="3" width="12" height="18" rx="2"></rect><circle cx="12" cy="14" r="3.2"></circle><circle cx="12" cy="7" r="1.2"></circle></svg>
+          <div class="dot" style="top:9px; right:9px; width:7px; height:7px; background:#FEEFAB;"></div>
+        </div>
+        <div class="chip on">
+          <svg width="30" height="30" viewBox="1 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M3.4 9.5h17.2M3.4 14.5h17.2"></path><path d="M12 3a15 15 0 0 0 0 18 15 15 0 0 0 0-18z"></path></svg>
+          <div class="dot" style="top:9px; right:9px; width:7px; height:7px; background:#FEEFAB;"></div>
+        </div>
+        <div class="chip off">
+          <svg width="30" height="30" viewBox="3 0 24 24" fill="none" stroke="#6E767F" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2.5" width="14" height="19" rx="2"></rect><path d="M12 6.5v7"></path><path d="M9 10.5l3 3 3-3"></path><path d="M9 17.5h6"></path></svg>
+          <div class="dot" style="top:9px; right:9px; width:7px; height:7px; background:#3F434D;"></div>
+        </div>
+        <div class="chip off">
+          <svg width="30" height="30" viewBox="2 0 24 24" fill="none" stroke="#6E767F" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 12h16M4 17h16"></path><circle cx="15" cy="7" r="2" fill="#15181F"></circle><circle cx="8" cy="12" r="2" fill="#15181F"></circle><circle cx="17" cy="17" r="2" fill="#15181F"></circle></svg>
+          <div class="dot" style="top:9px; right:9px; width:7px; height:7px; background:#3F434D;"></div>
+        </div>
+      </div>
+      <div style="width:392px; display:grid; grid-template-columns:repeat(5, minmax(0, 1fr)); gap:12px;">
+        <div class="chip on">
+          <svg width="30" height="30" viewBox="1 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><circle cx="12" cy="12" r="3"></circle><path d="M3.2 10.5 L9.1 10.9 M20.8 10.5 L14.9 10.9 M12 15 L12 21"></path></svg>
+          <div class="dot" style="top:9.1px; right:9.1px; width:7.1px; height:7.1px; background:#FEEFAB;"></div>
+        </div>
+        <div class="chip on">
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 20h0.01"></path><path d="M2 16a4 4 0 0 1 4 4"></path><path d="M2 12a8 8 0 0 1 8 8"></path><path d="M2 8V6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6"></path></svg>
+          <div class="dot" style="top:9.1px; right:9.1px; width:7.1px; height:7.1px; background:#FEEFAB;"></div>
+        </div>
+        <div class="chip on">
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+          <div class="dot" style="top:9.1px; right:9.1px; width:7.1px; height:7.1px; background:#FEEFAB;"></div>
+        </div>
+        <div class="chip on">
+          <svg width="30" height="30" viewBox="1 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="15" rx="2"></rect><path d="M12 4.5v15"></path></svg>
+          <div class="dot" style="top:9.1px; right:9.1px; width:7.1px; height:7.1px; background:#FEEFAB;"></div>
+        </div>
+        <div class="chip on">
+          <svg width="30" height="30" viewBox="3 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 13.5l6-6 6 6"></path><path d="M5 19h14"></path></svg>
+          <div class="dot" style="top:9.1px; right:9.1px; width:7.1px; height:7.1px; background:#FEEFAB;"></div>
+        </div>
+        <div class="chip on">
+          <svg width="30" height="30" viewBox="0.4 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="3.2"></circle><path d="M8 2.4v1.4M8 12.2v1.4M2.4 8h1.4M12.2 8h1.4M4.6 4.6l1 1M11.4 4.6l-1 1M4.6 11.4l1-1"></path><path d="M17 20.5H9.5a3.5 3.5 0 0 1 0-7 4.6 4.6 0 0 1 8.7-1 3.9 3.9 0 0 1-1.2 8z"></path></svg>
+          <div class="dot" style="top:9.1px; right:9.1px; width:7.1px; height:7.1px; background:#FEEFAB;"></div>
+        </div>
+        <div class="chip on">
+          <svg width="30" height="30" viewBox="4 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="3" width="12" height="18" rx="2"></rect><circle cx="12" cy="14" r="3.2"></circle><circle cx="12" cy="7" r="1.2"></circle></svg>
+          <div class="dot" style="top:9.1px; right:9.1px; width:7.1px; height:7.1px; background:#FEEFAB;"></div>
+        </div>
+        <div class="chip on">
+          <svg width="30" height="30" viewBox="1 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M3.4 9.5h17.2M3.4 14.5h17.2"></path><path d="M12 3a15 15 0 0 0 0 18 15 15 0 0 0 0-18z"></path></svg>
+          <div class="dot" style="top:9.1px; right:9.1px; width:7.1px; height:7.1px; background:#FEEFAB;"></div>
+        </div>
+        <div class="chip off">
+          <svg width="30" height="30" viewBox="3 0 24 24" fill="none" stroke="#6E767F" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2.5" width="14" height="19" rx="2"></rect><path d="M12 6.5v7"></path><path d="M9 10.5l3 3 3-3"></path><path d="M9 17.5h6"></path></svg>
+          <div class="dot" style="top:9.1px; right:9.1px; width:7.1px; height:7.1px; background:#3F434D;"></div>
+        </div>
+        <div class="chip off">
+          <svg width="30" height="30" viewBox="2 0 24 24" fill="none" stroke="#6E767F" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 12h16M4 17h16"></path><circle cx="15" cy="7" r="2" fill="#15181F"></circle><circle cx="8" cy="12" r="2" fill="#15181F"></circle><circle cx="17" cy="17" r="2" fill="#15181F"></circle></svg>
+          <div class="dot" style="top:9.1px; right:9.1px; width:7.1px; height:7.1px; background:#3F434D;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div style="display:flex; flex-direction:column; gap:14px;">
+    <div style="display:flex; align-items:baseline; gap:14px;">
+      <div style="font-size:24px; font-weight:500; color:#DAE1EB;">11 функций</div>
+      <div style="font-size:15px; letter-spacing:1.6px; font-weight:500; color:#86909B;">2/3 · 60.7   1/3 · 6 x 55.3</div>
+    </div>
+    <div style="display:flex; align-items:flex-start; gap:32px;">
+      <div style="width:788px; display:grid; grid-template-columns:repeat(11, minmax(0, 1fr)); gap:12px;">
+        <div class="chip on">
+          <svg width="27" height="27" viewBox="1 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.778" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><circle cx="12" cy="12" r="3"></circle><path d="M3.2 10.5 L9.1 10.9 M20.8 10.5 L14.9 10.9 M12 15 L12 21"></path></svg>
+          <div class="dot" style="top:8px; right:8px; width:6.3px; height:6.3px; background:#FEEFAB;"></div>
+        </div>
+        <div class="chip on">
+          <svg width="27" height="27" viewBox="0 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.778" stroke-linecap="round" stroke-linejoin="round"><path d="M2 20h0.01"></path><path d="M2 16a4 4 0 0 1 4 4"></path><path d="M2 12a8 8 0 0 1 8 8"></path><path d="M2 8V6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6"></path></svg>
+          <div class="dot" style="top:8px; right:8px; width:6.3px; height:6.3px; background:#FEEFAB;"></div>
+        </div>
+        <div class="chip on">
+          <svg width="27" height="27" viewBox="0 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.778" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+          <div class="dot" style="top:8px; right:8px; width:6.3px; height:6.3px; background:#FEEFAB;"></div>
+        </div>
+        <div class="chip on">
+          <svg width="27" height="27" viewBox="1 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.778" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="15" rx="2"></rect><path d="M12 4.5v15"></path></svg>
+          <div class="dot" style="top:8px; right:8px; width:6.3px; height:6.3px; background:#FEEFAB;"></div>
+        </div>
+        <div class="chip on">
+          <svg width="27" height="27" viewBox="3 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.778" stroke-linecap="round" stroke-linejoin="round"><path d="M6 13.5l6-6 6 6"></path><path d="M5 19h14"></path></svg>
+          <div class="dot" style="top:8px; right:8px; width:6.3px; height:6.3px; background:#FEEFAB;"></div>
+        </div>
+        <div class="chip on">
+          <svg width="27" height="27" viewBox="0.4 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.778" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="3.2"></circle><path d="M8 2.4v1.4M8 12.2v1.4M2.4 8h1.4M12.2 8h1.4M4.6 4.6l1 1M11.4 4.6l-1 1M4.6 11.4l1-1"></path><path d="M17 20.5H9.5a3.5 3.5 0 0 1 0-7 4.6 4.6 0 0 1 8.7-1 3.9 3.9 0 0 1-1.2 8z"></path></svg>
+          <div class="dot" style="top:8px; right:8px; width:6.3px; height:6.3px; background:#FEEFAB;"></div>
+        </div>
+        <div class="chip on">
+          <svg width="27" height="27" viewBox="4 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.778" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="3" width="12" height="18" rx="2"></rect><circle cx="12" cy="14" r="3.2"></circle><circle cx="12" cy="7" r="1.2"></circle></svg>
+          <div class="dot" style="top:8px; right:8px; width:6.3px; height:6.3px; background:#FEEFAB;"></div>
+        </div>
+        <div class="chip on">
+          <svg width="27" height="27" viewBox="1 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.778" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M3.4 9.5h17.2M3.4 14.5h17.2"></path><path d="M12 3a15 15 0 0 0 0 18 15 15 0 0 0 0-18z"></path></svg>
+          <div class="dot" style="top:8px; right:8px; width:6.3px; height:6.3px; background:#FEEFAB;"></div>
+        </div>
+        <div class="chip off">
+          <svg width="27" height="27" viewBox="3 0 24 24" fill="none" stroke="#6E767F" stroke-width="1.778" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2.5" width="14" height="19" rx="2"></rect><path d="M12 6.5v7"></path><path d="M9 10.5l3 3 3-3"></path><path d="M9 17.5h6"></path></svg>
+          <div class="dot" style="top:8px; right:8px; width:6.3px; height:6.3px; background:#3F434D;"></div>
+        </div>
+        <div class="chip off">
+          <svg width="27" height="27" viewBox="2 0 24 24" fill="none" stroke="#6E767F" stroke-width="1.778" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 12h16M4 17h16"></path><circle cx="15" cy="7" r="2" fill="#15181F"></circle><circle cx="8" cy="12" r="2" fill="#15181F"></circle><circle cx="17" cy="17" r="2" fill="#15181F"></circle></svg>
+          <div class="dot" style="top:8px; right:8px; width:6.3px; height:6.3px; background:#3F434D;"></div>
+        </div>
+        <div class="chip off">
+          <svg width="27" height="27" viewBox="0 0 24 24" fill="none" stroke="#6E767F" stroke-width="1.778" stroke-linecap="round"><path d="M12 6v12M6 12h12"></path></svg>
+          <div class="dot" style="top:8px; right:8px; width:6.3px; height:6.3px; background:#3F434D;"></div>
+        </div>
+      </div>
+      <div style="width:392px; display:grid; grid-template-columns:repeat(6, minmax(0, 1fr)); gap:12px;">
+        <div class="chip on">
+          <svg width="24" height="24" viewBox="1 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><circle cx="12" cy="12" r="3"></circle><path d="M3.2 10.5 L9.1 10.9 M20.8 10.5 L14.9 10.9 M12 15 L12 21"></path></svg>
+          <div class="dot" style="top:7.3px; right:7.3px; width:5.7px; height:5.7px; background:#FEEFAB;"></div>
+        </div>
+        <div class="chip on">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 20h0.01"></path><path d="M2 16a4 4 0 0 1 4 4"></path><path d="M2 12a8 8 0 0 1 8 8"></path><path d="M2 8V6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6"></path></svg>
+          <div class="dot" style="top:7.3px; right:7.3px; width:5.7px; height:5.7px; background:#FEEFAB;"></div>
+        </div>
+        <div class="chip on">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+          <div class="dot" style="top:7.3px; right:7.3px; width:5.7px; height:5.7px; background:#FEEFAB;"></div>
+        </div>
+        <div class="chip on">
+          <svg width="24" height="24" viewBox="1 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="15" rx="2"></rect><path d="M12 4.5v15"></path></svg>
+          <div class="dot" style="top:7.3px; right:7.3px; width:5.7px; height:5.7px; background:#FEEFAB;"></div>
+        </div>
+        <div class="chip on">
+          <svg width="24" height="24" viewBox="3 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 13.5l6-6 6 6"></path><path d="M5 19h14"></path></svg>
+          <div class="dot" style="top:7.3px; right:7.3px; width:5.7px; height:5.7px; background:#FEEFAB;"></div>
+        </div>
+        <div class="chip on">
+          <svg width="24" height="24" viewBox="0.4 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="3.2"></circle><path d="M8 2.4v1.4M8 12.2v1.4M2.4 8h1.4M12.2 8h1.4M4.6 4.6l1 1M11.4 4.6l-1 1M4.6 11.4l1-1"></path><path d="M17 20.5H9.5a3.5 3.5 0 0 1 0-7 4.6 4.6 0 0 1 8.7-1 3.9 3.9 0 0 1-1.2 8z"></path></svg>
+          <div class="dot" style="top:7.3px; right:7.3px; width:5.7px; height:5.7px; background:#FEEFAB;"></div>
+        </div>
+        <div class="chip on">
+          <svg width="24" height="24" viewBox="4 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="3" width="12" height="18" rx="2"></rect><circle cx="12" cy="14" r="3.2"></circle><circle cx="12" cy="7" r="1.2"></circle></svg>
+          <div class="dot" style="top:7.3px; right:7.3px; width:5.7px; height:5.7px; background:#FEEFAB;"></div>
+        </div>
+        <div class="chip on">
+          <svg width="24" height="24" viewBox="1 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M3.4 9.5h17.2M3.4 14.5h17.2"></path><path d="M12 3a15 15 0 0 0 0 18 15 15 0 0 0 0-18z"></path></svg>
+          <div class="dot" style="top:7.3px; right:7.3px; width:5.7px; height:5.7px; background:#FEEFAB;"></div>
+        </div>
+        <div class="chip off">
+          <svg width="24" height="24" viewBox="3 0 24 24" fill="none" stroke="#6E767F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2.5" width="14" height="19" rx="2"></rect><path d="M12 6.5v7"></path><path d="M9 10.5l3 3 3-3"></path><path d="M9 17.5h6"></path></svg>
+          <div class="dot" style="top:7.3px; right:7.3px; width:5.7px; height:5.7px; background:#3F434D;"></div>
+        </div>
+        <div class="chip off">
+          <svg width="24" height="24" viewBox="2 0 24 24" fill="none" stroke="#6E767F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 12h16M4 17h16"></path><circle cx="15" cy="7" r="2" fill="#15181F"></circle><circle cx="8" cy="12" r="2" fill="#15181F"></circle><circle cx="17" cy="17" r="2" fill="#15181F"></circle></svg>
+          <div class="dot" style="top:7.3px; right:7.3px; width:5.7px; height:5.7px; background:#3F434D;"></div>
+        </div>
+        <div class="chip off">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#6E767F" stroke-width="2" stroke-linecap="round"><path d="M12 6v12M6 12h12"></path></svg>
+          <div class="dot" style="top:7.3px; right:7.3px; width:5.7px; height:5.7px; background:#3F434D;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div style="display:flex; flex-direction:column; gap:14px;">
+    <div style="display:flex; align-items:baseline; gap:14px;">
+      <div style="font-size:24px; font-weight:500; color:#DAE1EB;">12 функций</div>
+      <div style="font-size:15px; letter-spacing:1.6px; font-weight:500; color:#86909B;">2/3 · 54.7   1/3 · 6 x 55.3</div>
+    </div>
+    <div style="display:flex; align-items:flex-start; gap:32px;">
+      <div style="width:788px; display:grid; grid-template-columns:repeat(12, minmax(0, 1fr)); gap:12px;">
+        <div class="chip on">
+          <svg width="24" height="24" viewBox="1 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><circle cx="12" cy="12" r="3"></circle><path d="M3.2 10.5 L9.1 10.9 M20.8 10.5 L14.9 10.9 M12 15 L12 21"></path></svg>
+          <div class="dot" style="top:7.2px; right:7.2px; width:5.6px; height:5.6px; background:#FEEFAB;"></div>
+        </div>
+        <div class="chip on">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 20h0.01"></path><path d="M2 16a4 4 0 0 1 4 4"></path><path d="M2 12a8 8 0 0 1 8 8"></path><path d="M2 8V6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6"></path></svg>
+          <div class="dot" style="top:7.2px; right:7.2px; width:5.6px; height:5.6px; background:#FEEFAB;"></div>
+        </div>
+        <div class="chip on">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+          <div class="dot" style="top:7.2px; right:7.2px; width:5.6px; height:5.6px; background:#FEEFAB;"></div>
+        </div>
+        <div class="chip on">
+          <svg width="24" height="24" viewBox="1 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="15" rx="2"></rect><path d="M12 4.5v15"></path></svg>
+          <div class="dot" style="top:7.2px; right:7.2px; width:5.6px; height:5.6px; background:#FEEFAB;"></div>
+        </div>
+        <div class="chip on">
+          <svg width="24" height="24" viewBox="3 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 13.5l6-6 6 6"></path><path d="M5 19h14"></path></svg>
+          <div class="dot" style="top:7.2px; right:7.2px; width:5.6px; height:5.6px; background:#FEEFAB;"></div>
+        </div>
+        <div class="chip on">
+          <svg width="24" height="24" viewBox="0.4 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="3.2"></circle><path d="M8 2.4v1.4M8 12.2v1.4M2.4 8h1.4M12.2 8h1.4M4.6 4.6l1 1M11.4 4.6l-1 1M4.6 11.4l1-1"></path><path d="M17 20.5H9.5a3.5 3.5 0 0 1 0-7 4.6 4.6 0 0 1 8.7-1 3.9 3.9 0 0 1-1.2 8z"></path></svg>
+          <div class="dot" style="top:7.2px; right:7.2px; width:5.6px; height:5.6px; background:#FEEFAB;"></div>
+        </div>
+        <div class="chip on">
+          <svg width="24" height="24" viewBox="4 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="3" width="12" height="18" rx="2"></rect><circle cx="12" cy="14" r="3.2"></circle><circle cx="12" cy="7" r="1.2"></circle></svg>
+          <div class="dot" style="top:7.2px; right:7.2px; width:5.6px; height:5.6px; background:#FEEFAB;"></div>
+        </div>
+        <div class="chip on">
+          <svg width="24" height="24" viewBox="1 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M3.4 9.5h17.2M3.4 14.5h17.2"></path><path d="M12 3a15 15 0 0 0 0 18 15 15 0 0 0 0-18z"></path></svg>
+          <div class="dot" style="top:7.2px; right:7.2px; width:5.6px; height:5.6px; background:#FEEFAB;"></div>
+        </div>
+        <div class="chip off">
+          <svg width="24" height="24" viewBox="3 0 24 24" fill="none" stroke="#6E767F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2.5" width="14" height="19" rx="2"></rect><path d="M12 6.5v7"></path><path d="M9 10.5l3 3 3-3"></path><path d="M9 17.5h6"></path></svg>
+          <div class="dot" style="top:7.2px; right:7.2px; width:5.6px; height:5.6px; background:#3F434D;"></div>
+        </div>
+        <div class="chip off">
+          <svg width="24" height="24" viewBox="2 0 24 24" fill="none" stroke="#6E767F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 12h16M4 17h16"></path><circle cx="15" cy="7" r="2" fill="#15181F"></circle><circle cx="8" cy="12" r="2" fill="#15181F"></circle><circle cx="17" cy="17" r="2" fill="#15181F"></circle></svg>
+          <div class="dot" style="top:7.2px; right:7.2px; width:5.6px; height:5.6px; background:#3F434D;"></div>
+        </div>
+        <div class="chip off">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#6E767F" stroke-width="2" stroke-linecap="round"><path d="M12 6v12M6 12h12"></path></svg>
+          <div class="dot" style="top:7.2px; right:7.2px; width:5.6px; height:5.6px; background:#3F434D;"></div>
+        </div>
+        <div class="chip off">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#6E767F" stroke-width="2" stroke-linecap="round"><path d="M12 6v12M6 12h12"></path></svg>
+          <div class="dot" style="top:7.2px; right:7.2px; width:5.6px; height:5.6px; background:#3F434D;"></div>
+        </div>
+      </div>
+      <div style="width:392px; display:grid; grid-template-columns:repeat(6, minmax(0, 1fr)); gap:12px;">
+        <div class="chip on">
+          <svg width="24" height="24" viewBox="1 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><circle cx="12" cy="12" r="3"></circle><path d="M3.2 10.5 L9.1 10.9 M20.8 10.5 L14.9 10.9 M12 15 L12 21"></path></svg>
+          <div class="dot" style="top:7.3px; right:7.3px; width:5.7px; height:5.7px; background:#FEEFAB;"></div>
+        </div>
+        <div class="chip on">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 20h0.01"></path><path d="M2 16a4 4 0 0 1 4 4"></path><path d="M2 12a8 8 0 0 1 8 8"></path><path d="M2 8V6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6"></path></svg>
+          <div class="dot" style="top:7.3px; right:7.3px; width:5.7px; height:5.7px; background:#FEEFAB;"></div>
+        </div>
+        <div class="chip on">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+          <div class="dot" style="top:7.3px; right:7.3px; width:5.7px; height:5.7px; background:#FEEFAB;"></div>
+        </div>
+        <div class="chip on">
+          <svg width="24" height="24" viewBox="1 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="15" rx="2"></rect><path d="M12 4.5v15"></path></svg>
+          <div class="dot" style="top:7.3px; right:7.3px; width:5.7px; height:5.7px; background:#FEEFAB;"></div>
+        </div>
+        <div class="chip on">
+          <svg width="24" height="24" viewBox="3 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 13.5l6-6 6 6"></path><path d="M5 19h14"></path></svg>
+          <div class="dot" style="top:7.3px; right:7.3px; width:5.7px; height:5.7px; background:#FEEFAB;"></div>
+        </div>
+        <div class="chip on">
+          <svg width="24" height="24" viewBox="0.4 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="3.2"></circle><path d="M8 2.4v1.4M8 12.2v1.4M2.4 8h1.4M12.2 8h1.4M4.6 4.6l1 1M11.4 4.6l-1 1M4.6 11.4l1-1"></path><path d="M17 20.5H9.5a3.5 3.5 0 0 1 0-7 4.6 4.6 0 0 1 8.7-1 3.9 3.9 0 0 1-1.2 8z"></path></svg>
+          <div class="dot" style="top:7.3px; right:7.3px; width:5.7px; height:5.7px; background:#FEEFAB;"></div>
+        </div>
+        <div class="chip on">
+          <svg width="24" height="24" viewBox="4 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="3" width="12" height="18" rx="2"></rect><circle cx="12" cy="14" r="3.2"></circle><circle cx="12" cy="7" r="1.2"></circle></svg>
+          <div class="dot" style="top:7.3px; right:7.3px; width:5.7px; height:5.7px; background:#FEEFAB;"></div>
+        </div>
+        <div class="chip on">
+          <svg width="24" height="24" viewBox="1 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M3.4 9.5h17.2M3.4 14.5h17.2"></path><path d="M12 3a15 15 0 0 0 0 18 15 15 0 0 0 0-18z"></path></svg>
+          <div class="dot" style="top:7.3px; right:7.3px; width:5.7px; height:5.7px; background:#FEEFAB;"></div>
+        </div>
+        <div class="chip off">
+          <svg width="24" height="24" viewBox="3 0 24 24" fill="none" stroke="#6E767F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2.5" width="14" height="19" rx="2"></rect><path d="M12 6.5v7"></path><path d="M9 10.5l3 3 3-3"></path><path d="M9 17.5h6"></path></svg>
+          <div class="dot" style="top:7.3px; right:7.3px; width:5.7px; height:5.7px; background:#3F434D;"></div>
+        </div>
+        <div class="chip off">
+          <svg width="24" height="24" viewBox="2 0 24 24" fill="none" stroke="#6E767F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 12h16M4 17h16"></path><circle cx="15" cy="7" r="2" fill="#15181F"></circle><circle cx="8" cy="12" r="2" fill="#15181F"></circle><circle cx="17" cy="17" r="2" fill="#15181F"></circle></svg>
+          <div class="dot" style="top:7.3px; right:7.3px; width:5.7px; height:5.7px; background:#3F434D;"></div>
+        </div>
+        <div class="chip off">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#6E767F" stroke-width="2" stroke-linecap="round"><path d="M12 6v12M6 12h12"></path></svg>
+          <div class="dot" style="top:7.3px; right:7.3px; width:5.7px; height:5.7px; background:#3F434D;"></div>
+        </div>
+        <div class="chip off">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#6E767F" stroke-width="2" stroke-linecap="round"><path d="M12 6v12M6 12h12"></path></svg>
+          <div class="dot" style="top:7.3px; right:7.3px; width:5.7px; height:5.7px; background:#3F434D;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div style="display:flex; flex-direction:column; gap:14px;">
+    <div style="display:flex; align-items:baseline; gap:14px;">
+      <div style="font-size:24px; font-weight:500; color:#DAE1EB;">13 функций</div>
+      <div style="font-size:15px; letter-spacing:1.6px; font-weight:500; color:#FF6B5B;">2/3 · 49.5   1/3 · 7 x 45.7 · ниже порога 52</div>
+    </div>
+    <div style="display:flex; align-items:flex-start; gap:32px;">
+      <div style="width:788px; display:grid; grid-template-columns:repeat(13, minmax(0, 1fr)); gap:12px;">
+        <div class="chip on">
+          <svg width="22" height="22" viewBox="1 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="2.182" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><circle cx="12" cy="12" r="3"></circle><path d="M3.2 10.5 L9.1 10.9 M20.8 10.5 L14.9 10.9 M12 15 L12 21"></path></svg>
+          <div class="dot" style="top:6.6px; right:6.6px; width:5.1px; height:5.1px; background:#FEEFAB;"></div>
+        </div>
+        <div class="chip on">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="2.182" stroke-linecap="round" stroke-linejoin="round"><path d="M2 20h0.01"></path><path d="M2 16a4 4 0 0 1 4 4"></path><path d="M2 12a8 8 0 0 1 8 8"></path><path d="M2 8V6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6"></path></svg>
+          <div class="dot" style="top:6.6px; right:6.6px; width:5.1px; height:5.1px; background:#FEEFAB;"></div>
+        </div>
+        <div class="chip on">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="2.182" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+          <div class="dot" style="top:6.6px; right:6.6px; width:5.1px; height:5.1px; background:#FEEFAB;"></div>
+        </div>
+        <div class="chip on">
+          <svg width="22" height="22" viewBox="1 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="2.182" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="15" rx="2"></rect><path d="M12 4.5v15"></path></svg>
+          <div class="dot" style="top:6.6px; right:6.6px; width:5.1px; height:5.1px; background:#FEEFAB;"></div>
+        </div>
+        <div class="chip on">
+          <svg width="22" height="22" viewBox="3 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="2.182" stroke-linecap="round" stroke-linejoin="round"><path d="M6 13.5l6-6 6 6"></path><path d="M5 19h14"></path></svg>
+          <div class="dot" style="top:6.6px; right:6.6px; width:5.1px; height:5.1px; background:#FEEFAB;"></div>
+        </div>
+        <div class="chip on">
+          <svg width="22" height="22" viewBox="0.4 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="2.182" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="3.2"></circle><path d="M8 2.4v1.4M8 12.2v1.4M2.4 8h1.4M12.2 8h1.4M4.6 4.6l1 1M11.4 4.6l-1 1M4.6 11.4l1-1"></path><path d="M17 20.5H9.5a3.5 3.5 0 0 1 0-7 4.6 4.6 0 0 1 8.7-1 3.9 3.9 0 0 1-1.2 8z"></path></svg>
+          <div class="dot" style="top:6.6px; right:6.6px; width:5.1px; height:5.1px; background:#FEEFAB;"></div>
+        </div>
+        <div class="chip on">
+          <svg width="22" height="22" viewBox="4 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="2.182" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="3" width="12" height="18" rx="2"></rect><circle cx="12" cy="14" r="3.2"></circle><circle cx="12" cy="7" r="1.2"></circle></svg>
+          <div class="dot" style="top:6.6px; right:6.6px; width:5.1px; height:5.1px; background:#FEEFAB;"></div>
+        </div>
+        <div class="chip on">
+          <svg width="22" height="22" viewBox="1 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="2.182" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M3.4 9.5h17.2M3.4 14.5h17.2"></path><path d="M12 3a15 15 0 0 0 0 18 15 15 0 0 0 0-18z"></path></svg>
+          <div class="dot" style="top:6.6px; right:6.6px; width:5.1px; height:5.1px; background:#FEEFAB;"></div>
+        </div>
+        <div class="chip off">
+          <svg width="22" height="22" viewBox="3 0 24 24" fill="none" stroke="#6E767F" stroke-width="2.182" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2.5" width="14" height="19" rx="2"></rect><path d="M12 6.5v7"></path><path d="M9 10.5l3 3 3-3"></path><path d="M9 17.5h6"></path></svg>
+          <div class="dot" style="top:6.6px; right:6.6px; width:5.1px; height:5.1px; background:#3F434D;"></div>
+        </div>
+        <div class="chip off">
+          <svg width="22" height="22" viewBox="2 0 24 24" fill="none" stroke="#6E767F" stroke-width="2.182" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 12h16M4 17h16"></path><circle cx="15" cy="7" r="2" fill="#15181F"></circle><circle cx="8" cy="12" r="2" fill="#15181F"></circle><circle cx="17" cy="17" r="2" fill="#15181F"></circle></svg>
+          <div class="dot" style="top:6.6px; right:6.6px; width:5.1px; height:5.1px; background:#3F434D;"></div>
+        </div>
+        <div class="chip off">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#6E767F" stroke-width="2.182" stroke-linecap="round"><path d="M12 6v12M6 12h12"></path></svg>
+          <div class="dot" style="top:6.6px; right:6.6px; width:5.1px; height:5.1px; background:#3F434D;"></div>
+        </div>
+        <div class="chip off">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#6E767F" stroke-width="2.182" stroke-linecap="round"><path d="M12 6v12M6 12h12"></path></svg>
+          <div class="dot" style="top:6.6px; right:6.6px; width:5.1px; height:5.1px; background:#3F434D;"></div>
+        </div>
+        <div class="chip off">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#6E767F" stroke-width="2.182" stroke-linecap="round"><path d="M12 6v12M6 12h12"></path></svg>
+          <div class="dot" style="top:6.6px; right:6.6px; width:5.1px; height:5.1px; background:#3F434D;"></div>
+        </div>
+      </div>
+      <div style="width:392px; display:grid; grid-template-columns:repeat(7, minmax(0, 1fr)); gap:12px;">
+        <div class="chip on">
+          <svg width="20" height="20" viewBox="1 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><circle cx="12" cy="12" r="3"></circle><path d="M3.2 10.5 L9.1 10.9 M20.8 10.5 L14.9 10.9 M12 15 L12 21"></path></svg>
+          <div class="dot" style="top:6.1px; right:6.1px; width:4.7px; height:4.7px; background:#FEEFAB;"></div>
+        </div>
+        <div class="chip on">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2 20h0.01"></path><path d="M2 16a4 4 0 0 1 4 4"></path><path d="M2 12a8 8 0 0 1 8 8"></path><path d="M2 8V6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6"></path></svg>
+          <div class="dot" style="top:6.1px; right:6.1px; width:4.7px; height:4.7px; background:#FEEFAB;"></div>
+        </div>
+        <div class="chip on">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+          <div class="dot" style="top:6.1px; right:6.1px; width:4.7px; height:4.7px; background:#FEEFAB;"></div>
+        </div>
+        <div class="chip on">
+          <svg width="20" height="20" viewBox="1 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="15" rx="2"></rect><path d="M12 4.5v15"></path></svg>
+          <div class="dot" style="top:6.1px; right:6.1px; width:4.7px; height:4.7px; background:#FEEFAB;"></div>
+        </div>
+        <div class="chip on">
+          <svg width="20" height="20" viewBox="3 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 13.5l6-6 6 6"></path><path d="M5 19h14"></path></svg>
+          <div class="dot" style="top:6.1px; right:6.1px; width:4.7px; height:4.7px; background:#FEEFAB;"></div>
+        </div>
+        <div class="chip on">
+          <svg width="20" height="20" viewBox="0.4 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="3.2"></circle><path d="M8 2.4v1.4M8 12.2v1.4M2.4 8h1.4M12.2 8h1.4M4.6 4.6l1 1M11.4 4.6l-1 1M4.6 11.4l1-1"></path><path d="M17 20.5H9.5a3.5 3.5 0 0 1 0-7 4.6 4.6 0 0 1 8.7-1 3.9 3.9 0 0 1-1.2 8z"></path></svg>
+          <div class="dot" style="top:6.1px; right:6.1px; width:4.7px; height:4.7px; background:#FEEFAB;"></div>
+        </div>
+        <div class="chip on">
+          <svg width="20" height="20" viewBox="4 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="3" width="12" height="18" rx="2"></rect><circle cx="12" cy="14" r="3.2"></circle><circle cx="12" cy="7" r="1.2"></circle></svg>
+          <div class="dot" style="top:6.1px; right:6.1px; width:4.7px; height:4.7px; background:#FEEFAB;"></div>
+        </div>
+        <div class="chip on">
+          <svg width="20" height="20" viewBox="1 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M3.4 9.5h17.2M3.4 14.5h17.2"></path><path d="M12 3a15 15 0 0 0 0 18 15 15 0 0 0 0-18z"></path></svg>
+          <div class="dot" style="top:6.1px; right:6.1px; width:4.7px; height:4.7px; background:#FEEFAB;"></div>
+        </div>
+        <div class="chip off">
+          <svg width="20" height="20" viewBox="3 0 24 24" fill="none" stroke="#6E767F" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2.5" width="14" height="19" rx="2"></rect><path d="M12 6.5v7"></path><path d="M9 10.5l3 3 3-3"></path><path d="M9 17.5h6"></path></svg>
+          <div class="dot" style="top:6.1px; right:6.1px; width:4.7px; height:4.7px; background:#3F434D;"></div>
+        </div>
+        <div class="chip off">
+          <svg width="20" height="20" viewBox="2 0 24 24" fill="none" stroke="#6E767F" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 12h16M4 17h16"></path><circle cx="15" cy="7" r="2" fill="#15181F"></circle><circle cx="8" cy="12" r="2" fill="#15181F"></circle><circle cx="17" cy="17" r="2" fill="#15181F"></circle></svg>
+          <div class="dot" style="top:6.1px; right:6.1px; width:4.7px; height:4.7px; background:#3F434D;"></div>
+        </div>
+        <div class="chip off">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6E767F" stroke-width="2.4" stroke-linecap="round"><path d="M12 6v12M6 12h12"></path></svg>
+          <div class="dot" style="top:6.1px; right:6.1px; width:4.7px; height:4.7px; background:#3F434D;"></div>
+        </div>
+        <div class="chip off">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6E767F" stroke-width="2.4" stroke-linecap="round"><path d="M12 6v12M6 12h12"></path></svg>
+          <div class="dot" style="top:6.1px; right:6.1px; width:4.7px; height:4.7px; background:#3F434D;"></div>
+        </div>
+        <div class="chip off">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6E767F" stroke-width="2.4" stroke-linecap="round"><path d="M12 6v12M6 12h12"></path></svg>
+          <div class="dot" style="top:6.1px; right:6.1px; width:4.7px; height:4.7px; background:#3F434D;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

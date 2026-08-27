@@ -7,6 +7,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -40,6 +41,12 @@ import dev.denza.apps.design.DenzaMetrics
  *
  * Square, and as wide as the row gives it: ten across the two-thirds pane is 68.0 dp, five across
  * two rows of the narrow one is 68.8. See `TwoThirds.dc.html` and `OneThird.dc.html`.
+ *
+ * **It measures itself.** The glyph and the dot are fractions of the chip rather than the tile's
+ * fixed 30, 7 and 9 - which are exactly those fractions of 68 and so change nothing at ten
+ * features. They have to be fractions because a chip is a fraction of its row: an eleventh feature
+ * puts it at 60.7 dp, and a 30 dp glyph in a 60.7 chip has its top-right corner under the dot.
+ * `ChipDensity.dc.html` draws what that looks like down to the point where it stops working.
  */
 @Composable
 fun DenzaChip(
@@ -63,7 +70,7 @@ fun DenzaChip(
     )
     val shape = RoundedCornerShape(DenzaMetrics.Radius.M)
 
-    Box(
+    BoxWithConstraints(
         modifier = modifier
             .aspectRatio(1f)
             .background(background, shape)
@@ -75,18 +82,21 @@ fun DenzaChip(
             ),
         contentAlignment = Alignment.Center,
     ) {
+        val side = maxWidth
+        val dot = side * DenzaMetrics.Component.CHIP_DOT_RATIO
+        val inset = side * DenzaMetrics.Component.CHIP_DOT_INSET_RATIO
         Icon(
             imageVector = icon,
             contentDescription = null,
             tint = if (tone == DenzaTileTone.IDLE || !enabled) DenzaColors.Muted else accent,
-            modifier = Modifier.size(DenzaMetrics.Component.TILE_ICON),
+            modifier = Modifier.size(side * DenzaMetrics.Component.CHIP_ICON_RATIO),
         )
         if (tone == DenzaTileTone.WORKING) {
             CircularProgressIndicator(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    .padding(DenzaMetrics.Component.CHIP_DOT_INSET)
-                    .size(DenzaMetrics.Component.CHIP_DOT),
+                    .padding(inset)
+                    .size(dot),
                 strokeWidth = BUSY_STROKE,
                 color = DenzaColors.Accent,
             )
@@ -94,8 +104,8 @@ fun DenzaChip(
             Box(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    .padding(DenzaMetrics.Component.CHIP_DOT_INSET)
-                    .size(DenzaMetrics.Component.CHIP_DOT)
+                    .padding(inset)
+                    .size(dot)
                     .background(dotColour(tone), CircleShape),
             )
         }

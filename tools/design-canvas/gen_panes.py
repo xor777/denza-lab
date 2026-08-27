@@ -56,9 +56,23 @@ PAGE_BOTTOM = 12
 WINDOW_H = 680
 
 CHIP_RADIUS = 12             # Radius.M
-CHIP_ICON = 30               # Component.TILE_ICON - the same glyph at the same size as the tile
-CHIP_DOT = 7
-CHIP_DOT_INSET = 9
+
+# The chip's insides as fractions of the chip, because the chip is a fraction of the row.
+#
+# At ten features the chip is 68.0 dp at two thirds and 68.8 at one third, and these three come to
+# 30, 7 and 9 - which is what they were written as. They are ratios now because the chip shrinks
+# when a feature is added: an eleventh puts it at 60.7, and a 30 dp glyph in a 60.7 chip has its
+# top-right corner under the dot.
+CHIP_ICON_RATIO = 30 / 68
+CHIP_DOT_RATIO = 7 / 68
+CHIP_DOT_INSET_RATIO = 9 / 68
+
+# The smallest chip this design has: 52 dp, where the glyph is 23. Under it the icon stops reading
+# at arm's length and the target stops being comfortable - 48 is the platform's own floor for a
+# thing a finger has to hit, and this leaves a little over it. Twelve features fit both panes; a
+# thirteenth is where somebody has to decide something rather than where a number quietly gets
+# smaller, which is why `DashboardLayoutPolicyTest` fails at that point instead of the screen.
+CHIP_MIN = 52
 
 ROW = 30                     # one figure as a row: a 15 label and a 24 reading on one baseline
 BLOCK = 76                   # one figure as a block: a 15 label over a 46 figure
@@ -134,22 +148,32 @@ def rules(src, selectors):
     return '\n'.join(out)
 
 
+def chip(state, svg, size, indent='      '):
+    """One feature as an icon: the tile's glyph, its state, and nothing to read."""
+    # A whole number, so the one optical weight below lands on the ramp exactly rather
+    # than a thousandth off it.
+    icon = round(size * CHIP_ICON_RATIO)
+    svg = re.sub(r'width="[\d.]+" height="[\d.]+"',
+                 f'width="{icon:g}" height="{icon:g}"', svg, count=1)
+    # One optical weight for every icon in the app, so the stroke follows the size it is drawn at:
+    # ICON_WEIGHT * 24 / size. Leaving the tile's own 1.6 on a 30.4 glyph is how `audit.py` came to
+    # report two stroke weights on one board.
+    svg = re.sub(r'stroke-width="[\d.]+"',
+                 f'stroke-width="{round(2.0 * 24 / icon, 3):g}"', svg)
+    dot = '#FEEFAB' if state == 'on' else '#3F434D'
+    d = round(size * CHIP_DOT_RATIO, 1)
+    inset = round(size * CHIP_DOT_INSET_RATIO, 1)
+    return (
+        f'{indent}<div class="chip {state}">\n'
+        f'{indent}  {svg}\n'
+        f'{indent}  <div class="dot" style="top:{inset:g}px; right:{inset:g}px; '
+        f'width:{d:g}px; height:{d:g}px; background:{dot};"></div>\n'
+        f'{indent}</div>'
+    )
+
+
 def chips(pane, src):
-    """The ten features as icons: the tile's glyph, its state, and nothing to read."""
-    out = []
-    for state, svg in tiles(src):
-        # The chip is drawn at the size the row gives it, so the icon is sized here rather than
-        # carrying the tile's own width attributes.
-        svg = re.sub(r'width="[\d.]+" height="[\d.]+"',
-                     f'width="{CHIP_ICON}" height="{CHIP_ICON}"', svg, count=1)
-        dot = '#FEEFAB' if state == 'on' else '#3F434D'
-        out.append(
-            f'      <div class="chip {state}">\n'
-            f'        {svg}\n'
-            f'        <div class="dot" style="background:{dot};"></div>\n'
-            f'      </div>'
-        )
-    return '\n'.join(out)
+    return '\n'.join(chip(state, svg, pane.chip) for state, svg in tiles(src))
 
 
 def analyser(pane):
@@ -281,7 +305,7 @@ def board(pane, src):
     body {{ margin:0; background:#07080A; font-family:'Roboto','Segoe UI',system-ui,sans-serif; }}
     a {{ color:#FEEFAB; }} a:hover {{ color:#FFF7D2; }}
 {css}
-    .dot {{ position:absolute; top:{CHIP_DOT_INSET}px; right:{CHIP_DOT_INSET}px; width:{CHIP_DOT}px; height:{CHIP_DOT}px; border-radius:50%; }}
+    .dot {{ position:absolute; border-radius:50%; }}
     .across {{ display:flex; align-items:stretch; height:{BLOCK}px; }}
     .fig {{ flex:1; min-width:0; display:flex; flex-direction:column; justify-content:space-between; }}
     .rule {{ width:1px; background:rgba(218,225,235,0.14); margin:0 {GROUP // 2}px; }}
@@ -349,3 +373,93 @@ if __name__ == '__main__':
             f'  strip {pane.content:.0f}x{pane.strip_h:.1f}'
             f'  analyser {pane.analyser_h:.1f}  figures {pane.figures} {pane.figures_h}'
         )
+
+
+# --- the density board -------------------------------------------------------
+
+DENSITY_COUNTS = (10, 11, 12, 13)
+DENSITY_W = 1360
+FUTURE = 'M12 6v12M6 12h12'   # a feature that does not exist yet
+
+
+def density_row(src, count, columns, width, size, indent):
+    """One band of chips at a given count and size."""
+    real = tiles(src)
+    out = []
+    for index in range(count):
+        if index < len(real):
+            state, svg = real[index]
+        else:
+            state, svg = 'off', (
+                '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#6E767F" '
+                f'stroke-width="2" stroke-linecap="round"><path d="{FUTURE}"></path></svg>'
+            )
+        out.append(chip(state, svg, size, indent))
+    return (
+        f'{indent[:-2]}<div style="width:{width}px; display:grid; '
+        f'grid-template-columns:repeat({columns}, minmax(0, 1fr)); gap:{GAP}px;">\n'
+        + '\n'.join(out)
+        + f'\n{indent[:-2]}</div>'
+    )
+
+
+def density_board(src):
+    """What happens to the chip when a feature is added, at both pane widths.
+
+    A band of icons is a toolbar: it does not wrap, it fits. So the chip is its share of the row,
+    which means adding an eleventh feature makes every chip smaller rather than making a new row -
+    and the question this board answers is how far that goes before it stops being a chip.
+    """
+    sections = []
+    for count in DENSITY_COUNTS:
+        wide = (MEDIUM.content - (count - 1) * GAP) / count
+        cols = -(-count // 2)
+        narrow = (NARROW.content - (cols - 1) * GAP) / cols
+        under = min(wide, narrow) < CHIP_MIN
+        sections.append((count, wide, cols, narrow, under))
+
+    body = []
+    for count, wide, cols, narrow, under in sections:
+        tone = '#FF6B5B' if under else '#86909B'
+        note = ' · ниже порога 52' if under else ''
+        body.append(f'''  <div style="display:flex; flex-direction:column; gap:14px;">
+    <div style="display:flex; align-items:baseline; gap:14px;">
+      <div style="font-size:24px; font-weight:500; color:#DAE1EB;">{count} функций</div>
+      <div style="font-size:15px; letter-spacing:1.6px; font-weight:500; color:{tone};">2/3 · {wide:.1f}   1/3 · {cols} x {narrow:.1f}{note}</div>
+    </div>
+    <div style="display:flex; align-items:flex-start; gap:32px;">
+{density_row(src, count, count, MEDIUM.content, wide, '        ')}
+{density_row(src, count, cols, NARROW.content, narrow, '        ')}
+    </div>
+  </div>''')
+
+    css = rules(src, ['.tile', '.on', '.off'])
+    css = css.replace('.tile {', '.chip {').replace(
+        'height:164px; box-sizing:border-box; border-radius:22px; padding:20px; '
+        'display:flex; flex-direction:column; justify-content:space-between;',
+        f'aspect-ratio:1; box-sizing:border-box; border-radius:{CHIP_RADIUS}px; '
+        'display:flex; align-items:center; justify-content:center;')
+
+    return f'''<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@200;300;400;500;700&amp;display=swap" rel="stylesheet">
+  <style>
+    body {{ margin:0; background:#07080A; font-family:'Roboto','Segoe UI',system-ui,sans-serif; }}
+{css}
+    .dot {{ position:absolute; border-radius:50%; }}
+  </style>
+</helmet>
+<div style="width:{DENSITY_W}px; box-sizing:border-box; background:#07080A; display:flex; flex-direction:column; gap:48px; padding:48px;">
+{chr(10).join(body)}
+</div>
+</x-dc>
+</body>
+</html>
+'''

@@ -5,6 +5,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import dev.denza.apps.DenzaUiState
 import dev.denza.apps.design.DenzaIcons
+import dev.denza.apps.ui.DashboardLayoutMode
+import dev.denza.apps.ui.DashboardLayoutPolicy
 import dev.denza.apps.ui.components.DenzaChip
 import dev.denza.apps.ui.components.DenzaTile
 import dev.denza.apps.ui.components.DenzaTileGrid
@@ -18,7 +20,7 @@ import dev.denza.apps.ui.components.DenzaTileGrid
  * names into vectors and hand the two gestures somewhere - which is why it is the only file in the
  * dashboard that has to know what a vector is.
  *
- * The grid wraps at [columns] and pads a short last row, so the row of six the boards draw becomes
+ * The grid wraps at whatever [DashboardLayoutPolicy] gives this width and pads a short last row, so the row of six the boards draw becomes
  * six and three as tiles are added without any of them changing size. Two rows is what the screen
  * affords: two rows of tiles and the analyser under them is exactly 800 dp.
  *
@@ -27,17 +29,17 @@ import dev.denza.apps.ui.components.DenzaTileGrid
  * a size, and the reasoning is in `DenzaChip`.
  */
 @Composable
-fun DashboardGrid(
+internal fun DashboardGrid(
     state: DenzaUiState,
     actions: DashboardActions,
-    columns: Int,
+    layout: DashboardLayoutMode,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    chips: Boolean = false,
 ) {
     val tiles = DashboardTiles.of(state)
+    val chips = DashboardLayoutPolicy.chips(layout)
     DenzaTileGrid(
-        columns = columns,
+        columns = DashboardLayoutPolicy.columns(layout, tiles.size),
         itemCount = tiles.size,
         modifier = modifier,
     ) { index, cell ->
