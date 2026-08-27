@@ -246,10 +246,9 @@ fun DenzaAppsRoot(
                         DashboardGrid(
                             state = uiState,
                             actions = dashboardActions,
-                            columns = DashboardLayoutPolicy.columns(dashboardLayout),
+                            layout = dashboardLayout,
                             modifier = Modifier.fillMaxWidth(),
                             enabled = !adbStartupBlocked,
-                            chips = chips,
                         )
                         // A pane's chips and its strip are two different things and take the gap
                         // between groups; the full screen's tiles and strip are one field of
@@ -494,30 +493,56 @@ private fun AdbStartupOverlay(
                         lineHeight = DenzaMetrics.Type.LABEL,
                     )
                 }
+                // **In a pane the actions stack.** A Row measures its children in order: the
+                // outlined action takes the width it asks for and the primary one is handed what
+                // is left, so at 416 dp "Я подтвердил - проверить" was drawn into a pill narrower
+                // than its own label and the words ran out past both ends of it. That was on the
+                // board as well as on the screen, and the note beside it said which button should
+                // lose was a product decision nobody had made.
+                //
+                // Neither loses. A card 312 dp wide has room for one button per line and no room
+                // for two, so the narrow gate spends a line each - primary first, because a stack
+                // is read from the top and the top is where the thing you came to press belongs.
                 if (model.primaryLabel != null) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(DenzaMetrics.Space.M, Alignment.End),
-                    ) {
+                    if (compact) {
+                        DenzaPrimaryButton(
+                            text = model.primaryLabel,
+                            onClick = onPrimaryAction,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
                         if (model.recoveryAvailable) {
                             OutlinedButton(
                                 onClick = onOpenRecovery,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(min = DenzaMetrics.Component.SEGMENT_HEIGHT),
+                                shape = MaterialTheme.shapes.medium,
                                 border = BorderStroke(DenzaMetrics.Stroke.HAIRLINE, DenzaColors.Warning),
                             ) {
-                                Text("Восстановить ADB", fontWeight = FontWeight.SemiBold)
+                                Text(RECOVER_LABEL, fontWeight = FontWeight.SemiBold, maxLines = 1)
                             }
                         }
-                        Button(
-                            onClick = onPrimaryAction,
+                    } else {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(DenzaMetrics.Space.M, Alignment.End),
                         ) {
-                            Text(model.primaryLabel, fontWeight = FontWeight.SemiBold)
+                            if (model.recoveryAvailable) {
+                                OutlinedButton(
+                                    onClick = onOpenRecovery,
+                                    border = BorderStroke(DenzaMetrics.Stroke.HAIRLINE, DenzaColors.Warning),
+                                ) {
+                                    Text(RECOVER_LABEL, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                                }
+                            }
+                            Button(onClick = onPrimaryAction) {
+                                Text(model.primaryLabel, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                            }
                         }
                     }
                 }
                 // On its own line, under whatever action the state has, and on every state that
-                // blocks - including the ones with no action at all. It takes the full width rather
-                // than a place in the row above because the row is already two buttons wide and
-                // this gate is drawn at 0.72 of a pane that can be a third of the screen.
+                // blocks - including the ones with no action at all.
                 if (model.explainerAvailable) {
                     DenzaSecondaryButton(
                         text = AdbExplainer.OPEN_LABEL,
@@ -529,6 +554,9 @@ private fun AdbStartupOverlay(
         }
     }
 }
+
+/** The gate's second action, in one place because two layouts draw it. */
+private const val RECOVER_LABEL = "Восстановить ADB"
 
 @Composable
 private fun AdbRecoveryDialog(

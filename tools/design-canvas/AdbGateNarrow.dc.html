@@ -15,20 +15,18 @@
             display:flex; flex-direction:column; gap:20px; }
     .ttl { color:#DAE1EB; font-size:34px; font-weight:600; line-height:1.2; }
     .msg { color:#86909B; font-size:19px; line-height:1.263; }
-    .row { display:flex; gap:12px; justify-content:flex-end; align-items:flex-start; }
-    .btn { box-sizing:border-box; font-size:19px; font-weight:500; line-height:1.2;
-           display:flex; align-items:center; justify-content:center; text-align:center; }
-    .pill { min-height:40px; border-radius:20px; padding:8px 24px; }
+    /* One action per line. A Row measured its children in order - the outlined one took the
+       width it asked for and the primary one was handed the remainder - so at 312 dp of card the
+       primary label ran out past both ends of its own pill. A card this narrow has room for one
+       button on a line and no room for two, and the stack is read from the top, which is where
+       the thing you came to press belongs. */
+    .stack { display:flex; flex-direction:column; gap:12px; }
+    .btn { box-sizing:border-box; font-size:19px; font-weight:500; line-height:26px;
+           min-height:42px; border-radius:12px; padding:8px 24px; text-align:center;
+           white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
     .fill { background:#FEEFAB; color:#262D33; }
     .edge { border:1px solid #FF9F19; color:#FF9F19; }
-    /* Compose measures a Row's children in order: the first takes what it asks for and the
-       second is handed the remainder, so the outlined action keeps its natural width and the
-       primary one is squeezed into what is left. Flexbox would shrink both together. */
-    .first { flex:0 0 auto; }
-    .rest { flex:0 1 auto; min-width:64px; }
-    .more { min-height:42px; border-radius:12px; border:1px solid #484E55; color:#FEEFAB;
-            padding:8px 24px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:block;
-            text-align:center; line-height:26px; font-size:19px; font-weight:500; box-sizing:border-box; }
+    .more { border:1px solid #484E55; color:#FEEFAB; }
   </style>
 </helmet>
 <div style="width:416px; height:680px; box-sizing:border-box; background:#07080A; position:relative;">
@@ -40,11 +38,11 @@
         <div class="ttl">Подтвердите доступ к ADB</div>
       </div>
       <div class="msg">Разрешите системный запрос на экране автомобиля</div>
-      <div class="row">
-        <div class="btn pill edge first">Восстановить ADB</div>
-        <div class="btn pill fill rest">Я подтвердил — проверить</div>
+      <div class="stack">
+        <div class="btn fill">Я подтвердил — проверить</div>
+        <div class="btn edge">Восстановить ADB</div>
+        <div class="btn more">Что такое ADB</div>
       </div>
-      <div class="more">Что такое ADB</div>
     </div>
   </div>
 </div>

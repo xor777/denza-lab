@@ -86,6 +86,33 @@ const label = el => (el.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 
     if (past > 0.5) say('SPILL "' + b.t + '" past its column by ' + past.toFixed(1));
   });
 
+  // 1c. a label wider than the control it is printed in.
+  //
+  // The check this file did not have, and the reason the narrow ADB gate went out with its
+  // primary action's words running past both ends of its own pill. Nothing above catches it: the
+  // text and the button are one element there, so its rect is inside the artboard, inside its
+  // column, and touching nothing. What gives it away is the element's own content being wider
+  // than the box it has - which is exactly what scrollWidth against clientWidth says.
+  //
+  // Only elements that draw a box are asked. A bare label overflowing an invisible grid cell
+  // paints into the gutter and is caught by COLLIDE if it reaches anything; a label overflowing a
+  // fill or a border is a control whose words are outside it, which is always wrong and is what
+  // this is for. SVG text is skipped: clientWidth is 0 for all of it, and what an SVG label sits
+  // inside is a sibling rect rather than a parent, which is CROSS's business.
+  //
+  // An element declaring text-overflow:ellipsis has decided to clip and is left alone.
+  boxes.forEach(b => {
+    if (b.el.ownerSVGElement) return;
+    const cs = doc.defaultView.getComputedStyle(b.el);
+    if (cs.textOverflow === 'ellipsis') return;
+    const filled = cs.backgroundColor !== 'rgba(0, 0, 0, 0)' && cs.backgroundColor !== 'transparent';
+    const edged = ['Top', 'Right', 'Bottom', 'Left']
+      .some(side => parseFloat(cs['border' + side + 'Width']) > 0);
+    if (!filled && !edged) return;
+    const over = b.el.scrollWidth - b.el.clientWidth;
+    if (over > 1) say('TIGHT "' + b.t + '" is ' + over.toFixed(1) + ' wider than its own control');
+  });
+
   // 2. text on text
   for (let i = 0; i < boxes.length; i++) {
     for (let j = i + 1; j < boxes.length; j++) {

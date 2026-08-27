@@ -54,19 +54,23 @@ python3 audit.py
 ```
 
 It inlines each board into its own iframe, lets the page measure itself, and
-reports four things: text past its artboard, text past the column it was placed
-in, text meeting text it has no relationship with, a flat rule crossing a
-numeral - plus the type sizes, radii and stroke weights each board actually uses.
-Nothing may sit outside the ramps below.
+reports five things: text past its artboard, text past the column it was placed
+in, a label wider than the control it is printed in, text meeting text it has no
+relationship with, a flat rule crossing a numeral - plus the type sizes, radii and
+stroke weights each board actually uses. Nothing may sit outside the ramps below.
 
 It knows about occlusion: text under a modal scrim is covered, not colliding, and
 adjacent cells of a segmented control are meant to touch.
 
-What it does not check is a label overflowing the control it sits in. On
-`AdbGateNarrow.dc.html` the primary action's words run out past both ends of their
-own pill, and the audit reports that board clean: the text is inside the artboard,
-inside its column, and touching nothing it is unrelated to. Until that check
-exists, a narrow board has to be looked at as well as measured.
+The third of those - TIGHT - was missing for a long time and this page used to say
+so. `AdbGateNarrow.dc.html` drew its primary action's words running out past both
+ends of their own pill and the audit called that board clean, because the text was
+inside the artboard, inside its column, and touching nothing it was unrelated to:
+the text *is* the button there, so its rect tells you nothing. What gives it away
+is the element's own content being wider than the box it has. Only elements that
+draw a box are asked - a bare label overflowing an invisible grid cell paints into
+the gutter and is COLLIDE's business if it reaches anything, and SVG text has no
+box of its own.
 
 ## Looking at a board
 
