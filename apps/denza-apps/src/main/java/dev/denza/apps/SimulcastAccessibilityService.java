@@ -94,6 +94,8 @@ public class SimulcastAccessibilityService extends AccessibilityService {
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final SteeringWheelKeyInterceptor steeringWheelKeyInterceptor =
             new SteeringWheelKeyInterceptor();
+    private final SimulcastDialogVisibilityTracker dialogVisibilityTracker =
+            new SimulcastDialogVisibilityTracker();
     private final Map<String, Target> targetCache = new HashMap<>();
     private final Runnable refreshRunnable = this::refreshSafely;
 
@@ -220,6 +222,8 @@ public class SimulcastAccessibilityService extends AccessibilityService {
         }
         handler.removeCallbacks(refreshRunnable);
         steeringWheelKeyInterceptor.reset();
+        applyDialogObservation(
+                SimulcastDialogVisibilityTracker.Observation.CLOSED_CONFIRMED);
         tearDownHudGuidance();
         tearDown();
         DenzaAppRepository.INSTANCE.refresh();
@@ -235,6 +239,8 @@ public class SimulcastAccessibilityService extends AccessibilityService {
         }
         handler.removeCallbacks(refreshRunnable);
         steeringWheelKeyInterceptor.reset();
+        applyDialogObservation(
+                SimulcastDialogVisibilityTracker.Observation.CLOSED_CONFIRMED);
         tearDownHudGuidance();
         tearDown();
         DenzaAppRepository.INSTANCE.refresh();
@@ -293,12 +299,16 @@ public class SimulcastAccessibilityService extends AccessibilityService {
                 }
                 long elapsed = now - missingDialogSinceMs;
                 if (elapsed < DIALOG_DISAPPEAR_GRACE_MS) {
+                    applyDialogObservation(
+                            SimulcastDialogVisibilityTracker.Observation.UNKNOWN);
                     handler.postDelayed(
                             refreshRunnable,
                             DIALOG_DISAPPEAR_GRACE_MS - elapsed);
                     return;
                 }
                 cancelDrag();
+                applyDialogObservation(
+                        SimulcastDialogVisibilityTracker.Observation.CLOSED_CONFIRMED);
                 tearDown();
             } else {
                 missingDialogSinceMs = 0L;
@@ -310,6 +320,8 @@ public class SimulcastAccessibilityService extends AccessibilityService {
             if (root != null) {
                 root.recycle();
             }
+            applyDialogObservation(
+                    SimulcastDialogVisibilityTracker.Observation.CLOSED_CONFIRMED);
             tearDown();
             return;
         }
@@ -329,12 +341,16 @@ public class SimulcastAccessibilityService extends AccessibilityService {
                 }
                 long elapsed = now - missingDialogSinceMs;
                 if (elapsed < DIALOG_DISAPPEAR_GRACE_MS) {
+                    applyDialogObservation(
+                            SimulcastDialogVisibilityTracker.Observation.UNKNOWN);
                     handler.postDelayed(
                             refreshRunnable,
                             DIALOG_DISAPPEAR_GRACE_MS - elapsed);
                     return;
                 }
             }
+            applyDialogObservation(
+                    SimulcastDialogVisibilityTracker.Observation.CLOSED_CONFIRMED);
             tearDown();
             return;
         }
@@ -342,6 +358,7 @@ public class SimulcastAccessibilityService extends AccessibilityService {
         boolean newDialog = !dialogObserved;
         if (newDialog) {
             dialogObserved = true;
+            applyDialogObservation(SimulcastDialogVisibilityTracker.Observation.OPEN);
             availableReceivers = Collections.emptySet();
             screenAvailabilityConfirmed = false;
             lastScreenQueryMs = 0L;
@@ -391,6 +408,17 @@ public class SimulcastAccessibilityService extends AccessibilityService {
         }
         appliedScreenGeneration = screenGeneration;
         invalidateOverlayViews();
+    }
+
+    private void applyDialogObservation(
+            SimulcastDialogVisibilityTracker.Observation observation) {
+        SimulcastDialogVisibilityTracker.Command command =
+                dialogVisibilityTracker.observe(observation);
+        if (command == SimulcastDialogVisibilityTracker.Command.HIDE_EXIT) {
+            SimulcastOverlayService.hideActiveExit(this);
+        } else if (command == SimulcastDialogVisibilityTracker.Command.RESTORE_EXIT) {
+            SimulcastOverlayService.showActiveExit(this);
+        }
     }
 
     private void ensureScreenAvailability() {

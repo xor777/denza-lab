@@ -1,10 +1,8 @@
 package dev.denza.apps;
 
 import android.app.Service;
-import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.graphics.Canvas;
 import android.graphics.Color;
@@ -43,14 +41,13 @@ public class SimulcastOverlayService extends Service {
     static final String ACTION_STOP_CURRENT = "dev.denza.apps.STOP_SIMULCAST_TARGET";
     static final String EXTRA_TARGET_PACKAGE = "targetPackage";
     static final String EXTRA_RECEIVER = "receiver";
-    static final String ACTION_DISHARE_DIALOG_HOME = "action.byd.dishare.DIALOG_HOME";
-    static final String ACTION_DISHARE_DIALOG_LAUNCHER = "action.byd.dishare.DIALOG_LAUNCHER";
-    static final String ACTION_DISHARE_DIALOG_CLOSE = "action.byd.dishare.DIALOG_CLOSE";
+    private static final String DISHARE_PACKAGE = "com.byd.dishare";
+    private static final String ACTION_DISHARE_DIALOG_CLOSE =
+            "action.byd.dishare.DIALOG_CLOSE";
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private WindowManager windowManager;
     private SimulcastExitButtonView activeShareExitView;
-    private BroadcastReceiver dialogReceiver;
     private DiShareProjectionBridge activeBridge;
 
     public static void startMonitor(Context context) {
@@ -99,7 +96,6 @@ public class SimulcastOverlayService extends Service {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         String action = intent == null ? null : intent.getAction();
-        ensureDialogReceiver();
         if (ACTION_START_TARGET.equals(action)) {
             String packageName = intent.getStringExtra(EXTRA_TARGET_PACKAGE);
             String receiver = intent.getStringExtra(EXTRA_RECEIVER);
@@ -113,7 +109,7 @@ public class SimulcastOverlayService extends Service {
         if (ACTION_STOP_CURRENT.equals(action)) {
             stopCurrentShare();
             hideActiveShareExit();
-            sendBroadcast(new Intent(ACTION_DISHARE_DIALOG_CLOSE));
+            closeDiShareDialog();
             stopSelf(startId);
             return START_NOT_STICKY;
         }
@@ -122,16 +118,6 @@ public class SimulcastOverlayService extends Service {
             return START_STICKY;
         }
         if (ACTION_SHOW_ACTIVE_EXIT.equals(action) || ACTION_MONITOR.equals(action)) {
-            maybeShowActiveExit();
-            return START_STICKY;
-        }
-        // While the Simulcast dialog is up, hide the floating exit; restore it after.
-        if (ACTION_DISHARE_DIALOG_LAUNCHER.equals(action)) {
-            hideActiveShareExit();
-            return START_STICKY;
-        }
-        if (ACTION_DISHARE_DIALOG_HOME.equals(action)
-                || ACTION_DISHARE_DIALOG_CLOSE.equals(action)) {
             maybeShowActiveExit();
             return START_STICKY;
         }
@@ -145,42 +131,10 @@ public class SimulcastOverlayService extends Service {
 
     @Override
     public void onDestroy() {
-        if (dialogReceiver != null) {
-            try {
-                unregisterReceiver(dialogReceiver);
-            } catch (RuntimeException ignored) {
-            }
-            dialogReceiver = null;
-        }
         hideActiveShareExit();
         handler.removeCallbacksAndMessages(null);
         stopBridge();
         super.onDestroy();
-    }
-
-    private void ensureDialogReceiver() {
-        if (dialogReceiver != null) {
-            return;
-        }
-        dialogReceiver = new BroadcastReceiver() {
-            @Override
-            public void onReceive(Context context, Intent received) {
-                String action = received == null ? null : received.getAction();
-                if (ACTION_DISHARE_DIALOG_LAUNCHER.equals(action)) {
-                    hideActiveShareExit();
-                } else if (Intent.ACTION_CLOSE_SYSTEM_DIALOGS.equals(action)
-                        || ACTION_DISHARE_DIALOG_HOME.equals(action)
-                        || ACTION_DISHARE_DIALOG_CLOSE.equals(action)) {
-                    maybeShowActiveExit();
-                }
-            }
-        };
-        IntentFilter filter = new IntentFilter();
-        filter.addAction(ACTION_DISHARE_DIALOG_HOME);
-        filter.addAction(ACTION_DISHARE_DIALOG_LAUNCHER);
-        filter.addAction(ACTION_DISHARE_DIALOG_CLOSE);
-        filter.addAction(Intent.ACTION_CLOSE_SYSTEM_DIALOGS);
-        registerReceiver(dialogReceiver, filter, Context.RECEIVER_EXPORTED);
     }
 
     private void startTargetByPackage(final String packageName, final String label,
@@ -218,7 +172,7 @@ public class SimulcastOverlayService extends Service {
                                 packageName, receiver);
                         Toast.makeText(SimulcastOverlayService.this,
                                 "Запускаю " + label, Toast.LENGTH_SHORT).show();
-                        sendBroadcast(new Intent(ACTION_DISHARE_DIALOG_CLOSE));
+                        closeDiShareDialog();
                         showActiveShareExit();
                     }
 
@@ -325,7 +279,7 @@ public class SimulcastOverlayService extends Service {
         activeShareExitView = new SimulcastExitButtonView(this);
         activeShareExitView.setOnClickListener(view -> {
             stopCurrentShare();
-            sendBroadcast(new Intent(ACTION_DISHARE_DIALOG_CLOSE));
+            closeDiShareDialog();
         });
         try {
             windowManager.addView(activeShareExitView, activeShareExitParams());
@@ -344,6 +298,10 @@ public class SimulcastOverlayService extends Service {
             }
         }
         activeShareExitView = null;
+    }
+
+    private void closeDiShareDialog() {
+        sendBroadcast(new Intent(ACTION_DISHARE_DIALOG_CLOSE).setPackage(DISHARE_PACKAGE));
     }
 
     private WindowManager.LayoutParams activeShareExitParams() {

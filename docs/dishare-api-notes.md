@@ -286,6 +286,28 @@ Current no-root custom drag approach:
    The user still opens Simulcast and drags a visible app icon; Denza Apps has no
    global Start/Stop control.
 
+### Dialog lifecycle trust boundary
+
+Denza Apps does not receive the unprotected
+`action.byd.dishare.DIALOG_HOME`, `DIALOG_LAUNCHER`, or `DIALOG_CLOSE`
+broadcasts. On the Android 13 target a normal receiver cannot reliably recover
+the original sender identity, and the firmware corpus does not identify the
+legitimate sender of `DIALOG_HOME` or `DIALOG_LAUNCHER`. Depending on those
+actions would therefore let an arbitrary installed app hide or restore the
+floating exit control.
+
+The already-required `SimulcastAccessibilityService` is the lifecycle source of
+truth instead: a confirmed `com.byd.dishare` dialog window hides the exit control,
+and a confirmed disappearance restores it. The existing 320 ms disappearance
+grace treats short accessibility gaps as unknown rather than closed. Boot and APK
+replacement recovery remain in a non-exported receiver with an exact three-action
+allowlist. Denza Apps still sends `DIALOG_CLOSE` to close the stock dialog, but
+that outgoing intent is package-scoped to `com.byd.dishare`.
+
+This boundary is covered by deterministic transition and boot-action tests. It
+still needs live-car acceptance for a real dialog open/close cycle and a negative
+check that broadcasts of all three vendor actions leave the exit control unchanged.
+
 ### Target-screen centered aspect-fit policy
 
 Firmware fingerprint

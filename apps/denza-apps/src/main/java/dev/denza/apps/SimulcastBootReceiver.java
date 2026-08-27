@@ -8,8 +8,8 @@ import android.util.Log;
 import dev.denza.apps.core.DenzaRuntimeCoordinator;
 
 /**
- * Forwards trusted platform/DiShare lifecycle broadcasts to keep the floating exit
- * control in sync. Debug commands live in the debug-only, DUMP-protected receiver.
+ * Restores desired runtimes after trusted system lifecycle broadcasts. Simulcast dialog
+ * visibility is observed through accessibility instead of accepting spoofable vendor broadcasts.
  */
 public class SimulcastBootReceiver extends BroadcastReceiver {
     private static final String TAG = "DenzaSimulcastBoot";
@@ -21,38 +21,12 @@ public class SimulcastBootReceiver extends BroadcastReceiver {
             return;
         }
         Log.i(TAG, "action=" + action);
-        boolean enabled = SimulcastIntegration.isEnabled(context);
-
-        if (Intent.ACTION_BOOT_COMPLETED.equals(action)
-                || Intent.ACTION_LOCKED_BOOT_COMPLETED.equals(action)
-                || Intent.ACTION_MY_PACKAGE_REPLACED.equals(action)) {
+        if (SimulcastBootActionPolicy.shouldRecover(action)) {
             try {
                 DenzaRuntimeCoordinator.INSTANCE.recover(context);
             } catch (RuntimeException e) {
                 Log.i(TAG, "runtime recovery failed", e);
             }
-            return;
-        }
-
-        if (SimulcastOverlayService.ACTION_DISHARE_DIALOG_HOME.equals(action)
-                || SimulcastOverlayService.ACTION_DISHARE_DIALOG_LAUNCHER.equals(action)
-                || SimulcastOverlayService.ACTION_DISHARE_DIALOG_CLOSE.equals(action)) {
-            if (enabled) {
-                forwardToOverlay(context, action, intent);
-            }
-            return;
-        }
-    }
-
-    private void forwardToOverlay(Context context, String action, Intent source) {
-        Intent intent = new Intent(context, SimulcastOverlayService.class).setAction(action);
-        if (source != null && source.getExtras() != null) {
-            intent.putExtras(source.getExtras());
-        }
-        try {
-            context.startService(intent);
-        } catch (RuntimeException e) {
-            Log.i(TAG, "start overlay action failed: " + action, e);
         }
     }
 }
