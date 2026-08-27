@@ -1494,3 +1494,50 @@ The narrow pane reports itself as `w416dp h680dp` in its own window
 configuration — confirming both the 416 dp the dashboard's layout policy
 switches on and the 680 dp of drawable height the head-unit boards had been
 missing.
+
+## Where focus actually is, and a defect that no longer reproduces (live v38, 2026-08-27)
+
+Set out to reproduce the two symptoms recorded on 2026-08-26 — the rollback with
+`area=2` when the toggle is pressed from inside a pane, and the wrong app going
+fullscreen against 1.2.3. Neither reproduced.
+
+**Focus is readable, and the obvious source is the wrong one.** `dumpsys window`
+reports `mCurrentFocus=null` and `mFocusedApp=null` on this firmware — the field
+everyone reaches for first is empty. `dumpsys activity activities` carries a
+single non-null `mFocusedApp=ActivityRecord{… } t<id>}`, and it follows the
+finger: tapping the narrow pane named Music's task, tapping the wide pane named
+Navigator's, and back again. Note also that `topResumedActivity` appears once
+per root, so it is not a global focus and cannot answer this question alone.
+
+**Root order tracked focus in every ordinary scene measured.** `am stack list`
+reordered its roots to match each tap, so the z-order heuristic
+`closePickers` uses happens to agree in normal use. That is why the defect is
+rare rather than constant — and why it is still worth replacing with the reading
+above, which is a fact rather than a coincidence.
+
+**The recorded scene rebuilt honestly behaves correctly.** Denza Apps selected
+into the wide pane through its own picker, focused, then the feature switched off
+from inside it:
+
+```
+disable outcome=committed reason=- in 2209ms
+area=4
+taskId=332: dev.denza.apps/.MainActivity   ← the focused app, fullscreen
+```
+
+No rollback, and the focused app is the one that survived — both symptoms
+absent.
+
+**Why, probably.** In the 2026-08-26 event Denza Apps was in that pane because
+the firmware had pulled it in over an open gate, so the topology had been
+assembled by the firmware and not by the product. Here the same scene was built
+by the picker. The gate fix (`0835017`) removes that precondition, which makes
+both symptoms plausibly downstream of it rather than independent defects. Stated
+as the hypothesis it is: what is measured is that they do not reproduce, not
+that they cannot.
+
+**The split tile no longer toggles the feature.** It launches the picker session
+(`TileAction.SPLIT_LAUNCH`). The feature's switch is **Значок на рабочем столе**
+inside that tile's settings panel, which changes the launcher alias and the
+runtime policy together. Any acceptance brief that says "press the split tile to
+turn it off" is describing a build that no longer exists.
