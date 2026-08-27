@@ -156,29 +156,6 @@ object SplitScreenCoordinator {
         core?.completeNavigationReturn(plan, taskId, packageName)
     }
 
-    /**
-     * Navigation owns its explicit moves to and from the instrument display. Passive split
-     * reconciliation stands aside until that move and its configuration changes have settled.
-     */
-    @JvmStatic
-    fun bypassExternalTaskMoves() {
-        core?.bypassExternalTaskMoves()
-    }
-
-    /** Keeps reconciliation suspended while an external-display task move is actually in flight. */
-    @JvmStatic
-    fun holdExternalTaskMoves() {
-        core?.holdExternalTaskMoves()
-        Log.i(TAG, "external task routing held")
-    }
-
-    /** Releases the long-lived handoff hold; the acquirer's settle deadline is already in force. */
-    @JvmStatic
-    fun releaseExternalTaskMoves() {
-        core?.releaseExternalTaskMoves()
-        Log.i(TAG, "external task routing released")
-    }
-
     fun setEnabled(enabled: Boolean) {
         core?.setEnabled(enabled)
     }

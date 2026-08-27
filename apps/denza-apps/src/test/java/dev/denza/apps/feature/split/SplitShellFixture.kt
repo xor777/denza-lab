@@ -1,5 +1,6 @@
 package dev.denza.apps.feature.split
 
+import dev.denza.apps.TaskMoveOwnership
 import java.util.Collections
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -872,6 +873,9 @@ internal class SplitCarFixture(
     val shells = RecordingShellFactory(fake)
     val overlay = CountingOverlay()
     val gateLease = FakeGateLease()
+
+    /** Право двигать задачи - своё на каждую машину, чтобы сценарии не протекали друг в друга. */
+    val ownership = TaskMoveOwnership(clock::nowMs)
     val diagnostics: MutableList<String> = Collections.synchronizedList(mutableListOf())
 
     /** The subset the ring keeps in its own lane, where background work may not evict a run. */
@@ -911,6 +915,7 @@ internal class SplitCarFixture(
                 if (background) backgroundDiagnostics += line
                 onDiagnostic(line)
             },
+            ownership = ownership,
         ).also { core -> built = core }
     }
 

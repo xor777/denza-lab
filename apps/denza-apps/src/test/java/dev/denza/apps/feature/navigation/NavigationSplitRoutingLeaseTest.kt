@@ -1,42 +1,50 @@
 package dev.denza.apps.feature.navigation
 
+import dev.denza.apps.TaskMoveOwner
+import dev.denza.apps.TaskMoveOwnership
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
 
 class NavigationSplitRoutingLeaseTest {
+
+    private var now = 0L
+    private val ownership = TaskMoveOwnership { now }
+
     @Test
     fun `acquire and release are idempotent`() {
-        var holds = 0
-        var releases = 0
-        val lease = NavigationSplitRoutingLease(
-            hold = { holds += 1 },
-            release = { releases += 1 },
-        )
+        val lease = NavigationSplitRoutingLease(ownership)
 
         lease.acquire()
         lease.acquire()
-        lease.release()
-        lease.release()
+        assertEquals(TaskMoveOwner.NAVIGATION, ownership.holder())
 
-        assertEquals(1, holds)
-        assertEquals(1, releases)
+        lease.release()
+        lease.release()
+        assertNull(ownership.holder())
     }
 
     @Test
     fun `lease can be acquired again after release`() {
-        var holds = 0
-        var releases = 0
-        val lease = NavigationSplitRoutingLease(
-            hold = { holds += 1 },
-            release = { releases += 1 },
-        )
+        val lease = NavigationSplitRoutingLease(ownership)
 
         lease.acquire()
         lease.release()
         lease.acquire()
-        lease.release()
 
-        assertEquals(2, holds)
-        assertEquals(2, releases)
+        assertEquals(TaskMoveOwner.NAVIGATION, ownership.holder())
+    }
+
+    /**
+     * Отпускает владение колбэк чужой подсистемы, и колбэк может не прийти. Прежний `hold` срока не
+     * имел вовсе: потерянный `release` выключал фоновую сверку до конца процесса.
+     */
+    @Test
+    fun `a release that never comes expires instead of holding for ever`() {
+        NavigationSplitRoutingLease(ownership).acquire()
+
+        now += TaskMoveOwnership.HANDOFF_MS
+
+        assertNull(ownership.holder())
     }
 }

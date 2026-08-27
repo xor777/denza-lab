@@ -1,5 +1,7 @@
 package dev.denza.apps.feature.split
 
+import dev.denza.apps.TaskMoveOwner
+import dev.denza.apps.TaskMoveOwnership
 import java.util.Collections
 import java.util.concurrent.atomic.AtomicReference
 import org.junit.After
@@ -1377,7 +1379,8 @@ class SplitScenarioTest {
         car.barrier()
         val neighbour = car.fake.topTaskId(SECONDARY_ROOT)!!
 
-        core.holdExternalTaskMoves()
+        val navigationOwns = car.ownership
+            .acquire(TaskMoveOwner.NAVIGATION, TaskMoveOwnership.HANDOFF_MS)!!
         car.clearCommands()
         repeat(50) { core.dividerResized() }
         core.pickerVisible(hostTaskId = null)
@@ -1390,7 +1393,7 @@ class SplitScenarioTest {
         car.fake.addTask(PRIMARY_ROOT, RETURNED_NAV_TASK, NAVIGATOR, "$NAVIGATOR.MainActivity")
         core.completeNavigationReturn(plan, RETURNED_NAV_TASK, NAVIGATOR)
         car.barrier()
-        core.releaseExternalTaskMoves()
+        navigationOwns.release()
 
         assertEquals(SplitPane.PRIMARY, plan.pane)
         assertEquals(listOf(temporary), plan.displacedTasks.map(SplitDisplacedTask::taskId))

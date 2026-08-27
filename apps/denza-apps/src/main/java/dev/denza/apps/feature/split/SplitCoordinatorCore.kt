@@ -1,5 +1,7 @@
 package dev.denza.apps.feature.split
 
+import dev.denza.apps.TaskMoveOwner
+import dev.denza.apps.TaskMoveOwnership
 import java.util.concurrent.atomic.AtomicReference
 
 /**
@@ -228,9 +230,10 @@ internal class SplitCoordinatorCore(
     private val sleeper: (Long) -> Unit = Thread::sleep,
     private val log: SplitDiagnosticLog = SplitDiagnosticLog { _, _ -> },
     private val post: (() -> Unit) -> Unit = { action -> action() },
+    /** Общее на процесс право двигать задачи; см. [TaskMoveOwnership]. */
+    private val ownership: TaskMoveOwnership = TaskMoveOwnership.shared,
 ) {
     private val stateLock = Any()
-    private val routingLock = Any()
     private val recheckLock = Any()
     private val residentLock = Any()
 
@@ -250,8 +253,6 @@ internal class SplitCoordinatorCore(
     private var unfinished: Map<SplitPane, String> = emptyMap()
     private var busy: Busy? = null
     private var openTicket: SplitTicket? = null
-    private var routingBlockedUntilMs = 0L
-    private var externalTaskMovesHeld = false
     private var loaded = false
 
     /** Правка W3: не более одного отложенного повтора сверки на coalesce-ключ. */
@@ -505,25 +506,14 @@ internal class SplitCoordinatorCore(
         }
     }
 
-    /** Navigation owns the navigator task while it moves; passive reconciliation stands aside. */
-    fun bypassExternalTaskMoves() {
-        val blockedUntil = clock.nowMs() + EXTERNAL_TASK_BYPASS_MS
-        synchronized(routingLock) {
-            routingBlockedUntilMs = maxOf(routingBlockedUntilMs, blockedUntil)
-        }
-    }
-
-    fun holdExternalTaskMoves() {
-        synchronized(routingLock) { externalTaskMovesHeld = true }
-    }
-
-    fun releaseExternalTaskMoves() {
-        synchronized(routingLock) { externalTaskMovesHeld = false }
-    }
-
-    fun externalTaskMutationInFlight(): Boolean = synchronized(routingLock) {
-        externalTaskMovesHeld || clock.nowMs() < routingBlockedUntilMs
-    }
+    /**
+     * Двигает ли задачи кто-то другой прямо сейчас.
+     *
+     * Раньше здесь жили два собственных поля - пятисекундное окно и долгий hold, - и оба умирали
+     * вместе с ядром. Теперь это один вопрос к общему на процесс владению ([TaskMoveOwnership]),
+     * который переживает пересоздание координатора и знает не только «занято», но и кем.
+     */
+    fun externalTaskMutationInFlight(): Boolean = ownership.heldByOther(TaskMoveOwner.SPLIT)
 
     // endregion
 
@@ -800,7 +790,6 @@ internal class SplitCoordinatorCore(
             return "$label outcome=$settled reason=${reason ?: "-"} in ${elapsedMs}ms"
         }
 
-        const val EXTERNAL_TASK_BYPASS_MS = 5_000L
 
         /**
          * Правка W3: пауза одного отложенного повтора сверки - за неё двухпроходный teardown

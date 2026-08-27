@@ -5,6 +5,9 @@ import android.app.ActivityOptions
 import android.content.Context
 import android.content.Intent
 import android.util.Log
+import dev.denza.apps.TaskMoveLease
+import dev.denza.apps.TaskMoveOwner
+import dev.denza.apps.TaskMoveOwnership
 import dev.denza.apps.adb.DenzaLocalAdb
 import dev.denza.apps.core.FeatureResolution
 import dev.denza.apps.feature.cluster.ClusterDisplayResolver
@@ -37,10 +40,7 @@ object NavigationCoordinator {
     private var projectedOrigin: NavigationProjectionOrigin? = null
     private val projectionHealth = NavigationProjectionHealthTracker()
     private val primaryActionPending = AtomicBoolean(false)
-    private val splitRoutingLease = NavigationSplitRoutingLease(
-        hold = SplitScreenCoordinator::holdExternalTaskMoves,
-        release = SplitScreenCoordinator::releaseExternalTaskMoves,
-    )
+    private val splitRoutingLease = NavigationSplitRoutingLease()
 
     fun initialize(context: Context, onStateChanged: () -> Unit) {
         val app = context.applicationContext
@@ -139,7 +139,7 @@ object NavigationCoordinator {
         }
         // Only the projection path moves tasks between displays; the dashboard moves none, so it
         // has no reason to reach into split routing at all.
-        if (!dashboardSelected()) SplitScreenCoordinator.bypassExternalTaskMoves()
+        if (!dashboardSelected()) TaskMoveOwnership.pulse(TaskMoveOwner.NAVIGATION)
         executor.execute {
             try {
                 when (action) {
@@ -279,7 +279,7 @@ object NavigationCoordinator {
     }
 
     private fun openSelectedApp() {
-        SplitScreenCoordinator.bypassExternalTaskMoves()
+        TaskMoveOwnership.pulse(TaskMoveOwner.NAVIGATION)
         val app = context ?: return
         val packageName = selectedPackage
         val launch = app.packageManager.getLaunchIntentForPackage(packageName)
@@ -371,7 +371,7 @@ object NavigationCoordinator {
     }
 
     private fun projectToCluster() {
-        SplitScreenCoordinator.bypassExternalTaskMoves()
+        TaskMoveOwnership.pulse(TaskMoveOwner.NAVIGATION)
         val app = context ?: return
         beginTransfer(app)
         val packageName = selectedPackage
@@ -536,7 +536,7 @@ object NavigationCoordinator {
         focusTask: Boolean = true,
         reprojectAfterReturn: Boolean = false,
     ) {
-        SplitScreenCoordinator.bypassExternalTaskMoves()
+        TaskMoveOwnership.pulse(TaskMoveOwner.NAVIGATION)
         val app = context ?: return
         beginTransfer(app)
         splitRoutingLease.acquire()
@@ -907,21 +907,26 @@ object NavigationCoordinator {
     }
 }
 
+/**
+ * Долгое владение задачами на время переброса навигатора на приборку и обратно.
+ *
+ * Раньше это был `hold`/`release` внутри ядра split, то есть на незапущенном split - тихий no-op
+ * (`core?.`), и без срока: потерянный `release` держал сверку выключенной до конца процесса. Теперь
+ * это общее владение с потолком [TaskMoveOwnership.HANDOFF_MS], который и есть страховка от
+ * потерянного отпускания.
+ */
 internal class NavigationSplitRoutingLease(
-    private val hold: () -> Unit,
-    private val release: () -> Unit,
+    private val ownership: TaskMoveOwnership = TaskMoveOwnership.shared,
 ) {
-    private var held = false
+    private var lease: TaskMoveLease? = null
 
     fun acquire() {
-        if (held) return
-        held = true
-        hold()
+        if (lease != null) return
+        lease = ownership.acquire(TaskMoveOwner.NAVIGATION, TaskMoveOwnership.HANDOFF_MS)
     }
 
     fun release() {
-        if (!held) return
-        held = false
-        release.invoke()
+        lease?.release()
+        lease = null
     }
 }
