@@ -2221,7 +2221,7 @@ class SplitPickerShellSessionTest {
             addTask(SECONDARY_ROOT, 452, NAVIGATOR, "$NAVIGATOR.MainActivity")
         }
 
-        session(fake).closePickers(PICKERS, expectedHostTaskIds = emptySet())
+        session(fake).closePickers(PICKERS)
 
         // The scene ends and our own artifacts go, but the gate stays exactly as we found it.
         assertTrue(fake.isGateOpen())
@@ -2245,6 +2245,14 @@ class SplitPickerShellSessionTest {
                 STOCK_PICKER_PACKAGE,
                 STOCK_PICKER_ACTIVITY,
             )
+            // Наш host здесь не декорация: без него мир неотличим от чужого split'а, и тест
+            // утверждал бы ровно тот дефект, который чинит [aForeignSplitKeepsItsOwnStockPicker...].
+            addTask(
+                SECONDARY_ROOT,
+                440,
+                SPLIT_HOST_PACKAGE,
+                SPLIT_APP_HOST_ACTIVITY,
+            )
             addTask(SECONDARY_ROOT, 452, NAVIGATOR, "$NAVIGATOR.MainActivity")
         }
 
@@ -2255,6 +2263,39 @@ class SplitPickerShellSessionTest {
         assertTrue(fake.hasPackage(FULL_ROOT, LAUNCHER_PACKAGE))
         assertFalse(fake.hasActivity(PRIMARY_ROOT, STOCK_PICKER_ACTIVITY))
         assertTrue("a gate this session never opened is not ours to close", fake.isGateOpen())
+    }
+
+    /**
+     * Пункт 3 аудита: чужой split - не наша сцена, и наш тумблер её не разбирает.
+     *
+     * Мир тот же, что в [expandedSplitWithStockVacancyBecomesTrueFullscreenWhenProductIsOff], минус
+     * единственное отличие, которое всё и решает: ни одной задачи нашей identity. Там штатный пикер
+     * - артефакт прошивки в НАШЕЙ освободившейся панели, здесь - половина split'а, который
+     * пользователь собрал сам штатными средствами. По самой задаче эти два случая не различаются
+     * ничем, включая её id, поэтому доказательство берётся со сцены.
+     */
+    @Test
+    fun aForeignSplitKeepsItsOwnStockPickerWhenTheProductIsSwitchedOff() {
+        val fake = FakeShell(initialGate = true).apply {
+            area = 2
+            addTask(
+                PRIMARY_ROOT,
+                427,
+                STOCK_PICKER_PACKAGE,
+                STOCK_PICKER_ACTIVITY,
+            )
+            addTask(SECONDARY_ROOT, 452, NAVIGATOR, "$NAVIGATOR.MainActivity")
+        }
+
+        session(fake).closePickers(PICKERS)
+
+        assertTrue("чужой штатный пикер снесён выключением нашего тумблера", fake.hasTask(427))
+        assertTrue(fake.hasActivity(PRIMARY_ROOT, STOCK_PICKER_ACTIVITY))
+        assertFalse(
+            "в прокси ушла команда на удаление чужой задачи",
+            fake.commands.any { it.contains("remove-task") && it.contains(" 427 ") },
+        )
+        assertEquals(4, fake.area)
     }
 
     @Test

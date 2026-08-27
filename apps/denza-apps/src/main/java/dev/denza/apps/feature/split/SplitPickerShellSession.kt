@@ -2212,22 +2212,42 @@ internal class SplitPickerShellSession(
      * hidden peer root and divider, so disabled means: close the gate, move the exact foreground
      * task to the full IVI root, then remove only picker and unselected host artifacts.
      */
-    fun closePickers(
-        pickerComponents: Map<SplitPane, String>,
-        expectedHostTaskIds: Set<Int>? = null,
-    ) {
+    fun closePickers(pickerComponents: Map<SplitPane, String>) {
         val before = snapshot()
-        val expectedNativeHosts = expectedHostTaskIds.orEmpty()
-        val pickerTasks = before.roots.asSequence()
+        val mainDisplayTasks = before.roots
             .filter { it.displayId == MAIN_DISPLAY_ID }
-            .flatMap { it.tasks.asSequence() }
+            .flatMap(SplitRootTask::tasks)
+        // Чей это split, и почему это решается не по id.
+        //
+        // Штатный пикер в панели - наш артефакт ровно тогда, когда сцена наша: прошивка сама
+        // занимает им освободившуюся панель НАШЕЙ сцены, и не убрать его значит оставить
+        // пользователю штатный пикер в скрытом корне после выключения. Но ровно такая же задача -
+        // это чужой split, собранный пользователем штатными средствами, и его выключение нашего
+        // тумблера сносить не должно.
+        //
+        // Совпадением id эти два случая не различить: id штатного пикера мы не владеем никогда - в
+        // записанной сцене лежит id НАШЕГО пикера ([readOwnedSession], [verifyNavigationReturnedOnce]),
+        // - поэтому правило «удалять только по записанному id» вырождается в «не удалять никогда».
+        // Доказательство берётся не с пикера, а со сцены: жива ли на главном экране хоть одна
+        // задача нашей точной identity (package + activity). Чужой split такую задачу содержать не
+        // может, а панель, занятая прошивкой в нашей сцене, - вторая наша панель ещё жива.
+        //
+        // Сторона отказа безопасная: если от нашей сцены не осталось ничего, штатный пикер живёт.
+        val sceneIsOurs = mainDisplayTasks.any { task ->
+            task.isDenzaPickerBase() || task.isDenzaAppHost()
+        }
+        // `com.byd.sr` здесь не трогается вовсе. Вставленный прошивкой bootstrap снимается там, где
+        // продукт знает его id и только что видел его своими глазами: [attachPicker] →
+        // [removeBootstrapIfPresent], сразу после запуска своего пикера в эту панель. К выключению
+        // такого доказательства нет, а пакет настоящий, пользовательский; полноэкранный
+        // `com.byd.sr` при этом не проходит [eligible], то есть его нельзя было бы даже опознать
+        // как то приложение, ради которого сцена разбирается.
+        val pickerTasks = mainDisplayTasks
             .filter { task ->
-                task.isStockSplitPicker() ||
-                    (task.isStockSplitBootstrap() && task.id in expectedNativeHosts) ||
+                (task.isStockSplitPicker() && sceneIsOurs) ||
                     pickerComponents.values.any { component -> task.matchesComponent(component) } ||
                     LEGACY_PICKER_COMPONENTS.any { component -> task.matchesComponent(component) }
             }
-            .toList()
         val pickerTaskIds = pickerTasks.mapTo(mutableSetOf(), SplitTask::id)
         // `am stack list` orders roots by z-order, not by product ownership. A visible picker
         // may therefore be reported before the real application in the peer pane. Do not turn
