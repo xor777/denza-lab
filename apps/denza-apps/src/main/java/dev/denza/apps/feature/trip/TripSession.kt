@@ -21,4 +21,10 @@ object TripSession {
 
     fun hub(context: Context): TripSensorHub =
         hub ?: TripSensorHub(context.applicationContext).also { hub = it }
+
+    /**
+     * Хаб, если он уже есть. Сервисный отчёт спрашивает, а не создаёт: собрать хаб ради строчки
+     * диагностики значило бы построить датчики, о которых отчёт как раз и докладывает.
+     */
+    fun existingHub(): TripSensorHub? = hub
 }

@@ -5,13 +5,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import dev.denza.apps.DenzaUiState
 import dev.denza.apps.core.FeatureStatus
-import dev.denza.apps.design.DenzaColors
 import dev.denza.apps.design.DenzaMetrics
 import dev.denza.apps.feature.cluster.ClusterMapPlacement
 import dev.denza.apps.feature.mirrors.MirrorsPosition
@@ -120,15 +118,12 @@ fun FeatureSheet(
             // foot is the one thing there is to do.
             TileId.PASSENGER, TileId.SERVICE -> Unit
         }
+        // `details` намеренно не рисуется. Это техническая строка - текст исключения мотора,
+        // причина, по которой не взялся аудиоэффект, - и водителю она не сообщение, а мусор
+        // посреди экрана. Ошибки живут в «Сервисе», и туда же эта строка уже попадает; на
+        // центральной панели после действия есть состояние функции и объяснение, что она делает,
+        // и третьего быть не должно (U5).
         DenzaNote(helpOf(id))
-        val details = snapshot?.details
-        if (details != null) {
-            Text(
-                text = details,
-                style = MaterialTheme.typography.bodyMedium,
-                color = DenzaColors.MutedDeep,
-            )
-        }
     }
 }
 

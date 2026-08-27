@@ -67,6 +67,51 @@ accepted, and reads return — 245 760 frames arrived, every sample zero
 silence is the failure mode to expect here, so any future check of this path
 must assert on levels, not on a returned status.
 
+## The session-0 effect has exactly one owner (2026-08-27)
+
+The verdict above holds only while nothing else has claimed the effect. Session 0
+carries **one** Visualizer for the whole car, and only the client that created it
+first may enable it. A second client is attached to the same effect and gets
+`INVALID_OPERATION` from `setEnabled`.
+
+Observed live with Yandex Music playing at −6…−15 dBFS on the primary mixer
+thread — so there was nothing wrong with the audio:
+
+```
+Output thread AudioOut_D … Standby: no … Output devices: 0x2 (SPEAKER)
+  1 Effect Chains
+    1 effects for session 0
+    Effect ID 43:
+      Session State Registered Enabled Suspended:
+      00000   000   y          n       n
+      - name: Visualizer
+      2 Clients:
+        Pid  Priority Ctrl Locked
+        1130        0  yes    yes     ← system_server
+        8621        0   no    yes     ← dev.denza.apps
+```
+
+`system_server` held control and kept the effect **disabled**, so the product's
+`setEnabled(true)` was refused and the analyser drew silence over loud music.
+What in `system_server` takes the effect, and whether it ever gives it back, is
+**not established** — the ADB tunnel dropped before that could be traced.
+
+Two consequences for anything that reads this path:
+
+- **Check that the enable took.** `Visualizer.setEnabled` returns a status and
+  `getEnabled()` reflects it; assigning `enabled = true` in Kotlin discards the
+  status, and the analyser then reported itself healthy while delivering nothing.
+  A capture that attaches and stays silent is the same failure shape
+  `AudioPlaybackCapture` has, and it must be asserted against, not assumed away.
+- **Release the effect if configuration fails.** The object exists from the
+  constructor onward and already occupies a client slot in the chain; dropping it
+  unreleased leaves a handle nobody will reclaim, once per retry.
+
+The product reports this state in the service section only
+(`Анализатор спектра=…`: grant, capture requested, attached, effect enabled,
+age of the last FFT frame, last failure). Nothing about it is written on the
+central screen — a driver has no use for the text of an error (U5).
+
 ## Sample rate is misreported — calibrate to 48 kHz
 
 `Visualizer.getSamplingRate()` returns 44100, but the mix genuinely runs at

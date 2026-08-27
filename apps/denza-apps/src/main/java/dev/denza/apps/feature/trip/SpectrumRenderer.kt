@@ -49,10 +49,6 @@ class SpectrumRenderer {
         style = Paint.Style.STROKE
         strokeCap = Paint.Cap.ROUND
     }
-    private val labelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        typeface = Typeface.SANS_SERIF
-        textAlign = Paint.Align.CENTER
-    }
     private val bar = RectF()
     private val glyph = Path()
     private val barPath = Path()
@@ -141,7 +137,7 @@ class SpectrumRenderer {
             drawTicker(canvas, nowPlaying, left, right, top, unit, dtSec)
         }
         if (!playing) {
-            drawIdle(canvas, source, left, right, frameTimeSec, dtSec, unit)
+            drawIdle(canvas, left, right, frameTimeSec, dtSec, unit)
         }
     }
 
@@ -457,7 +453,6 @@ class SpectrumRenderer {
     /** A slow travelling ripple, so a silent car still shows a living panel. */
     private fun drawIdle(
         canvas: Canvas,
-        source: SpectrumSource,
         left: Float,
         right: Float,
         frameTimeSec: Double,
@@ -486,13 +481,6 @@ class SpectrumRenderer {
         stroke.alpha = 255
         canvas.drawPath(idlePath, stroke)
         stroke.shader = null
-
-        val failure = source.lastFailure
-        if (failure != null) {
-            labelPaint.textSize = unit * 15f
-            labelPaint.color = alpha(MUTED, 0.7f)
-            canvas.drawText(failure, (left + right) / 2f, baselineY - unit * 26f, labelPaint)
-        }
     }
 
     /** The board draws every peak cap in one colour, the peak tint, whatever the bar is doing. */
@@ -557,7 +545,6 @@ class SpectrumRenderer {
         val DEEP = DenzaPalette.accent(0.28f)
         val ACCENT = DenzaPalette.ACCENT
         val PEAK = DenzaPalette.DATA_PEAK
-        val MUTED = PanelPalette.MUTED
         val INK = PanelPalette.INK
     }
 }

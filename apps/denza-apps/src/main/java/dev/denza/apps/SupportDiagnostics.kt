@@ -23,6 +23,8 @@ import dev.denza.apps.feature.mirrors.MirrorsSettings
 import dev.denza.apps.feature.mirrors.SideCameraDetection
 import dev.denza.apps.feature.navigation.NavigationCoordinator
 import dev.denza.apps.feature.split.SplitScreenCoordinator
+import dev.denza.apps.feature.trip.SpectrumSource
+import dev.denza.apps.feature.trip.TripSession
 
 data class SupportDiagnosticsHeader(
     val versionName: String,
@@ -77,6 +79,12 @@ object SupportDiagnostics {
                         "details=${speaker.details ?: "—"}",
                 )
             }
+            // Анализатор питается тем же захватом, что и автоматика крышек, и когда захвата нет,
+            // обе функции молчат одинаково. На экране про это не пишется ни слова (U5), поэтому
+            // единственное место, где «столбики не шевелятся» можно отличить от «в машине тихо», -
+            // здесь. Живой разбор 27.08.2026 пришлось вести дампами `media.audio_flinger` ровно
+            // потому, что этой строки не было.
+            add("Анализатор спектра=${spectrumLabel(context)}")
             displays.forEach { display ->
                 add(
                     "Android display #${display.id}=" +
@@ -204,6 +212,27 @@ object SupportDiagnostics {
     private fun installedVersionName(context: Context): String = runCatching {
         context.packageManager.getPackageInfo(context.packageName, 0).versionName
     }.getOrNull()?.ifBlank { null } ?: "—"
+
+    private fun spectrumLabel(context: Context): String =
+        spectrumLabel(TripSession.existingHub()?.spectrum?.diagnostics(context))
+
+    /**
+     * Чистая часть строки анализатора: только из снимка, без контекста и без хаба.
+     *
+     * Отдельная функция, потому что различить «нет захвата», «захват есть, но эффект выключен» и
+     * «эффект включён, а кадров нет» - это и есть весь смысл строки, и проверять это на живой
+     * машине с играющей музыкой ради формата текста незачем.
+     */
+    internal fun spectrumLabel(state: SpectrumSource.Diagnostics?): String {
+        if (state == null) return "панель не открывалась"
+        val frames = state.sinceLastFrameMs
+        return "разрешение=${if (state.granted) "есть" else "нет"}; " +
+            "захват=${if (state.running) "запрошен" else "не запрошен"}; " +
+            "привязан=${if (state.attached) "да" else "нет"}; " +
+            "эффект=${state.effectEnabled?.let { if (it) "включён" else "ВЫКЛЮЧЕН" } ?: "нет"}; " +
+            "кадр=${frames?.let { "${it} мс назад" } ?: "не приходил"}; " +
+            "ошибка=${state.lastFailure ?: "—"}"
+    }
 
     private fun yesNo(value: Boolean) = if (value) "Доступен" else "Недоступен"
 

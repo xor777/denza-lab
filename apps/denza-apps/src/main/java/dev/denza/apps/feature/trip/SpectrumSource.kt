@@ -39,7 +39,7 @@ class SpectrumSource {
     var attached: Boolean = false
         private set
 
-    /** Why the analyser has no audio, for the panel's quiet fallback caption. */
+    /** Почему у анализатора нет звука. Читается «Сервисом»; на панель не выводится (U5). */
     @Volatile
     var lastFailure: String? = null
         private set
@@ -150,53 +150,50 @@ class SpectrumSource {
         return capturedAt
     }
 
+    /**
+     * Что анализатор может сказать о себе сервисному разделу.
+     *
+     * На центральной панели про это нет ни слова: после включения там либо столбики, либо покой,
+     * и текст ошибки посреди экрана водителю не сообщение, а мусор (U5). Но «просто не работает»
+     * без единого читаемого признака - это то, из-за чего диагноз 27.08.2026 пришлось ставить
+     * дампами `media.audio_flinger`, поэтому состояние есть, и оно лежит в «Сервисе».
+     */
+    data class Diagnostics(
+        val granted: Boolean,
+        val running: Boolean,
+        val attached: Boolean,
+        /** Живое состояние самого эффекта, а не наше о нём мнение. */
+        val effectEnabled: Boolean?,
+        /** Сколько прошло с последнего кадра FFT; `null` - кадров не было вовсе. */
+        val sinceLastFrameMs: Long?,
+        val lastFailure: String?,
+    )
+
+    fun diagnostics(context: Context): Diagnostics {
+        val captured = lastCaptureUptimeMs
+        return Diagnostics(
+            granted = TripAudioAccessCoordinator.isGranted(context.applicationContext),
+            running = running,
+            attached = attached,
+            effectEnabled = visualizer?.let { effect -> runCatching { effect.enabled }.getOrNull() },
+            sinceLastFrameMs = if (captured == 0L) null else SystemClock.uptimeMillis() - captured,
+            lastFailure = lastFailure,
+        )
+    }
+
     private fun attach() {
         if (!running || visualizer != null) return
         val outcome = runCatching {
             val effect = Visualizer(GLOBAL_OUTPUT_MIX_SESSION)
-            // The session 0 effect is shared across the device. If anything else
-            // already holds it — another visualiser, or a probe that did not
-            // release cleanly — it comes back already enabled, and configuring an
-            // enabled effect throws IllegalStateException("wrong state: 2").
-            // The analyser would then silently show nothing at all, which is
-            // exactly how a working capture path can look broken.
-            runCatching { effect.enabled = false }
-            val captureSize = Visualizer.getCaptureSizeRange()[1]
-            effect.captureSize = captureSize
-            // AS_PLAYED: the default normalising mode scales silence up into
-            // convincing noise, which would leave the bars dancing to nothing.
-            effect.scalingMode = Visualizer.SCALING_MODE_AS_PLAYED
-            val map = SpectrumBandMap(
-                bandCount = BAND_COUNT,
-                captureSize = captureSize,
-                sampleRateHz = CALIBRATED_RATE_HZ,
-                minHz = MIN_HZ,
-                maxHz = MAX_HZ,
-            )
-            effect.setDataCaptureListener(
-                object : Visualizer.OnDataCaptureListener {
-                    override fun onWaveFormDataCapture(v: Visualizer?, waveform: ByteArray?, rate: Int) = Unit
-
-                    override fun onFftDataCapture(v: Visualizer?, fft: ByteArray?, rate: Int) {
-                        if (fft == null) return
-                        map.magnitudes(fft, scratch)
-                        synchronized(lock) { scratch.copyInto(shared) }
-                        lastCaptureUptimeMs = SystemClock.uptimeMillis()
-                    }
-                },
-                Visualizer.getMaxCaptureRate(),
-                false,
-                true,
-            )
-            effect.enabled = true
-            Log.i(
-                TAG,
-                "attached captureSize=" + captureSize +
-                    " reportedRate=" + effect.samplingRate +
-                    " enabled=" + effect.enabled +
-                    " scaling=" + effect.scalingMode,
-            )
-            bandMap = map
+            try {
+                configure(effect)
+            } catch (error: Throwable) {
+                // Эффект уже создан, а значит, уже занял клиентский слот в цепочке сессии 0.
+                // Бросить его нерасцепленным - это оставить в машине наш handle, который никто
+                // больше не тронет, и на каждый повтор watchdog'а ещё один.
+                runCatching { effect.release() }
+                throw error
+            }
             effect
         }
         val effect = outcome.getOrNull()
@@ -210,6 +207,63 @@ class SpectrumSource {
         lastFailure = null
         lastCaptureUptimeMs = SystemClock.uptimeMillis()
         attached = true
+    }
+
+    private fun configure(effect: Visualizer) {
+        // The session 0 effect is shared across the device. If anything else
+        // already holds it — another visualiser, or a probe that did not
+        // release cleanly — it comes back already enabled, and configuring an
+        // enabled effect throws IllegalStateException("wrong state: 2").
+        // The analyser would then silently show nothing at all, which is
+        // exactly how a working capture path can look broken.
+        runCatching { effect.enabled = false }
+        val captureSize = Visualizer.getCaptureSizeRange()[1]
+        effect.captureSize = captureSize
+        // AS_PLAYED: the default normalising mode scales silence up into
+        // convincing noise, which would leave the bars dancing to nothing.
+        effect.scalingMode = Visualizer.SCALING_MODE_AS_PLAYED
+        val map = SpectrumBandMap(
+            bandCount = BAND_COUNT,
+            captureSize = captureSize,
+            sampleRateHz = CALIBRATED_RATE_HZ,
+            minHz = MIN_HZ,
+            maxHz = MAX_HZ,
+        )
+        effect.setDataCaptureListener(
+            object : Visualizer.OnDataCaptureListener {
+                override fun onWaveFormDataCapture(v: Visualizer?, waveform: ByteArray?, rate: Int) = Unit
+
+                override fun onFftDataCapture(v: Visualizer?, fft: ByteArray?, rate: Int) {
+                    if (fft == null) return
+                    map.magnitudes(fft, scratch)
+                    synchronized(lock) { scratch.copyInto(shared) }
+                    lastCaptureUptimeMs = SystemClock.uptimeMillis()
+                }
+            },
+            Visualizer.getMaxCaptureRate(),
+            false,
+            true,
+        )
+        // Включение проверяется, а не предполагается.
+        //
+        // Эффект сессии 0 в машине один, и включить его может только тот клиент, который держит
+        // управление; держит его тот, кто создал эффект первым. Живьём (27.08.2026, музыка играла
+        // на −6…−15 dBFS) управление оказалось у `system_server`, эффект стоял выключенным, и наш
+        // `enabled = true` возвращал отказ. Присваивание отказ не бросает и результата не отдаёт,
+        // поэтому источник объявлял себя привязанным, отдавал пустоту, и снаружи это выглядело
+        // просто как сломанный анализатор.
+        val status = effect.setEnabled(true)
+        check(status == Visualizer.SUCCESS && effect.enabled) {
+            "эффект сессии 0 занят другим владельцем (setEnabled=$status)"
+        }
+        Log.i(
+            TAG,
+            "attached captureSize=" + captureSize +
+                " reportedRate=" + effect.samplingRate +
+                " enabled=" + effect.enabled +
+                " scaling=" + effect.scalingMode,
+        )
+        bandMap = map
     }
 
     companion object {
