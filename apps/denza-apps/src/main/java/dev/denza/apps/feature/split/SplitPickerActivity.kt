@@ -43,10 +43,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Apps
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -56,6 +54,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Brush
+import dev.denza.apps.design.DenzaColors
+import dev.denza.apps.design.DenzaMetrics
+import dev.denza.apps.design.DenzaTheme
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.painter.BitmapPainter
@@ -439,18 +440,19 @@ internal object SplitPickerAppCatalog {
     private const val DYNA_CONFIG_PROVIDER_SUFFIX = "DynaConfigContentProvider"
 }
 
+/**
+ * Пикер живёт в той же теме, что и остальное приложение.
+ *
+ * Здесь была своя `MaterialTheme` с четырьмя своими цветами, и это была не подгонка под окружение,
+ * а расхождение: акцент пикера - бирюзовый `#52D5C7`, акцент продукта - бледно-жёлтый `#FEEFAB`.
+ * Не оттенок, а другой цвет, на одном экране с дашбордом. Текстовые тоже расходились на пару
+ * ступеней (`#F2F5F7` против `Ink`, `#98A1A8` против `Muted`).
+ *
+ * Фон при этом остаётся собственным, и намеренно: панель рисует его сама, чтобы совпасть с
+ * окружением BYD, а не с приложением - см. [NativeBlurOverlay] и [FallbackBackground].
+ */
 @Composable
-private fun SplitPickerTheme(content: @Composable () -> Unit) {
-    MaterialTheme(
-        colorScheme = darkColorScheme(
-            background = Background,
-            surface = Background,
-            onSurface = PrimaryText,
-            primary = Accent,
-        ),
-        content = content,
-    )
-}
+private fun SplitPickerTheme(content: @Composable () -> Unit) = DenzaTheme(content)
 
 @Composable
 private fun SplitPickerScreen(
@@ -496,8 +498,8 @@ private fun SplitPickerScreen(
                         .fillMaxWidth()
                         .padding(top = 12.dp, bottom = 14.dp),
                     text = "Выберите приложение",
-                    color = PrimaryText,
-                    fontSize = 20.sp,
+                    color = DenzaColors.Ink,
+                    fontSize = DenzaMetrics.Type.LABEL,
                     fontWeight = FontWeight.Normal,
                     textAlign = TextAlign.Center,
                     maxLines = 2,
@@ -514,7 +516,7 @@ private fun SplitPickerScreen(
                             } else {
                                 "Приложения не найдены"
                             },
-                            color = SecondaryText,
+                            color = DenzaColors.Muted,
                             textAlign = TextAlign.Center,
                         )
                     }
@@ -579,13 +581,13 @@ private fun SplitPickerTile(
                     imageVector = Icons.Outlined.Apps,
                     contentDescription = null,
                     modifier = Modifier.size(72.dp),
-                    tint = SecondaryText,
+                    tint = DenzaColors.Muted,
                 )
             }
             if (launching) {
                 CircularProgressIndicator(
                     modifier = Modifier.size(64.dp),
-                    color = Accent,
+                    color = DenzaColors.Accent,
                     strokeWidth = 3.dp,
                 )
             }
@@ -596,10 +598,10 @@ private fun SplitPickerTile(
                 .fillMaxWidth()
                 .height(40.dp),
             text = app.label,
-            color = PrimaryText,
-            fontSize = 16.sp,
+            color = DenzaColors.Ink,
+            fontSize = DenzaMetrics.Type.BODY,
             fontWeight = FontWeight.Normal,
-            lineHeight = 18.sp,
+            lineHeight = DenzaMetrics.Type.LABEL,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Center,
@@ -612,7 +614,11 @@ private fun SplitPickerTile(
  * даёт прежние 42 dp там, где окно панели сообщает нулевой статусбарный inset.
  */
 private val HeaderMinTopClearance = 30.dp
-private val Background = Color(0xFF363940)
+/**
+ * Фон панели, единственное, что здесь остаётся мимо палитры продукта, и по делу: панель стоит
+ * внутри штатного split-контейнера BYD и должна совпадать с ним, а не с дашбордом. Когда штатное
+ * размытие под панелью есть - не рисуем ничего; когда его нет - подменяем его же градиентом.
+ */
 private val NativeBlurOverlay = Brush.verticalGradient(listOf(Color.Transparent, Color.Transparent))
 private val FallbackBackground = Brush.verticalGradient(
     colorStops = arrayOf(
@@ -621,6 +627,4 @@ private val FallbackBackground = Brush.verticalGradient(
         1f to Color(0xFF070E1D),
     ),
 )
-private val PrimaryText = Color(0xFFF2F5F7)
-private val SecondaryText = Color(0xFF98A1A8)
-private val Accent = Color(0xFF52D5C7)
+
