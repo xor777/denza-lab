@@ -1541,3 +1541,36 @@ that they cannot.
 inside that tile's settings panel, which changes the launcher alias and the
 runtime policy together. Any acceptance brief that says "press the split tile to
 turn it off" is describing a build that no longer exists.
+
+## The focus read, proven on the product's own channel (live v39, 2026-08-27)
+
+The read added to `closePickers` is the first piped command in this file, and a pipe is exactly
+the kind of thing `adb shell <cmd>` cannot vouch for: that is the one-shot service, while the
+product opens legacy `shell:sh`, which on this adbd is a PTY with a line editor. v31 was lost to
+that difference.
+
+Driven through the product's own frame on a real `shell:sh` socket:
+
+```
+command: dumpsys activity activities | grep mFocusedApp
+status : 0
+bytes  : 153
+regex  : task 36
+```
+
+It survives the terminal, and the grep keeps it to 153 bytes — worth having, since `validateOutput`
+rejects any output containing "Exception" and a full activity dump may carry that word for
+unrelated reasons.
+
+Confirmed again from the operation itself. A disable over Denza Apps (focused, in a pane) and
+Yandex Music reported `обращений 23` where the same operation took 22 before the change, so the
+read is genuinely issued; `taskId=41` — the focused app — went fullscreen keeping its own task, and
+the operation committed in 2173 ms against 2209 ms before. The extra round trip costs nothing
+measurable.
+
+The fallback to the old root-order walk stays. It is never exercised on this car, but it is
+load-bearing in tests and it is what keeps an unverifiable answer from breaking a teardown.
+
+**The app picker's palette**, moved onto the design system in the same build, renders correctly at
+1/3 and 2/3 pane widths: header, four-column grid, and labels as long as "BYD Настройки" and
+"Denza Apps" all intact, nothing reflowed or clipped.
