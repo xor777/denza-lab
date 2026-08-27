@@ -336,8 +336,19 @@ class DashboardTilesTest {
     )
 }
 
-/** 147 dp of Roboto at 19/500; "Экран водителя" measures 145. */
-private const val NAME_BUDGET = 15
-
-/** 147 dp at 15/400; "Данных ещё нет" measures 116. */
-private const val STATE_BUDGET = 19
+/*
+ * How many characters a tile's two lines may hold.
+ *
+ * A character count is a proxy for a width and the proxy is what these numbers are for: the tile
+ * elides at one line each, and the registry is supposed to write captions that fit rather than
+ * captions that get cut. The full screen is the tightest of the three widths - 187.3 dp a tile
+ * less 20 either side is 147.3 dp of words, against 148.0 in the two-thirds pane and 150.0 in the
+ * narrow one - so it is the one these are set against.
+ *
+ * Measured in a browser against Roboto, because there is no text engine in a unit test: at 19/500
+ * "Экран водителя" is 145.2 dp over 14 characters, and at 15/400 Cyrillic runs about 8.3 dp a
+ * character, which puts the ceiling at 17. Both were two rungs looser and the looseness was real:
+ * an 18-character caption had already been written and measures 150.
+ */
+private const val NAME_BUDGET = 14
+private const val STATE_BUDGET = 17
