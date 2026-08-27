@@ -1706,7 +1706,17 @@ class SplitScenarioTest {
     @Test
     fun toggleOffOverTwoAppsKeepsTheFocusedOneFullscreen() {
         // сценарий §11.24, контракт 1.2.3
-        val car = car(FakeShell(initialGate = true).apply { liveProductScene(withApps = true) })
+        //
+        // Фокус здесь СПОРИТ с порядком контейнеров, и в этом весь тест. Без этого фикстура
+        // оставляла обеим величинам один и тот же ответ, то есть проверяла что угодно, кроме
+        // своего названия: пользователь сидел в MUSIC из широкой панели, а z-order первым называл
+        // NAVIGATOR из узкой, и ровно так дефект и выглядел на живой машине.
+        val car = car(
+            FakeShell(initialGate = true).apply {
+                liveProductScene(withApps = true)
+                focusedTaskId = SECONDARY_APP_TASK
+            },
+        )
         val core = car.core(SplitDurable(enabled = true, slots = APP_PAIR))
         car.gateLease.setOwned(true)
         core.initialize {}
@@ -1716,8 +1726,8 @@ class SplitScenarioTest {
         core.setEnabled(false)
         car.barrier()
 
-        assertTrue("the focused app is fullscreen", car.fake.hasPackage(FULL_ROOT, NAVIGATOR))
-        assertTrue("the neighbour keeps living", car.fake.hasTask(SECONDARY_APP_TASK))
+        assertTrue("the focused app is fullscreen", car.fake.hasPackage(FULL_ROOT, MUSIC))
+        assertTrue("the neighbour keeps living", car.fake.hasTask(PRIMARY_APP_TASK))
         assertFalse("our pickers are removed by exact id", car.fake.hasTask(PRIMARY_PICKER_TASK))
         assertFalse(car.fake.hasTask(SECONDARY_PICKER_TASK))
         assertFalse("a gate we own is closed with the session", car.fake.isGateOpen())
