@@ -2353,7 +2353,17 @@ internal class SplitPickerShellSession(
         )
     }
 
-    private fun dragDividerToBalanced() {
+    /**
+     * Раскрывает native split синтетическим перетаскиванием дивайдера.
+     *
+     * `internal`, а не `private`, по той же причине, что [awaitNativePickerCommit] и
+     * [nativePickerMutationAllowed]: это охраняемая мутация, и её охрана проверяется напрямую.
+     * Через reveal сюда не добраться - путь срабатывает только на по-настоящему пустой сцене,
+     * и ни один сценарный тест до него не доходит (проверено: холодный `openPickerSession` не
+     * отправляет ни одного `input swipe`). Единственная мутация в файле, которая не звала
+     * [hasActivePointer], была ровно та, которую никто не мог позвать в тесте.
+     */
+    internal fun dragDividerToBalanced() {
         val inputState = shell("dumpsys input").also(::validateOutput)
         val dividerLine = inputState.lineSequence().firstOrNull { line ->
             line.contains("multi-divider-shadow") && line.contains("frame=[")
@@ -2361,10 +2371,37 @@ internal class SplitPickerShellSession(
         val divider = DIVIDER_FRAME_PATTERN.find(dividerLine)
             ?: error("Нативный drag control не появился")
         val left = divider.groupValues[1].toInt()
-        val right = divider.groupValues[2].toInt()
+        val top = divider.groupValues[2].toInt()
+        val right = divider.groupValues[3].toInt()
+        val bottom = divider.groupValues[4].toInt()
+        // Детенты 856/1704 и ширина 2560 сняты живьём с панели ЭТОЙ машины; вычислять их из
+        // чего-либо значило бы выдумать поведение прошивки, поэтому они остаются константами. Но
+        // тогда обязана быть проверка, что панель та самая - иначе жест уйдёт по координатам
+        // чужого экрана. Тень дивайдера растянута на всю высоту панели, и её высота - единственная
+        // величина отсюда, которую можно с панелью сверить: 1600 и в живом дампе, и в измерении
+        // экрана (2560x1600). Расходится - не отправляем ничего.
+        //
+        // Отрицательный left здесь нормален: тень уходит за край экрана (живьём frame=[-67,0]).
+        if (bottom - top != PANEL_HEIGHT || right <= left) {
+            error("Геометрия дивайдера не с этой панели: [$left,$top][$right,$bottom]")
+        }
         val startX = ((left + right) / 2).coerceIn(EDGE_INSET, DISPLAY_WIDTH - EDGE_INSET)
         val endX = if (startX < DISPLAY_WIDTH / 2) LEFT_DIVIDER_X else RIGHT_DIVIDER_X
-        run("input swipe $startX $DIVIDER_Y $endX $DIVIDER_Y $DIVIDER_DRAG_MS")
+        // Вертикаль остаётся константой, и это следствие проверки выше, а не предположение: тень
+        // растянута на всю высоту панели, панель обязана быть 1600, значит середина обязана быть
+        // 800. Считать её из рамки я пробовал - при таком guard'е выражение не может дать другого
+        // числа, то есть отличить вычисление от константы нечем, и тест на него был бы
+        // декоративным (контракт §10.3.2).
+        val y = DIVIDER_Y
+        // Последнее, что делается перед мутацией, и на СВЕЖЕМ дампе: рамку читали раньше, а палец
+        // за это время мог опуститься. Свой жест поверх чужого касания - это не гонка за сцену, а
+        // порча жеста, который делает пользователь; этот путь и так холодный, лишнее чтение здесь
+        // ничего не стоит. Тот же предикат, что охраняет мутацию штатного пикера
+        // ([nativePickerMutationAllowed]) - там он уже применяется, здесь его просто не звали.
+        if (hasActivePointer(shell("dumpsys input"))) {
+            error("Дивайдер под пальцем: синтетический жест не отправляется")
+        }
+        run("input swipe $startX $y $endX $y $DIVIDER_DRAG_MS")
     }
 
     private fun removeBootstrapIfPresent(previous: SplitTask) {
@@ -3093,9 +3130,10 @@ internal class SplitPickerShellSession(
         const val AREA_POLL_INTERVAL_MS = 100L
         const val DISPLAY_WIDTH = 2_560
         const val EDGE_INSET = 50
+        const val PANEL_HEIGHT = 1_600
+        const val DIVIDER_Y = PANEL_HEIGHT / 2
         const val LEFT_DIVIDER_X = 856
         const val RIGHT_DIVIDER_X = 1_704
-        const val DIVIDER_Y = 800
         const val DIVIDER_DRAG_MS = 400
         const val STOCK_PICKER_PACKAGE = "com.android.launcher3"
         const val STOCK_PICKER_ACTIVITY = "com.android.launcher3.SplitScreenListActivity"
@@ -3115,7 +3153,7 @@ internal class SplitPickerShellSession(
         val PARCEL_PATTERN = Regex("Parcel\\(([^']+)")
         val WORD_PATTERN = Regex("[0-9a-fA-F]{8}")
         val DIVIDER_FRAME_PATTERN = Regex(
-            "frame=\\[(-?[0-9]+),-?[0-9]+]\\[(-?[0-9]+),-?[0-9]+]",
+            "frame=\\[(-?[0-9]+),(-?[0-9]+)]\\[(-?[0-9]+),(-?[0-9]+)]",
         )
     }
 }

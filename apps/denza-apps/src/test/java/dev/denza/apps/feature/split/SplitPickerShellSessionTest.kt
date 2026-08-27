@@ -7,6 +7,83 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class SplitPickerShellSessionTest {
+    private fun dragSession(
+        frame: String = "name='Embedded{multi-divider-shadow}', frame=[-67,0][108,1600]",
+        touchOnSecondRead: String = NO_ACTIVE_TOUCH,
+        commands: MutableList<String> = mutableListOf(),
+    ): SplitPickerShellSession {
+        var inputReads = 0
+        return SplitPickerShellSession(
+            shell = { command ->
+                commands += command
+                when (command) {
+                    "dumpsys input" -> {
+                        inputReads += 1
+                        if (inputReads == 1) frame else touchOnSecondRead
+                    }
+                    else -> ""
+                }
+            },
+            apkPath = "/tmp/denza-apps.apk",
+            settle = {},
+        )
+    }
+
+    /**
+     * Ровно один swipe, и ровно по координатам той панели, на которой их мерили.
+     *
+     * Пиннинг всей команды целиком: и прижатие startX к краю, и выбор детента по половине экрана,
+     * и вертикаль. Любое изменение расчёта видно здесь.
+     */
+    @Test
+    fun theSyntheticDragSendsOneSwipeAtTheMeasuredCoordinates() {
+        val commands = mutableListOf<String>()
+        dragSession(commands = commands).dragDividerToBalanced()
+
+        assertEquals(
+            listOf("input swipe 50 800 856 800 400"),
+            commands.filter { it.startsWith("input swipe") },
+        )
+    }
+
+    /**
+     * Палец пользователя на экране отменяет синтетический жест целиком (аудит, пункт 6).
+     *
+     * Тот же предикат уже охраняет мутацию штатного пикера; здесь его просто не звали, и
+     * приложение могло послать свой swipe поверх касания, которое делает человек.
+     */
+    @Test
+    fun theSyntheticDragIsNotSentWhileAFingerIsOnTheScreen() {
+        val commands = mutableListOf<String>()
+        val session = dragSession(touchOnSecondRead = ACTIVE_DIVIDER_TOUCH, commands = commands)
+
+        val error = runCatching { session.dragDividerToBalanced() }.exceptionOrNull()
+
+        assertEquals("Дивайдер под пальцем: синтетический жест не отправляется", error?.message)
+        assertTrue(commands.none { it.startsWith("input swipe") })
+    }
+
+    /**
+     * Чужая геометрия - ни одной координаты наружу (аудит, пункт 6: fail closed).
+     *
+     * Детенты и ширина сняты с панели 2560x1600. Тень дивайдера растянута на всю её высоту, так
+     * что несовпадение высоты означает другую панель - и тогда отправлять заранее известные
+     * координаты некуда.
+     */
+    @Test
+    fun theSyntheticDragRefusesAPanelItsDetentsWereNotMeasuredOn() {
+        val commands = mutableListOf<String>()
+        val session = dragSession(
+            frame = "name='Embedded{multi-divider-shadow}', frame=[-67,0][108,1200]",
+            commands = commands,
+        )
+
+        val error = runCatching { session.dragDividerToBalanced() }.exceptionOrNull()
+
+        assertTrue(error?.message?.startsWith("Геометрия дивайдера не с этой панели") == true)
+        assertTrue(commands.none { it.startsWith("input swipe") })
+    }
+
     @Test
     fun nativePickerReplacementWaitsForCommittedSplitAndReleasedDivider() {
         var areaReads = 0
