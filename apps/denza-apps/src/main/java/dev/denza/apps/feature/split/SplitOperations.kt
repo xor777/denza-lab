@@ -996,12 +996,28 @@ internal class SelectOperation(
     override fun readBack(op: SplitOperationContext, shell: (String) -> String, plan: Unit): Boolean {
         val chosen = placement ?: return false
         work.dropSharedReads()
-        runCatching { work.split(op).existingOwnedSession(SPLIT_PICKER_COMPONENT_SET) }
-            .getOrNull()
-            ?.let { settled ->
-                liveScene = settled
-                settle(SplitFact.BuildSceneSucceeded(sceneSlots(settled)))
-            }
+        // Этот read-back раньше глотал собственный результат: `runCatching {}.getOrNull()` без
+        // `?: return false`, и следом безусловный `return true`. Размещение проходило локально, а
+        // существование целой сцены не доказывалось ничем - и `settleOccupant` записывал в durable
+        // жильца, которого никто не видел.
+        //
+        // Ошибка ловилась ровно тем способом, который этот же файл разобрал тридцатью строками
+        // выше на плане OPEN: throw здесь - это фенс или связь, и оба принадлежат обычному пути
+        // ошибки операции, где пользователю говорят (U5), а не сплющиваются в «сцены нет».
+        // Поэтому здесь не ловится ничего: бросок доходит до раннера и операция откатывается с
+        // настоящим сообщением.
+        //
+        // Отказ - это не бросок. `readOwnedSession` возвращает причину, по которой сцена не наша,
+        // и она уходит в журнал до решения, чтобы «read-back failed» было чем объяснить.
+        // Отметка ДО чтения, а не только после: если чтение бросит, журнал обязан показывать, что
+        // read-back начинался - иначе откат по ошибке связи неотличим от операции, которая до
+        // чтения не дошла.
+        mark(op, "read-back начат")
+        val read = work.split(op).readOwnedSession(SPLIT_PICKER_COMPONENT_SET)
+        mark(op, "read-back: ${read.reason}")
+        val settled = read.scene ?: return false
+        liveScene = settled
+        settle(SplitFact.BuildSceneSucceeded(sceneSlots(settled)))
         settleOccupant(chosen.pane, chosen.packageName)
         return true
     }

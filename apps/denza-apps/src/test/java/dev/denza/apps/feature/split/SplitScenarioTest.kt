@@ -1688,6 +1688,77 @@ class SplitScenarioTest {
     }
 
     /**
+     * Проба: переживает ли SELECT неустойчивую area сразу после запуска.
+     *
+     * Живьём прошивка какое-то число чтений после прямого запуска отвечает `area=2`
+     * (`transientPostLaunchAreaDoesNotDeleteSuccessfullyPlacedApp` - существующий тест, который
+     * требует, чтобы этот транзиент НЕ удалял успешно поставленное приложение). Read-back теперь
+     * отказывается коммитить недоказанную сцену, а `readOwnedSession` отказывает как раз на
+     * area=2 - значит надо знать, доживает ли транзиент до read-back'а или его съедает сам
+     * `selectApp`. Если доживёт, строгий read-back откатит хороший выбор.
+     */
+    @Test
+    fun aTransientAreaAfterTheLaunchDoesNotRollBackTheSelection() {
+        for (transient in 0..6) {
+            val car = car(
+                FakeShell(transientAreaReadsAfterDirectLaunch = transient)
+                    .apply { liveProductScene() },
+            )
+            val core = car.core(SplitDurable(enabled = true, slots = PICKER_PAIR))
+            core.initialize {}
+            core.openPickerSession()
+            car.barrier()
+
+            core.selectApp(PRIMARY_PICKER_TASK, NAVIGATOR)
+            car.barrier()
+
+            assertEquals(
+                "транзиент из $transient чтений не откатывает хороший выбор",
+                SplitSlot.App(NAVIGATOR),
+                car.store.load().slots[SplitPane.PRIMARY],
+            )
+        }
+    }
+
+    /**
+     * Контракт 7.7 и инвариант 9: SELECT не коммитит жильца, чью сцену он не доказал.
+     *
+     * Дефект аудита: финальный read-back читал целую сцену через
+     * `runCatching {}.getOrNull()` без `?: return false` и следом безусловно возвращал `true`.
+     * Локальное размещение проходило, существование сцены не доказывалось ничем, и
+     * `settleOccupant` писал в durable жильца, которого никто не видел. Путь OPEN тридцатью
+     * строками выше делает ровно обратное - и его докстринг называет это инвариантом 9.
+     *
+     * Здесь сосед исчезает между постусловием запуска и финальным чтением: сцена перестаёт быть
+     * нашей, read-back отказывает, операция откатывается, durable остаётся прежним.
+     */
+    @Test
+    fun aSelectionWhoseSceneCannotBeProvenCommitsNoOccupant() {
+        val car = car(FakeShell().apply { liveProductScene() })
+        var neighbourGone = false
+        val core = car.core(SplitDurable(enabled = true, slots = PICKER_PAIR)) { line ->
+            // Ровно между постусловием запуска и финальным чтением сосед исчезает.
+            if (line.contains("read-back начат") && !neighbourGone) {
+                neighbourGone = true
+                car.fake.dismissPane(SECONDARY_ROOT)
+            }
+        }
+        core.initialize {}
+        core.openPickerSession()
+        car.barrier()
+
+        val slotsBefore = car.store.load().slots
+        val commitsBefore = car.store.commits
+
+        core.selectApp(PRIMARY_PICKER_TASK, NAVIGATOR)
+        car.barrier()
+
+        assertTrue("сосед действительно исчез до чтения", neighbourGone)
+        assertEquals("недоказанная сцена ничего не коммитит", commitsBefore, car.store.commits)
+        assertEquals("и прежние слоты остаются прежними", slotsBefore, car.store.load().slots)
+    }
+
+    /**
      * Правка W4 (волна 7, контракт 1.5.3, live v22 b3): тап по собственному хабу в широком
      * пикере. Прошивка кладёт split-способный собственный пакет по СВОИМ правилам стороны -
      * окно встаёт в другую панель, и это успех тапа, а не ошибка: слот пишется по фактической
