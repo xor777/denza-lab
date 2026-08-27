@@ -112,6 +112,41 @@ The product reports this state in the service section only
 age of the last FFT frame, last failure). Nothing about it is written on the
 central screen — a driver has no use for the text of an error (U5).
 
+### The owner can be made to switch it on — proven live
+
+Control is not needed to *read* the effect, only to *enable* it. So the way
+through is not to take the effect away from the firmware but to make the
+firmware turn it on: one effect, and everyone attached to it gets the data.
+
+`AudioManager` on this build carries four BYD additions —
+`startAudioOutput()`, `startAudioOutput(String)`, `stopAudioOutput()`,
+`stopAudioOutput(String)` — which is the path the DiLink SDK's own
+`DiLinkAudioManager` uses. It reaches `AudioVisualizerControl.startAudioVisualizer`,
+which enables the shared effect.
+
+Two gates, both read off the corpus before the live run:
+
+- `AudioVisualizerStore.getVisualizer(packageName)` returns null unless the name
+  is one of `com.byd.mediacenter`, `cn.kuwo.kwmusiccar`, `com.kugou.android.auto`,
+  `com.byd.dynaudio_app`, `com.netease.cloudmusic.iot`, `com.byd.caraudioaosp`,
+  or the mini-karaoke package. **`ru.yandex.music` is not among them** — which is
+  why nothing switched the effect on while it was playing. The package arrives as
+  a plain string and the service clears the calling identity, so it is claimed,
+  not proven.
+- `Session.isController()` additionally requires the system to be using the
+  vehicle speaker, or the session is counted without starting the visualiser.
+
+**Live result (2026-08-27):** `tools/AudioVisualizerProbe.java` held a session as
+`com.byd.mediacenter` for 15 s while Yandex Music played. The product's bars
+started moving for exactly that window, with no change to the application at all
+— it was already attached and simply had nothing to read.
+
+Consequences to weigh before building on it: the same call also starts the
+firmware's own consumers of that effect (`MusicAtmosphereLamp`), so the cabin
+lighting reacts for as long as the session is held; and the session lives with
+the binder, so whatever holds it must be alive for the whole time the analyser
+is wanted.
+
 ## Sample rate is misreported — calibrate to 48 kHz
 
 `Visualizer.getSamplingRate()` returns 44100, but the mix genuinely runs at
