@@ -135,8 +135,10 @@ class SpectrumLevelsTest {
         val out = FloatArray(BANDS)
         repeat(30) { levels.normalise(magnitudes, out, 1.0 / 30.0) }
         assertTrue(levels.hasSignal())
-        assertTrue("loud band should remain prominent, was ${out[10]}", out[10] > 0.85f)
-        assertTrue("steady audio should retain headroom, was ${out[10]}", out[10] < 0.9f)
+        // 1 - CEILING_HEADROOM_DB / DYNAMIC_RANGE_DB = 0.825, and the bounds bracket it closely
+        // enough that moving either constant has to come here and say so.
+        assertTrue("loud band should remain prominent, was ${out[10]}", out[10] > 0.80f)
+        assertTrue("steady audio should retain headroom, was ${out[10]}", out[10] < 0.85f)
     }
 
     @Test
@@ -158,7 +160,7 @@ class SpectrumLevelsTest {
         )
         assertTrue(
             "quiet material should not be pumped almost to full height: ${out[10]}",
-            out[10] < 0.9f,
+            out[10] < 0.85f,
         )
     }
 

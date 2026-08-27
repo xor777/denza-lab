@@ -192,12 +192,22 @@ class SpectrumLevels(
         const val TILT_DB_PER_OCTAVE = 2.2
         const val DYNAMIC_RANGE_DB = 40.0
         const val INITIAL_CEILING_DB = -18.0
-        const val MIN_CEILING_DB = -46.0
+        /**
+         * How far the scale's top may sink while it hunts for quiet material.
+         *
+         * The automatic gain rides the loudest band, so between tracks and under a quiet passage
+         * it keeps reaching down - and at -46 it reached far enough to find cabin hiss and draw
+         * it. Six decibels higher is the difference between an analyser that answers the music and
+         * one that answers the room.
+         */
+        const val MIN_CEILING_DB = -40.0
         const val SIGNAL_GATE_DB = -58.0
-        // Five decibels keeps a steady loudest band at about 87.5% of the
-        // 40 dB scale. The previous 3 dB value held it at 92.5% at any cabin
-        // volume, so even quiet playback looked almost full-scale.
-        const val CEILING_HEADROOM_DB = 5.0
+        // Where the loudest band sits: 1 - headroom/range of full height, so seven decibels of a
+        // 40 dB scale puts it at 82.5%. It was 3 (92.5%), then 5 (87.5%), and the owner watching
+        // it play still read the display as slightly over-eager. This is a uniform step down - it
+        // lowers every bar by the same amount and leaves the shape of the spectrum alone, which is
+        // what "чуть-чуть потише" should mean.
+        const val CEILING_HEADROOM_DB = 7.0
         const val CEILING_ATTACK_PER_SEC = 8.0
         const val CEILING_RELEASE_PER_SEC = 0.25
     }
