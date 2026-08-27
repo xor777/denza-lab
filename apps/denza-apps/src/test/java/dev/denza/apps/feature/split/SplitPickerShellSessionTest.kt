@@ -2154,6 +2154,54 @@ class SplitPickerShellSessionTest {
         assertEquals(4, fake.area)
     }
 
+    /**
+     * Полноэкранным остаётся то приложение, в котором сидел пользователь (1.2.3, аудит, пункт 1).
+     *
+     * Сцена здесь та же, что в тесте выше, и порядок корней тот же - PRIMARY идёт первым. Разница
+     * одна: система говорит, что сфокусирована задача в SECONDARY. До правки выключение выводило
+     * «переднее» приложение из порядка контейнеров, то есть из z-order, и уносило в полный экран
+     * навигатор - при том что пользователь смотрел в музыку.
+     */
+    @Test
+    fun theAppTheUserWasInIsTheOneLeftFullscreen() {
+        val fake = FakeShell(initialGate = true).apply {
+            area = 3
+            addTask(PRIMARY_ROOT, 40, NAVIGATOR, "$NAVIGATOR.MainActivity")
+            addTask(SECONDARY_ROOT, 41, MUSIC, "$MUSIC.MainActivity")
+            focusedTaskId = 41
+        }
+
+        session(fake).closePickers(PICKERS)
+
+        assertTrue("сфокусированное приложение - полноэкранное", fake.hasPackage(FULL_ROOT, MUSIC))
+        assertEquals("и это та же задача, а не перезапуск", FULL_ROOT, fake.taskRoot(41))
+        assertTrue("сосед остаётся живым", fake.hasTask(40))
+        assertEquals(4, fake.area)
+    }
+
+    /**
+     * Система не ответила про фокус - работает прежний обход, а не отказ.
+     *
+     * Команда чтения фокуса на машине ещё не проверена: тоннель упал раньше. Менять доказанно
+     * рабочее выключение на непроверенную команду нельзя, поэтому её молчание обязано быть
+     * безвредным.
+     */
+    @Test
+    fun anUnreadableFocusFallsBackToTheOrderInsteadOfRefusing() {
+        val fake = FakeShell(initialGate = true).apply {
+            area = 3
+            addTask(PRIMARY_ROOT, 40, NAVIGATOR, "$NAVIGATOR.MainActivity")
+            addTask(SECONDARY_ROOT, 41, MUSIC, "$MUSIC.MainActivity")
+            focusedTaskId = null
+        }
+
+        session(fake).closePickers(PICKERS)
+
+        assertTrue(fake.hasPackage(FULL_ROOT, NAVIGATOR))
+        assertTrue(fake.hasPackage(SECONDARY_ROOT, MUSIC))
+        assertEquals(4, fake.area)
+    }
+
     @Test
     fun expandedSplitWithStockVacancyBecomesTrueFullscreenWhenProductIsOff() {
         val fake = FakeShell(initialGate = true).apply {

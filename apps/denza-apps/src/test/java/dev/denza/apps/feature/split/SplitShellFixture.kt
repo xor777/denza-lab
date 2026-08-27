@@ -163,6 +163,15 @@ internal class FakeShell(
     var preserveBoundsOnShellMove = false
 
     /**
+     * Какую задачу система считает сфокусированной - независимо от порядка корней.
+     *
+     * Именно независимость здесь и есть предмет: до правки выключение выводило «переднее»
+     * приложение из порядка контейнеров, а порядок - это z-order, а не фокус. `null` означает
+     * «система не ответила», и тогда продукт обязан вернуться к прежнему обходу.
+     */
+    var focusedTaskId: Int? = null
+
+    /**
      * Панельный контейнер, который прошивка растянула на весь экран схлопыванием.
      *
      * Живая правда 2026-08-25: геометрия остаётся за корнем и после накрытия. Схлопнуто и
@@ -640,6 +649,12 @@ internal class FakeShell(
                 ""
             }
             command == "am stack list" -> renderStack()
+            command == "dumpsys activity activities | grep mFocusedApp" ->
+                focusedTaskId?.let { id ->
+                    val task = tasks.firstOrNull { it.id == id }
+                    "  mFocusedApp=ActivityRecord{a81ee00 u0 " +
+                        "${task?.packageName ?: "unknown"}/${task?.activityName ?: ".Unknown"}} t$id}"
+                } ?: "  mFocusedApp=null"
             command == "dumpsys input" ->
                 "name='Embedded{multi-divider-shadow}', frame=[-67,0][108,1600]"
             command.startsWith("input swipe ") -> {

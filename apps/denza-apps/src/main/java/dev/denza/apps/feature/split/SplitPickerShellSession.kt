@@ -152,6 +152,26 @@ internal class SplitPickerShellSession(
         return true
     }
 
+    /**
+     * Какую задачу система считает сфокусированной, если её вообще можно спросить.
+     *
+     * `dumpsys window` на этой прошивке отвечает `mCurrentFocus=null` и `mFocusedApp=null` - поле,
+     * к которому тянется рука первым, здесь пустое (замерено 2026-08-27). Единственный непустой
+     * ответ даёт `dumpsys activity activities`, и он ходит за пальцем: тап в узкую панель называл
+     * задачу музыки, в широкую - навигатора, обратно - снова музыки.
+     *
+     * `topResumedActivity` для этого не годится: он есть у каждого корня отдельно, то есть
+     * описывает вершину контейнера, а не единственный фокус экрана.
+     *
+     * Вывод сужается grep'ом на самой машине: полный дамп большой, а [validateOutput] отвергает
+     * любой вывод со словом «Exception» - в дампе всех активностей оно может встретиться по совсем
+     * постороннему поводу. Ничего не бросает: не прочиталось - значит не прочиталось.
+     */
+    private fun focusedTaskId(): Int? = runCatching {
+        val dump = shell("dumpsys activity activities | grep mFocusedApp")
+        FOCUSED_TASK_PATTERN.find(dump)?.groupValues?.get(1)?.toIntOrNull()
+    }.getOrNull()
+
     private fun hasActivePointer(inputDump: String): Boolean {
         val stateStart = inputDump.indexOf("TouchStatesByDisplay:")
         if (stateStart < 0) return false
@@ -2213,14 +2233,30 @@ internal class SplitPickerShellSession(
         // may therefore be reported before the real application in the peer pane. Do not turn
         // that into "no foreground"; keep walking visible root tops until an actual user task
         // is found.
-        val foreground = before.roots.asSequence()
+        // Кого пользователь считал открытым - вопрос к системе, а не к порядку контейнеров.
+        //
+        // Порядок root'ов в `am stack list` - это z-order, что комментарий ниже и говорит. Живьём
+        // (2026-08-27) он в обычных сценах идёт следом за фокусом, поэтому догадка обычно
+        // угадывает; но угадывать и знать - разное, а полноэкранным остаётся ровно одно
+        // приложение, и ошибка здесь видна пользователю сразу (1.2.3).
+        //
+        // Чтение необязательное. Команда живьём ещё не проверена (тоннель к машине упал раньше,
+        // чем до неё дошло), и незачем менять доказанно рабочее выключение на непроверенную
+        // команду: не ответила или назвала кого-то, кого мы и так не берём, - работает прежний
+        // обход, и причина уходит в журнал.
+        val eligible = { task: SplitTask ->
+            task.id !in pickerTaskIds &&
+                !task.isDenzaPickerBase() &&
+                !task.isNativeSplitBootstrap()
+        }
+        val visibleRoots = before.roots.asSequence()
             .filter { root -> root.displayId == MAIN_DISPLAY_ID && root.activityType != "home" }
-            .mapNotNull(SplitRootTask::resolvedTopTask)
-            .firstOrNull { task ->
-                task.id !in pickerTaskIds &&
-                    !task.isDenzaPickerBase() &&
-                    !task.isNativeSplitBootstrap()
-            }
+        val focusedId = focusedTaskId()
+        val focused = focusedId?.let { id ->
+            visibleRoots.flatMap { it.tasks.asSequence() }.firstOrNull { it.id == id && eligible(it) }
+        }
+        val foreground = focused
+            ?: visibleRoots.mapNotNull(SplitRootTask::resolvedTopTask).firstOrNull(eligible)
         val hostArtifacts = before.roots.asSequence()
             .filter { it.displayId == MAIN_DISPLAY_ID }
             .flatMap { it.tasks.asSequence() }
@@ -3152,6 +3188,9 @@ internal class SplitPickerShellSession(
         const val SPLIT_PROXY_RESULT_PREFIX = "DENZA_SPLIT_RESULT:"
         val PARCEL_PATTERN = Regex("Parcel\\(([^']+)")
         val WORD_PATTERN = Regex("[0-9a-fA-F]{8}")
+        /** `mFocusedApp=ActivityRecord{a81ee00 u0 dev.denza.apps/.MainActivity} t332}` */
+        val FOCUSED_TASK_PATTERN = Regex("mFocusedApp=ActivityRecord\\{[^}]*\\}\\s+t([0-9]+)\\}")
+
         val DIVIDER_FRAME_PATTERN = Regex(
             "frame=\\[(-?[0-9]+),(-?[0-9]+)]\\[(-?[0-9]+),(-?[0-9]+)]",
         )
