@@ -7,6 +7,7 @@ import android.os.Looper
 import android.os.SystemClock
 import android.provider.Settings
 import android.util.Log
+import dev.denza.apps.TaskMoveOwnership
 import dev.denza.apps.adb.DenzaLocalAdb
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -191,6 +192,7 @@ object SplitScreenCoordinator {
             ),
             log = SplitDiagnosticLog(SplitDiagnostics::record),
             post = { action -> mainHandler.post(action) },
+            ownership = TaskMoveOwnership.shared,
         )
     }
 

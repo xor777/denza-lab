@@ -138,7 +138,17 @@ public class SimulcastOverlayService extends Service {
 
     private void startTargetByPackage(final String packageName, final String label,
             final String receiver) {
-        TaskMoveOwnership.pulse(TaskMoveOwner.SIMULCAST);
+        // Обратная гарантия пункта 7 аудита. Запуск проекции - это перестройка того же дерева
+        // задач, которое перестраивает split, и пока совместное владение не доказано, вторая
+        // функция отказывается закрыто: ничего не двигает, экран остаётся рабочим, и объяснять
+        // пользователю нечего (контракт §11.21, U5).
+        final TaskMoveLease lease = TaskMoveOwnership.shared
+                .acquire(TaskMoveOwner.SIMULCAST, TaskMoveOwnership.HANDOFF_MS);
+        if (lease == null) {
+            Log.i(TAG, "start target stood down: task moves owned by "
+                    + TaskMoveOwnership.shared.holder());
+            return;
+        }
         stopBridge();
         SimulcastIntegration.clearLastTargetPackage(this);
         hideActiveShareExit();
@@ -164,7 +174,7 @@ public class SimulcastOverlayService extends Service {
 
                     @Override
                     public void onStarted(Bundle result) {
-                        TaskMoveOwnership.pulse(TaskMoveOwner.SIMULCAST);
+                        lease.release();
                         Log.i(TAG, packageName + " started "
                                 + DiShareProjectionBridge.bundleToString(result));
                         SimulcastIntegration.setLastTarget(SimulcastOverlayService.this,
@@ -177,7 +187,7 @@ public class SimulcastOverlayService extends Service {
 
                     @Override
                     public void onFailed(String message) {
-                        TaskMoveOwnership.pulse(TaskMoveOwner.SIMULCAST);
+                        lease.release();
                         Log.w(TAG, packageName + " failed " + message);
                         Toast.makeText(SimulcastOverlayService.this,
                                 "Simulcast не запустил " + label + ": " + message,
@@ -187,7 +197,7 @@ public class SimulcastOverlayService extends Service {
 
                     @Override
                     public void onStopped(String message) {
-                        TaskMoveOwnership.pulse(TaskMoveOwner.SIMULCAST);
+                        lease.release();
                         Log.i(TAG, packageName + " stopped " + message);
                     }
                 });

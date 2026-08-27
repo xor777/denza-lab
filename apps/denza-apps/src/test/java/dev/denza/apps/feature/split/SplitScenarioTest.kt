@@ -558,6 +558,67 @@ class SplitScenarioTest {
     }
 
     /**
+     * Пункт 7 аудита, сценарий §11.21: пока другая функция двигает те же задачи, наша отказывается
+     * закрыто.
+     *
+     * Отказ стоит одной проверки в памяти и происходит раньше первой команды, поэтому его цена -
+     * ноль сессий и ноль мутаций, а не откат уже сделанного. Пользователю при этом не показывают
+     * ничего: экран остаётся тем, чем был (U5).
+     */
+    @Test
+    fun anotherOwnerOfTheTaskTreeLeavesOpenAndSelectWithoutASingleCommand() {
+        val car = car(FakeShell())
+        val core = car.core(SplitDurable(enabled = true, slots = PICKER_PAIR))
+        core.initialize {}
+        car.barrier()
+        car.clearCommands()
+
+        // Simulcast начал свой переброс на задний экран.
+        assertNotNull(car.ownership.acquire(TaskMoveOwner.SIMULCAST, TaskMoveOwnership.HANDOFF_MS))
+
+        core.openPickerSession()
+        car.barrier()
+        core.selectApp(PRIMARY_PICKER_TASK, WAZE)
+        car.barrier()
+
+        assertEquals("ни одной shell-сессии", 0, car.shells.opened.get())
+        assertEquals(emptyList<String>(), car.commands())
+        assertEquals("и ничего не записано", 0, car.store.commits)
+    }
+
+    /**
+     * И обратная гарантия того же пункта: пока идёт наша операция, владение наше.
+     *
+     * Оракул - сама попытка чужого владельца, снятая изнутри операции: её собственные фазовые метки
+     * ринга и есть моменты, когда операция точно в полёте.
+     */
+    @Test
+    fun whileASplitOperationRunsNobodyElseGetsTheTaskTree() {
+        val car = car(FakeShell())
+        val refusedInside = mutableListOf<Boolean>()
+        val core = car.core(SplitDurable(enabled = true, slots = PICKER_PAIR)) { line ->
+            if (line.startsWith("${SplitCoordinatorCore.OPEN_LABEL} +")) {
+                refusedInside += car.ownership.acquire(TaskMoveOwner.SIMULCAST, 1_000L) == null
+            }
+        }
+        core.initialize {}
+
+        core.openPickerSession()
+        car.barrier()
+
+        assertTrue("операция вообще успела отметиться в ринге", refusedInside.isNotEmpty())
+        assertEquals(
+            "и ни в один из этих моментов чужой владелец не получил бы задачи",
+            listOf(true),
+            refusedInside.distinct(),
+        )
+        assertNotNull(
+            "а закончившись, она владение отпустила",
+            car.ownership.acquire(TaskMoveOwner.SIMULCAST, 1_000L),
+        )
+    }
+
+    /**
      * 1.13: what the user is made to wait for before anything happens at all.
      *
      * An open used to read the whole task topology three times and the two panel roots six times

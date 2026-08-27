@@ -62,6 +62,7 @@ class TaskMoveOwnership(private val nowMs: () -> Long = { System.nanoTime() / 1_
      * (контракт 1.2, сценарий §11.31).
      * @return выданное владение либо `null`, если оно у другого владельца.
      */
+    @JvmOverloads
     fun acquire(
         owner: TaskMoveOwner,
         holdMs: Long,

@@ -1,5 +1,8 @@
 package dev.denza.apps.feature.split
 
+import dev.denza.apps.TaskMoveLease
+import dev.denza.apps.TaskMoveOwner
+import dev.denza.apps.TaskMoveOwnership
 import java.util.concurrent.atomic.AtomicReference
 
 /**
@@ -12,6 +15,36 @@ import java.util.concurrent.atomic.AtomicReference
  * semantic state (invariant 12), which is why every fact below is fed on the actor worker and every
  * durable projection is written by exactly one commit at the end of the operation.
  */
+
+/**
+ * Как операция относится к общему праву двигать задачи ([TaskMoveOwnership], контракт §11.21).
+ *
+ * Пункт 7 аудита: право спрашивали только `EDGE` и `RECONCILE`, то есть фоновые пути, а `OPEN` и
+ * `SELECT` - те, что реально перестраивают сцену, - двигали задачи поверх чужого move.
+ */
+internal enum class SplitTaskMoveOwnership {
+    /**
+     * Не спрашивает и не занимает.
+     *
+     * Сюда попадают и те, что задач не двигают вовсе (`ENABLE`, `HOME`, `PACKAGE_REMOVED`), и шаги
+     * переброса на приборку: они и есть работа владельца `NAVIGATION`, который право уже держит, и
+     * спрашивать его у самих себя им незачем. `EDGE` и `RECONCILE` спрашивают по-своему, раньше и
+     * мягче - отказ у них не провал операции, а пустой план, - поэтому они тоже здесь.
+     */
+    NONE,
+
+    /** Чужое владение - закрытый отказ: ни одной команды, экран остаётся рабочим, без объяснений. */
+    YIELDS,
+
+    /**
+     * Забирает владение у кого угодно.
+     *
+     * Так поступает только выключение тумблера. Разбор сцены - это отказ от владения, а не просьба
+     * о нём: запретить его чужим move означало бы оставить включённый split при выключенном
+     * тумблере, чего контракт не допускает ни на каком экране (1.2, сценарий §11.31).
+     */
+    PREEMPTS,
+}
 
 /** Everything one operation is allowed to touch, built fresh for each one and closed after it. */
 internal class SplitOperationWorkspace(
@@ -33,6 +66,8 @@ internal class SplitOperationWorkspace(
     private val readUnfinished: () -> Map<SplitPane, String> = { emptyMap() },
     private val markUnfinished: (Map<SplitPane, String>) -> Unit = {},
     val externalMoveInFlight: () -> Boolean,
+    /** Общее на процесс право двигать задачи; операции берут его через свой [SplitTaskMoveOwnership]. */
+    val ownership: TaskMoveOwnership,
     /** Правка W5, §4: явный запрос пользователя ждёт в очереди прямо сейчас. Read-only. */
     val userInputWaiting: () -> Boolean = { false },
     private val publisher: (SplitState, SplitLiveScene) -> Unit,
@@ -387,6 +422,17 @@ internal abstract class SplitCoreOperation<P>(
 
     protected var liveScene: SplitLiveScene = emptyMap()
 
+    private var taskMoveLease: TaskMoveLease? = null
+
+    /**
+     * Как эта операция относится к общему праву двигать задачи (§11.21, [TaskMoveOwnership]).
+     *
+     * По умолчанию - никак: большинство операций либо ничего не двигает, либо и есть работа того
+     * владельца, который уже держит право (шаги переброса на приборку). Спрашивают разрешения
+     * ровно те, что перестраивают сцену по явному действию пользователя.
+     */
+    protected open val taskMoves: SplitTaskMoveOwnership = SplitTaskMoveOwnership.NONE
+
     /**
      * Panes standing on a bare picker only because a refused open did not finish standing their
      * application up (1.3.5). Read once, at planning time, like every other ephemeral hint.
@@ -394,11 +440,45 @@ internal abstract class SplitCoreOperation<P>(
     protected var unfinishedRestore: Map<SplitPane, String> = emptyMap()
 
     final override fun plan(op: SplitOperationContext, shell: (String) -> String): P? {
+        // Первым делом и до единой команды: отказ ценой одной проверки в памяти - это ноль
+        // shell-сессий и ноль мутаций, а не откат уже сделанного (§11.21).
+        if (!takeTaskMoveOwnership()) return null
         working = work.state()
         liveScene = work.live()
         unfinishedRestore = work.unfinishedRestore()
         return prepare(op, shell)
     }
+
+    private fun takeTaskMoveOwnership(): Boolean = when (taskMoves) {
+        SplitTaskMoveOwnership.NONE -> true
+        SplitTaskMoveOwnership.YIELDS -> {
+            taskMoveLease = work.ownership.acquire(TaskMoveOwner.SPLIT, durationMs)
+            taskMoveLease != null
+        }
+        SplitTaskMoveOwnership.PREEMPTS -> {
+            taskMoveLease = work.ownership
+                .acquire(TaskMoveOwner.SPLIT, durationMs, preempt = true)
+            true
+        }
+    }
+
+    /**
+     * Владение отпускается здесь, а не в [apply], ровно по той же причине, по какой здесь же
+     * освобождается shell-UID helper: этот хук выполняется на КАЖДОМ исходе операции - commit,
+     * read-back, откат, отмена по таймауту, чужое исключение - и уже после отката, которому
+     * владение ещё нужно.
+     */
+    final override fun cleanUp(op: SplitOperationContext) {
+        try {
+            finish(op)
+        } finally {
+            taskMoveLease?.release()
+            taskMoveLease = null
+        }
+    }
+
+    /** Что операция должна отдать на любом исходе, кроме самого владения задачами. */
+    protected open fun finish(op: SplitOperationContext) = Unit
 
     final override fun mutate(op: SplitOperationContext, shell: (String) -> String, plan: P) {
         apply(op, shell, plan)
@@ -645,6 +725,9 @@ internal class DisableOperation(
     coalesceKey = null,
     work = work,
 ) {
+    // Пользователь выключил функцию: разбирать сцену придётся при любом чужом владении (§11.31).
+    override val taskMoves = SplitTaskMoveOwnership.PREEMPTS
+
     override fun prepare(op: SplitOperationContext, shell: (String) -> String): Boolean {
         // No scene means no teardown: a cold process that finds the toggle off, or a repaired
         // mismatch at startup, sends not one command (A.3.1, invariant 1, scenarios 14 and 19).
@@ -681,7 +764,7 @@ internal class DisableOperation(
      * It belongs here rather than in a `finally` around that call because rollback may still want
      * the helper; this runs after the rollback, on every ending the operation can have.
      */
-    override fun cleanUp(op: SplitOperationContext) {
+    override fun finish(op: SplitOperationContext) {
         work.releaseResident()
     }
 }
@@ -710,6 +793,9 @@ internal class OpenOperation(
     work = work,
 ) {
     override val refusal: String get() = "Split screen выключен"
+
+    // Явная перестройка сцены поверх чужого move - это два рецепта на одном дереве задач.
+    override val taskMoves = SplitTaskMoveOwnership.YIELDS
 
     /** Правка волны 11: the bases of this build are standing, so a refusal may not take them. */
     private var rootsPlaced = false
@@ -966,6 +1052,9 @@ internal class SelectOperation(
     work = work,
 ) {
     override val refusal: String get() = "Split screen выключен"
+
+    // То же, что и у открытия: приложение встаёт в панель командами, а не пожеланием.
+    override val taskMoves = SplitTaskMoveOwnership.YIELDS
 
     private var placement: SplitPickerPlacement? = null
 

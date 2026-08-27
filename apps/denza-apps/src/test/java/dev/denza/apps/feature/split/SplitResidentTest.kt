@@ -1,5 +1,6 @@
 package dev.denza.apps.feature.split
 
+import dev.denza.apps.TaskMoveOwnership
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -404,6 +405,7 @@ class SplitResidentTest {
         readState = { SplitState() },
         readLive = { emptyMap() },
         externalMoveInFlight = { false },
+        ownership = TaskMoveOwnership { 0L },
         publisher = { _, _ -> },
     )
 

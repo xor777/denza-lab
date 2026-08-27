@@ -230,8 +230,11 @@ internal class SplitCoordinatorCore(
     private val sleeper: (Long) -> Unit = Thread::sleep,
     private val log: SplitDiagnosticLog = SplitDiagnosticLog { _, _ -> },
     private val post: (() -> Unit) -> Unit = { action -> action() },
-    /** Общее на процесс право двигать задачи; см. [TaskMoveOwnership]. */
-    private val ownership: TaskMoveOwnership = TaskMoveOwnership.shared,
+    /**
+     * Право двигать задачи. Сознательно без значения по умолчанию: общий на процесс экземпляр в
+     * тесте - это состояние, текущее между тестами, а тут его молча получил бы каждый забывший.
+     */
+    private val ownership: TaskMoveOwnership,
 ) {
     private val stateLock = Any()
     private val recheckLock = Any()
@@ -616,6 +619,7 @@ internal class SplitCoordinatorCore(
             readUnfinished = ::currentUnfinished,
             markUnfinished = ::markUnfinished,
             externalMoveInFlight = ::externalTaskMutationInFlight,
+            ownership = ownership,
             userInputWaiting = actor::userInputWaiting,
             publisher = ::publishSettled,
         )
