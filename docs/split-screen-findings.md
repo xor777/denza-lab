@@ -1427,20 +1427,70 @@ it still owns the gate and reads area 0/4. Mutation authority stays what it
 always was — a read area, never an event — and over a visible scene (area 1/2/3)
 it sends nothing, because a false close is strictly worse than a missed one.
 
-**Still owed by the car:** that an ordinary dock launch after a lost hint is no
-longer pulled into split, and that focused tasks and the durable pair are
-unchanged by the new suspension. Unit tests cover the other four obligations.
+**Accepted live (v37 `ba9eba82`, 2026-08-27).** Both owed proofs are closed, and
+both branches of the unreliable signal were seen in one session:
 
-### A contradiction about logcat that is not resolved
+- *Hint lost.* Home over a live Music + Navigator pair produced no hint; the ring
+  read `gate подвешен сверкой: Home-хинт не пришёл, накрытие прочитано (1.9.2)`
+  and area went to 0. An ordinary dock launch of Navigator then gave **area=4**,
+  fullscreen in root 4, keeping its own task id 321 — where before the fix the
+  same situation gave area=3 even 65 seconds later.
+- *Hint arrived.* A later Home produced `window event target=HOME` and
+  `home confirmed` — the ordinary path, unchanged.
+- The durable pair was byte-identical before and after
+  (`ru.yandex.music` / `com.byd.sr` / `100`), no task was restarted, and the
+  product sent nothing at all during the ordinary launch.
+- Zero `com.byd.avc` crashes across the whole run.
 
-The same session reports that `adb logcat -s DenzaSplitScreen
-DenzaSplitPickerA11y` returns the full ring with real timestamps — that `Log.i`
-from `dev.denza.apps` reaches logd on this car. The docstring of
-`SplitDiagnostics.kt` records the opposite from two full runs, and attributes it
-to logd filtering apps by UID (`da09c6a`).
+The point of the fix is exactly that the two branches end the same way.
 
-Both are live observations, and nothing so far explains the difference; the
-mechanism claim (UID filtering) is the weakest link, since it was inferred from
-absence rather than read anywhere. Treat the logcat channel as **unconfirmed**
-and keep the in-process ring as the channel of truth until one run settles it.
-Do not remove the ring on the strength of an unexplained contradiction.
+### The logcat contradiction, settled (live v37, 2026-08-27)
+
+`Log.i` from `dev.denza.apps` **does** reach logd on this car. Cleared the
+buffer, launched the app, and `adb logcat -s DenzaSplitScreen
+DenzaSplitPickerA11y` returned the ring with real timestamps — phase marks,
+budget lines, `outcome=`, and the accessibility service's own window events.
+
+The `SplitDiagnostics.kt` docstring said the opposite and blamed logd filtering
+apps by UID. That mechanism is now disproved twice over: the app's own tagged
+lines arrive, and even before any of them the process already had 265
+`AudioEffect` lines in the buffer from native code inside it. A whole-UID filter
+would have dropped those too. What actually happened in the run behind
+`da09c6a` is still unknown — absence of lines was read as a filter, and it was
+not one.
+
+**The in-process ring stays the channel of truth.** logcat needs a host and a
+cable; the support screen does not, and an owner in a car has no adb. What
+changes is debugging from this desk: the ring is readable without seven taps,
+without the support screen, and while a blocking overlay is up.
+
+## A selection now proves its scene, and says why (live v37, 2026-08-27)
+
+`SelectOperation.readBack` used to read the whole scene through
+`runCatching {}.getOrNull()` and return `true` regardless, so a local placement
+was treated as the scene existing. It now refuses what it cannot prove, and the
+refusal reason reaches the journal before the decision.
+
+The risk in making it strict was that a live read-back might refuse where the
+old code silently committed, turning good selections into rollbacks. Two live
+selections in the narrow pane settle it:
+
+```
+select +1160ms read-back начат
+select +1244ms read-back: adoptable
+select outcome=committed reason=- in 1248ms
+```
+
+Both committed, in 1248 ms and 1124 ms, with the scene proven `adoptable`. No
+spurious refusal. The `read-back начат` mark is there so that a read which
+throws is distinguishable in the journal from an operation that never reached
+the read.
+
+Measured in the same run, for the record: cold first open of a session 3727 ms
+(the shell-UID helper is born inside it), warm restore of the same pair 1480 ms,
+a background reconcile 3–9 calls and under 0.3 s.
+
+The narrow pane reports itself as `w416dp h680dp` in its own window
+configuration — confirming both the 416 dp the dashboard's layout policy
+switches on and the 680 dp of drawable height the head-unit boards had been
+missing.
