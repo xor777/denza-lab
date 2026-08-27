@@ -215,6 +215,16 @@ internal abstract class GuardedOperation<P>(
     /** Step 8: the single durable snapshot to write, or `null` when nothing durable changed. */
     protected abstract fun durable(plan: P, current: SplitDurable): SplitDurable?
 
+    /**
+     * Step 10: what this operation owes whatever happened - commit, rollback, refusal or throw.
+     *
+     * Deliberately not a `finally` inside [mutate]. Rollback runs from this runner's own catch, and
+     * it may still need the very things a cleanup would take away, so releasing there would pull
+     * the floor out from under the undo. Here the ordering is the one that is wanted: the catch
+     * runs, rollback with it, and only then does this.
+     */
+    protected open fun cleanUp(op: SplitOperationContext) = Unit
+
     protected open val refusal: String get() = "$label: preconditions refused"
 
     final override fun run(op: SplitOperationContext): SplitOutcome {
@@ -234,6 +244,8 @@ internal abstract class GuardedOperation<P>(
         } catch (failure: Throwable) {
             SplitRollback.run(op.journal, rollbackExecutor)
             SplitOutcome.RolledBack(failure.message ?: failure.toString())
+        } finally {
+            cleanUp(op)
         }
     }
 

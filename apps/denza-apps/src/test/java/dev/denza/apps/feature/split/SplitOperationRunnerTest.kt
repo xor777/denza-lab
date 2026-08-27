@@ -480,6 +480,7 @@ class SplitOperationRunnerTest {
         readBackOk: Boolean = true,
         onCommand: (String) -> Unit = {},
         onReadBack: () -> Unit = {},
+        onCleanUp: () -> Unit = {},
     ) = TestOperation(
         shell = { command ->
             onCommand(command)
@@ -490,7 +491,52 @@ class SplitOperationRunnerTest {
         planned = planned,
         readBackOk = readBackOk,
         onReadBack = onReadBack,
+        onCleanUp = onCleanUp,
     )
+
+    @Test
+    fun everyEndingAnOperationCanHaveRunsItsCleanUp() {
+        // Волна выключения, пункт 2 аудита. Освобождение shell-UID помощника висело строкой в
+        // `apply`, сразу после teardown: teardown бросил - строка не выполнилась, и привилегированный
+        // процесс переживал сессию, которой принадлежал, до собственного 30-секундного простоя.
+        // Живьём teardown бросает (прошивка оставляет split после выключения), так что это не
+        // теоретический путь.
+        val committed = operation()
+        committed.run(context(deadlineAtMs = 10_000L))
+        assertEquals("после commit", listOf("cleanUp"), committed.trail)
+
+        val refused = operation(planned = false)
+        refused.run(context(deadlineAtMs = 10_000L))
+        assertEquals("после отказа до единой мутации", listOf("cleanUp"), refused.trail)
+
+        val unwound = operation(readBackOk = false)
+        unwound.run(context(deadlineAtMs = 10_000L))
+        assertEquals("после отката по read-back", listOf("cleanUp"), unwound.trail)
+
+        failingCommand = "am task move 7"
+        val thrown = operation()
+        thrown.run(context(deadlineAtMs = 10_000L))
+        failingCommand = null
+        assertEquals("после падения в середине мутации", listOf("cleanUp"), thrown.trail)
+    }
+
+    @Test
+    fun theCleanUpRunsAfterTheRollbackAndNotBeforeIt() {
+        // Порядок здесь - это и есть причина, по которой освобождение вынесено сюда, а не в
+        // `finally` вокруг teardown: откат может ещё пользоваться тем, что уборка забирает.
+        failingCommand = "am task move 7"
+        var rollbackCallsWhenCleanedUp = -1
+        val thrown = operation(onCleanUp = { rollbackCallsWhenCleanedUp = rollback.calls.size })
+        thrown.run(context(deadlineAtMs = 10_000L))
+        failingCommand = null
+
+        assertTrue("откат вообще состоялся", rollback.calls.isNotEmpty())
+        assertEquals(
+            "уборка видит откат уже завершённым, а не в процессе",
+            rollback.calls.size,
+            rollbackCallsWhenCleanedUp,
+        )
+    }
 
     private fun context(deadlineAtMs: Long) =
         SplitOperationContext(SplitOperationToken(operationId = 1L, deadlineAtMs = deadlineAtMs), clock)
@@ -562,6 +608,8 @@ class SplitOperationRunnerTest {
         private val planned: Boolean,
         private val readBackOk: Boolean,
         private val onReadBack: () -> Unit,
+        private val onCleanUp: () -> Unit = {},
+        val trail: MutableList<String> = mutableListOf(),
     ) : GuardedOperation<String>(
         label = "open",
         priority = SplitInputPriority.OPEN,
@@ -575,6 +623,11 @@ class SplitOperationRunnerTest {
             if (!planned) return null
             shell("am stack list")
             return MUSIC
+        }
+
+        override fun cleanUp(op: SplitOperationContext) {
+            trail += "cleanUp"
+            onCleanUp()
         }
 
         override fun mutate(op: SplitOperationContext, shell: (String) -> String, plan: String) {

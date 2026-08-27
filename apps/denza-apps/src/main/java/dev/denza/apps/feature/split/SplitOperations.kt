@@ -658,7 +658,6 @@ internal class DisableOperation(
         }
         // Independent of the scene, and independent of each other: every restore is a no-op unless
         // this product still owns that lease, so a toggle-off with nothing borrowed stays silent.
-        work.releaseResident()
         val failures = mutableListOf<Throwable>()
         work.leases.forEach { lease ->
             runCatching { lease.restore(shell) }.exceptionOrNull()?.let(failures::add)
@@ -668,6 +667,22 @@ internal class DisableOperation(
             failures.drop(1).forEach(first::addSuppressed)
             throw first
         }
+    }
+
+    /**
+     * The helper dies with the session, and now it dies with a failed one too.
+     *
+     * It used to be released by a line in [apply], directly after `closePickers`. A teardown that
+     * threw - the firmware keeping split after the switch went off is a live-observed way for that
+     * to happen - skipped the line, and the shell-UID helper then outlived the session it belonged
+     * to until its own 30-second idle release. A session that ends by failing is exactly the one
+     * that should not leave a privileged process running.
+     *
+     * It belongs here rather than in a `finally` around that call because rollback may still want
+     * the helper; this runs after the rollback, on every ending the operation can have.
+     */
+    override fun cleanUp(op: SplitOperationContext) {
+        work.releaseResident()
     }
 }
 
