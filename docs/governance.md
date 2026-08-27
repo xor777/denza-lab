@@ -191,11 +191,14 @@ any work that depends on undocumented firmware behavior.
 
 ## IVI Split-Screen Rules
 
-> **2026-08-18:** the toggle/foreground-router contract is retired. The
-> live-accepted product contract is the one-package explicit two-picker session
-> in [split-screen-findings.md](split-screen-findings.md). The former router
-> remains compiled only as a regression/reference seam; do not use its
-> foreground-routing behavior as current product policy.
+> **2026-08-18, corrected 2026-08-26:** the toggle/foreground-router contract is
+> retired. The normative product contract is
+> [split-screen-product-contract.md](split-screen-product-contract.md), which
+> says so itself and governs wherever it and the findings page disagree;
+> [split-screen-findings.md](split-screen-findings.md) is the journal of live
+> evidence, not the specification. The former router is **deleted**, not
+> compiled — there is no such file to consult, and three separate audits have
+> now had to rediscover that from this paragraph.
 
 - Use the stock BYD split roots and divider; do not draw a replacement split UI
   over the central screen.
@@ -209,9 +212,13 @@ any work that depends on undocumented firmware behavior.
   through the exact `START_IVI_PRIMARY` / `START_IVI_SECOND` categories. Do not
   use transaction 115 or the firmware's remembered pair as product restore.
 - A picker selection names its destination root before any mutation. Move only
-  that selected app, validate the resulting component and bounds, and reject the
-  same package in both roots rather than claiming unsupported multi-instance
-  behavior.
+  that selected app and validate the resulting component and bounds. The same
+  package in both roots is **permitted, conditionally**: it works when that
+  app's launcher creates a distinct task for the second window, and the two
+  slots are persisted independently (contract §on persistence; live evidence in
+  findings). An app whose launcher is `singleTask`/`singleInstance`, or that
+  redirects back to its existing task, fails with an app-specific two-window
+  message. Do not reintroduce a blanket rejection.
 - Persist the last selected package per root in Denza Apps and rebuild the pair
   from component-validated state. Remove only exact picker/host/control
   artifacts owned by the current session.
