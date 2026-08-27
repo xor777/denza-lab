@@ -219,7 +219,7 @@ fun DenzaAppsRoot(
         val compactLayout = dashboardLayout == DashboardLayoutMode.NARROW
         val sideMargin = DashboardLayoutPolicy.sideMargin(dashboardLayout)
         val contentWidth = (maxWidth - sideMargin * 2).value.coerceAtLeast(1f)
-        val panelHeight = DashboardLayoutPolicy.panelHeight(dashboardLayout, contentWidth)
+        val chips = DashboardLayoutPolicy.chips(dashboardLayout)
 
         DenzaTheme {
             Surface(modifier = Modifier.fillMaxSize(), color = DenzaColors.Background) {
@@ -229,19 +229,13 @@ fun DenzaAppsRoot(
                     // горизонтального скролла с холстом 1280 dp больше нет - в панели 828 dp он
                     // прятал ~904 px дашборда за краем.
                     Column(
-                        modifier = when (dashboardLayout) {
-                            DashboardLayoutMode.WIDE -> Modifier.fillMaxSize()
-                            DashboardLayoutMode.MEDIUM,
-                            DashboardLayoutMode.NARROW,
-                            -> Modifier
-                                .fillMaxSize()
-                                .verticalScroll(rememberScrollState())
-                        }
+                        modifier = Modifier
+                            .fillMaxSize()
                             .windowInsetsPadding(WindowInsets.safeDrawing)
                             // Top and bottom are not the same rung, and every board says so: 20
-                            // over the tiles and 12 under the strip. Both were 20 here, which put
-                            // the page 8 dp taller than the window it is laid out for and drew the
-                            // foot of the analyser's reflection past the bottom edge.
+                            // over the features and 12 under the strip. Both were 20 here, which
+                            // put the page 8 dp taller than the window it is laid out for and drew
+                            // the foot of the analyser's reflection past the bottom edge.
                             .padding(
                                 start = sideMargin,
                                 end = sideMargin,
@@ -255,30 +249,47 @@ fun DenzaAppsRoot(
                             columns = DashboardLayoutPolicy.columns(dashboardLayout),
                             modifier = Modifier.fillMaxWidth(),
                             enabled = !adbStartupBlocked,
+                            chips = chips,
                         )
-                        Spacer(Modifier.height(DenzaMetrics.Space.M))
-                        // The current product strip is one spectrum/trip panel. The former pager
-                        // and its vehicle pages were retired and deleted.
+                        // A pane's chips and its strip are two different things and take the gap
+                        // between groups; the full screen's tiles and strip are one field of
+                        // controls with a readout under it and take a neighbour's gap.
+                        Spacer(
+                            Modifier.height(
+                                if (chips) DenzaMetrics.Space.XL else DenzaMetrics.Space.M,
+                            ),
+                        )
                         if (!adbStartupBlocked) {
                             // The strip draws in a virtual space of its own, and the box it is
                             // given has to be that space's shape or the drawing arrives stretched.
                             // It used to get whatever height was left over, which on the full
                             // screen was about twice its own: every stroke came out drawn on a
                             // canvas stretched vertically, which is why the analyser read as a
-                            // sparse ripple rather than the columns the board draws. Each width
-                            // now asks for the box its own composition was laid out in.
+                            // sparse ripple rather than the columns the board draws.
+                            //
+                            // So the full screen asks for a box of the board's shape, and a pane
+                            // takes the remainder - which its renderer can do, because it lays
+                            // itself out at one unit to one dp in whatever it is handed. Working
+                            // that remainder out by hand instead is what put the last cut's strip
+                            // past the bottom of the window: the car keeps 24 dp of a pane for its
+                            // own caption bar, and arithmetic done against 680 never saw it.
                             SpectrumPanel(
                                 layout = DashboardLayoutPolicy.panel(dashboardLayout),
-                                modifier = Modifier.fillMaxWidth().height(panelHeight),
+                                modifier = if (chips) {
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .heightIn(min = DenzaMetrics.Component.PANEL_HEIGHT_MIN)
+                                        .weight(1f)
+                                } else {
+                                    Modifier.fillMaxWidth().height(
+                                        DashboardLayoutPolicy.wholeScreenPanelHeight(contentWidth),
+                                    )
+                                },
                             )
                         }
-                        // Any slack goes under the strip rather than between it and the tiles -
-                        // and only on the full screen, whose column is not scrollable. A pane
-                        // used to end with a fixed 12 here as well, which on top of the page's
-                        // own bottom margin made the two-thirds page 12 dp taller than its
-                        // window: a page that is laid out to fit exactly and then scrolls by the
-                        // height of one margin looks like a rounding error, and is one.
-                        if (dashboardLayout == DashboardLayoutMode.WIDE) {
+                        // Any slack on the full screen goes under the strip rather than between it
+                        // and the tiles. A pane has none: its strip already took it.
+                        if (!chips) {
                             Spacer(Modifier.weight(1f))
                         }
                     }

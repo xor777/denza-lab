@@ -95,12 +95,20 @@ class TripPanelRenderer : BaseTripRenderer() {
     }
 
     /**
-     * A pane: the analyser, and the three readings as rows.
+     * A pane: the analyser with everything the chips left it, and three readings at its foot.
      *
-     * `TwoThirds.dc.html` and `OneThird.dc.html` are the same composition at two sizes - which is
-     * why one function draws both and the only thing that differs is where the rows go. At 828 the
-     * strip is 120 dp tall and the rows stand beside the analyser in a 264-wide column; at 416
-     * there is no room beside anything, so they go underneath.
+     * `TwoThirds.dc.html` and `OneThird.dc.html`. One function draws both, and what differs is how
+     * much room there is beside a figure: at 788 dp the three stand side by side with a rule
+     * between them, at 392 they become rows.
+     *
+     * **The virtual height is taken from the box rather than declared.** [PanelCanvas] scales x and
+     * y independently, so a fixed virtual space in a box of another shape distorts everything in
+     * it - and a *uniform* scale is no better here, because it takes the type off the ladder: the
+     * wide composition squeezed into a two-thirds pane put the ladder's 46, 24 and 15 on the screen
+     * at 28, 15 and 9. Deriving the height from the width keeps the two scale factors equal at one
+     * unit to one dp, whatever the caller had left to give - which is what lets the strip simply
+     * take the remainder instead of computing it, and computing it is what put the last cut's foot
+     * past the bottom of the window.
      */
     private fun drawPane(
         canvas: Canvas,
@@ -114,28 +122,116 @@ class TripPanelRenderer : BaseTripRenderer() {
         dtSec: Double,
         showLocationHint: Boolean,
     ) {
-        val medium = layout == TripPanelLayout.MEDIUM
-        if (medium) {
-            setSize(width, height, MEDIUM_VIRTUAL_W, MEDIUM_VIRTUAL_H)
-        } else {
-            setSize(width, height, NARROW_VIRTUAL_W, NARROW_VIRTUAL_H)
-        }
-        val spectrumRight = if (medium) MEDIUM_SPECTRUM_RIGHT else NARROW_VIRTUAL_W
-        val spectrumBottom = if (medium) MEDIUM_VIRTUAL_H else NARROW_SPECTRUM_BOTTOM
+        val across = layout == TripPanelLayout.MEDIUM
+        val virtualW = if (across) MEDIUM_VIRTUAL_W else NARROW_VIRTUAL_W
+        val virtualH = height * virtualW / width
+        setSize(width, height, virtualW, virtualH)
+
+        val figuresH = if (across) PANE_BLOCK else PANE_ROWS
+        val figuresTop = virtualH - figuresH
+        val analyserBottom = (figuresTop - PANE_GROUP).coerceAtLeast(PANE_MIN_ANALYSER)
+
         spectrumRenderer.draw(
             canvas, spectrum, nowPlaying, frameTimeSec, dtSec,
-            left = vx(0f), right = vx(spectrumRight),
-            top = vy(0f), bottom = vy(spectrumBottom), unit = vs(1f),
+            left = vx(0f), right = vx(virtualW),
+            top = vy(0f), bottom = vy(analyserBottom), unit = vs(1f),
         )
 
-        val rowsLeft = if (medium) MEDIUM_ROWS_LEFT else 0f
-        val rowsRight = if (medium) MEDIUM_VIRTUAL_W else NARROW_VIRTUAL_W
-        val rowsTop = if (medium) MEDIUM_ROWS_TOP else NARROW_ROWS_TOP
-        drawPaneRows(canvas, engine, rowsLeft, rowsRight, rowsTop, showLocationHint)
+        if (across) {
+            drawPaneBlocks(canvas, engine, virtualW, figuresTop, showLocationHint)
+        } else {
+            drawPaneRows(canvas, engine, virtualW, figuresTop, showLocationHint)
+        }
     }
 
     /**
-     * Three rows, and the same three conditions the wide column draws under.
+     * Three readings side by side with a rule between them, where there is width for it.
+     *
+     * The same block the full screen's column draws - a tracked capital over a large light figure
+     * with its unit beside it - turned through ninety degrees. The archived board under this name
+     * set its three numbers this way and it was the right instinct: a rule between two figures says
+     * they are separate readings, where a gap alone reads as one sentence that got spaced out.
+     */
+    private fun drawPaneBlocks(
+        canvas: Canvas,
+        engine: TripEngine,
+        width: Float,
+        top: Float,
+        showLocationHint: Boolean,
+    ) {
+        val cell = (width - 2f * (PANE_RULE + PANE_GROUP)) / 3f
+        val pitch = cell + PANE_RULE + PANE_GROUP
+        for (index in 1..2) {
+            val x = vx(index * pitch - PANE_GROUP / 2f)
+            hairline(canvas, x, vy(top), x, vy(top + PANE_BLOCK))
+        }
+
+        val guidance = engine.guidance()
+        if (guidance != null) {
+            val parts = buildList {
+                guidance.distanceMeters?.let { add(distanceLabel(it.toDouble())) }
+                guidance.timeSeconds?.let { add(clockHm(it.toLong())) }
+            }
+            paneBlock(canvas, 0f, top, "ОСТАЛОСЬ", parts.joinToString(" · ").ifBlank { "—" }, "")
+        } else {
+            val elapsed = engine.elapsedSeconds
+            val timePart = if (elapsed >= 3600) clockHm(elapsed.toLong()) else clockMs(elapsed)
+            paneBlock(
+                canvas, 0f, top, "В ПУТИ", timePart, distanceLabel(engine.distanceMeters()),
+            )
+        }
+
+        if (engine.hasAltitude()) {
+            paneBlock(
+                canvas, pitch, top, "ВЫСОТА",
+                "${engine.smoothedAltitude().roundToInt()}", "м",
+            )
+            variometer(
+                canvas, vx(pitch + cell), vy(top + PANE_BLOCK_FIGURE), engine.variometer(),
+                PANE_RATE, ARROW_SIZE,
+            )
+        } else if (showLocationHint) {
+            label(
+                canvas, LOCATION_HINT, vx(pitch), vy(top + PANE_BLOCK_LABEL), PANE_LABEL,
+                TripPalette.alpha(TripPalette.MUTED, 0.85f),
+            )
+        }
+
+        val sun = engine.sunInfo()
+        if (sun.nextEventLabel.isNotEmpty()) {
+            capsPaint.textSize = vs(PANE_LABEL)
+            capsPaint.color = TripPalette.AMBER
+            canvas.drawText(
+                if (sun.nextIsSunset) "ЗАКАТ" else "РАССВЕТ",
+                vx(2 * pitch), vy(top + PANE_BLOCK_LABEL), capsPaint,
+            )
+            figure(
+                canvas, sun.nextEventLabel, vx(2 * pitch), vy(top + PANE_BLOCK_FIGURE),
+                FIGURE_SIZE, TripPalette.INK,
+            )
+        }
+    }
+
+    /** A tracked capital over a large light figure, with its unit against it. */
+    private fun paneBlock(
+        canvas: Canvas,
+        x: Float,
+        top: Float,
+        name: String,
+        value: String,
+        unit: String,
+    ) {
+        caps(canvas, name, vx(x), vy(top + PANE_BLOCK_LABEL))
+        val width = figure(
+            canvas, value, vx(x), vy(top + PANE_BLOCK_FIGURE), FIGURE_SIZE, TripPalette.INK,
+        )
+        if (unit.isNotEmpty()) {
+            unit(canvas, unit, vx(x) + width + vs(UNIT_GAP), vy(top + PANE_BLOCK_FIGURE), UNIT_SIZE)
+        }
+    }
+
+    /**
+     * Three readings as rows, where there is not.
      *
      * The second and third exist only when the car has told us where it is, so on a cold start
      * this is one row - and the "no location" hint goes where the second would have been, which is
@@ -145,13 +241,12 @@ class TripPanelRenderer : BaseTripRenderer() {
     private fun drawPaneRows(
         canvas: Canvas,
         engine: TripEngine,
-        left: Float,
-        right: Float,
+        width: Float,
         top: Float,
         showLocationHint: Boolean,
     ) {
-        val x = vx(left)
-        val rightEdge = vx(right)
+        val x = vx(0f)
+        val rightEdge = vx(width)
 
         val guidance = engine.guidance()
         if (guidance != null) {
@@ -432,33 +527,41 @@ class TripPanelRenderer : BaseTripRenderer() {
         const val HINT_SIZE = 15f
 
         /**
-         * The two panes' own spaces, off `TwoThirds.dc.html` and `OneThird.dc.html`.
+         * The two panes' own widths, off `TwoThirds.dc.html` and `OneThird.dc.html`.
          *
          * The width is the content width the page has after its margins, so the scale factor is
          * one and every size below is the dp it says it is. 788 is 828 less two margins of 20;
-         * 392 is 416 less two of 12.
-         *
-         * 120 is what three rows of tiles leave in a 680-dp window, and the two-thirds page comes
-         * to 680 exactly. 376 is what the narrow strip needs rather than what it has left: five
-         * rows of tiles are 868 on their own, so that page scrolls whatever this says, and a strip
-         * squeezed to fit a window it has already overflowed would be a pointless economy.
+         * 392 is 416 less two of 12. There is no matching height: a pane's strip takes whatever
+         * the chips above it left, and [drawPane] derives the height of its space from that.
          */
         const val MEDIUM_VIRTUAL_W = 788f
-        const val MEDIUM_VIRTUAL_H = 120f
-        const val MEDIUM_SPECTRUM_RIGHT = 492f
-        const val MEDIUM_ROWS_LEFT = 524f
-        /** The three rows are 114 tall in a 120 strip, so they sit three off the top. */
-        const val MEDIUM_ROWS_TOP = 3f
-
         const val NARROW_VIRTUAL_W = 392f
-        const val NARROW_VIRTUAL_H = 376f
-        const val NARROW_SPECTRUM_BOTTOM = 242f
-        const val NARROW_ROWS_TOP = 262f
 
-        // One row of a pane: a 15 label and a 24 reading on one baseline, three of them a
+        /**
+         * The floor under a pane's analyser.
+         *
+         * The strip is handed a remainder, and a remainder can in principle be small. Below this
+         * the bars are shorter than the ticker over them and the thing stops being an analyser, so
+         * the figures are allowed to sit past the bottom of a box this short rather than the
+         * analyser being squeezed into nothing. It has never happened on this car - 828 leaves 416
+         * and 416 leaves 296 - and it is here so that it cannot happen silently.
+         */
+        const val PANE_MIN_ANALYSER = 140f
+
+        /** Between the analyser and the figures: two different things, so the group gap. */
+        const val PANE_GROUP = 32f
+        const val PANE_RULE = 1f
+
+        // Three figures side by side: a 15 label over a 46 figure, in a band 76 tall.
+        const val PANE_BLOCK = 76f
+        const val PANE_BLOCK_LABEL = 14f
+        const val PANE_BLOCK_FIGURE = 73f
+
+        // Three figures as rows: a 15 label and a 24 reading on one baseline, three of them a
         // neighbour's gap apart. 23 is where a 24-dp face sits in a 30-dp line.
         const val PANE_ROW = 30f
         const val PANE_ROW_GAP = 12f
+        const val PANE_ROWS = PANE_ROW * 3f + PANE_ROW_GAP * 2f
         const val PANE_BASELINE = 23f
         const val PANE_LABEL = 15f
         const val PANE_VALUE = 24f

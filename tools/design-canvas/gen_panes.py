@@ -1,51 +1,71 @@
 #!/usr/bin/env python3
 """Emit the two pane boards for the dashboard: 2/3 and 1/3.
 
-`Main.dc.html` is the dashboard at 1280. These are the same screen in the two
-window widths the DiLink split actually hands an app - 828 and 416 - and they are
-generated rather than drawn for one reason: the tiles must be the *same tiles*.
-A pane board that quietly drifts a name, a caption or an icon away from the full
-screen is worse than no pane board, because it looks like a decision.
+`Main.dc.html` is the dashboard at 1280, where a feature is a tile: an icon, a name and a line
+saying what it is doing. A pane is not a smaller version of that. It is 828 or 416 dp wide with the
+same 680 of height, and ten tiles at the size their words need would spend three quarters of it on
+words nobody is reading - in a pane the driver already knows the ten icons, and the thing worth the
+space is the one that moves.
 
-So the ten tiles, the tile CSS and the ticker CSS are read out of `Main.dc.html`
-and the layout is computed from the numbers below. Editing a tile means editing
+So a pane compresses the tile to a **chip**: the same icon, the same two gestures, the state carried
+by the border, the ink and a dot instead of by a caption. The chips take one band across the top and
+everything under them is the strip.
+
+That is the shape the archived boards under these two names had - icons in a row, one large panel
+below - and it was right; what was in the panel was four vehicle instruments that have since been
+retired. The analyser goes there.
+
+The tiles, their icons and their on/off states are read out of `Main.dc.html` so a pane cannot
+quietly disagree with the full screen about what exists. Editing a tile means editing
 `Main.dc.html` and running this.
 
-What the panes decide for themselves, and why:
+What the panes decide for themselves:
 
-  side margin   48 is the *screen's* margin, and a pane is not the screen. It
-                steps down the same ladder as the window narrows: 48 full
-                screen, 20 at two thirds, 12 at one third.
+  the caption bar  A pane window is 680 dp tall and the top 24 of it belong to the system: BYD's
+                   freeform windowing draws a drag handle there, and `WindowInsets.safeDrawing`
+                   reports it. Measured on the car, not assumed - the first cut of these boards
+                   spent it, and the foot of the strip was drawn past the bottom edge.
 
-  columns       chosen so the tile keeps the width its words need. The longest
-                name on the dashboard, "Экран водителя", measures 145.2 dp at
-                19/500, and a tile spends 20 either side of its text - so a tile
-                under about 186 loses a word to an ellipsis. 6 columns of 1184
-                is 187.3, 4 of 788 is 188.0, 2 of 392 is 190.0. The margin is
-                what buys that, which is why it steps down: at 32 and 20 the two
-                panes come out at 182 and clip the cluster tile.
+  side margin      48 is the *screen's* margin and a pane is not the screen. 20 at two thirds,
+                   12 at one third.
 
-                It also means the tile is the same object at every width. Three
-                columns at 828 - which is what shipped - made it 236 dp wide, so
-                the tile grew as its window shrank.
+  the chip         square, and as wide as its share of the row. 10 across at 828 is 68.0; 5 across
+                   in two rows at 416 is 68.8. One object at both widths, near enough.
 
-  the strip     the analyser keeps the ticker over it, as on the full screen.
-                What changes is the trip figures: three blocks hung apart down a
-                320-wide column at 1280, three label-and-value rows in a pane.
-                Same three readings, one line each.
+  the figures      three across with a rule between them where there is width for it, three rows
+                   where there is not.
 """
 import re
 import sys
 
 MAIN = 'Main.dc.html'
 
-# The board's own analyser, for the numbers the panes rescale.
-FIELD_MAIN = 198.0          # the bar field on Main.dc.html
-BAR_FRACTION = 0.7097       # SpectrumRenderer.BAR_WIDTH_FRACTION
-BASELINE_FRACTION = 0.8319  # SpectrumRenderer.BASELINE_FRACTION
-STRIP = 52.0                # SpectrumRenderer.STRIP_UNITS - the ticker's band
-PEAK = 4.0                  # SpectrumRenderer.PEAK_UNITS
+FIELD_MAIN = 198.0           # the bar field on Main.dc.html
+BAR_FRACTION = 0.7097        # SpectrumRenderer.BAR_WIDTH_FRACTION
+BASELINE_FRACTION = 0.8319   # SpectrumRenderer.BASELINE_FRACTION
+STRIP = 52.0                 # SpectrumRenderer.STRIP_UNITS - the ticker's band
+PEAK = 4.0                   # SpectrumRenderer.PEAK_UNITS
+REFLECT = 40.0               # SpectrumRenderer.REFLECT_UNITS - the reflection's own ceiling
 BANDS = 26
+
+CAPTION = 24                 # what the system takes off the top of a pane
+GAP = 12                     # Space.M
+GROUP = 32                   # Space.XL - between two things that are not the same thought
+PAGE_TOP = 20                # Space.L
+PAGE_BOTTOM = 12
+WINDOW_H = 680
+
+CHIP_RADIUS = 12             # Radius.M
+CHIP_ICON = 30               # Component.TILE_ICON - the same glyph at the same size as the tile
+CHIP_DOT = 7
+CHIP_DOT_INSET = 9
+
+ROW = 30                     # one figure as a row: a 15 label and a 24 reading on one baseline
+BLOCK = 76                   # one figure as a block: a 15 label over a 46 figure
+LABEL = 15
+FIGURE = 46
+VALUE = 24
+RATE = 19
 
 BARS = [
     (30, 13), (55, 8), (91, 17), (133, 6), (160, 11), (182, 4),
@@ -55,50 +75,36 @@ BARS = [
     (82, 5), (105, 13),
 ]
 
-TILE_HEIGHT = 164
-GAP = 12
-PAGE_TOP = 20
-PAGE_BOTTOM = 12
-WINDOW_H = 680          # what the car actually gives an app, dock and status band removed
-
-# One row of figures, and the block the three of them make.
-ROW = 30
-ROW_GAP = 12
-BLOCK = ROW * 3 + ROW_GAP * 2
-
 
 class Pane:
-    def __init__(self, name, width, margin, columns, column_width, panel_h, title):
+    def __init__(self, name, width, margin, chip_columns, figures, title):
         self.name = name
         self.width = width
         self.margin = margin
-        self.columns = columns
-        self.column_width = column_width   # the figures column; None stacks them under the analyser
-        self.panel_h = panel_h
+        self.chip_columns = chip_columns
+        self.figures = figures            # 'across' or 'rows'
         self.title = title
         self.content = width - margin * 2
-        self.rows = -(-10 // columns)
-        self.tiles_h = self.rows * TILE_HEIGHT + (self.rows - 1) * GAP
+        self.chip_rows = -(-10 // chip_columns)
+        self.chip = (self.content - (chip_columns - 1) * GAP) / chip_columns
+        self.chips_h = self.chip_rows * self.chip + (self.chip_rows - 1) * GAP
 
     @property
-    def analyser_w(self):
-        if self.column_width is None:
-            return self.content
-        return self.content - self.column_width - 32
+    def strip_h(self):
+        return WINDOW_H - CAPTION - PAGE_TOP - self.chips_h - GROUP - PAGE_BOTTOM
+
+    @property
+    def figures_h(self):
+        return BLOCK if self.figures == 'across' else ROW * 3 + GAP * 2
 
     @property
     def analyser_h(self):
-        if self.column_width is None:
-            return self.panel_h - BLOCK - 20
-        return self.panel_h
-
-    @property
-    def height(self):
-        return PAGE_TOP + self.tiles_h + GAP + self.panel_h + PAGE_BOTTOM
+        """What the analyser gets: the strip, less the figures under it and the gap between."""
+        return self.strip_h - self.figures_h - GROUP
 
 
-MEDIUM = Pane('TwoThirds', 828, 20, 4, 264, 120, 'MIDNIGHT CITY')
-NARROW = Pane('OneThird', 416, 12, 2, None, 376, 'MIDNIGHT CITY')
+MEDIUM = Pane('TwoThirds', 828, 20, 10, 'across', 'MIDNIGHT CITY')
+NARROW = Pane('OneThird', 416, 12, 5, 'rows', 'MIDNIGHT CITY')
 
 
 def main_board():
@@ -106,10 +112,16 @@ def main_board():
 
 
 def tiles(src):
-    found = re.findall(r'^    <div class="tile (?:on|off)">.*?\n    </div>', src, re.S | re.M)
+    found = re.findall(r'^    <div class="tile (on|off)">(.*?)\n    </div>', src, re.S | re.M)
     if len(found) != 10:
         sys.exit(f'{MAIN} has {len(found)} tiles, expected 10')
-    return '\n\n'.join(found)
+    out = []
+    for state, body in found:
+        svg = re.search(r'<svg .*?</svg>', body, re.S)
+        if not svg:
+            sys.exit('a tile on the board has no icon')
+        out.append((state, svg.group(0)))
+    return out
 
 
 def rules(src, selectors):
@@ -122,14 +134,31 @@ def rules(src, selectors):
     return '\n'.join(out)
 
 
+def chips(pane, src):
+    """The ten features as icons: the tile's glyph, its state, and nothing to read."""
+    out = []
+    for state, svg in tiles(src):
+        # The chip is drawn at the size the row gives it, so the icon is sized here rather than
+        # carrying the tile's own width attributes.
+        svg = re.sub(r'width="[\d.]+" height="[\d.]+"',
+                     f'width="{CHIP_ICON}" height="{CHIP_ICON}"', svg, count=1)
+        dot = '#FEEFAB' if state == 'on' else '#3F434D'
+        out.append(
+            f'      <div class="chip {state}">\n'
+            f'        {svg}\n'
+            f'        <div class="dot" style="background:{dot};"></div>\n'
+            f'      </div>'
+        )
+    return '\n'.join(out)
+
+
 def analyser(pane):
     """The ticker, the bars, their segment grid and the cropped reflection."""
-    span = pane.analyser_w
-    bar_top = STRIP
-    bottom = pane.analyser_h
-    baseline = bar_top + (bottom - bar_top) * BASELINE_FRACTION
-    field = round(baseline - bar_top, 2)
-    reflect = round(bottom - baseline, 2)
+    span = pane.content
+    box = pane.analyser_h
+    baseline = STRIP + (box - STRIP) * BASELINE_FRACTION
+    field = round(baseline - STRIP, 2)
+    reflect = round(min(box - baseline, REFLECT), 2)
 
     pitch = span / (BANDS - 1 + BAR_FRACTION)
     bar_w = round(pitch * BAR_FRACTION, 2)
@@ -165,13 +194,45 @@ def analyser(pane):
     return body, data
 
 
-ARROW = ('<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FEEFAB" '
-         'stroke-width="3.429" stroke-linecap="round"><path d="M12 19V6M6.5 11.5 12 6l5.5 5.5">'
+ARROW = ('<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FEEFAB" '
+         'stroke-width="2.4" stroke-linecap="round"><path d="M12 19V6M6.5 11.5 12 6l5.5 5.5">'
          '</path></svg>')
 
 
-def figures():
-    """Three readings, one line each: the pane's answer to the full screen's hung blocks."""
+def figures_across():
+    """Three readings side by side with a rule between them, as the archived board set them."""
+    return f'''      <div class="fig">
+        <div class="cap">В ПУТИ</div>
+        <div class="line">
+          <div class="num">1:42</div>
+          <div class="un">128 км</div>
+        </div>
+      </div>
+      <div class="rule"></div>
+      <div class="fig">
+        <div class="cap">ВЫСОТА</div>
+        <div class="line">
+          <div class="num">642</div>
+          <div class="un">м</div>
+          <div style="display:flex; align-items:center; gap:6px; margin-left:auto;">
+            {ARROW}
+            <div style="font-size:{RATE}px; color:#FEEFAB;">1,2</div>
+          </div>
+        </div>
+      </div>
+      <div class="rule"></div>
+      <div class="fig">
+        <div class="cap" style="color:#FF9F19;">ЗАКАТ</div>
+        <div class="line">
+          <div class="num">19:44</div>
+        </div>
+      </div>'''
+
+
+def figures_rows():
+    """The same three where there is no width to set them side by side."""
+    small = ARROW.replace('width="20" height="20"', 'width="14" height="14"') \
+                 .replace('stroke-width="2.4"', 'stroke-width="3.429"')
     return f'''      <div class="row">
         <div class="cap">В ПУТИ</div>
         <div class="val">1:42 · 128 км</div>
@@ -180,7 +241,7 @@ def figures():
         <div class="cap">ВЫСОТА</div>
         <div style="display:flex; align-items:baseline; gap:8px;">
           <div class="val">642 м</div>
-          {ARROW}
+          {small}
           <div class="rate">1,2</div>
         </div>
       </div>
@@ -192,33 +253,19 @@ def figures():
 
 def board(pane, src):
     body, data = analyser(pane)
-    css = rules(src, ['.tile', '.on', '.off', '.nm', '.st', '.led'])
-    bars = ',\n        '.join(
-        '{h:%g,p:%g}' % (b['h'], b['p']) for b in data
-    )
+    css = rules(src, ['.tile', '.on', '.off', '.led'])
+    # The chip borrows the tile's two skins and nothing else about it.
+    css = css.replace('.tile {', '.chip {').replace(
+        'height:164px; box-sizing:border-box; border-radius:22px; padding:20px; '
+        'display:flex; flex-direction:column; justify-content:space-between;',
+        f'aspect-ratio:1; box-sizing:border-box; border-radius:{CHIP_RADIUS}px; '
+        'display:flex; align-items:center; justify-content:center;')
+    if 'aspect-ratio' not in css:
+        sys.exit('the tile rule on Main.dc.html changed shape; gen_panes.py cannot derive the chip')
+    bars = ',\n        '.join('{h:%g,p:%g}' % (b['h'], b['p']) for b in data)
 
-    if pane.column_width is None:
-        panel = f'''  <div style="flex-grow:1; display:flex; flex-direction:column; gap:20px; min-height:0;">
-    <div style="display:flex; flex-direction:column;">
-{body}
-    </div>
-    <div class="rows">
-{figures()}
-    </div>
-  </div>'''
-        fold = f'''
-  <div style="position:absolute; left:0; top:{WINDOW_H}px; width:{pane.margin}px; height:1px; background:rgba(254,239,171,0.35);"></div>
-  <div style="position:absolute; right:0; top:{WINDOW_H}px; width:{pane.margin}px; height:1px; background:rgba(254,239,171,0.35);"></div>'''
-    else:
-        panel = f'''  <div style="flex-grow:1; display:flex; gap:32px; min-height:0;">
-    <div style="flex-grow:1; display:flex; flex-direction:column; min-width:0;">
-{body}
-    </div>
-    <div class="rows" style="width:{pane.column_width}px; flex-shrink:0; justify-content:center;">
-{figures()}
-    </div>
-  </div>'''
-        fold = ''
+    figures = figures_across() if pane.figures == 'across' else figures_rows()
+    figures_class = 'across' if pane.figures == 'across' else 'rows'
 
     return f'''<!doctype html>
 <html>
@@ -234,25 +281,48 @@ def board(pane, src):
     body {{ margin:0; background:#07080A; font-family:'Roboto','Segoe UI',system-ui,sans-serif; }}
     a {{ color:#FEEFAB; }} a:hover {{ color:#FFF7D2; }}
 {css}
-    .rows {{ display:flex; flex-direction:column; gap:{ROW_GAP}px; }}
+    .dot {{ position:absolute; top:{CHIP_DOT_INSET}px; right:{CHIP_DOT_INSET}px; width:{CHIP_DOT}px; height:{CHIP_DOT}px; border-radius:50%; }}
+    .across {{ display:flex; align-items:stretch; height:{BLOCK}px; }}
+    .fig {{ flex:1; min-width:0; display:flex; flex-direction:column; justify-content:space-between; }}
+    .rule {{ width:1px; background:rgba(218,225,235,0.14); margin:0 {GROUP // 2}px; }}
+    .line {{ display:flex; align-items:baseline; gap:14px; }}
+    .num {{ font-size:{FIGURE}px; font-weight:200; color:#DAE1EB; line-height:1; }}
+    .un {{ font-size:{VALUE}px; color:#86909B; }}
+    .rows {{ display:flex; flex-direction:column; gap:{GAP}px; }}
     .row {{ height:{ROW}px; line-height:{ROW}px; display:flex; align-items:baseline; justify-content:space-between; }}
-    .cap {{ font-size:15px; letter-spacing:1.6px; font-weight:500; color:#86909B; }}
-    .val {{ font-size:24px; font-weight:300; color:#DAE1EB; }}
-    .rate {{ font-size:19px; color:#FEEFAB; }}
+    .cap {{ font-size:{LABEL}px; letter-spacing:1.6px; font-weight:500; color:#86909B; }}
+    .val {{ font-size:{VALUE}px; font-weight:300; color:#DAE1EB; }}
+    .rate {{ font-size:{RATE}px; color:#FEEFAB; }}
   </style>
 </helmet>
-<div style="width:{pane.width}px; height:{pane.height}px; box-sizing:border-box; background:#07080A; display:flex; flex-direction:column; gap:{GAP}px; padding:{PAGE_TOP}px {pane.margin}px {PAGE_BOTTOM}px {pane.margin}px; position:relative;">
+<div style="width:{pane.width}px; height:{WINDOW_H}px; box-sizing:border-box; background:#07080A; display:flex; flex-direction:column;">
 
-  <div style="display:grid; grid-template-columns:repeat({pane.columns}, minmax(0, 1fr)); gap:{GAP}px;">
-
-{tiles(src)}
-
+  <!-- what the system takes: BYD freeform draws its drag handle here, and safeDrawing reports it -->
+  <div style="height:{CAPTION}px; flex-shrink:0; display:flex; align-items:center; justify-content:center;">
+    <div style="width:80px; height:4px; border-radius:2px; background:rgba(218,225,235,0.22);"></div>
   </div>
 
-{panel}{fold}
+  <div style="flex-grow:1; min-height:0; box-sizing:border-box; display:flex; flex-direction:column; gap:{GROUP}px; padding:{PAGE_TOP}px {pane.margin}px {PAGE_BOTTOM}px {pane.margin}px;">
+
+    <div style="display:grid; grid-template-columns:repeat({pane.chip_columns}, minmax(0, 1fr)); gap:{GAP}px; flex-shrink:0;">
+
+{chips(pane, src)}
+
+    </div>
+
+    <div style="flex-grow:1; min-height:0; display:flex; flex-direction:column; justify-content:space-between;">
+      <div style="display:flex; flex-direction:column;">
+{body}
+      </div>
+      <div class="{figures_class}">
+{figures}
+      </div>
+    </div>
+
+  </div>
 </div>
 </x-dc>
-<script data-dc-script data-props='{{"$preview":{{"width":{pane.width},"height":{pane.height}}}}}'>
+<script data-dc-script data-props='{{"$preview":{{"width":{pane.width},"height":{WINDOW_H}}}}}'>
 class Component extends DCLogic {{
   renderVals() {{
     return {{
@@ -273,11 +343,9 @@ if __name__ == '__main__':
     for pane in (MEDIUM, NARROW):
         out = f'{pane.name}.dc.html'
         open(out, 'w', encoding='utf-8').write(board(pane, src))
-        fits = pane.height <= WINDOW_H
         print(
-            f'{out}: {pane.width}x{pane.height}  content {pane.content}'
-            f'  tile {(pane.content - (pane.columns - 1) * GAP) / pane.columns:.1f}'
-            f'  {pane.columns}x{pane.rows}'
-            f'  panel {pane.analyser_w:.0f}x{pane.panel_h}'
-            f'  {"fits" if fits else f"scrolls {pane.height - WINDOW_H}"}'
+            f'{out}: {pane.width}x{WINDOW_H}  content {pane.content:.0f}'
+            f'  chip {pane.chip:.1f} x{pane.chip_columns}x{pane.chip_rows}'
+            f'  strip {pane.content:.0f}x{pane.strip_h:.1f}'
+            f'  analyser {pane.analyser_h:.1f}  figures {pane.figures} {pane.figures_h}'
         )

@@ -132,21 +132,26 @@ object DenzaMetrics {
         /** The dashboard tile, measured off Main.dc.html. */
         val TILE_HEIGHT: Dp = 164.dp
 
-        /** The tile's icon, at the size the board draws it. */
+        /** The tile's icon, at the size the board draws it - and the chip's, unchanged. */
         val TILE_ICON: Dp = 30.dp
 
         /**
-         * How many tiles a row holds, at each of the three widths the car gives this app.
+         * The chip's state dot, and how far in from its corner it sits.
          *
-         * Not a taste: the counts are what keeps the tile the size its words need. "Экран
-         * водителя" measures 145.2 dp at 19/500 and a tile spends [Space.L] either side of its
-         * text, so a tile under about 186 dp loses a word to an ellipsis. Six columns of the full
-         * screen's 1184 is 187.3, four of the two-thirds pane's 788 is 188.0, two of the narrow
-         * pane's 392 is 190.0 - one object at every width.
+         * A chip has no caption, so this is the whole of what it says beyond which feature it is.
+         */
+        val CHIP_DOT: Dp = 7.dp
+        val CHIP_DOT_INSET: Dp = 9.dp
+
+        /**
+         * How many tiles a full-width dashboard puts in one row.
          *
-         * The pane counts are also what stopped the tile *growing* as its window shrank: three
-         * columns at 828 dp, which is what shipped, made it 236 dp wide, and one column at 416
-         * made it 368 - a slab twice the size of the same tile on the full screen.
+         * A measurement rather than a taste: "Экран водителя" is 145.2 dp at 19/500 and a tile
+         * spends [Space.L] either side of its text, so a tile under about 186 dp loses a word to
+         * an ellipsis. Six columns of 1184 is 187.3, and there is no seventh.
+         *
+         * A pane does not have a seventh either, which is why it has no tiles at all - see
+         * [CHIP_COLUMNS_MEDIUM].
          */
         const val TILE_COLUMNS_WIDE: Int = 6
 
@@ -159,16 +164,27 @@ object DenzaMetrics {
          */
         const val PICKER_COLUMNS: Int = 5
 
-        const val TILE_COLUMNS_MEDIUM: Int = 4
-        const val TILE_COLUMNS_NARROW: Int = 2
+        /**
+         * How many chips a pane puts in one row.
+         *
+         * Ten across the two-thirds pane and five across two rows of the narrow one, which makes
+         * the chip 68.0 and 68.8 dp - one object at both widths. Ten features cost a pane 68 dp of
+         * its height this way, against the 516 that ten tiles cost, and what the difference buys
+         * is the analyser: it is the only thing on this screen that moves, and a pane is entered
+         * with two thirds of the display already doing something else.
+         *
+         * See [dev.denza.apps.ui.components.DenzaChip], `TwoThirds.dc.html`, `OneThird.dc.html`.
+         */
+        const val CHIP_COLUMNS_MEDIUM: Int = 10
+        const val CHIP_COLUMNS_NARROW: Int = 5
 
         /**
          * The driver-screen picker's row.
          *
          * Fewer and larger than the app picker's [PICKER_COLUMNS], because it lists the navigators
-         * on the car rather than everything installed. It used to read `TILE_COLUMNS_MEDIUM`,
-         * which happened to be three as well - so the dashboard's pane layout and this picker were
-         * one constant, and moving either moved the other for no reason anybody had stated.
+         * on the car rather than everything installed. It used to read the dashboard's pane
+         * column count, which happened to be three as well - so a pane's layout and this picker
+         * were one constant, and moving either moved the other for no reason anybody had stated.
          */
         const val NAVIGATION_PICKER_COLUMNS: Int = 3
 
@@ -208,21 +224,15 @@ object DenzaMetrics {
         val SHEET_CLOSE_ICON: Dp = 26.dp
 
         /**
-         * The bottom strip in each of the two panes, off `TwoThirds.dc.html` and `OneThird.dc.html`.
+         * How tall the narrow pane's strip is when nothing else has claimed the height.
          *
-         * Only the full screen computes its strip height from its width - it is the one layout
-         * whose panel is a fixed shape scaled to the window. A pane's strip is laid out in the
-         * screen's own dp, one unit to one, which is the whole reason these are numbers: a panel
-         * drawn in the wide space and squeezed into a pane scales its type down with everything
-         * else, and at 828 dp that put the strip's captions at 9 dp, four rungs under the bottom
-         * of the ladder.
-         *
-         * 120 is what the two-thirds pane has left under three rows of tiles, and the page comes to
-         * 680 exactly. 376 is what the narrow pane's strip needs rather than what it has left: five
-         * rows of tiles are already 868, so that page scrolls whatever this says.
+         * Kept only as the floor a `weight(1f)` cannot express. A pane's strip takes whatever the
+         * chips leave, which is the one arrangement that cannot be wrong: the first cut of these
+         * panes computed the remainder by hand, from 680, and the car takes 24 of that for the
+         * freeform caption bar - so the foot of the strip was drawn past the bottom edge of the
+         * window, exactly the failure the full screen's own panel height was introduced to fix.
          */
-        val PANEL_HEIGHT_MEDIUM: Dp = 120.dp
-        val PANEL_HEIGHT_NARROW: Dp = 376.dp
+        val PANEL_HEIGHT_MIN: Dp = 300.dp
 
         /** A row a finger has to hit. */
         val ROW_HEIGHT: Dp = 56.dp

@@ -5,6 +5,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import dev.denza.apps.DenzaUiState
 import dev.denza.apps.design.DenzaIcons
+import dev.denza.apps.ui.components.DenzaChip
 import dev.denza.apps.ui.components.DenzaTile
 import dev.denza.apps.ui.components.DenzaTileGrid
 
@@ -20,6 +21,10 @@ import dev.denza.apps.ui.components.DenzaTileGrid
  * The grid wraps at [columns] and pads a short last row, so the row of six the boards draw becomes
  * six and three as tiles are added without any of them changing size. Two rows is what the screen
  * affords: two rows of tiles and the analyser under them is exactly 800 dp.
+ *
+ * [chips] is the same registry drawn as [DenzaChip] instead - the pane's compression of the tile,
+ * with the caption dropped and the state carried by a dot. It is a different component rather than
+ * a size, and the reasoning is in `DenzaChip`.
  */
 @Composable
 fun DashboardGrid(
@@ -28,6 +33,7 @@ fun DashboardGrid(
     columns: Int,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    chips: Boolean = false,
 ) {
     val tiles = DashboardTiles.of(state)
     DenzaTileGrid(
@@ -36,17 +42,30 @@ fun DashboardGrid(
         modifier = modifier,
     ) { index, cell ->
         val tile = tiles[index]
-        DenzaTile(
-            icon = tileIcon(tile.icon),
-            name = tile.name,
-            state = tile.state,
-            tone = tile.tone,
-            caption = tile.caption,
-            onClick = { DashboardPress.perform(tile, state, actions) },
-            onLongClick = { actions.onOpenSettings(tile.id) },
-            modifier = cell,
-            enabled = enabled,
-        )
+        val press = { DashboardPress.perform(tile, state, actions) }
+        val hold = { actions.onOpenSettings(tile.id) }
+        if (chips) {
+            DenzaChip(
+                icon = tileIcon(tile.icon),
+                tone = tile.tone,
+                onClick = press,
+                onLongClick = hold,
+                modifier = cell,
+                enabled = enabled,
+            )
+        } else {
+            DenzaTile(
+                icon = tileIcon(tile.icon),
+                name = tile.name,
+                state = tile.state,
+                tone = tile.tone,
+                caption = tile.caption,
+                onClick = press,
+                onLongClick = hold,
+                modifier = cell,
+                enabled = enabled,
+            )
+        }
     }
 }
 

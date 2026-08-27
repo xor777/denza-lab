@@ -141,42 +141,59 @@ first. `AdbGate.dc.html` and `AdbGateNarrow.dc.html` are one screen drawn twice 
 exactly that reason: same card, same components, same copy rules, 1280 against 416.
 
 The dashboard is drawn three times, and `gen_panes.py` emits the two panes from
-`Main.dc.html` so their tiles cannot drift from the full screen's. What the panes
-decide for themselves is a short list, and every item on it is a measurement:
+`Main.dc.html` so their glyphs and their states cannot drift from the full
+screen's. A pane is not a smaller dashboard: it drops the tile.
 
 | | 1280 | 828 | 416 |
 | --- | --- | --- | --- |
+| caption bar the system keeps | – | 24 | 24 |
 | side margin | 48 | 20 | 12 |
 | content | 1184 | 788 | 392 |
-| columns × rows | 6 × 2 | 4 × 3 | 2 × 5 |
-| tile | 187.3 | 188.0 | 190.0 |
-| strip | 1184 × 296 | 492 × 120 | 392 × 376 |
-| page | 680 | 680 | 1288 |
+| a feature is | a tile 187 x 164 | a chip 68 | a chip 69 |
+| ten of them take | 2 rows, 340 | 1 row, 68 | 2 rows, 150 |
+| the strip gets | 1184 x 296 | 788 x 524 | 392 x 442 |
 
-The margin steps down because a pane is not the screen, and because it is what
-buys the tile the width its words need: "Экран водителя" measures 145.2 dp at
-19/500 and a tile spends 20 either side of its text, so a tile under about 186
-loses a word to an ellipsis. At 48 and 32 both panes come out at 182. What
-shipped before this was 3 columns at 828 and 1 at 416 - a tile of 236 and then
-368, growing as its window shrank.
+Ten tiles at the width their names need are four rows at 828 dp and five at 416 -
+692 and 868 dp of a window that has 656 once the car has taken its caption bar.
+So the page scrolled and the analyser sat below the fold, which is a strange way
+to spend a pane: it is entered deliberately, with the other two thirds of the
+screen already doing something, and the one thing on this screen that moves is
+the analyser. The chip keeps the icon and both gestures and drops the caption,
+carrying "is this on" in its border, its ink and a dot - and ten of them cost 68
+dp instead of 516.
 
-Two things the panes do not do. They are not the wide composition scaled: each is
-laid out one unit to one dp, because `PanelCanvas` scales type along with
-everything else, and the wide strip squeezed into a two-thirds pane put the
-ladder's 46, 24 and 15 on the screen at 28, 15 and 9. And the trip figures change
-shape rather than size - three blocks hung apart down a 320-wide column at 1280,
-three label-and-value rows in a pane.
+That is the shape the archived boards under these two names always had: icons in
+a row, one large panel below. What was in the panel was four vehicle instruments
+that have since been retired, and the analyser goes where they were.
 
-`OneThird.dc.html` is drawn at 416 × 1288, which is the page's own scrolling
-height rather than the window's. Five rows of tiles are 868 dp on their own, so
-that page scrolls whatever else is done to it, and a board cropped to 680 would
-be hiding the half of the design that is below the fold. Two ticks in the side
-margins mark where the window ends.
+The figures change shape rather than size, which is the same rule the wide screen
+follows - three blocks hung apart down a 320-wide column at 1280, three blocks
+side by side with a rule between them at 828, three label-and-value rows at 416.
+Two type sizes, all three widths, every one of them on the ramp.
+
+Neither pane is the wide composition rescaled. `PanelCanvas` scales type along
+with everything else, and the wide strip squeezed into a two-thirds pane put the
+ladder's 46, 24 and 15 on the screen at 28, 15 and 9. Each pane's strip derives
+its virtual height from the width it was handed, so the two scale factors are
+equal and one unit is one dp whatever height the chips left it.
+
+**The caption bar is measured, not assumed.** A pane window is 680 dp tall and
+BYD's freeform windowing keeps the top 24 for its drag handle; `safeDrawing`
+reports it. The first cut of these boards spent that 24 on content and the foot
+of the strip was drawn past the bottom edge of the window - the same failure, one
+window width along, that the full screen's own panel height exists to prevent. The
+app no longer does the arithmetic at all: the strip takes the remainder.
 
 `PaneBoardContractTest` joins both boards to the Kotlin the same way
-`MainBoardContractTest` joins the full screen: artboard size, grid, margins, the
-row's two type sizes, where the analyser ends beside the figures, and that the
-ten tiles are byte-identical to `Main.dc.html`'s.
+`MainBoardContractTest` joins the full screen: artboard size, the caption bar,
+the chip's shape and its dot, the grids and the margins, both shapes of the
+figures with their type sizes, the ticker band against the bar field, and that
+the ten glyphs are the ones `Main.dc.html` draws.
+
+Both were checked on the car on 2026-08-27 and measured off the screenshots: at
+828 the chip row runs 44 → 112 dp and the chips 20 → 808, at 416 they run 44 →
+112.5 and 12 → 404, and the lowest ink in the two-thirds pane sits at 667 of 680.
+Those are the boards' own numbers.
 
 The wide one is comfortable. The narrow one shows a Row measuring its children in
 order - the outlined action takes the width it asks for, the primary action is

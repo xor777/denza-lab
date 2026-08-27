@@ -32,9 +32,7 @@ internal object DashboardLayoutPolicy {
      * The page's own side margin.
      *
      * 48 is the *screen's* margin and a pane is not the screen, so it steps down the ladder as the
-     * window narrows. This is not decoration: it is what buys the tile the width its longest name
-     * needs. At 48 and 32 the two panes come out at 182 dp a tile and the cluster tile loses a
-     * word to an ellipsis; at 20 and 12 they come out at 188 and 190.
+     * window narrows.
      */
     fun sideMargin(mode: DashboardLayoutMode): Dp = when (mode) {
         DashboardLayoutMode.WIDE -> DenzaMetrics.Space.XXL
@@ -42,12 +40,22 @@ internal object DashboardLayoutPolicy {
         DashboardLayoutMode.NARROW -> DenzaMetrics.Space.M
     }
 
-    /** How many tiles stand in one row; see [DenzaMetrics.Component.TILE_COLUMNS_WIDE]. */
+    /**
+     * How many features stand in one row.
+     *
+     * Six on the full screen, where a feature is a tile with its name and its state written out.
+     * Ten and five in the panes, where it is a chip - see
+     * [dev.denza.apps.ui.components.DenzaChip] for why that is a different object rather than a
+     * smaller one.
+     */
     fun columns(mode: DashboardLayoutMode): Int = when (mode) {
         DashboardLayoutMode.WIDE -> DenzaMetrics.Component.TILE_COLUMNS_WIDE
-        DashboardLayoutMode.MEDIUM -> DenzaMetrics.Component.TILE_COLUMNS_MEDIUM
-        DashboardLayoutMode.NARROW -> DenzaMetrics.Component.TILE_COLUMNS_NARROW
+        DashboardLayoutMode.MEDIUM -> DenzaMetrics.Component.CHIP_COLUMNS_MEDIUM
+        DashboardLayoutMode.NARROW -> DenzaMetrics.Component.CHIP_COLUMNS_NARROW
     }
+
+    /** Whether this width writes a feature out as a tile or compresses it to a chip. */
+    fun chips(mode: DashboardLayoutMode): Boolean = mode != DashboardLayoutMode.WIDE
 
     /** Which of the strip's three compositions this window gets. */
     fun panel(mode: DashboardLayoutMode): TripPanelLayout = when (mode) {
@@ -57,18 +65,21 @@ internal object DashboardLayoutPolicy {
     }
 
     /**
-     * How tall the strip is, given the width the page has already spent its margins out of.
+     * How tall the strip is on the full screen, given the width its margins have left.
      *
-     * Only the full screen answers from its width. Its panel is a fixed shape - the board's
-     * 1184x296 - and asking for a box of that shape is how a caller keeps it from being drawn
-     * onto a canvas stretched to whatever height was left over. A pane's strip is laid out in the
-     * screen's own dp instead, so its height is a number rather than a ratio.
+     * Only the full screen answers with a number. Its panel is a fixed shape - the board's
+     * 1184x296 - and asking for a box of that shape is how a caller keeps it from being drawn onto
+     * a canvas stretched to whatever height was left over.
+     *
+     * A pane's strip takes the remainder instead, as `weight(1f)`, and its renderer lays itself
+     * out in whatever shape it is handed at one unit to one dp. That is not laziness, it is the
+     * only arrangement that cannot be wrong: the first cut of these panes worked the remainder out
+     * by hand from 680 and the car keeps 24 of that for the freeform caption bar, so the foot of
+     * the strip was drawn past the bottom edge - which is precisely the bug the full screen's own
+     * panel height exists to prevent, reintroduced one window width along.
      */
-    fun panelHeight(mode: DashboardLayoutMode, contentWidth: Float): Dp = when (mode) {
-        DashboardLayoutMode.WIDE -> BaseTripRenderer.heightFor(contentWidth).dp
-        DashboardLayoutMode.MEDIUM -> DenzaMetrics.Component.PANEL_HEIGHT_MEDIUM
-        DashboardLayoutMode.NARROW -> DenzaMetrics.Component.PANEL_HEIGHT_NARROW
-    }
+    fun wholeScreenPanelHeight(contentWidth: Float): Dp =
+        BaseTripRenderer.heightFor(contentWidth).dp
 }
 
 internal enum class DashboardLayoutMode {

@@ -15,9 +15,8 @@ import org.junit.Test
  * `MainBoardContractTest` does this for the full screen and says why. The panes need it more, not
  * less: nobody looks at them. The full screen is what the owner sees every time the car starts, so
  * a design that drifted there is noticed within a day; a two-thirds pane is entered deliberately,
- * a few times a month, and the version this replaces had been drawing the wide composition
- * squeezed to 62 per cent - captions at 9 dp - for as long as it had existed, with a board on disk
- * showing a screen that had been deleted.
+ * a few times a month, and what had been shipping was the wide composition squeezed to 62 per cent
+ * - captions at 9 dp - under two boards on disk that drew a screen which had been deleted.
  *
  * So: same join, same both-directions failure. Change `TwoThirds.dc.html` without the Kotlin and
  * this fails; change the Kotlin without the board and it fails too.
@@ -26,78 +25,109 @@ class PaneBoardContractTest {
 
     @Test
     fun eachPaneBoardIsDrawnAtTheWindowTheCarActuallyHandsIt() {
-        assertEquals("two-thirds width", 828f, frame(MEDIUM).first, 1e-4f)
-        assertEquals("one-third width", 416f, frame(NARROW).first, 1e-4f)
-
-        // 680 is the drawable height at every width - dock and status band removed. The
-        // two-thirds page is drawn at exactly that, because it fits. The narrow page is drawn at
-        // its own full scrolling height, because five rows of tiles do not: it is 1288, and the
-        // ticks in the margins mark where the window ends.
-        assertEquals("two-thirds height", WINDOW_H, frame(MEDIUM).second, 1e-4f)
-        assertTrue(
-            "the narrow board is ${frame(NARROW).second} and should be taller than one window",
-            frame(NARROW).second > WINDOW_H,
-        )
+        for (board in listOf(MEDIUM, NARROW)) {
+            val (width, height) = frame(board)
+            assertEquals(
+                "$board should be drawn at the pane's own width",
+                if (board == MEDIUM) 828f else 416f,
+                width,
+                1e-4f,
+            )
+            assertEquals("$board height", WINDOW_H, height, 1e-4f)
+        }
     }
 
     @Test
-    fun theGridsAndTheMarginsAreTheBoards() {
-        for ((board, mode) in listOf(MEDIUM to DashboardLayoutMode.MEDIUM, NARROW to DashboardLayoutMode.NARROW)) {
-            val grid = GRID.find(read(board)) ?: error("no tile grid on $board")
+    fun aPanePageAddsUpToTheWindowWithTheCaptionBarTakenOffFirst() {
+        // The bug this exists for, found on the car and not here. A pane window is 680 dp and the
+        // top 24 belong to the system - BYD freeform draws its drag handle there and safeDrawing
+        // reports it - so a page laid out against 680 is 24 too tall and its last row is drawn past
+        // the bottom edge. That is exactly what happened: the sunset row was cut in half.
+        //
+        // The app no longer does this arithmetic at all; the strip takes the remainder. The boards
+        // still have to, because a board is a picture, so this checks their sums close.
+        for ((board, mode) in listOf(
+            MEDIUM to DashboardLayoutMode.MEDIUM,
+            NARROW to DashboardLayoutMode.NARROW,
+        )) {
+            val caption = number(board, """<div style="height:([\d.]+)px; flex-shrink:0""")
+            assertEquals("caption bar on $board", CAPTION_DP, caption, 1e-4f)
+
+            val page = PAGE_PADDING.find(read(board)) ?: error("no page padding on $board")
+            val top = page.groupValues[1].toFloat()
+            val side = page.groupValues[2].toFloat()
+            val bottom = page.groupValues[3].toFloat()
+            assertEquals("top margin on $board", DenzaMetrics.Space.L.value, top, 1e-4f)
+            assertEquals("bottom margin on $board", DenzaMetrics.Space.M.value, bottom, 1e-4f)
+            assertEquals(
+                "side margin on $board",
+                DashboardLayoutPolicy.sideMargin(mode).value,
+                side,
+                1e-4f,
+            )
+
+            val width = frame(board).first
+            val columns = DashboardLayoutPolicy.columns(mode)
+            val rows = if (columns >= 10) 1 else 2
+            val chip = (width - side * 2 - (columns - 1) * DenzaMetrics.Space.M.value) / columns
+            val chips = rows * chip + (rows - 1) * DenzaMetrics.Space.M.value
+            val strip = WINDOW_H - caption - top - chips - DenzaMetrics.Space.XL.value - bottom
+            assertTrue(
+                "$board leaves the strip $strip dp, which is under the floor the renderer keeps",
+                strip >= TripPanelRenderer.PANE_MIN_ANALYSER,
+            )
+        }
+    }
+
+    @Test
+    fun thePaneChipIsAChipAndNotASmallTile() {
+        for (board in listOf(MEDIUM, NARROW)) {
+            assertEquals(
+                "chip radius on $board",
+                DenzaMetrics.Radius.M.value,
+                px(board, ".chip", "border-radius"),
+                1e-4f,
+            )
+            assertTrue(
+                "the chip on $board is not square",
+                boardRule(board, ".chip").contains("aspect-ratio:1"),
+            )
+            assertEquals("dot on $board", DenzaMetrics.Component.CHIP_DOT.value, px(board, ".dot", "width"), 1e-4f)
+            assertEquals(
+                "dot inset on $board",
+                DenzaMetrics.Component.CHIP_DOT_INSET.value,
+                px(board, ".dot", "top"),
+                1e-4f,
+            )
+
+            val icon = ICON.find(read(board)) ?: error("no chip icon on $board")
+            assertEquals(
+                "icon size on $board",
+                DenzaMetrics.Component.TILE_ICON.value,
+                icon.groupValues[1].toFloat(),
+                1e-4f,
+            )
+        }
+    }
+
+    @Test
+    fun theChipGridsAreTheOnesThePolicyHandsOut() {
+        for ((board, mode) in listOf(
+            MEDIUM to DashboardLayoutMode.MEDIUM,
+            NARROW to DashboardLayoutMode.NARROW,
+        )) {
+            val grid = GRID.find(read(board)) ?: error("no chip grid on $board")
             assertEquals(
                 "columns on $board",
                 DashboardLayoutPolicy.columns(mode),
                 grid.groupValues[1].toInt(),
             )
             assertEquals("grid gap on $board", DenzaMetrics.Space.M.value, grid.groupValues[2].toFloat(), 1e-4f)
-
-            val page = PAGE_PADDING.find(read(board)) ?: error("no page padding on $board")
-            assertEquals("top margin on $board", DenzaMetrics.Space.L.value, page.groupValues[1].toFloat(), 1e-4f)
-            assertEquals(
-                "side margin on $board",
-                DashboardLayoutPolicy.sideMargin(mode).value,
-                page.groupValues[2].toFloat(),
-                1e-4f,
-            )
-            assertEquals("bottom margin on $board", DenzaMetrics.Space.M.value, page.groupValues[3].toFloat(), 1e-4f)
+            assertTrue("$mode should draw chips", DashboardLayoutPolicy.chips(mode))
         }
-    }
-
-    @Test
-    fun aPaneTileIsNeverNarrowerThanTheLongestNameOnIt() {
-        // The rule the column counts exist to satisfy, and the one thing about these boards that
-        // is a measurement rather than a taste. "Экран водителя" is 145.2 dp at 19/500 in Roboto,
-        // measured in a browser against the face the car draws - there is no text engine here, so
-        // the number is carried rather than computed, and it is the reason the margin steps down
-        // from 48 to 20 to 12 instead of staying put.
-        for (mode in DashboardLayoutMode.entries) {
-            val text = tileWidth(mode) - DenzaMetrics.Space.L.value * 2
-            assertTrue(
-                "$mode gives a tile ${tileWidth(mode)} dp, ${text} dp of words, and the longest " +
-                    "name needs $LONGEST_NAME_DP",
-                text >= LONGEST_NAME_DP,
-            )
-        }
-    }
-
-    @Test
-    fun theTwoThirdsPageComesToExactlyTheWindowItIsDrawnIn() {
-        // The same arithmetic MainBoardContractTest does for the full screen: margins, three rows
-        // of tiles, the gap under them, and what is left is the strip. If the strip asks for more
-        // than that, its foot is drawn past the bottom of the window and nobody ever sees it.
-        val left = WINDOW_H - DenzaMetrics.Space.L.value - DenzaMetrics.Space.M.value -
-            3 * DenzaMetrics.Component.TILE_HEIGHT.value - 3 * DenzaMetrics.Space.M.value
-        assertEquals(
-            "the two-thirds board leaves $left dp under its tiles",
-            left,
-            DenzaMetrics.Component.PANEL_HEIGHT_MEDIUM.value,
-            1e-4f,
-        )
-        assertEquals(
-            "and the renderer lays its pane out in that height",
-            DenzaMetrics.Component.PANEL_HEIGHT_MEDIUM.value,
-            TripPanelRenderer.MEDIUM_VIRTUAL_H,
-            1e-4f,
+        assertTrue(
+            "the full screen draws tiles, not chips",
+            !DashboardLayoutPolicy.chips(DashboardLayoutMode.WIDE),
         )
     }
 
@@ -122,60 +152,60 @@ class PaneBoardContractTest {
     }
 
     @Test
-    fun thePaneRowIsTheBoardsRow() {
-        for (board in listOf(MEDIUM, NARROW)) {
-            assertEquals("row height on $board", TripPanelRenderer.PANE_ROW, px(board, ".row", "height"), 1e-4f)
-            assertEquals("row gap on $board", TripPanelRenderer.PANE_ROW_GAP, px(board, ".rows", "gap"), 1e-4f)
-            assertEquals("label size on $board", TripPanelRenderer.PANE_LABEL, px(board, ".cap", "font-size"), 1e-4f)
-            assertEquals("value size on $board", TripPanelRenderer.PANE_VALUE, px(board, ".val", "font-size"), 1e-4f)
-            assertEquals("rate size on $board", TripPanelRenderer.PANE_RATE, px(board, ".rate", "font-size"), 1e-4f)
-        }
-        // Every one of those five is a rung, which is the point of writing them down twice.
-        val ladder = DenzaMetrics.Type.RUNGS.map { it.value }
-        assertTrue("label off the ladder", TripPanelRenderer.PANE_LABEL in ladder)
-        assertTrue("value off the ladder", TripPanelRenderer.PANE_VALUE in ladder)
-        assertTrue("rate off the ladder", TripPanelRenderer.PANE_RATE in ladder)
-        assertTrue("row gap off the spacing ladder", TripPanelRenderer.PANE_ROW_GAP in DenzaMetrics.Space.RUNGS.map { it.value })
-    }
+    fun theFiguresAreTheBoardsInBothOfTheirShapes() {
+        assertEquals(
+            "the block band on the two-thirds board",
+            TripPanelRenderer.PANE_BLOCK,
+            px(MEDIUM, ".across", "height"),
+            1e-4f,
+        )
+        assertEquals("block figure", DenzaMetrics.Type.HEADLINE.value, px(MEDIUM, ".num", "font-size"), 1e-4f)
+        assertEquals("block unit", TripPanelRenderer.PANE_VALUE, px(MEDIUM, ".un", "font-size"), 1e-4f)
+        assertEquals(
+            "the rule between two readings is a hairline with the group gap either side",
+            DenzaMetrics.Space.XL.value / 2f,
+            number(MEDIUM, """\.rule \{[^}]*margin:0 ([\d.]+)px"""),
+            1e-4f,
+        )
+        assertEquals("rule weight", TripPanelRenderer.PANE_RULE, px(MEDIUM, ".rule", "width"), 1e-4f)
 
-    @Test
-    fun theAnalyserGetsWhatTheBoardLeavesItBesideTheFigures() {
-        // The two-thirds strip is one row: the analyser, a gap between groups, and a column of
-        // figures whose width the board writes down. What the analyser gets is the remainder, and
-        // the renderer has to agree about where that ends.
-        val column = number(MEDIUM, """<div class="rows" style="width:([\d.]+)px""")
-        val gap = number(MEDIUM, """display:flex; gap:([\d.]+)px; min-height:0""")
-        assertEquals("group gap", DenzaMetrics.Space.XL.value, gap, 1e-4f)
-        assertEquals(
-            "the analyser's right edge",
-            TripPanelRenderer.MEDIUM_VIRTUAL_W - column - gap,
-            TripPanelRenderer.MEDIUM_SPECTRUM_RIGHT,
-            1e-4f,
-        )
-        assertEquals(
-            "and the figures start where the column does",
-            TripPanelRenderer.MEDIUM_VIRTUAL_W - column,
-            TripPanelRenderer.MEDIUM_ROWS_LEFT,
-            1e-4f,
-        )
+        assertEquals("row height", TripPanelRenderer.PANE_ROW, px(NARROW, ".row", "height"), 1e-4f)
+        assertEquals("row gap", TripPanelRenderer.PANE_ROW_GAP, px(NARROW, ".rows", "gap"), 1e-4f)
+        assertEquals("row reading", TripPanelRenderer.PANE_VALUE, px(NARROW, ".val", "font-size"), 1e-4f)
+
+        for (board in listOf(MEDIUM, NARROW)) {
+            assertEquals("label on $board", TripPanelRenderer.PANE_LABEL, px(board, ".cap", "font-size"), 1e-4f)
+            assertEquals("rate on $board", TripPanelRenderer.PANE_RATE, px(board, ".rate", "font-size"), 1e-4f)
+        }
+
+        // Every one of those is a rung, which is the point of writing them down twice.
+        val type = DenzaMetrics.Type.RUNGS.map { it.value }
+        assertTrue("label off the ladder", TripPanelRenderer.PANE_LABEL in type)
+        assertTrue("reading off the ladder", TripPanelRenderer.PANE_VALUE in type)
+        assertTrue("rate off the ladder", TripPanelRenderer.PANE_RATE in type)
+        val space = DenzaMetrics.Space.RUNGS.map { it.value }
+        assertTrue("row gap off the ladder", TripPanelRenderer.PANE_ROW_GAP in space)
+        assertTrue("group gap off the ladder", TripPanelRenderer.PANE_GROUP in space)
     }
 
     @Test
     fun theTickerBandAndTheBarFieldAreTheBoards() {
-        for ((board, bottom) in listOf(
-            MEDIUM to TripPanelRenderer.MEDIUM_VIRTUAL_H,
-            NARROW to TripPanelRenderer.NARROW_SPECTRUM_BOTTOM,
-        )) {
+        for (board in listOf(MEDIUM, NARROW)) {
             val strip = number(board, """align-items:center; height:([\d.]+)px""")
             assertEquals("ticker band on $board", SpectrumRenderer.STRIP_UNITS, strip, 1e-4f)
 
-            // Where the baseline falls is the code's, so the board's bar field is the consequence.
+            // Where the baseline falls is the code's, so the board's reflection is the
+            // consequence of its bar field: the field is 0.8319 of the box below the ticker, what
+            // is under the baseline is the rest of it, and the analyser crops that at 40.
             val field = number(board, """align-items:flex-end; gap:[\d.]+px; height:([\d.]+)px""")
+            val reflect = number(board, """height:([\d.]+)px; overflow:hidden; opacity""")
+            val belowBaseline =
+                field / SpectrumRenderer.BASELINE_FRACTION * (1f - SpectrumRenderer.BASELINE_FRACTION)
             assertEquals(
-                "bar field on $board",
-                (bottom - strip) * SpectrumRenderer.BASELINE_FRACTION,
-                field,
-                0.01f,
+                "reflection on $board",
+                minOf(belowBaseline, SpectrumRenderer.REFLECT_UNITS),
+                reflect,
+                0.5f,
             )
 
             val width = number(board, """<div style="width:([\d.]+)px; display:flex""")
@@ -190,54 +220,55 @@ class PaneBoardContractTest {
     }
 
     @Test
-    fun thePaneBoardsDrawTheSameTilesAsTheFullScreen() {
+    fun thePaneBoardsCarryTheSameTenFeaturesAsTheFullScreen() {
         // These boards are generated from `Main.dc.html` for exactly this reason. A pane that
-        // quietly renames a tile, or keeps one the dashboard has dropped, is worse than no pane
-        // board at all - it looks like a decision somebody made.
-        val main = tiles(File(CANVAS, "Main.dc.html"))
-        assertEquals("ten tiles on the full screen", 10, main.size)
-        assertEquals("two-thirds tiles", main, tiles(MEDIUM))
-        assertEquals("one-third tiles", main, tiles(NARROW))
+        // quietly keeps a feature the dashboard has dropped, or draws it with another glyph, is
+        // worse than no pane board at all - it looks like a decision somebody made.
+        val main = icons(File(CANVAS, "Main.dc.html"))
+        assertEquals("ten features on the full screen", 10, main.size)
+        for (board in listOf(MEDIUM, NARROW)) {
+            val pane = icons(board)
+            assertEquals("$board should carry ten chips", 10, pane.size)
+            assertEquals("the glyphs on $board", main, pane)
+        }
     }
 
     private fun read(board: File): String = board.readText()
 
-    private fun tiles(board: File): List<String> =
-        TILE.findAll(read(board)).map { it.value.trim() }.toList()
+    /**
+     * Every feature's glyph, in the order the board draws it.
+     *
+     * Compared with its size attributes taken off, because that is the one thing a chip is allowed
+     * to change about a tile's icon - the row it sits in decides how big it is.
+     */
+    private fun icons(board: File): List<String> =
+        FEATURE_ICON.findAll(read(board))
+            .map { it.groupValues[1].replace(SIZE, "") }
+            .toList()
 
     private fun frame(board: File): Pair<Float, Float> {
         val found = FRAME.find(read(board)) ?: error("no artboard frame on $board")
         return found.groupValues[1].toFloat() to found.groupValues[2].toFloat()
     }
 
-    private fun px(board: File, selector: String, property: String): Float {
-        val body = Regex("\\Q$selector\\E\\s*\\{([^}]*)}").find(read(board))
+    private fun boardRule(board: File, selector: String): String =
+        Regex("\\Q$selector\\E\\s*\\{([^}]*)}").find(read(board))?.groupValues?.get(1)
             ?: error("$board has no $selector rule")
-        return Regex("(?<![\\w-])$property:([\\d.]+)").find(body.groupValues[1])
+
+    private fun px(board: File, selector: String, property: String): Float =
+        Regex("(?<![\\w-])$property:([\\d.]+)").find(boardRule(board, selector))
             ?.groupValues?.get(1)?.toFloat()
-            ?: error("no $property in ${body.groupValues[1]}")
-    }
+            ?: error("no $property in ${boardRule(board, selector)}")
 
     private fun number(board: File, pattern: String): Float =
         Regex(pattern).find(read(board))?.groupValues?.get(1)?.toFloat()
             ?: error("$board has nothing matching $pattern")
 
-    private fun tileWidth(mode: DashboardLayoutMode): Float {
-        val window = when (mode) {
-            DashboardLayoutMode.WIDE -> 1280f
-            DashboardLayoutMode.MEDIUM -> 828f
-            DashboardLayoutMode.NARROW -> 416f
-        }
-        val columns = DashboardLayoutPolicy.columns(mode)
-        val content = window - DashboardLayoutPolicy.sideMargin(mode).value * 2
-        return (content - (columns - 1) * DenzaMetrics.Space.M.value) / columns
-    }
-
     private companion object {
         const val WINDOW_H = 680f
 
-        /** "Экран водителя" at 19 sp, weight 500, in Roboto. */
-        const val LONGEST_NAME_DP = 145.2f
+        /** What BYD's freeform windowing keeps at the top of a pane. Measured on the car. */
+        const val CAPTION_DP = 24f
 
         val CANVAS: File = generateSequence(
             File(requireNotNull(System.getProperty("user.dir")) { "user.dir is unavailable" }),
@@ -249,7 +280,20 @@ class PaneBoardContractTest {
         val MEDIUM = File(CANVAS, "TwoThirds.dc.html")
         val NARROW = File(CANVAS, "OneThird.dc.html")
 
-        val TILE = Regex("""^    <div class="tile (?:on|off)">.*?\n    </div>""", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.MULTILINE))
+        val ICON = Regex("""<svg width="([\d.]+)"[^>]*stroke-width="([\d.]+)"""")
+        val SIZE = Regex("""width="[\d.]+" height="[\d.]+" """)
+
+        /**
+         * A feature's glyph: the svg inside a tile or a chip, and nothing else on the board.
+         *
+         * Scoped rather than "every svg", because both records also draw a sun beside the sunset
+         * and an arrow beside the variometer, and those are not features. It takes the first svg
+         * after the opening div rather than the next thing along: the mirrors tile wraps its glyph
+         * in a row so it can hang three position dots beside it.
+         */
+        val FEATURE_ICON = Regex(
+            """<div class="(?:tile|chip) (?:on|off)">(?:(?!<svg)[\s\S])*(<svg [\s\S]*?</svg>)""",
+        )
         val GRID = Regex("""grid-template-columns:repeat\((\d+),[^;]*;\s*gap:([\d.]+)px""")
         val PAGE_PADDING = Regex("""padding:([\d.]+)px ([\d.]+)px ([\d.]+)px ([\d.]+)px""")
         val FRAME = Regex("""width:([\d.]+)px; height:([\d.]+)px; box-sizing""")
