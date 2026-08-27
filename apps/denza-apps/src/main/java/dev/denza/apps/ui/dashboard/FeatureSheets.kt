@@ -116,7 +116,7 @@ fun FeatureSheet(
             TileId.LOCALE -> localeSheet(state, actions)
             // Nothing to switch: the paragraph below is the whole panel, and the button at the
             // foot is the one thing there is to do.
-            TileId.PASSENGER, TileId.SERVICE -> Unit
+            TileId.PASSENGER, TileId.DEFAULT_APPS, TileId.SERVICE -> Unit
         }
         // `details` намеренно не рисуется. Это техническая строка - текст исключения мотора,
         // причина, по которой не взялся аудиоэффект, - и водителю она не сообщение, а мусор
@@ -165,6 +165,7 @@ private fun helpOf(id: TileId): String = when (id) {
             "переключатель включает его в штатных настройках машины."
     TileId.PASSENGER ->
         "Выбранное приложение устанавливается на экран перед пассажиром."
+    TileId.DEFAULT_APPS -> DEFAULT_APPS_SHORTCUTS_HELP
     TileId.SERVICE ->
         "Показания машины, доступ приложения к ней и штатные настройки, до которых оно дотягивается."
 }

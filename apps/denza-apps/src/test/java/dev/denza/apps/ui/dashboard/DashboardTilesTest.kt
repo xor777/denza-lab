@@ -5,6 +5,10 @@ import dev.denza.apps.core.FeatureId
 import dev.denza.apps.core.FeatureResolution
 import dev.denza.apps.core.FeatureSnapshot
 import dev.denza.apps.core.FeatureStatus
+import dev.denza.apps.feature.defaultapps.DefaultAppRole
+import dev.denza.apps.feature.defaultapps.DefaultAppRoleStatus
+import dev.denza.apps.feature.defaultapps.DefaultAppRoleUiState
+import dev.denza.apps.feature.defaultapps.DefaultAppsUiState
 import dev.denza.apps.ui.components.DenzaTileCaption
 import dev.denza.apps.ui.components.DenzaTileTone
 import org.junit.Assert.assertEquals
@@ -21,10 +25,9 @@ import org.junit.Test
 class DashboardTilesTest {
 
     @Test
-    fun theMainScreenCarriesTheTenReachableTilesAndNothingElse() {
-        // The wheel button is a switch inside the driver's own screen rather than a feature of its
-        // own - the owner moved it there - so the board's eleven tiles are ten here. Weather was
-        // the other absence: it had no user control until it was given one.
+    fun theMainScreenCarriesTheElevenReachableTilesAndNothingElse() {
+        // Default applications is a settings door rather than a runtime feature, immediately before
+        // the service door so it remains reachable without inventing a fake FeatureId.
         assertEquals(
             listOf(
                 TileId.CLUSTER,
@@ -36,6 +39,7 @@ class DashboardTilesTest {
                 TileId.SPEAKERS,
                 TileId.LOCALE,
                 TileId.PASSENGER,
+                TileId.DEFAULT_APPS,
                 TileId.SERVICE,
             ),
             DashboardTiles.of(DenzaUiState()).map { it.id },
@@ -208,6 +212,33 @@ class DashboardTilesTest {
         assertEquals("Нет приложений", none.tile(TileId.SIMULCAST).state)
     }
 
+    @Test
+    fun defaultApplicationsUseTheCompactCountAndOpenTheirSettings() {
+        assertEquals("Не настроены", DashboardTiles.configuredApps(0))
+        assertEquals("1 настроено", DashboardTiles.configuredApps(1))
+        assertEquals("2 настроены", DashboardTiles.configuredApps(2))
+        assertEquals("3 настроены", DashboardTiles.configuredApps(3))
+
+        val tile = DenzaUiState(defaultApps = configuredDefaults(2)).tile(TileId.DEFAULT_APPS)
+        assertEquals("Приложения", tile.name)
+        assertEquals("2 настроены", tile.state)
+        assertEquals(TileAction.SETTINGS, tile.action)
+        assertEquals(null, TileId.DEFAULT_APPS.feature)
+
+        val unavailable = DenzaUiState(
+            defaultApps = configuredDefaults(2).copy(
+                roles = configuredDefaults(2).roles.mapIndexed { index, role ->
+                    if (index == 0) {
+                        role.copy(status = DefaultAppRoleStatus.ERROR, providerConfirmed = false)
+                    } else {
+                        role
+                    }
+                },
+            ),
+        ).tile(TileId.DEFAULT_APPS)
+        assertEquals("Не проверено", unavailable.state)
+    }
+
     /**
      * The cluster tile names what is chosen, and says it the same way whether or not it is showing.
      *
@@ -333,6 +364,19 @@ class DashboardTilesTest {
         hudGuidance = snapshot(status),
         speakerCovers = snapshot(status),
         fseInstaller = snapshot(status),
+    )
+
+    private fun configuredDefaults(count: Int): DefaultAppsUiState = DefaultAppsUiState(
+        roles = DefaultAppRole.entries.mapIndexed { index, role ->
+            val definition = role.knownThirdPartyApps.first()
+            DefaultAppRoleUiState(
+                role = role,
+                selectedPackageName = definition.packageName.takeIf { index < count },
+                selectedLabel = definition.fallbackLabel.takeIf { index < count } ?: "Не выбрано",
+                status = DefaultAppRoleStatus.READY,
+                providerConfirmed = true,
+            )
+        },
     )
 }
 

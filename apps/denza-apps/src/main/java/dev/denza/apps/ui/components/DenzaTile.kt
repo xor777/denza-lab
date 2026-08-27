@@ -50,9 +50,10 @@ import dev.denza.apps.design.DenzaMetrics
  *
  * **The name is one line and so is the state.** Both used to take two if they needed them, and
  * since the block is anchored to the bottom edge, a caption growing to two lines shoved the name
- * upward - so switching the mirrors on moved the word "Зеркала". Ten tiles able to do that at
- * different moments is a screen that twitches, and it did. Anything longer is elided; the registry
- * writes captions that fit, and the panel behind the long press is where the long version lives.
+ * upward - so switching the mirrors on moved the word "Зеркала". Eleven tiles able to do that at
+ * different moments is a screen that twitches, and it did. Anything longer is elided; the
+ * registry writes captions that fit, and the panel behind the long press is where the long version
+ * lives.
  *
  * [tone] carries the state before any word is read; see [DenzaTileTone]. [caption] decides whether
  * the line under the name is worth the accent; see [DenzaTileCaption].
@@ -167,7 +168,7 @@ private fun captionColor(tone: DenzaTileTone, caption: DenzaTileCaption): Color 
 // The corner mark that used to sit here is gone. It marked the four tiles whose long press led
 // somewhere, in the convention a phone keyboard uses for a key with more characters under it - and
 // on the car it read as something stuck to the tile rather than drawn with it. Every tile has a
-// panel now, so a mark distinguishing them would be on all ten and distinguish nothing.
+// panel now, so a mark distinguishing them would be on all eleven and distinguish nothing.
 
 private val BUSY_DOT = 18.dp
 private val BUSY_STROKE = 2.dp

@@ -19,6 +19,15 @@ import dev.denza.apps.feature.adb.AdbRescuePhase
 import dev.denza.apps.feature.adb.AdbRescueSnapshot
 import dev.denza.apps.feature.adb.AdbStartupEntryAction
 import dev.denza.apps.feature.adb.AdbStartupGatePolicy
+import dev.denza.apps.feature.defaultapps.DefaultAppRole
+import dev.denza.apps.feature.defaultapps.DefaultAppRoleRepository
+import dev.denza.apps.feature.defaultapps.DefaultAppRoleStatus
+import dev.denza.apps.feature.defaultapps.DefaultAppRoleUiState
+import dev.denza.apps.feature.defaultapps.DefaultAppsCatalog
+import dev.denza.apps.feature.defaultapps.DefaultAppsPolicy
+import dev.denza.apps.feature.defaultapps.DefaultAppsSettings
+import dev.denza.apps.feature.defaultapps.DefaultAppsUiState
+import dev.denza.apps.feature.defaultapps.InstalledDefaultApp
 import dev.denza.apps.feature.fse.FseAppInstaller
 import dev.denza.apps.feature.fse.FseInstallApp
 import dev.denza.apps.feature.fse.FseInstallResult
@@ -52,6 +61,7 @@ import dev.denza.apps.feature.split.SplitLauncherEntryActivity
 import dev.denza.apps.feature.weather.WeatherAdapterScheduler
 import dev.denza.apps.feature.weather.WeatherAdapterState
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.runBlocking
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -102,6 +112,7 @@ data class DenzaUiState(
     val mirrorsProcessing: Boolean = true,
     val setupRunning: Boolean = false,
     val adbRescue: AdbRescueSnapshot = AdbRescueSnapshot(),
+    val defaultApps: DefaultAppsUiState = DefaultAppsUiState(),
     val stockRussianLocale: StockRussianLocaleSnapshot = StockRussianLocaleSnapshot(),
     val weatherEnabled: Boolean = true,
     val weatherTemperature: Int? = null,
@@ -122,9 +133,17 @@ data class DenzaUiState(
 object DenzaAppRepository {
     private val executor = Executors.newSingleThreadExecutor()
     private val localeExecutor = Executors.newSingleThreadExecutor()
+    private val defaultAppsExecutor = Executors.newSingleThreadExecutor()
     private val adbRuntimeStarted = AtomicBoolean(false)
+    private val defaultAppsRefreshRequested = AtomicBoolean(false)
+    private val defaultAppsRefreshRunning = AtomicBoolean(false)
     private val stateStore = DenzaUiStateStore()
     val state: StateFlow<DenzaUiState> = stateStore.state
+
+    private val defaultAppsRepositoryLock = Any()
+
+    @Volatile
+    private var defaultAppsRepository: DefaultAppRoleRepository? = null
 
     @Volatile
     private var appContext: Context? = null
@@ -603,6 +622,62 @@ object DenzaAppRepository {
         }
     }
 
+    /** Explicit, coalesced provider refresh used on Activity resume and by the settings sheet. */
+    fun refreshDefaultApps() {
+        val context = appContext ?: return
+        if (!defaultAppsRuntimeReady()) {
+            val phase = AdbRescueCoordinator.snapshot().phase
+            if (
+                phase == AdbRescuePhase.UNKNOWN ||
+                phase == AdbRescuePhase.CHECKING ||
+                phase == AdbRescuePhase.TRUSTED
+            ) {
+                publishDefaultAppsWaitingForRuntime()
+            } else {
+                publishDefaultAppsUnavailable("Нужен доверенный локальный ADB")
+            }
+            return
+        }
+
+        stateStore.update { current ->
+            current.copy(
+                defaultApps = current.defaultApps.copy(
+                    refreshing = true,
+                    roles = current.defaultApps.roles.map { roleState ->
+                        if (roleState.status == DefaultAppRoleStatus.APPLYING) {
+                            roleState
+                        } else {
+                            roleState.copy(
+                                status = DefaultAppRoleStatus.LOADING,
+                                message = "Читаю настройку…",
+                            )
+                        }
+                    },
+                ),
+            )
+        }
+
+        defaultAppsRefreshRequested.set(true)
+        scheduleDefaultAppsRefresh(context)
+    }
+
+    /** Writes one role. Package admission is the current installed-launcher catalog, not a list. */
+    fun selectDefaultApp(
+        role: DefaultAppRole,
+        packageName: String,
+    ) {
+        val context = appContext ?: return
+        if (!defaultAppsRuntimeReady()) {
+            publishDefaultAppRoleError(role, "Нужен доверенный локальный ADB")
+            return
+        }
+        if (!claimDefaultAppSelection(role, packageName)) return
+
+        defaultAppsExecutor.execute {
+            applyDefaultAppSelection(context, role, packageName)
+        }
+    }
+
     fun refreshStockRussianLocale() {
         val context = appContext ?: return
         val expected = stateStore.snapshot().state.stockRussianLocale
@@ -709,6 +784,9 @@ object DenzaAppRepository {
     private fun onAdbRescueChanged(context: Context) {
         if (AdbRescueCoordinator.snapshot().phase == AdbRescuePhase.TRUSTED) {
             startAdbRuntime(context)
+            // `startAdbRuntime` is single-shot. A later access recovery still has to reread the
+            // provider even though the rest of the runtime was already initialized.
+            refreshDefaultApps()
         }
         refresh()
     }
@@ -731,6 +809,7 @@ object DenzaAppRepository {
             )
         }
         refresh()
+        refreshDefaultApps()
         reconcileNavigationSteeringWheelAccess(app)
         reconcileSimulcast(repairMissingSetup = true)
         if (MirrorsSettings.isEnabled(app)) reconcileMirrors()
@@ -940,6 +1019,401 @@ object DenzaAppRepository {
             runtimeEnabled = SplitScreenSettings.isEnabled(context),
             setRuntimeEnabled = SplitScreenCoordinator::setEnabled,
         )
+    }
+
+    /** At most one provider refresh runs and one newer request waits behind it. */
+    private fun scheduleDefaultAppsRefresh(context: Context) {
+        if (!defaultAppsRefreshRunning.compareAndSet(false, true)) return
+        defaultAppsExecutor.execute {
+            try {
+                defaultAppsRefreshRequested.set(false)
+                runDefaultAppsRefresh(context)
+            } catch (error: Exception) {
+                publishDefaultAppsUnavailable(
+                    defaultAppsFailure("Не удалось обновить приложения", error),
+                )
+            } finally {
+                defaultAppsRefreshRunning.set(false)
+                if (defaultAppsRefreshRequested.get()) {
+                    scheduleDefaultAppsRefresh(context)
+                }
+            }
+        }
+    }
+
+    private fun runDefaultAppsRefresh(context: Context) {
+        if (!defaultAppsRuntimeReady()) {
+            publishDefaultAppsUnavailable("Нужен доверенный локальный ADB")
+            return
+        }
+
+        val installed = runCatching { DefaultAppsCatalog.discover(context) }
+            .getOrElse { error ->
+                publishDefaultAppsUnavailable(
+                    defaultAppsFailure("Не удалось прочитать список приложений", error),
+                )
+                return
+            }
+        val repository = defaultAppRoleRepository(context)
+
+        DefaultAppRole.entries.forEach { role ->
+            // A tap accepted while this refresh was already in flight owns the role until its
+            // exact set/readback completes. Refreshing the other roles must not undo APPLYING.
+            if (stateStore.snapshot().state.defaultApps.stateFor(role).status ==
+                DefaultAppRoleStatus.APPLYING
+            ) {
+                return@forEach
+            }
+
+            val roleState = refreshDefaultAppRole(context, repository, role, installed)
+            stateStore.updateIf(
+                predicate = { current ->
+                    current.defaultApps.stateFor(role).status != DefaultAppRoleStatus.APPLYING
+                },
+                transform = { current ->
+                    current.copy(
+                        defaultApps = current.defaultApps.update(role) { roleState },
+                    )
+                },
+            )
+        }
+
+        stateStore.update { current ->
+            current.copy(
+                defaultApps = current.defaultApps.copy(
+                    refreshing = defaultAppsRefreshRequested.get(),
+                ),
+            )
+        }
+    }
+
+    private fun refreshDefaultAppRole(
+        context: Context,
+        repository: DefaultAppRoleRepository,
+        role: DefaultAppRole,
+        installed: List<InstalledDefaultApp>,
+    ): DefaultAppRoleUiState {
+        val previous = stateStore.snapshot().state.defaultApps.stateFor(role)
+        var observedPackage: String? = null
+        var writeAttempted = false
+
+        return try {
+            observedPackage = runBlocking { repository.read(role) }
+            val initializationHandled = DefaultAppsSettings.isInitializationHandled(context, role)
+            val launchablePackages = installed.map(InstalledDefaultApp::packageName)
+            val coldSelection = DefaultAppsPolicy.coldStartSelection(
+                role = role,
+                providerPackageName = observedPackage,
+                initializationHandled = initializationHandled,
+                installedLaunchablePackages = launchablePackages,
+            )
+            val shouldAutoSelect = DefaultAppsPolicy.shouldAutoApplyColdStartSelection(
+                role = role,
+                providerPackageName = observedPackage,
+                initializationHandled = initializationHandled,
+                resolvedPackageName = coldSelection,
+            )
+
+            val persisted = if (shouldAutoSelect) {
+                writeAttempted = true
+                runBlocking {
+                    repository.setIfCurrent(
+                        role = role,
+                        expectedCurrentPackageName = role.stockPackageName,
+                        packageName = checkNotNull(coldSelection),
+                    )
+                }.also {
+                    // The provider is the source of truth. Only its exact successful readback may
+                    // complete first-run handling after an automatic change.
+                    DefaultAppsSettings.markInitializationHandled(context, role)
+                }
+            } else {
+                checkNotNull(observedPackage)
+            }
+            if (!initializationHandled && !shouldAutoSelect) {
+                // A successful first resolution is final even when it keeps stock or preserves an
+                // external non-stock value. Installing a known app later must not silently change
+                // an already observed role.
+                DefaultAppsSettings.markInitializationHandled(context, role)
+            }
+            defaultAppProviderState(
+                role = role,
+                providerPackageName = persisted,
+                installed = installed,
+                message = if (shouldAutoSelect) "Выбрано автоматически" else "",
+            )
+        } catch (error: Throwable) {
+            val recovered = if (writeAttempted) {
+                runCatching { runBlocking { repository.read(role) } }.getOrNull()
+            } else {
+                null
+            }
+            // Once an update was attempted, the pre-write observation is no longer proof of the
+            // current value. Only a recovery read may confirm it; otherwise retain the old value
+            // strictly as last-known UI context.
+            val confirmedPackage = recovered ?: observedPackage.takeUnless { writeAttempted }
+            defaultAppErrorState(
+                role = role,
+                providerPackageName = confirmedPackage
+                    ?: observedPackage
+                    ?: previous.selectedPackageName,
+                installed = installed,
+                providerConfirmed = confirmedPackage != null,
+                message = defaultAppsFailure(
+                    when {
+                        writeAttempted -> "Не удалось завершить автоматический выбор"
+                        observedPackage != null -> "Не удалось завершить инициализацию"
+                        else -> "Не удалось прочитать настройку AutoVoice"
+                    },
+                    error,
+                ),
+            )
+        }
+    }
+
+    private fun applyDefaultAppSelection(
+        context: Context,
+        role: DefaultAppRole,
+        packageName: String,
+    ) {
+        val installed = runCatching { DefaultAppsCatalog.discover(context) }
+            .getOrElse { error ->
+                finishDefaultAppRole(
+                    role,
+                    stateStore.snapshot().state.defaultApps.stateFor(role).copy(
+                        status = DefaultAppRoleStatus.ERROR,
+                        providerConfirmed = false,
+                        message = defaultAppsFailure(
+                            "Не удалось проверить приложение",
+                            error,
+                        ),
+                    ),
+                )
+                return
+            }
+        val launchablePackages = installed.map(InstalledDefaultApp::packageName)
+        if (!DefaultAppsPolicy.isSelectable(packageName, launchablePackages)) {
+            val previous = stateStore.snapshot().state.defaultApps.stateFor(role)
+            finishDefaultAppRole(
+                role,
+                defaultAppErrorState(
+                    role = role,
+                    providerPackageName = previous.selectedPackageName,
+                    installed = installed,
+                    providerConfirmed = false,
+                    message = "Приложение больше не установлено или не запускается",
+                ),
+            )
+            return
+        }
+        if (!defaultAppsRuntimeReady()) {
+            finishDefaultAppRole(
+                role,
+                defaultAppErrorState(
+                    role = role,
+                    providerPackageName = stateStore.snapshot().state.defaultApps
+                        .stateFor(role).selectedPackageName,
+                    installed = installed,
+                    providerConfirmed = false,
+                    message = "Нужен доверенный локальный ADB",
+                ),
+            )
+            return
+        }
+
+        val repository = defaultAppRoleRepository(context)
+        var persistedPackage: String? = null
+        val result = runCatching {
+            persistedPackage = runBlocking { repository.set(role, packageName) }
+            // Even a deliberate stock choice becomes distinguishable only after the provider has
+            // echoed it back exactly. This marker must never be written optimistically.
+            if (!DefaultAppsSettings.isInitializationHandled(context, role)) {
+                DefaultAppsSettings.markInitializationHandled(context, role)
+            }
+            checkNotNull(persistedPackage)
+        }
+
+        val completed = result.fold(
+            onSuccess = { persisted ->
+                defaultAppProviderState(role, persisted, installed)
+            },
+            onFailure = { error ->
+                val recovered = runCatching { runBlocking { repository.read(role) } }.getOrNull()
+                val confirmedPackage = recovered ?: persistedPackage
+                defaultAppErrorState(
+                    role = role,
+                    providerPackageName = confirmedPackage
+                        ?: stateStore.snapshot().state.defaultApps
+                            .stateFor(role).selectedPackageName,
+                    installed = installed,
+                    providerConfirmed = confirmedPackage != null,
+                    message = defaultAppsFailure("Не удалось сохранить выбор", error),
+                )
+            },
+        )
+        finishDefaultAppRole(role, completed)
+    }
+
+    private fun defaultAppProviderState(
+        role: DefaultAppRole,
+        providerPackageName: String,
+        installed: List<InstalledDefaultApp>,
+        message: String = "",
+    ): DefaultAppRoleUiState {
+        if (!DefaultAppsCatalog.isLaunchable(providerPackageName, installed)) {
+            return defaultAppErrorState(
+                role = role,
+                providerPackageName = providerPackageName,
+                installed = installed,
+                providerConfirmed = true,
+                message = "Выбранное приложение не установлено или не запускается",
+            )
+        }
+        return DefaultAppRoleUiState(
+            role = role,
+            selectedPackageName = providerPackageName,
+            selectedLabel = DefaultAppsCatalog.label(role, providerPackageName, installed),
+            choices = DefaultAppsCatalog.choices(role, providerPackageName, installed),
+            status = DefaultAppRoleStatus.READY,
+            message = message,
+            providerConfirmed = true,
+        )
+    }
+
+    private fun defaultAppErrorState(
+        role: DefaultAppRole,
+        providerPackageName: String?,
+        installed: List<InstalledDefaultApp>,
+        providerConfirmed: Boolean,
+        message: String,
+    ): DefaultAppRoleUiState = DefaultAppRoleUiState(
+        role = role,
+        selectedPackageName = providerPackageName,
+        selectedLabel = DefaultAppsCatalog.label(role, providerPackageName, installed),
+        choices = DefaultAppsCatalog.choices(role, providerPackageName, installed),
+        status = DefaultAppRoleStatus.ERROR,
+        message = message,
+        providerConfirmed = providerConfirmed,
+    )
+
+    private fun claimDefaultAppSelection(
+        role: DefaultAppRole,
+        packageName: String,
+    ): Boolean {
+        while (true) {
+            val snapshot = stateStore.snapshot()
+            val current = snapshot.state
+            val roleState = current.defaultApps.stateFor(role)
+            if (current.defaultApps.refreshing || roleState.busy) return false
+
+            val launchablePackages = roleState.choices.map { it.packageName }
+            val selectable = DefaultAppsPolicy.isSelectable(packageName, launchablePackages)
+            val updatedRole = if (selectable) {
+                roleState.copy(
+                    status = DefaultAppRoleStatus.APPLYING,
+                    message = "Сохраняю выбор…",
+                )
+            } else {
+                roleState.copy(
+                    status = DefaultAppRoleStatus.ERROR,
+                    message = "Приложение больше не доступно",
+                )
+            }
+            val updated = current.copy(
+                defaultApps = current.defaultApps.update(role) { updatedRole },
+            )
+            if (stateStore.compareAndSet(snapshot, updated)) return selectable
+        }
+    }
+
+    private fun finishDefaultAppRole(
+        role: DefaultAppRole,
+        completed: DefaultAppRoleUiState,
+    ) {
+        stateStore.update { current ->
+            current.copy(
+                defaultApps = current.defaultApps.update(role) { completed },
+            )
+        }
+    }
+
+    private fun publishDefaultAppRoleError(
+        role: DefaultAppRole,
+        message: String,
+    ) {
+        stateStore.update { current ->
+            current.copy(
+                defaultApps = current.defaultApps.update(role) { roleState ->
+                    roleState.copy(
+                        status = DefaultAppRoleStatus.ERROR,
+                        message = message,
+                        providerConfirmed = false,
+                    )
+                },
+            )
+        }
+    }
+
+    private fun publishDefaultAppsUnavailable(message: String) {
+        stateStore.update { current ->
+            current.copy(
+                defaultApps = current.defaultApps.copy(
+                    refreshing = false,
+                    roles = current.defaultApps.roles.map { roleState ->
+                        if (roleState.status == DefaultAppRoleStatus.APPLYING) {
+                            roleState
+                        } else {
+                            roleState.copy(
+                                status = DefaultAppRoleStatus.ERROR,
+                                message = message,
+                                providerConfirmed = false,
+                            )
+                        }
+                    },
+                ),
+            )
+        }
+    }
+
+    private fun publishDefaultAppsWaitingForRuntime() {
+        stateStore.update { current ->
+            current.copy(
+                defaultApps = current.defaultApps.copy(
+                    refreshing = false,
+                    roles = current.defaultApps.roles.map { roleState ->
+                        if (roleState.status == DefaultAppRoleStatus.APPLYING) {
+                            roleState
+                        } else {
+                            roleState.copy(
+                                status = DefaultAppRoleStatus.LOADING,
+                                message = "Ожидаю доступ к AutoVoice…",
+                                providerConfirmed = false,
+                            )
+                        }
+                    },
+                ),
+            )
+        }
+    }
+
+    private fun defaultAppsRuntimeReady(): Boolean =
+        adbRuntimeStarted.get() &&
+            AdbRescueCoordinator.snapshot().phase == AdbRescuePhase.TRUSTED
+
+    private fun defaultAppRoleRepository(context: Context): DefaultAppRoleRepository {
+        defaultAppsRepository?.let { return it }
+        return synchronized(defaultAppsRepositoryLock) {
+            defaultAppsRepository ?: DefaultAppRoleRepository(context).also {
+                defaultAppsRepository = it
+            }
+        }
+    }
+
+    private fun defaultAppsFailure(prefix: String, error: Throwable): String {
+        val details = error.message?.trim().orEmpty().ifBlank {
+            error::class.java.simpleName
+        }
+        return "$prefix: $details".take(300)
     }
 
     private fun navigationAppChoices(

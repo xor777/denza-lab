@@ -1,10 +1,11 @@
-# Stock Shortcuts automation and the map-role bridge
+# Stock Shortcuts automation and default-app roles
 
 What the BYD "Shortcuts" automation engine can and cannot do for a third-party
 app, how Then-actions actually start activities, and which switches can point
 those actions at Denza Apps.
 
-Observed live on 2026-08-16 and 2026-08-22 over ADB (`shell` UID, no root), plus
+Observed live on 2026-08-16, 2026-08-22, and 2026-08-27 over ADB (`shell` UID,
+no root), plus
 static reading of `BydAutoVoice.apk` (`v15.3.149.11.260512.7`, 11 dex files).
 The 2026-08-22 pass decompiled the remaining automation dexes
 (`AppMangerUtils`, `NaviManager`, `MediaApi`, `DiyChoiceScence5_1`,
@@ -14,6 +15,17 @@ and installed role packages. A later bounded write the same day pointed
 `102000` opened Yandex Navigator. The row was restored to
 `com.byd.launchermap` and the restore was read back. `byd_map_package` was
 not changed.
+
+The 2026-08-27 pass also proved the music and video roles with installed RF
+apps. With `MUSIC_SWITCH=ru.yandex.music`, the firmware's **Continue playing**
+action executed runtime command `129003`, read the Yandex package, and started
+`ru.yandex.music/.main.MainScreenActivity`. The apparent **Open music** action
+executed `129136` and opened the stock media center instead. With
+`VIDEO_SWITCH=com.vk.vkvideo`, **Open video** opened VK Video and was confirmed
+by the operator; the corresponding runtime path is `131500`. Both PersonBean
+rows were restored to their stock values and read back after the test. On this
+DiLink build a successful `content update` prints no row count, so the exact
+post-write query is the authoritative success check.
 
 ## Where the feature lives
 
@@ -47,17 +59,20 @@ The Then picker is compiled into `DiyChoiceScence5_1.initLevel1()`, not a
 query of installed packages. An arbitrary package cannot be added through the
 UI.
 
-DiLink 5.1 Then groups and the command IDs that matter for launching something:
+DiLink 5.1 Then groups and the IDs that matter for launching something. The
+catalog ID comes from the decompiled picker; the runtime ID is what the live
+firmware logged after `Test Run`:
 
-| UI group | Then item | Command ID | What it actually starts |
-| --- | --- | --- | --- |
-| 应用管理 | 打开应用 | `101000` | Label match among installed LAUNCHER apps. Catalog is five BYD names only: 智能语音助理, 百变主题, 文件管理, 用户手册, 应用市场 |
-| 应用管理 | 关闭应用 | `101001` | Same closed name list |
-| 媒体 | 音乐 → 打开 | `104451` | `MediaApi.getDefaultMusicPkg()`, then generic launch unless the package is `com.byd.mediacenter` |
-| 媒体 | 视频 → 打开 | `131501` | `MediaApi.getDefaultVideoPkg()` |
-| 导航 | 地图 → 打开 | `102000` | `MapUtils.getCurDefaultSelectMap()`. BYD map uses the automap API; any other installed package uses `AppMangerUtils.Y` |
-| 导航 | 地图 → 关闭 | `102001` | Close map |
-| 导航 | 导航 → 家 / 公司 | `102003` / `102004` | Destination handoff into the current map role |
+| UI group | Then item | Catalog ID | Live runtime ID | What it actually starts |
+| --- | --- | --- | --- | --- |
+| 应用管理 | 打开应用 | `101000` | — | Label match among installed LAUNCHER apps. Catalog is five BYD names only: 智能语音助理, 百变主题, 文件管理, 用户手册, 应用市场 |
+| 应用管理 | 关闭应用 | `101001` | — | Same closed name list |
+| 媒体 | 音乐 → 打开 | `129136` on the live R123-style picker | `129136` | Stock `com.byd.mediacenter`; it did **not** honor `MUSIC_SWITCH` on this car |
+| 媒体 | 音乐 → 继续播放 | `129003` | `129003` | `MediaApi.getDefaultMusicPkg()`, then generic launch when no usable current music session exists; live-proven with Yandex Music |
+| 媒体 | 视频 → 打开 | static picker uses `131501` | `131500` | `MediaApi.getDefaultVideoPkg()`; live-proven visually with VK Video |
+| 导航 | 地图 → 打开 | `102000` | `102000` | `MapUtils.getCurDefaultSelectMap()`. BYD map uses the automap API; any other installed package uses `AppMangerUtils.Y` |
+| 导航 | 地图 → 关闭 | `102001` | — | Close map |
+| 导航 | 导航 → 家 / 公司 | `102003` / `102004` | — | Destination handoff into the current map role |
 
 The 2026-08-16 English UI names (`Desktop`, `Music`, `Navi`, `Video`,
 `Navigation Customization`, `Mic-free Karaoke`) are the same engine with
@@ -127,7 +142,10 @@ That is live proof of `NaviManager.x` → `AppMangerUtils.Y` →
 `getLaunchIntentForPackage` for a non-BYD package. `dev.denza.apps` was
 not the target of that run; it uses the same branch.
 
-### `104451` — open music
+### Music — static open path versus the live launch action
+
+The decompiled `DiyChoiceScence5_1` catalog labels `104451` as open music, and
+its static executor contains this default-role path:
 
 `MediaStart.i()`:
 
@@ -145,6 +163,43 @@ if ("com.byd.mediacenter".equals(defaultMusicPkg)) {
 (`MediaApi.e` → `AppMangerUtils.f`). No Chinese-app whitelist on the stored
 value.
 
+The live 2026-08-27 picker behaved like the R123 catalog instead. With
+`MUSIC_SWITCH=ru.yandex.music`:
+
+```text
+commandID = [129136]
+MediaStart: whiteLaunch ... mediaApp = [com.byd.mediacenter]
+
+commandID = [129003]
+defaultMusicPkg:ru.yandex.music
+MediaStart: launchMediaApp ... mediaApp = [ru.yandex.music]
+ActivityTaskManager: START ... cmp=ru.yandex.music/.main.MainScreenActivity
+```
+
+Therefore the reliable user instruction for this exact firmware is
+**Music → Continue playing**, not **Open music**. This remains state-sensitive:
+the command may continue an already active supported media session instead of
+starting a package. Denza Apps changes the role only; it does not rewrite the
+Shortcuts catalog or inject the runtime command.
+
+### Video — Open video
+
+The static picker stores `131501` for **Open video**, while the live executor
+logged `131500`. With the stock role, that runtime path read
+`defaultVideoPkg=com.byd.videoplay`, reported `isNetworkEnable:true`, and
+started the stock player. With `VIDEO_SWITCH=com.vk.vkvideo`, the same visible
+**Open video** choice opened VK Video (operator-confirmed on 2026-08-27).
+The tunnel dropped before the probe captured the complete VK launch chain, but
+after reconnection the role still read `com.vk.vkvideo` and Android retained a
+VK Video activity record. The row was then restored to `com.byd.videoplay` and
+read back.
+
+Video has two extra constraints: AutoVoice must report its network gate as
+enabled, and an already visible supported video app in a split/top scene may be
+continued instead of launching the configured role. For a launch check use a
+clean fullscreen scene and **Open video**; Play/Pause/Continue are media-control
+commands, not package selectors.
+
 ### `101000` — open named app
 
 `APPToFunction` special-cases Chinese media titles (QQ音乐, 酷狗, 网易云, …)
@@ -154,15 +209,15 @@ package whose launcher label contains the requested string
 blacklist is only `com.byd.bydcamera`. Voice "打开 Denza Apps" uses this
 path; the Shortcuts Then-list simply never offers that name.
 
-## Role switches (live 2026-08-22)
+## Role switches (live 2026-08-22, rechecked 2026-08-27)
 
 | Key | PersonBean | Live value | Consumer |
 | --- | --- | --- | --- |
 | `DEFAULT_MAP_SWITCH` | `_id=43` | `com.byd.launchermap` | voice navi, Shortcuts `102000` |
-| `MUSIC_SWITCH` | `_id=45` | `com.byd.mediacenter` | Shortcuts `104451`, voice "open music" |
+| `MUSIC_SWITCH` | `_id=45` | `com.byd.mediacenter` | live Shortcuts runtime `129003` (Music → Continue playing), voice/media default |
 | `FM_SWITCH` | `_id=44` | `com.byd.mediacenter` | radio |
 | `NEWS_SWITCH` | `_id=46` | `com.byd.mediacenter` | news |
-| `VIDEO_SWITCH` | `_id=186` | `com.byd.videoplay` | Shortcuts `131501` |
+| `VIDEO_SWITCH` | `_id=186` | `com.byd.videoplay` | visible Shortcuts Open video; live runtime `131500` |
 | `KARAOKE_SWITCH` | (no row) | empty / third-music table | KTV |
 | `byd_map_package` | Settings.Global | `com.byd.launchermap` | CustomKey action 7 only; this car uses action 1 (APA) |
 
@@ -174,12 +229,21 @@ adb shell content query --uri content://com.byd.autovoice/PersonBean --where "SE
 adb shell settings get global byd_map_package
 ```
 
-`content update` on `DEFAULT_MAP_SWITCH` is **proven writable from `shell`**
-(2026-08-16 write/restore; 2026-08-22 write to `ru.yandex.yandexnavi`, live
-`102000` launch, restore to `com.byd.launchermap`). `settings put global byd_map_package`
-is writable (2026-08-16) but was not used in the Yandex run. `MUSIC_SWITCH` /
-`VIDEO_SWITCH` use the same PersonBean provider; write is the same command
-with a different `SETTING=` and is **not yet live-proven**.
+All three role rows are now **proven writable from `shell`** with exact
+post-write and restore readbacks:
+
+- `DEFAULT_MAP_SWITCH`: Yandex Navigator opened from runtime `102000`
+  (2026-08-22).
+- `MUSIC_SWITCH`: Yandex Music opened from runtime `129003`
+  (2026-08-27).
+- `VIDEO_SWITCH`: VK Video opened from the visible Open video action, whose
+  runtime path was `131500` (2026-08-27, operator-confirmed).
+
+`settings put global byd_map_package` is also writable (2026-08-16) but is a
+different wheel-key setting and was not touched in any of these role tests.
+The DiLink 5.1 `content update` command returns exit success with empty stdout;
+do not require an `Updated 1 row` string. Require exactly one row before the
+write and an exact value readback afterwards.
 
 The official voice-settings picker is narrower than the stored-value check:
 
@@ -244,15 +308,17 @@ the stored role already accepts any installed package.
 
 Do not disable `com.byd.launchermap` to force the fallback scan.
 
-## Hidden registration APIs (corpus; not live-proven)
+## Registration APIs and adjacent paths
 
 These are how a third-party app can *look* registered without the
-`thirdapp` permission. None of them were fired on 2026-08-22.
+`thirdapp` permission. The PersonBean path is now live-proven for all three
+product roles; the other registration paths remain corpus findings unless
+stated otherwise.
 
-1. **PersonBean write (proven for map, expected for music/video)** from
-   `shell` through `content://com.byd.autovoice`. Points Shortcuts Then-actions
-   at any installed package. Shared with voice "open map/music". Restore the
-   original row.
+1. **PersonBean write (live-proven for map, music and video)** from `shell`
+   through `content://com.byd.autovoice`. Points the matching Shortcuts
+   Then-action at any installed launchable package. Shared with voice
+   "open map/music". Restore the original row after a probe.
 2. **`VoiceSettingDatabaseProvider.call("setDefaultApp")`** — exported, no
    caller check. Bundle keys `type`, `appName`, `pkgName`. `type=music|video|ktv|news|radio`
    writes `pkgName` with no whitelist. `type=map` still requires a known map
@@ -343,14 +409,22 @@ Then that can start a third-party package is a **role**:
 | Stock Then | Role key | Live occupant | Independent rules |
 | --- | --- | --- | --- |
 | 导航 → 地图 → 打开 (`102000`) | `DEFAULT_MAP_SWITCH` | `com.byd.launchermap` | one package for every open-map command |
-| 媒体 → 音乐 → 打开 (`104451`) | `MUSIC_SWITCH` | `com.byd.mediacenter` | one package for every open-music command |
-| 媒体 → 视频 → 打开 (`131501`) | `VIDEO_SWITCH` | `com.byd.videoplay` | one package for every open-video command |
+| 媒体 → 音乐 → 继续播放 (live runtime `129003`) | `MUSIC_SWITCH` | `com.byd.mediacenter` | one default package, but an existing media session can win |
+| 媒体 → 视频 → 打开 (static `131501`, live runtime `131500`) | `VIDEO_SWITCH` | `com.byd.videoplay` | one package for the Open video command |
 
-A user-facing editor in Denza Apps that writes those three PersonBean
-rows (map write already proven from shell) plus a short instruction
-«в Shortcuts: ремень → открыть карту» is configuration, not a runtime.
-AutoVoice remains the daemon. That is at most three always-on targets,
-not an arbitrary app per rule.
+The Denza Apps `Приложения` panel writes those three live-proven PersonBean
+roles and explains which matching Shortcuts action to use. It is configuration,
+not a runtime: AutoVoice remains the daemon. That is at most three always-on
+targets, not an arbitrary app per rule.
+
+First-run selection is handled once per role after a successful provider read.
+An untouched stock value may be replaced with the first installed known app,
+but the update predicate also requires the value to still be stock, so a
+concurrent external choice cannot be overwritten. Keeping stock or preserving
+a pre-existing non-stock value also completes first-run handling; installing a
+known app later never causes a surprise role switch. PersonBean is reread on
+Activity resume, and an unavailable read is shown only as a last-known value,
+not as a confirmed current selection.
 
 A trampoline (map role = Denza Apps, `DenzaLauncherActivity` starts the
 configured package and finishes) is also AutoVoice-driven: Denza Apps
@@ -375,17 +449,21 @@ that opens Denza Apps:
    [tools/navi_role_probe.sh](../tools/navi_role_probe.sh); do not inject key
    `321`. `dev.denza.apps` is the same `Y()` branch and is not yet the
    target of a live Test Run.
-2. **If the map role must stay BYD** (cluster Map-mode detector still keys off
-   `com.byd.launchermap/com.byd.automap.meter.MeterActivity`). Point
-   `MUSIC_SWITCH` at `dev.denza.apps` instead and use 媒体 → 音乐 → 打开
-   (`104451`). Costs the stock media-center "open music" command. Restore
-   `com.byd.mediacenter`. Not live-proven.
-3. **Voice without taking a role.** "打开 Denza Apps" uses `101000` label
+2. **Music is live-proven but state-sensitive.** Point `MUSIC_SWITCH` directly
+   at the chosen installed player and use **Music → Continue playing** on this
+   firmware (runtime `129003`). It opened Yandex Music from cold state. The
+   visible Open music action instead opened `com.byd.mediacenter` in the live
+   run. An already active supported media session can still take precedence.
+3. **Video is live-proven for Open video.** Point `VIDEO_SWITCH` directly at
+   the chosen installed player and use **Video → Open video** (live runtime
+   `131500`). The network gate must be enabled and no supported video app
+   should already occupy the active split/top scene.
+4. **Voice without taking a role.** "打开 Denza Apps" uses `101000` label
    match. Useful as a fallback, not as a vehicle-status If/Then.
-4. **Do not** ship a second APK as `com.autonavi.*` / `com.netease.*` /
+5. **Do not** ship a second APK as `com.autonavi.*` / `com.netease.*` /
    `com.byd.mediacenter`. Those names either already belong to system apps or
    do not beat the stored PersonBean value.
-5. **Do not** declare `BYDAUTO_*` or `thirdapp` in the product manifest.
+6. **Do not** declare `BYDAUTO_*` or `thirdapp` in the product manifest.
    Privilege path remains `DenzaLocalAdb` shell writes to PersonBean, same as
    the locale grant.
 
@@ -397,30 +475,27 @@ Related RF work: the per-app `ru-RU` override for `com.byd.carsettings` in
 [stock-russian-locale.md](stock-russian-locale.md). Shortcuts UI strings stay
 Chinese; that is BYD's catalog, not a Denza Apps translation job.
 
-## Spike before integrating
+## Restore-wrapped live probe
 
-[tools/navi_role_probe.sh](../tools/navi_role_probe.sh) sets both map switches
-to a target package, waits for a manual navigation trigger, reports the
-component the system actually started, and restores both originals on exit —
-including on error or Ctrl-C.
+[tools/default_app_role_probe.sh](../tools/default_app_role_probe.sh) changes
+exactly one PersonBean role, waits for a manual Shortcuts `Test Run`, records a
+focused launch transcript, and restores the original with exact readback. It
+never changes `byd_map_package`, injects input, clears logcat, starts an app, or
+restarts ADB/AutoVoice.
 
 ```bash
-ADB_SERIAL=127.0.0.1:15555 tools/navi_role_probe.sh dev.denza.apps
+tools/default_app_role_probe.sh run --serial 127.0.0.1:5555 \
+  --role music --package ru.yandex.music --timeout 300 --require-stopped
+
+tools/default_app_role_probe.sh run --serial 127.0.0.1:5555 \
+  --role video --package com.vk.vkvideo --timeout 300 --require-stopped
 ```
 
-Trigger with Shortcuts → 导航 → 地图 → 打开 → Test Run, or the wake word plus
-a navigation request. The `102000` third-party branch is **live** for
-`ru.yandex.yandexnavi` (2026-08-22). Expected START for Denza Apps (same
-branch, not yet that target):
-
-```
-cmp=dev.denza.apps/.DenzaLauncherActivity
-```
-
-Nothing may be added to `:denza-apps` as a *product* map-role writer until
-the editor UX and the cluster Map-mode detector trade-off are decided.
-The launch mechanism itself is no longer the blocker. Exactly one session
-may mutate PersonBean at a time.
+For music on this firmware trigger **Continue playing**; for video trigger
+**Open video**. The older [tools/navi_role_probe.sh](../tools/navi_role_probe.sh)
+remains navigation-specific and also writes the separate global map key, so do
+not use it for the three-role product acceptance. Exactly one session may
+mutate PersonBean at a time.
 
 ### Never inject key code 321 as a navigation trigger
 
@@ -450,9 +525,10 @@ and the cluster Map mode. The stock map is China-only and this car stays in RF,
 so the role has little to lose. Denza Apps no longer follows the stock cluster
 Map task automatically.
 
-The music role is shared by voice "open/play music" and Shortcuts `104451`.
-Taking it from `com.byd.mediacenter` is more user-visible than taking the
-China map.
+The music role is shared by voice/media control and the live `129003` Continue
+playing path. Taking it from `com.byd.mediacenter` is more user-visible than
+taking the China map, and an already active session can still affect the
+result. The video role also has a network gate and existing-scene special case.
 
 See also [instrument-display-findings.md](instrument-display-findings.md), which
 records `byd_map_package` and the package-scoped
@@ -460,11 +536,11 @@ records `byd_map_package` and the package-scoped
 
 ## Next validation
 
-- Optional: the same restore-wrapped `102000` Test Run against
-  `dev.denza.apps` if the product default should be Denza Apps rather than
-  a chosen third-party launcher. Mechanism is already live for Yandex Navigator.
-- Only if the map role must be kept: restore-wrapped write of
-  `MUSIC_SWITCH` and Test Run of `104451`.
+- Install the Denza Apps build containing the default-app picker and verify its
+  UI write/readback path for all three roles. The underlying shell/provider
+  paths are already live-proven independently.
+- Verify cold-start first-choice initialization on a clean product preference
+  state without overwriting a pre-existing non-stock PersonBean choice.
 - Per-rule any-app still needs a persist path for `101000`+label
   (`IOTProvider` caller gate is the next bounded probe, invalid JSON only).
 - Do not spawn `app_process` while another session owns the car.

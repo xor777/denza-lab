@@ -67,8 +67,8 @@ class PaneBoardContractTest {
             )
 
             val width = frame(board).first
-            val columns = DashboardLayoutPolicy.columns(mode, 10)
-            val rows = if (columns >= 10) 1 else 2
+            val columns = DashboardLayoutPolicy.columns(mode, FEATURES)
+            val rows = (FEATURES + columns - 1) / columns
             val chip = (width - side * 2 - (columns - 1) * DenzaMetrics.Space.M.value) / columns
             val chips = rows * chip + (rows - 1) * DenzaMetrics.Space.M.value
             val strip = WINDOW_H - caption - top - chips - DenzaMetrics.Space.XL.value - bottom
@@ -96,15 +96,32 @@ class PaneBoardContractTest {
             // fractions come to at the chip its own row gives it.
             val chip = DashboardLayoutPolicy.chipWidth(
                 if (board == MEDIUM) DashboardLayoutMode.MEDIUM else DashboardLayoutMode.NARROW,
-                10,
+                FEATURES,
             ).value
-            val icon = ICON.find(read(board)) ?: error("no chip icon on $board")
-            assertEquals(
-                "icon size on $board",
-                Math.round(chip * DenzaMetrics.Component.CHIP_ICON_RATIO).toFloat(),
-                icon.groupValues[1].toFloat(),
-                1e-4f,
-            )
+            val expectedIconSize = Math.round(chip * DenzaMetrics.Component.CHIP_ICON_RATIO).toFloat()
+            val featureIcons = featureIcons(board)
+            assertEquals("feature icon count on $board", FEATURES, featureIcons.size)
+            featureIcons.forEachIndexed { index, svg ->
+                val icon = ICON.find(svg) ?: error("feature ${index + 1} on $board has no icon metrics")
+                assertEquals(
+                    "icon ${index + 1} width on $board",
+                    expectedIconSize,
+                    icon.groupValues[1].toFloat(),
+                    1e-4f,
+                )
+                assertEquals(
+                    "icon ${index + 1} height on $board",
+                    expectedIconSize,
+                    icon.groupValues[2].toFloat(),
+                    1e-4f,
+                )
+                assertEquals(
+                    "icon ${index + 1} optical stroke on $board",
+                    DenzaMetrics.Stroke.ICON_WEIGHT * 24f / expectedIconSize,
+                    icon.groupValues[3].toFloat(),
+                    1e-3f,
+                )
+            }
             assertEquals(
                 "dot on $board",
                 chip * DenzaMetrics.Component.CHIP_DOT_RATIO,
@@ -129,7 +146,7 @@ class PaneBoardContractTest {
             val grid = GRID.find(read(board)) ?: error("no chip grid on $board")
             assertEquals(
                 "columns on $board",
-                DashboardLayoutPolicy.columns(mode, 10),
+                DashboardLayoutPolicy.columns(mode, FEATURES),
                 grid.groupValues[1].toInt(),
             )
             assertEquals("grid gap on $board", DenzaMetrics.Space.M.value, grid.groupValues[2].toFloat(), 1e-4f)
@@ -230,15 +247,15 @@ class PaneBoardContractTest {
     }
 
     @Test
-    fun thePaneBoardsCarryTheSameTenFeaturesAsTheFullScreen() {
+    fun thePaneBoardsCarryTheSameFeaturesAsTheFullScreen() {
         // These boards are generated from `Main.dc.html` for exactly this reason. A pane that
         // quietly keeps a feature the dashboard has dropped, or draws it with another glyph, is
         // worse than no pane board at all - it looks like a decision somebody made.
         val main = icons(File(CANVAS, "Main.dc.html"))
-        assertEquals("ten features on the full screen", 10, main.size)
+        assertEquals("features on the full screen", FEATURES, main.size)
         for (board in listOf(MEDIUM, NARROW)) {
             val pane = icons(board)
-            assertEquals("$board should carry ten chips", 10, pane.size)
+            assertEquals("$board should carry every feature", FEATURES, pane.size)
             assertEquals("the glyphs on $board", main, pane)
         }
     }
@@ -248,13 +265,25 @@ class PaneBoardContractTest {
     /**
      * Every feature's glyph, in the order the board draws it.
      *
-     * Compared with its size attributes taken off, because that is the one thing a chip is allowed
-     * to change about a tile's icon - the row it sits in decides how big it is.
+     * Compared with its rendering scale taken off: the row decides both the chip icon's width and
+     * height and the viewport stroke that preserves one optical weight at that size. Their exact
+     * values are checked for every icon above; everything that defines the glyph itself remains in
+     * this equality.
      */
     private fun icons(board: File): List<String> =
-        FEATURE_ICON.findAll(read(board))
-            .map { it.groupValues[1].replace(SIZE, "") }
-            .toList()
+        featureIcons(board).map(::withoutRenderingScale)
+
+    private fun featureIcons(board: File): List<String> =
+        FEATURE_ICON.findAll(read(board)).map { it.groupValues[1] }.toList()
+
+    private fun withoutRenderingScale(svg: String): String {
+        val openingEnd = svg.indexOf('>')
+        check(openingEnd >= 0) { "feature icon has no closing bracket: $svg" }
+        val opening = svg.substring(0, openingEnd + 1)
+            .replace(SIZE, "")
+            .replace(STROKE_WIDTH, "")
+        return opening + svg.substring(openingEnd + 1)
+    }
 
     private fun frame(board: File): Pair<Float, Float> {
         val found = FRAME.find(read(board)) ?: error("no artboard frame on $board")
@@ -276,6 +305,7 @@ class PaneBoardContractTest {
 
     private companion object {
         const val WINDOW_H = 680f
+        const val FEATURES = 11
 
         /** What BYD's freeform windowing keeps at the top of a pane. Measured on the car. */
         const val CAPTION_DP = 24f
@@ -290,8 +320,11 @@ class PaneBoardContractTest {
         val MEDIUM = File(CANVAS, "TwoThirds.dc.html")
         val NARROW = File(CANVAS, "OneThird.dc.html")
 
-        val ICON = Regex("""<svg width="([\d.]+)"[^>]*stroke-width="([\d.]+)"""")
+        val ICON = Regex(
+            """<svg width="([\d.]+)" height="([\d.]+)"[^>]*stroke-width="([\d.]+)""",
+        )
         val SIZE = Regex("""width="[\d.]+" height="[\d.]+" """)
+        val STROKE_WIDTH = Regex("""stroke-width="[\d.]+" """)
 
         /**
          * A feature's glyph: the svg inside a tile or a chip, and nothing else on the board.

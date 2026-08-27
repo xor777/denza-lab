@@ -24,6 +24,7 @@ enum class TileIcon {
     SPEAKER,
     LOCALE,
     PASSENGER,
+    DEFAULT_APPS,
     SERVICE,
 }
 
@@ -86,8 +87,9 @@ data class DashboardTile(
  * One rule outranks every other here: **a name is one line and a caption is one line, always.**
  * The tile stacks them from the bottom edge, so a caption that grows to two lines pushes the name up
  * - and since captions used to change length with state ("Следят за поворотниками" against "Не
- * следят"), switching a feature on made its name jump. Ten tiles doing that at different moments is
- * the screen twitching, which is how it read on the car and why this rule now comes first.
+ * следят"), switching a feature on made its name jump. Eleven tiles doing that at different
+ * moments is the screen twitching, which is how it read on the car and why this rule now comes
+ * first.
  *
  * What survives of the older rule: the line says what is **configured** rather than repeating the
  * name, it takes the accent only when it is a reading rather than a setting (see [DenzaTileCaption]),
@@ -101,9 +103,8 @@ object DashboardTiles {
     /**
      * Every tile on the main screen, in the order `Config.dc.html` places them.
      *
-     * Ten, and the board draws the same ten. Weather was the one that used to be missing: the
-     * adapter ran unconditionally with nothing to switch, so a tile for it would have been inert.
-     * It has a switch now, so it has a tile.
+     * Eleven, with default applications immediately before the service door. The application tile
+     * is not a runtime feature: it is the settings entry for the three stock Shortcuts roles.
      */
     fun of(
         state: DenzaUiState,
@@ -118,6 +119,7 @@ object DashboardTiles {
         speakers(state),
         locale(state),
         passenger(state),
+        defaultApps(state),
         service(state),
     )
 
@@ -411,6 +413,30 @@ object DashboardTiles {
         )
     }
 
+    /** The launch targets used by the car's own navigation, music and video Shortcuts actions. */
+    private fun defaultApps(state: DenzaUiState): DashboardTile {
+        val defaults = state.defaultApps
+        val configured = defaults.configuredCount
+        return DashboardTile(
+            id = TileId.DEFAULT_APPS,
+            icon = TileIcon.DEFAULT_APPS,
+            name = "Приложения",
+            state = when {
+                defaults.hasError -> "Не проверено"
+                defaults.busy -> "Проверяем…"
+                else -> configuredApps(configured)
+            },
+            tone = when {
+                defaults.hasError -> DenzaTileTone.BROKEN
+                defaults.busy -> DenzaTileTone.WORKING
+                configured > 0 -> DenzaTileTone.LIVE
+                else -> DenzaTileTone.IDLE
+            },
+            caption = DenzaTileCaption.SETTING,
+            action = TileAction.SETTINGS,
+        )
+    }
+
     /**
      * Service: the car's own readings, this app's access to it, and what it can reach in the stock
      * settings.
@@ -490,6 +516,13 @@ object DashboardTiles {
             else -> "приложений"
         }
         return "$count $word"
+    }
+
+    /** The deliberately short line under the default-applications tile. */
+    fun configuredApps(count: Int): String = when (count) {
+        0 -> "Не настроены"
+        1 -> "1 настроено"
+        else -> "$count настроены"
     }
 
     /** The resolution a waiting feature is waiting on, for the screen to open the right chooser. */

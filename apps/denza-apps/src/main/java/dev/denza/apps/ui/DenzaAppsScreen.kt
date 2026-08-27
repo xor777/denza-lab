@@ -102,6 +102,7 @@ import dev.denza.apps.feature.adb.AdbStartupGatePolicy
 import dev.denza.apps.feature.adb.AdbStartupOverlayModel
 import dev.denza.apps.feature.adb.AdbStartupPrimaryAction
 import dev.denza.apps.feature.fse.FseInstallApp
+import dev.denza.apps.feature.defaultapps.DefaultAppRole
 import dev.denza.apps.feature.mirrors.MirrorsPosition
 import dev.denza.apps.ui.components.DenzaKeyValueRow
 import dev.denza.apps.ui.components.DenzaSecondaryButton
@@ -111,6 +112,7 @@ import dev.denza.apps.ui.components.DenzaTileTone
 import dev.denza.apps.ui.dashboard.DashboardActions
 import dev.denza.apps.ui.dashboard.DashboardTiles
 import dev.denza.apps.ui.dashboard.DashboardGrid
+import dev.denza.apps.ui.dashboard.DefaultAppsSheet
 import dev.denza.apps.ui.dashboard.FeatureSheet
 import dev.denza.apps.ui.dashboard.TileId
 import kotlinx.coroutines.flow.StateFlow
@@ -149,6 +151,8 @@ fun DenzaAppsRoot(
     onChooseApps: () -> Unit,
     onCloseAppPicker: () -> Unit,
     onToggleApp: (String) -> Unit,
+    onRefreshDefaultApps: () -> Unit,
+    onSelectDefaultApp: (DefaultAppRole, String) -> Unit,
     onChooseFseApp: () -> Unit,
     onCloseFseInstallerPicker: () -> Unit,
     onInstallFseApp: (String) -> Unit,
@@ -179,7 +183,7 @@ fun DenzaAppsRoot(
         onRefreshScreenDiagnostics()
         showClusterPicker = true
     }
-    // The twenty-nine callbacks this function still takes, gathered once so a tile and its settings
+    // The callbacks this function still takes, gathered once so a tile and its settings
     // sheet can be handed the whole vocabulary instead of a hand-picked subset each.
     val dashboardActions = DashboardActions(
         onToggleSimulcast = onToggleSimulcast,
@@ -207,7 +211,10 @@ fun DenzaAppsRoot(
         onChooseFseApp = onChooseFseApp,
         onOpenClusterPicker = openClusterPicker,
         onOpenService = openService,
-        onOpenSettings = { settingsFor = it },
+        onOpenSettings = { id ->
+            if (id == TileId.DEFAULT_APPS) onRefreshDefaultApps()
+            settingsFor = id
+        },
     )
 
     // Правка W6 (волна 7): ширина берётся из фактического constraint корневого layout.
@@ -301,13 +308,23 @@ fun DenzaAppsRoot(
             // one palette. A theme that wraps only the easy half is not a theme.
 
             settingsFor?.let { id ->
-                FeatureSheet(
-                    id = id,
-                    state = uiState,
-                    actions = dashboardActions,
-                    compact = compactLayout,
-                    onDismiss = { settingsFor = null },
-                )
+                if (id == TileId.DEFAULT_APPS) {
+                    DefaultAppsSheet(
+                        state = uiState.defaultApps,
+                        compact = compactLayout,
+                        onRefresh = onRefreshDefaultApps,
+                        onSelect = onSelectDefaultApp,
+                        onDismiss = { settingsFor = null },
+                    )
+                } else {
+                    FeatureSheet(
+                        id = id,
+                        state = uiState,
+                        actions = dashboardActions,
+                        compact = compactLayout,
+                        onDismiss = { settingsFor = null },
+                    )
+                }
             }
             if (showDiagnostics) {
                 DiagnosticsDialog(

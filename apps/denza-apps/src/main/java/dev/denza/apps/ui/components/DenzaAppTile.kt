@@ -21,10 +21,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.core.graphics.drawable.toBitmap
 import dev.denza.apps.design.DenzaColors
 import dev.denza.apps.design.DenzaMetrics
@@ -54,6 +56,7 @@ fun DenzaAppTile(
     modifier: Modifier = Modifier,
     icon: Drawable? = null,
     iconKey: Any? = label,
+    enabled: Boolean = true,
 ) {
     val bitmap = remember(iconKey, icon) { icon?.toBitmap(ICON_PX, ICON_PX)?.asImageBitmap() }
     val shape = RoundedCornerShape(DenzaMetrics.Radius.L)
@@ -69,7 +72,8 @@ fun DenzaAppTile(
                 ),
                 shape,
             )
-            .clickable(onClick = onClick)
+            .alpha(if (enabled) 1f else DISABLED_ALPHA)
+            .clickable(enabled = enabled, onClick = onClick)
             .padding(vertical = DenzaMetrics.Space.M, horizontal = DenzaMetrics.Space.S),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(DenzaMetrics.Space.S),
@@ -106,8 +110,10 @@ fun DenzaAppTile(
             color = if (selected) DenzaColors.Accent else DenzaColors.InkSecondary,
             textAlign = TextAlign.Center,
             maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
         )
     }
 }
 
 private const val ICON_PX = 128
+private const val DISABLED_ALPHA = 0.55f

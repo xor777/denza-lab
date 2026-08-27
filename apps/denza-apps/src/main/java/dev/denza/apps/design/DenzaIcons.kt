@@ -89,6 +89,16 @@ object DenzaIcons {
         "M9 17.5h6",
     )
 
+    /** The three application roles and the selected launch target, as DefaultApps.dc.html draws it. */
+    val Applications: ImageVector = icon(
+        "denza_applications",
+        inkLeft = 3.0f,
+        "M5 3H8A2 2 0 0 1 10 5V8A2 2 0 0 1 8 10H5A2 2 0 0 1 3 8V5A2 2 0 0 1 5 3Z",
+        "M16 3H19A2 2 0 0 1 21 5V8A2 2 0 0 1 19 10H16A2 2 0 0 1 14 8V5A2 2 0 0 1 16 3Z",
+        "M5 14H8A2 2 0 0 1 10 16V19A2 2 0 0 1 8 21H5A2 2 0 0 1 3 19V16A2 2 0 0 1 5 14Z",
+        "M14.5 17.5l2 2 4-5",
+    )
+
     /** Russian in the car's own settings. */
     val Locale: ImageVector = icon(
         "denza_locale",

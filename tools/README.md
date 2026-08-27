@@ -54,6 +54,20 @@ Current scripts:
 - `fse_voice_command_probe.sh`: isolated client for the exported AutoVoice test
   input. It can exercise stock voice commands, but it is not a reliable launcher
   for arbitrary passenger-screen apps; the AIMP test opened the IVI app list.
+- `default_app_role_probe.sh`: restore-wrapped live verifier for the stock
+  Shortcuts default-app roles: navigation (`DEFAULT_MAP_SWITCH` / `102000`),
+  music (`MUSIC_SWITCH` / live runtime `129003`), and video (`VIDEO_SWITCH` /
+  live runtime `131500`). On the tested firmware music uses **Continue
+  playing**, while video uses **Open video**; static picker IDs differ. It
+  requires an explicit ADB serial, role, and installed launchable target, then
+  changes exactly one `content://com.byd.autovoice/PersonBean` row for a bounded
+  manual `Test Run` window. A per-serial lock, exact apply/restore readbacks, and
+  signal traps prevent overlapping writers and persistent role drift. It never
+  changes `Settings.Global.byd_map_package`, clears logcat, injects input, starts
+  an activity, or restarts ADB/AutoVoice. `--require-stopped` verifies a target
+  was stopped beforehand for cold-start evidence but never stops it itself.
+  Focused, privacy-bounded transcripts go to a unique file under `/tmp`; durable
+  findings belong in `docs/shortcuts-automation-findings.md`.
 - `navi_role_probe.sh`: hands the map role to a target package and reports the
   component the system actually starts. Expects `ADB_SERIAL` (the local tunnel,
   e.g. `127.0.0.1:15555`). It writes `DEFAULT_MAP_SWITCH` through the exported

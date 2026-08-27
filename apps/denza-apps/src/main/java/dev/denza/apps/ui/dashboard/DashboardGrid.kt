@@ -82,5 +82,6 @@ internal fun tileIcon(icon: TileIcon): ImageVector = when (icon) {
     TileIcon.SPEAKER -> DenzaIcons.Speaker
     TileIcon.LOCALE -> DenzaIcons.Locale
     TileIcon.PASSENGER -> DenzaIcons.Passenger
+    TileIcon.DEFAULT_APPS -> DenzaIcons.Applications
     TileIcon.SERVICE -> DenzaIcons.Service
 }

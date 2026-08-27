@@ -48,6 +48,8 @@ class MainActivity : ComponentActivity() {
                         DenzaAppRepository::refreshStockRussianLocale,
                     onSetStockRussianLocaleEnabled =
                         DenzaAppRepository::setStockRussianLocaleEnabled,
+                    onRefreshDefaultApps = DenzaAppRepository::refreshDefaultApps,
+                    onSelectDefaultApp = DenzaAppRepository::selectDefaultApp,
                     onChooseApps = DenzaAppRepository::showAppPicker,
                     onCloseAppPicker = DenzaAppRepository::hideAppPicker,
                     onToggleApp = DenzaAppRepository::toggleAppSelection,
@@ -63,6 +65,7 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         NavigationTransferOverlay.setMainActivityResumed(this, true)
         DenzaAppRepository.refresh()
+        DenzaAppRepository.refreshDefaultApps()
         SimulcastOverlayService.hide(this)
     }
 

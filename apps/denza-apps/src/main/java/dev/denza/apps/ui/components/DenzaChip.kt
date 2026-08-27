@@ -28,9 +28,9 @@ import dev.denza.apps.design.DenzaMetrics
 /**
  * One feature in a pane: the tile with its words taken away.
  *
- * A pane is 828 or 416 dp wide and still 680 tall, and ten tiles at the width their names need
+ * A pane is 828 or 416 dp wide and still 680 tall, and eleven tiles at the width their names need
  * would spend three quarters of that height on words. In a pane they are not being read: the driver
- * came here with the other two thirds of the screen doing something else, already knows the ten
+ * came here with the other two thirds of the screen doing something else, already knows the eleven
  * glyphs from the full screen, and what is worth the room is the thing that moves. So the caption
  * goes and the chip keeps what a caption was carrying anyway - is this on - in the border, the ink
  * and a dot.
@@ -39,8 +39,8 @@ import dev.denza.apps.design.DenzaMetrics
  * does the feature's own action and a long press opens its panel, where every word that was
  * dropped here is written out in full.
  *
- * Square, and as wide as the row gives it: ten across the two-thirds pane is 68.0 dp, five across
- * two rows of the narrow one is 68.8. See `TwoThirds.dc.html` and `OneThird.dc.html`.
+ * Square, and as wide as the row gives it: eleven across the two-thirds pane is 60.7 dp, six across
+ * two rows of the narrow one is 55.3. See `TwoThirds.dc.html` and `OneThird.dc.html`.
  *
  * **It measures itself.** The glyph and the dot are fractions of the chip rather than the tile's
  * fixed 30, 7 and 9 - which are exactly those fractions of 68 and so change nothing at ten
@@ -126,7 +126,7 @@ private fun chipAccent(tone: DenzaTileTone): Color = when (tone) {
  * It is deliberately not the same statement as the border. A dark border against a dark page is a
  * difference of a few per cent that the eye finds by comparing one chip with its neighbours; the
  * dot is a lit thing or an unlit thing and is read without comparing anything. That is what makes
- * a row of ten scannable at a glance from a driver's seat, and it is the archived board's own
+ * a row of eleven scannable at a glance from a driver's seat, and it is the archived board's own
  * device rather than something invented here.
  */
 private fun dotColour(tone: DenzaTileTone): Color = when (tone) {

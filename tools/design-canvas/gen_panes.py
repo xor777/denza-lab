@@ -3,8 +3,8 @@
 
 `Main.dc.html` is the dashboard at 1280, where a feature is a tile: an icon, a name and a line
 saying what it is doing. A pane is not a smaller version of that. It is 828 or 416 dp wide with the
-same 680 of height, and ten tiles at the size their words need would spend three quarters of it on
-words nobody is reading - in a pane the driver already knows the ten icons, and the thing worth the
+same 680 of height, and eleven tiles at the size their words need would spend three quarters of it on
+words nobody is reading - in a pane the driver already knows the icons, and the thing worth the
 space is the one that moves.
 
 So a pane compresses the tile to a **chip**: the same icon, the same two gestures, the state carried
@@ -29,8 +29,8 @@ What the panes decide for themselves:
   side margin      48 is the *screen's* margin and a pane is not the screen. 20 at two thirds,
                    12 at one third.
 
-  the chip         square, and as wide as its share of the row. 10 across at 828 is 68.0; 5 across
-                   in two rows at 416 is 68.8. One object at both widths, near enough.
+  the chip         square, and as wide as its share of the row. 11 across at 828 is 60.7; 6 across
+                   in two rows at 416 is 55.3. Both remain above the touch-target floor.
 
   the figures      three across with a rule between them where there is width for it, three rows
                    where there is not.
@@ -47,6 +47,7 @@ STRIP = 52.0                 # SpectrumRenderer.STRIP_UNITS - the ticker's band
 PEAK = 4.0                   # SpectrumRenderer.PEAK_UNITS
 REFLECT = 40.0               # SpectrumRenderer.REFLECT_UNITS - the reflection's own ceiling
 BANDS = 26
+FEATURES = 11
 
 CAPTION = 24                 # what the system takes off the top of a pane
 GAP = 12                     # Space.M
@@ -99,7 +100,7 @@ class Pane:
         self.figures = figures            # 'across' or 'rows'
         self.title = title
         self.content = width - margin * 2
-        self.chip_rows = -(-10 // chip_columns)
+        self.chip_rows = -(-FEATURES // chip_columns)
         self.chip = (self.content - (chip_columns - 1) * GAP) / chip_columns
         self.chips_h = self.chip_rows * self.chip + (self.chip_rows - 1) * GAP
 
@@ -117,8 +118,8 @@ class Pane:
         return self.strip_h - self.figures_h - GROUP
 
 
-MEDIUM = Pane('TwoThirds', 828, 20, 10, 'across', 'MIDNIGHT CITY')
-NARROW = Pane('OneThird', 416, 12, 5, 'rows', 'MIDNIGHT CITY')
+MEDIUM = Pane('TwoThirds', 828, 20, FEATURES, 'across', 'MIDNIGHT CITY')
+NARROW = Pane('OneThird', 416, 12, (FEATURES + 1) // 2, 'rows', 'MIDNIGHT CITY')
 
 
 def main_board():
@@ -127,8 +128,8 @@ def main_board():
 
 def tiles(src):
     found = re.findall(r'^    <div class="tile (on|off)">(.*?)\n    </div>', src, re.S | re.M)
-    if len(found) != 10:
-        sys.exit(f'{MAIN} has {len(found)} tiles, expected 10')
+    if len(found) != FEATURES:
+        sys.exit(f'{MAIN} has {len(found)} tiles, expected {FEATURES}')
     out = []
     for state, body in found:
         svg = re.search(r'<svg .*?</svg>', body, re.S)

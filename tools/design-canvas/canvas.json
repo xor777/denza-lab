@@ -50,6 +50,15 @@
       "page": "page-screens"
     },
     {
+      "file": "DefaultApps.dc.html",
+      "x": 4080,
+      "y": 0,
+      "w": 1776,
+      "h": 680,
+      "title": "Приложения по умолчанию · полный и узкий",
+      "page": "page-screens"
+    },
+    {
       "file": "TwoThirds.dc.html",
       "x": 0,
       "y": 1800,

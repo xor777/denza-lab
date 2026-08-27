@@ -17,7 +17,7 @@ Use this folder for durable project knowledge.
 | `split-screen-findings.md` | Live-proven BYD split substrate, explicit one-package picker flow, acceptance evidence, and retired approaches. |
 | `split-screen-product-contract.md` | Normative Split Screen contract: user-visible combinatorics, invariants, single-automaton core, delete-first policy, test-audit verdict, live acceptance protocol. Owns the product contract where it diverges from findings. |
 | `weather-adapter-findings.md` | Stock BYD weather-provider contract, MET Norway adapter, cache/write behavior, and live proof. |
-| `shortcuts-automation-findings.md` | Shortcuts If/Then catalog, PersonBean map-role switch, live `102000` launch of Yandex Navigator, and why a Chinese-app disguise does not win. |
+| `shortcuts-automation-findings.md` | Shortcuts If/Then catalog, PersonBean navigation/music/video roles, live Yandex Navigator/Music and VK Video checks, and the firmware-specific actions that honor each role. |
 | `carplay-findings.md` | Vehicle hardware/software evidence around CarPlay, PhoneLink/Fission boundaries, and unsupported hypotheses. |
 | `car-adb-gateway-architecture.md` | Normative relay-only Car ADB Gateway design and verification status. |
 | `car-adb-gateway-decision-log.md` | ADR-lite product/architecture decisions, rationale, evidence, and revisit conditions. |

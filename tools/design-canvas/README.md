@@ -153,18 +153,18 @@ screen's. A pane is not a smaller dashboard: it drops the tile.
 | caption bar the system keeps | – | 24 | 24 |
 | side margin | 48 | 20 | 12 |
 | content | 1184 | 788 | 392 |
-| a feature is | a tile 187 x 164 | a chip 68 | a chip 69 |
-| ten of them take | 2 rows, 340 | 1 row, 68 | 2 rows, 150 |
-| the strip gets | 1184 x 296 | 788 x 524 | 392 x 442 |
+| a feature is | a tile 187 x 164 | a chip 60.7 | a chip 55.3 |
+| eleven of them take | 2 rows, 340 | 1 row, 60.7 | 2 rows, 122.7 |
+| the strip gets | 1184 x 296 | 788 x 531.3 | 392 x 469.3 |
 
-Ten tiles at the width their names need are four rows at 828 dp and five at 416 -
-692 and 868 dp of a window that has 656 once the car has taken its caption bar.
+Eleven tiles at the width their names need are four rows at 828 dp and six at 416 -
+692 and 1044 dp of a window that has 656 once the car has taken its caption bar.
 So the page scrolled and the analyser sat below the fold, which is a strange way
 to spend a pane: it is entered deliberately, with the other two thirds of the
 screen already doing something, and the one thing on this screen that moves is
 the analyser. The chip keeps the icon and both gestures and drops the caption,
-carrying "is this on" in its border, its ink and a dot - and ten of them cost 68
-dp instead of 516.
+carrying "is this on" in its border, its ink and a dot. Eleven chips cost one
+60.7 dp row at 828, or two 55.3 dp rows plus their gap at 416.
 
 That is the shape the archived boards under these two names always had: icons in
 a row, one large panel below. What was in the panel was four vehicle instruments
@@ -192,12 +192,12 @@ app no longer does the arithmetic at all: the strip takes the remainder.
 `MainBoardContractTest` joins the full screen: artboard size, the caption bar,
 the chip's shape and its dot, the grids and the margins, both shapes of the
 figures with their type sizes, the ticker band against the bar field, and that
-the ten glyphs are the ones `Main.dc.html` draws.
+the eleven glyphs are the ones `Main.dc.html` draws.
 
-Both were checked on the car on 2026-08-27 and measured off the screenshots: at
-828 the chip row runs 44 → 112 dp and the chips 20 → 808, at 416 they run 44 →
-112.5 and 12 → 404, and the lowest ink in the two-thirds pane sits at 667 of 680.
-Those are the boards' own numbers.
+The preceding ten-tile boards were checked on the car on 2026-08-27 and measured
+off screenshots. The generated eleven-tile boards preserve the same measured
+window, margins and caption bar, pass the local geometry/overflow contracts, and
+still await a live screenshot comparison after this feature is installed.
 
 The wide one is comfortable. The narrow one shows a Row measuring its children in
 order - the outlined action takes the width it asks for, the primary action is

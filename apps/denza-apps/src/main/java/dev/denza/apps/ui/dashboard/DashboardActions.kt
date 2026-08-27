@@ -79,7 +79,7 @@ object DashboardPress {
                 actions.onSetStockRussianLocale(state.stockRussianLocale.enabled != true)
             // None of these is a thing that is on or off, so none can be toggled; the registry
             // never asks, and answering with their settings beats answering with nothing.
-            TileId.CLUSTER, TileId.SPLIT, TileId.PASSENGER, TileId.SERVICE ->
+            TileId.CLUSTER, TileId.SPLIT, TileId.PASSENGER, TileId.DEFAULT_APPS, TileId.SERVICE ->
                 actions.onOpenSettings(id)
         }
     }
@@ -114,7 +114,8 @@ object DashboardPress {
             TileId.SPEAKERS -> actions.onToggleSpeakerCovers(true)
             TileId.PASSENGER -> actions.onChooseFseApp()
             // Weather has nothing to retry: it is an alarm, not a handshake.
-            TileId.LOCALE, TileId.WEATHER, TileId.SERVICE -> actions.onOpenSettings(id)
+            TileId.LOCALE, TileId.WEATHER, TileId.DEFAULT_APPS, TileId.SERVICE ->
+                actions.onOpenSettings(id)
         }
     }
 

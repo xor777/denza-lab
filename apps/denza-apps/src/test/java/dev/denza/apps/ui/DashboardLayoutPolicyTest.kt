@@ -62,8 +62,8 @@ class DashboardLayoutPolicyTest {
         assertEquals(DenzaMetrics.Space.M, DashboardLayoutPolicy.sideMargin(DashboardLayoutMode.NARROW))
 
         assertEquals(6, DashboardLayoutPolicy.columns(DashboardLayoutMode.WIDE, FEATURES))
-        assertEquals(10, DashboardLayoutPolicy.columns(DashboardLayoutMode.MEDIUM, FEATURES))
-        assertEquals(5, DashboardLayoutPolicy.columns(DashboardLayoutMode.NARROW, FEATURES))
+        assertEquals(11, DashboardLayoutPolicy.columns(DashboardLayoutMode.MEDIUM, FEATURES))
+        assertEquals(6, DashboardLayoutPolicy.columns(DashboardLayoutMode.NARROW, FEATURES))
 
         // A feature is written out on the full screen and compressed to a chip in a pane.
         assertEquals(false, DashboardLayoutPolicy.chips(DashboardLayoutMode.WIDE))
@@ -121,10 +121,10 @@ class DashboardLayoutPolicyTest {
 
     @Test
     fun `a chip row costs a pane a fraction of what a tile row costs`() {
-        // The reason a pane has chips at all, as arithmetic rather than as taste. Ten tiles at the
+        // The reason a pane has chips at all, as arithmetic rather than as taste. Eleven tiles at the
         // width their names need are four rows at 828 dp and five at 416 - 692 and 868 dp of a
         // window that has 656 once the car has taken its caption bar - so the page scrolled and
-        // the analyser was below the fold. Ten chips are one row and two.
+        // the analyser was below the fold. Eleven chips are one row and two.
         for ((window, mode) in listOf(
             828 to DashboardLayoutMode.MEDIUM,
             416 to DashboardLayoutMode.NARROW,
@@ -135,9 +135,12 @@ class DashboardLayoutPolicyTest {
             val rows = (FEATURES + columns - 1) / columns
             val band = rows * chip + (rows - 1) * DenzaMetrics.Space.M.value
 
-            assertTrue("a chip at $window dp is $chip, which is not chip-sized", chip in 60f..76f)
             assertTrue(
-                "ten chips at $window dp take $band dp, which is no better than tiles",
+                "a chip at $window dp is $chip, which is not chip-sized",
+                chip in DenzaMetrics.Component.CHIP_MIN.value..76f,
+            )
+            assertTrue(
+                "$FEATURES chips at $window dp take $band dp, which is no better than tiles",
                 band < 3 * DenzaMetrics.Component.TILE_HEIGHT.value,
             )
         }
@@ -157,6 +160,6 @@ class DashboardLayoutPolicyTest {
 
     private companion object {
         /** What the dashboard actually carries today; DashboardTilesTest owns the list itself. */
-        const val FEATURES = 10
+        const val FEATURES = 11
     }
 }
