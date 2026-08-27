@@ -62,7 +62,7 @@ internal fun NavigationPickerDialog(
         compact = compactLayout,
         onDismiss = onDismiss,
         emptyText = "Поддерживаемые навигаторы не найдены",
-        columns = DenzaMetrics.Component.TILE_COLUMNS_MEDIUM,
+        columns = DenzaMetrics.Component.NAVIGATION_PICKER_COLUMNS,
     ) { app ->
         DenzaAppTile(
             label = app.label,

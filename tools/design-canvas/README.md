@@ -26,18 +26,26 @@ that reports what collides.
 | `gen_cluster.py` | emits the three cluster boards as they stand on the car today, with the current fixed 3 km consumption window |
 | `gen_next.py` | emits the proposed cluster: one horizon, two histories, the gauge |
 | `gen_kit.py` | emits the two boards that describe the system, from the system |
+| `gen_panes.py` | emits the dashboard's two pane boards from `Main.dc.html` and the pane geometry |
 | `panel_frame.py` | archived tooling for the four retired head-unit instrument concepts; rebuilds Energy |
 | `normalize.py` | maps type, radii, borders and icon weights onto the scales |
 | `audit.py` | opens every board in headless Chrome and reports what collides |
 | `shot.py` | renders one board to a PNG at panel pixels, so it can be looked at |
 | `compare.py` | lays a board against a screenshot of the car and reports what moved |
 
-`Energy.dc.html`, `Battery.dc.html`, `Thermal.dc.html`, `Engine.dc.html` and the
-old pager compositions in `OneThird.dc.html` and `TwoThirds.dc.html` are kept as
-historical design evidence. Those head-unit pages are retired and are not a
-current app contract. The active contracts are the head-unit `Main.dc.html`
-spectrum strip and the cluster boards; the cluster consumption history has one
-fixed 3 km window and no selector.
+`Energy.dc.html`, `Battery.dc.html`, `Thermal.dc.html` and `Engine.dc.html` are
+kept as historical design evidence. Those head-unit pages are retired and are not
+a current app contract. The active contracts are the head-unit dashboard -
+`Main.dc.html` and the two pane boards generated beside it - and the cluster
+boards; the cluster consumption history has one fixed 3 km window and no
+selector.
+
+`OneThird.dc.html` and `TwoThirds.dc.html` used to hold the retired pager and now
+hold the dashboard in the two pane widths. The names were the right names for
+those boards and the wrong content was sitting under them, which is a worse
+failure than a stale board with a stale name: anybody opening "1/3" to see what
+the narrow pane looks like was shown a screen that had been deleted. The pager
+compositions are in git history.
 
 ## Running the audit
 
@@ -125,12 +133,50 @@ week's APK is last week's APK, not a design that has drifted - the comparison is
 only as honest as the pair of things being compared, and it will not tell you which
 one is stale.
 
-## One screen, two widths
+## One screen, three widths
 
 The head unit gives an app three window widths - 1280 dp full screen, 828 dp for
 two thirds, 416 dp for one third - and the third of those is where a design fails
 first. `AdbGate.dc.html` and `AdbGateNarrow.dc.html` are one screen drawn twice for
 exactly that reason: same card, same components, same copy rules, 1280 against 416.
+
+The dashboard is drawn three times, and `gen_panes.py` emits the two panes from
+`Main.dc.html` so their tiles cannot drift from the full screen's. What the panes
+decide for themselves is a short list, and every item on it is a measurement:
+
+| | 1280 | 828 | 416 |
+| --- | --- | --- | --- |
+| side margin | 48 | 20 | 12 |
+| content | 1184 | 788 | 392 |
+| columns × rows | 6 × 2 | 4 × 3 | 2 × 5 |
+| tile | 187.3 | 188.0 | 190.0 |
+| strip | 1184 × 296 | 492 × 120 | 392 × 376 |
+| page | 680 | 680 | 1288 |
+
+The margin steps down because a pane is not the screen, and because it is what
+buys the tile the width its words need: "Экран водителя" measures 145.2 dp at
+19/500 and a tile spends 20 either side of its text, so a tile under about 186
+loses a word to an ellipsis. At 48 and 32 both panes come out at 182. What
+shipped before this was 3 columns at 828 and 1 at 416 - a tile of 236 and then
+368, growing as its window shrank.
+
+Two things the panes do not do. They are not the wide composition scaled: each is
+laid out one unit to one dp, because `PanelCanvas` scales type along with
+everything else, and the wide strip squeezed into a two-thirds pane put the
+ladder's 46, 24 and 15 on the screen at 28, 15 and 9. And the trip figures change
+shape rather than size - three blocks hung apart down a 320-wide column at 1280,
+three label-and-value rows in a pane.
+
+`OneThird.dc.html` is drawn at 416 × 1288, which is the page's own scrolling
+height rather than the window's. Five rows of tiles are 868 dp on their own, so
+that page scrolls whatever else is done to it, and a board cropped to 680 would
+be hiding the half of the design that is below the fold. Two ticks in the side
+margins mark where the window ends.
+
+`PaneBoardContractTest` joins both boards to the Kotlin the same way
+`MainBoardContractTest` joins the full screen: artboard size, grid, margins, the
+row's two type sizes, where the analyser ends beside the figures, and that the
+ten tiles are byte-identical to `Main.dc.html`'s.
 
 The wide one is comfortable. The narrow one shows a Row measuring its children in
 order - the outlined action takes the width it asks for, the primary action is

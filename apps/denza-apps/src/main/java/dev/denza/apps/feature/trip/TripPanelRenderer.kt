@@ -7,12 +7,23 @@ import kotlin.math.abs
 import kotlin.math.roundToInt
 
 /**
- * The single trip panel screen.
+ * The single trip panel screen, in the three widths the car gives this app.
  *
- * At normal widths the left of the panel is the spectrum analyser
- * ([SpectrumRenderer]) and the right column holds the trip figures. In the
- * narrow split layout the analyser spans the full width and those figures stack
- * underneath it so neither half is horizontally compressed.
+ * The analyser ([SpectrumRenderer]) and the same three readings every time - how long and how far,
+ * how high and which way, and the next thing the sun does. What changes is how they are arranged
+ * and, more to the point, what space they are laid out in.
+ *
+ * **Each width is laid out one unit to one dp.** [PanelCanvas] scales a virtual space onto the box
+ * it is given, and that is exactly the wrong thing to do to type: the two-thirds pane used to take
+ * the wide composition, whose space is 1184 wide, and have it squeezed into 732 - so the ladder's
+ * 46, 24 and 15 arrived on the screen at 28, 15 and 9. The bottom rung of this app's type ladder is
+ * 15 because eleven and twelve point captions are legible on a desk and not in a car. So a pane has
+ * its own space, at its own size, and the scale factor is 1.
+ *
+ * The figures change shape rather than size. At 1280 there is a 320-wide column beside the analyser
+ * and they hang apart down it as blocks, a tracked capital over a large light figure. In a pane
+ * there is no such column, so each becomes one row: the label at the left, the reading at the
+ * right. Same three readings, same two type sizes, one line each.
  */
 class TripPanelRenderer : BaseTripRenderer() {
 
@@ -46,21 +57,25 @@ class TripPanelRenderer : BaseTripRenderer() {
         frameTimeSec: Double,
         dtSec: Double,
         showLocationHint: Boolean,
-        narrowLayout: Boolean,
+        layout: TripPanelLayout,
     ) {
-        if (narrowLayout) {
-            drawNarrow(
-                canvas = canvas,
-                width = w,
-                height = h,
-                engine = engine,
-                spectrum = spectrum,
-                nowPlaying = nowPlaying,
-                frameTimeSec = frameTimeSec,
-                dtSec = dtSec,
-                showLocationHint = showLocationHint,
-            )
-            return
+        when (layout) {
+            TripPanelLayout.MEDIUM, TripPanelLayout.NARROW -> {
+                drawPane(
+                    canvas = canvas,
+                    width = w,
+                    height = h,
+                    layout = layout,
+                    engine = engine,
+                    spectrum = spectrum,
+                    nowPlaying = nowPlaying,
+                    frameTimeSec = frameTimeSec,
+                    dtSec = dtSec,
+                    showLocationHint = showLocationHint,
+                )
+                return
+            }
+            TripPanelLayout.WIDE -> Unit
         }
         setSize(w, h, WIDE_VIRTUAL_W, WIDE_VIRTUAL_H)
         spectrumRenderer.draw(
@@ -79,10 +94,19 @@ class TripPanelRenderer : BaseTripRenderer() {
         }
     }
 
-    private fun drawNarrow(
+    /**
+     * A pane: the analyser, and the three readings as rows.
+     *
+     * `TwoThirds.dc.html` and `OneThird.dc.html` are the same composition at two sizes - which is
+     * why one function draws both and the only thing that differs is where the rows go. At 828 the
+     * strip is 120 dp tall and the rows stand beside the analyser in a 264-wide column; at 416
+     * there is no room beside anything, so they go underneath.
+     */
+    private fun drawPane(
         canvas: Canvas,
         width: Float,
         height: Float,
+        layout: TripPanelLayout,
         engine: TripEngine,
         spectrum: SpectrumSource,
         nowPlaying: NowPlayingSource,
@@ -90,98 +114,112 @@ class TripPanelRenderer : BaseTripRenderer() {
         dtSec: Double,
         showLocationHint: Boolean,
     ) {
-        setSize(width, height, NARROW_VIRTUAL_W, NARROW_VIRTUAL_H)
+        val medium = layout == TripPanelLayout.MEDIUM
+        if (medium) {
+            setSize(width, height, MEDIUM_VIRTUAL_W, MEDIUM_VIRTUAL_H)
+        } else {
+            setSize(width, height, NARROW_VIRTUAL_W, NARROW_VIRTUAL_H)
+        }
+        val spectrumRight = if (medium) MEDIUM_SPECTRUM_RIGHT else NARROW_VIRTUAL_W
+        val spectrumBottom = if (medium) MEDIUM_VIRTUAL_H else NARROW_SPECTRUM_BOTTOM
         spectrumRenderer.draw(
             canvas, spectrum, nowPlaying, frameTimeSec, dtSec,
-            left = vx(NARROW_SPECTRUM_LEFT),
-            right = vx(NARROW_SPECTRUM_RIGHT),
-            top = vy(NARROW_SPECTRUM_TOP),
-            bottom = vy(NARROW_SPECTRUM_BOTTOM),
-            unit = vs(1f),
+            left = vx(0f), right = vx(spectrumRight),
+            top = vy(0f), bottom = vy(spectrumBottom), unit = vs(1f),
         )
 
-        stroke.color = TripPalette.alpha(TripPalette.MUTED, 0.14f)
-        stroke.strokeWidth = vs(1f)
-        canvas.drawLine(
-            vx(NARROW_SPECTRUM_LEFT),
-            vy(NARROW_DIVIDER_Y),
-            vx(NARROW_SPECTRUM_RIGHT),
-            vy(NARROW_DIVIDER_Y),
-            stroke,
-        )
-        drawNarrowColumn(canvas, engine)
-        if (showLocationHint) {
-            label(
-                canvas,
-                LOCATION_HINT,
-                vx(0f),
-                vy(618f),
-                16f,
-                TripPalette.alpha(TripPalette.MUTED, 0.85f),
-            )
-        }
+        val rowsLeft = if (medium) MEDIUM_ROWS_LEFT else 0f
+        val rowsRight = if (medium) MEDIUM_VIRTUAL_W else NARROW_VIRTUAL_W
+        val rowsTop = if (medium) MEDIUM_ROWS_TOP else NARROW_ROWS_TOP
+        drawPaneRows(canvas, engine, rowsLeft, rowsRight, rowsTop, showLocationHint)
     }
 
-    private fun drawNarrowColumn(canvas: Canvas, engine: TripEngine) {
+    /**
+     * Three rows, and the same three conditions the wide column draws under.
+     *
+     * The second and third exist only when the car has told us where it is, so on a cold start
+     * this is one row - and the "no location" hint goes where the second would have been, which is
+     * the same place the wide layout puts it and for the same reason: it collides with nothing
+     * because nothing is there.
+     */
+    private fun drawPaneRows(
+        canvas: Canvas,
+        engine: TripEngine,
+        left: Float,
+        right: Float,
+        top: Float,
+        showLocationHint: Boolean,
+    ) {
+        val x = vx(left)
+        val rightEdge = vx(right)
+
         val guidance = engine.guidance()
         if (guidance != null) {
             val parts = buildList {
                 guidance.distanceMeters?.let { add(distanceLabel(it.toDouble())) }
                 guidance.timeSeconds?.let { add(clockHm(it.toLong())) }
             }
-            row(
-                canvas,
-                0f,
-                318f,
-                "Осталось · навигация",
-                parts.joinToString(" · ").ifBlank { "—" },
-                TripPalette.INK,
+            paneRow(
+                canvas, x, rightEdge, rowBaseline(top, 0),
+                "ОСТАЛОСЬ", parts.joinToString(" · ").ifBlank { "—" }, TripPalette.MUTED,
             )
         } else {
             val elapsed = engine.elapsedSeconds
             val timePart = if (elapsed >= 3600) clockHm(elapsed.toLong()) else clockMs(elapsed)
-            row(
-                canvas,
-                0f,
-                318f,
-                "В пути",
-                "$timePart · ${distanceLabel(engine.distanceMeters())}",
-                TripPalette.INK,
+            paneRow(
+                canvas, x, rightEdge, rowBaseline(top, 0),
+                "В ПУТИ", "$timePart · ${distanceLabel(engine.distanceMeters())}", TripPalette.MUTED,
             )
         }
 
-        val hasAltitude = engine.hasAltitude()
-        val altitude = if (hasAltitude) "${engine.smoothedAltitude().roundToInt()} м" else "—"
-        val altitudeAndRate = if (hasAltitude) {
-            val rate = engine.variometer()
-            val arrow = if (rate >= 0) "↗ +" else "↘ −"
-            "$altitude · $arrow${fmt1(abs(rate))} м/с"
-        } else {
-            altitude
+        if (engine.hasAltitude()) {
+            val baseline = rowBaseline(top, 1)
+            caps(canvas, "ВЫСОТА", x, baseline)
+            val rate = variometer(
+                canvas, rightEdge, baseline, engine.variometer(), PANE_RATE, PANE_ARROW,
+            )
+            figurePaint.textAlign = Paint.Align.RIGHT
+            figure(
+                canvas, "${engine.smoothedAltitude().roundToInt()} м",
+                rightEdge - rate - vs(PANE_GAP), baseline, PANE_VALUE, TripPalette.INK,
+            )
+            figurePaint.textAlign = Paint.Align.LEFT
+        } else if (showLocationHint) {
+            label(
+                canvas, LOCATION_HINT, x, rowBaseline(top, 1), PANE_LABEL,
+                TripPalette.alpha(TripPalette.MUTED, 0.85f),
+            )
         }
-        row(canvas, 0f, 394f, "Высота · вариометр", altitudeAndRate, TripPalette.INK)
-        row(
-            canvas,
-            0f,
-            470f,
-            "Набор за поездку",
-            "+${engine.tripClimbMeters().roundToInt()} м",
-            TripPalette.INK,
-        )
 
         val sun = engine.sunInfo()
         if (sun.nextEventLabel.isNotEmpty()) {
-            val event = if (sun.nextIsSunset) "Закат" else "Рассвет"
-            val countdown = if (sun.countdownSeconds >= 0) {
-                "${sun.nextEventLabel} · через ${clockHm(sun.countdownSeconds)}"
-            } else {
-                sun.nextEventLabel
-            }
-            row(canvas, 0f, 546f, event, countdown, TripPalette.AMBER)
-        } else {
-            row(canvas, 0f, 546f, "Рассвет · закат", "—", TripPalette.AMBER)
+            paneRow(
+                canvas, x, rightEdge, rowBaseline(top, 2),
+                if (sun.nextIsSunset) "ЗАКАТ" else "РАССВЕТ", sun.nextEventLabel, TripPalette.AMBER,
+            )
         }
     }
+
+    /** A tracked capital at the left edge, its reading at the right, both on one baseline. */
+    private fun paneRow(
+        canvas: Canvas,
+        left: Float,
+        right: Float,
+        baseline: Float,
+        label: String,
+        value: String,
+        labelColour: Int,
+    ) {
+        capsPaint.textSize = vs(PANE_LABEL)
+        capsPaint.color = labelColour
+        canvas.drawText(label, left, baseline, capsPaint)
+        figurePaint.textAlign = Paint.Align.RIGHT
+        figure(canvas, value, right, baseline, PANE_VALUE, TripPalette.INK)
+        figurePaint.textAlign = Paint.Align.LEFT
+    }
+
+    private fun rowBaseline(top: Float, index: Int): Float =
+        vy(top + index * (PANE_ROW + PANE_ROW_GAP) + PANE_BASELINE)
 
     /**
      * The figures beside the analyser, as `Main.dc.html` draws them.
@@ -218,7 +256,12 @@ class TripPanelRenderer : BaseTripRenderer() {
                 canvas, x, BLOCK_TOP_2 + RULE_GAP, "ВЫСОТА",
                 "${engine.smoothedAltitude().roundToInt()}", "м",
             )
-            drawVariometer(canvas, engine.variometer())
+            variometer(
+                canvas,
+                vx(COLUMN_RIGHT),
+                vy(BLOCK_TOP_2 + RULE_GAP + FIGURE_BASELINE),
+                engine.variometer(),
+            )
         }
 
         val sun = engine.sunInfo()
@@ -268,21 +311,33 @@ class TripPanelRenderer : BaseTripRenderer() {
         canvas.drawText(text, x, y, unitPaint)
     }
 
-    /** Which way the road is going, at the right edge of the altitude block. */
-    private fun drawVariometer(canvas: Canvas, metresPerSecond: Double) {
+    /**
+     * Which way the road is going, hung off a right edge; returns how much width it took.
+     *
+     * The arrow is drawn rather than typed. "↗" is one character and would be a great deal less
+     * code, and this panel has no idea what the head unit's font does with U+2197 - a glyph that
+     * comes out as a box is a reading that says nothing, and there is no way to find out from
+     * here. Three lines always draw.
+     */
+    private fun variometer(
+        canvas: Canvas,
+        right: Float,
+        baseline: Float,
+        metresPerSecond: Double,
+        textSize: Float = ARROW_TEXT,
+        arrowSize: Float = ARROW_SIZE,
+    ): Float {
         val up = metresPerSecond >= 0
         val colour = if (up) TripPalette.LIVE else TripPalette.AMBER
         val text = fmt1(abs(metresPerSecond))
-        val right = vx(COLUMN_RIGHT)
-        val baseline = vy(BLOCK_TOP_2 + RULE_GAP + FIGURE_BASELINE)
-        unitPaint.textSize = vs(ARROW_TEXT)
+        unitPaint.textSize = vs(textSize)
         unitPaint.color = colour
         unitPaint.textAlign = Paint.Align.RIGHT
         canvas.drawText(text, right, baseline, unitPaint)
         val textWidth = unitPaint.measureText(text)
         unitPaint.textAlign = Paint.Align.LEFT
-        val ax = right - textWidth - vs(SUN_GAP) - vs(ARROW_SIZE) / 2f
-        val half = vs(ARROW_SIZE) / 2f
+        val half = vs(arrowSize) / 2f
+        val ax = right - textWidth - vs(SUN_GAP) - half
         stroke.color = colour
         stroke.strokeWidth = vs(ARROW_WEIGHT)
         val tip = if (up) baseline - half * 2f else baseline
@@ -291,6 +346,7 @@ class TripPanelRenderer : BaseTripRenderer() {
         val wing = if (up) tip + half else tip - half
         canvas.drawLine(ax - half * 0.6f, wing, ax, tip, stroke)
         canvas.drawLine(ax + half * 0.6f, wing, ax, tip, stroke)
+        return textWidth + vs(SUN_GAP) + vs(arrowSize)
     }
 
     /** The board's sun: a disc with five rays and the horizon under it. */
@@ -307,11 +363,6 @@ class TripPanelRenderer : BaseTripRenderer() {
         canvas.drawLine(cx - d - ray * 0.4f, cy - d - ray * 0.4f, cx - d, cy - d, stroke)
         canvas.drawLine(cx + d + ray * 0.4f, cy - d - ray * 0.4f, cx + d, cy - d, stroke)
         canvas.drawLine(x, cy + r + ray * 1.4f, x + vs(SUN_ICON), cy + r + ray * 1.4f, stroke)
-    }
-
-    private fun row(canvas: Canvas, rx: Float, y: Float, lab: String, text: String, color: Int) {
-        label(canvas, lab, rx, vy(y), 16f, TripPalette.alpha(TripPalette.MUTED, 0.85f))
-        value(canvas, text, rx, vy(y) + vs(34f), 27f, color)
     }
 
     private fun distanceLabel(meters: Double): String =
@@ -380,12 +431,39 @@ class TripPanelRenderer : BaseTripRenderer() {
         const val HINT_Y = 142f
         const val HINT_SIZE = 15f
 
-        const val NARROW_VIRTUAL_W = 368f
-        const val NARROW_VIRTUAL_H = 660f
-        const val NARROW_SPECTRUM_LEFT = 0f
-        const val NARROW_SPECTRUM_RIGHT = 368f
-        const val NARROW_SPECTRUM_TOP = 20f
-        const val NARROW_SPECTRUM_BOTTOM = 258f
-        const val NARROW_DIVIDER_Y = 286f
+        /**
+         * The two panes' own spaces, off `TwoThirds.dc.html` and `OneThird.dc.html`.
+         *
+         * The width is the content width the page has after its margins, so the scale factor is
+         * one and every size below is the dp it says it is. 788 is 828 less two margins of 20;
+         * 392 is 416 less two of 12.
+         *
+         * 120 is what three rows of tiles leave in a 680-dp window, and the two-thirds page comes
+         * to 680 exactly. 376 is what the narrow strip needs rather than what it has left: five
+         * rows of tiles are 868 on their own, so that page scrolls whatever this says, and a strip
+         * squeezed to fit a window it has already overflowed would be a pointless economy.
+         */
+        const val MEDIUM_VIRTUAL_W = 788f
+        const val MEDIUM_VIRTUAL_H = 120f
+        const val MEDIUM_SPECTRUM_RIGHT = 492f
+        const val MEDIUM_ROWS_LEFT = 524f
+        /** The three rows are 114 tall in a 120 strip, so they sit three off the top. */
+        const val MEDIUM_ROWS_TOP = 3f
+
+        const val NARROW_VIRTUAL_W = 392f
+        const val NARROW_VIRTUAL_H = 376f
+        const val NARROW_SPECTRUM_BOTTOM = 242f
+        const val NARROW_ROWS_TOP = 262f
+
+        // One row of a pane: a 15 label and a 24 reading on one baseline, three of them a
+        // neighbour's gap apart. 23 is where a 24-dp face sits in a 30-dp line.
+        const val PANE_ROW = 30f
+        const val PANE_ROW_GAP = 12f
+        const val PANE_BASELINE = 23f
+        const val PANE_LABEL = 15f
+        const val PANE_VALUE = 24f
+        const val PANE_RATE = 19f
+        const val PANE_ARROW = 14f
+        const val PANE_GAP = 8f
     }
 }

@@ -135,7 +135,19 @@ object DenzaMetrics {
         /** The tile's icon, at the size the board draws it. */
         val TILE_ICON: Dp = 30.dp
 
-        /** How many tiles a full-width dashboard puts in one row. */
+        /**
+         * How many tiles a row holds, at each of the three widths the car gives this app.
+         *
+         * Not a taste: the counts are what keeps the tile the size its words need. "Экран
+         * водителя" measures 145.2 dp at 19/500 and a tile spends [Space.L] either side of its
+         * text, so a tile under about 186 dp loses a word to an ellipsis. Six columns of the full
+         * screen's 1184 is 187.3, four of the two-thirds pane's 788 is 188.0, two of the narrow
+         * pane's 392 is 190.0 - one object at every width.
+         *
+         * The pane counts are also what stopped the tile *growing* as its window shrank: three
+         * columns at 828 dp, which is what shipped, made it 236 dp wide, and one column at 416
+         * made it 368 - a slab twice the size of the same tile on the full screen.
+         */
         const val TILE_COLUMNS_WIDE: Int = 6
 
         /**
@@ -147,8 +159,18 @@ object DenzaMetrics {
          */
         const val PICKER_COLUMNS: Int = 5
 
-        /** The two-thirds pane; the narrow pane takes one. */
-        const val TILE_COLUMNS_MEDIUM: Int = 3
+        const val TILE_COLUMNS_MEDIUM: Int = 4
+        const val TILE_COLUMNS_NARROW: Int = 2
+
+        /**
+         * The driver-screen picker's row.
+         *
+         * Fewer and larger than the app picker's [PICKER_COLUMNS], because it lists the navigators
+         * on the car rather than everything installed. It used to read `TILE_COLUMNS_MEDIUM`,
+         * which happened to be three as well - so the dashboard's pane layout and this picker were
+         * one constant, and moving either moved the other for no reason anybody had stated.
+         */
+        const val NAVIGATION_PICKER_COLUMNS: Int = 3
 
         /**
          * An application offered for choosing: 12 + 44 + 8 + one line of 15 + 12, off the board.
@@ -186,13 +208,21 @@ object DenzaMetrics {
         val SHEET_CLOSE_ICON: Dp = 26.dp
 
         /**
-         * The bottom strip in the narrow pane.
+         * The bottom strip in each of the two panes, off `TwoThirds.dc.html` and `OneThird.dc.html`.
          *
-         * The two wide layouts take their height from the strip's own virtual space instead, so
-         * that it is never drawn onto a canvas of a shape it was not laid out for; only the narrow
-         * pane, which reflows into a space of its own, is told a number.
+         * Only the full screen computes its strip height from its width - it is the one layout
+         * whose panel is a fixed shape scaled to the window. A pane's strip is laid out in the
+         * screen's own dp, one unit to one, which is the whole reason these are numbers: a panel
+         * drawn in the wide space and squeezed into a pane scales its type down with everything
+         * else, and at 828 dp that put the strip's captions at 9 dp, four rungs under the bottom
+         * of the ladder.
+         *
+         * 120 is what the two-thirds pane has left under three rows of tiles, and the page comes to
+         * 680 exactly. 376 is what the narrow pane's strip needs rather than what it has left: five
+         * rows of tiles are already 868, so that page scrolls whatever this says.
          */
-        val PANEL_HEIGHT_NARROW: Dp = 660.dp
+        val PANEL_HEIGHT_MEDIUM: Dp = 120.dp
+        val PANEL_HEIGHT_NARROW: Dp = 376.dp
 
         /** A row a finger has to hit. */
         val ROW_HEIGHT: Dp = 56.dp

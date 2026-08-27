@@ -33,7 +33,7 @@ class TripPanelView(context: Context) : View(context), Choreographer.FrameCallba
     private var lastDrawNs = 0L
     private var lastFrameNs = 0L
 
-    var narrowLayout: Boolean = false
+    var layout: TripPanelLayout = TripPanelLayout.WIDE
         set(value) {
             if (field == value) return
             field = value
@@ -121,7 +121,7 @@ class TripPanelView(context: Context) : View(context), Choreographer.FrameCallba
             canvas, width.toFloat(), height.toFloat(), hub.engine, hub.spectrum, hub.nowPlaying,
             frameTime, dt,
             showLocationHint = !hub.locationGranted,
-            narrowLayout = narrowLayout,
+            layout = layout,
         )
     }
 

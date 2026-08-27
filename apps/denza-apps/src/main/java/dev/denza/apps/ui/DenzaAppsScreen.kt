@@ -80,7 +80,6 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.core.graphics.drawable.toBitmap
 import dev.denza.apps.DenzaUiState
-import dev.denza.apps.feature.trip.BaseTripRenderer
 import dev.denza.apps.NavigationAppChoice
 import dev.denza.apps.SimulcastAppChoice
 import dev.denza.apps.core.FeatureId
@@ -218,9 +217,9 @@ fun DenzaAppsRoot(
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val dashboardLayout = DashboardLayoutPolicy.resolve(maxWidth.value.roundToInt())
         val compactLayout = dashboardLayout == DashboardLayoutMode.NARROW
-        val sideMargin = if (compactLayout) DenzaMetrics.Space.L else DenzaMetrics.Space.XXL
+        val sideMargin = DashboardLayoutPolicy.sideMargin(dashboardLayout)
         val contentWidth = (maxWidth - sideMargin * 2).value.coerceAtLeast(1f)
-        val panelHeight = BaseTripRenderer.heightFor(contentWidth).dp
+        val panelHeight = DashboardLayoutPolicy.panelHeight(dashboardLayout, contentWidth)
 
         DenzaTheme {
             Surface(modifier = Modifier.fillMaxSize(), color = DenzaColors.Background) {
@@ -239,18 +238,21 @@ fun DenzaAppsRoot(
                                 .verticalScroll(rememberScrollState())
                         }
                             .windowInsetsPadding(WindowInsets.safeDrawing)
-                            .padding(horizontal = sideMargin, vertical = DenzaMetrics.Space.L),
+                            // Top and bottom are not the same rung, and every board says so: 20
+                            // over the tiles and 12 under the strip. Both were 20 here, which put
+                            // the page 8 dp taller than the window it is laid out for and drew the
+                            // foot of the analyser's reflection past the bottom edge.
+                            .padding(
+                                start = sideMargin,
+                                end = sideMargin,
+                                top = DenzaMetrics.Space.L,
+                                bottom = DenzaMetrics.Space.M,
+                            ),
                     ) {
                         DashboardGrid(
                             state = uiState,
                             actions = dashboardActions,
-                            columns = when (dashboardLayout) {
-                                DashboardLayoutMode.WIDE ->
-                                    DenzaMetrics.Component.TILE_COLUMNS_WIDE
-                                DashboardLayoutMode.MEDIUM ->
-                                    DenzaMetrics.Component.TILE_COLUMNS_MEDIUM
-                                DashboardLayoutMode.NARROW -> 1
-                            },
+                            columns = DashboardLayoutPolicy.columns(dashboardLayout),
                             modifier = Modifier.fillMaxWidth(),
                             enabled = !adbStartupBlocked,
                         )
@@ -258,29 +260,26 @@ fun DenzaAppsRoot(
                         // The current product strip is one spectrum/trip panel. The former pager
                         // and its vehicle pages were retired and deleted.
                         if (!adbStartupBlocked) {
+                            // The strip draws in a virtual space of its own, and the box it is
+                            // given has to be that space's shape or the drawing arrives stretched.
+                            // It used to get whatever height was left over, which on the full
+                            // screen was about twice its own: every stroke came out drawn on a
+                            // canvas stretched vertically, which is why the analyser read as a
+                            // sparse ripple rather than the columns the board draws. Each width
+                            // now asks for the box its own composition was laid out in.
                             SpectrumPanel(
-                                compactLayout = compactLayout,
-                                modifier = when (dashboardLayout) {
-                                    // The strip draws in a virtual space of its own, and the two
-                                    // wide layouts hand it a box of the same shape. It used to get
-                                    // whatever height was left over, which on this screen was about
-                                    // twice its own: every stroke came out drawn on a canvas
-                                    // stretched vertically, which is why the analyser read as a
-                                    // sparse ripple rather than the columns the board draws.
-                                    DashboardLayoutMode.WIDE,
-                                    DashboardLayoutMode.MEDIUM,
-                                    ->
-                                        Modifier.fillMaxWidth().height(panelHeight)
-                                    // The narrow pane genuinely reflows and has its own space.
-                                    DashboardLayoutMode.NARROW ->
-                                        Modifier.fillMaxWidth().height(NARROW_TRIP_PANEL_HEIGHT)
-                                },
+                                layout = DashboardLayoutPolicy.panel(dashboardLayout),
+                                modifier = Modifier.fillMaxWidth().height(panelHeight),
                             )
                         }
+                        // Any slack goes under the strip rather than between it and the tiles -
+                        // and only on the full screen, whose column is not scrollable. A pane
+                        // used to end with a fixed 12 here as well, which on top of the page's
+                        // own bottom margin made the two-thirds page 12 dp taller than its
+                        // window: a page that is laid out to fit exactly and then scrolls by the
+                        // height of one margin looks like a rounding error, and is one.
                         if (dashboardLayout == DashboardLayoutMode.WIDE) {
                             Spacer(Modifier.weight(1f))
-                        } else {
-                            Spacer(Modifier.height(DenzaMetrics.Space.M))
                         }
                     }
                 }
@@ -403,9 +402,6 @@ fun DenzaAppsRoot(
         }
     }
 }
-
-/** Узкая панель 1/3 перекомпоновывается в собственное виртуальное пространство 368x660. */
-private val NARROW_TRIP_PANEL_HEIGHT = DenzaMetrics.Component.PANEL_HEIGHT_NARROW
 
 @Composable
 private fun AdbStartupOverlay(

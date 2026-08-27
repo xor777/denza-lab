@@ -5,6 +5,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.viewinterop.AndroidView
+import dev.denza.apps.feature.trip.TripPanelLayout
 import dev.denza.apps.feature.trip.TripPanelView
 
 /**
@@ -20,13 +21,13 @@ import dev.denza.apps.feature.trip.TripPanelView
  */
 @Composable
 internal fun SpectrumPanel(
-    compactLayout: Boolean,
+    layout: TripPanelLayout,
     modifier: Modifier = Modifier,
 ) {
     AndroidView(
         factory = { context -> TripPanelView(context) },
         update = { view ->
-            view.narrowLayout = compactLayout
+            view.layout = layout
         },
         // A hosted View is positioned through Compose's own view container, where a parent's clip
         // does not reach it on its own.

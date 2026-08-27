@@ -35,7 +35,7 @@ abstract class BaseTripRenderer : PanelCanvas() {
      * @param showLocationHint when true, draw the muted "no location access" hint
      *   in an area that stays clear of the panel's own captions and figures in
      *   both the GNSS and no-GNSS states.
-     * @param narrowLayout stacks the analyser and trip values for a narrow split pane.
+     * @param layout which of the three compositions to draw; see [TripPanelLayout].
      */
     abstract fun draw(
         canvas: Canvas,
@@ -47,14 +47,14 @@ abstract class BaseTripRenderer : PanelCanvas() {
         frameTimeSec: Double,
         dtSec: Double,
         showLocationHint: Boolean,
-        narrowLayout: Boolean = false,
+        layout: TripPanelLayout = TripPanelLayout.WIDE,
     )
 
     companion object {
         const val LOCATION_HINT = "нет доступа к геолокации"
 
         /**
-         * The height the wide panel's layout asks for at [width].
+         * The height the *wide* panel's layout asks for at [width]; the panes are told a number.
          *
          * [PanelCanvas] scales x and y independently, which is what lets a renderer fill whatever
          * box it is given - and also what silently distorts it when the box is a different shape

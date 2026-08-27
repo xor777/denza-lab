@@ -51,21 +51,21 @@
     },
     {
       "file": "TwoThirds.dc.html",
-      "x": 1740,
-      "y": 0,
+      "x": 0,
+      "y": 1800,
       "w": 828,
-      "h": 800,
-      "title": "Архив · сборка 2/3",
-      "page": "page-panels"
+      "h": 680,
+      "title": "Главный · панель 2/3",
+      "page": "page-screens"
     },
     {
       "file": "OneThird.dc.html",
-      "x": 2648,
-      "y": 0,
+      "x": 908,
+      "y": 1800,
       "w": 416,
-      "h": 800,
-      "title": "Архив · сборка 1/3",
-      "page": "page-panels"
+      "h": 1288,
+      "title": "Главный · панель 1/3",
+      "page": "page-screens"
     },
     {
       "file": "AdbGate.dc.html",
