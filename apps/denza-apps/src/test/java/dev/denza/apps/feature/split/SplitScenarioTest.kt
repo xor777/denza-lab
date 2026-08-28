@@ -4034,6 +4034,168 @@ class SplitScenarioTest {
         assertEquals(SplitScreenPhase.ACTIVE, core.snapshot().phase)
     }
 
+    /**
+     * Живой дефект (владелец, 2026-08-28): восстановление НАШЕГО пакета в ШИРОКУЮ панель.
+     *
+     * Владелец нажал «Разделить экран» из полноэкранного Denza Apps. Сохранённая пара называла
+     * `dev.denza.apps` стороной широкой панели. На экране осталось живое окно Denza Apps шириной
+     * 832 px, вторая панель пустая, сплита нет, и состояние застряло навсегда.
+     *
+     * Цепочка целиком:
+     *  1. Каталог резольвит `dev.denza.apps` в [DENZA_LAUNCHER_ACTIVITY]: LAUNCHER-фильтр в
+     *     манифесте есть только у неё, у `MainActivity` его нет.
+     *  2. `DenzaLauncherActivity` делает свой `startActivity(MainActivity, NEW_TASK)` - без
+     *     BYD-категории и без `ActivityOptions`. Сторона на этой границе теряется.
+     *  3. Цель - `singleTask` с собственным `taskAffinity`, так что старт получает УЖЕ живую
+     *     единственную задачу приложения.
+     *  4. Сторону старта без категории прошивка решает сравнением с запомненным
+     *     `mPrimaryActivity`, а туда продукт вписал себя первым же пикером с категорией
+     *     START_IVI_PRIMARY - и это переживает перезагрузку. Совпало: узкая панель.
+     *  5. Продукт записал задачу в `appTaskIds[SECONDARY]`, а физически она в `PRIMARY_ROOT`, и
+     *     `sweepPanesToBaseAndApp` (buildScene) - в отличие от пути ВЫБОРА (правка волны 14) -
+     *     не передаёт `residentPackage`. Задача становится surplus в чужом корне и уезжает
+     *     `evictToFullRootInBackground` в полноэкранный корень.
+     *  6. Ненормализующая ветка `startIviFullWindow` оставляет ей ПАНЕЛЬНЫЕ границы, а словарь
+     *     отката геометрии не знает вовсе - вернуть их некому.
+     *
+     * Ожидание - дизъюнкция (1.3.2, 1.5.3, 1.5.7, инвариант 9, U5): либо сторона соблюдена, либо
+     * честный отказ с рабочим экраном. Сверх неё - общий инвариант геометрии, которого в оракуле
+     * сцены нет: [assertNoTaskKeepsBoundsForeignToItsRoot].
+     *
+     * КРАСНЫМ сегодня падает именно инвариант, и это его цена: сцена докладывает `committed`,
+     * панель цели честно деградирует в свой пикер, обе панели живы - дизъюнкцию продукт проходит.
+     * А живое окно пользователя при этом стоит в корне 4 с панельными 832 px, и не видит этого
+     * никто: постусловия меряют геометрию только у задач, которые сцена назвала своими.
+     */
+    @Test
+    fun restoringOurOwnPackageKeepsItsSideOrLeavesAWorkingScreen() {
+        val car = car(
+            FakeShell(
+                redirectOnStartPackage = SPLIT_HOST_PACKAGE,
+                redirectOnStartActivity = DENZA_LAUNCHER_ACTIVITY,
+                redirectResolvesToExistingTask = true,
+                rememberedPrimaryActivityPackage = SPLIT_HOST_PACKAGE,
+            ).apply {
+                area = 4
+                // Ровно одна живая задача нашего пакета: полноэкранная, верхняя, сфокусированная.
+                addTask(FULL_ROOT, HUB_TASK, SPLIT_HOST_PACKAGE, DENZA_APPS_MAIN_ACTIVITY)
+                focusedTaskId = HUB_TASK
+                keepBoundsOnEvictionFor += SPLIT_HOST_PACKAGE
+            },
+        )
+        val core = car.core(
+            initial = SplitDurable(
+                enabled = true,
+                slots = mapOf(
+                    SplitPane.PRIMARY to SplitSlot.App(MUSIC),
+                    // Наш пакет назван стороной ШИРОКОЙ панели.
+                    SplitPane.SECONDARY to SplitSlot.App(SPLIT_HOST_PACKAGE),
+                ),
+            ),
+            catalog = OverridingCatalog(
+                mapOf(SPLIT_HOST_PACKAGE to DENZA_APPS_THROUGH_ITS_LAUNCHER),
+            ),
+        )
+        core.initialize {}
+
+        core.openPickerSession()
+        car.barrier()
+
+        assertSideHonouredOrHonestRefusal(car)
+        assertNoTaskKeepsBoundsForeignToItsRoot(car.fake)
+    }
+
+    /**
+     * Оракул продукта для восстановления одной названной стороны, оба исхода законны.
+     *
+     * 1. Сторона соблюдена: задача нашего пакета - верхняя в одной из панелей, её границы равны
+     *    границам её корня, соседняя панель непуста, `area == 3` (1.5.3).
+     * 2. Честный отказ: сцена не собралась, но экран рабочий - либо обе панели живы и панель цели
+     *    деградировала до своего пикера (1.3.2, 1.5.7), либо единственная задача нашего пакета
+     *    полноэкранная и её границы полноэкранные (U5, инвариант 9).
+     */
+    private fun assertSideHonouredOrHonestRefusal(car: SplitCarFixture) {
+        val fake = car.fake
+        val ours = ourAppTaskIds(fake)
+        val sideHonoured = ours.any { taskId ->
+            val rootId = fake.taskRoot(taskId)
+            val peerRootId = if (rootId == PRIMARY_ROOT) SECONDARY_ROOT else PRIMARY_ROOT
+            rootId in setOf(PRIMARY_ROOT, SECONDARY_ROOT) &&
+                fake.topTaskId(rootId) == taskId &&
+                fake.taskBounds(taskId) == fake.rootBounds(rootId) &&
+                fake.taskCount(peerRootId) > 0 &&
+                fake.area == BALANCED_SPLIT_AREA
+        }
+        val bothPanesAlive = SplitPane.entries.all { pane ->
+            fake.hasActivity(paneRoot(pane), SPLIT_PICKER_ACTIVITY)
+        }
+        val targetPaneDegraded =
+            car.store.load().slot(SplitPane.SECONDARY) == SplitSlot.Picker &&
+                fake.topActivity(SECONDARY_ROOT) == SECONDARY_PICKER_ACTIVITY
+        val ourWindowIsHonestlyFullscreen = ours.size == 1 &&
+            fake.taskRoot(ours.single()) == FULL_ROOT &&
+            fake.taskBounds(ours.single()) == FULL
+        assertTrue(
+            "ни сторона не соблюдена, ни отказ не честен: " + describe(fake) +
+                ", area=${fake.area}, слоты=${car.store.load().slots}",
+            sideHonoured || (bothPanesAlive && targetPaneDegraded) ||
+                ourWindowIsHonestlyFullscreen,
+        )
+    }
+
+    /**
+     * Инвариант, которого в оракуле сцены нет ни у одной операции: по завершении операции ни одна
+     * задача не остаётся с границами, не равными границам своего корня.
+     *
+     * Постусловия продукта меряют геометрию только у задач, которые сцена НАЗВАЛА своими
+     * (`normalizeSceneToRoots`, `normalizeTaskToRoot`), а словарь отката
+     * (`SplitJournalEntry`/`SplitRollback`) о геометрии не знает вовсе. Всё, что выпало из сцены по
+     * дороге, уносит свои прежние границы с собой - и именно так живое окно шириной 832 px
+     * оказывается в полноэкранном корне поверх всего.
+     *
+     * Хелпер намеренно переиспользуемый: подключение его к остальным сценариям - отдельная работа.
+     * Она упрётся в [SplitPickerShellSessionTest.anEvictedTaskLeavesThePaneAliveAndKeepsWhateverGeometryTheFirmwareGivesIt],
+     * который сегодня утверждает ровно обратное как норму - и утверждает справедливо ровно для
+     * ФОНОВОЙ чужой задачи, но не для ВИДИМОЙ.
+     *
+     * Считаются только три корня, о которых продукт вообще говорит. `DETACHED_ROOT` пропущен по
+     * прямому измерению (ground-v18): отвязанная задача живёт в собственном корне, чьи границы
+     * равны её собственным, и «чужой геометрии» у неё не бывает по построению.
+     */
+    private fun assertNoTaskKeepsBoundsForeignToItsRoot(fake: FakeShell) {
+        val misfits = listOf(FULL_ROOT, PRIMARY_ROOT, SECONDARY_ROOT).flatMap { rootId ->
+            val rootBounds = fake.rootBounds(rootId)
+            fake.taskIds(rootId)
+                .filter { taskId -> fake.taskBounds(taskId) != rootBounds }
+                .map { taskId ->
+                    "t$taskId ${fake.taskPackage(taskId)} ${fake.taskBounds(taskId)} " +
+                        "в root $rootId с границами $rootBounds"
+                }
+        }
+        assertEquals(
+            "задача с границами, не равными границам своего корня",
+            emptyList<String>(),
+            misfits,
+        )
+    }
+
+    /** Каждая живая задача НАШЕГО приложения - пикер-базы продукта в неё не входят (U3). */
+    private fun ourAppTaskIds(fake: FakeShell): List<Int> = fake.allTaskIds().filter { taskId ->
+        fake.taskPackage(taskId) == SPLIT_HOST_PACKAGE &&
+            fake.taskBaseActivity(taskId) == DENZA_APPS_MAIN_ACTIVITY
+    }
+
+    private fun paneRoot(pane: SplitPane): Int =
+        if (pane == SplitPane.PRIMARY) PRIMARY_ROOT else SECONDARY_ROOT
+
+    /** Весь экран одной строкой, чтобы падение читалось без отладчика. */
+    private fun describe(fake: FakeShell): String =
+        listOf(PRIMARY_ROOT, SECONDARY_ROOT, FULL_ROOT).joinToString("; ") { rootId ->
+            "root $rootId ${fake.rootBounds(rootId)} -> " + fake.taskIds(rootId).joinToString(", ") {
+                "t$it ${fake.taskBaseActivity(it)} ${fake.taskBounds(it)}"
+            }
+        }
+
     /** Правка W5: запуск, чья задача так и не появилась, отвечает коротким бюджетом (1.3.2). */
     @Test
     fun aRestoreWhoseTaskNeverAppearsFailsWithinTheShortBudget() {
@@ -4175,6 +4337,9 @@ class SplitScenarioTest {
 
         /** Пре-существующий полноэкранный таск хаба из живого красного v20 P1.2. */
         const val HUB_TASK = 99
+
+        /** `service call activity_task 30` о сбалансированном сплите. */
+        const val BALANCED_SPLIT_AREA = 3
 
         /** Дальше любого бюджета операции, так что таймер актора точно сработал. */
         const val PAST_EVERY_BUDGET_MS = 120_000L

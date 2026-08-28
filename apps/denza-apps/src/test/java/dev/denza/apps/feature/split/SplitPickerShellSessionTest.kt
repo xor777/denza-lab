@@ -343,6 +343,36 @@ class SplitPickerShellSessionTest {
     }
 
     /**
+     * Второй эшелон против дефекта 2026-08-27, и цена одного живого измерения.
+     *
+     * `am stack move-task <id> 4 false` фон НЕ создаёт (живое измерение 2026-08-28): выселенная
+     * задача остаётся в корне 4 со `visible=true`. Ветка прошивки `startIviFullWindow(task,
+     * changeWindowingMode=false)` границы при этом не нормализует - и панельные 832 px владелец
+     * увидел поверх обеих панелей. Ресайз задачи-ЛИСТА внутри `ivi_full` прошивка принимает в обе
+     * стороны (то же измерение, задача 151), значит нормализация здесь - обязанность продукта.
+     *
+     * Соседний [anEvictedTaskLeavesThePaneAliveAndKeepsWhateverGeometryTheFirmwareGivesIt] остаётся
+     * верным для другого мира: там ресайз молча отвергнут самой прошивкой, и это не стоит
+     * пользователю сцены.
+     */
+    @Test
+    fun anEvictedVisibleTaskIsResizedToTheRootItLandsIn() {
+        val fake = FakeShell().apply {
+            area = 3
+            keepBoundsOnEvictionFor += MUSIC
+            addTask(SECONDARY_ROOT, 41, MUSIC, "$MUSIC.MainActivity")
+        }
+
+        val hosts = session(fake).buildPickers()
+
+        assertEquals(2, hosts.size)
+        assertTrue("задача пользователя жива", fake.hasTask(41))
+        assertEquals(FULL_ROOT, fake.taskRoot(41))
+        assertEquals("и не накрывает сцену чужой геометрией", FULL, fake.taskBounds(41))
+        assertTrue(fake.commands.any { it.startsWith("am task resize 41 ") })
+    }
+
+    /**
      * Тот же класс слепоты в pre-clear тапа (правка W3 волны 8): чужой житель корня выселяется
      * живым, а удаляется только собственный артефакт по точному компоненту - transparent host
      * прерванного запуска.
@@ -371,42 +401,6 @@ class SplitPickerShellSessionTest {
     }
 
     @Test
-    fun liveFirmwarePickerPlusBootstrapAppBecomesTwoPickerBases() {
-        val fake = FakeShell(secondaryBootstrapPackage = STOCK_BOOTSTRAP_PACKAGE)
-
-        val hosts = session(fake).buildPickers()
-
-        assertEquals(PRIMARY_PICKER_ACTIVITY, fake.topActivity(PRIMARY_ROOT))
-        assertEquals(SECONDARY_PICKER_ACTIVITY, fake.topActivity(SECONDARY_ROOT))
-        assertFalse(fake.hasPackage(SECONDARY_ROOT, NAVIGATOR))
-        assertEquals(1, fake.taskCount(PRIMARY_ROOT))
-        assertEquals(1, fake.taskCount(SECONDARY_ROOT))
-        assertEquals(2, hosts.values.toSet().size)
-        assertTrue(fake.hasActivity(PRIMARY_ROOT, PRIMARY_PICKER_ACTIVITY))
-        assertTrue(fake.hasActivity(SECONDARY_ROOT, SECONDARY_PICKER_ACTIVITY))
-        assertFalse(fake.commands.any { it.contains("replace-task-base ") })
-        assertTrue(
-            fake.commands.any { command ->
-                command.startsWith("am start ") &&
-                    command.contains("byd.intent.category.START_IVI_PRIMARY") &&
-                    command.contains(PRIMARY_PICKER) &&
-                    command.endsWith("-f 0x18010000")
-            },
-        )
-        assertTrue(
-            fake.commands.any { command ->
-                command.startsWith("am start ") &&
-                    command.contains("byd.intent.category.START_IVI_SECOND") &&
-                    command.contains(SECONDARY_PICKER) &&
-                    command.endsWith("-f 0x18010000")
-            },
-        )
-        assertFalse(fake.commands.any { it.contains("SplitTaskProxyMain start-in-task ") })
-        assertFalse(fake.commands.any { it == "am stack move-task 100 $PRIMARY_ROOT true" })
-        assertFalse(fake.commands.any { it == "am stack move-task 101 $SECONDARY_ROOT true" })
-    }
-
-    @Test
     fun explicitOpenPlacesPickersInNativePaneRootsWithoutSyntheticDividerDrag() {
         val fake = FakeShell().apply {
             addTask(PRIMARY_ROOT, 40, NAVIGATOR, "$NAVIGATOR.MainActivity")
@@ -419,11 +413,20 @@ class SplitPickerShellSessionTest {
         SplitPane.entries.forEach { pane ->
             val root = if (pane == SplitPane.PRIMARY) PRIMARY_ROOT else SECONDARY_ROOT
             val picker = PICKERS.getValue(pane)
+            val category = if (pane == SplitPane.PRIMARY) {
+                "byd.intent.category.START_IVI_PRIMARY"
+            } else {
+                "byd.intent.category.START_IVI_SECOND"
+            }
             assertTrue(
                 fake.commands.any { command ->
                     command.startsWith("am start ") &&
                         command.contains(" '$picker' ") &&
-                        command.contains("byd.intent.category.START_IVI_")
+                        command.contains(category) &&
+                        // Точные флаги запуска базы панели: они переехали сюда из удалённого
+                        // `liveFirmwarePickerPlusBootstrapAppBecomesTwoPickerBases`, чей мир
+                        // держался на мёртвой ветке tx115 фикстуры.
+                        command.endsWith("-f 0x18010000")
                 },
             )
             assertTrue(fake.hasActivity(root, picker.substringAfter('/')))
@@ -435,9 +438,14 @@ class SplitPickerShellSessionTest {
         assertFalse(fake.commands.any { it.contains("replace-task-base ") })
     }
 
+    /**
+     * Имя и мир этого теста были ложью: «полноэкранный нативный host» инсценировала мёртвая ветка
+     * `service call activity_task 115` фикстуры, а продукт tx115 не посылает нигде. Осталось то,
+     * что он на самом деле доказывает - базы панелей встают своего размера сразу.
+     */
     @Test
-    fun fullscreenNativeHostIsReplacedByPickerAlreadyInLiveRootBounds() {
-        val fake = FakeShell(nativeBootstrapStartsFullscreen = true)
+    fun pickerBasesComeUpAtTheirPaneSizeWithoutASingleResize() {
+        val fake = FakeShell()
 
         val hosts = session(fake).buildPickers()
 
@@ -1823,9 +1831,83 @@ class SplitPickerShellSessionTest {
         assertFalse(fake.commands.any { it.contains(" remove-task ") })
     }
 
+    /**
+     * Правка волны 15 (дефект 2026-08-27, контракт 1.5.3 и 1.5.7): сборка записывает ФАКТИЧЕСКУЮ
+     * сторону приземления, а не запрошенную.
+     *
+     * Путь ВЫБОРА умеет это с волны 7 (`settledPane`), путь ВОССТАНОВЛЕНИЯ не умел: он писал
+     * `appTaskIds[запрошенная панель]`, и уборка панелей, ключённая тем же ключом, не находила
+     * задачу в keep-наборе её НАСТОЯЩЕГО корня. Живое видимое окно становилось там лишним и
+     * уезжало выселением в полноэкранный корень - со своими панельными границами поверх всей
+     * сцены. «Приложение, которое прошивка посадила не в ту панель, - не "не открылось": оно
+     * открылось» (1.5.7).
+     */
+    @Test
+    fun aRestoreTheFirmwarePlacesIntoTheOtherPaneKeepsItThereInsteadOfEvictingIt() {
+        val fake = FakeShell().apply { firmwareChoosesRootFor[MUSIC] = PRIMARY_ROOT }
+
+        val built = session(fake).buildScene(
+            PICKERS,
+            mapOf(SplitPane.SECONDARY to launchTargetOf(MUSIC)),
+        )
+
+        val app = built.panes.getValue(SplitPane.PRIMARY).appTaskId
+        assertNotNull("приложение открылось - в панели, которую выбрала прошивка", app)
+        assertEquals(MUSIC, fake.taskPackage(app!!))
+        assertEquals(PRIMARY_ROOT, fake.taskRoot(app))
+        assertEquals(PRIMARY_BOUNDS, fake.taskBounds(app))
+        assertEquals("$MUSIC.MainActivity", fake.topActivity(PRIMARY_ROOT))
+        assertFalse(
+            "и никто не выселял его из панели, куда его посадила прошивка",
+            fake.commands.any { it == "am stack move-task $app $FULL_ROOT false" },
+        )
+        // 1.3.2: панель, которая его просила, честно показывает свой пикер.
+        assertEquals(setOf(SplitPane.SECONDARY), built.failed)
+        assertEquals(SECONDARY_PICKER_ACTIVITY, fake.topActivity(SECONDARY_ROOT))
+        assertEquals(null, built.panes.getValue(SplitPane.SECONDARY).appTaskId)
+    }
+
+    /**
+     * Столкновение двух восстановлений в одной панели, и чем оно решается.
+     *
+     * Ровно мир дефекта 2026-08-27: сохранённая пара называет пакет одной стороной, а прошивка
+     * держит его на другой и `move-task` туда молча отыгрывает назад. Оба приложения приезжают в
+     * один корень; панель - это база и ОДНО приложение, значит один обязан уступить.
+     *
+     * Уступает тот, кого ещё можно двигать. Пиннутой задаче мир только что отказал в `promoteTask`,
+     * и спорить с ним нечем (1.5.3); задача, вставшая туда, куда просили, подвижна, и её панель
+     * честно деградирует в свой пикер (1.3.2). Обратный порядок стоил бы владельцу его живого
+     * видимого окна: именно оно уезжало выселением поверх всей сцены.
+     */
+    @Test
+    fun whenBothRestoresLandInOnePaneItGoesToTheOneTheFirmwarePinned() {
+        val fake = FakeShell().apply { firmwareChoosesRootFor[NAVIGATOR] = PRIMARY_ROOT }
+
+        val built = session(fake).buildScene(
+            PICKERS,
+            mapOf(
+                SplitPane.PRIMARY to launchTargetOf(MUSIC),
+                SplitPane.SECONDARY to launchTargetOf(NAVIGATOR),
+            ),
+        )
+
+        val app = built.panes.getValue(SplitPane.PRIMARY).appTaskId
+        assertNotNull("панель занята - и занята пиннутым приложением", app)
+        assertEquals(NAVIGATOR, fake.taskPackage(app!!))
+        assertEquals("$NAVIGATOR.MainActivity", fake.topActivity(PRIMARY_ROOT))
+        assertEquals(PRIMARY_BOUNDS, fake.taskBounds(app))
+        assertEquals(SECONDARY_PICKER_ACTIVITY, fake.topActivity(SECONDARY_ROOT))
+        assertEquals(null, built.panes.getValue(SplitPane.SECONDARY).appTaskId)
+        assertEquals(
+            "ни одна панель не получила того, что просила",
+            setOf(SplitPane.PRIMARY, SplitPane.SECONDARY),
+            built.failed,
+        )
+    }
+
     @Test
     fun existingPairWithoutPickerBasesGetsThemThroughExactPaneCategories() {
-        val fake = FakeShell(tx115RequiresHome = true).apply {
+        val fake = FakeShell().apply {
             area = 3
             addTask(PRIMARY_ROOT, 40, NAVIGATOR, "$NAVIGATOR.MainActivity")
             addTask(SECONDARY_ROOT, 41, MUSIC, "$MUSIC.MainActivity")
@@ -2448,6 +2530,68 @@ class SplitPickerShellSessionTest {
         assertEquals(SECONDARY_ROOT, fake.taskRoot(placement.appTaskId))
         assertEquals("$MUSIC.MainActivity", fake.topActivity(SECONDARY_ROOT))
         assertFalse(fake.commands.any { it.contains("remove-task ${placement.appTaskId} ") })
+    }
+
+    @Test
+    fun ourOwnPickerBaseInTheOtherPaneIsNotASecondWindowOfOurApp() {
+        val fake = FakeShell()
+        val split = session(fake)
+        val pickers = split.buildPickers()
+
+        val placement = split.selectApp(
+            pickerTaskId = pickers.getValue(SplitPane.SECONDARY),
+            target = SplitLaunchTarget(
+                SPLIT_HOST_PACKAGE,
+                "$SPLIT_HOST_PACKAGE/$DENZA_APPS_MAIN_ACTIVITY",
+                launchMode = LAUNCH_MODE_SINGLE_TASK,
+            ),
+            pickerComponents = PICKER_COMPONENTS,
+        )
+
+        assertEquals(SPLIT_HOST_PACKAGE, placement.packageName)
+        assertEquals(DENZA_APPS_MAIN_ACTIVITY, fake.topActivity(SECONDARY_ROOT))
+        assertEquals(PRIMARY_PICKER_ACTIVITY, fake.topActivity(PRIMARY_ROOT))
+        // Соседняя панель держит только свою базу - значит второго окна не просили.
+        val launch = fake.commands.first { command ->
+            command.startsWith("am start ") &&
+                command.contains("'$SPLIT_HOST_PACKAGE/$DENZA_APPS_MAIN_ACTIVITY'")
+        }
+        assertTrue(
+            "задача пакета переиспользуется, а не дублируется",
+            launch.contains("-f 0x10200000"),
+        )
+    }
+
+    /**
+     * Обратная половина того же гарда: настоящее окно нашего приложения в соседней панели - это
+     * действительно второе окно, и `singleTask` его не умеет (1.5.2). Отказ обязан быть тихим:
+     * ничего не тронуто, пикер этой панели остался рабочим (U5, 1.5.7).
+     */
+    @Test
+    fun ourOwnLiveWindowInTheOtherPaneRefusesASecondOneAndLeavesThePickerWorking() {
+        val fake = FakeShell()
+        val split = session(fake)
+        val pickers = split.buildPickers()
+        fake.addTask(PRIMARY_ROOT, 90, SPLIT_HOST_PACKAGE, DENZA_APPS_MAIN_ACTIVITY)
+        fake.commands.clear()
+
+        val error = runCatching {
+            split.selectApp(
+                pickerTaskId = pickers.getValue(SplitPane.SECONDARY),
+                target = SplitLaunchTarget(
+                    SPLIT_HOST_PACKAGE,
+                    "$SPLIT_HOST_PACKAGE/$DENZA_APPS_MAIN_ACTIVITY",
+                    launchMode = LAUNCH_MODE_SINGLE_TASK,
+                ),
+                pickerComponents = PICKER_COMPONENTS,
+            )
+        }.exceptionOrNull()
+
+        assertEquals("Это приложение не поддерживает два окна", error?.message)
+        assertTrue("уже открытое окно не тронуто", fake.hasTask(90))
+        assertEquals(PRIMARY_ROOT, fake.taskRoot(90))
+        assertEquals(SECONDARY_PICKER_ACTIVITY, fake.topActivity(SECONDARY_ROOT))
+        assertFalse(fake.commands.any { it.startsWith("am start ") })
     }
 
     @Test

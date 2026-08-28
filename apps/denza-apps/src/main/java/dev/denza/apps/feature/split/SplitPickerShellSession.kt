@@ -1124,7 +1124,8 @@ internal class SplitPickerShellSession(
         // членство в панельном корне - не приговор. Удаляется только доказуемо своё - собственные
         // компоненты по exact identity и задачи, СОЗДАННЫЕ этой операцией по её же журнальному
         // чтению (механика W6). Любая другая задача корня - задача пользователя, чем бы она туда
-        // ни попала (нативное втягивание, прежний выбор), и выселяется живой фоном. Непрочитанное
+        // ни попала (нативное втягивание, прежний выбор), и выселяется живой в полноэкранный
+        // корень - с его геометрией, потому что в фон она там не уходит. Непрочитанное
         // прошлое (`preexistingTaskIds == null`) трактуется как «не наше»: не доказано создание -
         // не удаляем.
         val (executable, foreign) = stale.partition { task ->
@@ -1132,7 +1133,7 @@ internal class SplitPickerShellSession(
                 (preexistingTaskIds != null && task.id !in preexistingTaskIds)
         }
         removeTasksSafely((executable + strayHosts).distinctBy(SplitTask::id))
-        evictToFullRootInBackground(foreign)
+        evictToFullRoot(foreign)
         if (launching.isNotEmpty()) {
             launchApps(
                 rootIds = rootIds,
@@ -1171,7 +1172,8 @@ internal class SplitPickerShellSession(
         // Правка W3 волны 10 (владелец, 2026-08-25): панель после запусков обязана остаться «база
         // и приложение», и добивается этого сборка, а не постусловие. Всё, что прошивка успела
         // принести в корень сверх пары, - не повод провалить готовую сцену и оставить экран
-        // пустым: своё убирается, задача пользователя уезжает живой в фон. Предпусковая чистка
+        // пустым: своё убирается, задача пользователя уезжает живой в полноэкранный корень (в фон
+        // она там не уходит, поэтому и получает его геометрию). Предпусковая чистка
         // выше видит мир ДО запусков и до новоприбывших не достаёт.
         sweepPanesToBaseAndApp(rootIds, hostTaskIds, appTaskIds, preexistingTaskIds)
         // Both bases and both apps take the size of their pane from one read, the divergent ones
@@ -1224,6 +1226,8 @@ internal class SplitPickerShellSession(
             launching.entries.map { (pane, target) -> mapOf(pane to target) }
         }
         val taken = mutableSetOf<Int>()
+        // Панель, КОТОРУЮ ПРОСИЛИ, - и только она. Панель, которую назвал мир, читается ниже.
+        val requested = linkedMapOf<SplitPane, Int>()
         groups.forEach { group ->
             val started = group.filter { (pane, target) ->
                 runCatching { startTargetInPane(pane, target, secondInstanceOf(pane, paneApps)) }
@@ -1282,19 +1286,69 @@ internal class SplitPickerShellSession(
                     ),
                 )
                 promoteTask(task, rootIds.getValue(pane))
-                appTaskIds[pane] = task.id
+                requested[pane] = task.id
             }
         }
+        if (requested.isEmpty()) return
         // The promotes are waited out by condition as well: every promoted task listed in its
         // pane root, on a read the following normalize pass then shares (правка A3). The budget
         // is the restore path's short one (правка W5): a reparent lands on the very next read,
         // and a task the firmware keeps out of the pane is answered by the pane's honest
         // degradation, not by twelve reads of hope.
-        if (appTaskIds.isNotEmpty()) {
-            awaitSnapshotMatching(attempts = RESTORE_DISCOVERY_ATTEMPTS) { state ->
-                appTaskIds.all { (pane, taskId) ->
-                    state.root(rootIds.getValue(pane))?.tasks?.any { it.id == taskId } == true
-                }
+        awaitSnapshotMatching(attempts = RESTORE_DISCOVERY_ATTEMPTS) { state ->
+            requested.all { (pane, taskId) ->
+                state.root(rootIds.getValue(pane))?.tasks?.any { it.id == taskId } == true
+            }
+        }
+        recordSettledPanes(rootIds, requested, appTaskIds, failed)
+    }
+
+    /**
+     * Правка волны 15 (дефект 2026-08-27, контракт 1.5.3/1.5.7): сборка записывает ФАКТИЧЕСКУЮ
+     * сторону приземления, а не запрошенную.
+     *
+     * Путь ВЫБОРА умеет это с волны 7 ([selectApp], `settledPane`), путь СБОРКИ не умел: он писал
+     * `appTaskIds[запрошенная панель]`, и всё ниже по течению - уборка [sweepPanesToBaseAndApp],
+     * геометрия [normalizeSceneToRoots], постусловие [scenePlacement] - ключевалось запрошенной
+     * панелью. Задача, которую прошивка посадила в СОСЕДНЮЮ панель, в keep-набор своего корня не
+     * попадала, становилась там лишней и уезжала выселением - живое видимое окно владельца
+     * (2026-08-27: `dev.denza.apps` шириной 832 px поверх всей сцены).
+     *
+     * Приоритет стороны - у того, кому прошивка уже отказала: его [promoteTask] в запрошенный
+     * корень мир только что не отдал, и переспорить это нечем (1.5.3, `mPrimaryActivity`
+     * персистит). Приложение, вставшее туда, куда просили, ещё подвижно, и панель уступает ему
+     * первой - это честный отказ 1.3.2 «панель показывает пикер», а не перетаскивание чужого.
+     */
+    private fun recordSettledPanes(
+        rootIds: Map<SplitPane, Int>,
+        requested: Map<SplitPane, Int>,
+        appTaskIds: MutableMap<SplitPane, Int>,
+        failed: MutableSet<SplitPane>,
+    ) {
+        val state = snapshot()
+        val settledPanes = requested.mapValues { (_, taskId) ->
+            SplitPane.entries.firstOrNull { candidate ->
+                state.root(rootIds.getValue(candidate))?.tasks?.any { it.id == taskId } == true
+            }
+        }
+        val (displaced, compliant) = settledPanes.entries.partition { (pane, settled) ->
+            settled != pane
+        }
+        // Сначала те, чью сторону назвала прошивка вопреки запросу: спорить с ней нечем, и
+        // запрошенная ими панель честно деградирует в свой пикер (1.3.2, 1.5.7).
+        displaced.forEach { (pane, settled) ->
+            failed += pane
+            if (settled != null && appTaskIds[settled] == null) {
+                appTaskIds[settled] = requested.getValue(pane)
+            }
+        }
+        // Затем те, кто встал куда просили. Панель, уже занятая приземлившимся соседом, им не
+        // достаётся: панель - это база и ОДНО приложение (инвариант 3, 1.3.2).
+        compliant.forEach { (pane, _) ->
+            if (appTaskIds[pane] == null) {
+                appTaskIds[pane] = requested.getValue(pane)
+            } else {
+                failed += pane
             }
         }
     }
@@ -1356,8 +1410,18 @@ internal class SplitPickerShellSession(
         // Only the other native pane is a live duplicate. After OEM collapse the old app task
         // can linger briefly in the hidden full-IVI root; a subsequent launch legitimately
         // replaces that stale task and must not be rejected or "preserved" as another window.
+        //
+        // Правка волны 15: ОКНО, а не мебель продукта (U3, инвариант 3). Пикер-база соседней
+        // панели носит наш package, и до сих пор она сюда попадала - но пока каталог отдавал про
+        // нас `launchMode` трамплина (`standard`), гард молчал и цены у этого не было. С честным
+        // `singleTask` самой `MainActivity` тот же набор запретил бы выбор Denza Apps вообще:
+        // соседняя панель всегда держит свою базу (1.5.3, «открылась и работает»). Прозрачный
+        // app-host исключать нельзя - он и есть окно того приложения, чей пакет разворачивает
+        // [effectivePackageName].
         val duplicatePeerTasks = before.root(otherRootId)?.tasks.orEmpty()
-            .filter { task -> task.effectivePackageName() == target.packageName }
+            .filter { task ->
+                !task.isDenzaPickerBase() && task.effectivePackageName() == target.packageName
+            }
         check(duplicatePeerTasks.isEmpty() || target.launchMode < LAUNCH_MODE_SINGLE_TASK) {
             "Это приложение не поддерживает два окна"
         }
@@ -1369,13 +1433,13 @@ internal class SplitPickerShellSession(
         // точному компоненту - в частности transparent SplitAppHostActivity прерванного запуска,
         // чьё input-окно иначе навсегда держит фокус над видимым пикером. Чужая задача в корне -
         // задача пользователя (нативно втянутый хаб - U3: наш package, не наш компонент) и
-        // выселяется живой фоном; эта операция ещё ничего не создавала, так что «созданного ею»
-        // здесь не бывает.
+        // выселяется живой в полноэкранный корень; эта операция ещё ничего не создавала, так что
+        // «созданного ею» здесь не бывает.
         val (ownArtifacts, foreignOccupants) = before.root(targetRootId)?.tasks.orEmpty()
             .filterNot { task -> task.id == pickerHost.id || task.isEmptyRootMarker() }
             .partition { task -> task.isOwnSplitComponent() }
         removeTasksSafely(ownArtifacts)
-        evictToFullRootInBackground(foreignOccupants)
+        evictToFullRoot(foreignOccupants)
 
         val clearedState = snapshot()
         val clearedPicker = clearedState.root(targetRootId)?.tasks?.firstOrNull { task ->
@@ -2135,7 +2199,7 @@ internal class SplitPickerShellSession(
      *
      * Правка W6 (v20 P1.2): удалить можно только задачу, СОЗДАННУЮ этой операцией. Живой
      * пре-существовавший таск кандидата - чужое имущество (инвариант 3, U2): деградация паны
-     * его не воскрешает, но и не казнит - он возвращается фоном в полноэкранный root тем же
+     * его не воскрешает, но и не казнит - он возвращается живым в полноэкранный root тем же
      * live-proven reparent'ом, которым его втянули (1.3.4 запрещает воскрешение, а не казнь
      * фоновых задач). Прошлое, которого операция не читала (`preexistingTaskIds == null`),
      * трактуется как «не наше»: не доказано создание - не удаляем.
@@ -2158,30 +2222,60 @@ internal class SplitPickerShellSession(
             preexistingTaskIds != null && task.id !in preexistingTaskIds
         }
         val removed = removeTasksSafely(created)
-        return evictToFullRootInBackground(borrowed) || removed
+        return evictToFullRoot(borrowed) || removed
     }
 
     /**
-     * Правка W3 волны 8: выселение чужого из панельного корня - живьём, фоном, в полноэкранный
-     * IVI root (примечание контракта под 1.5, инвариант 3). Команда - то же live-proven семейство
+     * Правка W3 волны 8: выселение чужого из панельного корня - живьём, в полноэкранный IVI root
+     * (примечание контракта под 1.5, инвариант 3). Команда - то же live-proven семейство
      * `am stack move-task ... false`, которым borrowed-ветка [discardFailedRestoration] возвращала
      * пре-существовавший таск; новых команд у выселения нет.
      *
-     * Геометрия выселенной задачи принадлежит прошивке, и спорить с ней нечем (машинная правда
-     * 2026-08-25, чтение этой машины). Полноэкранный IVI-корень фоновых задач не держит вовсе -
-     * в нём один пустой маркер, - а всякая фоновая задача живёт в СОБСТВЕННОМ корне
-     * (`RootTask id=<taskId>`), чьи границы равны её собственным: и та, что побывала в панели
-     * (`[880,112][2536,1472]`), и та, что не бывала. Правка W2 волны 9 искала выселенную задачу
-     * среди детей полноэкранного корня и потому не находила никогда - удалена как не работавшая.
+     * Имя «in background» было ЛОЖЬЮ и удалено (живое измерение 2026-08-28): `am stack move-task
+     * <id> 4 false` не убирает задачу в фон - она остаётся в корне 4 со `visible=true`. Это та же
+     * машинная правда волны 10 «корень 4 фоновых задач не держит», прочитанная с другой стороны:
+     * выселенное окно не уезжает, оно ОСТАЁТСЯ ВИДИМЫМ. Значит его границы обязаны быть границами
+     * его корня - иначе оно накрывает всю сцену чужой геометрией (дефект 2026-08-27:
+     * `dev.denza.apps` шириной панели 832 px в полноэкранном корне 4 поверх обеих панелей).
+     *
+     * Прежний вывод «геометрия выселенной задачи принадлежит прошивке, спорить нечем» верен только
+     * для задачи, уехавшей в СОБСТВЕННЫЙ корень (`RootTask id=<taskId>`): там границы корня и есть
+     * границы задачи, приводить нечего. Для задачи-ЛИСТА внутри `ivi_full` ресайз принимается в обе
+     * стороны (живое измерение 2026-08-28, задача 151: `am task resize` в панельные 832 px и
+     * обратно в полноэкранные - оба раза принят). Поэтому нормализация здесь - тот же
+     * [normalizeTaskToRoot], а не новый механизм, и она молчалива: пакет, чью геометрию прошивка
+     * не отдаёт (live v20 P1.2, `resizeableActivity="false"`), не должен стоить пользователю всей
+     * сцены. Первый эшелон против этого дефекта - не выселение, а [recordSettledPanes].
      *
      * @return whether anything actually had to leave.
      */
-    private fun evictToFullRootInBackground(tasks: List<SplitTask>): Boolean {
+    private fun evictToFullRoot(tasks: List<SplitTask>): Boolean {
         if (tasks.isEmpty()) return false
         val fullRootId = fullIviRootTaskId()
         tasks.forEach { task -> moveTask(task.id, fullRootId, toTop = false) }
         pause(ROOT_SETTLE_MS)
+        normalizeEvictedTasksToTheirRoots(tasks.mapTo(mutableSetOf(), SplitTask::id))
         return true
+    }
+
+    /**
+     * Инвариант геометрии для того, что сцена больше не держит: ни одна выселенная задача не
+     * остаётся с границами, не равными границам корня, в котором она оказалась.
+     *
+     * Одно чтение на всё выселение называет, кто где приземлился; задача в собственном корне уже
+     * равна ему и не стоит ни одной команды.
+     */
+    private fun normalizeEvictedTasksToTheirRoots(taskIds: Set<Int>) {
+        val landed = snapshot()
+        landed.roots.asSequence()
+            .filter { root -> root.displayId == MAIN_DISPLAY_ID && root.bounds.hasArea() }
+            .flatMap { root ->
+                root.tasks.asSequence()
+                    .filter { task -> task.id in taskIds && task.bounds != root.bounds }
+                    .map { task -> task.id to root.id }
+            }
+            .toList()
+            .forEach { (taskId, rootId) -> runCatching { normalizeTaskToRoot(taskId, rootId) } }
     }
 
     fun returnRecordedTaskFullscreen(
@@ -2736,7 +2830,7 @@ internal class SplitPickerShellSession(
                 (preexistingTaskIds != null && task.id !in preexistingTaskIds)
         }
         removeTasksSafely(own.distinctBy(SplitTask::id))
-        evictToFullRootInBackground(foreign)
+        evictToFullRoot(foreign)
     }
 
     /**

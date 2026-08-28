@@ -44,6 +44,17 @@ internal const val STOCK_PICKER_ACTIVITY = "com.android.launcher3.SplitScreenLis
 internal const val LAUNCHER_PACKAGE = "com.android.launcher3"
 internal const val LAUNCHER_ACTIVITY = "com.android.launcher3.Launcher"
 internal const val STOCK_BOOTSTRAP_PACKAGE = "com.byd.sr"
+
+/**
+ * Единственная LAUNCHER-активити нашего пакета - и потому единственное, во что каталог умеет
+ * резольвить `dev.denza.apps` (`SplitPickerCatalog.scan` берёт `queryIntentActivities` по
+ * ACTION_MAIN + CATEGORY_LAUNCHER). У `MainActivity` LAUNCHER-фильтра нет вовсе.
+ *
+ * Манифест: `taskAffinity=""`, `noHistory`, `Theme.NoDisplay` - собственная одноразовая задача,
+ * которой задача `MainActivity` (affinity `dev.denza.apps.control`) не отдаётся.
+ */
+internal const val DENZA_LAUNCHER_ACTIVITY = "$SPLIT_HOST_PACKAGE.DenzaLauncherActivity"
+internal const val DENZA_APPS_MAIN_ACTIVITY = "$SPLIT_HOST_PACKAGE.MainActivity"
 internal const val PRIMARY_PICKER_ACTIVITY = SPLIT_PICKER_ACTIVITY
 internal const val SECONDARY_PICKER_ACTIVITY = PRIMARY_PICKER_ACTIVITY
 internal const val PRIMARY_PICKER = "$SPLIT_HOST_PACKAGE/$PRIMARY_PICKER_ACTIVITY"
@@ -88,9 +99,43 @@ internal class FakeShell(
     private val hostingSucceeds: Boolean = true,
     private val directTargetLaunchSucceeds: Boolean = true,
     private val redirectOnStartPackage: String? = null,
-    private val secondaryBootstrapPackage: String? = null,
-    private val tx115RequiresHome: Boolean = false,
-    private val nativeBootstrapStartsFullscreen: Boolean = false,
+    /**
+     * Активити, которая и перенаправляет. `null` - редирект любого старта пакета, как было.
+     *
+     * У нашего пакета перенаправляет ровно одна активити ([DENZA_LAUNCHER_ACTIVITY]), а пикер-база
+     * того же пакета запускается штатно и никуда не редиректит.
+     */
+    private val redirectOnStartActivity: String? = null,
+    /**
+     * Правда границы лаунчер-активити: редирект не создаёт задачу, а получает УЖЕ СУЩЕСТВУЮЩУЮ.
+     *
+     * `DenzaLauncherActivity` - обычное окно-пустышка: она делает свой `startActivity(MainActivity,
+     * FLAG_ACTIVITY_NEW_TASK)` без BYD-категории и без `ActivityOptions` и тут же `finish()`. Цель
+     * этого второго старта - `singleTask` с `taskAffinity="dev.denza.apps.control"`, так что
+     * прошивка отдаёт ему единственную живую задачу приложения, а не заводит новую. Сторону такому
+     * старту никто не назвал - её решает [rememberedPrimaryActivityPackage].
+     */
+    private val redirectResolvesToExistingTask: Boolean = false,
+    /**
+     * Пакет, который прошивка помнит как жителя УЗКОЙ панели, - и это она помнит НАВСЕГДА.
+     *
+     * `BydSmartMultiIviController.startSplitWindow(Task, int type)` решает сторону так:
+     * `type != 32 && (type == 16 || mPrimaryActivity.equals(pkgName))` - узкая (`mPrimaryContainer`),
+     * иначе широкая (`mSecondContainer`). У старта БЕЗ категории `type == 0`, и всё сводится к
+     * одному сравнению: совпал пакет с `mPrimaryActivity` - узкая, не совпал - широкая. То есть
+     * по умолчанию старт без стороны идёт в ШИРОКУЮ панель; слепого fallback'а здесь нет.
+     *
+     * Значение прошивке записывает сам запуск с категорией START_IVI_PRIMARY (`type == 16`): ветка
+     * зовёт `changePrimaryActivityForPkg(pkgName)` и кладёт пакет в
+     * `Settings.System["byd_smart_multi_primary_activity"]` - через перезагрузку и до следующего
+     * такого запуска. Продукт запускает свой ПЕРВЫЙ пикер (пакет `dev.denza.apps`) именно с этой
+     * категорией, так что после первого же открытия сплита прошивка помнит нас.
+     *
+     * Следствий у этого два, и оба живые: старт этого пакета без категории уходит в узкую панель, и
+     * `am stack move-task` в ДРУГУЮ панель прошивка тихо отыгрывает назад по тому же правилу
+     * стороны - так же, как это уже описано у [firmwareChoosesRootFor].
+     */
+    private val rememberedPrimaryActivityPackage: String? = null,
     private val renderEmptyNativeRootMarker: Boolean = false,
     private val transientAreaReadsAfterDirectLaunch: Int = 0,
     private val replaceStaleFullscreenTargetOnLaunch: Boolean = false,
@@ -126,6 +171,18 @@ internal class FakeShell(
      * границы, а `am task resize` молча отвергается.
      */
     val refusePaneBoundsFor = mutableSetOf<String>()
+
+    /**
+     * Пакеты, чьи задачи прошивка НЕ приводит к границам корня, унося их в полноэкранный корень.
+     *
+     * Пер-пакетный аналог глобального [preserveBoundsOnShellMove], и причина у него названа по
+     * корпусу: одну и ту же строку лога печатают ДВА метода прошивки, и нормализует границы только
+     * один. `startFullWindow(Task)` зовёт `setTaskBounds` и приводит задачу к границам корня;
+     * `startIviFullWindow(Task, changeWindowingMode=false)` - тот, что и вызывается с пути
+     * `ActivityStarter.handleFreeformForStartWindow`, - не делает ни того, ни другого. «Задача с
+     * панельными 832 px в полноэкранном корне 4» - это его ветка, а не каприз.
+     */
+    val keepBoundsOnEvictionFor = mutableSetOf<String>()
 
     /**
      * Пакеты, чей `am start` отвечает успехом, но задача так и не появляется - прошивка
@@ -182,7 +239,6 @@ internal class FakeShell(
      */
     private var stretchedRoot: Int? = null
     private var gate = initialGate
-    private var homeVisible = false
     private var nextTaskId = firstTaskId
     private var fullForegroundReplaced = false
     private var disappearOnNextRemove = false
@@ -230,6 +286,14 @@ internal class FakeShell(
     fun taskBounds(taskId: Int): SplitBounds = tasks.first { it.id == taskId }.bounds
 
     fun taskRoot(taskId: Int): Int = tasks.first { it.id == taskId }.rootId
+
+    /** Границы корня как их отдаёт `am stack list` - то, чему обязана равняться задача корня. */
+    fun rootBounds(rootId: Int): SplitBounds = bounds(rootId)
+
+    /** Каждая живая задача этого мира, старейшая первой. */
+    fun allTaskIds(): List<Int> = tasks.map(Task::id)
+
+    fun taskPackage(taskId: Int): String = tasks.first { it.id == taskId }.packageName
 
     fun moveTask(taskId: Int, rootId: Int) {
         val task = tasks.first { it.id == taskId }
@@ -381,33 +445,6 @@ internal class FakeShell(
                 area = if (command.endsWith("101")) 1 else 2
                 voidParcel()
             }
-            command == "service call activity_task 115" -> {
-                if (tx115RequiresHome && !homeVisible) {
-                    return voidParcel()
-                }
-                homeVisible = false
-                area = 3
-                tasks.removeAll {
-                    it.packageName == STOCK_PICKER_PACKAGE &&
-                        it.activityName == STOCK_PICKER_ACTIVITY
-                }
-                tasks += Task(
-                    id = nextTaskId++,
-                    packageName = STOCK_PICKER_PACKAGE,
-                    activityName = STOCK_PICKER_ACTIVITY,
-                    rootId = PRIMARY_ROOT,
-                    bounds = if (nativeBootstrapStartsFullscreen) FULL else bounds(PRIMARY_ROOT),
-                )
-                tasks += Task(
-                    id = nextTaskId++,
-                    packageName = secondaryBootstrapPackage ?: STOCK_PICKER_PACKAGE,
-                    activityName = secondaryBootstrapPackage?.let { "$it.MainActivity" }
-                        ?: STOCK_PICKER_ACTIVITY,
-                    rootId = SECONDARY_ROOT,
-                    bounds = if (nativeBootstrapStartsFullscreen) FULL else bounds(SECONDARY_ROOT),
-                )
-                voidParcel()
-            }
             // Машинная правда волны 7 (живое чтение 2026-08-25): панельные контейнеры прошивки -
             // вечные объекты, tx118 НИКОГДА не отвечает ≤0 для панельных областей. «Пустота
             // панельных корней» недостижима по построению; обрыв линка инсценирует
@@ -499,7 +536,12 @@ internal class FakeShell(
                             // никогда не отдаётся запуску MainActivity (affinity ...control) -
                             // и наоборот (инвариант 3, живая мина v20 P1.2).
                             (task.activityName == SPLIT_PICKER_ACTIVITY) ==
-                            (activityName == SPLIT_PICKER_ACTIVITY)
+                            (activityName == SPLIT_PICKER_ACTIVITY) &&
+                            // По той же причине задача MainActivity не отдаётся запуску
+                            // DenzaLauncherActivity: у лаунчер-активити `taskAffinity=""`, это
+                            // собственная одноразовая задача (манифест, `noHistory`).
+                            (task.activityName == DENZA_LAUNCHER_ACTIVITY) ==
+                            (activityName == DENZA_LAUNCHER_ACTIVITY)
                     }
                 }
                 val launchedTask = if (reused != null) {
@@ -521,15 +563,39 @@ internal class FakeShell(
                 if (component !in PICKERS.values) {
                     transientAreaReadsRemaining = transientAreaReadsAfterDirectLaunch
                 }
-                if (packageName == redirectOnStartPackage) {
+                if (
+                    packageName == redirectOnStartPackage &&
+                    (redirectOnStartActivity == null || activityName == redirectOnStartActivity)
+                ) {
+                    // Стартовавшая активити тут же `finish()`-ится и запускает свою цель сама -
+                    // вторым, ОТДЕЛЬНЫМ стартом, у которого ни BYD-категории, ни ActivityOptions
+                    // нет. Сторона на этой границе теряется.
                     tasks.remove(launchedTask)
-                    tasks += Task(
-                        id = nextTaskId++,
-                        packageName = packageName,
-                        activityName = "$packageName.MainActivity",
-                        rootId = launchedTask.rootId,
-                        bounds = launchedTask.bounds,
-                    )
+                    val redirectedActivity = "$packageName.MainActivity"
+                    val existing = if (redirectResolvesToExistingTask) {
+                        tasks.lastOrNull { task ->
+                            task.packageName == packageName &&
+                                task.activityName == redirectedActivity &&
+                                task.rootId != EXTERNAL_ROOT
+                        }
+                    } else {
+                        null
+                    }
+                    if (existing != null) {
+                        val redirectRoot = sideLessStartRoot(packageName)
+                        tasks.remove(existing)
+                        existing.rootId = redirectRoot
+                        existing.bounds = bounds(redirectRoot)
+                        tasks += existing
+                    } else {
+                        tasks += Task(
+                            id = nextTaskId++,
+                            packageName = packageName,
+                            activityName = redirectedActivity,
+                            rootId = launchedTask.rootId,
+                            bounds = launchedTask.bounds,
+                        )
+                    }
                 }
                 "Starting: Intent"
             }
@@ -539,8 +605,14 @@ internal class FakeShell(
                 val rootId = parts[4].toInt()
                 val toTop = parts[5].toBoolean()
                 val task = tasks.first { it.id == taskId }
-                val pinnedRoot = firmwareChoosesRootFor[task.packageName]
-                    .takeIf { task.activityName != SPLIT_PICKER_ACTIVITY }
+                val pinnedRoot = (
+                    firmwareChoosesRootFor[task.packageName]
+                        // То же правило стороны, названное по его настоящей причине: пакет, который
+                        // прошивка помнит как `mPrimaryActivity`, она возвращает в узкую панель.
+                        ?: PRIMARY_ROOT.takeIf {
+                            task.packageName == rememberedPrimaryActivityPackage
+                        }
+                    ).takeIf { task.activityName != SPLIT_PICKER_ACTIVITY }
                 if (
                     pinnedRoot != null &&
                     rootId in setOf(PRIMARY_ROOT, SECONDARY_ROOT) &&
@@ -552,10 +624,17 @@ internal class FakeShell(
                 val changedRoot = task.rootId != rootId
                 val paneRefusesBounds = task.packageName in refusePaneBoundsFor &&
                     (rootId == PRIMARY_ROOT || rootId == SECONDARY_ROOT)
+                // Ненормализующая ветка `startIviFullWindow`: корень полноэкранный, границы прежние.
+                val keepsBoundsLeavingPane = task.packageName in keepBoundsOnEvictionFor &&
+                    rootId == FULL_ROOT
                 if (changedRoot) {
                     tasks.remove(task)
                     task.rootId = rootId
-                    if (!preserveBoundsOnShellMove && !paneRefusesBounds) {
+                    if (
+                        !preserveBoundsOnShellMove &&
+                        !paneRefusesBounds &&
+                        !keepsBoundsLeavingPane
+                    ) {
                         task.bounds = bounds(rootId)
                     }
                     if (toTop) {
@@ -664,7 +743,6 @@ internal class FakeShell(
             }
             command == "input keyevent KEYCODE_HOME" -> {
                 area = 0
-                homeVisible = true
                 ""
             }
             // The firmware-global settings a lease borrows and gives back (contract, to 1.12).
@@ -774,6 +852,13 @@ internal class FakeShell(
         rootId == SECONDARY_ROOT -> if (area == 2) FULL else secondaryPaneBounds
         else -> FULL
     }
+
+    /**
+     * Куда прошивка сажает старт БЕЗ BYD-категории (`startSplitWindow`, `type == 0`): узкая панель
+     * ровно тогда, когда пакет совпал с запомненным `mPrimaryActivity`, иначе широкая.
+     */
+    private fun sideLessStartRoot(packageName: String): Int =
+        if (packageName == rememberedPrimaryActivityPackage) PRIMARY_ROOT else SECONDARY_ROOT
 
     private fun fullArea(rootId: Int): Int = when (rootId) {
         PRIMARY_ROOT -> 1
@@ -889,6 +974,8 @@ internal class SplitCarFixture(
         leases: List<SplitLeaseController> = emptyList(),
         /** The process-wide shell-UID helper, where a scenario cares what becomes of it (Ф4). */
         resident: SplitResidentProxy? = null,
+        /** Каталог запусков этого мира; по умолчанию - общий [FakeCatalog] всех сценариев. */
+        catalog: SplitLaunchCatalog = FakeCatalog,
         /**
          * Runs on the worker as each diagnostic line is recorded.
          *
@@ -904,7 +991,7 @@ internal class SplitCarFixture(
             store = store,
             actor = actor,
             overlayOwner = overlay,
-            catalog = FakeCatalog,
+            catalog = catalog,
             gateLeaseStore = gateLease,
             leases = leases,
             apkPath = SPLIT_APK_PATH,
@@ -1288,6 +1375,44 @@ internal object FakeCatalog : SplitLaunchCatalog {
             null
         }
 }
+
+/**
+ * Каталог, который для названных пакетов отвечает не общим `"$pkg/$pkg.MainActivity"`, а ровно тем,
+ * что отдал бы `PackageManager` этой машины. Всё остальное - обычный [FakeCatalog].
+ *
+ * Отдельным типом, а не правкой [FakeCatalog], сознательно: общее правило «любой пакет резольвится
+ * в свою MainActivity» читают около десятка сценариев, и менять его под один мир нельзя.
+ */
+internal class OverridingCatalog(
+    private val overrides: Map<String, SplitLaunchTarget>,
+) : SplitLaunchCatalog {
+    override fun resolve(packageName: String): SplitLaunchTarget? =
+        overrides[packageName] ?: FakeCatalog.resolve(packageName)
+}
+
+/**
+ * `dev.denza.apps` таким, каким его видит живой `SplitPickerCatalog`.
+ *
+ * Каталог строится из `queryIntentActivities(ACTION_MAIN + CATEGORY_LAUNCHER)`, а LAUNCHER-фильтр в
+ * манифесте есть только у [DENZA_LAUNCHER_ACTIVITY] - у `MainActivity` его нет вовсе. Компонент
+ * записывается через `ComponentName.flattenToShortString()`, отсюда короткая форма `pkg/.Activity`.
+ *
+ * `launchMode` каталог тоже берёт у ЛАУНЧЕР-активити (`activityInfo.launchMode`), а она объявлена
+ * `standard`. Настоящий `singleTask` живёт на `MainActivity`, куда лаунчер только перенаправляет, и
+ * до `SplitLaunchTarget` не доходит никогда: гард `target.launchMode < LAUNCH_MODE_SINGLE_TASK` в
+ * `selectApp` про этот пакет не узнаёт ничего.
+ */
+internal val DENZA_APPS_THROUGH_ITS_LAUNCHER = SplitLaunchTarget(
+    packageName = SPLIT_HOST_PACKAGE,
+    componentName = "$SPLIT_HOST_PACKAGE/.DenzaLauncherActivity",
+    launchMode = LAUNCH_MODE_STANDARD,
+)
+
+/** `ActivityInfo.LAUNCH_MULTIPLE`: то, что объявлено у лаунчер-активити (её `launchMode` не задан). */
+internal const val LAUNCH_MODE_STANDARD = 0
+
+/** `ActivityInfo.LAUNCH_SINGLE_TASK`: объявлено у `MainActivity` - и это теперь видит гард. */
+internal const val LAUNCH_MODE_SINGLE_TASK = 2
 
 internal object BarrierSpec : SplitOperationSpec {
     override val label = "barrier"

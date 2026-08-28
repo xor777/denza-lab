@@ -154,6 +154,42 @@ internal object SplitPickerCatalog {
                     launchMode = activityInfo.launchMode,
                 )
             }
+            .map { target -> ownPaneEntry(context, target) ?: target }
+    }
+
+    /**
+     * Наша собственная запись каталога, названная по тому, что реально занимает панель.
+     *
+     * Это честная спецификация о самих себе, а не спецлогика «продукт особенный»: наша
+     * LAUNCHER-запись - оконный трамплин `DenzaLauncherActivity` (`taskAffinity=""`, `noHistory`,
+     * `Theme.NoDisplay`), чьё тело целиком - `startActivity(MainActivity, NEW_TASK); finish()`, а в
+     * панели живёт `MainActivity`. Для любого другого пакета не меняется ничего.
+     *
+     * Цена трамплина на пути запуска - потерянная сторона панели: прошивка выводит `type` из
+     * BYD-категории на КАЖДОМ `startActivity`, а второй старт трамплина категории не несёт (её
+     * `removeCategory` съел первый же запрос), так что `type == 0` и сторону решает одно сравнение
+     * с запомненным `mPrimaryActivity`. Продукт сажает свой PRIMARY-пикер в узкую панель, поэтому
+     * маркером становится наш пакет, и любой безкатегорийный старт нашего компонента идёт в узкую
+     * панель мимо того, что просили (живьём 2026-08-27, дважды). Старт `MainActivity` напрямую
+     * категорию несёт и сторону сохраняет - живьём 2026-08-28: `-c START_IVI_SECOND -n
+     * dev.denza.apps/.MainActivity` при живой полноэкранной задаче хаба переиспользовал задачу и
+     * поставил её в широкую панель `[880,112][2536,1472]`, area 3.
+     *
+     * `launchMode` берётся у того же компонента, что и запуск: у `MainActivity` он `singleTask`, а
+     * не `standard` трамплина. Гард «два окна одного пакета» в `selectApp` до сих пор узнавал о нас
+     * ложь и потому молчал.
+     */
+    private fun ownPaneEntry(context: Context, target: SplitLaunchTarget): SplitLaunchTarget? {
+        if (target.packageName != context.packageName) return null
+        val component = ComponentName(context, PANE_ACTIVITY)
+        val info = runCatching {
+            context.packageManager.getActivityInfo(component, 0)
+        }.getOrNull() ?: return null
+        return SplitLaunchTarget(
+            packageName = target.packageName,
+            componentName = component.flattenToShortString(),
+            launchMode = info.launchMode,
+        )
     }
 
     /** A hot-path lookup: it reads the cached catalog and never scans on its own account. */
@@ -227,6 +263,9 @@ internal object SplitPickerCatalog {
 
     private const val SHOW_IN_APP_LIST = "ShowInAppList"
     private const val DYNA_CONFIG_PROVIDER_SUFFIX = "DynaConfigContentProvider"
+
+    /** Компонент, который занимает панель, когда панель показывает нас. */
+    private const val PANE_ACTIVITY = "dev.denza.apps.MainActivity"
 }
 
 internal object SplitPickerVisibilityPolicy {
