@@ -103,7 +103,7 @@ object DashboardTiles {
     /**
      * Every tile on the main screen, in the order `Config.dc.html` places them.
      *
-     * Eleven, with default applications immediately before the service door. The application tile
+     * Eleven, with Shortcuts immediately before the service door. The Shortcuts tile
      * is not a runtime feature: it is the settings entry for the three stock Shortcuts roles.
      */
     fun of(state: DenzaUiState): List<DashboardTile> {
@@ -218,7 +218,8 @@ object DashboardTiles {
             state = when {
                 snapshot.status == FeatureStatus.NEEDS_ACTION && snapshot.message.isNotBlank() ->
                     snapshot.message
-                // "6 приложений" made this tile a twin of the tile actually named "Приложения"
+                // "6 приложений" made this tile read like a second application selector beside
+                // Shortcuts.
                 // one row along; "выбрано" names the projection's own fact.
                 state.selectedAppCount == 0 -> "Не выбрано"
                 else -> "Выбрано ${state.selectedAppCount}"
@@ -295,7 +296,7 @@ object DashboardTiles {
         return DashboardTile(
             id = TileId.HUD,
             icon = TileIcon.HUD,
-            name = "Подсказки",
+            name = "HUD Подсказки",
             state = when {
                 waiting -> snapshot.message
                 showing -> "Включены"
@@ -475,7 +476,7 @@ object DashboardTiles {
         return DashboardTile(
             id = TileId.DEFAULT_APPS,
             icon = TileIcon.DEFAULT_APPS,
-            name = "Приложения",
+            name = "Shortcuts",
             state = when {
                 defaults.hasError -> "Не проверено"
                 defaults.reading -> "Проверяем…"

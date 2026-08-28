@@ -28,7 +28,7 @@ class DashboardTilesTest {
 
     @Test
     fun theMainScreenCarriesTheElevenReachableTilesAndNothingElse() {
-        // Default applications is a settings door rather than a runtime feature, immediately before
+        // Shortcuts is a settings door rather than a runtime feature, immediately before
         // the service door so it remains reachable without inventing a fake FeatureId.
         assertEquals(
             listOf(
@@ -46,6 +46,13 @@ class DashboardTilesTest {
             ),
             DashboardTiles.of(DenzaUiState()).map { it.id },
         )
+    }
+
+    @Test
+    fun hudAndShortcutsUseTheirDashboardNames() {
+        val state = DenzaUiState()
+        assertEquals("HUD Подсказки", state.tile(TileId.HUD).name)
+        assertEquals("Shortcuts", state.tile(TileId.DEFAULT_APPS).name)
     }
 
     @Test
@@ -274,7 +281,7 @@ class DashboardTilesTest {
             simulcast = snapshot(FeatureStatus.READY, enabled = true),
             selectedAppCount = 6,
         )
-        // "6 приложений" would twin this tile with the one actually named "Приложения".
+        // "6 приложений" would make this read like a second application selector beside Shortcuts.
         assertEquals("Выбрано 6", chosen.tile(TileId.SIMULCAST).state)
 
         val none = DenzaUiState(simulcast = snapshot(FeatureStatus.READY, enabled = true))
@@ -295,7 +302,7 @@ class DashboardTilesTest {
         assertEquals("3 настроены", DashboardTiles.configuredApps(3))
 
         val tile = DenzaUiState(defaultApps = configuredDefaults(2)).tile(TileId.DEFAULT_APPS)
-        assertEquals("Приложения", tile.name)
+        assertEquals("Shortcuts", tile.name)
         assertEquals("2 настроены", tile.state)
         assertEquals(TileAction.TOGGLE, tile.action)
         assertEquals(DenzaTileTone.LIVE, tile.tone)
