@@ -35,13 +35,33 @@ data class DefaultAppRoleUiState(
      */
     val pendingPackageName: String? = null,
 ) {
+    /** What the car will be using for this role once the write in flight has landed. */
+    val effectivePackageName: String?
+        get() = pendingPackageName ?: selectedPackageName
+
+    /**
+     * Whether this role currently points somewhere other than the car's own application.
+     *
+     * A write in flight counts as its target. The grid and the tile already show it that way -
+     * the mark moved when the finger did - and the provider puts both back if it refuses.
+     */
     val configured: Boolean
         get() = providerConfirmed &&
-            selectedPackageName != null &&
-            selectedPackageName != role.stockPackageName
+            effectivePackageName != null &&
+            effectivePackageName != role.stockPackageName
 
     val busy: Boolean
         get() = status == DefaultAppRoleStatus.LOADING || status == DefaultAppRoleStatus.APPLYING
+
+    /**
+     * Whether the switch has something to put in this role by itself.
+     *
+     * A remembered pick would also serve, but it lives in settings rather than in this state, and
+     * it can only differ from this on a car where the driver chose an application outside the
+     * catalog *and* none of the catalog's own is installed.
+     */
+    val switchable: Boolean
+        get() = choices.any { it.known && !it.stock }
 }
 
 data class DefaultAppsUiState(
@@ -59,6 +79,20 @@ data class DefaultAppsUiState(
      */
     val reading: Boolean
         get() = refreshing || roles.any { it.status == DefaultAppRoleStatus.LOADING }
+
+    /**
+     * Whether the car is running any application of the driver's rather than its own.
+     *
+     * This is the tile's switch, and it is read off the car rather than off a flag of our own: the
+     * roles either point at the stock applications or they do not, and a stored "enabled" beside
+     * that could only ever disagree with it.
+     */
+    val substituting: Boolean
+        get() = configuredCount > 0
+
+    /** Whether the switch could be turned on at all: something has to be there to switch to. */
+    val canSubstitute: Boolean
+        get() = roles.any(DefaultAppRoleUiState::switchable)
 
     val hasError: Boolean
         get() = roles.any { it.status == DefaultAppRoleStatus.ERROR }

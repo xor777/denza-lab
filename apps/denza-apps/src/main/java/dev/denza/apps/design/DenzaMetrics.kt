@@ -142,8 +142,12 @@ object DenzaMetrics {
          * the tile's own 22 dp arc cuts its tip away, so the first 22 of these buy nothing and
          * what survives past the arc is the visible sign. A fold smaller than the radius
          * disappears entirely - which is one of the two ways the first cut failed.
+         *
+         * 32, not 40: at 40 the surviving band is 18 dp deep, and from the driver's seat eleven
+         * of those read as a pattern rather than a sign - the owner's word was "отвлекают". The
+         * 10 dp that survive 32 are the sign at conversation volume.
          */
-        val TILE_HOLD_CORNER: Dp = 40.dp
+        val TILE_HOLD_CORNER: Dp = 32.dp
 
         /**
          * The chip's insides, as fractions of the chip.
@@ -162,11 +166,12 @@ object DenzaMetrics {
         const val CHIP_DOT_INSET_RATIO: Float = 9f / 68f
 
         /**
-         * The chip's hold-corner fold, deeper than the tile's 40/164 because the chip is
+         * The chip's hold-corner fold, deeper than the tile's 32/164 because the chip is
          * rounder: 12 dp of radius on a ~60 dp side eats proportionally more of a flush fold
-         * than 22 does on 164, and a fold that does not outlive the arc is not drawn.
+         * than 22 does on 164, and a fold that does not outlive the arc is not drawn. Trimmed
+         * with the tile's when the car showed both at their first size and they distracted.
          */
-        const val CHIP_HOLD_RATIO: Float = 24f / 68f
+        const val CHIP_HOLD_RATIO: Float = 20f / 68f
 
         /**
          * The smallest chip this design has.

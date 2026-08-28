@@ -49,6 +49,8 @@ class MainActivity : ComponentActivity() {
                     onSetStockRussianLocaleEnabled =
                         DenzaAppRepository::setStockRussianLocaleEnabled,
                     onRefreshDefaultApps = DenzaAppRepository::refreshDefaultApps,
+                    onSetDefaultAppsEnabled =
+                        DenzaAppRepository::setDefaultAppsEnabled,
                     onSelectDefaultApp = DenzaAppRepository::selectDefaultApp,
                     onChooseApps = DenzaAppRepository::showAppPicker,
                     onCloseAppPicker = DenzaAppRepository::hideAppPicker,

@@ -21,6 +21,7 @@ import dev.denza.apps.feature.adb.AdbRescuePhase
 import dev.denza.apps.feature.adb.AdbRescueSnapshot
 import dev.denza.apps.feature.adb.AdbStartupEntryAction
 import dev.denza.apps.feature.adb.AdbStartupGatePolicy
+import dev.denza.apps.feature.defaultapps.DefaultAppChoice
 import dev.denza.apps.feature.defaultapps.DefaultAppRole
 import dev.denza.apps.feature.defaultapps.DefaultAppRoleRepository
 import dev.denza.apps.feature.defaultapps.DefaultAppRoleStatus
@@ -717,6 +718,27 @@ object DenzaAppRepository {
         scheduleDefaultAppsRefresh(context)
     }
 
+    /**
+     * The tile's switch: run the driver's applications, or hand every role back to the car.
+     *
+     * Off writes the car's own application into all three roles - including one that was chosen in
+     * the stock settings rather than here. The narrower rule the cold start follows is right for a
+     * read nobody asked for and wrong for this: the driver has just asked for the stock
+     * applications, and a press that quietly left one of the three alone would be a press with
+     * nothing to show for it. What each role was holding is already remembered, so on puts it back.
+     */
+    fun setDefaultAppsEnabled(enabled: Boolean) {
+        val context = appContext ?: return
+        if (!defaultAppsRuntimeReady()) {
+            publishDefaultAppsUnavailable("Нужен доверенный локальный ADB")
+            return
+        }
+        val targets = claimDefaultAppsSwitch(context, enabled) ?: return
+        defaultAppsExecutor.execute {
+            applyDefaultAppTargets(context, targets)
+        }
+    }
+
     /** Writes one role. Package admission is the current installed-launcher catalog, not a list. */
     fun selectDefaultApp(
         role: DefaultAppRole,
@@ -1323,6 +1345,24 @@ object DenzaAppRepository {
             return
         }
 
+        finishDefaultAppRole(
+            role,
+            writeDefaultAppRole(context, role, packageName, installed),
+        )
+    }
+
+    /**
+     * One role written to the provider and reported, whichever gesture asked for it.
+     *
+     * The picker asks for one role and the tile's switch asks for all three; what happens to a
+     * role is the same either way, down to the failure, which is why it is written once.
+     */
+    private fun writeDefaultAppRole(
+        context: Context,
+        role: DefaultAppRole,
+        packageName: String,
+        installed: List<InstalledDefaultApp>,
+    ): DefaultAppRoleUiState {
         val repository = defaultAppRoleRepository(context)
         var persistedPackage: String? = null
         val result = runCatching {
@@ -1335,7 +1375,7 @@ object DenzaAppRepository {
             checkNotNull(persistedPackage)
         }
 
-        val completed = result.fold(
+        return result.fold(
             onSuccess = { persisted ->
                 defaultAppProviderState(role, persisted, installed)
             },
@@ -1353,7 +1393,6 @@ object DenzaAppRepository {
                 )
             },
         )
-        finishDefaultAppRole(role, completed)
     }
 
     /**
@@ -1394,6 +1433,12 @@ object DenzaAppRepository {
                 message = "Выбранное приложение не установлено или не запускается",
             )
         }
+        // Whatever the car is confirmed to be running for this role is what switching the
+        // substitution back on should restore, so it is remembered where it is observed rather
+        // than at the moment the switch is thrown - by then the role already says "stock".
+        appContext?.let { context ->
+            DefaultAppsSettings.rememberPick(context, role, providerPackageName)
+        }
         return DefaultAppRoleUiState(
             role = role,
             selectedPackageName = providerPackageName,
@@ -1420,6 +1465,104 @@ object DenzaAppRepository {
         message = message,
         providerConfirmed = providerConfirmed,
     )
+
+    /**
+     * Decides what each role should hold, and marks the panel with it before anything is written.
+     *
+     * Returns null when a read or another write is already in flight, which is the same rule a tap
+     * on the grid follows: the provider is one row per role and two writers would race for it.
+     */
+    private fun claimDefaultAppsSwitch(
+        context: Context,
+        enabled: Boolean,
+    ): Map<DefaultAppRole, String>? {
+        while (true) {
+            val snapshot = stateStore.snapshot()
+            val current = snapshot.state
+            if (current.defaultApps.refreshing || current.defaultApps.roles.any { it.busy }) {
+                return null
+            }
+
+            val targets = DefaultAppRole.entries.mapNotNull { role ->
+                val roleState = current.defaultApps.stateFor(role)
+                val target = if (enabled) {
+                    switchOnTarget(context, role, roleState)
+                } else {
+                    role.stockPackageName
+                }
+                // A role already holding its target has nothing to write; the provider would
+                // accept the update and report the same value back.
+                target?.takeIf { it != roleState.selectedPackageName }?.let { role to it }
+            }.toMap()
+            if (targets.isEmpty()) return null
+
+            val updated = current.copy(
+                defaultApps = targets.entries.fold(current.defaultApps) { defaults, (role, target) ->
+                    defaults.update(role) { roleState ->
+                        roleState.copy(
+                            status = DefaultAppRoleStatus.APPLYING,
+                            message = "",
+                            pendingPackageName = target,
+                            choices = roleState.choices.map { choice ->
+                                choice.copy(selected = choice.packageName == target)
+                            },
+                        )
+                    }
+                },
+            )
+            if (stateStore.compareAndSet(snapshot, updated)) return targets
+        }
+    }
+
+    /**
+     * What switching the substitution on should put into a role.
+     *
+     * The package the car was last seen running for it, and failing that the catalog's first
+     * installed suggestion - the same order a first run resolves in, so a role the driver has
+     * never touched comes on holding what it would have held anyway.
+     */
+    private fun switchOnTarget(
+        context: Context,
+        role: DefaultAppRole,
+        roleState: DefaultAppRoleUiState,
+    ): String? {
+        val remembered = DefaultAppsSettings.rememberedPick(context, role)
+        val launchable = roleState.choices.map(DefaultAppChoice::packageName)
+        if (remembered != null && remembered in launchable) return remembered
+        return role.knownThirdPartyApps
+            .firstOrNull { it.packageName in launchable }
+            ?.packageName
+    }
+
+    /** Writes each role of a switch, one at a time, reporting each as it lands. */
+    private fun applyDefaultAppTargets(
+        context: Context,
+        targets: Map<DefaultAppRole, String>,
+    ) {
+        val installed = runCatching { defaultAppsInstalled(context, null) }
+            .getOrElse { error ->
+                val message = defaultAppsFailure("Не удалось прочитать список приложений", error)
+                targets.keys.forEach { role ->
+                    finishDefaultAppRole(role, abandonedDefaultAppWrite(role, message))
+                }
+                return
+            }
+        targets.forEach { (role, packageName) ->
+            // The car's own application is what "off" means and is never withheld for not being
+            // in a catalog we swept; anything else has to still be there to be worth writing.
+            val available = packageName == role.stockPackageName ||
+                DefaultAppsCatalog.isLaunchable(packageName, installed)
+            val completed = if (available) {
+                writeDefaultAppRole(context, role, packageName, installed)
+            } else {
+                abandonedDefaultAppWrite(
+                    role,
+                    "Приложение больше не установлено или не запускается",
+                )
+            }
+            finishDefaultAppRole(role, completed)
+        }
+    }
 
     private fun claimDefaultAppSelection(
         role: DefaultAppRole,

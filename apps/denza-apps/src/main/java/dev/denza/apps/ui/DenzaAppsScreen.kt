@@ -112,6 +112,7 @@ fun DenzaAppsRoot(
     onCloseAppPicker: () -> Unit,
     onToggleApp: (String) -> Unit,
     onRefreshDefaultApps: (Boolean) -> Unit,
+    onSetDefaultAppsEnabled: (Boolean) -> Unit,
     onSelectDefaultApp: (DefaultAppRole, String) -> Unit,
     onChooseFseApp: () -> Unit,
     onCloseFseInstallerPicker: () -> Unit,
@@ -194,6 +195,7 @@ fun DenzaAppsRoot(
         onRaiseSpeakerCovers,
         onLowerSpeakerCovers,
         onSetStockRussianLocaleEnabled,
+        onSetDefaultAppsEnabled,
         onChooseFseApp,
         openClusterPicker,
         openService,
@@ -222,6 +224,7 @@ fun DenzaAppsRoot(
             onRaiseSpeakerCovers = onRaiseSpeakerCovers,
             onLowerSpeakerCovers = onLowerSpeakerCovers,
             onSetStockRussianLocale = onSetStockRussianLocaleEnabled,
+            onSetDefaultAppsEnabled = onSetDefaultAppsEnabled,
             onChooseFseApp = onChooseFseApp,
             onOpenClusterPicker = openClusterPicker,
             onOpenService = openService,
@@ -350,6 +353,7 @@ fun DenzaAppsRoot(
                         compact = compactLayout,
                         onRefresh = { onRefreshDefaultApps(true) },
                         onSelect = onSelectDefaultApp,
+                        onSetEnabled = onSetDefaultAppsEnabled,
                         onDismiss = { settingsFor = null },
                     )
                 } else {

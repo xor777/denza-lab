@@ -479,16 +479,27 @@ object DashboardTiles {
             state = when {
                 defaults.hasError -> "Не проверено"
                 defaults.reading -> "Проверяем…"
-                else -> configuredApps(configured)
+                // Off is not "nothing configured", it is a car running its own applications, and
+                // that is a state worth naming: the panel behind the tile still holds the choices
+                // the switch would put back.
+                defaults.substituting -> configuredApps(configured)
+                else -> "Штатные"
             },
             tone = when {
                 defaults.hasError -> DenzaTileTone.BROKEN
                 defaults.reading -> DenzaTileTone.WORKING
-                configured > 0 -> DenzaTileTone.LIVE
+                defaults.substituting -> DenzaTileTone.LIVE
                 else -> DenzaTileTone.IDLE
             },
             caption = DenzaTileCaption.SETTING,
-            action = TileAction.SETTINGS,
+            // The press is the switch. Until there is anything to switch to, it is the panel
+            // instead - a press that resolves to writing the same three stock packages back into
+            // the three roles already holding them is a press that does nothing.
+            action = if (defaults.substituting || defaults.canSubstitute) {
+                TileAction.TOGGLE
+            } else {
+                TileAction.SETTINGS
+            },
         )
     }
 
@@ -572,9 +583,13 @@ object DashboardTiles {
         return "$count $word"
     }
 
-    /** The deliberately short line under the default-applications tile. */
+    /**
+     * The deliberately short line under the default-applications tile.
+     *
+     * Never asked for none: a car with nothing substituted is running its own applications, and
+     * "Штатные" says that where "Не настроены" said the panel had not been filled in.
+     */
     fun configuredApps(count: Int): String = when (count) {
-        0 -> "Не настроены"
         1 -> "1 настроено"
         else -> "$count настроены"
     }

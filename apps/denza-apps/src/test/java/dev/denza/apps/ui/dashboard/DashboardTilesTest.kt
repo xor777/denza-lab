@@ -5,6 +5,7 @@ import dev.denza.apps.core.FeatureId
 import dev.denza.apps.core.FeatureResolution
 import dev.denza.apps.core.FeatureSnapshot
 import dev.denza.apps.core.FeatureStatus
+import dev.denza.apps.feature.defaultapps.DefaultAppChoice
 import dev.denza.apps.feature.defaultapps.DefaultAppRole
 import dev.denza.apps.feature.defaultapps.DefaultAppRoleStatus
 import dev.denza.apps.feature.defaultapps.DefaultAppRoleUiState
@@ -280,9 +281,15 @@ class DashboardTilesTest {
         assertEquals("Не выбрано", none.tile(TileId.SIMULCAST).state)
     }
 
+    /**
+     * The press is the switch, and off is a car running its own applications.
+     *
+     * It used to open the panel, which made the one tile on the screen whose main action was to
+     * show its own settings - and left the thing the feature actually does, substituting the
+     * applications the car's commands open, with no gesture at all.
+     */
     @Test
-    fun defaultApplicationsUseTheCompactCountAndOpenTheirSettings() {
-        assertEquals("Не настроены", DashboardTiles.configuredApps(0))
+    fun defaultApplicationsSwitchTheSubstitutionAndNameWhatTheCarIsOn() {
         assertEquals("1 настроено", DashboardTiles.configuredApps(1))
         assertEquals("2 настроены", DashboardTiles.configuredApps(2))
         assertEquals("3 настроены", DashboardTiles.configuredApps(3))
@@ -290,8 +297,25 @@ class DashboardTilesTest {
         val tile = DenzaUiState(defaultApps = configuredDefaults(2)).tile(TileId.DEFAULT_APPS)
         assertEquals("Приложения", tile.name)
         assertEquals("2 настроены", tile.state)
-        assertEquals(TileAction.SETTINGS, tile.action)
+        assertEquals(TileAction.TOGGLE, tile.action)
+        assertEquals(DenzaTileTone.LIVE, tile.tone)
         assertEquals(null, TileId.DEFAULT_APPS.feature)
+
+        // Switched off with the catalog still installed: the press turns it back on.
+        val stock = DenzaUiState(defaultApps = switchedOffDefaults()).tile(TileId.DEFAULT_APPS)
+        assertEquals("Штатные", stock.state)
+        assertEquals(TileAction.TOGGLE, stock.action)
+        assertEquals(DenzaTileTone.IDLE, stock.tone)
+
+        // Nothing installed to switch to, so the press goes where a choice can be made instead of
+        // writing the three stock packages back into the three roles already holding them.
+        val nothingToSwitchTo = DenzaUiState(
+            defaultApps = switchedOffDefaults().copy(
+                roles = switchedOffDefaults().roles.map { it.copy(choices = emptyList()) },
+            ),
+        ).tile(TileId.DEFAULT_APPS)
+        assertEquals("Штатные", nothingToSwitchTo.state)
+        assertEquals(TileAction.SETTINGS, nothingToSwitchTo.action)
 
         val unavailable = DenzaUiState(
             defaultApps = configuredDefaults(2).copy(
@@ -521,6 +545,30 @@ class DashboardTilesTest {
         hudGuidance = snapshot(status),
         speakerCovers = snapshot(status),
         fseInstaller = snapshot(status),
+    )
+
+    /** Every role read, every one of them on the car's own application, catalog still installed. */
+    private fun switchedOffDefaults(): DefaultAppsUiState = DefaultAppsUiState(
+        roles = DefaultAppRole.entries.map { role ->
+            val known = role.knownThirdPartyApps.first()
+            DefaultAppRoleUiState(
+                role = role,
+                selectedPackageName = role.stockPackageName,
+                selectedLabel = "Штатное",
+                choices = listOf(
+                    DefaultAppChoice(
+                        packageName = known.packageName,
+                        label = known.fallbackLabel,
+                        icon = null,
+                        selected = false,
+                        known = true,
+                        stock = false,
+                    ),
+                ),
+                status = DefaultAppRoleStatus.READY,
+                providerConfirmed = true,
+            )
+        },
     )
 
     private fun configuredDefaults(count: Int): DefaultAppsUiState = DefaultAppsUiState(

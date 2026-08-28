@@ -29,6 +29,7 @@ import dev.denza.apps.ui.components.DenzaSegmentedRow
 import dev.denza.apps.ui.components.DenzaSheet
 import dev.denza.apps.ui.components.DenzaSheetHeader
 import dev.denza.apps.ui.components.DenzaStatusLine
+import dev.denza.apps.ui.components.DenzaSwitchRow
 import dev.denza.apps.ui.components.DenzaTileTone
 import kotlinx.coroutines.delay
 
@@ -39,6 +40,7 @@ internal fun DefaultAppsSheet(
     compact: Boolean,
     onRefresh: () -> Unit,
     onSelect: (DefaultAppRole, String) -> Unit,
+    onSetEnabled: (Boolean) -> Unit,
     onDismiss: () -> Unit,
 ) {
     var selectedRole by remember { mutableStateOf(DefaultAppRole.NAVIGATION) }
@@ -77,6 +79,17 @@ internal fun DefaultAppsSheet(
             subtitle = "",
             onDismiss = onDismiss,
             icon = DenzaIcons.Applications,
+        )
+
+        // The same switch the tile is, where a driver can see it. The tile carries the gesture
+        // and nothing on its face says so; this row is the only place the feature says out loud
+        // that it can be handed back to the car.
+        DenzaSwitchRow(
+            title = "Заменять приложения",
+            subtitle = defaultAppsSwitchSubtitle(state),
+            checked = state.substituting,
+            onCheckedChange = onSetEnabled,
+            enabled = !state.reading && (state.substituting || state.canSubstitute),
         )
 
         // "Команда" on its own named nothing: over a row reading Навигация / Музыка / Видео it
@@ -207,6 +220,19 @@ internal fun defaultAppsOutcomeText(roleState: DefaultAppRoleUiState): String = 
     !roleState.providerConfirmed || roleState.selectedPackageName == null -> "Не подтверждено"
     roleState.role == DefaultAppRole.MUSIC -> "Запустит ${roleState.selectedLabel}"
     else -> "Откроет ${roleState.selectedLabel}"
+}
+
+/**
+ * What the switch is doing to the car, under its own title.
+ *
+ * "Штатные" rather than "Выключено": off is not an absence, it is the car running the applications
+ * it came with, and the panel below still holds the choices the switch would put back.
+ */
+internal fun defaultAppsSwitchSubtitle(state: DefaultAppsUiState): String = when {
+    state.reading -> "Читаем настройку…"
+    state.substituting -> "Команды открывают выбранные приложения"
+    state.canSubstitute -> "Команды открывают штатные приложения"
+    else -> "Нечем заменять: подходящие приложения не установлены"
 }
 
 internal fun defaultAppsCanSelect(

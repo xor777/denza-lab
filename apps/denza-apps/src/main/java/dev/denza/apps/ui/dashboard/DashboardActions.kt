@@ -38,6 +38,7 @@ data class DashboardActions(
     val onRaiseSpeakerCovers: () -> Unit,
     val onLowerSpeakerCovers: () -> Unit,
     val onSetStockRussianLocale: (Boolean) -> Unit,
+    val onSetDefaultAppsEnabled: (Boolean) -> Unit,
     val onChooseFseApp: () -> Unit,
     val onOpenClusterPicker: () -> Unit,
     val onOpenService: () -> Unit,
@@ -77,9 +78,11 @@ object DashboardPress {
             // it was, because the driver pressing this tile has said which way they want it.
             TileId.LOCALE ->
                 actions.onSetStockRussianLocale(state.stockRussianLocale.enabled != true)
+            TileId.DEFAULT_APPS ->
+                actions.onSetDefaultAppsEnabled(!state.defaultApps.substituting)
             // None of these is a thing that is on or off, so none can be toggled; the registry
             // never asks, and answering with their settings beats answering with nothing.
-            TileId.CLUSTER, TileId.SPLIT, TileId.PASSENGER, TileId.DEFAULT_APPS, TileId.SERVICE ->
+            TileId.CLUSTER, TileId.SPLIT, TileId.PASSENGER, TileId.SERVICE ->
                 actions.onOpenSettings(id)
         }
     }
