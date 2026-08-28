@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
@@ -74,9 +73,6 @@ fun DenzaChip(
     BoxWithConstraints(
         modifier = modifier
             .aspectRatio(1f)
-            // The clip rounds the hold-corner fold's tip with the chip's own radius, exactly as
-            // the tile's does. See `HoldCorner`.
-            .clip(shape)
             .background(background, shape)
             .border(BorderStroke(DenzaMetrics.Stroke.HAIRLINE, edge), shape)
             .combinedClickable(
@@ -89,11 +85,6 @@ fun DenzaChip(
         val side = maxWidth
         val dot = side * DenzaMetrics.Component.CHIP_DOT_RATIO
         val inset = side * DenzaMetrics.Component.CHIP_DOT_INSET_RATIO
-        HoldCorner(
-            Modifier
-                .align(Alignment.BottomEnd)
-                .size(side * DenzaMetrics.Component.CHIP_HOLD_RATIO),
-        )
         Icon(
             imageVector = icon,
             contentDescription = null,

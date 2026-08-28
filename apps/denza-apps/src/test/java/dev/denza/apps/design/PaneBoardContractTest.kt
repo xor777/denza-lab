@@ -134,20 +134,6 @@ class PaneBoardContractTest {
                 number(board, """<div class="dot" style="top:([\d.]+)px"""),
                 0.05f,
             )
-            // The tile's hold-corner fold, scaled with the chip - the same sign for the same
-            // gesture. Written in percent because the chip itself is a fraction of its row.
-            val fold = boardRule(board, ".chip::after")
-            assertEquals(
-                "hold fold on $board",
-                DenzaMetrics.Component.CHIP_HOLD_RATIO * 100f,
-                Regex("width:([\\d.]+)%").find(fold)?.groupValues?.get(1)?.toFloat()
-                    ?: error("no fold width on $board: $fold"),
-                0.01f,
-            )
-            assertTrue(
-                "the fold on $board is $fold, no longer a flush corner triangle",
-                fold.replace(" ", "").contains("clip-path:polygon(100%0,100%100%,0100%)"),
-            )
         }
     }
 

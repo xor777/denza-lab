@@ -11,15 +11,13 @@
   <style>
     body { margin:0; background:#07080A; font-family:'Roboto','Segoe UI',system-ui,sans-serif; }
     a { color:#FEEFAB; } a:hover { color:#FFF7D2; }
-    .tile { position:relative; overflow:hidden; height:164px; box-sizing:border-box; border-radius:22px; padding:20px; display:flex; flex-direction:column; justify-content:space-between; }
-    .tile::after { content:""; position:absolute; right:0; bottom:0; width:32px; height:32px; clip-path:polygon(100% 0, 100% 100%, 0 100%); background:rgba(218,225,235,0.10); }
-    /* THE FOLDED CORNER on every tile is the sign that a long press has somewhere to go - the
-       convention a phone keyboard uses for a key with more characters under it. Its first cut
-       was rolled back off the car: an 8px wedge floating 8 from the corner read as something
-       stuck to the tile. So the fold is flush - its legs are the tile's own edges and
-       overflow:hidden rounds its tip with the tile's own radius - and it is ONE quiet ink on
-       all eleven, because it signals the gesture, never the state. `DenzaTile.HoldCorner` is
-       the same statement in Kotlin; `MainBoardContractTest` holds the two together.
+    .tile { position:relative; height:164px; box-sizing:border-box; border-radius:22px; padding:20px; display:flex; flex-direction:column; justify-content:space-between; }
+    /* No corner mark, twice now. Attempt one floated an 8px wedge 8 from the corner and read as
+       something stuck to the tile. Attempt two was the honest version - a fold flush in the
+       corner, clipped by the tile's own radius, one quiet ink on all eleven - and died on the
+       car anyway: "чёрные ленточки на фотографиях". A dark diagonal in the corner of a dark
+       tile is a mourning ribbon at any size. The full grave is over `DenzaTile`; the next
+       affordance for the long press, if any, will not be a corner shape.
 
        THE TWO INKS UNDER A NAME, which is the only place this board spends colour on words:
 
@@ -93,7 +91,7 @@
     <div class="tile on">
       <svg width="30" height="30" viewBox="3 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 13.5l6-6 6 6"></path><path d="M5 19h14"></path></svg>
       <div style="display:flex; flex-direction:column; gap:8px;">
-        <div class="nm" style="color:#DAE1EB;">Подсказки</div>
+        <div class="nm" style="color:#DAE1EB;">HUD Подсказки</div>
         <div class="st" style="color:#FEEFAB;">Включены</div>
       </div>
     </div>
@@ -133,7 +131,7 @@
     <div class="tile on">
       <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="2"></rect><rect x="14" y="3" width="7" height="7" rx="2"></rect><rect x="3" y="14" width="7" height="7" rx="2"></rect><path d="m14.5 17.5 2 2 4-5"></path></svg>
       <div style="display:flex; flex-direction:column; gap:8px;">
-        <div class="nm" style="color:#DAE1EB;">Приложения</div>
+        <div class="nm" style="color:#DAE1EB;">Shortcuts</div>
         <div class="st" style="color:#FEEFAB;">3 настроены</div>
       </div>
     </div>

@@ -1,7 +1,6 @@
 package dev.denza.apps.design
 
 import dev.denza.apps.feature.trip.TripPanelRenderer
-import dev.denza.apps.ui.components.HOLD_CORNER_ALPHA
 import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -36,43 +35,6 @@ class MainBoardContractTest {
         assertEquals("tile height", DenzaMetrics.Component.TILE_HEIGHT.value, px(css, "height"), 1e-4f)
         assertEquals("tile padding", DenzaMetrics.Space.L.value, px(css, "padding"), 1e-4f)
         assertEquals("tile radius", DenzaMetrics.Radius.L.value, px(css, "border-radius"), 1e-4f)
-    }
-
-    @Test
-    fun theHoldCornerIsTheBoardsHoldCorner() {
-        val css = boardRule(".tile::after")
-        assertEquals(
-            "fold width",
-            DenzaMetrics.Component.TILE_HOLD_CORNER.value,
-            px(css, "width"),
-            1e-4f,
-        )
-        assertEquals(
-            "fold height",
-            DenzaMetrics.Component.TILE_HOLD_CORNER.value,
-            px(css, "height"),
-            1e-4f,
-        )
-        assertTrue(
-            "the fold is $css, which is no longer a flush corner triangle",
-            css.contains("clip-path:polygon(100%0,100%100%,0100%)") &&
-                css.contains("right:0") && css.contains("bottom:0"),
-        )
-        // One quiet ink on all eleven tiles: the fold signals the gesture, never the state. The
-        // rgb is INK's, the alpha is the code's own.
-        val ink = Regex("""rgba\((\d+),(\d+),(\d+),([\d.]+)\)""").find(css)
-            ?: error("no rgba ink on the fold: $css")
-        val (r, g, b, a) = ink.destructured
-        assertEquals("fold ink red", (DenzaPalette.INK shr 16) and 0xFF, r.toInt())
-        assertEquals("fold ink green", (DenzaPalette.INK shr 8) and 0xFF, g.toInt())
-        assertEquals("fold ink blue", DenzaPalette.INK and 0xFF, b.toInt())
-        assertEquals("fold ink alpha", HOLD_CORNER_ALPHA, a.toFloat(), 1e-4f)
-        // The fold must outlive the corner arc that clips it, or it is not drawn at all.
-        assertTrue(
-            "a ${DenzaMetrics.Component.TILE_HOLD_CORNER} fold disappears under a " +
-                "${DenzaMetrics.Radius.L} corner",
-            DenzaMetrics.Component.TILE_HOLD_CORNER.value > DenzaMetrics.Radius.L.value,
-        )
     }
 
     @Test
