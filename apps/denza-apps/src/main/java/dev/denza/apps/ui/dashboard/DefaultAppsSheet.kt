@@ -18,7 +18,6 @@ import dev.denza.apps.feature.defaultapps.DefaultAppRoleStatus
 import dev.denza.apps.feature.defaultapps.DefaultAppRoleUiState
 import dev.denza.apps.feature.defaultapps.DefaultAppsUiState
 import dev.denza.apps.ui.components.DenzaAppTile
-import dev.denza.apps.ui.components.DenzaKeyValueRow
 import dev.denza.apps.ui.components.DenzaNote
 import dev.denza.apps.ui.components.DenzaPrimaryButton
 import dev.denza.apps.ui.components.DenzaSecondaryButton
@@ -44,6 +43,7 @@ internal fun DefaultAppsSheet(
     // A failed readback may leave the last known installed choices intact. Keep those actionable:
     // selecting another package is how the driver can recover from a stale or rejected target.
     val canSelect = defaultAppsCanSelect(state, roleState)
+    val dimmed = defaultAppsChoicesDimmed(state, roleState)
 
     DenzaSheet(
         onDismiss = onDismiss,
@@ -70,10 +70,19 @@ internal fun DefaultAppsSheet(
                 selectedIndex = DefaultAppRole.entries.indexOf(selectedRole),
                 onSelect = { selectedRole = DefaultAppRole.entries[it] },
                 modifier = Modifier.fillMaxWidth(),
-                enabled = !state.busy,
+                enabled = !state.refreshing,
             )
         }
 
+        // One line, and it always has something to say. It used to fall silent whenever nothing
+        // was happening, and [DenzaStatusLine] draws nothing at all for a blank string - so every
+        // completed read and every stored choice removed a line of text and its gap from the
+        // middle of the panel, and the grid, the selection and the button under it jumped up to
+        // fill the space. What it says when the car is idle is what the choice actually does.
+        //
+        // Two lines is the ceiling. A provider failure carries up to 300 characters of the car's
+        // own words, which is four or five lines of this panel, and nothing below a status that
+        // can reflow by four lines has a settled place to be.
         DenzaStatusLine(
             text = defaultAppsStatusText(state, roleState),
             tone = if (state.refreshing) {
@@ -84,6 +93,7 @@ internal fun DefaultAppsSheet(
                     DenzaTileTone.WORKING
                 DefaultAppRoleStatus.READY -> DenzaTileTone.IDLE
             },
+            maxLines = STATUS_LINES,
         )
 
         DenzaSection(defaultAppSectionTitle(selectedRole)) {
@@ -110,24 +120,22 @@ internal fun DefaultAppsSheet(
                         label = choice.label,
                         selected = choice.selected,
                         onClick = {
-                            if (!choice.selected) onSelect(selectedRole, choice.packageName)
+                            if (canSelect && !choice.selected) {
+                                onSelect(selectedRole, choice.packageName)
+                            }
                         },
                         modifier = cell,
                         icon = choice.icon,
                         iconKey = choice.packageName,
-                        enabled = canSelect,
+                        enabled = !dimmed,
                     )
                 }
             }
-            DenzaKeyValueRow(
-                label = defaultAppsSelectionLabel(roleState),
-                value = defaultAppsSelectionValue(roleState),
-            )
             DenzaSecondaryButton(
                 text = if (state.hasError) "Повторить" else "Обновить список",
                 onClick = onRefresh,
                 modifier = Modifier.fillMaxWidth(),
-                enabled = !state.busy,
+                enabled = !state.refreshing,
             )
         }
 
@@ -147,16 +155,36 @@ internal fun defaultAppSectionTitle(role: DefaultAppRole): String = when (role) 
     DefaultAppRole.VIDEO -> "Приложение для видео"
 }
 
-private fun defaultAppsStatusText(
+/** Never blank: see the note at the call site. Reports the wait, the failure, or the choice. */
+internal fun defaultAppsStatusText(
     state: DefaultAppsUiState,
     roleState: DefaultAppRoleUiState,
 ): String = when {
     state.refreshing -> "Обновляем установленные приложения…"
-    roleState.message.isNotBlank() -> roleState.message
-    roleState.status == DefaultAppRoleStatus.LOADING -> "Загружаем приложения…"
+    roleState.status == DefaultAppRoleStatus.LOADING ->
+        roleState.message.ifBlank { "Загружаем приложения…" }
     roleState.status == DefaultAppRoleStatus.APPLYING -> "Сохраняем выбор…"
-    roleState.status == DefaultAppRoleStatus.ERROR -> "Не удалось прочитать настройку."
-    else -> ""
+    roleState.status == DefaultAppRoleStatus.ERROR ->
+        roleState.message.ifBlank { "Не удалось прочитать настройку." }
+    // A cold start may resolve a role without the driver touching anything, and that is worth
+    // saying once - beside the outcome, not instead of it.
+    roleState.message.isNotBlank() ->
+        "${roleState.message} · ${defaultAppsOutcomeText(roleState)}"
+    else -> defaultAppsOutcomeText(roleState)
+}
+
+/**
+ * What the car will do with this role, in the words the board's result block uses.
+ *
+ * This is where the confirmation nuance the panel used to spell out in a "Сейчас" row now lives:
+ * a package the provider has not echoed back is not presented as the one the car would open.
+ */
+internal fun defaultAppsOutcomeText(roleState: DefaultAppRoleUiState): String = when {
+    !roleState.providerConfirmed && roleState.selectedPackageName != null ->
+        "Последнее известное: ${roleState.selectedLabel}"
+    !roleState.providerConfirmed || roleState.selectedPackageName == null -> "Не подтверждено"
+    roleState.role == DefaultAppRole.MUSIC -> "Запустит ${roleState.selectedLabel}"
+    else -> "Откроет ${roleState.selectedLabel}"
 }
 
 internal fun defaultAppsCanSelect(
@@ -164,16 +192,17 @@ internal fun defaultAppsCanSelect(
     roleState: DefaultAppRoleUiState,
 ): Boolean = !state.refreshing && !roleState.busy && roleState.choices.isNotEmpty()
 
-internal fun defaultAppsSelectionLabel(roleState: DefaultAppRoleUiState): String = when {
-    roleState.providerConfirmed -> "Сейчас"
-    roleState.selectedPackageName != null -> "Последнее известное"
-    else -> "Статус"
-}
-
-internal fun defaultAppsSelectionValue(roleState: DefaultAppRoleUiState): String = when {
-    roleState.providerConfirmed || roleState.selectedPackageName != null -> roleState.selectedLabel
-    else -> "Не подтверждено"
-}
+/**
+ * Whether the grid is shown as not yet answering for the car.
+ *
+ * Only a read earns that. Storing a choice used to grey out all twenty-odd tiles for the length of
+ * the write, which on a list whose selection had already moved read as the screen going away and
+ * coming back.
+ */
+internal fun defaultAppsChoicesDimmed(
+    state: DefaultAppsUiState,
+    roleState: DefaultAppRoleUiState,
+): Boolean = state.refreshing || roleState.status == DefaultAppRoleStatus.LOADING
 
 internal const val DEFAULT_APPS_SHORTCUTS_HELP =
     "Shortcuts: Open Navigation открывает навигацию, Open Video — видео. " +
@@ -182,3 +211,4 @@ internal const val DEFAULT_APPS_SHORTCUTS_HELP =
 
 private const val WIDE_COLUMNS = 4
 private const val NARROW_COLUMNS = 3
+private const val STATUS_LINES = 2

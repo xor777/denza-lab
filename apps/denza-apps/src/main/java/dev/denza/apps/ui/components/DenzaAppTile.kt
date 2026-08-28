@@ -58,7 +58,10 @@ fun DenzaAppTile(
     iconKey: Any? = label,
     enabled: Boolean = true,
 ) {
-    val bitmap = remember(iconKey, icon) { icon?.toBitmap(ICON_PX, ICON_PX)?.asImageBitmap() }
+    // Keyed by the package alone. A Drawable is a fresh instance on every read of the package
+    // manager, so keying on it too re-rasterised every icon in the grid each time the state behind
+    // it was republished - for icons that had not changed.
+    val bitmap = remember(iconKey) { icon?.toBitmap(ICON_PX, ICON_PX)?.asImageBitmap() }
     val shape = RoundedCornerShape(DenzaMetrics.Radius.L)
     Column(
         modifier = modifier

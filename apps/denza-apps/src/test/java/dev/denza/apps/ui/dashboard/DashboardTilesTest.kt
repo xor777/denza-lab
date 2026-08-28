@@ -240,6 +240,35 @@ class DashboardTilesTest {
     }
 
     /**
+     * "Проверяем…" is a read the driver is waiting on, and storing a choice is not one.
+     *
+     * The panel marks the tap before the write leaves, so a tile that announced the write as well
+     * spent every selection swapping its caption and its accent for a few hundred milliseconds.
+     */
+    @Test
+    fun storingAChoiceDoesNotMakeTheTileAnnounceAWait() {
+        val defaults = configuredDefaults(3)
+        val applying = DenzaUiState(
+            defaultApps = defaults.update(DefaultAppRole.MUSIC) { role ->
+                role.copy(
+                    status = DefaultAppRoleStatus.APPLYING,
+                    pendingPackageName = "com.spotify.music",
+                )
+            },
+        ).tile(TileId.DEFAULT_APPS)
+        assertEquals("3 настроены", applying.state)
+        assertEquals(DenzaTileTone.LIVE, applying.tone)
+
+        val reading = DenzaUiState(
+            defaultApps = defaults.update(DefaultAppRole.MUSIC) { role ->
+                role.copy(status = DefaultAppRoleStatus.LOADING)
+            },
+        ).tile(TileId.DEFAULT_APPS)
+        assertEquals("Проверяем…", reading.state)
+        assertEquals(DenzaTileTone.WORKING, reading.tone)
+    }
+
+    /**
      * The cluster tile names what is chosen, and says it the same way whether or not it is showing.
      *
      * It used to add "· на экране" while projecting, which made it the one caption that changed

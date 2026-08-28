@@ -423,12 +423,12 @@ object DashboardTiles {
             name = "Приложения",
             state = when {
                 defaults.hasError -> "Не проверено"
-                defaults.busy -> "Проверяем…"
+                defaults.reading -> "Проверяем…"
                 else -> configuredApps(configured)
             },
             tone = when {
                 defaults.hasError -> DenzaTileTone.BROKEN
-                defaults.busy -> DenzaTileTone.WORKING
+                defaults.reading -> DenzaTileTone.WORKING
                 configured > 0 -> DenzaTileTone.LIVE
                 else -> DenzaTileTone.IDLE
             },

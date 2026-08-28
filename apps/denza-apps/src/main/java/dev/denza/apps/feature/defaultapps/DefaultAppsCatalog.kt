@@ -29,14 +29,11 @@ internal object DefaultAppsCatalog {
         listOf(Intent.CATEGORY_INFO, Intent.CATEGORY_LAUNCHER).forEach { category ->
             val intent = Intent(Intent.ACTION_MAIN).addCategory(category)
             packageManager.queryIntentActivities(intent, 0).forEach { resolveInfo ->
-                val activity = resolveInfo.activityInfo ?: return@forEach
-                val application = activity.applicationInfo ?: return@forEach
-                val installed = application.flags and ApplicationInfo.FLAG_INSTALLED != 0
-                val suspended = application.flags and ApplicationInfo.FLAG_SUSPENDED != 0
-                if (!installed || suspended || !application.enabled || !activity.enabled) {
-                    return@forEach
-                }
-                byPackage.putIfAbsent(activity.packageName, resolveInfo)
+                if (!isEligible(resolveInfo)) return@forEach
+                byPackage.putIfAbsent(
+                    checkNotNull(resolveInfo.activityInfo).packageName,
+                    resolveInfo,
+                )
             }
         }
 
@@ -97,6 +94,34 @@ internal object DefaultAppsCatalog {
         packageName: String,
         installed: Collection<InstalledDefaultApp>,
     ): Boolean = installed.any { it.packageName == packageName }
+
+    /**
+     * The admission rule of [discover], asked about one package and answered against the car now.
+     *
+     * A choice has to be checked against what is installed at the moment it is stored, and sweeping
+     * every launcher with an icon each to answer a question about one package is what made storing
+     * one choice cost about as long as reading all three roles.
+     */
+    @Suppress("DEPRECATION")
+    fun isLaunchableNow(context: Context, packageName: String): Boolean {
+        if (packageName.isBlank()) return false
+        val packageManager = context.packageManager
+        return listOf(Intent.CATEGORY_INFO, Intent.CATEGORY_LAUNCHER).any { category ->
+            val intent = Intent(Intent.ACTION_MAIN)
+                .addCategory(category)
+                .setPackage(packageName)
+            packageManager.queryIntentActivities(intent, 0).any(::isEligible)
+        }
+    }
+
+    /** Installed, enabled, not suspended - for both the application and the activity itself. */
+    private fun isEligible(resolveInfo: ResolveInfo): Boolean {
+        val activity = resolveInfo.activityInfo ?: return false
+        val application = activity.applicationInfo ?: return false
+        val installed = application.flags and ApplicationInfo.FLAG_INSTALLED != 0
+        val suspended = application.flags and ApplicationInfo.FLAG_SUSPENDED != 0
+        return installed && !suspended && application.enabled && activity.enabled
+    }
 
     private fun fallbackLabel(
         role: DefaultAppRole,

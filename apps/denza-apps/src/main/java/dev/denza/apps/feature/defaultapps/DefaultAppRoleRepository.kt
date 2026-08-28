@@ -19,12 +19,22 @@ private class DenzaLocalAdbDefaultAppRoleShell(
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : DefaultAppRoleShell {
     private val appContext = context.applicationContext
-    private val client by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
-        DenzaLocalAdb.client(appContext)
+
+    /**
+     * One shell for the whole feature, opened on the first read and kept.
+     *
+     * `LocalAdbClient.shell` is a fresh socket and a full CNXN/AUTH handshake per command, and this
+     * feature sends three of them to open the sheet and three more to store one choice - six
+     * handshakes for six one-line queries. The session pays that once, serialises its callers, and
+     * re-opens itself after a dropped connection, which is what every other car-facing feature in
+     * this app already does.
+     */
+    private val session by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
+        DenzaLocalAdb.client(appContext).openPersistentShell()
     }
 
     override suspend fun execute(command: String): String = withContext(ioDispatcher) {
-        client.shell(command, SHELL_TIMEOUT_MS)
+        session.shell(command, SHELL_TIMEOUT_MS)
     }
 }
 

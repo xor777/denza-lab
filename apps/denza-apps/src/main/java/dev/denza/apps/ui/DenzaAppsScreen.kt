@@ -151,7 +151,7 @@ fun DenzaAppsRoot(
     onChooseApps: () -> Unit,
     onCloseAppPicker: () -> Unit,
     onToggleApp: (String) -> Unit,
-    onRefreshDefaultApps: () -> Unit,
+    onRefreshDefaultApps: (Boolean) -> Unit,
     onSelectDefaultApp: (DefaultAppRole, String) -> Unit,
     onChooseFseApp: () -> Unit,
     onCloseFseInstallerPicker: () -> Unit,
@@ -212,7 +212,8 @@ fun DenzaAppsRoot(
         onOpenClusterPicker = openClusterPicker,
         onOpenService = openService,
         onOpenSettings = { id ->
-            if (id == TileId.DEFAULT_APPS) onRefreshDefaultApps()
+            // Opening the tile asks the car only if the last read has gone stale.
+            if (id == TileId.DEFAULT_APPS) onRefreshDefaultApps(false)
             settingsFor = id
         },
     )
@@ -312,7 +313,7 @@ fun DenzaAppsRoot(
                     DefaultAppsSheet(
                         state = uiState.defaultApps,
                         compact = compactLayout,
-                        onRefresh = onRefreshDefaultApps,
+                        onRefresh = { onRefreshDefaultApps(true) },
                         onSelect = onSelectDefaultApp,
                         onDismiss = { settingsFor = null },
                     )

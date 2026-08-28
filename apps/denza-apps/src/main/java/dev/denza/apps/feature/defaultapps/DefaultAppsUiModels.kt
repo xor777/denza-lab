@@ -27,6 +27,13 @@ data class DefaultAppRoleUiState(
     val message: String = "",
     /** True only after PersonBean returned this exact package in a successful read. */
     val providerConfirmed: Boolean = false,
+    /**
+     * The package the driver has just tapped, while its write is still in flight.
+     *
+     * The grid marks it immediately; the provider is still the only thing that decides
+     * [selectedPackageName], so a rejected write puts the mark back where the car says it is.
+     */
+    val pendingPackageName: String? = null,
 ) {
     val configured: Boolean
         get() = providerConfirmed &&
@@ -44,8 +51,14 @@ data class DefaultAppsUiState(
     val configuredCount: Int
         get() = roles.count(DefaultAppRoleUiState::configured)
 
-    val busy: Boolean
-        get() = refreshing || roles.any(DefaultAppRoleUiState::busy)
+    /**
+     * A read the driver is waiting on.
+     *
+     * Storing a choice is not one. The grid marks the tap before the write leaves, so a tile that
+     * announced "Проверяем…" for the length of every write was reporting machinery, not waiting.
+     */
+    val reading: Boolean
+        get() = refreshing || roles.any { it.status == DefaultAppRoleStatus.LOADING }
 
     val hasError: Boolean
         get() = roles.any { it.status == DefaultAppRoleStatus.ERROR }

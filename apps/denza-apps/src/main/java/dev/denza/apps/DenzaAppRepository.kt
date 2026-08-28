@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.drawable.Drawable
+import android.os.SystemClock
 import dev.denza.apps.core.FeatureId
 import dev.denza.apps.core.FeatureReducer
 import dev.denza.apps.core.FeatureResolution
@@ -144,6 +145,14 @@ object DenzaAppRepository {
 
     @Volatile
     private var defaultAppsRepository: DefaultAppRoleRepository? = null
+
+    /** The last installed-launcher sweep, kept so storing a choice does not repeat it. */
+    @Volatile
+    private var defaultAppsCatalog: List<InstalledDefaultApp>? = null
+
+    /** `elapsedRealtime` of the last refresh that ended with all three roles read. */
+    @Volatile
+    private var defaultAppsReadAtElapsed = 0L
 
     @Volatile
     private var appContext: Context? = null
@@ -627,9 +636,17 @@ object DenzaAppRepository {
         }
     }
 
-    /** Explicit, coalesced provider refresh used on Activity resume and by the settings sheet. */
-    fun refreshDefaultApps() {
+    /**
+     * Explicit, coalesced provider refresh used on Activity resume and by the settings sheet.
+     *
+     * A read that has just succeeded is not repeated. Resuming the Activity and then opening the
+     * tile are two gestures a second apart, and each used to send its own three provider queries
+     * and put all three roles back into "Читаю настройку…" - which is the whole of what the driver
+     * saw the tile doing. [force] is the "Обновить список" button, which always asks the car.
+     */
+    fun refreshDefaultApps(force: Boolean = false) {
         val context = appContext ?: return
+        if (!force && defaultAppsReadIsFresh()) return
         if (!defaultAppsRuntimeReady()) {
             val phase = AdbRescueCoordinator.snapshot().phase
             if (
@@ -1026,6 +1043,38 @@ object DenzaAppRepository {
         )
     }
 
+    /**
+     * Whether the last read is recent enough to answer for the car without asking it again.
+     *
+     * Anything short of three roles read and settled fails this: an error, a role still applying
+     * and a refresh already in flight all have to reach the provider before they can be believed.
+     */
+    private fun defaultAppsReadIsFresh(): Boolean {
+        val readAt = defaultAppsReadAtElapsed
+        if (readAt == 0L) return false
+        if (SystemClock.elapsedRealtime() - readAt > DEFAULT_APPS_FRESH_WINDOW_MS) return false
+        val defaults = stateStore.snapshot().state.defaultApps
+        return !defaults.refreshing &&
+            defaults.roles.all { it.status == DefaultAppRoleStatus.READY }
+    }
+
+    /**
+     * The installed-launcher catalog, swept only when it cannot answer for [requiredPackage].
+     *
+     * Storing one choice used to sweep every installed launcher and load an icon for each - a
+     * second time within the same second, for labels the refresh it opened with had already read.
+     */
+    private fun defaultAppsInstalled(
+        context: Context,
+        requiredPackage: String?,
+    ): List<InstalledDefaultApp> {
+        val cached = defaultAppsCatalog
+        val answers = cached != null &&
+            (requiredPackage == null || cached.any { it.packageName == requiredPackage })
+        if (answers) return checkNotNull(cached)
+        return DefaultAppsCatalog.discover(context).also { defaultAppsCatalog = it }
+    }
+
     /** At most one provider refresh runs and one newer request waits behind it. */
     private fun scheduleDefaultAppsRefresh(context: Context) {
         if (!defaultAppsRefreshRunning.compareAndSet(false, true)) return
@@ -1059,6 +1108,7 @@ object DenzaAppRepository {
                 )
                 return
             }
+        defaultAppsCatalog = installed
         val repository = defaultAppRoleRepository(context)
 
         DefaultAppRole.entries.forEach { role ->
@@ -1090,6 +1140,10 @@ object DenzaAppRepository {
                 ),
             )
         }
+        // Only three roles actually read and settled may spare the next gesture its own read.
+        val settled = stateStore.snapshot().state.defaultApps.roles
+            .all { it.status == DefaultAppRoleStatus.READY }
+        defaultAppsReadAtElapsed = if (settled) SystemClock.elapsedRealtime() else 0L
     }
 
     private fun refreshDefaultAppRole(
@@ -1181,23 +1235,32 @@ object DenzaAppRepository {
         role: DefaultAppRole,
         packageName: String,
     ) {
-        val installed = runCatching { DefaultAppsCatalog.discover(context) }
+        // The chosen package is checked against the car as it is now; the catalog behind the
+        // labels and icons may be the one the sheet was opened with.
+        val selectable = runCatching {
+            DefaultAppsCatalog.isLaunchableNow(context, packageName)
+        }.getOrElse { error ->
+            finishDefaultAppRole(
+                role,
+                abandonedDefaultAppWrite(
+                    role,
+                    defaultAppsFailure("Не удалось проверить приложение", error),
+                ),
+            )
+            return
+        }
+        val installed = runCatching { defaultAppsInstalled(context, packageName) }
             .getOrElse { error ->
                 finishDefaultAppRole(
                     role,
-                    stateStore.snapshot().state.defaultApps.stateFor(role).copy(
-                        status = DefaultAppRoleStatus.ERROR,
-                        providerConfirmed = false,
-                        message = defaultAppsFailure(
-                            "Не удалось проверить приложение",
-                            error,
-                        ),
+                    abandonedDefaultAppWrite(
+                        role,
+                        defaultAppsFailure("Не удалось прочитать список приложений", error),
                     ),
                 )
                 return
             }
-        val launchablePackages = installed.map(InstalledDefaultApp::packageName)
-        if (!DefaultAppsPolicy.isSelectable(packageName, launchablePackages)) {
+        if (!selectable) {
             val previous = stateStore.snapshot().state.defaultApps.stateFor(role)
             finishDefaultAppRole(
                 role,
@@ -1259,6 +1322,29 @@ object DenzaAppRepository {
         finishDefaultAppRole(role, completed)
     }
 
+    /**
+     * A write that never reached the provider, reported without keeping the mark it moved.
+     *
+     * The grid marks a tap before the write leaves, so a failure that only changes the status has
+     * to put that mark back on the package the car last confirmed - otherwise the panel goes on
+     * showing the choice as made while saying it was not.
+     */
+    private fun abandonedDefaultAppWrite(
+        role: DefaultAppRole,
+        message: String,
+    ): DefaultAppRoleUiState {
+        val previous = stateStore.snapshot().state.defaultApps.stateFor(role)
+        return previous.copy(
+            status = DefaultAppRoleStatus.ERROR,
+            providerConfirmed = false,
+            pendingPackageName = null,
+            message = message,
+            choices = previous.choices.map { choice ->
+                choice.copy(selected = choice.packageName == previous.selectedPackageName)
+            },
+        )
+    }
+
     private fun defaultAppProviderState(
         role: DefaultAppRole,
         providerPackageName: String,
@@ -1314,14 +1400,22 @@ object DenzaAppRepository {
             val launchablePackages = roleState.choices.map { it.packageName }
             val selectable = DefaultAppsPolicy.isSelectable(packageName, launchablePackages)
             val updatedRole = if (selectable) {
+                // The mark moves with the finger. It used to wait for the provider to echo the
+                // write back, so the tile the driver had just pressed stayed unmarked for as long
+                // as the car took to answer, and the old one stayed marked beside it.
                 roleState.copy(
                     status = DefaultAppRoleStatus.APPLYING,
-                    message = "Сохраняю выбор…",
+                    message = "",
+                    pendingPackageName = packageName,
+                    choices = roleState.choices.map { choice ->
+                        choice.copy(selected = choice.packageName == packageName)
+                    },
                 )
             } else {
                 roleState.copy(
                     status = DefaultAppRoleStatus.ERROR,
                     message = "Приложение больше не доступно",
+                    pendingPackageName = null,
                 )
             }
             val updated = current.copy(
@@ -1353,6 +1447,7 @@ object DenzaAppRepository {
                         status = DefaultAppRoleStatus.ERROR,
                         message = message,
                         providerConfirmed = false,
+                        pendingPackageName = null,
                     )
                 },
             )
@@ -1597,3 +1692,12 @@ object DenzaAppRepository {
         false
     }
 }
+
+/**
+ * How long a settled provider read answers for the car before the next gesture asks it again.
+ *
+ * Long enough to cover resume-then-open, which is the pair of gestures that made the tile read
+ * the provider twice; short enough that a choice made in stock settings is picked up on the next
+ * visit rather than after a restart.
+ */
+private const val DEFAULT_APPS_FRESH_WINDOW_MS = 30_000L

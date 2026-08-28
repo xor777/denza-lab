@@ -267,6 +267,7 @@ fun DenzaStatusLine(
     text: String,
     tone: DenzaTileTone,
     modifier: Modifier = Modifier,
+    maxLines: Int = Int.MAX_VALUE,
 ) {
     if (text.isBlank()) return
     Text(
@@ -277,6 +278,8 @@ fun DenzaStatusLine(
             DenzaTileTone.BROKEN -> DenzaColors.Danger
             else -> DenzaColors.Muted
         },
+        maxLines = maxLines,
+        overflow = TextOverflow.Ellipsis,
         modifier = modifier,
     )
 }

@@ -67,9 +67,9 @@ class DefaultAppsCatalogTest {
     }
 
     @Test
-    fun uiStateReportsBusyAndConfiguredPerProviderValue() {
+    fun uiStateReportsReadingAndConfiguredPerProviderValue() {
         val initial = DefaultAppsUiState()
-        assertTrue(initial.busy)
+        assertTrue(initial.reading)
         assertEquals(0, initial.configuredCount)
 
         val ready = initial.copy(
@@ -86,7 +86,7 @@ class DefaultAppsCatalogTest {
             },
         )
 
-        assertFalse(ready.busy)
+        assertFalse(ready.reading)
         assertEquals(1, ready.configuredCount)
         assertFalse(ready.hasError)
     }
