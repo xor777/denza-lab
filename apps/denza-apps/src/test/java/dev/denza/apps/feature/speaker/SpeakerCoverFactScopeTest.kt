@@ -113,6 +113,32 @@ class SpeakerCoverFactScopeTest {
     }
 
     /**
+     * The same two edges said in milliseconds, because the widths are the decision.
+     *
+     * The test above states them in terms of the constants, so it holds however wide the constants
+     * get - a sleep window of ten minutes would pass it unchanged, and ten minutes is a coffee stop
+     * with the amplifier down and the covers back in. That is the night of 2026-08-28 in miniature,
+     * so the numbers themselves are the behaviour: a minute of sleep ends the trip, thirty seconds of
+     * wall-clock drift does not end the boot.
+     */
+    @Test
+    fun theRuleIsAMinuteOfSleepAndThirtySecondsOfDrift() {
+        val boot = 1_700_000_000_000L
+        fun live(bootNow: Long, asleepNow: Long) = SpeakerCoverFactScope.isLive(
+            stampBoot = boot,
+            stampAsleep = 0L,
+            nowBootStamp = bootNow,
+            nowAsleep = asleepNow,
+        )
+
+        assertTrue(live(boot, 59_999L))
+        assertFalse(live(boot, 60_000L))
+
+        assertTrue(live(boot + 30_000L, 0L))
+        assertFalse(live(boot + 30_001L, 0L))
+    }
+
+    /**
      * Preferences written by the version that did not know about sleep.
      *
      * They carry a boot stamp and nothing else, and they are precisely the day-old facts this rule
@@ -154,6 +180,28 @@ class SpeakerCoverFactScopeTest {
                 stampBoot = 0L,
                 stampAsleep = 0L,
                 nowBootStamp = boot,
+                nowAsleep = 0L,
+            ),
+        )
+    }
+
+    /**
+     * The unwritten stamp, read on a car that has not been told the time yet.
+     *
+     * Nothing above pins this: the assertions on a stored 0 all pass because 0 is a year and a half
+     * of drift away from a plausible wall clock, not because anything rejected it. But the stamp is
+     * `currentTimeMillis` less `elapsedRealtime`, and a head unit that wakes before the network or
+     * GNSS corrects it holds a clock near the epoch - so the current stamp is itself a few seconds
+     * from zero, and there the two are indistinguishable by arithmetic. A fact nobody ever stored
+     * would then read as this trip's, which is the same failure as the day-old one and quieter.
+     */
+    @Test
+    fun anUnwrittenStampIsExpiredEvenWhenTheClockAgreesWithIt() {
+        assertFalse(
+            SpeakerCoverFactScope.isLive(
+                stampBoot = 0L,
+                stampAsleep = 0L,
+                nowBootStamp = 4_000L,
                 nowAsleep = 0L,
             ),
         )
