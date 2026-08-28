@@ -7,184 +7,467 @@
 <body>
 <x-dc>
 <helmet>
-  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&amp;display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@200;300;400;500;700&amp;family=Roboto+Mono:wght@500;700&amp;display=swap" rel="stylesheet">
   <style>
     * { box-sizing:border-box; }
     body { margin:0; background:#07080A; font-family:'Roboto','Segoe UI',system-ui,sans-serif; }
+    a { color:#FEEFAB; } a:hover { color:#FFF7D2; }
+    /* underlay: generated from Main.dc.html by gen_panes.py */
+    .underlay .tile {position:relative; height:164px; box-sizing:border-box; border-radius:22px; padding:20px; display:flex; flex-direction:column; justify-content:space-between; }
+    .underlay .on {background:#212429; border:1px solid rgba(254,239,171,0.30); box-shadow:0 0 22px rgba(254,239,171,0.07); }
+    .underlay .off {background:#15181F; border:1px solid rgba(218,225,235,0.10); }
+    .underlay .nm {font-size:19px; font-weight:500; line-height:1.2; }
+    .underlay .st {font-size:15px; line-height:1.3; }
+    .underlay .led {font-family:'Roboto Mono',monospace; font-weight:700; font-size:34px; letter-spacing:5px; color:transparent; background-color:#FEEFAB; background-image:radial-gradient(circle at center, #FEEFAB 41%, transparent 46%); background-size:3.4px 3.4px; -webkit-background-clip:text; background-clip:text; filter:drop-shadow(0 0 7px rgba(254,239,171,0.55)); }
+    .underlay .cap {font-size:15px; letter-spacing:1.6px; font-weight:500; color:#86909B; }
+    .underlay .num {font-size:46px; font-weight:200; color:#DAE1EB; line-height:1; }
+    .underlay .un {font-size:24px; color:#86909B; }
+    .underlay .rate {font-size:19px; color:#FEEFAB; }
+    .underlay .fig {display:flex; flex-direction:column; gap:8px; }
+    .underlay .line {display:flex; align-items:baseline; gap:12px; }
+    .underlay .ruled {border-top:1px solid rgba(218,225,235,0.14); padding-top:12px; }
+    .underlay { position:absolute; left:0; top:0; right:0; bottom:0; }
+    .underlay-scrim { position:absolute; left:0; top:0; right:0; bottom:0; background:rgba(7,8,10,0.72); }
+    /* end underlay */
     .board { width:1776px; height:680px; display:flex; gap:80px; overflow:hidden; background:#07080A; }
     .frame { position:relative; height:680px; flex-shrink:0; overflow:hidden; background:#07080A; color:#DAE1EB; }
     .wide { width:1280px; }
     .narrow { width:416px; background:#15181F; }
-    .dashboard { position:absolute; inset:0; padding:20px 48px; opacity:0.48; }
-    .tile-grid { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:12px; }
-    .tile { height:164px; border-radius:22px; padding:20px; display:flex; flex-direction:column; justify-content:space-between; background:#15181F; border:1px solid rgba(218,225,235,0.10); }
-    .tile.feature { background:#212429; border-color:rgba(254,239,171,0.30); box-shadow:0 0 22px rgba(254,239,171,0.07); }
-    .tile-name { color:#DAE1EB; font-size:19px; font-weight:500; line-height:1.2; }
-    .tile-state { color:#86909B; font-size:15px; line-height:1.3; }
-    .dashboard-copy { margin-top:32px; width:700px; display:flex; flex-direction:column; gap:12px; }
-    .dashboard-line { height:12px; border-radius:6px; background:#212429; }
-    .scrim { position:absolute; inset:0; background:rgba(0,0,0,0.54); }
+    /* The panel: 480 off the right edge at 1280, the whole window in a 416 pane. Its settings take
+       every pixel above the action and the action does not move - `DenzaSheet` gives the content
+       `weight(1f)` and hangs the footer under it, so wherever a panel is opened from, its one
+       button is under the same thumb. */
     .sheet { height:680px; background:#15181F; display:flex; flex-direction:column; padding:20px 32px; }
     .wide-sheet { position:absolute; right:0; top:0; width:480px; border-left:1px solid rgba(254,239,171,0.16); box-shadow:-24px 0 48px rgba(0,0,0,0.50); }
     .narrow-sheet { width:416px; }
+    .scroll { flex:1; min-height:0; display:flex; flex-direction:column; gap:32px; }
     .sheet-head { display:flex; align-items:flex-start; gap:12px; }
     .sheet-title { flex:1; color:#DAE1EB; font-size:24px; font-weight:500; line-height:1.3; }
-    .section { display:flex; flex-direction:column; gap:12px; margin-top:32px; }
+    .section { display:flex; flex-direction:column; gap:12px; }
     .label { color:#86909B; font-size:15px; font-weight:500; letter-spacing:1.6px; line-height:1.2; }
+    .status { color:#86909B; font-size:15px; line-height:1.3; }
     .segments { height:42px; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); overflow:hidden; border:1px solid rgba(218,225,235,0.18); border-radius:12px; }
-    .segment { display:flex; align-items:center; justify-content:center; color:#6E767F; font-size:15px; border-left:1px solid rgba(218,225,235,0.18); }
+    .segment { display:flex; align-items:center; justify-content:center; color:#7C858F; font-size:15px; border-left:1px solid rgba(218,225,235,0.18); }
     .segment:first-child { border-left:0; }
     .segment.selected { color:#262D33; background:#FEEFAB; font-weight:500; }
     .apps { display:grid; gap:12px; }
     .wide-apps { grid-template-columns:repeat(4,minmax(0,1fr)); }
     .narrow-apps { grid-template-columns:repeat(3,minmax(0,1fr)); }
-    .app { position:relative; min-width:0; height:96px; padding:12px 8px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; background:#212429; border:1px solid rgba(218,225,235,0.12); border-radius:22px; }
-    .app.selected { border-color:#FEEFAB; box-shadow:0 0 20px rgba(254,239,171,0.14); }
-    .app-icon { width:44px; height:44px; display:block; border-radius:12px; }
+    /* One selection, and it is `DenzaAppTile`'s: a hairline edge in the accent, the well behind
+       the icon tinted with it, and the name set in it. No glow and no badge - the two boards had
+       one each, and neither is anything the code draws. The edge is a hairline picked or not, so
+       choosing an application does not nudge its neighbours by a pixel. */
+    .app { min-width:0; height:96px; padding:12px 8px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; background:#212429; border:1px solid rgba(218,225,235,0.12); border-radius:22px; }
+    .app.selected { border-color:#FEEFAB; }
+    .well { width:44px; height:44px; border-radius:12px; background:#323538; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+    .app.selected .well { background:rgba(254,239,171,0.16); }
+    .well img { width:36px; height:36px; display:block; }
     .app-name { max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#C5CDD9; font-size:15px; line-height:1.2; }
     .app.selected .app-name { color:#FEEFAB; font-weight:500; }
-    .check { position:absolute; right:8px; top:8px; width:18px; height:18px; display:flex; align-items:center; justify-content:center; border-radius:12px; background:#FEEFAB; }
-    .result { min-height:62px; padding:12px 20px; display:flex; align-items:center; gap:12px; border-radius:12px; background:#1C2028; }
-    .result-copy { min-width:0; flex:1; display:flex; flex-direction:column; gap:4px; }
-    .result-title { color:#DAE1EB; font-size:19px; font-weight:500; line-height:1.2; }
-    .result-note { color:#86909B; font-size:15px; line-height:1.3; }
-    .hint { display:flex; align-items:flex-start; gap:12px; color:#6E767F; font-size:15px; line-height:1.45; }
-    .spacer { flex:1; min-height:12px; }
-    .summary { display:grid; grid-template-columns:1fr auto; gap:8px 12px; padding-top:12px; border-top:1px solid rgba(218,225,235,0.14); }
-    .summary-name, .summary-app { font-size:15px; line-height:1.3; }
-    .summary-name { color:#86909B; }
-    .summary-app { color:#C5CDD9; text-align:right; }
-    .done { height:62px; display:flex; align-items:center; justify-content:center; border-radius:12px; background:#FEEFAB; color:#262D33; font-size:19px; font-weight:500; }
+    .secondary { height:42px; display:flex; align-items:center; justify-content:center; border:1px solid rgba(218,225,235,0.18); border-radius:12px; color:#DAE1EB; font-size:19px; font-weight:500; }
+    .note { display:flex; align-items:flex-start; gap:12px; color:#7C858F; font-size:15px; line-height:1.45; }
+    /* The fold. In a 416 pane this sheet is taller than the window and the settings scroll, so the
+       note runs on under the edge of the first screenful - which is what a still can show of a
+       scroll and is not a shorter note. `DenzaNote` clamps nothing; the window does. */
+    .narrow-sheet .scroll { overflow:hidden; }
+    .narrow-sheet .note > div { max-height:65px; overflow:hidden; }
+    .done { height:62px; flex-shrink:0; margin-top:32px; display:flex; align-items:center; justify-content:center; border-radius:12px; background:#FEEFAB; color:#262D33; font-size:19px; font-weight:500; }
   </style>
 </helmet>
-<div class="board">
+<div class="board" style="width:1776px; height:680px;">
   <div class="frame wide">
-    <div class="dashboard">
-      <div class="tile-grid">
-        <div class="tile feature">
-          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="3" y="3" width="7" height="7" rx="2"></rect><rect x="14" y="3" width="7" height="7" rx="2"></rect>
-            <rect x="3" y="14" width="7" height="7" rx="2"></rect><path d="m14.5 17.5 2 2 4-5"></path>
-          </svg>
-          <div style="display:flex; flex-direction:column; gap:8px;">
-            <div class="tile-name">Приложения</div>
-            <div class="tile-state" style="color:#FEEFAB;">3 настроены</div>
-          </div>
+  <!-- underlay: generated from Main.dc.html by gen_panes.py -->
+  <div class="underlay">
+  <div style="width:1280px; height:680px; box-sizing:border-box; background:#07080A; display:flex; flex-direction:column; gap:12px; padding:20px 48px 12px 48px;">
+
+    <div style="display:grid; grid-template-columns:repeat(6, minmax(0, 1fr)); gap:12px;">
+
+      <div class="tile on">
+        <svg width="30" height="30" viewBox="1 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><circle cx="12" cy="12" r="3"></circle><path d="M3.2 10.5 L9.1 10.9 M20.8 10.5 L14.9 10.9 M12 15 L12 21"></path></svg>
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <div class="nm" style="color:#DAE1EB;">Экран водителя</div>
+          <div class="st" style="color:#FEEFAB;">Приборы</div>
         </div>
-        <div class="tile">
-          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#86909B" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="12" r="9"></circle><circle cx="12" cy="12" r="3"></circle></svg>
-          <div style="display:flex; flex-direction:column; gap:8px;"><div class="tile-name">Экран водителя</div><div class="tile-state">Приборы</div></div>
-        </div>
-        <div class="tile">
-          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#86909B" stroke-width="1.6" stroke-linecap="round"><path d="M2 20h.01M2 16a4 4 0 0 1 4 4M2 12a8 8 0 0 1 8 8M2 8V6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v12"></path></svg>
-          <div style="display:flex; flex-direction:column; gap:8px;"><div class="tile-name">Трансляция</div><div class="tile-state">6 приложений</div></div>
-        </div>
-        <div class="tile"></div><div class="tile"></div><div class="tile"></div>
-      </div>
-      <div class="dashboard-copy">
-        <div class="dashboard-line" style="width:68%;"></div>
-        <div class="dashboard-line" style="width:92%;"></div>
-        <div class="dashboard-line" style="width:54%;"></div>
-      </div>
-    </div>
-    <div class="scrim"></div>
-    <div class="sheet wide-sheet">
-      <div class="sheet-head">
-        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="3" y="3" width="7" height="7" rx="2"></rect><rect x="14" y="3" width="7" height="7" rx="2"></rect>
-          <rect x="3" y="14" width="7" height="7" rx="2"></rect><path d="m14.5 17.5 2 2 4-5"></path>
-        </svg>
-        <div class="sheet-title">Приложения по умолчанию</div>
-        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#86909B" stroke-width="1.846" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"></path></svg>
       </div>
 
-      <div class="section">
-        <div class="label">КОМАНДА</div>
-        <div class="segments">
+      <div class="tile on">
+        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 20h0.01"></path><path d="M2 16a4 4 0 0 1 4 4"></path><path d="M2 12a8 8 0 0 1 8 8"></path><path d="M2 8V6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6"></path></svg>
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <div class="nm" style="color:#DAE1EB;">Трансляция</div>
+          <div class="st" style="color:#86909B;">Выбрано 6</div>
+        </div>
+      </div>
+
+      <!-- One dot, one meaning, and it is the chip's. The three that used to hang in this corner
+           said nothing the code draws: `DenzaTile` has no dot at all, and `DenzaChip`'s single dot
+           is the whole of what a chip says - is this on. Three of them here read as a carousel. -->
+      <div class="tile on">
+        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <div class="nm" style="color:#DAE1EB;">Зеркала</div>
+          <div class="st" style="color:#FEEFAB;">Включены</div>
+        </div>
+      </div>
+
+      <div class="tile on">
+        <svg width="30" height="30" viewBox="1 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="15" rx="2"></rect><path d="M12 4.5v15"></path></svg>
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <div class="nm" style="color:#DAE1EB;">Разделение</div>
+          <div class="st" style="color:#86909B;">Включено</div>
+        </div>
+      </div>
+
+      <div class="tile on">
+        <svg width="30" height="30" viewBox="3 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 13.5l6-6 6 6"></path><path d="M5 19h14"></path></svg>
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <div class="nm" style="color:#DAE1EB;">Подсказки</div>
+          <div class="st" style="color:#FEEFAB;">Включены</div>
+        </div>
+      </div>
+
+      <div class="tile on">
+        <svg width="30" height="30" viewBox="0.4 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="3.2"></circle><path d="M8 2.4v1.4M8 12.2v1.4M2.4 8h1.4M12.2 8h1.4M4.6 4.6l1 1M11.4 4.6l-1 1M4.6 11.4l1-1"></path><path d="M17 20.5H9.5a3.5 3.5 0 0 1 0-7 4.6 4.6 0 0 1 8.7-1 3.9 3.9 0 0 1-1.2 8z"></path></svg>
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <div class="nm" style="color:#DAE1EB;">Погода</div>
+          <div class="st" style="color:#FEEFAB;">+14°</div>
+        </div>
+      </div>
+
+      <div class="tile on">
+        <svg width="30" height="30" viewBox="4 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="3" width="12" height="18" rx="2"></rect><circle cx="12" cy="14" r="3.2"></circle><circle cx="12" cy="7" r="1.2"></circle></svg>
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <div class="nm" style="color:#DAE1EB;">Динамики</div>
+          <div class="st" style="color:#86909B;">Включена</div>
+        </div>
+      </div>
+
+      <div class="tile on">
+        <svg width="30" height="30" viewBox="1 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M3.4 9.5h17.2M3.4 14.5h17.2"></path><path d="M12 3a15 15 0 0 0 0 18 15 15 0 0 0 0-18z"></path></svg>
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <div class="nm" style="color:#DAE1EB;">Русский язык</div>
+          <div class="st" style="color:#86909B;">Включён</div>
+        </div>
+      </div>
+
+      <div class="tile off">
+        <svg width="30" height="30" viewBox="3 0 24 24" fill="none" stroke="#86909B" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2.5" width="14" height="19" rx="2"></rect><path d="M12 6.5v7"></path><path d="M9 10.5l3 3 3-3"></path><path d="M9 17.5h6"></path></svg>
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <div class="nm" style="color:#DAE1EB;">Экран справа</div>
+          <div class="st" style="color:#86909B;">Не выбрано</div>
+        </div>
+      </div>
+
+      <div class="tile on">
+        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="2"></rect><rect x="14" y="3" width="7" height="7" rx="2"></rect><rect x="3" y="14" width="7" height="7" rx="2"></rect><path d="m14.5 17.5 2 2 4-5"></path></svg>
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <div class="nm" style="color:#DAE1EB;">Приложения</div>
+          <div class="st" style="color:#FEEFAB;">3 настроены</div>
+        </div>
+      </div>
+
+      <div class="tile off">
+        <svg width="30" height="30" viewBox="2 0 24 24" fill="none" stroke="#86909B" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 12h16M4 17h16"></path><circle cx="15" cy="7" r="2" fill="#15181F"></circle><circle cx="8" cy="12" r="2" fill="#15181F"></circle><circle cx="17" cy="17" r="2" fill="#15181F"></circle></svg>
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <div class="nm" style="color:#DAE1EB;">Сервис</div>
+          <div class="st" style="color:#86909B;">Всё в норме</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- The strip. 32 between the analyser and the figures - the gap between two groups - which
+         leaves the analyser 1184 - 320 - 32 = 832, and the column starts at 864.
+
+         The bars fill that 832 exactly: 26 columns at 22.97 with 9.39 between them, which is the
+         one pitch that keeps SpectrumRenderer.BAR_WIDTH_FRACTION and lands the last column on the
+         right edge. Written to the hundredth on purpose - 22 and 9 left 37 dp of the column empty,
+         and an analyser that stops short of its own field reads as a rendering fault.
+
+         The texture inside a bar does NOT scale with it: the 4-unit crown, the 2 corner, the 11
+         scanline pitch and the ticker's 3.4 dot cell are the same dp here, at 828 and at 416.
+         Every width is laid out one unit to one dp, so a segment is the same size on the glass in
+         all three; only the column gets narrower as the field does. See the README. -->
+    <div style="flex-grow:1; display:flex; gap:32px; min-height:0;">
+
+      <div style="flex-grow:1; display:flex; flex-direction:column; justify-content:flex-start; min-width:0;">
+        <div style="display:flex; align-items:center; height:52px;">
+          <div class="led">M83 · MIDNIGHT CITY</div>
+        </div>
+        <div style="position:relative;">
+          <div style="display:flex; align-items:flex-end; gap:9.39px; height:202.98px;">
+            <div style="width:22.97px; display:flex; flex-direction:column; justify-content:flex-end; height:202.98px;">
+                <div style="height:4px; background:#FFF8DA; border-radius:2px; box-shadow:0 0 7px rgba(254,239,171,0.9); margin-bottom: 13px;"></div>
+                <div style="height: 30px; border-radius:2px 2px 0 0; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA); box-shadow:0 0 16px rgba(254,239,171,0.22);"></div>
+              </div>
+              <div style="width:22.97px; display:flex; flex-direction:column; justify-content:flex-end; height:202.98px;">
+                <div style="height:4px; background:#FFF8DA; border-radius:2px; box-shadow:0 0 7px rgba(254,239,171,0.9); margin-bottom: 8px;"></div>
+                <div style="height: 55px; border-radius:2px 2px 0 0; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA); box-shadow:0 0 16px rgba(254,239,171,0.22);"></div>
+              </div>
+              <div style="width:22.97px; display:flex; flex-direction:column; justify-content:flex-end; height:202.98px;">
+                <div style="height:4px; background:#FFF8DA; border-radius:2px; box-shadow:0 0 7px rgba(254,239,171,0.9); margin-bottom: 17px;"></div>
+                <div style="height: 91px; border-radius:2px 2px 0 0; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA); box-shadow:0 0 16px rgba(254,239,171,0.22);"></div>
+              </div>
+              <div style="width:22.97px; display:flex; flex-direction:column; justify-content:flex-end; height:202.98px;">
+                <div style="height:4px; background:#FFF8DA; border-radius:2px; box-shadow:0 0 7px rgba(254,239,171,0.9); margin-bottom: 6px;"></div>
+                <div style="height: 133px; border-radius:2px 2px 0 0; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA); box-shadow:0 0 16px rgba(254,239,171,0.22);"></div>
+              </div>
+              <div style="width:22.97px; display:flex; flex-direction:column; justify-content:flex-end; height:202.98px;">
+                <div style="height:4px; background:#FFF8DA; border-radius:2px; box-shadow:0 0 7px rgba(254,239,171,0.9); margin-bottom: 11px;"></div>
+                <div style="height: 160px; border-radius:2px 2px 0 0; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA); box-shadow:0 0 16px rgba(254,239,171,0.22);"></div>
+              </div>
+              <div style="width:22.97px; display:flex; flex-direction:column; justify-content:flex-end; height:202.98px;">
+                <div style="height:4px; background:#FFF8DA; border-radius:2px; box-shadow:0 0 7px rgba(254,239,171,0.9); margin-bottom: 4px;"></div>
+                <div style="height: 182px; border-radius:2px 2px 0 0; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA); box-shadow:0 0 16px rgba(254,239,171,0.22);"></div>
+              </div>
+              <div style="width:22.97px; display:flex; flex-direction:column; justify-content:flex-end; height:202.98px;">
+                <div style="height:4px; background:#FFF8DA; border-radius:2px; box-shadow:0 0 7px rgba(254,239,171,0.9); margin-bottom: 14px;"></div>
+                <div style="height: 164px; border-radius:2px 2px 0 0; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA); box-shadow:0 0 16px rgba(254,239,171,0.22);"></div>
+              </div>
+              <div style="width:22.97px; display:flex; flex-direction:column; justify-content:flex-end; height:202.98px;">
+                <div style="height:4px; background:#FFF8DA; border-radius:2px; box-shadow:0 0 7px rgba(254,239,171,0.9); margin-bottom: 7px;"></div>
+                <div style="height: 140px; border-radius:2px 2px 0 0; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA); box-shadow:0 0 16px rgba(254,239,171,0.22);"></div>
+              </div>
+              <div style="width:22.97px; display:flex; flex-direction:column; justify-content:flex-end; height:202.98px;">
+                <div style="height:4px; background:#FFF8DA; border-radius:2px; box-shadow:0 0 7px rgba(254,239,171,0.9); margin-bottom: 16px;"></div>
+                <div style="height: 112px; border-radius:2px 2px 0 0; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA); box-shadow:0 0 16px rgba(254,239,171,0.22);"></div>
+              </div>
+              <div style="width:22.97px; display:flex; flex-direction:column; justify-content:flex-end; height:202.98px;">
+                <div style="height:4px; background:#FFF8DA; border-radius:2px; box-shadow:0 0 7px rgba(254,239,171,0.9); margin-bottom: 10px;"></div>
+                <div style="height: 88px; border-radius:2px 2px 0 0; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA); box-shadow:0 0 16px rgba(254,239,171,0.22);"></div>
+              </div>
+              <div style="width:22.97px; display:flex; flex-direction:column; justify-content:flex-end; height:202.98px;">
+                <div style="height:4px; background:#FFF8DA; border-radius:2px; box-shadow:0 0 7px rgba(254,239,171,0.9); margin-bottom: 5px;"></div>
+                <div style="height: 124px; border-radius:2px 2px 0 0; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA); box-shadow:0 0 16px rgba(254,239,171,0.22);"></div>
+              </div>
+              <div style="width:22.97px; display:flex; flex-direction:column; justify-content:flex-end; height:202.98px;">
+                <div style="height:4px; background:#FFF8DA; border-radius:2px; box-shadow:0 0 7px rgba(254,239,171,0.9); margin-bottom: 13px;"></div>
+                <div style="height: 153px; border-radius:2px 2px 0 0; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA); box-shadow:0 0 16px rgba(254,239,171,0.22);"></div>
+              </div>
+              <div style="width:22.97px; display:flex; flex-direction:column; justify-content:flex-end; height:202.98px;">
+                <div style="height:4px; background:#FFF8DA; border-radius:2px; box-shadow:0 0 7px rgba(254,239,171,0.9); margin-bottom: 4px;"></div>
+                <div style="height: 177px; border-radius:2px 2px 0 0; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA); box-shadow:0 0 16px rgba(254,239,171,0.22);"></div>
+              </div>
+              <div style="width:22.97px; display:flex; flex-direction:column; justify-content:flex-end; height:202.98px;">
+                <div style="height:4px; background:#FFF8DA; border-radius:2px; box-shadow:0 0 7px rgba(254,239,171,0.9); margin-bottom: 10px;"></div>
+                <div style="height: 159px; border-radius:2px 2px 0 0; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA); box-shadow:0 0 16px rgba(254,239,171,0.22);"></div>
+              </div>
+              <div style="width:22.97px; display:flex; flex-direction:column; justify-content:flex-end; height:202.98px;">
+                <div style="height:4px; background:#FFF8DA; border-radius:2px; box-shadow:0 0 7px rgba(254,239,171,0.9); margin-bottom: 17px;"></div>
+                <div style="height: 131px; border-radius:2px 2px 0 0; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA); box-shadow:0 0 16px rgba(254,239,171,0.22);"></div>
+              </div>
+              <div style="width:22.97px; display:flex; flex-direction:column; justify-content:flex-end; height:202.98px;">
+                <div style="height:4px; background:#FFF8DA; border-radius:2px; box-shadow:0 0 7px rgba(254,239,171,0.9); margin-bottom: 7px;"></div>
+                <div style="height: 98px; border-radius:2px 2px 0 0; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA); box-shadow:0 0 16px rgba(254,239,171,0.22);"></div>
+              </div>
+              <div style="width:22.97px; display:flex; flex-direction:column; justify-content:flex-end; height:202.98px;">
+                <div style="height:4px; background:#FFF8DA; border-radius:2px; box-shadow:0 0 7px rgba(254,239,171,0.9); margin-bottom: 12px;"></div>
+                <div style="height: 78px; border-radius:2px 2px 0 0; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA); box-shadow:0 0 16px rgba(254,239,171,0.22);"></div>
+              </div>
+              <div style="width:22.97px; display:flex; flex-direction:column; justify-content:flex-end; height:202.98px;">
+                <div style="height:4px; background:#FFF8DA; border-radius:2px; box-shadow:0 0 7px rgba(254,239,171,0.9); margin-bottom: 5px;"></div>
+                <div style="height: 110px; border-radius:2px 2px 0 0; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA); box-shadow:0 0 16px rgba(254,239,171,0.22);"></div>
+              </div>
+              <div style="width:22.97px; display:flex; flex-direction:column; justify-content:flex-end; height:202.98px;">
+                <div style="height:4px; background:#FFF8DA; border-radius:2px; box-shadow:0 0 7px rgba(254,239,171,0.9); margin-bottom: 14px;"></div>
+                <div style="height: 136px; border-radius:2px 2px 0 0; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA); box-shadow:0 0 16px rgba(254,239,171,0.22);"></div>
+              </div>
+              <div style="width:22.97px; display:flex; flex-direction:column; justify-content:flex-end; height:202.98px;">
+                <div style="height:4px; background:#FFF8DA; border-radius:2px; box-shadow:0 0 7px rgba(254,239,171,0.9); margin-bottom: 4px;"></div>
+                <div style="height: 155px; border-radius:2px 2px 0 0; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA); box-shadow:0 0 16px rgba(254,239,171,0.22);"></div>
+              </div>
+              <div style="width:22.97px; display:flex; flex-direction:column; justify-content:flex-end; height:202.98px;">
+                <div style="height:4px; background:#FFF8DA; border-radius:2px; box-shadow:0 0 7px rgba(254,239,171,0.9); margin-bottom: 11px;"></div>
+                <div style="height: 138px; border-radius:2px 2px 0 0; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA); box-shadow:0 0 16px rgba(254,239,171,0.22);"></div>
+              </div>
+              <div style="width:22.97px; display:flex; flex-direction:column; justify-content:flex-end; height:202.98px;">
+                <div style="height:4px; background:#FFF8DA; border-radius:2px; box-shadow:0 0 7px rgba(254,239,171,0.9); margin-bottom: 16px;"></div>
+                <div style="height: 108px; border-radius:2px 2px 0 0; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA); box-shadow:0 0 16px rgba(254,239,171,0.22);"></div>
+              </div>
+              <div style="width:22.97px; display:flex; flex-direction:column; justify-content:flex-end; height:202.98px;">
+                <div style="height:4px; background:#FFF8DA; border-radius:2px; box-shadow:0 0 7px rgba(254,239,171,0.9); margin-bottom: 7px;"></div>
+                <div style="height: 82px; border-radius:2px 2px 0 0; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA); box-shadow:0 0 16px rgba(254,239,171,0.22);"></div>
+              </div>
+              <div style="width:22.97px; display:flex; flex-direction:column; justify-content:flex-end; height:202.98px;">
+                <div style="height:4px; background:#FFF8DA; border-radius:2px; box-shadow:0 0 7px rgba(254,239,171,0.9); margin-bottom: 12px;"></div>
+                <div style="height: 58px; border-radius:2px 2px 0 0; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA); box-shadow:0 0 16px rgba(254,239,171,0.22);"></div>
+              </div>
+              <div style="width:22.97px; display:flex; flex-direction:column; justify-content:flex-end; height:202.98px;">
+                <div style="height:4px; background:#FFF8DA; border-radius:2px; box-shadow:0 0 7px rgba(254,239,171,0.9); margin-bottom: 5px;"></div>
+                <div style="height: 82px; border-radius:2px 2px 0 0; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA); box-shadow:0 0 16px rgba(254,239,171,0.22);"></div>
+              </div>
+              <div style="width:22.97px; display:flex; flex-direction:column; justify-content:flex-end; height:202.98px;">
+                <div style="height:4px; background:#FFF8DA; border-radius:2px; box-shadow:0 0 7px rgba(254,239,171,0.9); margin-bottom: 13px;"></div>
+                <div style="height: 105px; border-radius:2px 2px 0 0; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA); box-shadow:0 0 16px rgba(254,239,171,0.22);"></div>
+              </div>
+          </div>
+          <div style="position:absolute; left:0; right:0; bottom:0; height:202.98px; background:repeating-linear-gradient(to top, rgba(7,8,10,0) 0px, rgba(7,8,10,0) 8px, #07080A 8px, #07080A 11px); pointer-events:none;"></div>
+        </div>
+        <div style="height:40px; overflow:hidden; opacity:0.14; transform:scaleY(-1);">
+          <div style="display:flex; align-items:flex-end; gap:9.39px; height:40px;">
+            <div style="width:22.97px; height: 30px; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA);"></div>
+              <div style="width:22.97px; height: 55px; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA);"></div>
+              <div style="width:22.97px; height: 91px; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA);"></div>
+              <div style="width:22.97px; height: 133px; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA);"></div>
+              <div style="width:22.97px; height: 160px; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA);"></div>
+              <div style="width:22.97px; height: 182px; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA);"></div>
+              <div style="width:22.97px; height: 164px; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA);"></div>
+              <div style="width:22.97px; height: 140px; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA);"></div>
+              <div style="width:22.97px; height: 112px; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA);"></div>
+              <div style="width:22.97px; height: 88px; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA);"></div>
+              <div style="width:22.97px; height: 124px; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA);"></div>
+              <div style="width:22.97px; height: 153px; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA);"></div>
+              <div style="width:22.97px; height: 177px; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA);"></div>
+              <div style="width:22.97px; height: 159px; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA);"></div>
+              <div style="width:22.97px; height: 131px; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA);"></div>
+              <div style="width:22.97px; height: 98px; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA);"></div>
+              <div style="width:22.97px; height: 78px; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA);"></div>
+              <div style="width:22.97px; height: 110px; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA);"></div>
+              <div style="width:22.97px; height: 136px; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA);"></div>
+              <div style="width:22.97px; height: 155px; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA);"></div>
+              <div style="width:22.97px; height: 138px; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA);"></div>
+              <div style="width:22.97px; height: 108px; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA);"></div>
+              <div style="width:22.97px; height: 82px; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA);"></div>
+              <div style="width:22.97px; height: 58px; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA);"></div>
+              <div style="width:22.97px; height: 82px; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA);"></div>
+              <div style="width:22.97px; height: 105px; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA);"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Three readings, one anatomy: a tracked capital over a large light figure with its unit
+           beside it. The sunset used to be the odd one out - a sun in the vehicle's own amber, a 34
+           where its neighbours were 46, and its word set as a unit instead of a label - so the one
+           coloured caption on the screen was the one saying the sun goes down at the usual time.
+           Amber means the car wants a decision. The label says which event this is; the glyph said
+           it again, in the wrong colour. -->
+      <div style="width:320px; flex-shrink:0; display:flex; flex-direction:column; justify-content:space-between;">
+        <div class="fig">
+          <div class="cap">В ПУТИ</div>
+          <div class="line">
+            <div class="num">1:42</div>
+            <div class="un">128 км</div>
+          </div>
+        </div>
+        <div class="fig ruled">
+          <div class="cap">ВЫСОТА</div>
+          <div class="line">
+            <div class="num">642</div>
+            <div class="un">м</div>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="2.4" stroke-linecap="round"><path d="M12 19V6M6.5 11.5 12 6l5.5 5.5"></path></svg>
+              <div class="rate">1,2</div>
+            </div>
+          </div>
+        </div>
+        <div class="fig ruled">
+          <div class="cap">ЗАКАТ</div>
+          <div class="line">
+            <div class="num">19:44</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  </div>
+  <div class="underlay-scrim"></div>
+  <!-- end underlay -->
+    <div class="sheet wide-sheet">
+      <div class="scroll">
+        <div class="sheet-head">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="2"></rect><rect x="14" y="3" width="7" height="7" rx="2"></rect><rect x="3" y="14" width="7" height="7" rx="2"></rect><path d="m14.5 17.5 2 2 4-5"></path></svg>
+          <div class="sheet-title">Приложения по умолчанию</div>
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#86909B" stroke-width="1.846" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"></path></svg>
+        </div>
+
+        <div class="section">
+          <div class="label">ДЛЯ КАКОЙ КОМАНДЫ</div>
+          <div class="segments">
           <div class="segment selected">Навигация</div>
           <div class="segment">Музыка</div>
           <div class="segment">Видео</div>
-        </div>
-      </div>
-
-      <div class="section" style="margin-top:20px;">
-        <div class="label">ПРИЛОЖЕНИЕ ДЛЯ НАВИГАЦИИ</div>
-        <div class="apps wide-apps">
-          <div class="app selected">
-            <img class="app-icon" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFgAAABYCAIAAAD+96djAAAJ/UlEQVR4nO2cXXAbVxXHz737KW0kW4odJyp27JJpbSuxPVOmdIDpwISGFmLHk0mBfvBRICSQUDqT8lRCmoTQPnZgMuTjiYEXHsg4dgYCaVooE5hmmDaO47hNSJ3I1A0U7FjSSqvdvbvMlWRJlnfXduNdW0r+44cr7ZV2z8/3nnvuhw5qWdcGM8XznCT5obokyylV1Rwq4LLXoihUHwUAkCS/KArzBSGKgs8nQpXK5xMdWLCFEs9zc1JgWTYcCkWj7Z2dHdG2tqa1TcFAkOc5WAqpqhpPJGI3YsMjI4ODF4eHL09MTuq67vARn080DMOyj6Ccj2AYJhhc4fAVDMO0tDT3dG/u7emWJAmWn2RZ7usf6O8/NXr9OiHEoWY8npxdIQ8iEFjBsozdJ0VR3Llj+9beLcsTQalkWT7Rd/LI0eOKotjV0XWSSCQtQIiOriESiRzcv2/D+ijD2JJaViKEDA1d2vvigfHxcbs66bSiKJnSdzDG2IFCe1vb4Z+/0tXZUSkUcr24q6vz8C9eaW9rtavj84kYzxgosIMjjUQihw7ub2pqhApUU2PjoZ8eiEQidhXKDMeCwNvUEw/u31ehFHJqamw8uH+fKFq3d0HgEUK2AVVODMPs3LF9w/ooVLg2rI/u3LHdrl+XNgJrEC0tzVt7t1SQX7ATwzBbe7e0tDRbXuU4zgkEy7I93ZuX/0g5T0mS1NO92TI4YFmm4DItQIRDod6ebqgi9fZ0h0Nhy0sFQBYgotH2qmkOOUmSFI22W15iWdYWRGdnB1Sd7IxiGPuuEW0rX6GoAtkZ5eQjmtY2QdXJzqhCKGEBIhgIQtUpGAgsGAS/ROsLCxC5Bcq7C/oEz1sH0HMEVMtVJmT+CbdOwtgPgVnk9cTiCtUylgEkCZn3IP02aP+BxOuAGOAa7yQQpgbah6AMQ3oQTBVME+RzkDgLzb9a9FstVxAmgfRFSL0F2jiYBiAMJkDqTYifAW4NhL58B4Ag/4PEOchcAZKgOBDOOjICqX9A/I9g6lC/GxBbvSBMHTJXQT4PyjvT9iOKgDYHAPltmPoDdRaIg5ovuXH/pQZhEjCmIP0uJP8C2k1qfA6BCdmCQcvpoTwFGg98AYR7qwwEAfV9SP4N5DepIwQMqNAEMB0paQGBcgWmTtPKNPphYOW3AfuqBYSp5u3XxsAoIAAwEe0Fhe5A28JViJ/OYso9bAMEPu3SQ3kLQrsJ8VchNQjGBLW2iAADyr40zemCQQOHUgqAIPQ4sNbLChUBwgQjBZlrkHgDUuepUyg4giKCkgIdIwxQb8DU7wFK9u+YWqj/DgBTiSAIkEmQL1BXp97ID4R5R2BmOcxEQAsmJaW+D/E/zaBAtyI2gLjevWd1DUTmGsRPQfI8bQ5UuYGgzOwcCxNMhiIAg9bRb0LiDJhlG3YYQtvATS02CFOjHTvxZ8hcBzO3pzbdCqiVZU0ATV/NIkAItA8g8SoYs7YtuQaoewYqAYRBbZg6TUNgMpF9J2dktsPn2ny+UMqiMExmq2n/pa60vC1kFf4KYKfN+iUHYYKRpOEQbQVnp00qRQCzCjbeUZ+ExGvWFBAL4afAZX1kEAbot6jxk78DNZYdCErDoYLlJf9wBxZ6nE6u895klqTPgK8Tlh8IE9LDMPlbGhGRqaz/zyEoxAKloWEhQJrNYrqzkElI/hUM2faG9d+lU4zlBsLMfKBefVn78DWGYxlBYHgBCyK1bkZcVIrAjkW2YNyC5Dnav+zE1EDgYXBfCwaBhIjQ8Rv87zPpK4dT/3rD1BLUUI6jUAQR8yLmeMwJmOUxxyOGo9ZiBuUCobLOQpIg/92JAiAIPw3sKnBfH9FHcA2PcA2PkFtDqZGXtZtnjcyEoWlactZ5HIZlBB8FJPgZXkScgDmR/jE8wjoNNAnlaCssURDu94vbHTWY2g2Bh35tJN9LXzumXD1mkvJ+bhJdTyX0VMFaOq2ifhVjqcEQpMI8wkZiK0gPgCe67VVshHFgndRxqPaxt6Sul5BQ51jbBNM0TcMguqHqc30zC6Gt3jSHxVvOxxyz4l5f657wF4f8XS9hqTnrBZxENDrgOImtg/rvg1da3H0NhIQ6f+vzoccGpc6fsbXrEWN7QMvQisd2rBX4HB0yvJIrGzyI9fta99RuOi994pdsqIuuLM0SPSHr1CIQrPwmeCg3d7owJ7Z8rWbj6zUP93GrN+YXIEpbhAMIfycEPw8eyvUtP8Su4NY8GnjwGBZnhgMmGLmphqXqvufxdqRHN8O+e4S1T5R5UJPYuAksQc2j3jxY8Z4e3Qcxvvt245mDq2F3cnzlU8CtBm/lXfPD0lpu1YxZg6Ejm0n3E4Dm2MVfdHnaD3337wFcDJBMy5BKWAe+LvBcnoJgVz7AN2wsvCSzQdAtnKe9DB+W6qAIEtftzO9l0OByVtdg62DlM2UDrTfy+sQMv2YTW5tv+WT2L4r8DwJne57eVXl+dAhzvtY9RWdplvWLr3v9PIXn8v6WfMNnGf/HLBoF3wy1vXDngEBCvXjf7twEZIabqPuWGydA5qmlOFWHsNj8JBZpcGUUBg7EQ+irsHSyAKGqcy0c3baQ0MCv3jSja4S2gbDWvTs6/x7aGkQ87riOuChC2Nf2I8QFi8Fl+En3drqpUYm45fvm9OqQBYhYLAbuiwm2cfWfys+7uAhIn3T1drEbsQWDGB4ZAU8kfvwbhpHdHFq1y70TIM5GGdNrARYgBgcvgifi79nGBO8HJkj3eF1223ZGEWIPYnj4sizbb8AtqsR1z5r+h4Cz/vHZYkmW5eHhy5aXCj+qtwAxMTnZ1z8AnoiLPA4Nz1suai6i+voHJiYnLS/pOrEFoet6/8ApjxoFG0I1xfmoG5JluX/glGU6BV0nTj4CAEZHr5/oO+mcfKAiRAg50XdydPS65VVNKwYX1iAIIUeOHh8augQVrqFLw0eOHrf7j2YyxdARl74olaIoe188EBsbg4pVLDa2d99+u0QSmYxaCCIoiLI0CqUaHx9/4cc/qVAWsdjYC3v3OaSQKM8fYRhGOm2bfOPyyDu7fvDchcGLFeQvCCEXBi/ueva5y/aRYTqtFNxkTndTq1Rrsp2BU6Ojt5FsB+aXkIxlmXAoTNMvdXRE23PplwJz/pLQJamqFk/EF5R+ySFFWREEVHtCLsscO9ZxhKJkHBxnFVOwCKgUJSPLNgc/K1mynHKgYH2YTFU1QpJ+v89hHKkg6TpJpdJzDv/Wq8aE0AGmClyGc3coldPyuaJkVFUTRcEuRdNyViajKkqmLGpy0Bz7CIZhpFLpdFoRBJ7juOXfWXSdaJpWNo+Yj+a1oWKapqJkFCWDMWZZhmVZhqbrwSgrWDrRQ5v02KZBiKFTFdcXFqqF7SwZNBmkdT7ISldl5Y9wUXdB5HUXRF53QUBO/wfZRi9ZfpmHMAAAAABJRU5ErkJggg==" alt="">
-            <div class="app-name">Яндекс</div>
-            <div class="check"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#262D33" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m2 6 2.5 2.5L10 3"></path></svg></div>
           </div>
-          <div class="app"><img class="app-icon" src="data:image/png;base64,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" alt=""><div class="app-name">Waze</div></div>
-          <div class="app"><img class="app-icon" src="data:image/png;base64,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" alt=""><div class="app-name">2ГИС</div></div>
-          <div class="app"><img class="app-icon" src="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2244%22%20height%3D%2244%22%20viewBox%3D%220%200%2044%2044%22%3E%3Crect%20width%3D%2244%22%20height%3D%2244%22%20rx%3D%2212%22%20fill%3D%22%23f7f8fa%22%2F%3E%3Cpath%20d%3D%22M7%2033%2024%207h10L17%2037H9z%22%20fill%3D%22%2334a853%22%2F%3E%3Cpath%20d%3D%22m17%2037%208-14%2010%2014z%22%20fill%3D%22%23fbbc04%22%2F%3E%3Cpath%20d%3D%22M24%207h10l3%205-12%2011-6-6z%22%20fill%3D%22%234285f4%22%2F%3E%3Cpath%20d%3D%22M37%2012c0%208-12%2020-12%2020S13%2020%2013%2012a12%2012%200%201%201%2024%200z%22%20fill%3D%22%23ea4335%22%20transform%3D%22translate(3%205)%20scale(.66)%22%2F%3E%3Ccircle%20cx%3D%2219.5%22%20cy%3D%2213%22%20r%3D%223%22%20fill%3D%22%23fff%22%2F%3E%3C%2Fsvg%3E" alt=""><div class="app-name">Google</div></div>
         </div>
-      </div>
 
-      <div class="section" style="margin-top:20px;">
-        <div class="result">
-          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.846" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h14v16H5zM8 8h8M8 12h5M8 16h3"></path></svg>
-          <div class="result-copy"><div class="result-title">Команда навигации</div><div class="result-note">Откроет Яндекс</div></div>
-        </div>
-        <div class="hint">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6E767F" stroke-width="2.667" stroke-linecap="round" style="flex-shrink:0; margin-top:2px;"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5.5M12 7.6h.01"></path></svg>
-          <div>Выбор применяется сразу. Для запуска в Shortcuts используйте Open Navigation.</div>
-        </div>
-      </div>
+        <div class="status">Откроет Яндекс</div>
 
-      <div class="spacer"></div>
+        <div class="section">
+          <div class="label">ПРИЛОЖЕНИЕ ДЛЯ НАВИГАЦИИ</div>
+          <div class="apps wide-apps">
+          <div class="app selected">
+            <div class="well"><img src="data:image/png;base64,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" alt=""></div>
+            <div class="app-name">Яндекс</div>
+          </div>
+          <div class="app">
+            <div class="well"><img src="data:image/png;base64,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" alt=""></div>
+            <div class="app-name">Waze</div>
+          </div>
+          <div class="app">
+            <div class="well"><img src="data:image/png;base64,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" alt=""></div>
+            <div class="app-name">2ГИС</div>
+          </div>
+          <div class="app">
+            <div class="well"><img src="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2244%22%20height%3D%2244%22%20viewBox%3D%220%200%2044%2044%22%3E%3Crect%20width%3D%2244%22%20height%3D%2244%22%20rx%3D%2212%22%20fill%3D%22%23f7f8fa%22%2F%3E%3Cpath%20d%3D%22M7%2033%2024%207h10L17%2037H9z%22%20fill%3D%22%2334a853%22%2F%3E%3Cpath%20d%3D%22m17%2037%208-14%2010%2014z%22%20fill%3D%22%23fbbc04%22%2F%3E%3Cpath%20d%3D%22M24%207h10l3%205-12%2011-6-6z%22%20fill%3D%22%234285f4%22%2F%3E%3Cpath%20d%3D%22M37%2012c0%208-12%2020-12%2020S13%2020%2013%2012a12%2012%200%201%201%2024%200z%22%20fill%3D%22%23ea4335%22%20transform%3D%22translate(3%205)%20scale(.66)%22%2F%3E%3Ccircle%20cx%3D%2219.5%22%20cy%3D%2213%22%20r%3D%223%22%20fill%3D%22%23fff%22%2F%3E%3C%2Fsvg%3E" alt=""></div>
+            <div class="app-name">Google</div>
+          </div>
+          </div>
+          <div class="secondary">Обновить список</div>
+        </div>
+
+      <div class="note">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7C858F" stroke-width="2.667" stroke-linecap="round" style="flex-shrink:0; margin-top:2px;"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5.5M12 7.6h.01"></path></svg>
+        <div>Штатные сценарии открывают приложения по команде: «Открыть навигацию» и «Открыть видео» запускают выбранные здесь. Музыку на этой прошивке начинает «Продолжить воспроизведение», когда ничего не играет; «Открыть музыку» всегда открывает штатный плеер.</div>
+      </div>
+      </div>
       <div class="done">Готово</div>
     </div>
   </div>
 
+  <!-- The same sheet in a 416 pane, where it is the whole window: there is no dashboard behind it
+       to dim, the grid fits what it can rather than insisting on four, and the title takes the two
+       lines it needs. Same card, same components, same copy. -->
   <div class="frame narrow">
     <div class="sheet narrow-sheet">
-      <div class="sheet-head">
-        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="3" y="3" width="7" height="7" rx="2"></rect><rect x="14" y="3" width="7" height="7" rx="2"></rect>
-          <rect x="3" y="14" width="7" height="7" rx="2"></rect><path d="m14.5 17.5 2 2 4-5"></path>
-        </svg>
-        <div class="sheet-title">Приложения по умолчанию</div>
-        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#86909B" stroke-width="1.846" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"></path></svg>
-      </div>
+      <div class="scroll">
+        <div class="sheet-head">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="2"></rect><rect x="14" y="3" width="7" height="7" rx="2"></rect><rect x="3" y="14" width="7" height="7" rx="2"></rect><path d="m14.5 17.5 2 2 4-5"></path></svg>
+          <div class="sheet-title">Приложения по умолчанию</div>
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#86909B" stroke-width="1.846" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"></path></svg>
+        </div>
 
-      <div class="section">
-        <div class="label">КОМАНДА</div>
-        <div class="segments">
+        <div class="section">
+          <div class="label">ДЛЯ КАКОЙ КОМАНДЫ</div>
+          <div class="segments">
           <div class="segment">Навигация</div>
           <div class="segment selected">Музыка</div>
           <div class="segment">Видео</div>
-        </div>
-      </div>
-
-      <div class="section" style="margin-top:20px;">
-        <div class="label">ПРИЛОЖЕНИЕ ДЛЯ МУЗЫКИ</div>
-        <div class="apps narrow-apps">
-          <div class="app"><img class="app-icon" src="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2244%22%20height%3D%2244%22%20viewBox%3D%220%200%2044%2044%22%3E%3Crect%20width%3D%2244%22%20height%3D%2244%22%20rx%3D%2212%22%20fill%3D%22%23ffcc00%22%2F%3E%3Ccircle%20cx%3D%2222%22%20cy%3D%2222%22%20r%3D%2214%22%20fill%3D%22%23ff6534%22%2F%3E%3Ccircle%20cx%3D%2222%22%20cy%3D%2222%22%20r%3D%229%22%20fill%3D%22%23ff1f67%22%2F%3E%3Ccircle%20cx%3D%2222%22%20cy%3D%2222%22%20r%3D%224%22%20fill%3D%22%2315181f%22%2F%3E%3C%2Fsvg%3E" alt=""><div class="app-name">Яндекс</div></div>
-          <div class="app"><img class="app-icon" src="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2244%22%20height%3D%2244%22%20viewBox%3D%220%200%2044%2044%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22g%22%20x1%3D%224%22%20y1%3D%224%22%20x2%3D%2240%22%20y2%3D%2240%22%3E%3Cstop%20stop-color%3D%22%23fb5b74%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23d92d92%22%2F%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%2244%22%20height%3D%2244%22%20rx%3D%2212%22%20fill%3D%22url(%23g)%22%2F%3E%3Cpath%20d%3D%22M28.5%2011v19.3a5.5%205.5%200%201%201-2-4.2V15.5l-10%202.1v15a5.5%205.5%200%201%201-2-4.2V14.2z%22%20fill%3D%22%23fff%22%2F%3E%3C%2Fsvg%3E" alt=""><div class="app-name">Apple</div></div>
-          <div class="app selected">
-            <img class="app-icon" src="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2244%22%20height%3D%2244%22%20viewBox%3D%220%200%2044%2044%22%3E%3Crect%20width%3D%2244%22%20height%3D%2244%22%20rx%3D%2212%22%20fill%3D%22%231ed760%22%2F%3E%3Ccircle%20cx%3D%2222%22%20cy%3D%2222%22%20r%3D%2215%22%20fill%3D%22%23111%22%2F%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22%231ed760%22%20stroke-linecap%3D%22round%22%3E%3Cpath%20d%3D%22M13%2017c7-2%2014-1%2020%202%22%20stroke-width%3D%223%22%2F%3E%3Cpath%20d%3D%22M14%2022c6-1.6%2012-.8%2017%201.7%22%20stroke-width%3D%222.5%22%2F%3E%3Cpath%20d%3D%22M15%2027c5-1%209-.4%2013%201.5%22%20stroke-width%3D%222%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E" alt=""><div class="app-name">Spotify</div>
-            <div class="check"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#262D33" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m2 6 2.5 2.5L10 3"></path></svg></div>
           </div>
         </div>
-      </div>
 
-      <div class="section" style="margin-top:20px;">
-        <div class="result">
-          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.846" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l10-2v13M9 9l10-2M6 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm10-2a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"></path></svg>
-          <div class="result-copy"><div class="result-title">Музыка по умолчанию</div><div class="result-note">Spotify</div></div>
+        <div class="status">Запустит Spotify</div>
+
+        <div class="section">
+          <div class="label">ПРИЛОЖЕНИЕ ДЛЯ МУЗЫКИ</div>
+          <div class="apps narrow-apps">
+          <div class="app">
+            <div class="well"><img src="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2244%22%20height%3D%2244%22%20viewBox%3D%220%200%2044%2044%22%3E%3Crect%20width%3D%2244%22%20height%3D%2244%22%20rx%3D%2212%22%20fill%3D%22%23ffcc00%22%2F%3E%3Ccircle%20cx%3D%2222%22%20cy%3D%2222%22%20r%3D%2214%22%20fill%3D%22%23ff6534%22%2F%3E%3Ccircle%20cx%3D%2222%22%20cy%3D%2222%22%20r%3D%229%22%20fill%3D%22%23ff1f67%22%2F%3E%3Ccircle%20cx%3D%2222%22%20cy%3D%2222%22%20r%3D%224%22%20fill%3D%22%2315181f%22%2F%3E%3C%2Fsvg%3E" alt=""></div>
+            <div class="app-name">Яндекс</div>
+          </div>
+          <div class="app">
+            <div class="well"><img src="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2244%22%20height%3D%2244%22%20viewBox%3D%220%200%2044%2044%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22g%22%20x1%3D%224%22%20y1%3D%224%22%20x2%3D%2240%22%20y2%3D%2240%22%3E%3Cstop%20stop-color%3D%22%23fb5b74%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23d92d92%22%2F%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%2244%22%20height%3D%2244%22%20rx%3D%2212%22%20fill%3D%22url(%23g)%22%2F%3E%3Cpath%20d%3D%22M28.5%2011v19.3a5.5%205.5%200%201%201-2-4.2V15.5l-10%202.1v15a5.5%205.5%200%201%201-2-4.2V14.2z%22%20fill%3D%22%23fff%22%2F%3E%3C%2Fsvg%3E" alt=""></div>
+            <div class="app-name">Apple</div>
+          </div>
+          <div class="app selected">
+            <div class="well"><img src="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2244%22%20height%3D%2244%22%20viewBox%3D%220%200%2044%2044%22%3E%3Crect%20width%3D%2244%22%20height%3D%2244%22%20rx%3D%2212%22%20fill%3D%22%231ed760%22%2F%3E%3Ccircle%20cx%3D%2222%22%20cy%3D%2222%22%20r%3D%2215%22%20fill%3D%22%23111%22%2F%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22%231ed760%22%20stroke-linecap%3D%22round%22%3E%3Cpath%20d%3D%22M13%2017c7-2%2014-1%2020%202%22%20stroke-width%3D%223%22%2F%3E%3Cpath%20d%3D%22M14%2022c6-1.6%2012-.8%2017%201.7%22%20stroke-width%3D%222.5%22%2F%3E%3Cpath%20d%3D%22M15%2027c5-1%209-.4%2013%201.5%22%20stroke-width%3D%222%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E" alt=""></div>
+            <div class="app-name">Spotify</div>
+          </div>
+          </div>
+          <div class="secondary">Обновить список</div>
         </div>
-      </div>
 
-      <div class="spacer"></div>
-      <div class="summary">
-        <div class="summary-name">Навигация</div><div class="summary-app">Яндекс</div>
-        <div class="summary-name">Музыка</div><div class="summary-app">Spotify</div>
-        <div class="summary-name">Видео</div><div class="summary-app">YouTube</div>
+      <div class="note">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7C858F" stroke-width="2.667" stroke-linecap="round" style="flex-shrink:0; margin-top:2px;"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5.5M12 7.6h.01"></path></svg>
+        <div>Штатные сценарии открывают приложения по команде: «Открыть навигацию» и «Открыть видео» запускают выбранные здесь. Музыку на этой прошивке начинает «Продолжить воспроизведение», когда ничего не играет; «Открыть музыку» всегда открывает штатный плеер.</div>
       </div>
-      <div class="hint" style="margin:20px 0;">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6E767F" stroke-width="2.667" stroke-linecap="round" style="flex-shrink:0; margin-top:2px;"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5.5M12 7.6h.01"></path></svg>
-        <div>Музыка: Continue playing. Видео: Open Video. Только установленные приложения.</div>
       </div>
       <div class="done">Готово</div>
     </div>

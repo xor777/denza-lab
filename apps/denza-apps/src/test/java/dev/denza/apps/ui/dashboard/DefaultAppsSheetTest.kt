@@ -26,13 +26,17 @@ class DefaultAppsSheetTest {
         assertEquals("Приложение для видео", defaultAppSectionTitle(DefaultAppRole.VIDEO))
     }
 
+    /**
+     * The help names the commands a driver says, and still keeps the one promise it must not break:
+     * music on this firmware is not started by "Открыть музыку".
+     */
     @Test
     fun helpNamesTheFirmwareSpecificLaunchActionsWithoutPromisingOpenMusic() {
         assertEquals(
-            "Shortcuts: Open Navigation открывает навигацию, Open Video — видео. " +
-                "На этой прошивке музыку запускает Continue playing, если нет активной " +
-                "медиасессии. Open Music открывает штатную музыку; остальные команды " +
-                "управляют текущей медиасессией.",
+            "Штатные сценарии открывают приложения по команде: «Открыть навигацию» и " +
+                "«Открыть видео» запускают выбранные здесь. Музыку на этой прошивке начинает " +
+                "«Продолжить воспроизведение», когда ничего не играет; «Открыть музыку» всегда " +
+                "открывает штатный плеер.",
             DEFAULT_APPS_SHORTCUTS_HELP,
         )
     }

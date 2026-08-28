@@ -60,7 +60,9 @@ abstract class BaseTripRenderer : PanelCanvas() {
          * box it is given - and also what silently distorts it when the box is a different shape
          * from the layout. The dashboard used to hand this strip whatever height was left below
          * the tiles, and the strip was laid out in a 5:1 band, so every stroke in it came out
-         * stretched about twofold. It is laid out in the board's own 1184x416 now, and this is how
+         * stretched about twofold. It is laid out in the board's own 1184x296 now - 296 because the
+         * car gives the app 680 dp of height and the tiles and the page margins take 384 - and this
+         * is how
          * a caller asks for a box of that shape.
          */
         fun heightFor(width: Float): Float =

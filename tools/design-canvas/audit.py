@@ -10,8 +10,8 @@ and measurements should not be done by hand twice.
 This inlines each .dc.html body into one page, opens it in headless Chrome, and
 has the page measure itself: every piece of text against the artboard it sits in,
 against its neighbours, and against the small shapes near it, plus the set of
-type sizes and stroke weights actually used. The report comes back through
---dump-dom.
+type sizes, gaps, radii and stroke weights actually used. The report comes back
+through --dump-dom.
 
 Run: python3 audit.py [Board ...]
 """
@@ -146,11 +146,38 @@ const label = el => (el.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 
 
   // 4. the vocabulary actually used
   const sizes = new Set(), weights = new Set(), radii = new Set(), strokes = new Set();
+  const gaps = new Set();
   leaves.forEach(el => {
     sizes.add(parseFloat(doc.defaultView.getComputedStyle(el).fontSize));
   });
   board.querySelectorAll('*').forEach(el => {
     const cs = doc.defaultView.getComputedStyle(el);
+    // Every gap the board actually spends: a flex or grid gap, a padding, a margin. Nothing here
+    // measured them, so the one ladder with no counterpart in the app - the spacing one - was also
+    // the one ladder nothing checked, and 30, 14 and 6 sat on the dashboard for a wave.
+    //
+    // Zero is not a gap and is not reported. Neither is a percentage or an `auto` margin: both
+    // come back resolved to whatever the box happened to be, which is a measurement of the layout
+    // rather than of a decision. A padding on an element whose box is a shape - a swatch, a pill -
+    // is still a decision, so it counts.
+    //
+    // A generated underlay is skipped: it is a picture of another board, its spacing is that
+    // board's and is measured on that board's own row, and its analyser carries a per-column
+    // offset as a margin - so counting it here reported twelve bar heights as twelve gaps.
+    if (!el.closest('.underlay')) {
+      ['rowGap', 'columnGap'].forEach(k => {
+        const v = parseFloat(cs[k]);
+        if (v > 0 && cs[k].endsWith('px')) gaps.add(+v.toFixed(2));
+      });
+      ['Top', 'Right', 'Bottom', 'Left'].forEach(side => {
+        ['padding', 'margin'].forEach(kind => {
+          const raw = el.style[kind + side] || '';
+          if (raw && !raw.endsWith('px')) return;
+          const v = parseFloat(cs[kind + side]);
+          if (v > 0) gaps.add(+v.toFixed(2));
+        });
+      });
+    }
     ['borderTopLeftRadius', 'borderTopRightRadius'].forEach(k => {
       const v = parseFloat(cs[k]);
       if (v > 0 && cs[k].endsWith('px')) radii.add(v);
@@ -171,6 +198,7 @@ const label = el => (el.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 
     }
   });
   say('SIZES ' + [...sizes].sort((a, b) => b - a).join(' '));
+  say('GAPS ' + [...gaps].sort((a, b) => b - a).join(' '));
   say('RADII ' + [...radii].sort((a, b) => b - a).join(' '));
   say('STROKES ' + [...strokes].sort((a, b) => b - a).join(' '));
 });

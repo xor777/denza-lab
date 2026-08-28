@@ -58,14 +58,21 @@ internal object ClusterBlockPlan {
         DashboardRow.Text(d.body, LEAD_GROUP),
     )
 
-    /** The same facts stacked, with the spread and the pack's health each given a row. */
+    /**
+     * The same facts stacked, with the spread and the pack's health each given a row.
+     *
+     * The last row is a reading's row, not a sentence's, and it is that height whichever of the two
+     * it is carrying today: the insulation is a number with a unit and a name like the two above
+     * it, and while the car is charging the same row says how long is left instead. Planning it at
+     * the smaller of the two would move the whole block up the panel the moment the gun came out.
+     */
     fun electricNarrow(d: InstrumentDensity): List<DashboardRow> = listOf(
         DashboardRow.Text(d.title),
         DashboardRow.Text(d.figure, LEAD_TITLE),
         DashboardRow.Rule(LEAD_FIGURE),
         DashboardRow.Text(d.reading, LEAD_GROUP),
         DashboardRow.Text(d.reading, LEAD_ROW),
-        DashboardRow.Text(d.body, LEAD_GROUP),
+        DashboardRow.Text(d.reading, LEAD_GROUP),
     )
 
     /**

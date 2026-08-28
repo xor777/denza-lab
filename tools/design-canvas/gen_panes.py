@@ -40,7 +40,7 @@ import sys
 
 MAIN = 'Main.dc.html'
 
-FIELD_MAIN = 198.0           # the bar field on Main.dc.html
+FIELD_MAIN = 202.98          # the bar field on Main.dc.html
 BAR_FRACTION = 0.7097        # SpectrumRenderer.BAR_WIDTH_FRACTION
 BASELINE_FRACTION = 0.8319   # SpectrumRenderer.BASELINE_FRACTION
 STRIP = 52.0                 # SpectrumRenderer.STRIP_UNITS - the ticker's band
@@ -76,11 +76,23 @@ CHIP_DOT_INSET_RATIO = 9 / 68
 CHIP_MIN = 52
 
 ROW = 30                     # one figure as a row: a 15 label and a 24 reading on one baseline
-BLOCK = 76                   # one figure as a block: a 15 label over a 46 figure
+BLOCK = 72                   # one figure as a block: a 15 label, 8, a 46 figure - Main's own block
 LABEL = 15
 FIGURE = 46
 VALUE = 24
 RATE = 19
+LINE = 12                    # Space.M, between a figure and its unit
+LEAD = 8                     # Space.S, between a label and the figure under it
+
+# Where a row's reading starts. The widest capital these rows can print is "ОСТАЛОСЬ" - 91.4 dp at
+# 15 with the board's tracking - plus Space.L, rounded up. Measured from the drawn labels instead,
+# the readings would slide sideways the moment a route started.
+LABEL_COLUMN = 112
+
+# The ticker is a still on a board and a marquee in the app, so a board may only print what fits.
+LED_SIZE = 34
+LED_TRACKING = 5
+LED_ADVANCE = 0.6            # Roboto Mono advances 0.6 em, whatever the weight
 
 BARS = [
     (30, 13), (55, 8), (91, 17), (133, 6), (160, 11), (182, 4),
@@ -118,7 +130,16 @@ class Pane:
         return self.strip_h - self.figures_h - GROUP
 
 
-MEDIUM = Pane('TwoThirds', 828, 20, FEATURES, 'across', 'MIDNIGHT CITY')
+def led_width(title):
+    """What the ticker measures at, so a board cannot quietly print past its own edge."""
+    return len(title) * (LED_SIZE * LED_ADVANCE + LED_TRACKING) - LED_TRACKING
+
+
+# The full screen writes "M83 · MIDNIGHT CITY" and so does the app, which uppercases the artist
+# and the title into one run. At 828 that run is 483 dp of 788 and the pane can say it. At 416 it
+# is 483 of 392 and the app scrolls it - a marquee is not something a still can draw, so the
+# narrow board prints the part that fits and says here that it is doing so.
+MEDIUM = Pane('TwoThirds', 828, 20, FEATURES, 'across', 'M83 · MIDNIGHT CITY')
 NARROW = Pane('OneThird', 416, 12, (FEATURES + 1) // 2, 'rows', 'MIDNIGHT CITY')
 
 
@@ -161,7 +182,10 @@ def chip(state, svg, size, indent='      '):
     # report two stroke weights on one board.
     svg = re.sub(r'stroke-width="[\d.]+"',
                  f'stroke-width="{round(2.0 * 24 / icon, 3):g}"', svg)
-    dot = '#FEEFAB' if state == 'on' else '#3F434D'
+    # Lit or unlit, and the unlit one is MUTED_DEEP - what `DenzaChip.dotColour` draws for an
+    # idle feature. This board had it at the track's own mark colour, which is nothing the code
+    # ever draws here.
+    dot = '#FEEFAB' if state == 'on' else '#7C858F'
     d = round(size * CHIP_DOT_RATIO, 1)
     inset = round(size * CHIP_DOT_INSET_RATIO, 1)
     return (
@@ -181,6 +205,9 @@ def analyser(pane):
     """The ticker, the bars, their segment grid and the cropped reflection."""
     span = pane.content
     box = pane.analyser_h
+    if led_width(pane.title) > span:
+        sys.exit(f'{pane.name}: the ticker "{pane.title}" measures '
+                 f'{led_width(pane.title):.0f} in {span:.0f} of content')
     baseline = STRIP + (box - STRIP) * BASELINE_FRACTION
     field = round(baseline - STRIP, 2)
     reflect = round(min(box - baseline, REFLECT), 2)
@@ -219,13 +246,26 @@ def analyser(pane):
     return body, data
 
 
+# One arrow, one size, at every width. The narrow pane used to draw this at 14 beside the same 19
+# its neighbours set their rate in, so one glyph came out two sizes on one screen.
 ARROW = ('<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FEEFAB" '
          'stroke-width="2.4" stroke-linecap="round"><path d="M12 19V6M6.5 11.5 12 6l5.5 5.5">'
          '</path></svg>')
 
+# The rate sits against the reading it belongs to rather than hung off the far edge of the cell:
+# pushed right it lands on the rule between two readings and reads as a column of its own.
+RATE_RUN = (f'<div style="display:flex; align-items:center; gap:{LEAD}px;">'
+            f'{ARROW}<div class="rate">1,2</div></div>')
+
 
 def figures_across():
-    """Three readings side by side with a rule between them, as the archived board set them."""
+    """Three readings side by side with a rule between them, as the archived board set them.
+
+    One anatomy for all three, and it is the full screen's: a tracked capital, then a 46 figure
+    with its unit against it. The sunset used to be a caption in the vehicle's own amber - the
+    colour the car draws when it wants a decision from the driver - at a smaller size, so the one
+    coloured caption on the screen was the one saying the sun goes down at the usual time.
+    """
     return f'''      <div class="fig">
         <div class="cap">В ПУТИ</div>
         <div class="line">
@@ -239,15 +279,12 @@ def figures_across():
         <div class="line">
           <div class="num">642</div>
           <div class="un">м</div>
-          <div style="display:flex; align-items:center; gap:6px; margin-left:auto;">
-            {ARROW}
-            <div style="font-size:{RATE}px; color:#FEEFAB;">1,2</div>
-          </div>
+          {RATE_RUN}
         </div>
       </div>
       <div class="rule"></div>
       <div class="fig">
-        <div class="cap" style="color:#FF9F19;">ЗАКАТ</div>
+        <div class="cap">ЗАКАТ</div>
         <div class="line">
           <div class="num">19:44</div>
         </div>
@@ -255,24 +292,31 @@ def figures_across():
 
 
 def figures_rows():
-    """The same three where there is no width to set them side by side."""
-    small = ARROW.replace('width="20" height="20"', 'width="14" height="14"') \
-                 .replace('stroke-width="2.4"', 'stroke-width="3.429"')
+    """The same three where there is no width to set them side by side.
+
+    The readings share a left edge. They used to be hung off the right of the pane, which lines the
+    last character of a clock up with the last character of a distance and puts the digits that
+    matter in three different places - three readings the eye cannot compare, which is the one
+    thing a stack of rows is for.
+    """
     return f'''      <div class="row">
         <div class="cap">В ПУТИ</div>
-        <div class="val">1:42 · 128 км</div>
-      </div>
-      <div class="row">
-        <div class="cap">ВЫСОТА</div>
-        <div style="display:flex; align-items:baseline; gap:8px;">
-          <div class="val">642 м</div>
-          {small}
-          <div class="rate">1,2</div>
+        <div class="line">
+          <div class="val">1:42 · 128 км</div>
         </div>
       </div>
       <div class="row">
-        <div class="cap" style="color:#FF9F19;">ЗАКАТ</div>
-        <div class="val">19:44</div>
+        <div class="cap">ВЫСОТА</div>
+        <div class="line">
+          <div class="val">642 м</div>
+          {RATE_RUN}
+        </div>
+      </div>
+      <div class="row">
+        <div class="cap">ЗАКАТ</div>
+        <div class="line">
+          <div class="val">19:44</div>
+        </div>
       </div>'''
 
 
@@ -308,14 +352,17 @@ def board(pane, src):
 {css}
     .dot {{ position:absolute; border-radius:50%; }}
     .across {{ display:flex; align-items:stretch; height:{BLOCK}px; }}
-    .fig {{ flex:1; min-width:0; display:flex; flex-direction:column; justify-content:space-between; }}
+    .fig {{ flex:1; min-width:0; display:flex; flex-direction:column; gap:{LEAD}px; }}
+    /* Half the group gap either side, so the hairline has Space.XL of clear air across it. */
     .rule {{ width:1px; background:rgba(218,225,235,0.14); margin:0 {GROUP // 2}px; }}
-    .line {{ display:flex; align-items:baseline; gap:14px; }}
+    .line {{ display:flex; align-items:baseline; gap:{LINE}px; }}
     .num {{ font-size:{FIGURE}px; font-weight:200; color:#DAE1EB; line-height:1; }}
     .un {{ font-size:{VALUE}px; color:#86909B; }}
     .rows {{ display:flex; flex-direction:column; gap:{GAP}px; }}
-    .row {{ height:{ROW}px; line-height:{ROW}px; display:flex; align-items:baseline; justify-content:space-between; }}
+    .row {{ height:{ROW}px; line-height:{ROW}px; display:flex; align-items:baseline; gap:{LINE}px; }}
     .cap {{ font-size:{LABEL}px; letter-spacing:1.6px; font-weight:500; color:#86909B; }}
+    /* The label's box plus the row's own gap is where every reading starts: {LABEL_COLUMN}. */
+    .row .cap {{ width:{LABEL_COLUMN - LINE}px; flex-shrink:0; }}
     .val {{ font-size:{VALUE}px; font-weight:300; color:#DAE1EB; }}
     .rate {{ font-size:{RATE}px; color:#FEEFAB; }}
   </style>
@@ -363,23 +410,99 @@ class Component extends DCLogic {{
 '''
 
 
-if __name__ == '__main__':
-    src = main_board()
-    for pane in (MEDIUM, NARROW):
-        out = f'{pane.name}.dc.html'
-        open(out, 'w', encoding='utf-8').write(board(pane, src))
-        print(
-            f'{out}: {pane.width}x{WINDOW_H}  content {pane.content:.0f}'
-            f'  chip {pane.chip:.1f} x{pane.chip_columns}x{pane.chip_rows}'
-            f'  strip {pane.content:.0f}x{pane.strip_h:.1f}'
-            f'  analyser {pane.analyser_h:.1f}  figures {pane.figures} {pane.figures_h}'
-        )
+# --- the dashboard behind a sheet --------------------------------------------
+#
+# A settings panel and the default-apps sheet are drawn over the dashboard, and both boards used to
+# carry their own copy of it. Config's was a real copy of `Main.dc.html` at the moment it was
+# pasted; DefaultApps' was a mock - three tiles in the wrong order, three empty boxes where the
+# other eight go, no second row, and three grey bars where the analyser is - so the board answering
+# "what does this cover" was showing a screen that has never existed.
+#
+# So the underlay is emitted here, from the same file the panes are emitted from, into a marked
+# region of each sheet board. What sits over it is still drawn by hand: only the thing behind the
+# scrim is generated, and it can no longer disagree with the screen it is a picture of.
+
+SHEETS = ('Config.dc.html', 'DefaultApps.dc.html')
+
+CSS_BEGIN = '    /* underlay: generated from Main.dc.html by gen_panes.py */'
+CSS_END = '    /* end underlay */'
+BODY_BEGIN = '  <!-- underlay: generated from Main.dc.html by gen_panes.py -->'
+BODY_END = '  <!-- end underlay -->'
+
+# One recipe for one scrim, and it is `DenzaColors.Scrim` - the ground at 0.72, which is what every
+# modal surface in the app is drawn over. The two boards had two: 0.30 opacity under black at 0.55,
+# and 0.48 under black at 0.54. Three depths of dark mean the screen behind a window changes
+# brightness depending on which window opened, which reads as the dashboard flickering.
+SCRIM = 'rgba(7,8,10,0.72)'
+
+UNDERLAY_CLASSES = ('.tile', '.on', '.off', '.nm', '.st', '.led',
+                    '.cap', '.num', '.un', '.rate', '.fig', '.line', '.ruled')
+
+
+def expand_loops(body):
+    """Run the board's own `sc-for` over `BARS`.
+
+    The underlay is a picture behind a scrim, so it carries its columns already expanded rather
+    than a loop and a data block: a sheet board then needs no `data-dc-script` of its own, and
+    `shot.py` cannot report holes in something that has no loops.
+    """
+    def one(match):
+        template = match.group(1)
+        rows = []
+        for h, p in BARS:
+            row = template.replace('{{b.h}}', f'{h:g}').replace('{{b.p}}', f'{p:g}')
+            rows.append(row.strip())
+        return '\n            '.join(rows)
+
+    return re.sub(r'<sc-for[^>]*>(.*?)</sc-for>', one, body, flags=re.S)
+
+
+def underlay(src):
+    """The dashboard as it stands, scoped to `.underlay`, plus the one scrim over it."""
+    rules_out = []
+    for selector in UNDERLAY_CLASSES:
+        found = re.search(r'^\s*(' + re.escape(selector) + r') \{([^\n]*)$', src, re.M)
+        if not found:
+            sys.exit(f'{MAIN} has no {selector} rule; gen_panes.py cannot scope the underlay')
+        rules_out.append(f'    .underlay {selector} {{{found.group(2).strip()}')
+    css = '\n'.join(rules_out) + (
+        '\n    .underlay { position:absolute; left:0; top:0; right:0; bottom:0; }'
+        f'\n    .underlay-scrim {{ position:absolute; left:0; top:0; right:0; bottom:0; '
+        f'background:{SCRIM}; }}')
+
+    body = re.search(r'</helmet>\s*(<div style="width:1280px.*?)\s*</x-dc>', src, re.S)
+    if not body:
+        sys.exit(f'{MAIN} has no artboard div; gen_panes.py cannot lift the underlay')
+    art = expand_loops(body.group(1))
+    art = '\n'.join('  ' + line if line.strip() else line for line in art.split('\n'))
+    return css, f'  <div class="underlay">\n{art}\n  </div>\n  <div class="underlay-scrim"></div>'
+
+
+def splice(text, begin, end, block, path):
+    start = text.find(begin)
+    stop = text.find(end)
+    if start < 0 or stop < 0 or stop < start:
+        sys.exit(f'{path} has no {begin.strip()} region')
+    return text[:start] + begin + '\n' + block + '\n' + text[stop:]
+
+
+def write_underlays(src):
+    css, body = underlay(src)
+    for path in SHEETS:
+        text = open(path, encoding='utf-8').read()
+        text = splice(text, CSS_BEGIN, CSS_END, css, path)
+        text = splice(text, BODY_BEGIN, BODY_END, body, path)
+        open(path, 'w', encoding='utf-8').write(text)
+        print(f'{path}: underlay from {MAIN}, scrim {SCRIM}')
 
 
 # --- the density board -------------------------------------------------------
 
 DENSITY_COUNTS = (10, 11, 12, 13)
-DENSITY_W = 1360
+# The frame, kept in step with `canvas.json`. Declared rather than left to the content, because
+# `shot.py` otherwise falls back to the first `width:Npx; height:Npx` in the body - which on this
+# board is a 7 px dot.
+DENSITY_W, DENSITY_H = 1360, 899
 FUTURE = 'M12 6v12M6 12h12'   # a feature that does not exist yet
 
 
@@ -392,7 +515,7 @@ def density_row(src, count, columns, width, size, indent):
             state, svg = real[index]
         else:
             state, svg = 'off', (
-                '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#6E767F" '
+                '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#7C858F" '
                 f'stroke-width="2" stroke-linecap="round"><path d="{FUTURE}"></path></svg>'
             )
         out.append(chip(state, svg, size, indent))
@@ -423,8 +546,8 @@ def density_board(src):
     for count, wide, cols, narrow, under in sections:
         tone = '#FF6B5B' if under else '#86909B'
         note = ' · ниже порога 52' if under else ''
-        body.append(f'''  <div style="display:flex; flex-direction:column; gap:14px;">
-    <div style="display:flex; align-items:baseline; gap:14px;">
+        body.append(f'''  <div style="display:flex; flex-direction:column; gap:{GAP}px;">
+    <div style="display:flex; align-items:baseline; gap:{GAP}px;">
       <div style="font-size:24px; font-weight:500; color:#DAE1EB;">{count} функций</div>
       <div style="font-size:15px; letter-spacing:1.6px; font-weight:500; color:{tone};">2/3 · {wide:.1f}   1/3 · {cols} x {narrow:.1f}{note}</div>
     </div>
@@ -457,10 +580,26 @@ def density_board(src):
     .dot {{ position:absolute; border-radius:50%; }}
   </style>
 </helmet>
-<div style="width:{DENSITY_W}px; box-sizing:border-box; background:#07080A; display:flex; flex-direction:column; gap:48px; padding:48px;">
+<div style="width:{DENSITY_W}px; height:{DENSITY_H}px; box-sizing:border-box; background:#07080A; display:flex; flex-direction:column; gap:48px; padding:48px;">
 {chr(10).join(body)}
 </div>
 </x-dc>
 </body>
 </html>
 '''
+
+
+if __name__ == '__main__':
+    src = main_board()
+    for pane in (MEDIUM, NARROW):
+        out = f'{pane.name}.dc.html'
+        open(out, 'w', encoding='utf-8').write(board(pane, src))
+        print(
+            f'{out}: {pane.width}x{WINDOW_H}  content {pane.content:.0f}'
+            f'  chip {pane.chip:.1f} x{pane.chip_columns}x{pane.chip_rows}'
+            f'  strip {pane.content:.0f}x{pane.strip_h:.1f}'
+            f'  analyser {pane.analyser_h:.1f}  figures {pane.figures} {pane.figures_h}'
+        )
+    write_underlays(src)
+    open('ChipDensity.dc.html', 'w', encoding='utf-8').write(density_board(src))
+    print(f'ChipDensity.dc.html: {DENSITY_COUNTS} features, both pane widths')

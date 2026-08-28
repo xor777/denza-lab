@@ -30,20 +30,12 @@ fun <T> DenzaPickerSheet(
     compact: Boolean,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
-    note: String = "",
     emptyText: String = "Ничего не найдено",
     columns: Int = DenzaMetrics.Component.PICKER_COLUMNS,
     item: @Composable (T) -> Unit,
 ) {
     DenzaSheet(onDismiss = onDismiss, compact = compact, modifier = modifier) {
         DenzaSheetHeader(title = title, subtitle = subtitle, onDismiss = onDismiss)
-        if (note.isNotBlank()) {
-            Text(
-                text = note,
-                style = MaterialTheme.typography.bodyMedium,
-                color = DenzaColors.Warning,
-            )
-        }
         if (items.isEmpty()) {
             Text(
                 text = emptyText,

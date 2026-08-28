@@ -3,18 +3,25 @@ package dev.denza.apps.ui.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -68,7 +75,7 @@ fun DenzaSheet(
             Box(
                 Modifier
                     .fillMaxSize()
-                    .background(SCRIM)
+                    .background(DenzaColors.Scrim)
                     .clickable(
                         interactionSource = taps,
                         indication = null,
@@ -85,6 +92,12 @@ fun DenzaSheet(
                         else Modifier.width(DenzaMetrics.Component.SHEET_WIDTH),
                     )
                     .background(DenzaColors.SurfaceQuiet)
+                    // The ground is drawn under the caption bar and the header is not. A panel in a
+                    // pane window has BYD's freeform drag handle across its top 24 dp, and a header
+                    // laid out from the window's own edge puts the panel's name - and the only way
+                    // out of it - underneath that handle. The scrim above keeps filling the window,
+                    // so the panel still reaches the glass.
+                    .windowInsetsPadding(WindowInsets.safeDrawing)
                     // A rung lower down the sides than across them: the window is 680 dp tall and
                     // a panel with a header, its settings, an action and a footnote does not fit
                     // 32 top and bottom. Measured on the board, which overflowed by 7 dp.
@@ -242,6 +255,87 @@ fun DenzaSheetFootnote(text: String, modifier: Modifier = Modifier) {
     )
 }
 
+/**
+ * The one surface that is not a panel at the edge: a card in the middle of the screen.
+ *
+ * It exists for the ADB gate and for the recovery window it opens, and for nothing else. A panel at
+ * the edge leaves the dashboard beside it, which is exactly right for configuring a feature and
+ * exactly wrong for a gate whose whole statement is that nothing behind it can be used yet.
+ *
+ * What it takes away from its two callers is the width. They had 0.72 and 0.68 of the screen -
+ * indistinguishable at 1280 dp, 30 dp apart in a pane - and the pane is where a fraction of the
+ * window stops being a design at all: 0.68 of 416 leaves 40 dp of prose between two 48 dp margins.
+ * So the width is [DenzaMetrics.Component.MODAL_WIDTH] as a ceiling, and in a pane the card simply
+ * fills what it is given.
+ *
+ * [onScrimTouch] is null for the gate: its scrim swallows the touch rather than answering it,
+ * because there is nothing behind the gate to reach.
+ */
+@Composable
+fun DenzaModalCard(
+    compact: Boolean,
+    modifier: Modifier = Modifier,
+    onScrimTouch: (() -> Unit)? = null,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    val taps = remember { MutableInteractionSource() }
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(DenzaColors.Scrim)
+            .clickable(
+                interactionSource = taps,
+                indication = null,
+                onClick = onScrimTouch ?: {},
+            )
+            .windowInsetsPadding(WindowInsets.safeDrawing)
+            .padding(DenzaMetrics.Space.XL),
+        contentAlignment = Alignment.Center,
+    ) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .widthIn(max = DenzaMetrics.Component.MODAL_WIDTH),
+            shape = MaterialTheme.shapes.large,
+            border = BorderStroke(DenzaMetrics.Stroke.HAIRLINE, DenzaColors.SurfaceRaised),
+        ) {
+            Column(
+                modifier = Modifier.padding(
+                    if (compact) DenzaMetrics.Space.L else DenzaMetrics.Space.XL,
+                ),
+                verticalArrangement = Arrangement.spacedBy(DenzaMetrics.Space.L),
+                content = content,
+            )
+        }
+    }
+}
+
+/**
+ * [DenzaModalCard] in a window of its own, for a modal that has to sit above another one.
+ *
+ * The recovery window is opened from the gate, and the gate is drawn in the activity's own window
+ * with a shield across it that swallows every touch. A dialog is the only thing a finger can reach
+ * from there.
+ */
+@Composable
+fun DenzaModalDialog(
+    compact: Boolean,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+    ) {
+        DenzaModalCard(
+            compact = compact,
+            modifier = modifier,
+            onScrimTouch = onDismiss,
+            content = content,
+        )
+    }
+}
+
 private val HEADER_ICON = DenzaMetrics.Component.SHEET_HEADER_ICON
 private val CLOSE_ICON = DenzaMetrics.Component.SHEET_CLOSE_ICON
-private val SCRIM = DenzaColors.Background.copy(alpha = 0.55f)

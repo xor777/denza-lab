@@ -9,6 +9,7 @@ import dev.denza.apps.feature.defaultapps.DefaultAppRole
 import dev.denza.apps.feature.defaultapps.DefaultAppRoleStatus
 import dev.denza.apps.feature.defaultapps.DefaultAppRoleUiState
 import dev.denza.apps.feature.defaultapps.DefaultAppsUiState
+import dev.denza.apps.feature.locale.StockRussianLocaleSnapshot
 import dev.denza.apps.ui.components.DenzaTileCaption
 import dev.denza.apps.ui.components.DenzaTileTone
 import org.junit.Assert.assertEquals
@@ -49,21 +50,42 @@ class DashboardTilesTest {
     @Test
     fun weatherReadsBackWhatTheCarWasGiven() {
         val now = 1_700_000_000_000L
-        val tile = DashboardTiles.of(
-            DenzaUiState(
-                weatherEnabled = true,
-                weatherTemperature = 14,
-                weatherUpdatedMillis = now - 12 * 60_000L,
-            ),
-            nowMillis = now,
-        ).first { it.id == TileId.WEATHER }
+        val tile = DenzaUiState(
+            weatherEnabled = true,
+            weatherTemperature = 14,
+            weatherUpdatedMillis = now - 12 * 60_000L,
+        ).tile(TileId.WEATHER)
         assertEquals("+14°", tile.state)
 
-        val off = DashboardTiles.of(
-            DenzaUiState(weatherEnabled = false, weatherTemperature = 14),
-            nowMillis = now,
-        ).first { it.id == TileId.WEATHER }
+        val off = DenzaUiState(weatherEnabled = false, weatherTemperature = 14)
+            .tile(TileId.WEATHER)
         assertEquals("Выключена", off.state)
+    }
+
+    /**
+     * The switch is not the reading.
+     *
+     * It shipped lit whenever the alarm stood, so a car that had never once fetched a forecast drew
+     * the weather in the accent over "Данных ещё нет" - the tone promising what the caption denied.
+     */
+    @Test
+    fun weatherIsOnlyLitWhenSomethingWasActuallyHandedToTheWidget() {
+        val waiting = DenzaUiState(weatherEnabled = true).tile(TileId.WEATHER)
+        assertEquals("Данных ещё нет", waiting.state)
+        assertEquals(DenzaTileTone.WORKING, waiting.tone)
+
+        val fed = DenzaUiState(
+            weatherEnabled = true,
+            weatherTemperature = -3,
+            weatherUpdatedMillis = 1L,
+        ).tile(TileId.WEATHER)
+        assertEquals("-3°", fed.state)
+        assertEquals(DenzaTileTone.LIVE, fed.tone)
+
+        assertEquals(
+            DenzaTileTone.IDLE,
+            DenzaUiState(weatherEnabled = false).tile(TileId.WEATHER).tone,
+        )
     }
 
     @Test
@@ -109,6 +131,51 @@ class DashboardTilesTest {
         // draws for exactly this pair. Coral here would be the door claiming to be the fault.
         assertEquals("2 функции ждут", hurt.state)
         assertEquals(DenzaTileTone.ATTENTION, hurt.tone)
+    }
+
+    /**
+     * The number on the door and the list behind it are one list.
+     *
+     * The face counted the seven coordinated features and the panel filtered all eleven tiles, so a
+     * car with a stuck language or an unread application role had a door reading "Всё в норме" over
+     * a panel naming the fault - and the door, which is never the thing that broke, put itself in
+     * its own list of things that need somebody.
+     */
+    @Test
+    fun theDoorCountsEveryTileButItselfAndPrintsTheSameList() {
+        val state = DenzaUiState(
+            mirrors = snapshot(FeatureStatus.NEEDS_ACTION),
+            stockRussianLocale = StockRussianLocaleSnapshot(
+                enabled = false,
+                permissionReady = true,
+                failed = true,
+            ),
+            defaultApps = configuredDefaults(3).update(DefaultAppRole.VIDEO) { role ->
+                role.copy(status = DefaultAppRoleStatus.ERROR, providerConfirmed = false)
+            },
+        )
+
+        val needing = DashboardTiles.attentionTiles(state)
+        assertEquals(
+            listOf(TileId.MIRRORS, TileId.LOCALE, TileId.DEFAULT_APPS),
+            needing.map { it.id },
+        )
+        // Whatever the door says is the length of that list, said in Russian.
+        assertEquals("3 функции ждут", state.tile(TileId.SERVICE).state)
+        assertEquals(DenzaTileTone.ATTENTION, state.tile(TileId.SERVICE).tone)
+    }
+
+    @Test
+    fun theDoorIsNeverInItsOwnList() {
+        // Every tile at once, which used to be the state in which the panel listed "Сервис · 7
+        // функций ждут" among the things that need somebody.
+        FeatureStatus.entries.forEach { status ->
+            val state = everyFeatureAt(status)
+            assertTrue(
+                "service listed itself at $status",
+                DashboardTiles.attentionTiles(state).none { it.id == TileId.SERVICE },
+            )
+        }
     }
 
     @Test
@@ -206,10 +273,11 @@ class DashboardTilesTest {
             simulcast = snapshot(FeatureStatus.READY, enabled = true),
             selectedAppCount = 6,
         )
-        assertEquals("6 приложений", chosen.tile(TileId.SIMULCAST).state)
+        // "6 приложений" would twin this tile with the one actually named "Приложения".
+        assertEquals("Выбрано 6", chosen.tile(TileId.SIMULCAST).state)
 
         val none = DenzaUiState(simulcast = snapshot(FeatureStatus.READY, enabled = true))
-        assertEquals("Нет приложений", none.tile(TileId.SIMULCAST).state)
+        assertEquals("Не выбрано", none.tile(TileId.SIMULCAST).state)
     }
 
     @Test
@@ -322,11 +390,71 @@ class DashboardTilesTest {
             ),
         )
         for (state in states) {
-            for (tile in DashboardTiles.of(state, nowMillis = 2L)) {
+            for (tile in DashboardTiles.of(state)) {
                 assertTrue("name too long: ${tile.name}", tile.name.length <= NAME_BUDGET)
                 assertTrue("caption too long: ${tile.state}", tile.state.length <= STATE_BUDGET)
             }
         }
+    }
+
+    /**
+     * A refusal is not a setting.
+     *
+     * A failed switch keeps the wish it was handed, so the split tile read its caption off
+     * `desiredEnabled` and said "Включено" in coral - the words claiming exactly what the colour
+     * was there to deny.
+     */
+    @Test
+    fun aSplitThatRefusedDoesNotClaimToBeOn() {
+        val refused = DenzaUiState(
+            splitScreen = snapshot(
+                FeatureStatus.ERROR,
+                enabled = true,
+                message = "Не включилось",
+            ),
+        ).tile(TileId.SPLIT)
+        assertEquals("Не включилось", refused.state)
+        assertEquals(DenzaTileTone.BROKEN, refused.tone)
+
+        val silent = DenzaUiState(splitScreen = snapshot(FeatureStatus.ERROR, enabled = true))
+            .tile(TileId.SPLIT)
+        assertEquals("Не переключилось", silent.state)
+
+        val on = DenzaUiState(splitScreen = snapshot(FeatureStatus.READY, enabled = true))
+            .tile(TileId.SPLIT)
+        assertEquals("Включено", on.state)
+    }
+
+    /**
+     * The stock language has no runtime feature behind it and still has to be able to fail.
+     *
+     * Its refusals used to write a message nothing read, over a tile that took its colour from the
+     * saved value alone - so the car saying no looked exactly like a language nobody had asked for.
+     */
+    @Test
+    fun aLanguageTheCarRefusedIsVisibleOnItsFaceAndInTheDoorsList() {
+        val refused = DenzaUiState(
+            stockRussianLocale = StockRussianLocaleSnapshot(
+                enabled = false,
+                permissionReady = true,
+                failed = true,
+                message = "Язык не переключился",
+            ),
+        )
+        assertEquals("Не переключился", refused.tile(TileId.LOCALE).state)
+        assertEquals(DenzaTileTone.ATTENTION, refused.tile(TileId.LOCALE).tone)
+        assertTrue(DashboardTiles.attentionTiles(refused).any { it.id == TileId.LOCALE })
+
+        // Nothing was attempted at all: the app has no way into the car yet, which is a different
+        // thing to say and the only one of the two a driver can act on.
+        val blocked = DenzaUiState(
+            stockRussianLocale = StockRussianLocaleSnapshot(failed = true, permissionReady = false),
+        )
+        assertEquals("Нужен доступ", blocked.tile(TileId.LOCALE).state)
+
+        val quiet = DenzaUiState(stockRussianLocale = StockRussianLocaleSnapshot(enabled = true))
+        assertEquals("Включён", quiet.tile(TileId.LOCALE).state)
+        assertEquals(DenzaTileTone.LIVE, quiet.tile(TileId.LOCALE).tone)
     }
 
     @Test

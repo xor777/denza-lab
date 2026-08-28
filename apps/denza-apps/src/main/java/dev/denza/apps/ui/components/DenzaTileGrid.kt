@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.Dp
 import dev.denza.apps.design.DenzaMetrics
 
 /**
@@ -25,7 +26,7 @@ fun DenzaTileGrid(
     columns: Int,
     itemCount: Int,
     modifier: Modifier = Modifier,
-    spacing: androidx.compose.ui.unit.Dp = DenzaMetrics.Space.M,
+    spacing: Dp = DenzaMetrics.Space.M,
     item: @Composable (index: Int, modifier: Modifier) -> Unit,
 ) {
     val perRow = columns.coerceAtLeast(1)

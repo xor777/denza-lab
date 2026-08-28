@@ -5,19 +5,21 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import dev.denza.apps.DenzaUiState
+import dev.denza.apps.SimulcastAppChoice
 import dev.denza.apps.core.FeatureStatus
 import dev.denza.apps.design.DenzaMetrics
 import dev.denza.apps.feature.cluster.ClusterMapPlacement
 import dev.denza.apps.feature.mirrors.MirrorsPosition
 import dev.denza.apps.feature.speaker.SpeakerCoverApps
+import dev.denza.apps.ui.NavigationAppChoices
+import dev.denza.apps.ui.components.DenzaAppGrid
 import dev.denza.apps.ui.components.DenzaAppTile
 import dev.denza.apps.ui.components.DenzaTileTone
 import dev.denza.apps.ui.components.DenzaNote
-import dev.denza.apps.ui.components.DenzaTileGrid
 import dev.denza.apps.ui.components.DenzaPrimaryButton
 import dev.denza.apps.ui.components.DenzaSecondaryButton
 import dev.denza.apps.ui.components.DenzaSection
@@ -56,7 +58,9 @@ fun FeatureSheet(
     compact: Boolean,
     onDismiss: () -> Unit,
 ) {
-    val tile = DashboardTiles.of(state).first { it.id == id }
+    // Eleven tiles decided from scratch to read one of them, on every publication the runtime makes
+    // while the panel stands open.
+    val tile = remember(state, id) { DashboardTiles.of(state).first { it.id == id } }
     val snapshot = DashboardPress.snapshotOf(id, state)
     val busy = snapshot?.status == FeatureStatus.STARTING ||
         snapshot?.status == FeatureStatus.RECOVERING
@@ -100,14 +104,18 @@ fun FeatureSheet(
         val speaks = tile.tone == DenzaTileTone.ATTENTION ||
             tile.tone == DenzaTileTone.BROKEN ||
             tile.tone == DenzaTileTone.WORKING
+        // Read through [DashboardPress.messageOf] rather than off the snapshot: the stock language
+        // has no snapshot to carry a message in, so its refusals arrived here as an empty string
+        // and the panel for the one tile whose failure is invisible on its face said nothing
+        // either. A message the tile has already made its own caption is not said twice.
+        val message = DashboardPress.messageOf(id, state)
         DenzaStatusLine(
-            text = if (speaks) snapshot?.message.orEmpty().takeIf { it != tile.state }.orEmpty()
-            else "",
+            text = if (speaks && message != tile.state) message else "",
             tone = tile.tone,
         )
         when (id) {
-            TileId.CLUSTER -> clusterSheet(state, actions, busy)
-            TileId.SIMULCAST -> simulcastSheet(state, actions, busy)
+            TileId.CLUSTER -> clusterSheet(state, actions, busy, compact)
+            TileId.SIMULCAST -> simulcastSheet(state, actions, busy, compact)
             TileId.MIRRORS -> mirrorsSheet(state, actions, busy)
             TileId.SPLIT -> splitSheet(state, actions, busy)
             TileId.HUD -> hudSheet(state, actions, busy)
@@ -255,25 +263,22 @@ private fun primaryLabel(tile: DashboardTile, state: DenzaUiState): String {
  * there is only ever one.
  */
 @Composable
-private fun clusterSheet(state: DenzaUiState, actions: DashboardActions, busy: Boolean) {
-    if (state.navigationAppChoices.isNotEmpty()) {
-        DenzaSection("Что показывать") {
-            DenzaTileGrid(
-                columns = SHEET_COLUMNS,
-                itemCount = state.navigationAppChoices.size,
-                modifier = Modifier.fillMaxWidth(),
-            ) { index, cell ->
-                val choice = state.navigationAppChoices[index]
-                DenzaAppTile(
-                    label = choice.label,
-                    selected = choice.selected,
-                    onClick = { actions.onSelectNavigationApp(choice.packageName) },
-                    modifier = cell,
-                    icon = choice.icon,
-                    iconKey = choice.packageName,
-                )
-            }
-        }
+private fun clusterSheet(
+    state: DenzaUiState,
+    actions: DashboardActions,
+    busy: Boolean,
+    compact: Boolean,
+) {
+    DenzaSection("Что показывать") {
+        // The same choice the RESOLVE press opens as a sheet of its own, drawn by the same
+        // function. Two grids of the same four navigators - four fixed columns here, three lazy
+        // ones there - were two answers to one question, and on a narrow pane this one measured
+        // 79 dp a tile and elided every name.
+        NavigationAppChoices(
+            apps = state.navigationAppChoices,
+            compact = compact,
+            onSelect = { packageName -> actions.onSelectNavigationApp(packageName) },
+        )
     }
     // Our own instruments are drawn for the whole panel and have one placement, so the row is
     // absent rather than shown with one live cell and three dead ones.
@@ -298,7 +303,12 @@ private fun clusterSheet(state: DenzaUiState, actions: DashboardActions, busy: B
 
 /** Which applications go to the screens. */
 @Composable
-private fun simulcastSheet(state: DenzaUiState, actions: DashboardActions, busy: Boolean) {
+private fun simulcastSheet(
+    state: DenzaUiState,
+    actions: DashboardActions,
+    busy: Boolean,
+    compact: Boolean,
+) {
     DenzaSwitchRow(
         title = "Поддержка трансляции",
         checked = state.simulcast.desiredEnabled,
@@ -306,20 +316,21 @@ private fun simulcastSheet(state: DenzaUiState, actions: DashboardActions, busy:
         enabled = !busy,
     )
     if (state.appChoices.isNotEmpty()) {
-        DenzaSection("Какие приложения") {
-            DenzaTileGrid(
-                columns = SHEET_COLUMNS,
-                itemCount = state.appChoices.size,
-                modifier = Modifier.fillMaxWidth(),
-            ) { index, cell ->
-                val choice = state.appChoices[index]
+        DenzaSection("Что транслировать") {
+            DenzaAppGrid(
+                items = state.appChoices,
+                key = SimulcastAppChoice::packageName,
+                compact = compact,
+            ) { choice ->
                 DenzaAppTile(
                     label = choice.label,
                     selected = choice.selected,
                     onClick = { actions.onToggleApp(choice.packageName) },
-                    modifier = cell,
                     icon = choice.icon,
                     iconKey = choice.packageName,
+                    // Six is the ceiling, and the seventh tile says so by going quiet - the same
+                    // way, and from the same flag, as in the picker this panel duplicates.
+                    enabled = choice.selectable,
                 )
             }
         }
@@ -388,7 +399,17 @@ private fun hudSheet(state: DenzaUiState, actions: DashboardActions, busy: Boole
     )
 }
 
-/** Whether the app keeps feeding the car's own weather widget. */
+/**
+ * Whether the app keeps feeding the car's own weather widget, and when it last did.
+ *
+ * The age lives here and deliberately not on the tile: it changes length every minute, and the
+ * tile hangs its words off the bottom edge, so an age there moved the word "Погода" while nobody
+ * was touching anything. A panel is opened on purpose and holds still while it is read, which is
+ * also the only way to tell a forecast from an hour ago apart from one from yesterday - the tile's
+ * "+14°" reads identically either way.
+ *
+ * Nothing here fetches anything. It reads the moment the adapter last handed the widget a payload.
+ */
 @Composable
 private fun weatherSheet(state: DenzaUiState, actions: DashboardActions) {
     DenzaSwitchRow(
@@ -396,6 +417,13 @@ private fun weatherSheet(state: DenzaUiState, actions: DashboardActions) {
         checked = state.weatherEnabled,
         onCheckedChange = actions.onSetWeatherEnabled,
     )
+    if (state.weatherEnabled && state.weatherUpdatedMillis > 0L) {
+        DenzaStatusLine(
+            text = "Отдано виджету " +
+                DashboardTiles.ago(System.currentTimeMillis() - state.weatherUpdatedMillis),
+            tone = DenzaTileTone.IDLE,
+        )
+    }
 }
 
 /**
@@ -454,16 +482,11 @@ private fun localeSheet(state: DenzaUiState, actions: DashboardActions) {
     )
 }
 
-/**
- * How many applications a row inside a panel holds.
- *
- * Four, not three. The panel gives its content 416 dp, so four columns with 12 between them is 95
- * a tile - room enough for a 44 dp icon well and a name at 15. Three made the four navigation
- * applications take two rows, and with the help paragraph added the cluster panel then measured
- * 732 dp in a window 680 tall: the second row of a four-item grid was pushing the switch under it
- * off the bottom.
- */
-private const val SHEET_COLUMNS = 4
+// The panel's own column count is gone with the panel's own grid. How many applications fit in a
+// row is [dev.denza.apps.ui.components.DenzaAppGrid]'s to answer, and it answers it the same way
+// for a settings panel and for a whole-sheet picker - which is the point: the projection's
+// applications used to sit four to a row here and five to a row in the picker listing the same
+// applications, and on a narrow pane this grid kept its four and drew them 79 dp wide.
 
 private fun placementLabel(placement: ClusterMapPlacement): String = when (placement) {
     ClusterMapPlacement.FULL -> "Полный"

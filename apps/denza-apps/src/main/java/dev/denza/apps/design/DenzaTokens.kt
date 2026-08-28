@@ -46,8 +46,14 @@ object DenzaPalette {
     /** `qs_adjust_seekbar_text_color_denza`. */
     const val MUTED: Int = 0xFF86909B.toInt()
 
-    /** Muted, one step further down, for captions that must not compete. */
-    const val MUTED_DEEP: Int = 0xFF6E767F.toInt()
+    /**
+     * Muted, one step further down, for captions that must not compete.
+     *
+     * The car's own `0xFF6E767F` reads 3.9:1 on [SURFACE_QUIET] - under the 4.5 a 15 px caption
+     * needs at a glance. Lifted to the nearest value that clears 4.5:1 on both grounds while
+     * staying visibly under [MUTED], so the step down survives.
+     */
+    const val MUTED_DEEP: Int = 0xFF7C858F.toInt()
 
     /** `qs_icon_on_denza`. Reads on top of [ACCENT]. */
     const val ON_ACCENT: Int = 0xFF262D33.toInt()

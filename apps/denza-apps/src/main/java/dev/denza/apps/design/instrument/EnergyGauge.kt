@@ -66,7 +66,16 @@ class EnergyGauge(private val pen: InstrumentPen) {
             val reading = kilowatts.toFloat()
             val degrees = EnergyScale.angleDegrees(reading, TOP_DEGREES, SIDE_SWEEP)
             val color = if (EnergyScale.isRegenerating(reading)) DenzaPalette.RETURN else DenzaPalette.INK
-            pen.arc(canvas, centreX, centreY, radius, TOP_DEGREES, degrees, color, density.arcWidth)
+            // Butt, not round. A round cap reaches half the arc's own width past the point it was
+            // told to stop, and this arc always starts at the top - which is where the zero mark
+            // is, and zero is the only mark on this dial that carries no number, so the mark is
+            // the whole of what says where the fill vanishes. The cap covered it, and covered it
+            // more the harder the car was working. The moving end loses nothing: the reading's dot
+            // is wider than the arc and sits exactly there.
+            pen.arc(
+                canvas, centreX, centreY, radius, TOP_DEGREES, degrees, color, density.arcWidth,
+                round = false,
+            )
             if (EnergyScale.sweepFraction(reading) > 0f) {
                 val (capX, capY) = pen.onArc(centreX, centreY, radius, degrees)
                 pen.dot(canvas, capX, capY, density.dotRadius, DenzaPalette.DATA_PEAK)
@@ -125,11 +134,12 @@ class EnergyGauge(private val pen: InstrumentPen) {
     ) {
         val degrees = EnergyScale.angleDegrees(kilowatts, TOP_DEGREES, SIDE_SWEEP)
         pen.tick(canvas, centreX, centreY, radius, degrees, density.tickLength, markColor)
-        val out = radius + pen.v(markReach(density))
+        val text = format(kotlin.math.abs(kilowatts).toDouble())
+        val out = radius + pen.v(markReach(density, text, degrees))
         val (x, y) = pen.onArc(centreX, centreY, out, degrees)
         pen.label(
             canvas,
-            format(kotlin.math.abs(kilowatts).toDouble()),
+            text,
             x,
             y + pen.v(density.tick) * BASELINE_NUDGE,
             density.tick,
@@ -167,17 +177,35 @@ class EnergyGauge(private val pen: InstrumentPen) {
         /**
          * How far past the arc a mark's *number* sits, to the centre of that number.
          *
-         * The last term is half the number's own height, so what the rhythm buys is a gap between
-         * the mark's tip and the number's edge rather than between the tip and the number's middle.
-         * Without it the nearly-horizontal mark on the discharge side put its tip inside the first
-         * digit - about four pixels of it, which is exactly the sort of thing that survives every
-         * review that is not a measurement.
+         * The last term is the number's own half-extent **along the radius it sits on**, so what
+         * the rhythm buys is a constant gap between the mark's tip and the nearest edge of the
+         * number, whatever the number is and wherever on the dial it is.
          *
-         * Sideways is where this matters: it decides whether the dial's own scale can coexist with
-         * the instrument column beside it.
+         * It used to be half the type size and nothing else, which is the half-extent of a mark
+         * standing straight up and of no other. On this dial no mark stands straight up: "150" is
+         * twelve degrees off horizontal, where its half-extent is almost its whole half-width and
+         * nearly three times what that term allowed, and "60" and "20" are diagonal, where it is
+         * something in between. So one rhythm bought three different gaps - a little over two
+         * units at 150, five at 60 - and the scale read as three marks that had been placed by
+         * hand, which is exactly what this file exists to stop.
+         *
+         * Sideways is where it also decides something: whether the dial's own scale can coexist
+         * with the instrument column beside it.
          */
-        fun markReach(density: InstrumentDensity): Float =
-            MARK_GAP + density.tickLength + density.step + density.tick / 2f
+        fun markReach(density: InstrumentDensity, text: String, degrees: Float): Float {
+            val radians = Math.toRadians(degrees.toDouble())
+            val halfWidth = text.length * MONO_ADVANCE * density.tick / 2f
+            val halfHeight = CAP_HEIGHT * density.tick / 2f
+            val extent = kotlin.math.abs(halfWidth * kotlin.math.cos(radians).toFloat()) +
+                kotlin.math.abs(halfHeight * kotlin.math.sin(radians).toFloat())
+            return MARK_GAP + density.tickLength + density.step + extent
+        }
+
+        /** The widest number a mark can carry, for a caller measuring clearance. */
+        fun widestMark(): String = EnergyScale.DISCHARGE_TICKS_KW
+            .maxByOrNull { it }
+            ?.let { String.format(java.util.Locale.US, "%.0f", it) }
+            ?: ""
 
         /**
          * How wide the widest reading this dial can ever show comes out, in virtual units.

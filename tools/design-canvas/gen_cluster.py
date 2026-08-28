@@ -37,9 +37,10 @@ WIDE = Density(52, 24, 18, 13, 13, 2, 8, 10, 9, 7, 9, 7.8, 1.2, 21, 5.5)
 COMPACT = Density(34, 18, 13, 11, 11, 1, 6, 7, 7, 5, 6, 5.5, 1.2, 16, 4)
 
 # The projected panels are a different screen at a different distance, so they
-# get their own ladder - 82/62/46/34/24/19/15 - rather than pretending one set of
-# pixel sizes serves a 320 dpi cluster and a head unit at arm's length. What the
-# two share is the rule, not the numbers: a size off the ramp is not available.
+# get their own ladder - 62/46/34/24/19/15, `DenzaMetrics.Type.RUNGS` - rather
+# than pretending one set of pixel sizes serves a 320 dpi cluster and a head unit
+# at arm's length. What the two share is the rule, not the numbers: a size off the
+# ramp is not available.
 PANEL = Density(62, 34, 19, 15, 15, 2, 12, 14, 12, 10, 12, 10, 1.5, 30, 7)
 PANEL_NARROW = Density(46, 24, 19, 15, 15, 1, 12, 10, 10, 8, 9, 8, 1.5, 26, 6)
 
@@ -50,11 +51,24 @@ DISCHARGE_TICKS, REGEN_TICKS = [60.0, 150.0], [20.0]
 
 ARC_FROM, ARC_TO, TOP_DEG, SIDE_SWEEP = 200.0, -20.0, 90.0, 110.0
 MARK_GAP, BASELINE_NUDGE = 3.0, 0.36
+# EnergyGauge.MONO_ADVANCE / CAP_HEIGHT: what a monospace digit advances, and how much of the type
+# size a capital actually occupies. Text is not measured on these boards - see the module note -
+# but a mark's number has to be placed against its own edge rather than its middle, and these are
+# the same two estimates the app places it with.
+MONO_ADVANCE, CAP_HEIGHT = 0.6, 0.71
 CHART_HALF_WIDTH, CHART_ZERO_ABOVE, CHART_HEIGHT = 0.80, 0.06, 0.52
 FIGURE_ABOVE, CAPTION_BELOW = 0.60, 0.30
 ABOVE_ZERO_SHARE = 0.74
 
 LEAD_TITLE, LEAD_FIGURE, LEAD_GROUP, LEAD_ROW = 2.0, 3.0, 3.0, 2.0
+# Between two value-and-word pairs sharing one row. A reader binds a word to the number before it
+# only while there is no closer number after it, and at the group rhythm the pack's word sat as
+# near the inverter's figure as its own.
+PAIR_GAP = 4.0
+# ClusterDashboardRenderer.TRACE_MIN_WIDTH. A four-digit reading in a narrow block leaves almost
+# nothing to its left, and a sparkline two centimetres wide is a smudge rather than a history, so
+# below this the app draws none at all.
+TRACE_MIN = 60.0
 
 # The current cluster has one fixed 3 km consumption window. The other entries
 # remain only because panel_frame.py can rebuild the archived Energy concept,
@@ -66,7 +80,10 @@ CURRENT_CLUSTER_WINDOW = 'SHORT'
 
 INK = '#DAE1EB'
 MUTED = '#86909B'
-MUTED_DEEP = '#6E767F'
+# `DenzaPalette.MUTED_DEEP`. Raised from #6E767F, which measured 3.86:1 against the head unit's
+# own #15181F and 4.35:1 against its ground - under the 4.5 a 15 px caption needs. This measures
+# 4.70 and 5.31, and stays a clear step below MUTED at 5.43 so the two are still two.
+MUTED_DEEP = '#7C858F'
 TRACK = '#22262E'
 TRACK_MARK = '#3F434D'
 RETURN = '#2D82D7'
@@ -288,13 +305,24 @@ def gauge(layout, d, kw, bars, caption):
         out.append(f'<path d="M{f(x0)} {f(y0)} L{f(x1)} {f(y1)}" stroke="{mark_color}" '
                    f'stroke-width="1.8" stroke-linecap="round"/>')
         if text_color:
-            lx, ly = polar(cx, cy, r + MARK_GAP + d.tick_length + d.step + d.tick / 2, deg)
+            # The number sits `step` clear of the mark's tip, measured to its own nearest edge and
+            # not to its middle. The old reach added half the type size, which is the half-extent
+            # of a number standing straight up and of no other on this dial: "150" is twelve
+            # degrees off horizontal, so almost its whole half-width lies along the radius, and
+            # "60" and "20" are diagonal. One rhythm bought three different gaps.
+            text = str(int(abs(kw_mark)))
+            rad = math.radians(deg)
+            extent = (abs(len(text) * MONO_ADVANCE * d.tick / 2 * math.cos(rad)) +
+                      abs(CAP_HEIGHT * d.tick / 2 * math.sin(rad)))
+            lx, ly = polar(cx, cy, r + MARK_GAP + d.tick_length + d.step + extent, deg)
             out.append(f'<text class="tk" x="{f(lx)}" y="{f(ly + d.tick * BASELINE_NUDGE)}" '
-                       f'text-anchor="middle" style="fill:{text_color}">'
-                       f'{int(abs(kw_mark))}</text>')
+                       f'text-anchor="middle" style="fill:{text_color}">{text}</text>')
 
     for m in DISCHARGE_TICKS[:d.dial_marks]:
         mark(m, TRACK_MARK, MUTED_DEEP)
+    # Blue, and it is a role rather than a difference: energy going back into the pack is drawn in
+    # RETURN wherever it appears - this mark, the fill that reaches it, the recovery bars in the
+    # chart below, and the engine's generation. See the Kit's energy card.
     for m in REGEN_TICKS:
         mark(-m, RETURN_60, RETURN_75)
     mark(0.0, MUTED_DEEP, None)
@@ -302,8 +330,12 @@ def gauge(layout, d, kw, bars, caption):
     if kw is not None and sweep_fraction(kw) > 0:
         deg = angle_degrees(kw)
         colour = RETURN if kw < 0 else INK
+        # Butt, not round: this arc always starts at the top, which is where the zero mark is, and
+        # a round cap reaches half the arc's own width past the point it was told to stop - over
+        # the one mark on the dial that carries no number and so is the whole of what says where
+        # the fill vanishes. The moving end loses nothing; the reading's dot is wider than the arc.
         out.append(f'<path d="{arc_path(cx, cy, r, TOP_DEG, deg)}" fill="none" '
-                   f'stroke="{colour}" stroke-width="{f(d.arc_width)}" stroke-linecap="round"/>')
+                   f'stroke="{colour}" stroke-width="{f(d.arc_width)}" stroke-linecap="butt"/>')
         px, py = polar(cx, cy, r, deg)
         out.append(f'<circle cx="{f(px)}" cy="{f(py)}" r="{f(d.dot_radius)}" fill="{DATA_PEAK}"/>')
 
@@ -411,6 +443,24 @@ def engine_history(sleeping=40, slots=120):
     return rpm, gen
 
 
+def trace_for(c, d, v, baseline):
+    """Where the revolutions have just been, if there is one and there is room to draw it.
+
+    Two conditions, and the app has both. A stopped engine has no history - a run of nulls breaks
+    the line rather than being drawn through - and this board used to draw two minutes of a
+    generating engine under a reading of zero. And below TRACE_MIN units of room it is not drawn at
+    all, which is what the right third leaves once a four-digit reading has taken its width.
+    """
+    if not v.get('trace'):
+        return []
+    # The figure's own width, so the trace stops where the digits begin.
+    figure_w = len(v['rpm']) * d.figure * 0.6 + d.rhythm(1) + len('об/мин') * d.body * 0.52
+    right = c.right - figure_w - d.rhythm(2)
+    if right - c.left < TRACE_MIN:
+        return []
+    return engine_trace(c.left, right, baseline, d.figure * 0.72, *v['trace'])
+
+
 def electric_wide(layout, d, v):
     rows = [text_row(d, d.title), text_row(d, d.figure, LEAD_TITLE),
             rule_row(d, LEAD_FIGURE), text_row(d, d.body, LEAD_GROUP)]
@@ -439,11 +489,11 @@ def engine_wide(layout, d, v):
     out = [f'<text class="ttl" x="{f(c.right)}" y="{f(c.next())}" text-anchor="end">ДВИГАТЕЛЬ</text>']
     y = c.next()
     out.append(pair(c.right, y, [('fg', v['rpm'], 0), ('un', 'об/мин', d.rhythm(1))], anchor='end'))
-    # The figure's own width, so the trace stops where the digits begin.
-    figure_w = len(v['rpm']) * d.figure * 0.6 + d.rhythm(1) + len('об/мин') * d.body * 0.52
-    rpm_trace, gen_trace = engine_history()
-    out += engine_trace(c.left, c.right - figure_w - d.rhythm(2), y, d.figure * 0.72,
-                        rpm_trace, gen_trace)
+    # Only where there is a history to draw. A stopped engine has none - `InstrumentPen.trace`
+    # draws nothing through a run of nulls, which is the whole point of it - and this board used
+    # to draw two minutes of a generating engine under a reading of zero, on the one board whose
+    # subject is a car at rest.
+    out += trace_for(c, d, v, y)
     rule = c.next()
     out += track(c.left, c.right, rule, d, v['rpm_fraction'], INK_32)
     if v['generation_fraction']:
@@ -456,9 +506,17 @@ def engine_wide(layout, d, v):
 
 
 def electric_narrow(layout, d, v):
+    """The last row is a reading's row whichever of its two things it is carrying.
+
+    The insulation is a number with a unit and a name, exactly like the two rows above it, and
+    writing it as a grey sentence made the one row of this column that carries a reading look like
+    the one row that had failed to get one. A charge takes the row over and is a sentence, because
+    "2 ч 15 мин" is not a quantity with a unit - so the row is planned at the taller of the two and
+    the block does not move up the panel the moment the gun goes in.
+    """
     rows = [text_row(d, d.title), text_row(d, d.figure, LEAD_TITLE), rule_row(d, LEAD_FIGURE),
             text_row(d, d.reading, LEAD_GROUP), text_row(d, d.reading, LEAD_ROW),
-            text_row(d, d.body, LEAD_GROUP)]
+            text_row(d, d.reading, LEAD_GROUP)]
     c = Column(layout, layout.electric, d, rows)
     out = [f'<text class="ttl" x="{f(c.left)}" y="{f(c.next())}">ЭЛЕКТРИКА</text>']
     out.append(pair(c.left, c.next(), [('fg', v['volts'], 0), ('un', 'В', d.rhythm(1))]))
@@ -466,25 +524,34 @@ def electric_narrow(layout, d, v):
     out.append(pair(c.left, c.next(), [('rd', v['spread'], 0, v.get('spread_colour')),
                                        ('bd', 'мВ разброс', d.rhythm(1))]))
     out.append(pair(c.left, c.next(), [('rd', v['soh'], 0), ('bd', '% ресурс', d.rhythm(1))]))
-    out.append(f'<text class="bd" x="{f(c.left)}" y="{f(c.next())}">{v["pack_line_brief"]}</text>')
+    last = c.next()
+    if v.get('insulation'):
+        out.append(pair(c.left, last, [('rd', v['insulation'], 0),
+                                       ('bd', 'МОм изоляция', d.rhythm(1))]))
+    else:
+        out.append(f'<text class="bd" x="{f(c.left)}" y="{f(last)}">{v["pack_line_brief"]}</text>')
     return out
 
 
 def engine_narrow(layout, d, v):
+    """The same four rows the wide block has: the tank went with its percentage.
+
+    This board carried the tank for a wave after the app dropped it - a reading and a gauge that
+    the vehicle's own cluster shows a few centimetres away - so the narrow board was drawing two
+    rows that no longer exist. `ClusterBlockPlan.engineNarrow` is the four below.
+    """
     rows = [text_row(d, d.title), text_row(d, d.figure, LEAD_TITLE), rule_row(d, LEAD_FIGURE),
-            text_row(d, d.reading, LEAD_GROUP), rule_row(d, LEAD_ROW),
             text_row(d, d.body, LEAD_GROUP)]
     c = Column(layout, layout.engine, d, rows)
     out = [f'<text class="ttl" x="{f(c.right)}" y="{f(c.next())}" text-anchor="end">ДВИГАТЕЛЬ</text>']
-    out.append(pair(c.right, c.next(), [('fg', v['rpm'], 0), ('un', 'об/мин', d.rhythm(1))],
+    y = c.next()
+    out.append(pair(c.right, y, [('fg', v['rpm'], 0), ('un', 'об/мин', d.rhythm(1))],
                     anchor='end'))
+    out += trace_for(c, d, v, y)
     rule = c.next()
     out += track(c.left, c.right, rule, d, v['rpm_fraction'], INK_32)
     if v['generation_fraction']:
         out += track(c.left, c.right, rule, d, v['generation_fraction'], RETURN, with_track=False)
-    out.append(pair(c.right, c.next(), [('rd', v['fuel'], 0, v.get('fuel_colour')),
-                                        ('bd', '% бак', d.rhythm(1))], anchor='end'))
-    out += track(c.left, c.right, c.next(), d, v['fuel_fraction'], INK_70)
     out.append(f'<text class="bd" x="{f(c.right)}" y="{f(c.next())}" '
                f'text-anchor="end">{v["lamp_line_brief"]}</text>')
     return out
@@ -497,7 +564,7 @@ def temperatures(layout, v):
     out = [f'<text class="ttl2" x="{f(c.left)}" y="{f(c.next())}">ТЕМПЕРАТУРЫ</text>']
     out.append(pair(c.left, c.next(), [
         ('rd2', v['pack_c'], 0, v.get('pack_c_colour')), ('bd2', 'батарея', d.rhythm(1)),
-        ('rd2', v['inverter_c'], d.rhythm(LEAD_GROUP)), ('bd2', 'инвертор', d.rhythm(1))]))
+        ('rd2', v['inverter_c'], d.rhythm(PAIR_GAP)), ('bd2', 'инвертор', d.rhythm(1))]))
     out.append(pair(c.left, c.next(), [('rd2', v['motors_c'], 0), ('bd2', 'моторы', d.rhythm(1))]))
     return out
 
@@ -553,8 +620,12 @@ def keepout(layout):
         f'<rect x="0" y="{f(bot_y)}" width="{f(w)}" height="{f(h - bot_y)}" fill="url(#hatch)" '
         f'mask="url(#botmask)"/>',
         f'<text class="keep" x="{f(w / 2)}" y="26" text-anchor="middle">ШТАТНЫЕ ПРИБОРЫ</text>',
-        # Left of the bottom reveal, so the words naming the stock strip sit on the stock strip.
-        f'<text class="keep" x="{f(layout.electric[0] * w)}" y="{f(h - 16)}">ШТАТНАЯ ПОЛОСА</text>',
+        # On the band it names, not under it. Left of the bottom reveal so the words sit on
+        # hatching rather than in the ellipse cut out of it, and on the band's own middle line
+        # rather than 16 off the bottom edge of the board - which read as a caption for the whole
+        # picture with nothing visible attached to it.
+        f'<text class="keep" x="{f(layout.electric[0] * w)}" '
+        f'y="{f((bot_y + h) / 2 + COMPACT.title * BASELINE_NUDGE)}">ШТАТНАЯ ПОЛОСА</text>',
     ]
 
 
@@ -640,28 +711,30 @@ DRIVING_BARS = [
 DRIVING = dict(
     volts='552', spread='4', soh='99', volt_fraction=(552 - 500) / 100,
     pack_line='ресурс 99 % · изоляция 13,1 МОм',
-    pack_line_brief='изоляция 13,1 МОм',
-    rpm='1321', fuel='53', rpm_fraction=1321 / 6000,
+    pack_line_brief='', insulation='13,1',
+    rpm='1321', rpm_fraction=1321 / 6000,
     generation_fraction=math.sqrt(10 / 100),
-    fuel_fraction=0.53,
     engine_line='заряжает 10 кВт',
+    trace=engine_history(),
     lamp_line='все в норме', lamp_line_brief='все в норме', lamp_alert=False,
     lamps=['ok'] * 8,
-    pack_c='28°', inverter_c='32°', motors_c='31 · 29 · 31°',
+    pack_c='28°', inverter_c='32°', motors_c='31° · 29° · 31°',
 )
 
 RESTING = dict(
     volts='548', spread='4', soh='99', volt_fraction=(548 - 500) / 100,
     pack_line='заряжается · осталось 2 ч 15 мин',
-    pack_line_brief='осталось 2 ч 15 мин',
-    rpm='0', fuel='53', rpm_fraction=0.0,
+    pack_line_brief='осталось 2 ч 15 мин', insulation=None,
+    rpm='0', rpm_fraction=0.0,
     generation_fraction=None,
-    fuel_fraction=0.53,
     engine_line='',
+    # A stopped engine has no history to draw, and the app draws none: a run of nulls breaks the
+    # line rather than being drawn through.
+    trace=None,
     lamp_line='в норме 6 из 8', lamp_line_brief='в норме 6 из 8', lamp_alert=False,
     lamps=['ok'] * 6 + ['unknown'] * 2,
     pack_c='—', pack_c_colour='rgba(218,225,235,0.40)',
-    inverter_c='26°', motors_c='24 · 24 · 25°',
+    inverter_c='26°', motors_c='24° · 24° · 25°',
 )
 
 

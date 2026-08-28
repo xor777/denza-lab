@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -29,6 +30,7 @@ import dev.denza.apps.ui.components.DenzaSheet
 import dev.denza.apps.ui.components.DenzaSheetHeader
 import dev.denza.apps.ui.components.DenzaStatusLine
 import dev.denza.apps.ui.components.DenzaTileTone
+import kotlinx.coroutines.delay
 
 /** The three stock Shortcuts launch targets, on the sheet approved in DefaultApps.dc.html. */
 @Composable
@@ -41,6 +43,18 @@ internal fun DefaultAppsSheet(
 ) {
     var selectedRole by remember { mutableStateOf(DefaultAppRole.NAVIGATION) }
     val roleState = state.stateFor(selectedRole)
+    // Nothing to point at yet. The panel waits and keeps asking the car rather than printing what
+    // went wrong beside a button offering to ask again: "Список приложений недоступен." over
+    // "Повторить" is a dead end with a task attached, and the task is one the panel can do itself.
+    // The loop lives and dies with the panel, so a driver who closes it stops paying for it.
+    val waitingForCar = roleState.choices.isEmpty()
+    LaunchedEffect(waitingForCar) {
+        if (!waitingForCar) return@LaunchedEffect
+        while (true) {
+            delay(RETRY_INTERVAL_MS)
+            onRefresh()
+        }
+    }
     // A failed readback may leave the last known installed choices intact. Keep those actionable:
     // selecting another package is how the driver can recover from a stale or rejected target.
     val canSelect = defaultAppsCanSelect(state, roleState)
@@ -65,7 +79,10 @@ internal fun DefaultAppsSheet(
             icon = DenzaIcons.Applications,
         )
 
-        DenzaSection("Команда") {
+        // "Команда" on its own named nothing: over a row reading Навигация / Музыка / Видео it
+        // could as easily have been a heading for the applications underneath. What the row picks
+        // is which of the car's spoken commands is being set up.
+        DenzaSection("Для какой команды") {
             DenzaSegmentedRow(
                 labels = DefaultAppRole.entries.map(::defaultAppRoleLabel),
                 selectedIndex = DefaultAppRole.entries.indexOf(selectedRole),
@@ -99,14 +116,12 @@ internal fun DefaultAppsSheet(
 
         DenzaSection(defaultAppSectionTitle(selectedRole)) {
             if (roleState.choices.isEmpty()) {
+                // One line, and it is a wait rather than a verdict. The three it replaces -
+                // "Список приложений недоступен.", "Нет установленных приложений для выбора." -
+                // told the driver the panel had given up while the car was still perfectly capable
+                // of answering the next read.
                 Text(
-                    text = when {
-                        roleState.status == DefaultAppRoleStatus.ERROR ->
-                            "Список приложений недоступен."
-                        roleState.busy || state.refreshing ->
-                            "Ищем установленные приложения…"
-                        else -> "Нет установленных приложений для выбора."
-                    },
+                    text = "Ищем установленные приложения…",
                     style = MaterialTheme.typography.bodyMedium,
                     color = DenzaColors.Muted,
                 )
@@ -134,8 +149,12 @@ internal fun DefaultAppsSheet(
                     )
                 }
             }
+            // One button with one job: sweep the car again for applications installed since the
+            // panel was opened. It used to become "Повторить" whenever a read had failed, which
+            // made the same control a recovery step the driver was expected to work out - and the
+            // panel now retries on its own, so there is nothing left for them to repeat.
             DenzaSecondaryButton(
-                text = if (state.hasError) "Повторить" else "Обновить список",
+                text = "Обновить список",
                 onClick = onRefresh,
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !state.refreshing,
@@ -168,7 +187,7 @@ internal fun defaultAppsStatusText(
         roleState.message.ifBlank { "Загружаем приложения…" }
     roleState.status == DefaultAppRoleStatus.APPLYING -> "Сохраняем выбор…"
     roleState.status == DefaultAppRoleStatus.ERROR ->
-        roleState.message.ifBlank { "Не удалось прочитать настройку." }
+        roleState.message.ifBlank { "Не удалось прочитать настройку" }
     // A cold start may resolve a role without the driver touching anything, and that is worth
     // saying once - beside the outcome, not instead of it.
     roleState.message.isNotBlank() ->
@@ -207,9 +226,27 @@ internal fun defaultAppsChoicesDimmed(
     roleState: DefaultAppRoleUiState,
 ): Boolean = state.refreshing || roleState.status == DefaultAppRoleStatus.LOADING
 
+/**
+ * What this panel is for, to somebody sitting in the car.
+ *
+ * It used to be written to whoever found these roles: command identifiers, the word "медиасессия",
+ * and the English names of the actions as they appear in a decompiled catalog. A driver has never
+ * seen any of that; what they have seen is the command they say out loud and the application that
+ * opens when they do.
+ */
 internal const val DEFAULT_APPS_SHORTCUTS_HELP =
-    "Shortcuts: Open Navigation открывает навигацию, Open Video — видео. " +
-        "На этой прошивке музыку запускает Continue playing, если нет активной медиасессии. " +
-        "Open Music открывает штатную музыку; остальные команды управляют текущей медиасессией."
+    "Штатные сценарии открывают приложения по команде: «Открыть навигацию» и «Открыть видео» " +
+        "запускают выбранные здесь. Музыку на этой прошивке начинает «Продолжить " +
+        "воспроизведение», когда ничего не играет; «Открыть музыку» всегда открывает штатный " +
+        "плеер."
+
+/**
+ * How often the panel asks the car again while it has nothing to show.
+ *
+ * Long enough that a provider taking its time is not asked twice over the same read, short enough
+ * that the grid appears while the driver is still looking at the panel rather than after they have
+ * closed it.
+ */
+private const val RETRY_INTERVAL_MS = 5_000L
 
 private const val STATUS_LINES = 2

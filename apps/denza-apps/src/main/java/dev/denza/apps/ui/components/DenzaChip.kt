@@ -21,7 +21,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.unit.dp
 import dev.denza.apps.design.DenzaColors
 import dev.denza.apps.design.DenzaMetrics
 
@@ -57,14 +56,15 @@ fun DenzaChip(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
 ) {
-    val accent = chipAccent(tone)
+    val shown = DenzaTileTone.shown(tone, enabled)
+    val accent = chipAccent(shown)
     val background by animateColorAsState(
-        targetValue = if (tone == DenzaTileTone.LIVE) DenzaColors.Surface else DenzaColors.SurfaceQuiet,
+        targetValue = if (shown == DenzaTileTone.LIVE) DenzaColors.Surface else DenzaColors.SurfaceQuiet,
         animationSpec = tween(DenzaMetrics.Motion.TRANSITION_MS),
         label = "chipBackground",
     )
     val edge by animateColorAsState(
-        targetValue = accent.copy(alpha = if (tone == DenzaTileTone.IDLE) 0.10f else 0.30f),
+        targetValue = accent.copy(alpha = if (shown == DenzaTileTone.IDLE) 0.10f else 0.30f),
         animationSpec = tween(DenzaMetrics.Motion.TRANSITION_MS),
         label = "chipEdge",
     )
@@ -88,16 +88,16 @@ fun DenzaChip(
         Icon(
             imageVector = icon,
             contentDescription = null,
-            tint = if (tone == DenzaTileTone.IDLE || !enabled) DenzaColors.Muted else accent,
+            tint = if (shown == DenzaTileTone.IDLE) DenzaColors.Muted else accent,
             modifier = Modifier.size(side * DenzaMetrics.Component.CHIP_ICON_RATIO),
         )
-        if (tone == DenzaTileTone.WORKING) {
+        if (shown == DenzaTileTone.WORKING) {
             CircularProgressIndicator(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .padding(inset)
                     .size(dot),
-                strokeWidth = BUSY_STROKE,
+                strokeWidth = DenzaMetrics.Component.BUSY_STROKE,
                 color = DenzaColors.Accent,
             )
         } else {
@@ -106,7 +106,7 @@ fun DenzaChip(
                     .align(Alignment.TopEnd)
                     .padding(inset)
                     .size(dot)
-                    .background(dotColour(tone), CircleShape),
+                    .background(dotColour(shown), CircleShape),
             )
         }
     }
@@ -135,5 +135,3 @@ private fun dotColour(tone: DenzaTileTone): Color = when (tone) {
     DenzaTileTone.ATTENTION -> DenzaColors.Warning
     DenzaTileTone.BROKEN -> DenzaColors.Danger
 }
-
-private val BUSY_STROKE = 1.5.dp

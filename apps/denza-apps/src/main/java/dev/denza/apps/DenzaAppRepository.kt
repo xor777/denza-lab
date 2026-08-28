@@ -5,6 +5,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.drawable.Drawable
 import android.os.SystemClock
+import android.util.Log
 import dev.denza.apps.core.FeatureId
 import dev.denza.apps.core.FeatureReducer
 import dev.denza.apps.core.FeatureResolution
@@ -71,6 +72,14 @@ data class SimulcastAppChoice(
     val label: String,
     val icon: Drawable?,
     val selected: Boolean,
+    /**
+     * Whether pressing this tile would change anything.
+     *
+     * The projection carries six applications at most, and the picker used to accept the seventh
+     * tap and answer it with a line of text over the grid. The limit is decided where the limit
+     * lives, and the tile that cannot be chosen simply looks like it.
+     */
+    val selectable: Boolean = true,
 )
 
 data class NavigationAppChoice(
@@ -131,14 +140,13 @@ data class DenzaUiState(
     val clusterDisplayLabel: String = "Определяется автоматически",
     val appPickerVisible: Boolean = false,
     val appChoices: List<SimulcastAppChoice> = emptyList(),
-    val appPickerMessage: String = "",
     val fseInstallerPickerVisible: Boolean = false,
     val fseInstallApps: List<FseInstallApp> = emptyList(),
-    val fseInstallerMessage: String = "",
 )
 
 /** Android-facing state owner shared by the Compose shell and runtime services. */
 object DenzaAppRepository {
+    private const val TAG = "DenzaApps.Repository"
     private val executor = Executors.newSingleThreadExecutor()
     private val localeExecutor = Executors.newSingleThreadExecutor()
     private val defaultAppsExecutor = Executors.newSingleThreadExecutor()
@@ -212,7 +220,7 @@ object DenzaAppRepository {
         val speakerCoversCommanding = SpeakerCoverRuntime.commanding()
         val technicalDetails = supportDiagnostics(context)
         val clusterCandidates = ClusterDisplayResolver.candidates(context)
-        val clusterDisplayLabel = clusterDisplayLabel(context)
+        val clusterDisplayLabel = clusterDisplayLabel(context, clusterCandidates)
         stateStore.update { current ->
             current.copy(
                 simulcast = snapshot,
@@ -302,7 +310,6 @@ object DenzaAppRepository {
             current.copy(
                 appPickerVisible = true,
                 appChoices = appChoices,
-                appPickerMessage = "",
             )
         }
     }
@@ -318,7 +325,6 @@ object DenzaAppRepository {
             current.copy(
                 fseInstallerPickerVisible = true,
                 fseInstallApps = installedApps,
-                fseInstallerMessage = "",
             )
         }
     }
@@ -329,7 +335,16 @@ object DenzaAppRepository {
 
     fun installOnPassengerScreen(packageName: String) {
         val context = appContext ?: return
-        if (!claimFseInstall(packageName)) return
+        when (claimFseInstall(packageName)) {
+            FseInstallClaim.BUSY -> return
+            // The list the picker was drawn from no longer matches the car. Re-read it and leave
+            // the picker standing: a working chooser is the answer, not a note about the old one.
+            FseInstallClaim.STALE -> {
+                showFseInstallerPicker()
+                return
+            }
+            FseInstallClaim.START -> Unit
+        }
         executor.execute {
             val result = FseAppInstaller.install(context, packageName) { message ->
                 val progress = FeatureSnapshot(
@@ -365,11 +380,9 @@ object DenzaAppRepository {
         if (packageName in selected) {
             selected.remove(packageName)
         } else if (selected.size >= SimulcastApps.MAX_SELECTED) {
-            stateStore.update { current ->
-                current.copy(
-                    appPickerMessage = "Можно выбрать не больше ${SimulcastApps.MAX_SELECTED}",
-                )
-            }
+            // The picker has already greyed everything a full selection cannot take, so this is
+            // the guard behind that and not a place to say anything: the driver did not press a
+            // live tile. It used to answer with "Можно выбрать не больше 6" over the grid.
             return
         } else {
             selected.add(packageName)
@@ -378,7 +391,7 @@ object DenzaAppRepository {
         refresh()
         val appChoices = loadAppChoices(context)
         stateStore.update { current ->
-            current.copy(appChoices = appChoices, appPickerMessage = "")
+            current.copy(appChoices = appChoices)
         }
     }
 
@@ -491,13 +504,16 @@ object DenzaAppRepository {
         }.onSuccess {
             refresh()
         }.onFailure { error ->
-            val details = error.toString()
+            // The exception used to be `error.toString()` in `details`, which is a class name and a
+            // stack frame put on the driver's screen. The screen gets the fact - the switch did not
+            // take - in the words of the tile it belongs to; the exception goes where exceptions
+            // are read.
+            Log.w(TAG, "Split screen toggle to $enabled failed", error)
             stateStore.update { current ->
                 current.copy(
                     splitScreen = FeatureReducer.failed(
                         previous = current.splitScreen.copy(desiredEnabled = enabled),
-                        message = "Не удалось изменить Split Screen",
-                        details = details,
+                        message = if (enabled) "Не включилось" else "Не выключилось",
                     ),
                 )
             }
@@ -593,14 +609,23 @@ object DenzaAppRepository {
      * The panel used to show a list of unlabelled buttons and one called "Определять
      * автоматически", with nothing saying which was in use or what any of them were for.
      */
-    private fun clusterDisplayLabel(context: Context): String =
+    private fun clusterDisplayLabel(
+        context: Context,
+        candidates: List<ClusterDisplayDescriptor>,
+    ): String =
         when (val selection = ClusterDisplayResolver.resolve(context)) {
-            is ClusterDisplaySelection.Selected -> with(selection.display) {
-                if (ClusterDisplayResolver.hasOverride(context)) {
-                    "#$id · ${width}×$height · $name"
+            is ClusterDisplaySelection.Selected -> {
+                // Named over the same list the picker numbers, so "Экран 2" here is the same
+                // screen the picker calls "Экран 2". Platform display ids are neither stable
+                // across boots nor written anywhere in the car, so they stay out of the label.
+                val choices = ClusterDisplayResolver.choices(candidates)
+                val index = choices.indexOfFirst { it.id == selection.display.id }
+                val name = if (index >= 0) {
+                    ClusterDisplayResolver.choiceName(index, choices[index])
                 } else {
-                    "Определён сам: #$id · ${width}×$height"
+                    "${selection.display.width}×${selection.display.height}"
                 }
+                if (ClusterDisplayResolver.hasOverride(context)) name else "Определён сам: $name"
             }
             is ClusterDisplaySelection.NeedsVerification -> "Нужно выбрать экран"
             ClusterDisplaySelection.Missing -> "Не найден"
@@ -1231,7 +1256,7 @@ object DenzaAppRepository {
                     when {
                         writeAttempted -> "Не удалось завершить автоматический выбор"
                         observedPackage != null -> "Не удалось завершить инициализацию"
-                        else -> "Не удалось прочитать настройку AutoVoice"
+                        else -> "Не удалось прочитать настройку"
                     },
                     error,
                 ),
@@ -1495,7 +1520,7 @@ object DenzaAppRepository {
                         } else {
                             roleState.copy(
                                 status = DefaultAppRoleStatus.LOADING,
-                                message = "Ожидаю доступ к AutoVoice…",
+                                message = "Ждём доступ к машине…",
                                 providerConfirmed = false,
                             )
                         }
@@ -1518,11 +1543,23 @@ object DenzaAppRepository {
         }
     }
 
+    /**
+     * What went wrong, in the panel's words - and only in the panel's words.
+     *
+     * This used to glue the exception's own message, or failing that its class name, onto the
+     * prefix and cut the result at three hundred characters. Three hundred characters is four or
+     * five lines of the settings panel, written by a content provider, in whatever language and
+     * whatever register that provider happens to use - "android.os.DeadObjectException", or a
+     * sentence about a cursor. None of it is actionable from a driver's seat, all of it moves
+     * everything below it down the panel, and the last thing it does is convince the reader the
+     * app is broken in a way they are expected to understand.
+     *
+     * The prefix already says the thing that matters. The exception goes to logcat, which is where
+     * the person who can act on it is looking.
+     */
     private fun defaultAppsFailure(prefix: String, error: Throwable): String {
-        val details = error.message?.trim().orEmpty().ifBlank {
-            error::class.java.simpleName
-        }
-        return "$prefix: $details".take(300)
+        Log.w(TAG, "$prefix (default applications)", error)
+        return prefix
     }
 
     private fun navigationAppChoices(
@@ -1539,7 +1576,16 @@ object DenzaAppRepository {
         )
     }
 
-    private fun claimFseInstall(packageName: String): Boolean {
+    /**
+     * What a tap on the passenger picker turns out to be.
+     *
+     * [STALE] is the one case worth telling apart: the picker was drawn from a list that has since
+     * changed under it, so the honest answer is a picker that shows the car as it is now rather
+     * than a sentence explaining why the tile the driver just pressed did nothing.
+     */
+    private enum class FseInstallClaim { START, BUSY, STALE }
+
+    private fun claimFseInstall(packageName: String): FseInstallClaim {
         while (true) {
             val snapshot = stateStore.snapshot()
             val current = snapshot.state
@@ -1547,29 +1593,26 @@ object DenzaAppRepository {
                 current.fseInstaller.status == FeatureStatus.STARTING ||
                 current.fseInstaller.status == FeatureStatus.RECOVERING
             ) {
-                return false
+                return FseInstallClaim.BUSY
             }
 
             val app = current.fseInstallApps.firstOrNull { it.packageName == packageName }
-            val shouldStart = app?.installable == true
-            val updated = when {
-                app == null -> current.copy(
-                    fseInstallerMessage = "Приложение больше не найдено",
-                )
-                !app.installable -> current.copy(
-                    fseInstallerMessage = app.unavailableReason.ifBlank { "APK недоступен" },
-                )
-                else -> current.copy(
-                    fseInstallerPickerVisible = false,
-                    fseInstaller = FeatureSnapshot(
-                        id = FeatureId.FSE_INSTALLER,
-                        desiredEnabled = false,
-                        status = FeatureStatus.STARTING,
-                        message = app.label,
-                    ),
-                )
-            }
-            if (stateStore.compareAndSet(snapshot, updated)) return shouldStart
+            // A package that cannot be sent across is already drawn as unpressable, so reaching
+            // here means the list is out of date. Both of these used to write a line of amber over
+            // the grid instead - "APK недоступен", "Приложение больше не найдено" - which is the
+            // picker teaching the driver to read explanations of taps that will never work.
+            if (app == null || !app.installable) return FseInstallClaim.STALE
+
+            val updated = current.copy(
+                fseInstallerPickerVisible = false,
+                fseInstaller = FeatureSnapshot(
+                    id = FeatureId.FSE_INSTALLER,
+                    desiredEnabled = false,
+                    status = FeatureStatus.STARTING,
+                    message = app.label,
+                ),
+            )
+            if (stateStore.compareAndSet(snapshot, updated)) return FseInstallClaim.START
         }
     }
 
@@ -1585,13 +1628,16 @@ object DenzaAppRepository {
             if (current.stockRussianLocale.running) return null
 
             if (!permissionReady && current.adbRescue.phase != AdbRescuePhase.TRUSTED) {
+                // The one prerequisite this switch has, as a state rather than as a lesson. The
+                // paragraph that used to sit in `details` - what ADB is for and what happens
+                // afterwards - was read by nothing on the screen, and the tile stayed grey while
+                // the press did nothing at all.
                 val blocked = current.copy(
                     stockRussianLocale = StockRussianLocaleSnapshot(
                         enabled = current.stockRussianLocale.enabled,
                         permissionReady = false,
-                        message = "Нужен доверенный локальный ADB",
-                        details = "ADB нужен один раз для системного разрешения. После этого язык " +
-                            "переключается напрямую.",
+                        failed = true,
+                        message = "Нужен доступ к машине",
                     ),
                 )
                 if (stateStore.compareAndSet(snapshot, blocked)) return null
@@ -1640,16 +1686,27 @@ object DenzaAppRepository {
         },
     )
 
+    /**
+     * A language change the car refused, said in a way something reads.
+     *
+     * The message written here used to go nowhere: the tile took its colour from the saved value
+     * alone, so a refusal left "Выключен" in the same grey as a language nobody had ever asked
+     * for, and the exception text under it was read by nothing at all. [failed] is what the tile
+     * and the service door see; the exception goes to logcat.
+     */
     private fun localeFailure(
         error: Throwable,
         previousEnabled: Boolean?,
         permissionReady: Boolean,
-    ): StockRussianLocaleSnapshot = StockRussianLocaleSnapshot(
-        enabled = previousEnabled,
-        permissionReady = permissionReady,
-        message = "Не удалось изменить штатную локаль",
-        details = error.message ?: error.toString(),
-    )
+    ): StockRussianLocaleSnapshot {
+        Log.w(TAG, "Stock Russian locale change failed", error)
+        return StockRussianLocaleSnapshot(
+            enabled = previousEnabled,
+            permissionReady = permissionReady,
+            failed = true,
+            message = "Язык не переключился",
+        )
+    }
 
     private fun loadAppChoices(context: Context): List<SimulcastAppChoice> {
         val selected = SimulcastApps.getSelected(context)
@@ -1661,17 +1718,23 @@ object DenzaAppRepository {
         selected: Collection<String>,
     ): List<SimulcastAppChoice> {
         val selectedOrder = selected.withIndex().associate { it.value to it.index }
+        // Room for one more, or not. The picker greys what a full selection cannot take rather
+        // than accepting the tap and printing the rule afterwards.
+        val roomLeft = selectedOrder.size < SimulcastApps.MAX_SELECTED
         val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
         val seen = HashSet<String>()
         return context.packageManager.queryIntentActivities(launcherIntent, 0)
             .mapNotNull { info ->
                 val packageName = info.activityInfo?.packageName ?: return@mapNotNull null
                 if (packageName == context.packageName || !seen.add(packageName)) return@mapNotNull null
+                val isSelected = packageName in selectedOrder
                 SimulcastAppChoice(
                     packageName = packageName,
                     label = info.loadLabel(context.packageManager).toString(),
                     icon = runCatching { info.loadIcon(context.packageManager) }.getOrNull(),
-                    selected = packageName in selectedOrder,
+                    selected = isSelected,
+                    // Taking one off the list is always allowed; putting one on is not.
+                    selectable = isSelected || roomLeft,
                 )
             }
             .sortedWith(

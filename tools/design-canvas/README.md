@@ -26,7 +26,7 @@ that reports what collides.
 | `gen_cluster.py` | emits the three cluster boards as they stand on the car today, with the current fixed 3 km consumption window |
 | `gen_next.py` | emits the proposed cluster: one horizon, two histories, the gauge |
 | `gen_kit.py` | emits the two boards that describe the system, from the system |
-| `gen_panes.py` | emits the dashboard's two pane boards from `Main.dc.html` and the pane geometry |
+| `gen_panes.py` | emits the dashboard's two pane boards from `Main.dc.html` and the pane geometry, and the dashboard underlay both sheet boards are drawn over |
 | `panel_frame.py` | archived tooling for the four retired head-unit instrument concepts; rebuilds Energy |
 | `normalize.py` | maps type, radii, borders and icon weights onto the scales |
 | `audit.py` | opens every board in headless Chrome and reports what collides |
@@ -56,8 +56,19 @@ python3 audit.py
 It inlines each board into its own iframe, lets the page measure itself, and
 reports five things: text past its artboard, text past the column it was placed
 in, a label wider than the control it is printed in, text meeting text it has no
-relationship with, a flat rule crossing a numeral - plus the type sizes, radii and
-stroke weights each board actually uses. Nothing may sit outside the ramps below.
+relationship with, a flat rule crossing a numeral - plus the type sizes, gaps,
+radii and stroke weights each board actually uses. Nothing may sit outside the
+ramps below.
+
+`GAPS` is the newest of those four and was the last one missing. It reports every
+flex or grid gap, padding and margin a board spends, which is the one ladder that
+had no counterpart anywhere: the type sizes were measured, the radii were
+measured, the strokes were measured, and `30`, `14` and `6` sat on the dashboard
+for a wave because nothing counted them. Percentages and `auto` margins are left
+out - both come back resolved to whatever the box happened to be, which measures
+the layout rather than a decision - and so is zero. A derived pitch will still show
+up there: the analyser's `9.39` is its column spacing, which comes out of the field
+width and the band count and is on no ladder by design.
 
 It knows about occlusion: text under a modal scrim is covered, not colliding, and
 adjacent cells of a segmented control are meant to touch.
@@ -175,6 +186,27 @@ follows - three blocks hung apart down a 320-wide column at 1280, three blocks
 side by side with a rule between them at 828, three label-and-value rows at 416.
 Two type sizes, all three widths, every one of them on the ramp.
 
+**One anatomy, three shapes.** Each of the three readings is a tracked capital and
+a large light figure with its unit against it, and the rate hangs off the reading
+rather than off the edge of whatever box it is in. The sunset used to be the odd
+one out in every width at once: a sun in the vehicle's own amber, a 34 where its
+neighbours were 46, and its word set as a unit rather than as a label, so the one
+coloured caption on the dashboard was the one saying the sun goes down at the usual
+time. Amber is what the car draws when it wants a decision from the driver; the
+label already says which event it is. And the narrow pane's three readings share a
+left edge now: hung off the right they lined the last character of a clock up with
+the last character of a distance and left the digits that matter in three different
+places, which is the one thing a stack of rows is for.
+
+**The analyser's texture does not scale with its columns.** A bar is 22.97 dp wide
+at 1280, 21.4 at 828 and 10.8 at 416, and the crown on top of it stays 4, its
+corner stays 2, the scanline pitch stays 11 and the ticker's dot cell stays 3.4 at
+all three. That is deliberate and it follows from the paragraph above: every width
+is laid out one unit to one dp, so a segment, a corner and a dot are the same size
+on the same glass in all three, and only the column gets narrower as the field
+does. Scaling the texture with the bar would halve the segment height in a narrow
+pane, and the analyser would read as a different instrument seen from further away.
+
 Neither pane is the wide composition rescaled. `PanelCanvas` scales type along
 with everything else, and the wide strip squeezed into a two-thirds pane put the
 ladder's 46, 24 and 15 on the screen at 28, 15 and 9. Each pane's strip derives
@@ -199,12 +231,19 @@ off screenshots. The generated eleven-tile boards preserve the same measured
 window, margins and caption bar, pass the local geometry/overflow contracts, and
 still await a live screenshot comparison after this feature is installed.
 
-The wide one is comfortable. The narrow one shows a Row measuring its children in
-order - the outlined action takes the width it asks for, the primary action is
-handed what is left, and its label runs out past both ends of the button. That is
-what ships today, drawn rather than described, and it is not fixed by anything on
-the board: a two-button row does not fit 312 dp of card, and which button loses is
-a product decision nobody has made yet.
+Both draw the gate at `AWAITING_CONFIRMATION`, which is the busiest state it has:
+a title, an instruction, what the car answered about its own debugging switch, and
+all three actions. That is the point of the pair and it is the part the pair used to
+get wrong - it drew two *different* states, with two different icons and one action
+against three, which shows nothing about width at all. What changes between them
+now is only what width changes: the row of two becomes a stack of three, and the
+card takes the narrower padding rung.
+
+The narrow one is where the row of two died. A Row measures its children in order,
+so the outlined action took the width it asked for, the primary action was handed
+what was left, and its label ran out past both ends of its own button. Neither
+button lost in the end: a card 312 dp wide has room for one on a line and no room
+for two, so each takes a line, primary first, because a stack is read from the top.
 
 A fullscreen-only board cannot show any of that, which is why the pair exists.
 Any screen that can appear in a pane deserves the same treatment.
@@ -219,7 +258,13 @@ can measure and cannot see is a difference that will be drifted into.
 | | rungs | step |
 | --- | --- | --- |
 | Cluster (virtual units, 1.70 on the panel) | 52 · 34 · 24 · 18 · 13 · 11 (+ `104`, proposal only) | 8 wide, 6 narrow |
-| Head unit (pixels, 1:1) | 82 · 62 · 46 · 34 · 24 · 19 · 15 | 6 |
+| Head unit (pixels, 1:1) | 62 · 46 · 34 · 24 · 19 · 15 | see below |
+
+`82` used to head that second row, here and in `gen_kit.py` and in `normalize.py`,
+while `DenzaMetrics.Type.RUNGS` had six rungs from 62 down and no active board drew
+it. Same shape as `104` one level along, same answer: a constant nothing reads is a
+promise, not a rung. It is off all three records. `Battery.dc.html` still draws it
+and stays as it is - that board is retired evidence, not a contract.
 
 Spacing on the head unit is `48 · 32 · 20 · 12 · 8 · 4`, six rungs none closer
 than one and a half times the one below: the screen margin, the gap between two
@@ -264,6 +309,35 @@ measure and cannot see. This page then claimed the two records agreed while
 `104` sat in one and not the other, which is the same failure one level up -
 caught by the parallel session reading both, not by anything here.
 
+## What a sheet is drawn over
+
+`Config.dc.html` and `DefaultApps.dc.html` both draw a panel over the dashboard,
+and both used to carry their own copy of it. Config's was a real copy of
+`Main.dc.html` at the moment somebody pasted it; DefaultApps' was a mock - three
+tiles in the wrong order, three empty boxes where the other eight go, no second
+row, and three grey bars where the analyser is. So the board answering "what does
+this cover" was showing a screen that has never existed, and the board answering it
+honestly was one edit of `Main.dc.html` away from being wrong too.
+
+`gen_panes.py` emits that underlay into a marked region of both boards, scoped to
+`.underlay` and with its loops already expanded, so a sheet board needs no data
+block of its own. Only what sits behind the scrim is generated; the panel over it
+is still drawn by hand.
+
+Three things they had two of, and now have one:
+
+| | |
+| --- | --- |
+| the scrim | `rgba(7,8,10,0.72)` - the ground at 0.72, which is `DenzaColors.Scrim` and what every modal surface in the app is drawn over. Config dimmed the dashboard to 0.30 and put black at 0.55 over it; DefaultApps used 0.48 under black at 0.54. Three depths of dark mean the screen behind a window changes brightness depending on which window opened. |
+| a chosen application | a hairline edge in the accent, the well behind the icon tinted with it, the name set in it - `DenzaAppTile`, and nothing else. Config added a glow, DefaultApps added a check badge, and neither is anything the code draws. |
+| where the action sits | `DenzaSheet` gives the settings `weight(1f)` and hangs the one action under them, so it is under the same thumb whatever the panel was opened from. Config used to hang a spacer between the two as a flex item of its own, which bought a 32 either side of it and read as two clumps at the ends of an empty panel. |
+
+`DefaultApps.dc.html` also draws what the sheet actually holds now - the status line
+where the code puts it, the "обновить список" action under the grid, and the
+Shortcuts note in full. In a 416 pane that is taller than the window and the
+settings scroll, so the note runs on under the fold; the board draws the first
+screenful, which is what a still can show of a scroll and is not a shorter note.
+
 ## Application icons come off the car
 
 The boards used to draw an application as its initial in a well - "Я", "Н", "2".
@@ -300,7 +374,15 @@ Kotlin matches:
 | | |
 | --- | --- |
 | `MainBoardContractTest` | reads `Main.dc.html` - tile height, padding, radius, the `space-between` that hangs the words apart, both text styles with their leading, icon size and stroke, grid columns and gap, page margins |
-| `SpectrumBoardContractTest` | reads the analyser out of the same board - band count, bar width fraction, peak height, corner radius, gradient stop, reflection crop and opacity, scanline pitch |
+| `SpectrumBoardContractTest` | reads the analyser out of the same board - band count, bar width fraction, that the columns add up to the field they are drawn in, peak height, corner radius, gradient stop, reflection crop and opacity, scanline pitch |
+
+That middle clause in the second row is new and is there for a defect every other
+check passed. The board set 26 bars of 22 with 9 between them - 797 of the 834 it
+had - so the analyser stopped 37 dp short of its own right edge and the strip read
+as a rendering that had run out of data. Every ratio on the board was right; the
+sum was not. The columns are `22.97` and `9.39` now, written to the hundredth,
+because the one pitch that both keeps `BAR_WIDTH_FRACTION` and lands the last
+column on the right edge is not a whole number.
 
 They fail in both directions on purpose. Editing a board without the code breaks
 them, and so does editing the code without the board - which means neither record
@@ -309,11 +391,47 @@ looking finished. What they cannot do is run Compose: they prove the constants
 and the declarations agree, not that the drawn result does. That still takes
 `shot.py` beside a screenshot of the car, which is the step that was skipped.
 
+## Left standing, and why
+
+Four things a review of these boards found that are still here on purpose. Each is
+cheap to change and wrong to change quietly.
+
+**The narrow pane's second row of chips has five of six.** Eleven features in two
+rows of six leaves a hole at the right of the second, and the feature that ends the
+row is switched off, so the band fades to the right. Neither is the board's to fix:
+the count comes from the registry, the order comes from `DashboardTiles`, and the
+hole closes on its own at twelve. `ChipDensity.dc.html` draws all four counts.
+
+**The hint tile's glyph reads as an eject symbol.** A chevron over a rule is what
+`DenzaIcons.Hud` draws and what every board draws with it. It is a fair complaint -
+the glyph says "eject" before it says "something projected onto the glass" - and
+the fix is one change to `DenzaIcons` and eleven boards in the same commit, not a
+board drawing a glyph the app has never had.
+
+**The deep muted ink is under contrast at 15 px.** `#6E767F` on the sheet's own
+`#15181F` measures 3.86:1 where 4.5 is the floor, and 4.35:1 on the page ground.
+The boards and the generators now use `#7C858F`, which measures 4.70 and 5.31 and
+stays a clear step below `MUTED` at 5.43 so the two are still two. `DenzaTokens`
+has not moved yet; when it does, `MUTED_DEEP` takes that value and the records meet
+again. The obvious-looking `#8A929C` does not work: at 5.59 it is brighter than the
+ink above it.
+
+**The ticker's two records name a track in opposite orders.** The board writes
+"M83 · MIDNIGHT CITY" and `SpectrumRenderer` builds `"$title · $artist"`, so the
+car shows "MIDNIGHT CITY · M83". One of them is wrong and neither is obviously so;
+it is a product decision rather than a measurement, and it is written down here
+rather than settled by whichever record was edited last.
+
 ## Regenerating and republishing
 
 ```bash
-python3 gen_cluster.py && python3 gen_next.py && python3 gen_kit.py && python3 audit.py
+python3 gen_cluster.py && python3 gen_next.py && python3 gen_kit.py \
+  && python3 gen_panes.py && python3 audit.py
 ```
+
+`gen_panes.py` belongs in that line: it emits both pane boards *and* the dashboard
+underlay inside the two sheet boards, so a change to `Main.dc.html` reaches four
+files rather than two.
 
 Then seed a fresh payload with the `design` skill's `seed-canvas.mjs` and publish
 to the existing canvas, pinned to the runtime it was built for:

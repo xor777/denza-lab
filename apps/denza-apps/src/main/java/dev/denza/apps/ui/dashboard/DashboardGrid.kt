@@ -1,6 +1,7 @@
 package dev.denza.apps.ui.dashboard
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import dev.denza.apps.DenzaUiState
@@ -22,7 +23,9 @@ import dev.denza.apps.ui.components.DenzaTileGrid
  *
  * The grid wraps at whatever [DashboardLayoutPolicy] gives this width and pads a short last row, so the row of six the boards draw becomes
  * six and three as tiles are added without any of them changing size. Two rows is what the screen
- * affords: two rows of tiles and the analyser under them is exactly 800 dp.
+ * affords: two rows of tiles and the analyser under them fill the 680 dp the app actually gets -
+ * the boards are drawn on 800, and the car keeps 56 of that for its status band and 64 for the
+ * dock before the window exists.
  *
  * [chips] is the same registry drawn as [DenzaChip] instead - the pane's compression of the tile,
  * with the caption dropped and the state carried by a dot. It is a different component rather than
@@ -36,7 +39,9 @@ internal fun DashboardGrid(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
 ) {
-    val tiles = DashboardTiles.of(state)
+    // Eleven tiles decided from scratch on every recomposition, and this one recomposes on every
+    // state publication the runtime makes.
+    val tiles = remember(state) { DashboardTiles.of(state) }
     val chips = DashboardLayoutPolicy.chips(layout)
     DenzaTileGrid(
         columns = DashboardLayoutPolicy.columns(layout, tiles.size),

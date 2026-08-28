@@ -1,13 +1,8 @@
 package dev.denza.apps.ui
 
-import android.graphics.drawable.Drawable
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -15,6 +10,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -22,101 +20,63 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Apps
 import androidx.compose.material.icons.outlined.Build
-import androidx.compose.material.icons.outlined.Info
-import androidx.compose.material.icons.outlined.InstallMobile
-import androidx.compose.material.icons.outlined.Map
-import androidx.compose.material.icons.outlined.VerticalSplit
-import androidx.compose.material.icons.outlined.Visibility
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.foundation.Image
-import androidx.compose.material3.ListItem
-import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.layout.Layout
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.graphics.painter.BitmapPainter
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.Constraints
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
-import androidx.core.graphics.drawable.toBitmap
 import dev.denza.apps.DenzaUiState
-import dev.denza.apps.NavigationAppChoice
-import dev.denza.apps.SimulcastAppChoice
-import dev.denza.apps.core.FeatureId
-import dev.denza.apps.core.FeatureSnapshot
-import dev.denza.apps.core.FeatureStatus
 import dev.denza.apps.design.DenzaColors
 import dev.denza.apps.design.DenzaIcons
-import dev.denza.apps.ui.components.DenzaPrimaryButton
 import dev.denza.apps.design.DenzaMetrics
-import dev.denza.apps.ui.components.DenzaSection
-import dev.denza.apps.ui.components.DenzaSheet
-import dev.denza.apps.ui.components.DenzaSheetHeader
 import dev.denza.apps.design.DenzaTheme
-import dev.denza.apps.feature.cluster.ClusterDisplayDescriptor
-import dev.denza.apps.feature.cluster.ClusterMapPlacement
 import dev.denza.apps.feature.adb.AdbExplainer
-import dev.denza.apps.feature.adb.AdbRescueCoordinator
 import dev.denza.apps.feature.adb.AdbRescuePhase
 import dev.denza.apps.feature.adb.AdbStartupGatePolicy
 import dev.denza.apps.feature.adb.AdbStartupOverlayModel
 import dev.denza.apps.feature.adb.AdbStartupPrimaryAction
-import dev.denza.apps.feature.fse.FseInstallApp
+import dev.denza.apps.feature.cluster.ClusterDisplayDescriptor
+import dev.denza.apps.feature.cluster.ClusterDisplayResolver
+import dev.denza.apps.feature.cluster.ClusterMapPlacement
 import dev.denza.apps.feature.defaultapps.DefaultAppRole
 import dev.denza.apps.feature.mirrors.MirrorsPosition
 import dev.denza.apps.ui.components.DenzaKeyValueRow
-import dev.denza.apps.ui.components.DenzaSecondaryButton
-import dev.denza.apps.ui.components.DenzaSwitchRow
+import dev.denza.apps.ui.components.DenzaModalCard
+import dev.denza.apps.ui.components.DenzaModalDialog
 import dev.denza.apps.ui.components.DenzaNote
-import dev.denza.apps.ui.components.DenzaTileTone
+import dev.denza.apps.ui.components.DenzaPrimaryButton
+import dev.denza.apps.ui.components.DenzaSecondaryButton
+import dev.denza.apps.ui.components.DenzaSection
+import dev.denza.apps.ui.components.DenzaSheet
+import dev.denza.apps.ui.components.DenzaSheetHeader
 import dev.denza.apps.ui.dashboard.DashboardActions
-import dev.denza.apps.ui.dashboard.DashboardTiles
 import dev.denza.apps.ui.dashboard.DashboardGrid
+import dev.denza.apps.ui.dashboard.DashboardTiles
 import dev.denza.apps.ui.dashboard.DefaultAppsSheet
 import dev.denza.apps.ui.dashboard.FeatureSheet
 import dev.denza.apps.ui.dashboard.TileId
-import kotlinx.coroutines.flow.StateFlow
 import kotlin.math.roundToInt
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.StateFlow
 
 @Composable
 fun DenzaAppsRoot(
@@ -158,11 +118,14 @@ fun DenzaAppsRoot(
     onInstallFseApp: (String) -> Unit,
 ) {
     val uiState by state.collectAsState()
-    var showClusterPicker by remember { mutableStateOf(false) }
-    var showDiagnostics by remember { mutableStateOf(false) }
-    var showAdbRecovery by remember { mutableStateOf(false) }
-    var showAdbExplainer by remember { mutableStateOf(false) }
-    var settingsFor by remember { mutableStateOf<TileId?>(null) }
+    // Saved rather than merely remembered. The split path of this firmware recreates the activity
+    // when a pane is promoted or collapsed, and every open panel used to vanish with it - so a
+    // driver who widened the window to read a setting arrived back on the dashboard instead.
+    var showClusterPicker by rememberSaveable { mutableStateOf(false) }
+    var showDiagnostics by rememberSaveable { mutableStateOf(false) }
+    var showAdbRecovery by rememberSaveable { mutableStateOf(false) }
+    var showAdbExplainer by rememberSaveable { mutableStateOf(false) }
+    var settingsFor by rememberSaveable { mutableStateOf<TileId?>(null) }
     // Service used to be seven quick taps on an undisclosed part of the screen, with no affordance
     // and nothing to tell you it had happened. A live run found the other half of that bargain: a
     // tap that misses the secret door now lands on a tile, and an odd number of them switched the
@@ -172,51 +135,99 @@ fun DenzaAppsRoot(
     // the service tile, and that is precisely when the readings are wanted. They live on the title
     // of [AdbExplainerSheet], which is a window with no other controls in it - a tap that is not the
     // seventh has nothing to hit.
-    val openService = {
-        onRefreshScreenDiagnostics()
-        onRefreshStockRussianLocale()
-        showDiagnostics = true
+    val openService = remember(onRefreshScreenDiagnostics, onRefreshStockRussianLocale) {
+        {
+            onRefreshScreenDiagnostics()
+            onRefreshStockRussianLocale()
+            showDiagnostics = true
+        }
     }
     val adbStartupOverlay = AdbStartupGatePolicy.overlay(uiState.adbRescue)
     val adbStartupBlocked = uiState.adbRescue.phase != AdbRescuePhase.TRUSTED
-    val openClusterPicker = {
-        onRefreshScreenDiagnostics()
-        showClusterPicker = true
+    // The recovery window belongs to the gate and cannot outlive it. Latched, it reopened itself:
+    // the car answers, the gate goes, the flag stays true, and the next thing to block the app
+    // arrived with a recovery dialog already on top of it that nobody had asked for.
+    LaunchedEffect(adbStartupOverlay.visible) {
+        if (!adbStartupOverlay.visible) showAdbRecovery = false
     }
-    // The callbacks this function still takes, gathered once so a tile and its settings
-    // sheet can be handed the whole vocabulary instead of a hand-picked subset each.
-    val dashboardActions = DashboardActions(
-        onToggleSimulcast = onToggleSimulcast,
-        onLaunchSimulcast = onLaunchSimulcast,
-        onRepairSimulcast = onRepairSimulcast,
-        onChooseApps = onChooseApps,
-        onToggleApp = onToggleApp,
-        onToggleMirrors = onToggleMirrors,
-        onMirrorsPosition = onMirrorsPosition,
-        onMirrorsProcessing = onMirrorsProcessing,
-        onPreviewMirrors = onPreviewMirrors,
-        onNavigationAction = onNavigationAction,
-        onNavigationPlacement = onNavigationPlacement,
-        onNavigationSteeringWheelButton = onNavigationSteeringWheelButton,
-        onChooseNavigationApp = onChooseNavigationApp,
-        onSelectNavigationApp = onSelectNavigationApp,
-        onToggleSplitScreen = onToggleSplitScreen,
-        onLaunchSplitScreen = onLaunchSplitScreen,
-        onSetWeatherEnabled = onSetWeatherEnabled,
-        onToggleHudGuidance = onToggleHudGuidance,
-        onToggleSpeakerCovers = onToggleSpeakerCovers,
-        onRaiseSpeakerCovers = onRaiseSpeakerCovers,
-        onLowerSpeakerCovers = onLowerSpeakerCovers,
-        onSetStockRussianLocale = onSetStockRussianLocaleEnabled,
-        onChooseFseApp = onChooseFseApp,
-        onOpenClusterPicker = openClusterPicker,
-        onOpenService = openService,
-        onOpenSettings = { id ->
+    val openClusterPicker = remember(onRefreshScreenDiagnostics) {
+        {
+            onRefreshScreenDiagnostics()
+            showClusterPicker = true
+        }
+    }
+    val openSettings = remember(onRefreshDefaultApps) {
+        { id: TileId ->
             // Opening the tile asks the car only if the last read has gone stale.
             if (id == TileId.DEFAULT_APPS) onRefreshDefaultApps(false)
             settingsFor = id
-        },
-    )
+        }
+    }
+    // The callbacks this function still takes, gathered once so a tile and its settings
+    // sheet can be handed the whole vocabulary instead of a hand-picked subset each.
+    //
+    // Held across frames, and the three local lambdas above are held with it. A data class of
+    // twenty-six lambdas is a new object on every recomposition, so every tile, every chip and
+    // every settings panel was being handed a parameter that had changed - which is the one thing
+    // that makes Compose redraw a subtree it did not need to touch. The keys are the callbacks
+    // themselves: this rebuilds when the activity hands down a different one, and not otherwise.
+    val dashboardActions = remember(
+        onToggleSimulcast,
+        onLaunchSimulcast,
+        onRepairSimulcast,
+        onChooseApps,
+        onToggleApp,
+        onToggleMirrors,
+        onMirrorsPosition,
+        onMirrorsProcessing,
+        onPreviewMirrors,
+        onNavigationAction,
+        onNavigationPlacement,
+        onNavigationSteeringWheelButton,
+        onChooseNavigationApp,
+        onSelectNavigationApp,
+        onToggleSplitScreen,
+        onLaunchSplitScreen,
+        onSetWeatherEnabled,
+        onToggleHudGuidance,
+        onToggleSpeakerCovers,
+        onRaiseSpeakerCovers,
+        onLowerSpeakerCovers,
+        onSetStockRussianLocaleEnabled,
+        onChooseFseApp,
+        openClusterPicker,
+        openService,
+        openSettings,
+    ) {
+        DashboardActions(
+            onToggleSimulcast = onToggleSimulcast,
+            onLaunchSimulcast = onLaunchSimulcast,
+            onRepairSimulcast = onRepairSimulcast,
+            onChooseApps = onChooseApps,
+            onToggleApp = onToggleApp,
+            onToggleMirrors = onToggleMirrors,
+            onMirrorsPosition = onMirrorsPosition,
+            onMirrorsProcessing = onMirrorsProcessing,
+            onPreviewMirrors = onPreviewMirrors,
+            onNavigationAction = onNavigationAction,
+            onNavigationPlacement = onNavigationPlacement,
+            onNavigationSteeringWheelButton = onNavigationSteeringWheelButton,
+            onChooseNavigationApp = onChooseNavigationApp,
+            onSelectNavigationApp = onSelectNavigationApp,
+            onToggleSplitScreen = onToggleSplitScreen,
+            onLaunchSplitScreen = onLaunchSplitScreen,
+            onSetWeatherEnabled = onSetWeatherEnabled,
+            onToggleHudGuidance = onToggleHudGuidance,
+            onToggleSpeakerCovers = onToggleSpeakerCovers,
+            onRaiseSpeakerCovers = onRaiseSpeakerCovers,
+            onLowerSpeakerCovers = onLowerSpeakerCovers,
+            onSetStockRussianLocale = onSetStockRussianLocaleEnabled,
+            onChooseFseApp = onChooseFseApp,
+            onOpenClusterPicker = openClusterPicker,
+            onOpenService = openService,
+            onOpenSettings = openSettings,
+        )
+    }
 
     // Правка W6 (волна 7): ширина берётся из фактического constraint корневого layout.
     // LocalWindowInfo.containerSize обновляется только с configuration change, которого
@@ -226,79 +237,103 @@ fun DenzaAppsRoot(
         val dashboardLayout = DashboardLayoutPolicy.resolve(maxWidth.value.roundToInt())
         val compactLayout = dashboardLayout == DashboardLayoutMode.NARROW
         val sideMargin = DashboardLayoutPolicy.sideMargin(dashboardLayout)
-        val contentWidth = (maxWidth - sideMargin * 2).value.coerceAtLeast(1f)
         val chips = DashboardLayoutPolicy.chips(dashboardLayout)
+        // The window the app is handed is not the box it may draw in. In a pane the car keeps the
+        // top 24 dp for its own freeform caption bar, and `safeDrawing` is what reports it - so the
+        // page subtracts exactly the insets it pads with, and the width the strip is measured
+        // against is the width the strip is given. The old line measured the full window, which is
+        // the same class of mistake as laying a pane out against 680.
+        val insets = WindowInsets.safeDrawing.asPaddingValues()
+        val direction = LocalLayoutDirection.current
+        val contentWidth = (
+            maxWidth - sideMargin * 2 -
+                insets.calculateStartPadding(direction) - insets.calculateEndPadding(direction)
+            ).value.coerceAtLeast(1f)
+        val contentHeight = maxHeight -
+            insets.calculateTopPadding() - insets.calculateBottomPadding() -
+            DenzaMetrics.Space.L - DenzaMetrics.Space.M
+        val features = remember(uiState) { DashboardTiles.of(uiState).size }
+        val page = DashboardLayoutPolicy.page(
+            mode = dashboardLayout,
+            features = features,
+            contentWidth = contentWidth,
+            contentHeight = contentHeight,
+        )
 
         DenzaTheme {
             Surface(modifier = Modifier.fillMaxSize(), color = DenzaColors.Background) {
-                Box(modifier = Modifier.fillMaxSize()) {
-                    // Правка W8: дашборд всегда вписывается в ширину своего окна. Панельные ширины
-                    // (узкая 1/3 и средняя 2/3) перекомпоновывают карточки и скроллят по вертикали;
-                    // горизонтального скролла с холстом 1280 dp больше нет - в панели 828 dp он
-                    // прятал ~904 px дашборда за краем.
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .windowInsetsPadding(WindowInsets.safeDrawing)
-                            // Top and bottom are not the same rung, and every board says so: 20
-                            // over the features and 12 under the strip. Both were 20 here, which
-                            // put the page 8 dp taller than the window it is laid out for and drew
-                            // the foot of the analyser's reflection past the bottom edge.
-                            .padding(
-                                start = sideMargin,
-                                end = sideMargin,
-                                top = DenzaMetrics.Space.L,
-                                bottom = DenzaMetrics.Space.M,
-                            ),
-                    ) {
-                        DashboardGrid(
-                            state = uiState,
-                            actions = dashboardActions,
-                            layout = dashboardLayout,
-                            modifier = Modifier.fillMaxWidth(),
-                            enabled = !adbStartupBlocked,
+                // Правка W8: дашборд всегда вписывается в ширину своего окна. Панельные ширины
+                // (узкая 1/3 и средняя 2/3) перекомпоновывают карточки; горизонтального скролла с
+                // холстом 1280 dp больше нет - в панели 828 dp он прятал ~904 px дашборда за краем.
+                //
+                // Vertically the page degrades instead of overflowing. It used to add up to exactly
+                // 680 - 20 + 340 + 12 + 296 + 12 - with no scroll in any of the three widths, so
+                // the `Spacer(weight(1f))` under the strip was always handed nothing and any inset
+                // at all pushed the foot of the analyser past the bottom edge in silence. Now the
+                // strip takes what is left down to a floor, and when even that will not fit - a low
+                // window, or a car that keeps more of it than this one - the column scrolls.
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .windowInsetsPadding(WindowInsets.safeDrawing)
+                        .then(
+                            if (page.scrolls) {
+                                Modifier.verticalScroll(rememberScrollState())
+                            } else {
+                                Modifier
+                            },
                         )
-                        // A pane's chips and its strip are two different things and take the gap
-                        // between groups; the full screen's tiles and strip are one field of
-                        // controls with a readout under it and take a neighbour's gap.
-                        Spacer(
-                            Modifier.height(
-                                if (chips) DenzaMetrics.Space.XL else DenzaMetrics.Space.M,
-                            ),
+                        // Top and bottom are not the same rung, and every board says so: 20
+                        // over the features and 12 under the strip. Both were 20 here, which
+                        // put the page 8 dp taller than the window it is laid out for and drew
+                        // the foot of the analyser's reflection past the bottom edge.
+                        .padding(
+                            start = sideMargin,
+                            end = sideMargin,
+                            top = DenzaMetrics.Space.L,
+                            bottom = DenzaMetrics.Space.M,
+                        ),
+                ) {
+                    DashboardGrid(
+                        state = uiState,
+                        actions = dashboardActions,
+                        layout = dashboardLayout,
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !adbStartupBlocked,
+                    )
+                    Spacer(Modifier.height(DashboardLayoutPolicy.bandGap(dashboardLayout)))
+                    if (!adbStartupBlocked) {
+                        // The strip draws in a virtual space of its own, and the box it is given
+                        // has to be that space's shape or the drawing arrives stretched. It used to
+                        // get whatever height was left over, which on the full screen was about
+                        // twice its own: every stroke came out drawn on a canvas stretched
+                        // vertically, which is why the analyser read as a sparse ripple rather than
+                        // the columns the board draws.
+                        //
+                        // So the full screen always asks for a box of the board's shape, and a pane
+                        // with room takes the remainder as a `weight(1f)` - which its renderer can
+                        // do, because it lays itself out at one unit to one dp in whatever it is
+                        // handed, and which is the one arrangement that cannot be wrong. A pane
+                        // only names a height when the column is scrolling, because a scrolling
+                        // column has no remainder: an infinite height is what a weight would be
+                        // measured against there.
+                        SpectrumPanel(
+                            layout = DashboardLayoutPolicy.panel(dashboardLayout),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .then(
+                                    if (chips && !page.scrolls) {
+                                        Modifier.weight(1f)
+                                    } else {
+                                        Modifier.height(page.panelHeight)
+                                    },
+                                ),
                         )
-                        if (!adbStartupBlocked) {
-                            // The strip draws in a virtual space of its own, and the box it is
-                            // given has to be that space's shape or the drawing arrives stretched.
-                            // It used to get whatever height was left over, which on the full
-                            // screen was about twice its own: every stroke came out drawn on a
-                            // canvas stretched vertically, which is why the analyser read as a
-                            // sparse ripple rather than the columns the board draws.
-                            //
-                            // So the full screen asks for a box of the board's shape, and a pane
-                            // takes the remainder - which its renderer can do, because it lays
-                            // itself out at one unit to one dp in whatever it is handed. Working
-                            // that remainder out by hand instead is what put the last cut's strip
-                            // past the bottom of the window: the car keeps 24 dp of a pane for its
-                            // own caption bar, and arithmetic done against 680 never saw it.
-                            SpectrumPanel(
-                                layout = DashboardLayoutPolicy.panel(dashboardLayout),
-                                modifier = if (chips) {
-                                    Modifier
-                                        .fillMaxWidth()
-                                        .heightIn(min = DenzaMetrics.Component.PANEL_HEIGHT_MIN)
-                                        .weight(1f)
-                                } else {
-                                    Modifier.fillMaxWidth().height(
-                                        DashboardLayoutPolicy.wholeScreenPanelHeight(contentWidth),
-                                    )
-                                },
-                            )
-                        }
-                        // Any slack on the full screen goes under the strip rather than between it
-                        // and the tiles. A pane has none: its strip already took it.
-                        if (!chips) {
-                            Spacer(Modifier.weight(1f))
-                        }
+                    }
+                    // Any slack on the full screen goes under the strip rather than between it and
+                    // the tiles. A pane has none: its strip already took it.
+                    if (!chips && !page.scrolls) {
+                        Spacer(Modifier.weight(1f))
                     }
                 }
             }
@@ -355,7 +390,6 @@ fun DenzaAppsRoot(
                     apps = uiState.appChoices,
                     compactLayout = compactLayout,
                     selectedCount = uiState.selectedAppCount,
-                    message = uiState.appPickerMessage,
                     onToggle = onToggleApp,
                     onDismiss = onCloseAppPicker,
                 )
@@ -372,7 +406,6 @@ fun DenzaAppsRoot(
                 FseInstallerPickerDialog(
                     apps = uiState.fseInstallApps,
                     compactLayout = compactLayout,
-                    message = uiState.fseInstallerMessage,
                     onInstall = onInstallFseApp,
                     onDismiss = onCloseFseInstallerPicker,
                 )
@@ -421,6 +454,7 @@ fun DenzaAppsRoot(
             if (showAdbRecovery && adbStartupOverlay.visible) {
                 AdbRecoveryDialog(
                     state = uiState,
+                    compact = compactLayout,
                     onCheckAdbAccess = onCheckAdbAccess,
                     onRequestAdbAuthorizationOnce = onRequestAdbAuthorizationOnce,
                     onAllowNewAdbAuthorizationAttempt = onAllowNewAdbAuthorizationAttempt,
@@ -439,206 +473,187 @@ private fun AdbStartupOverlay(
     onOpenRecovery: () -> Unit,
     onOpenExplainer: () -> Unit,
 ) {
-    val interactionSource = remember { MutableInteractionSource() }
-    // A pane a third of the screen wide is 416 dp, which leaves this card about 253 dp - and 48 dp
-    // of padding down each side of that spends most of it on nothing. The row of actions already
-    // did not fit there before anything was added to it, and a full-width button loses the end of
-    // its own label. Narrow gets the width back; the wide gate keeps the proportions it had.
-    val cardWidthFraction = if (compact) 1f else 0.72f
-    val cardPadding = if (compact) DenzaMetrics.Space.L else DenzaMetrics.Space.XXL
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.78f))
-            .clickable(
-                interactionSource = interactionSource,
-                indication = null,
-                onClick = {},
-            )
-            .windowInsetsPadding(WindowInsets.safeDrawing)
-            .padding(DenzaMetrics.Space.XL),
-        contentAlignment = Alignment.Center,
-    ) {
-        Card(
-            modifier = Modifier.fillMaxWidth(cardWidthFraction),
-            shape = RoundedCornerShape(DenzaMetrics.Space.XL),
-            border = BorderStroke(DenzaMetrics.Stroke.HAIRLINE, DenzaColors.SurfaceRaised),
+    // No scrim touch to answer: the gate's whole statement is that nothing behind it may be used
+    // yet, so the dark swallows the tap rather than dismissing anything. The card's width, its
+    // corner and its padding are the modal's now - it used to take 0.72 of the screen behind a
+    // 32 dp corner, which is a rung off the spacing ladder standing in for a radius.
+    DenzaModalCard(compact = compact) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(DenzaMetrics.Space.L),
         ) {
-            Column(
-                modifier = Modifier.padding(horizontal = cardPadding, vertical = DenzaMetrics.Space.XL),
-                verticalArrangement = Arrangement.spacedBy(DenzaMetrics.Space.L),
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(DenzaMetrics.Space.L),
-                ) {
-                    if (model.busy) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(DenzaMetrics.Component.SEGMENT_HEIGHT),
-                            color = DenzaColors.Accent,
-                            strokeWidth = DenzaMetrics.Space.XS,
-                        )
-                    } else {
-                        Icon(
-                            Icons.Outlined.Build,
-                            contentDescription = null,
-                            modifier = Modifier.size(DenzaMetrics.Space.XXL),
-                            tint = if (model.recoveryAvailable) DenzaColors.Warning else DenzaColors.Muted,
-                        )
-                    }
-                    Text(
-                        model.title,
-                        color = DenzaColors.Ink,
-                        fontSize = DenzaMetrics.Type.TITLE,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                }
-                Text(
-                    model.message,
-                    color = DenzaColors.Muted,
-                    fontSize = DenzaMetrics.Type.LABEL,
-                    lineHeight = DenzaMetrics.Type.SECTION,
+            if (model.busy) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(DenzaMetrics.Component.MODAL_SPINNER),
+                    color = DenzaColors.Accent,
+                    strokeWidth = DenzaMetrics.Component.MODAL_SPINNER_STROKE,
                 )
-                // The cause, under the instruction that is the same for every car in this state.
-                // Without it two different "ADB недоступен" gates are the same screen, and the one
-                // fact the app actually read about this car - that the switch is off - reaches
-                // nobody.
-                model.details?.let { details ->
-                    Text(
-                        details,
-                        color = DenzaColors.Muted,
-                        fontSize = DenzaMetrics.Type.BODY,
-                        lineHeight = DenzaMetrics.Type.LABEL,
-                    )
+            } else {
+                Icon(
+                    Icons.Outlined.Build,
+                    contentDescription = null,
+                    modifier = Modifier.size(DenzaMetrics.Component.MODAL_ICON),
+                    tint = if (model.recoveryAvailable) DenzaColors.Warning else DenzaColors.Muted,
+                )
+            }
+            Text(
+                model.title,
+                style = MaterialTheme.typography.headlineMedium,
+                color = DenzaColors.Ink,
+            )
+        }
+        Text(
+            model.message,
+            style = MaterialTheme.typography.bodyLarge,
+            color = DenzaColors.Muted,
+        )
+        // The cause, under the instruction that is the same for every car in this state. Without it
+        // two different "ADB недоступен" gates are the same screen, and the one fact the app
+        // actually read about this car - that the switch is off - reaches nobody.
+        model.details?.let { details ->
+            Text(details, style = MaterialTheme.typography.bodyMedium, color = DenzaColors.Muted)
+        }
+        // **In a pane the actions stack.** A Row measures its children in order: the outlined
+        // action takes the width it asks for and the primary one is handed what is left, so at
+        // 416 dp "Я подтвердил - проверить" was drawn into a pill narrower than its own label and
+        // the words ran out past both ends of it. That was on the board as well as on the screen,
+        // and the note beside it said which button should lose was a product decision nobody had
+        // made.
+        //
+        // Neither loses. A card 312 dp wide has room for one button per line and no room for two,
+        // so the narrow gate spends a line each - primary first, because a stack is read from the
+        // top and the top is where the thing you came to press belongs.
+        if (model.primaryLabel != null) {
+            if (compact) {
+                DenzaPrimaryButton(
+                    text = model.primaryLabel,
+                    onClick = onPrimaryAction,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                if (model.recoveryAvailable) {
+                    RecoverButton(onClick = onOpenRecovery, modifier = Modifier.fillMaxWidth())
                 }
-                // **In a pane the actions stack.** A Row measures its children in order: the
-                // outlined action takes the width it asks for and the primary one is handed what
-                // is left, so at 416 dp "Я подтвердил - проверить" was drawn into a pill narrower
-                // than its own label and the words ran out past both ends of it. That was on the
-                // board as well as on the screen, and the note beside it said which button should
-                // lose was a product decision nobody had made.
-                //
-                // Neither loses. A card 312 dp wide has room for one button per line and no room
-                // for two, so the narrow gate spends a line each - primary first, because a stack
-                // is read from the top and the top is where the thing you came to press belongs.
-                if (model.primaryLabel != null) {
-                    if (compact) {
-                        DenzaPrimaryButton(
-                            text = model.primaryLabel,
-                            onClick = onPrimaryAction,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                        if (model.recoveryAvailable) {
-                            OutlinedButton(
-                                onClick = onOpenRecovery,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .heightIn(min = DenzaMetrics.Component.SEGMENT_HEIGHT),
-                                shape = MaterialTheme.shapes.medium,
-                                border = BorderStroke(DenzaMetrics.Stroke.HAIRLINE, DenzaColors.Warning),
-                            ) {
-                                Text(RECOVER_LABEL, fontWeight = FontWeight.SemiBold, maxLines = 1)
-                            }
-                        }
-                    } else {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(DenzaMetrics.Space.M, Alignment.End),
-                        ) {
-                            if (model.recoveryAvailable) {
-                                OutlinedButton(
-                                    onClick = onOpenRecovery,
-                                    border = BorderStroke(DenzaMetrics.Stroke.HAIRLINE, DenzaColors.Warning),
-                                ) {
-                                    Text(RECOVER_LABEL, fontWeight = FontWeight.SemiBold, maxLines = 1)
-                                }
-                            }
-                            Button(onClick = onPrimaryAction) {
-                                Text(model.primaryLabel, fontWeight = FontWeight.SemiBold, maxLines = 1)
-                            }
-                        }
+            } else {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(DenzaMetrics.Space.M, Alignment.End),
+                ) {
+                    if (model.recoveryAvailable) {
+                        RecoverButton(onClick = onOpenRecovery)
                     }
-                }
-                // On its own line, under whatever action the state has, and on every state that
-                // blocks - including the ones with no action at all.
-                if (model.explainerAvailable) {
-                    DenzaSecondaryButton(
-                        text = AdbExplainer.OPEN_LABEL,
-                        onClick = onOpenExplainer,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
+                    DenzaPrimaryButton(text = model.primaryLabel, onClick = onPrimaryAction)
                 }
             }
+        }
+        // On its own line, under whatever action the state has, and on every state that
+        // blocks - including the ones with no action at all.
+        if (model.explainerAvailable) {
+            DenzaSecondaryButton(
+                text = AdbExplainer.OPEN_LABEL,
+                onClick = onOpenExplainer,
+                modifier = Modifier.fillMaxWidth(),
+            )
         }
     }
 }
 
-/** The gate's second action, in one place because two layouts draw it. */
+/**
+ * The gate's second action, in one place because two layouts draw it.
+ *
+ * The only button in the app with an amber edge, and the reason it is written out here rather than
+ * taken from [DenzaSecondaryButton]: this is the door to a recovery flow, and amber is what the
+ * vehicle itself uses for something waiting on a decision.
+ */
+@Composable
+private fun RecoverButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
+    OutlinedButton(
+        onClick = onClick,
+        modifier = modifier.heightIn(min = DenzaMetrics.Component.SEGMENT_HEIGHT),
+        shape = MaterialTheme.shapes.medium,
+        border = BorderStroke(DenzaMetrics.Stroke.HAIRLINE, DenzaColors.Warning),
+    ) {
+        Text(
+            RECOVER_LABEL,
+            style = MaterialTheme.typography.labelLarge,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
 private const val RECOVER_LABEL = "Восстановить ADB"
 
+/**
+ * The gate's recovery flow, in a window of its own above it.
+ *
+ * It was the one surface on this screen with no narrow layout at all: 0.68 of the window behind
+ * 32 dp of padding down each side, which in a 416 dp pane is 219 dp of content and three button
+ * labels with nowhere to go. Everything about the width, the corner and the padding is now the
+ * modal's, and the three actions are the app's own buttons - so they carry a single line with an
+ * ellipsis rather than clipping, and they all stop answering while the handshake is in flight, the
+ * way the same three do on the service panel.
+ */
 @Composable
 private fun AdbRecoveryDialog(
     state: DenzaUiState,
+    compact: Boolean,
     onCheckAdbAccess: () -> Unit,
     onRequestAdbAuthorizationOnce: () -> Unit,
     onAllowNewAdbAuthorizationAttempt: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false),
-    ) {
-        Card(
-            modifier = Modifier.fillMaxWidth(0.68f),
-            shape = RoundedCornerShape(DenzaMetrics.Space.XL),
-            border = BorderStroke(DenzaMetrics.Stroke.HAIRLINE, DenzaColors.SurfaceRaised),
+    val busy = state.adbRescue.phase == AdbRescuePhase.CHECKING ||
+        state.adbRescue.phase == AdbRescuePhase.REQUESTING
+    DenzaModalDialog(compact = compact, onDismiss = onDismiss) {
+        Text(
+            "Восстановление ADB",
+            style = MaterialTheme.typography.titleLarge,
+            color = DenzaColors.Ink,
+        )
+        Text(
+            state.adbRescue.message,
+            style = MaterialTheme.typography.bodyLarge,
+            color = DenzaColors.Ink,
+        )
+        state.adbRescue.details?.let { details ->
+            Text(details, style = MaterialTheme.typography.bodyMedium, color = DenzaColors.Muted)
+        }
+        DenzaSecondaryButton(
+            text = "Проверить доступ",
+            onClick = onCheckAdbAccess,
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !busy,
+        )
+        if (state.adbRescue.canRequest) {
+            DenzaPrimaryButton(
+                text = "Отправить один запрос",
+                onClick = onRequestAdbAuthorizationOnce,
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !busy,
+            )
+        }
+        if (state.adbRescue.canResetAttempt) {
+            DenzaSecondaryButton(
+                text = "Разрешить новую попытку",
+                onClick = onAllowNewAdbAuthorizationAttempt,
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !busy,
+            )
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End,
         ) {
-            Column(
-                modifier = Modifier.padding(DenzaMetrics.Space.XL),
-                verticalArrangement = Arrangement.spacedBy(DenzaMetrics.Space.L),
-            ) {
+            // The one control here with no border: shaped like the buttons above it rather than
+            // like Material's fully rounded default, so its ripple is not a different corner from
+            // everything else on the card.
+            TextButton(onClick = onDismiss, shape = MaterialTheme.shapes.medium) {
                 Text(
-                    "Восстановление ADB",
-                    color = DenzaColors.Ink,
-                    fontSize = DenzaMetrics.Type.SECTION,
-                    fontWeight = FontWeight.SemiBold,
+                    "Закрыть",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = DenzaColors.Accent,
+                    maxLines = 1,
                 )
-                Text(state.adbRescue.message, color = DenzaColors.Ink, fontSize = DenzaMetrics.Type.LABEL)
-                state.adbRescue.details?.let { details ->
-                    Text(details, color = DenzaColors.Muted, fontSize = DenzaMetrics.Type.BODY)
-                }
-                OutlinedButton(
-                    modifier = Modifier.fillMaxWidth(),
-                    onClick = onCheckAdbAccess,
-                    enabled = state.adbRescue.phase != AdbRescuePhase.CHECKING &&
-                        state.adbRescue.phase != AdbRescuePhase.REQUESTING,
-                ) {
-                    Text("Проверить доступ", fontWeight = FontWeight.SemiBold)
-                }
-                if (state.adbRescue.canRequest) {
-                    Button(
-                        modifier = Modifier.fillMaxWidth(),
-                        onClick = onRequestAdbAuthorizationOnce,
-                    ) {
-                        Text("Отправить один запрос", fontWeight = FontWeight.SemiBold)
-                    }
-                }
-                if (state.adbRescue.canResetAttempt) {
-                    TextButton(
-                        modifier = Modifier.fillMaxWidth(),
-                        onClick = onAllowNewAdbAuthorizationAttempt,
-                    ) {
-                        Text("Разрешить новую попытку", color = DenzaColors.Warning)
-                    }
-                }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End,
-                ) {
-                    TextButton(onClick = onDismiss) {
-                        Text("Закрыть", color = DenzaColors.Accent, fontWeight = FontWeight.SemiBold)
-                    }
-                }
             }
         }
     }
@@ -666,9 +681,15 @@ private fun DiagnosticsDialog(
     // the tiles use, and the readings are behind a button for the session that wants them.
     val adbBusy = state.adbRescue.phase == AdbRescuePhase.CHECKING ||
         state.adbRescue.phase == AdbRescuePhase.REQUESTING
-    var showTechnical by remember { mutableStateOf(false) }
-    val needing = DashboardTiles.of(state).filter {
-        it.tone == DenzaTileTone.ATTENTION || it.tone == DenzaTileTone.BROKEN
+    var showTechnical by rememberSaveable { mutableStateOf(false) }
+    val needing = remember(state) { DashboardTiles.attentionTiles(state) }
+    // Forty readings in key=value, split apart once per state rather than once per frame.
+    val technical = remember(state.technicalDetails) {
+        state.technicalDetails
+            .lineSequence()
+            .filter { it.isNotBlank() }
+            .map { it.substringBefore('=') to it.substringAfter('=', missingDelimiterValue = "—") }
+            .toList()
     }
     DenzaSheet(onDismiss = onDismiss, compact = compactLayout) {
         DenzaSheetHeader(
@@ -681,8 +702,8 @@ private fun DiagnosticsDialog(
             if (needing.isEmpty()) {
                 Text(
                     "Все функции работают.",
+                    style = MaterialTheme.typography.bodyMedium,
                     color = DenzaColors.Muted,
-                    fontSize = DenzaMetrics.Type.BODY,
                 )
             } else {
                 needing.forEach { tile ->
@@ -693,7 +714,7 @@ private fun DiagnosticsDialog(
         DenzaSection("Доступ к машине") {
             DenzaKeyValueRow(label = "Состояние", value = state.adbRescue.message, stacked = true)
             state.adbRescue.details?.let { details ->
-                Text(details, color = DenzaColors.Muted, fontSize = DenzaMetrics.Type.BODY)
+                Text(details, style = MaterialTheme.typography.bodyMedium, color = DenzaColors.Muted)
             }
             DenzaSecondaryButton(
                 text = "Проверить доступ",
@@ -719,11 +740,11 @@ private fun DiagnosticsDialog(
                 )
             }
         }
-        // A list of unlabelled buttons and one called "Определять автоматически", with nothing
-        // saying what any of them were for. The owner read it out on the car and said he did not
-        // understand what the button was, which is the only review that matters: the panel now
-        // says which screen is in use and what choosing another one is for, before offering the
-        // choice.
+        // A list of unlabelled buttons with nothing saying what any of them were for. The owner
+        // read it out on the car and said he did not understand what the button was, which is the
+        // only review that matters: the panel says which screen is in use and what choosing
+        // another one is for, before offering the choice. The choice itself is the picker's, drawn
+        // by the picker's own composable.
         DenzaSection("Приборный экран") {
             DenzaKeyValueRow(
                 label = "Сейчас",
@@ -734,44 +755,91 @@ private fun DiagnosticsDialog(
                 "Приложение само находит экран за рулём. Выберите другой, если приборы ушли не " +
                     "туда.",
             )
-            state.clusterCandidates
-                .filter { it.id != 0 && !it.isOwnVirtualDisplay }
-                .forEach { display ->
-                    DenzaSecondaryButton(
-                        text = "#${display.id} · ${display.width}×${display.height} · ${display.name}",
-                        onClick = { onSelectClusterDisplay(display.id) },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                }
-            DenzaSecondaryButton(
-                text = "Вернуть автоматический выбор",
-                onClick = { onSelectClusterDisplay(null) },
-                modifier = Modifier.fillMaxWidth(),
+            ClusterDisplayChoices(
+                displays = state.clusterCandidates,
+                onSelect = onSelectClusterDisplay,
             )
         }
+        // It only ever opened. "Показать" set a flag nothing could clear, so a session that pressed
+        // it once to read one line was left scrolling forty of them past every other group on the
+        // panel for as long as the panel stayed open.
         DenzaSection("Технические сведения") {
+            DenzaSecondaryButton(
+                text = if (showTechnical) "Скрыть" else "Показать",
+                onClick = { showTechnical = !showTechnical },
+                modifier = Modifier.fillMaxWidth(),
+            )
             if (showTechnical) {
-                state.technicalDetails
-                    .lineSequence()
-                    .filter { it.isNotBlank() }
-                    .forEach { line ->
-                        DenzaKeyValueRow(
-                            label = line.substringBefore('='),
-                            value = line.substringAfter('=', missingDelimiterValue = "—"),
-                            stacked = true,
-                        )
-                    }
-            } else {
-                DenzaSecondaryButton(
-                    text = "Показать",
-                    onClick = { showTechnical = true },
-                    modifier = Modifier.fillMaxWidth(),
-                )
+                technical.forEach { (label, value) ->
+                    DenzaKeyValueRow(label = label, value = value, stacked = true)
+                }
             }
         }
     }
 }
 
+/**
+ * The screens this car offers for the instruments, and the way back to letting the app decide.
+ *
+ * There were two of these. The service panel listed "#2 · 1920×720 · ClusterDisplay" under a button
+ * called "Вернуть автоматический выбор"; the picker listed "Экран 1 · 1920×720" under one called
+ * "Определять автоматически" - two names for one screen, two names for one action, and the same
+ * `id != 0 && !isOwnVirtualDisplay` written out in both places. A driver who reached this choice
+ * through the tile and then through service was shown two different cars.
+ *
+ * "Экран N" rather than the display id, because an id is a number the platform hands out: it is not
+ * stable across boots, it is not written on anything, and there is nothing in the car the driver
+ * could count it against. They can count screens.
+ */
+@Composable
+private fun ClusterDisplayChoices(
+    displays: List<ClusterDisplayDescriptor>,
+    onSelect: (Int?) -> Unit,
+) {
+    // One child rather than N+1 siblings, so the list keeps a neighbour's gap between its buttons
+    // wherever it is dropped - inside a service group, or straight onto a panel whose own children
+    // stand a group apart.
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(DenzaMetrics.Space.M),
+    ) {
+        clusterDisplayChoices(displays).forEachIndexed { index, display ->
+            DenzaSecondaryButton(
+                text = clusterDisplayName(index, display),
+                onClick = { onSelect(display.id) },
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+        DenzaSecondaryButton(
+            text = CLUSTER_AUTOMATIC_LABEL,
+            onClick = { onSelect(null) },
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+}
+
+// The filter and the wording live on ClusterDisplayResolver, so the service panel's own label
+// counts over the same list and cannot call the same screen by a different name.
+private fun clusterDisplayChoices(
+    displays: List<ClusterDisplayDescriptor>,
+): List<ClusterDisplayDescriptor> = ClusterDisplayResolver.choices(displays)
+
+private fun clusterDisplayName(index: Int, display: ClusterDisplayDescriptor): String =
+    ClusterDisplayResolver.choiceName(index, display)
+
+private const val CLUSTER_AUTOMATIC_LABEL = "Определять автоматически"
+
+/** How often the picker asks the car again while it has nothing to offer. */
+private const val CLUSTER_RESCAN_MS = 1_500L
+
+/**
+ * The same choice, reached from a tile instead of from service.
+ *
+ * A panel like every other panel now. It was a centred dialog at 0.56 of the screen - 0.96 in a
+ * pane, which is two guesses about width where the app has one answer - with its title and its
+ * subtitle set by hand, its own copy of the display list, and its own words for both. The two
+ * records are one composable; the only thing this adds is that it closes when a screen is chosen.
+ */
 @Composable
 private fun ClusterDisplayPickerDialog(
     displays: List<ClusterDisplayDescriptor>,
@@ -780,94 +848,53 @@ private fun ClusterDisplayPickerDialog(
     onRefresh: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val choices = displays.filter { it.id != 0 && !it.isOwnVirtualDisplay }
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false),
-    ) {
-        Surface(
-            modifier = if (compactLayout) Modifier.fillMaxWidth(0.96f)
-            else Modifier.fillMaxWidth(0.56f),
-            color = DenzaColors.Surface,
-            shape = RoundedCornerShape(DenzaMetrics.Space.XL),
-        ) {
-            Column(modifier = Modifier.padding(if (compactLayout) DenzaMetrics.Space.L else DenzaMetrics.Space.XL)) {
-                Text(
-                    "Выберите приборный экран",
-                    color = DenzaColors.Ink,
-                    fontSize = DenzaMetrics.Type.SECTION,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Spacer(Modifier.height(DenzaMetrics.Space.S))
-                Text(
-                    "После выбора на экране появится короткая проверка",
-                    color = DenzaColors.Muted,
-                    fontSize = DenzaMetrics.Type.BODY,
-                )
-                Spacer(Modifier.height(DenzaMetrics.Space.L))
-                if (choices.isEmpty()) {
-                    Text(
-                        "Приборные экраны пока не найдены",
-                        color = DenzaColors.Warning,
-                        fontSize = DenzaMetrics.Type.BODY,
-                    )
-                    Spacer(Modifier.height(DenzaMetrics.Space.L))
-                    Button(
-                        modifier = Modifier.fillMaxWidth(),
-                        onClick = onRefresh,
-                    ) {
-                        Text("Повторить поиск", fontWeight = FontWeight.SemiBold)
-                    }
-                } else {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(max = DenzaMetrics.Component.PICKER_HEIGHT)
-                            .verticalScroll(rememberScrollState()),
-                        verticalArrangement = Arrangement.spacedBy(DenzaMetrics.Space.M),
-                    ) {
-                        choices.forEachIndexed { index, display ->
-                            OutlinedButton(
-                                modifier = Modifier.fillMaxWidth(),
-                                onClick = { onSelect(display.id) },
-                                border = BorderStroke(DenzaMetrics.Stroke.HAIRLINE, DenzaColors.SurfaceRaised),
-                            ) {
-                                Text(
-                                    "Экран ${index + 1} · ${display.width}×${display.height}",
-                                    fontWeight = FontWeight.SemiBold,
-                                )
-                            }
-                        }
-                    }
-                }
-                Spacer(Modifier.height(DenzaMetrics.Space.M))
-                if (compactLayout) {
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalAlignment = Alignment.End,
-                    ) {
-                        TextButton(onClick = { onSelect(null) }) {
-                            Text("Определять автоматически", color = DenzaColors.Accent)
-                        }
-                        TextButton(onClick = onDismiss) {
-                            Text("Отмена", color = DenzaColors.Muted)
-                        }
-                    }
-                } else {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End,
-                    ) {
-                        TextButton(onClick = { onSelect(null) }) {
-                            Text("Определять автоматически", color = DenzaColors.Accent)
-                        }
-                        Spacer(Modifier.width(DenzaMetrics.Space.S))
-                        TextButton(onClick = onDismiss) {
-                            Text("Отмена", color = DenzaColors.Muted)
-                        }
-                    }
-                }
-            }
+    val choices = clusterDisplayChoices(displays)
+    DenzaSheet(onDismiss = onDismiss, compact = compactLayout) {
+        DenzaSheetHeader(
+            title = "Приборный экран",
+            subtitle = "После выбора на экране появится короткая проверка",
+            onDismiss = onDismiss,
+            icon = DenzaIcons.Cluster,
+        )
+        if (choices.isEmpty()) {
+            ClusterDisplaySearch(onRefresh = onRefresh)
+        } else {
+            ClusterDisplayChoices(displays = displays, onSelect = onSelect)
         }
+    }
+}
+
+/**
+ * What the picker shows while the car has not named a second screen yet.
+ *
+ * It used to show "Приборные экраны пока не найдены" in amber over a "Повторить поиск" button,
+ * which is the shape this app does not have: a failure written out, and the retry handed back to
+ * the driver. Nothing had failed. The display list is read once when the picker is opened and the
+ * cluster is not always registered by then - so the honest answer is that the app is still looking,
+ * and looking is something it can do without being asked twice.
+ */
+@Composable
+private fun ClusterDisplaySearch(onRefresh: () -> Unit) {
+    LaunchedEffect(Unit) {
+        while (true) {
+            onRefresh()
+            delay(CLUSTER_RESCAN_MS)
+        }
+    }
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(DenzaMetrics.Space.M),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        CircularProgressIndicator(
+            modifier = Modifier.size(DenzaMetrics.Component.MODAL_SPINNER),
+            color = DenzaColors.Accent,
+            strokeWidth = DenzaMetrics.Component.MODAL_SPINNER_STROKE,
+        )
+        Text(
+            "Ищем экраны за рулём",
+            style = MaterialTheme.typography.bodyLarge,
+            color = DenzaColors.Muted,
+        )
     }
 }

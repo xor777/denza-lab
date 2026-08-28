@@ -27,7 +27,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
 import dev.denza.apps.design.DenzaColors
 import dev.denza.apps.design.DenzaMetrics
 
@@ -70,14 +69,15 @@ fun DenzaTile(
     caption: DenzaTileCaption = DenzaTileCaption.SETTING,
     enabled: Boolean = true,
 ) {
-    val accent = toneAccent(tone)
+    val shown = DenzaTileTone.shown(tone, enabled)
+    val accent = toneAccent(shown)
     val background by animateColorAsState(
-        targetValue = if (tone == DenzaTileTone.LIVE) DenzaColors.Surface else DenzaColors.SurfaceQuiet,
+        targetValue = if (shown == DenzaTileTone.LIVE) DenzaColors.Surface else DenzaColors.SurfaceQuiet,
         animationSpec = tween(DenzaMetrics.Motion.TRANSITION_MS),
         label = "tileBackground",
     )
     val edge by animateColorAsState(
-        targetValue = accent.copy(alpha = if (tone == DenzaTileTone.IDLE) 0.10f else 0.30f),
+        targetValue = accent.copy(alpha = if (shown == DenzaTileTone.IDLE) 0.10f else 0.30f),
         animationSpec = tween(DenzaMetrics.Motion.TRANSITION_MS),
         label = "tileEdge",
     )
@@ -105,14 +105,14 @@ fun DenzaTile(
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
-                    tint = if (tone == DenzaTileTone.IDLE) DenzaColors.Muted else accent,
+                    tint = if (shown == DenzaTileTone.IDLE) DenzaColors.Muted else accent,
                     modifier = Modifier.size(DenzaMetrics.Component.TILE_ICON),
                 )
-                if (tone == DenzaTileTone.WORKING) {
+                if (shown == DenzaTileTone.WORKING) {
                     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
                         CircularProgressIndicator(
-                            modifier = Modifier.size(BUSY_DOT),
-                            strokeWidth = BUSY_STROKE,
+                            modifier = Modifier.size(DenzaMetrics.Component.BUSY_DOT),
+                            strokeWidth = DenzaMetrics.Component.BUSY_STROKE,
                             color = DenzaColors.Accent,
                         )
                     }
@@ -122,14 +122,14 @@ fun DenzaTile(
                 Text(
                     text = name,
                     style = MaterialTheme.typography.titleMedium,
-                    color = if (enabled) DenzaColors.Ink else DenzaColors.Muted,
+                    color = DenzaColors.Ink,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
                     text = state,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = captionColor(tone, caption),
+                    color = captionColor(shown, caption),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -169,6 +169,3 @@ private fun captionColor(tone: DenzaTileTone, caption: DenzaTileCaption): Color 
 // somewhere, in the convention a phone keyboard uses for a key with more characters under it - and
 // on the car it read as something stuck to the tile rather than drawn with it. Every tile has a
 // panel now, so a mark distinguishing them would be on all eleven and distinguish nothing.
-
-private val BUSY_DOT = 18.dp
-private val BUSY_STROKE = 2.dp

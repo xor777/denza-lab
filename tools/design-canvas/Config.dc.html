@@ -11,184 +11,341 @@
   <style>
     body { margin:0; background:#07080A; font-family:'Roboto','Segoe UI',system-ui,sans-serif; }
     a { color:#FEEFAB; } a:hover { color:#FFF7D2; }
-    .tile { position:relative; height:164px; box-sizing:border-box; border-radius:22px; padding:20px; display:flex; flex-direction:column; justify-content:space-between; }
-    /* press-and-hold mark: this tile has a configurator behind a long press. Bottom right,
-       because bottom left is where the words are; 8 in from both edges, which is where the
-       22 radius has finished curving. Not a target - a sign. */
-    .on { background:#212429; border:1px solid rgba(254,239,171,0.30); box-shadow:0 0 22px rgba(254,239,171,0.07); }
-    .off { background:#15181F; border:1px solid rgba(218,225,235,0.10); }
-    .nm { font-size:19px; font-weight:500; line-height:1.2; }
-    .st { font-size:15px; line-height:1.3; }
-    .led { font-family:'Roboto Mono',monospace; font-weight:700; font-size:34px; letter-spacing:5px; color:transparent; background-color:#FEEFAB; background-image:radial-gradient(circle at center, #FEEFAB 41%, transparent 46%); background-size:3.4px 3.4px; -webkit-background-clip:text; background-clip:text; filter:drop-shadow(0 0 7px rgba(254,239,171,0.55)); }
-      .lbl { font-size:15px; letter-spacing:1.6px; font-weight:500; color:#86909B; }
+    /* underlay: generated from Main.dc.html by gen_panes.py */
+    .underlay .tile {position:relative; height:164px; box-sizing:border-box; border-radius:22px; padding:20px; display:flex; flex-direction:column; justify-content:space-between; }
+    .underlay .on {background:#212429; border:1px solid rgba(254,239,171,0.30); box-shadow:0 0 22px rgba(254,239,171,0.07); }
+    .underlay .off {background:#15181F; border:1px solid rgba(218,225,235,0.10); }
+    .underlay .nm {font-size:19px; font-weight:500; line-height:1.2; }
+    .underlay .st {font-size:15px; line-height:1.3; }
+    .underlay .led {font-family:'Roboto Mono',monospace; font-weight:700; font-size:34px; letter-spacing:5px; color:transparent; background-color:#FEEFAB; background-image:radial-gradient(circle at center, #FEEFAB 41%, transparent 46%); background-size:3.4px 3.4px; -webkit-background-clip:text; background-clip:text; filter:drop-shadow(0 0 7px rgba(254,239,171,0.55)); }
+    .underlay .cap {font-size:15px; letter-spacing:1.6px; font-weight:500; color:#86909B; }
+    .underlay .num {font-size:46px; font-weight:200; color:#DAE1EB; line-height:1; }
+    .underlay .un {font-size:24px; color:#86909B; }
+    .underlay .rate {font-size:19px; color:#FEEFAB; }
+    .underlay .fig {display:flex; flex-direction:column; gap:8px; }
+    .underlay .line {display:flex; align-items:baseline; gap:12px; }
+    .underlay .ruled {border-top:1px solid rgba(218,225,235,0.14); padding-top:12px; }
+    .underlay { position:absolute; left:0; top:0; right:0; bottom:0; }
+    .underlay-scrim { position:absolute; left:0; top:0; right:0; bottom:0; background:rgba(7,8,10,0.72); }
+    /* end underlay */
+    .lbl { font-size:15px; letter-spacing:1.6px; font-weight:500; color:#86909B; }
+    /* One selection, and it is `DenzaAppTile`'s: a hairline edge in the accent, the well behind the
+       icon tinted with it, and the name set in it. No glow - that was this board's own, and the
+       edge is a hairline picked or not, so choosing an application does not nudge its neighbours. */
     .app { background:#212429; border:1px solid rgba(218,225,235,0.12); border-radius:22px; padding:12px 8px; display:flex; flex-direction:column; align-items:center; gap:8px; }
+    .app.sel { border-color:#FEEFAB; }
+    .app.sel .ic { background:rgba(254,239,171,0.16); }
+    .ic img { width:36px; height:36px; display:block; }
+    .sheet-scroll { flex:1; min-height:0; display:flex; flex-direction:column; gap:32px; }
     .ic { width:44px; height:44px; border-radius:12px; background:#323538; display:flex; align-items:center; justify-content:center; color:#C5CDD9; font-size:19px; font-weight:500; }
   </style>
 </helmet>
 <div style="width:1280px; height:680px; box-sizing:border-box; background:#07080A; position:relative; overflow:hidden;">
 
-  <div style="position:absolute; left:0; top:0; right:0; bottom:0; opacity:0.30;">
+  <!-- underlay: generated from Main.dc.html by gen_panes.py -->
+  <div class="underlay">
   <div style="width:1280px; height:680px; box-sizing:border-box; background:#07080A; display:flex; flex-direction:column; gap:12px; padding:20px 48px 12px 48px;">
 
-  <div style="display:grid; grid-template-columns:repeat(6, minmax(0, 1fr)); gap:12px;">
+    <div style="display:grid; grid-template-columns:repeat(6, minmax(0, 1fr)); gap:12px;">
 
-    <div class="tile on">
-      <svg width="30" height="30" viewBox="1 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><circle cx="12" cy="12" r="3"></circle><path d="M3.2 10.5 L9.1 10.9 M20.8 10.5 L14.9 10.9 M12 15 L12 21"></path></svg>
-      <div style="display:flex; flex-direction:column; gap:8px;">
-        <div class="nm" style="color:#DAE1EB;">Экран водителя</div>
-        <div class="st" style="color:#FEEFAB;">Приборы</div>
+      <div class="tile on">
+        <svg width="30" height="30" viewBox="1 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><circle cx="12" cy="12" r="3"></circle><path d="M3.2 10.5 L9.1 10.9 M20.8 10.5 L14.9 10.9 M12 15 L12 21"></path></svg>
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <div class="nm" style="color:#DAE1EB;">Экран водителя</div>
+          <div class="st" style="color:#FEEFAB;">Приборы</div>
+        </div>
       </div>
-    </div>
 
-    <div class="tile on">
-      <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 20h0.01"></path><path d="M2 16a4 4 0 0 1 4 4"></path><path d="M2 12a8 8 0 0 1 8 8"></path><path d="M2 8V6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6"></path></svg>
-      <div style="display:flex; flex-direction:column; gap:8px;">
-        <div class="nm" style="color:#DAE1EB;">Трансляция</div>
-        <div class="st" style="color:#86909B;">6 приложений</div>
+      <div class="tile on">
+        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 20h0.01"></path><path d="M2 16a4 4 0 0 1 4 4"></path><path d="M2 12a8 8 0 0 1 8 8"></path><path d="M2 8V6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6"></path></svg>
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <div class="nm" style="color:#DAE1EB;">Трансляция</div>
+          <div class="st" style="color:#86909B;">Выбрано 6</div>
+        </div>
       </div>
-    </div>
 
-    <div class="tile on">
-      <div style="display:flex; align-items:flex-start; justify-content:space-between;">
+      <!-- One dot, one meaning, and it is the chip's. The three that used to hang in this corner
+           said nothing the code draws: `DenzaTile` has no dot at all, and `DenzaChip`'s single dot
+           is the whole of what a chip says - is this on. Three of them here read as a carousel. -->
+      <div class="tile on">
         <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-        <div style="display:flex; align-items:center; gap:6px; padding-top:5px;">
-          <div style="width:7px; height:7px; border-radius:50%; background:#FEEFAB; box-shadow:0 0 7px rgba(254,239,171,0.9);"></div>
-          <div style="width:7px; height:7px; border-radius:50%; background:rgba(254,239,171,0.45);"></div>
-          <div style="width:7px; height:7px; border-radius:50%; background:rgba(254,239,171,0.2);"></div>
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <div class="nm" style="color:#DAE1EB;">Зеркала</div>
+          <div class="st" style="color:#FEEFAB;">Включены</div>
         </div>
       </div>
-      <div style="display:flex; flex-direction:column; gap:8px;">
-        <div class="nm" style="color:#DAE1EB;">Зеркала</div>
-        <div class="st" style="color:#FEEFAB;">Включены</div>
-      </div>
-    </div>
 
-    <div class="tile on">
-      <svg width="30" height="30" viewBox="1 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="15" rx="2"></rect><path d="M12 4.5v15"></path></svg>
-      <div style="display:flex; flex-direction:column; gap:8px;">
-        <div class="nm" style="color:#DAE1EB;">Разделение</div>
-        <div class="st" style="color:#86909B;">Включено</div>
-      </div>
-    </div>
-
-    <div class="tile on">
-      <svg width="30" height="30" viewBox="3 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 13.5l6-6 6 6"></path><path d="M5 19h14"></path></svg>
-      <div style="display:flex; flex-direction:column; gap:8px;">
-        <div class="nm" style="color:#DAE1EB;">Подсказки</div>
-        <div class="st" style="color:#FEEFAB;">Включены</div>
-      </div>
-    </div>
-
-    <div class="tile on">
-      <svg width="30" height="30" viewBox="0.4 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="3.2"></circle><path d="M8 2.4v1.4M8 12.2v1.4M2.4 8h1.4M12.2 8h1.4M4.6 4.6l1 1M11.4 4.6l-1 1M4.6 11.4l1-1"></path><path d="M17 20.5H9.5a3.5 3.5 0 0 1 0-7 4.6 4.6 0 0 1 8.7-1 3.9 3.9 0 0 1-1.2 8z"></path></svg>
-      <div style="display:flex; flex-direction:column; gap:8px;">
-        <div class="nm" style="color:#DAE1EB;">Погода</div>
-        <div class="st" style="color:#86909B;">Данные для виджета</div>
-      </div>
-    </div>
-
-    <div class="tile on">
-      <svg width="30" height="30" viewBox="4 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="3" width="12" height="18" rx="2"></rect><circle cx="12" cy="14" r="3.2"></circle><circle cx="12" cy="7" r="1.2"></circle></svg>
-      <div style="display:flex; flex-direction:column; gap:8px;">
-        <div class="nm" style="color:#DAE1EB;">Динамики</div>
-        <div class="st" style="color:#86909B;">Включена</div>
-      </div>
-    </div>
-
-    <div class="tile on">
-      <svg width="30" height="30" viewBox="1 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M3.4 9.5h17.2M3.4 14.5h17.2"></path><path d="M12 3a15 15 0 0 0 0 18 15 15 0 0 0 0-18z"></path></svg>
-      <div style="display:flex; flex-direction:column; gap:8px;">
-        <div class="nm" style="color:#DAE1EB;">Русский язык</div>
-        <div class="st" style="color:#86909B;">Включён</div>
-      </div>
-    </div>
-
-    <div class="tile off">
-      <svg width="30" height="30" viewBox="3 0 24 24" fill="none" stroke="#6E767F" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2.5" width="14" height="19" rx="2"></rect><path d="M12 6.5v7"></path><path d="M9 10.5l3 3 3-3"></path><path d="M9 17.5h6"></path></svg>
-      <div style="display:flex; flex-direction:column; gap:8px;">
-        <div class="nm" style="color:#9AA2AC;">Экран справа</div>
-        <div class="st" style="color:#6E767F;">Не выбрано</div>
-      </div>
-    </div>
-
-    <div class="tile on">
-      <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="2"></rect><rect x="14" y="3" width="7" height="7" rx="2"></rect><rect x="3" y="14" width="7" height="7" rx="2"></rect><path d="m14.5 17.5 2 2 4-5"></path></svg>
-      <div style="display:flex; flex-direction:column; gap:8px;">
-        <div class="nm" style="color:#DAE1EB;">Приложения</div>
-        <div class="st" style="color:#FEEFAB;">3 настроены</div>
-      </div>
-    </div>
-
-    <div class="tile off">
-      <svg width="30" height="30" viewBox="2 0 24 24" fill="none" stroke="#6E767F" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 12h16M4 17h16"></path><circle cx="15" cy="7" r="2" fill="#15181F"></circle><circle cx="8" cy="12" r="2" fill="#15181F"></circle><circle cx="17" cy="17" r="2" fill="#15181F"></circle></svg>
-      <div style="display:flex; flex-direction:column; gap:8px;">
-        <div class="nm" style="color:#9AA2AC;">Сервис</div>
-        <div class="st" style="color:#6E767F;">Всё в норме</div>
-      </div>
-    </div>
-
-  </div>
-
-  <div style="flex-grow:1; display:flex; gap:30px; min-height:0; padding-top:6px;">
-
-    <div style="flex-grow:1; display:flex; flex-direction:column; justify-content:flex-start; min-width:0;">
-      <div style="display:flex; align-items:center; height:52px;">
-                <div class="led">M83 · MIDNIGHT CITY</div>
-      </div>
-      <div style="position:relative;">
-        <div style="display:flex; align-items:flex-end; gap:9px; height:198px;">
-          <sc-for list="{{bars}}" as="b" hint-placeholder-count="26">
-            <div style="width:22px; display:flex; flex-direction:column; justify-content:flex-end; height:198px;">
-              <div style="height:4px; background:#FFF8DA; border-radius:2px; box-shadow:0 0 7px rgba(254,239,171,0.9); margin-bottom: {{b.p}}px;"></div>
-              <div style="height: {{b.h}}px; border-radius:2px 2px 0 0; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA); box-shadow:0 0 16px rgba(254,239,171,0.22);"></div>
-            </div>
-          </sc-for>
-        </div>
-        <div style="position:absolute; left:0; right:0; bottom:0; height:198px; background:repeating-linear-gradient(to top, rgba(7,8,10,0) 0px, rgba(7,8,10,0) 8px, #07080A 8px, #07080A 11px); pointer-events:none;"></div>
-      </div>
-      <div style="height:40px; overflow:hidden; opacity:0.14; transform:scaleY(-1);">
-        <div style="display:flex; align-items:flex-end; gap:9px; height:40px;">
-          <sc-for list="{{bars}}" as="b" hint-placeholder-count="26">
-            <div style="width:22px; height: {{b.h}}px; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA);"></div>
-          </sc-for>
+      <div class="tile on">
+        <svg width="30" height="30" viewBox="1 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="15" rx="2"></rect><path d="M12 4.5v15"></path></svg>
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <div class="nm" style="color:#DAE1EB;">Разделение</div>
+          <div class="st" style="color:#86909B;">Включено</div>
         </div>
       </div>
-    </div>
 
-    <div style="width:320px; flex-shrink:0; display:flex; flex-direction:column; justify-content:space-between;">
-      <div style="display:flex; flex-direction:column; gap:6px;">
-        <div style="font-size:15px; letter-spacing:1.6px; font-weight:500; color:#86909B;">В ПУТИ</div>
-        <div style="display:flex; align-items:baseline; gap:14px;">
-          <div style="font-size:46px; font-weight:200; color:#DAE1EB; line-height:1;">1:42</div>
-          <div style="font-size:24px; color:#86909B;">128 км</div>
+      <div class="tile on">
+        <svg width="30" height="30" viewBox="3 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 13.5l6-6 6 6"></path><path d="M5 19h14"></path></svg>
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <div class="nm" style="color:#DAE1EB;">Подсказки</div>
+          <div class="st" style="color:#FEEFAB;">Включены</div>
         </div>
       </div>
-      <div style="border-top:1px solid rgba(218,225,235,0.14); padding-top:14px; display:flex; flex-direction:column; gap:6px;">
-        <div style="font-size:15px; letter-spacing:1.6px; font-weight:500; color:#86909B;">ВЫСОТА</div>
-        <div style="display:flex; align-items:baseline; gap:14px;">
-          <div style="font-size:46px; font-weight:200; color:#DAE1EB; line-height:1;">642</div>
-          <div style="font-size:24px; color:#86909B;">м</div>
-          <div style="display:flex; align-items:center; gap:6px; margin-left:auto;">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="2.4" stroke-linecap="round"><path d="M12 19V6M6.5 11.5 12 6l5.5 5.5"></path></svg>
-            <div style="font-size:19px; color:#FEEFAB;">1,2</div>
+
+      <div class="tile on">
+        <svg width="30" height="30" viewBox="0.4 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="3.2"></circle><path d="M8 2.4v1.4M8 12.2v1.4M2.4 8h1.4M12.2 8h1.4M4.6 4.6l1 1M11.4 4.6l-1 1M4.6 11.4l1-1"></path><path d="M17 20.5H9.5a3.5 3.5 0 0 1 0-7 4.6 4.6 0 0 1 8.7-1 3.9 3.9 0 0 1-1.2 8z"></path></svg>
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <div class="nm" style="color:#DAE1EB;">Погода</div>
+          <div class="st" style="color:#FEEFAB;">+14°</div>
+        </div>
+      </div>
+
+      <div class="tile on">
+        <svg width="30" height="30" viewBox="4 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="3" width="12" height="18" rx="2"></rect><circle cx="12" cy="14" r="3.2"></circle><circle cx="12" cy="7" r="1.2"></circle></svg>
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <div class="nm" style="color:#DAE1EB;">Динамики</div>
+          <div class="st" style="color:#86909B;">Включена</div>
+        </div>
+      </div>
+
+      <div class="tile on">
+        <svg width="30" height="30" viewBox="1 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M3.4 9.5h17.2M3.4 14.5h17.2"></path><path d="M12 3a15 15 0 0 0 0 18 15 15 0 0 0 0-18z"></path></svg>
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <div class="nm" style="color:#DAE1EB;">Русский язык</div>
+          <div class="st" style="color:#86909B;">Включён</div>
+        </div>
+      </div>
+
+      <div class="tile off">
+        <svg width="30" height="30" viewBox="3 0 24 24" fill="none" stroke="#86909B" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2.5" width="14" height="19" rx="2"></rect><path d="M12 6.5v7"></path><path d="M9 10.5l3 3 3-3"></path><path d="M9 17.5h6"></path></svg>
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <div class="nm" style="color:#DAE1EB;">Экран справа</div>
+          <div class="st" style="color:#86909B;">Не выбрано</div>
+        </div>
+      </div>
+
+      <div class="tile on">
+        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="2"></rect><rect x="14" y="3" width="7" height="7" rx="2"></rect><rect x="3" y="14" width="7" height="7" rx="2"></rect><path d="m14.5 17.5 2 2 4-5"></path></svg>
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <div class="nm" style="color:#DAE1EB;">Приложения</div>
+          <div class="st" style="color:#FEEFAB;">3 настроены</div>
+        </div>
+      </div>
+
+      <div class="tile off">
+        <svg width="30" height="30" viewBox="2 0 24 24" fill="none" stroke="#86909B" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 12h16M4 17h16"></path><circle cx="15" cy="7" r="2" fill="#15181F"></circle><circle cx="8" cy="12" r="2" fill="#15181F"></circle><circle cx="17" cy="17" r="2" fill="#15181F"></circle></svg>
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <div class="nm" style="color:#DAE1EB;">Сервис</div>
+          <div class="st" style="color:#86909B;">Всё в норме</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- The strip. 32 between the analyser and the figures - the gap between two groups - which
+         leaves the analyser 1184 - 320 - 32 = 832, and the column starts at 864.
+
+         The bars fill that 832 exactly: 26 columns at 22.97 with 9.39 between them, which is the
+         one pitch that keeps SpectrumRenderer.BAR_WIDTH_FRACTION and lands the last column on the
+         right edge. Written to the hundredth on purpose - 22 and 9 left 37 dp of the column empty,
+         and an analyser that stops short of its own field reads as a rendering fault.
+
+         The texture inside a bar does NOT scale with it: the 4-unit crown, the 2 corner, the 11
+         scanline pitch and the ticker's 3.4 dot cell are the same dp here, at 828 and at 416.
+         Every width is laid out one unit to one dp, so a segment is the same size on the glass in
+         all three; only the column gets narrower as the field does. See the README. -->
+    <div style="flex-grow:1; display:flex; gap:32px; min-height:0;">
+
+      <div style="flex-grow:1; display:flex; flex-direction:column; justify-content:flex-start; min-width:0;">
+        <div style="display:flex; align-items:center; height:52px;">
+          <div class="led">M83 · MIDNIGHT CITY</div>
+        </div>
+        <div style="position:relative;">
+          <div style="display:flex; align-items:flex-end; gap:9.39px; height:202.98px;">
+            <div style="width:22.97px; display:flex; flex-direction:column; justify-content:flex-end; height:202.98px;">
+                <div style="height:4px; background:#FFF8DA; border-radius:2px; box-shadow:0 0 7px rgba(254,239,171,0.9); margin-bottom: 13px;"></div>
+                <div style="height: 30px; border-radius:2px 2px 0 0; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA); box-shadow:0 0 16px rgba(254,239,171,0.22);"></div>
+              </div>
+              <div style="width:22.97px; display:flex; flex-direction:column; justify-content:flex-end; height:202.98px;">
+                <div style="height:4px; background:#FFF8DA; border-radius:2px; box-shadow:0 0 7px rgba(254,239,171,0.9); margin-bottom: 8px;"></div>
+                <div style="height: 55px; border-radius:2px 2px 0 0; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA); box-shadow:0 0 16px rgba(254,239,171,0.22);"></div>
+              </div>
+              <div style="width:22.97px; display:flex; flex-direction:column; justify-content:flex-end; height:202.98px;">
+                <div style="height:4px; background:#FFF8DA; border-radius:2px; box-shadow:0 0 7px rgba(254,239,171,0.9); margin-bottom: 17px;"></div>
+                <div style="height: 91px; border-radius:2px 2px 0 0; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA); box-shadow:0 0 16px rgba(254,239,171,0.22);"></div>
+              </div>
+              <div style="width:22.97px; display:flex; flex-direction:column; justify-content:flex-end; height:202.98px;">
+                <div style="height:4px; background:#FFF8DA; border-radius:2px; box-shadow:0 0 7px rgba(254,239,171,0.9); margin-bottom: 6px;"></div>
+                <div style="height: 133px; border-radius:2px 2px 0 0; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA); box-shadow:0 0 16px rgba(254,239,171,0.22);"></div>
+              </div>
+              <div style="width:22.97px; display:flex; flex-direction:column; justify-content:flex-end; height:202.98px;">
+                <div style="height:4px; background:#FFF8DA; border-radius:2px; box-shadow:0 0 7px rgba(254,239,171,0.9); margin-bottom: 11px;"></div>
+                <div style="height: 160px; border-radius:2px 2px 0 0; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA); box-shadow:0 0 16px rgba(254,239,171,0.22);"></div>
+              </div>
+              <div style="width:22.97px; display:flex; flex-direction:column; justify-content:flex-end; height:202.98px;">
+                <div style="height:4px; background:#FFF8DA; border-radius:2px; box-shadow:0 0 7px rgba(254,239,171,0.9); margin-bottom: 4px;"></div>
+                <div style="height: 182px; border-radius:2px 2px 0 0; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA); box-shadow:0 0 16px rgba(254,239,171,0.22);"></div>
+              </div>
+              <div style="width:22.97px; display:flex; flex-direction:column; justify-content:flex-end; height:202.98px;">
+                <div style="height:4px; background:#FFF8DA; border-radius:2px; box-shadow:0 0 7px rgba(254,239,171,0.9); margin-bottom: 14px;"></div>
+                <div style="height: 164px; border-radius:2px 2px 0 0; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA); box-shadow:0 0 16px rgba(254,239,171,0.22);"></div>
+              </div>
+              <div style="width:22.97px; display:flex; flex-direction:column; justify-content:flex-end; height:202.98px;">
+                <div style="height:4px; background:#FFF8DA; border-radius:2px; box-shadow:0 0 7px rgba(254,239,171,0.9); margin-bottom: 7px;"></div>
+                <div style="height: 140px; border-radius:2px 2px 0 0; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA); box-shadow:0 0 16px rgba(254,239,171,0.22);"></div>
+              </div>
+              <div style="width:22.97px; display:flex; flex-direction:column; justify-content:flex-end; height:202.98px;">
+                <div style="height:4px; background:#FFF8DA; border-radius:2px; box-shadow:0 0 7px rgba(254,239,171,0.9); margin-bottom: 16px;"></div>
+                <div style="height: 112px; border-radius:2px 2px 0 0; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA); box-shadow:0 0 16px rgba(254,239,171,0.22);"></div>
+              </div>
+              <div style="width:22.97px; display:flex; flex-direction:column; justify-content:flex-end; height:202.98px;">
+                <div style="height:4px; background:#FFF8DA; border-radius:2px; box-shadow:0 0 7px rgba(254,239,171,0.9); margin-bottom: 10px;"></div>
+                <div style="height: 88px; border-radius:2px 2px 0 0; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA); box-shadow:0 0 16px rgba(254,239,171,0.22);"></div>
+              </div>
+              <div style="width:22.97px; display:flex; flex-direction:column; justify-content:flex-end; height:202.98px;">
+                <div style="height:4px; background:#FFF8DA; border-radius:2px; box-shadow:0 0 7px rgba(254,239,171,0.9); margin-bottom: 5px;"></div>
+                <div style="height: 124px; border-radius:2px 2px 0 0; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA); box-shadow:0 0 16px rgba(254,239,171,0.22);"></div>
+              </div>
+              <div style="width:22.97px; display:flex; flex-direction:column; justify-content:flex-end; height:202.98px;">
+                <div style="height:4px; background:#FFF8DA; border-radius:2px; box-shadow:0 0 7px rgba(254,239,171,0.9); margin-bottom: 13px;"></div>
+                <div style="height: 153px; border-radius:2px 2px 0 0; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA); box-shadow:0 0 16px rgba(254,239,171,0.22);"></div>
+              </div>
+              <div style="width:22.97px; display:flex; flex-direction:column; justify-content:flex-end; height:202.98px;">
+                <div style="height:4px; background:#FFF8DA; border-radius:2px; box-shadow:0 0 7px rgba(254,239,171,0.9); margin-bottom: 4px;"></div>
+                <div style="height: 177px; border-radius:2px 2px 0 0; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA); box-shadow:0 0 16px rgba(254,239,171,0.22);"></div>
+              </div>
+              <div style="width:22.97px; display:flex; flex-direction:column; justify-content:flex-end; height:202.98px;">
+                <div style="height:4px; background:#FFF8DA; border-radius:2px; box-shadow:0 0 7px rgba(254,239,171,0.9); margin-bottom: 10px;"></div>
+                <div style="height: 159px; border-radius:2px 2px 0 0; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA); box-shadow:0 0 16px rgba(254,239,171,0.22);"></div>
+              </div>
+              <div style="width:22.97px; display:flex; flex-direction:column; justify-content:flex-end; height:202.98px;">
+                <div style="height:4px; background:#FFF8DA; border-radius:2px; box-shadow:0 0 7px rgba(254,239,171,0.9); margin-bottom: 17px;"></div>
+                <div style="height: 131px; border-radius:2px 2px 0 0; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA); box-shadow:0 0 16px rgba(254,239,171,0.22);"></div>
+              </div>
+              <div style="width:22.97px; display:flex; flex-direction:column; justify-content:flex-end; height:202.98px;">
+                <div style="height:4px; background:#FFF8DA; border-radius:2px; box-shadow:0 0 7px rgba(254,239,171,0.9); margin-bottom: 7px;"></div>
+                <div style="height: 98px; border-radius:2px 2px 0 0; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA); box-shadow:0 0 16px rgba(254,239,171,0.22);"></div>
+              </div>
+              <div style="width:22.97px; display:flex; flex-direction:column; justify-content:flex-end; height:202.98px;">
+                <div style="height:4px; background:#FFF8DA; border-radius:2px; box-shadow:0 0 7px rgba(254,239,171,0.9); margin-bottom: 12px;"></div>
+                <div style="height: 78px; border-radius:2px 2px 0 0; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA); box-shadow:0 0 16px rgba(254,239,171,0.22);"></div>
+              </div>
+              <div style="width:22.97px; display:flex; flex-direction:column; justify-content:flex-end; height:202.98px;">
+                <div style="height:4px; background:#FFF8DA; border-radius:2px; box-shadow:0 0 7px rgba(254,239,171,0.9); margin-bottom: 5px;"></div>
+                <div style="height: 110px; border-radius:2px 2px 0 0; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA); box-shadow:0 0 16px rgba(254,239,171,0.22);"></div>
+              </div>
+              <div style="width:22.97px; display:flex; flex-direction:column; justify-content:flex-end; height:202.98px;">
+                <div style="height:4px; background:#FFF8DA; border-radius:2px; box-shadow:0 0 7px rgba(254,239,171,0.9); margin-bottom: 14px;"></div>
+                <div style="height: 136px; border-radius:2px 2px 0 0; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA); box-shadow:0 0 16px rgba(254,239,171,0.22);"></div>
+              </div>
+              <div style="width:22.97px; display:flex; flex-direction:column; justify-content:flex-end; height:202.98px;">
+                <div style="height:4px; background:#FFF8DA; border-radius:2px; box-shadow:0 0 7px rgba(254,239,171,0.9); margin-bottom: 4px;"></div>
+                <div style="height: 155px; border-radius:2px 2px 0 0; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA); box-shadow:0 0 16px rgba(254,239,171,0.22);"></div>
+              </div>
+              <div style="width:22.97px; display:flex; flex-direction:column; justify-content:flex-end; height:202.98px;">
+                <div style="height:4px; background:#FFF8DA; border-radius:2px; box-shadow:0 0 7px rgba(254,239,171,0.9); margin-bottom: 11px;"></div>
+                <div style="height: 138px; border-radius:2px 2px 0 0; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA); box-shadow:0 0 16px rgba(254,239,171,0.22);"></div>
+              </div>
+              <div style="width:22.97px; display:flex; flex-direction:column; justify-content:flex-end; height:202.98px;">
+                <div style="height:4px; background:#FFF8DA; border-radius:2px; box-shadow:0 0 7px rgba(254,239,171,0.9); margin-bottom: 16px;"></div>
+                <div style="height: 108px; border-radius:2px 2px 0 0; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA); box-shadow:0 0 16px rgba(254,239,171,0.22);"></div>
+              </div>
+              <div style="width:22.97px; display:flex; flex-direction:column; justify-content:flex-end; height:202.98px;">
+                <div style="height:4px; background:#FFF8DA; border-radius:2px; box-shadow:0 0 7px rgba(254,239,171,0.9); margin-bottom: 7px;"></div>
+                <div style="height: 82px; border-radius:2px 2px 0 0; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA); box-shadow:0 0 16px rgba(254,239,171,0.22);"></div>
+              </div>
+              <div style="width:22.97px; display:flex; flex-direction:column; justify-content:flex-end; height:202.98px;">
+                <div style="height:4px; background:#FFF8DA; border-radius:2px; box-shadow:0 0 7px rgba(254,239,171,0.9); margin-bottom: 12px;"></div>
+                <div style="height: 58px; border-radius:2px 2px 0 0; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA); box-shadow:0 0 16px rgba(254,239,171,0.22);"></div>
+              </div>
+              <div style="width:22.97px; display:flex; flex-direction:column; justify-content:flex-end; height:202.98px;">
+                <div style="height:4px; background:#FFF8DA; border-radius:2px; box-shadow:0 0 7px rgba(254,239,171,0.9); margin-bottom: 5px;"></div>
+                <div style="height: 82px; border-radius:2px 2px 0 0; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA); box-shadow:0 0 16px rgba(254,239,171,0.22);"></div>
+              </div>
+              <div style="width:22.97px; display:flex; flex-direction:column; justify-content:flex-end; height:202.98px;">
+                <div style="height:4px; background:#FFF8DA; border-radius:2px; box-shadow:0 0 7px rgba(254,239,171,0.9); margin-bottom: 13px;"></div>
+                <div style="height: 105px; border-radius:2px 2px 0 0; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA); box-shadow:0 0 16px rgba(254,239,171,0.22);"></div>
+              </div>
+          </div>
+          <div style="position:absolute; left:0; right:0; bottom:0; height:202.98px; background:repeating-linear-gradient(to top, rgba(7,8,10,0) 0px, rgba(7,8,10,0) 8px, #07080A 8px, #07080A 11px); pointer-events:none;"></div>
+        </div>
+        <div style="height:40px; overflow:hidden; opacity:0.14; transform:scaleY(-1);">
+          <div style="display:flex; align-items:flex-end; gap:9.39px; height:40px;">
+            <div style="width:22.97px; height: 30px; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA);"></div>
+              <div style="width:22.97px; height: 55px; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA);"></div>
+              <div style="width:22.97px; height: 91px; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA);"></div>
+              <div style="width:22.97px; height: 133px; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA);"></div>
+              <div style="width:22.97px; height: 160px; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA);"></div>
+              <div style="width:22.97px; height: 182px; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA);"></div>
+              <div style="width:22.97px; height: 164px; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA);"></div>
+              <div style="width:22.97px; height: 140px; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA);"></div>
+              <div style="width:22.97px; height: 112px; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA);"></div>
+              <div style="width:22.97px; height: 88px; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA);"></div>
+              <div style="width:22.97px; height: 124px; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA);"></div>
+              <div style="width:22.97px; height: 153px; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA);"></div>
+              <div style="width:22.97px; height: 177px; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA);"></div>
+              <div style="width:22.97px; height: 159px; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA);"></div>
+              <div style="width:22.97px; height: 131px; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA);"></div>
+              <div style="width:22.97px; height: 98px; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA);"></div>
+              <div style="width:22.97px; height: 78px; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA);"></div>
+              <div style="width:22.97px; height: 110px; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA);"></div>
+              <div style="width:22.97px; height: 136px; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA);"></div>
+              <div style="width:22.97px; height: 155px; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA);"></div>
+              <div style="width:22.97px; height: 138px; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA);"></div>
+              <div style="width:22.97px; height: 108px; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA);"></div>
+              <div style="width:22.97px; height: 82px; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA);"></div>
+              <div style="width:22.97px; height: 58px; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA);"></div>
+              <div style="width:22.97px; height: 82px; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA);"></div>
+              <div style="width:22.97px; height: 105px; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA);"></div>
           </div>
         </div>
       </div>
-      <div style="border-top:1px solid rgba(218,225,235,0.14); padding-top:14px; display:flex; align-items:center; gap:12px;">
-        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#FF9F19" stroke-width="1.846" stroke-linecap="round"><circle cx="12" cy="13" r="4"></circle><path d="M12 5V3M5.6 7.6 4.2 6.2M18.4 7.6l1.4-1.4M3 19h18"></path></svg>
-        <div style="display:flex; align-items:baseline; gap:12px;">
-          <div style="font-size:34px; font-weight:200; color:#DAE1EB;">19:44</div>
-          <div style="font-size:19px; color:#86909B;">закат</div>
+
+      <!-- Three readings, one anatomy: a tracked capital over a large light figure with its unit
+           beside it. The sunset used to be the odd one out - a sun in the vehicle's own amber, a 34
+           where its neighbours were 46, and its word set as a unit instead of a label - so the one
+           coloured caption on the screen was the one saying the sun goes down at the usual time.
+           Amber means the car wants a decision. The label says which event this is; the glyph said
+           it again, in the wrong colour. -->
+      <div style="width:320px; flex-shrink:0; display:flex; flex-direction:column; justify-content:space-between;">
+        <div class="fig">
+          <div class="cap">В ПУТИ</div>
+          <div class="line">
+            <div class="num">1:42</div>
+            <div class="un">128 км</div>
+          </div>
+        </div>
+        <div class="fig ruled">
+          <div class="cap">ВЫСОТА</div>
+          <div class="line">
+            <div class="num">642</div>
+            <div class="un">м</div>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="2.4" stroke-linecap="round"><path d="M12 19V6M6.5 11.5 12 6l5.5 5.5"></path></svg>
+              <div class="rate">1,2</div>
+            </div>
+          </div>
+        </div>
+        <div class="fig ruled">
+          <div class="cap">ЗАКАТ</div>
+          <div class="line">
+            <div class="num">19:44</div>
+          </div>
         </div>
       </div>
     </div>
   </div>
-</div>
   </div>
+  <div class="underlay-scrim"></div>
+  <!-- end underlay -->
 
-  <div style="position:absolute; left:0; top:0; right:0; bottom:0; background:rgba(0,0,0,0.55);"></div>
+  <div style="position:absolute; right:0; top:0; bottom:0; width:480px; box-sizing:border-box; background:#15181F; border-left:1px solid rgba(254,239,171,0.16); box-shadow:-24px 0 48px rgba(0,0,0,0.5); padding:20px 32px; display:flex; flex-direction:column;">
 
-  <div style="position:absolute; right:0; top:0; bottom:0; width:480px; box-sizing:border-box; background:#15181F; border-left:1px solid rgba(254,239,171,0.16); box-shadow:-24px 0 48px rgba(0,0,0,0.5); padding:20px 32px; display:flex; flex-direction:column; gap:32px;">
+    <!-- `DenzaSheet` gives the settings `weight(1f)` and hangs the action under them, so a
+         panel's one button is under the same thumb whatever it was opened from. There is one
+         gap between the two; this board used to hang a spacer between them as a flex item of
+         its own, which bought a 32 either side of it and read as two clumps at the ends of an
+         empty panel. -->
+    <div class="sheet-scroll">
 
     <div style="display:flex; align-items:flex-start; gap:12px;">
       <svg width="32" height="32" viewBox="1 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.5" stroke-linecap="round"><circle cx="12" cy="12" r="9"></circle><circle cx="12" cy="12" r="3"></circle><path d="M3.2 10.5 L9.1 10.9 M20.8 10.5 L14.9 10.9 M12 15 L12 21"></path></svg>
@@ -201,11 +358,11 @@
     <div style="display:flex; flex-direction:column; gap:12px;">
       <div class="lbl">ЧТО ПОКАЗЫВАТЬ</div>
       <div style="display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:12px;">
-        <div class="app"><div class="ic"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFgAAABYCAIAAAD+96djAAAKD0lEQVR42u2ca3AT1xXH//feXe3KsiRLljGYYGzCALITzBQmzQCTaUKSJm0gHiZpmkcf6TNNMu0H6GQynU5n2klDXh87zeNTp/3STpMxhmkoj6RNQjtQIDWKQxMaDKZpaKEYa/XY5739INmW7F0JByRLgvNpLa92dX57zrnn3j33kO6lcRSLzycHAk1oLEmnM6ZplTiBTvtbVZXGowAgEGhSVeViQaiq4veraFDx+9USLKRCjyhLQZKkaCTS29vT17eyNx7vXNwZCoZ8PnlOFDNNM6lpo6dGh48dGxo6Ojz8/vmxMdu2S7PgnLv6CMnFCMZYKNRc4hKMse7urk0b7+rftDEQCNRkFEgPDO4YHNw5cvKk4zglzkwmUzNPyIMIBpsliXl9U1XVR7777c39d9cmgmk4XhvY/uJLr+i67nWObTualpr+pCPRNlVVFMXn9bWOjo7nn9126y03K4pS+4HA5/Nd19uzZvVnDh0+ommae1ykNIejCERrrL252fM598TjLzz3zPLly3JfrguhlM6fP3/9urWJROLsuXOu58iyZJqWEGIKRMfCRV5O0dHR8cJzz3R2LqrHMSIcDq9Zs/rtd/Z72QUhxLKmIitb1LnYKy48/+y25cuX1e94GQ6He+Lx3Xv2ug4lksQMw5wCsWDhNa5jxGOPPnLrLTfXkUe4SltbTFGVvx06XOgFkyKEmIwU7np2d3dt7r+bMVbvSRRjbHP/3d3dXR6RQvZMsXNZ06aNd9X+SHnRyXVg08a7XOOgJLFJk3cBEY1E+jdtbKTkun/Txmgk6pErM08Qvb09DWMOk0bR29vjNWnwBNHXt7LxZlxeSjHm7Rq98XjjgfBSqlSM6Fzc2XggvJQihHiCCAVDjQciFAzOGsRcrS/MQpwL0D+Y7WSszAylrp6rgPFPXNiO0z8Au8zriVI96M/hpGCcQPZdWP+F9iYIg7zoSgIhLFhnoQ8jOwRhQgik90Pbh65fXfZb1SoI4SB7FJkjsP4NwUEoBJA5gOQeyAsQ+dIVAML5H7T9MD6Eo0E4IBSggIPMIST/CGGj7XEQqXFBCBvGcaQPQv/HhP4EoBAcBEi/i/HXAQ4iI/zFStxfmnsX4OPIfoDUn2GdAUgegQAIBThAkE3kKQAIfR7KkgYD4cD8GKm/IH0AwgQoyKQJUEBAcBAC/UOM7wIcACAMrd8E9TcKCGHm9bdOg08iAAQBwZQ7gCB7HMldEBMLalI7gusq9KOqC8I6g+ReZIbAz0PwAgQUhAMUQkwccBgniiiAIHIvpGj9ghDgGRgfQXsLmYMQzlQgmEJQcAAKcJinMP4HoGDRlbWg7VsAq0cQDpwxpP+O8ddhnsoPhPlAIECQj39FLASEA/NjJHcXUQDgvx7qdZX7rRUDYXyE5E6kDoJn8oYtADJN7RwLAcFABMAhAPsMtD0Q+vQ5UeSeitqtdPmT4uQuaH+CcRLCyOuQswKIGSZAJv7LIQBCYH0CbS/4jNeWcjtiD9cFCA7rE4zvQnIPnPN5EwDN5wI5m88f8KLomB8mKcBhnUNy7wxbAABE7wNtrmUQAjyF7AdI7oK2b0KlQgSYceARHe0xaG+4UyASog9WOqRLn94E7AvQ9mHsVZijAClOhyY1FzM+cWNhJ6G9ORFNZkhgPfx9NQhCIDuMsd8ifQDOOISYQECnUoApBHCjU+wszhhSb4OnPW/Y9h0QueZACOMT8/g26+wbTJaYojCfQhWV5Ba6ilhgxoGbs/ALSO0HT3nej4URvKkKud6sQRClQ1n5G/qfPdkPf5H511vC0gBQWWaKwhSV+lQq+6isUMlHZR9hMggFZSSXCE1zFieF9F9LUQBB9CFI82oRxMRwdpvcfptzIZE5ts06s48b57llWanpKhEmMcXPFJUqTcynElmhskpllTIfoTYyB+FopW5DA4g+VAW/uNRRg7VcH7zx1zx1IvvRy/rxl4WTnjHJtu2MZme0qSdMQEAIpYF2rgTMMjdQVyCwujrToEtexSaUBpcGVj7VcueRwKqniRIrE2iFEIJzx+amXe7KEiKbq2MOl285n8qseYl/xZboFxJNq56mgS6QMld2LLjVbhQaawxtj1ZtYnx532sQosSaVmyN3DkU6Pu51HIdYZ6FeNwiZS4WvBksXKcgJo26yb9iS8vtBwNrfilFVoEwt2JHoJRFELR+vZpLJZV800Vltfsr4Q1vhm8akOdvyC9AFFpECRBNfQjd2igg8tbRLC+4I3jDy1SdN32awr2/FvtelV9HVulm1L9QWXz/tAgqHOKZPoTvqPJCarWoE+Zf9jgtHly5V+V464OQ5zcoCIAGFsvzimYN3CYek+77QXwNCwKAf/kWULnw5ZaLKEvhX4WqS1VBSK2rfe0bpnIq28WD0PpQNdOHuSoUIerSRzBRrePMzKmkGFofnjbQNiQI+BbcLrWsmsyyZ6QPN0DuwFxI1UuHqOxfsWUqWIppfvFVzJHMQQ2Vr/1zrOkaF6PwdaGl/woCQZQ2ddnjuQlIUZiIfaMSFSC1CwKEql0PUDUGgE8OHMSHyJcxd0Jd91NW3ijaffNvL3KNyD1QFqOCm0StWYNIJrUqGIU//kMih6aSy+gDlXvTDSCpJV0/n9zZ4wJidHS0CqbIQnG5bW1+3iV3IPDZit5u9NTorEEMHztWHbdUr/0a5wSgmPdY5SpASivFJ9YCXEAMDR2t0ji68B4WWg4WQvS+SodtL6UcxxvE8PD76XS6Skax9Pui6UbIXajwPunh4ffhvj3a9gRxfmxsYHBHdUDIHfeifavrouZllIHBHefHxrz2iXuCsG17cMfOKhmFFCHhDZU2h8EdO133wNq2UypGABgZOfnawPbSzQfqQhzHeW1g+8jISdf/WpZVJrN0HOfFl15JJN6rdxCJ94ZffOkVrydatCU6GpvnujnUtu1Dh4+sX7c2HA7XKYXR0dNbn3hyzCM6GIZZaBEsFI56dV7RNC2RSKxZs7oeWYyOnv7Rj39yYmSkRB+iorYJLZFYrp+C69lnz517+539PfF4W1usXjbMO45zNPHe1ieeLEEhm9ULeybkO4rYtiPLspeemqbt3rNXUZWl1y4pu0UMNdBa5Xe/f/WnP3vKyyNyg0Umk230Zjs7do6MXEKznYtsSCZJLBqJ9vb29K1c2duTa78UnCszMU0rqSVn1X6pRIsyUtiirbEbcuVCg64b5dcjdN3IZvUrkIJLQqXrRjqdaTwK6XSmBAX3YjLTtBwn1dTkL9Giq44kN0aUnS5IXkOxpqUaIGSUdoeLLS/UdcM0rdJ9y2pWDMPUdYOXKkaZTZ0l5zyTyWazuqL4ZFmufWexbceyLMMwRZmavU9VcCqE0HVD1w1KqSQxSZIYo5RSQshk/4U5ESFyZZvccbht24XrC5WtvOWcmyYv+46gHoXiqlwFcRXEVRDe8n8kXUP7BbsMjgAAAABJRU5ErkJggg==" style="width:44px; height:44px; display:block;" alt=""></div><div style="color:#C5CDD9; font-size:15px;">Яндекс</div></div>
-        <div class="app"><div class="ic"><img src="data:image/png;base64,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" style="width:44px; height:44px; display:block;" alt=""></div><div style="color:#C5CDD9; font-size:15px;">Waze</div></div>
-        <div class="app"><div class="ic"><img src="data:image/png;base64,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" style="width:44px; height:44px; display:block;" alt=""></div><div style="color:#C5CDD9; font-size:15px;">2ГИС</div></div>
-        <div class="app" style="border:1px solid #FEEFAB; box-shadow:0 0 20px rgba(254,239,171,0.14);">
-          <div class="ic" style="background:rgba(254,239,171,0.16);"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.846" stroke-linecap="round"><path d="M4 15a8 8 0 0 1 16 0"></path><path d="M12 15l4.2-4.6"></path><circle cx="12" cy="15" r="1.6" fill="#FEEFAB"></circle></svg></div>
+        <div class="app"><div class="ic"><img class="ico" src="data:image/png;base64,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" alt=""></div><div style="color:#C5CDD9; font-size:15px;">Яндекс</div></div>
+        <div class="app"><div class="ic"><img class="ico" src="data:image/png;base64,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" alt=""></div><div style="color:#C5CDD9; font-size:15px;">Waze</div></div>
+        <div class="app"><div class="ic"><img class="ico" src="data:image/png;base64,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" alt=""></div><div style="color:#C5CDD9; font-size:15px;">2ГИС</div></div>
+        <div class="app sel">
+          <div class="ic"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.846" stroke-linecap="round"><path d="M4 15a8 8 0 0 1 16 0"></path><path d="M12 15l4.2-4.6"></path><circle cx="12" cy="15" r="1.6" fill="#FEEFAB"></circle></svg></div>
           <div style="color:#FEEFAB; font-size:15px; font-weight:500;">Приборы</div>
         </div>
       </div>
@@ -215,9 +372,9 @@
       <div class="lbl">РАЗМЕЩЕНИЕ</div>
       <div style="display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); border:1px solid rgba(218,225,235,0.18); border-radius:12px; overflow:hidden;">
         <div style="padding:12px 0; text-align:center; font-size:15px; font-weight:500; color:#262D33; background:#FEEFAB;">Полный</div>
-        <div style="padding:12px 0; text-align:center; font-size:15px; color:#6E767F; border-left:1px solid rgba(218,225,235,0.18);">Слева</div>
-        <div style="padding:12px 0; text-align:center; font-size:15px; color:#6E767F; border-left:1px solid rgba(218,225,235,0.18);">Центр</div>
-        <div style="padding:12px 0; text-align:center; font-size:15px; color:#6E767F; border-left:1px solid rgba(218,225,235,0.18);">Справа</div>
+        <div style="padding:12px 0; text-align:center; font-size:15px; color:#7C858F; border-left:1px solid rgba(218,225,235,0.18);">Слева</div>
+        <div style="padding:12px 0; text-align:center; font-size:15px; color:#7C858F; border-left:1px solid rgba(218,225,235,0.18);">Центр</div>
+        <div style="padding:12px 0; text-align:center; font-size:15px; color:#7C858F; border-left:1px solid rgba(218,225,235,0.18);">Справа</div>
       </div>
     </div>
 
@@ -229,31 +386,22 @@
     </div>
 
     <div style="display:flex; gap:12px; align-items:flex-start;">
-      <svg width="18" height="18" viewBox="1 0 24 24" fill="none" stroke="#6E767F" stroke-width="2.667" stroke-linecap="round" style="flex-shrink:0; margin-top:2px;"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5.5"></path><path d="M12 7.6h0.01"></path></svg>
-      <div style="font-size:15px; color:#6E767F; line-height:1.45;">Выбранное приложение занимает приборную панель за рулём. Короткое нажатие на плитку ставит его туда и убирает обратно.</div>
+      <svg width="18" height="18" viewBox="1 0 24 24" fill="none" stroke="#7C858F" stroke-width="2.667" stroke-linecap="round" style="flex-shrink:0; margin-top:2px;"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5.5"></path><path d="M12 7.6h0.01"></path></svg>
+      <div style="font-size:15px; color:#7C858F; line-height:1.45;">Выбранное приложение занимает приборную панель за рулём. Короткое нажатие на плитку ставит его туда и убирает обратно.</div>
     </div>
 
-    <div style="flex-grow:1;"></div>
+    </div>
 
-    <div style="display:flex; flex-direction:column; gap:12px;">
+    <div style="margin-top:32px; display:flex; flex-direction:column; gap:12px;">
       <div style="height:62px; border-radius:12px; background:#FEEFAB; display:flex; align-items:center; justify-content:center; color:#262D33; font-size:19px; font-weight:500;">Убрать с приборки</div>
-      <div style="text-align:center; font-size:15px; color:#6E767F;">Короткое нажатие на плитку делает то же самое</div>
+      <div style="text-align:center; font-size:15px; color:#7C858F;">Короткое нажатие на плитку делает то же самое</div>
     </div>
   </div>
 </div>
 </x-dc>
 <script data-dc-script data-props='{"$preview":{"width":1280,"height":680}}'>
 class Component extends DCLogic {
-  renderVals() {
-    const bars = [
-        {h:30,p:13},{h:55,p:8},{h:91,p:17},{h:133,p:6},{h:160,p:11},{h:182,p:4},
-        {h:164,p:14},{h:140,p:7},{h:112,p:16},{h:88,p:10},{h:124,p:5},{h:153,p:13},
-        {h:177,p:4},{h:159,p:10},{h:131,p:17},{h:98,p:7},{h:78,p:12},{h:110,p:5},
-        {h:136,p:14},{h:155,p:4},{h:138,p:11},{h:108,p:16},{h:82,p:7},{h:58,p:12},
-        {h:82,p:5},{h:105,p:13}
-      ];
-    return { bars };
-  }
+  renderVals() { return {}; }
 }
 </script>
 </body>

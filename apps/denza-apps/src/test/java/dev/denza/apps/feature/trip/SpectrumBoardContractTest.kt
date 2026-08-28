@@ -32,12 +32,36 @@ class SpectrumBoardContractTest {
     fun aColumnIsAsWideAsItsShareOfTheRow() {
         // The board writes a width and a gap; the code writes the ratio between them.
         val width = number("""<div style="width:([\d.]+)px; display:flex""")
-        val gap = number("""align-items:flex-end; gap:([\d.]+)px; height:198px""")
+        // The field's own height is a consequence of the strip's, so it is not written here: what
+        // this measures is the ratio of a column to its slot, which is what the code carries.
+        val gap = number("""align-items:flex-end; gap:([\d.]+)px; height:[\d.]+px""")
         assertEquals(
             "bar width fraction",
             width / (width + gap),
             SpectrumRenderer.BAR_WIDTH_FRACTION.toDouble(),
             1e-3,
+        )
+    }
+
+    /**
+     * The columns add up to the field they are drawn in.
+     *
+     * The board used to set 26 bars of 22 with 9 between them - 797 of the 834 it had - so the
+     * analyser stopped 37 dp short of its own right edge and the strip read as a rendering that
+     * had run out of data. Nothing caught it: every ratio on this board was right, and the whole
+     * was wrong. The code spreads its bars so the last one ends exactly on the right edge, which
+     * is the statement this checks the board still makes.
+     */
+    @Test
+    fun theColumnsFillTheFieldTheyAreDrawnIn() {
+        val width = number("""<div style="width:([\d.]+)px; display:flex""")
+        val gap = number("""align-items:flex-end; gap:([\d.]+)px; height:[\d.]+px""")
+        val bands = number("""hint-placeholder-count="(\d+)"""")
+        assertEquals(
+            "the analyser's own width",
+            (TripPanelRenderer.SPECTRUM_RIGHT - TripPanelRenderer.SPECTRUM_LEFT).toDouble(),
+            bands * width + (bands - 1) * gap,
+            0.5,
         )
     }
 

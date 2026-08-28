@@ -35,9 +35,20 @@ object DenzaColors {
     val Warning: Color = Color(DenzaPalette.WARNING)
     val Danger: Color = Color(DenzaPalette.DANGER)
 
-    val Track: Color = Color(DenzaPalette.TRACK)
-    val TrackMark: Color = Color(DenzaPalette.TRACK_MARK)
-    val Hairline: Color = Color(DenzaPalette.HAIRLINE)
+    /**
+     * The one dimming behind anything modal.
+     *
+     * There were three: raw black at 0.78 behind the ADB gate - the only colour in the app that
+     * never came from the palette at all - the ground at 0.55 behind a settings panel, and the
+     * theme's own `scrim` at 0.72 that nothing read. Three depths of dark mean the screen behind a
+     * window changes brightness depending on which window opened, which reads as the dashboard
+     * flickering rather than as a scrim.
+     */
+    val Scrim: Color = Background.copy(alpha = 0.72f)
+
+    // Track, TrackMark and Hairline were adapters for gauges that draw on a Canvas and take the
+    // palette as Int. No Compose code ever read them; the gauges read DenzaPalette directly, which
+    // is where those three still live.
 
     fun ink(alpha: Float): Color = Ink.copy(alpha = alpha)
 

@@ -32,4 +32,24 @@ enum class DenzaTileTone {
 
     /** Broken, or not available on this car at all. Coral. */
     BROKEN,
+    ;
+
+    companion object {
+
+        /**
+         * What a feature reads as when it cannot be touched.
+         *
+         * The tile and the chip are one object and had two different answers to this. The tile
+         * greyed the name and kept the accent glyph; the chip greyed the glyph and kept the dot lit.
+         * So the same feature behind the same ADB gate looked switched off on the full screen and
+         * running in a pane - and the one place both are drawn at once is a screenshot nobody takes.
+         *
+         * One rule: a feature nothing can be done to keeps its words and gives up its colour. It is
+         * [IDLE] as far as the drawing is concerned - quiet surface, hairline edge, muted glyph,
+         * muted dot, no ring turning - and the name stays in full ink, because being unreachable is
+         * not a reason to stop saying which tile this is.
+         */
+        fun shown(tone: DenzaTileTone, enabled: Boolean): DenzaTileTone =
+            if (enabled) tone else IDLE
+    }
 }

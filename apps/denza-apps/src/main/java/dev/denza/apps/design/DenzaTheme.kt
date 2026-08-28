@@ -72,7 +72,7 @@ private val DenzaColorScheme = darkColorScheme(
     onErrorContainer = DenzaColors.Danger,
     outline = DenzaColors.SurfaceHigh,
     outlineVariant = DenzaColors.ink(0.10f),
-    scrim = DenzaColors.Background.copy(alpha = 0.72f),
+    scrim = DenzaColors.Scrim,
 )
 
 /**

@@ -11,34 +11,45 @@
   <style>
     body { margin:0; background:#07080A; font-family:'Roboto','Segoe UI',system-ui,sans-serif; }
     a { color:#FEEFAB; } a:hover { color:#FFF7D2; }
-    .card { background:#212429; border:1px solid #323538; border-radius:32px; box-sizing:border-box;
+    /* The gate is a modal card over the one scrim the app draws behind anything modal - the ground
+       at 0.72, `DenzaColors.Scrim`. It used to be raw black at 0.78, the only colour in the app
+       that came from no palette at all.
+
+       Corner 22, which is the surface rung `MaterialTheme.shapes.large` hands a Card. It was 32:
+       a spacing rung standing in for a radius, on the one board whose whole job is to show a
+       component. Buttons take the row rung, 12, and one height, 42 - the pill at 40 with a 20
+       radius was a third shape for the same control. */
+    .scrim { position:absolute; left:0; top:0; right:0; bottom:0; background:rgba(7,8,10,0.72);
+              box-sizing:border-box; padding:32px; display:flex; align-items:center; justify-content:center; }
+    .card { background:#212429; border:1px solid #323538; border-radius:22px; box-sizing:border-box;
             display:flex; flex-direction:column; gap:20px; }
-    .ttl { color:#DAE1EB; font-size:34px; font-weight:600; line-height:1.2; }
-    .msg { color:#86909B; font-size:19px; line-height:1.263; }
-    /* One action per line. A Row measured its children in order - the outlined one took the
-       width it asked for and the primary one was handed the remainder - so at 312 dp of card the
-       primary label ran out past both ends of its own pill. A card this narrow has room for one
-       button on a line and no room for two, and the stack is read from the top, which is where
-       the thing you came to press belongs. */
-    .stack { display:flex; flex-direction:column; gap:12px; }
-    .btn { box-sizing:border-box; font-size:19px; font-weight:500; line-height:26px;
-           min-height:42px; border-radius:12px; padding:8px 24px; text-align:center;
+    .head { display:flex; align-items:center; gap:20px; }
+    .ttl { color:#DAE1EB; font-size:34px; line-height:1.2; }
+    .msg { color:#86909B; font-size:19px; line-height:1.3; }
+    .why { color:#86909B; font-size:15px; line-height:1.3; }
+    /* One shape and one height for every action; what separates them is weight, not geometry.
+       The thing you came to press is filled champagne; recovery is an outline in the vehicle's own
+       amber, which is what the car draws when it wants a decision; the explainer is the quietest
+       edge on the board. */
+    .btn { box-sizing:border-box; min-height:42px; border-radius:12px; padding:8px 20px;
+           font-size:19px; font-weight:500; line-height:26px; text-align:center;
            white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
     .fill { background:#FEEFAB; color:#262D33; }
-    .edge { border:1px solid #FF9F19; color:#FF9F19; }
-    .more { border:1px solid #484E55; color:#FEEFAB; }
+    .edge { border:1px solid #FF9F19; color:#FEEFAB; }
+    .more { border:1px solid #484E55; color:#FEEFAB; display:block; }
   </style>
 </helmet>
+<!-- The same state at 416. A card 352 dp wide has room for one button on a line and no room for two - a Row measures its children in order, so the outlined action took the width it asked for and the primary one was handed the remainder and drew its label out past both ends of itself. Neither loses: each spends a line, primary first, because a stack is read from the top. -->
 <div style="width:416px; height:680px; box-sizing:border-box; background:#07080A; position:relative;">
-  <div style="position:absolute; inset:0; background:rgba(0,0,0,0.78); box-sizing:border-box;
-              padding:32px; display:flex; align-items:center; justify-content:center;">
-    <div class="card" style="width:352px; padding:32px 20px;">
-      <div style="display:flex; align-items:center; gap:20px;">
+  <div class="scrim">
+    <div class="card" style="width:352px; padding:20px;">
+      <div class="head">
         <svg style="flex:0 0 auto;" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#FF9F19" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg>
         <div class="ttl">Подтвердите доступ к ADB</div>
       </div>
       <div class="msg">Разрешите системный запрос на экране автомобиля</div>
-      <div class="stack">
+      <div class="why">Отладка по ADB выключена в системе автомобиля</div>
+      <div style="display:flex; flex-direction:column; gap:12px;">
         <div class="btn fill">Я подтвердил — проверить</div>
         <div class="btn edge">Восстановить ADB</div>
         <div class="btn more">Что такое ADB</div>

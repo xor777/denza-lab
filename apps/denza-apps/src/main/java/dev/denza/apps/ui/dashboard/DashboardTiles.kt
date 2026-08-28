@@ -106,22 +106,41 @@ object DashboardTiles {
      * Eleven, with default applications immediately before the service door. The application tile
      * is not a runtime feature: it is the settings entry for the three stock Shortcuts roles.
      */
-    fun of(
-        state: DenzaUiState,
-        nowMillis: Long = System.currentTimeMillis(),
-    ): List<DashboardTile> = listOf(
-        cluster(state),
-        simulcast(state),
-        mirrors(state),
-        split(state),
-        hud(state),
-        weather(state, nowMillis),
-        speakers(state),
-        locale(state),
-        passenger(state),
-        defaultApps(state),
-        service(state),
-    )
+    fun of(state: DenzaUiState): List<DashboardTile> {
+        // The door is built from the tiles in front of it rather than from the state again. It used
+        // to count seven runtime features while the panel behind it filtered all eleven tiles, so
+        // the two disagreed about what "2 функции ждут" meant - and the door counted itself.
+        val features = listOf(
+            cluster(state),
+            simulcast(state),
+            mirrors(state),
+            split(state),
+            hud(state),
+            weather(state),
+            speakers(state),
+            locale(state),
+            passenger(state),
+            defaultApps(state),
+        )
+        return features + service(features)
+    }
+
+    /**
+     * The tiles something is wrong with.
+     *
+     * **Every tile wearing [DenzaTileTone.ATTENTION] or [DenzaTileTone.BROKEN], the service door
+     * itself excluded.** That is the whole contract, and it is deliberately one list rather than
+     * two: the count on the door's face and the "Что не так" section inside it are the same
+     * question asked in two places, and while they were two filters they answered it differently -
+     * the face knew about the seven coordinated features and the panel knew about all eleven tiles,
+     * including the door, which therefore appeared in its own list of things that need somebody.
+     */
+    fun attentionTiles(state: DenzaUiState): List<DashboardTile> =
+        of(state).filter { it.id != TileId.SERVICE && needsSomebody(it.tone) }
+
+    /** Amber or coral: a decision the driver has to make, or something that broke. */
+    private fun needsSomebody(tone: DenzaTileTone): Boolean =
+        tone == DenzaTileTone.ATTENTION || tone == DenzaTileTone.BROKEN
 
     /**
      * How a feature's state reads before any word on it is read.
@@ -199,8 +218,10 @@ object DashboardTiles {
             state = when {
                 snapshot.status == FeatureStatus.NEEDS_ACTION && snapshot.message.isNotBlank() ->
                     snapshot.message
-                state.selectedAppCount == 0 -> "Нет приложений"
-                else -> applications(state.selectedAppCount)
+                // "6 приложений" made this tile a twin of the tile actually named "Приложения"
+                // one row along; "выбрано" names the projection's own fact.
+                state.selectedAppCount == 0 -> "Не выбрано"
+                else -> "Выбрано ${state.selectedAppCount}"
             },
             tone = toneOf(snapshot),
             // A count of chosen applications is as true stopped as running.
@@ -250,6 +271,13 @@ object DashboardTiles {
             state = when {
                 snapshot.status == FeatureStatus.NEEDS_ACTION && snapshot.message.isNotBlank() ->
                     snapshot.message
+                // A failed switch keeps the wish it was given, so reading the caption off
+                // `desiredEnabled` had the tile saying "Включено" in coral - the words claiming
+                // the thing the colour was there to deny. What is true after a refusal is that
+                // nothing moved, and that is what it says.
+                snapshot.status == FeatureStatus.UNAVAILABLE -> "Недоступно"
+                snapshot.status == FeatureStatus.ERROR ->
+                    snapshot.message.ifBlank { "Не переключилось" }
                 snapshot.desiredEnabled -> "Включено"
                 else -> "Выключено"
             },
@@ -287,7 +315,7 @@ object DashboardTiles {
      * handshake - an alarm either stands or it does not, which is why this tile reads its state
      * straight rather than through a snapshot.
      */
-    private fun weather(state: DenzaUiState, nowMillis: Long): DashboardTile {
+    private fun weather(state: DenzaUiState): DashboardTile {
         // The last thing actually handed to the car, and how long ago - which is what the board
         // draws, and the only caption here that can be checked against the widget a few
         // centimetres away. "Данные для виджета" was the switch said twice.
@@ -305,7 +333,16 @@ object DashboardTiles {
                 fresh -> degrees(reading)
                 else -> "Данных ещё нет"
             },
-            tone = if (state.weatherEnabled) DenzaTileTone.LIVE else DenzaTileTone.IDLE,
+            // The switch is not the reading. A tile lit in the accent over "Данных ещё нет" is the
+            // tone promising something the caption is denying, and on a car that had never once
+            // fetched a forecast the weather looked like the healthiest thing on the screen. Lit
+            // means the widget has been handed a temperature; waiting means the alarm stands and
+            // nothing has come back yet.
+            tone = when {
+                !state.weatherEnabled -> DenzaTileTone.IDLE
+                fresh -> DenzaTileTone.LIVE
+                else -> DenzaTileTone.WORKING
+            },
             caption = if (fresh && state.weatherEnabled) {
                 DenzaTileCaption.READING
             } else {
@@ -321,7 +358,14 @@ object DashboardTiles {
         else -> "$value°"
     }
 
-    /** How long ago, in the coarsest unit that is still true. */
+    /**
+     * How long ago, in the coarsest unit that is still true.
+     *
+     * The tile does not say this any more - an age changes length every minute and the tile stacks
+     * its words up from the bottom edge, so the name moved while nobody touched anything. The
+     * weather panel does, because a panel is opened deliberately, holds still while it is read, and
+     * is the only place that can answer "is this forecast the one outside".
+     */
     fun ago(elapsedMillis: Long): String {
         val minutes = elapsedMillis / 60_000L
         return when {
@@ -376,13 +420,24 @@ object DashboardTiles {
             id = TileId.LOCALE,
             icon = TileIcon.LOCALE,
             name = "Русский язык",
-            state = when (snapshot.enabled) {
-                true -> "Включён"
-                false -> "Выключен"
-                null -> "Не проверено"
+            // A refusal is the news, and it used to be the one thing this tile could not report:
+            // the failure wrote a message nobody read and the tile went on saying "Выключен" in
+            // grey, which is what it says when nothing has been asked of it at all.
+            state = when {
+                // Two different refusals, and the difference is the only thing a driver can act
+                // on: the car said no, or nothing has been asked of it yet because the app has no
+                // way in. The sentence-length version of either is in the panel.
+                snapshot.failed && !snapshot.permissionReady -> "Нужен доступ"
+                snapshot.failed -> "Не переключился"
+                snapshot.enabled == true -> "Включён"
+                snapshot.enabled == false -> "Выключен"
+                else -> "Не проверено"
             },
             tone = when {
                 snapshot.running -> DenzaTileTone.WORKING
+                // Amber rather than coral: the press retries the change, so this is a decision
+                // still open rather than a feature that has broken.
+                snapshot.failed -> DenzaTileTone.ATTENTION
                 snapshot.enabled == true -> DenzaTileTone.LIVE
                 else -> DenzaTileTone.IDLE
             },
@@ -446,23 +501,22 @@ object DashboardTiles {
      * undisclosed part of the screen, which is a door too, just one nobody can find and anybody can
      * open by accident.
      */
-    private fun service(state: DenzaUiState): DashboardTile {
+    private fun service(others: List<DashboardTile>): DashboardTile {
         // What the rest of the screen adds up to. "Всё в норме" was a constant, which made the one
         // tile whose job is to say something is wrong the one tile that could not - and it said so
         // in champagne on a car with two broken features. `Attention.dc.html` has drawn this as a
         // count in amber since the boards were made; the code simply never read it.
-        val features = listOf(
-            state.navigation, state.simulcast, state.mirrors, state.splitScreen,
-            state.hudGuidance, state.speakerCovers, state.fseInstaller,
-        )
+        //
+        // It counts the tiles rather than the runtime features, and [others] is every tile but this
+        // one, so the number on the face is by construction the length of [attentionTiles] - the
+        // list the panel behind it prints. The seven-feature count it replaces could not see a
+        // stuck language or an unread application role at all.
+        //
         // Broken and waiting counted together, and amber either way, which is what the board
         // draws: one broken feature and one waiting reads "2 функции ждут". Coral would be this
         // tile claiming to be the thing that failed, and nothing about a door has failed - it is
         // the room behind it that needs somebody. The count is how many things need one.
-        val needing = features.count {
-            val tone = toneOf(it)
-            tone == DenzaTileTone.BROKEN || tone == DenzaTileTone.ATTENTION
-        }
+        val needing = others.count { needsSomebody(it.tone) }
         return DashboardTile(
             id = TileId.SERVICE,
             icon = TileIcon.SERVICE,

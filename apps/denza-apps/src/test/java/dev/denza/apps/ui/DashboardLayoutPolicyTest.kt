@@ -1,5 +1,6 @@
 package dev.denza.apps.ui
 
+import androidx.compose.ui.unit.dp
 import dev.denza.apps.design.DenzaMetrics
 import dev.denza.apps.feature.trip.TripPanelLayout
 import org.junit.Assert.assertEquals
@@ -147,6 +148,77 @@ class DashboardLayoutPolicyTest {
     }
 
     @Test
+    fun `the three windows are one record and the thresholds fall between them`() {
+        // There used to be two records of the same three sizes - thresholds at 599 and 1099, and
+        // 1280/828/416 typed again inside chipWidth - so moving one of them moved nothing. The
+        // thresholds are now derived, and what is worth asserting is that they still sit between
+        // the windows they separate rather than any particular value they came out at.
+        assertTrue(
+            "the narrow threshold is not between the two windows it separates",
+            DashboardLayoutPolicy.NARROW_MAX_WIDTH_DP in
+                DashboardLayoutPolicy.NARROW_WIDTH_DP until DashboardLayoutPolicy.MEDIUM_WIDTH_DP,
+        )
+        assertTrue(
+            "the medium threshold is not between the two windows it separates",
+            DashboardLayoutPolicy.MEDIUM_MAX_WIDTH_DP in
+                DashboardLayoutPolicy.MEDIUM_WIDTH_DP until DashboardLayoutPolicy.WIDE_WIDTH_DP,
+        )
+        for (mode in DashboardLayoutMode.entries) {
+            assertEquals(
+                "$mode should resolve to itself at the width it was measured in",
+                mode,
+                DashboardLayoutPolicy.resolve(DashboardLayoutPolicy.windowWidth(mode)),
+            )
+        }
+    }
+
+    @Test
+    fun `the strip keeps a floor and the page scrolls rather than overflowing`() {
+        // The failure this replaces: the full screen added up to exactly 680 - 20 + 340 + 12 + 296
+        // + 12 - with no scroll in any of the three widths, so any inset at all drew the foot of
+        // the analyser past the bottom edge in silence. And the pane's floor was a comment: it was
+        // written as `heightIn(min =)` under a `weight(1f)`, which a Column measures as an exact
+        // height, so it could never have held anything up.
+        val wideContent = 1_280f - DashboardLayoutPolicy.sideMargin(DashboardLayoutMode.WIDE).value * 2
+        val narrowContent = 416f - DashboardLayoutPolicy.sideMargin(DashboardLayoutMode.NARROW).value * 2
+
+        // The full screen as the board draws it: two rows of tiles and the strip's own 1184x296,
+        // adding up to the window with nothing over.
+        val wide = DashboardLayoutPolicy.page(
+            DashboardLayoutMode.WIDE, FEATURES, wideContent, PAGE_HEIGHT.dp,
+        )
+        assertEquals(296f, wide.panelHeight.value, 1e-3f)
+        assertEquals(false, wide.scrolls)
+
+        // The same screen with a caption bar over it - which is what a pane always has, and what
+        // any future window that keeps more of itself would give the full screen too.
+        val squeezed = DashboardLayoutPolicy.page(
+            DashboardLayoutMode.WIDE, FEATURES, wideContent, (PAGE_HEIGHT - CAPTION_DP).dp,
+        )
+        assertEquals("the strip keeps the board's shape", 296f, squeezed.panelHeight.value, 1e-3f)
+        assertEquals("and the page that no longer holds it scrolls", true, squeezed.scrolls)
+
+        // A pane has room to spare, so its floor never binds and the caller hands the strip a
+        // weight instead of this number.
+        val pane = DashboardLayoutPolicy.page(
+            DashboardLayoutMode.NARROW, FEATURES, narrowContent, (PAGE_HEIGHT - CAPTION_DP).dp,
+        )
+        assertEquals(469.3f, pane.panelHeight.value, 0.05f)
+        assertEquals(false, pane.scrolls)
+
+        // And a window too short for it holds the floor rather than shrinking the analyser.
+        val shortPane = DashboardLayoutPolicy.page(
+            DashboardLayoutMode.NARROW, FEATURES, narrowContent, 400.dp,
+        )
+        assertEquals(
+            DenzaMetrics.Component.PANEL_HEIGHT_MIN.value,
+            shortPane.panelHeight.value,
+            1e-3f,
+        )
+        assertEquals(true, shortPane.scrolls)
+    }
+
+    @Test
     fun `only the full screen takes its strip height from its width`() {
         // The wide panel is a fixed shape - 1184 by 296 - so a caller asks for a box of that shape
         // and the drawing arrives unstretched. A pane's strip is handed the remainder and lays
@@ -161,5 +233,15 @@ class DashboardLayoutPolicyTest {
     private companion object {
         /** What the dashboard actually carries today; DashboardTilesTest owns the list itself. */
         const val FEATURES = 11
+
+        /**
+         * What is left of the app's 680 dp window once the page's own margins are off it: 20 over
+         * the features and 12 under the strip.
+         */
+        val PAGE_HEIGHT: Float = 680f -
+            DenzaMetrics.Space.L.value - DenzaMetrics.Space.M.value
+
+        /** What BYD's freeform windowing keeps at the top of a pane. Measured on the car. */
+        const val CAPTION_DP = 24f
     }
 }

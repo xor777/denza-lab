@@ -119,6 +119,20 @@ object DashboardPress {
         }
     }
 
+    /**
+     * What a tile's feature has to say for itself, for the ten that have a snapshot and the one
+     * that does not.
+     *
+     * The stock language is a switch in somebody else's settings rather than a coordinated feature,
+     * so it has no [FeatureSnapshot] and never will - inventing a [FeatureId] for it is exactly the
+     * fake feature [TileId] exists to avoid. It still fails, and a panel that reads its line off
+     * [snapshotOf] alone showed nothing at all when it did.
+     */
+    fun messageOf(id: TileId, state: DenzaUiState): String = when (id) {
+        TileId.LOCALE -> state.stockRussianLocale.message
+        else -> snapshotOf(id, state)?.message.orEmpty()
+    }
+
     /** The runtime snapshot behind a tile, or null for the tiles the runtime does not model. */
     fun snapshotOf(id: TileId, state: DenzaUiState): FeatureSnapshot? = when (id.feature) {
         FeatureId.SIMULCAST -> state.simulcast

@@ -66,6 +66,20 @@ object ClusterDisplayResolver {
             ?.map(::describe)
             .orEmpty()
 
+    /**
+     * The displays the driver may be offered, in the order the picker numbers them.
+     *
+     * Display 0 is this screen, and one of the rest is the app's own virtual display. Every
+     * surface that names a display to the driver counts over this list, so "Экран 2" is the
+     * same screen in the service panel and in the picker.
+     */
+    fun choices(displays: List<ClusterDisplayDescriptor>): List<ClusterDisplayDescriptor> =
+        displays.filter { it.id != 0 && !it.isOwnVirtualDisplay }
+
+    /** One display, in the words every surface uses for it. */
+    fun choiceName(index: Int, display: ClusterDisplayDescriptor): String =
+        "Экран ${index + 1} · ${display.width}×${display.height}"
+
     // Keep the explicit edit/apply boundary visible for the manual display override.
     @SuppressLint("UseKtx")
     fun saveOverride(context: Context, displayId: Int?) {

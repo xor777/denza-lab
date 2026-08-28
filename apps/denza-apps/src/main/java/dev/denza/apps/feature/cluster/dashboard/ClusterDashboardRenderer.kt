@@ -198,10 +198,25 @@ internal class ClusterDashboardRenderer {
             DenzaPalette.INK, DenzaPalette.MUTED_DEEP,
         )
 
-        pen.label(
-            canvas, packLine(t, includeHealth = false), column.left, column.next(),
-            density.body, DenzaPalette.MUTED_DEEP,
-        )
+        // The block's last row, in the block's own anatomy where it can be: the insulation is a
+        // number with a unit and a name, exactly like the two rows above it, and writing it as a
+        // grey sentence made the one row of this column that carries a reading look like the one
+        // row that had failed to get one. A charge takes the row over and is a sentence, because
+        // "2 ч 15 мин" is not a quantity with a unit.
+        val insulation = t.insulationMohm.takeIf { !t.charging }
+        val last = column.next()
+        if (insulation != null) {
+            pen.figure(
+                canvas, ClusterReadout.fmt(insulation, 1), INSULATION_UNIT,
+                column.left, last, density, density.reading,
+                DenzaPalette.INK, DenzaPalette.MUTED_DEEP,
+            )
+        } else {
+            pen.label(
+                canvas, packLine(t, includeHealth = false), column.left, last,
+                density.body, DenzaPalette.MUTED_DEEP,
+            )
+        }
     }
 
     /**
@@ -375,19 +390,27 @@ internal class ClusterDashboardRenderer {
             ),
             DenzaPalette.MUTED_DEEP,
         )
+        // Two readings on one row, and the reader binds a word to the number *before* it only if
+        // there is no closer number after it. At the pair rhythm the pack's word sat as near the
+        // inverter's figure as its own, and "- батарея 26 инвертор" read as "battery 26" - which
+        // is the wrong sensor and the wrong number at once. Between a value and its own word is
+        // one step; between two pairs it is now four.
         pen.figure(
             canvas, degrees(inverter), INVERTER_WORD,
-            column.left + packWidth + pen.v(density.rhythm(ClusterBlockPlan.LEAD_GROUP)),
+            column.left + packWidth + pen.v(density.rhythm(PAIR_GAP)),
             row, density, density.reading,
             levelColor(ClusterReadout.thermalState(inverter, ClusterReadout.INVERTER_WATCH_C)),
             DenzaPalette.MUTED_DEEP,
         )
 
+        // Every temperature carries its own degree, in both rows. The three motors used to share
+        // one at the end of the run, so the same row had values that were marked as temperatures
+        // and values that were not.
         val motors = t.motorTemps.filterNotNull()
         val motorText = if (motors.isEmpty()) {
             ClusterReadout.DASH
         } else {
-            motors.joinToString(" · ") { ClusterReadout.whole(it) } + DEGREE
+            motors.joinToString(" · ") { ClusterReadout.whole(it) + DEGREE }
         }
         pen.figure(
             canvas, motorText, MOTOR_WORD, column.left, column.next(), density, density.reading,
@@ -531,6 +554,9 @@ internal class ClusterDashboardRenderer {
     private companion object {
         const val LAMP_COLUMNS = 4
 
+        /** Rhythm steps between two value-and-word pairs sharing a row. See [temperatures]. */
+        const val PAIR_GAP = 4f
+
         /** The dashboard's own ground: opaque, and the same black the panel around it is. */
         const val BACKGROUND = 0xFF000000.toInt()
 
@@ -545,6 +571,7 @@ internal class ClusterDashboardRenderer {
         const val UNIT_RPM = "об/мин"
         const val SPREAD_UNIT = "мВ разброс"
         const val HEALTH_UNIT = "% ресурс"
+        const val INSULATION_UNIT = "МОм изоляция"
         /**
          * The trace beside the revolutions: a little heavier than a hairline so two of them can
          * cross without merging, and a dot on the newest reading a touch under the dial's own.

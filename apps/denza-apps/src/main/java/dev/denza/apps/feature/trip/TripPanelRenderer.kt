@@ -182,13 +182,15 @@ class TripPanelRenderer : BaseTripRenderer() {
         }
 
         if (engine.hasAltitude()) {
-            paneBlock(
+            val run = paneBlock(
                 canvas, pitch, top, "ВЫСОТА",
                 "${engine.smoothedAltitude().roundToInt()}", "м",
             )
+            val rate = engine.variometer()
             variometer(
-                canvas, vx(pitch + cell), vy(top + PANE_BLOCK_FIGURE), engine.variometer(),
-                PANE_RATE, ARROW_SIZE,
+                canvas,
+                vx(pitch) + run + vs(UNIT_GAP) + variometerWidth(rate, PANE_RATE),
+                vy(top + PANE_BLOCK_FIGURE), rate, PANE_RATE, ARROW_SIZE,
             )
         } else if (showLocationHint) {
             label(
@@ -199,20 +201,18 @@ class TripPanelRenderer : BaseTripRenderer() {
 
         val sun = engine.sunInfo()
         if (sun.nextEventLabel.isNotEmpty()) {
-            capsPaint.textSize = vs(PANE_LABEL)
-            capsPaint.color = TripPalette.AMBER
-            canvas.drawText(
-                if (sun.nextIsSunset) "ЗАКАТ" else "РАССВЕТ",
-                vx(2 * pitch), vy(top + PANE_BLOCK_LABEL), capsPaint,
-            )
-            figure(
-                canvas, sun.nextEventLabel, vx(2 * pitch), vy(top + PANE_BLOCK_FIGURE),
-                FIGURE_SIZE, TripPalette.INK,
+            // The same block as its two neighbours, in the same ink. See [drawColumn].
+            paneBlock(
+                canvas, 2 * pitch, top,
+                if (sun.nextIsSunset) "ЗАКАТ" else "РАССВЕТ", sun.nextEventLabel, "",
             )
         }
     }
 
-    /** A tracked capital over a large light figure, with its unit against it. */
+    /**
+     * A tracked capital over a large light figure, with its unit against it; returns the width of
+     * the figure and its unit.
+     */
     private fun paneBlock(
         canvas: Canvas,
         x: Float,
@@ -220,14 +220,16 @@ class TripPanelRenderer : BaseTripRenderer() {
         name: String,
         value: String,
         unit: String,
-    ) {
+    ): Float {
         caps(canvas, name, vx(x), vy(top + PANE_BLOCK_LABEL))
         val width = figure(
             canvas, value, vx(x), vy(top + PANE_BLOCK_FIGURE), FIGURE_SIZE, TripPalette.INK,
         )
-        if (unit.isNotEmpty()) {
-            unit(canvas, unit, vx(x) + width + vs(UNIT_GAP), vy(top + PANE_BLOCK_FIGURE), UNIT_SIZE)
-        }
+        if (unit.isEmpty()) return width
+        val gap = vs(UNIT_GAP)
+        unitPaint.textSize = vs(UNIT_SIZE)
+        unit(canvas, unit, vx(x) + width + gap, vy(top + PANE_BLOCK_FIGURE), UNIT_SIZE)
+        return width + gap + unitPaint.measureText(unit)
     }
 
     /**
@@ -237,6 +239,12 @@ class TripPanelRenderer : BaseTripRenderer() {
      * this is one row - and the "no location" hint goes where the second would have been, which is
      * the same place the wide layout puts it and for the same reason: it collides with nothing
      * because nothing is there.
+     *
+     * **The readings share a left edge.** They used to be hung off the right of the pane, which
+     * lines up the last character of a clock with the last character of a distance and puts the
+     * digits that matter in three different places - three readings you cannot compare with your
+     * eye, which is the one thing a stack of rows is for. The label column is [PANE_LABEL_COLUMN]
+     * and is the same whichever words the row is carrying today.
      */
     private fun drawPaneRows(
         canvas: Canvas,
@@ -246,7 +254,7 @@ class TripPanelRenderer : BaseTripRenderer() {
         showLocationHint: Boolean,
     ) {
         val x = vx(0f)
-        val rightEdge = vx(width)
+        val valueX = x + vs(PANE_LABEL_COLUMN)
 
         val guidance = engine.guidance()
         if (guidance != null) {
@@ -255,30 +263,30 @@ class TripPanelRenderer : BaseTripRenderer() {
                 guidance.timeSeconds?.let { add(clockHm(it.toLong())) }
             }
             paneRow(
-                canvas, x, rightEdge, rowBaseline(top, 0),
-                "ОСТАЛОСЬ", parts.joinToString(" · ").ifBlank { "—" }, TripPalette.MUTED,
+                canvas, x, valueX, rowBaseline(top, 0),
+                "ОСТАЛОСЬ", parts.joinToString(" · ").ifBlank { "—" },
             )
         } else {
             val elapsed = engine.elapsedSeconds
             val timePart = if (elapsed >= 3600) clockHm(elapsed.toLong()) else clockMs(elapsed)
             paneRow(
-                canvas, x, rightEdge, rowBaseline(top, 0),
-                "В ПУТИ", "$timePart · ${distanceLabel(engine.distanceMeters())}", TripPalette.MUTED,
+                canvas, x, valueX, rowBaseline(top, 0),
+                "В ПУТИ", "$timePart · ${distanceLabel(engine.distanceMeters())}",
             )
         }
 
         if (engine.hasAltitude()) {
             val baseline = rowBaseline(top, 1)
-            caps(canvas, "ВЫСОТА", x, baseline)
-            val rate = variometer(
-                canvas, rightEdge, baseline, engine.variometer(), PANE_RATE, PANE_ARROW,
+            val run = paneRow(
+                canvas, x, valueX, baseline,
+                "ВЫСОТА", "${engine.smoothedAltitude().roundToInt()} м",
             )
-            figurePaint.textAlign = Paint.Align.RIGHT
-            figure(
-                canvas, "${engine.smoothedAltitude().roundToInt()} м",
-                rightEdge - rate - vs(PANE_GAP), baseline, PANE_VALUE, TripPalette.INK,
+            val rate = engine.variometer()
+            variometer(
+                canvas,
+                valueX + run + vs(UNIT_GAP) + variometerWidth(rate, PANE_RATE),
+                baseline, rate, PANE_RATE, ARROW_SIZE,
             )
-            figurePaint.textAlign = Paint.Align.LEFT
         } else if (showLocationHint) {
             label(
                 canvas, LOCATION_HINT, x, rowBaseline(top, 1), PANE_LABEL,
@@ -289,28 +297,28 @@ class TripPanelRenderer : BaseTripRenderer() {
         val sun = engine.sunInfo()
         if (sun.nextEventLabel.isNotEmpty()) {
             paneRow(
-                canvas, x, rightEdge, rowBaseline(top, 2),
-                if (sun.nextIsSunset) "ЗАКАТ" else "РАССВЕТ", sun.nextEventLabel, TripPalette.AMBER,
+                canvas, x, valueX, rowBaseline(top, 2),
+                if (sun.nextIsSunset) "ЗАКАТ" else "РАССВЕТ", sun.nextEventLabel,
             )
         }
     }
 
-    /** A tracked capital at the left edge, its reading at the right, both on one baseline. */
+    /**
+     * A tracked capital in the label column and its reading beside it, both on one baseline;
+     * returns how wide the reading came out.
+     */
     private fun paneRow(
         canvas: Canvas,
         left: Float,
-        right: Float,
+        valueX: Float,
         baseline: Float,
         label: String,
         value: String,
-        labelColour: Int,
-    ) {
+    ): Float {
         capsPaint.textSize = vs(PANE_LABEL)
-        capsPaint.color = labelColour
+        capsPaint.color = TripPalette.MUTED
         canvas.drawText(label, left, baseline, capsPaint)
-        figurePaint.textAlign = Paint.Align.RIGHT
-        figure(canvas, value, right, baseline, PANE_VALUE, TripPalette.INK)
-        figurePaint.textAlign = Paint.Align.LEFT
+        return figure(canvas, value, valueX, baseline, PANE_VALUE, TripPalette.INK)
     }
 
     private fun rowBaseline(top: Float, index: Int): Float =
@@ -347,43 +355,56 @@ class TripPanelRenderer : BaseTripRenderer() {
 
         if (engine.hasAltitude()) {
             hairline(canvas, x, vy(BLOCK_TOP_2), vx(COLUMN_RIGHT), vy(BLOCK_TOP_2))
-            block(
+            val run = block(
                 canvas, x, BLOCK_TOP_2 + RULE_GAP, "ВЫСОТА",
                 "${engine.smoothedAltitude().roundToInt()}", "м",
             )
+            // Flush against the reading, not hung off the far edge. The rate belongs to the
+            // altitude beside it; pushed to the right edge of a cell it reads as a second column,
+            // and in the two-thirds pane it ended up pinned against the rule between two readings.
+            val rate = engine.variometer()
             variometer(
                 canvas,
-                vx(COLUMN_RIGHT),
+                x + run + vs(UNIT_GAP) + variometerWidth(rate, ARROW_TEXT),
                 vy(BLOCK_TOP_2 + RULE_GAP + FIGURE_BASELINE),
-                engine.variometer(),
+                rate,
             )
         }
 
         val sun = engine.sunInfo()
         if (sun.nextEventLabel.isNotEmpty()) {
             hairline(canvas, x, vy(BLOCK_TOP_3), vx(COLUMN_RIGHT), vy(BLOCK_TOP_3))
-            drawSun(canvas, x, sun.nextIsSunset)
-            val textX = x + vs(SUN_ICON + SUN_GAP)
-            val width = figure(
-                canvas, sun.nextEventLabel, textX, vy(SUN_BASELINE), SUN_TIME, TripPalette.INK,
-            )
-            unit(
-                canvas,
-                if (sun.nextIsSunset) "закат" else "рассвет",
-                textX + width + vs(SUN_GAP),
-                vy(SUN_BASELINE),
-                UNIT_SIZE_SMALL,
+            // The third block is the other two, and nothing else. It used to be a sun in the
+            // vehicle's own amber, a 34 where its neighbours were 46, and its word set as a unit
+            // rather than as a label - so the one caption on this screen drawn in a colour was the
+            // one saying that the sun goes down at the usual time. Amber is what the car draws
+            // when it wants a decision from the driver. The label already says which event it is.
+            block(
+                canvas, x, BLOCK_TOP_3 + RULE_GAP,
+                if (sun.nextIsSunset) "ЗАКАТ" else "РАССВЕТ", sun.nextEventLabel, "",
             )
         }
     }
 
-    /** A tracked capital label with a large light figure and its unit beside it. */
-    private fun block(canvas: Canvas, x: Float, top: Float, name: String, figure: String, unit: String) {
+    /**
+     * A tracked capital label with a large light figure and its unit beside it; returns how wide
+     * the figure and its unit came out, so anything else on that line can sit against them.
+     */
+    private fun block(
+        canvas: Canvas,
+        x: Float,
+        top: Float,
+        name: String,
+        figure: String,
+        unit: String,
+    ): Float {
         caps(canvas, name, x, vy(top + LABEL_BASELINE))
         val width = figure(canvas, figure, x, vy(top + FIGURE_BASELINE), FIGURE_SIZE, TripPalette.INK)
-        if (unit.isNotEmpty()) {
-            unit(canvas, unit, x + width + vs(UNIT_GAP), vy(top + FIGURE_BASELINE), UNIT_SIZE)
-        }
+        if (unit.isEmpty()) return width
+        val gap = vs(UNIT_GAP)
+        unitPaint.textSize = vs(UNIT_SIZE)
+        unit(canvas, unit, x + width + gap, vy(top + FIGURE_BASELINE), UNIT_SIZE)
+        return width + gap + unitPaint.measureText(unit)
     }
 
     private fun caps(canvas: Canvas, text: String, x: Float, y: Float) {
@@ -432,7 +453,7 @@ class TripPanelRenderer : BaseTripRenderer() {
         val textWidth = unitPaint.measureText(text)
         unitPaint.textAlign = Paint.Align.LEFT
         val half = vs(arrowSize) / 2f
-        val ax = right - textWidth - vs(SUN_GAP) - half
+        val ax = right - textWidth - vs(ARROW_GAP) - half
         stroke.color = colour
         stroke.strokeWidth = vs(ARROW_WEIGHT)
         val tip = if (up) baseline - half * 2f else baseline
@@ -441,23 +462,13 @@ class TripPanelRenderer : BaseTripRenderer() {
         val wing = if (up) tip + half else tip - half
         canvas.drawLine(ax - half * 0.6f, wing, ax, tip, stroke)
         canvas.drawLine(ax + half * 0.6f, wing, ax, tip, stroke)
-        return textWidth + vs(SUN_GAP) + vs(arrowSize)
+        return textWidth + vs(ARROW_GAP) + vs(arrowSize)
     }
 
-    /** The board's sun: a disc with five rays and the horizon under it. */
-    private fun drawSun(canvas: Canvas, x: Float, sunset: Boolean) {
-        val cx = x + vs(SUN_ICON) / 2f
-        val cy = vy(BLOCK_TOP_3 + RULE_GAP + SUN_ICON / 2f)
-        val r = vs(SUN_ICON) * 0.17f
-        stroke.color = if (sunset) TripPalette.AMBER else TripPalette.LIVE
-        stroke.strokeWidth = vs(SUN_WEIGHT)
-        canvas.drawCircle(cx, cy, r, stroke)
-        val ray = vs(SUN_ICON) * 0.09f
-        canvas.drawLine(cx, cy - r - ray * 1.6f, cx, cy - r - ray * 0.4f, stroke)
-        val d = (r + ray) * 0.72f
-        canvas.drawLine(cx - d - ray * 0.4f, cy - d - ray * 0.4f, cx - d, cy - d, stroke)
-        canvas.drawLine(cx + d + ray * 0.4f, cy - d - ray * 0.4f, cx + d, cy - d, stroke)
-        canvas.drawLine(x, cy + r + ray * 1.4f, x + vs(SUN_ICON), cy + r + ray * 1.4f, stroke)
+    /** How wide [variometer] will come out, so a caller can set it flush against a run. */
+    private fun variometerWidth(metresPerSecond: Double, textSize: Float): Float {
+        unitPaint.textSize = vs(textSize)
+        return unitPaint.measureText(fmt1(abs(metresPerSecond))) + vs(ARROW_GAP) + vs(ARROW_SIZE)
     }
 
     private fun distanceLabel(meters: Double): String =
@@ -488,40 +499,55 @@ class TripPanelRenderer : BaseTripRenderer() {
         const val WIDE_VIRTUAL_W = 1184f
         const val WIDE_VIRTUAL_H = 296f
 
-        // The analyser takes the left, the figures the right, with the board's 30 between them.
+        /**
+         * The analyser takes the left, the figures the right, with `Space.XL` between them.
+         *
+         * 832, not the 834 this shipped at: the board's gap was 30, which is on no ladder, and
+         * moving it to the group rung takes two units off the analyser and leaves the column
+         * starting at 864 exactly where it was.
+         *
+         * The analyser starts at the top of the strip rather than 6 units into it. That 6 was an
+         * inset with no name and no rung; the separation between the tiles and the strip is
+         * `DashboardLayoutPolicy.bandGap`, and one number for one gap is the whole rule.
+         */
         const val SPECTRUM_LEFT = 0f
-        const val SPECTRUM_RIGHT = 834f
-        const val SPECTRUM_TOP = 6f
+        const val SPECTRUM_RIGHT = 832f
+        const val SPECTRUM_TOP = 0f
         const val SPECTRUM_BOTTOM = 296f
         const val COLUMN_X = 864f
         const val COLUMN_RIGHT = 1184f
 
-        // Three blocks hung apart down the full height, as `justify-content: space-between`.
-        const val BLOCK_TOP_1 = 6f
-        const val BLOCK_TOP_2 = 116f
-        const val BLOCK_TOP_3 = 241f
-        const val RULE_GAP = 14f
+        // Three blocks hung apart down the full height, as `justify-content: space-between`, at
+        // the anchors `Main.dc.html` measures: a 72-tall block, then two of 85 behind a hairline.
+        const val BLOCK_TOP_1 = 0f
+        const val BLOCK_TOP_2 = 99f
+        const val BLOCK_TOP_3 = 211f
+        const val RULE_GAP = 12f
 
         /** The board's `letter-spacing:1.6px` at 15 px, as the em value a paint takes. */
         const val CAPS_TRACKING = 0.107f
 
+        // A block is a 15 label on its own line and a 46 figure 8 under it, which is where the
+        // board's `.fig { gap: 8px }` puts them; both baselines are measured off the board rather
+        // than chosen, which is what the last pair of numbers here were.
         const val LABEL_SIZE = 15f
-        const val LABEL_BASELINE = 12f
+        const val LABEL_BASELINE = 14f
         const val FIGURE_SIZE = 46f
-        const val FIGURE_BASELINE = 58f
+        const val FIGURE_BASELINE = 65f
         const val UNIT_SIZE = 24f
-        const val UNIT_SIZE_SMALL = 19f
-        const val UNIT_GAP = 14f
+        const val UNIT_GAP = 12f
 
+        /**
+         * One arrow, one size, at every width.
+         *
+         * The narrow pane used to draw it at 14 beside the same 19 the other two widths set their
+         * rate in, so one glyph came out two sizes on one screen. It is 20 everywhere now, and
+         * its stroke is the ladder's optical weight at 20: `2.0 x 24 / 20`.
+         */
         const val ARROW_SIZE = 20f
         const val ARROW_WEIGHT = 2.4f
         const val ARROW_TEXT = 19f
-
-        const val SUN_ICON = 26f
-        const val SUN_WEIGHT = 1.846f
-        const val SUN_GAP = 12f
-        const val SUN_TIME = 34f
-        const val SUN_BASELINE = 281f
+        const val ARROW_GAP = 8f
 
         const val HINT_Y = 142f
         const val HINT_SIZE = 15f
@@ -552,10 +578,13 @@ class TripPanelRenderer : BaseTripRenderer() {
         const val PANE_GROUP = 32f
         const val PANE_RULE = 1f
 
-        // Three figures side by side: a 15 label over a 46 figure, in a band 76 tall.
-        const val PANE_BLOCK = 76f
-        const val PANE_BLOCK_LABEL = 14f
-        const val PANE_BLOCK_FIGURE = 73f
+        // Three figures side by side, and it is the full screen's own block: a 15 label, Space.S,
+        // a 46 figure - 72 tall, with the same two baselines. It used to be 76, with the label and
+        // the figure pushed to the ends of the band by a `space-between` nobody had chosen, so one
+        // block came out two heights on one screen.
+        const val PANE_BLOCK = 72f
+        const val PANE_BLOCK_LABEL = LABEL_BASELINE
+        const val PANE_BLOCK_FIGURE = FIGURE_BASELINE
 
         // Three figures as rows: a 15 label and a 24 reading on one baseline, three of them a
         // neighbour's gap apart. 23 is where a 24-dp face sits in a 30-dp line.
@@ -566,7 +595,15 @@ class TripPanelRenderer : BaseTripRenderer() {
         const val PANE_LABEL = 15f
         const val PANE_VALUE = 24f
         const val PANE_RATE = 19f
-        const val PANE_ARROW = 14f
-        const val PANE_GAP = 8f
+
+        /**
+         * Where a row's reading starts, so all three start in the same place.
+         *
+         * The widest capital this panel can print is "ОСТАЛОСЬ", which measures 91.4 dp at 15 with
+         * the board's tracking; this is that plus `Space.L`, rounded up to the whole dp above it.
+         * A column measured from the *drawn* labels would move the readings sideways the moment a
+         * route started, which is the jump the captions on the tiles were rewritten to remove.
+         */
+        const val PANE_LABEL_COLUMN = 112f
     }
 }

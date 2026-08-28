@@ -12,11 +12,36 @@
     body { margin:0; background:#07080A; font-family:'Roboto','Segoe UI',system-ui,sans-serif; }
     a { color:#FEEFAB; } a:hover { color:#FFF7D2; }
     .tile { position:relative; height:164px; box-sizing:border-box; border-radius:22px; padding:20px; display:flex; flex-direction:column; justify-content:space-between; }
-    /* press-and-hold mark: this tile has a configurator behind a long press. Bottom right,
-       because bottom left is where the words are; 8 in from both edges, which is where the
-       22 radius has finished curving. Not a target - a sign. */
+    /* No corner mark. There used to be one on the four tiles whose long press led somewhere, in
+       the convention a phone keyboard uses for a key with more characters under it; every tile
+       has a panel now, so a mark saying so would be on all eleven and distinguish nothing.
+       `DenzaTile` dropped it in the same change.
+
+       THE TWO INKS UNDER A NAME, which is the only place this board spends colour on words:
+
+         #FEEFAB  a LIVE tile whose line is a READING - what the feature is doing right now,
+                  something that started when it started and stops when it stops.
+                  "Приборы" (on the cluster), "Включены" (watching / showing), "+14°" (a fresh
+                  reading handed to the car's own widget).
+         #86909B  everything else. A SETTING - a choice the driver made, as true stopped as
+                  running - or the switch said twice: "Включено" under a tile whose surface
+                  already says it is on. Also every caption on an idle tile.
+
+       That is `DenzaTileCaption` x `DenzaTileTone` in `captionColor()`, and it is why five
+       tiles here read "Включено/Включена/Включены" in two different inks. Amber and coral
+       belong to ATTENTION and BROKEN and are drawn on no tile of this board.
+
+       A name is always full ink and an idle tile's glyph is always #86909B - being switched
+       off is not a reason to stop saying which tile this is. */
     .on { background:#212429; border:1px solid rgba(254,239,171,0.30); box-shadow:0 0 22px rgba(254,239,171,0.07); }
     .off { background:#15181F; border:1px solid rgba(218,225,235,0.10); }
+    .cap { font-size:15px; letter-spacing:1.6px; font-weight:500; color:#86909B; }
+    .num { font-size:46px; font-weight:200; color:#DAE1EB; line-height:1; }
+    .un { font-size:24px; color:#86909B; }
+    .rate { font-size:19px; color:#FEEFAB; }
+    .fig { display:flex; flex-direction:column; gap:8px; }
+    .line { display:flex; align-items:baseline; gap:12px; }
+    .ruled { border-top:1px solid rgba(218,225,235,0.14); padding-top:12px; }
     .nm { font-size:19px; font-weight:500; line-height:1.2; }
     .st { font-size:15px; line-height:1.3; }
     .led { font-family:'Roboto Mono',monospace; font-weight:700; font-size:34px; letter-spacing:5px; color:transparent; background-color:#FEEFAB; background-image:radial-gradient(circle at center, #FEEFAB 41%, transparent 46%); background-size:3.4px 3.4px; -webkit-background-clip:text; background-clip:text; filter:drop-shadow(0 0 7px rgba(254,239,171,0.55)); }
@@ -38,19 +63,15 @@
       <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 20h0.01"></path><path d="M2 16a4 4 0 0 1 4 4"></path><path d="M2 12a8 8 0 0 1 8 8"></path><path d="M2 8V6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6"></path></svg>
       <div style="display:flex; flex-direction:column; gap:8px;">
         <div class="nm" style="color:#DAE1EB;">Трансляция</div>
-        <div class="st" style="color:#86909B;">6 приложений</div>
+        <div class="st" style="color:#86909B;">Выбрано 6</div>
       </div>
     </div>
 
+    <!-- One dot, one meaning, and it is the chip's. The three that used to hang in this corner
+         said nothing the code draws: `DenzaTile` has no dot at all, and `DenzaChip`'s single dot
+         is the whole of what a chip says - is this on. Three of them here read as a carousel. -->
     <div class="tile on">
-      <div style="display:flex; align-items:flex-start; justify-content:space-between;">
-        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-        <div style="display:flex; align-items:center; gap:6px; padding-top:5px;">
-          <div style="width:7px; height:7px; border-radius:50%; background:#FEEFAB; box-shadow:0 0 7px rgba(254,239,171,0.9);"></div>
-          <div style="width:7px; height:7px; border-radius:50%; background:rgba(254,239,171,0.45);"></div>
-          <div style="width:7px; height:7px; border-radius:50%; background:rgba(254,239,171,0.2);"></div>
-        </div>
-      </div>
+      <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12z"></path><circle cx="12" cy="12" r="3"></circle></svg>
       <div style="display:flex; flex-direction:column; gap:8px;">
         <div class="nm" style="color:#DAE1EB;">Зеркала</div>
         <div class="st" style="color:#FEEFAB;">Включены</div>
@@ -98,10 +119,10 @@
     </div>
 
     <div class="tile off">
-      <svg width="30" height="30" viewBox="3 0 24 24" fill="none" stroke="#6E767F" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2.5" width="14" height="19" rx="2"></rect><path d="M12 6.5v7"></path><path d="M9 10.5l3 3 3-3"></path><path d="M9 17.5h6"></path></svg>
+      <svg width="30" height="30" viewBox="3 0 24 24" fill="none" stroke="#86909B" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2.5" width="14" height="19" rx="2"></rect><path d="M12 6.5v7"></path><path d="M9 10.5l3 3 3-3"></path><path d="M9 17.5h6"></path></svg>
       <div style="display:flex; flex-direction:column; gap:8px;">
-        <div class="nm" style="color:#9AA2AC;">Экран справа</div>
-        <div class="st" style="color:#6E767F;">Не выбрано</div>
+        <div class="nm" style="color:#DAE1EB;">Экран справа</div>
+        <div class="st" style="color:#86909B;">Не выбрано</div>
       </div>
     </div>
 
@@ -114,65 +135,82 @@
     </div>
 
     <div class="tile off">
-      <svg width="30" height="30" viewBox="2 0 24 24" fill="none" stroke="#6E767F" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 12h16M4 17h16"></path><circle cx="15" cy="7" r="2" fill="#15181F"></circle><circle cx="8" cy="12" r="2" fill="#15181F"></circle><circle cx="17" cy="17" r="2" fill="#15181F"></circle></svg>
+      <svg width="30" height="30" viewBox="2 0 24 24" fill="none" stroke="#86909B" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 12h16M4 17h16"></path><circle cx="15" cy="7" r="2" fill="#15181F"></circle><circle cx="8" cy="12" r="2" fill="#15181F"></circle><circle cx="17" cy="17" r="2" fill="#15181F"></circle></svg>
       <div style="display:flex; flex-direction:column; gap:8px;">
-        <div class="nm" style="color:#9AA2AC;">Сервис</div>
-        <div class="st" style="color:#6E767F;">Всё в норме</div>
+        <div class="nm" style="color:#DAE1EB;">Сервис</div>
+        <div class="st" style="color:#86909B;">Всё в норме</div>
       </div>
     </div>
 
   </div>
 
-  <div style="flex-grow:1; display:flex; gap:30px; min-height:0; padding-top:6px;">
+  <!-- The strip. 32 between the analyser and the figures - the gap between two groups - which
+       leaves the analyser 1184 - 320 - 32 = 832, and the column starts at 864.
+
+       The bars fill that 832 exactly: 26 columns at 22.97 with 9.39 between them, which is the
+       one pitch that keeps SpectrumRenderer.BAR_WIDTH_FRACTION and lands the last column on the
+       right edge. Written to the hundredth on purpose - 22 and 9 left 37 dp of the column empty,
+       and an analyser that stops short of its own field reads as a rendering fault.
+
+       The texture inside a bar does NOT scale with it: the 4-unit crown, the 2 corner, the 11
+       scanline pitch and the ticker's 3.4 dot cell are the same dp here, at 828 and at 416.
+       Every width is laid out one unit to one dp, so a segment is the same size on the glass in
+       all three; only the column gets narrower as the field does. See the README. -->
+  <div style="flex-grow:1; display:flex; gap:32px; min-height:0;">
 
     <div style="flex-grow:1; display:flex; flex-direction:column; justify-content:flex-start; min-width:0;">
       <div style="display:flex; align-items:center; height:52px;">
         <div class="led">M83 · MIDNIGHT CITY</div>
       </div>
       <div style="position:relative;">
-        <div style="display:flex; align-items:flex-end; gap:9px; height:198px;">
+        <div style="display:flex; align-items:flex-end; gap:9.39px; height:202.98px;">
           <sc-for list="{{bars}}" as="b" hint-placeholder-count="26">
-            <div style="width:22px; display:flex; flex-direction:column; justify-content:flex-end; height:198px;">
+            <div style="width:22.97px; display:flex; flex-direction:column; justify-content:flex-end; height:202.98px;">
               <div style="height:4px; background:#FFF8DA; border-radius:2px; box-shadow:0 0 7px rgba(254,239,171,0.9); margin-bottom: {{b.p}}px;"></div>
               <div style="height: {{b.h}}px; border-radius:2px 2px 0 0; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA); box-shadow:0 0 16px rgba(254,239,171,0.22);"></div>
             </div>
           </sc-for>
         </div>
-        <div style="position:absolute; left:0; right:0; bottom:0; height:198px; background:repeating-linear-gradient(to top, rgba(7,8,10,0) 0px, rgba(7,8,10,0) 8px, #07080A 8px, #07080A 11px); pointer-events:none;"></div>
+        <div style="position:absolute; left:0; right:0; bottom:0; height:202.98px; background:repeating-linear-gradient(to top, rgba(7,8,10,0) 0px, rgba(7,8,10,0) 8px, #07080A 8px, #07080A 11px); pointer-events:none;"></div>
       </div>
       <div style="height:40px; overflow:hidden; opacity:0.14; transform:scaleY(-1);">
-        <div style="display:flex; align-items:flex-end; gap:9px; height:40px;">
+        <div style="display:flex; align-items:flex-end; gap:9.39px; height:40px;">
           <sc-for list="{{bars}}" as="b" hint-placeholder-count="26">
-            <div style="width:22px; height: {{b.h}}px; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA);"></div>
+            <div style="width:22.97px; height: {{b.h}}px; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA);"></div>
           </sc-for>
         </div>
       </div>
     </div>
 
+    <!-- Three readings, one anatomy: a tracked capital over a large light figure with its unit
+         beside it. The sunset used to be the odd one out - a sun in the vehicle's own amber, a 34
+         where its neighbours were 46, and its word set as a unit instead of a label - so the one
+         coloured caption on the screen was the one saying the sun goes down at the usual time.
+         Amber means the car wants a decision. The label says which event this is; the glyph said
+         it again, in the wrong colour. -->
     <div style="width:320px; flex-shrink:0; display:flex; flex-direction:column; justify-content:space-between;">
-      <div style="display:flex; flex-direction:column; gap:6px;">
-        <div style="font-size:15px; letter-spacing:1.6px; font-weight:500; color:#86909B;">В ПУТИ</div>
-        <div style="display:flex; align-items:baseline; gap:14px;">
-          <div style="font-size:46px; font-weight:200; color:#DAE1EB; line-height:1;">1:42</div>
-          <div style="font-size:24px; color:#86909B;">128 км</div>
+      <div class="fig">
+        <div class="cap">В ПУТИ</div>
+        <div class="line">
+          <div class="num">1:42</div>
+          <div class="un">128 км</div>
         </div>
       </div>
-      <div style="border-top:1px solid rgba(218,225,235,0.14); padding-top:14px; display:flex; flex-direction:column; gap:6px;">
-        <div style="font-size:15px; letter-spacing:1.6px; font-weight:500; color:#86909B;">ВЫСОТА</div>
-        <div style="display:flex; align-items:baseline; gap:14px;">
-          <div style="font-size:46px; font-weight:200; color:#DAE1EB; line-height:1;">642</div>
-          <div style="font-size:24px; color:#86909B;">м</div>
-          <div style="display:flex; align-items:center; gap:6px; margin-left:auto;">
+      <div class="fig ruled">
+        <div class="cap">ВЫСОТА</div>
+        <div class="line">
+          <div class="num">642</div>
+          <div class="un">м</div>
+          <div style="display:flex; align-items:center; gap:8px;">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="2.4" stroke-linecap="round"><path d="M12 19V6M6.5 11.5 12 6l5.5 5.5"></path></svg>
-            <div style="font-size:19px; color:#FEEFAB;">1,2</div>
+            <div class="rate">1,2</div>
           </div>
         </div>
       </div>
-      <div style="border-top:1px solid rgba(218,225,235,0.14); padding-top:14px; display:flex; align-items:center; gap:12px;">
-        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#FF9F19" stroke-width="1.846" stroke-linecap="round"><circle cx="12" cy="13" r="4"></circle><path d="M12 5V3M5.6 7.6 4.2 6.2M18.4 7.6l1.4-1.4M3 19h18"></path></svg>
-        <div style="display:flex; align-items:baseline; gap:12px;">
-          <div style="font-size:34px; font-weight:200; color:#DAE1EB;">19:44</div>
-          <div style="font-size:19px; color:#86909B;">закат</div>
+      <div class="fig ruled">
+        <div class="cap">ЗАКАТ</div>
+        <div class="line">
+          <div class="num">19:44</div>
         </div>
       </div>
     </div>

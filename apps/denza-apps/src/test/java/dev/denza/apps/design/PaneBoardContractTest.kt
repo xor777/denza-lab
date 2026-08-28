@@ -199,6 +199,26 @@ class PaneBoardContractTest {
         assertEquals("row height", TripPanelRenderer.PANE_ROW, px(NARROW, ".row", "height"), 1e-4f)
         assertEquals("row gap", TripPanelRenderer.PANE_ROW_GAP, px(NARROW, ".rows", "gap"), 1e-4f)
         assertEquals("row reading", TripPanelRenderer.PANE_VALUE, px(NARROW, ".val", "font-size"), 1e-4f)
+        // The one number that makes three rows comparable rather than three right-hung strings.
+        // The board spends it as a box plus the row's own gap, so that the two rects do not touch.
+        assertEquals(
+            "the label column on the narrow board",
+            TripPanelRenderer.PANE_LABEL_COLUMN,
+            number(NARROW, """\.row \.cap \{[^}]*width:([\d.]+)px""") +
+                number(NARROW, """\.row \{[^}]*gap:([\d.]+)px"""),
+            1e-4f,
+        )
+        // One glyph, one size: the rate is 19 in both shapes, so the arrow beside it is 20 in both.
+        for (board in listOf(MEDIUM, NARROW)) {
+            val arrow = ARROW.find(read(board)) ?: error("no variometer arrow on $board")
+            assertEquals("arrow on $board", TripPanelRenderer.ARROW_SIZE, arrow.groupValues[1].toFloat(), 1e-4f)
+            assertEquals(
+                "arrow optical stroke on $board",
+                DenzaMetrics.Stroke.ICON_WEIGHT * 24f / TripPanelRenderer.ARROW_SIZE,
+                arrow.groupValues[2].toFloat(),
+                1e-3f,
+            )
+        }
 
         for (board in listOf(MEDIUM, NARROW)) {
             assertEquals("label on $board", TripPanelRenderer.PANE_LABEL, px(board, ".cap", "font-size"), 1e-4f)
@@ -322,6 +342,11 @@ class PaneBoardContractTest {
 
         val ICON = Regex(
             """<svg width="([\d.]+)" height="([\d.]+)"[^>]*stroke-width="([\d.]+)""",
+        )
+
+        /** The variometer's arrow, which is the one svg on a pane board that is not a feature. */
+        val ARROW = Regex(
+            """<svg width="([\d.]+)"[^>]*stroke-width="([\d.]+)"[^>]*><path d="M12 19V6""",
         )
         val SIZE = Regex("""width="[\d.]+" height="[\d.]+" """)
         val STROKE_WIDTH = Regex("""stroke-width="[\d.]+" """)

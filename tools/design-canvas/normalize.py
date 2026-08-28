@@ -22,13 +22,18 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 # The head unit's ladder. Never two rungs closer than 1.26x.
-RAMP = [82, 62, 46, 34, 24, 19, 15]
+#
+# 82 was on it in this file, in gen_kit and in the README while `DenzaMetrics.Type.RUNGS` had six
+# rungs from 62 down and no active board drew it - the same shape as `104` one level down, and the
+# same answer: a constant nothing reads is a promise, not a rung. It is off all three records now,
+# and this map sends what used to land on it to 62.
+RAMP = [62, 46, 34, 24, 19, 15]
 
 # Where each size in use lands, by the role it was playing rather than by
 # arithmetic: a callout on a schematic wants the calm rung, a hero wants the loud
 # one, and 30 and 32 were doing different jobs despite being two pixels apart.
 SIZE = {
-    82: 82, 72: 62, 64: 62, 62: 62, 60: 62, 56: 62,
+    82: 62, 72: 62, 64: 62, 62: 62, 60: 62, 56: 62,
     52: 46, 46: 46, 44: 46,
     38: 34, 36: 34, 34: 34, 32: 34,
     30: 24, 28: 24, 26: 24, 24: 24, 22: 24,

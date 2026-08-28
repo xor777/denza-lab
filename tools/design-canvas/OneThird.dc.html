@@ -16,15 +16,18 @@
     .off { background:#15181F; border:1px solid rgba(218,225,235,0.10); }
     .led { font-family:'Roboto Mono',monospace; font-weight:700; font-size:34px; letter-spacing:5px; color:transparent; background-color:#FEEFAB; background-image:radial-gradient(circle at center, #FEEFAB 41%, transparent 46%); background-size:3.4px 3.4px; -webkit-background-clip:text; background-clip:text; filter:drop-shadow(0 0 7px rgba(254,239,171,0.55)); }
     .dot { position:absolute; border-radius:50%; }
-    .across { display:flex; align-items:stretch; height:76px; }
-    .fig { flex:1; min-width:0; display:flex; flex-direction:column; justify-content:space-between; }
+    .across { display:flex; align-items:stretch; height:72px; }
+    .fig { flex:1; min-width:0; display:flex; flex-direction:column; gap:8px; }
+    /* Half the group gap either side, so the hairline has Space.XL of clear air across it. */
     .rule { width:1px; background:rgba(218,225,235,0.14); margin:0 16px; }
-    .line { display:flex; align-items:baseline; gap:14px; }
+    .line { display:flex; align-items:baseline; gap:12px; }
     .num { font-size:46px; font-weight:200; color:#DAE1EB; line-height:1; }
     .un { font-size:24px; color:#86909B; }
     .rows { display:flex; flex-direction:column; gap:12px; }
-    .row { height:30px; line-height:30px; display:flex; align-items:baseline; justify-content:space-between; }
+    .row { height:30px; line-height:30px; display:flex; align-items:baseline; gap:12px; }
     .cap { font-size:15px; letter-spacing:1.6px; font-weight:500; color:#86909B; }
+    /* The label's box plus the row's own gap is where every reading starts: 112. */
+    .row .cap { width:100px; flex-shrink:0; }
     .val { font-size:24px; font-weight:300; color:#DAE1EB; }
     .rate { font-size:19px; color:#FEEFAB; }
   </style>
@@ -73,16 +76,16 @@
         <div class="dot" style="top:7.3px; right:7.3px; width:5.7px; height:5.7px; background:#FEEFAB;"></div>
       </div>
       <div class="chip off">
-        <svg width="24" height="24" viewBox="3 0 24 24" fill="none" stroke="#6E767F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2.5" width="14" height="19" rx="2"></rect><path d="M12 6.5v7"></path><path d="M9 10.5l3 3 3-3"></path><path d="M9 17.5h6"></path></svg>
-        <div class="dot" style="top:7.3px; right:7.3px; width:5.7px; height:5.7px; background:#3F434D;"></div>
+        <svg width="24" height="24" viewBox="3 0 24 24" fill="none" stroke="#86909B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2.5" width="14" height="19" rx="2"></rect><path d="M12 6.5v7"></path><path d="M9 10.5l3 3 3-3"></path><path d="M9 17.5h6"></path></svg>
+        <div class="dot" style="top:7.3px; right:7.3px; width:5.7px; height:5.7px; background:#7C858F;"></div>
       </div>
       <div class="chip on">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="2"></rect><rect x="14" y="3" width="7" height="7" rx="2"></rect><rect x="3" y="14" width="7" height="7" rx="2"></rect><path d="m14.5 17.5 2 2 4-5"></path></svg>
         <div class="dot" style="top:7.3px; right:7.3px; width:5.7px; height:5.7px; background:#FEEFAB;"></div>
       </div>
       <div class="chip off">
-        <svg width="24" height="24" viewBox="2 0 24 24" fill="none" stroke="#6E767F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 12h16M4 17h16"></path><circle cx="15" cy="7" r="2" fill="#15181F"></circle><circle cx="8" cy="12" r="2" fill="#15181F"></circle><circle cx="17" cy="17" r="2" fill="#15181F"></circle></svg>
-        <div class="dot" style="top:7.3px; right:7.3px; width:5.7px; height:5.7px; background:#3F434D;"></div>
+        <svg width="24" height="24" viewBox="2 0 24 24" fill="none" stroke="#86909B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 12h16M4 17h16"></path><circle cx="15" cy="7" r="2" fill="#15181F"></circle><circle cx="8" cy="12" r="2" fill="#15181F"></circle><circle cx="17" cy="17" r="2" fill="#15181F"></circle></svg>
+        <div class="dot" style="top:7.3px; right:7.3px; width:5.7px; height:5.7px; background:#7C858F;"></div>
       </div>
 
     </div>
@@ -114,19 +117,22 @@
       <div class="rows">
       <div class="row">
         <div class="cap">В ПУТИ</div>
-        <div class="val">1:42 · 128 км</div>
-      </div>
-      <div class="row">
-        <div class="cap">ВЫСОТА</div>
-        <div style="display:flex; align-items:baseline; gap:8px;">
-          <div class="val">642 м</div>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="3.429" stroke-linecap="round"><path d="M12 19V6M6.5 11.5 12 6l5.5 5.5"></path></svg>
-          <div class="rate">1,2</div>
+        <div class="line">
+          <div class="val">1:42 · 128 км</div>
         </div>
       </div>
       <div class="row">
-        <div class="cap" style="color:#FF9F19;">ЗАКАТ</div>
-        <div class="val">19:44</div>
+        <div class="cap">ВЫСОТА</div>
+        <div class="line">
+          <div class="val">642 м</div>
+          <div style="display:flex; align-items:center; gap:8px;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="2.4" stroke-linecap="round"><path d="M12 19V6M6.5 11.5 12 6l5.5 5.5"></path></svg><div class="rate">1,2</div></div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="cap">ЗАКАТ</div>
+        <div class="line">
+          <div class="val">19:44</div>
+        </div>
       </div>
       </div>
     </div>
@@ -139,32 +145,32 @@ class Component extends DCLogic {
   renderVals() {
     return {
       bars: [
-        {h:34.2,p:14.82},
-        {h:62.7,p:9.12},
-        {h:103.74,p:19.38},
-        {h:151.62,p:6.84},
-        {h:182.4,p:12.54},
-        {h:207.48,p:4.56},
-        {h:186.96,p:15.96},
-        {h:159.6,p:7.98},
-        {h:127.68,p:18.24},
-        {h:100.32,p:11.4},
-        {h:141.36,p:5.7},
-        {h:174.42,p:14.82},
-        {h:201.78,p:4.56},
-        {h:181.26,p:11.4},
-        {h:149.34,p:19.38},
-        {h:111.72,p:7.98},
-        {h:88.92,p:13.68},
-        {h:125.4,p:5.7},
-        {h:155.04,p:15.96},
-        {h:176.7,p:4.56},
-        {h:157.32,p:12.54},
-        {h:123.12,p:18.24},
-        {h:93.48,p:7.98},
-        {h:66.12,p:13.68},
-        {h:93.48,p:5.7},
-        {h:119.7,p:14.82}
+        {h:33.36,p:14.46},
+        {h:61.16,p:8.9},
+        {h:101.19,p:18.9},
+        {h:147.9,p:6.67},
+        {h:177.92,p:12.23},
+        {h:202.39,p:4.45},
+        {h:182.37,p:15.57},
+        {h:155.68,p:7.78},
+        {h:124.55,p:17.79},
+        {h:97.86,p:11.12},
+        {h:137.89,p:5.56},
+        {h:170.14,p:14.46},
+        {h:196.83,p:4.45},
+        {h:176.81,p:11.12},
+        {h:145.68,p:18.9},
+        {h:108.98,p:7.78},
+        {h:86.74,p:13.34},
+        {h:122.32,p:5.56},
+        {h:151.24,p:15.57},
+        {h:172.36,p:4.45},
+        {h:153.46,p:12.23},
+        {h:120.1,p:17.79},
+        {h:91.19,p:7.78},
+        {h:64.5,p:13.34},
+        {h:91.19,p:5.56},
+        {h:116.76,p:14.46}
       ]
     };
   }

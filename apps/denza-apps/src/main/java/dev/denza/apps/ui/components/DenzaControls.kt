@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -34,7 +35,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
 import dev.denza.apps.design.DenzaColors
 import dev.denza.apps.design.DenzaIcons
 import dev.denza.apps.design.DenzaMetrics
@@ -177,7 +177,9 @@ fun DenzaNote(text: String, modifier: Modifier = Modifier) {
             imageVector = DenzaIcons.Note,
             contentDescription = null,
             tint = DenzaColors.MutedDeep,
-            modifier = Modifier.size(NOTE_ICON).padding(top = DenzaMetrics.Space.XS / 2),
+            modifier = Modifier
+                .size(DenzaMetrics.Component.NOTE_ICON)
+                .padding(top = DenzaMetrics.Space.XS / 2),
         )
         Text(
             text = text,
@@ -186,9 +188,6 @@ fun DenzaNote(text: String, modifier: Modifier = Modifier) {
         )
     }
 }
-
-private val NOTE_ICON = 18.dp
-
 
 /** The one action a surface exists to offer. */
 @Composable
@@ -203,8 +202,14 @@ fun DenzaPrimaryButton(
         modifier = modifier.heightIn(min = DenzaMetrics.Component.SEGMENT_HEIGHT),
         enabled = enabled,
         shape = MaterialTheme.shapes.medium,
+        contentPadding = actionPadding,
     ) {
-        Text(text, style = MaterialTheme.typography.labelLarge, maxLines = 1)
+        Text(
+            text,
+            style = MaterialTheme.typography.labelLarge,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 
@@ -222,8 +227,14 @@ fun DenzaSecondaryButton(
         enabled = enabled,
         shape = MaterialTheme.shapes.medium,
         border = BorderStroke(DenzaMetrics.Stroke.HAIRLINE, MaterialTheme.colorScheme.outline),
+        contentPadding = actionPadding,
     ) {
-        Text(text, style = MaterialTheme.typography.labelLarge, maxLines = 1)
+        Text(
+            text,
+            style = MaterialTheme.typography.labelLarge,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 
@@ -261,13 +272,22 @@ fun DenzaKeyValueRow(
     }
 }
 
-/** What a feature is doing, in its own words, in the colour that state deserves. */
+/**
+ * What a feature is doing, in its own words, in the colour that state deserves.
+ *
+ * Two lines, always. This is the one place on a panel that speaks in whatever words a failure
+ * arrived with, and some of those words come from the car - a provider that answers with three
+ * hundred characters of its own diagnosis put five lines through the middle of a panel and pushed
+ * the grid, the choice and the button under it wherever they fitted. Nothing below a line that can
+ * reflow by four lines has a settled place to be, so the ceiling belongs to the component rather
+ * than to whoever remembers to pass it.
+ */
 @Composable
 fun DenzaStatusLine(
     text: String,
     tone: DenzaTileTone,
     modifier: Modifier = Modifier,
-    maxLines: Int = Int.MAX_VALUE,
+    maxLines: Int = STATUS_LINES,
 ) {
     if (text.isBlank()) return
     Text(
@@ -284,4 +304,10 @@ fun DenzaStatusLine(
     )
 }
 
-private val SEGMENT_INSET = 3.dp
+private const val STATUS_LINES = 2
+
+/** Material's own 24 was the one gap these buttons spent off the spacing ladder. */
+private val actionPadding = PaddingValues(
+    horizontal = DenzaMetrics.Space.L,
+    vertical = DenzaMetrics.Space.S,
+)

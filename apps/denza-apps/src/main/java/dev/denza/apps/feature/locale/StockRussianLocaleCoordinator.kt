@@ -6,10 +6,19 @@ import android.os.LocaleList
 import dev.denza.apps.adb.DenzaLocalAdb
 import java.lang.reflect.InvocationTargetException
 
+/**
+ * Where the stock language switch has got to.
+ *
+ * [failed] is the one thing this had no way of saying. A refused change wrote a message into
+ * [message] and nothing read it: the tile has no runtime feature behind it, so it took its colour
+ * from [enabled] alone and stayed the quiet grey of a language that is simply off. The car had
+ * refused, the screen said nothing, and pressing again was the driver's only way to find out.
+ */
 data class StockRussianLocaleSnapshot(
     val enabled: Boolean? = null,
     val permissionReady: Boolean = false,
     val running: Boolean = false,
+    val failed: Boolean = false,
     val message: String = "Состояние не проверено",
     val details: String? = null,
 )

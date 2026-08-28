@@ -211,19 +211,25 @@ object FseAppInstaller {
         packageName: String,
         onProgress: (String) -> Unit,
     ): FseInstallResult {
+        // These four are guards rather than answers to a gesture: the picker draws an application
+        // it cannot send across as unpressable, so getting here means the car changed under the
+        // list. They still land on the tile's one line, so they are states - the reason in full
+        // (a split package, an unreadable source) stays in [FseInstallApp.unavailableReason] and
+        // in the log.
         val app = installedApps(context).firstOrNull { it.packageName == packageName }
-            ?: return FseInstallResult.Failed("Приложение больше не найдено")
+            ?: return FseInstallResult.Failed("Не найдено")
         if (!app.installable) {
-            return FseInstallResult.Failed(app.unavailableReason.ifBlank { "APK недоступен" })
+            Log.w(TAG, "FSE install refused for $packageName: ${app.unavailableReason}")
+            return FseInstallResult.Failed("Не переносится")
         }
 
         val manager = context.packageManager
         val packageInfo = runCatching { manager.getPackageInfo(packageName, 0) }.getOrNull()
-            ?: return FseInstallResult.Failed("Не удалось прочитать приложение")
+            ?: return FseInstallResult.Failed("Не прочиталось")
         val sourcePath = packageInfo.applicationInfo?.sourceDir
             ?: return FseInstallResult.Failed("APK не найден")
         if (!packageInfo.applicationInfo?.splitSourceDirs.isNullOrEmpty()) {
-            return FseInstallResult.Failed("Split APK пока не поддерживается")
+            return FseInstallResult.Failed("Не переносится")
         }
 
         val requestId = requestId()
@@ -284,20 +290,24 @@ object FseAppInstaller {
                     cleanup(adb, iviRoot)
                     FseInstallResult.Installed(app)
                 }
+                // Both of these end up as the tile's one-line caption, so they are states and not
+                // sentences; the staging path and the vendor's result code go to `details`, which
+                // only the service panel reads.
                 null -> FseInstallResult.Failed(
-                    "Нет подтверждения от экрана",
+                    "Экран не ответил",
                     "staged=$iviRoot; requestId=$requestId",
                 )
                 else -> {
                     cleanup(adb, iviRoot)
                     FseInstallResult.Failed(
-                        "Пассажирский экран отклонил установку",
+                        "Экран отклонил",
                         "result=$installResult; requestId=$requestId",
                     )
                 }
             }
         } catch (error: Exception) {
             if (!installSent) cleanup(adb, iviRoot)
+            Log.w(TAG, "FSE install of $packageName failed requestId=$requestId", error)
             FseInstallResult.Failed(friendlyError(error), error.toString())
         } finally {
             adb.close()
@@ -411,20 +421,29 @@ object FseAppInstaller {
             }
     }
 
+    /**
+     * Where the install stopped, in the four words a tile has room for.
+     *
+     * These strings are the caption of the "Экран справа" tile, and they used to be written as
+     * instructions to somebody standing at a desk: "Откройте ADB Rescue в диагностике" named a
+     * screen that no longer exists under that name - it is the "Сервис" tile and a button reading
+     * "Восстановить ADB" - and "Подтвердите ADB-ключ на экране автомобиля" is a sentence and a half
+     * printed on a tile that elides at one line. A tile says what state a thing is in; what to do
+     * about it is the press, which reopens the chooser, and the panel behind the long press.
+     */
     private fun friendlyError(error: Exception): String = when {
         error.message.orEmpty().contains("APK copy", ignoreCase = true) ->
-            "Не удалось скопировать APK"
-        error.message.orEmpty().contains("authorization required", ignoreCase = true) ->
-            "Откройте ADB Rescue в диагностике"
-        error.message.orEmpty().contains("authorization pending", ignoreCase = true) ->
-            "Подтвердите ADB-ключ на экране автомобиля"
+            "Не скопировалось"
+        error.message.orEmpty().contains("authorization required", ignoreCase = true) ||
+            error.message.orEmpty().contains("authorization pending", ignoreCase = true) ->
+            "Ждёт доступ к ADB"
         error.message.orEmpty().contains("refused", ignoreCase = true) ->
-            "ADB на машине недоступен"
+            "ADB недоступен"
         error.message.orEmpty().contains("not mounted", ignoreCase = true) ->
-            "Пассажирский экран не подключен"
+            "Экран не найден"
         error.message.orEmpty().contains("timed out", ignoreCase = true) ->
-            "Пассажирский экран не ответил"
-        else -> "Не удалось установить приложение"
+            "Экран не ответил"
+        else -> "Не установилось"
     }
 
     private fun requestId(): Int =

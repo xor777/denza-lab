@@ -257,6 +257,39 @@ object DenzaMetrics {
         val SHEET_CLOSE_ICON: Dp = 26.dp
 
         /**
+         * A centred modal, for the two windows that cannot be a panel at the edge.
+         *
+         * The settings panel is the app's surface and it hangs off the right edge, which is right
+         * for it and wrong for the ADB gate: the gate exists to say that nothing behind it can be
+         * used yet, and a surface leaving the dashboard beside it says the opposite. So those keep
+         * the centre - and stop each picking their own width. They were 0.72 and 0.68 of the
+         * screen, which is two guesses that happen to look alike at 1280 and are 30 dp apart in a
+         * pane, and the pane is where the difference shows.
+         *
+         * Half the full screen, and a ceiling rather than a share: in a pane the modal fills the
+         * width it is given, because 0.72 of 416 dp is a card with 40 dp of prose in it.
+         */
+        val MODAL_WIDTH: Dp = 640.dp
+
+        /** The glyph a modal leads with, and the spinner that stands in for it while it works. */
+        val MODAL_ICON: Dp = 48.dp
+        val MODAL_SPINNER: Dp = 42.dp
+        val MODAL_SPINNER_STROKE: Dp = 4.dp
+
+        /**
+         * The ring that says a feature is working, on a tile and on a chip alike.
+         *
+         * One thickness, because it is one indicator. The chip drew its at 1.5 dp - under
+         * [Stroke.HAIRLINE], which is the thinnest line this design has - so the same mark was
+         * lighter on a chip than on the tile it compresses, for no reason anybody stated.
+         */
+        val BUSY_DOT: Dp = 18.dp
+        val BUSY_STROKE: Dp = 2.dp
+
+        /** The glyph beside a note, sized against the line of body text it sits on. */
+        val NOTE_ICON: Dp = 18.dp
+
+        /**
          * How tall the narrow pane's strip is when nothing else has claimed the height.
          *
          * Kept only as the floor a `weight(1f)` cannot express. A pane's strip takes whatever the
@@ -275,11 +308,14 @@ object DenzaMetrics {
     }
 
     /**
-     * Motion. Two durations and nothing between them: one for a control answering a finger, one for
-     * a surface arriving or leaving.
+     * Motion. One duration: a surface, a fill or an edge arriving or leaving.
+     *
+     * There were two. The shorter one - a control answering a finger - was declared and never read,
+     * because every control on this screen answers with a colour that is already crossfading at
+     * [TRANSITION_MS]. A rung nothing stands on is not a ladder, it is a promise, and the next
+     * person to reach for it would have had two plausible durations to choose between.
      */
     object Motion {
-        const val RESPONSE_MS: Int = 90
         const val TRANSITION_MS: Int = 220
     }
 }
