@@ -257,6 +257,55 @@ class SpeakerCoverAutomatonTest {
         assertEquals(0L, automaton.consecutiveSoundMs)
     }
 
+    /**
+     * The run length is a live reading, not a leftover.
+     *
+     * Nothing acts on it - the two events below both end any chance of an automatic open, one by
+     * cutting the detector off and one by handing the wheel over - so a stale count would change no
+     * command. It is still wrong to leave one lying about: the number says how much unbroken sound
+     * has been heard *so far*, and after the ear is cut off or the driver takes over, the honest
+     * answer to that is none.
+     */
+    @Test
+    fun theRunLengthIsCountedFromNothingAgainAfterTheEarIsCutOff() {
+        val lostDetector = SpeakerCoverAutomaton()
+        lostDetector.onAudioSample(0L, hasSignal = true)
+        lostDetector.onAudioSample(1_000L, hasSignal = true)
+        assertEquals(1_000L, lostDetector.consecutiveSoundMs)
+        lostDetector.onCaptureUnavailable()
+        assertEquals(0L, lostDetector.consecutiveSoundMs)
+
+        val takenOver = SpeakerCoverAutomaton()
+        takenOver.onAudioSample(0L, hasSignal = true)
+        takenOver.onAudioSample(1_000L, hasSignal = true)
+        assertEquals(1_000L, takenOver.consecutiveSoundMs)
+        takenOver.onManualPosition(open = true, nowMs = 1_100L)
+        assertEquals(0L, takenOver.consecutiveSoundMs)
+    }
+
+    /**
+     * A frame stamped earlier than the one before it is a clock, not a rewind.
+     *
+     * The sampler's timestamps come from the capture buffer, and the seconds already heard are not
+     * unheard because two of them arrived out of order. Such a frame breaks the run's arithmetic
+     * without breaking the run: it adds nothing, and takes nothing away.
+     */
+    @Test
+    fun aFrameStampedBackwardsTakesNothingOffTheRunAlreadyHeard() {
+        val automaton = SpeakerCoverAutomaton()
+
+        assertNull(automaton.onAudioSample(0L, hasSignal = true))
+        assertNull(automaton.onAudioSample(1_000L, hasSignal = true))
+        assertNull(automaton.onAudioSample(500L, hasSignal = true))
+        assertEquals(1_000L, automaton.consecutiveSoundMs)
+
+        assertNull(automaton.onAudioSample(1_500L, hasSignal = true))
+        assertEquals(
+            SpeakerCoverMotorAction.OPEN,
+            automaton.onAudioSample(2_500L, hasSignal = true)?.action,
+        )
+    }
+
     /** A detector that stopped answering is not silence, and it is not a run either. */
     @Test
     fun unavailableCaptureBreaksTheRunWithoutMeaningAnything() {
@@ -312,6 +361,48 @@ class SpeakerCoverAutomatonTest {
         assertEquals(SpeakerCoverCommandSource.AUTOMATIC, retry?.source)
     }
 
+    /**
+     * While the sensor is alive the sampler calls nothing but [SpeakerCoverAutomaton.onAudioSample],
+     * so that is where a failed command has to find its next chance.
+     *
+     * The service reaches for `onTick` only on a frame that never arrived. A command that failed
+     * during playback would otherwise wait for the music to stop before it was retried, which is
+     * the one moment nobody is waiting for the covers.
+     */
+    @Test
+    fun anAudioFrameIsAlsoTheClockAFailedCommandRetriesOn() {
+        val automaton = SpeakerCoverAutomaton(retryGuardMs = 100L)
+
+        val press = automaton.onManualPosition(open = false, nowMs = 0L)!!
+        assertNull(automaton.onMotorResult(press.action, success = false, nowMs = 5L))
+
+        val retry = automaton.onAudioSample(200L, hasSignal = true)!!
+        assertEquals(SpeakerCoverMotorAction.CLOSE, retry.action)
+        assertTrue(retry.manual)
+    }
+
+    /**
+     * Every attempt starts the guard again, which is the whole of what the guard is for.
+     *
+     * Timed from the first attempt instead, the wait would be paid once and never again: the second
+     * failure and every one after it would be retried on the next frame, five times a second, for
+     * as long as the covers kept refusing - the storm, arriving a single failure later than before.
+     */
+    @Test
+    fun eachFailedAttemptRestartsTheGuardRatherThanTheFirstOne() {
+        val automaton = SpeakerCoverAutomaton(retryGuardMs = 100L)
+
+        val press = automaton.onManualPosition(open = false, nowMs = 1_000L)!!
+        assertNull(automaton.onMotorResult(press.action, success = false, nowMs = 1_005L))
+
+        val retry = automaton.onTick(1_100L)!!
+        assertEquals(SpeakerCoverMotorAction.CLOSE, retry.action)
+
+        assertNull(automaton.onMotorResult(retry.action, success = false, nowMs = 1_105L))
+        assertNull(automaton.onTick(1_150L))
+        assertEquals(SpeakerCoverMotorAction.CLOSE, automaton.onTick(1_200L)?.action)
+    }
+
     /** A press that failed to reach the motor is still the driver's press when it is retried. */
     @Test
     fun aRetriedButtonIsStillAButton() {
@@ -335,6 +426,31 @@ class SpeakerCoverAutomatonTest {
         assertNull(automaton.onManualPosition(open = false, nowMs = 1L))
 
         val queued = automaton.onMotorResult(opening.action, success = true, nowMs = 2L)!!
+        assertEquals(SpeakerCoverMotorAction.CLOSE, queued.action)
+        assertTrue(queued.manual)
+    }
+
+    /**
+     * A result answers the command it was asked for, and nothing else answers for it.
+     *
+     * The command in flight is what defers every other wish, so anything that clears it early lets
+     * a second command out on top of the first - a queued press leaving for the motor while the
+     * open it is waiting behind is still running its adb call. Only the action that was sent can
+     * say that the motor is free again.
+     */
+    @Test
+    fun aResultForAnotherActionDoesNotFreeTheCommandInFlight() {
+        val automaton = SpeakerCoverAutomaton()
+
+        val opening = automaton.onImmediateOpen(0L, "app")!!
+        assertNull(automaton.onManualPosition(open = false, nowMs = 1L))
+
+        assertNull(
+            automaton.onMotorResult(SpeakerCoverMotorAction.CLOSE, success = true, nowMs = 2L),
+        )
+        assertEquals(SpeakerCoverMotorAction.OPEN, automaton.pendingAction)
+
+        val queued = automaton.onMotorResult(opening.action, success = true, nowMs = 3L)!!
         assertEquals(SpeakerCoverMotorAction.CLOSE, queued.action)
         assertTrue(queued.manual)
     }

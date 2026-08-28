@@ -1,5 +1,6 @@
 package dev.denza.apps.feature.speaker
 
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -76,6 +77,25 @@ class SpeakerCoverMotorProtocolTest {
         assertFalse(SpeakerCoverMotorProtocol.needsEdgeBreak(close, open, manual = false))
         assertFalse(SpeakerCoverMotorProtocol.needsEdgeBreak(open, close, manual = true))
         assertFalse(SpeakerCoverMotorProtocol.needsEdgeBreak(close, open, manual = true))
+    }
+
+    /**
+     * The half of the pair that makes the edge, which only works if it is the other value.
+     *
+     * Everything above decides *whether* a break is owed; this is what a break is. Sending the
+     * target twice writes the same value the property is already holding, which is precisely the
+     * no-op the pair exists to avoid - a break that breaks nothing, and covers that never move.
+     */
+    @Test
+    fun theBreakIsSentAsTheValueTheTargetIsNot() {
+        assertEquals(
+            SpeakerCoverMotorProtocol.CLOSE,
+            SpeakerCoverMotorProtocol.opposite(SpeakerCoverMotorProtocol.OPEN),
+        )
+        assertEquals(
+            SpeakerCoverMotorProtocol.OPEN,
+            SpeakerCoverMotorProtocol.opposite(SpeakerCoverMotorProtocol.CLOSE),
+        )
     }
 
     @Test
