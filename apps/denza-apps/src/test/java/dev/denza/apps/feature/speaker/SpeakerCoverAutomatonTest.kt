@@ -431,6 +431,102 @@ class SpeakerCoverAutomatonTest {
     }
 
     /**
+     * The mashed button.
+     *
+     * A cover command takes seconds - an adb session, sometimes a forced pair - and while it runs
+     * the button gives no sign of having been heard, so it gets pressed again. Every repeat used to
+     * re-arm the forced edge, and each one was spent after the first command finished: the covers
+     * twitched once per impatient tap. A repeat of a command already in flight asks for nothing the
+     * car is not already doing, so it is absorbed - on the result, and on every tick after it, there
+     * is nothing left to send.
+     */
+    @Test
+    fun mashingTheSameButtonWhileItsCommandRunsBuysNoSecondMovement() {
+        val automaton = SpeakerCoverAutomaton()
+
+        val press = automaton.onManualPosition(open = true, nowMs = 0L)!!
+        assertEquals(SpeakerCoverMotorAction.OPEN, press.action)
+        assertNull(automaton.onManualPosition(open = true, nowMs = 100L))
+        assertNull(automaton.onManualPosition(open = true, nowMs = 200L))
+        assertNull(automaton.onManualPosition(open = true, nowMs = 300L))
+
+        assertNull(automaton.onMotorResult(press.action, success = true, nowMs = 400L))
+        assertNull(automaton.onTick(500L))
+        assertNull(automaton.onTick(60_000L))
+        assertTrue(automaton.raised == true)
+    }
+
+    /**
+     * Absorbed is not ignored: the press is still a press, it is only not a second command.
+     *
+     * Everything a press does to the automaton other than reaching the motor still happens on the
+     * repeat - the wheel stays with the driver, the one automatic opening stays spent, and the run
+     * of sound heard so far is counted from nothing again. The last of those is the one that could
+     * quietly rot: audio frames keep arriving while a command is in flight, so a repeat that
+     * returned before touching the counter would leave a run half-heard across a press.
+     */
+    @Test
+    fun anAbsorbedRepeatStillTakesTheWheelAndResetsTheRun() {
+        val automaton = SpeakerCoverAutomaton()
+
+        val press = automaton.onManualPosition(open = false, nowMs = 0L)!!
+        assertEquals(SpeakerCoverMotorAction.CLOSE, press.action)
+
+        // The music does not stop for the adb call, and none of it is an argument any more.
+        assertNull(automaton.onAudioSample(100L, hasSignal = true))
+        assertNull(automaton.onAudioSample(1_100L, hasSignal = true))
+        assertEquals(1_000L, automaton.consecutiveSoundMs)
+
+        assertNull(automaton.onManualPosition(open = false, nowMs = 1_200L))
+        assertTrue(automaton.driverHasTheWheel)
+        assertFalse(automaton.armed)
+        assertEquals(0L, automaton.consecutiveSoundMs)
+
+        assertNull(automaton.onMotorResult(press.action, success = true, nowMs = 1_300L))
+        assertTrue(automaton.raised == false)
+    }
+
+    /**
+     * The other button mid-command is a change of mind, not a repeat, and it still turns around.
+     *
+     * The absorb above is only ever allowed to swallow the identical press. Asking for the opposite
+     * position while a press is running is the newest fact in the car by the same argument that
+     * gives a button the forced edge at all, so the desire is replaced and leaves with the result.
+     */
+    @Test
+    fun theOppositeButtonMidPressStillLeavesWithTheResult() {
+        val automaton = SpeakerCoverAutomaton()
+
+        val raise = automaton.onManualPosition(open = true, nowMs = 0L)!!
+        assertEquals(SpeakerCoverMotorAction.OPEN, raise.action)
+        assertNull(automaton.onManualPosition(open = false, nowMs = 10L))
+
+        val turnedAround = automaton.onMotorResult(raise.action, success = true, nowMs = 20L)!!
+        assertEquals(SpeakerCoverMotorAction.CLOSE, turnedAround.action)
+        assertTrue(turnedAround.manual)
+    }
+
+    /**
+     * With nothing in flight, a repeat is the dead-button case and still forces.
+     *
+     * The absorb is scoped to a command that is actually running. A press that arrives after the
+     * previous one has finished is the driver saying the covers are not where the app thinks they
+     * are - which, with an amplifier that lowers them unannounced, is the only thing that can ever
+     * say it - and swallowing that would put back the exact defect the buttons were fixed for.
+     */
+    @Test
+    fun aRepeatWithNothingInFlightIsStillTheDeadButtonGuarantee() {
+        val automaton = SpeakerCoverAutomaton()
+
+        val first = automaton.onManualPosition(open = true, nowMs = 0L)!!
+        automaton.onMotorResult(first.action, success = true, nowMs = 10L)
+
+        val again = automaton.onManualPosition(open = true, nowMs = 20L)
+        assertEquals(SpeakerCoverMotorAction.OPEN, again?.action)
+        assertTrue(again!!.manual)
+    }
+
+    /**
      * A result answers the command it was asked for, and nothing else answers for it.
      *
      * The command in flight is what defers every other wish, so anything that clears it early lets

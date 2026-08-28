@@ -131,15 +131,34 @@ class SpeakerCoverAutomaton(
      * the music three seconds later. And the press always produces a command, even one identical
      * to the last thing asked for, because a repeat is precisely how a driver says "the covers are
      * not where you think they are". [SpeakerCoverMotor] pays for that with a forced edge.
+     *
+     * With one exception, and it is the same rule again from the driver's side. A press repeated
+     * *while the command it repeats is still running its adb call* is not a driver saying anything
+     * new - it is a driver saying the same thing again because the button gave no sign of having
+     * heard, which takes seconds here. Re-arming [forcePending] on each of those bought a further
+     * forced pair per tap, so a mashed button did not answer faster: it queued a physical twitch
+     * for every extra press. So an identical press against a manual command in flight is absorbed -
+     * the wheel and the run counter are still taken, only the command is not duplicated. The
+     * opposite position is a new fact and still replaces the desire; a repeat with *nothing* in
+     * flight still forces, because that is the dead-button guarantee this method exists for.
      */
     fun onManualPosition(open: Boolean, nowMs: Long): SpeakerCoverMotorRequest? {
         driverHasTheWheel = true
         armed = false
-        desired = Desire(open = open, reason = "вручную", source = SpeakerCoverCommandSource.MANUAL)
-        forcePending = true
         consecutiveSoundMs = 0L
         lastSampleAtMs = null
         lastSampleHadSignal = false
+        val inFlight = desired
+        if (
+            pendingAction != null &&
+            inFlight != null &&
+            inFlight.open == open &&
+            inFlight.source == SpeakerCoverCommandSource.MANUAL
+        ) {
+            return null
+        }
+        desired = Desire(open = open, reason = "вручную", source = SpeakerCoverCommandSource.MANUAL)
+        forcePending = true
         return reconcile(nowMs)
     }
 

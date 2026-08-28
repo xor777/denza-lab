@@ -406,9 +406,17 @@ private fun weatherSheet(state: DenzaUiState, actions: DashboardActions) {
  * settles the argument for the rest of the drive - the automation stands down and the covers stay
  * where they were put, which is the paragraph's job to say. It used to be the other way round: a
  * cover closed by hand came back out three seconds later because the music was still playing.
+ *
+ * The two buttons grey out for as long as their command is on the wire, and that has to be asked
+ * separately from [busy]. With the automation off the feature's own status is `disabled` and never
+ * moves, so the sheet-wide busy flag stayed false through the seconds an adb call takes: the
+ * buttons kept their live look, nothing on the panel changed, and from the seat that is a control
+ * that did nothing - pressed again, and again. Greying is the whole cue the panels have and the
+ * whole cue they need; there is no error text here and no line explaining what a command is doing.
  */
 @Composable
 private fun speakerSheet(state: DenzaUiState, actions: DashboardActions, busy: Boolean) {
+    val commanding = busy || state.speakerCoversCommanding
     DenzaSwitchRow(
         title = "Автоматика крышек",
         checked = state.speakerCovers.desiredEnabled,
@@ -423,13 +431,13 @@ private fun speakerSheet(state: DenzaUiState, actions: DashboardActions, busy: B
             text = "Поднять",
             onClick = actions.onRaiseSpeakerCovers,
             modifier = Modifier.weight(1f),
-            enabled = !busy,
+            enabled = !commanding,
         )
         DenzaSecondaryButton(
             text = "Опустить",
             onClick = actions.onLowerSpeakerCovers,
             modifier = Modifier.weight(1f),
-            enabled = !busy,
+            enabled = !commanding,
         )
     }
 }

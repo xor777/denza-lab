@@ -160,7 +160,9 @@ covers the driver had just closed, or spend a second automatic opening.
 "boot" was falsified live the same evening; see *The trip is a waking, not a
 boot* below. Everything else about the three facts still holds.)
 
-**Switching the automation on clears both flags.** The toggle is fresh intent and
+**Switching the automation on clears both flags** — and, since 2026-08-28
+(second pass), the remembered property value with them; see *Toggle-on forgets
+the property memory too* below. The toggle is fresh intent and
 newer than any button pressed before it, so it hands the wheel back and the
 automation is owed its one opening again for the rest of the boot: enabling the
 feature while music is playing opens the covers there and then. Cleared on the
@@ -230,7 +232,10 @@ remembered value covers a press made in an earlier one.
 
 The settings panel has explicit «Поднять» / «Опустить» buttons, which answer
 whether or not the automation is switched on. They no longer merely tell the
-automation where the covers went: they end its turn for the boot.
+automation where the covers went: they end its turn for the boot. Since
+2026-08-28 (second pass) they also grey out while their command is on the wire,
+and a repeat of a command already in flight is absorbed rather than queued; see
+*Three accepted defects, fixed 2026-08-28 (second pass)* below.
 
 The eager foreground list is the user-approved set:
 
@@ -301,6 +306,99 @@ read. The other direction has no such floor, as the night of 2026-08-28 showed.
 The user-visible scope is unchanged and the tile copy stays true: sleep *is* the
 car being switched off, so «Управление у водителя до перезапуска машины» and the
 panel's «один раз за поездку» now describe what the code actually does.
+
+### Three accepted defects, fixed 2026-08-28 (second pass)
+
+Three faults accepted against the contract above, all of them the feature being
+less honest than it knew how to be. Code only; still live-unverified.
+
+#### Toggle-on forgets the property memory too
+
+`SpeakerCoverSettings.rearm` cleared the two trip flags and left
+`last_command_value` (with its `_boot` / `_asleep` stamps) standing. That third
+fact is the one that can silently swallow the opening the other two just bought:
+
+1. the automation opens — `1` is written and remembered;
+2. the amplifier retracts the covers by itself, which the app cannot see;
+3. the driver toggles the feature off and on, so the flags are cleared and the
+   one-shot is owed again;
+4. music plays, the re-armed one-shot asks for OPEN,
+   `needsEdgeBreak(lastWritten = 1, target = 1, manual = false)` is false, a
+   single `1` goes out against a property already holding `1`, and nothing moves;
+5. the HAL acknowledges, `auto_opened` is written, and the tile reports
+   «Автоматика отработала» over closed covers.
+
+This is the same silent no-op *The trip is a waking, not a boot* was written
+against, reached from the property side rather than the clock side: a stale
+remembered value turning a real command into a no-op with nothing to read back.
+A deliberate toggle is exactly the moment to stop trusting it.
+
+`rearm` now removes **all seven keys** — `driver_took_over_{boot,asleep}`,
+`auto_opened_{boot,asleep}`, `last_command_value`, `last_command_{boot,asleep}`.
+
+The price is the once-per-trip forced `2` / 350 ms / `1` pair on the next command
+after a toggle-on, and its visibility is asymmetric in the product's favour: in
+the failing case the covers are already down, so the pair's close moves nothing
+and only the open is seen; on covers that are up it costs one dip-and-rise
+immediately after a switch the driver has just flipped, where movement reads as
+the feature answering. **A deterministic opening beats a correctly-predicted
+no-op.**
+
+#### The panel disables its buttons while a command is in flight
+
+`FeatureSheet`'s sheet-wide `busy` comes from `FeatureSnapshot.status`, and with
+the toggle off `SpeakerCoverRuntime.featureSnapshot` returns `disabled(...)`
+before it ever looks at the phase — correct for the tile, wrong for the two
+buttons underneath it, which answer either way and run the same seconds-long adb
+call either way. So through a whole manual one-shot the panel showed nothing:
+the buttons kept their live look, and from the seat that is a control that did
+nothing, pressed again and again.
+
+`SpeakerCoverRuntime.commanding()` now answers the phase question without
+reference to the toggle (`phase == COMMANDING`, published in one-shot runs too);
+`DenzaAppRepository.refresh` carries it as `DenzaUiState.speakerCoversCommanding`
+— the service already calls `refresh()` on every publish, so recomposition was
+free — and `speakerSheet` disables «Поднять» / «Опустить» on
+`busy || speakerCoversCommanding`. Greying is the whole cue, which is the idiom every
+other sheet uses; no error text and no progress line (U5). The buttons come back
+on the publish that ends the command — MONITORING, or the empty STOPPED state
+`onDestroy` publishes when a one-shot service stops.
+
+#### A repeated press mid-command is absorbed, not queued
+
+`onManualPosition` re-armed `forcePending` on every call, so each extra tap while
+a command was in flight bought another forced edge pair after the first
+completed: mashing an unresponsive button did not answer faster, it queued a
+physical twitch per press. An identical press against a **manual** command in
+flight is now absorbed — it returns null without re-arming the force.
+
+The three neighbouring cases are unchanged and pinned by tests:
+
+- the **opposite** position mid-command still replaces the desire and leaves
+  through `onMotorResult` (a change of mind is a new fact, not a repeat);
+- a repeat with **nothing in flight** still forces, which is the dead-button
+  guarantee the buttons exist for — the amplifier lowers the covers unannounced
+  and a repeat press is the only thing that can ever say so;
+- a press in flight that is not itself manual (the one-shot's automatic open) is
+  not a repeat either, so a press during it still buys its forced edge.
+
+Absorbed is not ignored: the wheel still changes hands, the one-shot is still
+spent, and the run of heard sound is still counted from nothing again — audio
+frames keep arriving during a command, so a repeat that returned early would
+leave a run half-heard across a press.
+
+#### The foreground notification tells the truth in manual-only runs
+
+`SpeakerCoverService.notification()` always read «Автоматика крышек динамиков
+включена», including the few-second one-shot runs that serve «Поднять» /
+«Опустить» with the toggle off — announcing the one thing the driver had just
+switched off, from the only place a foreground service speaks. The text is now
+built from `SpeakerCoverSettings.isEnabled`: enabled keeps the old line, disabled
+says «Выполняю команду крышек динамиков». Because the line is built when the
+notification is built and `onCreate` builds it once, `onStartCommand` re-posts
+under the same `NOTIFICATION_ID` on the three paths where the mode may just have
+moved — the parting open, either button, and the off-then-on branch that clears
+`windingDown`.
 
 ## Superseded working path (2026-08-22 20:19)
 

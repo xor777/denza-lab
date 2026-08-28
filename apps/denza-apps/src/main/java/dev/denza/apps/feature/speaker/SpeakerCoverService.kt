@@ -95,6 +95,8 @@ class SpeakerCoverService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_DISABLE_AND_OPEN) {
+            // The toggle went off a moment ago, so the banner is already out of date.
+            renotify()
             partingOpen()
             return START_NOT_STICKY
         }
@@ -102,6 +104,7 @@ class SpeakerCoverService : Service() {
         // automation is switched on - the covers are the car's, not the feature's. With it off, the
         // process exists only long enough to send the command.
         if (intent?.action == ACTION_RAISE || intent?.action == ACTION_LOWER) {
+            renotify()
             byHand(
                 open = intent.action == ACTION_RAISE,
                 thenStop = !SpeakerCoverSettings.isEnabled(this),
@@ -119,6 +122,9 @@ class SpeakerCoverService : Service() {
         // left behind by the last motor command. Off then on is exactly what a driver does.
         if (windingDown) {
             windingDown = false
+            // Born as a one-shot for a button and switched on mid-flight: the banner still says it
+            // is only carrying out a command, and from here on it is watching for playback.
+            renotify()
             // And off-then-on is also the driver taking the wheel back, which the preferences have
             // already been told - but this object read them once, in onCreate, and would go on
             // believing what they said then: one-shot spent, wheel with the driver, a freshly
@@ -360,6 +366,16 @@ class SpeakerCoverService : Service() {
         )
     }
 
+    /**
+     * The banner, which has to describe the run it is actually holding up.
+     *
+     * There are two of those. With the automation on this process lives for the trip and watches
+     * for playback, which is what the line has always said. With it off the same class runs for the
+     * few seconds a «Поднять» or «Опустить» needs - the covers belong to the car and the buttons
+     * answer either way - and the line said the automation was on, which is the one thing the
+     * driver had just switched off. A notification is the only place a foreground service speaks
+     * from, so it does not get to say something the settings panel contradicts.
+     */
     private fun notification(): Notification {
         val openApp = PendingIntent.getActivity(
             this,
@@ -370,11 +386,30 @@ class SpeakerCoverService : Service() {
         return Notification.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_denza_apps)
             .setContentTitle("Denza Apps")
-            .setContentText("Автоматика крышек динамиков включена")
+            .setContentText(
+                if (SpeakerCoverSettings.isEnabled(this)) {
+                    "Автоматика крышек динамиков включена"
+                } else {
+                    "Выполняю команду крышек динамиков"
+                },
+            )
             .setContentIntent(openApp)
             .setOngoing(true)
             .setShowWhen(false)
             .build()
+    }
+
+    /**
+     * Say it again, because the toggle may have moved since the banner was built.
+     *
+     * [notification] reads the setting at the moment it builds, and `onCreate` builds it once. A
+     * process that starts as a manual one-shot and is then switched on - or one watching for
+     * playback that gets switched off and asked for a parting open - would otherwise keep the line
+     * it was born with for the rest of its life. Re-posting under the same id replaces the
+     * foreground banner in place; there is nothing else to keep in step.
+     */
+    private fun renotify() {
+        getSystemService(NotificationManager::class.java)?.notify(NOTIFICATION_ID, notification())
     }
 
     companion object {

@@ -91,6 +91,13 @@ data class DenzaUiState(
     val splitScreen: FeatureSnapshot = FeatureReducer.disabled(FeatureId.SPLIT_SCREEN),
     val hudGuidance: FeatureSnapshot = FeatureReducer.disabled(FeatureId.HUD_GUIDANCE),
     val speakerCovers: FeatureSnapshot = FeatureReducer.disabled(FeatureId.SPEAKER_COVERS),
+    /**
+     * A cover command in flight, which the snapshot above cannot say while the automation is off.
+     *
+     * The «Поднять» / «Опустить» buttons answer with the toggle either way, so their in-progress
+     * state has to be read from the runtime rather than from the feature's own status.
+     */
+    val speakerCoversCommanding: Boolean = false,
     val fseInstaller: FeatureSnapshot = FeatureSnapshot(
         id = FeatureId.FSE_INSTALLER,
         desiredEnabled = false,
@@ -202,6 +209,7 @@ object DenzaAppRepository {
         )
         val hudGuidance = evaluateHudGuidance(context)
         val speakerCovers = SpeakerCoverRuntime.featureSnapshot(context)
+        val speakerCoversCommanding = SpeakerCoverRuntime.commanding()
         val technicalDetails = supportDiagnostics(context)
         val clusterCandidates = ClusterDisplayResolver.candidates(context)
         val clusterDisplayLabel = clusterDisplayLabel(context)
@@ -236,6 +244,7 @@ object DenzaAppRepository {
                 splitScreen = splitScreen,
                 hudGuidance = hudGuidance,
                 speakerCovers = speakerCovers,
+                speakerCoversCommanding = speakerCoversCommanding,
                 adbRescue = adbRescue,
                 technicalDetails = technicalDetails,
                 clusterCandidates = clusterCandidates,

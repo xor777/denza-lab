@@ -33,6 +33,17 @@ object SpeakerCoverRuntime {
         current = state
     }
 
+    /**
+     * Whether a cover command is on the wire right now - asked without reference to the toggle.
+     *
+     * [featureSnapshot] cannot answer this. With the automation off it returns `disabled` before it
+     * ever looks at the phase, which is right for the tile - the feature *is* off - and wrong for
+     * the two buttons underneath it, which work either way and run the same seconds-long adb call
+     * either way. So the panel read "not busy" through the whole of a manual command, the buttons
+     * stayed live, and from the seat that is a control that did nothing: press, press, press.
+     */
+    fun commanding(): Boolean = snapshot().phase == SpeakerCoverRuntimePhase.COMMANDING
+
     fun featureSnapshot(context: Context): FeatureSnapshot {
         if (!SpeakerCoverSettings.isEnabled(context)) {
             return FeatureReducer.disabled(FeatureId.SPEAKER_COVERS)

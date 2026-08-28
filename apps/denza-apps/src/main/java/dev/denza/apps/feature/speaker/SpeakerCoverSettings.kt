@@ -122,6 +122,23 @@ object SpeakerCoverSettings {
      * Both halves of each stamp go, boot and sleep together. A cleared boot stamp already reads as
      * expired, but leaving the sleep record behind would be leaving half a fact in the file for a
      * later version to trip over.
+     *
+     * **And the property memory goes with them.** Clearing only the two flags left the third fact
+     * standing, and it is the one that can silently swallow the opening the other two just bought:
+     * the automation opens (a `1` is remembered), the amplifier retracts the covers by itself, the
+     * driver toggles the feature off and on, music plays, the re-armed one-shot asks for OPEN - and
+     * [SpeakerCoverMotorProtocol.needsEdgeBreak] sees a non-manual `1` against a remembered `1`,
+     * writes it once, and moves nothing. The HAL acknowledges, `auto_opened` is written, and the
+     * tile says «Автоматика отработала» over closed covers. That is the same silent no-op
+     * [SpeakerCoverFactScope] was built against, arriving from the property side instead of the
+     * clock side, and a deliberate toggle is precisely the moment to stop trusting a remembered
+     * value.
+     *
+     * The price is the once-per-trip forced pair on the next command, and its visibility is
+     * asymmetric in our favour: in the failing case the covers are already down, so the pair's close
+     * moves nothing and only the open is seen. On covers that are up it costs one dip-and-rise
+     * immediately after a switch the driver just flipped, where movement reads as the feature
+     * answering. A deterministic opening beats a correctly-predicted no-op.
      */
     @SuppressLint("UseKtx")
     fun rearm(context: Context) {
@@ -131,6 +148,9 @@ object SpeakerCoverSettings {
             .remove(DRIVER_TOOK_OVER_ASLEEP)
             .remove(AUTO_OPENED_BOOT)
             .remove(AUTO_OPENED_ASLEEP)
+            .remove(LAST_COMMAND)
+            .remove(LAST_COMMAND_BOOT)
+            .remove(LAST_COMMAND_ASLEEP)
             .apply()
     }
 
