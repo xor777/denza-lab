@@ -28,10 +28,10 @@ import java.util.concurrent.Executors
 class SpeakerCoverService : Service() {
     private val handler = Handler(Looper.getMainLooper())
     private val motorExecutor: ExecutorService = Executors.newSingleThreadExecutor()
-    private val automaton = SpeakerCoverAutomaton()
     private val magnitudes = DoubleArray(SpectrumSource.BAND_COUNT)
     private val spectrumOwner = Any()
 
+    private lateinit var automaton: SpeakerCoverAutomaton
     private lateinit var spectrum: SpectrumSource
     private lateinit var mediaSessions: SpeakerMediaSessionObserver
     private var lastProcessedCaptureMs = -1L
@@ -68,6 +68,7 @@ class SpeakerCoverService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        seedAutomaton()
         createNotificationChannel()
         startForeground(NOTIFICATION_ID, notification())
         active = this
@@ -94,7 +95,7 @@ class SpeakerCoverService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_DISABLE_AND_OPEN) {
-            byHand(open = true, thenStop = true)
+            partingOpen()
             return START_NOT_STICKY
         }
         // Raise and lower are the panel's own two buttons, and they answer whether or not the
@@ -118,18 +119,77 @@ class SpeakerCoverService : Service() {
         // left behind by the last motor command. Off then on is exactly what a driver does.
         if (windingDown) {
             windingDown = false
+            // And off-then-on is also the driver taking the wheel back, which the preferences have
+            // already been told - but this object read them once, in onCreate, and would go on
+            // believing what they said then: one-shot spent, wheel with the driver, a freshly
+            // enabled feature announcing that it intends to do nothing. So it is rebuilt from what
+            // they say now, which after the enable path is a clean boot's worth of intent.
+            seedAutomaton()
             publishMonitoring()
         }
         return START_STICKY
     }
 
-    /** A position asked for from the panel, which the automation then believes. */
+    /**
+     * The automaton as this boot has left it, which is not the same as a fresh one.
+     *
+     * The two boot-scoped flags are the whole memory of the feature, and they exist because the
+     * process is restartable and the car is not: without them a restart would hand the automation
+     * a second opening and forget that the driver had taken the covers over.
+     *
+     * Replacing the object mid-flight is safe, and only because of how the result comes back:
+     * [execute] posts a callback that reads the `automaton` field at the time it runs, so a result
+     * for a command started by the discarded instance lands on the new one, finds no pending action
+     * of that kind, and returns null. Nothing is lost with the old object - the command was already
+     * sent, and the only record that outlives any of this is the value [SpeakerCoverSettings]
+     * remembered when the write was acknowledged.
+     */
+    private fun seedAutomaton() {
+        automaton = SpeakerCoverAutomaton(
+            armed = !SpeakerCoverSettings.autoOpened(this),
+            driverHasTheWheel = SpeakerCoverSettings.driverTookOver(this),
+        )
+    }
+
+    /**
+     * A position asked for from the panel, after which the covers are the driver's for this boot.
+     *
+     * The takeover is written before the command rather than after it: the press is the fact, not
+     * its outcome, and a motor call that fails and retries for a minute must not leave a window in
+     * which a restarted service would decide the driver had never touched anything.
+     *
+     * A null request here can only mean a command is already in flight. The desire is queued inside
+     * the automaton and comes back out of [SpeakerCoverAutomaton.onMotorResult], so a wind-down
+     * waits for it in [execute] rather than stopping the service out from under it.
+     */
     private fun byHand(open: Boolean, thenStop: Boolean) {
         windingDown = thenStop
-        val request = automaton.onManualPosition(open, SystemClock.uptimeMillis())
+        SpeakerCoverSettings.rememberDriverTookOver(this)
+        automaton.onManualPosition(open, SystemClock.uptimeMillis())?.let(::execute)
+    }
+
+    /**
+     * Switching the automation off, which is not the same as asking for the covers.
+     *
+     * Leaving them open matters: a close suppresses the amplifier's own auto-lift for the ignition
+     * cycle, so a user who turns the feature off with the covers shut would be left with covers
+     * that nothing raises. But it is only worth doing when the covers are not already out, and it
+     * must never overrule the driver: under this contract a remembered close can only have come
+     * from the «Опустить» button, and answering that with an open would be the automation getting
+     * the last word on its way out.
+     */
+    private fun partingOpen() {
+        windingDown = true
+        val closedByHand =
+            SpeakerCoverSettings.lastCommandValue(this) == SpeakerCoverMotorProtocol.CLOSE
+        val request = if (closedByHand) {
+            null
+        } else {
+            automaton.onBestEffortOpen(SystemClock.uptimeMillis(), "автоматика выключена")
+        }
         if (request != null) {
             execute(request)
-        } else if (thenStop && automaton.pendingAction == null) {
+        } else if (automaton.pendingAction == null) {
             stopSelf()
         }
     }
@@ -179,7 +239,7 @@ class SpeakerCoverService : Service() {
         )
         motorExecutor.execute {
             val result = runCatching {
-                SpeakerCoverMotor.execute(applicationContext, request.action)
+                SpeakerCoverMotor.execute(applicationContext, request)
             }
             handler.post {
                 if (destroyed) return@post
@@ -190,6 +250,13 @@ class SpeakerCoverService : Service() {
                 )
                 if (result.isSuccess) {
                     motorFailures = 0
+                    // Only an opening that actually reached the motor spends the boot's one shot.
+                    // Recorded here rather than at the wish, because a start whose command never
+                    // landed is still owed its try - and a service restarted in between would read
+                    // this flag as the automation having had its turn.
+                    if (request.source == SpeakerCoverCommandSource.AUTOMATIC) {
+                        SpeakerCoverSettings.rememberAutoOpened(applicationContext)
+                    }
                     if (windingDown && next == null && automaton.pendingAction == null) {
                         stopSelf()
                         return@post
@@ -233,11 +300,14 @@ class SpeakerCoverService : Service() {
     }
 
     /**
-     * Watching, and by what.
+     * What is still going to happen by itself, which is at most one thing per boot.
      *
-     * The automation has two ways to know something is playing: the audio sensor, and the media
-     * sessions the head unit publishes. Losing the first does not stop the second, so the feature
-     * is monitoring either way and says which ear it is using.
+     * The tile used to name the ear the automation was listening with - "Слежу за воспроизведением"
+     * or "Слежу за плеерами" - which was true and answered a question nobody in a car is asking.
+     * What a driver needs from this line is whether the covers are still going to move on their
+     * own, and there are exactly three answers now: not yet, already done, or not any more because
+     * you took over. The sensor's failure keeps its place in the details, where a person looking
+     * for it will find it and nobody else has to read it.
      *
      * It used to report STARTING without the audio sensor, which drew a spinner on the dashboard
      * tile - and on a car where that sensor is simply not available, nothing ever moved it on. The
@@ -246,7 +316,11 @@ class SpeakerCoverService : Service() {
     private fun publishMonitoring() {
         publish(
             SpeakerCoverRuntimePhase.MONITORING,
-            if (audioAvailable) "Слежу за воспроизведением" else "Слежу за плеерами",
+            when {
+                automaton.driverHasTheWheel -> "Управление у водителя до перезапуска машины"
+                automaton.armed -> "Открою при первом воспроизведении"
+                else -> "Автоматика отработала — дальше кнопками"
+            },
             if (audioAvailable) null else spectrum.lastFailure,
         )
     }
@@ -278,7 +352,7 @@ class SpeakerCoverService : Service() {
                 "Крышки динамиков",
                 NotificationManager.IMPORTANCE_MIN,
             ).apply {
-                description = "Автоматическое управление крышками по воспроизведению"
+                description = "Крышки открываются при первом воспроизведении, дальше — кнопками"
                 setShowBadge(false)
             },
         )

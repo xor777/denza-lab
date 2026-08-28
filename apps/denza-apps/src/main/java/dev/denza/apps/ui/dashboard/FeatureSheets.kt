@@ -157,9 +157,9 @@ private fun helpOf(id: TileId): String = when (id) {
         "Приложение забирает прогноз и отдаёт его штатному виджету погоды. " +
             "Своей погоды оно не рисует — виджет остаётся штатным."
     TileId.SPEAKERS ->
-        "Крышки поднимаются сами, когда что-то играет: сразу для известных приложений " +
-            "(${SpeakerCoverApps.EXAMPLES}) и через три секунды звука для остальных. " +
-            "После получаса тишины они уезжают обратно."
+        "Крышки поднимаются один раз за поездку — когда что-то заиграет: сразу для известных " +
+            "приложений (${SpeakerCoverApps.EXAMPLES}) и через три секунды звука для остальных. " +
+            "Дальше они слушаются только кнопок, а машина убирает их при выключении."
     TileId.LOCALE ->
         "Родной русский язык уже встроен в систему — " +
             "переключатель включает его в штатных настройках машины."
@@ -399,12 +399,13 @@ private fun weatherSheet(state: DenzaUiState, actions: DashboardActions) {
 }
 
 /**
- * Playback-driven opening, and the two buttons that overrule it.
+ * One playback-driven opening, and the two buttons that end it.
  *
  * The buttons answer whether or not the automation is on: the covers belong to the car, and wanting
- * them up at a standstill with nothing playing is a perfectly ordinary thing. The automation is
- * told where they went, so it does not immediately argue - though three seconds of music will
- * still raise them again, which is the paragraph's job to say.
+ * them up at a standstill with nothing playing is a perfectly ordinary thing. Either press also
+ * settles the argument for the rest of the drive - the automation stands down and the covers stay
+ * where they were put, which is the paragraph's job to say. It used to be the other way round: a
+ * cover closed by hand came back out three seconds later because the music was still playing.
  */
 @Composable
 private fun speakerSheet(state: DenzaUiState, actions: DashboardActions, busy: Boolean) {

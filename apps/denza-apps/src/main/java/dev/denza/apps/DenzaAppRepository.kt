@@ -537,13 +537,18 @@ object DenzaAppRepository {
         val context = appContext ?: return
         SpeakerCoverSettings.setEnabled(context, enabled)
         if (enabled) {
+            // Switching it on outranks anything the driver pressed earlier in this boot: the two
+            // boot flags that keep the automation quiet are cleared before the service reads them,
+            // so a toggle flipped while music is playing opens the covers there and then.
+            SpeakerCoverSettings.rearm(context)
             stateStore.update { current ->
                 current.copy(speakerCovers = FeatureReducer.starting(FeatureId.SPEAKER_COVERS))
             }
             SpeakerCoverService.reconcile(context)
         } else {
             // A close command suppresses the amplifier's stock auto-lift for this ignition
-            // cycle. Leave the covers physically open when the user turns our automation off.
+            // cycle, so switching our automation off tries to leave the covers physically open -
+            // best effort only, and never over a close the driver asked for by hand.
             SpeakerCoverService.disableAndOpen(context)
             refresh()
         }

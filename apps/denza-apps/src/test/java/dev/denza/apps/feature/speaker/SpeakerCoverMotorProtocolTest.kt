@@ -43,22 +43,39 @@ class SpeakerCoverMotorProtocolTest {
     }
 
     /**
-     * The rule that stopped the covers twitching, in both directions.
+     * The whole of the edge rule, which is three lines and two different kinds of reason.
      *
-     * A pair is sent only when nothing is remembered - once per boot, before this app has written
-     * anything and the firmware could be holding either value. Once something is remembered, every
-     * command is a single write: the automaton never repeats a wish it already asked for, so the
-     * value always differs from the last one and makes its own edge.
+     * Nothing remembered is a fact about the firmware: before this app's first write of a boot the
+     * property could be holding either value, so the pair has to be paid once whoever is asking.
      *
-     * Forcing a pair on a value we ourselves last wrote is the fault this feature was reported for:
-     * a close and an open 350 ms apart, which on covers already out is them twitching.
+     * A button repeating the value already held is a choice. The pair is a close and an open 350 ms
+     * apart, invisible on covers that are in and a twitch on covers that are out, and nothing on
+     * this car can tell those apart. The automation is not allowed to spend that, because it would
+     * be guessing; the driver is, because they can see the covers and pressed anyway - and «Поднять»
+     * silently doing nothing was the fault that made this parameter exist.
+     *
+     * Everything else is a single write, which differs from the last value and makes its own edge.
      */
     @Test
-    fun aPairIsSentOnlyWhenNothingIsRemembered() {
-        assertTrue(SpeakerCoverMotorProtocol.needsEdgeBreak(lastWritten = null))
+    fun onlyAnUnknownPropertyOrARepeatedButtonPaysForAPair() {
+        val open = SpeakerCoverMotorProtocol.OPEN
+        val close = SpeakerCoverMotorProtocol.CLOSE
 
-        assertFalse(SpeakerCoverMotorProtocol.needsEdgeBreak(SpeakerCoverMotorProtocol.OPEN))
-        assertFalse(SpeakerCoverMotorProtocol.needsEdgeBreak(SpeakerCoverMotorProtocol.CLOSE))
+        assertTrue(SpeakerCoverMotorProtocol.needsEdgeBreak(null, open, manual = false))
+        assertTrue(SpeakerCoverMotorProtocol.needsEdgeBreak(null, close, manual = false))
+        assertTrue(SpeakerCoverMotorProtocol.needsEdgeBreak(null, open, manual = true))
+        assertTrue(SpeakerCoverMotorProtocol.needsEdgeBreak(null, close, manual = true))
+
+        assertTrue(SpeakerCoverMotorProtocol.needsEdgeBreak(open, open, manual = true))
+        assertTrue(SpeakerCoverMotorProtocol.needsEdgeBreak(close, close, manual = true))
+
+        assertFalse(SpeakerCoverMotorProtocol.needsEdgeBreak(open, open, manual = false))
+        assertFalse(SpeakerCoverMotorProtocol.needsEdgeBreak(close, close, manual = false))
+
+        assertFalse(SpeakerCoverMotorProtocol.needsEdgeBreak(open, close, manual = false))
+        assertFalse(SpeakerCoverMotorProtocol.needsEdgeBreak(close, open, manual = false))
+        assertFalse(SpeakerCoverMotorProtocol.needsEdgeBreak(open, close, manual = true))
+        assertFalse(SpeakerCoverMotorProtocol.needsEdgeBreak(close, open, manual = true))
     }
 
     @Test

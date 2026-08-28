@@ -35,16 +35,22 @@ internal object SpeakerCoverMotorProtocol {
     /**
      * Whether the opposite value has to be sent first to make an edge at all.
      *
-     * Only when nothing is remembered. The property is edge-triggered, so a write only reaches the
-     * motor if it changes the value - and before this app's first command of a boot, the firmware
-     * could be holding either one, so the pair has to be paid once.
+     * Always when nothing is remembered. The property is edge-triggered, so a write only reaches
+     * the motor if it changes the value - and before this app's first command of a boot, the
+     * firmware could be holding either one, so the pair has to be paid once.
      *
-     * Never for a repeat of a value we ourselves last wrote. Forcing an edge there is a close and
-     * an open 350 ms apart, which on covers that are already out is them twitching - the fault this
-     * feature was reported for. It would only help if the amplifier had lowered them behind our
-     * back, and that case cannot be told from the ordinary one without a sensor there isn't.
+     * Always for a button pressed while the property already holds what the button asks for, and
+     * that one is a choice rather than a fact. The pair costs a close and an open 350 ms apart,
+     * which on covers already out is them twitching - so it is refused to the automation, which
+     * cannot tell "already open" from "the amplifier lowered them behind our back", and granted to
+     * the driver, who can see the covers and pressed the button anyway. A button that does nothing
+     * is a worse answer than a button that sometimes twitches; before this, «Поднять» was silently
+     * dropped in precisely the case it exists for.
+     *
+     * Never otherwise: a value that differs from the last one written makes its own edge.
      */
-    fun needsEdgeBreak(lastWritten: Int?): Boolean = lastWritten == null
+    fun needsEdgeBreak(lastWritten: Int?, target: Int, manual: Boolean): Boolean =
+        lastWritten == null || (manual && lastWritten == target)
 
     const val OPEN = 1
     const val CLOSE = 2
@@ -61,22 +67,31 @@ internal object SpeakerCoverMotor {
      * The mistake was treating one unknown as two. Where the covers *are* is unknowable and not
      * worth pretending about. What the property last *saw* is ours alone - we are its only writer -
      * so it can simply be remembered, for as long as the firmware holding it has been up. Knowing
-     * it, the pair is needed exactly once per boot and never again: every later command differs
-     * from the last one written, so a single write makes its own edge.
+     * it, the pair is needed exactly once per boot for the automation, and never again: every later
+     * command differs from the last one written, so a single write makes its own edge.
+     *
+     * A button is the exception, and it is the request that carries the fact - the driver asking
+     * for a position the property is already holding is the one case where nothing but a forced
+     * edge can move anything.
      */
     fun execute(
         context: Context,
-        action: SpeakerCoverMotorAction,
+        request: SpeakerCoverMotorRequest,
         pause: (Long) -> Unit = Thread::sleep,
     ): String {
-        val target = when (action) {
+        val target = when (request.action) {
             SpeakerCoverMotorAction.OPEN -> SpeakerCoverMotorProtocol.OPEN
             SpeakerCoverMotorAction.CLOSE -> SpeakerCoverMotorProtocol.CLOSE
         }
         val session = DenzaLocalAdb.client(context).openPersistentShell()
         return try {
             val lastWritten = SpeakerCoverSettings.lastCommandValue(context)
-            val prelude = if (SpeakerCoverMotorProtocol.needsEdgeBreak(lastWritten)) {
+            val needsBreak = SpeakerCoverMotorProtocol.needsEdgeBreak(
+                lastWritten = lastWritten,
+                target = target,
+                manual = request.manual,
+            )
+            val prelude = if (needsBreak) {
                 val broken = call(context, session, SpeakerCoverMotorProtocol.opposite(target))
                 pause(EDGE_BREAK_PAUSE_MS)
                 "$broken\n"

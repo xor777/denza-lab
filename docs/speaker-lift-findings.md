@@ -105,11 +105,18 @@ Cover position stays unobservable regardless: `AUDIO_SPEAKER_FLIP_COVER_STATUS`
 not go into a product manifest, so Denza Apps drives this through
 `DenzaLocalAdb` shell, the same route as the BMS FIDs.
 
-## Denza Apps automation (implemented 2026-08-26; live acceptance pending)
+## Denza Apps automation (implemented 2026-08-26, redesigned 2026-08-28; live acceptance pending)
 
 The product deliberately replaces the stock auto-lift once enabled. Its
 persistent toggle is off by default and owns a foreground service while on.
-Opening is a three-layer OR:
+
+**The contract in one sentence (2026-08-28): automation never overrides a manual
+command; only the driver's hand or an ignition cycle can.** Everything below is
+that sentence read from a different side.
+
+**One automatic action per boot, and it is OPEN.** On the first evidence of
+playback in a boot the service sends `1` once and then stands down until the car
+is restarted. Evidence is the same three-layer OR as before:
 
 1. a foreground transition into a known player opens immediately through the
    existing global accessibility observer;
@@ -117,12 +124,49 @@ Opening is a three-layer OR:
 3. output-mix signal continuously above the calibrated `-58 dB` gate for three
    seconds opens as the source-agnostic fallback.
 
-The 30-minute clock advances only on fresh session-0 output-mix frames. A new
-immediate-open trigger starts a fresh grace period; after that, 30 minutes of
-confirmed silence sends `2`. Any real sound, including a short system sound,
-resets the full delay. Missing/stale capture does not count as silence; the
-timer pauses until fresh FFT frames return. Motor operations are serialized and
-failed calls retry after 30 seconds.
+Only continuity is counted on layer 3: frames more than 1 s apart are two runs
+rather than one, and capture that has stopped answering breaks the run without
+meaning anything. Motor operations are still serialized, and a failed call is
+still retried on the 30-second guard, forever, with the tile going DEGRADED and
+then FAILED after three failures.
+
+**There is no automatic close any more.** The 30-minute confirmed-silence timer,
+the silence branch of the audio sampler, and `CLOSE_SILENCE_MS` were deleted on
+2026-08-28. Three reasons, in order of weight: the fallback re-opened covers
+about three seconds after the driver closed them by hand while music was still
+playing, which is an ongoing level overruling the freshest possible act; the car
+retracts the covers at power-off, so the timer was buying a state the ignition
+already guarantees; and the timer only advanced on fresh session-0 FFT frames,
+so a dead capture wedged the automaton for the life of the process (see the latch
+section below).
+
+**A button always physically moves the motor.** A press bypasses the same-wish
+skip in the automaton and, at the motor, forces the `2` / 350 ms / `1` pair when
+the property already holds the value asked for. This is the recovery path for the
+amplifier lowering the covers on its own, which the app cannot see and cannot
+otherwise answer.
+
+**A press hands the wheel to the driver for the rest of the boot**, whether or
+not the one automatic opening has already been spent, and whether or not the
+automation is switched on at the time.
+
+**Both facts are boot-scoped and persisted** next to `last_command_value` in
+`speaker_covers.xml`, with the same stamp (wall clock less
+`SystemClock.elapsedRealtime()`, 30 s of slack): `driver_took_over_boot` written
+at the moment of the press, `auto_opened_boot` written only once the automatic
+open is acknowledged. Without them a service restart mid-boot would re-open
+covers the driver had just closed, or spend a second automatic opening.
+
+**Switching the automation on clears both flags.** The toggle is fresh intent and
+newer than any button pressed before it, so it hands the wheel back and the
+automation is owed its one opening again for the rest of the boot: enabling the
+feature while music is playing opens the covers there and then. Cleared on the
+enable path in `DenzaAppRepository` before the service reads them, and the
+service re-seeds its automaton in the same off-then-on branch of
+`onStartCommand` that clears `windingDown` - the in-process object had read the
+preferences once, in `onCreate`, and would otherwise keep announcing
+«Управление у водителя» for the rest of its life. Nothing else in a boot re-arms
+the automation; a press is one-way until either the toggle or the ignition.
 
 Because the command is edge-triggered, a write that repeats the value the
 property already holds moves nothing. Two different unknowns were conflated here
@@ -134,16 +178,21 @@ position was unknown - which is every service start - and the owner saw exactly
 that on the car: the covers twitching on every switch-on.
 
 **The model is best effort with a storm guard, and nothing else.** There is no
-believed position: a signal (a known player in the foreground, an active
-MediaSession, three seconds of sustained output, thirty minutes of confirmed
-silence) becomes one command, and the same wish is not sent twice. A repeat would
-be a no-op anyway - the value is already there - so skipping it costs nothing.
-A failed command may be retried once the 30-second guard has passed; without the
-guard, the 5 Hz audio sampler would retry at 5 Hz.
+believed position: a signal becomes one command, and the same wish is not sent
+twice unless a hand asks for it. A repeat would be a no-op anyway - the value is
+already there - so skipping it costs nothing, and paying for a forced edge is a
+choice made only for a button. A failed command may be retried once the 30-second
+guard has passed; without the guard, the 5 Hz audio sampler would retry at 5 Hz.
+(As written on 2026-08-26 the list of signals also contained "thirty minutes of
+confirmed silence"; that wish no longer exists.)
 
-The `2`, 350 ms, `1` pair survives for exactly one case: the first command after
-a boot, when the app has written nothing and the firmware could be holding either
-value. The remembered value is therefore scoped to the boot (wall clock less
+The `2`, 350 ms, `1` pair survives for two cases: the first command after a boot,
+when the app has written nothing and the firmware could be holding either value;
+and, since 2026-08-28, a panel button asking for the value the property already
+holds. The second is a deliberate purchase - the pair is invisible on covers that
+are in and a twitch on covers that are out, nothing on this car can tell those
+apart, and a driver looking at the covers and pressing anyway is the one party
+entitled to spend it. The remembered value is scoped to the boot (wall clock less
 `SystemClock.elapsedRealtime()`, with 30 s of slack), because the amplifier goes
 down with the car and a value remembered across an ignition cycle is a guess that
 fails silently - the write matches, nothing changes, no motor moves, and the
@@ -155,10 +204,30 @@ while the stock system has already raised the covers. There is no way to detect
 it - that is the price of an unreadable position, and it is one moment per
 ignition cycle rather than every switch-on.
 
-Turning automation off first opens the covers and only then stops the service, so
-a user cannot be left with closed covers and stock auto-lift already suppressed.
-The settings panel also has explicit «Поднять» / «Опустить» buttons, which answer
-whether or not the automation is switched on and tell it where the covers went.
+Turning automation off still tries to open the covers before stopping the
+service, so a user cannot be left with closed covers and stock auto-lift already
+suppressed - but since 2026-08-28 it is best effort in both directions. If the
+value remembered for this boot is `2` it sends nothing at all and simply stops:
+under the new contract a remembered close can only have come from the «Опустить»
+button, and answering it with an open would be the automation getting the last
+word on its way out. Otherwise it issues a non-manual open, which the ordinary
+same-wish skip drops when the property already holds `1` - so no twitch on
+toggle-off when the covers are already out.
+
+The remembered `2` is only half of that refusal, because it is written when the
+write is acknowledged and the press may not have got there yet. So the automaton
+refuses too: `onBestEffortOpen` never replaces a manual desire - one whose adb
+call is still running, or one queued behind a command already in flight - and the
+parting open then simply does not happen. The queued press still leaves through
+the motor result, the service's wind-down waits for it, and the process stops
+without opening anything. A *retry* of a failed press is still allowed out, being
+the same command carried further rather than a new one. The two checks divide the
+cases with no window between them: the automaton covers this process, the
+remembered value covers a press made in an earlier one.
+
+The settings panel has explicit «Поднять» / «Опустить» buttons, which answer
+whether or not the automation is switched on. They no longer merely tell the
+automation where the covers went: they end its turn for the boot.
 
 The eager foreground list is the user-approved set:
 
@@ -172,9 +241,16 @@ The eager foreground list is the user-approved set:
   `com.amazon.avod.thirdpartyclient`, `com.plexapp.android`.
 
 The MediaSession and output-mix layers intentionally cover players outside
-this list. The integrated APK, boot recovery, 3-second fallback, and 30-minute
-close still require live-car acceptance; only the underlying motor calls and
-output-mix capture are live-proven independently.
+this list. The integrated APK, boot recovery, the 3-second fallback, and the
+whole of the 2026-08-28 contract - the per-boot one-shot, the forced edge behind
+the buttons, the takeover, and the quiet toggle-off - still require live-car
+acceptance; only the underlying motor calls and output-mix capture are live-proven
+independently.
+
+The dashboard tile now says which of the three states the automation is in, since
+they are the only thing a driver needs from it: «Открою при первом
+воспроизведении», «Автоматика отработала — дальше кнопками», «Управление у
+водителя до перезапуска машины».
 
 ## Superseded working path (2026-08-22 20:19)
 
@@ -884,3 +960,33 @@ is rare, and is the moment when the covers are most likely to be down.
 
 Not fixed: the owner is watching the covers first, since the position is exactly
 what the code cannot see and a person in the seat can.
+
+### Resolved by design, 2026-08-28
+
+Not by making the automation re-open, but by having it stop promising to. The
+automaton no longer reconciles anything mid-episode: it offers one opening per
+boot and then leaves the covers to the buttons and to the ignition cycle. Under
+that contract the latch is not a defect - it is the whole behaviour, said out
+loud on the tile («Автоматика отработала — дальше кнопками»).
+
+The recovery path for covers the amplifier lowered behind the app's back is the
+«Поднять» button, which now always forces a real edge: `2`, 350 ms, `1` whenever
+the property is already holding `1`. The asymmetry examined above is what makes
+that affordable - the pair is invisible on covers that are in, so the only cost is
+a twitch on covers that were already out, paid by a driver who is looking at them
+and pressed anyway.
+
+**A second defect found while designing the fix, and worse than the latch.**
+`onManualPosition` fed the same `reconcile` as every automatic signal, so a press
+equal to the last wish was swallowed by the same-wish skip. «Поднять» was
+therefore a silent no-op in exactly the situation it exists for: the automaton
+believed the covers were up, the amplifier had lowered them, and the one control
+that could have answered did nothing and said nothing. Both halves of the fix
+live in the manual path - it bypasses the skip in the automaton, and it carries a
+`manual` flag into `SpeakerCoverMotorProtocol.needsEdgeBreak`, which is the only
+caller allowed to buy a forced edge.
+
+The reported bug that motivated the redesign is the same shape from the other
+direction: covers closed by hand during music came back out ~3 s later, because
+the sustained-sound fallback was allowed to overrule a press. Both are the same
+rule missing - a level must never outrank an act.

@@ -14,22 +14,69 @@ enum class SpeakerCoverMotorAction {
     CLOSE,
 }
 
+/**
+ * Who asked, which decides what the command is allowed to cost.
+ *
+ * The three differ in one thing only: how much visible movement is worth paying for a command that
+ * may already be satisfied. A hand on a button is worth a twitch, because the driver is looking at
+ * the covers and pressed anyway; nothing else is.
+ */
+enum class SpeakerCoverCommandSource {
+    /**
+     * A panel button. Always moves the motor, forcing an edge if the property already holds the
+     * value - the press is the freshest fact in the car, and a button that sometimes does nothing
+     * is worse than one that sometimes twitches.
+     */
+    MANUAL,
+
+    /** The automation's single opening of the boot, spent on the first evidence of playback. */
+    AUTOMATIC,
+
+    /** Turning the automation off: worth an open, not worth a twitch. */
+    BEST_EFFORT,
+}
+
 data class SpeakerCoverMotorRequest(
     val action: SpeakerCoverMotorAction,
     val reason: String,
-)
+    val source: SpeakerCoverCommandSource,
+) {
+    val manual: Boolean get() = source == SpeakerCoverCommandSource.MANUAL
+}
 
 /**
  * Pure timing and command state for the cover automation.
  *
- * Missing samples never count as silence. A short real sound resets the close
- * timer, while only sustained sound can trigger the audio fallback open.
+ * **The automation does one thing per boot: it opens the covers once, on the first sign of
+ * playback, and then stands down.** Everything else the driver does by hand.
+ *
+ * That is a narrowing, and it was earned. The previous shape was a continuous reconciler: it
+ * opened on playback, closed after thirty minutes of confirmed silence, and kept both wishes alive
+ * for as long as the process ran. Three faults came out of that, all the same fault seen from
+ * different sides - an ongoing level was allowed to outrank a deliberate act:
+ *
+ * - closing the covers by hand during a track was undone about three seconds later by the sound
+ *   still playing, which is the automation arguing with the person who just pressed the button;
+ * - the manual raise was silently swallowed whenever the automaton already believed the covers
+ *   were up, which is exactly the moment it is needed - after the amplifier lowered them itself;
+ * - one successful open latched the wish for the life of the process, and only the silence timer
+ *   could ever change it, so a dead audio capture wedged the feature entirely.
+ *
+ * There is nothing here to keep in step with. Cover position is unreadable, the amplifier moves
+ * them on its own, and everything this class ever knew came from its own commands. So it no longer
+ * pretends to maintain a state: it makes one opening offer per boot and then leaves the covers to
+ * the two buttons and to the ignition cycle, which retracts them anyway.
+ *
+ * [armed] and [driverHasTheWheel] are constructor inputs because they outlive the process: the
+ * service restores them from boot-scoped preferences, or a service restart mid-boot would open
+ * covers the driver had just closed.
  */
 class SpeakerCoverAutomaton(
     private val fallbackSoundMs: Long = FALLBACK_SOUND_MS,
-    private val closeSilenceMs: Long = CLOSE_SILENCE_MS,
     private val maxConfirmedSampleGapMs: Long = MAX_CONFIRMED_SAMPLE_GAP_MS,
     private val retryGuardMs: Long = RETRY_GUARD_MS,
+    armed: Boolean = true,
+    driverHasTheWheel: Boolean = false,
 ) {
     /**
      * The last thing this app asked the covers to do, or null before it has asked for anything.
@@ -44,50 +91,94 @@ class SpeakerCoverAutomaton(
     var pendingAction: SpeakerCoverMotorAction? = null
         private set
 
-    var confirmedSilenceMs: Long = 0L
+    /** Whether the one automatic opening of this boot is still unspent. */
+    var armed: Boolean = armed
+        private set
+
+    /** Set by any button press, and never cleared: only an ignition cycle gives the wheel back. */
+    var driverHasTheWheel: Boolean = driverHasTheWheel
         private set
 
     var consecutiveSoundMs: Long = 0L
         private set
 
-    private var desiredOpen: Boolean? = null
+    private var desired: Desire? = null
+    private var forcePending = false
     private var lastSampleAtMs: Long? = null
     private var lastSampleHadSignal = false
     private var askedAtMs = 0L
     private var askFailed = false
-    private var desiredReason = ""
 
+    /**
+     * The one automatic opening, offered by whichever of the three playback layers speaks first.
+     *
+     * Every later signal is silent, and that silence is the feature working rather than the latch
+     * that was reported: the covers are open, the driver can see they are open, and if the
+     * amplifier lowers them afterwards the raise button is there and now always moves the motor.
+     */
     fun onImmediateOpen(nowMs: Long, reason: String): SpeakerCoverMotorRequest? {
-        desiredOpen = true
-        desiredReason = reason
-        // Opening a player is fresh user intent. Without resetting this, an app opened after the
-        // previous 30-minute close would be opened and then closed again by the very next silent
-        // FFT frame because the saturated silence counter was still retained.
-        confirmedSilenceMs = 0L
-        lastSampleAtMs = null
-        lastSampleHadSignal = false
-        consecutiveSoundMs = 0L
+        if (!armed || driverHasTheWheel) return null
+        armed = false
+        desired = Desire(open = true, reason = reason, source = SpeakerCoverCommandSource.AUTOMATIC)
         return reconcile(nowMs)
     }
 
     /**
-     * The driver moved the covers from the panel.
+     * The driver moved the covers from the panel, which ends the automation's turn for this boot.
      *
-     * A hand on a button outranks whatever the ear was concluding, so this becomes the wish - and
-     * the sound counters restart, or lowering the covers during a track would be undone by the very
-     * next frame of it. The three-second fallback can still raise them again afterwards; that is
-     * the automation working, and the panel says so in as many words.
+     * Two rules meet here, and both are the same rule. The wheel changes hands: no level, however
+     * sustained, may undo a press - closing the covers with music playing used to be reversed by
+     * the music three seconds later. And the press always produces a command, even one identical
+     * to the last thing asked for, because a repeat is precisely how a driver says "the covers are
+     * not where you think they are". [SpeakerCoverMotor] pays for that with a forced edge.
      */
     fun onManualPosition(open: Boolean, nowMs: Long): SpeakerCoverMotorRequest? {
-        desiredOpen = open
-        desiredReason = "вручную"
-        confirmedSilenceMs = 0L
+        driverHasTheWheel = true
+        armed = false
+        desired = Desire(open = open, reason = "вручную", source = SpeakerCoverCommandSource.MANUAL)
+        forcePending = true
         consecutiveSoundMs = 0L
         lastSampleAtMs = null
         lastSampleHadSignal = false
         return reconcile(nowMs)
     }
 
+    /**
+     * The parting open when the automation is switched off, so nobody is left with shut covers and
+     * the stock auto-lift already suppressed.
+     *
+     * Not manual and not the one-shot: it ignores whether either has been spent, because the covers
+     * still have to end up out, but it is an ordinary wish that a matching last command may skip.
+     * Forcing an edge here would twitch covers that are already open, which is what a driver
+     * turning a feature off is least expecting to see.
+     *
+     * And it stands down entirely in front of a press. This is the automation's last word, and the
+     * one thing it may not do is have the last word over a hand - a «Опустить» still running its
+     * adb call, or still queued behind a command in flight, is the freshest fact in the car, and
+     * overwriting the desire with an open would both undo it and throw the queued press away.
+     * The service refuses the same thing one step later, from the value the property is holding,
+     * which is the only version of this the automaton cannot see: a press made in an earlier
+     * process. Between them there is no window. What is still allowed through here is a *retry* of
+     * that press, which is the same command being carried out rather than a new one.
+     */
+    fun onBestEffortOpen(nowMs: Long, reason: String): SpeakerCoverMotorRequest? {
+        if (desired?.source != SpeakerCoverCommandSource.MANUAL) {
+            desired = Desire(
+                open = true,
+                reason = reason,
+                source = SpeakerCoverCommandSource.BEST_EFFORT,
+            )
+        }
+        return reconcile(nowMs)
+    }
+
+    /**
+     * The source-agnostic ear: three continuous seconds of output mix.
+     *
+     * Only continuity is counted, never absence. Frames further apart than [maxConfirmedSampleGapMs]
+     * are not a run, and a detector that has stopped answering is not silence - it is nothing at
+     * all. Silence has no consequence any more; there is no automatic close to time.
+     */
     fun onAudioSample(
         capturedAtMs: Long,
         hasSignal: Boolean,
@@ -103,30 +194,19 @@ class SpeakerCoverAutomaton(
             0L
         }
 
-        if (hasSignal) {
-            confirmedSilenceMs = 0L
-            consecutiveSoundMs = if (lastSampleHadSignal) {
-                consecutiveSoundMs + delta
-            } else {
-                0L
-            }
-            if (consecutiveSoundMs >= fallbackSoundMs) {
-                desiredOpen = true
-                desiredReason = "звук ${fallbackSoundMs / 1_000} с"
-            }
+        consecutiveSoundMs = if (hasSignal && lastSampleHadSignal) {
+            consecutiveSoundMs + delta
         } else {
-            consecutiveSoundMs = 0L
-            if (delta > 0L) {
-                confirmedSilenceMs = (confirmedSilenceMs + delta).coerceAtMost(closeSilenceMs)
-            }
-            if (confirmedSilenceMs >= closeSilenceMs) {
-                desiredOpen = false
-                desiredReason = "тишина ${closeSilenceMs / 60_000} мин"
-            }
+            0L
         }
-
         lastSampleAtMs = capturedAtMs
         lastSampleHadSignal = hasSignal
+
+        if (hasSignal && consecutiveSoundMs >= fallbackSoundMs) {
+            onImmediateOpen(capturedAtMs, "звук ${fallbackSoundMs / 1_000} с")?.let { return it }
+        }
+        // Still reconcile on a frame that decided nothing: the sampler calls this instead of
+        // onTick whenever capture is alive, so it is also the clock a failed command retries on.
         return reconcile(capturedAtMs)
     }
 
@@ -152,47 +232,50 @@ class SpeakerCoverAutomaton(
     }
 
     /**
-     * Best effort, and a guard against saying it twice.
+     * One wish out, and a guard against saying it twice.
      *
-     * There is no model of the car here any more. A signal arrives, the command goes out, and that
-     * is the whole of it - what used to be a reconciliation between a wish and a believed position
-     * was two names for one fact, because the believed position was only ever set from the commands
-     * this same object sent. The owner said as much looking at it: there is nothing to keep in step
-     * with, only a thing to ask for.
+     * The audio sampler ticks five times a second and the wish is unchanged between ticks, so
+     * without a guard a playing track would send the same command every 200 ms - and a command that
+     * failed would be retried at that rate too. So: ask once, ask again only if the wish changes,
+     * or if the last attempt failed and [retryGuardMs] has passed. Retries have no ceiling; the
+     * dashboard stops promising a recovery long before the automaton stops trying.
      *
-     * What has to stay is the guard. The audio sampler ticks five times a second and the wish is
-     * unchanged between ticks, so without it a playing track would send the same command every
-     * 200 ms - and a command that fails would be retried at that rate too. So: ask once, and ask
-     * again only if the wish changes, or if the last attempt failed and [retryGuardMs] has passed.
+     * [forcePending] is the button's exemption, and it is spent by the command it produces rather
+     * than living on the wish. A manual desire that stays behind for retries must not re-fire on
+     * every tick, but a retry of it is still manual - the driver's press is what is being carried
+     * out, however many attempts it takes.
      *
-     * A repeat of a wish that succeeded is skipped rather than sent, and that costs nothing: the
-     * property is edge-triggered, so writing the value it already holds moves no motor. The one
-     * thing that could make such a repeat useful - the amplifier having lowered the covers behind
-     * our back - cannot be told apart from the ordinary case without a sensor, and forcing an edge
-     * on the ordinary case is exactly the twitch this feature was reported for.
+     * A command already in flight defers everything, including a press: the desire waits here and
+     * leaves through [onMotorResult] with its source intact.
      */
     private fun reconcile(nowMs: Long): SpeakerCoverMotorRequest? {
         if (pendingAction != null) return null
-        val targetOpen = desiredOpen ?: return null
-        if (targetOpen == raised) {
+        val desire = desired ?: return null
+        if (desire.open == raised && !forcePending) {
             val retryDue = askFailed && nowMs - askedAtMs >= retryGuardMs
             if (!retryDue) return null
         }
-        raised = targetOpen
+        forcePending = false
+        raised = desire.open
         askedAtMs = nowMs
         askFailed = false
-        val action = if (targetOpen) {
+        val action = if (desire.open) {
             SpeakerCoverMotorAction.OPEN
         } else {
             SpeakerCoverMotorAction.CLOSE
         }
         pendingAction = action
-        return SpeakerCoverMotorRequest(action, desiredReason)
+        return SpeakerCoverMotorRequest(action, desire.reason, desire.source)
     }
+
+    private data class Desire(
+        val open: Boolean,
+        val reason: String,
+        val source: SpeakerCoverCommandSource,
+    )
 
     companion object {
         const val FALLBACK_SOUND_MS = 3_000L
-        const val CLOSE_SILENCE_MS = 30L * 60L * 1_000L
         const val MAX_CONFIRMED_SAMPLE_GAP_MS = 1_000L
         /** How long a failed command waits before the same wish may be sent again. */
         const val RETRY_GUARD_MS = 30_000L
