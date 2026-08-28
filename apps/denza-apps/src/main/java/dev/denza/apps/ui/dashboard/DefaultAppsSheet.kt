@@ -13,10 +13,12 @@ import androidx.compose.ui.Modifier
 import dev.denza.apps.design.DenzaColors
 import dev.denza.apps.design.DenzaIcons
 import dev.denza.apps.design.DenzaMetrics
+import dev.denza.apps.feature.defaultapps.DefaultAppChoice
 import dev.denza.apps.feature.defaultapps.DefaultAppRole
 import dev.denza.apps.feature.defaultapps.DefaultAppRoleStatus
 import dev.denza.apps.feature.defaultapps.DefaultAppRoleUiState
 import dev.denza.apps.feature.defaultapps.DefaultAppsUiState
+import dev.denza.apps.ui.components.DenzaAppGrid
 import dev.denza.apps.ui.components.DenzaAppTile
 import dev.denza.apps.ui.components.DenzaNote
 import dev.denza.apps.ui.components.DenzaPrimaryButton
@@ -26,7 +28,6 @@ import dev.denza.apps.ui.components.DenzaSegmentedRow
 import dev.denza.apps.ui.components.DenzaSheet
 import dev.denza.apps.ui.components.DenzaSheetHeader
 import dev.denza.apps.ui.components.DenzaStatusLine
-import dev.denza.apps.ui.components.DenzaTileGrid
 import dev.denza.apps.ui.components.DenzaTileTone
 
 /** The three stock Shortcuts launch targets, on the sheet approved in DefaultApps.dc.html. */
@@ -110,12 +111,15 @@ internal fun DefaultAppsSheet(
                     color = DenzaColors.Muted,
                 )
             } else {
-                DenzaTileGrid(
-                    columns = if (compact) NARROW_COLUMNS else WIDE_COLUMNS,
-                    itemCount = roleState.choices.size,
-                    modifier = Modifier.fillMaxWidth(),
-                ) { index, cell ->
-                    val choice = roleState.choices[index]
+                // The same grid the three whole-sheet pickers draw. This used to be a
+                // [DenzaTileGrid] of its own with its own column counts, so the projection's
+                // applications and these sat five and four to a row of the same panel.
+                DenzaAppGrid(
+                    items = roleState.choices,
+                    key = DefaultAppChoice::packageName,
+                    compact = compact,
+                    columns = DenzaMetrics.Component.DEFAULT_APPS_PICKER_COLUMNS,
+                ) { choice ->
                     DenzaAppTile(
                         label = choice.label,
                         selected = choice.selected,
@@ -124,7 +128,6 @@ internal fun DefaultAppsSheet(
                                 onSelect(selectedRole, choice.packageName)
                             }
                         },
-                        modifier = cell,
                         icon = choice.icon,
                         iconKey = choice.packageName,
                         enabled = !dimmed,
@@ -209,6 +212,4 @@ internal const val DEFAULT_APPS_SHORTCUTS_HELP =
         "На этой прошивке музыку запускает Continue playing, если нет активной медиасессии. " +
         "Open Music открывает штатную музыку; остальные команды управляют текущей медиасессией."
 
-private const val WIDE_COLUMNS = 4
-private const val NARROW_COLUMNS = 3
 private const val STATUS_LINES = 2

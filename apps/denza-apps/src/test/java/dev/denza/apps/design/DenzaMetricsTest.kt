@@ -59,6 +59,32 @@ class DenzaMetricsTest {
     // lines over two, which is what "Пассажирский экран" draws - was losing its second line to an
     // ellipsis on the car.
 
+    /**
+     * The three picker rows are one decision, restated three times.
+     *
+     * [DenzaMetrics.Component.PICKER_COLUMNS] carries the reasoning - the panel is 480 dp and
+     * gives its content 416, so five columns is 73.6 dp a tile and six was rejected for leaving
+     * eight characters of label. Those numbers are only true while the panel, the gap and the
+     * count agree, and the other two pickers list fewer things than "everything installed", so
+     * neither may pack its row tighter than the one that does.
+     */
+    @Test
+    fun noPickerRowIsTighterThanTheOneThatListsEverything() {
+        assertEquals(73.6f, pickerTileWidth(DenzaMetrics.Component.PICKER_COLUMNS), 0.05f)
+        listOf(
+            DenzaMetrics.Component.NAVIGATION_PICKER_COLUMNS,
+            DenzaMetrics.Component.DEFAULT_APPS_PICKER_COLUMNS,
+        ).forEach { columns ->
+            assertTrue(
+                "$columns columns leave ${pickerTileWidth(columns)} dp a tile, under the " +
+                    "${pickerTileWidth(DenzaMetrics.Component.PICKER_COLUMNS)} dp of the picker " +
+                    "that lists every application on the car",
+                pickerTileWidth(columns) >=
+                    pickerTileWidth(DenzaMetrics.Component.PICKER_COLUMNS),
+            )
+        }
+    }
+
     @Test
     fun aRowIsBigEnoughForAFinger() {
         // 48 dp is the platform's own floor for a touch target; a car is worse than a desk, not
@@ -77,6 +103,13 @@ class DenzaMetricsTest {
                 above / below >= MIN_STEP,
             )
         }
+    }
+
+    /** What one tile of a [columns]-wide picker row gets, on the sheet every picker uses. */
+    private fun pickerTileWidth(columns: Int): Float {
+        val content = DenzaMetrics.Component.SHEET_WIDTH.value -
+            DenzaMetrics.Space.XL.value * 2
+        return (content - DenzaMetrics.Space.M.value * (columns - 1)) / columns
     }
 
     private companion object {

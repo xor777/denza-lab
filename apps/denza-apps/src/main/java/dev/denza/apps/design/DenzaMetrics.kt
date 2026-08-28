@@ -213,6 +213,15 @@ object DenzaMetrics {
         const val NAVIGATION_PICKER_COLUMNS: Int = 3
 
         /**
+         * The default-app roles' row, off `DefaultApps.dc.html`.
+         *
+         * Fewer than [PICKER_COLUMNS] because this grid does not have the panel to itself: the
+         * three roles are a segmented row above it and what the choice does is a line below it,
+         * and the board draws the applications four across under them.
+         */
+        const val DEFAULT_APPS_PICKER_COLUMNS: Int = 4
+
+        /**
          * An application offered for choosing: 12 + 44 + 8 + one line of 15 + 12, off the board.
          */
         val APP_TILE: Dp = 96.dp
