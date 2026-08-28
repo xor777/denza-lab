@@ -506,6 +506,171 @@ placement and swap. Removing tasks, removing the visible picker, or calling
 removal/change replaces the pair with policy defaults only when either stored
 application is missing or disabled.
 
+**Which panel a task lands in is decided by package name (exact corpus,
+2026-08-28).** The decision is taken in
+`BydSmartMultiIviController.startSplitWindow(Task, int type)`, in its
+`mSplitWindowMode == 100` branch:
+
+```java
+if (type != 32 && (type == 16 || mPrimaryActivity.equals(pkgName)))
+    // narrow panel, mPrimaryContainer
+else
+    // wide panel, mSecondContainer
+```
+
+`type` is bits 4-7 of a value computed from the intent:
+`ActivityStarter.execute()` → `updateMultiStartMode` →
+`BydSmartWmPolicy.getMultiStartMode`. Category `START_IVI_PRIMARY` gives 17, so
+`type` is 16; `START_IVI_SECOND` gives 33, so `type` is 32; **any start without
+a BYD category gives 1, so `type` is 0**. At `type == 0` the side is therefore
+decided by nothing but `mPrimaryActivity.equals(pkgName)`, and the default
+landing place is the wide panel. The category cannot be handed on: it is
+consumed (`intent.removeCategory`) by the very first request that carries it.
+
+Two further call sites hard-code `startIviWindow(task, 0)`:
+`BydSmartMultiController.shouldMoveToTopMost(Task)`, which is live and reached
+from `Task` and from `ActivityStarter`, and `moveToFrontHook(Task)`, which is a
+stub in this build. Any move-to-front of a task in mode 105 therefore replays
+the same lottery.
+
+**The narrow-panel marker is written by whatever lands there, and the write is
+asymmetric.** `changePrimaryActivityForPkg(String pkgName)` has exactly one
+guard - do not write if the value is already equal:
+
+```java
+public void changePrimaryActivityForPkg(String pkgName) {
+    synchronized (this.mLock) {
+        if (!this.mPrimaryActivity.equals(pkgName)) {
+            if (this.mSecondDefaultActivity.equals(pkgName)) { this.mSecondDefaultActivity = this.mPrimaryActivity; }
+            this.mPrimaryActivity = pkgName;
+            postUpdateIviSettingsRunnable();
+        }
+    }
+}
+```
+
+There is no allowlist and no filter, and it is called unconditionally on every
+placement with `type == 16`. The wide-panel counterpart is not symmetric: a
+placement with `type == 32` writes its analogue `mSecondDefaultActivity` only
+when that field currently holds `com.android.launcher3` **and** the package is a
+member of `mDefaultSecondAppList` (`com.byd.sr`, the map, `launcher3`). Our
+package is not a member, so it can become the recorded narrow-panel package and
+never the wide-panel one. That asymmetry is the whole point of this finding.
+
+The marker is durable. `updateIviSettings()` writes
+`Settings.System["byd_smart_multi_primary_activity"]` and
+`["byd_smart_multi_second_activity"]` asynchronously through `mHandler.post`,
+and `retriveIviSettings()` reads them at start-up and accepts a value whose
+package is installed and enabled - so **the marker survives a reboot**. Before
+that read the in-memory default is `mPrimaryActivity = "com.byd.sr"`. Nothing
+resets it on its own: the three narrow paths that can return the marker all
+require that same package to be placed in the wide panel, which resets the field
+to `com.android.launcher3`.
+
+**There is no API that assigns a side to an existing task.** The complete list
+of BYD transactions on `IActivityTaskManager$Stub`, taken from the framework
+dex:
+
+| tx | Method |
+| --- | --- |
+| 107 | `getTaskAreaIdForMulti(int)` |
+| 108 | `getPrimaryActivityForMulti()` |
+| 109 | `startPrimaryActivityForMulti(String)` |
+| 112 | `isSupportSplit(String)` |
+| 114 | `changeSplitScreenMode(int)` |
+| 115 | `enterSplitMode()` |
+| 116 | `SwapSplitPosition()` |
+| 118 | `getRootTaskIdByAreaId(int)` |
+| 119 | `getSplitScreenListByAreaId(int)` |
+| 122 | `getTasksOrderByAreaId` |
+| 123 | `isCanSplit` |
+| 124 | `exitSplitMode` |
+| 125 | `setSplitScreenPersistentApp(String)` |
+| 126 | `setStartToSplit(boolean)` |
+
+Not one of them takes a (taskId, side) pair. The only way to name a side is the
+BYD category on the launch itself.
+
+**Transaction 126, stated more precisely.** `setStartToSplit(boolean)` sets the
+static `mIsEnterSplit`, whose default is **true**, and `startIviWindow` gates on
+it: `if (supportSplit && isEnterSplit()) startSplitWindow(...) else
+startFullWindow(...)`. It is therefore a global switch that turns panel
+placement off for the whole system, and the closed state is the state the system
+does not come up in. The product's existing note that the gate is global is
+correct; what this adds is the price of failing to reopen it. Separately, the
+branch that logs `Unknown packageName setStartToSplit` compares the package
+against two hard-coded Huawei packages and, for everything else, only logs and
+returns - there is no list behind that line. In the 2026-08-27 incident that
+line arrived 2.8 s **after** the scene had already come apart, so it is an
+epilogue and not a cause. This is worth stating explicitly, because it was the
+first working hypothesis.
+
+**Refuted: "the firmware rejected our package because the product never lists
+itself through tx125".** As an explanation of that collapse it is wrong - the
+placement path (`startIviWindow` → `startSplitWindow`) does not read
+`mPrimaryActivityList` at all. It may still hold for the separate symptom of the
+divider's detent map; nothing here touches that record, but it has no bearing on
+which panel a task is routed into. Four different sets are involved and they are
+easy to conflate:
+
+1. the static `BydSmartWmPolicy.mPrimaryActivityList`;
+2. its runtime copy inside `BydSmartMultiIviController` - the only place tx125
+   writes; not persisted, lost with a `system_server` restart;
+3. `mSecondAppList` / `mBlackSecondAppList` plus the manifest
+   `BYD_SUPPORT_SPLIT_ACTIVITY`, which is what tx112 reads;
+4. the single string `mPrimaryActivity` - the marker above.
+
+`AppTransitionController.handleOpeningApps` logs `isOpenPrimaryApp` from set
+(1), which tx125 never writes, which is why the incident log shows
+`isOpenPrimaryApp: false` for a task that was physically lying in the narrow
+panel. It is a purely animation-side heuristic and not part of this mechanism;
+recorded so the question is closed.
+
+### Live confirmation of package-name routing (2026-08-28)
+
+Read-only reads plus minimal reversible starts on the owner's car; no reboot and
+no scene surgery.
+
+Baseline slice: `byd_smart_multi_primary_activity = ru.yandex.music`,
+`byd_smart_multi_second_activity = com.byd.sr`,
+`byd_smart_multi_split_window_mode = 100`, `force_resizable_activities = 1`,
+area (tx30) `4`, tx118 roots area 1 → 2, area 2 → 3, area 4 → 4, crash buffer
+empty.
+
+- `service call activity_task 112 s16 dev.denza.apps` returned **1**. The
+  product never writes itself into the firmware's split list (`ensureSupported`
+  returns early); that is now confirmed live and not only from the code.
+- **Reproduced twice**: starting our picker with `START_IVI_PRIMARY` into the
+  narrow panel moved the marker to `dev.denza.apps` - once from
+  `ru.yandex.music`, once from `com.android.launcher3`. Confirmed both by
+  `settings get` and by `service call activity_task 108`.
+- **The main result.** `am start -a android.intent.action.MAIN -c
+  byd.intent.category.START_IVI_SECOND -n dev.denza.apps/.MainActivity` against
+  a live fullscreen hub task was answered by the system with `intent has been
+  delivered to currently running top-most instance` - that is, the task was
+  **reused** - and that same task nevertheless took the wide panel
+  `[880,112][2536,1472]`, with area becoming `3`. So **the panel label survives
+  task reuse**, because `updateMultiStartMode` is computed on every request,
+  before the decision to reuse is taken.
+- The narrow panel geometry `Rect(24,112 - 856,1472)` matches
+  `mPrimarySplitBounds` from `BydSmartWmConfig.initWmConfig` bit for bit
+  (IVI_SCREEN_LEFT 24, IVI_PRIMARY_RIGHT_DEFAULT 24+832=856, IVI_SCREEN_TOP 112,
+  IVI_SCREEN_BOTTOM 1472).
+
+Two caveats, recorded so that neither is read as more than it is:
+
+- The last link of the chain - "with the marker poisoned, a start through the
+  trampoline seats the hub in the narrow panel" - was **not** reproduced live;
+  the attempt collapsed the scene instead. It is derived from the incident log
+  plus the firmware logic: at `type == 0` the only way into the narrow panel is
+  a package-name match. **This is a conclusion, not a reproduction.**
+- The firmware's own debug log for this mechanism (tags
+  `BydSmartMultiIviController` and `BydSmartMultiController`, level D) **cannot
+  be read from an ordinary ADB context** on this car: `logcat -s` on those tags
+  comes back empty. Every piece of evidence above was collected from system
+  state instead. This is a limitation of the instrument and is written down so
+  the next session does not spend time rediscovering it.
+
 ### Single-package launcher-alias spike (2026-08-16)
 
 An isolated `dev.denza.singlepackage.probe` APK tested whether one installed
@@ -1005,6 +1170,44 @@ process recovery, and restores the original state when split is disabled. An
 external setting change made while split is active is preserved. The earlier
 reactive "move the escaped task back" workaround was removed.
 
+**Bounds after a scene comes apart: the exact non-normalizing branch (corpus,
+2026-08-28).** Two functions log the identical line `startFullWindow
+targetTask: `, and only one of them fixes the geometry:
+
+- `startFullWindow(Task)` → `mFullIviContainer.reparentTask(t, false)` →
+  `updateBouds=true` → `setTaskBounds(t)`: the task's bounds are brought to the
+  root's. **Normalizes.**
+- `startIviFullWindow(Task, boolean changeWindowingMode)` with
+  `changeWindowingMode == false` → `reparentTask(t, true, false, true)`,
+  `updateBouds=false`, and the bounds are not cleared either. **Does not
+  normalize.**
+
+The only caller of the second form is
+`ActivityStarter.handleFreeformForStartWindow`, and it logs a distinctive line
+just before it: `reparent Task{...} to ivi full window root task`. **That line
+is the only way to tell the two branches apart in a log.**
+
+This is the mechanism behind the live defect of 2026-08-27, where a task sitting
+in the fullscreen root kept its 832 px panel bounds and the user was left with a
+third of the screen and emptiness beside it. The half-updated configuration seen
+there - `smallestScreenWidthDp` recomputed to 800dp while `screenWidthDp` stayed
+416dp and `mBounds`/`mAppBounds` stayed panel-sized - is a mechanical
+consequence of `TaskFragment.computeConfigResourceOverrides`: both BYD branches
+that log `change sw to` are excluded once the task becomes a leaf inside
+`ivi_full`.
+
+Because that branch leaves the geometry alone, normalizing it is the product's
+obligation; the contract carries it as an invariant (section 3 of
+[split-screen-product-contract.md](split-screen-product-contract.md)).
+
+Open question, deliberately not answered here. The 2026-08-24 tx30 section above
+records that a task moved out of a panel with `am stack move-task <id> 4 false`
+gets its geometry from the firmware and that asking for a resize there "is
+asking nothing of anybody" (wave 9 tried it, wave 10 removed the code). That
+observation was about a task landing in a root of its own; the 2026-08-27 defect
+was about a task becoming a leaf inside `ivi_full`. Whether a product resize
+takes effect in the second case has not been measured live.
+
 The native swap gesture is supported. Static SystemUI inspection and live tests
 show that it does not move the child tasks between roots: it reverses the two
 StageCoordinator positions, so root 2 and root 3 keep their identities while
@@ -1463,6 +1666,13 @@ not one.
 cable; the support screen does not, and an owner in a car has no adb. What
 changes is debugging from this desk: the ring is readable without seven taps,
 without the support screen, and while a blocking overlay is up.
+
+This result is about this application's own tags and does not extend to the
+vendor's. Measured 2026-08-28: the firmware's `BydSmartMultiIviController` and
+`BydSmartMultiController` debug lines (level D) are not readable from an
+ordinary ADB context on this car - `logcat -s` on those tags returns nothing.
+See "Live confirmation of package-name routing (2026-08-28)" above; that
+investigation had to take its evidence from system state instead.
 
 ## A selection now proves its scene, and says why (live v37, 2026-08-27)
 
