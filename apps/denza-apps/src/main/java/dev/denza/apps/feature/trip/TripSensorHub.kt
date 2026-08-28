@@ -22,9 +22,9 @@ import java.util.TimeZone
  * touched from one thread and the renderer can read it lock-free.
  *
  * The hub (and its engine) is process-scoped via [TripSession]: `stop()`
- * unregisters location updates but deliberately KEEPS the engine, so reopening the
- * panel resumes the same trip instead of resetting it. The engine's own
- * movement gate decides when the trip clock actually starts.
+ * unregisters location updates but deliberately KEEPS the engine, so recreating the
+ * panel does not reset an active drive. The live-proven park switch ends the trip;
+ * the engine's movement gate decides when the next one actually starts.
  *
  * Only product-usable sources are wired here (see docs/vehicle-data-findings.md):
  * The standard GNSS provider runs at ~1 Hz and the app's existing validated Yandex guidance via
@@ -35,8 +35,11 @@ class TripSensorHub(context: Context) : LocationListener {
     private val appContext = context.applicationContext
     private val locationManager = appContext.getSystemService(Context.LOCATION_SERVICE) as? LocationManager
     private val handler = Handler(Looper.getMainLooper())
+    private val parkState = TripParkStateSource(appContext) { parked ->
+        engine.onParkState(parked, SystemClock.elapsedRealtime())
+    }
 
-    /** The process-lifetime engine. Never reset; read on the main thread only. */
+    /** Process-lifetime owner; its trip values reset on confirmed P. Main-thread only. */
     val engine = TripEngine()
 
     /**
@@ -66,6 +69,7 @@ class TripSensorHub(context: Context) : LocationListener {
         running = true
         hostContext = host
         ensureLocationAccess()
+        parkState.start()
         spectrum.start(appContext, this)
         nowPlaying.start(appContext)
     }
@@ -75,6 +79,7 @@ class TripSensorHub(context: Context) : LocationListener {
         running = false
         hostContext = null
         runCatching { locationManager?.removeUpdates(this) }
+        parkState.stop()
         spectrum.stop(this)
         nowPlaying.stop()
     }

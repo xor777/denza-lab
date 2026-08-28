@@ -63,6 +63,39 @@ class TripEngineTest {
     }
 
     @Test
+    fun confirmedParkBlocksGnssFromStartingATrip() {
+        val engine = TripEngine()
+        engine.onParkState(true, 0L)
+
+        engine.fix(0L, speed = 10.0)
+        engine.fix(1_000L, speed = 10.0)
+        engine.fix(2_000L, speed = 10.0)
+        engine.fix(3_000L, speed = 10.0)
+
+        assertFalse(engine.tripStarted)
+        assertEquals(0.0, engine.elapsedSeconds, 1e-9)
+    }
+
+    @Test
+    fun returningToParkEndsAndClearsTheTrip() {
+        val engine = TripEngine()
+        engine.onParkState(false, 0L)
+        engine.fix(0L, speed = 10.0, lon = 37.000)
+        engine.fix(1_000L, speed = 10.0, lon = 37.002)
+        engine.fix(2_000L, speed = 10.0, lon = 37.004)
+        engine.fix(3_000L, speed = 10.0, lon = 37.006)
+        engine.fix(4_000L, speed = 10.0, lon = 37.008)
+        assertTrue(engine.tripStarted)
+        assertTrue(engine.distanceMeters() > 100.0)
+
+        engine.onParkState(true, 4_500L)
+
+        assertFalse(engine.tripStarted)
+        assertEquals(0.0, engine.elapsedSeconds, 1e-9)
+        assertEquals(0.0, engine.distanceMeters(), 1e-9)
+    }
+
+    @Test
     fun distanceWaitsForTripStart() {
         val engine = TripEngine()
         engine.fix(0L, speed = 2.5, lon = 37.0)

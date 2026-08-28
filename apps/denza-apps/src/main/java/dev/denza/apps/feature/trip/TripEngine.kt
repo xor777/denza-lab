@@ -12,11 +12,13 @@ import kotlin.math.roundToInt
  */
 class TripEngine {
 
-    private val gnss = GnssTripAccumulator()
+    private var gnss = GnssTripAccumulator()
     private var lastFixMs = 0L
     private var haveFix = false
 
     var tripStarted: Boolean = false
+        private set
+    var parked: Boolean? = null
         private set
     private var tripStartElapsedMs = 0L
     private var movementCandidateMs = -1L
@@ -91,12 +93,30 @@ class TripEngine {
     }
 
     /**
-     * A normal APK cannot read the gear without BYD-only permissions, so sustained
-     * movement is the honest trip-start proxy. Credit begins when movement began,
-     * not when the sustain gate confirms it.
+     * Live-proven gearbox park switch. Entering P ends the in-memory trip immediately; an
+     * unavailable read leaves the existing GNSS fallback in charge.
+     */
+    fun onParkState(value: Boolean?, nowElapsedMs: Long) {
+        if (value == null) {
+            parked = null
+            return
+        }
+        if (parked == value) return
+        parked = value
+        if (value) resetTrip(nowElapsedMs)
+    }
+
+    /**
+     * The shell-readable fact says only P versus not-P, not which drive gear is selected, so
+     * sustained movement remains the honest trip-start proxy. Credit begins when movement
+     * began, not when the sustain gate confirms it.
      */
     private fun maybeStartTrip(nowElapsedMs: Long) {
         if (tripStarted) return
+        if (parked == true) {
+            movementCandidateMs = -1L
+            return
+        }
         if (currentSpeed >= TRIP_START_SPEED) {
             if (movementCandidateMs < 0) movementCandidateMs = nowElapsedMs
             if ((nowElapsedMs - movementCandidateMs) / 1000.0 >= TRIP_START_SUSTAIN_SECONDS) {
@@ -114,6 +134,14 @@ class TripEngine {
         } else {
             0.0
         }
+    }
+
+    private fun resetTrip(nowElapsedMs: Long) {
+        tripStarted = false
+        tripStartElapsedMs = nowElapsedMs
+        movementCandidateMs = -1L
+        elapsedSeconds = 0.0
+        gnss = GnssTripAccumulator()
     }
 
     private fun updateSun() {

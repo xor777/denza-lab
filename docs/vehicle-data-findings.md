@@ -394,6 +394,11 @@ flags or placeholders. A product widget polls only the rows below.
 | Cabin | Slope | `0x2230002C` | 1043 | 5 | −4 | deg-ish |
 | Body | EPB / park switch | `0x21800011` / `0x05500030` | 1011 | 5 | 3 / 1 | parked |
 
+On 2026-08-28 a stationary, brake-held `P -> D -> P` check read each state five times. The park
+switch was `1 -> 0 -> 1`, EPB was `3 -> 1 -> 3`, and vehicle speed remained `0` throughout. Denza
+Apps uses only the proven park-switch fact to end and suppress its GNSS-derived trip while in P;
+the readings do not claim values for N or R.
+
 Open: no FID on this firmware reproduced the third-party “rear motor 40 °C”
 card; `STATISTIC_INSTANTANEOUS_CURRENT` scale unknown. Next action: one
 moving-drive capture of current, pack power, and rear-motor FIDs, then stop
