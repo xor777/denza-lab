@@ -91,6 +91,70 @@ class DefaultAppsCatalogTest {
         assertFalse(ready.hasError)
     }
 
+    /**
+     * The switch is read off the car, and a write in flight counts as its target.
+     *
+     * The tile is the switch, so it has to answer the press before the provider has finished
+     * hearing about it - and go back if the provider refuses, which is what leaves
+     * `selectedPackageName` alone until a readback confirms.
+     */
+    @Test
+    fun theSwitchFollowsTheCarAndTheWriteInFlight() {
+        val stock = DefaultAppsUiState(
+            roles = DefaultAppRole.entries.map { role ->
+                DefaultAppRoleUiState(
+                    role = role,
+                    selectedPackageName = role.stockPackageName,
+                    status = DefaultAppRoleStatus.READY,
+                    providerConfirmed = true,
+                    choices = listOf(knownChoice(role)),
+                )
+            },
+        )
+        assertFalse(stock.substituting)
+        assertTrue(stock.canSubstitute)
+
+        // Switching on: the target is pending, the provider still says stock, the tile is on.
+        val turningOn = stock.update(DefaultAppRole.MUSIC) { role ->
+            role.copy(pendingPackageName = role.role.knownThirdPartyApps.first().packageName)
+        }
+        assertTrue(turningOn.substituting)
+        assertEquals(1, turningOn.configuredCount)
+
+        // Switching off: the provider still holds the driver's application, the tile is off.
+        val turningOff = DefaultAppsUiState(
+            roles = DefaultAppRole.entries.map { role ->
+                DefaultAppRoleUiState(
+                    role = role,
+                    selectedPackageName = role.knownThirdPartyApps.first().packageName,
+                    pendingPackageName = role.stockPackageName,
+                    status = DefaultAppRoleStatus.APPLYING,
+                    providerConfirmed = true,
+                    choices = listOf(knownChoice(role)),
+                )
+            },
+        )
+        assertFalse(turningOff.substituting)
+
+        // Nothing of the catalog installed: there is nothing for the switch to turn on.
+        val nothingInstalled = stock.copy(
+            roles = stock.roles.map { it.copy(choices = emptyList()) },
+        )
+        assertFalse(nothingInstalled.canSubstitute)
+    }
+
+    private fun knownChoice(role: DefaultAppRole): DefaultAppChoice {
+        val known = role.knownThirdPartyApps.first()
+        return DefaultAppChoice(
+            packageName = known.packageName,
+            label = known.fallbackLabel,
+            icon = null,
+            selected = false,
+            known = true,
+            stock = false,
+        )
+    }
+
     private fun app(packageName: String, label: String): InstalledDefaultApp =
         InstalledDefaultApp(packageName = packageName, label = label, icon = null)
 }

@@ -151,6 +151,38 @@ class DefaultAppsSheetTest {
         )
     }
 
+    /** Off is a car running its own applications, never an absence of settings. */
+    @Test
+    fun theSwitchSaysWhatTheCarIsDoingRatherThanWhetherItIsOn() {
+        val known = DefaultAppRole.MUSIC.knownThirdPartyApps.first()
+        val switchable = DefaultAppRoleUiState(
+            role = DefaultAppRole.MUSIC,
+            selectedPackageName = DefaultAppRole.MUSIC.stockPackageName,
+            status = DefaultAppRoleStatus.READY,
+            providerConfirmed = true,
+            choices = listOf(
+                choice().copy(packageName = known.packageName, label = known.fallbackLabel),
+            ),
+        )
+        val off = DefaultAppsUiState(roles = listOf(switchable))
+        assertEquals("Команды открывают штатные приложения", defaultAppsSwitchSubtitle(off))
+
+        val on = DefaultAppsUiState(
+            roles = listOf(switchable.copy(selectedPackageName = known.packageName)),
+        )
+        assertEquals("Команды открывают выбранные приложения", defaultAppsSwitchSubtitle(on))
+
+        val nothingInstalled = DefaultAppsUiState(
+            roles = listOf(switchable.copy(choices = emptyList())),
+        )
+        assertEquals(
+            "Нечем заменять: подходящие приложения не установлены",
+            defaultAppsSwitchSubtitle(nothingInstalled),
+        )
+
+        assertEquals("Читаем настройку…", defaultAppsSwitchSubtitle(off.copy(refreshing = true)))
+    }
+
     private fun choice(): DefaultAppChoice = DefaultAppChoice(
         packageName = "ru.yandex.music",
         label = "Яндекс Музыка",

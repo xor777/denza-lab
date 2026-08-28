@@ -46,6 +46,17 @@
     .section { display:flex; flex-direction:column; gap:12px; }
     .label { color:#86909B; font-size:15px; font-weight:500; letter-spacing:1.6px; line-height:1.2; }
     .status { color:#86909B; font-size:15px; line-height:1.3; }
+    /* `DenzaSwitchRow`, drawn as the code builds it: a raised row on the neighbour's radius with
+       Material's own switch at the end of it. The tile's press is this same switch - what the
+       feature does is substitute the applications the car's spoken commands open, and that is a
+       thing that is on or off - but nothing on the face of a tile says which gesture it carries,
+       so this row is where the panel says it out loud. */
+    .switch-row { min-height:56px; padding:12px 20px; display:flex; align-items:center; gap:12px; background:#323538; border-radius:12px; }
+    .switch-copy { flex:1; min-width:0; display:flex; flex-direction:column; gap:4px; }
+    .switch-title { color:#DAE1EB; font-size:19px; font-weight:500; line-height:1.2; }
+    .switch-note { color:#86909B; font-size:15px; line-height:1.3; }
+    .switch-track { width:52px; height:32px; border-radius:16px; background:#FEEFAB; display:flex; align-items:center; justify-content:flex-end; padding:4px; flex-shrink:0; }
+    .switch-thumb { width:24px; height:24px; border-radius:12px; background:#262D33; }
     .segments { height:42px; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); overflow:hidden; border:1px solid rgba(218,225,235,0.18); border-radius:12px; }
     .segment { display:flex; align-items:center; justify-content:center; color:#7C858F; font-size:15px; border-left:1px solid rgba(218,225,235,0.18); }
     .segment:first-child { border-left:0; }
@@ -379,6 +390,14 @@
           <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#86909B" stroke-width="1.846" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"></path></svg>
         </div>
 
+        <div class="switch-row">
+          <div class="switch-copy">
+            <div class="switch-title">Заменять приложения</div>
+            <div class="switch-note">Команды открывают выбранные приложения</div>
+          </div>
+          <div class="switch-track"><div class="switch-thumb"></div></div>
+        </div>
+
         <div class="section">
           <div class="label">ДЛЯ КАКОЙ КОМАНДЫ</div>
           <div class="segments">
@@ -432,6 +451,14 @@
           <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="2"></rect><rect x="14" y="3" width="7" height="7" rx="2"></rect><rect x="3" y="14" width="7" height="7" rx="2"></rect><path d="m14.5 17.5 2 2 4-5"></path></svg>
           <div class="sheet-title">Приложения по умолчанию</div>
           <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#86909B" stroke-width="1.846" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"></path></svg>
+        </div>
+
+        <div class="switch-row">
+          <div class="switch-copy">
+            <div class="switch-title">Заменять приложения</div>
+            <div class="switch-note">Команды открывают выбранные приложения</div>
+          </div>
+          <div class="switch-track"><div class="switch-thumb"></div></div>
         </div>
 
         <div class="section">
