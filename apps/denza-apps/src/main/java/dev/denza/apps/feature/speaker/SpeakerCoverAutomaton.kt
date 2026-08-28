@@ -20,6 +20,9 @@ enum class SpeakerCoverMotorAction {
  * The three differ in one thing only: how much visible movement is worth paying for a command that
  * may already be satisfied. A hand on a button is worth a twitch, because the driver is looking at
  * the covers and pressed anyway; nothing else is.
+ *
+ * This travels all the way to [SpeakerCoverMotorProtocol.needsEdgeBreak], which spends it - one
+ * line per constant, and each line is the sentence below it read as a price.
  */
 enum class SpeakerCoverCommandSource {
     /**
@@ -29,10 +32,23 @@ enum class SpeakerCoverCommandSource {
      */
     MANUAL,
 
-    /** The automation's single opening of the boot, spent on the first evidence of playback. */
+    /**
+     * The automation's single opening of the boot, spent on the first evidence of playback.
+     *
+     * It buys the forced pair only against a property it remembers nothing about, which is the
+     * start of a trip - the covers are retracted there, so the pair's close is invisible, and the
+     * one opening it has promised needs an edge it can count on.
+     */
     AUTOMATIC,
 
-    /** Turning the automation off: worth an open, not worth a twitch. */
+    /**
+     * Turning the automation off: worth an open, not worth a twitch.
+     *
+     * Never a forced pair, including against a property it remembers nothing about. The single
+     * write either makes the edge and the covers rise, or lands on the value already held and does
+     * nothing; a parting gesture can live with either, and neither is movement the driver has to
+     * watch after flipping a switch off.
+     */
     BEST_EFFORT,
 }
 
@@ -41,6 +57,14 @@ data class SpeakerCoverMotorRequest(
     val reason: String,
     val source: SpeakerCoverCommandSource,
 ) {
+    /**
+     * Shorthand for the one source that outranks everything, and no longer the motor's input.
+     *
+     * The edge rule used to be asked in exactly this bit - manual or not - which is what let the
+     * parting open be priced as though it were the automation. It reads [source] now; this stays
+     * because "the driver asked for this" is a thing worth saying in one word where the automaton's
+     * own contract is being checked.
+     */
     val manual: Boolean get() = source == SpeakerCoverCommandSource.MANUAL
 }
 

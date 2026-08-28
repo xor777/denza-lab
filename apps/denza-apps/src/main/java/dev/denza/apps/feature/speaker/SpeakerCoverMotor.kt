@@ -35,22 +35,45 @@ internal object SpeakerCoverMotorProtocol {
     /**
      * Whether the opposite value has to be sent first to make an edge at all.
      *
-     * Always when nothing is remembered. The property is edge-triggered, so a write only reaches
-     * the motor if it changes the value - and before this app's first command of a boot, the
-     * firmware could be holding either one, so the pair has to be paid once.
+     * The property is edge-triggered, so a write only reaches the motor if it changes the value,
+     * and the pair is the only way to guarantee one. It costs a close and an open 350 ms apart:
+     * invisible on covers that are in, a visible twitch on covers that are out, and nothing on this
+     * car can tell those two apart. So the question is never just "might a single write be a
+     * no-op" - it is [SpeakerCoverCommandSource]'s question, how much visible movement this
+     * particular asker is entitled to spend, and the answer is one line per source.
      *
-     * Always for a button pressed while the property already holds what the button asks for, and
-     * that one is a choice rather than a fact. The pair costs a close and an open 350 ms apart,
-     * which on covers already out is them twitching - so it is refused to the automation, which
-     * cannot tell "already open" from "the amplifier lowered them behind our back", and granted to
-     * the driver, who can see the covers and pressed the button anyway. A button that does nothing
-     * is a worse answer than a button that sometimes twitches; before this, «Поднять» was silently
-     * dropped in precisely the case it exists for.
+     * [SpeakerCoverCommandSource.MANUAL] spends it in both cases the property allows: nothing
+     * remembered, and the button asking for exactly the value already held. The second is the
+     * driver saying the covers are not where the app thinks they are, which is the only way that
+     * can ever be said - they are looking at the covers and pressed anyway. A button that sometimes
+     * does nothing is a worse answer than one that sometimes twitches, and «Поднять» silently
+     * dropped is the fault that made this rule take an asker at all.
+     *
+     * [SpeakerCoverCommandSource.AUTOMATIC] spends it only on an unknown property, where it is
+     * nearly free and also required. Free because nothing is remembered at the start of a trip,
+     * when the amplifier has just retracted the covers - the pair's close moves nothing and only
+     * the open is seen. Required because the one opening of a trip is a promise, and against a
+     * property that could be holding either value, only a pair guarantees the edge that keeps it.
+     *
+     * [SpeakerCoverCommandSource.BEST_EFFORT] never spends it, which is the whole of what best
+     * effort means here: worth an open, not worth a twitch. On an unknown property its single write
+     * either makes the edge and the covers rise, or lands on the value already held and does
+     * nothing - and both are endings a parting gesture can live with. This line is missing from the
+     * version that shipped: the rule took a two-way `manual` flag, so the toggle-off's parting open
+     * fell into the automation's branch, and once `rearm` began clearing `last_command_value` there
+     * was a `null` waiting for it to fall in with. Off went the toggle, out-in went the covers.
      *
      * Never otherwise: a value that differs from the last one written makes its own edge.
      */
-    fun needsEdgeBreak(lastWritten: Int?, target: Int, manual: Boolean): Boolean =
-        lastWritten == null || (manual && lastWritten == target)
+    fun needsEdgeBreak(
+        lastWritten: Int?,
+        target: Int,
+        source: SpeakerCoverCommandSource,
+    ): Boolean = when (source) {
+        SpeakerCoverCommandSource.MANUAL -> lastWritten == null || lastWritten == target
+        SpeakerCoverCommandSource.AUTOMATIC -> lastWritten == null
+        SpeakerCoverCommandSource.BEST_EFFORT -> false
+    }
 
     const val OPEN = 1
     const val CLOSE = 2
@@ -72,7 +95,9 @@ internal object SpeakerCoverMotor {
      *
      * A button is the exception, and it is the request that carries the fact - the driver asking
      * for a position the property is already holding is the one case where nothing but a forced
-     * edge can move anything.
+     * edge can move anything. Which asker is entitled to what is
+     * [SpeakerCoverMotorProtocol.needsEdgeBreak]'s to say; all that happens here is that the whole
+     * source travels there, rather than the one bit of it the rule used to be asked in terms of.
      */
     fun execute(
         context: Context,
@@ -89,7 +114,7 @@ internal object SpeakerCoverMotor {
             val needsBreak = SpeakerCoverMotorProtocol.needsEdgeBreak(
                 lastWritten = lastWritten,
                 target = target,
-                manual = request.manual,
+                source = request.source,
             )
             val prelude = if (needsBreak) {
                 val broken = call(context, session, SpeakerCoverMotorProtocol.opposite(target))

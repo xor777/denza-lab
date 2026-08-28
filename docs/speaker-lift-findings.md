@@ -197,7 +197,9 @@ and, since 2026-08-28, a panel button asking for the value the property already
 holds. The second is a deliberate purchase - the pair is invisible on covers that
 are in and a twitch on covers that are out, nothing on this car can tell those
 apart, and a driver looking at the covers and pressing anyway is the one party
-entitled to spend it. The remembered value is scoped to the boot (wall clock less
+entitled to spend it. (Both cases are now stated per command source, and the
+parting open is excluded from the first of them — see *The pair rule is written
+per source* below.) The remembered value is scoped to the boot (wall clock less
 `SystemClock.elapsedRealtime()`, with 30 s of slack), because the amplifier goes
 down with the car and a value remembered across an ignition cycle is a guess that
 fails silently - the write matches, nothing changes, no motor moves, and the
@@ -215,9 +217,12 @@ suppressed - but since 2026-08-28 it is best effort in both directions. If the
 value remembered for this boot is `2` it sends nothing at all and simply stops:
 under the new contract a remembered close can only have come from the «Опустить»
 button, and answering it with an open would be the automation getting the last
-word on its way out. Otherwise it issues a non-manual open, which the ordinary
+word on its way out. Otherwise it issues a `BEST_EFFORT` open, which the ordinary
 same-wish skip drops when the property already holds `1` - so no twitch on
-toggle-off when the covers are already out.
+toggle-off when the covers are already out. (The skip was only the first of the
+two places this had to be true, and the second was missing until the second pass
+of 2026-08-28: with nothing remembered the skip does not apply, and the motor
+paid the pair. See *The pair rule is written per source* below.)
 
 The remembered `2` is only half of that refusal, because it is written when the
 write is acknowledged and the press may not have got there yet. So the automaton
@@ -336,13 +341,17 @@ A deliberate toggle is exactly the moment to stop trusting it.
 `rearm` now removes **all seven keys** — `driver_took_over_{boot,asleep}`,
 `auto_opened_{boot,asleep}`, `last_command_value`, `last_command_{boot,asleep}`.
 
-The price is the once-per-trip forced `2` / 350 ms / `1` pair on the next command
-after a toggle-on, and its visibility is asymmetric in the product's favour: in
-the failing case the covers are already down, so the pair's close moves nothing
-and only the open is seen; on covers that are up it costs one dip-and-rise
-immediately after a switch the driver has just flipped, where movement reads as
-the feature answering. **A deterministic opening beats a correctly-predicted
-no-op.**
+The price is the once-per-trip forced `2` / 350 ms / `1` pair on the next
+**automation or button** command after a toggle-on, and its visibility is
+asymmetric in the product's favour: in the failing case the covers are already
+down, so the pair's close moves nothing and only the open is seen; on covers that
+are up it costs one dip-and-rise immediately after a switch the driver has just
+flipped, where movement reads as the feature answering. **A deterministic opening
+beats a correctly-predicted no-op.**
+
+The parting open is deliberately *not* in that price, and the first cut of this
+change let it be — that is the regression in *The pair rule is written per source*
+below.
 
 #### The panel disables its buttons while a command is in flight
 
@@ -399,6 +408,63 @@ notification is built and `onCreate` builds it once, `onStartCommand` re-posts
 under the same `NOTIFICATION_ID` on the three paths where the mode may just have
 moved — the parting open, either button, and the off-then-on branch that clears
 `windingDown`.
+
+### The pair rule is written per source (field regression, 2026-08-28)
+
+**Observed from the seat:** switching the automation *off* made the covers go out
+and back in — «дёргаются туда-сюда». Reported against the *Toggle-on forgets the
+property memory too* change above, and caused by it meeting a rule that could not
+express what the parting open is.
+
+Mechanism, in four steps:
+
+1. `rearm()` on enable now wipes `last_command_value`;
+2. if no command goes out between enable and disable — nothing was playing, or a
+   quick off-on-off — nothing writes it back, so it is still absent;
+3. the toggle-off's parting open therefore reaches `SpeakerCoverMotor` with
+   `lastWritten == null`;
+4. `needsEdgeBreak` was asked in a two-way `manual: Boolean`, under which
+   `null` meant "pay the pair" for everyone who was not a button — so the
+   `BEST_EFFORT` open paid `2` / 350 ms / `1` on covers that are most likely
+   already out.
+
+That is precisely the twitch the `BEST_EFFORT` source was documented never to
+buy: *worth an open, not worth a twitch*. The source existed and said the right
+words; the motor was simply never told which one it had. A two-valued flag cannot
+carry a three-valued decision, and the third value is the one that was dropped.
+
+**The rule now takes `SpeakerCoverCommandSource` and reads one line per asker:**
+
+| source | pairs when |
+| --- | --- |
+| `MANUAL` | `lastWritten == null` **or** `lastWritten == target` |
+| `AUTOMATIC` | `lastWritten == null` |
+| `BEST_EFFORT` | never |
+
+`MANUAL` and `AUTOMATIC` are unchanged; only the third line is new, and it is a
+line the old shape had no room for.
+
+**What `BEST_EFFORT` means against an unknown property** is the whole of the
+change: a single write of the target, and both of its outcomes are acceptable. It
+either changes the value — the property was holding `2`, the edge lands, the
+covers rise, which is exactly what the parting open is for — or it repeats the
+value already held and does nothing, on covers that are therefore already out.
+The gesture is best effort in the literal sense: it will not manufacture an edge
+it cannot justify, because the cost of manufacturing one is movement the driver
+has to watch immediately after switching a feature *off*.
+
+`AUTOMATIC` keeps its `null` row for two reasons that both still hold: at the
+start of a trip the amplifier has just retracted the covers, so the pair's close
+is invisible and only the open is seen; and the one opening promised per trip has
+to be an edge that lands, which against a property that could be holding either
+value only the pair guarantees. The asymmetry is the same one this document has
+been trading on since 2026-08-26 — it is just now spent by name.
+
+`SpeakerCoverMotorRequest.manual` survives as a readable predicate for the
+automaton's own tests, but it is no longer the motor's input; `execute` passes
+`request.source` through. The truth table in `SpeakerCoverMotorProtocolTest`
+carries all three sources, including the six `BEST_EFFORT` rows that pin the
+regression.
 
 ## Superseded working path (2026-08-22 20:19)
 

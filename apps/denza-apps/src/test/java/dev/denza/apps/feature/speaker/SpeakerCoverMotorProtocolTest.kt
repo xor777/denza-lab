@@ -44,39 +44,61 @@ class SpeakerCoverMotorProtocolTest {
     }
 
     /**
-     * The whole of the edge rule, which is three lines and two different kinds of reason.
+     * The whole of the edge rule, which is one line per asker and three different kinds of reason.
      *
-     * Nothing remembered is a fact about the firmware: before this app's first write of a boot the
-     * property could be holding either value, so the pair has to be paid once whoever is asking.
+     * The pair is a close and an open 350 ms apart, invisible on covers that are in and a twitch on
+     * covers that are out, and nothing on this car can tell those apart. So who is asking decides,
+     * and the three answers are not the same shape:
      *
-     * A button repeating the value already held is a choice. The pair is a close and an open 350 ms
-     * apart, invisible on covers that are in and a twitch on covers that are out, and nothing on
-     * this car can tell those apart. The automation is not allowed to spend that, because it would
-     * be guessing; the driver is, because they can see the covers and pressed anyway - and «Поднять»
-     * silently doing nothing was the fault that made this parameter exist.
+     * - a **button** buys it wherever the property allows, because a driver looking at the covers
+     *   and pressing anyway is the only thing that can say they are not where the app thinks - and
+     *   «Поднять» silently doing nothing was the fault that made the rule take an asker at all;
+     * - the **automation** buys it only on an unknown property, where the covers have just been
+     *   retracted by the ignition so the close is invisible, and where its one promised opening
+     *   needs a guaranteed edge;
+     * - the **parting open** never buys it. Worth an open, not worth a twitch.
      *
      * Everything else is a single write, which differs from the last value and makes its own edge.
      */
     @Test
-    fun onlyAnUnknownPropertyOrARepeatedButtonPaysForAPair() {
+    fun eachAskerPaysForThePairOnItsOwnTerms() {
         val open = SpeakerCoverMotorProtocol.OPEN
         val close = SpeakerCoverMotorProtocol.CLOSE
+        val manual = SpeakerCoverCommandSource.MANUAL
+        val automatic = SpeakerCoverCommandSource.AUTOMATIC
+        val parting = SpeakerCoverCommandSource.BEST_EFFORT
 
-        assertTrue(SpeakerCoverMotorProtocol.needsEdgeBreak(null, open, manual = false))
-        assertTrue(SpeakerCoverMotorProtocol.needsEdgeBreak(null, close, manual = false))
-        assertTrue(SpeakerCoverMotorProtocol.needsEdgeBreak(null, open, manual = true))
-        assertTrue(SpeakerCoverMotorProtocol.needsEdgeBreak(null, close, manual = true))
+        // Nothing remembered: the firmware could be holding either value.
+        assertTrue(SpeakerCoverMotorProtocol.needsEdgeBreak(null, open, automatic))
+        assertTrue(SpeakerCoverMotorProtocol.needsEdgeBreak(null, close, automatic))
+        assertTrue(SpeakerCoverMotorProtocol.needsEdgeBreak(null, open, manual))
+        assertTrue(SpeakerCoverMotorProtocol.needsEdgeBreak(null, close, manual))
 
-        assertTrue(SpeakerCoverMotorProtocol.needsEdgeBreak(open, open, manual = true))
-        assertTrue(SpeakerCoverMotorProtocol.needsEdgeBreak(close, close, manual = true))
+        // The button repeating the value already held, which is the dead-button case.
+        assertTrue(SpeakerCoverMotorProtocol.needsEdgeBreak(open, open, manual))
+        assertTrue(SpeakerCoverMotorProtocol.needsEdgeBreak(close, close, manual))
 
-        assertFalse(SpeakerCoverMotorProtocol.needsEdgeBreak(open, open, manual = false))
-        assertFalse(SpeakerCoverMotorProtocol.needsEdgeBreak(close, close, manual = false))
+        // The automation repeating it does not: it cannot tell "already open" from "the amplifier
+        // lowered them behind our back", so the twitch would be bought on a guess.
+        assertFalse(SpeakerCoverMotorProtocol.needsEdgeBreak(open, open, automatic))
+        assertFalse(SpeakerCoverMotorProtocol.needsEdgeBreak(close, close, automatic))
 
-        assertFalse(SpeakerCoverMotorProtocol.needsEdgeBreak(open, close, manual = false))
-        assertFalse(SpeakerCoverMotorProtocol.needsEdgeBreak(close, open, manual = false))
-        assertFalse(SpeakerCoverMotorProtocol.needsEdgeBreak(open, close, manual = true))
-        assertFalse(SpeakerCoverMotorProtocol.needsEdgeBreak(close, open, manual = true))
+        // The parting open pays for nothing, in any of the three states of the property. The
+        // unknown row is the regression seen from the seat on 2026-08-28: `rearm` had begun
+        // clearing the remembered value, so switching the automation off found a `null` here and
+        // twitched covers that were most likely already out.
+        assertFalse(SpeakerCoverMotorProtocol.needsEdgeBreak(null, open, parting))
+        assertFalse(SpeakerCoverMotorProtocol.needsEdgeBreak(null, close, parting))
+        assertFalse(SpeakerCoverMotorProtocol.needsEdgeBreak(open, open, parting))
+        assertFalse(SpeakerCoverMotorProtocol.needsEdgeBreak(close, close, parting))
+        assertFalse(SpeakerCoverMotorProtocol.needsEdgeBreak(open, close, parting))
+        assertFalse(SpeakerCoverMotorProtocol.needsEdgeBreak(close, open, parting))
+
+        // A value that differs makes its own edge, whoever asked.
+        assertFalse(SpeakerCoverMotorProtocol.needsEdgeBreak(open, close, automatic))
+        assertFalse(SpeakerCoverMotorProtocol.needsEdgeBreak(close, open, automatic))
+        assertFalse(SpeakerCoverMotorProtocol.needsEdgeBreak(open, close, manual))
+        assertFalse(SpeakerCoverMotorProtocol.needsEdgeBreak(close, open, manual))
     }
 
     /**

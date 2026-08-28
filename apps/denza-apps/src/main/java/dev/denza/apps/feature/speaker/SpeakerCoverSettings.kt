@@ -127,18 +127,28 @@ object SpeakerCoverSettings {
      * standing, and it is the one that can silently swallow the opening the other two just bought:
      * the automation opens (a `1` is remembered), the amplifier retracts the covers by itself, the
      * driver toggles the feature off and on, music plays, the re-armed one-shot asks for OPEN - and
-     * [SpeakerCoverMotorProtocol.needsEdgeBreak] sees a non-manual `1` against a remembered `1`,
-     * writes it once, and moves nothing. The HAL acknowledges, `auto_opened` is written, and the
-     * tile says «Автоматика отработала» over closed covers. That is the same silent no-op
+     * [SpeakerCoverMotorProtocol.needsEdgeBreak] sees an [SpeakerCoverCommandSource.AUTOMATIC] `1`
+     * against a remembered `1`, writes it once, and moves nothing. The HAL acknowledges,
+     * `auto_opened` is written, and the tile says «Автоматика отработала» over closed covers. That
+     * is the same silent no-op
      * [SpeakerCoverFactScope] was built against, arriving from the property side instead of the
      * clock side, and a deliberate toggle is precisely the moment to stop trusting a remembered
      * value.
      *
-     * The price is the once-per-trip forced pair on the next command, and its visibility is
-     * asymmetric in our favour: in the failing case the covers are already down, so the pair's close
-     * moves nothing and only the open is seen. On covers that are up it costs one dip-and-rise
-     * immediately after a switch the driver just flipped, where movement reads as the feature
-     * answering. A deterministic opening beats a correctly-predicted no-op.
+     * The price is the once-per-trip forced pair on the next command from the automation or a
+     * button, and its visibility is asymmetric in our favour: in the failing case the covers are
+     * already down, so the pair's close moves nothing and only the open is seen. On covers that are
+     * up it costs one dip-and-rise immediately after a switch the driver just flipped, where
+     * movement reads as the feature answering. A deterministic opening beats a correctly-predicted
+     * no-op.
+     *
+     * The parting open is *not* in that price, and the first version of this change let it be. It
+     * reaches the motor with nothing remembered too - a quick off-on-off, or an on-off with no
+     * playback in between, never writes anything - and back when the edge rule was asked only
+     * "manual or not", it took the automation's branch and bought the pair. The covers went out and
+     * in as the toggle went off, which is the one thing switching a feature off must not look like.
+     * [SpeakerCoverCommandSource.BEST_EFFORT] now buys no pair at all, so wiping the value here
+     * costs that path a possible no-op and never a twitch.
      */
     @SuppressLint("UseKtx")
     fun rearm(context: Context) {
