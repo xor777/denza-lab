@@ -314,6 +314,6 @@
   ],
   "launch": {
     "view": "canvas",
-    "page": "page-cluster"
+    "page": "page-screens"
   }
 }
