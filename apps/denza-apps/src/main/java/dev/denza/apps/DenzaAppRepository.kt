@@ -537,9 +537,9 @@ object DenzaAppRepository {
         val context = appContext ?: return
         SpeakerCoverSettings.setEnabled(context, enabled)
         if (enabled) {
-            // Switching it on outranks anything the driver pressed earlier in this boot: the two
-            // boot flags that keep the automation quiet are cleared before the service reads them,
-            // so a toggle flipped while music is playing opens the covers there and then.
+            // Switching it on outranks anything the driver pressed earlier in this trip: the two
+            // flags that keep the automation quiet are cleared before the service reads them, so a
+            // toggle flipped while music is playing opens the covers there and then.
             SpeakerCoverSettings.rearm(context)
             stateStore.update { current ->
                 current.copy(speakerCovers = FeatureReducer.starting(FeatureId.SPEAKER_COVERS))

@@ -156,6 +156,9 @@ automation is switched on at the time.
 at the moment of the press, `auto_opened_boot` written only once the automatic
 open is acknowledged. Without them a service restart mid-boot would re-open
 covers the driver had just closed, or spend a second automatic opening.
+(The scope in this paragraph and everywhere else in this section is superseded —
+"boot" was falsified live the same evening; see *The trip is a waking, not a
+boot* below. Everything else about the three facts still holds.)
 
 **Switching the automation on clears both flags.** The toggle is fresh intent and
 newer than any button pressed before it, so it hands the wheel back and the
@@ -251,6 +254,53 @@ The dashboard tile now says which of the three states the automation is in, sinc
 they are the only thing a driver needs from it: «Открою при первом
 воспроизведении», «Автоматика отработала — дальше кнопками», «Управление у
 водителя до перезапуска машины».
+
+### The trip is a waking, not a boot (falsified live 2026-08-28)
+
+Everything above scopes the three persisted facts — `last_command_value`,
+`driver_took_over`, `auto_opened` — to the kernel boot, on the assumption that an
+ignition cycle restarts Android. **It does not. This head unit suspends.**
+
+Measured on the car on 2026-08-28: kernel boot time **31.4 h** against roughly
+**7 h** of `uptimeMillis`, the unit having woken about 7 minutes before the check
+(when the driver got in). Preference stamps written the previous day matched the
+current `System.currentTimeMillis() - SystemClock.elapsedRealtime()` to within
+**13 ms**, so the 30 s slack was never remotely challenged and all three facts
+read as live. The amplifier does not share that boot: it goes down with the
+ignition, physically retracts the covers, and comes back with its edge-triggered
+property reset. From the seat that combination looked like a dead feature —
+music playing on a fresh trip and the covers never coming out, because the
+automation believed the driver had taken over (yesterday), that its one shot was
+already spent (yesterday), and the remembered `last_command_value = 1` made an
+automatic open a same-value no-op against firmware power-cycled twice since.
+
+The fix scopes the facts to the **wake cycle**. Android's two monotonic clocks
+differ by exactly the thing that was missing: `SystemClock.uptimeMillis()` stops
+in deep sleep, `SystemClock.elapsedRealtime()` does not, so
+`elapsedRealtime - uptimeMillis` is this boot's cumulative sleep and only ever
+grows. That total is now written beside each stamp (`last_command_asleep`,
+`driver_took_over_asleep`, `auto_opened_asleep` in the same `speaker_covers.xml`),
+and a fact is live **iff** it was written in this kernel boot — the unchanged
+30 s-slack stamp comparison — **and** the machine has slept less than **60 s**
+since the write. The rule is one pure object,
+`SpeakerCoverFactScope.isLive`, unit-tested without Android; `SpeakerCoverSettings`
+only reads the clocks and the preferences and delegates. Boot slack stays
+inclusive (exactly 30 s of drift is still the same boot); the sleep threshold is
+strict (exactly 60 s asleep is already a different trip).
+
+**A missing sleep record reads as expired**, not as live: preferences written by
+the previous version of the app carry a boot stamp and nothing else, and those
+are precisely the day-old facts this rule exists to discard.
+
+Expiring early is the safe direction. The worst case is a stop short enough that
+the amplifier stayed powered: the facts expire anyway, the next command finds
+nothing remembered, and the once-per-trip forced `2` / 350 ms / `1` pair costs one
+visible twitch — the price this design already documents for a property it cannot
+read. The other direction has no such floor, as the night of 2026-08-28 showed.
+
+The user-visible scope is unchanged and the tile copy stays true: sleep *is* the
+car being switched off, so «Управление у водителя до перезапуска машины» and the
+panel's «один раз за поездку» now describe what the code actually does.
 
 ## Superseded working path (2026-08-22 20:19)
 

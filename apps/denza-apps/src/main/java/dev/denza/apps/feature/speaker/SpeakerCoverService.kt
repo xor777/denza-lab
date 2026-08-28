@@ -131,11 +131,13 @@ class SpeakerCoverService : Service() {
     }
 
     /**
-     * The automaton as this boot has left it, which is not the same as a fresh one.
+     * The automaton as this trip has left it, which is not the same as a fresh one.
      *
-     * The two boot-scoped flags are the whole memory of the feature, and they exist because the
-     * process is restartable and the car is not: without them a restart would hand the automation
-     * a second opening and forget that the driver had taken the covers over.
+     * The two persisted flags are the whole memory of the feature, and they exist because the
+     * process is restartable and the trip is not: without them a restart would hand the automation
+     * a second opening and forget that the driver had taken the covers over. What counts as the
+     * same trip is [SpeakerCoverFactScope]'s to decide, and it is not the kernel boot - this head
+     * unit suspends at ignition off, so a boot outlives any number of trips.
      *
      * Replacing the object mid-flight is safe, and only because of how the result comes back:
      * [execute] posts a callback that reads the `automaton` field at the time it runs, so a result
