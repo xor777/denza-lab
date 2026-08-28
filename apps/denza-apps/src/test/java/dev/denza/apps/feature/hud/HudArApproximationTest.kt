@@ -295,6 +295,86 @@ class HudArApproximationTest {
     }
 
     @Test
+    fun `left-curving approach cannot slant a slight left onto the right of the nose`() {
+        val tracker = HudArApproximationTracker()
+        assertNotNull(
+            tracker.resolve(
+                guidance(maneuver = HudManeuver.SLIGHT_LEFT, distance = 100),
+                pose(headingDegrees = 0.0),
+                NOW,
+            ),
+        )
+        // The car bears left toward the fork while Yandex's displayed distance
+        // is unchanged, so the world-anchored point ends far right of the nose
+        // and the drawn arrow would read as a right turn.
+        val curved = pose(
+            latitude = LATITUDE + metersToLatitude(55.0),
+            longitude = LONGITUDE - metersToLongitude(10.0),
+            headingDegrees = 325.0,
+            capturedAtElapsedMs = NOW + 500L,
+        )
+        assertNull(
+            tracker.resolve(
+                guidance(maneuver = HudManeuver.SLIGHT_LEFT, distance = 100),
+                curved,
+                NOW + 500L,
+            ),
+        )
+    }
+
+    @Test
+    fun `gentle drift inside the slight cone keeps the tip left of the nose`() {
+        val tracker = HudArApproximationTracker()
+        assertNotNull(
+            tracker.resolve(
+                guidance(maneuver = HudManeuver.SLIGHT_LEFT, distance = 100),
+                pose(headingDegrees = 0.0),
+                NOW,
+            ),
+        )
+        val drifted = pose(
+            latitude = LATITUDE + metersToLatitude(30.0),
+            longitude = LONGITUDE - metersToLongitude(3.0),
+            headingDegrees = 350.0,
+            capturedAtElapsedMs = NOW + 500L,
+        )
+
+        val geometry = tracker.resolve(
+            guidance(maneuver = HudManeuver.SLIGHT_LEFT, distance = 100),
+            drifted,
+            NOW + 500L,
+        )!!
+
+        assertTrue(terminalNoseDeflection(geometry) < -10.0)
+    }
+
+    @Test
+    fun `straight guidance far off the nose fails closed instead of slanting`() {
+        val tracker = HudArApproximationTracker()
+        assertNotNull(
+            tracker.resolve(
+                guidance(maneuver = HudManeuver.STRAIGHT, distance = 100),
+                pose(headingDegrees = 0.0),
+                NOW,
+            ),
+        )
+        assertNull(
+            tracker.resolve(
+                guidance(maneuver = HudManeuver.STRAIGHT, distance = 100),
+                pose(headingDegrees = 20.0, capturedAtElapsedMs = NOW + 500L),
+                NOW + 500L,
+            ),
+        )
+        assertNotNull(
+            tracker.resolve(
+                guidance(maneuver = HudManeuver.STRAIGHT, distance = 100),
+                pose(headingDegrees = 10.0, capturedAtElapsedMs = NOW + 600L),
+                NOW + 600L,
+            ),
+        )
+    }
+
+    @Test
     fun `every generated maneuver keeps its semantic direction across compass headings`() {
         val expectedDeflections = mapOf(
             HudManeuver.STRAIGHT to 0.0,
@@ -320,6 +400,12 @@ class HudArApproximationTest {
                     "maneuver=$maneuver heading=$heading",
                     expected,
                     terminalDeflection(checkNotNull(geometry)),
+                    2.0,
+                )
+                assertEquals(
+                    "maneuver=$maneuver heading=$heading",
+                    expected,
+                    terminalNoseDeflection(geometry),
                     2.0,
                 )
             }
@@ -452,6 +538,12 @@ class HudArApproximationTest {
         val approach = bearingDegrees(line.first(), parseGuidePoint(geometry.guidePoint))
         val terminal = bearingDegrees(line[line.lastIndex - 1], line.last())
         return ((terminal - approach + 540.0) % 360.0) - 180.0
+    }
+
+    private fun terminalNoseDeflection(geometry: HudArGeometry): Double {
+        val line = parseGuideLine(geometry.guideLine)
+        val terminal = bearingDegrees(line[line.lastIndex - 1], line.last())
+        return ((terminal - geometry.vehicleHeadingDegrees + 540.0) % 360.0) - 180.0
     }
 
     private data class Point(val latitude: Double, val longitude: Double)

@@ -621,9 +621,13 @@ no polyline. Denza Apps therefore uses an explicitly bounded approximation:
   and U-turn left/right maneuvers. A U-turn has its own progressive 175-degree
   curve, so it can only be emitted from an explicit Yandex U-turn instruction;
   the regular turn guards remain capped below reversal. Unknown maneuvers,
-  roundabouts, stale/future fixes, poor accuracy, and a route more than 70
-  degrees away from the measured heading fail closed to the already verified
-  compact HUD packet.
+  roundabouts, stale/future fixes, and poor accuracy fail closed to the
+  already verified compact HUD packet. So does a guide point whose bearing
+  diverges from the vehicle nose beyond half the commanded turn angle
+  (15 degrees for straight, capped at 70 for U-turns): the firmware projects
+  the polyline against the live vehicle pose, so a divergence larger than the
+  maneuver's own angle used to let a slight left render as a right-bending
+  arrow while every approach-frame guard passed.
 - The inferred turn point is anchored in world coordinates, so repeated GNSS
   fixes cannot drag it forward while Yandex's displayed distance is unchanged.
   Small distance updates are blended; a distance increase of at least 30
@@ -636,8 +640,11 @@ no polyline. Denza Apps therefore uses an explicitly bounded approximation:
   the stale anchor course. Immediately before serialization, a semantic guard
   rejects degenerate segments, a bend in the direction opposite the maneuver,
   a non-progressing exit, or a terminal deflection inconsistent with the
-  requested 35/90/135/175-degree maneuver. Only an explicit U-turn may exceed
-  the regular 165-degree reversal ceiling.
+  requested 35/90/135/175-degree maneuver — and, for non-U-turn maneuvers,
+  a terminal segment that does not keep the commanded side of the vehicle
+  nose (U-turns are exempt only because shortest-angle sign aliases near
+  180 degrees; their tighter cone and progression checks stay authoritative).
+  Only an explicit U-turn may exceed the regular 165-degree reversal ceiling.
 - Field 33 remains `0.0` because proximity is not whole-route progress. AR
   refreshes every 350 ms. Losing an eligible pose immediately emits a compact
   packet so the firmware cannot retain stale geometry.
@@ -645,14 +652,25 @@ no polyline. Denza Apps therefore uses an explicitly bounded approximation:
 Four synthetic straight/slight/normal/sharp paths and the corrected left/right
 pair were accepted by the live SOME/IP service, cleared, and stopped without
 an Android or AVC crash. The disposable probe was uninstalled. The product
-registered a 200 ms GNSS request on the car. Nineteen JVM mutation tests cover
-the activation boundaries, unsupported maneuvers, stale/imprecise/out-of-order
-fixes, parked-course hold, north/dateline wrap, left/right mirroring, U-turn
-direction and return heading, turn severity, anchor stability, rerouting,
-lateral rebasing, stale-course rejection, wire-boundary turn semantics, and
+registered a 200 ms GNSS request on the car. Twenty-two JVM mutation tests
+cover the activation boundaries, unsupported maneuvers,
+stale/imprecise/out-of-order fixes, parked-course hold, north/dateline wrap,
+left/right mirroring, U-turn direction and return heading, turn severity,
+anchor stability, rerouting, lateral rebasing, stale-course rejection,
+wire-boundary turn semantics in both the approach and the nose frame, and
 exact protobuf field numbers/wire types. End-to-end visual validation during a
 real moving Yandex route, including the new U-turn geometry, is intentionally
 still pending.
+
+A live 2026-08 route produced the predicted failure of the old flat 70-degree
+gate: on a left-curving approach to a slight left, the world-anchored guide
+point drifts to the outside of the curve, every guard measured only against
+the approach leg still passed, and the blue AR arrow rendered as a right
+turn. The per-maneuver nose cone above is the fix; the JVM regression test
+`left-curving approach cannot slant a slight left onto the right of the nose`
+reproduces the drive. The trade-off is intentional: on strongly curved
+approaches AR now drops to the compact packet more often instead of drawing a
+semantically wrong bend. Live re-check on a real slight-turn route is pending.
 
 Yandex Navigator 29.8.1 also contains a structured AndroidX Car App path. Its
 own projected guidance constructs a `Trip` from destination address, a

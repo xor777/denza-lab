@@ -6,6 +6,7 @@ import kotlin.math.asin
 import kotlin.math.atan2
 import kotlin.math.ceil
 import kotlin.math.cos
+import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.pow
 import kotlin.math.sin
@@ -203,7 +204,13 @@ class HudArApproximationTracker {
         val remaining = distanceMeters(vehicle, turn)
         if (remaining !in MIN_GUIDE_POINT_DISTANCE_METERS..MAX_GUIDE_POINT_DISTANCE_METERS) return null
         val approachHeading = bearingDegrees(vehicle, turn)
-        if (abs(shortestHeadingDelta(pose.headingDegrees, approachHeading)) > MAX_APPROACH_ERROR_DEGREES) {
+        // The firmware projects the polyline against the live vehicle pose, so
+        // the driver reads the bend relative to the nose, not relative to the
+        // approach leg. A slight bend survives less frame divergence than a
+        // sharp one before its side visually flips.
+        if (abs(shortestHeadingDelta(pose.headingDegrees, approachHeading)) >
+            maxNoseApproachErrorDegrees(guidance.maneuver)
+        ) {
             return null
         }
         // The point is only an approximation derived from the course captured
@@ -226,7 +233,7 @@ class HudArApproximationTracker {
             exitHeading = approachHeading,
             maneuver = guidance.maneuver,
         )
-        if (!guideLineIsSafe(line, approachHeading, guidance.maneuver)) return null
+        if (!guideLineIsSafe(line, approachHeading, pose.headingDegrees, guidance.maneuver)) return null
         val geometry = HudArGeometry(
             vehicleLatitude = pose.latitude,
             vehicleLongitude = pose.longitude,
@@ -313,10 +320,15 @@ class HudArApproximationTracker {
         return result
     }
 
-    /** Final semantic guard at the wire boundary: a right command must only bend right, etc. */
+    /**
+     * Final semantic guard at the wire boundary: a right command must only bend
+     * right, both against its own approach leg and against the vehicle nose the
+     * firmware renders the polyline for.
+     */
     private fun guideLineIsSafe(
         line: List<GeoPoint>,
         approachHeading: Double,
+        noseHeadingDegrees: Double,
         maneuver: HudManeuver,
     ): Boolean {
         if (line.size < 3 || line.any { !it.latitude.isFinite() || !it.longitude.isFinite() }) {
@@ -334,8 +346,13 @@ class HudArApproximationTracker {
             if (distanceMeters(from, to) < MIN_VALID_SEGMENT_METERS) return false
             shortestHeadingDelta(approachHeading, bearingDegrees(from, to))
         }
+        val terminalNose = shortestHeadingDelta(
+            noseHeadingDegrees,
+            bearingDegrees(line[line.lastIndex - 1], line.last()),
+        )
         if (expected == 0.0) {
-            return deflections.all { abs(it) <= STRAIGHT_DEFLECTION_TOLERANCE_DEGREES }
+            return deflections.all { abs(it) <= STRAIGHT_DEFLECTION_TOLERANCE_DEGREES } &&
+                abs(terminalNose) <= STRAIGHT_NOSE_ERROR_DEGREES + STRAIGHT_DEFLECTION_TOLERANCE_DEGREES
         }
         val direction = if (expected > 0.0) 1.0 else -1.0
         val directed = deflections.map { it * direction }
@@ -343,6 +360,14 @@ class HudArApproximationTracker {
             return false
         }
         if (directed.zipWithNext().any { (before, after) -> after + PROGRESSION_TOLERANCE_DEGREES < before }) {
+            return false
+        }
+        // Near 180 degrees the shortest-angle sign aliases, so a U-turn's tip
+        // cannot be side-checked against the nose; its cone and progression
+        // checks above stay authoritative.
+        if (!maneuver.isUTurn() &&
+            terminalNose * direction < abs(expected) / 2.0 - TERMINAL_DEFLECTION_TOLERANCE_DEGREES
+        ) {
             return false
         }
         return abs(directed.last() - abs(expected)) <= TERMINAL_DEFLECTION_TOLERANCE_DEGREES
@@ -381,6 +406,7 @@ class HudArApproximationTracker {
         const val MAX_POSE_AGE_MS = 2_500L
         const val MAX_POSE_ACCURACY_METERS = 20.0
         const val MAX_APPROACH_ERROR_DEGREES = 70.0
+        const val STRAIGHT_NOSE_ERROR_DEGREES = 15.0
         const val MAX_ANCHOR_HEADING_ERROR_DEGREES = 45.0
         const val MAX_ANCHOR_BLEND_METERS = 35.0
         const val ROUTE_RESET_DISTANCE_JUMP_METERS = 30
@@ -428,6 +454,17 @@ class HudArApproximationTracker {
 
         fun HudManeuver.isUTurn(): Boolean =
             this == HudManeuver.U_TURN_LEFT || this == HudManeuver.U_TURN_RIGHT
+
+        /**
+         * How far the vehicle nose may diverge from the bearing to the guide
+         * point before the rendered arrow stops reading as the commanded side.
+         * Half the commanded angle keeps both the sign and a visible share of
+         * the bend in the frame the driver sees.
+         */
+        fun maxNoseApproachErrorDegrees(maneuver: HudManeuver): Double = min(
+            MAX_APPROACH_ERROR_DEGREES,
+            max(STRAIGHT_NOSE_ERROR_DEGREES, abs(turnAngleDegrees(maneuver)) / 2.0),
+        )
 
         fun normalizeHeading(value: Double): Double = ((value % 360.0) + 360.0) % 360.0
 
