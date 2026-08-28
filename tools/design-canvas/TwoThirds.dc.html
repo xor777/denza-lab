@@ -11,10 +11,11 @@
   <style>
     body { margin:0; background:#07080A; font-family:'Roboto','Segoe UI',system-ui,sans-serif; }
     a { color:#FEEFAB; } a:hover { color:#FFF7D2; }
-    .chip { position:relative; aspect-ratio:1; box-sizing:border-box; border-radius:12px; display:flex; align-items:center; justify-content:center; }
+    .chip { position:relative; overflow:hidden; aspect-ratio:1; box-sizing:border-box; border-radius:12px; display:flex; align-items:center; justify-content:center; }
     .on { background:#212429; border:1px solid rgba(254,239,171,0.30); box-shadow:0 0 22px rgba(254,239,171,0.07); }
     .off { background:#15181F; border:1px solid rgba(218,225,235,0.10); }
     .led { font-family:'Roboto Mono',monospace; font-weight:700; font-size:34px; letter-spacing:5px; color:transparent; background-color:#FEEFAB; background-image:radial-gradient(circle at center, #FEEFAB 41%, transparent 46%); background-size:3.4px 3.4px; -webkit-background-clip:text; background-clip:text; filter:drop-shadow(0 0 7px rgba(254,239,171,0.55)); }
+    .chip::after { content:""; position:absolute; right:0; bottom:0; width:35.3%; height:35.3%; clip-path:polygon(100% 0, 100% 100%, 0 100%); background:rgba(218,225,235,0.10); }
     .dot { position:absolute; border-radius:50%; }
     .across { display:flex; align-items:stretch; height:72px; }
     .fig { flex:1; min-width:0; display:flex; flex-direction:column; gap:8px; }

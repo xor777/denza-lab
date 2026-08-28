@@ -64,6 +64,10 @@ CHIP_RADIUS = 12             # Radius.M
 # 30, 7 and 9 - which is what they were written as. They are ratios now because the chip shrinks
 # when a feature is added: an eleventh puts it at 60.7, and a 30 dp glyph in a 60.7 chip has its
 # top-right corner under the dot.
+# The folded hold-corner, as a fraction of the chip like everything else on it. Deeper than the
+# tile's 40/164 because the chip is rounder: 12 of radius on a 60.7 side eats proportionally more
+# of a flush fold than 22 does on 164, and a fold that does not outlive the arc is not drawn.
+CHIP_HOLD_RATIO = 24 / 68
 CHIP_ICON_RATIO = 30 / 68
 CHIP_DOT_RATIO = 7 / 68
 CHIP_DOT_INSET_RATIO = 9 / 68
@@ -329,6 +333,9 @@ def board(pane, src):
         'display:flex; flex-direction:column; justify-content:space-between;',
         f'aspect-ratio:1; box-sizing:border-box; border-radius:{CHIP_RADIUS}px; '
         'display:flex; align-items:center; justify-content:center;')
+    # The tile's fold, scaled with the chip: the same sign for the same gesture, drawn as a
+    # fraction because the chip itself is one.
+    css += ('\n    .chip::after { content:\"\"; position:absolute; right:0; bottom:0; width:35.3%; height:35.3%; clip-path:polygon(100% 0, 100% 100%, 0 100%); background:rgba(218,225,235,0.10); }')
     if 'aspect-ratio' not in css:
         sys.exit('the tile rule on Main.dc.html changed shape; gen_panes.py cannot derive the chip')
     bars = ',\n        '.join('{h:%g,p:%g}' % (b['h'], b['p']) for b in data)
@@ -563,6 +570,9 @@ def density_board(src):
         'display:flex; flex-direction:column; justify-content:space-between;',
         f'aspect-ratio:1; box-sizing:border-box; border-radius:{CHIP_RADIUS}px; '
         'display:flex; align-items:center; justify-content:center;')
+    # The tile's fold, scaled with the chip: the same sign for the same gesture, drawn as a
+    # fraction because the chip itself is one.
+    css += ('\n    .chip::after { content:\"\"; position:absolute; right:0; bottom:0; width:35.3%; height:35.3%; clip-path:polygon(100% 0, 100% 100%, 0 100%); background:rgba(218,225,235,0.10); }')
 
     return f'''<!doctype html>
 <html>

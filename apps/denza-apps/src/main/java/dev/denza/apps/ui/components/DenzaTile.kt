@@ -3,6 +3,7 @@ package dev.denza.apps.ui.components
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
@@ -24,7 +25,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextOverflow
 import dev.denza.apps.design.DenzaColors
@@ -86,6 +89,10 @@ fun DenzaTile(
     Box(
         modifier = modifier
             .height(DenzaMetrics.Component.TILE_HEIGHT)
+            // The clip is what makes the fold below a fold: drawn flush in the corner, its tip
+            // is cut away by the tile's own radius, so its outer curve can never disagree with
+            // the tile's.
+            .clip(shape)
             .background(background, shape)
             .border(BorderStroke(DenzaMetrics.Stroke.HAIRLINE, edge), shape)
             .combinedClickable(
@@ -94,6 +101,11 @@ fun DenzaTile(
                 onLongClick = onLongClick,
             ),
     ) {
+        HoldCorner(
+            Modifier
+                .align(Alignment.BottomEnd)
+                .size(DenzaMetrics.Component.TILE_HOLD_CORNER),
+        )
         Column(
             modifier = Modifier.fillMaxSize().padding(DenzaMetrics.Space.L),
             verticalArrangement = Arrangement.SpaceBetween,
@@ -165,7 +177,32 @@ private fun captionColor(tone: DenzaTileTone, caption: DenzaTileCaption): Color 
     DenzaTileTone.IDLE, DenzaTileTone.WORKING -> DenzaColors.Muted
 }
 
-// The corner mark that used to sit here is gone. It marked the four tiles whose long press led
-// somewhere, in the convention a phone keyboard uses for a key with more characters under it - and
-// on the car it read as something stuck to the tile rather than drawn with it. Every tile has a
-// panel now, so a mark distinguishing them would be on all eleven and distinguish nothing.
+/**
+ * The folded corner that says a long press has somewhere to go.
+ *
+ * The convention a phone keyboard uses for a key with more characters under it. Its first cut
+ * failed twice and was rolled back: an 8 dp wedge floating 8 dp off the corner read as something
+ * stuck to the tile rather than drawn with it. So this one is flush - both legs are the tile's
+ * own edges, the tile's clip rounds its tip with the tile's own radius - and it is one quiet ink
+ * on all eleven tiles, because it signals the gesture, never the state: every tile has a panel
+ * now, and a fold that changed colour with the tone would claim a meaning it does not have.
+ *
+ * Still deliberately not a target: a mark you have to hit would sit on the face of a tile whose
+ * face is already a button, and a miss would run the feature's main action. A sign costs nothing
+ * to miss.
+ */
+@Composable
+internal fun HoldCorner(modifier: Modifier = Modifier) {
+    Canvas(modifier) {
+        val fold = Path().apply {
+            moveTo(size.width, 0f)
+            lineTo(size.width, size.height)
+            lineTo(0f, size.height)
+            close()
+        }
+        drawPath(fold, DenzaColors.Ink.copy(alpha = HOLD_CORNER_ALPHA))
+    }
+}
+
+/** The fold's ink: the same whisper the idle tile's own hairline uses. */
+internal const val HOLD_CORNER_ALPHA = 0.10f

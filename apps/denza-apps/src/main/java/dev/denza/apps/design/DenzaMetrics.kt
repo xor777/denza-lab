@@ -136,6 +136,16 @@ object DenzaMetrics {
         val TILE_ICON: Dp = 30.dp
 
         /**
+         * The folded corner that says a long press has somewhere to go.
+         *
+         * Larger than [DenzaMetrics.Radius.L] on purpose: the fold sits flush in the corner and
+         * the tile's own 22 dp arc cuts its tip away, so the first 22 of these buy nothing and
+         * what survives past the arc is the visible sign. A fold smaller than the radius
+         * disappears entirely - which is one of the two ways the first cut failed.
+         */
+        val TILE_HOLD_CORNER: Dp = 40.dp
+
+        /**
          * The chip's insides, as fractions of the chip.
          *
          * At ten features the chip is 68.0 dp in the two-thirds pane and 68.8 in the narrow one,
@@ -150,6 +160,13 @@ object DenzaMetrics {
         const val CHIP_ICON_RATIO: Float = 30f / 68f
         const val CHIP_DOT_RATIO: Float = 7f / 68f
         const val CHIP_DOT_INSET_RATIO: Float = 9f / 68f
+
+        /**
+         * The chip's hold-corner fold, deeper than the tile's 40/164 because the chip is
+         * rounder: 12 dp of radius on a ~60 dp side eats proportionally more of a flush fold
+         * than 22 does on 164, and a fold that does not outlive the arc is not drawn.
+         */
+        const val CHIP_HOLD_RATIO: Float = 24f / 68f
 
         /**
          * The smallest chip this design has.

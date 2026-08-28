@@ -11,11 +11,15 @@
   <style>
     body { margin:0; background:#07080A; font-family:'Roboto','Segoe UI',system-ui,sans-serif; }
     a { color:#FEEFAB; } a:hover { color:#FFF7D2; }
-    .tile { position:relative; height:164px; box-sizing:border-box; border-radius:22px; padding:20px; display:flex; flex-direction:column; justify-content:space-between; }
-    /* No corner mark. There used to be one on the four tiles whose long press led somewhere, in
-       the convention a phone keyboard uses for a key with more characters under it; every tile
-       has a panel now, so a mark saying so would be on all eleven and distinguish nothing.
-       `DenzaTile` dropped it in the same change.
+    .tile { position:relative; overflow:hidden; height:164px; box-sizing:border-box; border-radius:22px; padding:20px; display:flex; flex-direction:column; justify-content:space-between; }
+    .tile::after { content:""; position:absolute; right:0; bottom:0; width:40px; height:40px; clip-path:polygon(100% 0, 100% 100%, 0 100%); background:rgba(218,225,235,0.10); }
+    /* THE FOLDED CORNER on every tile is the sign that a long press has somewhere to go - the
+       convention a phone keyboard uses for a key with more characters under it. Its first cut
+       was rolled back off the car: an 8px wedge floating 8 from the corner read as something
+       stuck to the tile. So the fold is flush - its legs are the tile's own edges and
+       overflow:hidden rounds its tip with the tile's own radius - and it is ONE quiet ink on
+       all eleven, because it signals the gesture, never the state. `DenzaTile.HoldCorner` is
+       the same statement in Kotlin; `MainBoardContractTest` holds the two together.
 
        THE TWO INKS UNDER A NAME, which is the only place this board spends colour on words:
 
