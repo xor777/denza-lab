@@ -1,11 +1,5 @@
 package dev.denza.apps.ui.components
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -23,6 +17,9 @@ import dev.denza.apps.design.DenzaMetrics
  *
  * What genuinely differs between pickers is the words and how many fit in a row, so those are the
  * parameters and nothing else is.
+ *
+ * The grid itself is [DenzaAppGrid], because a picker that is a whole sheet is not the only place
+ * the driver points at an application.
  */
 @Composable
 fun <T> DenzaPickerSheet(
@@ -54,22 +51,13 @@ fun <T> DenzaPickerSheet(
                 color = DenzaColors.Muted,
             )
         } else {
-            LazyVerticalGrid(
-                // On a narrow pane the column count is whatever fits, because three fixed columns
-                // in a 416 dp pane is three unreadable ones.
-                columns = if (compact) {
-                    GridCells.Adaptive(DenzaMetrics.Component.APP_TILE)
-                } else {
-                    GridCells.Fixed(columns)
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = DenzaMetrics.Component.PICKER_HEIGHT),
-                horizontalArrangement = Arrangement.spacedBy(DenzaMetrics.Space.S),
-                verticalArrangement = Arrangement.spacedBy(DenzaMetrics.Space.S),
-            ) {
-                items(items, key = key) { entry -> item(entry) }
-            }
+            DenzaAppGrid(
+                items = items,
+                key = key,
+                compact = compact,
+                columns = columns,
+                item = item,
+            )
         }
     }
 }
