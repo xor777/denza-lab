@@ -21,6 +21,7 @@ Use this folder for durable project knowledge.
 | `carplay-findings.md` | Vehicle hardware/software evidence around CarPlay, PhoneLink/Fission boundaries, and unsupported hypotheses. |
 | `car-adb-gateway-architecture.md` | Normative relay-only Car ADB Gateway design and verification status. |
 | `car-adb-gateway-decision-log.md` | ADR-lite product/architecture decisions, rationale, evidence, and revisit conditions. |
+| `cluster-contest-2026-09/` | Design contest for the driver-display instrument panel: the brief, five concepts (A–E), and the jury verdict that chose «Контур» with five binding amendments. |
 
 If an investigation produces something worth keeping, update the nearest page.
 Add a new document only when the subject has a clear long-term home and would
