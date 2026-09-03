@@ -1368,10 +1368,14 @@ the first step that raises the covers.
 
 1. **Playback-state report, silent.** Call the stock DiCar media API
    `ICarMediaService.setPlaybackState(PAUSED)` then `(PLAYING)`, which writes
-   `0x43E0000A` `2` then `1`. `CarMediaServiceImpl.setPlaybackState` carries no
-   permission check in the N9 build and `DiCarServer`'s manifest declares no
-   media permission, so this should be reachable from an ordinary app UID. If
-   the covers rise, the whole feature is one silent call.
+   `0x43E0000A` `2` then `1`. Three things make this reachable from an ordinary
+   app UID: `CarMediaServiceImpl.setPlaybackState` carries no permission check in
+   the N9 build, `DiCarServer`'s manifest declares no media permission, and the
+   SDK reaches the binder through `com.byd.car.server.provider.CarServiceProvider`,
+   which is `exported="true"` with no `android:permission`. That is the same
+   shape as the PersonBean provider route already proven from the app UID on
+   2026-09-03, so the probe is a `ContentResolver` query for the binder followed
+   by two calls. If the covers rise, the whole feature is one silent call.
 2. **Working-mode/state pair.** Write `[0x43E00040, 0x43E00044] = [2, 1]` a few
    times at ~100 ms, as `AtmosphereLampCore` does.
 3. **Stock playback restart, silent.** Start the silence clip through the stock
