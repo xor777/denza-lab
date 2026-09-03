@@ -1410,6 +1410,68 @@ counterpart on the newer car, and it is the part an update can take away.
 So the durable lever is the half both cars already share: make the amplifier see
 music playing. Nothing about that depends on which car ships the switch.
 
+## The playback report is the lever (live-proven on the Z9GT, 2026-09-03)
+
+Writing the stock playback state raises the covers. No audio, no motor FID, and
+the auto-lift setting is never touched.
+
+```bash
+# device 1007 = BYDAUTO_DEVICE_INSTRUMENT, 1138753546 = 0x43E0000A
+# INSTRUMENT_MUSIC_STATE_SET; 1 = PLAYING, 2 = PAUSED, 3 = CLOSED
+adb -s 127.0.0.1:5555 shell service call autoservice 6 i32 1007 i32 1138753546 i32 1 null
+```
+
+The run, with the owner watching the dash:
+
+```text
+19:34:07  0x35A000DA reads 1            auto-lift enabled, covers in, nothing played since 12:17
+19:35:24  write 0x43E0000A = 1          postEvent 1007 / 43e0000a / value = 1
+          covers came out               confirmed by eye
+19:36:19  write 0x43E0000A = 2          postEvent 1007 / 43e0000a / value = 2
+19:36:2x  0x35A000DA still reads 1      the auto-lift setting was never written
+```
+
+`0x16300025` does not appear anywhere in the capture - grep count zero across the
+whole log. The raise is caused by the playback report alone.
+
+This is the durable lever the direct motor write is not. It uses the amplifier's
+own rule instead of the vehicle-specific extra, so it does not depend on this car
+keeping the behaviour where `1` drives the motor, and it leaves the driver's
+stock auto-lift setting alone, which removes the manual-mode latch the current
+automation causes.
+
+### It is a shell write, not an app-UID one
+
+The stock service accepts the call from an ordinary app UID and then the property
+layer refuses it:
+
+```text
+op=state uid=10148 state=PAUSED binder=yes delivered=true
+  code=20004 message=Permission not granted for: android.permission.BYDAUTO_INSTRUMENT_SET
+DiCarLog [SET_PROPERTY] "0x43E0000A,2" FAIL -> 20004
+```
+
+So `CarMediaServiceImpl.setPlaybackState` really does carry no permission check
+of its own, and that is not enough: `BYDAutoService::checkSetPermission` gates
+the write on the instrument device. The shell UID holds the permission and the
+app UID does not, which puts this on exactly the route Denza Apps already uses
+for the cover FID, `DenzaLocalAdb`. No new manifest permission, no new
+architecture.
+
+### What this changes for the product
+
+- The raise becomes "report PLAYING", which is what the amplifier is waiting for
+  on both cars.
+- The retract becomes "report PAUSED" instead of `0x16300025 = 2`, so the app
+  stops disabling the driver's stock auto-lift and the ignition-cycle latch
+  stops happening.
+- Yandex still needs the app to send the report, because the car marks unknown
+  media packages as paused by itself. That part is unchanged.
+
+Open: whether the amplifier retracts on the `2` report, and whether the N9
+behaves the same. The first needs one look at the dash, the second needs the
+mini APK for that car's owner.
+
 ### The decisive experiment, when an N9 is available
 
 One owner, covers in, stock auto-lift freshly enabled (`0x16300025 = 1`,
