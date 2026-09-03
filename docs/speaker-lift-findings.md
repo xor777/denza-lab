@@ -1616,6 +1616,20 @@ unknown apps. Reporting those as well (`0x43FB1008`, `0x43E00010`,
 `0x33F00030`) would make a third-party player look on the cluster exactly like
 the stock one. Same mechanism, larger surface, and not needed for the covers.
 
+### Implemented 2026-09-03
+
+The contract above is the shipped shape. `SpeakerCoverPolicy` is the whole
+decision and is pure; `SpeakerCoverReporting` is the copy of the vendor's two
+lists; `SpeakerCoverProtocol` holds the wire format; `SpeakerCoverTransport`
+reads the setting before it writes. The automaton, the trip-scoped fact scope,
+the edge-break machinery and the audio-capture fallback were deleted before any
+of it was written.
+
+Twenty-seven unit tests cover the three pure files, and eighteen deliberate
+mutations of them - wrong device, wrong feature id, paused instead of playing, a
+read reply passing as a write acknowledgement, a package dropped from the
+vendor list, the enable step skipped - were each killed by a failing test.
+
 ### Still to verify
 
 1. Does an ignition cycle restore `0x35A000DA` to `1` after the app has written
@@ -1625,7 +1639,9 @@ the stock one. Same mechanism, larger surface, and not needed for the covers.
    no host ADB, so the test build must carry the local-ADB client and walk them
    through the one-time on-screen authorization.
 3. Does the car overwrite our report on track changes inside the same unknown
-   app, or only on focus changes? Only affects how often the app re-sends.
+   app, or only on focus changes? Only affects how often the app re-sends; the
+   app currently repeats a playback report once after 1.2 s and then holds off on
+   the same player for a minute.
 
 Settled 2026-09-03: reporting `2` does not retract, so the report is one-way and
 nothing needs to be held.
