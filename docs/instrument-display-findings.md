@@ -670,7 +670,7 @@ turn. The per-maneuver nose cone above is the fix; the JVM regression test
 `left-curving approach cannot slant a slight left onto the right of the nose`
 reproduces the drive. The trade-off is intentional: on strongly curved
 approaches AR now drops to the compact packet more often instead of drawing a
-semantically wrong bend. Live re-check on a real slight-turn route is pending.
+semantically wrong bend. The live re-check is recorded in the next paragraph.
 
 On 2026-09-03 the live re-check reported the same failure after the nose-cone
 fix, while the flat maneuver PNG was always correct. That points away from
@@ -686,9 +686,13 @@ left was therefore sent as the slight-right ID and a slight right as the
 sharp-left ID. The earlier left/right probes could not expose this because 1/2
 coincide in both tables, and the slight probe was only checked for packet
 acceptance. The product now sends the recovered table (roundabouts as 25, exit
-number not encoded). Hypothesis under live test: the AR arrow glyph follows
-field 28. If a slight exit still renders on the wrong side with the new IDs,
-revert that commit and isolate field 28 with a parked ID-sweep probe.
+number not encoded). A live drive on 2026-09-03 confirmed it: with the
+recovered IDs, slight exits render on the commanded side. The AR glyph side
+therefore follows field 28, and the 2026-08 left-curving failure above was this
+ID mismatch rather than frame divergence; the nose-cone guard stays as a
+geometry safety net. Left, right, and both slight IDs are live verified; sharp,
+U-turn, straight, and roundabout IDs come from the same table but have not been
+seen on the car yet. A parked ID sweep remains the way to verify them.
 
 Yandex Navigator 29.8.1 also contains a structured AndroidX Car App path. Its
 own projected guidance constructs a `Trip` from destination address, a
