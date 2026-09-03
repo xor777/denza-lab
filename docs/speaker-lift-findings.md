@@ -1472,6 +1472,129 @@ Open: whether the amplifier retracts on the `2` report, and whether the N9
 behaves the same. The first needs one look at the dash, the second needs the
 mini APK for that car's owner.
 
+## Product contract: report playback, never drive the motor (2026-09-03)
+
+This section is normative for `apps/denza-apps/.../feature/speaker/`. Where it
+disagrees with the older automation sections above, this one wins.
+
+### The rule the car already implements
+
+The covers are out while **auto-lift is enabled AND the instrument music state
+says PLAYING** (or during the power-on welcome). The car maintains that state
+itself for the media apps it knows. For an app it does not know it asserts
+`PAUSED`, deliberately, 500 ms after that app takes media focus.
+
+So the gap is narrow and precisely shaped: for third-party players, nobody tells
+the car that music is playing. The app's job is to be that reporter. It is not to
+move a motor, and every problem in the current implementation comes from it
+trying to.
+
+### Two writes, one meaning each
+
+| purpose | FID | device | when the app writes it |
+| --- | --- | --- | --- |
+| playback report | `0x43E0000A` `INSTRUMENT_MUSIC_STATE_SET` | `1007` | on every real transition of the session it reports for: `1` PLAYING, `2` PAUSED |
+| enable auto-lift | `0x16300025` | `1002` | value `1` only, and only when `0x35A000DA` reads `2` and a raise is wanted right now |
+
+**The app never writes `0x16300025 = 2`.** That is the write that disables the
+driver's stock auto-lift and latches the amplifier into manual mode until an
+ignition cycle. It is the cause of the shipped N9 defect and of the Z9GT
+manual-mode latch, and the report replaces every use of it.
+
+Reading `0x35A000DA` before enabling matters: the property is edge-triggered, so
+writing `1` when it already reads `1` is free, and writing it when it reads `2`
+also moves the motor on the Z9GT. Folding the enable into the raise means that
+side effect only ever happens at a moment a raise was wanted anyway.
+
+### No model discrimination
+
+Both steps behave correctly on both cars, so the plan to branch on `getAutoType`
+is dropped. On the N9 the enable write only enables and the report raises; on the
+Z9GT the enable write may also raise, which is the same visible outcome. The
+current defect exists because the app models a motor. Once it models playback,
+the two cars converge and there is nothing to branch on.
+
+### Who the app reports for
+
+Mirror the car's own lists rather than inventing one. If the media-focus owner is
+in either list below, the car reports correctly by itself and the app must stay
+silent; otherwise the app is the reporter.
+
+```text
+car whitelist  com.byd.mediacenter, com.byd.videoplay{,.youku,.youku.fse,.fse,.hd},
+               com.tencent.qqmusiccar, com.netease.cloudmusic.iot,
+               com.ximalaya.ting.android{,.car.byd}, bubei.tingshu.hd
+car filter     android, com.android.server.telecom, com.android.bluetooth
+```
+
+Both are hard-coded in `MediaTaskManager` in the stock `MediaController`. They
+are a copy of vendor state, so re-read them after a firmware update; a package
+that quietly joins the whitelist would make the app report twice.
+
+### Re-assertion, because the car writes over us
+
+On a focus change to an unknown app the car sends its own `PAUSED` about 500 ms
+later. Any report the app sends before that is lost. So while the app believes
+PLAYING, it re-sends PLAYING once about 800 ms after a focus change, and after
+any observed session change. Debounced, and never on a progress tick: one write
+per real transition.
+
+Whether the report is a level the amp holds or an edge it acts on is not yet
+established, so the app treats it as a level it keeps true and re-asserts when
+the car may have overwritten it. That is correct under either reading.
+
+### What this retires
+
+- **The audio-capture fallback.** `SpeakerCoverAutomaton.onAudioSample` and
+  `FALLBACK_SOUND_MS` inferred music from captured sound because there was no
+  better signal. There is now. The covers stop depending on a microphone.
+- **The parting close and the wind-down.** The car lowers the covers on power off
+  by its own rule once auto-lift is left enabled. The app stops writing a close.
+- **The edge-break machinery** for the cover FID, along with the manual/level
+  precedence rules that existed to keep a motor honest.
+
+The automaton shrinks to: observed playback state of the reportable session, the
+user's manual gestures, and the feature switch, producing one desired report.
+
+### Manual gestures
+
+A manual **raise** with nothing playing means the app holds a PLAYING report the
+car cannot corroborate. That is benign and it is the only way to honour the
+gesture, but it must be a held state, not a pulse: the app keeps reporting
+PLAYING until the user retracts or real playback takes over.
+
+A manual **retract** reports PAUSED. If the amplifier turns out not to retract on
+the report, the only other lever is the enable write, which costs the driver
+their stock auto-lift until the next ignition cycle. That trade is not the app's
+to make silently, so it stays open until the test below settles it.
+
+### Transport
+
+The write is refused from the app UID (`20004`,
+`android.permission.BYDAUTO_INSTRUMENT_SET`) and accepted from the shell UID, so
+it goes through `DenzaLocalAdb`, the route the cover FID already uses. No new
+manifest permission. One write per transition keeps the ~1 s shell round trip off
+the interaction path.
+
+### Optional second stage: full cluster presence
+
+The same suppression blanks the track name, artist, progress and source for
+unknown apps. Reporting those as well (`0x43FB1008`, `0x43E00010`,
+`0x33F00030`) would make a third-party player look on the cluster exactly like
+the stock one. Same mechanism, larger surface, and not needed for the covers.
+
+### Still to verify
+
+1. Does reporting `2` retract the covers? Z9GT, after an ignition cycle has
+   restored `0x35A000DA` to `1` and the covers have settled in.
+2. Level or edge: does the amplifier hold the covers out while the report stays
+   `1`, or does it act only on the transition?
+3. Does the N9 raise on the report? Needs a build for that car's owner. They have
+   no host ADB, so the test build must carry the local-ADB client and walk them
+   through the one-time on-screen authorization.
+4. Does the car re-assert `PAUSED` on track changes inside the same unknown app,
+   or only on focus changes?
+
 ### The decisive experiment, when an N9 is available
 
 One owner, covers in, stock auto-lift freshly enabled (`0x16300025 = 1`,
