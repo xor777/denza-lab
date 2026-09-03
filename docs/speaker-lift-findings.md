@@ -1204,3 +1204,187 @@ The reported bug that motivated the redesign is the same shape from the other
 direction: covers closed by hand during music came back out ~3 s later, because
 the sustained-sound fallback was allowed to overrule a press. Both are the same
 rule missing - a level must never outrank an act.
+
+## N9 vs Z9GT: the same amp surface, a different lift rule (2026-09-03)
+
+Resumed the "why do the covers not come out on the N9" question with the N9
+offline (it is not the owner's car). The N9 firmware corpus was read from disk,
+pulled while that car was connected on 2026-08-30; the live comparison below is
+a read-only GET sweep on the **Z9GT** (`car.type=170`, `getAutoType=170`), which
+is the car currently on ADB. Both cars run the same DiLink build
+(`outswver=34.1.33.2605218.1`, `eng.build20260705.011226`).
+
+Everything below is re-derived from the primary material: the 2026-08-30 trace
+(`trace-n9-speaker.log.gz`, 11:16:42-11:23:04 car time), the audio-service focus
+dump of the same day, the two live sessions of 2026-08-30, and the decompiled
+N9 packages. Where it contradicts the first write-up of this section, the reason
+is given.
+
+### The two cars are identical at the amp FID layer
+
+Live Z9GT GETs (`autoservice 5 i32 1002 ...`) against the N9 snapshot of
+2026-08-30:
+
+| FID | Z9GT (live) | N9 (snapshot) |
+| --- | --- | --- |
+| `AUDIO_AMPLIFIER_CONFIG` `0x4FD00030` | `7` (DEVIALET_20_CHANNEL) | `7` |
+| `AUDIO_AMPLIFIER_TYPE` `0x99000214` | `10` | `10` |
+| `AUDIO_RLSA_COFIG` `0x4C000010` | `0` | `0` |
+| `AUDIO_RLSA_STATE` `0x4C00000B` | `0` | `0` |
+| `AUDIO_SPEAKER_FLIP_COVER_CONFIG` `0x35A000D8` | `1` (present) | `1` |
+| `AUDIO_SPEAKER_FLIP_SETTING_STATUS` `0x35A000DA` | `1` | `1` |
+| `AUDIO_SPEAKER_FLIP_COVER_STATUS` `0x3D20001E` | `-10011` | `-10011` |
+
+Same amp, same flip-cover config, same readable setting, same unsupported
+position readout. The FID surface does not tell the cars apart. `0x16300025`
+with `1`/`2` is `SPEAKER_FLIP_COVER_ENABLE` / `_DISABLE` in the amp's own
+`DevialetStatusData` on both builds. The divergence is in the amp/MCU firmware,
+and it is asymmetric.
+
+### On the N9 the setting closes reliably and never opens
+
+`2` retracts the covers at once. This is live-proven twice, and the cleanest
+instance is the driver's own hand on the stock switch:
+
+```
+11:17:21.822  CarSettings SpeakerAutoLiftCommon  doSwitchChange isChecked: false
+11:17:22.045  CarPropertyServiceImpl  setProperties [0x16300025, value=2] Caller: 1530
+11:17:22.123  BYDAutoAudioDevice  postEvent 1002 / 35a000da / value = 2
+```
+
+The covers went down there. Repeated from ADB at 11:21:35 with the same result.
+`1` on its own never raised them, in any of the several attempts on that day.
+
+So on the N9 this property is the stock auto-lift **enable flag**: clearing it
+disables the feature and pulls the covers in, setting it only permits the amp to
+raise them on its own rule. On the Z9GT the same write is a direct motor edge in
+both directions.
+
+`0x35A000DA` is the echo of that setting, not a position sensor: every
+`postEvent` of it in the trace follows a write by about 80 ms, and there is no
+unsolicited one.
+
+> Correction. The 2026-08-30 session concluded that "Android sent nothing before
+> the covers went down, so the amp decides on its own". That came from a search
+> pattern matching only the plural `set featureIDs` form, which skips every
+> single-int `set featureID is` line - including the write above. The command is
+> in the trace. The conclusion built on its absence does not hold.
+
+### What actually raises the covers, and what does not
+
+Raised, all with the enable flag at `1`:
+
+| car time | what happened |
+| --- | --- |
+| 11:15:16 | MediaCenter requested audio focus |
+| 11:19:25 | stock player resumed after a pause |
+| 11:40:46 | driver paused and resumed the stock player |
+| 11:51:08 | MediaCenter regained the output after our 20 s tone |
+
+Did not raise:
+
+| car time | what happened |
+| --- | --- |
+| 11:17:40, 11:18:41, 11:20:34, 11:21:34, 11:22:35 | stock track change, flag `1`, playback continuous |
+| 11:19:20 and 11:38:31 | flag `2 -> 1` edge during steady stock playback |
+| 11:50:47 | our own `AudioTrack`, stream 3, `USAGE_MEDIA`/`CONTENT_TYPE_MUSIC`, focus granted, 20 s of real signal |
+| the whole session | Yandex Music playing |
+
+Two things fall out of that table.
+
+**Audible sound is not the trigger.** The file the driver uses to raise the
+covers is digital silence, verified peak zero on the pulled copy.
+
+**Real audio from an arbitrary app is not the trigger either.** Our tone carried
+byte-identical attributes to the stock player's, held focus, and went through
+the same HiFi path (`hifiAudio_startOutputSamplerate`, stream 3). It moved
+nothing, and the stock player's return 20 s later moved them at once.
+
+> Correction. The first write-up of this section said the trigger is "real
+> rendered audio" and attributed the one N9 raise at 10:41 to our own
+> `0x16300025 = 1` landing while Yandex played. Both tables above contradict
+> that, and the focus dump shows Yandex abandoning and re-requesting focus at
+> 10:41:31, five seconds before the app's write, so that event does not isolate
+> a cause either.
+
+### The signal that separates the two tables
+
+A pause-then-resume of the stock player puts three things on the bus that a
+track change does not:
+
+| signal | writer | seen at |
+| --- | --- | --- |
+| `INSTRUMENT_MUSIC_STATE_SET` `0x43E0000A` = `2` then `1` | `com.byd.mediacontroller` | 11:19:24.557, 11:19:25.703 |
+| `[0x43E00040, 0x43E00044] = [2, 1]`, ~5 times at 100 ms | system_server `AtmosphereLampCore` | 11:19:25.700-26.119 |
+| `lamp_status` audio-HAL parameter `0` then `1` | system_server `ColorVisualizerEffect` | 11:19:24.551, 11:19:25.702 |
+
+`lamp_status` is already excluded: it was set by hand from a shell probe, the
+trace shows it reaching `AudioALSAHardware` on exactly the path system_server
+uses, and the covers did not move.
+
+Everything else a stock start emits is emitted on plain track changes too, and
+those raised nothing: `0x43FB1008` track title, `0x33F00024 = 4`
+(`SET_USE_AUDIO_SCENE_SET`), `0x1E000044 = 1` (audio to the rear screen), and
+`IviVehicleAudioBroker.setIviUseSelfAudio(REASON_MEDIA)`. The same trace
+therefore excludes `setUseVehicleSpeaker()` as the lever, on evidence rather
+than on the earlier "it is a no-op edge" reasoning, which was wrong in detail:
+`setUseVehicleSpeakerReasonToMCU` writes unconditionally, on every start.
+
+So exactly two candidates survive: the **playback-state report** and the
+**working-mode/state pair**.
+
+> Correction. The first write-up dismissed `0x43E00044` because "MediaCenter
+> emitted `2 -> 1` five times with no lift". All five emissions sit inside
+> 11:19:25.700-26.119, which is the raise. They are the best correlate in the
+> trace, not a counter-example.
+
+### Why Yandex playback never raises them
+
+`com.byd.mediacontroller` is the process that reports playback to the cluster
+and the MCU. Throughout the trace it publishes one source,
+`packageName=com.byd.mediacenter, MEDIA_SOURCE=1`, and it writes `0x43E0000A`
+only for that source. Yandex appears in the trace only in volume, focus and
+launcher lines. If the playback-state report is the trigger, then an app that is
+not a registered BYD media source can play for hours and never produce it -
+which is the owner's complaint, exactly.
+
+This is a hypothesis with one supporting trace, not a proven mechanism. It is
+also the cheapest one to falsify: see the experiment below.
+
+### Consequence for the shipped automation (a real defect on the N9)
+
+Denza Apps sends `OPEN=1` / `CLOSE=2` as a motor edge. On the Z9GT that is a
+motor command. On the N9, `CLOSE` turns the driver's stock auto-lift **off** and
+leaves it off, so the covers stay in for the rest of the cycle, and `OPEN` does
+nothing observable. The app must not treat the two cars as the same motor.
+Discriminate on `getAutoType` (`168` = N9, `170` = Z9GT) per
+[vehicle-data-findings.md](vehicle-data-findings.md).
+
+### The decisive experiment, when an N9 is available
+
+One owner, covers in, stock auto-lift freshly enabled (`0x16300025 = 1`,
+`0x35A000DA` reads `1`), car in READY, nothing playing. Run in order and stop at
+the first step that raises the covers.
+
+1. **Playback-state report, silent.** Call the stock DiCar media API
+   `ICarMediaService.setPlaybackState(PAUSED)` then `(PLAYING)`, which writes
+   `0x43E0000A` `2` then `1`. `CarMediaServiceImpl.setPlaybackState` carries no
+   permission check in the N9 build and `DiCarServer`'s manifest declares no
+   media permission, so this should be reachable from an ordinary app UID. If
+   the covers rise, the whole feature is one silent call.
+2. **Working-mode/state pair.** Write `[0x43E00040, 0x43E00044] = [2, 1]` a few
+   times at ~100 ms, as `AtmosphereLampCore` does.
+3. **Stock playback restart, silent.** Start the silence clip through the stock
+   player, then pause and resume it. This is the known-good control: if steps 1
+   and 2 fail and this succeeds, the trigger is inside the stock media pipeline
+   and the product answer is to become a registered media source through
+   `MediaControllerSDK` rather than to make sound.
+4. **Yandex alone.** Start Yandex with the flag at `1` and wait. Expected to
+   fail; it is the null control that the owner has already run for months.
+
+Record for every step: the flag value before and after, `0x35A000DA`, and
+whether the covers moved by eye.
+
+Do not re-probe the direct position FIDs `0x3D20001E` / `0x4EF52026`, the
+`AUDIO_RLSA_*` family, `startAudioOutput`, or `lamp_status`. All four are
+settled, and repeating them costs a live session for nothing.
