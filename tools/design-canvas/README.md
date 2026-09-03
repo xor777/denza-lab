@@ -374,31 +374,61 @@ that concept drawn: three boards, all from the same constants.
 | --- | --- |
 | `ClusterContour.dc.html` | calm driving, engine asleep - the state the panel is in most of the time |
 | `ClusterContourStates.dc.html` | eleven scenes as a column: first seconds, calm, regeneration, the engine generating both ways it can be drawn, standing on P, charging, link lost, night, an exception, and the missing ADB key |
-| `ClusterContourPlan.dc.html` | the skeleton alone, over the three apertures, with every anchor named and measured |
+| `ClusterContourPlan.dc.html` | the skeleton alone, over the three apertures and the cell grid, with every anchor named and measured |
 
-Three things about them are worth knowing before editing either record.
+The boards were drawn before a line of the panel was written, shown to the owner,
+and redrawn once against what he said. That second pass is the reason to read
+this section rather than only the concept.
+
+**What the first drawing got wrong.** "Злоупотребление полосками" - it had five
+bars: the band, a sag rail, a revolutions rail, a generation rail and a return
+strip. "Не понимаю, что такое потрачено / вернула / ДВС" - three trip figures
+whose captions named directions rather than quantities, and "ДВС" over a number
+reads as a rev counter, which is exactly how it was read. "Жаль, что пожертвовали
+температурами" - they had been moved off the panel into an exception line.
+
+So: one bar on the panel, and it is the band. Everything that used to be a second
+bar is now a number with its word under it. The temperatures are back as a shelf
+of their own. The trip's figures are headed `ЗА ПОЕЗДКУ · КВТ·Ч` and named
+`ИЗ БАТАРЕИ`, `РЕКУПЕРАЦИЯ`, `ОТ ДВС`, and a zero is never drawn.
 
 **The apertures are computed, not drawn.** `ClusterMapLayout`'s integer division
 is restated exactly - `2560 * 20 // 100 * 40 // 100 * 4 // 3` and the rest - so
 the clear band, the two corner quarter-ellipses and the petal come out where the
 app already believes they are. Every anchor is then derived from four decisions:
-one margin of `48`, the rhythm of `8`, the three rungs `104 · 52 · 18`, and a cap
-height of `0.71`. Nothing on these boards is a typed coordinate.
+one margin of `48`, the rhythm of `8`, the rungs `104 · 52 · 34 · 18`, and text
+metrics measured in the real faces rather than guessed at.
 
-**The wings continue past their apertures.** A corner aperture is 301 units wide
-at the top and 181 at the figure's own baseline, narrowing to nothing by 160, so
-a second 52 will not fit inside one. Below the clear band's top edge the whole
-width is ours, so each wing has a *shelf* at `y = 208` standing in the band's own
-flank - the right one carries the trip balance while the engine sleeps and the
-generation figure while it runs, the left one carries the exception line. That
-is what answers the jury's first correction: neither wing ever goes dark.
+**Two shelves, one family.** Each corner aperture holds a heading, one 52 figure
+and one 18 line, and that is all it can hold - it is 301 units wide at the top
+and narrows to nothing by 160, and a row costs its lead plus its full type size.
+So the shelves stand below, in the clear band's flanks, on one pair of baselines
+with one anatomy: a figure with its word under it. Temperatures on the left at
+34, the trip's kilowatt-hours on the right at 52; their cell widths differ
+because their payloads do, by half. The left shelf is also what filled the empty
+quarter of the band the first drawing left.
+
+**Fields, not strings.** Every number lives in a reserve field sized by its digit
+count times a *measured* advance - Roboto Mono advances half its size per digit,
+not the `0.6` the older generators assume - and its unit hangs off the field. So
+`9` and `300` leave the unit exactly where `34` does. The hero goes one step
+further: its digits are right-aligned in the field and the field, its gap and its
+unit are centred on the axis as one group, because centring the field alone left
+`кВт` stranded sixty units away from a two-digit reading.
+
+**Rows advance by type size, not cap height.** This is the convention the other
+generators here already follow and the one this board first got wrong. A cap
+height is what the ink occupies; the box a browser and a `Paint` both reserve
+runs from ascent to descent, so spacing rows by cap height put a heading's
+descenders inside the digits underneath. Every collision `audit.py` found on the
+first pass was that mistake.
 
 **The one lit thing is the band.** The concept put the glow's centre in the middle
 of the clear band with `ry` half its height; drawn, that pool sat fifty units
-above the instrument it belongs to and lit whatever the wings had placed in the
-flanks, so the panel had two lit things. It is centred on the band now, with `ry`
-the distance to the lower aperture edge - which is what the original number was
-buying: an alpha that reaches zero before the vehicle's own graphics can cut it.
+above the instrument it belongs to and lit whatever the flanks held, so the panel
+had two lit things. It is centred on the band now, with `ry` the distance to the
+lower aperture edge - which is what the original number was buying: an alpha that
+reaches zero before the vehicle's own graphics can cut it.
 
 ## The boards and the code are joined
 

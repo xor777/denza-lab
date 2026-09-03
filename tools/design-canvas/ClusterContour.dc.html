@@ -12,13 +12,17 @@
     body { margin:0; background:#000000; font-family:'Roboto','Segoe UI',system-ui,sans-serif; }
     .hr { font-family:'Roboto Mono',monospace; font-weight:300; font-size:104px; fill:#DAE1EB; }
     .fg { font-family:'Roboto Mono',monospace; font-weight:300; font-size:52px; fill:#DAE1EB; }
-    /* The exception is the one 52 on the panel that is words rather than a
-       quantity, so it takes the sans face. Set in the mono face beside it, a
-       Russian phrase reads as a console line. */
-    .fw { font-weight:300; font-size:52px; fill:#DAE1EB; }
+    .rd { font-family:'Roboto Mono',monospace; font-weight:300; font-size:34px; fill:#DAE1EB; }
     .ttl { font-size:18px; font-weight:500; letter-spacing:0.12em; fill:#7C858F; }
     .cap { font-size:18px; font-weight:400; letter-spacing:0.12em; fill:#7C858F; }
+    /* A word standing under its own number is a caption, not a heading, and
+       tracking is what ran "РЕКУПЕРАЦИЯ" out of its cell into the next one. */
+    .cl { font-size:18px; font-weight:400; fill:#7C858F; }
     .un { font-size:18px; font-weight:400; fill:#86909B; }
+    /* The degree sign rides with the reading it belongs to, so it takes the
+       reading's own face and size - set at the caption size it read as a
+       footnote stuck to a number. */
+    .un2 { font-family:'Roboto Mono',monospace; font-weight:300; font-size:34px; fill:#86909B; }
     .keep { font-size:13px; letter-spacing:0.12em; fill:#3F434D; }
     /* Used on an HTML div as well as in SVG, and `fill` does nothing to a div:
        the scene captions rendered black on black and the states board came back
@@ -51,24 +55,30 @@
       <defs><linearGradient id="bandfill" gradientUnits="userSpaceOnUse" x1="753.8" y1="0" x2="991.4" y2="0"><stop offset="0" stop-color="#DAE1EB" stop-opacity="0.55"/><stop offset="1" stop-color="#FFF8DA" stop-opacity="1"/></linearGradient></defs>
       <rect x="753.8" y="291" width="237.6" height="14" fill="url(#bandfill)" opacity="1"/>
       <line x1="1089.8" y1="288" x2="1089.8" y2="308" stroke="#FFF8DA" stroke-width="3" opacity="1"/>
-      <text class="hr" x="753.8" y="258" text-anchor="middle" style="fill:#DAE1EB;opacity:1">34</text>
-      <text class="ttl" x="48" y="32" style="fill:#7C858F;opacity:1">НАПРЯЖЕНИЕ · В</text>
-      <rect x="48" y="52.5" width="200" height="7" fill="#22262E" rx="3.5" opacity="1"/>
-      <rect x="118" y="52.5" width="30" height="7" fill="#DAE1EB" rx="3.5" opacity="1"/>
-      <line x1="148" y1="49" x2="148" y2="63" stroke="#7C858F" stroke-width="2" opacity="1"/>
-      <line x1="118" y1="49" x2="118" y2="63" stroke="#DAE1EB" stroke-width="2.5" opacity="1"/>
-      <text class="fg" x="48" y="128" style="fill:#DAE1EB;opacity:1">552</text>
-      <text class="ttl" x="1459.6" y="32" text-anchor="end" style="fill:#7C858F;opacity:1">ПОЕЗДКА · КВТ·Ч</text>
-      <text class="fg" x="1143.6" y="208" text-anchor="end" style="fill:#DAE1EB;opacity:1">12,4</text>
-      <text class="cap" x="1143.6" y="244.8" text-anchor="end" style="fill:#7C858F;opacity:1">ПОТРАЧЕНО</text>
-      <text class="fg" x="1301.6" y="208" text-anchor="end" style="fill:#4B9BE0;opacity:1">3,1</text>
-      <text class="cap" x="1301.6" y="244.8" text-anchor="end" style="fill:#7C858F;opacity:1">ВЕРНУЛА</text>
-      <text class="fg" x="1459.6" y="208" text-anchor="end" style="fill:#86909B;opacity:1">0,0</text>
-      <text class="cap" x="1459.6" y="244.8" text-anchor="end" style="fill:#7C858F;opacity:1">ДВС</text>
+      <text class="hr" x="800.8" y="258" text-anchor="end" style="fill:#DAE1EB;opacity:1">34</text>
+      <text class="un" x="832.8" y="258" style="fill:#86909B;opacity:1">кВт</text>
+      <text class="ttl" x="48" y="24" style="fill:#7C858F;opacity:1">БАТАРЕЯ</text>
+      <text class="fg" x="126" y="92" text-anchor="end" style="fill:#DAE1EB;opacity:1">552</text>
+      <text class="un" x="158" y="92" style="fill:#86909B;opacity:1">В</text>
+      <text class="cap" x="48" y="126" style="fill:#7C858F;opacity:1">просадка 9 В</text>
+      <text class="ttl" x="1459.6" y="24" text-anchor="end" style="fill:#7C858F;opacity:0.6">ДВС</text>
+      <text class="ttl" x="48" y="180" style="fill:#7C858F;opacity:1">ТЕМПЕРАТУРЫ</text>
+      <text class="rd" x="99" y="248" text-anchor="end" style="fill:#DAE1EB;opacity:1">28</text>
+      <text class="un2" x="99" y="248" style="fill:#86909B;opacity:1">°</text>
+      <text class="cl" x="48" y="282" style="fill:#7C858F;opacity:1">БАТАРЕЯ</text>
+      <text class="rd" x="219" y="248" text-anchor="end" style="fill:#DAE1EB;opacity:1">31</text>
+      <text class="un2" x="219" y="248" style="fill:#86909B;opacity:1">°</text>
+      <text class="cl" x="168" y="282" style="fill:#7C858F;opacity:1">МОТОРЫ</text>
+      <text class="rd" x="339" y="248" text-anchor="end" style="fill:#DAE1EB;opacity:1">32</text>
+      <text class="un2" x="339" y="248" style="fill:#86909B;opacity:1">°</text>
+      <text class="cl" x="288" y="282" style="fill:#7C858F;opacity:1">ИНВЕРТОР</text>
+      <text class="ttl" x="1459.6" y="180" text-anchor="end" style="fill:#7C858F;opacity:1">ЗА ПОЕЗДКУ · КВТ·Ч</text>
+      <text class="fg" x="1307.6" y="248" text-anchor="end" style="fill:#DAE1EB;opacity:1">12,4</text>
+      <text class="cl" x="1307.6" y="282" text-anchor="end" style="fill:#7C858F;opacity:1">ИЗ БАТАРЕИ</text>
+      <text class="fg" x="1459.6" y="248" text-anchor="end" style="fill:#4B9BE0;opacity:1">3,1</text>
+      <text class="cl" x="1459.6" y="282" text-anchor="end" style="fill:#7C858F;opacity:1">РЕКУПЕРАЦИЯ</text>
       <text class="fg" x="769.8" y="384" text-anchor="end" style="fill:#DAE1EB;opacity:1">16,8</text>
       <text class="un" x="785.8" y="384" style="fill:#86909B;opacity:1">кВт·ч/100 км</text>
-      <rect x="473.8" y="400" width="560" height="10" fill="#22262E" rx="5" opacity="1"/>
-      <rect x="473.8" y="400" width="140" height="10" fill="#2D82D7" rx="5" opacity="0.7"/>
     </svg>
 </div>
 </x-dc>
