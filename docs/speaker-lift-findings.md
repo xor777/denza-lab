@@ -1389,6 +1389,39 @@ the first step that raises the covers.
 Record for every step: the flag value before and after, `0x35A000DA`, and
 whether the covers moved by eye.
 
+### What the Z9GT can and cannot settle
+
+The N9 is unavailable, so the experiment was split. Its transport half does not
+depend on the amplifier and was run live on the **Z9GT** on 2026-09-03, which
+carries the same DiLink build:
+
+```
+op=lookup uid=10148 binder=yes descriptor=com.byd.car.feature.media.ICarMediaService alive=true
+```
+
+An ordinary app UID that requests no permission at all gets a live handle on
+`ICarMediaService` from the exported provider. Step 1 is therefore reachable
+from a normal APK, which was the main risk in it, and
+`:dicar-media-probe` is the instrument.
+
+Two further halves can be settled on the Z9GT without an N9:
+
+- **Does the write land?** One `setPlaybackState` call, then look for
+  `set featureID is 43e0000a` and the `SET_PROPERTY` line in the log. This is a
+  live write to the instrument cluster, on the same FID the stock media
+  controller writes several times a minute during normal playback.
+- **Does Yandex produce the report at all?** Purely observational: capture the
+  log while Yandex plays, then while the stock player is paused and resumed, and
+  compare. If Yandex yields no `0x43E0000A` and the stock player does, the
+  reason Yandex never lifts the covers is confirmed on a car we have.
+
+What the Z9GT cannot settle is the amplifier's reaction. The N9 test needs the
+state "auto-lift enabled, covers in", and on the Z9GT that state cannot be held:
+writing `1` there is itself a motor edge, so the covers come out the moment the
+flag is set. A positive result would still count - retract with `2`, then send
+the playback report and watch - but a negative one would say nothing about the
+N9, whose amplifier has an auto-lift rule this car does not.
+
 Do not re-probe the direct position FIDs `0x3D20001E` / `0x4EF52026`, the
 `AUDIO_RLSA_*` family, `startAudioOutput`, or `lamp_status`. All four are
 settled, and repeating them costs a live session for nothing.

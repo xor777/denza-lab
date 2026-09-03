@@ -49,5 +49,8 @@ include(":personbean-provider-probe")
 project(":personbean-provider-probe").projectDir =
     file("experiments/personbean-provider-probe")
 
+include(":dicar-media-probe")
+project(":dicar-media-probe").projectDir = file("experiments/dicar-media-probe")
+
 include(":denza-gateway")
 project(":denza-gateway").projectDir = file("legacy/denza-gateway")

@@ -58,6 +58,7 @@ still use the historical `denza-gateway` directory name.
 | `:adb-rescue-probe` | `experiments/adb-rescue-probe/` | `dev.denza.adbrescue.probe` (second ADB identity for a car whose prompt never renders) |
 | `:speaker-lift-yandex-probe` | `experiments/speaker-lift-yandex-probe/` | `dev.denza.speakerlift.yandexprobe` (disposable Yandex-open → stock LOCAL pulse evaluation) |
 | `:personbean-provider-probe` | `experiments/personbean-provider-probe/` | `dev.denza.personbean.probe` (disposable app-UID PersonBean ContentResolver evaluation) |
+| `:dicar-media-probe` | `experiments/dicar-media-probe/` | `dev.denza.dicarmedia.probe` (disposable app-UID car media service evaluation for the speaker lift) |
 | `:car-adb-gateway` | `apps/car-adb-gateway/` | `ru.adbgw.gateway` (active product candidate) |
 
 The frozen Denza Mirrors source lives at `legacy/denza-mirrors/` and is not
@@ -77,6 +78,7 @@ export ANDROID_HOME=/opt/homebrew/share/android-commandlinetools
 ./gradlew :single-package-split-probe:assembleDebug
 ./gradlew :speaker-lift-yandex-probe:assembleDebug
 ./gradlew :personbean-provider-probe:assembleDebug
+./gradlew :dicar-media-probe:assembleDebug
 ./gradlew :adb-rescue-probe:testDebugUnitTest :adb-rescue-probe:assembleDebug
 ./gradlew :car-adb-gateway:testDebugUnitTest :car-adb-gateway:assembleDebug
 ```
