@@ -41,7 +41,7 @@ still use the historical `denza-gateway` directory name.
 - [docs/adb-authorization-recovery.md](docs/adb-authorization-recovery.md) — passive local-ADB startup gate and bounded recovery flow.
 - [docs/vehicle-data-findings.md](docs/vehicle-data-findings.md) — GNSS/IMU for a normal APK; `autoservice` FID protocol for shell-UID BMS/HV/12V reads.
 - [docs/weather-adapter-findings.md](docs/weather-adapter-findings.md) — native weather-provider contract and adapter status.
-- [docs/shortcuts-automation-findings.md](docs/shortcuts-automation-findings.md) — Shortcuts If/Then catalog; the live-proven navigation, music, and video PersonBean roles; and the firmware-specific actions that honor them.
+- [docs/shortcuts-automation-findings.md](docs/shortcuts-automation-findings.md) — Shortcuts If/Then catalog; the live-proven navigation, music, and video PersonBean roles; and the firmware-specific actions that honor them; PersonBean itself is readable and writable from the app UID through `ContentResolver` (live-proven 2026-09-03).
 - [docs/speaker-lift-findings.md](docs/speaker-lift-findings.md) — Devialet pop-out covers; `AUDIO_RLSA_STATE_SET` (`0x16300025`) drives the motor both ways as an edge, `1` out / `2` in, with no audio; the MediaCenter `playById` raise and the media-scene path are superseded.
 
 ## Modules
@@ -57,6 +57,7 @@ still use the historical `denza-gateway` directory name.
 | `:single-package-split-probe` | `experiments/single-package-split-probe/` | `dev.denza.singlepackage.probe` (disposable launcher-alias and same-package picker evaluation) |
 | `:adb-rescue-probe` | `experiments/adb-rescue-probe/` | `dev.denza.adbrescue.probe` (second ADB identity for a car whose prompt never renders) |
 | `:speaker-lift-yandex-probe` | `experiments/speaker-lift-yandex-probe/` | `dev.denza.speakerlift.yandexprobe` (disposable Yandex-open → stock LOCAL pulse evaluation) |
+| `:personbean-provider-probe` | `experiments/personbean-provider-probe/` | `dev.denza.personbean.probe` (disposable app-UID PersonBean ContentResolver evaluation) |
 | `:car-adb-gateway` | `apps/car-adb-gateway/` | `ru.adbgw.gateway` (active product candidate) |
 
 The frozen Denza Mirrors source lives at `legacy/denza-mirrors/` and is not
@@ -75,6 +76,7 @@ export ANDROID_HOME=/opt/homebrew/share/android-commandlinetools
 ./gradlew :display-probe:assembleDebug
 ./gradlew :single-package-split-probe:assembleDebug
 ./gradlew :speaker-lift-yandex-probe:assembleDebug
+./gradlew :personbean-provider-probe:assembleDebug
 ./gradlew :adb-rescue-probe:testDebugUnitTest :adb-rescue-probe:assembleDebug
 ./gradlew :car-adb-gateway:testDebugUnitTest :car-adb-gateway:assembleDebug
 ```

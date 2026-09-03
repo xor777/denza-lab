@@ -479,6 +479,54 @@ Do not poll `autoservice` from a Denza Apps service as the product
 Shortcuts replacement. That reintroduces the "must already be running"
 constraint the stock engine does not have.
 
+### App-UID ContentResolver access (live-proven 2026-09-03)
+
+PersonBean is reachable from an ordinary app UID. On 2026-09-03 a disposable
+probe holding no permission and nothing but `<queries>` for `com.byd.autovoice`
+(uid 10144) read and wrote `content://com.byd.autovoice/PersonBean` through
+`ContentResolver`; every row matched the shell oracle. The provider is exported
+with no read or write permission and no caller check.
+
+| Path | Cost |
+| --- | --- |
+| App `query`, one role (median of five) | 2.3 ms |
+| App `query`, all three roles | 4.9 ms |
+| App `update`, one role | 3.1 ms |
+| Shell `content query`, one role | 1.21 s |
+
+The shell path pays an `app_process` VM spawn per command and is about 500×
+slower. The write used the conditional predicate `SETTING=? AND VALUE=?`, whose
+int return is the matched-row count: `MUSIC_SWITCH` moved from `ru.yandex.music`
+to `com.byd.mediacenter` with `count=1`, app readback and an independent shell
+readback agreeing, and restore left all three roles at baseline with an
+unchanged crash buffer and zero `com.byd.avc` lines.
+
+`ContentObserver` delivery is not confirmed: an observer on the PersonBean URI
+saw nothing for its own update within 3000 ms nor for an external shell update,
+one on the authority root recorded zero events across both writes, and logcat
+shows no provider error. Either `update()` never reaches `notifyChange` on this
+build or ContentService here does not deliver cross-app observers. A reader
+invalidates by re-reading, which costs about 2 ms, not by observing.
+
+Reproduce with `experiments/personbean-provider-probe/` driven by
+[tools/personbean_provider_probe.sh](../tools/personbean_provider_probe.sh),
+restore-wrapped and self-uninstalling; it wakes the probe's no-display Activity
+first, because the self-start gate recorded in
+[dishare-api-notes.md](dishare-api-notes.md) drops an explicit broadcast to a
+third-party UID with no live process (`UID … is not running` → `skip reciever …
+ignored !!!`, `result=0` and no data, no permission denial).
+
+Two consequences follow. Denza Apps' `Приложения` roles need no local-ADB
+privilege path for PersonBean at all; the `content` commands and the ADB gate in
+front of them are what cost the panel its seconds. And the proxy repair above
+rests on `MY_PACKAGE_REPLACED` reaching a manifest receiver of Denza Apps right
+after Denza Apps itself was replaced, which is exactly the moment no process of
+it is running; under that same gate the delivery is unproven and stays a risk
+until a live self-replacement test shows the receiver ran (a dropped delivery
+leaves `skip reciever for uid … name = dev.denza.apps` in logcat). The
+trampoline itself is an Activity start, which the gate did not block for the
+probe.
+
 ## Russia-oriented launch strategy
 
 The car stays in RF. The stock map is China-only. Taking the map role therefore
@@ -506,9 +554,11 @@ that opens Denza Apps:
 5. **Do not** ship a second APK as `com.autonavi.*` / `com.netease.*` /
    `com.byd.mediacenter`. Those names either already belong to system apps or
    do not beat the stored PersonBean value.
-6. **Do not** declare `BYDAUTO_*` or `thirdapp` in the product manifest.
-   Privilege path remains `DenzaLocalAdb` shell writes to PersonBean, same as
-   the locale grant.
+6. **Do not** declare `BYDAUTO_*` or `thirdapp` in the product manifest. The
+   PersonBean rows themselves need no privileged writer: they are readable and
+   writable straight from the app UID through `ContentResolver` (see "App-UID
+   ContentResolver access" above). `DenzaLocalAdb` shell writes stay for what
+   still needs them, such as the locale grant.
 
 The former hidden automatic Map-mode follower and its
 `StockClusterModeDetector` were removed on 2026-08-26. Moving

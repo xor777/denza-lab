@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- No permission is requested: the hypothesis is that an ordinary UID needs none. -->
+
+    <!-- Package visibility is limited to the one provider this probe reads. -->
+    <queries>
+        <package android:name="com.byd.autovoice" />
+        <provider android:authorities="com.byd.autovoice" />
+    </queries>
+
+    <application
+        android:allowBackup="false"
+        android:label="PersonBean provider probe">
+
+        <!-- The firmware self-start gate drops a broadcast to a UID with no live process, so the
+             host starts this invisible Activity by explicit component to wake the process first. -->
+        <activity
+            android:name=".ProbeWakeActivity"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.NoDisplay" />
+
+        <!-- Shell-only seam: DUMP is held by uid 2000 and not grantable to an ordinary app. -->
+        <receiver
+            android:name=".ProbeReceiver"
+            android:exported="true"
+            android:permission="android.permission.DUMP">
+            <intent-filter>
+                <action android:name="dev.denza.personbean.probe.QUERY" />
+                <action android:name="dev.denza.personbean.probe.UPDATE" />
+                <action android:name="dev.denza.personbean.probe.OBSERVE" />
+                <action android:name="dev.denza.personbean.probe.REPORT" />
+            </intent-filter>
+        </receiver>
+    </application>
+</manifest>

@@ -45,5 +45,9 @@ project(":speaker-lift-yandex-probe").projectDir =
 include(":adb-rescue-probe")
 project(":adb-rescue-probe").projectDir = file("experiments/adb-rescue-probe")
 
+include(":personbean-provider-probe")
+project(":personbean-provider-probe").projectDir =
+    file("experiments/personbean-provider-probe")
+
 include(":denza-gateway")
 project(":denza-gateway").projectDir = file("legacy/denza-gateway")
