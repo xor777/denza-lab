@@ -228,6 +228,33 @@
       "h": 899,
       "title": "Панели · сколько иконок влезает",
       "page": "page-screens"
+    },
+    {
+      "file": "ClusterContour.dc.html",
+      "x": 0,
+      "y": 3556.0,
+      "w": 1507.6,
+      "h": 424.0,
+      "title": "Контур · спокойная езда",
+      "page": "page-cluster"
+    },
+    {
+      "file": "ClusterContourPlan.dc.html",
+      "x": 0,
+      "y": 4060.0,
+      "w": 1507.6,
+      "h": 424.0,
+      "title": "Контур · апертуры и все числа",
+      "page": "page-cluster"
+    },
+    {
+      "file": "ClusterContourStates.dc.html",
+      "x": 0,
+      "y": 4564.0,
+      "w": 1507.6,
+      "h": 5390.0,
+      "title": "Контур · одиннадцать сцен",
+      "page": "page-cluster"
     }
   ],
   "annotations": [

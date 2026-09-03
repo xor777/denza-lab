@@ -1,0 +1,114 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&amp;family=Roboto+Mono:wght@200;300;400&amp;display=swap" rel="stylesheet">
+  <style>
+    body { margin:0; background:#000000; font-family:'Roboto','Segoe UI',system-ui,sans-serif; }
+    .hr { font-family:'Roboto Mono',monospace; font-weight:300; font-size:104px; fill:#DAE1EB; }
+    .fg { font-family:'Roboto Mono',monospace; font-weight:300; font-size:52px; fill:#DAE1EB; }
+    /* The exception is the one 52 on the panel that is words rather than a
+       quantity, so it takes the sans face. Set in the mono face beside it, a
+       Russian phrase reads as a console line. */
+    .fw { font-weight:300; font-size:52px; fill:#DAE1EB; }
+    .ttl { font-size:18px; font-weight:500; letter-spacing:0.12em; fill:#7C858F; }
+    .cap { font-size:18px; font-weight:400; letter-spacing:0.12em; fill:#7C858F; }
+    .un { font-size:18px; font-weight:400; fill:#86909B; }
+    .keep { font-size:13px; letter-spacing:0.12em; fill:#3F434D; }
+    /* Used on an HTML div as well as in SVG, and `fill` does nothing to a div:
+       the scene captions rendered black on black and the states board came back
+       looking like eleven unlabelled panels. */
+    .sn { font-size:13px; letter-spacing:0.12em; fill:#86909B; color:#86909B; }
+    /* Annotations name the very lines they stand on, so each one carries a black
+       halo through paint-order rather than a measured backing rect - the plan
+       board is the one place where text and geometry are meant to coincide. */
+    .nt { font-size:13px; fill:#7C858F; stroke:#000000; stroke-width:4px;
+          paint-order:stroke fill; }
+  </style>
+</helmet>
+<div style="width:1507.6px; height:424px; background:#000000; position:relative;">
+  <svg width="1507.6" height="424" viewBox="0 0 1507.6 424">
+      <defs>
+      <pattern id="hatch" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="10" stroke="rgba(218,225,235,0.07)" stroke-width="1.4"/></pattern>
+      <mask id="topmask"><rect x="0" y="0" width="1507.6" height="160.2" fill="#fff"/><ellipse cx="0" cy="0" rx="361.6" ry="160.2" fill="#000"/><ellipse cx="1507.6" cy="0" rx="301.5" ry="160.2" fill="#000"/></mask>
+      <mask id="botmask"><rect x="0" y="335.7" width="1507.6" height="88.3" fill="#fff"/><ellipse cx="753.8" cy="353.3" rx="353.3" ry="194.3" fill="#000"/></mask>
+      </defs>
+      <rect x="0" y="0" width="1507.6" height="160.2" fill="url(#hatch)" mask="url(#topmask)"/>
+      <rect x="0" y="335.7" width="1507.6" height="88.3" fill="url(#hatch)" mask="url(#botmask)"/>
+      <text class="keep" x="753.8" y="26" text-anchor="middle">ШТАТНЫЕ ПРИБОРЫ</text>
+      <text class="keep" x="48" y="384.5">ШТАТНАЯ ПОЛОСА</text>
+      <line x1="48" y1="298" x2="1459.6" y2="298" stroke="#7C858F" stroke-width="1.2" opacity="1"/>
+      <line x1="753.8" y1="284" x2="753.8" y2="312" stroke="#7C858F" stroke-width="1.8" opacity="1"/>
+      <text class="cap" x="48" y="325.8" style="fill:#7C858F;opacity:1">100 кВт</text>
+      <text class="cap" x="1459.6" y="325.8" text-anchor="end" style="fill:#7C858F;opacity:1">300 кВт</text>
+      <ellipse cx="0" cy="0" rx="361.6" ry="160.2" fill="none" stroke="#2D82D7" stroke-width="1.2" stroke-dasharray="6 6" opacity="0.7"/>
+      <ellipse cx="1507.6" cy="0" rx="301.5" ry="160.2" fill="none" stroke="#2D82D7" stroke-width="1.2" stroke-dasharray="6 6" opacity="0.7"/>
+      <ellipse cx="753.8" cy="353.3" rx="353.3" ry="194.3" fill="none" stroke="#2D82D7" stroke-width="1.2" stroke-dasharray="6 6" opacity="0.7"/>
+      <line x1="0" y1="160.2" x2="1507.6" y2="160.2" stroke="#2D82D7" stroke-width="1.2" opacity="0.5"/>
+      <line x1="0" y1="335.7" x2="1507.6" y2="335.7" stroke="#2D82D7" stroke-width="1.2" opacity="0.5"/>
+      <line x1="0" y1="410" x2="1507.6" y2="410" stroke="#FF9F19" stroke-width="1.2" opacity="0.5"/>
+      <line x1="34" y1="32" x2="40" y2="32" stroke="#FF9F19" stroke-width="1.2" opacity="0.8"/>
+      <line x1="40" y1="32" x2="40" y2="32" stroke="#FF9F19" stroke-width="1.2" opacity="0.4"/>
+      <line x1="40" y1="32" x2="45" y2="32" stroke="#FF9F19" stroke-width="1.2" opacity="0.4"/>
+      <text class="nt" x="48" y="36.7">заголовок крыла · 18 · y 32</text>
+      <line x1="34" y1="56" x2="40" y2="56" stroke="#FF9F19" stroke-width="1.2" opacity="0.8"/>
+      <line x1="40" y1="56" x2="40" y2="56" stroke="#FF9F19" stroke-width="1.2" opacity="0.4"/>
+      <line x1="40" y1="56" x2="45" y2="56" stroke="#FF9F19" stroke-width="1.2" opacity="0.4"/>
+      <text class="nt" x="48" y="60.7">рейка A · y 56 · длина 200</text>
+      <line x1="34" y1="72" x2="40" y2="72" stroke="#FF9F19" stroke-width="1.2" opacity="0.8"/>
+      <line x1="40" y1="72" x2="40" y2="75.5" stroke="#FF9F19" stroke-width="1.2" opacity="0.4"/>
+      <line x1="40" y1="75.5" x2="45" y2="75.5" stroke="#FF9F19" stroke-width="1.2" opacity="0.4"/>
+      <text class="nt" x="48" y="80.2">рейка B · y 72</text>
+      <line x1="34" y1="128" x2="40" y2="128" stroke="#FF9F19" stroke-width="1.2" opacity="0.8"/>
+      <line x1="40" y1="128" x2="40" y2="128" stroke="#FF9F19" stroke-width="1.2" opacity="0.4"/>
+      <line x1="40" y1="128" x2="45" y2="128" stroke="#FF9F19" stroke-width="1.2" opacity="0.4"/>
+      <text class="nt" x="48" y="132.7">цифра крыла · 52 · y 128</text>
+      <line x1="34" y1="208" x2="40" y2="208" stroke="#FF9F19" stroke-width="1.2" opacity="0.8"/>
+      <line x1="40" y1="208" x2="40" y2="208" stroke="#FF9F19" stroke-width="1.2" opacity="0.4"/>
+      <line x1="40" y1="208" x2="45" y2="208" stroke="#FF9F19" stroke-width="1.2" opacity="0.4"/>
+      <text class="nt" x="48" y="212.7">полка · 52 · y 208 · верх капители 171.1</text>
+      <line x1="34" y1="244.8" x2="40" y2="244.8" stroke="#FF9F19" stroke-width="1.2" opacity="0.8"/>
+      <line x1="40" y1="244.8" x2="40" y2="244.8" stroke="#FF9F19" stroke-width="1.2" opacity="0.4"/>
+      <line x1="40" y1="244.8" x2="45" y2="244.8" stroke="#FF9F19" stroke-width="1.2" opacity="0.4"/>
+      <text class="nt" x="48" y="249.5">подпись полки · 18 · y 244.8</text>
+      <line x1="859.8" y1="258" x2="865.8" y2="258" stroke="#FF9F19" stroke-width="1.2" opacity="0.8"/>
+      <line x1="865.8" y1="258" x2="865.8" y2="258" stroke="#FF9F19" stroke-width="1.2" opacity="0.4"/>
+      <line x1="865.8" y1="258" x2="870.8" y2="258" stroke="#FF9F19" stroke-width="1.2" opacity="0.4"/>
+      <text class="nt" x="873.8" y="262.7">герой · 104 · базовая 258.0 · капитель 184.2 · запас 24</text>
+      <line x1="859.8" y1="298" x2="865.8" y2="298" stroke="#FF9F19" stroke-width="1.2" opacity="0.8"/>
+      <line x1="865.8" y1="298" x2="865.8" y2="298" stroke="#FF9F19" stroke-width="1.2" opacity="0.4"/>
+      <line x1="865.8" y1="298" x2="870.8" y2="298" stroke="#FF9F19" stroke-width="1.2" opacity="0.4"/>
+      <text class="nt" x="873.8" y="302.7">лента · y 298.0 · тело 14 · корень, 300 вправо / 100 влево</text>
+      <line x1="859.8" y1="298" x2="865.8" y2="298" stroke="#FF9F19" stroke-width="1.2" opacity="0.8"/>
+      <line x1="865.8" y1="298" x2="865.8" y2="317.5" stroke="#FF9F19" stroke-width="1.2" opacity="0.4"/>
+      <line x1="865.8" y1="317.5" x2="870.8" y2="317.5" stroke="#FF9F19" stroke-width="1.2" opacity="0.4"/>
+      <text class="nt" x="873.8" y="322.2">свечение · центр на ленте · ry 37.6 = до нижней границы, гаснет ровно на ней</text>
+      <line x1="859.8" y1="325.8" x2="865.8" y2="325.8" stroke="#FF9F19" stroke-width="1.2" opacity="0.8"/>
+      <line x1="865.8" y1="325.8" x2="865.8" y2="337" stroke="#FF9F19" stroke-width="1.2" opacity="0.4"/>
+      <line x1="865.8" y1="337" x2="870.8" y2="337" stroke="#FF9F19" stroke-width="1.2" opacity="0.4"/>
+      <text class="nt" x="873.8" y="341.7">подписи пределов · 18 · y 325.8</text>
+      <line x1="859.8" y1="384" x2="865.8" y2="384" stroke="#FF9F19" stroke-width="1.2" opacity="0.8"/>
+      <line x1="865.8" y1="384" x2="865.8" y2="384" stroke="#FF9F19" stroke-width="1.2" opacity="0.4"/>
+      <line x1="865.8" y1="384" x2="870.8" y2="384" stroke="#FF9F19" stroke-width="1.2" opacity="0.4"/>
+      <text class="nt" x="873.8" y="388.7">лепесток · 52 · базовая 384 · якорь — единица на x 785.8</text>
+      <line x1="859.8" y1="405" x2="865.8" y2="405" stroke="#FF9F19" stroke-width="1.2" opacity="0.8"/>
+      <line x1="865.8" y1="405" x2="865.8" y2="405" stroke="#FF9F19" stroke-width="1.2" opacity="0.4"/>
+      <line x1="865.8" y1="405" x2="870.8" y2="405" stroke="#FF9F19" stroke-width="1.2" opacity="0.4"/>
+      <text class="nt" x="873.8" y="409.7">полоса возврата · y 405 · пол композиции 410</text>
+      <text class="nt" x="308" y="196">синим пунктиром — апертуры: где нас видно</text>
+      <text class="nt" x="308" y="216">штриховкой — где рисует машина</text>
+      <text class="nt" x="308" y="236">панель 1507.6 × 424 · шаг 8 · лесенка 104 · 52 · 18</text>
+      <text class="nt" x="308" y="256">поля фиксированной разрядности: ни одна координата не считается из ширины строки</text>
+    </svg>
+</div>
+</x-dc>
+<script data-dc-script data-props='{"$preview":{"width":1507.6,"height":424}}'>
+class Component extends DCLogic { renderVals() { return {}; } }
+</script>
+</body>
+</html>

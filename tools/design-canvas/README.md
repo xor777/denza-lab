@@ -25,6 +25,7 @@ that reports what collides.
 | `canvas.json` | positions, pages and the launch view |
 | `gen_cluster.py` | emits the three cluster boards as they stand on the car today, with the current fixed 3 km consumption window |
 | `gen_next.py` | emits the proposed cluster: one horizon, two histories, the gauge |
+| `gen_contour.py` | emits the Contour - the cluster concept that won the 2026-09 contest - as the calm panel, eleven scenes, and the plan with every number on it |
 | `gen_kit.py` | emits the two boards that describe the system, from the system |
 | `gen_panes.py` | emits the dashboard's two pane boards from `Main.dc.html` and the pane geometry, and the dashboard underlay both sheet boards are drawn over |
 | `panel_frame.py` | archived tooling for the four retired head-unit instrument concepts; rebuilds Energy |
@@ -295,13 +296,18 @@ The cluster ramp is `InstrumentDensity.RAMP` in the app and the boards restate
 it; `gen_cluster.py` is the one place to check that they still agree. That ramp
 is the six rungs from `52` down to `11`, and the app draws nothing else.
 
-`104` is not on it. It is the headline numeral of the proposed cluster and it
-lives on the `gen_next.py` boards alone, because the app does not draw that
-cluster yet and a constant nothing reads is not a ramp rung, it is a promise.
-It is sized as one deliberately - exactly twice `52`, so that adopting the
+`104` is not on it yet. It is the headline numeral of the proposed cluster and it
+lives on the `gen_next.py` and `gen_contour.py` boards alone, because the app does
+not draw that cluster yet and a constant nothing reads is not a ramp rung, it is a
+promise. It is sized as one deliberately - exactly twice `52`, so that adopting the
 proposal extends the ladder rather than starting a second one beside it - and
 it joins `InstrumentDensity.RAMP` on the day the proposal is adopted, in the
 same change, or not at all.
+
+The Contour has now won the contest, so that day is scheduled rather than
+hypothetical - but the boards were drawn first, deliberately, and the app is
+untouched until the owner has looked at them. Until the renderer changes, this
+row still reads `52 · 34 · 24 · 18 · 13 · 11` and the sentence above still holds.
 
 The first draft of those boards ran at `58` and `19` beside the ramp's own `52`
 and `18`, which is the drift the ramp exists to prevent: a difference you can
@@ -357,6 +363,42 @@ the app puts them last, on the reasoning that they are the one choice that can
 never be missing, so leading with them pushes whichever navigator the driver
 actually uses one tile along. That is an argument about the driver's hand rather
 than about implementation, so the board gave way.
+
+## The Contour boards
+
+`docs/cluster-contest-2026-09/` ran five cluster concepts against one brief and
+`VERDICT.md` picked "Контур" with five binding corrections. `gen_contour.py` is
+that concept drawn: three boards, all from the same constants.
+
+| | |
+| --- | --- |
+| `ClusterContour.dc.html` | calm driving, engine asleep - the state the panel is in most of the time |
+| `ClusterContourStates.dc.html` | eleven scenes as a column: first seconds, calm, regeneration, the engine generating both ways it can be drawn, standing on P, charging, link lost, night, an exception, and the missing ADB key |
+| `ClusterContourPlan.dc.html` | the skeleton alone, over the three apertures, with every anchor named and measured |
+
+Three things about them are worth knowing before editing either record.
+
+**The apertures are computed, not drawn.** `ClusterMapLayout`'s integer division
+is restated exactly - `2560 * 20 // 100 * 40 // 100 * 4 // 3` and the rest - so
+the clear band, the two corner quarter-ellipses and the petal come out where the
+app already believes they are. Every anchor is then derived from four decisions:
+one margin of `48`, the rhythm of `8`, the three rungs `104 · 52 · 18`, and a cap
+height of `0.71`. Nothing on these boards is a typed coordinate.
+
+**The wings continue past their apertures.** A corner aperture is 301 units wide
+at the top and 181 at the figure's own baseline, narrowing to nothing by 160, so
+a second 52 will not fit inside one. Below the clear band's top edge the whole
+width is ours, so each wing has a *shelf* at `y = 208` standing in the band's own
+flank - the right one carries the trip balance while the engine sleeps and the
+generation figure while it runs, the left one carries the exception line. That
+is what answers the jury's first correction: neither wing ever goes dark.
+
+**The one lit thing is the band.** The concept put the glow's centre in the middle
+of the clear band with `ry` half its height; drawn, that pool sat fifty units
+above the instrument it belongs to and lit whatever the wings had placed in the
+flanks, so the panel had two lit things. It is centred on the band now, with `ry`
+the distance to the lower aperture edge - which is what the original number was
+buying: an alpha that reaches zero before the vehicle's own graphics can cut it.
 
 ## The boards and the code are joined
 
@@ -425,8 +467,8 @@ rather than settled by whichever record was edited last.
 ## Regenerating and republishing
 
 ```bash
-python3 gen_cluster.py && python3 gen_next.py && python3 gen_kit.py \
-  && python3 gen_panes.py && python3 audit.py
+python3 gen_cluster.py && python3 gen_next.py && python3 gen_contour.py \
+  && python3 gen_kit.py && python3 gen_panes.py && python3 audit.py
 ```
 
 `gen_panes.py` belongs in that line: it emits both pane boards *and* the dashboard
