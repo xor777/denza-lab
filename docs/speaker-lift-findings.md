@@ -1493,7 +1493,7 @@ trying to.
 
 | purpose | FID | device | when the app writes it |
 | --- | --- | --- | --- |
-| playback report | `0x43E0000A` `INSTRUMENT_MUSIC_STATE_SET` | `1007` | on every real transition of the session it reports for: `1` PLAYING, `2` PAUSED |
+| raise | `0x43E0000A` `INSTRUMENT_MUSIC_STATE_SET` = `1` | `1007` | when a player the car does not know starts playing, and on the raise action |
 | enable auto-lift | `0x16300025` | `1002` | value `1` only, and only when `0x35A000DA` reads `2` and a raise is wanted right now |
 
 **The app never writes `0x16300025 = 2`.** That is the write that disables the
@@ -1556,17 +1556,50 @@ the car may have overwritten it. That is correct under either reading.
 The automaton shrinks to: observed playback state of the reportable session, the
 user's manual gestures, and the feature switch, producing one desired report.
 
-### Manual gestures
+### The report is one-way, and that settles the product shape
 
-A manual **raise** with nothing playing means the app holds a PLAYING report the
-car cannot corroborate. That is benign and it is the only way to honour the
-gesture, but it must be a held state, not a pulse: the app keeps reporting
-PLAYING until the user retracts or real playback takes over.
+Live on the Z9GT, 2026-09-03: reporting `2` (PAUSED) does **not** retract the
+covers. Only `1` acts. So the report is a trigger, not a level the amplifier
+tracks, and the app never has to hold or re-assert a state to keep the covers
+out. One write per raise is the whole mechanism.
 
-A manual **retract** reports PAUSED. If the amplifier turns out not to retract on
-the report, the only other lever is the enable write, which costs the driver
-their stock auto-lift until the next ignition cycle. That trade is not the app's
-to make silently, so it stays open until the test below settles it.
+What lowers them, then, is what already lowered them before we arrived: the car
+does it on power off, and on its own after a long idle (about half an hour on the
+N9; on the Z9GT the covers were found in after roughly seven idle hours with the
+setting still enabled). There is no fast "close now" in the vehicle at all.
+
+This is the point where the feature stops looking like a pair of open/close
+commands. The car offers **raise**, and **it lowers them itself**. The only way
+to lower them on demand is `0x16300025 = 2`, which is not a close but a switching
+off of the whole feature, and it costs the driver their stock auto-lift until the
+next ignition cycle.
+
+So the app must not offer a close button beside a raise button. It offers the
+feature switch, whose off state is exactly "hide them for the rest of this trip",
+and one raise action that is always safe because it only reports.
+
+### The product, in one screen
+
+One switch and one action, and nothing else.
+
+**Switch "Speakers rise with music".** On, it is the car's own auto-lift and the
+app keeps it enabled; any player raises the covers, Yandex included, because the
+app supplies the report the car withholds for players it does not know. Off, the
+covers go in and stay in for the rest of the trip, and the next start of the car
+brings the setting back by itself.
+
+**Action "Raise".** Sends one report. Always safe, never disables anything. It
+exists because the covers settle in on their own after a long idle, and without
+it the only way back out would be to toggle the switch off and on, which would
+write the destructive `2`.
+
+Turning the switch **on** also sends the report, so both cars behave identically
+at that moment: the covers come out. Without it the Z9GT would rise from the
+enable write and the N9 would sit still until music started.
+
+There is deliberately no "close" action. The car has none, the app should not
+pretend otherwise, and the honest expression of "hide them now" is the switch
+going off.
 
 ### Transport
 
@@ -1585,15 +1618,17 @@ the stock one. Same mechanism, larger surface, and not needed for the covers.
 
 ### Still to verify
 
-1. Does reporting `2` retract the covers? Z9GT, after an ignition cycle has
-   restored `0x35A000DA` to `1` and the covers have settled in.
-2. Level or edge: does the amplifier hold the covers out while the report stays
-   `1`, or does it act only on the transition?
-3. Does the N9 raise on the report? Needs a build for that car's owner. They have
+1. Does an ignition cycle restore `0x35A000DA` to `1` after the app has written
+   `2`? The whole "hide for the rest of this trip" promise rests on it. Indirect
+   evidence says yes, and one reading after the next drive settles it.
+2. Does the N9 raise on the report? Needs a build for that car's owner. They have
    no host ADB, so the test build must carry the local-ADB client and walk them
    through the one-time on-screen authorization.
-4. Does the car re-assert `PAUSED` on track changes inside the same unknown app,
-   or only on focus changes?
+3. Does the car overwrite our report on track changes inside the same unknown
+   app, or only on focus changes? Only affects how often the app re-sends.
+
+Settled 2026-09-03: reporting `2` does not retract, so the report is one-way and
+nothing needs to be held.
 
 ### The decisive experiment, when an N9 is available
 
