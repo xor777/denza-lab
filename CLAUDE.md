@@ -55,6 +55,7 @@ still use the historical `denza-gateway` directory name.
 | `:audio-probe` | `experiments/audio-probe/` | `dev.denza.audio.probe` (isolated audio capture path evaluation) |
 | `:display-probe` | `experiments/display-probe/` | `dev.denza.display.probe` (isolated app-owned display evaluation) |
 | `:single-package-split-probe` | `experiments/single-package-split-probe/` | `dev.denza.singlepackage.probe` (disposable launcher-alias and same-package picker evaluation) |
+| `:adb-rescue-probe` | `experiments/adb-rescue-probe/` | `dev.denza.adbrescue.probe` (second ADB identity for a car whose prompt never renders) |
 | `:speaker-lift-yandex-probe` | `experiments/speaker-lift-yandex-probe/` | `dev.denza.speakerlift.yandexprobe` (disposable Yandex-open → stock LOCAL pulse evaluation) |
 | `:car-adb-gateway` | `apps/car-adb-gateway/` | `ru.adbgw.gateway` (active product candidate) |
 
@@ -74,6 +75,7 @@ export ANDROID_HOME=/opt/homebrew/share/android-commandlinetools
 ./gradlew :display-probe:assembleDebug
 ./gradlew :single-package-split-probe:assembleDebug
 ./gradlew :speaker-lift-yandex-probe:assembleDebug
+./gradlew :adb-rescue-probe:testDebugUnitTest :adb-rescue-probe:assembleDebug
 ./gradlew :car-adb-gateway:testDebugUnitTest :car-adb-gateway:assembleDebug
 ```
 

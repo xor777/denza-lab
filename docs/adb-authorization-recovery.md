@@ -79,8 +79,66 @@ screen where they mean something to whoever is reading them.
    the stuck-queue procedure below when a separately trusted transport is available.
 
 An ordinary APK cannot inspect or drain `libadbd_auth` before its own ADB key is trusted. A second
-APK is therefore not a rescue path: it creates another RSA identity and can add another pending
-request to the same queue.
+APK is therefore not a *repair* on its own: it creates another RSA identity and adds another
+pending request to the same queue. What it can be is the second asker - see below.
+
+## The second asker (`:adb-rescue-probe`, built and run 2026-08-29)
+
+Status: run on the owner's vehicle the day it was built. It answered the question it was made for
+on the first attempt — see "The prompt is never drawn on this car" below.
+
+A vehicle owner reported the state this exists for: Denza Apps shows an authorization instruction,
+the owner says debugging is unlocked at the car, and no system dialog is ever drawn. From the
+host there is nothing to look at - no ADB means no logcat, no `dumpsys`, no queue. From inside
+Denza Apps there is nothing left to spend: it owns one key and one prompt slot by design, and on
+that car the slot is already gone.
+
+The probe is a separate application with an ADB identity of its own, so its request is independent
+of whatever the product already spent. That independence is the whole instrument, because it turns
+an unanswerable question into a two-way test the owner can run alone:
+
+- a prompt appears for the probe's key - the authorization path on that car works, and the problem
+  is Denza Apps' own latch or its own key, both of which the product can already clear from its own
+  screen;
+- no prompt appears for the probe's key either - the path itself is broken, and the queue is the
+  first place to look.
+
+The cost is exactly the one this page has always named: each press of the request button spends
+another slot in the same queue. The probe does not hide that behind a latch. On a car where nothing
+is drawn a latch would leave the owner with no move at all, so the count of requests it has sent is
+printed on the screen instead, and the trade is stated rather than made for them.
+
+Once the probe's key *is* trusted it stops being a diagnostic and becomes the repair, because a
+trusted shell is the thing the product could never get to. Its **Спасти Denza Apps** button runs
+the bounded procedure below - read `adbd_auth`, reject one prompt at a time with `service call
+adb 2`, re-read after every call, stop at five - and then force-stops and relaunches Denza Apps so
+it asks again on a car that can now answer. It does not touch Denza Apps' data: the product clears
+its own one-shot latch from its own screen, and the thing it cannot clear is Android's queue.
+
+This is also where the queue drain earns the live validation the acceptance gate asks for. It runs
+in a probe, on an identity that is not the product's, which is what the governance lane is for.
+
+What it reads with no ADB and no permission, all on one photographable screen: `adb_enabled`,
+`ro.adb.secure`, `ro.debuggable`, `service.adb.tcp.port`, `init.svc.adbd`, `sys.usb.state`, the
+build and model, whether Denza Apps is installed and at which version, and the probe's own key
+fingerprint - the string the prompt would show, so a dialog that *does* appear can be told apart
+from the product's.
+
+Two things it deliberately does not do. It never reads or clicks the authorization dialog: an
+accessibility service could do both, and automating a security confirmation is precisely what that
+dialog exists to prevent. And it never runs `pm clear dev.denza.apps`, which would take the
+product's ADB identity and its settings with it.
+
+Build and install:
+
+```bash
+./gradlew :adb-rescue-probe:testDebugUnitTest :adb-rescue-probe:assembleDebug
+```
+
+The APK lands at `experiments/adb-rescue-probe/build/outputs/apk/debug/adb-rescue.apk`. On a car
+without ADB it has to reach the head unit the same way Denza Apps did - see
+[fse-app-installation.md](fse-app-installation.md).
+
 
 ## Stuck prompt queue
 
@@ -171,6 +229,14 @@ Until the signal is read, the two instructions cannot be told apart, and copy th
 promises the easy remedy is a guess. The service path is the only remedy true in
 both states.
 
+**The flag has now been read, and the fix misses this car** (live, 2026-08-29 —
+see "The prompt is never drawn" below). It reads `adb_enabled = 1`. The
+second mechanism this section allowed for is the one that happened, and the
+reclassification below never fires on the car it was written for.
+
+The paragraph that follows is kept as it was written, because its reasoning was
+right and its conclusion was the one that held.
+
 **The reported car's flag was never read, and the fix assumes it.** The
 reclassification only fires when `adb_enabled` reads 0. Nobody has read that
 value on the car in the screenshot — the reasoning runs the other way, from a
@@ -206,6 +272,147 @@ nobody knows the answer.
 
 The explanation window holds either way, because it names the service path in
 every state.
+
+## The prompt is never drawn on this car (live, 2026-08-29)
+
+The rescue probe was installed on the owner's vehicle and its request button was
+pressed eight times. No authorization dialog appeared for any of them. What the
+screen read, on that car:
+
+| Reading | Value |
+| --- | --- |
+| `adb_enabled` | `1` |
+| `ro.adb.secure` | `1` |
+| `ro.debuggable` | `0` |
+| `init.svc.adbd` | `running` |
+| `service.adb.tcp.port` | `5555` |
+| `sys.usb.state` / `persist.sys.usb.config` | `adb` / `adb` |
+| `persist.adb.tls_server.enable` | unset |
+| `ro.build.display.id` | `TP1A.220624.014 release-keys` (Android 13) |
+| `ro.product.model` | `DiLink5,1` |
+| Denza Apps | installed, 0.6.0-alpha, versionCode 40 |
+| Handshake | adbd answers and refuses the key |
+| Public keys submitted | 8, from an identity that had never asked before |
+
+Every precondition for a prompt is satisfied and no prompt is produced. The
+switch is on, so the v38 reclassification does not apply. adbd is alive,
+listening, and completing handshakes, so the endpoint is not the problem. The
+key is a fresh identity with no history on this car and no latch of its own, so
+nothing in Denza Apps' state can account for it. Eight submissions is well past
+any dedup or cooldown.
+
+**This is a system-side failure, and it is not Denza Apps.** That is the finding
+the probe existed to produce, and it is now established rather than assumed —
+which is the one thing that could not be learned from the product, because the
+product had already spent its single request before anyone could ask.
+
+The mechanism is not identified. The signature — adbd refusing every key with no
+prompt, on a car whose switch is on — is what AOSP produces when adbd has no
+framework to ask: `adbd_auth` hands the key to `AdbDebuggingManager` in
+`system_server`, which draws the dialog through the confirmation component. If
+that path is gutted or points at a component this firmware does not have, adbd
+can only reject. BYD's service-level "ADB unlock" being a separate gate from
+Android's flag, as this page allowed for above, is the same class of cause.
+Distinguishing them needs the auth log, which needs a shell, which needs the
+prompt. The probe cannot break that circle and neither can any other APK.
+
+Consequences for the product:
+
+- The gate currently tells this owner to press a button and approve a dialog.
+  On this car that instruction cannot be carried out, and `adb_enabled = 1`
+  means the v38 copy states the switch is *on* — which is true and makes the
+  instruction read as more actionable, not less.
+- A car that answers, refuses a key, holds the switch on, and draws nothing is a
+  fourth state, distinct from the three the gate knows. It is only detectable by
+  spending a request and watching, so the product cannot classify into it on its
+  own; what it can do is stop promising the remedy after the attempt is spent.
+- Repeated pressing costs a queue slot each time and buys nothing here. The probe
+  prints the count for exactly this reason.
+
+Untried, and the only remaining leads that are not another APK: whether the
+dialog is drawn on the passenger or cluster display rather than the head unit;
+whether a restart re-dispatches the queue; and wireless debugging pairing, which
+is a different code path from this dialog — though `persist.adb.tls_server.enable`
+is unset on this car, so it has likely never been enabled.
+
+
+## How ADB authorization actually works on DiLink 5.1 (corpus, 2026-08-29)
+
+Read from this vehicle's own firmware: `reverse/hud/apks/com.android.systemui.apk` and
+`reverse/speaker-lift/dex/services/classes.dex`. This settles what "the car is unlocked" means
+here, and it is not what the phrase suggests.
+
+**The prompt is dispatched by stock AOSP.** `AdbDebuggingManager.startConfirmationForKey` is
+unmodified: it resolves `config_customAdbPublicKeyConfirmationComponent`, tries it as an activity
+and then as a service, and logs `unable to start customAdbPublicKeyConfirmation…Component` if
+neither resolves. `com.android.systemui.usb.UsbDebuggingActivity` is present in the dex *and*
+declared in SystemUI's manifest, behind `MANAGE_DEBUGGING`, alongside a
+`UsbDebuggingActivityAlias` gated on `DUMP` and a `WifiDebuggingActivity`. Nothing is missing, so
+"BYD removed the confirmation component" is ruled out.
+
+**The dialog itself is not stock, and the difference is the whole answer.** `UsbDebuggingActivity`
+carries a BYD branch before it builds any UI:
+
+```java
+boolean z = SystemProperties.getInt("persist.sys.factory.version.flag.config", 0) == 1;
+if (z && this.mKey != null) {
+    IAdbManager.Stub.asInterface(ServiceManager.getService("adb")).allowDebugging(true, this.mKey);
+    finish();
+    return;
+}
+```
+
+With that property at `1` the activity approves **every key that is ever offered**, permanently
+(`alwaysAllow = true`), and finishes without drawing anything.
+
+**This is a bypass that exists in the firmware; it is not how the reference car works.** That was
+claimed here when the branch was first read, and the reference car refutes it: on 2026-08-18 its
+one-shot request produced a normal *Allow USB debugging?* dialog (recorded above). The auto-approve
+branch returns before any UI is built, so a car that draws the dialog necessarily has this flag at
+`0`. The working configuration on this project's own vehicle is therefore flag `0` plus a
+functioning stock prompt, over a network transport and with no USB anywhere.
+
+**One stock detail that matters and was nearly misread.** `UsbDebuggingActivity` registers the
+`UsbDisconnectedReceiver` that finishes the dialog on USB detach *only* when
+`service.adb.tcp.port` reads 0:
+
+```java
+if (SystemProperties.getInt("service.adb.tcp.port", 0) == 0 && !zEquals) { ...register... }
+```
+
+This car reads `5555`, so the receiver is never registered. A dialog dying instantly because no
+USB cable is attached is a real failure mode on head units and it is excluded here on the code,
+not on a guess.
+
+### What this means for the reported car
+
+The owner's car refuses keys, which means the auto-approve branch is not running. Two states
+remain, and one property separates them:
+
+| `persist.sys.factory.version.flag.config` | What it would mean |
+| --- | --- |
+| `1` | The activity runs the bypass, so no dialog is ever drawn - which matches. It should also have trusted the key, and did not. `allowDebugging` failing or `getService("adb")` returning null both produce exactly that: the branch logs `Unable to notify Usb service`, finishes, and leaves the key refused with nothing on screen. |
+| `0` | The same configuration as the reference car, which draws the dialog. The flag would then be a red herring and the suppression is something else. |
+
+The probe reads the property and states which of the two it found. An unread value is reported as
+unread and never as a lowered flag.
+
+**The anchor measurement has not been taken.** Reading the flag on this project's own working car
+is one command over the ADB that already works there, and it fixes the baseline that the reported
+car's reading is compared against:
+
+```bash
+adb shell getprop persist.sys.factory.version.flag.config
+```
+
+The reference car is expected to read `0` or empty, because it draws the dialog. If it reads `1`,
+the branch above is understood wrongly and this whole section needs revisiting.
+
+If the reported car reads `0` as well, the flag explains nothing and the difference between the
+two cars lies elsewhere. If it reads `1`, the flag is the difference, and the remedy is not an APK
+and not a dialog: a `persist.` property is written below the application layer, by service or
+factory tooling. Nothing in the decompiled corpus outside SystemUI so much as mentions it.
+
 
 ## The persistent shell is a terminal (live v31, 2026-08-26)
 

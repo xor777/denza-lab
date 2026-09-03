@@ -26,6 +26,7 @@ import java.security.GeneralSecurityException;
 import java.security.KeyFactory;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
+import java.security.MessageDigest;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.interfaces.RSAPrivateKey;
@@ -102,6 +103,36 @@ final class AdbKeyStore {
         System.arraycopy(ascii, 0, payload, 0, ascii.length);
         payload[payload.length - 1] = 0;
         return payload;
+    }
+
+    /**
+     * The key as Android names it in the "Allow USB debugging?" dialog.
+     *
+     * <p>MD5 over the decoded ADB public-key blob, uppercase hex, colon separated - the exact
+     * formatting of {@code UsbDebuggingActivity.getFingerprints}. It exists so a person looking at
+     * a prompt on the vehicle can tell <em>whose</em> key they are approving, which matters as soon
+     * as more than one of this project's apps has an identity of its own.
+     */
+    synchronized String publicKeyFingerprint() throws GeneralSecurityException {
+        PublicKey publicKey = keyPair().getPublic();
+        if (!(publicKey instanceof RSAPublicKey)) {
+            throw new GeneralSecurityException("ADB public key is not RSA");
+        }
+        return formatFingerprint(
+                MessageDigest.getInstance("MD5")
+                        .digest(androidAdbPublicKey((RSAPublicKey) publicKey)));
+    }
+
+    static String formatFingerprint(byte[] digest) {
+        StringBuilder text = new StringBuilder(digest.length * 3);
+        for (int i = 0; i < digest.length; i++) {
+            if (i > 0) {
+                text.append(':');
+            }
+            text.append(Character.forDigit((digest[i] >> 4) & 0x0f, 16));
+            text.append(Character.forDigit(digest[i] & 0x0f, 16));
+        }
+        return text.toString().toUpperCase(java.util.Locale.US);
     }
 
     private KeyPair keyPair() throws GeneralSecurityException {

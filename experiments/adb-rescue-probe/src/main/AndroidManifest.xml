@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- The local adbd endpoint is an ordinary TCP socket, loopback included. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- Package visibility is limited to the one app this probe exists to rescue. -->
+    <queries>
+        <package android:name="dev.denza.apps" />
+    </queries>
+
+    <application
+        android:allowBackup="false"
+        android:label="ADB Спасатель"
+        android:supportsRtl="true"
+        android:theme="@android:style/Theme.Material">
+        <activity
+            android:name=".RescueActivity"
+            android:exported="true"
+            android:label="ADB Спасатель"
+            android:launchMode="singleTask"
+            android:screenOrientation="landscape">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>

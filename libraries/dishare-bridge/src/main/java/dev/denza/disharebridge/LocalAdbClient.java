@@ -105,6 +105,17 @@ public final class LocalAdbClient {
     }
 
     /**
+     * This client's identity as the vehicle's authorization prompt spells it.
+     *
+     * <p>Each app that owns a {@link LocalAdbClient} has a key of its own, in its own data
+     * directory. When a prompt does appear, the fingerprint is the only thing that says which of
+     * them is asking.
+     */
+    public String publicKeyFingerprint() throws GeneralSecurityException {
+        return keyStore.publicKeyFingerprint();
+    }
+
+    /**
      * Submits this client's public key once, or proves that it is already trusted.
      *
      * <p>The method closes the transport immediately after the public key is sent. It never
