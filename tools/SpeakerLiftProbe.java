@@ -5,6 +5,7 @@ import android.media.AudioAttributes;
 import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioTrack;
+import android.os.Looper;
 import android.os.Parcel;
 import android.os.IBinder;
 import android.util.Log;
@@ -359,6 +360,15 @@ public final class SpeakerLiftProbe {
     }
 
     private static Context systemContext() throws Exception {
+        // ActivityThread.systemMain() builds its own Handler, so this process needs a Looper
+        // before it is touched. Without this the tone and focus modes die inside
+        // ActivityThread.<init> with "Can't create handler inside thread that has not called
+        // Looper.prepare()", which is what happened on the N9 on 2026-08-30.
+        try {
+            Looper.prepareMainLooper();
+        } catch (IllegalStateException alreadyPrepared) {
+            // A second call in the same process is not an error for us.
+        }
         Class<?> at = Class.forName("android.app.ActivityThread");
         Object thread = at.getMethod("systemMain").invoke(null);
         return (Context) at.getMethod("getSystemContext").invoke(thread);
