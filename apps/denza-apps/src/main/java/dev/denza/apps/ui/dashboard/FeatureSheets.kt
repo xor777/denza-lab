@@ -165,9 +165,10 @@ private fun helpOf(id: TileId): String = when (id) {
         "Приложение забирает прогноз и отдаёт его штатному виджету погоды. " +
             "Своей погоды оно не рисует — виджет остаётся штатным."
     TileId.SPEAKERS ->
-        "Крышки поднимаются один раз за поездку — когда что-то заиграет: сразу для известных " +
-            "приложений (${SpeakerCoverApps.EXAMPLES}) и через три секунды звука для остальных. " +
-            "Дальше они слушаются только кнопок, а машина убирает их при выключении."
+        "Динамики выезжают, когда играет музыка — в том числе из приложений, которые машина " +
+            "своими не считает (${SpeakerCoverApps.EXAMPLES}). Убирает их машина сама при " +
+            "выключении; выключить переключатель — единственный способ убрать их раньше, и до " +
+            "следующего запуска машины."
     TileId.LOCALE ->
         "Родной русский язык уже встроен в систему — " +
             "переключатель включает его в штатных настройках машины."
@@ -446,11 +447,15 @@ private fun weatherSheet(state: DenzaUiState, actions: DashboardActions) {
 private fun speakerSheet(state: DenzaUiState, actions: DashboardActions, busy: Boolean) {
     val commanding = busy || state.speakerCoversCommanding
     DenzaSwitchRow(
-        title = "Автоматика крышек",
+        title = "Динамики под музыку",
         checked = state.speakerCovers.desiredEnabled,
         onCheckedChange = actions.onToggleSpeakerCovers,
         enabled = !busy,
     )
+    // One button, and the missing one is the point. The car has no close command: the only way to
+    // put the covers away is to switch the stock auto-lift off, which is what this switch does when
+    // it goes off. A second button labelled «Опустить» would look like a pair and cost the driver
+    // their stock automation for the rest of the trip on every press.
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(DenzaMetrics.Space.M),
@@ -458,12 +463,6 @@ private fun speakerSheet(state: DenzaUiState, actions: DashboardActions, busy: B
         DenzaSecondaryButton(
             text = "Поднять",
             onClick = actions.onRaiseSpeakerCovers,
-            modifier = Modifier.weight(1f),
-            enabled = !commanding,
-        )
-        DenzaSecondaryButton(
-            text = "Опустить",
-            onClick = actions.onLowerSpeakerCovers,
             modifier = Modifier.weight(1f),
             enabled = !commanding,
         )

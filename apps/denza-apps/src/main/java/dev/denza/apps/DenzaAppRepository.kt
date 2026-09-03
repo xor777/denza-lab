@@ -31,7 +31,6 @@ import dev.denza.apps.feature.defaultapps.DefaultAppsCatalogCache
 import dev.denza.apps.feature.defaultapps.DefaultAppsPolicy
 import dev.denza.apps.feature.defaultapps.DefaultAppsSettings
 import dev.denza.apps.feature.defaultapps.DefaultAppsUiState
-import dev.denza.apps.feature.defaultapps.DefaultNavigationProxyContract
 import dev.denza.apps.feature.defaultapps.InstalledDefaultApp
 import dev.denza.apps.feature.fse.FseAppInstaller
 import dev.denza.apps.feature.fse.FseInstallApp
@@ -578,40 +577,37 @@ object DenzaAppRepository {
         }
     }
 
+    /**
+     * The switch, whose two positions are the only two things the car can be asked for.
+     *
+     * On raises the covers and keeps reporting playback for players the car ignores. Off is the
+     * one and only way to put them away: the vehicle has no close command, so it goes through the
+     * stock auto-lift setting, which retracts them and stands down until the next start of the car.
+     */
     fun setSpeakerCoversEnabled(enabled: Boolean) {
         val context = appContext ?: return
         SpeakerCoverSettings.setEnabled(context, enabled)
         if (enabled) {
-            // Switching it on outranks anything the driver pressed earlier in this trip: the two
-            // flags that keep the automation quiet are cleared before the service reads them, so a
-            // toggle flipped while music is playing opens the covers there and then.
-            SpeakerCoverSettings.rearm(context)
             stateStore.update { current ->
                 current.copy(speakerCovers = FeatureReducer.starting(FeatureId.SPEAKER_COVERS))
             }
-            SpeakerCoverService.reconcile(context)
+            SpeakerCoverService.enabled(context)
         } else {
-            // A close command suppresses the amplifier's stock auto-lift for this ignition
-            // cycle, so switching our automation off tries to leave the covers physically open -
-            // best effort only, and never over a close the driver asked for by hand.
-            SpeakerCoverService.disableAndOpen(context)
+            SpeakerCoverService.disabled(context)
             refresh()
         }
     }
 
     /**
-     * The panel's two buttons.
+     * The panel's one button, for covers the amplifier has retracted with no music to bring back.
      *
-     * They answer whether or not the automation is switched on: the covers belong to the car, and
-     * "поднять" is a thing to want at a standstill with nothing playing. With the automation on,
-     * the command goes through it so its idea of where the covers are stays true.
+     * It answers whether or not the feature is switched on: the covers belong to the car, and
+     * wanting them out at a standstill is a thing to want. There is deliberately no button beside
+     * it - the car has no close, and pretending otherwise is what disabled the driver's stock
+     * auto-lift for a whole trip every time the old one was pressed.
      */
     fun raiseSpeakerCovers() {
         appContext?.let(SpeakerCoverService::raise)
-    }
-
-    fun lowerSpeakerCovers() {
-        appContext?.let(SpeakerCoverService::lower)
     }
 
     /**
@@ -1262,77 +1258,12 @@ object DenzaAppRepository {
         observed: Result<String>,
     ): DefaultAppRoleUiState {
         val previous = stateStore.snapshot().state.defaultApps.stateFor(role)
-        val currentUpdateTime = if (role == DefaultAppRole.NAVIGATION) {
-            currentPackageUpdateTime(context)
-        } else {
-            0L
-        }
         var observedPackage: String? = null
-        var providerWriteAttempted = false
-        var configuredProxyTarget: String? = null
-        var plannedSelection: String? = null
+        var writeAttempted = false
 
         return try {
             observedPackage = observed.getOrThrow()
             val initializationHandled = DefaultAppsSettings.isInitializationHandled(context, role)
-
-            // A proxy row already contains the stable provider representation. Its logical
-            // selection lives in Denza Apps' atomic store and is read synchronously even when
-            // neither Denza Apps nor the selected navigation app had a running process.
-            if (
-                role == DefaultAppRole.NAVIGATION &&
-                observedPackage == DefaultNavigationProxyContract.PACKAGE_NAME
-            ) {
-                configuredProxyTarget = navigationProxyTarget(context)
-                if (!initializationHandled) {
-                    DefaultAppsSettings.markInitializationHandled(context, role)
-                }
-                DefaultAppsSettings.markNavigationProxyActive(
-                    context,
-                    active = true,
-                    packageUpdateTime = currentUpdateTime,
-                )
-                return defaultAppProviderState(
-                    context = context,
-                    role = role,
-                    providerPackageName = observedPackage,
-                    selectedPackageName = DefaultNavigationProxyContract.selectedPackageName(
-                        role = role,
-                        providerPackageName = observedPackage,
-                        configuredProxyTarget = configuredProxyTarget,
-                    ),
-                    launchable = launchable,
-                    installed = installed,
-                )
-            }
-
-            val directMigration = DefaultNavigationProxyContract.directMigrationTarget(
-                role = role,
-                providerPackageName = observedPackage,
-                installedLaunchablePackages = launchable,
-            )
-            val repairRequested = role == DefaultAppRole.NAVIGATION &&
-                DefaultNavigationProxyContract.repairRequested(
-                    repairPending = DefaultAppsSettings.isNavigationProxyRepairPending(context),
-                    proxyActive = DefaultAppsSettings.isNavigationProxyActive(context),
-                    confirmedUpdateTime =
-                        DefaultAppsSettings.navigationProxyConfirmedUpdateTime(context),
-                    currentUpdateTime = currentUpdateTime,
-                )
-            val repairConfiguredTarget = if (
-                repairRequested && observedPackage == role.stockPackageName
-            ) {
-                navigationProxyTarget(context)
-            } else {
-                null
-            }
-            val repairTarget = DefaultNavigationProxyContract.repairTarget(
-                role = role,
-                providerPackageName = observedPackage,
-                repairRequested = repairRequested,
-                configuredProxyTarget = repairConfiguredTarget,
-                installedLaunchablePackages = launchable,
-            )
             val coldSelection = DefaultAppsPolicy.coldStartSelection(
                 role = role,
                 providerPackageName = observedPackage,
@@ -1346,43 +1277,23 @@ object DenzaAppRepository {
                 resolvedPackageName = coldSelection,
             )
 
-            plannedSelection = directMigration
-                ?: repairTarget
-                ?: coldSelection.takeIf { shouldAutoSelect }
-            val persistedProvider = if (plannedSelection != null) {
-                val providerTarget = DefaultNavigationProxyContract.providerPackageName(
-                    role,
-                    checkNotNull(plannedSelection),
-                )
-                if (providerTarget == DefaultNavigationProxyContract.PACKAGE_NAME) {
-                    configuredProxyTarget = DefaultAppsSettings.setNavigationProxyTarget(
-                        context,
-                        checkNotNull(plannedSelection),
-                    )
-                }
-                providerWriteAttempted = true
+            val persistedPackage = if (shouldAutoSelect) {
+                writeAttempted = true
                 runBlocking {
                     repository.setIfCurrent(
                         role = role,
                         expectedCurrentPackageName = checkNotNull(observedPackage),
-                        packageName = providerTarget,
+                        packageName = checkNotNull(coldSelection),
                     )
                 }.also {
                     // The provider is the source of truth. Only its exact successful readback may
                     // complete first-run handling after an automatic change.
                     DefaultAppsSettings.markInitializationHandled(context, role)
-                    if (providerTarget == DefaultNavigationProxyContract.PACKAGE_NAME) {
-                        DefaultAppsSettings.markNavigationProxyActive(
-                            context,
-                            active = true,
-                            packageUpdateTime = currentUpdateTime,
-                        )
-                    }
                 }
             } else {
                 checkNotNull(observedPackage)
             }
-            if (!initializationHandled && plannedSelection == null) {
+            if (!initializationHandled && !shouldAutoSelect) {
                 // A successful first resolution is final even when it keeps stock or preserves an
                 // external non-stock value. Installing a known app later must not silently change
                 // an already observed role.
@@ -1391,19 +1302,13 @@ object DenzaAppRepository {
             defaultAppProviderState(
                 context = context,
                 role = role,
-                providerPackageName = persistedProvider,
-                selectedPackageName = plannedSelection ?: persistedProvider,
+                packageName = persistedPackage,
                 launchable = launchable,
                 installed = installed,
-                message = when {
-                    repairTarget != null -> "Связь восстановлена"
-                    directMigration != null -> "Защищено от обновлений"
-                    shouldAutoSelect -> "Выбрано автоматически"
-                    else -> ""
-                },
+                message = if (shouldAutoSelect) "Выбрано автоматически" else "",
             )
         } catch (error: Throwable) {
-            val recoveredProvider = if (providerWriteAttempted) {
+            val recoveredPackage = if (writeAttempted) {
                 runCatching { runBlocking { repository.read(role) } }.getOrNull()
             } else {
                 null
@@ -1411,30 +1316,19 @@ object DenzaAppRepository {
             // Once an update was attempted, the pre-write observation is no longer proof of the
             // current value. Only a recovery read may confirm it; otherwise retain the old value
             // strictly as last-known UI context.
-            val confirmedProvider = recoveredProvider
-                ?: observedPackage.takeUnless { providerWriteAttempted }
-            val selectedPackage = if (
-                role == DefaultAppRole.NAVIGATION &&
-                (confirmedProvider ?: observedPackage) == DefaultNavigationProxyContract.PACKAGE_NAME
-            ) {
-                plannedSelection
-                    ?: configuredProxyTarget
-                    ?: runCatching { navigationProxyTarget(context) }.getOrNull()
-                    ?: previous.selectedPackageName
-            } else {
-                confirmedProvider ?: observedPackage ?: previous.selectedPackageName
-            }
+            val confirmedPackage = recoveredPackage ?: observedPackage.takeUnless { writeAttempted }
             defaultAppErrorState(
                 context = context,
                 role = role,
-                selectedPackageName = selectedPackage,
+                selectedPackageName = confirmedPackage
+                    ?: observedPackage
+                    ?: previous.selectedPackageName,
                 launchable = launchable,
                 installed = installed,
-                providerConfirmed = confirmedProvider != null,
+                providerConfirmed = confirmedPackage != null,
                 message = defaultAppsFailure(
                     when {
-                        providerWriteAttempted -> "Не удалось завершить настройку прокси"
-                        plannedSelection != null -> "Не удалось настроить прокси навигации"
+                        writeAttempted -> "Не удалось завершить автоматический выбор"
                         observedPackage != null -> "Не удалось завершить инициализацию"
                         else -> "Не удалось прочитать настройку"
                     },
@@ -1514,28 +1408,15 @@ object DenzaAppRepository {
         installed: List<InstalledDefaultApp>?,
     ): DefaultAppRoleUiState {
         val repository = defaultAppRoleRepository(context)
-        val providerTarget = DefaultNavigationProxyContract.providerPackageName(role, packageName)
-        var persistedProvider: String? = null
-        var proxyConfigured = false
+        var persistedPackage: String? = null
         val result = runCatching {
-            if (providerTarget == DefaultNavigationProxyContract.PACKAGE_NAME) {
-                DefaultAppsSettings.setNavigationProxyTarget(context, packageName)
-                proxyConfigured = true
-            }
-            persistedProvider = runBlocking { repository.set(role, providerTarget) }
+            persistedPackage = runBlocking { repository.set(role, packageName) }
             // Even a deliberate stock choice becomes distinguishable only after the provider has
             // echoed it back exactly. This marker must never be written optimistically.
             if (!DefaultAppsSettings.isInitializationHandled(context, role)) {
                 DefaultAppsSettings.markInitializationHandled(context, role)
             }
-            if (role == DefaultAppRole.NAVIGATION) {
-                DefaultAppsSettings.markNavigationProxyActive(
-                    context,
-                    active = persistedProvider == DefaultNavigationProxyContract.PACKAGE_NAME,
-                    packageUpdateTime = currentPackageUpdateTime(context),
-                )
-            }
-            checkNotNull(persistedProvider)
+            checkNotNull(persistedPackage)
         }
 
         return result.fold(
@@ -1543,35 +1424,23 @@ object DenzaAppRepository {
                 defaultAppProviderState(
                     context = context,
                     role = role,
-                    providerPackageName = persisted,
-                    selectedPackageName = packageName,
+                    packageName = persisted,
                     launchable = launchable,
                     installed = installed,
                 )
             },
             onFailure = { error ->
                 val recovered = runCatching { runBlocking { repository.read(role) } }.getOrNull()
-                val confirmedProvider = recovered ?: persistedProvider
-                val selectedPackage = if (
-                    role == DefaultAppRole.NAVIGATION &&
-                    confirmedProvider == DefaultNavigationProxyContract.PACKAGE_NAME
-                ) {
-                    packageName.takeIf { proxyConfigured }
-                        ?: runCatching { navigationProxyTarget(context) }.getOrNull()
-                        ?: stateStore.snapshot().state.defaultApps
-                            .stateFor(role).selectedPackageName
-                } else {
-                    confirmedProvider
-                        ?: stateStore.snapshot().state.defaultApps
-                            .stateFor(role).selectedPackageName
-                }
+                val confirmedPackage = recovered ?: persistedPackage
                 defaultAppErrorState(
                     context = context,
                     role = role,
-                    selectedPackageName = selectedPackage,
+                    selectedPackageName = confirmedPackage
+                        ?: stateStore.snapshot().state.defaultApps
+                            .stateFor(role).selectedPackageName,
                     launchable = launchable,
                     installed = installed,
-                    providerConfirmed = confirmedProvider != null,
+                    providerConfirmed = confirmedPackage != null,
                     message = defaultAppsFailure("Не удалось сохранить выбор", error),
                 )
             },
@@ -1604,66 +1473,43 @@ object DenzaAppRepository {
     private fun defaultAppProviderState(
         context: Context,
         role: DefaultAppRole,
-        providerPackageName: String,
-        selectedPackageName: String?,
+        packageName: String,
         launchable: Set<String>,
         installed: List<InstalledDefaultApp>?,
         message: String = "",
     ): DefaultAppRoleUiState {
-        if (providerPackageName !in launchable) {
+        if (packageName !in launchable) {
             return defaultAppErrorState(
                 context = context,
                 role = role,
-                selectedPackageName = selectedPackageName,
+                selectedPackageName = packageName,
                 launchable = launchable,
                 installed = installed,
                 providerConfirmed = true,
-                message = if (providerPackageName == DefaultNavigationProxyContract.PACKAGE_NAME) {
-                    "Компонент навигации Denza Apps недоступен"
-                } else {
-                    "Выбранное приложение не установлено или не запускается"
-                },
-            )
-        }
-        if (
-            selectedPackageName == null ||
-            selectedPackageName !in launchable
-        ) {
-            return defaultAppErrorState(
-                context = context,
-                role = role,
-                selectedPackageName = selectedPackageName,
-                launchable = launchable,
-                installed = installed,
-                providerConfirmed = true,
-                message = if (providerPackageName == DefaultNavigationProxyContract.PACKAGE_NAME) {
-                    "Прокси не настроен или выбранное приложение временно недоступно"
-                } else {
-                    "Выбранное приложение не установлено или не запускается"
-                },
+                message = "Выбранное приложение не установлено или не запускается",
             )
         }
         // Whatever the car is confirmed to be running for this role is what switching the
         // substitution back on should restore, so it is remembered where it is observed rather
         // than at the moment the switch is thrown - by then the role already says "stock".
-        DefaultAppsSettings.rememberPick(context, role, selectedPackageName)
+        DefaultAppsSettings.rememberPick(context, role, packageName)
         val selectedLabel = installed?.let {
-            DefaultAppsCatalog.label(role, selectedPackageName, it)
-        } ?: DefaultAppsCatalog.labelNow(context, role, selectedPackageName)
+            DefaultAppsCatalog.label(role, packageName, it)
+        } ?: DefaultAppsCatalog.labelNow(context, role, packageName)
         val choices = installed?.let {
-            DefaultAppsCatalog.choices(role, selectedPackageName, it)
+            DefaultAppsCatalog.choices(role, packageName, it)
         } ?: stateStore.snapshot().state.defaultApps.stateFor(role).choices.map { choice ->
-            choice.copy(selected = choice.packageName == selectedPackageName)
+            choice.copy(selected = choice.packageName == packageName)
         }
         DefaultAppsSettings.rememberConfirmedSelection(
             context,
             role,
-            selectedPackageName,
+            packageName,
             selectedLabel,
         )
         return DefaultAppRoleUiState(
             role = role,
-            selectedPackageName = selectedPackageName,
+            selectedPackageName = packageName,
             selectedLabel = selectedLabel,
             choices = choices,
             status = DefaultAppRoleStatus.READY,
@@ -1701,22 +1547,6 @@ object DenzaAppRepository {
             providerConfirmed = providerConfirmed,
         )
     }
-
-    /**
-     * Compatibility fallback for a pre-proxy build that already pointed navigation at Denza Apps.
-     * Such a build remembered the package as an ordinary direct choice; absent even that, opening
-     * the Denza Apps hub is the only non-recursive interpretation of the existing row.
-     */
-    private fun navigationProxyTarget(context: Context): String =
-        DefaultAppsSettings.navigationProxyTarget(context)
-            ?: DefaultAppsSettings.rememberedPick(context, DefaultAppRole.NAVIGATION)
-                ?.takeIf(DefaultNavigationProxyContract::isValidTarget)
-            ?: DefaultNavigationProxyContract.PACKAGE_NAME
-
-    @Suppress("DEPRECATION")
-    private fun currentPackageUpdateTime(context: Context): Long = runCatching {
-        context.packageManager.getPackageInfo(context.packageName, 0).lastUpdateTime
-    }.getOrDefault(0L)
 
     /**
      * Decides what each role should hold, and marks the panel with it before anything is written.

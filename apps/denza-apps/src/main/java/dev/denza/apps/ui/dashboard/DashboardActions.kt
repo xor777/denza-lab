@@ -36,7 +36,6 @@ data class DashboardActions(
     val onToggleHudGuidance: (Boolean) -> Unit,
     val onToggleSpeakerCovers: (Boolean) -> Unit,
     val onRaiseSpeakerCovers: () -> Unit,
-    val onLowerSpeakerCovers: () -> Unit,
     val onSetStockRussianLocale: (Boolean) -> Unit,
     val onSetDefaultAppsEnabled: (Boolean) -> Unit,
     val onChooseFseApp: () -> Unit,

@@ -17,8 +17,6 @@ enum class SpeakerCoverRuntimePhase {
 
 data class SpeakerCoverRuntimeState(
     val phase: SpeakerCoverRuntimePhase = SpeakerCoverRuntimePhase.STOPPED,
-    /** What the app last asked for, not a reading of the covers - there is no reading. */
-    val raised: Boolean? = null,
     val message: String = "",
     val details: String? = null,
 )
@@ -58,7 +56,7 @@ object SpeakerCoverRuntime {
                 id = FeatureId.SPEAKER_COVERS,
                 desiredEnabled = true,
                 status = FeatureStatus.READY,
-                message = runtime.message.ifBlank { "Автоматика включена" },
+                message = runtime.message.ifBlank { "Динамики выедут под музыку" },
                 details = runtime.details,
             )
             SpeakerCoverRuntimePhase.STARTING -> FeatureSnapshot(
@@ -71,22 +69,22 @@ object SpeakerCoverRuntime {
             SpeakerCoverRuntimePhase.MONITORING -> FeatureSnapshot(
                 id = FeatureId.SPEAKER_COVERS,
                 desiredEnabled = true,
-                status = if (runtime.raised == true) FeatureStatus.ACTIVE else FeatureStatus.READY,
-                message = runtime.message.ifBlank { "Автоматика работает" },
+                status = FeatureStatus.READY,
+                message = runtime.message.ifBlank { "Динамики выедут под музыку" },
                 details = runtime.details,
             )
             SpeakerCoverRuntimePhase.COMMANDING -> FeatureSnapshot(
                 id = FeatureId.SPEAKER_COVERS,
                 desiredEnabled = true,
                 status = FeatureStatus.STARTING,
-                message = runtime.message.ifBlank { "Управляю крышками" },
+                message = runtime.message.ifBlank { "Говорю машине, что играет музыка" },
                 details = runtime.details,
             )
             SpeakerCoverRuntimePhase.DEGRADED -> FeatureSnapshot(
                 id = FeatureId.SPEAKER_COVERS,
                 desiredEnabled = true,
                 status = FeatureStatus.RECOVERING,
-                message = runtime.message.ifBlank { "Восстанавливаю автоматику" },
+                message = runtime.message.ifBlank { "Повторю при следующем запуске музыки" },
                 details = runtime.details,
             )
             // Recovery that has stopped being plausible.
