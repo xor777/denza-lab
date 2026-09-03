@@ -700,19 +700,6 @@ object DenzaAppRepository {
     fun refreshDefaultApps(force: Boolean = false) {
         val context = appContext ?: return
         if (!force && defaultAppsReadIsFresh()) return
-        if (!defaultAppsRuntimeReady()) {
-            val phase = AdbRescueCoordinator.snapshot().phase
-            if (
-                phase == AdbRescuePhase.UNKNOWN ||
-                phase == AdbRescuePhase.CHECKING ||
-                phase == AdbRescuePhase.TRUSTED
-            ) {
-                publishDefaultAppsWaitingForRuntime()
-            } else {
-                publishDefaultAppsUnavailable("Нужен доверенный локальный ADB")
-            }
-            return
-        }
 
         stateStore.update { current ->
             current.copy(
@@ -747,10 +734,6 @@ object DenzaAppRepository {
      */
     fun setDefaultAppsEnabled(enabled: Boolean) {
         val context = appContext ?: return
-        if (!defaultAppsRuntimeReady()) {
-            publishDefaultAppsUnavailable("Нужен доверенный локальный ADB")
-            return
-        }
         val targets = claimDefaultAppsSwitch(context, enabled) ?: return
         defaultAppsExecutor.execute {
             applyDefaultAppTargets(context, targets)
@@ -763,10 +746,6 @@ object DenzaAppRepository {
         packageName: String,
     ) {
         val context = appContext ?: return
-        if (!defaultAppsRuntimeReady()) {
-            publishDefaultAppRoleError(role, "Нужен доверенный локальный ADB")
-            return
-        }
         if (!claimDefaultAppSelection(role, packageName)) return
 
         defaultAppsExecutor.execute {
@@ -867,6 +846,8 @@ object DenzaAppRepository {
     private fun initializeAdbGate(context: Context) {
         appContext = context.applicationContext
         AdbRescueCoordinator.initialize(context)
+        // The three roles are an ordinary ContentResolver read; they owe the ADB phase nothing.
+        refreshDefaultApps()
         when (AdbStartupGatePolicy.entryAction(AdbRescueCoordinator.snapshot().phase)) {
             // UNKNOWN is the one automatic startup probe. All other unresolved outcomes stay
             // latched until the user explicitly presses a button in the blocking overlay.
@@ -1194,11 +1175,6 @@ object DenzaAppRepository {
     }
 
     private fun runDefaultAppsRefresh(context: Context) {
-        if (!defaultAppsRuntimeReady()) {
-            publishDefaultAppsUnavailable("Нужен доверенный локальный ADB")
-            return
-        }
-
         val installed = runCatching { DefaultAppsCatalog.discover(context) }
             .getOrElse { error ->
                 publishDefaultAppsUnavailable(
@@ -1208,6 +1184,9 @@ object DenzaAppRepository {
             }
         defaultAppsCatalog = installed
         val repository = defaultAppRoleRepository(context)
+        // One provider query for all three roles. Each role still answers for itself: a missing or
+        // duplicated row fails alone, and the failure reaches its role exactly as its own read did.
+        val observed = runBlocking { repository.readAll() }
 
         DefaultAppRole.entries.forEach { role ->
             // A tap accepted while this refresh was already in flight owns the role until its
@@ -1218,7 +1197,13 @@ object DenzaAppRepository {
                 return@forEach
             }
 
-            val roleState = refreshDefaultAppRole(context, repository, role, installed)
+            val roleState = refreshDefaultAppRole(
+                context = context,
+                repository = repository,
+                role = role,
+                installed = installed,
+                observed = observed.getValue(role),
+            )
             stateStore.updateIf(
                 predicate = { current ->
                     current.defaultApps.stateFor(role).status != DefaultAppRoleStatus.APPLYING
@@ -1249,6 +1234,7 @@ object DenzaAppRepository {
         repository: DefaultAppRoleRepository,
         role: DefaultAppRole,
         installed: List<InstalledDefaultApp>,
+        observed: Result<String>,
     ): DefaultAppRoleUiState {
         val previous = stateStore.snapshot().state.defaultApps.stateFor(role)
         var observedPackage: String? = null
@@ -1257,7 +1243,7 @@ object DenzaAppRepository {
         var plannedSelection: String? = null
 
         return try {
-            observedPackage = runBlocking { repository.read(role) }
+            observedPackage = observed.getOrThrow()
             val initializationHandled = DefaultAppsSettings.isInitializationHandled(context, role)
             val launchablePackages = installed.map(InstalledDefaultApp::packageName)
 
@@ -1455,21 +1441,6 @@ object DenzaAppRepository {
             )
             return
         }
-        if (!defaultAppsRuntimeReady()) {
-            finishDefaultAppRole(
-                role,
-                defaultAppErrorState(
-                    role = role,
-                    selectedPackageName = stateStore.snapshot().state.defaultApps
-                        .stateFor(role).selectedPackageName,
-                    installed = installed,
-                    providerConfirmed = false,
-                    message = "Нужен доверенный локальный ADB",
-                ),
-            )
-            return
-        }
-
         finishDefaultAppRole(
             role,
             writeDefaultAppRole(context, role, packageName, installed),
@@ -1836,31 +1807,6 @@ object DenzaAppRepository {
             )
         }
     }
-
-    private fun publishDefaultAppsWaitingForRuntime() {
-        stateStore.update { current ->
-            current.copy(
-                defaultApps = current.defaultApps.copy(
-                    refreshing = false,
-                    roles = current.defaultApps.roles.map { roleState ->
-                        if (roleState.status == DefaultAppRoleStatus.APPLYING) {
-                            roleState
-                        } else {
-                            roleState.copy(
-                                status = DefaultAppRoleStatus.LOADING,
-                                message = "Ждём доступ к машине…",
-                                providerConfirmed = false,
-                            )
-                        }
-                    },
-                ),
-            )
-        }
-    }
-
-    private fun defaultAppsRuntimeReady(): Boolean =
-        adbRuntimeStarted.get() &&
-            AdbRescueCoordinator.snapshot().phase == AdbRescuePhase.TRUSTED
 
     private fun defaultAppRoleRepository(context: Context): DefaultAppRoleRepository {
         defaultAppsRepository?.let { return it }

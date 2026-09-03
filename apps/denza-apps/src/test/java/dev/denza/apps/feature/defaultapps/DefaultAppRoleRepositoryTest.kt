@@ -5,34 +5,31 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.yield
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
 
 class DefaultAppRoleRepositoryTest {
     @Test
-    fun readAcceptsOneExactRowAndUsesTheFixedProviderQuery() = runBlocking {
-        val shell = ScriptedShell(
-            row(DefaultAppRole.MUSIC, "com.byd.mediacenter"),
-        )
-        val repository = DefaultAppRoleRepository(shell)
+    fun readAcceptsOneExactRowAndUsesTheFixedProviderPredicate() = runBlocking {
+        val access = FakePersonBeanAccess(row(DefaultAppRole.MUSIC, "com.byd.mediacenter"))
+        val repository = DefaultAppRoleRepository(access)
 
         assertEquals("com.byd.mediacenter", repository.read(DefaultAppRole.MUSIC))
-        assertEquals(
-            listOf(
-                "content query --uri content://com.byd.autovoice/PersonBean " +
-                    "--projection _id:SETTING:VALUE --where \"SETTING='MUSIC_SWITCH'\"",
-            ),
-            shell.commands,
-        )
+        assertEquals(listOf("SETTING=?"), access.querySelections)
+        assertEquals(listOf(listOf("MUSIC_SWITCH")), access.queryArgs)
+        assertTrue(access.updateSelections.isEmpty())
     }
 
     @Test
     fun protocolRejectsEveryRoleKeyOutsideTheThreeRoleAllowlist() = runBlocking {
         listOf("FM_SWITCH", "NEWS_SWITCH", "KARAOKE_SWITCH", "").forEach { roleKey ->
-            expectAccessFailure { AutoVoicePersonBeanProtocol.queryCommand(roleKey) }
             expectAccessFailure {
-                AutoVoicePersonBeanProtocol.updateCommand(roleKey, "example.valid.app")
+                AutoVoicePersonBeanProtocol.requireSingleRow(
+                    roleKey,
+                    listOf(PersonBeanRow(1L, roleKey, "example.valid.app")),
+                )
             }
         }
     }
@@ -40,118 +37,102 @@ class DefaultAppRoleRepositoryTest {
     @Test
     fun readFailsClosedForZeroOrMultipleRows() = runBlocking {
         listOf(
-            "No result found.",
-            row(DefaultAppRole.MUSIC, "com.byd.mediacenter") + "\n" +
-                row(DefaultAppRole.MUSIC, "ru.yandex.music", row = 1, id = 145),
-        ).forEach { output ->
-            val repository = DefaultAppRoleRepository(ScriptedShell(output))
+            emptyList(),
+            listOf(
+                row(DefaultAppRole.MUSIC, "com.byd.mediacenter"),
+                row(DefaultAppRole.MUSIC, "ru.yandex.music", id = 145L),
+            ),
+        ).forEach { rows ->
+            val repository = DefaultAppRoleRepository(FakePersonBeanAccess(rows))
 
             expectAccessFailure { repository.read(DefaultAppRole.MUSIC) }
         }
     }
 
     @Test
-    fun readRejectsMismatchedRowsUnexpectedOutputAndMalformedStoredPackages() = runBlocking {
+    fun readRejectsAMismatchedSettingAndAMalformedStoredPackage() = runBlocking {
         listOf(
-            "Row: 0 _id=45, SETTING=VIDEO_SWITCH, VALUE=com.byd.mediacenter",
-            row(DefaultAppRole.MUSIC, "com.byd.mediacenter") + "\nprovider warning",
-            "Row: 0 _id=45, SETTING=MUSIC_SWITCH, VALUE=not_a_package",
-        ).forEach { output ->
-            val repository = DefaultAppRoleRepository(ScriptedShell(output))
+            PersonBeanRow(45L, "VIDEO_SWITCH", "com.byd.mediacenter"),
+            PersonBeanRow(45L, "MUSIC_SWITCH", "not_a_package"),
+            PersonBeanRow(45L, "MUSIC_SWITCH", ""),
+        ).forEach { stored ->
+            // The fake filters on SETTING; a mismatched row is handed back deliberately.
+            val access = FakePersonBeanAccess(listOf(stored), filterBySetting = false)
+            val repository = DefaultAppRoleRepository(access)
 
             expectAccessFailure { repository.read(DefaultAppRole.MUSIC) }
         }
     }
 
     @Test
-    fun setAcceptsEmptyDiLinkUpdateOutputAndRequiresExactReadback() = runBlocking {
-        val shell = ScriptedShell(
-            row(DefaultAppRole.MUSIC, "com.byd.mediacenter"),
-            "",
-            row(DefaultAppRole.MUSIC, "ru.yandex.music"),
-        )
-        val repository = DefaultAppRoleRepository(shell)
+    fun setRequiresOneMatchedRowAndAnExactReadback() = runBlocking {
+        val access = FakePersonBeanAccess(row(DefaultAppRole.MUSIC, "com.byd.mediacenter"))
+        val repository = DefaultAppRoleRepository(access)
 
         assertEquals(
             "ru.yandex.music",
             repository.set(DefaultAppRole.MUSIC, "ru.yandex.music"),
         )
-        assertEquals(
-            listOf(
-                "content query --uri content://com.byd.autovoice/PersonBean " +
-                    "--projection _id:SETTING:VALUE --where \"SETTING='MUSIC_SWITCH'\"",
-                "content update --uri content://com.byd.autovoice/PersonBean " +
-                    "--bind VALUE:s:ru.yandex.music --where \"SETTING='MUSIC_SWITCH'\"",
-                "content query --uri content://com.byd.autovoice/PersonBean " +
-                    "--projection _id:SETTING:VALUE --where \"SETTING='MUSIC_SWITCH'\"",
-            ),
-            shell.commands,
-        )
-        assertTrue(shell.commands.none { " insert " in " $it " })
-        assertTrue(shell.commands.none { "settings" in it })
+        assertEquals(listOf("SETTING=?"), access.updateSelections)
+        assertEquals(listOf(listOf("MUSIC_SWITCH")), access.updateArgs)
+        assertEquals(listOf("ru.yandex.music"), access.updateValues)
+        // Preflight read, then the exact readback.
+        assertEquals(2, access.querySelections.size)
     }
 
     @Test
-    fun protocolAlsoAcceptsExactOneRowUpdateReports() {
-        listOf("Updated 1 row", "Updated 1 rows", "Updated 1 row.", "Updated 1 rows.").forEach {
-            AutoVoicePersonBeanProtocol.requireAcceptedUpdateOutput("MUSIC_SWITCH", it)
-        }
-    }
-
-    @Test
-    fun setRejectsInvalidPackageBeforeOpeningTheShell() = runBlocking {
+    fun setRejectsAnInvalidPackageBeforeTouchingTheProvider() = runBlocking {
         listOf(
             "",
             "music",
             ".ru.yandex.music",
             "ru.yandex.music;reboot",
             "ru.yandex.music\ncontent insert",
+            "ru.yandex.music' OR '1'='1",
         ).forEach { packageName ->
-            val shell = ScriptedShell()
-            val repository = DefaultAppRoleRepository(shell)
+            val access = FakePersonBeanAccess(row(DefaultAppRole.MUSIC, "com.byd.mediacenter"))
+            val repository = DefaultAppRoleRepository(access)
 
             expectAccessFailure { repository.set(DefaultAppRole.MUSIC, packageName) }
-            assertTrue(shell.commands.isEmpty())
+            assertTrue(access.querySelections.isEmpty())
+            assertTrue(access.updateSelections.isEmpty())
         }
     }
 
     @Test
-    fun setRejectsEveryOtherNonEmptyUpdateOutput() = runBlocking {
-        listOf("Updated 0 rows.", "Updated 2 rows.", "Updated 1 rows.\nwarning", "Success").forEach {
-            val shell = ScriptedShell(
-                row(DefaultAppRole.VIDEO, "com.byd.videoplay"),
-                it,
+    fun setRefusesEveryMatchedRowCountOtherThanOne() = runBlocking {
+        listOf(0, 2, 3).forEach { count ->
+            val access = FakePersonBeanAccess(
+                rows = listOf(row(DefaultAppRole.VIDEO, "com.byd.videoplay")),
+                scriptedUpdateCount = count,
             )
-            val repository = DefaultAppRoleRepository(shell)
+            val repository = DefaultAppRoleRepository(access)
 
             expectAccessFailure { repository.set(DefaultAppRole.VIDEO, "com.vk.vkvideo") }
-            assertEquals(2, shell.commands.size)
+            assertEquals(1, access.updateSelections.size)
+            // Preflight only: a refused count is never followed by a readback.
+            assertEquals(1, access.querySelections.size)
         }
     }
 
     @Test
-    fun setFailsWhenExactReadbackDoesNotMatchTheRequestedPackage() = runBlocking {
-        val shell = ScriptedShell(
-            row(DefaultAppRole.NAVIGATION, "com.byd.launchermap"),
-            "",
-            row(DefaultAppRole.NAVIGATION, "com.byd.launchermap"),
+    fun setFailsWhenTheReadbackDoesNotMatchTheRequestedPackage() = runBlocking {
+        val access = FakePersonBeanAccess(
+            rows = listOf(row(DefaultAppRole.NAVIGATION, "com.byd.launchermap")),
+            applyUpdates = false,
         )
-        val repository = DefaultAppRoleRepository(shell)
+        val repository = DefaultAppRoleRepository(access)
 
         expectAccessFailure {
             repository.set(DefaultAppRole.NAVIGATION, "ru.yandex.yandexnavi")
         }
-        assertEquals(3, shell.commands.size)
+        assertEquals(2, access.querySelections.size)
     }
 
     @Test
-    fun conditionalSetIncludesTheExpectedValueInTheProviderPredicate() = runBlocking {
-        val shell = ScriptedShell(
-            row(DefaultAppRole.MUSIC, "com.byd.mediacenter"),
-            "",
-            row(DefaultAppRole.MUSIC, "ru.yandex.music"),
-        )
-        val repository = DefaultAppRoleRepository(shell)
+    fun conditionalSetPutsTheExpectedValueIntoTheUpdatePredicate() = runBlocking {
+        val access = FakePersonBeanAccess(row(DefaultAppRole.MUSIC, "com.byd.mediacenter"))
+        val repository = DefaultAppRoleRepository(access)
 
         assertEquals(
             "ru.yandex.music",
@@ -161,20 +142,17 @@ class DefaultAppRoleRepositoryTest {
                 packageName = "ru.yandex.music",
             ),
         )
+        assertEquals(listOf("SETTING=? AND VALUE=?"), access.updateSelections)
         assertEquals(
-            "content update --uri content://com.byd.autovoice/PersonBean " +
-                "--bind VALUE:s:ru.yandex.music --where " +
-                "\"SETTING='MUSIC_SWITCH' AND VALUE='com.byd.mediacenter'\"",
-            shell.commands[1],
+            listOf(listOf("MUSIC_SWITCH", "com.byd.mediacenter")),
+            access.updateArgs,
         )
     }
 
     @Test
     fun conditionalSetRefusesAValueChangedBeforeItsPreflight() = runBlocking {
-        val shell = ScriptedShell(
-            row(DefaultAppRole.MUSIC, "example.external.player"),
-        )
-        val repository = DefaultAppRoleRepository(shell)
+        val access = FakePersonBeanAccess(row(DefaultAppRole.MUSIC, "example.external.player"))
+        val repository = DefaultAppRoleRepository(access)
 
         expectAccessFailure {
             repository.setIfCurrent(
@@ -183,17 +161,17 @@ class DefaultAppRoleRepositoryTest {
                 packageName = "ru.yandex.music",
             )
         }
-        assertEquals(1, shell.commands.size)
+        assertEquals(1, access.querySelections.size)
+        assertTrue(access.updateSelections.isEmpty())
     }
 
     @Test
-    fun conditionalSetCannotOverwriteAValueChangedAfterItsPreflight() = runBlocking {
-        val shell = ScriptedShell(
-            row(DefaultAppRole.VIDEO, "com.byd.videoplay"),
-            "",
-            row(DefaultAppRole.VIDEO, "com.vk.vkvideo.external"),
+    fun conditionalSetFailsWhenItsPredicateMatchesNothingAfterThePreflight() = runBlocking {
+        val access = FakePersonBeanAccess(
+            rows = listOf(row(DefaultAppRole.VIDEO, "com.byd.videoplay")),
+            scriptedUpdateCount = 0,
         )
-        val repository = DefaultAppRoleRepository(shell)
+        val repository = DefaultAppRoleRepository(access)
 
         expectAccessFailure {
             repository.setIfCurrent(
@@ -202,21 +180,93 @@ class DefaultAppRoleRepositoryTest {
                 packageName = "com.vk.vkvideo",
             )
         }
-        assertTrue(shell.commands[1].contains("AND VALUE='com.byd.videoplay'"))
-        assertEquals(3, shell.commands.size)
+        assertEquals(
+            listOf(listOf("VIDEO_SWITCH", "com.byd.videoplay")),
+            access.updateArgs,
+        )
+        assertEquals(1, access.querySelections.size)
     }
 
     @Test
-    fun concurrentRepositoryReadsNeverInterleaveShellOperations() = runBlocking {
-        val shell = YieldingRoleShell()
-        val repository = DefaultAppRoleRepository(shell)
+    fun readAllIssuesOneInQueryAndReportsEveryRoleIndependently() = runBlocking {
+        val access = FakePersonBeanAccess(
+            row(DefaultAppRole.NAVIGATION, "com.byd.launchermap"),
+            row(DefaultAppRole.MUSIC, "ru.yandex.music"),
+            row(DefaultAppRole.VIDEO, "com.byd.videoplay"),
+        )
+        val repository = DefaultAppRoleRepository(access)
+
+        val observed = repository.readAll()
+
+        assertEquals(listOf("SETTING IN (?,?,?)"), access.querySelections)
+        assertEquals(
+            listOf(listOf("DEFAULT_MAP_SWITCH", "MUSIC_SWITCH", "VIDEO_SWITCH")),
+            access.queryArgs,
+        )
+        assertEquals(
+            "com.byd.launchermap",
+            observed.getValue(DefaultAppRole.NAVIGATION).getOrNull(),
+        )
+        assertEquals("ru.yandex.music", observed.getValue(DefaultAppRole.MUSIC).getOrNull())
+        assertEquals("com.byd.videoplay", observed.getValue(DefaultAppRole.VIDEO).getOrNull())
+    }
+
+    @Test
+    fun readAllFailsOnlyTheRoleWhoseRowIsMissingOrDuplicated() = runBlocking {
+        val access = FakePersonBeanAccess(
+            row(DefaultAppRole.NAVIGATION, "com.byd.launchermap"),
+            row(DefaultAppRole.VIDEO, "com.byd.videoplay"),
+            row(DefaultAppRole.VIDEO, "com.vk.vkvideo", id = 187L),
+        )
+        val repository = DefaultAppRoleRepository(access)
+
+        val observed = repository.readAll()
+
+        assertEquals(1, access.querySelections.size)
+        assertEquals(
+            "com.byd.launchermap",
+            observed.getValue(DefaultAppRole.NAVIGATION).getOrThrow(),
+        )
+        // MUSIC has no row at all; VIDEO has two. Neither may take NAVIGATION down with it.
+        assertNull(observed.getValue(DefaultAppRole.MUSIC).getOrNull())
+        assertNull(observed.getValue(DefaultAppRole.VIDEO).getOrNull())
+        assertTrue(
+            observed.getValue(DefaultAppRole.MUSIC).exceptionOrNull()
+                is DefaultAppRoleAccessException,
+        )
+        assertTrue(
+            observed.getValue(DefaultAppRole.VIDEO).exceptionOrNull()
+                is DefaultAppRoleAccessException,
+        )
+    }
+
+    @Test
+    fun readAllReportsATransportFailureForEveryRole() = runBlocking {
+        val access = FakePersonBeanAccess(
+            rows = emptyList(),
+            queryFailure = DefaultAppRoleAccessException("no cursor"),
+        )
+        val repository = DefaultAppRoleRepository(access)
+
+        val observed = repository.readAll()
+
+        assertEquals(DefaultAppRole.entries.size, observed.size)
+        assertTrue(
+            observed.values.all { it.exceptionOrNull() is DefaultAppRoleAccessException },
+        )
+    }
+
+    @Test
+    fun concurrentRepositoryReadsNeverInterleaveProviderOperations() = runBlocking {
+        val access = YieldingPersonBeanAccess()
+        val repository = DefaultAppRoleRepository(access)
 
         DefaultAppRole.entries.map { role ->
             async { repository.read(role) }
         }.awaitAll()
 
-        assertEquals(1, shell.maxConcurrentCalls)
-        assertEquals(DefaultAppRole.entries.size, shell.commands.size)
+        assertEquals(1, access.maxConcurrentCalls)
+        assertEquals(DefaultAppRole.entries.size, access.calls)
     }
 
     private suspend fun expectAccessFailure(block: suspend () -> Unit) {
@@ -228,50 +278,97 @@ class DefaultAppRoleRepositoryTest {
         }
     }
 
-    private class ScriptedShell(
-        vararg outputs: String,
-    ) : DefaultAppRoleShell {
-        private val remainingOutputs = outputs.toMutableList()
-        val commands = mutableListOf<String>()
+    /**
+     * In-memory PersonBean. Records every predicate it was handed, and can be scripted to report a
+     * matched-row count the rows do not justify - which is what an update losing a race looks like.
+     */
+    private class FakePersonBeanAccess(
+        rows: List<PersonBeanRow>,
+        private val filterBySetting: Boolean = true,
+        private val applyUpdates: Boolean = true,
+        private val scriptedUpdateCount: Int? = null,
+        private val queryFailure: Exception? = null,
+    ) : PersonBeanAccess {
+        constructor(vararg rows: PersonBeanRow) : this(rows.toList())
 
-        override suspend fun execute(command: String): String {
-            commands += command
-            check(remainingOutputs.isNotEmpty()) { "Unexpected shell command: $command" }
-            return remainingOutputs.removeAt(0)
+        private val stored = rows.toMutableList()
+
+        val querySelections = mutableListOf<String>()
+        val queryArgs = mutableListOf<List<String>>()
+        val updateSelections = mutableListOf<String>()
+        val updateArgs = mutableListOf<List<String>>()
+        val updateValues = mutableListOf<String>()
+
+        override suspend fun query(
+            selection: String,
+            selectionArgs: Array<String>,
+        ): List<PersonBeanRow> {
+            querySelections += selection
+            queryArgs += selectionArgs.toList()
+            queryFailure?.let { throw it }
+            if (!filterBySetting) return stored.toList()
+            return stored.filter { it.setting in selectionArgs }
+        }
+
+        override suspend fun update(
+            value: String,
+            selection: String,
+            selectionArgs: Array<String>,
+        ): Int {
+            updateSelections += selection
+            updateArgs += selectionArgs.toList()
+            updateValues += value
+            val roleKey = selectionArgs.first()
+            val expected = selectionArgs.getOrNull(1)
+            val matched = stored.filter {
+                it.setting == roleKey && (expected == null || it.value == expected)
+            }
+            if (applyUpdates) {
+                matched.forEach { match ->
+                    stored[stored.indexOf(match)] = match.copy(value = value)
+                }
+            }
+            return scriptedUpdateCount ?: matched.size
         }
     }
 
-    private class YieldingRoleShell : DefaultAppRoleShell {
-        val commands = mutableListOf<String>()
+    private class YieldingPersonBeanAccess : PersonBeanAccess {
+        var calls = 0
+            private set
         var maxConcurrentCalls = 0
             private set
         private var concurrentCalls = 0
 
-        override suspend fun execute(command: String): String {
-            commands += command
+        override suspend fun query(
+            selection: String,
+            selectionArgs: Array<String>,
+        ): List<PersonBeanRow> {
+            calls += 1
             concurrentCalls += 1
             maxConcurrentCalls = maxOf(maxConcurrentCalls, concurrentCalls)
             yield()
             concurrentCalls -= 1
 
-            val role = DefaultAppRole.entries.single { role ->
-                command.contains("SETTING='${role.roleKey}'")
-            }
-            return row(role, role.stockPackageName)
+            val role = DefaultAppRole.entries.single { it.roleKey in selectionArgs }
+            return listOf(row(role, role.stockPackageName))
         }
+
+        override suspend fun update(
+            value: String,
+            selection: String,
+            selectionArgs: Array<String>,
+        ): Int = 1
     }
 
     private companion object {
         fun row(
             role: DefaultAppRole,
             packageName: String,
-            row: Int = 0,
-            id: Int = when (role) {
-                DefaultAppRole.NAVIGATION -> 43
-                DefaultAppRole.MUSIC -> 45
-                DefaultAppRole.VIDEO -> 186
+            id: Long = when (role) {
+                DefaultAppRole.NAVIGATION -> 43L
+                DefaultAppRole.MUSIC -> 45L
+                DefaultAppRole.VIDEO -> 186L
             },
-        ): String =
-            "Row: $row _id=$id, SETTING=${role.roleKey}, VALUE=$packageName"
+        ): PersonBeanRow = PersonBeanRow(id, role.roleKey, packageName)
     }
 }

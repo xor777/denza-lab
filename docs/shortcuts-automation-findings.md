@@ -527,6 +527,20 @@ leaves `skip reciever for uid … name = dev.denza.apps` in logcat). The
 trampoline itself is an Activity start, which the gate did not block for the
 probe.
 
+The product took the first consequence on 2026-09-03.
+`DefaultAppRoleRepository` now talks to `ContentResolver` directly - a
+`PersonBeanAccess` seam over the fixed URI and `_id, SETTING, VALUE` projection,
+`SETTING=?` to read, `SETTING=? AND VALUE=?` for a conditional write whose
+matched-row count must be exactly one, plus a `readAll()` that fetches all three
+roles with one `SETTING IN (?,?,?)`. The shell command builders and their text
+parsers are gone, and with them the ADB gate in front of the feature: the panel
+reads its roles at process start, regardless of the ADB phase, and the
+"Нужен доверенный локальный ADB" refusals no longer exist. The safety contract is
+unchanged (three-key allowlist, package-name regex, one-row preflight, exact
+readback) and unit-tested; `:denza-apps:testDebugUnitTest` and `assembleDebug`
+pass. The product change itself has no live acceptance yet - only the probe
+above has run in the car.
+
 ## Russia-oriented launch strategy
 
 The car stays in RF. The stock map is China-only. Taking the map role therefore
