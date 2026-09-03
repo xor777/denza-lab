@@ -1338,18 +1338,48 @@ So exactly two candidates survive: the **playback-state report** and the
 > 11:19:25.700-26.119, which is the raise. They are the best correlate in the
 > trace, not a counter-example.
 
-### Why Yandex playback never raises them
+### Why Yandex playback never raises the covers (corpus, 2026-09-03)
 
-`com.byd.mediacontroller` is the process that reports playback to the cluster
-and the MCU. Throughout the trace it publishes one source,
-`packageName=com.byd.mediacenter, MEDIA_SOURCE=1`, and it writes `0x43E0000A`
-only for that source. Yandex appears in the trace only in volume, focus and
-launcher lines. If the playback-state report is the trigger, then an app that is
-not a registered BYD media source can play for hours and never produce it -
-which is the owner's complaint, exactly.
+This turned out to be readable in the stock code, and the answer is stronger
+than "the car stays silent about Yandex": the car actively reports the opposite.
 
-This is a hypothesis with one supporting trace, not a proven mechanism. It is
-also the cheapest one to falsify: see the experiment below.
+`MediaController` (`com.byd.mediacontroller`, system UID, pulled live from the
+Z9GT) follows media sessions and pushes playback to the cluster and the MCU
+through `MediaInfoSender.sendMusicState`, which is
+`INSTRUMENT_MUSIC_STATE_SET 0x43E0000A`. Non-stock sources are supported by
+design: `DefaultMediaControllerCallback` routes any package other than
+`com.byd.mediacenter` to `OtherClient`, which sends `1` on PLAYING and `2` on
+PAUSED just like the stock client.
+
+The gate is a hard-coded list in `MediaTaskManager`:
+
+```java
+mWhiteListPackageNames = [com.byd.mediacenter, com.byd.videoplay*,
+    com.tencent.qqmusiccar, com.netease.cloudmusic.iot,
+    com.ximalaya.ting.android[.car.byd], bubei.tingshu.hd]
+mFilterMediaFocusPackageNames = [android, com.android.server.telecom,
+    com.android.bluetooth]
+```
+
+When the audio-focus owner is in neither list, the manager sets
+`setBlackThirdPartyAppInUse(true)`, which suppresses that session's normal
+reporting, and 500 ms later calls `MediaInfoSender.sendBlackThirdPartyAppMediaInfo()`:
+
+```java
+sendMusicSource(26);   // "other"
+sendMusicState(2);     // PAUSED
+sendMusicName(" "); sendSingerName(" "); sendCover(null);
+```
+
+So while Yandex plays, the car tells the instrument bus that music is **paused**.
+An amplifier whose rule is "raise while music is playing" is being told the
+opposite, continuously and by design. Yandex cannot be added to that list without
+patching a system app, so the list is not the lever.
+
+This also removes the earlier guess in this section that the media controller
+"publishes only the stock source". It publishes non-stock sources too; it just
+marks the unknown ones as paused. The 2026-08-30 trace could not show this
+because it contains no Yandex playback window at all.
 
 ### Consequence for the shipped automation (a real defect on the N9)
 
@@ -1359,6 +1389,26 @@ leaves it off, so the covers stay in for the rest of the cycle, and `OPEN` does
 nothing observable. The app must not treat the two cars as the same motor.
 Discriminate on `getAutoType` (`168` = N9, `170` = Z9GT) per
 [vehicle-data-findings.md](vehicle-data-findings.md).
+
+### Why the current Z9GT lever is temporary
+
+The owner's read of this, on 2026-09-03, is that `1`/`2` is a stopgap: when a
+firmware update brings the N9's switch to this car, the direct raise goes away.
+The recorded evidence supports it, and sharpens it.
+
+The **off** half is already identical on both cars. Writing `2` on the Z9GT does
+not merely retract: it latches the amplifier into manual mode, after which the
+stock MediaCenter raise stopped working and `0x35A000DA` kept reading `2` (see
+"Confirmed: direct retract disables stock auto-lift for the ignition cycle"
+above). That is the same enable-flag semantics the N9 shows.
+
+Which means the Z9GT amplifier **also has the auto rule** - it was raising on
+stock playback before the first manual `2` - and the only thing this car adds is
+that `1` drives the motor as well as re-enabling. That extra is the part with no
+counterpart on the newer car, and it is the part an update can take away.
+
+So the durable lever is the half both cars already share: make the amplifier see
+music playing. Nothing about that depends on which car ships the switch.
 
 ### The decisive experiment, when an N9 is available
 
