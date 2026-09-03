@@ -3,19 +3,27 @@ package dev.denza.apps.feature.hud
 import java.util.Locale
 import kotlin.math.roundToInt
 
+/**
+ * [stockId] is field 28 (`recommendedDrivingDirectionsId`) of the stock road
+ * packet. The values follow the HUD icon table recorded in
+ * docs/instrument-display-findings.md: 1 left, 2 right, 3 slight left,
+ * 5 slight right, 7 sharp left, 8 sharp right, 9/10 U-turn left/right,
+ * 11 straight, 25 counter-clockwise roundabout. Roundabouts do not encode
+ * the exit number here.
+ */
 enum class HudManeuver(val stockId: Int) {
     UNKNOWN(0),
-    STRAIGHT(3),
+    STRAIGHT(11),
     LEFT(1),
     RIGHT(2),
-    SLIGHT_LEFT(5),
-    SLIGHT_RIGHT(7),
-    SHARP_LEFT(9),
-    SHARP_RIGHT(11),
-    U_TURN_LEFT(45),
-    U_TURN_RIGHT(13),
-    ROUNDABOUT_LEFT(46),
-    ROUNDABOUT_RIGHT(47),
+    SLIGHT_LEFT(3),
+    SLIGHT_RIGHT(5),
+    SHARP_LEFT(7),
+    SHARP_RIGHT(8),
+    U_TURN_LEFT(9),
+    U_TURN_RIGHT(10),
+    ROUNDABOUT_LEFT(25),
+    ROUNDABOUT_RIGHT(25),
 }
 
 data class HudGuidance(

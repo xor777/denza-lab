@@ -672,6 +672,24 @@ reproduces the drive. The trade-off is intentional: on strongly curved
 approaches AR now drops to the compact packet more often instead of drawing a
 semantically wrong bend. Live re-check on a real slight-turn route is pending.
 
+On 2026-09-03 the live re-check reported the same failure after the nose-cone
+fix, while the flat maneuver PNG was always correct. That points away from
+parsing and geometry and at field 28 (`recommendedDrivingDirectionsId`). The
+original ID table (left 1, right 2, straight 3, slight 5/7, sharp 9/11, U-turn
+45/13, roundabout 46/47) had no recorded source, and only 1/2 agree with the
+empirically named HUD icon table recovered from OpenBYD: 1 left, 2 right, 3/4
+slight left, 5/6 slight right, 7 sharp left, 8 sharp right, 9/10 U-turn
+left/right, 11/12 straight, 13/14 detour right/left, 15-24 roundabout exit
+variants, 25-34 counter-clockwise roundabout 1-10, 35-44 clockwise roundabout
+1-10, 45 stop, 46 parking, 47 tollbooth, 48 destination, 49 tunnel. A slight
+left was therefore sent as the slight-right ID and a slight right as the
+sharp-left ID. The earlier left/right probes could not expose this because 1/2
+coincide in both tables, and the slight probe was only checked for packet
+acceptance. The product now sends the recovered table (roundabouts as 25, exit
+number not encoded). Hypothesis under live test: the AR arrow glyph follows
+field 28. If a slight exit still renders on the wrong side with the new IDs,
+revert that commit and isolate field 28 with a parked ID-sweep probe.
+
 Yandex Navigator 29.8.1 also contains a structured AndroidX Car App path. Its
 own projected guidance constructs a `Trip` from destination address, a
 `TravelEstimate` from remaining distance, arrival time, and remaining time,
