@@ -16,6 +16,8 @@ import dev.denza.apps.feature.cluster.ClusterDisplayDescriptor
 import dev.denza.apps.feature.cluster.ClusterDisplaySelection
 import dev.denza.apps.feature.cluster.ClusterMapPlacement
 import dev.denza.apps.feature.cluster.ClusterSceneService
+import dev.denza.apps.feature.adb.AdbAutostartRetryAction
+import dev.denza.apps.feature.adb.AdbAutostartRetryPolicy
 import dev.denza.apps.feature.adb.AdbRescueCoordinator
 import dev.denza.apps.feature.adb.AdbRescuePhase
 import dev.denza.apps.feature.adb.AdbRescueSnapshot
@@ -152,6 +154,7 @@ object DenzaAppRepository {
     private val localeExecutor = Executors.newSingleThreadExecutor()
     private val defaultAppsExecutor = Executors.newSingleThreadExecutor()
     private val adbRuntimeStarted = AtomicBoolean(false)
+    private val adbRuntimePassRunning = AtomicBoolean(false)
     private val defaultAppsRefreshRequested = AtomicBoolean(false)
     private val defaultAppsRefreshRunning = AtomicBoolean(false)
     private val stateStore = DenzaUiStateStore()
@@ -179,6 +182,20 @@ object DenzaAppRepository {
 
     fun recoverEnabledFeatures(context: Context) {
         initializeAdbGate(context.applicationContext)
+    }
+
+    fun recoverAutostart(context: Context) {
+        val app = context.applicationContext
+        appContext = app
+        AdbRescueCoordinator.initialize(app)
+        when (AdbAutostartRetryPolicy.action(AdbRescueCoordinator.snapshot().phase)) {
+            AdbAutostartRetryAction.CHECK_ACCESS -> {
+                refresh()
+                checkAdbAccess()
+            }
+            AdbAutostartRetryAction.START_RUNTIME -> startAdbRuntime(app)
+            AdbAutostartRetryAction.NONE -> refresh()
+        }
     }
 
     fun refresh() {
@@ -849,50 +866,74 @@ object DenzaAppRepository {
     private fun initializeAdbGate(context: Context) {
         appContext = context.applicationContext
         AdbRescueCoordinator.initialize(context)
-        refresh()
         when (AdbStartupGatePolicy.entryAction(AdbRescueCoordinator.snapshot().phase)) {
             // UNKNOWN is the one automatic startup probe. All other unresolved outcomes stay
             // latched until the user explicitly presses a button in the blocking overlay.
-            AdbStartupEntryAction.CHECK_ACCESS -> checkAdbAccess()
+            AdbStartupEntryAction.CHECK_ACCESS -> {
+                refresh()
+                checkAdbAccess()
+            }
             AdbStartupEntryAction.START_RUNTIME -> startAdbRuntime(context)
-            AdbStartupEntryAction.NONE -> Unit
+            AdbStartupEntryAction.NONE -> refresh()
         }
     }
 
     private fun onAdbRescueChanged(context: Context) {
         if (AdbRescueCoordinator.snapshot().phase == AdbRescuePhase.TRUSTED) {
             startAdbRuntime(context)
-            // `startAdbRuntime` is single-shot. A later access recovery still has to reread the
-            // provider even though the rest of the runtime was already initialized.
-            refreshDefaultApps()
         }
-        refresh()
+        runtimeStep("ADB state refresh") { refresh() }
     }
 
     private fun startAdbRuntime(context: Context) {
-        if (!adbRuntimeStarted.compareAndSet(false, true)) return
+        if (!adbRuntimePassRunning.compareAndSet(false, true)) return
         val app = context.applicationContext
-        SplitScreenCoordinator.initialize(app) { refresh() }
-        reconcileSplitScreenToggle(app)
-        NavigationCoordinator.initialize(app) { refresh() }
-        WeatherAdapterScheduler.ensureScheduled(app)
-        val weatherEnabled = WeatherAdapterState.enabled(app)
-        val weatherTemperature = WeatherAdapterState.lastTemperature(app)
-        val weatherUpdatedMillis = WeatherAdapterState.lastSuccessMillis(app)
-        stateStore.update { current ->
-            current.copy(
-                weatherEnabled = weatherEnabled,
-                weatherTemperature = weatherTemperature,
-                weatherUpdatedMillis = weatherUpdatedMillis,
-            )
+        adbRuntimeStarted.set(true)
+        try {
+            runtimeStep("split initialize") {
+                SplitScreenCoordinator.initialize(app) { refresh() }
+            }
+            runtimeStep("split reconcile") { reconcileSplitScreenToggle(app) }
+            runtimeStep("navigation initialize") {
+                NavigationCoordinator.initialize(app) { refresh() }
+            }
+            runtimeStep("weather initialize") {
+                WeatherAdapterScheduler.ensureScheduled(app)
+                val weatherEnabled = WeatherAdapterState.enabled(app)
+                val weatherTemperature = WeatherAdapterState.lastTemperature(app)
+                val weatherUpdatedMillis = WeatherAdapterState.lastSuccessMillis(app)
+                stateStore.update { current ->
+                    current.copy(
+                        weatherEnabled = weatherEnabled,
+                        weatherTemperature = weatherTemperature,
+                        weatherUpdatedMillis = weatherUpdatedMillis,
+                    )
+                }
+            }
+            runtimeStep("dashboard refresh") { refresh() }
+            runtimeStep("default apps refresh") { refreshDefaultApps() }
+            runtimeStep("steering wheel reconcile") {
+                reconcileNavigationSteeringWheelAccess(app)
+            }
+            runtimeStep("simulcast reconcile") {
+                reconcileSimulcast(repairMissingSetup = true)
+            }
+            runtimeStep("mirrors reconcile") {
+                if (MirrorsSettings.isEnabled(app)) reconcileMirrors()
+            }
+            runtimeStep("HUD reconcile") { reconcileHudNotificationAccess(app) }
+            runtimeStep("speaker covers reconcile") { SpeakerCoverService.reconcile(app) }
+        } finally {
+            adbRuntimePassRunning.set(false)
         }
-        refresh()
-        refreshDefaultApps()
-        reconcileNavigationSteeringWheelAccess(app)
-        reconcileSimulcast(repairMissingSetup = true)
-        if (MirrorsSettings.isEnabled(app)) reconcileMirrors()
-        reconcileHudNotificationAccess(app)
-        SpeakerCoverService.reconcile(app)
+    }
+
+    private inline fun runtimeStep(name: String, block: () -> Unit) {
+        try {
+            block()
+        } catch (error: Exception) {
+            Log.w(TAG, "runtime startup step failed: $name", error)
+        }
     }
 
     private fun reconcileMirrors() {

@@ -30,6 +30,39 @@ class AdbStartupGatePolicyTest {
     }
 
     @Test
+    fun `autoload retries passive failures without requesting authorization`() {
+        listOf(
+            AdbRescuePhase.UNKNOWN,
+            AdbRescuePhase.UNAVAILABLE,
+            AdbRescuePhase.ERROR,
+        ).forEach { phase ->
+            assertEquals(
+                phase.name,
+                AdbAutostartRetryAction.CHECK_ACCESS,
+                AdbAutostartRetryPolicy.action(phase),
+            )
+        }
+
+        listOf(
+            AdbRescuePhase.CHECKING,
+            AdbRescuePhase.AUTHORIZATION_REQUIRED,
+            AdbRescuePhase.REQUESTING,
+            AdbRescuePhase.AWAITING_CONFIRMATION,
+        ).forEach { phase ->
+            assertEquals(
+                phase.name,
+                AdbAutostartRetryAction.NONE,
+                AdbAutostartRetryPolicy.action(phase),
+            )
+        }
+
+        assertEquals(
+            AdbAutostartRetryAction.START_RUNTIME,
+            AdbAutostartRetryPolicy.action(AdbRescuePhase.TRUSTED),
+        )
+    }
+
+    @Test
     fun `trusted access removes the startup overlay`() {
         val model = AdbStartupGatePolicy.overlay(
             AdbRescueSnapshot(phase = AdbRescuePhase.TRUSTED),

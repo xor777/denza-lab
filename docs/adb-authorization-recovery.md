@@ -11,10 +11,17 @@ trusted remote tunnel does not prove that the Denza Apps key is trusted.
 
 Denza Apps has one canonical ADB identity and one owner for authorization prompts:
 
-- Every application/runtime entry performs one passive startup probe before starting any
-  ADB-dependent coordinator. The normal `CHECKING` state is visually silent. If the probe is
-  unresolved, the dashboard remains inert behind a blocking overlay and internal callers do not
-  retry; only an explicit user action can start another probe or the one-shot request.
+- The main-process `Application` is the runtime entry point, so BYD autoload does not have to open
+  `MainActivity`. It waits for credential storage to be unlocked, performs one passive startup
+  probe, and reconciles every enabled feature independently once ADB is trusted. A failed feature
+  does not prevent the remaining features from starting, and a later entry may repeat the
+  idempotent reconciliation.
+- Autoload owns one finite readiness window: recovery passes are scheduled after 4, 8, 16, and 32
+  seconds (the last pass is one minute after process start). `UNAVAILABLE` and `ERROR` may repeat a
+  passive check inside that window because car services can still be coming up; an authorization
+  refusal never submits a key automatically. Outside this window only an explicit user action can
+  start another probe or the one-shot request. This is startup convergence, not resurrection after
+  Android `force-stop`.
 - A refused/timeout/no-route endpoint is shown as **ADB недоступен** with the service-only
   instruction. A successful ADB handshake with an untrusted Denza Apps key is shown separately as
   **Подтвердите доступ к ADB**.

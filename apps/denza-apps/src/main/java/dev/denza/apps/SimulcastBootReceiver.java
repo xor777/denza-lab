@@ -23,7 +23,7 @@ public class SimulcastBootReceiver extends BroadcastReceiver {
         Log.i(TAG, "action=" + action);
         if (SimulcastBootActionPolicy.shouldRecover(action)) {
             try {
-                DenzaRuntimeCoordinator.INSTANCE.recover(context);
+                DenzaRuntimeCoordinator.INSTANCE.bootstrap(context);
             } catch (RuntimeException e) {
                 Log.i(TAG, "runtime recovery failed", e);
             }

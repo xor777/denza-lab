@@ -12,6 +12,12 @@ enum class AdbStartupEntryAction {
     START_RUNTIME,
 }
 
+enum class AdbAutostartRetryAction {
+    NONE,
+    CHECK_ACCESS,
+    START_RUNTIME,
+}
+
 data class AdbStartupOverlayModel(
     val visible: Boolean,
     val title: String = "",
@@ -139,5 +145,21 @@ object AdbStartupGatePolicy {
         AdbSystemSwitch.DISABLED -> AdbRescuePolicy.SYSTEM_SWITCH_OFF_DETAIL
         AdbSystemSwitch.ENABLED -> AdbRescuePolicy.SYSTEM_SWITCH_ON_DETAIL
         AdbSystemSwitch.UNKNOWN -> AdbRescuePolicy.SYSTEM_SWITCH_UNREADABLE_DETAIL
+    }
+}
+
+/** A bounded autoload retry may repeat passive checks, but never requests a new ADB key. */
+object AdbAutostartRetryPolicy {
+    fun action(phase: AdbRescuePhase): AdbAutostartRetryAction = when (phase) {
+        AdbRescuePhase.UNKNOWN,
+        AdbRescuePhase.UNAVAILABLE,
+        AdbRescuePhase.ERROR,
+        -> AdbAutostartRetryAction.CHECK_ACCESS
+        AdbRescuePhase.TRUSTED -> AdbAutostartRetryAction.START_RUNTIME
+        AdbRescuePhase.CHECKING,
+        AdbRescuePhase.AUTHORIZATION_REQUIRED,
+        AdbRescuePhase.REQUESTING,
+        AdbRescuePhase.AWAITING_CONFIRMATION,
+        -> AdbAutostartRetryAction.NONE
     }
 }
