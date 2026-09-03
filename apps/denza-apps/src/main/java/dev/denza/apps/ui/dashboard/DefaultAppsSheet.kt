@@ -59,8 +59,8 @@ internal fun DefaultAppsSheet(
     }
     // A failed readback may leave the last known installed choices intact. Keep those actionable:
     // selecting another package is how the driver can recover from a stale or rejected target.
-    val canSelect = defaultAppsCanSelect(state, roleState)
-    val dimmed = defaultAppsChoicesDimmed(state, roleState)
+    val canSelect = defaultAppsCanSelect(roleState)
+    val dimmed = defaultAppsChoicesDimmed(roleState)
 
     DenzaSheet(
         onDismiss = onDismiss,
@@ -89,7 +89,7 @@ internal fun DefaultAppsSheet(
             subtitle = defaultAppsSwitchSubtitle(state),
             checked = state.substituting,
             onCheckedChange = onSetEnabled,
-            enabled = !state.reading && (state.substituting || state.canSubstitute),
+            enabled = state.substituting || state.canSubstitute,
         )
 
         // "Команда" on its own named nothing: over a row reading Навигация / Музыка / Видео it
@@ -101,7 +101,6 @@ internal fun DefaultAppsSheet(
                 selectedIndex = DefaultAppRole.entries.indexOf(selectedRole),
                 onSelect = { selectedRole = DefaultAppRole.entries[it] },
                 modifier = Modifier.fillMaxWidth(),
-                enabled = !state.refreshing,
             )
         }
 
@@ -115,10 +114,8 @@ internal fun DefaultAppsSheet(
         // own words, which is four or five lines of this panel, and nothing below a status that
         // can reflow by four lines has a settled place to be.
         DenzaStatusLine(
-            text = defaultAppsStatusText(state, roleState),
-            tone = if (state.refreshing) {
-                DenzaTileTone.WORKING
-            } else when (roleState.status) {
+            text = defaultAppsStatusText(roleState),
+            tone = when (roleState.status) {
                 DefaultAppRoleStatus.ERROR -> DenzaTileTone.BROKEN
                 DefaultAppRoleStatus.LOADING, DefaultAppRoleStatus.APPLYING ->
                     DenzaTileTone.WORKING
@@ -192,10 +189,8 @@ internal fun defaultAppSectionTitle(role: DefaultAppRole): String = when (role) 
 
 /** Never blank: see the note at the call site. Reports the wait, the failure, or the choice. */
 internal fun defaultAppsStatusText(
-    state: DefaultAppsUiState,
     roleState: DefaultAppRoleUiState,
 ): String = when {
-    state.refreshing -> "Обновляем установленные приложения…"
     roleState.status == DefaultAppRoleStatus.LOADING ->
         roleState.message.ifBlank { "Загружаем приложения…" }
     roleState.status == DefaultAppRoleStatus.APPLYING -> "Сохраняем выбор…"
@@ -235,10 +230,8 @@ internal fun defaultAppsSwitchSubtitle(state: DefaultAppsUiState): String = when
     else -> "Нечем заменять: подходящие приложения не установлены"
 }
 
-internal fun defaultAppsCanSelect(
-    state: DefaultAppsUiState,
-    roleState: DefaultAppRoleUiState,
-): Boolean = !state.refreshing && !roleState.busy && roleState.choices.isNotEmpty()
+internal fun defaultAppsCanSelect(roleState: DefaultAppRoleUiState): Boolean =
+    !roleState.busy && roleState.choices.isNotEmpty()
 
 /**
  * Whether the grid is shown as not yet answering for the car.
@@ -247,10 +240,8 @@ internal fun defaultAppsCanSelect(
  * the write, which on a list whose selection had already moved read as the screen going away and
  * coming back.
  */
-internal fun defaultAppsChoicesDimmed(
-    state: DefaultAppsUiState,
-    roleState: DefaultAppRoleUiState,
-): Boolean = state.refreshing || roleState.status == DefaultAppRoleStatus.LOADING
+internal fun defaultAppsChoicesDimmed(roleState: DefaultAppRoleUiState): Boolean =
+    roleState.status == DefaultAppRoleStatus.LOADING
 
 /**
  * What this panel is for, to somebody sitting in the car.

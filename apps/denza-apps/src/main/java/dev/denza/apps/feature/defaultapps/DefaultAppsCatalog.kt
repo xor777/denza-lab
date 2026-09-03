@@ -15,6 +15,21 @@ internal data class InstalledDefaultApp(
 
 /** Android discovery and deterministic presentation of default-app candidates. */
 internal object DefaultAppsCatalog {
+    /** The launchable package names only, without paying for application labels or icons. */
+    @Suppress("DEPRECATION")
+    fun launchablePackages(context: Context): Set<String> {
+        val packageManager = context.packageManager
+        val packages = linkedSetOf<String>()
+        listOf(Intent.CATEGORY_INFO, Intent.CATEGORY_LAUNCHER).forEach { category ->
+            val intent = Intent(Intent.ACTION_MAIN).addCategory(category)
+            packageManager.queryIntentActivities(intent, 0).forEach { resolveInfo ->
+                if (!isEligible(resolveInfo)) return@forEach
+                packages += checkNotNull(resolveInfo.activityInfo).packageName
+            }
+        }
+        return packages
+    }
+
     /**
      * Mirrors `getLaunchIntentForPackage`: MAIN+INFO first, then MAIN+LAUNCHER.
      *
@@ -89,6 +104,15 @@ internal object DefaultAppsCatalog {
         installed.firstOrNull { it.packageName == selected }?.label
             ?: fallbackLabel(role, selected)
     } ?: "Не выбрано"
+
+    @Suppress("DEPRECATION")
+    fun labelNow(context: Context, role: DefaultAppRole, packageName: String): String =
+        runCatching {
+            val packageManager = context.packageManager
+            packageManager.getApplicationLabel(
+                packageManager.getApplicationInfo(packageName, 0),
+            ).toString()
+        }.getOrNull().orEmpty().ifBlank { fallbackLabel(role, packageName) }
 
     fun isLaunchable(
         packageName: String,

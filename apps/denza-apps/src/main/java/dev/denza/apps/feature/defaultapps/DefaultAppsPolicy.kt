@@ -82,6 +82,15 @@ enum class DefaultAppRole(
 object DefaultNavigationProxyContract {
     const val PACKAGE_NAME = "dev.denza.apps"
 
+    fun repairRequested(
+        repairPending: Boolean,
+        proxyActive: Boolean,
+        confirmedUpdateTime: Long,
+        currentUpdateTime: Long,
+    ): Boolean = repairPending || (
+        proxyActive && confirmedUpdateTime != 0L && currentUpdateTime != confirmedUpdateTime
+    )
+
     fun providerPackageName(role: DefaultAppRole, selectedPackageName: String): String {
         require(selectedPackageName.isNotBlank()) { "Default-app selection must not be blank" }
         return if (role == DefaultAppRole.NAVIGATION &&

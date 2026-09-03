@@ -25,7 +25,10 @@ data class DefaultAppRoleUiState(
     val choices: List<DefaultAppChoice> = emptyList(),
     val status: DefaultAppRoleStatus = DefaultAppRoleStatus.LOADING,
     val message: String = "",
-    /** True only after PersonBean returned the exact provider representation of this selection. */
+    /**
+     * True only after PersonBean returned the exact provider representation of this selection.
+     * That readback may have happened in an earlier process; every process start re-reads it.
+     */
     val providerConfirmed: Boolean = false,
     /**
      * The package the driver has just tapped, while its write is still in flight.
@@ -72,13 +75,13 @@ data class DefaultAppsUiState(
         get() = roles.count(DefaultAppRoleUiState::configured)
 
     /**
-     * A read the driver is waiting on.
+     * A first read where the driver has nothing to look at yet.
      *
      * Storing a choice is not one. The grid marks the tap before the write leaves, so a tile that
      * announced "Проверяем…" for the length of every write was reporting machinery, not waiting.
      */
     val reading: Boolean
-        get() = refreshing || roles.any { it.status == DefaultAppRoleStatus.LOADING }
+        get() = roles.any { it.status == DefaultAppRoleStatus.LOADING }
 
     /**
      * Whether the car is running any application of the driver's rather than its own.

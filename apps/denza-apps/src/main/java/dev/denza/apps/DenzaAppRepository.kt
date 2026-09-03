@@ -4,7 +4,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.drawable.Drawable
-import android.os.SystemClock
 import android.util.Log
 import dev.denza.apps.core.FeatureId
 import dev.denza.apps.core.FeatureReducer
@@ -23,12 +22,12 @@ import dev.denza.apps.feature.adb.AdbRescuePhase
 import dev.denza.apps.feature.adb.AdbRescueSnapshot
 import dev.denza.apps.feature.adb.AdbStartupEntryAction
 import dev.denza.apps.feature.adb.AdbStartupGatePolicy
-import dev.denza.apps.feature.defaultapps.DefaultAppChoice
 import dev.denza.apps.feature.defaultapps.DefaultAppRole
 import dev.denza.apps.feature.defaultapps.DefaultAppRoleRepository
 import dev.denza.apps.feature.defaultapps.DefaultAppRoleStatus
 import dev.denza.apps.feature.defaultapps.DefaultAppRoleUiState
 import dev.denza.apps.feature.defaultapps.DefaultAppsCatalog
+import dev.denza.apps.feature.defaultapps.DefaultAppsCatalogCache
 import dev.denza.apps.feature.defaultapps.DefaultAppsPolicy
 import dev.denza.apps.feature.defaultapps.DefaultAppsSettings
 import dev.denza.apps.feature.defaultapps.DefaultAppsUiState
@@ -156,6 +155,7 @@ object DenzaAppRepository {
     private val defaultAppsExecutor = Executors.newSingleThreadExecutor()
     private val adbRuntimeStarted = AtomicBoolean(false)
     private val adbRuntimePassRunning = AtomicBoolean(false)
+    private val defaultAppsHydrated = AtomicBoolean(false)
     private val defaultAppsRefreshRequested = AtomicBoolean(false)
     private val defaultAppsRefreshRunning = AtomicBoolean(false)
     private val stateStore = DenzaUiStateStore()
@@ -165,14 +165,6 @@ object DenzaAppRepository {
 
     @Volatile
     private var defaultAppsRepository: DefaultAppRoleRepository? = null
-
-    /** The last installed-launcher sweep, kept so storing a choice does not repeat it. */
-    @Volatile
-    private var defaultAppsCatalog: List<InstalledDefaultApp>? = null
-
-    /** `elapsedRealtime` of the last refresh that ended with all three roles read. */
-    @Volatile
-    private var defaultAppsReadAtElapsed = 0L
 
     @Volatile
     private var appContext: Context? = null
@@ -692,27 +684,53 @@ object DenzaAppRepository {
     /**
      * Explicit, coalesced provider refresh used on Activity resume and by the settings sheet.
      *
-     * A read that has just succeeded is not repeated. Resuming the Activity and then opening the
-     * tile are two gestures a second apart, and each used to send its own three provider queries
-     * and put all three roles back into "Читаю настройку…" - which is the whole of what the driver
-     * saw the tile doing. [force] is the "Обновить список" button, which always asks the car.
+     * Every resume revalidates PersonBean without replacing a state the driver can already see.
+     * [force] additionally drops the installed-launcher cache before the refresh.
      */
     fun refreshDefaultApps(force: Boolean = false) {
         val context = appContext ?: return
-        if (!force && defaultAppsReadIsFresh()) return
+        if (force) DefaultAppsCatalogCache.invalidate()
+
+        if (defaultAppsHydrated.compareAndSet(false, true)) {
+            DefaultAppsCatalogCache.ensureWatching(context) { refreshDefaultApps(force = false) }
+            stateStore.update { current ->
+                current.copy(
+                    defaultApps = current.defaultApps.copy(
+                        roles = current.defaultApps.roles.map { roleState ->
+                            DefaultAppsSettings.confirmedSelection(context, roleState.role)?.let {
+                                roleState.copy(
+                                    selectedPackageName = it.selectedPackageName,
+                                    selectedLabel = it.selectedLabel,
+                                    choices = emptyList(),
+                                    status = DefaultAppRoleStatus.READY,
+                                    message = "",
+                                    providerConfirmed = true,
+                                    pendingPackageName = null,
+                                )
+                            } ?: roleState.copy(
+                                status = DefaultAppRoleStatus.LOADING,
+                                message = "Читаю настройку…",
+                            )
+                        },
+                    ),
+                )
+            }
+        }
 
         stateStore.update { current ->
             current.copy(
                 defaultApps = current.defaultApps.copy(
                     refreshing = true,
                     roles = current.defaultApps.roles.map { roleState ->
-                        if (roleState.status == DefaultAppRoleStatus.APPLYING) {
-                            roleState
-                        } else {
-                            roleState.copy(
-                                status = DefaultAppRoleStatus.LOADING,
-                                message = "Читаю настройку…",
-                            )
+                        when {
+                            roleState.status == DefaultAppRoleStatus.APPLYING ||
+                                roleState.status == DefaultAppRoleStatus.ERROR -> roleState
+                            roleState.status == DefaultAppRoleStatus.LOADING ||
+                                roleState.selectedPackageName == null -> roleState.copy(
+                                    status = DefaultAppRoleStatus.LOADING,
+                                    message = "Читаю настройку…",
+                                )
+                            else -> roleState
                         }
                     },
                 ),
@@ -746,7 +764,7 @@ object DenzaAppRepository {
         packageName: String,
     ) {
         val context = appContext ?: return
-        if (!claimDefaultAppSelection(role, packageName)) return
+        if (!claimDefaultAppSelection(context, role, packageName)) return
 
         defaultAppsExecutor.execute {
             applyDefaultAppSelection(context, role, packageName)
@@ -1122,38 +1140,6 @@ object DenzaAppRepository {
         )
     }
 
-    /**
-     * Whether the last read is recent enough to answer for the car without asking it again.
-     *
-     * Anything short of three roles read and settled fails this: an error, a role still applying
-     * and a refresh already in flight all have to reach the provider before they can be believed.
-     */
-    private fun defaultAppsReadIsFresh(): Boolean {
-        val readAt = defaultAppsReadAtElapsed
-        if (readAt == 0L) return false
-        if (SystemClock.elapsedRealtime() - readAt > DEFAULT_APPS_FRESH_WINDOW_MS) return false
-        val defaults = stateStore.snapshot().state.defaultApps
-        return !defaults.refreshing &&
-            defaults.roles.all { it.status == DefaultAppRoleStatus.READY }
-    }
-
-    /**
-     * The installed-launcher catalog, swept only when it cannot answer for [requiredPackage].
-     *
-     * Storing one choice used to sweep every installed launcher and load an icon for each - a
-     * second time within the same second, for labels the refresh it opened with had already read.
-     */
-    private fun defaultAppsInstalled(
-        context: Context,
-        requiredPackage: String?,
-    ): List<InstalledDefaultApp> {
-        val cached = defaultAppsCatalog
-        val answers = cached != null &&
-            (requiredPackage == null || cached.any { it.packageName == requiredPackage })
-        if (answers) return checkNotNull(cached)
-        return DefaultAppsCatalog.discover(context).also { defaultAppsCatalog = it }
-    }
-
     /** At most one provider refresh runs and one newer request waits behind it. */
     private fun scheduleDefaultAppsRefresh(context: Context) {
         if (!defaultAppsRefreshRunning.compareAndSet(false, true)) return
@@ -1175,18 +1161,18 @@ object DenzaAppRepository {
     }
 
     private fun runDefaultAppsRefresh(context: Context) {
-        val installed = runCatching { DefaultAppsCatalog.discover(context) }
+        val launchable = runCatching { DefaultAppsCatalogCache.launchablePackages(context) }
             .getOrElse { error ->
                 publishDefaultAppsUnavailable(
                     defaultAppsFailure("Не удалось прочитать список приложений", error),
                 )
                 return
             }
-        defaultAppsCatalog = installed
         val repository = defaultAppRoleRepository(context)
         // One provider query for all three roles. Each role still answers for itself: a missing or
         // duplicated row fails alone, and the failure reaches its role exactly as its own read did.
         val observed = runBlocking { repository.readAll() }
+        val installed = DefaultAppsCatalogCache.installedIfCached()
 
         DefaultAppRole.entries.forEach { role ->
             // A tap accepted while this refresh was already in flight owns the role until its
@@ -1201,6 +1187,7 @@ object DenzaAppRepository {
                 context = context,
                 repository = repository,
                 role = role,
+                launchable = launchable,
                 installed = installed,
                 observed = observed.getValue(role),
             )
@@ -1216,6 +1203,8 @@ object DenzaAppRepository {
             )
         }
 
+        if (installed == null) publishDefaultAppChoices(context)
+
         stateStore.update { current ->
             current.copy(
                 defaultApps = current.defaultApps.copy(
@@ -1223,20 +1212,61 @@ object DenzaAppRepository {
                 ),
             )
         }
-        // Only three roles actually read and settled may spare the next gesture its own read.
-        val settled = stateStore.snapshot().state.defaultApps.roles
-            .all { it.status == DefaultAppRoleStatus.READY }
-        defaultAppsReadAtElapsed = if (settled) SystemClock.elapsedRealtime() else 0L
+    }
+
+    private fun publishDefaultAppChoices(context: Context) {
+        val installed = runCatching { DefaultAppsCatalogCache.installed(context) }
+            .getOrElse { error ->
+                defaultAppsFailure("Не удалось прочитать список приложений", error)
+                return
+            }
+        DefaultAppRole.entries.forEach { role ->
+            stateStore.updateIf(
+                predicate = { current ->
+                    current.defaultApps.stateFor(role).status != DefaultAppRoleStatus.APPLYING
+                },
+                transform = { current ->
+                    val roleState = current.defaultApps.stateFor(role)
+                    val selectedPackageName = roleState.effectivePackageName
+                    current.copy(
+                        defaultApps = current.defaultApps.update(role) {
+                            roleState.copy(
+                                selectedLabel = DefaultAppsCatalog.label(
+                                    role,
+                                    selectedPackageName,
+                                    installed,
+                                ),
+                                choices = DefaultAppsCatalog.choices(
+                                    role,
+                                    selectedPackageName,
+                                    installed,
+                                ),
+                            )
+                        },
+                    )
+                },
+            )
+        }
+    }
+
+    private fun scheduleDefaultAppChoices(context: Context) {
+        defaultAppsExecutor.execute { publishDefaultAppChoices(context) }
     }
 
     private fun refreshDefaultAppRole(
         context: Context,
         repository: DefaultAppRoleRepository,
         role: DefaultAppRole,
-        installed: List<InstalledDefaultApp>,
+        launchable: Set<String>,
+        installed: List<InstalledDefaultApp>?,
         observed: Result<String>,
     ): DefaultAppRoleUiState {
         val previous = stateStore.snapshot().state.defaultApps.stateFor(role)
+        val currentUpdateTime = if (role == DefaultAppRole.NAVIGATION) {
+            currentPackageUpdateTime(context)
+        } else {
+            0L
+        }
         var observedPackage: String? = null
         var providerWriteAttempted = false
         var configuredProxyTarget: String? = null
@@ -1245,7 +1275,6 @@ object DenzaAppRepository {
         return try {
             observedPackage = observed.getOrThrow()
             val initializationHandled = DefaultAppsSettings.isInitializationHandled(context, role)
-            val launchablePackages = installed.map(InstalledDefaultApp::packageName)
 
             // A proxy row already contains the stable provider representation. Its logical
             // selection lives in Denza Apps' atomic store and is read synchronously even when
@@ -1258,7 +1287,11 @@ object DenzaAppRepository {
                 if (!initializationHandled) {
                     DefaultAppsSettings.markInitializationHandled(context, role)
                 }
-                DefaultAppsSettings.markNavigationProxyActive(context, active = true)
+                DefaultAppsSettings.markNavigationProxyActive(
+                    context,
+                    active = true,
+                    packageUpdateTime = currentUpdateTime,
+                )
                 return defaultAppProviderState(
                     context = context,
                     role = role,
@@ -1268,6 +1301,7 @@ object DenzaAppRepository {
                         providerPackageName = observedPackage,
                         configuredProxyTarget = configuredProxyTarget,
                     ),
+                    launchable = launchable,
                     installed = installed,
                 )
             }
@@ -1275,10 +1309,16 @@ object DenzaAppRepository {
             val directMigration = DefaultNavigationProxyContract.directMigrationTarget(
                 role = role,
                 providerPackageName = observedPackage,
-                installedLaunchablePackages = launchablePackages,
+                installedLaunchablePackages = launchable,
             )
             val repairRequested = role == DefaultAppRole.NAVIGATION &&
-                DefaultAppsSettings.isNavigationProxyRepairPending(context)
+                DefaultNavigationProxyContract.repairRequested(
+                    repairPending = DefaultAppsSettings.isNavigationProxyRepairPending(context),
+                    proxyActive = DefaultAppsSettings.isNavigationProxyActive(context),
+                    confirmedUpdateTime =
+                        DefaultAppsSettings.navigationProxyConfirmedUpdateTime(context),
+                    currentUpdateTime = currentUpdateTime,
+                )
             val repairConfiguredTarget = if (
                 repairRequested && observedPackage == role.stockPackageName
             ) {
@@ -1291,13 +1331,13 @@ object DenzaAppRepository {
                 providerPackageName = observedPackage,
                 repairRequested = repairRequested,
                 configuredProxyTarget = repairConfiguredTarget,
-                installedLaunchablePackages = launchablePackages,
+                installedLaunchablePackages = launchable,
             )
             val coldSelection = DefaultAppsPolicy.coldStartSelection(
                 role = role,
                 providerPackageName = observedPackage,
                 initializationHandled = initializationHandled,
-                installedLaunchablePackages = launchablePackages,
+                installedLaunchablePackages = launchable,
             )
             val shouldAutoSelect = DefaultAppsPolicy.shouldAutoApplyColdStartSelection(
                 role = role,
@@ -1332,7 +1372,11 @@ object DenzaAppRepository {
                     // complete first-run handling after an automatic change.
                     DefaultAppsSettings.markInitializationHandled(context, role)
                     if (providerTarget == DefaultNavigationProxyContract.PACKAGE_NAME) {
-                        DefaultAppsSettings.markNavigationProxyActive(context, active = true)
+                        DefaultAppsSettings.markNavigationProxyActive(
+                            context,
+                            active = true,
+                            packageUpdateTime = currentUpdateTime,
+                        )
                     }
                 }
             } else {
@@ -1349,6 +1393,7 @@ object DenzaAppRepository {
                 role = role,
                 providerPackageName = persistedProvider,
                 selectedPackageName = plannedSelection ?: persistedProvider,
+                launchable = launchable,
                 installed = installed,
                 message = when {
                     repairTarget != null -> "Связь восстановлена"
@@ -1380,8 +1425,10 @@ object DenzaAppRepository {
                 confirmedProvider ?: observedPackage ?: previous.selectedPackageName
             }
             defaultAppErrorState(
+                context = context,
                 role = role,
                 selectedPackageName = selectedPackage,
+                launchable = launchable,
                 installed = installed,
                 providerConfirmed = confirmedProvider != null,
                 message = defaultAppsFailure(
@@ -1404,19 +1451,7 @@ object DenzaAppRepository {
     ) {
         // The chosen package is checked against the car as it is now; the catalog behind the
         // labels and icons may be the one the sheet was opened with.
-        val selectable = runCatching {
-            DefaultAppsCatalog.isLaunchableNow(context, packageName)
-        }.getOrElse { error ->
-            finishDefaultAppRole(
-                role,
-                abandonedDefaultAppWrite(
-                    role,
-                    defaultAppsFailure("Не удалось проверить приложение", error),
-                ),
-            )
-            return
-        }
-        val installed = runCatching { defaultAppsInstalled(context, packageName) }
+        val launchable = runCatching { DefaultAppsCatalogCache.launchablePackages(context) }
             .getOrElse { error ->
                 finishDefaultAppRole(
                     role,
@@ -1427,24 +1462,42 @@ object DenzaAppRepository {
                 )
                 return
             }
+        val selectable = runCatching {
+            packageName in launchable &&
+                DefaultAppsCatalog.isLaunchableNow(context, packageName)
+        }.getOrElse { error ->
+            finishDefaultAppRole(
+                role,
+                abandonedDefaultAppWrite(
+                    role,
+                    defaultAppsFailure("Не удалось проверить приложение", error),
+                ),
+            )
+            return
+        }
+        val installed = DefaultAppsCatalogCache.installedIfCached()
         if (!selectable) {
             val previous = stateStore.snapshot().state.defaultApps.stateFor(role)
             finishDefaultAppRole(
                 role,
                 defaultAppErrorState(
+                    context = context,
                     role = role,
                     selectedPackageName = previous.selectedPackageName,
+                    launchable = launchable,
                     installed = installed,
                     providerConfirmed = false,
                     message = "Приложение больше не установлено или не запускается",
                 ),
             )
+            if (installed == null) scheduleDefaultAppChoices(context)
             return
         }
         finishDefaultAppRole(
             role,
-            writeDefaultAppRole(context, role, packageName, installed),
+            writeDefaultAppRole(context, role, packageName, launchable, installed),
         )
+        if (installed == null) scheduleDefaultAppChoices(context)
     }
 
     /**
@@ -1457,7 +1510,8 @@ object DenzaAppRepository {
         context: Context,
         role: DefaultAppRole,
         packageName: String,
-        installed: List<InstalledDefaultApp>,
+        launchable: Set<String>,
+        installed: List<InstalledDefaultApp>?,
     ): DefaultAppRoleUiState {
         val repository = defaultAppRoleRepository(context)
         val providerTarget = DefaultNavigationProxyContract.providerPackageName(role, packageName)
@@ -1478,6 +1532,7 @@ object DenzaAppRepository {
                 DefaultAppsSettings.markNavigationProxyActive(
                     context,
                     active = persistedProvider == DefaultNavigationProxyContract.PACKAGE_NAME,
+                    packageUpdateTime = currentPackageUpdateTime(context),
                 )
             }
             checkNotNull(persistedProvider)
@@ -1490,6 +1545,7 @@ object DenzaAppRepository {
                     role = role,
                     providerPackageName = persisted,
                     selectedPackageName = packageName,
+                    launchable = launchable,
                     installed = installed,
                 )
             },
@@ -1510,8 +1566,10 @@ object DenzaAppRepository {
                             .stateFor(role).selectedPackageName
                 }
                 defaultAppErrorState(
+                    context = context,
                     role = role,
                     selectedPackageName = selectedPackage,
+                    launchable = launchable,
                     installed = installed,
                     providerConfirmed = confirmedProvider != null,
                     message = defaultAppsFailure("Не удалось сохранить выбор", error),
@@ -1548,13 +1606,16 @@ object DenzaAppRepository {
         role: DefaultAppRole,
         providerPackageName: String,
         selectedPackageName: String?,
-        installed: List<InstalledDefaultApp>,
+        launchable: Set<String>,
+        installed: List<InstalledDefaultApp>?,
         message: String = "",
     ): DefaultAppRoleUiState {
-        if (!DefaultAppsCatalog.isLaunchable(providerPackageName, installed)) {
+        if (providerPackageName !in launchable) {
             return defaultAppErrorState(
+                context = context,
                 role = role,
                 selectedPackageName = selectedPackageName,
+                launchable = launchable,
                 installed = installed,
                 providerConfirmed = true,
                 message = if (providerPackageName == DefaultNavigationProxyContract.PACKAGE_NAME) {
@@ -1566,11 +1627,13 @@ object DenzaAppRepository {
         }
         if (
             selectedPackageName == null ||
-            !DefaultAppsCatalog.isLaunchable(selectedPackageName, installed)
+            selectedPackageName !in launchable
         ) {
             return defaultAppErrorState(
+                context = context,
                 role = role,
                 selectedPackageName = selectedPackageName,
+                launchable = launchable,
                 installed = installed,
                 providerConfirmed = true,
                 message = if (providerPackageName == DefaultNavigationProxyContract.PACKAGE_NAME) {
@@ -1584,11 +1647,25 @@ object DenzaAppRepository {
         // substitution back on should restore, so it is remembered where it is observed rather
         // than at the moment the switch is thrown - by then the role already says "stock".
         DefaultAppsSettings.rememberPick(context, role, selectedPackageName)
+        val selectedLabel = installed?.let {
+            DefaultAppsCatalog.label(role, selectedPackageName, it)
+        } ?: DefaultAppsCatalog.labelNow(context, role, selectedPackageName)
+        val choices = installed?.let {
+            DefaultAppsCatalog.choices(role, selectedPackageName, it)
+        } ?: stateStore.snapshot().state.defaultApps.stateFor(role).choices.map { choice ->
+            choice.copy(selected = choice.packageName == selectedPackageName)
+        }
+        DefaultAppsSettings.rememberConfirmedSelection(
+            context,
+            role,
+            selectedPackageName,
+            selectedLabel,
+        )
         return DefaultAppRoleUiState(
             role = role,
             selectedPackageName = selectedPackageName,
-            selectedLabel = DefaultAppsCatalog.label(role, selectedPackageName, installed),
-            choices = DefaultAppsCatalog.choices(role, selectedPackageName, installed),
+            selectedLabel = selectedLabel,
+            choices = choices,
             status = DefaultAppRoleStatus.READY,
             message = message,
             providerConfirmed = true,
@@ -1596,20 +1673,34 @@ object DenzaAppRepository {
     }
 
     private fun defaultAppErrorState(
+        context: Context,
         role: DefaultAppRole,
         selectedPackageName: String?,
-        installed: List<InstalledDefaultApp>,
+        launchable: Set<String>,
+        installed: List<InstalledDefaultApp>?,
         providerConfirmed: Boolean,
         message: String,
-    ): DefaultAppRoleUiState = DefaultAppRoleUiState(
-        role = role,
-        selectedPackageName = selectedPackageName,
-        selectedLabel = DefaultAppsCatalog.label(role, selectedPackageName, installed),
-        choices = DefaultAppsCatalog.choices(role, selectedPackageName, installed),
-        status = DefaultAppRoleStatus.ERROR,
-        message = message,
-        providerConfirmed = providerConfirmed,
-    )
+    ): DefaultAppRoleUiState {
+        val selectedLabel = when {
+            selectedPackageName == null -> "Не выбрано"
+            installed != null -> DefaultAppsCatalog.label(role, selectedPackageName, installed)
+            else -> DefaultAppsCatalog.labelNow(context, role, selectedPackageName)
+        }
+        val choices = installed?.let {
+            DefaultAppsCatalog.choices(role, selectedPackageName, it)
+        } ?: stateStore.snapshot().state.defaultApps.stateFor(role).choices.map { choice ->
+            choice.copy(selected = choice.packageName == selectedPackageName)
+        }
+        return DefaultAppRoleUiState(
+            role = role,
+            selectedPackageName = selectedPackageName,
+            selectedLabel = selectedLabel,
+            choices = choices,
+            status = DefaultAppRoleStatus.ERROR,
+            message = message,
+            providerConfirmed = providerConfirmed,
+        )
+    }
 
     /**
      * Compatibility fallback for a pre-proxy build that already pointed navigation at Denza Apps.
@@ -1622,11 +1713,16 @@ object DenzaAppRepository {
                 ?.takeIf(DefaultNavigationProxyContract::isValidTarget)
             ?: DefaultNavigationProxyContract.PACKAGE_NAME
 
+    @Suppress("DEPRECATION")
+    private fun currentPackageUpdateTime(context: Context): Long = runCatching {
+        context.packageManager.getPackageInfo(context.packageName, 0).lastUpdateTime
+    }.getOrDefault(0L)
+
     /**
      * Decides what each role should hold, and marks the panel with it before anything is written.
      *
-     * Returns null when a read or another write is already in flight, which is the same rule a tap
-     * on the grid follows: the provider is one row per role and two writers would race for it.
+     * A role with its own write in flight is skipped; the rest are still written. Returns null only
+     * when no role has anything to write.
      */
     private fun claimDefaultAppsSwitch(
         context: Context,
@@ -1635,14 +1731,12 @@ object DenzaAppRepository {
         while (true) {
             val snapshot = stateStore.snapshot()
             val current = snapshot.state
-            if (current.defaultApps.refreshing || current.defaultApps.roles.any { it.busy }) {
-                return null
-            }
 
             val targets = DefaultAppRole.entries.mapNotNull { role ->
                 val roleState = current.defaultApps.stateFor(role)
+                if (roleState.status == DefaultAppRoleStatus.APPLYING) return@mapNotNull null
                 val target = if (enabled) {
-                    switchOnTarget(context, role, roleState)
+                    switchOnTarget(context, role)
                 } else {
                     role.stockPackageName
                 }
@@ -1680,10 +1774,13 @@ object DenzaAppRepository {
     private fun switchOnTarget(
         context: Context,
         role: DefaultAppRole,
-        roleState: DefaultAppRoleUiState,
     ): String? {
         val remembered = DefaultAppsSettings.rememberedPick(context, role)
-        val launchable = roleState.choices.map(DefaultAppChoice::packageName)
+        val launchable = runCatching { DefaultAppsCatalogCache.launchablePackages(context) }
+            .getOrElse { error ->
+                defaultAppsFailure("Не удалось прочитать список приложений", error)
+                return null
+            }
         if (remembered != null && remembered in launchable) return remembered
         return role.knownThirdPartyApps
             .firstOrNull { it.packageName in launchable }
@@ -1695,7 +1792,7 @@ object DenzaAppRepository {
         context: Context,
         targets: Map<DefaultAppRole, String>,
     ) {
-        val installed = runCatching { defaultAppsInstalled(context, null) }
+        val launchable = runCatching { DefaultAppsCatalogCache.launchablePackages(context) }
             .getOrElse { error ->
                 val message = defaultAppsFailure("Не удалось прочитать список приложений", error)
                 targets.keys.forEach { role ->
@@ -1703,13 +1800,14 @@ object DenzaAppRepository {
                 }
                 return
             }
+        val installed = DefaultAppsCatalogCache.installedIfCached()
         targets.forEach { (role, packageName) ->
             // The car's own application is what "off" means and is never withheld for not being
             // in a catalog we swept; anything else has to still be there to be worth writing.
             val available = packageName == role.stockPackageName ||
-                DefaultAppsCatalog.isLaunchable(packageName, installed)
+                packageName in launchable
             val completed = if (available) {
-                writeDefaultAppRole(context, role, packageName, installed)
+                writeDefaultAppRole(context, role, packageName, launchable, installed)
             } else {
                 abandonedDefaultAppWrite(
                     role,
@@ -1718,19 +1816,26 @@ object DenzaAppRepository {
             }
             finishDefaultAppRole(role, completed)
         }
+        if (installed == null) scheduleDefaultAppChoices(context)
     }
 
     private fun claimDefaultAppSelection(
+        context: Context,
         role: DefaultAppRole,
         packageName: String,
     ): Boolean {
+        val launchablePackages = runCatching {
+            DefaultAppsCatalogCache.launchablePackages(context)
+        }.getOrElse { error ->
+            defaultAppsFailure("Не удалось прочитать список приложений", error)
+            emptySet()
+        }
         while (true) {
             val snapshot = stateStore.snapshot()
             val current = snapshot.state
             val roleState = current.defaultApps.stateFor(role)
-            if (current.defaultApps.refreshing || roleState.busy) return false
+            if (roleState.status == DefaultAppRoleStatus.APPLYING) return false
 
-            val launchablePackages = roleState.choices.map { it.packageName }
             val selectable = DefaultAppsPolicy.isSelectable(packageName, launchablePackages)
             val updatedRole = if (selectable) {
                 // The mark moves with the finger. It used to wait for the provider to echo the
@@ -2038,13 +2143,3 @@ object DenzaAppRepository {
         false
     }
 }
-
-
-/**
- * How long a settled provider read answers for the car before the next gesture asks it again.
- *
- * Long enough to cover resume-then-open, which is the pair of gestures that made the tile read
- * the provider twice; short enough that a choice made in stock settings is picked up on the next
- * visit rather than after a restart.
- */
-private const val DEFAULT_APPS_FRESH_WINDOW_MS = 30_000L

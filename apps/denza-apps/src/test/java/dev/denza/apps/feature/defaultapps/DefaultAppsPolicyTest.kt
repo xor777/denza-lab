@@ -359,6 +359,66 @@ class DefaultAppsPolicyTest {
         )
     }
 
+    @Test
+    fun pendingRepairIsRequestedOnItsOwn() {
+        assertTrue(
+            DefaultNavigationProxyContract.repairRequested(
+                repairPending = true,
+                proxyActive = false,
+                confirmedUpdateTime = 0L,
+                currentUpdateTime = 0L,
+            ),
+        )
+    }
+
+    @Test
+    fun activeProxyRequestsRepairWhenThePackageUpdateTimeChanged() {
+        assertTrue(
+            DefaultNavigationProxyContract.repairRequested(
+                repairPending = false,
+                proxyActive = true,
+                confirmedUpdateTime = 100L,
+                currentUpdateTime = 200L,
+            ),
+        )
+    }
+
+    @Test
+    fun activeProxyDoesNotRequestRepairAtTheConfirmedUpdateTime() {
+        assertFalse(
+            DefaultNavigationProxyContract.repairRequested(
+                repairPending = false,
+                proxyActive = true,
+                confirmedUpdateTime = 100L,
+                currentUpdateTime = 100L,
+            ),
+        )
+    }
+
+    @Test
+    fun inactiveProxyDoesNotRequestRepairWhenThePackageUpdateTimeChanged() {
+        assertFalse(
+            DefaultNavigationProxyContract.repairRequested(
+                repairPending = false,
+                proxyActive = false,
+                confirmedUpdateTime = 100L,
+                currentUpdateTime = 200L,
+            ),
+        )
+    }
+
+    @Test
+    fun unconfirmedUpdateTimeDoesNotRequestRepair() {
+        assertFalse(
+            DefaultNavigationProxyContract.repairRequested(
+                repairPending = false,
+                proxyActive = true,
+                confirmedUpdateTime = 0L,
+                currentUpdateTime = 200L,
+            ),
+        )
+    }
+
     private fun resolve(
         role: DefaultAppRole,
         provider: String?,

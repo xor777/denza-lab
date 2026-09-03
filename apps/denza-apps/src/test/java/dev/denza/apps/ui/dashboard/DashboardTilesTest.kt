@@ -14,6 +14,7 @@ import dev.denza.apps.feature.locale.StockRussianLocaleSnapshot
 import dev.denza.apps.ui.components.DenzaTileCaption
 import dev.denza.apps.ui.components.DenzaTileTone
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -365,6 +366,13 @@ class DashboardTilesTest {
         ).tile(TileId.DEFAULT_APPS)
         assertEquals("Проверяем…", reading.state)
         assertEquals(DenzaTileTone.WORKING, reading.tone)
+
+        val revalidatingState = defaults.copy(refreshing = true)
+        val revalidating = DenzaUiState(defaultApps = revalidatingState)
+            .tile(TileId.DEFAULT_APPS)
+        assertFalse(revalidatingState.reading)
+        assertEquals("3 настроены", revalidating.state)
+        assertEquals(DenzaTileTone.LIVE, revalidating.tone)
     }
 
     /**

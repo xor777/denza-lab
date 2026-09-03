@@ -541,6 +541,12 @@ readback) and unit-tested; `:denza-apps:testDebugUnitTest` and `assembleDebug`
 pass. The product change itself has no live acceptance yet - only the probe
 above has run in the car.
 
+The panel now hydrates from the last confirmed state, revalidates on every resume without changing
+a known state or refusing a tap, and sweeps installed launchers once per process and after package
+changes. Navigation-proxy repair also fires when the package's `lastUpdateTime` has moved since the
+proxy was confirmed, so it does not rely on `MY_PACKAGE_REPLACED` being delivered. This behavior
+has not been live-accepted.
+
 ## Russia-oriented launch strategy
 
 The car stays in RF. The stock map is China-only. Taking the map role therefore

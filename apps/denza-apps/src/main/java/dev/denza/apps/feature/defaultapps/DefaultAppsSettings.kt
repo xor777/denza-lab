@@ -3,11 +3,16 @@ package dev.denza.apps.feature.defaultapps
 import android.annotation.SuppressLint
 import android.content.Context
 
+data class ConfirmedSelection(
+    val selectedPackageName: String,
+    val selectedLabel: String,
+)
+
 /**
- * Remembers what this product has decided about a role, never what the car is doing with it.
+ * Persists product decisions and the last exact provider-confirmed selection for each role.
  *
  * What the car is doing is AutoVoice's PersonBean row, read again whenever the Activity resumes;
- * nothing here is allowed to answer that question. Two decisions do live here:
+ * a remembered confirmation hydrates the UI but never replaces that read. The stored values are:
  *
  * - the first-run marker, which makes discovery a one-time decision: a stock fallback remains
  *   stock if a known app is installed later, while an existing non-stock choice remains external
@@ -17,12 +22,40 @@ import android.content.Context
  *   this there would be nothing left to say what switching it back on should restore;
  * - the navigation proxy target and its confirmed-active marker. PersonBean remains the source of
  *   truth for whether the proxy is selected, while the target is necessarily app-owned because
- *   AutoVoice stores only one package in the role row.
+ *   AutoVoice stores only one package in the role row;
+ * - the last confirmed package and label, used only until the next provider read completes.
  */
 object DefaultAppsSettings {
     private const val PREFS = "default_apps"
     private const val NAVIGATION_PROXY_ACTIVE = "navigation_proxy_active"
     private const val NAVIGATION_PROXY_REPAIR_PENDING = "navigation_proxy_repair_pending"
+    private const val NAVIGATION_PROXY_CONFIRMED_UPDATE_TIME =
+        "navigation_proxy_confirmed_update_time"
+
+    fun confirmedSelection(context: Context, role: DefaultAppRole): ConfirmedSelection? {
+        val preferences = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val packageName = preferences.getString(confirmedPackageKey(role), null)
+            ?.takeIf(String::isNotBlank)
+            ?: return null
+        val label = preferences.getString(confirmedLabelKey(role), null)
+            ?.takeIf(String::isNotBlank)
+            ?: return null
+        return ConfirmedSelection(packageName, label)
+    }
+
+    fun rememberConfirmedSelection(
+        context: Context,
+        role: DefaultAppRole,
+        selectedPackageName: String,
+        selectedLabel: String,
+    ) {
+        if (selectedPackageName.isBlank() || selectedLabel.isBlank()) return
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .putString(confirmedPackageKey(role), selectedPackageName)
+            .putString(confirmedLabelKey(role), selectedLabel)
+            .apply()
+    }
 
     fun isInitializationHandled(context: Context, role: DefaultAppRole): Boolean =
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -72,6 +105,10 @@ object DefaultAppsSettings {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .getBoolean(NAVIGATION_PROXY_REPAIR_PENDING, false)
 
+    fun navigationProxyConfirmedUpdateTime(context: Context): Long =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .getLong(NAVIGATION_PROXY_CONFIRMED_UPDATE_TIME, 0L)
+
     fun navigationProxyTarget(context: Context): String? =
         DefaultNavigationProxyStore.read(context)
 
@@ -100,12 +137,21 @@ object DefaultAppsSettings {
 
     /** Records only an exact PersonBean readback, never an intended write. */
     @SuppressLint("UseKtx")
-    fun markNavigationProxyActive(context: Context, active: Boolean) {
+    fun markNavigationProxyActive(context: Context, active: Boolean, packageUpdateTime: Long) {
+        val preferences = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val confirmedUpdateTime = if (active) packageUpdateTime else 0L
+        if (
+            preferences.getBoolean(NAVIGATION_PROXY_ACTIVE, false) == active &&
+            !preferences.getBoolean(NAVIGATION_PROXY_REPAIR_PENDING, false) &&
+            preferences.getLong(NAVIGATION_PROXY_CONFIRMED_UPDATE_TIME, 0L) == confirmedUpdateTime
+        ) {
+            return
+        }
         check(
-            context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-                .edit()
+            preferences.edit()
                 .putBoolean(NAVIGATION_PROXY_ACTIVE, active)
                 .putBoolean(NAVIGATION_PROXY_REPAIR_PENDING, false)
+                .putLong(NAVIGATION_PROXY_CONFIRMED_UPDATE_TIME, confirmedUpdateTime)
                 .commit(),
         ) {
             "AutoVoice readback succeeded, but proxy state was not persisted"
@@ -116,4 +162,10 @@ object DefaultAppsSettings {
         "initialized_${role.name.lowercase()}"
 
     private fun pickKey(role: DefaultAppRole): String = "pick_${role.name.lowercase()}"
+
+    private fun confirmedPackageKey(role: DefaultAppRole): String =
+        "confirmed_package_${role.name.lowercase()}"
+
+    private fun confirmedLabelKey(role: DefaultAppRole): String =
+        "confirmed_label_${role.name.lowercase()}"
 }

@@ -48,24 +48,12 @@ class DefaultAppsSheetTest {
             choices = listOf(choice()),
             status = DefaultAppRoleStatus.ERROR,
         )
-        assertTrue(defaultAppsCanSelect(DefaultAppsUiState(roles = listOf(failed)), failed))
+        assertTrue(defaultAppsCanSelect(failed))
         assertFalse(
-            defaultAppsCanSelect(
-                DefaultAppsUiState(roles = listOf(failed), refreshing = true),
-                failed,
-            ),
+            defaultAppsCanSelect(failed.copy(status = DefaultAppRoleStatus.LOADING)),
         )
         assertFalse(
-            defaultAppsCanSelect(
-                DefaultAppsUiState(),
-                failed.copy(status = DefaultAppRoleStatus.LOADING),
-            ),
-        )
-        assertFalse(
-            defaultAppsCanSelect(
-                DefaultAppsUiState(),
-                failed.copy(status = DefaultAppRoleStatus.APPLYING),
-            ),
+            defaultAppsCanSelect(failed.copy(status = DefaultAppRoleStatus.APPLYING)),
         )
     }
 
@@ -82,20 +70,13 @@ class DefaultAppsSheetTest {
             choices = listOf(choice()),
             status = DefaultAppRoleStatus.READY,
         )
-        assertFalse(defaultAppsChoicesDimmed(DefaultAppsUiState(), ready))
+        assertFalse(defaultAppsChoicesDimmed(ready))
         assertFalse(
-            defaultAppsChoicesDimmed(
-                DefaultAppsUiState(),
-                ready.copy(status = DefaultAppRoleStatus.APPLYING),
-            ),
+            defaultAppsChoicesDimmed(ready.copy(status = DefaultAppRoleStatus.APPLYING)),
         )
         assertTrue(
-            defaultAppsChoicesDimmed(
-                DefaultAppsUiState(),
-                ready.copy(status = DefaultAppRoleStatus.LOADING),
-            ),
+            defaultAppsChoicesDimmed(ready.copy(status = DefaultAppRoleStatus.LOADING)),
         )
-        assertTrue(defaultAppsChoicesDimmed(DefaultAppsUiState(refreshing = true), ready))
     }
 
     /**
@@ -114,11 +95,8 @@ class DefaultAppsSheetTest {
             providerConfirmed = true,
         )
         DefaultAppRoleStatus.entries.forEach { status ->
-            listOf(false, true).forEach { refreshing ->
-                val state = DefaultAppsUiState(refreshing = refreshing)
-                val text = defaultAppsStatusText(state, role.copy(status = status))
-                assertTrue("$status/$refreshing", text.isNotBlank())
-            }
+            val text = defaultAppsStatusText(role.copy(status = status))
+            assertTrue(status.toString(), text.isNotBlank())
         }
     }
 
@@ -180,7 +158,35 @@ class DefaultAppsSheetTest {
             defaultAppsSwitchSubtitle(nothingInstalled),
         )
 
-        assertEquals("Читаем настройку…", defaultAppsSwitchSubtitle(off.copy(refreshing = true)))
+        assertEquals(
+            "Команды открывают штатные приложения",
+            defaultAppsSwitchSubtitle(off.copy(refreshing = true)),
+        )
+        assertEquals(
+            "Читаем настройку…",
+            defaultAppsSwitchSubtitle(
+                off.update(DefaultAppRole.MUSIC) { role ->
+                    role.copy(status = DefaultAppRoleStatus.LOADING)
+                },
+            ),
+        )
+    }
+
+    @Test
+    fun aReadyRoleRemainsInteractiveDuringRevalidation() {
+        val ready = DefaultAppRoleUiState(
+            role = DefaultAppRole.MUSIC,
+            selectedPackageName = "ru.yandex.music",
+            selectedLabel = "Яндекс Музыка",
+            choices = listOf(choice().copy(selected = true)),
+            status = DefaultAppRoleStatus.READY,
+            providerConfirmed = true,
+        )
+        val refreshing = DefaultAppsUiState(roles = listOf(ready), refreshing = true)
+
+        assertTrue(defaultAppsCanSelect(ready))
+        assertFalse(defaultAppsChoicesDimmed(ready))
+        assertTrue(refreshing.substituting || refreshing.canSubstitute)
     }
 
     private fun choice(): DefaultAppChoice = DefaultAppChoice(
