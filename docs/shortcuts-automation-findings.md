@@ -414,8 +414,11 @@ Then that can start a third-party package is a **role**:
 
 The Denza Apps `Приложения` panel writes those three live-proven PersonBean
 roles and explains which matching Shortcuts action to use. It is configuration,
-not a runtime: AutoVoice remains the daemon. That is at most three always-on
-targets, not an arbitrary app per rule.
+not a runtime: AutoVoice remains the daemon. Music and video keep the selected
+package directly in PersonBean. Navigation now keeps the stable
+`dev.denza.apps` package there and stores the logical selected launcher in
+Denza Apps-owned storage. That is at most three always-on logical targets, not
+an arbitrary app per rule.
 
 First-run selection is handled once per role after a successful provider read.
 An untouched stock value may be replaced with the first installed known app,
@@ -426,10 +429,51 @@ known app later never causes a surprise role switch. PersonBean is reread on
 Activity resume, and an unavailable read is shown only as a last-known value,
 not as a confirmed current selection.
 
-A trampoline (map role = Denza Apps, `DenzaLauncherActivity` starts the
-configured package and finishes) is also AutoVoice-driven: Denza Apps
-does **not** need to be running before the seatbelt. `Y()` carries no
-If identity, so the trampoline still has a single target.
+### Stable navigation proxy (implemented 2026-09-03, live acceptance pending)
+
+The firmware's `AppReceiver` handles `PACKAGE_REMOVED` without checking
+`Intent.EXTRA_REPLACING`. If the removed package equals `DEFAULT_MAP_SWITCH`,
+`updateRemoveMap()` immediately replaces it with the first installed entry in
+`MapUtils.b`, normally `com.byd.launchermap`. An ordinary Store update therefore
+destroys a direct `ru.yandex.yandexnavi` binding before `PACKAGE_REPLACED`
+arrives; the replacement handler updates only AutoVoice's package catalog and
+does not restore PersonBean.
+
+The product fix stays inside the single `denza-apps.apk`:
+
+- PersonBean holds `dev.denza.apps`, whose package is unaffected when the
+  selected navigator is replaced. The logical target is synchronously committed
+  to an atomic file inside Denza Apps before PersonBean may point at the proxy.
+- Denza Apps moves its single hidden `MAIN + CATEGORY_INFO` package entry from
+  the picker to a windowless trampoline in the existing `:picker` process.
+  A plain package launch opens the configured launcher and immediately
+  finishes. Android cold-starts that process as needed; the main Denza Apps
+  process does not have to be running beforehand.
+- The generic AutoVoice app-open path adds `FROM=com.byd.autovoice`, while the
+  map-role path does not. The trampoline preserves that distinction: «Открыть
+  Denza Apps» still opens `MainActivity`; only the map-role launch opens the
+  configured navigator.
+- Explicit product split-picker starts have the BYD primary/secondary category
+  and remain picker starts. Stock SmartMulti package-level restore may remove
+  that category inside the firmware before delivery and therefore needs a
+  dedicated regression check on the car.
+- The picker still offers every installed launchable package and displays the
+  logical selection. Choosing Denza Apps itself is supported by explicitly
+  opening `MainActivity`; music and video are unchanged.
+- A pre-existing direct navigation role is conditionally migrated from its
+  exact current package to the proxy. Concurrent external changes still win.
+- Updating Denza Apps itself can trigger the same firmware reset. The existing
+  `MY_PACKAGE_REPLACED` receiver requests a conditional repair. It runs only if
+  the proxy had previously been confirmed active, PersonBean now contains the
+  stock package, and both Denza Apps and the configured target are launchable.
+
+This changes the storage-level external contract: direct PersonBean readers see
+`dev.denza.apps`, while the Denza Apps UI shows the real selected navigator.
+There is still one APK. Local unit tests and the debug build pass; no cold-start,
+Store-update, self-replacement, or split-regression claim is live-car accepted
+yet.
+
+`Y()` carries no If identity, so the proxy still has one navigation target.
 
 Do not poll `autoservice` from a Denza Apps service as the product
 Shortcuts replacement. That reintroduces the "must already be running"
@@ -441,14 +485,13 @@ The car stays in RF. The stock map is China-only. Taking the map role therefore
 costs little map utility and is the cleanest way to give Shortcuts a Then-action
 that opens Denza Apps:
 
-1. **Preferred, reversible, live-proven for a third-party package.** Point
-   `DEFAULT_MAP_SWITCH` at the target (`ru.yandex.yandexnavi` opened from
-   Shortcuts `102000` on 2026-08-22). Create a Shortcuts rule whose Then
-   is 导航 → 地图 → 打开. Restore `com.byd.launchermap` afterwards until the
-   behaviour is accepted as a product default. Use
+1. **Preferred product path; proxy itself still needs live acceptance.** The
+   historical direct target (`ru.yandex.yandexnavi`) opened from Shortcuts
+   `102000` on 2026-08-22. The product now points `DEFAULT_MAP_SWITCH` at
+   `dev.denza.apps`, configures Yandex as its target, and uses the same
+   导航 → 地图 → 打开 action. For a restore-wrapped direct firmware probe, use
    [tools/navi_role_probe.sh](../tools/navi_role_probe.sh); do not inject key
-   `321`. `dev.denza.apps` is the same `Y()` branch and is not yet the
-   target of a live Test Run.
+   `321`.
 2. **Music is live-proven but state-sensitive.** Point `MUSIC_SWITCH` directly
    at the chosen installed player and use **Music → Continue playing** on this
    firmware (runtime `129003`). It opened Yandex Music from cold state. The
@@ -536,9 +579,24 @@ records `byd_map_package` and the package-scoped
 
 ## Next validation
 
-- Install the Denza Apps build containing the default-app picker and verify its
-  UI write/readback path for all three roles. The underlying shell/provider
-  paths are already live-proven independently.
+- Install the single `denza-apps.apk`, choose Yandex Navigator in its panel,
+  and read back `DEFAULT_MAP_SWITCH=dev.denza.apps` while the panel still
+  displays Yandex Navigator.
+- Force-stop Denza Apps and run Shortcuts `102000`; prove Android cold-starts
+  the INFO trampoline in `:picker`, Yandex opens, and the trampoline finishes
+  without starting the main Denza Apps process.
+- Say the ordinary «Открыть Denza Apps» command and prove its `FROM` marker
+  still routes to `MainActivity`, not to the configured navigator.
+- Update Yandex Navigator through Store and prove PersonBean remains
+  `dev.denza.apps` before and after the replace sequence, then repeat the
+  cold-start action.
+- Update Denza Apps and prove its bounded `MY_PACKAGE_REPLACED` repair restores
+  `dev.denza.apps` after AutoVoice temporarily falls back to stock.
+- Re-run split open, picker selection, collapse/reopen, and reboot restore while
+  the navigation proxy is active; the stock package-level INFO restore seam is
+  the specific regression risk.
+- Verify the UI write/readback path for music and video is unchanged. The
+  underlying direct shell/provider paths are already live-proven independently.
 - Verify cold-start first-choice initialization on a clean product preference
   state without overwriting a pre-existing non-stock PersonBean choice.
 - Per-rule any-app still needs a persist path for `101000`+label

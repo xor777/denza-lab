@@ -67,6 +67,28 @@ class DefaultAppsCatalogTest {
     }
 
     @Test
+    fun denzaAppsRemainsAnOrdinarySelectableLauncher() {
+        val installed = listOf(
+            app(DefaultNavigationProxyContract.PACKAGE_NAME, "Denza Apps"),
+            app("ru.yandex.yandexnavi", "Яндекс Навигатор"),
+        )
+
+        assertTrue(
+            DefaultAppsCatalog.isLaunchable(
+                DefaultNavigationProxyContract.PACKAGE_NAME,
+                installed,
+            ),
+        )
+        DefaultAppRole.entries.forEach { role ->
+            assertTrue(
+                DefaultNavigationProxyContract.PACKAGE_NAME in
+                    DefaultAppsCatalog.choices(role, null, installed)
+                        .map(DefaultAppChoice::packageName),
+            )
+        }
+    }
+
+    @Test
     fun uiStateReportsReadingAndConfiguredPerProviderValue() {
         val initial = DefaultAppsUiState()
         assertTrue(initial.reading)

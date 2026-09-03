@@ -225,6 +225,140 @@ class DefaultAppsPolicyTest {
         assertFalse(DefaultAppsPolicy.isSelectable("", launchable))
     }
 
+    @Test
+    fun onlyNonStockNavigationUsesTheStableProxyProvider() {
+        assertEquals(
+            DefaultNavigationProxyContract.PACKAGE_NAME,
+            DefaultNavigationProxyContract.providerPackageName(
+                DefaultAppRole.NAVIGATION,
+                "ru.yandex.yandexnavi",
+            ),
+        )
+        assertEquals(
+            DefaultAppRole.NAVIGATION.stockPackageName,
+            DefaultNavigationProxyContract.providerPackageName(
+                DefaultAppRole.NAVIGATION,
+                DefaultAppRole.NAVIGATION.stockPackageName,
+            ),
+        )
+        assertEquals(
+            "ru.yandex.music",
+            DefaultNavigationProxyContract.providerPackageName(
+                DefaultAppRole.MUSIC,
+                "ru.yandex.music",
+            ),
+        )
+    }
+
+    @Test
+    fun proxyProviderResolvesBackToTheConfiguredNavigationSelection() {
+        assertEquals(
+            "example.custom.navigation",
+            DefaultNavigationProxyContract.selectedPackageName(
+                role = DefaultAppRole.NAVIGATION,
+                providerPackageName = DefaultNavigationProxyContract.PACKAGE_NAME,
+                configuredProxyTarget = "example.custom.navigation",
+            ),
+        )
+        assertEquals(
+            DefaultNavigationProxyContract.PACKAGE_NAME,
+            DefaultNavigationProxyContract.selectedPackageName(
+                role = DefaultAppRole.NAVIGATION,
+                providerPackageName = DefaultNavigationProxyContract.PACKAGE_NAME,
+                configuredProxyTarget = DefaultNavigationProxyContract.PACKAGE_NAME,
+            ),
+        )
+        assertEquals(
+            "ru.yandex.music",
+            DefaultNavigationProxyContract.selectedPackageName(
+                role = DefaultAppRole.MUSIC,
+                providerPackageName = "ru.yandex.music",
+                configuredProxyTarget = "example.unused",
+            ),
+        )
+    }
+
+    @Test
+    fun launchableDirectNavigationChoiceMigratesButOtherRolesDoNot() {
+        val launchable = listOf("ru.yandex.yandexnavi", "ru.yandex.music")
+
+        assertEquals(
+            "ru.yandex.yandexnavi",
+            DefaultNavigationProxyContract.directMigrationTarget(
+                DefaultAppRole.NAVIGATION,
+                "ru.yandex.yandexnavi",
+                launchable,
+            ),
+        )
+        assertNull(
+            DefaultNavigationProxyContract.directMigrationTarget(
+                DefaultAppRole.MUSIC,
+                "ru.yandex.music",
+                launchable,
+            ),
+        )
+        assertNull(
+            DefaultNavigationProxyContract.directMigrationTarget(
+                DefaultAppRole.NAVIGATION,
+                "example.removed.navigation",
+                launchable,
+            ),
+        )
+        assertNull(
+            DefaultNavigationProxyContract.directMigrationTarget(
+                DefaultAppRole.NAVIGATION,
+                DefaultNavigationProxyContract.PACKAGE_NAME,
+                launchable + DefaultNavigationProxyContract.PACKAGE_NAME,
+            ),
+        )
+    }
+
+    @Test
+    fun replacementRepairRequiresStockRowAndBothLaunchablePackages() {
+        val launchable = listOf(
+            DefaultNavigationProxyContract.PACKAGE_NAME,
+            "ru.yandex.yandexnavi",
+        )
+
+        assertEquals(
+            "ru.yandex.yandexnavi",
+            DefaultNavigationProxyContract.repairTarget(
+                role = DefaultAppRole.NAVIGATION,
+                providerPackageName = DefaultAppRole.NAVIGATION.stockPackageName,
+                repairRequested = true,
+                configuredProxyTarget = "ru.yandex.yandexnavi",
+                installedLaunchablePackages = launchable,
+            ),
+        )
+        assertNull(
+            DefaultNavigationProxyContract.repairTarget(
+                role = DefaultAppRole.NAVIGATION,
+                providerPackageName = DefaultAppRole.NAVIGATION.stockPackageName,
+                repairRequested = false,
+                configuredProxyTarget = "ru.yandex.yandexnavi",
+                installedLaunchablePackages = launchable,
+            ),
+        )
+        assertNull(
+            DefaultNavigationProxyContract.repairTarget(
+                role = DefaultAppRole.NAVIGATION,
+                providerPackageName = "example.external.navigation",
+                repairRequested = true,
+                configuredProxyTarget = "ru.yandex.yandexnavi",
+                installedLaunchablePackages = launchable,
+            ),
+        )
+        assertNull(
+            DefaultNavigationProxyContract.repairTarget(
+                role = DefaultAppRole.NAVIGATION,
+                providerPackageName = DefaultAppRole.NAVIGATION.stockPackageName,
+                repairRequested = true,
+                configuredProxyTarget = "ru.yandex.yandexnavi",
+                installedLaunchablePackages = listOf("ru.yandex.yandexnavi"),
+            ),
+        )
+    }
+
     private fun resolve(
         role: DefaultAppRole,
         provider: String?,

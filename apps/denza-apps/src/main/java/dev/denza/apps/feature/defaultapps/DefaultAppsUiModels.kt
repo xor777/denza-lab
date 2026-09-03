@@ -25,7 +25,7 @@ data class DefaultAppRoleUiState(
     val choices: List<DefaultAppChoice> = emptyList(),
     val status: DefaultAppRoleStatus = DefaultAppRoleStatus.LOADING,
     val message: String = "",
-    /** True only after PersonBean returned this exact package in a successful read. */
+    /** True only after PersonBean returned the exact provider representation of this selection. */
     val providerConfirmed: Boolean = false,
     /**
      * The package the driver has just tapped, while its write is still in flight.

@@ -71,6 +71,74 @@ enum class DefaultAppRole(
     ),
 }
 
+/**
+ * Stable package indirection for the navigation role.
+ *
+ * AutoVoice clears a role when its exact package receives PACKAGE_REMOVED, including the
+ * remove-half of an APK replacement. Keeping the Denza Apps package in PersonBean lets any
+ * selected navigation application be replaced without touching the role. Music and video keep
+ * their existing direct-package contract.
+ */
+object DefaultNavigationProxyContract {
+    const val PACKAGE_NAME = "dev.denza.apps"
+
+    fun providerPackageName(role: DefaultAppRole, selectedPackageName: String): String {
+        require(selectedPackageName.isNotBlank()) { "Default-app selection must not be blank" }
+        return if (role == DefaultAppRole.NAVIGATION &&
+            selectedPackageName != role.stockPackageName
+        ) {
+            require(isValidTarget(selectedPackageName)) {
+                "Navigation proxy cannot target $selectedPackageName"
+            }
+            PACKAGE_NAME
+        } else {
+            selectedPackageName
+        }
+    }
+
+    fun selectedPackageName(
+        role: DefaultAppRole,
+        providerPackageName: String?,
+        configuredProxyTarget: String?,
+    ): String? = if (
+        role == DefaultAppRole.NAVIGATION && providerPackageName == PACKAGE_NAME
+    ) {
+        configuredProxyTarget?.takeIf(::isValidTarget)
+    } else {
+        providerPackageName
+    }
+
+    fun directMigrationTarget(
+        role: DefaultAppRole,
+        providerPackageName: String?,
+        installedLaunchablePackages: Collection<String>,
+    ): String? = providerPackageName?.takeIf { candidate ->
+        role == DefaultAppRole.NAVIGATION &&
+            candidate != PACKAGE_NAME &&
+            isValidTarget(candidate) &&
+            candidate in installedLaunchablePackages
+    }
+
+    fun repairTarget(
+        role: DefaultAppRole,
+        providerPackageName: String?,
+        repairRequested: Boolean,
+        configuredProxyTarget: String?,
+        installedLaunchablePackages: Collection<String>,
+    ): String? = configuredProxyTarget?.takeIf { candidate ->
+        role == DefaultAppRole.NAVIGATION &&
+            providerPackageName == role.stockPackageName &&
+            repairRequested &&
+            isValidTarget(candidate) &&
+            PACKAGE_NAME in installedLaunchablePackages &&
+            candidate in installedLaunchablePackages
+    }
+
+    fun isValidTarget(packageName: String): Boolean =
+        packageName.isNotBlank() &&
+            packageName != DefaultAppRole.NAVIGATION.stockPackageName
+}
+
 /** Pure selection rules; Android discovery and persistence stay at the integration boundary. */
 object DefaultAppsPolicy {
     /**
