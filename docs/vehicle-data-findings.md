@@ -7,7 +7,8 @@ wired to that allowlist the same day (built and unit-tested then, reviewed on
 the car on 2026-08-23). The cluster dashboard first ran on the car on
 2026-08-25. Product wiring was checked again on 2026-08-27: the head-unit panels
 are deleted, and the cluster dashboard is the only active UI consumer of the
-telemetry backend.
+telemetry backend. A second car, a Denza N9, was attached on 2026-08-30, and the
+vehicle-id check that tells it apart from the Z9GT is recorded here.
 
 This page records which vehicle and journey signals a normal Denza Apps APK can
 actually use. It distinguishes product-usable sources from values that are
@@ -50,6 +51,7 @@ scales, and the widget allowlist: [autoservice FID protocol](#autoservice-fid-pr
 
 | Item | Value |
 | --- | --- |
+| Vehicle | Denza Z9GT (everything before 2026-08-30); Denza N9 from 2026-08-30 |
 | Head unit | DiLink 5.1 |
 | Android | 13 |
 | Build fingerprint | `BYD-AUTO/IVI/IVI:13/TP1A.220624.014/eng.build20251214.220229:user/release-keys` |
@@ -61,6 +63,96 @@ scales, and the widget allowlist: [autoservice FID protocol](#autoservice-fid-pr
 The temporary probe was uninstalled after the 2026-07-24 run. The 2026-08-22
 `autoservice` reads used only `service list` and `service call`; Denza Apps was
 not modified. No `com.byd.avc` crash was observed.
+
+## Which car is this (2026-08-30)
+
+Every measurement on this page before 2026-08-30 was taken on a Denza Z9GT. A
+Denza N9 was attached over local ADB on 2026-08-30. The two cars run the same
+DiLink 5.1 build and are not distinguishable by any standard Android identity,
+so a reliable check has to use the vendor's own vehicle id.
+
+That id is `AutoType` in BYD code, carried on the wire as FID
+`BODYWORK_AUTO_TYPE` (`0x40D00010`, hence the `40d` in one property name):
+
+| Car | vehicle id |
+| --- | --- |
+| Denza N9 | `168` |
+| Denza Z9 / Z9GT | `170`, `171`, `211`, `212` |
+
+`DiCarServer` maps the id to a model name through its own asset table,
+`/system/priv-app/DiCarServer/DiCarServer.apk!assets/VehicleCarType.json` —
+100 ids over 21 names, the same names that `com.byd.car.VehicleCarType` holds as
+constants. A second table in the same APK, `assets/vehicleType.json`, derives the
+body class from the same id: `168` is `SUV`, all four Z9 ids are `CAR`. Neither
+table separates Z9 from Z9GT — our Z9GT reports `170`, and `171` / `211` / `212`
+have never been observed.
+
+### Properties measured on the N9
+
+All six are `u:object_r:system_prop:s0` and read from an app domain (checked
+through `run-as dev.denza.apps`):
+
+| Property | N9 value |
+| --- | --- |
+| `persist.sys.AutoType` | `168` |
+| `persist.sys.car.type` | `168` |
+| `persist.sys.vehicle_40d_code` | `168` |
+| `persist.sys.model_variant.model` | `n9` |
+| `persist.sys.byd.bluetooth_name` | `腾势N9` |
+| `persist.sys.byd.default_name` | `腾势N9` |
+
+`CarInfoServiceImpl.updateCarModel()` is what produces `model_variant.model`: it
+reads the id, looks it up in `VehicleCarType.json`, and stores the name
+lower-cased.
+
+### What does not discriminate
+
+Identical on both cars, so `Build.MODEL` and the rest of the standard Android
+identity say nothing about which car the code is running in:
+
+| Property | Value on both |
+| --- | --- |
+| `ro.product.model` | `DiLink5.1` |
+| `ro.product.device`, `ro.product.name` | `IVI` |
+| `ro.product.brand` | `BYD-AUTO` |
+| `ro.vehicle.type` | `DiLink150_7.0UI` |
+| `ro.build.car.series` | `denza` |
+
+### Evidence, and the gap in it
+
+The N9 values above are a direct read on 2026-08-30. For the Z9GT the only
+archived evidence is the live FID value, logged three times across two months:
+
+- `captures/drag-after-copycurrent.log:6659` — `getAutoType type is: 170` (06-28)
+- `captures/turn-signal/turnsignal-20260626-154308.log:1702` — `获取车型ID:170` (06-26)
+- `captures/split-live-acceptance/evidence/diag-v16/full-logcat.txt:20734` —
+  `getAutoType type is: 170` (08-23)
+
+The Z9GT *properties* were never captured. That `persist.sys.model_variant.model`
+reads `z9` there follows from the vendor code path, not from a measurement.
+Code that tells the cars apart should therefore key on the numeric id against the
+table above, and treat an unrecognised id as unknown rather than as "the other
+car". A full `getprop` dump from a Z9GT is the missing artefact.
+
+One reliability caveat: `CarInfoServiceImpl.updateVehicleId()` compares the
+stored property against the live FID and, on a mismatch, writes the **old** value
+back instead of the new one. The property is `persist.` and survives a data wipe,
+so a head unit moved between cars could keep a stale id. The live FID is
+authoritative but reachable only from shell — see
+[autoservice FID protocol](#autoservice-fid-protocol).
+
+### Reading it
+
+From shell or a host script:
+
+```bash
+adb shell "getprop persist.sys.AutoType; getprop persist.sys.model_variant.model; getprop persist.sys.byd.default_name"
+```
+
+From a normal APK, the way `RescueRunner.systemProperties()` already does it: run
+`/system/bin/getprop` through `ProcessBuilder` and parse the `[name]: [value]`
+lines. Reflection into `android.os.SystemProperties` is neither needed nor
+allowed under hidden-API restrictions.
 
 ## Evidence labels
 
@@ -91,6 +183,7 @@ not modified. No `com.byd.avc` crash was observed.
 | Yandex guidance through Denza Apps accessibility | maneuver, next road, remaining route distance/time, optional road text | event-driven; only while validated guidance is visible and fresh | enabled Denza Apps accessibility service | Existing product path | Usable with the current fail-closed/staleness rules |
 | High-level DiCar Binder APIs | battery, energy flow, range, charging, pedals, steering, tires, air quality | getter surface exists; useful calls blocked | signature/privileged BYD permissions | Blocked | Not a product source from app UID |
 | `autoservice` (`android.gui.BYDAutoServer`) | SOC, SoH, pack temps, cell mV, 12V, HV, charge, motors, tyres, climate, PM2.5 | on-demand `service call` from shell | shell UID via local ADB; app UID blocked | Shell/system only | Poll a short allowlist through `DenzaLocalAdb`; never from the app process |
+| Vehicle-id system properties (`persist.sys.AutoType` and mirrors) | which car the head unit is in | static; written at boot | none | Confirmed normal app | Usable; see [Which car is this](#which-car-is-this-2026-08-30) |
 | Raw BYDAuto events/system logs | speed logs, bodywork/settings/safety-belt/PM2.5 events, other CAN-derived events | speed log about 1 Hz; other events vary; some logs are high-rate | system log access / protected BYD permissions | Shell/system only | Diagnostics only |
 
 The current Denza Apps trip/spectrum panel reads standard GNSS at approximately
