@@ -547,6 +547,19 @@ changes. Navigation-proxy repair also fires when the package's `lastUpdateTime` 
 proxy was confirmed, so it does not rely on `MY_PACKAGE_REPLACED` being delivered. This behavior
 has not been live-accepted.
 
+Build 41 (versionCode) went onto the car on 2026-09-03 18:03 through `adb
+install -r`. Observed, read-only, right after the install: no crash and no
+`com.byd.avc` line; `MY_PACKAGE_REPLACED` was delivered to `dev.denza.apps` and
+BroadcastQueue started the process for it (`Need to start app [background]
+dev.denza.apps for broadcast`), so on this car the self-start gate did not drop
+the replacement broadcast that the probe's custom action was dropped by - one
+data point, from an adb install, not a Store update; on the first read the
+direct `ru.yandex.yandexnavi` binding was migrated and `DEFAULT_MAP_SWITCH` now
+holds `dev.denza.apps`; `cmd package resolve-activity` for MAIN+INFO on the
+package answers `DefaultNavigationProxyActivity`. Not yet observed: the
+Shortcuts 导航 → 地图 → 打开 launch through the trampoline, the panel's behaviour
+on the screen, and a Store-driven replacement. Those are the owner's acceptance.
+
 ## Russia-oriented launch strategy
 
 The car stays in RF. The stock map is China-only. Taking the map role therefore
