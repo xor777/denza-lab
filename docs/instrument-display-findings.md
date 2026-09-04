@@ -527,6 +527,103 @@ is what headless Chrome measured for the boards and is the record the contract
 test pins, and `ContourType.of(pen)` is the car's own `Paint`. The two are allowed
 to differ by the face; the arithmetic between them is not.
 
+### Mutation run
+
+The panel is drawn, tested and not yet installed, so the only thing that can be
+said about it before the car is whether its tests bite. **1,108 unit tests; 80
+deliberate mutations**, one at a time, each reverted before the next. What was
+mutated, branch by branch:
+
+- **`ContourMotion`** (9) - attack and release swapped on the band; the half-
+  kilowatt dead band removed; the neutral zone 3 → 2 kW; the colour hysteresis
+  removed; the hero rewritten at 3 Hz instead of 2; the rounding hysteresis
+  removed; the peak's hold 3 s → 1 s and its decay 60 → 120 kW/s; the sign of the
+  follower's tracking term, which is a spring that overshoots;
+- **`ContourScene`** (9) - staleness 2 s → 1 s; the engine box following the
+  engine instead of the trace's last live slot; `CHARGING` with no dwell and with
+  a half-second one; `LINK_LOST` on any missed packet; `PARKED` from a switch
+  that never answered; P winning the scene over the box; revolutions read from a
+  resting engine; a trip figure of zero earning a cell;
+- **`TripEnergyLedger` and `TripJournal`** (12) - net becoming gross; recovery
+  counted under generation; the trip cleared on entering P rather than at the
+  first movement after it; the engine's minutes never accumulating; restoring
+  from the journal skipped; the odometer taken absolute instead of as a delta;
+  both re-anchor guards dropped; the restart gap 1 → 100 km; the engine's cell
+  integrating a non-positive generation; the armed flag not persisted; the record
+  written to whole units;
+- **`ContourReadout`** (13) - a whole number on P; a point for the comma; «км»,
+  «кВт·ч» and «· за 3 км» dropped; «ДВС · мин за поездку» shortened to «ДВС ·
+  мин»; the trip phrase losing its leading separator; the average taking the
+  returns in; an ordinary spread earning a cell; the hot margin 15 → 30 °C; the
+  clock losing its zero padding; the generation scale turned back into a square
+  root; the spread alert 40 → 60 mV;
+- **`ContourPlan`, `ContourRuns`, `ContourGlyphs`** (24) - the guard 24 → 16; the
+  petal's zero 384 → 397; its ladder 0…30 → 0…40; the engine bin 5 s → 4 s; trip
+  seats counted from the wrong edge; the engine's sentence not closing up when its
+  figure leaves; the petal box hung off the printed digits; the temperature cell
+  forgetting the glyph; the exception's cell grown 100 units into the hero's
+  field; the hero's field centred without its unit; the glow reaching past the
+  lower edge; the band ignoring the sign of a reading; both petal series allowed
+  through the zero; the run walk inverted and its runs cut to length one; the
+  front motor's block moved to the rear axle; the wheels filled; the wheel stroke
+  1.6 → 2.5; the family's height 24 → 18; the lit component drawn in the case's
+  colour, in all three marks that have one;
+- **`EngineTrace`, the hub and the signal table** (10) - a bin of nothing becoming
+  a zero; a slot alive by generation alone; missed slots drawn through; the bins
+  kept from the wrong end; the trace starting at the newest live slot; the park
+  switch accepting `2`; P read from a zero; the cold map merged rather than
+  rebuilt and then filled from the whole sweep; `RIGHT` offered again;
+- **the board↔code join** (3, and the known pair among them) - one constant moved
+  in Kotlin alone (`BAND_BODY` 14 → 16), one moved on the board alone (the reading
+  rung 34 → 36 px in `ClusterContour.dc.html`), and one measured advance moved in
+  `ContourType.BOARD`. All three failed, in both directions, which is what
+  `ContourBoardContractTest` is for.
+
+Seventy-six of those were written before any test was added and **sixty-seven of
+them died at once. Nine survived**, and every one of them was a hole rather than a
+bug - the behaviour was right, and nothing stated it:
+
+1. **the band's own asymmetry.** Swapping `BAND_RISE_S` and `BAND_FALL_S` where
+   the band is built changed nothing, because every follower test built its own
+   follower. Killed by measuring the same 60 kW journey up and down through
+   `ContourMotion` itself;
+2. **the peak's decay rate.** The existing test only asked where the mark ends up,
+   and it ends up on the tip either way. Killed by the slope between two samples
+   taken inside the decay: thirty kilowatts in half a second;
+3. **a generation of nothing.** «ДАЛ ДВС» integrated whatever the id answered
+   while the engine ran, including the zero of a shutdown transition. Killed by a
+   running engine returning `0.0` and then `-2.0` for an hour each;
+4. **which side of zero the band leaves on.** Nothing asked. Killed by a test that
+   states direction, the two spans (300 kW out against 100 kW back) and the clamp
+   at both margins;
+5. **P read from a switch that answered zero.** `parked` has three answers and
+   only two were tested. Killed in `VehicleTelemetryTest`;
+6. **the cold map's rebuild** - the rule the whole staleness design rests on, and
+   it lived inside the poll loop where nothing could reach it;
+7. **the front motor's block on the rear axle**, 8. **filled wheels**, and
+   9. **the lit component drawn in the case's colour**. Three of the owner's four
+   rules for the glyph family, and all three were decided inside `Canvas` calls.
+
+The last four needed a seam before they could be tested at all, and both seams are
+the `ContourRuns` argument applied again - a decision that lives inside a `Canvas`
+call is a decision nothing can state:
+
+- **`GlyphSurface`**, which `ContourGlyphs` now draws into. `InstrumentPen`
+  satisfies it through one kept adapter, so a frame still allocates nothing, and
+  `ContourGlyphsTest` satisfies it with a recorder and reads back what was drawn.
+  `ContourGlyphs.onRearAxle` is the axle rule as a sentence rather than a boolean
+  at a call site;
+- **`VehicleColdSweep.rebuild`**, lifted out of the poll loop the way
+  `VehiclePollLoopGate` was, with `VehicleColdSweepTest` beside it.
+
+The remaining four mutations were written once those seams existed - every block
+on the rear axle as a rule rather than at a call site, and the case's colour given
+to the pack's cell and to the inverter's current - and all four died on arrival.
+
+**No behavioural defect was found.** The nine survivors were all coverage, and the
+sixteen tests added for them state what the panel promises rather than what it
+happens to compute.
+
 ### What still waits for the car
 
 From `CRITIQUE.md` §5 and `VERDICT.md`, in the order they matter to this panel:
@@ -571,7 +668,8 @@ cluster; the cluster asks in the batch it already sends to that device, which
 costs about five milliseconds of a sweep that already spends a hundred and thirty
 on shell overhead.
 
-**Cold values are rebuilt from each cold sweep** rather than merged into a map
+**Cold values are rebuilt from each cold sweep** (`VehicleColdSweep.rebuild`)
+rather than merged into a map
 that kept them forever. That changed with the Contour and it is what makes its one
 staleness rule mean anything: a value is removed two seconds after its last
 sample, so "absent from the snapshot" has to mean the same thing on a signal
