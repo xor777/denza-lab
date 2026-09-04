@@ -1080,11 +1080,16 @@ side switch. Follow-through `3`/`5`, neutral `1`, and unknown values are not
 onsets. The 10 Hz stock-window observer is the only Show authority and
 `MirrorTransitionReducer` the only producer of `Show`; nothing the listener
 does or fails to do can open a camera, and an unavailable, reconnecting, or
-overflowing source only shows up in the bounded diagnostics. After a preempt
-the reducer reopens only when the observer has reported the other side for two
-consecutive polls with the Denza runtime idle, the old local surface detached,
-vendor `freeDisplay` complete, and no ambiguity; the stale window of the
-preempted side never reopens, and three neutral polls recover as before.
+overflowing source only shows up in the bounded diagnostics. Every quarantine the stock caused (a lever preempt, a closed window, a direct side
+change, an ambiguous window set) ends on a clean stock window: two consecutive
+polls of one unambiguous side with the Denza runtime idle, the old local surface
+detached, vendor `freeDisplay` complete, and no preempt in flight. The side that
+was torn down needs five such polls, because its old window outlives the switch
+by 100 to 300 ms; a lever knocked toward the other side and returned therefore
+gets its camera back after about half a second instead of losing the turn.
+Quarantines caused by our own failures (an AVC failure, a start or session
+timeout, a lost or side-changed runtime, a failed dispatch) still wait for three
+neutral polls, so a broken Show cannot loop.
 Ambiguous stock windows while the reducer is idle are waited through only while
 the retained raw phase still reports an engaged lever (`2`..`5`). The two
 earlier contracts that gated Show on the listener are kept below as history;
@@ -1371,10 +1376,43 @@ The replacement contract is the one described under "Product adapter and safety
 boundary" above: the window observer alone opens cameras, the onset alone
 closes them, and reopening after a preempt waits for the other side's window.
 `MirrorSignalSafety` and the gesture-boundary state were deleted. The reducer
-and the preemption policy are unit-tested with a mutation ledger. This contract
-has NOT been driven on the car yet; the live acceptance in the sections above
-belongs to the retired gated builds, and the early-teardown timings (3 to 4 ms
-detach, 105 to 121 ms vendor release) are the only part carried over unchanged.
+and the preemption policy are unit-tested with a mutation ledger. The live
+acceptance in the sections above belongs to the retired gated builds; the
+early-teardown timings (3 to 4 ms detach, 105 to 121 ms vendor release) were
+the only part carried over unchanged, and the first drive below confirmed them
+on this contract.
+
+#### First drive of the window-only contract (2026-09-04, 22:13 to 22:20)
+
+Build 42 (`bf5f06cb…`) went on the car at 22:13:27 with the owner watching and a
+filtered `logcat -s` capture running. Between 22:17:05 and 22:17:14 the owner
+switched right-to-left, left-to-right and right-to-left again in quick
+succession: each opposite onset detached the local surface 3 to 4 ms after the
+pulse, vendor `freeDisplay` completed in 109 to 118 ms, the new side opened at
+the second clean poll of its window (about 125 ms after the window appeared),
+two same-side pulses were ignored while that side was showing, `com.byd.avc`
+kept its PID and the crash buffer stayed empty. That is the left-to-right AVC
+canary the earlier sections had left open, and it passed on this contract. A
+three-blink comfort tap at 22:14 showed both cameras for the three blinks and
+closed them 0.6 s after the stock closed its window, which is the stock's own
+behavior.
+
+One dark signal remained. At 22:17:16 the mode went off, at 22:17:19.2 the
+stock closed the left window and the reducer hid the camera, and 125 ms later
+the owner engaged left again; the stock left window was back after two empty
+polls. The quarantine that follows a closed window only knew how to wait for
+three neutral polls, so the Denza camera stayed dark for that whole 2.3 s
+signal while the stock camera showed. The recovery rule above is the fix: a
+stock-caused quarantine now ends on a clean stock window, and only our own
+failures still wait for neutral. The adversarial review of the same build found
+two more holes that the same change closes: the preempted side was blocked
+permanently rather than for the stale window's lifetime (a lever knocked toward
+the other side and returned lost the turn), and the status publication that
+refreshes the whole app repository ran under the gate that the onset needs to
+detach a surface, so it now runs after the gate is released. Two review items
+stay open for lack of evidence: the ambiguity rule never fired tonight (none of
+about thirty transitions), and the reopen counter still demands adjacent clean
+polls. The revised build has not been driven yet.
 
 ## Legacy BYDAuto events and system logs
 

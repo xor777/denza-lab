@@ -722,10 +722,10 @@ authority, exactly as before the listener existed; a raw onset pulse (`2` or
 `4`) is only an early-teardown trigger for an active Denza camera of the other
 side; a pulse for the side already starting or showing is ignored; nothing the
 listener does or fails to do can open a camera, and hub unavailability never
-touches an active one. After a preempt the reducer reopens only when the
-observer has reported the other side for two consecutive polls with the runtime
-idle and vendor `freeDisplay` complete; the stale window of the preempted side
-can never reopen, and neutral still recovers. Manual lever cancellation
+touches an active one. Every quarantine the stock caused ends on a clean stock window: two
+consecutive polls of one unambiguous side with the runtime idle and the vendor
+teardown complete, or five such polls for the side that was torn down, whose
+old window outlives the switch; only our own failures still wait for neutral. Manual lever cancellation
 live-produced an opposite-direction pulse, which is why the raw phase never
 selects a side. Full evidence, resource measurements, the two retired contracts
 and the remaining acceptance matrix are in
@@ -740,9 +740,11 @@ the onset, plus a stable window match), which is what made the camera appear
 "randomly": the raw FID emits several pulses per lever movement, a second
 same-side pulse could re-arm the gate after the mode event had already passed,
 and any helper reconnect or the 2 s pending timeout then left the turn dark.
-The window-only Show contract has unit coverage and a mutation ledger but has
-not yet been driven on the car; the live acceptance recorded in
-vehicle-data-findings.md belongs to the earlier builds it replaced.
+The window-only Show contract passed its first drive on 2026-09-04 (three fast
+left/right switches, AVC PID unchanged); the one dark signal it produced, a
+re-engaged lever 125 ms after the stock closed its window, is fixed by the
+recovery rule above and that revision has not been driven yet. Details are in
+vehicle-data-findings.md under "First drive of the window-only contract".
 
 ## Navigation projection
 
@@ -1300,8 +1302,9 @@ Hardware-dependent checks still open:
   did not fix it. The CAN-onset early teardown passed two instrumented
   stationary left-to-right canaries on the gated builds: local detach preceded
   stock rebuild, vendor teardown completed before the opposite-side reopen, and
-  AVC survived. The current window-only Show contract keeps that teardown but
-  changes the reopen rule and has not been driven yet. The right-to-left,
+  AVC survived. The window-only Show contract passed the same canary on
+  2026-09-04 at 22:17 (three fast switches in both directions, AVC PID
+  unchanged); its revised reopen rule has not been driven yet. The
   cancellation, hazard, sleep/wake, repeated stress, moving-speed, and
   second-firmware matrix remains open.
 
