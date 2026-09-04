@@ -369,21 +369,41 @@ class MirrorTransitionReducerTest {
     }
 
     @Test
-    fun theStalePreemptedSideWindowNeverReopensTheCamera() {
-        var state = preemptedQuarantine(MirrorSide.LEFT)
+    fun theStalePreemptedSideWindowCannotReopenBeforeTheLongerRun() {
+        // The stock window of the side we tore down outlives the onset by 100-300 ms. Four clean
+        // polls of it are still that stale window; the fifth is a lever that came back.
+        val blocked = assertStaysQuarantined(preemptedQuarantine(MirrorSide.LEFT), MirrorSide.LEFT, polls = 4)
 
-        repeat(6) { index ->
-            val result = reduce(
-                state = state,
-                requested = MirrorSide.LEFT,
-                runtime = runtime(CameraRuntimePhase.IDLE, generation = 4L),
-                nowMs = 300L + index * 100L,
-            )
-            assertEquals(MirrorTransitionPhase.QUARANTINED, result.state.phase)
-            assertEquals(MirrorTransitionCommand.None, result.command)
-            assertEquals(0, result.state.reopenSamples)
-            state = result.state
-        }
+        val reopened = reduce(
+            state = blocked,
+            requested = MirrorSide.LEFT,
+            runtime = runtime(CameraRuntimePhase.IDLE, generation = 4L),
+            nowMs = 700L,
+        )
+        assertEquals(MirrorTransitionPhase.STARTING, reopened.state.phase)
+        assertEquals(MirrorTransitionCommand.Show(MirrorSide.LEFT), reopened.command)
+    }
+
+    @Test
+    fun aStaleSampleInTheMiddleOfTheLongerRunStartsItOver() {
+        var state = assertStaysQuarantined(preemptedQuarantine(MirrorSide.LEFT), MirrorSide.LEFT, polls = 3)
+
+        val other = reduce(
+            state = state,
+            requested = MirrorSide.RIGHT,
+            runtime = runtime(CameraRuntimePhase.IDLE, generation = 4L),
+            nowMs = 600L,
+        )
+        assertEquals(MirrorTransitionCommand.None, other.command)
+
+        state = assertStaysQuarantined(other.state, MirrorSide.LEFT, polls = 4, fromMs = 700L)
+        val reopened = reduce(
+            state = state,
+            requested = MirrorSide.LEFT,
+            runtime = runtime(CameraRuntimePhase.IDLE, generation = 4L),
+            nowMs = 1_100L,
+        )
+        assertEquals(MirrorTransitionCommand.Show(MirrorSide.LEFT), reopened.command)
     }
 
     @Test
@@ -416,7 +436,7 @@ class MirrorTransitionReducerTest {
             runtime = runtime(CameraRuntimePhase.IDLE, generation = 4L),
             nowMs = 400L,
         )
-        assertEquals(0, stale.state.reopenSamples)
+        assertEquals(MirrorTransitionCommand.None, stale.command)
 
         val other = reduce(
             state = stale.state,
@@ -564,6 +584,270 @@ class MirrorTransitionReducerTest {
             }
     }
 
+    @Test
+    fun theSameSideReopensAfterTheStockClosedAndReturnedItsWindow() {
+        // Live 2026-09-04 22:17:19: the stock closed the left window, the driver re-engaged left
+        // 125 ms later and the stock window was back after two empty polls. The camera stayed dark
+        // for that whole signal because the quarantine only knew how to wait for neutral.
+        val hidden = windowGoneQuarantine(MirrorSide.LEFT)
+
+        val stopping = reduce(
+            state = hidden,
+            requested = MirrorSide.LEFT,
+            runtime = runtime(CameraRuntimePhase.STOPPING, MirrorSide.LEFT, generation = 2L),
+            nowMs = 300L,
+        )
+        assertEquals(MirrorTransitionPhase.QUARANTINED, stopping.state.phase)
+        assertEquals(MirrorTransitionCommand.None, stopping.command)
+
+        assertReopensAfterTwoCleanSamples(stopping.state, MirrorSide.LEFT, fromMs = 400L)
+    }
+
+    @Test
+    fun aWindowGoneWhileStartingReopensOnEitherSideAfterTeardown() {
+        val starting = MirrorTransitionState(
+            phase = MirrorTransitionPhase.STARTING,
+            side = MirrorSide.LEFT,
+            phaseStartedAtMs = 100L,
+            runtimeGeneration = 1L,
+        )
+        val hidden = reduce(
+            state = starting,
+            requested = null,
+            runtime = runtime(CameraRuntimePhase.STARTING, MirrorSide.LEFT, generation = 1L),
+            nowMs = 200L,
+        )
+        assertEquals(MirrorTransitionPhase.QUARANTINED, hidden.state.phase)
+        assertEquals(MirrorTransitionCommand.Hide, hidden.command)
+
+        assertReopensAfterTwoCleanSamples(hidden.state, MirrorSide.RIGHT, fromMs = 300L)
+    }
+
+    @Test
+    fun theReopenRunRestartsWhenTheSideChangesBetweenSamples() {
+        val left = reduce(
+            state = windowGoneQuarantine(MirrorSide.LEFT),
+            requested = MirrorSide.LEFT,
+            runtime = runtime(CameraRuntimePhase.IDLE, generation = 4L),
+            nowMs = 300L,
+        )
+        assertEquals(MirrorTransitionCommand.None, left.command)
+
+        assertReopensAfterTwoCleanSamples(left.state, MirrorSide.RIGHT, fromMs = 400L)
+    }
+
+    @Test
+    fun aDirectSideSwitchReopensTheNewSideAfterTwoCleanSamples() {
+        listOf(MirrorTransitionPhase.STARTING, MirrorTransitionPhase.SHOWING).forEach { phase ->
+            val attached = MirrorTransitionState(
+                phase = phase,
+                side = MirrorSide.LEFT,
+                phaseStartedAtMs = 100L,
+                runtimeGeneration = 2L,
+            )
+            val switched = reduce(
+                state = attached,
+                requested = MirrorSide.RIGHT,
+                runtime = runtime(CameraRuntimePhase.READY, MirrorSide.LEFT, generation = 2L),
+                nowMs = 200L,
+            )
+            assertEquals("$phase", MirrorTransitionPhase.QUARANTINED, switched.state.phase)
+            assertEquals("$phase", MirrorTransitionCommand.Hide, switched.command)
+
+            assertReopensAfterTwoCleanSamples(switched.state, MirrorSide.RIGHT, fromMs = 300L)
+        }
+    }
+
+    @Test
+    fun aDirectSideSwitchTreatsTheOldSideWindowAsStale() {
+        val showing = MirrorTransitionState(
+            phase = MirrorTransitionPhase.SHOWING,
+            side = MirrorSide.LEFT,
+            phaseStartedAtMs = 100L,
+            runtimeGeneration = 2L,
+        )
+        val switched = reduce(
+            state = showing,
+            requested = MirrorSide.RIGHT,
+            runtime = runtime(CameraRuntimePhase.READY, MirrorSide.LEFT, generation = 2L),
+            nowMs = 200L,
+        )
+
+        val blocked = assertStaysQuarantined(switched.state, MirrorSide.LEFT, polls = 4)
+        val reopened = reduce(
+            state = blocked,
+            requested = MirrorSide.LEFT,
+            runtime = runtime(CameraRuntimePhase.IDLE, generation = 4L),
+            nowMs = 700L,
+        )
+        assertEquals(MirrorTransitionCommand.Show(MirrorSide.LEFT), reopened.command)
+    }
+
+    @Test
+    fun ambiguityWhileAttachedTreatsTheHeldSideAsStale() {
+        listOf(MirrorTransitionPhase.STARTING, MirrorTransitionPhase.SHOWING).forEach { phase ->
+            val attached = MirrorTransitionState(
+                phase = phase,
+                side = MirrorSide.LEFT,
+                phaseStartedAtMs = 100L,
+                runtimeGeneration = 2L,
+            )
+            val ambiguous = MirrorTransitionReducer.reduce(
+                attached,
+                MirrorTransitionObservation(
+                    requestedSide = null,
+                    runtime = runtime(CameraRuntimePhase.READY, MirrorSide.LEFT, generation = 2L),
+                    nowMs = 200L,
+                    runtimeWindowAmbiguous = true,
+                ),
+            )
+            assertEquals("$phase", MirrorTransitionPhase.QUARANTINED, ambiguous.state.phase)
+            assertEquals("$phase", MirrorTransitionCommand.Hide, ambiguous.command)
+
+            val stillHeld = assertStaysQuarantined(ambiguous.state, MirrorSide.LEFT, polls = 2)
+            assertReopensAfterTwoCleanSamples(stillHeld, MirrorSide.RIGHT, fromMs = 500L)
+        }
+    }
+
+    @Test
+    fun idleAmbiguityWithoutTheLeverRecoversOnTheResolvedSide() {
+        val ambiguous = MirrorTransitionReducer.reduce(
+            MirrorTransitionState(),
+            MirrorTransitionObservation(
+                requestedSide = null,
+                runtime = runtime(CameraRuntimePhase.IDLE, generation = 3L),
+                nowMs = 200L,
+                runtimeWindowAmbiguous = true,
+            ),
+        )
+        assertEquals(MirrorTransitionPhase.QUARANTINED, ambiguous.state.phase)
+
+        assertReopensAfterTwoCleanSamples(ambiguous.state, MirrorSide.RIGHT, fromMs = 300L)
+    }
+
+    @Test
+    fun ourOwnFailuresStillWaitForNeutral() {
+        val starting = MirrorTransitionState(
+            phase = MirrorTransitionPhase.STARTING,
+            side = MirrorSide.LEFT,
+            phaseStartedAtMs = 100L,
+            runtimeGeneration = 1L,
+        )
+        val showing = MirrorTransitionState(
+            phase = MirrorTransitionPhase.SHOWING,
+            side = MirrorSide.LEFT,
+            phaseStartedAtMs = 100L,
+            runtimeGeneration = 2L,
+        )
+        val failures = listOf(
+            "AVC failure" to reduce(starting, MirrorSide.LEFT, runtime(CameraRuntimePhase.FAILED, MirrorSide.LEFT, generation = 2L), 200L),
+            "start timeout" to reduce(starting, MirrorSide.LEFT, runtime(CameraRuntimePhase.STARTING, MirrorSide.LEFT, generation = 1L), 1_601L),
+            "unexpected side" to reduce(starting, MirrorSide.LEFT, runtime(CameraRuntimePhase.READY, MirrorSide.RIGHT, generation = 2L), 200L),
+            "runtime lost" to reduce(showing, MirrorSide.LEFT, runtime(CameraRuntimePhase.IDLE, generation = 3L), 200L),
+            "runtime changed side" to reduce(showing, MirrorSide.LEFT, runtime(CameraRuntimePhase.READY, MirrorSide.RIGHT, generation = 3L), 200L),
+            "session timeout" to reduce(showing, MirrorSide.LEFT, runtime(CameraRuntimePhase.READY, MirrorSide.LEFT, generation = 2L), 300_100L),
+            "dispatch failed" to MirrorTransitionResult(
+                MirrorTransitionReducer.quarantine(starting, runtime(CameraRuntimePhase.IDLE, generation = 1L), 200L, "camera dispatch failed"),
+            ),
+        )
+        failures.forEach { (name, result) ->
+            assertEquals(name, MirrorTransitionPhase.QUARANTINED, result.state.phase)
+            var state = result.state
+            listOf(
+                MirrorSide.LEFT, MirrorSide.LEFT, MirrorSide.LEFT,
+                MirrorSide.RIGHT, MirrorSide.RIGHT, MirrorSide.RIGHT,
+                MirrorSide.LEFT, MirrorSide.LEFT, MirrorSide.LEFT, MirrorSide.LEFT, MirrorSide.LEFT, MirrorSide.LEFT,
+            ).forEachIndexed { index, side ->
+                val poll = reduce(state, side, runtime(CameraRuntimePhase.IDLE, generation = 4L), 400L + index * 100L)
+                assertEquals("$name poll $index", MirrorTransitionPhase.QUARANTINED, poll.state.phase)
+                assertEquals("$name poll $index", MirrorTransitionCommand.None, poll.command)
+                state = poll.state
+            }
+        }
+    }
+
+    @Test
+    fun aReopenNeedsAnIdleRuntimeNotMerelyAnInactiveOne() {
+        assertStaysQuarantined(
+            windowGoneQuarantine(MirrorSide.LEFT),
+            MirrorSide.LEFT,
+            polls = 3,
+            runtimePhase = CameraRuntimePhase.FAILED,
+        )
+    }
+
+    @Test
+    fun idleDoesNotShowWhileATeardownIsStillInFlight() {
+        val waiting = MirrorTransitionReducer.reduce(
+            MirrorTransitionState(),
+            MirrorTransitionObservation(
+                requestedSide = MirrorSide.LEFT,
+                runtime = runtime(CameraRuntimePhase.IDLE, generation = 3L),
+                nowMs = 200L,
+                preemptionInFlight = true,
+            ),
+        )
+        assertEquals(MirrorTransitionPhase.IDLE, waiting.state.phase)
+        assertEquals(MirrorTransitionCommand.None, waiting.command)
+
+        val shown = MirrorTransitionReducer.reduce(
+            waiting.state,
+            MirrorTransitionObservation(
+                requestedSide = MirrorSide.LEFT,
+                runtime = runtime(CameraRuntimePhase.IDLE, generation = 3L),
+                nowMs = 300L,
+                preemptionInFlight = false,
+            ),
+        )
+        assertEquals(MirrorTransitionCommand.Show(MirrorSide.LEFT), shown.command)
+    }
+
+    /** SHOWING [side], then the stock window is gone: the hide that the live 22:17:19 case started from. */
+    private fun windowGoneQuarantine(side: MirrorSide): MirrorTransitionState = reduce(
+        state = MirrorTransitionState(
+            phase = MirrorTransitionPhase.SHOWING,
+            side = side,
+            phaseStartedAtMs = 100L,
+            runtimeGeneration = 2L,
+        ),
+        requested = null,
+        runtime = runtime(CameraRuntimePhase.READY, side, generation = 2L),
+        nowMs = 200L,
+    ).state
+
+    private fun assertReopensAfterTwoCleanSamples(
+        quarantined: MirrorTransitionState,
+        side: MirrorSide,
+        fromMs: Long,
+    ): MirrorTransitionResult {
+        val first = reduce(quarantined, side, runtime(CameraRuntimePhase.IDLE, generation = 4L), fromMs)
+        assertEquals("first $side sample", MirrorTransitionPhase.QUARANTINED, first.state.phase)
+        assertEquals("first $side sample", MirrorTransitionCommand.None, first.command)
+
+        val second = reduce(first.state, side, runtime(CameraRuntimePhase.IDLE, generation = 4L), fromMs + 100L)
+        assertEquals("second $side sample", MirrorTransitionPhase.STARTING, second.state.phase)
+        assertEquals("second $side sample", side, second.state.side)
+        assertEquals("second $side sample", MirrorTransitionCommand.Show(side), second.command)
+        return second
+    }
+
+    private fun assertStaysQuarantined(
+        quarantined: MirrorTransitionState,
+        side: MirrorSide?,
+        polls: Int,
+        fromMs: Long = 300L,
+        runtimePhase: CameraRuntimePhase = CameraRuntimePhase.IDLE,
+    ): MirrorTransitionState {
+        var state = quarantined
+        repeat(polls) { index ->
+            val result = reduce(state, side, runtime(runtimePhase, generation = 4L), fromMs + index * 100L)
+            assertEquals("poll $index", MirrorTransitionPhase.QUARANTINED, result.state.phase)
+            assertEquals("poll $index", MirrorTransitionCommand.None, result.command)
+            state = result.state
+        }
+        return state
+    }
+
     private fun preemptedQuarantine(preemptedSide: MirrorSide) =
         MirrorTransitionReducer.quarantine(
             state = MirrorTransitionState(
@@ -573,7 +857,7 @@ class MirrorTransitionReducerTest {
             runtime = runtime(CameraRuntimePhase.READY, preemptedSide, generation = 2L),
             nowMs = 100L,
             details = "live switch onset",
-            recovery = MirrorQuarantineRecovery.OTHER_SIDE_AFTER_TEARDOWN,
+            recovery = MirrorQuarantineRecovery.STOCK_WINDOW_AFTER_TEARDOWN,
             preemptedSide = preemptedSide,
         )
 

@@ -34,6 +34,7 @@ import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
 
 class SideCameraMonitorService : Service() {
     private var executor: ScheduledExecutorService? = null
@@ -45,6 +46,7 @@ class SideCameraMonitorService : Service() {
     private var transitionState = MirrorTransitionState()
     private val preemptInFlight = AtomicBoolean()
     private var lastPublishedStatus: Pair<MirrorSide?, String>? = null
+    private val pendingPublication = AtomicReference<StatusPublication?>()
     private var clusterDisplayId: Int? = null
     private var lastDisplayResolveMs = 0L
     private var lastShadowStatus = ""
@@ -205,13 +207,15 @@ class SideCameraMonitorService : Service() {
                                 " side=$activeSide sequence=${event.sequence}",
                         )
                         MirrorSwitchPreemptionDecision.PREEMPT -> preemptActiveCameraLocked(
-                            "live switch onset ${event.value.rawValue}",
+                            "lever moved " +
+                                MirrorSwitchPreemption.onsetSide(event.value)?.name?.lowercase(),
                             event.observedAtElapsedMs,
-                            MirrorQuarantineRecovery.OTHER_SIDE_AFTER_TEARDOWN,
+                            MirrorQuarantineRecovery.STOCK_WINDOW_AFTER_TEARDOWN,
                             activeSide,
                         )
                     }
                 }
+                publishPending()
             }
             // The camera never depends on this feed, so losing it is a log line and nothing else.
             is VehicleSignalEventNotice.Unavailable -> Log.w(
@@ -267,7 +271,7 @@ class SideCameraMonitorService : Service() {
             "CAN preempt accepted; reason=$reason age=${acceptedAt - observedAtMs}ms" +
                 " commandGeneration=$commandGeneration runtime=${runtime.phase}",
         )
-        publishTransition()
+        queuePublicationLocked()
     }
 
     private fun resolveClusterDisplay(now: Long): Int? {
@@ -295,7 +299,16 @@ class SideCameraMonitorService : Service() {
         stockWindowSide: MirrorSide?,
         now: Long,
         runtimeWindowAmbiguous: Boolean,
-    ) = transitionGate.runIfRunning {
+    ) {
+        transitionGate.runIfRunning { applyTransitionLocked(stockWindowSide, now, runtimeWindowAmbiguous) }
+        publishPending()
+    }
+
+    private fun applyTransitionLocked(
+        stockWindowSide: MirrorSide?,
+        now: Long,
+        runtimeWindowAmbiguous: Boolean,
+    ) {
         val runtime = ClusterSceneService.cameraRuntimeSnapshot()
         // The stock AVC window is the only authority for Show. The retained raw lever phase is
         // read for one narrow purpose: it tells the reducer to wait through transient stock
@@ -340,7 +353,7 @@ class SideCameraMonitorService : Service() {
             }
             MirrorTransitionCommand.None -> Unit
         }
-        publishTransition()
+        queuePublicationLocked()
     }
 
     private fun startOverlay(
@@ -365,23 +378,43 @@ class SideCameraMonitorService : Service() {
         }
     }
 
-    private fun publishTransition() {
-        val side = observedSide()
+    private class StatusPublication(
+        val side: MirrorSide?,
+        val details: String,
+        val notification: String,
+    )
+
+    /** Must run under [transitionGate]. Records the status to publish once the gate is released. */
+    private fun queuePublicationLocked() {
+        val side = transitionState.side.takeIf { transitionState.phase == MirrorTransitionPhase.SHOWING }
         val details = transitionState.details.ifBlank {
             transitionState.phase.name.lowercase()
         }
         val status = side to details
         if (lastPublishedStatus == status) return
         lastPublishedStatus = status
-        setStatus(side, details)
-        updateNotification(
-            when (transitionState.phase) {
-                MirrorTransitionPhase.STARTING -> "Starting ${transitionState.side?.name?.lowercase()} mirror"
-                MirrorTransitionPhase.SHOWING -> "Showing ${transitionState.side?.name?.lowercase()} mirror"
-                MirrorTransitionPhase.QUARANTINED -> "Mirror waiting for neutral"
-                MirrorTransitionPhase.IDLE -> "Mirrors are ready"
-            },
-        )
+        val mirror = transitionState.side?.name?.lowercase()
+        val notification = when (transitionState.phase) {
+            MirrorTransitionPhase.STARTING -> "Starting $mirror mirror"
+            MirrorTransitionPhase.SHOWING -> "Showing $mirror mirror"
+            MirrorTransitionPhase.QUARANTINED -> when (transitionState.quarantineRecovery) {
+                MirrorQuarantineRecovery.STOCK_WINDOW_AFTER_TEARDOWN -> "Mirror waiting for the stock camera"
+                MirrorQuarantineRecovery.NEUTRAL_ONLY -> "Mirror waiting for neutral"
+            }
+            MirrorTransitionPhase.IDLE -> "Mirrors are ready"
+        }
+        pendingPublication.set(StatusPublication(side, details, notification))
+    }
+
+    /**
+     * Publishing refreshes the whole app repository, which is far too slow to do under the gate:
+     * a lever onset takes that gate to detach a surface within milliseconds. So it runs after the
+     * gate is released, on whichever thread queued it last.
+     */
+    private fun publishPending() {
+        val publication = pendingPublication.getAndSet(null) ?: return
+        setStatus(publication.side, publication.details)
+        updateNotification(publication.notification)
     }
 
     private fun observedSide(): MirrorSide? = transitionGate.read {

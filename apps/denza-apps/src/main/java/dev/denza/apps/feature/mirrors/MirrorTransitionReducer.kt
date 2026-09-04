@@ -10,9 +10,20 @@ enum class MirrorTransitionPhase {
     QUARANTINED,
 }
 
+/**
+ * How a quarantine may end. Every quarantine also recovers to IDLE after three consecutive polls
+ * with no stock window at all.
+ */
 enum class MirrorQuarantineRecovery {
+    /** Something of ours failed. Only neutral recovers, so a broken Show can never loop. */
     NEUTRAL_ONLY,
-    OTHER_SIDE_AFTER_TEARDOWN,
+
+    /**
+     * The stock changed its windows, or the lever announced that it would. An unambiguous stock
+     * window reopens the camera once our teardown has finished. The side we tore down needs the
+     * longer run, because its old window outlives the switch by 100-300 ms.
+     */
+    STOCK_WINDOW_AFTER_TEARDOWN,
 }
 
 data class MirrorTransitionState(
@@ -22,8 +33,10 @@ data class MirrorTransitionState(
     val runtimeGeneration: Long = 0L,
     val neutralSamples: Int = 0,
     val quarantineRecovery: MirrorQuarantineRecovery = MirrorQuarantineRecovery.NEUTRAL_ONLY,
-    /** The side that was torn down, so the stale stock window for it can never reopen. */
+    /** The side whose surface was torn down; its stale stock window must not reopen it at once. */
     val preemptedSide: MirrorSide? = null,
+    /** The side that [reopenSamples] counts; a different side starts the run over. */
+    val reopenSide: MirrorSide? = null,
     val reopenSamples: Int = 0,
     val details: String = "",
 )
@@ -54,8 +67,14 @@ object MirrorTransitionReducer {
     const val SESSION_TIMEOUT_MS = 300_000L
     const val NEUTRAL_SAMPLES_TO_RECOVER = 3
 
-    /** Consecutive clean other-side polls before a preempted camera may reopen. */
+    /** Consecutive clean polls of one stock window before a quarantined camera reopens on it. */
     const val REOPEN_SAMPLES = 2
+
+    /**
+     * The same for the side we tore down. Its old stock window persists 100-300 ms after the
+     * onset, so two polls may still be that stale window; five are a lever that came back.
+     */
+    const val SAME_SIDE_REOPEN_SAMPLES = 5
 
     fun reduce(
         state: MirrorTransitionState,
@@ -82,8 +101,39 @@ object MirrorTransitionReducer {
         neutralSamples = 0,
         quarantineRecovery = recovery,
         preemptedSide = preemptedSide,
+        reopenSide = null,
         reopenSamples = 0,
         details = details,
+    )
+
+    private class QuarantineCause(
+        val details: String,
+        val recovery: MirrorQuarantineRecovery,
+        val preemptedSide: MirrorSide?,
+    )
+
+    /** The stock moved its windows; [heldSide] is the surface of ours that was attached, if any. */
+    private fun stockCause(details: String, heldSide: MirrorSide?) =
+        QuarantineCause(details, MirrorQuarantineRecovery.STOCK_WINDOW_AFTER_TEARDOWN, heldSide)
+
+    /** Something of ours failed; only neutral recovers. */
+    private fun ownCause(details: String) =
+        QuarantineCause(details, MirrorQuarantineRecovery.NEUTRAL_ONLY, null)
+
+    private fun quarantine(
+        state: MirrorTransitionState,
+        observation: MirrorTransitionObservation,
+        cause: QuarantineCause,
+    ) = MirrorTransitionResult(
+        quarantine(
+            state,
+            observation.runtime,
+            observation.nowMs,
+            cause.details,
+            cause.recovery,
+            cause.preemptedSide,
+        ),
+        MirrorTransitionCommand.Hide,
     )
 
     private fun reduceIdle(observation: MirrorTransitionObservation): MirrorTransitionResult {
@@ -104,14 +154,12 @@ object MirrorTransitionReducer {
             )
         }
         if (observation.runtimeWindowAmbiguous) {
-            return MirrorTransitionResult(
-                quarantine(
-                    MirrorTransitionState(),
-                    observation.runtime,
-                    observation.nowMs,
-                    "ambiguous AVC windows",
-                ),
-                MirrorTransitionCommand.Hide,
+            // Nothing of ours is attached, so the Hide is a no-op; the side the stock settles on
+            // may reopen the camera after two clean polls.
+            return quarantine(
+                MirrorTransitionState(),
+                observation,
+                stockCause("ambiguous AVC windows", heldSide = null),
             )
         }
         val requested = observation.requestedSide ?: return MirrorTransitionResult(
@@ -120,6 +168,16 @@ object MirrorTransitionReducer {
                 details = "ready",
             ),
         )
+        if (observation.preemptionInFlight) {
+            // A lever onset is still tearing a surface down. Nothing attaches until the vendor
+            // has freed the display, whatever the stock window says meanwhile.
+            return MirrorTransitionResult(
+                MirrorTransitionState(
+                    runtimeGeneration = observation.runtime.generation,
+                    details = "waiting for teardown",
+                ),
+            )
+        }
         return when {
             observation.runtime.phase == CameraRuntimePhase.READY &&
                 observation.runtime.side == requested -> MirrorTransitionResult(
@@ -151,14 +209,10 @@ object MirrorTransitionReducer {
                 ),
                 MirrorTransitionCommand.Show(requested),
             )
-            else -> MirrorTransitionResult(
-                quarantine(
-                    MirrorTransitionState(),
-                    observation.runtime,
-                    observation.nowMs,
-                    "camera runtime is not idle",
-                ),
-                MirrorTransitionCommand.Hide,
+            else -> quarantine(
+                MirrorTransitionState(),
+                observation,
+                stockCause("camera runtime is not idle", heldSide = null),
             )
         }
     }
@@ -168,23 +222,19 @@ object MirrorTransitionReducer {
         observation: MirrorTransitionObservation,
     ): MirrorTransitionResult {
         val side = state.side
-        val quarantineReason = when {
-            observation.runtimeWindowAmbiguous -> "ambiguous AVC windows"
-            observation.requestedSide == null -> "window hidden while camera was starting"
-            observation.requestedSide != side -> "direct side switch"
-            observation.runtime.phase == CameraRuntimePhase.FAILED -> "AVC failure"
+        val cause = when {
+            observation.runtimeWindowAmbiguous -> stockCause("ambiguous AVC windows", side)
+            observation.requestedSide == null ->
+                stockCause("window hidden while camera was starting", heldSide = null)
+            observation.requestedSide != side -> stockCause("direct side switch", side)
+            observation.runtime.phase == CameraRuntimePhase.FAILED -> ownCause("AVC failure")
             observation.runtime.phase == CameraRuntimePhase.READY &&
-                observation.runtime.side != side -> "AVC ready for unexpected side"
+                observation.runtime.side != side -> ownCause("AVC ready for unexpected side")
             observation.nowMs - state.phaseStartedAtMs >= START_ACK_TIMEOUT_MS ->
-                "camera start acknowledgement timed out"
+                ownCause("camera start acknowledgement timed out")
             else -> null
         }
-        if (quarantineReason != null) {
-            return MirrorTransitionResult(
-                quarantine(state, observation.runtime, observation.nowMs, quarantineReason),
-                MirrorTransitionCommand.Hide,
-            )
-        }
+        if (cause != null) return quarantine(state, observation, cause)
         if (
             observation.runtime.phase == CameraRuntimePhase.READY &&
             observation.runtime.side == side
@@ -207,46 +257,20 @@ object MirrorTransitionReducer {
         state: MirrorTransitionState,
         observation: MirrorTransitionObservation,
     ): MirrorTransitionResult {
-        if (observation.runtimeWindowAmbiguous) {
-            return MirrorTransitionResult(
-                quarantine(
-                    state,
-                    observation.runtime,
-                    observation.nowMs,
-                    "ambiguous AVC windows",
-                ),
-                MirrorTransitionCommand.Hide,
-            )
-        }
-        if (observation.requestedSide == null) {
-            return MirrorTransitionResult(
-                quarantine(
-                    state,
-                    observation.runtime,
-                    observation.nowMs,
-                    "waiting for confirmed neutral",
-                ),
-                MirrorTransitionCommand.Hide,
-            )
-        }
-        val quarantineReason = when {
-            observation.requestedSide != state.side -> "direct side switch"
-            observation.runtime.phase != CameraRuntimePhase.READY -> "camera runtime was lost"
-            observation.runtime.side != state.side -> "camera runtime changed side"
+        val cause = when {
+            observation.runtimeWindowAmbiguous -> stockCause("ambiguous AVC windows", state.side)
+            observation.requestedSide == null -> stockCause("stock window closed", heldSide = null)
+            observation.requestedSide != state.side -> stockCause("direct side switch", state.side)
+            observation.runtime.phase != CameraRuntimePhase.READY -> ownCause("camera runtime was lost")
+            observation.runtime.side != state.side -> ownCause("camera runtime changed side")
             observation.nowMs - state.phaseStartedAtMs >= SESSION_TIMEOUT_MS ->
-                "camera session timed out"
+                ownCause("camera session timed out")
             else -> null
         }
-        return if (quarantineReason == null) {
-            MirrorTransitionResult(
-                state.copy(runtimeGeneration = observation.runtime.generation),
-            )
-        } else {
-            MirrorTransitionResult(
-                quarantine(state, observation.runtime, observation.nowMs, quarantineReason),
-                MirrorTransitionCommand.Hide,
-            )
-        }
+        if (cause != null) return quarantine(state, observation, cause)
+        return MirrorTransitionResult(
+            state.copy(runtimeGeneration = observation.runtime.generation),
+        )
     }
 
     private fun reduceQuarantined(
@@ -255,35 +279,46 @@ object MirrorTransitionReducer {
     ): MirrorTransitionResult {
         val runtimeInactive = observation.runtime.phase == CameraRuntimePhase.IDLE ||
             observation.runtime.phase == CameraRuntimePhase.FAILED
-        // A preempted camera reopens only on the other side, and only once the vendor has finished
-        // its own teardown. The stale stock window of the side we tore down is what the vendor is
-        // still holding, so it must never look like permission to start again.
-        val canReopen = state.quarantineRecovery ==
-            MirrorQuarantineRecovery.OTHER_SIDE_AFTER_TEARDOWN &&
+        // A stock-driven quarantine ends on a clean stock window once the vendor has finished its
+        // own teardown: runtime idle (not merely inactive), one unambiguous side, no preempt in
+        // flight. The side we tore down needs the longer run, because the stock window we saw at
+        // the onset is the one the vendor is still dismantling.
+        val stockWindowClean = state.quarantineRecovery ==
+            MirrorQuarantineRecovery.STOCK_WINDOW_AFTER_TEARDOWN &&
             observation.requestedSide != null &&
-            observation.requestedSide != state.preemptedSide &&
             observation.runtime.phase == CameraRuntimePhase.IDLE &&
             !observation.runtimeWindowAmbiguous &&
             !observation.preemptionInFlight
-        if (canReopen) {
-            val reopenSamples = state.reopenSamples + 1
-            if (reopenSamples < REOPEN_SAMPLES) {
+        if (stockWindowClean) {
+            val requested = checkNotNull(observation.requestedSide)
+            val reopenSamples = if (requested == state.reopenSide) state.reopenSamples + 1 else 1
+            val required = if (requested == state.preemptedSide) {
+                SAME_SIDE_REOPEN_SAMPLES
+            } else {
+                REOPEN_SAMPLES
+            }
+            if (reopenSamples < required) {
                 return MirrorTransitionResult(
                     state.copy(
                         runtimeGeneration = observation.runtime.generation,
                         neutralSamples = 0,
+                        reopenSide = requested,
                         reopenSamples = reopenSamples,
                     ),
                 )
             }
-            val requested = checkNotNull(observation.requestedSide)
+            val how = when {
+                requested == state.preemptedSide -> "after the lever came back"
+                state.preemptedSide != null -> "after stock switch"
+                else -> "after stock reopen"
+            }
             return MirrorTransitionResult(
                 MirrorTransitionState(
                     phase = MirrorTransitionPhase.STARTING,
                     side = requested,
                     phaseStartedAtMs = observation.nowMs,
                     runtimeGeneration = observation.runtime.generation,
-                    details = "starting ${requested.name.lowercase()} after stock switch",
+                    details = "starting ${requested.name.lowercase()} $how",
                 ),
                 MirrorTransitionCommand.Show(requested),
             )
@@ -298,6 +333,7 @@ object MirrorTransitionReducer {
                 state.copy(
                     runtimeGeneration = observation.runtime.generation,
                     neutralSamples = 0,
+                    reopenSide = null,
                     reopenSamples = 0,
                 ),
             )
@@ -315,6 +351,7 @@ object MirrorTransitionReducer {
                 state.copy(
                     runtimeGeneration = observation.runtime.generation,
                     neutralSamples = neutralSamples,
+                    reopenSide = null,
                     reopenSamples = 0,
                 ),
             )

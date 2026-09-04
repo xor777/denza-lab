@@ -126,6 +126,21 @@ class MirrorSwitchPreemptionTest {
     }
 
     @Test
+    fun activeCameraSideTrustsTheAttachedRuntimeOverOurIntent() {
+        // The crash is armed by the surface that is attached, not by the side we meant to show.
+        listOf(CameraRuntimePhase.STARTING, CameraRuntimePhase.READY).forEach { phase ->
+            assertEquals(
+                "runtime $phase",
+                MirrorSide.LEFT,
+                MirrorSwitchPreemption.activeCameraSide(
+                    MirrorTransitionState(phase = MirrorTransitionPhase.STARTING, side = MirrorSide.RIGHT),
+                    runtime(phase, MirrorSide.LEFT),
+                ),
+            )
+        }
+    }
+
+    @Test
     fun activeCameraSideIsNoneWhenNothingIsUp() {
         listOf(MirrorTransitionPhase.IDLE, MirrorTransitionPhase.QUARANTINED).forEach { phase ->
             listOf(

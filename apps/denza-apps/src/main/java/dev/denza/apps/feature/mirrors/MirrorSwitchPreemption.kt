@@ -55,15 +55,19 @@ internal object MirrorSwitchPreemption {
         }
     }
 
-    /** The side an onset would be tearing down: our own transition first, then the camera runtime. */
+    /**
+     * The side an onset would be tearing down. The surface the runtime has attached is what arms
+     * the crash, so it outranks the side our own transition meant to show; that side counts only
+     * while the runtime has nothing attached yet.
+     */
     fun activeCameraSide(
         state: MirrorTransitionState,
         runtime: CameraRuntimeSnapshot,
     ): MirrorSide? = when {
+        runtime.phase == CameraRuntimePhase.STARTING ||
+            runtime.phase == CameraRuntimePhase.READY -> runtime.side ?: state.side
         state.phase == MirrorTransitionPhase.STARTING ||
             state.phase == MirrorTransitionPhase.SHOWING -> state.side
-        runtime.phase == CameraRuntimePhase.STARTING ||
-            runtime.phase == CameraRuntimePhase.READY -> runtime.side
         else -> null
     }
 }
