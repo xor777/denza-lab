@@ -869,7 +869,7 @@ drawing decision.
 | m3 | two memories on the band | closed - the tail is gone |
 | m4 | headings standing over emptiness for the first seconds | closed - a heading arrives with its first value |
 | m5 | the petal's tenth moves three times a second | closed - integer on the move |
-| m6 | the hero updates at 3 Hz | closed as a renderer rule: 2 Hz, ±0.5 kW |
+| m6 | the hero updates at 3 Hz | closed as a renderer rule: ±0.5 kW of hysteresis; the rate is 4 Hz, not the critique's 2 - the owner asked for the live figures to answer about twice as fast as the previous panel, and the bus poll went from 300 ms to 100 ms with it |
 | m7 | night by ephemeris, not by light | closed - the scene is removed; the dimmer waits for the car |
 | m8 | an alert at 34 in a shelf of 52s | closed - every shelf figure is 34 now |
 | m9 | generation drawn three times | closed - twice: the seam and the box, with the figure inside the box's own sentence |

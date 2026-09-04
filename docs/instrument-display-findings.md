@@ -368,7 +368,13 @@ faster the pedal moved.
 Three rules against jitter: a dead band of half a kilowatt at zero, a neutral zone
 of three kilowatts with three kilowatts of hysteresis around its own boundary
 (inside it the hero and the band's body carry no colour at all), and the hero's
-glyph rewritten at 2 Hz with half a kilowatt of rounding hysteresis. The peak hold
+glyph rewritten at 4 Hz with half a kilowatt of rounding hysteresis. (The critique
+asked for 2 Hz; the owner, who had driven with the previous panel, asked on
+2026-09-04 for the live figures to answer about twice as fast, so the glyph rate
+doubled and the hot poll interval went from 300 ms to 100 ms - about four
+readings a second against two, with the shell busy some sixty per cent of the
+time while the dashboard is up. Whether the car sustains that is on the list
+below.) The peak hold
 stays where it landed for three seconds and comes back at sixty kilowatts a
 second. All of it is in `ContourMotion`, deterministic in `dt`.
 

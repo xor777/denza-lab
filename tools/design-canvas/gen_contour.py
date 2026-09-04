@@ -244,8 +244,10 @@ Closed:
 - m4  a heading appears with its first value, so the first seconds are the band's
       skeleton and nothing else.
 - m5  the petal prints an integer on the move and a tenth only when parked.
-- m6  the hero's figure is limited to 2 Hz with 0.5 kW of hysteresis (a rule for
-      the renderer, not something a still can show).
+- m6  the hero's figure is limited to 4 Hz with 0.5 kW of hysteresis (a rule for
+      the renderer, not something a still can show). The critique asked for 2; the
+      owner, who drove with the previous panel, asked for the live figures to be
+      about twice as quick, and the bus is polled every 100 ms for the same reason.
 - m7  the night scene is removed. The cluster's own dimmer already darkens our
       window; whether it does is a measurement on the car, not a board.
 - m8  an exception is a 34 figure changing colour on a shelf whose figures are all

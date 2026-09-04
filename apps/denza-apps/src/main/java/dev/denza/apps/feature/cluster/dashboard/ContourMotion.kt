@@ -233,7 +233,7 @@ internal class ContourMotion {
     }
 
     /**
-     * The hero's glyph: at most twice a second, and never for half a kilowatt.
+     * The hero's glyph: at most four times a second, and never for half a kilowatt.
      *
      * Together the two rules mean the number changes when the driving changed. Either alone is not
      * enough - a 2 Hz figure with no hysteresis still alternates 33 and 34 on the boundary, and
@@ -285,8 +285,15 @@ internal class ContourMotion {
          */
         const val FLOW_HYSTERESIS_KW = 3f
 
-        /** The hero is rewritten at most twice a second (m6). */
-        const val FIGURE_INTERVAL_S = 0.5f
+        /**
+         * The hero is rewritten at most four times a second.
+         *
+         * The critique's m6 set this at two, and the owner overruled it after the third board:
+         * the previous panel had answered the pedal too slowly, and the live figures were to be
+         * about twice as quick. Four a second with the rounding hysteresis below still cannot
+         * flicker; it only shortens how long a change waits before it is printed.
+         */
+        const val FIGURE_INTERVAL_S = 0.25f
 
         /** And never for less than this past the rounding boundary it is sitting on. */
         const val FIGURE_HYSTERESIS_KW = 0.5f

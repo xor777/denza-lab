@@ -29,7 +29,7 @@ import kotlinx.coroutines.sync.Mutex
  * docs/vehicle-data-findings.md.
  *
  * Cadence: the hot set (pack power and voltage, odometer, engine state and
- * generation) is one batched command roughly twice a second; pack health,
+ * generation) is one batched command about four times a second; pack health,
  * temperatures, charging estimates and warning lamps join it every ten seconds.
  * Splitting the hot set finer would buy nothing — a one-call batch costs almost
  * what a five-call batch costs. The loop runs only while the cluster dashboard
@@ -310,11 +310,15 @@ internal class VehicleTelemetryHub(context: Context) {
          * Measured on the car: a batch costs about 130 ms of fixed shell and
          * process overhead plus 4–5 ms per call, so the hot batch takes
          * roughly 150 ms whatever the interval. The interval is therefore the
-         * only real cost knob. At 300 ms the dashboard lands a fresh power figure
-         * about twice a second — enough for a number that follows the pedal —
-         * while the shell runs only while this dashboard is visible.
+         * only real cost knob. It was 300 ms - a fresh power figure about twice
+         * a second - and the owner, who had driven with the previous panel,
+         * asked for the live figures to answer about twice as fast. At 100 ms
+         * the cycle is about 250 ms, four readings a second, and the shell is
+         * busy some sixty per cent of the time while this dashboard is visible;
+         * nothing else in the app runs it. Whether the car sustains that is the
+         * first thing a drive with this build has to show.
          */
-        const val HOT_INTERVAL_MS = 300L
+        const val HOT_INTERVAL_MS = 100L
         const val COLD_INTERVAL_MS = 10_000L
 
         const val HOT_TIMEOUT_MS = 3_000

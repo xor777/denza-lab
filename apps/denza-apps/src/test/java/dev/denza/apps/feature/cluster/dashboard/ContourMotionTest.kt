@@ -167,17 +167,17 @@ class ContourMotionTest {
     // ---- the hero's glyph
 
     @Test
-    fun theHeroIsRewrittenAtTwoHertzAtMost() {
+    fun theHeroIsRewrittenAtFourHertzAtMost() {
         val motion = ContourMotion()
         motion.step(34f, null, frame)
         assertEquals("the first reading is placed at once", 34, motion.figure)
 
-        // A jump, and four tenths of a second: the band is already there and the glyph is not.
-        motion.step(80f, null, 0.4f)
-        assertTrue("the band arrived", motion.powerKw > 75f)
-        assertEquals("the glyph waited for its half-second", 34, motion.figure)
-
+        // A jump, and two tenths of a second: the band is already there and the glyph is not.
         motion.step(80f, null, 0.2f)
+        assertTrue("the band arrived", motion.powerKw > 70f)
+        assertEquals("the glyph waited for its quarter-second", 34, motion.figure)
+
+        motion.step(80f, null, 0.1f)
         assertEquals(80, motion.figure)
     }
 
