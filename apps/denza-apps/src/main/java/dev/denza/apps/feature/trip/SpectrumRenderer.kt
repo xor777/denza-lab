@@ -126,11 +126,7 @@ class SpectrumRenderer {
             dynamics.settle(dtSec)
         }
 
-        var sum = 0f
-        for (value in dynamics.bars) sum += value
-        val energy = sum / SpectrumSource.BAND_COUNT
-
-        drawBloom(canvas, left, right, energy)
+        drawBloom(canvas, left, right, dynamics.energy)
         drawBars(canvas, left, right, unit)
         drawScanlines(canvas, left, right, unit)
         if (strip) {

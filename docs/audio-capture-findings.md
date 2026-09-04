@@ -187,8 +187,17 @@ touches the microphone. That is a UX question, not a technical blocker.
 - Keep the signal gate on the raw per-band dB values. The visual spectral tilt
   adds as much as roughly 18 dB at the top of the range; applying the gate after
   that correction turns quiet treble hiss into false playback. The automatic
-  scale retains 5 dB above its recent loudest corrected band, leaving about
-  12.5% steady-state headroom instead of pumping quiet audio almost full-height.
+  scale retains 7 dB above its recent loudest corrected band, leaving about
+  17.5% steady-state headroom instead of pumping quiet audio almost full-height.
+- The display's motion is a low-pass on the capture, not a mirror of it. The
+  Visualizer delivers 20 FFT frames a second, each one a single 21 ms window
+  with the 8-bit FFT's frame-to-frame noise in it; an instant attack drew every
+  one of those as a twitch and the owner read the panel as "дёрганый" (2026-09-04).
+  `SpectrumDynamics` now rises with a 60 ms time constant (four fifths of a
+  transient's height within three frames at 30 FPS), falls with 240 ms (was
+  170), and feeds the bloom behind the bars from a 400 ms mean rather than the
+  raw per-frame one. The peak-hold (620 ms, then gravity) and the automatic
+  gain were left alone. Tuned dry; not yet checked against music in the car.
 - Session 0 already carries a vendor effect chain (`Effect ID 11`) on
   `AudioOut_D`. Attaching a Visualizer alongside it caused no observed trouble.
 
