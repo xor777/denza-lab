@@ -21,6 +21,7 @@ public final class AvcCameraRenderer implements TextureView.SurfaceTextureListen
     public interface Listener {
         void onReady(String details);
         void onFailure(String details);
+        void onLocalSurfaceReleased();
     }
 
     private static final float COLOR_CONTRAST_SCALE = 1.62f;
@@ -98,6 +99,7 @@ public final class AvcCameraRenderer implements TextureView.SurfaceTextureListen
     }
 
     public void stop() {
+        boolean hadLocalSurface = surface != null;
         if (client != null) {
             try {
                 client.freeDisplay();
@@ -117,6 +119,9 @@ public final class AvcCameraRenderer implements TextureView.SurfaceTextureListen
         client = null;
         initAttempted = false;
         releaseSurface();
+        if (hadLocalSurface) {
+            listener.onLocalSurfaceReleased();
+        }
     }
 
     @Override
@@ -136,7 +141,12 @@ public final class AvcCameraRenderer implements TextureView.SurfaceTextureListen
     @Override
     public boolean onSurfaceTextureDestroyed(SurfaceTexture texture) {
         releaseSurface();
+        listener.onLocalSurfaceReleased();
         return true;
+    }
+
+    public boolean hasLocalSurfaceHandle() {
+        return surface != null;
     }
 
     @Override

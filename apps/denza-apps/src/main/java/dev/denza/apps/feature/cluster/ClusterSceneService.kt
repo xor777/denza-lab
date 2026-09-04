@@ -53,6 +53,7 @@ class ClusterSceneService : Service() {
     private val handler = Handler(Looper.getMainLooper())
     private var basePresentation: ClusterPresentation? = null
     private var cameraPresentation: ClusterPresentation? = null
+    private var cameraTeardownPresentation: ClusterPresentation? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -63,9 +64,22 @@ class ClusterSceneService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
-            ACTION_STOP -> stopScene()
-            ACTION_HIDE_CAMERA -> hideCamera()
-            ACTION_SHOW_CAMERA -> showCamera(intent.cameraConfig())
+            ACTION_STOP -> {
+                cameraCommandFence.invalidate()
+                stopScene()
+            }
+            ACTION_HIDE_CAMERA -> {
+                cameraCommandFence.invalidate()
+                hideCamera()
+            }
+            ACTION_SHOW_CAMERA -> {
+                val generation = intent.getLongExtra(EXTRA_CAMERA_COMMAND_GENERATION, -1L)
+                if (cameraCommandFence.isCurrent(generation)) {
+                    showCamera(intent.cameraConfig(), generation)
+                } else {
+                    Log.i(TAG, "stale showCamera rejected; generation=$generation")
+                }
+            }
             ACTION_SHOW_MAP -> showMap(intent.mapPlacement())
             ACTION_HIDE_MAP -> hideMap()
             ACTION_SHOW_DASHBOARD -> showDashboard(intent.mapPlacement())
@@ -88,6 +102,7 @@ class ClusterSceneService : Service() {
     }
 
     override fun onDestroy() {
+        cameraCommandFence.invalidate()
         handler.removeCallbacksAndMessages(null)
         stopScene(stopService = false)
         if (active === this) active = null
@@ -126,8 +141,13 @@ class ClusterSceneService : Service() {
         val currentPresentation = if (cameraLayer) cameraPresentation else basePresentation
         currentPresentation?.let { current ->
             if (current.display.displayId == selection.display.id) return current
-            current.dismiss()
-            if (cameraLayer) cameraPresentation = null else basePresentation = null
+            if (cameraLayer) {
+                beginCameraTeardown(current, "camera display changed")
+                return null
+            } else {
+                current.dismiss()
+                basePresentation = null
+            }
         }
         val manager = getSystemService(android.hardware.display.DisplayManager::class.java)
         val display = manager?.getDisplay(selection.display.id)
@@ -162,8 +182,11 @@ class ClusterSceneService : Service() {
         }
     }
 
-    private fun showCamera(config: MirrorCameraConfig) {
-        if (cameraRuntime.snapshot().phase == CameraRuntimePhase.STOPPING) {
+    private fun showCamera(config: MirrorCameraConfig, commandGeneration: Long) {
+        if (
+            cameraRuntime.snapshot().phase == CameraRuntimePhase.STOPPING ||
+            !cameraTeardownBarrier.isClear
+        ) {
             Log.i(TAG, "showCamera ${config.side} rejected: cleanup in progress")
             updateNotification("Waiting for camera cleanup")
             return
@@ -172,46 +195,107 @@ class ClusterSceneService : Service() {
         cameraRuntime.starting(config.side)
         val scene = prepareCameraScene()
         if (scene == null) {
-            cameraRuntime.failed("camera presentation unavailable")
+            if (cameraRuntime.snapshot().phase != CameraRuntimePhase.STOPPING) {
+                cameraRuntime.failed("camera presentation unavailable")
+            }
             return
         }
         try {
             handler.removeCallbacksAndMessages(null)
-            scene.showCamera(config)
+            scene.showCamera(config, commandGeneration)
             updateNotification("Starting ${config.side.name.lowercase()} mirror")
         } catch (error: RuntimeException) {
             Log.e(TAG, "Unable to start camera renderer", error)
-            cameraRuntime.failed("camera start failed: ${error::class.java.simpleName}")
-            cameraPresentation?.dismiss()
-            cameraPresentation = null
+            val failure = "camera start failed: ${error::class.java.simpleName}"
+            val presentation = cameraPresentation
+            if (presentation == null) {
+                cameraRuntime.failed(failure)
+            } else {
+                beginCameraTeardown(presentation, failure)
+            }
             updateNotification("Camera stopped safely")
         }
     }
 
-    private fun hideCamera(onComplete: (() -> Unit)? = null) {
+    private fun hideCamera(
+        onLocalSurfaceDetached: (() -> Unit)? = null,
+        onComplete: (() -> Unit)? = null,
+    ) {
         val presentation = cameraPresentation
         cameraPresentation = null
         if (presentation == null) {
-            cameraRuntime.idle("camera hidden")
-            updateNotification("Mirrors are ready")
-            onComplete?.invoke()
+            val teardown = cameraTeardownPresentation
+            if (teardown != null) {
+                teardown.dismissAfterSurfaceRelease(onLocalSurfaceDetached, onComplete)
+            } else if (!cameraTeardownBarrier.isClear) {
+                // A previous service instance still owns the teardown. Vendor completion implies
+                // its local surface has also been released, but this instance cannot observe the
+                // earlier local milestone separately.
+                cameraTeardownBarrier.whenClear {
+                    onLocalSurfaceDetached?.invoke()
+                    onComplete?.invoke()
+                }
+            } else {
+                cameraRuntime.idle("camera hidden")
+                updateNotification("Mirrors are ready")
+                onLocalSurfaceDetached?.invoke()
+                onComplete?.invoke()
+            }
             return
         }
 
         Log.i(TAG, "hideCamera: releasing surface")
-        val stopping = cameraRuntime.stopping("closing camera surface")
-        presentation.dismissAfterSurfaceRelease {
-            Log.i(TAG, "hideCamera: surface released, display freed")
-            val runtime = cameraRuntime.snapshot()
-            if (
-                runtime.phase == CameraRuntimePhase.STOPPING &&
-                runtime.generation == stopping.generation
-            ) {
-                cameraRuntime.idle("camera hidden")
-                updateNotification("Mirrors are ready")
-            }
-            onComplete?.invoke()
+        beginCameraTeardown(
+            presentation = presentation,
+            onLocalSurfaceDetached = onLocalSurfaceDetached,
+            onComplete = onComplete,
+        )
+    }
+
+    /** The only path that may retire a camera-layer presentation. */
+    private fun beginCameraTeardown(
+        presentation: ClusterPresentation,
+        finalFailure: String? = null,
+        onLocalSurfaceDetached: (() -> Unit)? = null,
+        onComplete: (() -> Unit)? = null,
+    ) {
+        if (cameraTeardownPresentation === presentation) {
+            presentation.dismissAfterSurfaceRelease(onLocalSurfaceDetached, onComplete)
+            return
         }
+        check(cameraTeardownPresentation == null) {
+            "cannot overlap AVC presentation teardowns"
+        }
+        if (cameraPresentation === presentation) cameraPresentation = null
+        cameraTeardownPresentation = presentation
+        val teardownToken = cameraTeardownBarrier.begin()
+        val stopping = cameraRuntime.stopping("closing camera surface")
+        presentation.dismissAfterSurfaceRelease(
+            onLocalSurfaceDetached,
+            {
+                Log.i(TAG, "hideCamera: surface released, display freed")
+                if (cameraTeardownPresentation === presentation) {
+                    cameraTeardownPresentation = null
+                }
+                val runtime = cameraRuntime.snapshot()
+                if (
+                    runtime.phase == CameraRuntimePhase.STOPPING &&
+                    runtime.generation == stopping.generation
+                ) {
+                    if (finalFailure == null) {
+                        cameraRuntime.idle("camera hidden")
+                        updateNotification("Mirrors are ready")
+                    } else {
+                        cameraRuntime.failed(finalFailure)
+                        updateNotification("Camera stopped safely")
+                    }
+                }
+                if (!cameraTeardownBarrier.complete(teardownToken)) {
+                    Log.e(TAG, "ignored stale AVC presentation teardown completion")
+                }
+                onComplete?.invoke()
+            },
+        )
     }
 
     private fun showMap(placement: ClusterMapPlacement) {
@@ -241,6 +325,15 @@ class ClusterSceneService : Service() {
         durationMs: Long,
         cameraOverlay: Boolean,
     ) {
+        if (
+            cameraOverlay &&
+            (!cameraTeardownBarrier.isClear ||
+                cameraRuntime.snapshot().phase !in
+                setOf(CameraRuntimePhase.IDLE, CameraRuntimePhase.FAILED))
+        ) {
+            Log.i(TAG, "camera preview rejected: camera lifecycle is active")
+            return
+        }
         val scene = if (cameraOverlay) prepareCameraScene() else prepareBaseScene()
         scene ?: return
         scene.showDiagnostic(position, visible)
@@ -248,30 +341,39 @@ class ClusterSceneService : Service() {
         handler.postDelayed({ scene.hideDiagnostic() }, durationMs.coerceIn(250L, 5_000L))
     }
 
-    private fun onAvcReady(details: String) {
+    private fun onAvcReady(commandGeneration: Long, details: String) {
+        if (!cameraCommandFence.isCurrent(commandGeneration)) {
+            Log.i(TAG, "stale AVC ready ignored; generation=$commandGeneration")
+            return
+        }
         val runtime = cameraRuntime.snapshot()
         if (runtime.phase != CameraRuntimePhase.STARTING) return
         lastCameraDetails = details
         runtime.side?.let { cameraRuntime.ready(it, details) }
     }
 
-    private fun onAvcFailure(details: String) {
+    private fun onAvcFailure(commandGeneration: Long, details: String) {
+        if (!cameraCommandFence.isCurrent(commandGeneration)) {
+            Log.i(TAG, "stale AVC failure ignored; generation=$commandGeneration")
+            return
+        }
         val runtime = cameraRuntime.snapshot()
         if (
             runtime.phase != CameraRuntimePhase.STARTING &&
             runtime.phase != CameraRuntimePhase.READY
         ) return
         lastCameraDetails = details
-        cameraRuntime.failed(details)
-        cameraPresentation?.dismiss()
-        cameraPresentation = null
-        updateNotification("Camera stopped safely")
+        val presentation = cameraPresentation
+        if (presentation == null) {
+            cameraRuntime.failed(details)
+            updateNotification("Camera stopped safely")
+        } else {
+            beginCameraTeardown(presentation, details)
+        }
     }
 
     private fun stopScene(stopService: Boolean = true) {
-        cameraRuntime.idle("scene stopped")
-        cameraPresentation?.dismiss()
-        cameraPresentation = null
+        hideCamera()
         basePresentation?.dismiss()
         basePresentation = null
         if (stopService) stopSelf()
@@ -308,8 +410,8 @@ class ClusterSceneService : Service() {
         context: Context,
         display: Display,
         private val overlayWindow: Boolean,
-        private val ready: (String) -> Unit,
-        private val failed: (String) -> Unit,
+        private val ready: (Long, String) -> Unit,
+        private val failed: (Long, String) -> Unit,
     ) : Presentation(context, display) {
         lateinit var mapSurface: SurfaceView
             private set
@@ -323,8 +425,11 @@ class ClusterSceneService : Service() {
         private var cameraSource = CameraSource.NONE
         private var dashboardPlacement: ClusterMapPlacement? = null
         private var teardownScheduled = false
+        private var localSurfaceDetached = false
         private var teardownFinished = false
+        private val localDetachCallbacks = mutableListOf<() -> Unit>()
         private val teardownCallbacks = mutableListOf<() -> Unit>()
+        private var cameraCommandGeneration = 0L
         private var mapConsumer: MapSurfaceConsumer? = null
         private var expectedMapWidth = 0
         private var expectedMapHeight = 0
@@ -399,8 +504,9 @@ class ClusterSceneService : Service() {
             setContentView(root)
 
             renderer = AvcCameraRenderer(context, cameraTexture, object : AvcCameraRenderer.Listener {
-                override fun onReady(details: String) = ready(details)
-                override fun onFailure(details: String) = failed(details)
+                override fun onReady(details: String) = ready(cameraCommandGeneration, details)
+                override fun onFailure(details: String) = failed(cameraCommandGeneration, details)
+                override fun onLocalSurfaceReleased() = markLocalSurfaceDetached()
             })
         }
 
@@ -408,19 +514,21 @@ class ClusterSceneService : Service() {
             dismissAfterSurfaceRelease()
         }
 
-        fun dismissAfterSurfaceRelease(onComplete: (() -> Unit)? = null) {
+        fun dismissAfterSurfaceRelease(
+            onLocalSurfaceDetached: (() -> Unit)? = null,
+            onComplete: (() -> Unit)? = null,
+        ) {
+            var shouldSchedule = false
             synchronized(teardownCallbacks) {
+                onLocalSurfaceDetached?.let(localDetachCallbacks::add)
                 onComplete?.let(teardownCallbacks::add)
-                if (teardownFinished) {
-                    // Drain outside the monitor via the shared completion path.
-                } else if (teardownScheduled) {
-                    return
-                } else {
+                if (!teardownFinished && !teardownScheduled) {
                     teardownScheduled = true
-                    scheduleVendorRelease()
-                    return
+                    shouldSchedule = true
                 }
             }
+            if (shouldSchedule) scheduleVendorRelease()
+            completeLocalDetachCallbacks()
             completeTeardownCallbacks()
         }
 
@@ -435,6 +543,7 @@ class ClusterSceneService : Service() {
             try {
                 super.dismiss()
             } finally {
+                if (!renderer.hasLocalSurfaceHandle()) markLocalSurfaceDetached()
                 vendorTeardownHandler.post {
                     val startedAt = android.os.SystemClock.elapsedRealtime()
                     try {
@@ -452,6 +561,24 @@ class ClusterSceneService : Service() {
             }
         }
 
+        private fun markLocalSurfaceDetached() {
+            synchronized(teardownCallbacks) {
+                if (!teardownScheduled) return
+                localSurfaceDetached = true
+            }
+            completeLocalDetachCallbacks()
+        }
+
+        private fun completeLocalDetachCallbacks() {
+            val callbacks = synchronized(teardownCallbacks) {
+                if (!localSurfaceDetached) return
+                val drained = localDetachCallbacks.toList()
+                localDetachCallbacks.clear()
+                drained
+            }
+            callbacks.forEach { it() }
+        }
+
         private fun completeTeardownCallbacks() {
             val callbacks = synchronized(teardownCallbacks) {
                 if (!teardownFinished) return
@@ -462,8 +589,9 @@ class ClusterSceneService : Service() {
             callbacks.forEach { it() }
         }
 
-        fun showCamera(config: MirrorCameraConfig) {
+        fun showCamera(config: MirrorCameraConfig, commandGeneration: Long) {
             stopActiveCamera()
+            cameraCommandGeneration = commandGeneration
             hideDiagnostic()
             val metrics = android.util.DisplayMetrics()
             @Suppress("DEPRECATION")
@@ -1023,6 +1151,7 @@ class ClusterSceneService : Service() {
         private const val EXTRA_SIDE = "side"
         private const val EXTRA_POSITION = "position"
         private const val EXTRA_PROCESSING = "processing"
+        private const val EXTRA_CAMERA_COMMAND_GENERATION = "camera_command_generation"
         private const val EXTRA_VISIBLE = "visible"
         private const val EXTRA_DURATION = "duration"
         private const val EXTRA_MAP_PLACEMENT = "map_placement"
@@ -1030,6 +1159,8 @@ class ClusterSceneService : Service() {
         @Volatile private var active: ClusterSceneService? = null
         @Volatile private var pendingMapConsumer: MapSurfaceConsumer? = null
         private val cameraRuntime = CameraRuntimeTracker()
+        private val cameraCommandFence = CameraCommandFence()
+        private val cameraTeardownBarrier = CameraTeardownBarrier()
 
         // Vendor binder calls (freeDisplay) run here so a crash-dump zombie
         // com.byd.avc cannot freeze the app main thread or the guard.
@@ -1044,10 +1175,12 @@ class ClusterSceneService : Service() {
         fun prepare(context: Context) = start(context, ACTION_PREPARE)
 
         fun showCamera(context: Context, config: MirrorCameraConfig) {
+            val generation = cameraCommandFence.issueShow()
             val intent = serviceIntent(context, ACTION_SHOW_CAMERA)
                 .putExtra(EXTRA_SIDE, config.side.name)
                 .putExtra(EXTRA_POSITION, config.position.name)
                 .putExtra(EXTRA_PROCESSING, config.processingEnabled)
+                .putExtra(EXTRA_CAMERA_COMMAND_GENERATION, generation)
             context.startForegroundService(intent)
         }
 
@@ -1113,6 +1246,7 @@ class ClusterSceneService : Service() {
         }
 
         fun hideCameraSync(timeoutMs: Long): Boolean {
+            cameraCommandFence.invalidate()
             val service = active ?: return true
             if (Looper.myLooper() == Looper.getMainLooper()) {
                 service.hideCamera()
@@ -1123,6 +1257,34 @@ class ClusterSceneService : Service() {
                 service.hideCamera(latch::countDown)
             }
             return latch.await(timeoutMs.coerceAtLeast(1L), TimeUnit.MILLISECONDS)
+        }
+
+        /**
+         * Invalidates every older Show before asynchronously releasing the active AVC session.
+         * Callbacks expose local-window removal separately from vendor freeDisplay completion.
+         */
+        fun preemptCamera(
+            onLocalSurfaceDetached: () -> Unit = {},
+            onVendorFreeCompleted: () -> Unit = {},
+        ): Long {
+            val generation = cameraCommandFence.invalidate()
+            val service = active
+            if (service == null) {
+                if (cameraTeardownBarrier.isClear) {
+                    onLocalSurfaceDetached()
+                    onVendorFreeCompleted()
+                } else {
+                    cameraTeardownBarrier.whenClear {
+                        onLocalSurfaceDetached()
+                        onVendorFreeCompleted()
+                    }
+                }
+                return generation
+            }
+            Handler(Looper.getMainLooper()).post {
+                service.hideCamera(onLocalSurfaceDetached, onVendorFreeCompleted)
+            }
+            return generation
         }
 
         fun stop(context: Context) {

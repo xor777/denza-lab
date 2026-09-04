@@ -168,6 +168,69 @@ class MirrorTransitionReducerTest {
     }
 
     @Test
+    fun idleWaitsThroughTransientStockAmbiguityAfterLiveSwitchEdge() {
+        val waiting = MirrorTransitionReducer.reduce(
+            MirrorTransitionState(),
+            MirrorTransitionObservation(
+                requestedSide = null,
+                runtime = runtime(CameraRuntimePhase.IDLE, generation = 3L),
+                nowMs = 200L,
+                runtimeWindowAmbiguous = true,
+                signalTransitionPending = true,
+            ),
+        )
+
+        assertEquals(MirrorTransitionPhase.IDLE, waiting.state.phase)
+        assertEquals("waiting for confirmed stock switch", waiting.state.details)
+        assertEquals(MirrorTransitionCommand.None, waiting.command)
+
+        val confirmed = MirrorTransitionReducer.reduce(
+            waiting.state,
+            MirrorTransitionObservation(
+                requestedSide = MirrorSide.RIGHT,
+                runtime = runtime(CameraRuntimePhase.IDLE, generation = 3L),
+                nowMs = 500L,
+            ),
+        )
+        assertEquals(MirrorTransitionPhase.STARTING, confirmed.state.phase)
+        assertEquals(MirrorTransitionCommand.Show(MirrorSide.RIGHT), confirmed.command)
+    }
+
+    @Test
+    fun idleAmbiguityWithoutLiveSwitchEdgeStillFailsClosed() {
+        val ambiguous = MirrorTransitionReducer.reduce(
+            MirrorTransitionState(),
+            MirrorTransitionObservation(
+                requestedSide = null,
+                runtime = runtime(CameraRuntimePhase.IDLE, generation = 3L),
+                nowMs = 200L,
+                runtimeWindowAmbiguous = true,
+                signalTransitionPending = false,
+            ),
+        )
+
+        assertEquals(MirrorTransitionPhase.QUARANTINED, ambiguous.state.phase)
+        assertEquals(MirrorTransitionCommand.Hide, ambiguous.command)
+    }
+
+    @Test
+    fun pendingSwitchCannotMaskAmbiguityWhileDenzaRuntimeIsActive() {
+        val ambiguous = MirrorTransitionReducer.reduce(
+            MirrorTransitionState(),
+            MirrorTransitionObservation(
+                requestedSide = null,
+                runtime = runtime(CameraRuntimePhase.READY, MirrorSide.LEFT, generation = 3L),
+                nowMs = 200L,
+                runtimeWindowAmbiguous = true,
+                signalTransitionPending = true,
+            ),
+        )
+
+        assertEquals(MirrorTransitionPhase.QUARANTINED, ambiguous.state.phase)
+        assertEquals(MirrorTransitionCommand.Hide, ambiguous.command)
+    }
+
+    @Test
     fun sessionTimeoutQuarantinesInsteadOfRestarting() {
         val showing = MirrorTransitionState(
             phase = MirrorTransitionPhase.SHOWING,
@@ -249,6 +312,96 @@ class MirrorTransitionReducerTest {
         assertEquals(MirrorTransitionPhase.QUARANTINED, stopping.state.phase)
         assertEquals(0, stopping.state.neutralSamples)
         assertEquals(MirrorTransitionCommand.None, stopping.command)
+    }
+
+    @Test
+    fun confirmedSwitchCanReopenOnlyAfterPreemptionAndTeardownFinish() {
+        val quarantined = MirrorTransitionReducer.quarantine(
+            state = MirrorTransitionState(
+                phase = MirrorTransitionPhase.SHOWING,
+                side = MirrorSide.LEFT,
+            ),
+            runtime = runtime(CameraRuntimePhase.READY, MirrorSide.LEFT, generation = 2L),
+            nowMs = 100L,
+            details = "live switch onset 4",
+            recovery = MirrorQuarantineRecovery.CONFIRMED_SIDE_AFTER_TEARDOWN,
+        )
+
+        val stopping = MirrorTransitionReducer.reduce(
+            quarantined,
+            MirrorTransitionObservation(
+                requestedSide = MirrorSide.RIGHT,
+                runtime = runtime(CameraRuntimePhase.STOPPING, MirrorSide.LEFT, generation = 3L),
+                nowMs = 300L,
+                preemptionInFlight = true,
+            ),
+        )
+        assertEquals(MirrorTransitionPhase.QUARANTINED, stopping.state.phase)
+        assertEquals(MirrorTransitionCommand.None, stopping.command)
+
+        val callbackPending = MirrorTransitionReducer.reduce(
+            stopping.state,
+            MirrorTransitionObservation(
+                requestedSide = MirrorSide.RIGHT,
+                runtime = runtime(CameraRuntimePhase.IDLE, generation = 4L),
+                nowMs = 400L,
+                preemptionInFlight = true,
+            ),
+        )
+        assertEquals(MirrorTransitionPhase.QUARANTINED, callbackPending.state.phase)
+        assertEquals(MirrorTransitionCommand.None, callbackPending.command)
+
+        val reopened = MirrorTransitionReducer.reduce(
+            callbackPending.state,
+            MirrorTransitionObservation(
+                requestedSide = MirrorSide.RIGHT,
+                runtime = runtime(CameraRuntimePhase.IDLE, generation = 4L),
+                nowMs = 500L,
+                preemptionInFlight = false,
+            ),
+        )
+        assertEquals(MirrorTransitionPhase.STARTING, reopened.state.phase)
+        assertEquals(MirrorSide.RIGHT, reopened.state.side)
+        assertEquals(MirrorTransitionCommand.Show(MirrorSide.RIGHT), reopened.command)
+    }
+
+    @Test
+    fun confirmedSwitchRecoveryDoesNotRetryFailedRuntime() {
+        val quarantined = MirrorTransitionState(
+            phase = MirrorTransitionPhase.QUARANTINED,
+            quarantineRecovery = MirrorQuarantineRecovery.CONFIRMED_SIDE_AFTER_TEARDOWN,
+            details = "live switch onset 4",
+        )
+
+        val failed = reduce(
+            state = quarantined,
+            requested = MirrorSide.RIGHT,
+            runtime = runtime(CameraRuntimePhase.FAILED, MirrorSide.RIGHT, generation = 3L),
+            nowMs = 400L,
+        )
+
+        assertEquals(MirrorTransitionPhase.QUARANTINED, failed.state.phase)
+        assertEquals(MirrorTransitionCommand.None, failed.command)
+    }
+
+    @Test
+    fun ordinaryQuarantineCannotRecoverIntoAnActiveSide() {
+        val unavailable = MirrorTransitionReducer.quarantine(
+            state = MirrorTransitionState(phase = MirrorTransitionPhase.SHOWING),
+            runtime = runtime(CameraRuntimePhase.READY, MirrorSide.LEFT, generation = 2L),
+            nowMs = 100L,
+            details = "switch feed stale",
+        )
+
+        val directional = reduce(
+            state = unavailable,
+            requested = MirrorSide.RIGHT,
+            runtime = runtime(CameraRuntimePhase.IDLE, generation = 3L),
+            nowMs = 500L,
+        )
+
+        assertEquals(MirrorTransitionPhase.QUARANTINED, directional.state.phase)
+        assertEquals(MirrorTransitionCommand.None, directional.command)
     }
 
     private fun reduce(

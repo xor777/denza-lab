@@ -10,7 +10,10 @@ are deleted, and the cluster dashboard is the only active UI consumer of the
 telemetry backend. A second car, a Denza N9, was attached on 2026-08-30, and the
 vehicle-id check that tells it apart from the Z9GT is recorded here. On
 2026-09-03, passive raw CAN-FD callbacks were also confirmed from an
-owner-controlled local ADB shell on the Denza Z9.
+owner-controlled local ADB shell on the Denza Z9. Targeted shell-UID turn-signal
+events were live-proven on 2026-09-04. They now feed both bounded diagnostics
+and the live-accepted early-teardown guard for a stationary direct left-to-right
+Mirrors transition; the stock AVC window remains the camera-eligibility authority.
 
 This page records which vehicle and journey signals a normal Denza Apps APK can
 actually use. It distinguishes product-usable sources from values that are
@@ -1002,6 +1005,292 @@ The essential detail is processing the main `Looper`; sleeping on that thread
 prevents callback delivery. The harness does not replace or extend the stock
 collection table.
 
+## Targeted turn-signal events (2026-09-04)
+
+An owner-controlled, read-only `app_process` probe registered a vendor light
+listener for exactly two device-`1004` FIDs:
+
+| Semantic event | FID | Live values |
+| --- | --- | --- |
+| Lever/switch phase | `LIGHT_TURN_SIGNAL_LIGHT_SWITCH_STATE` (`0x1330002C`) | Raw values `1..5` were observed; they are deliberately not named as intent |
+| Confirmed flash mode | `LIGHT_TURN_SIGNAL_LIGHT` (`0x38A0002C`) | Live-confirmed: `1` off, `2` left, `4` right, `6` hazard; any other value remains vendor-defined raw data |
+
+The controlled run covered neutral, left, right, manual cancellation, and
+hazard. It delivered 16 events with zero callback errors. The confirmed flash
+mode followed the initial switch event by 63 ms for both left and right. This is
+the interval between the two vendor events, not an estimate of physical
+lever-to-Binder latency.
+
+The switch FID is retained as a raw typed phase only. Cancelling left briefly
+produced `4 -> 1`, and cancelling right produced `2 -> 1`: the spring-loaded
+lever crosses the opposite short position. Acting on that event could therefore
+show the wrong camera. The confirmed flash event returned cleanly to `1` in
+both cases.
+It is authoritative for the lamps, but not for camera eligibility: the stock
+`com.byd.avc` window still carries the vehicle's P/D/speed and camera policy.
+
+A separate labelled raw-CAN capture found the same state in channel `0`, CAN ID
+`0x38A`, sub-ID `0`, eight-byte payload, byte `4`: `0x15` neutral, `0x25` left,
+`0x45` right, and `0x65` hazard. That capture received 21,146 callbacks with no
+reported drop or sequence gap, about 137 callbacks/s; the selected raw stream
+carried this particular frame only every one to two seconds. It is both noisier
+and slower for this feature than the targeted semantic listener and is not a
+product source.
+
+### Product adapter and safety boundary
+
+The product uses a process-local typed `VehicleSignalHub` with
+demand leases and a dedicated `MIRROR_EVENTS`-style source lane. It starts only
+while at least one module owns a lease and registers only the union of requested
+signals from the closed two-FID allowlist through the already trusted passive
+local-ADB identity. Mirrors requests the confirmed flash mode and transient raw
+lever phase while its foreground service is active. The source
+publishes typed state with monotonic timestamps, source epochs, sequence
+numbers, TTL, explicit missing reasons, and bounded per-subscriber event
+mailboxes. A channel heartbeat never refreshes
+data TTL: after five quiet seconds the helper explicitly re-reads only the
+demanded getter(s) and publishes fresh
+snapshots. There is no raw-frame API, arbitrary FID API, setter, new
+`BYDAUTO_*` manifest permission, or exported EventCenter component.
+
+Passive ADB authorization failure is terminal for the current lease activation;
+it cannot create a prompt or a retry loop. Transient transport failures back off
+from 500 ms to 60 s. A quick initial snapshot cannot reset that history; reset
+requires a healthy sampled connection lasting at least 15 seconds.
+
+The listener is packed as a dedicated thin jar, addressed and verified by its
+SHA-256 rather than by APK version or file size. The earlier 6,181-byte revision
+was run passively from its exact built asset: it returned two initial `OFF`
+snapshots, measured `0.0%` idle CPU and `54,738 KB` total PSS, and had accumulated
+`0.49 s` of process CPU after startup. Closing its ADB stream removed the helper
+immediately, and no orphan remained. The current asset is 7,449 bytes with
+SHA-256
+`1ca3d39b4f16f68f92404a31dfb5832ada8f3a41e6c3be94f34992a279d1195c`.
+That exact asset was then live-smoked with the mode-only demand mask: it returned
+an initial mode snapshot and a second getter snapshot 5.504 s later, both value
+`1`, and exited without an orphan. One event lane may serve future approved
+event signals; modules must not spawn one helper per signal.
+
+The raw phase never selects a camera side. Known onset phases `2` and `4` may
+only close an existing Denza camera immediately; follow-through `3`/`5`, neutral
+`1`, and unknown values cannot select left or right. Reopening requires a later
+confirmed directional-mode event from the same source epoch with a higher
+sequence, an exact matching stock AVC window for three samples and at least
+200 ms, a fully detached old local surface, completed vendor `freeDisplay`, and
+an idle camera runtime. Source loss, mailbox overflow, unknown phase, ambiguity
+without a live pending switch (or while the Denza camera runtime is active), and
+AVC failures fail closed and require a neutral cycle. Pending-switch ambiguity
+while the runtime is idle can only wait; it cannot issue `Show`. The existing
+10 Hz stock-window observer remains the eligibility gate. `MirrorTransitionReducer`
+is the only producer of `Show`; the signal safety interlock may revoke an active
+session and issue `Hide` through the same serialized transition gate.
+
+### Installed adapter acceptance
+
+The initial pre-sync debug APK with SHA-256
+`0329c08b786556fa905060dc86ee1ce1fda0fb1889a904341e8ef6d3edec88df`
+was installed on the same car on 2026-09-04. The staged jar matched the asset
+hash above, Mirrors requested the mode-only mask, and exactly one
+`denza_vehicle_signals` process remained resident.
+
+The first controlled run held the car in P and applied left for about three
+seconds, right for about three seconds, and hazard for about three seconds. The
+diagnostic delta contained 60 directional-signal samples without an AVC window,
+zero side mismatches, and no new unavailable samples. Hazard was not classified
+as a directional request, the final state was `off`, and the camera runtime
+remained idle.
+
+The second run used stationary D with the brake held, then left and right for
+about three seconds each before returning to P. Relative to the P-run snapshot,
+the bounded counters advanced by 989 observations: 955 matches, two
+signal-without-window samples, 32 window-without-directional-signal samples,
+zero side mismatches, and zero unavailable samples. At the 10 Hz Mirrors
+observation rate this is about 0.2 seconds of combined signal lead and 3.2
+seconds of combined stock-window tail. The camera runtime reached generation 8
+and returned to `IDLE`, `side=NONE`, `camera hidden`.
+
+The Denza Apps main process, the one helper, and `com.byd.avc` remained alive;
+the crash buffer stayed empty. The helper measured `0.0%` CPU while idle,
+`62,371 KB` total PSS after the first run, and only `0.69 s` cumulative process
+CPU after both runs and the diagnostic capture. This accepts installed staging,
+passive event delivery, P gating, stationary-D agreement, and teardown of both
+camera cycles.
+
+After synchronizing the later chooser and spectrum work through commit
+`fdb9b8272e348059c0185581b3985343cabb7626`, the combined debug APK was rebuilt
+and installed with SHA-256
+`ef168a36aa00a9dab4db26b52b683b2d3456a0d92b6dcfcbcaef4e64cb4ab94c`.
+The installed `base.apk` matched that hash byte for byte, the staged helper
+still matched the 7,449-byte asset above, and one helper remained resident. A
+short final run applied left for about two seconds in P, followed by left and
+right for about two seconds each in stationary D with the brake held. The final
+bounded snapshot was
+`samples=2107/2050/20/33/0/4`: observations, matches,
+signal-without-window, window-without-directional-signal, side mismatch, and
+unavailable respectively. Thus the P signal was observed without opening the
+stock window, the stationary-D sides agreed with zero mismatch, and the stock
+window retained its own trailing policy. AVC returned to `IDLE`, `side=NONE`,
+generation 8, `camera hidden`.
+
+No new crash-buffer entry appeared during that final ordinary shadow run. Across the
+run and diagnostic capture the helper's cumulative process CPU advanced by
+about `0.05 s`; its final total PSS was `53,989 KB`. This does not qualify
+sleep/wake, lane-change, automatic cancellation, a safe rapid-side
+implementation, R, moving speed thresholds, or another vehicle/firmware
+profile. That candidate therefore remained shadow-only; the later guarded rapid
+transition is qualified separately below.
+
+### Rapid left-to-right failure capture
+
+One later stationary-D run with the brake held deliberately switched directly
+from left to right. The same installed APK produced this sequence:
+
+- `20:04:12.024`: the 10 Hz shadow observer first saw CAN mode `left` with no
+  AVC window;
+- `20:04:12.149`: stock AVC started `PIP2MeterActivity`;
+- `20:04:12.317`: Mirrors commanded its own left view, and at `20:04:12.505`
+  CAN and the observed stock window agreed on left;
+- `20:04:14.215`: stock AVC hid and destroyed its PIP surface during the side
+  change;
+- `20:04:14.335`: the existing `PIP2MeterActivity` received another intent;
+- `20:04:14.345`: the shadow observer saw CAN mode `right` while the stock
+  window still classified as left;
+- `20:04:14.364`: `com.byd.avc` received `SIGSEGV`, only 29 ms after the new
+  intent. The tombstone reports a null-pointer dereference at address `0x90` in
+  `ANativeWindow_getWidth`, called by
+  `libvideocatsdk_jni.so` `native_setSurface`, then
+  `VideocatManagerImpl.setSurface`, `AvmController.setDisplaySurface`,
+  `TSAPI.createDisplay`, and `PIPViewAlertController.modeChange`;
+- `20:04:14.908`: ActivityManager observed the stock process death and removed
+  its window; the persistent AVC process restarted as a new PID at
+  `20:04:14.976`;
+- `20:04:15.038`: Denza Apps, which never crashed, observed its camera runtime
+  failure, entered `QUARANTINED`, hid its view, and later returned to idle. The
+  shared CAN helper also remained alive.
+
+The native fault occurred in stock AVC, not in the CAN adapter or the Denza
+Apps process. The capture alone did not prove what made stock AVC enter that
+surface race, so a control run changed only one condition: Mirrors was stopped
+through its own service action while the rest of Denza Apps remained running.
+That also stopped the demand-driven CAN helper. The same stationary-D,
+brake-held, direct left-to-right manoeuvre then showed both stock camera sides
+correctly. Stock AVC kept PID `17977`, produced no new `SIGSEGV` or exit-info
+record, and completed normal PIP teardown. Mirrors was then restarted; its
+service returned and exactly one new helper process became resident.
+
+This paired result is strong evidence that the concurrently active Denza
+Mirrors AVC display surface is a necessary condition for the reproduced stock
+native surface race. One successful control is not enough to identify the
+precise ordering bug or to prove that it can never occur without Mirrors. CAN
+cannot repair the native AVC code or prevent stock AVC from receiving the
+right-turn event. It may nevertheless let Mirrors release its own surface
+*before* stock AVC rebuilds the opposite-side surface. Such a guard must react
+to an actual switch edge rather than a 10 Hz snapshot, remain side-agnostic for
+the raw switch phases, and keep stock AVC as the eligibility authority.
+Directional mismatch remains useful as a fail-safe veto for a stale old-side
+view, but the captured 29 ms post-intent crash window makes that late check
+unlikely to prevent the native failure by itself.
+
+Showing or retrying a camera without a stock window would additionally require
+a separately proven eligibility policy (at minimum gear and speed, or a short
+lease on recently confirmed AVC eligibility), so these runs do not justify
+making CAN the camera owner.
+
+### Guarded rapid-transition acceptance
+
+The first active-guard canary APK, SHA-256
+`00707767053650eace85b786220e66fc2ac6c0cc21bdcca13092d45e8d659197`,
+was installed byte-for-byte on the same car. In stationary D with the brake
+held, direct left-to-right showed the Denza left camera, then deliberately left
+the right side to stock AVC for the rest of that turn. Stock AVC retained PID
+`17977` and produced no new crash or exit-info record. This accepted early
+preemption but also exposed that the general quarantine policy prevented a safe
+same-cycle Denza reopen.
+
+The narrowed recovery candidate, SHA-256
+`0588de7d41f4059c25a6eb17e12c38e7ceffceff7ccf8a2e85c76826113e7864`,
+was built from local `main` `75ded26f53195f111d41e17731cb04feffaa48db`,
+passed 1,084 unit tests and Android lint, and was installed byte-for-byte. Its
+single stationary-D, brake-held left-to-right canary produced this ordering:
+
+- `20:51:44.108`: raw onset was observed; preemption was accepted 2 ms later;
+- `20:51:44.112`: the old Denza local surface was detached, 4 ms after the edge;
+- `20:51:44.224`: vendor release completed in 103 ms, and the preemption callback
+  completed at `20:51:44.229`, 121 ms after the edge;
+- `20:51:44.485`: stock AVC began creating the right display;
+- `20:51:44.810`: confirmed right mode and the observed right stock window
+  matched;
+- `20:51:45.078`: after the stable-match gate, Denza issued exactly one
+  `show RIGHT`; it reached `READY` at `20:51:45.371`.
+
+The Denza right command was therefore issued 970 ms after the raw edge, 849 ms
+after vendor teardown completion, and 268 ms after the first logged matching
+right window. The user saw both Denza sides correctly and noticed the intended
+short handoff pause. Turning the signal off detached the right surface in 3 ms,
+completed vendor teardown in 120 ms, and returned through neutral to idle.
+
+Stock AVC kept PID `17977`; Denza Apps and exactly one
+`denza_vehicle_signals` helper also remained alive. No new AVC `SIGSEGV` or
+exit-info entry appeared; the newest recorded AVC failure remained the earlier
+`20:04:14` reproduction. This accepts one instrumented stationary left-to-right
+guarded transition on this car/firmware. It does not yet qualify right-to-left,
+lane-change or automatic cancellation, hazard during a session, sleep/wake,
+moving speed thresholds, repeated stress, or another vehicle/firmware profile.
+
+### Separated-cycle ambiguity regression
+
+The later byte-matched APK
+`e4b26fadc28082baa97c306ce429ee8ffdd640f455a6086df29fbb004fc1fae6`
+exposed a separate fail-closed false negative during an ordinary
+left-off-pause-right sequence. The left Denza view closed normally and the
+reducer returned to `IDLE` at `20:58:24.837`. Stock AVC began its right display
+at `20:58:24.992`; 40 ms later the monitor saw confirmed mode `right` but a
+short-lived partial/overlapping stock-window set, classified it as ambiguous,
+and moved `IDLE` to neutral-only quarantine. The stock window was unambiguously
+right by `20:58:25.486`, but the quarantine correctly refused a late Show. The
+user therefore saw only the stock right camera. No process crashed.
+
+That transition is not itself authority to open a camera. The corrected reducer
+only keeps waiting when all of these are true: a live raw switch edge is pending,
+no side is yet eligible, the Denza camera runtime is idle, and the ambiguity is
+in the stock-window observation. It issues no command in that state. Ambiguity
+without a pending edge, or while a Denza runtime is active, still quarantines;
+the eventual Show still requires the same-epoch higher-sequence confirmed mode
+and three-sample/200 ms exact window match.
+
+The corrected APK
+`baa2635f32e030cddf4b8310a98559aeeaf6ae9abbca1af84e2b58675140b8e9`
+passed 1,087 unit tests and Android lint and was installed byte-for-byte. One
+stationary-D, brake-held left-off-two-second-pause-right run showed both Denza
+cameras correctly. The left vendor release took 121 ms and the reducer returned
+to neutral `IDLE` before the next turn. On right, signal and stock window first
+matched at `21:03:01.767`; Denza issued exactly one `show RIGHT` 269 ms later and
+reached `READY` at `21:03:02.385`. Stock AVC retained PID `17977`, and Denza Apps
+and its one helper remained alive with no new crash or exit-info entry.
+
+The transient ambiguous-window state did not recur in that successful final
+run. Thus the separated-cycle behavior is live-accepted, while the exact new
+ambiguity-wait branch has deterministic unit coverage but still lacks a second
+live occurrence. This distinction must be preserved in future acceptance claims.
+
+The post-acceptance hardening also reads the adapter's already-retained raw phase
+inside the poll transition, so a short executor delay between hub publication and
+the event callback cannot turn an active phase `2`..`5` into a false neutral-only
+quarantine. This is an in-memory snapshot read and adds no vehicle request. A
+pending onset is discarded fail-closed after 2 seconds (or an elapsed-clock
+rollback), preventing a lost follow-up event from leaving recovery pending
+indefinitely. These two paths are deterministically unit-tested; they were added
+after the live run above and therefore are not claimed as separately live-proven.
+
+The resulting hardening APK, SHA-256
+`97a56057989788eb2a53a95e23e50f6cf1ddbf713d5539b64a8affa3691d6e04`,
+passed 1,090 unit tests with zero failures/errors and Android lint. It was
+installed byte-for-byte after the user rebooted the car; package-replacement
+recovery restored Denza Apps, Mirrors, and exactly one signal helper. Stock AVC
+remained alive as PID `5050`, and exit-info still ended at the deliberate
+`20:04:14` failure. No physical turn cycle was run after this last hardening
+build, so the exact hash is install-verified but not separately manoeuvre-tested.
+
 ## Legacy BYDAuto events and system logs
 
 The archived 2026-06-27 probe under
@@ -1057,6 +1346,7 @@ in this vehicle-data investigation.
 | Technical BMS / HV cluster dashboard | `autoservice` allowlist via `DenzaLocalAdb` | Cluster-only subset in `feature.vehicle`; shell-only, short allowlist, no `BYDAUTO_*` in the manifest. The old head-unit page and its 12V reading were retired 2026-08-27 |
 | Tyre / climate / PM2.5 | same Binder, different `dev` | Same privilege path; still blocked from app UID |
 | Raw CAN diagnostics | `BYDAutoBigDataDevice` callback `0x99000020` from local ADB shell | Confirmed passive stream; not proven from the Denza Apps UID and not yet a product input |
+| Turn-signal guard | targeted shell-UID BYDAutoLight listener | Event-driven and low-CPU; raw onset only tears down the old Denza surface, while confirmed mode plus the stock AVC window gate any later reopen |
 
 The current road-thread/body-field prototypes use simulated values. They show a
 candidate visual mapping only; they are not live-car evidence.

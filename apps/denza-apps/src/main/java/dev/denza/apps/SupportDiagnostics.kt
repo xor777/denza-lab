@@ -18,6 +18,7 @@ import dev.denza.apps.feature.hud.HudNotificationAccessCoordinator
 import dev.denza.apps.feature.hud.HudNotificationArtworkRuntime
 import dev.denza.apps.feature.hud.HudSomeIpRuntime
 import dev.denza.apps.feature.mirrors.MirrorSide
+import dev.denza.apps.feature.mirrors.MirrorTurnSignalDiagnostics
 import dev.denza.apps.feature.mirrors.MirrorWindowDiagnostics
 import dev.denza.apps.feature.mirrors.MirrorsPosition
 import dev.denza.apps.feature.mirrors.MirrorsSettings
@@ -102,6 +103,7 @@ object SupportDiagnostics {
                     enabledLabel(MirrorsSettings.processingEnabled(context)),
             )
             add("Состояние зеркал=${mirrorRuntimeLabel(MirrorsSettings.statusDetails(context))}")
+            add("Сигнал поворотников=${MirrorTurnSignalDiagnostics.snapshot().compact()}")
             add(
                 "Экран приборки=" +
                     clusterSelectionLabel(ClusterDisplayResolver.resolve(context)),

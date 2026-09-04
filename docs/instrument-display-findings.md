@@ -1,8 +1,8 @@
 # Instrument Display Findings
 
 This page tracks the instrument-display scene shared by Mirrors and navigation.
-The implementation summary was last checked against the code on 2026-08-27;
-live-car evidence is current through 2026-08-25.
+The implementation summary was last checked against the code on 2026-09-04;
+live-car evidence is current through 2026-09-04.
 
 ## Product architecture
 
@@ -317,6 +317,29 @@ The monitor compares the stock left-camera window with the camera-overlay
 display chosen by `ClusterDisplayResolver`; the old unconditional
 `mDisplayId=4` match is gone. It uses the shared `dishare-bridge` local ADB
 client and does not import probe code or the abandoned HUD camera path.
+
+On 2026-09-04 a targeted BYDAutoLight listener was live-proven for the raw lever
+phase and confirmed flash-mode FIDs. Denza Apps now starts that listener through
+a separate passive local-ADB resident lane only while Mirrors is enabled. The
+raw edge is side-agnostic and may only preempt the old Denza camera surface; a
+later same-epoch confirmed mode and stable matching stock window may reopen the
+new side after full vendor teardown. Manual lever cancellation live-produced a
+transient opposite-direction event, so it never selects the camera side. The
+existing window observer and `MirrorTransitionReducer` remain the camera-command
+authority. Full evidence, resource measurements, and the remaining acceptance matrix are in
+[vehicle-data-findings.md](vehicle-data-findings.md#targeted-turn-signal-events-2026-09-04).
+After the original direct left-to-right run crashed stock AVC, an instrumented
+guarded candidate detached the old local surface 4 ms after the next right onset,
+completed vendor release after 121 ms, and reopened the Denza right view only
+after confirmed mode/window stability. The user saw both sides correctly, AVC
+kept the same PID, and no new crash or exit record appeared.
+An ordinary later left-off-pause-right run exposed a separate false negative:
+the idle reducer quarantined a 454 ms transient ambiguous stock-window interval
+before the right window became stable. The corrected reducer may wait through
+that interval only with a pending live edge and idle Denza runtime; it still
+cannot Show until the normal confirmed-mode/stable-window gate passes. The final
+separated cycle showed both Denza sides and kept AVC PID `17977`, although the
+ambiguous interval itself did not recur and that exact branch remains unit-only.
 
 ## Navigation projection
 
@@ -869,12 +892,13 @@ Hardware-dependent checks still open:
   behavior must be repeated on the car;
 - navigation command failure, lost ADB, and APK restart recovery require live
   testing;
-- fast left-to-right turn-signal switching is a confirmed crash path while
-  Denza Apps owns the AVC display surface. The persistent-Surface candidate did
-  not fix it. A locally tested two-phase close now removes the app window before
-  releasing AVC and reports `STOPPING` until teardown completes; its visual
-  close still needs a live-car check. Automatic opposite-side opening remains
-  disabled, so pause-based operation is still the compatibility limitation.
+- fast left-to-right turn-signal switching was a confirmed crash path while
+  Denza Apps kept the old AVC display surface. The persistent-Surface candidate
+  did not fix it. The CAN-edge guard has now passed one instrumented stationary
+  left-to-right canary: local detach preceded stock rebuild, vendor teardown
+  completed before one delayed opposite-side reopen, and AVC survived. The
+  right-to-left, cancellation, hazard, sleep/wake, repeated stress, moving-speed,
+  and second-firmware matrix remains open.
 
 A `com.byd.avc` crash is an escalation alert. Save the evidence, tell the user
 once, and continue safe work. Avoid repeating the same suspected trigger until
@@ -890,7 +914,8 @@ at the same time. After the isolated mirror scenarios passed and the standalone
 app was retired, its frozen source moved to
 `legacy/denza-mirrors` and was removed from the root Gradle build on 2026-07-19.
 Denza Apps has no source or Gradle dependency on it. The unaccepted scenarios
-listed above and the rapid side-switch limitation remain open Denza Apps work.
+listed above remain open Denza Apps work; one guarded left-to-right transition
+is evidence for this car, not a general rapid-switch guarantee.
 
 ## Failed or research-only paths
 

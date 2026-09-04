@@ -10,12 +10,18 @@ enum class MirrorTransitionPhase {
     QUARANTINED,
 }
 
+enum class MirrorQuarantineRecovery {
+    NEUTRAL_ONLY,
+    CONFIRMED_SIDE_AFTER_TEARDOWN,
+}
+
 data class MirrorTransitionState(
     val phase: MirrorTransitionPhase = MirrorTransitionPhase.IDLE,
     val side: MirrorSide? = null,
     val phaseStartedAtMs: Long = 0L,
     val runtimeGeneration: Long = 0L,
     val neutralSamples: Int = 0,
+    val quarantineRecovery: MirrorQuarantineRecovery = MirrorQuarantineRecovery.NEUTRAL_ONLY,
     val details: String = "",
 )
 
@@ -24,6 +30,8 @@ data class MirrorTransitionObservation(
     val runtime: CameraRuntimeSnapshot,
     val nowMs: Long,
     val runtimeWindowAmbiguous: Boolean = false,
+    val preemptionInFlight: Boolean = false,
+    val signalTransitionPending: Boolean = false,
 )
 
 sealed interface MirrorTransitionCommand {
@@ -57,16 +65,34 @@ object MirrorTransitionReducer {
         runtime: CameraRuntimeSnapshot,
         nowMs: Long,
         details: String,
+        recovery: MirrorQuarantineRecovery = MirrorQuarantineRecovery.NEUTRAL_ONLY,
     ) = state.copy(
         phase = MirrorTransitionPhase.QUARANTINED,
         side = null,
         phaseStartedAtMs = nowMs,
         runtimeGeneration = runtime.generation,
         neutralSamples = 0,
+        quarantineRecovery = recovery,
         details = details,
     )
 
     private fun reduceIdle(observation: MirrorTransitionObservation): MirrorTransitionResult {
+        if (
+            observation.runtimeWindowAmbiguous &&
+            observation.signalTransitionPending &&
+            observation.requestedSide == null &&
+            observation.runtime.phase == CameraRuntimePhase.IDLE
+        ) {
+            // Stock AVC briefly exposes overlapping/partial window state while it changes side.
+            // A live switch edge makes that a bounded wait state, never permission to Show. The
+            // signal safety join must still produce a later stable eligibleSide before opening.
+            return MirrorTransitionResult(
+                MirrorTransitionState(
+                    runtimeGeneration = observation.runtime.generation,
+                    details = "waiting for confirmed stock switch",
+                ),
+            )
+        }
         if (observation.runtimeWindowAmbiguous) {
             return MirrorTransitionResult(
                 quarantine(
@@ -220,9 +246,28 @@ object MirrorTransitionReducer {
         val runtimeInactive = observation.runtime.phase == CameraRuntimePhase.IDLE ||
             observation.runtime.phase == CameraRuntimePhase.FAILED
         if (
+            state.quarantineRecovery == MirrorQuarantineRecovery.CONFIRMED_SIDE_AFTER_TEARDOWN &&
+            observation.requestedSide != null &&
+            observation.runtime.phase == CameraRuntimePhase.IDLE &&
+            !observation.runtimeWindowAmbiguous &&
+            !observation.preemptionInFlight
+        ) {
+            return MirrorTransitionResult(
+                MirrorTransitionState(
+                    phase = MirrorTransitionPhase.STARTING,
+                    side = observation.requestedSide,
+                    phaseStartedAtMs = observation.nowMs,
+                    runtimeGeneration = observation.runtime.generation,
+                    details = "starting ${observation.requestedSide.name.lowercase()} after confirmed switch",
+                ),
+                MirrorTransitionCommand.Show(observation.requestedSide),
+            )
+        }
+        if (
             observation.requestedSide != null ||
             observation.runtimeWindowAmbiguous ||
-            !runtimeInactive
+            !runtimeInactive ||
+            observation.preemptionInFlight
         ) {
             return MirrorTransitionResult(
                 state.copy(
