@@ -45,36 +45,34 @@ data class ClusterDashboardLayout(
     val height: Int = bounds.bottom - bounds.top
 
     /**
-     * Whether this placement is offered at all.
+     * Whether this placement is offered at all, and only `FULL` is.
      *
      * `CENTER` is refused: it is the one zone with no successful live render on record - Waze came
      * back black at every interval, and no other navigator has been captured there either - and it
      * additionally spends its top 36 percent on a near-opaque gradient. `LEFT` is refused because
-     * its keep-out is a quarter-disc rather than a band, which no block in this design fits.
+     * its keep-out is a quarter-disc rather than a band.
+     *
+     * `RIGHT` is refused as of the Contour, and this is the one that changed. The panel is a single
+     * composition measured against the whole width: one hero on the axis, one band from margin to
+     * margin, two corners inside the stock apertures and two shelves in the clear band's flanks. A
+     * third of that is not a smaller version of this instrument, it is a different instrument, and
+     * this product does not offer that one. Nothing in the app asked for it either -
+     * `NavigationPlacementPolicy.offered` has returned `FULL` alone for the dashboard since it
+     * shipped, so the narrow composition was code with no caller and one more thing to keep true.
      */
-    val supported: Boolean =
-        placement == ClusterMapPlacement.FULL || placement == ClusterMapPlacement.RIGHT
+    val supported: Boolean = placement == ClusterMapPlacement.FULL
 
     /**
-     * Whether this placement is too small for the reveal blocks and their extra lines.
+     * The virtual space the panel is drawn in, matching the design's own boards.
      *
-     * It is a property of the placement rather than of the panel: the right third is a third of
-     * the width with no reveals to put anything in.
-     */
-    val compact: Boolean = placement == ClusterMapPlacement.RIGHT
-
-    /**
-     * The virtual space this placement is drawn in, matching the design's own boards.
-     *
-     * Both land on the panel at the same 1.70 scale - 424 into 720 across the full width, 308 into
-     * 524 in the right third - which is what lets one type ramp serve both: a size of 13 units is
-     * the same number of millimetres on the glass either way.
+     * 424 units into 720 pixels is a factor of 1.70, and every size on the ramp is stated in these
+     * units: at the measured 320 mm of glass one unit is 0.2123 mm, which is what turns a rung into
+     * a number of arc minutes from the driver's seat.
      *
      * It lives here rather than on the density because a density is a set of sizes and a space is a
-     * property of the panel. A block drawn with the narrow ramp inside the wide space - which is
-     * what every corner reveal is - has to be measured against 424, not 308.
+     * property of the panel.
      */
-    val virtualHeight: Float = if (placement == ClusterMapPlacement.RIGHT) 308f else 424f
+    val virtualHeight: Float = 424f
 
     /** Stock graphics occupy everything above this, except inside the top reveals. */
     val stockTop: Float =
@@ -87,19 +85,29 @@ data class ClusterDashboardLayout(
         1f - (map.shadeBottomSolidPx + map.shadeBottomFadePx).toFloat() / height
     }
 
-    private val topLeftRevealX: Float =
+    /**
+     * The three apertures, as fractions of the panel.
+     *
+     * Public because the Contour is placed against them rather than against the panel edge: the two
+     * corners are quarter-ellipses anchored at `y = 0` with these as their horizontal radii and
+     * [stockTop] as their vertical one, and the petal is a half-ellipse centred at
+     * [bottomRevealCentreY]. Every anchor the panel has is either a guard off [stockTop] /
+     * [stockBottom] or a clearance from one of these curves, and [ContourPlan] is where that
+     * arithmetic lives.
+     */
+    val topLeftRevealX: Float =
         if (width <= 0) 0f else map.shadeTopLeftRevealRadiusPx.toFloat() / width
-    private val topRightRevealX: Float =
+    val topRightRevealX: Float =
         if (width <= 0) 0f else map.shadeTopRightRevealRadiusPx.toFloat() / width
-    private val bottomRevealX: Float =
+    val bottomRevealX: Float =
         if (width <= 0) 0f else map.shadeBottomRevealRadiusPx.toFloat() / width
-    private val bottomRevealY: Float = if (height <= 0) {
+    val bottomRevealY: Float = if (height <= 0) {
         0f
     } else {
         map.shadeBottomRevealRadiusPx.toFloat() *
             map.shadeBottomRevealHeightPercent / 100f / height
     }
-    private val bottomRevealCentreY: Float = if (height <= 0) {
+    val bottomRevealCentreY: Float = if (height <= 0) {
         1f
     } else {
         1f - map.shadeBottomRevealCenterOffsetPx.toFloat() / height
@@ -108,9 +116,10 @@ data class ClusterDashboardLayout(
     /**
      * Whether a point may be drawn on.
      *
-     * The band between the two stock edges is always ours. Outside it, only the three reveals are,
-     * and a placement with no shade at all - `RIGHT`, whose protection is the crop itself - has no
-     * stock edge to be outside of.
+     * The band between the two stock edges is always ours; outside it, only the three apertures
+     * are. It is what `ContourPlanTest` measures the panel's own boxes against, which is the reason
+     * a fraction rather than a unit: this is a fact about the window, and the panel is drawn in a
+     * space of its own that the window is fitted to.
      */
     fun isClear(x: Float, y: Float): Boolean = when {
         y in stockTop..stockBottom -> true
@@ -138,72 +147,5 @@ data class ClusterDashboardLayout(
         val dx = (x - centreX) / radiusX
         val dy = (y - centreY) / radiusY
         return dx * dx + dy * dy <= 1f
-    }
-
-    /** The electric instrument: state of the pack that the car itself never shows. */
-    val electricBlock: DashboardBox = band(0.017f, 0.303f)
-
-    /** The combustion instrument: revolutions and what they are putting back. */
-    val engineBlock: DashboardBox = band(0.697f, 0.983f)
-
-    /** Temperatures, in the top-left reveal. Absent where there is no reveal to use. */
-    val temperatureBlock: DashboardBox? = topReveal(topLeftRevealX, fromLeft = true)
-
-    /** The fluid lamps, in the top-right reveal. */
-    val lampBlock: DashboardBox? = topReveal(topRightRevealX, fromLeft = false)
-
-    /**
-     * Centre of the energy gauge, and its radius as a fraction of the dashboard's height.
-     *
-     * The full-width radius is set by the crown, not by taste: the dial's marks stand outward from
-     * the arc, and straight up is where the clear band's top edge crosses it. At `0.377` the mark
-     * cleared the arc but not the edge - by two pixels, which is exactly the kind of miss that never
-     * shows up in a drawing. `ClusterDashboardLayoutTest` holds this against
-     * `EnergyGauge.topReach`, so a change to the mark length is caught here rather than on the car.
-     */
-    val gaugeCentreX: Float = 0.5f
-    val gaugeCentreY: Float = if (placement == ClusterMapPlacement.RIGHT) 0.76f else 0.78f
-    val gaugeRadius: Float = if (placement == ClusterMapPlacement.RIGHT) 0.383f else 0.372f
-
-    private fun band(left: Float, right: Float): DashboardBox {
-        val top = stockTop + (stockBottom - stockTop) * 0.06f
-        val bottom = stockBottom - (stockBottom - stockTop) * 0.03f
-        return DashboardBox(left, top, right, bottom)
-    }
-
-    /**
-     * The widest block that fits inside a top reveal, or `null` where the placement has none.
-     *
-     * A reveal is a quarter-ellipse anchored to its corner, so an inscribed rectangle loses width
-     * quickly as it grows downward. The width is therefore solved for the block's *lower* edge
-     * rather than chosen: everything above that line is wider still and cannot escape.
-     */
-    private fun topReveal(radiusX: Float, fromLeft: Boolean): DashboardBox? {
-        if (radiusX <= 0f || stockTop <= 0f) return null
-        val bottom = stockTop * REVEAL_BOTTOM
-        val reach = radiusX * kotlin.math.sqrt(1f - REVEAL_BOTTOM * REVEAL_BOTTOM) - REVEAL_MARGIN
-        if (reach <= REVEAL_INSET) return null
-        return if (fromLeft) {
-            DashboardBox(REVEAL_INSET, stockTop * REVEAL_TOP, reach, bottom)
-        } else {
-            DashboardBox(1f - reach, stockTop * REVEAL_TOP, 1f - REVEAL_INSET, bottom)
-        }
-    }
-
-    private companion object {
-        /**
-         * Where a reveal block starts and ends, as a share of the reveal's own depth.
-         *
-         * The bottom edge buys height at the cost of width - the reveal is a quarter-ellipse, so the
-         * lower the block's floor, the narrower the widest rectangle that still fits under the
-         * curve. These two numbers are where the fluid grid and its sentence stop overflowing while
-         * the block stays wide enough to hold that sentence; `ClusterBlockPlanTest` is what says so.
-         */
-        const val REVEAL_TOP = 0.14f
-        const val REVEAL_BOTTOM = 0.70f
-
-        /** Kept off the panel edge, and off the curve the reveal is bounded by. */
-        const val REVEAL_INSET = 0.017f
-        const val REVEAL_MARGIN = 0.008f
     }
 }

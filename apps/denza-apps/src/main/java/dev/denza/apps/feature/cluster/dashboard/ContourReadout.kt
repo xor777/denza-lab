@@ -49,6 +49,14 @@ internal object ContourReadout {
     /** Written after the odometer's own figure and its unit, which lead the phrase. */
     const val CAPTION_TRIP = "· ЗА ПОЕЗДКУ"
 
+    /**
+     * And what is left of it when the odometer has gone stale.
+     *
+     * The separator belongs to the figure in front of it, so it leaves with it: a «·» standing at
+     * the head of a cell is a phrase missing its first half rather than a caption.
+     */
+    const val CAPTION_TRIP_ALONE = "ЗА ПОЕЗДКУ"
+
     /** Drawn after a blue marker dot, which is what says the same thing «ВЕРНУЛА» would have. */
     const val CAPTION_REGEN = "РЕКУПЕРАЦИЯ"
 

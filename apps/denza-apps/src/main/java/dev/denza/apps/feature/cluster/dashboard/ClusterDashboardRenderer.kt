@@ -3,55 +3,64 @@ package dev.denza.apps.feature.cluster.dashboard
 import android.graphics.Canvas
 import android.graphics.Paint
 import dev.denza.apps.design.DenzaPalette
-import dev.denza.apps.design.instrument.EnergyGauge
-import dev.denza.apps.design.instrument.InstrumentDensity
+import dev.denza.apps.design.instrument.EnergyScale
+import dev.denza.apps.design.instrument.InstrumentFace
 import dev.denza.apps.design.instrument.InstrumentPen
 import dev.denza.apps.feature.vehicle.ConsumptionWindow
-import dev.denza.apps.feature.vehicle.EngineLamp
-import dev.denza.apps.feature.vehicle.LampState
-import dev.denza.apps.feature.vehicle.VehicleAccess
 import dev.denza.apps.feature.vehicle.VehicleSignal
 import dev.denza.apps.feature.vehicle.VehicleTelemetry
+import kotlin.math.abs
+import kotlin.math.max
+import kotlin.math.min
 
 /**
- * The instrument dashboard the driver sees.
+ * The Contour, drawn.
  *
- * Four things about this renderer are deliberate and worth knowing before changing it.
+ * It won the 2026-09 cluster contest (`docs/cluster-contest-2026-09/`), went to the owner three
+ * times, was roasted by an independent review, and was redrawn four more times against what came
+ * back. `tools/design-canvas/gen_contour.py` is that concept as three boards and this is the same
+ * concept as a `Canvas`; `ContourBoardContractTest` is what keeps the two from drifting.
  *
- * **It paints its whole box black.** It did not until 2026-08-25: the first live run showed the
- * stock graphics through every gap, and a dashboard read over somebody else's needle is not a
- * dashboard. So the surface is opaque now, and the radial scrims that used to buy each island just
- * enough legibility are gone with the thing they were compensating for. The keep-outs in
- * [ClusterDashboardLayout] still matter, but for the other reason: the vehicle draws *above* this
- * window as well, so a block placed under stock graphics is hidden by them rather than covering
- * them.
+ * Five rules carry the whole panel, and they are worth knowing before changing a line of it.
  *
- * **It shows what the car does not.** State of charge and remaining range are already on the stock
- * cluster a few centimetres away, so drawing them here would spend the best real estate on a
- * duplicate. The pack's voltage, its cell spread, its insulation and its health are nowhere else.
+ * **One heavy thing.** `INK` belongs to the hero and to the petal's figure and to nothing else. Both
+ * corners and both shelves are `MUTED`; headings, captions and units are `MUTED_DEEP`; `WARNING` and
+ * `DANGER` are the exception only. Five equal 52s were the owner's original complaint wearing a new
+ * suit, and size alone was not enough to separate them (M4).
  *
- * **It reports exceptions rather than inventories.** The fluid lamps become one line that is quiet
- * while they are healthy and names only faults or incomplete reads.
+ * **One lit thing, and it stands still.** The glow is centred on zero, its hue is the sign and its
+ * brightness is the magnitude. It used to ride the band's tip, which put a pool of light through a
+ * centimetre of travel every time the pedal moved in a jam - precisely what peripheral vision is
+ * built to catch (M6).
  *
- * **Density follows the room, not the placement.** A block in a corner reveal is small wherever it
- * sits, so it takes [InstrumentDensity.COMPACT] even inside the full-width layout. That is the whole
- * rule; there is no second one.
+ * **Alpha is not a state channel.** A stale value is removed after two seconds and its caption
+ * stays; link loss is that rule applied to every value at once. Nothing here dims anything, and
+ * [ContourScene] is where that is decided (M5).
  *
- * ### Where the rows come from
+ * **A zero is never drawn.** A quantity that did not happen this trip has no cell. That is the
+ * owner's own question - «что означает 0,0 от ДВС, когда ДВС заглушен?» - and the rule it produced
+ * outranks the tidy ones: is this understood at first glance, by somebody who has never seen the
+ * panel and has no legend?
  *
- * No baseline in this file is placed by hand. Each block declares a plan in [ClusterBlockPlan], and
- * [Column] turns that plan into anchors: the block's height is known before its first line is drawn,
- * so it is centred in its box rather than hung from the top, and a unit test can add the plan up
- * against the box instead of the car doing it for us.
+ * **No coordinate depends on data.** Every anchor is in [ContourPlan]; this file draws at them.
  *
- * That is a direct answer to what an audit found on the design boards - four sibling layouts whose
- * first label started at four different heights, so the headers jumped when you turned the page -
- * and the same drift had already started here, with gaps of 6, 7, 8 and 18 chosen per method.
+ * ### Nothing is allocated in a frame, and nothing is thrown out of one
+ *
+ * This runs inside a `Presentation` over the vehicle's live instruments. An exception out of
+ * `onDraw` takes that window down, so the panel draws what it has and leaves out what it does not,
+ * and there is no case here that ends in a throw. The two history buffers are fields.
  */
 internal class ClusterDashboardRenderer {
 
     private val pen = InstrumentPen()
-    private val gauge = EnergyGauge(pen)
+
+    private var plan: ContourPlan? = null
+    private var planFor: ClusterDashboardLayout? = null
+
+    private val petalYs = FloatArray(ContourPlan.PETAL_BUCKETS)
+    private val generationYs = FloatArray(ContourPlan.ENGINE_SLOTS)
+    private val revolutionYs = FloatArray(ContourPlan.ENGINE_SLOTS)
+    private val span = FloatArray(max(ContourPlan.ENGINE_SLOTS, ContourPlan.PETAL_BUCKETS))
 
     fun draw(
         canvas: Canvas,
@@ -59,536 +68,904 @@ internal class ClusterDashboardRenderer {
         height: Float,
         layout: ClusterDashboardLayout,
         telemetry: VehicleTelemetry,
+        motion: ContourMotion,
+        scene: ContourScene,
     ) {
         if (!layout.supported) return
-        val compact = layout.compact
-        val density = if (compact) InstrumentDensity.COMPACT else InstrumentDensity.WIDE
-        pen.size(width, height, layout.virtualHeight)
 
         // Black rather than the design system's near-black `BACKGROUND`: this sits on a panel whose
         // own ground is black, and three per cent of grey is a visible rectangle there while it is
         // invisible on the boards, which are viewed in a browser page.
         canvas.drawColor(BACKGROUND)
 
-        if (telemetry.access != VehicleAccess.READY) {
-            unavailable(canvas, layout, density, telemetry)
-            return
-        }
-
-        energy(canvas, layout, density, telemetry)
-        if (compact) {
-            electricNarrow(canvas, layout.electricBlock, density, telemetry)
-            engineNarrow(canvas, layout.engineBlock, density, telemetry)
+        // The plan is measured through the car's own face, so it is rebuilt when the window's size
+        // changes and never inside a frame.
+        val moved = pen.size(width, height, layout.virtualHeight)
+        val known = plan
+        val plan = if (known != null && !moved && planFor == layout) {
+            known
         } else {
-            electricWide(canvas, layout.electricBlock, density, telemetry)
-            engineWide(canvas, layout.engineBlock, density, telemetry)
-        }
-        layout.temperatureBlock?.let { temperatures(canvas, it, telemetry) }
-        layout.lampBlock?.let { lamps(canvas, it, telemetry) }
-    }
-
-    // ---- the centre: power now, and what it cost over the road behind
-
-    /**
-     * The dial over the fixed three-kilometre consumption window.
-     *
-     * The bars and average come from the same tail of hundred-metre buckets, so
-     * the number describes exactly the road visible underneath it.
-     */
-    private fun energy(
-        canvas: Canvas,
-        layout: ClusterDashboardLayout,
-        density: InstrumentDensity,
-        t: VehicleTelemetry,
-    ) {
-        val bars = ConsumptionWindow.raw(t.consumption)
-        val average = ClusterReadout.averageConsumption(bars)
-        gauge.draw(
-            canvas = canvas,
-            centreX = layout.gaugeCentreX * pen.width,
-            centreY = layout.gaugeCentreY * pen.height,
-            radius = layout.gaugeRadius * pen.height,
-            density = density,
-            kilowatts = flowKw(t),
-            bars = bars,
-            average = average,
-            caption = ClusterReadout.chartCaption(
-                average,
-                ConsumptionWindow.coveredKm(t.consumption),
-                t.stationary,
-            ),
-        )
-    }
-
-    /** What the pack is doing: charging reads as energy arriving, not as a load of its own. */
-    private fun flowKw(t: VehicleTelemetry): Double? {
-        if (t.charging) {
-            val charge = t.chargeKw ?: return t.loadKw
-            return -kotlin.math.abs(charge)
-        }
-        return t.loadKw
-    }
-
-    // ---- the pack, in the terms the car itself never shows
-
-    private fun electricWide(
-        canvas: Canvas,
-        box: DashboardBox,
-        density: InstrumentDensity,
-        t: VehicleTelemetry,
-    ) {
-        val column = Column(box, density, ClusterBlockPlan.electricWide(density))
-
-        pen.title(canvas, TITLE_ELECTRIC, column.left, column.next(), density, DenzaPalette.MUTED_DEEP)
-
-        val volts = t[VehicleSignal.PACK_VOLT]
-        val spread = t.cellSpreadMv
-        val figure = column.next()
-        pen.figure(
-            canvas, ClusterReadout.whole(volts), UNIT_VOLT,
-            column.left, figure, density, density.figure, DenzaPalette.INK,
-        )
-        pen.figure(
-            canvas, ClusterReadout.whole(spread), SPREAD_UNIT,
-            column.right, figure, density, density.reading,
-            levelColor(ClusterReadout.spreadState(spread)),
-            DenzaPalette.MUTED_DEEP, Paint.Align.RIGHT,
-        )
-
-        pen.track(
-            canvas, column.left, column.right, column.next(),
-            density.trackHeight, ClusterReadout.voltFraction(volts), DenzaPalette.INK,
-        )
-
-        pen.label(
-            canvas, packLine(t, includeHealth = true), column.left, column.next(),
-            density.body, DenzaPalette.MUTED_DEEP,
-        )
-    }
-
-    private fun electricNarrow(
-        canvas: Canvas,
-        box: DashboardBox,
-        density: InstrumentDensity,
-        t: VehicleTelemetry,
-    ) {
-        val column = Column(box, density, ClusterBlockPlan.electricNarrow(density))
-
-        pen.title(canvas, TITLE_ELECTRIC, column.left, column.next(), density, DenzaPalette.MUTED_DEEP)
-
-        val volts = t[VehicleSignal.PACK_VOLT]
-        pen.figure(
-            canvas, ClusterReadout.whole(volts), UNIT_VOLT,
-            column.left, column.next(), density, density.figure, DenzaPalette.INK,
-        )
-        pen.track(
-            canvas, column.left, column.right, column.next(),
-            density.trackHeight, ClusterReadout.voltFraction(volts), DenzaPalette.INK,
-        )
-
-        val spread = t.cellSpreadMv
-        pen.figure(
-            canvas, ClusterReadout.whole(spread), SPREAD_UNIT,
-            column.left, column.next(), density, density.reading,
-            levelColor(ClusterReadout.spreadState(spread)), DenzaPalette.MUTED_DEEP,
-        )
-        pen.figure(
-            canvas, ClusterReadout.whole(t[VehicleSignal.SOH_PERCENT]), HEALTH_UNIT,
-            column.left, column.next(), density, density.reading,
-            DenzaPalette.INK, DenzaPalette.MUTED_DEEP,
-        )
-
-        // The block's last row, in the block's own anatomy where it can be: the insulation is a
-        // number with a unit and a name, exactly like the two rows above it, and writing it as a
-        // grey sentence made the one row of this column that carries a reading look like the one
-        // row that had failed to get one. A charge takes the row over and is a sentence, because
-        // "2 ч 15 мин" is not a quantity with a unit.
-        val insulation = t.insulationMohm.takeIf { !t.charging }
-        val last = column.next()
-        if (insulation != null) {
-            pen.figure(
-                canvas, ClusterReadout.fmt(insulation, 1), INSULATION_UNIT,
-                column.left, last, density, density.reading,
-                DenzaPalette.INK, DenzaPalette.MUTED_DEEP,
-            )
-        } else {
-            pen.label(
-                canvas, packLine(t, includeHealth = false), column.left, last,
-                density.body, DenzaPalette.MUTED_DEEP,
-            )
-        }
-    }
-
-    /**
-     * The pack's supporting sentence, which a charge takes over entirely.
-     *
-     * A driver watching a gun go in wants the rate and the wait; insulation resistance can go back
-     * to being interesting when the cable comes out.
-     *
-     * [includeHealth] is false where the narrow layout has already given the pack's health a row of
-     * its own, so the same fact never appears twice in one block.
-     *
-     * The 12 V rail used to end this line and no longer does. It is a diagnostic rather than a
-     * driving fact, and at the wide body size the four facts together measured wider than the block
-     * they sat in. Its poll left with the retired head-unit vehicle page.
-     */
-    private fun packLine(t: VehicleTelemetry, includeHealth: Boolean): String {
-        if (t.charging) return ClusterReadout.chargeLine(t.chargeMinutesLeft, brief = !includeHealth)
-        val parts = mutableListOf<String>()
-        if (includeHealth) {
-            t[VehicleSignal.SOH_PERCENT]?.let { parts += "ресурс ${ClusterReadout.whole(it)} %" }
-        }
-        t.insulationMohm?.let { parts += "изоляция ${ClusterReadout.fmt(it, 1)} МОм" }
-        return if (parts.isEmpty()) NO_PACK_DETAIL else parts.joinToString(" · ")
-    }
-
-    // ---- the combustion half, which is normally asleep and still has something to say
-
-    private fun engineWide(
-        canvas: Canvas,
-        box: DashboardBox,
-        density: InstrumentDensity,
-        t: VehicleTelemetry,
-    ) {
-        val column = Column(box, density, ClusterBlockPlan.engineWide(density))
-
-        pen.title(
-            canvas, TITLE_ENGINE, column.right, column.next(),
-            density, DenzaPalette.MUTED_DEEP, Paint.Align.RIGHT,
-        )
-
-        val row = column.next()
-        val figureWidth = pen.figure(
-            canvas, ClusterReadout.whole(t.engineRpm), UNIT_RPM,
-            column.right, row, density, density.figure, rpmColor(t), align = Paint.Align.RIGHT,
-        )
-        engineTrace(canvas, column, density, row, figureWidth, t)
-
-        revolutions(canvas, column, density, t)
-
-        pen.label(
-            canvas, engineLine(t), column.right, column.next(),
-            density.body, DenzaPalette.MUTED_DEEP, Paint.Align.RIGHT,
-        )
-    }
-
-    private fun engineNarrow(
-        canvas: Canvas,
-        box: DashboardBox,
-        density: InstrumentDensity,
-        t: VehicleTelemetry,
-    ) {
-        val column = Column(box, density, ClusterBlockPlan.engineNarrow(density))
-
-        pen.title(
-            canvas, TITLE_ENGINE, column.right, column.next(),
-            density, DenzaPalette.MUTED_DEEP, Paint.Align.RIGHT,
-        )
-
-        val row = column.next()
-        val figureWidth = pen.figure(
-            canvas, ClusterReadout.whole(t.engineRpm), UNIT_RPM,
-            column.right, row, density, density.figure, rpmColor(t), align = Paint.Align.RIGHT,
-        )
-        engineTrace(canvas, column, density, row, figureWidth, t)
-
-        revolutions(canvas, column, density, t)
-
-        // The narrow layout has no reveal to put the lamps in, so they speak here instead.
-        pen.label(
-            canvas, lampLine(t, brief = true), column.right, column.next(),
-            density.body, lampColor(t), Paint.Align.RIGHT,
-        )
-    }
-
-    /** Revolutions, with generation laid over them on the same line rather than beside it. */
-    private fun revolutions(
-        canvas: Canvas,
-        column: Column,
-        density: InstrumentDensity,
-        t: VehicleTelemetry,
-    ) {
-        val centre = column.next()
-        pen.track(
-            canvas, column.left, column.right, centre, density.trackHeight,
-            ClusterReadout.rpmFraction(t.engineRpm), DenzaPalette.ink(0.32f),
-        )
-        // The track is left as drawn, so the revolutions stay visible under the generation.
-        ClusterReadout.generationFraction(t.generationKw.takeIf { t.generating })?.let { fraction ->
-            pen.track(
-                canvas, column.left, column.right, centre, density.trackHeight,
-                fraction, DenzaPalette.RETURN, trackColor = null,
-            )
-        }
-    }
-
-    /**
-     * Where the revolutions and the generation have just been, beside the figure they belong to.
-     *
-     * It takes the room the tank's percentage used to have and adds no row of its own: it stands on
-     * the figure's baseline and is exactly as tall as the figure's digits, so it reads as part of
-     * the number rather than as a second instrument. It runs from the gauge's left edge to where the
-     * digits begin, which makes the row one object - history, then the reading it arrived at.
-     *
-     * Both traces share the box. Their ceilings differ and the box carries no scale, because what it
-     * is for is the pair of shapes: whether the engine spun up before it started putting anything
-     * back, and whether what it puts back is steady. The two current numbers are already on the row.
-     */
-    private fun engineTrace(
-        canvas: Canvas,
-        column: Column,
-        density: InstrumentDensity,
-        baseline: Float,
-        figureWidth: Float,
-        t: VehicleTelemetry,
-    ) {
-        val right = column.right - figureWidth - pen.v(density.rhythm(2f))
-        val top = baseline - pen.digitHeight(density.figure)
-        if (right - column.left < pen.v(TRACE_MIN_WIDTH)) return
-
-        val trace = t.engineTrace
-        pen.trace(
-            canvas, column.left, right, top, baseline,
-            trace.revolutions, ClusterReadout.RPM_FULL, DenzaPalette.ink(0.55f),
-            density.hairline * TRACE_WIDTH, density.dotRadius * TRACE_DOT,
-        )
-        pen.trace(
-            canvas, column.left, right, top, baseline,
-            trace.generationKw, ClusterReadout.GENERATION_FULL_KW, DenzaPalette.RETURN,
-            density.hairline * TRACE_WIDTH, density.dotRadius * TRACE_DOT,
-            // The same square root the generation gauge uses: ordinary generation is around ten
-            // kilowatts of a hundred, and linear would leave it flat on the floor of the box.
-            squareRoot = true,
-        )
-    }
-
-    private fun rpmColor(t: VehicleTelemetry): Int =
-        if (t.engineRunning == true) DenzaPalette.INK else DenzaPalette.ink(0.55f)
-
-    private fun engineLine(t: VehicleTelemetry): String =
-        ClusterReadout.engineLine(t.generating, t.generationKw, t.engineRunning)
-
-    // ---- the two reveals: temperatures on the left, fluids on the right
-
-    private fun temperatures(canvas: Canvas, box: DashboardBox, t: VehicleTelemetry) {
-        val density = InstrumentDensity.COMPACT
-        val column = Column(box, density, ClusterBlockPlan.temperatures(density))
-
-        pen.title(canvas, TITLE_THERMAL, column.left, column.next(), density, DenzaPalette.MUTED_DEEP)
-
-        val pack = t[VehicleSignal.PACK_TEMP_AVG]
-        val inverter = t[VehicleSignal.INVERTER_C]
-        val row = column.next()
-        val packWidth = pen.figure(
-            canvas, degrees(pack), PACK_WORD, column.left, row, density, density.reading,
-            levelColor(
-                ClusterReadout.thermalState(
-                    pack,
-                    ClusterReadout.PACK_BAND_HIGH_C,
-                    ClusterReadout.PACK_BAND_LOW_C,
-                ),
-            ),
-            DenzaPalette.MUTED_DEEP,
-        )
-        // Two readings on one row, and the reader binds a word to the number *before* it only if
-        // there is no closer number after it. At the pair rhythm the pack's word sat as near the
-        // inverter's figure as its own, and "- батарея 26 инвертор" read as "battery 26" - which
-        // is the wrong sensor and the wrong number at once. Between a value and its own word is
-        // one step; between two pairs it is now four.
-        pen.figure(
-            canvas, degrees(inverter), INVERTER_WORD,
-            column.left + packWidth + pen.v(density.rhythm(PAIR_GAP)),
-            row, density, density.reading,
-            levelColor(ClusterReadout.thermalState(inverter, ClusterReadout.INVERTER_WATCH_C)),
-            DenzaPalette.MUTED_DEEP,
-        )
-
-        // Every temperature carries its own degree, in both rows. The three motors used to share
-        // one at the end of the run, so the same row had values that were marked as temperatures
-        // and values that were not.
-        val motors = t.motorTemps.filterNotNull()
-        val motorText = if (motors.isEmpty()) {
-            ClusterReadout.DASH
-        } else {
-            motors.joinToString(" · ") { ClusterReadout.whole(it) + DEGREE }
-        }
-        pen.figure(
-            canvas, motorText, MOTOR_WORD, column.left, column.next(), density, density.reading,
-            levelColor(ClusterReadout.thermalState(t.hottestMotorC, ClusterReadout.DRIVE_BAND_HIGH_C)),
-            DenzaPalette.MUTED_DEEP,
-        )
-    }
-
-    private fun degrees(celsius: Double?): String =
-        if (celsius == null) ClusterReadout.DASH else ClusterReadout.whole(celsius) + DEGREE
-
-    private fun lamps(canvas: Canvas, box: DashboardBox, t: VehicleTelemetry) {
-        val density = InstrumentDensity.COMPACT
-        val plan = ClusterBlockPlan.lamps(density, EngineLamp.entries.size, LAMP_COLUMNS)
-        val column = Column(box, density, plan)
-
-        pen.title(
-            canvas, TITLE_FLUIDS, column.right, column.next(),
-            density, DenzaPalette.MUTED_DEEP, Paint.Align.RIGHT,
-        )
-
-        val step = pen.v(density.lampStep)
-        val first = column.next()
-        EngineLamp.entries.forEachIndexed { index, lamp ->
-            val x = column.right - step * (LAMP_COLUMNS - 1 - index % LAMP_COLUMNS)
-            val y = first + step * (index / LAMP_COLUMNS)
-            when (t.lamp(lamp)) {
-                LampState.ALERT -> pen.dot(canvas, x, y, density.lampRadius, DenzaPalette.DANGER)
-                LampState.OK -> pen.dot(canvas, x, y, density.lampRadius, DenzaPalette.ink(0.55f))
-                LampState.UNKNOWN -> pen.hollowDot(canvas, x, y, density.lampRadius, DenzaPalette.ink(0.35f))
+            ContourPlan(layout, ContourType.of(pen)).also {
+                this.plan = it
+                planFor = layout
             }
         }
 
-        pen.label(
-            canvas, lampLine(t), column.right, column.next(),
-            density.body, lampColor(t), Paint.Align.RIGHT,
+        val stage = scene.stage
+        glow(canvas, plan, motion, scene)
+        skeleton(canvas, plan)
+        band(canvas, plan, telemetry, motion, scene, stage)
+        hero(canvas, plan, motion, scene)
+        leftCorner(canvas, plan, telemetry, scene)
+        rightCorner(canvas, plan, telemetry, motion, scene, stage)
+        leftShelf(canvas, plan, telemetry, scene)
+        rightShelf(canvas, plan, telemetry, scene, stage)
+        petal(canvas, plan, telemetry, scene, stage)
+    }
+
+    // ---------------------------------------------------------------- the skeleton
+
+    /**
+     * The two lines that are there in every state, including the ones with no data at all.
+     *
+     * A hairline and a zero mark, and no limit captions: a band whose two directions run on a square
+     * root over two different spans is an ambient, not a scale, and «100 кВт / 300 кВт» were two 12′
+     * lines saying otherwise (M10).
+     */
+    private fun skeleton(canvas: Canvas, plan: ContourPlan) {
+        val y = pen.v(plan.bandY)
+        pen.line(canvas, pen.v(plan.leftEdge), y, pen.v(plan.rightEdge), y, DenzaPalette.MUTED_DEEP, plan.bandHairline)
+        val x = pen.v(plan.axis)
+        pen.line(
+            canvas,
+            x,
+            y - pen.v(plan.zeroHalf),
+            x,
+            y + pen.v(plan.zeroHalf),
+            DenzaPalette.MUTED_DEEP,
+            plan.zeroWidth,
         )
     }
 
-    private fun lampLine(t: VehicleTelemetry, brief: Boolean = false): String = ClusterReadout.lampLine(
-        t.lampAlerts.map(EngineLamp::label),
-        EngineLamp.entries.count { t.lamp(it) != LampState.UNKNOWN },
-        EngineLamp.entries.size,
-        brief,
-    )
+    /**
+     * The one pool of light.
+     *
+     * Its hue comes from the band's own flow state rather than from its own follower, so the panel
+     * has one colour at a time: the two are the same reading at two speeds, and during a fast
+     * transition their signs can differ for a few frames.
+     */
+    private fun glow(canvas: Canvas, plan: ContourPlan, motion: ContourMotion, scene: ContourScene) {
+        if (!motion.powerReady || !scene.fresh(ContourValue.POWER)) return
+        val strength = plan.glowAlpha(motion.glowKw) * NIGHT_DIM
+        if (strength <= 0f) return
+        pen.glow(
+            canvas,
+            pen.v(plan.glowCentreX),
+            pen.v(plan.glowCentreY),
+            plan.glowRadiusX,
+            plan.glowRadiusY,
+            flowColor(motion.flow),
+            strength,
+        )
+    }
 
-    private fun lampColor(t: VehicleTelemetry): Int =
-        if (t.lampAlerts.isEmpty()) DenzaPalette.MUTED_DEEP else DenzaPalette.DANGER
+    // ---------------------------------------------------------------- the band
 
-    // ---- states where there is nothing to draw
-
-    private fun unavailable(
+    private fun band(
         canvas: Canvas,
-        layout: ClusterDashboardLayout,
-        density: InstrumentDensity,
+        plan: ContourPlan,
         t: VehicleTelemetry,
+        motion: ContourMotion,
+        scene: ContourScene,
+        stage: ContourStage,
     ) {
-        val cx = layout.gaugeCentreX * pen.width
-        val cy = layout.gaugeCentreY * pen.height - layout.gaugeRadius * pen.height * WAITING_ABOVE
-        val word = if (t.access == VehicleAccess.STARTING) READING else NO_DATA
-        pen.label(canvas, word, cx, cy, density.reading, DenzaPalette.MUTED, Paint.Align.CENTER)
-        if (t.message.isNotEmpty()) {
-            pen.label(
+        if (!motion.powerReady || !scene.fresh(ContourValue.POWER)) return
+        val kilowatts = motion.powerKw
+        val top = pen.v(plan.bandY - plan.bandBody / 2f)
+        val bottom = pen.v(plan.bandY + plan.bandBody / 2f)
+        val zeroX = pen.v(plan.axis)
+        val tipX = pen.v(plan.bandX(kilowatts))
+
+        if (abs(kilowatts) > EnergyScale.FLOOR_KW) {
+            pen.band(canvas, zeroX, tipX, top, bottom, flowColor(motion.flow), edgeColor(motion.flow))
+        }
+
+        generation(canvas, plan, t, scene, stage, kilowatts, tipX, top, bottom)
+
+        motion.peakKw?.let { peak ->
+            val x = pen.v(plan.bandX(peak))
+            pen.line(
                 canvas,
-                t.message,
-                cx,
-                cy + pen.v(density.rhythm(ClusterBlockPlan.LEAD_ROW) + density.body),
-                density.body,
-                DenzaPalette.MUTED_DEEP,
-                Paint.Align.CENTER,
+                x,
+                top - pen.v(PEAK_OVERHANG),
+                x,
+                bottom + pen.v(PEAK_OVERHANG),
+                DenzaPalette.DATA_PEAK,
+                PEAK_WIDTH,
+                ContourPlan.PEAK_ALPHA,
             )
         }
     }
 
-    private fun levelColor(level: ClusterReadout.Level): Int = when (level) {
-        ClusterReadout.Level.UNKNOWN -> DenzaPalette.ink(0.4f)
-        ClusterReadout.Level.LOW -> DenzaPalette.RETURN_INK
-        ClusterReadout.Level.NORMAL -> DenzaPalette.INK
-        ClusterReadout.Level.WATCH -> DenzaPalette.WARNING
-        ClusterReadout.Level.ALERT -> DenzaPalette.DANGER
+    /**
+     * What the engine is paying, drawn on the band - one of two ways, and the flag decides.
+     *
+     * The jury's second correction reads the band as `wheels = pack + generation`: ink is what the
+     * battery pays, blue is what the engine pays, and the tip is what the wheels asked for. That is
+     * only true if `GENERATION_KW` is not already inside `POWER_KW`, and nobody has logged this car
+     * on a flat cruise with the engine running (VERDICT check 3, CRITIQUE B1).
+     *
+     * So [GENERATION_ON_BAND] is false until somebody does, and the same fact is drawn without the
+     * claim: a separate blue line under the body, from zero, as long as the generation is on the
+     * band's own scale. Flipping the flag is the whole change, in this one method.
+     */
+    private fun generation(
+        canvas: Canvas,
+        plan: ContourPlan,
+        t: VehicleTelemetry,
+        scene: ContourScene,
+        stage: ContourStage,
+        kilowatts: Float,
+        tipX: Float,
+        top: Float,
+        bottom: Float,
+    ) {
+        if (!stage.engineRunning || !scene.fresh(ContourValue.GENERATION)) return
+        val generation = (t.generationKw ?: return).toFloat()
+        if (generation <= 0f) return
+        if (GENERATION_ON_BAND) {
+            val far = pen.v(plan.bandX(kilowatts + generation))
+            pen.rect(canvas, tipX, top, far, bottom, DenzaPalette.RETURN)
+        } else {
+            val far = pen.v(plan.axis + EnergyScale.sweepFraction(generation) * plan.bandHalf)
+            val lineTop = pen.v(plan.generationLineY)
+            pen.rect(
+                canvas,
+                pen.v(plan.axis),
+                lineTop,
+                far,
+                lineTop + pen.v(plan.generationLineHeight),
+                DenzaPalette.RETURN,
+            )
+        }
+    }
+
+    // ---------------------------------------------------------------- the hero
+
+    /**
+     * The one figure read on the move, and the one place a unit has to be readable.
+     *
+     * «кВт» is at 34 - 23′ - because a 12′ unit under the stock speedometer was the only thing
+     * telling the driver that «34» was not 34 km/h (M2). It is drawn as soon as the reading has ever
+     * arrived and stays when it goes, which is the caption rule applied to a unit.
+     */
+    private fun hero(canvas: Canvas, plan: ContourPlan, motion: ContourMotion, scene: ContourScene) {
+        if (!scene.known(ContourValue.POWER)) return
+        pen.text(
+            canvas,
+            ContourReadout.UNIT_KW,
+            pen.v(plan.heroUnitX),
+            pen.v(plan.heroBaseline),
+            InstrumentFace.READING,
+            DenzaPalette.MUTED,
+        )
+        if (!scene.fresh(ContourValue.POWER)) return
+        val figure = motion.figure ?: return
+        pen.text(
+            canvas,
+            figure.toString(),
+            pen.v(plan.heroFieldRight),
+            pen.v(plan.heroBaseline),
+            InstrumentFace.HERO,
+            heroColor(motion.flow),
+            Paint.Align.RIGHT,
+        )
+    }
+
+    // ---------------------------------------------------------------- the corners
+
+    /**
+     * «БАТАРЕЯ · В» over the pack's volts, and nothing else.
+     *
+     * The sag rail is deleted (M9). Its reference was an EWMA of the pack at rest, and on a motorway
+     * there is no rest - the board electronics pull a kilowatt or two permanently, so after half an
+     * hour the reference has aged into the pack's own discharge and «просадка 14 В» is ten per cent
+     * of the state of charge wearing a unit it does not have.
+     */
+    private fun leftCorner(
+        canvas: Canvas,
+        plan: ContourPlan,
+        t: VehicleTelemetry,
+        scene: ContourScene,
+    ) {
+        if (!scene.known(ContourValue.VOLTS)) return
+        pen.text(
+            canvas,
+            ContourReadout.TITLE_PACK,
+            pen.v(plan.leftEdge),
+            pen.v(plan.cornerTitleBaseline),
+            InstrumentFace.HEADING,
+            DenzaPalette.MUTED_DEEP,
+        )
+        if (!scene.fresh(ContourValue.VOLTS)) return
+        val volts = t[VehicleSignal.PACK_VOLT] ?: return
+        pen.text(
+            canvas,
+            ContourReadout.whole(volts),
+            pen.v(plan.voltsFieldRight),
+            pen.v(plan.cornerFigureBaseline),
+            InstrumentFace.FIGURE,
+            DenzaPalette.MUTED,
+            Paint.Align.RIGHT,
+        )
     }
 
     /**
-     * A plan turned into anchors, centred in the box it was given.
+     * The engine's corner, in the three states it has, one of which is not being there at all.
      *
-     * Anchors come out in the order the plan declared them, which is why every block above reads its
-     * rows top to bottom with no index in sight: the plan is the layout, and this is only arithmetic
-     * on it.
+     * Running, it reads «ДВС · об/мин» over the revolutions. Asleep after running, «ДВС · мин за
+     * поездку» over the minutes - the question a hybrid's driver actually asks and the answer
+     * nothing on this panel used to give. Never started this trip: **empty**, because a dimmed
+     * heading over an empty corner is advertising an instrument that is not there (m2).
+     *
+     * There is no third line. «● 14 кВт» used to stand under the revolutions and it was a number
+     * parked away from its own noun: the figure went to the word «ГЕНЕРАЦИЯ», under the box.
      */
-    private inner class Column(
-        box: DashboardBox,
-        density: InstrumentDensity,
-        rows: List<DashboardRow>,
+    private fun rightCorner(
+        canvas: Canvas,
+        plan: ContourPlan,
+        t: VehicleTelemetry,
+        motion: ContourMotion,
+        scene: ContourScene,
+        stage: ContourStage,
     ) {
-        val left: Float = box.left * pen.width
-        val right: Float = box.right * pen.width
+        val edge = pen.v(plan.rightEdge)
+        val titleY = pen.v(plan.cornerTitleBaseline)
+        val figureY = pen.v(plan.cornerFigureBaseline)
+        if (stage.engineRunning && scene.known(ContourValue.RPM)) {
+            pen.text(
+                canvas,
+                ContourReadout.TITLE_ENGINE_RPM,
+                edge,
+                titleY,
+                InstrumentFace.HEADING,
+                DenzaPalette.MUTED_DEEP,
+                Paint.Align.RIGHT,
+            )
+            if (!scene.fresh(ContourValue.RPM) || !motion.rpmReady) return
+            pen.text(
+                canvas,
+                ContourReadout.whole(motion.rpm.toDouble()),
+                pen.v(plan.rpmFieldRight),
+                figureY,
+                InstrumentFace.FIGURE,
+                DenzaPalette.MUTED,
+                Paint.Align.RIGHT,
+            )
+            return
+        }
+        if (!scene.known(ContourValue.ENGINE_MINUTES)) return
+        pen.text(
+            canvas,
+            ContourReadout.TITLE_ENGINE_MINUTES,
+            edge,
+            titleY,
+            InstrumentFace.HEADING,
+            DenzaPalette.MUTED_DEEP,
+            Paint.Align.RIGHT,
+        )
+        if (!scene.fresh(ContourValue.ENGINE_MINUTES)) return
+        pen.text(
+            canvas,
+            ContourReadout.whole(t.trip.engineMinutes),
+            edge,
+            figureY,
+            InstrumentFace.FIGURE,
+            DenzaPalette.MUTED,
+            Paint.Align.RIGHT,
+        )
+    }
 
-        private val anchors = FloatArray(rows.size)
-        private var taken = 0
+    // ---------------------------------------------------------------- the left shelf
 
-        init {
-            val boxHeight = (box.bottom - box.top) * pen.height
-            val content = pen.v(ClusterBlockPlan.height(rows, density))
-            var cursor = box.top * pen.height + maxOf(0f, (boxHeight - content) / 2f)
-            rows.forEachIndexed { index, row ->
-                cursor += pen.v(density.rhythm(row.lead))
-                anchors[index] = when (row) {
-                    is DashboardRow.Text -> {
-                        cursor += pen.v(row.sizeV)
-                        cursor
-                    }
-                    is DashboardRow.Rule -> {
-                        val half = pen.v(density.trackHeight) / 2f
-                        cursor += half
-                        val centre = cursor
-                        cursor += half
-                        centre
-                    }
-                    is DashboardRow.Dots -> {
-                        val step = pen.v(row.stepV)
-                        cursor += step / 2f
-                        val centre = cursor
-                        cursor += step * (row.rows - 0.5f)
-                        centre
-                    }
+    /**
+     * Temperatures: three cells, and a fourth that only exists on an exception.
+     *
+     * The exception is the figure itself changing colour at the size every other figure on the shelf
+     * already is, so noticing it and reading it are one glance (m8). The three motors are three
+     * figures under one word, in `motorTemps` order - the rear pair is per-side and one reading
+     * threw two thirds of what the car reports away - and they share one degree sign at the end of
+     * the run, the way the group already shares one caption.
+     */
+    private fun leftShelf(
+        canvas: Canvas,
+        plan: ContourPlan,
+        t: VehicleTelemetry,
+        scene: ContourScene,
+    ) {
+        val captionY = pen.v(plan.shelfCaptionBaseline)
+        val figureY = pen.v(plan.shelfFigureBaseline)
+
+        fun caption(index: Int, word: String): Float {
+            val left = plan.leftCell(index)
+            pen.text(canvas, word, pen.v(left), captionY, InstrumentFace.CAPTION, DenzaPalette.MUTED_DEEP)
+            return left
+        }
+
+        fun reading(x: Float, text: String, level: ContourReadout.Level, sign: Boolean) {
+            pen.text(canvas, text, pen.v(x), figureY, InstrumentFace.READING, levelColor(level), Paint.Align.RIGHT)
+            if (sign) {
+                pen.text(
+                    canvas,
+                    ContourReadout.DEGREE,
+                    pen.v(x),
+                    figureY,
+                    InstrumentFace.READING,
+                    DenzaPalette.MUTED,
+                )
+            }
+        }
+
+        if (scene.known(ContourValue.PACK_TEMP)) {
+            val left = caption(0, ContourReadout.CAPTION_PACK)
+            val pack = t[VehicleSignal.PACK_TEMP_AVG]
+            if (pack != null && scene.fresh(ContourValue.PACK_TEMP)) {
+                reading(
+                    left + plan.temperatureField,
+                    ContourReadout.whole(pack),
+                    ContourReadout.thermalState(pack, ContourReadout.PACK_BAND_HIGH_C),
+                    sign = true,
+                )
+            }
+        }
+
+        if (scene.known(ContourValue.MOTOR_TEMPS)) {
+            val left = caption(1, ContourReadout.CAPTION_MOTORS)
+            val motors = t.motorTemps
+            if (scene.fresh(ContourValue.MOTOR_TEMPS)) {
+                val last = motors.indexOfLast { it != null }
+                motors.forEachIndexed { index, celsius ->
+                    if (celsius == null) return@forEachIndexed
+                    reading(
+                        left + index * plan.motorPitch + plan.temperatureField,
+                        ContourReadout.whole(celsius),
+                        ContourReadout.thermalState(celsius, ContourReadout.DRIVE_BAND_HIGH_C),
+                        sign = index == last,
+                    )
                 }
             }
         }
 
-        /**
-         * The next anchor the plan declared: a baseline, a track centre, or a first dot row.
-         *
-         * A block that asks for more anchors than it planned gets the last one again rather than an
-         * exception. That is deliberate: this draws inside a `Presentation` over the vehicle's live
-         * instruments, where two lines landing on one baseline is a visible mistake somebody
-         * reports, and a throw out of `onDraw` takes the whole cluster window down.
-         */
-        fun next(): Float = anchors[taken++.coerceAtMost(anchors.lastIndex)]
+        if (scene.known(ContourValue.INVERTER_TEMP)) {
+            val left = caption(2, ContourReadout.CAPTION_INVERTER)
+            val inverter = t[VehicleSignal.INVERTER_C]
+            if (inverter != null && scene.fresh(ContourValue.INVERTER_TEMP)) {
+                reading(
+                    left + plan.temperatureField,
+                    ContourReadout.whole(inverter),
+                    ContourReadout.thermalState(inverter, ContourReadout.INVERTER_WATCH_C),
+                    sign = true,
+                )
+            }
+        }
+
+        // The fourth cell is an exception rather than a row: a pack holding its cells together says
+        // nothing worth 167 units of shelf, so it appears with the problem and leaves with it.
+        val spread = t.cellSpreadMv ?: return
+        if (!scene.fresh(ContourValue.SPREAD)) return
+        val level = ContourReadout.spreadState(spread)
+        if (!ContourReadout.spreadIsWorthACell(level)) return
+        val left = caption(3, ContourReadout.CAPTION_SPREAD)
+        pen.text(
+            canvas,
+            ContourReadout.whole(spread),
+            pen.v(left + plan.temperatureField),
+            figureY,
+            InstrumentFace.READING,
+            levelColor(level),
+            Paint.Align.RIGHT,
+        )
+        pen.text(
+            canvas,
+            ContourReadout.UNIT_MILLIVOLT,
+            pen.v(left + plan.temperatureField + plan.step),
+            figureY,
+            InstrumentFace.READING,
+            DenzaPalette.MUTED,
+        )
+    }
+
+    // ---------------------------------------------------------------- the right shelf
+
+    private fun rightShelf(
+        canvas: Canvas,
+        plan: ContourPlan,
+        t: VehicleTelemetry,
+        scene: ContourScene,
+        stage: ContourStage,
+    ) {
+        if (stage.engineBox) {
+            engineBox(canvas, plan, t, scene, stage)
+            return
+        }
+        if (!scene.known(ContourValue.TRIP_NET)) return
+
+        val seats = if (stage.parked) plan.parkSeats else plan.driveSeats
+        val trip = t.trip
+
+        seat(
+            canvas,
+            plan,
+            plan.tripSeat(0, seats),
+            value = trip.netKwh.takeIf { scene.fresh(ContourValue.TRIP_NET) },
+            word = ContourReadout.CAPTION_TRIP,
+            marked = false,
+            odometer = trip.kilometres.takeIf { scene.fresh(ContourValue.TRIP_KM) },
+        )
+        if (stage.parked && scene.known(ContourValue.TRIP_REGEN)) {
+            seat(
+                canvas,
+                plan,
+                plan.tripSeat(1, seats),
+                value = trip.recoveredKwh.takeIf { scene.fresh(ContourValue.TRIP_REGEN) },
+                word = ContourReadout.CAPTION_REGEN,
+                marked = true,
+                odometer = null,
+            )
+        }
+        if (scene.known(ContourValue.TRIP_ENGINE)) {
+            seat(
+                canvas,
+                plan,
+                plan.tripSeat(seats.size - 1, seats),
+                value = trip.engineKwh.takeIf { scene.fresh(ContourValue.TRIP_ENGINE) },
+                word = ContourReadout.CAPTION_ENGINE_GAVE,
+                marked = false,
+                odometer = null,
+            )
+        }
+    }
+
+    /**
+     * One cell of the right shelf: a figure with its unit, over a phrase saying what it is *of*.
+     *
+     * The figure is right-aligned inside its own reserve field and «кВт·ч» hangs off the field's
+     * edge rather than off the string, so a tenth or a second digit moves nothing. Everything is
+     * left-aligned against the cell, because a phrase is read from its left.
+     *
+     * The unit belongs to the figure: if the value has gone stale it leaves with it and the words
+     * stay, which is why the odometer's «42 км» is drawn only when the odometer has answered and the
+     * caption is then «ЗА ПОЕЗДКУ» with nothing in front of it.
+     */
+    private fun seat(
+        canvas: Canvas,
+        plan: ContourPlan,
+        left: Float,
+        value: Double?,
+        word: String,
+        marked: Boolean,
+        odometer: Double?,
+    ) {
+        val figureY = pen.v(plan.shelfFigureBaseline)
+        val captionY = pen.v(plan.shelfCaptionBaseline)
+        if (value != null) {
+            pen.text(
+                canvas,
+                ContourReadout.tenth(value),
+                pen.v(left + plan.tripField),
+                figureY,
+                InstrumentFace.READING,
+                DenzaPalette.MUTED,
+                Paint.Align.RIGHT,
+            )
+            pen.text(
+                canvas,
+                ContourReadout.UNIT_KWH,
+                pen.v(left + plan.tripField + plan.smallGap),
+                figureY,
+                InstrumentFace.UNIT,
+                DenzaPalette.MUTED_DEEP,
+            )
+        }
+        var x = left
+        if (marked) {
+            pen.dot(
+                canvas,
+                pen.v(left + plan.markRadius),
+                captionY - pen.v(InstrumentFace.CAPTION.capHeight / 2f),
+                plan.markRadius,
+                DenzaPalette.RETURN,
+            )
+            x = left + plan.markWidth
+        }
+        if (odometer == null) {
+            val alone = if (word == ContourReadout.CAPTION_TRIP) ContourReadout.CAPTION_TRIP_ALONE else word
+            pen.text(canvas, alone, pen.v(x), captionY, InstrumentFace.CAPTION, DenzaPalette.MUTED_DEEP)
+            return
+        }
+        pen.text(
+            canvas,
+            ContourReadout.whole(odometer),
+            pen.v(x + plan.odometerField),
+            captionY,
+            InstrumentFace.UNIT,
+            DenzaPalette.MUTED_DEEP,
+            Paint.Align.RIGHT,
+        )
+        pen.text(
+            canvas,
+            ContourReadout.UNIT_KM,
+            pen.v(x + plan.odometerField + plan.smallGap),
+            captionY,
+            InstrumentFace.UNIT,
+            DenzaPalette.MUTED_DEEP,
+        )
+        pen.text(
+            canvas,
+            word,
+            pen.v(x + plan.odometerField + plan.smallGap + plan.kilometreWidth + plan.smallGap),
+            captionY,
+            InstrumentFace.CAPTION,
+            DenzaPalette.MUTED_DEEP,
+        )
+    }
+
+    /**
+     * Two minutes of the combustion half, where the trip's phrase stands otherwise.
+     *
+     * It takes both rows of the shelf and its legend moves below it onto the band's own guard, so
+     * the swap moves no neighbour's baseline in either direction. Revolutions are a linear run
+     * against 3000 - this engine is a generator, not something with a redline - and generation is an
+     * area by the same square root the readout uses. Neither run carries an axis: the two words
+     * under the box are the whole legend.
+     *
+     * While the box is up the trip's cells are hidden, and that is not "куда делся баланс": the box
+     * only leaves 120 s after the last live sample, so the phrase comes back once rather than once
+     * per engine cycle.
+     */
+    private fun engineBox(
+        canvas: Canvas,
+        plan: ContourPlan,
+        t: VehicleTelemetry,
+        scene: ContourScene,
+        stage: ContourStage,
+    ) {
+        val trace = t.engineTrace
+        val count = min(trace.slots, ContourPlan.ENGINE_SLOTS)
+        if (count <= 0) return
+
+        val right = plan.engineBoxRight
+        val left = right - (count - 1) * plan.enginePitch
+        val bottom = plan.engineBoxBottom
+        val span = bottom - plan.engineBoxTop
+        val pitch = pen.v(plan.enginePitch)
+
+        pen.line(
+            canvas,
+            pen.v(left),
+            pen.v(bottom),
+            pen.v(right),
+            pen.v(bottom),
+            DenzaPalette.MUTED_DEEP,
+            plan.bandHairline,
+        )
+
+        for (index in 0 until count) {
+            val generation = trace.generationKw[index]
+            generationYs[index] = if (generation == null) {
+                Float.NaN
+            } else {
+                pen.v(bottom - span * ContourReadout.generationFraction(generation))
+            }
+            val rpm = trace.revolutions[index]
+            revolutionYs[index] = if (rpm == null) {
+                Float.NaN
+            } else {
+                pen.v(bottom - span * ContourReadout.rpmFraction(rpm))
+            }
+        }
+
+        // A slot the poll never reached breaks both runs rather than being drawn through: a straight
+        // segment across a gap would claim the engine held a steady speed through a minute nobody
+        // was watching.
+        forEachSpan(generationYs, count) { start, length ->
+            pen.history(
+                canvas,
+                pen.v(left + start * plan.enginePitch),
+                pitch,
+                spanOf(generationYs, start, length),
+                length,
+                pen.v(bottom),
+                DenzaPalette.RETURN,
+                1f,
+                plan.areaEdge,
+                DenzaPalette.RETURN,
+                ContourPlan.GENERATION_AREA_ALPHA,
+            )
+        }
+        forEachSpan(revolutionYs, count) { start, length ->
+            pen.run(
+                canvas,
+                pen.v(left + start * plan.enginePitch),
+                pitch,
+                spanOf(revolutionYs, start, length),
+                length,
+                DenzaPalette.INK,
+                ContourPlan.LINE_ALPHA,
+                plan.dataLine,
+            )
+        }
+
+        engineLegend(canvas, plan, t, scene, stage)
+    }
+
+    /**
+     * «ОБОРОТЫ · ● ГЕНЕРАЦИЯ 14 кВт», laid out right to left off the box's own edge.
+     *
+     * The figure is one step brighter than the words and set at their size: it is a legend that
+     * happens to carry a reading, not a fifth figure competing with the four the panel already has.
+     * It arrived here in the sixth pass from the corner above, where it had been a number standing
+     * two hundred units away from its own noun.
+     */
+    private fun engineLegend(
+        canvas: Canvas,
+        plan: ContourPlan,
+        t: VehicleTelemetry,
+        scene: ContourScene,
+        stage: ContourStage,
+    ) {
+        val y = pen.v(plan.engineLegendBaseline)
+        pen.text(
+            canvas,
+            ContourReadout.LEGEND_GENERATION,
+            pen.v(plan.legendGenerationRight),
+            y,
+            InstrumentFace.CAPTION,
+            DenzaPalette.MUTED_DEEP,
+            Paint.Align.RIGHT,
+        )
+        pen.dot(
+            canvas,
+            pen.v(plan.legendMarkX),
+            y - pen.v(InstrumentFace.CAPTION.capHeight / 2f),
+            plan.markRadius,
+            DenzaPalette.RETURN,
+        )
+        pen.text(
+            canvas,
+            ContourReadout.LEGEND_RPM,
+            pen.v(plan.legendRpmRight),
+            y,
+            InstrumentFace.CAPTION,
+            DenzaPalette.MUTED_DEEP,
+            Paint.Align.RIGHT,
+        )
+        if (!stage.engineRunning || !scene.fresh(ContourValue.GENERATION)) return
+        val generation = t.generationKw ?: return
+        pen.text(
+            canvas,
+            ContourReadout.whole(generation),
+            pen.v(plan.legendFigureRight),
+            y,
+            InstrumentFace.UNIT,
+            DenzaPalette.MUTED,
+            Paint.Align.RIGHT,
+        )
+        pen.text(
+            canvas,
+            ContourReadout.UNIT_KW,
+            pen.v(plan.legendUnitX),
+            y,
+            InstrumentFace.UNIT,
+            DenzaPalette.MUTED,
+        )
+    }
+
+    // ---------------------------------------------------------------- the petal
+
+    /**
+     * What the last three kilometres cost - always the last three kilometres.
+     *
+     * The denominator never changes under the figure: standing on P it is still three kilometres and
+     * only the tenth appears, because at 100 km/h a tenth changes three times a second and a figure
+     * that flickers is a figure nobody reads. Since the seventh pass the unit says so, and while a
+     * gun is in the same seat counts down to full instead.
+     *
+     * **While the engine runs the figure is `MUTED` and says nothing else.** `ConsumptionLog`
+     * integrates pack power alone and nobody has logged whether `GENERATION_KW` is already inside
+     * `POWER_KW` (B1), so until that log exists this number is the battery's alone - and
+     * «кВт·ч/100 км · батарея» was five characters of footnote at 12′ on the one line of the panel
+     * that has to be read in a glance. Colour says the same thing without asking anybody to read it.
+     */
+    private fun petal(
+        canvas: Canvas,
+        plan: ContourPlan,
+        t: VehicleTelemetry,
+        scene: ContourScene,
+        stage: ContourStage,
+    ) {
+        if (stage.mode == ContourMode.UNAVAILABLE) {
+            if (stage.message.isEmpty()) return
+            pen.text(
+                canvas,
+                stage.message,
+                pen.v(plan.axis),
+                pen.v(plan.petalBaseline),
+                InstrumentFace.UNIT,
+                DenzaPalette.MUTED,
+                Paint.Align.CENTER,
+            )
+            return
+        }
+        if (!scene.known(ContourValue.PETAL)) return
+
+        if (scene.fresh(ContourValue.PETAL)) history(canvas, plan, t)
+
+        val charging = stage.mode == ContourMode.CHARGING
+        pen.text(
+            canvas,
+            if (charging) ContourReadout.UNIT_CHARGE_LEFT else ContourReadout.UNIT_PER_100KM,
+            pen.v(plan.petalUnitX),
+            pen.v(plan.petalBaseline),
+            InstrumentFace.UNIT,
+            DenzaPalette.MUTED_DEEP,
+        )
+
+        val text = if (charging) {
+            if (!scene.fresh(ContourValue.CHARGE_LEFT)) return
+            ContourReadout.chargeLeft(t.chargeMinutesLeft ?: return)
+        } else {
+            if (!scene.fresh(ContourValue.PETAL)) return
+            val average = ContourReadout.averageConsumption(ConsumptionWindow.raw(t.consumption)) ?: return
+            ContourReadout.consumption(average, stage.parked)
+        }
+        pen.text(
+            canvas,
+            text,
+            pen.v(plan.petalFigureRight),
+            pen.v(plan.petalBaseline),
+            InstrumentFace.FIGURE,
+            if (stage.engineRunning) DenzaPalette.MUTED else DenzaPalette.INK,
+            Paint.Align.RIGHT,
+        )
+    }
+
+    /**
+     * Three kilometres of closed buckets, as one stepped line beside its figure.
+     *
+     * The scale is a fixed ladder - 0…40 up, 0…10 back, the zero four fifths down - rather than an
+     * autoscale, because autoscaling meant one bucket changing value redrew the height of all
+     * thirty, so the same three kilometres never came back the same shape. There is no dashed mean:
+     * the mean is the figure standing next to the box.
+     */
+    private fun history(canvas: Canvas, plan: ContourPlan, t: VehicleTelemetry) {
+        val buckets = ConsumptionWindow.raw(t.consumption)
+        if (buckets.isEmpty()) return
+        val count = min(buckets.size, ContourPlan.PETAL_BUCKETS)
+        val zero = plan.petalZeroY
+        val up = zero - plan.petalBoxTop
+        val down = plan.petalBoxBottom - zero
+        for (index in 0 until count) {
+            val value = buckets[buckets.size - count + index].toFloat()
+            petalYs[index] = pen.v(
+                if (value >= 0f) {
+                    zero - min(value / plan.petalFull, 1f) * up
+                } else {
+                    zero + min(-value / plan.petalReturnFull, 1f) * down
+                },
+            )
+        }
+        // The pitch is the box divided by the window rather than by what has arrived, and the run is
+        // anchored at the box's right edge, so a history that is still filling grows leftward into
+        // its box instead of stretching across it. Stretched, three hundred metres of road would be
+        // drawn as three kilometres; anchored at the left, the newest bucket would sit in the middle
+        // and the right of the box would read as data that ran out.
+        val bucket = plan.petalBoxWidth / ContourPlan.PETAL_BUCKETS
+        val pitch = pen.v(bucket)
+        pen.history(
+            canvas,
+            pen.v(plan.petalBoxLeft + (ContourPlan.PETAL_BUCKETS - count) * bucket),
+            pitch,
+            petalYs,
+            count,
+            pen.v(zero),
+            DenzaPalette.INK,
+            ContourPlan.LINE_ALPHA,
+            plan.dataLine,
+            DenzaPalette.MUTED_DEEP,
+            ContourPlan.AREA_ALPHA,
+        )
+        pen.line(
+            canvas,
+            pen.v(plan.petalBoxLeft),
+            pen.v(zero),
+            pen.v(plan.petalBoxLeft + plan.petalBoxWidth),
+            pen.v(zero),
+            DenzaPalette.MUTED_DEEP,
+            plan.bandHairline,
+        )
+    }
+
+    // ---------------------------------------------------------------- colour, and spans
+
+    /** The band's body and the glow: ink out, blue back, nothing inside the dead band. */
+    private fun flowColor(flow: ContourFlow): Int = when (flow) {
+        ContourFlow.OUT -> DenzaPalette.INK
+        ContourFlow.BACK -> DenzaPalette.RETURN
+        ContourFlow.NEUTRAL -> DenzaPalette.MUTED
+    }
+
+    /** The tip is the live edge of the data, which is what `DATA_PEAK` is for on this panel. */
+    private fun edgeColor(flow: ContourFlow): Int = when (flow) {
+        ContourFlow.OUT -> DenzaPalette.DATA_PEAK
+        ContourFlow.BACK -> DenzaPalette.RETURN_INK
+        ContourFlow.NEUTRAL -> DenzaPalette.MUTED
+    }
+
+    /** Text lifts one step where a stroke does not: saturated blue at 12′ on black is unreadable. */
+    private fun heroColor(flow: ContourFlow): Int = when (flow) {
+        ContourFlow.OUT -> DenzaPalette.INK
+        ContourFlow.BACK -> DenzaPalette.RETURN_INK
+        ContourFlow.NEUTRAL -> DenzaPalette.MUTED
+    }
+
+    private fun levelColor(level: ContourReadout.Level): Int = when (level) {
+        ContourReadout.Level.NORMAL -> DenzaPalette.MUTED
+        ContourReadout.Level.WATCH -> DenzaPalette.WARNING
+        ContourReadout.Level.ALERT -> DenzaPalette.DANGER
+    }
+
+    /** Walks the runs of real readings in [ys], where `NaN` is a slot nothing answered in. */
+    private inline fun forEachSpan(ys: FloatArray, count: Int, block: (start: Int, length: Int) -> Unit) {
+        var index = 0
+        while (index < count) {
+            if (ys[index].isNaN()) {
+                index++
+                continue
+            }
+            val start = index
+            while (index < count && !ys[index].isNaN()) index++
+            block(start, index - start)
+        }
+    }
+
+    /**
+     * One span, packed to the front of the scratch buffer the pen reads.
+     *
+     * It moves the values rather than allocating a view of them, and it is the same buffer both
+     * runs already live in, so a frame allocates nothing here either.
+     */
+    private fun spanOf(ys: FloatArray, start: Int, length: Int): FloatArray {
+        if (start == 0) return ys
+        for (index in 0 until length) span[index] = ys[start + index]
+        return span
     }
 
     private companion object {
-        const val LAMP_COLUMNS = 4
-
-        /** Rhythm steps between two value-and-word pairs sharing a row. See [temperatures]. */
-        const val PAIR_GAP = 4f
-
-        /** The dashboard's own ground: opaque, and the same black the panel around it is. */
+        /** The panel's own ground: opaque, and the same black the glass around it is. */
         const val BACKGROUND = 0xFF000000.toInt()
 
-        /** The waiting word sits above the dial's centre, where the figure would be. */
-        const val WAITING_ABOVE = 0.3f
-
-        const val TITLE_ELECTRIC = "ЭЛЕКТРИКА"
-        const val TITLE_ENGINE = "ДВИГАТЕЛЬ"
-        const val TITLE_THERMAL = "ТЕМПЕРАТУРЫ"
-        const val TITLE_FLUIDS = "ЖИДКОСТИ"
-        const val UNIT_VOLT = "В"
-        const val UNIT_RPM = "об/мин"
-        const val SPREAD_UNIT = "мВ разброс"
-        const val HEALTH_UNIT = "% ресурс"
-        const val INSULATION_UNIT = "МОм изоляция"
         /**
-         * The trace beside the revolutions: a little heavier than a hairline so two of them can
-         * cross without merging, and a dot on the newest reading a touch under the dial's own.
+         * Whether the engine's share is drawn as a seam behind the band's tip.
          *
-         * It is not drawn at all below [TRACE_MIN_WIDTH] units of room. A four-digit reading in a
-         * narrow block can leave almost nothing to its left, and a sparkline two centimetres wide is
-         * a smudge rather than a history.
+         * False until somebody logs one engine run on a flat cruise and settles whether
+         * `GENERATION_KW` is already inside `POWER_KW` (VERDICT check 3). Until then the same fact
+         * is drawn without the claim, as a separate line under the body.
          */
-        const val TRACE_WIDTH = 1.6f
-        const val TRACE_DOT = 0.5f
-        const val TRACE_MIN_WIDTH = 60f
-        const val PACK_WORD = "батарея"
-        const val INVERTER_WORD = "инвертор"
-        const val MOTOR_WORD = "моторы"
-        const val DEGREE = "°"
-        const val NO_PACK_DETAIL = "пакет не ответил"
-        const val READING = "Читаю машину"
-        const val NO_DATA = "Нет данных"
+        const val GENERATION_ON_BAND = false
+
+        /** How far the peak's mark stands out of the band's body, top and bottom. */
+        const val PEAK_OVERHANG = 3f
+        const val PEAK_WIDTH = 3f
+
+        /**
+         * The night hook, and it is 1.0.
+         *
+         * There is no night scene: the cluster's own dimmer already darkens our window, and whether
+         * it does is a measurement on the car rather than a decision on a board (m7). The multiplier
+         * is here so that the answer, when somebody takes it, lands in one place - and so that
+         * nobody reaches for alpha again, which used to mean seven things at once.
+         */
+        const val NIGHT_DIM = 1f
     }
 }
