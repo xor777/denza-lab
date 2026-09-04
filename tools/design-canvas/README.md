@@ -642,7 +642,7 @@ Kotlin matches:
 | | |
 | --- | --- |
 | `MainBoardContractTest` | reads `Main.dc.html` - tile height, padding, radius, the `space-between` that hangs the words apart, both text styles with their leading, icon size and stroke, grid columns and gap, page margins |
-| `SpectrumBoardContractTest` | reads the analyser out of the same board - band count, bar width fraction, that the columns add up to the field they are drawn in, peak height, corner radius, gradient stop, reflection crop and opacity, scanline pitch |
+| `SpectrumBoardContractTest` | reads the analyser out of the same board - band count, bar width fraction, that the columns add up to the field they are drawn in, peak height, corner radius, gradient stop, reflection crop, opacity, fraction and fade, scanline pitch |
 
 That middle clause in the second row is new and is there for a defect every other
 check passed. The board set 26 bars of 22 with 9 between them - 797 of the 834 it

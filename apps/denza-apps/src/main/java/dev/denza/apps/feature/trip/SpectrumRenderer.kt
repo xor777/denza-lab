@@ -61,6 +61,7 @@ class SpectrumRenderer {
     private var barShader: LinearGradient? = null
     private var reflectShader: LinearGradient? = null
     private var bloomShader: LinearGradient? = null
+    private var reflectFadeShader: LinearGradient? = null
     private var idleShader: LinearGradient? = null
     private var scanShader: BitmapShader? = null
     private var scanlines: Bitmap? = null
@@ -193,6 +194,16 @@ class SpectrumRenderer {
             floatArrayOf(0f, 0.45f, 1f),
             Shader.TileMode.CLAMP,
         )
+        // The reflection sinks into the floor: one gradient of the panel's own background, laid
+        // over the whole strip after the bars, does what a per-bar alpha mask would and costs one
+        // rectangle a frame instead of a compose shader per column.
+        val reflectDepth = (reflectBottomY - baselineY).coerceAtMost(unit * REFLECT_UNITS)
+        reflectFadeShader = LinearGradient(
+            0f, baselineY, 0f, baselineY + reflectDepth.coerceAtLeast(1f),
+            intArrayOf(alpha(DenzaPalette.BACKGROUND, 0f), DenzaPalette.BACKGROUND),
+            floatArrayOf(REFLECT_FADE_START, 1f),
+            Shader.TileMode.CLAMP,
+        )
         idleShader = LinearGradient(
             left, 0f, right, 0f,
             intArrayOf(alpha(ACCENT, 0f), alpha(ACCENT, 0.22f), alpha(ACCENT, 0f)),
@@ -242,6 +253,11 @@ class SpectrumRenderer {
      * peak tint. The bar itself has no cap: the previous version painted a white bar over the top
      * of every column, which flattened the crown the gradient had just made and washed the colour
      * out of exactly the part the eye lands on.
+     *
+     * The reflection is a fifth of its bar, mirrored at the baseline and sinking into the floor.
+     * It used to be the bar's foot cropped flat at forty units, and since nearly every bar stands
+     * taller than that, every column wore the same dark block under it whatever it was doing - a
+     * reflection that reflected nothing, as the owner put it. Now a short bar has a short one.
      */
     private fun drawBars(canvas: Canvas, left: Float, right: Float, unit: Float) {
         val bandCount = SpectrumSource.BAND_COUNT
@@ -263,8 +279,8 @@ class SpectrumRenderer {
             val top = baselineY - height
 
             // Mirrored about the baseline: the pixel under it answers the pixel over it, so the
-            // reflection starts at the bar's own dark foot and is cropped rather than faded.
-            val reflectHeight = height.coerceAtMost(reflectLimit)
+            // reflection starts at the bar's own dark foot.
+            val reflectHeight = (height * REFLECT_FRACTION).coerceAtMost(reflectLimit)
             if (reflectHeight > 0f) {
                 gridMatrix.setScale(1f, -height)
                 gridMatrix.postTranslate(0f, baselineY + height)
@@ -303,6 +319,13 @@ class SpectrumRenderer {
         }
         fill.shader = null
         fill.color = Color.WHITE
+
+        val fade = reflectFadeShader
+        if (fade != null && reflectLimit > 0f) {
+            fill.shader = fade
+            canvas.drawRect(left, baselineY, right, baselineY + reflectLimit, fill)
+            fill.shader = null
+        }
     }
 
     /** Radii for [Path.addRoundRect]: the board rounds a bar's crown and squares its foot. */
@@ -504,6 +527,12 @@ class SpectrumRenderer {
         const val PEAK_HALO_ALPHA = 0.30f
         const val REFLECT_UNITS = 40f
         const val REFLECT_ALPHA = 36
+
+        /** The board's `calc(... * 0.2)`: a reflection is a fifth of the bar it hangs under. */
+        const val REFLECT_FRACTION = 0.2f
+
+        /** The board's fade: clear for the first fifth of the strip, then into the background. */
+        const val REFLECT_FADE_START = 0.2f
         const val STRIP_UNITS = 52f
 
         /** The board's `.led`: `font-size:34px` and `letter-spacing:5px`, which is 5/34 of an em. */
@@ -531,7 +560,14 @@ class SpectrumRenderer {
         const val SCAN_PITCH_UNITS = 11f
         const val SCAN_DARK_FRACTION = 0.273f
         const val BLOOM_BASE_ALPHA = 0.25f
-        const val BLOOM_GAIN = 1.4f
+
+        /**
+         * At 1.4 the bloom was at full opacity whenever the mean bar passed 0.54 - which, with the
+         * bars crowding the upper half of the field, was all the time: the wash behind the
+         * analyser was a fixed bright block, and the brightest thing on the screen. It now
+         * reaches full opacity only when the whole field is lit.
+         */
+        const val BLOOM_GAIN = 0.75f
         const val IDLE_STEPS = 72
 
         // The bar ramp, quiet to clipping. It is a reading, so it climbs through ink rather than

@@ -175,12 +175,16 @@
         </div>
         <div style="position:absolute; left:0; right:0; bottom:0; height:202.98px; background:repeating-linear-gradient(to top, rgba(7,8,10,0) 0px, rgba(7,8,10,0) 8px, #07080A 8px, #07080A 11px); pointer-events:none;"></div>
       </div>
-      <div style="height:40px; overflow:hidden; opacity:0.14; transform:scaleY(-1);">
+      <!-- The reflection: a fifth of each bar, mirrored at the baseline and sinking into the
+           floor. It was the bar's foot cropped flat at 40, and since nearly every bar stands
+           taller than 40, every column wore the same dark block whatever it was doing. -->
+      <div style="height:40px; overflow:hidden; opacity:0.14; transform:scaleY(-1); position:relative;">
         <div style="display:flex; align-items:flex-end; gap:9.39px; height:40px;">
           <sc-for list="{{bars}}" as="b" hint-placeholder-count="26">
-            <div style="width:22.97px; height: {{b.h}}px; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA);"></div>
+            <div style="width:22.97px; height: calc({{b.h}}px * 0.2); background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA);"></div>
           </sc-for>
         </div>
+        <div style="position:absolute; left:0; right:0; top:0; bottom:0; background:linear-gradient(to top, rgba(7,8,10,0) 20%, #07080A); pointer-events:none;"></div>
       </div>
     </div>
 

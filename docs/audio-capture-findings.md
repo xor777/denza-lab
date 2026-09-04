@@ -197,7 +197,37 @@ touches the microphone. That is a UX question, not a technical blocker.
   transient's height within three frames at 30 FPS), falls with 240 ms (was
   170), and feeds the bloom behind the bars from a 400 ms mean rather than the
   raw per-frame one. The peak-hold (620 ms, then gravity) and the automatic
-  gain were left alone. Tuned dry; not yet checked against music in the car.
+  gain were left alone. Confirmed by the owner in the car the same day: "стал
+  сильно спокойнее".
+- **The 8-bit FFT has a floor, and the tilt lifted it.** A part whose true value
+  is a fraction of a step comes back as 0 or ±1, so quiet air reads as a
+  sprinkling of ones across the treble - about a unit of magnitude, -42 dB,
+  regardless of how quiet the mix is. That floor passed the -58 dB gate (only an
+  exact zero fails it), took up to 18 dB of spectral tilt, and the automatic gain
+  then rode it: at low volume the owner saw a comb rising from a barely-lit bass
+  to full-height treble with nothing to hear (2026-09-04). `SpectrumBandMap` now
+  subtracts the floor's power (2, one step in both parts) from every bin before
+  it averages or interpolates, so a reading the converter can produce on its own
+  is silence and a real one is all but untouched (3 → 2.65, 10 → 9.9). A side
+  effect worth knowing: the signal gate now effectively sits at the converter's
+  floor rather than at "any non-zero bin".
+- **Range, not headroom, sets the shape.** Three uniform headroom steps (3 → 5
+  → 7 dB) each lowered every bar alike and the owner still read the field as
+  raised too high. With the gain holding the loudest band near the crown and a
+  40 dB span, every band the tilt had flattened to within 40 dB was lit, which
+  is all of them. The span is 32 dB now with 6 dB of headroom, so the loudest
+  band stays at 81% while a band 10 dB under it sits at half height and one 25
+  dB under it at the foot. The ceiling's lower limit rose from -40 to -30 dB for
+  a reason the floor subtraction made exact: below it the loudest band is a
+  magnitude of two, one step of the converter, and lifting that to the crown
+  draws the converter.
+- **The reflection.** Both board and code cropped each bar's foot flat at 40
+  units, and as nearly every bar stands taller than that, every column wore the
+  same dark block whatever it did. It is now a fifth of its bar, sinking into
+  the background over the strip; the bloom's gain dropped from 1.4 to 0.75 so
+  the wash behind the analyser stops sitting at full opacity whenever the mean
+  bar passes 0.54. Palette untouched. Range, ceiling limit and bloom are dry
+  tuning; the owner is the acceptance.
 - Session 0 already carries a vendor effect chain (`Effect ID 11`) on
   `AudioOut_D`. Attaching a Visualizer alongside it caused no observed trouble.
 

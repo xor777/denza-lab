@@ -46,6 +46,8 @@ BASELINE_FRACTION = 0.8319   # SpectrumRenderer.BASELINE_FRACTION
 STRIP = 52.0                 # SpectrumRenderer.STRIP_UNITS - the ticker's band
 PEAK = 4.0                   # SpectrumRenderer.PEAK_UNITS
 REFLECT = 40.0               # SpectrumRenderer.REFLECT_UNITS - the reflection's own ceiling
+REFLECT_FRACTION = 0.2       # SpectrumRenderer.REFLECT_FRACTION - a reflection is a fifth of its bar
+REFLECT_FADE_START = 20      # SpectrumRenderer.REFLECT_FADE_START, in percent - where the floor starts
 BANDS = 26
 FEATURES = 11
 
@@ -202,7 +204,7 @@ def chips(pane, src):
 
 
 def analyser(pane):
-    """The ticker, the bars, their segment grid and the cropped reflection."""
+    """The ticker, the bars, their segment grid and the fading reflection."""
     span = pane.content
     box = pane.analyser_h
     if led_width(pane.title) > span:
@@ -236,12 +238,13 @@ def analyser(pane):
         </div>
         <div style="position:absolute; left:0; right:0; bottom:0; height:{field}px; background:repeating-linear-gradient(to top, rgba(7,8,10,0) 0px, rgba(7,8,10,0) 8px, #07080A 8px, #07080A 11px); pointer-events:none;"></div>
       </div>
-      <div style="height:{reflect}px; overflow:hidden; opacity:0.14; transform:scaleY(-1);">
+      <div style="height:{reflect}px; overflow:hidden; opacity:0.14; transform:scaleY(-1); position:relative;">
         <div style="display:flex; align-items:flex-end; gap:{bar_gap}px; height:{reflect}px;">
           <sc-for list="{{{{bars}}}}" as="b" hint-placeholder-count="{BANDS}">
-            <div style="width:{bar_w}px; height: {{{{b.h}}}}px; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA);"></div>
+            <div style="width:{bar_w}px; height: calc({{{{b.h}}}}px * {REFLECT_FRACTION:g}); background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA);"></div>
           </sc-for>
         </div>
+        <div style="position:absolute; left:0; right:0; top:0; bottom:0; background:linear-gradient(to top, rgba(7,8,10,0) {REFLECT_FADE_START:g}%, #07080A); pointer-events:none;"></div>
       </div>'''
     return body, data
 

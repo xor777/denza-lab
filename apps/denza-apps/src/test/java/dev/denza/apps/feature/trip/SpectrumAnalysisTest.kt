@@ -55,6 +55,32 @@ class SpectrumBandMapTest {
     }
 
     @Test
+    fun `a single step of the converter reads as silence and a real reading survives`() {
+        // At low volume the 8-bit FFT hands back a sprinkling of ±1 parts across the treble; with
+        // the tilt on top they drew as a full-height comb over music nobody could hear. One step
+        // in either or both parts is the converter, not the mix, and must read as nothing.
+        val bandMap = map()
+        val out = DoubleArray(bandMap.bandCount)
+        val step = ByteArray(CAPTURE)
+        for (bin in 1 until CAPTURE / 2) {
+            step[2 * bin] = 1
+            step[2 * bin + 1] = if (bin % 2 == 0) 1 else -1
+        }
+        bandMap.magnitudes(step, out)
+        assertTrue("one step everywhere must read as silence: ${out.toList()}", out.all { it == 0.0 })
+
+        // Ten steps in every bin, so the RMS bands and the interpolated ones read the same thing:
+        // sqrt(100 - 2), which is 9.9 of the 10 that went in.
+        val loud = ByteArray(CAPTURE)
+        for (bin in 1 until CAPTURE / 2) loud[2 * bin] = 10
+        bandMap.magnitudes(loud, out)
+        assertTrue(
+            "a ten-step reading must keep almost all of itself: ${out.toList()}",
+            out.all { it in 9.85..9.95 },
+        )
+    }
+
+    @Test
     fun `neighbouring bass bands do not repeat the same bin`() {
         // The bug this replaces: a log-spaced band down in the bass is narrower
         // than the 46.875 Hz bin it sits in, so a plain lowBin..highBin read gave
@@ -135,8 +161,10 @@ class SpectrumLevelsTest {
         val out = FloatArray(BANDS)
         repeat(30) { levels.normalise(magnitudes, out, 1.0 / 30.0) }
         assertTrue(levels.hasSignal())
-        // 1 - CEILING_HEADROOM_DB / DYNAMIC_RANGE_DB = 0.825, and the bounds bracket it closely
-        // enough that moving either constant has to come here and say so.
+        // 1 - CEILING_HEADROOM_DB / DYNAMIC_RANGE_DB = 0.8125, and the bounds bracket it closely
+        // enough that moving either constant has to come here and say so. The range went from
+        // 40 to 32 and the headroom from 7 to 6 together, so the loudest band stayed put while
+        // every band under it moved down the field.
         assertTrue("loud band should remain prominent, was ${out[10]}", out[10] > 0.80f)
         assertTrue("steady audio should retain headroom, was ${out[10]}", out[10] < 0.85f)
     }

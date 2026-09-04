@@ -105,6 +105,29 @@ class SpectrumBoardContractTest {
         )
     }
 
+    /**
+     * A reflection is a fifth of its bar and sinks into the floor.
+     *
+     * Before this, the board and the code both cropped the bar's foot flat at the strip's height,
+     * and since nearly every bar stands taller than the strip, every column wore the same dark
+     * block whatever it was doing. The owner's words: a reflection that reflects nothing.
+     */
+    @Test
+    fun theReflectionIsAFifthOfItsBarAndFades() {
+        assertEquals(
+            "reflection fraction",
+            number("""height: calc\(\{\{b\.h\}\}px \* ([\d.]+)\)"""),
+            SpectrumRenderer.REFLECT_FRACTION.toDouble(),
+            1e-4,
+        )
+        assertEquals(
+            "reflection fade start",
+            number("""linear-gradient\(to top, rgba\(7,8,10,0\) ([\d.]+)%, #07080A\)""") / 100.0,
+            SpectrumRenderer.REFLECT_FADE_START.toDouble(),
+            1e-4,
+        )
+    }
+
     @Test
     fun theSegmentGridHasTheBoardsPitch() {
         val clear = number("""rgba\(7,8,10,0\) ([\d.]+)px, #07080A""")

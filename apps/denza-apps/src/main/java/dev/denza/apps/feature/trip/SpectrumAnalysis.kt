@@ -1,7 +1,6 @@
 package dev.denza.apps.feature.trip
 
 import kotlin.math.exp
-import kotlin.math.hypot
 import kotlin.math.log2
 import kotlin.math.log10
 import kotlin.math.pow
@@ -108,8 +107,30 @@ class SpectrumBandMap(
         return binMagnitude(fft, lower) * (1.0 - fraction) + binMagnitude(fft, upper) * fraction
     }
 
-    private fun binMagnitude(fft: ByteArray, bin: Int): Double =
-        hypot(fft[2 * bin].toDouble(), fft[2 * bin + 1].toDouble())
+    /**
+     * A bin's magnitude with the FFT's own quantisation taken out.
+     *
+     * The parts are 8-bit. A component whose true value is a fraction of a step is written
+     * as 0 or as ±1, so a band of quiet air comes back as a sprinkling of ones - a floor of
+     * about a unit of magnitude, or -42 dB, that never falls further no matter how quiet the
+     * mix. Read as signal, that floor is what the spectral tilt then lifted by up to 18 dB and
+     * the automatic gain rode: at low volume the treble drew as a full-height comb over a
+     * bass that was barely lit, with nothing to hear (owner, 2026-09-04). Subtracting the
+     * floor's power before anything else is measured leaves a reading that a single step of
+     * the converter cannot produce, and leaves every larger one all but untouched: 3 becomes
+     * 2.65, 10 becomes 9.9.
+     */
+    private fun binMagnitude(fft: ByteArray, bin: Int): Double {
+        val re = fft[2 * bin].toDouble()
+        val im = fft[2 * bin + 1].toDouble()
+        val power = re * re + im * im - QUANTISATION_FLOOR_POWER
+        return if (power <= 0.0) 0.0 else sqrt(power)
+    }
+
+    companion object {
+        /** One step in both parts: `hypot(1, 1)` squared. Anything at or under it is the converter. */
+        const val QUANTISATION_FLOOR_POWER = 2.0
+    }
 }
 
 /**
@@ -190,24 +211,37 @@ class SpectrumLevels(
         const val FULL_SCALE = 128.0
         const val SILENCE_DB = -90.0
         const val TILT_DB_PER_OCTAVE = 2.2
-        const val DYNAMIC_RANGE_DB = 40.0
+        /**
+         * How many decibels the field spans, from the foot to the crown.
+         *
+         * It was 40, and with the gain holding the loudest band near the top, everything within
+         * 40 dB of it was lit - which, after the tilt has flattened the music, is every band:
+         * the whole spectrum sat between half height and the crown and the owner read it as
+         * raised too high. Thirty-two puts a band 10 dB under the loudest at half height and
+         * one 25 dB under it at the foot, so the columns spread over the field instead of
+         * crowding its upper half. Narrower still and quiet bands start to blink at the foot.
+         */
+        const val DYNAMIC_RANGE_DB = 32.0
         const val INITIAL_CEILING_DB = -18.0
         /**
          * How far the scale's top may sink while it hunts for quiet material.
          *
          * The automatic gain rides the loudest band, so between tracks and under a quiet passage
          * it keeps reaching down - and at -46 it reached far enough to find cabin hiss and draw
-         * it. Six decibels higher is the difference between an analyser that answers the music and
-         * one that answers the room.
+         * it; -40 stopped that. With the converter's own floor now subtracted in the band map,
+         * the limit is set by the data instead: at -30 the loudest band sits at -36 dB, which
+         * is a magnitude of two - the point under which a reading is one step of the 8-bit FFT,
+         * and lifting that to the crown draws the converter rather than the music.
          */
-        const val MIN_CEILING_DB = -40.0
+        const val MIN_CEILING_DB = -30.0
         const val SIGNAL_GATE_DB = -58.0
-        // Where the loudest band sits: 1 - headroom/range of full height, so seven decibels of a
-        // 40 dB scale puts it at 82.5%. It was 3 (92.5%), then 5 (87.5%), and the owner watching
-        // it play still read the display as slightly over-eager. This is a uniform step down - it
-        // lowers every bar by the same amount and leaves the shape of the spectrum alone, which is
-        // what "чуть-чуть потише" should mean.
-        const val CEILING_HEADROOM_DB = 7.0
+        // Where the loudest band sits: 1 - headroom/range of full height, so six decibels of a
+        // 32 dB scale puts it at 81.25%. It was 3 dB of 40 (92.5%), then 5 (87.5%), then 7
+        // (82.5%): three uniform steps down that lowered every bar alike and left the shape of
+        // the spectrum alone, and the owner still read the display as raised too high - because
+        // the shape was the problem, and the range above is what changes it. The headroom moved
+        // with the range so the loudest band stays where the last step put it.
+        const val CEILING_HEADROOM_DB = 6.0
         const val CEILING_ATTACK_PER_SEC = 8.0
         const val CEILING_RELEASE_PER_SEC = 0.25
     }
