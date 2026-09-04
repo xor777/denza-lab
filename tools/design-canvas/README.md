@@ -384,8 +384,9 @@ The boards were drawn before a line of the panel was written, shown to the owner
 redrawn twice against what he said, then roasted by an independent review
 (`CRITIQUE.md`: three blockers, fifteen majors, twelve minors), redrawn again
 against that, redrawn a fifth time when the owner looked at the scenes and found
-both graphs flattened, and redrawn a sixth when he asked what one of the numbers
-meant. Those six passes are the reason to read this section rather than only the
+both graphs flattened, redrawn a sixth when he asked what one of the numbers
+meant, and a seventh so that every figure says which window it is true over.
+Those seven passes are the reason to read this section rather than only the
 concept.
 
 ### The test every element now has to pass
@@ -412,6 +413,41 @@ legend?** What it changed:
   five characters of footnote at 12' on the one line read in a glance;
 - `РАЗБРОС` became `РАЗБРОС ЯЧЕЕК`, because the spread of *what* is exactly the
   question that started the pass.
+
+### A figure names the window it is true over
+
+Four things still failed that test on the sixth drawing, and they failed it the
+same way: **a number integrated over some interval that does not say which
+interval gets read against the interval the reader has in mind**, which is almost
+never the right one. The seventh pass is those four:
+
+- **the petal reads `кВт·ч/100 км · за 3 км`.** Three kilometres had been the rule
+  since the fourth pass and was drawn nowhere; a consumption figure with no window
+  on it is read as the trip average, which is the one thing it has never been. The
+  unit is where that belongs - already the line under the figure, already
+  `MUTED_DEEP` - and it costs 74.7 units into a cut-out with 178 free to its right;
+- **the sleeping engine's corner reads `ДВС · мин за поездку`** over the same 52.
+  `ДВС · мин` alone was six minutes of *something*: this stop, this hour, this
+  trip. The fifth pass wanted exactly these words and tried them on a third
+  baseline, where the aperture left eight units; at the heading's own y 24 the
+  corner ellipse is 298.1 wide, so 224.9 of heading has 25.2 to spare;
+- **the trip's figure is the net that left the battery**, `tripNetKwh = ∫P dt` in
+  the pack's own units, and the two cells beside it got verbs. What regeneration
+  returned and what the engine generated are already out of the first figure, so
+  `9,3` is what went for good over those 42 km - and three unsigned numbers under
+  three nouns had been an invitation to add them up;
+- **the kilometres lead the phrase**, `42 км · ЗА ПОЕЗДКУ`. The odometer's field
+  holds three digits and the printed number is right-aligned inside it either way;
+  trailing, that reserve stood between the `·` and the number, and 10.1 units of
+  nothing after a separator reads as a value that failed to arrive. Leading, the
+  same reserve is the caption's left margin.
+
+Only one of the two verbs fits. `ВЕРНУЛА РЕКУПЕРАЦИЯ` measures 253.5 units against
+`РЕКУПЕРАЦИЯ`'s 150.7, which puts the three seats of a car standing on P at 629.7
+and their left edge 41 units *inside* the hero's own `кВт` - 65 more than the shelf
+has anywhere. So the middle caption keeps `● РЕКУПЕРАЦИЯ` and its dot says what the
+verb would have; `ДАЛ ДВС` is 94.4 against a payload of 116.1, so that cell was
+already as wide as its own figure and the verb was free.
 
 ### The glass is measured now
 
@@ -459,6 +495,16 @@ was there to serve survives intact: no coordinate depends on data, every number
 lives in a field sized by its maximum digit count times a measured advance, and a
 unit hangs off the field rather than off the string.
 
+The seventh pass re-measured every string it needed and found the sixth pass's
+caption table did not reproduce: **all ten of its captions came back different**,
+and so did `кВт·ч` and `км` - from 3.02 units too wide (`ОБОРОТЫ ·`) to 0.89 too
+narrow (`БАТАРЕЯ`), with no consistent sign, which is a table typed from more than
+one run rather than one systematic error. Every *unit* and every corner heading
+reproduced to the digit, which is why no anchor moved and only the cells did: the
+left shelf by two units. What is in the generator now is one
+`getComputedTextLength()` run, checked at 18, 180 and 360 px and agreeing to 0.01,
+so those numbers are the face's own advances rather than a rounding of one size.
+
 ### Two guards, and they are the same number
 
 The jury asked for 24 units between the hero's cap and the stock speedometer's
@@ -470,9 +516,10 @@ shelves' cap tops, the engine box's top edge, and the lower edge of the band's
 body, which clears its guard by 18. The plan board draws both in red.
 
 That budget is what paid for the rest. The shelves lost their headings entirely -
-five degree signs say "temperatures" without the word, and the trip's unit is
-written once at a fixed anchor - and the band lost `100 кВт / 300 кВт`, which were
-two 12' lines claiming a scale that a square root over two different spans is not.
+one degree sign per cell says "temperatures" without the word, and the trip's unit
+went to the cell it belongs to rather than a heading over the row - and the band
+lost `100 кВт / 300 кВт`, which were two 12' lines claiming a scale that a square
+root over two different spans is not.
 
 ### What the panel says, and in what order
 
@@ -515,7 +562,7 @@ colour ISO 15008 names for small glyphs and thin rules.
 
 **Units are case-sensitive.** `«БАТАРЕЯ · В»`, `«ДВС · об/мин»`, `«кВт·ч»`, `«км»` -
 a tracked capital is a heading, a unit is not one, and a tracked heading does not
-get to rewrite ГОСТ 8.417. The odometer's own figure inside `ЗА ПОЕЗДКУ · 42 км` is
+get to rewrite ГОСТ 8.417. The odometer's own figure inside `42 км · ЗА ПОЕЗДКУ` is
 set in the caption's face for the same reason: it is a number living in a phrase
 rather than a reading of its own.
 
@@ -527,7 +574,8 @@ Both boxes were redrawn in the fifth pass. The owner on the fourth: *"Сцена
 36 units in the petal, 24 on the shelf, which is 7.6 mm and 5 mm of glass for a
 shape with thirty steps or two curves in it.
 
-**The petal** keeps three kilometres and always three kilometres: standing on P the
+**The petal** keeps three kilometres and always three kilometres - and since the
+seventh pass its unit says so, `кВт·ч/100 км · за 3 км`. Standing on P the
 denominator does not change under the figure, only the tenth appears, because at
 100 km/h a tenth moves three times a second. Thirty bars 0.65 mm wide were 0.9' at
 750 mm - below the eye's resolution - so the history is a stepped line beside the
@@ -576,17 +624,24 @@ to +9 came out blue including the +9. The peak hold stays.
 
 ### The right shelf is a phrase
 
-One cell on the move: **`12,4 кВт·ч` over `ЗА ПОЕЗДКУ · 42 км`** - a figure with
+One cell on the move: **`9,3 кВт·ч` over `42 км · ЗА ПОЕЗДКУ`** - a figure with
 its own unit against it, and under it what the figure is *of*, with the kilometres
-that make it a sentence. A second cell, `1,1 кВт·ч` over `ОТ ДВС`, only if the
-engine actually ran this trip. Nothing else, and never a zero.
+that make it a sentence and lead it. A second cell, `1,1 кВт·ч` over `ДАЛ ДВС`,
+only if the engine actually ran this trip. Nothing else, and never a zero.
 
-Standing on P the same anatomy pays out in full - `ЗА ПОЕЗДКУ · 42 км`,
-`● РЕКУПЕРАЦИЯ`, `ОТ ДВС` - because a car that is not moving is the one place
+**The first figure is the net that left the battery** - `tripNetKwh = ∫P dt` in the
+pack's own units. What regeneration returned and what the engine generated are
+already out of it, which is what the other two cells' verbs are there to say: they
+are what came back, not what adds. Until the seventh pass all three were nouns and
+all three were unsigned, and the panel was inviting a sum that names nothing.
+
+Standing on P the same anatomy pays out in full - `42 км · ЗА ПОЕЗДКУ`,
+`● РЕКУПЕРАЦИЯ`, `ДАЛ ДВС` - because a car that is not moving is the one place
 where reading three numbers costs nothing. **That is where regeneration lives now:
 on P, and on P only.** It is a number you look at when the trip is over, not one
 you read at 90 km/h, and the two hundred units it used to hold on the move were
-what made the row a row.
+what made the row a row. Its caption is the one that could not take a verb: the
+dot in front of the noun does that work instead, for 14 units against 102.9.
 
 Seats are counted right to left from the shelf's own edge and the first is always
 against it, so the second appearing moves nothing. They are per state rather than
@@ -611,7 +666,9 @@ been taken (`VERDICT.md`, check 3):
   the battery's alone and colour is what says so;
 - `РЕКУПЕРАЦИЯ` integrates only over intervals with the engine off. Under
   generation a negative pack flow is indistinguishable from braking, and the
-  engine's share belongs in `ОТ ДВС`.
+  engine's share belongs in `ДАЛ ДВС`. Both are subtracted from the net the first
+  cell prints, so whichever way that log lands, the trip's own figure does not
+  double-count.
 
 ### The review, answered
 
@@ -622,7 +679,7 @@ drawing decision.
 | --- | --- | --- |
 | B1 | consumption and balance undefined under the engine | closed as a data rule; the number waits for one log |
 | B2 | vertical budget exhausted, headings 7 units from the boundary | closed - headings dropped, both guards at 24 |
-| B3 | the P scene contradicts `TripEngine` | closed - the petal is always the last 3 km |
+| B3 | the P scene contradicts `TripEngine` | closed - the petal is always the last 3 km, and since the seventh pass its unit says so |
 | M1 | the ladder stood on a guessed glass width | closed - measured, 320 mm at 750 mm |
 | M2 | the hero under the stock speedometer, unit unreadable | closed - 88 with its unit at 34; the photograph still waits |
 | M3 | 34 Light on black, a size the concept forbade | closed - 34 is legal at this distance, and Regular |
@@ -630,14 +687,14 @@ drawing decision.
 | M5 | alpha means seven things | closed - one rule: stale goes after 2 s, the caption stays |
 | M6 | the glow travels | closed - centred on zero, brightness and hue only, τ 1.5 s; the fifth pass gave it its own 120 kW span |
 | M7 | the engine box is born empty, the shelf flickers | closed - grows from the right, 120 s of self-timed hysteresis |
-| M8 | the right shelf's coordinates depend on data | closed - seats counted from the shelf's edge; the zero that came with it was undone by the sixth pass |
+| M8 | the right shelf's coordinates depend on data | closed - seats counted from the shelf's edge; the zero that came with it was undone by the sixth pass, and the odometer's reserve moved to the caption's left edge in the seventh |
 | M9 | «просадка N В» lies on a motorway | closed - deleted |
 | M10 | the band is labelled as a scale it is not | half closed - labels gone; the square root stays, the owner accepts it |
 | M10 | available regeneration and the power ceiling | waits - no FID found for the BMS limits |
 | M11 | small blue text and blue hairlines | closed - blue is a dot, in front of `РЕКУПЕРАЦИЯ` and `ГЕНЕРАЦИЯ`, and the area is 55 % |
 | M12 | colour hysteresis of 1 kW | closed - a 3 kW dead band, 3 kW of hysteresis |
 | M13 | four required scenes missing | closed - jam, acceleration, engine dead 40 s, single null |
-| M14 | Roboto Mono breaks numbers apart | closed - Roboto with `tnum`, measured |
+| M14 | Roboto Mono breaks numbers apart | closed - Roboto with `tnum`, measured, and re-measured in the seventh pass when the caption table would not reproduce |
 | M15 | three histories are textures | closed twice - a stepped line, then 2.5-unit `INK` runs in boxes of 56 and 51 |
 | m1 | unit symbols set as tracked capitals | closed |
 | m2 | a dim «ДВС» over an empty corner | closed - the corner is simply empty |
@@ -661,9 +718,10 @@ is derived from five decisions: one margin of `48`, the rhythm of `8`, the rungs
 the cap height, and the two guards. **Each corner holds a heading and one 52 figure,
 and that is all it holds** - the aperture is 301 units wide at the top and narrows
 to nothing by 160, and the third baseline it used to allow is gone with the line
-that stood on it. An engine that ran and stopped reads `ДВС · мин` over `6`; one
-that is running reads `ДВС · об/мин` over `1780`; one that never started leaves the
-corner empty.
+that stood on it. An engine that ran and stopped reads `ДВС · мин за поездку` over
+`6` - 224.9 units of heading in the 250.1 the aperture leaves at y 24, clear by
+25.2; one that is running reads `ДВС · об/мин` over `1780`; one that never started
+leaves the corner empty.
 
 Both shelves stand below the apertures, in the clear band's flanks, on one pair of
 baselines with one anatomy: a 34 figure over an 18 word. **A cell is exactly as wide
@@ -672,9 +730,9 @@ no longer rounded up to the rhythm, because `РАЗБРОС ЯЧЕЕК` needed t
 of air that rounding was spending across four cells, and a rounded cell was
 quantising a distance nobody can see while the clearance to the hero's field is one
 the reader would meet the moment a three-digit power arrived. The left cells come
-out `91.0 · 143.4 · 111.5 · 169.2` and stop **25.5** clear of the hero's field; the
-right seats are `213.2 · 164.8 · 115.5` on P and `213.2 · 115.5` on the move, and
-stop 63.0 clear of the hero's unit. The other thing that paid for the longer
+out `91.9 · 143.4 · 110.0 · 167.7` and stop **27.6** clear of the hero's field; the
+right seats are `214.0 · 164.7 · 116.1` on P and `214.0 · 116.1` on the move, and
+stop **61.8** clear of the hero's unit. The other thing that paid for the longer
 caption is the motors' degree sign: one for the three, at the end of the run, the
 same way the group already shares one word.
 
