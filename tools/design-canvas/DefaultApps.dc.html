@@ -29,63 +29,90 @@
     .underlay { position:absolute; left:0; top:0; right:0; bottom:0; }
     .underlay-scrim { position:absolute; left:0; top:0; right:0; bottom:0; background:rgba(7,8,10,0.72); }
     /* end underlay */
-    .board { width:1776px; height:680px; display:flex; gap:80px; overflow:hidden; background:#07080A; }
+    .board { display:flex; gap:80px; overflow:hidden; background:#07080A; }
     .frame { position:relative; height:680px; flex-shrink:0; overflow:hidden; background:#07080A; color:#DAE1EB; }
     .wide { width:1280px; }
-    .narrow { width:416px; background:#15181F; }
+    .narrow { width:416px; background:#15181F; display:flex; flex-direction:column; }
+    /* What the system takes in a pane: BYD freeform draws its drag handle here, and safeDrawing
+       reports it, so the sheet's own padding starts under it. The earlier DefaultApps board drew
+       the narrow sheet from the top edge and was 24 dp taller than the window it claimed. */
+    .caption { height:24px; flex-shrink:0; display:flex; align-items:center; justify-content:center; }
+    .caption div { width:80px; height:4px; border-radius:2px; background:rgba(218,225,235,0.22); }
     /* The panel: 480 off the right edge at 1280, the whole window in a 416 pane. Its settings take
        every pixel above the action and the action does not move - `DenzaSheet` gives the content
        `weight(1f)` and hangs the footer under it, so wherever a panel is opened from, its one
        button is under the same thumb. */
-    .sheet { height:680px; background:#15181F; display:flex; flex-direction:column; padding:20px 32px; }
-    .wide-sheet { position:absolute; right:0; top:0; width:480px; border-left:1px solid rgba(254,239,171,0.16); box-shadow:-24px 0 48px rgba(0,0,0,0.50); }
-    .narrow-sheet { width:416px; }
-    .scroll { flex:1; min-height:0; display:flex; flex-direction:column; gap:32px; }
+    .sheet { background:#15181F; display:flex; flex-direction:column; padding:20px 32px; }
+    .wide-sheet { position:absolute; right:0; top:0; height:680px; width:480px; border-left:1px solid rgba(254,239,171,0.16); box-shadow:-24px 0 48px rgba(0,0,0,0.50); }
+    .narrow-sheet { flex:1; min-height:0; width:416px; }
+    /* The fold. The settings scroll under the action; a still shows the first screenful and
+       nothing runs on under the button. */
+    .scroll { flex:1; min-height:0; display:flex; flex-direction:column; gap:32px; overflow:hidden; }
     .sheet-head { display:flex; align-items:flex-start; gap:12px; }
-    .sheet-title { flex:1; color:#DAE1EB; font-size:24px; font-weight:500; line-height:1.3; }
-    .section { display:flex; flex-direction:column; gap:12px; }
-    .label { color:#86909B; font-size:15px; font-weight:500; letter-spacing:1.6px; line-height:1.2; }
-    .status { color:#86909B; font-size:15px; line-height:1.3; }
+    .sheet-head svg { flex-shrink:0; }
+    .sheet-copy { flex:1; min-width:0; display:flex; flex-direction:column; gap:4px; }
+    .sheet-title { color:#DAE1EB; font-size:24px; font-weight:500; line-height:1.3; }
+    .sheet-sub { color:#86909B; font-size:15px; line-height:1.3; }
     /* `DenzaSwitchRow`, drawn as the code builds it: a raised row on the neighbour's radius with
-       Material's own switch at the end of it. The tile's press is this same switch - what the
-       feature does is substitute the applications the car's spoken commands open, and that is a
-       thing that is on or off - but nothing on the face of a tile says which gesture it carries,
-       so this row is where the panel says it out loud. */
+       Material's own switch at the end of it. */
     .switch-row { min-height:56px; padding:12px 20px; display:flex; align-items:center; gap:12px; background:#323538; border-radius:12px; }
     .switch-copy { flex:1; min-width:0; display:flex; flex-direction:column; gap:4px; }
     .switch-title { color:#DAE1EB; font-size:19px; font-weight:500; line-height:1.2; }
     .switch-note { color:#86909B; font-size:15px; line-height:1.3; }
     .switch-track { width:52px; height:32px; border-radius:16px; background:#FEEFAB; display:flex; align-items:center; justify-content:flex-end; padding:4px; flex-shrink:0; }
     .switch-thumb { width:24px; height:24px; border-radius:12px; background:#262D33; }
-    .segments { height:42px; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); overflow:hidden; border:1px solid rgba(218,225,235,0.18); border-radius:12px; }
-    .segment { display:flex; align-items:center; justify-content:center; color:#7C858F; font-size:15px; border-left:1px solid rgba(218,225,235,0.18); }
-    .segment:first-child { border-left:0; }
-    .segment.selected { color:#262D33; background:#FEEFAB; font-weight:500; }
+    /* `DenzaChoiceGroup` and `DenzaChoiceRow`: what is chosen, said as a row rather than shown as
+       a grid. The title is the question - the spoken command, or what the projection carries -
+       and the value line is the answer: the chosen application's icon at the height of the text
+       beside it, or six of them in a strip, or the words "nothing yet". Three rows share one
+       raised surface on the switch row's own radius, cut by hairlines, because they are one
+       setting with three parts and not three settings; the chevron says each row opens. */
+    .rows { background:#323538; border-radius:12px; display:flex; flex-direction:column; }
+    .row { min-height:56px; padding:12px 20px; display:flex; align-items:center; gap:12px; }
+    .row + .row { border-top:1px solid rgba(218,225,235,0.12); }
+    .row-copy { flex:1; min-width:0; display:flex; flex-direction:column; gap:4px; }
+    .row-title { color:#DAE1EB; font-size:19px; font-weight:500; line-height:1.2; }
+    .row-value { display:flex; align-items:center; gap:8px; color:#86909B; font-size:15px; line-height:1.3; white-space:nowrap; overflow:hidden; }
+    .row-value span { overflow:hidden; text-overflow:ellipsis; }
+    .row-value img { width:24px; height:24px; display:block; flex-shrink:0; }
+    /* The code's fallback for an application with no icon, at the row's icon size. It never shows
+       on the car - every launcher entry has an icon - and stands here for the ones no screenshot
+       has been cropped for yet. */
+    .row-value .ini { width:24px; height:24px; border-radius:6px; background:#212429; color:#C5CDD9; font-size:15px; font-weight:500; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+    .chev { flex-shrink:0; }
+    /* The chooser's body. The grid is the only thing under the header and it takes the rest of
+       the sheet, scrolling on its own - not capped inside a sheet that also scrolls, which is
+       what the driver felt as a small window that moved and then a panel that moved. A still can
+       show the first screenful; the clipped tile at the bottom edge is the glimpse the code
+       leaves too, and it is the only thing on the panel saying there is more. */
+    .grid-clip { flex:1; min-height:0; overflow:hidden; }
     .apps { display:grid; gap:12px; }
-    .wide-apps { grid-template-columns:repeat(4,minmax(0,1fr)); }
-    .narrow-apps { grid-template-columns:repeat(3,minmax(0,1fr)); }
+    .apps-4 { grid-template-columns:repeat(4,minmax(0,1fr)); }
+    .apps-3 { grid-template-columns:repeat(3,minmax(0,1fr)); }
     /* One selection, and it is `DenzaAppTile`'s: a hairline edge in the accent, the well behind
-       the icon tinted with it, and the name set in it. No glow and no badge - the two boards had
-       one each, and neither is anything the code draws. The edge is a hairline picked or not, so
-       choosing an application does not nudge its neighbours by a pixel. */
+       the icon tinted with it, and the name set in it. The edge is a hairline picked or not, so
+       choosing an application does not nudge its neighbours by a pixel. Past the limit the
+       unchosen go quiet at the tile's own disabled alpha instead of answering a tap with a
+       sentence. */
     .app { min-width:0; height:96px; padding:12px 8px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; background:#212429; border:1px solid rgba(218,225,235,0.12); border-radius:22px; }
     .app.selected { border-color:#FEEFAB; }
-    .well { width:44px; height:44px; border-radius:12px; background:#323538; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-    .app.selected .well { background:rgba(254,239,171,0.16); }
+    .app.dim { opacity:0.55; }
+    .well { width:44px; height:44px; border-radius:12px; background:#323538; display:flex; align-items:center; justify-content:center; flex-shrink:0; color:#C5CDD9; font-size:19px; font-weight:500; }
+    .app.selected .well { background:rgba(254,239,171,0.16); color:#FEEFAB; }
     .well img { width:36px; height:36px; display:block; }
     .app-name { max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#C5CDD9; font-size:15px; line-height:1.2; }
     .app.selected .app-name { color:#FEEFAB; font-weight:500; }
-    .secondary { height:42px; display:flex; align-items:center; justify-content:center; border:1px solid rgba(218,225,235,0.18); border-radius:12px; color:#DAE1EB; font-size:19px; font-weight:500; }
     .note { display:flex; align-items:flex-start; gap:12px; color:#7C858F; font-size:15px; line-height:1.45; }
-    /* The fold. In a 416 pane this sheet is taller than the window and the settings scroll, so the
-       note runs on under the edge of the first screenful - which is what a still can show of a
-       scroll and is not a shorter note. `DenzaNote` clamps nothing; the window does. */
-    .narrow-sheet .scroll { overflow:hidden; }
-    .narrow-sheet .note > div { max-height:65px; overflow:hidden; }
-    .done { height:62px; flex-shrink:0; margin-top:32px; display:flex; align-items:center; justify-content:center; border-radius:12px; background:#FEEFAB; color:#262D33; font-size:19px; font-weight:500; }
+    .foot { flex-shrink:0; margin-top:32px; display:flex; flex-direction:column; gap:12px; }
+    .done { height:62px; display:flex; align-items:center; justify-content:center; border-radius:12px; background:#FEEFAB; color:#262D33; font-size:19px; font-weight:500; }
+    .footnote { text-align:center; font-size:15px; color:#7C858F; line-height:1.3; }
   </style>
 </helmet>
 <div class="board" style="width:1776px; height:680px;">
+  <!-- The «Приложения» panel. What used to be a segmented row of three roles over a status line over a
+       grid over a refresh button is three rows, each saying which command, what it opens, and that
+       it opens: the grid moved to a page of its own (AppChooser.dc.html), where it has the whole
+       panel and one scroll. The refresh button is gone because the page reads the car when it opens. -->
   <div class="frame wide">
   <!-- underlay: generated from Main.dc.html by gen_panes.py -->
   <div class="underlay">
@@ -388,13 +415,14 @@
   <div class="underlay-scrim"></div>
   <!-- end underlay -->
     <div class="sheet wide-sheet">
-      <div class="scroll">
+      <div class="scroll" data-fold>
         <div class="sheet-head">
           <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="2"></rect><rect x="14" y="3" width="7" height="7" rx="2"></rect><rect x="3" y="14" width="7" height="7" rx="2"></rect><path d="m14.5 17.5 2 2 4-5"></path></svg>
-          <div class="sheet-title">Приложения по умолчанию</div>
+          <div class="sheet-copy">
+            <div class="sheet-title">Приложения по умолчанию</div>
+          </div>
           <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#86909B" stroke-width="1.846" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"></path></svg>
         </div>
-
         <div class="switch-row">
           <div class="switch-copy">
             <div class="switch-title">Заменять приложения</div>
@@ -402,62 +430,57 @@
           </div>
           <div class="switch-track"><div class="switch-thumb"></div></div>
         </div>
-
-        <div class="section">
-          <div class="label">ДЛЯ КАКОЙ КОМАНДЫ</div>
-          <div class="segments">
-          <div class="segment selected">Навигация</div>
-          <div class="segment">Музыка</div>
-          <div class="segment">Видео</div>
+        <!-- No section label over the rows. The panel has 640 dp: header 31, switch 68, three rows
+             of 75 on one surface, the note at five lines, the action at 62, and 32 between each -
+             633. A tracked capital and its 12 would put it past the window, and the switch's own
+             subtitle has already said the word the label would say. -->
+        <div class="rows">
+          <div class="row">
+            <div class="row-copy">
+              <div class="row-title">Навигация</div>
+              <div class="row-value"><img src="data:image/png;base64,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" alt=""><span>Откроет Навигатор</span></div>
+            </div>
+            <svg class="chev" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#86909B" stroke-width="1.846" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"></path></svg>
+          </div>
+          <div class="row">
+            <div class="row-copy">
+              <div class="row-title">Музыка</div>
+              <div class="row-value"><img src="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2244%22%20height%3D%2244%22%20viewBox%3D%220%200%2044%2044%22%3E%3Crect%20width%3D%2244%22%20height%3D%2244%22%20rx%3D%2212%22%20fill%3D%22%231ed760%22%2F%3E%3Ccircle%20cx%3D%2222%22%20cy%3D%2222%22%20r%3D%2215%22%20fill%3D%22%23111%22%2F%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22%231ed760%22%20stroke-linecap%3D%22round%22%3E%3Cpath%20d%3D%22M13%2017c7-2%2014-1%2020%202%22%20stroke-width%3D%223%22%2F%3E%3Cpath%20d%3D%22M14%2022c6-1.6%2012-.8%2017%201.7%22%20stroke-width%3D%222.5%22%2F%3E%3Cpath%20d%3D%22M15%2027c5-1%209-.4%2013%201.5%22%20stroke-width%3D%222%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E" alt=""><span>Запустит Spotify</span></div>
+            </div>
+            <svg class="chev" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#86909B" stroke-width="1.846" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"></path></svg>
+          </div>
+          <div class="row">
+            <div class="row-copy">
+              <div class="row-title">Видео</div>
+              <div class="row-value"><span class="ini">К</span><span>Откроет Кинопоиск</span></div>
+            </div>
+            <svg class="chev" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#86909B" stroke-width="1.846" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"></path></svg>
           </div>
         </div>
-
-        <div class="status">Откроет Яндекс</div>
-
-        <div class="section">
-          <div class="label">ПРИЛОЖЕНИЕ ДЛЯ НАВИГАЦИИ</div>
-          <div class="apps wide-apps">
-          <div class="app selected">
-            <div class="well"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFgAAABYCAIAAAD+96djAAAJ/UlEQVR4nO2cXXAbVxXHz737KW0kW4odJyp27JJpbSuxPVOmdIDpwISGFmLHk0mBfvBRICSQUDqT8lRCmoTQPnZgMuTjiYEXHsg4dgYCaVooE5hmmDaO47hNSJ3I1A0U7FjSSqvdvbvMlWRJlnfXduNdW0r+44cr7ZV2z8/3nnvuhw5qWdcGM8XznCT5obokyylV1Rwq4LLXoihUHwUAkCS/KArzBSGKgs8nQpXK5xMdWLCFEs9zc1JgWTYcCkWj7Z2dHdG2tqa1TcFAkOc5WAqpqhpPJGI3YsMjI4ODF4eHL09MTuq67vARn080DMOyj6Ccj2AYJhhc4fAVDMO0tDT3dG/u7emWJAmWn2RZ7usf6O8/NXr9OiHEoWY8npxdIQ8iEFjBsozdJ0VR3Llj+9beLcsTQalkWT7Rd/LI0eOKotjV0XWSSCQtQIiOriESiRzcv2/D+ijD2JJaViKEDA1d2vvigfHxcbs66bSiKJnSdzDG2IFCe1vb4Z+/0tXZUSkUcr24q6vz8C9eaW9rtavj84kYzxgosIMjjUQihw7ub2pqhApUU2PjoZ8eiEQidhXKDMeCwNvUEw/u31ehFHJqamw8uH+fKFq3d0HgEUK2AVVODMPs3LF9w/ooVLg2rI/u3LHdrl+XNgJrEC0tzVt7t1SQX7ATwzBbe7e0tDRbXuU4zgkEy7I93ZuX/0g5T0mS1NO92TI4YFmm4DItQIRDod6ebqgi9fZ0h0Nhy0sFQBYgotH2qmkOOUmSFI22W15iWdYWRGdnB1Sd7IxiGPuuEW0rX6GoAtkZ5eQjmtY2QdXJzqhCKGEBIhgIQtUpGAgsGAS/ROsLCxC5Bcq7C/oEz1sH0HMEVMtVJmT+CbdOwtgPgVnk9cTiCtUylgEkCZn3IP02aP+BxOuAGOAa7yQQpgbah6AMQ3oQTBVME+RzkDgLzb9a9FstVxAmgfRFSL0F2jiYBiAMJkDqTYifAW4NhL58B4Ag/4PEOchcAZKgOBDOOjICqX9A/I9g6lC/GxBbvSBMHTJXQT4PyjvT9iOKgDYHAPltmPoDdRaIg5ovuXH/pQZhEjCmIP0uJP8C2k1qfA6BCdmCQcvpoTwFGg98AYR7qwwEAfV9SP4N5DepIwQMqNAEMB0paQGBcgWmTtPKNPphYOW3AfuqBYSp5u3XxsAoIAAwEe0Fhe5A28JViJ/OYso9bAMEPu3SQ3kLQrsJ8VchNQjGBLW2iAADyr40zemCQQOHUgqAIPQ4sNbLChUBwgQjBZlrkHgDUuepUyg4giKCkgIdIwxQb8DU7wFK9u+YWqj/DgBTiSAIkEmQL1BXp97ID4R5R2BmOcxEQAsmJaW+D/E/zaBAtyI2gLjevWd1DUTmGsRPQfI8bQ5UuYGgzOwcCxNMhiIAg9bRb0LiDJhlG3YYQtvATS02CFOjHTvxZ8hcBzO3pzbdCqiVZU0ATV/NIkAItA8g8SoYs7YtuQaoewYqAYRBbZg6TUNgMpF9J2dktsPn2ny+UMqiMExmq2n/pa60vC1kFf4KYKfN+iUHYYKRpOEQbQVnp00qRQCzCjbeUZ+ExGvWFBAL4afAZX1kEAbot6jxk78DNZYdCErDoYLlJf9wBxZ6nE6u895klqTPgK8Tlh8IE9LDMPlbGhGRqaz/zyEoxAKloWEhQJrNYrqzkElI/hUM2faG9d+lU4zlBsLMfKBefVn78DWGYxlBYHgBCyK1bkZcVIrAjkW2YNyC5Dnav+zE1EDgYXBfCwaBhIjQ8Rv87zPpK4dT/3rD1BLUUI6jUAQR8yLmeMwJmOUxxyOGo9ZiBuUCobLOQpIg/92JAiAIPw3sKnBfH9FHcA2PcA2PkFtDqZGXtZtnjcyEoWlactZ5HIZlBB8FJPgZXkScgDmR/jE8wjoNNAnlaCssURDu94vbHTWY2g2Bh35tJN9LXzumXD1mkvJ+bhJdTyX0VMFaOq2ifhVjqcEQpMI8wkZiK0gPgCe67VVshHFgndRxqPaxt6Sul5BQ51jbBNM0TcMguqHqc30zC6Gt3jSHxVvOxxyz4l5f657wF4f8XS9hqTnrBZxENDrgOImtg/rvg1da3H0NhIQ6f+vzoccGpc6fsbXrEWN7QMvQisd2rBX4HB0yvJIrGzyI9fta99RuOi994pdsqIuuLM0SPSHr1CIQrPwmeCg3d7owJ7Z8rWbj6zUP93GrN+YXIEpbhAMIfycEPw8eyvUtP8Su4NY8GnjwGBZnhgMmGLmphqXqvufxdqRHN8O+e4S1T5R5UJPYuAksQc2j3jxY8Z4e3Qcxvvt245mDq2F3cnzlU8CtBm/lXfPD0lpu1YxZg6Ejm0n3E4Dm2MVfdHnaD3337wFcDJBMy5BKWAe+LvBcnoJgVz7AN2wsvCSzQdAtnKe9DB+W6qAIEtftzO9l0OByVtdg62DlM2UDrTfy+sQMv2YTW5tv+WT2L4r8DwJne57eVXl+dAhzvtY9RWdplvWLr3v9PIXn8v6WfMNnGf/HLBoF3wy1vXDngEBCvXjf7twEZIabqPuWGydA5qmlOFWHsNj8JBZpcGUUBg7EQ+irsHSyAKGqcy0c3baQ0MCv3jSja4S2gbDWvTs6/x7aGkQ87riOuChC2Nf2I8QFi8Fl+En3drqpUYm45fvm9OqQBYhYLAbuiwm2cfWfys+7uAhIn3T1drEbsQWDGB4ZAU8kfvwbhpHdHFq1y70TIM5GGdNrARYgBgcvgifi79nGBO8HJkj3eF1223ZGEWIPYnj4sizbb8AtqsR1z5r+h4Cz/vHZYkmW5eHhy5aXCj+qtwAxMTnZ1z8AnoiLPA4Nz1suai6i+voHJiYnLS/pOrEFoet6/8ApjxoFG0I1xfmoG5JluX/glGU6BV0nTj4CAEZHr5/oO+mcfKAiRAg50XdydPS65VVNKwYX1iAIIUeOHh8augQVrqFLw0eOHrf7j2YyxdARl74olaIoe188EBsbg4pVLDa2d99+u0QSmYxaCCIoiLI0CqUaHx9/4cc/qVAWsdjYC3v3OaSQKM8fYRhGOm2bfOPyyDu7fvDchcGLFeQvCCEXBi/ueva5y/aRYTqtFNxkTndTq1Rrsp2BU6Ojt5FsB+aXkIxlmXAoTNMvdXRE23PplwJz/pLQJamqFk/EF5R+ySFFWREEVHtCLsscO9ZxhKJkHBxnFVOwCKgUJSPLNgc/K1mynHKgYH2YTFU1QpJ+v89hHKkg6TpJpdJzDv/Wq8aE0AGmClyGc3coldPyuaJkVFUTRcEuRdNyViajKkqmLGpy0Bz7CIZhpFLpdFoRBJ7juOXfWXSdaJpWNo+Yj+a1oWKapqJkFCWDMWZZhmVZhqbrwSgrWDrRQ5v02KZBiKFTFdcXFqqF7SwZNBmkdT7ISldl5Y9wUXdB5HUXRF53QUBO/wfZRi9ZfpmHMAAAAABJRU5ErkJggg==" alt=""></div>
-            <div class="app-name">Яндекс</div>
-          </div>
-          <div class="app">
-            <div class="well"><img src="data:image/png;base64,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" alt=""></div>
-            <div class="app-name">Waze</div>
-          </div>
-          <div class="app">
-            <div class="well"><img src="data:image/png;base64,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" alt=""></div>
-            <div class="app-name">2ГИС</div>
-          </div>
-          <div class="app">
-            <div class="well"><img src="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2244%22%20height%3D%2244%22%20viewBox%3D%220%200%2044%2044%22%3E%3Crect%20width%3D%2244%22%20height%3D%2244%22%20rx%3D%2212%22%20fill%3D%22%23f7f8fa%22%2F%3E%3Cpath%20d%3D%22M7%2033%2024%207h10L17%2037H9z%22%20fill%3D%22%2334a853%22%2F%3E%3Cpath%20d%3D%22m17%2037%208-14%2010%2014z%22%20fill%3D%22%23fbbc04%22%2F%3E%3Cpath%20d%3D%22M24%207h10l3%205-12%2011-6-6z%22%20fill%3D%22%234285f4%22%2F%3E%3Cpath%20d%3D%22M37%2012c0%208-12%2020-12%2020S13%2020%2013%2012a12%2012%200%201%201%2024%200z%22%20fill%3D%22%23ea4335%22%20transform%3D%22translate(3%205)%20scale(.66)%22%2F%3E%3Ccircle%20cx%3D%2219.5%22%20cy%3D%2213%22%20r%3D%223%22%20fill%3D%22%23fff%22%2F%3E%3C%2Fsvg%3E" alt=""></div>
-            <div class="app-name">Google</div>
-          </div>
-          </div>
-          <div class="secondary">Обновить список</div>
+        <div class="note">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7C858F" stroke-width="2.667" stroke-linecap="round" style="flex-shrink:0; margin-top:2px;"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5.5M12 7.6h.01"></path></svg>
+          <div>Штатные сценарии открывают приложения по команде: «Открыть навигацию» и «Открыть видео» запускают выбранные здесь. Музыку на этой прошивке начинает «Продолжить воспроизведение», когда ничего не играет; «Открыть музыку» всегда открывает штатный плеер.</div>
         </div>
-
-      <div class="note">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7C858F" stroke-width="2.667" stroke-linecap="round" style="flex-shrink:0; margin-top:2px;"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5.5M12 7.6h.01"></path></svg>
-        <div>Штатные сценарии открывают приложения по команде: «Открыть навигацию» и «Открыть видео» запускают выбранные здесь. Музыку на этой прошивке начинает «Продолжить воспроизведение», когда ничего не играет; «Открыть музыку» всегда открывает штатный плеер.</div>
       </div>
+      <div class="foot">
+        <div class="done">Готово</div>
       </div>
-      <div class="done">Готово</div>
     </div>
   </div>
-
-  <!-- The same sheet in a 416 pane, where it is the whole window: there is no dashboard behind it
-       to dim, the grid fits what it can rather than insisting on four, and the title takes the two
-       lines it needs. Same card, same components, same copy. -->
+  <!-- The same panel in a 416 pane, under the caption bar the system keeps. Same rows, same words; the
+       note wraps to six lines and its tail runs under the fold, which is what a still can show of a
+       scroll and is not a shorter note. -->
   <div class="frame narrow">
+    <div class="caption"><div></div></div>
     <div class="sheet narrow-sheet">
-      <div class="scroll">
+      <div class="scroll" data-fold>
         <div class="sheet-head">
           <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="2"></rect><rect x="14" y="3" width="7" height="7" rx="2"></rect><rect x="3" y="14" width="7" height="7" rx="2"></rect><path d="m14.5 17.5 2 2 4-5"></path></svg>
-          <div class="sheet-title">Приложения по умолчанию</div>
+          <div class="sheet-copy">
+            <div class="sheet-title">Приложения по умолчанию</div>
+          </div>
           <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#86909B" stroke-width="1.846" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"></path></svg>
         </div>
-
         <div class="switch-row">
           <div class="switch-copy">
             <div class="switch-title">Заменять приложения</div>
@@ -465,43 +488,41 @@
           </div>
           <div class="switch-track"><div class="switch-thumb"></div></div>
         </div>
-
-        <div class="section">
-          <div class="label">ДЛЯ КАКОЙ КОМАНДЫ</div>
-          <div class="segments">
-          <div class="segment">Навигация</div>
-          <div class="segment selected">Музыка</div>
-          <div class="segment">Видео</div>
+        <!-- No section label over the rows. The panel has 640 dp: header 31, switch 68, three rows
+             of 75 on one surface, the note at five lines, the action at 62, and 32 between each -
+             633. A tracked capital and its 12 would put it past the window, and the switch's own
+             subtitle has already said the word the label would say. -->
+        <div class="rows">
+          <div class="row">
+            <div class="row-copy">
+              <div class="row-title">Навигация</div>
+              <div class="row-value"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFgAAABYCAIAAAD+96djAAAJ/UlEQVR4nO2cXXAbVxXHz737KW0kW4odJyp27JJpbSuxPVOmdIDpwISGFmLHk0mBfvBRICSQUDqT8lRCmoTQPnZgMuTjiYEXHsg4dgYCaVooE5hmmDaO47hNSJ3I1A0U7FjSSqvdvbvMlWRJlnfXduNdW0r+44cr7ZV2z8/3nnvuhw5qWdcGM8XznCT5obokyylV1Rwq4LLXoihUHwUAkCS/KArzBSGKgs8nQpXK5xMdWLCFEs9zc1JgWTYcCkWj7Z2dHdG2tqa1TcFAkOc5WAqpqhpPJGI3YsMjI4ODF4eHL09MTuq67vARn080DMOyj6Ccj2AYJhhc4fAVDMO0tDT3dG/u7emWJAmWn2RZ7usf6O8/NXr9OiHEoWY8npxdIQ8iEFjBsozdJ0VR3Llj+9beLcsTQalkWT7Rd/LI0eOKotjV0XWSSCQtQIiOriESiRzcv2/D+ijD2JJaViKEDA1d2vvigfHxcbs66bSiKJnSdzDG2IFCe1vb4Z+/0tXZUSkUcr24q6vz8C9eaW9rtavj84kYzxgosIMjjUQihw7ub2pqhApUU2PjoZ8eiEQidhXKDMeCwNvUEw/u31ehFHJqamw8uH+fKFq3d0HgEUK2AVVODMPs3LF9w/ooVLg2rI/u3LHdrl+XNgJrEC0tzVt7t1SQX7ATwzBbe7e0tDRbXuU4zgkEy7I93ZuX/0g5T0mS1NO92TI4YFmm4DItQIRDod6ebqgi9fZ0h0Nhy0sFQBYgotH2qmkOOUmSFI22W15iWdYWRGdnB1Sd7IxiGPuuEW0rX6GoAtkZ5eQjmtY2QdXJzqhCKGEBIhgIQtUpGAgsGAS/ROsLCxC5Bcq7C/oEz1sH0HMEVMtVJmT+CbdOwtgPgVnk9cTiCtUylgEkCZn3IP02aP+BxOuAGOAa7yQQpgbah6AMQ3oQTBVME+RzkDgLzb9a9FstVxAmgfRFSL0F2jiYBiAMJkDqTYifAW4NhL58B4Ag/4PEOchcAZKgOBDOOjICqX9A/I9g6lC/GxBbvSBMHTJXQT4PyjvT9iOKgDYHAPltmPoDdRaIg5ovuXH/pQZhEjCmIP0uJP8C2k1qfA6BCdmCQcvpoTwFGg98AYR7qwwEAfV9SP4N5DepIwQMqNAEMB0paQGBcgWmTtPKNPphYOW3AfuqBYSp5u3XxsAoIAAwEe0Fhe5A28JViJ/OYso9bAMEPu3SQ3kLQrsJ8VchNQjGBLW2iAADyr40zemCQQOHUgqAIPQ4sNbLChUBwgQjBZlrkHgDUuepUyg4giKCkgIdIwxQb8DU7wFK9u+YWqj/DgBTiSAIkEmQL1BXp97ID4R5R2BmOcxEQAsmJaW+D/E/zaBAtyI2gLjevWd1DUTmGsRPQfI8bQ5UuYGgzOwcCxNMhiIAg9bRb0LiDJhlG3YYQtvATS02CFOjHTvxZ8hcBzO3pzbdCqiVZU0ATV/NIkAItA8g8SoYs7YtuQaoewYqAYRBbZg6TUNgMpF9J2dktsPn2ny+UMqiMExmq2n/pa60vC1kFf4KYKfN+iUHYYKRpOEQbQVnp00qRQCzCjbeUZ+ExGvWFBAL4afAZX1kEAbot6jxk78DNZYdCErDoYLlJf9wBxZ6nE6u895klqTPgK8Tlh8IE9LDMPlbGhGRqaz/zyEoxAKloWEhQJrNYrqzkElI/hUM2faG9d+lU4zlBsLMfKBefVn78DWGYxlBYHgBCyK1bkZcVIrAjkW2YNyC5Dnav+zE1EDgYXBfCwaBhIjQ8Rv87zPpK4dT/3rD1BLUUI6jUAQR8yLmeMwJmOUxxyOGo9ZiBuUCobLOQpIg/92JAiAIPw3sKnBfH9FHcA2PcA2PkFtDqZGXtZtnjcyEoWlactZ5HIZlBB8FJPgZXkScgDmR/jE8wjoNNAnlaCssURDu94vbHTWY2g2Bh35tJN9LXzumXD1mkvJ+bhJdTyX0VMFaOq2ifhVjqcEQpMI8wkZiK0gPgCe67VVshHFgndRxqPaxt6Sul5BQ51jbBNM0TcMguqHqc30zC6Gt3jSHxVvOxxyz4l5f657wF4f8XS9hqTnrBZxENDrgOImtg/rvg1da3H0NhIQ6f+vzoccGpc6fsbXrEWN7QMvQisd2rBX4HB0yvJIrGzyI9fta99RuOi994pdsqIuuLM0SPSHr1CIQrPwmeCg3d7owJ7Z8rWbj6zUP93GrN+YXIEpbhAMIfycEPw8eyvUtP8Su4NY8GnjwGBZnhgMmGLmphqXqvufxdqRHN8O+e4S1T5R5UJPYuAksQc2j3jxY8Z4e3Qcxvvt245mDq2F3cnzlU8CtBm/lXfPD0lpu1YxZg6Ejm0n3E4Dm2MVfdHnaD3337wFcDJBMy5BKWAe+LvBcnoJgVz7AN2wsvCSzQdAtnKe9DB+W6qAIEtftzO9l0OByVtdg62DlM2UDrTfy+sQMv2YTW5tv+WT2L4r8DwJne57eVXl+dAhzvtY9RWdplvWLr3v9PIXn8v6WfMNnGf/HLBoF3wy1vXDngEBCvXjf7twEZIabqPuWGydA5qmlOFWHsNj8JBZpcGUUBg7EQ+irsHSyAKGqcy0c3baQ0MCv3jSja4S2gbDWvTs6/x7aGkQ87riOuChC2Nf2I8QFi8Fl+En3drqpUYm45fvm9OqQBYhYLAbuiwm2cfWfys+7uAhIn3T1drEbsQWDGB4ZAU8kfvwbhpHdHFq1y70TIM5GGdNrARYgBgcvgifi79nGBO8HJkj3eF1223ZGEWIPYnj4sizbb8AtqsR1z5r+h4Cz/vHZYkmW5eHhy5aXCj+qtwAxMTnZ1z8AnoiLPA4Nz1suai6i+voHJiYnLS/pOrEFoet6/8ApjxoFG0I1xfmoG5JluX/glGU6BV0nTj4CAEZHr5/oO+mcfKAiRAg50XdydPS65VVNKwYX1iAIIUeOHh8augQVrqFLw0eOHrf7j2YyxdARl74olaIoe188EBsbg4pVLDa2d99+u0QSmYxaCCIoiLI0CqUaHx9/4cc/qVAWsdjYC3v3OaSQKM8fYRhGOm2bfOPyyDu7fvDchcGLFeQvCCEXBi/ueva5y/aRYTqtFNxkTndTq1Rrsp2BU6Ojt5FsB+aXkIxlmXAoTNMvdXRE23PplwJz/pLQJamqFk/EF5R+ySFFWREEVHtCLsscO9ZxhKJkHBxnFVOwCKgUJSPLNgc/K1mynHKgYH2YTFU1QpJ+v89hHKkg6TpJpdJzDv/Wq8aE0AGmClyGc3coldPyuaJkVFUTRcEuRdNyViajKkqmLGpy0Bz7CIZhpFLpdFoRBJ7juOXfWXSdaJpWNo+Yj+a1oWKapqJkFCWDMWZZhmVZhqbrwSgrWDrRQ5v02KZBiKFTFdcXFqqF7SwZNBmkdT7ISldl5Y9wUXdB5HUXRF53QUBO/wfZRi9ZfpmHMAAAAABJRU5ErkJggg==" alt=""><span>Откроет Навигатор</span></div>
+            </div>
+            <svg class="chev" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#86909B" stroke-width="1.846" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"></path></svg>
+          </div>
+          <div class="row">
+            <div class="row-copy">
+              <div class="row-title">Музыка</div>
+              <div class="row-value"><img src="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2244%22%20height%3D%2244%22%20viewBox%3D%220%200%2044%2044%22%3E%3Crect%20width%3D%2244%22%20height%3D%2244%22%20rx%3D%2212%22%20fill%3D%22%231ed760%22%2F%3E%3Ccircle%20cx%3D%2222%22%20cy%3D%2222%22%20r%3D%2215%22%20fill%3D%22%23111%22%2F%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22%231ed760%22%20stroke-linecap%3D%22round%22%3E%3Cpath%20d%3D%22M13%2017c7-2%2014-1%2020%202%22%20stroke-width%3D%223%22%2F%3E%3Cpath%20d%3D%22M14%2022c6-1.6%2012-.8%2017%201.7%22%20stroke-width%3D%222.5%22%2F%3E%3Cpath%20d%3D%22M15%2027c5-1%209-.4%2013%201.5%22%20stroke-width%3D%222%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E" alt=""><span>Запустит Spotify</span></div>
+            </div>
+            <svg class="chev" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#86909B" stroke-width="1.846" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"></path></svg>
+          </div>
+          <div class="row">
+            <div class="row-copy">
+              <div class="row-title">Видео</div>
+              <div class="row-value"><span class="ini">К</span><span>Откроет Кинопоиск</span></div>
+            </div>
+            <svg class="chev" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#86909B" stroke-width="1.846" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"></path></svg>
           </div>
         </div>
-
-        <div class="status">Запустит Spotify</div>
-
-        <div class="section">
-          <div class="label">ПРИЛОЖЕНИЕ ДЛЯ МУЗЫКИ</div>
-          <div class="apps narrow-apps">
-          <div class="app">
-            <div class="well"><img src="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2244%22%20height%3D%2244%22%20viewBox%3D%220%200%2044%2044%22%3E%3Crect%20width%3D%2244%22%20height%3D%2244%22%20rx%3D%2212%22%20fill%3D%22%23ffcc00%22%2F%3E%3Ccircle%20cx%3D%2222%22%20cy%3D%2222%22%20r%3D%2214%22%20fill%3D%22%23ff6534%22%2F%3E%3Ccircle%20cx%3D%2222%22%20cy%3D%2222%22%20r%3D%229%22%20fill%3D%22%23ff1f67%22%2F%3E%3Ccircle%20cx%3D%2222%22%20cy%3D%2222%22%20r%3D%224%22%20fill%3D%22%2315181f%22%2F%3E%3C%2Fsvg%3E" alt=""></div>
-            <div class="app-name">Яндекс</div>
-          </div>
-          <div class="app">
-            <div class="well"><img src="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2244%22%20height%3D%2244%22%20viewBox%3D%220%200%2044%2044%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22g%22%20x1%3D%224%22%20y1%3D%224%22%20x2%3D%2240%22%20y2%3D%2240%22%3E%3Cstop%20stop-color%3D%22%23fb5b74%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23d92d92%22%2F%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%2244%22%20height%3D%2244%22%20rx%3D%2212%22%20fill%3D%22url(%23g)%22%2F%3E%3Cpath%20d%3D%22M28.5%2011v19.3a5.5%205.5%200%201%201-2-4.2V15.5l-10%202.1v15a5.5%205.5%200%201%201-2-4.2V14.2z%22%20fill%3D%22%23fff%22%2F%3E%3C%2Fsvg%3E" alt=""></div>
-            <div class="app-name">Apple</div>
-          </div>
-          <div class="app selected">
-            <div class="well"><img src="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2244%22%20height%3D%2244%22%20viewBox%3D%220%200%2044%2044%22%3E%3Crect%20width%3D%2244%22%20height%3D%2244%22%20rx%3D%2212%22%20fill%3D%22%231ed760%22%2F%3E%3Ccircle%20cx%3D%2222%22%20cy%3D%2222%22%20r%3D%2215%22%20fill%3D%22%23111%22%2F%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22%231ed760%22%20stroke-linecap%3D%22round%22%3E%3Cpath%20d%3D%22M13%2017c7-2%2014-1%2020%202%22%20stroke-width%3D%223%22%2F%3E%3Cpath%20d%3D%22M14%2022c6-1.6%2012-.8%2017%201.7%22%20stroke-width%3D%222.5%22%2F%3E%3Cpath%20d%3D%22M15%2027c5-1%209-.4%2013%201.5%22%20stroke-width%3D%222%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E" alt=""></div>
-            <div class="app-name">Spotify</div>
-          </div>
-          </div>
-          <div class="secondary">Обновить список</div>
+        <div class="note">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7C858F" stroke-width="2.667" stroke-linecap="round" style="flex-shrink:0; margin-top:2px;"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5.5M12 7.6h.01"></path></svg>
+          <div>Штатные сценарии открывают приложения по команде: «Открыть навигацию» и «Открыть видео» запускают выбранные здесь. Музыку на этой прошивке начинает «Продолжить воспроизведение», когда ничего не играет; «Открыть музыку» всегда открывает штатный плеер.</div>
         </div>
-
-      <div class="note">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7C858F" stroke-width="2.667" stroke-linecap="round" style="flex-shrink:0; margin-top:2px;"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5.5M12 7.6h.01"></path></svg>
-        <div>Штатные сценарии открывают приложения по команде: «Открыть навигацию» и «Открыть видео» запускают выбранные здесь. Музыку на этой прошивке начинает «Продолжить воспроизведение», когда ничего не играет; «Открыть музыку» всегда открывает штатный плеер.</div>
       </div>
+      <div class="foot">
+        <div class="done">Готово</div>
       </div>
-      <div class="done">Готово</div>
     </div>
   </div>
 </div>

@@ -72,7 +72,12 @@ up there: the analyser's `9.39` is its column spacing, which comes out of the fi
 width and the band count and is on no ladder by design.
 
 It knows about occlusion: text under a modal scrim is covered, not colliding, and
-adjacent cells of a segmented control are meant to touch.
+adjacent cells of a segmented control are meant to touch. It also knows about the
+fold: a box the code scrolls - a panel's settings under its action, a chooser's
+grid under its header - is marked `data-fold` on the board and clipped, and what
+sits under its edge is under the fold rather than past the artboard. Only a
+marked box counts; text the frame itself cuts off is still reported, because
+that is the defect the check exists for.
 
 The third of those - TIGHT - was missing for a long time and this page used to say
 so. `AdbGateNarrow.dc.html` drew its primary action's words running out past both
@@ -283,8 +288,9 @@ optical weight of `2.0`, so a stroke is `2.0 × 24 ÷ rendered size`.
 Sizes that belong to one component rather than to a ladder are named rather than
 placed: the tile is `164`, its icon `30`, an application tile `96` with a `44`
 icon, a settings panel `480` on the right edge with a `62` action under it, a
-picker's grid stops growing at `360`, a row a finger has to hit is `56` and a
-segmented control `42`. They live beside the ladders in `DenzaMetrics` so
+grid that still sits inside a scrolling panel stops growing at `540` (a chooser
+page has no cap - see "Choosing an application"), a row a finger has to hit is
+`56` and a segmented control `42`. They live beside the ladders in `DenzaMetrics` so
 that a fixed height is a decision with a name on it rather than a number typed
 where it was needed.
 
@@ -342,11 +348,70 @@ Three things they had two of, and now have one:
 | a chosen application | a hairline edge in the accent, the well behind the icon tinted with it, the name set in it - `DenzaAppTile`, and nothing else. Config added a glow, DefaultApps added a check badge, and neither is anything the code draws. |
 | where the action sits | `DenzaSheet` gives the settings `weight(1f)` and hangs the one action under them, so it is under the same thumb whatever the panel was opened from. Config used to hang a spacer between the two as a flex item of its own, which bought a 32 either side of it and read as two clumps at the ends of an empty panel. |
 
-`DefaultApps.dc.html` also draws what the sheet actually holds now - the status line
-where the code puts it, the "обновить список" action under the grid, and the
-Shortcuts note in full. In a 416 pane that is taller than the window and the
-settings scroll, so the note runs on under the fold; the board draws the first
+`AppChooser.dc.html` and `Simulcast.dc.html` stand on the same underlay, and
+`Simulcast` carries two 1280 frames - the panel and the page it opens - so
+`splice` now refills every marked region in a file rather than the first one.
+
+`DefaultApps.dc.html` draws what the sheet holds now - three rows and the
+Shortcuts note in full - and its narrow frame draws the caption bar the pane
+keeps, which the earlier board spent on content. In a 416 pane the note wraps
+to six lines and its tail runs under the fold; the board draws the first
 screenful, which is what a still can show of a scroll and is not a shorter note.
+
+## Choosing an application
+
+Three boards, one component. `DefaultApps.dc.html` draws the «Приложения» panel
+as three rows; `AppChooser.dc.html` draws the page a row opens, at 1280 and at
+416; `Simulcast.dc.html` draws the projection panel with its row and the
+multi-choice page that row opens.
+
+**What was wrong.** Both panels put the same grid - `DenzaAppGrid`, capped at
+`PICKER_HEIGHT` - inside a sheet whose content column scrolls. That is a nested
+scroll: the grid moves inside its own box until it runs out, then the panel
+moves. In the default-apps panel the grid sat under a switch, a segmented row of
+roles, a status line and a section title, so about two rows of tiles were visible
+and the driver scrolled a small window; switching the role swapped the items of
+the same grid and carried its scroll offset over, so «Музыка» opened somewhere
+in the middle. The earlier DefaultApps board drew four applications per role. On
+the car a role lists every launchable application - twenty-odd, six rows - and
+the board never showed it.
+
+**The row.** A row is the question and its answer: «Навигация» over the chosen
+application's icon at the height of the text beside it and «Откроет Навигатор».
+The three rows share one raised surface on the switch row's own radius, cut by
+hairlines, because they are one setting with three parts. The status line, the
+segmented row, the section title and «Обновить список» are gone: the row says
+what the status line said, and the page reads the car when it opens. There is no
+section label over the rows, and that is arithmetic rather than taste: 640 dp of
+panel, header 31, switch 68, three rows of 75, the note at five lines 110, the
+action 62 and four gaps of 32 make 633. The projection panel's row carries the
+six chosen applications as a strip of their icons, or «Ничего не выбрано».
+
+**The page.** A back glyph on the left, the X on the right, and under the header
+nothing but the grid, which takes the rest of the sheet and is the only thing
+that scrolls. Four columns of 95 dp: the five-column row the projection picker
+used was 73.6 and put an ellipsis into every Russian name over eight letters -
+four still cuts «Калькулятор», and the board shows that rather than hiding it.
+A single choice returns to the panel on tap. Several at once carry the ceiling
+and the count in the subtitle, grey the unchosen at the tile's disabled alpha
+once the limit is reached, and return by «Готово». The same page is what a
+tile's own press opens directly - the projection with nothing chosen, «Экран
+справа» - and then it has no back glyph, only the X.
+
+| | tiles before a scroll |
+| --- | --- |
+| «Приложения» panel before, 4 columns under a switch, segments, status and title | about 8 |
+| projection panel before, 5 columns under a switch and a title | about 15 |
+| chooser page at 1280, 4 columns, single choice | 20 and the edge of a fifth row |
+| chooser page at 1280, several at once, «Готово» under it | 16 and the edge of a fifth row |
+| chooser page in a 416 pane, 3 columns | 15 and the edge of a sixth row |
+
+Icons: eleven are the car's own - Config's three, and four cropped from
+`captures/dishare-appchange.png` (bilibili, Tencent Video, MGTV, Migu Video);
+the four SVG ones were drawn for the earlier DefaultApps board. A tile with a
+letter is the code's own fallback for an application with no icon and stands
+here for one no screenshot has been cropped for yet - on the car every launcher
+entry has an icon.
 
 ## Application icons come off the car
 

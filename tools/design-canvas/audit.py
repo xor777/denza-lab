@@ -54,14 +54,36 @@ const label = el => (el.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 
       return cs.display !== 'none' && cs.visibility !== 'hidden' && cs.opacity !== '0';
     });
 
-  const covered = el => {
-    const r = el.getBoundingClientRect();
+  // What of an element is painted, once every ancestor marked `data-fold` has cut it down.
+  //
+  // A fold is a box the code scrolls - a panel's settings under its action, a chooser's grid
+  // under its header. A still can only show the first screenful, so the board clips the box and
+  // the tiles under its edge are not past the artboard; they are under it, the way the code has
+  // them. Only a marked ancestor counts: the frame's own overflow:hidden clips too, and text the
+  // frame cuts off is exactly the defect OVERFLOW exists to report. An element the fold leaves
+  // nothing of is not on the board at all.
+  const painted = el => {
+    let r = el.getBoundingClientRect();
+    r = { left: r.left, top: r.top, right: r.right, bottom: r.bottom };
+    for (let p = el.parentElement; p && p !== board; p = p.parentElement) {
+      if (!p.hasAttribute('data-fold')) continue;
+      const c = p.getBoundingClientRect();
+      r.left = Math.max(r.left, c.left);
+      r.top = Math.max(r.top, c.top);
+      r.right = Math.min(r.right, c.right);
+      r.bottom = Math.min(r.bottom, c.bottom);
+    }
+    r.width = Math.max(0, r.right - r.left);
+    r.height = Math.max(0, r.bottom - r.top);
+    return r;
+  };
+  const covered = (el, r) => {
     const hit = doc.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
     return hit && hit !== el && !el.contains(hit) && !hit.contains(el);
   };
-  const boxes = leaves.map(el => ({ el, r: el.getBoundingClientRect(), t: label(el) }))
+  const boxes = leaves.map(el => ({ el, r: painted(el), t: label(el) }))
     .filter(b => area(b.r) > 0)
-    .map(b => Object.assign(b, { hidden: covered(b.el) }));
+    .map(b => Object.assign(b, { hidden: covered(b.el, b.r) }));
 
   // 1. anything reaching past the artboard
   boxes.forEach(b => {

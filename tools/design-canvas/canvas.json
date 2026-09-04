@@ -59,6 +59,24 @@
       "page": "page-screens"
     },
     {
+      "file": "AppChooser.dc.html",
+      "x": 4080,
+      "y": 900,
+      "w": 1776,
+      "h": 680,
+      "title": "Выбор приложения · полный и узкий",
+      "page": "page-screens"
+    },
+    {
+      "file": "Simulcast.dc.html",
+      "x": 4080,
+      "y": 1800,
+      "w": 2640,
+      "h": 680,
+      "title": "Трансляция · панель и выбор",
+      "page": "page-screens"
+    },
+    {
       "file": "TwoThirds.dc.html",
       "x": 0,
       "y": 1800,

@@ -425,7 +425,7 @@ class Component extends DCLogic {{
 # region of each sheet board. What sits over it is still drawn by hand: only the thing behind the
 # scrim is generated, and it can no longer disagree with the screen it is a picture of.
 
-SHEETS = ('Config.dc.html', 'DefaultApps.dc.html')
+SHEETS = ('Config.dc.html', 'DefaultApps.dc.html', 'AppChooser.dc.html', 'Simulcast.dc.html')
 
 CSS_BEGIN = '    /* underlay: generated from Main.dc.html by gen_panes.py */'
 CSS_END = '    /* end underlay */'
@@ -482,11 +482,28 @@ def underlay(src):
 
 
 def splice(text, begin, end, block, path):
-    start = text.find(begin)
-    stop = text.find(end)
-    if start < 0 or stop < 0 or stop < start:
+    """Refill every marked region in the file, not only the first.
+
+    A sheet board with two 1280 frames - `Simulcast.dc.html` draws the panel and then the chooser
+    it opens - stands two panels over two copies of the dashboard, and each copy is a region of
+    its own. The CSS region is still one per file; only the body repeats.
+    """
+    out, pos, found = [], 0, 0
+    while True:
+        start = text.find(begin, pos)
+        if start < 0:
+            break
+        stop = text.find(end, start)
+        if stop < 0:
+            sys.exit(f'{path} opens a {begin.strip()} region it never closes')
+        out.append(text[pos:start])
+        out.append(begin + '\n' + block + '\n')
+        pos = stop
+        found += 1
+    if not found:
         sys.exit(f'{path} has no {begin.strip()} region')
-    return text[:start] + begin + '\n' + block + '\n' + text[stop:]
+    out.append(text[pos:])
+    return ''.join(out)
 
 
 def write_underlays(src):
