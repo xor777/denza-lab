@@ -31,7 +31,7 @@ still use the historical `denza-gateway` directory name.
   render a board and how to measure one, and the unit tests that fail when a
   board and the app disagree. Read it before changing anything under
   `apps/denza-apps/src/main/java/dev/denza/apps/ui/` or `.../design/`.
-- [docs/instrument-display-findings.md](docs/instrument-display-findings.md) — cluster scene, Mirrors, and navigation status.
+- [docs/instrument-display-findings.md](docs/instrument-display-findings.md) — cluster scene, the Contour instrument panel, Mirrors, and navigation status.
 - [docs/dishare-api-notes.md](docs/dishare-api-notes.md) — DiShare/HUD findings.
 - [docs/fse-app-installation.md](docs/fse-app-installation.md) — verified passenger-screen app installation path.
 - [docs/audio-capture-findings.md](docs/audio-capture-findings.md) — what a normal app can observe of played audio (spectrum analyser feasibility).
@@ -112,8 +112,9 @@ export ANDROID_HOME=/opt/homebrew/share/android-commandlinetools
   and matched nothing that could be seen.
 - When docs and implementation disagree, follow the code, manifests, and Gradle
   files, then correct the relevant page. A design board is the exception: it and
-  the code are both normative, they are joined by `MainBoardContractTest` and
-  `SpectrumBoardContractTest`, and they move in one change or neither moves.
+  the code are both normative, they are joined by `MainBoardContractTest`,
+  `SpectrumBoardContractTest` and `ContourBoardContractTest`, and they move in
+  one change or neither moves.
 - Record durable findings in the closest existing doc, not only in chat. Create a
   new `.md` only when the topic has a durable owner. Parked code → `research/`.
 - Never commit APKs, reverse-engineered APKs, or large extracted binaries

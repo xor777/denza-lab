@@ -258,7 +258,7 @@ can measure and cannot see is a difference that will be drifted into.
 
 | | rungs | step |
 | --- | --- | --- |
-| Cluster (virtual units; 1.70 panel px, 0.2123 mm) | 52 · 34 · 24 · 18 · 13 · 11 (+ `88`, boards only) | 8 wide, 6 narrow |
+| Cluster (virtual units; 1.70 panel px, 0.2123 mm) | 88 · 52 · 34 · 24 · 18 · 13 · 11 | 8 |
 | Head unit (pixels, 1:1) | 62 · 46 · 34 · 24 · 19 · 15 | see below |
 
 `82` used to head that second row, here and in `gen_kit.py` and in `normalize.py`,
@@ -294,8 +294,10 @@ cent from its neighbour cannot be chosen deliberately, so the gap is the thing
 worth testing. `Main.dc.html` is drawn on those same numbers.
 
 The cluster ramp is `InstrumentDensity.RAMP` in the app and the boards restate
-it; `gen_cluster.py` is the one place to check that they still agree. That ramp
-is the six rungs from `52` down to `11`, and the app draws nothing else.
+it; `gen_cluster.py` is the one place to check that they still agree, and since
+2026-09-04 `ContourBoardContractTest` is what makes them. The narrow `COMPACT`
+density is gone with the right-third composition nothing offered: there is one
+cluster ramp now and one density on it.
 
 **The headline numeral is `88`, and it is `104` that is gone.** The Contour's own
 ramp on the boards is `88 · 52 · 34 · 18` - four rungs, and 24 and 13 are not used
@@ -307,11 +309,17 @@ clears this page's own 1.2x rule with room, and it still reads at 61'. It is not
 octave. `104` survives only on `gen_next.py`, which draws a concept the contest did
 not pick, and it is not a proposal any more.
 
-`88` is not on `InstrumentDensity.RAMP` either, for the same reason `104` never
-was: the app does not draw this cluster yet, and a constant nothing reads is a
-promise. It joins the ramp on the day the renderer draws it, in the same change,
-or not at all. Until then this row still reads `52 · 34 · 24 · 18 · 13 · 11` for
-the app and carries `88` in brackets for the boards.
+`88` used to be on the boards and not on `InstrumentDensity.RAMP`, for the same
+reason `104` never was: a constant nothing reads is a promise, and it joins the
+ramp on the day the renderer draws it, in the same change, or not at all. That day
+was 2026-09-04. It is on the ramp now, in the same commit that drew it, and the
+row above no longer carries it in brackets.
+
+The heading rung moved with it. `18` used to head a caption and `13` its own
+title, on the reasoning that capitals read larger; at the measured distance a rung
+under 18 is 9′, which is board furniture. `InstrumentDensity.title` is `18` now
+and what separates a heading from a caption is weight and tracking, which is what
+separates them typographically anyway.
 
 The first draft of those boards ran at `58` and `19` beside the ramp's own `52`
 and `18`, which is the drift the ramp exists to prevent: a difference you can
@@ -379,6 +387,12 @@ that concept drawn: three boards, all from the same constants.
 | `ClusterContour.dc.html` | calm driving, engine asleep - the state the panel is in most of the time |
 | `ClusterContourStates.dc.html` | fourteen scenes as a column: first seconds, a traffic jam whose engine ran earlier and stopped long ago, calm, an acceleration, regeneration, the engine generating both ways it can be drawn, the engine forty seconds dead, standing on P, charging, a single null, link lost, an exception, and the missing ADB key |
 | `ClusterContourPlan.dc.html` | the skeleton alone, over the three apertures and both cell grids, with every anchor measured - and, under the panel, the physical constants and the ramp they produce |
+
+The panel exists now: `dev.denza.apps.feature.cluster.dashboard` draws these three
+boards, `ContourPlan` is their arithmetic in Kotlin, and
+`ContourBoardContractTest` joins the two records so neither can move alone. What
+follows is why each element is what it is, and it is still the reason to read this
+section rather than only the concept.
 
 The boards were drawn before a line of the panel was written, shown to the owner,
 redrawn twice against what he said, then roasted by an independent review
@@ -753,13 +767,25 @@ head-unit screen carried every number off `Main.dc.html` and looked nothing like
 it, because the board hangs a tile's words off the bottom edge and the code
 stacked them from the top.
 
-So two unit tests in `:denza-apps` parse the boards at test time and assert the
+So three unit tests in `:denza-apps` parse the boards at test time and assert the
 Kotlin matches:
 
 | | |
 | --- | --- |
 | `MainBoardContractTest` | reads `Main.dc.html` - tile height, padding, radius, the `space-between` that hangs the words apart, both text styles with their leading, icon size and stroke, grid columns and gap, page margins |
 | `SpectrumBoardContractTest` | reads the analyser out of the same board - band count, bar width fraction, that the columns add up to the field they are drawn in, peak height, corner radius, gradient stop, reflection crop and opacity, scanline pitch |
+| `ContourBoardContractTest` | reads `ClusterContour.dc.html`, `ClusterContourPlan.dc.html` **and `gen_contour.py` itself** against `ContourPlan` - the four rungs with their weights and tracking, the panel, the band's hairline, body and zero mark, the glow's centre, radii and its `0.18·√(P/120)`, the hero's baseline and its field, both corner baselines, both shelf baselines, all four temperature cells and the three motor fields, all three trip seats on P and the pair on the move, both history boxes with their scales, both guards drawn in red, and the measured advances every one of those cells is sized from |
+
+The third row reads the generator as well as the boards because a caption is a
+coordinate on the cluster: a cell there is exactly as wide as the wider of its
+caption and its payload, so `W_CAPTION` in `gen_contour.py` and the strings in
+`ContourReadout` are one record in two files. Coordinates are compared to `0.05`,
+which is the tenth the boards are written to; the advances get two per cent,
+because Chrome's Roboto and the car's Roboto are two fonts with one name and a
+cell *should* follow the face it is actually set in. What must not drift is the
+arithmetic between them, and that is everything else the row checks. Two mutations
+of one constant each - the petal's box by one rhythm step, the guard by half a
+step - brought down fourteen of its cases.
 
 That middle clause in the second row is new and is there for a defect every other
 check passed. The board set 26 bars of 22 with 9 between them - 797 of the 834 it
@@ -797,9 +823,9 @@ board drawing a glyph the app has never had.
 `#15181F` measures 3.86:1 where 4.5 is the floor, and 4.35:1 on the page ground.
 The boards and the generators now use `#7C858F`, which measures 4.70 and 5.31 and
 stays a clear step below `MUTED` at 5.43 so the two are still two. `DenzaTokens`
-has not moved yet; when it does, `MUTED_DEEP` takes that value and the records meet
-again. The obvious-looking `#8A929C` does not work: at 5.59 it is brighter than the
-ink above it.
+carries the same value, so the records meet: this paragraph said it did not for a
+wave after it already did. The obvious-looking `#8A929C` does not work: at 5.59 it
+is brighter than the ink above it.
 
 **The ticker's two records name a track in opposite orders.** The board writes
 "M83 · MIDNIGHT CITY" and `SpectrumRenderer` builds `"$title · $artist"`, so the
