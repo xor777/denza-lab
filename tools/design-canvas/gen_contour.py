@@ -4,9 +4,42 @@ Emit the Contour cluster artboards from the constants the app draws with.
 
 The Contour won the 2026-09 cluster contest (`docs/cluster-contest-2026-09/`).
 Three drawings went to the owner, an independent review roasted the third
-(`CRITIQUE.md`, blockers B1-B3, majors M1-M15, minors m1-m12), and this is the
-fourth drawing: the answer to that review, point by point, with the owner's own
-ruling on each.
+(`CRITIQUE.md`, blockers B1-B3, majors M1-M15, minors m1-m12), the fourth was the
+answer to that review point by point, and this is the fifth: one complaint, five
+edits, nothing else touched.
+
+**The fifth pass, and what it is for.** The owner on the fourth drawing:
+"Сценарии выглядят гораздо лучше, действительно удалось сделать хорошо. Но
+графики очень сильно сплющены по вертикали и очень слабо читаются." Both graphs
+were the same mistake twice - each one had been given the ink box of the digits it
+stood beside, 36 units in the petal and 24 on the shelf, which is 7.6 mm and 5 mm
+of glass for a shape with thirty steps or two curves in it. Height is the whole
+fix, and both boxes now take every unit their neighbours can spare:
+
+1. the petal's box is 56 units instead of 36, drawn as a 70 % INK line 2.5 thick
+   over a 55 % MUTED_DEEP field instead of a 2-unit MUTED line over 30 %, on a
+   fixed 0…40 kW·h/100 km ladder with the zero four fifths down, so the return
+   keeps the bottom fifth and no bucket changes height because another one did;
+2. the petal's figure centres on the axis by itself - two digits, right-aligned on
+   a fixed anchor - and the box hangs off the field's widest reserve at 24, which
+   is the jury's answer to "what does the box hang on now": asymmetry, deliberately;
+3. the engine's box takes both rows of the shelf, 54 units from the top guard to a
+   hair over the captions' baseline, and its legend moves below it onto the band's
+   own 24-unit guard. No neighbour's baseline moves in either direction of the
+   cells↔box swap;
+4. an engine that ran and stopped reads «ДВС · мин» over «6» and nothing else. The
+   corner's aperture leaves 138.2 units at that third baseline and «мин за поездку»
+   asked for 130.4, which is eight units of margin on a boundary nobody has
+   photographed - and the heading was already carrying the unit for the other two
+   states, so it can carry this one;
+5. the glow's span is its own now - `0.18·√(|P| / 120 kW)`, saturated at 120 -
+   rather than the band's 300 out and 100 back, which made the same alpha mean two
+   different powers by direction and left the whole calm half of the range dark.
+
+One number in that list could not be had. The jury asked for a 270-unit petal box;
+with the figure on the axis the petal's own cut-out leaves 238.5 at the box's lower
+left corner once the 8-unit guard is taken, so the box is 232 - the next whole
+rhythm step under the aperture. The width was never the complaint.
 
 **The panel is now measured rather than guessed.** M1 was right that every
 ergonomic claim on the first three boards stood on an estimated 25 cm of glass.
@@ -62,18 +95,20 @@ Closed:
       the move - and the cap top keeps the jury's 24 units off `stockTop`.
 - M3  34 is legal at 320 mm (23'), so it stays, but as Regular rather than Light:
       Light at 34 puts a 1:11 stem on black. Both shelves are 34 now.
-- M4  hierarchy is colour as well as size. `INK` belongs to the hero and to the
-      petal's figure and to nothing else; corners and shelves are `MUTED`;
-      headings and captions are `MUTED_DEEP`; `WARNING`/`DANGER` are the
-      exception only.
+- M4  hierarchy is colour as well as size. `INK` belongs to the hero, to the
+      petal's figure, and - at 70 %, since the fifth pass - to the two history
+      lines, which are those figures' own traces and read as nothing at MUTED;
+      corners and shelves are `MUTED`; headings, captions and the fields under the
+      histories are `MUTED_DEEP`; `WARNING`/`DANGER` are the exception only.
 - M5  alpha is not a state channel. One rule: a stale value is removed after two
       seconds and its caption stays. Link loss is that rule applied to every
       value at once, a single null is that rule applied to one, and neither dims
       anything. The only users of alpha left are the glow, the two history fills
       and the peak hold.
-- M6  the glow no longer travels. It is centred on zero, its brightness is
-      `sqrt(|P| / span)` capped at 0.18 - which is exactly the band's own travel
-      fraction - and its hue is the sign. τ = 1.5 s.
+- M6  the glow no longer travels. It is centred on zero, its hue is the sign, and
+      its brightness is `0.18·sqrt(|P| / 120 kW)`, saturated at 120 kW - the fifth
+      pass took it off the band's two spans, which had 42 kW back outshining
+      100 kW out. τ = 1.5 s.
 - M7  the engine box grows from the right, its width is the number of filled
       seconds, and it is never drawn empty. It leaves when the last non-zero slot
       falls off the left edge, which is 120 s of hysteresis with no timer of its
@@ -89,8 +124,10 @@ Closed:
 - M13 the scenes the brief asked for are drawn: a traffic jam, an acceleration, an
       engine that stopped forty seconds ago, a single null.
 - M14 Roboto with `tnum`; see above.
-- M15 the petal's history is a stepped line with a 30 % field, not thirty bars
-      0.65 mm wide, and the engine box carries its two runs at 2 units.
+- M15 the petal's history is a stepped line, not thirty bars 0.65 mm wide. The
+      fourth board's 30 % field under a 2-unit MUTED line was the flattening the
+      owner then found: it is a 55 % field under a 2.5-unit INK line at 70 % now,
+      in a box 56 tall, and the engine box's two runs are the same weight.
 - m1  unit symbols are case-sensitive: «БАТАРЕЯ · В», «ДВС · об/мин», «кВт·ч».
 - m2  a dim «ДВС» over an empty corner was furniture. If the engine has not run
       this trip the corner is empty - no heading.
@@ -176,7 +213,7 @@ W_KW34 = 55.9219                 # «кВт» at 34, the hero's unit
 W_KW = 29.6094                   # «кВт» at 18
 W_KWH = 44.1094                  # «кВт·ч» at 18, the trip shelf's one unit
 W_PER_100KM = 109.4219           # «кВт·ч/100 км» at 18
-W_TITLE = {'БАТАРЕЯ · В': 126.08, 'ДВС · об/мин': 137.98, 'ДВС': 43.08}
+W_TITLE = {'БАТАРЕЯ · В': 126.08, 'ДВС · об/мин': 137.98, 'ДВС · мин': 104.16}
 W_CAPTION = {'БАТАРЕЯ': 91.92, 'МОТОРЫ': 90.63, 'ИНВЕРТОР': 110.00,
              'РАЗБРОС': 94.50, 'ИЗ БАТАРЕИ': 127.77, 'РЕКУПЕРАЦИЯ': 150.67,
              'ОТ ДВС': 76.78, 'ОБОРОТЫ': 101.05, 'ГЕНЕРАЦИЯ': 122.11}
@@ -229,6 +266,11 @@ def petal_reach(y):
     return PETAL_RX * math.sqrt(t) if t > 0 else 0.0
 
 
+def petal_room(y):
+    """Where the petal's cut-out has its left edge at [y] - the box's own limit."""
+    return AXIS - petal_reach(y)
+
+
 def rungs(width):
     """The next whole rhythm step at or past [width]: a cell is never a string."""
     return math.ceil(width / STEP - 1e-9) * STEP
@@ -271,18 +313,23 @@ ZERO_HALF = BAND_BODY
 ZERO_WIDTH = 1.8
 GEN_LINE_Y = BAND_Y + BAND_BODY / 2 + 4.0
 GEN_LINE_H = 4.0
-DATA_LINE = 2.0                         # nothing that carries data is thinner
+DATA_LINE = 2.5                         # nothing that carries data is thinner
 AREA_EDGE = 1.8
 
-# One pool of light, and it does not move (M6). Brightness is the magnitude by the
-# band's own square root, hue is the sign, τ = 1.5 s. A pool 73 mm across sliding
-# 50-100 mm with the pedal was the strongest peripheral stimulus on the panel and
-# the one thing here that no production cluster does.
+# One pool of light, and it does not move (M6). Brightness is the magnitude by a
+# square root, hue is the sign, τ = 1.5 s. A pool 73 mm across sliding 50-100 mm
+# with the pedal was the strongest peripheral stimulus on the panel and the one
+# thing here that no production cluster does.
 GLOW_CX = AXIS
 GLOW_CY = BAND_Y
 GLOW_RX = 340.0
 GLOW_RY = STOCK_BOTTOM - BAND_Y         # reaches zero exactly on the lower edge
 GLOW_MAX = 0.18
+# The glow has its own span now, and it is the same one both ways: alpha is
+# 0.18·√(|P| / 120 kW) and it saturates at 120 kW. Tying it to the band's spans
+# made the two directions two different lights - 42 kW back was brighter than 100
+# kW out - and left the calm 34 kW at 0.06, which is a pool nobody sees.
+GLOW_FULL_KW = 120.0
 
 # The dead band around zero. Inside it the hero and the band body are MUTED and
 # carry no colour at all, and the colour change carries the same 3 kW of
@@ -359,10 +406,21 @@ ENGINE_SLOTS = 120
 ENGINE_BOX_RIGHT = RIGHT_EDGE
 ENGINE_BOX_FULL_LEFT = RIGHT_SHELF_LEFT
 ENGINE_PITCH = (ENGINE_BOX_RIGHT - ENGINE_BOX_FULL_LEFT) / (ENGINE_SLOTS - 1)
-# Exactly the ink box of the digits it replaces, which is what keeps it off the
-# top guard by construction: the shelf's own cap top *is* the guard.
-ENGINE_BOX_BOTTOM = SHELF_FIGURE
-ENGINE_BOX_TOP = SHELF_FIGURE - CAP * READING
+# The box takes both of the shelf's rows now, not the digits' ink box alone. Two
+# runs inside 24 units came out as a blue thread with a grey thread on top of it -
+# "графики очень сильно сплющены по вертикали", the owner's whole verdict on the
+# fourth drawing - and 24 units is 5 mm on this glass for two curves.
+#
+# Top: the same guard everything else on the panel hangs off, which is also the
+# shelf figures' own cap top, so the swap moves no neighbour's baseline. Bottom:
+# as far down as the legend leaves it, and the legend hangs off the band's guard
+# from below. Everything between is the graph.
+ENGINE_BOX_TOP = GUARD_TOP
+ENGINE_LEGEND = BAND_Y - BAND_BODY / 2 - CLEARANCE
+# One rhythm step between the box's own zero rule and the legend's caps. Half a
+# step was drawn first and the picture settled it: generation is an area that
+# stands *on* that rule, so at 4 units the blue and «ГЕНЕРАЦИЯ» were one object.
+ENGINE_BOX_BOTTOM = ENGINE_LEGEND - CAP * CAPTION - STEP
 ENGINE_RPM_FULL = 3000.0                # not 6000: this engine is a generator
 ENGINE_GEN_FULL = 100.0                 # ClusterReadout.GENERATION_FULL_KW, root
 
@@ -371,28 +429,56 @@ ENGINE_GEN_FULL = 100.0                 # ClusterReadout.GENERATION_FULL_KW, roo
 PETAL_BASELINE = 384.0
 PETAL_FLOOR = 410.0                     # nothing is drawn below this
 PETAL_BUCKETS = 30                      # 3 km of ConsumptionLog's 100 m buckets
-# "16,8" and "2:15" are both three digits and one mark, so one field holds either.
+# "16,8" and "2:15" are both three digits and one mark, so one field holds either,
+# and two digits is what the panel actually prints while the car is moving.
 PETAL_FIELD_W = 3 * DIGIT * FIGURE + max(COMMA, COLON) * FIGURE
+PETAL_BASE_FIELD_W = 2 * DIGIT * FIGURE
 PETAL_UNIT_W = W_PER_100KM
 PETAL_BOX_GAP = STEP * 3
-# Thirty bars 0.65 mm wide with a 0.19 mm gap are below the eye's resolution at
-# 750 mm and came out as a grey block with a ragged top (M15), so the history is a
-# stepped line with a soft field under it. That wants width: 240 units is 8 per
-# bucket, which is a step you can see. The last board's trick - box plus gap
-# equal to unit gap plus unit, so the group *and* its digits both centre on the
-# axis - cannot survive a box that wide, and the group is what centres.
-PETAL_BOX_W = max(STEP * 30, rungs(UNIT_GAP + PETAL_UNIT_W - PETAL_BOX_GAP))
-PETAL_BOX_H = STEP * 4 + 4.0            # 36
-PETAL_GROUP_W = (PETAL_BOX_W + PETAL_BOX_GAP + PETAL_FIELD_W
-                 + UNIT_GAP + PETAL_UNIT_W)
-PETAL_BOX_X = AXIS - PETAL_GROUP_W / 2
-PETAL_FIGURE_RIGHT = PETAL_BOX_X + PETAL_BOX_W + PETAL_BOX_GAP + PETAL_FIELD_W
+# **The figure centres on the axis, and the box hangs off it.** The last board
+# centred the whole composition - box, gap, field, gap, unit - so the digits
+# landed 82 units right of the hero's and the box carried the panel's midpoint on
+# its back. Now the *printed* figure is what centres: two digits, right-aligned on
+# a fixed anchor, so standing on P the tenth grows the field leftward and moves
+# neither the unit nor the box.
+#
+# The accident worth keeping: a two-digit 52 centred on the axis ends at 783.00,
+# and the hero's three-digit field ends at 783.04. The two figures share a right
+# edge to within 0.04 units, and «кВт» and «кВт·ч/100 км» start on the same x.
+PETAL_FIGURE_RIGHT = AXIS + PETAL_BASE_FIELD_W / 2
 PETAL_UNIT_X = PETAL_FIGURE_RIGHT + UNIT_GAP
-# ChartScale.ABOVE_ZERO_SHARE, and the zero line is the figure's own baseline.
-PETAL_BOX_TOP = PETAL_BASELINE - g.ABOVE_ZERO_SHARE * PETAL_BOX_H
-PETAL_BOX_BOTTOM = PETAL_BASELINE + (1.0 - g.ABOVE_ZERO_SHARE) * PETAL_BOX_H
-AREA_ALPHA = 0.30
-GEN_AREA_ALPHA = 0.50                   # M11: 30 % vanished under daylight glare
+# The box hangs off the *widest* the field ever gets, not off the printed digits,
+# so the 24-unit gap is a floor rather than an average: on P it closes to 26, on
+# the move it opens to 66, and the box does not move between the two.
+PETAL_BOX_RIGHT = PETAL_FIGURE_RIGHT - PETAL_FIELD_W - PETAL_BOX_GAP
+# 232 is 29 rhythm steps and it is the aperture's number, not a taste. The jury
+# asked for 270; with the figure on the axis the petal's ellipse leaves 238.5 at
+# the box's lower left corner once the 8-unit guard is taken, so the width is the
+# next whole step under that. All of the gain the owner asked for is in the
+# height, where there was room: 36 -> 56, and the scale that fills it is fixed.
+PETAL_BOX_W = STEP * 29
+PETAL_BOX_H = STEP * 7                  # 56
+PETAL_BOX_X = PETAL_BOX_RIGHT - PETAL_BOX_W
+# The box hangs from the figure's own cap top - the jury's "not above 348" is that
+# line, 347.08 - and 56 units later it stops 6.9 short of the floor.
+PETAL_BOX_TOP = PETAL_BASELINE - CAP * FIGURE
+PETAL_BOX_BOTTOM = PETAL_BOX_TOP + PETAL_BOX_H
+# A fixed ladder, not an autoscale: 0…40 kW·h/100 km with the zero line four
+# fifths down, which leaves the bottom fifth for the return and makes it 10 the
+# same way - 1.12 units per kW·h in both directions. Autoscaling to each window's
+# own ceiling meant a bucket changed height when a *different* bucket changed
+# value, so the shape of the last three kilometres was never twice the same shape.
+PETAL_ZERO_SHARE = 0.8
+PETAL_ZERO_Y = PETAL_BOX_TOP + PETAL_ZERO_SHARE * PETAL_BOX_H
+PETAL_FULL = 40.0
+PETAL_RETURN_FULL = PETAL_FULL * (1.0 - PETAL_ZERO_SHARE) / PETAL_ZERO_SHARE
+# Contrast, the other half of the owner's verdict. A 30 % field under a 2-unit
+# line at MUTED was a texture; the line is the figure's own INK at 70 % over a
+# MUTED_DEEP field at 55 %, and the return keeps that same field below the zero
+# line rather than turning blue - blue on this panel is the engine and the band.
+AREA_ALPHA = 0.55
+LINE_ALPHA = 0.70
+GEN_AREA_ALPHA = 0.55
 PEAK_ALPHA = 0.85
 
 # EnergyScale: the band is the dial straightened out, same square root, same spans.
@@ -437,9 +523,11 @@ WARNING = g.WARNING
 DANGER = '#FF4046'
 BG = g.CLUSTER_BG
 
-# The hierarchy is colour before it is size (M4). INK is the hero and the petal's
-# figure and nothing else; the corners and both shelves are MUTED; headings,
-# captions and units are MUTED_DEEP; WARNING and DANGER are the exception only.
+# The hierarchy is colour before it is size (M4). INK is the hero, the petal's
+# figure, and at 70 % the two history lines - a figure's own trace in a figure's
+# own colour, one step down. The corners and both shelves are MUTED; headings,
+# captions, units and the fields under the histories are MUTED_DEEP; WARNING and
+# DANGER are the exception only.
 # Champagne is not on this panel: yellow means "decide something" in this car, and
 # DATA_PEAK is the live edge of the data, which is the band's tip and the peak
 # hold - never a history.
@@ -570,17 +658,33 @@ def keepout():
     ]
 
 
+def glow_alpha(kw):
+    """`0.18·√(|P| / 120 kW)`, saturated at 120 kW, and the same both ways.
+
+    The fourth board took the band's own travel fraction, which is a square root
+    over 300 kW out and 100 kW back. That gave the glow two different meanings by
+    direction - 42 kW of braking outshone 100 kW of pulling - and it spent the
+    whole calm half of its range in the dark: 34 kW came to 0.06 of an alpha that
+    only reaches 0.18 at the car's absolute limit, which nothing on a commute ever
+    sees. One span of 120 kW, the pedal's own working range, is the fix: calm sits
+    at 0.10, an acceleration saturates, and everything above 120 is the same light.
+    """
+    m = abs(kw)
+    if m <= FLOOR_KW:
+        return 0.0
+    return GLOW_MAX * math.sqrt(min(m / GLOW_FULL_KW, 1.0))
+
+
 def glow(kw):
     """The one pool of light, and it stands still.
 
-    Brightness is `sqrt(|P| / span)` - the band's own travel fraction - capped at
-    0.18; hue is the sign; the centre never leaves zero. The concept had it riding
-    the band's tip with τ = 400 ms, which put a 73 mm pool through 50-100 mm of
-    travel every time the pedal moved in a traffic jam.
+    Hue is the sign, brightness is `glow_alpha`, and the centre never leaves zero.
+    The concept had it riding the band's tip with τ = 400 ms, which put a 73 mm
+    pool through 50-100 mm of travel every time the pedal moved in a traffic jam.
     """
     if kw is None:
         return []
-    strength = GLOW_MAX * sweep(kw)
+    strength = glow_alpha(kw)
     if strength <= 0:
         return []
     c = flow_colour(kw)
@@ -699,8 +803,13 @@ def right_corner(s):
     because a dot is the smallest blue thing that still reads on black and a 12'
     blue word is not one.
 
-    Asleep after running: «6» over «мин за поездку», which is the question a
-    hybrid's driver actually asks and the answer nothing on this panel gave.
+    Asleep after running: «ДВС · мин» over «6», which is the question a hybrid's
+    driver actually asks and the answer nothing on this panel gave. The line under
+    it is gone: «мин за поездку» said in fourteen characters what the heading says
+    in one, and it said it at the panel's tightest baseline - the aperture leaves
+    138.2 there and the words asked for 130.4, eight units from a boundary that
+    has never been photographed. The other two states already carry their unit in
+    the heading, so this one does too.
 
     Never started this trip: empty. A dimmed heading over an empty corner is
     advertising an instrument that is not there.
@@ -724,12 +833,10 @@ def right_corner(s):
                 txt('un', unit_x, CORNER_LINE, 'кВт', 'start', MUTED),
             ]
         return out
-    out = [txt('ttl', RIGHT_EDGE, CORNER_TITLE, 'ДВС', 'end', MUTED_DEEP)]
+    out = [txt('ttl', RIGHT_EDGE, CORNER_TITLE, 'ДВС · мин', 'end', MUTED_DEEP)]
     if s.get('ice_minutes') is not None:
-        out += [
-            txt('fig', RIGHT_EDGE, CORNER_FIGURE, f'{s["ice_minutes"]:.0f}', 'end', MUTED),
-            txt('un', RIGHT_EDGE, CORNER_LINE, 'мин за поездку', 'end', MUTED_DEEP),
-        ]
+        out.append(txt('fig', RIGHT_EDGE, CORNER_FIGURE, f'{s["ice_minutes"]:.0f}',
+                       'end', MUTED))
     return out
 
 
@@ -782,8 +889,10 @@ def left_shelf(s):
 def engine_box(s):
     """Two minutes of the combustion half, where the trip balance stands otherwise.
 
-    It occupies exactly the ink box of the digits it replaces, so it clears the
-    top guard by construction. Revolutions run linearly against 3000 - this engine
+    It takes both rows of the shelf now - the figures' cap top down to a hair
+    above their captions' baseline, 54 units - and the legend moves below it, onto
+    the band's own 24-unit guard. In 24 units the two runs were a blue thread with
+    a grey thread lying on it. Revolutions run linearly against 3000 - this engine
     is a generator, not a redline - and generation by the same square root
     `ClusterReadout.generationFraction` uses. Neither run carries an axis; the two
     words under the box are the whole legend, and the blue one carries the dot.
@@ -811,19 +920,19 @@ def engine_box(s):
     gen_ys = [y_of(v, ENGINE_GEN_FULL, root=True) for v in gen]
     outline, field = step_path(xs, gen_ys, bottom)
     out.append(f'<path d="{field}" fill="{RETURN}" opacity="{f(GEN_AREA_ALPHA)}"/>')
-    out.append(f'<path d="{outline}" fill="none" stroke="{RETURN_INK}" '
+    out.append(f'<path d="{outline}" fill="none" stroke="{RETURN}" '
                f'stroke-width="{f(AREA_EDGE)}" stroke-linejoin="round"/>')
 
     run = [(x0 + ENGINE_PITCH * i, y_of(v, ENGINE_RPM_FULL)) for i, v in enumerate(rpm)]
     d = 'M ' + ' L '.join(f'{f(x)} {f(y)}' for x, y in run)
-    out.append(f'<path d="{d}" fill="none" stroke="{MUTED}" '
+    out.append(f'<path d="{d}" fill="none" stroke="{INK}" '
                f'stroke-width="{f(DATA_LINE)}" stroke-linejoin="round" '
-               f'stroke-linecap="round"/>')
+               f'stroke-linecap="round" opacity="{f(LINE_ALPHA)}"/>')
 
-    out.append(txt('cl', RIGHT_EDGE, SHELF_CAPTION, 'ГЕНЕРАЦИЯ', 'end', MUTED_DEEP))
+    out.append(txt('cl', RIGHT_EDGE, ENGINE_LEGEND, 'ГЕНЕРАЦИЯ', 'end', MUTED_DEEP))
     gen_left = RIGHT_EDGE - W_CAPTION['ГЕНЕРАЦИЯ']
-    out.append(dot(gen_left - MARK_GAP - MARK_R, SHELF_CAPTION - CAP * CAPTION / 2))
-    out.append(txt('cl', gen_left - MARK_W - CELL_GAP, SHELF_CAPTION,
+    out.append(dot(gen_left - MARK_GAP - MARK_R, ENGINE_LEGEND - CAP * CAPTION / 2))
+    out.append(txt('cl', gen_left - MARK_W - CELL_GAP, ENGINE_LEGEND,
                    'ОБОРОТЫ', 'end', MUTED_DEEP))
     return out
 
@@ -863,25 +972,30 @@ def right_shelf(s):
 def petal_history(bars):
     """Three kilometres of closed buckets, as one stepped line beside its figure.
 
-    Thirty bars 0.65 mm wide with a 0.19 mm gap are 0.9' at 750 mm - under the
-    eye's resolution - so they came out as a grey block with a ragged top and
-    answered nothing. A step at 8 units a bucket has a shape. There is no dashed
-    mean any more: the mean is the figure standing next to it, and the zero line
-    is the figure's own baseline, so a bucket is read as above or below a number
-    that is already on the panel.
+    Two things the owner said about the fourth board are answered here and they
+    are the same thing twice: "графики очень сильно сплющены по вертикали и очень
+    слабо читаются". The box is 56 units rather than 36 - the tallest it can be
+    without rising over the cap of the figure beside it - and the drawing is a
+    70 % INK line 2.5 units thick over a 55 % MUTED_DEEP field, where it was a
+    2-unit MUTED line over a 30 % one and read as a texture.
+
+    The scale is a fixed ladder: 0…40 kW·h/100 km up, 0…10 back, one line per
+    1.12 units in both directions, and the zero four fifths down. An autoscale
+    meant one bucket changing value redrew the height of all thirty, so the same
+    three kilometres never came back the same shape. There is no dashed mean: the
+    mean is the figure standing next to the box.
     """
     if not bars:
         return []
-    zero, top, bottom = PETAL_BASELINE, PETAL_BOX_TOP, PETAL_BOX_BOTTOM
-    pos, neg = g.ceilings(bars)
+    zero, top, bottom = PETAL_ZERO_Y, PETAL_BOX_TOP, PETAL_BOX_BOTTOM
     pitch = PETAL_BOX_W / len(bars)
     xs = [PETAL_BOX_X + pitch * i for i in range(len(bars) + 1)]
-    ys = [zero - min(v / pos, 1.0) * (zero - top) if v >= 0
-          else zero + min(-v / neg, 1.0) * (bottom - zero) for v in bars]
+    ys = [zero - min(v / PETAL_FULL, 1.0) * (zero - top) if v >= 0
+          else zero + min(-v / PETAL_RETURN_FULL, 1.0) * (bottom - zero) for v in bars]
     outline, field = step_path(xs, ys, zero)
     return [
-        f'<path d="{field}" fill="{MUTED}" opacity="{f(AREA_ALPHA)}"/>',
-        f'<path d="{outline}" fill="none" stroke="{MUTED}" '
+        f'<path d="{field}" fill="{MUTED_DEEP}" opacity="{f(AREA_ALPHA)}"/>',
+        f'<path d="{outline}" fill="none" stroke="{INK}" opacity="{f(LINE_ALPHA)}" '
         f'stroke-width="{f(DATA_LINE)}" stroke-linejoin="round"/>',
         line(PETAL_BOX_X, zero, PETAL_BOX_X + PETAL_BOX_W, zero,
              MUTED_DEEP, BAND_HAIRLINE),
@@ -1162,8 +1276,15 @@ def plan_board():
                         opacity=0.8))
     body.append(outline(HERO_FIELD_LEFT, HERO_CAP_TOP, HERO_FIELD_W,
                         HERO_BASELINE - HERO_CAP_TOP))
+    # Two fields, one anchor: the two digits that centre on the axis, and the
+    # reserve the tenth grows into on P. The box hangs off the outer one.
     body.append(outline(PETAL_FIGURE_RIGHT - PETAL_FIELD_W, PETAL_BASELINE - CAP * FIGURE,
                         PETAL_FIELD_W, CAP * FIGURE))
+    body.append(outline(PETAL_FIGURE_RIGHT - PETAL_BASE_FIELD_W,
+                        PETAL_BASELINE - CAP * FIGURE, PETAL_BASE_FIELD_W,
+                        CAP * FIGURE, dash='2 4', opacity=0.7))
+    body.append(line(PETAL_BOX_X, PETAL_ZERO_Y, PETAL_BOX_X + PETAL_BOX_W,
+                     PETAL_ZERO_Y, WARNING, 1.2, 0.5))
 
     right_lane = AXIS + 140
     marks = [
@@ -1173,10 +1294,10 @@ def plan_board():
                                    f'3 знака {LEFT_FIELD_X:.0f}…{LEFT_FIELD_RIGHT:.1f} · '
                                    f'обороты 4 знака {RIGHT_FIELD_LEFT:.1f}…'
                                    f'{RIGHT_FIELD_RIGHT:.1f}'),
-        (LEFT_EDGE, CORNER_LINE, f'строка угла · 18 · y {CORNER_LINE:.0f} · апертура '
-                                 f'даёт справа '
+        (LEFT_EDGE, CORNER_LINE, f'строка угла · 18 · y {CORNER_LINE:.0f} · только '
+                                 f'«● N кВт» под оборотами: апертура даёт справа '
                                  f'{RIGHT_EDGE - (W - aperture_reach(CORNER_LINE, True)):.1f}, '
-                                 f'«мин за поездку» просит 130.4'),
+                                 f'«мин за поездку» просила 130.4 и снята'),
         (LEFT_EDGE, GUARD_TOP, f'запас {CLEARANCE:.0f} · stockTop {STOCK_TOP:.2f} → '
                                f'{GUARD_TOP:.2f} · на нём стоят герой, обе полки и '
                                f'коробка ДВС'),
@@ -1187,25 +1308,40 @@ def plan_board():
         (LEFT_EDGE, SHELF_CAPTION, f'подписи полок · 18 капителью · y '
                                    f'{SHELF_CAPTION:.2f} · моторы: шаг {MOTOR_PITCH:.1f}, '
                                    f'поле {TEMP_FIELD:.1f} + «°» {W_DEGREE:.1f}'),
-        (right_lane, ENGINE_BOX_TOP, f'коробка ДВС · {ENGINE_BOX_FULL_LEFT:.0f}…'
-                                     f'{ENGINE_BOX_RIGHT:.0f} · {ENGINE_SLOTS} слотов, '
-                                     f'шаг {ENGINE_PITCH:.2f} · растёт справа'),
+        (right_lane, ENGINE_BOX_TOP, f'коробка ДВС · оба ряда полки, '
+                                     f'{ENGINE_BOX_BOTTOM - ENGINE_BOX_TOP:.1f} высотой · '
+                                     f'{ENGINE_SLOTS} слотов по {ENGINE_PITCH:.2f} '
+                                     f'справа'),
+        (right_lane, ENGINE_BOX_TOP, 'обороты 0…3000 линейно, генерация корнем до '
+                                     '100 кВт · осей нет'),
+        (right_lane, ENGINE_LEGEND, f'легенда ДВС · 18 · базовая {ENGINE_LEGEND:.2f} = '
+                                    f'запас {CLEARANCE:.0f} над лентой'),
         (right_lane, HERO_BASELINE, f'герой · 88 Light · базовая {HERO_BASELINE:.2f} · '
                                     f'поле {HERO_FIELD_LEFT:.1f}…{HERO_FIELD_RIGHT:.1f} · '
                                     f'«кВт» 34 на {HERO_UNIT_X:.1f}'),
         (right_lane, BAND_Y, f'лента · y {BAND_Y:.2f} · тело {BAND_BODY:.0f} · корень, '
                              f'300 / 100 · мёртвая зона {NEUTRAL_KW:.0f} кВт'),
         (right_lane, GLOW_CY, f'свечение · центр на нуле · rx {GLOW_RX:.0f}, ry '
-                              f'{GLOW_RY:.2f} · {GLOW_MAX:.2f}·√(|P|/диапазон), τ 1,5 с'),
+                              f'{GLOW_RY:.2f} · {GLOW_MAX:.2f}·√(|P|/'
+                              f'{GLOW_FULL_KW:.0f} кВт), насыщение на '
+                              f'{GLOW_FULL_KW:.0f}, τ 1,5 с'),
         (right_lane, GUARD_BOTTOM, f'запас {CLEARANCE:.0f} снизу · stockBottom '
                                    f'{STOCK_BOTTOM:.2f} → {GUARD_BOTTOM:.2f} · низ ленты '
                                    f'{BAND_Y + BAND_BODY / 2:.2f}'),
-        (right_lane, PETAL_BOX_TOP, f'коробка расхода · {PETAL_BUCKETS} корзин по 100 м, '
-                                    f'шаг {PETAL_BOX_W / PETAL_BUCKETS:.0f} · '
-                                    f'{PETAL_BOX_W:.0f} × {PETAL_BOX_H:.0f}'),
-        (right_lane, PETAL_BASELINE, f'лепесток · 52 · базовая {PETAL_BASELINE:.0f} = '
-                                     f'нулевая линия · группа {PETAL_GROUP_W:.1f} на оси'),
-        (right_lane, PETAL_FLOOR, f'пол композиции · y {PETAL_FLOOR:.0f}'),
+        (right_lane, PETAL_BOX_TOP, f'коробка расхода · {PETAL_BOX_W:.0f} × '
+                                    f'{PETAL_BOX_H:.0f} на {PETAL_BOX_X:.1f}…'
+                                    f'{PETAL_BOX_RIGHT:.1f} · {PETAL_BUCKETS} корзин по '
+                                    f'{PETAL_BOX_W / PETAL_BUCKETS:.2f}'),
+        (right_lane, PETAL_BOX_TOP, f'шкала 0…{PETAL_FULL:.0f} вверх и 0…'
+                                    f'{PETAL_RETURN_FULL:.0f} вниз, нуль на 4/5 · '
+                                    f'{PETAL_ZERO_SHARE * PETAL_BOX_H / PETAL_FULL:.2f} '
+                                    f'единицы на кВт·ч — не автоподгон'),
+        (right_lane, PETAL_BASELINE, f'лепесток · 52 · два знака на оси, поле до '
+                                     f'{PETAL_FIELD_W:.1f} влево, якорь единицы '
+                                     f'{PETAL_UNIT_X:.1f}'),
+        (right_lane, PETAL_FLOOR, f'пол композиции · y {PETAL_FLOOR:.0f} · низ коробки '
+                                  f'{PETAL_BOX_BOTTOM:.1f}, до выреза '
+                                  f'{PETAL_BOX_X - petal_room(PETAL_BOX_BOTTOM):.1f}'),
     ]
     lanes = {}
     for x, y, words in sorted(marks, key=lambda m: (m[0], m[1])):
@@ -1329,19 +1465,34 @@ if __name__ == '__main__':
           f'{TRIP_UNIT_X:.0f}, clear of the hero unit by '
           f'{RIGHT_SHELF_LEFT - (HERO_UNIT_X + HERO_UNIT_W):.2f}')
     print(f'engine  box {ENGINE_BOX_FULL_LEFT:.2f}…{ENGINE_BOX_RIGHT:.2f} x '
-          f'{ENGINE_BOX_TOP:.2f}…{ENGINE_BOX_BOTTOM:.2f}, pitch {ENGINE_PITCH:.2f}, '
+          f'{ENGINE_BOX_TOP:.2f}…{ENGINE_BOX_BOTTOM:.2f} = '
+          f'{ENGINE_BOX_BOTTOM - ENGINE_BOX_TOP:.2f} tall, pitch {ENGINE_PITCH:.2f}, '
           f'82 s wide = {81 * ENGINE_PITCH:.1f}')
-    print(f'petal   group {PETAL_GROUP_W:.2f} centred: box {PETAL_BOX_X:.2f}…'
-          f'{PETAL_BOX_X + PETAL_BOX_W:.2f}, figure ends {PETAL_FIGURE_RIGHT:.2f}, '
-          f'unit {PETAL_UNIT_X:.2f}…{PETAL_UNIT_X + PETAL_UNIT_W:.2f}')
-    print(f'  box y {PETAL_BOX_TOP:.2f}…{PETAL_BOX_BOTTOM:.2f}, floor {PETAL_FLOOR:.0f}, '
-          f'bucket {PETAL_BOX_W / PETAL_BUCKETS:.2f}, petal half width at the box top '
-          f'{petal_reach(PETAL_BOX_TOP):.1f}')
-    print(f'  the petal figure sits {PETAL_FIGURE_RIGHT - HERO_FIELD_RIGHT:.1f} right '
-          f'of the hero field: the group centres, the digits follow')
+    print(f'  legend  {ENGINE_LEGEND:.2f}, {CLEARANCE:.0f} over the band body, caps '
+          f'from {ENGINE_LEGEND - CAP * CAPTION:.2f}, box stops '
+          f'{ENGINE_LEGEND - CAP * CAPTION - ENGINE_BOX_BOTTOM:.2f} above them; the '
+          f'shelf baselines {SHELF_FIGURE:.2f}/{SHELF_CAPTION:.2f} do not move')
+    print(f'petal   figure {PETAL_BASE_FIELD_W:.2f} centred on the axis: ends '
+          f'{PETAL_FIGURE_RIGHT:.2f} against the hero\'s {HERO_FIELD_RIGHT:.2f} '
+          f'({PETAL_FIGURE_RIGHT - HERO_FIELD_RIGHT:+.2f}), reserve to '
+          f'{PETAL_FIGURE_RIGHT - PETAL_FIELD_W:.2f}, unit {PETAL_UNIT_X:.2f}…'
+          f'{PETAL_UNIT_X + PETAL_UNIT_W:.2f}')
+    print(f'  box {PETAL_BOX_X:.2f}…{PETAL_BOX_RIGHT:.2f} x {PETAL_BOX_TOP:.2f}…'
+          f'{PETAL_BOX_BOTTOM:.2f} = {PETAL_BOX_W:.0f} x {PETAL_BOX_H:.0f}, gap '
+          f'{PETAL_BOX_GAP:.0f} to the reserve, bucket '
+          f'{PETAL_BOX_W / PETAL_BUCKETS:.2f}, floor leaves '
+          f'{PETAL_FLOOR - PETAL_BOX_BOTTOM:.2f}')
+    print(f'  aperture at the box top {petal_room(PETAL_BOX_TOP):.2f} -> clear by '
+          f'{PETAL_BOX_X - petal_room(PETAL_BOX_TOP):.2f}, at its bottom '
+          f'{petal_room(PETAL_BOX_BOTTOM):.2f} -> clear by '
+          f'{PETAL_BOX_X - petal_room(PETAL_BOX_BOTTOM):.2f} (the guard is 8; 270 wide '
+          f'would be {PETAL_BOX_RIGHT - 270 - petal_room(PETAL_BOX_BOTTOM):.2f})')
+    print(f'  zero {PETAL_ZERO_Y:.2f} = {PETAL_ZERO_SHARE:.1f} of the box, scale 0…'
+          f'{PETAL_FULL:.0f} up and 0…{PETAL_RETURN_FULL:.0f} back at '
+          f'{PETAL_ZERO_SHARE * PETAL_BOX_H / PETAL_FULL:.3f} units per kW·h/100 km')
     print(f'fields  digit {DIGIT * READING:.2f}/34 {DIGIT * FIGURE:.2f}/52 '
           f'{DIGIT_LIGHT * HERO:.2f}/88, comma {COMMA * FIGURE:.2f}/52, '
           f'trip {TRIP_FIELD:.2f}, temp {TEMP_FIELD:.2f}, petal {PETAL_FIELD_W:.2f}')
     for kw in (-100.0, -42.0, -3.0, 0.0, 3.0, 34.0, 128.0, 300.0):
         print(f'  {kw:7.1f} kW -> x {band_x(kw):8.2f}  glow '
-              f'{GLOW_MAX * sweep(kw):.3f}  {flow_colour(kw)}')
+              f'{glow_alpha(kw):.3f}  {flow_colour(kw)}')

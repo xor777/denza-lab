@@ -382,9 +382,10 @@ that concept drawn: three boards, all from the same constants.
 
 The boards were drawn before a line of the panel was written, shown to the owner,
 redrawn twice against what he said, then roasted by an independent review
-(`CRITIQUE.md`: three blockers, fifteen majors, twelve minors) and redrawn again
-against that. Those four passes are the reason to read this section rather than
-only the concept.
+(`CRITIQUE.md`: three blockers, fifteen majors, twelve minors), redrawn again
+against that, and redrawn a fifth time when the owner looked at the scenes and
+found both graphs flattened. Those five passes are the reason to read this section
+rather than only the concept.
 
 ### The glass is measured now
 
@@ -456,9 +457,13 @@ second half of the hierarchy the review was right to ask for: five equal 52s wer
 the owner's original complaint wearing a new suit, and size alone was not enough
 to separate them.
 
-**One lit thing, and it stands still.** The glow is centred on zero, its brightness
-is `sqrt(|P| / span)` capped at 0.18 - exactly the band's own travel fraction - its
-hue is the sign, and τ is 1.5 s. Riding the band's tip at 400 ms, it put a 73 mm
+**One lit thing, and it stands still.** The glow is centred on zero, its hue is the
+sign, τ is 1.5 s, and its brightness is `0.18·sqrt(|P| / 120 kW)`, **saturated at
+120 kW**. It used the band's own travel fraction until the fifth pass, and that
+gave one alpha two meanings by direction - 42 kW of braking outshone 100 kW of
+pulling - while leaving calm driving at 0.06 of a scale that only fills at the
+car's absolute limit. One span, the pedal's own working range, puts calm at 0.10
+and saturates an acceleration. Riding the band's tip at 400 ms, it put a 73 mm
 pool through 50-100 mm of travel every time the pedal moved in a jam, which is
 precisely what peripheral vision is built to catch.
 
@@ -488,20 +493,47 @@ to rewrite ГОСТ 8.417.
 
 ### Three histories, one rule each
 
+Both boxes were redrawn in the fifth pass. The owner on the fourth: *"Сценарии
+выглядят гораздо лучше... Но графики очень сильно сплющены по вертикали и очень
+слабо читаются."* Each had been given the ink box of the digits it stood beside -
+36 units in the petal, 24 on the shelf, which is 7.6 mm and 5 mm of glass for a
+shape with thirty steps or two curves in it.
+
 **The petal** keeps three kilometres and always three kilometres: standing on P the
 denominator does not change under the figure, only the tenth appears, because at
 100 km/h a tenth moves three times a second. Thirty bars 0.65 mm wide were 0.9' at
-750 mm - below the eye's resolution - so the history is a stepped line at 2 units
-with a 30 % field, 8 units to a bucket, in a box 240 × 36 whose zero line is the
-figure's own baseline. There is no dashed mean any more: the mean is the figure
-standing next to it.
+750 mm - below the eye's resolution - so the history is a stepped line beside the
+figure, and since the fifth pass that line is `INK` at 70 % and 2.5 units thick
+over a `MUTED_DEEP` field at 55 %, where it was a 2-unit `MUTED` line over 30 %
+and read as a texture. The box is **232 × 56** - 56 up from 36, the tallest it can
+be without rising over the cap of the 52 beside it, and 232 because that is what
+the petal's own cut-out leaves at the box's lower left corner once the 8-unit
+guard is taken. Its scale is a **fixed ladder, 0…40 kW·h/100 km up and 0…10 back**,
+with the zero line four fifths down and 1.12 units to the kW·h in both directions:
+the return keeps the bottom fifth and gets no colour of its own, and a bucket no
+longer changes height because a *different* bucket changed value. That is what the
+ladder buys - on the states board the traffic jam's history is visibly taller than
+calm driving's, which under the old autoscale it was not. There is no dashed mean:
+the mean is the figure standing next to it.
+
+**The petal's figure centres on the axis** and the box hangs off it. Two digits,
+right-aligned on a fixed anchor, so the tenth that appears on P grows the field
+leftward and moves neither the unit nor the box; the box hangs off the field's
+widest reserve at 24, which is asymmetric on purpose. The accident worth keeping:
+a two-digit 52 centred on the axis ends at 783.00 and the hero's three-digit field
+ends at 783.04, so the two figures share a right edge and `«кВт»` and
+`«кВт·ч/100 км»` start on the same x.
 
 **The engine box** grows from the right, its width is the number of filled seconds,
 and it is never drawn empty. It leaves when the last non-zero slot falls off the
 left edge, which is 120 s of hysteresis with no timer of its own - the trace's
 length *is* the timer - so a winter jam that restarts the engine every ninety
-seconds never swaps the shelf back and forth. It occupies exactly the ink box of
-the digits it replaces, which is what keeps it off the top guard by construction.
+seconds never swaps the shelf back and forth. It now takes **both rows of the
+shelf**, 50.7 units from the top guard down to a rhythm step above its legend's
+caps, and the legend `ОБОРОТЫ · ● ГЕНЕРАЦИЯ` moves below the box onto the band's
+own 24-unit guard - the swap moves no neighbour's baseline in either direction.
+Revolutions are an `INK` line at 70 %, 2.5 units, on a fixed 0…3000; generation is
+a `RETURN` area at 55 % with a 1.8 `RETURN` edge, by the square root to 100 kW.
 
 **The band's tail is gone.** Two memories on one instrument was one too many, and
 the ten-second smear was drawn in a single colour across zero, so a sweep from −58
@@ -545,17 +577,17 @@ drawing decision.
 | M3 | 34 Light on black, a size the concept forbade | closed - 34 is legal at this distance, and Regular |
 | M4 | five equal 52s | closed - colour carries the hierarchy, `INK` is the hero alone |
 | M5 | alpha means seven things | closed - one rule: stale goes after 2 s, the caption stays |
-| M6 | the glow travels | closed - centred on zero, brightness and hue only, τ 1.5 s |
+| M6 | the glow travels | closed - centred on zero, brightness and hue only, τ 1.5 s; the fifth pass gave it its own 120 kW span |
 | M7 | the engine box is born empty, the shelf flickers | closed - grows from the right, 120 s of self-timed hysteresis |
 | M8 | the right shelf's coordinates depend on data | closed - three seats always, a zero is drawn |
 | M9 | «просадка N В» lies on a motorway | closed - deleted |
 | M10 | the band is labelled as a scale it is not | half closed - labels gone; the square root stays, the owner accepts it |
 | M10 | available regeneration and the power ceiling | waits - no FID found for the BMS limits |
-| M11 | small blue text and blue hairlines | closed - blue is a dot, the area is 50 % |
+| M11 | small blue text and blue hairlines | closed - blue is a dot, the area is 55 % |
 | M12 | colour hysteresis of 1 kW | closed - a 3 kW dead band, 3 kW of hysteresis |
 | M13 | four required scenes missing | closed - jam, acceleration, engine dead 40 s, single null |
 | M14 | Roboto Mono breaks numbers apart | closed - Roboto with `tnum`, measured |
-| M15 | three histories are textures | closed - a stepped line and 2-unit runs |
+| M15 | three histories are textures | closed twice - a stepped line, then 2.5-unit `INK` runs in boxes of 56 and 51 |
 | m1 | unit symbols set as tracked capitals | closed |
 | m2 | a dim «ДВС» over an empty corner | closed - the corner is simply empty |
 | m3 | two memories on the band | closed - the tail is gone |
@@ -576,9 +608,13 @@ drawing decision.
 and the petal come out where the app already believes they are. Every other anchor
 is derived from five decisions: one margin of `48`, the rhythm of `8`, the rungs,
 the cap height, and the two guards. Each corner aperture holds a heading, one 52
-figure and one 18 line and no more - it is 301 units wide at the top and narrows to
-nothing by 160 - so both shelves stand below it, in the clear band's flanks, on one
-pair of baselines with one anatomy: a 34 figure over an 18 word. The left cells
+figure and - while the engine runs - one 18 line, and no more: it is 301 units wide
+at the top and narrows to nothing by 160, and at that third baseline it leaves
+138.2 units. An engine that ran and stopped reads `ДВС · мин` over `6` and nothing
+under it; `мин за поездку` asked for 130.4 of those 138.2, eight units from a
+boundary nobody has photographed, and the heading was already carrying the unit for
+the other two states. Both shelves stand below the apertures, in the clear band's
+flanks, on one pair of baselines with one anatomy: a 34 figure over an 18 word. The left cells
 come out `96 · 176 · 112 · 96` and the right ones `96 · 168 · 128`, each as wide as
 the wider of its own caption and its own payload, and the whole left shelf stops 61
 units clear of the hero's field.
