@@ -377,7 +377,7 @@ that concept drawn: three boards, all from the same constants.
 | `ClusterContourPlan.dc.html` | the skeleton alone, over the three apertures and the cell grid, with every anchor named and measured |
 
 The boards were drawn before a line of the panel was written, shown to the owner,
-and redrawn once against what he said. That second pass is the reason to read
+and redrawn twice against what he said. Those two passes are the reason to read
 this section rather than only the concept.
 
 **What the first drawing got wrong.** "Злоупотребление полосками" - it had five
@@ -392,6 +392,31 @@ bar is now a number with its word under it. The temperatures are back as a shelf
 of their own. The trip's figures are headed `ЗА ПОЕЗДКУ · КВТ·Ч` and named
 `ИЗ БАТАРЕИ`, `РЕКУПЕРАЦИЯ`, `ОТ ДВС`, and a zero is never drawn.
 
+**What the second drawing was missing.** "Намного симпатичнее! Только моторы
+одной цифрой - не очень, три не влезают? И хочется графики: динамика расхода, как
+меняются обороты, как меняется отдача заряда." All three were already in the data
+and nothing was drawing them: `motorTemps` reports three drive motors and the
+shelf showed one, `ConsumptionLog` closes a 100 m bucket at a time and the cluster
+keeps thirty, `EngineTrace` keeps 120 one-second slots of revolutions and
+generation. So the third pass adds three histories, under one rule that keeps the
+panel's own argument intact: **a history is a box.** It is small, it stands beside
+the figure it explains, it carries no axis and no number of its own, and it never
+outshines the band. Three of them:
+
+| | |
+| --- | --- |
+| the petal | thirty closed 100 m buckets - three kilometres - left of the consumption figure, with the figure's own baseline as the zero line and the dashed rule at the number the figure prints |
+| the right shelf | the engine's last two minutes while it is running, revolutions as an ink line against 0…3000 and generation as a soft `RETURN` area under it, replacing the trip balance until five seconds after the engine stops |
+| the band | where the tip has been over the last ten seconds, as one 12 % smear under the live body - the only history that is not a box, because the band already has an axis and a zero |
+
+**Three motors, one word.** The rear pair is per-side, so a single reading threw
+two thirds of what the car reports away and hid the one case the row exists for -
+one of them running hotter than the others. Each of the three is coloured by its
+own level. They cost the shelf a cell 200 units wide, which is why a cell is now
+as wide as the wider of its caption and its payload rather than one width for the
+whole shelf, and why the gap between two cells is twice the gap between two motors
+inside one - without that the inverter read as a fourth motor.
+
 **The apertures are computed, not drawn.** `ClusterMapLayout`'s integer division
 is restated exactly - `2560 * 20 // 100 * 40 // 100 * 4 // 3` and the rest - so
 the clear band, the two corner quarter-ellipses and the petal come out where the
@@ -404,17 +429,38 @@ and one 18 line, and that is all it can hold - it is 301 units wide at the top
 and narrows to nothing by 160, and a row costs its lead plus its full type size.
 So the shelves stand below, in the clear band's flanks, on one pair of baselines
 with one anatomy: a figure with its word under it. Temperatures on the left at
-34, the trip's kilowatt-hours on the right at 52; their cell widths differ
-because their payloads do, by half. The left shelf is also what filled the empty
-quarter of the band the first drawing left.
+34, the trip's kilowatt-hours on the right at 52; every cell is as wide as the
+wider of its own caption and its own payload, rounded up to the rhythm, so the
+four left cells are `88 · 200 · 96 · 112` and the right ones are `128` each. The
+whole left shelf, fourth cell and all, still stops 37 units clear of the hero's
+field. The left shelf is also what filled the empty quarter of the band the first
+drawing left.
 
 **Fields, not strings.** Every number lives in a reserve field sized by its digit
-count times a *measured* advance - Roboto Mono advances half its size per digit,
-not the `0.6` the older generators assume - and its unit hangs off the field. So
-`9` and `300` leave the unit exactly where `34` does. The hero goes one step
-further: its digits are right-aligned in the field and the field, its gap and its
-unit are centred on the axis as one group, because centring the field alone left
-`кВт` stranded sixty units away from a two-digit reading.
+count times a *measured* advance, and its unit hangs off the field, so `9` and
+`300` leave the unit exactly where `34` does. The hero goes one step further: its
+digits are right-aligned in the field and the field, its gap and its unit are
+centred on the axis as one group, because centring the field alone left `кВт`
+stranded sixty units away from a two-digit reading.
+
+That advance is `0.6`, and this page said `0.5` for a wave. It was written down as
+a measurement and it is not one: Roboto Mono advances six tenths of its size per
+character at every size these boards set - `28` at 34 is 40.81, `1780` at 52 is
+124.83, `300` at 104 is 187.23. Every reserve field on the second drawing was
+therefore a sixth too *narrow*, which is the opposite of the correction that
+introduced it, and it was visible in two places at once: `552` hung three units
+past the left margin into the panel's own edge, and `об/мин` sat twenty units
+behind the vehicle's graphics in a corner that has 199 usable units at that
+baseline and wanted 219. Both corners carry their unit in the heading now -
+`БАТАРЕЯ · В`, `ДВС · ОБ/МИН` - which is the concept's own Tufte rule and what the
+right shelf's heading always did. The hero keeps its `кВт` beside it: it is the
+one figure read on the move.
+
+The lesson is narrower than "measure things". Both drawings measured; the second
+one wrote the measurement down backwards and nothing here could catch it, because
+`audit.py` measures whether text collides and not whether a reserve matches the
+face. Three numbers in a comment - what `28`, `1780` and `300` actually advance -
+would have caught it, and they are in the generator now.
 
 **Rows advance by type size, not cap height.** This is the convention the other
 generators here already follow and the one this board first got wrong. A cap
@@ -429,6 +475,22 @@ above the instrument it belongs to and lit whatever the flanks held, so the pane
 had two lit things. It is centred on the band now, with `ry` the distance to the
 lower aperture edge - which is what the original number was buying: an alpha that
 reaches zero before the vehicle's own graphics can cut it.
+
+Three histories are three chances to break that, and each is held back on purpose:
+the consumption bars stop at 80 % ink and fade to 22 % at the oldest edge, the
+generation area is a 30 % field with its shape carried by a hairline rather than a
+solid blue slab, and none of the three uses `DATA_PEAK`. Warm ink means "the live
+edge of the data" on this panel, and the live edge is the band's tip.
+
+**The petal's box balances the unit.** Make the box and its gap add up to the
+unit's gap and the unit's own reserve, and two things come out true at once: the
+group - box, figure, unit - is centred on the axis, and so are the digits inside
+it. Sized by eye instead, the box pushed the petal's figure twenty units right of
+the hero's, and two large numerals one above the other is exactly where that is
+visible. The box's zero line is the figure's baseline, and its dashed rule is the
+number the figure prints, which is what makes thirty anonymous bars readable
+without an axis: nobody is asked what a bar is worth, only whether it is above or
+below a line they can already read.
 
 ## The boards and the code are joined
 
