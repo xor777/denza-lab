@@ -7,36 +7,106 @@
 <body>
 <x-dc>
 <helmet>
-  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&amp;family=Roboto+Mono:wght@200;300;400&amp;display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&amp;display=swap" rel="stylesheet">
   <style>
     body { margin:0; background:#000000; font-family:'Roboto','Segoe UI',system-ui,sans-serif; }
-    .hr { font-family:'Roboto Mono',monospace; font-weight:300; font-size:104px; fill:#DAE1EB; }
-    .fg { font-family:'Roboto Mono',monospace; font-weight:300; font-size:52px; fill:#DAE1EB; }
-    .rd { font-family:'Roboto Mono',monospace; font-weight:300; font-size:34px; fill:#DAE1EB; }
-    .ttl { font-size:18px; font-weight:500; letter-spacing:0.12em; fill:#7C858F; }
-    .cap { font-size:18px; font-weight:400; letter-spacing:0.12em; fill:#7C858F; }
-    /* A word standing under its own number is a caption, not a heading, and
-       tracking is what ran "РЕКУПЕРАЦИЯ" out of its cell into the next one. */
-    .cl { font-size:18px; font-weight:400; fill:#7C858F; }
-    .un { font-size:18px; font-weight:400; fill:#86909B; }
-    /* The degree sign rides with the reading it belongs to, so it takes the
-       reading's own face and size - set at the caption size it read as a
-       footnote stuck to a number. */
-    .un2 { font-family:'Roboto Mono',monospace; font-weight:300; font-size:34px; fill:#86909B; }
+    /* Every figure on the panel is Roboto with tabular numerals. Roboto's own
+       digits are already fixed-width - measured, all ten advance the same - so
+       `tnum` is a contract rather than a fix, and what it never had to fix is
+       punctuation: the comma that a monospaced face gave a full cell, breaking
+       "12,4" into "12 , 4", is a fifth of a digit here. */
+    .num { font-variant-numeric:tabular-nums; font-feature-settings:'tnum'; }
+    .hero { font-weight:300; font-size:88px; fill:#DAE1EB;
+            font-variant-numeric:tabular-nums; font-feature-settings:'tnum'; }
+    .fig { font-weight:400; font-size:52px; fill:#86909B;
+           font-variant-numeric:tabular-nums; font-feature-settings:'tnum'; }
+    .rd { font-weight:400; font-size:34px; fill:#86909B;
+          font-variant-numeric:tabular-nums; font-feature-settings:'tnum'; }
+    /* The hero's unit is the one unit that has to be read on the move, so it is
+       the one unit at a readable size and one step brighter than the rest. */
+    .un34 { font-weight:400; font-size:34px; fill:#86909B; }
+    .ttl { font-size:18px; font-weight:500; letter-spacing:0.12em;
+           fill:#7C858F; }
+    .cl { font-size:18px; font-weight:400; letter-spacing:0.12em;
+          fill:#7C858F; }
+    /* A tracked capital is a heading; a unit is case-sensitive and is not one.
+       «кВт·ч», «об/мин», «мин за поездку» are set as themselves. */
+    .un { font-size:18px; font-weight:400; fill:#7C858F; }
+    .cl0 { font-size:18px; font-weight:400; fill:#86909B;
+           font-variant-numeric:tabular-nums; font-feature-settings:'tnum'; }
     .keep { font-size:13px; letter-spacing:0.12em; fill:#3F434D; }
-    /* Used on an HTML div as well as in SVG, and `fill` does nothing to a div:
-       the scene captions rendered black on black and the states board came back
-       looking like eleven unlabelled panels. */
-    .sn { font-size:13px; letter-spacing:0.12em; fill:#86909B; color:#86909B; }
+    /* Used on an HTML div as well as in SVG, and `fill` does nothing to a div. */
+    .sn { font-size:13px; letter-spacing:0.12em; fill:#7C858F;
+          color:#7C858F; }
     /* Annotations name the very lines they stand on, so each one carries a black
-       halo through paint-order rather than a measured backing rect - the plan
-       board is the one place where text and geometry are meant to coincide. */
+       halo through paint-order rather than a measured backing rect. */
     .nt { font-size:13px; fill:#7C858F; stroke:#000000; stroke-width:4px;
           paint-order:stroke fill; }
   </style>
 </helmet>
-<div style="width:1507.6px; height:5390px; background:#000000; position:relative;">
-  <div style="position:absolute; left:0; top:0px; width:1507.6px; height:490px;"><div class="sn" style="padding:16px 0 0 48px;">Первые секунды · шина ещё не ответила, корзин расхода тоже нет</div><svg width="1507.6" height="424" viewBox="0 0 1507.6 424">
+<div style="width:1507.6px; height:6860px; background:#000000; position:relative;">
+  <div style="position:absolute; left:0; top:0px; width:1507.6px; height:490px;"><div class="sn" style="padding:16px 0 0 48px;">Первые секунды · шина ещё не ответила: скелет ленты, и больше ничего</div><svg width="1507.6" height="424" viewBox="0 0 1507.6 424">
+      <defs>
+      <pattern id="hatch" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="10" stroke="rgba(218,225,235,0.07)" stroke-width="1.4"/></pattern>
+      <mask id="topmask"><rect x="0" y="0" width="1507.6" height="160.2" fill="#fff"/><ellipse cx="0" cy="0" rx="361.6" ry="160.2" fill="#000"/><ellipse cx="1507.6" cy="0" rx="301.5" ry="160.2" fill="#000"/></mask>
+      <mask id="botmask"><rect x="0" y="335.7" width="1507.6" height="88.3" fill="#fff"/><ellipse cx="753.8" cy="353.3" rx="353.3" ry="194.3" fill="#000"/></mask>
+      </defs>
+      <rect x="0" y="0" width="1507.6" height="160.2" fill="url(#hatch)" mask="url(#topmask)"/>
+      <rect x="0" y="335.7" width="1507.6" height="88.3" fill="url(#hatch)" mask="url(#botmask)"/>
+      <text class="keep" x="753.8" y="26" text-anchor="middle">ШТАТНЫЕ ПРИБОРЫ</text>
+      <text class="keep" x="48" y="384.5">ШТАТНАЯ ПОЛОСА</text>
+      <line x1="48" y1="286.7" x2="1459.6" y2="286.7" stroke="#7C858F" stroke-width="1.2"/>
+      <line x1="753.8" y1="272.7" x2="753.8" y2="300.7" stroke="#7C858F" stroke-width="1.8"/>
+    </svg></div>
+  <div style="position:absolute; left:0; top:490px; width:1507.6px; height:490px;"><div class="sn" style="padding:16px 0 0 48px;">Пробка · 2 кВт внутри мёртвой зоны: цвета нет, лента — засечка, цифра стоит</div><svg width="1507.6" height="424" viewBox="0 0 1507.6 424">
+      <defs>
+      <pattern id="hatch" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="10" stroke="rgba(218,225,235,0.07)" stroke-width="1.4"/></pattern>
+      <mask id="topmask"><rect x="0" y="0" width="1507.6" height="160.2" fill="#fff"/><ellipse cx="0" cy="0" rx="361.6" ry="160.2" fill="#000"/><ellipse cx="1507.6" cy="0" rx="301.5" ry="160.2" fill="#000"/></mask>
+      <mask id="botmask"><rect x="0" y="335.7" width="1507.6" height="88.3" fill="#fff"/><ellipse cx="753.8" cy="353.3" rx="353.3" ry="194.3" fill="#000"/></mask>
+      </defs>
+      <rect x="0" y="0" width="1507.6" height="160.2" fill="url(#hatch)" mask="url(#topmask)"/>
+      <rect x="0" y="335.7" width="1507.6" height="88.3" fill="url(#hatch)" mask="url(#botmask)"/>
+      <text class="keep" x="753.8" y="26" text-anchor="middle">ШТАТНЫЕ ПРИБОРЫ</text>
+      <text class="keep" x="48" y="384.5">ШТАТНАЯ ПОЛОСА</text>
+      <defs><radialGradient id="bandglow"><stop offset="0" stop-color="#86909B" stop-opacity="0"/><stop offset="0.5" stop-color="#86909B" stop-opacity="0"/><stop offset="1" stop-color="#86909B" stop-opacity="0"/></radialGradient></defs>
+      <ellipse cx="753.8" cy="286.7" rx="340" ry="49" fill="url(#bandglow)"/>
+      <line x1="48" y1="286.7" x2="1459.6" y2="286.7" stroke="#7C858F" stroke-width="1.2"/>
+      <line x1="753.8" y1="272.7" x2="753.8" y2="300.7" stroke="#7C858F" stroke-width="1.8"/>
+      <defs><linearGradient id="bandfilln" gradientUnits="userSpaceOnUse" x1="753.8" y1="0" x2="811.4" y2="0"><stop offset="0" stop-color="#86909B" stop-opacity="0.55"/><stop offset="1" stop-color="#86909B" stop-opacity="1"/></linearGradient></defs>
+      <rect x="753.8" y="279.7" width="57.6" height="14" fill="url(#bandfilln)"/>
+      <text class="hero" x="783" y="246.7" text-anchor="end" style="fill:#86909B">2</text>
+      <text class="un34" x="815" y="246.7" style="fill:#86909B">кВт</text>
+      <text class="ttl" x="48" y="24" style="fill:#7C858F">БАТАРЕЯ · В</text>
+      <text class="fig" x="135.7" y="92" text-anchor="end" style="fill:#86909B">548</text>
+      <text class="cl" x="48" y="242.3" style="fill:#7C858F">БАТАРЕЯ</text>
+      <text class="rd" x="86.2" y="208.3" text-anchor="end" style="fill:#86909B">28</text>
+      <text class="rd" x="86.2" y="208.3" style="fill:#86909B">°</text>
+      <text class="cl" x="160" y="242.3" style="fill:#7C858F">МОТОРЫ</text>
+      <text class="rd" x="198.2" y="208.3" text-anchor="end" style="fill:#86909B">31</text>
+      <text class="rd" x="198.2" y="208.3" style="fill:#86909B">°</text>
+      <text class="rd" x="257.1" y="208.3" text-anchor="end" style="fill:#86909B">29</text>
+      <text class="rd" x="257.1" y="208.3" style="fill:#86909B">°</text>
+      <text class="rd" x="316.1" y="208.3" text-anchor="end" style="fill:#86909B">31</text>
+      <text class="rd" x="316.1" y="208.3" style="fill:#86909B">°</text>
+      <text class="cl" x="352" y="242.3" style="fill:#7C858F">ИНВЕРТОР</text>
+      <text class="rd" x="390.2" y="208.3" text-anchor="end" style="fill:#86909B">32</text>
+      <text class="rd" x="390.2" y="208.3" style="fill:#86909B">°</text>
+      <text class="un" x="1459.6" y="208.3" text-anchor="end" style="fill:#7C858F">кВт·ч</text>
+      <text class="cl" x="1383.4" y="242.3" text-anchor="end" style="fill:#7C858F">ОТ ДВС</text>
+      <circle cx="1295.7" cy="235.9" r="3" fill="#2D82D7"/>
+      <text class="rd" x="1383.4" y="208.3" text-anchor="end" style="fill:#7C858F">0,0</text>
+      <text class="cl" x="1271.4" y="242.3" text-anchor="end" style="fill:#7C858F">РЕКУПЕРАЦИЯ</text>
+      <circle cx="1109.8" cy="235.9" r="3" fill="#2D82D7"/>
+      <text class="rd" x="1271.4" y="208.3" text-anchor="end" style="fill:#86909B">2,2</text>
+      <text class="cl" x="1087.4" y="242.3" text-anchor="end" style="fill:#7C858F">ИЗ БАТАРЕИ</text>
+      <text class="rd" x="1087.4" y="208.3" text-anchor="end" style="fill:#86909B">8,1</text>
+      <path d="M 500.9 384 500.9 367.2 L 508.9 367.2 L 508.9 367.8 L 516.9 367.8 L 516.9 368.6 L 524.9 368.6 L 524.9 368.3 L 532.9 368.3 L 532.9 367.4 L 540.9 367.4 L 540.9 367.4 L 548.9 367.4 L 548.9 369.3 L 556.9 369.3 L 556.9 372.6 L 564.9 372.6 L 564.9 375.2 L 572.9 375.2 L 572.9 388.2 L 580.9 388.2 L 580.9 392 L 588.9 392 L 588.9 386.3 L 596.9 386.3 L 596.9 371.3 L 604.9 371.3 L 604.9 371.3 L 612.9 371.3 L 612.9 370.7 L 620.9 370.7 L 620.9 368.3 L 628.9 368.3 L 628.9 365 L 636.9 365 L 636.9 362.8 L 644.9 362.8 L 644.9 363 L 652.9 363 L 652.9 365.3 L 660.9 365.3 L 660.9 367.8 L 668.9 367.8 L 668.9 369.1 L 676.9 369.1 L 676.9 369.4 L 684.9 369.4 L 684.9 370.3 L 692.9 370.3 L 692.9 372.3 L 700.9 372.3 L 700.9 375.2 L 708.9 375.2 L 708.9 377 L 716.9 377 L 716.9 376.1 L 724.9 376.1 L 724.9 373.4 L 732.9 373.4 L 732.9 370.7 L 740.9 370.7 L 740.9 384 Z" fill="#86909B" opacity="0.3"/>
+      <path d="M 500.9 367.2 L 508.9 367.2 L 508.9 367.8 L 516.9 367.8 L 516.9 368.6 L 524.9 368.6 L 524.9 368.3 L 532.9 368.3 L 532.9 367.4 L 540.9 367.4 L 540.9 367.4 L 548.9 367.4 L 548.9 369.3 L 556.9 369.3 L 556.9 372.6 L 564.9 372.6 L 564.9 375.2 L 572.9 375.2 L 572.9 388.2 L 580.9 388.2 L 580.9 392 L 588.9 392 L 588.9 386.3 L 596.9 386.3 L 596.9 371.3 L 604.9 371.3 L 604.9 371.3 L 612.9 371.3 L 612.9 370.7 L 620.9 370.7 L 620.9 368.3 L 628.9 368.3 L 628.9 365 L 636.9 365 L 636.9 362.8 L 644.9 362.8 L 644.9 363 L 652.9 363 L 652.9 365.3 L 660.9 365.3 L 660.9 367.8 L 668.9 367.8 L 668.9 369.1 L 676.9 369.1 L 676.9 369.4 L 684.9 369.4 L 684.9 370.3 L 692.9 370.3 L 692.9 372.3 L 700.9 372.3 L 700.9 375.2 L 708.9 375.2 L 708.9 377 L 716.9 377 L 716.9 376.1 L 724.9 376.1 L 724.9 373.4 L 732.9 373.4 L 732.9 370.7 L 740.9 370.7" fill="none" stroke="#86909B" stroke-width="2" stroke-linejoin="round"/>
+      <line x1="500.9" y1="384" x2="740.9" y2="384" stroke="#7C858F" stroke-width="1.2"/>
+      <text class="un" x="897.2" y="384" style="fill:#7C858F">кВт·ч/100 км</text>
+      <text class="fig" x="865.2" y="384" text-anchor="end" style="fill:#DAE1EB">21</text>
+    </svg></div>
+  <div style="position:absolute; left:0; top:980px; width:1507.6px; height:490px;"><div class="sn" style="padding:16px 0 0 48px;">Спокойная езда · 34 кВт, ДВС в этой поездке не запускался — правый угол пуст</div><svg width="1507.6" height="424" viewBox="0 0 1507.6 424">
       <defs>
       <pattern id="hatch" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="10" stroke="rgba(218,225,235,0.07)" stroke-width="1.4"/></pattern>
       <mask id="topmask"><rect x="0" y="0" width="1507.6" height="160.2" fill="#fff"/><ellipse cx="0" cy="0" rx="361.6" ry="160.2" fill="#000"/><ellipse cx="1507.6" cy="0" rx="301.5" ry="160.2" fill="#000"/></mask>
@@ -47,97 +117,45 @@
       <text class="keep" x="753.8" y="26" text-anchor="middle">ШТАТНЫЕ ПРИБОРЫ</text>
       <text class="keep" x="48" y="384.5">ШТАТНАЯ ПОЛОСА</text>
       <defs><radialGradient id="bandglow"><stop offset="0" stop-color="#DAE1EB" stop-opacity="0.1"/><stop offset="0.5" stop-color="#DAE1EB" stop-opacity="0"/><stop offset="1" stop-color="#DAE1EB" stop-opacity="0"/></radialGradient></defs>
-      <ellipse cx="753.8" cy="298" rx="340" ry="37.6" fill="url(#bandglow)"/>
-      <line x1="48" y1="298" x2="1459.6" y2="298" stroke="#7C858F" stroke-width="1.2" opacity="1"/>
-      <line x1="753.8" y1="284" x2="753.8" y2="312" stroke="#7C858F" stroke-width="1.8" opacity="1"/>
-      <text class="cap" x="48" y="325.8" style="fill:#7C858F;opacity:1">100 кВт</text>
-      <text class="cap" x="1459.6" y="325.8" text-anchor="end" style="fill:#7C858F;opacity:1">300 кВт</text>
-      <text class="ttl" x="48" y="24" style="fill:#7C858F;opacity:1">БАТАРЕЯ</text>
-      <text class="ttl" x="1459.6" y="24" text-anchor="end" style="fill:#7C858F;opacity:0.6">ДВС</text>
-      <text class="ttl" x="48" y="180" style="fill:#7C858F;opacity:1">ТЕМПЕРАТУРЫ</text>
-      <text class="ttl" x="1459.6" y="180" text-anchor="end" style="fill:#7C858F;opacity:1">ЗА ПОЕЗДКУ · КВТ·Ч</text>
-    </svg></div>
-  <div style="position:absolute; left:0; top:490px; width:1507.6px; height:490px;"><div class="sn" style="padding:16px 0 0 48px;">Спокойная езда · ДВС спит, в лепестке 3 км по 100 м</div><svg width="1507.6" height="424" viewBox="0 0 1507.6 424">
-      <defs>
-      <pattern id="hatch" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="10" stroke="rgba(218,225,235,0.07)" stroke-width="1.4"/></pattern>
-      <mask id="topmask"><rect x="0" y="0" width="1507.6" height="160.2" fill="#fff"/><ellipse cx="0" cy="0" rx="361.6" ry="160.2" fill="#000"/><ellipse cx="1507.6" cy="0" rx="301.5" ry="160.2" fill="#000"/></mask>
-      <mask id="botmask"><rect x="0" y="335.7" width="1507.6" height="88.3" fill="#fff"/><ellipse cx="753.8" cy="353.3" rx="353.3" ry="194.3" fill="#000"/></mask>
-      </defs>
-      <rect x="0" y="0" width="1507.6" height="160.2" fill="url(#hatch)" mask="url(#topmask)"/>
-      <rect x="0" y="335.7" width="1507.6" height="88.3" fill="url(#hatch)" mask="url(#botmask)"/>
-      <text class="keep" x="753.8" y="26" text-anchor="middle">ШТАТНЫЕ ПРИБОРЫ</text>
-      <text class="keep" x="48" y="384.5">ШТАТНАЯ ПОЛОСА</text>
-      <defs><radialGradient id="bandglow"><stop offset="0" stop-color="#DAE1EB" stop-opacity="0.2"/><stop offset="0.5" stop-color="#DAE1EB" stop-opacity="0.1"/><stop offset="1" stop-color="#DAE1EB" stop-opacity="0"/></radialGradient></defs>
-      <ellipse cx="991.4" cy="298" rx="340" ry="37.6" fill="url(#bandglow)"/>
-      <line x1="48" y1="298" x2="1459.6" y2="298" stroke="#7C858F" stroke-width="1.2" opacity="1"/>
-      <line x1="753.8" y1="284" x2="753.8" y2="312" stroke="#7C858F" stroke-width="1.8" opacity="1"/>
-      <text class="cap" x="48" y="325.8" style="fill:#7C858F;opacity:1">100 кВт</text>
-      <text class="cap" x="1459.6" y="325.8" text-anchor="end" style="fill:#7C858F;opacity:1">300 кВт</text>
-      <rect x="894.9" y="291" width="194.9" height="14" fill="#DAE1EB" opacity="0.1"/>
+      <ellipse cx="753.8" cy="286.7" rx="340" ry="49" fill="url(#bandglow)"/>
+      <line x1="48" y1="286.7" x2="1459.6" y2="286.7" stroke="#7C858F" stroke-width="1.2"/>
+      <line x1="753.8" y1="272.7" x2="753.8" y2="300.7" stroke="#7C858F" stroke-width="1.8"/>
       <defs><linearGradient id="bandfill" gradientUnits="userSpaceOnUse" x1="753.8" y1="0" x2="991.4" y2="0"><stop offset="0" stop-color="#DAE1EB" stop-opacity="0.55"/><stop offset="1" stop-color="#FFF8DA" stop-opacity="1"/></linearGradient></defs>
-      <rect x="753.8" y="291" width="237.6" height="14" fill="url(#bandfill)" opacity="1"/>
-      <line x1="1089.8" y1="288" x2="1089.8" y2="308" stroke="#FFF8DA" stroke-width="3" opacity="1"/>
-      <text class="hr" x="816.6" y="258" text-anchor="end" style="fill:#DAE1EB;opacity:1">34</text>
-      <text class="un" x="848.6" y="258" style="fill:#86909B;opacity:1">кВт</text>
-      <text class="ttl" x="48" y="24" style="fill:#7C858F;opacity:1">БАТАРЕЯ · В</text>
-      <text class="fg" x="141.6" y="92" text-anchor="end" style="fill:#DAE1EB;opacity:1">552</text>
-      <text class="cap" x="48" y="126" style="fill:#7C858F;opacity:1">просадка 9 В</text>
-      <text class="ttl" x="1459.6" y="24" text-anchor="end" style="fill:#7C858F;opacity:0.6">ДВС</text>
-      <text class="ttl" x="48" y="180" style="fill:#7C858F;opacity:1">ТЕМПЕРАТУРЫ</text>
-      <text class="cl" x="48" y="282" style="fill:#7C858F;opacity:1">БАТАРЕЯ</text>
-      <text class="rd" x="109.2" y="248" text-anchor="end" style="fill:#DAE1EB;opacity:1">28</text>
-      <text class="un2" x="109.2" y="248" style="fill:#86909B;opacity:1">°</text>
-      <text class="cl" x="152" y="282" style="fill:#7C858F;opacity:1">МОТОРЫ</text>
-      <text class="rd" x="192.8" y="248" text-anchor="end" style="fill:#DAE1EB;opacity:1">31</text>
-      <text class="un2" x="192.8" y="248" style="fill:#86909B;opacity:1">°</text>
-      <text class="rd" x="262" y="248" text-anchor="end" style="fill:#DAE1EB;opacity:1">29</text>
-      <text class="un2" x="262" y="248" style="fill:#86909B;opacity:1">°</text>
-      <text class="rd" x="331.2" y="248" text-anchor="end" style="fill:#DAE1EB;opacity:1">31</text>
-      <text class="un2" x="331.2" y="248" style="fill:#86909B;opacity:1">°</text>
-      <text class="cl" x="368" y="282" style="fill:#7C858F;opacity:1">ИНВЕРТОР</text>
-      <text class="rd" x="429.2" y="248" text-anchor="end" style="fill:#DAE1EB;opacity:1">32</text>
-      <text class="un2" x="429.2" y="248" style="fill:#86909B;opacity:1">°</text>
-      <text class="ttl" x="1459.6" y="180" text-anchor="end" style="fill:#7C858F;opacity:1">ЗА ПОЕЗДКУ · КВТ·Ч</text>
-      <text class="fg" x="1315.6" y="248" text-anchor="end" style="fill:#DAE1EB;opacity:1">12,4</text>
-      <text class="cl" x="1315.6" y="282" text-anchor="end" style="fill:#7C858F;opacity:1">ИЗ БАТАРЕИ</text>
-      <text class="fg" x="1459.6" y="248" text-anchor="end" style="fill:#4B9BE0;opacity:1">3,1</text>
-      <text class="cl" x="1459.6" y="282" text-anchor="end" style="fill:#7C858F;opacity:1">РЕКУПЕРАЦИЯ</text>
-      <line x1="550" y1="384" x2="667.4" y2="384" stroke="#7C858F" stroke-width="1.2" opacity="1"/>
-      <rect x="550.4" y="364.5" width="3.1" height="19.5" fill="#DAE1EB" opacity="0.2"/>
-      <rect x="554.3" y="365.2" width="3.1" height="18.8" fill="#DAE1EB" opacity="0.3"/>
-      <rect x="558.2" y="366.1" width="3.1" height="17.9" fill="#DAE1EB" opacity="0.4"/>
-      <rect x="562.1" y="365.7" width="3.1" height="18.3" fill="#DAE1EB" opacity="0.4"/>
-      <rect x="566" y="364.7" width="3.1" height="19.3" fill="#DAE1EB" opacity="0.5"/>
-      <rect x="570" y="364.7" width="3.1" height="19.3" fill="#DAE1EB" opacity="0.6"/>
-      <rect x="573.9" y="366.9" width="3.1" height="17.1" fill="#DAE1EB" opacity="0.7"/>
-      <rect x="577.8" y="370.8" width="3.1" height="13.2" fill="#DAE1EB" opacity="0.7"/>
-      <rect x="581.7" y="373.7" width="3.1" height="10.3" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="585.6" y="384" width="3.1" height="3.7" fill="#2D82D7" opacity="0.8"/>
-      <rect x="589.5" y="384" width="3.1" height="6.9" fill="#2D82D7" opacity="0.8"/>
-      <rect x="593.4" y="384" width="3.1" height="2" fill="#2D82D7" opacity="0.8"/>
-      <rect x="597.4" y="369.3" width="3.1" height="14.7" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="601.3" y="369.3" width="3.1" height="14.7" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="605.2" y="368.5" width="3.1" height="15.5" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="609.1" y="365.7" width="3.1" height="18.3" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="613" y="362" width="3.1" height="22" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="616.9" y="359.4" width="3.1" height="24.6" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="620.8" y="359.5" width="3.1" height="24.5" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="624.8" y="362.3" width="3.1" height="21.7" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="628.7" y="365.2" width="3.1" height="18.8" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="632.6" y="366.7" width="3.1" height="17.3" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="636.5" y="367" width="3.1" height="17" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="640.4" y="368" width="3.1" height="16" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="644.3" y="370.4" width="3.1" height="13.6" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="648.2" y="373.7" width="3.1" height="10.3" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="652.2" y="375.8" width="3.1" height="8.2" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="656.1" y="374.9" width="3.1" height="9.1" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="660" y="371.7" width="3.1" height="12.3" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="663.9" y="368.5" width="3.1" height="15.5" fill="#DAE1EB" opacity="0.8"/>
-      <line x1="550" y1="367.4" x2="667.4" y2="367.4" stroke="#7C858F" stroke-width="1.2" opacity="1" stroke-dasharray="4 4"/>
-      <text class="fg" x="816.2" y="384" text-anchor="end" style="fill:#DAE1EB;opacity:1">16,8</text>
-      <text class="un" x="848.2" y="384" style="fill:#86909B;opacity:1">кВт·ч/100 км</text>
+      <rect x="753.8" y="279.7" width="237.6" height="14" fill="url(#bandfill)"/>
+      <line x1="1089.8" y1="276.7" x2="1089.8" y2="296.7" stroke="#FFF8DA" stroke-width="3" opacity="0.8"/>
+      <text class="hero" x="783" y="246.7" text-anchor="end" style="fill:#DAE1EB">34</text>
+      <text class="un34" x="815" y="246.7" style="fill:#86909B">кВт</text>
+      <text class="ttl" x="48" y="24" style="fill:#7C858F">БАТАРЕЯ · В</text>
+      <text class="fig" x="135.7" y="92" text-anchor="end" style="fill:#86909B">552</text>
+      <text class="cl" x="48" y="242.3" style="fill:#7C858F">БАТАРЕЯ</text>
+      <text class="rd" x="86.2" y="208.3" text-anchor="end" style="fill:#86909B">28</text>
+      <text class="rd" x="86.2" y="208.3" style="fill:#86909B">°</text>
+      <text class="cl" x="160" y="242.3" style="fill:#7C858F">МОТОРЫ</text>
+      <text class="rd" x="198.2" y="208.3" text-anchor="end" style="fill:#86909B">31</text>
+      <text class="rd" x="198.2" y="208.3" style="fill:#86909B">°</text>
+      <text class="rd" x="257.1" y="208.3" text-anchor="end" style="fill:#86909B">29</text>
+      <text class="rd" x="257.1" y="208.3" style="fill:#86909B">°</text>
+      <text class="rd" x="316.1" y="208.3" text-anchor="end" style="fill:#86909B">31</text>
+      <text class="rd" x="316.1" y="208.3" style="fill:#86909B">°</text>
+      <text class="cl" x="352" y="242.3" style="fill:#7C858F">ИНВЕРТОР</text>
+      <text class="rd" x="390.2" y="208.3" text-anchor="end" style="fill:#86909B">32</text>
+      <text class="rd" x="390.2" y="208.3" style="fill:#86909B">°</text>
+      <text class="un" x="1459.6" y="208.3" text-anchor="end" style="fill:#7C858F">кВт·ч</text>
+      <text class="cl" x="1383.4" y="242.3" text-anchor="end" style="fill:#7C858F">ОТ ДВС</text>
+      <circle cx="1295.7" cy="235.9" r="3" fill="#2D82D7"/>
+      <text class="rd" x="1383.4" y="208.3" text-anchor="end" style="fill:#7C858F">0,0</text>
+      <text class="cl" x="1271.4" y="242.3" text-anchor="end" style="fill:#7C858F">РЕКУПЕРАЦИЯ</text>
+      <circle cx="1109.8" cy="235.9" r="3" fill="#2D82D7"/>
+      <text class="rd" x="1271.4" y="208.3" text-anchor="end" style="fill:#86909B">3,1</text>
+      <text class="cl" x="1087.4" y="242.3" text-anchor="end" style="fill:#7C858F">ИЗ БАТАРЕИ</text>
+      <text class="rd" x="1087.4" y="208.3" text-anchor="end" style="fill:#86909B">12,4</text>
+      <path d="M 500.9 384 500.9 366.4 L 508.9 366.4 L 508.9 367 L 516.9 367 L 516.9 367.9 L 524.9 367.9 L 524.9 367.6 L 532.9 367.6 L 532.9 366.6 L 540.9 366.6 L 540.9 366.6 L 548.9 366.6 L 548.9 368.6 L 556.9 368.6 L 556.9 372.1 L 564.9 372.1 L 564.9 374.8 L 572.9 374.8 L 572.9 387.4 L 580.9 387.4 L 580.9 390.2 L 588.9 390.2 L 588.9 385.8 L 596.9 385.8 L 596.9 370.8 L 604.9 370.8 L 604.9 370.8 L 612.9 370.8 L 612.9 370.1 L 620.9 370.1 L 620.9 367.6 L 628.9 367.6 L 628.9 364.2 L 636.9 364.2 L 636.9 361.9 L 644.9 361.9 L 644.9 362 L 652.9 362 L 652.9 364.5 L 660.9 364.5 L 660.9 367 L 668.9 367 L 668.9 368.5 L 676.9 368.5 L 676.9 368.7 L 684.9 368.7 L 684.9 369.6 L 692.9 369.6 L 692.9 371.7 L 700.9 371.7 L 700.9 374.8 L 708.9 374.8 L 708.9 376.6 L 716.9 376.6 L 716.9 375.8 L 724.9 375.8 L 724.9 372.9 L 732.9 372.9 L 732.9 370.1 L 740.9 370.1 L 740.9 384 Z" fill="#86909B" opacity="0.3"/>
+      <path d="M 500.9 366.4 L 508.9 366.4 L 508.9 367 L 516.9 367 L 516.9 367.9 L 524.9 367.9 L 524.9 367.6 L 532.9 367.6 L 532.9 366.6 L 540.9 366.6 L 540.9 366.6 L 548.9 366.6 L 548.9 368.6 L 556.9 368.6 L 556.9 372.1 L 564.9 372.1 L 564.9 374.8 L 572.9 374.8 L 572.9 387.4 L 580.9 387.4 L 580.9 390.2 L 588.9 390.2 L 588.9 385.8 L 596.9 385.8 L 596.9 370.8 L 604.9 370.8 L 604.9 370.8 L 612.9 370.8 L 612.9 370.1 L 620.9 370.1 L 620.9 367.6 L 628.9 367.6 L 628.9 364.2 L 636.9 364.2 L 636.9 361.9 L 644.9 361.9 L 644.9 362 L 652.9 362 L 652.9 364.5 L 660.9 364.5 L 660.9 367 L 668.9 367 L 668.9 368.5 L 676.9 368.5 L 676.9 368.7 L 684.9 368.7 L 684.9 369.6 L 692.9 369.6 L 692.9 371.7 L 700.9 371.7 L 700.9 374.8 L 708.9 374.8 L 708.9 376.6 L 716.9 376.6 L 716.9 375.8 L 724.9 375.8 L 724.9 372.9 L 732.9 372.9 L 732.9 370.1 L 740.9 370.1" fill="none" stroke="#86909B" stroke-width="2" stroke-linejoin="round"/>
+      <line x1="500.9" y1="384" x2="740.9" y2="384" stroke="#7C858F" stroke-width="1.2"/>
+      <text class="un" x="897.2" y="384" style="fill:#7C858F">кВт·ч/100 км</text>
+      <text class="fig" x="865.2" y="384" text-anchor="end" style="fill:#DAE1EB">17</text>
     </svg></div>
-  <div style="position:absolute; left:0; top:980px; width:1507.6px; height:490px;"><div class="sn" style="padding:16px 0 0 48px;">Рекуперация · сторона и цвет меняются, ничего не появляется</div><svg width="1507.6" height="424" viewBox="0 0 1507.6 424">
+  <div style="position:absolute; left:0; top:1470px; width:1507.6px; height:490px;"><div class="sn" style="padding:16px 0 0 48px;">Разгон · 128 кВт, пик-холд стоит впереди кончика и сползает к нему</div><svg width="1507.6" height="424" viewBox="0 0 1507.6 424">
       <defs>
       <pattern id="hatch" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="10" stroke="rgba(218,225,235,0.07)" stroke-width="1.4"/></pattern>
       <mask id="topmask"><rect x="0" y="0" width="1507.6" height="160.2" fill="#fff"/><ellipse cx="0" cy="0" rx="361.6" ry="160.2" fill="#000"/><ellipse cx="1507.6" cy="0" rx="301.5" ry="160.2" fill="#000"/></mask>
@@ -147,250 +165,95 @@
       <rect x="0" y="335.7" width="1507.6" height="88.3" fill="url(#hatch)" mask="url(#botmask)"/>
       <text class="keep" x="753.8" y="26" text-anchor="middle">ШТАТНЫЕ ПРИБОРЫ</text>
       <text class="keep" x="48" y="384.5">ШТАТНАЯ ПОЛОСА</text>
-      <defs><radialGradient id="bandglow"><stop offset="0" stop-color="#2D82D7" stop-opacity="0.2"/><stop offset="0.5" stop-color="#2D82D7" stop-opacity="0.1"/><stop offset="1" stop-color="#2D82D7" stop-opacity="0"/></radialGradient></defs>
-      <ellipse cx="296.4" cy="298" rx="340" ry="37.6" fill="url(#bandglow)"/>
-      <line x1="48" y1="298" x2="1459.6" y2="298" stroke="#7C858F" stroke-width="1.2" opacity="1"/>
-      <line x1="753.8" y1="284" x2="753.8" y2="312" stroke="#7C858F" stroke-width="1.8" opacity="1"/>
-      <text class="cap" x="48" y="325.8" style="fill:#7C858F;opacity:1">100 кВт</text>
-      <text class="cap" x="1459.6" y="325.8" text-anchor="end" style="fill:#7C858F;opacity:1">300 кВт</text>
-      <rect x="216.3" y="291" width="659.7" height="14" fill="#2D82D7" opacity="0.1"/>
+      <defs><radialGradient id="bandglow"><stop offset="0" stop-color="#DAE1EB" stop-opacity="0.1"/><stop offset="0.5" stop-color="#DAE1EB" stop-opacity="0.1"/><stop offset="1" stop-color="#DAE1EB" stop-opacity="0"/></radialGradient></defs>
+      <ellipse cx="753.8" cy="286.7" rx="340" ry="49" fill="url(#bandglow)"/>
+      <line x1="48" y1="286.7" x2="1459.6" y2="286.7" stroke="#7C858F" stroke-width="1.2"/>
+      <line x1="753.8" y1="272.7" x2="753.8" y2="300.7" stroke="#7C858F" stroke-width="1.8"/>
+      <defs><linearGradient id="bandfill" gradientUnits="userSpaceOnUse" x1="753.8" y1="0" x2="1214.8" y2="0"><stop offset="0" stop-color="#DAE1EB" stop-opacity="0.55"/><stop offset="1" stop-color="#FFF8DA" stop-opacity="1"/></linearGradient></defs>
+      <rect x="753.8" y="279.7" width="461" height="14" fill="url(#bandfill)"/>
+      <line x1="1274" y1="276.7" x2="1274" y2="296.7" stroke="#FFF8DA" stroke-width="3" opacity="0.8"/>
+      <text class="hero" x="783" y="246.7" text-anchor="end" style="fill:#DAE1EB">128</text>
+      <text class="un34" x="815" y="246.7" style="fill:#86909B">кВт</text>
+      <text class="ttl" x="48" y="24" style="fill:#7C858F">БАТАРЕЯ · В</text>
+      <text class="fig" x="135.7" y="92" text-anchor="end" style="fill:#86909B">531</text>
+      <text class="cl" x="48" y="242.3" style="fill:#7C858F">БАТАРЕЯ</text>
+      <text class="rd" x="86.2" y="208.3" text-anchor="end" style="fill:#86909B">29</text>
+      <text class="rd" x="86.2" y="208.3" style="fill:#86909B">°</text>
+      <text class="cl" x="160" y="242.3" style="fill:#7C858F">МОТОРЫ</text>
+      <text class="rd" x="198.2" y="208.3" text-anchor="end" style="fill:#86909B">44</text>
+      <text class="rd" x="198.2" y="208.3" style="fill:#86909B">°</text>
+      <text class="rd" x="257.1" y="208.3" text-anchor="end" style="fill:#86909B">41</text>
+      <text class="rd" x="257.1" y="208.3" style="fill:#86909B">°</text>
+      <text class="rd" x="316.1" y="208.3" text-anchor="end" style="fill:#86909B">46</text>
+      <text class="rd" x="316.1" y="208.3" style="fill:#86909B">°</text>
+      <text class="cl" x="352" y="242.3" style="fill:#7C858F">ИНВЕРТОР</text>
+      <text class="rd" x="390.2" y="208.3" text-anchor="end" style="fill:#86909B">51</text>
+      <text class="rd" x="390.2" y="208.3" style="fill:#86909B">°</text>
+      <text class="un" x="1459.6" y="208.3" text-anchor="end" style="fill:#7C858F">кВт·ч</text>
+      <text class="cl" x="1383.4" y="242.3" text-anchor="end" style="fill:#7C858F">ОТ ДВС</text>
+      <circle cx="1295.7" cy="235.9" r="3" fill="#2D82D7"/>
+      <text class="rd" x="1383.4" y="208.3" text-anchor="end" style="fill:#7C858F">0,0</text>
+      <text class="cl" x="1271.4" y="242.3" text-anchor="end" style="fill:#7C858F">РЕКУПЕРАЦИЯ</text>
+      <circle cx="1109.8" cy="235.9" r="3" fill="#2D82D7"/>
+      <text class="rd" x="1271.4" y="208.3" text-anchor="end" style="fill:#86909B">3,1</text>
+      <text class="cl" x="1087.4" y="242.3" text-anchor="end" style="fill:#7C858F">ИЗ БАТАРЕИ</text>
+      <text class="rd" x="1087.4" y="208.3" text-anchor="end" style="fill:#86909B">13,1</text>
+      <path d="M 500.9 384 500.9 368 L 508.9 368 L 508.9 368.5 L 516.9 368.5 L 516.9 369.3 L 524.9 369.3 L 524.9 369.1 L 532.9 369.1 L 532.9 368.1 L 540.9 368.1 L 540.9 368.1 L 548.9 368.1 L 548.9 370 L 556.9 370 L 556.9 373.1 L 564.9 373.1 L 564.9 375.6 L 572.9 375.6 L 572.9 388 L 580.9 388 L 580.9 391.6 L 588.9 391.6 L 588.9 386.2 L 596.9 386.2 L 596.9 371.9 L 604.9 371.9 L 604.9 371.9 L 612.9 371.9 L 612.9 371.3 L 620.9 371.3 L 620.9 369.1 L 628.9 369.1 L 628.9 366 L 636.9 366 L 636.9 363.8 L 644.9 363.8 L 644.9 364 L 652.9 364 L 652.9 366.2 L 660.9 366.2 L 660.9 368.5 L 668.9 368.5 L 668.9 369.9 L 676.9 369.9 L 676.9 370.1 L 684.9 370.1 L 684.9 370.9 L 692.9 370.9 L 692.9 372.9 L 700.9 372.9 L 700.9 375.6 L 708.9 375.6 L 708.9 377.3 L 716.9 377.3 L 716.9 376.5 L 724.9 376.5 L 724.9 373.9 L 732.9 373.9 L 732.9 371.3 L 740.9 371.3 L 740.9 384 Z" fill="#86909B" opacity="0.3"/>
+      <path d="M 500.9 368 L 508.9 368 L 508.9 368.5 L 516.9 368.5 L 516.9 369.3 L 524.9 369.3 L 524.9 369.1 L 532.9 369.1 L 532.9 368.1 L 540.9 368.1 L 540.9 368.1 L 548.9 368.1 L 548.9 370 L 556.9 370 L 556.9 373.1 L 564.9 373.1 L 564.9 375.6 L 572.9 375.6 L 572.9 388 L 580.9 388 L 580.9 391.6 L 588.9 391.6 L 588.9 386.2 L 596.9 386.2 L 596.9 371.9 L 604.9 371.9 L 604.9 371.9 L 612.9 371.9 L 612.9 371.3 L 620.9 371.3 L 620.9 369.1 L 628.9 369.1 L 628.9 366 L 636.9 366 L 636.9 363.8 L 644.9 363.8 L 644.9 364 L 652.9 364 L 652.9 366.2 L 660.9 366.2 L 660.9 368.5 L 668.9 368.5 L 668.9 369.9 L 676.9 369.9 L 676.9 370.1 L 684.9 370.1 L 684.9 370.9 L 692.9 370.9 L 692.9 372.9 L 700.9 372.9 L 700.9 375.6 L 708.9 375.6 L 708.9 377.3 L 716.9 377.3 L 716.9 376.5 L 724.9 376.5 L 724.9 373.9 L 732.9 373.9 L 732.9 371.3 L 740.9 371.3" fill="none" stroke="#86909B" stroke-width="2" stroke-linejoin="round"/>
+      <line x1="500.9" y1="384" x2="740.9" y2="384" stroke="#7C858F" stroke-width="1.2"/>
+      <text class="un" x="897.2" y="384" style="fill:#7C858F">кВт·ч/100 км</text>
+      <text class="fig" x="865.2" y="384" text-anchor="end" style="fill:#DAE1EB">20</text>
+    </svg></div>
+  <div style="position:absolute; left:0; top:1960px; width:1507.6px; height:490px;"><div class="sn" style="padding:16px 0 0 48px;">Рекуперация · сторона и цвет меняются, не появляется ничего</div><svg width="1507.6" height="424" viewBox="0 0 1507.6 424">
+      <defs>
+      <pattern id="hatch" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="10" stroke="rgba(218,225,235,0.07)" stroke-width="1.4"/></pattern>
+      <mask id="topmask"><rect x="0" y="0" width="1507.6" height="160.2" fill="#fff"/><ellipse cx="0" cy="0" rx="361.6" ry="160.2" fill="#000"/><ellipse cx="1507.6" cy="0" rx="301.5" ry="160.2" fill="#000"/></mask>
+      <mask id="botmask"><rect x="0" y="335.7" width="1507.6" height="88.3" fill="#fff"/><ellipse cx="753.8" cy="353.3" rx="353.3" ry="194.3" fill="#000"/></mask>
+      </defs>
+      <rect x="0" y="0" width="1507.6" height="160.2" fill="url(#hatch)" mask="url(#topmask)"/>
+      <rect x="0" y="335.7" width="1507.6" height="88.3" fill="url(#hatch)" mask="url(#botmask)"/>
+      <text class="keep" x="753.8" y="26" text-anchor="middle">ШТАТНЫЕ ПРИБОРЫ</text>
+      <text class="keep" x="48" y="384.5">ШТАТНАЯ ПОЛОСА</text>
+      <defs><radialGradient id="bandglow"><stop offset="0" stop-color="#2D82D7" stop-opacity="0.1"/><stop offset="0.5" stop-color="#2D82D7" stop-opacity="0.1"/><stop offset="1" stop-color="#2D82D7" stop-opacity="0"/></radialGradient></defs>
+      <ellipse cx="753.8" cy="286.7" rx="340" ry="49" fill="url(#bandglow)"/>
+      <line x1="48" y1="286.7" x2="1459.6" y2="286.7" stroke="#7C858F" stroke-width="1.2"/>
+      <line x1="753.8" y1="272.7" x2="753.8" y2="300.7" stroke="#7C858F" stroke-width="1.8"/>
       <defs><linearGradient id="bandfillr" gradientUnits="userSpaceOnUse" x1="753.8" y1="0" x2="296.4" y2="0"><stop offset="0" stop-color="#2D82D7" stop-opacity="0.55"/><stop offset="1" stop-color="#4B9BE0" stop-opacity="1"/></linearGradient></defs>
-      <rect x="296.4" y="291" width="457.4" height="14" fill="url(#bandfillr)" opacity="1"/>
-      <line x1="216.3" y1="288" x2="216.3" y2="308" stroke="#FFF8DA" stroke-width="3" opacity="1"/>
-      <text class="hr" x="816.6" y="258" text-anchor="end" style="fill:#4B9BE0;opacity:1">42</text>
-      <text class="un" x="848.6" y="258" style="fill:#86909B;opacity:1">кВт</text>
-      <text class="ttl" x="48" y="24" style="fill:#7C858F;opacity:1">БАТАРЕЯ · В</text>
-      <text class="fg" x="141.6" y="92" text-anchor="end" style="fill:#DAE1EB;opacity:1">573</text>
-      <text class="ttl" x="1459.6" y="24" text-anchor="end" style="fill:#7C858F;opacity:0.6">ДВС</text>
-      <text class="ttl" x="48" y="180" style="fill:#7C858F;opacity:1">ТЕМПЕРАТУРЫ</text>
-      <text class="cl" x="48" y="282" style="fill:#7C858F;opacity:1">БАТАРЕЯ</text>
-      <text class="rd" x="109.2" y="248" text-anchor="end" style="fill:#DAE1EB;opacity:1">28</text>
-      <text class="un2" x="109.2" y="248" style="fill:#86909B;opacity:1">°</text>
-      <text class="cl" x="152" y="282" style="fill:#7C858F;opacity:1">МОТОРЫ</text>
-      <text class="rd" x="192.8" y="248" text-anchor="end" style="fill:#DAE1EB;opacity:1">31</text>
-      <text class="un2" x="192.8" y="248" style="fill:#86909B;opacity:1">°</text>
-      <text class="rd" x="262" y="248" text-anchor="end" style="fill:#DAE1EB;opacity:1">29</text>
-      <text class="un2" x="262" y="248" style="fill:#86909B;opacity:1">°</text>
-      <text class="rd" x="331.2" y="248" text-anchor="end" style="fill:#DAE1EB;opacity:1">31</text>
-      <text class="un2" x="331.2" y="248" style="fill:#86909B;opacity:1">°</text>
-      <text class="cl" x="368" y="282" style="fill:#7C858F;opacity:1">ИНВЕРТОР</text>
-      <text class="rd" x="429.2" y="248" text-anchor="end" style="fill:#DAE1EB;opacity:1">32</text>
-      <text class="un2" x="429.2" y="248" style="fill:#86909B;opacity:1">°</text>
-      <text class="ttl" x="1459.6" y="180" text-anchor="end" style="fill:#7C858F;opacity:1">ЗА ПОЕЗДКУ · КВТ·Ч</text>
-      <text class="fg" x="1315.6" y="248" text-anchor="end" style="fill:#DAE1EB;opacity:1">12,6</text>
-      <text class="cl" x="1315.6" y="282" text-anchor="end" style="fill:#7C858F;opacity:1">ИЗ БАТАРЕИ</text>
-      <text class="fg" x="1459.6" y="248" text-anchor="end" style="fill:#4B9BE0;opacity:1">3,4</text>
-      <text class="cl" x="1459.6" y="282" text-anchor="end" style="fill:#7C858F;opacity:1">РЕКУПЕРАЦИЯ</text>
-      <line x1="550" y1="384" x2="667.4" y2="384" stroke="#7C858F" stroke-width="1.2" opacity="1"/>
-      <rect x="550.4" y="364.5" width="3.1" height="19.5" fill="#DAE1EB" opacity="0.2"/>
-      <rect x="554.3" y="365.2" width="3.1" height="18.8" fill="#DAE1EB" opacity="0.3"/>
-      <rect x="558.2" y="366.1" width="3.1" height="17.9" fill="#DAE1EB" opacity="0.4"/>
-      <rect x="562.1" y="365.8" width="3.1" height="18.2" fill="#DAE1EB" opacity="0.4"/>
-      <rect x="566" y="364.6" width="3.1" height="19.4" fill="#DAE1EB" opacity="0.5"/>
-      <rect x="570" y="364.6" width="3.1" height="19.4" fill="#DAE1EB" opacity="0.6"/>
-      <rect x="573.9" y="366.8" width="3.1" height="17.2" fill="#DAE1EB" opacity="0.7"/>
-      <rect x="577.8" y="370.7" width="3.1" height="13.3" fill="#DAE1EB" opacity="0.7"/>
-      <rect x="581.7" y="373.8" width="3.1" height="10.2" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="585.6" y="384" width="3.1" height="5" fill="#2D82D7" opacity="0.8"/>
-      <rect x="589.5" y="384" width="3.1" height="9.2" fill="#2D82D7" opacity="0.8"/>
-      <rect x="593.4" y="384" width="3.1" height="2.7" fill="#2D82D7" opacity="0.8"/>
-      <rect x="597.4" y="369.3" width="3.1" height="14.7" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="601.3" y="369.3" width="3.1" height="14.7" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="605.2" y="368.5" width="3.1" height="15.5" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="609.1" y="365.8" width="3.1" height="18.2" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="613" y="361.9" width="3.1" height="22.1" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="616.9" y="359.4" width="3.1" height="24.6" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="620.8" y="359.6" width="3.1" height="24.4" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="624.8" y="362.2" width="3.1" height="21.8" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="628.7" y="365.2" width="3.1" height="18.8" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="632.6" y="366.7" width="3.1" height="17.3" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="636.5" y="367.1" width="3.1" height="16.9" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="640.4" y="368" width="3.1" height="16" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="644.3" y="370.4" width="3.1" height="13.6" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="648.2" y="373.8" width="3.1" height="10.2" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="652.2" y="375.9" width="3.1" height="8.1" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="656.1" y="374.8" width="3.1" height="9.2" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="660" y="371.7" width="3.1" height="12.3" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="663.9" y="368.5" width="3.1" height="15.5" fill="#DAE1EB" opacity="0.8"/>
-      <line x1="550" y1="367.4" x2="667.4" y2="367.4" stroke="#7C858F" stroke-width="1.2" opacity="1" stroke-dasharray="4 4"/>
-      <text class="fg" x="816.2" y="384" text-anchor="end" style="fill:#DAE1EB;opacity:1">11,2</text>
-      <text class="un" x="848.2" y="384" style="fill:#86909B;opacity:1">кВт·ч/100 км</text>
+      <rect x="296.4" y="279.7" width="457.4" height="14" fill="url(#bandfillr)"/>
+      <line x1="216.3" y1="276.7" x2="216.3" y2="296.7" stroke="#FFF8DA" stroke-width="3" opacity="0.8"/>
+      <text class="hero" x="783" y="246.7" text-anchor="end" style="fill:#4B9BE0">42</text>
+      <text class="un34" x="815" y="246.7" style="fill:#86909B">кВт</text>
+      <text class="ttl" x="48" y="24" style="fill:#7C858F">БАТАРЕЯ · В</text>
+      <text class="fig" x="135.7" y="92" text-anchor="end" style="fill:#86909B">573</text>
+      <text class="cl" x="48" y="242.3" style="fill:#7C858F">БАТАРЕЯ</text>
+      <text class="rd" x="86.2" y="208.3" text-anchor="end" style="fill:#86909B">28</text>
+      <text class="rd" x="86.2" y="208.3" style="fill:#86909B">°</text>
+      <text class="cl" x="160" y="242.3" style="fill:#7C858F">МОТОРЫ</text>
+      <text class="rd" x="198.2" y="208.3" text-anchor="end" style="fill:#86909B">31</text>
+      <text class="rd" x="198.2" y="208.3" style="fill:#86909B">°</text>
+      <text class="rd" x="257.1" y="208.3" text-anchor="end" style="fill:#86909B">29</text>
+      <text class="rd" x="257.1" y="208.3" style="fill:#86909B">°</text>
+      <text class="rd" x="316.1" y="208.3" text-anchor="end" style="fill:#86909B">31</text>
+      <text class="rd" x="316.1" y="208.3" style="fill:#86909B">°</text>
+      <text class="cl" x="352" y="242.3" style="fill:#7C858F">ИНВЕРТОР</text>
+      <text class="rd" x="390.2" y="208.3" text-anchor="end" style="fill:#86909B">32</text>
+      <text class="rd" x="390.2" y="208.3" style="fill:#86909B">°</text>
+      <text class="un" x="1459.6" y="208.3" text-anchor="end" style="fill:#7C858F">кВт·ч</text>
+      <text class="cl" x="1383.4" y="242.3" text-anchor="end" style="fill:#7C858F">ОТ ДВС</text>
+      <circle cx="1295.7" cy="235.9" r="3" fill="#2D82D7"/>
+      <text class="rd" x="1383.4" y="208.3" text-anchor="end" style="fill:#7C858F">0,0</text>
+      <text class="cl" x="1271.4" y="242.3" text-anchor="end" style="fill:#7C858F">РЕКУПЕРАЦИЯ</text>
+      <circle cx="1109.8" cy="235.9" r="3" fill="#2D82D7"/>
+      <text class="rd" x="1271.4" y="208.3" text-anchor="end" style="fill:#86909B">3,4</text>
+      <text class="cl" x="1087.4" y="242.3" text-anchor="end" style="fill:#7C858F">ИЗ БАТАРЕИ</text>
+      <text class="rd" x="1087.4" y="208.3" text-anchor="end" style="fill:#86909B">12,6</text>
+      <path d="M 500.9 384 500.9 366.4 L 508.9 366.4 L 508.9 367.1 L 516.9 367.1 L 516.9 367.9 L 524.9 367.9 L 524.9 367.6 L 532.9 367.6 L 532.9 366.6 L 540.9 366.6 L 540.9 366.6 L 548.9 366.6 L 548.9 368.5 L 556.9 368.5 L 556.9 372 L 564.9 372 L 564.9 374.8 L 572.9 374.8 L 572.9 388.5 L 580.9 388.5 L 580.9 392.2 L 588.9 392.2 L 588.9 386.4 L 596.9 386.4 L 596.9 370.8 L 604.9 370.8 L 604.9 370.8 L 612.9 370.8 L 612.9 370 L 620.9 370 L 620.9 367.6 L 628.9 367.6 L 628.9 364.2 L 636.9 364.2 L 636.9 361.9 L 644.9 361.9 L 644.9 362 L 652.9 362 L 652.9 364.4 L 660.9 364.4 L 660.9 367.1 L 668.9 367.1 L 668.9 368.4 L 676.9 368.4 L 676.9 368.8 L 684.9 368.8 L 684.9 369.6 L 692.9 369.6 L 692.9 371.7 L 700.9 371.7 L 700.9 374.8 L 708.9 374.8 L 708.9 376.7 L 716.9 376.7 L 716.9 375.7 L 724.9 375.7 L 724.9 372.9 L 732.9 372.9 L 732.9 370 L 740.9 370 L 740.9 384 Z" fill="#86909B" opacity="0.3"/>
+      <path d="M 500.9 366.4 L 508.9 366.4 L 508.9 367.1 L 516.9 367.1 L 516.9 367.9 L 524.9 367.9 L 524.9 367.6 L 532.9 367.6 L 532.9 366.6 L 540.9 366.6 L 540.9 366.6 L 548.9 366.6 L 548.9 368.5 L 556.9 368.5 L 556.9 372 L 564.9 372 L 564.9 374.8 L 572.9 374.8 L 572.9 388.5 L 580.9 388.5 L 580.9 392.2 L 588.9 392.2 L 588.9 386.4 L 596.9 386.4 L 596.9 370.8 L 604.9 370.8 L 604.9 370.8 L 612.9 370.8 L 612.9 370 L 620.9 370 L 620.9 367.6 L 628.9 367.6 L 628.9 364.2 L 636.9 364.2 L 636.9 361.9 L 644.9 361.9 L 644.9 362 L 652.9 362 L 652.9 364.4 L 660.9 364.4 L 660.9 367.1 L 668.9 367.1 L 668.9 368.4 L 676.9 368.4 L 676.9 368.8 L 684.9 368.8 L 684.9 369.6 L 692.9 369.6 L 692.9 371.7 L 700.9 371.7 L 700.9 374.8 L 708.9 374.8 L 708.9 376.7 L 716.9 376.7 L 716.9 375.7 L 724.9 375.7 L 724.9 372.9 L 732.9 372.9 L 732.9 370 L 740.9 370" fill="none" stroke="#86909B" stroke-width="2" stroke-linejoin="round"/>
+      <line x1="500.9" y1="384" x2="740.9" y2="384" stroke="#7C858F" stroke-width="1.2"/>
+      <text class="un" x="897.2" y="384" style="fill:#7C858F">кВт·ч/100 км</text>
+      <text class="fig" x="865.2" y="384" text-anchor="end" style="fill:#DAE1EB">11</text>
     </svg></div>
-  <div style="position:absolute; left:0; top:1470px; width:1507.6px; height:490px;"><div class="sn" style="padding:16px 0 0 48px;">ДВС генерирует · правая полка отдана его двум минутам, синий шов за ink-концом</div><svg width="1507.6" height="424" viewBox="0 0 1507.6 424">
-      <defs>
-      <pattern id="hatch" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="10" stroke="rgba(218,225,235,0.07)" stroke-width="1.4"/></pattern>
-      <mask id="topmask"><rect x="0" y="0" width="1507.6" height="160.2" fill="#fff"/><ellipse cx="0" cy="0" rx="361.6" ry="160.2" fill="#000"/><ellipse cx="1507.6" cy="0" rx="301.5" ry="160.2" fill="#000"/></mask>
-      <mask id="botmask"><rect x="0" y="335.7" width="1507.6" height="88.3" fill="#fff"/><ellipse cx="753.8" cy="353.3" rx="353.3" ry="194.3" fill="#000"/></mask>
-      </defs>
-      <rect x="0" y="0" width="1507.6" height="160.2" fill="url(#hatch)" mask="url(#topmask)"/>
-      <rect x="0" y="335.7" width="1507.6" height="88.3" fill="url(#hatch)" mask="url(#botmask)"/>
-      <text class="keep" x="753.8" y="26" text-anchor="middle">ШТАТНЫЕ ПРИБОРЫ</text>
-      <text class="keep" x="48" y="384.5">ШТАТНАЯ ПОЛОСА</text>
-      <defs><radialGradient id="bandglow"><stop offset="0" stop-color="#DAE1EB" stop-opacity="0.2"/><stop offset="0.5" stop-color="#DAE1EB" stop-opacity="0.1"/><stop offset="1" stop-color="#DAE1EB" stop-opacity="0"/></radialGradient></defs>
-      <ellipse cx="969.4" cy="298" rx="340" ry="37.6" fill="url(#bandglow)"/>
-      <line x1="48" y1="298" x2="1459.6" y2="298" stroke="#7C858F" stroke-width="1.2" opacity="1"/>
-      <line x1="753.8" y1="284" x2="753.8" y2="312" stroke="#7C858F" stroke-width="1.8" opacity="1"/>
-      <text class="cap" x="48" y="325.8" style="fill:#7C858F;opacity:1">100 кВт</text>
-      <text class="cap" x="1459.6" y="325.8" text-anchor="end" style="fill:#7C858F;opacity:1">300 кВт</text>
-      <rect x="876" y="291" width="171.6" height="14" fill="#DAE1EB" opacity="0.1"/>
-      <defs><linearGradient id="bandfill" gradientUnits="userSpaceOnUse" x1="753.8" y1="0" x2="969.4" y2="0"><stop offset="0" stop-color="#DAE1EB" stop-opacity="0.55"/><stop offset="1" stop-color="#FFF8DA" stop-opacity="1"/></linearGradient></defs>
-      <rect x="753.8" y="291" width="215.6" height="14" fill="url(#bandfill)" opacity="1"/>
-      <rect x="969.4" y="291" width="48.5" height="14" fill="#2D82D7" opacity="1"/>
-      <line x1="1047.6" y1="288" x2="1047.6" y2="308" stroke="#FFF8DA" stroke-width="3" opacity="1"/>
-      <text class="hr" x="816.6" y="258" text-anchor="end" style="fill:#DAE1EB;opacity:1">28</text>
-      <text class="un" x="848.6" y="258" style="fill:#86909B;opacity:1">кВт</text>
-      <text class="ttl" x="48" y="24" style="fill:#7C858F;opacity:1">БАТАРЕЯ · В</text>
-      <text class="fg" x="141.6" y="92" text-anchor="end" style="fill:#DAE1EB;opacity:1">548</text>
-      <text class="cap" x="48" y="126" style="fill:#7C858F;opacity:1">просадка 13 В</text>
-      <text class="ttl" x="1459.6" y="24" text-anchor="end" style="fill:#7C858F;opacity:1">ДВС · ОБ/МИН</text>
-      <text class="fg" x="1459.6" y="92" text-anchor="end" style="fill:#DAE1EB;opacity:1">1780</text>
-      <text class="cap" x="1459.6" y="126" text-anchor="end" style="fill:#4B9BE0;opacity:1">+14 кВт</text>
-      <text class="ttl" x="48" y="180" style="fill:#7C858F;opacity:1">ТЕМПЕРАТУРЫ</text>
-      <text class="cl" x="48" y="282" style="fill:#7C858F;opacity:1">БАТАРЕЯ</text>
-      <text class="rd" x="109.2" y="248" text-anchor="end" style="fill:#DAE1EB;opacity:1">29</text>
-      <text class="un2" x="109.2" y="248" style="fill:#86909B;opacity:1">°</text>
-      <text class="cl" x="152" y="282" style="fill:#7C858F;opacity:1">МОТОРЫ</text>
-      <text class="rd" x="192.8" y="248" text-anchor="end" style="fill:#DAE1EB;opacity:1">44</text>
-      <text class="un2" x="192.8" y="248" style="fill:#86909B;opacity:1">°</text>
-      <text class="rd" x="262" y="248" text-anchor="end" style="fill:#DAE1EB;opacity:1">41</text>
-      <text class="un2" x="262" y="248" style="fill:#86909B;opacity:1">°</text>
-      <text class="rd" x="331.2" y="248" text-anchor="end" style="fill:#DAE1EB;opacity:1">46</text>
-      <text class="un2" x="331.2" y="248" style="fill:#86909B;opacity:1">°</text>
-      <text class="cl" x="368" y="282" style="fill:#7C858F;opacity:1">ИНВЕРТОР</text>
-      <text class="rd" x="429.2" y="248" text-anchor="end" style="fill:#DAE1EB;opacity:1">51</text>
-      <text class="un2" x="429.2" y="248" style="fill:#86909B;opacity:1">°</text>
-      <text class="ttl" x="1459.6" y="180" text-anchor="end" style="fill:#7C858F;opacity:1">ДВС · 2 МИН</text>
-      <rect x="1043.6" y="202.9" width="416" height="27.7" fill="#7C858F" opacity="0.1"/>
-      <line x1="1043.6" y1="248" x2="1459.6" y2="248" stroke="#7C858F" stroke-width="1.2" opacity="1"/>
-      <path d="M 1176.4 248 L 1176.4 245.1 L 1179.9 248 L 1183.4 248 L 1186.9 248 L 1190.4 248 L 1193.9 248 L 1197.4 248 L 1200.9 244.7 L 1204.4 240.9 L 1207.9 238.5 L 1211.4 236.9 L 1214.8 235.7 L 1218.3 235 L 1221.8 234.7 L 1225.3 234.6 L 1228.8 234.8 L 1232.3 235 L 1235.8 235.1 L 1239.3 235.1 L 1242.8 234.7 L 1246.3 234.1 L 1249.8 233.2 L 1253.3 232.2 L 1256.8 231.2 L 1260.3 230.2 L 1263.8 229.3 L 1267.3 228.6 L 1270.8 228.1 L 1274.3 227.8 L 1277.8 227.8 L 1281.3 228.1 L 1284.8 228.6 L 1288.3 229 L 1291.8 229.3 L 1295.3 229.5 L 1298.7 229.5 L 1302.2 229.4 L 1305.7 229.1 L 1309.2 228.8 L 1312.7 228.4 L 1316.2 228.1 L 1319.7 227.9 L 1323.2 227.8 L 1326.7 227.8 L 1330.2 227.9 L 1333.7 228.2 L 1337.2 228.5 L 1340.7 228.7 L 1344.2 229 L 1347.7 229.1 L 1351.2 229.2 L 1354.7 229.1 L 1358.2 229 L 1361.7 228.8 L 1365.2 228.5 L 1368.7 228.3 L 1372.2 228.2 L 1375.7 228.1 L 1379.2 228.1 L 1382.6 228.1 L 1386.1 228.3 L 1389.6 228.4 L 1393.1 228.6 L 1396.6 228.7 L 1400.1 228.8 L 1403.6 228.9 L 1407.1 228.8 L 1410.6 228.8 L 1414.1 228.7 L 1417.6 228.6 L 1421.1 228.5 L 1424.6 228.4 L 1428.1 228.4 L 1431.6 228.4 L 1435.1 228.4 L 1438.6 228.5 L 1442.1 228.5 L 1445.6 228.5 L 1449.1 228.6 L 1452.6 228.6 L 1456.1 228.6 L 1459.6 228.5 L 1459.6 248 Z" fill="#2D82D7" opacity="0.3"/>
-      <path d="M 1176.4 245.1 L 1179.9 248 L 1183.4 248 L 1186.9 248 L 1190.4 248 L 1193.9 248 L 1197.4 248 L 1200.9 244.7 L 1204.4 240.9 L 1207.9 238.5 L 1211.4 236.9 L 1214.8 235.7 L 1218.3 235 L 1221.8 234.7 L 1225.3 234.6 L 1228.8 234.8 L 1232.3 235 L 1235.8 235.1 L 1239.3 235.1 L 1242.8 234.7 L 1246.3 234.1 L 1249.8 233.2 L 1253.3 232.2 L 1256.8 231.2 L 1260.3 230.2 L 1263.8 229.3 L 1267.3 228.6 L 1270.8 228.1 L 1274.3 227.8 L 1277.8 227.8 L 1281.3 228.1 L 1284.8 228.6 L 1288.3 229 L 1291.8 229.3 L 1295.3 229.5 L 1298.7 229.5 L 1302.2 229.4 L 1305.7 229.1 L 1309.2 228.8 L 1312.7 228.4 L 1316.2 228.1 L 1319.7 227.9 L 1323.2 227.8 L 1326.7 227.8 L 1330.2 227.9 L 1333.7 228.2 L 1337.2 228.5 L 1340.7 228.7 L 1344.2 229 L 1347.7 229.1 L 1351.2 229.2 L 1354.7 229.1 L 1358.2 229 L 1361.7 228.8 L 1365.2 228.5 L 1368.7 228.3 L 1372.2 228.2 L 1375.7 228.1 L 1379.2 228.1 L 1382.6 228.1 L 1386.1 228.3 L 1389.6 228.4 L 1393.1 228.6 L 1396.6 228.7 L 1400.1 228.8 L 1403.6 228.9 L 1407.1 228.8 L 1410.6 228.8 L 1414.1 228.7 L 1417.6 228.6 L 1421.1 228.5 L 1424.6 228.4 L 1428.1 228.4 L 1431.6 228.4 L 1435.1 228.4 L 1438.6 228.5 L 1442.1 228.5 L 1445.6 228.5 L 1449.1 228.6 L 1452.6 228.6 L 1456.1 228.6 L 1459.6 228.5" fill="none" stroke="#4B9BE0" stroke-width="1.2" stroke-linejoin="round" opacity="1"/>
-      <path d="M 1176.4 230.6 L 1179.9 230.8 L 1183.4 231.3 L 1186.9 231.8 L 1190.4 231.9 L 1193.9 231.5 L 1197.4 230.6 L 1200.9 229.2 L 1204.4 227.6 L 1207.9 226.1 L 1211.4 225 L 1214.8 224.4 L 1218.3 224.4 L 1221.8 224.7 L 1225.3 225 L 1228.8 225.2 L 1232.3 225 L 1235.8 224.3 L 1239.3 223.2 L 1242.8 221.8 L 1246.3 220.4 L 1249.8 219.2 L 1253.3 218.5 L 1256.8 218.1 L 1260.3 218.2 L 1263.8 218.4 L 1267.3 218.6 L 1270.8 218.4 L 1274.3 218.5 L 1277.8 218.1 L 1281.3 217.5 L 1284.8 216.8 L 1288.3 216.2 L 1291.8 215.9 L 1295.3 216 L 1298.7 216.4 L 1302.2 217 L 1305.7 217.6 L 1309.2 218.1 L 1312.7 218.2 L 1316.2 218.1 L 1319.7 217.7 L 1323.2 217.1 L 1326.7 216.6 L 1330.2 216.3 L 1333.7 216.2 L 1337.2 216.4 L 1340.7 216.8 L 1344.2 217.3 L 1347.7 217.7 L 1351.2 217.9 L 1354.7 217.9 L 1358.2 217.7 L 1361.7 217.3 L 1365.2 216.9 L 1368.7 216.6 L 1372.2 216.5 L 1375.7 216.6 L 1379.2 216.8 L 1382.6 217.1 L 1386.1 217.4 L 1389.6 217.6 L 1393.1 217.6 L 1396.6 217.5 L 1400.1 217.3 L 1403.6 217.1 L 1407.1 216.9 L 1410.6 216.8 L 1414.1 216.8 L 1417.6 216.9 L 1421.1 217.1 L 1424.6 217.2 L 1428.1 217.3 L 1431.6 217.3 L 1435.1 217.3 L 1438.6 217.2 L 1442.1 217.2 L 1445.6 217.1 L 1449.1 217.1 L 1452.6 217.1 L 1456.1 217.1 L 1459.6 217.1" fill="none" stroke="#DAE1EB" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round" opacity="1"/>
-      <circle cx="1459.6" cy="217.1" r="3.4" fill="#DAE1EB" opacity="1"/>
-      <text class="cl" x="1459.6" y="282" text-anchor="end" style="fill:#4B9BE0;opacity:1">ГЕНЕРАЦИЯ</text>
-      <text class="cl" x="1340.9" y="282" text-anchor="end" style="fill:#7C858F;opacity:1">ОБОРОТЫ</text>
-      <line x1="550" y1="384" x2="667.4" y2="384" stroke="#7C858F" stroke-width="1.2" opacity="1"/>
-      <rect x="550.4" y="363.8" width="3.1" height="20.2" fill="#DAE1EB" opacity="0.2"/>
-      <rect x="554.3" y="364.5" width="3.1" height="19.5" fill="#DAE1EB" opacity="0.3"/>
-      <rect x="558.2" y="365.5" width="3.1" height="18.5" fill="#DAE1EB" opacity="0.4"/>
-      <rect x="562.1" y="365.2" width="3.1" height="18.8" fill="#DAE1EB" opacity="0.4"/>
-      <rect x="566" y="364" width="3.1" height="20" fill="#DAE1EB" opacity="0.5"/>
-      <rect x="570" y="364" width="3.1" height="20" fill="#DAE1EB" opacity="0.6"/>
-      <rect x="573.9" y="366.3" width="3.1" height="17.7" fill="#DAE1EB" opacity="0.7"/>
-      <rect x="577.8" y="370.3" width="3.1" height="13.7" fill="#DAE1EB" opacity="0.7"/>
-      <rect x="581.7" y="373.4" width="3.1" height="10.6" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="585.6" y="384" width="3.1" height="3.8" fill="#2D82D7" opacity="0.8"/>
-      <rect x="589.5" y="384" width="3.1" height="7.2" fill="#2D82D7" opacity="0.8"/>
-      <rect x="593.4" y="384" width="3.1" height="2.1" fill="#2D82D7" opacity="0.8"/>
-      <rect x="597.4" y="368.8" width="3.1" height="15.2" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="601.3" y="368.8" width="3.1" height="15.2" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="605.2" y="367.9" width="3.1" height="16.1" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="609.1" y="365.2" width="3.1" height="18.8" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="613" y="361.2" width="3.1" height="22.8" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="616.9" y="358.5" width="3.1" height="25.5" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="620.8" y="358.6" width="3.1" height="25.4" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="624.8" y="361.5" width="3.1" height="22.5" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="628.7" y="364.5" width="3.1" height="19.5" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="632.6" y="366.1" width="3.1" height="17.9" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="636.5" y="366.4" width="3.1" height="17.6" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="640.4" y="367.4" width="3.1" height="16.6" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="644.3" y="369.9" width="3.1" height="14.1" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="648.2" y="373.4" width="3.1" height="10.6" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="652.2" y="375.5" width="3.1" height="8.5" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="656.1" y="374.5" width="3.1" height="9.5" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="660" y="371.3" width="3.1" height="12.7" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="663.9" y="367.9" width="3.1" height="16.1" fill="#DAE1EB" opacity="0.8"/>
-      <line x1="550" y1="366.8" x2="667.4" y2="366.8" stroke="#7C858F" stroke-width="1.2" opacity="1" stroke-dasharray="4 4"/>
-      <text class="fg" x="816.2" y="384" text-anchor="end" style="fill:#DAE1EB;opacity:1">17,4</text>
-      <text class="un" x="848.2" y="384" style="fill:#86909B;opacity:1">кВт·ч/100 км</text>
-    </svg></div>
-  <div style="position:absolute; left:0; top:1960px; width:1507.6px; height:490px;"><div class="sn" style="padding:16px 0 0 48px;">ДВС генерирует · запасное рисование, если генерация уже внутри POWER_KW</div><svg width="1507.6" height="424" viewBox="0 0 1507.6 424">
-      <defs>
-      <pattern id="hatch" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="10" stroke="rgba(218,225,235,0.07)" stroke-width="1.4"/></pattern>
-      <mask id="topmask"><rect x="0" y="0" width="1507.6" height="160.2" fill="#fff"/><ellipse cx="0" cy="0" rx="361.6" ry="160.2" fill="#000"/><ellipse cx="1507.6" cy="0" rx="301.5" ry="160.2" fill="#000"/></mask>
-      <mask id="botmask"><rect x="0" y="335.7" width="1507.6" height="88.3" fill="#fff"/><ellipse cx="753.8" cy="353.3" rx="353.3" ry="194.3" fill="#000"/></mask>
-      </defs>
-      <rect x="0" y="0" width="1507.6" height="160.2" fill="url(#hatch)" mask="url(#topmask)"/>
-      <rect x="0" y="335.7" width="1507.6" height="88.3" fill="url(#hatch)" mask="url(#botmask)"/>
-      <text class="keep" x="753.8" y="26" text-anchor="middle">ШТАТНЫЕ ПРИБОРЫ</text>
-      <text class="keep" x="48" y="384.5">ШТАТНАЯ ПОЛОСА</text>
-      <defs><radialGradient id="bandglow"><stop offset="0" stop-color="#DAE1EB" stop-opacity="0.2"/><stop offset="0.5" stop-color="#DAE1EB" stop-opacity="0.1"/><stop offset="1" stop-color="#DAE1EB" stop-opacity="0"/></radialGradient></defs>
-      <ellipse cx="969.4" cy="298" rx="340" ry="37.6" fill="url(#bandglow)"/>
-      <line x1="48" y1="298" x2="1459.6" y2="298" stroke="#7C858F" stroke-width="1.2" opacity="1"/>
-      <line x1="753.8" y1="284" x2="753.8" y2="312" stroke="#7C858F" stroke-width="1.8" opacity="1"/>
-      <text class="cap" x="48" y="325.8" style="fill:#7C858F;opacity:1">100 кВт</text>
-      <text class="cap" x="1459.6" y="325.8" text-anchor="end" style="fill:#7C858F;opacity:1">300 кВт</text>
-      <rect x="876" y="291" width="171.6" height="14" fill="#DAE1EB" opacity="0.1"/>
-      <defs><linearGradient id="bandfill" gradientUnits="userSpaceOnUse" x1="753.8" y1="0" x2="969.4" y2="0"><stop offset="0" stop-color="#DAE1EB" stop-opacity="0.55"/><stop offset="1" stop-color="#FFF8DA" stop-opacity="1"/></linearGradient></defs>
-      <rect x="753.8" y="291" width="215.6" height="14" fill="url(#bandfill)" opacity="1"/>
-      <rect x="753.8" y="309" width="152.5" height="4" fill="#2D82D7" opacity="1"/>
-      <line x1="1047.6" y1="288" x2="1047.6" y2="308" stroke="#FFF8DA" stroke-width="3" opacity="1"/>
-      <text class="hr" x="816.6" y="258" text-anchor="end" style="fill:#DAE1EB;opacity:1">28</text>
-      <text class="un" x="848.6" y="258" style="fill:#86909B;opacity:1">кВт</text>
-      <text class="ttl" x="48" y="24" style="fill:#7C858F;opacity:1">БАТАРЕЯ · В</text>
-      <text class="fg" x="141.6" y="92" text-anchor="end" style="fill:#DAE1EB;opacity:1">548</text>
-      <text class="cap" x="48" y="126" style="fill:#7C858F;opacity:1">просадка 13 В</text>
-      <text class="ttl" x="1459.6" y="24" text-anchor="end" style="fill:#7C858F;opacity:1">ДВС · ОБ/МИН</text>
-      <text class="fg" x="1459.6" y="92" text-anchor="end" style="fill:#DAE1EB;opacity:1">1780</text>
-      <text class="cap" x="1459.6" y="126" text-anchor="end" style="fill:#4B9BE0;opacity:1">+14 кВт</text>
-      <text class="ttl" x="48" y="180" style="fill:#7C858F;opacity:1">ТЕМПЕРАТУРЫ</text>
-      <text class="cl" x="48" y="282" style="fill:#7C858F;opacity:1">БАТАРЕЯ</text>
-      <text class="rd" x="109.2" y="248" text-anchor="end" style="fill:#DAE1EB;opacity:1">29</text>
-      <text class="un2" x="109.2" y="248" style="fill:#86909B;opacity:1">°</text>
-      <text class="cl" x="152" y="282" style="fill:#7C858F;opacity:1">МОТОРЫ</text>
-      <text class="rd" x="192.8" y="248" text-anchor="end" style="fill:#DAE1EB;opacity:1">44</text>
-      <text class="un2" x="192.8" y="248" style="fill:#86909B;opacity:1">°</text>
-      <text class="rd" x="262" y="248" text-anchor="end" style="fill:#DAE1EB;opacity:1">41</text>
-      <text class="un2" x="262" y="248" style="fill:#86909B;opacity:1">°</text>
-      <text class="rd" x="331.2" y="248" text-anchor="end" style="fill:#DAE1EB;opacity:1">46</text>
-      <text class="un2" x="331.2" y="248" style="fill:#86909B;opacity:1">°</text>
-      <text class="cl" x="368" y="282" style="fill:#7C858F;opacity:1">ИНВЕРТОР</text>
-      <text class="rd" x="429.2" y="248" text-anchor="end" style="fill:#DAE1EB;opacity:1">51</text>
-      <text class="un2" x="429.2" y="248" style="fill:#86909B;opacity:1">°</text>
-      <text class="ttl" x="1459.6" y="180" text-anchor="end" style="fill:#7C858F;opacity:1">ДВС · 2 МИН</text>
-      <rect x="1043.6" y="202.9" width="416" height="27.7" fill="#7C858F" opacity="0.1"/>
-      <line x1="1043.6" y1="248" x2="1459.6" y2="248" stroke="#7C858F" stroke-width="1.2" opacity="1"/>
-      <path d="M 1176.4 248 L 1176.4 245.1 L 1179.9 248 L 1183.4 248 L 1186.9 248 L 1190.4 248 L 1193.9 248 L 1197.4 248 L 1200.9 244.7 L 1204.4 240.9 L 1207.9 238.5 L 1211.4 236.9 L 1214.8 235.7 L 1218.3 235 L 1221.8 234.7 L 1225.3 234.6 L 1228.8 234.8 L 1232.3 235 L 1235.8 235.1 L 1239.3 235.1 L 1242.8 234.7 L 1246.3 234.1 L 1249.8 233.2 L 1253.3 232.2 L 1256.8 231.2 L 1260.3 230.2 L 1263.8 229.3 L 1267.3 228.6 L 1270.8 228.1 L 1274.3 227.8 L 1277.8 227.8 L 1281.3 228.1 L 1284.8 228.6 L 1288.3 229 L 1291.8 229.3 L 1295.3 229.5 L 1298.7 229.5 L 1302.2 229.4 L 1305.7 229.1 L 1309.2 228.8 L 1312.7 228.4 L 1316.2 228.1 L 1319.7 227.9 L 1323.2 227.8 L 1326.7 227.8 L 1330.2 227.9 L 1333.7 228.2 L 1337.2 228.5 L 1340.7 228.7 L 1344.2 229 L 1347.7 229.1 L 1351.2 229.2 L 1354.7 229.1 L 1358.2 229 L 1361.7 228.8 L 1365.2 228.5 L 1368.7 228.3 L 1372.2 228.2 L 1375.7 228.1 L 1379.2 228.1 L 1382.6 228.1 L 1386.1 228.3 L 1389.6 228.4 L 1393.1 228.6 L 1396.6 228.7 L 1400.1 228.8 L 1403.6 228.9 L 1407.1 228.8 L 1410.6 228.8 L 1414.1 228.7 L 1417.6 228.6 L 1421.1 228.5 L 1424.6 228.4 L 1428.1 228.4 L 1431.6 228.4 L 1435.1 228.4 L 1438.6 228.5 L 1442.1 228.5 L 1445.6 228.5 L 1449.1 228.6 L 1452.6 228.6 L 1456.1 228.6 L 1459.6 228.5 L 1459.6 248 Z" fill="#2D82D7" opacity="0.3"/>
-      <path d="M 1176.4 245.1 L 1179.9 248 L 1183.4 248 L 1186.9 248 L 1190.4 248 L 1193.9 248 L 1197.4 248 L 1200.9 244.7 L 1204.4 240.9 L 1207.9 238.5 L 1211.4 236.9 L 1214.8 235.7 L 1218.3 235 L 1221.8 234.7 L 1225.3 234.6 L 1228.8 234.8 L 1232.3 235 L 1235.8 235.1 L 1239.3 235.1 L 1242.8 234.7 L 1246.3 234.1 L 1249.8 233.2 L 1253.3 232.2 L 1256.8 231.2 L 1260.3 230.2 L 1263.8 229.3 L 1267.3 228.6 L 1270.8 228.1 L 1274.3 227.8 L 1277.8 227.8 L 1281.3 228.1 L 1284.8 228.6 L 1288.3 229 L 1291.8 229.3 L 1295.3 229.5 L 1298.7 229.5 L 1302.2 229.4 L 1305.7 229.1 L 1309.2 228.8 L 1312.7 228.4 L 1316.2 228.1 L 1319.7 227.9 L 1323.2 227.8 L 1326.7 227.8 L 1330.2 227.9 L 1333.7 228.2 L 1337.2 228.5 L 1340.7 228.7 L 1344.2 229 L 1347.7 229.1 L 1351.2 229.2 L 1354.7 229.1 L 1358.2 229 L 1361.7 228.8 L 1365.2 228.5 L 1368.7 228.3 L 1372.2 228.2 L 1375.7 228.1 L 1379.2 228.1 L 1382.6 228.1 L 1386.1 228.3 L 1389.6 228.4 L 1393.1 228.6 L 1396.6 228.7 L 1400.1 228.8 L 1403.6 228.9 L 1407.1 228.8 L 1410.6 228.8 L 1414.1 228.7 L 1417.6 228.6 L 1421.1 228.5 L 1424.6 228.4 L 1428.1 228.4 L 1431.6 228.4 L 1435.1 228.4 L 1438.6 228.5 L 1442.1 228.5 L 1445.6 228.5 L 1449.1 228.6 L 1452.6 228.6 L 1456.1 228.6 L 1459.6 228.5" fill="none" stroke="#4B9BE0" stroke-width="1.2" stroke-linejoin="round" opacity="1"/>
-      <path d="M 1176.4 230.6 L 1179.9 230.8 L 1183.4 231.3 L 1186.9 231.8 L 1190.4 231.9 L 1193.9 231.5 L 1197.4 230.6 L 1200.9 229.2 L 1204.4 227.6 L 1207.9 226.1 L 1211.4 225 L 1214.8 224.4 L 1218.3 224.4 L 1221.8 224.7 L 1225.3 225 L 1228.8 225.2 L 1232.3 225 L 1235.8 224.3 L 1239.3 223.2 L 1242.8 221.8 L 1246.3 220.4 L 1249.8 219.2 L 1253.3 218.5 L 1256.8 218.1 L 1260.3 218.2 L 1263.8 218.4 L 1267.3 218.6 L 1270.8 218.4 L 1274.3 218.5 L 1277.8 218.1 L 1281.3 217.5 L 1284.8 216.8 L 1288.3 216.2 L 1291.8 215.9 L 1295.3 216 L 1298.7 216.4 L 1302.2 217 L 1305.7 217.6 L 1309.2 218.1 L 1312.7 218.2 L 1316.2 218.1 L 1319.7 217.7 L 1323.2 217.1 L 1326.7 216.6 L 1330.2 216.3 L 1333.7 216.2 L 1337.2 216.4 L 1340.7 216.8 L 1344.2 217.3 L 1347.7 217.7 L 1351.2 217.9 L 1354.7 217.9 L 1358.2 217.7 L 1361.7 217.3 L 1365.2 216.9 L 1368.7 216.6 L 1372.2 216.5 L 1375.7 216.6 L 1379.2 216.8 L 1382.6 217.1 L 1386.1 217.4 L 1389.6 217.6 L 1393.1 217.6 L 1396.6 217.5 L 1400.1 217.3 L 1403.6 217.1 L 1407.1 216.9 L 1410.6 216.8 L 1414.1 216.8 L 1417.6 216.9 L 1421.1 217.1 L 1424.6 217.2 L 1428.1 217.3 L 1431.6 217.3 L 1435.1 217.3 L 1438.6 217.2 L 1442.1 217.2 L 1445.6 217.1 L 1449.1 217.1 L 1452.6 217.1 L 1456.1 217.1 L 1459.6 217.1" fill="none" stroke="#DAE1EB" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round" opacity="1"/>
-      <circle cx="1459.6" cy="217.1" r="3.4" fill="#DAE1EB" opacity="1"/>
-      <text class="cl" x="1459.6" y="282" text-anchor="end" style="fill:#4B9BE0;opacity:1">ГЕНЕРАЦИЯ</text>
-      <text class="cl" x="1340.9" y="282" text-anchor="end" style="fill:#7C858F;opacity:1">ОБОРОТЫ</text>
-      <line x1="550" y1="384" x2="667.4" y2="384" stroke="#7C858F" stroke-width="1.2" opacity="1"/>
-      <rect x="550.4" y="363.8" width="3.1" height="20.2" fill="#DAE1EB" opacity="0.2"/>
-      <rect x="554.3" y="364.5" width="3.1" height="19.5" fill="#DAE1EB" opacity="0.3"/>
-      <rect x="558.2" y="365.5" width="3.1" height="18.5" fill="#DAE1EB" opacity="0.4"/>
-      <rect x="562.1" y="365.2" width="3.1" height="18.8" fill="#DAE1EB" opacity="0.4"/>
-      <rect x="566" y="364" width="3.1" height="20" fill="#DAE1EB" opacity="0.5"/>
-      <rect x="570" y="364" width="3.1" height="20" fill="#DAE1EB" opacity="0.6"/>
-      <rect x="573.9" y="366.3" width="3.1" height="17.7" fill="#DAE1EB" opacity="0.7"/>
-      <rect x="577.8" y="370.3" width="3.1" height="13.7" fill="#DAE1EB" opacity="0.7"/>
-      <rect x="581.7" y="373.4" width="3.1" height="10.6" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="585.6" y="384" width="3.1" height="3.8" fill="#2D82D7" opacity="0.8"/>
-      <rect x="589.5" y="384" width="3.1" height="7.2" fill="#2D82D7" opacity="0.8"/>
-      <rect x="593.4" y="384" width="3.1" height="2.1" fill="#2D82D7" opacity="0.8"/>
-      <rect x="597.4" y="368.8" width="3.1" height="15.2" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="601.3" y="368.8" width="3.1" height="15.2" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="605.2" y="367.9" width="3.1" height="16.1" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="609.1" y="365.2" width="3.1" height="18.8" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="613" y="361.2" width="3.1" height="22.8" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="616.9" y="358.5" width="3.1" height="25.5" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="620.8" y="358.6" width="3.1" height="25.4" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="624.8" y="361.5" width="3.1" height="22.5" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="628.7" y="364.5" width="3.1" height="19.5" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="632.6" y="366.1" width="3.1" height="17.9" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="636.5" y="366.4" width="3.1" height="17.6" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="640.4" y="367.4" width="3.1" height="16.6" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="644.3" y="369.9" width="3.1" height="14.1" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="648.2" y="373.4" width="3.1" height="10.6" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="652.2" y="375.5" width="3.1" height="8.5" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="656.1" y="374.5" width="3.1" height="9.5" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="660" y="371.3" width="3.1" height="12.7" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="663.9" y="367.9" width="3.1" height="16.1" fill="#DAE1EB" opacity="0.8"/>
-      <line x1="550" y1="366.8" x2="667.4" y2="366.8" stroke="#7C858F" stroke-width="1.2" opacity="1" stroke-dasharray="4 4"/>
-      <text class="fg" x="816.2" y="384" text-anchor="end" style="fill:#DAE1EB;opacity:1">17,4</text>
-      <text class="un" x="848.2" y="384" style="fill:#86909B;opacity:1">кВт·ч/100 км</text>
-    </svg></div>
-  <div style="position:absolute; left:0; top:2450px; width:1507.6px; height:490px;"><div class="sn" style="padding:16px 0 0 48px;">Стоим на P · коробка остаётся, цифра — средний за поездку</div><svg width="1507.6" height="424" viewBox="0 0 1507.6 424">
+  <div style="position:absolute; left:0; top:2450px; width:1507.6px; height:490px;"><div class="sn" style="padding:16px 0 0 48px;">ДВС генерирует 82 с · шов за флагом, коробка выросла справа, угол занят</div><svg width="1507.6" height="424" viewBox="0 0 1507.6 424">
       <defs>
       <pattern id="hatch" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="10" stroke="rgba(218,225,235,0.07)" stroke-width="1.4"/></pattern>
       <mask id="topmask"><rect x="0" y="0" width="1507.6" height="160.2" fill="#fff"/><ellipse cx="0" cy="0" rx="361.6" ry="160.2" fill="#000"/><ellipse cx="1507.6" cy="0" rx="301.5" ry="160.2" fill="#000"/></mask>
@@ -401,73 +264,49 @@
       <text class="keep" x="753.8" y="26" text-anchor="middle">ШТАТНЫЕ ПРИБОРЫ</text>
       <text class="keep" x="48" y="384.5">ШТАТНАЯ ПОЛОСА</text>
       <defs><radialGradient id="bandglow"><stop offset="0" stop-color="#DAE1EB" stop-opacity="0.1"/><stop offset="0.5" stop-color="#DAE1EB" stop-opacity="0"/><stop offset="1" stop-color="#DAE1EB" stop-opacity="0"/></radialGradient></defs>
-      <ellipse cx="802" cy="298" rx="340" ry="37.6" fill="url(#bandglow)"/>
-      <line x1="48" y1="298" x2="1459.6" y2="298" stroke="#7C858F" stroke-width="1.2" opacity="1"/>
-      <line x1="753.8" y1="284" x2="753.8" y2="312" stroke="#7C858F" stroke-width="1.8" opacity="1"/>
-      <text class="cap" x="48" y="325.8" style="fill:#7C858F;opacity:1">100 кВт</text>
-      <text class="cap" x="1459.6" y="325.8" text-anchor="end" style="fill:#7C858F;opacity:1">300 кВт</text>
-      <defs><linearGradient id="bandfill" gradientUnits="userSpaceOnUse" x1="753.8" y1="0" x2="802" y2="0"><stop offset="0" stop-color="#DAE1EB" stop-opacity="0.55"/><stop offset="1" stop-color="#FFF8DA" stop-opacity="1"/></linearGradient></defs>
-      <rect x="753.8" y="291" width="48.2" height="14" fill="url(#bandfill)" opacity="1"/>
-      <text class="hr" x="816.6" y="258" text-anchor="end" style="fill:#DAE1EB;opacity:1">1</text>
-      <text class="un" x="848.6" y="258" style="fill:#86909B;opacity:1">кВт</text>
-      <text class="ttl" x="48" y="24" style="fill:#7C858F;opacity:1">БАТАРЕЯ · В</text>
-      <text class="fg" x="141.6" y="92" text-anchor="end" style="fill:#DAE1EB;opacity:1">561</text>
-      <text class="ttl" x="1459.6" y="24" text-anchor="end" style="fill:#7C858F;opacity:0.6">ДВС</text>
-      <text class="ttl" x="48" y="180" style="fill:#7C858F;opacity:1">ТЕМПЕРАТУРЫ</text>
-      <text class="cl" x="48" y="282" style="fill:#7C858F;opacity:1">БАТАРЕЯ</text>
-      <text class="rd" x="109.2" y="248" text-anchor="end" style="fill:#DAE1EB;opacity:1">28</text>
-      <text class="un2" x="109.2" y="248" style="fill:#86909B;opacity:1">°</text>
-      <text class="cl" x="152" y="282" style="fill:#7C858F;opacity:1">МОТОРЫ</text>
-      <text class="rd" x="192.8" y="248" text-anchor="end" style="fill:#DAE1EB;opacity:1">31</text>
-      <text class="un2" x="192.8" y="248" style="fill:#86909B;opacity:1">°</text>
-      <text class="rd" x="262" y="248" text-anchor="end" style="fill:#DAE1EB;opacity:1">29</text>
-      <text class="un2" x="262" y="248" style="fill:#86909B;opacity:1">°</text>
-      <text class="rd" x="331.2" y="248" text-anchor="end" style="fill:#DAE1EB;opacity:1">31</text>
-      <text class="un2" x="331.2" y="248" style="fill:#86909B;opacity:1">°</text>
-      <text class="cl" x="368" y="282" style="fill:#7C858F;opacity:1">ИНВЕРТОР</text>
-      <text class="rd" x="429.2" y="248" text-anchor="end" style="fill:#DAE1EB;opacity:1">32</text>
-      <text class="un2" x="429.2" y="248" style="fill:#86909B;opacity:1">°</text>
-      <text class="ttl" x="1459.6" y="180" text-anchor="end" style="fill:#7C858F;opacity:1">ЗА ПОЕЗДКУ · КВТ·Ч</text>
-      <text class="fg" x="1315.6" y="248" text-anchor="end" style="fill:#DAE1EB;opacity:1">12,4</text>
-      <text class="cl" x="1315.6" y="282" text-anchor="end" style="fill:#7C858F;opacity:1">ИЗ БАТАРЕИ</text>
-      <text class="fg" x="1459.6" y="248" text-anchor="end" style="fill:#4B9BE0;opacity:1">3,1</text>
-      <text class="cl" x="1459.6" y="282" text-anchor="end" style="fill:#7C858F;opacity:1">РЕКУПЕРАЦИЯ</text>
-      <line x1="550" y1="384" x2="667.4" y2="384" stroke="#7C858F" stroke-width="1.2" opacity="1"/>
-      <rect x="550.4" y="364.5" width="3.1" height="19.5" fill="#DAE1EB" opacity="0.2"/>
-      <rect x="554.3" y="365.2" width="3.1" height="18.8" fill="#DAE1EB" opacity="0.3"/>
-      <rect x="558.2" y="366.1" width="3.1" height="17.9" fill="#DAE1EB" opacity="0.4"/>
-      <rect x="562.1" y="365.7" width="3.1" height="18.3" fill="#DAE1EB" opacity="0.4"/>
-      <rect x="566" y="364.7" width="3.1" height="19.3" fill="#DAE1EB" opacity="0.5"/>
-      <rect x="570" y="364.7" width="3.1" height="19.3" fill="#DAE1EB" opacity="0.6"/>
-      <rect x="573.9" y="366.9" width="3.1" height="17.1" fill="#DAE1EB" opacity="0.7"/>
-      <rect x="577.8" y="370.8" width="3.1" height="13.2" fill="#DAE1EB" opacity="0.7"/>
-      <rect x="581.7" y="373.7" width="3.1" height="10.3" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="585.6" y="384" width="3.1" height="3.7" fill="#2D82D7" opacity="0.8"/>
-      <rect x="589.5" y="384" width="3.1" height="6.9" fill="#2D82D7" opacity="0.8"/>
-      <rect x="593.4" y="384" width="3.1" height="2" fill="#2D82D7" opacity="0.8"/>
-      <rect x="597.4" y="369.3" width="3.1" height="14.7" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="601.3" y="369.3" width="3.1" height="14.7" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="605.2" y="368.5" width="3.1" height="15.5" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="609.1" y="365.7" width="3.1" height="18.3" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="613" y="362" width="3.1" height="22" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="616.9" y="359.4" width="3.1" height="24.6" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="620.8" y="359.5" width="3.1" height="24.5" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="624.8" y="362.3" width="3.1" height="21.7" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="628.7" y="365.2" width="3.1" height="18.8" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="632.6" y="366.7" width="3.1" height="17.3" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="636.5" y="367" width="3.1" height="17" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="640.4" y="368" width="3.1" height="16" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="644.3" y="370.4" width="3.1" height="13.6" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="648.2" y="373.7" width="3.1" height="10.3" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="652.2" y="375.8" width="3.1" height="8.2" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="656.1" y="374.9" width="3.1" height="9.1" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="660" y="371.7" width="3.1" height="12.3" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="663.9" y="368.5" width="3.1" height="15.5" fill="#DAE1EB" opacity="0.8"/>
-      <line x1="550" y1="367.4" x2="667.4" y2="367.4" stroke="#7C858F" stroke-width="1.2" opacity="1" stroke-dasharray="4 4"/>
-      <text class="fg" x="816.2" y="384" text-anchor="end" style="fill:#DAE1EB;opacity:1">14,2</text>
-      <text class="un" x="848.2" y="384" style="fill:#86909B;opacity:1">кВт·ч/100 км за поездку</text>
+      <ellipse cx="753.8" cy="286.7" rx="340" ry="49" fill="url(#bandglow)"/>
+      <line x1="48" y1="286.7" x2="1459.6" y2="286.7" stroke="#7C858F" stroke-width="1.2"/>
+      <line x1="753.8" y1="272.7" x2="753.8" y2="300.7" stroke="#7C858F" stroke-width="1.8"/>
+      <defs><linearGradient id="bandfill" gradientUnits="userSpaceOnUse" x1="753.8" y1="0" x2="969.4" y2="0"><stop offset="0" stop-color="#DAE1EB" stop-opacity="0.55"/><stop offset="1" stop-color="#FFF8DA" stop-opacity="1"/></linearGradient></defs>
+      <rect x="753.8" y="279.7" width="215.6" height="14" fill="url(#bandfill)"/>
+      <rect x="969.4" y="279.7" width="48.5" height="14" fill="#2D82D7"/>
+      <line x1="1047.6" y1="276.7" x2="1047.6" y2="296.7" stroke="#FFF8DA" stroke-width="3" opacity="0.8"/>
+      <text class="hero" x="783" y="246.7" text-anchor="end" style="fill:#DAE1EB">28</text>
+      <text class="un34" x="815" y="246.7" style="fill:#86909B">кВт</text>
+      <text class="ttl" x="48" y="24" style="fill:#7C858F">БАТАРЕЯ · В</text>
+      <text class="fig" x="135.7" y="92" text-anchor="end" style="fill:#86909B">548</text>
+      <text class="ttl" x="1459.6" y="24" text-anchor="end" style="fill:#7C858F">ДВС · об/мин</text>
+      <text class="fig" x="1459.6" y="92" text-anchor="end" style="fill:#86909B">1780</text>
+      <circle cx="1390.7" cy="119.6" r="3" fill="#2D82D7"/>
+      <text class="cl0" x="1421.9" y="126" text-anchor="end" style="fill:#86909B">14</text>
+      <text class="un" x="1429.9" y="126" style="fill:#86909B">кВт</text>
+      <text class="cl" x="48" y="242.3" style="fill:#7C858F">БАТАРЕЯ</text>
+      <text class="rd" x="86.2" y="208.3" text-anchor="end" style="fill:#86909B">29</text>
+      <text class="rd" x="86.2" y="208.3" style="fill:#86909B">°</text>
+      <text class="cl" x="160" y="242.3" style="fill:#7C858F">МОТОРЫ</text>
+      <text class="rd" x="198.2" y="208.3" text-anchor="end" style="fill:#86909B">44</text>
+      <text class="rd" x="198.2" y="208.3" style="fill:#86909B">°</text>
+      <text class="rd" x="257.1" y="208.3" text-anchor="end" style="fill:#86909B">41</text>
+      <text class="rd" x="257.1" y="208.3" style="fill:#86909B">°</text>
+      <text class="rd" x="316.1" y="208.3" text-anchor="end" style="fill:#86909B">46</text>
+      <text class="rd" x="316.1" y="208.3" style="fill:#86909B">°</text>
+      <text class="cl" x="352" y="242.3" style="fill:#7C858F">ИНВЕРТОР</text>
+      <text class="rd" x="390.2" y="208.3" text-anchor="end" style="fill:#86909B">51</text>
+      <text class="rd" x="390.2" y="208.3" style="fill:#86909B">°</text>
+      <line x1="1119.1" y1="208.3" x2="1459.6" y2="208.3" stroke="#7C858F" stroke-width="1.2"/>
+      <path d="M 1119.1 208.3 1119.1 208.3 L 1123.3 208.3 L 1123.3 206 L 1127.6 206 L 1127.6 205.2 L 1131.8 205.2 L 1131.8 204.8 L 1136 204.8 L 1136 204.7 L 1140.2 204.7 L 1140.2 204.8 L 1144.4 204.8 L 1144.4 204.8 L 1148.6 204.8 L 1148.6 205 L 1152.8 205 L 1152.8 205.3 L 1157 205.3 L 1157 205.5 L 1161.2 205.5 L 1161.2 205.6 L 1165.4 205.6 L 1165.4 205.3 L 1169.6 205.3 L 1169.6 204.7 L 1173.8 204.7 L 1173.8 204 L 1178 204 L 1178 203.3 L 1182.2 203.3 L 1182.2 202.6 L 1186.4 202.6 L 1186.4 201.9 L 1190.6 201.9 L 1190.6 201.3 L 1194.8 201.3 L 1194.8 200.9 L 1199 200.9 L 1199 200.6 L 1203.2 200.6 L 1203.2 200.5 L 1207.4 200.5 L 1207.4 200.4 L 1211.6 200.4 L 1211.6 200.4 L 1215.8 200.4 L 1215.8 200.4 L 1220 200.4 L 1220 200.5 L 1224.2 200.5 L 1224.2 200.5 L 1228.4 200.5 L 1228.4 200.4 L 1232.6 200.4 L 1232.6 200.2 L 1236.8 200.2 L 1236.8 199.9 L 1241 199.9 L 1241 199.6 L 1245.2 199.6 L 1245.2 199.4 L 1249.4 199.4 L 1249.4 199.2 L 1253.6 199.2 L 1253.6 199 L 1257.8 199 L 1257.8 198.9 L 1262 198.9 L 1262 198.9 L 1266.2 198.9 L 1266.2 198.9 L 1270.4 198.9 L 1270.4 198.9 L 1274.6 198.9 L 1274.6 199.1 L 1278.8 199.1 L 1278.8 199.2 L 1283 199.2 L 1283 199.4 L 1287.2 199.4 L 1287.2 199.5 L 1291.5 199.5 L 1291.5 199.6 L 1295.7 199.6 L 1295.7 199.7 L 1299.9 199.7 L 1299.9 199.6 L 1304.1 199.6 L 1304.1 199.5 L 1308.3 199.5 L 1308.3 199.4 L 1312.5 199.4 L 1312.5 199.3 L 1316.7 199.3 L 1316.7 199.2 L 1320.9 199.2 L 1320.9 199.1 L 1325.1 199.1 L 1325.1 199 L 1329.3 199 L 1329.3 199 L 1333.5 199 L 1333.5 199 L 1337.7 199 L 1337.7 199.1 L 1341.9 199.1 L 1341.9 199.2 L 1346.1 199.2 L 1346.1 199.3 L 1350.3 199.3 L 1350.3 199.4 L 1354.5 199.4 L 1354.5 199.5 L 1358.7 199.5 L 1358.7 199.5 L 1362.9 199.5 L 1362.9 199.5 L 1367.1 199.5 L 1367.1 199.5 L 1371.3 199.5 L 1371.3 199.4 L 1375.5 199.4 L 1375.5 199.3 L 1379.7 199.3 L 1379.7 199.2 L 1383.9 199.2 L 1383.9 199.2 L 1388.1 199.2 L 1388.1 199.1 L 1392.3 199.1 L 1392.3 199.1 L 1396.5 199.1 L 1396.5 199.2 L 1400.7 199.2 L 1400.7 199.2 L 1404.9 199.2 L 1404.9 199.2 L 1409.1 199.2 L 1409.1 199.3 L 1413.3 199.3 L 1413.3 199.3 L 1417.5 199.3 L 1417.5 199.4 L 1421.7 199.4 L 1421.7 199.4 L 1425.9 199.4 L 1425.9 199.4 L 1430.1 199.4 L 1430.1 199.3 L 1434.3 199.3 L 1434.3 199.3 L 1438.5 199.3 L 1438.5 199.3 L 1442.7 199.3 L 1442.7 199.3 L 1446.9 199.3 L 1446.9 199.3 L 1451.2 199.3 L 1451.2 199.3 L 1455.4 199.3 L 1455.4 199.3 L 1459.6 199.3 L 1459.6 199.3 L 1463.8 199.3 L 1463.8 208.3 Z" fill="#2D82D7" opacity="0.5"/>
+      <path d="M 1119.1 208.3 L 1123.3 208.3 L 1123.3 206 L 1127.6 206 L 1127.6 205.2 L 1131.8 205.2 L 1131.8 204.8 L 1136 204.8 L 1136 204.7 L 1140.2 204.7 L 1140.2 204.8 L 1144.4 204.8 L 1144.4 204.8 L 1148.6 204.8 L 1148.6 205 L 1152.8 205 L 1152.8 205.3 L 1157 205.3 L 1157 205.5 L 1161.2 205.5 L 1161.2 205.6 L 1165.4 205.6 L 1165.4 205.3 L 1169.6 205.3 L 1169.6 204.7 L 1173.8 204.7 L 1173.8 204 L 1178 204 L 1178 203.3 L 1182.2 203.3 L 1182.2 202.6 L 1186.4 202.6 L 1186.4 201.9 L 1190.6 201.9 L 1190.6 201.3 L 1194.8 201.3 L 1194.8 200.9 L 1199 200.9 L 1199 200.6 L 1203.2 200.6 L 1203.2 200.5 L 1207.4 200.5 L 1207.4 200.4 L 1211.6 200.4 L 1211.6 200.4 L 1215.8 200.4 L 1215.8 200.4 L 1220 200.4 L 1220 200.5 L 1224.2 200.5 L 1224.2 200.5 L 1228.4 200.5 L 1228.4 200.4 L 1232.6 200.4 L 1232.6 200.2 L 1236.8 200.2 L 1236.8 199.9 L 1241 199.9 L 1241 199.6 L 1245.2 199.6 L 1245.2 199.4 L 1249.4 199.4 L 1249.4 199.2 L 1253.6 199.2 L 1253.6 199 L 1257.8 199 L 1257.8 198.9 L 1262 198.9 L 1262 198.9 L 1266.2 198.9 L 1266.2 198.9 L 1270.4 198.9 L 1270.4 198.9 L 1274.6 198.9 L 1274.6 199.1 L 1278.8 199.1 L 1278.8 199.2 L 1283 199.2 L 1283 199.4 L 1287.2 199.4 L 1287.2 199.5 L 1291.5 199.5 L 1291.5 199.6 L 1295.7 199.6 L 1295.7 199.7 L 1299.9 199.7 L 1299.9 199.6 L 1304.1 199.6 L 1304.1 199.5 L 1308.3 199.5 L 1308.3 199.4 L 1312.5 199.4 L 1312.5 199.3 L 1316.7 199.3 L 1316.7 199.2 L 1320.9 199.2 L 1320.9 199.1 L 1325.1 199.1 L 1325.1 199 L 1329.3 199 L 1329.3 199 L 1333.5 199 L 1333.5 199 L 1337.7 199 L 1337.7 199.1 L 1341.9 199.1 L 1341.9 199.2 L 1346.1 199.2 L 1346.1 199.3 L 1350.3 199.3 L 1350.3 199.4 L 1354.5 199.4 L 1354.5 199.5 L 1358.7 199.5 L 1358.7 199.5 L 1362.9 199.5 L 1362.9 199.5 L 1367.1 199.5 L 1367.1 199.5 L 1371.3 199.5 L 1371.3 199.4 L 1375.5 199.4 L 1375.5 199.3 L 1379.7 199.3 L 1379.7 199.2 L 1383.9 199.2 L 1383.9 199.2 L 1388.1 199.2 L 1388.1 199.1 L 1392.3 199.1 L 1392.3 199.1 L 1396.5 199.1 L 1396.5 199.2 L 1400.7 199.2 L 1400.7 199.2 L 1404.9 199.2 L 1404.9 199.2 L 1409.1 199.2 L 1409.1 199.3 L 1413.3 199.3 L 1413.3 199.3 L 1417.5 199.3 L 1417.5 199.4 L 1421.7 199.4 L 1421.7 199.4 L 1425.9 199.4 L 1425.9 199.4 L 1430.1 199.4 L 1430.1 199.3 L 1434.3 199.3 L 1434.3 199.3 L 1438.5 199.3 L 1438.5 199.3 L 1442.7 199.3 L 1442.7 199.3 L 1446.9 199.3 L 1446.9 199.3 L 1451.2 199.3 L 1451.2 199.3 L 1455.4 199.3 L 1455.4 199.3 L 1459.6 199.3 L 1459.6 199.3 L 1463.8 199.3" fill="none" stroke="#4B9BE0" stroke-width="1.8" stroke-linejoin="round"/>
+      <path d="M 1119.1 201.1 L 1123.3 200.3 L 1127.6 199.7 L 1131.8 199.4 L 1136 199.3 L 1140.2 199.4 L 1144.4 199.6 L 1148.6 199.8 L 1152.8 199.8 L 1157 199.5 L 1161.2 199.1 L 1165.4 198.4 L 1169.6 197.7 L 1173.8 197 L 1178 196.6 L 1182.2 196.4 L 1186.4 196.4 L 1190.6 196.6 L 1194.8 196.7 L 1199 196.7 L 1203.2 196.6 L 1207.4 196.2 L 1211.6 195.6 L 1215.8 195 L 1220 194.4 L 1224.2 193.9 L 1228.4 193.6 L 1232.6 193.5 L 1236.8 193.8 L 1241 194.1 L 1245.2 194.4 L 1249.4 194.6 L 1253.6 194.5 L 1257.8 194.4 L 1262 194.1 L 1266.2 193.8 L 1270.4 193.6 L 1274.6 193.5 L 1278.8 193.5 L 1283 193.7 L 1287.2 194 L 1291.5 194.2 L 1295.7 194.4 L 1299.9 194.4 L 1304.1 194.3 L 1308.3 194.2 L 1312.5 193.9 L 1316.7 193.7 L 1320.9 193.6 L 1325.1 193.6 L 1329.3 193.7 L 1333.5 193.9 L 1337.7 194.1 L 1341.9 194.3 L 1346.1 194.3 L 1350.3 194.3 L 1354.5 194.2 L 1358.7 194 L 1362.9 193.9 L 1367.1 193.8 L 1371.3 193.7 L 1375.5 193.8 L 1379.7 193.9 L 1383.9 194 L 1388.1 194.1 L 1392.3 194.2 L 1396.5 194.2 L 1400.7 194.1 L 1404.9 194 L 1409.1 194 L 1413.3 193.9 L 1417.5 193.9 L 1421.7 193.9 L 1425.9 193.9 L 1430.1 194 L 1434.3 194 L 1438.5 194 L 1442.7 194 L 1446.9 194 L 1451.2 194 L 1455.4 194 L 1459.6 194" fill="none" stroke="#86909B" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+      <text class="cl" x="1459.6" y="242.3" text-anchor="end" style="fill:#7C858F">ГЕНЕРАЦИЯ</text>
+      <circle cx="1326.4" cy="235.9" r="3" fill="#2D82D7"/>
+      <text class="cl" x="1307.4" y="242.3" text-anchor="end" style="fill:#7C858F">ОБОРОТЫ</text>
+      <path d="M 500.9 384 500.9 365.8 L 508.9 365.8 L 508.9 366.4 L 516.9 366.4 L 516.9 367.3 L 524.9 367.3 L 524.9 367 L 532.9 367 L 532.9 366 L 540.9 366 L 540.9 366 L 548.9 366 L 548.9 368.1 L 556.9 368.1 L 556.9 371.7 L 564.9 371.7 L 564.9 374.5 L 572.9 374.5 L 572.9 387.5 L 580.9 387.5 L 580.9 390.5 L 588.9 390.5 L 588.9 385.9 L 596.9 385.9 L 596.9 370.3 L 604.9 370.3 L 604.9 370.3 L 612.9 370.3 L 612.9 369.5 L 620.9 369.5 L 620.9 367 L 628.9 367 L 628.9 363.5 L 636.9 363.5 L 636.9 361.1 L 644.9 361.1 L 644.9 361.2 L 652.9 361.2 L 652.9 363.8 L 660.9 363.8 L 660.9 366.4 L 668.9 366.4 L 668.9 367.9 L 676.9 367.9 L 676.9 368.2 L 684.9 368.2 L 684.9 369.1 L 692.9 369.1 L 692.9 371.3 L 700.9 371.3 L 700.9 374.5 L 708.9 374.5 L 708.9 376.4 L 716.9 376.4 L 716.9 375.5 L 724.9 375.5 L 724.9 372.5 L 732.9 372.5 L 732.9 369.5 L 740.9 369.5 L 740.9 384 Z" fill="#86909B" opacity="0.3"/>
+      <path d="M 500.9 365.8 L 508.9 365.8 L 508.9 366.4 L 516.9 366.4 L 516.9 367.3 L 524.9 367.3 L 524.9 367 L 532.9 367 L 532.9 366 L 540.9 366 L 540.9 366 L 548.9 366 L 548.9 368.1 L 556.9 368.1 L 556.9 371.7 L 564.9 371.7 L 564.9 374.5 L 572.9 374.5 L 572.9 387.5 L 580.9 387.5 L 580.9 390.5 L 588.9 390.5 L 588.9 385.9 L 596.9 385.9 L 596.9 370.3 L 604.9 370.3 L 604.9 370.3 L 612.9 370.3 L 612.9 369.5 L 620.9 369.5 L 620.9 367 L 628.9 367 L 628.9 363.5 L 636.9 363.5 L 636.9 361.1 L 644.9 361.1 L 644.9 361.2 L 652.9 361.2 L 652.9 363.8 L 660.9 363.8 L 660.9 366.4 L 668.9 366.4 L 668.9 367.9 L 676.9 367.9 L 676.9 368.2 L 684.9 368.2 L 684.9 369.1 L 692.9 369.1 L 692.9 371.3 L 700.9 371.3 L 700.9 374.5 L 708.9 374.5 L 708.9 376.4 L 716.9 376.4 L 716.9 375.5 L 724.9 375.5 L 724.9 372.5 L 732.9 372.5 L 732.9 369.5 L 740.9 369.5" fill="none" stroke="#86909B" stroke-width="2" stroke-linejoin="round"/>
+      <line x1="500.9" y1="384" x2="740.9" y2="384" stroke="#7C858F" stroke-width="1.2"/>
+      <text class="un" x="897.2" y="384" style="fill:#7C858F">кВт·ч/100 км · батарея</text>
+      <text class="fig" x="865.2" y="384" text-anchor="end" style="fill:#86909B">17</text>
     </svg></div>
-  <div style="position:absolute; left:0; top:2940px; width:1507.6px; height:490px;"><div class="sn" style="padding:16px 0 0 48px;">Зарядка от розетки · километров нет, коробки тоже; дышит только свечение</div><svg width="1507.6" height="424" viewBox="0 0 1507.6 424">
+  <div style="position:absolute; left:0; top:2940px; width:1507.6px; height:490px;"><div class="sn" style="padding:16px 0 0 48px;">ДВС заглох 40 с назад · коробка ещё здесь, обороты у правого края на нуле</div><svg width="1507.6" height="424" viewBox="0 0 1507.6 424">
       <defs>
       <pattern id="hatch" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="10" stroke="rgba(218,225,235,0.07)" stroke-width="1.4"/></pattern>
       <mask id="topmask"><rect x="0" y="0" width="1507.6" height="160.2" fill="#fff"/><ellipse cx="0" cy="0" rx="361.6" ry="160.2" fill="#000"/><ellipse cx="1507.6" cy="0" rx="301.5" ry="160.2" fill="#000"/></mask>
@@ -477,121 +316,196 @@
       <rect x="0" y="335.7" width="1507.6" height="88.3" fill="url(#hatch)" mask="url(#botmask)"/>
       <text class="keep" x="753.8" y="26" text-anchor="middle">ШТАТНЫЕ ПРИБОРЫ</text>
       <text class="keep" x="48" y="384.5">ШТАТНАЯ ПОЛОСА</text>
-      <defs><radialGradient id="bandglow"><stop offset="0" stop-color="#2D82D7" stop-opacity="0.2"/><stop offset="0.5" stop-color="#2D82D7" stop-opacity="0.1"/><stop offset="1" stop-color="#2D82D7" stop-opacity="0"/></radialGradient></defs>
-      <ellipse cx="567" cy="298" rx="340" ry="37.6" fill="url(#bandglow)"/>
-      <line x1="48" y1="298" x2="1459.6" y2="298" stroke="#7C858F" stroke-width="1.2" opacity="1"/>
-      <line x1="753.8" y1="284" x2="753.8" y2="312" stroke="#7C858F" stroke-width="1.8" opacity="1"/>
-      <text class="cap" x="48" y="325.8" style="fill:#7C858F;opacity:1">100 кВт</text>
-      <text class="cap" x="1459.6" y="325.8" text-anchor="end" style="fill:#7C858F;opacity:1">300 кВт</text>
+      <defs><radialGradient id="bandglow"><stop offset="0" stop-color="#DAE1EB" stop-opacity="0.1"/><stop offset="0.5" stop-color="#DAE1EB" stop-opacity="0"/><stop offset="1" stop-color="#DAE1EB" stop-opacity="0"/></radialGradient></defs>
+      <ellipse cx="753.8" cy="286.7" rx="340" ry="49" fill="url(#bandglow)"/>
+      <line x1="48" y1="286.7" x2="1459.6" y2="286.7" stroke="#7C858F" stroke-width="1.2"/>
+      <line x1="753.8" y1="272.7" x2="753.8" y2="300.7" stroke="#7C858F" stroke-width="1.8"/>
+      <defs><linearGradient id="bandfill" gradientUnits="userSpaceOnUse" x1="753.8" y1="0" x2="991.4" y2="0"><stop offset="0" stop-color="#DAE1EB" stop-opacity="0.55"/><stop offset="1" stop-color="#FFF8DA" stop-opacity="1"/></linearGradient></defs>
+      <rect x="753.8" y="279.7" width="237.6" height="14" fill="url(#bandfill)"/>
+      <line x1="1089.8" y1="276.7" x2="1089.8" y2="296.7" stroke="#FFF8DA" stroke-width="3" opacity="0.8"/>
+      <text class="hero" x="783" y="246.7" text-anchor="end" style="fill:#DAE1EB">34</text>
+      <text class="un34" x="815" y="246.7" style="fill:#86909B">кВт</text>
+      <text class="ttl" x="48" y="24" style="fill:#7C858F">БАТАРЕЯ · В</text>
+      <text class="fig" x="135.7" y="92" text-anchor="end" style="fill:#86909B">551</text>
+      <text class="ttl" x="1459.6" y="24" text-anchor="end" style="fill:#7C858F">ДВС</text>
+      <text class="fig" x="1459.6" y="92" text-anchor="end" style="fill:#86909B">6</text>
+      <text class="un" x="1459.6" y="126" text-anchor="end" style="fill:#7C858F">мин за поездку</text>
+      <text class="cl" x="48" y="242.3" style="fill:#7C858F">БАТАРЕЯ</text>
+      <text class="rd" x="86.2" y="208.3" text-anchor="end" style="fill:#86909B">29</text>
+      <text class="rd" x="86.2" y="208.3" style="fill:#86909B">°</text>
+      <text class="cl" x="160" y="242.3" style="fill:#7C858F">МОТОРЫ</text>
+      <text class="rd" x="198.2" y="208.3" text-anchor="end" style="fill:#86909B">44</text>
+      <text class="rd" x="198.2" y="208.3" style="fill:#86909B">°</text>
+      <text class="rd" x="257.1" y="208.3" text-anchor="end" style="fill:#86909B">41</text>
+      <text class="rd" x="257.1" y="208.3" style="fill:#86909B">°</text>
+      <text class="rd" x="316.1" y="208.3" text-anchor="end" style="fill:#86909B">46</text>
+      <text class="rd" x="316.1" y="208.3" style="fill:#86909B">°</text>
+      <text class="cl" x="352" y="242.3" style="fill:#7C858F">ИНВЕРТОР</text>
+      <text class="rd" x="390.2" y="208.3" text-anchor="end" style="fill:#86909B">51</text>
+      <text class="rd" x="390.2" y="208.3" style="fill:#86909B">°</text>
+      <line x1="959.4" y1="208.3" x2="1459.6" y2="208.3" stroke="#7C858F" stroke-width="1.2"/>
+      <path d="M 959.4 208.3 959.4 208.3 L 963.6 208.3 L 963.6 206 L 967.9 206 L 967.9 205.2 L 972.1 205.2 L 972.1 204.8 L 976.3 204.8 L 976.3 204.7 L 980.5 204.7 L 980.5 204.8 L 984.7 204.8 L 984.7 204.8 L 988.9 204.8 L 988.9 204.9 L 993.1 204.9 L 993.1 205.2 L 997.3 205.2 L 997.3 205.4 L 1001.5 205.4 L 1001.5 205.4 L 1005.7 205.4 L 1005.7 205.1 L 1009.9 205.1 L 1009.9 204.6 L 1014.1 204.6 L 1014.1 203.9 L 1018.3 203.9 L 1018.3 203.2 L 1022.5 203.2 L 1022.5 202.4 L 1026.7 202.4 L 1026.7 201.8 L 1030.9 201.8 L 1030.9 201.2 L 1035.1 201.2 L 1035.1 200.8 L 1039.3 200.8 L 1039.3 200.5 L 1043.5 200.5 L 1043.5 200.4 L 1047.7 200.4 L 1047.7 200.3 L 1051.9 200.3 L 1051.9 200.3 L 1056.1 200.3 L 1056.1 200.3 L 1060.3 200.3 L 1060.3 200.3 L 1064.5 200.3 L 1064.5 200.3 L 1068.7 200.3 L 1068.7 200.2 L 1072.9 200.2 L 1072.9 200 L 1077.1 200 L 1077.1 199.7 L 1081.3 199.7 L 1081.3 199.6 L 1085.5 199.6 L 1085.5 199.4 L 1089.7 199.4 L 1089.7 199.2 L 1093.9 199.2 L 1093.9 199 L 1098.1 199 L 1098.1 198.9 L 1102.3 198.9 L 1102.3 198.9 L 1106.5 198.9 L 1106.5 198.9 L 1110.7 198.9 L 1110.7 198.9 L 1114.9 198.9 L 1114.9 199.1 L 1119.1 199.1 L 1119.1 199.2 L 1123.3 199.2 L 1123.3 199.4 L 1127.6 199.4 L 1127.6 199.5 L 1131.8 199.5 L 1131.8 199.6 L 1136 199.6 L 1136 199.7 L 1140.2 199.7 L 1140.2 199.6 L 1144.4 199.6 L 1144.4 199.5 L 1148.6 199.5 L 1148.6 199.4 L 1152.8 199.4 L 1152.8 199.3 L 1157 199.3 L 1157 199.2 L 1161.2 199.2 L 1161.2 199.1 L 1165.4 199.1 L 1165.4 199 L 1169.6 199 L 1169.6 199 L 1173.8 199 L 1173.8 199 L 1178 199 L 1178 199.1 L 1182.2 199.1 L 1182.2 199.2 L 1186.4 199.2 L 1186.4 199.3 L 1190.6 199.3 L 1190.6 199.4 L 1194.8 199.4 L 1194.8 199.5 L 1199 199.5 L 1199 199.5 L 1203.2 199.5 L 1203.2 199.5 L 1207.4 199.5 L 1207.4 199.4 L 1211.6 199.4 L 1211.6 199.4 L 1215.8 199.4 L 1215.8 199.3 L 1220 199.3 L 1220 199.2 L 1224.2 199.2 L 1224.2 199.2 L 1228.4 199.2 L 1228.4 199.2 L 1232.6 199.2 L 1232.6 199.1 L 1236.8 199.1 L 1236.8 199.2 L 1241 199.2 L 1241 199.2 L 1245.2 199.2 L 1245.2 199.2 L 1249.4 199.2 L 1249.4 199.3 L 1253.6 199.3 L 1253.6 199.3 L 1257.8 199.3 L 1257.8 199.3 L 1262 199.3 L 1262 199.4 L 1266.2 199.4 L 1266.2 199.3 L 1270.4 199.3 L 1270.4 199.3 L 1274.6 199.3 L 1274.6 199.3 L 1278.8 199.3 L 1278.8 199.3 L 1283 199.3 L 1283 199.3 L 1287.2 199.3 L 1287.2 199.3 L 1291.5 199.3 L 1291.5 199.3 L 1295.7 199.3 L 1295.7 208.3 L 1299.9 208.3 L 1299.9 208.3 L 1304.1 208.3 L 1304.1 208.3 L 1308.3 208.3 L 1308.3 208.3 L 1312.5 208.3 L 1312.5 208.3 L 1316.7 208.3 L 1316.7 208.3 L 1320.9 208.3 L 1320.9 208.3 L 1325.1 208.3 L 1325.1 208.3 L 1329.3 208.3 L 1329.3 208.3 L 1333.5 208.3 L 1333.5 208.3 L 1337.7 208.3 L 1337.7 208.3 L 1341.9 208.3 L 1341.9 208.3 L 1346.1 208.3 L 1346.1 208.3 L 1350.3 208.3 L 1350.3 208.3 L 1354.5 208.3 L 1354.5 208.3 L 1358.7 208.3 L 1358.7 208.3 L 1362.9 208.3 L 1362.9 208.3 L 1367.1 208.3 L 1367.1 208.3 L 1371.3 208.3 L 1371.3 208.3 L 1375.5 208.3 L 1375.5 208.3 L 1379.7 208.3 L 1379.7 208.3 L 1383.9 208.3 L 1383.9 208.3 L 1388.1 208.3 L 1388.1 208.3 L 1392.3 208.3 L 1392.3 208.3 L 1396.5 208.3 L 1396.5 208.3 L 1400.7 208.3 L 1400.7 208.3 L 1404.9 208.3 L 1404.9 208.3 L 1409.1 208.3 L 1409.1 208.3 L 1413.3 208.3 L 1413.3 208.3 L 1417.5 208.3 L 1417.5 208.3 L 1421.7 208.3 L 1421.7 208.3 L 1425.9 208.3 L 1425.9 208.3 L 1430.1 208.3 L 1430.1 208.3 L 1434.3 208.3 L 1434.3 208.3 L 1438.5 208.3 L 1438.5 208.3 L 1442.7 208.3 L 1442.7 208.3 L 1446.9 208.3 L 1446.9 208.3 L 1451.2 208.3 L 1451.2 208.3 L 1455.4 208.3 L 1455.4 208.3 L 1459.6 208.3 L 1459.6 208.3 L 1463.8 208.3 L 1463.8 208.3 Z" fill="#2D82D7" opacity="0.5"/>
+      <path d="M 959.4 208.3 L 963.6 208.3 L 963.6 206 L 967.9 206 L 967.9 205.2 L 972.1 205.2 L 972.1 204.8 L 976.3 204.8 L 976.3 204.7 L 980.5 204.7 L 980.5 204.8 L 984.7 204.8 L 984.7 204.8 L 988.9 204.8 L 988.9 204.9 L 993.1 204.9 L 993.1 205.2 L 997.3 205.2 L 997.3 205.4 L 1001.5 205.4 L 1001.5 205.4 L 1005.7 205.4 L 1005.7 205.1 L 1009.9 205.1 L 1009.9 204.6 L 1014.1 204.6 L 1014.1 203.9 L 1018.3 203.9 L 1018.3 203.2 L 1022.5 203.2 L 1022.5 202.4 L 1026.7 202.4 L 1026.7 201.8 L 1030.9 201.8 L 1030.9 201.2 L 1035.1 201.2 L 1035.1 200.8 L 1039.3 200.8 L 1039.3 200.5 L 1043.5 200.5 L 1043.5 200.4 L 1047.7 200.4 L 1047.7 200.3 L 1051.9 200.3 L 1051.9 200.3 L 1056.1 200.3 L 1056.1 200.3 L 1060.3 200.3 L 1060.3 200.3 L 1064.5 200.3 L 1064.5 200.3 L 1068.7 200.3 L 1068.7 200.2 L 1072.9 200.2 L 1072.9 200 L 1077.1 200 L 1077.1 199.7 L 1081.3 199.7 L 1081.3 199.6 L 1085.5 199.6 L 1085.5 199.4 L 1089.7 199.4 L 1089.7 199.2 L 1093.9 199.2 L 1093.9 199 L 1098.1 199 L 1098.1 198.9 L 1102.3 198.9 L 1102.3 198.9 L 1106.5 198.9 L 1106.5 198.9 L 1110.7 198.9 L 1110.7 198.9 L 1114.9 198.9 L 1114.9 199.1 L 1119.1 199.1 L 1119.1 199.2 L 1123.3 199.2 L 1123.3 199.4 L 1127.6 199.4 L 1127.6 199.5 L 1131.8 199.5 L 1131.8 199.6 L 1136 199.6 L 1136 199.7 L 1140.2 199.7 L 1140.2 199.6 L 1144.4 199.6 L 1144.4 199.5 L 1148.6 199.5 L 1148.6 199.4 L 1152.8 199.4 L 1152.8 199.3 L 1157 199.3 L 1157 199.2 L 1161.2 199.2 L 1161.2 199.1 L 1165.4 199.1 L 1165.4 199 L 1169.6 199 L 1169.6 199 L 1173.8 199 L 1173.8 199 L 1178 199 L 1178 199.1 L 1182.2 199.1 L 1182.2 199.2 L 1186.4 199.2 L 1186.4 199.3 L 1190.6 199.3 L 1190.6 199.4 L 1194.8 199.4 L 1194.8 199.5 L 1199 199.5 L 1199 199.5 L 1203.2 199.5 L 1203.2 199.5 L 1207.4 199.5 L 1207.4 199.4 L 1211.6 199.4 L 1211.6 199.4 L 1215.8 199.4 L 1215.8 199.3 L 1220 199.3 L 1220 199.2 L 1224.2 199.2 L 1224.2 199.2 L 1228.4 199.2 L 1228.4 199.2 L 1232.6 199.2 L 1232.6 199.1 L 1236.8 199.1 L 1236.8 199.2 L 1241 199.2 L 1241 199.2 L 1245.2 199.2 L 1245.2 199.2 L 1249.4 199.2 L 1249.4 199.3 L 1253.6 199.3 L 1253.6 199.3 L 1257.8 199.3 L 1257.8 199.3 L 1262 199.3 L 1262 199.4 L 1266.2 199.4 L 1266.2 199.3 L 1270.4 199.3 L 1270.4 199.3 L 1274.6 199.3 L 1274.6 199.3 L 1278.8 199.3 L 1278.8 199.3 L 1283 199.3 L 1283 199.3 L 1287.2 199.3 L 1287.2 199.3 L 1291.5 199.3 L 1291.5 199.3 L 1295.7 199.3 L 1295.7 208.3 L 1299.9 208.3 L 1299.9 208.3 L 1304.1 208.3 L 1304.1 208.3 L 1308.3 208.3 L 1308.3 208.3 L 1312.5 208.3 L 1312.5 208.3 L 1316.7 208.3 L 1316.7 208.3 L 1320.9 208.3 L 1320.9 208.3 L 1325.1 208.3 L 1325.1 208.3 L 1329.3 208.3 L 1329.3 208.3 L 1333.5 208.3 L 1333.5 208.3 L 1337.7 208.3 L 1337.7 208.3 L 1341.9 208.3 L 1341.9 208.3 L 1346.1 208.3 L 1346.1 208.3 L 1350.3 208.3 L 1350.3 208.3 L 1354.5 208.3 L 1354.5 208.3 L 1358.7 208.3 L 1358.7 208.3 L 1362.9 208.3 L 1362.9 208.3 L 1367.1 208.3 L 1367.1 208.3 L 1371.3 208.3 L 1371.3 208.3 L 1375.5 208.3 L 1375.5 208.3 L 1379.7 208.3 L 1379.7 208.3 L 1383.9 208.3 L 1383.9 208.3 L 1388.1 208.3 L 1388.1 208.3 L 1392.3 208.3 L 1392.3 208.3 L 1396.5 208.3 L 1396.5 208.3 L 1400.7 208.3 L 1400.7 208.3 L 1404.9 208.3 L 1404.9 208.3 L 1409.1 208.3 L 1409.1 208.3 L 1413.3 208.3 L 1413.3 208.3 L 1417.5 208.3 L 1417.5 208.3 L 1421.7 208.3 L 1421.7 208.3 L 1425.9 208.3 L 1425.9 208.3 L 1430.1 208.3 L 1430.1 208.3 L 1434.3 208.3 L 1434.3 208.3 L 1438.5 208.3 L 1438.5 208.3 L 1442.7 208.3 L 1442.7 208.3 L 1446.9 208.3 L 1446.9 208.3 L 1451.2 208.3 L 1451.2 208.3 L 1455.4 208.3 L 1455.4 208.3 L 1459.6 208.3 L 1459.6 208.3 L 1463.8 208.3" fill="none" stroke="#4B9BE0" stroke-width="1.8" stroke-linejoin="round"/>
+      <path d="M 959.4 201.1 L 963.6 200.3 L 967.9 199.7 L 972.1 199.3 L 976.3 199.3 L 980.5 199.4 L 984.7 199.6 L 988.9 199.8 L 993.1 199.8 L 997.3 199.5 L 1001.5 199 L 1005.7 198.3 L 1009.9 197.6 L 1014.1 197 L 1018.3 196.5 L 1022.5 196.3 L 1026.7 196.3 L 1030.9 196.4 L 1035.1 196.6 L 1039.3 196.6 L 1043.5 196.4 L 1047.7 196 L 1051.9 195.5 L 1056.1 194.8 L 1060.3 194.2 L 1064.5 193.7 L 1068.7 193.4 L 1072.9 193.5 L 1077.1 193.8 L 1081.3 194.1 L 1085.5 194.4 L 1089.7 194.6 L 1093.9 194.5 L 1098.1 194.4 L 1102.3 194.1 L 1106.5 193.8 L 1110.7 193.6 L 1114.9 193.5 L 1119.1 193.6 L 1123.3 193.7 L 1127.6 194 L 1131.8 194.2 L 1136 194.4 L 1140.2 194.4 L 1144.4 194.3 L 1148.6 194.1 L 1152.8 193.9 L 1157 193.7 L 1161.2 193.6 L 1165.4 193.6 L 1169.6 193.7 L 1173.8 193.9 L 1178 194.1 L 1182.2 194.2 L 1186.4 194.3 L 1190.6 194.3 L 1194.8 194.2 L 1199 194 L 1203.2 193.9 L 1207.4 193.8 L 1211.6 193.8 L 1215.8 193.8 L 1220 193.9 L 1224.2 194 L 1228.4 194.1 L 1232.6 194.2 L 1236.8 194.2 L 1241 194.1 L 1245.2 194 L 1249.4 194 L 1253.6 193.9 L 1257.8 193.9 L 1262 193.9 L 1266.2 193.9 L 1270.4 194 L 1274.6 194 L 1278.8 194 L 1283 194 L 1287.2 194 L 1291.5 194 L 1295.7 208.3 L 1299.9 208.3 L 1304.1 208.3 L 1308.3 208.3 L 1312.5 208.3 L 1316.7 208.3 L 1320.9 208.3 L 1325.1 208.3 L 1329.3 208.3 L 1333.5 208.3 L 1337.7 208.3 L 1341.9 208.3 L 1346.1 208.3 L 1350.3 208.3 L 1354.5 208.3 L 1358.7 208.3 L 1362.9 208.3 L 1367.1 208.3 L 1371.3 208.3 L 1375.5 208.3 L 1379.7 208.3 L 1383.9 208.3 L 1388.1 208.3 L 1392.3 208.3 L 1396.5 208.3 L 1400.7 208.3 L 1404.9 208.3 L 1409.1 208.3 L 1413.3 208.3 L 1417.5 208.3 L 1421.7 208.3 L 1425.9 208.3 L 1430.1 208.3 L 1434.3 208.3 L 1438.5 208.3 L 1442.7 208.3 L 1446.9 208.3 L 1451.2 208.3 L 1455.4 208.3 L 1459.6 208.3" fill="none" stroke="#86909B" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+      <text class="cl" x="1459.6" y="242.3" text-anchor="end" style="fill:#7C858F">ГЕНЕРАЦИЯ</text>
+      <circle cx="1326.4" cy="235.9" r="3" fill="#2D82D7"/>
+      <text class="cl" x="1307.4" y="242.3" text-anchor="end" style="fill:#7C858F">ОБОРОТЫ</text>
+      <path d="M 500.9 384 500.9 366.2 L 508.9 366.2 L 508.9 366.7 L 516.9 366.7 L 516.9 367.6 L 524.9 367.6 L 524.9 367.3 L 532.9 367.3 L 532.9 366.3 L 540.9 366.3 L 540.9 366.3 L 548.9 366.3 L 548.9 368.4 L 556.9 368.4 L 556.9 371.8 L 564.9 371.8 L 564.9 374.7 L 572.9 374.7 L 572.9 387.4 L 580.9 387.4 L 580.9 390.4 L 588.9 390.4 L 588.9 385.9 L 596.9 385.9 L 596.9 370.5 L 604.9 370.5 L 604.9 370.5 L 612.9 370.5 L 612.9 369.8 L 620.9 369.8 L 620.9 367.3 L 628.9 367.3 L 628.9 363.8 L 636.9 363.8 L 636.9 361.4 L 644.9 361.4 L 644.9 361.6 L 652.9 361.6 L 652.9 364.1 L 660.9 364.1 L 660.9 366.7 L 668.9 366.7 L 668.9 368.2 L 676.9 368.2 L 676.9 368.5 L 684.9 368.5 L 684.9 369.3 L 692.9 369.3 L 692.9 371.6 L 700.9 371.6 L 700.9 374.7 L 708.9 374.7 L 708.9 376.5 L 716.9 376.5 L 716.9 375.7 L 724.9 375.7 L 724.9 372.7 L 732.9 372.7 L 732.9 369.8 L 740.9 369.8 L 740.9 384 Z" fill="#86909B" opacity="0.3"/>
+      <path d="M 500.9 366.2 L 508.9 366.2 L 508.9 366.7 L 516.9 366.7 L 516.9 367.6 L 524.9 367.6 L 524.9 367.3 L 532.9 367.3 L 532.9 366.3 L 540.9 366.3 L 540.9 366.3 L 548.9 366.3 L 548.9 368.4 L 556.9 368.4 L 556.9 371.8 L 564.9 371.8 L 564.9 374.7 L 572.9 374.7 L 572.9 387.4 L 580.9 387.4 L 580.9 390.4 L 588.9 390.4 L 588.9 385.9 L 596.9 385.9 L 596.9 370.5 L 604.9 370.5 L 604.9 370.5 L 612.9 370.5 L 612.9 369.8 L 620.9 369.8 L 620.9 367.3 L 628.9 367.3 L 628.9 363.8 L 636.9 363.8 L 636.9 361.4 L 644.9 361.4 L 644.9 361.6 L 652.9 361.6 L 652.9 364.1 L 660.9 364.1 L 660.9 366.7 L 668.9 366.7 L 668.9 368.2 L 676.9 368.2 L 676.9 368.5 L 684.9 368.5 L 684.9 369.3 L 692.9 369.3 L 692.9 371.6 L 700.9 371.6 L 700.9 374.7 L 708.9 374.7 L 708.9 376.5 L 716.9 376.5 L 716.9 375.7 L 724.9 375.7 L 724.9 372.7 L 732.9 372.7 L 732.9 369.8 L 740.9 369.8" fill="none" stroke="#86909B" stroke-width="2" stroke-linejoin="round"/>
+      <line x1="500.9" y1="384" x2="740.9" y2="384" stroke="#7C858F" stroke-width="1.2"/>
+      <text class="un" x="897.2" y="384" style="fill:#7C858F">кВт·ч/100 км</text>
+      <text class="fig" x="865.2" y="384" text-anchor="end" style="fill:#DAE1EB">17</text>
+    </svg></div>
+  <div style="position:absolute; left:0; top:3430px; width:1507.6px; height:490px;"><div class="sn" style="padding:16px 0 0 48px;">Запасное рисование шва · если генерация уже внутри POWER_KW — отдельной линией</div><svg width="1507.6" height="424" viewBox="0 0 1507.6 424">
+      <defs>
+      <pattern id="hatch" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="10" stroke="rgba(218,225,235,0.07)" stroke-width="1.4"/></pattern>
+      <mask id="topmask"><rect x="0" y="0" width="1507.6" height="160.2" fill="#fff"/><ellipse cx="0" cy="0" rx="361.6" ry="160.2" fill="#000"/><ellipse cx="1507.6" cy="0" rx="301.5" ry="160.2" fill="#000"/></mask>
+      <mask id="botmask"><rect x="0" y="335.7" width="1507.6" height="88.3" fill="#fff"/><ellipse cx="753.8" cy="353.3" rx="353.3" ry="194.3" fill="#000"/></mask>
+      </defs>
+      <rect x="0" y="0" width="1507.6" height="160.2" fill="url(#hatch)" mask="url(#topmask)"/>
+      <rect x="0" y="335.7" width="1507.6" height="88.3" fill="url(#hatch)" mask="url(#botmask)"/>
+      <text class="keep" x="753.8" y="26" text-anchor="middle">ШТАТНЫЕ ПРИБОРЫ</text>
+      <text class="keep" x="48" y="384.5">ШТАТНАЯ ПОЛОСА</text>
+      <defs><radialGradient id="bandglow"><stop offset="0" stop-color="#DAE1EB" stop-opacity="0.1"/><stop offset="0.5" stop-color="#DAE1EB" stop-opacity="0"/><stop offset="1" stop-color="#DAE1EB" stop-opacity="0"/></radialGradient></defs>
+      <ellipse cx="753.8" cy="286.7" rx="340" ry="49" fill="url(#bandglow)"/>
+      <line x1="48" y1="286.7" x2="1459.6" y2="286.7" stroke="#7C858F" stroke-width="1.2"/>
+      <line x1="753.8" y1="272.7" x2="753.8" y2="300.7" stroke="#7C858F" stroke-width="1.8"/>
+      <defs><linearGradient id="bandfill" gradientUnits="userSpaceOnUse" x1="753.8" y1="0" x2="969.4" y2="0"><stop offset="0" stop-color="#DAE1EB" stop-opacity="0.55"/><stop offset="1" stop-color="#FFF8DA" stop-opacity="1"/></linearGradient></defs>
+      <rect x="753.8" y="279.7" width="215.6" height="14" fill="url(#bandfill)"/>
+      <rect x="753.8" y="297.7" width="152.5" height="4" fill="#2D82D7"/>
+      <line x1="1047.6" y1="276.7" x2="1047.6" y2="296.7" stroke="#FFF8DA" stroke-width="3" opacity="0.8"/>
+      <text class="hero" x="783" y="246.7" text-anchor="end" style="fill:#DAE1EB">28</text>
+      <text class="un34" x="815" y="246.7" style="fill:#86909B">кВт</text>
+      <text class="ttl" x="48" y="24" style="fill:#7C858F">БАТАРЕЯ · В</text>
+      <text class="fig" x="135.7" y="92" text-anchor="end" style="fill:#86909B">548</text>
+      <text class="ttl" x="1459.6" y="24" text-anchor="end" style="fill:#7C858F">ДВС · об/мин</text>
+      <text class="fig" x="1459.6" y="92" text-anchor="end" style="fill:#86909B">1780</text>
+      <circle cx="1390.7" cy="119.6" r="3" fill="#2D82D7"/>
+      <text class="cl0" x="1421.9" y="126" text-anchor="end" style="fill:#86909B">14</text>
+      <text class="un" x="1429.9" y="126" style="fill:#86909B">кВт</text>
+      <text class="cl" x="48" y="242.3" style="fill:#7C858F">БАТАРЕЯ</text>
+      <text class="rd" x="86.2" y="208.3" text-anchor="end" style="fill:#86909B">29</text>
+      <text class="rd" x="86.2" y="208.3" style="fill:#86909B">°</text>
+      <text class="cl" x="160" y="242.3" style="fill:#7C858F">МОТОРЫ</text>
+      <text class="rd" x="198.2" y="208.3" text-anchor="end" style="fill:#86909B">44</text>
+      <text class="rd" x="198.2" y="208.3" style="fill:#86909B">°</text>
+      <text class="rd" x="257.1" y="208.3" text-anchor="end" style="fill:#86909B">41</text>
+      <text class="rd" x="257.1" y="208.3" style="fill:#86909B">°</text>
+      <text class="rd" x="316.1" y="208.3" text-anchor="end" style="fill:#86909B">46</text>
+      <text class="rd" x="316.1" y="208.3" style="fill:#86909B">°</text>
+      <text class="cl" x="352" y="242.3" style="fill:#7C858F">ИНВЕРТОР</text>
+      <text class="rd" x="390.2" y="208.3" text-anchor="end" style="fill:#86909B">51</text>
+      <text class="rd" x="390.2" y="208.3" style="fill:#86909B">°</text>
+      <line x1="1119.1" y1="208.3" x2="1459.6" y2="208.3" stroke="#7C858F" stroke-width="1.2"/>
+      <path d="M 1119.1 208.3 1119.1 208.3 L 1123.3 208.3 L 1123.3 206 L 1127.6 206 L 1127.6 205.2 L 1131.8 205.2 L 1131.8 204.8 L 1136 204.8 L 1136 204.7 L 1140.2 204.7 L 1140.2 204.8 L 1144.4 204.8 L 1144.4 204.8 L 1148.6 204.8 L 1148.6 205 L 1152.8 205 L 1152.8 205.3 L 1157 205.3 L 1157 205.5 L 1161.2 205.5 L 1161.2 205.6 L 1165.4 205.6 L 1165.4 205.3 L 1169.6 205.3 L 1169.6 204.7 L 1173.8 204.7 L 1173.8 204 L 1178 204 L 1178 203.3 L 1182.2 203.3 L 1182.2 202.6 L 1186.4 202.6 L 1186.4 201.9 L 1190.6 201.9 L 1190.6 201.3 L 1194.8 201.3 L 1194.8 200.9 L 1199 200.9 L 1199 200.6 L 1203.2 200.6 L 1203.2 200.5 L 1207.4 200.5 L 1207.4 200.4 L 1211.6 200.4 L 1211.6 200.4 L 1215.8 200.4 L 1215.8 200.4 L 1220 200.4 L 1220 200.5 L 1224.2 200.5 L 1224.2 200.5 L 1228.4 200.5 L 1228.4 200.4 L 1232.6 200.4 L 1232.6 200.2 L 1236.8 200.2 L 1236.8 199.9 L 1241 199.9 L 1241 199.6 L 1245.2 199.6 L 1245.2 199.4 L 1249.4 199.4 L 1249.4 199.2 L 1253.6 199.2 L 1253.6 199 L 1257.8 199 L 1257.8 198.9 L 1262 198.9 L 1262 198.9 L 1266.2 198.9 L 1266.2 198.9 L 1270.4 198.9 L 1270.4 198.9 L 1274.6 198.9 L 1274.6 199.1 L 1278.8 199.1 L 1278.8 199.2 L 1283 199.2 L 1283 199.4 L 1287.2 199.4 L 1287.2 199.5 L 1291.5 199.5 L 1291.5 199.6 L 1295.7 199.6 L 1295.7 199.7 L 1299.9 199.7 L 1299.9 199.6 L 1304.1 199.6 L 1304.1 199.5 L 1308.3 199.5 L 1308.3 199.4 L 1312.5 199.4 L 1312.5 199.3 L 1316.7 199.3 L 1316.7 199.2 L 1320.9 199.2 L 1320.9 199.1 L 1325.1 199.1 L 1325.1 199 L 1329.3 199 L 1329.3 199 L 1333.5 199 L 1333.5 199 L 1337.7 199 L 1337.7 199.1 L 1341.9 199.1 L 1341.9 199.2 L 1346.1 199.2 L 1346.1 199.3 L 1350.3 199.3 L 1350.3 199.4 L 1354.5 199.4 L 1354.5 199.5 L 1358.7 199.5 L 1358.7 199.5 L 1362.9 199.5 L 1362.9 199.5 L 1367.1 199.5 L 1367.1 199.5 L 1371.3 199.5 L 1371.3 199.4 L 1375.5 199.4 L 1375.5 199.3 L 1379.7 199.3 L 1379.7 199.2 L 1383.9 199.2 L 1383.9 199.2 L 1388.1 199.2 L 1388.1 199.1 L 1392.3 199.1 L 1392.3 199.1 L 1396.5 199.1 L 1396.5 199.2 L 1400.7 199.2 L 1400.7 199.2 L 1404.9 199.2 L 1404.9 199.2 L 1409.1 199.2 L 1409.1 199.3 L 1413.3 199.3 L 1413.3 199.3 L 1417.5 199.3 L 1417.5 199.4 L 1421.7 199.4 L 1421.7 199.4 L 1425.9 199.4 L 1425.9 199.4 L 1430.1 199.4 L 1430.1 199.3 L 1434.3 199.3 L 1434.3 199.3 L 1438.5 199.3 L 1438.5 199.3 L 1442.7 199.3 L 1442.7 199.3 L 1446.9 199.3 L 1446.9 199.3 L 1451.2 199.3 L 1451.2 199.3 L 1455.4 199.3 L 1455.4 199.3 L 1459.6 199.3 L 1459.6 199.3 L 1463.8 199.3 L 1463.8 208.3 Z" fill="#2D82D7" opacity="0.5"/>
+      <path d="M 1119.1 208.3 L 1123.3 208.3 L 1123.3 206 L 1127.6 206 L 1127.6 205.2 L 1131.8 205.2 L 1131.8 204.8 L 1136 204.8 L 1136 204.7 L 1140.2 204.7 L 1140.2 204.8 L 1144.4 204.8 L 1144.4 204.8 L 1148.6 204.8 L 1148.6 205 L 1152.8 205 L 1152.8 205.3 L 1157 205.3 L 1157 205.5 L 1161.2 205.5 L 1161.2 205.6 L 1165.4 205.6 L 1165.4 205.3 L 1169.6 205.3 L 1169.6 204.7 L 1173.8 204.7 L 1173.8 204 L 1178 204 L 1178 203.3 L 1182.2 203.3 L 1182.2 202.6 L 1186.4 202.6 L 1186.4 201.9 L 1190.6 201.9 L 1190.6 201.3 L 1194.8 201.3 L 1194.8 200.9 L 1199 200.9 L 1199 200.6 L 1203.2 200.6 L 1203.2 200.5 L 1207.4 200.5 L 1207.4 200.4 L 1211.6 200.4 L 1211.6 200.4 L 1215.8 200.4 L 1215.8 200.4 L 1220 200.4 L 1220 200.5 L 1224.2 200.5 L 1224.2 200.5 L 1228.4 200.5 L 1228.4 200.4 L 1232.6 200.4 L 1232.6 200.2 L 1236.8 200.2 L 1236.8 199.9 L 1241 199.9 L 1241 199.6 L 1245.2 199.6 L 1245.2 199.4 L 1249.4 199.4 L 1249.4 199.2 L 1253.6 199.2 L 1253.6 199 L 1257.8 199 L 1257.8 198.9 L 1262 198.9 L 1262 198.9 L 1266.2 198.9 L 1266.2 198.9 L 1270.4 198.9 L 1270.4 198.9 L 1274.6 198.9 L 1274.6 199.1 L 1278.8 199.1 L 1278.8 199.2 L 1283 199.2 L 1283 199.4 L 1287.2 199.4 L 1287.2 199.5 L 1291.5 199.5 L 1291.5 199.6 L 1295.7 199.6 L 1295.7 199.7 L 1299.9 199.7 L 1299.9 199.6 L 1304.1 199.6 L 1304.1 199.5 L 1308.3 199.5 L 1308.3 199.4 L 1312.5 199.4 L 1312.5 199.3 L 1316.7 199.3 L 1316.7 199.2 L 1320.9 199.2 L 1320.9 199.1 L 1325.1 199.1 L 1325.1 199 L 1329.3 199 L 1329.3 199 L 1333.5 199 L 1333.5 199 L 1337.7 199 L 1337.7 199.1 L 1341.9 199.1 L 1341.9 199.2 L 1346.1 199.2 L 1346.1 199.3 L 1350.3 199.3 L 1350.3 199.4 L 1354.5 199.4 L 1354.5 199.5 L 1358.7 199.5 L 1358.7 199.5 L 1362.9 199.5 L 1362.9 199.5 L 1367.1 199.5 L 1367.1 199.5 L 1371.3 199.5 L 1371.3 199.4 L 1375.5 199.4 L 1375.5 199.3 L 1379.7 199.3 L 1379.7 199.2 L 1383.9 199.2 L 1383.9 199.2 L 1388.1 199.2 L 1388.1 199.1 L 1392.3 199.1 L 1392.3 199.1 L 1396.5 199.1 L 1396.5 199.2 L 1400.7 199.2 L 1400.7 199.2 L 1404.9 199.2 L 1404.9 199.2 L 1409.1 199.2 L 1409.1 199.3 L 1413.3 199.3 L 1413.3 199.3 L 1417.5 199.3 L 1417.5 199.4 L 1421.7 199.4 L 1421.7 199.4 L 1425.9 199.4 L 1425.9 199.4 L 1430.1 199.4 L 1430.1 199.3 L 1434.3 199.3 L 1434.3 199.3 L 1438.5 199.3 L 1438.5 199.3 L 1442.7 199.3 L 1442.7 199.3 L 1446.9 199.3 L 1446.9 199.3 L 1451.2 199.3 L 1451.2 199.3 L 1455.4 199.3 L 1455.4 199.3 L 1459.6 199.3 L 1459.6 199.3 L 1463.8 199.3" fill="none" stroke="#4B9BE0" stroke-width="1.8" stroke-linejoin="round"/>
+      <path d="M 1119.1 201.1 L 1123.3 200.3 L 1127.6 199.7 L 1131.8 199.4 L 1136 199.3 L 1140.2 199.4 L 1144.4 199.6 L 1148.6 199.8 L 1152.8 199.8 L 1157 199.5 L 1161.2 199.1 L 1165.4 198.4 L 1169.6 197.7 L 1173.8 197 L 1178 196.6 L 1182.2 196.4 L 1186.4 196.4 L 1190.6 196.6 L 1194.8 196.7 L 1199 196.7 L 1203.2 196.6 L 1207.4 196.2 L 1211.6 195.6 L 1215.8 195 L 1220 194.4 L 1224.2 193.9 L 1228.4 193.6 L 1232.6 193.5 L 1236.8 193.8 L 1241 194.1 L 1245.2 194.4 L 1249.4 194.6 L 1253.6 194.5 L 1257.8 194.4 L 1262 194.1 L 1266.2 193.8 L 1270.4 193.6 L 1274.6 193.5 L 1278.8 193.5 L 1283 193.7 L 1287.2 194 L 1291.5 194.2 L 1295.7 194.4 L 1299.9 194.4 L 1304.1 194.3 L 1308.3 194.2 L 1312.5 193.9 L 1316.7 193.7 L 1320.9 193.6 L 1325.1 193.6 L 1329.3 193.7 L 1333.5 193.9 L 1337.7 194.1 L 1341.9 194.3 L 1346.1 194.3 L 1350.3 194.3 L 1354.5 194.2 L 1358.7 194 L 1362.9 193.9 L 1367.1 193.8 L 1371.3 193.7 L 1375.5 193.8 L 1379.7 193.9 L 1383.9 194 L 1388.1 194.1 L 1392.3 194.2 L 1396.5 194.2 L 1400.7 194.1 L 1404.9 194 L 1409.1 194 L 1413.3 193.9 L 1417.5 193.9 L 1421.7 193.9 L 1425.9 193.9 L 1430.1 194 L 1434.3 194 L 1438.5 194 L 1442.7 194 L 1446.9 194 L 1451.2 194 L 1455.4 194 L 1459.6 194" fill="none" stroke="#86909B" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+      <text class="cl" x="1459.6" y="242.3" text-anchor="end" style="fill:#7C858F">ГЕНЕРАЦИЯ</text>
+      <circle cx="1326.4" cy="235.9" r="3" fill="#2D82D7"/>
+      <text class="cl" x="1307.4" y="242.3" text-anchor="end" style="fill:#7C858F">ОБОРОТЫ</text>
+      <path d="M 500.9 384 500.9 365.8 L 508.9 365.8 L 508.9 366.4 L 516.9 366.4 L 516.9 367.3 L 524.9 367.3 L 524.9 367 L 532.9 367 L 532.9 366 L 540.9 366 L 540.9 366 L 548.9 366 L 548.9 368.1 L 556.9 368.1 L 556.9 371.7 L 564.9 371.7 L 564.9 374.5 L 572.9 374.5 L 572.9 387.5 L 580.9 387.5 L 580.9 390.5 L 588.9 390.5 L 588.9 385.9 L 596.9 385.9 L 596.9 370.3 L 604.9 370.3 L 604.9 370.3 L 612.9 370.3 L 612.9 369.5 L 620.9 369.5 L 620.9 367 L 628.9 367 L 628.9 363.5 L 636.9 363.5 L 636.9 361.1 L 644.9 361.1 L 644.9 361.2 L 652.9 361.2 L 652.9 363.8 L 660.9 363.8 L 660.9 366.4 L 668.9 366.4 L 668.9 367.9 L 676.9 367.9 L 676.9 368.2 L 684.9 368.2 L 684.9 369.1 L 692.9 369.1 L 692.9 371.3 L 700.9 371.3 L 700.9 374.5 L 708.9 374.5 L 708.9 376.4 L 716.9 376.4 L 716.9 375.5 L 724.9 375.5 L 724.9 372.5 L 732.9 372.5 L 732.9 369.5 L 740.9 369.5 L 740.9 384 Z" fill="#86909B" opacity="0.3"/>
+      <path d="M 500.9 365.8 L 508.9 365.8 L 508.9 366.4 L 516.9 366.4 L 516.9 367.3 L 524.9 367.3 L 524.9 367 L 532.9 367 L 532.9 366 L 540.9 366 L 540.9 366 L 548.9 366 L 548.9 368.1 L 556.9 368.1 L 556.9 371.7 L 564.9 371.7 L 564.9 374.5 L 572.9 374.5 L 572.9 387.5 L 580.9 387.5 L 580.9 390.5 L 588.9 390.5 L 588.9 385.9 L 596.9 385.9 L 596.9 370.3 L 604.9 370.3 L 604.9 370.3 L 612.9 370.3 L 612.9 369.5 L 620.9 369.5 L 620.9 367 L 628.9 367 L 628.9 363.5 L 636.9 363.5 L 636.9 361.1 L 644.9 361.1 L 644.9 361.2 L 652.9 361.2 L 652.9 363.8 L 660.9 363.8 L 660.9 366.4 L 668.9 366.4 L 668.9 367.9 L 676.9 367.9 L 676.9 368.2 L 684.9 368.2 L 684.9 369.1 L 692.9 369.1 L 692.9 371.3 L 700.9 371.3 L 700.9 374.5 L 708.9 374.5 L 708.9 376.4 L 716.9 376.4 L 716.9 375.5 L 724.9 375.5 L 724.9 372.5 L 732.9 372.5 L 732.9 369.5 L 740.9 369.5" fill="none" stroke="#86909B" stroke-width="2" stroke-linejoin="round"/>
+      <line x1="500.9" y1="384" x2="740.9" y2="384" stroke="#7C858F" stroke-width="1.2"/>
+      <text class="un" x="897.2" y="384" style="fill:#7C858F">кВт·ч/100 км · батарея</text>
+      <text class="fig" x="865.2" y="384" text-anchor="end" style="fill:#86909B">17</text>
+    </svg></div>
+  <div style="position:absolute; left:0; top:3920px; width:1507.6px; height:490px;"><div class="sn" style="padding:16px 0 0 48px;">Стоянка на P · те же 3 км, у цифры появилась десятая</div><svg width="1507.6" height="424" viewBox="0 0 1507.6 424">
+      <defs>
+      <pattern id="hatch" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="10" stroke="rgba(218,225,235,0.07)" stroke-width="1.4"/></pattern>
+      <mask id="topmask"><rect x="0" y="0" width="1507.6" height="160.2" fill="#fff"/><ellipse cx="0" cy="0" rx="361.6" ry="160.2" fill="#000"/><ellipse cx="1507.6" cy="0" rx="301.5" ry="160.2" fill="#000"/></mask>
+      <mask id="botmask"><rect x="0" y="335.7" width="1507.6" height="88.3" fill="#fff"/><ellipse cx="753.8" cy="353.3" rx="353.3" ry="194.3" fill="#000"/></mask>
+      </defs>
+      <rect x="0" y="0" width="1507.6" height="160.2" fill="url(#hatch)" mask="url(#topmask)"/>
+      <rect x="0" y="335.7" width="1507.6" height="88.3" fill="url(#hatch)" mask="url(#botmask)"/>
+      <text class="keep" x="753.8" y="26" text-anchor="middle">ШТАТНЫЕ ПРИБОРЫ</text>
+      <text class="keep" x="48" y="384.5">ШТАТНАЯ ПОЛОСА</text>
+      <defs><radialGradient id="bandglow"><stop offset="0" stop-color="#86909B" stop-opacity="0"/><stop offset="0.5" stop-color="#86909B" stop-opacity="0"/><stop offset="1" stop-color="#86909B" stop-opacity="0"/></radialGradient></defs>
+      <ellipse cx="753.8" cy="286.7" rx="340" ry="49" fill="url(#bandglow)"/>
+      <line x1="48" y1="286.7" x2="1459.6" y2="286.7" stroke="#7C858F" stroke-width="1.2"/>
+      <line x1="753.8" y1="272.7" x2="753.8" y2="300.7" stroke="#7C858F" stroke-width="1.8"/>
+      <defs><linearGradient id="bandfilln" gradientUnits="userSpaceOnUse" x1="753.8" y1="0" x2="802" y2="0"><stop offset="0" stop-color="#86909B" stop-opacity="0.55"/><stop offset="1" stop-color="#86909B" stop-opacity="1"/></linearGradient></defs>
+      <rect x="753.8" y="279.7" width="48.2" height="14" fill="url(#bandfilln)"/>
+      <text class="hero" x="783" y="246.7" text-anchor="end" style="fill:#86909B">1</text>
+      <text class="un34" x="815" y="246.7" style="fill:#86909B">кВт</text>
+      <text class="ttl" x="48" y="24" style="fill:#7C858F">БАТАРЕЯ · В</text>
+      <text class="fig" x="135.7" y="92" text-anchor="end" style="fill:#86909B">561</text>
+      <text class="cl" x="48" y="242.3" style="fill:#7C858F">БАТАРЕЯ</text>
+      <text class="rd" x="86.2" y="208.3" text-anchor="end" style="fill:#86909B">28</text>
+      <text class="rd" x="86.2" y="208.3" style="fill:#86909B">°</text>
+      <text class="cl" x="160" y="242.3" style="fill:#7C858F">МОТОРЫ</text>
+      <text class="rd" x="198.2" y="208.3" text-anchor="end" style="fill:#86909B">31</text>
+      <text class="rd" x="198.2" y="208.3" style="fill:#86909B">°</text>
+      <text class="rd" x="257.1" y="208.3" text-anchor="end" style="fill:#86909B">29</text>
+      <text class="rd" x="257.1" y="208.3" style="fill:#86909B">°</text>
+      <text class="rd" x="316.1" y="208.3" text-anchor="end" style="fill:#86909B">31</text>
+      <text class="rd" x="316.1" y="208.3" style="fill:#86909B">°</text>
+      <text class="cl" x="352" y="242.3" style="fill:#7C858F">ИНВЕРТОР</text>
+      <text class="rd" x="390.2" y="208.3" text-anchor="end" style="fill:#86909B">32</text>
+      <text class="rd" x="390.2" y="208.3" style="fill:#86909B">°</text>
+      <text class="un" x="1459.6" y="208.3" text-anchor="end" style="fill:#7C858F">кВт·ч</text>
+      <text class="cl" x="1383.4" y="242.3" text-anchor="end" style="fill:#7C858F">ОТ ДВС</text>
+      <circle cx="1295.7" cy="235.9" r="3" fill="#2D82D7"/>
+      <text class="rd" x="1383.4" y="208.3" text-anchor="end" style="fill:#7C858F">0,0</text>
+      <text class="cl" x="1271.4" y="242.3" text-anchor="end" style="fill:#7C858F">РЕКУПЕРАЦИЯ</text>
+      <circle cx="1109.8" cy="235.9" r="3" fill="#2D82D7"/>
+      <text class="rd" x="1271.4" y="208.3" text-anchor="end" style="fill:#86909B">3,1</text>
+      <text class="cl" x="1087.4" y="242.3" text-anchor="end" style="fill:#7C858F">ИЗ БАТАРЕИ</text>
+      <text class="rd" x="1087.4" y="208.3" text-anchor="end" style="fill:#86909B">12,4</text>
+      <path d="M 500.9 384 500.9 366.4 L 508.9 366.4 L 508.9 367 L 516.9 367 L 516.9 367.9 L 524.9 367.9 L 524.9 367.6 L 532.9 367.6 L 532.9 366.6 L 540.9 366.6 L 540.9 366.6 L 548.9 366.6 L 548.9 368.6 L 556.9 368.6 L 556.9 372.1 L 564.9 372.1 L 564.9 374.8 L 572.9 374.8 L 572.9 387.4 L 580.9 387.4 L 580.9 390.2 L 588.9 390.2 L 588.9 385.8 L 596.9 385.8 L 596.9 370.8 L 604.9 370.8 L 604.9 370.8 L 612.9 370.8 L 612.9 370.1 L 620.9 370.1 L 620.9 367.6 L 628.9 367.6 L 628.9 364.2 L 636.9 364.2 L 636.9 361.9 L 644.9 361.9 L 644.9 362 L 652.9 362 L 652.9 364.5 L 660.9 364.5 L 660.9 367 L 668.9 367 L 668.9 368.5 L 676.9 368.5 L 676.9 368.7 L 684.9 368.7 L 684.9 369.6 L 692.9 369.6 L 692.9 371.7 L 700.9 371.7 L 700.9 374.8 L 708.9 374.8 L 708.9 376.6 L 716.9 376.6 L 716.9 375.8 L 724.9 375.8 L 724.9 372.9 L 732.9 372.9 L 732.9 370.1 L 740.9 370.1 L 740.9 384 Z" fill="#86909B" opacity="0.3"/>
+      <path d="M 500.9 366.4 L 508.9 366.4 L 508.9 367 L 516.9 367 L 516.9 367.9 L 524.9 367.9 L 524.9 367.6 L 532.9 367.6 L 532.9 366.6 L 540.9 366.6 L 540.9 366.6 L 548.9 366.6 L 548.9 368.6 L 556.9 368.6 L 556.9 372.1 L 564.9 372.1 L 564.9 374.8 L 572.9 374.8 L 572.9 387.4 L 580.9 387.4 L 580.9 390.2 L 588.9 390.2 L 588.9 385.8 L 596.9 385.8 L 596.9 370.8 L 604.9 370.8 L 604.9 370.8 L 612.9 370.8 L 612.9 370.1 L 620.9 370.1 L 620.9 367.6 L 628.9 367.6 L 628.9 364.2 L 636.9 364.2 L 636.9 361.9 L 644.9 361.9 L 644.9 362 L 652.9 362 L 652.9 364.5 L 660.9 364.5 L 660.9 367 L 668.9 367 L 668.9 368.5 L 676.9 368.5 L 676.9 368.7 L 684.9 368.7 L 684.9 369.6 L 692.9 369.6 L 692.9 371.7 L 700.9 371.7 L 700.9 374.8 L 708.9 374.8 L 708.9 376.6 L 716.9 376.6 L 716.9 375.8 L 724.9 375.8 L 724.9 372.9 L 732.9 372.9 L 732.9 370.1 L 740.9 370.1" fill="none" stroke="#86909B" stroke-width="2" stroke-linejoin="round"/>
+      <line x1="500.9" y1="384" x2="740.9" y2="384" stroke="#7C858F" stroke-width="1.2"/>
+      <text class="un" x="897.2" y="384" style="fill:#7C858F">кВт·ч/100 км</text>
+      <text class="fig" x="865.2" y="384" text-anchor="end" style="fill:#DAE1EB">16,8</text>
+    </svg></div>
+  <div style="position:absolute; left:0; top:4410px; width:1507.6px; height:490px;"><div class="sn" style="padding:16px 0 0 48px;">Зарядка от розетки · километров нет, коробка расхода остаётся прежней</div><svg width="1507.6" height="424" viewBox="0 0 1507.6 424">
+      <defs>
+      <pattern id="hatch" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="10" stroke="rgba(218,225,235,0.07)" stroke-width="1.4"/></pattern>
+      <mask id="topmask"><rect x="0" y="0" width="1507.6" height="160.2" fill="#fff"/><ellipse cx="0" cy="0" rx="361.6" ry="160.2" fill="#000"/><ellipse cx="1507.6" cy="0" rx="301.5" ry="160.2" fill="#000"/></mask>
+      <mask id="botmask"><rect x="0" y="335.7" width="1507.6" height="88.3" fill="#fff"/><ellipse cx="753.8" cy="353.3" rx="353.3" ry="194.3" fill="#000"/></mask>
+      </defs>
+      <rect x="0" y="0" width="1507.6" height="160.2" fill="url(#hatch)" mask="url(#topmask)"/>
+      <rect x="0" y="335.7" width="1507.6" height="88.3" fill="url(#hatch)" mask="url(#botmask)"/>
+      <text class="keep" x="753.8" y="26" text-anchor="middle">ШТАТНЫЕ ПРИБОРЫ</text>
+      <text class="keep" x="48" y="384.5">ШТАТНАЯ ПОЛОСА</text>
+      <defs><radialGradient id="bandglow"><stop offset="0" stop-color="#2D82D7" stop-opacity="0"/><stop offset="0.5" stop-color="#2D82D7" stop-opacity="0"/><stop offset="1" stop-color="#2D82D7" stop-opacity="0"/></radialGradient></defs>
+      <ellipse cx="753.8" cy="286.7" rx="340" ry="49" fill="url(#bandglow)"/>
+      <line x1="48" y1="286.7" x2="1459.6" y2="286.7" stroke="#7C858F" stroke-width="1.2"/>
+      <line x1="753.8" y1="272.7" x2="753.8" y2="300.7" stroke="#7C858F" stroke-width="1.8"/>
       <defs><linearGradient id="bandfillr" gradientUnits="userSpaceOnUse" x1="753.8" y1="0" x2="567" y2="0"><stop offset="0" stop-color="#2D82D7" stop-opacity="0.55"/><stop offset="1" stop-color="#4B9BE0" stop-opacity="1"/></linearGradient></defs>
-      <rect x="567" y="291" width="186.7" height="14" fill="url(#bandfillr)" opacity="1"/>
-      <text class="hr" x="816.6" y="258" text-anchor="end" style="fill:#4B9BE0;opacity:1">7</text>
-      <text class="un" x="848.6" y="258" style="fill:#86909B;opacity:1">кВт</text>
-      <text class="ttl" x="48" y="24" style="fill:#7C858F;opacity:1">БАТАРЕЯ · В</text>
-      <text class="fg" x="141.6" y="92" text-anchor="end" style="fill:#DAE1EB;opacity:1">584</text>
-      <text class="ttl" x="1459.6" y="24" text-anchor="end" style="fill:#7C858F;opacity:0.6">ДВС</text>
-      <text class="ttl" x="48" y="180" style="fill:#7C858F;opacity:1">ТЕМПЕРАТУРЫ</text>
-      <text class="cl" x="48" y="282" style="fill:#7C858F;opacity:1">БАТАРЕЯ</text>
-      <text class="rd" x="109.2" y="248" text-anchor="end" style="fill:#DAE1EB;opacity:1">31</text>
-      <text class="un2" x="109.2" y="248" style="fill:#86909B;opacity:1">°</text>
-      <text class="cl" x="152" y="282" style="fill:#7C858F;opacity:1">МОТОРЫ</text>
-      <text class="rd" x="192.8" y="248" text-anchor="end" style="fill:#DAE1EB;opacity:1">24</text>
-      <text class="un2" x="192.8" y="248" style="fill:#86909B;opacity:1">°</text>
-      <text class="rd" x="262" y="248" text-anchor="end" style="fill:#DAE1EB;opacity:1">23</text>
-      <text class="un2" x="262" y="248" style="fill:#86909B;opacity:1">°</text>
-      <text class="rd" x="331.2" y="248" text-anchor="end" style="fill:#DAE1EB;opacity:1">24</text>
-      <text class="un2" x="331.2" y="248" style="fill:#86909B;opacity:1">°</text>
-      <text class="cl" x="368" y="282" style="fill:#7C858F;opacity:1">ИНВЕРТОР</text>
-      <text class="rd" x="429.2" y="248" text-anchor="end" style="fill:#DAE1EB;opacity:1">26</text>
-      <text class="un2" x="429.2" y="248" style="fill:#86909B;opacity:1">°</text>
-      <text class="ttl" x="1459.6" y="180" text-anchor="end" style="fill:#7C858F;opacity:1">ЗА ПОЕЗДКУ · КВТ·Ч</text>
-      <text class="fg" x="1315.6" y="248" text-anchor="end" style="fill:#DAE1EB;opacity:1">12,4</text>
-      <text class="cl" x="1315.6" y="282" text-anchor="end" style="fill:#7C858F;opacity:1">ИЗ БАТАРЕИ</text>
-      <text class="fg" x="1459.6" y="248" text-anchor="end" style="fill:#4B9BE0;opacity:1">3,1</text>
-      <text class="cl" x="1459.6" y="282" text-anchor="end" style="fill:#7C858F;opacity:1">РЕКУПЕРАЦИЯ</text>
-      <text class="fg" x="816.2" y="384" text-anchor="end" style="fill:#DAE1EB;opacity:1">2:15</text>
-      <text class="un" x="848.2" y="384" style="fill:#86909B;opacity:1">до полной</text>
+      <rect x="567" y="279.7" width="186.7" height="14" fill="url(#bandfillr)"/>
+      <text class="hero" x="783" y="246.7" text-anchor="end" style="fill:#4B9BE0">7</text>
+      <text class="un34" x="815" y="246.7" style="fill:#86909B">кВт</text>
+      <text class="ttl" x="48" y="24" style="fill:#7C858F">БАТАРЕЯ · В</text>
+      <text class="fig" x="135.7" y="92" text-anchor="end" style="fill:#86909B">584</text>
+      <text class="cl" x="48" y="242.3" style="fill:#7C858F">БАТАРЕЯ</text>
+      <text class="rd" x="86.2" y="208.3" text-anchor="end" style="fill:#86909B">31</text>
+      <text class="rd" x="86.2" y="208.3" style="fill:#86909B">°</text>
+      <text class="cl" x="160" y="242.3" style="fill:#7C858F">МОТОРЫ</text>
+      <text class="rd" x="198.2" y="208.3" text-anchor="end" style="fill:#86909B">24</text>
+      <text class="rd" x="198.2" y="208.3" style="fill:#86909B">°</text>
+      <text class="rd" x="257.1" y="208.3" text-anchor="end" style="fill:#86909B">23</text>
+      <text class="rd" x="257.1" y="208.3" style="fill:#86909B">°</text>
+      <text class="rd" x="316.1" y="208.3" text-anchor="end" style="fill:#86909B">24</text>
+      <text class="rd" x="316.1" y="208.3" style="fill:#86909B">°</text>
+      <text class="cl" x="352" y="242.3" style="fill:#7C858F">ИНВЕРТОР</text>
+      <text class="rd" x="390.2" y="208.3" text-anchor="end" style="fill:#86909B">26</text>
+      <text class="rd" x="390.2" y="208.3" style="fill:#86909B">°</text>
+      <text class="un" x="1459.6" y="208.3" text-anchor="end" style="fill:#7C858F">кВт·ч</text>
+      <text class="cl" x="1383.4" y="242.3" text-anchor="end" style="fill:#7C858F">ОТ ДВС</text>
+      <circle cx="1295.7" cy="235.9" r="3" fill="#2D82D7"/>
+      <text class="rd" x="1383.4" y="208.3" text-anchor="end" style="fill:#7C858F">0,0</text>
+      <text class="cl" x="1271.4" y="242.3" text-anchor="end" style="fill:#7C858F">РЕКУПЕРАЦИЯ</text>
+      <circle cx="1109.8" cy="235.9" r="3" fill="#2D82D7"/>
+      <text class="rd" x="1271.4" y="208.3" text-anchor="end" style="fill:#86909B">3,1</text>
+      <text class="cl" x="1087.4" y="242.3" text-anchor="end" style="fill:#7C858F">ИЗ БАТАРЕИ</text>
+      <text class="rd" x="1087.4" y="208.3" text-anchor="end" style="fill:#86909B">12,4</text>
+      <path d="M 500.9 384 500.9 366.4 L 508.9 366.4 L 508.9 367 L 516.9 367 L 516.9 367.9 L 524.9 367.9 L 524.9 367.6 L 532.9 367.6 L 532.9 366.6 L 540.9 366.6 L 540.9 366.6 L 548.9 366.6 L 548.9 368.6 L 556.9 368.6 L 556.9 372.1 L 564.9 372.1 L 564.9 374.8 L 572.9 374.8 L 572.9 387.4 L 580.9 387.4 L 580.9 390.2 L 588.9 390.2 L 588.9 385.8 L 596.9 385.8 L 596.9 370.8 L 604.9 370.8 L 604.9 370.8 L 612.9 370.8 L 612.9 370.1 L 620.9 370.1 L 620.9 367.6 L 628.9 367.6 L 628.9 364.2 L 636.9 364.2 L 636.9 361.9 L 644.9 361.9 L 644.9 362 L 652.9 362 L 652.9 364.5 L 660.9 364.5 L 660.9 367 L 668.9 367 L 668.9 368.5 L 676.9 368.5 L 676.9 368.7 L 684.9 368.7 L 684.9 369.6 L 692.9 369.6 L 692.9 371.7 L 700.9 371.7 L 700.9 374.8 L 708.9 374.8 L 708.9 376.6 L 716.9 376.6 L 716.9 375.8 L 724.9 375.8 L 724.9 372.9 L 732.9 372.9 L 732.9 370.1 L 740.9 370.1 L 740.9 384 Z" fill="#86909B" opacity="0.3"/>
+      <path d="M 500.9 366.4 L 508.9 366.4 L 508.9 367 L 516.9 367 L 516.9 367.9 L 524.9 367.9 L 524.9 367.6 L 532.9 367.6 L 532.9 366.6 L 540.9 366.6 L 540.9 366.6 L 548.9 366.6 L 548.9 368.6 L 556.9 368.6 L 556.9 372.1 L 564.9 372.1 L 564.9 374.8 L 572.9 374.8 L 572.9 387.4 L 580.9 387.4 L 580.9 390.2 L 588.9 390.2 L 588.9 385.8 L 596.9 385.8 L 596.9 370.8 L 604.9 370.8 L 604.9 370.8 L 612.9 370.8 L 612.9 370.1 L 620.9 370.1 L 620.9 367.6 L 628.9 367.6 L 628.9 364.2 L 636.9 364.2 L 636.9 361.9 L 644.9 361.9 L 644.9 362 L 652.9 362 L 652.9 364.5 L 660.9 364.5 L 660.9 367 L 668.9 367 L 668.9 368.5 L 676.9 368.5 L 676.9 368.7 L 684.9 368.7 L 684.9 369.6 L 692.9 369.6 L 692.9 371.7 L 700.9 371.7 L 700.9 374.8 L 708.9 374.8 L 708.9 376.6 L 716.9 376.6 L 716.9 375.8 L 724.9 375.8 L 724.9 372.9 L 732.9 372.9 L 732.9 370.1 L 740.9 370.1" fill="none" stroke="#86909B" stroke-width="2" stroke-linejoin="round"/>
+      <line x1="500.9" y1="384" x2="740.9" y2="384" stroke="#7C858F" stroke-width="1.2"/>
+      <text class="un" x="897.2" y="384" style="fill:#7C858F">до полной</text>
+      <text class="fig" x="865.2" y="384" text-anchor="end" style="fill:#DAE1EB">2:15</text>
     </svg></div>
-  <div style="position:absolute; left:0; top:3430px; width:1507.6px; height:490px;"><div class="sn" style="padding:16px 0 0 48px;">Потеря связи · значения замирают, скелет остаётся, текста нет</div><svg width="1507.6" height="424" viewBox="0 0 1507.6 424">
-      <defs>
-      <pattern id="hatch" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="10" stroke="rgba(218,225,235,0.07)" stroke-width="1.4"/></pattern>
-      <mask id="topmask"><rect x="0" y="0" width="1507.6" height="160.2" fill="#fff"/><ellipse cx="0" cy="0" rx="361.6" ry="160.2" fill="#000"/><ellipse cx="1507.6" cy="0" rx="301.5" ry="160.2" fill="#000"/></mask>
-      <mask id="botmask"><rect x="0" y="335.7" width="1507.6" height="88.3" fill="#fff"/><ellipse cx="753.8" cy="353.3" rx="353.3" ry="194.3" fill="#000"/></mask>
-      </defs>
-      <rect x="0" y="0" width="1507.6" height="160.2" fill="url(#hatch)" mask="url(#topmask)"/>
-      <rect x="0" y="335.7" width="1507.6" height="88.3" fill="url(#hatch)" mask="url(#botmask)"/>
-      <text class="keep" x="753.8" y="26" text-anchor="middle">ШТАТНЫЕ ПРИБОРЫ</text>
-      <text class="keep" x="48" y="384.5">ШТАТНАЯ ПОЛОСА</text>
-      <defs><radialGradient id="bandglow"><stop offset="0" stop-color="#DAE1EB" stop-opacity="0"/><stop offset="0.5" stop-color="#DAE1EB" stop-opacity="0"/><stop offset="1" stop-color="#DAE1EB" stop-opacity="0"/></radialGradient></defs>
-      <ellipse cx="991.4" cy="298" rx="340" ry="37.6" fill="url(#bandglow)"/>
-      <line x1="48" y1="298" x2="1459.6" y2="298" stroke="#7C858F" stroke-width="1.2" opacity="1"/>
-      <line x1="753.8" y1="284" x2="753.8" y2="312" stroke="#7C858F" stroke-width="1.8" opacity="1"/>
-      <text class="cap" x="48" y="325.8" style="fill:#7C858F;opacity:1">100 кВт</text>
-      <text class="cap" x="1459.6" y="325.8" text-anchor="end" style="fill:#7C858F;opacity:1">300 кВт</text>
-      <rect x="894.9" y="291" width="194.9" height="14" fill="#DAE1EB" opacity="0.1"/>
-      <defs><linearGradient id="bandfill" gradientUnits="userSpaceOnUse" x1="753.8" y1="0" x2="991.4" y2="0"><stop offset="0" stop-color="#DAE1EB" stop-opacity="0.55"/><stop offset="1" stop-color="#FFF8DA" stop-opacity="1"/></linearGradient></defs>
-      <rect x="753.8" y="291" width="237.6" height="14" fill="url(#bandfill)" opacity="0.5"/>
-      <text class="hr" x="816.6" y="258" text-anchor="end" style="fill:#DAE1EB;opacity:0.5">34</text>
-      <text class="un" x="848.6" y="258" style="fill:#86909B;opacity:0.5">кВт</text>
-      <text class="ttl" x="48" y="24" style="fill:#7C858F;opacity:0.5">БАТАРЕЯ · В</text>
-      <text class="fg" x="141.6" y="92" text-anchor="end" style="fill:#DAE1EB;opacity:0.5">552</text>
-      <text class="cap" x="48" y="126" style="fill:#7C858F;opacity:0.5">просадка 9 В</text>
-      <text class="ttl" x="1459.6" y="24" text-anchor="end" style="fill:#7C858F;opacity:0.2">ДВС</text>
-      <text class="ttl" x="48" y="180" style="fill:#7C858F;opacity:0.5">ТЕМПЕРАТУРЫ</text>
-      <text class="cl" x="48" y="282" style="fill:#7C858F;opacity:0.5">БАТАРЕЯ</text>
-      <text class="rd" x="109.2" y="248" text-anchor="end" style="fill:#DAE1EB;opacity:0.5">28</text>
-      <text class="un2" x="109.2" y="248" style="fill:#86909B;opacity:0.5">°</text>
-      <text class="cl" x="152" y="282" style="fill:#7C858F;opacity:0.5">МОТОРЫ</text>
-      <text class="rd" x="192.8" y="248" text-anchor="end" style="fill:#DAE1EB;opacity:0.5">31</text>
-      <text class="un2" x="192.8" y="248" style="fill:#86909B;opacity:0.5">°</text>
-      <text class="rd" x="262" y="248" text-anchor="end" style="fill:#DAE1EB;opacity:0.5">29</text>
-      <text class="un2" x="262" y="248" style="fill:#86909B;opacity:0.5">°</text>
-      <text class="rd" x="331.2" y="248" text-anchor="end" style="fill:#DAE1EB;opacity:0.5">31</text>
-      <text class="un2" x="331.2" y="248" style="fill:#86909B;opacity:0.5">°</text>
-      <text class="cl" x="368" y="282" style="fill:#7C858F;opacity:0.5">ИНВЕРТОР</text>
-      <text class="rd" x="429.2" y="248" text-anchor="end" style="fill:#DAE1EB;opacity:0.5">32</text>
-      <text class="un2" x="429.2" y="248" style="fill:#86909B;opacity:0.5">°</text>
-      <text class="ttl" x="1459.6" y="180" text-anchor="end" style="fill:#7C858F;opacity:0.5">ЗА ПОЕЗДКУ · КВТ·Ч</text>
-      <text class="fg" x="1315.6" y="248" text-anchor="end" style="fill:#DAE1EB;opacity:0.5">12,4</text>
-      <text class="cl" x="1315.6" y="282" text-anchor="end" style="fill:#7C858F;opacity:0.5">ИЗ БАТАРЕИ</text>
-      <text class="fg" x="1459.6" y="248" text-anchor="end" style="fill:#4B9BE0;opacity:0.5">3,1</text>
-      <text class="cl" x="1459.6" y="282" text-anchor="end" style="fill:#7C858F;opacity:0.5">РЕКУПЕРАЦИЯ</text>
-      <line x1="550" y1="384" x2="667.4" y2="384" stroke="#7C858F" stroke-width="1.2" opacity="0.5"/>
-      <rect x="550.4" y="364.5" width="3.1" height="19.5" fill="#DAE1EB" opacity="0.1"/>
-      <rect x="554.3" y="365.2" width="3.1" height="18.8" fill="#DAE1EB" opacity="0.1"/>
-      <rect x="558.2" y="366.1" width="3.1" height="17.9" fill="#DAE1EB" opacity="0.2"/>
-      <rect x="562.1" y="365.7" width="3.1" height="18.3" fill="#DAE1EB" opacity="0.2"/>
-      <rect x="566" y="364.7" width="3.1" height="19.3" fill="#DAE1EB" opacity="0.2"/>
-      <rect x="570" y="364.7" width="3.1" height="19.3" fill="#DAE1EB" opacity="0.3"/>
-      <rect x="573.9" y="366.9" width="3.1" height="17.1" fill="#DAE1EB" opacity="0.3"/>
-      <rect x="577.8" y="370.8" width="3.1" height="13.2" fill="#DAE1EB" opacity="0.3"/>
-      <rect x="581.7" y="373.7" width="3.1" height="10.3" fill="#DAE1EB" opacity="0.4"/>
-      <rect x="585.6" y="384" width="3.1" height="3.7" fill="#2D82D7" opacity="0.4"/>
-      <rect x="589.5" y="384" width="3.1" height="6.9" fill="#2D82D7" opacity="0.4"/>
-      <rect x="593.4" y="384" width="3.1" height="2" fill="#2D82D7" opacity="0.4"/>
-      <rect x="597.4" y="369.3" width="3.1" height="14.7" fill="#DAE1EB" opacity="0.4"/>
-      <rect x="601.3" y="369.3" width="3.1" height="14.7" fill="#DAE1EB" opacity="0.4"/>
-      <rect x="605.2" y="368.5" width="3.1" height="15.5" fill="#DAE1EB" opacity="0.4"/>
-      <rect x="609.1" y="365.7" width="3.1" height="18.3" fill="#DAE1EB" opacity="0.4"/>
-      <rect x="613" y="362" width="3.1" height="22" fill="#DAE1EB" opacity="0.4"/>
-      <rect x="616.9" y="359.4" width="3.1" height="24.6" fill="#DAE1EB" opacity="0.4"/>
-      <rect x="620.8" y="359.5" width="3.1" height="24.5" fill="#DAE1EB" opacity="0.4"/>
-      <rect x="624.8" y="362.3" width="3.1" height="21.7" fill="#DAE1EB" opacity="0.4"/>
-      <rect x="628.7" y="365.2" width="3.1" height="18.8" fill="#DAE1EB" opacity="0.4"/>
-      <rect x="632.6" y="366.7" width="3.1" height="17.3" fill="#DAE1EB" opacity="0.4"/>
-      <rect x="636.5" y="367" width="3.1" height="17" fill="#DAE1EB" opacity="0.4"/>
-      <rect x="640.4" y="368" width="3.1" height="16" fill="#DAE1EB" opacity="0.4"/>
-      <rect x="644.3" y="370.4" width="3.1" height="13.6" fill="#DAE1EB" opacity="0.4"/>
-      <rect x="648.2" y="373.7" width="3.1" height="10.3" fill="#DAE1EB" opacity="0.4"/>
-      <rect x="652.2" y="375.8" width="3.1" height="8.2" fill="#DAE1EB" opacity="0.4"/>
-      <rect x="656.1" y="374.9" width="3.1" height="9.1" fill="#DAE1EB" opacity="0.4"/>
-      <rect x="660" y="371.7" width="3.1" height="12.3" fill="#DAE1EB" opacity="0.4"/>
-      <rect x="663.9" y="368.5" width="3.1" height="15.5" fill="#DAE1EB" opacity="0.4"/>
-      <line x1="550" y1="367.4" x2="667.4" y2="367.4" stroke="#7C858F" stroke-width="1.2" opacity="0.5" stroke-dasharray="4 4"/>
-      <text class="fg" x="816.2" y="384" text-anchor="end" style="fill:#DAE1EB;opacity:0.5">16,8</text>
-      <text class="un" x="848.2" y="384" style="fill:#86909B;opacity:0.5">кВт·ч/100 км</text>
-    </svg></div>
-  <div style="position:absolute; left:0; top:3920px; width:1507.6px; height:490px;"><div class="sn" style="padding:16px 0 0 48px;">Ночь · падает яркость, оттенки не меняются никогда</div><svg width="1507.6" height="424" viewBox="0 0 1507.6 424">
+  <div style="position:absolute; left:0; top:4900px; width:1507.6px; height:490px;"><div class="sn" style="padding:16px 0 0 48px;">Одиночный null · напряжение снято через 2 с, заголовок «БАТАРЕЯ · В» стоит</div><svg width="1507.6" height="424" viewBox="0 0 1507.6 424">
       <defs>
       <pattern id="hatch" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="10" stroke="rgba(218,225,235,0.07)" stroke-width="1.4"/></pattern>
       <mask id="topmask"><rect x="0" y="0" width="1507.6" height="160.2" fill="#fff"/><ellipse cx="0" cy="0" rx="361.6" ry="160.2" fill="#000"/><ellipse cx="1507.6" cy="0" rx="301.5" ry="160.2" fill="#000"/></mask>
@@ -602,76 +516,44 @@
       <text class="keep" x="753.8" y="26" text-anchor="middle">ШТАТНЫЕ ПРИБОРЫ</text>
       <text class="keep" x="48" y="384.5">ШТАТНАЯ ПОЛОСА</text>
       <defs><radialGradient id="bandglow"><stop offset="0" stop-color="#DAE1EB" stop-opacity="0.1"/><stop offset="0.5" stop-color="#DAE1EB" stop-opacity="0"/><stop offset="1" stop-color="#DAE1EB" stop-opacity="0"/></radialGradient></defs>
-      <ellipse cx="991.4" cy="298" rx="340" ry="37.6" fill="url(#bandglow)"/>
-      <line x1="48" y1="298" x2="1459.6" y2="298" stroke="#7C858F" stroke-width="1.2" opacity="0.8"/>
-      <line x1="753.8" y1="284" x2="753.8" y2="312" stroke="#7C858F" stroke-width="1.8" opacity="0.8"/>
-      <text class="cap" x="48" y="325.8" style="fill:#7C858F;opacity:0.8">100 кВт</text>
-      <text class="cap" x="1459.6" y="325.8" text-anchor="end" style="fill:#7C858F;opacity:0.8">300 кВт</text>
-      <rect x="894.9" y="291" width="194.9" height="14" fill="#DAE1EB" opacity="0.1"/>
+      <ellipse cx="753.8" cy="286.7" rx="340" ry="49" fill="url(#bandglow)"/>
+      <line x1="48" y1="286.7" x2="1459.6" y2="286.7" stroke="#7C858F" stroke-width="1.2"/>
+      <line x1="753.8" y1="272.7" x2="753.8" y2="300.7" stroke="#7C858F" stroke-width="1.8"/>
       <defs><linearGradient id="bandfill" gradientUnits="userSpaceOnUse" x1="753.8" y1="0" x2="991.4" y2="0"><stop offset="0" stop-color="#DAE1EB" stop-opacity="0.55"/><stop offset="1" stop-color="#FFF8DA" stop-opacity="1"/></linearGradient></defs>
-      <rect x="753.8" y="291" width="237.6" height="14" fill="url(#bandfill)" opacity="1"/>
-      <line x1="1089.8" y1="288" x2="1089.8" y2="308" stroke="#FFF8DA" stroke-width="3" opacity="1"/>
-      <text class="hr" x="816.6" y="258" text-anchor="end" style="fill:#DAE1EB;opacity:1">34</text>
-      <text class="un" x="848.6" y="258" style="fill:#86909B;opacity:1">кВт</text>
-      <text class="ttl" x="48" y="24" style="fill:#7C858F;opacity:0.8">БАТАРЕЯ · В</text>
-      <text class="fg" x="141.6" y="92" text-anchor="end" style="fill:#DAE1EB;opacity:0.8">552</text>
-      <text class="cap" x="48" y="126" style="fill:#7C858F;opacity:0.8">просадка 9 В</text>
-      <text class="ttl" x="1459.6" y="24" text-anchor="end" style="fill:#7C858F;opacity:0.5">ДВС</text>
-      <text class="ttl" x="48" y="180" style="fill:#7C858F;opacity:0.8">ТЕМПЕРАТУРЫ</text>
-      <text class="cl" x="48" y="282" style="fill:#7C858F;opacity:0.8">БАТАРЕЯ</text>
-      <text class="rd" x="109.2" y="248" text-anchor="end" style="fill:#DAE1EB;opacity:0.8">28</text>
-      <text class="un2" x="109.2" y="248" style="fill:#86909B;opacity:0.8">°</text>
-      <text class="cl" x="152" y="282" style="fill:#7C858F;opacity:0.8">МОТОРЫ</text>
-      <text class="rd" x="192.8" y="248" text-anchor="end" style="fill:#DAE1EB;opacity:0.8">31</text>
-      <text class="un2" x="192.8" y="248" style="fill:#86909B;opacity:0.8">°</text>
-      <text class="rd" x="262" y="248" text-anchor="end" style="fill:#DAE1EB;opacity:0.8">29</text>
-      <text class="un2" x="262" y="248" style="fill:#86909B;opacity:0.8">°</text>
-      <text class="rd" x="331.2" y="248" text-anchor="end" style="fill:#DAE1EB;opacity:0.8">31</text>
-      <text class="un2" x="331.2" y="248" style="fill:#86909B;opacity:0.8">°</text>
-      <text class="cl" x="368" y="282" style="fill:#7C858F;opacity:0.8">ИНВЕРТОР</text>
-      <text class="rd" x="429.2" y="248" text-anchor="end" style="fill:#DAE1EB;opacity:0.8">32</text>
-      <text class="un2" x="429.2" y="248" style="fill:#86909B;opacity:0.8">°</text>
-      <text class="ttl" x="1459.6" y="180" text-anchor="end" style="fill:#7C858F;opacity:0.8">ЗА ПОЕЗДКУ · КВТ·Ч</text>
-      <text class="fg" x="1315.6" y="248" text-anchor="end" style="fill:#DAE1EB;opacity:0.8">12,4</text>
-      <text class="cl" x="1315.6" y="282" text-anchor="end" style="fill:#7C858F;opacity:0.8">ИЗ БАТАРЕИ</text>
-      <text class="fg" x="1459.6" y="248" text-anchor="end" style="fill:#4B9BE0;opacity:0.8">3,1</text>
-      <text class="cl" x="1459.6" y="282" text-anchor="end" style="fill:#7C858F;opacity:0.8">РЕКУПЕРАЦИЯ</text>
-      <line x1="550" y1="384" x2="667.4" y2="384" stroke="#7C858F" stroke-width="1.2" opacity="0.8"/>
-      <rect x="550.4" y="364.5" width="3.1" height="19.5" fill="#DAE1EB" opacity="0.2"/>
-      <rect x="554.3" y="365.2" width="3.1" height="18.8" fill="#DAE1EB" opacity="0.2"/>
-      <rect x="558.2" y="366.1" width="3.1" height="17.9" fill="#DAE1EB" opacity="0.3"/>
-      <rect x="562.1" y="365.7" width="3.1" height="18.3" fill="#DAE1EB" opacity="0.4"/>
-      <rect x="566" y="364.7" width="3.1" height="19.3" fill="#DAE1EB" opacity="0.4"/>
-      <rect x="570" y="364.7" width="3.1" height="19.3" fill="#DAE1EB" opacity="0.5"/>
-      <rect x="573.9" y="366.9" width="3.1" height="17.1" fill="#DAE1EB" opacity="0.6"/>
-      <rect x="577.8" y="370.8" width="3.1" height="13.2" fill="#DAE1EB" opacity="0.6"/>
-      <rect x="581.7" y="373.7" width="3.1" height="10.3" fill="#DAE1EB" opacity="0.7"/>
-      <rect x="585.6" y="384" width="3.1" height="3.7" fill="#2D82D7" opacity="0.7"/>
-      <rect x="589.5" y="384" width="3.1" height="6.9" fill="#2D82D7" opacity="0.7"/>
-      <rect x="593.4" y="384" width="3.1" height="2" fill="#2D82D7" opacity="0.7"/>
-      <rect x="597.4" y="369.3" width="3.1" height="14.7" fill="#DAE1EB" opacity="0.7"/>
-      <rect x="601.3" y="369.3" width="3.1" height="14.7" fill="#DAE1EB" opacity="0.7"/>
-      <rect x="605.2" y="368.5" width="3.1" height="15.5" fill="#DAE1EB" opacity="0.7"/>
-      <rect x="609.1" y="365.7" width="3.1" height="18.3" fill="#DAE1EB" opacity="0.7"/>
-      <rect x="613" y="362" width="3.1" height="22" fill="#DAE1EB" opacity="0.7"/>
-      <rect x="616.9" y="359.4" width="3.1" height="24.6" fill="#DAE1EB" opacity="0.7"/>
-      <rect x="620.8" y="359.5" width="3.1" height="24.5" fill="#DAE1EB" opacity="0.7"/>
-      <rect x="624.8" y="362.3" width="3.1" height="21.7" fill="#DAE1EB" opacity="0.7"/>
-      <rect x="628.7" y="365.2" width="3.1" height="18.8" fill="#DAE1EB" opacity="0.7"/>
-      <rect x="632.6" y="366.7" width="3.1" height="17.3" fill="#DAE1EB" opacity="0.7"/>
-      <rect x="636.5" y="367" width="3.1" height="17" fill="#DAE1EB" opacity="0.7"/>
-      <rect x="640.4" y="368" width="3.1" height="16" fill="#DAE1EB" opacity="0.7"/>
-      <rect x="644.3" y="370.4" width="3.1" height="13.6" fill="#DAE1EB" opacity="0.7"/>
-      <rect x="648.2" y="373.7" width="3.1" height="10.3" fill="#DAE1EB" opacity="0.7"/>
-      <rect x="652.2" y="375.8" width="3.1" height="8.2" fill="#DAE1EB" opacity="0.7"/>
-      <rect x="656.1" y="374.9" width="3.1" height="9.1" fill="#DAE1EB" opacity="0.7"/>
-      <rect x="660" y="371.7" width="3.1" height="12.3" fill="#DAE1EB" opacity="0.7"/>
-      <rect x="663.9" y="368.5" width="3.1" height="15.5" fill="#DAE1EB" opacity="0.7"/>
-      <line x1="550" y1="367.4" x2="667.4" y2="367.4" stroke="#7C858F" stroke-width="1.2" opacity="0.8" stroke-dasharray="4 4"/>
-      <text class="fg" x="816.2" y="384" text-anchor="end" style="fill:#DAE1EB;opacity:0.8">16,8</text>
-      <text class="un" x="848.2" y="384" style="fill:#86909B;opacity:0.8">кВт·ч/100 км</text>
+      <rect x="753.8" y="279.7" width="237.6" height="14" fill="url(#bandfill)"/>
+      <line x1="1089.8" y1="276.7" x2="1089.8" y2="296.7" stroke="#FFF8DA" stroke-width="3" opacity="0.8"/>
+      <text class="hero" x="783" y="246.7" text-anchor="end" style="fill:#DAE1EB">34</text>
+      <text class="un34" x="815" y="246.7" style="fill:#86909B">кВт</text>
+      <text class="ttl" x="48" y="24" style="fill:#7C858F">БАТАРЕЯ · В</text>
+      <text class="cl" x="48" y="242.3" style="fill:#7C858F">БАТАРЕЯ</text>
+      <text class="rd" x="86.2" y="208.3" text-anchor="end" style="fill:#86909B">28</text>
+      <text class="rd" x="86.2" y="208.3" style="fill:#86909B">°</text>
+      <text class="cl" x="160" y="242.3" style="fill:#7C858F">МОТОРЫ</text>
+      <text class="rd" x="198.2" y="208.3" text-anchor="end" style="fill:#86909B">31</text>
+      <text class="rd" x="198.2" y="208.3" style="fill:#86909B">°</text>
+      <text class="rd" x="257.1" y="208.3" text-anchor="end" style="fill:#86909B">29</text>
+      <text class="rd" x="257.1" y="208.3" style="fill:#86909B">°</text>
+      <text class="rd" x="316.1" y="208.3" text-anchor="end" style="fill:#86909B">31</text>
+      <text class="rd" x="316.1" y="208.3" style="fill:#86909B">°</text>
+      <text class="cl" x="352" y="242.3" style="fill:#7C858F">ИНВЕРТОР</text>
+      <text class="rd" x="390.2" y="208.3" text-anchor="end" style="fill:#86909B">32</text>
+      <text class="rd" x="390.2" y="208.3" style="fill:#86909B">°</text>
+      <text class="un" x="1459.6" y="208.3" text-anchor="end" style="fill:#7C858F">кВт·ч</text>
+      <text class="cl" x="1383.4" y="242.3" text-anchor="end" style="fill:#7C858F">ОТ ДВС</text>
+      <circle cx="1295.7" cy="235.9" r="3" fill="#2D82D7"/>
+      <text class="rd" x="1383.4" y="208.3" text-anchor="end" style="fill:#7C858F">0,0</text>
+      <text class="cl" x="1271.4" y="242.3" text-anchor="end" style="fill:#7C858F">РЕКУПЕРАЦИЯ</text>
+      <circle cx="1109.8" cy="235.9" r="3" fill="#2D82D7"/>
+      <text class="rd" x="1271.4" y="208.3" text-anchor="end" style="fill:#86909B">3,1</text>
+      <text class="cl" x="1087.4" y="242.3" text-anchor="end" style="fill:#7C858F">ИЗ БАТАРЕИ</text>
+      <text class="rd" x="1087.4" y="208.3" text-anchor="end" style="fill:#86909B">12,4</text>
+      <path d="M 500.9 384 500.9 366.4 L 508.9 366.4 L 508.9 367 L 516.9 367 L 516.9 367.9 L 524.9 367.9 L 524.9 367.6 L 532.9 367.6 L 532.9 366.6 L 540.9 366.6 L 540.9 366.6 L 548.9 366.6 L 548.9 368.6 L 556.9 368.6 L 556.9 372.1 L 564.9 372.1 L 564.9 374.8 L 572.9 374.8 L 572.9 387.4 L 580.9 387.4 L 580.9 390.2 L 588.9 390.2 L 588.9 385.8 L 596.9 385.8 L 596.9 370.8 L 604.9 370.8 L 604.9 370.8 L 612.9 370.8 L 612.9 370.1 L 620.9 370.1 L 620.9 367.6 L 628.9 367.6 L 628.9 364.2 L 636.9 364.2 L 636.9 361.9 L 644.9 361.9 L 644.9 362 L 652.9 362 L 652.9 364.5 L 660.9 364.5 L 660.9 367 L 668.9 367 L 668.9 368.5 L 676.9 368.5 L 676.9 368.7 L 684.9 368.7 L 684.9 369.6 L 692.9 369.6 L 692.9 371.7 L 700.9 371.7 L 700.9 374.8 L 708.9 374.8 L 708.9 376.6 L 716.9 376.6 L 716.9 375.8 L 724.9 375.8 L 724.9 372.9 L 732.9 372.9 L 732.9 370.1 L 740.9 370.1 L 740.9 384 Z" fill="#86909B" opacity="0.3"/>
+      <path d="M 500.9 366.4 L 508.9 366.4 L 508.9 367 L 516.9 367 L 516.9 367.9 L 524.9 367.9 L 524.9 367.6 L 532.9 367.6 L 532.9 366.6 L 540.9 366.6 L 540.9 366.6 L 548.9 366.6 L 548.9 368.6 L 556.9 368.6 L 556.9 372.1 L 564.9 372.1 L 564.9 374.8 L 572.9 374.8 L 572.9 387.4 L 580.9 387.4 L 580.9 390.2 L 588.9 390.2 L 588.9 385.8 L 596.9 385.8 L 596.9 370.8 L 604.9 370.8 L 604.9 370.8 L 612.9 370.8 L 612.9 370.1 L 620.9 370.1 L 620.9 367.6 L 628.9 367.6 L 628.9 364.2 L 636.9 364.2 L 636.9 361.9 L 644.9 361.9 L 644.9 362 L 652.9 362 L 652.9 364.5 L 660.9 364.5 L 660.9 367 L 668.9 367 L 668.9 368.5 L 676.9 368.5 L 676.9 368.7 L 684.9 368.7 L 684.9 369.6 L 692.9 369.6 L 692.9 371.7 L 700.9 371.7 L 700.9 374.8 L 708.9 374.8 L 708.9 376.6 L 716.9 376.6 L 716.9 375.8 L 724.9 375.8 L 724.9 372.9 L 732.9 372.9 L 732.9 370.1 L 740.9 370.1" fill="none" stroke="#86909B" stroke-width="2" stroke-linejoin="round"/>
+      <line x1="500.9" y1="384" x2="740.9" y2="384" stroke="#7C858F" stroke-width="1.2"/>
+      <text class="un" x="897.2" y="384" style="fill:#7C858F">кВт·ч/100 км</text>
+      <text class="fig" x="865.2" y="384" text-anchor="end" style="fill:#DAE1EB">17</text>
     </svg></div>
-  <div style="position:absolute; left:0; top:4410px; width:1507.6px; height:490px;"><div class="sn" style="padding:16px 0 0 48px;">Исключение · это сама цифра, сменившая цвет, плюс четвёртая ячейка</div><svg width="1507.6" height="424" viewBox="0 0 1507.6 424">
+  <div style="position:absolute; left:0; top:5390px; width:1507.6px; height:490px;"><div class="sn" style="padding:16px 0 0 48px;">Потеря связи · через 2 с сняты все значения; подписи остались и не потускнели</div><svg width="1507.6" height="424" viewBox="0 0 1507.6 424">
       <defs>
       <pattern id="hatch" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="10" stroke="rgba(218,225,235,0.07)" stroke-width="1.4"/></pattern>
       <mask id="topmask"><rect x="0" y="0" width="1507.6" height="160.2" fill="#fff"/><ellipse cx="0" cy="0" rx="361.6" ry="160.2" fill="#000"/><ellipse cx="1507.6" cy="0" rx="301.5" ry="160.2" fill="#000"/></mask>
@@ -681,80 +563,22 @@
       <rect x="0" y="335.7" width="1507.6" height="88.3" fill="url(#hatch)" mask="url(#botmask)"/>
       <text class="keep" x="753.8" y="26" text-anchor="middle">ШТАТНЫЕ ПРИБОРЫ</text>
       <text class="keep" x="48" y="384.5">ШТАТНАЯ ПОЛОСА</text>
-      <defs><radialGradient id="bandglow"><stop offset="0" stop-color="#DAE1EB" stop-opacity="0.2"/><stop offset="0.5" stop-color="#DAE1EB" stop-opacity="0.1"/><stop offset="1" stop-color="#DAE1EB" stop-opacity="0"/></radialGradient></defs>
-      <ellipse cx="991.4" cy="298" rx="340" ry="37.6" fill="url(#bandglow)"/>
-      <line x1="48" y1="298" x2="1459.6" y2="298" stroke="#7C858F" stroke-width="1.2" opacity="1"/>
-      <line x1="753.8" y1="284" x2="753.8" y2="312" stroke="#7C858F" stroke-width="1.8" opacity="1"/>
-      <text class="cap" x="48" y="325.8" style="fill:#7C858F;opacity:1">100 кВт</text>
-      <text class="cap" x="1459.6" y="325.8" text-anchor="end" style="fill:#7C858F;opacity:1">300 кВт</text>
-      <rect x="894.9" y="291" width="194.9" height="14" fill="#DAE1EB" opacity="0.1"/>
-      <defs><linearGradient id="bandfill" gradientUnits="userSpaceOnUse" x1="753.8" y1="0" x2="991.4" y2="0"><stop offset="0" stop-color="#DAE1EB" stop-opacity="0.55"/><stop offset="1" stop-color="#FFF8DA" stop-opacity="1"/></linearGradient></defs>
-      <rect x="753.8" y="291" width="237.6" height="14" fill="url(#bandfill)" opacity="1"/>
-      <line x1="1089.8" y1="288" x2="1089.8" y2="308" stroke="#FFF8DA" stroke-width="3" opacity="1"/>
-      <text class="hr" x="816.6" y="258" text-anchor="end" style="fill:#DAE1EB;opacity:1">34</text>
-      <text class="un" x="848.6" y="258" style="fill:#86909B;opacity:1">кВт</text>
-      <text class="ttl" x="48" y="24" style="fill:#7C858F;opacity:1">БАТАРЕЯ · В</text>
-      <text class="fg" x="141.6" y="92" text-anchor="end" style="fill:#DAE1EB;opacity:1">552</text>
-      <text class="cap" x="48" y="126" style="fill:#7C858F;opacity:1">просадка 9 В</text>
-      <text class="ttl" x="1459.6" y="24" text-anchor="end" style="fill:#7C858F;opacity:0.6">ДВС</text>
-      <text class="ttl" x="48" y="180" style="fill:#7C858F;opacity:1">ТЕМПЕРАТУРЫ</text>
-      <text class="cl" x="48" y="282" style="fill:#7C858F;opacity:1">БАТАРЕЯ</text>
-      <text class="rd" x="109.2" y="248" text-anchor="end" style="fill:#DAE1EB;opacity:1">33</text>
-      <text class="un2" x="109.2" y="248" style="fill:#86909B;opacity:1">°</text>
-      <text class="cl" x="152" y="282" style="fill:#7C858F;opacity:1">МОТОРЫ</text>
-      <text class="rd" x="192.8" y="248" text-anchor="end" style="fill:#DAE1EB;opacity:1">61</text>
-      <text class="un2" x="192.8" y="248" style="fill:#86909B;opacity:1">°</text>
-      <text class="rd" x="262" y="248" text-anchor="end" style="fill:#FF9F19;opacity:1">68</text>
-      <text class="un2" x="262" y="248" style="fill:#86909B;opacity:1">°</text>
-      <text class="rd" x="331.2" y="248" text-anchor="end" style="fill:#DAE1EB;opacity:1">64</text>
-      <text class="un2" x="331.2" y="248" style="fill:#86909B;opacity:1">°</text>
-      <text class="cl" x="368" y="282" style="fill:#7C858F;opacity:1">ИНВЕРТОР</text>
-      <text class="rd" x="429.2" y="248" text-anchor="end" style="fill:#FF4046;opacity:1">92</text>
-      <text class="un2" x="429.2" y="248" style="fill:#86909B;opacity:1">°</text>
-      <text class="cl" x="480" y="282" style="fill:#7C858F;opacity:1">РАЗБРОС</text>
-      <text class="rd" x="541.2" y="248" text-anchor="end" style="fill:#FF4046;opacity:1">44</text>
-      <text class="un2" x="549.2" y="248" style="fill:#86909B;opacity:1">мВ</text>
-      <text class="ttl" x="1459.6" y="180" text-anchor="end" style="fill:#7C858F;opacity:1">ЗА ПОЕЗДКУ · КВТ·Ч</text>
-      <text class="fg" x="1315.6" y="248" text-anchor="end" style="fill:#DAE1EB;opacity:1">12,4</text>
-      <text class="cl" x="1315.6" y="282" text-anchor="end" style="fill:#7C858F;opacity:1">ИЗ БАТАРЕИ</text>
-      <text class="fg" x="1459.6" y="248" text-anchor="end" style="fill:#4B9BE0;opacity:1">3,1</text>
-      <text class="cl" x="1459.6" y="282" text-anchor="end" style="fill:#7C858F;opacity:1">РЕКУПЕРАЦИЯ</text>
-      <line x1="550" y1="384" x2="667.4" y2="384" stroke="#7C858F" stroke-width="1.2" opacity="1"/>
-      <rect x="550.4" y="364.5" width="3.1" height="19.5" fill="#DAE1EB" opacity="0.2"/>
-      <rect x="554.3" y="365.2" width="3.1" height="18.8" fill="#DAE1EB" opacity="0.3"/>
-      <rect x="558.2" y="366.1" width="3.1" height="17.9" fill="#DAE1EB" opacity="0.4"/>
-      <rect x="562.1" y="365.7" width="3.1" height="18.3" fill="#DAE1EB" opacity="0.4"/>
-      <rect x="566" y="364.7" width="3.1" height="19.3" fill="#DAE1EB" opacity="0.5"/>
-      <rect x="570" y="364.7" width="3.1" height="19.3" fill="#DAE1EB" opacity="0.6"/>
-      <rect x="573.9" y="366.9" width="3.1" height="17.1" fill="#DAE1EB" opacity="0.7"/>
-      <rect x="577.8" y="370.8" width="3.1" height="13.2" fill="#DAE1EB" opacity="0.7"/>
-      <rect x="581.7" y="373.7" width="3.1" height="10.3" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="585.6" y="384" width="3.1" height="3.7" fill="#2D82D7" opacity="0.8"/>
-      <rect x="589.5" y="384" width="3.1" height="6.9" fill="#2D82D7" opacity="0.8"/>
-      <rect x="593.4" y="384" width="3.1" height="2" fill="#2D82D7" opacity="0.8"/>
-      <rect x="597.4" y="369.3" width="3.1" height="14.7" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="601.3" y="369.3" width="3.1" height="14.7" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="605.2" y="368.5" width="3.1" height="15.5" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="609.1" y="365.7" width="3.1" height="18.3" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="613" y="362" width="3.1" height="22" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="616.9" y="359.4" width="3.1" height="24.6" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="620.8" y="359.5" width="3.1" height="24.5" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="624.8" y="362.3" width="3.1" height="21.7" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="628.7" y="365.2" width="3.1" height="18.8" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="632.6" y="366.7" width="3.1" height="17.3" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="636.5" y="367" width="3.1" height="17" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="640.4" y="368" width="3.1" height="16" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="644.3" y="370.4" width="3.1" height="13.6" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="648.2" y="373.7" width="3.1" height="10.3" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="652.2" y="375.8" width="3.1" height="8.2" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="656.1" y="374.9" width="3.1" height="9.1" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="660" y="371.7" width="3.1" height="12.3" fill="#DAE1EB" opacity="0.8"/>
-      <rect x="663.9" y="368.5" width="3.1" height="15.5" fill="#DAE1EB" opacity="0.8"/>
-      <line x1="550" y1="367.4" x2="667.4" y2="367.4" stroke="#7C858F" stroke-width="1.2" opacity="1" stroke-dasharray="4 4"/>
-      <text class="fg" x="816.2" y="384" text-anchor="end" style="fill:#DAE1EB;opacity:1">16,8</text>
-      <text class="un" x="848.2" y="384" style="fill:#86909B;opacity:1">кВт·ч/100 км</text>
+      <line x1="48" y1="286.7" x2="1459.6" y2="286.7" stroke="#7C858F" stroke-width="1.2"/>
+      <line x1="753.8" y1="272.7" x2="753.8" y2="300.7" stroke="#7C858F" stroke-width="1.8"/>
+      <text class="un34" x="815" y="246.7" style="fill:#86909B">кВт</text>
+      <text class="ttl" x="48" y="24" style="fill:#7C858F">БАТАРЕЯ · В</text>
+      <text class="cl" x="48" y="242.3" style="fill:#7C858F">БАТАРЕЯ</text>
+      <text class="cl" x="160" y="242.3" style="fill:#7C858F">МОТОРЫ</text>
+      <text class="cl" x="352" y="242.3" style="fill:#7C858F">ИНВЕРТОР</text>
+      <text class="un" x="1459.6" y="208.3" text-anchor="end" style="fill:#7C858F">кВт·ч</text>
+      <text class="cl" x="1383.4" y="242.3" text-anchor="end" style="fill:#7C858F">ОТ ДВС</text>
+      <circle cx="1295.7" cy="235.9" r="3" fill="#2D82D7"/>
+      <text class="cl" x="1271.4" y="242.3" text-anchor="end" style="fill:#7C858F">РЕКУПЕРАЦИЯ</text>
+      <circle cx="1109.8" cy="235.9" r="3" fill="#2D82D7"/>
+      <text class="cl" x="1087.4" y="242.3" text-anchor="end" style="fill:#7C858F">ИЗ БАТАРЕИ</text>
+      <text class="un" x="897.2" y="384" style="fill:#7C858F">кВт·ч/100 км</text>
     </svg></div>
-  <div style="position:absolute; left:0; top:4900px; width:1507.6px; height:490px;"><div class="sn" style="padding:16px 0 0 48px;">Нет ADB-ключа · указание, что сделать — не сообщение об ошибке</div><svg width="1507.6" height="424" viewBox="0 0 1507.6 424">
+  <div style="position:absolute; left:0; top:5880px; width:1507.6px; height:490px;"><div class="sn" style="padding:16px 0 0 48px;">Исключение · моторы 68° оранжевым, инвертор 92° красным, четвёртая ячейка</div><svg width="1507.6" height="424" viewBox="0 0 1507.6 424">
       <defs>
       <pattern id="hatch" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="10" stroke="rgba(218,225,235,0.07)" stroke-width="1.4"/></pattern>
       <mask id="topmask"><rect x="0" y="0" width="1507.6" height="160.2" fill="#fff"/><ellipse cx="0" cy="0" rx="361.6" ry="160.2" fill="#000"/><ellipse cx="1507.6" cy="0" rx="301.5" ry="160.2" fill="#000"/></mask>
@@ -764,19 +588,65 @@
       <rect x="0" y="335.7" width="1507.6" height="88.3" fill="url(#hatch)" mask="url(#botmask)"/>
       <text class="keep" x="753.8" y="26" text-anchor="middle">ШТАТНЫЕ ПРИБОРЫ</text>
       <text class="keep" x="48" y="384.5">ШТАТНАЯ ПОЛОСА</text>
-      <line x1="48" y1="298" x2="1459.6" y2="298" stroke="#7C858F" stroke-width="1.2" opacity="1"/>
-      <line x1="753.8" y1="284" x2="753.8" y2="312" stroke="#7C858F" stroke-width="1.8" opacity="1"/>
-      <text class="cap" x="48" y="325.8" style="fill:#7C858F;opacity:1">100 кВт</text>
-      <text class="cap" x="1459.6" y="325.8" text-anchor="end" style="fill:#7C858F;opacity:1">300 кВт</text>
-      <text class="ttl" x="48" y="24" style="fill:#7C858F;opacity:1">БАТАРЕЯ</text>
-      <text class="ttl" x="1459.6" y="24" text-anchor="end" style="fill:#7C858F;opacity:0.6">ДВС</text>
-      <text class="ttl" x="48" y="180" style="fill:#7C858F;opacity:1">ТЕМПЕРАТУРЫ</text>
-      <text class="ttl" x="1459.6" y="180" text-anchor="end" style="fill:#7C858F;opacity:1">ЗА ПОЕЗДКУ · КВТ·Ч</text>
-      <text class="cap" x="753.8" y="384" text-anchor="middle" style="fill:#86909B;opacity:1">ADB-ключ не подтверждён · Помощь → Диагностика</text>
+      <defs><radialGradient id="bandglow"><stop offset="0" stop-color="#DAE1EB" stop-opacity="0.1"/><stop offset="0.5" stop-color="#DAE1EB" stop-opacity="0"/><stop offset="1" stop-color="#DAE1EB" stop-opacity="0"/></radialGradient></defs>
+      <ellipse cx="753.8" cy="286.7" rx="340" ry="49" fill="url(#bandglow)"/>
+      <line x1="48" y1="286.7" x2="1459.6" y2="286.7" stroke="#7C858F" stroke-width="1.2"/>
+      <line x1="753.8" y1="272.7" x2="753.8" y2="300.7" stroke="#7C858F" stroke-width="1.8"/>
+      <defs><linearGradient id="bandfill" gradientUnits="userSpaceOnUse" x1="753.8" y1="0" x2="991.4" y2="0"><stop offset="0" stop-color="#DAE1EB" stop-opacity="0.55"/><stop offset="1" stop-color="#FFF8DA" stop-opacity="1"/></linearGradient></defs>
+      <rect x="753.8" y="279.7" width="237.6" height="14" fill="url(#bandfill)"/>
+      <line x1="1089.8" y1="276.7" x2="1089.8" y2="296.7" stroke="#FFF8DA" stroke-width="3" opacity="0.8"/>
+      <text class="hero" x="783" y="246.7" text-anchor="end" style="fill:#DAE1EB">34</text>
+      <text class="un34" x="815" y="246.7" style="fill:#86909B">кВт</text>
+      <text class="ttl" x="48" y="24" style="fill:#7C858F">БАТАРЕЯ · В</text>
+      <text class="fig" x="135.7" y="92" text-anchor="end" style="fill:#86909B">552</text>
+      <text class="cl" x="48" y="242.3" style="fill:#7C858F">БАТАРЕЯ</text>
+      <text class="rd" x="86.2" y="208.3" text-anchor="end" style="fill:#86909B">33</text>
+      <text class="rd" x="86.2" y="208.3" style="fill:#86909B">°</text>
+      <text class="cl" x="160" y="242.3" style="fill:#7C858F">МОТОРЫ</text>
+      <text class="rd" x="198.2" y="208.3" text-anchor="end" style="fill:#86909B">61</text>
+      <text class="rd" x="198.2" y="208.3" style="fill:#86909B">°</text>
+      <text class="rd" x="257.1" y="208.3" text-anchor="end" style="fill:#FF9F19">68</text>
+      <text class="rd" x="257.1" y="208.3" style="fill:#86909B">°</text>
+      <text class="rd" x="316.1" y="208.3" text-anchor="end" style="fill:#86909B">64</text>
+      <text class="rd" x="316.1" y="208.3" style="fill:#86909B">°</text>
+      <text class="cl" x="352" y="242.3" style="fill:#7C858F">ИНВЕРТОР</text>
+      <text class="rd" x="390.2" y="208.3" text-anchor="end" style="fill:#FF4046">92</text>
+      <text class="rd" x="390.2" y="208.3" style="fill:#86909B">°</text>
+      <text class="cl" x="480" y="242.3" style="fill:#7C858F">РАЗБРОС</text>
+      <text class="rd" x="518.2" y="208.3" text-anchor="end" style="fill:#FF4046">44</text>
+      <text class="rd" x="526.2" y="208.3" style="fill:#86909B">мВ</text>
+      <text class="un" x="1459.6" y="208.3" text-anchor="end" style="fill:#7C858F">кВт·ч</text>
+      <text class="cl" x="1383.4" y="242.3" text-anchor="end" style="fill:#7C858F">ОТ ДВС</text>
+      <circle cx="1295.7" cy="235.9" r="3" fill="#2D82D7"/>
+      <text class="rd" x="1383.4" y="208.3" text-anchor="end" style="fill:#7C858F">0,0</text>
+      <text class="cl" x="1271.4" y="242.3" text-anchor="end" style="fill:#7C858F">РЕКУПЕРАЦИЯ</text>
+      <circle cx="1109.8" cy="235.9" r="3" fill="#2D82D7"/>
+      <text class="rd" x="1271.4" y="208.3" text-anchor="end" style="fill:#86909B">3,1</text>
+      <text class="cl" x="1087.4" y="242.3" text-anchor="end" style="fill:#7C858F">ИЗ БАТАРЕИ</text>
+      <text class="rd" x="1087.4" y="208.3" text-anchor="end" style="fill:#86909B">12,4</text>
+      <path d="M 500.9 384 500.9 366.4 L 508.9 366.4 L 508.9 367 L 516.9 367 L 516.9 367.9 L 524.9 367.9 L 524.9 367.6 L 532.9 367.6 L 532.9 366.6 L 540.9 366.6 L 540.9 366.6 L 548.9 366.6 L 548.9 368.6 L 556.9 368.6 L 556.9 372.1 L 564.9 372.1 L 564.9 374.8 L 572.9 374.8 L 572.9 387.4 L 580.9 387.4 L 580.9 390.2 L 588.9 390.2 L 588.9 385.8 L 596.9 385.8 L 596.9 370.8 L 604.9 370.8 L 604.9 370.8 L 612.9 370.8 L 612.9 370.1 L 620.9 370.1 L 620.9 367.6 L 628.9 367.6 L 628.9 364.2 L 636.9 364.2 L 636.9 361.9 L 644.9 361.9 L 644.9 362 L 652.9 362 L 652.9 364.5 L 660.9 364.5 L 660.9 367 L 668.9 367 L 668.9 368.5 L 676.9 368.5 L 676.9 368.7 L 684.9 368.7 L 684.9 369.6 L 692.9 369.6 L 692.9 371.7 L 700.9 371.7 L 700.9 374.8 L 708.9 374.8 L 708.9 376.6 L 716.9 376.6 L 716.9 375.8 L 724.9 375.8 L 724.9 372.9 L 732.9 372.9 L 732.9 370.1 L 740.9 370.1 L 740.9 384 Z" fill="#86909B" opacity="0.3"/>
+      <path d="M 500.9 366.4 L 508.9 366.4 L 508.9 367 L 516.9 367 L 516.9 367.9 L 524.9 367.9 L 524.9 367.6 L 532.9 367.6 L 532.9 366.6 L 540.9 366.6 L 540.9 366.6 L 548.9 366.6 L 548.9 368.6 L 556.9 368.6 L 556.9 372.1 L 564.9 372.1 L 564.9 374.8 L 572.9 374.8 L 572.9 387.4 L 580.9 387.4 L 580.9 390.2 L 588.9 390.2 L 588.9 385.8 L 596.9 385.8 L 596.9 370.8 L 604.9 370.8 L 604.9 370.8 L 612.9 370.8 L 612.9 370.1 L 620.9 370.1 L 620.9 367.6 L 628.9 367.6 L 628.9 364.2 L 636.9 364.2 L 636.9 361.9 L 644.9 361.9 L 644.9 362 L 652.9 362 L 652.9 364.5 L 660.9 364.5 L 660.9 367 L 668.9 367 L 668.9 368.5 L 676.9 368.5 L 676.9 368.7 L 684.9 368.7 L 684.9 369.6 L 692.9 369.6 L 692.9 371.7 L 700.9 371.7 L 700.9 374.8 L 708.9 374.8 L 708.9 376.6 L 716.9 376.6 L 716.9 375.8 L 724.9 375.8 L 724.9 372.9 L 732.9 372.9 L 732.9 370.1 L 740.9 370.1" fill="none" stroke="#86909B" stroke-width="2" stroke-linejoin="round"/>
+      <line x1="500.9" y1="384" x2="740.9" y2="384" stroke="#7C858F" stroke-width="1.2"/>
+      <text class="un" x="897.2" y="384" style="fill:#7C858F">кВт·ч/100 км</text>
+      <text class="fig" x="865.2" y="384" text-anchor="end" style="fill:#DAE1EB">17</text>
+    </svg></div>
+  <div style="position:absolute; left:0; top:6370px; width:1507.6px; height:490px;"><div class="sn" style="padding:16px 0 0 48px;">Нет ADB-ключа · указание, что сделать — не сообщение об ошибке</div><svg width="1507.6" height="424" viewBox="0 0 1507.6 424">
+      <defs>
+      <pattern id="hatch" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="10" stroke="rgba(218,225,235,0.07)" stroke-width="1.4"/></pattern>
+      <mask id="topmask"><rect x="0" y="0" width="1507.6" height="160.2" fill="#fff"/><ellipse cx="0" cy="0" rx="361.6" ry="160.2" fill="#000"/><ellipse cx="1507.6" cy="0" rx="301.5" ry="160.2" fill="#000"/></mask>
+      <mask id="botmask"><rect x="0" y="335.7" width="1507.6" height="88.3" fill="#fff"/><ellipse cx="753.8" cy="353.3" rx="353.3" ry="194.3" fill="#000"/></mask>
+      </defs>
+      <rect x="0" y="0" width="1507.6" height="160.2" fill="url(#hatch)" mask="url(#topmask)"/>
+      <rect x="0" y="335.7" width="1507.6" height="88.3" fill="url(#hatch)" mask="url(#botmask)"/>
+      <text class="keep" x="753.8" y="26" text-anchor="middle">ШТАТНЫЕ ПРИБОРЫ</text>
+      <text class="keep" x="48" y="384.5">ШТАТНАЯ ПОЛОСА</text>
+      <line x1="48" y1="286.7" x2="1459.6" y2="286.7" stroke="#7C858F" stroke-width="1.2"/>
+      <line x1="753.8" y1="272.7" x2="753.8" y2="300.7" stroke="#7C858F" stroke-width="1.8"/>
+      <text class="un" x="753.8" y="384" text-anchor="middle" style="fill:#86909B">ADB-ключ не подтверждён · Помощь → Диагностика</text>
     </svg></div>
 </div>
 </x-dc>
-<script data-dc-script data-props='{"$preview":{"width":1507.6,"height":5390}}'>
+<script data-dc-script data-props='{"$preview":{"width":1507.6,"height":6860}}'>
 class Component extends DCLogic { renderVals() { return {}; } }
 </script>
 </body>

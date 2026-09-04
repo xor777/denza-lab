@@ -2,39 +2,133 @@
 """
 Emit the Contour cluster artboards from the constants the app draws with.
 
-The Contour is the concept that won the 2026-09 cluster contest
-(`docs/cluster-contest-2026-09/`), with the jury's five corrections folded in,
-and then the owner's verdict on each drawing folded in after that.
+The Contour won the 2026-09 cluster contest (`docs/cluster-contest-2026-09/`).
+Three drawings went to the owner, an independent review roasted the third
+(`CRITIQUE.md`, blockers B1-B3, majors M1-M15, minors m1-m12), and this is the
+fourth drawing: the answer to that review, point by point, with the owner's own
+ruling on each.
 
-**First drawing.** "выглядит неплохо, но злоупотребление полосками; не понимаю,
-что такое потрачено / вернула / ДВС; жаль, что пожертвовали температурами." One
-bar left on the panel - the band - everything else became a number with a word
-under it, and the temperatures came back as the left shelf.
+**The panel is now measured rather than guessed.** M1 was right that every
+ergonomic claim on the first three boards stood on an estimated 25 cm of glass.
+The owner took a tape to the car on 2026-09-04: the active area of the cluster
+glass is 320 mm wide and his eyes sit 750 mm from it. Both are constants here,
+`GLASS_WIDTH_MM` and `EYE_DISTANCE_MM`, and the whole type ladder falls out of
+them - one board unit is 0.2123 mm, a Roboto cap is 0.71 em, and one arc minute
+at 750 mm is 0.2182 mm, so a cap subtends `size x 0.691` minutes:
 
-**Second drawing.** "Намного симпатичнее! Только моторы одной цифрой - не очень,
-три не влезают? И хочется графики: динамика расхода, как меняются обороты, как
-меняется отдача заряда." So this pass adds the three things the data already has
-and the panel was not showing:
+    88 -> 13.3 mm -> 61'      the hero, read on the move
+    52 ->  7.8 mm -> 36'      comfortable (ISO 15008 comfort is 30')
+    34 ->  5.1 mm -> 23'      legal for a deliberate glance (the floor is 20')
+    18 ->  2.7 mm -> 12'      furniture: words that name what is above them
+    13 ->  2.0 mm ->  9'      board furniture only, never on the car
 
-- the car has three drive motors and `motorTemps` reports them separately, so the
-  МОТОРЫ cell shows three figures under one word, each coloured by its own level;
-- `ConsumptionLog` closes a bucket every 100 m and the cluster keeps thirty of
-  them, so the petal gets those thirty as a fixed box beside its figure;
-- `EngineTrace` keeps 120 one-second slots of revolutions and generation, so
-  while the engine is running the right shelf shows that history instead of the
-  trip balance.
+So the cluster's ramp on these boards is **88 - 52 - 34 - 18**. 104 is gone: at
+320 mm it is a 16 mm numeral and it was chosen against an arithmetic that made 52
+look illegal. 88 is 1.69x 52, which clears the ramp's own 1.2x rule, and it still
+reads at 61'. 24 and 13 are not used on the panel at all.
 
-Adding three histories to a panel whose whole argument is "one bar" needs a rule,
-and it is this: a history is a *box*, it is small, it never carries an axis or a
-number of its own, and it stands beside the figure it explains. The band stays
-the only lit thing and the hero stays the only heavy one.
+**Numbers are Roboto with tabular figures, not Roboto Mono** (M14). Measured in
+headless Chrome in the faces and sizes these boards set: a Roboto digit advances
+0.5620 of its size at Regular and 0.5547 at Light, and - this is the part worth
+writing down - `0`, `1` and `4` all advance identically *without* `tnum`. Roboto's
+own figures are already tabular; the feature is set anyway, because a `Paint` on
+the car may resolve a different face and a reserve field is a contract rather than
+a hope. What `tnum` never bought is punctuation: a comma advances 0.197 and a
+colon 0.242 against a monospaced cell's 0.600, which is why «12 , 4» and «2 : 15»
+fell apart into groups on the last board and read as one token here.
+
+The rule that survives from the last pass unchanged: **no coordinate depends on
+data**. Every number lives in a reserve field sized by its maximum digit count
+times a measured advance, its unit hangs off the field rather than off the string,
+and neighbours are set against the field's edge. Gaining a digit moves nothing.
+
+**What the review changed, item by item.**
+
+Closed:
+
+- B1  while the engine runs the petal's figure goes `MUTED` and its unit reads
+      «кВт·ч/100 км · батарея»; the trip's `РЕКУПЕРАЦИЯ` cell is defined to
+      integrate only over intervals with the engine off, and the engine's share
+      is the `ОТ ДВС` cell. Written here as a data rule the renderer follows.
+- B2  the shelves lost their headings entirely and now hang from the same 24-unit
+      guard the hero has, so the vertical budget has 33 units of slack instead of
+      7. The band's limit labels are gone (M10) and the right shelf carries its
+      unit once, on a fixed anchor.
+- B3  the petal is always the last three kilometres; standing on P it keeps the
+      same denominator and only gains its tenth (m5). It no longer swaps to a
+      trip average, so a figure never changes meaning without changing place.
+- M1  measured; see above.
+- M2  the hero is 88 with its unit at 34 - the one place a unit has to be read on
+      the move - and the cap top keeps the jury's 24 units off `stockTop`.
+- M3  34 is legal at 320 mm (23'), so it stays, but as Regular rather than Light:
+      Light at 34 puts a 1:11 stem on black. Both shelves are 34 now.
+- M4  hierarchy is colour as well as size. `INK` belongs to the hero and to the
+      petal's figure and to nothing else; corners and shelves are `MUTED`;
+      headings and captions are `MUTED_DEEP`; `WARNING`/`DANGER` are the
+      exception only.
+- M5  alpha is not a state channel. One rule: a stale value is removed after two
+      seconds and its caption stays. Link loss is that rule applied to every
+      value at once, a single null is that rule applied to one, and neither dims
+      anything. The only users of alpha left are the glow, the two history fills
+      and the peak hold.
+- M6  the glow no longer travels. It is centred on zero, its brightness is
+      `sqrt(|P| / span)` capped at 0.18 - which is exactly the band's own travel
+      fraction - and its hue is the sign. τ = 1.5 s.
+- M7  the engine box grows from the right, its width is the number of filled
+      seconds, and it is never drawn empty. It leaves when the last non-zero slot
+      falls off the left edge, which is 120 s of hysteresis with no timer of its
+      own: the trace's own length is the timer.
+- M8  three fixed places on the right shelf, always. A zero is drawn, in
+      `MUTED_DEEP`, in its own seat.
+- M9  the sag line is deleted. «552 В» is what the owner asked for.
+- M11 no small blue text anywhere. Blue is the band's body, the generation seam,
+      the engine box's area, and a marker dot the size of a dot in front of
+      `РЕКУПЕРАЦИЯ`, `ОТ ДВС` and `ГЕНЕРАЦИЯ`.
+- M12 neutral zone of 3 kW: inside it the hero and the band body are `MUTED` and
+      carry no colour at all, and the colour changes with 3 kW of hysteresis.
+- M13 the scenes the brief asked for are drawn: a traffic jam, an acceleration, an
+      engine that stopped forty seconds ago, a single null.
+- M14 Roboto with `tnum`; see above.
+- M15 the petal's history is a stepped line with a 30 % field, not thirty bars
+      0.65 mm wide, and the engine box carries its two runs at 2 units.
+- m1  unit symbols are case-sensitive: «БАТАРЕЯ · В», «ДВС · об/мин», «кВт·ч».
+- m2  a dim «ДВС» over an empty corner was furniture. If the engine has not run
+      this trip the corner is empty - no heading.
+- m3  the ten-second tail is gone; the peak hold stays.
+- m4  a heading appears with its first value, so the first seconds are the band's
+      skeleton and nothing else.
+- m5  the petal prints an integer on the move and a tenth only when parked.
+- m6  the hero's figure is limited to 2 Hz with 0.5 kW of hysteresis (a rule for
+      the renderer, not something a still can show).
+- m7  the night scene is removed. The cluster's own dimmer already darkens our
+      window; whether it does is a measurement on the car, not a board.
+- m8  an exception is a 34 figure changing colour on a shelf whose figures are all
+      34, so it is the same glance as reading the temperature.
+- m9  generation is drawn twice, not three times: the seam on the band and the
+      area in the engine box. The corner's line is a number, not a picture.
+- m11 unchanged and still true: three motors under one word in `motorTemps`
+      order. Naming three positions costs three captions at 12'.
+
+Rejected, with the owner's reason:
+
+- M10 *"an honest scale - regeneration a third the length"*. The square root and
+      the two spans stay. He accepted the root deliberately: the band is an
+      ambient, its two directions are two different physical limits, and equal
+      travel meaning "as hard as this car goes that way" is the reading he wants.
+      What M10 was right about is the labels, and those are gone.
+- M10 *"available regeneration and the power ceiling"*. Wanted, and parked until
+      somebody finds a FID for the BMS limits. Drawing a limit we cannot read
+      would be the one thing this panel has never done.
+- m12 *"lowercase captions"*. Tracked capitals are what the head unit uses, and
+      one house style across two screens beats a slightly better silhouette on
+      one of them.
+- (M2's fallback) *"move the hero into the petal"*. Only after a photograph of the
+      hero under the stock speedometer. Until then the hero stays on the axis.
 
 Nothing here is typed. Every coordinate is derived the way `ContourPlan.kt` will
-derive it - the apertures out of `ClusterModels.kt`'s own integer arithmetic,
-everything else out of four decisions: the margin, the rhythm, the type ramp and
-the cap height. A number lives in a field sized by its own digit count, and its
-unit hangs off the field rather than off the string, so gaining a digit moves
-nothing.
+derive it - the apertures out of `ClusterMapLayout`'s own integer arithmetic,
+everything else out of five decisions: the margin, the rhythm, the ramp, the cap
+height, and the two guards of 24 units off the stock zones, top and bottom.
 
     python3 gen_contour.py && python3 audit.py ClusterContour \
         ClusterContourStates ClusterContourPlan
@@ -45,33 +139,47 @@ import gen_cluster as g
 
 f = g.f
 
+# ---------------------------------------------------------------- the glass
+
+# Measured by the owner on 2026-09-04 with a tape: the active area of the cluster
+# glass, and the distance from his eyes to it in his own driving position. Every
+# ergonomic claim on the first three boards stood on "порядка 25 см (оценка)",
+# which is what CRITIQUE M1 found and what made 104 look necessary.
+GLASS_WIDTH_MM = 320.0
+EYE_DISTANCE_MM = 750.0
+
 # ---------------------------------------------------------------- the ramp
 
-HERO, FIGURE, READING, CAPTION = 104.0, 52.0, 34.0, 18.0
+HERO, FIGURE, READING, CAPTION = 88.0, 52.0, 34.0, 18.0
 NOTE = 13.0                      # board furniture only: keep-out words, plan notes
 STEP = 8.0                       # InstrumentDensity.WIDE.step
 CAP = 0.71                       # InstrumentPen.digitHeight / ContourPlan.CAP_HEIGHT
-# Measured in the real face. The previous pass wrote 0.5 here and called it a
-# measurement; Roboto Mono advances 0.6 of its size per character, at every size
-# the board sets - "28" at 34 is 40.81, "1780" at 52 is 124.83, "300" at 104 is
-# 187.23. Every reserve field was therefore a sixth too narrow, and it showed:
-# "552" hung three units past the left margin, out into the panel's own edge.
-MONO = 0.6                       # what a monospaced digit advances
 TRACKING = 0.12                  # InstrumentDensity.titleTracking
 
-# Measured the same way, in headless Chrome, in the faces and at the sizes this
-# board sets them. A reserve field is arithmetic and needs no measuring; a word is
-# not, and the handful of places where a word decides a coordinate - a unit
-# hanging off a field, a legend hung on the margin, a caption deciding how wide
-# its cell has to be - are measured once and written down here.
-W_KW = 29.61                     # «кВт» at 18
-W_PER_100KM = 109.42             # «кВт·ч/100 км» at 18
-W_DEGREE = 20.41                 # «°» at 34, Roboto Mono
-W_MILLIVOLT = 40.81              # «мВ» at 34, Roboto Mono
-W_GENERATION = 102.67            # «ГЕНЕРАЦИЯ» at 18
-W_CAPTION = {'БАТАРЕЯ': 76.80, 'МОТОРЫ': 77.67, 'ИНВЕРТОР': 92.72,
-             'РАЗБРОС': 79.38, 'ИЗ БАТАРЕИ': 106.17, 'РЕКУПЕРАЦИЯ': 126.91,
-             'ОТ ДВС': 63.83, 'ОБОРОТЫ': 85.92, 'ГЕНЕРАЦИЯ': W_GENERATION}
+# Measured in headless Chrome, in the faces and at the sizes these boards set
+# them. Roboto's digits are already tabular - "00000000", "11111111" and
+# "44444444" all come back at 233.7969 at 52 - so `tnum` changes nothing in this
+# face and is set anyway, because a reserve field is a contract. Light is a
+# narrower digit than Regular, and the hero is the only Light thing on the panel.
+DIGIT = 0.5620                   # Roboto 400: 29.2246 at 52, 19.1094 at 34
+DIGIT_LIGHT = 0.5547             # Roboto 300: 48.8125 at 88
+COMMA = 0.1969                   # 10.2344 at 52, 6.7031 at 34 - a mono cell is 0.6
+COLON = 0.2422                   # 12.5938 at 52
+MONO = 0.6                       # what Roboto Mono advanced, kept for the record
+
+# The handful of places where a *word* decides a coordinate - a unit hanging off a
+# field, a caption deciding how wide its cell must be - measured the same way, with
+# the tracking the class actually sets.
+W_DEGREE = 12.7031               # «°» at 34
+W_MILLIVOLT = 46.4063            # «мВ» at 34
+W_KW34 = 55.9219                 # «кВт» at 34, the hero's unit
+W_KW = 29.6094                   # «кВт» at 18
+W_KWH = 44.1094                  # «кВт·ч» at 18, the trip shelf's one unit
+W_PER_100KM = 109.4219           # «кВт·ч/100 км» at 18
+W_TITLE = {'БАТАРЕЯ · В': 126.08, 'ДВС · об/мин': 137.98, 'ДВС': 43.08}
+W_CAPTION = {'БАТАРЕЯ': 91.92, 'МОТОРЫ': 90.63, 'ИНВЕРТОР': 110.00,
+             'РАЗБРОС': 94.50, 'ИЗ БАТАРЕИ': 127.77, 'РЕКУПЕРАЦИЯ': 150.67,
+             'ОТ ДВС': 76.78, 'ОБОРОТЫ': 101.05, 'ГЕНЕРАЦИЯ': 122.11}
 
 # ---------------------------------------------------------------- the panel
 
@@ -79,6 +187,9 @@ DISPLAY_W, DISPLAY_H = 2560, 720
 H = 424.0
 W = H * DISPLAY_W / DISPLAY_H
 AXIS = W / 2
+
+UNIT_MM = GLASS_WIDTH_MM / W
+ARCMIN_MM = EYE_DISTANCE_MM * math.tan(math.radians(1.0 / 60.0))
 
 # ClusterMapLayout's own arithmetic, integer division and all.
 STOCK_TOP = (DISPLAY_W * 20 // 100 * 40 // 100 * 4 // 3) / DISPLAY_H * H
@@ -89,6 +200,21 @@ APERTURE_RY = STOCK_TOP
 PETAL_RX = 600 / DISPLAY_W * W
 PETAL_RY = (600 * 55 // 100) / DISPLAY_H * H
 PETAL_CY = (1.0 - 120 / DISPLAY_H) * H
+
+
+def millimetres(units):
+    return units * UNIT_MM
+
+
+def arcminutes(size):
+    """What a cap of [size] board units subtends from the owner's seat."""
+    return millimetres(size * CAP) / ARCMIN_MM
+
+
+def type_table():
+    """The ramp as the eye gets it. ISO 15008: 20' is the floor, 30' is comfort."""
+    return [(s, millimetres(s * CAP), arcminutes(s))
+            for s in (HERO, FIGURE, READING, CAPTION, NOTE)]
 
 
 def aperture_reach(y, right=False):
@@ -110,25 +236,28 @@ def rungs(width):
 
 # ---------------------------------------------------------------- the skeleton
 
-# Four steps, not one. A reserve field is the digits' advance; the box a browser
-# and a Paint actually reserve runs wider still, and the audit kept catching
-# "1780" touching its own unit until the gap reached this.
-UNIT_GAP = STEP * 4
+UNIT_GAP = STEP * 4                     # between a large figure and its unit
+SMALL_GAP = STEP                        # between an 18 figure and its unit
 
 MARGIN = STEP * 6                       # the one outer margin: 48
 LEFT_EDGE, RIGHT_EDGE = MARGIN, W - MARGIN
 
-HERO_CLEARANCE = STEP * 3               # the jury's third correction
-HERO_BASELINE = STOCK_TOP + HERO_CLEARANCE + CAP * HERO
+# The two guards, and they are the same number. The jury asked for three rhythm
+# steps between the hero's cap and the stock speedometer's own zone; CRITIQUE B2
+# found the shelves standing 7 units from the same boundary and the band's labels
+# 10 from the other one. Everything on the panel now hangs off one of these two.
+CLEARANCE = STEP * 3                    # 24
+GUARD_TOP = STOCK_TOP + CLEARANCE
+GUARD_BOTTOM = STOCK_BOTTOM - CLEARANCE
+
+HERO_BASELINE = GUARD_TOP + CAP * HERO
 HERO_CAP_TOP = HERO_BASELINE - CAP * HERO
 # Three digits is the ceiling the scale can produce, so the field is knowable in
 # advance. The digits are right-aligned inside the field and the field, its gap
-# and its unit are centred on the axis as one group. Centring the field alone left
-# "кВт" stranded from a two-digit reading and touching a three-digit one; this way
-# the unit is always the same short step from the last digit, the whole hero still
-# stands on the car's axis, and the digits wander at most half a glyph either side.
-HERO_FIELD_W = 3 * MONO * HERO
-HERO_UNIT_W = W_KW
+# and its unit are centred on the axis as one group: centring the field alone left
+# «кВт» stranded from a two-digit reading and touching a three-digit one.
+HERO_FIELD_W = 3 * DIGIT_LIGHT * HERO
+HERO_UNIT_W = W_KW34
 HERO_GROUP_W = HERO_FIELD_W + UNIT_GAP + HERO_UNIT_W
 HERO_FIELD_RIGHT = AXIS + HERO_GROUP_W / 2 - UNIT_GAP - HERO_UNIT_W
 HERO_FIELD_LEFT = HERO_FIELD_RIGHT - HERO_FIELD_W
@@ -140,130 +269,131 @@ BAND_BODY = 14.0
 BAND_HAIRLINE = 1.2
 ZERO_HALF = BAND_BODY
 ZERO_WIDTH = 1.8
-LIMIT_BASELINE = BAND_Y + BAND_BODY / 2 + STEP + CAP * CAPTION
 GEN_LINE_Y = BAND_Y + BAND_BODY / 2 + 4.0
 GEN_LINE_H = 4.0
-# Where the tip has been over the last ten seconds, as one smear under the live
-# body. It is the band's second memory and the cheapest one: no samples are kept,
-# only the two ends of the interval the tip has swept.
-TAIL_ALPHA = 0.12
+DATA_LINE = 2.0                         # nothing that carries data is thinner
+AREA_EDGE = 1.8
 
-# The light belongs to the band, so it is centred on the band and its vertical
-# radius is the distance to the nearer aperture edge - which is what the concept's
-# "ry = half the clear band" was buying: an alpha that reaches zero before the
-# vehicle's own graphics can cut it.
+# One pool of light, and it does not move (M6). Brightness is the magnitude by the
+# band's own square root, hue is the sign, τ = 1.5 s. A pool 73 mm across sliding
+# 50-100 mm with the pedal was the strongest peripheral stimulus on the panel and
+# the one thing here that no production cluster does.
+GLOW_CX = AXIS
 GLOW_CY = BAND_Y
-GLOW_RY = STOCK_BOTTOM - BAND_Y
 GLOW_RX = 340.0
+GLOW_RY = STOCK_BOTTOM - BAND_Y         # reaches zero exactly on the lower edge
+GLOW_MAX = 0.18
+
+# The dead band around zero. Inside it the hero and the band body are MUTED and
+# carry no colour at all, and the colour change carries the same 3 kW of
+# hysteresis - on a coast P swings +-2 kW and a 13 mm numeral in the fovea was
+# flickering between ink and blue.
+NEUTRAL_KW = 3.0
 
 # ---- the corners: one heading, one figure, one line
 
-# A row advances by the lead plus the *full* type size, which is the convention
-# every other generator here follows and the one this board first got wrong. A
-# cap height is what the ink occupies; the box a browser and a Paint both reserve
-# runs from the ascent to the descent, and spacing rows by cap height put a
-# heading's descenders inside the digits underneath it.
+# A row advances by the lead plus the *full* type size. A cap height is what the
+# ink occupies; the box a browser and a Paint both reserve runs from ascent to
+# descent, and spacing rows by cap height puts a heading's descenders inside the
+# digits underneath it.
 CORNER_TITLE = STEP * 3                 # 24
 CORNER_FIGURE = CORNER_TITLE + STEP * 2 + FIGURE
 CORNER_LINE = CORNER_FIGURE + STEP * 2 + CAPTION
 
-# Both corners now carry their unit in the heading - «БАТАРЕЯ · В», «ДВС · ОБ/МИН»
-# - which is the concept's own Tufte rule and what the right shelf's heading has
-# always done. It is also the only way the right corner fits: a corner aperture is
-# 301 units wide at the top and 199 usable at the figure's baseline, and a
-# four-digit field with «об/мин» beside it wants 219. The unit sat twenty units
-# behind the vehicle's own graphics, invisible, and the correct mono advance was
-# what made that measurable.
 LEFT_FIELD_X = LEFT_EDGE                        # volts: three digits
-LEFT_FIELD_RIGHT = LEFT_FIELD_X + 3 * MONO * FIGURE
+LEFT_FIELD_RIGHT = LEFT_FIELD_X + 3 * DIGIT * FIGURE
 
 RIGHT_FIELD_RIGHT = RIGHT_EDGE                  # revolutions: four digits
-RIGHT_FIELD_LEFT = RIGHT_FIELD_RIGHT - 4 * MONO * FIGURE
+RIGHT_FIELD_LEFT = RIGHT_FIELD_RIGHT - 4 * DIGIT * FIGURE
+ICE_MINUTES_LEFT = RIGHT_EDGE - 3 * DIGIT * FIGURE
 
-# ---- the two shelves, which are one family
+# ---- the two shelves, which are now one family in every respect
 
-# Both stand in the clear band's flanks, on one pair of baselines, with one
-# anatomy: a figure with its word under it. Only the figure size differs - the
-# trip's kilowatt-hours are what the owner asked to see, the temperatures are what
-# he asked to keep.
-SHELF_HEADER = 180.0
-SHELF_FIGURE = SHELF_HEADER + STEP * 2 + FIGURE
+# Both hang from the same guard as the hero, both carry a 34 figure over an 18
+# word, both stand on one pair of baselines. The last board gave them headings and
+# two different figure sizes, and the headings were the first thing that would
+# have been cut off by a boundary nobody has measured yet.
+SHELF_FIGURE = GUARD_TOP + CAP * READING
 SHELF_CAPTION = SHELF_FIGURE + STEP * 2 + CAPTION
 
-# A cell is as wide as the wider of the two things it has to hold - its caption or
-# its payload - rounded up to the rhythm. The previous pass gave every cell on a
-# shelf one width, which was fine while every cell held one number; three motor
-# temperatures under one word do not fit a width chosen for "32°", and stretching
-# every cell to fit them would push the shelf into the hero.
 CELL_GAP = STEP * 2
-TEMP_FIELD = 3 * MONO * READING         # three characters: "-8" and "102" both fit
-MOTOR_FIELD = 2 * MONO * READING        # a drive motor's own two
-MOTOR_GAP = STEP
-MOTOR_PITCH = MOTOR_FIELD + W_DEGREE + MOTOR_GAP
-MOTOR_RUN = 3 * (MOTOR_FIELD + W_DEGREE) + 2 * MOTOR_GAP
+MOTOR_GAP = STEP                        # half the gap between cells, on purpose
+MARK_R = 3.0                            # the blue marker: a dot, and dot-sized
+MARK_GAP = STEP
+MARK_W = 2 * MARK_R + MARK_GAP
+
+TEMP_FIELD = 2 * DIGIT * READING        # two digits; 100+ is an alert and may hang
+MOTOR_PITCH = TEMP_FIELD + W_DEGREE + MOTOR_GAP
+MOTOR_RUN = 3 * (TEMP_FIELD + W_DEGREE) + 2 * MOTOR_GAP
 SPREAD_PAYLOAD = TEMP_FIELD + STEP + W_MILLIVOLT
 
-# Left shelf, outward from the margin: pack, the three drive motors, inverter, and
-# the cell-spread cell that only exists on an exception.
+# A cell is as wide as the wider of the two things it has to hold - its caption or
+# its payload - rounded up to the rhythm.
 LEFT_CELLS = [rungs(max(W_CAPTION['БАТАРЕЯ'], TEMP_FIELD + W_DEGREE)),
               rungs(max(W_CAPTION['МОТОРЫ'], MOTOR_RUN)),
               rungs(max(W_CAPTION['ИНВЕРТОР'], TEMP_FIELD + W_DEGREE)),
               rungs(max(W_CAPTION['РАЗБРОС'], SPREAD_PAYLOAD))]
-# The gap between two cells is twice the gap between two motors inside one, which
-# is what keeps the inverter from reading as a fourth motor.
 LEFT_SHELF_RIGHT = LEFT_EDGE + sum(LEFT_CELLS) + 3 * CELL_GAP
 
-TRIP_FIELD = 4 * MONO * FIGURE          # "12,4" against the widest it can be
-RIGHT_CELL_W = rungs(max(TRIP_FIELD, W_CAPTION['РЕКУПЕРАЦИЯ']))
-RIGHT_SHELF_LEFT = RIGHT_EDGE - 3 * RIGHT_CELL_W - 2 * CELL_GAP
+# Three seats, always, counted from the outside in - so the row reads out of the
+# battery, back from the brakes, in from the engine, and none of the three moves
+# when another gains or loses a value. The unit is written once, on a fixed anchor
+# after the last digit of the row.
+TRIP_FIELD = 3 * DIGIT * READING + COMMA * READING      # "12,4" at its widest
+TRIP_CELLS = [rungs(max(TRIP_FIELD, MARK_W + W_CAPTION['ОТ ДВС'])),
+              rungs(max(TRIP_FIELD, MARK_W + W_CAPTION['РЕКУПЕРАЦИЯ'])),
+              rungs(max(TRIP_FIELD, W_CAPTION['ИЗ БАТАРЕИ']))]
+TRIP_UNIT_X = RIGHT_EDGE
+TRIP_ROW_RIGHT = RIGHT_EDGE - W_KWH - UNIT_GAP
+RIGHT_SHELF_LEFT = TRIP_ROW_RIGHT - sum(TRIP_CELLS) - 2 * CELL_GAP
 
 # ---- the engine's own two minutes
 
-# EngineTrace keeps 120 one-second slots and hands the renderer both runs
-# front-padded, so the box is a fixed width with a fixed slot count and the trace
-# starts wherever the engine woke. It cannot be empty by construction: the shelf
-# only shows it while revolutions are arriving.
+# EngineTrace keeps 120 one-second slots. The box's right edge is fixed and its
+# left edge is wherever the filled slots reach, so it grows from the right as the
+# engine's history fills and is never drawn empty (M7). It leaves the panel when
+# the last non-zero slot falls off the left edge: 120 s of hysteresis with no
+# timer of its own, which is also why a winter traffic jam does not flicker the
+# trip balance in and out every ninety seconds.
 ENGINE_SLOTS = 120
-ENGINE_BOX_LEFT, ENGINE_BOX_RIGHT = RIGHT_SHELF_LEFT, RIGHT_EDGE
-ENGINE_BOX_BOTTOM = SHELF_FIGURE        # the shelf's own figure baseline
-ENGINE_BOX_TOP = SHELF_FIGURE - FIGURE  # and the row box that figure would have had
+ENGINE_BOX_RIGHT = RIGHT_EDGE
+ENGINE_BOX_FULL_LEFT = RIGHT_SHELF_LEFT
+ENGINE_PITCH = (ENGINE_BOX_RIGHT - ENGINE_BOX_FULL_LEFT) / (ENGINE_SLOTS - 1)
+# Exactly the ink box of the digits it replaces, which is what keeps it off the
+# top guard by construction: the shelf's own cap top *is* the guard.
+ENGINE_BOX_BOTTOM = SHELF_FIGURE
+ENGINE_BOX_TOP = SHELF_FIGURE - CAP * READING
 ENGINE_RPM_FULL = 3000.0                # not 6000: this engine is a generator
-ENGINE_WINDOW = (1000.0, 2600.0)        # where it sits while it is generating
-ENGINE_GEN_FULL = 100.0                 # ClusterReadout.GENERATION_FULL_KW, square root
+ENGINE_GEN_FULL = 100.0                 # ClusterReadout.GENERATION_FULL_KW, root
 
-# ---- the petal, and the thirty buckets behind its figure
+# ---- the petal, and the three kilometres behind its figure
 
 PETAL_BASELINE = 384.0
-# Nothing is drawn below this: the petal reaches the panel edge, but its last
-# twenty units are a narrowing sliver resting on an estimated boundary.
-PETAL_FLOOR = 410.0
-PETAL_BARS = 30                         # 3 km of ConsumptionLog's 100 m buckets
-PETAL_FIELD_W = 4 * MONO * FIGURE
+PETAL_FLOOR = 410.0                     # nothing is drawn below this
+PETAL_BUCKETS = 30                      # 3 km of ConsumptionLog's 100 m buckets
+# "16,8" and "2:15" are both three digits and one mark, so one field holds either.
+PETAL_FIELD_W = 3 * DIGIT * FIGURE + max(COMMA, COLON) * FIGURE
 PETAL_UNIT_W = W_PER_100KM
 PETAL_BOX_GAP = STEP * 3
-# The history balances the unit. Make the box and its gap add up to the unit and
-# its gap and two things come out true at once: the group - box, figure, unit - is
-# centred on the axis, and so are the digits inside it. Sizing the box by eye
-# instead put the petal's figure twenty units to the right of the hero's, and two
-# large numerals one above the other are exactly where that is visible.
-PETAL_BOX_W = UNIT_GAP + PETAL_UNIT_W - PETAL_BOX_GAP
-PETAL_GROUP_W = PETAL_BOX_W + PETAL_BOX_GAP + PETAL_FIELD_W + UNIT_GAP + PETAL_UNIT_W
+# Thirty bars 0.65 mm wide with a 0.19 mm gap are below the eye's resolution at
+# 750 mm and came out as a grey block with a ragged top (M15), so the history is a
+# stepped line with a soft field under it. That wants width: 240 units is 8 per
+# bucket, which is a step you can see. The last board's trick - box plus gap
+# equal to unit gap plus unit, so the group *and* its digits both centre on the
+# axis - cannot survive a box that wide, and the group is what centres.
+PETAL_BOX_W = max(STEP * 30, rungs(UNIT_GAP + PETAL_UNIT_W - PETAL_BOX_GAP))
+PETAL_BOX_H = STEP * 4 + 4.0            # 36
+PETAL_GROUP_W = (PETAL_BOX_W + PETAL_BOX_GAP + PETAL_FIELD_W
+                 + UNIT_GAP + PETAL_UNIT_W)
 PETAL_BOX_X = AXIS - PETAL_GROUP_W / 2
 PETAL_FIGURE_RIGHT = PETAL_BOX_X + PETAL_BOX_W + PETAL_BOX_GAP + PETAL_FIELD_W
 PETAL_UNIT_X = PETAL_FIGURE_RIGHT + UNIT_GAP
-# ChartScale.ABOVE_ZERO_SHARE, and the zero line is the figure's own baseline -
-# which is what ties a box of thirty anonymous bars to the number it explains.
-PETAL_BOX_H = STEP * 5
+# ChartScale.ABOVE_ZERO_SHARE, and the zero line is the figure's own baseline.
 PETAL_BOX_TOP = PETAL_BASELINE - g.ABOVE_ZERO_SHARE * PETAL_BOX_H
 PETAL_BOX_BOTTOM = PETAL_BASELINE + (1.0 - g.ABOVE_ZERO_SHARE) * PETAL_BOX_H
-BAR_SHARE = 0.78                        # ClusterDashboardRenderer's own bar share
-# The oldest edge fades rather than being cropped, so the box reads in one
-# direction without a word, an arrow or an axis saying so. The newest bar stops
-# short of full ink on purpose: a history stands beside its figure, and a box of
-# thirty bars at the brightness of the band would be a second lit thing.
-FADE_BARS = 8.0
-FADE_FLOOR = 0.22
-BAR_ALPHA = 0.80
+AREA_ALPHA = 0.30
+GEN_AREA_ALPHA = 0.50                   # M11: 30 % vanished under daylight glare
+PEAK_ALPHA = 0.85
 
 # EnergyScale: the band is the dial straightened out, same square root, same spans.
 FULL_DISCHARGE_KW, FULL_REGEN_KW, FLOOR_KW = 300.0, 100.0, 0.5
@@ -275,18 +405,10 @@ def left_cell(index):
     return left, left + LEFT_CELLS[index]
 
 
-def right_cell(index):
-    """Right shelf cells are counted from the outside in: 0 hugs the margin.
-
-    The block packs against the margin rather than holding an empty seat for a
-    value that may never arrive. An engine that starts mid-trip therefore shifts
-    the two figures already there one cell inboard - once per trip, under the
-    same crossfade the engine's own corner uses. The alternative was a permanent
-    hole at the panel edge directly under the heading, which is the emptiness the
-    owner objected to in the first place.
-    """
-    right = RIGHT_EDGE - index * (RIGHT_CELL_W + CELL_GAP)
-    return right - RIGHT_CELL_W, right
+def trip_cell(index):
+    """Trip cells are counted from the outside in: 0 is the one nearest the unit."""
+    right = TRIP_ROW_RIGHT - sum(TRIP_CELLS[:index]) - index * CELL_GAP
+    return right - TRIP_CELLS[index], right
 
 
 def sweep(kw):
@@ -313,18 +435,22 @@ RETURN_INK = g.RETURN_INK
 PEAK = g.DATA_PEAK
 WARNING = g.WARNING
 DANGER = '#FF4046'
-TRACK = g.TRACK
 BG = g.CLUSTER_BG
 
-# The concept's one deliberate omission: champagne ACCENT is not drawn on this
-# panel at all. Yellow means "decide something" in this car, and a permanent warm
-# mark on an instrument is a false signal. DATA_PEAK plays its part, and by
-# definition it means "the live edge of the data" rather than "an interface" - so
-# it stays on the band, where the live edge is, and none of the three history
-# boxes uses it. A box that marked its newest bar warm would put a third warm spot
-# on a panel whose whole rule is that the lit thing is the band.
+# The hierarchy is colour before it is size (M4). INK is the hero and the petal's
+# figure and nothing else; the corners and both shelves are MUTED; headings,
+# captions and units are MUTED_DEEP; WARNING and DANGER are the exception only.
+# Champagne is not on this panel: yellow means "decide something" in this car, and
+# DATA_PEAK is the live edge of the data, which is the band's tip and the peak
+# hold - never a history.
+LEVEL = {'normal': MUTED, 'watch': WARNING, 'alert': DANGER}
 
-LEVEL = {'normal': INK, 'watch': WARNING, 'alert': DANGER}
+
+def flow_colour(kw, ink=INK):
+    """Neutral inside the dead band, ink out, blue back."""
+    if kw is None or abs(kw) <= NEUTRAL_KW:
+        return MUTED
+    return RETURN if kw < 0 else ink
 
 
 # ---------------------------------------------------------------- svg helpers
@@ -354,6 +480,10 @@ def line(x0, y0, x1, y1, colour, width, opacity=None, dash=None):
             f'stroke="{colour}" stroke-width="{f(width)}"{o}{d}/>')
 
 
+def dot(cx, cy, colour=RETURN):
+    return f'<circle cx="{f(cx)}" cy="{f(cy)}" r="{f(MARK_R)}" fill="{colour}"/>'
+
+
 def comma(value, digits=1):
     return f'{value:.{digits}f}'.replace('.', ',')
 
@@ -361,9 +491,9 @@ def comma(value, digits=1):
 # ---------------------------------------------------------------- the histories
 
 # One deterministic run of 100 m buckets, written as multiples of the window's own
-# average so a scene names the average it wants and the bars, the dashed mean and
-# the figure cannot disagree. Three buckets are negative: the chart needs a zero
-# line rather than a floor, because a descent gives energy back.
+# average so a scene names the average it wants and the history and the figure
+# cannot disagree. Three buckets are negative: the chart needs a zero line rather
+# than a floor, because a descent gives energy back.
 SHAPE = [1.22, 1.18, 1.12, 1.14, 1.21, 1.21, 1.07, 0.83, 0.64, -0.22,
          -0.41, -0.12, 0.92, 0.92, 0.97, 1.14, 1.38, 1.54, 1.53, 1.36,
          1.18, 1.08, 1.06, 1.00, 0.85, 0.64, 0.51, 0.57, 0.77, 0.97]
@@ -376,25 +506,42 @@ def consumption_history(average):
     return [round(average * m / norm, 1) for m in SHAPE]
 
 
-def engine_history(sleeping=38, slots=ENGINE_SLOTS, rpm_now=1780.0, gen_now=14.0):
-    """Two minutes ending exactly at the numbers the corner is showing.
+def engine_history(filled, stopped=0, rpm_now=1780.0, gen_now=14.0):
+    """[filled] seconds of the engine's history, the last [stopped] of them dead.
 
-    Front-padded with the slots the engine slept through, the way
-    `EngineTrace.snapshot()` pads a history shorter than its capacity. The ripple
-    is scaled by the distance from "now" so the last sample is the corner's own.
+    No front padding with nulls any more: the box is exactly as wide as the
+    history it has, anchored at the right edge, so it grows leftward as the
+    engine runs and is never drawn empty. After the engine stops the slots keep
+    arriving at zero, which is what walks the last live sample off the left edge
+    120 seconds later and takes the box with it.
     """
     rpm, gen = [], []
-    for i in range(slots):
-        if i < sleeping:
-            rpm.append(None)
-            gen.append(None)
+    running = filled - stopped
+    for i in range(filled):
+        if i >= running:
+            rpm.append(0.0)
+            gen.append(0.0)
             continue
-        t = (i - sleeping) / float(slots - 1 - sleeping)
+        t = i / float(max(running - 1, 1))
         wake = min(1.0, t * 3.0)
-        rpm.append(900.0 + (rpm_now - 900.0) * wake + 120.0 * math.sin(i * 0.55) * (1.0 - t))
+        rpm.append(900.0 + (rpm_now - 900.0) * wake
+                   + 120.0 * math.sin(i * 0.55) * (1.0 - t))
         share = max(0.0, min(1.0, (t - 0.06) * 3.4))
-        gen.append(gen_now * share + 2.4 * math.sin(i * 0.41) * (1.0 - t))
+        gen.append(max(0.0, gen_now * share + 2.4 * math.sin(i * 0.41) * (1.0 - t)))
     return rpm, gen
+
+
+def step_path(xs, ys, floor):
+    """A stepped line and the field under it, as two paths sharing one outline."""
+    edge = [f'M {f(xs[0])} {f(ys[0])}']
+    for i in range(len(ys)):
+        edge.append(f'L {f(xs[i + 1])} {f(ys[i])}')
+        if i + 1 < len(ys):
+            edge.append(f'L {f(xs[i + 1])} {f(ys[i + 1])}')
+    outline = ' '.join(edge)
+    field = (f'M {f(xs[0])} {f(floor)} ' + outline[2:] +
+             f' L {f(xs[-1])} {f(floor)} Z')
+    return outline, field
 
 
 # ---------------------------------------------------------------- the pieces
@@ -423,351 +570,355 @@ def keepout():
     ]
 
 
-def glow(kw, strength, colour=None, alpha=1.0):
-    """The one pool of light: brightness is the magnitude, hue is the direction."""
+def glow(kw):
+    """The one pool of light, and it stands still.
+
+    Brightness is `sqrt(|P| / span)` - the band's own travel fraction - capped at
+    0.18; hue is the sign; the centre never leaves zero. The concept had it riding
+    the band's tip with τ = 400 ms, which put a 73 mm pool through 50-100 mm of
+    travel every time the pedal moved in a traffic jam.
+    """
+    if kw is None:
+        return []
+    strength = GLOW_MAX * sweep(kw)
     if strength <= 0:
         return []
-    c = colour or (RETURN if kw < 0 else INK)
-    s = strength * alpha
+    c = flow_colour(kw)
     return [
         f'<defs><radialGradient id="bandglow">'
-        f'<stop offset="0" stop-color="{c}" stop-opacity="{f(s)}"/>'
-        f'<stop offset="0.5" stop-color="{c}" stop-opacity="{f(s * 0.45)}"/>'
+        f'<stop offset="0" stop-color="{c}" stop-opacity="{f(strength)}"/>'
+        f'<stop offset="0.5" stop-color="{c}" stop-opacity="{f(strength * 0.45)}"/>'
         f'<stop offset="1" stop-color="{c}" stop-opacity="0"/>'
         f'</radialGradient></defs>',
-        f'<ellipse cx="{f(band_x(kw))}" cy="{f(GLOW_CY)}" rx="{f(GLOW_RX)}" '
+        f'<ellipse cx="{f(GLOW_CX)}" cy="{f(GLOW_CY)}" rx="{f(GLOW_RX)}" '
         f'ry="{f(GLOW_RY)}" fill="url(#bandglow)"/>',
     ]
 
 
-def skeleton(alpha=1.0):
-    """Drawn in every state, including the ones with no data at all."""
+def skeleton():
+    """Drawn in every state, including the ones with no data at all.
+
+    Two lines and nothing else: the limit captions are gone. A band whose two
+    directions run on a square root over two different spans is an ambient, not a
+    scale, and «100 кВт / 300 кВт» were two 12' lines saying otherwise.
+    """
     return [
-        line(LEFT_EDGE, BAND_Y, RIGHT_EDGE, BAND_Y, MUTED_DEEP, BAND_HAIRLINE, alpha),
-        line(AXIS, BAND_Y - ZERO_HALF, AXIS, BAND_Y + ZERO_HALF, MUTED_DEEP, ZERO_WIDTH, alpha),
-        txt('cap', LEFT_EDGE, LIMIT_BASELINE, '100 кВт', 'start', MUTED_DEEP, alpha),
-        txt('cap', RIGHT_EDGE, LIMIT_BASELINE, '300 кВт', 'end', MUTED_DEEP, alpha),
+        line(LEFT_EDGE, BAND_Y, RIGHT_EDGE, BAND_Y, MUTED_DEEP, BAND_HAIRLINE),
+        line(AXIS, BAND_Y - ZERO_HALF, AXIS, BAND_Y + ZERO_HALF, MUTED_DEEP, ZERO_WIDTH),
     ]
 
 
-def band(kw, generation=None, peak_kw=None, alpha=1.0, on_band=True, tail=None):
+def band(s):
     """The one bar left on the panel, and the engine's share drawn behind its tip.
 
     ink is what the battery pays, blue is what the engine pays, and the tip is
     what the wheels asked for - the jury's second correction. That reading is only
     true if `GENERATION_KW` is not already inside `POWER_KW`, which has not been
-    logged on this car, so [on_band] False draws the same fact without the claim.
-
-    [tail] is where the tip has been over the last ten seconds, as one smear under
-    the live body. It is the third history on the panel and the only one that is
-    not a box, because the band already has an axis and a zero: the interval can
-    be drawn on the instrument itself rather than beside it.
+    logged on this car, so `seam_on_band` False draws the same fact without the
+    claim, as a separate line under the body.
     """
-    out = []
+    kw = s.get('kw')
     if kw is None:
-        return out
+        return []
+    out = []
     tip = band_x(kw)
     top = BAND_Y - BAND_BODY / 2
-    returning = kw < -FLOOR_KW
-    base = RETURN if returning else INK
-    ident = 'bandfillr' if returning else 'bandfill'
-    if tail:
-        x0, x1 = sorted((band_x(tail[0]), band_x(tail[1])))
-        out.append(rect(x0, top, x1 - x0, BAND_BODY, base, opacity=TAIL_ALPHA * alpha))
+    neutral = abs(kw) <= NEUTRAL_KW
+    returning = kw < -NEUTRAL_KW
+    base = flow_colour(kw)
+    edge = MUTED if neutral else (RETURN_INK if returning else PEAK)
+    ident = 'bandfillr' if returning else ('bandfilln' if neutral else 'bandfill')
     if abs(kw) > FLOOR_KW:
-        x0, x1 = (tip, AXIS) if returning else (AXIS, tip)
+        x0, x1 = (tip, AXIS) if kw < 0 else (AXIS, tip)
         out.append(
             f'<defs><linearGradient id="{ident}" gradientUnits="userSpaceOnUse" '
             f'x1="{f(AXIS)}" y1="0" x2="{f(tip)}" y2="0">'
             f'<stop offset="0" stop-color="{base}" stop-opacity="0.55"/>'
-            f'<stop offset="1" stop-color="{PEAK if not returning else RETURN_INK}" '
-            f'stop-opacity="1"/></linearGradient></defs>')
+            f'<stop offset="1" stop-color="{edge}" stop-opacity="1"/>'
+            f'</linearGradient></defs>')
         out.append(f'<rect x="{f(x0)}" y="{f(top)}" width="{f(x1 - x0)}" '
-                   f'height="{f(BAND_BODY)}" fill="url(#{ident})" opacity="{f(alpha)}"/>')
+                   f'height="{f(BAND_BODY)}" fill="url(#{ident})"/>')
+    generation = s.get('generation') if s.get('ice') == 'running' else None
     if generation:
-        if on_band:
-            far = band_x((kw or 0.0) + generation)
-            out.append(rect(tip, top, far - tip, BAND_BODY, RETURN, opacity=alpha))
+        if s.get('seam_on_band', True):
+            far = band_x(kw + generation)
+            out.append(rect(tip, top, far - tip, BAND_BODY, RETURN))
         else:
             far = AXIS + sweep(generation) * BAND_HALF
-            out.append(rect(AXIS, GEN_LINE_Y, far - AXIS, GEN_LINE_H, RETURN, opacity=alpha))
-    if peak_kw is not None and abs(peak_kw) > FLOOR_KW:
-        px = band_x(peak_kw)
+            out.append(rect(AXIS, GEN_LINE_Y, far - AXIS, GEN_LINE_H, RETURN))
+    peak = s.get('peak')
+    if peak is not None and abs(peak) > NEUTRAL_KW:
+        px = band_x(peak)
         out.append(line(px, BAND_Y - BAND_BODY / 2 - 3, px, BAND_Y + BAND_BODY / 2 + 3,
-                        PEAK, 3.0, alpha))
+                        PEAK, 3.0, PEAK_ALPHA))
     return out
 
 
-def hero(kw, colour=None, alpha=1.0):
-    """The one figure read on the move, and the one that keeps its unit beside it."""
-    if kw is None:
+def hero(s):
+    """The one figure read on the move, and the one that keeps its unit beside it.
+
+    The unit is 34 - 23', a size that can be read - because this is the one place
+    on the panel where a unit has to be. A 12' «кВт» under the stock speedometer
+    was the only thing telling the driver that «34» was not 34 km/h.
+    """
+    if not s['power_known']:
         return []
-    c = colour or (RETURN_INK if kw < -FLOOR_KW else INK)
-    return [
-        txt('hr', HERO_FIELD_RIGHT, HERO_BASELINE, f'{abs(kw):.0f}', 'end', c, alpha),
-        txt('un', HERO_UNIT_X, HERO_BASELINE, 'кВт', 'start', MUTED, alpha),
-    ]
+    kw = s.get('kw')
+    out = [txt('un34', HERO_UNIT_X, HERO_BASELINE, 'кВт', 'start', MUTED)]
+    if kw is None:
+        return out
+    colour = flow_colour(kw, ink=INK)
+    if kw < -NEUTRAL_KW:
+        colour = RETURN_INK
+    return [txt('hero', HERO_FIELD_RIGHT, HERO_BASELINE, f'{abs(kw):.0f}', 'end',
+                colour)] + out
 
 
 def left_corner(s):
-    """БАТАРЕЯ · В: the pack's volts, and how far they fall under load."""
-    a = s.get('left_alpha', 1.0)
-    live = s.get('volts') is not None
-    out = [txt('ttl', LEFT_EDGE, CORNER_TITLE, 'БАТАРЕЯ · В' if live else 'БАТАРЕЯ',
-               'start', MUTED_DEEP, a)]
-    if live:
-        out.append(txt('fg', LEFT_FIELD_RIGHT, CORNER_FIGURE, f'{s["volts"]:.0f}', 'end', INK, a))
-    # No resting window, no sag rail - an estimate written as a number is a lie
-    # with a unit on it, and the first minute of a drive is when it would be
-    # wrong. Nor is there a line at rest: sag is what a load does to the pack,
-    # and "просадка 0 В" on a parked car is a row spent saying nothing. And a
-    # negative sag is not a sag: under regeneration the pack sits *above* its
-    # resting volts, and "просадка −12 В" was the panel reporting a fall upward.
-    sag = s.get('sag')
-    if sag is not None and sag > 0:
-        out.append(txt('cap', LEFT_EDGE, CORNER_LINE,
-                       f'просадка {sag:.0f} В', 'start', MUTED_DEEP, a))
+    """БАТАРЕЯ · В - the pack's volts, and nothing else.
+
+    The sag line is deleted. Its reference was an EWMA of the pack at rest, and on
+    a motorway there is no rest: the board electronics pull a kilowatt or two
+    permanently, so after half an hour the reference has aged into the pack's own
+    discharge and «просадка 14 В» is 10 % of SOC wearing a unit it does not have.
+    """
+    if not s['volts_known']:
+        return []
+    out = [txt('ttl', LEFT_EDGE, CORNER_TITLE, 'БАТАРЕЯ · В', 'start', MUTED_DEEP)]
+    if s.get('volts') is not None:
+        out.append(txt('fig', LEFT_FIELD_RIGHT, CORNER_FIGURE,
+                       f'{s["volts"]:.0f}', 'end', MUTED))
     return out
 
 
 def right_corner(s):
-    """ДВС: the heading is always there, dimmed while the engine sleeps.
+    """ДВС, in the three states it has, one of which is not being there at all.
 
-    It gains its unit when there is something to measure. A dimmed «ДВС · ОБ/МИН»
-    over an empty corner would be advertising an instrument that is not there.
+    Running: the heading carries the unit, the figure is the revolutions, and the
+    line under it is what the engine is putting back - a blue dot and «14 кВт»,
+    because a dot is the smallest blue thing that still reads on black and a 12'
+    blue word is not one.
+
+    Asleep after running: «6» over «мин за поездку», which is the question a
+    hybrid's driver actually asks and the answer nothing on this panel gave.
+
+    Never started this trip: empty. A dimmed heading over an empty corner is
+    advertising an instrument that is not there.
     """
-    a = s.get('right_alpha', 1.0)
-    live = bool(s.get('engine'))
-    out = [txt('ttl', RIGHT_EDGE, CORNER_TITLE, 'ДВС · ОБ/МИН' if live else 'ДВС', 'end',
-               MUTED_DEEP, a if live else a * 0.55)]
-    if not live:
+    if not s['ice_known']:
+        return []
+    mode = s.get('ice')
+    if mode == 'running':
+        out = [txt('ttl', RIGHT_EDGE, CORNER_TITLE, 'ДВС · об/мин', 'end', MUTED_DEEP)]
+        if s.get('rpm') is not None:
+            out.append(txt('fig', RIGHT_FIELD_RIGHT, CORNER_FIGURE,
+                           f'{s["rpm"]:.0f}', 'end', MUTED))
+        if s.get('generation') is not None:
+            unit_x = RIGHT_EDGE - W_KW
+            field_right = unit_x - SMALL_GAP
+            field_left = field_right - 2 * DIGIT * CAPTION
+            out += [
+                dot(field_left - MARK_GAP - MARK_R, CORNER_LINE - CAP * CAPTION / 2),
+                txt('cl0', field_right, CORNER_LINE, f'{s["generation"]:.0f}',
+                    'end', MUTED),
+                txt('un', unit_x, CORNER_LINE, 'кВт', 'start', MUTED),
+            ]
         return out
-    if s.get('rpm') is not None:
-        out.append(txt('fg', RIGHT_FIELD_RIGHT, CORNER_FIGURE, f'{s["rpm"]:.0f}', 'end', INK, a))
-    # «+14 кВт», not «14 кВт в батарею». The sentence needed 180 units and this
-    # corner has 138 at that baseline, so four of its five words were being drawn
-    # behind the vehicle's own graphics. The plus and the RETURN blue say the same
-    # thing in the panel's own language, and the shelf below names it in full.
-    if s.get('generation'):
-        out.append(txt('cap', RIGHT_EDGE, CORNER_LINE,
-                       f'+{s["generation"]:.0f} кВт', 'end', RETURN_INK, a))
+    out = [txt('ttl', RIGHT_EDGE, CORNER_TITLE, 'ДВС', 'end', MUTED_DEEP)]
+    if s.get('ice_minutes') is not None:
+        out += [
+            txt('fig', RIGHT_EDGE, CORNER_FIGURE, f'{s["ice_minutes"]:.0f}', 'end', MUTED),
+            txt('un', RIGHT_EDGE, CORNER_LINE, 'мин за поездку', 'end', MUTED_DEEP),
+        ]
     return out
 
 
 def left_shelf(s):
-    """Temperatures, back on the panel because the owner missed them.
+    """Temperatures: three cells, and a fourth that only exists on an exception.
 
-    The exception is the figure itself changing colour, not a sentence somewhere
-    else: a driver who has learned that these are normally ink does not need to be
-    told in words that one of them is not.
-
-    The three motors are three figures under one word, in `motorTemps` order -
-    front, rear left, rear right - each coloured by its own level. One number was
-    the owner's complaint about this shelf and the answer was already in the data:
-    the rear pair is per-side, so a single reading was throwing two thirds of what
-    the car reports away, and the interesting case is exactly the one where they
-    differ.
+    The exception is the figure itself changing colour, at the same size as every
+    other figure on the shelf - so noticing it and reading it are one glance. The
+    three motors are three figures under one word, in `motorTemps` order, each
+    coloured by its own level: the rear pair is per-side and one reading threw two
+    thirds of what the car reports away.
     """
-    a = s.get('left_alpha', 1.0)
+    if not s['temps_known']:
+        return []
+    out = []
     temps = s.get('temps')
-    out = [txt('ttl', LEFT_EDGE, SHELF_HEADER, 'ТЕМПЕРАТУРЫ', 'start', MUTED_DEEP, a)]
-    if not temps:
-        return out
 
     def cell(index, word):
         left, _ = left_cell(index)
-        out.append(txt('cl', left, SHELF_CAPTION, word, 'start', MUTED_DEEP, a))
+        out.append(txt('cl', left, SHELF_CAPTION, word, 'start', MUTED_DEEP))
         return left
 
     def degrees(x, value, level):
-        # A degree sign belongs against its digits, so it rides at the reading's
-        # own size and touches the field's right edge; the field is three
-        # characters wide, which is what "-8" in January and "102" in July both need.
-        out.append(txt('rd', x, SHELF_FIGURE, value, 'end', LEVEL[level], a))
-        out.append(txt('un2', x, SHELF_FIGURE, '°', 'start', MUTED, a))
+        # A degree belongs against its digits and Roboto sets it there: the field
+        # is two characters wide and the sign starts exactly at its right edge.
+        out.append(txt('rd', x, SHELF_FIGURE, value, 'end', LEVEL[level]))
+        out.append(txt('rd', x, SHELF_FIGURE, '°', 'start', MUTED))
 
     left = cell(0, 'БАТАРЕЯ')
-    degrees(left + TEMP_FIELD, *temps['pack'])
-
+    if temps:
+        degrees(left + TEMP_FIELD, *temps['pack'])
     left = cell(1, 'МОТОРЫ')
-    for index, (value, level) in enumerate(temps['motors']):
-        degrees(left + index * MOTOR_PITCH + MOTOR_FIELD, value, level)
-
+    if temps:
+        for index, (value, level) in enumerate(temps['motors']):
+            degrees(left + index * MOTOR_PITCH + TEMP_FIELD, value, level)
     left = cell(2, 'ИНВЕРТОР')
-    degrees(left + TEMP_FIELD, *temps['inverter'])
+    if temps:
+        degrees(left + TEMP_FIELD, *temps['inverter'])
 
     spread = s.get('spread')
     if spread:
         value, level = spread
         left = cell(3, 'РАЗБРОС')
-        out.append(txt('rd', left + TEMP_FIELD, SHELF_FIGURE, value, 'end', LEVEL[level], a))
-        # "44" and "мВ" set flush read as one token, which is the opposite of what
-        # the exception cell is for; a degree has no such problem and no gap.
-        out.append(txt('un2', left + TEMP_FIELD + STEP, SHELF_FIGURE, 'мВ', 'start', MUTED, a))
+        out.append(txt('rd', left + TEMP_FIELD, SHELF_FIGURE, value, 'end', LEVEL[level]))
+        out.append(txt('rd', left + TEMP_FIELD + STEP, SHELF_FIGURE, 'мВ',
+                       'start', MUTED))
     return out
 
 
 def engine_box(s):
     """Two minutes of the combustion half, where the trip balance stands otherwise.
 
-    `EngineTrace` has kept this history all along and nothing has ever drawn it on
-    the cluster. It answers the two questions a number cannot - how long the engine
-    has been holding a generating speed, and whether the kilowatts it puts back are
-    steady or sagging - and it costs the panel nothing while the engine sleeps,
-    because then it is not there at all.
+    It occupies exactly the ink box of the digits it replaces, so it clears the
+    top guard by construction. Revolutions run linearly against 3000 - this engine
+    is a generator, not a redline - and generation by the same square root
+    `ClusterReadout.generationFraction` uses. Neither run carries an axis; the two
+    words under the box are the whole legend, and the blue one carries the dot.
 
-    Both runs share one box height and neither carries an axis: revolutions
-    linearly against 3000 (this engine is a generator, not a redline), generation
-    by the same square root `ClusterReadout.generationFraction` uses. The window
-    the generator actually works in is drawn as a faint zone rather than two
-    labelled rules, so the line has somewhere to be without another bar on the panel.
+    While the box is up the three balance cells are hidden. That is not "куда
+    делся баланс": the box only leaves 120 s after the last live sample, so the
+    balance comes back once, not once per engine cycle, and a winter jam that
+    cycles the engine every ninety seconds never gets the swap at all.
     """
-    a = s.get('right_alpha', 1.0)
     rpm, gen = s['trace']
-    x0, x1 = ENGINE_BOX_LEFT, ENGINE_BOX_RIGHT
+    x1 = ENGINE_BOX_RIGHT
+    x0 = x1 - (len(rpm) - 1) * ENGINE_PITCH
     top, bottom = ENGINE_BOX_TOP, ENGINE_BOX_BOTTOM
     height = bottom - top
-    step = (x1 - x0) / float(len(rpm) - 1)
+    xs = [x0 + ENGINE_PITCH * i for i in range(len(rpm) + 1)]
 
-    def y_rpm(value):
-        return bottom - height * min(1.0, max(0.0, value / ENGINE_RPM_FULL))
+    def y_of(value, full, root=False):
+        share = min(1.0, max(0.0, value / full))
+        if root:
+            share = math.sqrt(share)
+        return bottom - height * share
 
-    out = [rect(x0, y_rpm(ENGINE_WINDOW[1]), x1 - x0,
-                y_rpm(ENGINE_WINDOW[0]) - y_rpm(ENGINE_WINDOW[1]), MUTED_DEEP, opacity=0.06 * a),
-           line(x0, bottom, x1, bottom, MUTED_DEEP, BAND_HAIRLINE, a)]
+    out = [line(x0, bottom, x1, bottom, MUTED_DEEP, BAND_HAIRLINE)]
 
-    area = [(x0 + step * i, bottom - height * math.sqrt(
-        min(1.0, max(0.0, v / ENGINE_GEN_FULL))))
-        for i, v in enumerate(gen) if v is not None]
-    if len(area) > 1:
-        # The edge carries the shape and the fill only says "this is an area".
-        # Drawn as a solid blue slab it was the second heaviest thing on a panel
-        # whose whole argument is that the band is the only lit one.
-        path = (f'M {f(area[0][0])} {f(bottom)} L ' +
-                ' L '.join(f'{f(x)} {f(y)}' for x, y in area) +
-                f' L {f(area[-1][0])} {f(bottom)} Z')
-        out.append(f'<path d="{path}" fill="{RETURN}" opacity="{f(0.30 * a)}"/>')
-        edge = 'M ' + ' L '.join(f'{f(x)} {f(y)}' for x, y in area)
-        out.append(f'<path d="{edge}" fill="none" stroke="{RETURN_INK}" stroke-width="1.2" '
-                   f'stroke-linejoin="round" opacity="{f(a)}"/>')
+    gen_ys = [y_of(v, ENGINE_GEN_FULL, root=True) for v in gen]
+    outline, field = step_path(xs, gen_ys, bottom)
+    out.append(f'<path d="{field}" fill="{RETURN}" opacity="{f(GEN_AREA_ALPHA)}"/>')
+    out.append(f'<path d="{outline}" fill="none" stroke="{RETURN_INK}" '
+               f'stroke-width="{f(AREA_EDGE)}" stroke-linejoin="round"/>')
 
-    run = [(x0 + step * i, y_rpm(v)) for i, v in enumerate(rpm) if v is not None]
-    if len(run) > 1:
-        d = 'M ' + ' L '.join(f'{f(x)} {f(y)}' for x, y in run)
-        out.append(f'<path d="{d}" fill="none" stroke="{INK}" stroke-width="1.8" '
-                   f'stroke-linejoin="round" stroke-linecap="round" opacity="{f(a)}"/>')
-        out.append(f'<circle cx="{f(run[-1][0])}" cy="{f(run[-1][1])}" r="3.4" '
-                   f'fill="{INK}" opacity="{f(a)}"/>')
+    run = [(x0 + ENGINE_PITCH * i, y_of(v, ENGINE_RPM_FULL)) for i, v in enumerate(rpm)]
+    d = 'M ' + ' L '.join(f'{f(x)} {f(y)}' for x, y in run)
+    out.append(f'<path d="{d}" fill="none" stroke="{MUTED}" '
+               f'stroke-width="{f(DATA_LINE)}" stroke-linejoin="round" '
+               f'stroke-linecap="round"/>')
 
-    # The two runs are named once, on the shelf's own caption row, in their own
-    # colours - which is the whole legend a two-series box needs on a panel where
-    # blue has meant "back into the pack" since the first drawing.
-    out.append(txt('cl', RIGHT_EDGE, SHELF_CAPTION, 'ГЕНЕРАЦИЯ', 'end', RETURN_INK, a))
-    out.append(txt('cl', RIGHT_EDGE - W_GENERATION - CELL_GAP, SHELF_CAPTION,
-                   'ОБОРОТЫ', 'end', MUTED_DEEP, a))
+    out.append(txt('cl', RIGHT_EDGE, SHELF_CAPTION, 'ГЕНЕРАЦИЯ', 'end', MUTED_DEEP))
+    gen_left = RIGHT_EDGE - W_CAPTION['ГЕНЕРАЦИЯ']
+    out.append(dot(gen_left - MARK_GAP - MARK_R, SHELF_CAPTION - CAP * CAPTION / 2))
+    out.append(txt('cl', gen_left - MARK_W - CELL_GAP, SHELF_CAPTION,
+                   'ОБОРОТЫ', 'end', MUTED_DEEP))
     return out
 
 
 def right_shelf(s):
-    """The trip's energy - or, while the engine runs, the engine's own two minutes.
+    """The trip's energy in three fixed seats - or the engine's own two minutes.
 
-    The first drawing wrote ПОТРАЧЕНО / ВЕРНУЛА / ДВС over three figures and the
-    owner read the third as revolutions - a fair reading, since "ДВС" beside a
-    number is what a rev counter looks like. The heading now carries both the
-    subject and the unit, and each word says which direction the energy went.
-
-    A running engine takes the shelf because the trip balance is the one block on
-    the panel that is equally true a minute later: it is an integral, it moves
-    slowly, and it is back five seconds after the engine stops. The engine's own
-    history is true only while the engine is running.
+    A zero is drawn, in MUTED_DEEP, in its own seat. The last board packed the
+    cells against the margin and skipped a zero, so the first braking of a trip
+    slid two figures sideways and the engine's first start slid them again: a
+    coordinate that depends on data, which is the one thing this concept exists to
+    cure. The unit is written once, at a fixed anchor after the last digit.
     """
-    a = s.get('right_alpha', 1.0)
     if s.get('trace'):
-        return [txt('ttl', RIGHT_EDGE, SHELF_HEADER, 'ДВС · 2 МИН', 'end', MUTED_DEEP,
-                    a)] + engine_box(s)
+        return engine_box(s)
+    if not s['trip_known']:
+        return []
     trip = s.get('trip')
-    out = [txt('ttl', RIGHT_EDGE, SHELF_HEADER, 'ЗА ПОЕЗДКУ · КВТ·Ч', 'end', MUTED_DEEP, a)]
-    if not trip:
-        return out
-    # Cell 2 is the leftmost, so the row reads out of the battery, back from the
-    # brakes, in from the engine. A zero is never drawn: on a car whose engine has
-    # not started, "0,0" is the loudest thing on the panel and says nothing.
-    present = [(word, colour, trip[key]) for key, word, colour in (
-        ('spent', 'ИЗ БАТАРЕИ', INK),
-        ('regen', 'РЕКУПЕРАЦИЯ', RETURN_INK),
-        ('ice', 'ОТ ДВС', RETURN_INK),
-    ) if trip.get(key)]
-    for order, (word, colour, value) in enumerate(present):
-        _, right = right_cell(len(present) - 1 - order)
-        out.append(txt('fg', right, SHELF_FIGURE, comma(value), 'end', colour, a))
-        out.append(txt('cl', right, SHELF_CAPTION, word, 'end', MUTED_DEEP, a))
+    out = [txt('un', TRIP_UNIT_X, SHELF_FIGURE, 'кВт·ч', 'end', MUTED_DEEP)]
+    for index, (key, word, marked) in enumerate((('ice', 'ОТ ДВС', True),
+                                                 ('regen', 'РЕКУПЕРАЦИЯ', True),
+                                                 ('spent', 'ИЗ БАТАРЕИ', False))):
+        _, right = trip_cell(index)
+        out.append(txt('cl', right, SHELF_CAPTION, word, 'end', MUTED_DEEP))
+        if marked:
+            word_left = right - W_CAPTION[word]
+            out.append(dot(word_left - MARK_GAP - MARK_R,
+                           SHELF_CAPTION - CAP * CAPTION / 2))
+        if trip is None:
+            continue
+        value = trip[key]
+        out.append(txt('rd', right, SHELF_FIGURE, comma(value), 'end',
+                       MUTED if value else MUTED_DEEP))
     return out
 
 
-def petal_history(bars, alpha=1.0):
-    """Three kilometres of closed buckets, beside the figure they average to.
+def petal_history(bars):
+    """Three kilometres of closed buckets, as one stepped line beside its figure.
 
-    `ConsumptionLog` closes one every 100 m and the cluster's window is thirty of
-    them, so the box has a fixed slot count and a fixed width and does not stretch
-    as the history fills - the front is simply empty until the road is there.
-
-    The dashed rule is the same number the figure prints, which is what makes a
-    box of thirty anonymous bars readable without an axis: the reader is not asked
-    what a bar is worth, only whether it is above or below the line they can
-    already read. The rule is MUTED_DEEP, not champagne - the head unit's chart
-    uses ACCENT there and this panel has none.
+    Thirty bars 0.65 mm wide with a 0.19 mm gap are 0.9' at 750 mm - under the
+    eye's resolution - so they came out as a grey block with a ragged top and
+    answered nothing. A step at 8 units a bucket has a shape. There is no dashed
+    mean any more: the mean is the figure standing next to it, and the zero line
+    is the figure's own baseline, so a bucket is read as above or below a number
+    that is already on the panel.
     """
     if not bars:
         return []
     zero, top, bottom = PETAL_BASELINE, PETAL_BOX_TOP, PETAL_BOX_BOTTOM
     pos, neg = g.ceilings(bars)
     pitch = PETAL_BOX_W / len(bars)
-    width = pitch * BAR_SHARE
-    out = [line(PETAL_BOX_X, zero, PETAL_BOX_X + PETAL_BOX_W, zero,
-                MUTED_DEEP, BAND_HAIRLINE, alpha)]
-    for index, value in enumerate(bars):
-        room = (zero - top) if value >= 0 else (bottom - zero)
-        height = min(abs(value) / (pos if value >= 0 else neg), 1.0) * room
-        if height <= 0:
-            continue
-        x = PETAL_BOX_X + pitch * index + (pitch - width) / 2
-        y = zero - height if value >= 0 else zero
-        fade = min(BAR_ALPHA, FADE_FLOOR + (BAR_ALPHA - FADE_FLOOR) * index / FADE_BARS)
-        out.append(rect(x, y, width, height, RETURN if value < 0 else INK,
-                        opacity=alpha * fade))
-    average = g.average_consumption(bars)
-    if average:
-        y = zero - min(average / pos, 1.0) * (zero - top)
-        out.append(line(PETAL_BOX_X, y, PETAL_BOX_X + PETAL_BOX_W, y,
-                        MUTED_DEEP, BAND_HAIRLINE, alpha, dash='4 4'))
-    return out
+    xs = [PETAL_BOX_X + pitch * i for i in range(len(bars) + 1)]
+    ys = [zero - min(v / pos, 1.0) * (zero - top) if v >= 0
+          else zero + min(-v / neg, 1.0) * (bottom - zero) for v in bars]
+    outline, field = step_path(xs, ys, zero)
+    return [
+        f'<path d="{field}" fill="{MUTED}" opacity="{f(AREA_ALPHA)}"/>',
+        f'<path d="{outline}" fill="none" stroke="{MUTED}" '
+        f'stroke-width="{f(DATA_LINE)}" stroke-linejoin="round"/>',
+        line(PETAL_BOX_X, zero, PETAL_BOX_X + PETAL_BOX_W, zero,
+             MUTED_DEEP, BAND_HAIRLINE),
+    ]
 
 
 def petal(s):
-    """What the last three kilometres cost, and the one sentence the panel allows."""
-    a = s.get('petal_alpha', 1.0)
+    """What the last three kilometres cost - always the last three kilometres.
+
+    The denominator never changes under the figure: standing on P it is still
+    three kilometres and only the tenth appears, because at 100 km/h a tenth
+    changes three times a second and a figure that flickers is a figure nobody
+    reads. While the engine is running the figure goes MUTED and says «батарея»,
+    because `ConsumptionLog` integrates pack power alone and nobody has logged
+    whether `GENERATION_KW` is already inside `POWER_KW` (B1).
+    """
     if s.get('hint'):
-        return [txt('cap', AXIS, PETAL_BASELINE, s['hint'], 'middle', MUTED, a)]
-    out = petal_history(s.get('bars'), a)
-    value, unit = s.get('petal'), s.get('petal_unit')
-    if value is None:
-        return out
-    colour = RETURN_INK if s.get('petal_returning') else INK
-    return out + [
-        txt('fg', PETAL_FIGURE_RIGHT, PETAL_BASELINE, value, 'end', colour, a),
-        txt('un', PETAL_UNIT_X, PETAL_BASELINE, unit, 'start', MUTED, a),
-    ]
+        return [txt('un', AXIS, PETAL_BASELINE, s['hint'], 'middle', MUTED)]
+    if not s['petal_known']:
+        return []
+    out = petal_history(s.get('bars'))
+    out.append(txt('un', PETAL_UNIT_X, PETAL_BASELINE, s['petal_unit'],
+                   'start', MUTED_DEEP))
+    value = s.get('petal')
+    if value is not None:
+        colour = MUTED if s.get('ice') == 'running' else INK
+        out.append(txt('fig', PETAL_FIGURE_RIGHT, PETAL_BASELINE, value, 'end', colour))
+    return out
 
 
 def scene(s):
     """One complete panel, in the order the app paints it."""
     body = keepout()
-    body += glow(s.get('kw') or 0.0, s.get('glow', 0.0), s.get('glow_colour'),
-                 s.get('alpha', 1.0))
-    body += skeleton(s.get('skeleton_alpha', 1.0))
-    body += band(s.get('kw'), s.get('generation') if s.get('engine') else None,
-                 s.get('peak'), s.get('alpha', 1.0), s.get('on_band', True), s.get('tail'))
-    body += hero(s.get('kw'), s.get('hero_colour'), s.get('alpha', 1.0))
+    body += glow(s.get('kw'))
+    body += skeleton()
+    body += band(s)
+    body += hero(s)
     body += left_corner(s)
     body += right_corner(s)
     body += left_shelf(s)
@@ -787,30 +938,39 @@ HEAD = """<!doctype html>
 <body>
 <x-dc>
 <helmet>
-  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&amp;family=Roboto+Mono:wght@200;300;400&amp;display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&amp;display=swap" rel="stylesheet">
   <style>
     body { margin:0; background:%(bg)s; font-family:'Roboto','Segoe UI',system-ui,sans-serif; }
-    .hr { font-family:'Roboto Mono',monospace; font-weight:300; font-size:%(hero)spx; fill:%(ink)s; }
-    .fg { font-family:'Roboto Mono',monospace; font-weight:300; font-size:%(figure)spx; fill:%(ink)s; }
-    .rd { font-family:'Roboto Mono',monospace; font-weight:300; font-size:%(reading)spx; fill:%(ink)s; }
-    .ttl { font-size:%(caption)spx; font-weight:500; letter-spacing:%(tracking)sem; fill:%(muted_deep)s; }
-    .cap { font-size:%(caption)spx; font-weight:400; letter-spacing:%(tracking)sem; fill:%(muted_deep)s; }
-    /* A word standing under its own number is a caption, not a heading, and
-       tracking is what ran "РЕКУПЕРАЦИЯ" out of its cell into the next one. */
-    .cl { font-size:%(caption)spx; font-weight:400; fill:%(muted_deep)s; }
-    .un { font-size:%(caption)spx; font-weight:400; fill:%(muted)s; }
-    /* The degree sign rides with the reading it belongs to, so it takes the
-       reading's own face and size - set at the caption size it read as a
-       footnote stuck to a number. */
-    .un2 { font-family:'Roboto Mono',monospace; font-weight:300; font-size:%(reading)spx; fill:%(muted)s; }
+    /* Every figure on the panel is Roboto with tabular numerals. Roboto's own
+       digits are already fixed-width - measured, all ten advance the same - so
+       `tnum` is a contract rather than a fix, and what it never had to fix is
+       punctuation: the comma that a monospaced face gave a full cell, breaking
+       "12,4" into "12 , 4", is a fifth of a digit here. */
+    .num { font-variant-numeric:tabular-nums; font-feature-settings:'tnum'; }
+    .hero { font-weight:300; font-size:%(hero)spx; fill:%(ink)s;
+            font-variant-numeric:tabular-nums; font-feature-settings:'tnum'; }
+    .fig { font-weight:400; font-size:%(figure)spx; fill:%(muted)s;
+           font-variant-numeric:tabular-nums; font-feature-settings:'tnum'; }
+    .rd { font-weight:400; font-size:%(reading)spx; fill:%(muted)s;
+          font-variant-numeric:tabular-nums; font-feature-settings:'tnum'; }
+    /* The hero's unit is the one unit that has to be read on the move, so it is
+       the one unit at a readable size and one step brighter than the rest. */
+    .un34 { font-weight:400; font-size:%(reading)spx; fill:%(muted)s; }
+    .ttl { font-size:%(caption)spx; font-weight:500; letter-spacing:%(tracking)sem;
+           fill:%(muted_deep)s; }
+    .cl { font-size:%(caption)spx; font-weight:400; letter-spacing:%(tracking)sem;
+          fill:%(muted_deep)s; }
+    /* A tracked capital is a heading; a unit is case-sensitive and is not one.
+       «кВт·ч», «об/мин», «мин за поездку» are set as themselves. */
+    .un { font-size:%(caption)spx; font-weight:400; fill:%(muted_deep)s; }
+    .cl0 { font-size:%(caption)spx; font-weight:400; fill:%(muted)s;
+           font-variant-numeric:tabular-nums; font-feature-settings:'tnum'; }
     .keep { font-size:%(note)spx; letter-spacing:%(tracking)sem; fill:#3F434D; }
-    /* Used on an HTML div as well as in SVG, and `fill` does nothing to a div:
-       the scene captions rendered black on black and the states board came back
-       looking like eleven unlabelled panels. */
-    .sn { font-size:%(note)spx; letter-spacing:%(tracking)sem; fill:%(muted)s; color:%(muted)s; }
+    /* Used on an HTML div as well as in SVG, and `fill` does nothing to a div. */
+    .sn { font-size:%(note)spx; letter-spacing:%(tracking)sem; fill:%(muted_deep)s;
+          color:%(muted_deep)s; }
     /* Annotations name the very lines they stand on, so each one carries a black
-       halo through paint-order rather than a measured backing rect - the plan
-       board is the one place where text and geometry are meant to coincide. */
+       halo through paint-order rather than a measured backing rect. */
     .nt { font-size:%(note)spx; fill:%(muted_deep)s; stroke:%(bg)s; stroke-width:4px;
           paint-order:stroke fill; }
   </style>
@@ -860,66 +1020,91 @@ HOT = temps(('33', 'normal'),
             (('61', 'normal'), ('68', 'watch'), ('64', 'normal')),
             ('92', 'alert'))
 
-CALM_BARS = consumption_history(16.8)
-ENGINE_TRACE = engine_history()
+PER_100 = 'кВт·ч/100 км'
+PER_100_BATTERY = 'кВт·ч/100 км · батарея'
 
-CALM = dict(
-    kw=34.0, glow=0.16, peak=68.0, tail=(12.0, 68.0),
-    volts=552.0, sag=9.0, temps=COOL,
-    trip=dict(spent=12.4, regen=3.1),
-    bars=CALM_BARS, petal='16,8', petal_unit='кВт·ч/100 км',
-)
+CALM_BARS = consumption_history(16.8)
+
+
+def sc(**kw):
+    """One scene, with the "has this ever arrived" flags filled in.
+
+    Alpha is not a state channel any more (M5). A value that has gone stale is
+    removed after two seconds and its caption stays, which is one rule covering a
+    single null, a dead bus and a sensor that never woke - and a heading appears
+    with its first value, so the first seconds of a drive are the band's skeleton
+    and nothing else rather than four headings over emptiness (m4).
+    """
+    s = dict(kw)
+    s.setdefault('petal_unit', PER_100_BATTERY if s.get('ice') == 'running' else PER_100)
+    defaults = {
+        'power_known': s.get('kw') is not None,
+        'volts_known': s.get('volts') is not None,
+        'temps_known': s.get('temps') is not None,
+        'trip_known': s.get('trip') is not None or bool(s.get('trace')),
+        'ice_known': s.get('ice') is not None,
+        'petal_known': s.get('petal') is not None or bool(s.get('bars')),
+    }
+    for key, value in defaults.items():
+        s.setdefault(key, value)
+    return s
+
+
+CALM = sc(kw=34.0, peak=68.0, volts=552.0, temps=COOL,
+          trip=dict(spent=12.4, regen=3.1, ice=0.0),
+          bars=CALM_BARS, petal='17')
 
 STATES = [
-    ('Первые секунды · шина ещё не ответила, корзин расхода тоже нет', dict(
-        kw=None, glow=0.05, volts=None, sag=None, temps=None, trip=None,
-        bars=None, petal=None)),
-    ('Спокойная езда · ДВС спит, в лепестке 3 км по 100 м', CALM),
-    ('Рекуперация · сторона и цвет меняются, ничего не появляется', dict(
-        kw=-42.0, glow=0.18, peak=-58.0, tail=(-58.0, 9.0),
-        volts=573.0, sag=-12.0, temps=COOL,
-        trip=dict(spent=12.6, regen=3.4),
-        bars=consumption_history(11.2), petal='11,2', petal_unit='кВт·ч/100 км')),
-    ('ДВС генерирует · правая полка отдана его двум минутам, синий шов за ink-концом', dict(
-        kw=28.0, glow=0.16, peak=52.0, tail=(9.0, 52.0),
-        engine=True, rpm=1780.0, generation=14.0, trace=ENGINE_TRACE,
-        volts=548.0, sag=13.0, temps=WORKED,
-        bars=consumption_history(17.4), petal='17,4', petal_unit='кВт·ч/100 км')),
-    ('ДВС генерирует · запасное рисование, если генерация уже внутри POWER_KW', dict(
-        kw=28.0, glow=0.16, peak=52.0, tail=(9.0, 52.0),
-        engine=True, rpm=1780.0, generation=14.0, trace=ENGINE_TRACE, on_band=False,
-        volts=548.0, sag=13.0, temps=WORKED,
-        bars=consumption_history(17.4), petal='17,4', petal_unit='кВт·ч/100 км')),
-    ('Стоим на P · коробка остаётся, цифра — средний за поездку', dict(
-        kw=1.4, glow=0.06,
-        volts=561.0, sag=None, temps=COOL,
-        trip=dict(spent=12.4, regen=3.1),
-        bars=CALM_BARS, petal='14,2', petal_unit='кВт·ч/100 км за поездку')),
-    ('Зарядка от розетки · километров нет, коробки тоже; дышит только свечение', dict(
-        kw=-7.0, glow=0.20, glow_colour=RETURN, hero_colour=RETURN_INK,
-        volts=584.0, sag=None, temps=PARKED,
-        trip=dict(spent=12.4, regen=3.1),
-        bars=None, petal='2:15', petal_unit='до полной')),
-    ('Потеря связи · значения замирают, скелет остаётся, текста нет', dict(
-        kw=34.0, glow=0.07, alpha=0.45, left_alpha=0.45, right_alpha=0.45,
-        petal_alpha=0.45, tail=(12.0, 68.0), volts=552.0, sag=9.0, temps=COOL,
-        trip=dict(spent=12.4, regen=3.1),
-        bars=CALM_BARS, petal='16,8', petal_unit='кВт·ч/100 км')),
-    ('Ночь · падает яркость, оттенки не меняются никогда', dict(
-        kw=34.0, glow=0.10, left_alpha=0.85, right_alpha=0.85, petal_alpha=0.85,
-        skeleton_alpha=0.85, peak=68.0, tail=(12.0, 68.0),
-        volts=552.0, sag=9.0, temps=COOL,
-        trip=dict(spent=12.4, regen=3.1),
-        bars=CALM_BARS, petal='16,8', petal_unit='кВт·ч/100 км')),
-    ('Исключение · это сама цифра, сменившая цвет, плюс четвёртая ячейка', dict(
-        kw=34.0, glow=0.16, peak=68.0, tail=(12.0, 68.0),
-        volts=552.0, sag=9.0, temps=HOT, spread=('44', 'alert'),
-        trip=dict(spent=12.4, regen=3.1),
-        bars=CALM_BARS, petal='16,8', petal_unit='кВт·ч/100 км')),
-    ('Нет ADB-ключа · указание, что сделать — не сообщение об ошибке', dict(
-        kw=None, glow=0.0, volts=None, sag=None, temps=None, trip=None,
-        bars=None, petal=None,
-        hint='ADB-ключ не подтверждён · Помощь → Диагностика')),
+    ('Первые секунды · шина ещё не ответила: скелет ленты, и больше ничего',
+     sc(kw=None)),
+    ('Пробка · 2 кВт внутри мёртвой зоны: цвета нет, лента — засечка, цифра стоит',
+     sc(kw=2.0, volts=548.0, temps=COOL,
+        trip=dict(spent=8.1, regen=2.2, ice=0.0),
+        bars=consumption_history(21.4), petal='21')),
+    ('Спокойная езда · 34 кВт, ДВС в этой поездке не запускался — правый угол пуст',
+     CALM),
+    ('Разгон · 128 кВт, пик-холд стоит впереди кончика и сползает к нему',
+     sc(kw=128.0, peak=163.0, volts=531.0, temps=WORKED,
+        trip=dict(spent=13.1, regen=3.1, ice=0.0),
+        bars=consumption_history(20.4), petal='20')),
+    ('Рекуперация · сторона и цвет меняются, не появляется ничего',
+     sc(kw=-42.0, peak=-58.0, volts=573.0, temps=COOL,
+        trip=dict(spent=12.6, regen=3.4, ice=0.0),
+        bars=consumption_history(11.2), petal='11')),
+    ('ДВС генерирует 82 с · шов за флагом, коробка выросла справа, угол занят',
+     sc(kw=28.0, peak=52.0, ice='running', rpm=1780.0, generation=14.0,
+        trace=engine_history(82), volts=548.0, temps=WORKED,
+        bars=consumption_history(17.4), petal='17')),
+    ('ДВС заглох 40 с назад · коробка ещё здесь, обороты у правого края на нуле',
+     sc(kw=34.0, peak=68.0, ice='slept', ice_minutes=6.0,
+        trace=engine_history(120, stopped=40), volts=551.0, temps=WORKED,
+        bars=consumption_history(17.1), petal='17')),
+    ('Запасное рисование шва · если генерация уже внутри POWER_KW — отдельной линией',
+     sc(kw=28.0, peak=52.0, ice='running', rpm=1780.0, generation=14.0,
+        seam_on_band=False, trace=engine_history(82), volts=548.0, temps=WORKED,
+        bars=consumption_history(17.4), petal='17')),
+    ('Стоянка на P · те же 3 км, у цифры появилась десятая',
+     sc(kw=1.4, volts=561.0, temps=COOL,
+        trip=dict(spent=12.4, regen=3.1, ice=0.0),
+        bars=CALM_BARS, petal='16,8')),
+    ('Зарядка от розетки · километров нет, коробка расхода остаётся прежней',
+     sc(kw=-7.0, volts=584.0, temps=PARKED,
+        trip=dict(spent=12.4, regen=3.1, ice=0.0),
+        bars=CALM_BARS, petal='2:15', petal_unit='до полной')),
+    ('Одиночный null · напряжение снято через 2 с, заголовок «БАТАРЕЯ · В» стоит',
+     sc(kw=34.0, peak=68.0, volts=None, volts_known=True, temps=COOL,
+        trip=dict(spent=12.4, regen=3.1, ice=0.0),
+        bars=CALM_BARS, petal='17')),
+    ('Потеря связи · через 2 с сняты все значения; подписи остались и не потускнели',
+     sc(kw=None, power_known=True, volts=None, volts_known=True,
+        temps=None, temps_known=True, trip=None, trip_known=True,
+        ice=None, ice_known=False, bars=None, petal=None, petal_known=True)),
+    ('Исключение · моторы 68° оранжевым, инвертор 92° красным, четвёртая ячейка',
+     sc(kw=34.0, peak=68.0, volts=552.0, temps=HOT, spread=('44', 'alert'),
+        trip=dict(spent=12.4, regen=3.1, ice=0.0),
+        bars=CALM_BARS, petal='17')),
+    ('Нет ADB-ключа · указание, что сделать — не сообщение об ошибке',
+     sc(kw=None, hint='ADB-ключ не подтверждён · Помощь → Диагностика')),
 ]
 
 STATE_LABEL = 34.0
@@ -943,6 +1128,8 @@ def plan_board():
         f'opacity="0.7"/>',
         line(0, STOCK_TOP, W, STOCK_TOP, RETURN, 1.2, 0.5),
         line(0, STOCK_BOTTOM, W, STOCK_BOTTOM, RETURN, 1.2, 0.5),
+        line(0, GUARD_TOP, W, GUARD_TOP, DANGER, 1.2, 0.55),
+        line(0, GUARD_BOTTOM, W, GUARD_BOTTOM, DANGER, 1.2, 0.55),
         line(0, PETAL_FLOOR, W, PETAL_FLOOR, WARNING, 1.2, 0.5),
     ]
 
@@ -952,22 +1139,22 @@ def plan_board():
                 f'opacity="{f(opacity)}"/>')
 
     # The cell grid both shelves stand on, drawn rather than described.
-    cell_top = SHELF_FIGURE - CAP * FIGURE
-    cell_h = SHELF_CAPTION - SHELF_FIGURE + CAP * FIGURE + 6
+    cell_top = SHELF_FIGURE - CAP * READING
+    cell_h = SHELF_CAPTION - SHELF_FIGURE + CAP * READING + 6
     for index in range(4):
         left, right = left_cell(index)
         body.append(outline(left, cell_top, right - left, cell_h))
     for index in range(3):
-        left, right = right_cell(index)
+        left, right = trip_cell(index)
         body.append(outline(left, cell_top, right - left, cell_h))
-    # The three motors inside their one cell.
     motors_left, _ = left_cell(1)
     for index in range(3):
         body.append(outline(motors_left + index * MOTOR_PITCH, cell_top,
-                            MOTOR_FIELD + W_DEGREE, cell_h, dash='2 4', opacity=0.7))
+                            TEMP_FIELD + W_DEGREE, cell_h, dash='2 4', opacity=0.7))
 
-    # The two boxes the histories live in, and the hero's own field.
-    body.append(outline(ENGINE_BOX_LEFT, ENGINE_BOX_TOP, ENGINE_BOX_RIGHT - ENGINE_BOX_LEFT,
+    # The two boxes the histories live in, and the two big fields.
+    body.append(outline(ENGINE_BOX_FULL_LEFT, ENGINE_BOX_TOP,
+                        ENGINE_BOX_RIGHT - ENGINE_BOX_FULL_LEFT,
                         ENGINE_BOX_BOTTOM - ENGINE_BOX_TOP, dash='2 4', colour=WARNING,
                         opacity=0.8))
     body.append(outline(PETAL_BOX_X, PETAL_BOX_TOP, PETAL_BOX_W,
@@ -978,46 +1165,48 @@ def plan_board():
     body.append(outline(PETAL_FIGURE_RIGHT - PETAL_FIELD_W, PETAL_BASELINE - CAP * FIGURE,
                         PETAL_FIELD_W, CAP * FIGURE))
 
+    right_lane = AXIS + 140
     marks = [
         (LEFT_EDGE, CORNER_TITLE, f'заголовок угла · 18 · y {CORNER_TITLE:.0f} · '
-                                  f'единица живёт здесь, а не рядом с цифрой'),
-        (LEFT_EDGE, CORNER_FIGURE, f'цифра угла · 52 · y {CORNER_FIGURE:.0f} · '
-                                   f'поле 3 знака {LEFT_FIELD_X:.0f}…{LEFT_FIELD_RIGHT:.1f}'),
-        (LEFT_EDGE, CORNER_LINE, f'строка угла · 18 · y {CORNER_LINE:.1f} · '
-                                 f'апертура справа даёт здесь только '
-                                 f'{RIGHT_EDGE - (W - aperture_reach(CORNER_LINE, True)):.0f}'),
-        (LEFT_EDGE, SHELF_FIGURE, f'полка · слева 34, справа 52 · y {SHELF_FIGURE:.1f} · '
-                                  f'ячейки {" / ".join(f"{w:.0f}" for w in LEFT_CELLS)} '
-                                  f'· справа {RIGHT_CELL_W:.0f} · зазор {CELL_GAP:.0f}'),
-        (LEFT_EDGE, SHELF_CAPTION, f'подписи полки · 18 · y {SHELF_CAPTION:.1f} · '
-                                   f'моторы: шаг {MOTOR_PITCH:.1f}, три поля по 2 знака'),
-        (AXIS + 120, HERO_BASELINE, f'герой · 104 · базовая {HERO_BASELINE:.1f} · '
-                                    f'капитель {HERO_CAP_TOP:.1f} · запас {HERO_CLEARANCE:.0f} · '
-                                    f'поле 3 знака {HERO_FIELD_LEFT:.1f}…{HERO_FIELD_RIGHT:.1f}, '
-                                    f'«кВт» на {HERO_UNIT_X:.1f}'),
-        (AXIS + 120, SHELF_HEADER, f'заголовок правой полки · 18 · y {SHELF_HEADER:.0f} · '
-                                   f'при живом ДВС — «ДВС · 2 МИН»'),
-        (AXIS + 120, ENGINE_BOX_TOP, f'коробка ДВС · {ENGINE_BOX_LEFT:.0f}…{ENGINE_BOX_RIGHT:.0f} '
-                                     f'· y {ENGINE_BOX_TOP:.0f}…{ENGINE_BOX_BOTTOM:.0f} · '
-                                     f'{ENGINE_SLOTS} слотов по секунде'),
-        (AXIS + 120, ENGINE_BOX_BOTTOM, 'обороты 0…3000 линейно, генерация корень до 100 кВт'),
-        (AXIS + 120, BAND_Y, f'лента · y {BAND_Y:.1f} · тело {BAND_BODY:.0f} · '
-                             f'корень, 300 вправо / 100 влево · '
-                             f'след кончика за 10 с под телом'),
-        (AXIS + 120, LIMIT_BASELINE, f'подписи пределов · 18 · y {LIMIT_BASELINE:.1f}'),
-        (AXIS + 120, GLOW_CY, f'свечение · центр на ленте · ry {GLOW_RY:.1f} — '
-                              f'гаснет ровно на нижней границе'),
-        (AXIS + 120, PETAL_BOX_TOP, f'коробка расхода · {PETAL_BOX_X:.1f}…'
-                                    f'{PETAL_BOX_X + PETAL_BOX_W:.1f} · '
-                                    f'{PETAL_BARS} корзин по 100 м · шаг '
-                                    f'{PETAL_BOX_W / PETAL_BARS:.2f} · ноль = базовая цифры'),
-        (AXIS + 120, PETAL_BASELINE, f'лепесток · 52 · базовая {PETAL_BASELINE:.0f} · группа '
-                                     f'«коробка + цифра + единица» {PETAL_GROUP_W:.1f} на оси'),
-        (AXIS + 120, PETAL_FLOOR, f'пол композиции · y {PETAL_FLOOR:.0f}'),
+                                  f'единица живёт здесь: «БАТАРЕЯ · В», «ДВС · об/мин»'),
+        (LEFT_EDGE, CORNER_FIGURE, f'цифра угла · 52 · y {CORNER_FIGURE:.0f} · вольты '
+                                   f'3 знака {LEFT_FIELD_X:.0f}…{LEFT_FIELD_RIGHT:.1f} · '
+                                   f'обороты 4 знака {RIGHT_FIELD_LEFT:.1f}…'
+                                   f'{RIGHT_FIELD_RIGHT:.1f}'),
+        (LEFT_EDGE, CORNER_LINE, f'строка угла · 18 · y {CORNER_LINE:.0f} · апертура '
+                                 f'даёт справа '
+                                 f'{RIGHT_EDGE - (W - aperture_reach(CORNER_LINE, True)):.1f}, '
+                                 f'«мин за поездку» просит 130.4'),
+        (LEFT_EDGE, GUARD_TOP, f'запас {CLEARANCE:.0f} · stockTop {STOCK_TOP:.2f} → '
+                               f'{GUARD_TOP:.2f} · на нём стоят герой, обе полки и '
+                               f'коробка ДВС'),
+        (LEFT_EDGE, SHELF_FIGURE, f'цифры полок · 34 Regular · y {SHELF_FIGURE:.2f} · '
+                                  f'ячейки {" / ".join(f"{w:.0f}" for w in LEFT_CELLS)} и '
+                                  f'{" / ".join(f"{w:.0f}" for w in TRIP_CELLS)} · зазор '
+                                  f'{CELL_GAP:.0f}'),
+        (LEFT_EDGE, SHELF_CAPTION, f'подписи полок · 18 капителью · y '
+                                   f'{SHELF_CAPTION:.2f} · моторы: шаг {MOTOR_PITCH:.1f}, '
+                                   f'поле {TEMP_FIELD:.1f} + «°» {W_DEGREE:.1f}'),
+        (right_lane, ENGINE_BOX_TOP, f'коробка ДВС · {ENGINE_BOX_FULL_LEFT:.0f}…'
+                                     f'{ENGINE_BOX_RIGHT:.0f} · {ENGINE_SLOTS} слотов, '
+                                     f'шаг {ENGINE_PITCH:.2f} · растёт справа'),
+        (right_lane, HERO_BASELINE, f'герой · 88 Light · базовая {HERO_BASELINE:.2f} · '
+                                    f'поле {HERO_FIELD_LEFT:.1f}…{HERO_FIELD_RIGHT:.1f} · '
+                                    f'«кВт» 34 на {HERO_UNIT_X:.1f}'),
+        (right_lane, BAND_Y, f'лента · y {BAND_Y:.2f} · тело {BAND_BODY:.0f} · корень, '
+                             f'300 / 100 · мёртвая зона {NEUTRAL_KW:.0f} кВт'),
+        (right_lane, GLOW_CY, f'свечение · центр на нуле · rx {GLOW_RX:.0f}, ry '
+                              f'{GLOW_RY:.2f} · {GLOW_MAX:.2f}·√(|P|/диапазон), τ 1,5 с'),
+        (right_lane, GUARD_BOTTOM, f'запас {CLEARANCE:.0f} снизу · stockBottom '
+                                   f'{STOCK_BOTTOM:.2f} → {GUARD_BOTTOM:.2f} · низ ленты '
+                                   f'{BAND_Y + BAND_BODY / 2:.2f}'),
+        (right_lane, PETAL_BOX_TOP, f'коробка расхода · {PETAL_BUCKETS} корзин по 100 м, '
+                                    f'шаг {PETAL_BOX_W / PETAL_BUCKETS:.0f} · '
+                                    f'{PETAL_BOX_W:.0f} × {PETAL_BOX_H:.0f}'),
+        (right_lane, PETAL_BASELINE, f'лепесток · 52 · базовая {PETAL_BASELINE:.0f} = '
+                                     f'нулевая линия · группа {PETAL_GROUP_W:.1f} на оси'),
+        (right_lane, PETAL_FLOOR, f'пол композиции · y {PETAL_FLOOR:.0f}'),
     ]
-    # Two anchors ten units apart cannot both carry a 13-unit line, so the words
-    # are pushed apart and an elbow keeps each one attached to the height it is
-    # about. Moving the anchors instead would be a plan board lying about the plan.
     lanes = {}
     for x, y, words in sorted(marks, key=lambda m: (m[0], m[1])):
         floor = lanes.get(x)
@@ -1027,14 +1216,52 @@ def plan_board():
         body.append(line(x - 8, y, x - 8, text_y, WARNING, 1.2, 0.4))
         body.append(line(x - 8, text_y, x - 3, text_y, WARNING, 1.2, 0.4))
         body.append(txt('nt', x, text_y + NOTE * 0.36, words))
+    return body
 
-    legend_x = 560.0
-    body.append(txt('nt', legend_x, 60, 'синим пунктиром — апертуры: где нас видно,'))
-    body.append(txt('nt', legend_x, 80, 'и сетка ячеек, на которой стоят обе полки;'))
-    body.append(txt('nt', legend_x, 100, 'оранжевым — три коробки историй;'))
-    body.append(txt('nt', legend_x, 120, 'штриховкой — где рисует машина'))
-    body.append(txt('nt', legend_x, 140,
-                    f'панель {W:.1f} × {H:.0f} · шаг {STEP:.0f} · лесенка 104 · 52 · 34 · 18'))
+
+LEGEND_H = 184.0
+
+
+def plan_legend():
+    """The physical constants and the ramp they produce, under the panel.
+
+    They used to sit inside the artboard and they were the first thing every
+    annotation ran into. A plan board is allowed a margin the panel does not have.
+    """
+    body = [
+        txt('nt', LEFT_EDGE, 30, f'панель {W:.1f} × {H:.0f} · шаг {STEP:.0f} · поле '
+                                 f'{MARGIN:.0f} · лесенка кластера 88 · 52 · 34 · 18'),
+        txt('nt', LEFT_EDGE, 52, f'стекло {GLASS_WIDTH_MM:.0f} мм, глаз '
+                                 f'{EYE_DISTANCE_MM:.0f} мм — рулетка владельца '
+                                 f'04.09.2026 → 1 единица = {UNIT_MM:.4f} мм'),
+        txt('nt', LEFT_EDGE, 74, f'капитель {CAP:.2f} em · 1′ на {EYE_DISTANCE_MM:.0f} мм '
+                                 f'= {ARCMIN_MM:.4f} мм · угловой размер капители = '
+                                 f'кегль × {arcminutes(1.0):.3f}′'),
+        txt('nt', LEFT_EDGE, 104, 'ни одна координата не зависит от данных: поля по '
+                                  'максимальной разрядности, соседи — к границе поля'),
+        txt('nt', LEFT_EDGE, 126, f'цифра Roboto табличная: {DIGIT:.4f} кегля Regular, '
+                                  f'{DIGIT_LIGHT:.4f} Light · запятая {COMMA:.4f} · '
+                                  f'двоеточие {COLON:.4f} · моноширинная была '
+                                  f'{MONO:.4f} на всё'),
+        txt('nt', LEFT_EDGE, 156, 'синим пунктиром — апертуры и сетка ячеек · оранжевым '
+                                  '— коробки историй · красным — оба запаса 24 · '
+                                  'штриховкой — где рисует машина'),
+    ]
+    table_x = 1000.0
+    head = (('кегль', table_x + 60, 'end'), ('мм', table_x + 150, 'end'),
+            ('угл. мин', table_x + 250, 'end'), ('где', table_x + 274, 'start'))
+    for words, x, anchor in head:
+        body.append(txt('nt', x, 30, words, anchor))
+    where = {HERO: 'герой', FIGURE: 'углы, лепесток', READING: 'полки',
+             CAPTION: 'заголовки, подписи', NOTE: 'только доски'}
+    for index, (size, mm, minutes) in enumerate(type_table()):
+        y = 52 + index * 22
+        body.append(txt('nt', table_x + 60, y, f'{size:.0f}', 'end'))
+        body.append(txt('nt', table_x + 150, y, f'{mm:.2f}', 'end'))
+        body.append(txt('nt', table_x + 250, y, f'{minutes:.1f}', 'end'))
+        body.append(txt('nt', table_x + 274, y, where[size], 'start'))
+    body.append(txt('nt', table_x, 52 + len(type_table()) * 22 + 8,
+                    'ISO 15008: порог 20′, комфорт 30′'))
     return body
 
 
@@ -1059,7 +1286,11 @@ def board_states():
 
 
 def board_plan():
-    return page(W, H, panel(plan_board()))
+    inner = (f'<div style="position:absolute; left:0; top:0;">'
+             + panel(plan_board()) + '</div>\n  '
+             f'<div style="position:absolute; left:0; top:{f(H)}px;">'
+             + panel(plan_legend(), W, LEGEND_H) + '</div>')
+    return page(W, H + LEGEND_H, inner)
 
 
 if __name__ == '__main__':
@@ -1067,39 +1298,50 @@ if __name__ == '__main__':
     open('ClusterContourStates.dc.html', 'w').write(board_states())
     open('ClusterContourPlan.dc.html', 'w').write(board_plan())
 
-    print(f'panel {W:.4f} x {H:.0f}, axis {AXIS:.4f}')
-    print(f'hero baseline {HERO_BASELINE:.4f}, cap top {HERO_CAP_TOP:.4f}, '
-          f'clearance {HERO_CAP_TOP - STOCK_TOP:.4f}, field '
-          f'{HERO_FIELD_LEFT:.2f}…{HERO_FIELD_RIGHT:.2f}, «кВт» at {HERO_UNIT_X:.2f}')
-    print(f'corner title {CORNER_TITLE:.0f}, figure {CORNER_FIGURE:.0f}, '
-          f'line {CORNER_LINE:.2f}')
-    print(f'  left field {LEFT_FIELD_X:.2f}…{LEFT_FIELD_RIGHT:.2f}, '
-          f'aperture at figure {aperture_reach(CORNER_FIGURE):.2f}')
+    print(f'panel {W:.4f} x {H:.0f}, axis {AXIS:.4f}, unit {UNIT_MM:.4f} mm, '
+          f'1 arcmin {ARCMIN_MM:.4f} mm')
+    print('ramp    size      mm    arcmin')
+    for size, mm, minutes in type_table():
+        print(f'      {size:6.0f}  {mm:6.2f}  {minutes:8.1f}')
+    print(f'guards  top {GUARD_TOP:.2f} (stock {STOCK_TOP:.2f}), '
+          f'bottom {GUARD_BOTTOM:.2f} (stock {STOCK_BOTTOM:.2f})')
+    print(f'hero    baseline {HERO_BASELINE:.2f}, cap top {HERO_CAP_TOP:.2f} '
+          f'(= guard), field {HERO_FIELD_LEFT:.2f}…{HERO_FIELD_RIGHT:.2f}, '
+          f'«кВт» at {HERO_UNIT_X:.2f}, group {HERO_GROUP_W:.2f}')
+    print(f'band    y {BAND_Y:.2f}, body {BAND_Y - BAND_BODY / 2:.2f}…'
+          f'{BAND_Y + BAND_BODY / 2:.2f}, clear of the lower guard by '
+          f'{GUARD_BOTTOM - (BAND_Y + BAND_BODY / 2):.2f}, glow ry {GLOW_RY:.2f}')
+    print(f'corners title {CORNER_TITLE:.0f}, figure {CORNER_FIGURE:.0f}, '
+          f'line {CORNER_LINE:.0f}')
+    print(f'  left  field {LEFT_FIELD_X:.2f}…{LEFT_FIELD_RIGHT:.2f}, '
+          f'aperture at the figure {aperture_reach(CORNER_FIGURE):.2f}')
     print(f'  right field {RIGHT_FIELD_LEFT:.2f}…{RIGHT_FIELD_RIGHT:.2f}, '
-          f'aperture limit {W - aperture_reach(CORNER_FIGURE, right=True):.2f}, '
-          f'line room {RIGHT_EDGE - (W - aperture_reach(CORNER_LINE, right=True)):.2f}')
-    print(f'shelf header {SHELF_HEADER:.0f}, figures {SHELF_FIGURE:.2f} '
-          f'(cap 52 {SHELF_FIGURE - CAP * FIGURE:.2f} / 34 '
+          f'aperture leaves {RIGHT_EDGE - (W - aperture_reach(CORNER_FIGURE, True)):.2f} '
+          f'for {4 * DIGIT * FIGURE:.2f}; the line leaves '
+          f'{RIGHT_EDGE - (W - aperture_reach(CORNER_LINE, True)):.2f} for 130.44')
+    print(f'shelves figures {SHELF_FIGURE:.2f} (cap top '
           f'{SHELF_FIGURE - CAP * READING:.2f}), captions {SHELF_CAPTION:.2f}')
-    print(f'  left cells {[f"{w:.0f}" for w in LEFT_CELLS]} -> '
-          f'{left_cell(0)[0]:.0f}…{LEFT_SHELF_RIGHT:.0f}, hero field at '
-          f'{HERO_FIELD_LEFT:.2f}, clear by {HERO_FIELD_LEFT - LEFT_SHELF_RIGHT:.2f}')
-    print(f'  motors run {MOTOR_RUN:.2f} in a cell of {LEFT_CELLS[1]:.0f}, '
-          f'pitch {MOTOR_PITCH:.2f}')
-    print(f'  right cells {right_cell(2)[0]:.0f}…{right_cell(0)[1]:.0f} against hero unit '
-          f'{HERO_UNIT_X + HERO_UNIT_W:.2f}')
-    print(f'engine box {ENGINE_BOX_LEFT:.0f}…{ENGINE_BOX_RIGHT:.0f} x '
-          f'{ENGINE_BOX_TOP:.0f}…{ENGINE_BOX_BOTTOM:.0f}, slot '
-          f'{(ENGINE_BOX_RIGHT - ENGINE_BOX_LEFT) / (ENGINE_SLOTS - 1):.2f}')
-    print(f'petal group {PETAL_GROUP_W:.2f} centred: box {PETAL_BOX_X:.2f}…'
+    print(f'  left  cells {[f"{w:.0f}" for w in LEFT_CELLS]} -> '
+          f'{LEFT_EDGE:.0f}…{LEFT_SHELF_RIGHT:.0f}, clear of the hero field by '
+          f'{HERO_FIELD_LEFT - LEFT_SHELF_RIGHT:.2f}')
+    print(f'  right cells {[f"{w:.0f}" for w in TRIP_CELLS]} -> '
+          f'{RIGHT_SHELF_LEFT:.0f}…{TRIP_ROW_RIGHT:.0f}, «кВт·ч» ends at '
+          f'{TRIP_UNIT_X:.0f}, clear of the hero unit by '
+          f'{RIGHT_SHELF_LEFT - (HERO_UNIT_X + HERO_UNIT_W):.2f}')
+    print(f'engine  box {ENGINE_BOX_FULL_LEFT:.2f}…{ENGINE_BOX_RIGHT:.2f} x '
+          f'{ENGINE_BOX_TOP:.2f}…{ENGINE_BOX_BOTTOM:.2f}, pitch {ENGINE_PITCH:.2f}, '
+          f'82 s wide = {81 * ENGINE_PITCH:.1f}')
+    print(f'petal   group {PETAL_GROUP_W:.2f} centred: box {PETAL_BOX_X:.2f}…'
           f'{PETAL_BOX_X + PETAL_BOX_W:.2f}, figure ends {PETAL_FIGURE_RIGHT:.2f}, '
-          f'unit {PETAL_UNIT_X:.2f}')
-    print(f'  box y {PETAL_BOX_TOP:.2f}…{PETAL_BOX_BOTTOM:.2f} against stock '
-          f'{STOCK_BOTTOM:.2f} and floor {PETAL_FLOOR:.0f}, bar pitch '
-          f'{PETAL_BOX_W / PETAL_BARS:.2f}, petal half width at top '
+          f'unit {PETAL_UNIT_X:.2f}…{PETAL_UNIT_X + PETAL_UNIT_W:.2f}')
+    print(f'  box y {PETAL_BOX_TOP:.2f}…{PETAL_BOX_BOTTOM:.2f}, floor {PETAL_FLOOR:.0f}, '
+          f'bucket {PETAL_BOX_W / PETAL_BUCKETS:.2f}, petal half width at the box top '
           f'{petal_reach(PETAL_BOX_TOP):.1f}')
-    print(f'band y {BAND_Y:.4f}, limits {LIMIT_BASELINE:.4f}, glow ry {GLOW_RY:.4f}')
-    print(f'calm bars mean {g.average_consumption(CALM_BARS):.2f}, '
-          f'ceilings {g.ceilings(CALM_BARS)}')
-    for kw in (-100.0, -20.0, 0.0, 34.0, 60.0, 150.0, 300.0):
-        print(f'  {kw:7.1f} kW -> x {band_x(kw):.2f}')
+    print(f'  the petal figure sits {PETAL_FIGURE_RIGHT - HERO_FIELD_RIGHT:.1f} right '
+          f'of the hero field: the group centres, the digits follow')
+    print(f'fields  digit {DIGIT * READING:.2f}/34 {DIGIT * FIGURE:.2f}/52 '
+          f'{DIGIT_LIGHT * HERO:.2f}/88, comma {COMMA * FIGURE:.2f}/52, '
+          f'trip {TRIP_FIELD:.2f}, temp {TEMP_FIELD:.2f}, petal {PETAL_FIELD_W:.2f}')
+    for kw in (-100.0, -42.0, -3.0, 0.0, 3.0, 34.0, 128.0, 300.0):
+        print(f'  {kw:7.1f} kW -> x {band_x(kw):8.2f}  glow '
+              f'{GLOW_MAX * sweep(kw):.3f}  {flow_colour(kw)}')
