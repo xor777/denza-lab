@@ -1812,6 +1812,37 @@ passing as a write acknowledgement, a package dropped from each list, the flag
 named in the feature - all killed. The one that survived the first pass (a
 two-word read whose exception code is `1`) got its own assertion and died.
 
+### Second pass, same day: the status reads like every other tile's
+
+From the seat: opening Denza Apps made the «Динамики» tile show a spinner several
+times. Cause: the service published a phase on every event and mapped «a report
+is on the wire» onto STARTING, which the tiles draw as a spinner and mean as
+«switched on, not working yet» - and it did so *before* asking the policy, so
+every window of every app and every stock session found playing at start bought
+a flicker for a decision that came back «no».
+
+No other feature does this. HUD, Mirrors and Simulcast compute their status in
+`refresh()` from the switch and the preconditions; the stock language, the one
+other feature with a shell action behind a control, keeps a Boolean `running`
+that greys the control and never touches the tile. The speaker feature now does
+the same:
+
+- `SpeakerCoverStatus.snapshot(enabled, sessionsObservable)` is the tile: OFF;
+  NEEDS_ACTION «Повторите настройку доступа» with RETRY when the notification
+  listener that grants media-session access is off; else READY. No row spins.
+  RETRY is the tile press, which switches the feature on again and walks the
+  service through the access repair, exactly as on HUD.
+- `SpeakerCoverRuntime` is one Boolean, `reporting`, set by the service for the
+  second a report is on the wire and spent only on greying «Поднять».
+- The service asks the policy first, then the per-player repeat guard, and only
+  then touches anything the screen can see.
+
+Red-green: the status test ran against a stub answering OFF for every input (two
+of four rows red), then against the real object (green). Seven mutations on the
+status - off looks on, access inverted, wrong message, wrong resolution,
+needs-action with `desiredEnabled = false`, on spins, wrong feature id - all
+killed. Twenty-two speaker tests; module green.
+
 ### Still open
 
 1. Whether the repeat report 1.2 s after playback is needed at all. The report is
