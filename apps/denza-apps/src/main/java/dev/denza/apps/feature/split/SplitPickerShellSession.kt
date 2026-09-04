@@ -1097,10 +1097,8 @@ internal class SplitPickerShellSession(
             val keep = setOfNotNull(
                 hostTaskIds.getValue(pane),
                 appTaskIds[pane],
-                // Правка W1 волны 10: копия пакета в корне бережётся только ради ЗАПУСКА, чтобы он
-                // переиспользовал задачу вместо перезапуска (U2). У панели, чьё приложение уже
-                // найдено, второй экземпляр того же пакета - не запас, а лишняя задача: он уезжает
-                // живым в фон общим правилом ниже, и в корне остаётся «база + приложение».
+                // Правка W1 волны 10: копия пакета в корне бережётся ради ЗАПУСКА, чтобы он
+                // переиспользовал задачу вместо перезапуска (U2).
                 if (appTaskIds[pane] == null) {
                     settled.root(rootIds.getValue(pane))?.tasks
                         ?.filter { task -> task.effectivePackageName() == target }
@@ -1110,8 +1108,19 @@ internal class SplitPickerShellSession(
                     null
                 },
             )
+            // Правка 2026-09-04: у панели, чьё приложение уже найдено, вторая живая задача того же
+            // пакета - житель панели, а не лишнее (1.5.2, правка волны 14). Волна 10 отправляла её
+            // «живой в фон», но корень 4 фона не держит (машинная правда волны 10): окно вставало
+            // поверх сцены. Лишним остаётся только чужой пакет и собственные компоненты.
+            val resident = target?.takeIf { appTaskIds[pane] != null }
             settled.root(rootIds.getValue(pane))?.tasks.orEmpty()
-                .filterNot { task -> task.id in keep || task.isEmptyRootMarker() }
+                .filterNot { task ->
+                    task.id in keep ||
+                        task.isEmptyRootMarker() ||
+                        (resident != null &&
+                            !task.isOwnSplitComponent() &&
+                            task.effectivePackageName() == resident)
+                }
         }
         // And our own retired host Activity, wherever an older version of the product left one.
         // It is the only task outside the panes whose ownership is provable - by our exact
@@ -1176,6 +1185,12 @@ internal class SplitPickerShellSession(
         // она там не уходит, поэтому и получает его геометрию). Предпусковая чистка
         // выше видит мир ДО запусков и до новоприбывших не достаёт.
         sweepPanesToBaseAndApp(rootIds, hostTaskIds, appTaskIds, preexistingTaskIds)
+        // Правка 2026-09-04: окном панели становится та задача её приложения, что фактически
+        // стоит сверху, - тот же ответ миру, что даёт выбор (`settledSelectedAppTaskId`, правка
+        // волны 13). Прошивка вправе привести в панель обе задачи пакета и положить сверху не ту,
+        // которую адресовал запуск; уборка выше теперь её не выселяет, значит и постусловие
+        // обязано спрашивать про приложение, а не про адресата.
+        settleResidentWindows(rootIds, appTaskIds)
         // Both bases and both apps take the size of their pane from one read, the divergent ones
         // are resized back to back, and one settle and one more read close the whole batch.
         normalizeSceneToRoots(hostTaskIds, appTaskIds, rootIds, failed)
@@ -1506,7 +1521,7 @@ internal class SplitPickerShellSession(
             sweepRootsToBaseAndApp(
                 keepByRoot = mapOf(settledRootId to setOf(settledPickerHost.id, settledAppTaskId)),
                 preexistingTaskIds = baselineTaskIds,
-                residentPackage = target.packageName,
+                residentByRoot = mapOf(settledRootId to target.packageName),
             )
             normalizeTaskToRoot(settledAppTaskId, settledRootId)
             pause(ROOT_SETTLE_MS)
@@ -2662,13 +2677,28 @@ internal class SplitPickerShellSession(
             check(picker.bounds == root.bounds) {
                 "Пикер ${pane.name} не принял размер split-контейнера"
             }
-            if (root.tasks.size > MAX_TASKS_PER_PANE) {
+            val appTaskId = appTaskIds[pane]
+            // Правка 2026-09-04: панель - это база и ОДНО приложение, а не две задачи. Вторая
+            // живая задача того же пакета, что и приложение панели, - его же окно (1.5.2, правка
+            // волны 14 на пути выбора) и в счёт не идёт; всё остальное сверх приложения - состав,
+            // который рецепт уже закончил менять, а не переходный такт прошивки.
+            val resident = appTaskId?.let { id ->
+                root.tasks.firstOrNull { task -> task.id == id }?.effectivePackageName()
+            }
+            val occupants = root.tasks.count { task ->
+                task.id != hostTaskId &&
+                    !task.isEmptyRootMarker() &&
+                    !(task.id != appTaskId &&
+                        resident != null &&
+                        !task.isOwnSplitComponent() &&
+                        task.effectivePackageName() == resident)
+            }
+            if (occupants > MAX_TASKS_PER_PANE - 1) {
                 // Не переходный такт прошивки, а состав корня, который рецепт уже закончил менять
                 // (правка W3 волны 10): его выметает [sweepPanesToBaseAndApp], а не ожидание.
                 throw SettledPlacementError("В ${pane.name} накопилось больше двух задач")
             }
             val top = root.resolvedTopTask() ?: error("В ${pane.name} нет верхней задачи")
-            val appTaskId = appTaskIds[pane]
             if (appTaskId == null) {
                 check(
                     top.id == hostTaskId &&
@@ -2777,6 +2807,35 @@ internal class SplitPickerShellSession(
      * Чтение здесь одно и оно же достаётся [normalizeSceneToRoots] через общий кэш топологии,
      * когда двигать не пришлось ничего.
      */
+    /**
+     * Какая задача приложения стала окном каждой панели - решает мир, а не запуск (правка
+     * 2026-09-04; зеркало [settledSelectedAppTaskId] для сборки).
+     *
+     * Запись панели меняется только на задачу ТОГО ЖЕ пакета, что уже записан, и только когда
+     * именно она стоит сверху: чужая верхняя задача - по-прежнему отказ постусловия, а не новое
+     * приложение панели. Собственные компоненты продукта кандидатами не бывают (инвариант 3).
+     * Чтение одно и оно же достаётся [normalizeSceneToRoots] через общий кэш топологии.
+     */
+    private fun settleResidentWindows(
+        rootIds: Map<SplitPane, Int>,
+        appTaskIds: MutableMap<SplitPane, Int>,
+    ) {
+        val state = snapshot()
+        appTaskIds.keys.toList().forEach { pane ->
+            val root = state.root(rootIds.getValue(pane)) ?: return@forEach
+            val recorded = root.tasks.firstOrNull { task -> task.id == appTaskIds.getValue(pane) }
+                ?: return@forEach
+            val top = root.resolvedTopTask() ?: return@forEach
+            if (
+                top.id != recorded.id &&
+                !top.isOwnSplitComponent() &&
+                top.effectivePackageName() == recorded.effectivePackageName()
+            ) {
+                appTaskIds[pane] = top.id
+            }
+        }
+    }
+
     private fun sweepPanesToBaseAndApp(
         rootIds: Map<SplitPane, Int>,
         hostTaskIds: Map<SplitPane, Int>,
@@ -2786,11 +2845,23 @@ internal class SplitPickerShellSession(
         // Обе базы сцены неприкосновенны, в чьём бы корне ни оказались: база не в своей панели -
         // это задача для постусловия, а не повод убить живую базу собственной сцены.
         val bases = hostTaskIds.values.toSet()
+        // Приложение панели называет её жильца, и вторая живая задача того же пакета - житель, а
+        // не лишнее (1.5.2, правка волны 14 на пути выбора; здесь - правка 2026-09-04). Пакет
+        // читается с самой записанной задачи, а не с запроса: прошивка вправе посадить приложение
+        // в соседнюю панель (1.5.3), и тогда `wanted[pane]` назвал бы не того.
+        val state = snapshot()
+        val residentByRoot = appTaskIds.entries.mapNotNull { (pane, appTaskId) ->
+            val rootId = rootIds.getValue(pane)
+            state.root(rootId)?.tasks
+                ?.firstOrNull { task -> task.id == appTaskId }
+                ?.let { app -> rootId to app.effectivePackageName() }
+        }.toMap()
         sweepRootsToBaseAndApp(
             keepByRoot = SplitPane.entries.associate { pane ->
                 rootIds.getValue(pane) to (bases + setOfNotNull(appTaskIds[pane]))
             },
             preexistingTaskIds = preexistingTaskIds,
+            residentByRoot = residentByRoot,
         )
     }
 
@@ -2803,25 +2874,31 @@ internal class SplitPickerShellSession(
      * этой операцией удаляется, задача пользователя уезжает живой в полноэкранный корень
      * (инвариант 3, U2). Ни одной команды в обычном случае: лишнего нет - выхода нет.
      *
-     * [residentPackage] - приложение, которое эта панель показывает. Его вторая живая задача
-     * лишней не бывает (1.5.2, правка волны 14): прошивка привела её сюда сама, сверху всё равно
-     * стоит то же самое приложение, и панель на экране правильная. Считать её лишней стоило волне
-     * 13 приёмки v29 - см. [selectApp].
+     * [residentByRoot] - приложение, которое каждая из этих панелей показывает. Его вторая живая
+     * задача лишней не бывает (1.5.2, правка волны 14): прошивка привела её сюда сама, сверху всё
+     * равно стоит то же самое приложение, и панель на экране правильная. Считать её лишней стоило
+     * волне 13 приёмки v29 - см. [selectApp].
+     *
+     * Правка 2026-09-04: то же правило для обеих панелей сборки, а не только для одной панели
+     * выбора. Путь ВОССТАНОВЛЕНИЯ этого аргумента не передавал вовсе, и вторая задача пакета
+     * уезжала в полноэкранный корень 4 - тот самый, что фоновых задач не держит: окно вставало
+     * поверх всей сцены (инцидент владельца 2026-08-27, предсказан и отложен в волне 15).
      */
     private fun sweepRootsToBaseAndApp(
         keepByRoot: Map<Int, Set<Int>>,
         preexistingTaskIds: Set<Int>?,
-        residentPackage: String? = null,
+        residentByRoot: Map<Int, String> = emptyMap(),
     ) {
         val state = snapshot()
         val surplus = keepByRoot.flatMap { (rootId, keep) ->
+            val resident = residentByRoot[rootId]
             state.root(rootId)?.tasks.orEmpty()
                 .filterNot { task ->
                     task.id in keep ||
                         task.isEmptyRootMarker() ||
-                        (residentPackage != null &&
+                        (resident != null &&
                             !task.isOwnSplitComponent() &&
-                            task.effectivePackageName() == residentPackage)
+                            task.effectivePackageName() == resident)
                 }
         }
         if (surplus.isEmpty()) return
