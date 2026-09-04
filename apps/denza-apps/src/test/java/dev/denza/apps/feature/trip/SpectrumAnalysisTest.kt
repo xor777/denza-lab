@@ -211,32 +211,74 @@ class SpectrumLevelsTest {
 
 class SpectrumDynamicsTest {
 
+    private val frame = 1.0 / 30.0
+
     @Test
-    fun `bars rise instantly and fall gradually`() {
+    fun `bars rise within a few frames and fall gradually`() {
         val dynamics = SpectrumDynamics(4)
         val loud = floatArrayOf(1f, 1f, 1f, 1f)
-        dynamics.update(loud, 1.0 / 30.0)
-        assertEquals(1f, dynamics.bars[0], 1e-4f)
+        dynamics.update(loud, frame)
+        val afterOne = dynamics.bars[0]
+        assertTrue("must answer on the first frame: $afterOne", afterOne > 0.35f)
+        assertTrue("must not snap to full height: $afterOne", afterOne < 0.6f)
+        repeat(4) { dynamics.update(loud, frame) }
+        assertTrue("must be near full height within 170 ms: ${dynamics.bars[0]}", dynamics.bars[0] > 0.9f)
 
         val silent = FloatArray(4)
-        dynamics.update(silent, 1.0 / 30.0)
-        assertTrue("must not snap to zero", dynamics.bars[0] > 0.5f)
-        assertTrue("must start falling", dynamics.bars[0] < 1f)
+        val before = dynamics.bars[0]
+        dynamics.update(silent, frame)
+        assertTrue("must not snap to zero", dynamics.bars[0] > 0.7f)
+        assertTrue("must start falling", dynamics.bars[0] < before)
+    }
+
+    @Test
+    fun `a spike seen for two frames reads as a bump rather than a full bar`() {
+        // The Visualizer delivers at 20 Hz and the panel draws at 30, so a single noisy FFT
+        // frame is on screen for one or two draws. This is the twitch the attack exists to
+        // soften; the previous instant attack drew every such frame at full height.
+        val dynamics = SpectrumDynamics(1)
+        val loud = floatArrayOf(1f)
+        val silent = FloatArray(1)
+        var highest = 0f
+        repeat(2) {
+            dynamics.update(loud, frame)
+            highest = maxOf(highest, dynamics.bars[0])
+        }
+        repeat(10) {
+            dynamics.update(silent, frame)
+            highest = maxOf(highest, dynamics.bars[0])
+        }
+        assertTrue("a two-frame spike must stay well under full height: $highest", highest < 0.75f)
+        assertTrue("but it must still be visible: $highest", highest > 0.4f)
+    }
+
+    @Test
+    fun `the release is slower than the attack`() {
+        val dynamics = SpectrumDynamics(1)
+        dynamics.update(floatArrayOf(1f), frame)
+        val rose = dynamics.bars[0]
+        repeat(60) { dynamics.update(floatArrayOf(1f), frame) }
+        val settled = dynamics.bars[0]
+        dynamics.update(FloatArray(1), frame)
+        val fell = settled - dynamics.bars[0]
+        assertTrue("one frame of rise ($rose) must outrun one frame of fall ($fell)", rose > fell * 2f)
     }
 
     @Test
     fun `peaks hang before they fall and never sink below the bar`() {
         val dynamics = SpectrumDynamics(1)
-        dynamics.update(floatArrayOf(1f), 1.0 / 30.0)
-        assertEquals(1f, dynamics.peaks[0], 1e-4f)
+        repeat(30) { dynamics.update(floatArrayOf(1f), frame) }
+        assertTrue(dynamics.bars[0] > 0.99f)
+        val held = dynamics.peaks[0]
+        assertEquals(dynamics.bars[0], held, 1e-4f)
 
         val silent = FloatArray(1)
         // Still inside the hold window.
-        repeat(10) { dynamics.update(silent, 1.0 / 30.0) }
-        assertEquals("peak should still be held", 1f, dynamics.peaks[0], 1e-3f)
+        repeat(10) { dynamics.update(silent, frame) }
+        assertEquals("peak should still be held", held, dynamics.peaks[0], 1e-3f)
 
         // Well past it.
-        repeat(60) { dynamics.update(silent, 1.0 / 30.0) }
+        repeat(60) { dynamics.update(silent, frame) }
         assertTrue("peak should have fallen", dynamics.peaks[0] < 0.9f)
         assertTrue("peak may not sink under the bar", dynamics.peaks[0] >= dynamics.bars[0])
     }
@@ -245,13 +287,17 @@ class SpectrumDynamicsTest {
     fun `motion is frame rate independent`() {
         val fast = SpectrumDynamics(1)
         val slow = SpectrumDynamics(1)
-        fast.update(floatArrayOf(1f), 1.0 / 60.0)
-        slow.update(floatArrayOf(1f), 1.0 / 60.0)
+        val loud = floatArrayOf(1f)
+        repeat(6) { fast.update(loud, 1.0 / 60.0) }
+        repeat(3) { slow.update(loud, 1.0 / 30.0) }
+        assertEquals(
+            "a tenth of a second of rise must match at either frame rate",
+            fast.bars[0].toDouble(), slow.bars[0].toDouble(), 0.02,
+        )
 
         val silent = FloatArray(1)
         repeat(30) { fast.update(silent, 1.0 / 60.0) }
         repeat(15) { slow.update(silent, 1.0 / 30.0) }
-
         assertEquals(
             "half a second of decay must match at either frame rate",
             fast.bars[0].toDouble(), slow.bars[0].toDouble(), 0.02,
@@ -259,11 +305,25 @@ class SpectrumDynamicsTest {
     }
 
     @Test
+    fun `the bloom energy breathes behind the bars instead of blinking with them`() {
+        val dynamics = SpectrumDynamics(2)
+        val loud = floatArrayOf(1f, 1f)
+        repeat(4) { dynamics.update(loud, frame) }
+        val mean = (dynamics.bars[0] + dynamics.bars[1]) / 2f
+        assertTrue("bars are up: $mean", mean > 0.8f)
+        assertTrue("the bloom is still on its way: ${dynamics.energy}", dynamics.energy < mean * 0.5f)
+
+        repeat(60) { dynamics.update(loud, frame) }
+        assertTrue("and it does arrive: ${dynamics.energy}", dynamics.energy > 0.9f)
+    }
+
+    @Test
     fun `settle collapses the display`() {
         val dynamics = SpectrumDynamics(2)
-        dynamics.update(floatArrayOf(1f, 1f), 1.0 / 30.0)
-        repeat(120) { dynamics.settle(1.0 / 30.0) }
+        repeat(60) { dynamics.update(floatArrayOf(1f, 1f), frame) }
+        repeat(120) { dynamics.settle(frame) }
         assertTrue(dynamics.bars.all { it < 0.02f })
         assertTrue(dynamics.peaks.all { it < 0.02f })
+        assertTrue(dynamics.energy < 0.02f)
     }
 }
