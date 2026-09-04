@@ -187,12 +187,14 @@ is on the driver's display now is **"Контур"**, which won the five-way clu
 contest in `docs/cluster-contest-2026-09/`: `VERDICT.md` picked it with five
 binding corrections, `CRITIQUE.md` roasted the third drawing of it with three
 blockers, fifteen majors and twelve minors, and the boards in
-`tools/design-canvas/` are the seventh drawing. `gen_contour.py` is the design and
+`tools/design-canvas/` are the eighth drawing - the first one made against the
+panel running rather than against a still. `gen_contour.py` is the design and
 `ContourPlan` is the same numbers in Kotlin; `ContourBoardContractTest` fails in
 both directions if either moves alone.
 
 The owner's own interests decided the contest - voltages, the battery,
-revolutions, consumption - and one question of his decided the last two passes:
+revolutions, consumption - and one question of his decided the sixth and seventh
+passes:
 *«что означает 0,0 от ДВС, когда ДВС заглушен?»*, and then the sentence behind it,
 that if the question occurred to him the element is unclear to anybody. So the
 panel has one rule that outranks the tidy ones: **is this understood at first
@@ -209,8 +211,8 @@ glance, by somebody who has never seen it and has no legend?**
 | the right corner | «ДВС · об/мин» over the revolutions while the engine runs, «ДВС · мин за поездку» over its minutes once it has stopped, and **empty** if it never started this trip |
 | the left shelf | pack, three motors and inverter temperatures at 34, plus a fourth cell «мВ / РАЗБРОС ЯЧЕЕК» that exists only at `WATCH` or `ALERT` |
 | the right shelf | what the trip cost, as a phrase: «9,3 кВт·ч» over «42 км · ЗА ПОЕЗДКУ», plus «ДАЛ ДВС» if the engine ran, plus «● РЕКУПЕРАЦИЯ» when the car is standing in P |
-| the engine's box | while the engine has been alive in the last two minutes, that shelf is its own history instead: revolutions linear to 3000, generation as an area by a root to 100 kW, under «ОБОРОТЫ · ● ГЕНЕРАЦИЯ 14 кВт» |
-| the petal | the last three kilometres of consumption, as a stepped line beside its figure, «кВт·ч/100 км · за 3 км» - or a countdown to full while a gun is in |
+| the engine's box | while the engine has been alive in the last two minutes, that shelf is its own history instead: what it put back into the pack, as twenty-four five-second steps linear to 30 kW, under one sentence - «● 14 кВт В БАТАРЕЮ · ПОСЛЕДНИЕ 2 МИН» |
+| the petal | the last three kilometres of consumption, as a stepped field standing on the figure's own baseline, «кВт·ч/100 км · за 3 км» - or a countdown to full while a gun is in |
 
 **What is not on it, and why.** State of charge, range, fuel level and the fuel
 alarm are all on the stock cluster a few centimetres away; spending the best real
@@ -347,7 +349,52 @@ shell. The figures survive a process restart through `TripJournal`, one record
 written whole through a temp file and a rename, and restored only when the
 odometer says it is about the road we are on.
 
-### The engine's box, and why it does not flicker
+### The two boxes, and what a running panel said about them
+
+The panel was built, put on a live bench and watched, and everything that came
+back was about the two histories - not their size this time, but what they were
+saying. Four decisions, and they are the eighth drawing.
+
+**The engine's box draws one quantity and speaks one sentence.** It carried two
+runs and a legend telling them apart - «ОБОРОТЫ · ● ГЕНЕРАЦИЯ 14 кВт» - and the
+owner's verdict was that the legend was not understandable, which is the game lost:
+a display read at 90 km/h does not get to need a key. The revolutions' line is gone
+to the corner where the same number was already printed, and what is left is what
+the engine put back, under **«● 14 кВт В БАТАРЕЮ · ПОСЛЕДНИЕ 2 МИН»** - what the
+shape is, what it is worth now, how far back it goes. Neither «ГЕНЕРАЦИЯ» nor
+«ОБОРОТЫ» is a word on this panel any more. The sentence is laid out right to left
+off the shelf's edge with the figure in a two-digit reserve, so it and its unit
+leave together when the engine stops while the words stay put; a face too wide for
+the box shortens the window to «· 2 МИН» and nothing else in the phrase may go.
+
+**And its scale is linear to 30 kW, clamped.** «Сплющен», said of a box whose
+height had already taken every unit between the two guards, is a verdict on the
+scale rather than on the geometry: at the 14 kW this car ordinarily returns, a
+square root over 100 kW filled a third of the box and linear over 30 fills a half.
+30 kW is what this generator does rather than a span borrowed from the band.
+
+**The petal's zero line is its figure's own baseline.** It hung beside that figure
+on a ladder of its own - 56 units tall with the zero four fifths down - and neither
+number meant anything to anything next to it. Now the three lines bounding the
+history are the three lines of the numeral: cap top, baseline, descender. Spending
+rises through the cap on 0…30, a return hangs under the baseline on 0…10, both
+clamped, and the box is 49.92 tall because that is what a 52 occupies.
+
+**And the return is drawn only where it happened.** One field crossing a zero line
+in one colour drew the same grey above and below it, and the blue rule meant to say
+"this came back" ran the whole width whether anything had. Spending is one
+continuous grey field that lies on the zero on a return bucket, because what was
+spent there is nothing; the return is blue, one shape per run of return buckets,
+standing on the zero on its own posts.
+
+**Both boxes are steps of a fixed duration.** The petal's thirty buckets are a
+hundred metres each; the engine's twenty-four are five seconds each, a bin being
+the mean of the samples that arrived in it, and a bin nothing answered in breaks
+the area rather than being drawn through. `EngineTraceSnapshot.bins` is that
+resampling, and the bin that can be short is the newest one, at the edge where the
+new data arrives.
+
+### Why the engine's box does not flicker
 
 `EngineTrace.snapshot()` returns the run from the oldest slot the engine was alive
 in to now, rather than a padded 120. That one property is the box's whole
@@ -357,6 +404,13 @@ the two minutes after the engine stops, and leaves when the last live slot walks
 off the left edge. **120 seconds of hysteresis with no timer anywhere** - the
 trace's own length is the timer, so a winter jam restarting the engine every
 ninety seconds never swaps the shelf back and forth.
+
+The trace keeps one series since the eighth pass, and **the revolutions still
+decide one thing in it**: whether a slot counts as one the engine was alive in. An
+engine on a direct drive can turn for a minute returning nothing, and a box that
+left in the middle of an engine run would flicker in exactly the way that property
+exists to prevent. So `sample` takes the rpm reading and stores a flag, not a
+curve.
 
 ### Rest states
 
