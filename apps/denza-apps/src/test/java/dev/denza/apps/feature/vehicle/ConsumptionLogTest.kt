@@ -39,15 +39,6 @@ class ConsumptionLogTest {
     }
 
     @Test
-    fun standingStillChangesTheDashboardStateWithoutDroppingEnergy() {
-        val log = ConsumptionLog()
-        log.drive(steps = 4, powerKw = 20.0)
-        // Parked on charge: the odometer holds while power goes negative.
-        repeat(10) { log.sample(100.4, -2.0, 6.0) }
-        assertTrue(log.stationary)
-    }
-
-    @Test
     fun energySpentStandingStillStaysInTheBar() {
         val log = ConsumptionLog()
         log.sample(100.0, 0.0, 0.0)

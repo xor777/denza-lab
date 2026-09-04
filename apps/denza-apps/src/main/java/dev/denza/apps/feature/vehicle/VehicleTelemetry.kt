@@ -26,10 +26,10 @@ internal data class VehicleTelemetry(
     val values: Map<VehicleSignal, Double> = emptyMap(),
     /** Closed consumption bars, oldest first, kWh/100 km. */
     val consumption: List<Double> = emptyList(),
-    /** True while the odometer is not advancing. */
-    val stationary: Boolean = false,
     /** The last two minutes of revolutions and generation, on a one-second axis. */
     val engineTrace: EngineTraceSnapshot = EngineTraceSnapshot.EMPTY,
+    /** What this trip has cost so far, integrated by [TripEnergyLedger]. */
+    val trip: TripEnergy = TripEnergy(),
 ) {
 
     operator fun get(signal: VehicleSignal): Double? = values[signal]
@@ -54,6 +54,14 @@ internal data class VehicleTelemetry(
 
     /** Pack power as load: positive leaves the battery. See [VehicleConvention]. */
     val loadKw: Double? get() = VehicleConvention.load(this[VehicleSignal.POWER_KW])
+
+    /**
+     * Whether the selector is in P, or null while nothing has answered.
+     *
+     * Null is not "moving": a trip is bounded by a switch we can read, and a switch that did not
+     * answer bounds nothing.
+     */
+    val parked: Boolean? get() = this[VehicleSignal.GEARBOX_PARK]?.let { it >= 1.0 }
 
     /** Cell spread has no feature id of its own; it is max minus min. */
     val cellSpreadMv: Double?
@@ -106,7 +114,15 @@ internal data class VehicleTelemetry(
         get() = this[VehicleSignal.GENERATION_STATE] == GENERATION_ON ||
             (generationKw ?: 0.0) > GENERATION_FLOOR_KW
 
-    /** Worst answer across the ids that carry this lamp. */
+    /**
+     * Worst answer across the ids that carry this lamp.
+     *
+     * The Contour draws no lamps: a grid of dots that are green almost every second of every drive
+     * is an inventory, and a driver's display shows exceptions. The **poll stays** - these are cold
+     * signals costing one shell round trip every ten seconds, and dropping the ids would be a
+     * separate decision about what the car is asked, not a consequence of a redesign. This is the
+     * decoding of that poll, and it is where an exception channel would read them from.
+     */
     fun lamp(lamp: EngineLamp): LampState {
         var seen = false
         lamp.signals.forEach { signal ->

@@ -51,6 +51,16 @@ class VehicleTelemetryTest {
     }
 
     @Test
+    fun parkIsReadFromTheSwitchAndNotFromItsAbsence() {
+        // Three answers, not two. Null is not "moving": a trip is bounded by a switch we can read,
+        // and a switch that did not answer bounds nothing - which is what [TripEnergyLedger] and
+        // the Contour's PARKED scene both hang off.
+        assertNull(VehicleTelemetry().parked)
+        assertFalse(telemetry(VehicleSignal.GEARBOX_PARK to 0.0).parked!!)
+        assertTrue(telemetry(VehicleSignal.GEARBOX_PARK to 1.0).parked!!)
+    }
+
+    @Test
     fun loadFollowsTheDocumentedSignConvention() {
         val t = telemetry(VehicleSignal.POWER_KW to -2.0)
         assertEquals(-2.0, t.loadKw!!, 1e-9)

@@ -148,6 +148,23 @@ class AutoserviceShellTest {
     }
 
     @Test
+    fun theParkSwitchIsTheOneTheTripPanelAlreadyReads() {
+        // One feature id, two callers. The trip panel keeps its own shell because it runs without
+        // the cluster; the cluster asks in the batch it already has going past this device.
+        val signal = VehicleSignal.GEARBOX_PARK
+        assertTrue(
+            "the cluster's command must be the trip panel's command",
+            AutoserviceShell.command(listOf(signal))
+                .contains("service call autoservice 5 i32 1011 i32 ${signal.fid}"),
+        )
+        assertEquals(89_129_008, signal.fid)
+        assertEquals(0.0, AutoserviceShell.decode(signal, 0)!!, 1e-9)
+        assertEquals(1.0, AutoserviceShell.decode(signal, 1)!!, 1e-9)
+        // A third value is not an answer, the same way the trip panel's own reader refuses it.
+        assertNull(AutoserviceShell.decode(signal, 2))
+    }
+
+    @Test
     fun onlyReadTransactsAreEverIssued() {
         // Transact 6 is setInt. It must not exist anywhere in this feature.
         assertTrue(VehicleSignal.entries.all { it.transact.code == 5 || it.transact.code == 7 })

@@ -67,6 +67,15 @@ internal enum class VehicleKind {
     RPM,
     /** A warning lamp. No number — the cluster would either light it or not. */
     FLAG,
+
+    /**
+     * A two-state switch. Only `0` and `1` are answers.
+     *
+     * Narrower than [FLAG] on purpose: a lamp word carries several bits and any of them may be
+     * set, while the park switch is one bit and a third value means the read did not land. The
+     * trip panel's own reader has always refused anything else.
+     */
+    SWITCH,
     ;
 
     fun accepts(value: Double): Boolean = when (this) {
@@ -82,6 +91,7 @@ internal enum class VehicleKind {
         GUN -> value in 0.0..8.0
         RPM -> value in 0.0..9000.0
         FLAG -> value in 0.0..255.0
+        SWITCH -> value == 0.0 || value == 1.0
     }
 }
 
@@ -116,6 +126,23 @@ internal enum class VehicleSignal(
     POWER_KW(1012, 0x14400020, VehicleTransact.INT, VehiclePoll.HOT, VehicleKind.POWER_KW),
     PACK_VOLT(1009, 0x44400008, VehicleTransact.INT, VehiclePoll.HOT, VehicleKind.HIGH_VOLT),
     ODOMETER_KM(1014, 0x4A502010, VehicleTransact.INT, VehiclePoll.HOT, VehicleKind.DISTANCE_KM, scale = 0.1),
+
+    /**
+     * Whether the selector is in P, which is what bounds a trip.
+     *
+     * Not a new discovery and not a new channel: this is the same device and feature id the trip
+     * panel has read since it shipped - `dev.denza.apps.feature.trip.TripParkSignal`, whose command
+     * is `service call autoservice 5 i32 1011 i32 89129008` and whose `89129008` is the `0x5500030`
+     * written here. That reader keeps its own shell because the trip panel runs on the head unit
+     * without the cluster; the cluster already has a batch going past this device twice a second,
+     * so it asks in that batch rather than opening a second session. One id, two callers, one
+     * proven decoding: `0` out of P, `1` in P, anything else not an answer.
+     *
+     * [TripEnergyLedger] is the only thing that reads it. Without it a trip would have to be
+     * guessed from a stationary odometer, which cannot tell a car parked for the night from a car
+     * at a long traffic light.
+     */
+    GEARBOX_PARK(1011, 0x5500030, VehicleTransact.INT, VehiclePoll.HOT, VehicleKind.SWITCH),
 
     // ---- cold: pack, drivetrain, charging ----
     SOH_PERCENT(1014, 0x44400028, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.PERCENT),

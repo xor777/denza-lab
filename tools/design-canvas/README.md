@@ -263,7 +263,7 @@ can measure and cannot see is a difference that will be drifted into.
 
 | | rungs | step |
 | --- | --- | --- |
-| Cluster (virtual units; 1.70 panel px, 0.2123 mm) | 52 · 34 · 24 · 18 · 13 · 11 (+ `88`, boards only) | 8 wide, 6 narrow |
+| Cluster (virtual units; 1.70 panel px, 0.2123 mm) | 88 · 52 · 34 · 24 · 18 · 13 · 11 | 8 |
 | Head unit (pixels, 1:1) | 62 · 46 · 34 · 24 · 19 · 15 | see below |
 
 `82` used to head that second row, here and in `gen_kit.py` and in `normalize.py`,
@@ -300,8 +300,10 @@ cent from its neighbour cannot be chosen deliberately, so the gap is the thing
 worth testing. `Main.dc.html` is drawn on those same numbers.
 
 The cluster ramp is `InstrumentDensity.RAMP` in the app and the boards restate
-it; `gen_cluster.py` is the one place to check that they still agree. That ramp
-is the six rungs from `52` down to `11`, and the app draws nothing else.
+it; `gen_cluster.py` is the one place to check that they still agree, and since
+2026-09-04 `ContourBoardContractTest` is what makes them. The narrow `COMPACT`
+density is gone with the right-third composition nothing offered: there is one
+cluster ramp now and one density on it.
 
 **The headline numeral is `88`, and it is `104` that is gone.** The Contour's own
 ramp on the boards is `88 · 52 · 34 · 18` - four rungs, and 24 and 13 are not used
@@ -313,11 +315,17 @@ clears this page's own 1.2x rule with room, and it still reads at 61'. It is not
 octave. `104` survives only on `gen_next.py`, which draws a concept the contest did
 not pick, and it is not a proposal any more.
 
-`88` is not on `InstrumentDensity.RAMP` either, for the same reason `104` never
-was: the app does not draw this cluster yet, and a constant nothing reads is a
-promise. It joins the ramp on the day the renderer draws it, in the same change,
-or not at all. Until then this row still reads `52 · 34 · 24 · 18 · 13 · 11` for
-the app and carries `88` in brackets for the boards.
+`88` used to be on the boards and not on `InstrumentDensity.RAMP`, for the same
+reason `104` never was: a constant nothing reads is a promise, and it joins the
+ramp on the day the renderer draws it, in the same change, or not at all. That day
+was 2026-09-04. It is on the ramp now, in the same commit that drew it, and the
+row above no longer carries it in brackets.
+
+The heading rung moved with it. `18` used to head a caption and `13` its own
+title, on the reasoning that capitals read larger; at the measured distance a rung
+under 18 is 9′, which is board furniture. `InstrumentDensity.title` is `18` now
+and what separates a heading from a caption is weight and tracking, which is what
+separates them typographically anyway.
 
 The first draft of those boards ran at `58` and `19` beside the ramp's own `52`
 and `18`, which is the drift the ramp exists to prevent: a difference you can
@@ -447,15 +455,198 @@ that concept drawn: three boards, all from the same constants.
 | | |
 | --- | --- |
 | `ClusterContour.dc.html` | calm driving, engine asleep - the state the panel is in most of the time |
-| `ClusterContourStates.dc.html` | fourteen scenes as a column: first seconds, a traffic jam, calm, an acceleration, regeneration, the engine generating both ways it can be drawn, the engine forty seconds dead, standing on P, charging, a single null, link lost, an exception, and the missing ADB key |
-| `ClusterContourPlan.dc.html` | the skeleton alone, over the three apertures and the cell grid, with every anchor measured - and, under the panel, the physical constants and the ramp they produce |
+| `ClusterContourStates.dc.html` | fourteen scenes as a column: first seconds, a traffic jam whose engine ran earlier and stopped long ago, calm, an acceleration, regeneration, the engine generating both ways it can be drawn, the engine forty seconds dead, standing on P, charging, a single null, link lost, an exception, and the missing ADB key |
+| `ClusterContourPlan.dc.html` | the skeleton alone, over the three apertures and both cell grids, with every anchor measured - and, under the panel, the physical constants and the ramp they produce |
+
+The panel exists now: `dev.denza.apps.feature.cluster.dashboard` draws these three
+boards, `ContourPlan` is their arithmetic in Kotlin, and
+`ContourBoardContractTest` joins the two records so neither can move alone. What
+follows is why each element is what it is, and it is still the reason to read this
+section rather than only the concept.
 
 The boards were drawn before a line of the panel was written, shown to the owner,
 redrawn twice against what he said, then roasted by an independent review
 (`CRITIQUE.md`: three blockers, fifteen majors, twelve minors), redrawn again
-against that, and redrawn a fifth time when the owner looked at the scenes and
-found both graphs flattened. Those five passes are the reason to read this section
-rather than only the concept.
+against that, redrawn a fifth time when the owner looked at the scenes and found
+both graphs flattened, redrawn a sixth when he asked what one of the numbers
+meant, and a seventh so that every figure says which window it is true over.
+Then the panel was built, put on a live bench, and watched moving - and the
+eighth pass is what came back from that, the ninth from the bench run after it.
+Those nine passes are the reason to read this section rather than only the
+concept.
+
+### The test every element now has to pass
+
+The owner, on the fifth drawing: *"что означает 0,0 от ДВС, когда ДВС заглушен?"* -
+and then the sentence that decided the sixth pass: if the question occurred to him,
+the element is unclear to anybody. `0,0 ОТ ДВС` was drawn on purpose - three fixed
+seats, a zero in its own seat so no figure would move when a value arrived - and
+every decision behind it was defensible on its own. Together they printed an
+accountant's way of saying "the engine did not run".
+
+So the panel has one more rule, and it outranks the tidy ones: **is this element
+understood at first glance, by somebody who has never seen the panel and has no
+legend?** What it changed:
+
+- the right shelf stopped being a ledger and became a phrase (below);
+- **a zero is never drawn.** A quantity that did not happen this trip has no cell;
+- the engine's corner gave up its third line and the generation figure went to its
+  own word, under the box: `ОБОРОТЫ · ● ГЕНЕРАЦИЯ 14 кВт`. A number in one place
+  and its noun in another is the same defect as a caption naming another quantity,
+  which is what the owner found on the very first drawing. That line did not
+  survive the bench either - see the eighth pass below, where the words go and the
+  sentence arrives;
+- the petal dropped `· батарея`. While the engine runs the figure is `MUTED` and
+  says nothing else: colour already says "not the main number", and the caveat was
+  five characters of footnote at 12' on the one line read in a glance;
+- `РАЗБРОС` became `РАЗБРОС ЯЧЕЕК`, because the spread of *what* is exactly the
+  question that started the pass.
+
+### A figure names the window it is true over
+
+Four things still failed that test on the sixth drawing, and they failed it the
+same way: **a number integrated over some interval that does not say which
+interval gets read against the interval the reader has in mind**, which is almost
+never the right one. The seventh pass is those four:
+
+- **the petal reads `кВт·ч/100 км · за 3 км`.** Three kilometres had been the rule
+  since the fourth pass and was drawn nowhere; a consumption figure with no window
+  on it is read as the trip average, which is the one thing it has never been. The
+  unit is where that belongs - already the line under the figure, already
+  `MUTED_DEEP` - and it costs 74.7 units into a cut-out with 178 free to its right;
+- **the sleeping engine's corner reads `ДВС · мин за поездку`** over the same 52.
+  `ДВС · мин` alone was six minutes of *something*: this stop, this hour, this
+  trip. The fifth pass wanted exactly these words and tried them on a third
+  baseline, where the aperture left eight units; at the heading's own y 24 the
+  corner ellipse is 298.1 wide, so 224.9 of heading has 25.2 to spare;
+- **the trip's figure is the net that left the battery**, `tripNetKwh = ∫P dt` in
+  the pack's own units, and the two cells beside it got verbs. What regeneration
+  returned and what the engine generated are already out of the first figure, so
+  `9,3` is what went for good over those 42 km - and three unsigned numbers under
+  three nouns had been an invitation to add them up;
+- **the kilometres lead the phrase**, `42 км · ЗА ПОЕЗДКУ`. The odometer's field
+  holds three digits and the printed number is right-aligned inside it either way;
+  trailing, that reserve stood between the `·` and the number, and 10.1 units of
+  nothing after a separator reads as a value that failed to arrive. Leading, the
+  same reserve is the caption's left margin.
+
+Only one of the two verbs fits. `ВЕРНУЛА РЕКУПЕРАЦИЯ` measures 253.5 units against
+`РЕКУПЕРАЦИЯ`'s 150.7, which puts the three seats of a car standing on P at 629.7
+and their left edge 41 units *inside* the hero's own `кВт` - 65 more than the shelf
+has anywhere. So the middle caption keeps `● РЕКУПЕРАЦИЯ` and its dot says what the
+verb would have; `ДАЛ ДВС` is 94.4 against a payload of 116.1, so that cell was
+already as wide as its own figure and the verb was free.
+
+### The bench, and what a running panel said that a still could not
+
+The first seven passes were drawings. The eighth is the first one drawn against
+the panel *moving* - built, put on a live bench and watched - and everything that
+came back was about the two graphs again. Not their size this time: what they were
+saying.
+
+- **`легенда непонятна`.** The engine box's `ОБОРОТЫ · ● ГЕНЕРАЦИЯ 14 кВт` was a
+  key to a picture with two runs in it, and a panel read at 90 km/h does not get to
+  need a key. Both words are gone and so is the run one of them named: the box
+  draws generation alone under one sentence, `● 14 кВт В БАТАРЕЮ · ПОСЛЕДНИЕ 2 МИН`,
+  and the revolutions keep the number they already had in the corner - which is
+  where they were being read anyway;
+- **`сплющен`**, said of that same box a second time. Its height had not moved and
+  could not: it is both rows of the shelf, with the guard above it and the
+  sentence's caps below. What was flat was the *scale*. A square root to 100 kW put
+  this car's ordinary 14 kW at a third of the box; linear to 30 kW with a clamp puts
+  it at a half;
+- **`ноль должен быть у цифры`.** The petal's box hung beside its figure on a ladder
+  of its own - 56 units tall, zero four fifths down - and neither number meant
+  anything to anything next to it. The zero line is the figure's own baseline now,
+  spending rises through the digits' cap height and a return hangs under it the
+  depth of a descender, so the box and the numeral are one typographic object;
+- **`беспорядочно`**, of the same petal. One field crossing a zero line in one
+  colour drew the same grey above and below it, and the blue rule that was meant to
+  say "this came back" ran the whole width whether anything had come back or not.
+  Spending is one continuous grey field that lies on the zero on a return bucket;
+  the return is blue, one shape per run, with its own posts - and only where it
+  happened.
+
+Both boxes are steps of a fixed duration as a result: the petal's thirty buckets
+are a hundred metres each and the engine's twenty-four are five seconds each, a bin
+being the mean of the samples that arrived in it.
+
+### The temperature row is five glyphs, and no words
+
+The second bench pass, and it is about the row nobody had complained about. Three
+figures under one `МОТОРЫ` never said **which motor is which** - `m11` in the
+review, left standing and named as such for five drawings, on the argument that
+three captions at 12′ cost more than the ambiguity. Naming them was then tried
+properly, `ПЕРЕД / ЗАД Л / ЗАД П`, and the owner threw it out on the sound of it:
+*«по-русски не звучат»*. A drawing of the car from above with one axle lit says the
+same thing in one glance and in no language, so the whole row is glyphs.
+
+| cell | glyph | what changes |
+| --- | --- | --- |
+| 1 | a battery | the case, the terminal, and one lit cell inside |
+| 2 | the car from above | a bar across the **front** axle |
+| 3 | the same car | half a bar on the **left** of the rear axle |
+| 4 | the same car | half a bar on the **right** |
+| 5 | a case with one period of alternating current in it | - |
+| 6 | `РАЗБРОС ЯЧЕЕК`, the only word left in the row | appears at `WATCH` or `ALERT` |
+
+Five rules, and every one of them is his:
+
+- **all five or none.** *«если символы, то и батарея, и инвертор, и хорошие»* - half
+  a row of pictures under half a row of words is worse than either. The first cut
+  drew a dot inside a pill for the pack and left the other four as captions;
+  *«беспомощно»*, and it was;
+- **24 units, not the caption's 18.** *«при 18 единицах жучков не видно»* - 2.7 mm
+  of glass for a shape with four wheels in it. At 24 they are 5.1 mm, and they
+  stand **on** the caption baseline rather than hanging from it, so neither of the
+  shelf's two rows moved and ten units still separate a glyph's top from the
+  figures' own baseline;
+- **one outline, one component.** The outline is `MUTED`, the same as a caption
+  was; the component inside is `INK`, one step brighter than the figure above it,
+  and it takes `WARNING`/`DANGER` **with** the figure on an exception - so a hot
+  cell lights as one object rather than as a red number beside a grey picture. That
+  is the panel's one exception to "`INK` is the hero alone", and it is what makes
+  the mark findable at all: an outline round a grey blob reads as one grey shape;
+- **the motor is the motor, not the wheel it drives.** *«точно мотор с колёсами не
+  путаешь?»* - said of a first drawing that filled the wheels each motor drives.
+  All four wheels are hollow in all three cars, and they are the one thing in the
+  family drawn at 1.6 rather than the 2.5 everything carrying data uses: a wheel is
+  furniture saying "this is a car from above" and the block on the axle is the
+  reading;
+- **every proportion is in caption units** and multiplied up by `k = 24/18`, so the
+  family scales with its height alone and nothing in it is typed.
+
+What it cost and what it bought: five cells of **50.9** where `БАТАРЕЯ · МОТОРЫ ·
+ИНВЕРТОР` were `91.9 · 143.4 · 110.0`, so the row is 58 units narrower **even with
+each cell carrying its own `°`** - the three motors shared one sign from the sixth
+pass to the eighth because `РАЗБРОС ЯЧЕЕК` needed exactly those 25 units, and the
+captions paid them back twice over. The left shelf now stops **270** clear of the
+hero's field, or **86** with the exception cell up. And a word in that row now
+*means* the pack is misbehaving, because it is the only word in it.
+
+This row breaks the house icon rule on purpose. `DenzaIcons` is one optical weight
+throughout - `ICON_WEIGHT` 2.0 in a 24 viewport - because those are labels on
+tiles. A glyph here is half of a reading, and inside one mark the case, the lit
+component and the wheels are three different kinds of thing; the family says which
+is which with two weights, and `audit.py` reports the new `1.6` in `STROKES` for
+that reason rather than by accident.
+
+### And the engine's sentence closes up when the engine stops
+
+The same bench run, one line along. The generation figure lives in a two-digit
+reserve so that 9 kW and 14 kW start the phrase in the same place; when the engine
+stops the figure and its unit are removed by the staleness rule, and the eighth
+pass left the reserve standing - `● ⎵⎵ В БАТАРЕЮ · ПОСЛЕДНИЕ 2 МИН` for the whole
+two minutes the box outlives the engine. 22 units of nothing after a dot reads as a
+value that failed to arrive, which is the same defect the seventh pass moved the
+odometer's reserve to fix.
+
+With no figure there is no field: the phrase is assembled without it and the dot
+closes up against the words. **One shift per engine stop, not a jitter** - what a
+reserve buys is stillness while a *number* changes, and by then there is no number
+left to change. The words themselves never move, in either state. `ContourPlan`
+carries both anchors, `legendMarkX` and `legendMarkQuietX`, and the states board
+draws both scenes.
 
 ### The glass is measured now
 
@@ -503,6 +694,16 @@ was there to serve survives intact: no coordinate depends on data, every number
 lives in a field sized by its maximum digit count times a measured advance, and a
 unit hangs off the field rather than off the string.
 
+The seventh pass re-measured every string it needed and found the sixth pass's
+caption table did not reproduce: **all ten of its captions came back different**,
+and so did `кВт·ч` and `км` - from 3.02 units too wide (`ОБОРОТЫ ·`) to 0.89 too
+narrow (`БАТАРЕЯ`), with no consistent sign, which is a table typed from more than
+one run rather than one systematic error. Every *unit* and every corner heading
+reproduced to the digit, which is why no anchor moved and only the cells did: the
+left shelf by two units. What is in the generator now is one
+`getComputedTextLength()` run, checked at 18, 180 and 360 px and agreeing to 0.01,
+so those numbers are the face's own advances rather than a rounding of one size.
+
 ### Two guards, and they are the same number
 
 The jury asked for 24 units between the hero's cap and the stock speedometer's
@@ -514,9 +715,10 @@ shelves' cap tops, the engine box's top edge, and the lower edge of the band's
 body, which clears its guard by 18. The plan board draws both in red.
 
 That budget is what paid for the rest. The shelves lost their headings entirely -
-five degree signs say "temperatures" without the word, and the trip's unit is
-written once at a fixed anchor - and the band lost `100 кВт / 300 кВт`, which were
-two 12' lines claiming a scale that a square root over two different spans is not.
+one degree sign per cell says "temperatures" without the word, and the trip's unit
+went to the cell it belongs to rather than a heading over the row - and the band
+lost `100 кВт / 300 кВт`, which were two 12' lines claiming a scale that a square
+root over two different spans is not.
 
 ### What the panel says, and in what order
 
@@ -553,13 +755,16 @@ measurement on the car rather than a board. What still uses alpha: the glow, the
 two history fills, the peak hold.
 
 **Blue is a dot.** `RETURN` is the band's body, the generation seam, the engine
-box's area, and a marker in front of `РЕКУПЕРАЦИЯ`, `ОТ ДВС` and `ГЕНЕРАЦИЯ` -
-dot-sized, because saturated blue at 12' on black is the one colour ISO 15008 
-names for small glyphs and thin rules.
+box's area, the petal's return runs, and a marker at the head of `РЕКУПЕРАЦИЯ` and
+of the engine's own sentence - the places the car gives something back - dot-sized,
+because saturated blue at 12' on black is the one colour ISO 15008 names for small
+glyphs and thin rules.
 
-**Units are case-sensitive.** `«БАТАРЕЯ · В»`, `«ДВС · об/мин»`, `«кВт·ч»` - a
-tracked capital is a heading, a unit is not one, and a tracked heading does not get
-to rewrite ГОСТ 8.417.
+**Units are case-sensitive.** `«БАТАРЕЯ · В»`, `«ДВС · об/мин»`, `«кВт·ч»`, `«км»` -
+a tracked capital is a heading, a unit is not one, and a tracked heading does not
+get to rewrite ГОСТ 8.417. The odometer's own figure inside `42 км · ЗА ПОЕЗДКУ` is
+set in the caption's face for the same reason: it is a number living in a phrase
+rather than a reading of its own.
 
 ### Three histories, one rule each
 
@@ -569,22 +774,40 @@ Both boxes were redrawn in the fifth pass. The owner on the fourth: *"Сцена
 36 units in the petal, 24 on the shelf, which is 7.6 mm and 5 mm of glass for a
 shape with thirty steps or two curves in it.
 
-**The petal** keeps three kilometres and always three kilometres: standing on P the
+**The petal** keeps three kilometres and always three kilometres - and since the
+seventh pass its unit says so, `кВт·ч/100 км · за 3 км`. Standing on P the
 denominator does not change under the figure, only the tenth appears, because at
 100 km/h a tenth moves three times a second. Thirty bars 0.65 mm wide were 0.9' at
 750 mm - below the eye's resolution - so the history is a stepped line beside the
 figure, and since the fifth pass that line is `INK` at 70 % and 2.5 units thick
 over a `MUTED_DEEP` field at 55 %, where it was a 2-unit `MUTED` line over 30 %
-and read as a texture. The box is **232 × 56** - 56 up from 36, the tallest it can
-be without rising over the cap of the 52 beside it, and 232 because that is what
-the petal's own cut-out leaves at the box's lower left corner once the 8-unit
-guard is taken. Its scale is a **fixed ladder, 0…40 kW·h/100 km up and 0…10 back**,
-with the zero line four fifths down and 1.12 units to the kW·h in both directions:
-the return keeps the bottom fifth and gets no colour of its own, and a bucket no
-longer changes height because a *different* bucket changed value. That is what the
-ladder buys - on the states board the traffic jam's history is visibly taller than
-calm driving's, which under the old autoscale it was not. There is no dashed mean:
-the mean is the figure standing next to it.
+and read as a texture. It is **232 wide**, because that is what the petal's own
+cut-out leaves at the box's lower left corner once the 8-unit guard is taken.
+
+**Its zero line is the figure's own baseline, and that decides its height.** The
+owner, on the built panel: *«ноль должен быть у цифры»*. The fifth pass had given
+the box 56 units and a zero line four fifths down, and both numbers were the box's
+alone - a ladder standing next to a 52 and agreeing with nothing on it. The three
+lines that bound the history are the three lines of the numeral beside it now: the
+cap top at 347.08, the baseline at 384, and a descender's depth under it at 397.
+The box is 49.92 tall because that is what a 52 occupies, and there is nothing left
+to choose. Its scale is a **fixed ladder, 0…30 kW·h/100 km up the cap and 0…10 back
+down the descender**, both clamped - 30 rather than the fifth pass's 40, because
+what set 40 was the zero line at four fifths and the zero line is a baseline now.
+A bucket does not change height because a *different* bucket changed value, which
+is what the ladder buys: on the states board the traffic jam's history is visibly
+taller than calm driving's, which under the old autoscale it was not. There is no
+dashed mean: the mean is the figure standing next to it.
+
+**Two series, and the blue one is only where it happened.** Spending is one
+continuous `MUTED_DEEP` field under its `INK` edge, drawn across all thirty
+buckets: on a bucket that gave energy back it lies on the zero line, because what
+was spent there is nothing. The return is `RETURN` at 50 % with a `RETURN_INK`
+edge, one shape per run of return buckets, standing on the zero line on its own
+posts, and nothing blue is drawn along that line anywhere else. Until the eighth
+pass it was one field crossing the zero in a single colour with a blue rule running
+the whole width whether anything had come back or not - *«беспорядочно»*, which is
+two quantities in one silhouette and a colour claiming a third.
 
 **The petal's figure centres on the axis** and the box hangs off it. Two digits,
 right-aligned on a fixed anchor, so the tenth that appears on P grows the field
@@ -594,30 +817,80 @@ a two-digit 52 centred on the axis ends at 783.00 and the hero's three-digit fie
 ends at 783.04, so the two figures share a right edge and `«кВт»` and
 `«кВт·ч/100 км»` start on the same x.
 
-**The engine box** grows from the right, its width is the number of filled seconds,
-and it is never drawn empty. It leaves when the last non-zero slot falls off the
-left edge, which is 120 s of hysteresis with no timer of its own - the trace's
-length *is* the timer - so a winter jam that restarts the engine every ninety
-seconds never swaps the shelf back and forth. It now takes **both rows of the
-shelf**, 50.7 units from the top guard down to a rhythm step above its legend's
-caps, and the legend `ОБОРОТЫ · ● ГЕНЕРАЦИЯ` moves below the box onto the band's
-own 24-unit guard - the swap moves no neighbour's baseline in either direction.
-Revolutions are an `INK` line at 70 %, 2.5 units, on a fixed 0…3000; generation is
-a `RETURN` area at 55 % with a 1.8 `RETURN` edge, by the square root to 100 kW.
+**The engine box** grows from the right and is never drawn empty. It leaves when
+the last live slot falls off the left edge, which is 120 s of hysteresis with no
+timer of its own - the trace's length *is* the timer - so a winter jam that
+restarts the engine every ninety seconds never swaps the shelf back and forth. It
+takes **both rows of the shelf**, 50.7 units from the top guard down to a rhythm
+step above its caption's caps, and that caption sits below the box on the band's
+own 24-unit guard, so the swap moves no neighbour's baseline in either direction.
+
+**One quantity, one sentence** - the eighth pass, and the owner's word for what was
+there before was *«легенда непонятна»*. `ОБОРОТЫ · ● ГЕНЕРАЦИЯ 14 кВт` was a key to
+a picture with two runs in it, and a display read at 90 km/h does not get to need a
+key. The revolutions' line is gone to the corner where the same number was already
+printed, and what is left is generation as a `RETURN` area at 55 % with a 1.8
+`RETURN` edge, under **`● 14 кВт В БАТАРЕЮ · ПОСЛЕДНИЕ 2 МИН`**: what the shape is,
+what it is worth now, and how far back it goes, in that order. Neither `ГЕНЕРАЦИЯ`
+nor `ОБОРОТЫ` is a word on this panel any more.
+
+The sentence is laid out right to left off the shelf's own edge - the window, then
+`кВт`, then the figure in a two-digit reserve, then the dot - so 9 kW and 14 kW
+start it in the same place, and when the engine stops the figure and its unit leave
+together while the words stay. It is the odometer's arrangement inside
+`42 км · ЗА ПОЕЗДКУ`, one shelf along. If the face in use makes the phrase plus one
+guard wider than the box it stands under, the window shortens to `· 2 МИН`; nothing
+else in it may go.
+
+**The area is linear to 30 kW, clamped**, and 30 is what this generator does rather
+than a span borrowed from the band. That is the second half of the same verdict -
+*«сплющен»*, said of a box whose height had already taken every unit there is
+between the two guards. At the 14 kW this car ordinarily returns, a square root over
+100 kW filled a third of the box; linear over 30 fills a half. What a root buys is
+resolution near zero, and near zero this quantity is off.
+
+**Both boxes are steps of a fixed duration.** The petal's thirty buckets are a
+hundred metres each, and the engine's twenty-four are five seconds each, averaged
+over the samples that arrived - a bin nothing answered in breaks the area rather
+than being drawn through. The per-second line the box used to carry was 120 points
+across 526 units, 4.4 apart, which is 0.9 mm of glass for one sample of a quantity
+that moves on the scale of a traffic light.
 
 **The band's tail is gone.** Two memories on one instrument was one too many, and
 the ten-second smear was drawn in a single colour across zero, so a sweep from −58
 to +9 came out blue including the +9. The peak hold stays.
 
-### The right shelf has three seats, always
+### The right shelf is a phrase
 
-`ИЗ БАТАРЕИ`, `● РЕКУПЕРАЦИЯ`, `● ОТ ДВС`, counted from the outside in, each in a
-cell as wide as the wider of its caption and its field, and **a zero is drawn**, in
-`MUTED_DEEP`, in its own seat. The last board packed the cells against the margin
-and skipped zeros, so the first braking of a trip slid two figures sideways and the
-engine's first start slid them again - a coordinate depending on data, which is the
-one thing this concept exists to cure. The owner objected to an empty *graph*, not
-to a zero.
+One cell on the move: **`9,3 кВт·ч` over `42 км · ЗА ПОЕЗДКУ`** - a figure with
+its own unit against it, and under it what the figure is *of*, with the kilometres
+that make it a sentence and lead it. A second cell, `1,1 кВт·ч` over `ДАЛ ДВС`,
+only if the engine actually ran this trip. Nothing else, and never a zero.
+
+**The first figure is the net that left the battery** - `tripNetKwh = ∫P dt` in the
+pack's own units. What regeneration returned and what the engine generated are
+already out of it, which is what the other two cells' verbs are there to say: they
+are what came back, not what adds. Until the seventh pass all three were nouns and
+all three were unsigned, and the panel was inviting a sum that names nothing.
+
+Standing on P the same anatomy pays out in full - `42 км · ЗА ПОЕЗДКУ`,
+`● РЕКУПЕРАЦИЯ`, `ДАЛ ДВС` - because a car that is not moving is the one place
+where reading three numbers costs nothing. **That is where regeneration lives now:
+on P, and on P only.** It is a number you look at when the trip is over, not one
+you read at 90 km/h, and the two hundred units it used to hold on the move were
+what made the row a row. Its caption is the one that could not take a verb: the
+dot in front of the noun does that work instead, for 14 units against 102.9.
+
+Seats are counted right to left from the shelf's own edge and the first is always
+against it, so the second appearing moves nothing. They are per state rather than
+per panel: standing still adds a seat between the two, which is a gear change and
+not a value arriving. The unit is written once *per cell* now, not once per row -
+a shared unit at the end of a row is what makes three numbers read as a table, and
+the table was the unreadable part.
+
+While the engine's own box is up the shelf is the box, unchanged from the fourth
+pass: the box leaves 120 s after the last live sample, so the phrase comes back
+once rather than once per engine cycle.
 
 ### What the data still owes the panel
 
@@ -625,12 +898,15 @@ Two rules are written on the boards and in the generator's docstring because the
 code will have to follow them, and the measurement that would settle them has not
 been taken (`VERDICT.md`, check 3):
 
-- while the engine runs the petal's figure is `MUTED` and its unit reads
-  `кВт·ч/100 км · батарея`. `ConsumptionLog` integrates pack power alone, and
-  nobody has logged whether `GENERATION_KW` is already inside `POWER_KW`;
+- while the engine runs the petal's figure is `MUTED` and carries no caveat.
+  `ConsumptionLog` integrates pack power alone, and nobody has logged whether
+  `GENERATION_KW` is already inside `POWER_KW`; until somebody does, that figure is
+  the battery's alone and colour is what says so;
 - `РЕКУПЕРАЦИЯ` integrates only over intervals with the engine off. Under
   generation a negative pack flow is indistinguishable from braking, and the
-  engine's share belongs in `ОТ ДВС`.
+  engine's share belongs in `ДАЛ ДВС`. Both are subtracted from the net the first
+  cell prints, so whichever way that log lands, the trip's own figure does not
+  double-count.
 
 ### The review, answered
 
@@ -641,7 +917,7 @@ drawing decision.
 | --- | --- | --- |
 | B1 | consumption and balance undefined under the engine | closed as a data rule; the number waits for one log |
 | B2 | vertical budget exhausted, headings 7 units from the boundary | closed - headings dropped, both guards at 24 |
-| B3 | the P scene contradicts `TripEngine` | closed - the petal is always the last 3 km |
+| B3 | the P scene contradicts `TripEngine` | closed - the petal is always the last 3 km, and since the seventh pass its unit says so |
 | M1 | the ladder stood on a guessed glass width | closed - measured, 320 mm at 750 mm |
 | M2 | the hero under the stock speedometer, unit unreadable | closed - 88 with its unit at 34; the photograph still waits |
 | M3 | 34 Light on black, a size the concept forbade | closed - 34 is legal at this distance, and Regular |
@@ -649,26 +925,26 @@ drawing decision.
 | M5 | alpha means seven things | closed - one rule: stale goes after 2 s, the caption stays |
 | M6 | the glow travels | closed - centred on zero, brightness and hue only, τ 1.5 s; the fifth pass gave it its own 120 kW span |
 | M7 | the engine box is born empty, the shelf flickers | closed - grows from the right, 120 s of self-timed hysteresis |
-| M8 | the right shelf's coordinates depend on data | closed - three seats always, a zero is drawn |
+| M8 | the right shelf's coordinates depend on data | closed - seats counted from the shelf's edge; the zero that came with it was undone by the sixth pass, and the odometer's reserve moved to the caption's left edge in the seventh |
 | M9 | «просадка N В» lies on a motorway | closed - deleted |
 | M10 | the band is labelled as a scale it is not | half closed - labels gone; the square root stays, the owner accepts it |
 | M10 | available regeneration and the power ceiling | waits - no FID found for the BMS limits |
-| M11 | small blue text and blue hairlines | closed - blue is a dot, the area is 55 % |
+| M11 | small blue text and blue hairlines | closed - blue is a dot at the head of `РЕКУПЕРАЦИЯ` and of the engine's sentence, and the areas are 55 % and 50 % |
 | M12 | colour hysteresis of 1 kW | closed - a 3 kW dead band, 3 kW of hysteresis |
 | M13 | four required scenes missing | closed - jam, acceleration, engine dead 40 s, single null |
-| M14 | Roboto Mono breaks numbers apart | closed - Roboto with `tnum`, measured |
-| M15 | three histories are textures | closed twice - a stepped line, then 2.5-unit `INK` runs in boxes of 56 and 51 |
+| M14 | Roboto Mono breaks numbers apart | closed - Roboto with `tnum`, measured, and re-measured in the seventh pass when the caption table would not reproduce |
+| M15 | three histories are textures | closed three times - a stepped line, then 2.5-unit `INK` runs in boxes of 56 and 51, then two boxes of fixed-duration steps on scales that fill them |
 | m1 | unit symbols set as tracked capitals | closed |
 | m2 | a dim «ДВС» over an empty corner | closed - the corner is simply empty |
 | m3 | two memories on the band | closed - the tail is gone |
 | m4 | headings standing over emptiness for the first seconds | closed - a heading arrives with its first value |
 | m5 | the petal's tenth moves three times a second | closed - integer on the move |
-| m6 | the hero updates at 3 Hz | closed as a renderer rule: 2 Hz, ±0.5 kW |
+| m6 | the hero updates at 3 Hz | closed as a renderer rule: ±0.5 kW of hysteresis; the rate is 4 Hz, not the critique's 2 - the owner asked for the live figures to answer about twice as fast as the previous panel, and the bus poll went from 300 ms to 100 ms with it |
 | m7 | night by ephemeris, not by light | closed - the scene is removed; the dimmer waits for the car |
 | m8 | an alert at 34 in a shelf of 52s | closed - every shelf figure is 34 now |
-| m9 | generation drawn three times | closed - twice: the seam and the box |
+| m9 | generation drawn three times | closed - twice: the seam and the box, with the figure inside the box's own sentence |
 | m10 | "104 reads peripherally" | closed - the claim is not made; the band is the ambient |
-| m11 | the motors' order is learnable, not obvious | left standing, and named as such |
+| m11 | the motors' order is learnable, not obvious | closed by the ninth pass, and with a picture rather than a caption: five cells, five glyphs, three cars differing by which axle is lit |
 | m12 | lowercase captions | rejected - one house style with the head unit wins |
 
 ### The apertures, and everything else
@@ -677,24 +953,32 @@ drawing decision.
 // 100 * 4 // 3` and the rest - so the clear band, the two corner quarter-ellipses
 and the petal come out where the app already believes they are. Every other anchor
 is derived from five decisions: one margin of `48`, the rhythm of `8`, the rungs,
-the cap height, and the two guards. Each corner aperture holds a heading, one 52
-figure and - while the engine runs - one 18 line, and no more: it is 301 units wide
-at the top and narrows to nothing by 160, and at that third baseline it leaves
-138.2 units. An engine that ran and stopped reads `ДВС · мин` over `6` and nothing
-under it; `мин за поездку` asked for 130.4 of those 138.2, eight units from a
-boundary nobody has photographed, and the heading was already carrying the unit for
-the other two states. Both shelves stand below the apertures, in the clear band's
-flanks, on one pair of baselines with one anatomy: a 34 figure over an 18 word. The left cells
-come out `96 · 176 · 112 · 96` and the right ones `96 · 168 · 128`, each as wide as
-the wider of its own caption and its own payload, and the whole left shelf stops 61
-units clear of the hero's field.
+the cap height, and the two guards. **Each corner holds a heading and one 52 figure,
+and that is all it holds** - the aperture is 301 units wide at the top and narrows
+to nothing by 160, and the third baseline it used to allow is gone with the line
+that stood on it. An engine that ran and stopped reads `ДВС · мин за поездку` over
+`6` - 224.9 units of heading in the 250.1 the aperture leaves at y 24, clear by
+25.2; one that is running reads `ДВС · об/мин` over `1780`; one that never started
+leaves the corner empty.
 
-One thing to look at rather than measure: the petal's group - box, figure, unit -
-is centred on the axis as a group, which is the same rule the hero's group follows.
-But a 240-unit history cannot balance a 109-unit unit, so the petal's digits land
-82 units right of the hero's, and two large numerals one above the other is exactly
-where that is visible. The alternative is to centre the figure and let the group
-hang asymmetrically. The boards draw the rule as written.
+Both shelves stand below the apertures, in the clear band's flanks, on one pair of
+baselines with one anatomy: a 34 figure over the thing that names it - an 18 word
+on the right, a 24-unit glyph on the left. **A cell is exactly as wide as the wider
+of its payload and that** - since the sixth pass the width is no longer rounded up
+to the rhythm, because `РАЗБРОС ЯЧЕЕК` needed the 19.5 units of air that rounding
+was spending across four cells, and a rounded cell was quantising a distance nobody
+can see while the clearance to the hero's field is one the reader would meet the
+moment a three-digit power arrived. The left cells come out `50.9` five times, plus
+`167.7` when the exception is up, and stop **270** clear of the hero's field, or
+**86** with the exception; the right seats are `214.0 · 164.7 · 116.1` on P and
+`214.0 · 116.1` on the move, and stop **61.8** clear of the hero's unit.
+
+One thing to look at rather than measure: the petal's *figure* centres on the axis
+and its box hangs off the field's widest reserve, so the group is asymmetric on
+purpose - a 232-unit history cannot balance a 109-unit unit, and centring the whole
+group instead put the panel's midpoint on the box's back and the digits 82 units
+right of the hero's. The boards draw the figure on the axis; the two large numerals
+one above the other are where either choice is visible.
 
 ## The boards and the code are joined
 
@@ -706,13 +990,25 @@ head-unit screen carried every number off `Main.dc.html` and looked nothing like
 it, because the board hangs a tile's words off the bottom edge and the code
 stacked them from the top.
 
-So two unit tests in `:denza-apps` parse the boards at test time and assert the
+So three unit tests in `:denza-apps` parse the boards at test time and assert the
 Kotlin matches:
 
 | | |
 | --- | --- |
 | `MainBoardContractTest` | reads `Main.dc.html` - tile height, padding, radius, the `space-between` that hangs the words apart, both text styles with their leading, icon size and stroke, grid columns and gap, page margins |
 | `SpectrumBoardContractTest` | reads the analyser out of the same board - band count, bar width fraction, that the columns add up to the field they are drawn in, peak height, corner radius, gradient stop, reflection crop, opacity, fraction and fade, scanline pitch |
+| `ContourBoardContractTest` | reads `ClusterContour.dc.html`, `ClusterContourStates.dc.html`, `ClusterContourPlan.dc.html` **and `gen_contour.py` itself** against `ContourPlan` - the four rungs with their weights and tracking, the panel, the band's hairline, body and zero mark, the glow's centre, radii and its `0.18·√(P/120)`, the hero's baseline and its field, both corner baselines, both shelf baselines, all six temperature cells with the box each glyph stands in, every rectangle the five glyphs are drawn from - the pack's case, terminal and lit cell, each car's body, four hollow wheels and one block, the inverter's case and the wave inside it - all three trip seats on P and the pair on the move, both history boxes with their scales and their steps, the engine's sentence with every anchor in it including both places its dot stands, that the petal's blue is one patch on the one run of return buckets, both guards drawn in red, and the measured advances every one of those cells is sized from |
+
+The third row reads the generator as well as the boards because a caption is a
+coordinate on the cluster: a cell there is exactly as wide as the wider of its
+caption and its payload, so `W_CAPTION` in `gen_contour.py` and the strings in
+`ContourReadout` are one record in two files. Coordinates are compared to `0.05`,
+which is the tenth the boards are written to; the advances get two per cent,
+because Chrome's Roboto and the car's Roboto are two fonts with one name and a
+cell *should* follow the face it is actually set in. What must not drift is the
+arithmetic between them, and that is everything else the row checks. Two mutations
+of one constant each - the petal's box by one rhythm step, the guard by half a
+step - brought down fourteen of its cases.
 
 That middle clause in the second row is new and is there for a defect every other
 check passed. The board set 26 bars of 22 with 9 between them - 797 of the 834 it
@@ -750,9 +1046,9 @@ board drawing a glyph the app has never had.
 `#15181F` measures 3.86:1 where 4.5 is the floor, and 4.35:1 on the page ground.
 The boards and the generators now use `#7C858F`, which measures 4.70 and 5.31 and
 stays a clear step below `MUTED` at 5.43 so the two are still two. `DenzaTokens`
-has not moved yet; when it does, `MUTED_DEEP` takes that value and the records meet
-again. The obvious-looking `#8A929C` does not work: at 5.59 it is brighter than the
-ink above it.
+carries the same value, so the records meet: this paragraph said it did not for a
+wave after it already did. The obvious-looking `#8A929C` does not work: at 5.59 it
+is brighter than the ink above it.
 
 **The ticker's two records name a track in opposite orders.** The board writes
 "M83 · MIDNIGHT CITY" and `SpectrumRenderer` builds `"$title · $artist"`, so the

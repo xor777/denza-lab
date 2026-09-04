@@ -29,7 +29,7 @@ import kotlinx.coroutines.sync.Mutex
  * docs/vehicle-data-findings.md.
  *
  * Cadence: the hot set (pack power and voltage, odometer, engine state and
- * generation) is one batched command roughly twice a second; pack health,
+ * generation) is one batched command about four times a second; pack health,
  * temperatures, charging estimates and warning lamps join it every ten seconds.
  * Splitting the hot set finer would buy nothing — a one-call batch costs almost
  * what a five-call batch costs. The loop runs only while the cluster dashboard
@@ -60,6 +60,20 @@ internal class VehicleTelemetryHub(context: Context) {
     private var restored = false
 
     private val log = ConsumptionLog(onBucketClosed = ::record)
+
+    /**
+     * The trip on the right shelf, and its own record on disk.
+     *
+     * It is journalled for the same reason the bars are and against a stricter test: a trip is
+     * bounded by the selector rather than by the ignition, so a process restart in the middle of a
+     * drive must not reset the figure the driver is watching. [TripEnergyLedger.restore] refuses a
+     * record from road this process did not see.
+     */
+    private val tripJournal = TripJournal.of(app.filesDir) { why ->
+        Log.w(TAG, "Журнал поездки сброшен: $why")
+    }
+    private val ledger = TripEnergyLedger()
+    private var tripSavedAt = 0L
 
     /**
      * Kept in memory only. The consumption journal survives a restart because it is about the road;
@@ -134,12 +148,31 @@ internal class VehicleTelemetryHub(context: Context) {
     private fun restoreOnce(odometerKm: Double?) {
         if (restored || odometerKm == null) return
         restored = true
+        val trip = tripJournal.load()
+        if (trip != null && !ledger.restore(trip, odometerKm)) {
+            Log.w(TAG, "Журнал поездки от другой дороги, сброшен")
+            tripJournal.clear()
+        }
         val samples = journal.load()
         if (samples.isEmpty()) return
         if (!log.restore(samples, odometerKm, ConsumptionLog.RETENTION_KM)) {
             Log.w(TAG, "Журнал расхода от другого одометра, сброшен")
             journal.clear()
         }
+    }
+
+    /**
+     * Persist the trip, at most every [TRIP_SAVE_MS].
+     *
+     * The interval is the size of the hole an ignition cut leaves in the figure, and ten seconds of
+     * driving is under a hundredth of a kilowatt-hour. It costs one small `fsync` and it is a
+     * rename, so a cut write leaves the previous record rather than half of this one.
+     */
+    private fun saveTrip(now: Long) {
+        if (now - tripSavedAt < TRIP_SAVE_MS) return
+        val record = ledger.record() ?: return
+        tripSavedAt = now
+        tripJournal.save(record)
     }
 
     /**
@@ -194,7 +227,7 @@ internal class VehicleTelemetryHub(context: Context) {
                 if (includeCold) {
                     forceCold = false
                     coldDueAt = SystemClock.elapsedRealtime() + COLD_INTERVAL_MS
-                    VehicleSignal.COLD.forEach { signal -> parsed[signal]?.let { cold[signal] = it } }
+                    VehicleColdSweep.rebuild(cold, parsed)
                 }
 
                 restoreOnce(parsed[VehicleSignal.ODOMETER_KM])
@@ -213,6 +246,16 @@ internal class VehicleTelemetryHub(context: Context) {
                     powerKw = VehicleConvention.load(parsed[VehicleSignal.POWER_KW]),
                     dtSeconds = dtSeconds,
                 )
+                val engineRunning = parsed[VehicleSignal.ENGINE_RUNNING]?.let { it >= 1.0 }
+                ledger.sample(
+                    odometerKm = parsed[VehicleSignal.ODOMETER_KM],
+                    powerKw = VehicleConvention.load(parsed[VehicleSignal.POWER_KW]),
+                    generationKw = parsed[VehicleSignal.GENERATION_KW],
+                    engineRunning = engineRunning,
+                    parked = parsed[VehicleSignal.GEARBOX_PARK]?.let { it >= 1.0 },
+                    dtSeconds = dtSeconds,
+                )
+                saveTrip(now)
 
                 // Cold values carry over between sweeps — temperatures do not
                 // change in a second. Hot values never do: they are either fresh
@@ -225,14 +268,15 @@ internal class VehicleTelemetryHub(context: Context) {
                     message = if (merged.isEmpty()) NO_ANSWER else "",
                     values = merged,
                     consumption = log.buckets,
-                    stationary = log.stationary,
                     engineTrace = trace.snapshot(),
+                    trip = ledger.trip,
                 )
 
                 delay(HOT_INTERVAL_MS)
             }
         } finally {
             flush()
+            ledger.record()?.let(tripJournal::save)
             shell?.runCatching { close() }
         }
     }
@@ -249,6 +293,7 @@ internal class VehicleTelemetryHub(context: Context) {
             access = VehicleAccess.UNAVAILABLE,
             message = message,
             consumption = log.buckets,
+            trip = ledger.trip,
         )
     }
 
@@ -256,17 +301,24 @@ internal class VehicleTelemetryHub(context: Context) {
         /** Bars per journal write: one kilometre of road. */
         const val FLUSH_EVERY = 10
 
+        /** How often the trip record is made durable. See [saveTrip]. */
+        const val TRIP_SAVE_MS = 10_000L
+
         const val TAG = "DenzaVehicle"
 
         /**
          * Measured on the car: a batch costs about 130 ms of fixed shell and
          * process overhead plus 4–5 ms per call, so the hot batch takes
          * roughly 150 ms whatever the interval. The interval is therefore the
-         * only real cost knob. At 300 ms the dashboard lands a fresh power figure
-         * about twice a second — enough for a number that follows the pedal —
-         * while the shell runs only while this dashboard is visible.
+         * only real cost knob. It was 300 ms - a fresh power figure about twice
+         * a second - and the owner, who had driven with the previous panel,
+         * asked for the live figures to answer about twice as fast. At 100 ms
+         * the cycle is about 250 ms, four readings a second, and the shell is
+         * busy some sixty per cent of the time while this dashboard is visible;
+         * nothing else in the app runs it. Whether the car sustains that is the
+         * first thing a drive with this build has to show.
          */
-        const val HOT_INTERVAL_MS = 300L
+        const val HOT_INTERVAL_MS = 100L
         const val COLD_INTERVAL_MS = 10_000L
 
         const val HOT_TIMEOUT_MS = 3_000
@@ -278,6 +330,27 @@ internal class VehicleTelemetryHub(context: Context) {
         const val AUTHORIZATION_REQUIRED = "ADB-ключ не подтверждён · Помощь → Диагностика"
         const val NO_CHANNEL = "Нет связи с локальным ADB"
         const val NO_ANSWER = "Машина не ответила ни на один запрос"
+    }
+}
+
+/**
+ * What one cold sweep leaves behind, which is **only what that sweep answered**.
+ *
+ * Rebuilt rather than merged into. A cold value that stopped answering used to sit in the carried
+ * map forever, so "present in the snapshot" meant "answered at some point" for the slow rows and
+ * "answered just now" for the fast ones. The Contour has one rule for a stale reading - it goes
+ * two seconds after its last sample and its caption stays - and that rule needs
+ * absence to mean the same thing on both cadences. That rule is `ContourScene.STALE_SECONDS`.
+ *
+ * It is out here for the reason [VehiclePollLoopGate] is: it is the whole of a rule the panel hangs
+ * off, and inside the poll loop nothing could state it. The map is handed in rather than returned so
+ * the loop keeps one instance across sweeps.
+ */
+internal object VehicleColdSweep {
+
+    fun rebuild(into: MutableMap<VehicleSignal, Double>, parsed: Map<VehicleSignal, Double>) {
+        into.clear()
+        VehicleSignal.COLD.forEach { signal -> parsed[signal]?.let { into[signal] = it } }
     }
 }
 

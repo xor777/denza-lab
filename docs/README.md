@@ -7,7 +7,7 @@ Use this folder for durable project knowledge.
 | `project-map.md` | Repo structure, app boundaries, build outputs, product direction. |
 | `governance.md` | Rules for product/prototype/research changes and promotion. |
 | `adb-authorization-recovery.md` | Denza Apps local-ADB startup gate, one-shot authorization flow, stuck-queue boundary, and acceptance status. |
-| `instrument-display-findings.md` | Instrument-display selection, Mirrors geometry, navigation projection, verification status, and open issues. |
+| `instrument-display-findings.md` | Instrument-display selection, the Contour panel on the driver's display, Mirrors geometry, navigation projection, verification status, and open issues. |
 | `audio-capture-findings.md` | Verified output-mix spectrum source, calibration, permissions, product adoption, and remaining audio checks. |
 | `speaker-lift-findings.md` | Devialet flip covers; live-proven direct motor edges, the stock-auto latch side effect, Denza Apps app/MediaSession/output-mix automation, and superseded trigger hypotheses. |
 | `vehicle-data-findings.md` | Live-car matrix of usable GNSS/IMU/journey data, blocked DiCar getters, `autoservice` FID protocol, widget allowlist, and product boundaries. |

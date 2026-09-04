@@ -30,10 +30,12 @@
     .cl { font-size:18px; font-weight:400; letter-spacing:0.12em;
           fill:#7C858F; }
     /* A tracked capital is a heading; a unit is case-sensitive and is not one.
-       «кВт·ч», «об/мин», «мин за поездку» are set as themselves. */
-    .un { font-size:18px; font-weight:400; fill:#7C858F; }
-    .cl0 { font-size:18px; font-weight:400; fill:#86909B;
-           font-variant-numeric:tabular-nums; font-feature-settings:'tnum'; }
+       «кВт·ч», «об/мин», «км» are set as themselves - and so is the odometer's own
+       figure inside «42 км · ЗА ПОЕЗДКУ», which is a number living in a caption
+       rather than a reading of its own, so it takes the caption's face and the
+       tabular figures every number on this panel has. */
+    .un { font-size:18px; font-weight:400; fill:#7C858F;
+          font-variant-numeric:tabular-nums; font-feature-settings:'tnum'; }
     .keep { font-size:13px; letter-spacing:0.12em; fill:#3F434D; }
     /* Used on an HTML div as well as in SVG, and `fill` does nothing to a div. */
     .sn { font-size:13px; letter-spacing:0.12em; fill:#7C858F;
@@ -66,32 +68,50 @@
       <text class="un34" x="815" y="246.7" style="fill:#86909B">кВт</text>
       <text class="ttl" x="48" y="24" style="fill:#7C858F">БАТАРЕЯ · В</text>
       <text class="fig" x="135.7" y="92" text-anchor="end" style="fill:#86909B">552</text>
-      <text class="cl" x="48" y="242.3" style="fill:#7C858F">БАТАРЕЯ</text>
+      <rect x="49" y="223.7" width="19.3" height="13.3" rx="2.7" fill="none" stroke="#86909B" stroke-width="2.5"/>
+      <rect x="68.3" y="227.7" width="3.3" height="5.3" fill="#86909B"/>
+      <rect x="52.7" y="227.4" width="11.6" height="5.9" fill="#DAE1EB"/>
       <text class="rd" x="86.2" y="208.3" text-anchor="end" style="fill:#86909B">28</text>
       <text class="rd" x="86.2" y="208.3" style="fill:#86909B">°</text>
-      <text class="cl" x="160" y="242.3" style="fill:#7C858F">МОТОРЫ</text>
-      <text class="rd" x="198.2" y="208.3" text-anchor="end" style="fill:#86909B">31</text>
-      <text class="rd" x="198.2" y="208.3" style="fill:#86909B">°</text>
-      <text class="rd" x="257.1" y="208.3" text-anchor="end" style="fill:#86909B">29</text>
-      <text class="rd" x="257.1" y="208.3" style="fill:#86909B">°</text>
-      <text class="rd" x="316.1" y="208.3" text-anchor="end" style="fill:#86909B">31</text>
-      <text class="rd" x="316.1" y="208.3" style="fill:#86909B">°</text>
-      <text class="cl" x="352" y="242.3" style="fill:#7C858F">ИНВЕРТОР</text>
-      <text class="rd" x="390.2" y="208.3" text-anchor="end" style="fill:#86909B">32</text>
-      <text class="rd" x="390.2" y="208.3" style="fill:#86909B">°</text>
-      <text class="un" x="1459.6" y="208.3" text-anchor="end" style="fill:#7C858F">кВт·ч</text>
-      <text class="cl" x="1383.4" y="242.3" text-anchor="end" style="fill:#7C858F">ОТ ДВС</text>
-      <circle cx="1295.7" cy="235.9" r="3" fill="#2D82D7"/>
-      <text class="rd" x="1383.4" y="208.3" text-anchor="end" style="fill:#7C858F">0,0</text>
-      <text class="cl" x="1271.4" y="242.3" text-anchor="end" style="fill:#7C858F">РЕКУПЕРАЦИЯ</text>
-      <circle cx="1109.8" cy="235.9" r="3" fill="#2D82D7"/>
-      <text class="rd" x="1271.4" y="208.3" text-anchor="end" style="fill:#86909B">3,1</text>
-      <text class="cl" x="1087.4" y="242.3" text-anchor="end" style="fill:#7C858F">ИЗ БАТАРЕИ</text>
-      <text class="rd" x="1087.4" y="208.3" text-anchor="end" style="fill:#86909B">12,4</text>
-      <path d="M 426.7 391.9 426.7 369.7 L 434.5 369.7 L 434.5 370.5 L 442.2 370.5 L 442.2 371.6 L 449.9 371.6 L 449.9 371.2 L 457.7 371.2 L 457.7 369.9 L 465.4 369.9 L 465.4 369.9 L 473.1 369.9 L 473.1 372.5 L 480.9 372.5 L 480.9 376.9 L 488.6 376.9 L 488.6 380.2 L 496.3 380.2 L 496.3 395.9 L 504.1 395.9 L 504.1 399.3 L 511.8 399.3 L 511.8 394 L 519.5 394 L 519.5 375.2 L 527.3 375.2 L 527.3 375.2 L 535 375.2 L 535 374.3 L 542.7 374.3 L 542.7 371.2 L 550.5 371.2 L 550.5 366.9 L 558.2 366.9 L 558.2 364 L 565.9 364 L 565.9 364.1 L 573.7 364.1 L 573.7 367.2 L 581.4 367.2 L 581.4 370.5 L 589.1 370.5 L 589.1 372.3 L 596.9 372.3 L 596.9 372.6 L 604.6 372.6 L 604.6 373.7 L 612.3 373.7 L 612.3 376.4 L 620.1 376.4 L 620.1 380.2 L 627.8 380.2 L 627.8 382.6 L 635.5 382.6 L 635.5 381.6 L 643.3 381.6 L 643.3 377.9 L 651 377.9 L 651 374.3 L 658.7 374.3 L 658.7 391.9 Z" fill="#7C858F" opacity="0.6"/>
-      <path d="M 426.7 369.7 L 434.5 369.7 L 434.5 370.5 L 442.2 370.5 L 442.2 371.6 L 449.9 371.6 L 449.9 371.2 L 457.7 371.2 L 457.7 369.9 L 465.4 369.9 L 465.4 369.9 L 473.1 369.9 L 473.1 372.5 L 480.9 372.5 L 480.9 376.9 L 488.6 376.9 L 488.6 380.2 L 496.3 380.2 L 496.3 395.9 L 504.1 395.9 L 504.1 399.3 L 511.8 399.3 L 511.8 394 L 519.5 394 L 519.5 375.2 L 527.3 375.2 L 527.3 375.2 L 535 375.2 L 535 374.3 L 542.7 374.3 L 542.7 371.2 L 550.5 371.2 L 550.5 366.9 L 558.2 366.9 L 558.2 364 L 565.9 364 L 565.9 364.1 L 573.7 364.1 L 573.7 367.2 L 581.4 367.2 L 581.4 370.5 L 589.1 370.5 L 589.1 372.3 L 596.9 372.3 L 596.9 372.6 L 604.6 372.6 L 604.6 373.7 L 612.3 373.7 L 612.3 376.4 L 620.1 376.4 L 620.1 380.2 L 627.8 380.2 L 627.8 382.6 L 635.5 382.6 L 635.5 381.6 L 643.3 381.6 L 643.3 377.9 L 651 377.9 L 651 374.3 L 658.7 374.3" fill="none" stroke="#DAE1EB" opacity="0.7" stroke-width="2.5" stroke-linejoin="round"/>
-      <line x1="426.7" y1="391.9" x2="658.7" y2="391.9" stroke="#7C858F" stroke-width="1.2"/>
-      <text class="un" x="815" y="384" style="fill:#7C858F">кВт·ч/100 км</text>
+      <rect x="121.9" y="221" width="12" height="18.7" rx="3.3" fill="none" stroke="#86909B" stroke-width="2.5"/>
+      <rect x="116.6" y="222.3" width="4" height="6.7" rx="1.3" fill="none" stroke="#86909B" stroke-width="1.6"/>
+      <rect x="116.6" y="231.7" width="4" height="6.7" rx="1.3" fill="none" stroke="#86909B" stroke-width="1.6"/>
+      <rect x="135.3" y="222.3" width="4" height="6.7" rx="1.3" fill="none" stroke="#86909B" stroke-width="1.6"/>
+      <rect x="135.3" y="231.7" width="4" height="6.7" rx="1.3" fill="none" stroke="#86909B" stroke-width="1.6"/>
+      <rect x="123.5" y="223" width="8.8" height="5.3" fill="#DAE1EB" rx="1.1"/>
+      <text class="rd" x="153.1" y="208.3" text-anchor="end" style="fill:#86909B">31</text>
+      <text class="rd" x="153.1" y="208.3" style="fill:#86909B">°</text>
+      <rect x="188.8" y="221" width="12" height="18.7" rx="3.3" fill="none" stroke="#86909B" stroke-width="2.5"/>
+      <rect x="183.5" y="222.3" width="4" height="6.7" rx="1.3" fill="none" stroke="#86909B" stroke-width="1.6"/>
+      <rect x="183.5" y="231.7" width="4" height="6.7" rx="1.3" fill="none" stroke="#86909B" stroke-width="1.6"/>
+      <rect x="202.2" y="222.3" width="4" height="6.7" rx="1.3" fill="none" stroke="#86909B" stroke-width="1.6"/>
+      <rect x="202.2" y="231.7" width="4" height="6.7" rx="1.3" fill="none" stroke="#86909B" stroke-width="1.6"/>
+      <rect x="190.4" y="232.3" width="3.9" height="5.3" fill="#DAE1EB" rx="1.1"/>
+      <text class="rd" x="220.1" y="208.3" text-anchor="end" style="fill:#86909B">29</text>
+      <text class="rd" x="220.1" y="208.3" style="fill:#86909B">°</text>
+      <rect x="255.8" y="221" width="12" height="18.7" rx="3.3" fill="none" stroke="#86909B" stroke-width="2.5"/>
+      <rect x="250.4" y="222.3" width="4" height="6.7" rx="1.3" fill="none" stroke="#86909B" stroke-width="1.6"/>
+      <rect x="250.4" y="231.7" width="4" height="6.7" rx="1.3" fill="none" stroke="#86909B" stroke-width="1.6"/>
+      <rect x="269.1" y="222.3" width="4" height="6.7" rx="1.3" fill="none" stroke="#86909B" stroke-width="1.6"/>
+      <rect x="269.1" y="231.7" width="4" height="6.7" rx="1.3" fill="none" stroke="#86909B" stroke-width="1.6"/>
+      <rect x="262.3" y="232.3" width="3.9" height="5.3" fill="#DAE1EB" rx="1.1"/>
+      <text class="rd" x="287" y="208.3" text-anchor="end" style="fill:#86909B">31</text>
+      <text class="rd" x="287" y="208.3" style="fill:#86909B">°</text>
+      <rect x="316.7" y="219.7" width="21.3" height="21.3" rx="4" fill="none" stroke="#86909B" stroke-width="2.5"/>
+      <path d="M 320.7 230.3 L 321.3 229 L 322 227.8 L 322.7 226.9 L 323.3 226.3 L 324 226.1 L 324.7 226.3 L 325.3 226.9 L 326 227.8 L 326.7 229 L 327.3 230.3 L 328 231.6 L 328.7 232.8 L 329.3 233.8 L 330 234.4 L 330.7 234.6 L 331.3 234.4 L 332 233.8 L 332.7 232.8 L 333.3 231.6 L 334 230.3" fill="none" stroke="#DAE1EB" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+      <text class="rd" x="353.9" y="208.3" text-anchor="end" style="fill:#86909B">32</text>
+      <text class="rd" x="353.9" y="208.3" style="fill:#86909B">°</text>
+      <text class="rd" x="1309.6" y="208.3" text-anchor="end" style="fill:#86909B">9,3</text>
+      <text class="un" x="1317.6" y="208.3" style="fill:#7C858F">кВт·ч</text>
+      <text class="un" x="1275.9" y="242.3" text-anchor="end" style="fill:#7C858F">42</text>
+      <text class="un" x="1283.9" y="242.3" style="fill:#7C858F">км</text>
+      <text class="cl" x="1315" y="242.3" style="fill:#7C858F">· ЗА ПОЕЗДКУ</text>
+      <path d="M 426.7 384 426.7 359.6 L 434.5 359.6 L 434.5 360.5 L 442.2 360.5 L 442.2 361.7 L 449.9 361.7 L 449.9 361.2 L 457.7 361.2 L 457.7 359.9 L 465.4 359.9 L 465.4 359.9 L 473.1 359.9 L 473.1 362.7 L 480.9 362.7 L 480.9 367.5 L 488.6 367.5 L 488.6 371.2 L 496.3 371.2 L 496.3 384 L 504.1 384 L 504.1 384 L 511.8 384 L 511.8 384 L 519.5 384 L 519.5 365.7 L 527.3 365.7 L 527.3 365.7 L 535 365.7 L 535 364.7 L 542.7 364.7 L 542.7 361.2 L 550.5 361.2 L 550.5 356.6 L 558.2 356.6 L 558.2 353.4 L 565.9 353.4 L 565.9 353.5 L 573.7 353.5 L 573.7 356.9 L 581.4 356.9 L 581.4 360.5 L 589.1 360.5 L 589.1 362.5 L 596.9 362.5 L 596.9 362.8 L 604.6 362.8 L 604.6 364.1 L 612.3 364.1 L 612.3 367 L 620.1 367 L 620.1 371.2 L 627.8 371.2 L 627.8 373.8 L 635.5 373.8 L 635.5 372.7 L 643.3 372.7 L 643.3 368.6 L 651 368.6 L 651 364.7 L 658.7 364.7 L 658.7 384 Z" fill="#7C858F" opacity="0.6"/>
+      <path d="M 426.7 359.6 L 434.5 359.6 L 434.5 360.5 L 442.2 360.5 L 442.2 361.7 L 449.9 361.7 L 449.9 361.2 L 457.7 361.2 L 457.7 359.9 L 465.4 359.9 L 465.4 359.9 L 473.1 359.9 L 473.1 362.7 L 480.9 362.7 L 480.9 367.5 L 488.6 367.5 L 488.6 371.2 L 496.3 371.2 L 496.3 384 L 504.1 384 L 504.1 384 L 511.8 384 L 511.8 384 L 519.5 384 L 519.5 365.7 L 527.3 365.7 L 527.3 365.7 L 535 365.7 L 535 364.7 L 542.7 364.7 L 542.7 361.2 L 550.5 361.2 L 550.5 356.6 L 558.2 356.6 L 558.2 353.4 L 565.9 353.4 L 565.9 353.5 L 573.7 353.5 L 573.7 356.9 L 581.4 356.9 L 581.4 360.5 L 589.1 360.5 L 589.1 362.5 L 596.9 362.5 L 596.9 362.8 L 604.6 362.8 L 604.6 364.1 L 612.3 364.1 L 612.3 367 L 620.1 367 L 620.1 371.2 L 627.8 371.2 L 627.8 373.8 L 635.5 373.8 L 635.5 372.7 L 643.3 372.7 L 643.3 368.6 L 651 368.6 L 651 364.7 L 658.7 364.7" fill="none" stroke="#DAE1EB" opacity="0.7" stroke-width="2.5" stroke-linejoin="round"/>
+      <path d="M 496.3 384 L 496.3 388.7 L 504.1 388.7 L 504.1 392.6 L 511.8 392.6 L 511.8 386.5 L 519.5 386.5 L 519.5 384" fill="#2D82D7" opacity="0.5"/>
+      <path d="M 496.3 384 L 496.3 388.7 L 504.1 388.7 L 504.1 392.6 L 511.8 392.6 L 511.8 386.5 L 519.5 386.5 L 519.5 384" fill="none" stroke="#4B9BE0" stroke-width="2.5" stroke-linejoin="round"/>
+      <line x1="426.7" y1="384" x2="658.7" y2="384" stroke="#7C858F" stroke-width="1.2"/>
+      <text class="un" x="815" y="384" style="fill:#7C858F">кВт·ч/100 км · за 3 км</text>
       <text class="fig" x="783" y="384" text-anchor="end" style="fill:#DAE1EB">17</text>
     </svg>
 </div>

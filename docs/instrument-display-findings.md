@@ -32,7 +32,11 @@ leaves the feature unavailable instead of guessing a numeric display ID.
 ## App-owned instrument dashboard
 
 Added 2026-08-25, and run on the car the same evening. The first live run is
-recorded under "What the first live run changed" below.
+recorded under "What the first live run changed" below. **The composition was
+replaced on 2026-09-04** by the Contour, which won the cluster contest; what is
+on the panel now, and why, starts at "What it shows, and what it deliberately
+does not". Everything in the two sections before that - how the presentation
+hosts it, how the driver reaches it, and where it may draw - is unchanged.
 
 The same base presentation now also hosts a dashboard of this app's own
 instruments, as a plain `View` drawing on a `Canvas`. It is a third mode
@@ -47,7 +51,8 @@ Entry points are `ClusterSceneService.showDashboard(context, placement)` and
 `hideDashboard(context)`, on the actions `dev.denza.apps.cluster.SHOW_DASHBOARD`
 and `...HIDE_DASHBOARD`. The dashboard layer sits **after** the shade in the
 presentation's `FrameLayout`, so the shade never darkens it - the dashboard
-protects instrument data by placing its blocks off them, not by dimming itself.
+protects instrument data by placing itself off the stock zones, not by dimming
+itself.
 
 ### What the first live run changed
 
@@ -120,8 +125,9 @@ resolving first leaves exactly two outcomes, the instruments or the display
 picker. And the `SYSTEM_ALERT_WINDOW` appop is granted over local ADB first,
 as every feature of this app that opens a window on the cluster does.
 
-**Placement: `FULL` only.** The dial, the two corner blocks and the columns
-beside them are one composition measured against the whole panel, so a third of
+**Placement: `FULL` only.** The hero on the axis, the band from margin to margin,
+the two corners inside the stock apertures and the two shelves in the clear
+band's flanks are one composition measured against the whole panel, so a third of
 it is not a smaller version of this instrument - it is a different one, and this
 product does not offer that one. A choice of one is not a choice, so the card
 shows no placement row at all for the dashboard rather than a row with one live
@@ -129,10 +135,11 @@ cell and three dead ones (`NavigationPlacementPolicy`). The navigator's own save
 placement is left untouched while the dashboard is chosen and is still there when
 a navigator is chosen again.
 
-`RIGHT` therefore remains a capability of the renderer - the `COMPACT` ramp, the
-`308`-unit virtual space and their tests all still describe it - without being
-something the product offers. Reinstating it is a one-line change to
-`NavigationPlacementPolicy.offered`.
+Since the Contour, `RIGHT` is refused by `ClusterDashboardLayout.supported` as
+well. It had been a capability of the renderer that nothing called - a second
+ramp, a second virtual space and their tests, all describing a screen the product
+had never offered - and the Contour is not a composition that survives being cut
+to a third. Reinstating it would be a redesign, not a flag.
 
 ### Where it may draw
 
@@ -148,15 +155,21 @@ map was allowed through. On the verified `2560x720` panel that gives, in the
 - the two top-corner reveals, `614 x 272 px` on the left and `512 x 272 px` on
   the right.
 
-`RIGHT` (`1023x524` at `Rect(1537, 95 - 2560, 619)`) carries no shade at all -
-its protection is the crop - so all of it is usable. That made it the safest
-placement to draw into, and it is why the narrow ramp exists; the product now
-offers `FULL` alone, for the reason given above.
+`RIGHT`, `CENTER` and `LEFT` are all refused by
+`ClusterDashboardLayout.supported`. `RIGHT` (`1023x524` at
+`Rect(1537, 95 - 2560, 619)`) carries no shade at all - its protection is the crop
+- which once made it the safest placement to draw into; it is refused now because
+the Contour is one full-width composition. `CENTER` is the only zone with no
+successful live render of any navigator on record and additionally spends its top
+`260 px` on a near-opaque gradient; `LEFT`'s keep-out is a quarter-disc rather
+than a band.
 
-`CENTER` and `LEFT` are refused by `ClusterDashboardLayout.supported`. `CENTER`
-is the only zone with no successful live render of any navigator on record and
-additionally spends its top `260 px` on a near-opaque gradient; `LEFT`'s keep-out
-is a quarter-disc rather than a band, which no block in this design fits.
+Those three apertures are the panel's own anchors, not just its keep-outs.
+`ClusterDashboardLayout` exposes their radii and `ContourPlan` places the corners,
+the petal's history box and its unit against the curves themselves, with a guard
+of 8 units - so the composition is measured against the boundary rather than
+against the panel edge, and it gains room if that boundary turns out to be
+shallower.
 
 **The one number still owed a measurement:** these boundaries were tuned by eye
 against live captures when the shade was built, not measured. Confirm them with
@@ -165,115 +178,483 @@ stock band turns out to be shallower, the dashboard gains room and nothing
 breaks - every block is placed against these values, never against the panel
 edge.
 
-### What it shows, and what it deliberately does not
+### What it shows, and what it deliberately does not: the Contour
 
-State of charge and remaining range are **not** drawn. Both are already on the
-stock cluster a few centimetres away, so spending the best real estate on a
-duplicate would be the whole point missed. The same rule removed two more
-things later: the charge rate, because a gun in the socket is drawn as energy
-arriving and the dial's own figure already reads those kilowatts; and the 12 V
-rail, which is a diagnostic rather than a driving fact. It had been shown on the
-now-retired vehicle page and was deliberately not promoted to the cluster.
+Replaced on 2026-09-04. The panel described here until then - a square-root arc
+with the consumption bars nested inside it, two columns of readings either side,
+a sparkline beside the revolutions and a grid of eight fluid lamps - is gone. What
+is on the driver's display now is **"Контур"**, which won the five-way cluster
+contest in `docs/cluster-contest-2026-09/`: `VERDICT.md` picked it with five
+binding corrections, `CRITIQUE.md` roasted the third drawing of it with three
+blockers, fifteen majors and twelve minors, and the boards in
+`tools/design-canvas/` are the ninth drawing - the second one made against the
+panel running rather than against a still. `gen_contour.py` is the design and
+`ContourPlan` is the same numbers in Kotlin; `ContourBoardContractTest` fails in
+both directions if either moves alone.
 
-What the car does not show is drawn instead: traction voltage on its own
-`500-600 V` window, cell spread in millivolts, pack health and insulation
-resistance. Fuel level and range stay on the stock cluster; the experimental
-duplicate left with the retired head-unit pages.
+The owner's own interests decided the contest - voltages, the battery,
+revolutions, consumption - and one question of his decided the sixth and seventh
+passes:
+*«что означает 0,0 от ДВС, когда ДВС заглушен?»*, and then the sentence behind it,
+that if the question occurred to him the element is unclear to anybody. So the
+panel has one rule that outranks the tidy ones: **is this understood at first
+glance, by somebody who has never seen it and has no legend?**
 
-The centre carries instantaneous power on a square-root dial - zero at the top,
-discharge one way, regeneration the other - with the consumption history nested
-inside it and the average stated underneath. That history is fixed at the latest
-**3 km**, drawn directly from the log's 100 m buckets. The former head-unit panel
-offered a 3/10/30 km tap selector, but the panel, selector, and saved preference
-were deleted on 2026-08-27; the cluster never inherits a hidden choice from an
-older installation. The average is computed from the same thirty hundred-metre
-buckets that are drawn, so it describes exactly the visible road. Left of it is
-the pack, right of it the combustion half, and the two top reveals carry five
-temperatures and the eight fluid lamps.
+**What is on it.**
 
-**The dial's marks carry numbers.** The two sides get the same arc but not the
-same span - this car spends up to `300 kW` and recovers about `100` - so equal
-deflection means very different figures left and right, and an unlabelled
-two-sided arc across the top of a cluster is read as a speedometer. The flanking
-pair, `60` one way and `20` the other at identical deflection, says both things
-at a glance. Zero stays unlabelled: it is where the fill vanishes, and a label
-above it reached two pixels into the vehicle's own graphics.
+| | |
+| --- | --- |
+| the hero | instantaneous pack power in kilowatts, on the axis, at 88 with its unit at 34 - the one figure read on the move and the one place a unit has to be readable |
+| the band | that same reading as a bar across the whole clear width, zero in the middle, `EnergyScale`'s square root over 300 kW out and 100 kW back, with a peak hold |
+| the glow | one pool of light centred on zero: hue is the direction, brightness is `0.18·√(P/120 kW)` by magnitude |
+| the left corner | «БАТАРЕЯ · В» over the traction voltage, at 52 |
+| the right corner | «ДВС · об/мин» over the revolutions while the engine runs, «ДВС · мин за поездку» over its minutes once it has stopped, and **empty** if it never started this trip |
+| the left shelf | five temperatures at 34 - pack, front motor, rear left, rear right, inverter - each over a glyph rather than a word, plus a sixth cell «мВ / РАЗБРОС ЯЧЕЕК» that exists only at `WATCH` or `ALERT` |
+| the right shelf | what the trip cost, as a phrase: «9,3 кВт·ч» over «42 км · ЗА ПОЕЗДКУ», plus «ДАЛ ДВС» if the engine ran, plus «● РЕКУПЕРАЦИЯ» when the car is standing in P |
+| the engine's box | while the engine has been alive in the last two minutes, that shelf is its own history instead: what it put back into the pack, as twenty-four five-second steps linear to 30 kW, under one sentence - «● 14 кВт В БАТАРЕЮ · ПОСЛЕДНИЕ 2 МИН» |
+| the petal | the last three kilometres of consumption, as a stepped field standing on the figure's own baseline, «кВт·ч/100 км · за 3 км» - or a countdown to full while a gun is in |
 
-A mark that cannot be labelled is not drawn: `InstrumentDensity.dialMarks` is
-`2` wide and `1` narrow, because in the right third the second mark's number
-lands inside the combustion column. Three tests hold this geometry - the gauge
-radius against `EnergyGauge.topReach` for the crown, the outermost labelled mark
-against `engineBlock.left` for the flank, and `markReach` carries half the
-number's own height so what the rhythm buys is a gap between the mark's tip and
-the number's *edge*. Without that last term the nearly-horizontal discharge mark
-put its tip about four pixels inside the first digit.
+**What is not on it, and why.** State of charge, range, fuel level and the fuel
+alarm are all on the stock cluster a few centimetres away; spending the best real
+estate on a duplicate is the whole point missed. The charge rate is not repeated
+either - a gun in the socket is drawn as energy arriving and the band already
+reads those kilowatts. The 12 V rail is a diagnostic rather than a driving fact.
+Pack health and insulation resistance left with the old composition: neither
+changes inside a drive, and the shelf they would take is the trip's.
 
-**The reading is a magnitude.** No minus sign at full regeneration, and that is
-a decision: which way the energy is going is already said twice and said better,
-by the side the fill runs to and by its colour, so a sign would be a third and
-weaker copy. It also costs a whole character where the dial is tightest -
-measured against the arc's chord at the digits' cap line, `-100` left about eight
-pixels of clearance on the full-width layout where `100` leaves thirty.
+The eight fluid lamps are **not drawn**. A grid of dots that are green almost
+every second of every drive is an inventory, and a driver's display shows
+exceptions. Their ids are still polled - they are cold signals costing one shell
+round trip every ten seconds - and `VehicleTelemetry.lamp` still decodes them, so
+an exception channel has somewhere to read from.
 
-Three digits is the ceiling the scale can produce, so the worst case is knowable
-in advance rather than on the car: `EnergyGauge.widestReading` and
-`chordAtReading` state it, and a test holds the two against each other for both
-densities.
+**The sag rail is deleted** (CRITIQUE M9). Its reference was an EWMA of the pack
+at rest, and on a motorway there is no rest: the board electronics pull a kilowatt
+or two permanently, so after half an hour the reference has aged into the pack's
+own discharge and «просадка 14 В» is ten per cent of the state of charge wearing a
+unit it does not have.
 
-Section titles carry `0.12em` of tracking through `InstrumentPen.title`, which
-exists as its own method rather than a parameter so the tracking cannot be
-applied at one call site and forgotten at the next.
+### The temperature row is five glyphs and one word
 
-The lamps report exceptions, not an inventory. The full layout shows one state
-dot for each of the eight lamps and uses the line below to name any alerts or an
-incomplete read. The narrow renderer omits the dot grid; its line names the first
-fault and counts the rest (`давление масла +2`) rather than running past the
-block.
+The second bench pass, and it is about the row nobody had complained about. Three
+figures under one `МОТОРЫ` never said **which motor is which**, and naming the
+three positions in Russian - `ПЕРЕД / ЗАД Л / ЗАД П` - was tried and thrown out on
+the sound of it. So the row is five cells with no words at all: a two-digit figure
+with its own `°` over a drawing of the thing the figure is about.
+
+| cell | glyph | signal |
+| --- | --- | --- |
+| 1 | a battery: case, terminal, one lit cell inside | `PACK_TEMP_AVG` |
+| 2 | the car from above, a bar across the front axle | `MOTOR_FRONT_C` |
+| 3 | the same car, half a bar on the left of the rear axle | `MOTOR_REAR_LEFT_C` |
+| 4 | the same car, half a bar on the right | `MOTOR_REAR_RIGHT_C` |
+| 5 | a case with one period of alternating current in it | `INVERTER_C` |
+| 6 | «РАЗБРОС ЯЧЕЕК», and it is the only word in the row | `CELL_MAX_MV − CELL_MIN_MV` |
+
+Five rules carry the family, and `ContourGlyphs` is where they live:
+
+- **all five or none.** «если символы, то и батарея, и инвертор, и хорошие» - half
+  a row of pictures under half a row of words is worse than either;
+- **24 units, not the caption's 18.** At 18 they were 2.7 mm of glass for a shape
+  with four wheels in it and the owner could not see them. They stand *on* the
+  caption baseline rather than hanging from it, so neither of the shelf's two rows
+  moved and ten units still separate a glyph's top from the figures' baseline;
+- **one outline, one component.** The outline is `MUTED`, the same as a caption
+  was; the component inside carries `INK`, one step brighter than the figure above
+  it, and takes `WARNING`/`DANGER` **with** the figure on an exception - so a hot
+  cell lights as one object rather than as a red number beside a grey picture.
+  This is the panel's one exception to "`INK` is the hero alone", and it is what
+  makes the mark findable at 12′;
+- **the motor is the motor, not the wheel it drives** («точно мотор с колёсами не
+  путаешь?»). All four wheels are hollow outlines in all three cars, at 1.6 rather
+  than the 2.5 everything carrying data is drawn at; what moves is the filled block
+  on an axle;
+- **every proportion is in caption units**, so the family scales with its height
+  alone. `gen_contour.py` states the same constants the same way and
+  `ContourBoardContractTest` reads the drawn rectangles out of `ClusterContour.dc.html`
+  and holds them against `ContourGlyphs`, in both directions.
+
+What it cost and what it bought: five cells of 50.9 where the three words were
+91.9 · 143.4 · 110.0, so the row is 58 units narrower even with each cell carrying
+its own `°` - the three motors shared one sign from the sixth pass to the eighth
+because `РАЗБРОС ЯЧЕЕК` needed those 25 units, and the captions paid them back
+twice over. The left shelf now stops 270 units clear of the hero's field, or 86 with
+the exception cell up. And **a word in the temperature row now means something is
+wrong**, because it is the only word in it.
+
+This row breaks the house icon rule on purpose. `DenzaIcons` is one optical weight
+throughout, because those are labels on tiles; a glyph here is half of a reading,
+and inside one mark the case, the lit component and the wheels are three different
+kinds of thing.
+
+### The four rules the panel is built on
+
+**One heavy thing.** `INK` belongs to the hero and to the petal's figure and to
+nothing else. Both corners and both shelves are `MUTED`; headings, captions and
+units are `MUTED_DEEP`; `WARNING` and `DANGER` are the exception only. Five equal
+52s were the owner's original complaint wearing a new suit, and size alone was not
+enough to separate them.
+
+**One lit thing, and it stands still.** The glow does not travel. It used to ride
+the band's tip at 400 ms, which put a 73 mm pool of light through 50-100 mm of
+travel every time the pedal moved in a traffic jam - precisely what peripheral
+vision is built to catch. Centred on zero, with its own 120 kW span, calm driving
+sits at 0.10 of its alpha and an acceleration saturates.
+
+**Alpha is not a state channel.** It had seven meanings on the third drawing -
+night, jam, sleeping engine, link loss, a single null, an area fill, a history
+fade - and a driver cannot tell "dim because it is dark" from "dim because the bus
+died". One rule now: **a stale value is removed after two seconds and its caption
+stays.** Link loss is that rule applied to every value at once, a single null is
+that rule applied to one, and neither dims anything. There is no night scene: the
+cluster's own dimmer already darkens our window, and whether it does is a
+measurement on the car. `ContourScene` is where all of this is decided, away from
+the canvas.
+
+**A zero is never drawn.** A quantity that did not happen this trip has no cell -
+no «0,0 ДАЛ ДВС», no empty seat holding its place. Seats are counted right to left
+from the shelf's own edge, so the one that does exist is always in the same place
+and the second one appearing moves nothing.
+
+And under all four, the structural rule that answers the owner's original
+complaint about numbers jumping: **no coordinate depends on data.** Every figure
+lives in a reserve field sized by its maximum digit count times a measured
+advance, its unit hangs off the field rather than off the string, and neighbours
+are set against the field's edge. 34 becomes 128 and nothing moves.
+
+### The type, and the tape measure behind it
+
+Every ergonomic claim on the first three boards stood on the brief's "порядка
+25 см (оценка)". The owner took a tape to the car on 2026-09-04: **the active area
+of the cluster glass is 320 mm wide and his eyes sit 750 mm from it.** One virtual
+unit is 0.2123 mm, a Roboto cap is 0.71 em, one arc minute at 750 mm is
+0.2182 mm, so a cap of `size` units subtends `size × 0.691` minutes:
+
+| rung | mm | arc min | where |
+| --- | --- | --- | --- |
+| 88 | 13.26 | 61 | the hero |
+| 52 | 7.84 | 36 | the corners, the petal - ISO 15008 calls 30′ comfortable |
+| 34 | 5.12 | 23 | both shelves - legal for a deliberate glance, the floor is 20′ |
+| 18 | 2.71 | 12 | headings, captions, units: furniture |
+
+`104` is gone with the estimate that produced it: at 320 mm it is a 16 mm numeral,
+and it had been chosen against an arithmetic that made 52 look illegal. `88` is
+`1.69 × 52`, which clears the ramp's own 1.2× rule with room.
+
+**Numbers are Roboto with tabular figures, not Roboto Mono.** A monospaced face
+gives a comma, a colon and a degree the same 0.6 em cell it gives a digit, so
+«12,4» and «2:15» fell apart into groups. Measured in headless Chrome: a Roboto
+digit advances 0.5620 of its size at Regular and 0.5547 at Light, a comma 0.1969,
+a colon 0.2422 - and `0`, `1` and `4` all advance identically *without* the
+feature, because Roboto's figures are already tabular. `tnum` is asked for anyway:
+a `Paint` on the car may resolve a different face, and a reserve field is a
+contract rather than a hope.
+
+### Movement
+
+Frames are 30 a second and data arrives three times a second, and the gap is
+closed by a **critically damped second-order follower** per animated quantity
+rather than by waiting or by linear interpolation. The step is the analytic
+solution rather than Euler: with a 120 ms rise and a 33 ms frame `ω·dt` is above
+one, where explicit integration diverges - the panel would oscillate harder the
+faster the pedal moved.
+
+| | rise | fall |
+| --- | --- | --- |
+| the band and the hero | 120 ms | 300 ms |
+| the glow | 1.5 s | 1.5 s |
+| the revolutions | 250 ms | 400 ms |
+
+Three rules against jitter: a dead band of half a kilowatt at zero, a neutral zone
+of three kilowatts with three kilowatts of hysteresis around its own boundary
+(inside it the hero and the band's body carry no colour at all), and the hero's
+glyph rewritten at 4 Hz with half a kilowatt of rounding hysteresis. (The critique
+asked for 2 Hz; the owner, who had driven with the previous panel, asked on
+2026-09-04 for the live figures to answer about twice as fast, so the glyph rate
+doubled and the hot poll interval went from 300 ms to 100 ms - about four
+readings a second against two, with the shell busy some sixty per cent of the
+time while the dashboard is up. Whether the car sustains that is on the list
+below.) The peak hold
+stays where it landed for three seconds and comes back at sixty kilowatts a
+second. All of it is in `ContourMotion`, deterministic in `dt`.
+
+The view runs at 30 fps and drops to 5 when nothing is travelling, which on a
+parked car is most of the time; the followers are integrated exactly, so a 200 ms
+frame is as correct as a 33 ms one. Nothing is allocated in a frame: the band's
+gradient is built once over the span `0…1` and placed with a local matrix, the
+glow's is built once at full alpha and dimmed with `Paint.alpha`, and the two
+history buffers are fields.
+
+### The trip on the right shelf
+
+The first figure is the **net that left the battery**, `∫P dt` over the trip in
+the pack's own units. Regeneration is a negative pack flow and is subtracted by
+the integral itself, and so is whatever the engine put back, which is what the
+other two cells' verbs are there to say: they are what came back, not what adds.
+Three unsigned numbers under three nouns had been an invitation to sum them, and
+their sum is not a quantity.
+
+`РЕКУПЕРАЦИЯ` integrates **only over intervals with the engine off**. Under
+generation a negative pack flow is indistinguishable from braking on this bus, and
+the engine's share belongs in `ДАЛ ДВС`.
+
+A trip starts with the first movement after P and ends at the next first movement
+after P, so the finished trip stands on the shelf in full for as long as the car
+does - which is when it is read. That needs the selector, and `GEARBOX_PARK`
+(device `1011`, feature id `89129008`) is the same live-proven id the trip panel's
+own `TripParkSignal` has read since it shipped; the cluster asks for it inside the
+batch it already sends to that device twice a second rather than opening a second
+shell. The figures survive a process restart through `TripJournal`, one record
+written whole through a temp file and a rename, and restored only when the
+odometer says it is about the road we are on.
+
+### The two boxes, and what a running panel said about them
+
+The panel was built, put on a live bench and watched, and everything that came
+back was about the two histories - not their size this time, but what they were
+saying. Four decisions, and they are the eighth drawing; the fifth, about the hole
+the engine's sentence keeps when the engine stops, came from the second bench run
+and is the ninth.
+
+**The engine's box draws one quantity and speaks one sentence.** It carried two
+runs and a legend telling them apart - «ОБОРОТЫ · ● ГЕНЕРАЦИЯ 14 кВт» - and the
+owner's verdict was that the legend was not understandable, which is the game lost:
+a display read at 90 km/h does not get to need a key. The revolutions' line is gone
+to the corner where the same number was already printed, and what is left is what
+the engine put back, under **«● 14 кВт В БАТАРЕЮ · ПОСЛЕДНИЕ 2 МИН»** - what the
+shape is, what it is worth now, how far back it goes. Neither «ГЕНЕРАЦИЯ» nor
+«ОБОРОТЫ» is a word on this panel any more. The sentence is laid out right to left
+off the shelf's edge with the figure in a two-digit reserve, so it and its unit
+leave together when the engine stops while the words stay put; a face too wide for
+the box shortens the window to «· 2 МИН» and nothing else in the phrase may go.
+
+**And the reserve leaves with them.** The box outlives the engine by two minutes,
+and for that whole time the eighth drawing kept the field standing empty:
+«● ⎵⎵ В БАТАРЕЮ · ПОСЛЕДНИЕ 2 МИН», which is 22 units of hole after a dot and
+reads as a value that failed to arrive rather than as a field with room in it. With
+no figure there is nothing for a reserve to reserve, so the phrase is assembled
+without it and the dot closes up against the words. That is **one shift per engine
+stop, not a jitter** - a reserve buys stillness while a *number* changes, and by
+then there is no number left to change. `ContourPlan.legendMarkQuietX` is the
+second anchor, and it is the only coordinate on the panel that depends on whether
+a value is there rather than on what it is.
+
+**And its scale is linear to 30 kW, clamped.** «Сплющен», said of a box whose
+height had already taken every unit between the two guards, is a verdict on the
+scale rather than on the geometry: at the 14 kW this car ordinarily returns, a
+square root over 100 kW filled a third of the box and linear over 30 fills a half.
+30 kW is what this generator does rather than a span borrowed from the band.
+
+**The petal's zero line is its figure's own baseline.** It hung beside that figure
+on a ladder of its own - 56 units tall with the zero four fifths down - and neither
+number meant anything to anything next to it. Now the three lines bounding the
+history are the three lines of the numeral: cap top, baseline, descender. Spending
+rises through the cap on 0…30, a return hangs under the baseline on 0…10, both
+clamped, and the box is 49.92 tall because that is what a 52 occupies.
+
+**And the return is drawn only where it happened.** One field crossing a zero line
+in one colour drew the same grey above and below it, and the blue rule meant to say
+"this came back" ran the whole width whether anything had. Spending is one
+continuous grey field that lies on the zero on a return bucket, because what was
+spent there is nothing; the return is blue, one shape per run of return buckets,
+standing on the zero on its own posts.
+
+**Both boxes are steps of a fixed duration.** The petal's thirty buckets are a
+hundred metres each; the engine's twenty-four are five seconds each, a bin being
+the mean of the samples that arrived in it, and a bin nothing answered in breaks
+the area rather than being drawn through. `EngineTraceSnapshot.bins` is that
+resampling, and the bin that can be short is the newest one, at the edge where the
+new data arrives.
+
+### Why the engine's box does not flicker
+
+`EngineTrace.snapshot()` returns the run from the oldest slot the engine was alive
+in to now, rather than a padded 120. That one property is the box's whole
+behaviour: its right edge is fixed and its width is the list's length, so it grows
+from the right as the history fills, is never drawn empty, holds its width through
+the two minutes after the engine stops, and leaves when the last live slot walks
+off the left edge. **120 seconds of hysteresis with no timer anywhere** - the
+trace's own length is the timer, so a winter jam restarting the engine every
+ninety seconds never swaps the shelf back and forth.
+
+The trace keeps one series since the eighth pass, and **the revolutions still
+decide one thing in it**: whether a slot counts as one the engine was alive in. An
+engine on a direct drive can turn for a minute returning nothing, and a box that
+left in the middle of an engine run would flicker in exactly the way that property
+exists to prevent. So `sample` takes the rpm reading and stores a flag, not a
+curve.
 
 ### Rest states
 
-Most of what this dashboard shows is, most of the time, nothing happening. Three
-cases were drawn out rather than left to a shared "no data":
+Most of what this panel shows is, most of the time, nothing happening. They are
+scenes rather than messages, and none of them is a sentence apologising for the
+others:
 
-- **The chart before the first bucket closes.** It draws nothing at all, not even
-  its zero line - a bare rule with no bars inside a dial reads as a chart that
-  failed. The sentence underneath carries the case instead: `стоим` standing,
-  `считаю расход` moving, the average and its distance once there is one.
-  Since the journal survives a restart this is now a short state rather than the
-  first thing seen after every launch - see "Consumption journal" in
-  docs/vehicle-data-findings.md.
-- **A stopped engine.** The rpm figure already says `0`, so the sentence below
-  stays empty. It speaks only for generation or for an engine signal that never
-  answered; fuel range remains on the stock cluster.
-- **A charge.** The pack's supporting sentence is taken over entirely by
-  `заряжается · осталось 2 ч 15 мин`; insulation resistance goes back to being
-  interesting when the cable comes out.
+- **the first seconds** are the band's hairline and its zero mark, and nothing
+  else. A heading arrives with its first value rather than standing over emptiness;
+- **link lost** removes every value and keeps every caption, at full brightness;
+- **a single null** is the same rule applied to one reading;
+- **standing in P** pays the trip's phrase out in full, three cells instead of one
+  or two, and the petal grows its tenth - at 100 km/h a tenth changes three times a
+  second, and standing still it is worth the resolution;
+- **a charge** puts a countdown in the petal's seat, «2:15» over «до полной», and
+  leaves the consumption history where it is;
+- **no ADB key** is the skeleton and one line at 18 in the petal, and it is an
+  instruction rather than an error: `ADB-ключ не подтверждён · Помощь →
+  Диагностика`.
 
 ### The instrument system underneath
 
-The dashboard is built on a small design layer rather than on constants chosen
-per method, and that layer exists because of what an adversarial audit of the
-design boards found: twenty-seven distinct type sizes where six were declared,
-eighteen radii, thirteen optical stroke weights for one flat-line icon family,
-and four sibling layouts whose first label started at four different heights.
+The panel is built on a small design layer rather than on constants chosen per
+method, and that layer exists because of what an adversarial audit of the design
+boards found: twenty-seven distinct type sizes where six were declared, eighteen
+radii, thirteen optical stroke weights for one flat-line icon family, and four
+sibling layouts whose first label started at four different heights.
 
-- `InstrumentDensity` is the whole type ramp and rhythm - six rungs, none closer
-  than `1.18x`, so two sizes can never read as the same one. `WIDE` and
-  `COMPACT` are the same ladder at different rungs, not two invented sets, and
-  `InstrumentDensityTest` refuses a size that is not on it.
-- `InstrumentPen` is a drawing surface a component is *handed* rather than
-  inherits, which is what lets `EnergyGauge` stay one control across the
-  cluster's `WIDE` and `COMPACT` renderer densities.
-- `ClusterBlockPlan` states each block as rows before anything is drawn, so the
-  block is centred in its box instead of hung from its top, and
-  `ClusterBlockPlanTest` adds the plan up against the box. That test has already
-  earned its place twice: it caught a corner block measured against the wrong
-  virtual space, and it is what says a ninth fluid lamp will not fit the reveal.
+- `InstrumentDensity` is the type ramp and the rhythm - `88 · 52 · 34 · 24 · 18 ·
+  13 · 11`, none closer than `1.18×`, so two rungs can never read as the same
+  size. The Contour draws four of them;
+- `InstrumentFace` is the six ways this cluster sets type - a size, a weight and a
+  tracking - and there is no seventh. It is an enum rather than three parameters at
+  every call site because that is how the boards ended up with the same heading set
+  two different ways on adjacent artboards;
+- `InstrumentPen` is a drawing surface a renderer is *handed* rather than
+  inherits, and it owns one `Paint` per face;
+- `ContourPlan` is every coordinate the panel has, derived from five decisions and
+  nothing else: one margin of 48, a rhythm of 8, the rungs, the cap height, and
+  **two guards of 24 units off the stock zones, top and bottom.** The hero's cap
+  top, both shelves' cap tops and the engine box's top edge are all the upper one;
+  the band's lower edge clears the other by 18.
 
-Both placements land on the panel at the same `1.70` scale - `424` units into
-`720 px` across the full width, `308` into `524` in the right third - which is
-why one ramp serves both. The virtual space belongs to the layout, not to the
-density: a corner reveal is drawn with the narrow ramp inside the *wide* space.
+`ContourType` is how a plan learns how wide a string is, and it has two
+implementations on purpose. A cell on either shelf is exactly as wide as the wider
+of its caption and its payload, so a caption is a coordinate: `ContourType.BOARD`
+is what headless Chrome measured for the boards and is the record the contract
+test pins, and `ContourType.of(pen)` is the car's own `Paint`. The two are allowed
+to differ by the face; the arithmetic between them is not.
+
+### Mutation run
+
+The panel is drawn, tested and not yet installed, so the only thing that can be
+said about it before the car is whether its tests bite. **1,108 unit tests; 80
+deliberate mutations**, one at a time, each reverted before the next. What was
+mutated, branch by branch:
+
+- **`ContourMotion`** (9) - attack and release swapped on the band; the half-
+  kilowatt dead band removed; the neutral zone 3 → 2 kW; the colour hysteresis
+  removed; the hero rewritten at 3 Hz instead of 2; the rounding hysteresis
+  removed; the peak's hold 3 s → 1 s and its decay 60 → 120 kW/s; the sign of the
+  follower's tracking term, which is a spring that overshoots;
+- **`ContourScene`** (9) - staleness 2 s → 1 s; the engine box following the
+  engine instead of the trace's last live slot; `CHARGING` with no dwell and with
+  a half-second one; `LINK_LOST` on any missed packet; `PARKED` from a switch
+  that never answered; P winning the scene over the box; revolutions read from a
+  resting engine; a trip figure of zero earning a cell;
+- **`TripEnergyLedger` and `TripJournal`** (12) - net becoming gross; recovery
+  counted under generation; the trip cleared on entering P rather than at the
+  first movement after it; the engine's minutes never accumulating; restoring
+  from the journal skipped; the odometer taken absolute instead of as a delta;
+  both re-anchor guards dropped; the restart gap 1 → 100 km; the engine's cell
+  integrating a non-positive generation; the armed flag not persisted; the record
+  written to whole units;
+- **`ContourReadout`** (13) - a whole number on P; a point for the comma; «км»,
+  «кВт·ч» and «· за 3 км» dropped; «ДВС · мин за поездку» shortened to «ДВС ·
+  мин»; the trip phrase losing its leading separator; the average taking the
+  returns in; an ordinary spread earning a cell; the hot margin 15 → 30 °C; the
+  clock losing its zero padding; the generation scale turned back into a square
+  root; the spread alert 40 → 60 mV;
+- **`ContourPlan`, `ContourRuns`, `ContourGlyphs`** (24) - the guard 24 → 16; the
+  petal's zero 384 → 397; its ladder 0…30 → 0…40; the engine bin 5 s → 4 s; trip
+  seats counted from the wrong edge; the engine's sentence not closing up when its
+  figure leaves; the petal box hung off the printed digits; the temperature cell
+  forgetting the glyph; the exception's cell grown 100 units into the hero's
+  field; the hero's field centred without its unit; the glow reaching past the
+  lower edge; the band ignoring the sign of a reading; both petal series allowed
+  through the zero; the run walk inverted and its runs cut to length one; the
+  front motor's block moved to the rear axle; the wheels filled; the wheel stroke
+  1.6 → 2.5; the family's height 24 → 18; the lit component drawn in the case's
+  colour, in all three marks that have one;
+- **`EngineTrace`, the hub and the signal table** (10) - a bin of nothing becoming
+  a zero; a slot alive by generation alone; missed slots drawn through; the bins
+  kept from the wrong end; the trace starting at the newest live slot; the park
+  switch accepting `2`; P read from a zero; the cold map merged rather than
+  rebuilt and then filled from the whole sweep; `RIGHT` offered again;
+- **the board↔code join** (3, and the known pair among them) - one constant moved
+  in Kotlin alone (`BAND_BODY` 14 → 16), one moved on the board alone (the reading
+  rung 34 → 36 px in `ClusterContour.dc.html`), and one measured advance moved in
+  `ContourType.BOARD`. All three failed, in both directions, which is what
+  `ContourBoardContractTest` is for.
+
+Seventy-six of those were written before any test was added and **sixty-seven of
+them died at once. Nine survived**, and every one of them was a hole rather than a
+bug - the behaviour was right, and nothing stated it:
+
+1. **the band's own asymmetry.** Swapping `BAND_RISE_S` and `BAND_FALL_S` where
+   the band is built changed nothing, because every follower test built its own
+   follower. Killed by measuring the same 60 kW journey up and down through
+   `ContourMotion` itself;
+2. **the peak's decay rate.** The existing test only asked where the mark ends up,
+   and it ends up on the tip either way. Killed by the slope between two samples
+   taken inside the decay: thirty kilowatts in half a second;
+3. **a generation of nothing.** «ДАЛ ДВС» integrated whatever the id answered
+   while the engine ran, including the zero of a shutdown transition. Killed by a
+   running engine returning `0.0` and then `-2.0` for an hour each;
+4. **which side of zero the band leaves on.** Nothing asked. Killed by a test that
+   states direction, the two spans (300 kW out against 100 kW back) and the clamp
+   at both margins;
+5. **P read from a switch that answered zero.** `parked` has three answers and
+   only two were tested. Killed in `VehicleTelemetryTest`;
+6. **the cold map's rebuild** - the rule the whole staleness design rests on, and
+   it lived inside the poll loop where nothing could reach it;
+7. **the front motor's block on the rear axle**, 8. **filled wheels**, and
+   9. **the lit component drawn in the case's colour**. Three of the owner's four
+   rules for the glyph family, and all three were decided inside `Canvas` calls.
+
+The last four needed a seam before they could be tested at all, and both seams are
+the `ContourRuns` argument applied again - a decision that lives inside a `Canvas`
+call is a decision nothing can state:
+
+- **`GlyphSurface`**, which `ContourGlyphs` now draws into. `InstrumentPen`
+  satisfies it through one kept adapter, so a frame still allocates nothing, and
+  `ContourGlyphsTest` satisfies it with a recorder and reads back what was drawn.
+  `ContourGlyphs.onRearAxle` is the axle rule as a sentence rather than a boolean
+  at a call site;
+- **`VehicleColdSweep.rebuild`**, lifted out of the poll loop the way
+  `VehiclePollLoopGate` was, with `VehicleColdSweepTest` beside it.
+
+The remaining four mutations were written once those seams existed - every block
+on the rear axle as a rule rather than at a call site, and the case's colour given
+to the pack's cell and to the inverter's current - and all four died on arrival.
+
+**No behavioural defect was found.** The nine survivors were all coverage, and the
+sixteen tests added for them state what the panel promises rather than what it
+happens to compute.
+
+### What still waits for the car
+
+From `CRITIQUE.md` §5 and `VERDICT.md`, in the order they matter to this panel:
+
+1. **the boundaries of the stock graphics** - a white board with an 8-unit grid on
+   the whole cluster, one photograph, and a second with the bulb check lit,
+   indicators on and ADAS active, because the corner apertures may be lamp zones.
+   All five concepts named this first;
+2. **the sign of `POWER_KW`** under a known acceleration and a known braking. It is
+   inferred from one parked charge, not proven (`VehicleConvention`);
+3. **whether `GENERATION_KW` is inside `POWER_KW`**, from one engine run on a flat
+   cruise. `ClusterDashboardRenderer.GENERATION_ON_BAND` is false until it is
+   answered: the engine's share is drawn as a separate line under the band rather
+   than as a seam behind its tip, which says the same thing without the claim;
+4. **a photograph of the hero under the stock speedometer** at 30-40 km/h, to see
+   whether «34» and «34 км/ч» merge;
+5. **whether the stock dimmer darkens our window at night.** If it does,
+   `ClusterDashboardRenderer.NIGHT_DIM` stays at 1.0 forever;
+6. **how often the engine starts per hour in a winter jam**, which is what says
+   whether 120 s of shelf hysteresis is enough;
+7. **frames per second inside the `Presentation`**, and whether the vendor
+   composites over our edges.
+
+Nothing on this panel has been in front of the owner yet: it is drawn, tested and
+built, and it has not been installed.
 
 ### Telemetry ownership
 
@@ -281,10 +662,24 @@ Since 2026-08-27 the cluster dashboard is the only UI owner of
 `VehicleTelemetryHub`. `setDashboardActive(true)` starts polling when its view
 is attached and visible, and hiding or detaching that view releases the sole
 activity claim. The retired vehicle/engine page flags and their page-dependent
-signal filter are gone. The hub therefore reads the complete six-signal hot set
-and thirty-signal cold set the cluster needs while it is visible, including
-revolutions, generation and the lamps. The view redraws at ten frames a second,
-already faster than the sweep that feeds it.
+signal filter are gone. The hub therefore reads the complete hot set and cold set
+the cluster needs while it is visible, including revolutions, generation and the
+lamps.
+
+The hot set gained `GEARBOX_PARK` with the Contour, which is what bounds a trip.
+It is not a new discovery and not a new channel: device `1011`, feature id
+`89129008`, the same one `TripParkSignal` has read since the trip panel shipped.
+That reader keeps its own shell because it runs on the head unit without the
+cluster; the cluster asks in the batch it already sends to that device, which
+costs about five milliseconds of a sweep that already spends a hundred and thirty
+on shell overhead.
+
+**Cold values are rebuilt from each cold sweep** (`VehicleColdSweep.rebuild`)
+rather than merged into a map
+that kept them forever. That changed with the Contour and it is what makes its one
+staleness rule mean anything: a value is removed two seconds after its last
+sample, so "absent from the snapshot" has to mean the same thing on a signal
+answering three times a second and on one answering every ten.
 
 The tank joined the cold set on 2026-08-25: `FUEL_PERCENT` (`0x4A507040`),
 `FUEL_RANGE_KM` (`0x4A504038`) and, briefly, `FUEL_LOW` (`0x4A507027`). The first
