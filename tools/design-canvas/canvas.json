@@ -341,6 +341,6 @@
   ],
   "launch": {
     "view": "canvas",
-    "page": "page-screens"
+    "page": "page-cluster"
   }
 }
