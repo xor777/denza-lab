@@ -113,17 +113,16 @@ class ClusterSceneService : Service() {
 
     private fun prepareBaseScene(): ClusterPresentation? {
         val selection = ClusterDisplayResolver.resolve(this)
-        return prepareScene(selection, overlayWindow = false, cameraLayer = false)
+        return prepareScene(selection, cameraLayer = false)
     }
 
     private fun prepareCameraScene(): ClusterPresentation? {
         val selection = ClusterDisplayResolver.resolveCameraOverlay(this)
-        return prepareScene(selection, overlayWindow = true, cameraLayer = true)
+        return prepareScene(selection, cameraLayer = true)
     }
 
     private fun prepareScene(
         selection: ClusterDisplaySelection,
-        overlayWindow: Boolean,
         cameraLayer: Boolean,
     ): ClusterPresentation? {
         if (selection !is ClusterDisplaySelection.Selected) {
@@ -155,23 +154,13 @@ class ClusterSceneService : Service() {
             updateNotification(if (cameraLayer) "Camera display disappeared" else "Instrument display disappeared")
             return null
         }
-        fun show(useOverlayWindow: Boolean): ClusterPresentation =
-            ClusterPresentation(
+        return try {
+            val shown = ClusterPresentation(
                 this,
                 display,
-                useOverlayWindow,
                 ::onAvcReady,
                 ::onAvcFailure,
             ).also { it.show() }
-
-        return try {
-            val shown = try {
-                show(overlayWindow)
-            } catch (overlayError: RuntimeException) {
-                if (!overlayWindow) throw overlayError
-                Log.w(TAG, "Overlay presentation failed; retrying normal camera window", overlayError)
-                show(false)
-            }
             if (cameraLayer) cameraPresentation = shown else basePresentation = shown
             updateNotification(if (cameraLayer) "Camera display is ready" else "Instrument display is ready")
             shown
@@ -417,7 +406,6 @@ class ClusterSceneService : Service() {
     private class ClusterPresentation(
         context: Context,
         display: Display,
-        private val overlayWindow: Boolean,
         private val ready: (Long, String) -> Unit,
         private val failed: (Long, String) -> Unit,
     ) : Presentation(context, display) {
@@ -450,7 +438,10 @@ class ClusterSceneService : Service() {
             override fun surfaceDestroyed(holder: SurfaceHolder) = Unit
         }
 
-        // Presentation window setup mirrors the verified platform API sequence.
+        // Presentation window setup mirrors the verified platform API sequence. The window type is
+        // the platform's to choose: Presentation builds a TYPE_PRESENTATION (2037) window context,
+        // and setting TYPE_APPLICATION_OVERLAY (2038) here makes every show() throw a window-type
+        // mismatch out of WindowManagerImpl. Set flags only.
         @SuppressLint("UseKtx")
         override fun onCreate(savedInstanceState: android.os.Bundle?) {
             super.onCreate(savedInstanceState)
@@ -464,9 +455,6 @@ class ClusterSceneService : Service() {
                         WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
                         WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
                 )
-                if (overlayWindow) {
-                    setType(WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY)
-                }
             }
 
             val root = FrameLayout(context).apply { setBackgroundColor(Color.TRANSPARENT) }
