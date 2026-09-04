@@ -221,10 +221,11 @@ internal fun FseInstallerPickerDialog(
     onInstall: (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
+    val installable = fseChooserApps(apps)
     DenzaAppChooserSheet(
         title = "Экран справа",
-        subtitle = subtitleFor(apps.size),
-        items = apps,
+        subtitle = subtitleFor(installable.size),
+        items = installable,
         key = FseInstallApp::packageName,
         compact = compactLayout,
         onDismiss = onDismiss,
@@ -237,35 +238,42 @@ internal fun FseInstallerPickerDialog(
             onClick = { onInstall(app.packageName) },
             icon = app.icon,
             iconKey = app.packageName,
-            // An application whose APK cannot be sent across - a split package, an unreadable
-            // source - is shown and is not choosable. Hiding it would leave the driver hunting a
-            // tile that is on the car and not in the list; accepting the tap and printing the
-            // reason in amber was the other half of the same mistake. The list already sorts the
-            // installable first, so the quiet ones sit at the end where they read as a footnote.
-            enabled = app.installable,
         )
     }
 }
+
+/**
+ * Only what can actually be put across.
+ *
+ * An application whose APK cannot be sent in one piece - a split package, an unreadable source -
+ * used to be shown and greyed, on the argument that hiding it leaves the driver hunting a tile that
+ * is on the car and not in the list. On the car the owner saw no grey tile at all under a sentence
+ * promising some, and a rule the screen cannot show is a sentence that lies. So the list holds what
+ * the finger can use, and the sentence at its foot says the rest is not here - which is the whole
+ * answer to "where is my application", without a dead tile to find it under.
+ */
+internal fun fseChooserApps(apps: List<FseInstallApp>): List<FseInstallApp> =
+    apps.filter(FseInstallApp::installable)
 
 /** "12 приложений с головного устройства" - agreed the way Russian agrees it. */
 private fun subtitleFor(count: Int): String =
     "${DashboardTiles.applications(count)} с головного устройства"
 
 /**
- * The one thing about this list a driver cannot see by looking at it.
+ * The one thing about this list a driver cannot see by looking at it: that it is not everything.
  *
  * It used to say what the tile's name already says - that the application goes to the passenger's
- * screen. The owner, on the car: the foot of the chooser has room for information, and that was
- * not information. What is: why some tiles are grey. An application built from several APKs cannot
- * be sent across in one piece, and the list shows it rather than hiding it - a tile that is on the
- * car and not in the list is a tile the driver goes hunting for.
+ * screen - and then, for one build, that split packages were the grey tiles, in words the owner
+ * read back as written for somebody else ("собранные из нескольких split APK"). Plain words, and
+ * only the fact a driver needs: what is here can be installed, and what cannot is not here. See
+ * [fseChooserApps] for why they are left out rather than greyed.
  *
  * Owned here rather than by the panels' help table because the chooser is the only surface left
  * that says it; the table still reads it for the tile, so the two can never drift.
  */
 internal const val FSE_INSTALL_HELP =
-    "Установить можно только приложения из одного APK. " +
-        "Собранные из нескольких (split APK) показаны серыми."
+    "Показаны только приложения, которые можно поставить на экран справа. " +
+        "Несовместимые в список не входят."
 
 /** One question, two doors: the panel's row and the tile's press must not name it differently. */
 private const val SIMULCAST_CHOICE_TITLE = "Что транслировать"

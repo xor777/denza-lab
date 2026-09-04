@@ -235,8 +235,10 @@ Denza Apps 0.3.0 adds the **Установить приложение** card in 
    interrupted process.
 
 The user starts each installation by tapping an app; Denza Apps has no batch or
-background installer. Split APK packages remain visible in the picker with the
-label **Split APK пока не поддерживается**. If FSE does not answer before the
+background installer. Split APK packages are left out of the chooser, whose foot says
+in the driver's words that only installable applications are listed; the reason
+**Split APK пока не поддерживается** stays on the application record for the
+support screen. If FSE does not answer before the
 timeout, the UI reports the missing confirmation and leaves the current staging
 path and request ID in diagnostics. The next installation removes that abandoned
 directory before creating its own, so repeated failures cannot accumulate APKs.

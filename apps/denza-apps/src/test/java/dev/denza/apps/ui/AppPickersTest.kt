@@ -1,6 +1,7 @@
 package dev.denza.apps.ui
 
 import dev.denza.apps.SimulcastAppChoice
+import dev.denza.apps.feature.fse.FseInstallApp
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -38,10 +39,40 @@ class AppPickersTest {
         )
     }
 
+    /**
+     * The passenger chooser lists what can be installed and nothing else, and its foot says so.
+     *
+     * A split package used to be shown grey under a sentence explaining the grey; on the car the
+     * owner saw no grey tile and a sentence about one. What cannot be put across is not in the
+     * list, and the sentence says the list is not everything - in words a driver uses.
+     */
+    @Test
+    fun thePassengerChooserHoldsOnlyWhatCanBeInstalledAndSaysSo() {
+        val whole = fseApp("ru.rutube.app", "Rutube", installable = true)
+        val split = fseApp("ru.kinopoisk", "Кинопоиск", installable = false)
+        assertEquals(listOf(whole), fseChooserApps(listOf(whole, split)))
+        assertEquals(
+            "Показаны только приложения, которые можно поставить на экран справа. " +
+                "Несовместимые в список не входят.",
+            FSE_INSTALL_HELP,
+        )
+    }
+
     private fun app(packageName: String, label: String): SimulcastAppChoice = SimulcastAppChoice(
         packageName = packageName,
         label = label,
         icon = null,
         selected = true,
     )
+
+    private fun fseApp(packageName: String, label: String, installable: Boolean): FseInstallApp =
+        FseInstallApp(
+            packageName = packageName,
+            label = label,
+            icon = null,
+            versionName = "1.0",
+            apkSizeBytes = 1L,
+            installable = installable,
+            unavailableReason = if (installable) "" else "Split APK пока не поддерживается",
+        )
 }
