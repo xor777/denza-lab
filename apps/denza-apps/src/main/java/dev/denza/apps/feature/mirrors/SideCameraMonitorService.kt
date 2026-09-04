@@ -20,7 +20,6 @@ import dev.denza.apps.feature.cluster.ClusterSceneService
 import dev.denza.apps.feature.cluster.CameraRuntimeSnapshot
 import dev.denza.apps.feature.cluster.CameraRuntimePhase
 import dev.denza.apps.feature.vehicle.signal.DenzaVehicleSignals
-import dev.denza.apps.feature.vehicle.signal.TurnIndicatorMode
 import dev.denza.apps.feature.vehicle.signal.TurnSwitchPhase
 import dev.denza.apps.feature.vehicle.signal.VehicleSignalConsumerId
 import dev.denza.apps.feature.vehicle.signal.VehicleSignalDemand
@@ -42,12 +41,8 @@ class SideCameraMonitorService : Service() {
     private lateinit var adb: LocalAdbClient.PersistentShellSession
     private var turnSignalLease: VehicleSignalLease? = null
     private var switchSubscription: VehicleSignalEventSubscription? = null
-    private var modeSubscription: VehicleSignalEventSubscription? = null
-    @Volatile private var signalSubscriptionsArmed = false
     private val transitionGate = MirrorTransitionGate()
     private var transitionState = MirrorTransitionState()
-    private var signalSafetyState = MirrorSignalSafetyState()
-    private var switchGestureState = MirrorSwitchGestureState()
     private val preemptInFlight = AtomicBoolean()
     private var lastPublishedStatus: Pair<MirrorSide?, String>? = null
     private var clusterDisplayId: Int? = null
@@ -83,13 +78,13 @@ class SideCameraMonitorService : Service() {
         MirrorsSettings.setEnabled(this, true)
         if (!transitionGate.start()) return
         lastShadowStatus = ""
-        signalSafetyState = MirrorSignalSafety.unavailable()
-        switchGestureState = MirrorSwitchPreemption.cameraStopped()
         MirrorTurnSignalDiagnostics.reset(SystemClock.elapsedRealtime())
         val eventExecutor = Executors.newSingleThreadExecutor { runnable ->
             Thread(runnable, "denza-mirror-signal-guard").apply { isDaemon = true }
         }
         signalExecutor = eventExecutor
+        // Both keys stay leased: the mode read feeds the bounded shadow diagnostics, the raw phase
+        // read tells the reducer whether the lever is still moving. Neither can open a camera.
         turnSignalLease = runCatching {
             DenzaVehicleSignals.hub(this).acquire(
                 VehicleSignalConsumerId("mirrors"),
@@ -116,16 +111,6 @@ class SideCameraMonitorService : Service() {
         }.onFailure { error ->
             Log.w(TAG, "turn-switch events unavailable", error)
         }.getOrNull()
-        modeSubscription = runCatching {
-            turnSignalLease?.subscribeEvents(
-                VehicleSignalKeys.TurnIndicatorMode,
-                eventExecutor,
-                ::onModeNotice,
-            )
-        }.onFailure { error ->
-            Log.w(TAG, "turn-mode events unavailable", error)
-        }.getOrNull()
-        signalSubscriptionsArmed = switchSubscription != null && modeSubscription != null
         executor = Executors.newSingleThreadScheduledExecutor().also { scheduler ->
             scheduler.execute(::grantOverlayPermission)
             scheduler.scheduleWithFixedDelay(::poll, 0L, POLL_MS, TimeUnit.MILLISECONDS)
@@ -138,11 +123,8 @@ class SideCameraMonitorService : Service() {
         transitionGate.stop {
             // Wait for any in-flight transition command, then close the lifecycle gate. No later
             // poll or signal callback can issue a newer Show after this final hide.
-            signalSubscriptionsArmed = false
             ClusterSceneService.hideCameraSync(FINISH_SYNC_TIMEOUT_MS)
             transitionState = MirrorTransitionState(details = "monitor stopped")
-            signalSafetyState = MirrorSignalSafety.unavailable()
-            switchGestureState = MirrorSwitchPreemption.cameraStopped()
             preemptInFlight.set(false)
             setStatus(null, "monitor stopped")
         }
@@ -150,8 +132,6 @@ class SideCameraMonitorService : Service() {
         turnSignalLease = null
         switchSubscription?.close()
         switchSubscription = null
-        modeSubscription?.close()
-        modeSubscription = null
         signalExecutor?.shutdownNow()
         signalExecutor = null
         executor?.shutdownNow()
@@ -183,32 +163,28 @@ class SideCameraMonitorService : Service() {
                         detection.unrecognizedCandidates > 0
                 )
             if (!transitionGate.isRunning) return
-            val signalState = runCatching {
-                recordTurnSignalState(detection.recognizedSide, now)
-            }.onFailure { error ->
-                Log.w(TAG, "turn-signal observation failed", error)
-            }.getOrElse { MirrorTurnSignalDiagnostics.unavailable(shortError(it)) }
-            applyTransition(detection.recognizedSide, signalState, now, ambiguous)
+            recordTurnSignalState(detection.recognizedSide, now)
+            applyTransition(detection.recognizedSide, now, ambiguous)
         } catch (error: Exception) {
             setStatus(observedSide(), "ADB monitor error: ${shortError(error)}")
             updateNotification("ADB access needs attention")
         }
     }
 
-    private fun recordTurnSignalState(
-        windowSide: MirrorSide?,
-        now: Long,
-    ): VehicleSignalState<TurnIndicatorMode> {
+    /** Bounded support diagnostics only. The confirmed mode never gates a camera command. */
+    private fun recordTurnSignalState(windowSide: MirrorSide?, now: Long) {
         val state = runCatching {
             turnSignalLease?.read(VehicleSignalKeys.TurnIndicatorMode, now)
-        }.getOrNull() ?: MirrorTurnSignalDiagnostics.unavailable("listener not active")
+                ?: MirrorTurnSignalDiagnostics.unavailable("listener not active")
+        }.onFailure { error ->
+            Log.w(TAG, "turn-signal observation failed", error)
+        }.getOrElse { MirrorTurnSignalDiagnostics.unavailable(shortError(it)) }
         val snapshot = MirrorTurnSignalDiagnostics.record(state, windowSide, now)
         val status = "${snapshot.state}/${snapshot.windowSide}/${snapshot.agreement}"
         if (status != lastShadowStatus) {
             lastShadowStatus = status
             Log.i(TAG, "turn-signal shadow: ${snapshot.compact()}")
         }
-        return state
     }
 
     private fun onSwitchNotice(notice: VehicleSignalEventNotice<TurnSwitchPhase>) {
@@ -217,81 +193,31 @@ class SideCameraMonitorService : Service() {
             is VehicleSignalEventNotice.Event -> {
                 val event = notice.event
                 transitionGate.runIfRunning {
-                    val activeSide = transitionState.side
-                        ?: ClusterSceneService.cameraRuntimeSnapshot().let { runtime ->
-                            runtime.side.takeIf {
-                                runtime.phase == CameraRuntimePhase.STARTING ||
-                                    runtime.phase == CameraRuntimePhase.READY
-                            }
-                        }
-                    val preemption = MirrorSwitchPreemption.decide(
-                        switchGestureState,
-                        event,
-                        activeSide,
+                    val activeSide = MirrorSwitchPreemption.activeCameraSide(
+                        transitionState,
+                        ClusterSceneService.cameraRuntimeSnapshot(),
                     )
-                    switchGestureState = preemption.state
-                    when (preemption.decision) {
+                    when (MirrorSwitchPreemption.decide(event.value, activeSide)) {
                         MirrorSwitchPreemptionDecision.NONE -> Unit
                         MirrorSwitchPreemptionDecision.KEEP_CURRENT_SIDE -> Log.i(
                             TAG,
-                            "same-side switch onset ignored; phase=${event.value.rawValue}" +
+                            "same-side lever onset ignored; phase=${event.value.rawValue}" +
                                 " side=$activeSide sequence=${event.sequence}",
                         )
-                        MirrorSwitchPreemptionDecision.PREEMPT -> {
-                            signalSafetyState = MirrorSignalSafety.onSwitchEvent(
-                                signalSafetyState,
-                                event,
-                            )
-                            preemptActiveCameraLocked(
-                                "live switch onset ${event.value.rawValue}",
-                                event.observedAtElapsedMs,
-                                MirrorQuarantineRecovery.CONFIRMED_SIDE_AFTER_TEARDOWN,
-                            )
-                        }
-                        MirrorSwitchPreemptionDecision.QUARANTINE -> {
-                            signalSafetyState = MirrorSignalSafety.unavailable()
-                            preemptActiveCameraLocked(
-                                "unknown switch phase ${event.value.rawValue}",
-                                event.observedAtElapsedMs,
-                            )
-                        }
+                        MirrorSwitchPreemptionDecision.PREEMPT -> preemptActiveCameraLocked(
+                            "live switch onset ${event.value.rawValue}",
+                            event.observedAtElapsedMs,
+                            MirrorQuarantineRecovery.OTHER_SIDE_AFTER_TEARDOWN,
+                            activeSide,
+                        )
                     }
                 }
             }
-            is VehicleSignalEventNotice.Unavailable -> transitionGate.runIfRunning {
-                signalSafetyState = MirrorSignalSafety.unavailable()
-                switchGestureState = MirrorSwitchPreemption.cameraStopped()
-                preemptActiveCameraLocked(
-                    "switch feed ${notice.reason.name.lowercase()}",
-                    SystemClock.elapsedRealtime(),
-                )
-            }
-        }
-    }
-
-    private fun onModeNotice(notice: VehicleSignalEventNotice<TurnIndicatorMode>) {
-        if (!transitionGate.isRunning) return
-        transitionGate.runIfRunning {
-            when (notice) {
-                is VehicleSignalEventNotice.Event -> {
-                    switchGestureState = MirrorSwitchPreemption.onModeEvent(
-                        switchGestureState,
-                        notice.event,
-                    )
-                    signalSafetyState = MirrorSignalSafety.onModeEvent(
-                        signalSafetyState,
-                        notice.event,
-                    )
-                }
-                is VehicleSignalEventNotice.Unavailable -> {
-                    signalSafetyState = MirrorSignalSafety.unavailable()
-                    switchGestureState = MirrorSwitchPreemption.cameraStopped()
-                    preemptActiveCameraLocked(
-                        "mode feed ${notice.reason.name.lowercase()}",
-                        SystemClock.elapsedRealtime(),
-                    )
-                }
-            }
+            // The camera never depends on this feed, so losing it is a log line and nothing else.
+            is VehicleSignalEventNotice.Unavailable -> Log.w(
+                TAG,
+                "switch feed ${notice.reason.name.lowercase()}; camera untouched",
+            )
         }
     }
 
@@ -299,26 +225,14 @@ class SideCameraMonitorService : Service() {
     private fun preemptActiveCameraLocked(
         reason: String,
         observedAtMs: Long,
-        recovery: MirrorQuarantineRecovery = MirrorQuarantineRecovery.NEUTRAL_ONLY,
+        recovery: MirrorQuarantineRecovery,
+        preemptedSide: MirrorSide?,
     ) {
         val runtime = ClusterSceneService.cameraRuntimeSnapshot()
         val active = transitionState.phase == MirrorTransitionPhase.STARTING ||
             transitionState.phase == MirrorTransitionPhase.SHOWING ||
             runtime.phase == CameraRuntimePhase.STARTING ||
             runtime.phase == CameraRuntimePhase.READY
-        val recoveryDowngraded =
-            recovery == MirrorQuarantineRecovery.NEUTRAL_ONLY &&
-                transitionState.phase == MirrorTransitionPhase.QUARANTINED &&
-                transitionState.quarantineRecovery != MirrorQuarantineRecovery.NEUTRAL_ONLY
-        if (recoveryDowngraded) {
-            transitionState = MirrorTransitionReducer.quarantine(
-                transitionState,
-                runtime,
-                SystemClock.elapsedRealtime(),
-                reason,
-            )
-            publishTransition()
-        }
         if (!active || preemptInFlight.get()) return
 
         val acceptedAt = SystemClock.elapsedRealtime()
@@ -328,8 +242,8 @@ class SideCameraMonitorService : Service() {
             acceptedAt,
             reason,
             recovery,
+            preemptedSide,
         )
-        switchGestureState = MirrorSwitchPreemption.cameraStopped()
         preemptInFlight.set(true)
         val commandGeneration = ClusterSceneService.preemptCamera(
             onLocalSurfaceDetached = {
@@ -379,21 +293,14 @@ class SideCameraMonitorService : Service() {
 
     private fun applyTransition(
         stockWindowSide: MirrorSide?,
-        signalState: VehicleSignalState<TurnIndicatorMode>,
         now: Long,
         runtimeWindowAmbiguous: Boolean,
     ) = transitionGate.runIfRunning {
-        val safety = MirrorSignalSafety.observe(
-            signalSafetyState,
-            signalState,
-            stockWindowSide,
-            signalSubscriptionsArmed,
-            now,
-        )
-        signalSafetyState = safety.state
-        val requested = safety.eligibleSide
         val runtime = ClusterSceneService.cameraRuntimeSnapshot()
-        val retainedSwitchTransition = runCatching {
+        // The stock AVC window is the only authority for Show. The retained raw lever phase is
+        // read for one narrow purpose: it tells the reducer to wait through transient stock
+        // window ambiguity instead of quarantining. It can never open a camera.
+        val leverEngaged = runCatching {
             turnSignalLease?.read(VehicleSignalKeys.TurnSwitchPhase, now)
         }.getOrNull()
             .let { it as? VehicleSignalState.Fresh }
@@ -403,20 +310,19 @@ class SideCameraMonitorService : Service() {
         val result = MirrorTransitionReducer.reduce(
             transitionState,
             MirrorTransitionObservation(
-                requestedSide = requested,
+                requestedSide = stockWindowSide,
                 runtime = runtime,
                 nowMs = now,
                 runtimeWindowAmbiguous = runtimeWindowAmbiguous,
                 preemptionInFlight = preemptInFlight.get(),
-                signalTransitionPending =
-                    safety.state.pendingSwitch != null || retainedSwitchTransition,
+                leverEngaged = leverEngaged,
             ),
         )
         if (result.state.phase != transitionState.phase) {
             Log.i(
                 TAG,
                 "transition ${transitionState.phase} -> ${result.state.phase}" +
-                    " (${result.state.details}); requested=$requested" +
+                    " (${result.state.details}); requested=$stockWindowSide" +
                     " ambiguous=$runtimeWindowAmbiguous runtime=${runtime.phase}",
             )
         }
@@ -428,7 +334,6 @@ class SideCameraMonitorService : Service() {
             }
             MirrorTransitionCommand.Hide -> {
                 Log.i(TAG, "command: hide")
-                switchGestureState = MirrorSwitchPreemption.cameraStopped()
                 ClusterSceneService.preemptCamera(
                     onVendorFreeCompleted = { Log.i(TAG, "command: hide finished") },
                 )
@@ -448,11 +353,9 @@ class SideCameraMonitorService : Service() {
             position = MirrorsSettings.position(this),
             processingEnabled = MirrorsSettings.processingEnabled(this),
         )
-        switchGestureState = MirrorSwitchPreemption.cameraStarted(side, now)
         try {
             ClusterSceneService.showCamera(this, config)
         } catch (error: RuntimeException) {
-            switchGestureState = MirrorSwitchPreemption.cameraStopped()
             transitionState = MirrorTransitionReducer.quarantine(
                 transitionState,
                 runtime,

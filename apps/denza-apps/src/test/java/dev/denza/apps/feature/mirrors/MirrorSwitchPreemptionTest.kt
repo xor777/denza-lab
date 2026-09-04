@@ -1,105 +1,90 @@
 package dev.denza.apps.feature.mirrors
 
-import dev.denza.apps.feature.vehicle.signal.TurnIndicatorMode
+import dev.denza.apps.feature.cluster.CameraRuntimePhase
+import dev.denza.apps.feature.cluster.CameraRuntimeSnapshot
 import dev.denza.apps.feature.vehicle.signal.TurnSwitchPhase
-import dev.denza.apps.feature.vehicle.signal.VehicleSignalEvent
-import dev.denza.apps.feature.vehicle.signal.VehicleSignalKeys
-import dev.denza.apps.feature.vehicle.signal.VehicleSignalSourceId
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class MirrorSwitchPreemptionTest {
     @Test
-    fun onlyLiveProvenOnsetPhasesPreemptWithoutSelectingASide() {
-        assertEquals(
-            MirrorSwitchPreemptionDecision.PREEMPT,
-            decide(2).decision,
-        )
-        assertEquals(
-            MirrorSwitchPreemptionDecision.PREEMPT,
-            decide(4).decision,
-        )
-    }
-
-    @Test
-    fun repeatedOnsetForTheAlreadyActiveSideDoesNotRevokeItsCamera() {
-        val left = MirrorSwitchPreemption.cameraStarted(MirrorSide.LEFT, 100L)
-        val right = MirrorSwitchPreemption.cameraStarted(MirrorSide.RIGHT, 100L)
-        assertEquals(
-            MirrorSwitchPreemptionDecision.KEEP_CURRENT_SIDE,
-            decide(2, left, MirrorSide.LEFT, 120L).decision,
-        )
-        assertEquals(
-            MirrorSwitchPreemptionDecision.KEEP_CURRENT_SIDE,
-            decide(4, right, MirrorSide.RIGHT, 120L).decision,
-        )
-    }
-
-    @Test
-    fun oppositeOnsetStillPreemptsAnActiveCamera() {
-        val left = MirrorSwitchPreemption.cameraStarted(MirrorSide.LEFT, 100L)
-        val right = MirrorSwitchPreemption.cameraStarted(MirrorSide.RIGHT, 100L)
-        assertEquals(
-            MirrorSwitchPreemptionDecision.PREEMPT,
-            decide(4, left, MirrorSide.LEFT, 120L).decision,
-        )
-        assertEquals(
-            MirrorSwitchPreemptionDecision.PREEMPT,
-            decide(2, right, MirrorSide.RIGHT, 120L).decision,
-        )
-    }
-
-    @Test
-    fun neutralPhaseEndsGestureSoNewSameSideOnsetPreempts() {
-        val started = MirrorSwitchPreemption.cameraStarted(MirrorSide.RIGHT, 100L)
-        val neutral = decide(1, started, MirrorSide.RIGHT, 120L)
-        val restarted = decide(4, neutral.state, MirrorSide.RIGHT, 140L)
-
-        assertEquals(MirrorSwitchPreemptionDecision.NONE, neutral.decision)
-        assertTrue(neutral.state.boundaryObserved)
-        assertEquals(MirrorSwitchPreemptionDecision.PREEMPT, restarted.decision)
-    }
-
-    @Test
-    fun confirmedOffEndsGestureSoNewSameSideOnsetPreempts() {
-        val started = MirrorSwitchPreemption.cameraStarted(MirrorSide.LEFT, 100L)
-        val stopped = MirrorSwitchPreemption.onModeEvent(
-            started,
-            modeEvent(TurnIndicatorMode.OFF, 120L),
-        )
-        val restarted = decide(2, stopped, MirrorSide.LEFT, 140L)
-
-        assertTrue(stopped.boundaryObserved)
-        assertEquals(MirrorSwitchPreemptionDecision.PREEMPT, restarted.decision)
-    }
-
-    @Test
-    fun delayedNeutralFromBeforeCameraStartDoesNotCloseCurrentGesture() {
-        val started = MirrorSwitchPreemption.cameraStarted(MirrorSide.RIGHT, 100L)
-        val staleNeutral = decide(1, started, MirrorSide.RIGHT, 90L)
-        val trailing = decide(4, staleNeutral.state, MirrorSide.RIGHT, 120L)
-
-        assertFalse(staleNeutral.state.boundaryObserved)
-        assertEquals(MirrorSwitchPreemptionDecision.KEEP_CURRENT_SIDE, trailing.decision)
-    }
-
-    @Test
-    fun neutralAndFollowThroughPhasesDoNothing() {
-        listOf(1, 3, 5).forEach { raw ->
-            assertEquals(
-                MirrorSwitchPreemptionDecision.NONE,
-                decide(raw).decision,
+    fun onlyTheTwoLiveProvenOnsetPhasesNameASide() {
+        assertEquals(MirrorSide.LEFT, MirrorSwitchPreemption.onsetSide(TurnSwitchPhase(2)))
+        assertEquals(MirrorSide.RIGHT, MirrorSwitchPreemption.onsetSide(TurnSwitchPhase(4)))
+        listOf(0, 1, 3, 5, 6, 7).forEach { raw ->
+            assertNull(
+                "raw $raw is not an onset",
+                MirrorSwitchPreemption.onsetSide(TurnSwitchPhase(raw)),
             )
         }
     }
 
     @Test
-    fun unknownPhaseFailsClosed() {
+    fun neutralFollowThroughAndUnknownPhasesDecideNothing() {
+        listOf(1, 3, 5, 6).forEach { raw ->
+            assertEquals(
+                "raw $raw",
+                MirrorSwitchPreemptionDecision.NONE,
+                MirrorSwitchPreemption.decide(TurnSwitchPhase(raw), MirrorSide.LEFT),
+            )
+            assertEquals(
+                "raw $raw",
+                MirrorSwitchPreemptionDecision.NONE,
+                MirrorSwitchPreemption.decide(TurnSwitchPhase(raw), MirrorSide.RIGHT),
+            )
+        }
+    }
+
+    @Test
+    fun anOnsetWithNoActiveCameraDecidesNothing() {
+        listOf(2, 4).forEach { raw ->
+            assertEquals(
+                "raw $raw",
+                MirrorSwitchPreemptionDecision.NONE,
+                MirrorSwitchPreemption.decide(TurnSwitchPhase(raw), activeSide = null),
+            )
+        }
+    }
+
+    @Test
+    fun aSameSideOnsetKeepsTheCameraHoweverManyPulsesArrive() {
+        repeat(4) {
+            assertEquals(
+                MirrorSwitchPreemptionDecision.KEEP_CURRENT_SIDE,
+                MirrorSwitchPreemption.decide(TurnSwitchPhase(2), MirrorSide.LEFT),
+            )
+            assertEquals(
+                MirrorSwitchPreemptionDecision.KEEP_CURRENT_SIDE,
+                MirrorSwitchPreemption.decide(TurnSwitchPhase(4), MirrorSide.RIGHT),
+            )
+        }
+    }
+
+    @Test
+    fun aSameSideOnsetAfterNeutralStillKeepsTheCamera() {
+        // A lever movement emits several pulses (4 -> 5 -> 1, then 4 -> 1 again). No neutral in
+        // between makes the next same-side pulse a side switch, so none of them may tear down.
+        listOf(4, 5, 1, 4, 1, 4).forEach { raw ->
+            val decision = MirrorSwitchPreemption.decide(TurnSwitchPhase(raw), MirrorSide.RIGHT)
+            assertTrue(
+                "raw $raw must never preempt the side it already shows",
+                decision != MirrorSwitchPreemptionDecision.PREEMPT,
+            )
+        }
+    }
+
+    @Test
+    fun anOppositeOnsetPreemptsTheActiveCamera() {
         assertEquals(
-            MirrorSwitchPreemptionDecision.QUARANTINE,
-            decide(6).decision,
+            MirrorSwitchPreemptionDecision.PREEMPT,
+            MirrorSwitchPreemption.decide(TurnSwitchPhase(4), MirrorSide.LEFT),
+        )
+        assertEquals(
+            MirrorSwitchPreemptionDecision.PREEMPT,
+            MirrorSwitchPreemption.decide(TurnSwitchPhase(2), MirrorSide.RIGHT),
         )
     }
 
@@ -113,40 +98,59 @@ class MirrorSwitchPreemptionTest {
         }
     }
 
-    private fun decide(
-        raw: Int,
-        state: MirrorSwitchGestureState = MirrorSwitchGestureState(),
-        activeSide: MirrorSide? = null,
-        observedAtMs: Long = 1L,
-    ) = MirrorSwitchPreemption.decide(
-        state,
-        switchEvent(raw, observedAtMs),
-        activeSide,
-    )
+    @Test
+    fun activeCameraSidePrefersOurOwnTransition() {
+        listOf(MirrorTransitionPhase.STARTING, MirrorTransitionPhase.SHOWING).forEach { phase ->
+            assertEquals(
+                MirrorSide.LEFT,
+                MirrorSwitchPreemption.activeCameraSide(
+                    MirrorTransitionState(phase = phase, side = MirrorSide.LEFT),
+                    runtime(CameraRuntimePhase.IDLE),
+                ),
+            )
+        }
+    }
 
-    private fun switchEvent(
-        raw: Int,
-        observedAtMs: Long,
-    ) = VehicleSignalEvent(
-        key = VehicleSignalKeys.TurnSwitchPhase,
-        value = TurnSwitchPhase(raw),
-        source = VehicleSignalSourceId("test"),
-        sourceEpoch = 1L,
-        sequence = observedAtMs,
-        observedAtElapsedMs = observedAtMs,
-        publishedAtElapsedMs = observedAtMs,
-    )
+    @Test
+    fun activeCameraSideFallsBackToTheCameraRuntime() {
+        listOf(CameraRuntimePhase.STARTING, CameraRuntimePhase.READY).forEach { phase ->
+            assertEquals(
+                "runtime $phase",
+                MirrorSide.RIGHT,
+                MirrorSwitchPreemption.activeCameraSide(
+                    MirrorTransitionState(phase = MirrorTransitionPhase.QUARANTINED),
+                    runtime(phase, MirrorSide.RIGHT),
+                ),
+            )
+        }
+    }
 
-    private fun modeEvent(
-        mode: TurnIndicatorMode,
-        observedAtMs: Long,
-    ) = VehicleSignalEvent(
-        key = VehicleSignalKeys.TurnIndicatorMode,
-        value = mode,
-        source = VehicleSignalSourceId("test"),
-        sourceEpoch = 1L,
-        sequence = observedAtMs,
-        observedAtElapsedMs = observedAtMs,
-        publishedAtElapsedMs = observedAtMs,
+    @Test
+    fun activeCameraSideIsNoneWhenNothingIsUp() {
+        listOf(MirrorTransitionPhase.IDLE, MirrorTransitionPhase.QUARANTINED).forEach { phase ->
+            listOf(
+                CameraRuntimePhase.IDLE,
+                CameraRuntimePhase.STOPPING,
+                CameraRuntimePhase.FAILED,
+            ).forEach { runtimePhase ->
+                assertNull(
+                    "$phase / $runtimePhase",
+                    MirrorSwitchPreemption.activeCameraSide(
+                        MirrorTransitionState(phase = phase),
+                        runtime(runtimePhase, MirrorSide.LEFT),
+                    ),
+                )
+            }
+        }
+    }
+
+    private fun runtime(
+        phase: CameraRuntimePhase,
+        side: MirrorSide? = null,
+    ) = CameraRuntimeSnapshot(
+        phase = phase,
+        side = side,
+        generation = 1L,
+        details = phase.name.lowercase(),
     )
 }
