@@ -30,6 +30,8 @@ internal data class VehicleTelemetry(
     val stationary: Boolean = false,
     /** The last two minutes of revolutions and generation, on a one-second axis. */
     val engineTrace: EngineTraceSnapshot = EngineTraceSnapshot.EMPTY,
+    /** What this trip has cost so far, integrated by [TripEnergyLedger]. */
+    val trip: TripEnergy = TripEnergy(),
 ) {
 
     operator fun get(signal: VehicleSignal): Double? = values[signal]
@@ -54,6 +56,14 @@ internal data class VehicleTelemetry(
 
     /** Pack power as load: positive leaves the battery. See [VehicleConvention]. */
     val loadKw: Double? get() = VehicleConvention.load(this[VehicleSignal.POWER_KW])
+
+    /**
+     * Whether the selector is in P, or null while nothing has answered.
+     *
+     * Null is not "moving": a trip is bounded by a switch we can read, and a switch that did not
+     * answer bounds nothing.
+     */
+    val parked: Boolean? get() = this[VehicleSignal.GEARBOX_PARK]?.let { it >= 1.0 }
 
     /** Cell spread has no feature id of its own; it is max minus min. */
     val cellSpreadMv: Double?

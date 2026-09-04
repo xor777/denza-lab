@@ -62,6 +62,20 @@ internal class VehicleTelemetryHub(context: Context) {
     private val log = ConsumptionLog(onBucketClosed = ::record)
 
     /**
+     * The trip on the right shelf, and its own record on disk.
+     *
+     * It is journalled for the same reason the bars are and against a stricter test: a trip is
+     * bounded by the selector rather than by the ignition, so a process restart in the middle of a
+     * drive must not reset the figure the driver is watching. [TripEnergyLedger.restore] refuses a
+     * record from road this process did not see.
+     */
+    private val tripJournal = TripJournal.of(app.filesDir) { why ->
+        Log.w(TAG, "Журнал поездки сброшен: $why")
+    }
+    private val ledger = TripEnergyLedger()
+    private var tripSavedAt = 0L
+
+    /**
      * Kept in memory only. The consumption journal survives a restart because it is about the road;
      * two minutes of revolutions is about right now, and a restart is long enough to make it a lie.
      */
@@ -134,12 +148,31 @@ internal class VehicleTelemetryHub(context: Context) {
     private fun restoreOnce(odometerKm: Double?) {
         if (restored || odometerKm == null) return
         restored = true
+        val trip = tripJournal.load()
+        if (trip != null && !ledger.restore(trip, odometerKm)) {
+            Log.w(TAG, "Журнал поездки от другой дороги, сброшен")
+            tripJournal.clear()
+        }
         val samples = journal.load()
         if (samples.isEmpty()) return
         if (!log.restore(samples, odometerKm, ConsumptionLog.RETENTION_KM)) {
             Log.w(TAG, "Журнал расхода от другого одометра, сброшен")
             journal.clear()
         }
+    }
+
+    /**
+     * Persist the trip, at most every [TRIP_SAVE_MS].
+     *
+     * The interval is the size of the hole an ignition cut leaves in the figure, and ten seconds of
+     * driving is under a hundredth of a kilowatt-hour. It costs one small `fsync` and it is a
+     * rename, so a cut write leaves the previous record rather than half of this one.
+     */
+    private fun saveTrip(now: Long) {
+        if (now - tripSavedAt < TRIP_SAVE_MS) return
+        val record = ledger.record() ?: return
+        tripSavedAt = now
+        tripJournal.save(record)
     }
 
     /**
@@ -194,6 +227,13 @@ internal class VehicleTelemetryHub(context: Context) {
                 if (includeCold) {
                     forceCold = false
                     coldDueAt = SystemClock.elapsedRealtime() + COLD_INTERVAL_MS
+                    // Rebuilt rather than merged into. A cold value that stopped answering used to
+                    // sit in this map forever, so "present in the snapshot" meant "answered at some
+                    // point" for the slow rows and "answered just now" for the fast ones. The
+                    // Contour has one rule for a stale reading - it goes after two seconds and its
+                    // caption stays - and that rule needs absence to mean the same thing on both
+                    // cadences.
+                    cold.clear()
                     VehicleSignal.COLD.forEach { signal -> parsed[signal]?.let { cold[signal] = it } }
                 }
 
@@ -213,6 +253,16 @@ internal class VehicleTelemetryHub(context: Context) {
                     powerKw = VehicleConvention.load(parsed[VehicleSignal.POWER_KW]),
                     dtSeconds = dtSeconds,
                 )
+                val engineRunning = parsed[VehicleSignal.ENGINE_RUNNING]?.let { it >= 1.0 }
+                ledger.sample(
+                    odometerKm = parsed[VehicleSignal.ODOMETER_KM],
+                    powerKw = VehicleConvention.load(parsed[VehicleSignal.POWER_KW]),
+                    generationKw = parsed[VehicleSignal.GENERATION_KW],
+                    engineRunning = engineRunning,
+                    parked = parsed[VehicleSignal.GEARBOX_PARK]?.let { it >= 1.0 },
+                    dtSeconds = dtSeconds,
+                )
+                saveTrip(now)
 
                 // Cold values carry over between sweeps — temperatures do not
                 // change in a second. Hot values never do: they are either fresh
@@ -227,12 +277,14 @@ internal class VehicleTelemetryHub(context: Context) {
                     consumption = log.buckets,
                     stationary = log.stationary,
                     engineTrace = trace.snapshot(),
+                    trip = ledger.trip,
                 )
 
                 delay(HOT_INTERVAL_MS)
             }
         } finally {
             flush()
+            ledger.record()?.let(tripJournal::save)
             shell?.runCatching { close() }
         }
     }
@@ -249,12 +301,16 @@ internal class VehicleTelemetryHub(context: Context) {
             access = VehicleAccess.UNAVAILABLE,
             message = message,
             consumption = log.buckets,
+            trip = ledger.trip,
         )
     }
 
     private companion object {
         /** Bars per journal write: one kilometre of road. */
         const val FLUSH_EVERY = 10
+
+        /** How often the trip record is made durable. See [saveTrip]. */
+        const val TRIP_SAVE_MS = 10_000L
 
         const val TAG = "DenzaVehicle"
 

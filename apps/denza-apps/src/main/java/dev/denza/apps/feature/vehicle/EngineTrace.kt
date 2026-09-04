@@ -63,20 +63,32 @@ internal class EngineTrace(
     }
 
     /**
-     * The trace as the dashboard draws it: always [capacity] slots, oldest first, newest last.
+     * The trace as the Contour draws it: **from the oldest slot the engine was alive in, to now.**
      *
-     * Front-padded rather than returned short, so a chart drawn from it cannot stretch ninety
-     * seconds of history across a two-minute axis on its first minute of running.
+     * Not front-padded to [capacity] any more, and that is the whole of the engine box's behaviour
+     * (CRITIQUE M7). The box's right edge is fixed and its width is the length of this list, so it
+     * grows leftward as the engine's history fills and is never drawn empty. After the engine stops
+     * the slots keep arriving at zero, which walks the last live sample toward the left edge; when
+     * it falls off, there is no live slot left, this returns [EngineTraceSnapshot.EMPTY] and the box
+     * leaves. That is 120 seconds of hysteresis with no timer of its own - the trace's own length is
+     * the timer - so a winter jam restarting the engine every ninety seconds never swaps the shelf
+     * back and forth.
+     *
+     * A padded list could not express it: with 120 slots always present the box would be born full
+     * width and would have to be given a timer to decide when to go.
      */
     fun snapshot(): EngineTraceSnapshot {
-        if (revolutions.isEmpty()) return EngineTraceSnapshot.EMPTY
-        val pad = capacity - revolutions.size
+        val first = revolutions.indices.firstOrNull { alive(it) } ?: return EngineTraceSnapshot.EMPTY
         return EngineTraceSnapshot(
-            revolutions = List(capacity) { if (it < pad) null else revolutions[it - pad] },
-            generationKw = List(capacity) { if (it < pad) null else generation[it - pad] },
+            revolutions = revolutions.drop(first),
+            generationKw = generation.drop(first),
             spanSeconds = spanSeconds,
         )
     }
+
+    /** A slot the engine was alive in: a reading arrived and it was not a resting zero. */
+    private fun alive(index: Int): Boolean =
+        (revolutions[index] ?: 0.0) > 0.0 || (generation[index] ?: 0.0) > 0.0
 
     private fun push(rpm: Double?, generationKw: Double?) {
         revolutions.addLast(rpm)
@@ -97,8 +109,9 @@ internal class EngineTrace(
 /**
  * What the renderer is handed: two equal-length runs, oldest first, `null` where nothing answered.
  *
- * Built once per sweep beside the rest of the snapshot rather than per frame, the way the
- * consumption bars are.
+ * The runs start at the oldest slot the engine was alive in and end at now, so [slots] is the box's
+ * own width in seconds and an empty snapshot means there is no box. Built once per sweep beside the
+ * rest of the snapshot rather than per frame, the way the consumption bars are.
  */
 internal data class EngineTraceSnapshot(
     val revolutions: List<Double?>,
@@ -109,10 +122,11 @@ internal data class EngineTraceSnapshot(
         require(revolutions.size == generationKw.size) { "traces share one time axis" }
     }
 
+    /** The box's width, in seconds. */
     val slots: Int get() = revolutions.size
 
-    /** Whether anything was ever recorded. An engine at rest reports zeros, which is not nothing. */
-    val isEmpty: Boolean get() = revolutions.all { it == null } && generationKw.all { it == null }
+    /** Whether the engine has been alive inside the retained window at all. */
+    val isEmpty: Boolean get() = revolutions.isEmpty()
 
     companion object {
         val EMPTY = EngineTraceSnapshot(emptyList(), emptyList())
