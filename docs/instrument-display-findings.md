@@ -746,6 +746,244 @@ re-engaged lever 125 ms after the stock closed its window, is fixed by the
 recovery rule above and that revision has not been driven yet. Details are in
 vehicle-data-findings.md under "First drive of the window-only contract".
 
+### Startup timing baseline (2026-09-04, instrumentation-only candidate)
+
+The startup worktree starts at `90821f086cd17cd7568dd6f583a38438818b960a`.
+Before installing the timing candidate, the car's APK and the main checkout's
+APK both hashed to
+`851bab49b76420728d79d45a76c733b684f5e341a440dd6b16f886d6cc121585`.
+An exact pulled rollback copy is retained in ignored
+`captures/mirrors-startup-baseline/rollback-851bab49.apk` in the main checkout.
+No performance improvement has been measured yet.
+
+This candidate keeps both diagnostic AVC transactions (`getName`, buffer type),
+`initDisplay`/`setViewpoint` order, the reducer, the 100 ms fixed-delay polling
+schedule, CAN subscriptions and teardown barriers unchanged. It adds monotonic
+timestamps on stock-window changes and camera commands, and one first-buffer
+callback per renderer startup. It does not perform additional vehicle queries.
+The callback records each Binder call's duration, surface/bind readiness and
+READY-to-first-update time. READY still means initialization acknowledgement;
+the new callback means a TextureView buffer update, not physical scanout or
+proof that the pixels show the expected camera. Subsequent frames do not read
+the clock or allocate timing strings.
+
+Run protocol, with this session as the only installer:
+
+1. Record the installed hash, AVC PID, enabled Mirrors settings and crash buffer.
+   Preserve the existing tunnel and log buffer. Start from indicators off,
+   no visible stock camera, Mirrors enabled and runtime `ready`. Do not reset
+   firmware keys or force-stop stock services.
+2. Announce and install the instrumentation APK with `adb install -r`, recheck
+   its hash and monitor readiness, then start a narrow logcat capture containing
+   `DenzaMirrorMonitor`, `DenzaClusterScene` and `AndroidRuntime`.
+3. Owner operates a stationary car, brake held, in the same gear in which the
+   stock side cameras normally appear. First ordinary left activation: expect
+   stock window, Show request, READY, then exactly one first-update record.
+   No first update, stock-only video or a wrong/disappearing camera falsifies
+   the successful-start assumption and must stay in the result, not be excluded.
+4. After indicators off and both windows closed, wait at least five seconds.
+   Repeat ordinary right; then collect three starts per side if the initial
+   canary succeeds. No rapid reversals or reboots in this baseline. Label the
+   first post-install start separately from later starts; this is not a
+   cold-boot benchmark. Stop on an AVC crash and preserve the crash trace.
+5. Recheck APK hash, AVC PID and crash buffer. Report all attempts, failures,
+   median and range by side and stage. Six starts are exploratory, not enough
+   for a stable tail percentile. Only then select an optimization and repeat
+   exactly the same protocol and instrumentation.
+
+The polling timestamps bound when our observer could have detected the stock
+window; they do not establish the exact lever-to-visible-image latency. An
+external high-frame-rate recording would be required for that user-visible
+end-to-end claim; do not load the head unit with screen recording for this run.
+
+Host check: `python3 tools/check_mirrors_startup.py --red-ref 90821f0` compiles the
+actual renderer against small Android API shims. It checks transaction-order
+preservation, rejection, stage arithmetic, first-update once-only delivery and
+cancellation. These are software contracts, not simulated firmware evidence.
+
+First live sample, 23:03:50–23:03:58: instrumentation APK SHA256
+`2d03702afbd4bb582cf9f580928f8c1795336b524189647d8b585a043e7d22ff` was verified
+on the car before and after the run. The owner confirmed the left camera
+appeared. Its first post-install startup (generation 1) took **391 ms from our
+first observation of the stock window to the first TextureView update**,
+390 ms from Show request. The sequential stages after request were 13 ms to
+scene dispatch, 110 ms to renderer start, 84 ms until Binder connection,
+1 + 0 ms for diagnostic reads, 170 ms for `initDisplay`, 0 ms for viewpoint and
+12 ms from READY to first update. Surface readiness at renderer +38 ms overlaps
+the Binder wait, so it must not be added to this sum. The window query itself
+took 31 ms and is outside the 391 ms above. This single sample does not support
+the proposed diagnostic-read removal as a material latency improvement; most
+time was in scene creation, binding and vendor initialization.
+
+The left/off gesture also produced an opposite-onset guard event at
+23:03:54.330 while the observed stock window remained left. Local detach took
+5 ms and vendor release 125 ms from the onset timestamp. The reducer reopened
+left (generation 3) at 23:03:55.004 before confirmed mode became OFF and before
+the stock window closed. That recovery took 143 ms from request to first
+update, with a 59 ms `initDisplay`. It is recorded separately, not counted as
+another ordinary left-start sample. The raw onset log does not prove the user
+activated right. No AVC/application crash was recorded, AVC PID stayed 5050,
+and the monitor returned to IDLE at 23:03:57.914. More ordinary left/right
+samples are still required; no optimization has been installed.
+
+Second live sample, 23:05:28–23:05:35, ordinary RIGHT from IDLE (generation 5):
+276 ms from stock-window observation to first update, 272 ms from request.
+After request: scene dispatch 5 ms, scene setup 52 ms, bind readiness 46 ms,
+diagnostic reads 1 + 0 ms, `initDisplay` 157 ms, viewpoint 1 ms and READY-to-update
+10 ms. The window query took 35 ms, outside the 276 ms. The same-side onset
+during startup was ignored without a duplicate Show. During the requested off
+gesture, an opposite/left onset again detached and freed the camera while the
+stock right window persisted (3 ms and 98 ms from onset, respectively), followed
+by a same-side reopen (generation 7, 144 ms request-to-update). Both recovery
+events remain separate from the ordinary-start statistics. The owner replied
+"готово" for right without separately describing the picture; the trace confirms
+our first buffer update, not its visual content. APK hash and both process PIDs
+were unchanged, crash buffer empty, monitor IDLE at 23:05:34.962. Two ordinary
+starts are insufficient to infer side asymmetry or stable typical latency;
+four repeat starts remain in the planned baseline.
+
+#### Completed baseline and confirmed cancellation flicker
+
+The full capture ends at 23:08:22.798 and contains **ten ordinary starts and ten
+unwanted same-side reopens** (the owner performed more repetitions than the six
+planned; all are retained). The ordinary observation-to-first-update times, in
+order, were LEFT 391, RIGHT 276, LEFT 260, RIGHT 273, LEFT 271, RIGHT 330,
+LEFT 244, RIGHT 276, LEFT 250, RIGHT 243 ms. Combined median **272 ms**, range
+243–391; LEFT n=5 median 260, RIGHT n=5 median 276. The first post-install start
+was 391 ms; the subsequent nine had median 271 ms, range 243–330. These are
+exploratory observations, not a cold-boot/tail-latency benchmark or proof of a
+side-specific difference. All ten ordinary requests reached first update.
+`initDisplay` accounted for 150–232 ms (median 157); the two diagnostic reads
+combined took only 0–1 ms in every ordinary start. Removing those reads is not
+a meaningful optimization target in this baseline.
+
+The owner explicitly reported: cancelling the signal makes the camera disappear,
+then reappear briefly, then disappear again. The trace confirms this sequence
+after all ten ordinary starts. Example on RIGHT: local surface detached at
+23:08:20.128; mode OFF observed at 20.238 while the stock right window remained;
+the reducer issued another RIGHT Show at 20.857; first buffer update at 20.975;
+the stock window finally closed at 22.302. Thus our second image starts about
+0.85 s after detach and lasts about 1.33 s until the observed stock close.
+Across the series, the residual stock window survived roughly 2.18–3.06 s after
+the opposite-onset guard event, not the 100–300 ms presumed by the same-side
+reopen comment and unit test.
+
+**Cause is in our recovery logic, not a recorded AVC crash.**
+`MirrorTransitionReducer.reduceQuarantined` treats five consecutive observations
+of the preempted side as proof that the lever came back, despite the window
+never having closed. Cancellation produces an opposite onset, so the guard
+removes our surface for switch safety; the old window then satisfies the
+five-poll reopen rule. The next actual stock-window close removes our camera
+again. `theStalePreemptedSideWindowCannotReopenBeforeTheLongerRun` currently
+encodes that false fifth-sample assumption rather than the new cancellation
+trace. This rule and the guard are unchanged from the baseline commit; the
+instrumentation did not add them.
+
+Acceptance for cancellation is therefore **failed**, even though every initial
+startup reached a buffer update and no crash was recorded. Fix same-side rearm
+before pursuing startup acceleration: a surviving old window is not a new
+camera request. Preserve the early opposite-side teardown and require regression
+coverage for ordinary off, rapid opposite-side changes and real same-side
+re-engagement. Merely raising the poll count or disabling the crash-protection
+guard is not the proposed fix. No behavior changes have been made from this
+finding yet.
+
+Final installed hash remains `2d03702a…`, app PID 24607 and AVC PID 5050 unchanged,
+crash buffer empty. Capture was stopped without touching the tunnel. The ignored
+335-line trace in the main checkout,
+`captures/mirrors-startup-baseline/baseline-timing.log`, hashes to
+`c6e5bde03d34defac614ae6a384bd07b675c15367fbbb11e949c6f39e8e54018`.
+The exact rollback APK remains available alongside the trace.
+
+#### Cancellation-fix candidate (before acceleration)
+
+The recorded cancellation became a regression test: 35 consecutive clean
+observations of the surviving preempted-side window must emit no Show. It failed
+on the baseline at the fifth sample, then passed with the fix. The old test that
+treated five polls as proof of a returning lever was corrected, not retained as
+a firmware truth.
+
+The reducer now rearms a surviving same-side window only with a fresh matching
+confirmed-mode observation strictly after the preempt. OFF/hazard/unknown,
+missing, pre-preempt, equal-time and future data cannot do so. A later verification
+timestamp does not refresh the original observation. Mode loss resets that
+path's settling count, not the whole camera state machine. An unambiguous absent
+stock window ends the old cycle; the next window can reopen after two clean
+polls without CAN evidence. Fresh same-side evidence retains the existing
+five-sample settling requirement. Opposite-side recovery, ordinary first starts,
+early CAN teardown and the vendor-free barrier are unchanged.
+
+This consumes the already-cached diagnostic mode read; there are no additional
+vehicle calls, helper processes or leases. Startup timing instrumentation and
+both diagnostic Binder reads are unchanged for comparison. Four targeted
+behavioral mutants were tested and each failed its corresponding assertion:
+remove the same-side guard; use verification instead of observation time; forget
+the window-gap rearm; skip the preemption-in-flight barrier. Every mutant was
+restored before the final build. These are local software checks, not car acceptance.
+
+Live acceptance starts from indicators off, monitor ready and no stock camera.
+First left/off and right/off must each show once and then stay hidden until the
+next actual activation (no generation for the old stock tail). Only after that
+passes, check re-engagement of the same side and direct side changes; a missing
+new camera or AVC crash fails acceptance. Stop on a crash and retain its trace.
+Acceleration remains a separate next step after this fix's car check; no new
+polling rate, persistent surface or vendor initialization order is introduced.
+
+Cancellation canary result, 23:20:04–23:20:27: fix-only APK SHA256
+`f9ade56e954a568f4107bb86a2ab3412bd476099047a81ba6859c2df01f045db` verified before
+and after. One LEFT and one RIGHT activation each reached first update (332 ms
+and 284 ms after stock-window observation). Both off gestures tore the camera
+down but produced **zero repeat Shows** while the old stock window remained.
+The owner explicitly confirmed the repeat appearances disappeared. AVC PID 5050
+and app PID 30720 stayed unchanged; crash buffer empty. This accepts the two
+ordinary cancellation canaries, not the wider quick-re-engagement/reversal
+matrix. The saved trace `cancellation-fix.log` hashes to
+`9328977acdc345766505faba8b95de6208c3a98f6005a8b13a2f2587232e8fbc`.
+
+#### Acceleration candidate: cosmetic notification work off the startup path
+
+Only `ClusterSceneService` notification scheduling changes relative to the
+fix-only APK: remove the intermediate "Camera display is ready" notification
+before renderer startup and the "Starting ... mirror" notification after bind
+is requested. They each build a PendingIntent and call NotificationManager on
+the UI thread. The foreground-service notification in onCreate is unchanged.
+One "Showing ... mirror" update is posted after the first TextureView-update
+callback; at execution it requires the same command generation and READY state.
+Superseding Hide/Show/failure/destroy drops it, and a notification error does not
+fail the camera session. Base-scene notifications and camera error/teardown
+notifications are unchanged. There is no extra executor/thread, timer, retained
+surface, CAN subscription, polling frequency change or native AVC call change.
+
+This is a conservative latency candidate, not a measured improvement yet.
+The old and new logs retain identical startup timestamps. Compare ordinary
+left/right starts, scene-setup/bind time and vendor-init time separately; a
+faster vendor init alone is not evidence that moving notifications helped.
+Check absence of cancellation flicker again, and do not claim physical
+lever-to-scanout timing from a TextureView update callback.
+
+Acceleration-candidate live result, 23:26:02–23:27:43: APK SHA256
+`7c3e3aa3d089fa09b92380089d16293acfbeefb0968a8e22c498346b69a77193`, nine first
+updates, no recorded cancellation-tail reopen or crash, AVC PID 5050/app PID
+15823 unchanged. The owner described a small subjective speedup. Four starts
+were from IDLE and five were recovery onto new/opposite stock windows; the latter
+waited 125–139 ms from first stock observation to Show because of the unchanged
+two-clean-poll rule. This is not a matched comparison to the ten ordinary
+baseline starts. Request-to-first-update times were 389, 253, 226, 252, 243,
+355, 307, 351, 237 ms (median 253); first-stock-observation-to-update times were
+392, 382, 228, 380, 250, 492, 310, 490, 362 ms. Do not mix these metric origins.
+The first post-install start remained 392 ms versus the original 391 ms.
+`initDisplay` still took 151–212 ms. Repeated-start scene setup took 26–76 ms
+and binding 26–42 ms. One READY-to-first-update outlier was 127 ms; cause unknown,
+not excluded. A speedup percentage is not established by this mixed series.
+
+Potential next targets are bounded preparation of app-owned UI before Show and
+investigation of the roughly 130 ms recovery wait. Idle Binder preconnection
+would be a separate lifecycle experiment, not assumed safe here. No faster
+polling, reduced safety interval or retained vendor surface was implemented.
+The raw 170-line capture `notification-startup.log` hashes to
+`aff61efdd8988687eb58d441a4d26b5e551506d4b13ac9b568886a3454a187cd`;
+capture stopped with the existing tunnel preserved.
+
 ## Navigation projection
 
 Denza Apps owns the navigation `VirtualDisplay` and its `Surface` in the app
