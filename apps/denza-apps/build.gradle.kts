@@ -8,19 +8,18 @@ plugins {
 }
 
 /**
- * Packs `SplitTaskProxyMain` into a jar of its own.
+ * Packs one platform-only `app_process` entry point into a jar of its own.
  *
- * The split recipes run that one class as the shell user through `app_process`, and the only
- * classpath they had was the application APK: 62 MB of dex for ART to open and verify on every
- * single one-shot call, measured at 1.36 s each on the car. The same class on its own is a 3.6 KB
- * jar, which the product stages next to the other shell-UID helpers of this project and loads from
- * there instead (see `SplitStagedProxyDex`).
+ * These helpers run one class as the shell user through `app_process`. The split helper's former
+ * classpath was the application APK: 62 MB of dex for ART to open and verify on every one-shot
+ * call, measured at 1.36 s each on the car. Packing each platform-only entry point separately
+ * keeps that classpath small and prevents application code from silently entering the shell side.
  *
- * It is compiled here rather than taken from the variant's own class output on purpose: the proxy
+ * Each is compiled here rather than taken from the variant's own class output on purpose: it
  * depends on nothing but the platform, so this task needs no build-order relationship with the
  * application's compilation, and the jar cannot silently pick up anything else.
  */
-abstract class PackSplitTaskProxy : DefaultTask() {
+abstract class PackShellProxy : DefaultTask() {
     @get:InputFile
     abstract val source: RegularFileProperty
 
@@ -32,6 +31,9 @@ abstract class PackSplitTaskProxy : DefaultTask() {
 
     @get:Input
     abstract val minApi: Property<Int>
+
+    @get:Input
+    abstract val archiveName: Property<String>
 
     @get:OutputDirectory
     abstract val outputDirectory: DirectoryProperty
@@ -46,7 +48,7 @@ abstract class PackSplitTaskProxy : DefaultTask() {
         classes.mkdirs()
         val platform = androidJar.files.joinToString(File.pathSeparator)
         val compiler = requireNotNull(ToolProvider.getSystemJavaCompiler()) {
-            "Gradle must run on a JDK to pack the split task proxy"
+            "Gradle must run on a JDK to pack a shell proxy"
         }
         val compiled = compiler.run(
             null,
@@ -65,7 +67,7 @@ abstract class PackSplitTaskProxy : DefaultTask() {
 
         val output = outputDirectory.get().asFile
         output.mkdirs()
-        val jar = output.resolve(PROXY_JAR)
+        val jar = output.resolve(archiveName.get())
         jar.delete()
         execOperations.exec {
             executable = d8().absolutePath
@@ -75,7 +77,7 @@ abstract class PackSplitTaskProxy : DefaultTask() {
             args(classes.walkTopDown().filter { it.extension == "class" }.map { it.absolutePath }
                 .toList())
         }
-        check(jar.isFile && jar.length() > 0) { "d8 produced no $PROXY_JAR" }
+        check(jar.isFile && jar.length() > 0) { "d8 produced no ${archiveName.get()}" }
     }
 
     /** The newest build-tools that actually ships a `d8`; the SDK may hold several. */
@@ -87,10 +89,6 @@ abstract class PackSplitTaskProxy : DefaultTask() {
             .map { version -> version.resolve("d8") }
             .filter(File::canExecute)
         return candidates.lastOrNull() ?: error("no build-tools/*/d8 in the Android SDK")
-    }
-
-    companion object {
-        const val PROXY_JAR = "split-task-proxy.jar"
     }
 }
 
@@ -130,7 +128,7 @@ android {
             variant.outputs.forEach { output ->
                 output.outputFileName.set("denza-apps.apk")
             }
-            val pack = tasks.register<PackSplitTaskProxy>(
+            val packSplit = tasks.register<PackShellProxy>(
                 "pack${variant.name.replaceFirstChar(Char::titlecase)}SplitTaskProxy",
             ) {
                 source.set(
@@ -141,10 +139,29 @@ android {
                 androidJar.from(platform)
                 sdkDirectory.set(sdk)
                 minApi.set(33)
+                archiveName.set("split-task-proxy.jar")
             }
             variant.sources.assets?.addGeneratedSourceDirectory(
-                pack,
-                PackSplitTaskProxy::outputDirectory,
+                packSplit,
+                PackShellProxy::outputDirectory,
+            )
+            val packSignals = tasks.register<PackShellProxy>(
+                "pack${variant.name.replaceFirstChar(Char::titlecase)}VehicleSignalProxy",
+            ) {
+                source.set(
+                    layout.projectDirectory.file(
+                        "src/main/java/dev/denza/apps/feature/vehicle/signal/" +
+                            "TargetedBydLightEventProxyMain.java",
+                    ),
+                )
+                androidJar.from(platform)
+                sdkDirectory.set(sdk)
+                minApi.set(33)
+                archiveName.set("vehicle-signal-proxy.jar")
+            }
+            variant.sources.assets?.addGeneratedSourceDirectory(
+                packSignals,
+                PackShellProxy::outputDirectory,
             )
         }
     }

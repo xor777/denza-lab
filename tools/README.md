@@ -10,6 +10,19 @@ Current scripts:
 
 - `side_camera_overlay_monitor.sh`: older host-side monitor for side-camera windows and turn-light logcat events.
 - `turn_signal_overlay_monitor.sh`: older PIP/turn-signal overlay experiment.
+- `raw_can_turn_probe.sh` + `RawCanTurnProbe.java`: bounded, read-only shell-UID
+  capture of the raw frames already selected by stock `CanDataCollect`. It does
+  not change the selection table, call a setter, wake the MCU, or install an
+  APK. Labels are entered on stdin; `analyze_can_turn_capture.py` ranks payload
+  bits against neutral/left/right/hazard phases and reports callback loss. The
+  raw stream is diagnostic only; durable results belong to
+  `docs/vehicle-data-findings.md`.
+- `turn_signal_event_probe.sh` + `TurnSignalEventProbe.java`: narrow read-only
+  shell-UID listener for the two BYDAutoLight turn FIDs. It accepts phase marks
+  and `STOP`, has a hard timeout, unregisters the listener, and removes its
+  temporary dex. It installs no APK and has no setter. Use this probe instead
+  of the raw stream when validating the targeted event path; durable results
+  belong to `docs/vehicle-data-findings.md`.
 - `avc_alert_overlay_monitor.sh`: older AVC alert/window monitor experiment.
 - `a11y-window-timing-probe.sh`: captures accessibility window-push timing for
   the side-camera transition investigation. It is a diagnostic observer, not a

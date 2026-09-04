@@ -603,10 +603,12 @@ public final class LocalAdbClient {
         private final String readyMarker;
         private final String beginMarker;
         private final String endMarker;
-        private Socket socket;
+        private volatile Socket socket;
+        private volatile Socket connectingSocket;
         private InputStream input;
         private OutputStream output;
         private int remoteId = -1;
+        private volatile boolean closed;
 
         private ResidentSession(String nonce) {
             readyMarker = "DENZA_SERVE_" + nonce + ":READY";
@@ -617,6 +619,9 @@ public final class LocalAdbClient {
         /** Runs [launchCommand] and waits for the helper to say it is up. */
         public synchronized void start(String launchCommand, int readyTimeoutMs)
                 throws IOException, GeneralSecurityException {
+            if (closed) {
+                throw new IOException("this resident session is closed");
+            }
             if (socket != null) {
                 throw new IOException("this resident session is already running");
             }
@@ -624,7 +629,11 @@ public final class LocalAdbClient {
             GeneralSecurityException lastSecurityFailure = null;
             for (String host : hosts) {
                 Socket candidate = new Socket();
+                connectingSocket = candidate;
                 try {
+                    if (closed) {
+                        throw new IOException("this resident session was closed while starting");
+                    }
                     candidate.connect(new InetSocketAddress(host, PORT), CONNECT_TIMEOUT_MS);
                     prepareTransport(candidate, readyTimeoutMs);
                     InputStream candidateInput = candidate.getInputStream();
@@ -639,16 +648,39 @@ public final class LocalAdbClient {
                             candidateRemoteId,
                             launchCommand,
                             readyMarker);
+                    if (closed) {
+                        closeQuietly(candidate);
+                        throw new IOException("this resident session was closed while starting");
+                    }
                     socket = candidate;
                     input = candidateInput;
                     output = candidateOutput;
                     remoteId = candidateRemoteId;
+                    if (closed) {
+                        socket = null;
+                        input = null;
+                        output = null;
+                        remoteId = -1;
+                        closeQuietly(candidate);
+                        throw new IOException("this resident session was closed while starting");
+                    }
+                    connectingSocket = null;
                     return;
                 } catch (GeneralSecurityException error) {
+                    if (connectingSocket == candidate) connectingSocket = null;
                     closeQuietly(candidate);
+                    if (closed) {
+                        throw new IOException(
+                                "this resident session was closed while starting", error);
+                    }
                     lastSecurityFailure = error;
                 } catch (IOException error) {
+                    if (connectingSocket == candidate) connectingSocket = null;
                     closeQuietly(candidate);
+                    if (closed) {
+                        throw new IOException(
+                                "this resident session was closed while starting", error);
+                    }
                     lastIoFailure = error;
                 }
             }
@@ -663,6 +695,9 @@ public final class LocalAdbClient {
 
         /** One request, one answer. Any failure at all closes the channel; the caller falls back. */
         public synchronized String request(String line, int readTimeoutMs) throws IOException {
+            if (closed) {
+                throw new IOException("the resident session is closed");
+            }
             if (socket == null) {
                 throw new IOException("the resident helper is not running");
             }
@@ -683,16 +718,26 @@ public final class LocalAdbClient {
         }
 
         public synchronized boolean isRunning() {
-            return socket != null;
+            return !closed && socket != null;
         }
 
         @Override
-        public synchronized void close() {
+        public void close() {
+            closed = true;
+            // Socket.close() is the interruption primitive for a blocking read. Do it before
+            // taking this object's monitor: request() holds that monitor while it waits for a
+            // resident answer, and lifecycle teardown must not wait for the helper's long-poll.
             closeQuietly(socket);
-            socket = null;
-            input = null;
-            output = null;
-            remoteId = -1;
+            // start() also owns this monitor. Publishing the candidate before connect/handshake
+            // gives close() the same interruption primitive while startup is still in flight.
+            closeQuietly(connectingSocket);
+            synchronized (this) {
+                socket = null;
+                connectingSocket = null;
+                input = null;
+                output = null;
+                remoteId = -1;
+            }
         }
     }
 
@@ -806,13 +851,14 @@ public final class LocalAdbClient {
     public final class PersistentShellSession implements AutoCloseable {
         private final String markerNonce =
                 Long.toUnsignedString(System.nanoTime(), 16);
-        private Socket socket;
+        private volatile Socket socket;
+        private volatile Socket connectingSocket;
         private InputStream input;
         private OutputStream output;
         private int remoteId = -1;
         private long commandSequence;
         private long nextConnectAtNanos = Long.MIN_VALUE;
-        private boolean closed;
+        private volatile boolean closed;
         private final ShellSpend spend = new ShellSpend();
 
         public String shell(String command)
@@ -879,7 +925,11 @@ public final class LocalAdbClient {
             GeneralSecurityException lastSecurityFailure = null;
             for (String host : hosts) {
                 Socket candidate = new Socket();
+                connectingSocket = candidate;
                 try {
+                    if (closed) {
+                        throw new IOException("Persistent ADB shell was closed while connecting");
+                    }
                     candidate.connect(new InetSocketAddress(host, PORT), CONNECT_TIMEOUT_MS);
                     prepareTransport(candidate, readTimeoutMs);
                     InputStream candidateInput = candidate.getInputStream();
@@ -894,12 +944,27 @@ public final class LocalAdbClient {
                     output = candidateOutput;
                     remoteId = candidateRemoteId;
                     nextConnectAtNanos = Long.MIN_VALUE;
+                    if (closed) {
+                        closeConnection();
+                        throw new IOException("Persistent ADB shell was closed while connecting");
+                    }
+                    connectingSocket = null;
                     return;
                 } catch (GeneralSecurityException error) {
+                    if (connectingSocket == candidate) connectingSocket = null;
                     closeQuietly(candidate);
+                    if (closed) {
+                        throw new IOException(
+                                "Persistent ADB shell was closed while connecting", error);
+                    }
                     lastSecurityFailure = error;
                 } catch (IOException error) {
+                    if (connectingSocket == candidate) connectingSocket = null;
                     closeQuietly(candidate);
+                    if (closed) {
+                        throw new IOException(
+                                "Persistent ADB shell was closed while connecting", error);
+                    }
                     if (isAuthorizationPending(error)) {
                         scheduleReconnect(AUTH_PROMPT_COOLDOWN_NANOS);
                         throw error;
@@ -941,9 +1006,16 @@ public final class LocalAdbClient {
         }
 
         @Override
-        public synchronized void close() {
+        public void close() {
             closed = true;
-            closeConnection();
+            // shell() owns this object's monitor while waiting for ADB. Close its socket first so
+            // cancellation never waits for the very read it needs to interrupt.
+            closeQuietly(socket);
+            closeQuietly(connectingSocket);
+            synchronized (this) {
+                closeConnection();
+                connectingSocket = null;
+            }
         }
 
         private void closeConnection() {
