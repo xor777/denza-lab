@@ -12,6 +12,7 @@ import android.graphics.SurfaceTexture;
 import android.os.IBinder;
 import android.os.Parcel;
 import android.os.RemoteException;
+import android.os.SystemClock;
 import android.view.Surface;
 import android.view.TextureView;
 import android.view.View;
@@ -22,6 +23,8 @@ public final class AvcCameraRenderer implements TextureView.SurfaceTextureListen
         void onReady(String details);
         void onFailure(String details);
         void onLocalSurfaceReleased();
+        /** First TextureView buffer update after READY, not proof of physical display scanout. */
+        default void onFirstFrame(String details) { }
     }
 
     private static final float COLOR_CONTRAST_SCALE = 1.62f;
@@ -37,6 +40,7 @@ public final class AvcCameraRenderer implements TextureView.SurfaceTextureListen
     private boolean initAttempted;
     private int viewpoint;
     private Surface surface;
+    private volatile AvcStartupTiming startupTiming;
 
     private final ServiceConnection connection = new ServiceConnection() {
         @Override
@@ -44,11 +48,14 @@ public final class AvcCameraRenderer implements TextureView.SurfaceTextureListen
             client = new AvcAidlClient(service);
             bound = true;
             bindingRequested = true;
+            AvcStartupTiming timing = startupTiming;
+            if (timing != null) timing.boundAtMs = SystemClock.elapsedRealtime();
             initializeIfReady();
         }
 
         @Override
         public void onServiceDisconnected(ComponentName name) {
+            startupTiming = null;
             bound = false;
             bindingRequested = false;
             client = null;
@@ -57,6 +64,7 @@ public final class AvcCameraRenderer implements TextureView.SurfaceTextureListen
 
         @Override
         public void onBindingDied(ComponentName name) {
+            startupTiming = null;
             bound = false;
             bindingRequested = false;
             client = null;
@@ -65,6 +73,7 @@ public final class AvcCameraRenderer implements TextureView.SurfaceTextureListen
 
         @Override
         public void onNullBinding(ComponentName name) {
+            startupTiming = null;
             bound = false;
             bindingRequested = false;
             client = null;
@@ -80,6 +89,7 @@ public final class AvcCameraRenderer implements TextureView.SurfaceTextureListen
 
     public void start(int viewpoint, boolean processingEnabled) {
         stop();
+        startupTiming = new AvcStartupTiming(SystemClock.elapsedRealtime());
         this.viewpoint = viewpoint;
         applyImageEnhancement(processingEnabled);
         textureView.setSurfaceTextureListener(this);
@@ -91,14 +101,17 @@ public final class AvcCameraRenderer implements TextureView.SurfaceTextureListen
         try {
             bindingRequested = context.bindService(intent, connection, Context.BIND_AUTO_CREATE);
             if (!bindingRequested) {
+                startupTiming = null;
                 listener.onFailure("com.byd.avc bind failed");
             }
         } catch (RuntimeException error) {
+            startupTiming = null;
             listener.onFailure("com.byd.avc bind failed: " + shortError(error));
         }
     }
 
     public void stop() {
+        startupTiming = null;
         boolean hadLocalSurface = surface != null;
         if (client != null) {
             try {
@@ -129,6 +142,8 @@ public final class AvcCameraRenderer implements TextureView.SurfaceTextureListen
         texture.setDefaultBufferSize(Math.max(1, width), Math.max(1, height));
         releaseSurface();
         surface = new Surface(texture);
+        AvcStartupTiming timing = startupTiming;
+        if (timing != null) timing.surfaceAtMs = SystemClock.elapsedRealtime();
         initializeIfReady();
     }
 
@@ -140,6 +155,7 @@ public final class AvcCameraRenderer implements TextureView.SurfaceTextureListen
 
     @Override
     public boolean onSurfaceTextureDestroyed(SurfaceTexture texture) {
+        startupTiming = null;
         releaseSurface();
         listener.onLocalSurfaceReleased();
         return true;
@@ -151,6 +167,12 @@ public final class AvcCameraRenderer implements TextureView.SurfaceTextureListen
 
     @Override
     public void onSurfaceTextureUpdated(SurfaceTexture texture) {
+        AvcStartupTiming timing = startupTiming;
+        if (timing == null || timing.readyAtMs < 0
+                || texture != textureView.getSurfaceTexture()) return;
+        // Bounded: no clock reads or metric allocation on subsequent video frames.
+        startupTiming = null;
+        listener.onFirstFrame(timing.firstFrameDetails(SystemClock.elapsedRealtime()));
     }
 
     private void initializeIfReady() {
@@ -158,33 +180,49 @@ public final class AvcCameraRenderer implements TextureView.SurfaceTextureListen
             return;
         }
         initAttempted = true;
+        final AvcStartupTiming timing = startupTiming;
         try {
+            long readStartedAt = SystemClock.elapsedRealtime();
             String name = client.getName();
+            long nameReadAt = SystemClock.elapsedRealtime();
             int bufferType = client.getSupportPushBufferType();
+            long bufferReadAt = SystemClock.elapsedRealtime();
+            if (timing != null) {
+                timing.getNameMs = nameReadAt - readStartedAt;
+                timing.bufferTypeMs = bufferReadAt - nameReadAt;
+            }
             AvcInitializationGate.run(new AvcInitializationGate.Attempt() {
                 @Override
                 public boolean initDisplay() throws RemoteException {
-                    return client.initDisplay(surface);
+                    long startedAt = SystemClock.elapsedRealtime();
+                    boolean accepted = client.initDisplay(surface);
+                    if (timing != null) timing.initDisplayMs = SystemClock.elapsedRealtime() - startedAt;
+                    return accepted;
                 }
 
                 @Override
                 public void setViewpoint() throws RemoteException {
+                    long startedAt = SystemClock.elapsedRealtime();
                     client.setViewpoint(viewpoint);
+                    if (timing != null) timing.viewpointMs = SystemClock.elapsedRealtime() - startedAt;
                 }
 
                 @Override
                 public void onReady() {
+                    if (timing != null) timing.readyAtMs = SystemClock.elapsedRealtime();
                     listener.onReady("avc=" + name + " init=true"
                             + " buffer=" + bufferType + " viewpoint=" + viewpoint);
                 }
 
                 @Override
                 public void onRejected() {
+                    startupTiming = null;
                     listener.onFailure("com.byd.avc initDisplay returned false"
                             + " buffer=" + bufferType + " viewpoint=" + viewpoint);
                 }
             });
         } catch (RemoteException | RuntimeException error) {
+            startupTiming = null;
             listener.onFailure("com.byd.avc init failed: " + shortError(error));
         }
     }

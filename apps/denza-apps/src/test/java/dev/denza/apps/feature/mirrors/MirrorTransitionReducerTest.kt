@@ -8,6 +8,66 @@ import org.junit.Test
 
 class MirrorTransitionReducerTest {
     @Test
+    fun recordedCancellationNeverReopensTheContinuouslyRemainingWindow() {
+        // 2026-09-04: ten cancellations left the stock window visible for 2175–3056 ms.
+        // A fifth clean poll is not a new turn. Replay longer than the full observed tail.
+        MirrorSide.entries.forEach { side ->
+            assertStaysQuarantined(preemptedQuarantine(side), side, polls = 35)
+        }
+    }
+
+    @Test
+    fun preCancellationAndFutureEvidenceCannotRearmTheOldWindow() {
+        listOf(99L, 100L, 9_999L).forEach { timestamp ->
+            assertStaysQuarantined(preemptedQuarantine(MirrorSide.LEFT), MirrorSide.LEFT, 35, rearmAtMs = timestamp)
+        }
+    }
+
+    @Test
+    fun aRealWindowGapAllowsSameSideAgainWithoutAnyCanEvidence() {
+        MirrorSide.entries.forEach { side ->
+            val gap = reduce(preemptedQuarantine(side), null, runtime(CameraRuntimePhase.STOPPING), 200L)
+            assertEquals(MirrorTransitionCommand.None, gap.command)
+            assertNull(gap.state.preemptedSide)
+            assertReopensAfterTwoCleanSamples(gap.state, side, 300L)
+        }
+    }
+
+    @Test
+    fun ambiguousAbsenceCannotProveTheOldWindowEnded() {
+        val ambiguous = MirrorTransitionReducer.reduce(
+            preemptedQuarantine(MirrorSide.LEFT),
+            MirrorTransitionObservation(null, runtime(CameraRuntimePhase.IDLE), 200L, runtimeWindowAmbiguous = true),
+        )
+        assertStaysQuarantined(ambiguous.state, MirrorSide.LEFT, 35)
+    }
+
+    @Test
+    fun lossOfSameSideEvidenceResetsItsSettlingRun() {
+        val almost = assertStaysQuarantined(
+            preemptedQuarantine(MirrorSide.LEFT), MirrorSide.LEFT, 4, rearmAtMs = 150L,
+        )
+        val lost = reduce(almost, MirrorSide.LEFT, runtime(CameraRuntimePhase.IDLE), 700L)
+        assertEquals(0, lost.state.reopenSamples)
+        val waiting = assertStaysQuarantined(lost.state, MirrorSide.LEFT, 4, fromMs = 800L, rearmAtMs = 750L)
+        val reopened = reduce(waiting, MirrorSide.LEFT, runtime(CameraRuntimePhase.IDLE), 1_200L, rearmAtMs = 750L)
+        assertEquals(MirrorTransitionCommand.Show(MirrorSide.LEFT), reopened.command)
+    }
+
+    @Test
+    fun renewedModeCannotBypassWindowRuntimeOrTeardownGates() {
+        listOf(
+            MirrorTransitionObservation(null, runtime(CameraRuntimePhase.IDLE), 300L, sameSideRearmObservedAtMs = 150L),
+            MirrorTransitionObservation(MirrorSide.LEFT, runtime(CameraRuntimePhase.STOPPING), 300L, sameSideRearmObservedAtMs = 150L),
+            MirrorTransitionObservation(MirrorSide.LEFT, runtime(CameraRuntimePhase.IDLE), 300L, preemptionInFlight = true, sameSideRearmObservedAtMs = 150L),
+            MirrorTransitionObservation(MirrorSide.LEFT, runtime(CameraRuntimePhase.IDLE), 300L, runtimeWindowAmbiguous = true, sameSideRearmObservedAtMs = 150L),
+        ).forEach { observation ->
+            val almost = preemptedQuarantine(MirrorSide.LEFT).copy(reopenSide = MirrorSide.LEFT, reopenSamples = 4)
+            assertEquals(MirrorTransitionCommand.None, MirrorTransitionReducer.reduce(almost, observation).command)
+        }
+    }
+
+    @Test
     fun idleRequestsOneShowAndWaitsForRuntimeReady() {
         val started = reduce(
             state = MirrorTransitionState(),
@@ -369,16 +429,17 @@ class MirrorTransitionReducerTest {
     }
 
     @Test
-    fun theStalePreemptedSideWindowCannotReopenBeforeTheLongerRun() {
-        // The stock window of the side we tore down outlives the onset by 100-300 ms. Four clean
-        // polls of it are still that stale window; the fifth is a lever that came back.
-        val blocked = assertStaysQuarantined(preemptedQuarantine(MirrorSide.LEFT), MirrorSide.LEFT, polls = 4)
+    fun aRenewedSameSideModeStillNeedsTheSettlingRun() {
+        val blocked = assertStaysQuarantined(
+            preemptedQuarantine(MirrorSide.LEFT), MirrorSide.LEFT, polls = 4, rearmAtMs = 150L,
+        )
 
         val reopened = reduce(
             state = blocked,
             requested = MirrorSide.LEFT,
             runtime = runtime(CameraRuntimePhase.IDLE, generation = 4L),
             nowMs = 700L,
+            rearmAtMs = 150L,
         )
         assertEquals(MirrorTransitionPhase.STARTING, reopened.state.phase)
         assertEquals(MirrorTransitionCommand.Show(MirrorSide.LEFT), reopened.command)
@@ -386,7 +447,9 @@ class MirrorTransitionReducerTest {
 
     @Test
     fun aStaleSampleInTheMiddleOfTheLongerRunStartsItOver() {
-        var state = assertStaysQuarantined(preemptedQuarantine(MirrorSide.LEFT), MirrorSide.LEFT, polls = 3)
+        var state = assertStaysQuarantined(
+            preemptedQuarantine(MirrorSide.LEFT), MirrorSide.LEFT, polls = 3, rearmAtMs = 150L,
+        )
 
         val other = reduce(
             state = state,
@@ -396,12 +459,13 @@ class MirrorTransitionReducerTest {
         )
         assertEquals(MirrorTransitionCommand.None, other.command)
 
-        state = assertStaysQuarantined(other.state, MirrorSide.LEFT, polls = 4, fromMs = 700L)
+        state = assertStaysQuarantined(other.state, MirrorSide.LEFT, polls = 4, fromMs = 700L, rearmAtMs = 150L)
         val reopened = reduce(
             state = state,
             requested = MirrorSide.LEFT,
             runtime = runtime(CameraRuntimePhase.IDLE, generation = 4L),
             nowMs = 1_100L,
+            rearmAtMs = 150L,
         )
         assertEquals(MirrorTransitionCommand.Show(MirrorSide.LEFT), reopened.command)
     }
@@ -673,12 +737,14 @@ class MirrorTransitionReducerTest {
             nowMs = 200L,
         )
 
-        val blocked = assertStaysQuarantined(switched.state, MirrorSide.LEFT, polls = 4)
+        val stale = assertStaysQuarantined(switched.state, MirrorSide.LEFT, polls = 35)
+        val blocked = assertStaysQuarantined(stale, MirrorSide.LEFT, polls = 4, fromMs = 4_000L, rearmAtMs = 3_900L)
         val reopened = reduce(
             state = blocked,
             requested = MirrorSide.LEFT,
             runtime = runtime(CameraRuntimePhase.IDLE, generation = 4L),
-            nowMs = 700L,
+            nowMs = 4_400L,
+            rearmAtMs = 3_900L,
         )
         assertEquals(MirrorTransitionCommand.Show(MirrorSide.LEFT), reopened.command)
     }
@@ -837,10 +903,11 @@ class MirrorTransitionReducerTest {
         polls: Int,
         fromMs: Long = 300L,
         runtimePhase: CameraRuntimePhase = CameraRuntimePhase.IDLE,
+        rearmAtMs: Long? = null,
     ): MirrorTransitionState {
         var state = quarantined
         repeat(polls) { index ->
-            val result = reduce(state, side, runtime(runtimePhase, generation = 4L), fromMs + index * 100L)
+            val result = reduce(state, side, runtime(runtimePhase, generation = 4L), fromMs + index * 100L, rearmAtMs)
             assertEquals("poll $index", MirrorTransitionPhase.QUARANTINED, result.state.phase)
             assertEquals("poll $index", MirrorTransitionCommand.None, result.command)
             state = result.state
@@ -866,12 +933,14 @@ class MirrorTransitionReducerTest {
         requested: MirrorSide?,
         runtime: CameraRuntimeSnapshot,
         nowMs: Long,
+        rearmAtMs: Long? = null,
     ): MirrorTransitionResult = MirrorTransitionReducer.reduce(
         state,
         MirrorTransitionObservation(
             requestedSide = requested,
             runtime = runtime,
             nowMs = nowMs,
+            sameSideRearmObservedAtMs = rearmAtMs,
         ),
     )
 

@@ -20,6 +20,7 @@ import android.graphics.RadialGradient
 import android.graphics.Shader
 import android.os.Handler
 import android.os.IBinder
+import android.os.SystemClock
 import android.os.Looper
 import android.util.Log
 import android.view.Display
@@ -51,6 +52,13 @@ class ClusterSceneService : Service() {
     }
 
     private val handler = Handler(Looper.getMainLooper())
+    private val cameraReadyNotification = CameraReadyNotification(
+        post = { task -> handler.post { task() } },
+        isCurrentReady = { generation ->
+            cameraCommandFence.isCurrent(generation) && cameraRuntime.snapshot().phase == CameraRuntimePhase.READY
+        },
+        onFailure = { error -> Log.w(TAG, "Camera notification failed; video untouched", error) },
+    )
     private var basePresentation: ClusterPresentation? = null
     private var cameraPresentation: ClusterPresentation? = null
     private var cameraTeardownPresentation: ClusterPresentation? = null
@@ -160,9 +168,12 @@ class ClusterSceneService : Service() {
                 display,
                 ::onAvcReady,
                 ::onAvcFailure,
+                ::onAvcFirstFrame,
             ).also { it.show() }
             if (cameraLayer) cameraPresentation = shown else basePresentation = shown
-            updateNotification(if (cameraLayer) "Camera display is ready" else "Instrument display is ready")
+            // Camera status follows the first frame; avoid an intermediate system Binder call
+            // before layout/binding. Base-scene notification behavior is unchanged.
+            if (!cameraLayer) updateNotification("Instrument display is ready")
             shown
         } catch (error: RuntimeException) {
             Log.e(TAG, "Unable to show ${if (cameraLayer) "camera" else "instrument"} presentation", error)
@@ -180,7 +191,7 @@ class ClusterSceneService : Service() {
             updateNotification("Waiting for camera cleanup")
             return
         }
-        Log.i(TAG, "showCamera ${config.side}")
+        Log.i(TAG, "showCamera ${config.side}; generation=$commandGeneration at_ms=${SystemClock.elapsedRealtime()}")
         cameraRuntime.starting(config.side)
         val scene = prepareCameraScene()
         if (scene == null) {
@@ -192,7 +203,6 @@ class ClusterSceneService : Service() {
         try {
             handler.removeCallbacksAndMessages(null)
             scene.showCamera(config, commandGeneration)
-            updateNotification("Starting ${config.side.name.lowercase()} mirror")
         } catch (error: RuntimeException) {
             Log.e(TAG, "Unable to start camera renderer", error)
             val failure = "camera start failed: ${error::class.java.simpleName}"
@@ -345,6 +355,15 @@ class ClusterSceneService : Service() {
         runtime.side?.let { cameraRuntime.ready(it, details) }
     }
 
+    private fun onAvcFirstFrame(commandGeneration: Long, details: String) {
+        if (!cameraCommandFence.isCurrent(commandGeneration)) return
+        Log.i(TAG, "AVC first texture update; generation=$commandGeneration $details")
+        val side = cameraRuntime.snapshot().side ?: return
+        cameraReadyNotification.afterFirstFrame(commandGeneration) {
+            updateNotification("Showing ${side.name.lowercase()} mirror")
+        }
+    }
+
     private fun onAvcFailure(commandGeneration: Long, details: String) {
         if (!cameraCommandFence.isCurrent(commandGeneration)) {
             Log.i(TAG, "stale AVC failure ignored; generation=$commandGeneration")
@@ -408,6 +427,7 @@ class ClusterSceneService : Service() {
         display: Display,
         private val ready: (Long, String) -> Unit,
         private val failed: (Long, String) -> Unit,
+        private val firstFrame: (Long, String) -> Unit,
     ) : Presentation(context, display) {
         lateinit var mapSurface: SurfaceView
             private set
@@ -503,6 +523,7 @@ class ClusterSceneService : Service() {
                 override fun onReady(details: String) = ready(cameraCommandGeneration, details)
                 override fun onFailure(details: String) = failed(cameraCommandGeneration, details)
                 override fun onLocalSurfaceReleased() = markLocalSurfaceDetached()
+                override fun onFirstFrame(details: String) = firstFrame(cameraCommandGeneration, details)
             })
         }
 
@@ -1172,6 +1193,7 @@ class ClusterSceneService : Service() {
 
         fun showCamera(context: Context, config: MirrorCameraConfig) {
             val generation = cameraCommandFence.issueShow()
+            Log.i(TAG, "camera request; generation=$generation side=${config.side} at_ms=${SystemClock.elapsedRealtime()}")
             val intent = serviceIntent(context, ACTION_SHOW_CAMERA)
                 .putExtra(EXTRA_SIDE, config.side.name)
                 .putExtra(EXTRA_POSITION, config.position.name)

@@ -14,8 +14,10 @@ internal enum class MirrorSwitchPreemptionDecision {
  * The turn lever is a teardown trigger, never a Show authority.
  *
  * The stock AVC window set is the only authority for showing a side: the reducer's requested side
- * is the detected stock window side, with no CAN precondition at all. When the signal hub or its
- * helper is unavailable nothing here runs, and Mirrors behaves exactly like the window-only build.
+ * is the detected stock window side. Ordinary starts and new/opposite stock windows do not need
+ * CAN confirmation. The one exception is reusing the continuously surviving preempted-side
+ * window: the reducer requires a renewed matching mode observation, not just elapsed polls.
+ * An unavailable feed never closes a camera; a blocked old window waits for a new stock cycle.
  *
  * The raw lever onset (2 = left, 4 = right) exists for one reason only: with a Denza camera
  * surface attached, a fast left-to-right switch crashed stock `com.byd.avc`, and detaching our
@@ -27,8 +29,9 @@ internal enum class MirrorSwitchPreemptionDecision {
  * pulse can be read as an edge inside a remembered gesture. A same-side onset can never be a side
  * switch, whether or not the lever passed neutral in between, so it never tears down.
  *
- * After a preempt the camera may reopen only on the *other* side, once the vendor teardown has
- * finished; the stale stock window of the preempted side must never reopen it.
+ * After a preempt the stale window alone cannot reopen the same side. A new stock window cycle
+ * or renewed confirmed same-side observation must distinguish it from a cancellation tail.
+ * Every reopen still waits for the vendor teardown to finish.
  */
 internal object MirrorSwitchPreemption {
     /** True while the retained raw state still describes an active lever transition. */

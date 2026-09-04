@@ -20,8 +20,9 @@ enum class MirrorQuarantineRecovery {
 
     /**
      * The stock changed its windows, or the lever announced that it would. An unambiguous stock
-     * window reopens the camera once our teardown has finished. The side we tore down needs the
-     * longer run, because its old window outlives the switch by 100-300 ms.
+     * window reopens the camera once our teardown has finished. A continuously surviving window
+     * of the preempted side additionally needs renewed same-side evidence; elapsed polls cannot
+     * distinguish a new turn from the stock window's multi-second cancellation tail.
      */
     STOCK_WINDOW_AFTER_TEARDOWN,
 }
@@ -49,6 +50,8 @@ data class MirrorTransitionObservation(
     val preemptionInFlight: Boolean = false,
     /** The retained raw lever phase still describes a movement (raw 2..5). */
     val leverEngaged: Boolean = false,
+    /** Fresh matching confirmed mode observation; used ONLY for the surviving preempted side. */
+    val sameSideRearmObservedAtMs: Long? = null,
 )
 
 sealed interface MirrorTransitionCommand {
@@ -71,8 +74,7 @@ object MirrorTransitionReducer {
     const val REOPEN_SAMPLES = 2
 
     /**
-     * The same for the side we tore down. Its old stock window persists 100-300 ms after the
-     * onset, so two polls may still be that stale window; five are a lever that came back.
+     * Existing settling interval for an explicitly rearmed same side, NOT evidence of rearming.
      */
     const val SAME_SIDE_REOPEN_SAMPLES = 5
 
@@ -274,9 +276,12 @@ object MirrorTransitionReducer {
     }
 
     private fun reduceQuarantined(
-        state: MirrorTransitionState,
+        previous: MirrorTransitionState,
         observation: MirrorTransitionObservation,
     ): MirrorTransitionResult {
+        val state = if (previous.preemptedSide != null && observation.requestedSide == null &&
+            !observation.runtimeWindowAmbiguous
+        ) previous.copy(preemptedSide = null) else previous
         val runtimeInactive = observation.runtime.phase == CameraRuntimePhase.IDLE ||
             observation.runtime.phase == CameraRuntimePhase.FAILED
         // A stock-driven quarantine ends on a clean stock window once the vendor has finished its
@@ -291,6 +296,20 @@ object MirrorTransitionReducer {
             !observation.preemptionInFlight
         if (stockWindowClean) {
             val requested = checkNotNull(observation.requestedSide)
+            val renewedAt = observation.sameSideRearmObservedAtMs
+            if (requested == state.preemptedSide &&
+                (renewedAt == null || renewedAt <= state.phaseStartedAtMs || renewedAt > observation.nowMs)
+            ) {
+                return MirrorTransitionResult(
+                    state.copy(
+                        runtimeGeneration = observation.runtime.generation,
+                        neutralSamples = 0,
+                        reopenSide = null,
+                        reopenSamples = 0,
+                        details = "waiting for a new stock window or renewed same-side turn",
+                    ),
+                )
+            }
             val reopenSamples = if (requested == state.reopenSide) state.reopenSamples + 1 else 1
             val required = if (requested == state.preemptedSide) {
                 SAME_SIDE_REOPEN_SAMPLES

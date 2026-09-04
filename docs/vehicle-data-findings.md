@@ -1079,14 +1079,26 @@ emits several pulses per lever movement, and a same-side pulse can never be a
 side switch. Follow-through `3`/`5`, neutral `1`, and unknown values are not
 onsets. The 10 Hz stock-window observer is the only Show authority and
 `MirrorTransitionReducer` the only producer of `Show`; nothing the listener
-does or fails to do can open a camera, and an unavailable, reconnecting, or
-overflowing source only shows up in the bounded diagnostics. Every quarantine the stock caused (a lever preempt, a closed window, a direct side
+does on its own can open a camera. An unavailable, reconnecting or overflowing
+source never hides an active camera or blocks an ordinary start/new stock window.
+Every quarantine the stock caused (a lever preempt, a closed window, a direct side
 change, an ambiguous window set) ends on a clean stock window: two consecutive
 polls of one unambiguous side with the Denza runtime idle, the old local surface
 detached, vendor `freeDisplay` complete, and no preempt in flight. The side that
-was torn down needs five such polls, because its old window outlives the switch
-by 100 to 300 ms; a lever knocked toward the other side and returned therefore
-gets its camera back after about half a second instead of losing the turn.
+was torn down cannot reuse a continuously surviving old window based on poll
+count alone: the 2026-09-04 baseline proved that cancellation leaves that window
+visible for 2.18–3.06 seconds and the old five-poll rule reopened it every time.
+The cancellation-fix candidate requires a fresh matching confirmed-mode
+observation strictly newer than the preempt, then retains the five settling
+polls. A verification timestamp alone is not renewed intent. OFF, HAZARD,
+unknown, missing, old and future-dated observations cannot rearm that path.
+Alternatively, one unambiguous stock-window absence ends the old window cycle;
+the next clean window uses the normal two-poll recovery without CAN confirmation.
+This is a narrow disambiguator for a surviving preempted-side window, not a
+global mode gate: ordinary starts and opposite/new stock windows stay window-led.
+If no fresh same-side evidence arrives while the old window persists, it remains
+stock-only until a new window cycle; actual quick same-side re-engagement still
+needs live acceptance of this candidate.
 Quarantines caused by our own failures (an AVC failure, a start or session
 timeout, a lost or side-changed runtime, a failed dispatch) still wait for three
 neutral polls, so a broken Show cannot loop.

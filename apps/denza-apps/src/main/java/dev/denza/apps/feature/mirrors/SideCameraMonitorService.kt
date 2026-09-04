@@ -21,6 +21,7 @@ import dev.denza.apps.feature.cluster.CameraRuntimeSnapshot
 import dev.denza.apps.feature.cluster.CameraRuntimePhase
 import dev.denza.apps.feature.vehicle.signal.DenzaVehicleSignals
 import dev.denza.apps.feature.vehicle.signal.TurnSwitchPhase
+import dev.denza.apps.feature.vehicle.signal.TurnIndicatorMode
 import dev.denza.apps.feature.vehicle.signal.VehicleSignalConsumerId
 import dev.denza.apps.feature.vehicle.signal.VehicleSignalDemand
 import dev.denza.apps.feature.vehicle.signal.VehicleSignalEventNotice
@@ -50,6 +51,10 @@ class SideCameraMonitorService : Service() {
     private var clusterDisplayId: Int? = null
     private var lastDisplayResolveMs = 0L
     private var lastShadowStatus = ""
+    // Timing only; these observations never participate in the reducer or CAN policy.
+    private var timingLastWindowSide: MirrorSide? = null
+    private var timingLastAmbiguous = false
+    private var timingPreviousReadStartedMs = -1L
 
     override fun onCreate() {
         super.onCreate()
@@ -85,8 +90,8 @@ class SideCameraMonitorService : Service() {
             Thread(runnable, "denza-mirror-signal-guard").apply { isDaemon = true }
         }
         signalExecutor = eventExecutor
-        // Both keys stay leased: the mode read feeds the bounded shadow diagnostics, the raw phase
-        // read tells the reducer whether the lever is still moving. Neither can open a camera.
+        // Existing leases only: mode feeds diagnostics and surviving-same-side rearm; raw phase
+        // feeds movement/teardown. Neither can request a camera without a recognized stock window.
         turnSignalLease = runCatching {
             DenzaVehicleSignals.hub(this).acquire(
                 VehicleSignalConsumerId("mirrors"),
@@ -155,6 +160,7 @@ class SideCameraMonitorService : Service() {
         val displayId = resolveClusterDisplay(SystemClock.elapsedRealtime()) ?: return
 
         try {
+            val readStartedMs = SystemClock.elapsedRealtime()
             val windows = adb.shell("dumpsys window visible")
             val now = SystemClock.elapsedRealtime()
             val detection = SideCameraWindowDetector.analyze(windows, displayId)
@@ -164,17 +170,28 @@ class SideCameraMonitorService : Service() {
                     detection.recognizedSide == null ||
                         detection.unrecognizedCandidates > 0
                 )
+            if (detection.recognizedSide != timingLastWindowSide || ambiguous != timingLastAmbiguous) {
+                Log.i(
+                    TAG,
+                    "window timing; side=${detection.recognizedSide} ambiguous=$ambiguous" +
+                        " read_started_ms=$readStartedMs observed_ms=$now" +
+                        " previous_read_started_ms=$timingPreviousReadStartedMs",
+                )
+                timingLastWindowSide = detection.recognizedSide
+                timingLastAmbiguous = ambiguous
+            }
+            timingPreviousReadStartedMs = readStartedMs
             if (!transitionGate.isRunning) return
-            recordTurnSignalState(detection.recognizedSide, now)
-            applyTransition(detection.recognizedSide, now, ambiguous)
+            val mode = recordTurnSignalState(detection.recognizedSide, now)
+            applyTransition(detection.recognizedSide, now, ambiguous, mode)
         } catch (error: Exception) {
             setStatus(observedSide(), "ADB monitor error: ${shortError(error)}")
             updateNotification("ADB access needs attention")
         }
     }
 
-    /** Bounded support diagnostics only. The confirmed mode never gates a camera command. */
-    private fun recordTurnSignalState(windowSide: MirrorSide?, now: Long) {
+    /** One cached read feeds diagnostics and the narrow surviving-same-side recovery check. */
+    private fun recordTurnSignalState(windowSide: MirrorSide?, now: Long): VehicleSignalState<TurnIndicatorMode> {
         val state = runCatching {
             turnSignalLease?.read(VehicleSignalKeys.TurnIndicatorMode, now)
                 ?: MirrorTurnSignalDiagnostics.unavailable("listener not active")
@@ -187,6 +204,7 @@ class SideCameraMonitorService : Service() {
             lastShadowStatus = status
             Log.i(TAG, "turn-signal shadow: ${snapshot.compact()}")
         }
+        return state
     }
 
     private fun onSwitchNotice(notice: VehicleSignalEventNotice<TurnSwitchPhase>) {
@@ -299,8 +317,9 @@ class SideCameraMonitorService : Service() {
         stockWindowSide: MirrorSide?,
         now: Long,
         runtimeWindowAmbiguous: Boolean,
+        mode: VehicleSignalState<TurnIndicatorMode>,
     ) {
-        transitionGate.runIfRunning { applyTransitionLocked(stockWindowSide, now, runtimeWindowAmbiguous) }
+        transitionGate.runIfRunning { applyTransitionLocked(stockWindowSide, now, runtimeWindowAmbiguous, mode) }
         publishPending()
     }
 
@@ -308,6 +327,7 @@ class SideCameraMonitorService : Service() {
         stockWindowSide: MirrorSide?,
         now: Long,
         runtimeWindowAmbiguous: Boolean,
+        mode: VehicleSignalState<TurnIndicatorMode>,
     ) {
         val runtime = ClusterSceneService.cameraRuntimeSnapshot()
         // The stock AVC window is the only authority for Show. The retained raw lever phase is
@@ -329,6 +349,7 @@ class SideCameraMonitorService : Service() {
                 runtimeWindowAmbiguous = runtimeWindowAmbiguous,
                 preemptionInFlight = preemptInFlight.get(),
                 leverEngaged = leverEngaged,
+                sameSideRearmObservedAtMs = MirrorSameSideRearm.observedAtMs(mode, stockWindowSide, now),
             ),
         )
         if (result.state.phase != transitionState.phase) {
@@ -342,7 +363,7 @@ class SideCameraMonitorService : Service() {
         transitionState = result.state
         when (val command = result.command) {
             is MirrorTransitionCommand.Show -> {
-                Log.i(TAG, "command: show ${command.side}")
+                Log.i(TAG, "command: show ${command.side}; observed_ms=$now command_ms=${SystemClock.elapsedRealtime()}")
                 startOverlay(command.side, now, runtime)
             }
             MirrorTransitionCommand.Hide -> {
