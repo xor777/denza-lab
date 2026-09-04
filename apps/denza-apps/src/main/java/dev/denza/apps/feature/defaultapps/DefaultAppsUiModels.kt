@@ -26,7 +26,7 @@ data class DefaultAppRoleUiState(
     val status: DefaultAppRoleStatus = DefaultAppRoleStatus.LOADING,
     val message: String = "",
     /**
-     * True only after PersonBean returned the exact provider representation of this selection.
+     * True only after PersonBean returned this exact package in a successful read.
      * That readback may have happened in an earlier process; every process start re-reads it.
      */
     val providerConfirmed: Boolean = false,

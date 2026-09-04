@@ -80,9 +80,8 @@
         <!--
             The picker and its inert host are embedded in Denza Apps. The launcher alias below
             only exposes a second icon; it never represents a separately installed package.
-            The package's single CATEGORY_INFO entry lives on the navigation trampoline below;
-            explicit split starts still address this picker component and carry their BYD pane
-            category. The trampoline forwards a firmware restore when that category survives.
+            CATEGORY_INFO lets SmartMulti restore the picker component for this split-capable
+            package without exposing another always-on launcher entry.
         -->
         <!--
             The picker runs in its own process. Building two Compose grids of a hundred tiles is
@@ -102,7 +101,12 @@
             android:process=":picker"
             android:resizeableActivity="true"
             android:taskAffinity="dev.denza.apps.split.picker"
-            android:theme="@style/DenzaAppsSplitPickerTheme" />
+            android:theme="@style/DenzaAppsSplitPickerTheme">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.INFO" />
+            </intent-filter>
+        </activity>
         <activity
             android:name=".feature.split.SplitLauncherEntryActivity"
             android:excludeFromRecents="true"
@@ -159,20 +163,6 @@
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
             </intent-filter>
         </receiver>
-        <activity
-            android:name=".feature.defaultapps.DefaultNavigationProxyActivity"
-            android:excludeFromRecents="true"
-            android:exported="true"
-            android:noHistory="true"
-            android:permission="android.permission.DUMP"
-            android:process=":picker"
-            android:taskAffinity=""
-            android:theme="@android:style/Theme.NoDisplay">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.INFO" />
-            </intent-filter>
-        </activity>
         <!--
             The hub is an ordinary resizeable app (U3): a split slot may hold it, and the firmware
             must be able to keep its task inside a pane. resizeableActivity="false" was an orphaned
