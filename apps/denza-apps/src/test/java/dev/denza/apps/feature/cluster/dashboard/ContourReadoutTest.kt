@@ -101,15 +101,28 @@ class ContourReadoutTest {
     }
 
     @Test
-    fun theEngineBoxScalesAreTheBoardsScales() {
-        // Revolutions run linearly against 3000 - this engine is a generator, not something with a
-        // redline - and generation by a square root to 100 kW, so idle generation is not a stub.
-        assertEquals(0.0f, ContourReadout.rpmFraction(0.0), 1e-6f)
-        assertEquals(0.593f, ContourReadout.rpmFraction(1780.0), 1e-3f)
-        assertEquals(1.0f, ContourReadout.rpmFraction(4500.0), 1e-6f)
+    fun theEngineBoxScaleIsLinearToThirtyKilowattsAndClamped() {
+        // The concept named a square root to 100 kW and the owner called the result flat twice. At
+        // the 14 kW this car ordinarily returns, a root over 100 is 0.37 of the box; linear over 30
+        // is a half, which is what «сплющен» was about once the height had nowhere left to go.
+        assertEquals(0.0f, ContourReadout.generationFraction(0.0), 1e-6f)
+        assertEquals(0.467f, ContourReadout.generationFraction(14.0), 1e-3f)
+        assertEquals(1.0f, ContourReadout.generationFraction(30.0), 1e-6f)
+        assertEquals("clamped: more than the span is the same fact as the span", 1.0f, ContourReadout.generationFraction(180.0), 1e-6f)
+        assertEquals(30.0, ContourReadout.GENERATION_FULL_KW, 1e-9)
+    }
 
-        assertEquals(0.374f, ContourReadout.generationFraction(14.0), 1e-3f)
-        assertEquals(1.0f, ContourReadout.generationFraction(180.0), 1e-6f)
+    @Test
+    fun theEngineBoxSaysWhatItIsInsteadOfNamingItsOwnLines() {
+        // The eighth pass, in two strings. «ОБОРОТЫ · ● ГЕНЕРАЦИЯ 14 кВт» was a key to a picture,
+        // and a panel with no room for a key is not allowed to need one.
+        assertTrue(ContourReadout.LEGEND_INTO_PACK.startsWith("В БАТАРЕЮ"))
+        assertTrue(ContourReadout.LEGEND_INTO_PACK.endsWith("2 МИН"))
+        assertTrue(ContourReadout.LEGEND_INTO_PACK_SHORT.startsWith("В БАТАРЕЮ"))
+        assertTrue(
+            "only the window may be dropped",
+            ContourReadout.LEGEND_INTO_PACK_SHORT.length < ContourReadout.LEGEND_INTO_PACK.length,
+        )
     }
 
     @Test

@@ -17,9 +17,10 @@ import kotlin.math.min
  * The Contour, drawn.
  *
  * It won the 2026-09 cluster contest (`docs/cluster-contest-2026-09/`), went to the owner three
- * times, was roasted by an independent review, and was redrawn four more times against what came
- * back. `tools/design-canvas/gen_contour.py` is that concept as three boards and this is the same
- * concept as a `Canvas`; `ContourBoardContractTest` is what keeps the two from drifting.
+ * times, was roasted by an independent review, was redrawn four more times against what came
+ * back, and once more against what the owner saw when this file first ran on a bench.
+ * `tools/design-canvas/gen_contour.py` is that concept as three boards and this is the same concept
+ * as a `Canvas`; `ContourBoardContractTest` is what keeps the two from drifting.
  *
  * Five rules carry the whole panel, and they are worth knowing before changing a line of it.
  *
@@ -48,7 +49,7 @@ import kotlin.math.min
  *
  * This runs inside a `Presentation` over the vehicle's live instruments. An exception out of
  * `onDraw` takes that window down, so the panel draws what it has and leaves out what it does not,
- * and there is no case here that ends in a throw. The two history buffers are fields.
+ * and there is no case here that ends in a throw. The three history buffers are fields.
  */
 internal class ClusterDashboardRenderer {
 
@@ -58,9 +59,9 @@ internal class ClusterDashboardRenderer {
     private var planFor: ClusterDashboardLayout? = null
 
     private val petalYs = FloatArray(ContourPlan.PETAL_BUCKETS)
-    private val generationYs = FloatArray(ContourPlan.ENGINE_SLOTS)
-    private val revolutionYs = FloatArray(ContourPlan.ENGINE_SLOTS)
-    private val span = FloatArray(max(ContourPlan.ENGINE_SLOTS, ContourPlan.PETAL_BUCKETS))
+    private val returnYs = FloatArray(ContourPlan.PETAL_BUCKETS)
+    private val generationYs = FloatArray(ContourPlan.ENGINE_BINS)
+    private val span = FloatArray(max(ContourPlan.ENGINE_BINS, ContourPlan.PETAL_BUCKETS))
 
     fun draw(
         canvas: Canvas,
@@ -309,7 +310,11 @@ internal class ClusterDashboardRenderer {
      * heading over an empty corner is advertising an instrument that is not there (m2).
      *
      * There is no third line. «● 14 кВт» used to stand under the revolutions and it was a number
-     * parked away from its own noun: the figure went to the word «ГЕНЕРАЦИЯ», under the box.
+     * parked away from its own noun: it is inside the engine box's own sentence now.
+     *
+     * Since the eighth pass this is also the *only* place the revolutions are drawn. The line the
+     * box carried for them was half of what made its legend unreadable, and this is where a driver
+     * was reading them anyway.
      */
     private fun rightCorner(
         canvas: Canvas,
@@ -611,13 +616,16 @@ internal class ClusterDashboardRenderer {
     }
 
     /**
-     * Two minutes of the combustion half, where the trip's phrase stands otherwise.
+     * Two minutes of what the engine put back, where the trip's phrase stands otherwise.
      *
-     * It takes both rows of the shelf and its legend moves below it onto the band's own guard, so
-     * the swap moves no neighbour's baseline in either direction. Revolutions are a linear run
-     * against 3000 - this engine is a generator, not something with a redline - and generation is an
-     * area by the same square root the readout uses. Neither run carries an axis: the two words
-     * under the box are the whole legend.
+     * **One quantity, one sentence.** It carried two runs until the owner looked at the built panel
+     * and said the legend telling them apart was not understandable - which is the game lost, since
+     * a display read at 90 km/h does not get to need a key. The revolutions went back to being the
+     * number in the corner, where they were being read anyway, and what is left is generation as an
+     * area of twenty-four five-second steps under a sentence that names it.
+     *
+     * The span is linear to 30 kW and clamped, which is the same verdict's other half: at the 14 kW
+     * this car ordinarily returns, a root over 100 filled a third of the box and read as flat.
      *
      * While the box is up the trip's cells are hidden, and that is not "куда делся баланс": the box
      * only leaves 120 s after the last live sample, so the phrase comes back once rather than once
@@ -630,14 +638,13 @@ internal class ClusterDashboardRenderer {
         scene: ContourScene,
         stage: ContourStage,
     ) {
-        val trace = t.engineTrace
-        val count = min(trace.slots, ContourPlan.ENGINE_SLOTS)
+        val bins = t.engineTrace.bins(plan.engineBinSeconds, plan.engineBins)
+        val count = bins.size
         if (count <= 0) return
 
         val right = plan.engineBoxRight
-        val left = right - (count - 1) * plan.enginePitch
+        val left = right - count * plan.enginePitch
         val bottom = plan.engineBoxBottom
-        val span = bottom - plan.engineBoxTop
         val pitch = pen.v(plan.enginePitch)
 
         pen.line(
@@ -651,24 +658,14 @@ internal class ClusterDashboardRenderer {
         )
 
         for (index in 0 until count) {
-            val generation = trace.generationKw[index]
-            generationYs[index] = if (generation == null) {
-                Float.NaN
-            } else {
-                pen.v(bottom - span * ContourReadout.generationFraction(generation))
-            }
-            val rpm = trace.revolutions[index]
-            revolutionYs[index] = if (rpm == null) {
-                Float.NaN
-            } else {
-                pen.v(bottom - span * ContourReadout.rpmFraction(rpm))
-            }
+            val generation = bins[index]
+            generationYs[index] =
+                if (generation == null) Float.NaN else pen.v(plan.engineY(generation))
         }
 
-        // A slot the poll never reached breaks both runs rather than being drawn through: a straight
-        // segment across a gap would claim the engine held a steady speed through a minute nobody
-        // was watching.
-        forEachSpan(generationYs, count) { start, length ->
+        // A bin nothing answered in breaks the area rather than being drawn through: a step across
+        // a gap would claim the engine held a steady output through five seconds nobody watched.
+        ContourRuns.forEach(count, { !generationYs[it].isNaN() }) { start, length ->
             pen.history(
                 canvas,
                 pen.v(left + start * plan.enginePitch),
@@ -683,29 +680,17 @@ internal class ClusterDashboardRenderer {
                 ContourPlan.GENERATION_AREA_ALPHA,
             )
         }
-        forEachSpan(revolutionYs, count) { start, length ->
-            pen.run(
-                canvas,
-                pen.v(left + start * plan.enginePitch),
-                pitch,
-                spanOf(revolutionYs, start, length),
-                length,
-                DenzaPalette.INK,
-                ContourPlan.LINE_ALPHA,
-                plan.dataLine,
-            )
-        }
 
         engineLegend(canvas, plan, t, scene, stage)
     }
 
     /**
-     * «ОБОРОТЫ · ● ГЕНЕРАЦИЯ 14 кВт», laid out right to left off the box's own edge.
+     * «● 14 кВт В БАТАРЕЮ · ПОСЛЕДНИЕ 2 МИН», laid out right to left off the shelf's own edge.
      *
-     * The figure is one step brighter than the words and set at their size: it is a legend that
-     * happens to carry a reading, not a fifth figure competing with the four the panel already has.
-     * It arrived here in the sixth pass from the corner above, where it had been a number standing
-     * two hundred units away from its own noun.
+     * The whole phrase is `MUTED_DEEP`, figure included: this is a number living in a sentence
+     * rather than a reading of its own, the same way the odometer's «42» lives inside «42 км · ЗА
+     * ПОЕЗДКУ» one shelf along. The figure sits in a reserve field, so it and its unit leave
+     * together when the engine stops and the words do not move.
      */
     private fun engineLegend(
         canvas: Canvas,
@@ -717,12 +702,11 @@ internal class ClusterDashboardRenderer {
         val y = pen.v(plan.engineLegendBaseline)
         pen.text(
             canvas,
-            ContourReadout.LEGEND_GENERATION,
-            pen.v(plan.legendGenerationRight),
+            plan.legendWindow,
+            pen.v(plan.legendWindowX),
             y,
             InstrumentFace.CAPTION,
             DenzaPalette.MUTED_DEEP,
-            Paint.Align.RIGHT,
         )
         pen.dot(
             canvas,
@@ -730,15 +714,6 @@ internal class ClusterDashboardRenderer {
             y - pen.v(InstrumentFace.CAPTION.capHeight / 2f),
             plan.markRadius,
             DenzaPalette.RETURN,
-        )
-        pen.text(
-            canvas,
-            ContourReadout.LEGEND_RPM,
-            pen.v(plan.legendRpmRight),
-            y,
-            InstrumentFace.CAPTION,
-            DenzaPalette.MUTED_DEEP,
-            Paint.Align.RIGHT,
         )
         if (!stage.engineRunning || !scene.fresh(ContourValue.GENERATION)) return
         val generation = t.generationKw ?: return
@@ -748,7 +723,7 @@ internal class ClusterDashboardRenderer {
             pen.v(plan.legendFigureRight),
             y,
             InstrumentFace.UNIT,
-            DenzaPalette.MUTED,
+            DenzaPalette.MUTED_DEEP,
             Paint.Align.RIGHT,
         )
         pen.text(
@@ -757,7 +732,7 @@ internal class ClusterDashboardRenderer {
             pen.v(plan.legendUnitX),
             y,
             InstrumentFace.UNIT,
-            DenzaPalette.MUTED,
+            DenzaPalette.MUTED_DEEP,
         )
     }
 
@@ -831,29 +806,29 @@ internal class ClusterDashboardRenderer {
     }
 
     /**
-     * Three kilometres of closed buckets, as one stepped line beside its figure.
+     * Three kilometres of closed buckets, as two series standing on the figure's own baseline.
      *
-     * The scale is a fixed ladder - 0…40 up, 0…10 back, the zero four fifths down - rather than an
+     * The scale is a fixed ladder - 0…30 up the cap, 0…10 back down the descender - rather than an
      * autoscale, because autoscaling meant one bucket changing value redrew the height of all
      * thirty, so the same three kilometres never came back the same shape. There is no dashed mean:
      * the mean is the figure standing next to the box.
+     *
+     * **Two series, and the second one is only where it happened.** Spending is one continuous grey
+     * field across all thirty buckets - on a bucket that gave energy back it lies on the zero line,
+     * because what was spent there is nothing - and the return is a blue shape per run of return
+     * buckets, hanging under the zero on its own posts. Until the eighth pass it was one field
+     * crossing the zero in one colour, with a blue rule along the whole width whether anything had
+     * come back or not: «беспорядочно», which it was.
      */
     private fun history(canvas: Canvas, plan: ContourPlan, t: VehicleTelemetry) {
         val buckets = ConsumptionWindow.raw(t.consumption)
         if (buckets.isEmpty()) return
         val count = min(buckets.size, ContourPlan.PETAL_BUCKETS)
         val zero = plan.petalZeroY
-        val up = zero - plan.petalBoxTop
-        val down = plan.petalBoxBottom - zero
         for (index in 0 until count) {
             val value = buckets[buckets.size - count + index].toFloat()
-            petalYs[index] = pen.v(
-                if (value >= 0f) {
-                    zero - min(value / plan.petalFull, 1f) * up
-                } else {
-                    zero + min(-value / plan.petalReturnFull, 1f) * down
-                },
-            )
+            petalYs[index] = pen.v(plan.petalSpendY(value))
+            returnYs[index] = pen.v(plan.petalReturnY(value))
         }
         // The pitch is the box divided by the window rather than by what has arrived, and the run is
         // anchored at the box's right edge, so a history that is still filling grows leftward into
@@ -862,9 +837,10 @@ internal class ClusterDashboardRenderer {
         // and the right of the box would read as data that ran out.
         val bucket = plan.petalBoxWidth / ContourPlan.PETAL_BUCKETS
         val pitch = pen.v(bucket)
+        val left = plan.petalBoxLeft + (ContourPlan.PETAL_BUCKETS - count) * bucket
         pen.history(
             canvas,
-            pen.v(plan.petalBoxLeft + (ContourPlan.PETAL_BUCKETS - count) * bucket),
+            pen.v(left),
             pitch,
             petalYs,
             count,
@@ -875,6 +851,21 @@ internal class ClusterDashboardRenderer {
             DenzaPalette.MUTED_DEEP,
             ContourPlan.AREA_ALPHA,
         )
+        val first = buckets.size - count
+        ContourRuns.forEach(count, { buckets[first + it] < 0.0 }) { start, length ->
+            pen.steps(
+                canvas,
+                pen.v(left + start * bucket),
+                pitch,
+                spanOf(returnYs, start, length),
+                length,
+                pen.v(zero),
+                DenzaPalette.RETURN,
+                ContourPlan.RETURN_AREA_ALPHA,
+                DenzaPalette.RETURN_INK,
+                plan.dataLine,
+            )
+        }
         pen.line(
             canvas,
             pen.v(plan.petalBoxLeft),
@@ -913,20 +904,6 @@ internal class ClusterDashboardRenderer {
         ContourReadout.Level.NORMAL -> DenzaPalette.MUTED
         ContourReadout.Level.WATCH -> DenzaPalette.WARNING
         ContourReadout.Level.ALERT -> DenzaPalette.DANGER
-    }
-
-    /** Walks the runs of real readings in [ys], where `NaN` is a slot nothing answered in. */
-    private inline fun forEachSpan(ys: FloatArray, count: Int, block: (start: Int, length: Int) -> Unit) {
-        var index = 0
-        while (index < count) {
-            if (ys[index].isNaN()) {
-                index++
-                continue
-            }
-            val start = index
-            while (index < count && !ys[index].isNaN()) index++
-            block(start, index - start)
-        }
     }
 
     /**

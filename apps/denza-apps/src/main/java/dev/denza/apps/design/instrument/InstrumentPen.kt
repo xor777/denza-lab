@@ -307,26 +307,48 @@ class InstrumentPen {
         canvas.drawPath(path, stroke)
     }
 
-    /** A run of points joined straight, which is what a per-second reading of one thing is. */
-    fun run(
+    /**
+     * One stepped shape standing on [zeroY], posts and all, filled and edged from one path.
+     *
+     * Not [history]: that closes its field along a floor and leaves the outline open at both ends,
+     * which is what a *continuous* history wants. This draws a stretch - something that starts and
+     * stops inside the box - so the posts up from the zero line are part of the drawing rather than
+     * the edge of a fill. The path is never closed, so nothing is stroked along the zero line
+     * itself: the panel's own zero rule is drawn once, by whoever owns it.
+     */
+    fun steps(
         canvas: Canvas,
         left: Float,
         pitch: Float,
         ys: FloatArray,
         count: Int,
-        color: Int,
-        alpha: Float,
-        widthV: Float,
+        zeroY: Float,
+        fieldColor: Int,
+        fieldAlpha: Float,
+        edgeColor: Int,
+        edgeWidthV: Float,
     ) {
-        if (count < 2) return
+        if (count <= 0) return
         path.rewind()
-        path.moveTo(left, ys[0])
-        for (index in 1 until count) path.lineTo(left + pitch * index, ys[index])
-        stroke.color = color
-        stroke.alpha = (alpha.coerceIn(0f, 1f) * FULL_ALPHA).toInt()
-        stroke.strokeWidth = v(widthV)
+        path.moveTo(left, zeroY)
+        for (index in 0 until count) {
+            path.lineTo(left + pitch * index, ys[index])
+            path.lineTo(left + pitch * (index + 1), ys[index])
+        }
+        path.lineTo(left + pitch * count, zeroY)
+        fill.color = fieldColor
+        fill.alpha = (fieldAlpha.coerceIn(0f, 1f) * FULL_ALPHA).toInt()
+        canvas.drawPath(path, fill)
+        fill.alpha = FULL_ALPHA
+        stroke.color = edgeColor
+        stroke.alpha = FULL_ALPHA
+        stroke.strokeWidth = v(edgeWidthV)
         canvas.drawPath(path, stroke)
     }
+
+    // A run of points joined straight lived here until the eighth pass. Its one caller was the
+    // engine box's revolutions, and that line is gone: the box draws one quantity now, and a
+    // primitive nothing draws with is a promise rather than a tool.
 
     private fun typefaceFor(weight: InstrumentWeight): Typeface = when (weight) {
         InstrumentWeight.LIGHT -> LIGHT

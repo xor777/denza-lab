@@ -108,8 +108,8 @@ class ContourBoardContractTest {
             ContourReadout.CAPTION_REGEN,
             ContourReadout.CAPTION_ENGINE_GAVE,
             ContourReadout.CAPTION_TRIP,
-            ContourReadout.LEGEND_RPM,
-            ContourReadout.LEGEND_GENERATION,
+            ContourReadout.LEGEND_INTO_PACK,
+            ContourReadout.LEGEND_INTO_PACK_SHORT,
         ).forEach { caption ->
             assertAdvance(
                 "«$caption»",
@@ -312,36 +312,63 @@ class ContourBoardContractTest {
     fun theEngineBoxIsTheBoardsBox() {
         val box = planCells(ORANGE).first { closeTo(it.y, plan.engineBoxTop) }
         assertEquals("left", plan.engineBoxFullLeft, box.x, TOLERANCE)
-        assertEquals("width", plan.engineBoxRight - plan.engineBoxFullLeft, box.width, TOLERANCE)
+        assertEquals("width", plan.engineBoxWidth, box.width, TOLERANCE)
         assertEquals("height", plan.engineBoxBottom - plan.engineBoxTop, box.height, TOLERANCE)
         assertEquals("120 one-second slots", 120, plan.engineSlots)
-        assertEquals(
-            "and its pitch",
-            (plan.engineBoxRight - plan.engineBoxFullLeft) / 119f,
-            plan.enginePitch,
-            1e-4f,
-        )
-        // Revolutions run linearly to 3000 and generation by a root to 100 kW, on the boards and in
-        // the readout both.
-        assertTrue(generator().contains("ENGINE_RPM_FULL = 3000."))
-        assertTrue(generator().contains("ENGINE_GEN_FULL = 100."))
-        assertEquals(3000f, plan.engineRpmFull, 1e-4f)
-        assertEquals(100f, plan.engineGenerationFull, 1e-4f)
+        // Drawn as twenty-four steps of five seconds, so a full box is 24 pitches wide rather than
+        // 119 gaps between points.
+        assertEquals("steps", 24, plan.engineBins)
+        assertEquals("seconds in one", 5, plan.engineBinSeconds)
+        assertEquals("and its pitch", plan.engineBoxWidth / 24f, plan.enginePitch, 1e-4f)
+        assertTrue(generator().contains("ENGINE_BIN_SECONDS = 5"))
+        // Generation alone, linear to 30 kW, on the boards and in the readout both.
+        assertTrue(generator().contains("ENGINE_GEN_FULL = 30."))
+        assertTrue("no revolutions anywhere in the box", !generator().contains("ENGINE_RPM_FULL"))
+        assertEquals(30f, plan.engineGenerationFull, 1e-4f)
     }
 
     @Test
-    fun thePetalBoxIsTwoHundredAndThirtyTwoByFiftySix() {
+    fun theEngineBoxSpeaksOneSentenceLaidOutFromTheShelfsEdge() {
+        val board = states()
+        // «● 14 кВт В БАТАРЕЮ · ПОСЛЕДНИЕ 2 МИН»: the window against the edge, the unit and the
+        // figure's reserve field to its left, the dot at the head of the whole phrase.
+        assertEquals(
+            "the window",
+            plan.legendWindowX,
+            text(board, "cl", plan.legendWindow).first,
+            TOLERANCE,
+        )
+        assertEquals(
+            "its baseline",
+            plan.engineLegendBaseline,
+            text(board, "cl", plan.legendWindow).second,
+            TOLERANCE,
+        )
+        assertEquals("«кВт»", plan.legendUnitX, text(board, "un", ContourReadout.UNIT_KW).first, TOLERANCE)
+        assertEquals("the figure's field", plan.legendFigureRight, text(board, "un", "14").first, TOLERANCE)
+        val dot = DOT.findAll(board).map { it.groupValues[1].toFloat() }.toList()
+        assertTrue("the marker at ${plan.legendMarkX}: $dot", dot.any { closeTo(it, plan.legendMarkX) })
+        assertEquals(
+            "the long window fits this face",
+            ContourReadout.LEGEND_INTO_PACK,
+            plan.legendWindow,
+        )
+    }
+
+    @Test
+    fun thePetalBoxIsTwoHundredAndThirtyTwoByTheFiguresOwnHeight() {
         val box = planCells(ORANGE).first { closeTo(it.y, plan.petalBoxTop) }
         assertEquals("left", plan.petalBoxLeft, box.x, TOLERANCE)
         assertEquals("width", plan.petalBoxWidth, box.width, TOLERANCE)
         assertEquals("height", plan.petalBoxHeight, box.height, TOLERANCE)
         assertEquals(232f, plan.petalBoxWidth, TOLERANCE)
-        assertEquals(56f, plan.petalBoxHeight, TOLERANCE)
+        // The cap of the 52 beside it plus a descender: 36.92 + 13.
+        assertEquals(49.92f, plan.petalBoxHeight, TOLERANCE)
         assertEquals("thirty buckets of the log's own hundred metres", 30, plan.petalBuckets)
     }
 
     @Test
-    fun thePetalsScaleIsAFixedLadderWithItsZeroFourFifthsDown() {
+    fun thePetalsZeroIsTheFiguresOwnBaseline() {
         val zero = LINE.findAll(board()).first { closeTo(it.groupValues[1].toFloat(), plan.petalBoxLeft) }
         assertEquals(plan.petalZeroY, zero.groupValues[2].toFloat(), TOLERANCE)
         assertEquals(
@@ -349,10 +376,36 @@ class ContourBoardContractTest {
             zero.groupValues[3].toFloat(),
             TOLERANCE,
         )
-        assertEquals(40f, plan.petalFull, 1e-4f)
-        assertEquals("the bottom fifth is the return", 10f, plan.petalReturnFull, 1e-4f)
-        assertTrue(generator().contains("PETAL_FULL = 40."))
-        assertTrue(generator().contains("PETAL_ZERO_SHARE = 0.8"))
+        assertEquals("the zero line is where the figure stands", plan.petalBaseline, plan.petalZeroY, 1e-4f)
+        assertEquals(30f, plan.petalFull, 1e-4f)
+        assertEquals("and the descender holds the return", 10f, plan.petalReturnFull, 1e-4f)
+        assertTrue(generator().contains("PETAL_FULL = 30."))
+        assertTrue(generator().contains("PETAL_RETURN_FULL = 10."))
+        assertTrue("the zero share is gone with the ladder it set", !generator().contains("PETAL_ZERO_SHARE"))
+    }
+
+    @Test
+    fun thePetalDrawsItsReturnInBlueOnlyWhereItHappened() {
+        // The board's calm history has one run of return buckets in it, so the drawing carries
+        // exactly one blue patch - filled at 50 % and edged in RETURN_INK - and no blue anywhere
+        // along the zero line. The grey field is drawn once, across all thirty buckets.
+        val board = board()
+        val patches = PATH_FILL.findAll(board).filter { it.groupValues[1] == BLUE }.toList()
+        assertEquals("one blue patch for the one run of return buckets", 1, patches.size)
+        assertEquals(
+            ContourPlan.RETURN_AREA_ALPHA,
+            patches[0].groupValues[2].toFloat(),
+            1e-4f,
+        )
+        assertTrue(
+            "and its edge is the lighter blue",
+            PATH_STROKE.findAll(board).any { it.groupValues[1] == RETURN_INK },
+        )
+        assertEquals(
+            "the spending field is one shape",
+            1,
+            PATH_FILL.findAll(board).count { it.groupValues[1] == DEEP },
+        )
     }
 
     @Test
@@ -461,6 +514,9 @@ class ContourBoardContractTest {
 
     private fun board(): String = read("ClusterContour.dc.html")
 
+    /** The scenes, which is the only board the engine's box is drawn on. */
+    private fun states(): String = read("ClusterContourStates.dc.html")
+
     private fun planBoard(): String = read("ClusterContourPlan.dc.html")
 
     private fun generator(): String = read("gen_contour.py")
@@ -489,6 +545,8 @@ class ContourBoardContractTest {
         const val BLUE = "#2D82D7"
         const val ORANGE = "#FF9F19"
         const val RED = "#FF4046"
+        const val RETURN_INK = "#4B9BE0"
+        const val DEEP = "#7C858F"
 
         val cached = mutableMapOf<String, String>()
 
@@ -508,5 +566,8 @@ class ContourBoardContractTest {
             """<ellipse cx="([\d.]+)" cy="([\d.]+)" rx="([\d.]+)" ry="([\d.]+)" fill="url\(#bandglow\)"""",
         )
         val GLOW_STOP = Regex("""<stop offset="0" stop-color="#DAE1EB" stop-opacity="([\d.]+)"""")
+        val DOT = Regex("""<circle cx="([\d.]+)" cy="([\d.]+)" r="([\d.]+)" fill="(#[0-9A-F]{6})"/>""")
+        val PATH_FILL = Regex("""<path d="[^"]+" fill="(#[0-9A-F]{6})" opacity="([\d.]+)"/>""")
+        val PATH_STROKE = Regex("""<path d="[^"]+" fill="none" stroke="(#[0-9A-F]{6})"""")
     }
 }

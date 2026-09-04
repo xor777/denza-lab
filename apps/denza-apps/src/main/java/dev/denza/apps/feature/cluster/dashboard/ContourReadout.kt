@@ -63,8 +63,27 @@ internal object ContourReadout {
     /** A verb, and it fits: 94.4 units against a payload of 116.1. */
     const val CAPTION_ENGINE_GAVE = "ДАЛ ДВС"
 
-    const val LEGEND_RPM = "ОБОРОТЫ ·"
-    const val LEGEND_GENERATION = "ГЕНЕРАЦИЯ"
+    /**
+     * The whole of what stands under the engine's box: a sentence, not a legend.
+     *
+     * The seventh pass wrote `ОБОРОТЫ · ● ГЕНЕРАЦИЯ 14 кВт` under two runs, and the owner's verdict
+     * on the built panel was that it was not understandable - which is the game lost, because a key
+     * is what a display read at 90 km/h does not get to need. One run left, one sentence: what the
+     * shape is, what it is worth now, and how far back it goes, in that order. The words «ГЕНЕРАЦИЯ»
+     * and «ОБОРОТЫ» are on no part of this panel any more.
+     *
+     * The window is the trace's own two minutes, which is why it is written into the string rather
+     * than formatted from a duration: a caption is a coordinate here, and this one is measured.
+     */
+    const val LEGEND_INTO_PACK = "В БАТАРЕЮ · ПОСЛЕДНИЕ 2 МИН"
+
+    /**
+     * And what is left of it if the face in use crowds the phrase against its own box.
+     *
+     * Only the window can go. The figure is the reading, the unit is what makes it one, and
+     * «В БАТАРЕЮ» is the half of the sentence that says which direction the energy went.
+     */
+    const val LEGEND_INTO_PACK_SHORT = "В БАТАРЕЮ · 2 МИН"
 
     const val UNIT_KW = "кВт"
     const val UNIT_KWH = "кВт·ч"
@@ -100,11 +119,15 @@ internal object ContourReadout {
     const val DRIVE_BAND_HIGH_C = 70.0
     const val HOT_MARGIN_C = 15.0
 
-    /** Generation's ceiling in the engine box, by the same square root the concept named. */
-    const val GENERATION_FULL_KW = 100.0
-
-    /** The engine's own span. It is a generator on this car, not something with a redline. */
-    const val RPM_FULL = 3000.0
+    /**
+     * Generation's ceiling in the engine box: 30 kW, linear, clamped.
+     *
+     * The concept named a square root to 100 kW and the owner read the result as flat twice. At the
+     * 14 kW this car ordinarily generates a root over 100 fills a third of a 50-unit box; linear
+     * over 30 fills a half, and 30 is what this generator does rather than a span borrowed from the
+     * band. What a root buys is resolution near zero, and near zero this quantity is *off*.
+     */
+    const val GENERATION_FULL_KW = 30.0
 
     // ---- the numbers
 
@@ -177,16 +200,14 @@ internal object ContourReadout {
      */
     fun spreadIsWorthACell(level: Level): Boolean = level != Level.NORMAL
 
-    /** Where revolutions fall on the engine's span. Linear: a driver reads rpm linearly. */
-    fun rpmFraction(rpm: Double): Float =
-        (rpm / RPM_FULL).coerceIn(0.0, 1.0).toFloat()
-
     /**
-     * Where generation falls in the engine box, square-root so the ordinary 10 kW is visible.
+     * Where generation falls in the engine box: linear on [GENERATION_FULL_KW], clamped.
      *
-     * Idle generation on this car is around a tenth of the ceiling, and linear would leave every
-     * ordinary reading lying on the floor of the box.
+     * Clamped rather than autoscaled for the reason the petal's ladder is fixed - a bin that changes
+     * height because a *different* bin changed value never draws the same two minutes twice - and
+     * clamped rather than open-topped because a generation above this span is the same fact as this
+     * span: the engine is giving everything it has.
      */
     fun generationFraction(kilowatts: Double): Float =
-        kotlin.math.sqrt((kilowatts / GENERATION_FULL_KW).coerceIn(0.0, 1.0)).toFloat()
+        (kilowatts / GENERATION_FULL_KW).coerceIn(0.0, 1.0).toFloat()
 }

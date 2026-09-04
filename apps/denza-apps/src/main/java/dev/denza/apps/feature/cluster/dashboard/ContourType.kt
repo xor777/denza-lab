@@ -52,6 +52,13 @@ internal fun interface ContourType {
          * «РЕКУПЕРАЦИЯ»'s 150.6719, which puts the three seats of a car standing on P at 629.7 and
          * their left edge 41 units *inside* the hero's own «кВт». That is why the middle caption
          * keeps its dot instead of taking the verb the other two got.
+         *
+         * The engine's two sentences came from a run of the same method on the day the panel first
+         * ran on a bench, and that run put every Cyrillic *word* between 0.9 and 2.4 units under the
+         * seventh pass's table while every digit, the comma, the colon and «°» reproduced exactly -
+         * Google's Roboto moving under one name rather than a second method. It is inside the two
+         * per cent this table is allowed to differ from the car's own face by, and the only thing it
+         * decides is whether that one phrase keeps its long window.
          */
         val WORDS: Map<Pair<InstrumentFace, String>, Float> = mapOf(
             (InstrumentFace.READING to ContourReadout.UNIT_KW) to 55.9219f,
@@ -68,8 +75,8 @@ internal fun interface ContourType {
             (InstrumentFace.CAPTION to ContourReadout.CAPTION_REGEN) to 150.6719f,
             (InstrumentFace.CAPTION to ContourReadout.CAPTION_ENGINE_GAVE) to 94.3750f,
             (InstrumentFace.CAPTION to ContourReadout.CAPTION_TRIP) to 144.5469f,
-            (InstrumentFace.CAPTION to ContourReadout.LEGEND_RPM) to 114.5312f,
-            (InstrumentFace.CAPTION to ContourReadout.LEGEND_GENERATION) to 122.1094f,
+            (InstrumentFace.CAPTION to ContourReadout.LEGEND_INTO_PACK) to 341.7813f,
+            (InstrumentFace.CAPTION to ContourReadout.LEGEND_INTO_PACK_SHORT) to 204.7188f,
             (InstrumentFace.HEADING to ContourReadout.TITLE_PACK) to 126.0781f,
             (InstrumentFace.HEADING to ContourReadout.TITLE_ENGINE_RPM) to 137.9844f,
             (InstrumentFace.HEADING to ContourReadout.TITLE_ENGINE_MINUTES) to 224.9375f,

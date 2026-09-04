@@ -238,9 +238,24 @@ internal class ContourPlan(
     // ---- the engine's own two minutes
 
     val engineSlots: Int = ENGINE_SLOTS
+
+    /**
+     * And the box draws those slots as [ENGINE_BINS] steps of [ENGINE_BIN_SECONDS].
+     *
+     * A per-second line across this box was 120 points inside 526 units - 4.4 apart, which is 0.9 mm
+     * of glass for one sample of a quantity that moves on the scale of a traffic light. A step of
+     * five seconds is the mean of the samples that arrived in it, so a poll the shell missed costs
+     * resolution rather than a hole, and the steps say what they are: closed buckets, like the
+     * petal's hundred metres.
+     */
+    val engineBins: Int = ENGINE_BINS
+    val engineBinSeconds: Int = ENGINE_BIN_SECONDS
     val engineBoxRight: Float = rightEdge
     val engineBoxFullLeft: Float = rightShelfLeft
-    val enginePitch: Float = (engineBoxRight - engineBoxFullLeft) / (ENGINE_SLOTS - 1)
+    val engineBoxWidth: Float = engineBoxRight - engineBoxFullLeft
+
+    /** One step, so a box `n` steps wide starts `n · pitch` left of the shelf's own edge. */
+    val enginePitch: Float = engineBoxWidth / ENGINE_BINS
 
     /**
      * The box takes both of the shelf's rows, not the digits' ink box alone.
@@ -249,35 +264,45 @@ internal class ContourPlan(
      * очень сильно сплющены по вертикали», the owner's whole verdict on the fourth drawing, and 24
      * units is 5 mm of this glass for two curves. The top is the same guard everything else hangs
      * off, which is also the shelf figures' own cap top, so the swap moves no neighbour's baseline.
+     *
+     * On the built panel he said «сплющен» again, of a box that had already taken every unit there
+     * is between the two guards. What was flat the second time was the *scale*, and that is what
+     * moved: see [ContourReadout.GENERATION_FULL_KW].
      */
     val engineBoxTop: Float = guardTop
 
-    /** The legend hangs off the band's guard from below, and the box stops a step above its caps. */
+    /** The phrase hangs off the band's guard from below, and the box stops a step above its caps. */
     val engineLegendBaseline: Float = bandY - BAND_BODY / 2f - clearance
     val engineBoxBottom: Float =
         engineLegendBaseline - InstrumentFace.CAPTION.capHeight - step
 
-    val engineRpmFull: Float = ContourReadout.RPM_FULL.toFloat()
     val engineGenerationFull: Float = ContourReadout.GENERATION_FULL_KW.toFloat()
 
-    /** Two digits of generation, in the legend's own face. */
+    /** Two digits of generation, in the phrase's own face. */
     val generationField: Float = 2 * type.width("0", InstrumentFace.UNIT)
     val kilowattWidth: Float = type.width(ContourReadout.UNIT_KW, InstrumentFace.UNIT)
 
     /**
-     * «ОБОРОТЫ · ● ГЕНЕРАЦИЯ 14 кВт», laid out right to left off the box's own edge.
+     * «● 14 кВт В БАТАРЕЮ · ПОСЛЕДНИЕ 2 МИН», laid out right to left off the shelf's own edge.
      *
-     * The reserve is drawn whether or not the engine is putting anything back, so the two words
-     * never move; the figure and its unit leave together when the value does, which is the panel's
-     * one rule for a stale reading applied to this line.
+     * One sentence where the seventh pass had a legend of two words and a figure - the owner could
+     * not read the legend, and a display with no room for a key must not need one. The words say
+     * what the shape above them is and how far back it goes; the figure says what it is worth now.
+     *
+     * The figure lives in a reserve field like every other number on this panel, so 9 kW and 14 kW
+     * start the phrase in the same place, and when the engine stops the figure and its unit leave
+     * together while the words stay - the panel's one rule for a stale reading, applied to a number
+     * living inside a sentence. It is the odometer's own arrangement in «42 км · ЗА ПОЕЗДКУ».
      */
-    val legendUnitX: Float = rightEdge - kilowattWidth
+    val legendWindow: String = window()
+    val legendWindowWidth: Float = caption(legendWindow)
+    val legendWindowX: Float = rightEdge - legendWindowWidth
+    val legendUnitX: Float = legendWindowX - smallGap - kilowattWidth
     val legendFigureRight: Float = legendUnitX - smallGap
-    val legendGenerationRight: Float = legendFigureRight - generationField - smallGap
-    val legendGenerationLeft: Float =
-        legendGenerationRight - caption(ContourReadout.LEGEND_GENERATION)
-    val legendMarkX: Float = legendGenerationLeft - markGap - markRadius
-    val legendRpmRight: Float = legendGenerationLeft - markWidth
+    val legendMarkX: Float = legendFigureRight - generationField - markGap - markRadius
+
+    /** What the whole phrase measures, dot included, which is what decides the window. */
+    val legendPhraseWidth: Float = rightEdge - (legendMarkX - markRadius)
 
     // ---- the petal, and the three kilometres behind its figure
 
@@ -318,22 +343,47 @@ internal class ContourPlan(
     val petalBoxGap: Float = density.rhythm(3f)
     val petalBoxRight: Float = petalFigureRight - petalFieldWidth - petalBoxGap
     val petalBoxWidth: Float = density.rhythm(PETAL_BOX_STEPS)
-    val petalBoxHeight: Float = density.rhythm(PETAL_BOX_HEIGHT_STEPS)
     val petalBoxLeft: Float = petalBoxRight - petalBoxWidth
-    val petalBoxTop: Float = petalBaseline - InstrumentFace.FIGURE.capHeight
-    val petalBoxBottom: Float = petalBoxTop + petalBoxHeight
 
     /**
-     * A fixed ladder, not an autoscale: 0…40 up and 0…10 back, the zero four fifths down.
+     * **The box's zero line is the figure's own baseline**, and its two edges are the numeral's.
+     *
+     * The owner, on the built panel: «ноль должен быть у цифры». The fifth pass gave this box 56
+     * units and a zero line four fifths down, and both numbers were the box's alone - a ladder
+     * standing next to a 52 and agreeing with nothing on it. The three lines that bound the history
+     * are the three lines of the figure beside it now: spending rises from the baseline through the
+     * cap height, a return hangs under it by a descender, and there is nothing left to choose.
+     */
+    val petalBoxTop: Float = petalBaseline - InstrumentFace.FIGURE.capHeight
+    val petalZeroY: Float = petalBaseline
+    val petalBoxBottom: Float = petalBaseline + PETAL_DESCENDER_EM * InstrumentFace.FIGURE.size
+    val petalBoxHeight: Float = petalBoxBottom - petalBoxTop
+
+    /**
+     * A fixed ladder, not an autoscale: 0…30 up the cap and 0…10 back down the descender.
      *
      * Autoscaling to each window's own ceiling meant a bucket changed height when a *different*
      * bucket changed value, so the shape of the last three kilometres was never twice the same
-     * shape. On the states board the traffic jam's history is now visibly taller than calm
-     * driving's, which under the old autoscale it was not.
+     * shape. On the states board the traffic jam's history is visibly taller than calm driving's,
+     * which under the old autoscale it was not. 30 rather than the fifth pass's 40 because the two
+     * spans no longer share a divisor: what set 40 was a zero line at four fifths of a box, and the
+     * zero line is a baseline now.
      */
-    val petalZeroY: Float = petalBoxTop + PETAL_ZERO_SHARE * petalBoxHeight
     val petalFull: Float = PETAL_FULL
-    val petalReturnFull: Float = PETAL_FULL * (1f - PETAL_ZERO_SHARE) / PETAL_ZERO_SHARE
+    val petalReturnFull: Float = PETAL_RETURN_FULL
+
+    /** Where a spending bucket's step falls. A bucket that gave energy back sits on the zero. */
+    fun petalSpendY(value: Float): Float =
+        petalZeroY - min(max(value, 0f) / petalFull, 1f) * (petalZeroY - petalBoxTop)
+
+    /** And where a returning one's does. A bucket that spent sits on the zero in this series. */
+    fun petalReturnY(value: Float): Float =
+        petalZeroY + min(max(-value, 0f) / petalReturnFull, 1f) * (petalBoxBottom - petalZeroY)
+
+    /** Where one step of the engine's box falls, on its own linear span. */
+    fun engineY(kilowatts: Double): Float =
+        engineBoxBottom - ContourReadout.generationFraction(kilowatts) *
+            (engineBoxBottom - engineBoxTop)
 
     // ---------------------------------------------------------------- arithmetic
 
@@ -393,6 +443,20 @@ internal class ContourPlan(
 
     private fun caption(text: String): Float = type.width(text, InstrumentFace.CAPTION)
 
+    /**
+     * The long window, unless the face in use crowds the phrase against its own box.
+     *
+     * Measured rather than assumed, because this is the one string on the panel long enough for the
+     * difference between Chrome's Roboto and the car's to matter: the test is the phrase's own width
+     * plus one guard against the width of the box it stands under. Nothing else in it can go.
+     */
+    private fun window(): String {
+        val long = ContourReadout.LEGEND_INTO_PACK
+        val phrase = markWidth + generationField + smallGap + kilowattWidth + smallGap +
+            caption(long)
+        return if (phrase + clearance <= engineBoxWidth) long else ContourReadout.LEGEND_INTO_PACK_SHORT
+    }
+
     companion object {
         /** The one outer margin, in rhythm steps: 48. */
         const val MARGIN_STEPS = 6f
@@ -418,17 +482,21 @@ internal class ContourPlan(
         /** `EngineTrace` keeps 120 one-second slots, and the box is as wide as they reach. */
         const val ENGINE_SLOTS = 120
 
+        /** Drawn as twenty-four steps of five seconds, the way the petal draws its buckets. */
+        const val ENGINE_BIN_SECONDS = 5
+        const val ENGINE_BINS = ENGINE_SLOTS / ENGINE_BIN_SECONDS
+
         /**
-         * The petal's history box, in rhythm steps: 232 × 56.
+         * The petal's history box is 232 wide, and its height is the figure's own.
          *
          * 232 is the aperture's number rather than a taste. The jury asked for 270; with the figure
          * on the axis the petal's ellipse leaves 238.5 at the box's lower left corner once the
-         * 8-unit guard is taken, so the width is the next whole step under that. All of the gain the
-         * owner asked for is in the height, where there was room: 36 → 56, which is the tallest it
-         * can be without rising over the cap of the 52 beside it.
+         * 8-unit guard is taken, so the width is the next whole step under that.
          */
         const val PETAL_BOX_STEPS = 29f
-        const val PETAL_BOX_HEIGHT_STEPS = 7f
+
+        /** Roboto's own descender, which is how far under the baseline a return may hang. */
+        const val PETAL_DESCENDER_EM = 0.25f
 
         /** The petal's baseline, and the floor nothing is drawn below. */
         const val PETAL_BASELINE = 384f
@@ -437,12 +505,15 @@ internal class ContourPlan(
         /** Three kilometres of `ConsumptionLog`'s hundred-metre buckets. */
         const val PETAL_BUCKETS = 30
 
-        const val PETAL_ZERO_SHARE = 0.8f
-        const val PETAL_FULL = 40f
+        const val PETAL_FULL = 30f
+        const val PETAL_RETURN_FULL = 10f
 
         /** The alphas, and every one of them belongs to a fill rather than to a state. */
         const val AREA_ALPHA = 0.55f
         const val LINE_ALPHA = 0.70f
+
+        /** The petal's return, which is the only blue thing under the axis. */
+        const val RETURN_AREA_ALPHA = 0.50f
         const val GENERATION_AREA_ALPHA = 0.55f
         const val PEAK_ALPHA = 0.85f
     }

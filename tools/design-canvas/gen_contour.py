@@ -6,8 +6,46 @@ The Contour won the 2026-09 cluster contest (`docs/cluster-contest-2026-09/`).
 Three drawings went to the owner, an independent review roasted the third
 (`CRITIQUE.md`, blockers B1-B3, majors M1-M15, minors m1-m12), the fourth was the
 answer to that review point by point, the fifth gave both graphs the height they
-were missing, the sixth turned the right shelf from a ledger into a phrase, and
-this is the seventh: four edits, and they are all the same edit.
+were missing, the sixth turned the right shelf from a ledger into a phrase, the
+seventh made every figure name the window it is true over - and this is the
+eighth, which is the first one drawn against the panel *running*.
+
+**The eighth pass: the owner watched it move.** The panel was built, put on a
+live bench and looked at, and what came back was about the two graphs again -
+not their size this time, but what they were saying:
+
+1. *«легенда непонятна»*. `ОБОРОТЫ · ● ГЕНЕРАЦИЯ 14 кВт` was a key to a picture
+   with two lines in it, and a key is what a panel with no legend is not allowed
+   to need. Both words are gone from the panel, and so is the line one of them
+   named: **the engine's box draws generation and nothing else**, under one
+   sentence - `● 14 кВт В БАТАРЕЮ · ПОСЛЕДНИЕ 2 МИН` - which says what the shape
+   is, what it is worth right now, and how far back it goes, in that order. The
+   revolutions keep the number they already have in the corner, `ДВС · об/мин`
+   over `1780`, which is where a driver was reading them anyway;
+2. *«сплющен»*, said of the same box a second time. The height did not change and
+   could not: it is both rows of the shelf and the legend's caps are under it.
+   What changed is the scale. A square root to 100 kW put this car's ordinary
+   14 kW at a third of the box; **linear to 30 kW with a clamp** puts it at a
+   half, and 30 kW is the top of what this generator does rather than a ceiling
+   borrowed from the band;
+3. *«ноль должен быть у цифры»*. The petal's box hung beside its figure on a
+   ladder of its own, with a zero line four fifths down that meant nothing to
+   anything next to it. **The zero line is the figure's own baseline now**:
+   spending rises through the digits' cap height, a return hangs under it the
+   depth of a descender, and the box and the numeral are one typographic object
+   rather than two things that happen to be adjacent;
+4. *«беспорядочно»*, of the same petal. One field crossing a zero line in one
+   colour drew the same grey above and below it, and the blue rule that was
+   supposed to say "this came back" ran the whole width whether anything came
+   back or not. **Spending is one continuous grey field that lies on the zero on
+   a return bucket; the return is blue, and only where it happened** - one shape
+   per run of return buckets, with its own posts standing on the zero line.
+
+Both graphs are steps of a fixed duration now, which is the other half of "what
+is this saying": the petal's thirty buckets are a hundred metres each, and the
+engine's twenty-four are five seconds each, averaged over the samples that
+arrived. A per-second line through a two-minute box was 120 points inside 526
+units - 4.4 units apart, which is 0.9 mm of glass for a sample.
 
 **The sixth pass, and the question that caused it.** The owner, looking at the
 fifth drawing: «что означает 0,0 от ДВС, когда ДВС заглушен?» - and then the part
@@ -145,8 +183,9 @@ Closed:
       seat it would have taken simply does not exist that trip.
 - M9  the sag line is deleted. «552 В» is what the owner asked for.
 - M11 no small blue text anywhere. Blue is the band's body, the generation seam,
-      the engine box's area, and a marker dot the size of a dot in front of
-      `РЕКУПЕРАЦИЯ` and `ГЕНЕРАЦИЯ` - the two things the car gives back.
+      the engine box's area, the petal's return runs, and a marker dot the size of
+      a dot at the head of `РЕКУПЕРАЦИЯ` and of the engine's own sentence - the
+      places the car gives something back.
 - M12 neutral zone of 3 kW: inside it the hero and the band body are `MUTED` and
       carry no colour at all, and the colour changes with 3 kW of hysteresis.
 - M13 the scenes the brief asked for are drawn: a traffic jam, an acceleration, an
@@ -170,8 +209,8 @@ Closed:
 - m8  an exception is a 34 figure changing colour on a shelf whose figures are all
       34, so it is the same glance as reading the temperature.
 - m9  generation is drawn twice, not three times: the seam on the band and the
-      area in the engine box. Its figure is written once, and since the sixth pass
-      it is written beside the word `ГЕНЕРАЦИЯ` rather than alone in the corner.
+      area in the engine box. Its figure is written once, and since the eighth
+      pass it is written inside the sentence under that area.
 - m11 unchanged and still true: three motors under one word in `motorTemps`
       order. Naming three positions costs three captions at 12'. Since the sixth
       pass they share one degree sign as well as one word - the group is one
@@ -260,10 +299,22 @@ W_TITLE = {'БАТАРЕЯ · В': 126.0781, 'ДВС · об/мин': 137.9844,
 W_CAPTION = {'БАТАРЕЯ': 91.9219, 'МОТОРЫ': 90.6250, 'ИНВЕРТОР': 110.0000,
              'РАЗБРОС ЯЧЕЕК': 167.7344, 'РЕКУПЕРАЦИЯ': 150.6719,
              'ДАЛ ДВС': 94.3750, '· ЗА ПОЕЗДКУ': 144.5469,
-             'ОБОРОТЫ ·': 114.5312, 'ГЕНЕРАЦИЯ': 122.1094}
+             # The eighth pass's own two, from a run of the same method on the
+             # same day the panel went on the bench. «ОБОРОТЫ ·» and «ГЕНЕРАЦИЯ»
+             # are off the table with the legend they belonged to.
+             'В БАТАРЕЮ · ПОСЛЕДНИЕ 2 МИН': 341.7813,
+             'В БАТАРЕЮ · 2 МИН': 204.7188}
 # Measured and not used: «ВЕРНУЛА РЕКУПЕРАЦИЯ» is 253.5469, which is 102.9 more
 # than the noun alone and 65 more than the shelf has. It is why the middle caption
 # on P keeps its dot instead of taking the verb the other two got.
+#
+# One honest note about the two new rows. Re-measuring the whole table in the same
+# run put every Cyrillic *word* between 0.9 and 2.4 units under what the seventh
+# pass wrote, while every digit, the comma, the colon and «°» came back to the
+# ten-thousandth - which is Google's Roboto having moved under the same name
+# rather than a second method. It is inside the 2 % the contract test allows an
+# advance, and it decides nothing here but whether this one phrase keeps its long
+# window, so the seven rows above are left as the panel was laid out from them.
 
 # ---------------------------------------------------------------- the panel
 
@@ -493,9 +544,16 @@ RIGHT_SHELF_LEFT = RIGHT_EDGE - sum(PARK_SEATS) - (len(PARK_SEATS) - 1) * CELL_G
 # timer of its own, which is also why a winter traffic jam does not flicker the
 # trip balance in and out every ninety seconds.
 ENGINE_SLOTS = 120
+# And the box draws them as steps of five seconds, the way the petal draws its
+# hundred-metre buckets. A per-second line across this box was 120 points inside
+# 526 units - 4.4 apart, 0.9 mm of glass for one sample of a quantity that moves
+# on the scale of a traffic light. A bin is the mean of the samples that arrived
+# in it, so a poll the shell missed costs resolution rather than a hole.
+ENGINE_BIN_SECONDS = 5
+ENGINE_BINS = ENGINE_SLOTS // ENGINE_BIN_SECONDS
 ENGINE_BOX_RIGHT = RIGHT_EDGE
 ENGINE_BOX_FULL_LEFT = RIGHT_SHELF_LEFT
-ENGINE_PITCH = (ENGINE_BOX_RIGHT - ENGINE_BOX_FULL_LEFT) / (ENGINE_SLOTS - 1)
+ENGINE_PITCH = (ENGINE_BOX_RIGHT - ENGINE_BOX_FULL_LEFT) / ENGINE_BINS
 # The box takes both of the shelf's rows now, not the digits' ink box alone. Two
 # runs inside 24 units came out as a blue thread with a grey thread on top of it -
 # "графики очень сильно сплющены по вертикали", the owner's whole verdict on the
@@ -507,18 +565,28 @@ ENGINE_PITCH = (ENGINE_BOX_RIGHT - ENGINE_BOX_FULL_LEFT) / (ENGINE_SLOTS - 1)
 # from below. Everything between is the graph.
 ENGINE_BOX_TOP = GUARD_TOP
 ENGINE_LEGEND = BAND_Y - BAND_BODY / 2 - CLEARANCE
-# One rhythm step between the box's own zero rule and the legend's caps. Half a
+# One rhythm step between the box's own zero rule and the phrase's caps. Half a
 # step was drawn first and the picture settled it: generation is an area that
-# stands *on* that rule, so at 4 units the blue and «ГЕНЕРАЦИЯ» were one object.
+# stands *on* that rule, so at 4 units the blue and the words were one object.
 ENGINE_BOX_BOTTOM = ENGINE_LEGEND - CAP * CAPTION - STEP
-ENGINE_RPM_FULL = 3000.0                # not 6000: this engine is a generator
-ENGINE_GEN_FULL = 100.0                 # ClusterReadout.GENERATION_FULL_KW, root
-# The legend carries the generation figure since the sixth pass, laid out right to
-# left off the box's own edge: «кВт», two digits, «ГЕНЕРАЦИЯ», the dot, «ОБОРОТЫ ·».
-# The reserve is drawn whether or not the engine is putting anything back, so the
-# two words never move; the figure and its unit leave together when the value does,
-# which is the panel's one rule for a stale reading applied to this line.
+# Linear to 30 kW with a clamp, and 30 is what this generator does rather than a
+# number borrowed from the band. The root to 100 kW was the fourth pass's and the
+# owner read the result as flat twice: at 14 kW - the ordinary figure on this car -
+# a root over 100 fills a third of the box, and linear over 30 fills a half. What
+# a root buys is resolution near zero, and near zero this quantity is *off*.
+ENGINE_GEN_FULL = 30.0
+# «● 14 кВт В БАТАРЕЮ · ПОСЛЕДНИЕ 2 МИН», laid out right to left off the shelf's
+# own edge: the window, «кВт», two digits, the dot. The eighth pass's answer to
+# «легенда непонятна» - there is no legend now, there is a sentence, and the only
+# reason it can be one sentence is that the box has one shape in it.
+#
+# The figure lives in a reserve field like every other number on this panel, so
+# 9 kW and 14 kW start the phrase in the same place, and when the engine stops the
+# figure and its unit leave together and the words do not move. That is the
+# odometer's own arrangement inside «42 км · ЗА ПОЕЗДКУ», one shelf along.
 GEN_FIELD = 2 * DIGIT * CAPTION
+LEGEND_WINDOW = 'В БАТАРЕЮ · ПОСЛЕДНИЕ 2 МИН'
+LEGEND_WINDOW_SHORT = 'В БАТАРЕЮ · 2 МИН'
 
 # ---- the petal, and the three kilometres behind its figure
 
@@ -555,30 +623,40 @@ PETAL_BOX_RIGHT = PETAL_FIGURE_RIGHT - PETAL_FIELD_W - PETAL_BOX_GAP
 # 232 is 29 rhythm steps and it is the aperture's number, not a taste. The jury
 # asked for 270; with the figure on the axis the petal's ellipse leaves 238.5 at
 # the box's lower left corner once the 8-unit guard is taken, so the width is the
-# next whole step under that. All of the gain the owner asked for is in the
-# height, where there was room: 36 -> 56, and the scale that fills it is fixed.
+# next whole step under that.
 PETAL_BOX_W = STEP * 29
-PETAL_BOX_H = STEP * 7                  # 56
 PETAL_BOX_X = PETAL_BOX_RIGHT - PETAL_BOX_W
-# The box hangs from the figure's own cap top - the jury's "not above 348" is that
-# line, 347.08 - and 56 units later it stops 6.9 short of the floor.
+# **The box's zero line is the figure's own baseline** (the eighth pass: «ноль
+# должен быть у цифры»). The fifth pass gave the box 56 units and a zero line four
+# fifths down, and both numbers were the box's alone - a ladder standing next to a
+# 52 and agreeing with nothing on it. Now the three lines that bound the history
+# are the three lines of the numeral beside it: spending rises from the baseline
+# through the cap height, a return hangs under it by a descender, and the box is
+# 49.92 tall because that is what a 52 occupies. There is nothing left to choose.
+PETAL_DESCENDER = 0.25                  # of the figure, which is Roboto's own
 PETAL_BOX_TOP = PETAL_BASELINE - CAP * FIGURE
-PETAL_BOX_BOTTOM = PETAL_BOX_TOP + PETAL_BOX_H
-# A fixed ladder, not an autoscale: 0…40 kW·h/100 km with the zero line four
-# fifths down, which leaves the bottom fifth for the return and makes it 10 the
-# same way - 1.12 units per kW·h in both directions. Autoscaling to each window's
-# own ceiling meant a bucket changed height when a *different* bucket changed
-# value, so the shape of the last three kilometres was never twice the same shape.
-PETAL_ZERO_SHARE = 0.8
-PETAL_ZERO_Y = PETAL_BOX_TOP + PETAL_ZERO_SHARE * PETAL_BOX_H
-PETAL_FULL = 40.0
-PETAL_RETURN_FULL = PETAL_FULL * (1.0 - PETAL_ZERO_SHARE) / PETAL_ZERO_SHARE
-# Contrast, the other half of the owner's verdict. A 30 % field under a 2-unit
-# line at MUTED was a texture; the line is the figure's own INK at 70 % over a
-# MUTED_DEEP field at 55 %, and the return keeps that same field below the zero
-# line rather than turning blue - blue on this panel is the engine and the band.
+PETAL_ZERO_Y = PETAL_BASELINE
+PETAL_BOX_BOTTOM = PETAL_BASELINE + PETAL_DESCENDER * FIGURE
+PETAL_BOX_H = PETAL_BOX_BOTTOM - PETAL_BOX_TOP
+# A fixed ladder, not an autoscale: 0…30 kW·h/100 km up the cap and 0…10 back down
+# the descender, both clamped. Autoscaling to each window's own ceiling meant a
+# bucket changed height when a *different* bucket changed value, so the shape of
+# the last three kilometres was never twice the same shape. 30 rather than the
+# fifth pass's 40 because the two spans no longer share a divisor: what set 40 was
+# a zero line at four fifths, and the zero line is the baseline now.
+PETAL_FULL = 30.0
+PETAL_RETURN_FULL = 10.0
+# Contrast, and then what the two colours mean. A 30 % field under a 2-unit line at
+# MUTED was a texture; spending is a MUTED_DEEP field at 55 % under the figure's
+# own INK at 70 %, drawn across every bucket so the silhouette is continuous and a
+# return bucket simply lies on the zero. The return is the *only* blue thing here,
+# one shape per run of buckets that gave energy back, standing on the zero line on
+# its own posts - the fifth pass drew that field grey and a blue rule along the
+# whole zero line whether anything had come back or not, which is the «беспорядочно»
+# the owner saw: two quantities in one silhouette and a colour claiming a third.
 AREA_ALPHA = 0.55
 LINE_ALPHA = 0.70
+RETURN_AREA_ALPHA = 0.50
 GEN_AREA_ALPHA = 0.55
 PEAK_ALPHA = 0.85
 
@@ -596,6 +674,26 @@ def trip_cell(index, seats):
     """Right shelf seats, right to left: seat 0 is always against the shelf's edge."""
     right = RIGHT_EDGE - sum(seats[:index]) - index * CELL_GAP
     return right - seats[index], right
+
+
+def legend_phrase(window):
+    """How wide «● 14 кВт [window]» comes out, laid out right to left."""
+    return MARK_W + GEN_FIELD + SMALL_GAP + W_KW + SMALL_GAP + W_CAPTION[window]
+
+
+def legend_window():
+    """The long window, unless the face in use crowds the phrase against its box.
+
+    The test is the phrase's own measured width plus one guard against the width
+    of the box it stands under, so a face wider than Chrome's Roboto - which the
+    car's may be - drops «ПОСЛЕДНИЕ» rather than running the sentence out past the
+    graph it belongs to. Nothing else in the phrase can go: the figure is the
+    reading, the unit is what makes it one, and «В БАТАРЕЮ» is the whole point.
+    """
+    room = ENGINE_BOX_RIGHT - ENGINE_BOX_FULL_LEFT
+    if legend_phrase(LEGEND_WINDOW) + CLEARANCE <= room:
+        return LEGEND_WINDOW
+    return LEGEND_WINDOW_SHORT
 
 
 def sweep(kw):
@@ -695,29 +793,60 @@ def consumption_history(average):
     return [round(average * m / norm, 1) for m in SHAPE]
 
 
-def engine_history(filled, stopped=0, rpm_now=1780.0, gen_now=14.0):
-    """[filled] seconds of the engine's history, the last [stopped] of them dead.
+def engine_history(filled, stopped=0, gen_now=14.0):
+    """[filled] seconds of what the engine put back, the last [stopped] of them dead.
 
-    No front padding with nulls any more: the box is exactly as wide as the
-    history it has, anchored at the right edge, so it grows leftward as the
-    engine runs and is never drawn empty. After the engine stops the slots keep
-    arriving at zero, which is what walks the last live sample off the left edge
-    120 seconds later and takes the box with it.
+    One series since the eighth pass. The revolutions were the other line in the
+    box and the box has one shape in it now, so nothing keeps a second trace: the
+    number in the corner is where the revolutions were being read anyway.
+
+    No front padding with nulls: the box is exactly as wide as the history it has,
+    anchored at the right edge, so it grows leftward as the engine runs and is
+    never drawn empty. After the engine stops the slots keep arriving at zero,
+    which is what walks the last live sample off the left edge 120 seconds later
+    and takes the box with it.
     """
-    rpm, gen = [], []
+    gen = []
     running = filled - stopped
     for i in range(filled):
         if i >= running:
-            rpm.append(0.0)
             gen.append(0.0)
             continue
         t = i / float(max(running - 1, 1))
-        wake = min(1.0, t * 3.0)
-        rpm.append(900.0 + (rpm_now - 900.0) * wake
-                   + 120.0 * math.sin(i * 0.55) * (1.0 - t))
         share = max(0.0, min(1.0, (t - 0.06) * 3.4))
         gen.append(max(0.0, gen_now * share + 2.4 * math.sin(i * 0.41) * (1.0 - t)))
-    return rpm, gen
+    return gen
+
+
+def engine_bins(seconds):
+    """One-second slots as five-second steps, oldest first, at most [ENGINE_BINS].
+
+    A bin is the mean of the samples that actually arrived in it, so a poll the
+    shell missed costs resolution rather than a hole, and a bin nothing answered
+    in at all is `None` - which breaks the run rather than being drawn through.
+    The last bin is the newest and is the one that can be short: the grouping runs
+    from the oldest slot, so a history 82 seconds long is sixteen full steps and
+    one of two, at the right-hand edge, where the newest data is.
+    """
+    bins = []
+    for start in range(0, len(seconds), ENGINE_BIN_SECONDS):
+        window = [v for v in seconds[start:start + ENGINE_BIN_SECONDS] if v is not None]
+        bins.append(sum(window) / len(window) if window else None)
+    return bins[-ENGINE_BINS:]
+
+
+def runs(values, keep):
+    """The stretches of [values] that [keep] accepts, as (start, stop) pairs."""
+    out, i, n = [], 0, len(values)
+    while i < n:
+        if not keep(values[i]):
+            i += 1
+            continue
+        start = i
+        while i < n and keep(values[i]):
+            i += 1
+        out.append((start, i))
+    return out
 
 
 def step_path(xs, ys, floor):
@@ -731,6 +860,24 @@ def step_path(xs, ys, floor):
     field = (f'M {f(xs[0])} {f(floor)} ' + outline[2:] +
              f' L {f(xs[-1])} {f(floor)} Z')
     return outline, field
+
+
+def step_patch(xs, ys, zero):
+    """One stepped shape standing on [zero], posts and all, as a single path.
+
+    Not `step_path`: that gives a field closed along a floor and an outline that
+    is open at both ends, which is what a continuous history wants. A return is a
+    *stretch* - it has two ends, and the eye has to see where it starts and stops -
+    so the posts up from the zero line are part of the drawing rather than the
+    edge of a fill. Filled and stroked from the same path, unclosed, so nothing
+    blue is ever drawn along the zero line itself.
+    """
+    d = [f'M {f(xs[0])} {f(zero)}']
+    for i in range(len(ys)):
+        d.append(f'L {f(xs[i])} {f(ys[i])}')
+        d.append(f'L {f(xs[i + 1])} {f(ys[i])}')
+    d.append(f'L {f(xs[-1])} {f(zero)}')
+    return ' '.join(d)
 
 
 # ---------------------------------------------------------------- the pieces
@@ -900,11 +1047,12 @@ def right_corner(s):
     """ДВС, in the three states it has, one of which is not being there at all.
 
     Running: the heading carries the unit and the figure is the revolutions. That
-    is the whole corner since the sixth pass. The line that used to stand under it,
-    «● 14 кВт», was a number parked away from its own noun - the reader had to
-    learn that a blue dot in a corner means generation, while the word
-    «ГЕНЕРАЦИЯ» sat two hundred units away under the box. The figure went to the
-    word, and «1780 об/мин» is left saying one thing.
+    is the whole corner since the sixth pass, and since the eighth it is the only
+    place the revolutions are drawn at all - the line the box used to carry for
+    them was half of what made its legend unreadable, and this is where a driver
+    was reading them anyway. The line that used to stand under this figure,
+    «● 14 кВт», was a number parked away from its own noun; it is inside the
+    engine box's own sentence now, and «1780 об/мин» is left saying one thing.
 
     Asleep after running: «ДВС · мин за поездку» over «6», which is the question a
     hybrid's driver actually asks and the answer nothing on this panel gave. The
@@ -988,65 +1136,58 @@ def left_shelf(s):
 
 
 def engine_box(s):
-    """Two minutes of the combustion half, where the trip balance stands otherwise.
+    """Two minutes of what the engine put back, where the trip balance stands otherwise.
 
-    It takes both rows of the shelf now - the figures' cap top down to a hair
-    above their captions' baseline, 54 units - and the legend moves below it, onto
-    the band's own 24-unit guard. In 24 units the two runs were a blue thread with
-    a grey thread lying on it. Revolutions run linearly against 3000 - this engine
-    is a generator, not a redline - and generation by the same square root
-    `ClusterReadout.generationFraction` uses. Neither run carries an axis; the two
-    words under the box are the whole legend, and the blue one carries the dot.
+    **One quantity, one sentence.** The fourth pass drew two runs in here and the
+    sixth gave them a legend to tell them apart; the owner's verdict on the built
+    panel was that the legend was not understandable, which is the whole game lost -
+    a driver's display that needs a key needs it at 90 km/h. So the second run is
+    gone, to the corner where the same number was already printed, and what is left
+    is generation as an area under a phrase that names it: «● 14 кВт В БАТАРЕЮ ·
+    ПОСЛЕДНИЕ 2 МИН». No word on this panel is «ГЕНЕРАЦИЯ» any more, or «ОБОРОТЫ».
 
-    While the box is up the three balance cells are hidden. That is not "куда
-    делся баланс": the box only leaves 120 s after the last live sample, so the
-    balance comes back once, not once per engine cycle, and a winter jam that
-    cycles the engine every ninety seconds never gets the swap at all.
+    The area is **linear to 30 kW, clamped**, which is the second half of the same
+    verdict - «сплющен», said of a box whose height cannot grow: it is both rows of
+    the shelf, the guard above it and the phrase's caps below. A root over 100 kW
+    put this car's ordinary 14 at a third of that height; linear over 30 puts it at
+    a half, and 30 is what this generator does rather than a span borrowed from the
+    band. Twenty-four steps of five seconds, oldest first, growing from the right.
+
+    While the box is up the trip's cells are hidden. That is not "куда делся
+    баланс": the box only leaves 120 s after the last live sample, so the balance
+    comes back once, not once per engine cycle, and a winter jam that cycles the
+    engine every ninety seconds never gets the swap at all.
     """
-    rpm, gen = s['trace']
+    bins = engine_bins(s['trace'])
     x1 = ENGINE_BOX_RIGHT
-    x0 = x1 - (len(rpm) - 1) * ENGINE_PITCH
+    x0 = x1 - len(bins) * ENGINE_PITCH
     top, bottom = ENGINE_BOX_TOP, ENGINE_BOX_BOTTOM
     height = bottom - top
-    xs = [x0 + ENGINE_PITCH * i for i in range(len(rpm) + 1)]
-
-    def y_of(value, full, root=False):
-        share = min(1.0, max(0.0, value / full))
-        if root:
-            share = math.sqrt(share)
-        return bottom - height * share
+    xs = [x0 + ENGINE_PITCH * i for i in range(len(bins) + 1)]
+    ys = [bottom - height * min(1.0, max(0.0, v / ENGINE_GEN_FULL)) for v in bins]
 
     out = [line(x0, bottom, x1, bottom, MUTED_DEEP, BAND_HAIRLINE)]
-
-    gen_ys = [y_of(v, ENGINE_GEN_FULL, root=True) for v in gen]
-    outline, field = step_path(xs, gen_ys, bottom)
+    outline, field = step_path(xs, ys, bottom)
     out.append(f'<path d="{field}" fill="{RETURN}" opacity="{f(GEN_AREA_ALPHA)}"/>')
     out.append(f'<path d="{outline}" fill="none" stroke="{RETURN}" '
                f'stroke-width="{f(AREA_EDGE)}" stroke-linejoin="round"/>')
 
-    run = [(x0 + ENGINE_PITCH * i, y_of(v, ENGINE_RPM_FULL)) for i, v in enumerate(rpm)]
-    d = 'M ' + ' L '.join(f'{f(x)} {f(y)}' for x, y in run)
-    out.append(f'<path d="{d}" fill="none" stroke="{INK}" '
-               f'stroke-width="{f(DATA_LINE)}" stroke-linejoin="round" '
-               f'stroke-linecap="round" opacity="{f(LINE_ALPHA)}"/>')
-
-    # «ОБОРОТЫ · ● ГЕНЕРАЦИЯ 14 кВт», laid out right to left off the box's own edge.
-    # The figure is one step brighter than the words it belongs to and set at their
-    # size: it is a legend that happens to carry a reading, not a fifth figure
-    # competing with the four the panel already has.
-    unit_x = RIGHT_EDGE - W_KW
+    # The phrase, laid out right to left off the shelf's own edge: the window, «кВт»,
+    # the figure in its reserve field, the dot. The words never move; the figure and
+    # its unit leave together when the engine stops, which is the panel's one rule
+    # for a stale reading applied to a number living inside a sentence.
+    window = legend_window()
+    window_x = RIGHT_EDGE - W_CAPTION[window]
+    unit_x = window_x - SMALL_GAP - W_KW
     field_right = unit_x - SMALL_GAP
-    gen_right = field_right - GEN_FIELD - SMALL_GAP
-    gen_left = gen_right - W_CAPTION['ГЕНЕРАЦИЯ']
-    out.append(txt('cl', gen_right, ENGINE_LEGEND, 'ГЕНЕРАЦИЯ', 'end', MUTED_DEEP))
-    out.append(dot(gen_left - MARK_GAP - MARK_R, ENGINE_LEGEND - CAP * CAPTION / 2))
-    out.append(txt('cl', gen_left - MARK_W, ENGINE_LEGEND, 'ОБОРОТЫ ·',
-                   'end', MUTED_DEEP))
+    out.append(txt('cl', window_x, ENGINE_LEGEND, window, 'start', MUTED_DEEP))
+    out.append(dot(field_right - GEN_FIELD - MARK_GAP - MARK_R,
+                   ENGINE_LEGEND - CAP * CAPTION / 2))
     generation = s.get('generation') if s.get('ice') == 'running' else None
     if generation is not None:
-        out.append(txt('cl0', field_right, ENGINE_LEGEND, f'{generation:.0f}',
-                       'end', MUTED))
-        out.append(txt('un', unit_x, ENGINE_LEGEND, 'кВт', 'start', MUTED))
+        out.append(txt('un', field_right, ENGINE_LEGEND, f'{generation:.0f}',
+                       'end', MUTED_DEEP))
+        out.append(txt('un', unit_x, ENGINE_LEGEND, 'кВт', 'start', MUTED_DEEP))
     return out
 
 
@@ -1145,32 +1286,48 @@ def petal_history(bars):
 
     Two things the owner said about the fourth board are answered here and they
     are the same thing twice: "графики очень сильно сплющены по вертикали и очень
-    слабо читаются". The box is 56 units rather than 36 - the tallest it can be
-    without rising over the cap of the figure beside it - and the drawing is a
-    70 % INK line 2.5 units thick over a 55 % MUTED_DEEP field, where it was a
-    2-unit MUTED line over a 30 % one and read as a texture.
+    слабо читаются". The box grew from 36 units to the figure's own height, and
+    the drawing is a 70 % INK line 2.5 units thick over a 55 % MUTED_DEEP field,
+    where it was a 2-unit MUTED line over a 30 % one and read as a texture.
 
-    The scale is a fixed ladder: 0…40 kW·h/100 km up, 0…10 back, one line per
-    1.12 units in both directions, and the zero four fifths down. An autoscale
-    meant one bucket changing value redrew the height of all thirty, so the same
-    three kilometres never came back the same shape. There is no dashed mean: the
-    mean is the figure standing next to the box.
+    **The zero line is the figure's own baseline** since the eighth pass, and the
+    box's two edges are the numeral's cap top and the depth of its descender. The
+    scale is a fixed ladder on those three lines: 0…30 kW·h/100 km up the cap,
+    0…10 back down the descender, both clamped. An autoscale meant one bucket
+    changing value redrew the height of all thirty, so the same three kilometres
+    never came back the same shape. There is no dashed mean: the mean is the figure
+    standing next to the box.
+
+    **Two series, and the second one is only where it happened.** Spending is one
+    continuous grey field across all thirty buckets - on a bucket that gave energy
+    back it lies on the zero line, because what was spent there is nothing - and the
+    return is a blue shape per run of return buckets, hanging under the zero on its
+    own posts. The fifth pass drew one field crossing the zero in one colour, with a
+    blue rule along the whole width whether anything had come back or not; that is
+    the «беспорядочно» the owner saw.
     """
     if not bars:
         return []
     zero, top, bottom = PETAL_ZERO_Y, PETAL_BOX_TOP, PETAL_BOX_BOTTOM
     pitch = PETAL_BOX_W / len(bars)
     xs = [PETAL_BOX_X + pitch * i for i in range(len(bars) + 1)]
-    ys = [zero - min(v / PETAL_FULL, 1.0) * (zero - top) if v >= 0
-          else zero + min(-v / PETAL_RETURN_FULL, 1.0) * (bottom - zero) for v in bars]
-    outline, field = step_path(xs, ys, zero)
-    return [
+    spend = [zero - min(max(v, 0.0) / PETAL_FULL, 1.0) * (zero - top) for v in bars]
+    outline, field = step_path(xs, spend, zero)
+    out = [
         f'<path d="{field}" fill="{MUTED_DEEP}" opacity="{f(AREA_ALPHA)}"/>',
         f'<path d="{outline}" fill="none" stroke="{INK}" opacity="{f(LINE_ALPHA)}" '
         f'stroke-width="{f(DATA_LINE)}" stroke-linejoin="round"/>',
-        line(PETAL_BOX_X, zero, PETAL_BOX_X + PETAL_BOX_W, zero,
-             MUTED_DEEP, BAND_HAIRLINE),
     ]
+    for start, stop in runs(bars, lambda v: v < 0):
+        back = [zero + min(-bars[i] / PETAL_RETURN_FULL, 1.0) * (bottom - zero)
+                for i in range(start, stop)]
+        d = step_patch(xs[start:stop + 1], back, zero)
+        out.append(f'<path d="{d}" fill="{RETURN}" opacity="{f(RETURN_AREA_ALPHA)}"/>')
+        out.append(f'<path d="{d}" fill="none" stroke="{RETURN_INK}" '
+                   f'stroke-width="{f(DATA_LINE)}" stroke-linejoin="round"/>')
+    out.append(line(PETAL_BOX_X, zero, PETAL_BOX_X + PETAL_BOX_W, zero,
+                    MUTED_DEEP, BAND_HAIRLINE))
+    return out
 
 
 def petal(s):
@@ -1267,8 +1424,6 @@ HEAD = """<!doctype html>
        tabular figures every number on this panel has. */
     .un { font-size:%(caption)spx; font-weight:400; fill:%(muted_deep)s;
           font-variant-numeric:tabular-nums; font-feature-settings:'tnum'; }
-    .cl0 { font-size:%(caption)spx; font-weight:400; fill:%(muted)s;
-           font-variant-numeric:tabular-nums; font-feature-settings:'tnum'; }
     .keep { font-size:%(note)spx; letter-spacing:%(tracking)sem; fill:#3F434D; }
     /* Used on an HTML div as well as in SVG, and `fill` does nothing to a div. */
     .sn { font-size:%(note)spx; letter-spacing:%(tracking)sem; fill:%(muted_deep)s;
@@ -1379,11 +1534,12 @@ STATES = [
      sc(kw=-42.0, peak=-58.0, volts=573.0, temps=COOL,
         trip=dict(net=9.2, regen=3.4, ice=0.0, km=43),
         bars=consumption_history(11.2), petal='11')),
-    ('ДВС генерирует 82 с · шов за флагом, коробка выросла справа, «14 кВт» — в легенде',
+    ('ДВС генерирует 82 с · шов за флагом; коробка выросла справа на 17 ступеней по 5 с',
      sc(kw=28.0, peak=52.0, ice='running', rpm=1780.0, generation=14.0,
         trace=engine_history(82), volts=548.0, temps=WORKED,
         bars=consumption_history(17.4), petal='17')),
-    ('ДВС заглох 40 с назад · коробка ещё здесь, обороты у правого края на нуле',
+    ('ДВС заглох 40 с назад · коробка ещё здесь, у правого края ступени на нуле, '
+     'цифра и «кВт» ушли — фраза осталась',
      sc(kw=34.0, peak=68.0, ice='slept', ice_minutes=6.0,
         trace=engine_history(120, stopped=40), volts=551.0, temps=WORKED,
         bars=consumption_history(17.1), petal='17')),
@@ -1501,8 +1657,8 @@ def plan_board():
                                    f'3 знака {LEFT_FIELD_X:.0f}…{LEFT_FIELD_RIGHT:.1f} · '
                                    f'обороты 4 знака {RIGHT_FIELD_LEFT:.1f}…'
                                    f'{RIGHT_FIELD_RIGHT:.1f}'),
-        (LEFT_EDGE, CORNER_FIGURE, 'третьей строки угла больше нет: «● 14 кВт» ушли '
-                                   'к слову «ГЕНЕРАЦИЯ» под коробку'),
+        (LEFT_EDGE, CORNER_FIGURE, 'третьей строки угла больше нет; обороты живут '
+                                   'здесь одни — линии в коробке для них нет'),
         (LEFT_EDGE, GUARD_TOP, f'запас {CLEARANCE:.0f} · stockTop {STOCK_TOP:.2f} → '
                                f'{GUARD_TOP:.2f} · на нём стоят герой, обе полки и '
                                f'коробка ДВС'),
@@ -1527,14 +1683,19 @@ def plan_board():
                                    f'«ВЕРНУЛА РЕКУПЕРАЦИЯ» 253.5 не влезает'),
         (right_lane, ENGINE_BOX_TOP, f'коробка ДВС · оба ряда полки, '
                                      f'{ENGINE_BOX_BOTTOM - ENGINE_BOX_TOP:.1f} высотой · '
-                                     f'{ENGINE_SLOTS} слотов по {ENGINE_PITCH:.2f} '
-                                     f'справа'),
-        (right_lane, ENGINE_BOX_TOP, 'обороты 0…3000 линейно, генерация корнем до '
-                                     '100 кВт · осей нет'),
-        (right_lane, ENGINE_LEGEND, f'легенда ДВС · 18 · базовая {ENGINE_LEGEND:.2f} = '
-                                    f'запас {CLEARANCE:.0f} над лентой'),
-        (right_lane, ENGINE_LEGEND, f'«ОБОРОТЫ · ● ГЕНЕРАЦИЯ 14 кВт» · поле '
-                                    f'{GEN_FIELD:.1f}, «кВт» у края, слова не двигаются'),
+                                     f'{ENGINE_BINS} ступеней по '
+                                     f'{ENGINE_BIN_SECONDS} с, шаг '
+                                     f'{ENGINE_PITCH:.2f}, растёт справа'),
+        (right_lane, ENGINE_BOX_TOP, f'только генерация: 0…{ENGINE_GEN_FULL:.0f} кВт '
+                                     f'линейно с ограничением · осей нет · '
+                                     f'14 кВт = {14 / ENGINE_GEN_FULL:.0%} высоты'),
+        (right_lane, ENGINE_LEGEND, f'фраза под коробкой · 18 · базовая '
+                                    f'{ENGINE_LEGEND:.2f} = запас {CLEARANCE:.0f} над '
+                                    f'лентой'),
+        (right_lane, ENGINE_LEGEND, f'«● 14 кВт {LEGEND_WINDOW}» '
+                                    f'{legend_phrase(LEGEND_WINDOW):.1f} + {CLEARANCE:.0f} '
+                                    f'в {ENGINE_BOX_RIGHT - ENGINE_BOX_FULL_LEFT:.1f}; '
+                                    f'уже — «· 2 МИН»'),
         (right_lane, HERO_BASELINE, f'герой · 88 Light · базовая {HERO_BASELINE:.2f} · '
                                     f'поле {HERO_FIELD_LEFT:.1f}…{HERO_FIELD_RIGHT:.1f} · '
                                     f'«кВт» 34 на {HERO_UNIT_X:.1f}'),
@@ -1551,17 +1712,20 @@ def plan_board():
         (LEFT_EDGE, GUARD_BOTTOM, f'запас {CLEARANCE:.0f} снизу · stockBottom '
                                   f'{STOCK_BOTTOM:.2f} → {GUARD_BOTTOM:.2f} · низ ленты '
                                   f'{BAND_Y + BAND_BODY / 2:.2f}'),
+        (LEFT_EDGE, PETAL_BOX_TOP, 'серое — расход по всем корзинам, непрерывно; '
+                                   'синее — только там, где вернули, со стойками '
+                                   'от нуля'),
         (LEFT_EDGE, PETAL_FLOOR, f'пол композиции · y {PETAL_FLOOR:.0f} · низ коробки '
                                  f'{PETAL_BOX_BOTTOM:.1f}, до выреза '
                                  f'{PETAL_BOX_X - petal_room(PETAL_BOX_BOTTOM):.1f}'),
         (right_lane, PETAL_BOX_TOP, f'коробка расхода · {PETAL_BOX_W:.0f} × '
-                                    f'{PETAL_BOX_H:.0f} на {PETAL_BOX_X:.1f}…'
+                                    f'{PETAL_BOX_H:.2f} на {PETAL_BOX_X:.1f}…'
                                     f'{PETAL_BOX_RIGHT:.1f} · {PETAL_BUCKETS} корзин по '
                                     f'{PETAL_BOX_W / PETAL_BUCKETS:.2f}'),
-        (right_lane, PETAL_BOX_TOP, f'шкала 0…{PETAL_FULL:.0f} вверх и 0…'
-                                    f'{PETAL_RETURN_FULL:.0f} вниз, нуль на 4/5 · '
-                                    f'{PETAL_ZERO_SHARE * PETAL_BOX_H / PETAL_FULL:.2f} '
-                                    f'единицы на кВт·ч — не автоподгон'),
+        (right_lane, PETAL_BOX_TOP, f'нуль = базовая цифры {PETAL_ZERO_Y:.0f} · вверх '
+                                    f'капитель {CAP * FIGURE:.2f} на 0…{PETAL_FULL:.0f}, '
+                                    f'вниз выносной {PETAL_DESCENDER * FIGURE:.2f} на 0…'
+                                    f'{PETAL_RETURN_FULL:.0f}'),
         (right_lane, PETAL_BASELINE, f'лепесток · 52 · два знака на оси, поле '
                                      f'{PETAL_FIELD_W:.1f} влево'),
         (right_lane, PETAL_BASELINE, f'«кВт·ч/100 км · за 3 км» {PETAL_UNIT_W:.1f} на '
@@ -1703,12 +1867,20 @@ if __name__ == '__main__':
           f'{_verb_left - (HERO_UNIT_X + HERO_UNIT_W):.2f}: rejected, the rule asks 24')
     print(f'engine  box {ENGINE_BOX_FULL_LEFT:.2f}…{ENGINE_BOX_RIGHT:.2f} x '
           f'{ENGINE_BOX_TOP:.2f}…{ENGINE_BOX_BOTTOM:.2f} = '
-          f'{ENGINE_BOX_BOTTOM - ENGINE_BOX_TOP:.2f} tall, pitch {ENGINE_PITCH:.2f}, '
-          f'82 s wide = {81 * ENGINE_PITCH:.1f}')
-    print(f'  legend  {ENGINE_LEGEND:.2f}, {CLEARANCE:.0f} over the band body, caps '
+          f'{ENGINE_BOX_BOTTOM - ENGINE_BOX_TOP:.2f} tall, {ENGINE_BINS} steps of '
+          f'{ENGINE_BIN_SECONDS} s at {ENGINE_PITCH:.2f}, 82 s wide = '
+          f'{len(engine_bins(engine_history(82))) * ENGINE_PITCH:.1f}')
+    print(f'  scale   generation only, linear 0…{ENGINE_GEN_FULL:.0f} kW clamped: '
+          f'14 kW is {14 / ENGINE_GEN_FULL * (ENGINE_BOX_BOTTOM - ENGINE_BOX_TOP):.1f} '
+          f'of {ENGINE_BOX_BOTTOM - ENGINE_BOX_TOP:.1f} '
+          f'(a root over 100 gave {math.sqrt(0.14) * (ENGINE_BOX_BOTTOM - ENGINE_BOX_TOP):.1f})')
+    print(f'  phrase  {ENGINE_LEGEND:.2f}, {CLEARANCE:.0f} over the band body, caps '
           f'from {ENGINE_LEGEND - CAP * CAPTION:.2f}, box stops '
           f'{ENGINE_LEGEND - CAP * CAPTION - ENGINE_BOX_BOTTOM:.2f} above them; the '
           f'shelf baselines {SHELF_FIGURE:.2f}/{SHELF_CAPTION:.2f} do not move')
+    print(f'          «● 14 кВт {LEGEND_WINDOW}» {legend_phrase(LEGEND_WINDOW):.2f} + '
+          f'{CLEARANCE:.0f} in {ENGINE_BOX_RIGHT - ENGINE_BOX_FULL_LEFT:.2f} -> '
+          f'{legend_window()} (short would be {legend_phrase(LEGEND_WINDOW_SHORT):.2f})')
     print(f'petal   figure {PETAL_BASE_FIELD_W:.2f} centred on the axis: ends '
           f'{PETAL_FIGURE_RIGHT:.2f} against the hero\'s {HERO_FIELD_RIGHT:.2f} '
           f'({PETAL_FIGURE_RIGHT - HERO_FIELD_RIGHT:+.2f}), reserve to '
@@ -1721,7 +1893,7 @@ if __name__ == '__main__':
           f'(at the descender {petal_edge(PETAL_BASELINE + 0.271 * CAPTION) - PETAL_UNIT_X - PETAL_UNIT_W:.2f}; '
           f'the guard is 8)')
     print(f'  box {PETAL_BOX_X:.2f}…{PETAL_BOX_RIGHT:.2f} x {PETAL_BOX_TOP:.2f}…'
-          f'{PETAL_BOX_BOTTOM:.2f} = {PETAL_BOX_W:.0f} x {PETAL_BOX_H:.0f}, gap '
+          f'{PETAL_BOX_BOTTOM:.2f} = {PETAL_BOX_W:.0f} x {PETAL_BOX_H:.2f}, gap '
           f'{PETAL_BOX_GAP:.0f} to the reserve, bucket '
           f'{PETAL_BOX_W / PETAL_BUCKETS:.2f}, floor leaves '
           f'{PETAL_FLOOR - PETAL_BOX_BOTTOM:.2f}')
@@ -1730,9 +1902,12 @@ if __name__ == '__main__':
           f'{petal_room(PETAL_BOX_BOTTOM):.2f} -> clear by '
           f'{PETAL_BOX_X - petal_room(PETAL_BOX_BOTTOM):.2f} (the guard is 8; 270 wide '
           f'would be {PETAL_BOX_RIGHT - 270 - petal_room(PETAL_BOX_BOTTOM):.2f})')
-    print(f'  zero {PETAL_ZERO_Y:.2f} = {PETAL_ZERO_SHARE:.1f} of the box, scale 0…'
-          f'{PETAL_FULL:.0f} up and 0…{PETAL_RETURN_FULL:.0f} back at '
-          f'{PETAL_ZERO_SHARE * PETAL_BOX_H / PETAL_FULL:.3f} units per kW·h/100 km')
+    print(f'  zero {PETAL_ZERO_Y:.2f} = the figure\'s own baseline, scale 0…'
+          f'{PETAL_FULL:.0f} up the cap ({CAP * FIGURE:.2f}) at '
+          f'{CAP * FIGURE / PETAL_FULL:.3f} units per kW·h/100 km, 0…'
+          f'{PETAL_RETURN_FULL:.0f} down the descender '
+          f'({PETAL_DESCENDER * FIGURE:.2f}) at '
+          f'{PETAL_DESCENDER * FIGURE / PETAL_RETURN_FULL:.3f}')
     print(f'fields  digit {DIGIT * READING:.2f}/34 {DIGIT * FIGURE:.2f}/52 '
           f'{DIGIT_LIGHT * HERO:.2f}/88, comma {COMMA * FIGURE:.2f}/52, '
           f'trip {TRIP_FIELD:.2f}, temp {TEMP_FIELD:.2f}, petal {PETAL_FIELD_W:.2f}')
