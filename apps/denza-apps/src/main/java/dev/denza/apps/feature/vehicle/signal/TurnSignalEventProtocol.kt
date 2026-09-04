@@ -77,6 +77,12 @@ internal class TurnSignalBatchDecoder {
                     }
                     val observedAtNanos = words[2].toLongOrNull()
                         ?: return TurnSignalBatchResult.Reconnect("invalid event timestamp")
+                    val observedAtElapsedMs = observedAtNanos / 1_000_000L
+                    // Both processes use Android's elapsed-realtime clock (including suspend).
+                    // Arrival cannot re-verify a value that waited in a helper/transport queue.
+                    if (observedAtNanos < 0L || observedAtElapsedMs > publishedAtElapsedMs) {
+                        return TurnSignalBatchResult.Reconnect("event timestamp outside elapsed clock")
+                    }
                     val fid = words[3].toIntOrNull()
                         ?: return TurnSignalBatchResult.Reconnect("invalid event fid")
                     val value = words[4].toIntOrNull()
@@ -86,8 +92,8 @@ internal class TurnSignalBatchDecoder {
                         words[0],
                         fid,
                         value,
-                        observedAtNanos / 1_000_000L,
-                        publishedAtElapsedMs,
+                        observedAtElapsedMs,
+                        observedAtElapsedMs,
                         sourceEpoch,
                         sequence,
                     ) ?: return TurnSignalBatchResult.Reconnect("unexpected event fid $fid")

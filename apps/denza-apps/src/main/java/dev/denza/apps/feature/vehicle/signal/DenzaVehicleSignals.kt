@@ -2,6 +2,7 @@ package dev.denza.apps.feature.vehicle.signal
 
 import android.app.Application
 import android.content.Context
+import android.os.SystemClock
 import android.util.Log
 import dev.denza.apps.adb.DenzaLocalAdb
 
@@ -37,7 +38,7 @@ internal object DenzaVehicleSignals {
                 )
             },
         )
-        return VehicleSignalHub(listOf(source))
+        return VehicleSignalHub(listOf(source), clock = SystemClock::elapsedRealtime)
     }
 
     private const val TAG = "DenzaVehicleSignals"

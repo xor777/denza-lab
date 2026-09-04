@@ -1095,6 +1095,75 @@ the retained raw phase still reports an engaged lever (`2`..`5`). The two
 earlier contracts that gated Show on the listener are kept below as history;
 their live acceptance does not transfer to this contract.
 
+### Hub reliability boundary (2026-09-04, host-only)
+
+This is a reliability change to the existing typed hub, not a new camera policy
+or a telemetry migration. The helper's two-FID allowlist, registration, getter
+cadence, reconnect/backoff and passive-authorization behavior are unchanged.
+
+- Source observation and verification timestamps use Android elapsed realtime,
+  including suspend; reception/publication is separate. The light decoder no
+  longer re-verifies an old queued observation at its arrival time. Negative or
+  future protocol timestamps force reconnect; an invalid retained-state clock
+  is `Missing(INVALID)`. `maxVerificationAgeMs` bounds reads, not acquisition
+  frequency or event-delivery age.
+- Each event subscription has an owned asynchronous handoff worker, even when
+  its supplied executor runs inline. A slow inline subscriber cannot occupy the
+  source lane or another subscriber's worker. At most 16 handoff lanes are
+  admitted per hub; each has at most one queued handoff and a 16-notice mailbox.
+  Idle worker threads expire after 30 seconds. Closing shuts the worker down;
+  an uncooperative running inline callback keeps its admission slot until the
+  worker actually terminates. This bounds hub-owned resources, not an external
+  executor's own resources. Admission failure is explicit, never silent.
+- Overflow and executor rejection retain an explicit `Unavailable(AMBIGUOUS)`.
+  Rejection retries only when there is new source traffic, including traffic
+  concurrent with the failed submission; no idle retry timer is introduced.
+  A consumer callback's ordinary exception cannot stop subsequent delivery.
+  Closing suppresses queued callbacks, but cannot revoke one already running.
+- A changed union of demanded keys still restarts this source. The hub clears
+  affected state and queues a discontinuity for existing subscriptions before
+  invoking stop/start, even when the replacement never connects. Equal key
+  unions share the current activation. Old activations remain fenced even if
+  a source reuses an epoch number. A source cannot invalidate another source's
+  key. Hot registration changes are not claimed or implemented.
+- Sources must publish serially in their own source order. Delivery is FIFO per
+  subscription while healthy, not a global order across keys or sources. A
+  retained snapshot is never manufactured into a transient event. The API does
+  not yet offer atomic snapshot-plus-subscribe or observable polled state.
+
+Verification is local, with no installation, car requests or live acceptance.
+The initial RED run had seven assertion failures in eight new tests on the old
+implementation; the same-key sharing control passed. Later independent
+source-ownership and listener-exception tests also failed before their fixes.
+Existing asynchronous tests now use explicit delivery barriers rather than
+assuming callbacks are inline. An idle rejected-executor check protects against
+a CPU-consuming retry loop.
+The reproducible host check compiles actual production sources, replays RED
+against the committed base, and tests individual semantic mutations in temporary
+directories; compilation errors and timeouts are not counted as killed mutants.
+A diagnostic-text-only control must survive:
+
+```bash
+python3 tools/check_vehicle_signal_mutations.py --red-ref 90821f0 --repeat 3
+./gradlew :denza-apps:testDebugUnitTest :denza-apps:assembleDebug :denza-apps:lintDebug
+```
+
+Per-mutant output and a source-hash manifest go to the ignored
+`build/reports/vehicle-signal-mutations/`. On the reliability delta based on
+`90821f0`, all 30 focused tests passed in three clean host runs, all 17 semantic
+mutants were killed by test failures, and the diagnostic-only control passed.
+The committed-base replay had 10 failing tests. The complete app suite passed
+1,209 tests with no failures, errors or skips; debug assembly passed and lint
+reported 0 errors / 44 warnings (none in the changed signal files). This APK was
+built only, not installed. These checks do not prove vehicle load,
+sleep/wake behavior or end-to-end camera latency. Before adding polled inputs,
+the next stage must separate freshness tolerance from supported sampling cadence
+and make verification independent of other keys' traffic: the current helper
+only re-reads after the whole event queue has been quiet. Then share one Park
+read between Trip and the cluster without activating the cluster's entire hot
+batch for a Trip-only consumer. No universal raw-CAN API or vehicle-action API
+is part of this change.
+
 ### Installed adapter acceptance
 
 The initial pre-sync debug APK with SHA-256

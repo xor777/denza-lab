@@ -3,6 +3,7 @@ package dev.denza.apps.feature.vehicle.signal
 import java.util.Collections
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executor
+import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 import kotlin.concurrent.thread
 import org.junit.Assert.assertEquals
@@ -12,6 +13,7 @@ import org.junit.Test
 class VehicleSignalHubTest {
     private val source = FakeSource()
     private val hub = VehicleSignalHub(listOf(source))
+    private val delivery = QueuedExecutor()
 
     @Test
     fun oneSourceIsSharedUntilTheLastConsumerReleasesIt() {
@@ -114,10 +116,11 @@ class VehicleSignalHubTest {
         val notices = mutableListOf<VehicleSignalEventNotice<TurnSwitchPhase>>()
         val subscription = lease.subscribeEvents(
             VehicleSignalKeys.TurnSwitchPhase,
-            Executor(Runnable::run),
+            delivery,
             notices::add,
         )
         source.connection(3L)
+        delivery.runAll()
         notices.clear()
 
         source.sample(
@@ -129,7 +132,10 @@ class VehicleSignalHubTest {
             sequence = 1L,
         )
 
-        assertTrue(notices.isEmpty())
+        // A later real event is a delivery barrier, not a timing-based assertion of absence.
+        source.event(VehicleSignalKeys.TurnSwitchPhase, TurnSwitchPhase(4), 12L, 12L, 3L, 2L)
+        delivery.runAll()
+        assertEquals(2L, (notices.single() as VehicleSignalEventNotice.Event).event.sequence)
         subscription.close()
         lease.close()
     }
@@ -143,10 +149,11 @@ class VehicleSignalHubTest {
         val notices = mutableListOf<VehicleSignalEventNotice<TurnSwitchPhase>>()
         lease.subscribeEvents(
             VehicleSignalKeys.TurnSwitchPhase,
-            Executor(Runnable::run),
+            delivery,
             notices::add,
         )
         source.connection(8L)
+        delivery.runAll()
         notices.clear()
 
         source.event(
@@ -158,6 +165,7 @@ class VehicleSignalHubTest {
             sequence = 2L,
         )
 
+        delivery.runAll()
         val delivered = (notices.single() as VehicleSignalEventNotice.Event).event
         assertEquals(TurnSwitchPhase(4), delivered.value)
         assertEquals(2L, delivered.sequence)
@@ -178,13 +186,15 @@ class VehicleSignalHubTest {
         val notices = mutableListOf<VehicleSignalEventNotice<TurnSwitchPhase>>()
         lease.subscribeEvents(
             VehicleSignalKeys.TurnSwitchPhase,
-            Executor(Runnable::run),
+            delivery,
             notices::add,
         )
         source.connection(6L)
+        delivery.runAll()
         notices.clear()
 
         source.missing(6L, VehicleSignalMissingReason.SOURCE_DOWN)
+        delivery.runAll()
 
         val unavailable = notices.single() as VehicleSignalEventNotice.Unavailable
         assertEquals(VehicleSignalMissingReason.SOURCE_DOWN, unavailable.reason)
@@ -246,8 +256,9 @@ class VehicleSignalHubTest {
             sequence = 1L,
         )
 
+        val alreadyQueued = executor.takeTask()
         subscription.close()
-        executor.runAll()
+        alreadyQueued.run()
 
         assertTrue(notices.isEmpty())
         lease.close()
@@ -300,10 +311,11 @@ class VehicleSignalHubTest {
         val notices = mutableListOf<VehicleSignalEventNotice<TurnSwitchPhase>>()
         newLease.subscribeEvents(
             VehicleSignalKeys.TurnSwitchPhase,
-            Executor(Runnable::run),
+            delivery,
             notices::add,
         )
         source.connection(2L)
+        delivery.runAll()
         notices.clear()
 
         oldPublisher(
@@ -317,7 +329,9 @@ class VehicleSignalHubTest {
             ),
         )
 
-        assertTrue(notices.isEmpty())
+        source.event(VehicleSignalKeys.TurnSwitchPhase, TurnSwitchPhase(2), 11L, 11L, 2L, 3L)
+        delivery.runAll()
+        assertEquals(3L, (notices.single() as VehicleSignalEventNotice.Event).event.sequence)
         newLease.close()
     }
 
@@ -459,14 +473,19 @@ class VehicleSignalHubTest {
     }
 
     private class QueuedExecutor : Executor {
-        private val tasks = mutableListOf<Runnable>()
+        private val tasks = LinkedBlockingQueue<Runnable>()
 
         override fun execute(command: Runnable) {
-            tasks += command
+            tasks.add(command)
+        }
+
+        fun takeTask(): Runnable = requireNotNull(tasks.poll(1, TimeUnit.SECONDS)) {
+            "no event delivery was scheduled"
         }
 
         fun runAll() {
-            while (tasks.isNotEmpty()) tasks.removeAt(0).run()
+            takeTask().run()
+            while (true) (tasks.poll() ?: return).run()
         }
     }
 }

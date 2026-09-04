@@ -1,7 +1,11 @@
 package dev.denza.apps.feature.vehicle.signal
 
 import java.util.ArrayDeque
+import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.Executor
+import java.util.concurrent.Semaphore
+import java.util.concurrent.ThreadPoolExecutor
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
@@ -17,6 +21,7 @@ internal class VehicleSignalHub(
     private val clock: () -> Long = { System.nanoTime() / 1_000_000L },
 ) {
     private val lock = Any()
+    private val deliverySlots = Semaphore(16)
     private val sourceById = sources.associateBy(VehicleSignalSource::id)
     private val sourceSlots = sourceById.mapValues { SourceSlot() }
     private val sourceByKey: Map<VehicleSignalKey<*>, VehicleSignalSource> = buildMap {
@@ -72,11 +77,10 @@ internal class VehicleSignalHub(
         activationId: Long,
         update: VehicleSignalSourceUpdate,
     ) {
-        val deliveries: List<Pair<EventSubscription<*>, VehicleSignalEventNotice<*>>> =
-            synchronized(lock) {
+        synchronized(lock) {
             val activation = sourceActivations[source.id]
-            if (activation?.id != activationId) return@synchronized emptyList()
-            when (update) {
+            if (activation?.id != activationId) return
+            val deliveries = when (update) {
                 is VehicleSignalSourceUpdate.ConnectionStarting -> {
                     sourceEpochs[source.id] = update.sourceEpoch
                     markKeysMissingLocked(
@@ -94,32 +98,33 @@ internal class VehicleSignalHub(
                     )
                 }
                 is VehicleSignalSourceUpdate.Sample<*> -> {
-                    if (update.key !in activation.keys) return@synchronized emptyList()
+                    if (update.key !in activation.keys) return
                     if (sourceEpochs[source.id] != update.sourceEpoch) {
-                        return@synchronized emptyList()
+                        return
                     }
                     replaceSampleLocked(source, update)
                     emptyList()
                 }
                 is VehicleSignalSourceUpdate.Event<*> -> {
-                    if (update.key !in activation.keys) return@synchronized emptyList()
+                    if (update.key !in activation.keys) return
                     if (sourceEpochs[source.id] != update.sourceEpoch) {
-                        return@synchronized emptyList()
+                        return
                     }
                     replaceEventLocked(source, update)
                     eventDeliveriesLocked(source, update)
                 }
                 is VehicleSignalSourceUpdate.Heartbeat -> {
                     if (sourceEpochs[source.id] != update.sourceEpoch) {
-                        return@synchronized emptyList()
+                        return
                     }
                     // This proves only that the helper channel answered. It does not read the value
                     // again and therefore must not renew any signal's freshness timestamp.
                     emptyList()
                 }
                 is VehicleSignalSourceUpdate.Missing -> {
+                    if (update.key != null && update.key !in activation.keys) return
                     if (sourceEpochs[source.id] != update.sourceEpoch && update.sourceEpoch != 0L) {
-                        return@synchronized emptyList()
+                        return
                     }
                     if (update.key == null) {
                         markKeysMissingLocked(
@@ -140,8 +145,10 @@ internal class VehicleSignalHub(
                     )
                 }
             }
+            // Queue under the same lock as the retained state. offer never invokes external
+            // code here: each subscription has an owned asynchronous handoff lane.
+            deliveries.forEach { (subscription, notice) -> subscription.offerUntyped(notice) }
         }
-        deliveries.forEach { (subscription, notice) -> subscription.offerUntyped(notice) }
     }
 
     private fun replaceSampleLocked(
@@ -287,15 +294,21 @@ internal class VehicleSignalHub(
         executor: Executor,
         listener: (VehicleSignalEventNotice<T>) -> Unit,
     ): VehicleSignalEventSubscription {
-        val subscription = EventSubscription(key, executor, listener) {
-            unsubscribe(leaseId, it)
-        }
-        synchronized(lock) {
+        return synchronized(lock) {
             val lease = requireNotNull(leases[leaseId]) { "vehicle signal lease is closed" }
             require(key in lease.demands) { "${key.stableName} was not demanded" }
+            check(deliverySlots.tryAcquire()) { "vehicle signal delivery lane limit reached" }
+            val subscription = try {
+                EventSubscription(key, executor, listener, deliverySlots::release) {
+                    unsubscribe(leaseId, it)
+                }
+            } catch (error: Exception) {
+                deliverySlots.release()
+                throw error
+            }
             lease.subscriptions += subscription
+            subscription
         }
-        return subscription
     }
 
     private fun unsubscribe(leaseId: Long, subscription: EventSubscription<*>) {
@@ -331,6 +344,15 @@ internal class VehicleSignalHub(
                 VehicleSignalMissingReason.STARTING,
                 "source starting",
             )
+        }
+        // Invalidate state before a callback can observe the reconfiguration notice.
+        if (previous != null && requested.isNotEmpty()) {
+            unavailableDeliveriesLocked(
+                previous.keys intersect requested,
+                VehicleSignalMissingReason.STARTING,
+                "source demand changed; transient events may be lost",
+                0L,
+            ).forEach { (subscription, notice) -> subscription.offerUntyped(notice) }
         }
         return true
     }
@@ -396,6 +418,17 @@ internal class VehicleSignalHub(
             val demand = requireNotNull(demands[key]) { "${key.stableName} was not demanded" }
             val state = snapshot.sample(key)?.state
                 ?: VehicleSignalState.Missing(VehicleSignalMissingReason.STARTING)
+            if (state is VehicleSignalState.Fresh && (
+                state.observedAtElapsedMs < 0L ||
+                    state.verifiedAtElapsedMs < state.observedAtElapsedMs ||
+                    state.verifiedAtElapsedMs > nowElapsedMs
+                )
+            ) {
+                return VehicleSignalState.Missing(
+                    VehicleSignalMissingReason.INVALID,
+                    "signal timestamp outside elapsed clock",
+                )
+            }
             if (
                 state is VehicleSignalState.Fresh &&
                 nowElapsedMs - state.verifiedAtElapsedMs > demand.maxVerificationAgeMs
@@ -444,12 +477,22 @@ internal class VehicleSignalHub(
         val key: VehicleSignalKey<T>,
         private val executor: Executor,
         private val listener: (VehicleSignalEventNotice<T>) -> Unit,
+        onTerminated: () -> Unit,
         private val onClose: (EventSubscription<T>) -> Unit,
     ) : VehicleSignalEventSubscription {
         private val lock = Any()
         private val queue = ArrayDeque<VehicleSignalEventNotice<T>>()
         private var drainScheduled = false
         private var closed = false
+        private var offeredVersion = 0L
+        // At most one handoff is pending per subscription. Idle threads expire; closing shuts
+        // the worker down. A stuck inline consumer retains its admission slot until it exits.
+        private val deliveryWorker = object : ThreadPoolExecutor(
+            0, 1, 30L, TimeUnit.SECONDS, ArrayBlockingQueue(1),
+            { runnable -> Thread(runnable, "denza-signal-delivery").apply { isDaemon = true } },
+        ) {
+            override fun terminated() = onTerminated()
+        }
 
         @Suppress("UNCHECKED_CAST")
         fun offerUntyped(notice: VehicleSignalEventNotice<*>) {
@@ -459,6 +502,7 @@ internal class VehicleSignalHub(
         private fun offer(notice: VehicleSignalEventNotice<T>) {
             val shouldSchedule = synchronized(lock) {
                 if (closed) return
+                offeredVersion++
                 if (queue.size >= EVENT_MAILBOX_CAPACITY) {
                     queue.clear()
                     queue.addLast(
@@ -479,11 +523,37 @@ internal class VehicleSignalHub(
             }
             if (!shouldSchedule) return
             try {
-                executor.execute(::drain)
+                deliveryWorker.execute(::submitDrain)
             } catch (_: RuntimeException) {
-                synchronized(lock) {
-                    drainScheduled = false
-                    queue.clear()
+                // Only shutdown can reject an owned worker's single outstanding handoff.
+                deactivate()
+            }
+        }
+
+        private fun submitDrain() {
+            while (true) {
+                val version = synchronized(lock) {
+                    if (closed) return
+                    offeredVersion
+                }
+                try {
+                    executor.execute(::drain)
+                    return
+                } catch (_: RuntimeException) {
+                    val retry = synchronized(lock) {
+                        if (closed) return
+                        queue.clear()
+                        queue.addLast(VehicleSignalEventNotice.Unavailable(
+                            VehicleSignalMissingReason.AMBIGUOUS,
+                            "consumer executor rejected event delivery",
+                        ))
+                        // New traffic during a failed submission must not strand its gap. In
+                        // the absence of new traffic keep one notice and do not spin/retry.
+                        val changed = offeredVersion != version
+                        drainScheduled = changed
+                        changed
+                    }
+                    if (!retry) return
                 }
             }
         }
@@ -503,7 +573,7 @@ internal class VehicleSignalHub(
                 }
                 try {
                     listener(notice)
-                } catch (_: RuntimeException) {
+                } catch (_: Exception) {
                     // One consumer callback cannot kill its serialized delivery lane.
                 }
             }
@@ -511,9 +581,12 @@ internal class VehicleSignalHub(
 
         override fun close() = onClose(this)
 
-        fun deactivate() = synchronized(lock) {
-            closed = true
-            queue.clear()
+        fun deactivate() {
+            synchronized(lock) {
+                closed = true
+                queue.clear()
+            }
+            deliveryWorker.shutdownNow()
         }
 
         private companion object {

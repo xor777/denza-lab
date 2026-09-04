@@ -112,8 +112,11 @@ internal interface VehicleSignalLease : AutoCloseable {
     /**
      * Delivers only live transient events, never retained connection snapshots.
      *
-     * Delivery is bounded and serialized on [executor]. A slow consumer cannot block the source
-     * lane; overflow becomes an explicit [VehicleSignalEventNotice.Unavailable] notice.
+     * Delivery is bounded and serialized per subscription, not across keys. Even an inline
+     * [executor] runs off the source lane. Overflow or executor rejection retains an explicit
+     * [VehicleSignalEventNotice.Unavailable]; rejection is retried only on new source traffic.
+     * Closing suppresses queued callbacks, but cannot revoke a callback already executing.
+     * The hub admits at most 16 delivery lanes, including closed lanes with stuck inline code.
      */
     fun <T : Any> subscribeEvents(
         key: VehicleSignalKey<T>,
@@ -158,7 +161,11 @@ internal sealed interface VehicleSignalSourceUpdate {
     ) : VehicleSignalSourceUpdate
 }
 
-/** One bounded transport lane. Its implementation owns reconnect and backoff. */
+/**
+ * One bounded transport lane. Its implementation owns reconnect and backoff. Publish updates
+ * serially in source order. Changing the requested-key union currently restarts the lane and
+ * explicitly reports a discontinuity; no live reconfiguration capability is assumed.
+ */
 internal interface VehicleSignalSource {
     val id: VehicleSignalSourceId
     val keys: Set<VehicleSignalKey<*>>
