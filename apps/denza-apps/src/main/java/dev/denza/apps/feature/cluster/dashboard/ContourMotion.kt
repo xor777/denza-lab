@@ -308,6 +308,14 @@ internal class ContourMotion {
          * Which way a reading counts, given where the panel already was.
          *
          * Pure, so the hysteresis is a function of the previous state rather than of a clock.
+         *
+         * **The hysteresis is per side, not per magnitude.** It used to hold `previous` for any
+         * reading whose magnitude fell in the band, on either side of zero, so a value that arrived
+         * on the far side kept the colour it had on the near one - and it was a fixed point: a coast
+         * held at three kilowatts of regeneration stayed ink for as long as it lasted. One lift-off
+         * inside a single slow-lane frame is all it takes to land there. A colour is now held only
+         * while the reading is still on its own side of zero, so crossing zero always passes through
+         * [ContourFlow.NEUTRAL] whatever the frame time was.
          */
         fun flowOf(kilowatts: Float, previous: ContourFlow): ContourFlow {
             val take = NEUTRAL_KW + FLOW_HYSTERESIS_KW / 2f
@@ -315,8 +323,9 @@ internal class ContourMotion {
             return when {
                 kilowatts > take -> ContourFlow.OUT
                 kilowatts < -take -> ContourFlow.BACK
-                abs(kilowatts) < give -> ContourFlow.NEUTRAL
-                else -> previous
+                kilowatts > give -> if (previous == ContourFlow.OUT) ContourFlow.OUT else ContourFlow.NEUTRAL
+                kilowatts < -give -> if (previous == ContourFlow.BACK) ContourFlow.BACK else ContourFlow.NEUTRAL
+                else -> ContourFlow.NEUTRAL
             }
         }
     }

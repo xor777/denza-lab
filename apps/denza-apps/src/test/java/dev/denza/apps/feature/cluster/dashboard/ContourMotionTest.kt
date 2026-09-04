@@ -154,6 +154,44 @@ class ContourMotionTest {
     }
 
     @Test
+    fun theColourItHoldsIsTheColourItHadOnThatSideOfZero() {
+        // The hysteresis used to be taken on the magnitude, so a reading that arrived on the far
+        // side of zero kept the state it had on the near one - and it is a fixed point: a coast held
+        // at three kilowatts of regeneration stayed INK for as long as it lasted.
+        assertEquals(ContourFlow.NEUTRAL, ContourMotion.flowOf(-2.5f, ContourFlow.OUT))
+        assertEquals(ContourFlow.NEUTRAL, ContourMotion.flowOf(-3f, ContourFlow.OUT))
+        assertEquals(ContourFlow.NEUTRAL, ContourMotion.flowOf(2.5f, ContourFlow.BACK))
+
+        // What the hysteresis is for still works: a colour is held through the band it crossed.
+        assertEquals(ContourFlow.OUT, ContourMotion.flowOf(2.5f, ContourFlow.OUT))
+        assertEquals(ContourFlow.BACK, ContourMotion.flowOf(-2.5f, ContourFlow.BACK))
+    }
+
+    @Test
+    fun aLiftOffInOneSlowFrameGoesThroughNeutralAndNeverStaysOut() {
+        // The view admits a frame of up to a quarter of a second, and the slow lane's own step is a
+        // fifth: settled at five kilowatts out, one such frame onto a three-kilowatt regeneration
+        // lands the band at -1.7, which is inside the hysteresis on the wrong side of zero.
+        val motion = ContourMotion()
+        motion.step(5f, null, ContourPace.MAX_STEP_S)
+        motion.step(5f, null, ContourPace.MAX_STEP_S)
+        assertEquals(ContourFlow.OUT, motion.flow)
+
+        motion.step(-3f, null, ContourPace.MAX_STEP_S)
+        assertTrue("the band is on the return side", motion.powerKw < 0f)
+        assertEquals("and nothing on the panel is still ink", ContourFlow.NEUTRAL, motion.flow)
+
+        repeat(20) {
+            motion.step(-3f, null, ContourPace.MAX_STEP_S)
+            assertEquals(ContourFlow.NEUTRAL, motion.flow)
+        }
+
+        // Braking properly is a change worth drawing, and it is drawn.
+        motion.step(-30f, null, ContourPace.MAX_STEP_S)
+        assertEquals(ContourFlow.BACK, motion.flow)
+    }
+
+    @Test
     fun aHardTransitionStillChangesColourBecauseItIsRealDriving() {
         // The hysteresis is there to hold a coast still, not to slow the panel down. Braking hard
         // and then pulling hard is a change, and it is drawn as one.
