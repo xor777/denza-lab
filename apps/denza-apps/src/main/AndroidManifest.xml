@@ -138,23 +138,24 @@
         <service
             android:name=".feature.speaker.SpeakerCoverService"
             android:exported="false" />
+        <service
+            android:name=".RuntimeRecoveryService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
         <receiver
             android:name=".feature.weather.WeatherAdapterReceiver"
             android:enabled="true"
             android:exported="false">
             <intent-filter>
-                <action android:name="android.intent.action.BOOT_COMPLETED" />
-                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="dev.denza.apps.action.WEATHER_REFRESH_ALARM" />
             </intent-filter>
         </receiver>
         <receiver
-            android:name=".SimulcastBootReceiver"
-            android:directBootAware="true"
+            android:name=".RuntimeRecoveryReceiver"
             android:enabled="true"
             android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
-                <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
             </intent-filter>
         </receiver>

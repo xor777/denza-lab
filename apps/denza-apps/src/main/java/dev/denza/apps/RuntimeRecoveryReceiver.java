@@ -5,15 +5,11 @@ import android.content.Context;
 import android.content.Intent;
 import android.util.Log;
 
-import dev.denza.apps.core.DenzaRuntimeCoordinator;
 import dev.denza.apps.feature.defaultapps.DefaultAppsSettings;
 
-/**
- * Restores desired runtimes after trusted system lifecycle broadcasts. Simulcast dialog
- * visibility is observed through accessibility instead of accepting spoofable vendor broadcasts.
- */
-public class SimulcastBootReceiver extends BroadcastReceiver {
-    private static final String TAG = "DenzaSimulcastBoot";
+/** Starts the bounded runtime recovery service after trusted system lifecycle broadcasts. */
+public class RuntimeRecoveryReceiver extends BroadcastReceiver {
+    private static final String TAG = "DenzaRuntimeBoot";
 
     @Override
     public void onReceive(Context context, Intent intent) {
@@ -30,9 +26,9 @@ public class SimulcastBootReceiver extends BroadcastReceiver {
                 Log.i(TAG, "navigation proxy repair request failed", e);
             }
         }
-        if (SimulcastBootActionPolicy.shouldRecover(action)) {
+        if (RuntimeRecoveryActionPolicy.shouldRecover(action)) {
             try {
-                DenzaRuntimeCoordinator.INSTANCE.bootstrap(context);
+                RuntimeRecoveryService.start(context, action);
                 if (packageReplaced) {
                     // Ignore the normal 30-second freshness window: AutoVoice may have reset the
                     // row milliseconds after the last successful read.

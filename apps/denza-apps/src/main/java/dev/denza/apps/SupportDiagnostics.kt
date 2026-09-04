@@ -3,6 +3,7 @@ package dev.denza.apps
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
+import dev.denza.apps.core.AccQuickBootSurvivalRegistrar
 import dev.denza.apps.core.FeatureSnapshot
 import dev.denza.apps.feature.cluster.CameraRuntimeSnapshot
 import dev.denza.apps.feature.cluster.ClusterDisplayResolver
@@ -66,6 +67,7 @@ object SupportDiagnostics {
                     "attempts=${adbRescue.attemptCount}",
             )
             add("ADB queue recovery=${AdbRescueCoordinator.QUEUE_RECOVERY_STATUS}")
+            add("ACC quickboot whitelist=${AccQuickBootSurvivalRegistrar.diagnostic()}")
             // The speaker feature's own phase: whether it is watching, or a report is on the wire.
             SpeakerCoverRuntime.snapshot().let { speaker ->
                 add(

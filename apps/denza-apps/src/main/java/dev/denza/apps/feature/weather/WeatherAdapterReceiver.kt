@@ -13,12 +13,6 @@ class WeatherAdapterReceiver : BroadcastReceiver() {
                 WeatherAdapterScheduler.scheduleNext(context)
                 WeatherAdapterScheduler.refreshNow(context, WeatherAdapterService.REASON_PERIODIC)
             }
-            Intent.ACTION_BOOT_COMPLETED,
-            Intent.ACTION_MY_PACKAGE_REPLACED,
-            -> {
-                WeatherAdapterScheduler.scheduleNext(context)
-                WeatherAdapterScheduler.refreshNow(context, WeatherAdapterService.REASON_RECOVERY)
-            }
             else -> Log.i(TAG, "ignored action=$action")
         }
     }

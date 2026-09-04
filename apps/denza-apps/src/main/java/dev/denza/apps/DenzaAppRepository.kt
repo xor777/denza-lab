@@ -176,17 +176,26 @@ object DenzaAppRepository {
         initializeAdbGate(context.applicationContext)
     }
 
-    fun recoverAutostart(context: Context) {
+    fun recoverAutostart(context: Context, onChanged: (() -> Unit)? = null) {
         val app = context.applicationContext
         appContext = app
         AdbRescueCoordinator.initialize(app)
         when (AdbAutostartRetryPolicy.action(AdbRescueCoordinator.snapshot().phase)) {
             AdbAutostartRetryAction.CHECK_ACCESS -> {
                 refresh()
-                checkAdbAccess()
+                AdbRescueCoordinator.checkAccess(app) {
+                    onAdbRescueChanged(app)
+                    onChanged?.invoke()
+                }
             }
-            AdbAutostartRetryAction.START_RUNTIME -> startAdbRuntime(app)
-            AdbAutostartRetryAction.NONE -> refresh()
+            AdbAutostartRetryAction.START_RUNTIME -> {
+                startAdbRuntime(app)
+                onChanged?.invoke()
+            }
+            AdbAutostartRetryAction.NONE -> {
+                refresh()
+                onChanged?.invoke()
+            }
         }
     }
 

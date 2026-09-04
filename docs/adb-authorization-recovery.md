@@ -11,17 +11,34 @@ trusted remote tunnel does not prove that the Denza Apps key is trusted.
 
 Denza Apps has one canonical ADB identity and one owner for authorization prompts:
 
-- The main-process `Application` is the runtime entry point, so BYD autoload does not have to open
-  `MainActivity`. It waits for credential storage to be unlocked, performs one passive startup
-  probe, and reconciles every enabled feature independently once ADB is trusted. A failed feature
-  does not prevent the remaining features from starting, and a later entry may repeat the
-  idempotent reconciliation.
-- Autoload owns one finite readiness window: recovery passes are scheduled after 4, 8, 16, and 32
-  seconds (the last pass is one minute after process start). `UNAVAILABLE` and `ERROR` may repeat a
-  passive check inside that window because car services can still be coming up; an authorization
-  refusal never submits a key automatically. Outside this window only an explicit user action can
-  start another probe or the one-shot request. This is startup convergence, not resurrection after
-  Android `force-stop`.
+- `RuntimeRecoveryReceiver` is the only manifest owner of `BOOT_COMPLETED` and
+  `MY_PACKAGE_REPLACED`. It starts one short-lived foreground bootstrap service; the quiet
+  **Восстановление фоновых функций** notification disappears after convergence and is forcibly
+  removed after 60 seconds. The service does not take an ACC lock and does not keep the vehicle
+  awake. Weather keeps only its private periodic-alarm receiver and has no independent boot path.
+- The main-process `Application`, that receiver, and a dynamic `SCREEN_ON` receiver all enter one
+  coalesced recovery cycle. `SCREEN_ON` is only a wake hint for a process that is still alive; it
+  cannot resurrect an application that quickboot already killed. Every enabled feature is
+  reconciled independently once ADB is trusted, so a failed Binder call or one failed feature does
+  not prevent the remaining features from starting.
+- A real system `BOOT_COMPLETED` is the only event that grants permission to register
+  `dev.denza.apps` in the firmware's in-memory ACC whitelist. Once the existing passive ADB key is
+  confirmed trusted, Denza Apps executes exactly
+  `service call accmodemanager 1 s16 dev.denza.apps`. Manual launch, `SCREEN_ON`, and
+  `MY_PACKAGE_REPLACED` never grant that right. The registration is not `DEVICE_ACC` permission
+  inside the APK and is not an ACC lock.
+- The ACC whitelist belongs to `system_server` memory. A full Android or `system_server` restart
+  clears it; the next genuine `BOOT_COMPLETED` is expected to register the package again. On a
+  firmware without `accmodemanager`, the current runtime continues and diagnostics record the
+  failure, but quickboot survival is not claimed.
+- The BYD system page is named **Disable self-start** / **Disable background Apps**. A checked or
+  enabled switch on that page means the application is *blocked* from background self-start, not
+  allowed. Denza Apps must therefore be absent from that deny-list, or its switch must be off.
+- Autoload owns one finite readiness window: passive probes happen at 0, 4, 8, 16, and 32 seconds
+  after cycle start. `UNAVAILABLE` and `ERROR` may repeat a passive check inside that window because
+  car services can still be coming up; an authorization refusal never submits a key automatically.
+  Outside this window only an explicit user action can start another probe or the one-shot request.
+  This is startup convergence, not resurrection after Android `force-stop`.
 - A refused/timeout/no-route endpoint is shown as **ADB недоступен** with the service-only
   instruction. A successful ADB handshake with an untrusted Denza Apps key is shown separately as
   **Подтвердите доступ к ADB**.
