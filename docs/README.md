@@ -17,11 +17,11 @@ Use this folder for durable project knowledge.
 | `split-screen-findings.md` | Live-proven BYD split substrate, explicit one-package picker flow, acceptance evidence, and retired approaches. |
 | `split-screen-product-contract.md` | Normative Split Screen contract: user-visible combinatorics, invariants, single-automaton core, delete-first policy, test-audit verdict, live acceptance protocol. Owns the product contract where it diverges from findings. |
 | `weather-adapter-findings.md` | Stock BYD weather-provider contract, MET Norway adapter, cache/write behavior, and live proof. |
-| `shortcuts-automation-findings.md` | Shortcuts If/Then catalog, PersonBean navigation/music/video roles, live Yandex Navigator/Music and VK Video checks, the built-in single-APK navigation proxy, and the firmware-specific actions that honor each role. |
+| `shortcuts-automation-findings.md` | Shortcuts If/Then catalog, direct PersonBean navigation/music/video roles, live Yandex Navigator/Music and VK Video checks, the retired single-package proxy experiment, and the proposed package-replacement recovery path. |
 | `carplay-findings.md` | Vehicle hardware/software evidence around CarPlay, PhoneLink/Fission boundaries, and unsupported hypotheses. |
 | `car-adb-gateway-architecture.md` | Normative relay-only Car ADB Gateway design and verification status. |
 | `car-adb-gateway-decision-log.md` | ADR-lite product/architecture decisions, rationale, evidence, and revisit conditions. |
-| `cluster-contest-2026-09/` | Design contest for the driver-display instrument panel: the brief, five concepts (A–E), and the jury verdict that chose «Контур» with five binding amendments. |
+| `cluster-contest-2026-09/` | Design contest for the driver-display instrument panel: the brief, five concepts (A–E), the jury verdict that chose «Контур» with five binding amendments, and an independent HMI-ergonomics critique of the third board. |
 
 If an investigation produces something worth keeping, update the nearest page.
 Add a new document only when the subject has a clear long-term home and would
