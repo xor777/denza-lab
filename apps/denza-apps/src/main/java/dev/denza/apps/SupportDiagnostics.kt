@@ -68,14 +68,7 @@ object SupportDiagnostics {
             )
             add("ADB queue recovery=${AdbRescueCoordinator.QUEUE_RECOVERY_STATUS}")
             add("ACC quickboot whitelist=${AccQuickBootSurvivalRegistrar.diagnostic()}")
-            // The speaker feature's own phase: whether it is watching, or a report is on the wire.
-            SpeakerCoverRuntime.snapshot().let { speaker ->
-                add(
-                    "Крышки динамиков=" +
-                        "phase=${speaker.phase.name.lowercase()}; " +
-                        "message=${speaker.message.ifBlank { "—" }}",
-                )
-            }
+            add("Крышки динамиков=reporting=${if (SpeakerCoverRuntime.reporting) "да" else "нет"}")
             // Анализатор питается тем же захватом, что и автоматика крышек, и когда захвата нет,
             // обе функции молчат одинаково. На экране про это не пишется ни слова (U5), поэтому
             // единственное место, где «столбики не шевелятся» можно отличить от «в машине тихо», -

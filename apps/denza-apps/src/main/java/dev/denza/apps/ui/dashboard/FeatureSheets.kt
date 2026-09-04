@@ -427,24 +427,18 @@ private fun weatherSheet(state: DenzaUiState, actions: DashboardActions) {
 }
 
 /**
- * One playback-driven opening, and the two buttons that end it.
+ * The switch, and the one button that answers whether or not the switch is on.
  *
- * The buttons answer whether or not the automation is on: the covers belong to the car, and wanting
- * them up at a standstill with nothing playing is a perfectly ordinary thing. Either press also
- * settles the argument for the rest of the drive - the automation stands down and the covers stay
- * where they were put, which is the paragraph's job to say. It used to be the other way round: a
- * cover closed by hand came back out three seconds later because the music was still playing.
- *
- * The two buttons grey out for as long as their command is on the wire, and that has to be asked
- * separately from [busy]. With the automation off the feature's own status is `disabled` and never
- * moves, so the sheet-wide busy flag stayed false through the seconds an adb call takes: the
- * buttons kept their live look, nothing on the panel changed, and from the seat that is a control
- * that did nothing - pressed again, and again. Greying is the whole cue the panels have and the
- * whole cue they need; there is no error text here and no line explaining what a command is doing.
+ * The covers belong to the car, and wanting them up at a standstill with nothing playing is a
+ * perfectly ordinary thing, so «Поднять» does not care about the switch. It greys for the second
+ * its report is on the wire, and that is read from [DenzaUiState.speakerCoversReporting] rather than
+ * from [busy]: a one-off action is not the feature's status - on this tile or any other - and with
+ * the switch off the status is `disabled` and never moves anyway. Greying is the whole cue the
+ * panels have and the whole cue they need; there is no error text here and no progress line.
  */
 @Composable
 private fun speakerSheet(state: DenzaUiState, actions: DashboardActions, busy: Boolean) {
-    val commanding = busy || state.speakerCoversCommanding
+    val reporting = busy || state.speakerCoversReporting
     DenzaSwitchRow(
         title = "Автоуправление динамиками",
         checked = state.speakerCovers.desiredEnabled,
@@ -463,7 +457,7 @@ private fun speakerSheet(state: DenzaUiState, actions: DashboardActions, busy: B
             text = "Поднять",
             onClick = actions.onRaiseSpeakerCovers,
             modifier = Modifier.weight(1f),
-            enabled = !commanding,
+            enabled = !reporting,
         )
     }
 }

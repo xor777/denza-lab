@@ -61,6 +61,7 @@ import dev.denza.apps.feature.split.SplitScreenToggleController
 import dev.denza.apps.feature.speaker.SpeakerCoverRuntime
 import dev.denza.apps.feature.speaker.SpeakerCoverService
 import dev.denza.apps.feature.speaker.SpeakerCoverSettings
+import dev.denza.apps.feature.speaker.SpeakerCoverStatus
 import dev.denza.apps.feature.split.SplitLauncherEntryActivity
 import dev.denza.apps.feature.weather.WeatherAdapterScheduler
 import dev.denza.apps.feature.weather.WeatherAdapterState
@@ -103,12 +104,12 @@ data class DenzaUiState(
     val hudGuidance: FeatureSnapshot = FeatureReducer.disabled(FeatureId.HUD_GUIDANCE),
     val speakerCovers: FeatureSnapshot = FeatureReducer.disabled(FeatureId.SPEAKER_COVERS),
     /**
-     * A cover report in flight, which the snapshot above cannot say while the automation is off.
+     * A cover report on the wire, for the second «Поднять» is greyed.
      *
-     * «Поднять» answers with the toggle either way, so its in-progress state has to be read from
-     * the runtime rather than from the feature's own status.
+     * Not part of the feature's status - a one-off action never is, on any tile - and read
+     * separately because the button answers with the switch off too.
      */
-    val speakerCoversCommanding: Boolean = false,
+    val speakerCoversReporting: Boolean = false,
     val fseInstaller: FeatureSnapshot = FeatureSnapshot(
         id = FeatureId.FSE_INSTALLER,
         desiredEnabled = false,
@@ -235,8 +236,11 @@ object DenzaAppRepository {
             session = splitScreenSession,
         )
         val hudGuidance = evaluateHudGuidance(context)
-        val speakerCovers = SpeakerCoverRuntime.featureSnapshot(context)
-        val speakerCoversCommanding = SpeakerCoverRuntime.commanding()
+        val speakerCovers = SpeakerCoverStatus.snapshot(
+            enabled = SpeakerCoverSettings.isEnabled(context),
+            sessionsObservable = HudNotificationAccessCoordinator.isAccessEnabled(context),
+        )
+        val speakerCoversReporting = SpeakerCoverRuntime.reporting
         val technicalDetails = supportDiagnostics(context)
         val clusterCandidates = ClusterDisplayResolver.candidates(context)
         val clusterDisplayLabel = clusterDisplayLabel(context, clusterCandidates)
@@ -271,7 +275,7 @@ object DenzaAppRepository {
                 splitScreen = splitScreen,
                 hudGuidance = hudGuidance,
                 speakerCovers = speakerCovers,
-                speakerCoversCommanding = speakerCoversCommanding,
+                speakerCoversReporting = speakerCoversReporting,
                 adbRescue = adbRescue,
                 technicalDetails = technicalDetails,
                 clusterCandidates = clusterCandidates,

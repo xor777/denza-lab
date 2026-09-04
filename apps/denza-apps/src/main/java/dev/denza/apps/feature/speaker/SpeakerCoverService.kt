@@ -26,9 +26,11 @@ import java.util.concurrent.Executors
  *
  * It holds no state about the covers because there is none to hold: their position is unreadable,
  * the amplifier raises and lowers them by its own rule, and a report that arrives twice costs
- * nothing. It listens, hands each trigger to [SpeakerCoverPolicy], and sends the one report the
+ * nothing. It listens, asks [SpeakerCoverPolicy] about each trigger, and sends the one report the
  * policy allows. Switching the feature on starts it and switching it off stops it; neither flip
- * writes anything to the car.
+ * writes anything to the car. The tile's status is not its business - [SpeakerCoverStatus] reads
+ * that from the switch and the preconditions - and the only thing it tells the screen is whether a
+ * report is on the wire.
  */
 class SpeakerCoverService : Service() {
     private val handler = Handler(Looper.getMainLooper())
@@ -37,6 +39,9 @@ class SpeakerCoverService : Service() {
     private lateinit var mediaSessions: SpeakerMediaSessionObserver
     private var watching = false
     private var destroyed = false
+
+    /** Reports sent and not yet answered; the screen greys «Поднять» while it is above zero. */
+    private var inFlight = 0
 
     /**
      * The last package reported for and when, so one starting track is one report.
@@ -55,7 +60,7 @@ class SpeakerCoverService : Service() {
         startForeground(NOTIFICATION_ID, notification())
         active = this
         mediaSessions = SpeakerMediaSessionObserver(applicationContext) { packageName ->
-            onPlayback(packageName)
+            consider(SpeakerCoverTrigger.Playback(packageName), stopWhenOff = false)
         }
         // A one-shot serving «Поднять» with the feature off has nothing to watch, and must not go
         // repairing observer access on the driver's behalf.
@@ -65,7 +70,7 @@ class SpeakerCoverService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_RAISE) {
             renotify()
-            send(SpeakerCoverTrigger.RaisePressed, stopWhenOff = true)
+            consider(SpeakerCoverTrigger.RaisePressed, stopWhenOff = true)
             return START_NOT_STICKY
         }
         if (!SpeakerCoverSettings.isEnabled(this)) {
@@ -83,7 +88,8 @@ class SpeakerCoverService : Service() {
         if (active === this) active = null
         if (::mediaSessions.isInitialized) mediaSessions.stop()
         executor.shutdownNow()
-        SpeakerCoverRuntime.publish(SpeakerCoverRuntimeState())
+        inFlight = 0
+        SpeakerCoverRuntime.reporting = false
         DenzaAppRepository.refresh()
         super.onDestroy()
     }
@@ -96,7 +102,6 @@ class SpeakerCoverService : Service() {
      * what switching on does to the covers.
      */
     private fun watch() {
-        publishWatching()
         if (watching) return
         watching = true
         renotify()
@@ -111,20 +116,32 @@ class SpeakerCoverService : Service() {
             }
         }
         HudNotificationAccessCoordinator.ensureMediaSessionAccess(this) {
-            handler.post { if (!destroyed && watching) mediaSessions.restart() }
+            handler.post {
+                if (!destroyed && watching) mediaSessions.restart()
+                // Access may just have been granted, and the tile reads that from the settings.
+                DenzaAppRepository.refresh()
+            }
         }
     }
 
-    private fun onPlayback(packageName: String?) {
-        if (destroyed || packageName == null) return
-        if (!worthRepeating(packageName)) return
-        send(SpeakerCoverTrigger.Playback(packageName), stopWhenOff = false)
-    }
-
-    private fun onPlayerOpened(packageName: String?) {
-        if (destroyed || packageName == null) return
-        if (!worthRepeating(packageName)) return
-        send(SpeakerCoverTrigger.PlayerOpened(packageName), stopWhenOff = false)
+    /**
+     * Policy first, then the repeat guard, and only then anything the screen can see.
+     *
+     * This order is the fix for a tile that flickered on every window of every app: the earlier
+     * shape announced «a command is on the wire» before asking the policy, so a foreground change
+     * to the launcher, or a stock player found already playing, spent a spinner on a decision that
+     * came back «no». Nothing below this line runs for a trigger the app will not speak for.
+     */
+    private fun consider(trigger: SpeakerCoverTrigger, stopWhenOff: Boolean) {
+        if (destroyed) return
+        if (!SpeakerCoverPolicy.reports(trigger, SpeakerCoverSettings.isEnabled(this))) return
+        val packageName = when (trigger) {
+            is SpeakerCoverTrigger.Playback -> trigger.packageName
+            is SpeakerCoverTrigger.PlayerOpened -> trigger.packageName
+            SpeakerCoverTrigger.RaisePressed -> null
+        }
+        if (packageName != null && !worthRepeating(packageName)) return
+        send(trigger, stopWhenOff)
     }
 
     private fun worthRepeating(packageName: String): Boolean {
@@ -146,53 +163,39 @@ class SpeakerCoverService : Service() {
      * repeat is insurance against the one race the seat cannot see, not a state being kept true.
      * A button is not racing anything and is sent once.
      *
-     * A report that fails is logged and that is all. What the panel shows is the second of grey
-     * while the command is on the wire; whether the car can be reached at all is already the
-     * «Сервис» tile's news.
+     * A report that fails is logged and that is all. Whether the car can be reached at all is
+     * already the «Сервис» tile's news.
      */
     private fun send(trigger: SpeakerCoverTrigger, stopWhenOff: Boolean) {
-        publish(SpeakerCoverRuntimePhase.COMMANDING, describe(trigger))
-        val enabled = SpeakerCoverSettings.isEnabled(this)
+        inFlight += 1
+        publishReporting()
         executor.execute {
-            val result = runCatching { SpeakerCoverTransport.run(applicationContext, trigger, enabled) }
-            if (trigger is SpeakerCoverTrigger.Playback && result.getOrDefault(false)) {
+            val result = runCatching { SpeakerCoverTransport.report(applicationContext) }
+            if (trigger is SpeakerCoverTrigger.Playback && result.isSuccess) {
                 runCatching {
                     Thread.sleep(CAR_OVERWRITE_WINDOW_MS)
-                    SpeakerCoverTransport.run(applicationContext, trigger, enabled)
+                    SpeakerCoverTransport.report(applicationContext)
                 }
             }
             handler.post { finish(trigger, result, stopWhenOff) }
         }
     }
 
-    private fun finish(trigger: SpeakerCoverTrigger, result: Result<Boolean>, stopWhenOff: Boolean) {
+    private fun finish(trigger: SpeakerCoverTrigger, result: Result<Unit>, stopWhenOff: Boolean) {
         if (destroyed) return
         result
-            .onSuccess { reported -> Log.i(TAG, "trigger=$trigger reported=$reported") }
+            .onSuccess { Log.i(TAG, "reported trigger=$trigger") }
             .onFailure { failure -> Log.w(TAG, "report failed trigger=$trigger", failure) }
+        inFlight -= 1
+        publishReporting()
         // Re-read rather than remembered: the switch may have gone on while the button's report was
         // on the wire, and a service that stopped then would leave the feature on with nobody
         // listening.
-        if (stopWhenOff && !SpeakerCoverSettings.isEnabled(this)) {
-            stopSelf()
-            return
-        }
-        publishWatching()
+        if (stopWhenOff && !SpeakerCoverSettings.isEnabled(this)) stopSelf()
     }
 
-    private fun describe(trigger: SpeakerCoverTrigger): String = when (trigger) {
-        is SpeakerCoverTrigger.Playback -> "Музыка: ${trigger.packageName}"
-        is SpeakerCoverTrigger.PlayerOpened -> "Открыт плеер: ${trigger.packageName}"
-        SpeakerCoverTrigger.RaisePressed -> "Поднимаю"
-    }
-
-    private fun publishWatching() {
-        publish(SpeakerCoverRuntimePhase.MONITORING, SpeakerCoverRuntime.WATCHING)
-    }
-
-    private fun publish(phase: SpeakerCoverRuntimePhase, message: String) {
-        Log.i(TAG, "phase=$phase message=$message")
-        SpeakerCoverRuntime.publish(SpeakerCoverRuntimeState(phase = phase, message = message))
+    private fun publishReporting() {
+        SpeakerCoverRuntime.reporting = inFlight > 0
         DenzaAppRepository.refresh()
     }
 
@@ -272,7 +275,7 @@ class SpeakerCoverService : Service() {
 
         @JvmStatic
         fun onForegroundPackage(packageName: String?) {
-            active?.onPlayerOpened(packageName)
+            active?.consider(SpeakerCoverTrigger.PlayerOpened(packageName), stopWhenOff = false)
         }
     }
 }
