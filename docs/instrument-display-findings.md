@@ -187,7 +187,7 @@ is on the driver's display now is **"Контур"**, which won the five-way clu
 contest in `docs/cluster-contest-2026-09/`: `VERDICT.md` picked it with five
 binding corrections, `CRITIQUE.md` roasted the third drawing of it with three
 blockers, fifteen majors and twelve minors, and the boards in
-`tools/design-canvas/` are the eighth drawing - the first one made against the
+`tools/design-canvas/` are the ninth drawing - the second one made against the
 panel running rather than against a still. `gen_contour.py` is the design and
 `ContourPlan` is the same numbers in Kotlin; `ContourBoardContractTest` fails in
 both directions if either moves alone.
@@ -209,7 +209,7 @@ glance, by somebody who has never seen it and has no legend?**
 | the glow | one pool of light centred on zero: hue is the direction, brightness is `0.18·√(P/120 kW)` by magnitude |
 | the left corner | «БАТАРЕЯ · В» over the traction voltage, at 52 |
 | the right corner | «ДВС · об/мин» over the revolutions while the engine runs, «ДВС · мин за поездку» over its minutes once it has stopped, and **empty** if it never started this trip |
-| the left shelf | pack, three motors and inverter temperatures at 34, plus a fourth cell «мВ / РАЗБРОС ЯЧЕЕК» that exists only at `WATCH` or `ALERT` |
+| the left shelf | five temperatures at 34 - pack, front motor, rear left, rear right, inverter - each over a glyph rather than a word, plus a sixth cell «мВ / РАЗБРОС ЯЧЕЕК» that exists only at `WATCH` or `ALERT` |
 | the right shelf | what the trip cost, as a phrase: «9,3 кВт·ч» over «42 км · ЗА ПОЕЗДКУ», plus «ДАЛ ДВС» if the engine ran, plus «● РЕКУПЕРАЦИЯ» when the car is standing in P |
 | the engine's box | while the engine has been alive in the last two minutes, that shelf is its own history instead: what it put back into the pack, as twenty-four five-second steps linear to 30 kW, under one sentence - «● 14 кВт В БАТАРЕЮ · ПОСЛЕДНИЕ 2 МИН» |
 | the petal | the last three kilometres of consumption, as a stepped field standing on the figure's own baseline, «кВт·ч/100 км · за 3 км» - or a countdown to full while a gun is in |
@@ -233,6 +233,59 @@ at rest, and on a motorway there is no rest: the board electronics pull a kilowa
 or two permanently, so after half an hour the reference has aged into the pack's
 own discharge and «просадка 14 В» is ten per cent of the state of charge wearing a
 unit it does not have.
+
+### The temperature row is five glyphs and one word
+
+The second bench pass, and it is about the row nobody had complained about. Three
+figures under one `МОТОРЫ` never said **which motor is which**, and naming the
+three positions in Russian - `ПЕРЕД / ЗАД Л / ЗАД П` - was tried and thrown out on
+the sound of it. So the row is five cells with no words at all: a two-digit figure
+with its own `°` over a drawing of the thing the figure is about.
+
+| cell | glyph | signal |
+| --- | --- | --- |
+| 1 | a battery: case, terminal, one lit cell inside | `PACK_TEMP_AVG` |
+| 2 | the car from above, a bar across the front axle | `MOTOR_FRONT_C` |
+| 3 | the same car, half a bar on the left of the rear axle | `MOTOR_REAR_LEFT_C` |
+| 4 | the same car, half a bar on the right | `MOTOR_REAR_RIGHT_C` |
+| 5 | a case with one period of alternating current in it | `INVERTER_C` |
+| 6 | «РАЗБРОС ЯЧЕЕК», and it is the only word in the row | `CELL_MAX_MV − CELL_MIN_MV` |
+
+Five rules carry the family, and `ContourGlyphs` is where they live:
+
+- **all five or none.** «если символы, то и батарея, и инвертор, и хорошие» - half
+  a row of pictures under half a row of words is worse than either;
+- **24 units, not the caption's 18.** At 18 they were 2.7 mm of glass for a shape
+  with four wheels in it and the owner could not see them. They stand *on* the
+  caption baseline rather than hanging from it, so neither of the shelf's two rows
+  moved and ten units still separate a glyph's top from the figures' baseline;
+- **one outline, one component.** The outline is `MUTED`, the same as a caption
+  was; the component inside carries `INK`, one step brighter than the figure above
+  it, and takes `WARNING`/`DANGER` **with** the figure on an exception - so a hot
+  cell lights as one object rather than as a red number beside a grey picture.
+  This is the panel's one exception to "`INK` is the hero alone", and it is what
+  makes the mark findable at 12′;
+- **the motor is the motor, not the wheel it drives** («точно мотор с колёсами не
+  путаешь?»). All four wheels are hollow outlines in all three cars, at 1.6 rather
+  than the 2.5 everything carrying data is drawn at; what moves is the filled block
+  on an axle;
+- **every proportion is in caption units**, so the family scales with its height
+  alone. `gen_contour.py` states the same constants the same way and
+  `ContourBoardContractTest` reads the drawn rectangles out of `ClusterContour.dc.html`
+  and holds them against `ContourGlyphs`, in both directions.
+
+What it cost and what it bought: five cells of 50.9 where the three words were
+91.9 · 143.4 · 110.0, so the row is 58 units narrower even with each cell carrying
+its own `°` - the three motors shared one sign from the sixth pass to the eighth
+because `РАЗБРОС ЯЧЕЕК` needed those 25 units, and the captions paid them back
+twice over. The left shelf now stops 270 units clear of the hero's field, or 86 with
+the exception cell up. And **a word in the temperature row now means something is
+wrong**, because it is the only word in it.
+
+This row breaks the house icon rule on purpose. `DenzaIcons` is one optical weight
+throughout, because those are labels on tiles; a glyph here is half of a reading,
+and inside one mark the case, the lit component and the wheels are three different
+kinds of thing.
 
 ### The four rules the panel is built on
 
@@ -353,7 +406,9 @@ odometer says it is about the road we are on.
 
 The panel was built, put on a live bench and watched, and everything that came
 back was about the two histories - not their size this time, but what they were
-saying. Four decisions, and they are the eighth drawing.
+saying. Four decisions, and they are the eighth drawing; the fifth, about the hole
+the engine's sentence keeps when the engine stops, came from the second bench run
+and is the ninth.
 
 **The engine's box draws one quantity and speaks one sentence.** It carried two
 runs and a legend telling them apart - «ОБОРОТЫ · ● ГЕНЕРАЦИЯ 14 кВт» - and the
@@ -366,6 +421,17 @@ shape is, what it is worth now, how far back it goes. Neither «ГЕНЕРАЦИ
 off the shelf's edge with the figure in a two-digit reserve, so it and its unit
 leave together when the engine stops while the words stay put; a face too wide for
 the box shortens the window to «· 2 МИН» and nothing else in the phrase may go.
+
+**And the reserve leaves with them.** The box outlives the engine by two minutes,
+and for that whole time the eighth drawing kept the field standing empty:
+«● ⎵⎵ В БАТАРЕЮ · ПОСЛЕДНИЕ 2 МИН», which is 22 units of hole after a dot and
+reads as a value that failed to arrive rather than as a field with room in it. With
+no figure there is nothing for a reserve to reserve, so the phrase is assembled
+without it and the dot closes up against the words. That is **one shift per engine
+stop, not a jitter** - a reserve buys stillness while a *number* changes, and by
+then there is no number left to change. `ContourPlan.legendMarkQuietX` is the
+second anchor, and it is the only coordinate on the panel that depends on whether
+a value is there rather than on what it is.
 
 **And its scale is linear to 30 kW, clamped.** «Сплющен», said of a box whose
 height had already taken every unit between the two guards, is a verdict on the

@@ -401,8 +401,9 @@ against that, redrawn a fifth time when the owner looked at the scenes and found
 both graphs flattened, redrawn a sixth when he asked what one of the numbers
 meant, and a seventh so that every figure says which window it is true over.
 Then the panel was built, put on a live bench, and watched moving - and the
-eighth pass is what came back from that. Those eight passes are the reason to
-read this section rather than only the concept.
+eighth pass is what came back from that, the ninth from the bench run after it.
+Those nine passes are the reason to read this section rather than only the
+concept.
 
 ### The test every element now has to pass
 
@@ -499,6 +500,83 @@ saying.
 Both boxes are steps of a fixed duration as a result: the petal's thirty buckets
 are a hundred metres each and the engine's twenty-four are five seconds each, a bin
 being the mean of the samples that arrived in it.
+
+### The temperature row is five glyphs, and no words
+
+The second bench pass, and it is about the row nobody had complained about. Three
+figures under one `МОТОРЫ` never said **which motor is which** - `m11` in the
+review, left standing and named as such for five drawings, on the argument that
+three captions at 12′ cost more than the ambiguity. Naming them was then tried
+properly, `ПЕРЕД / ЗАД Л / ЗАД П`, and the owner threw it out on the sound of it:
+*«по-русски не звучат»*. A drawing of the car from above with one axle lit says the
+same thing in one glance and in no language, so the whole row is glyphs.
+
+| cell | glyph | what changes |
+| --- | --- | --- |
+| 1 | a battery | the case, the terminal, and one lit cell inside |
+| 2 | the car from above | a bar across the **front** axle |
+| 3 | the same car | half a bar on the **left** of the rear axle |
+| 4 | the same car | half a bar on the **right** |
+| 5 | a case with one period of alternating current in it | - |
+| 6 | `РАЗБРОС ЯЧЕЕК`, the only word left in the row | appears at `WATCH` or `ALERT` |
+
+Five rules, and every one of them is his:
+
+- **all five or none.** *«если символы, то и батарея, и инвертор, и хорошие»* - half
+  a row of pictures under half a row of words is worse than either. The first cut
+  drew a dot inside a pill for the pack and left the other four as captions;
+  *«беспомощно»*, and it was;
+- **24 units, not the caption's 18.** *«при 18 единицах жучков не видно»* - 2.7 mm
+  of glass for a shape with four wheels in it. At 24 they are 5.1 mm, and they
+  stand **on** the caption baseline rather than hanging from it, so neither of the
+  shelf's two rows moved and ten units still separate a glyph's top from the
+  figures' own baseline;
+- **one outline, one component.** The outline is `MUTED`, the same as a caption
+  was; the component inside is `INK`, one step brighter than the figure above it,
+  and it takes `WARNING`/`DANGER` **with** the figure on an exception - so a hot
+  cell lights as one object rather than as a red number beside a grey picture. That
+  is the panel's one exception to "`INK` is the hero alone", and it is what makes
+  the mark findable at all: an outline round a grey blob reads as one grey shape;
+- **the motor is the motor, not the wheel it drives.** *«точно мотор с колёсами не
+  путаешь?»* - said of a first drawing that filled the wheels each motor drives.
+  All four wheels are hollow in all three cars, and they are the one thing in the
+  family drawn at 1.6 rather than the 2.5 everything carrying data uses: a wheel is
+  furniture saying "this is a car from above" and the block on the axle is the
+  reading;
+- **every proportion is in caption units** and multiplied up by `k = 24/18`, so the
+  family scales with its height alone and nothing in it is typed.
+
+What it cost and what it bought: five cells of **50.9** where `БАТАРЕЯ · МОТОРЫ ·
+ИНВЕРТОР` were `91.9 · 143.4 · 110.0`, so the row is 58 units narrower **even with
+each cell carrying its own `°`** - the three motors shared one sign from the sixth
+pass to the eighth because `РАЗБРОС ЯЧЕЕК` needed exactly those 25 units, and the
+captions paid them back twice over. The left shelf now stops **270** clear of the
+hero's field, or **86** with the exception cell up. And a word in that row now
+*means* the pack is misbehaving, because it is the only word in it.
+
+This row breaks the house icon rule on purpose. `DenzaIcons` is one optical weight
+throughout - `ICON_WEIGHT` 2.0 in a 24 viewport - because those are labels on
+tiles. A glyph here is half of a reading, and inside one mark the case, the lit
+component and the wheels are three different kinds of thing; the family says which
+is which with two weights, and `audit.py` reports the new `1.6` in `STROKES` for
+that reason rather than by accident.
+
+### And the engine's sentence closes up when the engine stops
+
+The same bench run, one line along. The generation figure lives in a two-digit
+reserve so that 9 kW and 14 kW start the phrase in the same place; when the engine
+stops the figure and its unit are removed by the staleness rule, and the eighth
+pass left the reserve standing - `● ⎵⎵ В БАТАРЕЮ · ПОСЛЕДНИЕ 2 МИН` for the whole
+two minutes the box outlives the engine. 22 units of nothing after a dot reads as a
+value that failed to arrive, which is the same defect the seventh pass moved the
+odometer's reserve to fix.
+
+With no figure there is no field: the phrase is assembled without it and the dot
+closes up against the words. **One shift per engine stop, not a jitter** - what a
+reserve buys is stillness while a *number* changes, and by then there is no number
+left to change. The words themselves never move, in either state. `ContourPlan`
+carries both anchors, `legendMarkX` and `legendMarkQuietX`, and the states board
+draws both scenes.
 
 ### The glass is measured now
 
@@ -796,7 +874,7 @@ drawing decision.
 | m8 | an alert at 34 in a shelf of 52s | closed - every shelf figure is 34 now |
 | m9 | generation drawn three times | closed - twice: the seam and the box, with the figure inside the box's own sentence |
 | m10 | "104 reads peripherally" | closed - the claim is not made; the band is the ambient |
-| m11 | the motors' order is learnable, not obvious | left standing, and named as such; the three share one degree sign as well as one word |
+| m11 | the motors' order is learnable, not obvious | closed by the ninth pass, and with a picture rather than a caption: five cells, five glyphs, three cars differing by which axle is lit |
 | m12 | lowercase captions | rejected - one house style with the head unit wins |
 
 ### The apertures, and everything else
@@ -814,17 +892,16 @@ that stood on it. An engine that ran and stopped reads `ДВС · мин за п
 leaves the corner empty.
 
 Both shelves stand below the apertures, in the clear band's flanks, on one pair of
-baselines with one anatomy: a 34 figure over an 18 word. **A cell is exactly as wide
-as the wider of its caption and its payload** - since the sixth pass that width is
-no longer rounded up to the rhythm, because `РАЗБРОС ЯЧЕЕК` needed the 19.5 units
-of air that rounding was spending across four cells, and a rounded cell was
-quantising a distance nobody can see while the clearance to the hero's field is one
-the reader would meet the moment a three-digit power arrived. The left cells come
-out `91.9 · 143.4 · 110.0 · 167.7` and stop **27.6** clear of the hero's field; the
-right seats are `214.0 · 164.7 · 116.1` on P and `214.0 · 116.1` on the move, and
-stop **61.8** clear of the hero's unit. The other thing that paid for the longer
-caption is the motors' degree sign: one for the three, at the end of the run, the
-same way the group already shares one word.
+baselines with one anatomy: a 34 figure over the thing that names it - an 18 word
+on the right, a 24-unit glyph on the left. **A cell is exactly as wide as the wider
+of its payload and that** - since the sixth pass the width is no longer rounded up
+to the rhythm, because `РАЗБРОС ЯЧЕЕК` needed the 19.5 units of air that rounding
+was spending across four cells, and a rounded cell was quantising a distance nobody
+can see while the clearance to the hero's field is one the reader would meet the
+moment a three-digit power arrived. The left cells come out `50.9` five times, plus
+`167.7` when the exception is up, and stop **270** clear of the hero's field, or
+**86** with the exception; the right seats are `214.0 · 164.7 · 116.1` on P and
+`214.0 · 116.1` on the move, and stop **61.8** clear of the hero's unit.
 
 One thing to look at rather than measure: the petal's *figure* centres on the axis
 and its box hangs off the field's widest reserve, so the group is asymmetric on
@@ -850,7 +927,7 @@ Kotlin matches:
 | --- | --- |
 | `MainBoardContractTest` | reads `Main.dc.html` - tile height, padding, radius, the `space-between` that hangs the words apart, both text styles with their leading, icon size and stroke, grid columns and gap, page margins |
 | `SpectrumBoardContractTest` | reads the analyser out of the same board - band count, bar width fraction, that the columns add up to the field they are drawn in, peak height, corner radius, gradient stop, reflection crop and opacity, scanline pitch |
-| `ContourBoardContractTest` | reads `ClusterContour.dc.html`, `ClusterContourStates.dc.html`, `ClusterContourPlan.dc.html` **and `gen_contour.py` itself** against `ContourPlan` - the four rungs with their weights and tracking, the panel, the band's hairline, body and zero mark, the glow's centre, radii and its `0.18·√(P/120)`, the hero's baseline and its field, both corner baselines, both shelf baselines, all four temperature cells and the three motor fields, all three trip seats on P and the pair on the move, both history boxes with their scales and their steps, the engine's sentence with every anchor in it, that the petal's blue is one patch on the one run of return buckets, both guards drawn in red, and the measured advances every one of those cells is sized from |
+| `ContourBoardContractTest` | reads `ClusterContour.dc.html`, `ClusterContourStates.dc.html`, `ClusterContourPlan.dc.html` **and `gen_contour.py` itself** against `ContourPlan` - the four rungs with their weights and tracking, the panel, the band's hairline, body and zero mark, the glow's centre, radii and its `0.18·√(P/120)`, the hero's baseline and its field, both corner baselines, both shelf baselines, all six temperature cells with the box each glyph stands in, every rectangle the five glyphs are drawn from - the pack's case, terminal and lit cell, each car's body, four hollow wheels and one block, the inverter's case and the wave inside it - all three trip seats on P and the pair on the move, both history boxes with their scales and their steps, the engine's sentence with every anchor in it including both places its dot stands, that the petal's blue is one patch on the one run of return buckets, both guards drawn in red, and the measured advances every one of those cells is sized from |
 
 The third row reads the generator as well as the boards because a caption is a
 coordinate on the cluster: a cell there is exactly as wide as the wider of its
