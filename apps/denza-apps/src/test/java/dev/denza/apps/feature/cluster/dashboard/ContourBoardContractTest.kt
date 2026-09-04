@@ -1,9 +1,11 @@
 package dev.denza.apps.feature.cluster.dashboard
 
+import dev.denza.apps.design.instrument.EnergyScale
 import dev.denza.apps.design.instrument.InstrumentDensity
 import dev.denza.apps.design.instrument.InstrumentFace
 import dev.denza.apps.design.instrument.InstrumentWeight
 import dev.denza.apps.feature.cluster.ClusterMapPlacement
+import dev.denza.apps.feature.vehicle.VehicleConvention
 import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -541,6 +543,35 @@ class ContourBoardContractTest {
             plan.legendWindowX,
             text(states(), "cl", plan.legendWindow).first,
             TOLERANCE,
+        )
+    }
+
+    @Test
+    fun theEnginesShareIsDrawnTheWayTheConventionSaysItMayBe() {
+        // Whether GENERATION_KW is already inside POWER_KW decides whether the engine's share may be
+        // a seam behind the band's tip or has to be a separate line under it, and for a while the
+        // two records disagreed: the renderer said one thing in a private constant and the generator
+        // defaulted the other way, so the board's canonical engine state drew the one picture the app
+        // never draws. There is one decision now, and this is the join.
+        val generator = generator()
+        assertTrue(
+            "the board's default is the app's assumption",
+            generator.contains("s.get('seam_on_band', False)"),
+        )
+        assertTrue(
+            "and the assumption is that generation is already inside pack power",
+            VehicleConvention.GENERATION_INSIDE_PACK_POWER,
+        )
+        // Both drawings are energy arriving at the pack, so both are measured on the return side's
+        // own span: a positive argument to `sweep` picks the 300 kW discharge span and made 14 kW of
+        // generation 1.73 times shorter than 14 kW of regeneration on the band above it.
+        assertTrue(
+            "the line under the band is on the return scale",
+            generator.contains("far = AXIS + sweep(-generation) * BAND_HALF"),
+        )
+        assertTrue(
+            "and the two spans really are different, which is what made the drawing wrong",
+            EnergyScale.sweepFraction(-14f) > EnergyScale.sweepFraction(14f),
         )
     }
 

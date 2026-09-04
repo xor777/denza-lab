@@ -252,9 +252,10 @@ Closed:
       window; whether it does is a measurement on the car, not a board.
 - m8  an exception is a 34 figure changing colour on a shelf whose figures are all
       34, so it is the same glance as reading the temperature.
-- m9  generation is drawn twice, not three times: the seam on the band and the
-      area in the engine box. Its figure is written once, and since the eighth
-      pass it is written inside the sentence under that area.
+- m9  generation is drawn twice, not three times: the line under the band (the
+      seam, if the log ever says it may be one) and the area in the engine box.
+      Its figure is written once, and since the eighth pass it is written inside
+      the sentence under that area.
 - m11 closed by the ninth pass, and it took a picture rather than a caption. Three
       motors under one word in `motorTemps` order was learnable and named as such
       for five drawings; the shared degree sign the sixth pass gave them bought the
@@ -1183,8 +1184,11 @@ def band(s):
     ink is what the battery pays, blue is what the engine pays, and the tip is
     what the wheels asked for - the jury's second correction. That reading is only
     true if `GENERATION_KW` is not already inside `POWER_KW`, which has not been
-    logged on this car, so `seam_on_band` False draws the same fact without the
-    claim, as a separate line under the body.
+    logged on this car, so the default is `seam_on_band` False: the same fact
+    without the claim, as a separate line under the body on the return side's own
+    scale. `VehicleConvention.GENERATION_INSIDE_PACK_POWER` is the same decision in
+    the app and `ContourBoardContractTest` holds the two together; one state below
+    draws the seam so that the alternative is on record.
     """
     kw = s.get('kw')
     if kw is None:
@@ -1209,11 +1213,24 @@ def band(s):
                    f'height="{f(BAND_BODY)}" fill="url(#{ident})"/>')
     generation = s.get('generation') if s.get('ice') == 'running' else None
     if generation:
-        if s.get('seam_on_band', True):
+        # The seam behind the tip reads `wheels = pack + generation`, which is only
+        # true if GENERATION_KW is not already inside POWER_KW - and nobody has
+        # logged this car on a flat cruise with the engine running. So the default
+        # is the drawing that makes no claim, a separate line under the body, and it
+        # is the same default `VehicleConvention.GENERATION_INSIDE_PACK_POWER` sets:
+        # this flag defaulted the other way for a while and the board's canonical
+        # engine state was the one picture the app never drew.
+        #
+        # The line is measured on the RETURN side's own span, not the discharge one.
+        # `sweep` picks its span from the sign, so a positive argument here put 14 kW
+        # of generation at 0.216 of the half-band while 14 kW of regeneration on the
+        # band above it sat at 0.374 - the same kilowatts into the same pack, in the
+        # same blue, 1.73 times apart.
+        if s.get('seam_on_band', False):
             far = band_x(kw + generation)
             out.append(rect(tip, top, far - tip, BAND_BODY, RETURN))
         else:
-            far = AXIS + sweep(generation) * BAND_HALF
+            far = AXIS + sweep(-generation) * BAND_HALF
             out.append(rect(AXIS, GEN_LINE_Y, far - AXIS, GEN_LINE_H, RETURN))
     peak = s.get('peak')
     if peak is not None and abs(peak) > NEUTRAL_KW:
@@ -1760,7 +1777,8 @@ STATES = [
      sc(kw=-42.0, peak=-58.0, volts=573.0, temps=COOL,
         trip=dict(net=9.2, regen=3.4, ice=0.0, km=43),
         bars=consumption_history(11.2), petal='11')),
-    ('ДВС генерирует 82 с · шов за флагом; коробка выросла справа на 17 ступеней по 5 с',
+    ('ДВС генерирует 82 с · генерация отдельной линией под лентой, по шкале возврата; '
+     'коробка выросла справа на 17 ступеней по 5 с',
      sc(kw=28.0, peak=52.0, ice='running', rpm=1780.0, generation=14.0,
         trace=engine_history(82), volts=548.0, temps=WORKED,
         bars=consumption_history(17.4), petal='17')),
@@ -1769,9 +1787,9 @@ STATES = [
      sc(kw=34.0, peak=68.0, ice='slept', ice_minutes=6.0,
         trace=engine_history(120, stopped=40), volts=551.0, temps=WORKED,
         bars=consumption_history(17.1), petal='17')),
-    ('Запасное рисование шва · если генерация уже внутри POWER_KW — отдельной линией',
+    ('Шов на ленте · как это выглядит, если генерация НЕ входит в мощность пакета',
      sc(kw=28.0, peak=52.0, ice='running', rpm=1780.0, generation=14.0,
-        seam_on_band=False, trace=engine_history(82), volts=548.0, temps=WORKED,
+        seam_on_band=True, trace=engine_history(82), volts=548.0, temps=WORKED,
         bars=consumption_history(17.4), petal='17')),
     ('Стоянка на P · полный расклад тремя ячейками, у лепестка появилась десятая',
      sc(kw=1.4, volts=561.0, temps=COOL, parked=True,

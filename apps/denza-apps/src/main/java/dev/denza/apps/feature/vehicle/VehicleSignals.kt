@@ -254,6 +254,25 @@ internal enum class VehicleSignal(
 internal object VehicleConvention {
     const val POWER_POSITIVE_IS_DISCHARGE = true
 
+    /**
+     * Whether [VehicleSignal.GENERATION_KW] is already counted inside [VehicleSignal.POWER_KW].
+     *
+     * The second of the two unlogged assumptions, and the one that decides how the engine's share
+     * is drawn on the band. If generation is *not* inside pack power, the band can read
+     * `wheels = pack + generation` - ink for what the battery pays, blue for what the engine pays,
+     * the tip for what the wheels asked - and the blue is a seam behind the tip. If it is inside,
+     * that seam double-counts and the fact has to be drawn without the claim: a separate line under
+     * the band's body, from zero.
+     *
+     * `true` until somebody logs one engine run on a flat cruise (VERDICT check 3, CRITIQUE B1),
+     * because the claim is the thing that has to be earned. It used to live as a private constant
+     * in the renderer, where `tools/design-canvas/gen_contour.py` had the opposite default and the
+     * board's canonical engine state drew the picture the app never draws. It is one decision about
+     * what a signal means, so it belongs here beside [POWER_POSITIVE_IS_DISCHARGE], and
+     * `ContourBoardContractTest` holds the generator's default against it.
+     */
+    const val GENERATION_INSIDE_PACK_POWER = true
+
     /** Raw pack power as load: positive out of the battery, negative into it. */
     fun load(rawKw: Double?): Double? = when {
         rawKw == null -> null

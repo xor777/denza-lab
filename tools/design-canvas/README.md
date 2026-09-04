@@ -754,7 +754,7 @@ the cluster's own dimmer already darkens our window, and whether it does is a
 measurement on the car rather than a board. What still uses alpha: the glow, the
 two history fills, the peak hold.
 
-**Blue is a dot.** `RETURN` is the band's body, the generation seam, the engine
+**Blue is a dot.** `RETURN` is the band's body, the generation line, the engine
 box's area, the petal's return runs, and a marker at the head of `РЕКУПЕРАЦИЯ` and
 of the engine's own sentence - the places the car gives something back - dot-sized,
 because saturated blue at 12' on black is the one colour ISO 15008 names for small
@@ -915,10 +915,21 @@ once rather than once per engine cycle.
 
 ### What the data still owes the panel
 
-Two rules are written on the boards and in the generator's docstring because the
+Three rules are written on the boards and in the generator's docstring because the
 code will have to follow them, and the measurement that would settle them has not
 been taken (`VERDICT.md`, check 3):
 
+- **the engine's share is a line under the band, not a seam behind its tip.** The
+  seam reads `wheels = pack + generation`, which is only true if `GENERATION_KW`
+  is not already inside `POWER_KW`. Until one engine run on a flat cruise says
+  otherwise the assumption is that it *is* inside, so the fact is drawn without the
+  claim - and the line is measured on the return side's own 100 kW span with the
+  same square root, so 14 kW of generation and 14 kW of regeneration are the same
+  length. That decision lives in one place, `VehicleConvention
+  .GENERATION_INSIDE_PACK_POWER`; the generator's `seam_on_band` default is held
+  against it by `ContourBoardContractTest`, because for a while the two disagreed
+  and the board's canonical engine state was the one picture the app never drew.
+  The states board draws both;
 - while the engine runs the petal's figure is `MUTED` and carries no caveat.
   `ConsumptionLog` integrates pack power alone, and nobody has logged whether
   `GENERATION_KW` is already inside `POWER_KW`; until somebody does, that figure is
@@ -963,7 +974,7 @@ drawing decision.
 | m6 | the hero updates at 3 Hz | closed as a renderer rule: ±0.5 kW of hysteresis; the rate is 4 Hz, not the critique's 2 - the owner asked for the live figures to answer about twice as fast as the previous panel, and the bus poll went from 300 ms to 100 ms with it |
 | m7 | night by ephemeris, not by light | closed - the scene is removed; the dimmer waits for the car |
 | m8 | an alert at 34 in a shelf of 52s | closed - every shelf figure is 34 now |
-| m9 | generation drawn three times | closed - twice: the seam and the box, with the figure inside the box's own sentence |
+| m9 | generation drawn three times | closed - twice: the line under the band and the box, with the figure inside the box's own sentence |
 | m10 | "104 reads peripherally" | closed - the claim is not made; the band is the ambient |
 | m11 | the motors' order is learnable, not obvious | closed by the ninth pass, and with a picture rather than a caption: five cells, five glyphs, three cars differing by which axle is lit |
 | m12 | lowercase captions | rejected - one house style with the head unit wins |

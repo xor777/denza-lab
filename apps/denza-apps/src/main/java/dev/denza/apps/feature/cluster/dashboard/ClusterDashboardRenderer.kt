@@ -7,6 +7,7 @@ import dev.denza.apps.design.instrument.EnergyScale
 import dev.denza.apps.design.instrument.InstrumentFace
 import dev.denza.apps.design.instrument.InstrumentPen
 import dev.denza.apps.feature.vehicle.ConsumptionWindow
+import dev.denza.apps.feature.vehicle.VehicleConvention
 import dev.denza.apps.feature.vehicle.VehicleSignal
 import dev.denza.apps.feature.vehicle.VehicleTelemetry
 import kotlin.math.abs
@@ -199,9 +200,16 @@ internal class ClusterDashboardRenderer {
      * only true if `GENERATION_KW` is not already inside `POWER_KW`, and nobody has logged this car
      * on a flat cruise with the engine running (VERDICT check 3, CRITIQUE B1).
      *
-     * So [GENERATION_ON_BAND] is false until somebody does, and the same fact is drawn without the
-     * claim: a separate blue line under the body, from zero, as long as the generation is on the
-     * band's own scale. Flipping the flag is the whole change, in this one method.
+     * So [VehicleConvention.GENERATION_INSIDE_PACK_POWER] is true until somebody does, and the same
+     * fact is drawn without the claim: a separate blue line under the body, from zero. Flipping that
+     * one constant is the whole change, in this one method.
+     *
+     * **The line is scaled on the return side's own span.** It used to take
+     * `sweepFraction(generation)` with a positive argument, which picks the 300 kW discharge span:
+     * 14 kW of generation came out 0.216 of the half-band where 14 kW of regeneration on the band
+     * above it came out 0.374 - two lengths 1.73 times apart, in the same blue, on the same axis,
+     * for the same kilowatts into the same pack. Both are energy arriving, so both are measured on
+     * [EnergyScale.FULL_REGEN_KW] and the same square root.
      */
     private fun generation(
         canvas: Canvas,
@@ -217,11 +225,11 @@ internal class ClusterDashboardRenderer {
         if (!stage.engineRunning || !scene.fresh(ContourValue.GENERATION)) return
         val generation = (t.generationKw ?: return).toFloat()
         if (generation <= 0f) return
-        if (GENERATION_ON_BAND) {
+        if (!VehicleConvention.GENERATION_INSIDE_PACK_POWER) {
             val far = pen.v(plan.bandX(kilowatts + generation))
             pen.rect(canvas, tipX, top, far, bottom, DenzaPalette.RETURN)
         } else {
-            val far = pen.v(plan.axis + EnergyScale.sweepFraction(generation) * plan.bandHalf)
+            val far = pen.v(plan.axis + EnergyScale.sweepFraction(-generation) * plan.bandHalf)
             val lineTop = pen.v(plan.generationLineY)
             pen.rect(
                 canvas,
@@ -1009,15 +1017,6 @@ internal class ClusterDashboardRenderer {
             ContourGlyphs.Glyph.MOTOR_REAR_LEFT,
             ContourGlyphs.Glyph.MOTOR_REAR_RIGHT,
         )
-
-        /**
-         * Whether the engine's share is drawn as a seam behind the band's tip.
-         *
-         * False until somebody logs one engine run on a flat cruise and settles whether
-         * `GENERATION_KW` is already inside `POWER_KW` (VERDICT check 3). Until then the same fact
-         * is drawn without the claim, as a separate line under the body.
-         */
-        const val GENERATION_ON_BAND = false
 
         /** How far the peak's mark stands out of the band's body, top and bottom. */
         const val PEAK_OVERHANG = 3f
