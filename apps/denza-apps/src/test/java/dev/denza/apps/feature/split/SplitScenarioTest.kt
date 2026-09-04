@@ -542,6 +542,50 @@ class SplitScenarioTest {
         assertEquals(APP_PAIR, car.store.load().slots)
     }
 
+    /**
+     * Правка 2026-09-04 (владелец: закрыть панель, вытянуть обратно - наш пикер появляется через
+     * 2-3 с). Жест вытягивания рождает шторм `TYPE_WINDOWS_CHANGED`, то есть сверку со слепой
+     * паузой `DIVIDER_RECONCILE_SETTLE_MS`, а подтверждённый edge (§4, приоритет 6) в полёте её не
+     * вытеснял и досиживал за ней. Теперь сабмит edge отнимает у полётной сверки токен тем же
+     * механизмом, что OPEN: после сабмита ни одной её команды, воркер достаётся жесту, и наш
+     * пикер встаёт в панель без очереди.
+     */
+    @Test
+    fun anEdgeCommitPreemptsTheInFlightReconcileInsteadOfQueuingBehindIt() {
+        val car = car(FakeShell().apply { liveProductScene() })
+        val core = car.core(SplitDurable(enabled = true, slots = PICKER_PAIR))
+        core.initialize {}
+        core.openPickerSession()
+        car.barrier()
+        // Edge-drag показал штатный список в панели живой сцены (1.8.5)...
+        car.fake.removeActivity(PRIMARY_ROOT, PRIMARY_PICKER_ACTIVITY)
+        car.fake.addTask(PRIMARY_ROOT, STOCK_TASK, STOCK_PICKER_PACKAGE, STOCK_PICKER_ACTIVITY)
+        car.clearCommands()
+
+        // ...а его же оконный шторм уже поставил сверку в полёт, запаркованную на первой команде.
+        car.shells.blockAt(SPLIT_AREA_QUERY)
+        core.dividerResized()
+        assertTrue(car.shells.awaitBlocked())
+
+        core.nativePickerVisible()
+        car.shells.release()
+        car.barrier()
+
+        val sessions = car.sessions()
+        assertEquals("сессия сверки и сессия edge", 2, sessions.size)
+        assertEquals(
+            "после сабмита edge сверка не отправила больше ни одной команды",
+            listOf(SPLIT_AREA_QUERY),
+            sessions.first(),
+        )
+        assertTrue(
+            "и жест получил воркер сразу после её fence: наш пикер прикреплён",
+            sessions.last().any { it.startsWith("am start ") && it.contains(SPLIT_PICKER_ACTIVITY) },
+        )
+        assertFalse("штатный bootstrap снят тем же edge", car.fake.hasTask(STOCK_TASK))
+        assertEquals(PRIMARY_PICKER_ACTIVITY, car.fake.topActivity(PRIMARY_ROOT))
+    }
+
     @Test
     fun foreignWindowsChangedNeverOpensShell() {
         // K6, сценарий §11.22: подсказка, которая не может быть нашей, не открывает даже сессию

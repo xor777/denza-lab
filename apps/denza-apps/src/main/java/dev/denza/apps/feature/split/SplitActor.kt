@@ -74,6 +74,14 @@ internal object SplitCancelReason {
 
     /** An explicit user tap (`OPEN`, `SELECT`) displaced the passive work (contract §4). */
     const val USER_INPUT = "user-input"
+
+    /**
+     * A confirmed edge commit displaced the passive work (contract §4, priority 6 over 7).
+     *
+     * Its own name rather than [USER_INPUT], so the ring and a ticket can tell a gesture the
+     * firmware confirmed from a tap on a button: they are answered by different recipes.
+     */
+    const val EDGE_COMMIT = "edge-commit"
     const val DEADLINE = "deadline"
     const val COALESCED = "coalesced"
     const val SHUTDOWN = "shutdown"
@@ -355,9 +363,16 @@ internal class SplitActor(
     /**
      * Contract section 4. `DISABLE` cancels everything unfinished; `HOME` cancels the work the user
      * walked away from; an explicit `OPEN` or `SELECT` cancels the passive hint work it must not
-     * wait behind (§4, ред. 2026-08-24). An in-flight victim only loses its token here: it settles
-     * its own ticket when it unwinds at its next fence, which is what makes "no late mutation"
-     * observable.
+     * wait behind (§4, ред. 2026-08-24), and so does a confirmed `EDGE` commit (§4, priority 6
+     * over 7). An in-flight victim only loses its token here: it settles its own ticket when it
+     * unwinds at its next fence, which is what makes "no late mutation" observable.
+     *
+     * Правка 2026-09-04 (владелец: «закрыть панель, вытянуть обратно - наш пикер через 2-3 с»).
+     * Жест вытягивания сам рождает шторм `TYPE_WINDOWS_CHANGED`, то есть сверку со слепой паузой
+     * `DIVIDER_RECONCILE_SETTLE_MS`, и подтверждённый edge вставал в очередь за ней: в очереди он
+     * старше по приоритету, а в полёте не вытеснял ничего. Теперь он отнимает у полётной сверки
+     * токен тем же механизмом, что `OPEN` и `SELECT`; сверка перечитает мир после него по своему
+     * же отложенному повтору.
      */
     private fun preempt(priority: SplitInputPriority): List<Pair<SplitTicket, String>> {
         val victims: Set<SplitInputPriority>
@@ -374,6 +389,10 @@ internal class SplitActor(
             SplitInputPriority.SELECT, SplitInputPriority.OPEN -> {
                 victims = USER_TAP_VICTIMS
                 reason = SplitCancelReason.USER_INPUT
+            }
+            SplitInputPriority.EDGE -> {
+                victims = USER_TAP_VICTIMS
+                reason = SplitCancelReason.EDGE_COMMIT
             }
             else -> return emptyList()
         }
@@ -499,7 +518,7 @@ internal class SplitActor(
          * их; фоновая сверка перечитает мир после пользовательской операции, а проигравшее
          * событие из очереди не воспроизводится. Live v20 D1: сверка со слепым settle стоила
          * пользователю ~2 c очереди перед каждым open. Подтверждённый EDGE-commit шумом не
-         * является и не отменяется.
+         * является и не отменяется - он сам вытесняет шум по этому же набору (правка 2026-09-04).
          */
         val USER_TAP_VICTIMS = setOf(SplitInputPriority.HINT)
 

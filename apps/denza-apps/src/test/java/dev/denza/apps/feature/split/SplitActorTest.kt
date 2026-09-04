@@ -396,6 +396,39 @@ class SplitActorTest {
     }
 
     @Test
+    fun aConfirmedEdgeCommitCancelsThePassiveHintInFlightAtItsNextFence() {
+        // §4, приоритет 6 над 7 (правка 2026-09-04): подтверждённый edge не ждёт in-flight
+        // reconcile со слепым settle - тот теряет токен и умирает на ближайшем fence, воркер
+        // достаётся жесту. Живьём: «закрыть панель, вытянуть обратно - наш пикер через 2-3 с».
+        val started = CountDownLatch(1)
+        val release = gate()
+        val hint = actor.submit(
+            spec("hint", SplitInputPriority.HINT, coalesceKey = "reconcile") { op ->
+                val shell = op.fencedShell(::shell)
+                shell("service call activity_task 30")
+                started.countDown()
+                release.await()
+                shell("am stack list")
+                executed += "hint"
+                SplitOutcome.Committed
+            },
+        )
+        assertTrue(started.await(AWAIT_MS, TimeUnit.MILLISECONDS))
+
+        val edge = actor.submit(spec("edge", SplitInputPriority.EDGE))
+        release.countDown()
+
+        assertEquals(SplitOutcome.Cancelled(SplitCancelReason.EDGE_COMMIT), hint.await(AWAIT_MS))
+        assertEquals(SplitOutcome.Committed, edge.await(AWAIT_MS))
+        assertEquals(
+            "после сабмита edge ни одна команда сверки не дошла до машины",
+            listOf("service call activity_task 30"),
+            commands.toList(),
+        )
+        assertEquals(listOf("edge"), executed.toList())
+    }
+
+    @Test
     fun aUserTapLeavesAConfirmedEdgeCommitAlone() {
         // §4: вытесняется только пассивный шум - подтверждённый edge-commit не отменяется
         val release = blockedInFlight("blocker", SplitInputPriority.NAV)
