@@ -30,8 +30,12 @@
     .cl { font-size:18px; font-weight:400; letter-spacing:0.12em;
           fill:#7C858F; }
     /* A tracked capital is a heading; a unit is case-sensitive and is not one.
-       «кВт·ч», «об/мин», «мин за поездку» are set as themselves. */
-    .un { font-size:18px; font-weight:400; fill:#7C858F; }
+       «кВт·ч», «об/мин», «км» are set as themselves - and so is the odometer's own
+       figure inside «ЗА ПОЕЗДКУ · 42 км», which is a number living in a caption
+       rather than a reading of its own, so it takes the caption's face and the
+       tabular figures every number on this panel has. */
+    .un { font-size:18px; font-weight:400; fill:#7C858F;
+          font-variant-numeric:tabular-nums; font-feature-settings:'tnum'; }
     .cl0 { font-size:18px; font-weight:400; fill:#86909B;
            font-variant-numeric:tabular-nums; font-feature-settings:'tnum'; }
     .keep { font-size:13px; letter-spacing:0.12em; fill:#3F434D; }
@@ -65,17 +69,18 @@
       <line x1="0" y1="184.2" x2="1507.6" y2="184.2" stroke="#FF4046" stroke-width="1.2" opacity="0.6"/>
       <line x1="0" y1="311.7" x2="1507.6" y2="311.7" stroke="#FF4046" stroke-width="1.2" opacity="0.6"/>
       <line x1="0" y1="410" x2="1507.6" y2="410" stroke="#FF9F19" stroke-width="1.2" opacity="0.5"/>
-      <rect x="48" y="184.2" width="96" height="64.1" fill="none" stroke="#2D82D7" stroke-width="1.2" stroke-dasharray="4 5" opacity="0.5"/>
-      <rect x="160" y="184.2" width="176" height="64.1" fill="none" stroke="#2D82D7" stroke-width="1.2" stroke-dasharray="4 5" opacity="0.5"/>
-      <rect x="352" y="184.2" width="112" height="64.1" fill="none" stroke="#2D82D7" stroke-width="1.2" stroke-dasharray="4 5" opacity="0.5"/>
-      <rect x="480" y="184.2" width="96" height="64.1" fill="none" stroke="#2D82D7" stroke-width="1.2" stroke-dasharray="4 5" opacity="0.5"/>
-      <rect x="1287.4" y="184.2" width="96" height="64.1" fill="none" stroke="#2D82D7" stroke-width="1.2" stroke-dasharray="4 5" opacity="0.5"/>
-      <rect x="1103.4" y="184.2" width="168" height="64.1" fill="none" stroke="#2D82D7" stroke-width="1.2" stroke-dasharray="4 5" opacity="0.5"/>
-      <rect x="959.4" y="184.2" width="128" height="64.1" fill="none" stroke="#2D82D7" stroke-width="1.2" stroke-dasharray="4 5" opacity="0.5"/>
-      <rect x="160" y="184.2" width="50.9" height="64.1" fill="none" stroke="#2D82D7" stroke-width="1.2" stroke-dasharray="2 4" opacity="0.7"/>
-      <rect x="218.9" y="184.2" width="50.9" height="64.1" fill="none" stroke="#2D82D7" stroke-width="1.2" stroke-dasharray="2 4" opacity="0.7"/>
-      <rect x="277.8" y="184.2" width="50.9" height="64.1" fill="none" stroke="#2D82D7" stroke-width="1.2" stroke-dasharray="2 4" opacity="0.7"/>
-      <rect x="959.4" y="184.2" width="500.1" height="50.7" fill="none" stroke="#FF9F19" stroke-width="1.2" stroke-dasharray="2 4" opacity="0.8"/>
+      <rect x="48" y="184.2" width="91" height="64.1" fill="none" stroke="#2D82D7" stroke-width="1.2" stroke-dasharray="4 5" opacity="0.5"/>
+      <rect x="155" y="184.2" width="143.4" height="64.1" fill="none" stroke="#2D82D7" stroke-width="1.2" stroke-dasharray="4 5" opacity="0.5"/>
+      <rect x="314.4" y="184.2" width="111.5" height="64.1" fill="none" stroke="#2D82D7" stroke-width="1.2" stroke-dasharray="4 5" opacity="0.5"/>
+      <rect x="441.9" y="184.2" width="169.2" height="64.1" fill="none" stroke="#2D82D7" stroke-width="1.2" stroke-dasharray="4 5" opacity="0.5"/>
+      <rect x="1246.4" y="184.2" width="213.2" height="64.1" fill="none" stroke="#2D82D7" stroke-width="1.2" stroke-dasharray="4 5" opacity="0.5"/>
+      <rect x="1065.5" y="184.2" width="164.8" height="64.1" fill="none" stroke="#2D82D7" stroke-width="1.2" stroke-dasharray="4 5" opacity="0.5"/>
+      <rect x="934" y="184.2" width="115.5" height="64.1" fill="none" stroke="#2D82D7" stroke-width="1.2" stroke-dasharray="4 5" opacity="0.5"/>
+      <rect x="1114.8" y="178.2" width="115.5" height="76.1" fill="none" stroke="#2D82D7" stroke-width="1.2" stroke-dasharray="2 4" opacity="0.7"/>
+      <rect x="155" y="184.2" width="38.2" height="64.1" fill="none" stroke="#2D82D7" stroke-width="1.2" stroke-dasharray="2 4" opacity="0.7"/>
+      <rect x="201.2" y="184.2" width="38.2" height="64.1" fill="none" stroke="#2D82D7" stroke-width="1.2" stroke-dasharray="2 4" opacity="0.7"/>
+      <rect x="247.5" y="184.2" width="38.2" height="64.1" fill="none" stroke="#2D82D7" stroke-width="1.2" stroke-dasharray="2 4" opacity="0.7"/>
+      <rect x="934" y="184.2" width="525.6" height="50.7" fill="none" stroke="#FF9F19" stroke-width="1.2" stroke-dasharray="2 4" opacity="0.8"/>
       <rect x="426.7" y="347.1" width="232" height="56" fill="none" stroke="#FF9F19" stroke-width="1.2" stroke-dasharray="2 4" opacity="0.8"/>
       <rect x="636.6" y="184.2" width="146.4" height="62.5" fill="none" stroke="#2D82D7" stroke-width="1.2" stroke-dasharray="4 5" opacity="0.5"/>
       <rect x="682.7" y="347.1" width="100.3" height="36.9" fill="none" stroke="#2D82D7" stroke-width="1.2" stroke-dasharray="4 5" opacity="0.5"/>
@@ -89,10 +94,10 @@
       <line x1="40" y1="92" x2="40" y2="92" stroke="#FF9F19" stroke-width="1.2" opacity="0.4"/>
       <line x1="40" y1="92" x2="45" y2="92" stroke="#FF9F19" stroke-width="1.2" opacity="0.4"/>
       <text class="nt" x="48" y="96.7">цифра угла · 52 · y 92 · вольты 3 знака 48…135.7 · обороты 4 знака 1342.7…1459.6</text>
-      <line x1="34" y1="126" x2="40" y2="126" stroke="#FF9F19" stroke-width="1.2" opacity="0.8"/>
-      <line x1="40" y1="126" x2="40" y2="126" stroke="#FF9F19" stroke-width="1.2" opacity="0.4"/>
-      <line x1="40" y1="126" x2="45" y2="126" stroke="#FF9F19" stroke-width="1.2" opacity="0.4"/>
-      <text class="nt" x="48" y="130.7">строка угла · 18 · y 126 · только «● N кВт» под оборотами: апертура даёт справа 138.2, «мин за поездку» просила 130.4 и снята</text>
+      <line x1="34" y1="92" x2="40" y2="92" stroke="#FF9F19" stroke-width="1.2" opacity="0.8"/>
+      <line x1="40" y1="92" x2="40" y2="111.5" stroke="#FF9F19" stroke-width="1.2" opacity="0.4"/>
+      <line x1="40" y1="111.5" x2="45" y2="111.5" stroke="#FF9F19" stroke-width="1.2" opacity="0.4"/>
+      <text class="nt" x="48" y="116.2">третьей строки угла больше нет: «● 14 кВт» ушли к слову «ГЕНЕРАЦИЯ» под коробку</text>
       <line x1="34" y1="184.2" x2="40" y2="184.2" stroke="#FF9F19" stroke-width="1.2" opacity="0.8"/>
       <line x1="40" y1="184.2" x2="40" y2="184.2" stroke="#FF9F19" stroke-width="1.2" opacity="0.4"/>
       <line x1="40" y1="184.2" x2="45" y2="184.2" stroke="#FF9F19" stroke-width="1.2" opacity="0.4"/>
@@ -100,15 +105,31 @@
       <line x1="34" y1="208.3" x2="40" y2="208.3" stroke="#FF9F19" stroke-width="1.2" opacity="0.8"/>
       <line x1="40" y1="208.3" x2="40" y2="208.3" stroke="#FF9F19" stroke-width="1.2" opacity="0.4"/>
       <line x1="40" y1="208.3" x2="45" y2="208.3" stroke="#FF9F19" stroke-width="1.2" opacity="0.4"/>
-      <text class="nt" x="48" y="213">цифры полок · 34 Regular · y 208.32 · ячейки 96 / 176 / 112 / 96 и 96 / 168 / 128 · зазор 16</text>
+      <text class="nt" x="48" y="213">цифры полок · 34 Regular · y 208.32 · ячейка = шире из подписи и полезной нагрузки, без округления к ритму · зазор 16</text>
+      <line x1="34" y1="208.3" x2="40" y2="208.3" stroke="#FF9F19" stroke-width="1.2" opacity="0.8"/>
+      <line x1="40" y1="208.3" x2="40" y2="227.8" stroke="#FF9F19" stroke-width="1.2" opacity="0.4"/>
+      <line x1="40" y1="227.8" x2="45" y2="227.8" stroke="#FF9F19" stroke-width="1.2" opacity="0.4"/>
+      <text class="nt" x="48" y="232.5">слева 91.0 / 143.4 / 111.5 / 169.2 → до поля героя 25.5</text>
+      <line x1="34" y1="208.3" x2="40" y2="208.3" stroke="#FF9F19" stroke-width="1.2" opacity="0.8"/>
+      <line x1="40" y1="208.3" x2="40" y2="247.3" stroke="#FF9F19" stroke-width="1.2" opacity="0.4"/>
+      <line x1="40" y1="247.3" x2="45" y2="247.3" stroke="#FF9F19" stroke-width="1.2" opacity="0.4"/>
+      <text class="nt" x="48" y="252">справа на P 213.2 / 164.8 / 115.5, на ходу 213.2 / 115.5 · место 0 всегда у края 1459.6</text>
       <line x1="34" y1="242.3" x2="40" y2="242.3" stroke="#FF9F19" stroke-width="1.2" opacity="0.8"/>
-      <line x1="40" y1="242.3" x2="40" y2="242.3" stroke="#FF9F19" stroke-width="1.2" opacity="0.4"/>
-      <line x1="40" y1="242.3" x2="45" y2="242.3" stroke="#FF9F19" stroke-width="1.2" opacity="0.4"/>
-      <text class="nt" x="48" y="247">подписи полок · 18 капителью · y 242.32 · моторы: шаг 58.9, поле 38.2 + «°» 12.7</text>
+      <line x1="40" y1="242.3" x2="40" y2="266.8" stroke="#FF9F19" stroke-width="1.2" opacity="0.4"/>
+      <line x1="40" y1="266.8" x2="45" y2="266.8" stroke="#FF9F19" stroke-width="1.2" opacity="0.4"/>
+      <text class="nt" x="48" y="271.5">подписи полок · 18 капителью · y 242.32 · моторы: шаг 46.2, поле 38.2, «°» 12.7 один на три</text>
+      <line x1="34" y1="242.3" x2="40" y2="242.3" stroke="#FF9F19" stroke-width="1.2" opacity="0.8"/>
+      <line x1="40" y1="242.3" x2="40" y2="286.3" stroke="#FF9F19" stroke-width="1.2" opacity="0.4"/>
+      <line x1="40" y1="286.3" x2="45" y2="286.3" stroke="#FF9F19" stroke-width="1.2" opacity="0.4"/>
+      <text class="nt" x="48" y="291">«ЗА ПОЕЗДКУ ·» 144.5 + одометр 3 знака 30.3 + «км» 22.4 = 213.2; полезная нагрузка 115.5 (64.0 + «кВт·ч»)</text>
+      <line x1="34" y1="311.7" x2="40" y2="311.7" stroke="#FF9F19" stroke-width="1.2" opacity="0.8"/>
+      <line x1="40" y1="311.7" x2="40" y2="311.7" stroke="#FF9F19" stroke-width="1.2" opacity="0.4"/>
+      <line x1="40" y1="311.7" x2="45" y2="311.7" stroke="#FF9F19" stroke-width="1.2" opacity="0.4"/>
+      <text class="nt" x="48" y="316.3">запас 24 снизу · stockBottom 335.67 → 311.67 · низ ленты 293.66</text>
       <line x1="879.8" y1="184.2" x2="885.8" y2="184.2" stroke="#FF9F19" stroke-width="1.2" opacity="0.8"/>
       <line x1="885.8" y1="184.2" x2="885.8" y2="184.2" stroke="#FF9F19" stroke-width="1.2" opacity="0.4"/>
       <line x1="885.8" y1="184.2" x2="890.8" y2="184.2" stroke="#FF9F19" stroke-width="1.2" opacity="0.4"/>
-      <text class="nt" x="893.8" y="188.9">коробка ДВС · оба ряда полки, 50.7 высотой · 120 слотов по 4.20 справа</text>
+      <text class="nt" x="893.8" y="188.9">коробка ДВС · оба ряда полки, 50.7 высотой · 120 слотов по 4.42 справа</text>
       <line x1="879.8" y1="184.2" x2="885.8" y2="184.2" stroke="#FF9F19" stroke-width="1.2" opacity="0.8"/>
       <line x1="885.8" y1="184.2" x2="885.8" y2="203.7" stroke="#FF9F19" stroke-width="1.2" opacity="0.4"/>
       <line x1="885.8" y1="203.7" x2="890.8" y2="203.7" stroke="#FF9F19" stroke-width="1.2" opacity="0.4"/>
@@ -121,18 +142,18 @@
       <line x1="885.8" y1="255.7" x2="885.8" y2="266.2" stroke="#FF9F19" stroke-width="1.2" opacity="0.4"/>
       <line x1="885.8" y1="266.2" x2="890.8" y2="266.2" stroke="#FF9F19" stroke-width="1.2" opacity="0.4"/>
       <text class="nt" x="893.8" y="270.8">легенда ДВС · 18 · базовая 255.66 = запас 24 над лентой</text>
+      <line x1="879.8" y1="255.7" x2="885.8" y2="255.7" stroke="#FF9F19" stroke-width="1.2" opacity="0.8"/>
+      <line x1="885.8" y1="255.7" x2="885.8" y2="285.7" stroke="#FF9F19" stroke-width="1.2" opacity="0.4"/>
+      <line x1="885.8" y1="285.7" x2="890.8" y2="285.7" stroke="#FF9F19" stroke-width="1.2" opacity="0.4"/>
+      <text class="nt" x="893.8" y="290.3">«ОБОРОТЫ · ● ГЕНЕРАЦИЯ 14 кВт» · поле 20.2, «кВт» у края, слова не двигаются</text>
       <line x1="879.8" y1="286.7" x2="885.8" y2="286.7" stroke="#FF9F19" stroke-width="1.2" opacity="0.8"/>
-      <line x1="885.8" y1="286.7" x2="885.8" y2="286.7" stroke="#FF9F19" stroke-width="1.2" opacity="0.4"/>
-      <line x1="885.8" y1="286.7" x2="890.8" y2="286.7" stroke="#FF9F19" stroke-width="1.2" opacity="0.4"/>
-      <text class="nt" x="893.8" y="291.3">лента · y 286.66 · тело 14 · корень, 300 / 100 · мёртвая зона 3 кВт</text>
+      <line x1="885.8" y1="286.7" x2="885.8" y2="305.2" stroke="#FF9F19" stroke-width="1.2" opacity="0.4"/>
+      <line x1="885.8" y1="305.2" x2="890.8" y2="305.2" stroke="#FF9F19" stroke-width="1.2" opacity="0.4"/>
+      <text class="nt" x="893.8" y="309.8">лента · y 286.66 · тело 14 · корень, 300 / 100 · мёртвая зона 3 кВт</text>
       <line x1="879.8" y1="286.7" x2="885.8" y2="286.7" stroke="#FF9F19" stroke-width="1.2" opacity="0.8"/>
-      <line x1="885.8" y1="286.7" x2="885.8" y2="306.2" stroke="#FF9F19" stroke-width="1.2" opacity="0.4"/>
-      <line x1="885.8" y1="306.2" x2="890.8" y2="306.2" stroke="#FF9F19" stroke-width="1.2" opacity="0.4"/>
-      <text class="nt" x="893.8" y="310.8">свечение · центр на нуле · rx 340, ry 49.01 · 0.18·√(|P|/120 кВт), насыщение на 120, τ 1,5 с</text>
-      <line x1="879.8" y1="311.7" x2="885.8" y2="311.7" stroke="#FF9F19" stroke-width="1.2" opacity="0.8"/>
-      <line x1="885.8" y1="311.7" x2="885.8" y2="325.7" stroke="#FF9F19" stroke-width="1.2" opacity="0.4"/>
-      <line x1="885.8" y1="325.7" x2="890.8" y2="325.7" stroke="#FF9F19" stroke-width="1.2" opacity="0.4"/>
-      <text class="nt" x="893.8" y="330.3">запас 24 снизу · stockBottom 335.67 → 311.67 · низ ленты 293.66</text>
+      <line x1="885.8" y1="286.7" x2="885.8" y2="324.7" stroke="#FF9F19" stroke-width="1.2" opacity="0.4"/>
+      <line x1="885.8" y1="324.7" x2="890.8" y2="324.7" stroke="#FF9F19" stroke-width="1.2" opacity="0.4"/>
+      <text class="nt" x="893.8" y="329.3">свечение · центр на нуле · rx 340, ry 49.01 · 0.18·√(|P|/120 кВт), насыщение на 120, τ 1,5 с</text>
       <line x1="879.8" y1="347.1" x2="885.8" y2="347.1" stroke="#FF9F19" stroke-width="1.2" opacity="0.8"/>
       <line x1="885.8" y1="347.1" x2="885.8" y2="347.1" stroke="#FF9F19" stroke-width="1.2" opacity="0.4"/>
       <line x1="885.8" y1="347.1" x2="890.8" y2="347.1" stroke="#FF9F19" stroke-width="1.2" opacity="0.4"/>

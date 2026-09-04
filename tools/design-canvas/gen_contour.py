@@ -5,41 +5,52 @@ Emit the Contour cluster artboards from the constants the app draws with.
 The Contour won the 2026-09 cluster contest (`docs/cluster-contest-2026-09/`).
 Three drawings went to the owner, an independent review roasted the third
 (`CRITIQUE.md`, blockers B1-B3, majors M1-M15, minors m1-m12), the fourth was the
-answer to that review point by point, and this is the fifth: one complaint, five
-edits, nothing else touched.
+answer to that review point by point, the fifth gave both graphs the height they
+were missing, and this is the sixth: one question, five edits, nothing else
+touched.
 
-**The fifth pass, and what it is for.** The owner on the fourth drawing:
-"Сценарии выглядят гораздо лучше, действительно удалось сделать хорошо. Но
-графики очень сильно сплющены по вертикали и очень слабо читаются." Both graphs
-were the same mistake twice - each one had been given the ink box of the digits it
-stood beside, 36 units in the petal and 24 on the shelf, which is 7.6 mm and 5 mm
-of glass for a shape with thirty steps or two curves in it. Height is the whole
-fix, and both boxes now take every unit their neighbours can spare:
+**The sixth pass, and the question that caused it.** The owner, looking at the
+fifth drawing: «что означает 0,0 от ДВС, когда ДВС заглушен?» - and then the part
+that decides the pass: раз вопрос возник у него, элемент непонятен любому. The
+right shelf was a ledger. Three seats, three captions, a zero drawn on purpose in
+its own seat so that nothing would move when a value arrived - every one of those
+decisions is defensible on its own, and together they printed a fact nobody asked
+for in a language nobody speaks. `0,0 ОТ ДВС` is an accountant's way of saying
+"the engine did not run", and a panel read at 750 mm in traffic does not get to
+make its reader do the translation.
 
-1. the petal's box is 56 units instead of 36, drawn as a 70 % INK line 2.5 thick
-   over a 55 % MUTED_DEEP field instead of a 2-unit MUTED line over 30 %, on a
-   fixed 0…40 kW·h/100 km ladder with the zero four fifths down, so the return
-   keeps the bottom fifth and no bucket changes height because another one did;
-2. the petal's figure centres on the axis by itself - two digits, right-aligned on
-   a fixed anchor - and the box hangs off the field's widest reserve at 24, which
-   is the jury's answer to "what does the box hang on now": asymmetry, deliberately;
-3. the engine's box takes both rows of the shelf, 54 units from the top guard to a
-   hair over the captions' baseline, and its legend moves below it onto the band's
-   own 24-unit guard. No neighbour's baseline moves in either direction of the
-   cells↔box swap;
-4. an engine that ran and stopped reads «ДВС · мин» over «6» and nothing else. The
-   corner's aperture leaves 138.2 units at that third baseline and «мин за поездку»
-   asked for 130.4, which is eight units of margin on a boundary nobody has
-   photographed - and the heading was already carrying the unit for the other two
-   states, so it can carry this one;
-5. the glow's span is its own now - `0.18·√(|P| / 120 kW)`, saturated at 120 -
-   rather than the band's 300 out and 100 back, which made the same alpha mean two
-   different powers by direction and left the whole calm half of the range dark.
+So the shelf stops being a ledger and becomes a phrase, and every element on the
+panel now answers one test: **is it understood at first glance, by somebody who
+has never seen this panel and has no legend?** Five edits:
 
-One number in that list could not be had. The jury asked for a 270-unit petal box;
-with the figure on the axis the petal's own cut-out leaves 238.5 at the box's lower
-left corner once the 8-unit guard is taken, so the box is 232 - the next whole
-rhythm step under the aperture. The width was never the complaint.
+1. the shelf on the move is one cell - `«12,4 кВт·ч»` over `«ЗА ПОЕЗДКУ · 42 км»` -
+   and a second one, `«1,1 кВт·ч»` over `«ОТ ДВС»`, only if the engine actually ran
+   this trip. A zero is never drawn. The unit is no longer written once at the end
+   of a row, because a unit written once belongs to a row, and a row is the thing
+   that was hard to read;
+2. standing on P the same anatomy pays out in full - `ЗА ПОЕЗДКУ`, `● РЕКУПЕРАЦИЯ`,
+   `ОТ ДВС` - because a car that is not moving is the one place where reading three
+   numbers costs nothing;
+3. the engine's corner keeps `«ДВС · об/мин»` over `«1780»` and gives up its third
+   line. The generation figure goes where its own word already is: the box's legend
+   reads `ОБОРОТЫ · ● ГЕНЕРАЦИЯ 14 кВт`. A number and its noun in two different
+   places is the same defect as a caption that names another quantity, which is
+   what the owner found on the first drawing;
+4. the petal drops `«· батарея»`. While the engine runs the figure is `MUTED` and
+   says nothing: until somebody logs whether `GENERATION_KW` is inside `POWER_KW`
+   the number is the battery's alone, and "not the main figure" is a thing colour
+   says without spending five characters of a 12' line on a caveat;
+5. `«РАЗБРОС»` becomes `«РАЗБРОС ЯЧЕЕК»`, because the spread of *what* is exactly
+   the question that started this pass.
+
+**What the fifth edit cost, and what paid for it.** `«РАЗБРОС ЯЧЕЕК»` is 169.19
+units where `«РАЗБРОС»` was 94.50, and the temperature shelf had 36.6 to give
+before it reached the hero's field. Two things paid, both fields rather than type:
+the three motors now share one degree sign the way they already share one word
+(`«61 68 64°»`, 25.4 units), and a cell is exactly as wide as the wider of its
+caption and its payload rather than that width rounded up to the rhythm - which
+across four cells was 19.5 units of air. The shelf ends 25.5 clear of the hero's
+field, and `rungs()` is gone.
 
 **The panel is now measured rather than guessed.** M1 was right that every
 ergonomic claim on the first three boards stood on an estimated 25 cm of glass.
@@ -79,8 +90,8 @@ and neighbours are set against the field's edge. Gaining a digit moves nothing.
 
 Closed:
 
-- B1  while the engine runs the petal's figure goes `MUTED` and its unit reads
-      «кВт·ч/100 км · батарея»; the trip's `РЕКУПЕРАЦИЯ` cell is defined to
+- B1  while the engine runs the petal's figure goes `MUTED` and says nothing (the
+      sixth pass dropped «· батарея»); the trip's `РЕКУПЕРАЦИЯ` cell is defined to
       integrate only over intervals with the engine off, and the engine's share
       is the `ОТ ДВС` cell. Written here as a data rule the renderer follows.
 - B2  the shelves lost their headings entirely and now hang from the same 24-unit
@@ -113,12 +124,15 @@ Closed:
       seconds, and it is never drawn empty. It leaves when the last non-zero slot
       falls off the left edge, which is 120 s of hysteresis with no timer of its
       own: the trace's own length is the timer.
-- M8  three fixed places on the right shelf, always. A zero is drawn, in
-      `MUTED_DEEP`, in its own seat.
+- M8  fixed seats on the right shelf, counted right to left from the shelf's own
+      edge, so a cell that appears moves nothing. What the fifth board did with
+      that rule - drawing `0,0` in `MUTED_DEEP` so the seat would never be empty -
+      is what the owner's question killed: **a zero is never drawn now**, and the
+      seat it would have taken simply does not exist that trip.
 - M9  the sag line is deleted. «552 В» is what the owner asked for.
 - M11 no small blue text anywhere. Blue is the band's body, the generation seam,
       the engine box's area, and a marker dot the size of a dot in front of
-      `РЕКУПЕРАЦИЯ`, `ОТ ДВС` and `ГЕНЕРАЦИЯ`.
+      `РЕКУПЕРАЦИЯ` and `ГЕНЕРАЦИЯ` - the two things the car gives back.
 - M12 neutral zone of 3 kW: inside it the hero and the band body are `MUTED` and
       carry no colour at all, and the colour changes with 3 kW of hysteresis.
 - M13 the scenes the brief asked for are drawn: a traffic jam, an acceleration, an
@@ -142,9 +156,13 @@ Closed:
 - m8  an exception is a 34 figure changing colour on a shelf whose figures are all
       34, so it is the same glance as reading the temperature.
 - m9  generation is drawn twice, not three times: the seam on the band and the
-      area in the engine box. The corner's line is a number, not a picture.
+      area in the engine box. Its figure is written once, and since the sixth pass
+      it is written beside the word `ГЕНЕРАЦИЯ` rather than alone in the corner.
 - m11 unchanged and still true: three motors under one word in `motorTemps`
-      order. Naming three positions costs three captions at 12'.
+      order. Naming three positions costs three captions at 12'. Since the sixth
+      pass they share one degree sign as well as one word - the group is one
+      reading in three parts, and repeating «°» three times bought nothing but the
+      78 units «РАЗБРОС ЯЧЕЕК» needed.
 
 Rejected, with the owner's reason:
 
@@ -211,12 +229,18 @@ W_DEGREE = 12.7031               # «°» at 34
 W_MILLIVOLT = 46.4063            # «мВ» at 34
 W_KW34 = 55.9219                 # «кВт» at 34, the hero's unit
 W_KW = 29.6094                   # «кВт» at 18
-W_KWH = 44.1094                  # «кВт·ч» at 18, the trip shelf's one unit
+W_KWH = 43.5156                  # «кВт·ч» at 18, once per cell since the sixth pass
+W_KM = 22.3594                   # «км» at 18, the odometer's unit in a caption
 W_PER_100KM = 109.4219           # «кВт·ч/100 км» at 18
 W_TITLE = {'БАТАРЕЯ · В': 126.08, 'ДВС · об/мин': 137.98, 'ДВС · мин': 104.16}
-W_CAPTION = {'БАТАРЕЯ': 91.92, 'МОТОРЫ': 90.63, 'ИНВЕРТОР': 110.00,
-             'РАЗБРОС': 94.50, 'ИЗ БАТАРЕИ': 127.77, 'РЕКУПЕРАЦИЯ': 150.67,
-             'ОТ ДВС': 76.78, 'ОБОРОТЫ': 101.05, 'ГЕНЕРАЦИЯ': 122.11}
+# Every caption measured again in one run on 2026-09-04, because the sixth pass
+# made the measurement load-bearing: a cell used to be its content rounded up to
+# the next rhythm step, and that rounding was hiding up to 8 units of error. It was
+# hiding some: «ИНВЕРТОР» was written down 1.5 units narrower than it renders.
+W_CAPTION = {'БАТАРЕЯ': 91.03, 'МОТОРЫ': 92.14, 'ИНВЕРТОР': 111.48,
+             'РАЗБРОС ЯЧЕЕК': 169.19, 'РЕКУПЕРАЦИЯ': 150.84, 'ОТ ДВС': 78.50,
+             'ЗА ПОЕЗДКУ': 130.98, 'ЗА ПОЕЗДКУ ·': 144.47,
+             'ОБОРОТЫ ·': 117.55, 'ГЕНЕРАЦИЯ': 123.00}
 
 # ---------------------------------------------------------------- the panel
 
@@ -269,11 +293,6 @@ def petal_reach(y):
 def petal_room(y):
     """Where the petal's cut-out has its left edge at [y] - the box's own limit."""
     return AXIS - petal_reach(y)
-
-
-def rungs(width):
-    """The next whole rhythm step at or past [width]: a cell is never a string."""
-    return math.ceil(width / STEP - 1e-9) * STEP
 
 
 # ---------------------------------------------------------------- the skeleton
@@ -337,15 +356,21 @@ GLOW_FULL_KW = 120.0
 # flickering between ink and blue.
 NEUTRAL_KW = 3.0
 
-# ---- the corners: one heading, one figure, one line
+# ---- the corners: one heading and one figure, and that is the whole corner
 
 # A row advances by the lead plus the *full* type size. A cap height is what the
 # ink occupies; the box a browser and a Paint both reserve runs from ascent to
 # descent, and spacing rows by cap height puts a heading's descenders inside the
 # digits underneath it.
+#
+# The third baseline is gone with the sixth pass. It carried one line, «● 14 кВт»
+# under the revolutions, and that line was a number standing away from its own
+# noun: the reader had to know that the blue dot meant generation and that the
+# word for it was two hundred units away, under the box. The figure moved to the
+# word instead. What is left is a corner that reads «ДВС · об/мин» over «1780» -
+# a heading, a number, and nothing to work out.
 CORNER_TITLE = STEP * 3                 # 24
 CORNER_FIGURE = CORNER_TITLE + STEP * 2 + FIGURE
-CORNER_LINE = CORNER_FIGURE + STEP * 2 + CAPTION
 
 LEFT_FIELD_X = LEFT_EDGE                        # volts: three digits
 LEFT_FIELD_RIGHT = LEFT_FIELD_X + 3 * DIGIT * FIGURE
@@ -370,29 +395,53 @@ MARK_GAP = STEP
 MARK_W = 2 * MARK_R + MARK_GAP
 
 TEMP_FIELD = 2 * DIGIT * READING        # two digits; 100+ is an alert and may hang
-MOTOR_PITCH = TEMP_FIELD + W_DEGREE + MOTOR_GAP
-MOTOR_RUN = 3 * (TEMP_FIELD + W_DEGREE) + 2 * MOTOR_GAP
+# One degree sign for the three motors, at the end of the run - the same rule the
+# group's single caption already follows. Three of them were 25.4 units of repeated
+# punctuation and «РАЗБРОС ЯЧЕЕК» needed every one; «61 68 64°» is how a person
+# writes three readings of one quantity, and the neighbours on either side carry
+# their own «°» so the row cannot be misread.
+MOTOR_PITCH = TEMP_FIELD + MOTOR_GAP
+MOTOR_RUN = 3 * TEMP_FIELD + 2 * MOTOR_GAP + W_DEGREE
 SPREAD_PAYLOAD = TEMP_FIELD + STEP + W_MILLIVOLT
 
-# A cell is as wide as the wider of the two things it has to hold - its caption or
-# its payload - rounded up to the rhythm.
-LEFT_CELLS = [rungs(max(W_CAPTION['БАТАРЕЯ'], TEMP_FIELD + W_DEGREE)),
-              rungs(max(W_CAPTION['МОТОРЫ'], MOTOR_RUN)),
-              rungs(max(W_CAPTION['ИНВЕРТОР'], TEMP_FIELD + W_DEGREE)),
-              rungs(max(W_CAPTION['РАЗБРОС'], SPREAD_PAYLOAD))]
+# **A cell is exactly as wide as the wider of the two things it has to hold** - its
+# caption or its payload. Until the sixth pass that width was rounded up to the
+# next rhythm step, which was 19.5 units of air across four cells and 78 units less
+# than «РАЗБРОС ЯЧЕЕК» costs over «РАЗБРОС». The rounding was the cheapest thing on
+# the panel to sell: nothing on the shelf is a rectangle, so the rhythm was
+# quantising a distance nobody can see, while the clearance to the hero's field is
+# a distance the reader would have seen the moment a three-digit power arrived.
+LEFT_CELLS = [max(W_CAPTION['БАТАРЕЯ'], TEMP_FIELD + W_DEGREE),
+              max(W_CAPTION['МОТОРЫ'], MOTOR_RUN),
+              max(W_CAPTION['ИНВЕРТОР'], TEMP_FIELD + W_DEGREE),
+              max(W_CAPTION['РАЗБРОС ЯЧЕЕК'], SPREAD_PAYLOAD)]
 LEFT_SHELF_RIGHT = LEFT_EDGE + sum(LEFT_CELLS) + 3 * CELL_GAP
 
-# Three seats, always, counted from the outside in - so the row reads out of the
-# battery, back from the brakes, in from the engine, and none of the three moves
-# when another gains or loses a value. The unit is written once, on a fixed anchor
-# after the last digit of the row.
+# ---- the right shelf: a phrase, not a ledger
+#
+# The owner: «что означает 0,0 от ДВС, когда ДВС заглушен?» A cell is a figure with
+# its own unit against it and a caption underneath that says what the figure is
+# *of* - «12,4 кВт·ч» over «ЗА ПОЕЗДКУ · 42 км» - and there are one or two of them
+# on the move and three on P. The unit is written per cell now rather than once at
+# the end of the row: a shared unit is what makes a row a row, and the row was the
+# unreadable part.
+#
+# Seats are counted right to left from the shelf's own edge and the first one is
+# always at it, so the second appearing moves nothing. They are per state rather
+# than per panel: standing still adds `РЕКУПЕРАЦИЯ` between the two, and that is a
+# gear change rather than a value arriving.
 TRIP_FIELD = 3 * DIGIT * READING + COMMA * READING      # "12,4" at its widest
-TRIP_CELLS = [rungs(max(TRIP_FIELD, MARK_W + W_CAPTION['ОТ ДВС'])),
-              rungs(max(TRIP_FIELD, MARK_W + W_CAPTION['РЕКУПЕРАЦИЯ'])),
-              rungs(max(TRIP_FIELD, W_CAPTION['ИЗ БАТАРЕИ']))]
-TRIP_UNIT_X = RIGHT_EDGE
-TRIP_ROW_RIGHT = RIGHT_EDGE - W_KWH - UNIT_GAP
-RIGHT_SHELF_LEFT = TRIP_ROW_RIGHT - sum(TRIP_CELLS) - 2 * CELL_GAP
+ODO_FIELD = 3 * DIGIT * CAPTION                         # "42" with room for "999"
+TRIP_PAYLOAD = TRIP_FIELD + SMALL_GAP + W_KWH
+TRIP_LEAD = (W_CAPTION['ЗА ПОЕЗДКУ ·'] + SMALL_GAP + ODO_FIELD + SMALL_GAP + W_KM)
+
+TRIP_CELL = max(TRIP_PAYLOAD, TRIP_LEAD)
+REGEN_CELL = max(TRIP_PAYLOAD, MARK_W + W_CAPTION['РЕКУПЕРАЦИЯ'])
+ICE_CELL = max(TRIP_PAYLOAD, W_CAPTION['ОТ ДВС'])
+DRIVE_SEATS = [TRIP_CELL, ICE_CELL]
+PARK_SEATS = [TRIP_CELL, REGEN_CELL, ICE_CELL]
+# The widest the shelf ever is, which is also the engine box's own left limit.
+RIGHT_SHELF_LEFT = RIGHT_EDGE - sum(PARK_SEATS) - (len(PARK_SEATS) - 1) * CELL_GAP
 
 # ---- the engine's own two minutes
 
@@ -423,6 +472,12 @@ ENGINE_LEGEND = BAND_Y - BAND_BODY / 2 - CLEARANCE
 ENGINE_BOX_BOTTOM = ENGINE_LEGEND - CAP * CAPTION - STEP
 ENGINE_RPM_FULL = 3000.0                # not 6000: this engine is a generator
 ENGINE_GEN_FULL = 100.0                 # ClusterReadout.GENERATION_FULL_KW, root
+# The legend carries the generation figure since the sixth pass, laid out right to
+# left off the box's own edge: «кВт», two digits, «ГЕНЕРАЦИЯ», the dot, «ОБОРОТЫ ·».
+# The reserve is drawn whether or not the engine is putting anything back, so the
+# two words never move; the figure and its unit leave together when the value does,
+# which is the panel's one rule for a stale reading applied to this line.
+GEN_FIELD = 2 * DIGIT * CAPTION
 
 # ---- the petal, and the three kilometres behind its figure
 
@@ -491,10 +546,10 @@ def left_cell(index):
     return left, left + LEFT_CELLS[index]
 
 
-def trip_cell(index):
-    """Trip cells are counted from the outside in: 0 is the one nearest the unit."""
-    right = TRIP_ROW_RIGHT - sum(TRIP_CELLS[:index]) - index * CELL_GAP
-    return right - TRIP_CELLS[index], right
+def trip_cell(index, seats):
+    """Right shelf seats, right to left: seat 0 is always against the shelf's edge."""
+    right = RIGHT_EDGE - sum(seats[:index]) - index * CELL_GAP
+    return right - seats[index], right
 
 
 def sweep(kw):
@@ -798,18 +853,16 @@ def left_corner(s):
 def right_corner(s):
     """ДВС, in the three states it has, one of which is not being there at all.
 
-    Running: the heading carries the unit, the figure is the revolutions, and the
-    line under it is what the engine is putting back - a blue dot and «14 кВт»,
-    because a dot is the smallest blue thing that still reads on black and a 12'
-    blue word is not one.
+    Running: the heading carries the unit and the figure is the revolutions. That
+    is the whole corner since the sixth pass. The line that used to stand under it,
+    «● 14 кВт», was a number parked away from its own noun - the reader had to
+    learn that a blue dot in a corner means generation, while the word
+    «ГЕНЕРАЦИЯ» sat two hundred units away under the box. The figure went to the
+    word, and «1780 об/мин» is left saying one thing.
 
     Asleep after running: «ДВС · мин» over «6», which is the question a hybrid's
-    driver actually asks and the answer nothing on this panel gave. The line under
-    it is gone: «мин за поездку» said in fourteen characters what the heading says
-    in one, and it said it at the panel's tightest baseline - the aperture leaves
-    138.2 there and the words asked for 130.4, eight units from a boundary that
-    has never been photographed. The other two states already carry their unit in
-    the heading, so this one does too.
+    driver actually asks and the answer nothing on this panel gave. The unit is in
+    the heading for all three states, so nothing hangs under this one either.
 
     Never started this trip: empty. A dimmed heading over an empty corner is
     advertising an instrument that is not there.
@@ -822,16 +875,6 @@ def right_corner(s):
         if s.get('rpm') is not None:
             out.append(txt('fig', RIGHT_FIELD_RIGHT, CORNER_FIGURE,
                            f'{s["rpm"]:.0f}', 'end', MUTED))
-        if s.get('generation') is not None:
-            unit_x = RIGHT_EDGE - W_KW
-            field_right = unit_x - SMALL_GAP
-            field_left = field_right - 2 * DIGIT * CAPTION
-            out += [
-                dot(field_left - MARK_GAP - MARK_R, CORNER_LINE - CAP * CAPTION / 2),
-                txt('cl0', field_right, CORNER_LINE, f'{s["generation"]:.0f}',
-                    'end', MUTED),
-                txt('un', unit_x, CORNER_LINE, 'кВт', 'start', MUTED),
-            ]
         return out
     out = [txt('ttl', RIGHT_EDGE, CORNER_TITLE, 'ДВС · мин', 'end', MUTED_DEEP)]
     if s.get('ice_minutes') is not None:
@@ -859,19 +902,24 @@ def left_shelf(s):
         out.append(txt('cl', left, SHELF_CAPTION, word, 'start', MUTED_DEEP))
         return left
 
-    def degrees(x, value, level):
+    def degrees(x, value, level, sign=True):
         # A degree belongs against its digits and Roboto sets it there: the field
         # is two characters wide and the sign starts exactly at its right edge.
         out.append(txt('rd', x, SHELF_FIGURE, value, 'end', LEVEL[level]))
-        out.append(txt('rd', x, SHELF_FIGURE, '°', 'start', MUTED))
+        if sign:
+            out.append(txt('rd', x, SHELF_FIGURE, '°', 'start', MUTED))
 
     left = cell(0, 'БАТАРЕЯ')
     if temps:
         degrees(left + TEMP_FIELD, *temps['pack'])
     left = cell(1, 'МОТОРЫ')
     if temps:
+        # One sign for the three, after the last of them: the group already shares
+        # one word, and three «°» inside one cell were the last 25 units the shelf
+        # had spare. Each figure keeps its own colour, which is what the cell is for.
         for index, (value, level) in enumerate(temps['motors']):
-            degrees(left + index * MOTOR_PITCH + TEMP_FIELD, value, level)
+            degrees(left + index * MOTOR_PITCH + TEMP_FIELD, value, level,
+                    sign=index == len(temps['motors']) - 1)
     left = cell(2, 'ИНВЕРТОР')
     if temps:
         degrees(left + TEMP_FIELD, *temps['inverter'])
@@ -879,7 +927,7 @@ def left_shelf(s):
     spread = s.get('spread')
     if spread:
         value, level = spread
-        left = cell(3, 'РАЗБРОС')
+        left = cell(3, 'РАЗБРОС ЯЧЕЕК')
         out.append(txt('rd', left + TEMP_FIELD, SHELF_FIGURE, value, 'end', LEVEL[level]))
         out.append(txt('rd', left + TEMP_FIELD + STEP, SHELF_FIGURE, 'мВ',
                        'start', MUTED))
@@ -929,43 +977,96 @@ def engine_box(s):
                f'stroke-width="{f(DATA_LINE)}" stroke-linejoin="round" '
                f'stroke-linecap="round" opacity="{f(LINE_ALPHA)}"/>')
 
-    out.append(txt('cl', RIGHT_EDGE, ENGINE_LEGEND, 'ГЕНЕРАЦИЯ', 'end', MUTED_DEEP))
-    gen_left = RIGHT_EDGE - W_CAPTION['ГЕНЕРАЦИЯ']
+    # «ОБОРОТЫ · ● ГЕНЕРАЦИЯ 14 кВт», laid out right to left off the box's own edge.
+    # The figure is one step brighter than the words it belongs to and set at their
+    # size: it is a legend that happens to carry a reading, not a fifth figure
+    # competing with the four the panel already has.
+    unit_x = RIGHT_EDGE - W_KW
+    field_right = unit_x - SMALL_GAP
+    gen_right = field_right - GEN_FIELD - SMALL_GAP
+    gen_left = gen_right - W_CAPTION['ГЕНЕРАЦИЯ']
+    out.append(txt('cl', gen_right, ENGINE_LEGEND, 'ГЕНЕРАЦИЯ', 'end', MUTED_DEEP))
     out.append(dot(gen_left - MARK_GAP - MARK_R, ENGINE_LEGEND - CAP * CAPTION / 2))
-    out.append(txt('cl', gen_left - MARK_W - CELL_GAP, ENGINE_LEGEND,
-                   'ОБОРОТЫ', 'end', MUTED_DEEP))
+    out.append(txt('cl', gen_left - MARK_W, ENGINE_LEGEND, 'ОБОРОТЫ ·',
+                   'end', MUTED_DEEP))
+    generation = s.get('generation') if s.get('ice') == 'running' else None
+    if generation is not None:
+        out.append(txt('cl0', field_right, ENGINE_LEGEND, f'{generation:.0f}',
+                       'end', MUTED))
+        out.append(txt('un', unit_x, ENGINE_LEGEND, 'кВт', 'start', MUTED))
+    return out
+
+
+def trip_seat(left, value, word, marked=False, odometer=None):
+    """One cell of the right shelf: a figure with its unit, over a phrase.
+
+    The figure is right-aligned inside its own reserve field and «кВт·ч» hangs off
+    the field's edge rather than off the string, so the tenth and the second digit
+    move nothing. Everything in the cell is left-aligned against the cell, the same
+    way the temperature shelf's cells are: a phrase is read from its left.
+
+    The unit belongs to the figure. If the value has gone stale it leaves with it
+    and the words stay, which is the panel's one rule for a missing reading (M5) -
+    the same reason the odometer's «42 км» is drawn only when the odometer has
+    answered, and the caption then reads «ЗА ПОЕЗДКУ» with no dangling separator.
+    """
+    out = []
+    if value is not None:
+        out.append(txt('rd', left + TRIP_FIELD, SHELF_FIGURE, comma(value),
+                       'end', MUTED))
+        out.append(txt('un', left + TRIP_FIELD + SMALL_GAP, SHELF_FIGURE,
+                       'кВт·ч', 'start', MUTED_DEEP))
+    x = left
+    if marked:
+        out.append(dot(left + MARK_R, SHELF_CAPTION - CAP * CAPTION / 2))
+        x = left + MARK_W
+    if odometer is None:
+        out.append(txt('cl', x, SHELF_CAPTION, word, 'start', MUTED_DEEP))
+        return out
+    out.append(txt('cl', x, SHELF_CAPTION, word + ' ·', 'start', MUTED_DEEP))
+    field_right = x + W_CAPTION[word + ' ·'] + SMALL_GAP + ODO_FIELD
+    out += [txt('un', field_right, SHELF_CAPTION, f'{odometer:.0f}', 'end', MUTED_DEEP),
+            txt('un', field_right + SMALL_GAP, SHELF_CAPTION, 'км', 'start', MUTED_DEEP)]
     return out
 
 
 def right_shelf(s):
-    """The trip's energy in three fixed seats - or the engine's own two minutes.
+    """What the trip cost, as a sentence - or the engine's own two minutes.
 
-    A zero is drawn, in MUTED_DEEP, in its own seat. The last board packed the
-    cells against the margin and skipped a zero, so the first braking of a trip
-    slid two figures sideways and the engine's first start slid them again: a
-    coordinate that depends on data, which is the one thing this concept exists to
-    cure. The unit is written once, at a fixed anchor after the last digit.
+    On the move it is one cell, «12,4 кВт·ч» over «ЗА ПОЕЗДКУ · 42 км», and a
+    second one only if the engine actually ran: «1,1 кВт·ч» over «ОТ ДВС». Standing
+    on P the same anatomy pays out in full and «● РЕКУПЕРАЦИЯ» comes between them,
+    because a car that is not moving is the one place where three numbers cost
+    nothing to read.
+
+    **A zero is never drawn.** The fifth board drew `0,0 ОТ ДВС` so that a seat
+    would never be empty, and the owner asked what it meant - which is the whole
+    reason for this pass. A quantity that does not exist this trip has no cell, and
+    the seats are counted from the shelf's own edge so the one that does exist is
+    always in the same place.
     """
     if s.get('trace'):
         return engine_box(s)
     if not s['trip_known']:
         return []
-    trip = s.get('trip')
-    out = [txt('un', TRIP_UNIT_X, SHELF_FIGURE, 'кВт·ч', 'end', MUTED_DEEP)]
-    for index, (key, word, marked) in enumerate((('ice', 'ОТ ДВС', True),
-                                                 ('regen', 'РЕКУПЕРАЦИЯ', True),
-                                                 ('spent', 'ИЗ БАТАРЕИ', False))):
-        _, right = trip_cell(index)
-        out.append(txt('cl', right, SHELF_CAPTION, word, 'end', MUTED_DEEP))
-        if marked:
-            word_left = right - W_CAPTION[word]
-            out.append(dot(word_left - MARK_GAP - MARK_R,
-                           SHELF_CAPTION - CAP * CAPTION / 2))
-        if trip is None:
+    trip = s.get('trip') or {}
+    parked = bool(s.get('parked'))
+    seats = PARK_SEATS if parked else DRIVE_SEATS
+    row = [('spent', 'ЗА ПОЕЗДКУ', False)]
+    if parked:
+        row.append(('regen', 'РЕКУПЕРАЦИЯ', True))
+    row.append(('ice', 'ОТ ДВС', False))
+    out = []
+    for index, (key, word, marked) in enumerate(row):
+        value = trip.get(key)
+        # Seat 0 is the trip itself and it exists as soon as the trip does, so it
+        # keeps its caption when the bus goes quiet. The other two answer "did this
+        # happen at all", and a zero is that question answered "no": no cell.
+        if not value and index:
             continue
-        value = trip[key]
-        out.append(txt('rd', right, SHELF_FIGURE, comma(value), 'end',
-                       MUTED if value else MUTED_DEEP))
+        left, _ = trip_cell(index, seats)
+        out += trip_seat(left, value or None, word, marked,
+                         odometer=trip.get('km') if key == 'spent' else None)
     return out
 
 
@@ -1008,9 +1109,16 @@ def petal(s):
     The denominator never changes under the figure: standing on P it is still
     three kilometres and only the tenth appears, because at 100 km/h a tenth
     changes three times a second and a figure that flickers is a figure nobody
-    reads. While the engine is running the figure goes MUTED and says «батарея»,
-    because `ConsumptionLog` integrates pack power alone and nobody has logged
-    whether `GENERATION_KW` is already inside `POWER_KW` (B1).
+    reads.
+
+    While the engine is running the figure goes MUTED and says nothing else.
+    `ConsumptionLog` integrates pack power alone and nobody has logged whether
+    `GENERATION_KW` is already inside `POWER_KW` (B1), so until that log exists
+    this number is the battery's alone - and «кВт·ч/100 км · батарея» was five
+    characters of footnote at 12', on the one line of the panel that has to be read
+    in a glance. Colour says the same thing without asking anybody to read it: the
+    figure that is INK the rest of the time has stepped down, and a reader who
+    never works out why has lost nothing.
     """
     if s.get('hint'):
         return [txt('un', AXIS, PETAL_BASELINE, s['hint'], 'middle', MUTED)]
@@ -1075,8 +1183,12 @@ HEAD = """<!doctype html>
     .cl { font-size:%(caption)spx; font-weight:400; letter-spacing:%(tracking)sem;
           fill:%(muted_deep)s; }
     /* A tracked capital is a heading; a unit is case-sensitive and is not one.
-       «кВт·ч», «об/мин», «мин за поездку» are set as themselves. */
-    .un { font-size:%(caption)spx; font-weight:400; fill:%(muted_deep)s; }
+       «кВт·ч», «об/мин», «км» are set as themselves - and so is the odometer's own
+       figure inside «ЗА ПОЕЗДКУ · 42 км», which is a number living in a caption
+       rather than a reading of its own, so it takes the caption's face and the
+       tabular figures every number on this panel has. */
+    .un { font-size:%(caption)spx; font-weight:400; fill:%(muted_deep)s;
+          font-variant-numeric:tabular-nums; font-feature-settings:'tnum'; }
     .cl0 { font-size:%(caption)spx; font-weight:400; fill:%(muted)s;
            font-variant-numeric:tabular-nums; font-feature-settings:'tnum'; }
     .keep { font-size:%(note)spx; letter-spacing:%(tracking)sem; fill:#3F434D; }
@@ -1135,7 +1247,6 @@ HOT = temps(('33', 'normal'),
             ('92', 'alert'))
 
 PER_100 = 'кВт·ч/100 км'
-PER_100_BATTERY = 'кВт·ч/100 км · батарея'
 
 CALM_BARS = consumption_history(16.8)
 
@@ -1150,7 +1261,7 @@ def sc(**kw):
     and nothing else rather than four headings over emptiness (m4).
     """
     s = dict(kw)
-    s.setdefault('petal_unit', PER_100_BATTERY if s.get('ice') == 'running' else PER_100)
+    s.setdefault('petal_unit', PER_100)
     defaults = {
         'power_known': s.get('kw') is not None,
         'volts_known': s.get('volts') is not None,
@@ -1165,27 +1276,27 @@ def sc(**kw):
 
 
 CALM = sc(kw=34.0, peak=68.0, volts=552.0, temps=COOL,
-          trip=dict(spent=12.4, regen=3.1, ice=0.0),
+          trip=dict(spent=12.4, regen=3.1, ice=0.0, km=42),
           bars=CALM_BARS, petal='17')
 
 STATES = [
     ('Первые секунды · шина ещё не ответила: скелет ленты, и больше ничего',
      sc(kw=None)),
-    ('Пробка · 2 кВт внутри мёртвой зоны: цвета нет, лента — засечка, цифра стоит',
-     sc(kw=2.0, volts=548.0, temps=COOL,
-        trip=dict(spent=8.1, regen=2.2, ice=0.0),
+    ('Пробка · ДВС отработал раньше и заглох давно: полка — две ячейки, коробки нет',
+     sc(kw=2.0, volts=548.0, temps=COOL, ice='slept', ice_minutes=3.0,
+        trip=dict(spent=8.1, regen=2.2, ice=0.6, km=27),
         bars=consumption_history(21.4), petal='21')),
-    ('Спокойная езда · 34 кВт, ДВС в этой поездке не запускался — правый угол пуст',
+    ('Спокойная езда · ДВС не запускался: одна фраза справа, «ОТ ДВС» нет вовсе',
      CALM),
     ('Разгон · 128 кВт, пик-холд стоит впереди кончика и сползает к нему',
      sc(kw=128.0, peak=163.0, volts=531.0, temps=WORKED,
-        trip=dict(spent=13.1, regen=3.1, ice=0.0),
+        trip=dict(spent=13.1, regen=3.1, ice=0.0, km=45),
         bars=consumption_history(20.4), petal='20')),
     ('Рекуперация · сторона и цвет меняются, не появляется ничего',
      sc(kw=-42.0, peak=-58.0, volts=573.0, temps=COOL,
-        trip=dict(spent=12.6, regen=3.4, ice=0.0),
+        trip=dict(spent=12.6, regen=3.4, ice=0.0, km=43),
         bars=consumption_history(11.2), petal='11')),
-    ('ДВС генерирует 82 с · шов за флагом, коробка выросла справа, угол занят',
+    ('ДВС генерирует 82 с · шов за флагом, коробка выросла справа, «14 кВт» — в легенде',
      sc(kw=28.0, peak=52.0, ice='running', rpm=1780.0, generation=14.0,
         trace=engine_history(82), volts=548.0, temps=WORKED,
         bars=consumption_history(17.4), petal='17')),
@@ -1197,25 +1308,26 @@ STATES = [
      sc(kw=28.0, peak=52.0, ice='running', rpm=1780.0, generation=14.0,
         seam_on_band=False, trace=engine_history(82), volts=548.0, temps=WORKED,
         bars=consumption_history(17.4), petal='17')),
-    ('Стоянка на P · те же 3 км, у цифры появилась десятая',
-     sc(kw=1.4, volts=561.0, temps=COOL,
-        trip=dict(spent=12.4, regen=3.1, ice=0.0),
+    ('Стоянка на P · полный расклад тремя ячейками, у лепестка появилась десятая',
+     sc(kw=1.4, volts=561.0, temps=COOL, parked=True,
+        ice='slept', ice_minutes=6.0,
+        trip=dict(spent=12.4, regen=3.1, ice=1.1, km=42),
         bars=CALM_BARS, petal='16,8')),
-    ('Зарядка от розетки · километров нет, коробка расхода остаётся прежней',
+    ('Зарядка от розетки · полка как на ходу, коробка расхода остаётся прежней',
      sc(kw=-7.0, volts=584.0, temps=PARKED,
-        trip=dict(spent=12.4, regen=3.1, ice=0.0),
+        trip=dict(spent=12.4, regen=3.1, ice=0.0, km=42),
         bars=CALM_BARS, petal='2:15', petal_unit='до полной')),
     ('Одиночный null · напряжение снято через 2 с, заголовок «БАТАРЕЯ · В» стоит',
      sc(kw=34.0, peak=68.0, volts=None, volts_known=True, temps=COOL,
-        trip=dict(spent=12.4, regen=3.1, ice=0.0),
+        trip=dict(spent=12.4, regen=3.1, ice=0.0, km=42),
         bars=CALM_BARS, petal='17')),
     ('Потеря связи · через 2 с сняты все значения; подписи остались и не потускнели',
      sc(kw=None, power_known=True, volts=None, volts_known=True,
         temps=None, temps_known=True, trip=None, trip_known=True,
         ice=None, ice_known=False, bars=None, petal=None, petal_known=True)),
-    ('Исключение · моторы 68° оранжевым, инвертор 92° красным, четвёртая ячейка',
+    ('Исключение · моторы 68° оранжевым, инвертор 92° красным, «РАЗБРОС ЯЧЕЕК» — чей',
      sc(kw=34.0, peak=68.0, volts=552.0, temps=HOT, spread=('44', 'alert'),
-        trip=dict(spent=12.4, regen=3.1, ice=0.0),
+        trip=dict(spent=12.4, regen=3.1, ice=0.0, km=42),
         bars=CALM_BARS, petal='17')),
     ('Нет ADB-ключа · указание, что сделать — не сообщение об ошибке',
      sc(kw=None, hint='ADB-ключ не подтверждён · Помощь → Диагностика')),
@@ -1252,19 +1364,25 @@ def plan_board():
                 f'stroke="{colour or RETURN}" stroke-width="1.2" stroke-dasharray="{dash}" '
                 f'opacity="{f(opacity)}"/>')
 
-    # The cell grid both shelves stand on, drawn rather than described.
+    # The cell grid both shelves stand on, drawn rather than described. On the right
+    # there are two grids over one edge: the three seats of a car standing on P in
+    # solid dashes, and the pair it keeps on the move - «ЗА ПОЕЗДКУ» and «ОТ ДВС» -
+    # in the finer one. Seat 0 is the same cell in both, which is the rule.
     cell_top = SHELF_FIGURE - CAP * READING
     cell_h = SHELF_CAPTION - SHELF_FIGURE + CAP * READING + 6
-    for index in range(4):
+    for index in range(len(LEFT_CELLS)):
         left, right = left_cell(index)
         body.append(outline(left, cell_top, right - left, cell_h))
-    for index in range(3):
-        left, right = trip_cell(index)
+    for index in range(len(PARK_SEATS)):
+        left, right = trip_cell(index, PARK_SEATS)
         body.append(outline(left, cell_top, right - left, cell_h))
+    left, right = trip_cell(1, DRIVE_SEATS)
+    body.append(outline(left, cell_top - 6, right - left, cell_h + 12, dash='2 4',
+                        opacity=0.7))
     motors_left, _ = left_cell(1)
     for index in range(3):
         body.append(outline(motors_left + index * MOTOR_PITCH, cell_top,
-                            TEMP_FIELD + W_DEGREE, cell_h, dash='2 4', opacity=0.7))
+                            TEMP_FIELD, cell_h, dash='2 4', opacity=0.7))
 
     # The two boxes the histories live in, and the two big fields.
     body.append(outline(ENGINE_BOX_FULL_LEFT, ENGINE_BOX_TOP,
@@ -1294,20 +1412,26 @@ def plan_board():
                                    f'3 знака {LEFT_FIELD_X:.0f}…{LEFT_FIELD_RIGHT:.1f} · '
                                    f'обороты 4 знака {RIGHT_FIELD_LEFT:.1f}…'
                                    f'{RIGHT_FIELD_RIGHT:.1f}'),
-        (LEFT_EDGE, CORNER_LINE, f'строка угла · 18 · y {CORNER_LINE:.0f} · только '
-                                 f'«● N кВт» под оборотами: апертура даёт справа '
-                                 f'{RIGHT_EDGE - (W - aperture_reach(CORNER_LINE, True)):.1f}, '
-                                 f'«мин за поездку» просила 130.4 и снята'),
+        (LEFT_EDGE, CORNER_FIGURE, 'третьей строки угла больше нет: «● 14 кВт» ушли '
+                                   'к слову «ГЕНЕРАЦИЯ» под коробку'),
         (LEFT_EDGE, GUARD_TOP, f'запас {CLEARANCE:.0f} · stockTop {STOCK_TOP:.2f} → '
                                f'{GUARD_TOP:.2f} · на нём стоят герой, обе полки и '
                                f'коробка ДВС'),
         (LEFT_EDGE, SHELF_FIGURE, f'цифры полок · 34 Regular · y {SHELF_FIGURE:.2f} · '
-                                  f'ячейки {" / ".join(f"{w:.0f}" for w in LEFT_CELLS)} и '
-                                  f'{" / ".join(f"{w:.0f}" for w in TRIP_CELLS)} · зазор '
-                                  f'{CELL_GAP:.0f}'),
+                                  f'ячейка = шире из подписи и полезной нагрузки, '
+                                  f'без округления к ритму · зазор {CELL_GAP:.0f}'),
+        (LEFT_EDGE, SHELF_FIGURE, f'слева {" / ".join(f"{w:.1f}" for w in LEFT_CELLS)} '
+                                  f'→ до поля героя {HERO_FIELD_LEFT - LEFT_SHELF_RIGHT:.1f}'),
+        (LEFT_EDGE, SHELF_FIGURE, f'справа на P {" / ".join(f"{w:.1f}" for w in PARK_SEATS)}, '
+                                  f'на ходу {" / ".join(f"{w:.1f}" for w in DRIVE_SEATS)} · '
+                                  f'место 0 всегда у края {RIGHT_EDGE:.1f}'),
         (LEFT_EDGE, SHELF_CAPTION, f'подписи полок · 18 капителью · y '
                                    f'{SHELF_CAPTION:.2f} · моторы: шаг {MOTOR_PITCH:.1f}, '
-                                   f'поле {TEMP_FIELD:.1f} + «°» {W_DEGREE:.1f}'),
+                                   f'поле {TEMP_FIELD:.1f}, «°» {W_DEGREE:.1f} один на три'),
+        (LEFT_EDGE, SHELF_CAPTION, f'«ЗА ПОЕЗДКУ ·» {W_CAPTION["ЗА ПОЕЗДКУ ·"]:.1f} + '
+                                   f'одометр 3 знака {ODO_FIELD:.1f} + «км» {W_KM:.1f} = '
+                                   f'{TRIP_LEAD:.1f}; полезная нагрузка '
+                                   f'{TRIP_PAYLOAD:.1f} ({TRIP_FIELD:.1f} + «кВт·ч»)'),
         (right_lane, ENGINE_BOX_TOP, f'коробка ДВС · оба ряда полки, '
                                      f'{ENGINE_BOX_BOTTOM - ENGINE_BOX_TOP:.1f} высотой · '
                                      f'{ENGINE_SLOTS} слотов по {ENGINE_PITCH:.2f} '
@@ -1316,6 +1440,8 @@ def plan_board():
                                      '100 кВт · осей нет'),
         (right_lane, ENGINE_LEGEND, f'легенда ДВС · 18 · базовая {ENGINE_LEGEND:.2f} = '
                                     f'запас {CLEARANCE:.0f} над лентой'),
+        (right_lane, ENGINE_LEGEND, f'«ОБОРОТЫ · ● ГЕНЕРАЦИЯ 14 кВт» · поле '
+                                    f'{GEN_FIELD:.1f}, «кВт» у края, слова не двигаются'),
         (right_lane, HERO_BASELINE, f'герой · 88 Light · базовая {HERO_BASELINE:.2f} · '
                                     f'поле {HERO_FIELD_LEFT:.1f}…{HERO_FIELD_RIGHT:.1f} · '
                                     f'«кВт» 34 на {HERO_UNIT_X:.1f}'),
@@ -1325,9 +1451,12 @@ def plan_board():
                               f'{GLOW_RY:.2f} · {GLOW_MAX:.2f}·√(|P|/'
                               f'{GLOW_FULL_KW:.0f} кВт), насыщение на '
                               f'{GLOW_FULL_KW:.0f}, τ 1,5 с'),
-        (right_lane, GUARD_BOTTOM, f'запас {CLEARANCE:.0f} снизу · stockBottom '
-                                   f'{STOCK_BOTTOM:.2f} → {GUARD_BOTTOM:.2f} · низ ленты '
-                                   f'{BAND_Y + BAND_BODY / 2:.2f}'),
+        # The lower guard runs the whole width, so it hangs off the left lane: the
+        # right one gained the legend's own line and its last mark was falling off
+        # the panel's floor.
+        (LEFT_EDGE, GUARD_BOTTOM, f'запас {CLEARANCE:.0f} снизу · stockBottom '
+                                  f'{STOCK_BOTTOM:.2f} → {GUARD_BOTTOM:.2f} · низ ленты '
+                                  f'{BAND_Y + BAND_BODY / 2:.2f}'),
         (right_lane, PETAL_BOX_TOP, f'коробка расхода · {PETAL_BOX_W:.0f} × '
                                     f'{PETAL_BOX_H:.0f} на {PETAL_BOX_X:.1f}…'
                                     f'{PETAL_BOX_RIGHT:.1f} · {PETAL_BUCKETS} корзин по '
@@ -1448,22 +1577,23 @@ if __name__ == '__main__':
           f'{BAND_Y + BAND_BODY / 2:.2f}, clear of the lower guard by '
           f'{GUARD_BOTTOM - (BAND_Y + BAND_BODY / 2):.2f}, glow ry {GLOW_RY:.2f}')
     print(f'corners title {CORNER_TITLE:.0f}, figure {CORNER_FIGURE:.0f}, '
-          f'line {CORNER_LINE:.0f}')
+          f'no third line')
     print(f'  left  field {LEFT_FIELD_X:.2f}…{LEFT_FIELD_RIGHT:.2f}, '
           f'aperture at the figure {aperture_reach(CORNER_FIGURE):.2f}')
     print(f'  right field {RIGHT_FIELD_LEFT:.2f}…{RIGHT_FIELD_RIGHT:.2f}, '
           f'aperture leaves {RIGHT_EDGE - (W - aperture_reach(CORNER_FIGURE, True)):.2f} '
-          f'for {4 * DIGIT * FIGURE:.2f}; the line leaves '
-          f'{RIGHT_EDGE - (W - aperture_reach(CORNER_LINE, True)):.2f} for 130.44')
+          f'for {4 * DIGIT * FIGURE:.2f}')
     print(f'shelves figures {SHELF_FIGURE:.2f} (cap top '
           f'{SHELF_FIGURE - CAP * READING:.2f}), captions {SHELF_CAPTION:.2f}')
-    print(f'  left  cells {[f"{w:.0f}" for w in LEFT_CELLS]} -> '
-          f'{LEFT_EDGE:.0f}…{LEFT_SHELF_RIGHT:.0f}, clear of the hero field by '
-          f'{HERO_FIELD_LEFT - LEFT_SHELF_RIGHT:.2f}')
-    print(f'  right cells {[f"{w:.0f}" for w in TRIP_CELLS]} -> '
-          f'{RIGHT_SHELF_LEFT:.0f}…{TRIP_ROW_RIGHT:.0f}, «кВт·ч» ends at '
-          f'{TRIP_UNIT_X:.0f}, clear of the hero unit by '
+    print(f'  left  cells {[f"{w:.2f}" for w in LEFT_CELLS]} -> '
+          f'{LEFT_EDGE:.0f}…{LEFT_SHELF_RIGHT:.2f}, clear of the hero field by '
+          f'{HERO_FIELD_LEFT - LEFT_SHELF_RIGHT:.2f} (the jury asks 24)')
+    print(f'  right seats on P {[f"{w:.2f}" for w in PARK_SEATS]} -> '
+          f'{RIGHT_SHELF_LEFT:.2f}…{RIGHT_EDGE:.0f}, clear of the hero unit by '
           f'{RIGHT_SHELF_LEFT - (HERO_UNIT_X + HERO_UNIT_W):.2f}')
+    print(f'        on the move {[f"{w:.2f}" for w in DRIVE_SEATS]} -> '
+          f'{trip_cell(len(DRIVE_SEATS) - 1, DRIVE_SEATS)[0]:.2f}…{RIGHT_EDGE:.0f}; '
+          f'seat 0 lead {TRIP_LEAD:.2f} against a payload of {TRIP_PAYLOAD:.2f}')
     print(f'engine  box {ENGINE_BOX_FULL_LEFT:.2f}…{ENGINE_BOX_RIGHT:.2f} x '
           f'{ENGINE_BOX_TOP:.2f}…{ENGINE_BOX_BOTTOM:.2f} = '
           f'{ENGINE_BOX_BOTTOM - ENGINE_BOX_TOP:.2f} tall, pitch {ENGINE_PITCH:.2f}, '
