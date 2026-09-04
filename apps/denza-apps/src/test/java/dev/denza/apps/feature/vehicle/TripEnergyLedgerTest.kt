@@ -80,6 +80,22 @@ class TripEnergyLedgerTest {
     }
 
     @Test
+    fun anEngineReturningNothingAddsNothingToTheCellThatSaysWhatItGave() {
+        val ledger = ledger()
+        moving(ledger, 100.0)
+        // A running engine that is putting nothing back: the shutdown transition, where the state
+        // still reads running and the kilowatt figure has already fallen to zero, and a direct
+        // drive, where it can turn for a minute returning nothing at all.
+        moving(ledger, 100.1, powerKw = 4.0, generationKw = 0.0, engineRunning = true, seconds = hour)
+        moving(ledger, 100.2, powerKw = 4.0, generationKw = -2.0, engineRunning = true, seconds = hour)
+
+        assertEquals("«ДАЛ ДВС» is what it gave, and it gave nothing", 0.0, ledger.trip.engineKwh, 1e-9)
+        // The minutes are the other question and they still count: the engine ran.
+        assertTrue(ledger.trip.engineRan)
+        assertEquals(2.0 * hour, ledger.trip.engineSeconds, 1e-9)
+    }
+
+    @Test
     fun theEngineIsTimedInSecondsAndReadInMinutes() {
         val ledger = ledger()
         moving(ledger, 100.0)

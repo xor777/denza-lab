@@ -227,14 +227,7 @@ internal class VehicleTelemetryHub(context: Context) {
                 if (includeCold) {
                     forceCold = false
                     coldDueAt = SystemClock.elapsedRealtime() + COLD_INTERVAL_MS
-                    // Rebuilt rather than merged into. A cold value that stopped answering used to
-                    // sit in this map forever, so "present in the snapshot" meant "answered at some
-                    // point" for the slow rows and "answered just now" for the fast ones. The
-                    // Contour has one rule for a stale reading - it goes after two seconds and its
-                    // caption stays - and that rule needs absence to mean the same thing on both
-                    // cadences.
-                    cold.clear()
-                    VehicleSignal.COLD.forEach { signal -> parsed[signal]?.let { cold[signal] = it } }
+                    VehicleColdSweep.rebuild(cold, parsed)
                 }
 
                 restoreOnce(parsed[VehicleSignal.ODOMETER_KM])
@@ -333,6 +326,27 @@ internal class VehicleTelemetryHub(context: Context) {
         const val AUTHORIZATION_REQUIRED = "ADB-ключ не подтверждён · Помощь → Диагностика"
         const val NO_CHANNEL = "Нет связи с локальным ADB"
         const val NO_ANSWER = "Машина не ответила ни на один запрос"
+    }
+}
+
+/**
+ * What one cold sweep leaves behind, which is **only what that sweep answered**.
+ *
+ * Rebuilt rather than merged into. A cold value that stopped answering used to sit in the carried
+ * map forever, so "present in the snapshot" meant "answered at some point" for the slow rows and
+ * "answered just now" for the fast ones. The Contour has one rule for a stale reading - it goes
+ * two seconds after its last sample and its caption stays - and that rule needs
+ * absence to mean the same thing on both cadences. That rule is `ContourScene.STALE_SECONDS`.
+ *
+ * It is out here for the reason [VehiclePollLoopGate] is: it is the whole of a rule the panel hangs
+ * off, and inside the poll loop nothing could state it. The map is handed in rather than returned so
+ * the loop keeps one instance across sweeps.
+ */
+internal object VehicleColdSweep {
+
+    fun rebuild(into: MutableMap<VehicleSignal, Double>, parsed: Map<VehicleSignal, Double>) {
+        into.clear()
+        VehicleSignal.COLD.forEach { signal -> parsed[signal]?.let { into[signal] = it } }
     }
 }
 

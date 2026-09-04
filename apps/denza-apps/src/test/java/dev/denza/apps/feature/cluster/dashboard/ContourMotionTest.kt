@@ -85,6 +85,28 @@ class ContourMotionTest {
         assertTrue("the release must be softer than the hit", slow < hit.value)
     }
 
+    @Test
+    fun theBandItselfIsTheFastOneUpwardAndTheSoftOneComingBack() {
+        // The asymmetry has to be the *band's*, not merely the follower's: a mutation run swapped
+        // the two constants where the band is built and every test above it still passed, because
+        // each of them holds a follower it made itself. What the panel promises is that it answers
+        // the pedal at once and does not twitch when it comes off, so it is measured here on the
+        // same journey in both directions.
+        val hit = ContourMotion()
+        hit.step(0f, null, frame)
+        run(hit, 60f, 0.12f)
+
+        val release = ContourMotion()
+        release.step(60f, null, frame)
+        run(release, 0f, 0.12f)
+
+        val gone = 60f - release.powerKw
+        assertTrue(
+            "the hit covered ${hit.powerKw} of 60 while the release gave up $gone",
+            hit.powerKw > gone,
+        )
+    }
+
     // ---- the dead band and the neutral zone
 
     @Test
@@ -206,6 +228,26 @@ class ContourMotionTest {
         // And then sixty kilowatts a second brings it home to the tip.
         run(motion, 20f, 3f)
         assertEquals(20f, motion.peakKw!!, 1.5f)
+    }
+
+    @Test
+    fun theMarkComesBackAtSixtyKilowattsASecondRatherThanJumpingHome() {
+        // The rate is the point of the mark: it crosses the band in five seconds, which is slow
+        // enough to read and fast enough not to be a second reading. Doubling it and letting the
+        // mark land on the tip inside one second is a mutation the "holds and then comes back"
+        // test above cannot see, because that one only asks where the mark ends up.
+        val motion = ContourMotion()
+        run(motion, 300f, 1f)
+        val held = motion.peakKw!!
+
+        // Past the hold and a long way short of the tip: the mark is on its way back, and the
+        // speed it comes back at is measured on its own rather than inferred from where it stops.
+        run(motion, 5f, 3.5f)
+        val before = motion.peakKw!!
+        assertTrue("the mark set off from $held and is not home yet", before in 60f..(held - 10f))
+
+        run(motion, 5f, 0.5f)
+        assertEquals("thirty kilowatts in half a second", 30f, before - motion.peakKw!!, 2f)
     }
 
     @Test

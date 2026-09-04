@@ -208,6 +208,26 @@ class ContourPlanTest {
     }
 
     @Test
+    fun theBandLeavesItsZeroOnTheSideTheEnergyIsGoing() {
+        val plan = plan()
+        // Direction is the whole of what the band says: the hero prints a magnitude and the colour
+        // and the side carry the sign between them. A band that drew braking to the right of zero
+        // would be a reading of the same number about the opposite event.
+        assertEquals("zero is the axis", plan.axis, plan.bandX(0f), 1e-4f)
+        assertTrue("pulling leaves to the right", plan.bandX(40f) > plan.axis)
+        assertTrue("braking leaves to the left", plan.bandX(-40f) < plan.axis)
+        // And the two sides are not one span: the scale sweeps 300 kW out against 100 kW back, so
+        // the same forty kilowatts reaches further on the braking side.
+        assertTrue(
+            "back ${plan.axis - plan.bandX(-40f)} against out ${plan.bandX(40f) - plan.axis}",
+            plan.axis - plan.bandX(-40f) > plan.bandX(40f) - plan.axis,
+        )
+        // Clamped at the margins in both directions, so nothing the pack can report leaves the panel.
+        assertEquals(plan.leftEdge, plan.bandX(-600f), 1e-3f)
+        assertEquals(plan.rightEdge, plan.bandX(600f), 1e-3f)
+    }
+
+    @Test
     fun aBucketThatGaveEnergyBackSitsOnTheZeroInTheSpendingSeries() {
         val plan = plan()
         // The grey field is continuous across all thirty buckets and says nothing about the return:

@@ -7,6 +7,39 @@ import kotlin.math.PI
 import kotlin.math.sin
 
 /**
+ * The surface a glyph is drawn on, stated in the panel's own units.
+ *
+ * It is here for the reason [ContourRuns] is here: a `Canvas` call is unverifiable by construction
+ * in this module, and the three things the family promises are not statements about pixels. **The
+ * block is on the axle the glyph names, every wheel is hollow, and the one part that carries the
+ * reading's colour is the block** - a mutation run put the front motor's block on the rear axle,
+ * filled all four wheels and painted the block in the case's colour, and the whole suite stayed
+ * green, because every one of those decisions lived inside a call nothing could observe.
+ *
+ * [InstrumentPen] satisfies it through one adapter the family keeps, so a frame still allocates
+ * nothing; a test satisfies it with a recorder and reads back what was drawn.
+ */
+internal interface GlyphSurface {
+
+    /** An outlined rounded rectangle: a case, or a wheel. */
+    fun frame(
+        left: Float,
+        top: Float,
+        right: Float,
+        bottom: Float,
+        radius: Float,
+        colour: Int,
+        stroke: Float,
+    )
+
+    /** A filled one: a terminal, a lit cell, a motor's block. */
+    fun plate(left: Float, top: Float, right: Float, bottom: Float, radius: Float, colour: Int)
+
+    /** And the inverter's own alternating current. */
+    fun polyline(xs: FloatArray, ys: FloatArray, count: Int, colour: Int, stroke: Float)
+}
+
+/**
  * The five marks the temperature row is named by, and the arithmetic behind them.
  *
  * Until the ninth pass that row was three cells under three words - `БАТАРЕЯ`, `МОТОРЫ`,
@@ -46,16 +79,20 @@ import kotlin.math.sin
  */
 internal class ContourGlyphs {
 
-    /** The wave's points, in pixels, rebuilt only when the scale or the cell moves. */
+    /** The wave's points, in panel units, rebuilt only when the cell moves. */
     private val waveXs = FloatArray(WAVE_SAMPLES + 1)
     private val waveYs = FloatArray(WAVE_SAMPLES + 1)
     private var waveAt = Float.NaN
-    private var waveUnit = Float.NaN
+    private var waveTop = Float.NaN
+
+    /** The car's own surface, kept rather than made, because a frame allocates nothing. */
+    private val surface = PenSurface()
 
     /**
-     * One glyph, with its left edge at [x] and its foot on [baseline], both in panel units.
+     * One glyph on the vehicle's display.
      *
-     * [outline] is the case and the wheels; [component] is the one part that means something.
+     * The pen and the canvas go into the adapter and the drawing itself is the overload below, so
+     * what is drawn is decided in one place whether the surface is a `Canvas` or a recorder.
      */
     fun draw(
         pen: InstrumentPen,
@@ -65,47 +102,60 @@ internal class ContourGlyphs {
         baseline: Float,
         outline: Int,
         component: Int,
+    ) {
+        surface.bind(pen, canvas)
+        draw(surface, glyph, x, baseline, outline, component)
+    }
+
+    /**
+     * One glyph, with its left edge at [x] and its foot on [baseline], both in panel units.
+     *
+     * [outline] is the case and the wheels; [component] is the one part that means something.
+     */
+    fun draw(
+        surface: GlyphSurface,
+        glyph: Glyph,
+        x: Float,
+        baseline: Float,
+        outline: Int,
+        component: Int,
     ) = when (glyph) {
-        Glyph.PACK -> pack(pen, canvas, x, baseline, outline, component)
-        Glyph.INVERTER -> inverter(pen, canvas, x, baseline, outline, component)
-        else -> car(pen, canvas, glyph, x, baseline, outline, component)
+        Glyph.PACK -> pack(surface, x, baseline, outline, component)
+        Glyph.INVERTER -> inverter(surface, x, baseline, outline, component)
+        else -> car(surface, glyph, x, baseline, outline, component)
     }
 
     /** A battery: the case, the terminal, and one cell inside it carrying the reading's colour. */
     private fun pack(
-        pen: InstrumentPen,
-        canvas: Canvas,
+        surface: GlyphSurface,
         x: Float,
         baseline: Float,
         outline: Int,
         component: Int,
     ) {
         val top = packTop(baseline)
-        pen.frame(
-            canvas,
-            pen.v(x),
-            pen.v(top),
-            pen.v(x + PACK_WIDTH - PACK_NUB),
-            pen.v(top + PACK_HEIGHT),
+        surface.frame(
+            x,
+            top,
+            x + PACK_WIDTH - PACK_NUB,
+            top + PACK_HEIGHT,
             PACK_RADIUS,
             outline,
             STROKE,
         )
-        pen.plate(
-            canvas,
-            pen.v(x + PACK_WIDTH - PACK_NUB),
-            pen.v(top + PACK_NUB_INSET),
-            pen.v(x + PACK_WIDTH),
-            pen.v(top + PACK_HEIGHT - PACK_NUB_INSET),
+        surface.plate(
+            x + PACK_WIDTH - PACK_NUB,
+            top + PACK_NUB_INSET,
+            x + PACK_WIDTH,
+            top + PACK_HEIGHT - PACK_NUB_INSET,
             0f,
             outline,
         )
-        pen.plate(
-            canvas,
-            pen.v(x + PACK_CELL_INSET),
-            pen.v(top + PACK_CELL_INSET),
-            pen.v(x + PACK_WIDTH - PACK_CELL_TRIM + PACK_CELL_INSET),
-            pen.v(top + PACK_HEIGHT - PACK_CELL_INSET),
+        surface.plate(
+            x + PACK_CELL_INSET,
+            top + PACK_CELL_INSET,
+            x + PACK_WIDTH - PACK_CELL_TRIM + PACK_CELL_INSET,
+            top + PACK_HEIGHT - PACK_CELL_INSET,
             0f,
             component,
         )
@@ -113,8 +163,7 @@ internal class ContourGlyphs {
 
     /** The car from above: a body, four hollow wheels, and one block on one axle. */
     private fun car(
-        pen: InstrumentPen,
-        canvas: Canvas,
+        surface: GlyphSurface,
         glyph: Glyph,
         x: Float,
         baseline: Float,
@@ -123,12 +172,11 @@ internal class ContourGlyphs {
     ) {
         val bodyX = x + BODY_X
         val bodyTop = bodyTop(baseline)
-        pen.frame(
-            canvas,
-            pen.v(bodyX),
-            pen.v(bodyTop),
-            pen.v(bodyX + BODY_WIDTH),
-            pen.v(bodyTop + BODY_HEIGHT),
+        surface.frame(
+            bodyX,
+            bodyTop,
+            bodyX + BODY_WIDTH,
+            bodyTop + BODY_HEIGHT,
             BODY_RADIUS,
             outline,
             STROKE,
@@ -137,12 +185,11 @@ internal class ContourGlyphs {
             for (rear in 0..1) {
                 val wheelX = wheelX(x, right == 1)
                 val wheelTop = wheelTop(baseline, rear == 1)
-                pen.frame(
-                    canvas,
-                    pen.v(wheelX),
-                    pen.v(wheelTop),
-                    pen.v(wheelX + WHEEL_WIDTH),
-                    pen.v(wheelTop + WHEEL_HEIGHT),
+                surface.frame(
+                    wheelX,
+                    wheelTop,
+                    wheelX + WHEEL_WIDTH,
+                    wheelTop + WHEEL_HEIGHT,
                     WHEEL_RADIUS,
                     outline,
                     WHEEL_STROKE,
@@ -150,13 +197,12 @@ internal class ContourGlyphs {
             }
         }
         val left = motorLeft(x, glyph)
-        val top = motorTop(baseline, glyph != Glyph.MOTOR_FRONT)
-        pen.plate(
-            canvas,
-            pen.v(left),
-            pen.v(top),
-            pen.v(left + motorWidth(glyph)),
-            pen.v(top + MOTOR_HEIGHT),
+        val top = motorTop(baseline, onRearAxle(glyph))
+        surface.plate(
+            left,
+            top,
+            left + motorWidth(glyph),
+            top + MOTOR_HEIGHT,
             MOTOR_RADIUS,
             component,
         )
@@ -164,48 +210,119 @@ internal class ContourGlyphs {
 
     /** A case with one period of the alternating current it makes drawn inside it. */
     private fun inverter(
-        pen: InstrumentPen,
-        canvas: Canvas,
+        surface: GlyphSurface,
         x: Float,
         baseline: Float,
         outline: Int,
         component: Int,
     ) {
         val top = inverterTop(baseline)
-        pen.frame(
-            canvas,
-            pen.v(x),
-            pen.v(top),
-            pen.v(x + INVERTER_SIZE),
-            pen.v(top + INVERTER_SIZE),
+        surface.frame(
+            x,
+            top,
+            x + INVERTER_SIZE,
+            top + INVERTER_SIZE,
             INVERTER_RADIUS,
             outline,
             STROKE,
         )
-        wave(pen, x, top)
-        pen.polyline(canvas, waveXs, waveYs, waveXs.size, component, STROKE)
+        wave(x, top)
+        surface.polyline(waveXs, waveYs, waveXs.size, component, STROKE)
     }
 
     /**
-     * The sine's own points, in pixels, built once per scale and per cell.
+     * The sine's own points, in panel units, built once per cell.
      *
      * The cell never moves after the view is sized, so this runs on the first frame after a resize
      * and on no other. It writes into two fields rather than allocating: `onDraw` runs inside a
      * `Presentation` over the vehicle's instruments, where an allocation per frame is an allocation
      * per frame forever.
      */
-    private fun wave(pen: InstrumentPen, x: Float, top: Float) {
-        val unit = pen.v(1f)
-        if (waveAt == x && waveUnit == unit) return
+    private fun wave(x: Float, top: Float) {
+        if (waveAt == x && waveTop == top) return
         waveAt = x
-        waveUnit = unit
+        waveTop = top
         val from = x + WAVE_INSET
         val to = x + INVERTER_SIZE - WAVE_INSET
         val middle = top + INVERTER_SIZE / 2f
         for (index in 0..WAVE_SAMPLES) {
             val t = index.toFloat() / WAVE_SAMPLES
-            waveXs[index] = pen.v(from + (to - from) * t)
-            waveYs[index] = pen.v(middle - sin(t * 2.0 * PI).toFloat() * WAVE_AMPLITUDE)
+            waveXs[index] = from + (to - from) * t
+            waveYs[index] = middle - sin(t * 2.0 * PI).toFloat() * WAVE_AMPLITUDE
+        }
+    }
+
+    /**
+     * [InstrumentPen] as a [GlyphSurface]: one adapter, kept, converting units on the way through.
+     *
+     * The pen speaks pixels for coordinates and panel units for radii and strokes, which is what
+     * every caller of it already does; this is that same conversion in one place instead of at
+     * fifty call sites inside the family.
+     */
+    private class PenSurface : GlyphSurface {
+
+        private var pen: InstrumentPen? = null
+        private var canvas: Canvas? = null
+
+        /** The wave again, in pixels this time, so the conversion allocates nothing either. */
+        private val xs = FloatArray(WAVE_SAMPLES + 1)
+        private val ys = FloatArray(WAVE_SAMPLES + 1)
+
+        fun bind(pen: InstrumentPen, canvas: Canvas) {
+            this.pen = pen
+            this.canvas = canvas
+        }
+
+        override fun frame(
+            left: Float,
+            top: Float,
+            right: Float,
+            bottom: Float,
+            radius: Float,
+            colour: Int,
+            stroke: Float,
+        ) {
+            val pen = pen ?: return
+            val canvas = canvas ?: return
+            pen.frame(
+                canvas,
+                pen.v(left),
+                pen.v(top),
+                pen.v(right),
+                pen.v(bottom),
+                radius,
+                colour,
+                stroke,
+            )
+        }
+
+        override fun plate(
+            left: Float,
+            top: Float,
+            right: Float,
+            bottom: Float,
+            radius: Float,
+            colour: Int,
+        ) {
+            val pen = pen ?: return
+            val canvas = canvas ?: return
+            pen.plate(canvas, pen.v(left), pen.v(top), pen.v(right), pen.v(bottom), radius, colour)
+        }
+
+        override fun polyline(
+            xs: FloatArray,
+            ys: FloatArray,
+            count: Int,
+            colour: Int,
+            stroke: Float,
+        ) {
+            val pen = pen ?: return
+            val canvas = canvas ?: return
+            for (index in 0 until count) {
+                this.xs[index] = pen.v(xs[index])
+                this.ys[index] = pen.v(ys[index])
+            }
+            pen.polyline(canvas, this.xs, this.ys, count, colour, stroke)
         }
     }
 
@@ -299,6 +416,15 @@ internal class ContourGlyphs {
         fun wheelTop(baseline: Float, rear: Boolean): Float =
             if (rear) bodyTop(baseline) + BODY_HEIGHT - WHEEL_HEIGHT - WHEEL_GAP
             else bodyTop(baseline) + WHEEL_GAP
+
+        /**
+         * Which axle a glyph's block sits on, and it is the only thing that tells the cars apart.
+         *
+         * «точно мотор с колёсами не путаешь?» - three identical pictures would answer *which motor
+         * is this cell* no better than the three words the family replaced. So the front car's bar
+         * crosses the front axle and the two rear ones share the rear, and this is that sentence.
+         */
+        fun onRearAxle(glyph: Glyph): Boolean = glyph != Glyph.MOTOR_FRONT
 
         /** The block sits on its axle, which is the middle of the wheels standing beside it. */
         fun motorTop(baseline: Float, rear: Boolean): Float =
