@@ -377,11 +377,16 @@ the car a role lists every launchable application - twenty-odd, six rows - and
 the board never showed it.
 
 **The row.** A row is the question and its answer: «Навигация» over the chosen
-application's icon at the height of the text beside it and «Откроет Навигатор».
-The three rows share one raised surface on the switch row's own radius, cut by
-hairlines, because they are one setting with three parts. The status line, the
-segmented row, the section title and «Обновить список» are gone: the row says
-what the status line said, and the page reads the car when it opens. There is no
+application's icon at the height of the text beside it and its name, «Навигатор».
+The name and nothing after it - the first cut wrote «Откроет Навигатор» and
+«Запустит Spotify», and the owner, on the car, asked for the icon and the name
+and no words appended. Four between the title and the value line: a title over a
+subtitle needs none, both carry their own leading, but a row of 24 dp icons has
+no leading and on the car sat against the title's descenders. The three rows
+share one raised surface on the switch row's own radius, cut by hairlines,
+because they are one setting with three parts. The status line, the segmented
+row, the section title and «Обновить список» are gone: the row names what the
+status line described, and the page reads the car when it opens. There is no
 section label over the rows, and that is arithmetic rather than taste: 640 dp of
 panel, header 31, switch 68, three rows of 75, the note at five lines 110, the
 action 62 and four gaps of 32 make 633. The projection panel's row carries the

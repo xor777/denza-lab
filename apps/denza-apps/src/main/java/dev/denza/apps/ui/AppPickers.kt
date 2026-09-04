@@ -252,13 +252,20 @@ private fun subtitleFor(count: Int): String =
     "${DashboardTiles.applications(count)} с головного устройства"
 
 /**
- * What choosing here does, in the driver's words - the one sentence the tile's panel used to hold.
+ * The one thing about this list a driver cannot see by looking at it.
+ *
+ * It used to say what the tile's name already says - that the application goes to the passenger's
+ * screen. The owner, on the car: the foot of the chooser has room for information, and that was
+ * not information. What is: why some tiles are grey. An application built from several APKs cannot
+ * be sent across in one piece, and the list shows it rather than hiding it - a tile that is on the
+ * car and not in the list is a tile the driver goes hunting for.
  *
  * Owned here rather than by the panels' help table because the chooser is the only surface left
  * that says it; the table still reads it for the tile, so the two can never drift.
  */
 internal const val FSE_INSTALL_HELP =
-    "Выбранное приложение устанавливается на экран перед пассажиром."
+    "Установить можно только приложения из одного APK. " +
+        "Собранные из нескольких (split APK) показаны серыми."
 
 /** One question, two doors: the panel's row and the tile's press must not name it differently. */
 private const val SIMULCAST_CHOICE_TITLE = "Что транслировать"

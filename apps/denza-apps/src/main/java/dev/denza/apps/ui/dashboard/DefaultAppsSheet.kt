@@ -227,25 +227,24 @@ internal fun defaultAppsStatusText(
     roleState.status == DefaultAppRoleStatus.APPLYING -> "Сохраняем выбор…"
     roleState.status == DefaultAppRoleStatus.ERROR ->
         roleState.message.ifBlank { "Не удалось прочитать настройку" }
-    // A cold start may resolve a role without the driver touching anything, and that is worth
-    // saying once - beside the outcome, not instead of it.
-    roleState.message.isNotBlank() ->
-        "${roleState.message} · ${defaultAppsOutcomeText(roleState)}"
+    // A settled role is its application's name and nothing beside it. A cold start's own message
+    // used to be printed here too, ahead of the name with a dot between; the row is not the place
+    // for a remark about how the value arrived.
     else -> defaultAppsOutcomeText(roleState)
 }
 
 /**
- * What the car will do with this role, in the words the board's result block uses.
+ * The application's name, alone.
  *
- * This is where the confirmation nuance the panel used to spell out in a "Сейчас" row now lives:
- * a package the provider has not echoed back is not presented as the one the car would open.
+ * The row used to say «Откроет 2ГИС», «Запустит VLC» and «Последнее известное: …». The owner, on
+ * the car: an icon and a name, and nothing written after it. Whether the provider has echoed the
+ * package back still matters and is still read - [DefaultAppRoleUiState.configured] and the
+ * tile's count both refuse an unconfirmed value - but it is not a word on the row. The one case
+ * with nothing to name says so.
  */
 internal fun defaultAppsOutcomeText(roleState: DefaultAppRoleUiState): String = when {
-    !roleState.providerConfirmed && roleState.selectedPackageName != null ->
-        "Последнее известное: ${roleState.selectedLabel}"
-    !roleState.providerConfirmed || roleState.selectedPackageName == null -> "Не подтверждено"
-    roleState.role == DefaultAppRole.MUSIC -> "Запустит ${roleState.selectedLabel}"
-    else -> "Откроет ${roleState.selectedLabel}"
+    roleState.selectedPackageName == null -> "Не подтверждено"
+    else -> roleState.selectedLabel
 }
 
 /**

@@ -100,8 +100,13 @@ class DefaultAppsSheetTest {
         }
     }
 
+    /**
+     * The row names the application and writes nothing after it - no «Откроет», no «Запустит», no
+     * «Последнее известное». Whether the provider has confirmed the value is still a fact the state
+     * carries; it is just not a word on the row.
+     */
     @Test
-    fun anUnconfirmedProviderValueIsNeverPresentedAsWhatTheCarWouldOpen() {
+    fun theRowNamesTheApplicationAndNothingElse() {
         val stale = DefaultAppRoleUiState(
             role = DefaultAppRole.MUSIC,
             selectedPackageName = "ru.yandex.music",
@@ -109,16 +114,17 @@ class DefaultAppsSheetTest {
             status = DefaultAppRoleStatus.ERROR,
             providerConfirmed = false,
         )
-        assertEquals("Последнее известное: Яндекс Музыка", defaultAppsOutcomeText(stale))
+        assertEquals("Яндекс Музыка", defaultAppsOutcomeText(stale))
         assertFalse(stale.configured)
 
         val unknown = stale.copy(selectedPackageName = null, selectedLabel = "Не выбрано")
         assertEquals("Не подтверждено", defaultAppsOutcomeText(unknown))
 
         val confirmed = stale.copy(status = DefaultAppRoleStatus.READY, providerConfirmed = true)
-        assertEquals("Запустит Яндекс Музыка", defaultAppsOutcomeText(confirmed))
+        assertEquals("Яндекс Музыка", defaultAppsOutcomeText(confirmed))
+        assertEquals("Яндекс Музыка", defaultAppsStatusText(confirmed.copy(message = "Восстановлено")))
         assertEquals(
-            "Откроет Яндекс Навигатор",
+            "Яндекс Навигатор",
             defaultAppsOutcomeText(
                 confirmed.copy(
                     role = DefaultAppRole.NAVIGATION,

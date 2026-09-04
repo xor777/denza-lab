@@ -71,7 +71,14 @@ fun DenzaChoiceRow(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(DenzaMetrics.Space.M),
     ) {
-        Column(Modifier.weight(1f)) {
+        // The board's 4 between the title and the value line. [DenzaSwitchRow] stacks its two lines
+        // with nothing between them and gets away with it because both are text and each carries
+        // its own leading; here the second line is a row of 24 dp icons, which have none, and on
+        // the car they sat against the title's descenders - the owner's word was "слиплись".
+        Column(
+            Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(DenzaMetrics.Space.XS),
+        ) {
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleMedium,
