@@ -1782,6 +1782,18 @@ STATES = [
      sc(kw=-7.0, volts=584.0, temps=PARKED,
         trip=dict(net=9.3, regen=3.1, ice=0.0, km=42),
         bars=CALM_BARS, petal='2:15', petal_unit='до полной')),
+    # Two things at once, and both of them are what the seat does when the ordinary
+    # case is absent. A car that has stood on P since the app was installed has moved
+    # no odometer, so there are no closed buckets and no history to draw - and the
+    # countdown is not about the road, so it stands anyway. And an estimate of ten
+    # hours or more is written in hours alone: «12:30» is five glyphs against a field
+    # of three and a mark, and the field cannot grow without pushing the history box
+    # out of the petal's own cut-out.
+    ('Зарядка без истории · буферов расхода ещё нет, отсчёт всё равно стоит; '
+     'оценка больше десяти часов — часы без минут',
+     sc(kw=-3.5, volts=571.0, temps=PARKED,
+        trip=dict(net=9.3, regen=3.1, ice=0.0, km=42),
+        bars=None, petal='12 ч', petal_unit='до полной')),
     ('Одиночный null · напряжение снято через 2 с, заголовок «БАТАРЕЯ · В» стоит',
      sc(kw=34.0, peak=68.0, volts=None, volts_known=True, temps=COOL,
         trip=dict(net=9.3, regen=3.1, ice=0.0, km=42),

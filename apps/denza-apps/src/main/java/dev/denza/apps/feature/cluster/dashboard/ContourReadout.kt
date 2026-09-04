@@ -93,6 +93,15 @@ internal object ContourReadout {
     const val UNIT_MILLIVOLT = "мВ"
     const val DEGREE = "°"
 
+    /** What a charge estimate too long for «ч:мм» is written in. See [chargeLeft]. */
+    const val UNIT_HOUR = "ч"
+
+    /** From here the estimate is hours alone: five glyphs do not fit the petal's seat. */
+    const val HOURS_ALONE_FROM = 10
+
+    /** Both charging ids are gated to 0…99, so anything past this is a bad read, not a charge. */
+    const val MAX_CHARGE_MINUTES = 99 * 60 + 59
+
     /** The petal's unit, and the window is in it: the figure is never the trip average. */
     const val UNIT_PER_100KM = "кВт·ч/100 км · за 3 км"
 
@@ -152,15 +161,27 @@ internal object ContourReadout {
         if (parked) tenth(perHundredKm) else whole(perHundredKm)
 
     /**
-     * What is left of a charge, as the petal prints it: «2:15».
+     * What is left of a charge, as the petal prints it: «2:15», and «12 ч» once it is hours.
      *
      * A colon rather than a decimal, because this is a clock and not a quantity - and the reason
      * the figures are Roboto with `tnum` rather than Roboto Mono is that a monospaced face gives
      * that colon a full digit cell and breaks «2:15» into three groups.
+     *
+     * **Above ten hours the minutes go, and that is geometry rather than taste.** The seat reserves
+     * three digits and one mark, 100.27 units, which is exactly «2:15» and exactly «16,8»; «12:30»
+     * is five glyphs and 129.49, and the extra 29.2 has nowhere to come from. The history box hangs
+     * off the widest the field ever gets, its left edge stands 17.3 units clear of the petal's own
+     * cut-out, and widening the field would put that edge 12 units *inside* the vehicle's own
+     * graphics. An estimate of ten hours or more is a wall socket overnight, where the minutes are
+     * noise: «12 ч» measures 99.64 against the field's 100.27 and says the same thing. Anything past
+     * [MAX_CHARGE_MINUTES] is a bad read rather than a charge - both ids are gated to 0…99 - and is
+     * clamped so the field can never be overrun from the other end either.
      */
     fun chargeLeft(minutes: Int): String {
-        val bounded = minutes.coerceAtLeast(0)
-        return String.format(Locale.US, "%d:%02d", bounded / 60, bounded % 60)
+        val bounded = minutes.coerceIn(0, MAX_CHARGE_MINUTES)
+        val hours = bounded / 60
+        if (hours >= HOURS_ALONE_FROM) return "$hours $UNIT_HOUR"
+        return String.format(Locale.US, "%d:%02d", hours, bounded % 60)
     }
 
     /**

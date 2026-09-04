@@ -25,7 +25,7 @@ that reports what collides.
 | `canvas.json` | positions, pages and the launch view |
 | `gen_cluster.py` | emits the three cluster boards as they stand on the car today, with the current fixed 3 km consumption window |
 | `gen_next.py` | emits the proposed cluster: one horizon, two histories, the gauge |
-| `gen_contour.py` | emits the Contour - the cluster concept that won the 2026-09 contest - as the calm panel, fourteen scenes, and the plan with every number on it |
+| `gen_contour.py` | emits the Contour - the cluster concept that won the 2026-09 contest - as the calm panel, fifteen scenes, and the plan with every number on it |
 | `gen_kit.py` | emits the two boards that describe the system, from the system |
 | `gen_panes.py` | emits the dashboard's two pane boards from `Main.dc.html` and the pane geometry, and the dashboard underlay both sheet boards are drawn over |
 | `panel_frame.py` | archived tooling for the four retired head-unit instrument concepts; rebuilds Energy |
@@ -455,7 +455,7 @@ that concept drawn: three boards, all from the same constants.
 | | |
 | --- | --- |
 | `ClusterContour.dc.html` | calm driving, engine asleep - the state the panel is in most of the time |
-| `ClusterContourStates.dc.html` | fourteen scenes as a column: first seconds, a traffic jam whose engine ran earlier and stopped long ago, calm, an acceleration, regeneration, the engine generating both ways it can be drawn, the engine forty seconds dead, standing on P, charging, a single null, link lost, an exception, and the missing ADB key |
+| `ClusterContourStates.dc.html` | fifteen scenes as a column: first seconds, a traffic jam whose engine ran earlier and stopped long ago, calm, an acceleration, regeneration, the engine generating both ways it can be drawn, the engine forty seconds dead, standing on P, charging, charging with no consumption history behind it and an estimate too long for the seat, a single null, link lost, an exception, and the missing ADB key |
 | `ClusterContourPlan.dc.html` | the skeleton alone, over the three apertures and both cell grids, with every anchor measured - and, under the panel, the physical constants and the ramp they produce |
 
 The panel exists now: `dev.denza.apps.feature.cluster.dashboard` draws these three
@@ -816,6 +816,27 @@ widest reserve at 24, which is asymmetric on purpose. The accident worth keeping
 a two-digit 52 centred on the axis ends at 783.00 and the hero's three-digit field
 ends at 783.04, so the two figures share a right edge and `«кВт»` and
 `«кВт·ч/100 км»` start on the same x.
+
+**While a gun is in the same seat counts down, and it counts down whether or not
+there is a history behind it.** A car standing on P with a cable in has never moved
+the odometer, so on a fresh install - or after the journal was reset, or after a
+restore dropped everything behind the retention window - there are no closed
+buckets at all; the box is the consumption log's and stays away, and the countdown
+is not about the road. What the two seats do not share is the caption rule: every
+other word on this panel arrives with its first reading and stays when the reading
+goes, and `«до полной»` does not, because an estimate is something the charger may
+never make and a word standing alone over a hole is a value that failed to arrive
+rather than a caption.
+
+**And above ten hours the estimate is hours alone**, `«12 ч»`. The seat reserves
+three digits and one mark - 100.27, which is exactly `«2:15»` and exactly `«16,8»` -
+while `«12:30»` is five glyphs and 129.49. The 29.2 has nowhere to come from: the
+history box hangs off the widest that field ever gets, and its left edge already
+stands 17.26 clear of the petal's own cut-out against a guard of 8, so widening the
+field would put the box 12 units inside the vehicle's graphics. An estimate that
+long is a wall socket overnight and the minutes in it are noise; `«12 ч»` measures
+99.64 and fits with 0.6 to spare. The states board draws that case beside the
+ordinary one.
 
 **The engine box** grows from the right and is never drawn empty. It leaves when
 the last live slot falls off the left edge, which is 120 s of hysteresis with no

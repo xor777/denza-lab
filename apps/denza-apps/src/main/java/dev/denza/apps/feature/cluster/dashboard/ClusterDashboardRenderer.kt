@@ -807,28 +807,60 @@ internal class ClusterDashboardRenderer {
             )
             return
         }
+        // The history is the consumption log's, and only the history: gating the whole seat on it
+        // left «до полной» and its countdown off the panel for an entire charge, because a car
+        // standing on P with a gun in has never moved the odometer and a fresh install, a reset
+        // journal or a restore behind the retention window all have no closed buckets at all.
+        if (scene.known(ContourValue.PETAL) && scene.fresh(ContourValue.PETAL)) {
+            history(canvas, plan, t)
+        }
+
+        if (stage.mode == ContourMode.CHARGING) {
+            chargeSeat(canvas, plan, t, scene)
+            return
+        }
+
         if (!scene.known(ContourValue.PETAL)) return
+        petalUnit(canvas, plan, ContourReadout.UNIT_PER_100KM)
+        if (!scene.fresh(ContourValue.PETAL)) return
+        val average = ContourReadout.averageConsumption(ConsumptionWindow.raw(t.consumption)) ?: return
+        petalFigure(canvas, plan, ContourReadout.consumption(average, stage.parked), stage)
+    }
 
-        if (scene.fresh(ContourValue.PETAL)) history(canvas, plan, t)
+    /**
+     * The countdown that takes the petal's seat while a gun is in.
+     *
+     * **The unit comes with the figure here**, which is the one place on the panel where it does.
+     * Everywhere else a caption arrives with the first reading and stays when the reading goes,
+     * because the caption names a quantity the car has answered at least once; «до полной» over
+     * nothing names an estimate the charger may never make - the first ten seconds of a charge, or
+     * an AC feed that never reports one - and a word standing alone over a hole is not the caption
+     * rule, it is a value that failed to arrive.
+     */
+    private fun chargeSeat(
+        canvas: Canvas,
+        plan: ContourPlan,
+        t: VehicleTelemetry,
+        scene: ContourScene,
+    ) {
+        if (!scene.fresh(ContourValue.CHARGE_LEFT)) return
+        val minutes = t.chargeMinutesLeft ?: return
+        petalUnit(canvas, plan, ContourReadout.UNIT_CHARGE_LEFT)
+        petalFigure(canvas, plan, ContourReadout.chargeLeft(minutes), scene.stage)
+    }
 
-        val charging = stage.mode == ContourMode.CHARGING
+    private fun petalUnit(canvas: Canvas, plan: ContourPlan, unit: String) {
         pen.text(
             canvas,
-            if (charging) ContourReadout.UNIT_CHARGE_LEFT else ContourReadout.UNIT_PER_100KM,
+            unit,
             pen.v(plan.petalUnitX),
             pen.v(plan.petalBaseline),
             InstrumentFace.UNIT,
             DenzaPalette.MUTED_DEEP,
         )
+    }
 
-        val text = if (charging) {
-            if (!scene.fresh(ContourValue.CHARGE_LEFT)) return
-            ContourReadout.chargeLeft(t.chargeMinutesLeft ?: return)
-        } else {
-            if (!scene.fresh(ContourValue.PETAL)) return
-            val average = ContourReadout.averageConsumption(ConsumptionWindow.raw(t.consumption)) ?: return
-            ContourReadout.consumption(average, stage.parked)
-        }
+    private fun petalFigure(canvas: Canvas, plan: ContourPlan, text: String, stage: ContourStage) {
         pen.text(
             canvas,
             text,

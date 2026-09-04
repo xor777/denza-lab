@@ -43,6 +43,19 @@ class ContourReadoutTest {
         assertEquals("2:15", ContourReadout.chargeLeft(135))
         assertEquals("0:45", ContourReadout.chargeLeft(45))
         assertEquals("0:00", ContourReadout.chargeLeft(-3))
+        assertEquals("the last one that fits the seat", "9:59", ContourReadout.chargeLeft(599))
+    }
+
+    @Test
+    fun anEstimateTooLongForTheSeatIsHoursAlone() {
+        // «12:30» is five glyphs against a field of three and a mark, and the history box hangs off
+        // that field: widening it would put the box's left edge inside the vehicle's own graphics.
+        // A wall socket overnight is the case, and the minutes in it are noise.
+        assertEquals("10 ч", ContourReadout.chargeLeft(600))
+        assertEquals("12 ч", ContourReadout.chargeLeft(12 * 60 + 30))
+        assertEquals("28 ч", ContourReadout.chargeLeft(28 * 60))
+        // Both ids are gated to 0..99, so 99:59 is as far as an estimate can legally read.
+        assertEquals("99 ч", ContourReadout.chargeLeft(9_999))
     }
 
     @Test
