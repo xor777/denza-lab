@@ -1,5 +1,7 @@
 package dev.denza.apps.feature.vehicle
 
+import kotlin.math.min
+
 /**
  * Two minutes of what the combustion half put back into the pack.
  *
@@ -19,21 +21,32 @@ package dev.denza.apps.feature.vehicle
  *
  * ### The axis is time, not sweeps
  *
- * The poll runs at 300 ms while the dashboard is on screen and backs off when the shell struggles,
- * so a trace of "the last hundred and twenty readings" would silently stretch and shrink. Readings
- * land in fixed one-second slots, and a slot the poll did not reach stays empty rather than being
- * interpolated across.
+ * The poll runs about four times a second while the dashboard is on screen and backs off when the
+ * shell struggles, so a trace of "the last hundred and twenty readings" would silently stretch and
+ * shrink. Readings land in fixed one-second slots, and a slot the poll did not reach stays empty
+ * rather than being interpolated across.
+ *
+ * ### And the steps are anchored to the clock, not to the run
+ *
+ * [snapshot] hands out the [BIN_SECONDS]-second steps the box draws rather than the seconds behind
+ * them, and each step's membership is decided by the absolute second counter: bin `n` holds the
+ * slots whose own number divides into it, whatever else the deque holds. Grouping from the oldest
+ * slot instead - which is what this did - re-phased every bin once the window was full and the front
+ * started being evicted, so all twenty-four step heights were recomputed every second and the box
+ * never drew the same two minutes twice. That also contradicted the box's own documented behaviour:
+ * a right-anchored grid whose grouping is stable.
  */
 internal class EngineTrace(
     private val slotMillis: Long = SLOT_MS,
     private val capacity: Int = SLOTS,
+    private val binSeconds: Int = BIN_SECONDS,
 ) {
     private val generation = ArrayDeque<Double?>()
     private val running = ArrayDeque<Boolean>()
     private var lastSlot = Long.MIN_VALUE
 
-    /** How far back a full trace reaches, for whoever writes the window into a caption. */
-    val spanSeconds: Int = (capacity * slotMillis / 1_000L).toInt()
+    /** The widest the box ever is, in steps. */
+    private val maxBins: Int = (capacity / binSeconds).coerceAtLeast(1)
 
     /**
      * One sweep's answer.
@@ -78,10 +91,11 @@ internal class EngineTrace(
     }
 
     /**
-     * The trace as the Contour draws it: **from the oldest slot the engine was alive in, to now.**
+     * The trace as the Contour draws it: **from the oldest slot the engine was alive in, to now**,
+     * already grouped into the steps the box paints.
      *
      * Not front-padded to [capacity], and that is the whole of the engine box's behaviour
-     * (CRITIQUE M7). The box's right edge is fixed and its width is the length of this list, so it
+     * (CRITIQUE M7). The box's right edge is fixed and its width is the length of this run, so it
      * grows leftward as the engine's history fills and is never drawn empty. After the engine stops
      * the slots keep arriving dead, which walks the last live sample toward the left edge; when it
      * falls off, there is no live slot left, this returns [EngineTraceSnapshot.EMPTY] and the box
@@ -91,13 +105,35 @@ internal class EngineTrace(
      *
      * A padded list could not express it: with 120 slots always present the box would be born full
      * width and would have to be given a timer to decide when to go.
+     *
+     * Built once per sweep, which is what [EngineTraceSnapshot.bins] being an array rather than a
+     * method is for: the renderer used to group the run inside `onDraw`, allocating a list and
+     * boxing every mean thirty times a second over a quantity that changes four.
      */
     fun snapshot(): EngineTraceSnapshot {
         val first = running.indices.firstOrNull { running[it] } ?: return EngineTraceSnapshot.EMPTY
-        return EngineTraceSnapshot(
-            generationKw = generation.drop(first),
-            spanSeconds = spanSeconds,
-        )
+        val size = generation.size
+        val oldest = lastSlot - (size - 1)
+        val span = binSeconds.toLong()
+        val firstBin = (oldest + first).floorDiv(span)
+        val lastBin = lastSlot.floorDiv(span)
+        val count = min(lastBin - firstBin + 1L, maxBins.toLong()).toInt()
+        val base = lastBin - count + 1L
+
+        val sums = DoubleArray(count)
+        val seen = IntArray(count)
+        for (index in first until size) {
+            val value = generation[index] ?: continue
+            val bin = ((oldest + index).floorDiv(span) - base).toInt()
+            // A step older than the box is wide has already left it at the left edge.
+            if (bin < 0) continue
+            sums[bin] += value
+            seen[bin]++
+        }
+        val bins = FloatArray(count) {
+            if (seen[it] == 0) Float.NaN else (sums[it] / seen[it]).toFloat()
+        }
+        return EngineTraceSnapshot(bins, binSeconds, size - first)
     }
 
     private fun push(generationKw: Double?, alive: Boolean) {
@@ -113,60 +149,41 @@ internal class EngineTrace(
 
         /** Two minutes, which is about as far back as "has it been generating a while" reaches. */
         const val SLOTS = 120
+
+        /**
+         * And the box draws them as steps of five seconds, the way the petal draws its buckets.
+         *
+         * A per-second line across that box was 120 points inside 526 units - 4.4 apart, which is
+         * 0.9 mm of glass for one sample of a quantity that moves on the scale of a traffic light.
+         * `ContourPlan` takes its own step size from here so the two cannot drift.
+         */
+        const val BIN_SECONDS = 5
     }
 }
 
 /**
- * What the renderer is handed: one run of kilowatts, oldest first, `null` where nothing answered.
+ * What the renderer is handed: the box's steps, oldest first, `NaN` where nothing answered.
  *
- * The run starts at the oldest slot the engine was alive in and ends at now, so [slots] is the box's
- * own width in seconds and an empty snapshot means there is no box. Built once per sweep beside the
- * rest of the snapshot rather than per frame, the way the consumption bars are.
+ * A bin is the mean of the samples that arrived inside it, so a poll the shell missed costs
+ * resolution rather than a hole; a bin nothing answered in at all is `NaN` and breaks the area
+ * rather than being drawn through. **The bin that is still filling is the newest one**, at the edge
+ * where new data arrives, and the oldest is whatever the retained window has left of its own step.
+ *
+ * An array of primitives rather than a list of boxed doubles because this is read in every frame and
+ * built in none of them.
  */
-internal data class EngineTraceSnapshot(
-    val generationKw: List<Double?>,
+internal class EngineTraceSnapshot(
+    val bins: FloatArray,
+    /** How many seconds one step covers. */
+    val binSeconds: Int = EngineTrace.BIN_SECONDS,
+    /** How far back the box reaches, in seconds, which is what its caption names. */
     val spanSeconds: Int = 0,
 ) {
 
-    /** The box's width, in seconds. */
-    val slots: Int get() = generationKw.size
-
     /** Whether the engine has been alive inside the retained window at all. */
-    val isEmpty: Boolean get() = generationKw.isEmpty()
-
-    /**
-     * The same run as steps of [binSeconds], oldest first: what the box actually draws.
-     *
-     * A bin is the mean of the samples that arrived inside it, so a poll the shell missed costs
-     * resolution rather than a hole; a bin nothing answered in at all is `null` and breaks the area
-     * rather than being drawn through. **The bin that can be short is the newest one**, because the
-     * grouping runs from the oldest slot and the box grows from the right - so a history 82 seconds
-     * long is sixteen full steps and one of two, at the right-hand edge where the new data arrives.
-     *
-     * Per-second points were what the box drew until the eighth pass: 120 of them across 526 units
-     * is 4.4 apart, which is 0.9 mm of glass for one sample of a quantity that moves on the scale of
-     * a traffic light.
-     */
-    fun bins(binSeconds: Int, limit: Int): List<Double?> {
-        if (binSeconds <= 0 || limit <= 0) return emptyList()
-        val out = ArrayList<Double?>((slots + binSeconds - 1) / binSeconds)
-        var start = 0
-        while (start < slots) {
-            var sum = 0.0
-            var seen = 0
-            for (index in start until minOf(start + binSeconds, slots)) {
-                generationKw[index]?.let {
-                    sum += it
-                    seen++
-                }
-            }
-            out.add(if (seen == 0) null else sum / seen)
-            start += binSeconds
-        }
-        return if (out.size <= limit) out else out.subList(out.size - limit, out.size)
-    }
+    val isEmpty: Boolean get() = bins.isEmpty()
 
     companion object {
-        val EMPTY = EngineTraceSnapshot(emptyList())
+        val EMPTY = EngineTraceSnapshot(FloatArray(0))
     }
 }

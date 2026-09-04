@@ -870,10 +870,17 @@ between the two guards. At the 14 kW this car ordinarily returns, a square root 
 100 kW filled a third of the box; linear over 30 fills a half. What a root buys is
 resolution near zero, and near zero this quantity is off.
 
-**Both boxes are steps of a fixed duration.** The petal's thirty buckets are a
-hundred metres each, and the engine's twenty-four are five seconds each, averaged
-over the samples that arrived - a bin nothing answered in breaks the area rather
-than being drawn through. The per-second line the box used to carry was 120 points
+**Both boxes are steps of a fixed duration, and both grids stand still.** The
+petal's thirty buckets are a hundred metres each and close one at a time; the
+engine's twenty-four are five seconds each, averaged over the samples that arrived
+- a bin nothing answered in breaks the area rather than being drawn through. A
+step holds the seconds whose own number on the clock falls inside it, so the grid
+is anchored to the clock rather than to the run: grouping from the oldest slot
+instead re-phased every bin once the window filled and the front started being
+evicted, which recomputed all twenty-four heights every second and meant the same
+two minutes never came back the same shape. The step that is still filling is the
+newest one, at the edge where new data arrives; the oldest is whatever the retained
+window has left of its own. The per-second line the box used to carry was 120 points
 across 526 units, 4.4 apart, which is 0.9 mm of glass for one sample of a quantity
 that moves on the scale of a traffic light.
 

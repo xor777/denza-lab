@@ -675,9 +675,12 @@ internal class ClusterDashboardRenderer {
         scene: ContourScene,
         stage: ContourStage,
     ) {
-        val bins = t.engineTrace.bins(plan.engineBinSeconds, plan.engineBins)
-        val count = bins.size
+        // Grouped once per sweep beside the rest of the snapshot. It used to be grouped here, which
+        // allocated a list and boxed twenty-four means thirty times a second.
+        val bins = t.engineTrace.bins
+        val count = min(bins.size, plan.engineBins)
         if (count <= 0) return
+        val newest = bins.size - count
 
         val right = plan.engineBoxRight
         val left = right - count * plan.enginePitch
@@ -695,9 +698,9 @@ internal class ClusterDashboardRenderer {
         )
 
         for (index in 0 until count) {
-            val generation = bins[index]
+            val generation = bins[newest + index]
             generationYs[index] =
-                if (generation == null) Float.NaN else pen.v(plan.engineY(generation))
+                if (generation.isNaN()) Float.NaN else pen.v(plan.engineY(generation.toDouble()))
         }
 
         // A bin nothing answered in breaks the area rather than being drawn through: a step across
