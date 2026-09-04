@@ -11,9 +11,9 @@ telemetry backend. A second car, a Denza N9, was attached on 2026-08-30, and the
 vehicle-id check that tells it apart from the Z9GT is recorded here. On
 2026-09-03, passive raw CAN-FD callbacks were also confirmed from an
 owner-controlled local ADB shell on the Denza Z9. Targeted shell-UID turn-signal
-events were live-proven on 2026-09-04. They now feed both bounded diagnostics
-and the live-accepted early-teardown guard for a stationary direct left-to-right
-Mirrors transition; the stock AVC window remains the camera-eligibility authority.
+events were live-proven on 2026-09-04. They feed bounded diagnostics and an
+early-teardown guard for an active Mirrors camera; the stock AVC window is the
+only camera-eligibility authority, and the listener can never open a camera.
 
 This page records which vehicle and journey signals a normal Denza Apps APK can
 actually use. It distinguishes product-usable sources from values that are
@@ -1071,23 +1071,24 @@ an initial mode snapshot and a second getter snapshot 5.504 s later, both value
 `1`, and exited without an orphan. One event lane may serve future approved
 event signals; modules must not spawn one helper per signal.
 
-The raw phase never selects a camera side. Known onset phases `2` and `4` may
-only close an existing opposite-side Denza camera immediately. A repeated onset
-matching the side already starting/showing is retained only while the same
-uninterrupted gesture remains open. Raw neutral `1` or confirmed mode `OFF`
-closes that gesture, so a new same-side onset also tears down the old surface.
-Follow-through `3`/`5`, neutral `1`, and unknown values cannot select left or
-right. Reopening requires a later
-confirmed directional-mode event from the same source epoch with a higher
-sequence, the first exact matching stock AVC window observation, a fully
-detached old local surface, completed vendor `freeDisplay`, and
-an idle camera runtime. Source loss, mailbox overflow, unknown phase, ambiguity
-without a live pending switch (or while the Denza camera runtime is active), and
-AVC failures fail closed and require a neutral cycle. Pending-switch ambiguity
-while the runtime is idle can only wait; it cannot issue `Show`. The existing
-10 Hz stock-window observer remains the eligibility gate. `MirrorTransitionReducer`
-is the only producer of `Show`; the signal safety interlock may revoke an active
-session and issue `Hide` through the same serialized transition gate.
+The raw phase never selects a camera side. Known onset phases `2` and `4` can
+only close an active Denza camera of the other side, immediately and before
+stock AVC rebuilds its own surface. An onset for the side already starting or
+showing is ignored, whether or not the lever passed neutral in between: the FID
+emits several pulses per lever movement, and a same-side pulse can never be a
+side switch. Follow-through `3`/`5`, neutral `1`, and unknown values are not
+onsets. The 10 Hz stock-window observer is the only Show authority and
+`MirrorTransitionReducer` the only producer of `Show`; nothing the listener
+does or fails to do can open a camera, and an unavailable, reconnecting, or
+overflowing source only shows up in the bounded diagnostics. After a preempt
+the reducer reopens only when the observer has reported the other side for two
+consecutive polls with the Denza runtime idle, the old local surface detached,
+vendor `freeDisplay` complete, and no ambiguity; the stale window of the
+preempted side never reopens, and three neutral polls recover as before.
+Ambiguous stock windows while the reducer is idle are waited through only while
+the retained raw phase still reports an engaged lever (`2`..`5`). The two
+earlier contracts that gated Show on the listener are kept below as history;
+their live acceptance does not transfer to this contract.
 
 ### Installed adapter acceptance
 
@@ -1344,6 +1345,37 @@ boundary logic is deterministic-test accepted but was not reinstalled or
 physically exercised before commit; the live acceptance above belongs exactly
 to the preceding byte-matched APK.
 
+### Window-only Show, onset-only teardown (2026-09-04, late)
+
+An independent review of the gated contracts against a passive filtered
+`logcat -s` capture of two ordinary right cycles found that the randomness the
+owner reported was designed in. (The main ring buffer holds under a second of
+history on this car because of camera-HAL spam, so a filtered live capture is
+the only way to keep a run.) The raw lever FID emits several pulses per
+movement: `4` at 0 ms, `5` at about +100 ms, and a second `4 -> 1` pair at
+about +300 ms; the stock right window was observed 186 ms and 194 ms after the
+first pulse, and in the 20:04 run above the left view was commanded about
+290 ms after the mode was first observed. With Show gated on a confirmed mode
+event that had to be newer than the latest onset, a second same-side pulse that
+landed before the window re-armed the pending switch after the only mode event
+had already passed; the 2 s timeout then failed closed, and the turn stayed
+dark until the next `OFF` event. Left turns were close to a coin toss on those
+timings. The same fail-closed reset ran on every hub `Unavailable` notice (each
+helper reconnect, sequence gap, or mailbox overflow, with reconnect backoff up
+to 60 s), so a transport hiccup could hide an active camera and keep it hidden
+for the rest of the turn. The gesture-boundary rule of the last gated build
+re-created the same dark turn for a same-side pulse after the lever had passed
+neutral.
+
+The replacement contract is the one described under "Product adapter and safety
+boundary" above: the window observer alone opens cameras, the onset alone
+closes them, and reopening after a preempt waits for the other side's window.
+`MirrorSignalSafety` and the gesture-boundary state were deleted. The reducer
+and the preemption policy are unit-tested with a mutation ledger. This contract
+has NOT been driven on the car yet; the live acceptance in the sections above
+belongs to the retired gated builds, and the early-teardown timings (3 to 4 ms
+detach, 105 to 121 ms vendor release) are the only part carried over unchanged.
+
 ## Legacy BYDAuto events and system logs
 
 The archived 2026-06-27 probe under
@@ -1399,7 +1431,7 @@ in this vehicle-data investigation.
 | Technical BMS / HV cluster dashboard | `autoservice` allowlist via `DenzaLocalAdb` | Cluster-only subset in `feature.vehicle`; shell-only, short allowlist, no `BYDAUTO_*` in the manifest. The old head-unit page and its 12V reading were retired 2026-08-27 |
 | Tyre / climate / PM2.5 | same Binder, different `dev` | Same privilege path; still blocked from app UID |
 | Raw CAN diagnostics | `BYDAutoBigDataDevice` callback `0x99000020` from local ADB shell | Confirmed passive stream; not proven from the Denza Apps UID and not yet a product input |
-| Turn-signal guard | targeted shell-UID BYDAutoLight listener | Event-driven and low-CPU; raw onset only tears down the old Denza surface, while confirmed mode plus the stock AVC window gate any later reopen |
+| Turn-signal guard | targeted shell-UID BYDAutoLight listener | Event-driven and low-CPU; a raw onset only tears down an active opposite-side Denza surface; the stock AVC window alone opens and reopens |
 
 The current road-thread/body-field prototypes use simulated values. They show a
 candidate visual mapping only; they are not live-car evidence.

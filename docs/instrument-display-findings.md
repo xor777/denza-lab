@@ -319,41 +319,35 @@ display chosen by `ClusterDisplayResolver`; the old unconditional
 client and does not import probe code or the abandoned HUD camera path.
 
 On 2026-09-04 a targeted BYDAutoLight listener was live-proven for the raw lever
-phase and confirmed flash-mode FIDs. Denza Apps now starts that listener through
-a separate passive local-ADB resident lane only while Mirrors is enabled. The
-raw edge is side-agnostic and may only preempt the old Denza camera surface; a
-later same-epoch confirmed mode and first exact matching stock-window
-observation may reopen the new side after full vendor teardown. Manual lever
-cancellation live-produced a transient opposite-direction event, so it never
-selects the camera side. The existing window observer and
-`MirrorTransitionReducer` remain the camera-command authority. Full evidence,
-resource measurements, and the remaining acceptance matrix are in
+phase and confirmed flash-mode FIDs. Denza Apps starts that listener through a
+separate passive local-ADB resident lane only while Mirrors is enabled. The
+same evening the guard went through three contracts on the car, and the current
+one is the simplest: the 10 Hz stock-window observer is again the only Show
+authority, exactly as before the listener existed; a raw onset pulse (`2` or
+`4`) is only an early-teardown trigger for an active Denza camera of the other
+side; a pulse for the side already starting or showing is ignored; nothing the
+listener does or fails to do can open a camera, and hub unavailability never
+touches an active one. After a preempt the reducer reopens only when the
+observer has reported the other side for two consecutive polls with the runtime
+idle and vendor `freeDisplay` complete; the stale window of the preempted side
+can never reopen, and neutral still recovers. Manual lever cancellation
+live-produced an opposite-direction pulse, which is why the raw phase never
+selects a side. Full evidence, resource measurements, the two retired contracts
+and the remaining acceptance matrix are in
 [vehicle-data-findings.md](vehicle-data-findings.md#targeted-turn-signal-events-2026-09-04).
-After the original direct left-to-right run crashed stock AVC, an instrumented
-guarded candidate detached the old local surface 4 ms after the next right onset,
-completed vendor release after 121 ms, and reopened the Denza right view only
-after confirmed mode/window agreement. The user saw both sides correctly, AVC
-kept the same PID, and no new crash or exit record appeared.
-An ordinary later left-off-pause-right run exposed a separate false negative:
-the idle reducer quarantined a 454 ms transient ambiguous stock-window interval
-before the right window became stable. The corrected reducer may wait through
-that interval only with a pending live edge and idle Denza runtime; it still
-cannot Show until the normal confirmed-mode/window-agreement gate passes. The final
-separated cycle showed both Denza sides and kept AVC PID `17977`, although the
-ambiguous interval itself did not recur and that exact branch remains unit-only.
-An ordinary right-turn regression later showed why a raw value is not by itself
-an edge: a second phase `4` arrived 169 ms after the right `Show` command and
-revoked the same camera before its AVC-ready callback. A phase matching the
-already starting/showing side is retained only while the same uninterrupted
-lever gesture remains open; raw neutral or confirmed mode `OFF` closes that
-gesture, so a new same-side activation preempts the old surface too. An opposite
-onset always preempts an active side. The raw phase still never selects which
-camera to open. The first corrected build was then live-accepted across
-three ordinary right cycles. Two of those reproduced a trailing phase `4` 206 ms
-and 262 ms after `Show`; both were retained through AVC readiness rather than
-revoked. A final direct left-to-right canary detached the left surface in 3 ms,
-completed vendor release in 105 ms, and opened the right camera successfully.
-The user confirmed every view, and stock AVC retained PID `5050`.
+
+The early teardown itself is the live-proven part: after the original direct
+left-to-right run crashed stock AVC, the instrumented guard detached the old
+local surface 3 to 4 ms after the next right onset, completed vendor release in
+105 to 121 ms, and AVC kept its PID across every later run. The two retired
+contracts gated Show on the listener (a same-epoch confirmed mode event after
+the onset, plus a stable window match), which is what made the camera appear
+"randomly": the raw FID emits several pulses per lever movement, a second
+same-side pulse could re-arm the gate after the mode event had already passed,
+and any helper reconnect or the 2 s pending timeout then left the turn dark.
+The window-only Show contract has unit coverage and a mutation ledger but has
+not yet been driven on the car; the live acceptance recorded in
+vehicle-data-findings.md belongs to the earlier builds it replaced.
 
 ## Navigation projection
 
@@ -908,11 +902,13 @@ Hardware-dependent checks still open:
   testing;
 - fast left-to-right turn-signal switching was a confirmed crash path while
   Denza Apps kept the old AVC display surface. The persistent-Surface candidate
-  did not fix it. The CAN-edge guard has now passed one instrumented stationary
-  left-to-right canary: local detach preceded stock rebuild, vendor teardown
-  completed before one delayed opposite-side reopen, and AVC survived. The
-  right-to-left, cancellation, hazard, sleep/wake, repeated stress, moving-speed,
-  and second-firmware matrix remains open.
+  did not fix it. The CAN-onset early teardown passed two instrumented
+  stationary left-to-right canaries on the gated builds: local detach preceded
+  stock rebuild, vendor teardown completed before the opposite-side reopen, and
+  AVC survived. The current window-only Show contract keeps that teardown but
+  changes the reopen rule and has not been driven yet. The right-to-left,
+  cancellation, hazard, sleep/wake, repeated stress, moving-speed, and
+  second-firmware matrix remains open.
 
 A `com.byd.avc` crash is an escalation alert. Save the evidence, tell the user
 once, and continue safe work. Avoid repeating the same suspected trigger until
@@ -928,8 +924,9 @@ at the same time. After the isolated mirror scenarios passed and the standalone
 app was retired, its frozen source moved to
 `legacy/denza-mirrors` and was removed from the root Gradle build on 2026-07-19.
 Denza Apps has no source or Gradle dependency on it. The unaccepted scenarios
-listed above remain open Denza Apps work; one guarded left-to-right transition
-is evidence for this car, not a general rapid-switch guarantee.
+listed above remain open Denza Apps work; two guarded left-to-right transitions
+on the retired gated builds are evidence for this car, not a general
+rapid-switch guarantee.
 
 ## Failed or research-only paths
 
