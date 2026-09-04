@@ -44,7 +44,14 @@ class InstrumentPen {
     var height: Float = 0f
         private set
 
-    private var unit: Float = 1f
+    /**
+     * Zero until [size] is called, which is what makes the first call always a change.
+     *
+     * Every text size on this pen is set from that call, so a first frame that happened to land on
+     * a factor of exactly one would otherwise measure and draw at a `Paint`'s default 12 px - and
+     * the plan is *measured*, so it would be wrong rather than merely small.
+     */
+    private var unit: Float = 0f
 
     private val fill = Paint(Paint.ANTI_ALIAS_FLAG)
     private val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply {
