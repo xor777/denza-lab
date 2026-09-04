@@ -161,10 +161,10 @@ class SpectrumLevelsTest {
         val out = FloatArray(BANDS)
         repeat(30) { levels.normalise(magnitudes, out, 1.0 / 30.0) }
         assertTrue(levels.hasSignal())
-        // 1 - CEILING_HEADROOM_DB / DYNAMIC_RANGE_DB = 0.8125, and the bounds bracket it closely
-        // enough that moving either constant has to come here and say so. The range went from
-        // 40 to 32 and the headroom from 7 to 6 together, so the loudest band stayed put while
-        // every band under it moved down the field.
+        // LIT_FOOT + (1 - LIT_FOOT) * (1 - CEILING_HEADROOM_DB / DYNAMIC_RANGE_DB) = 0.83, and the
+        // bounds bracket it closely enough that moving any of the three has to come here and say
+        // so. The range went from 40 to 36 and the headroom from 7 to 6.5 together, so the
+        // loudest band stayed put while every band under it moved down the field.
         assertTrue("loud band should remain prominent, was ${out[10]}", out[10] > 0.80f)
         assertTrue("steady audio should retain headroom, was ${out[10]}", out[10] < 0.85f)
     }
@@ -182,14 +182,32 @@ class SpectrumLevelsTest {
         val immediate = out[10]
         // After a few seconds of the same quiet material the gain has adapted.
         repeat(300) { levels.normalise(quiet, out, 1.0 / 30.0) }
+        // A third of the field, less the six per cent the lit foot takes off the scale: the
+        // climb here is 0.285 with a 36 dB range and a -30 dB ceiling limit, and both of those
+        // are tuned by eye at the car, so the bound is set to catch the gain going away, not to
+        // pin the tuning.
         assertTrue(
             "quiet material should climb once the gain adapts ($immediate -> ${out[10]})",
-            out[10] > immediate + 0.3f,
+            out[10] > immediate + 0.25f,
         )
         assertTrue(
             "quiet material should not be pumped almost to full height: ${out[10]}",
             out[10] < 0.85f,
         )
+    }
+
+    @Test
+    fun `a band with anything in it keeps a foot and an empty one does not`() {
+        val (levels, _) = prepared()
+        val magnitudes = DoubleArray(BANDS)
+        magnitudes[5] = 90.0
+        // Forty decibels under the loudest band: well below the foot of the scale.
+        magnitudes[20] = 0.9
+        val out = FloatArray(BANDS)
+        repeat(30) { levels.normalise(magnitudes, out, 1.0 / 30.0) }
+        assertTrue("a faint band must still be drawn: ${out[20]}", out[20] > 0.04f)
+        assertTrue("but drawn low: ${out[20]}", out[20] < 0.12f)
+        assertEquals("an empty band draws nothing", 0f, out[21], 0f)
     }
 
     @Test

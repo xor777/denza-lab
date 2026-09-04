@@ -254,10 +254,11 @@ class SpectrumRenderer {
      * of every column, which flattened the crown the gradient had just made and washed the colour
      * out of exactly the part the eye lands on.
      *
-     * The reflection is a fifth of its bar, mirrored at the baseline and sinking into the floor.
-     * It used to be the bar's foot cropped flat at forty units, and since nearly every bar stands
-     * taller than that, every column wore the same dark block under it whatever it was doing - a
-     * reflection that reflected nothing, as the owner put it. Now a short bar has a short one.
+     * The reflection is half its bar, to the strip's forty units, mirrored at the baseline and
+     * sinking into the floor. It used to be the bar's foot cropped flat at forty, and since nearly
+     * every bar stands taller than that, every column wore the same dark block under it whatever
+     * it was doing - a reflection that reflected nothing, as the owner put it. A fifth was the
+     * first answer, and at a fifth a short bar's reflection was too short to see at all.
      */
     private fun drawBars(canvas: Canvas, left: Float, right: Float, unit: Float) {
         val bandCount = SpectrumSource.BAND_COUNT
@@ -528,8 +529,8 @@ class SpectrumRenderer {
         const val REFLECT_UNITS = 40f
         const val REFLECT_ALPHA = 36
 
-        /** The board's `calc(... * 0.2)`: a reflection is a fifth of the bar it hangs under. */
-        const val REFLECT_FRACTION = 0.2f
+        /** The board's `calc(... * 0.5)`: a reflection is half the bar it hangs under. */
+        const val REFLECT_FRACTION = 0.5f
 
         /** The board's fade: clear for the first fifth of the strip, then into the background. */
         const val REFLECT_FADE_START = 0.2f

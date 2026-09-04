@@ -196,7 +196,14 @@ class SpectrumLevels(
         val floorDb = ceilingDb - dynamicRangeDb
         val span = (ceilingDb - floorDb).coerceAtLeast(1.0)
         for (band in 0 until bandCount) {
-            out[band] = (((out[band] - floorDb) / span).coerceIn(0.0, 1.0)).toFloat()
+            // A band with anything above the converter's floor in it keeps a foot: it may sit
+            // low, but it does not go out. Only a band the floor subtraction has emptied - one
+            // where the FFT had nothing but its own step to offer - draws as nothing. The owner
+            // watched whole regions of the spectrum vanish under a scale that ran straight
+            // to zero, and asked that they not (2026-09-04).
+            val lit = magnitudes[band] > 0.0
+            val scaled = ((out[band] - floorDb) / span).coerceIn(0.0, 1.0)
+            out[band] = if (lit) (LIT_FOOT + (1.0 - LIT_FOOT) * scaled).toFloat() else 0f
         }
     }
 
@@ -217,11 +224,12 @@ class SpectrumLevels(
          * It was 40, and with the gain holding the loudest band near the top, everything within
          * 40 dB of it was lit - which, after the tilt has flattened the music, is every band:
          * the whole spectrum sat between half height and the crown and the owner read it as
-         * raised too high. Thirty-two puts a band 10 dB under the loudest at half height and
-         * one 25 dB under it at the foot, so the columns spread over the field instead of
-         * crowding its upper half. Narrower still and quiet bands start to blink at the foot.
+         * raised too high. Thirty-six puts a band 10 dB under the loudest a little over half
+         * height and one 30 dB under it at the foot, so the columns spread over the field
+         * instead of crowding its upper half. It was 32 for one build, and at 32 the owner
+         * watched parts of the spectrum drop out altogether.
          */
-        const val DYNAMIC_RANGE_DB = 32.0
+        const val DYNAMIC_RANGE_DB = 36.0
         const val INITIAL_CEILING_DB = -18.0
         /**
          * How far the scale's top may sink while it hunts for quiet material.
@@ -235,13 +243,16 @@ class SpectrumLevels(
          */
         const val MIN_CEILING_DB = -30.0
         const val SIGNAL_GATE_DB = -58.0
-        // Where the loudest band sits: 1 - headroom/range of full height, so six decibels of a
-        // 32 dB scale puts it at 81.25%. It was 3 dB of 40 (92.5%), then 5 (87.5%), then 7
+        // Where the loudest band sits: 1 - headroom/range of full height, so 6.5 decibels of a
+        // 36 dB scale puts it at 82%. It was 3 dB of 40 (92.5%), then 5 (87.5%), then 7
         // (82.5%): three uniform steps down that lowered every bar alike and left the shape of
         // the spectrum alone, and the owner still read the display as raised too high - because
         // the shape was the problem, and the range above is what changes it. The headroom moved
         // with the range so the loudest band stays where the last step put it.
-        const val CEILING_HEADROOM_DB = 6.0
+        const val CEILING_HEADROOM_DB = 6.5
+
+        /** The least a band with any signal in it is drawn at: about one segment of the grid. */
+        const val LIT_FOOT = 0.06
         const val CEILING_ATTACK_PER_SEC = 8.0
         const val CEILING_RELEASE_PER_SEC = 0.25
     }

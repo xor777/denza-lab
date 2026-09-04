@@ -226,8 +226,18 @@ touches the microphone. That is a UX question, not a technical blocker.
   same dark block whatever it did. It is now a fifth of its bar, sinking into
   the background over the strip; the bloom's gain dropped from 1.4 to 0.75 so
   the wash behind the analyser stops sitting at full opacity whenever the mean
-  bar passes 0.54. Palette untouched. Range, ceiling limit and bloom are dry
-  tuning; the owner is the acceptance.
+  bar passes 0.54. Palette untouched.
+- **Second look, same day.** At 32 dB and a one-fifth reflection the owner saw
+  parts of the spectrum drop out entirely and short bars with no reflection at
+  all. The range is 36 dB with 6.5 dB of headroom (loudest band still at 82%),
+  a band with anything above the converter's floor in it is drawn at no less
+  than 6% - one segment - and only a band the floor subtraction emptied draws as
+  nothing; the reflection is half its bar, to the strip's forty. All of this is
+  tuned by eye at the car, one build per look; a recorded FFT stream from the
+  car is what would let it be tuned once. The probe in `tools/` enables the
+  effect but does not dump frames, and a second Visualizer on session 0 would
+  take the effect from the app, so the recording would have to come from the app
+  itself.
 - Session 0 already carries a vendor effect chain (`Effect ID 11`) on
   `AudioOut_D`. Attaching a Visualizer alongside it caused no observed trouble.
 
