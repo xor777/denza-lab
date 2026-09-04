@@ -8,12 +8,14 @@ the car on 2026-08-23). The cluster dashboard first ran on the car on
 2026-08-25. Product wiring was checked again on 2026-08-27: the head-unit panels
 are deleted, and the cluster dashboard is the only active UI consumer of the
 telemetry backend. A second car, a Denza N9, was attached on 2026-08-30, and the
-vehicle-id check that tells it apart from the Z9GT is recorded here.
+vehicle-id check that tells it apart from the Z9GT is recorded here. On
+2026-09-03, passive raw CAN-FD callbacks were also confirmed from an
+owner-controlled local ADB shell on the Denza Z9.
 
 This page records which vehicle and journey signals a normal Denza Apps APK can
 actually use. It distinguishes product-usable sources from values that are
-visible only to system processes, shell diagnostics, or reverse-engineered API
-surfaces.
+visible only to system processes, shell diagnostics, or vendor API surfaces
+identified through static inspection.
 
 ## Executive result
 
@@ -46,6 +48,13 @@ the native `autoservice` Binder (`android.gui.BYDAutoServer`). A trusted
 local-ADB `shell` UID can read them with `service call autoservice`. That is
 how third-party dashboards on this head unit get the numbers. Protocol,
 scales, and the widget allowlist: [autoservice FID protocol](#autoservice-fid-protocol).
+
+The same local shell identity can also receive the raw CAN-FD frames already
+selected by the stock `CanDataCollect` service. The confirmed callback is
+`BYDAutoBigDataDevice` FID `0x99000020`; a 15-second passive observation
+received 2,054 callbacks. This is a diagnostic stream, not evidence that a
+normal Denza Apps process can register for it. Details:
+[raw CAN-FD callback](#raw-can-fd-callback-2026-09-03).
 
 ## Test environment
 
@@ -184,7 +193,8 @@ allowed under hidden-API restrictions.
 | High-level DiCar Binder APIs | battery, energy flow, range, charging, pedals, steering, tires, air quality | getter surface exists; useful calls blocked | signature/privileged BYD permissions | Blocked | Not a product source from app UID |
 | `autoservice` (`android.gui.BYDAutoServer`) | SOC, SoH, pack temps, cell mV, 12V, HV, charge, motors, tyres, climate, PM2.5 | on-demand `service call` from shell | shell UID via local ADB; app UID blocked | Shell/system only | Poll a short allowlist through `DenzaLocalAdb`; never from the app process |
 | Vehicle-id system properties (`persist.sys.AutoType` and mirrors) | which car the head unit is in | static; written at boot | none | Confirmed normal app | Usable; see [Which car is this](#which-car-is-this-2026-08-30) |
-| Raw BYDAuto events/system logs | speed logs, bodywork/settings/safety-belt/PM2.5 events, other CAN-derived events | speed log about 1 Hz; other events vary; some logs are high-rate | system log access / protected BYD permissions | Shell/system only | Diagnostics only |
+| Raw CAN-FD callback | frames selected by stock `CanDataCollect`; observed on channels 0, 1, and 2 | 2,054 callbacks in 15 s (about 136.9/s) | local ADB shell or system identity; normal-app access unproven | Shell/system only | Confirmed passive diagnostic stream through `0x99000020` |
+| BYDAuto events/system logs | speed logs, bodywork/settings/safety-belt/PM2.5 events, other CAN-derived events | speed log about 1 Hz; other events vary; some logs are high-rate | system log access / protected BYD permissions | Shell/system only | Diagnostics only |
 
 The current Denza Apps trip/spectrum panel reads standard GNSS at approximately
 `1 Hz` and reuses the validated Yandex guidance runtime. Its earlier `30 Hz`
@@ -882,6 +892,116 @@ head-unit panel's retirement.
   bit, so it reaches the shell as `-1807745016` — the signed-decimal rule the
   tyre ids used to cover.
 
+## Raw CAN-FD callback (2026-09-03)
+
+An owner-controlled local ADB shell can passively receive the raw frames already
+selected by the stock `CanDataCollect` service. This is a confirmed diagnostic
+path. It is not a normal-APK product API and it does not expand the product
+availability claims elsewhere on this page.
+
+### Live result
+
+The observation ran on the Denza Z9 (`AutoType=170`) with DiLink 5.1 and this
+firmware fingerprint:
+
+```text
+BYD-AUTO/IVI/IVI:13/TP1A.220624.014/eng.build20260705.011226:user/release-keys
+```
+
+The vehicle reports `sys.car.protocol=CANFD`. There is no Linux SocketCAN
+interface such as `can0` and no `candump` or `cansniffer` binary; the data path
+is the vendor vehicle service rather than a SocketCAN device.
+
+The passive probe ran as shell UID 2000, registered only for
+`BIGDATA_DYNAMIC_DATA_CALLBACK` (`0x99000020`, signed `-1728053216`), and kept
+the main Android `Looper` running. During 15 seconds it received 2,054 callbacks,
+about 136.9 callbacks per second. It printed only the first 200 frames while
+continuing to count the rest, then unregistered the listener and exited. The
+temporary device-side files were removed after the run. The power-state getters
+reported `ACC=1` and `MCU=1` during this observation.
+
+The probe did not call `sendRegisterTable`, any setter, MCU wake, or service
+restart. It observed the table already maintained by the active stock
+`com.byd.CanDataCollect` system process.
+
+### Callback and frame envelope
+
+The confirmed device and event are:
+
+| Field | Value |
+| --- | --- |
+| BYDAuto device | `BYDAutoBigDataDevice` (`1061`) |
+| Event FID | `BIGDATA_DYNAMIC_DATA_CALLBACK` (`0x99000020`) |
+| Stock receiver | `CanDataCollectService.recv_can(byte[])` |
+| Delivery model | streaming callback; not a retained latest-value getter |
+
+The observed byte envelope is:
+
+| Bytes | Meaning |
+| --- | --- |
+| `0..3` | CAN identifier, big-endian |
+| `4` | sub-ID |
+| `5` | channel |
+| `6..9` | rolling counter or timestamp, big-endian |
+| `10..` | payload |
+
+Observed payload sizes were 8, 16, 32, and 64 bytes, on channels 0, 1, and 2.
+Recurring identifiers included `0x08C`, `0x223`, `0x343`, `0x12D`, `0x302`,
+and `0x495`. Raw payloads are intentionally not stored in this document.
+Static inspection also found that the stock service always includes `0x08C`
+on channel 0, `0x223` on channel 1, and `0x343` on channel 2 at a nominal
+100 ms interval. The observed callback stream includes more identifiers because
+the service's active table contains its full current configuration.
+
+### Important corrections and boundaries
+
+- An initial run reported zero callbacks because its helper slept on Android's
+  main thread. `BYDAutoDeviceManager` posts listener delivery through a
+  `Handler` bound to the main `Looper`; the corrected helper called
+  `Looper.loop()` and received the stream. The zero-frame result is withdrawn.
+- `getBuffer(1061, 0x99000020)` returned an empty byte array. This is consistent
+  with a streaming event and rules out treating the FID as a latest-frame
+  getter.
+- The shell process's Android `Context.checkPermission` result was denied for
+  `BYDAUTO_BIGDATA_GET` and `BYDAUTO_POWER_GET`, while the native vehicle service
+  accepted the listener because its own read check permits UIDs up to 9999.
+  A normal installed app has a different UID range, so this result does not
+  prove direct registration from Denza Apps.
+- The current Denza Apps debug certificate is different from the stock
+  `CanDataCollect` certificate, and Denza Apps is not system UID 1000. Direct
+  app-process delivery therefore remains unproven and must not be assumed.
+- The alternative BYDCross transport did not expose a general raw-CAN mirror:
+  a 12-second passive observation of its vehicle-transport events received no
+  frames.
+
+`com.byd.eventcenter` is a static integration candidate, not a live-confirmed
+path. The persistent system app scans component metadata named `can_msg_event`;
+the value `Bigdata/BIGDATA_DYNAMIC_DATA_CALLBACK` asks it to register the
+big-data listener and deliver `byd.intent.action.GET_EVENT_CENTER_MESSAGE` with
+`event_center_data` containing `event_center_type=1`, `eventType`, and
+`bufferDataValue`. No package-change observer was found, so a newly installed
+manifest may not be noticed until EventCenter next initializes. It also invokes
+the target component for every event, which needs performance validation at the
+measured callback rate before any product use is considered.
+
+### Minimal passive API shape
+
+The working diagnostic harness followed this lifecycle:
+
+```java
+BYDAutoBigDataDevice device = BYDAutoBigDataDevice.getInstance(context);
+device.registerListener(listener, new int[] { 0x99000020 });
+new Handler(Looper.getMainLooper()).postDelayed(() -> {
+    device.unregisterListener(listener);
+    System.exit(0);
+}, durationMillis);
+Looper.loop();
+```
+
+The essential detail is processing the main `Looper`; sleeping on that thread
+prevents callback delivery. The harness does not replace or extend the stock
+collection table.
+
 ## Legacy BYDAuto events and system logs
 
 The archived 2026-06-27 probe under
@@ -936,11 +1056,12 @@ in this vehicle-data investigation.
 | Regeneration/energy display | no qualified instantaneous current yet | Do not label `35721` as amps |
 | Technical BMS / HV cluster dashboard | `autoservice` allowlist via `DenzaLocalAdb` | Cluster-only subset in `feature.vehicle`; shell-only, short allowlist, no `BYDAUTO_*` in the manifest. The old head-unit page and its 12V reading were retired 2026-08-27 |
 | Tyre / climate / PM2.5 | same Binder, different `dev` | Same privilege path; still blocked from app UID |
+| Raw CAN diagnostics | `BYDAutoBigDataDevice` callback `0x99000020` from local ADB shell | Confirmed passive stream; not proven from the Denza Apps UID and not yet a product input |
 
 The current road-thread/body-field prototypes use simulated values. They show a
 candidate visual mapping only; they are not live-car evidence.
 
-## Commands and reverse-engineering inputs
+## Commands and inspected inputs
 
 Core read-only commands:
 
@@ -957,7 +1078,7 @@ adb -s 127.0.0.1:5555 shell service call autoservice 5 i32 1014 i32 1147142160
 adb -s 127.0.0.1:5555 shell service call autoservice 7 i32 1001 i32 1128267816
 ```
 
-Reverse inputs inspected locally and intentionally not committed:
+Vendor inputs inspected locally and intentionally not committed:
 
 ```text
 /system/priv-app/DiCarServer/DiCarServer.apk
@@ -1004,6 +1125,18 @@ restoring this pipeline to the product):
    sweep 270–287 ms. The hot interval was set to 300 ms on that evidence; what
    remains is to confirm on a drive that the car keeps up with it under load.
 
+Raw CAN-FD diagnostics (2026-09-03):
+
+1. Keep using the stock `CanDataCollect` selection table; do not replace or
+   extend it for observation-only work.
+2. Add host-side capture timestamps, CAN-ID/channel filters, and loss counters
+   before attempting a longer moving observation.
+3. Correlate one known vehicle action at a time with one filtered identifier;
+   keep unfiltered payloads out of repository documents.
+4. If product integration is pursued, measure EventCenter delivery overhead at
+   the observed callback rate before deciding whether that static candidate is
+   viable.
+
 Until the drive capture, the honest **app-UID** boundary remains GNSS plus
 standard IMU plus fail-closed Yandex guidance. The honest **shell-UID**
-boundary is the widget allowlist above.
+boundary is the widget allowlist plus the passive raw CAN-FD callback above.
