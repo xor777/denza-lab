@@ -322,24 +322,38 @@ On 2026-09-04 a targeted BYDAutoLight listener was live-proven for the raw lever
 phase and confirmed flash-mode FIDs. Denza Apps now starts that listener through
 a separate passive local-ADB resident lane only while Mirrors is enabled. The
 raw edge is side-agnostic and may only preempt the old Denza camera surface; a
-later same-epoch confirmed mode and stable matching stock window may reopen the
-new side after full vendor teardown. Manual lever cancellation live-produced a
-transient opposite-direction event, so it never selects the camera side. The
-existing window observer and `MirrorTransitionReducer` remain the camera-command
-authority. Full evidence, resource measurements, and the remaining acceptance matrix are in
+later same-epoch confirmed mode and first exact matching stock-window
+observation may reopen the new side after full vendor teardown. Manual lever
+cancellation live-produced a transient opposite-direction event, so it never
+selects the camera side. The existing window observer and
+`MirrorTransitionReducer` remain the camera-command authority. Full evidence,
+resource measurements, and the remaining acceptance matrix are in
 [vehicle-data-findings.md](vehicle-data-findings.md#targeted-turn-signal-events-2026-09-04).
 After the original direct left-to-right run crashed stock AVC, an instrumented
 guarded candidate detached the old local surface 4 ms after the next right onset,
 completed vendor release after 121 ms, and reopened the Denza right view only
-after confirmed mode/window stability. The user saw both sides correctly, AVC
+after confirmed mode/window agreement. The user saw both sides correctly, AVC
 kept the same PID, and no new crash or exit record appeared.
 An ordinary later left-off-pause-right run exposed a separate false negative:
 the idle reducer quarantined a 454 ms transient ambiguous stock-window interval
 before the right window became stable. The corrected reducer may wait through
 that interval only with a pending live edge and idle Denza runtime; it still
-cannot Show until the normal confirmed-mode/stable-window gate passes. The final
+cannot Show until the normal confirmed-mode/window-agreement gate passes. The final
 separated cycle showed both Denza sides and kept AVC PID `17977`, although the
 ambiguous interval itself did not recur and that exact branch remains unit-only.
+An ordinary right-turn regression later showed why a raw value is not by itself
+an edge: a second phase `4` arrived 169 ms after the right `Show` command and
+revoked the same camera before its AVC-ready callback. A phase matching the
+already starting/showing side is retained only while the same uninterrupted
+lever gesture remains open; raw neutral or confirmed mode `OFF` closes that
+gesture, so a new same-side activation preempts the old surface too. An opposite
+onset always preempts an active side. The raw phase still never selects which
+camera to open. The first corrected build was then live-accepted across
+three ordinary right cycles. Two of those reproduced a trailing phase `4` 206 ms
+and 262 ms after `Show`; both were retained through AVC readiness rather than
+revoked. A final direct left-to-right canary detached the left surface in 3 ms,
+completed vendor release in 105 ms, and opened the right camera successfully.
+The user confirmed every view, and stock AVC retained PID `5050`.
 
 ## Navigation projection
 

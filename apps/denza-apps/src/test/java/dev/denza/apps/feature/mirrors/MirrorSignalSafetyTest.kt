@@ -30,7 +30,7 @@ class MirrorSignalSafetyTest {
     }
 
     @Test
-    fun everyOnsetBlocksShowUntilLaterModeAndStableWindow() {
+    fun everyOnsetBlocksShowUntilLaterModeAndFirstExactWindowMatch() {
         var state = MirrorSignalSafety.onSwitchEvent(
             MirrorSignalSafetyState(continuityReady = true),
             switchEvent(epoch = 4L, sequence = 10L),
@@ -44,15 +44,13 @@ class MirrorSignalSafetyTest {
             state,
             modeEvent(TurnIndicatorMode.RIGHT, epoch = 4L, sequence = 11L),
         )
-        val first = observe(state, TurnIndicatorMode.RIGHT, MirrorSide.RIGHT, 200L)
-        val second = observe(first.state, TurnIndicatorMode.RIGHT, MirrorSide.RIGHT, 300L)
-        val third = observe(second.state, TurnIndicatorMode.RIGHT, MirrorSide.RIGHT, 400L)
+        val wrongWindow = observe(state, TurnIndicatorMode.RIGHT, MirrorSide.LEFT, 200L)
+        val exactMatch = observe(wrongWindow.state, TurnIndicatorMode.RIGHT, MirrorSide.RIGHT, 300L)
 
-        assertNull(first.eligibleSide)
-        assertNull(second.eligibleSide)
-        assertEquals(MirrorSide.RIGHT, third.eligibleSide)
-        assertTrue(third.state.continuityReady)
-        assertNull(third.state.pendingSwitch)
+        assertNull(wrongWindow.eligibleSide)
+        assertEquals(MirrorSide.RIGHT, exactMatch.eligibleSide)
+        assertTrue(exactMatch.state.continuityReady)
+        assertNull(exactMatch.state.pendingSwitch)
     }
 
     @Test

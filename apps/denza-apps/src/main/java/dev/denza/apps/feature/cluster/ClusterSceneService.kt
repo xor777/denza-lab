@@ -349,6 +349,10 @@ class ClusterSceneService : Service() {
         val runtime = cameraRuntime.snapshot()
         if (runtime.phase != CameraRuntimePhase.STARTING) return
         lastCameraDetails = details
+        Log.i(
+            TAG,
+            "AVC ready; generation=$commandGeneration side=${runtime.side} details=$details",
+        )
         runtime.side?.let { cameraRuntime.ready(it, details) }
     }
 
@@ -363,6 +367,10 @@ class ClusterSceneService : Service() {
             runtime.phase != CameraRuntimePhase.READY
         ) return
         lastCameraDetails = details
+        Log.w(
+            TAG,
+            "AVC failure; generation=$commandGeneration side=${runtime.side} details=$details",
+        )
         val presentation = cameraPresentation
         if (presentation == null) {
             cameraRuntime.failed(details)

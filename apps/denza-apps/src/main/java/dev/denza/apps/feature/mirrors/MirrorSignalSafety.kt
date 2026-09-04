@@ -14,9 +14,6 @@ internal data class MirrorSignalSafetyState(
     val continuityReady: Boolean = false,
     val pendingSwitch: PendingTurnSwitch? = null,
     val confirmedAfterSwitch: MirrorSide? = null,
-    val stableSide: MirrorSide? = null,
-    val stableSamples: Int = 0,
-    val stableSinceMs: Long = 0L,
     val neutralSamples: Int = 0,
 )
 
@@ -29,13 +26,11 @@ internal data class MirrorSignalSafetyResult(
  * Joins transient switch edges to later confirmed mode and stock-window state.
  *
  * Every onset edge closes the Show gate, even if no Denza camera is active yet. The gate can open
- * for that turn only after a later confirmed mode event from the same source epoch and a stable
+ * for that turn only after a later confirmed mode event from the same source epoch and an exact
  * matching stock window. This prevents a poll using pre-edge retained mode/window from opening an
  * AVC session inside a stock transition.
  */
 internal object MirrorSignalSafety {
-    const val STABLE_MATCH_SAMPLES = 3
-    const val STABLE_MATCH_MS = 200L
     const val NEUTRAL_BASELINE_SAMPLES = 3
     const val PENDING_SWITCH_TIMEOUT_MS = 2_000L
 
@@ -50,9 +45,6 @@ internal object MirrorSignalSafety {
             event.observedAtElapsedMs,
         ),
         confirmedAfterSwitch = null,
-        stableSide = null,
-        stableSamples = 0,
-        stableSinceMs = 0L,
         neutralSamples = 0,
     )
 
@@ -77,9 +69,6 @@ internal object MirrorSignalSafety {
         val side = confirmedSide(event.value) ?: return state
         return state.copy(
             confirmedAfterSwitch = side,
-            stableSide = null,
-            stableSamples = 0,
-            stableSinceMs = 0L,
         )
     }
 
@@ -103,25 +92,11 @@ internal object MirrorSignalSafety {
             }
             val confirmed = state.confirmedAfterSwitch
             if (confirmed == null || confirmedSide(mode) != confirmed || stockWindowSide != confirmed) {
-                return MirrorSignalSafetyResult(
-                    state.copy(stableSide = null, stableSamples = 0, stableSinceMs = 0L),
-                )
-            }
-            val continuing = state.stableSide == confirmed
-            val samples = if (continuing) state.stableSamples + 1 else 1
-            val since = if (continuing) state.stableSinceMs else nowMs
-            if (samples >= STABLE_MATCH_SAMPLES && nowMs - since >= STABLE_MATCH_MS) {
-                return MirrorSignalSafetyResult(
-                    MirrorSignalSafetyState(continuityReady = true),
-                    confirmed,
-                )
+                return MirrorSignalSafetyResult(state)
             }
             return MirrorSignalSafetyResult(
-                state.copy(
-                    stableSide = confirmed,
-                    stableSamples = samples,
-                    stableSinceMs = since,
-                ),
+                MirrorSignalSafetyState(continuityReady = true),
+                confirmed,
             )
         }
 

@@ -1072,11 +1072,15 @@ an initial mode snapshot and a second getter snapshot 5.504 s later, both value
 event signals; modules must not spawn one helper per signal.
 
 The raw phase never selects a camera side. Known onset phases `2` and `4` may
-only close an existing Denza camera immediately; follow-through `3`/`5`, neutral
-`1`, and unknown values cannot select left or right. Reopening requires a later
+only close an existing opposite-side Denza camera immediately. A repeated onset
+matching the side already starting/showing is retained only while the same
+uninterrupted gesture remains open. Raw neutral `1` or confirmed mode `OFF`
+closes that gesture, so a new same-side onset also tears down the old surface.
+Follow-through `3`/`5`, neutral `1`, and unknown values cannot select left or
+right. Reopening requires a later
 confirmed directional-mode event from the same source epoch with a higher
-sequence, an exact matching stock AVC window for three samples and at least
-200 ms, a fully detached old local surface, completed vendor `freeDisplay`, and
+sequence, the first exact matching stock AVC window observation, a fully
+detached old local surface, completed vendor `freeDisplay`, and
 an idle camera runtime. Source loss, mailbox overflow, unknown phase, ambiguity
 without a live pending switch (or while the Denza camera runtime is active), and
 AVC failures fail closed and require a neutral cycle. Pending-switch ambiguity
@@ -1256,7 +1260,7 @@ no side is yet eligible, the Denza camera runtime is idle, and the ambiguity is
 in the stock-window observation. It issues no command in that state. Ambiguity
 without a pending edge, or while a Denza runtime is active, still quarantines;
 the eventual Show still requires the same-epoch higher-sequence confirmed mode
-and three-sample/200 ms exact window match.
+and the first exact matching window observation.
 
 The corrected APK
 `baa2635f32e030cddf4b8310a98559aeeaf6ae9abbca1af84e2b58675140b8e9`
@@ -1290,6 +1294,55 @@ recovery restored Denza Apps, Mirrors, and exactly one signal helper. Stock AVC
 remained alive as PID `5050`, and exit-info still ended at the deliberate
 `20:04:14` failure. No physical turn cycle was run after this last hardening
 build, so the exact hash is install-verified but not separately manoeuvre-tested.
+
+### Same-side onset regression and final live acceptance
+
+The first ordinary right turn with the hardening build exposed a deterministic
+regression rather than an AVC or window race. Denza issued `show RIGHT` at
+`21:30:51.969`; while the camera was still `STARTING`, a trailing raw phase `4`
+arrived at `21:30:52.262`. The preemption path treated it as a new switch,
+detached the just-created surface, and ignored the now-stale AVC-ready callback.
+The user therefore saw only a momentary canvas. This proves that phase `4` can
+also be part of the ongoing right-lever movement; phase `2` has the symmetric
+meaning for an already active left side.
+
+The corrected policy compares an onset with the side already `STARTING` or
+`READY` and with the gesture that started that camera. A same-side onset keeps
+the camera only until raw neutral or confirmed mode `OFF`; after either boundary
+it is a new gesture and preempts the old surface. An opposite-side onset always
+preempts immediately. It does not use the raw phase to choose a camera and does
+not weaken the later confirmed-mode and stock-window Show gate. The
+three-sample/200 ms window delay was also removed: once a post-onset confirmed
+mode exists, the first exact matching stock-window observation is sufficient.
+The old-surface detach and completed vendor `freeDisplay` barriers remain.
+
+The live-tested intermediate APK, SHA-256
+`4811ec32c8a8cf1ad5fa66b96482951ef03a7b278fa443e360c71dfc6b5e5268`,
+passed 1,092 unit tests with zero failures/errors and Android lint and was
+installed byte-for-byte. The user visually accepted three ordinary right turns.
+The latter two reproduced a same-side phase `4` 206 ms and 262 ms after their
+Show commands; both were ignored as intended, and AVC became ready after 257 ms
+and 273 ms. The first cycle reached AVC ready in 281 ms.
+
+One final stationary, brake-held direct left-to-right canary retained opposite-
+side preemption: the left local surface detached 3 ms after right onset, vendor
+release completed in 105 ms, and the right camera subsequently reached AVC ready
+in 244 ms. The user saw both Denza cameras correctly. Stock AVC retained PID
+`5050`, while Denza Apps and exactly one `denza_vehicle_signals` helper remained
+alive. This accepts the corrected same-side handling and one direct
+left-to-right handoff on this car/firmware; it does not broaden acceptance to
+the other untested matrix entries listed above.
+
+Post-acceptance hardening records the gesture boundary explicitly. Raw neutral
+or a confirmed `OFF` observed after the camera Show prevents a subsequent
+same-side onset from being mistaken for the earlier trailing duplicate; a
+delayed neutral event timestamped before that Show cannot close the new gesture.
+The resulting APK, SHA-256
+`7462350e1a5588c1ffe6a36685a03f869ec947ec1e5ac718c498769424e98aea`,
+passed 1,095 unit tests with zero failures/errors and Android lint. This final
+boundary logic is deterministic-test accepted but was not reinstalled or
+physically exercised before commit; the live acceptance above belongs exactly
+to the preceding byte-matched APK.
 
 ## Legacy BYDAuto events and system logs
 

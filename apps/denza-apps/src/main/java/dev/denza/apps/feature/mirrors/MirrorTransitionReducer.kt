@@ -85,7 +85,7 @@ object MirrorTransitionReducer {
         ) {
             // Stock AVC briefly exposes overlapping/partial window state while it changes side.
             // A live switch edge makes that a bounded wait state, never permission to Show. The
-            // signal safety join must still produce a later stable eligibleSide before opening.
+            // signal safety join must still produce a later confirmed eligibleSide before opening.
             return MirrorTransitionResult(
                 MirrorTransitionState(
                     runtimeGeneration = observation.runtime.generation,
