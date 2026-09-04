@@ -1,151 +1,70 @@
 package dev.denza.apps.feature.speaker
 
-import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * The whole feature, as a table of what the car is told and when.
+ * The whole feature, as a table of when the car is told that music is playing.
  *
  * The covers are not driven here and cannot be: the amplifier owns the motor, raises while it
- * believes music is playing, and lowers on its own at power off. All this policy decides is when to
- * tell it the truth about a player the car does not recognise.
+ * believes music is playing, and lowers on its own. The stock auto-lift setting is not touched
+ * here either - it is the car's switch. All this policy decides is whether now is a moment to tell
+ * the car the truth about a player it does not recognise.
  */
 class SpeakerCoverPolicyTest {
 
-    private fun steps(
-        trigger: SpeakerCoverTrigger,
-        featureEnabled: Boolean = true,
-        autoLift: SpeakerCoverAutoLift = SpeakerCoverAutoLift.ENABLED,
-    ) = SpeakerCoverPolicy.steps(trigger, featureEnabled, autoLift)
+    private fun reports(trigger: SpeakerCoverTrigger, featureEnabled: Boolean = true) =
+        SpeakerCoverPolicy.reports(trigger, featureEnabled)
 
     @Test
     fun playbackFromAnUnknownPlayerIsReported() {
-        assertEquals(
-            listOf(SpeakerCoverStep.REPORT_PLAYING),
-            steps(SpeakerCoverTrigger.Playback("ru.yandex.music")),
-        )
+        assertTrue(reports(SpeakerCoverTrigger.Playback("ru.yandex.music")))
+        assertTrue(reports(SpeakerCoverTrigger.Playback("com.some.podcast.app")))
     }
 
     @Test
     fun playbackFromAPlayerTheCarReportsForIsLeftAlone() {
-        assertEquals(emptyList<SpeakerCoverStep>(), steps(SpeakerCoverTrigger.Playback("com.byd.mediacenter")))
-        assertEquals(emptyList<SpeakerCoverStep>(), steps(SpeakerCoverTrigger.Playback("com.tencent.qqmusiccar")))
-        assertEquals(emptyList<SpeakerCoverStep>(), steps(SpeakerCoverTrigger.Playback("com.android.bluetooth")))
+        assertFalse(reports(SpeakerCoverTrigger.Playback("com.byd.mediacenter")))
+        assertFalse(reports(SpeakerCoverTrigger.Playback("com.tencent.qqmusiccar")))
+        assertFalse(reports(SpeakerCoverTrigger.Playback("com.android.bluetooth")))
     }
 
     @Test
     fun playbackIsIgnoredWhileTheFeatureIsOff() {
-        assertEquals(
-            emptyList<SpeakerCoverStep>(),
-            steps(SpeakerCoverTrigger.Playback("ru.yandex.music"), featureEnabled = false),
-        )
-    }
-
-    @Test
-    fun disabledAutoLiftIsEnabledBeforeTheReport() {
-        assertEquals(
-            listOf(SpeakerCoverStep.ENABLE_AUTO_LIFT, SpeakerCoverStep.REPORT_PLAYING),
-            steps(
-                SpeakerCoverTrigger.Playback("ru.yandex.music"),
-                autoLift = SpeakerCoverAutoLift.DISABLED,
-            ),
-        )
-    }
-
-    @Test
-    fun unknownAutoLiftIsEnabledBeforeTheReport() {
-        assertEquals(
-            listOf(SpeakerCoverStep.ENABLE_AUTO_LIFT, SpeakerCoverStep.REPORT_PLAYING),
-            steps(
-                SpeakerCoverTrigger.Playback("ru.yandex.music"),
-                autoLift = SpeakerCoverAutoLift.UNKNOWN,
-            ),
-        )
+        assertFalse(reports(SpeakerCoverTrigger.Playback("ru.yandex.music"), featureEnabled = false))
     }
 
     @Test
     fun openingAKnownPlayerReportsBeforeItMakesASound() {
-        assertEquals(
-            listOf(SpeakerCoverStep.REPORT_PLAYING),
-            steps(SpeakerCoverTrigger.PlayerOpened("ru.yandex.music")),
-        )
+        assertTrue(reports(SpeakerCoverTrigger.PlayerOpened("ru.yandex.music")))
+        assertTrue(reports(SpeakerCoverTrigger.PlayerOpened("com.google.android.youtube")))
     }
 
     @Test
     fun openingSomethingThatIsNotAPlayerDoesNothing() {
-        assertEquals(
-            emptyList<SpeakerCoverStep>(),
-            steps(SpeakerCoverTrigger.PlayerOpened("com.byd.carsettings")),
-        )
+        assertFalse(reports(SpeakerCoverTrigger.PlayerOpened("com.byd.carsettings")))
     }
 
     @Test
     fun openingAPlayerTheCarReportsForIsLeftAlone() {
-        assertEquals(
-            emptyList<SpeakerCoverStep>(),
-            steps(SpeakerCoverTrigger.PlayerOpened("com.byd.mediacenter")),
-        )
+        assertFalse(reports(SpeakerCoverTrigger.PlayerOpened("com.byd.mediacenter")))
     }
 
     @Test
-    fun theRaiseButtonWorksWhileTheFeatureIsOff() {
-        assertEquals(
-            listOf(SpeakerCoverStep.REPORT_PLAYING),
-            steps(SpeakerCoverTrigger.RaisePressed, featureEnabled = false),
-        )
+    fun openingAKnownPlayerIsIgnoredWhileTheFeatureIsOff() {
+        assertFalse(reports(SpeakerCoverTrigger.PlayerOpened("ru.yandex.music"), featureEnabled = false))
     }
 
     @Test
-    fun theRaiseButtonEnablesAutoLiftFirstWhenItIsOff() {
-        assertEquals(
-            listOf(SpeakerCoverStep.ENABLE_AUTO_LIFT, SpeakerCoverStep.REPORT_PLAYING),
-            steps(
-                SpeakerCoverTrigger.RaisePressed,
-                featureEnabled = false,
-                autoLift = SpeakerCoverAutoLift.DISABLED,
-            ),
-        )
-    }
-
-    @Test
-    fun switchingTheFeatureOnRaisesTheCoversOnBothCars() {
-        assertEquals(
-            listOf(SpeakerCoverStep.ENABLE_AUTO_LIFT, SpeakerCoverStep.REPORT_PLAYING),
-            steps(SpeakerCoverTrigger.FeatureEnabled, autoLift = SpeakerCoverAutoLift.DISABLED),
-        )
-        assertEquals(
-            listOf(SpeakerCoverStep.REPORT_PLAYING),
-            steps(SpeakerCoverTrigger.FeatureEnabled, autoLift = SpeakerCoverAutoLift.ENABLED),
-        )
-    }
-
-    @Test
-    fun switchingTheFeatureOffHidesTheCoversAndNothingElse() {
-        assertEquals(
-            listOf(SpeakerCoverStep.HIDE),
-            steps(SpeakerCoverTrigger.FeatureDisabled, featureEnabled = false),
-        )
-    }
-
-    @Test
-    fun nothingEverAsksForTheCoversToBeHiddenExceptSwitchingOff() {
-        val everythingElse = listOf(
-            SpeakerCoverTrigger.Playback("ru.yandex.music"),
-            SpeakerCoverTrigger.PlayerOpened("ru.yandex.music"),
-            SpeakerCoverTrigger.RaisePressed,
-            SpeakerCoverTrigger.FeatureEnabled,
-        )
-        val hides = everythingElse.flatMap { trigger ->
-            SpeakerCoverAutoLift.entries.flatMap { lift ->
-                listOf(true, false).flatMap { enabled -> steps(trigger, enabled, lift) }
-            }
-        }.filter { it == SpeakerCoverStep.HIDE }
-        assertEquals(emptyList<SpeakerCoverStep>(), hides)
+    fun theRaiseButtonAnswersWhetherOrNotTheFeatureIsOn() {
+        assertTrue(reports(SpeakerCoverTrigger.RaisePressed, featureEnabled = true))
+        assertTrue(reports(SpeakerCoverTrigger.RaisePressed, featureEnabled = false))
     }
 
     @Test
     fun aNullPackageIsNeverReportedFor() {
-        assertEquals(emptyList<SpeakerCoverStep>(), steps(SpeakerCoverTrigger.Playback(null)))
-        assertEquals(emptyList<SpeakerCoverStep>(), steps(SpeakerCoverTrigger.PlayerOpened(null)))
+        assertFalse(reports(SpeakerCoverTrigger.Playback(null)))
+        assertFalse(reports(SpeakerCoverTrigger.PlayerOpened(null)))
     }
 }

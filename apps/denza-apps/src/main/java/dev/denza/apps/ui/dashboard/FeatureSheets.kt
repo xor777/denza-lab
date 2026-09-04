@@ -165,10 +165,9 @@ private fun helpOf(id: TileId): String = when (id) {
         "Приложение забирает прогноз и отдаёт его штатному виджету погоды. " +
             "Своей погоды оно не рисует — виджет остаётся штатным."
     TileId.SPEAKERS ->
-        "Динамики выезжают, когда играет музыка — в том числе из приложений, которые машина " +
-            "своими не считает (${SpeakerCoverApps.EXAMPLES}). Убирает их машина сама при " +
-            "выключении; выключить переключатель — единственный способ убрать их раньше, и до " +
-            "следующего запуска машины."
+        "Динамики выезжают, когда играет музыка или открыт плеер — в том числе из приложений, " +
+            "которые машина своими не считает (${SpeakerCoverApps.EXAMPLES}). Убирает их машина " +
+            "сама. «Поднять» выдвигает их снова, если машина убрала их в простое."
     TileId.LOCALE ->
         "Родной русский язык уже встроен в систему — " +
             "переключатель включает его в штатных настройках машины."
@@ -447,15 +446,15 @@ private fun weatherSheet(state: DenzaUiState, actions: DashboardActions) {
 private fun speakerSheet(state: DenzaUiState, actions: DashboardActions, busy: Boolean) {
     val commanding = busy || state.speakerCoversCommanding
     DenzaSwitchRow(
-        title = "Динамики под музыку",
+        title = "Автоуправление динамиками",
         checked = state.speakerCovers.desiredEnabled,
         onCheckedChange = actions.onToggleSpeakerCovers,
         enabled = !busy,
     )
-    // One button, and the missing one is the point. The car has no close command: the only way to
-    // put the covers away is to switch the stock auto-lift off, which is what this switch does when
-    // it goes off. A second button labelled «Опустить» would look like a pair and cost the driver
-    // their stock automation for the rest of the trip on every press.
+    // One button, and the missing one is the point. The car has no close command; the only thing
+    // that puts the covers away on demand is switching the car's own auto-lift off, which costs the
+    // driver their stock automation for the rest of the trip. A button labelled «Опустить» would
+    // look like half of a pair and spend exactly that on every press.
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(DenzaMetrics.Space.M),

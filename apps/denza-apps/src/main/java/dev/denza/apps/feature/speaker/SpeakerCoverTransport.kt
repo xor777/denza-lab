@@ -4,43 +4,26 @@ import android.content.Context
 import dev.denza.apps.adb.DenzaLocalAdb
 
 /**
- * One trip to the car: read the amplifier's setting, ask the policy, say what it decided.
+ * Ask the policy, and if it says so, tell the car once.
  *
- * The read is not an optimisation. On the Z9GT the enable write also drives the motor, so sending
- * it unconditionally would twitch covers that are already out; on both cars a report without the
- * setting on is a write that changes nothing. Reading first is what lets one code path be correct
- * on two different amplifiers.
- *
- * Everything happens inside a single persistent shell session because opening one is the expensive
- * part - about a second - and a raise is at most two writes after the read.
+ * Nothing is read first. The earlier shape read the amplifier's auto-lift setting and wrote it
+ * back on when it was off, which made the app a second hand on the car's own switch; that switch
+ * is the driver's (on the N9) or permanently on (on the Z9GT), and either way not ours to move.
+ * One shell command, about a second, is the whole trip.
  */
 internal object SpeakerCoverTransport {
 
-    data class Outcome(
-        val steps: List<SpeakerCoverStep>,
-        val autoLift: SpeakerCoverAutoLift,
-    )
-
+    /** Whether the car was told; false means the policy kept quiet, not that anything failed. */
     fun run(
         context: Context,
         trigger: SpeakerCoverTrigger,
         featureEnabled: Boolean,
-    ): Outcome {
-        val session = DenzaLocalAdb.client(context).openPersistentShell()
-        return try {
-            val autoLift = SpeakerCoverProtocol.autoLift(
-                session.shell(SpeakerCoverProtocol.readAutoLiftCommand()),
-            )
-            val steps = SpeakerCoverPolicy.steps(trigger, featureEnabled, autoLift)
-            steps.forEach { step ->
-                val output = session.shell(SpeakerCoverProtocol.command(step))
-                check(SpeakerCoverProtocol.accepted(output)) {
-                    output.trim().ifBlank { "the car acknowledged nothing for $step" }
-                }
-            }
-            Outcome(steps, autoLift)
-        } finally {
-            session.close()
+    ): Boolean {
+        if (!SpeakerCoverPolicy.reports(trigger, featureEnabled)) return false
+        val output = DenzaLocalAdb.client(context).shell(SpeakerCoverProtocol.reportPlayingCommand())
+        check(SpeakerCoverProtocol.accepted(output)) {
+            output.trim().ifBlank { "the car acknowledged nothing" }
         }
+        return true
     }
 }

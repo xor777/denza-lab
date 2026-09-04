@@ -103,10 +103,10 @@ data class DenzaUiState(
     val hudGuidance: FeatureSnapshot = FeatureReducer.disabled(FeatureId.HUD_GUIDANCE),
     val speakerCovers: FeatureSnapshot = FeatureReducer.disabled(FeatureId.SPEAKER_COVERS),
     /**
-     * A cover command in flight, which the snapshot above cannot say while the automation is off.
+     * A cover report in flight, which the snapshot above cannot say while the automation is off.
      *
-     * The «Поднять» / «Опустить» buttons answer with the toggle either way, so their in-progress
-     * state has to be read from the runtime rather than from the feature's own status.
+     * «Поднять» answers with the toggle either way, so its in-progress state has to be read from
+     * the runtime rather than from the feature's own status.
      */
     val speakerCoversCommanding: Boolean = false,
     val fseInstaller: FeatureSnapshot = FeatureSnapshot(
@@ -578,28 +578,23 @@ object DenzaAppRepository {
     }
 
     /**
-     * The switch, whose two positions are the only two things the car can be asked for.
+     * The switch. On, the app reports playback the car ignores; off, it is silent and the car
+     * behaves as stock.
      *
-     * On raises the covers and keeps reporting playback for players the car ignores. Off is the
-     * one and only way to put them away: the vehicle has no close command, so it goes through the
-     * stock auto-lift setting, which retracts them and stands down until the next start of the car.
+     * Neither position writes anything to the car. The covers are the car's, and so is the stock
+     * auto-lift setting - drawn in Settings on the N9, always on and undrawn on the Z9GT. The
+     * earlier switch wrote that setting off on its way out, which hid the covers until the next
+     * start of the car and made «off» mean two different things depending on when you looked.
      */
     fun setSpeakerCoversEnabled(enabled: Boolean) {
         val context = appContext ?: return
         SpeakerCoverSettings.setEnabled(context, enabled)
-        if (enabled) {
-            stateStore.update { current ->
-                current.copy(speakerCovers = FeatureReducer.starting(FeatureId.SPEAKER_COVERS))
-            }
-            SpeakerCoverService.enabled(context)
-        } else {
-            SpeakerCoverService.disabled(context)
-            refresh()
-        }
+        SpeakerCoverService.reconcile(context)
+        refresh()
     }
 
     /**
-     * The panel's one button, for covers the amplifier has retracted with no music to bring back.
+     * The panel's one button, for covers the car has retracted with no music to bring back.
      *
      * It answers whether or not the feature is switched on: the covers belong to the car, and
      * wanting them out at a standstill is a thing to want. There is deliberately no button beside

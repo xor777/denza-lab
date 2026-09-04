@@ -24,27 +24,27 @@ import java.util.concurrent.Executors
 /**
  * Watches for playback the car will not report, and reports it.
  *
- * There is no automaton left here and no motor to keep in step with. The service listens, hands
- * each trigger to [SpeakerCoverPolicy], and sends whatever that returns. It holds no state about
- * the covers because there is none to hold: their position is unreadable, the amplifier raises and
- * lowers them by its own rule, and a report that arrives twice costs nothing.
+ * It holds no state about the covers because there is none to hold: their position is unreadable,
+ * the amplifier raises and lowers them by its own rule, and a report that arrives twice costs
+ * nothing. It listens, hands each trigger to [SpeakerCoverPolicy], and sends the one report the
+ * policy allows. Switching the feature on starts it and switching it off stops it; neither flip
+ * writes anything to the car.
  */
 class SpeakerCoverService : Service() {
     private val handler = Handler(Looper.getMainLooper())
     private val executor: ExecutorService = Executors.newSingleThreadExecutor()
 
     private lateinit var mediaSessions: SpeakerMediaSessionObserver
+    private var watching = false
     private var destroyed = false
-    private var failures = 0
 
     /**
      * The last package reported for and when, so one starting track is one report.
      *
-     * A media session answers `onPlaybackStateChanged` many times while a track plays, and the car
-     * re-asserts its own `paused` about half a second after media focus moves. So the app speaks
-     * once per player, waits out that window, and does not speak again for the same player until
-     * [REPEAT_GUARD_MS] has passed - which is long enough that a track change inside one app is
-     * silent and short enough that coming back to music after an idle retract is not.
+     * A media session answers `onPlaybackStateChanged` many times while a track plays, so the app
+     * speaks once per player and not again for the same player until [REPEAT_GUARD_MS] has passed -
+     * long enough that a track change inside one app is silent, short enough that coming back to
+     * music after an idle retract is not.
      */
     private var lastReportedPackage: String? = null
     private var lastReportedAtMs = 0L
@@ -57,38 +57,22 @@ class SpeakerCoverService : Service() {
         mediaSessions = SpeakerMediaSessionObserver(applicationContext) { packageName ->
             onPlayback(packageName)
         }
-        mediaSessions.start()
-        ensureObserverAccess()
-        publishWatching()
+        // A one-shot serving «Поднять» with the feature off has nothing to watch, and must not go
+        // repairing observer access on the driver's behalf.
+        if (SpeakerCoverSettings.isEnabled(this)) watch()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        when (intent?.action) {
-            ACTION_RAISE -> {
-                renotify()
-                // The button answers with the feature off too, and then the process exists only
-                // for the seconds the command takes.
-                send(SpeakerCoverTrigger.RaisePressed, thenStop = !SpeakerCoverSettings.isEnabled(this))
-                return START_NOT_STICKY
-            }
-
-            ACTION_ENABLED -> {
-                renotify()
-                send(SpeakerCoverTrigger.FeatureEnabled, thenStop = false)
-                return START_STICKY
-            }
-
-            ACTION_DISABLED -> {
-                renotify()
-                send(SpeakerCoverTrigger.FeatureDisabled, thenStop = true)
-                return START_NOT_STICKY
-            }
+        if (intent?.action == ACTION_RAISE) {
+            renotify()
+            send(SpeakerCoverTrigger.RaisePressed, stopWhenOff = true)
+            return START_NOT_STICKY
         }
         if (!SpeakerCoverSettings.isEnabled(this)) {
             stopSelf()
             return START_NOT_STICKY
         }
-        publishWatching()
+        watch()
         return START_STICKY
     }
 
@@ -104,6 +88,22 @@ class SpeakerCoverService : Service() {
         super.onDestroy()
     }
 
+    /**
+     * Start listening, once.
+     *
+     * Starting the observer reads every active session, so a player already going when the switch
+     * is flipped on is reported right here - and silence is left as silence. That is the whole of
+     * what switching on does to the covers.
+     */
+    private fun watch() {
+        publishWatching()
+        if (watching) return
+        watching = true
+        renotify()
+        mediaSessions.start()
+        ensureObserverAccess()
+    }
+
     private fun ensureObserverAccess() {
         if (!SimulcastCoordinator.isAccessibilityEnabled(this)) {
             SimulcastCoordinator.repairAccess(this) { failure ->
@@ -111,20 +111,20 @@ class SpeakerCoverService : Service() {
             }
         }
         HudNotificationAccessCoordinator.ensureMediaSessionAccess(this) {
-            handler.post { if (!destroyed) mediaSessions.restart() }
+            handler.post { if (!destroyed && watching) mediaSessions.restart() }
         }
     }
 
     private fun onPlayback(packageName: String?) {
         if (destroyed || packageName == null) return
         if (!worthRepeating(packageName)) return
-        send(SpeakerCoverTrigger.Playback(packageName), thenStop = false)
+        send(SpeakerCoverTrigger.Playback(packageName), stopWhenOff = false)
     }
 
     private fun onPlayerOpened(packageName: String?) {
         if (destroyed || packageName == null) return
         if (!worthRepeating(packageName)) return
-        send(SpeakerCoverTrigger.PlayerOpened(packageName), thenStop = false)
+        send(SpeakerCoverTrigger.PlayerOpened(packageName), stopWhenOff = false)
     }
 
     private fun worthRepeating(packageName: String): Boolean {
@@ -138,82 +138,61 @@ class SpeakerCoverService : Service() {
     }
 
     /**
-     * Say it, and then say it again once.
+     * Say it, and for playback say it again once.
      *
-     * The car writes its own `paused` about 500 ms after media focus moves to a player it does not
-     * know, and that write lands on the same property this one does. A single report sent inside
-     * that window is simply overwritten, and from the seat the feature looks intermittent. So a
-     * playback report is repeated once after the car has had its say. Nothing else repeats: a
-     * button and a switch are not racing anything.
+     * The car writes its own «paused» about 500 ms after media focus moves to a player it does not
+     * know, on the same property this report lands on. The report is a trigger the amplifier acts
+     * on rather than a level it holds (reporting «paused» does not retract, live 2026-09-03), so the
+     * repeat is insurance against the one race the seat cannot see, not a state being kept true.
+     * A button is not racing anything and is sent once.
+     *
+     * A report that fails is logged and that is all. What the panel shows is the second of grey
+     * while the command is on the wire; whether the car can be reached at all is already the
+     * «Сервис» tile's news.
      */
-    private fun send(trigger: SpeakerCoverTrigger, thenStop: Boolean) {
+    private fun send(trigger: SpeakerCoverTrigger, stopWhenOff: Boolean) {
         publish(SpeakerCoverRuntimePhase.COMMANDING, describe(trigger))
         val enabled = SpeakerCoverSettings.isEnabled(this)
         executor.execute {
-            val result = runCatching {
-                SpeakerCoverTransport.run(applicationContext, trigger, enabled)
-            }
-            if (trigger is SpeakerCoverTrigger.Playback && result.isSuccess) {
+            val result = runCatching { SpeakerCoverTransport.run(applicationContext, trigger, enabled) }
+            if (trigger is SpeakerCoverTrigger.Playback && result.getOrDefault(false)) {
                 runCatching {
                     Thread.sleep(CAR_OVERWRITE_WINDOW_MS)
                     SpeakerCoverTransport.run(applicationContext, trigger, enabled)
                 }
             }
-            handler.post { finish(trigger, result, thenStop) }
+            handler.post { finish(trigger, result, stopWhenOff) }
         }
     }
 
-    private fun finish(
-        trigger: SpeakerCoverTrigger,
-        result: Result<SpeakerCoverTransport.Outcome>,
-        thenStop: Boolean,
-    ) {
+    private fun finish(trigger: SpeakerCoverTrigger, result: Result<Boolean>, stopWhenOff: Boolean) {
         if (destroyed) return
-        result.onSuccess { outcome ->
-            failures = 0
-            Log.i(TAG, "trigger=$trigger steps=${outcome.steps} autoLift=${outcome.autoLift}")
-            if (thenStop) {
-                stopSelf()
-                return
-            }
-            publishWatching()
-        }.onFailure { failure ->
-            failures += 1
-            Log.w(TAG, "cover command failed trigger=$trigger", failure)
-            publish(
-                if (failures >= FAILURES_BEFORE_BROKEN) {
-                    SpeakerCoverRuntimePhase.FAILED
-                } else {
-                    SpeakerCoverRuntimePhase.DEGRADED
-                },
-                if (failures >= FAILURES_BEFORE_BROKEN) "Крышки не отвечают" else "Повторю при следующем запуске музыки",
-                failure.toString(),
-            )
-            if (thenStop) stopSelf()
+        result
+            .onSuccess { reported -> Log.i(TAG, "trigger=$trigger reported=$reported") }
+            .onFailure { failure -> Log.w(TAG, "report failed trigger=$trigger", failure) }
+        // Re-read rather than remembered: the switch may have gone on while the button's report was
+        // on the wire, and a service that stopped then would leave the feature on with nobody
+        // listening.
+        if (stopWhenOff && !SpeakerCoverSettings.isEnabled(this)) {
+            stopSelf()
+            return
         }
+        publishWatching()
     }
 
     private fun describe(trigger: SpeakerCoverTrigger): String = when (trigger) {
         is SpeakerCoverTrigger.Playback -> "Музыка: ${trigger.packageName}"
         is SpeakerCoverTrigger.PlayerOpened -> "Открыт плеер: ${trigger.packageName}"
         SpeakerCoverTrigger.RaisePressed -> "Поднимаю"
-        SpeakerCoverTrigger.FeatureEnabled -> "Включаю автоматику"
-        SpeakerCoverTrigger.FeatureDisabled -> "Убираю до конца поездки"
     }
 
     private fun publishWatching() {
-        publish(SpeakerCoverRuntimePhase.MONITORING, "Динамики выедут под музыку")
+        publish(SpeakerCoverRuntimePhase.MONITORING, SpeakerCoverRuntime.WATCHING)
     }
 
-    private fun publish(
-        phase: SpeakerCoverRuntimePhase,
-        message: String,
-        details: String? = null,
-    ) {
-        Log.i(TAG, "phase=$phase message=$message details=${details ?: "—"}")
-        SpeakerCoverRuntime.publish(
-            SpeakerCoverRuntimeState(phase = phase, message = message, details = details),
-        )
+    private fun publish(phase: SpeakerCoverRuntimePhase, message: String) {
+        Log.i(TAG, "phase=$phase message=$message")
+        SpeakerCoverRuntime.publish(SpeakerCoverRuntimeState(phase = phase, message = message))
         DenzaAppRepository.refresh()
     }
 
@@ -221,7 +200,7 @@ class SpeakerCoverService : Service() {
         getSystemService(NotificationManager::class.java)?.createNotificationChannel(
             NotificationChannel(
                 CHANNEL_ID,
-                "Крышки динамиков",
+                "Динамики",
                 NotificationManager.IMPORTANCE_MIN,
             ).apply {
                 description = "Динамики выезжают, когда играет музыка"
@@ -242,9 +221,9 @@ class SpeakerCoverService : Service() {
             .setContentTitle("Denza Apps")
             .setContentText(
                 if (SpeakerCoverSettings.isEnabled(this)) {
-                    "Динамики выезжают под музыку"
+                    "Автоуправление динамиками включено"
                 } else {
-                    "Выполняю команду крышек динамиков"
+                    "Поднимаю динамики"
                 },
             )
             .setContentIntent(openApp)
@@ -262,21 +241,18 @@ class SpeakerCoverService : Service() {
         private const val CHANNEL_ID = "denza_speaker_covers"
         private const val NOTIFICATION_ID = 18_889
 
-        /** How long the car's own `paused` write takes to land after media focus moves. */
+        /** How long the car's own «paused» write takes to land after media focus moves. */
         private const val CAR_OVERWRITE_WINDOW_MS = 1_200L
 
         /** How long one player stays reported before the same player may be reported again. */
         private const val REPEAT_GUARD_MS = 60_000L
 
-        private const val FAILURES_BEFORE_BROKEN = 3
-
         private const val ACTION_RAISE = "dev.denza.apps.action.RAISE_SPEAKER_COVERS"
-        private const val ACTION_ENABLED = "dev.denza.apps.action.SPEAKER_COVERS_ENABLED"
-        private const val ACTION_DISABLED = "dev.denza.apps.action.SPEAKER_COVERS_DISABLED"
 
         @Volatile
         private var active: SpeakerCoverService? = null
 
+        /** The switch, read from settings: on runs the watcher, off stops it. Nothing is written to the car. */
         fun reconcile(context: Context) {
             val app = context.applicationContext
             if (SpeakerCoverSettings.isEnabled(app)) {
@@ -286,17 +262,11 @@ class SpeakerCoverService : Service() {
             }
         }
 
-        fun raise(context: Context) = start(context, ACTION_RAISE)
-
-        fun enabled(context: Context) = start(context, ACTION_ENABLED)
-
-        fun disabled(context: Context) = start(context, ACTION_DISABLED)
-
-        private fun start(context: Context, action: String) {
+        fun raise(context: Context) {
             val app = context.applicationContext
             ContextCompat.startForegroundService(
                 app,
-                Intent(app, SpeakerCoverService::class.java).setAction(action),
+                Intent(app, SpeakerCoverService::class.java).setAction(ACTION_RAISE),
             )
         }
 

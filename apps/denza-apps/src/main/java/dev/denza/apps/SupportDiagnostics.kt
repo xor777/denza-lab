@@ -66,16 +66,12 @@ object SupportDiagnostics {
                     "attempts=${adbRescue.attemptCount}",
             )
             add("ADB queue recovery=${AdbRescueCoordinator.QUEUE_RECOVERY_STATUS}")
-            // The speaker automation's own phase. The tile can only say "working" or not, so when
-            // it sits on "working" there is no way from the screen to tell a motor command in
-            // flight from a watcher that never finished starting - which is exactly the question
-            // this panel exists to answer.
+            // The speaker feature's own phase: whether it is watching, or a report is on the wire.
             SpeakerCoverRuntime.snapshot().let { speaker ->
                 add(
                     "Крышки динамиков=" +
                         "phase=${speaker.phase.name.lowercase()}; " +
-                        "message=${speaker.message.ifBlank { "—" }}; " +
-                        "details=${speaker.details ?: "—"}",
+                        "message=${speaker.message.ifBlank { "—" }}",
                 )
             }
             // Анализатор питается тем же захватом, что и автоматика крышек, и когда захвата нет,

@@ -3,9 +3,9 @@ package dev.denza.apps.feature.speaker
 /**
  * Applications whose foreground transition is a useful pre-roll hint.
  *
- * This is not the playback detector: MediaSession and the output mix cover
- * applications outside this list. The list only buys the motors time to extend
- * before a known player emits its first sample.
+ * This is not the playback detector: MediaSession covers applications outside
+ * this list. The list only buys the motors time to extend before a known player
+ * emits its first sample.
  */
 object SpeakerCoverApps {
     val eagerPackages: Set<String> = linkedSetOf(

@@ -393,7 +393,7 @@ object DashboardTiles {
         }
     }
 
-    /** Motorised speaker covers, driven by app, MediaSession and output-mix signals. */
+    /** Motorised speaker covers: the car raises them, the app reports the music the car will not. */
     private fun speakers(state: DenzaUiState): DashboardTile {
         val snapshot = state.speakerCovers
         val waiting = snapshot.status == FeatureStatus.NEEDS_ACTION && snapshot.message.isNotBlank()
