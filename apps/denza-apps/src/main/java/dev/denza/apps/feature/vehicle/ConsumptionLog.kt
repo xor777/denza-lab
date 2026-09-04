@@ -8,9 +8,6 @@ package dev.denza.apps.feature.vehicle
  * are the honest record: everything the car spent over that slice counts,
  * including the minutes it stood still inside it.
  *
- * [stationary] is tracked separately because the dashboard caption must not
- * imply that the car is still accumulating road while the odometer is fixed.
- *
  * Distance comes from the vehicle's own odometer rather than GNSS, so the
  * dashboard needs no location permission.
  * Energy is integrated from pack power over real elapsed time, including
@@ -34,13 +31,9 @@ internal class ConsumptionLog(
     private var lastOdometerKm: Double? = null
     private var pendingKm = 0.0
     private var pendingKwh = 0.0
-    private var stillSeconds = 0.0
 
     /** Closed bars, oldest first. */
     val buckets: List<Double> get() = closed.toList()
-
-    /** True once the odometer has not advanced for [STALL_SECONDS]. */
-    val stationary: Boolean get() = stillSeconds >= STALL_SECONDS
 
     /**
      * @param odometerKm the vehicle odometer; null while the read failed
@@ -61,9 +54,6 @@ internal class ConsumptionLog(
             dropOpenWork()
             return
         }
-
-        val moved = deltaKm > KM_EPSILON
-        stillSeconds = if (moved) 0.0 else stillSeconds + dtSeconds.coerceAtLeast(0.0)
 
         val km = deltaKm.coerceAtLeast(0.0)
         val kwh = if (powerKw != null && dtSeconds > 0.0 && dtSeconds <= MAX_GAP_SECONDS) {
@@ -120,7 +110,6 @@ internal class ConsumptionLog(
     private fun dropOpenWork() {
         pendingKm = 0.0
         pendingKwh = 0.0
-        stillSeconds = 0.0
     }
 
     companion object {
@@ -143,9 +132,6 @@ internal class ConsumptionLog(
         const val DEFAULT_CAPACITY = 300
 
         const val RETENTION_KM = DEFAULT_CAPACITY * DEFAULT_BUCKET_KM
-
-        /** Standing this long changes the dashboard caption; the bars keep counting. */
-        private const val STALL_SECONDS = 5.0
 
         /** A longer sample gap means the dashboard was asleep; do not integrate it. */
         private const val MAX_GAP_SECONDS = 8.0

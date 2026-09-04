@@ -275,7 +275,6 @@ internal class VehicleTelemetryHub(context: Context) {
                     message = if (merged.isEmpty()) NO_ANSWER else "",
                     values = merged,
                     consumption = log.buckets,
-                    stationary = log.stationary,
                     engineTrace = trace.snapshot(),
                     trip = ledger.trip,
                 )

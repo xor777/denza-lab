@@ -4,14 +4,6 @@ import dev.denza.apps.feature.cluster.ClusterBounds
 import dev.denza.apps.feature.cluster.ClusterMapLayout
 import dev.denza.apps.feature.cluster.ClusterMapPlacement
 
-/** A rectangle in fractions of the dashboard's own size, `0f` to `1f` on each axis. */
-data class DashboardBox(
-    val left: Float,
-    val top: Float,
-    val right: Float,
-    val bottom: Float,
-)
-
 /**
  * Where an app-owned dashboard may draw on the driver's display, and where its blocks go.
  *
@@ -127,13 +119,6 @@ data class ClusterDashboardLayout(
             insideEllipse(x, y, 1f, 0f, topRightRevealX, stockTop)
         else -> insideEllipse(x, y, 0.5f, bottomRevealCentreY, bottomRevealX, bottomRevealY)
     }
-
-    /** Whether every corner of a block may be drawn on. */
-    fun isClear(box: DashboardBox): Boolean =
-        isClear(box.left, box.top) &&
-            isClear(box.right, box.top) &&
-            isClear(box.left, box.bottom) &&
-            isClear(box.right, box.bottom)
 
     private fun insideEllipse(
         x: Float,

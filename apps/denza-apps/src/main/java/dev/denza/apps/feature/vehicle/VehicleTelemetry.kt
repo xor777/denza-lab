@@ -26,8 +26,6 @@ internal data class VehicleTelemetry(
     val values: Map<VehicleSignal, Double> = emptyMap(),
     /** Closed consumption bars, oldest first, kWh/100 km. */
     val consumption: List<Double> = emptyList(),
-    /** True while the odometer is not advancing. */
-    val stationary: Boolean = false,
     /** The last two minutes of revolutions and generation, on a one-second axis. */
     val engineTrace: EngineTraceSnapshot = EngineTraceSnapshot.EMPTY,
     /** What this trip has cost so far, integrated by [TripEnergyLedger]. */
@@ -116,7 +114,15 @@ internal data class VehicleTelemetry(
         get() = this[VehicleSignal.GENERATION_STATE] == GENERATION_ON ||
             (generationKw ?: 0.0) > GENERATION_FLOOR_KW
 
-    /** Worst answer across the ids that carry this lamp. */
+    /**
+     * Worst answer across the ids that carry this lamp.
+     *
+     * The Contour draws no lamps: a grid of dots that are green almost every second of every drive
+     * is an inventory, and a driver's display shows exceptions. The **poll stays** - these are cold
+     * signals costing one shell round trip every ten seconds, and dropping the ids would be a
+     * separate decision about what the car is asked, not a consequence of a redesign. This is the
+     * decoding of that poll, and it is where an exception channel would read them from.
+     */
     fun lamp(lamp: EngineLamp): LampState {
         var seen = false
         lamp.signals.forEach { signal ->
