@@ -166,6 +166,72 @@ class InstrumentPen {
     }
 
     /**
+     * A rounded rectangle, filled - the lit part of a glyph.
+     *
+     * A radius of zero is a plain rectangle and `drawRoundRect` draws one, so the pack's terminal
+     * and its cell go through the same call as the motor's block.
+     */
+    fun plate(
+        canvas: Canvas,
+        left: Float,
+        top: Float,
+        right: Float,
+        bottom: Float,
+        radiusV: Float,
+        color: Int,
+    ) {
+        if (right <= left || bottom <= top) return
+        fill.color = color
+        fill.alpha = FULL_ALPHA
+        val r = v(radiusV)
+        canvas.drawRoundRect(left, top, right, bottom, r, r, fill)
+    }
+
+    /**
+     * And the same rectangle as an outline, which is what a glyph is mostly made of.
+     *
+     * The stroke straddles the path, so a caller stating the case's own edges gets a mark half a
+     * stroke wider than it asked for in every direction - which is what both records do, so the
+     * boards and the panel agree on it.
+     */
+    fun frame(
+        canvas: Canvas,
+        left: Float,
+        top: Float,
+        right: Float,
+        bottom: Float,
+        radiusV: Float,
+        color: Int,
+        widthV: Float,
+    ) {
+        if (right <= left || bottom <= top) return
+        stroke.color = color
+        stroke.alpha = FULL_ALPHA
+        stroke.strokeWidth = v(widthV)
+        val r = v(radiusV)
+        canvas.drawRoundRect(left, top, right, bottom, r, r, stroke)
+    }
+
+    /**
+     * A run of points joined straight, stroked - the inverter's own alternating current.
+     *
+     * One lived here until the eighth pass and was deleted with its only caller, the engine box's
+     * revolutions, on the rule that a primitive nothing draws with is a promise rather than a tool.
+     * The ninth pass gave it a caller again: a sine is twenty-one points and a `Path`, and the path
+     * belongs to whoever builds the points rather than to the pen.
+     */
+    fun polyline(canvas: Canvas, xs: FloatArray, ys: FloatArray, count: Int, color: Int, widthV: Float) {
+        if (count < 2) return
+        path.rewind()
+        path.moveTo(xs[0], ys[0])
+        for (index in 1 until count) path.lineTo(xs[index], ys[index])
+        stroke.color = color
+        stroke.alpha = FULL_ALPHA
+        stroke.strokeWidth = v(widthV)
+        canvas.drawPath(path, stroke)
+    }
+
+    /**
      * The band's body: one rectangle from the zero mark to the tip, lit along its own length.
      *
      * The gradient is the panel's one moving light and it is built once. [from] sits at the zero
@@ -345,10 +411,6 @@ class InstrumentPen {
         stroke.strokeWidth = v(edgeWidthV)
         canvas.drawPath(path, stroke)
     }
-
-    // A run of points joined straight lived here until the eighth pass. Its one caller was the
-    // engine box's revolutions, and that line is gone: the box draws one quantity now, and a
-    // primitive nothing draws with is a promise rather than a tool.
 
     private fun typefaceFor(weight: InstrumentWeight): Typeface = when (weight) {
         InstrumentWeight.LIGHT -> LIGHT

@@ -55,6 +55,9 @@ internal class ClusterDashboardRenderer {
 
     private val pen = InstrumentPen()
 
+    /** The temperature row's five marks. Held rather than extended, the way the pen is. */
+    private val glyphs = ContourGlyphs()
+
     private var plan: ContourPlan? = null
     private var planFor: ClusterDashboardLayout? = null
 
@@ -374,13 +377,20 @@ internal class ClusterDashboardRenderer {
     // ---------------------------------------------------------------- the left shelf
 
     /**
-     * Temperatures: three cells, and a fourth that only exists on an exception.
+     * Temperatures: five cells named by pictures, and a sixth that only exists on an exception.
      *
-     * The exception is the figure itself changing colour at the size every other figure on the shelf
-     * already is, so noticing it and reading it are one glance (m8). The three motors are three
-     * figures under one word, in `motorTemps` order - the rear pair is per-side and one reading
-     * threw two thirds of what the car reports away - and they share one degree sign at the end of
-     * the run, the way the group already shares one caption.
+     * **No words in this row.** Until the ninth pass it was three cells - `БАТАРЕЯ`, `МОТОРЫ`,
+     * `ИНВЕРТОР` - and the middle one carried three figures under one caption, so which motor was
+     * which was something the reader had to learn (m11, left standing for five drawings). Naming the
+     * positions in Russian was tried and the owner threw it out on the sound of it; a drawing of the
+     * car with one axle lit says the same thing in one glance and in no language. See
+     * [ContourGlyphs] for the family and why it is all five or none.
+     *
+     * Each cell is a two-digit figure with its own «°» over a 24-unit glyph standing on the caption
+     * baseline. **The glyph is the caption**, so it obeys the caption rule: it arrives with the first
+     * reading and stays when the reading goes stale (M5). The exception is the figure changing
+     * colour - and the glyph's own component with it, so the cell lights as one object - at the size
+     * every other figure on the shelf already is, so noticing it and reading it are one glance (m8).
      */
     private fun leftShelf(
         canvas: Canvas,
@@ -391,76 +401,95 @@ internal class ClusterDashboardRenderer {
         val captionY = pen.v(plan.shelfCaptionBaseline)
         val figureY = pen.v(plan.shelfFigureBaseline)
 
-        fun caption(index: Int, word: String): Float {
+        fun cell(
+            index: Int,
+            glyph: ContourGlyphs.Glyph,
+            known: Boolean,
+            celsius: Double?,
+            bandHigh: Double,
+        ) {
+            if (!known) return
             val left = plan.leftCell(index)
-            pen.text(canvas, word, pen.v(left), captionY, InstrumentFace.CAPTION, DenzaPalette.MUTED_DEEP)
-            return left
+            val level =
+                if (celsius == null) ContourReadout.Level.NORMAL
+                else ContourReadout.thermalState(celsius, bandHigh)
+            glyphs.draw(
+                pen,
+                canvas,
+                glyph,
+                left + plan.glyphInset,
+                plan.glyphBaseline,
+                DenzaPalette.MUTED,
+                componentColor(level),
+            )
+            if (celsius == null) return
+            pen.text(
+                canvas,
+                ContourReadout.whole(celsius),
+                pen.v(left + plan.temperatureField),
+                figureY,
+                InstrumentFace.READING,
+                levelColor(level),
+                Paint.Align.RIGHT,
+            )
+            pen.text(
+                canvas,
+                ContourReadout.DEGREE,
+                pen.v(left + plan.temperatureField),
+                figureY,
+                InstrumentFace.READING,
+                DenzaPalette.MUTED,
+            )
         }
 
-        fun reading(x: Float, text: String, level: ContourReadout.Level, sign: Boolean) {
-            pen.text(canvas, text, pen.v(x), figureY, InstrumentFace.READING, levelColor(level), Paint.Align.RIGHT)
-            if (sign) {
-                pen.text(
-                    canvas,
-                    ContourReadout.DEGREE,
-                    pen.v(x),
-                    figureY,
-                    InstrumentFace.READING,
-                    DenzaPalette.MUTED,
-                )
-            }
+        cell(
+            0,
+            ContourGlyphs.Glyph.PACK,
+            scene.known(ContourValue.PACK_TEMP),
+            t[VehicleSignal.PACK_TEMP_AVG].takeIf { scene.fresh(ContourValue.PACK_TEMP) },
+            ContourReadout.PACK_BAND_HIGH_C,
+        )
+
+        // The rear pair is per-side rather than per-axle, so three separate readings is the honest
+        // shape - and since the ninth pass three separate cells, because one of them running hotter
+        // than the others is exactly what this row is there to show.
+        val motors = t.motorTemps
+        val motorsFresh = scene.fresh(ContourValue.MOTOR_TEMPS)
+        val motorsKnown = scene.known(ContourValue.MOTOR_TEMPS)
+        MOTOR_GLYPHS.forEachIndexed { index, glyph ->
+            cell(
+                index + 1,
+                glyph,
+                motorsKnown,
+                motors.getOrNull(index).takeIf { motorsFresh },
+                ContourReadout.DRIVE_BAND_HIGH_C,
+            )
         }
 
-        if (scene.known(ContourValue.PACK_TEMP)) {
-            val left = caption(0, ContourReadout.CAPTION_PACK)
-            val pack = t[VehicleSignal.PACK_TEMP_AVG]
-            if (pack != null && scene.fresh(ContourValue.PACK_TEMP)) {
-                reading(
-                    left + plan.temperatureField,
-                    ContourReadout.whole(pack),
-                    ContourReadout.thermalState(pack, ContourReadout.PACK_BAND_HIGH_C),
-                    sign = true,
-                )
-            }
-        }
+        cell(
+            4,
+            ContourGlyphs.Glyph.INVERTER,
+            scene.known(ContourValue.INVERTER_TEMP),
+            t[VehicleSignal.INVERTER_C].takeIf { scene.fresh(ContourValue.INVERTER_TEMP) },
+            ContourReadout.INVERTER_WATCH_C,
+        )
 
-        if (scene.known(ContourValue.MOTOR_TEMPS)) {
-            val left = caption(1, ContourReadout.CAPTION_MOTORS)
-            val motors = t.motorTemps
-            if (scene.fresh(ContourValue.MOTOR_TEMPS)) {
-                val last = motors.indexOfLast { it != null }
-                motors.forEachIndexed { index, celsius ->
-                    if (celsius == null) return@forEachIndexed
-                    reading(
-                        left + index * plan.motorPitch + plan.temperatureField,
-                        ContourReadout.whole(celsius),
-                        ContourReadout.thermalState(celsius, ContourReadout.DRIVE_BAND_HIGH_C),
-                        sign = index == last,
-                    )
-                }
-            }
-        }
-
-        if (scene.known(ContourValue.INVERTER_TEMP)) {
-            val left = caption(2, ContourReadout.CAPTION_INVERTER)
-            val inverter = t[VehicleSignal.INVERTER_C]
-            if (inverter != null && scene.fresh(ContourValue.INVERTER_TEMP)) {
-                reading(
-                    left + plan.temperatureField,
-                    ContourReadout.whole(inverter),
-                    ContourReadout.thermalState(inverter, ContourReadout.INVERTER_WATCH_C),
-                    sign = true,
-                )
-            }
-        }
-
-        // The fourth cell is an exception rather than a row: a pack holding its cells together says
-        // nothing worth 167 units of shelf, so it appears with the problem and leaves with it.
+        // The last cell is an exception rather than a row: a pack holding its cells together says
+        // nothing worth 167 units of shelf, so it appears with the problem and leaves with it - and
+        // it is the only word in this row, which is what makes a word here mean something.
         val spread = t.cellSpreadMv ?: return
         if (!scene.fresh(ContourValue.SPREAD)) return
         val level = ContourReadout.spreadState(spread)
         if (!ContourReadout.spreadIsWorthACell(level)) return
-        val left = caption(3, ContourReadout.CAPTION_SPREAD)
+        val left = plan.leftCell(plan.spreadCellIndex)
+        pen.text(
+            canvas,
+            ContourReadout.CAPTION_SPREAD,
+            pen.v(left),
+            captionY,
+            InstrumentFace.CAPTION,
+            DenzaPalette.MUTED_DEEP,
+        )
         pen.text(
             canvas,
             ContourReadout.whole(spread),
@@ -691,6 +720,13 @@ internal class ClusterDashboardRenderer {
      * rather than a reading of its own, the same way the odometer's «42» lives inside «42 км · ЗА
      * ПОЕЗДКУ» one shelf along. The figure sits in a reserve field, so it and its unit leave
      * together when the engine stops and the words do not move.
+     *
+     * **And the reserve leaves with them.** The box outlives the engine by two minutes, and for that
+     * whole time the eighth pass drew `● ⎵⎵ В БАТАРЕЮ · ПОСЛЕДНИЕ 2 МИН` - 22 units of hole after a
+     * dot, which reads as a value that failed to arrive rather than as a field with room in it. With
+     * no figure there is nothing for a reserve to hold a place for, so the dot closes up against the
+     * words. That is one shift per engine stop, not a jitter: what a reserve buys is stillness while
+     * a *number* changes, and by then there is no number left to change.
      */
     private fun engineLegend(
         canvas: Canvas,
@@ -700,6 +736,7 @@ internal class ClusterDashboardRenderer {
         stage: ContourStage,
     ) {
         val y = pen.v(plan.engineLegendBaseline)
+        val dotY = y - pen.v(InstrumentFace.CAPTION.capHeight / 2f)
         pen.text(
             canvas,
             plan.legendWindow,
@@ -708,15 +745,13 @@ internal class ClusterDashboardRenderer {
             InstrumentFace.CAPTION,
             DenzaPalette.MUTED_DEEP,
         )
-        pen.dot(
-            canvas,
-            pen.v(plan.legendMarkX),
-            y - pen.v(InstrumentFace.CAPTION.capHeight / 2f),
-            plan.markRadius,
-            DenzaPalette.RETURN,
-        )
-        if (!stage.engineRunning || !scene.fresh(ContourValue.GENERATION)) return
-        val generation = t.generationKw ?: return
+        val generation =
+            if (stage.engineRunning && scene.fresh(ContourValue.GENERATION)) t.generationKw else null
+        if (generation == null) {
+            pen.dot(canvas, pen.v(plan.legendMarkQuietX), dotY, plan.markRadius, DenzaPalette.RETURN)
+            return
+        }
+        pen.dot(canvas, pen.v(plan.legendMarkX), dotY, plan.markRadius, DenzaPalette.RETURN)
         pen.text(
             canvas,
             ContourReadout.whole(generation),
@@ -907,6 +942,20 @@ internal class ClusterDashboardRenderer {
     }
 
     /**
+     * The lit part inside a glyph: one step brighter than the figure above it, and hot with it.
+     *
+     * `INK` on the ordinary shelf is the panel's one exception to "INK is the hero alone", and it is
+     * a deliberate one: the component is what tells the eye *what* the number above is about before
+     * the number is read, and an outline plus a grey blob inside it read as one grey shape. On an
+     * exception it takes the figure's own colour, so the cell lights up as one object.
+     */
+    private fun componentColor(level: ContourReadout.Level): Int = when (level) {
+        ContourReadout.Level.NORMAL -> DenzaPalette.INK
+        ContourReadout.Level.WATCH -> DenzaPalette.WARNING
+        ContourReadout.Level.ALERT -> DenzaPalette.DANGER
+    }
+
+    /**
      * One span, packed to the front of the scratch buffer the pen reads.
      *
      * It moves the values rather than allocating a view of them, and it is the same buffer both
@@ -921,6 +970,13 @@ internal class ClusterDashboardRenderer {
     private companion object {
         /** The panel's own ground: opaque, and the same black the glass around it is. */
         const val BACKGROUND = 0xFF000000.toInt()
+
+        /** The three cars, in `VehicleTelemetry.motorTemps` order: front, rear left, rear right. */
+        val MOTOR_GLYPHS = arrayOf(
+            ContourGlyphs.Glyph.MOTOR_FRONT,
+            ContourGlyphs.Glyph.MOTOR_REAR_LEFT,
+            ContourGlyphs.Glyph.MOTOR_REAR_RIGHT,
+        )
 
         /**
          * Whether the engine's share is drawn as a seam behind the band's tip.

@@ -48,6 +48,10 @@ internal fun interface ContourType {
          * deciding how wide its cell must be. A number is not in this table: it lives in a reserve
          * field sized by its digit count, which is the whole point.
          *
+         * «БАТАРЕЯ», «МОТОРЫ» and «ИНВЕРТОР» left it with the ninth pass. The temperature row is
+         * five glyphs now and a cell there is measured against [ContourGlyphs.WIDTH], so those three
+         * strings decide no coordinate and are not strings on this panel at all any more.
+         *
          * Measured and deliberately absent: «ВЕРНУЛА РЕКУПЕРАЦИЯ» is 253.5469 against
          * «РЕКУПЕРАЦИЯ»'s 150.6719, which puts the three seats of a car standing on P at 629.7 and
          * their left edge 41 units *inside* the hero's own «кВт». That is why the middle caption
@@ -68,9 +72,6 @@ internal fun interface ContourType {
             (InstrumentFace.UNIT to ContourReadout.UNIT_KWH) to 44.1094f,
             (InstrumentFace.UNIT to ContourReadout.UNIT_KM) to 23.0938f,
             (InstrumentFace.UNIT to ContourReadout.UNIT_PER_100KM) to 184.1094f,
-            (InstrumentFace.CAPTION to ContourReadout.CAPTION_PACK) to 91.9219f,
-            (InstrumentFace.CAPTION to ContourReadout.CAPTION_MOTORS) to 90.6250f,
-            (InstrumentFace.CAPTION to ContourReadout.CAPTION_INVERTER) to 110.0000f,
             (InstrumentFace.CAPTION to ContourReadout.CAPTION_SPREAD) to 167.7344f,
             (InstrumentFace.CAPTION to ContourReadout.CAPTION_REGEN) to 150.6719f,
             (InstrumentFace.CAPTION to ContourReadout.CAPTION_ENGINE_GAVE) to 94.3750f,

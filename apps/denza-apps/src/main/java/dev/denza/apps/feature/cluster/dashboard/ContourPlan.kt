@@ -146,9 +146,6 @@ internal class ContourPlan(
 
     val cellGap: Float = density.rhythm(2f)
 
-    /** Half the gap between cells, on purpose: the three motors are one reading in three parts. */
-    val motorGap: Float = density.rhythm(1f)
-
     val markRadius: Float = MARK_RADIUS
     val markGap: Float = density.rhythm(1f)
     val markWidth: Float = 2 * MARK_RADIUS + markGap
@@ -159,36 +156,45 @@ internal class ContourPlan(
     val millivoltWidth: Float =
         type.width(ContourReadout.UNIT_MILLIVOLT, InstrumentFace.READING)
 
-    val motorPitch: Float = temperatureField + motorGap
-
-    /**
-     * One degree sign for the three motors, at the end of the run.
-     *
-     * The group already shares one caption, and three «°» inside one cell were the last 25 units the
-     * shelf had spare - which is what «РАЗБРОС ЯЧЕЕК» needed. «61 68 64°» is how a person writes
-     * three readings of one quantity, and the neighbours either side carry their own sign, so the
-     * row cannot be misread.
-     */
-    val motorRun: Float = 3 * temperatureField + 2 * motorGap + degreeWidth
-
     val spreadPayload: Float = temperatureField + step + millivoltWidth
 
+    /** Where a glyph stands, and it stands *on* the caption baseline rather than hanging from it. */
+    val glyphBaseline: Float = shelfCaptionBaseline
+    val glyphInset: Float = ContourGlyphs.INSET
+
     /**
-     * **A cell is exactly as wide as the wider of the two things it has to hold** - its caption or
-     * its payload - and that width is not rounded up to the rhythm.
+     * **A cell is exactly as wide as the wider of the two things it has to hold** - its payload or
+     * the thing that names it - and that width is not rounded up to the rhythm.
      *
      * The rounding was 19.5 units of air across four cells and «РАЗБРОС ЯЧЕЕК» needed every one of
      * them. It was the cheapest thing on the panel to sell: nothing on a shelf is a rectangle, so
      * the rhythm was quantising a distance nobody can see, while the clearance to the hero's field
      * is a distance the reader would have met the moment a three-digit power arrived.
+     *
+     * Since the ninth pass the thing that names a temperature cell is a glyph rather than a word, so
+     * the max is against [ContourGlyphs.WIDTH] and the figure wins it: five identical cells of 50.9,
+     * where «ИНВЕРТОР» alone was 110. Each keeps its own «°», which the row can now afford - the
+     * three motors shared one sign from the sixth pass to the eighth and those 25 units were exactly
+     * what «РАЗБРОС ЯЧЕЕК» needed. The captions the glyphs replaced paid for them twice over.
      */
-    val leftCells: FloatArray = floatArrayOf(
-        max(caption(ContourReadout.CAPTION_PACK), temperatureField + degreeWidth),
-        max(caption(ContourReadout.CAPTION_MOTORS), motorRun),
-        max(caption(ContourReadout.CAPTION_INVERTER), temperatureField + degreeWidth),
-        max(caption(ContourReadout.CAPTION_SPREAD), spreadPayload),
-    )
+    val temperatureCell: Float = max(temperatureField + degreeWidth, ContourGlyphs.WIDTH)
 
+    /** And the sixth cell, which is the only one still sized by a caption. */
+    val spreadCell: Float = max(caption(ContourReadout.CAPTION_SPREAD), spreadPayload)
+
+    val leftCells: FloatArray = FloatArray(ContourGlyphs.Glyph.entries.size + 1) { index ->
+        if (index < ContourGlyphs.Glyph.entries.size) temperatureCell else spreadCell
+    }
+
+    /**
+     * The exception's seat, which is the last one and exists only while the pack misbehaves.
+     *
+     * That is the second thing the glyphs bought: a *word* in the temperature row now means
+     * something is wrong, because it is the only word left in it.
+     */
+    val spreadCellIndex: Int = ContourGlyphs.Glyph.entries.size
+
+    /** The widest the shelf ever is - the five glyph cells and the exception behind them. */
     val leftShelfRight: Float = leftEdge + leftCells.sum() + (leftCells.size - 1) * cellGap
 
     // ---- the right shelf: a phrase, not a ledger
@@ -300,6 +306,17 @@ internal class ContourPlan(
     val legendUnitX: Float = legendWindowX - smallGap - kilowattWidth
     val legendFigureRight: Float = legendUnitX - smallGap
     val legendMarkX: Float = legendFigureRight - generationField - markGap - markRadius
+
+    /**
+     * And where the dot stands once the engine has stopped: against the words.
+     *
+     * A reserve field keeps a phrase still while a *number* changes; when the number leaves there is
+     * nothing left for it to reserve, and the eighth pass left it standing anyway - 22 units of hole
+     * between the dot and «В БАТАРЕЮ» for the whole two minutes the box outlives the engine. This is
+     * one shift per engine stop rather than a jitter, and it is the only coordinate on the panel
+     * that depends on whether a value is there rather than on what it is.
+     */
+    val legendMarkQuietX: Float = legendWindowX - markGap - markRadius
 
     /** What the whole phrase measures, dot included, which is what decides the window. */
     val legendPhraseWidth: Float = rightEdge - (legendMarkX - markRadius)

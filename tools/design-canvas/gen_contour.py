@@ -7,8 +7,50 @@ Three drawings went to the owner, an independent review roasted the third
 (`CRITIQUE.md`, blockers B1-B3, majors M1-M15, minors m1-m12), the fourth was the
 answer to that review point by point, the fifth gave both graphs the height they
 were missing, the sixth turned the right shelf from a ledger into a phrase, the
-seventh made every figure name the window it is true over - and this is the
-eighth, which is the first one drawn against the panel *running*.
+seventh made every figure name the window it is true over, the eighth was the
+first one drawn against the panel *running* - and this is the ninth, which is the
+second.
+
+**The ninth pass: the temperature row says which motor.** The owner, at the bench
+again, on the row he had not complained about before:
+
+1. *«точно мотор с колёсами не путаешь?»* - and before that, the thing three
+   figures under one word could never answer: **which of the three motors is
+   which.** `ПЕРЕД / ЗАД Л / ЗАД П` was tried and thrown out in the same breath -
+   «по-русски не звучат» - so the row is **five cells and no words at all**: a
+   battery, three cars each with one motor lit, an inverter, each 24 units tall
+   on the caption baseline under its own two-digit figure. A drawing of the car
+   from above says «задний левый» in one glance and in no language;
+2. *«беспомощно»*, of the first battery drawn - a dot inside a pill. A battery is
+   an outline with a terminal and something inside it, and the something is the
+   part that carries the reading's colour;
+3. *«если символы, то и батарея, и инвертор, и хорошие»*. Half a row of pictures
+   and half a row of words is worse than either, so the family is complete: the
+   pack, the three motors and the inverter are one set of five, drawn with one
+   stroke (`DATA_LINE`, the weight nothing carrying data goes under), one outline
+   colour (`MUTED`) and one lit component (`INK`, or the exception's own colour
+   when that cell is hot);
+4. *«при 18 единицах жучков не видно»*. They were drawn at the caption's own size
+   first, which is 2.7 mm of glass for a shape with four wheels in it. **24 units
+   - 5.1 mm** - is what a glyph gets, and it stands *on* the caption baseline
+   rather than hanging from it, so nothing else on the shelf moved;
+5. and the motor is **the motor, not the wheel it drives**. Four hollow wheels
+   stand off the body in every one of the three; what changes is a filled block on
+   an axle - a bar across the front one, half a bar on the left or right of the
+   rear one. The wheels are furniture and are never filled.
+
+The one word left in that row is the exception's, `РАЗБРОС ЯЧЕЕК`, which appears
+only when the pack is misbehaving - so a word in the temperature row now *means*
+something is wrong, which is the second thing the glyphs bought.
+
+**And the engine's sentence loses its hole when the engine stops.** The figure
+lives in a two-digit reserve so that 9 kW and 14 kW start the phrase in the same
+place; when the engine stops the figure is removed by the staleness rule and the
+reserve was staying behind as 22 units of nothing between the dot and the words -
+`● ⎵⎵ В БАТАРЕЮ · ПОСЛЕДНИЕ 2 МИН`. With no figure there is no field: the dot
+closes up against the words. That is one shift per engine stop, not a jitter -
+the reserve is what keeps the phrase still while a *number* changes, and there is
+no number left to change.
 
 **The eighth pass: the owner watched it move.** The panel was built, put on a
 live bench and looked at, and what came back was about the two graphs again -
@@ -211,11 +253,13 @@ Closed:
 - m9  generation is drawn twice, not three times: the seam on the band and the
       area in the engine box. Its figure is written once, and since the eighth
       pass it is written inside the sentence under that area.
-- m11 unchanged and still true: three motors under one word in `motorTemps`
-      order. Naming three positions costs three captions at 12'. Since the sixth
-      pass they share one degree sign as well as one word - the group is one
-      reading in three parts, and repeating «°» three times bought nothing but the
-      78 units «РАЗБРОС ЯЧЕЕК» needed.
+- m11 closed by the ninth pass, and it took a picture rather than a caption. Three
+      motors under one word in `motorTemps` order was learnable and named as such
+      for five drawings; the shared degree sign the sixth pass gave them bought the
+      78 units «РАЗБРОС ЯЧЕЕК» needed and bought nothing else. Now each of the five
+      readings has its own cell, its own «°» and a glyph saying what it is *of* -
+      and the three cars differ by which axle carries the lit block, which is a
+      distinction the reader does not have to learn.
 
 Rejected, with the owner's reason:
 
@@ -296,8 +340,11 @@ W_TITLE = {'БАТАРЕЯ · В': 126.0781, 'ДВС · об/мин': 137.9844,
 # narrow («БАТАРЕЯ»), with no consistent sign - a table typed from more than one
 # run rather than one systematic error. The units above and `W_TITLE` came back
 # exactly; `W_KWH`, `W_KM` and the captions did not, and are corrected here.
-W_CAPTION = {'БАТАРЕЯ': 91.9219, 'МОТОРЫ': 90.6250, 'ИНВЕРТОР': 110.0000,
-             'РАЗБРОС ЯЧЕЕК': 167.7344, 'РЕКУПЕРАЦИЯ': 150.6719,
+#
+# «БАТАРЕЯ», «МОТОРЫ» and «ИНВЕРТОР» are off this table with the ninth pass: the
+# temperature row is five glyphs now and the only word left in it is the
+# exception's. A caption that decides no coordinate does not belong here.
+W_CAPTION = {'РАЗБРОС ЯЧЕЕК': 167.7344, 'РЕКУПЕРАЦИЯ': 150.6719,
              'ДАЛ ДВС': 94.3750, '· ЗА ПОЕЗДКУ': 144.5469,
              # The eighth pass's own two, from a run of the same method on the
              # same day the panel went on the bench. «ОБОРОТЫ ·» and «ГЕНЕРАЦИЯ»
@@ -458,43 +505,102 @@ RIGHT_FIELD_RIGHT = RIGHT_EDGE                  # revolutions: four digits
 RIGHT_FIELD_LEFT = RIGHT_FIELD_RIGHT - 4 * DIGIT * FIGURE
 ICE_MINUTES_LEFT = RIGHT_EDGE - 3 * DIGIT * FIGURE
 
+# ---- the five glyphs the temperature row is named by
+#
+# One family, one stroke, one outline colour, and one component inside each that
+# carries the reading's own colour. The owner asked for exactly that - «если
+# символы, то и батарея, и инвертор, и хорошие» - after a first cut that drew a
+# dot inside a pill for the pack («беспомощно») and left the other four as words.
+#
+# **They are 24 units tall and they stand on the caption baseline**, so the shelf's
+# two rows did not move: 24 above `SHELF_CAPTION` leaves 10 clear of the figures'
+# own baseline at 208.32. Drawn at the caption's own 18 first, they were 2.7 mm of
+# glass for a shape with four wheels in it - «при 18 единицах жучков не видно» - so
+# `GLYPH` is a decision and `GLYPH_K` is what carries every proportion up with it.
+GLYPH = STEP * 3                        # 24 units, 5.1 mm, 12' of arc for the whole mark
+GLYPH_K = GLYPH / CAPTION               # every proportion below is in caption units
+GLYPH_W = 17 * GLYPH_K                  # the widest a glyph is allowed to be
+GLYPH_INSET = 1.0                       # and where it starts inside its own cell
+GLYPH_STROKE = DATA_LINE                # a glyph carries data, so it is not thinner
+# Except the wheels, which are the one thing here that is furniture: they say "this
+# is a car from above" and they never say anything else. A wheel at the data weight
+# competed with the block on the axle, which is the part that means something.
+WHEEL_STROKE = 1.6
+
+# The pack: the outline every battery has, its terminal, and one cell inside it.
+PACK_W, PACK_H = 17 * GLYPH_K, 10 * GLYPH_K
+PACK_R = 2 * GLYPH_K
+PACK_NUB = 2.5 * GLYPH_K                # the terminal, and it is MUTED like the outline
+PACK_NUB_INSET = 3 * GLYPH_K            # off the top and the bottom of the case
+PACK_CELL_INSET = 2.8 * GLYPH_K         # the lit cell's own margin inside the outline
+PACK_CELL_TRIM = 8.3 * GLYPH_K          # off the width, so the cell stops short of the terminal
+
+# The car, from above, in three states that differ by one block. Four wheels stand
+# off the body in all three and none of them is ever filled: **the motor is the
+# motor, not the wheel it drives**, which is the correction the owner made to the
+# first drawing of this glyph («точно мотор с колёсами не путаешь?»).
+BODY_W, BODY_H = 9 * GLYPH_K, 14 * GLYPH_K
+BODY_X = 4.5 * GLYPH_K                  # from the glyph's left edge
+BODY_TOP = 2 * GLYPH_K                  # from the glyph's own top
+BODY_R = 2.5 * GLYPH_K
+WHEEL_W, WHEEL_H = 3 * GLYPH_K, 5 * GLYPH_K
+WHEEL_R = GLYPH_K
+WHEEL_GAP = GLYPH_K                     # the standoff from the body, sideways and down
+MOTOR_H = 4 * GLYPH_K                   # the block on the axle: the lit part
+MOTOR_R = 0.8 * GLYPH_K
+MOTOR_INSET = 1.2 * GLYPH_K             # how far inside the body a block starts
+MOTOR_SPLIT = 0.4 * GLYPH_K             # half the gap between the two rear blocks
+
+# The inverter: a case with the alternating current it makes drawn inside it.
+INVERTER_S = 16 * GLYPH_K
+INVERTER_R = 3 * GLYPH_K
+WAVE_INSET = 3 * GLYPH_K                # where the period starts and stops inside the case
+WAVE_AMPLITUDE = 3.2 * GLYPH_K
+WAVE_SAMPLES = 20
+
+# The row, in the order it reads: the pack, the three motors in `motorTemps` order,
+# the inverter. `front`, `rl` and `rr` are the same glyph with the block moved.
+GLYPHS = ('pack', 'front', 'rl', 'rr', 'inverter')
+
 # ---- the two shelves, which are now one family in every respect
 
-# Both hang from the same guard as the hero, both carry a 34 figure over an 18
-# word, both stand on one pair of baselines. The last board gave them headings and
-# two different figure sizes, and the headings were the first thing that would
+# Both hang from the same guard as the hero, both carry a 34 figure over a mark 24
+# units tall, both stand on one pair of baselines. The last board gave them headings
+# and two different figure sizes, and the headings were the first thing that would
 # have been cut off by a boundary nobody has measured yet.
 SHELF_FIGURE = GUARD_TOP + CAP * READING
 SHELF_CAPTION = SHELF_FIGURE + STEP * 2 + CAPTION
 
 CELL_GAP = STEP * 2
-MOTOR_GAP = STEP                        # half the gap between cells, on purpose
 MARK_R = 3.0                            # the blue marker: a dot, and dot-sized
 MARK_GAP = STEP
 MARK_W = 2 * MARK_R + MARK_GAP
 
 TEMP_FIELD = 2 * DIGIT * READING        # two digits; 100+ is an alert and may hang
-# One degree sign for the three motors, at the end of the run - the same rule the
-# group's single caption already follows. Three of them were 25.4 units of repeated
-# punctuation and «РАЗБРОС ЯЧЕЕК» needed every one; «61 68 64°» is how a person
-# writes three readings of one quantity, and the neighbours on either side carry
-# their own «°» so the row cannot be misread.
-MOTOR_PITCH = TEMP_FIELD + MOTOR_GAP
-MOTOR_RUN = 3 * TEMP_FIELD + 2 * MOTOR_GAP + W_DEGREE
+# And every one of the five carries its own «°», which the ninth pass could afford
+# because the three motors stopped being one cell. From the sixth to the eighth they
+# shared one sign at the end of the run - «61 68 64°» - and those 25.4 units were
+# exactly what «РАЗБРОС ЯЧЕЕК» needed over «РАЗБРОС». What paid for them this time is
+# the three captions the glyphs replaced: the row is 58 units narrower than the words
+# were even with five signs in it.
 SPREAD_PAYLOAD = TEMP_FIELD + STEP + W_MILLIVOLT
 
 # **A cell is exactly as wide as the wider of the two things it has to hold** - its
-# caption or its payload. Until the sixth pass that width was rounded up to the
-# next rhythm step, which was 19.5 units of air across four cells and 78 units less
-# than «РАЗБРОС ЯЧЕЕК» costs over «РАЗБРОС». The rounding was the cheapest thing on
-# the panel to sell: nothing on the shelf is a rectangle, so the rhythm was
+# payload or the thing that names it. Until the sixth pass that width was rounded up
+# to the next rhythm step, which was 19.5 units of air across four cells and 78 units
+# less than «РАЗБРОС ЯЧЕЕК» costs over «РАЗБРОС». The rounding was the cheapest thing
+# on the panel to sell: nothing on the shelf is a rectangle, so the rhythm was
 # quantising a distance nobody can see, while the clearance to the hero's field is
 # a distance the reader would have seen the moment a three-digit power arrived.
-LEFT_CELLS = [max(W_CAPTION['БАТАРЕЯ'], TEMP_FIELD + W_DEGREE),
-              max(W_CAPTION['МОТОРЫ'], MOTOR_RUN),
-              max(W_CAPTION['ИНВЕРТОР'], TEMP_FIELD + W_DEGREE),
-              max(W_CAPTION['РАЗБРОС ЯЧЕЕК'], SPREAD_PAYLOAD)]
-LEFT_SHELF_RIGHT = LEFT_EDGE + sum(LEFT_CELLS) + 3 * CELL_GAP
+#
+# Since the ninth pass the thing that names a temperature cell is a glyph rather than
+# a word, so the max is against `GLYPH_W` and the figures win it: five identical
+# cells of 50.9, where «ИНВЕРТОР» alone was 110. The sixth cell is the exception's
+# and it is the only one still sized by a caption.
+TEMP_CELL = max(TEMP_FIELD + W_DEGREE, GLYPH_W)
+SPREAD_CELL = max(W_CAPTION['РАЗБРОС ЯЧЕЕК'], SPREAD_PAYLOAD)
+LEFT_CELLS = [TEMP_CELL] * len(GLYPHS) + [SPREAD_CELL]
+LEFT_SHELF_RIGHT = LEFT_EDGE + sum(LEFT_CELLS) + (len(LEFT_CELLS) - 1) * CELL_GAP
 
 # ---- the right shelf: a phrase, not a ledger
 #
@@ -681,6 +787,28 @@ def legend_phrase(window):
     return MARK_W + GEN_FIELD + SMALL_GAP + W_KW + SMALL_GAP + W_CAPTION[window]
 
 
+def legend_anchors():
+    """The phrase's anchors, right to left off the shelf's own edge - and both dots.
+
+    The words never move. The figure lives in a two-digit reserve so that 9 kW and
+    14 kW start the sentence in the same place, and «кВт» hangs off that field
+    rather than off the string.
+
+    **`quiet` is where the dot stands once the engine has stopped.** The figure and
+    its unit are removed by the staleness rule and the reserve has nothing left to
+    reserve, so it goes with them and the dot closes up against the words:
+    «● В БАТАРЕЮ · ПОСЛЕДНИЕ 2 МИН» rather than 22 units of hole after the dot. It
+    is one shift per engine stop rather than a jitter - a reserve keeps a phrase
+    still while a *number* changes, and there is no number left to change.
+    """
+    window_x = RIGHT_EDGE - W_CAPTION[legend_window()]
+    unit_x = window_x - SMALL_GAP - W_KW
+    field_right = unit_x - SMALL_GAP
+    return dict(window=window_x, unit=unit_x, field=field_right,
+                mark=field_right - GEN_FIELD - MARK_GAP - MARK_R,
+                quiet=window_x - MARK_GAP - MARK_R)
+
+
 def legend_window():
     """The long window, unless the face in use crowds the phrase against its box.
 
@@ -731,6 +859,11 @@ BG = g.CLUSTER_BG
 # DATA_PEAK is the live edge of the data, which is the band's tip and the peak
 # hold - never a history.
 LEVEL = {'normal': MUTED, 'watch': WARNING, 'alert': DANGER}
+# A glyph's outline is MUTED like a caption; the component inside it is one step
+# brighter than the figure above, so the eye finds *what* the number is about before
+# it reads the number. On an exception the component takes the figure's own colour,
+# so the cell lights up as one object rather than as a number beside a grey picture.
+GLYPH_LEVEL = {'normal': INK, 'watch': WARNING, 'alert': DANGER}
 
 
 def flow_colour(kw, ink=INK):
@@ -767,12 +900,94 @@ def line(x0, y0, x1, y1, colour, width, opacity=None, dash=None):
             f'stroke="{colour}" stroke-width="{f(width)}"{o}{d}/>')
 
 
+def frame(x, y, w, h, r, colour, width):
+    """A rounded rectangle drawn as an outline - which is what a glyph is made of."""
+    return (f'<rect x="{f(x)}" y="{f(y)}" width="{f(w)}" height="{f(h)}" rx="{f(r)}" '
+            f'fill="none" stroke="{colour}" stroke-width="{f(width)}"/>')
+
+
 def dot(cx, cy, colour=RETURN):
     return f'<circle cx="{f(cx)}" cy="{f(cy)}" r="{f(MARK_R)}" fill="{colour}"/>'
 
 
 def comma(value, digits=1):
     return f'{value:.{digits}f}'.replace('.', ',')
+
+
+# ---------------------------------------------------------------- the glyphs, drawn
+
+def glyph_pack(x, baseline, colour):
+    """A battery: the outline, the terminal, and one cell inside carrying the colour.
+
+    The first cut was a dot inside a pill and the owner's word for it was
+    «беспомощно». What makes this one a battery rather than a rounded rectangle is
+    the terminal hanging off its right edge, and what makes it a *reading* is that
+    the cell inside is the only part that ever changes colour.
+    """
+    top = baseline - GLYPH + (GLYPH - PACK_H) / 2
+    return [
+        frame(x, top, PACK_W - PACK_NUB, PACK_H, PACK_R, MUTED, GLYPH_STROKE),
+        rect(x + PACK_W - PACK_NUB, top + PACK_NUB_INSET, PACK_NUB,
+             PACK_H - 2 * PACK_NUB_INSET, MUTED),
+        rect(x + PACK_CELL_INSET, top + PACK_CELL_INSET, PACK_W - PACK_CELL_TRIM,
+             PACK_H - 2 * PACK_CELL_INSET, colour),
+    ]
+
+
+def glyph_car(x, baseline, where, colour):
+    """The car from above, with one motor lit - and a motor is not a wheel.
+
+    The first drawing filled the wheels the motor drives, and the owner asked
+    whether it was a motor or a wheel. It is a motor: four hollow wheels stand off
+    the body in all three glyphs, and what moves is a filled block on an axle - a
+    bar across the front one, half a bar on the left or right of the rear one.
+    Which axle and which side is the whole reading, and it needs no caption in any
+    language, which is what killed «ПЕРЕД / ЗАД Л / ЗАД П».
+    """
+    bx = x + BODY_X
+    by = baseline - GLYPH + BODY_TOP
+    out = [frame(bx, by, BODY_W, BODY_H, BODY_R, MUTED, GLYPH_STROKE)]
+    for wx in (bx - WHEEL_GAP - WHEEL_W, bx + BODY_W + WHEEL_GAP):
+        for wy in (by + WHEEL_GAP, by + BODY_H - WHEEL_H - WHEEL_GAP):
+            out.append(frame(wx, wy, WHEEL_W, WHEEL_H, WHEEL_R, MUTED, WHEEL_STROKE))
+    front = by + WHEEL_GAP + WHEEL_H / 2 - MOTOR_H / 2
+    rear = by + BODY_H - WHEEL_GAP - WHEEL_H / 2 - MOTOR_H / 2
+    half = BODY_W / 2 - MOTOR_INSET - MOTOR_SPLIT
+    if where == 'front':
+        mx, my, mw = bx + MOTOR_INSET, front, BODY_W - 2 * MOTOR_INSET
+    elif where == 'rl':
+        mx, my, mw = bx + MOTOR_INSET, rear, half
+    else:
+        mx, my, mw = bx + BODY_W / 2 + MOTOR_SPLIT, rear, half
+    out.append(rect(mx, my, mw, MOTOR_H, colour, rx=MOTOR_R))
+    return out
+
+
+def glyph_inverter(x, baseline, colour):
+    """A case with one period of alternating current inside it, which is what it makes."""
+    top = baseline - GLYPH + (GLYPH - INVERTER_S) / 2
+    mid = top + INVERTER_S / 2
+    x0, x1 = x + WAVE_INSET, x + INVERTER_S - WAVE_INSET
+    points = []
+    for i in range(WAVE_SAMPLES + 1):
+        t = i / WAVE_SAMPLES
+        points.append((x0 + (x1 - x0) * t,
+                       mid - math.sin(t * 2 * math.pi) * WAVE_AMPLITUDE))
+    d = 'M ' + ' L '.join(f'{f(px)} {f(py)}' for px, py in points)
+    return [
+        frame(x, top, INVERTER_S, INVERTER_S, INVERTER_R, MUTED, GLYPH_STROKE),
+        f'<path d="{d}" fill="none" stroke="{colour}" stroke-width="{f(GLYPH_STROKE)}" '
+        f'stroke-linejoin="round" stroke-linecap="round"/>',
+    ]
+
+
+def glyph(kind, x, baseline, colour):
+    """One of the five, at [x] on the caption baseline, with its component in [colour]."""
+    if kind == 'pack':
+        return glyph_pack(x, baseline, colour)
+    if kind == 'inverter':
+        return glyph_inverter(x, baseline, colour)
+    return glyph_car(x, baseline, kind, colour)
 
 
 # ---------------------------------------------------------------- the histories
@@ -1085,50 +1300,52 @@ def right_corner(s):
 
 
 def left_shelf(s):
-    """Temperatures: three cells, and a fourth that only exists on an exception.
+    """Temperatures: five cells named by pictures, and a sixth that is an exception.
 
-    The exception is the figure itself changing colour, at the same size as every
-    other figure on the shelf - so noticing it and reading it are one glance. The
-    three motors are three figures under one word, in `motorTemps` order, each
-    coloured by its own level: the rear pair is per-side and one reading threw two
-    thirds of what the car reports away.
+    **No words.** Until the ninth pass this row was three cells - `БАТАРЕЯ`,
+    `МОТОРЫ`, `ИНВЕРТОР` - and the middle one carried three figures under one
+    caption, so which motor was which was something the reader had to learn. Naming
+    the positions in Russian was tried and the owner threw it out on the sound of
+    it; a drawing of the car with one axle lit says the same thing in one glance and
+    in no language. So the whole row is glyphs, because half a row of pictures under
+    half a row of words is worse than either.
+
+    Each cell is a two-digit figure with its own «°» over a 24-unit glyph standing
+    on the caption baseline. The exception is the figure changing colour - and now
+    the glyph's own component with it, so the cell lights up as one object - at the
+    same size as every other figure on the shelf, so noticing it and reading it are
+    one glance.
+
+    The sixth cell is the only word left in the row, which is the second thing the
+    glyphs bought: a word here now *means* something is wrong.
     """
     if not s['temps_known']:
         return []
     out = []
     temps = s.get('temps')
+    readings = None
+    if temps:
+        readings = [temps['pack']] + list(temps['motors']) + [temps['inverter']]
 
-    def cell(index, word):
+    for index, kind in enumerate(GLYPHS):
         left, _ = left_cell(index)
-        out.append(txt('cl', left, SHELF_CAPTION, word, 'start', MUTED_DEEP))
-        return left
-
-    def degrees(x, value, level, sign=True):
-        # A degree belongs against its digits and Roboto sets it there: the field
-        # is two characters wide and the sign starts exactly at its right edge.
-        out.append(txt('rd', x, SHELF_FIGURE, value, 'end', LEVEL[level]))
-        if sign:
-            out.append(txt('rd', x, SHELF_FIGURE, '°', 'start', MUTED))
-
-    left = cell(0, 'БАТАРЕЯ')
-    if temps:
-        degrees(left + TEMP_FIELD, *temps['pack'])
-    left = cell(1, 'МОТОРЫ')
-    if temps:
-        # One sign for the three, after the last of them: the group already shares
-        # one word, and three «°» inside one cell were the last 25 units the shelf
-        # had spare. Each figure keeps its own colour, which is what the cell is for.
-        for index, (value, level) in enumerate(temps['motors']):
-            degrees(left + index * MOTOR_PITCH + TEMP_FIELD, value, level,
-                    sign=index == len(temps['motors']) - 1)
-    left = cell(2, 'ИНВЕРТОР')
-    if temps:
-        degrees(left + TEMP_FIELD, *temps['inverter'])
+        reading = readings[index] if readings else None
+        level = reading[1] if reading else 'normal'
+        # The glyph is this cell's caption, so it obeys the caption rule: it is drawn
+        # as soon as the reading has ever arrived and it stays when the reading goes.
+        out += glyph(kind, left + GLYPH_INSET, SHELF_CAPTION, GLYPH_LEVEL[level])
+        if reading:
+            # A degree belongs against its digits and Roboto sets it there: the field
+            # is two characters wide and the sign starts exactly at its right edge.
+            out.append(txt('rd', left + TEMP_FIELD, SHELF_FIGURE, reading[0], 'end',
+                           LEVEL[level]))
+            out.append(txt('rd', left + TEMP_FIELD, SHELF_FIGURE, '°', 'start', MUTED))
 
     spread = s.get('spread')
     if spread:
         value, level = spread
-        left = cell(3, 'РАЗБРОС ЯЧЕЕК')
+        left, _ = left_cell(len(GLYPHS))
+        out.append(txt('cl', left, SHELF_CAPTION, 'РАЗБРОС ЯЧЕЕК', 'start', MUTED_DEEP))
         out.append(txt('rd', left + TEMP_FIELD, SHELF_FIGURE, value, 'end', LEVEL[level]))
         out.append(txt('rd', left + TEMP_FIELD + STEP, SHELF_FIGURE, 'мВ',
                        'start', MUTED))
@@ -1157,6 +1374,13 @@ def engine_box(s):
     баланс": the box only leaves 120 s after the last live sample, so the balance
     comes back once, not once per engine cycle, and a winter jam that cycles the
     engine every ninety seconds never gets the swap at all.
+
+    **When the engine stops the sentence closes up.** The figure and its unit are
+    removed by the staleness rule and the reserve that held the figure's place goes
+    with them, so the dot stands against the words rather than 22 units off them.
+    That hole was the ninth pass's second finding, and it is one shift per engine
+    stop: a reserve keeps a phrase still while a number changes, and by then there
+    is no number left to change.
     """
     bins = engine_bins(s['trace'])
     x1 = ENGINE_BOX_RIGHT
@@ -1176,18 +1400,18 @@ def engine_box(s):
     # the figure in its reserve field, the dot. The words never move; the figure and
     # its unit leave together when the engine stops, which is the panel's one rule
     # for a stale reading applied to a number living inside a sentence.
-    window = legend_window()
-    window_x = RIGHT_EDGE - W_CAPTION[window]
-    unit_x = window_x - SMALL_GAP - W_KW
-    field_right = unit_x - SMALL_GAP
-    out.append(txt('cl', window_x, ENGINE_LEGEND, window, 'start', MUTED_DEEP))
-    out.append(dot(field_right - GEN_FIELD - MARK_GAP - MARK_R,
-                   ENGINE_LEGEND - CAP * CAPTION / 2))
+    at = legend_anchors()
+    out.append(txt('cl', at['window'], ENGINE_LEGEND, legend_window(), 'start', MUTED_DEEP))
     generation = s.get('generation') if s.get('ice') == 'running' else None
-    if generation is not None:
-        out.append(txt('un', field_right, ENGINE_LEGEND, f'{generation:.0f}',
-                       'end', MUTED_DEEP))
-        out.append(txt('un', unit_x, ENGINE_LEGEND, 'кВт', 'start', MUTED_DEEP))
+    if generation is None:
+        # No figure, so no field: the dot closes up against the words rather than
+        # standing 22 units off them with the reserve between (the ninth pass).
+        out.append(dot(at['quiet'], ENGINE_LEGEND - CAP * CAPTION / 2))
+        return out
+    out.append(dot(at['mark'], ENGINE_LEGEND - CAP * CAPTION / 2))
+    out.append(txt('un', at['field'], ENGINE_LEGEND, f'{generation:.0f}',
+                   'end', MUTED_DEEP))
+    out.append(txt('un', at['unit'], ENGINE_LEGEND, 'кВт', 'start', MUTED_DEEP))
     return out
 
 
@@ -1538,8 +1762,8 @@ STATES = [
      sc(kw=28.0, peak=52.0, ice='running', rpm=1780.0, generation=14.0,
         trace=engine_history(82), volts=548.0, temps=WORKED,
         bars=consumption_history(17.4), petal='17')),
-    ('ДВС заглох 40 с назад · коробка ещё здесь, у правого края ступени на нуле, '
-     'цифра и «кВт» ушли — фраза осталась',
+    ('ДВС заглох 40 с назад · коробка ещё здесь, у правого края ступени на нуле; '
+     'цифра, «кВт» и её резерв ушли — точка встала к словам',
      sc(kw=34.0, peak=68.0, ice='slept', ice_minutes=6.0,
         trace=engine_history(120, stopped=40), volts=551.0, temps=WORKED,
         bars=consumption_history(17.1), petal='17')),
@@ -1618,10 +1842,12 @@ def plan_board():
     left, right = trip_cell(1, DRIVE_SEATS)
     body.append(outline(left, cell_top - 6, right - left, cell_h + 12, dash='2 4',
                         opacity=0.7))
-    motors_left, _ = left_cell(1)
-    for index in range(3):
-        body.append(outline(motors_left + index * MOTOR_PITCH, cell_top,
-                            TEMP_FIELD, cell_h, dash='2 4', opacity=0.7))
+    # And the box each glyph stands in: 17k wide, 24 tall, on the caption baseline,
+    # one unit inside its own cell. The five are identical and only the drawing differs.
+    for index in range(len(GLYPHS)):
+        left, _ = left_cell(index)
+        body.append(outline(left + GLYPH_INSET, SHELF_CAPTION - GLYPH, GLYPH_W, GLYPH,
+                            dash='2 4', opacity=0.7))
 
     # The two boxes the histories live in, and the two big fields.
     body.append(outline(ENGINE_BOX_FULL_LEFT, ENGINE_BOX_TOP,
@@ -1663,16 +1889,23 @@ def plan_board():
                                f'{GUARD_TOP:.2f} · на нём стоят герой, обе полки и '
                                f'коробка ДВС'),
         (LEFT_EDGE, SHELF_FIGURE, f'цифры полок · 34 Regular · y {SHELF_FIGURE:.2f} · '
-                                  f'ячейка = шире из подписи и полезной нагрузки, '
+                                  f'ячейка = шире из нагрузки и того, что её называет, '
                                   f'без округления к ритму · зазор {CELL_GAP:.0f}'),
-        (LEFT_EDGE, SHELF_FIGURE, f'слева {" / ".join(f"{w:.1f}" for w in LEFT_CELLS)} '
-                                  f'→ до поля героя {HERO_FIELD_LEFT - LEFT_SHELF_RIGHT:.1f}'),
+        (LEFT_EDGE, SHELF_FIGURE, f'слева пять по {TEMP_CELL:.1f} = поле {TEMP_FIELD:.1f} '
+                                  f'+ «°» {W_DEGREE:.1f} (глиф {GLYPH_W:.1f} уже), плюс '
+                                  f'исключение {SPREAD_CELL:.1f} → до поля героя '
+                                  f'{HERO_FIELD_LEFT - LEFT_SHELF_RIGHT:.1f}'),
         (LEFT_EDGE, SHELF_FIGURE, f'справа на P {" / ".join(f"{w:.1f}" for w in PARK_SEATS)}, '
                                   f'на ходу {" / ".join(f"{w:.1f}" for w in DRIVE_SEATS)} · '
                                   f'место 0 всегда у края {RIGHT_EDGE:.1f}'),
         (LEFT_EDGE, SHELF_CAPTION, f'подписи полок · 18 капителью · y '
-                                   f'{SHELF_CAPTION:.2f} · моторы: шаг {MOTOR_PITCH:.1f}, '
-                                   f'поле {TEMP_FIELD:.1f}, «°» {W_DEGREE:.1f} один на три'),
+                                   f'{SHELF_CAPTION:.2f} · слов в строке температур '
+                                   f'нет: пять глифов {GLYPH_W:.1f} × {GLYPH:.0f} стоят '
+                                   f'на этой базовой, штрих {GLYPH_STROKE:.1f}'),
+        (LEFT_EDGE, SHELF_CAPTION, f'глиф от базовой цифр {SHELF_FIGURE:.2f} отделяют '
+                                   f'{SHELF_CAPTION - GLYPH - SHELF_FIGURE:.1f} · контур '
+                                   f'MUTED, компонент INK или цвет исключения вместе '
+                                   f'с цифрой'),
         (LEFT_EDGE, SHELF_CAPTION, f'километры впереди: одометр {ODO_FIELD:.1f} + «км» '
                                    f'{W_KM:.1f} + «· ЗА ПОЕЗДКУ» '
                                    f'{W_CAPTION["· ЗА ПОЕЗДКУ"]:.1f} = {TRIP_LEAD:.1f}; '
@@ -1696,6 +1929,9 @@ def plan_board():
                                     f'{legend_phrase(LEGEND_WINDOW):.1f} + {CLEARANCE:.0f} '
                                     f'в {ENGINE_BOX_RIGHT - ENGINE_BOX_FULL_LEFT:.1f}; '
                                     f'уже — «· 2 МИН»'),
+        (right_lane, ENGINE_LEGEND, f'точка на {legend_anchors()["mark"]:.1f} при цифре и '
+                                    f'на {legend_anchors()["quiet"]:.1f} без неё: резерв '
+                                    f'{GEN_FIELD:.1f} уходит вместе с числом, слова стоят'),
         (right_lane, HERO_BASELINE, f'герой · 88 Light · базовая {HERO_BASELINE:.2f} · '
                                     f'поле {HERO_FIELD_LEFT:.1f}…{HERO_FIELD_RIGHT:.1f} · '
                                     f'«кВт» 34 на {HERO_UNIT_X:.1f}'),
@@ -1854,6 +2090,20 @@ if __name__ == '__main__':
     print(f'  left  cells {[f"{w:.2f}" for w in LEFT_CELLS]} -> '
           f'{LEFT_EDGE:.0f}…{LEFT_SHELF_RIGHT:.2f}, clear of the hero field by '
           f'{HERO_FIELD_LEFT - LEFT_SHELF_RIGHT:.2f} (the jury asks 24)')
+    _plain = LEFT_EDGE + len(GLYPHS) * TEMP_CELL + (len(GLYPHS) - 1) * CELL_GAP
+    print(f'        five glyph cells alone reach {_plain:.2f}, clear by '
+          f'{HERO_FIELD_LEFT - _plain:.2f}; with «РАЗБРОС ЯЧЕЕК» '
+          f'{HERO_FIELD_LEFT - LEFT_SHELF_RIGHT:.2f}')
+    print(f'glyphs  {GLYPH_W:.2f} x {GLYPH:.0f} at k {GLYPH_K:.4f}, stroke '
+          f'{GLYPH_STROKE:.1f} (wheels {WHEEL_STROKE:.1f}), inset {GLYPH_INSET:.0f} '
+          f'in a cell of {TEMP_CELL:.2f}')
+    print(f'        on the caption baseline {SHELF_CAPTION:.2f}: top '
+          f'{SHELF_CAPTION - GLYPH:.2f}, which is '
+          f'{SHELF_CAPTION - GLYPH - SHELF_FIGURE:.2f} under the figures\' own '
+          f'baseline {SHELF_FIGURE:.2f}')
+    print(f'        pack {PACK_W - PACK_NUB:.2f} + {PACK_NUB:.2f} x {PACK_H:.2f}, '
+          f'body {BODY_W:.2f} x {BODY_H:.2f}, wheel {WHEEL_W:.2f} x {WHEEL_H:.2f}, '
+          f'block {MOTOR_H:.2f} tall, inverter {INVERTER_S:.2f}')
     print(f'  right seats on P {[f"{w:.2f}" for w in PARK_SEATS]} -> '
           f'{RIGHT_SHELF_LEFT:.2f}…{RIGHT_EDGE:.0f}, clear of the hero unit by '
           f'{RIGHT_SHELF_LEFT - (HERO_UNIT_X + HERO_UNIT_W):.2f}')
@@ -1881,6 +2131,10 @@ if __name__ == '__main__':
     print(f'          «● 14 кВт {LEGEND_WINDOW}» {legend_phrase(LEGEND_WINDOW):.2f} + '
           f'{CLEARANCE:.0f} in {ENGINE_BOX_RIGHT - ENGINE_BOX_FULL_LEFT:.2f} -> '
           f'{legend_window()} (short would be {legend_phrase(LEGEND_WINDOW_SHORT):.2f})')
+    _at = legend_anchors()
+    print(f'          dot at {_at["mark"]:.2f} with the figure, {_at["quiet"]:.2f} '
+          f'without it: the {GEN_FIELD:.2f} reserve leaves with the number and the '
+          f'words do not move')
     print(f'petal   figure {PETAL_BASE_FIELD_W:.2f} centred on the axis: ends '
           f'{PETAL_FIGURE_RIGHT:.2f} against the hero\'s {HERO_FIELD_RIGHT:.2f} '
           f'({PETAL_FIGURE_RIGHT - HERO_FIELD_RIGHT:+.2f}), reserve to '

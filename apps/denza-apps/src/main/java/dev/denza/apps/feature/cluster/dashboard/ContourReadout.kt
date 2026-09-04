@@ -39,11 +39,13 @@ internal object ContourReadout {
      */
     const val TITLE_ENGINE_MINUTES = "ДВС · мин за поездку"
 
-    const val CAPTION_PACK = "БАТАРЕЯ"
-    const val CAPTION_MOTORS = "МОТОРЫ"
-    const val CAPTION_INVERTER = "ИНВЕРТОР"
-
-    /** The spread of *what* is exactly the question that started the sixth pass. */
+    /**
+     * The spread of *what* is exactly the question that started the sixth pass.
+     *
+     * And since the ninth it is the **only** word in the temperature row: `БАТАРЕЯ`, `МОТОРЫ` and
+     * `ИНВЕРТОР` are gone, replaced by [ContourGlyphs]. Which means a word there now means the pack
+     * is misbehaving, which is worth more than the three captions cost.
+     */
     const val CAPTION_SPREAD = "РАЗБРОС ЯЧЕЕК"
 
     /** Written after the odometer's own figure and its unit, which lead the phrase. */

@@ -112,6 +112,76 @@ class ContourPlanTest {
     }
 
     @Test
+    fun theTemperatureRowIsFiveEqualCellsAndTheExceptionBehindThem() {
+        val plan = plan()
+        assertEquals("five readings and one exception", 6, plan.leftCells.size)
+        assertEquals(ContourGlyphs.Glyph.entries.size, plan.spreadCellIndex)
+        plan.leftCells.take(plan.spreadCellIndex).forEach {
+            assertEquals(plan.temperatureCell, it, 1e-4f)
+        }
+        // The glyph is what names a cell now, so the max is against its width - and the figure wins
+        // it, which is why all five come out the same and the row is 58 units narrower than the
+        // three words it replaced.
+        assertEquals(plan.temperatureField + plan.degreeWidth, plan.temperatureCell, 1e-4f)
+        assertTrue(
+            "the glyph is the narrower: ${ContourGlyphs.WIDTH} against ${plan.temperatureCell}",
+            ContourGlyphs.WIDTH < plan.temperatureCell,
+        )
+        // And the exception is the last seat, so it appears behind the five rather than among them.
+        assertEquals(plan.spreadCell, plan.leftCells[plan.spreadCellIndex], 1e-4f)
+        val fiveAlone = plan.leftCell(plan.spreadCellIndex) - plan.cellGap
+        assertTrue(
+            "the five alone reach $fiveAlone against the hero's ${plan.heroFieldLeft}",
+            plan.heroFieldLeft - fiveAlone > 24f,
+        )
+    }
+
+    @Test
+    fun aFaceTooNarrowForItsFiguresLetsTheGlyphSetTheCell() {
+        // The max is a real one, not a formality: on a face whose digits are half Chrome's the
+        // glyph is the wider of the two and the cell follows it, because a 24-unit mark is a
+        // constant of the panel while an advance is a measurement of whatever font resolved.
+        val narrow = plan(stretched(0.4f))
+        assertEquals(ContourGlyphs.WIDTH, narrow.temperatureCell, 1e-4f)
+        assertTrue(narrow.temperatureField + narrow.degreeWidth < ContourGlyphs.WIDTH)
+    }
+
+    @Test
+    fun aGlyphStandsOnTheCaptionBaselineAndClearsTheFiguresAbove() {
+        val plan = plan()
+        // 24 units up from the caption baseline, which leaves ten clear of the figures' own - so
+        // adding the family moved neither of the shelf's two rows.
+        assertEquals(plan.shelfCaptionBaseline, plan.glyphBaseline, 1e-4f)
+        assertEquals(
+            plan.shelfFigureBaseline + plan.step * 2 + InstrumentFace.CAPTION.size,
+            plan.glyphBaseline,
+            1e-3f,
+        )
+        assertEquals(
+            "and ten units of it",
+            10f,
+            plan.glyphBaseline - ContourGlyphs.HEIGHT - plan.shelfFigureBaseline,
+            1e-3f,
+        )
+    }
+
+    @Test
+    fun theEnginesSentenceClosesUpWhenItsFigureLeaves() {
+        val plan = plan()
+        // The reserve holds a number's place while the number changes. When the engine stops there
+        // is no number, so the field goes with it and the dot closes up against the words - one
+        // shift per engine stop rather than a hole for the two minutes the box outlives the engine.
+        assertEquals(plan.legendWindowX - plan.markGap - plan.markRadius, plan.legendMarkQuietX, 1e-4f)
+        assertEquals(
+            "and what it closes is exactly the field, its unit and both gaps",
+            plan.generationField + plan.smallGap + plan.kilowattWidth + plan.smallGap,
+            plan.legendMarkQuietX - plan.legendMarkX,
+            1e-3f,
+        )
+        assertTrue("it never reaches past the shelf's own edge", plan.legendMarkQuietX < plan.rightEdge)
+    }
+
+    @Test
     fun thePetalsBoxIsTheFiguresOwnThreeLines() {
         val plan = plan()
         // «ноль должен быть у цифры». The zero is the baseline, the top is the cap top, and the

@@ -101,9 +101,6 @@ class ContourBoardContractTest {
         // caption and its payload. So the strings and their measured widths are both contract.
         val generator = generator()
         listOf(
-            ContourReadout.CAPTION_PACK,
-            ContourReadout.CAPTION_MOTORS,
-            ContourReadout.CAPTION_INVERTER,
             ContourReadout.CAPTION_SPREAD,
             ContourReadout.CAPTION_REGEN,
             ContourReadout.CAPTION_ENGINE_GAVE,
@@ -216,7 +213,7 @@ class ContourBoardContractTest {
         assertEquals(plan.shelfFigureBaseline, text(board, "rd", "28").second, TOLERANCE)
         assertEquals(
             plan.shelfCaptionBaseline,
-            text(board, "cl", ContourReadout.CAPTION_PACK).second,
+            text(board, "cl", ContourReadout.CAPTION_TRIP).second,
             TOLERANCE,
         )
         assertEquals(plan.shelfFigureBaseline, text(board, "rd", "9,3").second, TOLERANCE)
@@ -225,31 +222,196 @@ class ContourBoardContractTest {
     @Test
     fun theTemperatureCellsAreTheBoardsCells() {
         val cells = planCells(BLUE)
-        // Four cells at the shelf's own top, in the order the shelf reads.
-        val widths = listOf(
-            plan.leftCells[0],
-            plan.leftCells[1],
-            plan.leftCells[2],
-            plan.leftCells[3],
-        )
-        widths.forEachIndexed { index, width ->
+        // Six cells at the shelf's own top: five identical ones for the readings, and the
+        // exception's behind them, which is the only one still sized by a caption.
+        plan.leftCells.forEachIndexed { index, width ->
             val left = plan.leftCell(index)
-            val drawn = cells.firstOrNull { closeTo(it.x, left) && closeTo(it.width, width) }
             assertTrue(
                 "cell $index at $left x $width is not on the plan board; it draws " +
                     cells.filter { closeTo(it.y, plan.guardTop) }.joinToString { "${it.x}x${it.width}" },
-                drawn != null,
+                cells.any { closeTo(it.x, left) && closeTo(it.width, width) },
             )
         }
-        // The three motors share one caption and one degree sign, and their fields are one pitch.
-        val motors = plan.leftCell(1)
-        listOf(0, 1, 2).forEach { index ->
-            val left = motors + index * plan.motorPitch
+        // And the box each glyph stands in, one unit inside its own cell.
+        repeat(ContourGlyphs.Glyph.entries.size) { index ->
+            val left = plan.leftCell(index) + plan.glyphInset
             assertTrue(
-                "motor field $index at $left",
-                cells.any { closeTo(it.x, left) && closeTo(it.width, plan.temperatureField) },
+                "the glyph box of cell $index at $left",
+                cells.any {
+                    closeTo(it.x, left) &&
+                        closeTo(it.y, plan.glyphBaseline - ContourGlyphs.HEIGHT) &&
+                        closeTo(it.width, ContourGlyphs.WIDTH) &&
+                        closeTo(it.height, ContourGlyphs.HEIGHT)
+                },
             )
         }
+    }
+
+    // ---- the five glyphs, which are what the temperature row is named by
+
+    @Test
+    fun theTemperatureRowIsFiveGlyphsAndOneWordThatMeansTrouble() {
+        assertEquals("the family", 5, ContourGlyphs.Glyph.entries.size)
+        assertEquals("five readings and the exception", 6, plan.leftCells.size)
+        plan.leftCells.take(ContourGlyphs.Glyph.entries.size).forEach {
+            assertEquals("every reading's cell is the same width", plan.temperatureCell, it, TOLERANCE)
+        }
+        assertEquals(plan.spreadCell, plan.leftCells[plan.spreadCellIndex], TOLERANCE)
+        // A glyph is narrower than two digits and a degree sign, so the figure sets the cell.
+        assertEquals(
+            "the cell is the wider of its payload and its glyph",
+            plan.temperatureField + plan.degreeWidth,
+            plan.temperatureCell,
+            TOLERANCE,
+        )
+        assertTrue(
+            "and the glyph is the narrower: ${ContourGlyphs.WIDTH} against ${plan.temperatureCell}",
+            ContourGlyphs.WIDTH < plan.temperatureCell,
+        )
+        // Every cell carries its own «°» now - five of them on the calm board, where three motors
+        // used to share one at the end of their run.
+        assertEquals("one degree sign per cell", 5, board().split(">°</text>").size - 1)
+        // The three words are gone from both records, which is what makes a word in this row mean
+        // that the pack is misbehaving.
+        val generator = generator()
+        listOf("БАТАРЕЯ", "МОТОРЫ", "ИНВЕРТОР").forEach {
+            assertTrue("«$it» is still a caption in gen_contour.py", !generator.contains("'$it'"))
+        }
+    }
+
+    @Test
+    fun theGlyphsStandOnTheCaptionBaselineAtTwentyFourUnits() {
+        assertEquals("5.1 mm of glass, not the caption's 2.7", 24f, ContourGlyphs.HEIGHT, 1e-4f)
+        assertEquals(
+            "they stand on the caption baseline rather than hanging from it",
+            plan.shelfCaptionBaseline,
+            plan.glyphBaseline,
+            1e-4f,
+        )
+        assertTrue(
+            "and clear the figures' own baseline: " +
+                "${plan.glyphBaseline - ContourGlyphs.HEIGHT - plan.shelfFigureBaseline}",
+            plan.glyphBaseline - ContourGlyphs.HEIGHT - plan.shelfFigureBaseline >= 8f,
+        )
+        // Every proportion is in caption units, so the family scales with its height alone.
+        assertEquals(24f / InstrumentFace.CAPTION.size, ContourGlyphs.K, 1e-4f)
+        assertEquals(17 * ContourGlyphs.K, ContourGlyphs.WIDTH, 1e-4f)
+        assertTrue(generator().contains("GLYPH = STEP * 3"))
+        assertTrue(generator().contains("GLYPH_K = GLYPH / CAPTION"))
+    }
+
+    @Test
+    fun thePackIsACaseWithATerminalAndOneLitCellInside() {
+        val boxes = boxes(board())
+        val x = plan.leftCell(0) + plan.glyphInset
+        val top = ContourGlyphs.packTop(plan.glyphBaseline)
+        assertBox(
+            "the case", boxes,
+            Box(
+                x, top, ContourGlyphs.PACK_WIDTH - ContourGlyphs.PACK_NUB, ContourGlyphs.PACK_HEIGHT,
+                ContourGlyphs.PACK_RADIUS, MUTED, ContourGlyphs.STROKE,
+            ),
+        )
+        assertBox(
+            "the terminal, which is part of what makes it a battery", boxes,
+            Box(
+                x + ContourGlyphs.PACK_WIDTH - ContourGlyphs.PACK_NUB,
+                top + ContourGlyphs.PACK_NUB_INSET,
+                ContourGlyphs.PACK_NUB,
+                ContourGlyphs.PACK_HEIGHT - 2 * ContourGlyphs.PACK_NUB_INSET,
+                0f, MUTED, 0f,
+            ),
+        )
+        assertBox(
+            "and the cell inside it, which is the only part that carries colour", boxes,
+            Box(
+                x + ContourGlyphs.PACK_CELL_INSET,
+                top + ContourGlyphs.PACK_CELL_INSET,
+                ContourGlyphs.PACK_WIDTH - ContourGlyphs.PACK_CELL_TRIM,
+                ContourGlyphs.PACK_HEIGHT - 2 * ContourGlyphs.PACK_CELL_INSET,
+                0f, INK, 0f,
+            ),
+        )
+    }
+
+    @Test
+    fun aMotorIsABlockOnAnAxleAndEveryWheelIsHollow() {
+        val boxes = boxes(board())
+        val baseline = plan.glyphBaseline
+        MOTORS.forEachIndexed { offset, glyph ->
+            val x = plan.leftCell(offset + 1) + plan.glyphInset
+            assertBox(
+                "the body of $glyph", boxes,
+                Box(
+                    x + ContourGlyphs.BODY_X, ContourGlyphs.bodyTop(baseline),
+                    ContourGlyphs.BODY_WIDTH, ContourGlyphs.BODY_HEIGHT,
+                    ContourGlyphs.BODY_RADIUS, MUTED, ContourGlyphs.STROKE,
+                ),
+            )
+            // Four wheels, outlines every one of them and lighter than the case they stand off:
+            // the motor is the motor, not the wheel it drives.
+            listOf(false, true).forEach { right ->
+                listOf(false, true).forEach { rear ->
+                    assertBox(
+                        "a wheel of $glyph", boxes,
+                        Box(
+                            ContourGlyphs.wheelX(x, right), ContourGlyphs.wheelTop(baseline, rear),
+                            ContourGlyphs.WHEEL_WIDTH, ContourGlyphs.WHEEL_HEIGHT,
+                            ContourGlyphs.WHEEL_RADIUS, MUTED, ContourGlyphs.WHEEL_STROKE,
+                        ),
+                    )
+                }
+            }
+            val rear = glyph != ContourGlyphs.Glyph.MOTOR_FRONT
+            assertBox(
+                "the block of $glyph", boxes,
+                Box(
+                    ContourGlyphs.motorLeft(x, glyph), ContourGlyphs.motorTop(baseline, rear),
+                    ContourGlyphs.motorWidth(glyph), ContourGlyphs.MOTOR_HEIGHT,
+                    ContourGlyphs.MOTOR_RADIUS, INK, 0f,
+                ),
+            )
+        }
+        // The front's bar crosses the whole axle; the rear pair are half bars either side of it.
+        val front = ContourGlyphs.motorWidth(ContourGlyphs.Glyph.MOTOR_FRONT)
+        val half = ContourGlyphs.motorWidth(ContourGlyphs.Glyph.MOTOR_REAR_LEFT)
+        assertTrue("the front bar is the wide one: $front against $half", front > 2 * half)
+        assertTrue(
+            "and the rear pair differ by side",
+            ContourGlyphs.motorLeft(0f, ContourGlyphs.Glyph.MOTOR_REAR_RIGHT) >
+                ContourGlyphs.motorLeft(0f, ContourGlyphs.Glyph.MOTOR_REAR_LEFT),
+        )
+        assertTrue(
+            "and both rear axles, which is not where the front block sits",
+            ContourGlyphs.motorTop(plan.glyphBaseline, rear = true) >
+                ContourGlyphs.motorTop(plan.glyphBaseline, rear = false),
+        )
+    }
+
+    @Test
+    fun theInverterIsACaseWithOnePeriodOfItsOwnCurrentInIt() {
+        val board = board()
+        val x = plan.leftCell(4) + plan.glyphInset
+        val top = ContourGlyphs.inverterTop(plan.glyphBaseline)
+        assertBox(
+            "the case", boxes(board),
+            Box(
+                x, top, ContourGlyphs.INVERTER_SIZE, ContourGlyphs.INVERTER_SIZE,
+                ContourGlyphs.INVERTER_RADIUS, MUTED, ContourGlyphs.STROKE,
+            ),
+        )
+        val wave = WAVE.find(board) ?: error("no wave inside the inverter on the board")
+        assertEquals("it starts inside the case", x + ContourGlyphs.WAVE_INSET, wave.groupValues[1].toFloat(), TOLERANCE)
+        assertEquals(
+            "on the case's own middle",
+            top + ContourGlyphs.INVERTER_SIZE / 2f,
+            wave.groupValues[2].toFloat(),
+            TOLERANCE,
+        )
+        assertEquals("in the component's colour", INK, wave.groupValues[3])
+        assertEquals("at the data weight", ContourGlyphs.STROKE, wave.groupValues[4].toFloat(), TOLERANCE)
+        assertEquals("one period in twenty steps", 20, ContourGlyphs.WAVE_SAMPLES)
+        assertTrue(generator().contains("WAVE_SAMPLES = 20"))
     }
 
     @Test
@@ -356,6 +518,33 @@ class ContourBoardContractTest {
     }
 
     @Test
+    fun theSentenceClosesUpOnceTheFigureLeavesWithTheEngine() {
+        // The states board draws both: the engine generating at 82 s, and the engine forty seconds
+        // dead with its box still up. The words are on the same anchor in both; only the dot moves.
+        val dots = DOT.findAll(states()).map { it.groupValues[1].toFloat() }.toList()
+        assertTrue(
+            "the dot at ${plan.legendMarkX} while the engine runs: $dots",
+            dots.any { closeTo(it, plan.legendMarkX) },
+        )
+        assertTrue(
+            "and at ${plan.legendMarkQuietX} once it has stopped: $dots",
+            dots.any { closeTo(it, plan.legendMarkQuietX) },
+        )
+        assertEquals(
+            "which is exactly the reserve, its unit and both gaps",
+            plan.generationField + plan.smallGap + plan.kilowattWidth + plan.smallGap,
+            plan.legendMarkQuietX - plan.legendMarkX,
+            TOLERANCE,
+        )
+        assertEquals(
+            "the words do not move between the two",
+            plan.legendWindowX,
+            text(states(), "cl", plan.legendWindow).first,
+            TOLERANCE,
+        )
+    }
+
+    @Test
     fun thePetalBoxIsTwoHundredAndThirtyTwoByTheFiguresOwnHeight() {
         val box = planCells(ORANGE).first { closeTo(it.y, plan.petalBoxTop) }
         assertEquals("left", plan.petalBoxLeft, box.x, TOLERANCE)
@@ -457,6 +646,55 @@ class ContourBoardContractTest {
 
     private data class Cell(val x: Float, val y: Float, val width: Float, val height: Float)
 
+    /** One rectangle a glyph is made of, filled or outlined, with everything that decides it. */
+    private data class Box(
+        val x: Float,
+        val y: Float,
+        val width: Float,
+        val height: Float,
+        val radius: Float,
+        val color: String,
+        val stroke: Float,
+    )
+
+    /** Every rectangle on [board], both kinds, in one list - a glyph is drawn from both. */
+    private fun boxes(board: String): List<Box> =
+        GLYPH_FRAME.findAll(board).map {
+            Box(
+                it.groupValues[1].toFloat(),
+                it.groupValues[2].toFloat(),
+                it.groupValues[3].toFloat(),
+                it.groupValues[4].toFloat(),
+                it.groupValues[5].toFloat(),
+                it.groupValues[6],
+                it.groupValues[7].toFloat(),
+            )
+        }.toList() +
+            GLYPH_FILL.findAll(board).map {
+                Box(
+                    it.groupValues[1].toFloat(),
+                    it.groupValues[2].toFloat(),
+                    it.groupValues[3].toFloat(),
+                    it.groupValues[4].toFloat(),
+                    it.groupValues[6].ifEmpty { "0" }.toFloat(),
+                    it.groupValues[5],
+                    0f,
+                )
+            }.toList()
+
+    private fun assertBox(what: String, boxes: List<Box>, want: Box) {
+        assertTrue(
+            "$what: $want is not drawn; near it the board has " +
+                boxes.filter { kotlin.math.abs(it.x - want.x) < ContourGlyphs.WIDTH },
+            boxes.any {
+                closeTo(it.x, want.x) && closeTo(it.y, want.y) &&
+                    closeTo(it.width, want.width) && closeTo(it.height, want.height) &&
+                    closeTo(it.radius, want.radius) && it.color == want.color &&
+                    closeTo(it.stroke, want.stroke)
+            },
+        )
+    }
+
     private fun planCells(color: String): List<Cell> =
         OUTLINE.findAll(planBoard())
             .filter { it.groupValues[5] == color }
@@ -548,6 +786,17 @@ class ContourBoardContractTest {
         const val RETURN_INK = "#4B9BE0"
         const val DEEP = "#7C858F"
 
+        /** A glyph's outline, and the component inside it in the ordinary case. */
+        const val MUTED = "#86909B"
+        const val INK = "#DAE1EB"
+
+        /** The three cars, in the order the shelf draws them after the pack. */
+        val MOTORS = listOf(
+            ContourGlyphs.Glyph.MOTOR_FRONT,
+            ContourGlyphs.Glyph.MOTOR_REAR_LEFT,
+            ContourGlyphs.Glyph.MOTOR_REAR_RIGHT,
+        )
+
         val cached = mutableMapOf<String, String>()
 
         val FRAME = Regex("""<svg width="([\d.]+)" height="([\d.]+)" viewBox=""")
@@ -569,5 +818,21 @@ class ContourBoardContractTest {
         val DOT = Regex("""<circle cx="([\d.]+)" cy="([\d.]+)" r="([\d.]+)" fill="(#[0-9A-F]{6})"/>""")
         val PATH_FILL = Regex("""<path d="[^"]+" fill="(#[0-9A-F]{6})" opacity="([\d.]+)"/>""")
         val PATH_STROKE = Regex("""<path d="[^"]+" fill="none" stroke="(#[0-9A-F]{6})"""")
+
+        /** The two shapes a glyph is drawn from: an outlined rounded rectangle, and a filled one. */
+        val GLYPH_FRAME = Regex(
+            """<rect x="([-\d.]+)" y="([-\d.]+)" width="([\d.]+)" height="([\d.]+)" """ +
+                """rx="([\d.]+)" fill="none" stroke="(#[0-9A-F]{6})" stroke-width="([\d.]+)"/>""",
+        )
+        val GLYPH_FILL = Regex(
+            """<rect x="([-\d.]+)" y="([-\d.]+)" width="([\d.]+)" height="([\d.]+)" """ +
+                """fill="(#[0-9A-F]{6})"(?: rx="([\d.]+)")?/>""",
+        )
+
+        /** And the one thing on the panel drawn with a round cap: the inverter's own current. */
+        val WAVE = Regex(
+            """<path d="M ([\d.]+) ([\d.]+) L[^"]*" fill="none" stroke="(#[0-9A-F]{6})" """ +
+                """stroke-width="([\d.]+)" stroke-linejoin="round" stroke-linecap="round"/>""",
+        )
     }
 }
