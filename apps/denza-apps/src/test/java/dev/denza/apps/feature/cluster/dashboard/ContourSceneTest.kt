@@ -7,6 +7,7 @@ import dev.denza.apps.feature.vehicle.VehicleSignal
 import dev.denza.apps.feature.vehicle.VehicleTelemetry
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -119,6 +120,69 @@ class ContourSceneTest {
         assertTrue(scene.fresh(ContourValue.POWER))
         assertFalse("the figure went", scene.fresh(ContourValue.VOLTS))
         assertTrue("«БАТАРЕЯ · В» stayed", scene.known(ContourValue.VOLTS))
+    }
+
+    @Test
+    fun theFollowedValuesAreHeldAcrossASweepThatDidNotCarryThem() {
+        val scene = ContourScene()
+        run(scene, ready(mapOf(VehicleSignal.POWER_KW to 34.0)), 0.5f)
+        assertEquals(34f, scene.held(ContourValue.POWER)!!, 1e-4f)
+
+        // One sweep drops POWER_KW - a sentinel word, a failed range gate - while the rest of the
+        // batch publishes. The panel's rule is two seconds, so the band keeps the reading it has:
+        // dropping it here teleported the follower and reseeded the peak and the hero's figure.
+        run(scene, ready(mapOf(VehicleSignal.PACK_VOLT to 552.0)), 0.5f)
+        assertTrue("still inside its own horizon", scene.fresh(ContourValue.POWER))
+        assertEquals(34f, scene.held(ContourValue.POWER)!!, 1e-4f)
+
+        run(scene, ready(mapOf(VehicleSignal.POWER_KW to 41.0)), 0.5f)
+        assertEquals(41f, scene.held(ContourValue.POWER)!!, 1e-4f)
+    }
+
+    @Test
+    fun aHeldValueGoesWithItsOwnFreshness() {
+        val scene = ContourScene()
+        run(scene, ready(mapOf(VehicleSignal.POWER_KW to 34.0)), 0.5f)
+        run(scene, ready(mapOf(VehicleSignal.PACK_VOLT to 552.0)), 3f)
+
+        assertFalse(scene.fresh(ContourValue.POWER))
+        assertNull("and there is nothing left to follow", scene.held(ContourValue.POWER))
+    }
+
+    @Test
+    fun aChargeIsHeldAsEnergyArrivingRatherThanAsALoad() {
+        val scene = ContourScene()
+        run(
+            scene,
+            ready(
+                mapOf(
+                    VehicleSignal.CHARGE_GUN to 2.0,
+                    VehicleSignal.CHARGE_KW to 7.0,
+                    VehicleSignal.POWER_KW to -6.8,
+                ),
+            ),
+            0.5f,
+        )
+        assertEquals(-7f, scene.held(ContourValue.POWER)!!, 1e-4f)
+    }
+
+    @Test
+    fun aColdValueIsGivenTheCadenceThatFillsIt() {
+        val scene = ContourScene()
+        val warm = ready(mapOf(VehicleSignal.POWER_KW to 34.0, VehicleSignal.PACK_TEMP_AVG to 31.0))
+        run(scene, warm, 1f)
+        assertTrue(scene.fresh(ContourValue.PACK_TEMP))
+
+        // The cold sweep runs every ten seconds and rebuilds its map from what answered, so one
+        // flaky cold read removes the key from every snapshot until the next one. At a two-second
+        // horizon that blanked a standing temperature for eight seconds.
+        run(scene, ready(mapOf(VehicleSignal.POWER_KW to 34.0)), 12f)
+        assertTrue("one missed cold sweep is not a lost temperature", scene.fresh(ContourValue.PACK_TEMP))
+        assertTrue("while the hot values keep their own two seconds", scene.fresh(ContourValue.POWER))
+
+        run(scene, ready(mapOf(VehicleSignal.POWER_KW to 34.0)), 15f)
+        assertFalse("a second missed sweep is a reading that stopped", scene.fresh(ContourValue.PACK_TEMP))
+        assertTrue("and the caption stays", scene.known(ContourValue.PACK_TEMP))
     }
 
     @Test

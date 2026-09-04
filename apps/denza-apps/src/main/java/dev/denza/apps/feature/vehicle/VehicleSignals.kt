@@ -25,11 +25,29 @@ internal enum class VehicleTransact(val code: Int) {
 }
 
 /**
- * How often a signal is worth re-reading. The hot set is what moves with the
- * pedal; the cold set is temperatures, charging estimates and warning lamps,
+ * How often a signal is worth re-reading, and therefore how long one of its readings stays true.
+ *
+ * The hot set is what moves with the pedal; the cold set is temperatures and charging estimates,
  * which change slowly and would waste a shell round trip at dashboard cadence.
+ *
+ * ### Why the staleness horizon lives here
+ *
+ * The panel has one rule for a stale reading - it is removed after its horizon and its caption stays
+ * - and that rule only means anything if the horizon is sized against the cadence that fills it.
+ * The hot batch answers about four times a second, so two seconds is eight sweeps missed in a row:
+ * a bus that has genuinely stopped. The cold batch answers once every ten seconds and
+ * `VehicleColdSweep` rebuilds its map from each sweep, so *one* flaky cold read removes the key from
+ * every snapshot until the next sweep lands - and at two seconds that blanked a standing temperature
+ * for the remaining eight. [COLD]'s horizon is two of its own intervals with room for the second one
+ * to be late, so a single missed answer costs nothing and two in a row still remove the figure.
  */
-internal enum class VehiclePoll { HOT, COLD }
+internal enum class VehiclePoll(
+    /** How long a reading of this cadence stays on the panel after it last answered. */
+    val staleSeconds: Float,
+) {
+    HOT(2f),
+    COLD(25f),
+}
 
 /**
  * Plausibility gate for a decoded value.
