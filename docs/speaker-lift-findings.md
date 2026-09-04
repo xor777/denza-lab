@@ -1474,7 +1474,11 @@ mini APK for that car's owner.
 
 ## Product contract: report playback, never drive the motor (2026-09-03)
 
-This section is normative for `apps/denza-apps/.../feature/speaker/`. Where it
+> Superseded on 2026-09-04 in three places - the enable step, the hide step, and
+> the raise on switch-on; see *Product contract v2* at the end of this document.
+> The rest of this section still holds.
+
+This section was normative for `apps/denza-apps/.../feature/speaker/`. Where it
 disagrees with the older automation sections above, this one wins.
 
 ### The rule the car already implements
@@ -1711,3 +1715,111 @@ N9, whose amplifier has an auto-lift rule this car does not.
 Do not re-probe the direct position FIDs `0x3D20001E` / `0x4EF52026`, the
 `AUDIO_RLSA_*` family, `startAudioOutput`, or `lamp_status`. All four are
 settled, and repeating them costs a live session for nothing.
+
+## Product contract v2: one report, and the flag is the car's (2026-09-04)
+
+Normative for `apps/denza-apps/.../feature/speaker/`. Where it differs from the
+2026-09-03 contract above, this one wins.
+
+### Verified on the N9
+
+The playback report `0x43E0000A = 1` raised the covers on the N9 on 2026-09-04,
+confirmed by eye. With the Z9GT result of 2026-09-03 both cars are proven to
+answer the same write. Open item 2 of the previous contract is closed.
+
+### The rule
+
+The car owns the covers. It raises them while its stock auto-lift is enabled and
+the instrument bus says music is playing, and it lowers them itself at power-off
+and after an idle. The app adds exactly one thing: for a player the car does not
+know, it tells the car that music is playing. Nothing else.
+
+One property, one value, one direction: `INSTRUMENT_MUSIC_STATE_SET`
+(`0x43E0000A`, device `1007`) = `1`. The app never reads or writes
+`AUDIO_RLSA_STATE_SET` (`0x16300025`), in either value, and never reads its echo
+`0x35A000DA`. `SpeakerCoverFlagContractTest` fails the build if the feature
+package so much as names them.
+
+### Why the flag is left alone
+
+The 2026-09-03 contract had the app write `0x16300025 = 1` whenever the echo read
+`2` and a raise was wanted, and write `2` when the switch went off. Both writes
+put the app's hand on the car's own switch:
+
+- `0x16300025` is the stock auto-lift setting. The N9 draws it in its own
+  Settings (`SpeakerAutoLiftCommon`); the Z9GT has no UI for it and it always
+  reads `1`. On both cars it is the master, and it is the driver's. If the N9
+  driver turns it off, this feature honestly does nothing - which is what
+  "the car is in charge" means.
+- Writing `2` on switch-off made the switch mean two things depending on when you
+  looked: covers locked away until the next ignition, then stock behaviour. A
+  persistent setting must not carry a momentary side effect.
+- Writing `1` when the echo read `2` overrode a stock setting the driver had set,
+  and on the Z9GT also moved the motor, which is the vehicle-specific extra that
+  a firmware update can remove.
+
+Transitional: a car where a previous build wrote `2` stays there until the next
+ignition. The Z9GT read `1` on 2026-09-03 after every August write of `2`, so the
+cycle does reset it.
+
+### The two cars are the same car
+
+Both raise on the report. Both keep the flag at `1` unless a driver turns it off
+in the N9's Settings. The only differences are the car's: the N9 draws the switch
+and the Z9GT does not, and they retract on their own after different idles. There
+is nothing to branch on and nothing to align.
+
+### The product, in one screen
+
+**Switch «Автоуправление динамиками».** On: when a player the car does not know
+starts playing, or a known player comes to the foreground (`SpeakerCoverApps`),
+the app reports once. Off: the app is silent and the car behaves as stock - the
+stock player and Bluetooth raise the covers, Yandex does not. Neither flip writes
+anything to the car. Switching on while an unknown player is already playing
+reports, because the session observer reads active sessions on start; switching
+on in silence moves nothing.
+
+**Button «Поднять».** The same report, once. Answers with the switch off too - it
+is the driver's hand, not the automation. Exists for covers the car retracted on
+its own after an idle.
+
+No «Опустить», and no hide-for-the-trip. The car has no close; the only thing that
+puts the covers away on demand is switching the car's own auto-lift off, and that
+is the car's switch.
+
+| the driver | the covers |
+| --- | --- |
+| opens Yandex Music | rise on open, before the first sound |
+| plays the stock player or Bluetooth | the car raises them; the app is silent |
+| listens to a two-hour podcast | one report at the start; the car holds them by its own rule |
+| finds them down while music plays | presses «Поднять» |
+| switches the car off | the car lowers them, as always |
+| switches the feature off | nothing moves; the car is in charge from here |
+
+### Removed from the code (same day)
+
+- `ENABLE_AUTO_LIFT` and the read of `0x35A000DA`; the transport is one shell
+  command with nothing read first.
+- `HIDE` and the `FeatureDisabled` trigger; switching off stops the watcher.
+- The `FeatureEnabled` trigger; switching on starts the watcher and nothing else.
+- The `DEGRADED` / `FAILED` phases and their texts. A report that does not land
+  is logged; whether the car can be reached at all is the «Сервис» tile's news.
+
+`SpeakerCoverPolicy.reports` is the whole decision and returns a Boolean.
+Eighteen unit tests; seventeen deliberate mutations - each policy branch
+inverted or dropped, wrong device, wrong FID, paused for playing, a read reply
+passing as a write acknowledgement, a package dropped from each list, the flag
+named in the feature - all killed. The one that survived the first pass (a
+two-word read whose exception code is `1`) got its own assertion and died.
+
+### Still open
+
+1. Whether the repeat report 1.2 s after playback is needed at all. The report is
+   a trigger, not a level (reporting `2` does not retract), so the car's own
+   `paused` landing after ours should not matter. One look at the dash with the
+   repeat disabled settles it.
+2. Whether the car retracts under continuous playback of one long track. If it
+   does, a periodic report replaces the 60-second per-player guard.
+3. What the cluster shows for a `PLAYING` report from a player that only opened
+   (source 26, blank metadata), since the eager list reports before any sound.
+

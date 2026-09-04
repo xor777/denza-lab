@@ -42,7 +42,7 @@ still use the historical `denza-gateway` directory name.
 - [docs/vehicle-data-findings.md](docs/vehicle-data-findings.md) — GNSS/IMU for a normal APK; `autoservice` FID protocol for shell-UID BMS/HV/12V reads.
 - [docs/weather-adapter-findings.md](docs/weather-adapter-findings.md) — native weather-provider contract and adapter status.
 - [docs/shortcuts-automation-findings.md](docs/shortcuts-automation-findings.md) — Shortcuts If/Then catalog; the live-proven navigation, music, and video PersonBean roles; and the firmware-specific actions that honor them; PersonBean itself is readable and writable from the app UID through `ContentResolver` (live-proven 2026-09-03).
-- [docs/speaker-lift-findings.md](docs/speaker-lift-findings.md) — Devialet pop-out covers. On the Z9GT `AUDIO_RLSA_STATE_SET` (`0x16300025`) drives the motor both ways as an edge, `1` out / `2` in, with no audio. On the N9 the same property is the stock auto-lift enable flag: `2` retracts, `1` never raises, and the raise correlates with a stock playback-state transition rather than with audio.
+- [docs/speaker-lift-findings.md](docs/speaker-lift-findings.md) — Devialet pop-out covers. On the Z9GT `AUDIO_RLSA_STATE_SET` (`0x16300025`) drives the motor both ways as an edge, `1` out / `2` in, with no audio. On the N9 the same property is the stock auto-lift enable flag: `2` retracts, `1` never raises. The product lever on both cars is the playback report `INSTRUMENT_MUSIC_STATE_SET` (`0x43E0000A`) = `1`, live-proven on the Z9GT (2026-09-03) and the N9 (2026-09-04); the app never touches the flag.
 
 ## Modules
 
