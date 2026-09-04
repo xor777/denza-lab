@@ -189,6 +189,37 @@ class DefaultAppsSheetTest {
         assertTrue(refreshing.substituting || refreshing.canSubstitute)
     }
 
+    /**
+     * The row's icon follows the finger, and shows nothing rather than something wrong.
+     *
+     * A write in flight is where the role is going, so it wins over the package the provider last
+     * confirmed - the same rule the grid's own mark follows. With nothing chosen, or with a chosen
+     * package the catalog has not listed, the row carries its words alone: an icon standing in for
+     * an application that may not be there is worse than no icon.
+     */
+    @Test
+    fun theRowShowsWhereTheRoleIsGoingRatherThanWhereItHasBeen() {
+        val music = choice()
+        val navigator = choice().copy(
+            packageName = "ru.yandex.yandexnavi",
+            label = "Яндекс Навигатор",
+        )
+        val confirmed = DefaultAppRoleUiState(
+            role = DefaultAppRole.MUSIC,
+            selectedPackageName = music.packageName,
+            choices = listOf(music, navigator),
+            status = DefaultAppRoleStatus.READY,
+            providerConfirmed = true,
+        )
+        assertEquals(music, defaultAppsRowChoice(confirmed))
+
+        val writing = confirmed.copy(pendingPackageName = navigator.packageName)
+        assertEquals(navigator, defaultAppsRowChoice(writing))
+
+        assertEquals(null, defaultAppsRowChoice(confirmed.copy(selectedPackageName = null)))
+        assertEquals(null, defaultAppsRowChoice(confirmed.copy(choices = emptyList())))
+    }
+
     private fun choice(): DefaultAppChoice = DefaultAppChoice(
         packageName = "ru.yandex.music",
         label = "Яндекс Музыка",

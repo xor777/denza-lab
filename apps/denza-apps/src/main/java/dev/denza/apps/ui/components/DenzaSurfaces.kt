@@ -58,8 +58,9 @@ fun DenzaSheet(
     compact: Boolean,
     modifier: Modifier = Modifier,
     dismissOnOutsideTouch: Boolean = true,
+    scrolls: Boolean = true,
     footer: @Composable () -> Unit = {},
-    content: @Composable () -> Unit,
+    content: @Composable ColumnScope.() -> Unit,
 ) {
     Dialog(
         onDismissRequest = onDismiss,
@@ -117,13 +118,22 @@ fun DenzaSheet(
                 // capped at half the panel whatever their size. On the car that silently hid the
                 // mirrors' processing switch and its "check the cameras" button below a scroll
                 // nobody could see the need for, and left the projection panel a void.
+                //
+                // [scrolls] is off for a page whose body is one long list. A list has its own
+                // scroll, and a panel that scrolls too puts one inside the other: the list moves
+                // until it runs out and then drags the page under it, and the two offsets survive
+                // the content being swapped - which is how switching a role opened the next list
+                // four rows in. With the column not scrolling, a child may take `weight(1f)` and
+                // be the single thing that scrolls.
                 Column(
                     modifier = Modifier.weight(1f)
-                        .verticalScroll(rememberScrollState()),
+                        .then(
+                            if (scrolls) Modifier.verticalScroll(rememberScrollState())
+                            else Modifier,
+                        ),
                     verticalArrangement = Arrangement.spacedBy(DenzaMetrics.Space.XL),
-                ) {
-                    content()
-                }
+                    content = content,
+                )
                 footer()
             }
         }
@@ -140,6 +150,11 @@ fun DenzaSheet(
  * [onTitleTap] exists for one caller and is null everywhere else: a panel's title answers no touch
  * unless the panel says otherwise. It is deliberately on the title alone and not on the header, so
  * the subtitle and the way out keep answering only what they answer.
+ *
+ * [onBack] turns the same header into a page's: the leading slot stops repeating the tile and
+ * becomes the way back to the panel this page was opened from. It wins over [icon] rather than
+ * sitting beside it - a page reached from a row inside a panel has no tile of its own to repeat,
+ * and two glyphs before one title is a toolbar.
  */
 @Composable
 fun DenzaSheetHeader(
@@ -149,13 +164,24 @@ fun DenzaSheetHeader(
     modifier: Modifier = Modifier,
     icon: ImageVector? = null,
     onTitleTap: (() -> Unit)? = null,
+    onBack: (() -> Unit)? = null,
 ) {
     Row(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(DenzaMetrics.Space.M),
         verticalAlignment = Alignment.Top,
     ) {
-        if (icon != null) {
+        if (onBack != null) {
+            val backTaps = remember { MutableInteractionSource() }
+            Icon(
+                imageVector = DenzaIcons.Back,
+                contentDescription = "Назад",
+                tint = DenzaColors.Muted,
+                modifier = Modifier
+                    .size(CLOSE_ICON)
+                    .clickable(interactionSource = backTaps, indication = null, onClick = onBack),
+            )
+        } else if (icon != null) {
             Icon(
                 imageVector = icon,
                 contentDescription = null,

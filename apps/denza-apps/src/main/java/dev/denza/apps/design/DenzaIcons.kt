@@ -156,6 +156,30 @@ object DenzaIcons {
     )
 
     /**
+     * The way back from a page to the panel it was opened from.
+     *
+     * It shares the header's leading slot with a tile's own icon and never appears beside it: a
+     * chooser opened from a row is not the panel for a tile, so there is no tile to repeat. Drawn
+     * on the same centred box as [Close], because the pair sits at the two ends of one row and a
+     * glyph hung on a text column at one end would read as the lower of the two.
+     */
+    val Back: ImageVector = centredIcon(
+        "denza_back",
+        "M15 6l-6 6 6 6",
+    )
+
+    /**
+     * The chevron on a row that opens a page - [Back] the other way round, which is the point.
+     *
+     * A row whose value line is icons and a fragment says nothing about being touchable; this is
+     * the whole of what says so, and it has to be the same shape the way out will be.
+     */
+    val Forward: ImageVector = centredIcon(
+        "denza_forward",
+        "M9 6l6 6-6 6",
+    )
+
+    /**
      * One stroked vector on the board's 24-unit grid.
      *
      * The stroke is black and the caller tints it: [androidx.compose.material3.Icon] applies its

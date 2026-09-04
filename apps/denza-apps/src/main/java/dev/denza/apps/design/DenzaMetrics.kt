@@ -178,13 +178,16 @@ object DenzaMetrics {
         const val TILE_COLUMNS_WIDE: Int = 6
 
         /**
-         * How many applications a picker puts in one row.
+         * How many applications a chooser puts in one row.
          *
-         * Not the dashboard's six, which is what it used to borrow. The panel is 480 dp wide and
-         * gives its content 416, so six columns with 8 between them is 62.7 dp a tile - around a
-         * 44 dp icon well, leaving nine either side and eight characters of label. Five is 76.8.
+         * Four, off `AppChooser.dc.html`. The panel is 480 dp wide and gives its content 416, so
+         * four columns with 12 between them is 95 dp a tile and 79 of label - ten Cyrillic letters
+         * at 15 sp, which is «Навигатор», «Кинопоиск» and «Настройки» whole and «Калькулятор» cut.
+         * Five was 73.6 and 57 of label, and cut every Russian name over eight letters; six, which
+         * the dashboard's tiles have and this used to borrow, was 62.7. The chooser has the panel
+         * to itself now, so there is nothing to make room for by packing the row.
          */
-        const val PICKER_COLUMNS: Int = 5
+        const val PICKER_COLUMNS: Int = 4
 
         /**
          * How many rows of chips the narrow pane uses.
@@ -213,26 +216,35 @@ object DenzaMetrics {
         const val NAVIGATION_PICKER_COLUMNS: Int = 3
 
         /**
-         * The default-app roles' row, off `DefaultApps.dc.html`.
-         *
-         * Fewer than [PICKER_COLUMNS] because this grid does not have the panel to itself: the
-         * three roles are a segmented row above it and what the choice does is a line below it,
-         * and the board draws the applications four across under them.
-         */
-        const val DEFAULT_APPS_PICKER_COLUMNS: Int = 4
-
-        /**
          * An application offered for choosing: 12 + 44 + 8 + one line of 15 + 12, off the board.
          */
         val APP_TILE: Dp = 96.dp
 
         /**
-         * How tall a picker's grid may grow before it scrolls.
+         * An application's icon on the value line of a row that opens a chooser.
+         *
+         * Sized to the line of text it stands in rather than to the ladder: the row answers a
+         * "what is chosen" with three or four of these where a sentence would have been, and an
+         * icon taller than its line pushes the title off the row's own vertical centre.
+         */
+        val CHOICE_ICON: Dp = 24.dp
+
+        /**
+         * How tall a grid of applications may grow before it scrolls **inside a panel that
+         * scrolls itself**.
+         *
+         * That is the only case left: the cluster panel holds the navigators inline, between a
+         * heading and a switch, so the grid is one child of a scrolling column and has to be told
+         * how tall it may be before it will measure at all.
+         *
+         * A chooser is not that case and does not read this. It is a page of its own - it takes
+         * the panel, the panel stops scrolling, and the grid is the one thing that scrolls, so
+         * bounding it would be inventing a floor under a list that already ends where the sheet
+         * does. Two scrolls inside one another is what this number used to paper over: the roles'
+         * grid opened four rows into itself because the page it was nested in had kept its offset.
          *
          * Five whole rows of [APP_TILE] with [Space.S] between them is 512; this is that plus a
-         * glimpse of the sixth, which is the only thing on the panel saying there is a sixth. It
-         * used to be 360 - three rows and a stub of the fourth - inside a panel 680 dp tall, so the
-         * picker scrolled while a third of the panel below it stayed empty.
+         * glimpse of the sixth, which is the only thing on the panel saying there is a sixth.
          */
         val PICKER_HEIGHT: Dp = 540.dp
 

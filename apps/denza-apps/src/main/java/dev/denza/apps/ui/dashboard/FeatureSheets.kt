@@ -6,18 +6,25 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import dev.denza.apps.DenzaUiState
-import dev.denza.apps.SimulcastAppChoice
 import dev.denza.apps.core.FeatureStatus
 import dev.denza.apps.design.DenzaMetrics
 import dev.denza.apps.feature.cluster.ClusterMapPlacement
 import dev.denza.apps.feature.mirrors.MirrorsPosition
 import dev.denza.apps.feature.speaker.SpeakerCoverApps
+import dev.denza.apps.ui.FSE_INSTALL_HELP
 import dev.denza.apps.ui.NavigationAppChoices
-import dev.denza.apps.ui.components.DenzaAppGrid
-import dev.denza.apps.ui.components.DenzaAppTile
+import dev.denza.apps.ui.SimulcastAppChooser
+import dev.denza.apps.ui.simulcastChoiceValue
+import dev.denza.apps.ui.components.DenzaChoiceGroup
+import dev.denza.apps.ui.components.DenzaChoiceIcon
+import dev.denza.apps.ui.components.DenzaChoiceRow
 import dev.denza.apps.ui.components.DenzaTileTone
 import dev.denza.apps.ui.components.DenzaNote
 import dev.denza.apps.ui.components.DenzaPrimaryButton
@@ -65,12 +72,32 @@ fun FeatureSheet(
     val busy = snapshot?.status == FeatureStatus.STARTING ||
         snapshot?.status == FeatureStatus.RECOVERING
 
+    // The panel turns into a page when a row on it is pressed, rather than opening a second window
+    // over itself. Projection is the only tile with a choice large enough to earn one; every other
+    // panel here has switches and a segmented row, which fit in the panel and belong in it.
+    var choosingApps by remember { mutableStateOf(false) }
+    // The car is asked when the page opens, not when the panel does. The list is every application
+    // installed, icons and all, and reading it to draw the six the panel already knows about would
+    // be paying for the whole catalog to answer a question the state has answered.
+    LaunchedEffect(choosingApps) {
+        if (choosingApps) actions.onLoadAppChoices()
+    }
+
     val action = panelAction(tile, state, actions, onDismiss)
     DenzaSheet(
-        onDismiss = onDismiss,
+        onDismiss = { if (choosingApps) choosingApps = false else onDismiss() },
         compact = compact,
+        // A page whose body is a grid scrolls in the grid alone; see [DenzaAppChooser].
+        scrolls = !choosingApps,
         footer = {
-            if (action.label.isNotBlank()) {
+            if (choosingApps) {
+                DenzaPrimaryButton(
+                    text = "Готово",
+                    onClick = { choosingApps = false },
+                    modifier = Modifier.fillMaxWidth()
+                        .height(DenzaMetrics.Component.PRIMARY_HEIGHT),
+                )
+            } else if (action.label.isNotBlank()) {
                 Column(verticalArrangement = Arrangement.spacedBy(DenzaMetrics.Space.M)) {
                     DenzaPrimaryButton(
                         text = action.label,
@@ -86,6 +113,17 @@ fun FeatureSheet(
             }
         },
     ) {
+        if (choosingApps) {
+            SimulcastAppChooser(
+                apps = state.appChoices,
+                compact = compact,
+                selectedCount = state.selectedAppCount,
+                onToggle = actions.onToggleApp,
+                onBack = { choosingApps = false },
+                onDismiss = onDismiss,
+            )
+            return@DenzaSheet
+        }
         // No subtitle. The panel says what it is at the bottom, in a sentence, once.
         DenzaSheetHeader(
             title = tile.name,
@@ -115,7 +153,7 @@ fun FeatureSheet(
         )
         when (id) {
             TileId.CLUSTER -> clusterSheet(state, actions, busy, compact)
-            TileId.SIMULCAST -> simulcastSheet(state, actions, busy, compact)
+            TileId.SIMULCAST -> simulcastSheet(state, actions, busy) { choosingApps = true }
             TileId.MIRRORS -> mirrorsSheet(state, actions, busy)
             TileId.SPLIT -> splitSheet(state, actions, busy)
             TileId.HUD -> hudSheet(state, actions, busy)
@@ -171,8 +209,10 @@ private fun helpOf(id: TileId): String = when (id) {
     TileId.LOCALE ->
         "Родной русский язык уже встроен в систему — " +
             "переключатель включает его в штатных настройках машины."
-    TileId.PASSENGER ->
-        "Выбранное приложение устанавливается на экран перед пассажиром."
+    // The tile no longer opens a panel - both of its gestures open the chooser, and the sentence
+    // is drawn at the chooser's foot. It stays in this table so the table stays exhaustive and so
+    // the one sentence has one owner.
+    TileId.PASSENGER -> FSE_INSTALL_HELP
     TileId.DEFAULT_APPS -> DEFAULT_APPS_SHORTCUTS_HELP
     TileId.SERVICE ->
         "Показания машины, доступ приложения к ней и штатные настройки, до которых оно дотягивается."
@@ -301,13 +341,21 @@ private fun clusterSheet(
     )
 }
 
-/** Which applications go to the screens. */
+/**
+ * Which applications go to the screens - said as an answer, not asked as a grid.
+ *
+ * The panel used to hang the whole catalog under this switch, capped and nested inside the panel's
+ * own scroll, and it drew nothing at all until the catalog had been read. So the panel's height
+ * changed under the driver, and a list of everything installed sat where a setting belongs. What
+ * belongs here is what is chosen: the icons, or the one line that says none are. The choosing is a
+ * page, opened by pressing the row.
+ */
 @Composable
 private fun simulcastSheet(
     state: DenzaUiState,
     actions: DashboardActions,
     busy: Boolean,
-    compact: Boolean,
+    onChoose: () -> Unit,
 ) {
     DenzaSwitchRow(
         title = "Поддержка трансляции",
@@ -315,25 +363,15 @@ private fun simulcastSheet(
         onCheckedChange = actions.onToggleSimulcast,
         enabled = !busy,
     )
-    if (state.appChoices.isNotEmpty()) {
-        DenzaSection("Что транслировать") {
-            DenzaAppGrid(
-                items = state.appChoices,
-                key = SimulcastAppChoice::packageName,
-                compact = compact,
-            ) { choice ->
-                DenzaAppTile(
-                    label = choice.label,
-                    selected = choice.selected,
-                    onClick = { actions.onToggleApp(choice.packageName) },
-                    icon = choice.icon,
-                    iconKey = choice.packageName,
-                    // Six is the ceiling, and the seventh tile says so by going quiet - the same
-                    // way, and from the same flag, as in the picker this panel duplicates.
-                    enabled = choice.selectable,
-                )
-            }
-        }
+    DenzaChoiceGroup(listOf(Unit)) {
+        DenzaChoiceRow(
+            title = "Что транслировать",
+            value = simulcastChoiceValue(state.selectedApps),
+            icons = state.selectedApps.map { app ->
+                DenzaChoiceIcon(key = app.packageName, label = app.label, drawable = app.icon)
+            },
+            onClick = onChoose,
+        )
     }
 }
 
@@ -474,11 +512,10 @@ private fun localeSheet(state: DenzaUiState, actions: DashboardActions) {
     )
 }
 
-// The panel's own column count is gone with the panel's own grid. How many applications fit in a
-// row is [dev.denza.apps.ui.components.DenzaAppGrid]'s to answer, and it answers it the same way
-// for a settings panel and for a whole-sheet picker - which is the point: the projection's
+// The panel's own grid is gone, and with it the panel's own column count. The projection's
 // applications used to sit four to a row here and five to a row in the picker listing the same
-// applications, and on a narrow pane this grid kept its four and drew them 79 dp wide.
+// applications, and on a narrow pane this grid kept its four and drew them 79 dp wide. There is
+// one chooser now and it answers both doors the same way.
 
 private fun placementLabel(placement: ClusterMapPlacement): String = when (placement) {
     ClusterMapPlacement.FULL -> "Полный"

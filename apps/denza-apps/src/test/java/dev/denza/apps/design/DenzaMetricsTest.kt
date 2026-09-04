@@ -60,29 +60,30 @@ class DenzaMetricsTest {
     // ellipsis on the car.
 
     /**
-     * The three picker rows are one decision, restated three times.
+     * The picker rows are one decision, restated twice.
      *
      * [DenzaMetrics.Component.PICKER_COLUMNS] carries the reasoning - the panel is 480 dp and
-     * gives its content 416, so five columns is 73.6 dp a tile and six was rejected for leaving
-     * eight characters of label. Those numbers are only true while the panel, the gap and the
-     * count agree, and the other two pickers list fewer things than "everything installed", so
-     * neither may pack its row tighter than the one that does.
+     * gives its content 416, so four columns is 95 dp a tile and ten Cyrillic letters of label;
+     * five was 73.6 and cut every Russian name over eight letters, six was 62.7. Those numbers are
+     * only true while the panel, the gap and the count agree, and the navigators are fewer things
+     * than "everything installed", so their row may not be packed tighter than the one that lists
+     * the lot.
+     *
+     * The default-app roles used to have a count of their own, four, because their grid shared a
+     * panel with a segmented row and a status line. The chooser owns the whole panel now, so they
+     * are drawn at [DenzaMetrics.Component.PICKER_COLUMNS] like everything else and the constant
+     * is gone.
      */
     @Test
     fun noPickerRowIsTighterThanTheOneThatListsEverything() {
-        assertEquals(73.6f, pickerTileWidth(DenzaMetrics.Component.PICKER_COLUMNS), 0.05f)
-        listOf(
-            DenzaMetrics.Component.NAVIGATION_PICKER_COLUMNS,
-            DenzaMetrics.Component.DEFAULT_APPS_PICKER_COLUMNS,
-        ).forEach { columns ->
-            assertTrue(
-                "$columns columns leave ${pickerTileWidth(columns)} dp a tile, under the " +
-                    "${pickerTileWidth(DenzaMetrics.Component.PICKER_COLUMNS)} dp of the picker " +
-                    "that lists every application on the car",
-                pickerTileWidth(columns) >=
-                    pickerTileWidth(DenzaMetrics.Component.PICKER_COLUMNS),
-            )
-        }
+        assertEquals(95.0f, pickerTileWidth(DenzaMetrics.Component.PICKER_COLUMNS), 0.05f)
+        val columns = DenzaMetrics.Component.NAVIGATION_PICKER_COLUMNS
+        assertTrue(
+            "$columns columns leave ${pickerTileWidth(columns)} dp a tile, under the " +
+                "${pickerTileWidth(DenzaMetrics.Component.PICKER_COLUMNS)} dp of the picker " +
+                "that lists every application on the car",
+            pickerTileWidth(columns) >= pickerTileWidth(DenzaMetrics.Component.PICKER_COLUMNS),
+        )
     }
 
     @Test

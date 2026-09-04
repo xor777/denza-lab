@@ -52,6 +52,7 @@ class MainActivity : ComponentActivity() {
                         DenzaAppRepository::setDefaultAppsEnabled,
                     onSelectDefaultApp = DenzaAppRepository::selectDefaultApp,
                     onChooseApps = DenzaAppRepository::showAppPicker,
+                    onLoadAppChoices = DenzaAppRepository::refreshAppChoices,
                     onCloseAppPicker = DenzaAppRepository::hideAppPicker,
                     onToggleApp = DenzaAppRepository::toggleAppSelection,
                     onChooseFseApp = DenzaAppRepository::showFseInstallerPicker,

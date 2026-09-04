@@ -108,6 +108,7 @@ fun DenzaAppsRoot(
     onRefreshStockRussianLocale: () -> Unit,
     onSetStockRussianLocaleEnabled: (Boolean) -> Unit,
     onChooseApps: () -> Unit,
+    onLoadAppChoices: () -> Unit,
     onCloseAppPicker: () -> Unit,
     onToggleApp: (String) -> Unit,
     onRefreshDefaultApps: (Boolean) -> Unit,
@@ -156,11 +157,23 @@ fun DenzaAppsRoot(
             showClusterPicker = true
         }
     }
-    val openSettings = remember(onRefreshDefaultApps) {
+    val openSettings = remember(onRefreshDefaultApps, onChooseFseApp) {
         { id: TileId ->
-            // Opening the tile asks the car only if the last read has gone stale.
-            if (id == TileId.DEFAULT_APPS) onRefreshDefaultApps(false)
-            settingsFor = id
+            when (id) {
+                // Opening the tile asks the car only if the last read has gone stale.
+                TileId.DEFAULT_APPS -> {
+                    onRefreshDefaultApps(false)
+                    settingsFor = id
+                }
+                // «Экран справа» has no settings. Its panel held one sentence and a button that
+                // opened the chooser the tile's own press opens, so a long press and a short
+                // press on one tile led to two screens, one of them empty. Both open the chooser
+                // now, and the sentence went with it - see [FseInstallerPickerDialog].
+                TileId.PASSENGER -> onChooseFseApp()
+                else -> {
+                    settingsFor = id
+                }
+            }
         }
     }
     // The callbacks this function still takes, gathered once so a tile and its settings
@@ -176,6 +189,7 @@ fun DenzaAppsRoot(
         onLaunchSimulcast,
         onRepairSimulcast,
         onChooseApps,
+        onLoadAppChoices,
         onToggleApp,
         onToggleMirrors,
         onMirrorsPosition,
@@ -204,6 +218,7 @@ fun DenzaAppsRoot(
             onLaunchSimulcast = onLaunchSimulcast,
             onRepairSimulcast = onRepairSimulcast,
             onChooseApps = onChooseApps,
+            onLoadAppChoices = onLoadAppChoices,
             onToggleApp = onToggleApp,
             onToggleMirrors = onToggleMirrors,
             onMirrorsPosition = onMirrorsPosition,

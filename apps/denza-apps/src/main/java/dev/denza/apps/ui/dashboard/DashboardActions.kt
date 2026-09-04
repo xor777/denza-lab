@@ -20,6 +20,8 @@ data class DashboardActions(
     val onLaunchSimulcast: () -> Unit,
     val onRepairSimulcast: () -> Unit,
     val onChooseApps: () -> Unit,
+    /** Read the car's applications for a chooser that is already open, without opening one. */
+    val onLoadAppChoices: () -> Unit,
     val onToggleApp: (String) -> Unit,
     val onToggleMirrors: (Boolean) -> Unit,
     val onMirrorsPosition: (MirrorsPosition) -> Unit,

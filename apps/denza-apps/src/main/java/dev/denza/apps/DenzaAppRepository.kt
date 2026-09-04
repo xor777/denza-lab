@@ -70,6 +70,16 @@ import kotlinx.coroutines.runBlocking
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 
+/**
+ * How many applications the projection carries, where the screen can read it.
+ *
+ * [SimulcastApps] is package-private - it is the row's own storage and has no business being
+ * reachable from the UI - but the chooser's header has to say the allowance out loud, and a 6
+ * typed into a Russian sentence in `ui/` is a second copy of the limit waiting to disagree with
+ * the first. This is the one value that crosses, and it crosses by reading the original.
+ */
+const val SIMULCAST_MAX_SELECTED: Int = SimulcastApps.MAX_SELECTED
+
 data class SimulcastAppChoice(
     val packageName: String,
     val label: String,
@@ -339,6 +349,20 @@ object DenzaAppRepository {
 
     fun hideAppPicker() {
         stateStore.update { current -> current.copy(appPickerVisible = false) }
+    }
+
+    /**
+     * Sweep the car for applications without opening anything.
+     *
+     * The chooser inside the projection panel is a page of that panel rather than a window of its
+     * own, so it has nothing for [showAppPicker]'s `appPickerVisible` to raise - and raising it
+     * anyway would put the whole-sheet picker on top of the page showing the same list. Reading is
+     * the half both doors share; which surface appears is the caller's business.
+     */
+    fun refreshAppChoices() {
+        val context = appContext ?: return
+        val appChoices = loadAppChoices(context)
+        stateStore.update { current -> current.copy(appChoices = appChoices) }
     }
 
     fun showFseInstallerPicker() {
@@ -1954,10 +1978,11 @@ object DenzaAppRepository {
                     selectable = isSelected || roomLeft,
                 )
             }
-            .sortedWith(
-                compareBy<SimulcastAppChoice> { selectedOrder[it.packageName] ?: Int.MAX_VALUE }
-                    .thenBy(String.CASE_INSENSITIVE_ORDER) { it.label },
-            )
+            // By name alone. The chosen used to lead, and the list was rebuilt on every toggle, so
+            // the tile the driver had just pressed left from under the finger and reappeared at
+            // the top. The mark on the tile already says which are chosen; a fixed order is what
+            // lets the eye find the same tile twice.
+            .sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER, SimulcastAppChoice::label))
     }
 
     private fun selectedAppChoices(context: Context): List<SimulcastAppChoice> =
