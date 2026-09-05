@@ -322,13 +322,47 @@ class ContourPlanTest {
     fun aFaceTooWideForTheSentenceDropsTheWindowRatherThanRunningPastTheBox() {
         // The car's Roboto is not Chrome's, and this is the one string long enough for that to
         // matter. Nothing else in the phrase can go: the figure is the reading, the unit is what
-        // makes it one, and «В БАТАРЕЮ» is the half that says which way the energy went.
-        assertEquals(ContourReadout.LEGEND_INTO_PACK, plan().legendWindow)
-        val wide = plan(widerWindow(1.3f))
+        // makes it one, «В БАТАРЕЮ» is the half that says which way the energy went, and the
+        // duration is the window the shape above is true over.
+        val base = plan()
+        assertEquals(ContourReadout.LEGEND_INTO_PACK, base.legendWindow)
+        // The factor is derived rather than guessed: whatever the phrase's fixed head costs, the
+        // window has exactly the rest of the box less one guard, and a face two per cent past that
+        // is a face the long form does not fit. A literal here went stale the moment the window
+        // stopped being «2 МИН» and started being «0:00», 26 units narrower.
+        val head = base.legendPhraseWidth - base.legendWindowWidth
+        val room = base.engineBoxWidth - base.clearance - head
+        val wide = plan(widerWindow(room / base.legendWindowWidth * 1.02f))
         assertEquals(ContourReadout.LEGEND_INTO_PACK_SHORT, wide.legendWindow)
         assertTrue(
             "and the short one still fits: ${wide.legendPhraseWidth} in ${wide.engineBoxWidth}",
             wide.legendPhraseWidth + wide.clearance <= wide.engineBoxWidth,
+        )
+        // Just inside it the long form is kept, so the fallback is a threshold and not a slope.
+        val snug = plan(widerWindow(room / base.legendWindowWidth * 0.98f))
+        assertEquals(ContourReadout.LEGEND_INTO_PACK, snug.legendWindow)
+    }
+
+    @Test
+    fun everyValueOfTheWindowIsTheWidthTheAnchorsWereMeasuredFrom() {
+        // The phrase is laid out right to left off the shelf's edge, so if «0:05» and «1:22» were
+        // different widths the words in front of them would walk as the engine ran. They are not:
+        // the figures are tabular and a «м:сс» is four glyphs and a mark. The template decides the
+        // anchors, and this is the join between the template and what is actually drawn.
+        val base = plan()
+        val drawn = listOf(0, 5, 82, 120, ContourReadout.MAX_WINDOW_SECONDS)
+            .map { ContourReadout.intoPack(it, short = false) }
+        drawn.forEach { phrase ->
+            assertEquals(
+                "«$phrase» is the template's own length",
+                ContourReadout.LEGEND_INTO_PACK.length,
+                phrase.length,
+            )
+        }
+        assertEquals(
+            "and the template is what the plan measured",
+            ContourReadout.LEGEND_INTO_PACK,
+            base.legendWindow,
         )
     }
 

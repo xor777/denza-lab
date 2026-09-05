@@ -748,9 +748,13 @@ internal class ClusterDashboardRenderer {
     ) {
         val y = pen.v(plan.engineLegendBaseline)
         val dotY = y - pen.v(InstrumentFace.CAPTION.capHeight / 2f)
+        // «ПОСЛЕДНИЕ 0:40» while the box is forty seconds wide. The literal two minutes it used to
+        // print was the box's *capacity*, and the box is never front-padded: the phrase claimed a
+        // window from the first second of an engine run that the shape above it did not have.
+        // Tabular figures make every value of it one width, so no anchor here moves.
         pen.text(
             canvas,
-            plan.legendWindow,
+            ContourReadout.intoPack(t.engineTrace.spanSeconds, plan.legendShortened),
             pen.v(plan.legendWindowX),
             y,
             InstrumentFace.CAPTION,
@@ -832,7 +836,14 @@ internal class ClusterDashboardRenderer {
         }
 
         if (!scene.known(ContourValue.PETAL)) return
-        petalUnit(canvas, plan, ContourReadout.UNIT_PER_100KM)
+        // «за 1,2 км» until the window is full. Three kilometres is what the log holds when it has
+        // them, and five hundred metres printed under «за 3 км» is the same defect this window was
+        // added to fix, one level down.
+        petalUnit(
+            canvas,
+            plan,
+            ContourReadout.perHundredKm(ConsumptionWindow.coveredKm(t.consumption), ConsumptionWindow.KM),
+        )
         if (!scene.fresh(ContourValue.PETAL)) return
         val average = ContourReadout.averageConsumption(ConsumptionWindow.raw(t.consumption)) ?: return
         petalFigure(canvas, plan, ContourReadout.consumption(average, stage.parked), stage)

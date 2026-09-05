@@ -74,18 +74,28 @@ internal object ContourReadout {
      * shape is, what it is worth now, and how far back it goes, in that order. The words «ГЕНЕРАЦИЯ»
      * and «ОБОРОТЫ» are on no part of this panel any more.
      *
-     * The window is the trace's own two minutes, which is why it is written into the string rather
-     * than formatted from a duration: a caption is a coordinate here, and this one is measured.
+     * **And the window is the box's own reach rather than a literal.** «ПОСЛЕДНИЕ 2 МИН» was
+     * printed from the first second of an engine run, over a box one step wide: the trace grows
+     * from the right and is never front-padded, so two minutes is what it holds when it is full and
+     * nothing else. The figure beside it was honest about a five-second window and the words were
+     * not. It is written as «м:сс» in the panel's tabular figures, so every value is the same width
+     * and no anchor in the phrase moves - which is how the caption can be a coordinate and a
+     * reading at the same time. See [intoPack].
      */
-    const val LEGEND_INTO_PACK = "В БАТАРЕЮ · ПОСЛЕДНИЕ 2 МИН"
+    const val LEGEND_PREFIX = "В БАТАРЕЮ · ПОСЛЕДНИЕ "
 
     /**
      * And what is left of it if the face in use crowds the phrase against its own box.
      *
-     * Only the window can go. The figure is the reading, the unit is what makes it one, and
-     * «В БАТАРЕЮ» is the half of the sentence that says which direction the energy went.
+     * Only «ПОСЛЕДНИЕ» can go. The figure is the reading, the unit is what makes it one,
+     * «В БАТАРЕЮ» is the half of the sentence that says which direction the energy went, and the
+     * duration is the window the shape above is true over.
      */
-    const val LEGEND_INTO_PACK_SHORT = "В БАТАРЕЮ · 2 МИН"
+    const val LEGEND_PREFIX_SHORT = "В БАТАРЕЮ · "
+
+    /** What the phrase is *measured* from: every «м:сс» is four tabular glyphs and one mark. */
+    const val LEGEND_INTO_PACK = LEGEND_PREFIX + "0:00"
+    const val LEGEND_INTO_PACK_SHORT = LEGEND_PREFIX_SHORT + "0:00"
 
     const val UNIT_KW = "кВт"
     const val UNIT_KWH = "кВт·ч"
@@ -102,11 +112,35 @@ internal object ContourReadout {
     /** Both charging ids are gated to 0…99, so anything past this is a bad read, not a charge. */
     const val MAX_CHARGE_MINUTES = 99 * 60 + 59
 
-    /** The petal's unit, and the window is in it: the figure is never the trip average. */
-    const val UNIT_PER_100KM = "кВт·ч/100 км · за 3 км"
+    /**
+     * The petal's unit, and the window is in it: the figure is never the trip average.
+     *
+     * Three kilometres is what the log has *closed*, not what the window is sized for. A history
+     * that has just started - a fresh install, a reset journal, the first minutes of a drive - is
+     * five hundred metres of road printed under «за 3 км», which is the seventh pass's own defect
+     * one level down. The drawn form is [perHundredKm]; this is the case where the window is full.
+     */
+    const val UNIT_PER_100KM_PREFIX = "кВт·ч/100 км · за "
+    const val UNIT_PER_100KM = UNIT_PER_100KM_PREFIX + "3 км"
+
+    /**
+     * And the widest it ever is, which is any distance still filling the window.
+     *
+     * The figures are tabular, so «за 0,3 км» and «за 2,7 км» are one width and this template
+     * measures them all. The unit is left-aligned against the figure's reserve and nothing hangs
+     * off it, so its own width is allowed to change: there is nothing to its right but the petal's
+     * cut-out, which it clears by 89.9 at its widest.
+     */
+    const val UNIT_PER_100KM_FILLING = UNIT_PER_100KM_PREFIX + "1,2 км"
 
     /** What replaces it while a gun is in, over a figure that is a duration rather than a rate. */
     const val UNIT_CHARGE_LEFT = "до полной"
+
+    /** The petal's unit ends in this, whatever distance it names. */
+    const val KM_SUFFIX = " км"
+
+    /** Past this a «м:сс» gains a glyph and every anchor in front of it would move. */
+    const val MAX_WINDOW_SECONDS = 9 * 60 + 59
 
     // ---- the thresholds, unchanged from the panel this replaces
 
@@ -142,6 +176,9 @@ internal object ContourReadout {
 
     // ---- the numbers
 
+    /** The odometer arrives in tenths and the differences accumulate in doubles. */
+    private const val KM_EPSILON = 1e-6
+
     /** A whole number, and never a dash: a value that is not there is not drawn at all. */
     fun whole(value: Double): String = String.format(Locale.US, "%.0f", value)
 
@@ -159,6 +196,39 @@ internal object ContourReadout {
      */
     fun consumption(perHundredKm: Double, parked: Boolean): String =
         if (parked) tenth(perHundredKm) else whole(perHundredKm)
+
+    /**
+     * The petal's unit, naming the road the figure beside it is actually the mean of.
+     *
+     * @param coveredKm what the closed buckets add up to
+     * @param windowKm what the window holds once it is full
+     */
+    fun perHundredKm(coveredKm: Double, windowKm: Double): String =
+        if (coveredKm >= windowKm - KM_EPSILON) {
+            UNIT_PER_100KM_PREFIX + whole(windowKm) + KM_SUFFIX
+        } else {
+            UNIT_PER_100KM_PREFIX + tenth(coveredKm) + KM_SUFFIX
+        }
+
+    /**
+     * The engine box's sentence, naming how far back the box actually reaches.
+     *
+     * @param seconds the trace's own span, which is the box's own width in seconds
+     * @param short whether the face in use crowds «ПОСЛЕДНИЕ» out of the phrase
+     */
+    fun intoPack(seconds: Int, short: Boolean): String =
+        (if (short) LEGEND_PREFIX_SHORT else LEGEND_PREFIX) + clock(seconds)
+
+    /**
+     * A duration as «м:сс», in tabular figures, so that its width is a constant.
+     *
+     * Clamped at [MAX_WINDOW_SECONDS]: past it the string gains a glyph, and the phrase in front of
+     * it is laid out right to left off a fixed edge. The trace it names is two minutes long.
+     */
+    fun clock(seconds: Int): String {
+        val bounded = seconds.coerceIn(0, MAX_WINDOW_SECONDS)
+        return String.format(Locale.US, "%d:%02d", bounded / 60, bounded % 60)
+    }
 
     /**
      * What is left of a charge, as the petal prints it: «2:15», and «12 ч» once it is hours.

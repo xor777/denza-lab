@@ -25,7 +25,7 @@ that reports what collides.
 | `canvas.json` | positions, pages and the launch view |
 | `gen_cluster.py` | emits the three cluster boards as they stand on the car today, with the current fixed 3 km consumption window |
 | `gen_next.py` | emits the proposed cluster: one horizon, two histories, the gauge |
-| `gen_contour.py` | emits the Contour - the cluster concept that won the 2026-09 contest - as the calm panel, fifteen scenes, and the plan with every number on it |
+| `gen_contour.py` | emits the Contour - the cluster concept that won the 2026-09 contest - as the calm panel, sixteen scenes, and the plan with every number on it |
 | `gen_kit.py` | emits the two boards that describe the system, from the system |
 | `gen_panes.py` | emits the dashboard's two pane boards from `Main.dc.html` and the pane geometry, and the dashboard underlay both sheet boards are drawn over |
 | `panel_frame.py` | archived tooling for the four retired head-unit instrument concepts; rebuilds Energy |
@@ -455,7 +455,7 @@ that concept drawn: three boards, all from the same constants.
 | | |
 | --- | --- |
 | `ClusterContour.dc.html` | calm driving, engine asleep - the state the panel is in most of the time |
-| `ClusterContourStates.dc.html` | fifteen scenes as a column: first seconds, a traffic jam whose engine ran earlier and stopped long ago, calm, an acceleration, regeneration, the engine generating both ways it can be drawn, the engine forty seconds dead, standing on P, charging, charging with no consumption history behind it and an estimate too long for the seat, a single null, link lost, an exception, and the missing ADB key |
+| `ClusterContourStates.dc.html` | sixteen scenes as a column: first seconds, a traffic jam whose engine ran earlier and stopped long ago, calm, the first kilometres with the consumption log twelve buckets in, an acceleration, regeneration, the engine generating both ways it can be drawn, the engine forty seconds dead, standing on P, charging, charging with no consumption history behind it and an estimate too long for the seat, a single null, link lost, an exception, and the missing ADB key |
 | `ClusterContourPlan.dc.html` | the skeleton alone, over the three apertures and both cell grids, with every anchor measured - and, under the panel, the physical constants and the ramp they produce |
 
 The panel exists now: `dev.denza.apps.feature.cluster.dashboard` draws these three
@@ -513,7 +513,8 @@ never the right one. The seventh pass is those four:
   since the fourth pass and was drawn nowhere; a consumption figure with no window
   on it is read as the trip average, which is the one thing it has never been. The
   unit is where that belongs - already the line under the figure, already
-  `MUTED_DEEP` - and it costs 74.7 units into a cut-out with 178 free to its right;
+  `MUTED_DEEP` - and it costs 74.7 units into a cut-out with 178 free to its right.
+  The tenth pass made the three kilometres the ones the log actually has;
 - **the sleeping engine's corner reads `ДВС · мин за поездку`** over the same 52.
   `ДВС · мин` alone was six minutes of *something*: this stop, this hour, this
   trip. The fifth pass wanted exactly these words and tried them on a third
@@ -549,7 +550,8 @@ saying.
   need a key. Both words are gone and so is the run one of them named: the box
   draws generation alone under one sentence, `● 14 кВт В БАТАРЕЮ · ПОСЛЕДНИЕ 2 МИН`,
   and the revolutions keep the number they already had in the corner - which is
-  where they were being read anyway;
+  where they were being read anyway. The window became the box's own reach in the
+  tenth pass; the literal two minutes here is what the eighth pass wrote;
 - **`сплющен`**, said of that same box a second time. Its height had not moved and
   could not: it is both rows of the shelf, with the guard above it and the
   sentence's caps below. What was flat was the *scale*. A square root to 100 kW put
@@ -647,6 +649,50 @@ reserve buys is stillness while a *number* changes, and by then there is no numb
 left to change. The words themselves never move, in either state. `ContourPlan`
 carries both anchors, `legendMarkX` and `legendMarkQuietX`, and the states board
 draws both scenes.
+
+### And the window a phrase names is the one it actually has
+
+The tenth pass, and it is the seventh pass's own rule turned on the seventh pass's
+own two strings. A caption that names an interval is only worth having if the
+interval it names is the one the shape and the figure beside it were taken over.
+Both of these named a *capacity*.
+
+- **`● 14 кВт В БАТАРЕЮ · ПОСЛЕДНИЕ 2 МИН`** was printed from the first second of
+  an engine run. The box grows from the right and is never front-padded - that is
+  M7, deliberate - so five seconds in, the shape is one step wide and the words
+  under it claim two minutes of road. The figure was honest and the sentence was
+  not. It reads **`ПОСЛЕДНИЕ 0:05`**, then `0:40`, then `2:00` once the box has
+  filled, off the trace's own `spanSeconds`;
+- **`кВт·ч/100 км · за 3 км`** over a log that has closed five buckets is the same
+  defect one level down: half a kilometre of road, a mean taken over half a
+  kilometre, and a unit inviting it to be read as three. It reads
+  **`· за 1,2 км`** until the window fills, off `ConsumptionWindow.coveredKm`.
+
+**Neither costs an anchor.** The phrase under the engine box is laid out right to
+left off the shelf's edge, so a window that changed width would walk every word in
+front of it; it does not, because the panel's figures are tabular and a `м:сс` is
+four glyphs and a mark. Headless Chrome says so directly: `ПОСЛЕДНИЕ 0:00`,
+`1:22`, `2:00` and `9:59` all measure **315.4375** at 18/400 with 0.12 tracking.
+So `ContourPlan` measures one template - `LEGEND_INTO_PACK`, which is the `0:00`
+form - and `ContourReadout.intoPack` draws whatever the box is worth into it. The
+clock is clamped at `9:59` because the next second would add a glyph; the trace is
+two minutes long, so that is a guard and not a case.
+
+The petal's unit is the same trick with nothing riding on it. `за 0,3 км` and
+`за 2,7 км` are both **197.7656** against the full form's 184.1094, and the unit is
+left-aligned with nothing to its right but the cut-out, which the wider form still
+clears by 89.9. `PETAL_UNIT_W` reserves the wider of the two and no coordinate
+moves.
+
+The board had a third version of the same mistake, in the picture rather than the
+words: `petal_history` divided the box by *what had arrived* instead of by the
+window, so twelve buckets of road were drawn stretched across three kilometres of
+box. The app never did this - `ClusterDashboardRenderer` has anchored the run at the
+box's right edge all along - so this was the board disagreeing with the code, which
+is the one thing these two records are not allowed to do. The states board now
+carries a sixteenth scene, `Первые километры`, drawn at twelve closed buckets, and
+`ContourBoardContractTest` holds the drawn unit against `ContourReadout` and both
+drawn windows against `legendWindowX`.
 
 ### The glass is measured now
 
@@ -775,7 +821,8 @@ Both boxes were redrawn in the fifth pass. The owner on the fourth: *"Сцена
 shape with thirty steps or two curves in it.
 
 **The petal** keeps three kilometres and always three kilometres - and since the
-seventh pass its unit says so, `кВт·ч/100 км · за 3 км`. Standing on P the
+seventh pass its unit says so, `кВт·ч/100 км · за 3 км`, and since the tenth it
+says which three: `· за 1,2 км` while the log is still filling. Standing on P the
 denominator does not change under the figure, only the tenth appears, because at
 100 km/h a tenth moves three times a second. Thirty bars 0.65 mm wide were 0.9' at
 750 mm - below the eye's resolution - so the history is a stepped line beside the
@@ -851,9 +898,11 @@ there before was *«легенда непонятна»*. `ОБОРОТЫ · ●
 a picture with two runs in it, and a display read at 90 km/h does not get to need a
 key. The revolutions' line is gone to the corner where the same number was already
 printed, and what is left is generation as a `RETURN` area at 55 % with a 1.8
-`RETURN` edge, under **`● 14 кВт В БАТАРЕЮ · ПОСЛЕДНИЕ 2 МИН`**: what the shape is,
+`RETURN` edge, under **`● 14 кВт В БАТАРЕЮ · ПОСЛЕДНИЕ 1:22`**: what the shape is,
 what it is worth now, and how far back it goes, in that order. Neither `ГЕНЕРАЦИЯ`
-nor `ОБОРОТЫ` is a word on this panel any more.
+nor `ОБОРОТЫ` is a word on this panel any more. The window was a literal `2 МИН`
+until the tenth pass, which is the box's capacity rather than its reach; it is the
+trace's own span now, and every value of it is one width.
 
 The sentence is laid out right to left off the shelf's own edge - the window, then
 `кВт`, then the figure in a two-digit reserve, then the dot - so 9 kW and 14 kW

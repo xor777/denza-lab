@@ -288,8 +288,12 @@ internal class ContourPlan(
     val generationField: Float = 2 * type.width("0", InstrumentFace.UNIT)
     val kilowattWidth: Float = type.width(ContourReadout.UNIT_KW, InstrumentFace.UNIT)
 
+    /** Whether the face in use crowds «ПОСЛЕДНИЕ» out of the phrase. */
+    val legendShortened: Boolean = shortWindow()
+
     /**
-     * «● 14 кВт В БАТАРЕЮ · ПОСЛЕДНИЕ 2 МИН», laid out right to left off the shelf's own edge.
+     * «● 14 кВт В БАТАРЕЮ · ПОСЛЕДНИЕ 1:22», laid out right to left off the shelf's own edge -
+     * and this is the template the phrase is *measured* from, not the string drawn in it.
      *
      * One sentence where the seventh pass had a legend of two words and a figure - the owner could
      * not read the legend, and a display with no room for a key must not need one. The words say
@@ -299,8 +303,14 @@ internal class ContourPlan(
      * start the phrase in the same place, and when the engine stops the figure and its unit leave
      * together while the words stay - the panel's one rule for a stale reading, applied to a number
      * living inside a sentence. It is the odometer's own arrangement in «42 км · ЗА ПОЕЗДКУ».
+     *
+     * The window is the box's own reach - «ПОСЛЕДНИЕ 0:40» while the engine has been alive for
+     * forty seconds - and every value of it is one width, because the figures are tabular and a
+     * «м:сс» is always four glyphs and a mark. So one template decides every anchor in the phrase
+     * and the drawn duration moves none of them. [ContourReadout.intoPack] is what is drawn.
      */
-    val legendWindow: String = window()
+    val legendWindow: String =
+        if (legendShortened) ContourReadout.LEGEND_INTO_PACK_SHORT else ContourReadout.LEGEND_INTO_PACK
     val legendWindowWidth: Float = caption(legendWindow)
     val legendWindowX: Float = rightEdge - legendWindowWidth
     val legendUnitX: Float = legendWindowX - smallGap - kilowattWidth
@@ -334,8 +344,18 @@ internal class ContourPlan(
     /** And two digits is what the panel actually prints while the car is moving. */
     val petalPrintedWidth: Float = 2 * type.width("0", InstrumentFace.FIGURE)
 
+    /**
+     * The widest the unit ever is, which is the window still filling: «· за 1,2 км».
+     *
+     * The full form is narrower. Nothing is anchored off this - the unit is left-aligned against
+     * the figure's own reserve and there is nothing to its right - so the width is a clearance
+     * against the petal's cut-out rather than a coordinate.
+     */
     val petalUnitWidth: Float =
-        type.width(ContourReadout.UNIT_PER_100KM, InstrumentFace.UNIT)
+        max(
+            type.width(ContourReadout.UNIT_PER_100KM, InstrumentFace.UNIT),
+            type.width(ContourReadout.UNIT_PER_100KM_FILLING, InstrumentFace.UNIT),
+        )
 
     /**
      * **The figure centres on the axis, and the box hangs off it.**
@@ -467,11 +487,10 @@ internal class ContourPlan(
      * difference between Chrome's Roboto and the car's to matter: the test is the phrase's own width
      * plus one guard against the width of the box it stands under. Nothing else in it can go.
      */
-    private fun window(): String {
-        val long = ContourReadout.LEGEND_INTO_PACK
+    private fun shortWindow(): Boolean {
         val phrase = markWidth + generationField + smallGap + kilowattWidth + smallGap +
-            caption(long)
-        return if (phrase + clearance <= engineBoxWidth) long else ContourReadout.LEGEND_INTO_PACK_SHORT
+            caption(ContourReadout.LEGEND_INTO_PACK)
+        return phrase + clearance > engineBoxWidth
     }
 
     companion object {
