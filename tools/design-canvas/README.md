@@ -398,14 +398,17 @@ idea what the head unit's font does with it - the variometer beside it is three
 strokes for exactly that reason. The board draws them too, so a photograph of the
 screen and a render of the board can be laid side by side.
 
-**A step nothing answered in is drawn as a shutter.** The board's scenes are all
-complete windows. On the car they are not: the hub is polled only while this page
-is on screen, and the first drive showed «провалы в ноль» where the window
-claimed to reach further back than the readings did. Two things came out of that
-- the window now starts at the oldest second the car actually answered in, and a
-hole inside a live run is a column of the track's own colour rather than a gap.
-A gap in a filled area is read as a value of zero, which is the one thing a
-missing reading is not.
+**A step nothing answered in is the line, lifted off the axis.** The board's
+scenes are all complete windows; on the car they are not, because the hub is
+polled only while this page is on screen. Two marks for an absence were tried in
+one day and both were read as something else - a plain gap in the filled area as
+the pack having done nothing («провалы в ноль»), then a column in the track's own
+colour as «серый квадрат это что?». The third answer was the owner's and it is
+the right one: *«просто светлую линию графика проведи на пиксель выше линии нуля,
+и всё»*. The line stays unbroken, it never merges with the axis, and nothing under
+it claims a reading - no area, no riser. The window also starts at the oldest
+second the car actually answered in, so a page coming back after a minute away
+shows the run it has rather than a window of holes.
 
 ### And what it costs
 

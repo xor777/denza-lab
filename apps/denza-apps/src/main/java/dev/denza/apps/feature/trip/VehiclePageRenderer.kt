@@ -304,16 +304,20 @@ internal class VehiclePageRenderer {
         var previous = Float.NaN
         for (index in steps.indices) {
             val raw = steps[index]
+            // A step nothing answered in is the trace's own line, a unit over the axis.
+            //
+            // Two marks for an absence were tried on the car in one day and both were read as
+            // something else: a plain gap in the filled area as the pack having done nothing
+            // («провалы в ноль»), and a column in the track's colour as «серый квадрат это что?».
+            // The owner's own answer was to stop marking it - «просто светлую линию графика
+            // проведи на пиксель выше линии нуля, и всё» - and he is right that a display read at
+            // arm's length has no room for a symbol that needs explaining. The line stays
+            // unbroken, it never merges with the axis, and nothing claims a reading: there is no
+            // area under it and no riser into it.
             if (raw.isNaN()) {
-                // A step nothing answered in is drawn as a shutter, not as a gap.
-                //
-                // A gap in a filled area is read as the value having fallen to zero for five
-                // seconds - «иногда на графике просто провалы в ноль» - and it is the opposite:
-                // nobody asked the car, or the car did not answer. A column of the track's own
-                // colour is not a value, so it cannot be read as one.
-                fill.color = DenzaPalette.TRACK
                 val x = left + index * step
-                canvas.drawRect(x, top, x + step, top + height * unit, fill)
+                val y = zero - HOLE_LIFT * unit
+                canvas.drawLine(x, y, x + step, y, line)
                 previous = Float.NaN
                 continue
             }
@@ -409,11 +413,24 @@ internal class VehiclePageRenderer {
         readings(telemetry).forEachIndexed { index, reading ->
             val rowTop = top + index * (ROW + ROW_GAP) * unit
             drawGlyph(canvas, reading, left, rowTop + ROW * unit, unit)
-            figure(
+            val figureWidth = figure(
                 canvas, reading.text,
                 left + (GLYPH + GAP) * unit, rowTop + ROW_BASELINE * unit,
                 READING * unit, reading.ink,
             )
+            // A degree belongs to its number and millivolts do not, so the one row that has a unit
+            // of its own gets it drawn - the board has been showing «5 мВ» while the car showed a
+            // bare «5» since this row was added this evening.
+            if (reading.unit.isNotEmpty()) {
+                units.textSize = SECOND_UNIT * unit
+                units.color = PanelPalette.MUTED
+                canvas.drawText(
+                    reading.unit,
+                    left + (GLYPH + GAP) * unit + figureWidth + LEAD * unit,
+                    rowTop + ROW_BASELINE * unit,
+                    units,
+                )
+            }
             val trackLeft = left + (GLYPH + GAP + READING_FIELD + GAP) * unit
             drawTrack(
                 canvas, reading,
@@ -783,6 +800,9 @@ internal class VehiclePageRenderer {
         const val GRAPH = 130f
         const val GRAPH_NARROW = 60f
         const val EDGE = 2f
+
+        /** Where the line runs when nothing answered: clear of the axis, and nowhere near a value. */
+        const val HOLE_LIFT = 2f
         val AREA_OUT = PanelPalette.alpha(PanelPalette.INK, 0.16f)
         val AREA_BACK = PanelPalette.alpha(DenzaPalette.RETURN, 0.26f)
 

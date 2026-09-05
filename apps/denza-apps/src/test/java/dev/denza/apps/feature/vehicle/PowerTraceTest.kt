@@ -34,10 +34,11 @@ class PowerTraceTest {
     }
 
     /**
-     * A second the poll never reached is a hole, and a hole is not interpolated across.
+     * A second the poll never reached stays a hole, and it is never a zero.
      *
-     * The renderer breaks the shape at a `NaN` rather than drawing a line over it, which is the
-     * same rule the cluster's engine box follows: a gap in a history is information.
+     * The renderer draws it as the trace's own line a unit over the axis, with no area under it -
+     * two marks for an absence were tried on the car in one day and both were read as something
+     * else, and the third answer was the owner's: draw the line, mark nothing.
      */
     @Test
     fun aBinNothingAnsweredInIsNotAZero() {
@@ -113,17 +114,17 @@ class PowerTraceTest {
         assertTrue("and no holes in it", steps.none { it.isNaN() })
     }
 
-    /** An interior hole is still a hole: a second nobody answered in is not a zero. */
+    /** And the window keeps its whole length across one: the run before a hole is still true. */
     @Test
-    fun aHoleInsideTheRunSurvives() {
+    fun theWindowKeepsWhatCameBeforeTheHole() {
         val trace = PowerTrace()
         for (second in 0..4) trace.sample(second * 1_000L, 30.0)
-        for (second in 15..19) trace.sample(second * 1_000L, 10.0)
-        val steps = trace.snapshot().steps
-        assertEquals("four steps", 4, steps.size)
-        assertEquals("the run before", 30f, steps[0], 1e-3f)
-        assertTrue("two the poll never reached", steps[1].isNaN() && steps[2].isNaN())
-        assertEquals("and the run after", 10f, steps[3], 1e-3f)
+        for (second in 15..29) trace.sample(second * 1_000L, 10.0)
+        val snapshot = trace.snapshot()
+        assertEquals("six steps", 6, snapshot.steps.size)
+        assertEquals("the run before", 30f, snapshot.steps[0], 1e-3f)
+        assertTrue("two nobody answered in", snapshot.steps[1].isNaN() && snapshot.steps[2].isNaN())
+        assertEquals("and the newest run", 10f, snapshot.steps[5], 1e-3f)
     }
 
     /**

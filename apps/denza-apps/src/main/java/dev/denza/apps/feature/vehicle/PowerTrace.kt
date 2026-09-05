@@ -86,8 +86,9 @@ internal class PowerTrace(
      * it was not the arithmetic that was wrong but the claim that the window went back further
      * than the readings did.
      *
-     * Interior holes are still holes: a second the poll genuinely missed inside a live run is
-     * information, and the renderer draws it as a shutter rather than as a zero.
+     * A hole in the middle stays a hole. The renderer draws it as the trace's own line a unit
+     * above the axis - the owner's own answer to two attempts at marking an absence: «да ты просто
+     * светлую линию графика проведи на пиксель выше линии нуля, и всё».
      */
     fun snapshot(): PowerTraceSnapshot {
         if (load.isEmpty()) return PowerTraceSnapshot.EMPTY
