@@ -73,11 +73,14 @@ internal data class ContourStage(
     /**
      * Whether the engine's box owns the right shelf, which is not the same as the trace being warm.
      *
-     * One shelf, two true things, and one of them has to give way. **Standing still wins.** A car
-     * that has stopped is the one moment its driver can read three numbers instead of glancing at
-     * one, and what the box has to show then is the last two minutes of a drive that has ended -
-     * against the trip's own arithmetic, which is what P is for. The box comes back the moment the
-     * car moves, with the trace it has been keeping all along.
+     * One shelf, two true things, and one of them has to give way. **A running engine wins; a
+     * warm trace does not.** While the engine is turning, the box is the only live thing the right
+     * shelf can show - the owner sat on P with the generator charging the pack and saw, instead of
+     * it, three trip figures that the ledger had frozen at the last metre - so it stays up on P as
+     * long as the engine runs. Once the engine stops, standing still wins over the two minutes the
+     * trace keeps: a car that has stopped is the one moment its driver can read three numbers
+     * instead of glancing at one, and the trip's own arithmetic is what P is for. Rolling, the box
+     * owns the shelf for the whole of its trace, engine on or off.
      */
     val engineBox: Boolean = false,
     val engineRunning: Boolean = false,
@@ -197,10 +200,11 @@ internal class ContourScene {
      */
     private fun decide(t: VehicleTelemetry): ContourStage {
         val parked = t.parked == true
-        // The trace is warm for two minutes after the engine stops, and on P the trip's three cells
-        // take the shelf from it: see [ContourStage.engineBox].
-        val engineBox = !t.engineTrace.isEmpty && !parked
         val engineRunning = t.engineRunning == true
+        // A running engine keeps the shelf even on P; a trace that is merely warm after the engine
+        // stopped gives it up to the trip's three cells while the car stands: see
+        // [ContourStage.engineBox].
+        val engineBox = !t.engineTrace.isEmpty && (engineRunning || !parked)
         val unavailable = t.access == VehicleAccess.UNAVAILABLE
         // The order the scene name used to carry, kept as the guards on the one flag that needed
         // it: a closed shell, a panel that has heard nothing yet and a bus that has gone quiet all

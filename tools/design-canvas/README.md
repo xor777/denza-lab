@@ -1065,12 +1065,17 @@ takes **both rows of the shelf**, 50.7 units from the top guard down to a rhythm
 step above its caption's caps, and that caption sits below the box on the band's
 own 24-unit guard, so the swap moves no neighbour's baseline in either direction.
 
-**And it gives the shelf up to a car that has stopped.** Both facts can be true at
-once - the trace stays warm for two minutes, and two minutes is long enough to
-park in - and one shelf has to hold them. Standing still wins. Three numbers is
-what P is *for*; the box at that moment is a shape about a drive that has already
-ended, and it comes back whole the moment the car moves, with the trace it kept
-all along. The states board draws that scene beside the plain P.
+**And it gives the shelf up to a car that has stopped - once the engine has.** Both
+facts can be true at once - the trace stays warm for two minutes, and two minutes
+is long enough to park in - and one shelf has to hold them. A *running* engine
+wins: on 2026-09-05 the owner sat on P with the generator charging the pack and
+the shelf showed him three trip figures the ledger had frozen at the last metre,
+instead of the one live thing on the panel. So the box holds the shelf for as long
+as the engine turns, P or not. Once it stops, standing still wins over the warm
+trace: three numbers is what P is *for*; the box at that moment is a shape about a
+drive that has already ended, and it comes back whole the moment the car moves,
+with the trace it kept all along. The states board draws both scenes beside the
+plain P: the warm trace that yields, and the running engine that does not.
 
 **One quantity, one sentence** - the eighth pass, and the owner's word for what was
 there before was *«легенда непонятна»*. `ОБОРОТЫ · ● ГЕНЕРАЦИЯ 14 кВт` was a key to
