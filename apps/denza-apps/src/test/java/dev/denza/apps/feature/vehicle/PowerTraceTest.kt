@@ -81,7 +81,8 @@ class PowerTraceTest {
         assertEquals("exactly a rung", 20, PowerSpan.rung(20f))
         assertEquals("one over it", 40, PowerSpan.rung(21f))
         assertEquals("nothing at all", 5, PowerSpan.rung(0f))
-        assertEquals("more than the ladder has", 160, PowerSpan.rung(400f))
+        assertEquals("a launch", 320, PowerSpan.rung(196f))
+        assertEquals("more than the ladder has", 640, PowerSpan.rung(900f))
     }
 
     @Test
@@ -89,6 +90,20 @@ class PowerTraceTest {
         val steps = floatArrayOf(1f, Float.NaN, -8f, -9.5f, 2f)
         assertEquals("what left the pack", 5, PowerSpan.ceiling(steps))
         assertEquals("and what came back", 10, PowerSpan.floor(steps))
+    }
+
+    /**
+     * And a reading past the last rung is held against the edge of the box.
+     *
+     * Unclamped it was drawn over the figure above the box, which is what the owner's question
+     * about 200 kW would have got as an answer.
+     */
+    @Test
+    fun aStepPastTheLadderIsHeldAgainstTheEdge() {
+        val snapshot = PowerTraceSnapshot(floatArrayOf(0f), PowerTrace.BIN_SECONDS)
+        assertEquals("out of the pack", 320f, snapshot.clamp(900f, 320, 160), 1e-3f)
+        assertEquals("and back into it", -160f, snapshot.clamp(-400f, 320, 160), 1e-3f)
+        assertEquals("an ordinary reading is untouched", 42f, snapshot.clamp(42f, 320, 160), 1e-3f)
     }
 
     /**

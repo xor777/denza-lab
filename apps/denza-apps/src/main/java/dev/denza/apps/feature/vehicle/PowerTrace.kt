@@ -138,6 +138,16 @@ internal class PowerTraceSnapshot(val steps: FloatArray, val binSeconds: Int) {
 
     val isEmpty: Boolean get() = steps.isEmpty() || steps.all { it.isNaN() }
 
+    /**
+     * A step, held inside the box it is drawn in.
+     *
+     * The ladder's last rung is a ceiling and not a promise: a reading past it is drawn flat
+     * against the edge, which is the honest way to say "more than this box holds" and the one
+     * thing that must never happen instead - drawing it over the figure above the box.
+     */
+    fun clamp(kw: Float, ceiling: Int, floor: Int): Float =
+        kw.coerceIn(-floor.toFloat(), ceiling.toFloat())
+
     /** How far back the box actually reaches, which is what its caption may claim. */
     val seconds: Int get() = steps.size * binSeconds
 
@@ -167,7 +177,15 @@ internal class PowerTraceSnapshot(val steps: FloatArray, val binSeconds: Int) {
  */
 internal object PowerSpan {
 
-    val RUNGS = intArrayOf(5, 10, 20, 40, 80, 160)
+    /**
+     * Six rungs became eight when the owner asked the obvious question: *«что будет при расходе
+     * 200 кВт и заряде 100 кВт?»* - and the honest answer was that the box drew them outside
+     * itself, over the figure above it, because the ladder stopped at 160 and nothing clamped what
+     * came off the end of it. This pack is gated at ±600 kW because it really can pull hundreds,
+     * so the ladder reaches where the car does, and [PowerTraceSnapshot.clamp] holds anything past
+     * the last rung against the edge of the box instead of drawing it in the head.
+     */
+    val RUNGS = intArrayOf(5, 10, 20, 40, 80, 160, 320, 640)
 
     /** The smallest rung that holds [magnitude], or the largest there is. */
     fun rung(magnitude: Float): Int =
