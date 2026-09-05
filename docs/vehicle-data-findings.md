@@ -543,13 +543,23 @@ deleted views and page-specific gates are historical, not current entry points.
 | One lamp folded from several feature ids | `EngineLamp` (deleted 2026-09-04) | Four ids report low oil pressure and four report low coolant level; they are generation variants, and reading all of them is cheaper than betting on one |
 | A lamp that never answered is not "healthy" | `LampState.UNKNOWN` (deleted 2026-09-04) | Every lamp read `0` on a healthy car, which proves they are readable, not that they light. A hollow dot makes a weaker claim than a green one |
 
-The current product consumer is `feature.cluster.dashboard`. Its view owns the
-only polling activity claim: attaching/showing the cluster dashboard starts the
-hub, and hiding/detaching it stops the hub. There are no vehicle-page or
-engine-page lifecycle flags and no page-dependent signal filter. While visible,
-the cluster reads the six hot and thirty cold signals it needs, including the
-combustion readings and lamps. Its consumption history is always rendered over
-the latest **3 km**; no saved head-unit selector is consulted.
+There are **two** product consumers since 2026-09-05, and the hub polls while
+either is up: `feature.cluster.dashboard`, whose view claims it as long as the
+driver's display shows our panel, and the head unit's trip strip, whose view
+claims it only while its second page is the one on screen
+(`VehicleWatcher.CLUSTER` and `VehicleWatcher.STRIP`). The claim was a single
+boolean until then, which two consumers cannot share: whichever went away last
+would have stopped the poll under the one still drawing. A newly arriving
+consumer sets `forceCold`, so a page just swiped to arrives with its
+temperatures rather than dashing them for ten seconds. There are still no
+page-dependent signal filters: while polling, the hub reads the same seven hot
+and thirty cold signals for whoever is watching. The consumption history is
+always rendered over the latest **3 km**; no saved head-unit selector is
+consulted.
+
+The strip's page adds one series to the snapshot and no signals to the
+allowlist: `PowerTrace` bins the pack power the hub already reads into
+twenty-four five-second steps, the same grid `EngineTrace` uses.
 
 Unit tests cover the command shape, the marker alignment, the proven scales, the
 sentinel and plausibility rules, and the consumption accumulator including the
