@@ -169,6 +169,7 @@ class ClusterSceneService : Service() {
                 ::onAvcReady,
                 ::onAvcFailure,
                 ::onAvcFirstFrame,
+                cameraLayer = cameraLayer,
             ).also { it.show() }
             if (cameraLayer) cameraPresentation = shown else basePresentation = shown
             // Camera status follows the first frame; avoid an intermediate system Binder call
@@ -428,6 +429,7 @@ class ClusterSceneService : Service() {
         private val ready: (Long, String) -> Unit,
         private val failed: (Long, String) -> Unit,
         private val firstFrame: (Long, String) -> Unit,
+        private val cameraLayer: Boolean,
     ) : Presentation(context, display) {
         lateinit var mapSurface: SurfaceView
             private set
@@ -478,27 +480,10 @@ class ClusterSceneService : Service() {
             }
 
             val root = FrameLayout(context).apply { setBackgroundColor(Color.TRANSPARENT) }
-            mapSurface = SurfaceView(context).apply {
-                setZOrderOnTop(false)
-                visibility = View.INVISIBLE
-                holder.addCallback(mapSurfaceCallback)
-            }
-            root.addView(mapSurface, FrameLayout.LayoutParams(1, 1, Gravity.TOP or Gravity.START))
-            mapShade = ProjectionEdgeShadeView(context).apply { visibility = View.INVISIBLE }
-            root.addView(mapShade, FrameLayout.LayoutParams(1, 1, Gravity.TOP or Gravity.START))
-
-            // After the shade on purpose. The shade darkens whatever is beneath it so a projected
-            // map cannot cover instrument data; the dashboard needs no such protection because it
-            // places its own blocks off the stock graphics to begin with, and darkening it twice
-            // would only cost contrast.
-            dashboardLayer = FrameLayout(context).apply {
-                setBackgroundColor(Color.TRANSPARENT)
-                visibility = View.GONE
-            }
-            root.addView(
-                dashboardLayer,
-                FrameLayout.LayoutParams(1, 1, Gravity.TOP or Gravity.START),
-            )
+            // Base and camera already have separate presentations/displays. Do not construct or
+            // attach an unused map SurfaceView, shade and dashboard container for every turn.
+            // The camera still creates a fresh window/texture only on Show; no idle prewarming.
+            if (!cameraLayer) createBaseLayers(root)
 
             cameraFrame = FrameLayout(context).apply {
                 setBackgroundColor(Color.BLACK)
@@ -525,6 +510,30 @@ class ClusterSceneService : Service() {
                 override fun onLocalSurfaceReleased() = markLocalSurfaceDetached()
                 override fun onFirstFrame(details: String) = firstFrame(cameraCommandGeneration, details)
             })
+        }
+
+        private fun createBaseLayers(root: FrameLayout) {
+            mapSurface = SurfaceView(context).apply {
+                setZOrderOnTop(false)
+                visibility = View.INVISIBLE
+                holder.addCallback(mapSurfaceCallback)
+            }
+            root.addView(mapSurface, FrameLayout.LayoutParams(1, 1, Gravity.TOP or Gravity.START))
+            mapShade = ProjectionEdgeShadeView(context).apply { visibility = View.INVISIBLE }
+            root.addView(mapShade, FrameLayout.LayoutParams(1, 1, Gravity.TOP or Gravity.START))
+
+            // After the shade on purpose. The shade darkens whatever is beneath it so a projected
+            // map cannot cover instrument data; the dashboard needs no such protection because it
+            // places its own blocks off the stock graphics to begin with, and darkening it twice
+            // would only cost contrast.
+            dashboardLayer = FrameLayout(context).apply {
+                setBackgroundColor(Color.TRANSPARENT)
+                visibility = View.GONE
+            }
+            root.addView(
+                dashboardLayer,
+                FrameLayout.LayoutParams(1, 1, Gravity.TOP or Gravity.START),
+            )
         }
 
         override fun dismiss() {

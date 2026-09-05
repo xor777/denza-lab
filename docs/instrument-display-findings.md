@@ -1009,6 +1009,115 @@ The raw 170-line capture `notification-startup.log` hashes to
 `aff61efdd8988687eb58d441a4d26b5e551506d4b13ac9b568886a3454a187cd`;
 capture stopped with the existing tunnel preserved.
 
+#### Acceleration candidates: skip unused camera-start work (2026-09-05)
+
+This local candidate starts at
+`9671d56cc4f9524e80123b284ee73bd3ce181ab4`. The exact control APK retained as
+`captures/mirrors-camera-scene/baseline-9671d56.apk` hashes to
+`c956b51b4eea01170b84d763bfcec4e6c8ffd1eed89bb41980162e6e1f9c4f99`; it is
+the APK built from that base and the verified current `0.6.1-alpha` release
+asset. The camera-scene-only candidate APK is
+`captures/mirrors-camera-scene/candidate-camera-scene-9671d56.apk`, SHA256
+`f910a83de9e28c496cd0fb1259d28e89a9b6c145091ed57e710e6311139dc177`.
+The combined camera-start candidate, which also includes the display-lookup
+change below, is
+`captures/mirrors-camera-scene/candidate-camera-startup-9671d56.apk`, SHA256
+`0ffdaf8c3d4f101c00bce501b95bbf1c0043fbd414597436802598223316e21b`.
+All three are ignored local artifacts. `versionCode` remains 44 and neither
+candidate has been installed from this worktree.
+
+`ClusterSceneService.prepareScene` now passes the selected `cameraLayer` into
+its `ClusterPresentation`. The presentation creates and attaches the invisible
+map `SurfaceView`, map shade and dashboard container through
+`createBaseLayers(root)` only for the base presentation. Camera presentations
+still create the camera frame, `TextureView`, camera shade, diagnostic layer
+and `AvcCameraRenderer` in their original order. Base presentations retain the
+original map callback and map/shade/dashboard order.
+
+`ClusterDisplayResolver.resolveCameraOverlay` now shortlists live displays by
+non-default id and the exact known camera-overlay name before calling the
+descriptor path that reads real metrics, type and flags. Only those exact live
+candidates pay for the expensive description. The unchanged final selector
+still rejects an app-owned display whose descriptor changed, keeps duplicate
+exact matches ambiguous and fails closed when no valid match remains. This adds
+no display cache and does not change the exact-name policy or the selected
+display.
+
+These changes are limited to construction and attachment of unused app-owned
+base views and to deferring unnecessary display description. They do not change
+camera texture/frame/crop, the diagnostic layer, vendor
+`initDisplay`/`setViewpoint`/free ordering, teardown or generation fences, CAN,
+the reducer, the 100 ms polling schedule, standby behavior, or the base scene.
+They add no idle prewarming, surface cache or Binder preconnection. The earlier
+26–76 ms figure covered the whole scene-setup stage of a previous live build,
+not the cost of the removed layers or the avoided descriptor reads. It therefore
+neither predicts this candidate's saving nor proves a current improvement.
+
+The new `CameraSceneContentContractTest` contains four **source-wiring checks**,
+not an Android window or `SurfaceView` runtime simulation. On the base source,
+three assertions failed and the existing-caller control passed; the retained
+evidence is under `captures/mirrors-camera-scene/scene-evidence/`. The candidate
+then passed all four. Three compiling structural mutants were also exercised
+one at a time: unconditional base-layer creation, forced
+`cameraLayer = false` at presentation construction, and routing the base factory
+to `cameraLayer = true`. Each run completed four tests with exactly one failure
+and no errors. All mutants were restored before the final checks. This proves
+the checks reject those wiring mistakes; it does not prove real Android view
+creation behavior or performance.
+
+The resolver's initial test source did not compile against the base because its
+live-selection seam did not exist; that is compile-only RED evidence, not a
+behavioral failure. Final targeted resolver checks passed 13/13. Four compiling
+mutants then failed as intended: restoring eager description of every display
+failed four tests, selecting the first duplicate failed one, relaxing the exact
+name failed one, and removing the default-display prefilter failed two. Stable
+logs are under `captures/mirrors-camera-scene/resolver-evidence/`. These are
+host-side selection/callback checks, not measurements of Android display calls.
+
+Scene-only local evidence before integration passed 1276 tests with zero
+failures, errors or skips. Final integrated evidence for both changes passed
+`:denza-apps:testDebugUnitTest` with 1283 tests and zero failures, errors or
+skips; `:denza-apps:assembleDebug` passed; `:denza-apps:lintDebug` passed with
+zero errors and 44 existing warnings.
+`python3 tools/check_mirrors_startup.py` compiled the actual renderer against
+the host API shims and passed its nine tests. Those renderer tests preserve the
+startup/vendor contracts but do not exercise this private Android presentation.
+The retained integrated Gradle log and reports are under
+`captures/mirrors-camera-scene/scene-evidence/` and
+`captures/mirrors-camera-scene/final-full-validation/`.
+
+`python3 tools/analyze_mirrors_startup.py` now parses saved logcat captures
+offline and can emit human-readable or JSON summaries and matched A/B reports;
+it never connects to the car. Its 19 synthetic parser/correlation tests pass.
+As a fixture check, it exactly reconciles the three 2026-09-04 captures: the
+baseline contains ten ordinary starts plus ten potential continuous-window
+reopens, the cancellation-fix canary contains two ordinary starts and no repeat,
+and the notification capture contains four IDLE starts plus five recoveries
+with the already documented 253 ms mixed request-to-first-update median. The
+retained reports are in `captures/mirrors-camera-scene/timing-evidence/`.
+
+The analyzer deliberately does not infer `first_after_install`; that label
+requires externally verified `PID:generation` metadata. A comparison pools only
+an exact origin, side, cohort and window-context match, reports excluded or
+inconclusive attempts and warns on small samples or unverified metadata. Its
+first-update endpoint is still only the TextureView callback, not correct pixels
+or physical scanout. Thus the old captures validate the parser, not the speed of
+either candidate in this section.
+
+Live acceptance and any speed claim remain pending because the car was not
+available. Use a matched A/B on the same car configuration, verifying the
+control and candidate hashes before and after their respective runs. Label the
+first start after each install separately, then collect three ordinary starts
+per side. After every start, turn the signal off, wait for the stock window to
+disappear completely, then wait at least five seconds before the next start.
+Require exactly one generation and one first-update per activation and no
+repeat Show during off. Compare dispatch-to-renderer-start as the primary
+candidate-sensitive interval; report request-to-first-update and vendor init
+separately. After timing, smoke-test camera CENTER and SIDES crops, then, with
+the camera off, base navigation and dashboard. Do not add rapid reversals to the
+initial performance canary; they remain a separate safety run after ordinary
+behavior passes.
+
 ## Navigation projection
 
 Denza Apps owns the navigation `VirtualDisplay` and its `Surface` in the app

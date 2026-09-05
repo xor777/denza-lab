@@ -69,6 +69,179 @@ class ClusterDisplayResolverTest {
         assertTrue(result is ClusterDisplaySelection.Missing)
     }
 
+    @Test
+    fun cameraOverlayDescribesOnlyTheExactLiveCandidate() {
+        val overlay = candidate(
+            4,
+            ClusterDisplayResolver.KNOWN_DENZA_CAMERA_OVERLAY_DISPLAY,
+            2_560,
+            720,
+        ).copy(
+            densityDpi = 280,
+            type = ClusterDisplayResolver.DISPLAY_TYPE_VIRTUAL,
+            flags = 37,
+        )
+        val displays = listOf(
+            liveDisplay(0, ClusterDisplayResolver.KNOWN_DENZA_CAMERA_OVERLAY_DISPLAY),
+            liveDisplay(3, ClusterDisplayResolver.KNOWN_DENZA_DISPLAY),
+            liveDisplay(9, "vendor_cluster_overlay"),
+            liveDisplay(4, ClusterDisplayResolver.KNOWN_DENZA_CAMERA_OVERLAY_DISPLAY, overlay),
+        )
+        val describedIds = mutableListOf<Int>()
+
+        val result = ClusterDisplayResolver.selectCameraOverlayFromLive(
+            displays = displays,
+            displayId = LiveDisplay::id,
+            displayName = LiveDisplay::name,
+            describe = { display ->
+                describedIds += display.id
+                requireNotNull(display.descriptor)
+            },
+        )
+
+        assertEquals(listOf(4), describedIds)
+        assertEquals(overlay, (result as ClusterDisplaySelection.Selected).display)
+    }
+
+    @Test
+    fun cameraOverlayKeepsDuplicateMatchesAmbiguousAndOrdered() {
+        val first = candidate(
+            6,
+            ClusterDisplayResolver.KNOWN_DENZA_CAMERA_OVERLAY_DISPLAY,
+            2_560,
+            720,
+        )
+        val second = candidate(
+            4,
+            ClusterDisplayResolver.KNOWN_DENZA_CAMERA_OVERLAY_DISPLAY,
+            1_920,
+            540,
+        )
+        val displays = listOf(
+            liveDisplay(3, ClusterDisplayResolver.KNOWN_DENZA_DISPLAY),
+            liveDisplay(6, ClusterDisplayResolver.KNOWN_DENZA_CAMERA_OVERLAY_DISPLAY, first),
+            liveDisplay(4, ClusterDisplayResolver.KNOWN_DENZA_CAMERA_OVERLAY_DISPLAY, second),
+        )
+        val describedIds = mutableListOf<Int>()
+
+        val result = ClusterDisplayResolver.selectCameraOverlayFromLive(
+            displays = displays,
+            displayId = LiveDisplay::id,
+            displayName = LiveDisplay::name,
+            describe = { display ->
+                describedIds += display.id
+                requireNotNull(display.descriptor)
+            },
+        )
+
+        assertEquals(listOf(6, 4), describedIds)
+        assertEquals(
+            listOf(first, second),
+            (result as ClusterDisplaySelection.NeedsVerification).candidates,
+        )
+    }
+
+    @Test
+    fun cameraOverlayDoesNotDescribeOrGuessNearNamedDisplays() {
+        val displays = listOf(
+            liveDisplay(2, null),
+            liveDisplay(3, ClusterDisplayResolver.KNOWN_DENZA_DISPLAY),
+            liveDisplay(4, "${ClusterDisplayResolver.KNOWN_DENZA_CAMERA_OVERLAY_DISPLAY}_copy"),
+            liveDisplay(5, "SHARED_FISSION_BG_XDJASCREENPROJECTION_1"),
+        )
+        val describedIds = mutableListOf<Int>()
+
+        val result = ClusterDisplayResolver.selectCameraOverlayFromLive(
+            displays = displays,
+            displayId = LiveDisplay::id,
+            displayName = LiveDisplay::name,
+            describe = { display ->
+                describedIds += display.id
+                requireNotNull(display.descriptor)
+            },
+        )
+
+        assertEquals(emptyList<Int>(), describedIds)
+        assertTrue(result is ClusterDisplaySelection.Missing)
+    }
+
+    @Test
+    fun cameraOverlayReturnsMissingWithoutDescribingAnEmptyLiveList() {
+        var describeCalls = 0
+
+        val result = ClusterDisplayResolver.selectCameraOverlayFromLive(
+            displays = emptyList<LiveDisplay>(),
+            displayId = LiveDisplay::id,
+            displayName = LiveDisplay::name,
+            describe = {
+                describeCalls += 1
+                requireNotNull(it.descriptor)
+            },
+        )
+
+        assertEquals(0, describeCalls)
+        assertTrue(result is ClusterDisplaySelection.Missing)
+    }
+
+    @Test
+    fun cameraOverlayRechecksTheDescriptorAfterLiveIdentityMatch() {
+        val changedDescriptor = candidate(4, "display_name_changed", 2_560, 720)
+        val display = liveDisplay(
+            4,
+            ClusterDisplayResolver.KNOWN_DENZA_CAMERA_OVERLAY_DISPLAY,
+            changedDescriptor,
+        )
+        val describedIds = mutableListOf<Int>()
+
+        val result = ClusterDisplayResolver.selectCameraOverlayFromLive(
+            displays = listOf(display),
+            displayId = LiveDisplay::id,
+            displayName = LiveDisplay::name,
+            describe = {
+                describedIds += it.id
+                requireNotNull(it.descriptor)
+            },
+        )
+
+        assertEquals(listOf(4), describedIds)
+        assertTrue(result is ClusterDisplaySelection.Missing)
+    }
+
+    @Test
+    fun cameraOverlayRejectsDefaultAndOwnDisplays() {
+        val defaultOverlay = candidate(
+            0,
+            ClusterDisplayResolver.KNOWN_DENZA_CAMERA_OVERLAY_DISPLAY,
+            2_560,
+            720,
+        )
+        val ownOverlay = candidate(
+            8,
+            ClusterDisplayResolver.KNOWN_DENZA_CAMERA_OVERLAY_DISPLAY,
+            2_560,
+            720,
+            own = true,
+        )
+        val displays = listOf(
+            liveDisplay(0, ClusterDisplayResolver.KNOWN_DENZA_CAMERA_OVERLAY_DISPLAY, defaultOverlay),
+            liveDisplay(8, ClusterDisplayResolver.KNOWN_DENZA_CAMERA_OVERLAY_DISPLAY, ownOverlay),
+        )
+        val describedIds = mutableListOf<Int>()
+
+        val result = ClusterDisplayResolver.selectCameraOverlayFromLive(
+            displays = displays,
+            displayId = LiveDisplay::id,
+            displayName = LiveDisplay::name,
+            describe = { display ->
+                describedIds += display.id
+                requireNotNull(display.descriptor)
+            },
+        )
+
+        assertEquals(listOf(8), describedIds)
+        assertTrue(result is ClusterDisplaySelection.Missing)
+    }
+
     private fun candidate(
         id: Int,
         name: String,
@@ -84,5 +257,17 @@ class ClusterDisplayResolverTest {
         type = ClusterDisplayResolver.DISPLAY_TYPE_VIRTUAL,
         flags = 0,
         isOwnVirtualDisplay = own,
+    )
+
+    private fun liveDisplay(
+        id: Int,
+        name: String?,
+        descriptor: ClusterDisplayDescriptor? = null,
+    ) = LiveDisplay(id = id, name = name, descriptor = descriptor)
+
+    private data class LiveDisplay(
+        val id: Int,
+        val name: String?,
+        val descriptor: ClusterDisplayDescriptor?,
     )
 }

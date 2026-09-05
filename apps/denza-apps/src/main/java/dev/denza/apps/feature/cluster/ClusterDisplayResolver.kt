@@ -43,7 +43,30 @@ object ClusterDisplayResolver {
      * absent instead of guessing a display id.
      */
     fun resolveCameraOverlay(context: Context): ClusterDisplaySelection =
-        selectCameraOverlay(candidates(context))
+        selectCameraOverlayFromLive(
+            displays = context.getSystemService(DisplayManager::class.java)
+                ?.displays
+                ?.asList()
+                .orEmpty(),
+            displayId = { it.displayId },
+            displayName = { it.name },
+            describe = ::describe,
+        )
+
+    internal fun <T> selectCameraOverlayFromLive(
+        displays: Iterable<T>,
+        displayId: (T) -> Int,
+        displayName: (T) -> String?,
+        describe: (T) -> ClusterDisplayDescriptor,
+    ): ClusterDisplaySelection {
+        val cameraCandidates = displays
+            .filter { display ->
+                displayId(display) != Display.DEFAULT_DISPLAY &&
+                    displayName(display) == KNOWN_DENZA_CAMERA_OVERLAY_DISPLAY
+            }
+            .map(describe)
+        return selectCameraOverlay(cameraCandidates)
+    }
 
     fun selectCameraOverlay(
         candidates: List<ClusterDisplayDescriptor>,
