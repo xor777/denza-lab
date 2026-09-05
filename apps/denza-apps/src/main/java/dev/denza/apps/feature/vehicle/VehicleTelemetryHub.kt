@@ -261,6 +261,11 @@ internal class VehicleTelemetryHub(context: Context) {
                 // Cold values carry over between sweeps — temperatures do not
                 // change in a second. Hot values never do: they are either fresh
                 // or absent, so the dashboard cannot show a stale kilowatt figure.
+                //
+                // A fresh map per sweep, deliberately. The snapshot published a moment ago is still
+                // being read by the panel's frame loop, so a map shared with the next one would
+                // change under a reader. This is four allocations a second against a panel that
+                // draws sixty times in that second: the cost worth chasing was never here.
                 val merged = LinkedHashMap<VehicleSignal, Double>(cold)
                 VehicleSignal.HOT.forEach { signal -> parsed[signal]?.let { merged[signal] = it } }
 
@@ -268,7 +273,7 @@ internal class VehicleTelemetryHub(context: Context) {
                     access = if (merged.isEmpty()) VehicleAccess.UNAVAILABLE else VehicleAccess.READY,
                     message = if (merged.isEmpty()) NO_ANSWER else "",
                     values = merged,
-                    consumption = log.buckets,
+                    consumption = log.window,
                     engineTrace = trace.snapshot(),
                     trip = ledger.trip,
                 )
@@ -296,7 +301,7 @@ internal class VehicleTelemetryHub(context: Context) {
         snapshot = VehicleTelemetry(
             access = VehicleAccess.UNAVAILABLE,
             message = message,
-            consumption = log.buckets,
+            consumption = log.window,
             engineTrace = trace.snapshot(),
             trip = ledger.trip,
         )

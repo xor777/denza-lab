@@ -192,6 +192,14 @@ internal class ContourScene {
     fun held(value: ContourValue): Float? =
         if (!fresh(value)) null else last[value.ordinal].takeUnless { it.isNaN() }
 
+    /**
+     * Which arrangement the panel is in, as an object that is only replaced when it is wrong.
+     *
+     * This is asked once per frame at sixty frames a second and answers the same five things for
+     * minutes at a time. A fresh [ContourStage] per frame is garbage on a view drawn over the
+     * vehicle's own instruments - and it is also a small lie, because "the stage changed" is a
+     * thing the renderer could reasonably want to ask.
+     */
     private fun decide(t: VehicleTelemetry): ContourStage {
         val parked = t.parked == true
         // The trace is warm for two minutes after the engine stops, and on P the trip's three cells
@@ -207,12 +215,19 @@ internal class ContourScene {
             parked -> ContourMode.PARKED
             else -> ContourMode.DRIVING
         }
+        val message = if (mode == ContourMode.UNAVAILABLE) t.message else ""
+        val held = stage
+        if (held.mode == mode && held.parked == parked && held.engineBox == engineBox &&
+            held.engineRunning == engineRunning && held.message == message
+        ) {
+            return held
+        }
         return ContourStage(
             mode = mode,
             parked = parked,
             engineBox = engineBox,
             engineRunning = engineRunning,
-            message = if (mode == ContourMode.UNAVAILABLE) t.message else "",
+            message = message,
         )
     }
 

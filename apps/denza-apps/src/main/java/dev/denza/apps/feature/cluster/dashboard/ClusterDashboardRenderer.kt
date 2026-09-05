@@ -59,6 +59,14 @@ internal class ClusterDashboardRenderer {
     /** The temperature row's five marks. Held rather than extended, the way the pen is. */
     private val glyphs = ContourGlyphs()
 
+    /**
+     * And every number on the panel, remembered by the value it was printed from.
+     *
+     * A frame prints about twenty of them and almost none of them have moved since the last one.
+     * See [ContourFigures] for the rule the call sites here owe it: one slot, one format.
+     */
+    private val figures = ContourFigures()
+
     private var plan: ContourPlan? = null
     private var planFor: ClusterDashboardLayout? = null
 
@@ -303,7 +311,7 @@ internal class ClusterDashboardRenderer {
         val volts = t[VehicleSignal.PACK_VOLT] ?: return
         pen.text(
             canvas,
-            ContourReadout.whole(volts),
+            figures.whole(ContourFigures.Slot.VOLTS, volts),
             pen.v(plan.voltsFieldRight),
             pen.v(plan.cornerFigureBaseline),
             InstrumentFace.FIGURE,
@@ -351,7 +359,7 @@ internal class ClusterDashboardRenderer {
             if (!scene.fresh(ContourValue.RPM) || !motion.rpmReady) return
             pen.text(
                 canvas,
-                ContourReadout.whole(motion.rpm.toDouble()),
+                figures.whole(ContourFigures.Slot.RPM, motion.rpm.toDouble()),
                 pen.v(plan.rpmFieldRight),
                 figureY,
                 InstrumentFace.FIGURE,
@@ -373,7 +381,7 @@ internal class ClusterDashboardRenderer {
         if (!scene.fresh(ContourValue.ENGINE_MINUTES)) return
         pen.text(
             canvas,
-            ContourReadout.whole(t.trip.engineMinutes),
+            figures.whole(ContourFigures.Slot.ENGINE_MINUTES, t.trip.engineMinutes),
             edge,
             figureY,
             InstrumentFace.FIGURE,
@@ -433,7 +441,7 @@ internal class ClusterDashboardRenderer {
             if (celsius == null) return
             pen.text(
                 canvas,
-                ContourReadout.whole(celsius),
+                figures.cell(index, celsius),
                 pen.v(left + plan.temperatureField),
                 figureY,
                 InstrumentFace.READING,
@@ -500,7 +508,7 @@ internal class ClusterDashboardRenderer {
         )
         pen.text(
             canvas,
-            ContourReadout.whole(spread),
+            figures.whole(ContourFigures.Slot.SPREAD, spread),
             pen.v(left + plan.temperatureField),
             figureY,
             InstrumentFace.READING,
@@ -535,10 +543,13 @@ internal class ClusterDashboardRenderer {
         val seats = if (stage.parked) plan.parkSeats else plan.driveSeats
         val trip = t.trip
 
+        // The seat's index is its memo slot as well as its place: the three are drawn through one
+        // function, and one memo between them would be missed by all three in every frame.
         seat(
             canvas,
             plan,
-            plan.tripSeat(0, seats),
+            seat = 0,
+            left = plan.tripSeat(0, seats),
             value = trip.netKwh.takeIf { scene.fresh(ContourValue.TRIP_NET) },
             word = ContourReadout.CAPTION_TRIP,
             marked = false,
@@ -548,7 +559,8 @@ internal class ClusterDashboardRenderer {
             seat(
                 canvas,
                 plan,
-                plan.tripSeat(1, seats),
+                seat = 1,
+                left = plan.tripSeat(1, seats),
                 value = trip.recoveredKwh.takeIf { scene.fresh(ContourValue.TRIP_REGEN) },
                 word = ContourReadout.CAPTION_REGEN,
                 marked = true,
@@ -559,7 +571,8 @@ internal class ClusterDashboardRenderer {
             seat(
                 canvas,
                 plan,
-                plan.tripSeat(seats.size - 1, seats),
+                seat = 2,
+                left = plan.tripSeat(seats.size - 1, seats),
                 value = trip.engineKwh.takeIf { scene.fresh(ContourValue.TRIP_ENGINE) },
                 word = ContourReadout.CAPTION_ENGINE_GAVE,
                 marked = false,
@@ -582,6 +595,7 @@ internal class ClusterDashboardRenderer {
     private fun seat(
         canvas: Canvas,
         plan: ContourPlan,
+        seat: Int,
         left: Float,
         value: Double?,
         word: String,
@@ -593,7 +607,7 @@ internal class ClusterDashboardRenderer {
         if (value != null) {
             pen.text(
                 canvas,
-                ContourReadout.tenth(value),
+                figures.seat(seat, value),
                 pen.v(left + plan.tripField),
                 figureY,
                 InstrumentFace.READING,
@@ -627,7 +641,7 @@ internal class ClusterDashboardRenderer {
         }
         pen.text(
             canvas,
-            ContourReadout.whole(odometer),
+            figures.whole(ContourFigures.Slot.ODOMETER, odometer),
             pen.v(x + plan.odometerField),
             captionY,
             InstrumentFace.UNIT,
@@ -754,7 +768,7 @@ internal class ClusterDashboardRenderer {
         // Tabular figures make every value of it one width, so no anchor here moves.
         pen.text(
             canvas,
-            ContourReadout.intoPack(t.engineTrace.spanSeconds, plan.legendShortened),
+            figures.intoPack(t.engineTrace.spanSeconds, plan.legendShortened),
             pen.v(plan.legendWindowX),
             y,
             InstrumentFace.CAPTION,
@@ -769,7 +783,7 @@ internal class ClusterDashboardRenderer {
         pen.dot(canvas, pen.v(plan.legendMarkX), dotY, plan.markRadius, DenzaPalette.RETURN)
         pen.text(
             canvas,
-            ContourReadout.whole(generation),
+            figures.whole(ContourFigures.Slot.GENERATION, generation),
             pen.v(plan.legendFigureRight),
             y,
             InstrumentFace.UNIT,
@@ -839,14 +853,10 @@ internal class ClusterDashboardRenderer {
         // «за 1,2 км» until the window is full. Three kilometres is what the log holds when it has
         // them, and five hundred metres printed under «за 3 км» is the same defect this window was
         // added to fix, one level down.
-        petalUnit(
-            canvas,
-            plan,
-            ContourReadout.perHundredKm(ConsumptionWindow.coveredKm(t.consumption), ConsumptionWindow.KM),
-        )
+        petalUnit(canvas, plan, figures.perHundredKm(ConsumptionWindow.coveredKm(t.consumption)))
         if (!scene.fresh(ContourValue.PETAL)) return
-        val average = ContourReadout.averageConsumption(ConsumptionWindow.raw(t.consumption)) ?: return
-        petalFigure(canvas, plan, ContourReadout.consumption(average, stage.parked), stage)
+        val average = t.consumptionMean ?: return
+        petalFigure(canvas, plan, figures.consumption(average, stage.parked), stage)
     }
 
     /**
@@ -868,7 +878,7 @@ internal class ClusterDashboardRenderer {
         if (!scene.fresh(ContourValue.CHARGE_LEFT)) return
         val minutes = t.chargeMinutesLeft ?: return
         petalUnit(canvas, plan, ContourReadout.UNIT_CHARGE_LEFT)
-        petalFigure(canvas, plan, ContourReadout.chargeLeft(minutes), scene.stage)
+        petalFigure(canvas, plan, figures.chargeLeft(minutes), scene.stage)
     }
 
     private fun petalUnit(canvas: Canvas, plan: ContourPlan, unit: String) {

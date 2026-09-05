@@ -254,18 +254,6 @@ internal object ContourReadout {
         return String.format(Locale.US, "%d:%02d", hours, bounded % 60)
     }
 
-    /**
-     * The mean of a run of consumption buckets, over the spending ones only.
-     *
-     * Averaging the recovery in would answer a question nobody asks - what the car spent net of
-     * what a hill gave back - and would read lower than any part of the history beside it.
-     */
-    fun averageConsumption(buckets: List<Double>): Double? {
-        val spending = buckets.filter { it >= 0.0 }
-        if (spending.isEmpty()) return null
-        return spending.average()
-    }
-
     // ---- the exceptions, which are the only colour on the shelves
 
     /** Where a reading sits against the band it is expected to stay in. */

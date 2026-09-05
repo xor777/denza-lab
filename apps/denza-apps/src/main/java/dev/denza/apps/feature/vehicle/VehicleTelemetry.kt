@@ -79,15 +79,28 @@ internal data class VehicleTelemetry(
      * right. The rear pair is per-side, not per-axle, so three separate
      * readings is the honest shape — one of them running hotter than the others
      * is exactly what the row is there to show.
+     *
+     * A field rather than a `get()`. A snapshot arrives four times a second and the cluster reads
+     * it sixty, so a property that builds a list is fifteen collections per answer, thrown away
+     * inside the frame that made them.
      */
-    val motorTemps: List<Double?>
-        get() = listOf(
-            this[VehicleSignal.MOTOR_FRONT_C],
-            this[VehicleSignal.MOTOR_REAR_LEFT_C],
-            this[VehicleSignal.MOTOR_REAR_RIGHT_C],
-        )
+    val motorTemps: List<Double?> = listOf(
+        values[VehicleSignal.MOTOR_FRONT_C],
+        values[VehicleSignal.MOTOR_REAR_LEFT_C],
+        values[VehicleSignal.MOTOR_REAR_RIGHT_C],
+    )
 
-    val hottestMotorC: Double? get() = motorTemps.filterNotNull().maxOrNull()
+    val hottestMotorC: Double? = motorTemps.fold(null as Double?) { hottest, reading ->
+        if (reading != null && (hottest == null || reading > hottest)) reading else hottest
+    }
+
+    /**
+     * The mean of what the consumption window spent, worked out once here rather than per frame.
+     *
+     * [consumption] is already the window - the hub puts the tail in the snapshot - so this is one
+     * pass over thirty numbers per sweep instead of a filter, a list and an average per frame.
+     */
+    val consumptionMean: Double? = ConsumptionWindow.mean(consumption)
 
     // ------------------------------------------------------------- combustion
 

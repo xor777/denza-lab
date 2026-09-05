@@ -7,7 +7,9 @@ import dev.denza.apps.feature.vehicle.VehicleSignal
 import dev.denza.apps.feature.vehicle.VehicleTelemetry
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotSame
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -260,6 +262,27 @@ class ContourSceneTest {
         run(scene, ready(trace = trace), 1f)
         assertTrue("the box is back the moment the car moves", scene.stage.engineBox)
         assertEquals(ContourMode.ENGINE, scene.stage.mode)
+    }
+
+    @Test
+    fun aSceneThatHasNotChangedIsTheSameSceneRatherThanANewOne() {
+        // This is asked once per frame at sixty frames a second, and it answers the same five
+        // things for minutes at a time. A fresh object per frame is garbage on a view drawn over
+        // the vehicle's own instruments, and it is also a lie: nothing about the panel changed.
+        val scene = ContourScene()
+        val driving = ready(mapOf(VehicleSignal.POWER_KW to 34.0))
+        run(scene, driving, 1f)
+        val first = scene.stage
+
+        run(scene, driving, 0.02f)
+        assertSame("nothing moved, so the stage did not", first, scene.stage)
+        silence(scene, driving, 0.02f)
+        assertSame("and a frame with no sweep in it certainly did not", first, scene.stage)
+
+        // And it is not latched: a gear change is a new stage.
+        run(scene, ready(mapOf(VehicleSignal.POWER_KW to 1.4, VehicleSignal.GEARBOX_PARK to 1.0)), 0.02f)
+        assertNotSame(first, scene.stage)
+        assertTrue(scene.stage.parked)
     }
 
     @Test

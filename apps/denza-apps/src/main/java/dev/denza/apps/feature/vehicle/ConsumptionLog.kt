@@ -32,8 +32,23 @@ internal class ConsumptionLog(
     private var pendingKm = 0.0
     private var pendingKwh = 0.0
 
-    /** Closed bars, oldest first. */
+    /** Closed bars, oldest first. All of them - the journal's own thirty kilometres. */
     val buckets: List<Double> get() = closed.toList()
+
+    /**
+     * And the tail the cluster is ever shown, which is what a snapshot carries.
+     *
+     * The panel draws three kilometres and the log keeps thirty for restart continuity, so handing
+     * a snapshot [buckets] copied two hundred and seventy bars per sweep that nothing would read
+     * and left every frame to find the tail again. This copies the thirty that are drawn.
+     */
+    val window: List<Double>
+        get() {
+            val size = minOf(closed.size, ConsumptionWindow.buckets)
+            val out = ArrayList<Double>(size)
+            for (index in closed.size - size until closed.size) out.add(closed[index])
+            return out
+        }
 
     /**
      * @param odometerKm the vehicle odometer; null while the read failed

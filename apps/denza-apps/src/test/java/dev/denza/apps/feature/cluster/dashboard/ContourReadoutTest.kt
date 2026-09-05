@@ -59,15 +59,6 @@ class ContourReadoutTest {
     }
 
     @Test
-    fun theAverageIsOverTheSpendingBucketsOnly() {
-        // Averaging a descent in would answer a question nobody asks and read lower than any part
-        // of the history beside it.
-        assertEquals(20.0, ContourReadout.averageConsumption(listOf(10.0, 30.0, -8.0))!!, 1e-9)
-        assertNull(ContourReadout.averageConsumption(emptyList()))
-        assertNull(ContourReadout.averageConsumption(listOf(-4.0, -2.0)))
-    }
-
-    @Test
     fun aTemperatureIsAnExceptionOnlyWhenItHasLeftItsBand() {
         assertEquals(
             ContourReadout.Level.NORMAL,
