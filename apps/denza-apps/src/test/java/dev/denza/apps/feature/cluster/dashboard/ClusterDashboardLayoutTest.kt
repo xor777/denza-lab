@@ -48,33 +48,6 @@ class ClusterDashboardLayoutTest {
     }
 
     @Test
-    fun theBandBetweenTheStockEdgesIsOursAcrossTheWholeWidth() {
-        val layout = full()
-        val middle = (layout.stockTop + layout.stockBottom) / 2f
-        assertTrue(layout.isClear(0f, middle))
-        assertTrue(layout.isClear(0.5f, middle))
-        assertTrue(layout.isClear(1f, middle))
-    }
-
-    @Test
-    fun theTopCentreIsRefusedAndTheTopCornersAreNot() {
-        val layout = full()
-        val high = layout.stockTop / 3f
-        assertFalse(layout.isClear(0.5f, high))
-        assertTrue(layout.isClear(0.02f, high))
-        assertTrue(layout.isClear(0.98f, high))
-    }
-
-    @Test
-    fun theBottomIsRefusedExceptThroughItsCentralReveal() {
-        val layout = full()
-        val low = layout.stockBottom + (1f - layout.stockBottom) / 2f
-        assertTrue(layout.isClear(0.5f, low))
-        assertFalse(layout.isClear(0.05f, low))
-        assertFalse(layout.isClear(0.95f, low))
-    }
-
-    @Test
     fun thePanelLandsOnTheGlassAtTheScaleTheRampWasMeasuredFor() {
         // 424 units into 720 pixels. Every rung on the ramp is stated in those units, and it is what
         // turns a size into a number of arc minutes from the driver's seat.

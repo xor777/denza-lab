@@ -252,9 +252,10 @@ Closed:
       window; whether it does is a measurement on the car, not a board.
 - m8  an exception is a 34 figure changing colour on a shelf whose figures are all
       34, so it is the same glance as reading the temperature.
-- m9  generation is drawn twice, not three times: the seam on the band and the
-      area in the engine box. Its figure is written once, and since the eighth
-      pass it is written inside the sentence under that area.
+- m9  generation is drawn twice, not three times: the line under the band (the
+      seam, if the log ever says it may be one) and the area in the engine box.
+      Its figure is written once, and since the eighth pass it is written inside
+      the sentence under that area.
 - m11 closed by the ninth pass, and it took a picture rather than a caption. Three
       motors under one word in `motorTemps` order was learnable and named as such
       for five drawings; the shared degree sign the sixth pass gave them bought the
@@ -332,6 +333,12 @@ W_KWH = 44.1094                  # «кВт·ч» at 18, once per cell since the
 W_KM = 23.0938                   # «км» at 18, the odometer's unit in a caption
 W_PER_100KM = 109.4219           # «кВт·ч/100 км» at 18, the figure with no window
 W_PETAL_WINDOW = 184.1094        # «кВт·ч/100 км · за 3 км» - the unit names it
+# And the widest that unit ever is, which is the window still filling. The figures
+# are tabular, so «за 0,3 км» and «за 2,7 км» come out at one width and this
+# measures every one of them. Nothing is anchored off it: the unit is left-aligned
+# against the figure's own reserve and there is nothing to its right but the
+# cut-out, which it clears by 89.9 even here.
+W_PETAL_FILLING = 197.7656       # «кВт·ч/100 км · за 1,2 км», measured 2026-09-04
 W_TITLE = {'БАТАРЕЯ · В': 126.0781, 'ДВС · об/мин': 137.9844,
            'ДВС · мин за поездку': 224.9375}
 # Every string re-measured in one `getComputedTextLength()` run on 2026-09-04, in
@@ -351,8 +358,15 @@ W_CAPTION = {'РАЗБРОС ЯЧЕЕК': 167.7344, 'РЕКУПЕРАЦИЯ': 15
              # The eighth pass's own two, from a run of the same method on the
              # same day the panel went on the bench. «ОБОРОТЫ ·» and «ГЕНЕРАЦИЯ»
              # are off the table with the legend they belonged to.
-             'В БАТАРЕЮ · ПОСЛЕДНИЕ 2 МИН': 341.7813,
-             'В БАТАРЕЮ · 2 МИН': 204.7188}
+             # The ninth pass's phrase carried a literal two minutes, which is the
+             # box's capacity and not its reach: it printed «ПОСЛЕДНИЕ 2 МИН» from
+             # the first second of an engine run, over a box one step wide. The
+             # window is «м:сс» now, measured 2026-09-04 in the same run as the two
+             # rows above. Every value of it is this wide - the figures are tabular
+             # and a «м:сс» is four glyphs and a mark - so the template decides the
+             # anchors and the drawn duration moves none of them.
+             'В БАТАРЕЮ · ПОСЛЕДНИЕ 0:00': 315.4375,
+             'В БАТАРЕЮ · 0:00': 180.0156}
 # Measured and not used: «ВЕРНУЛА РЕКУПЕРАЦИЯ» is 253.5469, which is 102.9 more
 # than the noun alone and 65 more than the shelf has. It is why the middle caption
 # on P keeps its dot instead of taking the verb the other two got.
@@ -693,8 +707,11 @@ ENGINE_GEN_FULL = 30.0
 # figure and its unit leave together and the words do not move. That is the
 # odometer's own arrangement inside «42 км · ЗА ПОЕЗДКУ», one shelf along.
 GEN_FIELD = 2 * DIGIT * CAPTION
-LEGEND_WINDOW = 'В БАТАРЕЮ · ПОСЛЕДНИЕ 2 МИН'
-LEGEND_WINDOW_SHORT = 'В БАТАРЕЮ · 2 МИН'
+# The window is the box's own reach, «м:сс», and these are what it is measured
+# from. It used to be a literal two minutes - the trace's capacity - printed from
+# the first second of an engine run over a box one step wide.
+LEGEND_WINDOW = 'В БАТАРЕЮ · ПОСЛЕДНИЕ 0:00'
+LEGEND_WINDOW_SHORT = 'В БАТАРЕЮ · 0:00'
 
 # ---- the petal, and the three kilometres behind its figure
 
@@ -705,12 +722,15 @@ PETAL_BUCKETS = 30                      # 3 km of ConsumptionLog's 100 m buckets
 # and two digits is what the panel actually prints while the car is moving.
 PETAL_FIELD_W = 3 * DIGIT * FIGURE + max(COMMA, COLON) * FIGURE
 PETAL_BASE_FIELD_W = 2 * DIGIT * FIGURE
-# The unit names the window the figure is true over: «кВт·ч/100 км · за 3 км».
+# The unit names the window the figure is true over: «кВт·ч/100 км · за 3 км»
+# when the log has three kilometres, «· за 1,2 км» while it is still filling.
 # Three kilometres has been the rule since the fourth pass and it was written
 # nowhere on the glass, so the figure was read against the interval the reader
-# brought - the trip, usually, which is the one thing it has never been. 74.7
-# units into a cut-out that had 178 spare at this baseline.
-PETAL_UNIT_W = W_PETAL_WINDOW
+# brought - the trip, usually, which is the one thing it has never been. And the
+# literal was the same defect one level down: a five-hundred-metre history printed
+# under «за 3 км» is a figure read against a road it is not the mean of. The width
+# below is the widest form, and nothing is anchored off it.
+PETAL_UNIT_W = max(W_PETAL_WINDOW, W_PETAL_FILLING)
 PETAL_BOX_GAP = STEP * 3
 # **The figure centres on the axis, and the box hangs off it.** The last board
 # centred the whole composition - box, gap, field, gap, unit - so the digits
@@ -824,6 +844,32 @@ def legend_window():
     if legend_phrase(LEGEND_WINDOW) + CLEARANCE <= room:
         return LEGEND_WINDOW
     return LEGEND_WINDOW_SHORT
+
+
+def legend_text(seconds):
+    """The window as it is drawn: how far back the box actually reaches.
+
+    Every value of it is one width - tabular figures, four glyphs and a mark - so
+    the template above decides every anchor in the phrase and the duration drawn
+    inside it moves none of them.
+    """
+    bounded = max(0, min(int(seconds), 9 * 60 + 59))
+    clock = f'{bounded // 60}:{bounded % 60:02d}'
+    return legend_window().replace('0:00', clock)
+
+
+def per_100(bars):
+    """The petal's unit, naming the road the figure beside it is the mean of.
+
+    Three kilometres is what the log holds when it has them. A history that has
+    just started - a fresh install, a reset journal, the first minutes of a drive -
+    is a few hundred metres printed under «за 3 км», which is the same defect the
+    seventh pass added this window to fix, one level down.
+    """
+    covered = len(bars or []) * 0.1
+    if covered >= PETAL_BUCKETS * 0.1 - 1e-6:
+        return f'кВт·ч/100 км · за {PETAL_BUCKETS * 0.1:.0f} км'
+    return f'кВт·ч/100 км · за {covered:.1f} км'.replace('.', ',')
 
 
 def sweep(kw):
@@ -1183,8 +1229,11 @@ def band(s):
     ink is what the battery pays, blue is what the engine pays, and the tip is
     what the wheels asked for - the jury's second correction. That reading is only
     true if `GENERATION_KW` is not already inside `POWER_KW`, which has not been
-    logged on this car, so `seam_on_band` False draws the same fact without the
-    claim, as a separate line under the body.
+    logged on this car, so the default is `seam_on_band` False: the same fact
+    without the claim, as a separate line under the body on the return side's own
+    scale. `VehicleConvention.GENERATION_INSIDE_PACK_POWER` is the same decision in
+    the app and `ContourBoardContractTest` holds the two together; one state below
+    draws the seam so that the alternative is on record.
     """
     kw = s.get('kw')
     if kw is None:
@@ -1209,11 +1258,24 @@ def band(s):
                    f'height="{f(BAND_BODY)}" fill="url(#{ident})"/>')
     generation = s.get('generation') if s.get('ice') == 'running' else None
     if generation:
-        if s.get('seam_on_band', True):
+        # The seam behind the tip reads `wheels = pack + generation`, which is only
+        # true if GENERATION_KW is not already inside POWER_KW - and nobody has
+        # logged this car on a flat cruise with the engine running. So the default
+        # is the drawing that makes no claim, a separate line under the body, and it
+        # is the same default `VehicleConvention.GENERATION_INSIDE_PACK_POWER` sets:
+        # this flag defaulted the other way for a while and the board's canonical
+        # engine state was the one picture the app never drew.
+        #
+        # The line is measured on the RETURN side's own span, not the discharge one.
+        # `sweep` picks its span from the sign, so a positive argument here put 14 kW
+        # of generation at 0.216 of the half-band while 14 kW of regeneration on the
+        # band above it sat at 0.374 - the same kilowatts into the same pack, in the
+        # same blue, 1.73 times apart.
+        if s.get('seam_on_band', False):
             far = band_x(kw + generation)
             out.append(rect(tip, top, far - tip, BAND_BODY, RETURN))
         else:
-            far = AXIS + sweep(generation) * BAND_HALF
+            far = AXIS + sweep(-generation) * BAND_HALF
             out.append(rect(AXIS, GEN_LINE_Y, far - AXIS, GEN_LINE_H, RETURN))
     peak = s.get('peak')
     if peak is not None and abs(peak) > NEUTRAL_KW:
@@ -1403,7 +1465,8 @@ def engine_box(s):
     # its unit leave together when the engine stops, which is the panel's one rule
     # for a stale reading applied to a number living inside a sentence.
     at = legend_anchors()
-    out.append(txt('cl', at['window'], ENGINE_LEGEND, legend_window(), 'start', MUTED_DEEP))
+    out.append(txt('cl', at['window'], ENGINE_LEGEND, legend_text(len(s['trace'])),
+                   'start', MUTED_DEEP))
     generation = s.get('generation') if s.get('ice') == 'running' else None
     if generation is None:
         # No figure, so no field: the dot closes up against the words rather than
@@ -1482,7 +1545,12 @@ def right_shelf(s):
     cell, and the seats are counted from the shelf's own edge so the one that does
     exist is always in the same place.
     """
-    if s.get('trace'):
+    # One shelf, two true things, and standing still wins. A car that has stopped
+    # is the one moment its driver reads three numbers instead of glancing at one,
+    # and what the box has to show then is the last two minutes of a drive that has
+    # ended - against the trip's own arithmetic, which is what P is for. The box
+    # comes back the moment the car moves, with the trace it kept all along.
+    if s.get('trace') and not s.get('parked'):
         return engine_box(s)
     if not s['trip_known']:
         return []
@@ -1535,8 +1603,13 @@ def petal_history(bars):
     if not bars:
         return []
     zero, top, bottom = PETAL_ZERO_Y, PETAL_BOX_TOP, PETAL_BOX_BOTTOM
-    pitch = PETAL_BOX_W / len(bars)
-    xs = [PETAL_BOX_X + pitch * i for i in range(len(bars) + 1)]
+    # The pitch is the box divided by the window rather than by what has arrived, and
+    # the run is anchored at the box's right edge, so a history still filling grows
+    # leftward into its box instead of stretching across it. Stretched, three hundred
+    # metres of road would be drawn as three kilometres.
+    pitch = PETAL_BOX_W / PETAL_BUCKETS
+    left = PETAL_BOX_X + (PETAL_BUCKETS - len(bars)) * pitch
+    xs = [left + pitch * i for i in range(len(bars) + 1)]
     spend = [zero - min(max(v, 0.0) / PETAL_FULL, 1.0) * (zero - top) for v in bars]
     outline, field = step_path(xs, spend, zero)
     out = [
@@ -1564,7 +1637,9 @@ def petal(s):
     changes three times a second and a figure that flickers is a figure nobody
     reads.
 
-    **Since the seventh pass the unit says so: «кВт·ч/100 км · за 3 км».** The
+    **Since the seventh pass the unit says so, and since the tenth it says which
+    three kilometres: «кВт·ч/100 км · за 1,2 км» while the log is still filling.**
+    The
     window was a rule in this file and on none of the six drawings, and a
     consumption figure with nothing naming its interval is read against whatever
     interval the reader has in mind - the trip, mostly, which is the one thing this
@@ -1706,7 +1781,9 @@ HOT = temps(('33', 'normal'),
             ('92', 'alert'))
 
 # The unit carries the window. «кВт·ч/100 км» alone was a rate with no interval on
-# it, and a rate with no interval is read against the trip.
+# it, and a rate with no interval is read against the trip - and «за 3 км» over a
+# history five hundred metres long is the same defect one level down, which is why
+# `per_100` names the road the log actually has.
 PER_100 = 'кВт·ч/100 км · за 3 км'
 
 CALM_BARS = consumption_history(16.8)
@@ -1722,7 +1799,7 @@ def sc(**kw):
     and nothing else rather than four headings over emptiness (m4).
     """
     s = dict(kw)
-    s.setdefault('petal_unit', PER_100)
+    s.setdefault('petal_unit', per_100(s.get('bars')))
     defaults = {
         'power_known': s.get('kw') is not None,
         'volts_known': s.get('volts') is not None,
@@ -1752,6 +1829,13 @@ STATES = [
         bars=consumption_history(21.4), petal='21')),
     ('Спокойная езда · ДВС не запускался: одна фраза справа, «ДАЛ ДВС» нет вовсе',
      CALM),
+    # The window is what the log has closed, not what it is sized for. Twelve buckets
+    # is 1,2 km of road, the history grows leftward into its box rather than
+    # stretching across it, and the unit says which road the figure is the mean of.
+    ('Первые километры · закрыто 12 буферов: единица называет 1,2 км, а не 3',
+     sc(kw=22.0, peak=41.0, volts=549.0, temps=COOL,
+        trip=dict(net=1.4, regen=0.4, ice=0.0, km=6),
+        bars=consumption_history(18.6)[:12], petal='19')),
     ('Разгон · 128 кВт, пик-холд стоит впереди кончика и сползает к нему',
      sc(kw=128.0, peak=163.0, volts=531.0, temps=WORKED,
         trip=dict(net=10.0, regen=3.1, ice=0.0, km=45),
@@ -1760,7 +1844,8 @@ STATES = [
      sc(kw=-42.0, peak=-58.0, volts=573.0, temps=COOL,
         trip=dict(net=9.2, regen=3.4, ice=0.0, km=43),
         bars=consumption_history(11.2), petal='11')),
-    ('ДВС генерирует 82 с · шов за флагом; коробка выросла справа на 17 ступеней по 5 с',
+    ('ДВС генерирует 82 с · генерация отдельной линией под лентой, по шкале возврата; '
+     'коробка выросла справа на 17 ступеней по 5 с',
      sc(kw=28.0, peak=52.0, ice='running', rpm=1780.0, generation=14.0,
         trace=engine_history(82), volts=548.0, temps=WORKED,
         bars=consumption_history(17.4), petal='17')),
@@ -1769,12 +1854,22 @@ STATES = [
      sc(kw=34.0, peak=68.0, ice='slept', ice_minutes=6.0,
         trace=engine_history(120, stopped=40), volts=551.0, temps=WORKED,
         bars=consumption_history(17.1), petal='17')),
-    ('Запасное рисование шва · если генерация уже внутри POWER_KW — отдельной линией',
+    ('Шов на ленте · как это выглядит, если генерация НЕ входит в мощность пакета',
      sc(kw=28.0, peak=52.0, ice='running', rpm=1780.0, generation=14.0,
-        seam_on_band=False, trace=engine_history(82), volts=548.0, temps=WORKED,
+        seam_on_band=True, trace=engine_history(82), volts=548.0, temps=WORKED,
         bars=consumption_history(17.4), petal='17')),
     ('Стоянка на P · полный расклад тремя ячейками, у лепестка появилась десятая',
      sc(kw=1.4, volts=561.0, temps=COOL, parked=True,
+        ice='slept', ice_minutes=6.0,
+        trip=dict(net=9.3, regen=3.1, ice=1.1, km=42),
+        bars=CALM_BARS, petal='16,8')),
+    # The same P, with the engine's box still warm behind it. Two true things and one
+    # shelf: standing still wins, because three numbers is what P is for and the box
+    # is about a drive that has ended. It comes back the moment the car moves.
+    ('Стоянка с живой трассой · ДВС заглох 40 с назад, но машина стоит: '
+     'три ячейки поездки, коробки нет',
+     sc(kw=1.4, volts=558.0, temps=WORKED, parked=True,
+        trace=engine_history(120, stopped=40),
         ice='slept', ice_minutes=6.0,
         trip=dict(net=9.3, regen=3.1, ice=1.1, km=42),
         bars=CALM_BARS, petal='16,8')),
@@ -1782,6 +1877,18 @@ STATES = [
      sc(kw=-7.0, volts=584.0, temps=PARKED,
         trip=dict(net=9.3, regen=3.1, ice=0.0, km=42),
         bars=CALM_BARS, petal='2:15', petal_unit='до полной')),
+    # Two things at once, and both of them are what the seat does when the ordinary
+    # case is absent. A car that has stood on P since the app was installed has moved
+    # no odometer, so there are no closed buckets and no history to draw - and the
+    # countdown is not about the road, so it stands anyway. And an estimate of ten
+    # hours or more is written in hours alone: «12:30» is five glyphs against a field
+    # of three and a mark, and the field cannot grow without pushing the history box
+    # out of the petal's own cut-out.
+    ('Зарядка без истории · буферов расхода ещё нет, отсчёт всё равно стоит; '
+     'оценка больше десяти часов — часы без минут',
+     sc(kw=-3.5, volts=571.0, temps=PARKED,
+        trip=dict(net=9.3, regen=3.1, ice=0.0, km=42),
+        bars=None, petal='12 ч', petal_unit='до полной')),
     ('Одиночный null · напряжение снято через 2 с, заголовок «БАТАРЕЯ · В» стоит',
      sc(kw=34.0, peak=68.0, volts=None, volts_known=True, temps=COOL,
         trip=dict(net=9.3, regen=3.1, ice=0.0, km=42),
@@ -1789,7 +1896,8 @@ STATES = [
     ('Потеря связи · через 2 с сняты все значения; подписи остались и не потускнели',
      sc(kw=None, power_known=True, volts=None, volts_known=True,
         temps=None, temps_known=True, trip=None, trip_known=True,
-        ice=None, ice_known=False, bars=None, petal=None, petal_known=True)),
+        ice=None, ice_known=False, bars=None, petal=None, petal_known=True,
+        petal_unit=PER_100)),
     ('Исключение · моторы 68° оранжевым, инвертор 92° красным, «РАЗБРОС ЯЧЕЕК» — чей',
      sc(kw=34.0, peak=68.0, volts=552.0, temps=HOT, spread=('44', 'alert'),
         trip=dict(net=9.3, regen=3.1, ice=0.0, km=42),
@@ -1966,7 +2074,7 @@ def plan_board():
                                     f'{PETAL_RETURN_FULL:.0f}'),
         (right_lane, PETAL_BASELINE, f'лепесток · 52 · два знака на оси, поле '
                                      f'{PETAL_FIELD_W:.1f} влево'),
-        (right_lane, PETAL_BASELINE, f'«кВт·ч/100 км · за 3 км» {PETAL_UNIT_W:.1f} на '
+        (right_lane, PETAL_BASELINE, f'«кВт·ч/100 км · за 1,2 км» {PETAL_UNIT_W:.1f} на '
                                      f'{PETAL_UNIT_X:.1f}…'
                                      f'{PETAL_UNIT_X + PETAL_UNIT_W:.1f}, до выреза '
                                      f'{petal_edge(PETAL_BASELINE) - PETAL_UNIT_X - PETAL_UNIT_W:.1f}'),
@@ -2142,7 +2250,7 @@ if __name__ == '__main__':
           f'({PETAL_FIGURE_RIGHT - HERO_FIELD_RIGHT:+.2f}), reserve to '
           f'{PETAL_FIGURE_RIGHT - PETAL_FIELD_W:.2f}, unit {PETAL_UNIT_X:.2f}…'
           f'{PETAL_UNIT_X + PETAL_UNIT_W:.2f}')
-    print(f'  «кВт·ч/100 км · за 3 км» {PETAL_UNIT_W:.2f} ends '
+    print(f'  «кВт·ч/100 км · за 1,2 км» {PETAL_UNIT_W:.2f} (the widest) ends '
           f'{PETAL_UNIT_X + PETAL_UNIT_W:.2f}, the cut-out\'s right edge at the '
           f'baseline {petal_edge(PETAL_BASELINE):.2f} -> clear by '
           f'{petal_edge(PETAL_BASELINE) - PETAL_UNIT_X - PETAL_UNIT_W:.2f} '

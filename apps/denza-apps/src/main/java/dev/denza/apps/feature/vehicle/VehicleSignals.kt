@@ -25,11 +25,29 @@ internal enum class VehicleTransact(val code: Int) {
 }
 
 /**
- * How often a signal is worth re-reading. The hot set is what moves with the
- * pedal; the cold set is temperatures, charging estimates and warning lamps,
+ * How often a signal is worth re-reading, and therefore how long one of its readings stays true.
+ *
+ * The hot set is what moves with the pedal; the cold set is temperatures and charging estimates,
  * which change slowly and would waste a shell round trip at dashboard cadence.
+ *
+ * ### Why the staleness horizon lives here
+ *
+ * The panel has one rule for a stale reading - it is removed after its horizon and its caption stays
+ * - and that rule only means anything if the horizon is sized against the cadence that fills it.
+ * The hot batch answers about four times a second, so two seconds is eight sweeps missed in a row:
+ * a bus that has genuinely stopped. The cold batch answers once every ten seconds and
+ * `VehicleColdSweep` rebuilds its map from each sweep, so *one* flaky cold read removes the key from
+ * every snapshot until the next sweep lands - and at two seconds that blanked a standing temperature
+ * for the remaining eight. [COLD]'s horizon is two of its own intervals with room for the second one
+ * to be late, so a single missed answer costs nothing and two in a row still remove the figure.
  */
-internal enum class VehiclePoll { HOT, COLD }
+internal enum class VehiclePoll(
+    /** How long a reading of this cadence stays on the panel after it last answered. */
+    val staleSeconds: Float,
+) {
+    HOT(2f),
+    COLD(25f),
+}
 
 /**
  * Plausibility gate for a decoded value.
@@ -41,7 +59,6 @@ internal enum class VehiclePoll { HOT, COLD }
  * outside it is dropped, and the dashboard shows a dash — never a decoded sentinel.
  */
 internal enum class VehicleKind {
-    PERCENT,
     /** Traction pack / bus, hundreds of volts. */
     HIGH_VOLT,
     /** Celsius. `-40` exactly is the vendor's "no sensor" marker, not a reading. */
@@ -57,8 +74,6 @@ internal enum class VehicleKind {
     CHARGE_POWER,
     /** Odometer, kilometres. */
     DISTANCE_KM,
-    /** Kilo-ohms of insulation resistance. */
-    INSULATION,
     /** Hours or minutes of a charging estimate. */
     DURATION,
     /** Charge gun state; 2 is "AC connected" on this car. */
@@ -79,14 +94,12 @@ internal enum class VehicleKind {
     ;
 
     fun accepts(value: Double): Boolean = when (this) {
-        PERCENT -> value in 0.0..100.0
         HIGH_VOLT -> value in 60.0..1000.0
         TEMPERATURE -> value in -50.0..150.0 && value != -40.0
         MILLIVOLT -> value in 1000.0..5000.0
         POWER_KW -> value in -600.0..600.0
         CHARGE_POWER -> value in -1.0..160.0
-        DISTANCE_KM -> value in 0.0..2_000_000.0
-        INSULATION -> value in 0.0..100_000.0
+        DISTANCE_KM -> value in 0.0..OdometerGate.MAX_ODOMETER_KM
         DURATION -> value in 0.0..99.0
         GUN -> value in 0.0..8.0
         RPM -> value in 0.0..9000.0
@@ -134,23 +147,22 @@ internal enum class VehicleSignal(
      * panel has read since it shipped - `dev.denza.apps.feature.trip.TripParkSignal`, whose command
      * is `service call autoservice 5 i32 1011 i32 89129008` and whose `89129008` is the `0x5500030`
      * written here. That reader keeps its own shell because the trip panel runs on the head unit
-     * without the cluster; the cluster already has a batch going past this device twice a second,
-     * so it asks in that batch rather than opening a second session. One id, two callers, one
-     * proven decoding: `0` out of P, `1` in P, anything else not an answer.
+     * without the cluster; the cluster already has a batch going past this device four times a
+     * second, so it asks in that batch rather than opening a second session. One id, two callers,
+     * one proven decoding: `0` out of P, `1` in P, anything else not an answer.
      *
-     * [TripEnergyLedger] is the only thing that reads it. Without it a trip would have to be
-     * guessed from a stationary odometer, which cannot tell a car parked for the night from a car
-     * at a long traffic light.
+     * Two things read it on the cluster. [TripEnergyLedger] is bounded by it - without it a trip
+     * would have to be guessed from a stationary odometer, which cannot tell a car parked for the
+     * night from one at a long traffic light - and the panel itself reads it through
+     * `VehicleTelemetry.parked`, which is what puts a third cell on the right shelf and a decimal
+     * place on the petal's figure while the car is standing.
      */
     GEARBOX_PARK(1011, 0x5500030, VehicleTransact.INT, VehiclePoll.HOT, VehicleKind.SWITCH),
 
     // ---- cold: pack, drivetrain, charging ----
-    SOH_PERCENT(1014, 0x44400028, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.PERCENT),
-
     PACK_TEMP_AVG(1014, 0x44700038, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.TEMPERATURE, offset = -40.0),
     CELL_MIN_MV(1014, 0x44600010, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.MILLIVOLT),
     CELL_MAX_MV(1014, 0x44600030, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.MILLIVOLT),
-    INSULATION_KOHM(1039, 0x43A00018, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.INSULATION),
     MOTOR_FRONT_C(1039, 0x46406018, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.TEMPERATURE),
     INVERTER_C(1039, 0x46406010, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.TEMPERATURE),
     MOTOR_REAR_LEFT_C(1039, 0x285001A8, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.TEMPERATURE),
@@ -195,25 +207,16 @@ internal enum class VehicleSignal(
     GENERATION_KW(1006, 0x2610001F, VehicleTransact.INT, VehiclePoll.HOT, VehicleKind.POWER_KW),
     GENERATION_STATE(1006, 0x34F0000A, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.FLAG),
 
-    // Warning lamps. Several ids per lamp are generation variants of the same
-    // signal, the way the motor temperatures were: reading all of them and
-    // taking the worst is cheaper than deciding which one this car uses.
-    COOLANT_LEVEL_LOW_A(1007, 0x3D911028, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.FLAG),
-    COOLANT_LEVEL_LOW_B(1007, 0x3D901030, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.FLAG),
-    COOLANT_LEVEL_LOW_C(1007, 0x3D95D015, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.FLAG),
-    COOLANT_LEVEL_LOW_D(1012, 0x05500031, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.FLAG),
-    COOLANT_TEMP_HIGH(1007, 0x3D901016, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.FLAG),
-    MOTOR_COOLANT_TEMP_HIGH(1007, 0x3D91102A, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.FLAG),
-    OIL_LEVEL_LAMP(1007, 0x4A508040, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.FLAG),
-    OIL_LEVEL_LOW(1007, 0x3D901032, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.FLAG),
-    OIL_LEVEL_HIGH(1007, 0x3D901033, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.FLAG),
-    OIL_PRESSURE_LOW_A(1007, 0x3D911011, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.FLAG),
-    OIL_PRESSURE_LOW_B(1007, 0x3D901017, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.FLAG),
-    OIL_PRESSURE_LOW_C(1007, 0x29600008, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.FLAG),
-    OIL_PRESSURE_LOW_D(1007, 0x3D95D017, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.FLAG),
-    OIL_MONITOR_FAULT(1007, 0x3D911029, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.FLAG),
-    OIL_LIFE_DUE(1007, 0x24800014, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.FLAG),
-    TRANSMISSION_OIL_TEMP_HIGH(1007, 0x3D90102A, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.FLAG),
+    // Sixteen warning lamps used to follow, and the pack's state of health and its insulation
+    // resistance stood above. Nothing on this panel ever read any of them: the Contour draws no
+    // lamp grid - a row of dots that are green every second of every drive is an inventory, and a
+    // driver's display shows exceptions - and the exception channel that would have read them was
+    // never built. The owner's own answer settled it: those lamps do not work on this car.
+    //
+    // A poll with no reader is a shell round trip on a bus the vehicle is using for itself, ten
+    // seconds apart, forever. The ids stay in docs/vehicle-data-findings.md under the widget
+    // allowlist, marked as known and not asked for, so bringing one back is a decision with the
+    // decoding already written down.
     ;
 
     companion object {
@@ -235,6 +238,25 @@ internal enum class VehicleSignal(
  */
 internal object VehicleConvention {
     const val POWER_POSITIVE_IS_DISCHARGE = true
+
+    /**
+     * Whether [VehicleSignal.GENERATION_KW] is already counted inside [VehicleSignal.POWER_KW].
+     *
+     * The second of the two unlogged assumptions, and the one that decides how the engine's share
+     * is drawn on the band. If generation is *not* inside pack power, the band can read
+     * `wheels = pack + generation` - ink for what the battery pays, blue for what the engine pays,
+     * the tip for what the wheels asked - and the blue is a seam behind the tip. If it is inside,
+     * that seam double-counts and the fact has to be drawn without the claim: a separate line under
+     * the band's body, from zero.
+     *
+     * `true` until somebody logs one engine run on a flat cruise (VERDICT check 3, CRITIQUE B1),
+     * because the claim is the thing that has to be earned. It used to live as a private constant
+     * in the renderer, where `tools/design-canvas/gen_contour.py` had the opposite default and the
+     * board's canonical engine state drew the picture the app never draws. It is one decision about
+     * what a signal means, so it belongs here beside [POWER_POSITIVE_IS_DISCHARGE], and
+     * `ContourBoardContractTest` holds the generator's default against it.
+     */
+    const val GENERATION_INSIDE_PACK_POWER = true
 
     /** Raw pack power as load: positive out of the battery, negative into it. */
     fun load(rawKw: Double?): Double? = when {

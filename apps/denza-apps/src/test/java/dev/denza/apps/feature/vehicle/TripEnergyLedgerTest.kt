@@ -175,7 +175,50 @@ class TripEnergyLedgerTest {
         moving(ledger, 100.1, powerKw = 30.0, seconds = 600.0)
 
         assertEquals(0.0, ledger.trip.netKwh, 1e-9)
-        assertEquals("the road it covered still counts", 0.1, ledger.trip.kilometres, 1e-6)
+        // And the road it covered does not count either. The shelf prints one figure against the
+        // other, so kilometres admitted where the kilowatt-hours were refused are the two halves of
+        // one sentence describing different drives - and nothing bounds how far they drift apart.
+        assertEquals("nor the road nobody was integrating", 0.0, ledger.trip.kilometres, 1e-6)
+    }
+
+    @Test
+    fun theFirstSampleAfterTheDashboardWokeIsNotRoad() {
+        val ledger = TripEnergyLedger()
+        moving(ledger, 100.0, powerKw = 30.0)
+        // The panel was closed for four minutes and the car covered three kilometres. The poll loop
+        // starts its clock again, so the first sweep back has no interval behind it - and three
+        // kilometres under 5.0 is not a re-anchor either, so nothing else refuses them.
+        moving(ledger, 103.0, powerKw = 30.0, seconds = 0.0)
+
+        assertEquals(0.0, ledger.trip.kilometres, 1e-6)
+        assertEquals(0.0, ledger.trip.netKwh, 1e-9)
+    }
+
+    @Test
+    fun nothingGrowsWhileTheCarStandsFinishedInPark() {
+        val ledger = ledger()
+        moving(ledger, 100.0)
+        moving(ledger, 100.1, powerKw = 10.0, seconds = hour)
+
+        // A gun in, the pack taking seven kilowatts, the panel up and the selector in P. The trip is
+        // closed: this is not a drive, and an hour of it used to add seven kilowatt-hours to
+        // РЕКУПЕРАЦИЯ and take seven off the net, against kilometres that could not move.
+        repeat(4) { ledger.sample(100.1, -7.0, null, false, true, hour) }
+
+        assertEquals("the finished trip is exactly the finished trip", 10.0, ledger.trip.netKwh, 1e-9)
+        assertEquals(0.0, ledger.trip.recoveredKwh, 1e-9)
+        assertEquals(0.1, ledger.trip.kilometres, 1e-6)
+    }
+
+    @Test
+    fun anEngineRunningInParkIsNotThisTripsEngineEither() {
+        val ledger = ledger()
+        moving(ledger, 100.0)
+        moving(ledger, 100.1, powerKw = 10.0, seconds = hour)
+        ledger.sample(100.1, -6.0, 6.0, true, true, hour)
+
+        assertEquals("the trip on the shelf ended when the car did", 0.0, ledger.trip.engineKwh, 1e-9)
+        assertFalse(ledger.trip.engineRan)
     }
 
     @Test

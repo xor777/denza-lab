@@ -14,39 +14,6 @@ class EngineTelemetryTest {
     )
 
     @Test
-    fun aLampNothingAnsweredForIsUnknownRatherThanHealthy() {
-        assertEquals(LampState.UNKNOWN, telemetry().lamp(EngineLamp.COOLANT_LEVEL))
-    }
-
-    @Test
-    fun oneAnsweringIdIsEnoughToCallALampHealthy() {
-        val t = telemetry(VehicleSignal.COOLANT_LEVEL_LOW_B to 0.0)
-        assertEquals(LampState.OK, t.lamp(EngineLamp.COOLANT_LEVEL))
-    }
-
-    @Test
-    fun anyOfTheGenerationVariantsCanRaiseTheLamp() {
-        // Four feature ids carry low coolant level on this firmware; the one
-        // this generation actually uses is not known, so the worst answer wins.
-        val t = telemetry(
-            VehicleSignal.COOLANT_LEVEL_LOW_A to 0.0,
-            VehicleSignal.COOLANT_LEVEL_LOW_B to 0.0,
-            VehicleSignal.COOLANT_LEVEL_LOW_C to 0.0,
-            VehicleSignal.COOLANT_LEVEL_LOW_D to 1.0,
-        )
-        assertEquals(LampState.ALERT, t.lamp(EngineLamp.COOLANT_LEVEL))
-        assertEquals(listOf(EngineLamp.COOLANT_LEVEL), t.lampAlerts)
-    }
-
-    @Test
-    fun everyLampIsBackedByAtLeastOneFlagSignal() {
-        EngineLamp.entries.forEach { lamp ->
-            assertTrue(lamp.name, lamp.signals.isNotEmpty())
-            assertTrue(lamp.name, lamp.signals.all { it.kind == VehicleKind.FLAG })
-        }
-    }
-
-    @Test
     fun engineStateIsUnknownUntilItAnswers() {
         assertNull(telemetry().engineRunning)
         assertFalse(telemetry(VehicleSignal.ENGINE_RUNNING to 0.0).engineRunning!!)
@@ -91,7 +58,7 @@ class EngineTelemetryTest {
         // 2026-08-23, engine stopped: rpm and running both read 0.
         assertEquals(0.0, AutoserviceShell.decode(VehicleSignal.ENGINE_RPM, 0)!!, 1e-9)
         assertEquals(0.0, AutoserviceShell.decode(VehicleSignal.ENGINE_RUNNING, 0)!!, 1e-9)
-        // A lamp is a small enum, never a temperature-sized number.
-        assertNull(AutoserviceShell.decode(VehicleSignal.OIL_LEVEL_LAMP, 65535))
+        // A flag is a small enum, never a temperature-sized number.
+        assertNull(AutoserviceShell.decode(VehicleSignal.ENGINE_RUNNING, 65535))
     }
 }

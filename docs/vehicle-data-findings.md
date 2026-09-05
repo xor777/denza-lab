@@ -467,7 +467,7 @@ flags or placeholders. A product widget polls only the rows below.
 | Group | Signal | FID | dev | tx | Session value | Decode |
 | --- | --- | --- | --- | --- | --- | --- |
 | BMS | SOC | `0x4A505038` | 1014 | 7 | 43 | % |
-| BMS | SoH | `0x44400028` | 1014 | 5 | 99 | % |
+| BMS | SoH | `0x44400028` | 1014 | 5 | 99 | %; **known, not polled since 2026-09-04** — the panel has no reader |
 | BMS | Pack temp avg/min/max | `0x44700038` / `0x44700010` / `0x44700020` | 1014 | 5 | 68 / 67 / 69 | °C = raw − 40 |
 | BMS | Cell min/max | `0x44600010` / `0x44600030` | 1014 | 5 | 3313 / 3317 | mV; Δ local |
 | BMS | Series cell count | `0x43A00008` | 1001 | 5 | 166 | cells |
@@ -477,7 +477,7 @@ flags or placeholders. A product widget polls only the rows below.
 | HV | Charge power | `0x32300018` | 1009 | 7 | 2.4 | kW |
 | HV | Charge current | `0x44400018` | 1009 | 7 | −4.4 | A; sign not proven |
 | HV | Engine/pack power | `0x14400020` | 1012 | 5 | −2 | kW |
-| HV | Insulation | `0x43A00018` | 1039 | 5 | 13051 | likely kΩ |
+| HV | Insulation | `0x43A00018` | 1039 | 5 | 13051 | likely kΩ; **known, not polled since 2026-09-04** — the panel has no reader |
 | 12V | Voltage | `0x43400028` | 1001 | 7 | 13.8 | V (energy twin `0x36D00020` / 1006) |
 | Range | Remaining EV range | `0x4A50203E` | 1014 | 5 | 67 | km |
 | Trip | Odometer | `0x4A502010` | 1014 | 5 | 118927 | km ×10 |
@@ -505,6 +505,12 @@ switch was `1 -> 0 -> 1`, EPB was `3 -> 1 -> 3`, and vehicle speed remained `0` 
 Apps uses only the proven park-switch fact to end and suppress its GNSS-derived trip while in P;
 the readings do not claim values for N or R.
 
+The cluster reads the same id in its own hot batch, and **two things read it
+there**: `TripEnergyLedger`, which is bounded by it — a trip runs from the first
+movement after P to the next one — and the panel itself through
+`VehicleTelemetry.parked`, which is what puts a third cell on the right shelf and
+a decimal place on the petal's figure while the car is standing.
+
 Open: no FID on this firmware reproduced the third-party “rear motor 40 °C”
 card; `STATISTIC_INSTANTANEOUS_CURRENT` scale unknown. Next action: one
 moving-drive capture of current, pack power, and rear-motor FIDs, then stop
@@ -525,7 +531,7 @@ deleted views and page-specific gates are historical, not current entry points.
 | One batched command per sweep | `AutoserviceShell.command` | Every id would otherwise be a separate ADB round trip; the current cluster retains the same batching rule |
 | `echo @@<index>` before each call | `AutoserviceShell.parse` | A feature id that prints nothing on this generation cannot shift the following answers onto the wrong signals |
 | Plausibility gate per unit | `VehicleKind.accepts` | Sentinels and max-range placeholders are dropped by what the unit can physically be, not by a blacklist — `255` stays a legal 2.55 bar and an illegal 215 °C |
-| Hot values never carried over | `VehicleTelemetryHub` | A stale kilowatt figure is worse than a dash; cold values do carry over between sweeps |
+| Hot values never carried over | `VehicleTelemetryHub` | A stale kilowatt figure is worse than a dash. Cold values are reused across *hot* sweeps, but **a cold sweep rebuilds the cold map from what that sweep answered** (`VehicleColdSweep.rebuild`), so a temperature that stopped answering leaves the snapshot the same way a power reading does. That is what lets the cluster hold one staleness rule over both cadences — with a horizon sized to each: two seconds hot, twenty-five cold, which is two of the ten-second cold intervals with room for the second to be late |
 | Odometer, not GNSS, for distance | `ConsumptionLog` | The page needs no location permission and keeps its histogram with the trip page closed |
 | Pack-power sign in one constant | `VehicleConvention` | The convention is inferred from the parked charging session, not proven; the drive capture flips one line if it is wrong |
 | No shell until the page is opened | `VehiclePanelView.syncHub` | A session that never swipes to the page costs the car nothing |
@@ -534,8 +540,8 @@ deleted views and page-specific gates are historical, not current entry points.
 | Two type scales, never one | `VehiclePanelRenderer` | A virtual unit is about 0.6 dp at full width and exactly 1 dp in the narrow pane, so a shared constant renders at two different sizes |
 | No block headings in the narrow pane | `VehiclePanelRenderer.drawNarrow` | The hairlines already separate the blocks, and the four headings were what pushed the consumption chart off the bottom of the pane |
 | Combustion signals poll only on the engine page | `VehicleSignal.engineOnly`, `VehicleTelemetryHub.setEngineActive` | The engine set is 21 of 44 signals and appears on no other page. Measured on the car: a full sweep costs 266–315 ms without it and 468–587 ms with it, so the electrical page would have paid double for lamps nobody is looking at |
-| One lamp folded from several feature ids | `EngineLamp` | Four ids report low oil pressure and four report low coolant level; they are generation variants, and reading all of them is cheaper than betting on one |
-| A lamp that never answered is not "healthy" | `LampState.UNKNOWN` | Every lamp read `0` on a healthy car, which proves they are readable, not that they light. A hollow dot makes a weaker claim than a green one |
+| One lamp folded from several feature ids | `EngineLamp` (deleted 2026-09-04) | Four ids report low oil pressure and four report low coolant level; they are generation variants, and reading all of them is cheaper than betting on one |
+| A lamp that never answered is not "healthy" | `LampState.UNKNOWN` (deleted 2026-09-04) | Every lamp read `0` on a healthy car, which proves they are readable, not that they light. A hollow dot makes a weaker claim than a green one |
 
 The current product consumer is `feature.cluster.dashboard`. Its view owns the
 only polling activity claim: attaching/showing the cluster dashboard starts the
@@ -596,13 +602,18 @@ The cost is almost all fixed: about 4–5 ms per additional call against roughly
 panel affordable, and widening the hot set is nearly free, while shortening the
 interval is what actually costs the car.
 
-That measurement set the `300 ms` hot and `10 s` cold cadence retained by the
-cluster dashboard. A fresh power figure lands about twice a second and the shell
-is busy about a third of the time, but now only while the cluster dashboard is
-visible. Every due sweep includes the full hot or cold set the cluster needs;
-there is no longer an electrical-page/engine-page split. Splitting the hot set
-any finer would buy nothing: a one-call batch costs almost what a five-call batch
-costs.
+That measurement set a `300 ms` hot and `10 s` cold cadence. **The hot interval
+is `100 ms` since the owner asked for the live figures to answer about twice as
+fast**: the cycle is then about 250 ms — the interval plus the batch itself —
+which is four readings a second with the shell busy some sixty per cent of the
+time, and only while the cluster dashboard is visible. Cold stayed at ten
+seconds.
+
+The hot set is **seven signals**: pack power, pack voltage, the odometer, the
+park switch, engine revolutions, engine running, and generation. Every due sweep
+includes the full hot or cold set the cluster needs; there is no longer an
+electrical-page/engine-page split. Splitting the hot set any finer would buy
+nothing: a one-call batch costs almost what a five-call batch costs.
 
 Two readings from the same session are worth keeping:
 
@@ -665,6 +676,16 @@ value was a resting `0` is owed the same suspicion**: a resting zero may only
 mean the ECU was awake that day.
 
 ### Warning flags — all sixteen answer, all read `0` on a healthy car
+
+**Known and not polled since 2026-09-04: the panel has no reader for them and
+there is no exception channel.** The ids and their decoding stay written down
+here, so bringing one back is a decision with the work already done; they left
+`VehicleSignal` and `EngineLamps.kt` went with them. Two things settled it. The
+Contour draws no lamp grid — a row of dots that are green every second of every
+drive is an inventory, and a driver's display shows exceptions — and the owner's
+own answer was that these lamps do not work on this car. A poll with no reader is
+a shell round trip on a bus the vehicle is using for itself, every ten seconds,
+forever.
 
 These are the "lamp" signals: no number, just a state the cluster would light.
 Every one of them answered on device `1007` unless noted, and every one read

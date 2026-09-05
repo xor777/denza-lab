@@ -71,23 +71,33 @@ internal data class VehicleTelemetry(
             return max - min
         }
 
-    val insulationMohm: Double?
-        get() = this[VehicleSignal.INSULATION_KOHM]?.let { it / 1000.0 }
-
     /**
      * The car's three drive motors in layout order: front, rear left, rear
      * right. The rear pair is per-side, not per-axle, so three separate
      * readings is the honest shape — one of them running hotter than the others
      * is exactly what the row is there to show.
+     *
+     * A field rather than a `get()`. A snapshot arrives four times a second and the cluster reads
+     * it sixty, so a property that builds a list is fifteen collections per answer, thrown away
+     * inside the frame that made them.
      */
-    val motorTemps: List<Double?>
-        get() = listOf(
-            this[VehicleSignal.MOTOR_FRONT_C],
-            this[VehicleSignal.MOTOR_REAR_LEFT_C],
-            this[VehicleSignal.MOTOR_REAR_RIGHT_C],
-        )
+    val motorTemps: List<Double?> = listOf(
+        values[VehicleSignal.MOTOR_FRONT_C],
+        values[VehicleSignal.MOTOR_REAR_LEFT_C],
+        values[VehicleSignal.MOTOR_REAR_RIGHT_C],
+    )
 
-    val hottestMotorC: Double? get() = motorTemps.filterNotNull().maxOrNull()
+    val hottestMotorC: Double? = motorTemps.fold(null as Double?) { hottest, reading ->
+        if (reading != null && (hottest == null || reading > hottest)) reading else hottest
+    }
+
+    /**
+     * The mean of what the consumption window spent, worked out once here rather than per frame.
+     *
+     * [consumption] is already the window - the hub puts the tail in the snapshot - so this is one
+     * pass over thirty numbers per sweep instead of a filter, a list and an average per frame.
+     */
+    val consumptionMean: Double? = ConsumptionWindow.mean(consumption)
 
     // ------------------------------------------------------------- combustion
 
@@ -113,27 +123,6 @@ internal data class VehicleTelemetry(
     val generating: Boolean
         get() = this[VehicleSignal.GENERATION_STATE] == GENERATION_ON ||
             (generationKw ?: 0.0) > GENERATION_FLOOR_KW
-
-    /**
-     * Worst answer across the ids that carry this lamp.
-     *
-     * The Contour draws no lamps: a grid of dots that are green almost every second of every drive
-     * is an inventory, and a driver's display shows exceptions. The **poll stays** - these are cold
-     * signals costing one shell round trip every ten seconds, and dropping the ids would be a
-     * separate decision about what the car is asked, not a consequence of a redesign. This is the
-     * decoding of that poll, and it is where an exception channel would read them from.
-     */
-    fun lamp(lamp: EngineLamp): LampState {
-        var seen = false
-        lamp.signals.forEach { signal ->
-            val value = this[signal] ?: return@forEach
-            seen = true
-            if (value >= 1.0) return LampState.ALERT
-        }
-        return if (seen) LampState.OK else LampState.UNKNOWN
-    }
-
-    val lampAlerts: List<EngineLamp> get() = EngineLamp.entries.filter { lamp(it) == LampState.ALERT }
 
     private companion object {
         /** Below this a generation reading is rounding, not the engine working. */

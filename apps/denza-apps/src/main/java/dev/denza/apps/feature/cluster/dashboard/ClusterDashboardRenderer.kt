@@ -7,6 +7,7 @@ import dev.denza.apps.design.instrument.EnergyScale
 import dev.denza.apps.design.instrument.InstrumentFace
 import dev.denza.apps.design.instrument.InstrumentPen
 import dev.denza.apps.feature.vehicle.ConsumptionWindow
+import dev.denza.apps.feature.vehicle.VehicleConvention
 import dev.denza.apps.feature.vehicle.VehicleSignal
 import dev.denza.apps.feature.vehicle.VehicleTelemetry
 import kotlin.math.abs
@@ -57,6 +58,14 @@ internal class ClusterDashboardRenderer {
 
     /** The temperature row's five marks. Held rather than extended, the way the pen is. */
     private val glyphs = ContourGlyphs()
+
+    /**
+     * And every number on the panel, remembered by the value it was printed from.
+     *
+     * A frame prints about twenty of them and almost none of them have moved since the last one.
+     * See [ContourFigures] for the rule the call sites here owe it: one slot, one format.
+     */
+    private val figures = ContourFigures()
 
     private var plan: ContourPlan? = null
     private var planFor: ClusterDashboardLayout? = null
@@ -199,9 +208,16 @@ internal class ClusterDashboardRenderer {
      * only true if `GENERATION_KW` is not already inside `POWER_KW`, and nobody has logged this car
      * on a flat cruise with the engine running (VERDICT check 3, CRITIQUE B1).
      *
-     * So [GENERATION_ON_BAND] is false until somebody does, and the same fact is drawn without the
-     * claim: a separate blue line under the body, from zero, as long as the generation is on the
-     * band's own scale. Flipping the flag is the whole change, in this one method.
+     * So [VehicleConvention.GENERATION_INSIDE_PACK_POWER] is true until somebody does, and the same
+     * fact is drawn without the claim: a separate blue line under the body, from zero. Flipping that
+     * one constant is the whole change, in this one method.
+     *
+     * **The line is scaled on the return side's own span.** It used to take
+     * `sweepFraction(generation)` with a positive argument, which picks the 300 kW discharge span:
+     * 14 kW of generation came out 0.216 of the half-band where 14 kW of regeneration on the band
+     * above it came out 0.374 - two lengths 1.73 times apart, in the same blue, on the same axis,
+     * for the same kilowatts into the same pack. Both are energy arriving, so both are measured on
+     * [EnergyScale.FULL_REGEN_KW] and the same square root.
      */
     private fun generation(
         canvas: Canvas,
@@ -217,11 +233,11 @@ internal class ClusterDashboardRenderer {
         if (!stage.engineRunning || !scene.fresh(ContourValue.GENERATION)) return
         val generation = (t.generationKw ?: return).toFloat()
         if (generation <= 0f) return
-        if (GENERATION_ON_BAND) {
+        if (!VehicleConvention.GENERATION_INSIDE_PACK_POWER) {
             val far = pen.v(plan.bandX(kilowatts + generation))
             pen.rect(canvas, tipX, top, far, bottom, DenzaPalette.RETURN)
         } else {
-            val far = pen.v(plan.axis + EnergyScale.sweepFraction(generation) * plan.bandHalf)
+            val far = pen.v(plan.axis + EnergyScale.sweepFraction(-generation) * plan.bandHalf)
             val lineTop = pen.v(plan.generationLineY)
             pen.rect(
                 canvas,
@@ -295,7 +311,7 @@ internal class ClusterDashboardRenderer {
         val volts = t[VehicleSignal.PACK_VOLT] ?: return
         pen.text(
             canvas,
-            ContourReadout.whole(volts),
+            figures.whole(ContourFigures.Slot.VOLTS, volts),
             pen.v(plan.voltsFieldRight),
             pen.v(plan.cornerFigureBaseline),
             InstrumentFace.FIGURE,
@@ -343,7 +359,7 @@ internal class ClusterDashboardRenderer {
             if (!scene.fresh(ContourValue.RPM) || !motion.rpmReady) return
             pen.text(
                 canvas,
-                ContourReadout.whole(motion.rpm.toDouble()),
+                figures.whole(ContourFigures.Slot.RPM, motion.rpm.toDouble()),
                 pen.v(plan.rpmFieldRight),
                 figureY,
                 InstrumentFace.FIGURE,
@@ -365,7 +381,7 @@ internal class ClusterDashboardRenderer {
         if (!scene.fresh(ContourValue.ENGINE_MINUTES)) return
         pen.text(
             canvas,
-            ContourReadout.whole(t.trip.engineMinutes),
+            figures.whole(ContourFigures.Slot.ENGINE_MINUTES, t.trip.engineMinutes),
             edge,
             figureY,
             InstrumentFace.FIGURE,
@@ -425,7 +441,7 @@ internal class ClusterDashboardRenderer {
             if (celsius == null) return
             pen.text(
                 canvas,
-                ContourReadout.whole(celsius),
+                figures.cell(index, celsius),
                 pen.v(left + plan.temperatureField),
                 figureY,
                 InstrumentFace.READING,
@@ -492,7 +508,7 @@ internal class ClusterDashboardRenderer {
         )
         pen.text(
             canvas,
-            ContourReadout.whole(spread),
+            figures.whole(ContourFigures.Slot.SPREAD, spread),
             pen.v(left + plan.temperatureField),
             figureY,
             InstrumentFace.READING,
@@ -527,10 +543,13 @@ internal class ClusterDashboardRenderer {
         val seats = if (stage.parked) plan.parkSeats else plan.driveSeats
         val trip = t.trip
 
+        // The seat's index is its memo slot as well as its place: the three are drawn through one
+        // function, and one memo between them would be missed by all three in every frame.
         seat(
             canvas,
             plan,
-            plan.tripSeat(0, seats),
+            seat = 0,
+            left = plan.tripSeat(0, seats),
             value = trip.netKwh.takeIf { scene.fresh(ContourValue.TRIP_NET) },
             word = ContourReadout.CAPTION_TRIP,
             marked = false,
@@ -540,7 +559,8 @@ internal class ClusterDashboardRenderer {
             seat(
                 canvas,
                 plan,
-                plan.tripSeat(1, seats),
+                seat = 1,
+                left = plan.tripSeat(1, seats),
                 value = trip.recoveredKwh.takeIf { scene.fresh(ContourValue.TRIP_REGEN) },
                 word = ContourReadout.CAPTION_REGEN,
                 marked = true,
@@ -551,7 +571,8 @@ internal class ClusterDashboardRenderer {
             seat(
                 canvas,
                 plan,
-                plan.tripSeat(seats.size - 1, seats),
+                seat = 2,
+                left = plan.tripSeat(seats.size - 1, seats),
                 value = trip.engineKwh.takeIf { scene.fresh(ContourValue.TRIP_ENGINE) },
                 word = ContourReadout.CAPTION_ENGINE_GAVE,
                 marked = false,
@@ -574,6 +595,7 @@ internal class ClusterDashboardRenderer {
     private fun seat(
         canvas: Canvas,
         plan: ContourPlan,
+        seat: Int,
         left: Float,
         value: Double?,
         word: String,
@@ -585,7 +607,7 @@ internal class ClusterDashboardRenderer {
         if (value != null) {
             pen.text(
                 canvas,
-                ContourReadout.tenth(value),
+                figures.seat(seat, value),
                 pen.v(left + plan.tripField),
                 figureY,
                 InstrumentFace.READING,
@@ -619,7 +641,7 @@ internal class ClusterDashboardRenderer {
         }
         pen.text(
             canvas,
-            ContourReadout.whole(odometer),
+            figures.whole(ContourFigures.Slot.ODOMETER, odometer),
             pen.v(x + plan.odometerField),
             captionY,
             InstrumentFace.UNIT,
@@ -667,9 +689,12 @@ internal class ClusterDashboardRenderer {
         scene: ContourScene,
         stage: ContourStage,
     ) {
-        val bins = t.engineTrace.bins(plan.engineBinSeconds, plan.engineBins)
-        val count = bins.size
+        // Grouped once per sweep beside the rest of the snapshot. It used to be grouped here, which
+        // allocated a list and boxed twenty-four means thirty times a second.
+        val bins = t.engineTrace.bins
+        val count = min(bins.size, plan.engineBins)
         if (count <= 0) return
+        val newest = bins.size - count
 
         val right = plan.engineBoxRight
         val left = right - count * plan.enginePitch
@@ -687,9 +712,9 @@ internal class ClusterDashboardRenderer {
         )
 
         for (index in 0 until count) {
-            val generation = bins[index]
+            val generation = bins[newest + index]
             generationYs[index] =
-                if (generation == null) Float.NaN else pen.v(plan.engineY(generation))
+                if (generation.isNaN()) Float.NaN else pen.v(plan.engineY(generation.toDouble()))
         }
 
         // A bin nothing answered in breaks the area rather than being drawn through: a step across
@@ -737,9 +762,13 @@ internal class ClusterDashboardRenderer {
     ) {
         val y = pen.v(plan.engineLegendBaseline)
         val dotY = y - pen.v(InstrumentFace.CAPTION.capHeight / 2f)
+        // «ПОСЛЕДНИЕ 0:40» while the box is forty seconds wide. The literal two minutes it used to
+        // print was the box's *capacity*, and the box is never front-padded: the phrase claimed a
+        // window from the first second of an engine run that the shape above it did not have.
+        // Tabular figures make every value of it one width, so no anchor here moves.
         pen.text(
             canvas,
-            plan.legendWindow,
+            figures.intoPack(t.engineTrace.spanSeconds, plan.legendShortened),
             pen.v(plan.legendWindowX),
             y,
             InstrumentFace.CAPTION,
@@ -754,7 +783,7 @@ internal class ClusterDashboardRenderer {
         pen.dot(canvas, pen.v(plan.legendMarkX), dotY, plan.markRadius, DenzaPalette.RETURN)
         pen.text(
             canvas,
-            ContourReadout.whole(generation),
+            figures.whole(ContourFigures.Slot.GENERATION, generation),
             pen.v(plan.legendFigureRight),
             y,
             InstrumentFace.UNIT,
@@ -794,7 +823,7 @@ internal class ClusterDashboardRenderer {
         scene: ContourScene,
         stage: ContourStage,
     ) {
-        if (stage.mode == ContourMode.UNAVAILABLE) {
+        if (stage.unavailable) {
             if (stage.message.isEmpty()) return
             pen.text(
                 canvas,
@@ -807,28 +836,63 @@ internal class ClusterDashboardRenderer {
             )
             return
         }
+        // The history is the consumption log's, and only the history: gating the whole seat on it
+        // left «до полной» and its countdown off the panel for an entire charge, because a car
+        // standing on P with a gun in has never moved the odometer and a fresh install, a reset
+        // journal or a restore behind the retention window all have no closed buckets at all.
+        if (scene.known(ContourValue.PETAL) && scene.fresh(ContourValue.PETAL)) {
+            history(canvas, plan, t)
+        }
+
+        if (stage.charging) {
+            chargeSeat(canvas, plan, t, scene)
+            return
+        }
+
         if (!scene.known(ContourValue.PETAL)) return
+        // «за 1,2 км» until the window is full. Three kilometres is what the log holds when it has
+        // them, and five hundred metres printed under «за 3 км» is the same defect this window was
+        // added to fix, one level down.
+        petalUnit(canvas, plan, figures.perHundredKm(ConsumptionWindow.coveredKm(t.consumption)))
+        if (!scene.fresh(ContourValue.PETAL)) return
+        val average = t.consumptionMean ?: return
+        petalFigure(canvas, plan, figures.consumption(average, stage.parked), stage)
+    }
 
-        if (scene.fresh(ContourValue.PETAL)) history(canvas, plan, t)
+    /**
+     * The countdown that takes the petal's seat while a gun is in.
+     *
+     * **The unit comes with the figure here**, which is the one place on the panel where it does.
+     * Everywhere else a caption arrives with the first reading and stays when the reading goes,
+     * because the caption names a quantity the car has answered at least once; «до полной» over
+     * nothing names an estimate the charger may never make - the first ten seconds of a charge, or
+     * an AC feed that never reports one - and a word standing alone over a hole is not the caption
+     * rule, it is a value that failed to arrive.
+     */
+    private fun chargeSeat(
+        canvas: Canvas,
+        plan: ContourPlan,
+        t: VehicleTelemetry,
+        scene: ContourScene,
+    ) {
+        if (!scene.fresh(ContourValue.CHARGE_LEFT)) return
+        val minutes = t.chargeMinutesLeft ?: return
+        petalUnit(canvas, plan, ContourReadout.UNIT_CHARGE_LEFT)
+        petalFigure(canvas, plan, figures.chargeLeft(minutes), scene.stage)
+    }
 
-        val charging = stage.mode == ContourMode.CHARGING
+    private fun petalUnit(canvas: Canvas, plan: ContourPlan, unit: String) {
         pen.text(
             canvas,
-            if (charging) ContourReadout.UNIT_CHARGE_LEFT else ContourReadout.UNIT_PER_100KM,
+            unit,
             pen.v(plan.petalUnitX),
             pen.v(plan.petalBaseline),
             InstrumentFace.UNIT,
             DenzaPalette.MUTED_DEEP,
         )
+    }
 
-        val text = if (charging) {
-            if (!scene.fresh(ContourValue.CHARGE_LEFT)) return
-            ContourReadout.chargeLeft(t.chargeMinutesLeft ?: return)
-        } else {
-            if (!scene.fresh(ContourValue.PETAL)) return
-            val average = ContourReadout.averageConsumption(ConsumptionWindow.raw(t.consumption)) ?: return
-            ContourReadout.consumption(average, stage.parked)
-        }
+    private fun petalFigure(canvas: Canvas, plan: ContourPlan, text: String, stage: ContourStage) {
         pen.text(
             canvas,
             text,
@@ -977,15 +1041,6 @@ internal class ClusterDashboardRenderer {
             ContourGlyphs.Glyph.MOTOR_REAR_LEFT,
             ContourGlyphs.Glyph.MOTOR_REAR_RIGHT,
         )
-
-        /**
-         * Whether the engine's share is drawn as a seam behind the band's tip.
-         *
-         * False until somebody logs one engine run on a flat cruise and settles whether
-         * `GENERATION_KW` is already inside `POWER_KW` (VERDICT check 3). Until then the same fact
-         * is drawn without the claim, as a separate line under the body.
-         */
-        const val GENERATION_ON_BAND = false
 
         /** How far the peak's mark stands out of the band's body, top and bottom. */
         const val PEAK_OVERHANG = 3f

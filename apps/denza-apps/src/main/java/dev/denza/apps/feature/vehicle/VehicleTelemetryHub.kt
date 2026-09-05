@@ -28,12 +28,13 @@ import kotlinx.coroutines.sync.Mutex
  * only the read transacts (5 and 7) are ever issued. See
  * docs/vehicle-data-findings.md.
  *
- * Cadence: the hot set (pack power and voltage, odometer, engine state and
- * generation) is one batched command about four times a second; pack health,
- * temperatures, charging estimates and warning lamps join it every ten seconds.
- * Splitting the hot set finer would buy nothing — a one-call batch costs almost
- * what a five-call batch costs. The loop runs only while the cluster dashboard
- * is visible.
+ * Cadence: the hot set — pack power and voltage, the odometer, the park switch,
+ * engine revolutions, engine running and generation, seven signals — is one
+ * batched command every 100 ms, which is a cycle of about 250 ms and four
+ * readings a second. Temperatures, cell voltages, the charging estimate and the
+ * generation state join it every ten seconds. Splitting the hot set finer would
+ * buy nothing — a one-call batch costs almost what a five-call batch costs. The
+ * loop runs only while the cluster dashboard is visible.
  *
  * Threading: the loop runs on [Dispatchers.IO] and only ever writes [snapshot];
  * the renderer reads it from the main thread. [VehiclePollLoopGate] also keeps a
@@ -195,7 +196,7 @@ internal class VehicleTelemetryHub(context: Context) {
 
     private suspend fun CoroutineScope.pollLoop() {
         var shell: LocalAdbClient.PersistentShellSession? = null
-        var lastSampleAt = 0L
+        val clock = VehicleSweepClock()
         var coldDueAt = 0L
         var backoffMs = FIRST_BACKOFF_MS
         val cold = LinkedHashMap<VehicleSignal, Double>()
@@ -216,6 +217,8 @@ internal class VehicleTelemetryHub(context: Context) {
                     shell?.runCatching { close() }
                     shell = null
                     publishUnavailable(error)
+                    // The timeout, this wait and the reconnect after it are time nobody watched.
+                    clock.interrupted()
                     delay(backoffMs)
                     backoffMs = (backoffMs * 2).coerceAtMost(MAX_BACKOFF_MS)
                     continue
@@ -233,8 +236,7 @@ internal class VehicleTelemetryHub(context: Context) {
                 restoreOnce(parsed[VehicleSignal.ODOMETER_KM])
 
                 val now = SystemClock.elapsedRealtime()
-                val dtSeconds = if (lastSampleAt == 0L) 0.0 else (now - lastSampleAt) / 1000.0
-                lastSampleAt = now
+                val dtSeconds = clock.tick(now)
                 // Sampled on every sweep so both traces share one time axis.
                 trace.sample(
                     atMillis = now,
@@ -257,9 +259,20 @@ internal class VehicleTelemetryHub(context: Context) {
                 )
                 saveTrip(now)
 
-                // Cold values carry over between sweeps — temperatures do not
+                // Cold values carry across a *hot* sweep — temperatures do not
                 // change in a second. Hot values never do: they are either fresh
                 // or absent, so the dashboard cannot show a stale kilowatt figure.
+                //
+                // What they do not carry across is a *cold* sweep: VehicleColdSweep.rebuild
+                // clears the map and refills it from what that sweep answered, so a temperature
+                // that stopped answering leaves the snapshot the way a power reading does. That
+                // is the invariant ContourScene's one staleness rule stands on, and it is why
+                // VehiclePoll.COLD's horizon is two of its own intervals rather than two seconds.
+                //
+                // A fresh map per sweep, deliberately. The snapshot published a moment ago is still
+                // being read by the panel's frame loop, so a map shared with the next one would
+                // change under a reader. This is four allocations a second against a panel that
+                // draws sixty times in that second: the cost worth chasing was never here.
                 val merged = LinkedHashMap<VehicleSignal, Double>(cold)
                 VehicleSignal.HOT.forEach { signal -> parsed[signal]?.let { merged[signal] = it } }
 
@@ -267,7 +280,7 @@ internal class VehicleTelemetryHub(context: Context) {
                     access = if (merged.isEmpty()) VehicleAccess.UNAVAILABLE else VehicleAccess.READY,
                     message = if (merged.isEmpty()) NO_ANSWER else "",
                     values = merged,
-                    consumption = log.buckets,
+                    consumption = log.window,
                     engineTrace = trace.snapshot(),
                     trip = ledger.trip,
                 )
@@ -289,10 +302,14 @@ internal class VehicleTelemetryHub(context: Context) {
         if (snapshot.access != VehicleAccess.UNAVAILABLE || snapshot.message != message) {
             Log.w(TAG, "Данные машины недоступны: ${error.javaClass.simpleName} ${error.message}")
         }
+        // Everything the hub still holds goes with it. The engine trace used to be left out, so a
+        // four-second backoff swapped the right shelf out of the box and back - defeating the
+        // hundred and twenty seconds of hysteresis the trace's own length exists to give it.
         snapshot = VehicleTelemetry(
             access = VehicleAccess.UNAVAILABLE,
             message = message,
-            consumption = log.buckets,
+            consumption = log.window,
+            engineTrace = trace.snapshot(),
             trip = ledger.trip,
         )
     }
@@ -351,6 +368,37 @@ internal object VehicleColdSweep {
     fun rebuild(into: MutableMap<VehicleSignal, Double>, parsed: Map<VehicleSignal, Double>) {
         into.clear()
         VehicleSignal.COLD.forEach { signal -> parsed[signal]?.let { into[signal] = it } }
+    }
+}
+
+/**
+ * The interval two integrals are taken over, and the rule that a failure is not one of them.
+ *
+ * `ConsumptionLog` and `TripEnergyLedger` both refuse an interval longer than
+ * [OdometerGate.MAX_GAP_SECONDS], because multiplying one stale power reading by minutes nobody was
+ * watching is the one way either of them can invent a number. That guard was defeated by the shell's
+ * own failure path: nothing reset the clock there, so the first backoff - a hot timeout of three
+ * seconds plus four of waiting plus a reconnect, about seven and a half in all - came back as one
+ * legal-looking interval just under the eight, and 200 kW across it is 0.4 kWh of pure invention.
+ *
+ * It is out here for the reason [VehicleColdSweep] is: it is the whole of a rule two consumers hang
+ * off, and inside the poll loop it was three lines that looked like bookkeeping.
+ */
+internal class VehicleSweepClock {
+
+    private var lastAt = 0L
+
+    /** The interval since the previous sweep, or zero when there is not one to speak of. */
+    fun tick(nowMillis: Long): Double {
+        val previous = lastAt
+        lastAt = nowMillis
+        if (previous == 0L || nowMillis <= previous) return 0.0
+        return (nowMillis - previous) / 1000.0
+    }
+
+    /** Time nobody was watching. The next sweep starts a new interval rather than closing this one. */
+    fun interrupted() {
+        lastAt = 0L
     }
 }
 

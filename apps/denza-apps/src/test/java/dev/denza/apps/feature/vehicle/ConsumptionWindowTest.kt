@@ -1,6 +1,8 @@
 package dev.denza.apps.feature.vehicle
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -35,5 +37,27 @@ class ConsumptionWindowTest {
         assertEquals(3.0, ConsumptionWindow.coveredKm(ramp(300)), 1e-9)
         assertEquals(0.0, ConsumptionWindow.coveredKm(emptyList()), 1e-9)
         assertTrue(ConsumptionWindow.raw(emptyList()).isEmpty())
+    }
+
+    @Test
+    fun aListThatIsAlreadyTheWindowIsNotCopiedToLookAtIt() {
+        // The panel draws at sixty frames a second and reads this three times in each of them.
+        // The snapshot carries the tail rather than the journal's whole thirty kilometres, so the
+        // window is the identity here and a frame allocates nothing to find it.
+        val window = ramp(30)
+        assertSame(window, ConsumptionWindow.raw(window))
+        val filling = ramp(12)
+        assertSame(filling, ConsumptionWindow.raw(filling))
+    }
+
+    @Test
+    fun theMeanIsOfWhatWasSpentAndNotOfWhatCameBack() {
+        // A returning bucket is energy the road gave back, and a mean that averages it in reports a
+        // consumption nobody had. The old reader built two lists per frame to say this.
+        assertEquals(20.0, ConsumptionWindow.mean(listOf(10.0, 30.0))!!, 1e-9)
+        assertEquals(20.0, ConsumptionWindow.mean(listOf(10.0, -8.0, 30.0))!!, 1e-9)
+        assertEquals("a bucket that spent nothing still spent", 0.0, ConsumptionWindow.mean(listOf(0.0))!!, 1e-9)
+        assertNull("nothing but return is not a consumption", ConsumptionWindow.mean(listOf(-1.0, -2.0)))
+        assertNull(ConsumptionWindow.mean(emptyList()))
     }
 }

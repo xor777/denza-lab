@@ -346,13 +346,8 @@ class InstrumentPen {
         fieldAlpha: Float,
     ) {
         if (count <= 0) return
-        path.rewind()
-        path.moveTo(left, ys[0])
-        for (index in 0 until count) {
-            path.lineTo(left + pitch * (index + 1), ys[index])
-            if (index + 1 < count) path.lineTo(left + pitch * (index + 1), ys[index + 1])
-        }
         // The field first, sharing the line's own outline, closed down to the zero line.
+        stepContour(left, pitch, ys, count)
         path.lineTo(left + pitch * count, zeroY)
         path.lineTo(left, zeroY)
         path.close()
@@ -361,16 +356,29 @@ class InstrumentPen {
         canvas.drawPath(path, fill)
         fill.alpha = FULL_ALPHA
 
+        // And the same outline again, open this time, so the line is drawn on top of its own field
+        // and along neither the floor nor the two ends.
+        stepContour(left, pitch, ys, count)
+        stroke.color = lineColor
+        stroke.alpha = (lineAlpha.coerceIn(0f, 1f) * FULL_ALPHA).toInt()
+        stroke.strokeWidth = v(lineWidthV)
+        canvas.drawPath(path, stroke)
+    }
+
+    /**
+     * The steps themselves, into [path], which is left open at both ends.
+     *
+     * The field and the line are the same run of steps drawn twice - once closed down to a floor
+     * and filled, once open and stroked - and the walk was written out twice with it. Two copies of
+     * a contour is two chances for a history whose fill and whose line describe different data.
+     */
+    private fun stepContour(left: Float, pitch: Float, ys: FloatArray, count: Int) {
         path.rewind()
         path.moveTo(left, ys[0])
         for (index in 0 until count) {
             path.lineTo(left + pitch * (index + 1), ys[index])
             if (index + 1 < count) path.lineTo(left + pitch * (index + 1), ys[index + 1])
         }
-        stroke.color = lineColor
-        stroke.alpha = (lineAlpha.coerceIn(0f, 1f) * FULL_ALPHA).toInt()
-        stroke.strokeWidth = v(lineWidthV)
-        canvas.drawPath(path, stroke)
     }
 
     /**

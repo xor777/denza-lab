@@ -1,5 +1,6 @@
 package dev.denza.apps.feature.cluster.dashboard
 
+import dev.denza.apps.design.instrument.EnergyScale
 import kotlin.math.abs
 import kotlin.math.exp
 import kotlin.math.roundToInt
@@ -105,15 +106,21 @@ internal class ContourMotion {
     private val glow = ContourFollower(GLOW_S, GLOW_S)
     private val revolutions = ContourFollower(RPM_RISE_S, RPM_FALL_S)
 
+    /**
+     * Whether the band has a reading at all, which is the whole of what is seeded here.
+     *
+     * There were three of these - one for the follower, one for the peak, one for the hero's glyph
+     * - and they were always true together and always cleared together, because the peak and the
+     * figure are both taken from the band's own value and cannot exist without it. Three names for
+     * one fact is three ways for the panel to be half-seeded, and none of them could ever happen.
+     */
     private var powerKnown = false
     private var rpmKnown = false
 
     private var peak = 0f
     private var peakHeldFor = 0f
-    private var peakSeeded = false
 
     private var figureValue = 0
-    private var figureSeeded = false
     private var figureAge = 0f
 
     private var flowState = ContourFlow.NEUTRAL
@@ -145,10 +152,10 @@ internal class ContourMotion {
      * the tip actually went: a peak the band never reached would be a claim about a reading nobody
      * saw drawn.
      */
-    val peakKw: Float? get() = peak.takeIf { peakSeeded && abs(it) > NEUTRAL_KW }
+    val peakKw: Float? get() = peak.takeIf { powerKnown && abs(it) > NEUTRAL_KW }
 
     /** What the hero prints, in whole kilowatts, or null before the first reading. */
-    val figure: Int? get() = figureValue.takeIf { figureSeeded }
+    val figure: Int? get() = figureValue.takeIf { powerKnown }
 
     val flow: ContourFlow get() = flowState
 
@@ -166,15 +173,21 @@ internal class ContourMotion {
         } else {
             val target = if (abs(powerKw) <= FLOOR_KW) 0f else powerKw
             if (!powerKnown) {
+                // The first reading arrives everywhere at once: the followers are placed on it
+                // rather than swept to it, and the peak and the hero's glyph are placed with them.
                 powerKnown = true
                 band.settle(target)
                 glow.settle(target)
+                peak = band.value
+                peakHeldFor = 0f
+                figureValue = abs(band.value).roundToInt()
+                figureAge = 0f
             } else {
                 band.step(target, dt)
                 glow.step(target, dt)
+                holdPeak(band.value, dt)
+                writeFigure(band.value, dt)
             }
-            holdPeak(band.value, dt)
-            writeFigure(band.value, dt)
             flowState = flowOf(band.value, flowState)
         }
 
@@ -193,10 +206,8 @@ internal class ContourMotion {
         powerKnown = false
         band.settle(0f)
         glow.settle(0f)
-        peakSeeded = false
         peak = 0f
         peakHeldFor = 0f
-        figureSeeded = false
         figureAge = 0f
         flowState = ContourFlow.NEUTRAL
     }
@@ -210,10 +221,9 @@ internal class ContourMotion {
     private fun holdPeak(value: Float, dt: Float) {
         val sameSide = peak >= 0f == value >= 0f
         when {
-            !peakSeeded || !sameSide || abs(value) > abs(peak) -> {
+            !sameSide || abs(value) > abs(peak) -> {
                 peak = value
                 peakHeldFor = 0f
-                peakSeeded = true
             }
 
             else -> {
@@ -241,16 +251,11 @@ internal class ContourMotion {
      */
     private fun writeFigure(value: Float, dt: Float) {
         figureAge += dt
-        if (figureSeeded && figureAge < FIGURE_INTERVAL_S) return
+        if (figureAge < FIGURE_INTERVAL_S) return
         figureAge = 0f
-        val magnitude = abs(value)
-        if (!figureSeeded) {
-            figureValue = magnitude.roundToInt()
-            figureSeeded = true
-            return
-        }
         // Ordinary rounding turns over half a kilowatt from the printed integer; the hysteresis is
         // the other half, so the reading has to be a whole kilowatt away before the glyph changes.
+        val magnitude = abs(value)
         if (abs(magnitude - figureValue) >= 0.5f + FIGURE_HYSTERESIS_KW) {
             figureValue = magnitude.roundToInt()
         }
@@ -267,8 +272,14 @@ internal class ContourMotion {
         const val RPM_RISE_S = 0.250f
         const val RPM_FALL_S = 0.400f
 
-        /** [dev.denza.apps.design.instrument.EnergyScale.FLOOR_KW], restated as this class's own. */
-        const val FLOOR_KW = 0.5f
+        /**
+         * The floor under which the band carries nothing, which is [EnergyScale]'s own.
+         *
+         * It was restated here as a literal, which is two numbers that have to agree by hand: the
+         * band's geometry is scaled with one and the follower is snapped to zero with the other,
+         * and a panel where those differ has a band drawn off a reading it is not following.
+         */
+        const val FLOOR_KW = EnergyScale.FLOOR_KW
 
         /** Inside this the panel carries no colour. */
         const val NEUTRAL_KW = 3f
@@ -308,6 +319,14 @@ internal class ContourMotion {
          * Which way a reading counts, given where the panel already was.
          *
          * Pure, so the hysteresis is a function of the previous state rather than of a clock.
+         *
+         * **The hysteresis is per side, not per magnitude.** It used to hold `previous` for any
+         * reading whose magnitude fell in the band, on either side of zero, so a value that arrived
+         * on the far side kept the colour it had on the near one - and it was a fixed point: a coast
+         * held at three kilowatts of regeneration stayed ink for as long as it lasted. One lift-off
+         * inside a single slow-lane frame is all it takes to land there. A colour is now held only
+         * while the reading is still on its own side of zero, so crossing zero always passes through
+         * [ContourFlow.NEUTRAL] whatever the frame time was.
          */
         fun flowOf(kilowatts: Float, previous: ContourFlow): ContourFlow {
             val take = NEUTRAL_KW + FLOW_HYSTERESIS_KW / 2f
@@ -315,8 +334,9 @@ internal class ContourMotion {
             return when {
                 kilowatts > take -> ContourFlow.OUT
                 kilowatts < -take -> ContourFlow.BACK
-                abs(kilowatts) < give -> ContourFlow.NEUTRAL
-                else -> previous
+                kilowatts > give -> if (previous == ContourFlow.OUT) ContourFlow.OUT else ContourFlow.NEUTRAL
+                kilowatts < -give -> if (previous == ContourFlow.BACK) ContourFlow.BACK else ContourFlow.NEUTRAL
+                else -> ContourFlow.NEUTRAL
             }
         }
     }

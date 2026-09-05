@@ -3,6 +3,7 @@ package dev.denza.apps.feature.vehicle
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -67,8 +68,30 @@ class VehicleTelemetryTest {
     }
 
     @Test
-    fun insulationIsShownInMegaohms() {
-        val t = telemetry(VehicleSignal.INSULATION_KOHM to 13051.0)
-        assertEquals(13.051, t.insulationMohm!!, 1e-6)
+    fun whatEveryFrameReadsIsWorkedOutOncePerSnapshot() {
+        // A snapshot arrives four times a second and is read sixty. Anything a frame has to
+        // recompute is work done fifteen times over for one answer, and a `get()` that builds a
+        // list is that work plus a collection nobody keeps.
+        val t = telemetry(
+            VehicleSignal.MOTOR_FRONT_C to 34.0,
+            VehicleSignal.MOTOR_REAR_LEFT_C to 29.0,
+            VehicleSignal.MOTOR_REAR_RIGHT_C to 31.0,
+        )
+        assertSame("the row is one list, not one per read", t.motorTemps, t.motorTemps)
+        assertEquals(34.0, t.hottestMotorC!!, 1e-9)
+    }
+
+    @Test
+    fun theWindowsMeanArrivesWithTheSnapshotRatherThanWithEachFrame() {
+        val spending = VehicleTelemetry(
+            access = VehicleAccess.READY,
+            consumption = listOf(10.0, -8.0, 30.0),
+        )
+        assertEquals(20.0, spending.consumptionMean!!, 1e-9)
+        assertNull("and a window of pure return is no consumption", VehicleTelemetry(
+            access = VehicleAccess.READY,
+            consumption = listOf(-1.0, -2.0),
+        ).consumptionMean)
+        assertNull(VehicleTelemetry().consumptionMean)
     }
 }

@@ -1,75 +1,84 @@
 package dev.denza.apps.feature.cluster.dashboard
 
 import dev.denza.apps.feature.vehicle.VehicleAccess
+import dev.denza.apps.feature.vehicle.VehiclePoll
 import dev.denza.apps.feature.vehicle.VehicleSignal
 import dev.denza.apps.feature.vehicle.VehicleTelemetry
-
-/**
- * What the panel is doing, as one word.
- *
- * These are scenes, not messages. Every one of them is the same panel with different things on it,
- * and none of them is a sentence apologising for the others - the one exception, [UNAVAILABLE],
- * carries an instruction rather than an error, because "the ADB key is not confirmed" is something
- * the driver can act on and "нет данных" is not.
- */
-internal enum class ContourMode {
-    /** Nothing has answered yet: the band's skeleton, and nothing else (m4). */
-    STARTING,
-
-    /** The ordinary state, and the one the panel is in almost all of the time. */
-    DRIVING,
-
-    /** The engine's own two minutes are on the right shelf, where the trip's phrase stands. */
-    ENGINE,
-
-    /** Standing in P, where reading three numbers costs nothing. */
-    PARKED,
-
-    /** A gun is in. The petal counts down instead of counting consumption. */
-    CHARGING,
-
-    /** The bus went quiet: every value is removed and every caption stays (M5). */
-    LINK_LOST,
-
-    /** The shell is closed to us, and the panel says what to do about it. */
-    UNAVAILABLE,
-}
+import kotlin.math.abs
 
 /**
  * Every quantity the Contour draws, so each one can go stale on its own.
  *
  * A single null and a dead bus are the same rule at two scales, which is why there is no separate
- * notion of either: a value is removed two seconds after its last sample and its caption stays.
+ * notion of either: a value is removed one horizon after its last sample and its caption stays.
+ *
+ * **The horizon is the cadence that fills it**, which is what [poll] carries: a temperature that
+ * answers every ten seconds cannot be held to the two seconds a pack power is. Derived quantities -
+ * what the trip has cost, how long the engine ran - arrive with the packet that computed them and
+ * are therefore [VehiclePoll.HOT] whatever the signals behind them are.
  */
-internal enum class ContourValue {
-    POWER,
-    VOLTS,
-    PACK_TEMP,
-    MOTOR_TEMPS,
-    INVERTER_TEMP,
-    SPREAD,
-    RPM,
-    ENGINE_MINUTES,
-    GENERATION,
-    TRIP_NET,
-    TRIP_KM,
-    TRIP_REGEN,
-    TRIP_ENGINE,
-    PETAL,
-    CHARGE_LEFT,
+internal enum class ContourValue(val poll: VehiclePoll) {
+    POWER(VehiclePoll.HOT),
+    VOLTS(VehiclePoll.HOT),
+    PACK_TEMP(VehiclePoll.COLD),
+    MOTOR_TEMPS(VehiclePoll.COLD),
+    INVERTER_TEMP(VehiclePoll.COLD),
+    SPREAD(VehiclePoll.COLD),
+    RPM(VehiclePoll.HOT),
+    ENGINE_MINUTES(VehiclePoll.HOT),
+    GENERATION(VehiclePoll.HOT),
+    TRIP_NET(VehiclePoll.HOT),
+    TRIP_KM(VehiclePoll.HOT),
+    TRIP_REGEN(VehiclePoll.HOT),
+    TRIP_ENGINE(VehiclePoll.HOT),
+    PETAL(VehiclePoll.HOT),
+    CHARGE_LEFT(VehiclePoll.COLD),
 }
 
 /**
  * What the renderer is told about the panel as a whole.
  *
- * [mode] is the headline and the two flags are not folded into it, because they are not alternatives
- * to it. A car standing in P with the engine's box still up is `ENGINE` **and** parked: the box owns
- * the right shelf, and the petal still grows its tenth. Folding one into the other would make the
- * panel's behaviour depend on which of two true things was checked first.
+ * ### Why there is no scene name here
+ *
+ * There was one - a seven-word `ContourMode` naming starting, driving, the engine, park, charging,
+ * link loss and an unreachable shell - and the panel read two of those words. It could not read the
+ * rest, because it does not have arrangements for them: **there is no "link lost" picture.** Link
+ * loss is the staleness rule firing on every value at once, park is a seat count and a decimal
+ * place, the engine's box is a shape, and starting is the skeleton with nothing on it yet. Each of
+ * those is already decided somewhere the renderer asks, and a word restating it was a second way to
+ * answer a question with one answer.
+ *
+ * So what is left is what the panel actually branches on, and both of them are things it *draws*
+ * rather than states it is in: [unavailable] puts an instruction where the petal's figure goes, and
+ * [charging] puts a countdown there.
  */
 internal data class ContourStage(
-    val mode: ContourMode,
+    /**
+     * The shell is closed to us, and [message] says what to do about it.
+     *
+     * The one place this panel prints a sentence, and it is an instruction rather than an error:
+     * "the ADB key is not confirmed" is something the driver can act on and «нет данных» is not.
+     */
+    val unavailable: Boolean = false,
+
+    /**
+     * A gun is in and the charger has agreed. The petal counts down instead of counting
+     * consumption.
+     *
+     * False while the shell is closed, while nothing has answered yet and while the bus is quiet -
+     * a countdown is a reading like any other and cannot outlive the link that fills it.
+     */
+    val charging: Boolean = false,
     val parked: Boolean = false,
+    /**
+     * Whether the engine's box owns the right shelf, which is not the same as the trace being warm.
+     *
+     * One shelf, two true things, and one of them has to give way. **Standing still wins.** A car
+     * that has stopped is the one moment its driver can read three numbers instead of glancing at
+     * one, and what the box has to show then is the last two minutes of a drive that has ended -
+     * against the trip's own arithmetic, which is what P is for. The box comes back the moment the
+     * car moves, with the trace it has been keeping all along.
+     */
     val engineBox: Boolean = false,
     val engineRunning: Boolean = false,
     val message: String = "",
@@ -82,17 +91,30 @@ internal data class ContourStage(
  *
  * Alpha used to mean seven things on this panel - night, jam, sleeping engine, link loss, a single
  * null, an area fill, a history fade - and a driver cannot tell "dim because it is dark" from "dim
- * because the bus died" (CRITIQUE M5). So nothing here dims anything. **A value is removed
- * [STALE_SECONDS] after its last sample and its caption stays.** Link loss is that rule applied to
- * every value at once, a single null is that rule applied to one, and a heading appears with its
- * first value rather than standing over emptiness through the first seconds of a drive (m4).
+ * because the bus died" (CRITIQUE M5). So nothing here dims anything. **A value is removed one
+ * [ContourValue.poll] horizon after its last sample and its caption stays.** Link loss is that rule
+ * applied to every value at once, a single null is that rule applied to one, and a heading appears
+ * with its first value rather than standing over emptiness through the first seconds of a drive
+ * (m4).
  *
  * ### Why the ages are per value rather than per sweep
  *
- * The hot set answers three times a second and the cold set every ten, so "absent from the snapshot"
- * has to mean the same thing on both cadences before an age means anything. It does: the hub rebuilds
- * its cold map from each cold sweep, so a temperature that stopped answering leaves the snapshot the
- * same way a power reading does.
+ * The hot set answers about four times a second and the cold set every ten, so "absent from the
+ * snapshot" has to mean the same thing on both cadences before an age means anything. It does: the
+ * hub rebuilds its cold map from each cold sweep, so a temperature that stopped answering leaves the
+ * snapshot the same way a power reading does - and because it does, the *horizon* has to be the
+ * cadence's own, or one flaky cold read would blank a standing figure for the eight seconds until
+ * the next sweep. That is [VehiclePoll.staleSeconds], and it is the one place the rule is written.
+ *
+ * ### And why the followed values are held here
+ *
+ * [held] is the newest reading of a quantity the panel *follows*, and it is the scene that keeps it
+ * rather than the view reading the current snapshot behind a [fresh] gate. Those two are not the
+ * same thing: a sweep that dropped one signal on a sentinel word still publishes the rest, so the
+ * snapshot's field is null while the value is very much still true. Reading the field made a single
+ * dropped sample look to [ContourMotion] like the two-second rule firing - the band settled to zero,
+ * the peak and the hero's figure were reseeded, and the next good sweep teleported instead of
+ * travelling.
  *
  * ### Dwell
  *
@@ -108,11 +130,14 @@ internal class ContourScene {
     private val age = FloatArray(ContourValue.entries.size) { Float.MAX_VALUE }
     private val seen = BooleanArray(ContourValue.entries.size)
 
+    /** The newest reading of every quantity the panel follows, `NaN` where there has been none. */
+    private val last = FloatArray(ContourValue.entries.size) { Float.NaN }
+
     private var packetAge = Float.MAX_VALUE
     private var everAnswered = false
     private var chargeDwell = 0f
 
-    var stage: ContourStage = ContourStage(ContourMode.STARTING)
+    var stage: ContourStage = ContourStage()
         private set
 
     /**
@@ -130,10 +155,10 @@ internal class ContourScene {
             everAnswered = true
             packetAge = 0f
             ContourValue.entries.forEach { value ->
-                if (present(telemetry, value)) {
-                    age[value.ordinal] = 0f
-                    seen[value.ordinal] = true
-                }
+                if (!present(telemetry, value)) return@forEach
+                age[value.ordinal] = 0f
+                seen[value.ordinal] = true
+                reading(telemetry, value)?.let { last[value.ordinal] = it }
             }
         }
 
@@ -151,27 +176,52 @@ internal class ContourScene {
 
     /** Whether it is still true, which is what puts the figure there. */
     fun fresh(value: ContourValue): Boolean =
-        seen[value.ordinal] && age[value.ordinal] < STALE_SECONDS
+        seen[value.ordinal] && age[value.ordinal] < value.poll.staleSeconds
 
+    /**
+     * The newest reading of a quantity the panel follows, or null once it has gone stale.
+     *
+     * Only [ContourValue.POWER] and [ContourValue.RPM] have one: they are the two the followers are
+     * driven from, and a follower needs the number rather than the fact that it arrived.
+     */
+    fun held(value: ContourValue): Float? =
+        if (!fresh(value)) null else last[value.ordinal].takeUnless { it.isNaN() }
+
+    /**
+     * Which arrangement the panel is in, as an object that is only replaced when it is wrong.
+     *
+     * This is asked once per frame at sixty frames a second and answers the same five things for
+     * minutes at a time. A fresh [ContourStage] per frame is garbage on a view drawn over the
+     * vehicle's own instruments - and it is also a small lie, because "the stage changed" is a
+     * thing the renderer could reasonably want to ask.
+     */
     private fun decide(t: VehicleTelemetry): ContourStage {
         val parked = t.parked == true
-        val engineBox = !t.engineTrace.isEmpty
+        // The trace is warm for two minutes after the engine stops, and on P the trip's three cells
+        // take the shelf from it: see [ContourStage.engineBox].
+        val engineBox = !t.engineTrace.isEmpty && !parked
         val engineRunning = t.engineRunning == true
-        val mode = when {
-            t.access == VehicleAccess.UNAVAILABLE -> ContourMode.UNAVAILABLE
-            !everAnswered -> ContourMode.STARTING
-            packetAge >= STALE_SECONDS -> ContourMode.LINK_LOST
-            chargeDwell >= CHARGE_DWELL_SECONDS -> ContourMode.CHARGING
-            engineBox -> ContourMode.ENGINE
-            parked -> ContourMode.PARKED
-            else -> ContourMode.DRIVING
+        val unavailable = t.access == VehicleAccess.UNAVAILABLE
+        // The order the scene name used to carry, kept as the guards on the one flag that needed
+        // it: a closed shell, a panel that has heard nothing yet and a bus that has gone quiet all
+        // outrank a gun, because the countdown is a reading and a reading cannot outlive its link.
+        val charging = !unavailable && everAnswered && packetAge < STALE_SECONDS &&
+            chargeDwell >= CHARGE_DWELL_SECONDS
+        val message = if (unavailable) t.message else ""
+        val held = stage
+        if (held.unavailable == unavailable && held.charging == charging &&
+            held.parked == parked && held.engineBox == engineBox &&
+            held.engineRunning == engineRunning && held.message == message
+        ) {
+            return held
         }
         return ContourStage(
-            mode = mode,
+            unavailable = unavailable,
+            charging = charging,
             parked = parked,
             engineBox = engineBox,
             engineRunning = engineRunning,
-            message = if (mode == ContourMode.UNAVAILABLE) t.message else "",
+            message = message,
         )
     }
 
@@ -185,7 +235,7 @@ internal class ContourScene {
      * that should not exist cannot be drawn by accident.
      */
     private fun present(t: VehicleTelemetry, value: ContourValue): Boolean = when (value) {
-        ContourValue.POWER -> t.loadKw != null || (t.charging && t.chargeKw != null)
+        ContourValue.POWER -> bandKilowatts(t) != null
         ContourValue.VOLTS -> t[VehicleSignal.PACK_VOLT] != null
         ContourValue.PACK_TEMP -> t[VehicleSignal.PACK_TEMP_AVG] != null
         ContourValue.MOTOR_TEMPS -> t.motorTemps.any { it != null }
@@ -202,12 +252,35 @@ internal class ContourScene {
         ContourValue.CHARGE_LEFT -> t.charging && t.chargeMinutesLeft != null
     }
 
+    /**
+     * The number behind a quantity the panel follows, for the two that have one.
+     *
+     * [ContourValue.POWER] is what the band is drawn from, and a charge reads as energy arriving
+     * rather than as a load: a gun in and the pack taking two kilowatts is the same event the band
+     * already draws going the other way, so it is drawn going the other way.
+     */
+    private fun reading(t: VehicleTelemetry, value: ContourValue): Float? = when (value) {
+        ContourValue.POWER -> bandKilowatts(t)
+        ContourValue.RPM -> t.engineRpm?.toFloat()
+        else -> null
+    }
+
+    private fun bandKilowatts(t: VehicleTelemetry): Float? {
+        if (t.charging) {
+            val charge = t.chargeKw
+            if (charge != null) return -abs(charge).toFloat()
+        }
+        return t.loadKw?.toFloat()
+    }
+
     private fun add(seconds: Float, dt: Float): Float =
         if (seconds >= CEILING) CEILING else (seconds + dt).coerceAtMost(CEILING)
 
     companion object {
-        /** A value is removed this long after its last sample, and its caption stays (M5). */
-        const val STALE_SECONDS = 2f
+        /**
+         * A packet is a hot sweep, so the bus going quiet is the hot horizon applied to all of it.
+         */
+        val STALE_SECONDS: Float = VehiclePoll.HOT.staleSeconds
 
         /** How long a gun has to stay in before the panel believes it. */
         const val CHARGE_DWELL_SECONDS = 2f

@@ -1,9 +1,13 @@
 package dev.denza.apps.feature.cluster.dashboard
 
+import dev.denza.apps.design.instrument.EnergyScale
 import dev.denza.apps.design.instrument.InstrumentDensity
 import dev.denza.apps.design.instrument.InstrumentFace
 import dev.denza.apps.design.instrument.InstrumentWeight
 import dev.denza.apps.feature.cluster.ClusterMapPlacement
+import dev.denza.apps.feature.vehicle.ConsumptionWindow
+import dev.denza.apps.feature.vehicle.EngineTrace
+import dev.denza.apps.feature.vehicle.VehicleConvention
 import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -118,6 +122,14 @@ class ContourBoardContractTest {
             "«${ContourReadout.UNIT_PER_100KM}»",
             ContourType.BOARD.width(ContourReadout.UNIT_PER_100KM, InstrumentFace.UNIT),
             python(generator, "W_PETAL_WINDOW"),
+        )
+        // And the widest that unit ever is, which is the window still filling. It decides no
+        // coordinate - the unit is left-aligned and nothing hangs off it - but it is what the
+        // clearance to the petal's cut-out is taken against.
+        assertAdvance(
+            "«${ContourReadout.UNIT_PER_100KM_FILLING}»",
+            ContourType.BOARD.width(ContourReadout.UNIT_PER_100KM_FILLING, InstrumentFace.UNIT),
+            python(generator, "W_PETAL_FILLING"),
         )
         assertAdvance(
             "«${ContourReadout.UNIT_KWH}»",
@@ -476,7 +488,9 @@ class ContourBoardContractTest {
         assertEquals("left", plan.engineBoxFullLeft, box.x, TOLERANCE)
         assertEquals("width", plan.engineBoxWidth, box.width, TOLERANCE)
         assertEquals("height", plan.engineBoxBottom - plan.engineBoxTop, box.height, TOLERANCE)
-        assertEquals("120 one-second slots", 120, plan.engineSlots)
+        // The box is as wide as the trace reaches, so the retention decision is held here through
+        // the class that keeps the data rather than through a literal that has to agree with it.
+        assertEquals("120 one-second slots", EngineTrace.SLOTS, plan.engineSlots)
         // Drawn as twenty-four steps of five seconds, so a full box is 24 pitches wide rather than
         // 119 gaps between points.
         assertEquals("steps", 24, plan.engineBins)
@@ -492,18 +506,20 @@ class ContourBoardContractTest {
     @Test
     fun theEngineBoxSpeaksOneSentenceLaidOutFromTheShelfsEdge() {
         val board = states()
-        // «● 14 кВт В БАТАРЕЮ · ПОСЛЕДНИЕ 2 МИН»: the window against the edge, the unit and the
-        // figure's reserve field to its left, the dot at the head of the whole phrase.
+        // «● 14 кВт В БАТАРЕЮ · ПОСЛЕДНИЕ 1:22»: the window against the edge, the unit and the
+        // figure's reserve field to its left, the dot at the head of the whole phrase. The board's
+        // generating state is 82 seconds in and the phrase says so - it used to say two minutes,
+        // which is the box's capacity rather than its reach.
         assertEquals(
             "the window",
             plan.legendWindowX,
-            text(board, "cl", plan.legendWindow).first,
+            text(board, "cl", RUNNING_WINDOW).first,
             TOLERANCE,
         )
         assertEquals(
             "its baseline",
             plan.engineLegendBaseline,
-            text(board, "cl", plan.legendWindow).second,
+            text(board, "cl", RUNNING_WINDOW).second,
             TOLERANCE,
         )
         assertEquals("«кВт»", plan.legendUnitX, text(board, "un", ContourReadout.UNIT_KW).first, TOLERANCE)
@@ -514,6 +530,28 @@ class ContourBoardContractTest {
             "the long window fits this face",
             ContourReadout.LEGEND_INTO_PACK,
             plan.legendWindow,
+        )
+    }
+
+    @Test
+    fun theWindowIsTheBoxsOwnReachAndItMovesNoAnchorInFrontOfIt() {
+        // The board draws two reaches: 82 seconds under a box seventeen steps wide, and the full
+        // two minutes under a box that has filled. Both are laid out right to left off the shelf's
+        // edge and both land on the same x, because the figures are tabular and a «м:сс» is four
+        // glyphs and a mark - which is what lets one measured template decide every anchor in the
+        // phrase while the duration inside it counts up.
+        val board = states()
+        assertEquals("the board draws the box's own 82 s", "В БАТАРЕЮ · ПОСЛЕДНИЕ 1:22", RUNNING_WINDOW)
+        assertEquals("and a filled box's two minutes", "В БАТАРЕЮ · ПОСЛЕДНИЕ 2:00", QUIET_WINDOW)
+        listOf(RUNNING_WINDOW, QUIET_WINDOW).forEach { phrase ->
+            everyText(board, "cl", phrase).forEach { (x, _) ->
+                assertEquals("«$phrase» is on the window's anchor", plan.legendWindowX, x, TOLERANCE)
+            }
+        }
+        assertEquals(
+            "and the literal two minutes is off the board",
+            0,
+            Regex("ПОСЛЕДНИЕ 2 МИН").findAll(board).count(),
         )
     }
 
@@ -539,8 +577,37 @@ class ContourBoardContractTest {
         assertEquals(
             "the words do not move between the two",
             plan.legendWindowX,
-            text(states(), "cl", plan.legendWindow).first,
+            text(states(), "cl", QUIET_WINDOW).first,
             TOLERANCE,
+        )
+    }
+
+    @Test
+    fun theEnginesShareIsDrawnTheWayTheConventionSaysItMayBe() {
+        // Whether GENERATION_KW is already inside POWER_KW decides whether the engine's share may be
+        // a seam behind the band's tip or has to be a separate line under it, and for a while the
+        // two records disagreed: the renderer said one thing in a private constant and the generator
+        // defaulted the other way, so the board's canonical engine state drew the one picture the app
+        // never draws. There is one decision now, and this is the join.
+        val generator = generator()
+        assertTrue(
+            "the board's default is the app's assumption",
+            generator.contains("s.get('seam_on_band', False)"),
+        )
+        assertTrue(
+            "and the assumption is that generation is already inside pack power",
+            VehicleConvention.GENERATION_INSIDE_PACK_POWER,
+        )
+        // Both drawings are energy arriving at the pack, so both are measured on the return side's
+        // own span: a positive argument to `sweep` picks the 300 kW discharge span and made 14 kW of
+        // generation 1.73 times shorter than 14 kW of regeneration on the band above it.
+        assertTrue(
+            "the line under the band is on the return scale",
+            generator.contains("far = AXIS + sweep(-generation) * BAND_HALF"),
+        )
+        assertTrue(
+            "and the two spans really are different, which is what made the drawing wrong",
+            EnergyScale.sweepFraction(-14f) > EnergyScale.sweepFraction(14f),
         )
     }
 
@@ -553,7 +620,13 @@ class ContourBoardContractTest {
         assertEquals(232f, plan.petalBoxWidth, TOLERANCE)
         // The cap of the 52 beside it plus a descender: 36.92 + 13.
         assertEquals(49.92f, plan.petalBoxHeight, TOLERANCE)
-        assertEquals("thirty buckets of the log's own hundred metres", 30, plan.petalBuckets)
+        // And the same for the petal: the window's own count, derived from three kilometres and
+        // the log's bucket size, rather than a thirty written down twice.
+        assertEquals(
+            "thirty buckets of the log's own hundred metres",
+            ConsumptionWindow.buckets,
+            plan.petalBuckets,
+        )
     }
 
     @Test
@@ -611,6 +684,32 @@ class ContourBoardContractTest {
         // «кВт» and «кВт·ч/100 км» start on the same x.
         assertEquals(plan.heroFieldRight, plan.petalFigureRight, 0.1f)
         assertEquals(plan.heroUnitX, plan.petalUnitX, 0.1f)
+    }
+
+    @Test
+    fun theUnitNamesTheRoadTheFigureIsTheMeanOfWhileTheLogIsStillFilling() {
+        // «за 3 км» is what the log holds when it *has* three kilometres. The states board draws a
+        // history twelve buckets long, and under it the unit says 1,2 - a figure read against a
+        // road it is not the mean of is the very thing this window was added to stop.
+        val board = states()
+        assertEquals("кВт·ч/100 км · за 1,2 км", FILLING_UNIT)
+        assertEquals(
+            "the filling unit is on the full one's anchor",
+            plan.petalUnitX,
+            text(board, "un", FILLING_UNIT).first,
+            TOLERANCE,
+        )
+        // And the reserve is taken against the widest form, so the wider string still clears the
+        // petal's cut-out rather than running into it.
+        assertEquals(
+            "the plan reserves the widest of the two",
+            maxOf(
+                ContourType.BOARD.width(ContourReadout.UNIT_PER_100KM, InstrumentFace.UNIT),
+                ContourType.BOARD.width(ContourReadout.UNIT_PER_100KM_FILLING, InstrumentFace.UNIT),
+            ),
+            plan.petalUnitWidth,
+            TOLERANCE,
+        )
     }
 
     // ---- the guards, drawn in red on the plan board
@@ -709,12 +808,21 @@ class ContourBoardContractTest {
             .toList()
 
     /** The x and the baseline of one drawn string. */
-    private fun text(board: String, cssClass: String, content: String): Pair<Float, Float> {
-        val match = Regex(
+    private fun text(board: String, cssClass: String, content: String): Pair<Float, Float> =
+        everyText(board, cssClass, content).firstOrNull()
+            ?: error("«$content» is not set in .$cssClass on the board")
+
+    /** And every place it is drawn, for a string a board sets in more than one state. */
+    private fun everyText(
+        board: String,
+        cssClass: String,
+        content: String,
+    ): List<Pair<Float, Float>> =
+        Regex(
             """<text class="$cssClass" x="([-\d.]+)" y="([-\d.]+)"[^>]*>${Regex.escape(content)}</text>""",
-        ).find(board) ?: error("«$content» is not set in .$cssClass on the board")
-        return match.groupValues[1].toFloat() to match.groupValues[2].toFloat()
-    }
+        ).findAll(board)
+            .map { it.groupValues[1].toFloat() to it.groupValues[2].toFloat() }
+            .toList()
 
     private fun cssSize(cssClass: String): Float = number(rule(board(), ".$cssClass"), "font-size")
 
@@ -779,6 +887,19 @@ class ContourBoardContractTest {
          * the arithmetic between the two, which is everything else on this page.
          */
         const val ADVANCE_TOLERANCE = 0.02f
+
+        /**
+         * The two windows the states board actually draws under the engine box.
+         *
+         * The phrase names the box's own reach rather than its capacity, so a board state is a
+         * duration and not a literal. 82 seconds is the generating state, two minutes the box that
+         * has filled and gone quiet.
+         */
+        val RUNNING_WINDOW = ContourReadout.intoPack(82, short = false)
+        val QUIET_WINDOW = ContourReadout.intoPack(120, short = false)
+
+        /** And the road the petal's figure is the mean of while the log is still filling. */
+        val FILLING_UNIT = ContourReadout.perHundredKm(1.2, ConsumptionWindow.KM)
 
         const val BLUE = "#2D82D7"
         const val ORANGE = "#FF9F19"

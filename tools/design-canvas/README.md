@@ -25,7 +25,7 @@ that reports what collides.
 | `canvas.json` | positions, pages and the launch view |
 | `gen_cluster.py` | emits the three cluster boards as they stand on the car today, with the current fixed 3 km consumption window |
 | `gen_next.py` | emits the proposed cluster: one horizon, two histories, the gauge |
-| `gen_contour.py` | emits the Contour - the cluster concept that won the 2026-09 contest - as the calm panel, fourteen scenes, and the plan with every number on it |
+| `gen_contour.py` | emits the Contour - the cluster concept that won the 2026-09 contest - as the calm panel, seventeen scenes, and the plan with every number on it |
 | `gen_kit.py` | emits the two boards that describe the system, from the system |
 | `gen_panes.py` | emits the dashboard's two pane boards from `Main.dc.html` and the pane geometry, and the dashboard underlay both sheet boards are drawn over |
 | `panel_frame.py` | archived tooling for the four retired head-unit instrument concepts; rebuilds Energy |
@@ -455,7 +455,7 @@ that concept drawn: three boards, all from the same constants.
 | | |
 | --- | --- |
 | `ClusterContour.dc.html` | calm driving, engine asleep - the state the panel is in most of the time |
-| `ClusterContourStates.dc.html` | fourteen scenes as a column: first seconds, a traffic jam whose engine ran earlier and stopped long ago, calm, an acceleration, regeneration, the engine generating both ways it can be drawn, the engine forty seconds dead, standing on P, charging, a single null, link lost, an exception, and the missing ADB key |
+| `ClusterContourStates.dc.html` | seventeen scenes as a column: first seconds, a traffic jam whose engine ran earlier and stopped long ago, calm, the first kilometres with the consumption log twelve buckets in, an acceleration, regeneration, the engine generating both ways it can be drawn, the engine forty seconds dead, standing on P, standing on P with the trace still warm, charging, charging with no consumption history behind it and an estimate too long for the seat, a single null, link lost, an exception, and the missing ADB key |
 | `ClusterContourPlan.dc.html` | the skeleton alone, over the three apertures and both cell grids, with every anchor measured - and, under the panel, the physical constants and the ramp they produce |
 
 The panel exists now: `dev.denza.apps.feature.cluster.dashboard` draws these three
@@ -513,7 +513,8 @@ never the right one. The seventh pass is those four:
   since the fourth pass and was drawn nowhere; a consumption figure with no window
   on it is read as the trip average, which is the one thing it has never been. The
   unit is where that belongs - already the line under the figure, already
-  `MUTED_DEEP` - and it costs 74.7 units into a cut-out with 178 free to its right;
+  `MUTED_DEEP` - and it costs 74.7 units into a cut-out with 178 free to its right.
+  The tenth pass made the three kilometres the ones the log actually has;
 - **the sleeping engine's corner reads `ДВС · мин за поездку`** over the same 52.
   `ДВС · мин` alone was six minutes of *something*: this stop, this hour, this
   trip. The fifth pass wanted exactly these words and tried them on a third
@@ -549,7 +550,8 @@ saying.
   need a key. Both words are gone and so is the run one of them named: the box
   draws generation alone under one sentence, `● 14 кВт В БАТАРЕЮ · ПОСЛЕДНИЕ 2 МИН`,
   and the revolutions keep the number they already had in the corner - which is
-  where they were being read anyway;
+  where they were being read anyway. The window became the box's own reach in the
+  tenth pass; the literal two minutes here is what the eighth pass wrote;
 - **`сплющен`**, said of that same box a second time. Its height had not moved and
   could not: it is both rows of the shelf, with the guard above it and the
   sentence's caps below. What was flat was the *scale*. A square root to 100 kW put
@@ -647,6 +649,50 @@ reserve buys is stillness while a *number* changes, and by then there is no numb
 left to change. The words themselves never move, in either state. `ContourPlan`
 carries both anchors, `legendMarkX` and `legendMarkQuietX`, and the states board
 draws both scenes.
+
+### And the window a phrase names is the one it actually has
+
+The tenth pass, and it is the seventh pass's own rule turned on the seventh pass's
+own two strings. A caption that names an interval is only worth having if the
+interval it names is the one the shape and the figure beside it were taken over.
+Both of these named a *capacity*.
+
+- **`● 14 кВт В БАТАРЕЮ · ПОСЛЕДНИЕ 2 МИН`** was printed from the first second of
+  an engine run. The box grows from the right and is never front-padded - that is
+  M7, deliberate - so five seconds in, the shape is one step wide and the words
+  under it claim two minutes of road. The figure was honest and the sentence was
+  not. It reads **`ПОСЛЕДНИЕ 0:05`**, then `0:40`, then `2:00` once the box has
+  filled, off the trace's own `spanSeconds`;
+- **`кВт·ч/100 км · за 3 км`** over a log that has closed five buckets is the same
+  defect one level down: half a kilometre of road, a mean taken over half a
+  kilometre, and a unit inviting it to be read as three. It reads
+  **`· за 1,2 км`** until the window fills, off `ConsumptionWindow.coveredKm`.
+
+**Neither costs an anchor.** The phrase under the engine box is laid out right to
+left off the shelf's edge, so a window that changed width would walk every word in
+front of it; it does not, because the panel's figures are tabular and a `м:сс` is
+four glyphs and a mark. Headless Chrome says so directly: `ПОСЛЕДНИЕ 0:00`,
+`1:22`, `2:00` and `9:59` all measure **315.4375** at 18/400 with 0.12 tracking.
+So `ContourPlan` measures one template - `LEGEND_INTO_PACK`, which is the `0:00`
+form - and `ContourReadout.intoPack` draws whatever the box is worth into it. The
+clock is clamped at `9:59` because the next second would add a glyph; the trace is
+two minutes long, so that is a guard and not a case.
+
+The petal's unit is the same trick with nothing riding on it. `за 0,3 км` and
+`за 2,7 км` are both **197.7656** against the full form's 184.1094, and the unit is
+left-aligned with nothing to its right but the cut-out, which the wider form still
+clears by 89.9. `PETAL_UNIT_W` reserves the wider of the two and no coordinate
+moves.
+
+The board had a third version of the same mistake, in the picture rather than the
+words: `petal_history` divided the box by *what had arrived* instead of by the
+window, so twelve buckets of road were drawn stretched across three kilometres of
+box. The app never did this - `ClusterDashboardRenderer` has anchored the run at the
+box's right edge all along - so this was the board disagreeing with the code, which
+is the one thing these two records are not allowed to do. The states board now
+carries a sixteenth scene, `Первые километры`, drawn at twelve closed buckets, and
+`ContourBoardContractTest` holds the drawn unit against `ContourReadout` and both
+drawn windows against `legendWindowX`.
 
 ### The glass is measured now
 
@@ -754,7 +800,7 @@ the cluster's own dimmer already darkens our window, and whether it does is a
 measurement on the car rather than a board. What still uses alpha: the glow, the
 two history fills, the peak hold.
 
-**Blue is a dot.** `RETURN` is the band's body, the generation seam, the engine
+**Blue is a dot.** `RETURN` is the band's body, the generation line, the engine
 box's area, the petal's return runs, and a marker at the head of `РЕКУПЕРАЦИЯ` and
 of the engine's own sentence - the places the car gives something back - dot-sized,
 because saturated blue at 12' on black is the one colour ISO 15008 names for small
@@ -775,7 +821,8 @@ Both boxes were redrawn in the fifth pass. The owner on the fourth: *"Сцена
 shape with thirty steps or two curves in it.
 
 **The petal** keeps three kilometres and always three kilometres - and since the
-seventh pass its unit says so, `кВт·ч/100 км · за 3 км`. Standing on P the
+seventh pass its unit says so, `кВт·ч/100 км · за 3 км`, and since the tenth it
+says which three: `· за 1,2 км` while the log is still filling. Standing on P the
 denominator does not change under the figure, only the tenth appears, because at
 100 km/h a tenth moves three times a second. Thirty bars 0.65 mm wide were 0.9' at
 750 mm - below the eye's resolution - so the history is a stepped line beside the
@@ -817,6 +864,27 @@ a two-digit 52 centred on the axis ends at 783.00 and the hero's three-digit fie
 ends at 783.04, so the two figures share a right edge and `«кВт»` and
 `«кВт·ч/100 км»` start on the same x.
 
+**While a gun is in the same seat counts down, and it counts down whether or not
+there is a history behind it.** A car standing on P with a cable in has never moved
+the odometer, so on a fresh install - or after the journal was reset, or after a
+restore dropped everything behind the retention window - there are no closed
+buckets at all; the box is the consumption log's and stays away, and the countdown
+is not about the road. What the two seats do not share is the caption rule: every
+other word on this panel arrives with its first reading and stays when the reading
+goes, and `«до полной»` does not, because an estimate is something the charger may
+never make and a word standing alone over a hole is a value that failed to arrive
+rather than a caption.
+
+**And above ten hours the estimate is hours alone**, `«12 ч»`. The seat reserves
+three digits and one mark - 100.27, which is exactly `«2:15»` and exactly `«16,8»` -
+while `«12:30»` is five glyphs and 129.49. The 29.2 has nowhere to come from: the
+history box hangs off the widest that field ever gets, and its left edge already
+stands 17.26 clear of the petal's own cut-out against a guard of 8, so widening the
+field would put the box 12 units inside the vehicle's graphics. An estimate that
+long is a wall socket overnight and the minutes in it are noise; `«12 ч»` measures
+99.64 and fits with 0.6 to spare. The states board draws that case beside the
+ordinary one.
+
 **The engine box** grows from the right and is never drawn empty. It leaves when
 the last live slot falls off the left edge, which is 120 s of hysteresis with no
 timer of its own - the trace's length *is* the timer - so a winter jam that
@@ -825,14 +893,23 @@ takes **both rows of the shelf**, 50.7 units from the top guard down to a rhythm
 step above its caption's caps, and that caption sits below the box on the band's
 own 24-unit guard, so the swap moves no neighbour's baseline in either direction.
 
+**And it gives the shelf up to a car that has stopped.** Both facts can be true at
+once - the trace stays warm for two minutes, and two minutes is long enough to
+park in - and one shelf has to hold them. Standing still wins. Three numbers is
+what P is *for*; the box at that moment is a shape about a drive that has already
+ended, and it comes back whole the moment the car moves, with the trace it kept
+all along. The states board draws that scene beside the plain P.
+
 **One quantity, one sentence** - the eighth pass, and the owner's word for what was
 there before was *«легенда непонятна»*. `ОБОРОТЫ · ● ГЕНЕРАЦИЯ 14 кВт` was a key to
 a picture with two runs in it, and a display read at 90 km/h does not get to need a
 key. The revolutions' line is gone to the corner where the same number was already
 printed, and what is left is generation as a `RETURN` area at 55 % with a 1.8
-`RETURN` edge, under **`● 14 кВт В БАТАРЕЮ · ПОСЛЕДНИЕ 2 МИН`**: what the shape is,
+`RETURN` edge, under **`● 14 кВт В БАТАРЕЮ · ПОСЛЕДНИЕ 1:22`**: what the shape is,
 what it is worth now, and how far back it goes, in that order. Neither `ГЕНЕРАЦИЯ`
-nor `ОБОРОТЫ` is a word on this panel any more.
+nor `ОБОРОТЫ` is a word on this panel any more. The window was a literal `2 МИН`
+until the tenth pass, which is the box's capacity rather than its reach; it is the
+trace's own span now, and every value of it is one width.
 
 The sentence is laid out right to left off the shelf's own edge - the window, then
 `кВт`, then the figure in a two-digit reserve, then the dot - so 9 kW and 14 kW
@@ -849,10 +926,17 @@ between the two guards. At the 14 kW this car ordinarily returns, a square root 
 100 kW filled a third of the box; linear over 30 fills a half. What a root buys is
 resolution near zero, and near zero this quantity is off.
 
-**Both boxes are steps of a fixed duration.** The petal's thirty buckets are a
-hundred metres each, and the engine's twenty-four are five seconds each, averaged
-over the samples that arrived - a bin nothing answered in breaks the area rather
-than being drawn through. The per-second line the box used to carry was 120 points
+**Both boxes are steps of a fixed duration, and both grids stand still.** The
+petal's thirty buckets are a hundred metres each and close one at a time; the
+engine's twenty-four are five seconds each, averaged over the samples that arrived
+- a bin nothing answered in breaks the area rather than being drawn through. A
+step holds the seconds whose own number on the clock falls inside it, so the grid
+is anchored to the clock rather than to the run: grouping from the oldest slot
+instead re-phased every bin once the window filled and the front started being
+evicted, which recomputed all twenty-four heights every second and meant the same
+two minutes never came back the same shape. The step that is still filling is the
+newest one, at the edge where new data arrives; the oldest is whatever the retained
+window has left of its own. The per-second line the box used to carry was 120 points
 across 526 units, 4.4 apart, which is 0.9 mm of glass for one sample of a quantity
 that moves on the scale of a traffic light.
 
@@ -875,7 +959,8 @@ all three were unsigned, and the panel was inviting a sum that names nothing.
 
 Standing on P the same anatomy pays out in full - `42 км · ЗА ПОЕЗДКУ`,
 `● РЕКУПЕРАЦИЯ`, `ДАЛ ДВС` - because a car that is not moving is the one place
-where reading three numbers costs nothing. **That is where regeneration lives now:
+where reading three numbers costs nothing, and it pays out **even while the engine
+box is still warm**, which is the one case where the two compete. **That is where regeneration lives now:
 on P, and on P only.** It is a number you look at when the trip is over, not one
 you read at 90 km/h, and the two hundred units it used to hold on the move were
 what made the row a row. Its caption is the one that could not take a verb: the
@@ -894,10 +979,21 @@ once rather than once per engine cycle.
 
 ### What the data still owes the panel
 
-Two rules are written on the boards and in the generator's docstring because the
+Three rules are written on the boards and in the generator's docstring because the
 code will have to follow them, and the measurement that would settle them has not
 been taken (`VERDICT.md`, check 3):
 
+- **the engine's share is a line under the band, not a seam behind its tip.** The
+  seam reads `wheels = pack + generation`, which is only true if `GENERATION_KW`
+  is not already inside `POWER_KW`. Until one engine run on a flat cruise says
+  otherwise the assumption is that it *is* inside, so the fact is drawn without the
+  claim - and the line is measured on the return side's own 100 kW span with the
+  same square root, so 14 kW of generation and 14 kW of regeneration are the same
+  length. That decision lives in one place, `VehicleConvention
+  .GENERATION_INSIDE_PACK_POWER`; the generator's `seam_on_band` default is held
+  against it by `ContourBoardContractTest`, because for a while the two disagreed
+  and the board's canonical engine state was the one picture the app never drew.
+  The states board draws both;
 - while the engine runs the petal's figure is `MUTED` and carries no caveat.
   `ConsumptionLog` integrates pack power alone, and nobody has logged whether
   `GENERATION_KW` is already inside `POWER_KW`; until somebody does, that figure is
@@ -942,7 +1038,7 @@ drawing decision.
 | m6 | the hero updates at 3 Hz | closed as a renderer rule: ±0.5 kW of hysteresis; the rate is 4 Hz, not the critique's 2 - the owner asked for the live figures to answer about twice as fast as the previous panel, and the bus poll went from 300 ms to 100 ms with it |
 | m7 | night by ephemeris, not by light | closed - the scene is removed; the dimmer waits for the car |
 | m8 | an alert at 34 in a shelf of 52s | closed - every shelf figure is 34 now |
-| m9 | generation drawn three times | closed - twice: the seam and the box, with the figure inside the box's own sentence |
+| m9 | generation drawn three times | closed - twice: the line under the band and the box, with the figure inside the box's own sentence |
 | m10 | "104 reads peripherally" | closed - the claim is not made; the band is the ambient |
 | m11 | the motors' order is learnable, not obvious | closed by the ninth pass, and with a picture rather than a caption: five cells, five glyphs, three cars differing by which axle is lit |
 | m12 | lowercase captions | rejected - one house style with the head unit wins |

@@ -57,7 +57,9 @@ internal data class TripRecord(
  * The alternative - clearing on P - would blank the shelf at the one moment it is worth looking at,
  * and the alternative to that - clearing on ignition - is not something this app can observe.
  *
- * [armed] is that rule in one boolean: P arms the reset, the next movement performs it.
+ * [armed] is that rule in one boolean: P arms the reset, the next movement performs it - and it is
+ * also the answer to "is this trip still open", which is what decides whether anything is
+ * integrated at all. A car standing on P is not driving whatever the pack is doing.
  *
  * ### Why the odometer and not a clock
  *
@@ -85,7 +87,9 @@ internal class TripEnergyLedger(
     private var engine = 0.0
     private var engineSeconds = 0.0
     private var kilometres = 0.0
-    private var lastOdometerKm: Double? = null
+
+    /** What a reading of the road is worth, which is not this class's own arithmetic. */
+    private val odometer = OdometerGate()
 
     /**
      * Whether the next movement starts a new trip.
@@ -100,8 +104,8 @@ internal class TripEnergyLedger(
 
     /** Everything the journal needs, and nothing it does not. */
     fun record(): TripRecord? {
-        val odometer = lastOdometerKm ?: return null
-        return TripRecord(trip, odometer, armed)
+        val reading = odometer.lastKm ?: return null
+        return TripRecord(trip, reading, armed)
     }
 
     /**
@@ -123,14 +127,9 @@ internal class TripEnergyLedger(
         parked: Boolean?,
         dtSeconds: Double,
     ) {
-        if (odometerKm == null) return
-        val previous = lastOdometerKm
-        lastOdometerKm = odometerKm
-        if (previous == null) return
+        if (odometer.step(odometerKm) != OdometerGate.Step.ROAD) return
 
-        val deltaKm = odometerKm - previous
-        if (deltaKm < -KM_EPSILON || deltaKm > MAX_JUMP_KM) return
-
+        val deltaKm = odometer.deltaKm
         val moved = deltaKm > KM_EPSILON
         if (moved && armed) {
             clear()
@@ -140,9 +139,20 @@ internal class TripEnergyLedger(
         // manoeuvre would otherwise start a trip and then be told to start another one.
         if (parked == true) armed = true
 
-        kilometres += deltaKm.coerceAtLeast(0.0)
+        // Nothing grows while the trip is closed. `armed` is the whole of that: it is true from P
+        // until the next movement, and a car standing on P is not driving whatever the pack is
+        // doing. A gun in with the panel up used to add seven kilowatt-hours an hour to
+        // РЕКУПЕРАЦИЯ, take the same off the net, and journal the result every ten seconds.
+        if (armed) return
 
+        // One guard over both halves of the figure. The kilometres used to be committed a statement
+        // above it, so an interval the ledger refused to integrate still counted as road - and the
+        // shelf prints one against the other, so the two halves ended up describing different
+        // drives with nothing bounding the drift.
         if (dtSeconds <= 0.0 || dtSeconds > maxGapSeconds) return
+
+        kilometres += deltaKm
+
         val hours = dtSeconds / 3600.0
         if (powerKw != null) {
             net += powerKw * hours
@@ -173,7 +183,7 @@ internal class TripEnergyLedger(
         engineSeconds = record.energy.engineSeconds
         kilometres = record.energy.kilometres
         armed = record.armed
-        lastOdometerKm = odometerKm
+        odometer.anchor(odometerKm)
         return true
     }
 
@@ -189,13 +199,14 @@ internal class TripEnergyLedger(
         /** A journal from further back than this describes a drive nobody was integrating. */
         const val RESTART_GAP_KM = 1.0
 
-        /** A longer sample gap means the dashboard was asleep; do not integrate it. */
-        const val MAX_GAP_SECONDS = 8.0
-
-        /** More road than any sample interval can cover; treat as a re-anchor. */
-        private const val MAX_JUMP_KM = 5.0
-
-        /** The odometer arrives in tenths and the differences accumulate in doubles. */
-        private const val KM_EPSILON = 1e-6
+        /**
+         * The thresholds the road is read with, which are [OdometerGate]'s.
+         *
+         * They were a copy here and a copy in `ConsumptionLog`, in two files whose subjects are
+         * trips and kilowatt-hours. Neither owns them: they are about this car's odometer and this
+         * app's cadence.
+         */
+        const val MAX_GAP_SECONDS = OdometerGate.MAX_GAP_SECONDS
+        private const val KM_EPSILON = OdometerGate.KM_EPSILON
     }
 }

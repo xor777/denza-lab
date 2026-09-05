@@ -43,15 +43,19 @@ class ContourReadoutTest {
         assertEquals("2:15", ContourReadout.chargeLeft(135))
         assertEquals("0:45", ContourReadout.chargeLeft(45))
         assertEquals("0:00", ContourReadout.chargeLeft(-3))
+        assertEquals("the last one that fits the seat", "9:59", ContourReadout.chargeLeft(599))
     }
 
     @Test
-    fun theAverageIsOverTheSpendingBucketsOnly() {
-        // Averaging a descent in would answer a question nobody asks and read lower than any part
-        // of the history beside it.
-        assertEquals(20.0, ContourReadout.averageConsumption(listOf(10.0, 30.0, -8.0))!!, 1e-9)
-        assertNull(ContourReadout.averageConsumption(emptyList()))
-        assertNull(ContourReadout.averageConsumption(listOf(-4.0, -2.0)))
+    fun anEstimateTooLongForTheSeatIsHoursAlone() {
+        // «12:30» is five glyphs against a field of three and a mark, and the history box hangs off
+        // that field: widening it would put the box's left edge inside the vehicle's own graphics.
+        // A wall socket overnight is the case, and the minutes in it are noise.
+        assertEquals("10 ч", ContourReadout.chargeLeft(600))
+        assertEquals("12 ч", ContourReadout.chargeLeft(12 * 60 + 30))
+        assertEquals("28 ч", ContourReadout.chargeLeft(28 * 60))
+        // Both ids are gated to 0..99, so 99:59 is as far as an estimate can legally read.
+        assertEquals("99 ч", ContourReadout.chargeLeft(9_999))
     }
 
     @Test
@@ -117,12 +121,64 @@ class ContourReadoutTest {
         // The eighth pass, in two strings. «ОБОРОТЫ · ● ГЕНЕРАЦИЯ 14 кВт» was a key to a picture,
         // and a panel with no room for a key is not allowed to need one.
         assertTrue(ContourReadout.LEGEND_INTO_PACK.startsWith("В БАТАРЕЮ"))
-        assertTrue(ContourReadout.LEGEND_INTO_PACK.endsWith("2 МИН"))
         assertTrue(ContourReadout.LEGEND_INTO_PACK_SHORT.startsWith("В БАТАРЕЮ"))
         assertTrue(
-            "only the window may be dropped",
+            "only «ПОСЛЕДНИЕ» may be dropped",
             ContourReadout.LEGEND_INTO_PACK_SHORT.length < ContourReadout.LEGEND_INTO_PACK.length,
         )
+        // And both templates end in a window, because the window is drawn and not asserted.
+        assertTrue(ContourReadout.LEGEND_INTO_PACK.endsWith("0:00"))
+        assertTrue(ContourReadout.LEGEND_INTO_PACK_SHORT.endsWith("0:00"))
+    }
+
+    @Test
+    fun theEngineBoxNamesHowFarBackItActuallyReaches() {
+        // The ninth pass's own defect. «ПОСЛЕДНИЕ 2 МИН» is the box's *capacity*: the trace grows
+        // from the right and is never front-padded, so five seconds after an engine start the
+        // shape was one step wide and the words under it claimed two minutes of it.
+        assertEquals("В БАТАРЕЮ · ПОСЛЕДНИЕ 0:05", ContourReadout.intoPack(5, short = false))
+        assertEquals("В БАТАРЕЮ · ПОСЛЕДНИЕ 1:22", ContourReadout.intoPack(82, short = false))
+        assertEquals("В БАТАРЕЮ · ПОСЛЕДНИЕ 2:00", ContourReadout.intoPack(120, short = false))
+        // The face that crowds the phrase drops the adverb and keeps the reading.
+        assertEquals("В БАТАРЕЮ · 1:22", ContourReadout.intoPack(82, short = true))
+    }
+
+    @Test
+    fun aWindowIsFourGlyphsAndAMarkWhateverItIsWorth() {
+        // Which is what lets a caption be a coordinate and a reading at once: the phrase is laid
+        // out right to left off a fixed edge, the figures are tabular, so no anchor in front of the
+        // duration moves as it counts up.
+        val lengths = (0..ContourReadout.MAX_WINDOW_SECONDS).map { ContourReadout.clock(it).length }
+        assertEquals("every «м:сс» is one length", setOf(4), lengths.toSet())
+        assertEquals("and the template is measured at one of them", 4, "0:00".length)
+        // Past the clamp the string would gain a glyph and every anchor would move. The trace it
+        // names is two minutes long, so this is a guard rather than a case.
+        assertEquals("9:59", ContourReadout.clock(ContourReadout.MAX_WINDOW_SECONDS))
+        assertEquals("9:59", ContourReadout.clock(100_000))
+        assertEquals("0:00", ContourReadout.clock(-1))
+    }
+
+    @Test
+    fun thePetalsUnitNamesTheRoadTheFigureIsTheMeanOf() {
+        // The same defect one level down: «за 3 км» is what the log holds when it *has* three
+        // kilometres. A fresh install, a reset journal or the first minutes of a drive is a few
+        // hundred metres, and a figure read against a road it is not the mean of is the thing the
+        // seventh pass added this window to stop.
+        assertEquals("кВт·ч/100 км · за 0,5 км", ContourReadout.perHundredKm(0.5, 3.0))
+        assertEquals("кВт·ч/100 км · за 1,2 км", ContourReadout.perHundredKm(1.2, 3.0))
+        assertEquals("кВт·ч/100 км · за 3 км", ContourReadout.perHundredKm(3.0, 3.0))
+        assertEquals(
+            "the full form is the constant, so the two records cannot drift apart",
+            ContourReadout.UNIT_PER_100KM,
+            ContourReadout.perHundredKm(3.0, 3.0),
+        )
+        // Thirty buckets of a hundred metres do not add up to 3.0 in binary, and a window one
+        // rounding short of full must not print «за 3,0 км» beside a figure that is the whole one.
+        assertEquals(
+            "кВт·ч/100 км · за 3 км",
+            ContourReadout.perHundredKm(30 * 0.1, 3.0),
+        )
+        assertEquals("кВт·ч/100 км · за 2,9 км", ContourReadout.perHundredKm(2.9, 3.0))
     }
 
     @Test

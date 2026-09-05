@@ -98,8 +98,9 @@ class AutoserviceShellTest {
         // ones - and the cluster printed 8191 об/мин. No range gate can catch that; 8191 is a
         // perfectly ordinary rpm. Only the bit pattern says "not available".
         assertNull(AutoserviceShell.decode(VehicleSignal.ENGINE_RPM, 0x1FFF))
-        // The word means nothing outside the signal that declared it.
-        assertEquals(8191.0, AutoserviceShell.decode(VehicleSignal.INSULATION_KOHM, 0x1FFF)!!, 1e-9)
+        // The word means nothing outside the signal that declared it: on the odometer the same
+        // thirteen bits are 819.1 km and a perfectly good reading.
+        assertEquals(819.1, AutoserviceShell.decode(VehicleSignal.ODOMETER_KM, 0x1FFF)!!, 1e-6)
         // And a real reading either side of it still reads.
         assertEquals(0.0, AutoserviceShell.decode(VehicleSignal.ENGINE_RPM, 0)!!, 1e-9)
         assertEquals(8190.0, AutoserviceShell.decode(VehicleSignal.ENGINE_RPM, 0x1FFE)!!, 1e-9)
@@ -111,8 +112,6 @@ class AutoserviceShellTest {
         assertEquals(28.0, AutoserviceShell.decode(VehicleSignal.PACK_TEMP_AVG, 68)!!, 1e-9)
         // Cell voltage stays in millivolts; 3313 mV.
         assertEquals(3313.0, AutoserviceShell.decode(VehicleSignal.CELL_MIN_MV, 3313)!!, 1e-9)
-        // Battery health is reported as a whole percent.
-        assertEquals(96.0, AutoserviceShell.decode(VehicleSignal.SOH_PERCENT, 96)!!, 1e-9)
         // Odometer is tenths of a kilometre: 118927 -> 11892.7.
         assertEquals(11892.7, AutoserviceShell.decode(VehicleSignal.ODOMETER_KM, 118927)!!, 1e-6)
         // Charge power, float, 2.4 kW on the household socket.
@@ -126,14 +125,40 @@ class AutoserviceShellTest {
         assertNull(AutoserviceShell.decode(VehicleSignal.PACK_TEMP_AVG, 255))
         // -40 raw is the vendor's "no sensor" marker on the as-is scales.
         assertNull(AutoserviceShell.decode(VehicleSignal.MOTOR_FRONT_C, -40))
-        // Battery health cannot exceed 100 %.
-        assertNull(AutoserviceShell.decode(VehicleSignal.SOH_PERCENT, 125))
         // The traction pack is not a 12 V battery.
         assertNull(AutoserviceShell.decode(VehicleSignal.PACK_VOLT, 12))
         // No charger delivers 300 kW to this car; the panel showed one once.
         assertNull(AutoserviceShell.decode(VehicleSignal.CHARGE_KW, 0x43960000))
         // Pack power is a different gate: this car really can pull 300 kW.
         assertEquals(300.0, AutoserviceShell.decode(VehicleSignal.POWER_KW, 300)!!, 1e-9)
+    }
+
+    @Test
+    fun theCarIsAskedForWhatThePanelDrawsAndNothingElse() {
+        // Every shell round trip is time on a bus the vehicle is using for itself, and this batch
+        // once carried sixteen warning lamps, the pack's state of health and its insulation
+        // resistance - twenty-five per cent of the cold sweep going to values with no reader
+        // anywhere in the app. There is no exception channel on this panel and the owner's answer
+        // to the lamps was that they do not work on this car, so the ids stay written down in
+        // docs/vehicle-data-findings.md and off the wire.
+        //
+        // The roster is spelled out so that adding a signal is a decision rather than a habit.
+        assertEquals(
+            setOf(
+                "POWER_KW", "PACK_VOLT", "ODOMETER_KM", "GEARBOX_PARK",
+                "ENGINE_RPM", "ENGINE_RUNNING", "GENERATION_KW",
+            ),
+            VehicleSignal.HOT.map { it.name }.toSet(),
+        )
+        assertEquals(
+            setOf(
+                "PACK_TEMP_AVG", "CELL_MIN_MV", "CELL_MAX_MV",
+                "MOTOR_FRONT_C", "MOTOR_REAR_LEFT_C", "MOTOR_REAR_RIGHT_C", "INVERTER_C",
+                "CHARGE_GUN", "CHARGE_KW", "CHARGE_HOURS", "CHARGE_MINUTES",
+                "GENERATION_STATE",
+            ),
+            VehicleSignal.COLD.map { it.name }.toSet(),
+        )
     }
 
     @Test
