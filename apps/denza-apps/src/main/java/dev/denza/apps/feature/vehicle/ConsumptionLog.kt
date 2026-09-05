@@ -28,7 +28,9 @@ internal class ConsumptionLog(
 ) {
 
     private val closed = ArrayDeque<Double>()
-    private var lastOdometerKm: Double? = null
+
+    /** What a reading of the road is worth, which is not this class's own arithmetic. */
+    private val odometer = OdometerGate()
     private var pendingKm = 0.0
     private var pendingKwh = 0.0
 
@@ -56,21 +58,22 @@ internal class ConsumptionLog(
      * @param dtSeconds real time since the previous sample
      */
     fun sample(odometerKm: Double?, powerKw: Double?, dtSeconds: Double) {
-        if (odometerKm == null) return
-        val previous = lastOdometerKm
-        lastOdometerKm = odometerKm
-        if (previous == null) return
-
-        val deltaKm = odometerKm - previous
-        if (deltaKm < -KM_EPSILON || deltaKm > MAX_JUMP_KM) {
+        when (odometer.step(odometerKm)) {
+            OdometerGate.Step.UNREAD, OdometerGate.Step.SEEDED -> return
             // The car was driven with the dashboard closed, or the reading moved in a
             // way a sample interval cannot explain. Drop the open work rather than
             // spreading unknown energy across unknown distance.
-            dropOpenWork()
-            return
+            OdometerGate.Step.REANCHORED -> {
+                dropOpenWork()
+                return
+            }
+            OdometerGate.Step.ROAD -> Unit
         }
 
-        val km = deltaKm.coerceAtLeast(0.0)
+        // ROAD is only ever reached with a reading behind it; this is the compiler's proof of
+        // that rather than a case the car can be in.
+        val reading = odometer.lastKm ?: return
+        val km = odometer.deltaKm
         val kwh = if (powerKw != null && dtSeconds > 0.0 && dtSeconds <= MAX_GAP_SECONDS) {
             powerKw * dtSeconds / 3600.0
         } else {
@@ -85,13 +88,13 @@ internal class ConsumptionLog(
             while (closed.size > capacity) closed.removeFirst()
             pendingKm = 0.0
             pendingKwh = 0.0
-            onBucketClosed(ConsumptionSample(odometerKm, value))
+            onBucketClosed(ConsumptionSample(reading, value))
         }
     }
 
     fun reset() {
         closed.clear()
-        lastOdometerKm = null
+        odometer.forget()
         dropOpenWork()
     }
 
@@ -148,17 +151,14 @@ internal class ConsumptionLog(
 
         const val RETENTION_KM = DEFAULT_CAPACITY * DEFAULT_BUCKET_KM
 
-        /** A longer sample gap means the dashboard was asleep; do not integrate it. */
-        private const val MAX_GAP_SECONDS = 8.0
-
-        /** More road than any sample interval can cover; treat as a re-anchor. */
-        private const val MAX_JUMP_KM = 5.0
-
         /**
-         * The odometer arrives in tenths of a kilometre and the differences are
-         * accumulated in doubles, so two 0.1 km steps land a hair under 0.2.
-         * Every distance threshold is compared with this slack.
+         * The two thresholds the road is read with, which are [OdometerGate]'s.
+         *
+         * They were a copy here and a copy in `TripEnergyLedger`, in two files whose subjects are
+         * kilowatt-hours and trips. Neither owns them: they are about this car's odometer and this
+         * app's cadence.
          */
-        private const val KM_EPSILON = 1e-6
+        private const val MAX_GAP_SECONDS = OdometerGate.MAX_GAP_SECONDS
+        private const val KM_EPSILON = OdometerGate.KM_EPSILON
     }
 }

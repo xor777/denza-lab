@@ -103,7 +103,7 @@ internal enum class VehicleKind {
         MILLIVOLT -> value in 1000.0..5000.0
         POWER_KW -> value in -600.0..600.0
         CHARGE_POWER -> value in -1.0..160.0
-        DISTANCE_KM -> value in 0.0..2_000_000.0
+        DISTANCE_KM -> value in 0.0..OdometerGate.MAX_ODOMETER_KM
         INSULATION -> value in 0.0..100_000.0
         DURATION -> value in 0.0..99.0
         GUN -> value in 0.0..8.0

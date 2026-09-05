@@ -1,7 +1,6 @@
 package dev.denza.apps.feature.vehicle
 
 import java.io.File
-import java.io.FileOutputStream
 import java.util.Locale
 
 /**
@@ -105,14 +104,7 @@ internal class ConsumptionJournal(
         samples.forEach {
             text.append(String.format(Locale.US, "%.1f,%.3f\n", it.odometerKm, it.value))
         }
-        val ok = runCatching {
-            FileOutputStream(file, true).use { out ->
-                out.write(text.toString().toByteArray())
-                out.flush()
-                out.fd.sync()
-            }
-        }.isSuccess
-        if (!ok) {
+        if (!JournalFile.append(file, text.toString())) {
             wipe("запись не удалась")
             return
         }
@@ -134,23 +126,13 @@ internal class ConsumptionJournal(
             wipe("после подрезки ничего не осталось")
             return
         }
-        val temp = File(file.parentFile, file.name + ".tmp")
-        val ok = runCatching {
-            FileOutputStream(temp).use { out ->
-                val text = StringBuilder(kept.size * 20)
-                kept.forEach {
-                    text.append(String.format(Locale.US, "%.1f,%.3f\n", it.odometerKm, it.value))
-                }
-                out.write(text.toString().toByteArray())
-                out.flush()
-                out.fd.sync()
-            }
-            check(temp.renameTo(file)) { "переименование не удалось" }
-        }.isSuccess
-        if (ok) {
+        val text = StringBuilder(kept.size * 20)
+        kept.forEach {
+            text.append(String.format(Locale.US, "%.1f,%.3f\n", it.odometerKm, it.value))
+        }
+        if (JournalFile.replace(file, text.toString())) {
             lines = kept.size
         } else {
-            temp.delete()
             wipe("подрезка не удалась")
         }
     }
@@ -191,6 +173,6 @@ internal class ConsumptionJournal(
         private const val MAX_BYTES = (MAX_LINES + TRIM_SLACK) * 64
 
         /** No odometer on this car reaches this; a bigger number is a bad parse. */
-        private const val MAX_ODOMETER_KM = 2_000_000.0
+        private const val MAX_ODOMETER_KM = OdometerGate.MAX_ODOMETER_KM
     }
 }

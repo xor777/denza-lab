@@ -1,7 +1,6 @@
 package dev.denza.apps.feature.vehicle
 
 import java.io.File
-import java.io.FileOutputStream
 import java.util.Locale
 
 /**
@@ -85,19 +84,7 @@ internal class TripJournal(
             record.odometerKm,
             if (record.armed) 1 else 0,
         )
-        val temp = File(file.parentFile, file.name + ".tmp")
-        val ok = runCatching {
-            FileOutputStream(temp).use { out ->
-                out.write(text.toByteArray())
-                out.flush()
-                out.fd.sync()
-            }
-            check(temp.renameTo(file)) { "переименование не удалось" }
-        }.isSuccess
-        if (!ok) {
-            temp.delete()
-            wipe("запись не удалась")
-        }
+        if (!JournalFile.replace(file, text)) wipe("запись не удалась")
     }
 
     /** Forget the trip. Cheap, and the answer to every kind of wrong. */
@@ -124,6 +111,6 @@ internal class TripJournal(
         private const val MAX_BYTES = 512
 
         /** No odometer on this car reaches this; a bigger number is a bad parse. */
-        private const val MAX_ODOMETER_KM = 2_000_000.0
+        private const val MAX_ODOMETER_KM = OdometerGate.MAX_ODOMETER_KM
     }
 }
