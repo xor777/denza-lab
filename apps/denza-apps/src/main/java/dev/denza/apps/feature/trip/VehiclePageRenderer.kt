@@ -254,6 +254,15 @@ internal class VehiclePageRenderer {
         for (index in steps.indices) {
             val raw = steps[index]
             if (raw.isNaN()) {
+                // A step nothing answered in is drawn as a shutter, not as a gap.
+                //
+                // A gap in a filled area is read as the value having fallen to zero for five
+                // seconds - «иногда на графике просто провалы в ноль» - and it is the opposite:
+                // nobody asked the car, or the car did not answer. A column of the track's own
+                // colour is not a value, so it cannot be read as one.
+                fill.color = DenzaPalette.TRACK
+                val x = left + index * step
+                canvas.drawRect(x, top, x + step, top + height * unit, fill)
                 previous = Float.NaN
                 continue
             }

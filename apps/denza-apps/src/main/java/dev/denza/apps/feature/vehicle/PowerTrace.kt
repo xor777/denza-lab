@@ -75,14 +75,26 @@ internal class PowerTrace(
     /**
      * The window as the steps the box paints, oldest first, `NaN` where nothing answered.
      *
-     * Always [bins] wide once the car has been polled for two minutes, and shorter only while the
-     * window is still filling - the box grows from the right, where new data arrives, which is the
-     * same edge the analyser's newest column is on.
+     * The box grows from the right, where new data arrives, and **starts at the oldest second the
+     * car actually answered in** - not at the oldest slot the deque happens to hold.
+     *
+     * That distinction is a bug the first day on the car found. The hub is only polled while this
+     * page is on screen, so a page that has been away for a minute comes back to a deque whose
+     * front is a minute of nulls; the window was built from those, and twenty of its
+     * twenty-four steps were holes. A hole draws as a gap in a filled area, which reads as the
+     * pack having done nothing for five seconds - «иногда на графике просто провалы в ноль», and
+     * it was not the arithmetic that was wrong but the claim that the window went back further
+     * than the readings did.
+     *
+     * Interior holes are still holes: a second the poll genuinely missed inside a live run is
+     * information, and the renderer draws it as a shutter rather than as a zero.
      */
     fun snapshot(): PowerTraceSnapshot {
         if (load.isEmpty()) return PowerTraceSnapshot.EMPTY
+        val firstAnswer = load.indices.firstOrNull { load[it] != null }
+            ?: return PowerTraceSnapshot.EMPTY
         val size = load.size
-        val oldest = lastSlot - (size - 1)
+        val oldest = lastSlot - (size - 1) + firstAnswer
         val span = binSeconds.toLong()
         val firstBin = oldest.floorDiv(span)
         val lastBin = lastSlot.floorDiv(span)
@@ -91,9 +103,9 @@ internal class PowerTrace(
 
         val sums = DoubleArray(count)
         val seen = IntArray(count)
-        for (index in 0 until size) {
+        for (index in firstAnswer until size) {
             val value = load[index] ?: continue
-            val bin = ((oldest + index).floorDiv(span) - base).toInt()
+            val bin = ((oldest + index - firstAnswer).floorDiv(span) - base).toInt()
             // A step older than the box is wide has already left it at the left edge.
             if (bin < 0) continue
             sums[bin] += value

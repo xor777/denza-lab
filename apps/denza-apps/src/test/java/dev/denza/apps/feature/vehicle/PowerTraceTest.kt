@@ -93,6 +93,40 @@ class PowerTraceTest {
     }
 
     /**
+     * A page coming back after a while shows the run it has, not a window full of holes.
+     *
+     * The hub is polled only while the car's page is on screen, so a page that has been away for a
+     * minute comes back to a deque whose front is a minute of nulls. The window used to be built
+     * from those: twenty of its twenty-four steps were holes, and a hole draws as a gap in a
+     * filled area, which is read as the pack having done nothing. That is the «провалы в ноль» the
+     * owner saw on the first day.
+     */
+    @Test
+    fun aWindowStartsWhereTheAnswersDo() {
+        val trace = PowerTrace()
+        // A minute of nothing - the page was not on screen - and then ten seconds of readings.
+        trace.sample(0L, 20.0)
+        trace.reset()
+        for (second in 60..70) trace.sample(second * 1_000L, 25.0)
+        val steps = trace.snapshot().steps
+        assertTrue("only the run it has", steps.size <= 3)
+        assertTrue("and no holes in it", steps.none { it.isNaN() })
+    }
+
+    /** An interior hole is still a hole: a second nobody answered in is not a zero. */
+    @Test
+    fun aHoleInsideTheRunSurvives() {
+        val trace = PowerTrace()
+        for (second in 0..4) trace.sample(second * 1_000L, 30.0)
+        for (second in 15..19) trace.sample(second * 1_000L, 10.0)
+        val steps = trace.snapshot().steps
+        assertEquals("four steps", 4, steps.size)
+        assertEquals("the run before", 30f, steps[0], 1e-3f)
+        assertTrue("two the poll never reached", steps[1].isNaN() && steps[2].isNaN())
+        assertEquals("and the run after", 10f, steps[3], 1e-3f)
+    }
+
+    /**
      * And a reading past the last rung is held against the edge of the box.
      *
      * Unclamped it was drawn over the figure above the box, which is what the owner's question
