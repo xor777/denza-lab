@@ -22,9 +22,10 @@ import org.junit.Test
  * The steps are the third: a bin holds the seconds whose own absolute number falls in it, so the
  * grid does not re-phase when the front of the window is evicted.
  *
- * Since the eighth pass it keeps one series. The revolutions are not stored, but they are still
- * *read*: an engine turning is an engine the box should be up for, whether or not it happens to be
- * putting anything back that second.
+ * Since the eighth pass it keeps one series, and since the first drive a slot is alive by the
+ * engine's own flag rather than by the rpm or the generation id: an engine turning is an engine the
+ * box should be up for, whether or not it happens to be putting anything back that second - and an
+ * id that is not zero on an electric drive is not an engine.
  */
 class EngineTraceTest {
 
@@ -37,8 +38,8 @@ class EngineTraceTest {
     @Test
     fun theTraceIsAsLongAsTheEngineHasBeenAliveRatherThanTheWholeSpan() {
         val trace = trace()
-        trace.sample(10_000L, rpm = 800.0, generationKw = 0.0)
-        trace.sample(11_000L, rpm = 1200.0, generationKw = 4.0)
+        trace.sample(10_000L, engineRunning = true, generationKw = 0.0)
+        trace.sample(11_000L, engineRunning = true, generationKw = 4.0)
 
         val snapshot = trace.snapshot()
         // Two live seconds is a box two seconds wide, anchored at its right edge. Padded to five,
@@ -51,9 +52,9 @@ class EngineTraceTest {
     fun severalAnswersInOneSecondLeaveOneSlotAndTheNewestWins() {
         val trace = trace()
         // The dashboard's own cadence: three sweeps inside one second.
-        trace.sample(10_000L, rpm = 800.0, generationKw = 0.0)
-        trace.sample(10_300L, rpm = 900.0, generationKw = 0.0)
-        trace.sample(10_600L, rpm = 1000.0, generationKw = 1.0)
+        trace.sample(10_000L, engineRunning = true, generationKw = 0.0)
+        trace.sample(10_300L, engineRunning = true, generationKw = 0.0)
+        trace.sample(10_600L, engineRunning = true, generationKw = 1.0)
 
         val snapshot = trace.snapshot()
         assertEquals(1, snapshot.spanSeconds)
@@ -63,10 +64,10 @@ class EngineTraceTest {
     @Test
     fun aStretchNobodyWatchedIsEmptyRatherThanDrawnThrough() {
         val trace = trace()
-        trace.sample(10_000L, rpm = 3000.0, generationKw = 12.0)
+        trace.sample(10_000L, engineRunning = true, generationKw = 12.0)
         // The dashboard was away for three seconds. Those slots must not be filled in: an area drawn
         // straight across them would claim the engine held 12 kW through them.
-        trace.sample(14_000L, rpm = 800.0, generationKw = 0.0)
+        trace.sample(14_000L, engineRunning = true, generationKw = 0.0)
 
         assertEquals(listOf(12.0, null, null, null, 0.0), trace.snapshot().values())
     }
@@ -74,8 +75,8 @@ class EngineTraceTest {
     @Test
     fun aGapLongerThanTheTraceLeavesNothingOfTheOldReadings() {
         val trace = trace()
-        trace.sample(10_000L, rpm = 3000.0, generationKw = 12.0)
-        trace.sample(600_000L, rpm = 800.0, generationKw = 3.0)
+        trace.sample(10_000L, engineRunning = true, generationKw = 12.0)
+        trace.sample(600_000L, engineRunning = true, generationKw = 3.0)
 
         assertEquals(listOf(3.0), trace.snapshot().values())
     }
@@ -84,7 +85,7 @@ class EngineTraceTest {
     fun theOldestReadingsFallOffTheBack() {
         val trace = trace()
         repeat(8) { second ->
-            trace.sample(10_000L + second * 1_000L, rpm = 1400.0, generationKw = 1.0 * second)
+            trace.sample(10_000L + second * 1_000L, engineRunning = true, generationKw = 1.0 * second)
         }
         assertEquals(listOf(3.0, 4.0, 5.0, 6.0, 7.0), trace.snapshot().values())
     }
@@ -94,9 +95,9 @@ class EngineTraceTest {
         val trace = trace()
         // What a sweep with the combustion set switched off looks like, and what the generation id
         // itself returns when the engine ECU is asleep: nothing at all, which is not a zero.
-        trace.sample(10_000L, rpm = null, generationKw = null)
-        trace.sample(11_000L, rpm = 1400.0, generationKw = 6.0)
-        trace.sample(12_000L, rpm = 1400.0, generationKw = null)
+        trace.sample(10_000L, engineRunning = null, generationKw = null)
+        trace.sample(11_000L, engineRunning = true, generationKw = 6.0)
+        trace.sample(12_000L, engineRunning = true, generationKw = null)
 
         val snapshot = trace.snapshot()
         assertEquals(2, snapshot.spanSeconds)
@@ -110,7 +111,7 @@ class EngineTraceTest {
         // A resting engine answers, and it answers zero. The fourth board drew that as a box with
         // two flat lines in it, and the owner's question about the shelf is the same question:
         // an instrument for something that did not happen is furniture.
-        repeat(4) { second -> trace.sample(10_000L + second * 1_000L, rpm = 0.0, generationKw = 0.0) }
+        repeat(4) { second -> trace.sample(10_000L + second * 1_000L, engineRunning = false, generationKw = 0.0) }
 
         assertTrue(trace.snapshot().isEmpty)
         assertEquals(0, trace.snapshot().spanSeconds)
@@ -120,40 +121,46 @@ class EngineTraceTest {
     fun theBoxHoldsItsWidthAfterTheEngineStopsAndThenLeavesWithoutATimer() {
         val trace = trace()
         // Two seconds of running, then zeros arriving second by second.
-        trace.sample(10_000L, rpm = 1400.0, generationKw = 8.0)
-        trace.sample(11_000L, rpm = 1500.0, generationKw = 9.0)
+        trace.sample(10_000L, engineRunning = true, generationKw = 8.0)
+        trace.sample(11_000L, engineRunning = true, generationKw = 9.0)
         assertEquals(2, trace.snapshot().spanSeconds)
 
-        trace.sample(12_000L, rpm = 0.0, generationKw = 0.0)
+        trace.sample(12_000L, engineRunning = false, generationKw = 0.0)
         assertEquals("the box grows while the dead seconds arrive", 3, trace.snapshot().spanSeconds)
-        trace.sample(13_000L, rpm = 0.0, generationKw = 0.0)
-        trace.sample(14_000L, rpm = 0.0, generationKw = 0.0)
+        trace.sample(13_000L, engineRunning = false, generationKw = 0.0)
+        trace.sample(14_000L, engineRunning = false, generationKw = 0.0)
         assertEquals("and stops at the retained window", 5, trace.snapshot().spanSeconds)
 
         // The last live slot has now walked off the left edge, and the box goes with it. Nothing
         // counted the seconds: the trace's own length was the timer.
-        trace.sample(15_000L, rpm = 0.0, generationKw = 0.0)
-        trace.sample(16_000L, rpm = 0.0, generationKw = 0.0)
+        trace.sample(15_000L, engineRunning = false, generationKw = 0.0)
+        trace.sample(16_000L, engineRunning = false, generationKw = 0.0)
         assertTrue(trace.snapshot().isEmpty)
     }
 
     @Test
-    fun generationAloneIsEnoughToKeepTheBox() {
+    fun generationWithNoRunningFlagBehindItIsNotAnEngine() {
         val trace = trace()
-        // Whichever of the two ids answers first, the engine was alive in that second.
-        trace.sample(10_000L, rpm = 0.0, generationKw = 6.0)
-        assertFalse(trace.snapshot().isEmpty)
-        assertEquals(1, trace.snapshot().spanSeconds)
+        // The first drive: the box stood on the shelf for half a trip with the engine off, flat at
+        // zero, coming and going with speed. "Alive" used to be rpm above zero *or* generation
+        // above zero, and one of those two ids is not zero on an electric drive; neither is a
+        // proven engine-alive test, and the flag is. The reading is still recorded - a step is the
+        // mean of what arrived in it - but the slot is dead, and a flag that did not answer is not
+        // a flag that said yes.
+        trace.sample(10_000L, engineRunning = false, generationKw = 6.0)
+        trace.sample(11_000L, engineRunning = null, generationKw = 6.0)
+        assertTrue(trace.snapshot().isEmpty)
+        assertEquals(0, trace.snapshot().spanSeconds)
     }
 
     @Test
     fun anEngineTurningWithoutGeneratingStillHoldsTheBox() {
         val trace = trace()
-        // The revolutions are not a series any more and they are still read for this: on a direct
+        // The property the revolutions used to be read for, and the flag keeps it: on a direct
         // drive the engine can turn for a minute returning nothing, and a box that left in the
         // middle of an engine run would flicker exactly the way M7 was about.
-        trace.sample(10_000L, rpm = 1600.0, generationKw = 0.0)
-        trace.sample(11_000L, rpm = 1600.0, generationKw = 0.0)
+        trace.sample(10_000L, engineRunning = true, generationKw = 0.0)
+        trace.sample(11_000L, engineRunning = true, generationKw = 0.0)
 
         assertFalse(trace.snapshot().isEmpty)
         assertEquals(listOf(0.0, 0.0), trace.snapshot().values())
@@ -168,9 +175,9 @@ class EngineTraceTest {
     @Test
     fun aClockThatWentBackwardsStartsANewTraceInsteadOfDrawingThePastTwice() {
         val trace = trace()
-        trace.sample(10_000L, rpm = 3000.0, generationKw = 12.0)
-        trace.sample(11_000L, rpm = 3100.0, generationKw = 12.0)
-        trace.sample(4_000L, rpm = 700.0, generationKw = 2.0)
+        trace.sample(10_000L, engineRunning = true, generationKw = 12.0)
+        trace.sample(11_000L, engineRunning = true, generationKw = 12.0)
+        trace.sample(4_000L, engineRunning = true, generationKw = 2.0)
 
         assertEquals(listOf(2.0), trace.snapshot().values())
     }
@@ -192,7 +199,7 @@ class EngineTraceTest {
         values.forEachIndexed { index, value ->
             trace.sample(
                 (fromSecond + index) * 1_000L,
-                rpm = 1400.0,
+                engineRunning = true,
                 generationKw = value,
             )
         }
@@ -248,10 +255,10 @@ class EngineTraceTest {
 
         // One more second evicts second 100 and opens bin 24. The four bins that survive keep the
         // values they had; only the newest one is new, and only it is short.
-        trace.sample(120_000L, rpm = 1400.0, generationKw = 9.0)
+        trace.sample(120_000L, engineRunning = true, generationKw = 9.0)
         assertEquals(listOf(1.0, 2.0, 3.0, 9.0), trace.snapshot().values())
 
-        trace.sample(121_000L, rpm = 1400.0, generationKw = 11.0)
+        trace.sample(121_000L, engineRunning = true, generationKw = 11.0)
         assertEquals(
             "and the newest step fills rather than the whole grid re-phasing",
             listOf(1.0, 2.0, 3.0, 10.0),

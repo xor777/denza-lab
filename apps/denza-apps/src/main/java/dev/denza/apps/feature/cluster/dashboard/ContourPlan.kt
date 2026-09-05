@@ -333,7 +333,7 @@ internal class ContourPlan(
     /** What the whole phrase measures, dot included, which is what decides the window. */
     val legendPhraseWidth: Float = rightEdge - (legendMarkX - markRadius)
 
-    // ---- the petal, and the three kilometres behind its figure
+    // ---- the petal, and the ten kilometres behind its figure
 
     val petalBaseline: Float = PETAL_BASELINE
     val petalFloor: Float = PETAL_FLOOR
@@ -360,18 +360,30 @@ internal class ContourPlan(
         )
 
     /**
-     * **The figure centres on the axis, and the box hangs off it.**
+     * **The printed figure sits one unit gap right of the axis, and the box hangs off it.**
      *
      * The fifth board centred the whole composition - box, gap, field, gap, unit - so the digits
-     * landed 82 units right of the hero's and the box carried the panel's midpoint on its back. Now
-     * the *printed* figure is what centres: two digits, right-aligned on a fixed anchor, so standing
-     * on P the tenth grows the field leftward and moves neither the unit nor the box.
+     * landed 82 units right of the hero's and the box carried the panel's midpoint on its back. The
+     * tenth centred the *printed* figure on the axis: two digits ending at 783.00 against the hero's
+     * field at 783.04, so «кВт» and «кВт·ч/100 км» started on one x. Then the panel went on the
+     * car, and in the owner's photograph of 2026-09-05 the history box's left edge stood on the
+     * stock range badge, «486 km EV»: the petal's cut-out is modelled as an ellipse symmetric about
+     * the axis, and the glass is not symmetric. Read off that photograph against the panel's own
+     * anchors, the badge reaches 426.7 at the box's depth, seventeen past the modelled edge, and
+     * the stock power figure on the right starts at about 1095, eight inside it - 668 units of
+     * room for a block 586 wide at its widest. The owner's verdict was to move the whole block
+     * right, where the room is.
      *
-     * The accident worth keeping: a two-digit 52 centred on the axis ends at 783.00 and the hero's
-     * three-digit field ends at 783.04, so the two figures share a right edge and «кВт» and
-     * «кВт·ч/100 км» start on the same x.
+     * So the block stands [unitGap] further right: the figure's right edge is where the hero's
+     * «кВт» begins, 815.00 against 815.04, which is the tenth pass's accident kept one step over.
+     * Standing on P the tenth still grows the field leftward and moves nothing. The box's left edge
+     * is 32 clear of the badge - 6.8 mm of glass - and the unit's widest form ends 50 short of the
+     * power figure as photographed showing one digit; the right keeps the larger share on purpose,
+     * because whether that figure grows leftward on the move is not in the photograph. The
+     * generator's `PETAL_SHIFT`, `RANGE_BADGE_SEEN` and `POWER_FIGURE_SEEN` are the same record.
      */
-    val petalFigureRight: Float = axis + petalPrintedWidth / 2f
+    val petalShift: Float = unitGap
+    val petalFigureRight: Float = axis + petalPrintedWidth / 2f + petalShift
     val petalUnitX: Float = petalFigureRight + unitGap
 
     /**
@@ -402,7 +414,7 @@ internal class ContourPlan(
      * A fixed ladder, not an autoscale: 0…30 up the cap and 0…10 back down the descender.
      *
      * Autoscaling to each window's own ceiling meant a bucket changed height when a *different*
-     * bucket changed value, so the shape of the last three kilometres was never twice the same
+     * bucket changed value, so the shape of the last ten kilometres was never twice the same
      * shape. On the states board the traffic jam's history is visibly taller than calm driving's,
      * which under the old autoscale it was not. 30 rather than the fifth pass's 40 because the two
      * spans no longer share a divisor: what set 40 was a zero line at four fifths of a box, and the

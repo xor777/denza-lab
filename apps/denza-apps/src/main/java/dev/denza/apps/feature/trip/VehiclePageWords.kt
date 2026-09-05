@@ -101,7 +101,7 @@ internal object VehiclePageWords {
         val km = ConsumptionWindow.coveredKm(telemetry.consumption)
         if (km <= 0.0) return null
         // The window rides on the unit rather than in the caption, which is the Contour's own
-        // arrangement for this very figure: «кВт·ч/100 км · за 3 км» under the petal. A caption
+        // arrangement for this very figure: «кВт·ч/100 км · за 10 км» under the petal. A caption
         // wide enough to hold it pushed the figure past the column in a two-thirds pane.
         return Reading(
             TITLE_SPEND,

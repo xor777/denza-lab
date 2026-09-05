@@ -468,7 +468,7 @@ def spend_run(scene):
     if not scene['spend']:
         return ''
     return ('<span class="spend">РАСХОД <span class="spend-figure">'
-            f'{scene["spend"]}</span> кВт·ч/100 ЗА 3 КМ</span>')
+            f'{scene["spend"]}</span> кВт·ч/100 ЗА 10 КМ</span>')
 
 
 def vehicle_page(scene='generation', shape='wide', width=FIELD_W):
@@ -483,7 +483,7 @@ def vehicle_page(scene='generation', shape='wide', width=FIELD_W):
         minus in front of a number is not a direction anybody reads at a glance, and here the
         direction matters more than the sign;
       - **a figure names the window it is true over.** `ПОСЛЕДНИЕ 2 МИНУТЫ` under the trace,
-        `ЗА 3 КМ` after the consumption: a number integrated over an interval that does not say
+        `ЗА 10 КМ` after the consumption: a number integrated over an interval that does not say
         which one is read against the interval the reader has in mind, which is never the right
         one;
       - **a zero is never drawn, and a quantity that did not happen has no cell.** Revolutions

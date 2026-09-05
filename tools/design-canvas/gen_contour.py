@@ -332,12 +332,14 @@ W_KW = 29.6094                   # «кВт» at 18
 W_KWH = 44.1094                  # «кВт·ч» at 18, once per cell since the sixth pass
 W_KM = 23.0938                   # «км» at 18, the odometer's unit in a caption
 W_PER_100KM = 109.4219           # «кВт·ч/100 км» at 18, the figure with no window
-W_PETAL_WINDOW = 184.1094        # «кВт·ч/100 км · за 3 км» - the unit names it
+W_PETAL_WINDOW = 194.2344        # «кВт·ч/100 км · за 10 км», measured 2026-09-05
 # And the widest that unit ever is, which is the window still filling. The figures
-# are tabular, so «за 0,3 км» and «за 2,7 км» come out at one width and this
-# measures every one of them. Nothing is anchored off it: the unit is left-aligned
-# against the figure's own reserve and there is nothing to its right but the
-# cut-out, which it clears by 89.9 even here.
+# are tabular, so «за 0,3 км», «за 3,7 км» and «за 9,9 км» come out at one width
+# and this measures every one of them. Nothing is anchored off it: the unit is
+# left-aligned against the figure's own reserve and there is nothing to its right
+# but the cut-out: 57.9 to the modelled ellipse and 50 to the stock power figure
+# as photographed, now that the block stands UNIT_GAP further right. See
+# PETAL_FIGURE_RIGHT.
 W_PETAL_FILLING = 197.7656       # «кВт·ч/100 км · за 1,2 км», measured 2026-09-04
 W_TITLE = {'БАТАРЕЯ · В': 126.0781, 'ДВС · об/мин': 137.9844,
            'ДВС · мин за поездку': 224.9375}
@@ -717,14 +719,22 @@ LEGEND_WINDOW_SHORT = 'В БАТАРЕЮ · 0:00'
 
 PETAL_BASELINE = 384.0
 PETAL_FLOOR = 410.0                     # nothing is drawn below this
-PETAL_BUCKETS = 30                      # 3 km of ConsumptionLog's 100 m buckets
+# Ten kilometres, since the first drive. At three the box was thirty steps of a
+# hundred metres, and the owner read it from the seat as «крупные ступеньки» - a
+# road too short to have a shape, redrawn wholesale every few minutes. A hundred
+# buckets in the same 232 units is 2.32 a step, 0.49 mm of glass, which is under
+# the eye's resolution from 750 mm: the history reads as a line with a grain
+# rather than as a staircase, and the figure beside it is the mean of a road
+# rather than of the last three traffic lights. The head unit's car page reads
+# the same window through the same object.
+PETAL_BUCKETS = 100                     # 10 km of ConsumptionLog's 100 m buckets
 # "16,8" and "2:15" are both three digits and one mark, so one field holds either,
 # and two digits is what the panel actually prints while the car is moving.
 PETAL_FIELD_W = 3 * DIGIT * FIGURE + max(COMMA, COLON) * FIGURE
 PETAL_BASE_FIELD_W = 2 * DIGIT * FIGURE
-# The unit names the window the figure is true over: «кВт·ч/100 км · за 3 км»
-# when the log has three kilometres, «· за 1,2 км» while it is still filling.
-# Three kilometres has been the rule since the fourth pass and it was written
+# The unit names the window the figure is true over: «кВт·ч/100 км · за 10 км»
+# when the log has ten kilometres, «· за 3,7 км» while it is still filling.
+# Three kilometres had been the rule since the fourth pass and it was written
 # nowhere on the glass, so the figure was read against the interval the reader
 # brought - the trip, usually, which is the one thing it has never been. And the
 # literal was the same defect one level down: a five-hundred-metre history printed
@@ -732,17 +742,36 @@ PETAL_BASE_FIELD_W = 2 * DIGIT * FIGURE
 # below is the widest form, and nothing is anchored off it.
 PETAL_UNIT_W = max(W_PETAL_WINDOW, W_PETAL_FILLING)
 PETAL_BOX_GAP = STEP * 3
-# **The figure centres on the axis, and the box hangs off it.** The last board
-# centred the whole composition - box, gap, field, gap, unit - so the digits
-# landed 82 units right of the hero's and the box carried the panel's midpoint on
-# its back. Now the *printed* figure is what centres: two digits, right-aligned on
-# a fixed anchor, so standing on P the tenth grows the field leftward and moves
-# neither the unit nor the box.
+# **The printed figure sits one unit gap right of the axis, and the box hangs
+# off it.** Two anchors came before this one. The fifth board centred the whole
+# composition - box, gap, field, gap, unit - so the digits landed 82 units right
+# of the hero's and the box carried the panel's midpoint on its back. The tenth
+# centred the *printed* figure: two digits ending at 783.00 against the hero's
+# field at 783.04, so «кВт» and «кВт·ч/100 км» started on one x. Then the panel
+# went on the car, and in the owner's photograph of 2026-09-05 the box's left
+# edge stood on the stock range badge, «486 km EV» - «наезжает на штатный
+# контроль». The petal's cut-out is modelled as an ellipse symmetric about the
+# axis and the glass is not symmetric. Read off that photograph against the
+# panel's own anchors (the hero's unit, the shelf's seats - the scale comes out
+# at 1.4 px per unit across the whole middle): the badge reaches RANGE_BADGE_SEEN
+# at the box's depth, seventeen past the modelled edge, and the stock power
+# figure «1 kW» on the right starts at POWER_FIGURE_SEEN, eight *inside* it. So
+# the room between the two stock things is 668 units, the block at its widest is
+# 586, and the owner's verdict - move the whole block right, where the room is -
+# has 82 units to spend.
 #
-# The accident worth keeping: a two-digit 52 centred on the axis ends at 783.00,
-# and the hero's three-digit field ends at 783.04. The two figures share a right
-# edge to within 0.04 units, and «кВт» and «кВт·ч/100 км» start on the same x.
-PETAL_FIGURE_RIGHT = AXIS + PETAL_BASE_FIELD_W / 2
+# The block moves right by exactly UNIT_GAP. The figure's right edge is then the
+# hero's unit's left edge, 815.0 against 815.04 - the tenth pass's accident kept
+# one step over: «41,3» ends where «кВт» begins. Standing on P the tenth still
+# grows the field leftward and moves nothing. What the 32 buys and costs: the
+# box's left edge lands at 458.7, 32 clear of the badge, which is 6.8 mm of
+# glass; the unit's widest form ends at 1044.8, 50 short of the power figure as
+# photographed showing one digit, and 57.9 inside the modelled ellipse. The right
+# side keeps the larger share on purpose - whether that figure grows leftward to
+# «120 kW» on the move is not in the photograph. The ellipse stays as it is until
+# the grid photograph (findings, «What still waits for the car») replaces it.
+PETAL_SHIFT = UNIT_GAP
+PETAL_FIGURE_RIGHT = AXIS + PETAL_BASE_FIELD_W / 2 + PETAL_SHIFT
 PETAL_UNIT_X = PETAL_FIGURE_RIGHT + UNIT_GAP
 # The box hangs off the *widest* the field ever gets, not off the printed digits,
 # so the 24-unit gap is a floor rather than an average: on P it closes to 26, on
@@ -754,6 +783,14 @@ PETAL_BOX_RIGHT = PETAL_FIGURE_RIGHT - PETAL_FIELD_W - PETAL_BOX_GAP
 # next whole step under that.
 PETAL_BOX_W = STEP * 29
 PETAL_BOX_X = PETAL_BOX_RIGHT - PETAL_BOX_W
+# The two stock things the petal stands between, as seen on 2026-09-05. The
+# badge's right edge was exactly on the tenth pass's box edge, which is this
+# expression with the figure centred on the axis; the power figure's left edge
+# is read off the same photograph to about five units. Measurements by
+# photograph rather than by grid, kept as the two numbers the shift is checked
+# against until the grid photograph exists.
+RANGE_BADGE_SEEN = PETAL_BOX_X - PETAL_SHIFT
+POWER_FIGURE_SEEN = 1095.0
 # **The box's zero line is the figure's own baseline** (the eighth pass: «ноль
 # должен быть у цифры»). The fifth pass gave the box 56 units and a zero line four
 # fifths down, and both numbers were the box's alone - a ladder standing next to a
@@ -861,9 +898,9 @@ def legend_text(seconds):
 def per_100(bars):
     """The petal's unit, naming the road the figure beside it is the mean of.
 
-    Three kilometres is what the log holds when it has them. A history that has
+    Ten kilometres is what the log holds when it has them. A history that has
     just started - a fresh install, a reset journal, the first minutes of a drive -
-    is a few hundred metres printed under «за 3 км», which is the same defect the
+    is a few hundred metres printed under «за 10 км», which is the same defect the
     seventh pass added this window to fix, one level down.
     """
     covered = len(bars or []) * 0.1
@@ -1040,17 +1077,28 @@ def glyph(kind, x, baseline, colour):
 
 # ---------------------------------------------------------------- the histories
 
-# One deterministic run of 100 m buckets, written as multiples of the window's own
-# average so a scene names the average it wants and the history and the figure
-# cannot disagree. Three buckets are negative: the chart needs a zero line rather
-# than a floor, because a descent gives energy back.
-SHAPE = [1.22, 1.18, 1.12, 1.14, 1.21, 1.21, 1.07, 0.83, 0.64, -0.22,
-         -0.41, -0.12, 0.92, 0.92, 0.97, 1.14, 1.38, 1.54, 1.53, 1.36,
-         1.18, 1.08, 1.06, 1.00, 0.85, 0.64, 0.51, 0.57, 0.77, 0.97]
+# One deterministic run of 100 m buckets - ten kilometres of it since the first
+# drive - written as multiples of the window's own average so a scene names the
+# average it wants and the history and the figure cannot disagree. A town run:
+# heavy going for the first four kilometres, one descent that gave energy back
+# (six negative buckets, and the only ones - the chart needs a zero line rather
+# than a floor, and the board draws exactly one blue shape), a stop at a light
+# near the end. Generated once, seeded, and pasted rather than computed here, so
+# the boards do not move when somebody's random module does.
+SHAPE = [1.28, 1.23, 1.30, 1.24, 1.28, 1.11, 1.21, 1.12, 1.14, 1.27,
+         1.15, 1.25, 1.17, 1.17, 1.33, 1.18, 1.23, 1.09, 1.19, 1.08,
+         1.09, 1.09, 1.03, 0.96, 1.06, 1.16, 1.25, 1.30, 1.26, 1.38,
+         1.40, 1.32, 1.37, 1.41, 1.29, 1.27, 1.32, 1.26, 1.32, 1.32,
+         1.26, 1.31, 1.43, 1.41, 1.40, 1.34, 1.27, 1.13, 0.98, 0.90,
+         0.92, 0.86, 0.71, 0.79, 0.81, 0.69, 0.56, 0.32, -0.18, -0.36,
+         -0.44, -0.41, -0.27, -0.12, 0.30, 0.53, 0.79, 0.77, 0.72, 0.71,
+         0.87, 0.88, 0.97, 0.95, 1.04, 1.00, 1.08, 1.05, 0.93, 0.83,
+         0.80, 0.80, 0.64, 0.60, 0.22, 0.14, 0.75, 0.68, 0.82, 0.69,
+         0.79, 0.82, 0.70, 0.72, 0.65, 0.76, 0.75, 0.66, 0.76, 0.85]
 
 
 def consumption_history(average):
-    """Thirty closed buckets whose spending mean is exactly [average]."""
+    """A hundred closed buckets whose spending mean is exactly [average]."""
     spending = [m for m in SHAPE if m > 0]
     norm = sum(spending) / len(spending)
     return [round(average * m / norm, 1) for m in SHAPE]
@@ -1579,7 +1627,7 @@ def right_shelf(s):
 
 
 def petal_history(bars):
-    """Three kilometres of closed buckets, as one stepped line beside its figure.
+    """Ten kilometres of closed buckets, as one stepped line beside its figure.
 
     Two things the owner said about the fourth board are answered here and they
     are the same thing twice: "графики очень сильно сплющены по вертикали и очень
@@ -1591,12 +1639,12 @@ def petal_history(bars):
     box's two edges are the numeral's cap top and the depth of its descender. The
     scale is a fixed ladder on those three lines: 0…30 kW·h/100 km up the cap,
     0…10 back down the descender, both clamped. An autoscale meant one bucket
-    changing value redrew the height of all thirty, so the same three kilometres
+    changing value redrew the height of all hundred, so the same ten kilometres
     never came back the same shape. There is no dashed mean: the mean is the figure
     standing next to the box.
 
     **Two series, and the second one is only where it happened.** Spending is one
-    continuous grey field across all thirty buckets - on a bucket that gave energy
+    continuous grey field across all hundred buckets - on a bucket that gave energy
     back it lies on the zero line, because what was spent there is nothing - and the
     return is a blue shape per run of return buckets, hanging under the zero on its
     own posts. The fifth pass drew one field crossing the zero in one colour, with a
@@ -1633,15 +1681,17 @@ def petal_history(bars):
 
 
 def petal(s):
-    """What the last three kilometres cost - always the last three kilometres.
+    """What the last ten kilometres cost - always the last ten kilometres.
 
     The denominator never changes under the figure: standing on P it is still
-    three kilometres and only the tenth appears, because at 100 km/h a tenth
+    ten kilometres and only the tenth appears, because at 100 km/h a tenth
     changes three times a second and a figure that flickers is a figure nobody
-    reads.
+    reads. Three kilometres until the first drive; the owner read thirty steps as
+    «крупные ступеньки», and a mean over the last three traffic lights is not a
+    consumption anybody plans by.
 
     **Since the seventh pass the unit says so, and since the tenth it says which
-    three kilometres: «кВт·ч/100 км · за 1,2 км» while the log is still filling.**
+    ten kilometres: «кВт·ч/100 км · за 3,7 км» while the log is still filling.**
     The
     window was a rule in this file and on none of the six drawings, and a
     consumption figure with nothing naming its interval is read against whatever
@@ -1787,7 +1837,7 @@ HOT = temps(('33', 'normal'),
 # it, and a rate with no interval is read against the trip - and «за 3 км» over a
 # history five hundred metres long is the same defect one level down, which is why
 # `per_100` names the road the log actually has.
-PER_100 = 'кВт·ч/100 км · за 3 км'
+PER_100 = 'кВт·ч/100 км · за 10 км'
 
 CALM_BARS = consumption_history(16.8)
 
@@ -1832,13 +1882,14 @@ STATES = [
         bars=consumption_history(21.4), petal='21')),
     ('Спокойная езда · ДВС не запускался: одна фраза справа, «ДАЛ ДВС» нет вовсе',
      CALM),
-    # The window is what the log has closed, not what it is sized for. Twelve buckets
-    # is 1,2 km of road, the history grows leftward into its box rather than
-    # stretching across it, and the unit says which road the figure is the mean of.
-    ('Первые километры · закрыто 12 буферов: единица называет 1,2 км, а не 3',
+    # The window is what the log has closed, not what it is sized for. Thirty-seven
+    # buckets is 3,7 km of road, the history grows leftward into its box rather
+    # than stretching across it, and the unit says which road the figure is the
+    # mean of.
+    ('Первые километры · закрыто 37 буферов: единица называет 3,7 км, а не 10',
      sc(kw=22.0, peak=41.0, volts=549.0, temps=COOL,
         trip=dict(net=1.4, regen=0.4, ice=0.0, km=6),
-        bars=consumption_history(18.6)[:12], petal='19')),
+        bars=consumption_history(18.6)[:37], petal='19')),
     ('Разгон · 128 кВт, пик-холд стоит впереди кончика и сползает к нему',
      sc(kw=128.0, peak=163.0, volts=531.0, temps=WORKED,
         trip=dict(net=10.0, regen=3.1, ice=0.0, km=45),
@@ -2076,9 +2127,10 @@ def plan_board():
         (LEFT_EDGE, PETAL_BOX_TOP, 'серое — расход по всем корзинам, непрерывно; '
                                    'синее — только там, где вернули, со стойками '
                                    'от нуля'),
-        (LEFT_EDGE, PETAL_FLOOR, f'пол композиции · y {PETAL_FLOOR:.0f} · низ коробки '
-                                 f'{PETAL_BOX_BOTTOM:.1f}, до выреза '
-                                 f'{PETAL_BOX_X - petal_room(PETAL_BOX_BOTTOM):.1f}'),
+        (LEFT_EDGE, PETAL_FLOOR, f'пол · y {PETAL_FLOOR:.0f} · низ коробки '
+                                 f'{PETAL_BOX_BOTTOM:.1f} · до выреза по модели '
+                                 f'{PETAL_BOX_X - petal_room(PETAL_BOX_BOTTOM):.1f}, до «km EV» '
+                                 f'по фото 05.09 — {PETAL_BOX_X - RANGE_BADGE_SEEN:.0f}'),
         (right_lane, PETAL_BOX_TOP, f'коробка расхода · {PETAL_BOX_W:.0f} × '
                                     f'{PETAL_BOX_H:.2f} на {PETAL_BOX_X:.1f}…'
                                     f'{PETAL_BOX_RIGHT:.1f} · {PETAL_BUCKETS} корзин по '
@@ -2087,12 +2139,13 @@ def plan_board():
                                     f'капитель {CAP * FIGURE:.2f} на 0…{PETAL_FULL:.0f}, '
                                     f'вниз выносной {PETAL_DESCENDER * FIGURE:.2f} на 0…'
                                     f'{PETAL_RETURN_FULL:.0f}'),
-        (right_lane, PETAL_BASELINE, f'лепесток · 52 · два знака на оси, поле '
-                                     f'{PETAL_FIELD_W:.1f} влево'),
-        (right_lane, PETAL_BASELINE, f'«кВт·ч/100 км · за 1,2 км» {PETAL_UNIT_W:.1f} на '
-                                     f'{PETAL_UNIT_X:.1f}…'
-                                     f'{PETAL_UNIT_X + PETAL_UNIT_W:.1f}, до выреза '
-                                     f'{petal_edge(PETAL_BASELINE) - PETAL_UNIT_X - PETAL_UNIT_W:.1f}'),
+        (right_lane, PETAL_BASELINE, f'лепесток · 52 · край {PETAL_FIGURE_RIGHT:.1f} = начало '
+                                     f'«кВт», сдвиг {PETAL_SHIFT:.0f}, поле {PETAL_FIELD_W:.1f} влево'),
+        (right_lane, PETAL_BASELINE, f'«… за 9,9 км» {PETAL_UNIT_W:.1f} на {PETAL_UNIT_X:.1f}…'
+                                     f'{PETAL_UNIT_X + PETAL_UNIT_W:.1f} · до выреза '
+                                     f'{petal_edge(PETAL_BASELINE) - PETAL_UNIT_X - PETAL_UNIT_W:.1f}, '
+                                     f'до «1 kW» по фото '
+                                     f'{POWER_FIGURE_SEEN - PETAL_UNIT_X - PETAL_UNIT_W:.0f}'),
     ]
     lanes = {}
     for x, y, words in sorted(marks, key=lambda m: (m[0], m[1])):
@@ -2260,12 +2313,16 @@ if __name__ == '__main__':
     print(f'          dot at {_at["mark"]:.2f} with the figure, {_at["quiet"]:.2f} '
           f'without it: the {GEN_FIELD:.2f} reserve leaves with the number and the '
           f'words do not move')
-    print(f'petal   figure {PETAL_BASE_FIELD_W:.2f} centred on the axis: ends '
-          f'{PETAL_FIGURE_RIGHT:.2f} against the hero\'s {HERO_FIELD_RIGHT:.2f} '
-          f'({PETAL_FIGURE_RIGHT - HERO_FIELD_RIGHT:+.2f}), reserve to '
-          f'{PETAL_FIGURE_RIGHT - PETAL_FIELD_W:.2f}, unit {PETAL_UNIT_X:.2f}…'
-          f'{PETAL_UNIT_X + PETAL_UNIT_W:.2f}')
-    print(f'  «кВт·ч/100 км · за 1,2 км» {PETAL_UNIT_W:.2f} (the widest) ends '
+    print(f'petal   figure ends {PETAL_FIGURE_RIGHT:.2f}, {PETAL_SHIFT:.0f} right of the axis '
+          f'centre and {PETAL_FIGURE_RIGHT - HERO_UNIT_X:+.2f} from where the hero\'s «кВт» '
+          f'begins, reserve to {PETAL_FIGURE_RIGHT - PETAL_FIELD_W:.2f}, unit '
+          f'{PETAL_UNIT_X:.2f}…{PETAL_UNIT_X + PETAL_UNIT_W:.2f}')
+    print(f'  photographed 2026-09-05: box left {PETAL_BOX_X:.2f} is '
+          f'{PETAL_BOX_X - RANGE_BADGE_SEEN:.2f} clear of the range badge at '
+          f'{RANGE_BADGE_SEEN:.2f}; the widest unit ends '
+          f'{POWER_FIGURE_SEEN - PETAL_UNIT_X - PETAL_UNIT_W:.2f} short of the power figure '
+          f'at {POWER_FIGURE_SEEN:.0f}')
+    print(f'  «кВт·ч/100 км · за 9,9 км» {PETAL_UNIT_W:.2f} (the widest) ends '
           f'{PETAL_UNIT_X + PETAL_UNIT_W:.2f}, the cut-out\'s right edge at the '
           f'baseline {petal_edge(PETAL_BASELINE):.2f} -> clear by '
           f'{petal_edge(PETAL_BASELINE) - PETAL_UNIT_X - PETAL_UNIT_W:.2f} '

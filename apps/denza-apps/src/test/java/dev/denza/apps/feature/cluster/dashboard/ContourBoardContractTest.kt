@@ -620,13 +620,15 @@ class ContourBoardContractTest {
         assertEquals(232f, plan.petalBoxWidth, TOLERANCE)
         // The cap of the 52 beside it plus a descender: 36.92 + 13.
         assertEquals(49.92f, plan.petalBoxHeight, TOLERANCE)
-        // And the same for the petal: the window's own count, derived from three kilometres and
-        // the log's bucket size, rather than a thirty written down twice.
+        // And the same for the petal: the window's own count, derived from ten kilometres and
+        // the log's bucket size, rather than a hundred written down twice.
         assertEquals(
-            "thirty buckets of the log's own hundred metres",
+            "a hundred buckets of the log's own hundred metres",
             ConsumptionWindow.buckets,
             plan.petalBuckets,
         )
+        assertEquals(100, plan.petalBuckets)
+        assertTrue(generator().contains("PETAL_BUCKETS = 100 "))
     }
 
     @Test
@@ -680,19 +682,24 @@ class ContourBoardContractTest {
             text(board, "un", ContourReadout.UNIT_PER_100KM).first,
             TOLERANCE,
         )
-        // The accident worth keeping: the petal's figure and the hero's share a right edge, so
-        // «кВт» and «кВт·ч/100 км» start on the same x.
-        assertEquals(plan.heroFieldRight, plan.petalFigureRight, 0.1f)
-        assertEquals(plan.heroUnitX, plan.petalUnitX, 0.1f)
+        // The tenth pass's accident, kept one step over. On the first drive the box's left edge
+        // stood on the stock range badge, so the whole block moved right by exactly one unit gap:
+        // the petal's figure now ends where the hero's «кВт» begins, and its own unit starts one
+        // gap after that. The generator's PETAL_SHIFT is the same number.
+        assertEquals(32f, plan.petalShift, 1e-4f)
+        assertEquals(plan.heroUnitX, plan.petalFigureRight, 0.1f)
+        assertEquals(plan.heroUnitX + plan.petalShift, plan.petalUnitX, 0.1f)
+        assertTrue(generator().contains("PETAL_SHIFT = UNIT_GAP"))
+        assertTrue(generator().contains("PETAL_FIGURE_RIGHT = AXIS + PETAL_BASE_FIELD_W / 2 + PETAL_SHIFT"))
     }
 
     @Test
     fun theUnitNamesTheRoadTheFigureIsTheMeanOfWhileTheLogIsStillFilling() {
-        // «за 3 км» is what the log holds when it *has* three kilometres. The states board draws a
-        // history twelve buckets long, and under it the unit says 1,2 - a figure read against a
-        // road it is not the mean of is the very thing this window was added to stop.
+        // «за 10 км» is what the log holds when it *has* ten kilometres. The states board draws a
+        // history thirty-seven buckets long, and under it the unit says 3,7 - a figure read against
+        // a road it is not the mean of is the very thing this window was added to stop.
         val board = states()
-        assertEquals("кВт·ч/100 км · за 1,2 км", FILLING_UNIT)
+        assertEquals("кВт·ч/100 км · за 3,7 км", FILLING_UNIT)
         assertEquals(
             "the filling unit is on the full one's anchor",
             plan.petalUnitX,
@@ -899,7 +906,7 @@ class ContourBoardContractTest {
         val QUIET_WINDOW = ContourReadout.intoPack(120, short = false)
 
         /** And the road the petal's figure is the mean of while the log is still filling. */
-        val FILLING_UNIT = ContourReadout.perHundredKm(1.2, ConsumptionWindow.KM)
+        val FILLING_UNIT = ContourReadout.perHundredKm(3.7, ConsumptionWindow.KM)
 
         const val BLUE = "#2D82D7"
         const val ORANGE = "#FF9F19"

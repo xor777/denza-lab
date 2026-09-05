@@ -1,5 +1,6 @@
 package dev.denza.apps.feature.trip
 
+import dev.denza.apps.feature.vehicle.ConsumptionWindow
 import dev.denza.apps.feature.vehicle.EngineTrace
 import dev.denza.apps.feature.vehicle.EngineTraceSnapshot
 import dev.denza.apps.feature.vehicle.TripEnergy
@@ -142,17 +143,19 @@ class VehiclePageWordsTest {
     /**
      * And the window rides on the unit rather than in the caption.
      *
-     * That is the Contour's own arrangement for this very figure - «кВт·ч/100 км · за 3 км» under
+     * That is the Contour's own arrangement for this very figure - «кВт·ч/100 км · за 10 км» under
      * the petal - and here it is also what fits: a caption wide enough to hold the window pushed
-     * the figure past its column in a two-thirds pane.
+     * the figure past its column in a two-thirds pane. The window is the one object both screens
+     * read, ten kilometres since the first drive, and it is not written down here twice.
      */
     @Test
     fun consumptionNamesTheRoadItWasSpentOn() {
-        val telemetry = telemetry().copy(consumption = List(30) { 19.4 })
+        val telemetry = telemetry().copy(consumption = List(ConsumptionWindow.buckets) { 19.4 })
         val spend = VehiclePageWords.spend(telemetry)!!
         assertEquals("the name", VehiclePageWords.TITLE_SPEND, spend.caption)
         assertEquals("the figure", "19,4", spend.figure)
-        assertTrue("and its window", spend.unit.endsWith("ЗА 3 КМ"))
+        assertTrue("and its window", spend.unit.endsWith("ЗА 10 КМ"))
+        assertEquals(100, ConsumptionWindow.buckets)
     }
 
     @Test
@@ -185,8 +188,8 @@ class VehiclePageWordsTest {
         chargeKw?.let { values[VehicleSignal.CHARGE_KW] = it }
         // A trace with one live slot in it: the engine ran inside the last two minutes.
         val trace = if (!warm) EngineTraceSnapshot.EMPTY else EngineTrace().apply {
-            sample(atMillis = 0L, rpm = 1321.0, generationKw = 8.0)
-            sample(atMillis = 1_000L, rpm = 1321.0, generationKw = 8.0)
+            sample(atMillis = 0L, engineRunning = true, generationKw = 8.0)
+            sample(atMillis = 1_000L, engineRunning = true, generationKw = 8.0)
         }.snapshot()
         return VehicleTelemetry(values = values, engineTrace = trace, trip = trip)
     }

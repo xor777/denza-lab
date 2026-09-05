@@ -17,7 +17,7 @@ import java.util.Locale
  *
  * Two rules the words follow. **Units are case-sensitive**: «БАТАРЕЯ · В», «ДВС · об/мин»,
  * «кВт·ч», «км». A tracked capital is a heading, a unit is not one, and a tracked heading does not
- * get to rewrite ГОСТ 8.417. And **a figure names the window it is true over** - «за 3 км» on the
+ * get to rewrite ГОСТ 8.417. And **a figure names the window it is true over** - «за 10 км» on the
  * petal, «за поездку» on the engine's minutes - because a number integrated over an interval that
  * does not say which interval is read against the interval the reader brought.
  *
@@ -115,21 +115,24 @@ internal object ContourReadout {
     /**
      * The petal's unit, and the window is in it: the figure is never the trip average.
      *
-     * Three kilometres is what the log has *closed*, not what the window is sized for. A history
+     * Ten kilometres is what the log has *closed*, not what the window is sized for. A history
      * that has just started - a fresh install, a reset journal, the first minutes of a drive - is
-     * five hundred metres of road printed under «за 3 км», which is the seventh pass's own defect
+     * five hundred metres of road printed under «за 10 км», which is the seventh pass's own defect
      * one level down. The drawn form is [perHundredKm]; this is the case where the window is full.
+     * The distance itself is [dev.denza.apps.feature.vehicle.ConsumptionWindow.KM]; this string is
+     * what the board measured, and `ContourBoardContractTest` holds the two together.
      */
     const val UNIT_PER_100KM_PREFIX = "кВт·ч/100 км · за "
-    const val UNIT_PER_100KM = UNIT_PER_100KM_PREFIX + "3 км"
+    const val UNIT_PER_100KM = UNIT_PER_100KM_PREFIX + "10 км"
 
     /**
      * And the widest it ever is, which is any distance still filling the window.
      *
-     * The figures are tabular, so «за 0,3 км» and «за 2,7 км» are one width and this template
+     * The figures are tabular, so «за 0,3 км» and «за 9,9 км» are one width and this template
      * measures them all. The unit is left-aligned against the figure's reserve and nothing hangs
      * off it, so its own width is allowed to change: there is nothing to its right but the petal's
-     * cut-out, which it clears by 89.9 at its widest.
+     * cut-out, which it clears by 57.9 on the modelled ellipse and by 50 against the stock power
+     * figure as photographed - see [ContourPlan.petalFigureRight].
      */
     const val UNIT_PER_100KM_FILLING = UNIT_PER_100KM_PREFIX + "1,2 км"
 

@@ -40,9 +40,9 @@ internal class ConsumptionLog(
     /**
      * And the tail the cluster is ever shown, which is what a snapshot carries.
      *
-     * The panel draws three kilometres and the log keeps thirty for restart continuity, so handing
-     * a snapshot [buckets] copied two hundred and seventy bars per sweep that nothing would read
-     * and left every frame to find the tail again. This copies the thirty that are drawn.
+     * The panel draws ten kilometres and the log keeps thirty for restart continuity, so handing
+     * a snapshot [buckets] copied two hundred bars per sweep that nothing would read and left every
+     * frame to find the tail again. This copies the hundred that are drawn.
      */
     val window: List<Double>
         get() {

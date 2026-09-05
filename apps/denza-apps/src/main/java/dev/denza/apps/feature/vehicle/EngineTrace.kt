@@ -15,9 +15,19 @@ import kotlin.math.min
  * It carried the revolutions as well until the owner looked at the built panel and could not read
  * the legend that told the two runs apart. A driver's display does not get to need a key, so the
  * box draws one quantity and the revolutions keep the number they already have in the corner - which
- * is where they were being read anyway. The rpm reading still decides one thing here and only one:
- * [sample] takes it because **a slot the engine was alive in is a slot it turned in**, and an engine
- * that is running while it happens to return nothing is still an engine the box should be up for.
+ * is where they were being read anyway.
+ *
+ * ### And "alive" is the engine's own flag, since the first drive
+ *
+ * Until 2026-09-05 a slot counted as alive when the rpm reading was above zero *or* the generation
+ * reading was, on the argument that whichever id answered first, the engine had turned. On the first
+ * drive the box stood on the shelf for half the trip with the engine off - «плоская синяя полоса»,
+ * a flat blue line at zero, coming and going with speed rather than with the engine. One of those
+ * two ids is not zero on an electric drive, and which one is a question for the car
+ * (`docs/vehicle-data-findings.md`); neither is an engine-alive test this panel has proved. The
+ * flag `ENGINE_RUNNING` is: it has been read through a full start/stop cycle and answers 0 or 3 and
+ * nothing else. So [sample] takes the flag. An engine that turns while returning nothing is still
+ * alive under it, which is the property the rpm was there for.
  *
  * ### The axis is time, not sweeps
  *
@@ -55,12 +65,14 @@ internal class EngineTrace(
      * at the dashboard's cadence and the newest of them wins: a slot is a second, and the last
      * answer in it is the one a driver looking at the dashboard would have seen.
      *
-     * [rpm] is not kept. It decides whether this slot counts as one the engine was alive in, which
-     * is what holds the box on the shelf through a generating pause.
+     * [engineRunning] is not kept as a series. It decides whether this slot counts as one the engine
+     * was alive in, which is what holds the box on the shelf through a generating pause; null - the
+     * flag did not answer - is a slot the engine was not known to be alive in, and a generation
+     * figure with no flag behind it is recorded but does not make the slot alive.
      */
-    fun sample(atMillis: Long, rpm: Double?, generationKw: Double?) {
+    fun sample(atMillis: Long, engineRunning: Boolean?, generationKw: Double?) {
         val slot = atMillis / slotMillis
-        val alive = (rpm ?: 0.0) > 0.0 || (generationKw ?: 0.0) > 0.0
+        val alive = engineRunning == true
         when {
             lastSlot == Long.MIN_VALUE -> Unit
 

@@ -706,6 +706,21 @@ pattern says otherwise, and the pattern is the width of that signal's field —
 value was a resting `0` is owed the same suspicion**: a resting zero may only
 mean the ECU was awake that day.
 
+### One of engine speed and generation is not zero on an electric drive
+
+On the first drive with the Contour panel (2026-09-05) the engine's history box
+stood on the cluster's right shelf for half the trip with the engine off, flat at
+zero, appearing and disappearing with the car's speed. The box was up for any
+second in which `ENGINE_RPM` (`0x14400012`) or `GENERATION_KW` (`0x2610001F`)
+read above zero, so one of the two reads above zero while the car moves on the
+battery alone - the rpm following a motor rather than the engine, or the
+generation figure carrying regeneration, are both plausible and neither is
+established. `ENGINE_RUNNING` (`0x10D00038`) stayed at `0` throughout, which
+matches the full start/stop cycle it was read through, and the cluster is keyed
+on it alone since that drive. What is still owed: one log of both ids against
+`VEHICLE_SPEED` with the engine off, which says which id it is and whether the
+other one means anything at all.
+
 ### Warning flags — all sixteen answer, all read `0` on a healthy car
 
 **Known and not polled since 2026-09-04: the panel has no reader for them and

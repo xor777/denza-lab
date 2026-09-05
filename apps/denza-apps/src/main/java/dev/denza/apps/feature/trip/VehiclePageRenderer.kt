@@ -30,7 +30,7 @@ import kotlin.math.roundToInt
  *    and the figure under it says how much. A minus in front of a number is not a direction
  *    anybody reads at a glance, and here the direction matters more than the sign;
  *  - **a figure names the window it is true over**: `ПОСЛЕДНИЕ 2 МИНУТЫ` under the shape,
- *    `ЗА 3 КМ` after the consumption;
+ *    `ЗА 10 КМ` after the consumption;
  *  - **a zero is never drawn, and a quantity that did not happen has no cell.** The engine's cell
  *    is absent until the engine has run, the consumption is absent while the car stands;
  *  - **colour marks an exception.** A temperature that crosses its own band takes the figure, the

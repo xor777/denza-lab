@@ -71,7 +71,7 @@ internal fun interface ContourType {
             (InstrumentFace.UNIT to ContourReadout.UNIT_KW) to 29.6094f,
             (InstrumentFace.UNIT to ContourReadout.UNIT_KWH) to 44.1094f,
             (InstrumentFace.UNIT to ContourReadout.UNIT_KM) to 23.0938f,
-            (InstrumentFace.UNIT to ContourReadout.UNIT_PER_100KM) to 184.1094f,
+            (InstrumentFace.UNIT to ContourReadout.UNIT_PER_100KM) to 194.2344f,
             (InstrumentFace.UNIT to ContourReadout.UNIT_PER_100KM_FILLING) to 197.7656f,
             (InstrumentFace.CAPTION to ContourReadout.CAPTION_SPREAD) to 167.7344f,
             (InstrumentFace.CAPTION to ContourReadout.CAPTION_REGEN) to 150.6719f,

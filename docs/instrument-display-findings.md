@@ -212,7 +212,7 @@ glance, by somebody who has never seen it and has no legend?**
 | the left shelf | five temperatures at 34 - pack, front motor, rear left, rear right, inverter - each over a glyph rather than a word, plus a sixth cell «мВ / РАЗБРОС ЯЧЕЕК» that exists only at `WATCH` or `ALERT` |
 | the right shelf | what the trip cost, as a phrase: «9,3 кВт·ч» over «42 км · ЗА ПОЕЗДКУ», plus «ДАЛ ДВС» if the engine ran, plus «● РЕКУПЕРАЦИЯ» when the car is standing in P |
 | the engine's box | while the engine has been alive in the last two minutes, that shelf is its own history instead: what it put back into the pack, as twenty-four five-second steps linear to 30 kW, under one sentence - «● 14 кВт В БАТАРЕЮ · ПОСЛЕДНИЕ 2 МИН» |
-| the petal | the last three kilometres of consumption, as a stepped field standing on the figure's own baseline, «кВт·ч/100 км · за 3 км» - or a countdown to full while a gun is in |
+| the petal | the last ten kilometres of consumption, as a stepped field standing on the figure's own baseline, «кВт·ч/100 км · за 10 км» - or a countdown to full while a gun is in |
 
 **What is not on it, and why.** State of charge, range, fuel level and the fuel
 alarm are all on the stock cluster a few centimetres away; spending the best real
@@ -459,7 +459,7 @@ continuous grey field that lies on the zero on a return bucket, because what was
 spent there is nothing; the return is blue, one shape per run of return buckets,
 standing on the zero on its own posts.
 
-**Both boxes are steps of a fixed duration.** The petal's thirty buckets are a
+**Both boxes are steps of a fixed duration.** The petal's hundred buckets are a
 hundred metres each; the engine's twenty-four are five seconds each, a bin being
 the mean of the samples that arrived in it, and a bin nothing answered in breaks
 the area rather than being drawn through. `EngineTraceSnapshot.bins` is that
@@ -477,12 +477,71 @@ off the left edge. **120 seconds of hysteresis with no timer anywhere** - the
 trace's own length is the timer, so a winter jam restarting the engine every
 ninety seconds never swaps the shelf back and forth.
 
-The trace keeps one series since the eighth pass, and **the revolutions still
-decide one thing in it**: whether a slot counts as one the engine was alive in. An
-engine on a direct drive can turn for a minute returning nothing, and a box that
-left in the middle of an engine run would flicker in exactly the way that property
-exists to prevent. So `sample` takes the rpm reading and stores a flag, not a
-curve.
+The trace keeps one series since the eighth pass, and since the first drive **a
+slot is alive by the engine's own flag**, `ENGINE_RUNNING`, and by nothing else.
+Until then a slot counted as alive when the rpm reading was above zero *or* the
+generation reading was, on the argument that whichever id answered first the
+engine had turned; the first drive showed one of those two ids is not zero on an
+electric drive (below). An engine on a direct drive can turn for a minute
+returning nothing, and a box that left in the middle of an engine run would
+flicker in exactly the way that property exists to prevent - the flag keeps that
+property, because it is true for as long as the engine turns. So `sample` takes
+the flag and stores it per second, not a curve.
+
+### What the first drive changed
+
+The panel went on the car on 2026-09-05 and the owner drove it. Four things came
+back, three of them his and one of them in his photograph:
+
+1. **«плоская синяя полоса»** - the engine's box stood on the right shelf for
+   half the trip with the engine off, flat at zero, coming and going with speed
+   rather than with the engine. The box was up for any slot in which
+   `ENGINE_RPM` or `GENERATION_KW` read above zero, and one of the two is not
+   zero on an electric drive. Which one is a question for the car
+   (`docs/vehicle-data-findings.md`); the panel no longer depends on the answer,
+   because the one id proven through a full start/stop cycle is `ENGINE_RUNNING`,
+   and the trace is keyed on it alone. The corner's revolutions already were;
+2. **«наезжает на штатный контроль»** - the history box's left edge stood on the
+   stock range badge, «486 km EV». The petal's cut-out is modelled as an ellipse
+   symmetric about the axis and the glass is not symmetric: read off the
+   photograph against the panel's own anchors (the scale comes out at 1.4 px per
+   unit across the whole middle), the badge reaches **426.7** at the box's depth,
+   seventeen units past the modelled edge, and the stock power figure «1 kW» on
+   the right starts at about **1095**, eight *inside* it. That is 668 units of
+   room for a block 586 wide at its widest. The whole block - box, figure, unit -
+   moved right by exactly one unit gap, 32: the figure now ends where the hero's
+   «кВт» begins (815.00 against 815.04, the tenth pass's accident kept one step
+   over), the box is 32 clear of the badge, 6.8 mm of glass, and the unit's
+   widest form ends 50 short of the power figure as photographed. The right side
+   keeps the larger share on purpose, because whether that figure grows leftward
+   to «120 kW» on the move is not in the photograph. `PETAL_SHIFT`,
+   `RANGE_BADGE_SEEN` and `POWER_FIGURE_SEEN` in the generator and
+   `ContourPlan.petalShift` are the record; the ellipse stays until the grid
+   photograph replaces it;
+3. **«крупными ступеньками»** - three kilometres of consumption in thirty steps
+   read from the seat as a staircase redrawn every few minutes, and a mean over
+   the last three traffic lights is not a consumption anybody plans by. The
+   window is **ten kilometres** now, on the cluster's petal and on the head unit's
+   car page alike: `ConsumptionWindow.KM` is the one number, a hundred buckets in
+   the same 232 units is 2.32 a step - 0.49 mm, under the eye's resolution from
+   750 mm - so the history reads as a line with a grain. The unit reads
+   «кВт·ч/100 км · за 10 км», and «· за 3,7 км» while the log is still filling;
+   the journal already kept thirty;
+4. **«ДАЛ ДВС» over nothing** - in the photograph the caption stood on the shelf
+   with no figure above it. The engine had run on the previous trip; the car moved
+   off P, the ledger cleared, and the caption of a quantity now zero stayed for the
+   rest of the drive, because "known" was "seen once" for a trip cell exactly as
+   it is for a sampled value. They are not the same: a sampled value missing from
+   a sweep is a read that failed and its caption waits for the figure, but a trip
+   quantity missing from a packet that carried the trip did not happen on this
+   trip. `ContourValue.ledger` marks the four that derive from the ledger, and a
+   fresh packet without them makes them unknown again, caption and all. The
+   corner's «ДВС · мин за поездку» is the same rule.
+
+The board and the code moved together, `ContourBoardContractTest` holds the new
+anchor and the new count, and the strings were re-measured in headless Chrome
+the way the seventh pass did («кВт·ч/100 км · за 10 км» is 194.2344; every
+filling form is 197.7656).
 
 ### Rest states
 
@@ -676,10 +735,20 @@ From `CRITIQUE.md` §5 and `VERDICT.md`, in the order they matter to this panel:
 6. **how often the engine starts per hour in a winter jam**, which is what says
    whether 120 s of shelf hysteresis is enough;
 7. **frames per second inside the `Presentation`**, and whether the vendor
-   composites over our edges.
+   composites over our edges;
+8. **which of `ENGINE_RPM` and `GENERATION_KW` is not zero on an electric drive**
+   - the first drive proved one of them is (the engine's box was up for half a
+   trip with the engine off), and the panel is keyed on `ENGINE_RUNNING` alone
+   now; a log of both ids against speed with the engine off says which, and
+   whether the other is worth anything;
+9. **the stock power figure's alignment** - whether «1 kW» at the bottom right
+   grows leftward to «120 kW» on the move. The petal's unit ends 50 units short
+   of it as photographed showing one digit. The grid photograph of item 1 now has
+   two numbers to check against: the range badge's edge at 426.7 and the power
+   figure's at about 1095.
 
-Nothing on this panel has been in front of the owner yet: it is drawn, tested and
-built, and it has not been installed.
+The panel has been in front of the owner since 2026-09-05: build 44 was installed
+and driven, and the section above is what the first drive said.
 
 ### Telemetry ownership
 

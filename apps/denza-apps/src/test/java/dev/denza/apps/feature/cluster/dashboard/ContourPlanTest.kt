@@ -409,7 +409,15 @@ class ContourPlanTest {
             plan.petalBoxRight,
             1e-4f,
         )
-        assertEquals("the printed figure centres on the axis", plan.axis, plan.petalFigureRight - plan.petalPrintedWidth / 2f, 1e-4f)
+        // The printed figure sat centred on the axis until the first drive; since then the whole
+        // block stands one unit gap to the right of that, and the gap is the only thing that moved.
+        assertEquals(
+            "the printed figure is centred one unit gap right of the axis",
+            plan.axis + plan.unitGap,
+            plan.petalFigureRight - plan.petalPrintedWidth / 2f,
+            1e-4f,
+        )
+        assertEquals(plan.unitGap, plan.petalShift, 1e-4f)
     }
 
     @Test

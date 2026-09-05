@@ -259,10 +259,13 @@ internal class VehicleTelemetryHub(context: Context) {
 
                 val now = SystemClock.elapsedRealtime()
                 val dtSeconds = clock.tick(now)
-                // Sampled on every sweep so both traces share one time axis.
+                val engineRunning = parsed[VehicleSignal.ENGINE_RUNNING]?.let { it >= 1.0 }
+                // Sampled on every sweep so both traces share one time axis. The engine's box is
+                // up for the slots this flag was true in: the rpm and generation ids used to
+                // decide that and one of them is not zero on an electric drive.
                 trace.sample(
                     atMillis = now,
-                    rpm = parsed[VehicleSignal.ENGINE_RPM],
+                    engineRunning = engineRunning,
                     generationKw = parsed[VehicleSignal.GENERATION_KW],
                 )
                 power.sample(now, VehicleConvention.load(parsed[VehicleSignal.POWER_KW]))
@@ -271,7 +274,6 @@ internal class VehicleTelemetryHub(context: Context) {
                     powerKw = VehicleConvention.load(parsed[VehicleSignal.POWER_KW]),
                     dtSeconds = dtSeconds,
                 )
-                val engineRunning = parsed[VehicleSignal.ENGINE_RUNNING]?.let { it >= 1.0 }
                 ledger.sample(
                     odometerKm = parsed[VehicleSignal.ODOMETER_KM],
                     powerKw = VehicleConvention.load(parsed[VehicleSignal.POWER_KW]),

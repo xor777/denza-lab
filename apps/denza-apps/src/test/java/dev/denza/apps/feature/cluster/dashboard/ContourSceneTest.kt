@@ -116,6 +116,29 @@ class ContourSceneTest {
     }
 
     @Test
+    fun aCaptionOfSomethingThatDidNotHappenThisTripLeavesWithTheTrip() {
+        val scene = ContourScene()
+        run(
+            scene,
+            ready(trip = TripEnergy(netKwh = 5.9, engineKwh = 0.6, engineSeconds = 180.0, kilometres = 27.0)),
+            1f,
+        )
+        assertTrue(scene.known(ContourValue.TRIP_ENGINE))
+        assertTrue(scene.known(ContourValue.ENGINE_MINUTES))
+
+        // The car moved off P: the ledger cleared, and the next packet carries a trip with no
+        // engine in it. The owner's photograph of 2026-09-05 had «ДАЛ ДВС» standing over nothing
+        // for the rest of the drive, because "known" was "seen once" for the trip's cells as it
+        // is for a sampled value - and a trip quantity that a fresh packet does not carry is not a
+        // read that failed, it is a thing that did not happen.
+        run(scene, ready(trip = TripEnergy(netKwh = 0.1, kilometres = 0.3)), 1f)
+        assertFalse("«ДАЛ ДВС» went with the trip it was about", scene.known(ContourValue.TRIP_ENGINE))
+        assertFalse("and so did the corner's minutes", scene.known(ContourValue.ENGINE_MINUTES))
+        assertTrue("the trip's own phrase is still there", scene.known(ContourValue.TRIP_NET))
+        assertTrue("a sampled value keeps its caption through the same packets", scene.known(ContourValue.POWER))
+    }
+
+    @Test
     fun aSingleNullIsTheSameRuleAppliedToOneValue() {
         val scene = ContourScene()
         run(scene, ready(mapOf(VehicleSignal.POWER_KW to 34.0, VehicleSignal.PACK_VOLT to 552.0)), 1f)
@@ -246,7 +269,7 @@ class ContourSceneTest {
     fun theEngineBoxOwnsTheRightShelfForTheWholeTwoMinutes() {
         val trace = EngineTrace()
         var clock = 0L
-        repeat(20) { trace.sample(clock + it * 1_000L, rpm = 1780.0, generationKw = 14.0) }
+        repeat(20) { trace.sample(clock + it * 1_000L, engineRunning = true, generationKw = 14.0) }
         clock += 20_000L
 
         val scene = ContourScene()
@@ -254,12 +277,12 @@ class ContourSceneTest {
         assertTrue(scene.stage.engineBox)
 
         // A hundred and nineteen dead seconds, and the box is still there.
-        repeat(119) { trace.sample(clock + it * 1_000L, rpm = 0.0, generationKw = 0.0) }
+        repeat(119) { trace.sample(clock + it * 1_000L, engineRunning = false, generationKw = 0.0) }
         run(scene, ready(trace = trace), 1f)
         assertTrue("the box holds", scene.stage.engineBox)
 
         // One more, and the last live slot has walked off the left edge.
-        trace.sample(clock + 119_000L, rpm = 0.0, generationKw = 0.0)
+        trace.sample(clock + 119_000L, engineRunning = false, generationKw = 0.0)
         run(scene, ready(trace = trace), 1f)
         assertFalse("and then it goes, with no timer anywhere", scene.stage.engineBox)
     }
@@ -267,7 +290,7 @@ class ContourSceneTest {
     @Test
     fun aRunningEngineKeepsTheShelfEvenOnPark() {
         val trace = EngineTrace()
-        repeat(20) { trace.sample(it * 1_000L, rpm = 1780.0, generationKw = 14.0) }
+        repeat(20) { trace.sample(it * 1_000L, engineRunning = true, generationKw = 14.0) }
 
         val scene = ContourScene()
         run(
@@ -296,7 +319,7 @@ class ContourSceneTest {
     @Test
     fun standingStillOutranksAWarmEngineTraceOnTheRightShelf() {
         val trace = EngineTrace()
-        repeat(20) { trace.sample(it * 1_000L, rpm = 1780.0, generationKw = 14.0) }
+        repeat(20) { trace.sample(it * 1_000L, engineRunning = true, generationKw = 14.0) }
 
         val scene = ContourScene()
         run(

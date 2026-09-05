@@ -39,8 +39,8 @@ that reports what collides.
 kept as historical design evidence. Those head-unit pages are retired and are not
 a current app contract. The active contracts are the head-unit dashboard -
 `Main.dc.html` and the two pane boards generated beside it - and the cluster
-boards; the cluster consumption history has one fixed 3 km window and no
-selector.
+boards; the cluster consumption history has one fixed 10 km window and no
+selector, and the head unit's car page reads the same window.
 
 `OneThird.dc.html` and `TwoThirds.dc.html` used to hold the retired pager and now
 hold the dashboard in the two pane widths. The names were the right names for
@@ -363,7 +363,7 @@ display cannot hold two ideas of "hot" in one car.
   and this page exists for what they do not show.
 
 What is left is exactly that: what the pack is doing now, what it has been doing
-for two minutes, how warm five components are, and what the last three kilometres
+for two minutes, how warm five components are, and what the last ten kilometres
 cost.
 
 ### What the first drive changed
@@ -686,7 +686,8 @@ never the right one. The seventh pass is those four:
   on it is read as the trip average, which is the one thing it has never been. The
   unit is where that belongs - already the line under the figure, already
   `MUTED_DEEP` - and it costs 74.7 units into a cut-out with 178 free to its right.
-  The tenth pass made the three kilometres the ones the log actually has;
+  The tenth pass made the three kilometres the ones the log actually has, and the
+  first drive made them ten (below);
 - **the sleeping engine's corner reads `ДВС · мин за поездку`** over the same 52.
   `ДВС · мин` alone was six minutes of *something*: this stop, this hour, this
   trip. The fifth pass wanted exactly these words and tried them on a third
@@ -741,7 +742,7 @@ saying.
   the return is blue, one shape per run, with its own posts - and only where it
   happened.
 
-Both boxes are steps of a fixed duration as a result: the petal's thirty buckets
+Both boxes are steps of a fixed duration as a result: the petal's hundred buckets
 are a hundred metres each and the engine's twenty-four are five seconds each, a bin
 being the mean of the samples that arrived in it.
 
@@ -853,8 +854,9 @@ two minutes long, so that is a guard and not a case.
 The petal's unit is the same trick with nothing riding on it. `за 0,3 км` and
 `за 2,7 км` are both **197.7656** against the full form's 184.1094, and the unit is
 left-aligned with nothing to its right but the cut-out, which the wider form still
-clears by 89.9. `PETAL_UNIT_W` reserves the wider of the two and no coordinate
-moves.
+clears - by 89.9 then, by 57.9 on the modelled ellipse and 50 against the stock
+power figure since the block moved right (below). `PETAL_UNIT_W` reserves the
+wider of the two and no coordinate moves.
 
 The board had a third version of the same mistake, in the picture rather than the
 words: `petal_history` divided the box by *what had arrived* instead of by the
@@ -889,6 +891,40 @@ argument: 34 is legal rather than illegal, so temperatures can be a shelf instea
 of a compromise; 52 is comfortable rather than borderline, so the corners need no
 promotion; and the hero does not need to be twice 52, so 104 loses its reason to
 exist. See "The two ramps" for what that means for `InstrumentDensity.RAMP`.
+
+### The first drive
+
+The panel went on the car on 2026-09-05 and came back with a photograph. Three
+things in it were the owner's and one was in the picture; the full account is in
+`docs/instrument-display-findings.md`, «What the first drive changed». What moved
+on the boards:
+
+- **the petal's block stands one unit gap to the right of where it was.** The
+  history box's left edge was on the stock range badge, «486 km EV». The cut-out
+  is modelled as an ellipse symmetric about the axis and the glass is not: read
+  off the photograph against the panel's own anchors, the badge reaches `426.7`
+  at the box's depth - seventeen past the modelled edge - and the stock power
+  figure on the right starts at about `1095`, eight inside it. 668 units of room,
+  a block 586 wide at its widest, and the whole block moved right by `UNIT_GAP`:
+  the figure ends where the hero's «кВт» begins (815.00 against 815.04, the
+  tenth pass's accident kept one step over), the box is 32 clear of the badge -
+  6.8 mm of glass - and the unit's widest form ends 50 short of the power figure
+  as photographed showing one digit. `PETAL_SHIFT`, `RANGE_BADGE_SEEN` and
+  `POWER_FIGURE_SEEN` are the record, and the plan board prints both clearances,
+  the modelled and the photographed. The ellipse stays until the grid photograph
+  replaces it;
+- **the window is ten kilometres**, on the petal and on the head unit's car page
+  alike. Thirty steps read from the seat as «крупные ступеньки»; a hundred
+  buckets in the same 232 units is 2.32 a step, 0.49 mm, under the eye's
+  resolution from 750 mm, so the history reads as a line with a grain. The calm
+  history is a new hundred-bucket shape with one descent in it, and the states
+  board's filling scene closes thirty-seven buckets under «· за 3,7 км».
+  «кВт·ч/100 км · за 10 км» measures **194.2344** at 18/400 in the same headless
+  Chrome run as the seventh pass's strings; every filling form is still 197.7656;
+- **nothing else on the board moved.** The engine's box being keyed on the
+  running flag rather than the rpm and generation ids, and the trip's captions
+  leaving with the trip, are behaviour rather than geometry, and the states board
+  already drew both the way the app now does.
 
 ### Numbers are Roboto with `tnum`, not Roboto Mono
 
@@ -992,9 +1028,10 @@ Both boxes were redrawn in the fifth pass. The owner on the fourth: *"Сцена
 36 units in the petal, 24 on the shelf, which is 7.6 mm and 5 mm of glass for a
 shape with thirty steps or two curves in it.
 
-**The petal** keeps three kilometres and always three kilometres - and since the
-seventh pass its unit says so, `кВт·ч/100 км · за 3 км`, and since the tenth it
-says which three: `· за 1,2 км` while the log is still filling. Standing on P the
+**The petal** keeps ten kilometres and always ten kilometres - three until the
+first drive - and since the seventh pass its unit says so, `кВт·ч/100 км · за 10 км`,
+and since the tenth it says which ten: `· за 3,7 км` while the log is still
+filling. Standing on P the
 denominator does not change under the figure, only the tenth appears, because at
 100 km/h a tenth moves three times a second. Thirty bars 0.65 mm wide were 0.9' at
 750 mm - below the eye's resolution - so the history is a stepped line beside the

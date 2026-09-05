@@ -16,8 +16,16 @@ import kotlin.math.abs
  * answers every ten seconds cannot be held to the two seconds a pack power is. Derived quantities -
  * what the trip has cost, how long the engine ran - arrive with the packet that computed them and
  * are therefore [VehiclePoll.HOT] whatever the signals behind them are.
+ *
+ * And the [ledger] ones differ in what their *absence* means. A sampled value missing from a sweep
+ * is a read that failed, and its caption stays for the figure to come back under. A trip quantity
+ * missing from a packet that carried the trip is a statement: it did not happen on this trip. The
+ * owner's photograph of 2026-09-05 had «ДАЛ ДВС» standing on the shelf over nothing - the engine
+ * had run on the previous trip, the car moved off P, the ledger cleared, and the caption of a
+ * quantity that was now zero stayed for the rest of the drive. So a ledger quantity that is absent
+ * from a fresh packet is unknown again, caption and all.
  */
-internal enum class ContourValue(val poll: VehiclePoll) {
+internal enum class ContourValue(val poll: VehiclePoll, val ledger: Boolean = false) {
     POWER(VehiclePoll.HOT),
     VOLTS(VehiclePoll.HOT),
     PACK_TEMP(VehiclePoll.COLD),
@@ -25,12 +33,12 @@ internal enum class ContourValue(val poll: VehiclePoll) {
     INVERTER_TEMP(VehiclePoll.COLD),
     SPREAD(VehiclePoll.COLD),
     RPM(VehiclePoll.HOT),
-    ENGINE_MINUTES(VehiclePoll.HOT),
+    ENGINE_MINUTES(VehiclePoll.HOT, ledger = true),
     GENERATION(VehiclePoll.HOT),
     TRIP_NET(VehiclePoll.HOT),
-    TRIP_KM(VehiclePoll.HOT),
-    TRIP_REGEN(VehiclePoll.HOT),
-    TRIP_ENGINE(VehiclePoll.HOT),
+    TRIP_KM(VehiclePoll.HOT, ledger = true),
+    TRIP_REGEN(VehiclePoll.HOT, ledger = true),
+    TRIP_ENGINE(VehiclePoll.HOT, ledger = true),
     PETAL(VehiclePoll.HOT),
     CHARGE_LEFT(VehiclePoll.COLD),
 }
@@ -158,7 +166,12 @@ internal class ContourScene {
             everAnswered = true
             packetAge = 0f
             ContourValue.entries.forEach { value ->
-                if (!present(telemetry, value)) return@forEach
+                if (!present(telemetry, value)) {
+                    // What the trip does not carry did not happen this trip, and a caption over
+                    // nothing is a cell that should not exist. See [ContourValue.ledger].
+                    if (value.ledger) seen[value.ordinal] = false
+                    return@forEach
+                }
                 age[value.ordinal] = 0f
                 seen[value.ordinal] = true
                 reading(telemetry, value)?.let { last[value.ordinal] = it }

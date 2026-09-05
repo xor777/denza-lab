@@ -1,5 +1,6 @@
 package dev.denza.apps.feature.cluster.dashboard
 
+import dev.denza.apps.feature.vehicle.ConsumptionWindow
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -160,32 +161,35 @@ class ContourReadoutTest {
 
     @Test
     fun thePetalsUnitNamesTheRoadTheFigureIsTheMeanOf() {
-        // The same defect one level down: «за 3 км» is what the log holds when it *has* three
+        // The same defect one level down: «за 10 км» is what the log holds when it *has* ten
         // kilometres. A fresh install, a reset journal or the first minutes of a drive is a few
         // hundred metres, and a figure read against a road it is not the mean of is the thing the
         // seventh pass added this window to stop.
-        assertEquals("кВт·ч/100 км · за 0,5 км", ContourReadout.perHundredKm(0.5, 3.0))
-        assertEquals("кВт·ч/100 км · за 1,2 км", ContourReadout.perHundredKm(1.2, 3.0))
-        assertEquals("кВт·ч/100 км · за 3 км", ContourReadout.perHundredKm(3.0, 3.0))
+        assertEquals("кВт·ч/100 км · за 0,5 км", ContourReadout.perHundredKm(0.5, 10.0))
+        assertEquals("кВт·ч/100 км · за 3,7 км", ContourReadout.perHundredKm(3.7, 10.0))
+        assertEquals("кВт·ч/100 км · за 10 км", ContourReadout.perHundredKm(10.0, 10.0))
         assertEquals(
             "the full form is the constant, so the two records cannot drift apart",
             ContourReadout.UNIT_PER_100KM,
-            ContourReadout.perHundredKm(3.0, 3.0),
+            ContourReadout.perHundredKm(ConsumptionWindow.KM, ConsumptionWindow.KM),
         )
-        // Thirty buckets of a hundred metres do not add up to 3.0 in binary, and a window one
-        // rounding short of full must not print «за 3,0 км» beside a figure that is the whole one.
+        // Buckets of a hundred metres do not always add up to the window in binary - thirty of
+        // them made 3.0000000000000004 - and a window one rounding short of full must not print
+        // «за 10,0 км» beside a figure that is the whole one.
         assertEquals(
-            "кВт·ч/100 км · за 3 км",
-            ContourReadout.perHundredKm(30 * 0.1, 3.0),
+            "кВт·ч/100 км · за 10 км",
+            ContourReadout.perHundredKm(10.0 - 1e-12, 10.0),
         )
-        assertEquals("кВт·ч/100 км · за 2,9 км", ContourReadout.perHundredKm(2.9, 3.0))
+        assertEquals("кВт·ч/100 км · за 9,9 км", ContourReadout.perHundredKm(9.9, 10.0))
+        // The formatter takes the window as an argument rather than carrying one of its own.
+        assertTrue(ContourReadout.perHundredKm(3.0, 3.0).endsWith("за 3 км"))
     }
 
     @Test
     fun everyCaptionOnThePanelNamesTheWindowItIsTrueOver() {
         // The seventh pass, in four strings. A number integrated over an interval that does not say
         // which interval is read against the interval the reader brought.
-        assertTrue(ContourReadout.UNIT_PER_100KM.endsWith("за 3 км"))
+        assertTrue(ContourReadout.UNIT_PER_100KM.endsWith("за 10 км"))
         assertTrue(ContourReadout.TITLE_ENGINE_MINUTES.endsWith("за поездку"))
         assertTrue(ContourReadout.CAPTION_TRIP.endsWith("ЗА ПОЕЗДКУ"))
         // And the kilometres lead the phrase, so the odometer's reserve is a margin rather than a
