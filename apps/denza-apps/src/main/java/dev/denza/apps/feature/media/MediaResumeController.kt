@@ -18,7 +18,10 @@ import dev.denza.apps.feature.hud.YandexNotificationArtworkListener
  * The caller decides whether a new DOWN is safe to intercept. Once accepted, repeats and UP for
  * that press remain consumed even if the caller's guard changes before release.
  */
-class MediaResumeController(context: Context) {
+class MediaResumeController @JvmOverloads constructor(
+    context: Context,
+    private val pausePreparation: MediaPausePreparation? = null,
+) {
     private val app = context.applicationContext
     private val handler = Handler(Looper.getMainLooper())
     private val manager = app.getSystemService(MediaSessionManager::class.java)
@@ -28,6 +31,8 @@ class MediaResumeController(context: Context) {
     private val keyInterceptor = MediaResumeKeyInterceptor()
     private val sessions = LinkedHashMap<MediaSession.Token, AndroidTarget>()
     private var listening = false
+    private var pauseOperation: PauseOperation? = null
+    private var nextPauseOperationId = 0L
 
     private val sessionsChanged =
         MediaSessionManager.OnActiveSessionsChangedListener(::reconcile)
@@ -55,6 +60,7 @@ class MediaResumeController(context: Context) {
             runCatching { manager?.removeOnActiveSessionsChangedListener(sessionsChanged) }
         }
         listening = false
+        pauseOperation = null
         detachAll()
         keyInterceptor.reset()
     }
@@ -70,11 +76,14 @@ class MediaResumeController(context: Context) {
             repeatCount = event.repeatCount,
             allowNewPress = allowNewPress && listening,
             perform = { command ->
-                if (!refreshBeforeCommand()) {
+                if (pauseOperation != null) {
+                    Log.i(TAG, "media command deferred key=${event.keyCode} reason=pause-in-flight")
+                    true
+                } else if (!refreshBeforeCommand()) {
                     Log.i(TAG, "media command skipped key=${event.keyCode} reason=session-access")
                     false
                 } else {
-                    val dispatched = core.perform(command)
+                    val dispatched = core.perform(command, ::deferPause)
                     if (!dispatched) {
                         Log.i(TAG, "media command skipped key=${event.keyCode} reason=no-target")
                     }
@@ -89,6 +98,55 @@ class MediaResumeController(context: Context) {
             )
         }
         return consumed
+    }
+
+    private fun deferPause(
+        selected: MediaResumeTarget,
+        predecessors: List<MediaResumeTarget>,
+    ): Boolean {
+        val preparation = pausePreparation ?: return false
+        if (!runCatching(preparation::isReady).getOrDefault(false)) return false
+        val selectedTarget = selected as? AndroidTarget ?: return false
+        val current = selectedTarget.pauseSession ?: return false
+        val predecessorSessions = predecessors.map { target ->
+            (target as? AndroidTarget)?.pauseSession ?: return false
+        }.distinct()
+        if (predecessorSessions.isEmpty()) return false
+
+        val operation = PauseOperation(++nextPauseOperationId, selectedTarget)
+        pauseOperation = operation
+        val accepted = runCatching {
+            preparation.prepare(
+                MediaPausePreparationRequest(current, predecessorSessions),
+                MediaPausePreparationCompletion { success ->
+                    handler.post { completeDeferredPause(operation, success) }
+                },
+            )
+        }.getOrDefault(false)
+        if (!accepted && pauseOperation === operation) pauseOperation = null
+        return accepted
+    }
+
+    private fun completeDeferredPause(operation: PauseOperation, prepared: Boolean) {
+        if (!listening || pauseOperation !== operation) return
+        pauseOperation = null
+        if (!prepared) {
+            Log.i(TAG, "media command skipped reason=pause-preparation")
+            return
+        }
+        if (!refreshBeforeCommand()) {
+            Log.i(TAG, "media command skipped reason=session-access-after-preparation")
+            return
+        }
+        when (core.completeDeferredPause(operation.target)) {
+            DeferredPauseCompletion.DISPATCHED -> Unit
+            DeferredPauseCompletion.ALREADY_PAUSED ->
+                Log.i(TAG, "media command already complete command=pause")
+            DeferredPauseCompletion.STALE ->
+                Log.i(TAG, "media command skipped reason=stale-target-after-preparation")
+            DeferredPauseCompletion.FAILED ->
+                Log.i(TAG, "media command skipped reason=pause-transport")
+        }
     }
 
     private fun reconcile(active: List<MediaController>?) {
@@ -118,6 +176,12 @@ class MediaResumeController(context: Context) {
         private val controller: MediaController,
     ) : MediaResumeTarget {
         override val identity: Any = controller.sessionToken
+        val pauseSession: MediaPauseSession? = runCatching {
+            MediaPauseSession(
+                packageName = controller.packageName,
+                uid = app.packageManager.getApplicationInfo(controller.packageName, 0).uid,
+            )
+        }.getOrNull()
         @Volatile
         private var destroyed = false
 
@@ -161,11 +225,6 @@ class MediaResumeController(context: Context) {
             return actions and required != 0L
         }
 
-        override fun supportsPauseCancellation(): Boolean {
-            val actions = controller.playbackState?.actions ?: return false
-            return actions and (PlaybackState.ACTION_PAUSE or PlaybackState.ACTION_PLAY_PAUSE) != 0L
-        }
-
         override fun play() {
             controller.transportControls.play()
             Log.i(TAG, "direct media command package=${controller.packageName} command=play")
@@ -174,15 +233,6 @@ class MediaResumeController(context: Context) {
         override fun pause() {
             controller.transportControls.pause()
             Log.i(TAG, "direct media command package=${controller.packageName} command=pause")
-        }
-
-        override fun pauseForCancellation() {
-            controller.transportControls.pause()
-            Log.i(
-                TAG,
-                "direct media command package=${controller.packageName} " +
-                    "command=pause-cancel-pending-resume",
-            )
         }
 
         private fun isCurrent(): Boolean =
@@ -225,4 +275,9 @@ class MediaResumeController(context: Context) {
     private companion object {
         const val TAG = "DenzaMediaResume"
     }
+
+    private data class PauseOperation(
+        val id: Long,
+        val target: MediaResumeTarget,
+    )
 }

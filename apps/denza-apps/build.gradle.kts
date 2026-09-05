@@ -163,6 +163,21 @@ android {
                 packSignals,
                 PackShellProxy::outputDirectory,
             )
+            val packMediaFocus = tasks.register<PackShellProxy>(
+                "pack${variant.name.replaceFirstChar(Char::titlecase)}MediaFocusPauseProxy",
+            ) {
+                source.set(layout.projectDirectory.file(
+                    "src/main/java/dev/denza/apps/feature/media/MediaFocusPauseProxyMain.java",
+                ))
+                androidJar.from(platform)
+                sdkDirectory.set(sdk)
+                minApi.set(33)
+                archiveName.set("media-focus-pause-proxy.jar")
+            }
+            variant.sources.assets?.addGeneratedSourceDirectory(
+                packMediaFocus,
+                PackShellProxy::outputDirectory,
+            )
         }
     }
 

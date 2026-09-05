@@ -40,11 +40,24 @@ class MediaResumeCoreTest {
         current.playback = MediaResumePlayback.PLAYING
         core.onPlayback(current.identity, MediaResumePlayback.PLAYING)
 
-        assertTrue(core.perform(MediaResumeCommand.TOGGLE))
+        var deferredTarget: MediaResumeTarget? = null
+        var deferredPredecessors = emptyList<MediaResumeTarget>()
+        assertTrue(core.perform(MediaResumeCommand.TOGGLE) { target, predecessors ->
+            deferredTarget = target
+            deferredPredecessors = predecessors
+            true
+        })
         assertEquals(0, remembered.plays)
-        assertEquals(1, remembered.pauseCancellations)
+        assertEquals(current, deferredTarget)
+        assertEquals(listOf(remembered), deferredPredecessors)
+        assertEquals(0, current.pauses)
+
+        assertEquals(
+            DeferredPauseCompletion.DISPATCHED,
+            core.completeDeferredPause(current),
+        )
         assertEquals(1, current.pauses)
-        assertEquals(listOf("yandex:cancel", "podcast:pause"), commands)
+        assertEquals(listOf("podcast:pause"), commands)
 
         current.playback = MediaResumePlayback.PAUSED
         assertTrue(core.perform(MediaResumeCommand.PLAY))
@@ -109,7 +122,6 @@ class MediaResumeCoreTest {
         core.reconcile(listOf(dormant, current))
 
         assertTrue(core.perform(MediaResumeCommand.PAUSE))
-        assertEquals(0, dormant.pauseCancellations)
         assertEquals(1, current.pauses)
     }
 
@@ -125,24 +137,100 @@ class MediaResumeCoreTest {
         core.onPlayback(current.identity, MediaResumePlayback.PLAYING)
 
         assertTrue(core.perform(MediaResumeCommand.PAUSE))
-        assertEquals(0, previous.pauseCancellations)
         assertEquals(1, current.pauses)
     }
 
     @Test
-    fun `cancellation exception never dispatches pause that could restore old focus`() {
+    fun `rejected pause preparation leaves current session untouched`() {
         val core = MediaResumeCore()
         val previous = FakeTarget("previous", MediaResumePlayback.PLAYING)
         val current = FakeTarget("current", MediaResumePlayback.TRANSITIONAL)
         core.reconcile(listOf(previous, current))
         previous.playback = MediaResumePlayback.PAUSED
-        previous.throwOnCancellation = true
         current.playback = MediaResumePlayback.PLAYING
         core.onPlayback(current.identity, MediaResumePlayback.PLAYING)
 
-        assertFalse(core.perform(MediaResumeCommand.PAUSE))
+        assertFalse(core.perform(MediaResumeCommand.PAUSE) { _, _ -> false })
         assertEquals(0, current.pauses)
         assertEquals(0, previous.plays)
+    }
+
+    @Test
+    fun `pause preparation exception leaves both sessions untouched`() {
+        val core = MediaResumeCore()
+        val previous = FakeTarget("previous", MediaResumePlayback.PLAYING)
+        val current = FakeTarget("current", MediaResumePlayback.TRANSITIONAL)
+        core.reconcile(listOf(previous, current))
+        previous.playback = MediaResumePlayback.PAUSED
+        current.playback = MediaResumePlayback.PLAYING
+        core.onPlayback(current.identity, MediaResumePlayback.PLAYING)
+
+        assertFalse(core.perform(MediaResumeCommand.PAUSE) { _, _ -> error("helper failed") })
+        assertEquals(0, previous.plays)
+        assertEquals(0, previous.pauses)
+        assertEquals(0, current.pauses)
+    }
+
+    @Test
+    fun `deferred pause ignores a removed or replaced exact target`() {
+        val core = MediaResumeCore()
+        val previous = FakeTarget("previous", MediaResumePlayback.PLAYING)
+        val current = FakeTarget("current", MediaResumePlayback.TRANSITIONAL)
+        core.reconcile(listOf(previous, current))
+        previous.playback = MediaResumePlayback.PAUSED
+        current.playback = MediaResumePlayback.PLAYING
+        core.onPlayback(current.identity, MediaResumePlayback.PLAYING)
+
+        assertTrue(core.perform(MediaResumeCommand.PAUSE) { _, _ -> true })
+        core.reconcile(
+            listOf(
+                previous,
+                FakeTarget("current", MediaResumePlayback.PLAYING),
+            ),
+        )
+
+        assertEquals(DeferredPauseCompletion.STALE, core.completeDeferredPause(current))
+        assertEquals(0, current.pauses)
+    }
+
+    @Test
+    fun `deferred pause does not pause old target after another session starts`() {
+        val core = MediaResumeCore()
+        val previous = FakeTarget("previous", MediaResumePlayback.PLAYING)
+        val current = FakeTarget("current", MediaResumePlayback.TRANSITIONAL)
+        val newer = FakeTarget("newer", MediaResumePlayback.TRANSITIONAL)
+        core.reconcile(listOf(previous, current, newer))
+        previous.playback = MediaResumePlayback.PAUSED
+        current.playback = MediaResumePlayback.PLAYING
+        core.onPlayback(current.identity, MediaResumePlayback.PLAYING)
+
+        assertTrue(core.perform(MediaResumeCommand.PAUSE) { _, _ -> true })
+        newer.playback = MediaResumePlayback.PLAYING
+        core.onPlayback(newer.identity, MediaResumePlayback.PLAYING)
+
+        assertEquals(DeferredPauseCompletion.STALE, core.completeDeferredPause(current))
+        assertEquals(0, current.pauses)
+        assertEquals(0, newer.pauses)
+    }
+
+    @Test
+    fun `deferred pause already completed elsewhere is not repeated`() {
+        val core = MediaResumeCore()
+        val previous = FakeTarget("previous", MediaResumePlayback.PLAYING)
+        val current = FakeTarget("current", MediaResumePlayback.TRANSITIONAL)
+        core.reconcile(listOf(previous, current))
+        previous.playback = MediaResumePlayback.PAUSED
+        current.playback = MediaResumePlayback.PLAYING
+        core.onPlayback(current.identity, MediaResumePlayback.PLAYING)
+
+        assertTrue(core.perform(MediaResumeCommand.PAUSE) { _, _ -> true })
+        current.playback = MediaResumePlayback.PAUSED
+
+        assertEquals(
+            DeferredPauseCompletion.ALREADY_PAUSED,
+            core.completeDeferredPause(current),
+        )
+        assertEquals(0, current.pauses)
     }
 
     @Test
@@ -187,9 +275,6 @@ class MediaResumeCoreTest {
         var live = true
         var canPlay = true
         var canPause = true
-        var canCancelPause = true
-        var pauseCancellations = 0
-        var throwOnCancellation = false
 
         override fun playback(): MediaResumePlayback {
             if (throwOnRead) error("destroyed")
@@ -204,8 +289,6 @@ class MediaResumeCoreTest {
             MediaResumeCommand.TOGGLE -> false
         }
 
-        override fun supportsPauseCancellation(): Boolean = canCancelPause
-
         override fun play() {
             plays += 1
             commands?.add("$identity:play")
@@ -215,12 +298,6 @@ class MediaResumeCoreTest {
             if (throwOnPause) error("transport unavailable")
             pauses += 1
             commands?.add("$identity:pause")
-        }
-
-        override fun pauseForCancellation() {
-            if (throwOnCancellation) error("cancellation unavailable")
-            pauseCancellations += 1
-            commands?.add("$identity:cancel")
         }
     }
 }

@@ -34,6 +34,7 @@ import dev.denza.apps.core.DenzaRuntimeCoordinator;
 import dev.denza.apps.feature.hud.HudGuidanceAccessibilityMonitor;
 import dev.denza.apps.feature.media.MediaButtonEnvironment;
 import dev.denza.apps.feature.media.MediaResumeController;
+import dev.denza.apps.feature.media.MediaFocusPauseBridge;
 import dev.denza.apps.feature.navigation.NavigationSettings;
 import dev.denza.apps.feature.navigation.SteeringWheelKeyInterceptor;
 import dev.denza.apps.feature.speaker.SpeakerCoverService;
@@ -132,6 +133,7 @@ public class SimulcastAccessibilityService extends AccessibilityService {
     private boolean windowOperationsPending;
     private HudGuidanceAccessibilityMonitor hudGuidanceMonitor;
     private MediaResumeController mediaResumeController;
+    private MediaFocusPauseBridge mediaFocusPauseBridge;
     private MediaButtonEnvironment mediaButtonEnvironment;
 
     // Gesture state shared between input windows and the painter.
@@ -154,7 +156,9 @@ public class SimulcastAccessibilityService extends AccessibilityService {
         hudGuidanceMonitor = new HudGuidanceAccessibilityMonitor(this);
         hudGuidanceMonitor.attach();
         mediaButtonEnvironment = new MediaButtonEnvironment(this);
-        mediaResumeController = new MediaResumeController(this);
+        mediaFocusPauseBridge = new MediaFocusPauseBridge(this);
+        mediaFocusPauseBridge.warm();
+        mediaResumeController = new MediaResumeController(this, mediaFocusPauseBridge);
         mediaResumeController.start();
         Log.i(TAG, "service connected");
         // The system can recreate this long-lived process without reopening MainActivity
@@ -277,6 +281,7 @@ public class SimulcastAccessibilityService extends AccessibilityService {
         if (service == null) return;
         service.handler.post(() -> {
             if (instance == service && service.mediaResumeController != null) {
+                if (service.mediaFocusPauseBridge != null) service.mediaFocusPauseBridge.warm();
                 service.mediaResumeController.start();
             }
         });
@@ -284,6 +289,8 @@ public class SimulcastAccessibilityService extends AccessibilityService {
 
     private void tearDownMediaResume() {
         if (mediaResumeController != null) mediaResumeController.stop();
+        if (mediaFocusPauseBridge != null) mediaFocusPauseBridge.close();
+        mediaFocusPauseBridge = null;
         mediaResumeController = null;
         mediaButtonEnvironment = null;
     }

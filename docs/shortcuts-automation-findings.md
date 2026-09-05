@@ -169,6 +169,94 @@ requested by the owner. Physical Play/Pause interception and actual Yandex
 resume still require an operator check; successful installation is not that
 acceptance result.
 
+### VK pause restored Yandex through transient audio focus (2026-09-05)
+
+The operator reproduced: Yandex playing -> VK Video playing (Yandex pauses) ->
+wheel pause -> VK pauses but Yandex starts. This was **not a wrong selected
+session**. Narrow logging had to be enabled because global `log.tag=M` suppressed
+our info messages. The physical-key trace showed:
+
+```text
+10:23:47.974 DenzaMediaResume: direct media command package=com.vk.vkvideo command=pause
+10:23:47.974 DenzaMediaResume: media key=386 received allow=true consumed=true
+10:23:47.987 audio: VK player paused
+10:23:48.482 audio: VK abandonAudioFocus
+10:23:48.488 audio: Yandex player started
+```
+
+The focus history records VK requesting `req=2` (transient gain), while Yandex
+requests `req=1`. No second Play command from Denza appeared in this capture.
+The return of focus after VK's delayed release therefore explains the
+automatically resumed music. Raw traces are under
+`captures/media-resume-vk-diagnosis/`.
+
+An initial attempted fix sent explicit `TransportControls.pause()` to paused
+predecessors before pausing VK. The operator and a second physical-key trace
+rejected it: at 10:30:42 cancellation preceded VK pause, but VK abandoned focus
+at 10:30:42.788 and Yandex started at 10:30:42.795. Direct shell Pause and Stop
+also failed to cancel that suspended player's automatic focus-gain resume. The
+installed APK for that rejected attempt was
+`d0f823f84b7888e6928f3a392e66d22f9f05e4d6df5391af3418d9e09d909dfa`.
+
+The replacement is package-independent. The observer remembers real tokens
+observed playing. Before pausing a playing target with paused predecessors,
+`MediaFocusPauseBridge` asks a bounded shell-UID helper to inspect audio focus.
+It removes only matching package/UID/client entries with transient focus loss
+(`-2`) and media audio attributes, below the still-playing target at the top of
+the focus stack. A fresh session and focus read precedes each removal. Conflicting
+sessions, another user, or a changed focus owner are not eligible. No package
+names, fake focus request, player Stop command, or corrective playback loop are
+part of the product logic.
+
+The helper uses `IAudioService.getFocusStack()` and
+`unregisterAudioFocusClient(clientId)`. Corpus evidence is the vehicle's
+`reverse/speaker-lift/AudioService.java` and `MediaFocusControl.java`: stack reads
+require MODIFY_AUDIO_ROUTING (available to shell); unregister removes that entry
+without notifying the current top focus owner. Existing passive LocalADB runs a
+small packaged shell asset; it does not trigger ADB authorization or add an app
+permission. The separate app_process bootstrap must initialize
+`MediaFrameworkPlatformInitializer`'s MediaServiceManager before obtaining
+MediaSessionManager; the first incomplete bootstrap had exited 137 and supplied
+no behavioral evidence.
+
+A corrected shell experiment at 10:42:27 removed the suspended predecessor's
+focus client before VK pause. Both media sessions remained PAUSED after VK's
+focus release. The active VK focus entry was left intact until VK released it.
+This establishes the mechanism on this IVI, separately from product acceptance.
+
+Preparation runs off the accessibility callback thread. An accepted DOWN and
+its UP/repeats are consumed immediately; additional media presses during the
+bounded operation are ignored. After successful preparation, the controller
+refreshes sessions and sends ordinary Pause only to the exact original live,
+still-current PLAYING token. A destroyed/replaced target is never resumed or
+replaced with another app. Before a press is accepted, an absent target or an
+unavailable helper leaves the complete press to stock handling. If preparation
+fails after acceptance, no guessed fallback command is injected.
+
+Local validation of the replacement: 1351 unit tests, including 20 media tests,
+passed without failures/skips; assembleDebug and lintDebug passed. Tests include
+deferred pause selection, refused preparation, token replacement, a newer
+playing target, already-paused completion, and closed-session stock fallback.
+Physical acceptance on the integrated APK
+`5d85e806d226140bfe47ccee5a6e6dff99e354c3fb656613c14b26469033a4f9`
+was confirmed by the operator: VK and Yandex both resumed the last session
+correctly. The physical key-386 trace at 10:53:00 removed one suspended focus
+client then paused VK; 10:53:05 resumed VK. Repeated VK pause/play and subsequent
+Yandex pause/play addressed their respective real sessions. The earlier
+10:52:20 press with no observed target passed both key edges to stock handling.
+Raw evidence: `captures/media-resume-vk-diagnosis/universal-focus-live.log`.
+
+Final review broadened the same USAGE_MEDIA rule to include speech content
+(podcasts/audiobooks), and changed ambiguous predecessor state/identity from
+silent skip to preparation failure. These final guards passed the same build,
+unit-test and lint tasks. The final combined build (versionCode 45,
+0.6.1-alpha) has APK SHA-256
+`fc46f12a2dc1de65a799245031d54c574cda7aa6039d2e1503e28c4915f4ebfb`.
+Installed with `adb install -r`; installed base.apk SHA-256 matched, the launcher
+opened, and the accessibility service remained bound with capabilities 9. No old
+APK backup was taken. The physical confirmation above precedes those guard refinements; it is not a
+separate physical acceptance of podcasts or conflicting sessions.
+
 ## Where the feature lives
 
 "Shortcuts" is `com.byd.autovoice/.DiyCommandActivity`, a second launcher entry

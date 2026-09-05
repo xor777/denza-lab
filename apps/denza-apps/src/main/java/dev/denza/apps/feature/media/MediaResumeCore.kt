@@ -10,13 +10,9 @@ internal interface MediaResumeTarget {
 
     fun supports(command: MediaResumeCommand): Boolean
 
-    fun supportsPauseCancellation(): Boolean
-
     fun play()
 
     fun pause()
-
-    fun pauseForCancellation()
 }
 
 internal enum class MediaResumePlayback {
@@ -93,7 +89,10 @@ internal class MediaResumeCore {
     }
 
     @Synchronized
-    fun perform(command: MediaResumeCommand): Boolean {
+    fun perform(
+        command: MediaResumeCommand,
+        deferPause: (MediaResumeTarget, List<MediaResumeTarget>) -> Boolean = { _, _ -> false },
+    ): Boolean {
         val snapshots = targets.values.mapNotNull { target ->
             runCatching { TargetSnapshot(target, target.playback()) }.getOrNull()
         }
@@ -131,17 +130,28 @@ internal class MediaResumeCore {
             return false
         }
 
-        if (
-            directCommand == MediaResumeCommand.PAUSE &&
-            selected.playback == MediaResumePlayback.PLAYING &&
-            !cancelPendingResume(snapshots, selected.target.identity)
-        ) {
-            return false
-        }
-
         if (selected.playback == MediaResumePlayback.PLAYING) {
             playedIdentities += selected.target.identity
             rememberedIdentity = selected.target.identity
+        }
+
+        if (
+            directCommand == MediaResumeCommand.PAUSE &&
+            selected.playback == MediaResumePlayback.PLAYING
+        ) {
+            val pausedPredecessors = snapshots.mapNotNull { snapshot ->
+                snapshot.target.takeIf {
+                    it.identity != selected.target.identity &&
+                        it.identity in playedIdentities &&
+                        snapshot.playback == MediaResumePlayback.PAUSED &&
+                        runCatching(it::isLive).getOrDefault(false)
+                }
+            }
+            if (pausedPredecessors.isNotEmpty()) {
+                return runCatching {
+                    deferPause(selected.target, pausedPredecessors)
+                }.getOrDefault(false)
+            }
         }
 
         return runCatching {
@@ -153,28 +163,47 @@ internal class MediaResumeCore {
         }.isSuccess
     }
 
+    /** Completes an accepted asynchronous pause only if the exact planned target is still current. */
+    @Synchronized
+    fun completeDeferredPause(planned: MediaResumeTarget): DeferredPauseCompletion {
+        if (targets[planned.identity] !== planned) return DeferredPauseCompletion.STALE
+        if (!runCatching(planned::isLive).getOrDefault(false)) {
+            return DeferredPauseCompletion.STALE
+        }
+
+        val snapshots = targets.values.mapNotNull { target ->
+            runCatching { TargetSnapshot(target, target.playback()) }.getOrNull()
+        }
+        val plannedSnapshot = snapshots.firstOrNull { it.target === planned }
+            ?: return DeferredPauseCompletion.STALE
+        if (plannedSnapshot.playback == MediaResumePlayback.PAUSED) {
+            return DeferredPauseCompletion.ALREADY_PAUSED
+        }
+        if (plannedSnapshot.playback != MediaResumePlayback.PLAYING) {
+            return DeferredPauseCompletion.STALE
+        }
+
+        val remembered = rememberedIdentity
+        val playing = snapshots.firstOrNull {
+            it.target.identity == remembered && it.playback == MediaResumePlayback.PLAYING
+        } ?: snapshots.firstOrNull { it.playback == MediaResumePlayback.PLAYING }
+        if (playing?.target !== planned) return DeferredPauseCompletion.STALE
+        if (!runCatching { planned.supports(MediaResumeCommand.PAUSE) }.getOrDefault(false)) {
+            return DeferredPauseCompletion.STALE
+        }
+
+        return if (runCatching(planned::pause).isSuccess) {
+            DeferredPauseCompletion.DISPATCHED
+        } else {
+            DeferredPauseCompletion.FAILED
+        }
+    }
+
     @Synchronized
     fun clear() {
         targets.clear()
         playedIdentities.clear()
         rememberedIdentity = null
-    }
-
-    private fun cancelPendingResume(
-        snapshots: List<TargetSnapshot>,
-        selectedIdentity: Any,
-    ): Boolean {
-        val pausedPrevious = snapshots.filter { snapshot ->
-            snapshot.target.identity != selectedIdentity &&
-                snapshot.target.identity in playedIdentities &&
-                snapshot.playback == MediaResumePlayback.PAUSED &&
-                runCatching {
-                    snapshot.target.isLive() && snapshot.target.supportsPauseCancellation()
-                }.getOrDefault(false)
-        }
-        return pausedPrevious.all { snapshot ->
-            runCatching { snapshot.target.pauseForCancellation() }.isSuccess
-        }
     }
 
     private fun forget(identity: Any?) {
@@ -186,6 +215,13 @@ internal class MediaResumeCore {
         val target: MediaResumeTarget,
         val playback: MediaResumePlayback,
     )
+}
+
+internal enum class DeferredPauseCompletion {
+    DISPATCHED,
+    ALREADY_PAUSED,
+    STALE,
+    FAILED,
 }
 
 /** Owns a complete press only when the direct media command was accepted. */
