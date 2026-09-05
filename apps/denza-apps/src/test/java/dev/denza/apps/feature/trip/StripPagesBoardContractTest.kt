@@ -148,6 +148,49 @@ class StripPagesBoardContractTest {
             VehiclePageRenderer.EDGE.toDouble(), 1e-6)
     }
 
+    /**
+     * The span is written where a chart writes it, on both records.
+     *
+     * It was a phrase on the line under the box - `ШКАЛА 5 ↑ 10 ↓ кВт` - and the owner read it and
+     * said «тоже не интуитивно, либо убрать либо починить». Two figures against the edges they
+     * belong to are not a legend; the gutter they stand in is what keeps them off the shape.
+     */
+    @Test
+    fun theBoxSaysWhatItHoldsInItsOwnGutter() {
+        assertEquals(
+            "the gutter",
+            number("""TRACE_AXIS = (\d+)""", GENERATOR),
+            VehiclePageRenderer.AXIS.toDouble(),
+            1e-6,
+        )
+        assertEquals(
+            "where the top figure sits",
+            number("""TRACE_AXIS_BASELINE = (\d+)""", GENERATOR),
+            VehiclePageRenderer.AXIS_BASELINE.toDouble(),
+            1e-6,
+        )
+        assertTrue(
+            "and the phrase is gone from the board",
+            !BOARD.readText().contains("ШКАЛА"),
+        )
+    }
+
+    /**
+     * A figure going into the pack carries its sign as well as its colour.
+     *
+     * The sign came off on the reasoning that a minus is not a direction anybody reads at a
+     * glance. On the car the owner read the page as «белый разряд, синий заряд… но супер
+     * неинтуитивно» - he was decoding the hue, because it was the only cue that was telling the
+     * truth at that moment. Three cues that agree cost nothing.
+     */
+    @Test
+    fun aFigureGoingIntoThePackIsSigned() {
+        assertTrue(
+            "the board signs it",
+            BOARD.readText().contains(">${VehiclePageRenderer.MINUS}8<"),
+        )
+    }
+
     @Test
     fun bothRecordsClimbTheSameLadder() {
         val rungs = Regex("""TRACE_RUNGS = \(([\d, ]+)\)""").find(GENERATOR.readText())
@@ -176,7 +219,6 @@ class StripPagesBoardContractTest {
             VehiclePageWords.TITLE_ENGINE_MINUTES,
             VehiclePageWords.TITLE_WINDOW,
             VehiclePageWords.TITLE_WINDOW_SHORT,
-            VehiclePageRenderer.TITLE_SPAN,
             VehiclePageRenderer.TITLE_CLOSED,
         ).forEach { phrase ->
             assertTrue("«$phrase» is on the board", BOARD.readText().contains(phrase))

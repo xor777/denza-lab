@@ -361,6 +361,24 @@ What is left is exactly that: what the pack is doing now, what it has been doing
 for two minutes, how warm five components are, and what the last three kilometres
 cost.
 
+### What the first drive changed
+
+The page went on the car on 2026-09-06 and came back with five things, four of
+them mine and one of them a lie the whole app was telling:
+
+| what he saw | what it was |
+| --- | --- |
+| «в батарею от зарядки» on a discharging pack | `charging` read `gun >= 1`, and this id sits at or above 1 on the road. Three conditions now, and the cluster's countdown hung off the same gate |
+| «ДВС · мин за поездку 3» with a cold engine | the cell followed the trip, which is still yesterday's until the car moves. It follows the engine's own trace now, like the cluster's engine box |
+| «белый разряд, синий заряд… но супер неинтуитивно» | the direction was carried by hue alone, because the sentence above it was wrong at that moment. The sign is back on the figure and the words stay |
+| «про шкалу тоже не интуитивно» | `ШКАЛА 5 ↑ 10 ↓ кВт` was a legend. The box says what it holds in its own gutter now |
+| «иконки какие-то размытые» | the marks were painted at the cluster's 2.5-unit stroke, half again the weight of every other icon on this screen |
+
+And one question that was worth more than the four: *«что будет при расходе 200
+кВт и заряде 100 кВт?»* - the ladder stopped at 160 and nothing clamped what came
+off the end of it, so the box drew them over the figure above it. Two more rungs,
+a clamp, and a scene on this board that shows it.
+
 ### The scenes, and which of them were measured
 
 `ГЕНЕРАЦИЯ` is the 2026-08-23 capture drawn sample for sample - a minute on the
@@ -380,10 +398,14 @@ idea what the head unit's font does with it - the variometer beside it is three
 strokes for exactly that reason. The board draws them too, so a photograph of the
 screen and a render of the board can be laid side by side.
 
-**A step nothing answered in breaks the shape.** The board's scenes are all
-complete windows; a poll the shell missed leaves a `NaN` in the trace, and the
-renderer lifts the pen over it rather than drawing a line across a bin that never
-happened.
+**A step nothing answered in is drawn as a shutter.** The board's scenes are all
+complete windows. On the car they are not: the hub is polled only while this page
+is on screen, and the first drive showed «провалы в ноль» where the window
+claimed to reach further back than the readings did. Two things came out of that
+- the window now starts at the oldest second the car actually answered in, and a
+hole inside a live run is a column of the track's own colour rather than a gap.
+A gap in a filled area is read as a value of zero, which is the one thing a
+missing reading is not.
 
 ### And what it costs
 

@@ -227,12 +227,21 @@ TRACES = {
         51, 46, 49, 55, 60, 64, 61, 54, 48, 44, 47, 53, 58, 63, 66, 63, 57, 52, 56, 62,
     ],
     'charging': [-2.4] * 60,
+    # A launch and the recovery after it: 200 out, 100 back, which is the pair the owner asked
+    # about. Both halves land on 320 and 160, and the shape keeps its own proportions.
+    'launch': [
+        18, 24, 31, 44, 68, 96, 132, 168, 196, 204, 188, 160, 132, 108, 88, 72, 58, 44, 30, 12,
+        -22, -58, -96, -104, -88, -64, -40, -18, 4, 22, 38, 56, 78, 104, 138, 172, 190, 176, 150, 124,
+        102, 84, 66, 50, 36, 22, 8, -14, -42, -78, -102, -88, -60, -34, -12, 8, 26, 44, 62, 84,
+    ],
 }
 
 TRACE_H = 130
 TRACE_H_NARROW = 60           # what is left at 392 once the head, the foot and the marks are in
 TRACE_BINS = 24               # five seconds each, which is the engine box's own grid on the cluster
 TRACE_EDGE = 2
+TRACE_AXIS = 44               # the gutter on the right where the two axis figures stand
+TRACE_AXIS_BASELINE = 13
 
 # The span steps rather than sliding, and it steps on a ladder.
 #
@@ -247,7 +256,7 @@ TRACE_EDGE = 2
 # rather than a fit: a span that follows the data continuously redraws the same drive at a new
 # height every second, while four rungs change rarely and visibly, and the foot line says which
 # one is up - a figure names the window it is true over, and a shape names the span it is drawn in.
-TRACE_RUNGS = (5, 10, 20, 40, 80, 160)
+TRACE_RUNGS = (5, 10, 20, 40, 80, 160, 320, 640)
 
 
 def bins(samples, count=TRACE_BINS):
@@ -265,14 +274,6 @@ def bins(samples, count=TRACE_BINS):
         window = samples[lo:hi]
         out.append(round(sum(window) / len(window), 2))
     return out
-
-
-def caret(up):
-    """One of the two marks the span is named with, at the caption's own height."""
-    path = 'M1 5 L5 1 L9 5' if up else 'M1 1 L5 5 L9 1'
-    return (f'<svg width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="{MUTED_DEEP}" '
-            f'stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">'
-            f'<path d="{path}"></path></svg>')
 
 
 def trace_span(steps):
@@ -296,33 +297,47 @@ def trace_svg(box_w, samples, height=TRACE_H):
     Above the axis is what left the pack, below it is what came back - the app's own two inks for
     those and never a third. A step is five seconds; the newest is at the right edge, where new
     data arrives, and the oldest is whatever the window has left of its own.
+
+    **The box says what it holds**, in two figures against the edges they belong to. The span was a
+    phrase on the line underneath until the owner read it and said «тоже не интуитивно»: it was a
+    legend, and a legend is what this page spent four drawings getting rid of.
+
+    **And a step past the last rung is drawn flat against the edge.** *«Что будет при расходе 200
+    кВт и заряде 100 кВт?»* - with the ladder stopping at 160 and nothing clamping, the answer was
+    that the box drew them over the figure above it.
     """
     steps = bins(samples)
     top, bottom = trace_span(steps)
     zero = round(height * top / (top + bottom), 2)
-    w = box_w / len(steps)
+    plot = box_w - TRACE_AXIS
+    w = plot / len(steps)
+
+    def y_of(kw):
+        held = max(-bottom, min(top, kw))
+        return round(zero - held * (zero if held > 0 else (height - zero)) / (top if held > 0 else bottom), 2)
 
     def rects(above):
         out = []
         for i, kw in enumerate(steps):
             if (kw > 0) != above or kw == 0:
                 continue
-            y = round(zero - kw * (zero if kw > 0 else (height - zero)) / (top if kw > 0 else bottom), 2)
             x = round(i * w, 2)
-            out.append(f'M{x:g} {zero:g} H{round(x + w, 2):g} V{y:g} H{x:g} Z')
+            out.append(f'M{x:g} {zero:g} H{round(x + w, 2):g} V{y_of(kw):g} H{x:g} Z')
         return ' '.join(out)
 
     edge = []
     for i, kw in enumerate(steps):
-        y = round(zero - kw * (zero if kw > 0 else (height - zero)) / (top if kw > 0 else bottom), 2)
+        y = y_of(kw)
         x, x2 = round(i * w, 2), round((i + 1) * w, 2)
         edge.append((f'M{x:g} {y:g}' if not edge else f'L{x:g} {y:g}') + f' L{x2:g} {y:g}')
 
     return f'''          <svg width="{box_w:g}" height="{height:g}" viewBox="0 0 {box_w:g} {height:g}" fill="none">
             <path d="{rects(True)}" fill="rgba(218,225,235,0.16)"></path>
             <path d="{rects(False)}" fill="rgba(45,130,215,0.26)"></path>
-            <path d="M0 {zero:g} H{box_w:g}" stroke="{TRACK_MARK}" stroke-width="1"></path>
+            <path d="M0 {zero:g} H{plot:g}" stroke="{TRACK_MARK}" stroke-width="1"></path>
             <path d="{' '.join(edge)}" stroke="{INK}" stroke-width="{TRACE_EDGE}" stroke-linejoin="round" stroke-linecap="square"></path>
+            <text x="{box_w:g}" y="{TRACE_AXIS_BASELINE}" text-anchor="end" font-size="15" font-weight="500" letter-spacing="1.6" fill="{MUTED_DEEP}">{top} кВт</text>
+            <text x="{box_w:g}" y="{height:g}" text-anchor="end" font-size="15" font-weight="500" letter-spacing="1.6" fill="{MUTED_DEEP}">{bottom}</text>
           </svg>'''
 
 
@@ -349,13 +364,13 @@ SCENES = {
         spend='19,8 кВт·ч/100 ЗА 3 КМ', trace='traction',
     ),
     'generation': dict(
-        headline='В БАТАРЕЮ ОТ ДВС', power='8', colour=RETURN_INK, volts='553',
+        headline='В БАТАРЕЮ ОТ ДВС', power='-8', colour=RETURN_INK, volts='553',
         engine=('ДВС · ОБ/МИН', '1321'),
         temps=[('pack', 32), ('front', 47), ('rear_l', 46), ('rear_r', 44), ('inverter', 39)],
         spend='19,4 кВт·ч/100 ЗА 3 КМ', trace='generation',
     ),
     'charging': dict(
-        headline='В БАТАРЕЮ ОТ ЗАРЯДКИ', power='2,4', colour=RETURN_INK, volts='550',
+        headline='В БАТАРЕЮ ОТ ЗАРЯДКИ', power='-2,4', colour=RETURN_INK, volts='550',
         engine=None,
         temps=[('pack', 28), ('front', 31), ('rear_l', 29), ('rear_r', 31), ('inverter', 26)],
         # No consumption cell while the car is standing: kWh/100 km has no value at zero speed,
@@ -366,6 +381,15 @@ SCENES = {
     # the front motor is past 85 and is DANGER, the other three are past 70 and are WATCH, and the
     # pack at 42 has just crossed its own 40. The first cut printed 126 °C on a motor, which is not
     # a temperature this drivetrain reaches before it protects itself.
+    # «Что будет при расходе 200 кВт и заряде 100 кВт?» - this, and the board says it rather than
+    # a paragraph: the ladder reaches 320, the two halves take their own rungs, and anything past
+    # the last rung would be drawn flat against the edge rather than over the hero.
+    'launch': dict(
+        headline='ИЗ БАТАРЕИ', power='196', colour=INK, volts='531',
+        engine=('ДВС · ОБ/МИН', '3980'),
+        temps=[('pack', 44), ('front', 79), ('rear_l', 77), ('rear_r', 76), ('inverter', 74)],
+        spend='31,6 кВт·ч/100 ЗА 3 КМ', trace='launch',
+    ),
     'hot': dict(
         headline='ИЗ БАТАРЕИ', power='62', colour=INK, volts='544',
         engine=('ДВС · ОБ/МИН', '1420'),
@@ -434,7 +458,6 @@ def vehicle_page(scene='generation', shape='wide', width=FIELD_W):
             </div>
 {engine}
           </div>'''
-    top, bottom = trace_span(bins(TRACES[s['trace']]))
     # The shape names the span it is drawn in, the way every figure on this page names the window
     # it is true over. Two rungs and one scale: «5 ↑ 10 ↓» is the box's own ceiling and floor.
     # The pack's voltage leaves the narrow pane rather than wrapping the line: at 392 dp the
@@ -450,8 +473,7 @@ def vehicle_page(scene='generation', shape='wide', width=FIELD_W):
     # reason, and a board that types what the app draws is a board that cannot be compared with a
     # photograph of the screen.
     trace = (f'{trace_svg(trace_w, TRACES[s["trace"]], TRACE_H_NARROW if narrow else TRACE_H)}\n'
-             f'          <div class="foot">{window} · ШКАЛА {caret(True)} {top} '
-             f'{caret(False)} {bottom} кВт{volts}</div>')
+             f'          <div class="foot">{window}{volts}</div>')
 
     if narrow:
         # `Space.L` between the shape and the marks rather than the group's own 32: at 392 dp the
@@ -617,12 +639,16 @@ def build():
             ('СТРАНИЦА 2 · МАШИНА — ГЕНЕРАЦИЯ, СНЯТО 23.08', screen(field(vehicle_page(), 1), src)),
         ]),
         ('', [
-            ('ЭЛЕКТРОТЯГА · СЦЕНА НЕ СНЯТА, ЗНАК МОЩНОСТИ НЕ ПОДТВЕРЖДЁН',
+            ('ЭЛЕКТРОТЯГА · ДВС ЗАГЛОХ МИНУТУ НАЗАД, СЦЕНА НЕ СНЯТА',
              band(field(vehicle_page('traction'), 1), src)),
             ('ЗАРЯДКА · СНЯТО 22.08 — ДВС НЕ КРУТИТСЯ, ОБОРОТОВ В СТРОКЕ НЕТ',
              band(field(vehicle_page('charging'), 1), src)),
             ('ДЛИННЫЙ ПОДЪЁМ · ПОРОГИ ИЗ ПРИБОРКИ, СЦЕНА НЕ СНЯТА',
              band(field(vehicle_page('hot'), 1), src)),
+        ]),
+        ('', [
+            ('РАЗГОН · 200 кВт ИЗ ПАКЕТА И 100 ОБРАТНО, СЦЕНА НЕ СНЯТА',
+             band(field(vehicle_page('launch'), 1), src)),
         ]),
         ('', [
             ('НЕТ ДОСТУПА К МАШИНЕ', band(field(closed_page(), 1), src)),
@@ -636,9 +662,9 @@ def build():
         CONTENT * 2 + GUTTER,
         CONTENT * 3 + GUTTER * 2,
         CONTENT + gp.MEDIUM.width + gp.NARROW.width + GUTTER * 2)
-    board_h = (GUTTER * 2 + GUTTER * 2
+    board_h = (GUTTER * 2 + GUTTER * 3
                + (PLATE_NAME + GAP + WINDOW_H) * 2
-               + (PLATE_NAME + GAP + STRIP_H))
+               + (PLATE_NAME + GAP + STRIP_H) * 2)
     body_rows = '\n'.join(
         '<div class="row-band">\n' + '\n'.join(plate(c, f) for c, f in items) + '\n</div>'
         for _, items in rows)
