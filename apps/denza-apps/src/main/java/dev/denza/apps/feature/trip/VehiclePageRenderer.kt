@@ -201,6 +201,7 @@ internal class VehiclePageRenderer {
         }
 
         val headline = VehiclePageWords.headline(telemetry)
+        var headWidth = 0f
         var x = left
         if (headline != null && headline.mark) {
             fill.color = DenzaPalette.RETURN
@@ -212,7 +213,10 @@ internal class VehiclePageRenderer {
             )
             x += (MARK_RADIUS * 2f + MARK_GAP) * unit
         }
-        if (headline != null) caption(canvas, headline.text, x, top + LABEL_BASELINE * unit, unit)
+        if (headline != null) {
+            caption(canvas, headline.text, x, top + LABEL_BASELINE * unit, unit)
+            headWidth = x - left + capsWidth(headline.text, unit)
+        }
 
         // The sign is back on the figure, and the words stay.
         //
@@ -236,7 +240,12 @@ internal class VehiclePageRenderer {
         )
 
         units.textSize = UNIT_SIZE * unit
-        val heroRight = left + figureWidth + UNIT_GAP * unit + units.measureText(UNIT_KW)
+        // The cell is as wide as the wider of its two lines, and its sentence is usually the wider
+        // one: «● В БАТАРЕЮ ОТ ЗАРЯДКИ» is half again «-2,4 кВт». Measured off the figure alone,
+        // the voltage beside it was placed under the tail of that sentence and the two captions
+        // ran into each other on the car. The board never showed it because a flex row sizes a
+        // cell by its widest child, which is exactly the rule this line was missing.
+        val heroRight = left + maxOf(headWidth, figureWidth + UNIT_GAP * unit + units.measureText(UNIT_KW))
 
         // Right to left after that, and each cell is drawn only if it can stand clear of the one
         // before it. A cell drawn over a figure is worse than an absent one, and this row carries
