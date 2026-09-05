@@ -7,37 +7,6 @@ import dev.denza.apps.feature.vehicle.VehicleTelemetry
 import kotlin.math.abs
 
 /**
- * What the panel is doing, as one word.
- *
- * These are scenes, not messages. Every one of them is the same panel with different things on it,
- * and none of them is a sentence apologising for the others - the one exception, [UNAVAILABLE],
- * carries an instruction rather than an error, because "the ADB key is not confirmed" is something
- * the driver can act on and "нет данных" is not.
- */
-internal enum class ContourMode {
-    /** Nothing has answered yet: the band's skeleton, and nothing else (m4). */
-    STARTING,
-
-    /** The ordinary state, and the one the panel is in almost all of the time. */
-    DRIVING,
-
-    /** The engine's own two minutes are on the right shelf, where the trip's phrase stands. */
-    ENGINE,
-
-    /** Standing in P, where reading three numbers costs nothing. */
-    PARKED,
-
-    /** A gun is in. The petal counts down instead of counting consumption. */
-    CHARGING,
-
-    /** The bus went quiet: every value is removed and every caption stays (M5). */
-    LINK_LOST,
-
-    /** The shell is closed to us, and the panel says what to do about it. */
-    UNAVAILABLE,
-}
-
-/**
  * Every quantity the Contour draws, so each one can go stale on its own.
  *
  * A single null and a dead bus are the same rule at two scales, which is why there is no separate
@@ -69,11 +38,37 @@ internal enum class ContourValue(val poll: VehiclePoll) {
 /**
  * What the renderer is told about the panel as a whole.
  *
- * [parked] is not folded into [mode], because standing still is not an alternative to anything: it
- * changes the petal's resolution and the shelf's seat count wherever else the panel happens to be.
+ * ### Why there is no scene name here
+ *
+ * There was one - a seven-word `ContourMode` naming starting, driving, the engine, park, charging,
+ * link loss and an unreachable shell - and the panel read two of those words. It could not read the
+ * rest, because it does not have arrangements for them: **there is no "link lost" picture.** Link
+ * loss is the staleness rule firing on every value at once, park is a seat count and a decimal
+ * place, the engine's box is a shape, and starting is the skeleton with nothing on it yet. Each of
+ * those is already decided somewhere the renderer asks, and a word restating it was a second way to
+ * answer a question with one answer.
+ *
+ * So what is left is what the panel actually branches on, and both of them are things it *draws*
+ * rather than states it is in: [unavailable] puts an instruction where the petal's figure goes, and
+ * [charging] puts a countdown there.
  */
 internal data class ContourStage(
-    val mode: ContourMode,
+    /**
+     * The shell is closed to us, and [message] says what to do about it.
+     *
+     * The one place this panel prints a sentence, and it is an instruction rather than an error:
+     * "the ADB key is not confirmed" is something the driver can act on and «нет данных» is not.
+     */
+    val unavailable: Boolean = false,
+
+    /**
+     * A gun is in and the charger has agreed. The petal counts down instead of counting
+     * consumption.
+     *
+     * False while the shell is closed, while nothing has answered yet and while the bus is quiet -
+     * a countdown is a reading like any other and cannot outlive the link that fills it.
+     */
+    val charging: Boolean = false,
     val parked: Boolean = false,
     /**
      * Whether the engine's box owns the right shelf, which is not the same as the trace being warm.
@@ -142,7 +137,7 @@ internal class ContourScene {
     private var everAnswered = false
     private var chargeDwell = 0f
 
-    var stage: ContourStage = ContourStage(ContourMode.STARTING)
+    var stage: ContourStage = ContourStage()
         private set
 
     /**
@@ -206,24 +201,23 @@ internal class ContourScene {
         // take the shelf from it: see [ContourStage.engineBox].
         val engineBox = !t.engineTrace.isEmpty && !parked
         val engineRunning = t.engineRunning == true
-        val mode = when {
-            t.access == VehicleAccess.UNAVAILABLE -> ContourMode.UNAVAILABLE
-            !everAnswered -> ContourMode.STARTING
-            packetAge >= STALE_SECONDS -> ContourMode.LINK_LOST
-            chargeDwell >= CHARGE_DWELL_SECONDS -> ContourMode.CHARGING
-            engineBox -> ContourMode.ENGINE
-            parked -> ContourMode.PARKED
-            else -> ContourMode.DRIVING
-        }
-        val message = if (mode == ContourMode.UNAVAILABLE) t.message else ""
+        val unavailable = t.access == VehicleAccess.UNAVAILABLE
+        // The order the scene name used to carry, kept as the guards on the one flag that needed
+        // it: a closed shell, a panel that has heard nothing yet and a bus that has gone quiet all
+        // outrank a gun, because the countdown is a reading and a reading cannot outlive its link.
+        val charging = !unavailable && everAnswered && packetAge < STALE_SECONDS &&
+            chargeDwell >= CHARGE_DWELL_SECONDS
+        val message = if (unavailable) t.message else ""
         val held = stage
-        if (held.mode == mode && held.parked == parked && held.engineBox == engineBox &&
+        if (held.unavailable == unavailable && held.charging == charging &&
+            held.parked == parked && held.engineBox == engineBox &&
             held.engineRunning == engineRunning && held.message == message
         ) {
             return held
         }
         return ContourStage(
-            mode = mode,
+            unavailable = unavailable,
+            charging = charging,
             parked = parked,
             engineBox = engineBox,
             engineRunning = engineRunning,

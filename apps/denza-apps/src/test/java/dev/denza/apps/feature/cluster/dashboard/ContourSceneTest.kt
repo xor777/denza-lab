@@ -63,9 +63,12 @@ class ContourSceneTest {
         val scene = ContourScene()
         scene.frame(VehicleTelemetry(), false, frame)
 
-        assertEquals(ContourMode.STARTING, scene.stage.mode)
         // A heading arrives with its first value; before that the panel has no words on it (m4).
+        // There is no "starting" arrangement to name: the skeleton is what a panel with nothing
+        // known on it draws, and that is exactly this.
         ContourValue.entries.forEach { assertFalse("$it", scene.known(it)) }
+        assertFalse(scene.stage.unavailable)
+        assertFalse(scene.stage.charging)
     }
 
     @Test
@@ -80,16 +83,20 @@ class ContourSceneTest {
             frame,
         )
 
-        assertEquals(ContourMode.UNAVAILABLE, scene.stage.mode)
+        assertTrue(scene.stage.unavailable)
         assertEquals("ADB-ключ не подтверждён · Помощь → Диагностика", scene.stage.message)
     }
 
     @Test
-    fun theOrdinaryStateIsDriving() {
+    fun theOrdinaryStateIsEverythingBeingTrue() {
+        // Which is the panel's whole shape: driving is not an arrangement, it is what is left when
+        // the shell is open, the values are fresh, no gun is in and the car is moving.
         val scene = ContourScene()
         run(scene, ready(), 1f)
 
-        assertEquals(ContourMode.DRIVING, scene.stage.mode)
+        assertFalse(scene.stage.unavailable)
+        assertFalse(scene.stage.charging)
+        assertFalse(scene.stage.parked)
         assertTrue(scene.fresh(ContourValue.POWER))
         assertTrue(scene.fresh(ContourValue.PETAL))
     }
@@ -101,11 +108,9 @@ class ContourSceneTest {
         assertTrue(scene.fresh(ContourValue.VOLTS))
 
         silence(scene, ready(), 1f)
-        assertEquals("a second of quiet is not a loss", ContourMode.DRIVING, scene.stage.mode)
-        assertTrue(scene.fresh(ContourValue.VOLTS))
+        assertTrue("a second of quiet is not a loss", scene.fresh(ContourValue.VOLTS))
 
         silence(scene, ready(), 1f)
-        assertEquals(ContourMode.LINK_LOST, scene.stage.mode)
         assertFalse("the value went", scene.fresh(ContourValue.VOLTS))
         assertTrue("the caption stayed", scene.known(ContourValue.VOLTS))
     }
@@ -118,8 +123,7 @@ class ContourSceneTest {
         // The pack voltage stops answering; everything else keeps arriving.
         run(scene, ready(mapOf(VehicleSignal.POWER_KW to 34.0)), 3f)
 
-        assertEquals("the panel is not in a state about it", ContourMode.DRIVING, scene.stage.mode)
-        assertTrue(scene.fresh(ContourValue.POWER))
+        assertTrue("the panel is not in a state about it", scene.fresh(ContourValue.POWER))
         assertFalse("the figure went", scene.fresh(ContourValue.VOLTS))
         assertTrue("«БАТАРЕЯ · В» stayed", scene.known(ContourValue.VOLTS))
     }
@@ -200,14 +204,42 @@ class ContourSceneTest {
         )
 
         run(scene, charging, 1.5f)
-        assertEquals("not yet", ContourMode.DRIVING, scene.stage.mode)
+        assertFalse("not yet", scene.stage.charging)
         run(scene, charging, 1f)
-        assertEquals(ContourMode.CHARGING, scene.stage.mode)
+        assertTrue(scene.stage.charging)
         assertTrue(scene.fresh(ContourValue.CHARGE_LEFT))
 
         // And it goes the moment the gun does: pulling a cable is not ambiguous.
         run(scene, ready(), 0.2f)
-        assertEquals(ContourMode.DRIVING, scene.stage.mode)
+        assertFalse(scene.stage.charging)
+    }
+
+    @Test
+    fun theCountdownCannotOutliveTheLinkThatFillsIt() {
+        // The scene name used to carry this in the order of its branches: link loss outranked
+        // charging, so a bus that went quiet took the countdown off the petal with everything else.
+        // With the name gone that order is a guard on the flag, and this is it.
+        val scene = ContourScene()
+        val charging = ready(
+            values = mapOf(
+                VehicleSignal.POWER_KW to -7.0,
+                VehicleSignal.CHARGE_GUN to 2.0,
+                VehicleSignal.CHARGE_HOURS to 2.0,
+                VehicleSignal.CHARGE_MINUTES to 15.0,
+            ),
+        )
+        run(scene, charging, 3f)
+        assertTrue(scene.stage.charging)
+
+        silence(scene, charging, 3f)
+        assertFalse("the bus is quiet, so there is no countdown to draw", scene.stage.charging)
+
+        // And a closed shell outranks it too, whatever the last snapshot said.
+        run(scene, charging, 3f)
+        assertTrue(scene.stage.charging)
+        scene.frame(VehicleTelemetry(access = VehicleAccess.UNAVAILABLE, message = "нет"), true, frame)
+        assertTrue(scene.stage.unavailable)
+        assertFalse(scene.stage.charging)
     }
 
     @Test
@@ -219,7 +251,6 @@ class ContourSceneTest {
 
         val scene = ContourScene()
         run(scene, ready(trace = trace), 1f)
-        assertEquals(ContourMode.ENGINE, scene.stage.mode)
         assertTrue(scene.stage.engineBox)
 
         // A hundred and nineteen dead seconds, and the box is still there.
@@ -231,7 +262,6 @@ class ContourSceneTest {
         trace.sample(clock + 119_000L, rpm = 0.0, generationKw = 0.0)
         run(scene, ready(trace = trace), 1f)
         assertFalse("and then it goes, with no timer anywhere", scene.stage.engineBox)
-        assertEquals(ContourMode.DRIVING, scene.stage.mode)
     }
 
     @Test
@@ -255,13 +285,12 @@ class ContourSceneTest {
         // three cells are what P is for, and the box comes back the moment the car moves.
         assertTrue("the car is standing", scene.stage.parked)
         assertFalse("so the box does not take the shelf", scene.stage.engineBox)
-        assertEquals(ContourMode.PARKED, scene.stage.mode)
 
         // And it is the standing that does it, not the trace going quiet: the same trace under a
         // car that is rolling still owns the shelf.
         run(scene, ready(trace = trace), 1f)
         assertTrue("the box is back the moment the car moves", scene.stage.engineBox)
-        assertEquals(ContourMode.ENGINE, scene.stage.mode)
+        assertFalse(scene.stage.parked)
     }
 
     @Test
@@ -286,14 +315,16 @@ class ContourSceneTest {
     }
 
     @Test
-    fun parkIsAScene() {
+    fun parkIsAFlagAndNotAnArrangement() {
+        // It changes a seat count and a decimal place wherever else the panel happens to be, which
+        // is why it was never one of the scene's seven words in the first place.
         val scene = ContourScene()
         run(
             scene,
             ready(mapOf(VehicleSignal.POWER_KW to 1.4, VehicleSignal.GEARBOX_PARK to 1.0)),
             1f,
         )
-        assertEquals(ContourMode.PARKED, scene.stage.mode)
+        assertTrue(scene.stage.parked)
     }
 
     @Test
@@ -364,8 +395,8 @@ class ContourSceneTest {
         silence(scene, ready(), 3f)
 
         // Everything is removed and every caption is still on the panel: link loss is the stale
-        // rule applied to every value at once, not a different panel.
-        assertEquals(ContourMode.LINK_LOST, scene.stage.mode)
+        // rule applied to every value at once, not a different panel - which is why it never had a
+        // picture of its own and does not need a name.
         assertTrue(scene.known(ContourValue.POWER))
         assertTrue(scene.known(ContourValue.PETAL))
         assertFalse(scene.fresh(ContourValue.POWER))
@@ -373,7 +404,6 @@ class ContourSceneTest {
 
         // And it comes back the moment a packet does.
         run(scene, ready(), 0.5f)
-        assertEquals(ContourMode.DRIVING, scene.stage.mode)
         assertTrue(scene.fresh(ContourValue.POWER))
     }
 }

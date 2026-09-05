@@ -823,7 +823,7 @@ internal class ClusterDashboardRenderer {
         scene: ContourScene,
         stage: ContourStage,
     ) {
-        if (stage.mode == ContourMode.UNAVAILABLE) {
+        if (stage.unavailable) {
             if (stage.message.isEmpty()) return
             pen.text(
                 canvas,
@@ -844,7 +844,7 @@ internal class ClusterDashboardRenderer {
             history(canvas, plan, t)
         }
 
-        if (stage.mode == ContourMode.CHARGING) {
+        if (stage.charging) {
             chargeSeat(canvas, plan, t, scene)
             return
         }
