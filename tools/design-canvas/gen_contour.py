@@ -655,7 +655,15 @@ TRIP_CELL = max(TRIP_PAYLOAD, TRIP_LEAD)
 REGEN_CELL = max(TRIP_PAYLOAD, MARK_W + W_CAPTION['РЕКУПЕРАЦИЯ'])
 ICE_CELL = max(TRIP_PAYLOAD, W_CAPTION['ДАЛ ДВС'])
 DRIVE_SEATS = [TRIP_CELL, ICE_CELL]
-PARK_SEATS = [TRIP_CELL, REGEN_CELL, ICE_CELL]
+# The recuperation takes the far seat, not the middle one, since the first drive.
+# Standing on P the far seat is 62 units from the hero's «кВт» on the same
+# baseline, and the owner read his photograph as «1 кВт ДАЛ ДВС»: a predicate
+# attaches to any number to its left. So «ДАЛ ДВС» keeps the place it has on the
+# move, and what stands next to the hero is a noun led by a blue mark, which
+# cannot be read as what a standing car's kilowatt is doing. Seats are packed
+# from the edge whatever is present: a car whose engine never ran has the
+# recuperation in the middle seat, not a hole there.
+PARK_SEATS = [TRIP_CELL, ICE_CELL, REGEN_CELL]
 # The widest the shelf ever is, which is also the engine box's own left limit.
 RIGHT_SHELF_LEFT = RIGHT_EDGE - sum(PARK_SEATS) - (len(PARK_SEATS) - 1) * CELL_GAP
 
@@ -1575,9 +1583,11 @@ def right_shelf(s):
 
     On the move it is one cell, «9,3 кВт·ч» over «42 км · ЗА ПОЕЗДКУ», and a
     second one only if the engine actually ran: «1,1 кВт·ч» over «ДАЛ ДВС».
-    Standing on P the same anatomy pays out in full and «● РЕКУПЕРАЦИЯ» comes
-    between them, because a car that is not moving is the one place where three
-    numbers cost nothing to read.
+    Standing on P the same anatomy pays out in full and «● РЕКУПЕРАЦИЯ» takes the
+    far seat, because a car that is not moving is the one place where three
+    numbers cost nothing to read - and because the far seat is the hero's
+    neighbour, and a noun with a mark can stand there where a predicate could
+    not (the first drive: «1 кВт ДАЛ ДВС»).
 
     **The first figure is the net, and the other two are what came back.**
     `tripNetKwh = ∫P dt` over the trip in the pack's own units: what regeneration
@@ -1607,21 +1617,20 @@ def right_shelf(s):
         return []
     trip = s.get('trip') or {}
     parked = bool(s.get('parked'))
-    seats = PARK_SEATS if parked else DRIVE_SEATS
-    row = [('net', 'ЗА ПОЕЗДКУ', False)]
-    if parked:
-        row.append(('regen', 'РЕКУПЕРАЦИЯ', True))
-    row.append(('ice', 'ДАЛ ДВС', False))
+    # Seat 0 is the trip itself and it exists as soon as the trip does, so it keeps
+    # its caption when the bus goes quiet. The other two answer "did this happen at
+    # all", and a zero is that question answered "no": no cell - and no hole either,
+    # the seats that exist are packed from the edge.
+    row = [('net', 'ЗА ПОЕЗДКУ', False, TRIP_CELL)]
+    if trip.get('ice'):
+        row.append(('ice', 'ДАЛ ДВС', False, ICE_CELL))
+    if parked and trip.get('regen'):
+        row.append(('regen', 'РЕКУПЕРАЦИЯ', True, REGEN_CELL))
+    seats = [cell for *_, cell in row]
     out = []
-    for index, (key, word, marked) in enumerate(row):
-        value = trip.get(key)
-        # Seat 0 is the trip itself and it exists as soon as the trip does, so it
-        # keeps its caption when the bus goes quiet. The other two answer "did this
-        # happen at all", and a zero is that question answered "no": no cell.
-        if not value and index:
-            continue
+    for index, (key, word, marked, _) in enumerate(row):
         left, _ = trip_cell(index, seats)
-        out += trip_seat(left, value or None, word, marked,
+        out += trip_seat(left, trip.get(key) or None, word, marked,
                          odometer=trip.get('km') if key == 'net' else None)
     return out
 
@@ -2006,7 +2015,9 @@ def plan_board():
     # The cell grid both shelves stand on, drawn rather than described. On the right
     # there are two grids over one edge: the three seats of a car standing on P in
     # solid dashes, and the pair it keeps on the move - «ЗА ПОЕЗДКУ» and «ДАЛ ДВС» -
-    # in the finer one. Seat 0 is the same cell in both, which is the rule.
+    # in the finer one. Since the first drive the pair is the first two of the three,
+    # so the finer grid lies on the solid one: the trip and the engine are the same
+    # cells in the same places, which is the rule, and only «● РЕКУПЕРАЦИЯ» arrives.
     cell_top = SHELF_FIGURE - CAP * READING
     cell_h = SHELF_CAPTION - SHELF_FIGURE + CAP * READING + 6
     for index in range(len(LEFT_CELLS)):

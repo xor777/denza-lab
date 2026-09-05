@@ -232,12 +232,22 @@ internal class ContourPlan(
     /**
      * Seats, counted right to left from the shelf's own edge, so the first is always against it.
      *
-     * They are per state rather than per panel: standing still adds `РЕКУПЕРАЦИЯ` *between* the two,
-     * which is a gear change rather than a value arriving, and the seat that exists on both is the
-     * same cell in the same place.
+     * They are per state rather than per panel: standing still adds `● РЕКУПЕРАЦИЯ` *at the far
+     * end*, which is a gear change rather than a value arriving, and a seat that exists in two
+     * states is the same cell in the same place - the trip's, and the engine's.
+     *
+     * The engine's cell used to be the one added at the far end on P, with the recuperation between.
+     * On the first drive the owner read his photograph as «1 кВт ДАЛ ДВС»: standing on P the far
+     * seat is 62 units from the hero's «кВт» on the same baseline, and «ДАЛ ДВС» is a predicate
+     * that attaches to any number to its left. So the predicate keeps the place it has on the move,
+     * a cell further in, and the seat next to the hero is a noun led by a blue mark - which cannot
+     * be read as what a standing car's kilowatt is doing. And the seats are packed from the edge
+     * whatever is present, so a middle cell that does not exist this trip is not a hole in the
+     * row: [parkSeatsWithoutEngine] is the P layout of a car whose engine never ran.
      */
     val driveSeats: FloatArray = floatArrayOf(tripCell, engineCell)
-    val parkSeats: FloatArray = floatArrayOf(tripCell, regenCell, engineCell)
+    val parkSeats: FloatArray = floatArrayOf(tripCell, engineCell, regenCell)
+    val parkSeatsWithoutEngine: FloatArray = floatArrayOf(tripCell, regenCell)
 
     /** The widest the shelf ever is, which is also the engine box's own left limit. */
     val rightShelfLeft: Float =

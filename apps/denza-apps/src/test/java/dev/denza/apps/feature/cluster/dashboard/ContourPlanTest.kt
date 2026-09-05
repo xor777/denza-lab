@@ -377,6 +377,23 @@ class ContourPlanTest {
             1e-4f,
         )
         assertEquals(plan.rightEdge - plan.tripCell, plan.tripSeat(0, plan.driveSeats), 1e-4f)
+        // And so is the engine's seat since the first drive: the recuperation arrives at the far
+        // end rather than between the two, so «ДАЛ ДВС» does not move on the gear change and is
+        // never the hero's neighbour - the owner read «1 кВт ДАЛ ДВС» off the photograph.
+        assertEquals(
+            plan.tripSeat(1, plan.driveSeats),
+            plan.tripSeat(1, plan.parkSeats),
+            1e-4f,
+        )
+        assertEquals(plan.engineCell, plan.parkSeats[1], 1e-4f)
+        assertEquals(plan.regenCell, plan.parkSeats[2], 1e-4f)
+        // A car whose engine never ran packs the recuperation into the middle seat: no hole.
+        assertEquals(plan.regenCell, plan.parkSeatsWithoutEngine[1], 1e-4f)
+        assertEquals(
+            plan.rightEdge - plan.tripCell - plan.cellGap - plan.regenCell,
+            plan.tripSeat(1, plan.parkSeatsWithoutEngine),
+            1e-4f,
+        )
     }
 
     // ---- no coordinate depends on data

@@ -1182,8 +1182,11 @@ dot in front of the noun does that work instead, for 14 units against 102.9.
 
 Seats are counted right to left from the shelf's own edge and the first is always
 against it, so the second appearing moves nothing. They are per state rather than
-per panel: standing still adds a seat between the two, which is a gear change and
-not a value arriving. The unit is written once *per cell* now, not once per row -
+per panel: standing still adds a seat at the far end, which is a gear change and
+not a value arriving - at the far end since the first drive, because that seat is
+the hero's neighbour on one baseline and «ДАЛ ДВС» there read as «1 кВт ДАЛ ДВС»;
+the engine's cell keeps its place and «● РЕКУПЕРАЦИЯ» is what arrives. Whatever
+is present is packed from the edge, so an absent middle cell is not a hole. The unit is written once *per cell* now, not once per row -
 a shared unit at the end of a row is what makes three numbers read as a table, and
 the table was the unreadable part.
 

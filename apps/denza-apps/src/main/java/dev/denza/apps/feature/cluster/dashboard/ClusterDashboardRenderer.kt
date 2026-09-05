@@ -540,7 +540,17 @@ internal class ClusterDashboardRenderer {
         }
         if (!scene.known(ContourValue.TRIP_NET)) return
 
-        val seats = if (stage.parked) plan.parkSeats else plan.driveSeats
+        // Packed from the edge: the trip, then the engine's cell if it ran, then - standing only -
+        // the recuperation at the far end. The engine's cell is in the same place in every state
+        // it exists in, and the seat nearest the hero is never its predicate: see
+        // [ContourPlan.parkSeats].
+        val engine = scene.known(ContourValue.TRIP_ENGINE)
+        val regen = stage.parked && scene.known(ContourValue.TRIP_REGEN)
+        val seats = when {
+            regen && engine -> plan.parkSeats
+            regen -> plan.parkSeatsWithoutEngine
+            else -> plan.driveSeats
+        }
         val trip = t.trip
 
         // The seat's index is its memo slot as well as its place: the three are drawn through one
@@ -555,27 +565,27 @@ internal class ClusterDashboardRenderer {
             marked = false,
             odometer = trip.kilometres.takeIf { scene.fresh(ContourValue.TRIP_KM) },
         )
-        if (stage.parked && scene.known(ContourValue.TRIP_REGEN)) {
+        if (engine) {
             seat(
                 canvas,
                 plan,
                 seat = 1,
                 left = plan.tripSeat(1, seats),
-                value = trip.recoveredKwh.takeIf { scene.fresh(ContourValue.TRIP_REGEN) },
-                word = ContourReadout.CAPTION_REGEN,
-                marked = true,
+                value = trip.engineKwh.takeIf { scene.fresh(ContourValue.TRIP_ENGINE) },
+                word = ContourReadout.CAPTION_ENGINE_GAVE,
+                marked = false,
                 odometer = null,
             )
         }
-        if (scene.known(ContourValue.TRIP_ENGINE)) {
+        if (regen) {
             seat(
                 canvas,
                 plan,
                 seat = 2,
                 left = plan.tripSeat(seats.size - 1, seats),
-                value = trip.engineKwh.takeIf { scene.fresh(ContourValue.TRIP_ENGINE) },
-                word = ContourReadout.CAPTION_ENGINE_GAVE,
-                marked = false,
+                value = trip.recoveredKwh.takeIf { scene.fresh(ContourValue.TRIP_REGEN) },
+                word = ContourReadout.CAPTION_REGEN,
+                marked = true,
                 odometer = null,
             )
         }

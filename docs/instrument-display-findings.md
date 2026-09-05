@@ -210,7 +210,7 @@ glance, by somebody who has never seen it and has no legend?**
 | the left corner | «БАТАРЕЯ · В» over the traction voltage, at 52 |
 | the right corner | «ДВС · об/мин» over the revolutions while the engine runs, «ДВС · мин за поездку» over its minutes once it has stopped, and **empty** if it never started this trip |
 | the left shelf | five temperatures at 34 - pack, front motor, rear left, rear right, inverter - each over a glyph rather than a word, plus a sixth cell «мВ / РАЗБРОС ЯЧЕЕК» that exists only at `WATCH` or `ALERT` |
-| the right shelf | what the trip cost, as a phrase: «9,3 кВт·ч» over «42 км · ЗА ПОЕЗДКУ», plus «ДАЛ ДВС» if the engine ran, plus «● РЕКУПЕРАЦИЯ» when the car is standing in P |
+| the right shelf | what the trip cost, as a phrase: «9,3 кВт·ч» over «42 км · ЗА ПОЕЗДКУ», plus «ДАЛ ДВС» if the engine ran, plus «● РЕКУПЕРАЦИЯ» at the far end when the car is standing in P |
 | the engine's box | while the engine has been alive in the last two minutes, that shelf is its own history instead: what it put back into the pack, as twenty-four five-second steps linear to 30 kW, under one sentence - «● 14 кВт В БАТАРЕЮ · ПОСЛЕДНИЕ 2 МИН» |
 | the petal | the last ten kilometres of consumption, as a stepped field standing on the figure's own baseline, «кВт·ч/100 км · за 10 км» - or a countdown to full while a gun is in |
 
@@ -536,7 +536,18 @@ back, three of them his and one of them in his photograph:
    quantity missing from a packet that carried the trip did not happen on this
    trip. `ContourValue.ledger` marks the four that derive from the ledger, and a
    fresh packet without them makes them unknown again, caption and all. The
-   corner's «ДВС · мин за поездку» is the same rule.
+   corner's «ДВС · мин за поездку» is the same rule;
+5. **«1 кВт ДАЛ ДВС»** - the owner's second reading of the same photograph, and
+   it is what the panel says even with the figure in place: standing on P the far
+   seat is 62 units from the hero's «кВт» on the same baseline, and «ДАЛ ДВС» is
+   a predicate that attaches to any number to its left. The far seat used to be
+   the engine's, with the recuperation between. Now the engine's cell keeps the
+   place it has on the move - the trip's and the engine's are the same cells in
+   the same places in every state - and «● РЕКУПЕРАЦИЯ» arrives at the far end,
+   a noun led by a blue mark, which cannot be read as what a standing car's
+   kilowatt is doing. The seats are packed from the edge whatever is present, so
+   a car whose engine never ran has the recuperation in the middle seat rather
+   than a hole there; that hole was already in the old order, on the other side.
 
 The board and the code moved together, `ContourBoardContractTest` holds the new
 anchor and the new count, and the strings were re-measured in headless Chrome

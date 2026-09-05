@@ -436,8 +436,10 @@ class ContourBoardContractTest {
                 cells.any { closeTo(it.x, left) && closeTo(it.width, plan.parkSeats[index]) },
             )
         }
-        // And the pair it keeps on the move, whose second seat is somewhere else entirely.
+        // And the pair it keeps on the move, whose second seat is the same cell in the same place
+        // since the first drive - the recuperation arrives at the far end, not between the two.
         val onTheMove = plan.tripSeat(1, plan.driveSeats)
+        assertEquals(plan.tripSeat(1, plan.parkSeats), onTheMove, 1e-4f)
         assertTrue(
             "the moving shelf's second seat at $onTheMove",
             cells.any { closeTo(it.x, onTheMove) && closeTo(it.width, plan.driveSeats[1]) },
