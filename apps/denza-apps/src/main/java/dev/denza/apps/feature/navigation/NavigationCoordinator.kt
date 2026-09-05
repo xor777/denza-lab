@@ -21,6 +21,26 @@ import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
+internal data class NavigationLaunchAttempt(
+    val packageName: String,
+    val token: Long,
+)
+
+/** Keeps delayed task discovery attached to the package launch that scheduled it. */
+internal class NavigationLaunchFence {
+    private var token = 0L
+
+    fun begin(packageName: String): NavigationLaunchAttempt =
+        NavigationLaunchAttempt(packageName, ++token)
+
+    fun invalidate() {
+        token += 1
+    }
+
+    fun accepts(attempt: NavigationLaunchAttempt, selectedPackage: String): Boolean =
+        attempt.token == token && attempt.packageName == selectedPackage
+}
+
 // The stored value is normalized to applicationContext during initialization.
 @SuppressLint("StaticFieldLeak")
 object NavigationCoordinator {
@@ -38,6 +58,7 @@ object NavigationCoordinator {
     @Volatile private var dashboardOnCluster = false
     private var pendingProjectionAfterOpen = false
     private var projectedOrigin: NavigationProjectionOrigin? = null
+    private val launchFence = NavigationLaunchFence()
     private val projectionHealth = NavigationProjectionHealthTracker()
     private val primaryActionPending = AtomicBoolean(false)
     private val splitRoutingLease = NavigationSplitRoutingLease()
@@ -100,7 +121,7 @@ object NavigationCoordinator {
                 onStateChanged?.invoke()
                 return@execute
             }
-            pendingProjectionAfterOpen = false
+            cancelPendingLaunch()
             if (session.phase == NavigationPhase.PROJECTED) {
                 // Whatever is on the cluster belongs to the outgoing choice, and comes off the way
                 // that choice put it there. Read before the new selection is stored.
@@ -150,7 +171,6 @@ object NavigationCoordinator {
                             returnToCentralDisplay()
                         }
                     }
-                    NavigationPrimaryAction.OPEN -> openSelectedApp()
                     NavigationPrimaryAction.PROJECT -> if (dashboardSelected()) {
                         showDashboardOnCluster()
                     } else {
@@ -282,6 +302,7 @@ object NavigationCoordinator {
         TaskMoveOwnership.pulse(TaskMoveOwner.NAVIGATION)
         val app = context ?: return
         val packageName = selectedPackage
+        val launchAttempt = launchFence.begin(packageName)
         val launch = app.packageManager.getLaunchIntentForPackage(packageName)
         if (launch == null) {
             pendingProjectionAfterOpen = false
@@ -307,7 +328,11 @@ object NavigationCoordinator {
             launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             val options = ActivityOptions.makeBasic().setLaunchDisplayId(0)
             app.startActivity(launch, options.toBundle())
-            executor.schedule({ discoverLaunchedTask(5) }, 900L, TimeUnit.MILLISECONDS)
+            executor.schedule(
+                { discoverLaunchedTask(launchAttempt, 5) },
+                900L,
+                TimeUnit.MILLISECONDS,
+            )
         } catch (error: RuntimeException) {
             pendingProjectionAfterOpen = false
             splitRoutingLease.release()
@@ -323,9 +348,13 @@ object NavigationCoordinator {
         }
     }
 
-    private fun discoverLaunchedTask(attemptsRemaining: Int) {
+    private fun discoverLaunchedTask(
+        launchAttempt: NavigationLaunchAttempt,
+        attemptsRemaining: Int,
+    ) {
         val app = context ?: return
-        val packageName = selectedPackage
+        if (!launchFence.accepts(launchAttempt, selectedPackage)) return
+        val packageName = launchAttempt.packageName
         try {
             val task = NavigationProxyClient.findAllowedTask(app, packageName)
             if (task >= 0) {
@@ -338,7 +367,7 @@ object NavigationCoordinator {
                 }
             } else if (attemptsRemaining > 0) {
                 executor.schedule(
-                    { discoverLaunchedTask(attemptsRemaining - 1) },
+                    { discoverLaunchedTask(launchAttempt, attemptsRemaining - 1) },
                     700L,
                     TimeUnit.MILLISECONDS,
                 )
@@ -860,6 +889,16 @@ object NavigationCoordinator {
             },
         )
         onStateChanged?.invoke()
+    }
+
+    private fun cancelPendingLaunch() {
+        val launchInProgress = session.phase == NavigationPhase.OPENING
+        pendingProjectionAfterOpen = false
+        launchFence.invalidate()
+        if (launchInProgress) {
+            splitRoutingLease.release()
+            finishTransfer()
+        }
     }
 
     private fun beginTransfer(app: Context) {

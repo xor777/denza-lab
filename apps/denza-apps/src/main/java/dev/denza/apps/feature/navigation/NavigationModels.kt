@@ -114,13 +114,13 @@ data class NavigationSession(
 
     private fun navigatorLabel(): String = when (phase) {
         NavigationPhase.PROJECTED, NavigationPhase.RETURNING -> "Вернуть"
-        NavigationPhase.PROJECTING, NavigationPhase.RECOVERING -> "Проверяю"
-        else -> if (taskId == null) "Открыть" else "На приборку"
+        NavigationPhase.OPENING, NavigationPhase.PROJECTING, NavigationPhase.RECOVERING ->
+            "Проверяю"
+        else -> "На приборку"
     }
 }
 
 internal enum class NavigationPrimaryAction {
-    OPEN,
     PROJECT,
     RETURN,
 }
@@ -152,11 +152,7 @@ internal object NavigationPrimaryActionPolicy {
         return when (session.phase) {
             NavigationPhase.READY,
             NavigationPhase.NEEDS_ACTION,
-            -> if (session.taskId == null) {
-                NavigationPrimaryAction.OPEN
-            } else {
-                NavigationPrimaryAction.PROJECT
-            }
+            -> NavigationPrimaryAction.PROJECT
             NavigationPhase.OPENING,
             NavigationPhase.PROJECTING,
             NavigationPhase.RETURNING,

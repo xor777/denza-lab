@@ -55,7 +55,7 @@ class NavigationModelsTest {
     @Test
     fun primaryActionSelectsExactlyOneExecutableCommand() {
         assertEquals(
-            NavigationPrimaryAction.OPEN,
+            NavigationPrimaryAction.PROJECT,
             NavigationPrimaryActionPolicy.action(
                 initialized = true,
                 hasContext = true,
@@ -84,6 +84,51 @@ class NavigationModelsTest {
                 session = NavigationSession(
                     phase = NavigationPhase.PROJECTED,
                     taskId = 12,
+                ),
+            ),
+        )
+    }
+
+    @Test
+    fun missingAndExistingNavigatorTasksUseTheSameProjectionCommand() {
+        listOf(null, 12).forEach { taskId ->
+            assertEquals(
+                NavigationPrimaryAction.PROJECT,
+                NavigationPrimaryActionPolicy.action(
+                    initialized = true,
+                    hasContext = true,
+                    selectedAppInstalled = true,
+                    actionPending = false,
+                    session = NavigationSession(taskId = taskId),
+                ),
+            )
+        }
+    }
+
+    @Test
+    fun navigatorUsesProjectionWordsWhileIdleAndBusy() {
+        assertEquals("На приборку", NavigationSession().buttonLabel)
+        assertEquals(
+            "Проверяю",
+            NavigationSession(phase = NavigationPhase.OPENING).buttonLabel,
+        )
+    }
+
+    @Test
+    fun unavailableSelectionAndDuplicateTapRemainRejected() {
+        val ready = NavigationSession()
+
+        assertNull(NavigationPrimaryActionPolicy.action(true, true, false, false, ready))
+        assertNull(NavigationPrimaryActionPolicy.action(true, true, true, true, ready))
+        assertNull(
+            NavigationPrimaryActionPolicy.action(
+                true,
+                true,
+                true,
+                false,
+                ready.copy(
+                    phase = NavigationPhase.NEEDS_ACTION,
+                    resolution = FeatureResolution.SELECT_NAVIGATION_APP,
                 ),
             ),
         )

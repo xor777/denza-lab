@@ -125,7 +125,7 @@ data class DenzaUiState(
         desiredEnabled = false,
         status = FeatureStatus.READY,
     ),
-    val navigationButtonLabel: String = "Открыть",
+    val navigationButtonLabel: String = "На приборку",
     val navigationSteeringWheelButton: Boolean = false,
     val navigationSteeringWheelButtonReady: Boolean = false,
     val navigationSteeringWheelButtonRepairing: Boolean = false,

@@ -1226,12 +1226,34 @@ central companion remained available, `system_server` stayed alive, and the
 user-initiated return restored the navigator to the IVI. Both virtual displays
 were then removed normally, with no crash-buffer entry.
 
-The UI state is contextual: **Open**, **To cluster**, then **Return**. The
-picker re-reads the installed subset of the navigation allowlist whenever it is
-opened, and the selected package is checked again before an automatic launch.
-The selected package is saved. Projection sessions stay in memory and end with
-the process. The automatic **Map mode** implementation also remains in code,
-but its unfinished UI switch is hidden in the current build.
+Since 2026-09-05 the navigator action is contextual: **На приборку**, then
+**Вернуть**. If the selected navigator has no running task, the first action
+opens it on display `0`, waits `900 ms`, makes at most five more bounded checks
+`700 ms` apart, and continues the same projection automatically once its task
+appears. A package-and-launch token fence rejects delayed discovery from an old
+selection or superseded launch; changing the selection also closes that launch's
+transfer state. Dashboard actions, missing-app/display barriers, transition and
+duplicate-action rejection, and return/reprojection recovery are unchanged.
+Policy, source-wiring, cancellation, and stale-callback tests pass locally. One
+cold/missing-task canary passed on the car on 2026-09-05 with APK SHA-256
+`ba9a43094296c98ebbd0eeb1e4185ac46bfff656ad977dea176e6fdf5e7eb034`: after
+Yandex Navigator was force-stopped and its task was confirmed absent, one press
+started task `158` at `09:55:27.796`, created projection root `159` on display
+`7` at `09:55:35.788`, and completed the focused projection at `09:55:36.564`.
+The owner visually confirmed the automatic transfer, then confirmed the return
+of task `158` to root `4` on display `0` at `09:56:59.504`; projection root `159`
+was removed at `09:56:59.649`. With Yandex Navigator already running, the next
+press created root `161` on display `8` at `09:57:12.270` and completed the
+focused re-projection at `09:57:13.120`. Focused live acceptance therefore
+passed all three intended action states: one-tap launch and projection with a
+missing task, return, and warm re-projection. The installed APK hash remained
+the same, the app and AVC processes stayed unchanged, and the final crash buffer
+was empty. Selection changes and launch-discovery timeout paths have not been
+exercised live, so this is not acceptance of every navigation scenario. The
+picker re-reads the installed allowlist whenever it opens, the selected package
+is saved, and projection sessions stay in memory and end with the process. The
+automatic **Map mode** implementation also remains in code, but its unfinished
+UI switch is hidden in the current build.
 
 Both directions now expose the otherwise quiet task-move delay on the main IVI
 display. While Denza Apps' `MainActivity` is not resumed, a centered,
