@@ -6,6 +6,7 @@ import android.graphics.Canvas
 import android.view.Choreographer
 import android.view.View
 import dev.denza.apps.feature.vehicle.VehicleSession
+import dev.denza.apps.feature.vehicle.VehicleWatcher
 import dev.denza.apps.feature.vehicle.VehicleTelemetry
 
 /**
@@ -54,20 +55,20 @@ internal class ClusterDashboardView(
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
-        hub.setDashboardActive(true)
+        hub.setActive(VehicleWatcher.CLUSTER, true)
         startLoop()
     }
 
     override fun onDetachedFromWindow() {
         stopLoop()
-        hub.setDashboardActive(false)
+        hub.setActive(VehicleWatcher.CLUSTER, false)
         super.onDetachedFromWindow()
     }
 
     override fun onWindowVisibilityChanged(visibility: Int) {
         super.onWindowVisibilityChanged(visibility)
         val visible = visibility == VISIBLE
-        hub.setDashboardActive(visible)
+        hub.setActive(VehicleWatcher.CLUSTER, visible)
         if (visible) startLoop() else stopLoop()
     }
 

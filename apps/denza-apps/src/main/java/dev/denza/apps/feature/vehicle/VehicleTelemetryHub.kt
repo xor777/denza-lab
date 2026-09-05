@@ -86,9 +86,21 @@ internal class VehicleTelemetryHub(context: Context) {
     var snapshot: VehicleTelemetry = VehicleTelemetry()
         private set
 
-    /** Whether the instrument dashboard on the driver's display is visible. */
+    /**
+     * Who is asking the car for numbers, and the loop runs while anybody is.
+     *
+     * There was one consumer when this was written and the flag said so. There are two now - the
+     * cluster on the driver's display and the head unit's strip on its second page - and either
+     * may be up without the other. A boolean cannot hold that: whichever of the two went away
+     * last would have stopped the poll under the one still drawing.
+     *
+     * Mutated from the main thread by the views that own the claims; the loop reads [polling],
+     * which is why that one is volatile and the set is not.
+     */
+    private val watchers = HashSet<VehicleWatcher>()
+
     @Volatile
-    private var dashboardActive = false
+    private var polling = false
 
     @Volatile
     private var forceCold = false
@@ -102,7 +114,7 @@ internal class VehicleTelemetryHub(context: Context) {
         if (running) return
         job = scope.launch {
             loopGate.run {
-                if (dashboardActive) pollLoop()
+                if (polling) pollLoop()
             }
         }
     }
@@ -177,19 +189,20 @@ internal class VehicleTelemetryHub(context: Context) {
     }
 
     /**
-     * Called by the cluster dashboard as it appears and goes.
+     * Called by each consumer as it appears and goes.
      *
-     * It is the hub's only runtime consumer and therefore owns the loop. A newly
-     * visible dashboard asks for a full cold sweep immediately rather than
-     * leaving slow-changing rows dashed for ten seconds.
+     * A consumer that has just appeared asks for a full cold sweep immediately rather than
+     * leaving slow-changing rows dashed for ten seconds - it costs one longer batch, and it is
+     * what makes a page that has just been swiped to arrive with its temperatures on it.
      */
-    fun setDashboardActive(value: Boolean) {
-        if (dashboardActive == value) return
-        dashboardActive = value
+    fun setActive(watcher: VehicleWatcher, value: Boolean) {
+        val changed = if (value) watchers.add(watcher) else watchers.remove(watcher)
+        if (!changed) return
+        polling = watchers.isNotEmpty()
         if (value) {
             forceCold = true
             start()
-        } else {
+        } else if (!polling) {
             stop()
         }
     }
@@ -420,6 +433,22 @@ internal class VehiclePollLoopGate {
             mutex.unlock()
         }
     }
+}
+
+/**
+ * The two things that ask this car for numbers.
+ *
+ * They are named rather than counted because they are not interchangeable: the cluster's claim
+ * lasts as long as the driver's display is showing our panel, and the strip's lasts only while its
+ * second page is on screen. A reference count would have told the hub how many claims there are
+ * and nothing about what to do when one of them misbehaves.
+ */
+internal enum class VehicleWatcher {
+    /** The instrument panel on the driver's display. */
+    CLUSTER,
+
+    /** The head unit's strip, while it is drawing the car's page. */
+    STRIP,
 }
 
 /**
