@@ -193,17 +193,14 @@ def heat_glyph(kind, level=0):
 def spread_row(millivolts, narrow=False):
     """The sixth row: the same anatomy, the pack's own two thresholds."""
     level = 2 if millivolts > SPREAD_ALERT else (1 if millivolts > SPREAD_WATCH else 0)
-    top = SPREAD_ALERT + (SPREAD_ALERT - SPREAD_WATCH)
+    top = SPREAD_ALERT
     colour = (INK, WARNING, DANGER)[level]
     pct = round(min(1.0, millivolts / top) * 100, 1)
     watch = round(SPREAD_WATCH / top * 100, 1)
-    alert = round(SPREAD_ALERT / top * 100, 1)
     fill = ('rgba(218,225,235,0.55)', WARNING, DANGER)[level]
     track = (f'<div class="track">'
              f'<div style="position:absolute; left:{watch:g}%; top:0; bottom:0; right:0; '
-             f'background:rgba(255,159,25,0.30);"></div>'
-             f'<div style="position:absolute; left:{alert:g}%; top:0; bottom:0; right:0; '
-             f'border-radius:0 3px 3px 0; background:rgba(255,64,70,0.32);"></div>'
+             f'border-radius:0 3px 3px 0; background:rgba(255,159,25,0.30);"></div>'
              f'<div style="position:absolute; left:0; top:0; bottom:0; width:{pct:g}%; '
              f'border-radius:3px; background:{fill};"></div></div>')
     return (f'          <div class="temp">{spread_glyph(level)}'
@@ -225,22 +222,19 @@ def temp_row(kind, value, narrow=False):
     object rather than as a red number beside a grey picture.
     """
     band = HEAT_BAND[kind]
-    top = band + HOT_MARGIN * 2
+    top = band + HOT_MARGIN
     level = heat_level(kind, value)
     figure = f'{value}°' if value is not None else '—'
     colour = (INK, WARNING, DANGER)[level] if value is not None else MUTED
     pct = 0 if value is None else round(max(0.0, min(1.0, value / top)) * 100, 1)
     watch = round(band / top * 100, 1)
-    alert = round((band + HOT_MARGIN) / top * 100, 1)
     fill = (('rgba(218,225,235,0.55)', WARNING, DANGER)[level] if value is not None
             else 'rgba(218,225,235,0.55)')
     # A track with no reading on it draws no zones either: the zones are what *this* reading is
     # being judged against, and painting them over a dash judges nothing.
     zones = ('' if value is None else
              f'<div style="position:absolute; left:{watch:g}%; top:0; bottom:0; right:0; '
-             f'background:rgba(255,159,25,0.30);"></div>'
-             f'<div style="position:absolute; left:{alert:g}%; top:0; bottom:0; right:0; '
-             f'border-radius:0 3px 3px 0; background:rgba(255,64,70,0.32);"></div>'
+             f'border-radius:0 3px 3px 0; background:rgba(255,159,25,0.30);"></div>'
              f'<div style="position:absolute; left:0; top:0; bottom:0; width:{pct:g}%; '
              f'border-radius:3px; background:{fill};"></div>')
     track = f'<div class="track">{zones}</div>'

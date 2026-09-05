@@ -73,15 +73,17 @@ internal class VehiclePageRenderer {
             Row(
                 glyph = sensor.glyph,
                 watch = sensor.band,
-                alert = sensor.band + HOT_MARGIN,
-                top = sensor.band + HOT_MARGIN * 2f,
+                top = sensor.band + HOT_MARGIN,
             )
         } else {
             // The spread's own window, built the way a temperature's is: the alert, and as much
             // again past it as separates the alert from the watch.
-            val watch = ContourReadout.SPREAD_WATCH_MV.toFloat()
-            val alert = ContourReadout.SPREAD_ALERT_MV.toFloat()
-            Row(glyph = null, watch = watch, alert = alert, top = alert + (alert - watch), unit = VehiclePageWords.UNIT_MV)
+            Row(
+                glyph = null,
+                watch = ContourReadout.SPREAD_WATCH_MV.toFloat(),
+                top = ContourReadout.SPREAD_ALERT_MV.toFloat(),
+                unit = VehiclePageWords.UNIT_MV,
+            )
         }
     }
 
@@ -445,10 +447,19 @@ internal class VehiclePageRenderer {
      *
      * The first drawing was a plain fill with a one-unit tick on it and the owner read it as
      * «просто какая-то полосочка», which it was: a fill against a range nobody can see is
-     * decoration. The window runs to the band plus twice the margin, so amber and red are the last
-     * two fifths of it and an ordinary reading sits in the clear part with room to spare - and the
-     * thresholds are `ContourReadout`'s, so the two screens in this car cannot hold two ideas of
-     * hot.
+     * decoration.
+     *
+     * **The window ends at the alert and carries one zone.** It ran to the alert plus another
+     * margin and drew two - amber then red - and a screenshot of a cold car settled it: 15 °C on
+     * the pack and 16 on the motors, and every one of the six rows had a wide brown-and-red band
+     * on the right. Five rows saying "almost" about things that are stone cold. Now the end of the
+     * track *is* the alert, so a reading that fills it is one, and the single amber band starts at
+     * the watch - the last quarter of the track on a motor, the last third on the pack. What
+     * separates watch from alert is what it has always been: the colour of the figure, the mark
+     * and the fill, together.
+     *
+     * The thresholds are `ContourReadout`'s, so the two screens in this car cannot hold two ideas
+     * of hot.
      */
     private fun drawTrack(
         canvas: Canvas,
@@ -465,12 +476,8 @@ internal class VehiclePageRenderer {
         val value = reading.value ?: return
 
         val watch = (reading.watch / reading.top).coerceIn(0f, 1f)
-        val alert = (reading.alert / reading.top).coerceIn(0f, 1f)
         box.set(left + width * watch, top, left + width, top + height)
         fill.color = PanelPalette.alpha(PanelPalette.AMBER, ZONE_ALPHA)
-        canvas.drawRoundRect(box, radius, radius, fill)
-        box.set(left + width * alert, top, left + width, top + height)
-        fill.color = PanelPalette.alpha(PanelPalette.DANGER, ZONE_ALPHA)
         canvas.drawRoundRect(box, radius, radius, fill)
 
         val filled = (value / reading.top).coerceIn(0f, 1f)
@@ -623,7 +630,6 @@ internal class VehiclePageRenderer {
     private class Row(
         val glyph: ContourGlyphs.Glyph?,
         val watch: Float,
-        val alert: Float,
         val top: Float,
         val unit: String = "",
     ) {

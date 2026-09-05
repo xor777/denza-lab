@@ -141,6 +141,18 @@ class StripPagesBoardContractTest {
         )
         assertEquals("the zone's own ink", number("""rgba\(255,159,25,([\d.]+)\)"""),
             VehiclePageRenderer.ZONE_ALPHA.toDouble(), 1e-6)
+        // One zone, and the end of the track is the alert. Two of them - amber then red - put a
+        // wide brown-and-red band on all six rows of a car sitting at 15 °C, which is five rows
+        // saying "almost" about things that are stone cold. What separates watch from alert is the
+        // colour of the figure, the mark and the fill, together.
+        assertTrue(
+            "no second zone on the board",
+            !BOARD.readText().contains("rgba(255,64,70,"),
+        )
+        assertTrue(
+            "and the board's own window ends at the alert",
+            GENERATOR.readText().contains("top = band + HOT_MARGIN\n"),
+        )
     }
 
     @Test

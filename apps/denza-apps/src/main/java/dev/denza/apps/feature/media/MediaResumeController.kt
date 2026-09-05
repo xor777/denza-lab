@@ -161,6 +161,11 @@ class MediaResumeController(context: Context) {
             return actions and required != 0L
         }
 
+        override fun supportsPauseCancellation(): Boolean {
+            val actions = controller.playbackState?.actions ?: return false
+            return actions and (PlaybackState.ACTION_PAUSE or PlaybackState.ACTION_PLAY_PAUSE) != 0L
+        }
+
         override fun play() {
             controller.transportControls.play()
             Log.i(TAG, "direct media command package=${controller.packageName} command=play")
@@ -169,6 +174,15 @@ class MediaResumeController(context: Context) {
         override fun pause() {
             controller.transportControls.pause()
             Log.i(TAG, "direct media command package=${controller.packageName} command=pause")
+        }
+
+        override fun pauseForCancellation() {
+            controller.transportControls.pause()
+            Log.i(
+                TAG,
+                "direct media command package=${controller.packageName} " +
+                    "command=pause-cancel-pending-resume",
+            )
         }
 
         private fun isCurrent(): Boolean =

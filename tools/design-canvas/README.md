@@ -336,13 +336,18 @@ same line, where the window is the first thing to give and the span may not go.
 
 The scale drawn under each figure was first a plain fill with a one-pixel tick, and
 the verdict was *«просто какая-то полосочка»* - a fill against a range nobody can
-see is decoration. So the track shows **where ordinary stops**: amber from the
-band, red past the band and its margin, and the fill runs to the reading. The
-thresholds are not this board's opinion - they are `ContourReadout`'s own
-`PACK_BAND_HIGH_C 40`, `DRIVE_BAND_HIGH_C 70`, `HOT_MARGIN_C 15`, so the head unit
-and the driver's display cannot hold two ideas of "hot" in one car. A reading that
-reaches a zone takes the fill, the figure and the glyph's own component with it, so
-a hot cell lights as one object.
+see is decoration. So the track shows **where ordinary stops**, and after a
+screenshot of a cold car it shows it once: the end of the track *is* the alert, and
+one amber band starts at the watch. It used to run a margin past the alert and
+carry two bands, amber then red, and at 15 °C on the pack and 16 on the motors
+every one of the six rows had a wide brown-and-red band on the right - five rows
+saying "almost" about things that are stone cold. What separates watch from alert
+is what it always was: the colour of the figure, the mark and the fill, together.
+
+The thresholds are not this board's opinion - they are `ContourReadout`'s own
+`PACK_BAND_HIGH_C 40`, `DRIVE_BAND_HIGH_C 70`, `SPREAD_WATCH_MV 25`,
+`SPREAD_ALERT_MV 40` and `HOT_MARGIN_C 15`, so the head unit and the driver's
+display cannot hold two ideas of "hot" in one car.
 
 ### What is not on it, and why
 

@@ -10,9 +10,13 @@ internal interface MediaResumeTarget {
 
     fun supports(command: MediaResumeCommand): Boolean
 
+    fun supportsPauseCancellation(): Boolean
+
     fun play()
 
     fun pause()
+
+    fun pauseForCancellation()
 }
 
 internal enum class MediaResumePlayback {
@@ -37,24 +41,33 @@ internal enum class MediaResumeCommand {
  */
 internal class MediaResumeCore {
     private var targets = linkedMapOf<Any, MediaResumeTarget>()
+    private val playedIdentities = linkedSetOf<Any>()
     private var rememberedIdentity: Any? = null
 
     @Synchronized
     fun reconcile(active: List<MediaResumeTarget>) {
         val next = linkedMapOf<Any, MediaResumeTarget>()
         active.forEach { target -> next[target.identity] = target }
+        playedIdentities.retainAll(next.keys)
         if (rememberedIdentity !in next) rememberedIdentity = null
         targets = next
 
-        rememberedIdentity?.let { identity ->
-            val rememberedEnded = runCatching {
-                next[identity]?.playback() == MediaResumePlayback.ENDED
-            }.getOrDefault(false)
-            if (rememberedEnded) rememberedIdentity = null
+        val snapshots = next.values.mapNotNull { target ->
+            runCatching { TargetSnapshot(target, target.playback()) }.getOrNull()
+        }
+        snapshots.forEach { snapshot ->
+            when (snapshot.playback) {
+                MediaResumePlayback.PLAYING -> playedIdentities += snapshot.target.identity
+                MediaResumePlayback.ENDED -> forget(snapshot.target.identity)
+                MediaResumePlayback.PAUSED,
+                MediaResumePlayback.TRANSITIONAL,
+                -> Unit
+            }
         }
 
         if (rememberedIdentity == null) {
-            firstPlaying(next.values)?.let { rememberedIdentity = it.identity }
+            snapshots.firstOrNull { it.playback == MediaResumePlayback.PLAYING }
+                ?.let { rememberedIdentity = it.target.identity }
         }
     }
 
@@ -62,10 +75,11 @@ internal class MediaResumeCore {
     fun onPlayback(identity: Any, playback: MediaResumePlayback) {
         if (identity !in targets) return
         when (playback) {
-            MediaResumePlayback.PLAYING -> rememberedIdentity = identity
-            MediaResumePlayback.ENDED -> {
-                if (rememberedIdentity == identity) rememberedIdentity = null
+            MediaResumePlayback.PLAYING -> {
+                playedIdentities += identity
+                rememberedIdentity = identity
             }
+            MediaResumePlayback.ENDED -> forget(identity)
             MediaResumePlayback.PAUSED,
             MediaResumePlayback.TRANSITIONAL,
             -> Unit
@@ -75,7 +89,7 @@ internal class MediaResumeCore {
     @Synchronized
     fun remove(identity: Any) {
         targets.remove(identity)
-        if (rememberedIdentity == identity) rememberedIdentity = null
+        forget(identity)
     }
 
     @Synchronized
@@ -89,7 +103,7 @@ internal class MediaResumeCore {
                 it.target.identity == remembered && it.playback == MediaResumePlayback.ENDED
             }
         ) {
-            rememberedIdentity = null
+            forget(remembered)
             remembered = null
         }
         val playing = snapshots.firstOrNull {
@@ -117,7 +131,16 @@ internal class MediaResumeCore {
             return false
         }
 
+        if (
+            directCommand == MediaResumeCommand.PAUSE &&
+            selected.playback == MediaResumePlayback.PLAYING &&
+            !cancelPendingResume(snapshots, selected.target.identity)
+        ) {
+            return false
+        }
+
         if (selected.playback == MediaResumePlayback.PLAYING) {
+            playedIdentities += selected.target.identity
             rememberedIdentity = selected.target.identity
         }
 
@@ -133,13 +156,31 @@ internal class MediaResumeCore {
     @Synchronized
     fun clear() {
         targets.clear()
+        playedIdentities.clear()
         rememberedIdentity = null
     }
 
-    private fun firstPlaying(active: Collection<MediaResumeTarget>): MediaResumeTarget? =
-        active.firstOrNull { target ->
-            runCatching { target.playback() == MediaResumePlayback.PLAYING }.getOrDefault(false)
+    private fun cancelPendingResume(
+        snapshots: List<TargetSnapshot>,
+        selectedIdentity: Any,
+    ): Boolean {
+        val pausedPrevious = snapshots.filter { snapshot ->
+            snapshot.target.identity != selectedIdentity &&
+                snapshot.target.identity in playedIdentities &&
+                snapshot.playback == MediaResumePlayback.PAUSED &&
+                runCatching {
+                    snapshot.target.isLive() && snapshot.target.supportsPauseCancellation()
+                }.getOrDefault(false)
         }
+        return pausedPrevious.all { snapshot ->
+            runCatching { snapshot.target.pauseForCancellation() }.isSuccess
+        }
+    }
+
+    private fun forget(identity: Any?) {
+        playedIdentities.remove(identity)
+        if (rememberedIdentity == identity) rememberedIdentity = null
+    }
 
     private data class TargetSnapshot(
         val target: MediaResumeTarget,
