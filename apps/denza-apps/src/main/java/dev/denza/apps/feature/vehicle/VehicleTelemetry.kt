@@ -71,9 +71,6 @@ internal data class VehicleTelemetry(
             return max - min
         }
 
-    val insulationMohm: Double?
-        get() = this[VehicleSignal.INSULATION_KOHM]?.let { it / 1000.0 }
-
     /**
      * The car's three drive motors in layout order: front, rear left, rear
      * right. The rear pair is per-side, not per-axle, so three separate
@@ -126,27 +123,6 @@ internal data class VehicleTelemetry(
     val generating: Boolean
         get() = this[VehicleSignal.GENERATION_STATE] == GENERATION_ON ||
             (generationKw ?: 0.0) > GENERATION_FLOOR_KW
-
-    /**
-     * Worst answer across the ids that carry this lamp.
-     *
-     * The Contour draws no lamps: a grid of dots that are green almost every second of every drive
-     * is an inventory, and a driver's display shows exceptions. The **poll stays** - these are cold
-     * signals costing one shell round trip every ten seconds, and dropping the ids would be a
-     * separate decision about what the car is asked, not a consequence of a redesign. This is the
-     * decoding of that poll, and it is where an exception channel would read them from.
-     */
-    fun lamp(lamp: EngineLamp): LampState {
-        var seen = false
-        lamp.signals.forEach { signal ->
-            val value = this[signal] ?: return@forEach
-            seen = true
-            if (value >= 1.0) return LampState.ALERT
-        }
-        return if (seen) LampState.OK else LampState.UNKNOWN
-    }
-
-    val lampAlerts: List<EngineLamp> get() = EngineLamp.entries.filter { lamp(it) == LampState.ALERT }
 
     private companion object {
         /** Below this a generation reading is rounding, not the engine working. */

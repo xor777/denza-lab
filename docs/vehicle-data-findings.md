@@ -467,7 +467,7 @@ flags or placeholders. A product widget polls only the rows below.
 | Group | Signal | FID | dev | tx | Session value | Decode |
 | --- | --- | --- | --- | --- | --- | --- |
 | BMS | SOC | `0x4A505038` | 1014 | 7 | 43 | % |
-| BMS | SoH | `0x44400028` | 1014 | 5 | 99 | % |
+| BMS | SoH | `0x44400028` | 1014 | 5 | 99 | %; **known, not polled since 2026-09-04** — the panel has no reader |
 | BMS | Pack temp avg/min/max | `0x44700038` / `0x44700010` / `0x44700020` | 1014 | 5 | 68 / 67 / 69 | °C = raw − 40 |
 | BMS | Cell min/max | `0x44600010` / `0x44600030` | 1014 | 5 | 3313 / 3317 | mV; Δ local |
 | BMS | Series cell count | `0x43A00008` | 1001 | 5 | 166 | cells |
@@ -477,7 +477,7 @@ flags or placeholders. A product widget polls only the rows below.
 | HV | Charge power | `0x32300018` | 1009 | 7 | 2.4 | kW |
 | HV | Charge current | `0x44400018` | 1009 | 7 | −4.4 | A; sign not proven |
 | HV | Engine/pack power | `0x14400020` | 1012 | 5 | −2 | kW |
-| HV | Insulation | `0x43A00018` | 1039 | 5 | 13051 | likely kΩ |
+| HV | Insulation | `0x43A00018` | 1039 | 5 | 13051 | likely kΩ; **known, not polled since 2026-09-04** — the panel has no reader |
 | 12V | Voltage | `0x43400028` | 1001 | 7 | 13.8 | V (energy twin `0x36D00020` / 1006) |
 | Range | Remaining EV range | `0x4A50203E` | 1014 | 5 | 67 | km |
 | Trip | Odometer | `0x4A502010` | 1014 | 5 | 118927 | km ×10 |
@@ -534,8 +534,8 @@ deleted views and page-specific gates are historical, not current entry points.
 | Two type scales, never one | `VehiclePanelRenderer` | A virtual unit is about 0.6 dp at full width and exactly 1 dp in the narrow pane, so a shared constant renders at two different sizes |
 | No block headings in the narrow pane | `VehiclePanelRenderer.drawNarrow` | The hairlines already separate the blocks, and the four headings were what pushed the consumption chart off the bottom of the pane |
 | Combustion signals poll only on the engine page | `VehicleSignal.engineOnly`, `VehicleTelemetryHub.setEngineActive` | The engine set is 21 of 44 signals and appears on no other page. Measured on the car: a full sweep costs 266–315 ms without it and 468–587 ms with it, so the electrical page would have paid double for lamps nobody is looking at |
-| One lamp folded from several feature ids | `EngineLamp` | Four ids report low oil pressure and four report low coolant level; they are generation variants, and reading all of them is cheaper than betting on one |
-| A lamp that never answered is not "healthy" | `LampState.UNKNOWN` | Every lamp read `0` on a healthy car, which proves they are readable, not that they light. A hollow dot makes a weaker claim than a green one |
+| One lamp folded from several feature ids | `EngineLamp` (deleted 2026-09-04) | Four ids report low oil pressure and four report low coolant level; they are generation variants, and reading all of them is cheaper than betting on one |
+| A lamp that never answered is not "healthy" | `LampState.UNKNOWN` (deleted 2026-09-04) | Every lamp read `0` on a healthy car, which proves they are readable, not that they light. A hollow dot makes a weaker claim than a green one |
 
 The current product consumer is `feature.cluster.dashboard`. Its view owns the
 only polling activity claim: attaching/showing the cluster dashboard starts the
@@ -665,6 +665,16 @@ value was a resting `0` is owed the same suspicion**: a resting zero may only
 mean the ECU was awake that day.
 
 ### Warning flags — all sixteen answer, all read `0` on a healthy car
+
+**Known and not polled since 2026-09-04: the panel has no reader for them and
+there is no exception channel.** The ids and their decoding stay written down
+here, so bringing one back is a decision with the work already done; they left
+`VehicleSignal` and `EngineLamps.kt` went with them. Two things settled it. The
+Contour draws no lamp grid — a row of dots that are green every second of every
+drive is an inventory, and a driver's display shows exceptions — and the owner's
+own answer was that these lamps do not work on this car. A poll with no reader is
+a shell round trip on a bus the vehicle is using for itself, every ten seconds,
+forever.
 
 These are the "lamp" signals: no number, just a state the cluster would light.
 Every one of them answered on device `1007` unless noted, and every one read

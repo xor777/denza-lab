@@ -59,7 +59,6 @@ internal enum class VehiclePoll(
  * outside it is dropped, and the dashboard shows a dash — never a decoded sentinel.
  */
 internal enum class VehicleKind {
-    PERCENT,
     /** Traction pack / bus, hundreds of volts. */
     HIGH_VOLT,
     /** Celsius. `-40` exactly is the vendor's "no sensor" marker, not a reading. */
@@ -75,8 +74,6 @@ internal enum class VehicleKind {
     CHARGE_POWER,
     /** Odometer, kilometres. */
     DISTANCE_KM,
-    /** Kilo-ohms of insulation resistance. */
-    INSULATION,
     /** Hours or minutes of a charging estimate. */
     DURATION,
     /** Charge gun state; 2 is "AC connected" on this car. */
@@ -97,14 +94,12 @@ internal enum class VehicleKind {
     ;
 
     fun accepts(value: Double): Boolean = when (this) {
-        PERCENT -> value in 0.0..100.0
         HIGH_VOLT -> value in 60.0..1000.0
         TEMPERATURE -> value in -50.0..150.0 && value != -40.0
         MILLIVOLT -> value in 1000.0..5000.0
         POWER_KW -> value in -600.0..600.0
         CHARGE_POWER -> value in -1.0..160.0
         DISTANCE_KM -> value in 0.0..OdometerGate.MAX_ODOMETER_KM
-        INSULATION -> value in 0.0..100_000.0
         DURATION -> value in 0.0..99.0
         GUN -> value in 0.0..8.0
         RPM -> value in 0.0..9000.0
@@ -163,12 +158,9 @@ internal enum class VehicleSignal(
     GEARBOX_PARK(1011, 0x5500030, VehicleTransact.INT, VehiclePoll.HOT, VehicleKind.SWITCH),
 
     // ---- cold: pack, drivetrain, charging ----
-    SOH_PERCENT(1014, 0x44400028, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.PERCENT),
-
     PACK_TEMP_AVG(1014, 0x44700038, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.TEMPERATURE, offset = -40.0),
     CELL_MIN_MV(1014, 0x44600010, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.MILLIVOLT),
     CELL_MAX_MV(1014, 0x44600030, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.MILLIVOLT),
-    INSULATION_KOHM(1039, 0x43A00018, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.INSULATION),
     MOTOR_FRONT_C(1039, 0x46406018, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.TEMPERATURE),
     INVERTER_C(1039, 0x46406010, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.TEMPERATURE),
     MOTOR_REAR_LEFT_C(1039, 0x285001A8, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.TEMPERATURE),
@@ -213,25 +205,16 @@ internal enum class VehicleSignal(
     GENERATION_KW(1006, 0x2610001F, VehicleTransact.INT, VehiclePoll.HOT, VehicleKind.POWER_KW),
     GENERATION_STATE(1006, 0x34F0000A, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.FLAG),
 
-    // Warning lamps. Several ids per lamp are generation variants of the same
-    // signal, the way the motor temperatures were: reading all of them and
-    // taking the worst is cheaper than deciding which one this car uses.
-    COOLANT_LEVEL_LOW_A(1007, 0x3D911028, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.FLAG),
-    COOLANT_LEVEL_LOW_B(1007, 0x3D901030, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.FLAG),
-    COOLANT_LEVEL_LOW_C(1007, 0x3D95D015, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.FLAG),
-    COOLANT_LEVEL_LOW_D(1012, 0x05500031, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.FLAG),
-    COOLANT_TEMP_HIGH(1007, 0x3D901016, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.FLAG),
-    MOTOR_COOLANT_TEMP_HIGH(1007, 0x3D91102A, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.FLAG),
-    OIL_LEVEL_LAMP(1007, 0x4A508040, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.FLAG),
-    OIL_LEVEL_LOW(1007, 0x3D901032, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.FLAG),
-    OIL_LEVEL_HIGH(1007, 0x3D901033, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.FLAG),
-    OIL_PRESSURE_LOW_A(1007, 0x3D911011, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.FLAG),
-    OIL_PRESSURE_LOW_B(1007, 0x3D901017, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.FLAG),
-    OIL_PRESSURE_LOW_C(1007, 0x29600008, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.FLAG),
-    OIL_PRESSURE_LOW_D(1007, 0x3D95D017, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.FLAG),
-    OIL_MONITOR_FAULT(1007, 0x3D911029, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.FLAG),
-    OIL_LIFE_DUE(1007, 0x24800014, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.FLAG),
-    TRANSMISSION_OIL_TEMP_HIGH(1007, 0x3D90102A, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.FLAG),
+    // Sixteen warning lamps used to follow, and the pack's state of health and its insulation
+    // resistance stood above. Nothing on this panel ever read any of them: the Contour draws no
+    // lamp grid - a row of dots that are green every second of every drive is an inventory, and a
+    // driver's display shows exceptions - and the exception channel that would have read them was
+    // never built. The owner's own answer settled it: those lamps do not work on this car.
+    //
+    // A poll with no reader is a shell round trip on a bus the vehicle is using for itself, ten
+    // seconds apart, forever. The ids stay in docs/vehicle-data-findings.md under the widget
+    // allowlist, marked as known and not asked for, so bringing one back is a decision with the
+    // decoding already written down.
     ;
 
     companion object {

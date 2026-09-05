@@ -68,12 +68,6 @@ class VehicleTelemetryTest {
     }
 
     @Test
-    fun insulationIsShownInMegaohms() {
-        val t = telemetry(VehicleSignal.INSULATION_KOHM to 13051.0)
-        assertEquals(13.051, t.insulationMohm!!, 1e-6)
-    }
-
-    @Test
     fun whatEveryFrameReadsIsWorkedOutOncePerSnapshot() {
         // A snapshot arrives four times a second and is read sixty. Anything a frame has to
         // recompute is work done fifteen times over for one answer, and a `get()` that builds a
