@@ -1545,12 +1545,15 @@ def right_shelf(s):
     cell, and the seats are counted from the shelf's own edge so the one that does
     exist is always in the same place.
     """
-    # One shelf, two true things, and standing still wins. A car that has stopped
-    # is the one moment its driver reads three numbers instead of glancing at one,
-    # and what the box has to show then is the last two minutes of a drive that has
-    # ended - against the trip's own arithmetic, which is what P is for. The box
-    # comes back the moment the car moves, with the trace it kept all along.
-    if s.get('trace') and not s.get('parked'):
+    # One shelf, two true things. A running engine wins, a warm trace does not: the
+    # owner sat on P with the generator charging the pack and the shelf showed him
+    # three trip figures the ledger had frozen at the last metre instead of the one
+    # live thing on the panel. So the box stays up on P for as long as the engine
+    # turns. Once it stops, standing still wins over the two minutes the trace
+    # keeps - three numbers is what P is for - and rolling, the box owns the shelf
+    # for the whole of its trace. `ContourScene.decide` asks the same question in
+    # the same order.
+    if s.get('trace') and (s.get('ice') == 'running' or not s.get('parked')):
         return engine_box(s)
     if not s['trip_known']:
         return []
@@ -1864,13 +1867,25 @@ STATES = [
         trip=dict(net=9.3, regen=3.1, ice=1.1, km=42),
         bars=CALM_BARS, petal='16,8')),
     # The same P, with the engine's box still warm behind it. Two true things and one
-    # shelf: standing still wins, because three numbers is what P is for and the box
-    # is about a drive that has ended. It comes back the moment the car moves.
-    ('Стоянка с живой трассой · ДВС выключился 40 с назад, но машина стоит: '
+    # shelf: once the engine has stopped, standing still wins, because three numbers
+    # is what P is for and the box is about a drive that has ended. It comes back
+    # the moment the car moves.
+    ('Стоянка с тёплой трассой · ДВС выключился 40 с назад, но машина стоит: '
      'три ячейки поездки, коробки нет',
      sc(kw=1.4, volts=558.0, temps=WORKED, parked=True,
         trace=engine_history(120, stopped=40),
         ice='slept', ice_minutes=6.0,
+        trip=dict(net=9.3, regen=3.1, ice=1.1, km=42),
+        bars=CALM_BARS, petal='16,8')),
+    # And the same P with the engine actually running - charging the pack while the
+    # car stands. The trip is closed and its figures are frozen at the last metre,
+    # so they are not what the shelf should be showing: the live box is, with the
+    # corner's revolutions above it and the blue line under the band. This is the
+    # scene the owner saw on 2026-09-05 and the panel got wrong.
+    ('Стоянка, ДВС работает · генератор заряжает батарею на месте: живая коробка '
+     'держит полку, поездка ждёт остановки мотора',
+     sc(kw=-8.0, volts=556.0, temps=WORKED, parked=True,
+        ice='running', rpm=1650.0, generation=8.0, trace=engine_history(60),
         trip=dict(net=9.3, regen=3.1, ice=1.1, km=42),
         bars=CALM_BARS, petal='16,8')),
     ('Зарядка от розетки · полка как на ходу, коробка расхода остаётся прежней',

@@ -265,7 +265,36 @@ class ContourSceneTest {
     }
 
     @Test
-    fun standingStillOutranksALiveEngineTraceOnTheRightShelf() {
+    fun aRunningEngineKeepsTheShelfEvenOnPark() {
+        val trace = EngineTrace()
+        repeat(20) { trace.sample(it * 1_000L, rpm = 1780.0, generationKw = 14.0) }
+
+        val scene = ContourScene()
+        run(
+            scene,
+            ready(
+                values = mapOf(
+                    VehicleSignal.POWER_KW to -12.0,
+                    VehicleSignal.GEARBOX_PARK to 1.0,
+                    VehicleSignal.ENGINE_RUNNING to 3.0,
+                    VehicleSignal.ENGINE_RPM to 1780.0,
+                    VehicleSignal.GENERATION_KW to 14.0,
+                ),
+                trace = trace,
+            ),
+            1f,
+        )
+
+        // The owner sat on P with the generator charging the pack and the shelf showed him three
+        // frozen trip figures instead of the one live thing on the panel. While the engine turns,
+        // the box is what the shelf is for; the trip's cells wait for the engine to stop.
+        assertTrue("the car is standing", scene.stage.parked)
+        assertTrue("and the engine is running", scene.stage.engineRunning)
+        assertTrue("so the box keeps the shelf", scene.stage.engineBox)
+    }
+
+    @Test
+    fun standingStillOutranksAWarmEngineTraceOnTheRightShelf() {
         val trace = EngineTrace()
         repeat(20) { trace.sample(it * 1_000L, rpm = 1780.0, generationKw = 14.0) }
 
