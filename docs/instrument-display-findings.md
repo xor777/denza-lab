@@ -403,8 +403,8 @@ after P, so the finished trip stands on the shelf in full for as long as the car
 does - which is when it is read. That needs the selector, and `GEARBOX_PARK`
 (device `1011`, feature id `89129008`) is the same live-proven id the trip panel's
 own `TripParkSignal` has read since it shipped; the cluster asks for it inside the
-batch it already sends to that device twice a second rather than opening a second
-shell. The figures survive a process restart through `TripJournal`, one record
+batch it already sends to that device four times a second rather than opening a
+second shell. The figures survive a process restart through `TripJournal`, one record
 written whole through a temp file and a rename, and restored only when the
 odometer says it is about the road we are on.
 
@@ -629,6 +629,31 @@ to the pack's cell and to the inverter's current - and all four died on arrival.
 **No behavioural defect was found.** The nine survivors were all coverage, and the
 sixteen tests added for them state what the panel promises rather than what it
 happens to compute.
+
+**And that verdict did not hold.** A four-agent review of the same tree on
+2026-09-04 returned **twenty-eight confirmed findings** - among them a refused
+frame swallowing a sweep, a cold value that could not survive one flaky read, a
+trip that grew while the car was parked, a colour held across zero, a charge
+countdown that needed a road behind it, engine bins anchored to the run instead
+of the clock, and two captions naming a window they did not have. Eighty
+deliberate mutations had found none of them.
+
+That is not an argument against mutation testing; it is what mutation testing
+measures. A mutation asks *does any test notice this line changing*, and the
+answer stays yes as long as some test computes the same thing the code computes.
+Every one of the twenty-eight lived where the tests agreed with the
+implementation and neither of them agreed with the *situation* - the engine
+starting five seconds ago, the log holding twelve buckets, the car standing on P
+with the trace still warm, the shell timing out mid-sweep. Sixty-seven mutations
+died at once because the arithmetic was pinned; the arithmetic was never what was
+wrong.
+
+So the rule the ninth pass took from this: **a test that restates the
+implementation cannot fail for the reason the panel is wrong.** Write the
+scenario - a state the car can be in, and what the driver should see in it - and
+let the arithmetic follow. The tests added for the twenty-eight are all of that
+shape, and they are why the tenth pass's own defects were reproducible before
+they were fixed.
 
 ### What still waits for the car
 

@@ -105,32 +105,11 @@ data class ClusterDashboardLayout(
         1f - map.shadeBottomRevealCenterOffsetPx.toFloat() / height
     }
 
-    /**
-     * Whether a point may be drawn on.
-     *
-     * The band between the two stock edges is always ours; outside it, only the three apertures
-     * are. It is what `ContourPlanTest` measures the panel's own boxes against, which is the reason
-     * a fraction rather than a unit: this is a fact about the window, and the panel is drawn in a
-     * space of its own that the window is fitted to.
-     */
-    fun isClear(x: Float, y: Float): Boolean = when {
-        y in stockTop..stockBottom -> true
-        y < stockTop -> insideEllipse(x, y, 0f, 0f, topLeftRevealX, stockTop) ||
-            insideEllipse(x, y, 1f, 0f, topRightRevealX, stockTop)
-        else -> insideEllipse(x, y, 0.5f, bottomRevealCentreY, bottomRevealX, bottomRevealY)
-    }
-
-    private fun insideEllipse(
-        x: Float,
-        y: Float,
-        centreX: Float,
-        centreY: Float,
-        radiusX: Float,
-        radiusY: Float,
-    ): Boolean {
-        if (radiusX <= 0f || radiusY <= 0f) return false
-        val dx = (x - centreX) / radiusX
-        val dy = (y - centreY) / radiusY
-        return dx * dx + dy * dy <= 1f
-    }
+    // There was an `isClear(x, y)` here, answering whether a point falls inside the clear band or
+    // one of the three apertures, and its own documentation said `ContourPlanTest` measured the
+    // panel's boxes against it. Nothing did. The plan clears the curves by taking a guard off
+    // [stockTop] and [stockBottom] and a clearance from an aperture's own radius, which is a
+    // different and stronger statement than a point test - it is about the box's corner, and about
+    // the descender under a baseline - so the predicate had no production reader and one test
+    // checking that it agreed with itself.
 }

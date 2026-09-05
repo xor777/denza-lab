@@ -28,12 +28,13 @@ import kotlinx.coroutines.sync.Mutex
  * only the read transacts (5 and 7) are ever issued. See
  * docs/vehicle-data-findings.md.
  *
- * Cadence: the hot set (pack power and voltage, odometer, engine state and
- * generation) is one batched command about four times a second; pack health,
- * temperatures, charging estimates and warning lamps join it every ten seconds.
- * Splitting the hot set finer would buy nothing — a one-call batch costs almost
- * what a five-call batch costs. The loop runs only while the cluster dashboard
- * is visible.
+ * Cadence: the hot set — pack power and voltage, the odometer, the park switch,
+ * engine revolutions, engine running and generation, seven signals — is one
+ * batched command every 100 ms, which is a cycle of about 250 ms and four
+ * readings a second. Temperatures, cell voltages, the charging estimate and the
+ * generation state join it every ten seconds. Splitting the hot set finer would
+ * buy nothing — a one-call batch costs almost what a five-call batch costs. The
+ * loop runs only while the cluster dashboard is visible.
  *
  * Threading: the loop runs on [Dispatchers.IO] and only ever writes [snapshot];
  * the renderer reads it from the main thread. [VehiclePollLoopGate] also keeps a
@@ -258,9 +259,15 @@ internal class VehicleTelemetryHub(context: Context) {
                 )
                 saveTrip(now)
 
-                // Cold values carry over between sweeps — temperatures do not
+                // Cold values carry across a *hot* sweep — temperatures do not
                 // change in a second. Hot values never do: they are either fresh
                 // or absent, so the dashboard cannot show a stale kilowatt figure.
+                //
+                // What they do not carry across is a *cold* sweep: VehicleColdSweep.rebuild
+                // clears the map and refills it from what that sweep answered, so a temperature
+                // that stopped answering leaves the snapshot the way a power reading does. That
+                // is the invariant ContourScene's one staleness rule stands on, and it is why
+                // VehiclePoll.COLD's horizon is two of its own intervals rather than two seconds.
                 //
                 // A fresh map per sweep, deliberately. The snapshot published a moment ago is still
                 // being read by the panel's frame loop, so a map shared with the next one would

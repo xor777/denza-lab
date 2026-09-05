@@ -505,6 +505,12 @@ switch was `1 -> 0 -> 1`, EPB was `3 -> 1 -> 3`, and vehicle speed remained `0` 
 Apps uses only the proven park-switch fact to end and suppress its GNSS-derived trip while in P;
 the readings do not claim values for N or R.
 
+The cluster reads the same id in its own hot batch, and **two things read it
+there**: `TripEnergyLedger`, which is bounded by it — a trip runs from the first
+movement after P to the next one — and the panel itself through
+`VehicleTelemetry.parked`, which is what puts a third cell on the right shelf and
+a decimal place on the petal's figure while the car is standing.
+
 Open: no FID on this firmware reproduced the third-party “rear motor 40 °C”
 card; `STATISTIC_INSTANTANEOUS_CURRENT` scale unknown. Next action: one
 moving-drive capture of current, pack power, and rear-motor FIDs, then stop
@@ -525,7 +531,7 @@ deleted views and page-specific gates are historical, not current entry points.
 | One batched command per sweep | `AutoserviceShell.command` | Every id would otherwise be a separate ADB round trip; the current cluster retains the same batching rule |
 | `echo @@<index>` before each call | `AutoserviceShell.parse` | A feature id that prints nothing on this generation cannot shift the following answers onto the wrong signals |
 | Plausibility gate per unit | `VehicleKind.accepts` | Sentinels and max-range placeholders are dropped by what the unit can physically be, not by a blacklist — `255` stays a legal 2.55 bar and an illegal 215 °C |
-| Hot values never carried over | `VehicleTelemetryHub` | A stale kilowatt figure is worse than a dash; cold values do carry over between sweeps |
+| Hot values never carried over | `VehicleTelemetryHub` | A stale kilowatt figure is worse than a dash. Cold values are reused across *hot* sweeps, but **a cold sweep rebuilds the cold map from what that sweep answered** (`VehicleColdSweep.rebuild`), so a temperature that stopped answering leaves the snapshot the same way a power reading does. That is what lets the cluster hold one staleness rule over both cadences — with a horizon sized to each: two seconds hot, twenty-five cold, which is two of the ten-second cold intervals with room for the second to be late |
 | Odometer, not GNSS, for distance | `ConsumptionLog` | The page needs no location permission and keeps its histogram with the trip page closed |
 | Pack-power sign in one constant | `VehicleConvention` | The convention is inferred from the parked charging session, not proven; the drive capture flips one line if it is wrong |
 | No shell until the page is opened | `VehiclePanelView.syncHub` | A session that never swipes to the page costs the car nothing |
@@ -596,13 +602,18 @@ The cost is almost all fixed: about 4–5 ms per additional call against roughly
 panel affordable, and widening the hot set is nearly free, while shortening the
 interval is what actually costs the car.
 
-That measurement set the `300 ms` hot and `10 s` cold cadence retained by the
-cluster dashboard. A fresh power figure lands about twice a second and the shell
-is busy about a third of the time, but now only while the cluster dashboard is
-visible. Every due sweep includes the full hot or cold set the cluster needs;
-there is no longer an electrical-page/engine-page split. Splitting the hot set
-any finer would buy nothing: a one-call batch costs almost what a five-call batch
-costs.
+That measurement set a `300 ms` hot and `10 s` cold cadence. **The hot interval
+is `100 ms` since the owner asked for the live figures to answer about twice as
+fast**: the cycle is then about 250 ms — the interval plus the batch itself —
+which is four readings a second with the shell busy some sixty per cent of the
+time, and only while the cluster dashboard is visible. Cold stayed at ten
+seconds.
+
+The hot set is **seven signals**: pack power, pack voltage, the odometer, the
+park switch, engine revolutions, engine running, and generation. Every due sweep
+includes the full hot or cold set the cluster needs; there is no longer an
+electrical-page/engine-page split. Splitting the hot set any finer would buy
+nothing: a one-call batch costs almost what a five-call batch costs.
 
 Two readings from the same session are worth keeping:
 

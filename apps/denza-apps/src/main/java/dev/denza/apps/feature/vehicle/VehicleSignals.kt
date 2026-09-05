@@ -147,13 +147,15 @@ internal enum class VehicleSignal(
      * panel has read since it shipped - `dev.denza.apps.feature.trip.TripParkSignal`, whose command
      * is `service call autoservice 5 i32 1011 i32 89129008` and whose `89129008` is the `0x5500030`
      * written here. That reader keeps its own shell because the trip panel runs on the head unit
-     * without the cluster; the cluster already has a batch going past this device twice a second,
-     * so it asks in that batch rather than opening a second session. One id, two callers, one
-     * proven decoding: `0` out of P, `1` in P, anything else not an answer.
+     * without the cluster; the cluster already has a batch going past this device four times a
+     * second, so it asks in that batch rather than opening a second session. One id, two callers,
+     * one proven decoding: `0` out of P, `1` in P, anything else not an answer.
      *
-     * [TripEnergyLedger] is the only thing that reads it. Without it a trip would have to be
-     * guessed from a stationary odometer, which cannot tell a car parked for the night from a car
-     * at a long traffic light.
+     * Two things read it on the cluster. [TripEnergyLedger] is bounded by it - without it a trip
+     * would have to be guessed from a stationary odometer, which cannot tell a car parked for the
+     * night from one at a long traffic light - and the panel itself reads it through
+     * `VehicleTelemetry.parked`, which is what puts a third cell on the right shelf and a decimal
+     * place on the petal's figure while the car is standing.
      */
     GEARBOX_PARK(1011, 0x5500030, VehicleTransact.INT, VehiclePoll.HOT, VehicleKind.SWITCH),
 
