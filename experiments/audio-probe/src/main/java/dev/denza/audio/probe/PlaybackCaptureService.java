@@ -1,10 +1,12 @@
 package dev.denza.audio.probe;
 
+import android.Manifest;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.Service;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.media.AudioAttributes;
 import android.media.AudioFormat;
 import android.media.AudioPlaybackCaptureConfiguration;
@@ -50,6 +52,10 @@ public final class PlaybackCaptureService extends Service {
     }
 
     private void capture(int resultCode, Intent resultData) {
+        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            Log.w(TAG, "RESULT playback-capture permission=denied");
+            return;
+        }
         MediaProjectionManager manager = getSystemService(MediaProjectionManager.class);
         MediaProjection projection = manager.getMediaProjection(resultCode, resultData);
         if (projection == null) {
