@@ -103,8 +103,8 @@ android {
         // versionName is the owner's product version - it changes only by their
         // explicit decision. versionCode is an internal build counter so the car
         // can tell builds apart during acceptance; it never drives the version.
-        versionCode = 45
-        versionName = "0.6.1-alpha"
+        versionCode = 46
+        versionName = "0.6.1"
     }
 
     buildFeatures {
