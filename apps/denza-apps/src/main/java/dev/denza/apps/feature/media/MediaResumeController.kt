@@ -59,17 +59,40 @@ class MediaResumeController(context: Context) {
         keyInterceptor.reset()
     }
 
-    @JvmOverloads
-    fun onKeyEvent(event: KeyEvent, allowNewPress: Boolean = true): Boolean =
-        keyInterceptor.onKeyEvent(
+    fun onKeyEvent(event: KeyEvent, allowNewPress: Boolean): Boolean {
+        val relevantInitialDown =
+            MediaResumeKeyInterceptor.commandFor(event.keyCode) != null &&
+                event.action == KeyEvent.ACTION_DOWN &&
+                event.repeatCount == 0
+        val consumed = keyInterceptor.onKeyEvent(
             keyCode = event.keyCode,
             action = event.action,
             repeatCount = event.repeatCount,
             allowNewPress = allowNewPress && listening,
-            perform = core::perform,
+            perform = { command ->
+                if (!refreshBeforeCommand()) {
+                    Log.i(TAG, "media command skipped key=${event.keyCode} reason=session-access")
+                    false
+                } else {
+                    val dispatched = core.perform(command)
+                    if (!dispatched) {
+                        Log.i(TAG, "media command skipped key=${event.keyCode} reason=no-target")
+                    }
+                    dispatched
+                }
+            },
         )
+        if (relevantInitialDown) {
+            Log.i(
+                TAG,
+                "media key=${event.keyCode} received allow=$allowNewPress consumed=$consumed",
+            )
+        }
+        return consumed
+    }
 
     private fun reconcile(active: List<MediaController>?) {
+        if (!listening) return
         val current = active.orEmpty().associateBy { it.sessionToken }
         sessions.keys.filterNot(current::containsKey).forEach(::remove)
         current.forEach { (token, controller) ->
@@ -95,15 +118,18 @@ class MediaResumeController(context: Context) {
         private val controller: MediaController,
     ) : MediaResumeTarget {
         override val identity: Any = controller.sessionToken
+        @Volatile
+        private var destroyed = false
 
         private val callback = object : MediaController.Callback() {
             override fun onPlaybackStateChanged(state: PlaybackState?) {
-                if (state?.state == PlaybackState.STATE_PLAYING) {
-                    core.onPlaying(identity)
-                }
+                if (!isCurrent()) return
+                core.onPlayback(identity, state.toResumePlayback())
             }
 
             override fun onSessionDestroyed() {
+                if (!isCurrent()) return
+                destroyed = true
                 val token = controller.sessionToken
                 remove(token)
                 refresh()
@@ -111,32 +137,75 @@ class MediaResumeController(context: Context) {
         }
 
         fun attach() {
+            destroyed = false
             controller.registerCallback(callback, handler)
         }
 
         fun detach() {
+            destroyed = true
             runCatching { controller.unregisterCallback(callback) }
         }
 
-        override fun playback(): MediaResumePlayback = when (controller.playbackState?.state) {
-            PlaybackState.STATE_PLAYING -> MediaResumePlayback.PLAYING
-            PlaybackState.STATE_PAUSED -> MediaResumePlayback.PAUSED
-            else -> MediaResumePlayback.OTHER
+        override fun playback(): MediaResumePlayback =
+            controller.playbackState.toResumePlayback()
+
+        override fun isLive(): Boolean = !destroyed
+
+        override fun supports(command: MediaResumeCommand): Boolean {
+            val actions = controller.playbackState?.actions ?: return false
+            val required = when (command) {
+                MediaResumeCommand.PLAY -> PlaybackState.ACTION_PLAY
+                MediaResumeCommand.PAUSE -> PlaybackState.ACTION_PAUSE
+                MediaResumeCommand.TOGGLE -> return false
+            }
+            return actions and required != 0L
         }
 
         override fun play() {
             controller.transportControls.play()
+            Log.i(TAG, "direct media command package=${controller.packageName} command=play")
         }
 
         override fun pause() {
             controller.transportControls.pause()
+            Log.i(TAG, "direct media command package=${controller.packageName} command=pause")
         }
+
+        private fun isCurrent(): Boolean =
+            listening && sessions[controller.sessionToken] === this
+    }
+
+    private fun PlaybackState?.toResumePlayback(): MediaResumePlayback = when (this?.state) {
+        PlaybackState.STATE_PLAYING -> MediaResumePlayback.PLAYING
+        PlaybackState.STATE_PAUSED -> MediaResumePlayback.PAUSED
+        PlaybackState.STATE_NONE,
+        PlaybackState.STATE_STOPPED,
+        PlaybackState.STATE_ERROR,
+        null,
+        -> MediaResumePlayback.ENDED
+        else -> MediaResumePlayback.TRANSITIONAL
     }
 
     private fun refresh() {
+        if (!listening) return
         val service = manager ?: return
         runCatching { reconcile(service.getActiveSessions(accessComponent)) }
             .onFailure { Log.i(TAG, "could not refresh media sessions", it) }
+    }
+
+    /** Reconciliation is part of accepting a DOWN, so a failed read leaves it to stock routing. */
+    private fun refreshBeforeCommand(): Boolean {
+        if (!listening) return false
+        val service = manager ?: return false
+        return runCatching {
+            reconcile(service.getActiveSessions(accessComponent))
+        }.fold(
+            onSuccess = { listening },
+            onFailure = { error ->
+                Log.i(TAG, "could not validate media sessions", error)
+                false
+            },
+        )
     }
 
     private companion object {

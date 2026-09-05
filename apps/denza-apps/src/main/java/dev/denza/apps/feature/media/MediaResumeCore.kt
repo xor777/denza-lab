@@ -6,6 +6,10 @@ internal interface MediaResumeTarget {
 
     fun playback(): MediaResumePlayback
 
+    fun isLive(): Boolean
+
+    fun supports(command: MediaResumeCommand): Boolean
+
     fun play()
 
     fun pause()
@@ -14,7 +18,8 @@ internal interface MediaResumeTarget {
 internal enum class MediaResumePlayback {
     PLAYING,
     PAUSED,
-    OTHER,
+    TRANSITIONAL,
+    ENDED,
 }
 
 internal enum class MediaResumeCommand {
@@ -41,14 +46,30 @@ internal class MediaResumeCore {
         if (rememberedIdentity !in next) rememberedIdentity = null
         targets = next
 
+        rememberedIdentity?.let { identity ->
+            val rememberedEnded = runCatching {
+                next[identity]?.playback() == MediaResumePlayback.ENDED
+            }.getOrDefault(false)
+            if (rememberedEnded) rememberedIdentity = null
+        }
+
         if (rememberedIdentity == null) {
             firstPlaying(next.values)?.let { rememberedIdentity = it.identity }
         }
     }
 
     @Synchronized
-    fun onPlaying(identity: Any) {
-        if (identity in targets) rememberedIdentity = identity
+    fun onPlayback(identity: Any, playback: MediaResumePlayback) {
+        if (identity !in targets) return
+        when (playback) {
+            MediaResumePlayback.PLAYING -> rememberedIdentity = identity
+            MediaResumePlayback.ENDED -> {
+                if (rememberedIdentity == identity) rememberedIdentity = null
+            }
+            MediaResumePlayback.PAUSED,
+            MediaResumePlayback.TRANSITIONAL,
+            -> Unit
+        }
     }
 
     @Synchronized
@@ -62,7 +83,15 @@ internal class MediaResumeCore {
         val snapshots = targets.values.mapNotNull { target ->
             runCatching { TargetSnapshot(target, target.playback()) }.getOrNull()
         }
-        val remembered = rememberedIdentity
+        var remembered = rememberedIdentity
+        if (
+            snapshots.any {
+                it.target.identity == remembered && it.playback == MediaResumePlayback.ENDED
+            }
+        ) {
+            rememberedIdentity = null
+            remembered = null
+        }
         val playing = snapshots.firstOrNull {
             it.target.identity == remembered && it.playback == MediaResumePlayback.PLAYING
         } ?: snapshots.firstOrNull { it.playback == MediaResumePlayback.PLAYING }
@@ -71,21 +100,32 @@ internal class MediaResumeCore {
             it.target.identity == remembered && it.playback == MediaResumePlayback.PAUSED
         } ?: return false
 
+        val directCommand = when (command) {
+            MediaResumeCommand.TOGGLE -> {
+                if (selected.playback == MediaResumePlayback.PLAYING) {
+                    MediaResumeCommand.PAUSE
+                } else {
+                    MediaResumeCommand.PLAY
+                }
+            }
+            else -> command
+        }
+
+        if (selected.target.identity !in targets) return false
+        if (!runCatching { selected.target.isLive() }.getOrDefault(false)) return false
+        if (!runCatching { selected.target.supports(directCommand) }.getOrDefault(false)) {
+            return false
+        }
+
         if (selected.playback == MediaResumePlayback.PLAYING) {
             rememberedIdentity = selected.target.identity
         }
 
         return runCatching {
-            when (command) {
+            when (directCommand) {
                 MediaResumeCommand.PLAY -> selected.target.play()
                 MediaResumeCommand.PAUSE -> selected.target.pause()
-                MediaResumeCommand.TOGGLE -> {
-                    if (selected.playback == MediaResumePlayback.PLAYING) {
-                        selected.target.pause()
-                    } else {
-                        selected.target.play()
-                    }
-                }
+                MediaResumeCommand.TOGGLE -> error("toggle must resolve before dispatch")
             }
         }.isSuccess
     }
@@ -143,7 +183,6 @@ internal class MediaResumeKeyInterceptor {
     }
 
     internal companion object {
-        const val KEYCODE_HEADSETHOOK = 79
         const val KEYCODE_MEDIA_PLAY_PAUSE = 85
         const val KEYCODE_MEDIA_PLAY = 126
         const val KEYCODE_MEDIA_PAUSE = 127

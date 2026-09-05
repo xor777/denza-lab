@@ -27,6 +27,148 @@ rows were restored to their stock values and read back after the test. On this
 DiLink build a successful `content update` prints no row count, so the exact
 post-write query is the authoritative success check.
 
+## Steering-wheel Play/Pause feasibility (2026-09-05)
+
+Status: **minimal in-app implementation; physical-key interception and resume
+have not been live-tested**. The initial research pass only read the connected
+car; it did not install an APK, inject keys, change roles, or start playback.
+
+The connected IVI reports Android 13, fingerprint
+`BYD-AUTO/IVI/IVI:13/TP1A.220624.014/eng.build20260705.011226:user/release-keys`.
+The local corpus matches the car by SHA-256:
+
+| File under `/system/framework/` | SHA-256 |
+| --- | --- |
+| `dilink-services.jar` | `6e709f430c4b972dc1a869253717a999add80b74e484656d74716eabe1ac3f00` |
+| `services.jar` | `23a58a4e3c98c50541785390f1234e8c4d7138b5dd170c4f5843bae15b93c019` |
+
+### Why Pause can work while Play selects stock music
+
+In the matching `dilink-services.jar` corpus,
+`com.android.server.media.MediaKeyHandler.handleMediaPlayPauseKey` chooses the
+user currently using the vehicle speakers, reads that user's current audio-focus
+package, and dispatches to its active media controller. If no matching controller
+exists, it tries `com.byd.mediacenter`. It does not remember the last paused app.
+`dispatchMediaControlKey` also accepts a controller whose extras list the target
+in `com.byd.media.session.EXTRA_CONTROL_PACKAGE_LIST`.
+
+The vendor toggle is key **386**. `tramsformKeyEvent` converts it to **127
+(Pause)** when the chosen controller reports state 3 (playing), otherwise **126
+(Play)**. Vendor keys **334/335** become explicit Play/Pause. These are corpus
+mappings, not a capture identifying this user's physical button.
+
+`MediaSessionServiceExtImpl.dispatchMediaKeyEvent` uses the same current-focus
+then stock-controller policy for generic media dispatch. Sending a global media
+key again would therefore risk repeating the problem. The PersonBean
+`MUSIC_SWITCH` default used by Shortcuts is absent from these routing methods.
+
+The live `dumpsys media_session` snapshot showed `ru.yandex.music` active with
+`state=2` (paused), position 544188 ms, and actions 3145725 (including Play).
+MediaCenter was also active and paused. The platform's `Media button session`
+line named an inactive SyncLink session, so that line alone cannot identify the
+recipient selected by the vendor policy. No matching key trace remained in
+`logcat` for `MediaKeyHandler` / `MediaSessionServiceExtImpl`. The focus-based
+fallback explains the report, but the exact physical Pause -> focus loss ->
+Play sequence is still a hypothesis, not a captured root cause.
+
+### Candidate interception and direct command
+
+In `services.jar`, `PhoneWindowManager.interceptKeyBeforeDispatching` calls
+`mPwmExt.handleMediaKey(event)` for 386 and 334/335, then consumes the event.
+`isKeyPassToUser` includes these codes. This is a plausible interception point
+for an accessibility key filter upstream of final key dispatch. JADX's normal
+mode failed to reconstruct the dispatch method; inspect the simple-mode output
+at `reverse/speaker-lift/PhoneWindowManager-simple.java`, generated with:
+
+```bash
+jadx -r -m simple --single-class com.android.server.policy.PhoneWindowManager \
+  --single-class-output reverse/speaker-lift/PhoneWindowManager-simple.java \
+  reverse/speaker-lift/services.jar
+```
+
+Android documents that
+[`AccessibilityService.onKeyEvent`](https://developer.android.com/reference/android/accessibilityservice/AccessibilityService#onKeyEvent(android.view.KeyEvent))
+can consume key events, with `canRequestFilterKeyEvents` and
+`flagRequestFilterKeyEvents`. The product already declares both in
+`simulcast_a11y_service.xml`. Before this change, `onKeyEvent` only handled the
+navigation custom key. The live service was bound with capabilities 9, and its
+notification listener was enabled.
+
+For resume, keep the last actual playing controller's token and package, retain
+it across pause, and call that controller's
+[`TransportControls.play()`](https://developer.android.com/reference/android/media/session/MediaController.TransportControls#play()).
+Pause uses `pause()` on the selected playing controller. This directly addresses
+the session instead of invoking BYD's global routing. The existing
+`SpeakerMediaSessionObserver` demonstrates active-session observation through
+the enabled notification listener, but does not implement this memory or control.
+
+The initial research recommendation was an isolated probe observing key code/action/source/repeat and session
+state without consuming events. On a stationary car, capture one physical
+Pause/Play pair with Yandex initially playing. Only after the physical mapping
+is known, arm consumption for that exact key: consume the complete down/up pair,
+execute once per press, and address the remembered session. Success means Yandex
+changes paused -> playing and advances position, while MediaCenter neither
+starts playback nor opens its Activity. Failure includes a missing key callback
+or stock execution despite consumption. A shell-injected key is not acceptance
+of the physical steering button.
+
+The recommended probe would stay outside the product, with one car owner, recorded installed APK
+hashes, and a bounded armed window. Preserve the baseline accessibility services
+on cleanup. Avoid simultaneous competing key filters. Handle destroyed sessions
+and no remembered target by leaving the original key alone; do not guess a
+package after reboot. Preserve the stock call/mute and special vehicle-mode
+guards before any product promotion. A successful normal-UID key-consumption
+test and direct Yandex resume are the remaining feasibility gates.
+
+### Minimal built-in slice requested by the owner
+
+The owner explicitly requested implementation directly in Denza Apps, with no
+settings or separate probe. `feature.media.MediaResumeController` attaches to
+the existing `SimulcastAccessibilityService` lifetime. Startup ensures access
+to the existing notification listener independently of HUD and speaker settings.
+No additional service, manifest permission, preference, or UI is introduced.
+
+Only Play/Pause/Toggle (126/127/85 and vendor toggle 386) are intercepted. Other
+buttons, including passenger-specific 334/335, retain their existing route.
+Commands address a real session token through `MediaController`, never through
+global key injection or a placeholder media session. The remembered token stays
+in memory only; an app that was already paused before the observer started is
+not guessed as a resume target.
+
+Closed, removed, or ended sessions fall back to normal firmware handling.
+The initial DOWN is consumed only when a suitable live target accepts the direct
+command path; otherwise both DOWN and UP pass through. After a consumed DOWN,
+its repeats and UP remain consumed, even if the target disappears meanwhile,
+so firmware cannot interpret half of an already-handled press as a second action.
+There is no application launch, resurrection, post-hoc stock-player shutdown,
+or correction loop. Binder transport submission cannot prove that the remote
+player actually resumed; physical acceptance must also observe playback.
+
+`MediaButtonEnvironment` leaves calls and muted audio with the firmware using
+the public audio mode/stream mute state and available BYD mute/call accessors.
+The firmware's separate streaming rear-view-mirror adjustment guard for key 386
+is not reproduced in this minimal slice: that vendor-state access and the
+physical-key test remain unverified. Do not claim full parity with every stock
+vehicle mode from the unit tests.
+
+Local validation: `:denza-apps:testDebugUnitTest`, `:denza-apps:assembleDebug`,
+and `:denza-apps:lintDebug` passed; 1343 unit tests, including 13 media tests,
+with no failures or skips. APK SHA-256:
+`4b46a61a621b9f97ef7c095a60db42a2686900c7d3ef67f374a4192807987584`.
+The APK was retained under
+`captures/media-resume-4b46a61a621b/denza-apps.apk`. This is a build of the shared
+working tree, including the trip changes in `f84f089`.
+
+Installed on the connected IVI on 2026-09-05 using `adb install -r`; the
+installed `base.apk` SHA-256 matches the value above. The launcher opened,
+the new app process was running, and the existing accessibility service was
+bound with capabilities 9. The paused Yandex and MediaCenter sessions each had
+six controllers after the update (five in the research snapshot), consistent
+with the added observer. No backup of the old installed APK was taken, as
+requested by the owner. Physical Play/Pause interception and actual Yandex
+resume still require an operator check; successful installation is not that
+acceptance result.
+
 ## Where the feature lives
 
 "Shortcuts" is `com.byd.autovoice/.DiyCommandActivity`, a second launcher entry
