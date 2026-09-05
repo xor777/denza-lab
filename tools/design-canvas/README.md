@@ -25,7 +25,7 @@ that reports what collides.
 | `canvas.json` | positions, pages and the launch view |
 | `gen_cluster.py` | emits the three cluster boards as they stand on the car today, with the current fixed 3 km consumption window |
 | `gen_next.py` | emits the proposed cluster: one horizon, two histories, the gauge |
-| `gen_contour.py` | emits the Contour - the cluster concept that won the 2026-09 contest - as the calm panel, sixteen scenes, and the plan with every number on it |
+| `gen_contour.py` | emits the Contour - the cluster concept that won the 2026-09 contest - as the calm panel, seventeen scenes, and the plan with every number on it |
 | `gen_kit.py` | emits the two boards that describe the system, from the system |
 | `gen_panes.py` | emits the dashboard's two pane boards from `Main.dc.html` and the pane geometry, and the dashboard underlay both sheet boards are drawn over |
 | `panel_frame.py` | archived tooling for the four retired head-unit instrument concepts; rebuilds Energy |
@@ -455,7 +455,7 @@ that concept drawn: three boards, all from the same constants.
 | | |
 | --- | --- |
 | `ClusterContour.dc.html` | calm driving, engine asleep - the state the panel is in most of the time |
-| `ClusterContourStates.dc.html` | sixteen scenes as a column: first seconds, a traffic jam whose engine ran earlier and stopped long ago, calm, the first kilometres with the consumption log twelve buckets in, an acceleration, regeneration, the engine generating both ways it can be drawn, the engine forty seconds dead, standing on P, charging, charging with no consumption history behind it and an estimate too long for the seat, a single null, link lost, an exception, and the missing ADB key |
+| `ClusterContourStates.dc.html` | seventeen scenes as a column: first seconds, a traffic jam whose engine ran earlier and stopped long ago, calm, the first kilometres with the consumption log twelve buckets in, an acceleration, regeneration, the engine generating both ways it can be drawn, the engine forty seconds dead, standing on P, standing on P with the trace still warm, charging, charging with no consumption history behind it and an estimate too long for the seat, a single null, link lost, an exception, and the missing ADB key |
 | `ClusterContourPlan.dc.html` | the skeleton alone, over the three apertures and both cell grids, with every anchor measured - and, under the panel, the physical constants and the ramp they produce |
 
 The panel exists now: `dev.denza.apps.feature.cluster.dashboard` draws these three
@@ -893,6 +893,13 @@ takes **both rows of the shelf**, 50.7 units from the top guard down to a rhythm
 step above its caption's caps, and that caption sits below the box on the band's
 own 24-unit guard, so the swap moves no neighbour's baseline in either direction.
 
+**And it gives the shelf up to a car that has stopped.** Both facts can be true at
+once - the trace stays warm for two minutes, and two minutes is long enough to
+park in - and one shelf has to hold them. Standing still wins. Three numbers is
+what P is *for*; the box at that moment is a shape about a drive that has already
+ended, and it comes back whole the moment the car moves, with the trace it kept
+all along. The states board draws that scene beside the plain P.
+
 **One quantity, one sentence** - the eighth pass, and the owner's word for what was
 there before was *«легенда непонятна»*. `ОБОРОТЫ · ● ГЕНЕРАЦИЯ 14 кВт` was a key to
 a picture with two runs in it, and a display read at 90 km/h does not get to need a
@@ -952,7 +959,8 @@ all three were unsigned, and the panel was inviting a sum that names nothing.
 
 Standing on P the same anatomy pays out in full - `42 км · ЗА ПОЕЗДКУ`,
 `● РЕКУПЕРАЦИЯ`, `ДАЛ ДВС` - because a car that is not moving is the one place
-where reading three numbers costs nothing. **That is where regeneration lives now:
+where reading three numbers costs nothing, and it pays out **even while the engine
+box is still warm**, which is the one case where the two compete. **That is where regeneration lives now:
 on P, and on P only.** It is a number you look at when the trip is over, not one
 you read at 90 km/h, and the two hundred units it used to hold on the move were
 what made the row a row. Its caption is the one that could not take a verb: the

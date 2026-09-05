@@ -69,14 +69,21 @@ internal enum class ContourValue(val poll: VehiclePoll) {
 /**
  * What the renderer is told about the panel as a whole.
  *
- * [mode] is the headline and the two flags are not folded into it, because they are not alternatives
- * to it. A car standing in P with the engine's box still up is `ENGINE` **and** parked: the box owns
- * the right shelf, and the petal still grows its tenth. Folding one into the other would make the
- * panel's behaviour depend on which of two true things was checked first.
+ * [parked] is not folded into [mode], because standing still is not an alternative to anything: it
+ * changes the petal's resolution and the shelf's seat count wherever else the panel happens to be.
  */
 internal data class ContourStage(
     val mode: ContourMode,
     val parked: Boolean = false,
+    /**
+     * Whether the engine's box owns the right shelf, which is not the same as the trace being warm.
+     *
+     * One shelf, two true things, and one of them has to give way. **Standing still wins.** A car
+     * that has stopped is the one moment its driver can read three numbers instead of glancing at
+     * one, and what the box has to show then is the last two minutes of a drive that has ended -
+     * against the trip's own arithmetic, which is what P is for. The box comes back the moment the
+     * car moves, with the trace it has been keeping all along.
+     */
     val engineBox: Boolean = false,
     val engineRunning: Boolean = false,
     val message: String = "",
@@ -187,7 +194,9 @@ internal class ContourScene {
 
     private fun decide(t: VehicleTelemetry): ContourStage {
         val parked = t.parked == true
-        val engineBox = !t.engineTrace.isEmpty
+        // The trace is warm for two minutes after the engine stops, and on P the trip's three cells
+        // take the shelf from it: see [ContourStage.engineBox].
+        val engineBox = !t.engineTrace.isEmpty && !parked
         val engineRunning = t.engineRunning == true
         val mode = when {
             t.access == VehicleAccess.UNAVAILABLE -> ContourMode.UNAVAILABLE

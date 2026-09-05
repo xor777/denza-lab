@@ -1545,7 +1545,12 @@ def right_shelf(s):
     cell, and the seats are counted from the shelf's own edge so the one that does
     exist is always in the same place.
     """
-    if s.get('trace'):
+    # One shelf, two true things, and standing still wins. A car that has stopped
+    # is the one moment its driver reads three numbers instead of glancing at one,
+    # and what the box has to show then is the last two minutes of a drive that has
+    # ended - against the trip's own arithmetic, which is what P is for. The box
+    # comes back the moment the car moves, with the trace it kept all along.
+    if s.get('trace') and not s.get('parked'):
         return engine_box(s)
     if not s['trip_known']:
         return []
@@ -1855,6 +1860,16 @@ STATES = [
         bars=consumption_history(17.4), petal='17')),
     ('Стоянка на P · полный расклад тремя ячейками, у лепестка появилась десятая',
      sc(kw=1.4, volts=561.0, temps=COOL, parked=True,
+        ice='slept', ice_minutes=6.0,
+        trip=dict(net=9.3, regen=3.1, ice=1.1, km=42),
+        bars=CALM_BARS, petal='16,8')),
+    # The same P, with the engine's box still warm behind it. Two true things and one
+    # shelf: standing still wins, because three numbers is what P is for and the box
+    # is about a drive that has ended. It comes back the moment the car moves.
+    ('Стоянка с живой трассой · ДВС заглох 40 с назад, но машина стоит: '
+     'три ячейки поездки, коробки нет',
+     sc(kw=1.4, volts=558.0, temps=WORKED, parked=True,
+        trace=engine_history(120, stopped=40),
         ice='slept', ice_minutes=6.0,
         trip=dict(net=9.3, regen=3.1, ice=1.1, km=42),
         bars=CALM_BARS, petal='16,8')),

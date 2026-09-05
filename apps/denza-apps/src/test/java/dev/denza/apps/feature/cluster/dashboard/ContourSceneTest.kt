@@ -233,7 +233,7 @@ class ContourSceneTest {
     }
 
     @Test
-    fun aCarInParkWithTheBoxUpIsBothThingsAtOnce() {
+    fun standingStillOutranksALiveEngineTraceOnTheRightShelf() {
         val trace = EngineTrace()
         repeat(20) { trace.sample(it * 1_000L, rpm = 1780.0, generationKw = 14.0) }
 
@@ -247,11 +247,19 @@ class ContourSceneTest {
             1f,
         )
 
-        // The box owns the shelf and the petal still grows its tenth. Folding one of these into
-        // the other would make the panel depend on which of two true things was checked first.
+        // Both facts are true and one shelf has to hold them. A car that has stopped is the one
+        // moment its driver can read three numbers instead of glancing at one, and the engine's
+        // box is a shape about the last two minutes of a drive that has ended. The trip wins: the
+        // three cells are what P is for, and the box comes back the moment the car moves.
+        assertTrue("the car is standing", scene.stage.parked)
+        assertFalse("so the box does not take the shelf", scene.stage.engineBox)
+        assertEquals(ContourMode.PARKED, scene.stage.mode)
+
+        // And it is the standing that does it, not the trace going quiet: the same trace under a
+        // car that is rolling still owns the shelf.
+        run(scene, ready(trace = trace), 1f)
+        assertTrue("the box is back the moment the car moves", scene.stage.engineBox)
         assertEquals(ContourMode.ENGINE, scene.stage.mode)
-        assertTrue(scene.stage.engineBox)
-        assertTrue(scene.stage.parked)
     }
 
     @Test
