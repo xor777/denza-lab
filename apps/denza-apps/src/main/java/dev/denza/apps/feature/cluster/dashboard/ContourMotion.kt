@@ -1,5 +1,6 @@
 package dev.denza.apps.feature.cluster.dashboard
 
+import dev.denza.apps.design.instrument.EnergyScale
 import kotlin.math.abs
 import kotlin.math.exp
 import kotlin.math.roundToInt
@@ -267,8 +268,14 @@ internal class ContourMotion {
         const val RPM_RISE_S = 0.250f
         const val RPM_FALL_S = 0.400f
 
-        /** [dev.denza.apps.design.instrument.EnergyScale.FLOOR_KW], restated as this class's own. */
-        const val FLOOR_KW = 0.5f
+        /**
+         * The floor under which the band carries nothing, which is [EnergyScale]'s own.
+         *
+         * It was restated here as a literal, which is two numbers that have to agree by hand: the
+         * band's geometry is scaled with one and the follower is snapped to zero with the other,
+         * and a panel where those differ has a band drawn off a reading it is not following.
+         */
+        const val FLOOR_KW = EnergyScale.FLOOR_KW
 
         /** Inside this the panel carries no colour. */
         const val NEUTRAL_KW = 3f

@@ -3,6 +3,8 @@ package dev.denza.apps.feature.cluster.dashboard
 import dev.denza.apps.design.instrument.EnergyScale
 import dev.denza.apps.design.instrument.InstrumentDensity
 import dev.denza.apps.design.instrument.InstrumentFace
+import dev.denza.apps.feature.vehicle.ConsumptionWindow
+import dev.denza.apps.feature.vehicle.EngineTrace
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
@@ -515,8 +517,14 @@ internal class ContourPlan(
 
         const val MARK_RADIUS = 3f
 
-        /** `EngineTrace` keeps 120 one-second slots, and the box is as wide as they reach. */
-        const val ENGINE_SLOTS = 120
+        /**
+         * The box is exactly as wide as the trace reaches, which is [EngineTrace]'s own window.
+         *
+         * A literal here was a second copy of a retention decision that lives in the class holding
+         * the data: shorten the trace and the board would have gone on drawing a box for two
+         * minutes of a history that was ninety seconds long.
+         */
+        const val ENGINE_SLOTS = EngineTrace.SLOTS
 
         /** Drawn as twenty-four steps of five seconds, the way the petal draws its buckets. */
         const val ENGINE_BIN_SECONDS = 5
@@ -538,8 +546,14 @@ internal class ContourPlan(
         const val PETAL_BASELINE = 384f
         const val PETAL_FLOOR = 410f
 
-        /** Three kilometres of `ConsumptionLog`'s hundred-metre buckets. */
-        const val PETAL_BUCKETS = 30
+        /**
+         * Three kilometres of `ConsumptionLog`'s hundred-metre buckets, which is the window's own
+         * count rather than a second statement of it.
+         *
+         * A `val` rather than a `const val` because [ConsumptionWindow] derives it from the three
+         * kilometres and the bucket size, and that derivation is the single fact.
+         */
+        val PETAL_BUCKETS = ConsumptionWindow.buckets
 
         const val PETAL_FULL = 30f
         const val PETAL_RETURN_FULL = 10f

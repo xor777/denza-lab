@@ -6,6 +6,7 @@ import dev.denza.apps.design.instrument.InstrumentFace
 import dev.denza.apps.design.instrument.InstrumentWeight
 import dev.denza.apps.feature.cluster.ClusterMapPlacement
 import dev.denza.apps.feature.vehicle.ConsumptionWindow
+import dev.denza.apps.feature.vehicle.EngineTrace
 import dev.denza.apps.feature.vehicle.VehicleConvention
 import java.io.File
 import org.junit.Assert.assertEquals
@@ -487,7 +488,9 @@ class ContourBoardContractTest {
         assertEquals("left", plan.engineBoxFullLeft, box.x, TOLERANCE)
         assertEquals("width", plan.engineBoxWidth, box.width, TOLERANCE)
         assertEquals("height", plan.engineBoxBottom - plan.engineBoxTop, box.height, TOLERANCE)
-        assertEquals("120 one-second slots", 120, plan.engineSlots)
+        // The box is as wide as the trace reaches, so the retention decision is held here through
+        // the class that keeps the data rather than through a literal that has to agree with it.
+        assertEquals("120 one-second slots", EngineTrace.SLOTS, plan.engineSlots)
         // Drawn as twenty-four steps of five seconds, so a full box is 24 pitches wide rather than
         // 119 gaps between points.
         assertEquals("steps", 24, plan.engineBins)
@@ -617,7 +620,13 @@ class ContourBoardContractTest {
         assertEquals(232f, plan.petalBoxWidth, TOLERANCE)
         // The cap of the 52 beside it plus a descender: 36.92 + 13.
         assertEquals(49.92f, plan.petalBoxHeight, TOLERANCE)
-        assertEquals("thirty buckets of the log's own hundred metres", 30, plan.petalBuckets)
+        // And the same for the petal: the window's own count, derived from three kilometres and
+        // the log's bucket size, rather than a thirty written down twice.
+        assertEquals(
+            "thirty buckets of the log's own hundred metres",
+            ConsumptionWindow.buckets,
+            plan.petalBuckets,
+        )
     }
 
     @Test
