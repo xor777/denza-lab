@@ -28,6 +28,8 @@ internal data class VehicleTelemetry(
     val consumption: List<Double> = emptyList(),
     /** The last two minutes of revolutions and generation, on a one-second axis. */
     val engineTrace: EngineTraceSnapshot = EngineTraceSnapshot.EMPTY,
+    /** The same two minutes of what the pack itself was doing, which the head unit's strip draws. */
+    val powerTrace: PowerTraceSnapshot = PowerTraceSnapshot.EMPTY,
     /** What this trip has cost so far, integrated by [TripEnergyLedger]. */
     val trip: TripEnergy = TripEnergy(),
 ) {

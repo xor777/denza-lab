@@ -82,6 +82,15 @@ internal class VehicleTelemetryHub(context: Context) {
      */
     private val trace = EngineTrace()
 
+    /**
+     * And the same two minutes of the pack's own power, for the head unit's second page.
+     *
+     * Kept here rather than beside the strip for the reason every other history is: this is the
+     * one place that sees every sweep, and a trace filled from the panel's frame loop would be a
+     * history of when somebody was looking rather than of what the car did.
+     */
+    private val power = PowerTrace()
+
     @Volatile
     var snapshot: VehicleTelemetry = VehicleTelemetry()
         private set
@@ -256,6 +265,7 @@ internal class VehicleTelemetryHub(context: Context) {
                     rpm = parsed[VehicleSignal.ENGINE_RPM],
                     generationKw = parsed[VehicleSignal.GENERATION_KW],
                 )
+                power.sample(now, VehicleConvention.load(parsed[VehicleSignal.POWER_KW]))
                 log.sample(
                     odometerKm = parsed[VehicleSignal.ODOMETER_KM],
                     powerKw = VehicleConvention.load(parsed[VehicleSignal.POWER_KW]),
@@ -295,6 +305,7 @@ internal class VehicleTelemetryHub(context: Context) {
                     values = merged,
                     consumption = log.window,
                     engineTrace = trace.snapshot(),
+                    powerTrace = power.snapshot(),
                     trip = ledger.trip,
                 )
 
@@ -323,6 +334,7 @@ internal class VehicleTelemetryHub(context: Context) {
             message = message,
             consumption = log.window,
             engineTrace = trace.snapshot(),
+            powerTrace = power.snapshot(),
             trip = ledger.trip,
         )
     }
