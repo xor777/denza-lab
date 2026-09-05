@@ -2,6 +2,7 @@ package dev.denza.apps.feature.trip
 
 import android.graphics.Canvas
 import dev.denza.apps.feature.panel.PanelCanvas
+import dev.denza.apps.feature.vehicle.VehicleTelemetry
 import dev.denza.apps.feature.panel.PanelPalette
 
 /**
@@ -36,8 +37,12 @@ abstract class BaseTripRenderer : PanelCanvas() {
      *   in an area that stays clear of the panel's own captions and figures in
      *   both the GNSS and no-GNSS states.
      * @param layout which of the three compositions to draw; see [TripPanelLayout].
+     * @param page which of the field's two pages is up; see [StripPage].
+     * @param vehicle the car's own readings, drawn by the second page and ignored by the first.
+     *   It is the hub's last snapshot rather than a live read: the panel draws at thirty frames a
+     *   second over a quantity the car answers four times a second.
      */
-    abstract fun draw(
+    internal abstract fun draw(
         canvas: Canvas,
         w: Float,
         h: Float,
@@ -48,6 +53,8 @@ abstract class BaseTripRenderer : PanelCanvas() {
         dtSec: Double,
         showLocationHint: Boolean,
         layout: TripPanelLayout = TripPanelLayout.WIDE,
+        page: StripPage = StripPage.SOUND,
+        vehicle: VehicleTelemetry = VehicleTelemetry(),
     )
 
     companion object {

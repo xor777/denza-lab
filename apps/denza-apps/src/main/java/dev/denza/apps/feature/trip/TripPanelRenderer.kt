@@ -3,6 +3,7 @@ package dev.denza.apps.feature.trip
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Typeface
+import dev.denza.apps.feature.vehicle.VehicleTelemetry
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -46,8 +47,9 @@ class TripPanelRenderer : BaseTripRenderer() {
     private val unitPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { typeface = Typeface.SANS_SERIF }
 
     private val spectrumRenderer = SpectrumRenderer()
+    private val vehicleRenderer = VehiclePageRenderer()
 
-    override fun draw(
+    internal override fun draw(
         canvas: Canvas,
         w: Float,
         h: Float,
@@ -58,6 +60,8 @@ class TripPanelRenderer : BaseTripRenderer() {
         dtSec: Double,
         showLocationHint: Boolean,
         layout: TripPanelLayout,
+        page: StripPage,
+        vehicle: VehicleTelemetry,
     ) {
         when (layout) {
             TripPanelLayout.MEDIUM, TripPanelLayout.NARROW -> {
@@ -72,16 +76,19 @@ class TripPanelRenderer : BaseTripRenderer() {
                     frameTimeSec = frameTimeSec,
                     dtSec = dtSec,
                     showLocationHint = showLocationHint,
+                    page = page,
+                    vehicle = vehicle,
                 )
                 return
             }
             TripPanelLayout.WIDE -> Unit
         }
         setSize(w, h, WIDE_VIRTUAL_W, WIDE_VIRTUAL_H)
-        spectrumRenderer.draw(
-            canvas, spectrum, nowPlaying, frameTimeSec, dtSec,
-            left = vx(SPECTRUM_LEFT), right = vx(SPECTRUM_RIGHT),
-            top = vy(SPECTRUM_TOP), bottom = vy(SPECTRUM_BOTTOM), unit = vs(1f),
+        drawField(
+            canvas, page, spectrum, nowPlaying, vehicle, frameTimeSec, dtSec,
+            left = SPECTRUM_LEFT, right = SPECTRUM_RIGHT,
+            top = SPECTRUM_TOP, bottom = SPECTRUM_BOTTOM,
+            narrow = false,
         )
         drawColumn(canvas, engine)
         if (showLocationHint) {
@@ -121,6 +128,8 @@ class TripPanelRenderer : BaseTripRenderer() {
         frameTimeSec: Double,
         dtSec: Double,
         showLocationHint: Boolean,
+        page: StripPage,
+        vehicle: VehicleTelemetry,
     ) {
         val across = layout == TripPanelLayout.MEDIUM
         val virtualW = if (across) MEDIUM_VIRTUAL_W else NARROW_VIRTUAL_W
@@ -131,16 +140,92 @@ class TripPanelRenderer : BaseTripRenderer() {
         val figuresTop = virtualH - figuresH
         val analyserBottom = (figuresTop - PANE_GROUP).coerceAtLeast(PANE_MIN_ANALYSER)
 
-        spectrumRenderer.draw(
-            canvas, spectrum, nowPlaying, frameTimeSec, dtSec,
-            left = vx(0f), right = vx(virtualW),
-            top = vy(0f), bottom = vy(analyserBottom), unit = vs(1f),
+        drawField(
+            canvas, page, spectrum, nowPlaying, vehicle, frameTimeSec, dtSec,
+            left = 0f, right = virtualW, top = 0f, bottom = analyserBottom,
+            narrow = layout == TripPanelLayout.NARROW,
         )
 
         if (across) {
             drawPaneBlocks(canvas, engine, virtualW, figuresTop, showLocationHint)
         } else {
             drawPaneRows(canvas, engine, virtualW, figuresTop, showLocationHint)
+        }
+    }
+
+    /**
+     * How much of the strip's width the field has, which is what a swipe is taken on.
+     *
+     * At 1280 the analyser is 832 of the 1184 the page has and the trip's three figures are the
+     * rest; a pane gives the field the whole width and stacks the figures under it. The view asks
+     * rather than assuming, because these two numbers have moved once already and a gesture
+     * measured against a stale one is a gesture that fires over somebody else's readings.
+     */
+    fun fieldFraction(layout: TripPanelLayout): Float = when (layout) {
+        TripPanelLayout.WIDE -> SPECTRUM_RIGHT / WIDE_VIRTUAL_W
+        TripPanelLayout.MEDIUM, TripPanelLayout.NARROW -> 1f
+    }
+
+    /**
+     * The field, whichever of its two pages is up, and the dots that say there are two.
+     *
+     * **The dots cost the field its bottom [DOTS] and nothing else costs anything.** They are at
+     * the foot on both pages, so nothing moves when the page does, and the analyser is laid out in
+     * what is left - [SpectrumRenderer] puts its ticker, its bars and their reflection at fractions
+     * of the box it is handed, so a shorter box is the same analyser at a smaller size rather than
+     * a clipped one. At 1280 that is 203 units of bars becoming 186.
+     *
+     * The three trip figures are not a page and are not drawn here: they are true on both.
+     */
+    private fun drawField(
+        canvas: Canvas,
+        page: StripPage,
+        spectrum: SpectrumSource,
+        nowPlaying: NowPlayingSource,
+        vehicle: VehicleTelemetry,
+        frameTimeSec: Double,
+        dtSec: Double,
+        left: Float,
+        right: Float,
+        top: Float,
+        bottom: Float,
+        narrow: Boolean,
+    ) {
+        val foot = bottom - DOTS
+        when (page) {
+            StripPage.SOUND -> spectrumRenderer.draw(
+                canvas, spectrum, nowPlaying, frameTimeSec, dtSec,
+                left = vx(left), right = vx(right),
+                top = vy(top), bottom = vy(foot), unit = vs(1f),
+            )
+
+            StripPage.VEHICLE -> vehicleRenderer.draw(
+                canvas, vehicle,
+                left = vx(left), top = vy(top),
+                right = vx(right), bottom = vy(foot),
+                unit = vs(1f), narrow = narrow,
+            )
+        }
+        drawDots(canvas, (left + right) / 2f, foot + DOTS / 2f, page)
+    }
+
+    /**
+     * Two dots, and the whole of the affordance.
+     *
+     * A gesture nobody can see is a gesture nobody uses, and this strip answered no touch at all
+     * until now. The pager that was here before had four pages and no indicator, which is what it
+     * was deleted for; this says how many pages there are and which one this is, whether or not
+     * anybody swipes.
+     */
+    private fun drawDots(canvas: Canvas, centreX: Float, centreY: Float, page: StripPage) {
+        val radius = vs(DOT / 2f)
+        val pitch = vs(DOT + DOT_GAP)
+        val first = vx(centreX) - pitch / 2f
+        StripPage.entries.forEachIndexed { index, entry ->
+            fill.color =
+                if (entry == page) TripPalette.LIVE
+                else TripPalette.alpha(TripPalette.MUTED, DOT_IDLE_ALPHA)
+            canvas.drawCircle(first + index * pitch, vy(centreY), radius, fill)
         }
     }
 
@@ -523,6 +608,21 @@ class TripPanelRenderer : BaseTripRenderer() {
         const val BLOCK_TOP_2 = 99f
         const val BLOCK_TOP_3 = 211f
         const val RULE_GAP = 12f
+
+        /**
+         * The band under the field that the two page dots stand in, and the only thing the second
+         * page charges the first.
+         *
+         * At the foot rather than the top because that is where a page indicator belongs and
+         * because the top of the field already carries the ticker. Both pages spend the same 20,
+         * so the dots do not move when the page does.
+         */
+        const val DOTS = 20f
+        const val DOT = 8f
+        const val DOT_GAP = 8f
+
+        /** A dot that is not this page: the caption's ink, well under it. */
+        const val DOT_IDLE_ALPHA = 0.45f
 
         /** The board's `letter-spacing:1.6px` at 15 px, as the em value a paint takes. */
         const val CAPS_TRACKING = 0.107f
