@@ -36,7 +36,33 @@ internal data class VehicleTelemetry(
 
     operator fun get(signal: VehicleSignal): Double? = values[signal]
 
-    val charging: Boolean get() = (this[VehicleSignal.CHARGE_GUN] ?: 0.0) >= 1.0
+    /**
+     * A gun is in **and** the charger has agreed, which is two facts and used to be half of one.
+     *
+     * This read `gun >= 1` until 2026-09-06, on the strength of one parked session where the gun
+     * answered `2` with 2.4 kW flowing - and the catalog's own note says only that **2 is AC
+     * connected**, which is not the same as "anything from 1 up means connected". On the car it is
+     * not: the head unit's second page printed «В БАТАРЕЮ ОТ ЗАРЯДКИ» over a pack that was plainly
+     * discharging on the road, so this id reads at or above 1 with no charger anywhere.
+     *
+     * So the gate is the value the catalog stands behind and a charger that is actually doing
+     * something. Both screens read this - the cluster's countdown hangs off it too - and the
+     * failure it prevents is the worst kind this app has: a sentence that is wrong with confidence.
+     *
+     * Three conditions, each with its own job: the gun value the catalog stands behind, the
+     * charger saying something of its own - kilowatts or an estimate, either will do, both come
+     * from the same device - and a pack that is not being emptied, which is the physical check
+     * that catches a gun decode this car has already proved wrong once.
+     *
+     * The conservative half of the trade is that a DC charge answering none of the charger's own
+     * readings would go unnoticed. Missing a scene costs a driver nothing; naming the wrong one
+     * costs the panel its credibility. `docs/vehicle-data-findings.md` carries what to capture at
+     * the next charge to widen it.
+     */
+    val charging: Boolean
+        get() = this[VehicleSignal.CHARGE_GUN] == GUN_AC_CONNECTED &&
+            ((chargeKw ?: 0.0) > 0.0 || chargeMinutesLeft != null) &&
+            (loadKw ?: 0.0) <= 0.0
 
     val chargeKw: Double? get() = this[VehicleSignal.CHARGE_KW]
 
@@ -127,6 +153,9 @@ internal data class VehicleTelemetry(
             (generationKw ?: 0.0) > GENERATION_FLOOR_KW
 
     private companion object {
+        /** The one gun value this car has been read at, on AC, with power flowing. */
+        const val GUN_AC_CONNECTED = 2.0
+
         /** Below this a generation reading is rounding, not the engine working. */
         const val GENERATION_FLOOR_KW = 0.5
 

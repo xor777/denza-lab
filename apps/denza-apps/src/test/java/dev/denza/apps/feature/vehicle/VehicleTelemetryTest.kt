@@ -46,8 +46,11 @@ class VehicleTelemetryTest {
     }
 
     @Test
-    fun aConnectedGunMeansCharging() {
-        assertTrue(telemetry(VehicleSignal.CHARGE_GUN to 2.0).charging)
+    fun aConnectedGunIsNotByItselfACharger() {
+        // This used to assert that a gun of 2 is charging, full stop. The car falsified it on
+        // 2026-09-06 - the id sits at or above 1 on the road - and the whole gate now lives in
+        // `ChargingGateTest`, which is where the three conditions are read.
+        assertFalse(telemetry(VehicleSignal.CHARGE_GUN to 2.0).charging)
         assertFalse(telemetry(VehicleSignal.CHARGE_GUN to 0.0).charging)
     }
 

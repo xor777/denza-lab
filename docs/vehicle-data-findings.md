@@ -484,7 +484,7 @@ flags or placeholders. A product widget polls only the rows below.
 | Trip | Lifetime kWh / kWh/100 | `0x3D906030` / `0x4A501030` | 1014 | 7 | 997.9 / 6.5 | |
 | Trip | Last 50 km equivalent | `0x4A507032` | 1014 | 7 | 6.6 | **not kWh/100 km** — the stock home widget showed 23.2 kWh/100 km for the same 50 km window on 2026-08-22 |
 | Trip | 50 km split drive/AC/aux | `0x35903831` / `0x35903838` / `0x35903841` | 1006 | 5 | 91 / 4 / 5 | % |
-| Charge | Gun | `0x34400032` | 1009 | 5 | 2 | 2 = AC connected |
+| Charge | Gun | `0x34400032` | 1009 | 5 | 2 | 2 = AC connected — **and not the only value it takes**, see below |
 | Charge | SOC on charger | `0x32300010` | 1009 | 5 | 43 | % |
 | Charge | Time remaining h/min | `0x32300028` / `0x32300030` | 1009 | 5 | 9 / 17 | |
 | Motor | Front temp / IPM | `0x46406018` / `0x46406010` | 1039 | 5 | 31 / 26 | °C raw |
@@ -588,6 +588,27 @@ others is what the row exists to show.
 pack-power one (`±600 kW`). The wide gate let a spike through and the panel
 showed a three-hundred-kilowatt charge on a car parked on a household socket.
 Pack power keeps the wide gate: this car really can pull hundreds of kilowatts.
+
+### The gun is not a charger (2026-09-06, falsified on the road)
+
+`0x34400032` answered `2` in the parked AC session above, and the app read
+"charging" as `gun >= 1` on the strength of it. On the first drive with the head
+unit's second page installed, that page printed **«В БАТАРЕЮ ОТ ЗАРЯДКИ» over a
+pack that was plainly discharging**: the id sits at or above 1 on the road, with
+no cable anywhere near the car.
+
+So one session with a gun in it proves what `2` means and nothing about what the
+other values mean. `VehicleTelemetry.charging` now needs three things at once —
+the value the catalog stands behind, the charger saying something of its own
+(kilowatts or a time estimate), and a pack that is not being emptied — and
+`ChargingGateTest` holds them. Both screens read that property; the cluster's
+countdown hung off the same wrong gate.
+
+Open, for the next charge: read the gun while driving and write down what it
+actually says, and read it on a DC charger. If a DC session answers neither
+`CHARGE_KW` nor a time estimate, this gate will miss it — which is the trade
+taken deliberately, because naming the wrong scene costs the panel more than
+missing one.
 
 ### Measured on the car (2026-08-22, second session, parked on AC charge)
 
