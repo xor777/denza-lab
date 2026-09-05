@@ -46,19 +46,29 @@ internal object VehiclePageWords {
     /**
      * The engine's one cell, and the three things it can say.
      *
-     * Turning, it is the revolutions. Stopped after a run, it is how long that run was - which is
+     * Turning, it is the revolutions. Just stopped, it is how long it ran this trip - which is
      * [ContourReadout.TITLE_ENGINE_MINUTES], the cluster's own words, in this screen's own case.
-     * Never started, it is nothing at all: a zero here would be an accountant's way of saying the
-     * engine did not run, which is the sentence the Contour's sixth pass exists to have deleted.
+     * Otherwise nothing at all: a zero here would be an accountant's way of saying the engine did
+     * not run, which is the sentence the Contour's sixth pass exists to have deleted, and a run
+     * under a minute is a zero with a unit on it.
      *
-     * A run under a minute is nothing at all too, for the same reason - «0 мин за поездку» is a
-     * zero with a unit on it.
+     * **«Just stopped» is the trace, not the trip**, and that is the owner's own finding from the
+     * first drive: he got into the car, had not started the engine, and the cell said «3 мин за
+     * поездку». It was not lying - a trip runs from the first movement after P to the next one, so
+     * yesterday's drive was still the trip - but a cell that says «за поездку» beside a cold engine
+     * is read as *this* drive, and being technically right is not an answer.
+     *
+     * So the cell lives as long as the engine box on the cluster does: while [EngineTrace] still
+     * holds a slot the engine was alive in, which is a hundred and twenty seconds of hysteresis
+     * with no timer of its own. Sit down with a cold engine and there is no cell; stop at a light
+     * after the engine has been generating and the figure is there while it still means something.
      */
     fun engineCell(telemetry: VehicleTelemetry): Pair<String, String>? {
         val rpm = telemetry.engineRpm
         if (telemetry.engineRunning == true && rpm != null && rpm > 0.0) {
             return TITLE_RPM to ContourReadout.whole(rpm)
         }
+        if (telemetry.engineTrace.isEmpty) return null
         val minutes = telemetry.trip.engineMinutes
         if (!telemetry.trip.engineRan || minutes < 1.0) return null
         return TITLE_ENGINE_MINUTES to ContourReadout.whole(minutes)

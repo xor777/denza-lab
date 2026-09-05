@@ -193,8 +193,17 @@ internal class VehiclePageRenderer {
         }
         if (headline != null) caption(canvas, headline.text, x, top + LABEL_BASELINE * unit, unit)
 
-        val ink = if (load != null && load < 0.0) DenzaPalette.RETURN_INK else PanelPalette.INK
-        val text = load?.let { ContourReadout.whole(abs(it)) } ?: DASH
+        // The sign is back on the figure, and the words stay.
+        //
+        // It came off on the reasoning that a minus is not a direction anybody reads at a glance -
+        // which is true, and was not the whole truth. On the car the owner worked the page out as
+        // «белый разряд, синий заряд… но супер неинтуитивно»: he was decoding the *hue*, because
+        // the sentence above the figure was wrong at that moment (the gun gate) and colour was the
+        // only thing telling him the truth. Three cues that agree cost nothing and need no
+        // learning; one clever one costs a glance.
+        val into = load != null && load < 0.0
+        val ink = if (into) DenzaPalette.RETURN_INK else PanelPalette.INK
+        val text = load?.let { (if (into) MINUS else "") + ContourReadout.whole(abs(it)) } ?: DASH
         val figureWidth = figure(canvas, text, left, top + HERO_BASELINE * unit, HERO * unit, ink)
         units.textSize = UNIT_SIZE * unit
         units.color = PanelPalette.MUTED
@@ -227,25 +236,32 @@ internal class VehiclePageRenderer {
         unit: Float,
     ) {
         val steps = telemetry.powerTrace.steps
-        val ceiling = PowerSpan.ceiling(steps).toFloat()
-        val floor = PowerSpan.floor(steps).toFloat()
-        val zero = top + height * unit * ceiling / (ceiling + floor)
-        val perKw = height * unit / (ceiling + floor)
+        val ceiling = PowerSpan.ceiling(steps)
+        val floor = PowerSpan.floor(steps)
+        val zero = top + height * unit * ceiling / (ceiling + floor).toFloat()
+        val perKw = height * unit / (ceiling + floor).toFloat()
+        val plot = (width - AXIS) * unit
 
         fill.color = DenzaPalette.TRACK_MARK
-        canvas.drawRect(left, zero, left + width * unit, zero + unit, fill)
+        canvas.drawRect(left, zero, left + plot, zero + unit, fill)
+        drawAxis(canvas, ceiling, floor, left + width * unit, top, top + height * unit, unit)
         if (telemetry.powerTrace.isEmpty) return
 
-        val step = width * unit / steps.size
+        val step = plot / steps.size
         line.strokeWidth = EDGE * unit
         line.color = PanelPalette.INK
         var previous = Float.NaN
         for (index in steps.indices) {
-            val kw = steps[index]
-            if (kw.isNaN()) {
+            val raw = steps[index]
+            if (raw.isNaN()) {
                 previous = Float.NaN
                 continue
             }
+            // Held inside the box: past the ladder's last rung a step is drawn flat against the
+            // edge, which is what "more than this holds" looks like. Unclamped it was drawn over
+            // the figure above the box, which is the answer the owner's «что будет при 200 кВт»
+            // would have got.
+            val kw = telemetry.powerTrace.clamp(raw, ceiling, floor)
             val x = left + index * step
             val y = zero - kw * perKw
             fill.color = if (kw >= 0f) AREA_OUT else AREA_BACK
@@ -259,13 +275,32 @@ internal class VehiclePageRenderer {
     }
 
     /**
-     * The line under the shape: how far back it reaches, what span it is drawn in, and the volts.
+     * What the box holds, written where a chart writes it.
      *
-     * **The two arrows are drawn, not typed**, which is this panel's own rule and it was learned
-     * here: `«↗»` is one character and a great deal less code, and this panel has no idea what the
-     * head unit's font does with it - a glyph that comes out as a box is a reading that says
-     * nothing, and there is no way to find out from inside the car. Two strokes always draw.
+     * The span used to be a phrase on the line under the box - `ШКАЛА 5 ↑ 10 ↓ кВт` - and the
+     * owner's verdict was «тоже не интуитивно, либо убрать либо починить». It was a legend, and a
+     * legend is what this page spent four drawings getting rid of. Two numbers against the edges
+     * they belong to are not a legend: the top of the box is what leaves the pack, the bottom is
+     * what comes back, and the unit is said once.
      */
+    private fun drawAxis(
+        canvas: Canvas,
+        ceiling: Int,
+        floor: Int,
+        right: Float,
+        top: Float,
+        bottom: Float,
+        unit: Float,
+    ) {
+        caps.textSize = LABEL * unit
+        caps.color = DenzaPalette.MUTED_DEEP
+        caps.textAlign = Paint.Align.RIGHT
+        canvas.drawText("$ceiling $UNIT_KW", right, top + AXIS_BASELINE * unit, caps)
+        canvas.drawText("$floor", right, bottom, caps)
+        caps.textAlign = Paint.Align.LEFT
+    }
+
+    /** The line under the shape: how far back it reaches, and the volts behind it. */
     private fun drawFoot(
         canvas: Canvas,
         telemetry: VehicleTelemetry,
@@ -274,33 +309,10 @@ internal class VehiclePageRenderer {
         unit: Float,
         narrow: Boolean,
     ) {
-        val steps = telemetry.powerTrace.steps
         val window = VehiclePageWords.window(telemetry.powerTrace.seconds, narrow)
-        var x = left + caption(canvas, "$window · $TITLE_SPAN ", left, baseline, unit, DenzaPalette.MUTED_DEEP)
-        x += caret(canvas, x, baseline, unit, up = true) + CARET_GAP * unit
-        x += caption(canvas, "${PowerSpan.ceiling(steps)} ", x, baseline, unit, DenzaPalette.MUTED_DEEP)
-        x += caret(canvas, x, baseline, unit, up = false) + CARET_GAP * unit
         val volts = telemetry[VehicleSignal.PACK_VOLT]
         val tail = if (narrow || volts == null) "" else " · ${ContourReadout.whole(volts)} $UNIT_V"
-        caption(canvas, "${PowerSpan.floor(steps)} $UNIT_KW$tail", x, baseline, unit, DenzaPalette.MUTED_DEEP)
-    }
-
-    /** One of the two, at the caption's own height, and it returns what it took. */
-    private fun caret(canvas: Canvas, x: Float, baseline: Float, unit: Float, up: Boolean): Float {
-        val width = CARET_WIDTH * unit
-        val height = CARET_HEIGHT * unit
-        val top = baseline - CARET_RISE * unit
-        val tip = if (up) top - height / 2f else top + height / 2f
-        val wing = if (up) top + height / 2f else top - height / 2f
-        line.color = DenzaPalette.MUTED_DEEP
-        line.strokeWidth = CARET_STROKE * unit
-        line.strokeCap = Paint.Cap.ROUND
-        line.strokeJoin = Paint.Join.ROUND
-        canvas.drawLine(x, wing, x + width / 2f, tip, line)
-        canvas.drawLine(x + width / 2f, tip, x + width, wing, line)
-        line.strokeCap = Paint.Cap.BUTT
-        line.strokeJoin = Paint.Join.MITER
-        return width
+        caption(canvas, "$window$tail", left, baseline, unit, DenzaPalette.MUTED_DEEP)
     }
 
     // -------------------------------------------------------------------------- the temperatures
@@ -379,7 +391,11 @@ internal class VehiclePageRenderer {
     }
 
     private fun drawGlyph(canvas: Canvas, reading: Reading, left: Float, baseline: Float, unit: Float) {
-        surface.bind(canvas, fill, line, left, baseline, GLYPH * unit / ContourGlyphs.HEIGHT)
+        surface.bind(
+            canvas, fill, line, left, baseline,
+            scale = GLYPH * unit / ContourGlyphs.HEIGHT,
+            weight = GLYPH_WEIGHT,
+        )
         glyphs.draw(
             surface,
             reading.glyph,
@@ -500,15 +516,25 @@ internal class VehiclePageRenderer {
         private var originX = 0f
         private var baseline = 0f
         private var scale = 1f
+        private var weight = 1f
         private val box = RectF()
 
-        fun bind(canvas: Canvas, fill: Paint, stroke: Paint, x: Float, baseline: Float, scale: Float) {
+        fun bind(
+            canvas: Canvas,
+            fill: Paint,
+            stroke: Paint,
+            x: Float,
+            baseline: Float,
+            scale: Float,
+            weight: Float,
+        ) {
             this.canvas = canvas
             this.fill = fill
             this.stroke = stroke
             this.originX = x
             this.baseline = baseline
             this.scale = scale
+            this.weight = weight
         }
 
         override fun frame(
@@ -522,7 +548,7 @@ internal class VehiclePageRenderer {
         ) {
             val paint = this.stroke ?: return
             paint.style = Paint.Style.STROKE
-            paint.strokeWidth = stroke * scale
+            paint.strokeWidth = stroke * scale * weight
             paint.color = colour
             paint.strokeJoin = Paint.Join.ROUND
             paint.strokeCap = Paint.Cap.ROUND
@@ -550,7 +576,7 @@ internal class VehiclePageRenderer {
             val paint = this.stroke ?: return
             val target = canvas ?: return
             paint.style = Paint.Style.STROKE
-            paint.strokeWidth = stroke * scale
+            paint.strokeWidth = stroke * scale * weight
             paint.color = colour
             paint.strokeJoin = Paint.Join.ROUND
             paint.strokeCap = Paint.Cap.ROUND
@@ -630,6 +656,23 @@ internal class VehiclePageRenderer {
         const val ROW_GAP = 8f
         const val ROW_BASELINE = 27f
         const val GLYPH = 30f
+
+        /**
+         * The marks are the cluster's shapes at this screen's own weight, and that is what makes
+         * them legible here.
+         *
+         * `ContourGlyphs` carries a cluster stroke - `ContourPlan.DATA_LINE`, 2.5 of its units -
+         * which at a 30 dp mark comes out over three pixels. The owner saw the result as «иконки
+         * какие-то размытые, как будто искусственно растянуты», and that is what a mark drawn at
+         * half again the weight of every other icon on the screen looks like: mush at the corners.
+         *
+         * The head unit paints every icon at 2.0 dp whatever its size (`DenzaMetrics`: a stroke is
+         * `2.0 × 24 ÷ rendered size`, so the painted width is always the same), so this is the
+         * factor that lands the family's own case stroke there - and because it multiplies every
+         * stroke, the family's two-weight contrast between a case and a wheel survives it.
+         */
+        val GLYPH_WEIGHT: Float =
+            2.0f / (ContourGlyphs.STROKE * GLYPH / ContourGlyphs.HEIGHT)
         const val READING = 34f
         const val READING_FIELD = 64f
         const val TRACK = 6f
@@ -659,14 +702,12 @@ internal class VehiclePageRenderer {
         const val DOWN = "↓"
 
         const val TITLE_CLOSED = "ПИТАНИЕ ОТ МАШИНЫ"
-        const val TITLE_SPAN = "ШКАЛА"
+        /** The gutter on the right of the box where the two axis figures stand. */
+        const val AXIS = 44f
+        const val AXIS_BASELINE = 13f
 
-        // The two arrows the span is named with, drawn rather than typed.
-        const val CARET_WIDTH = 10f
-        const val CARET_HEIGHT = 6f
-        const val CARET_RISE = 4f
-        const val CARET_GAP = 4f
-        const val CARET_STROKE = 1.6f
+        /** ASCII, like every other number this app prints, and for the same reason as the arrows. */
+        const val MINUS = "-"
 
         private val SENSORS = listOf(
             Sensor(VehicleSignal.PACK_TEMP_AVG, ContourGlyphs.Glyph.PACK, ContourReadout.PACK_BAND_HIGH_C.toFloat()),

@@ -1,5 +1,7 @@
 package dev.denza.apps.feature.trip
 
+import dev.denza.apps.feature.vehicle.EngineTrace
+import dev.denza.apps.feature.vehicle.EngineTraceSnapshot
 import dev.denza.apps.feature.vehicle.TripEnergy
 import dev.denza.apps.feature.vehicle.VehicleSignal
 import dev.denza.apps.feature.vehicle.VehicleTelemetry
@@ -46,7 +48,7 @@ class VehiclePageWordsTest {
     @Test
     fun aGunInTheCarOutranksEverythingElse() {
         val words = VehiclePageWords.headline(
-            telemetry(powerKw = -2.4, gun = 2.0),
+            telemetry(powerKw = -2.4, gun = 2.0, chargeKw = 2.4),
         )
         assertEquals(VehiclePageWords.TITLE_FROM_CHARGER, words?.text)
         assertEquals("into the pack", true, words?.mark)
@@ -73,9 +75,27 @@ class VehiclePageWordsTest {
     @Test
     fun andHowLongItRanOnceItStops() {
         val cell = VehiclePageWords.engineCell(
-            telemetry(running = 0.0, trip = TripEnergy(engineSeconds = 14 * 60.0)),
+            telemetry(running = 0.0, trip = TripEnergy(engineSeconds = 14 * 60.0), warm = true),
         )
         assertEquals(VehiclePageWords.TITLE_ENGINE_MINUTES to "14", cell)
+    }
+
+    /**
+     * And it goes when the engine has been cold for two minutes, whatever the trip remembers.
+     *
+     * The owner got into the car, had not started the engine, and the cell said «3 мин за
+     * поездку» - true by the ledger, because a trip runs from the first movement after P and
+     * yesterday's drive was still the trip, and wrong to anybody reading it. The cell lives as
+     * long as the cluster's engine box does now: while the trace still holds a slot the engine was
+     * alive in.
+     */
+    @Test
+    fun andGoesOnceTheEngineHasBeenColdForTwoMinutes() {
+        assertNull(
+            VehiclePageWords.engineCell(
+                telemetry(running = 0.0, trip = TripEnergy(engineSeconds = 3 * 60.0)),
+            ),
+        )
     }
 
     /**
@@ -90,7 +110,9 @@ class VehiclePageWordsTest {
         assertNull("never started", VehiclePageWords.engineCell(telemetry(running = 0.0)))
         assertNull(
             "ran for forty seconds",
-            VehiclePageWords.engineCell(telemetry(running = 0.0, trip = TripEnergy(engineSeconds = 40.0))),
+            VehiclePageWords.engineCell(
+                telemetry(running = 0.0, trip = TripEnergy(engineSeconds = 40.0), warm = true),
+            ),
         )
         assertNull(
             "running, but the revolutions did not answer",
@@ -141,7 +163,9 @@ class VehiclePageWordsTest {
         gun: Double? = null,
         rpm: Double? = null,
         running: Double? = null,
+        chargeKw: Double? = null,
         trip: TripEnergy = TripEnergy(),
+        warm: Boolean = false,
     ): VehicleTelemetry {
         val values = LinkedHashMap<VehicleSignal, Double>()
         powerKw?.let { values[VehicleSignal.POWER_KW] = it }
@@ -150,6 +174,12 @@ class VehiclePageWordsTest {
         gun?.let { values[VehicleSignal.CHARGE_GUN] = it }
         rpm?.let { values[VehicleSignal.ENGINE_RPM] = it }
         running?.let { values[VehicleSignal.ENGINE_RUNNING] = it }
-        return VehicleTelemetry(values = values, trip = trip)
+        chargeKw?.let { values[VehicleSignal.CHARGE_KW] = it }
+        // A trace with one live slot in it: the engine ran inside the last two minutes.
+        val trace = if (!warm) EngineTraceSnapshot.EMPTY else EngineTrace().apply {
+            sample(atMillis = 0L, rpm = 1321.0, generationKw = 8.0)
+            sample(atMillis = 1_000L, rpm = 1321.0, generationKw = 8.0)
+        }.snapshot()
+        return VehicleTelemetry(values = values, engineTrace = trace, trip = trip)
     }
 }
