@@ -139,12 +139,20 @@ class VehiclePageWordsTest {
         )
     }
 
+    /**
+     * And the window rides on the unit rather than in the caption.
+     *
+     * That is the Contour's own arrangement for this very figure - «кВт·ч/100 км · за 3 км» under
+     * the petal - and here it is also what fits: a caption wide enough to hold the window pushed
+     * the figure past its column in a two-thirds pane.
+     */
     @Test
     fun consumptionNamesTheRoadItWasSpentOn() {
         val telemetry = telemetry().copy(consumption = List(30) { 19.4 })
-        val spend = VehiclePageWords.spend(telemetry)
-        assertTrue("the figure", spend!!.startsWith("19,4 кВт·ч/100"))
-        assertTrue("and its window", spend.endsWith("ЗА 3 КМ"))
+        val spend = VehiclePageWords.spend(telemetry)!!
+        assertEquals("the name", VehiclePageWords.TITLE_SPEND, spend.caption)
+        assertEquals("the figure", "19,4", spend.figure)
+        assertTrue("and its window", spend.unit.endsWith("ЗА 3 КМ"))
     }
 
     @Test

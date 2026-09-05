@@ -946,6 +946,11 @@ object DenzaAppRepository {
             runtimeStep("simulcast reconcile") {
                 reconcileSimulcast(repairMissingSetup = true)
             }
+            runtimeStep("media button access") {
+                HudNotificationAccessCoordinator.ensureMediaSessionAccess(app) {
+                    SimulcastAccessibilityService.requestMediaResumeRefresh()
+                }
+            }
             runtimeStep("mirrors reconcile") {
                 if (MirrorsSettings.isEnabled(app)) reconcileMirrors()
             }

@@ -67,7 +67,23 @@ internal class VehiclePageRenderer {
     private val box = RectF()
     private val glyphs = ContourGlyphs()
     private val surface = CanvasGlyphSurface()
-    private val shelf: Array<Reading> = Array(SENSORS.size) { Reading(SENSORS[it].glyph, SENSORS[it].band) }
+    private val shelf: Array<Row> = Array(SENSORS.size + 1) { index ->
+        if (index < SENSORS.size) {
+            val sensor = SENSORS[index]
+            Row(
+                glyph = sensor.glyph,
+                watch = sensor.band,
+                alert = sensor.band + HOT_MARGIN,
+                top = sensor.band + HOT_MARGIN * 2f,
+            )
+        } else {
+            // The spread's own window, built the way a temperature's is: the alert, and as much
+            // again past it as separates the alert from the watch.
+            val watch = ContourReadout.SPREAD_WATCH_MV.toFloat()
+            val alert = ContourReadout.SPREAD_ALERT_MV.toFloat()
+            Row(glyph = null, watch = watch, alert = alert, top = alert + (alert - watch), unit = VehiclePageWords.UNIT_MV)
+        }
+    }
 
     /**
      * @param left the field's own left edge in pixels; the dots below it are the caller's
@@ -101,9 +117,12 @@ internal class VehiclePageRenderer {
 
         drawHead(canvas, telemetry, left, centre, leftWidth, unit)
         drawTrace(canvas, telemetry, left, centre + (BLOCK + GAP) * unit, leftWidth, GRAPH, unit)
-        drawFoot(canvas, telemetry, left, centre + (COLUMN - FOOT_BASELINE_UP) * unit, unit, false)
+        drawFoot(
+            canvas, telemetry, left, centre + (COLUMN - FOOT_BASELINE_UP) * unit,
+            leftWidth * unit, unit, false,
+        )
 
-        val shelfHeight = SHELF_ROWS * ROW + (SHELF_ROWS - 1) * ROW_GAP + ROW_GAP + CAP_LINE
+        val shelfHeight = SHELF_ROWS * ROW + (SHELF_ROWS - 1) * ROW_GAP
         val shelfTop = top + (height - shelfHeight) * unit / 2f
         drawShelf(canvas, telemetry, rightLeft, shelfTop, (right - rightLeft) / unit, unit)
 
@@ -134,7 +153,7 @@ internal class VehiclePageRenderer {
         drawHead(canvas, telemetry, left, start, width, unit)
         drawTrace(canvas, telemetry, left, start + (BLOCK + GAP) * unit, width, GRAPH_NARROW, unit)
         val footBaseline = start + (BLOCK + GAP + GRAPH_NARROW + GAP + LABEL_BASELINE) * unit
-        drawFoot(canvas, telemetry, left, footBaseline, unit, true)
+        drawFoot(canvas, telemetry, left, footBaseline, width * unit, unit, true)
 
         val rowTop = start + (BLOCK + GAP + GRAPH_NARROW + GAP + CAP_LINE + GAP) * unit
         val cell = width / SHELF_ROWS
@@ -214,14 +233,46 @@ internal class VehiclePageRenderer {
             units,
         )
 
-        val engine = VehiclePageWords.engineCell(telemetry) ?: return
-        val capsWidth = capsWidth(engine.first, unit)
-        val engineX = left + width * unit - capsWidth
-        // The engine never crowds the hero: if its caption cannot stand clear of the kilowatts
-        // there is no room for the cell, and a cell drawn over a figure is worse than an absent one.
-        if (engineX < left + figureWidth + (UNIT_GAP + GROUP) * unit) return
-        caption(canvas, engine.first, engineX, top + LABEL_BASELINE * unit, unit)
-        figure(canvas, engine.second, engineX, top + ENGINE_BASELINE * unit, ENGINE * unit, PanelPalette.INK)
+        units.textSize = UNIT_SIZE * unit
+        val heroRight = left + figureWidth + UNIT_GAP * unit + units.measureText(UNIT_KW)
+
+        // Right to left after that, and each cell is drawn only if it can stand clear of the one
+        // before it. A cell drawn over a figure is worse than an absent one, and this row carries
+        // three things whose widths all depend on what the car is doing.
+        var free = left + width * unit
+        val engine = VehiclePageWords.engineCell(telemetry)
+        if (engine != null) {
+            val engineX = free - capsWidth(engine.first, unit)
+            if (engineX > heroRight + GROUP * unit) {
+                caption(canvas, engine.first, engineX, top + LABEL_BASELINE * unit, unit)
+                figure(
+                    canvas, engine.second, engineX, top + SECOND_BASELINE * unit,
+                    SECOND * unit, PanelPalette.INK,
+                )
+                free = engineX - GROUP * unit
+            }
+        }
+
+        // The pack's voltage stands beside the kilowatts because on this pack it is the kilowatts
+        // that move it - the resting voltage is flat across the whole charge window, and what
+        // changes is the sag under load. It used to hang off the end of the shape's caption, where
+        // the owner read it as «пришпилили куда-то вниз, непонятно к чему относится».
+        val volts = VehiclePageWords.volts(telemetry) ?: return
+        val voltsX = heroRight + GROUP * unit
+        if (voltsX + capsWidth(volts.caption, unit) > free) return
+        caption(canvas, volts.caption, voltsX, top + LABEL_BASELINE * unit, unit)
+        val voltsWidth = figure(
+            canvas, volts.figure, voltsX, top + SECOND_BASELINE * unit,
+            SECOND * unit, PanelPalette.INK,
+        )
+        units.textSize = SECOND_UNIT * unit
+        units.color = PanelPalette.MUTED
+        canvas.drawText(
+            volts.unit,
+            voltsX + voltsWidth + LEAD * unit,
+            top + SECOND_BASELINE * unit,
+            units,
+        )
     }
 
     // ------------------------------------------------------------------------------- the shape
@@ -315,13 +366,34 @@ internal class VehiclePageRenderer {
         telemetry: VehicleTelemetry,
         left: Float,
         baseline: Float,
+        width: Float,
         unit: Float,
         narrow: Boolean,
     ) {
         val window = VehiclePageWords.window(telemetry.powerTrace.seconds, narrow)
-        val volts = telemetry[VehicleSignal.PACK_VOLT]
-        val tail = if (narrow || volts == null) "" else " · ${ContourReadout.whole(volts)} $UNIT_V"
-        caption(canvas, "$window$tail", left, baseline, unit, DenzaPalette.MUTED_DEEP)
+        caption(canvas, window, left, baseline, unit, DenzaPalette.MUTED_DEEP)
+        if (narrow) return
+
+        // And what the last three kilometres cost, hung off the right of the same line.
+        //
+        // «Как водитель, не очень интересен… ему больше места где-то под графиком» - so it is here
+        // rather than on the shelf, where it was the one row that had nothing to do with how warm
+        // anything is getting. Named, because the owner's other verdict this evening was about a
+        // figure that had no name and no place: «непонятно, к чему относится».
+        val spend = VehiclePageWords.spend(telemetry) ?: return
+        units.textSize = LABEL * unit
+        figures.textSize = SPEND * unit
+        val unitWidth = units.measureText(spend.unit)
+        val figureWidth = figures.measureText(spend.figure)
+        val right = left + width
+        val captionWidth = capsWidth(spend.caption, unit)
+        val runX = right - unitWidth - LEAD * unit - figureWidth
+        if (runX - LEAD * unit - captionWidth < left + capsWidth(window, unit) + GROUP * unit) return
+        caption(canvas, spend.caption, runX - LEAD * unit - captionWidth, baseline, unit)
+        figures.color = PanelPalette.INK
+        canvas.drawText(spend.figure, runX, baseline, figures)
+        units.color = DenzaPalette.MUTED_DEEP
+        canvas.drawText(spend.unit, right - unitWidth, baseline, units)
     }
 
     // -------------------------------------------------------------------------- the temperatures
@@ -349,10 +421,6 @@ internal class VehiclePageRenderer {
                 left + width * unit - trackLeft, TRACK * unit,
             )
         }
-
-        val spend = VehiclePageWords.spend(telemetry) ?: return
-        val baseline = top + (SHELF_ROWS * ROW + SHELF_ROWS * ROW_GAP + LABEL_BASELINE) * unit
-        caption(canvas, spend, left, baseline, unit, DenzaPalette.MUTED_DEEP)
     }
 
     /**
@@ -367,7 +435,7 @@ internal class VehiclePageRenderer {
      */
     private fun drawTrack(
         canvas: Canvas,
-        reading: Reading,
+        reading: Row,
         left: Float,
         top: Float,
         width: Float,
@@ -377,11 +445,10 @@ internal class VehiclePageRenderer {
         box.set(left, top, left + width, top + height)
         fill.color = DenzaPalette.TRACK
         canvas.drawRoundRect(box, radius, radius, fill)
-        val celsius = reading.celsius ?: return
+        val value = reading.value ?: return
 
-        val top0 = reading.band + HOT_MARGIN * 2f
-        val watch = (reading.band / top0).coerceIn(0f, 1f)
-        val alert = ((reading.band + HOT_MARGIN) / top0).coerceIn(0f, 1f)
+        val watch = (reading.watch / reading.top).coerceIn(0f, 1f)
+        val alert = (reading.alert / reading.top).coerceIn(0f, 1f)
         box.set(left + width * watch, top, left + width, top + height)
         fill.color = PanelPalette.alpha(PanelPalette.AMBER, ZONE_ALPHA)
         canvas.drawRoundRect(box, radius, radius, fill)
@@ -389,8 +456,8 @@ internal class VehiclePageRenderer {
         fill.color = PanelPalette.alpha(PanelPalette.DANGER, ZONE_ALPHA)
         canvas.drawRoundRect(box, radius, radius, fill)
 
-        val value = (celsius / top0).coerceIn(0f, 1f)
-        box.set(left, top, left + width * value, top + height)
+        val filled = (value / reading.top).coerceIn(0f, 1f)
+        box.set(left, top, left + width * filled, top + height)
         fill.color = when (reading.level) {
             ContourReadout.Level.ALERT -> PanelPalette.DANGER
             ContourReadout.Level.WATCH -> PanelPalette.AMBER
@@ -399,7 +466,8 @@ internal class VehiclePageRenderer {
         canvas.drawRoundRect(box, radius, radius, fill)
     }
 
-    private fun drawGlyph(canvas: Canvas, reading: Reading, left: Float, baseline: Float, unit: Float) {
+    private fun drawGlyph(canvas: Canvas, reading: Row, left: Float, baseline: Float, unit: Float) {
+        val glyph = reading.glyph ?: return drawCells(canvas, reading, left, baseline, unit)
         surface.bind(
             canvas, fill, line, left, baseline,
             scale = GLYPH * unit / ContourGlyphs.HEIGHT,
@@ -407,7 +475,7 @@ internal class VehiclePageRenderer {
         )
         glyphs.draw(
             surface,
-            reading.glyph,
+            glyph,
             x = 0f,
             baseline = ContourGlyphs.HEIGHT,
             outline = PanelPalette.MUTED,
@@ -416,15 +484,53 @@ internal class VehiclePageRenderer {
     }
 
     /**
-     * The five, in the order the car is put together: the pack, then front to back, then what
-     * drives them.
+     * Two cells at two levels, which is the reading this row carries.
      *
-     * Named by marks rather than by words, and that is the owner's own verdict on the cluster
-     * rather than a preference of this screen: naming the three motor positions in Russian was
-     * tried there and thrown out on the sound of it. A car seen from above with one block lit says
-     * which motor in no language.
+     * The Contour's family has no mark for the cell spread - the cluster names it with the one
+     * word left in its row - so this screen draws one, in the family's own idiom: a case in the
+     * caption's ink, and the part that means something in the data's. What differs between the two
+     * cases is what the number is.
      */
-    private fun readings(telemetry: VehicleTelemetry): Array<Reading> {
+    private fun drawCells(canvas: Canvas, reading: Row, left: Float, baseline: Float, unit: Float) {
+        val scale = GLYPH * unit / ContourGlyphs.HEIGHT
+        val width = CELL_WIDTH * scale
+        val height = CELL_HEIGHT * scale
+        val top = baseline - (ContourGlyphs.HEIGHT + CELL_HEIGHT) / 2f * scale
+        line.style = Paint.Style.STROKE
+        line.strokeWidth = 2.0f * unit
+        line.color = PanelPalette.MUTED
+        listOf(CELL_LOW, CELL_HIGH).forEachIndexed { index, fillFraction ->
+            val x = left + (CELL_INSET_X + index * (CELL_WIDTH + CELL_GAP)) * scale
+            box.set(x, top, x + width, top + height)
+            canvas.drawRoundRect(box, CELL_RADIUS * scale, CELL_RADIUS * scale, line)
+            val inset = CELL_INSET * scale
+            box.set(
+                x + inset,
+                top + height - inset - (height - inset * 2f) * fillFraction,
+                x + width - inset,
+                top + height - inset,
+            )
+            fill.color = reading.ink
+            canvas.drawRoundRect(box, CELL_RADIUS * scale / 2f, CELL_RADIUS * scale / 2f, fill)
+        }
+    }
+
+    /**
+     * The shelf: five temperatures and the cell spread, all rows of one kind.
+     *
+     * The spread joined them on the owner's own reasoning - *«они же шкала, которая показывает
+     * цветовую кодировку… должна двигаться туда-сюда и уходить в оранжевую зону, если разброс
+     * повышается»* - and he is right that it is the same kind of reading: a number with a window
+     * it is ordinary inside of and two zones past it. It sat under the marks as a line of text,
+     * which said nothing about how close to trouble it was.
+     *
+     * The temperatures are named by the Contour's marks, and that is the owner's verdict on the
+     * cluster rather than a preference of this screen: naming the three motor positions in Russian
+     * was tried there and thrown out on the sound of it. The spread has no mark in that family -
+     * the cluster names it with the one word left in its row, because it has no room for anything
+     * else - so this screen draws it: two cells at two levels, which is what the reading is.
+     */
+    private fun readings(telemetry: VehicleTelemetry): Array<Row> {
         for (index in SENSORS.indices) {
             val sensor = SENSORS[index]
             val celsius = telemetry[sensor.signal]?.toFloat()
@@ -435,6 +541,11 @@ internal class VehiclePageRenderer {
                 } ?: ContourReadout.Level.NORMAL,
             )
         }
+        val spread = telemetry.cellSpreadMv?.toFloat()
+        shelf[SENSORS.size].set(
+            spread,
+            spread?.let { ContourReadout.spreadState(it.toDouble()) } ?: ContourReadout.Level.NORMAL,
+        )
         return shelf
     }
 
@@ -482,29 +593,40 @@ internal class VehiclePageRenderer {
     )
 
     /**
-     * One cell of the shelf, refreshed rather than rebuilt.
+     * One row of the shelf, refreshed rather than rebuilt.
      *
-     * Five of these are made once and written on every frame. A list built per frame is 150
-     * objects a second thrown away inside the frames that made them, over a quantity the car
-     * answers four times a second.
+     * Six of these are made once and written on every frame. A list built per frame is 180 objects
+     * a second thrown away inside the frames that made them, over a quantity the car answers four
+     * times a second.
+     *
+     * [glyph] is null for the one row the Contour's family has no mark for: the cell spread, drawn
+     * here as two cells at two levels. [unit] is empty where the figure carries its own sign - a
+     * degree belongs to the number, millivolts do not.
      */
-    private class Reading(val glyph: ContourGlyphs.Glyph, val band: Float) {
-        var celsius: Float? = null
+    private class Row(
+        val glyph: ContourGlyphs.Glyph?,
+        val watch: Float,
+        val alert: Float,
+        val top: Float,
+        val unit: String = "",
+    ) {
+        var value: Float? = null
             private set
         var level: ContourReadout.Level = ContourReadout.Level.NORMAL
             private set
 
-        fun set(celsius: Float?, level: ContourReadout.Level) {
-            this.celsius = celsius
+        fun set(value: Float?, level: ContourReadout.Level) {
+            this.value = value
             this.level = level
         }
 
-        val text: String get() = celsius?.let { "${it.roundToInt()}$DEGREE" } ?: DASH
+        val text: String
+            get() = value?.let { "${it.roundToInt()}${if (unit.isEmpty()) DEGREE else ""}" } ?: DASH
 
 
         val ink: Int
             get() = when {
-                celsius == null -> PanelPalette.MUTED
+                value == null -> PanelPalette.MUTED
                 level == ContourReadout.Level.ALERT -> PanelPalette.DANGER
                 level == ContourReadout.Level.WATCH -> PanelPalette.AMBER
                 else -> PanelPalette.INK
@@ -634,9 +756,18 @@ internal class VehiclePageRenderer {
         const val HERO_BASELINE = 70f
         const val BLOCK = 88f
 
-        /** The engine's figure is the shelf's rung, so the two cells never read as equals. */
-        const val ENGINE = 34f
-        const val ENGINE_BASELINE = 50f
+        /** Everything beside the hero is the shelf's rung, so no two cells read as equals. */
+        const val SECOND = 34f
+        const val SECOND_BASELINE = 50f
+
+        // The two named readings under the marks: a 15 caption and a 24 figure on one baseline,
+        // which is the row this app sets a label-and-value in everywhere else.
+        /** A 34 figure takes the rung under it for its unit, the way 62 takes 24. */
+        const val SECOND_UNIT = 19f
+
+        /** The consumption under the shape: a figure one rung over its own caption. */
+        const val SPEND = 19f
+
 
         const val UNIT_SIZE = 24f
         const val UNIT_GAP = 12f
@@ -660,11 +791,21 @@ internal class VehiclePageRenderer {
         const val FOOT_BASELINE_UP = CAP_LINE - LABEL_BASELINE
 
         // The shelf: five rows of 30 a neighbour's gap apart, the consumption under them.
-        const val SHELF_ROWS = 5
+        const val SHELF_ROWS = 6
         const val ROW = 30f
         const val ROW_GAP = 8f
         const val ROW_BASELINE = 27f
         const val GLYPH = 30f
+
+        // The spread's own mark, in the glyph family's units: two cells, one fuller than the other.
+        const val CELL_INSET_X = 2.5f
+        const val CELL_WIDTH = 8f
+        const val CELL_HEIGHT = 15f
+        const val CELL_GAP = 3f
+        const val CELL_RADIUS = 2f
+        const val CELL_INSET = 2.4f
+        const val CELL_LOW = 0.45f
+        const val CELL_HIGH = 0.95f
 
         /**
          * The marks are the cluster's shapes at this screen's own weight, and that is what makes

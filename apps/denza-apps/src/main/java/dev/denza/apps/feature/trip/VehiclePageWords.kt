@@ -2,6 +2,7 @@ package dev.denza.apps.feature.trip
 
 import dev.denza.apps.feature.cluster.dashboard.ContourReadout
 import dev.denza.apps.feature.vehicle.ConsumptionWindow
+import dev.denza.apps.feature.vehicle.VehicleSignal
 import dev.denza.apps.feature.vehicle.VehicleTelemetry
 
 /**
@@ -89,18 +90,48 @@ internal object VehiclePageWords {
     /**
      * What the last few kilometres cost, over the distance they actually were.
      *
-     * Absent while the car stands: kWh per 100 km has no value at zero speed, which is why
-     * [ConsumptionWindow.mean] returns null rather than a crawling average, and an absent figure
-     * is drawn as no cell rather than as a dash - nothing is missing, there is simply no
-     * consumption to report yet.
+     * A caption and a figure rather than one string, because it is a reading with a name now
+     * instead of a line of text at the foot of a column. Absent while the car stands: kWh per 100
+     * km has no value at zero speed, which is why [ConsumptionWindow.mean] returns null rather
+     * than a crawling average, and an absent figure is no cell rather than a dash - nothing is
+     * missing, there is simply no consumption to report yet.
      */
-    fun spend(telemetry: VehicleTelemetry): String? {
+    fun spend(telemetry: VehicleTelemetry): Reading? {
         val mean = telemetry.consumptionMean ?: return null
         val km = ConsumptionWindow.coveredKm(telemetry.consumption)
         if (km <= 0.0) return null
-        return "${ContourReadout.tenth(mean)} $UNIT_PER_100 $TITLE_OVER " +
-            "${ContourReadout.whole(km)} $UNIT_KM"
+        // The window rides on the unit rather than in the caption, which is the Contour's own
+        // arrangement for this very figure: «кВт·ч/100 км · за 3 км» under the petal. A caption
+        // wide enough to hold it pushed the figure past the column in a two-thirds pane.
+        return Reading(
+            TITLE_SPEND,
+            ContourReadout.tenth(mean),
+            unit = "$UNIT_PER_100 $TITLE_OVER ${ContourReadout.whole(km)} $UNIT_KM",
+        )
     }
+
+    /**
+     * What the pack is standing at, and it is a reading rather than a footnote now.
+     *
+     * It used to hang off the end of the shape's own caption - «ПОСЛЕДНИЕ 2 МИНУТЫ · 542 В» - and
+     * the owner read it exactly as it was written: «как будто ему нигде место не нашлось, и его
+     * пришпилили куда-то вниз. Непонятно, к чему относится». It belongs beside the kilowatts,
+     * because on this pack it is the kilowatts that move it: the resting voltage is flat across
+     * the whole charge window - 550 V at 43 %, 551 V at 62 % - and what a driver sees change is
+     * the sag under load.
+     */
+    fun volts(telemetry: VehicleTelemetry): Reading? {
+        val volts = telemetry[VehicleSignal.PACK_VOLT] ?: return null
+        return Reading(TITLE_VOLTS, ContourReadout.whole(volts), unit = UNIT_V)
+    }
+
+    /** A named figure: what it is, what it says, and whether it is still ordinary. */
+    class Reading(
+        val caption: String,
+        val figure: String,
+        val level: ContourReadout.Level = ContourReadout.Level.NORMAL,
+        val unit: String = "",
+    )
 
     class Headline(val text: String, val mark: Boolean)
 
@@ -116,8 +147,13 @@ internal object VehiclePageWords {
     const val TITLE_WINDOW_SHORT = "2 МИН"
     const val TITLE_WINDOW_PREFIX = "ПОСЛЕДНИЕ"
     const val TITLE_OVER = "ЗА"
+    const val TITLE_VOLTS = "НАПРЯЖЕНИЕ"
+    const val TITLE_SPEND = "РАСХОД"
     const val UNIT_PER_100 = "кВт·ч/100"
     const val UNIT_KM = "КМ"
+    /** The spread's unit, which the shelf's own row carries. */
+    const val UNIT_MV = "мВ"
+    const val UNIT_V = "В"
 
     /** The cluster's own words for the same reading, in this screen's own case. */
     val TITLE_ENGINE_MINUTES: String = ContourReadout.TITLE_ENGINE_MINUTES.uppercase()

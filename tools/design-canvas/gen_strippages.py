@@ -48,6 +48,7 @@ GAP = gp.GAP                  # 12
 LEAD = gp.LEAD                # 8
 PAGE_TOP = gp.PAGE_TOP        # 20
 WINDOW_H = gp.WINDOW_H        # 680
+RULE_GAP = 12                 # Space.M either side of a hairline, as `.ruled` spends it
 GUTTER = 80                   # the canvas gutter between two frames
 PLATE_NAME = 24
 
@@ -143,6 +144,12 @@ HEAT_GLYPHS = {
 HEAT_BAND = {'pack': 40.0, 'front': 70.0, 'rear_l': 70.0, 'rear_r': 70.0, 'inverter': 70.0}
 HOT_MARGIN = 15.0
 
+# The cell spread is a row of the same kind - «они же шкала, которая показывает цветовую
+# кодировку… должна двигаться туда-сюда и уходить в оранжевую зону» - with `ContourReadout`'s own
+# thresholds and a window built the way a temperature's is: the alert, and as much again past it.
+SPREAD_WATCH = 25.0
+SPREAD_ALERT = 40.0
+
 
 def heat_level(kind, value):
     """0 ordinary, 1 worth watching, 2 worth stopping for - `ContourReadout.thermalState`."""
@@ -152,12 +159,56 @@ def heat_level(kind, value):
     return 2 if value > band + HOT_MARGIN else (1 if value > band else 0)
 
 
+# The Contour's family has no mark for the cell spread - the cluster names it with the one word
+# left in its row, because it has no room for anything else. This screen has room for a mark and no
+# room for a word in that column, so it draws one in the family's idiom: two cases in the caption's
+# ink, and the part that means something in the data's.
+CELLS_GLYPH = (
+    '<rect x="2.5" y="4.5" width="8" height="15" rx="2"></rect>'
+    '<rect x="13.5" y="4.5" width="8" height="15" rx="2"></rect>'
+    '<g stroke="none" fill="{component}">'
+    '<rect x="4.9" y="12.6" width="3.2" height="4.5" rx="1"></rect>'
+    '<rect x="15.9" y="7.6" width="3.2" height="9.5" rx="1"></rect></g>'
+)
+
+
+def spread_glyph(level=0):
+    """Two cells at two levels, which is what the reading is."""
+    component = (INK, WARNING, DANGER)[level]
+    # A square viewBox, like every other mark here: 29 wide against 24 tall drew the two cells
+    # stretched, which is the defect the owner spotted in the family's own marks a pass ago.
+    return (f'<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="{MUTED}" '
+            f'stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">'
+            f'{CELLS_GLYPH.replace("{component}", component)}</svg>')
+
+
 def heat_glyph(kind, level=0):
     """One sensor's mark: the case in the caption's ink, the part that reads in the data's."""
     component = (INK, WARNING, DANGER)[level]
     body = HEAT_GLYPHS[kind].replace('{outline}', MUTED).replace('{component}', component)
     return (f'<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="{MUTED}" '
             f'stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">{body}</svg>')
+
+
+def spread_row(millivolts, narrow=False):
+    """The sixth row: the same anatomy, the pack's own two thresholds."""
+    level = 2 if millivolts > SPREAD_ALERT else (1 if millivolts > SPREAD_WATCH else 0)
+    top = SPREAD_ALERT + (SPREAD_ALERT - SPREAD_WATCH)
+    colour = (INK, WARNING, DANGER)[level]
+    pct = round(min(1.0, millivolts / top) * 100, 1)
+    watch = round(SPREAD_WATCH / top * 100, 1)
+    alert = round(SPREAD_ALERT / top * 100, 1)
+    fill = ('rgba(218,225,235,0.55)', WARNING, DANGER)[level]
+    track = (f'<div class="track">'
+             f'<div style="position:absolute; left:{watch:g}%; top:0; bottom:0; right:0; '
+             f'background:rgba(255,159,25,0.30);"></div>'
+             f'<div style="position:absolute; left:{alert:g}%; top:0; bottom:0; right:0; '
+             f'border-radius:0 3px 3px 0; background:rgba(255,64,70,0.32);"></div>'
+             f'<div style="position:absolute; left:0; top:0; bottom:0; width:{pct:g}%; '
+             f'border-radius:3px; background:{fill};"></div></div>')
+    return (f'          <div class="temp">{spread_glyph(level)}'
+            f'<div class="val" style="color:{colour};">{millivolts:g}'
+            f'<span class="un19"> мВ</span></div>{track}</div>')
 
 
 def temp_row(kind, value, narrow=False):
@@ -361,13 +412,13 @@ SCENES = {
         headline='ИЗ БАТАРЕИ', power='34', colour=INK, volts='548',
         engine=('ДВС · МИН ЗА ПОЕЗДКУ', '14'),
         temps=[('pack', 33), ('front', 52), ('rear_l', 51), ('rear_r', 49), ('inverter', 42)],
-        spend='19,8 кВт·ч/100 ЗА 3 КМ', trace='traction',
+        spread=6, spend='19,8', trace='traction',
     ),
     'generation': dict(
         headline='В БАТАРЕЮ ОТ ДВС', power='-8', colour=RETURN_INK, volts='553',
         engine=('ДВС · ОБ/МИН', '1321'),
         temps=[('pack', 32), ('front', 47), ('rear_l', 46), ('rear_r', 44), ('inverter', 39)],
-        spend='19,4 кВт·ч/100 ЗА 3 КМ', trace='generation',
+        spread=6, spend='19,4', trace='generation',
     ),
     'charging': dict(
         headline='В БАТАРЕЮ ОТ ЗАРЯДКИ', power='-2,4', colour=RETURN_INK, volts='550',
@@ -375,7 +426,7 @@ SCENES = {
         temps=[('pack', 28), ('front', 31), ('rear_l', 29), ('rear_r', 31), ('inverter', 26)],
         # No consumption cell while the car is standing: kWh/100 km has no value at zero speed,
         # and a quantity that did not happen is not drawn as a zero.
-        spend='', trace='charging',
+        spread=4, spend='', trace='charging',
     ),
     # Read against `ContourReadout`'s bands rather than against a number chosen to look alarming:
     # the front motor is past 85 and is DANGER, the other three are past 70 and are WATCH, and the
@@ -388,13 +439,13 @@ SCENES = {
         headline='ИЗ БАТАРЕИ', power='196', colour=INK, volts='531',
         engine=('ДВС · ОБ/МИН', '3980'),
         temps=[('pack', 44), ('front', 79), ('rear_l', 77), ('rear_r', 76), ('inverter', 74)],
-        spend='31,6 кВт·ч/100 ЗА 3 КМ', trace='launch',
+        spread=9, spend='31,6', trace='launch',
     ),
     'hot': dict(
         headline='ИЗ БАТАРЕИ', power='62', colour=INK, volts='544',
         engine=('ДВС · ОБ/МИН', '1420'),
         temps=[('pack', 42), ('front', 88), ('rear_l', 76), ('rear_r', 74), ('inverter', 73)],
-        spend='27,3 кВт·ч/100 ЗА 3 КМ', trace='hot',
+        spread=28, spend='27,3', trace='hot',
     ),
 }
 
@@ -411,6 +462,19 @@ def headline(text):
         return (f'<span style="color:{RETURN};">●</span> '
                 f'<span style="color:{MUTED};">{text}</span>')
     return f'<span style="color:{MUTED};">{text}</span>'
+
+
+def spend_run(scene):
+    """What the last three kilometres cost, hung off the right of the shape's own caption.
+
+    «Как водитель, не очень интересен… ему больше места где-то под графиком» - so it is here
+    rather than on the shelf, where it was the one row that had nothing to do with heat. Named,
+    because a figure with no name and no place is exactly what the voltage was.
+    """
+    if not scene['spend']:
+        return ''
+    return ('<span class="spend">РАСХОД <span class="spend-figure">'
+            f'{scene["spend"]}</span> кВт·ч/100 ЗА 3 КМ</span>')
 
 
 def vehicle_page(scene='generation', shape='wide', width=FIELD_W):
@@ -438,16 +502,22 @@ def vehicle_page(scene='generation', shape='wide', width=FIELD_W):
     s = SCENES[scene]
     narrow = shape == 'narrow'
     temps = ''.join(temp_row(kind, value, narrow) for kind, value in s['temps'])
+    if not narrow:
+        temps += spread_row(s['spread'])
     # The trace is drawn at the width the left column will have, which the flex ratio decides.
     trace_w = width if narrow else round((width - GROUP - 1) * LEFT_SHARE / (LEFT_SHARE + 1), 2)
 
-    engine = ''
+    cells = [f'''            <div class="cell">
+              <div class="cap">НАПРЯЖЕНИЕ</div>
+              <div class="line"><div class="val">{s['volts']}</div><div class="un19">В</div></div>
+            </div>''']
     if s['engine']:
         caption, figure = s['engine']
-        engine = f'''            <div class="cell">
+        cells.append(f'''            <div class="cell">
               <div class="cap">{caption}</div>
               <div class="line"><div class="val">{figure}</div></div>
-            </div>'''
+            </div>''')
+    engine = '\n'.join(cells)
     head = f'''          <div class="head">
             <div class="cell">
               <div class="cap">{headline(s['headline'])}</div>
@@ -467,13 +537,12 @@ def vehicle_page(scene='generation', shape='wide', width=FIELD_W):
     # same line one screen along: «ПОСЛЕДНИЕ 2 МИНУТЫ» becomes «2 МИН» at 392 dp, and the span
     # stays, because the shape above cannot be read without it.
     window = '2 МИН' if narrow else 'ПОСЛЕДНИЕ 2 МИНУТЫ'
-    volts = '' if narrow else f' · {s["volts"]} В'
     # The two arrows are drawn rather than typed, on both records. A still in Chrome has a font it
     # can check and the car does not: this panel's own variometer is three strokes for exactly that
     # reason, and a board that types what the app draws is a board that cannot be compared with a
     # photograph of the screen.
     trace = (f'{trace_svg(trace_w, TRACES[s["trace"]], TRACE_H_NARROW if narrow else TRACE_H)}\n'
-             f'          <div class="foot">{window}{volts}</div>')
+             f'          <div class="foot">{window}{spend_run(s)}</div>')
 
     if narrow:
         # `Space.L` between the shape and the marks rather than the group's own 32: at 392 dp the
@@ -487,7 +556,7 @@ def vehicle_page(scene='generation', shape='wide', width=FIELD_W):
         <div class="temps">{temps}</div>
       </div>'''
 
-    spend = f'\n          <div class="foot">{s["spend"]}</div>' if s['spend'] else ''
+    spend = ''
     return f'''      <div class="page split">
         <div class="left" style="width:{trace_w:g}px; flex-shrink:0;">
 {head}
@@ -709,10 +778,20 @@ def build():
     /* The ramp's top rung, and the first board to spend it. */
     .hero {{ font-size:62px; font-weight:200; color:{INK}; line-height:1; }}
     .vrule {{ width:1px; align-self:stretch; background:rgba(218,225,235,0.14); margin:0 {GROUP // 2}px; }}
-    .foot {{ font-size:15px; letter-spacing:1.6px; font-weight:500; color:{MUTED_DEEP}; }}
+    /* Two runs on one line, and they stand on one baseline. A flex row aligns its children by
+       their boxes, and a 19 figure makes a taller box than a 15 caption - so the window and the
+       consumption sat a couple of units apart and the line read as dancing. The app draws both
+       from the same baseline; this is the board saying the same thing. */
+    .foot {{ font-size:15px; letter-spacing:1.6px; font-weight:500; color:{MUTED_DEEP};
+             display:flex; align-items:baseline; justify-content:space-between; }}
+    .spend-figure {{ font-size:19px; color:{INK}; }}
     .foot svg {{ vertical-align:baseline; }}
     .instruction {{ font-size:19px; color:{INK}; }}
     .temps {{ display:flex; align-items:flex-end; justify-content:space-between; }}
+    /* Under the marks: the pack's own two readings, each with its name. A value with no name at
+       the foot of a column is a value nobody can place, which is what the voltage was. */
+    /* A figure's unit is the rung under it, the way a 62 figure's is 24. */
+    .un19 {{ font-size:19px; color:{MUTED}; letter-spacing:0; }}
     .temp {{ display:flex; align-items:center; gap:{GAP}px; height:30px; }}
     .temp .val {{ width:64px; flex-shrink:0; }}
     .temp-col {{ display:flex; flex-direction:column; gap:4px; }}

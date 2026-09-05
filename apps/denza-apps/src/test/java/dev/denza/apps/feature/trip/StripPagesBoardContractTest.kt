@@ -59,9 +59,9 @@ class StripPagesBoardContractTest {
     fun theHeroAndTheEngineAreTwoRungsApart() {
         assertEquals("hero", number("""\.hero \{ font-size:([\d.]+)px"""),
             VehiclePageRenderer.HERO.toDouble(), 1e-6)
-        assertEquals("engine and the shelf's readings",
+        assertEquals("everything beside the hero",
             number("""\.head \.val \{ font-size:([\d.]+)px"""),
-            VehiclePageRenderer.ENGINE.toDouble(), 1e-6)
+            VehiclePageRenderer.SECOND.toDouble(), 1e-6)
         assertEquals("a temperature", number("""\.val \{ font-size:([\d.]+)px"""),
             VehiclePageRenderer.READING.toDouble(), 1e-6)
     }
@@ -92,7 +92,9 @@ class StripPagesBoardContractTest {
             VehiclePageRenderer.READING_FIELD.toDouble(), 1e-6)
         assertEquals("track", number("""\.track \{ position:relative; flex:1; min-width:0; height:([\d.]+)px"""),
             VehiclePageRenderer.TRACK.toDouble(), 1e-6)
-        assertEquals("sensors", 5, VehiclePageRenderer.SHELF_ROWS)
+        // Five temperatures and the cell spread, which is a reading of the same kind: a number
+        // with a window it is ordinary inside of and two zones past it.
+        assertEquals("rows", 6, VehiclePageRenderer.SHELF_ROWS)
     }
 
     /**
@@ -122,6 +124,19 @@ class StripPagesBoardContractTest {
             "the margin the board draws with",
             number("""HOT_MARGIN = ([\d.]+)""", GENERATOR),
             ContourReadout.HOT_MARGIN_C,
+            1e-6,
+        )
+        // The spread is a row of the same kind now, so its two thresholds are held the same way.
+        assertEquals(
+            "the spread's watch",
+            number("""SPREAD_WATCH = ([\d.]+)""", GENERATOR),
+            ContourReadout.SPREAD_WATCH_MV,
+            1e-6,
+        )
+        assertEquals(
+            "and its alert",
+            number("""SPREAD_ALERT = ([\d.]+)""", GENERATOR),
+            ContourReadout.SPREAD_ALERT_MV,
             1e-6,
         )
         assertEquals("the zone's own ink", number("""rgba\(255,159,25,([\d.]+)\)"""),
@@ -191,6 +206,33 @@ class StripPagesBoardContractTest {
         )
     }
 
+    /**
+     * The sixth row is named by a mark, on both records and with the same geometry.
+     *
+     * The Contour's family has no mark for the cell spread - the cluster names it with the one
+     * word left in its row - so this screen draws two cells at two levels, and the word is on
+     * neither record. What holds them together is the drawing.
+     */
+    @Test
+    fun theSpreadIsNamedByTheSameTwoCells() {
+        assertEquals(
+            "a cell's width",
+            number("""CELLS_GLYPH = \(\s*'<rect x="[\d.]+" y="[\d.]+" width="([\d.]+)""", GENERATOR),
+            VehiclePageRenderer.CELL_WIDTH.toDouble(),
+            1e-6,
+        )
+        assertEquals(
+            "where the pair starts",
+            number("""CELLS_GLYPH = \(\s*'<rect x="([\d.]+)""", GENERATOR),
+            VehiclePageRenderer.CELL_INSET_X.toDouble(),
+            1e-6,
+        )
+        assertTrue(
+            "and the word is on neither record",
+            !BOARD.readText().contains(ContourReadout.CAPTION_SPREAD),
+        )
+    }
+
     @Test
     fun bothRecordsClimbTheSameLadder() {
         val rungs = Regex("""TRACE_RUNGS = \(([\d, ]+)\)""").find(GENERATOR.readText())
@@ -219,6 +261,8 @@ class StripPagesBoardContractTest {
             VehiclePageWords.TITLE_ENGINE_MINUTES,
             VehiclePageWords.TITLE_WINDOW,
             VehiclePageWords.TITLE_WINDOW_SHORT,
+            VehiclePageWords.TITLE_VOLTS,
+            VehiclePageWords.TITLE_SPEND,
             VehiclePageRenderer.TITLE_CLOSED,
         ).forEach { phrase ->
             assertTrue("«$phrase» is on the board", BOARD.readText().contains(phrase))

@@ -32,6 +32,8 @@ import android.view.accessibility.AccessibilityWindowInfo;
 import dev.denza.disharebridge.DiShareScreens;
 import dev.denza.apps.core.DenzaRuntimeCoordinator;
 import dev.denza.apps.feature.hud.HudGuidanceAccessibilityMonitor;
+import dev.denza.apps.feature.media.MediaButtonEnvironment;
+import dev.denza.apps.feature.media.MediaResumeController;
 import dev.denza.apps.feature.navigation.NavigationSettings;
 import dev.denza.apps.feature.navigation.SteeringWheelKeyInterceptor;
 import dev.denza.apps.feature.speaker.SpeakerCoverService;
@@ -129,6 +131,8 @@ public class SimulcastAccessibilityService extends AccessibilityService {
     private boolean dialogObserved;
     private boolean windowOperationsPending;
     private HudGuidanceAccessibilityMonitor hudGuidanceMonitor;
+    private MediaResumeController mediaResumeController;
+    private MediaButtonEnvironment mediaButtonEnvironment;
 
     // Gesture state shared between input windows and the painter.
     private boolean dragging;
@@ -149,6 +153,9 @@ public class SimulcastAccessibilityService extends AccessibilityService {
         windowReconciler = new SimulcastWindowReconciler(new OverlayWindowHost());
         hudGuidanceMonitor = new HudGuidanceAccessibilityMonitor(this);
         hudGuidanceMonitor.attach();
+        mediaButtonEnvironment = new MediaButtonEnvironment(this);
+        mediaResumeController = new MediaResumeController(this);
+        mediaResumeController.start();
         Log.i(TAG, "service connected");
         // The system can recreate this long-lived process without reopening MainActivity
         // (notably after an APK replacement). Recover desired runtimes here so a persisted
@@ -196,6 +203,17 @@ public class SimulcastAccessibilityService extends AccessibilityService {
 
     @Override
     protected boolean onKeyEvent(KeyEvent event) {
+        int code = event.getKeyCode();
+        boolean mediaPress = event.getAction() == KeyEvent.ACTION_DOWN
+                && event.getRepeatCount() == 0
+                && (code == KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE
+                    || code == KeyEvent.KEYCODE_MEDIA_PLAY
+                    || code == KeyEvent.KEYCODE_MEDIA_PAUSE || code == 386);
+        if (mediaResumeController != null && mediaResumeController.onKeyEvent(
+                event, !mediaPress || (mediaButtonEnvironment != null
+                        && mediaButtonEnvironment.allowsNewPress()))) {
+            return true;
+        }
         boolean enabled = NavigationSettings.INSTANCE.steeringWheelButtonEnabled(this);
         boolean consumed = steeringWheelKeyInterceptor.onKeyEvent(
                 enabled,
@@ -222,6 +240,7 @@ public class SimulcastAccessibilityService extends AccessibilityService {
         }
         handler.removeCallbacks(refreshRunnable);
         steeringWheelKeyInterceptor.reset();
+        tearDownMediaResume();
         applyDialogObservation(
                 SimulcastDialogVisibilityTracker.Observation.CLOSED_CONFIRMED);
         tearDownHudGuidance();
@@ -239,6 +258,7 @@ public class SimulcastAccessibilityService extends AccessibilityService {
         }
         handler.removeCallbacks(refreshRunnable);
         steeringWheelKeyInterceptor.reset();
+        tearDownMediaResume();
         applyDialogObservation(
                 SimulcastDialogVisibilityTracker.Observation.CLOSED_CONFIRMED);
         tearDownHudGuidance();
@@ -250,6 +270,22 @@ public class SimulcastAccessibilityService extends AccessibilityService {
 
     static boolean isConnected() {
         return connected;
+    }
+
+    static void requestMediaResumeRefresh() {
+        SimulcastAccessibilityService service = instance;
+        if (service == null) return;
+        service.handler.post(() -> {
+            if (instance == service && service.mediaResumeController != null) {
+                service.mediaResumeController.start();
+            }
+        });
+    }
+
+    private void tearDownMediaResume() {
+        if (mediaResumeController != null) mediaResumeController.stop();
+        mediaResumeController = null;
+        mediaButtonEnvironment = null;
     }
 
     static void requestHudGuidanceRefresh() {
