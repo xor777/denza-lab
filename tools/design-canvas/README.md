@@ -28,6 +28,7 @@ that reports what collides.
 | `gen_contour.py` | emits the Contour - the cluster concept that won the 2026-09 contest - as the calm panel, seventeen scenes, and the plan with every number on it |
 | `gen_kit.py` | emits the two boards that describe the system, from the system |
 | `gen_panes.py` | emits the dashboard's two pane boards from `Main.dc.html` and the pane geometry, and the dashboard underlay both sheet boards are drawn over |
+| `gen_strippages.py` | emits the strip proposal: its two pages, the dots under them, the car's page in five scenes and in both panes, from `Main.dc.html` and the pane geometry |
 | `panel_frame.py` | archived tooling for the four retired head-unit instrument concepts; rebuilds Energy |
 | `normalize.py` | maps type, radii, borders and icon weights onto the scales |
 | `audit.py` | opens every board in headless Chrome and reports what collides |
@@ -253,6 +254,147 @@ for two, so each takes a line, primary first, because a stack is read from the t
 
 A fullscreen-only board cannot show any of that, which is why the pair exists.
 Any screen that can appear in a pane deserves the same treatment.
+
+## The strip is two pages
+
+`StripPages.dc.html` is a contract now: the strip draws it.
+`dev.denza.apps.feature.trip.VehiclePageRenderer` is the page,
+`VehiclePageWords` is what it says, `PowerTrace` is the two minutes behind the
+shape, and `StripPagesBoardContractTest` holds this board and those constants
+against each other so neither can move alone. What the owner asked for is what
+it is: the analyser, and the car's own readings, reached the way a phone does it
+- **swipe sideways, two dots under the field saying there is a second page**.
+
+Two pages, not a pager. `BottomPanelPager` was deleted on 2026-08-27 with four
+pages nobody could see; what comes back is one gesture, two pages, and an
+indicator that is on the screen whether or not anybody swipes. The field is what
+pages - the three trip readings are true on both pages and do not move - and the
+dots cost the analyser 20 dp at the foot of the field, the same 20 on both pages,
+so nothing moves when the page does. 203 dp of bars become 186.
+
+### The car's page is the Contour's rules, one screen along
+
+The first cut of it was four captions over four figures and a supporting line, and
+the owner's verdict was that it is *«просто какой-то набор цифр»*. It was: a table
+has no subject. What fixed it is not new invention but the panel next door - the
+Contour went through nine passes to learn these, and this page inherits them:
+
+- **one quantity, one sentence.** The headline is words - `ИЗ БАТАРЕИ`,
+  `● В БАТАРЕЮ ОТ ДВС · 1321 об/мин` - and the figure under it says how much. A
+  minus in front of a number is not a direction anybody reads at a glance, and on
+  this page the direction matters more than the sign;
+- **a figure names the window it is true over**: `ПОСЛЕДНИЕ 2 МИНУТЫ · 553 В`
+  under the trace, `ЗА 3 КМ` after the consumption;
+- **a zero is never drawn, and a quantity that did not happen has no cell.**
+  Revolutions live inside the headline and only while the engine turns; consumption
+  is absent while the car stands; nothing prints `0` to hold a seat;
+- **the page has a shape**, and it is the same quantity the headline names: two
+  minutes of pack power, out of the pack in ink and back into it in `RETURN`,
+  drawn as **twenty-four steps of five seconds** - the engine box's own grid,
+  because a per-sample line across half a metre of glass is 0.9 mm per sample of
+  something moving faster than the eye follows.
+
+### The engine has one place, and it says three things
+
+*«Непонятно, где место показу оборотов ДВС и что будет, если ДВС заглушен»* - and
+it was, because the revolutions were a clause inside the headline that vanished
+without saying anything. They have a cell of their own now, at the right of the
+hero's line, at the shelf's rung rather than the hero's so the two never read as a
+pair of equals. The unit is in the caption and the figure is bare, which is the
+Contour's arrangement one screen along:
+
+| the engine | the cell |
+| --- | --- |
+| turning | `ДВС · ОБ/МИН` over `1321` |
+| stopped, but it ran this trip | `ДВС · МИН ЗА ПОЕЗДКУ` over `14` |
+| has not run at all | no cell - a quantity that did not happen has no seat, and a zero is never drawn |
+
+All three are on the board: the generation and climb scenes turning, the electric
+scene stopped after fourteen minutes, the charging scene with no cell at all.
+
+### The graph fills the box it is given
+
+*«Обрати внимание, как график использует вертикальное пространство, чтобы он не
+был сплющен»* - and the fixed span was what flattened it. Sixty kilowatts out is
+right for a climb and turns an eight-kilowatt generation into a sliver against the
+axis; ten is right for the generation and clamps every acceleration flat.
+
+So each half of the box takes **the smallest rung that holds it** - `5 · 10 · 20 ·
+40 · 80 · 160` - and the axis is placed between the two at `top / (top + bottom)`,
+which makes the kilowatts per pixel identical above and below. One scale, both
+halves full, whichever way the pack has been working: a climb with nothing going
+back gets almost the whole box for what leaves the pack, and a standing charge gets
+it for what arrives. A ladder rather than a fit, because a span that follows the
+data continuously redraws the same drive at a new height every second.
+
+And the shape names the span it is drawn in, the way every figure here names its
+window: `ПОСЛЕДНИЕ 2 МИНУТЫ · ШКАЛА 5 ↑ 10 ↓ кВт · 553 В`. In a narrow pane the
+window shortens to `2 МИН` and the voltage goes - the Contour's own rule for the
+same line, where the window is the first thing to give and the span may not go.
+
+### The temperature track carries the zone
+
+The scale drawn under each figure was first a plain fill with a one-pixel tick, and
+the verdict was *«просто какая-то полосочка»* - a fill against a range nobody can
+see is decoration. So the track shows **where ordinary stops**: amber from the
+band, red past the band and its margin, and the fill runs to the reading. The
+thresholds are not this board's opinion - they are `ContourReadout`'s own
+`PACK_BAND_HIGH_C 40`, `DRIVE_BAND_HIGH_C 70`, `HOT_MARGIN_C 15`, so the head unit
+and the driver's display cannot hold two ideas of "hot" in one car. A reading that
+reaches a zone takes the fill, the figure and the glyph's own component with it, so
+a hot cell lights as one object.
+
+### What is not on it, and why
+
+- **the current.** The first cut printed `−22 А` and `371 В`, both off a photograph
+  of another car's dashboard. This pack is 166 LFP cells and reads 550-557 V, flat
+  across the charge window; the one id that decoded as amps was read once, parked
+  on an AC charge, is named *charge* current and its sign is unproven, and
+  `STATISTIC_INSTANTANEOUS_CURRENT` is on the findings' own "do not label in a UI
+  until a moving capture" list. On a pack whose voltage does not move, amps are
+  kilowatts drawn twice;
+- **the 12 V rail** - *«бессмысленное значение, никакой пользы не несёт»*;
+- **the charge, the range and the fuel.** The car's own displays carry all three,
+  and this page exists for what they do not show.
+
+What is left is exactly that: what the pack is doing now, what it has been doing
+for two minutes, how warm five components are, and what the last three kilometres
+cost.
+
+### The scenes, and which of them were measured
+
+`ГЕНЕРАЦИЯ` is the 2026-08-23 capture drawn sample for sample - a minute on the
+battery alone, the engine coming in at −6 and settling at −8 to −10 kW, 1321 rpm,
+the pack at 32 °C. `ЗАРЯДКА` is 2026-08-22 - 2.4 kW, 550 V, cells 4 mV apart, and
+no consumption cell because a standing car has no kWh/100 km. `ЭЛЕКТРОТЯГА` and
+`ДЛИННЫЙ ПОДЪЁМ` have never been captured, the pack-power sign in motion is still
+an open item, and the board says so on the frame rather than in a footnote. With
+the shell shut the marks keep their places, every reading is a dash, the tracks
+show no zones - they judge a reading that is not there - and the instruction
+stands where the hero was.
+
+### Two things the code does that the board cannot
+
+**The arrows are drawn, not typed.** `«↑»` is one character and this panel has no
+idea what the head unit's font does with it - the variometer beside it is three
+strokes for exactly that reason. The board draws them too, so a photograph of the
+screen and a render of the board can be laid side by side.
+
+**A step nothing answered in breaks the shape.** The board's scenes are all
+complete windows; a poll the shell missed leaves a `NaN` in the trace, and the
+renderer lifts the pen over it rather than drawing a line across a bin that never
+happened.
+
+### And what it costs
+
+The car's page is a shell poll four times a second for as long as it is visible,
+and today the only thing claiming that poll is the cluster. A page one swipe away
+and remembered is a poll running whenever the dashboard is on screen: a decision to
+take deliberately rather than to discover. The page also overlaps the Contour by
+design - a driver with the cluster on `Приборы` already has power and temperatures
+in front of him - and what it is for is the other cases: the stock cluster, a
+passenger, and the three moments the numbers matter.
+
 
 ## The two ramps
 

@@ -1,0 +1,901 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@200;300;400;500;700&amp;family=Roboto+Mono:wght@500;700&amp;display=swap" rel="stylesheet">
+  <style>
+    body { margin:0; background:#07080A; font-family:'Roboto','Segoe UI',system-ui,sans-serif; }
+    a { color:#FEEFAB; } a:hover { color:#FFF7D2; }
+    .cap { font-size:15px; letter-spacing:1.6px; font-weight:500; color:#86909B; }
+    .num { font-size:46px; font-weight:200; color:#DAE1EB; line-height:1; }
+    .un { font-size:24px; color:#86909B; }
+    .rate { font-size:19px; color:#FEEFAB; }
+    .fig { display:flex; flex-direction:column; gap:8px; }
+    .line { display:flex; align-items:baseline; gap:12px; }
+    .ruled { border-top:1px solid rgba(218,225,235,0.14); padding-top:12px; }
+    .tile { position:relative; height:164px; box-sizing:border-box; border-radius:22px; padding:20px; display:flex; flex-direction:column; justify-content:space-between; }
+    .on { background:#212429; border:1px solid rgba(254,239,171,0.30); box-shadow:0 0 22px rgba(254,239,171,0.07); }
+    .off { background:#15181F; border:1px solid rgba(218,225,235,0.10); }
+    .nm { font-size:19px; font-weight:500; line-height:1.2; }
+    .st { font-size:15px; line-height:1.3; }
+    .led { font-family:'Roboto Mono',monospace; font-weight:700; font-size:34px; letter-spacing:5px; color:transparent; background-color:#FEEFAB; background-image:radial-gradient(circle at center, #FEEFAB 41%, transparent 46%); background-size:3.4px 3.4px; -webkit-background-clip:text; background-clip:text; filter:drop-shadow(0 0 7px rgba(254,239,171,0.55)); }
+    .chip { position:relative; aspect-ratio:1; box-sizing:border-box; border-radius:12px; display:flex; align-items:center; justify-content:center; }
+    .dot { position:absolute; border-radius:50%; }
+    /* The pane's three trip figures, exactly as `gen_panes` sets them. */
+    .across { display:flex; align-items:stretch; height:72px; }
+    .across .fig { flex:1; min-width:0; }
+    .rule { width:1px; background:rgba(218,225,235,0.14); margin:0 16px; }
+    .rows { display:flex; flex-direction:column; gap:12px; }
+    .row { height:30px; line-height:30px; display:flex; align-items:baseline; gap:12px; }
+    .row .cap { width:100px; flex-shrink:0; }
+
+    /* The car's page: one thought per column. */
+    .page { flex-grow:1; min-height:0; display:flex; flex-direction:column;
+             justify-content:center; gap:32px; }
+    .page.split { flex-direction:row; align-items:stretch; gap:0; }
+    .page.narrow { gap:20px; }
+    .left { display:flex; flex-direction:column; justify-content:center; gap:20px; }
+    /* The hero and the engine share one line: the pack's own figure at the ramp's top rung, and
+       what the engine is doing at the shelf's, so the two never read as a pair of equals. */
+    .head { display:flex; align-items:flex-start; justify-content:space-between; gap:32px; }
+    .head .cell { flex:none; display:flex; flex-direction:column; gap:8px; }
+    .head .val { font-size:34px; }
+    .right { flex:1; min-width:0; display:flex; flex-direction:column;
+              justify-content:center; gap:8px; }
+    /* The ramp's top rung, and the first board to spend it. */
+    .hero { font-size:62px; font-weight:200; color:#DAE1EB; line-height:1; }
+    .vrule { width:1px; align-self:stretch; background:rgba(218,225,235,0.14); margin:0 16px; }
+    .foot { font-size:15px; letter-spacing:1.6px; font-weight:500; color:#7C858F; }
+    .foot svg { vertical-align:baseline; }
+    .instruction { font-size:19px; color:#DAE1EB; }
+    .temps { display:flex; align-items:flex-end; justify-content:space-between; }
+    .temp { display:flex; align-items:center; gap:12px; height:30px; }
+    .temp .val { width:64px; flex-shrink:0; }
+    .temp-col { display:flex; flex-direction:column; gap:4px; }
+    .temp.stack { flex-direction:column; align-items:flex-start; gap:4px; height:auto; }
+    .temp.stack .val { font-size:24px; width:auto; }
+    /* The track carries the zone: everything past this sensor's own limit is drawn in the mark
+       colour, so where ordinary stops is visible without a legend. */
+    .track { position:relative; flex:1; min-width:0; height:6px; border-radius:3px; background:#22262E; }
+    .temp-col .track { width:56px; flex:none; height:4px; border-radius:2px; }
+    .val { font-size:34px; font-weight:300; color:#DAE1EB; line-height:1; }
+
+    /* Board furniture, not screen. The size is on the element because `audit.py` takes the body's
+       first child as the artboard and `shot.py` reads the first size in the body. */
+    .board { box-sizing:border-box; display:flex; flex-direction:column; gap:80px;
+              padding:80px; background:#07080A; }
+    .row-band { display:flex; align-items:flex-start; gap:80px; }
+    .plate { display:flex; flex-direction:column; gap:12px; }
+    .plate-name { height:24px; line-height:24px; font-size:15px;
+                   letter-spacing:1.6px; font-weight:500; color:#7C858F; }
+    .frame { overflow:hidden; flex-shrink:0; }
+  </style>
+</helmet>
+<div class="board" style="width:3872px; height:2084px;">
+<div class="row-band">
+<div class="plate">
+  <div class="plate-name">СТРАНИЦА 1 · ЗВУК — КАК СЕЙЧАС</div>
+<div class="frame" style="width:1280px; height:680px; box-sizing:border-box; background:#07080A; display:flex; flex-direction:column; gap:12px; padding:20px 48px 12px 48px;">
+
+  <div style="display:grid; grid-template-columns:repeat(6, minmax(0, 1fr)); gap:12px;">
+
+    <div class="tile on">
+      <svg width="30" height="30" viewBox="1 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><circle cx="12" cy="12" r="3"></circle><path d="M3.2 10.5 L9.1 10.9 M20.8 10.5 L14.9 10.9 M12 15 L12 21"></path></svg>
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <div class="nm" style="color:#DAE1EB;">Экран водителя</div>
+        <div class="st" style="color:#FEEFAB;">Приборы</div>
+      </div>
+    </div>
+
+    <div class="tile on">
+      <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 20h0.01"></path><path d="M2 16a4 4 0 0 1 4 4"></path><path d="M2 12a8 8 0 0 1 8 8"></path><path d="M2 8V6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6"></path></svg>
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <div class="nm" style="color:#DAE1EB;">Трансляция</div>
+        <div class="st" style="color:#86909B;">Выбрано 6</div>
+      </div>
+    </div>
+
+    <div class="tile on">
+      <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <div class="nm" style="color:#DAE1EB;">Зеркала</div>
+        <div class="st" style="color:#FEEFAB;">Включены</div>
+      </div>
+    </div>
+
+    <div class="tile on">
+      <svg width="30" height="30" viewBox="1 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="15" rx="2"></rect><path d="M12 4.5v15"></path></svg>
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <div class="nm" style="color:#DAE1EB;">Разделение</div>
+        <div class="st" style="color:#86909B;">Включено</div>
+      </div>
+    </div>
+
+    <div class="tile on">
+      <svg width="30" height="30" viewBox="3 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 13.5l6-6 6 6"></path><path d="M5 19h14"></path></svg>
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <div class="nm" style="color:#DAE1EB;">HUD Подсказки</div>
+        <div class="st" style="color:#FEEFAB;">Включены</div>
+      </div>
+    </div>
+
+    <div class="tile on">
+      <svg width="30" height="30" viewBox="0.4 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="3.2"></circle><path d="M8 2.4v1.4M8 12.2v1.4M2.4 8h1.4M12.2 8h1.4M4.6 4.6l1 1M11.4 4.6l-1 1M4.6 11.4l1-1"></path><path d="M17 20.5H9.5a3.5 3.5 0 0 1 0-7 4.6 4.6 0 0 1 8.7-1 3.9 3.9 0 0 1-1.2 8z"></path></svg>
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <div class="nm" style="color:#DAE1EB;">Погода</div>
+        <div class="st" style="color:#FEEFAB;">+14°</div>
+      </div>
+    </div>
+
+    <div class="tile on">
+      <svg width="30" height="30" viewBox="4 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="3" width="12" height="18" rx="2"></rect><circle cx="12" cy="14" r="3.2"></circle><circle cx="12" cy="7" r="1.2"></circle></svg>
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <div class="nm" style="color:#DAE1EB;">Динамики</div>
+        <div class="st" style="color:#86909B;">Включена</div>
+      </div>
+    </div>
+
+    <div class="tile on">
+      <svg width="30" height="30" viewBox="1 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M3.4 9.5h17.2M3.4 14.5h17.2"></path><path d="M12 3a15 15 0 0 0 0 18 15 15 0 0 0 0-18z"></path></svg>
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <div class="nm" style="color:#DAE1EB;">Русский язык</div>
+        <div class="st" style="color:#86909B;">Включён</div>
+      </div>
+    </div>
+
+    <div class="tile off">
+      <svg width="30" height="30" viewBox="3 0 24 24" fill="none" stroke="#86909B" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2.5" width="14" height="19" rx="2"></rect><path d="M12 6.5v7"></path><path d="M9 10.5l3 3 3-3"></path><path d="M9 17.5h6"></path></svg>
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <div class="nm" style="color:#DAE1EB;">Экран справа</div>
+        <div class="st" style="color:#86909B;">Не выбрано</div>
+      </div>
+    </div>
+
+    <div class="tile on">
+      <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="2"></rect><rect x="14" y="3" width="7" height="7" rx="2"></rect><rect x="3" y="14" width="7" height="7" rx="2"></rect><path d="m14.5 17.5 2 2 4-5"></path></svg>
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <div class="nm" style="color:#DAE1EB;">Shortcuts</div>
+        <div class="st" style="color:#FEEFAB;">3 настроены</div>
+      </div>
+    </div>
+
+    <div class="tile off">
+      <svg width="30" height="30" viewBox="2 0 24 24" fill="none" stroke="#86909B" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 12h16M4 17h16"></path><circle cx="15" cy="7" r="2" fill="#15181F"></circle><circle cx="8" cy="12" r="2" fill="#15181F"></circle><circle cx="17" cy="17" r="2" fill="#15181F"></circle></svg>
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <div class="nm" style="color:#DAE1EB;">Сервис</div>
+        <div class="st" style="color:#86909B;">Всё в норме</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div style="flex-grow:1; display:flex; gap:32px; min-height:0;">
+    <div style="width:832px; display:flex; flex-direction:column; min-width:0;">
+      <div style="display:flex; align-items:center; height:52px;">
+        <div class="led">M83 · MIDNIGHT CITY</div>
+      </div>
+      <div style="position:relative;">
+        <div style="display:flex; align-items:flex-end; gap:9.39px; height:186.35px;">
+          <sc-for list="{{bars}}" as="b" hint-placeholder-count="26">
+            <div style="width:22.97px; display:flex; flex-direction:column; justify-content:flex-end; height:186.35px;">
+              <div style="height:4px; background:#FFF8DA; border-radius:2px; box-shadow:0 0 7px rgba(254,239,171,0.9); margin-bottom: {{b.p}}px;"></div>
+              <div style="height: {{b.h}}px; border-radius:2px 2px 0 0; background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA); box-shadow:0 0 16px rgba(254,239,171,0.22);"></div>
+            </div>
+          </sc-for>
+        </div>
+        <div style="position:absolute; left:0; right:0; bottom:0; height:186.35px; background:repeating-linear-gradient(to top, rgba(7,8,10,0) 0px, rgba(7,8,10,0) 8px, #07080A 8px, #07080A 11px); pointer-events:none;"></div>
+      </div>
+      <div style="height:37.65px; overflow:hidden; opacity:0.14; transform:scaleY(-1); position:relative;">
+        <div style="display:flex; align-items:flex-end; gap:9.39px; height:37.65px;">
+          <sc-for list="{{bars}}" as="b" hint-placeholder-count="26">
+            <div style="width:22.97px; height: calc({{b.h}}px * 0.5); background:linear-gradient(to top, #4A4222, #FEEFAB 62%, #FFF8DA);"></div>
+          </sc-for>
+        </div>
+        <div style="position:absolute; left:0; right:0; top:0; bottom:0; background:linear-gradient(to top, rgba(7,8,10,0) 20%, #07080A); pointer-events:none;"></div>
+      </div>
+      <div style="height:20px; flex-shrink:0; display:flex; align-items:center; justify-content:center; gap:8px;"><div style="width:8px; height:8px; border-radius:4px; background:#FEEFAB;"></div><div style="width:8px; height:8px; border-radius:4px; background:rgba(134,144,155,0.45);"></div></div>
+    </div>
+    <div style="width:320px; flex-shrink:0; display:flex; flex-direction:column; justify-content:space-between;">
+      <div class="fig">
+        <div class="cap">В ПУТИ</div>
+        <div class="line">
+          <div class="num">1:42</div>
+          <div class="un">128 км</div>
+        </div>
+      </div>
+      <div class="fig ruled">
+        <div class="cap">ВЫСОТА</div>
+        <div class="line">
+          <div class="num">642</div>
+          <div class="un">м</div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="2.4" stroke-linecap="round"><path d="M12 19V6M6.5 11.5 12 6l5.5 5.5"></path></svg>
+            <div class="rate">1,2</div>
+          </div>
+        </div>
+      </div>
+      <div class="fig ruled">
+        <div class="cap">ЗАКАТ</div>
+        <div class="line">
+          <div class="num">19:44</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+<div class="plate">
+  <div class="plate-name">СТРАНИЦА 2 · МАШИНА — ГЕНЕРАЦИЯ, СНЯТО 23.08</div>
+<div class="frame" style="width:1280px; height:680px; box-sizing:border-box; background:#07080A; display:flex; flex-direction:column; gap:12px; padding:20px 48px 12px 48px;">
+
+  <div style="display:grid; grid-template-columns:repeat(6, minmax(0, 1fr)); gap:12px;">
+
+    <div class="tile on">
+      <svg width="30" height="30" viewBox="1 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><circle cx="12" cy="12" r="3"></circle><path d="M3.2 10.5 L9.1 10.9 M20.8 10.5 L14.9 10.9 M12 15 L12 21"></path></svg>
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <div class="nm" style="color:#DAE1EB;">Экран водителя</div>
+        <div class="st" style="color:#FEEFAB;">Приборы</div>
+      </div>
+    </div>
+
+    <div class="tile on">
+      <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 20h0.01"></path><path d="M2 16a4 4 0 0 1 4 4"></path><path d="M2 12a8 8 0 0 1 8 8"></path><path d="M2 8V6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6"></path></svg>
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <div class="nm" style="color:#DAE1EB;">Трансляция</div>
+        <div class="st" style="color:#86909B;">Выбрано 6</div>
+      </div>
+    </div>
+
+    <div class="tile on">
+      <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <div class="nm" style="color:#DAE1EB;">Зеркала</div>
+        <div class="st" style="color:#FEEFAB;">Включены</div>
+      </div>
+    </div>
+
+    <div class="tile on">
+      <svg width="30" height="30" viewBox="1 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="15" rx="2"></rect><path d="M12 4.5v15"></path></svg>
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <div class="nm" style="color:#DAE1EB;">Разделение</div>
+        <div class="st" style="color:#86909B;">Включено</div>
+      </div>
+    </div>
+
+    <div class="tile on">
+      <svg width="30" height="30" viewBox="3 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 13.5l6-6 6 6"></path><path d="M5 19h14"></path></svg>
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <div class="nm" style="color:#DAE1EB;">HUD Подсказки</div>
+        <div class="st" style="color:#FEEFAB;">Включены</div>
+      </div>
+    </div>
+
+    <div class="tile on">
+      <svg width="30" height="30" viewBox="0.4 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="3.2"></circle><path d="M8 2.4v1.4M8 12.2v1.4M2.4 8h1.4M12.2 8h1.4M4.6 4.6l1 1M11.4 4.6l-1 1M4.6 11.4l1-1"></path><path d="M17 20.5H9.5a3.5 3.5 0 0 1 0-7 4.6 4.6 0 0 1 8.7-1 3.9 3.9 0 0 1-1.2 8z"></path></svg>
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <div class="nm" style="color:#DAE1EB;">Погода</div>
+        <div class="st" style="color:#FEEFAB;">+14°</div>
+      </div>
+    </div>
+
+    <div class="tile on">
+      <svg width="30" height="30" viewBox="4 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="3" width="12" height="18" rx="2"></rect><circle cx="12" cy="14" r="3.2"></circle><circle cx="12" cy="7" r="1.2"></circle></svg>
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <div class="nm" style="color:#DAE1EB;">Динамики</div>
+        <div class="st" style="color:#86909B;">Включена</div>
+      </div>
+    </div>
+
+    <div class="tile on">
+      <svg width="30" height="30" viewBox="1 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M3.4 9.5h17.2M3.4 14.5h17.2"></path><path d="M12 3a15 15 0 0 0 0 18 15 15 0 0 0 0-18z"></path></svg>
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <div class="nm" style="color:#DAE1EB;">Русский язык</div>
+        <div class="st" style="color:#86909B;">Включён</div>
+      </div>
+    </div>
+
+    <div class="tile off">
+      <svg width="30" height="30" viewBox="3 0 24 24" fill="none" stroke="#86909B" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2.5" width="14" height="19" rx="2"></rect><path d="M12 6.5v7"></path><path d="M9 10.5l3 3 3-3"></path><path d="M9 17.5h6"></path></svg>
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <div class="nm" style="color:#DAE1EB;">Экран справа</div>
+        <div class="st" style="color:#86909B;">Не выбрано</div>
+      </div>
+    </div>
+
+    <div class="tile on">
+      <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="2"></rect><rect x="14" y="3" width="7" height="7" rx="2"></rect><rect x="3" y="14" width="7" height="7" rx="2"></rect><path d="m14.5 17.5 2 2 4-5"></path></svg>
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <div class="nm" style="color:#DAE1EB;">Shortcuts</div>
+        <div class="st" style="color:#FEEFAB;">3 настроены</div>
+      </div>
+    </div>
+
+    <div class="tile off">
+      <svg width="30" height="30" viewBox="2 0 24 24" fill="none" stroke="#86909B" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 12h16M4 17h16"></path><circle cx="15" cy="7" r="2" fill="#15181F"></circle><circle cx="8" cy="12" r="2" fill="#15181F"></circle><circle cx="17" cy="17" r="2" fill="#15181F"></circle></svg>
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <div class="nm" style="color:#DAE1EB;">Сервис</div>
+        <div class="st" style="color:#86909B;">Всё в норме</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div style="flex-grow:1; display:flex; gap:32px; min-height:0;">
+    <div style="width:832px; display:flex; flex-direction:column; min-width:0;">
+      <div class="page split">
+        <div class="left" style="width:503.07px; flex-shrink:0;">
+          <div class="head">
+            <div class="cell">
+              <div class="cap"><span style="color:#2D82D7;">●</span> <span style="color:#86909B;">В БАТАРЕЮ ОТ ДВС</span></div>
+              <div class="line">
+                <div class="hero" style="color:#4B9BE0;">8</div>
+                <div class="un">кВт</div>
+              </div>
+            </div>
+            <div class="cell">
+              <div class="cap">ДВС · ОБ/МИН</div>
+              <div class="line"><div class="val">1321</div></div>
+            </div>
+          </div>
+          <svg width="503.07" height="130" viewBox="0 0 503.07 130" fill="none">
+            <path d="M0 43.33 H20.96 V34.66 H0 Z M20.96 43.33 H41.92 V34.66 H20.96 Z M41.92 43.33 H62.88 V34.66 H41.92 Z M62.88 43.33 H83.84 V34.66 H62.88 Z M83.84 43.33 H104.8 V34.66 H83.84 Z M104.81 43.33 H125.77 V34.66 H104.81 Z M125.77 43.33 H146.73 V34.66 H125.77 Z M146.73 43.33 H167.69 V34.66 H146.73 Z M167.69 43.33 H188.65 V34.66 H167.69 Z M188.65 43.33 H209.61 V34.66 H188.65 Z M209.61 43.33 H230.57 V34.66 H209.61 Z" fill="rgba(218,225,235,0.16)"></path>
+            <path d="M230.57 43.33 H251.53 V104 H230.57 Z M251.53 43.33 H272.49 V125.67 H251.53 Z M272.5 43.33 H293.46 V118.47 H272.5 Z M293.46 43.33 H314.42 V127.14 H293.46 Z M314.42 43.33 H335.38 V117 H314.42 Z M335.38 43.33 H356.34 V125.67 H335.38 Z M356.34 43.33 H377.3 V118.47 H356.34 Z M377.3 43.33 H398.26 V121.33 H377.3 Z M398.26 43.33 H419.22 V117 H398.26 Z M419.23 43.33 H440.19 V125.67 H419.23 Z M440.19 43.33 H461.15 V118.47 H440.19 Z M461.15 43.33 H482.11 V115.53 H461.15 Z M482.11 43.33 H503.07 V112.67 H482.11 Z" fill="rgba(45,130,215,0.26)"></path>
+            <path d="M0 43.33 H503.07" stroke="#3F434D" stroke-width="1"></path>
+            <path d="M0 34.66 L20.96 34.66 L20.96 34.66 L41.92 34.66 L41.92 34.66 L62.88 34.66 L62.88 34.66 L83.84 34.66 L83.84 34.66 L104.81 34.66 L104.81 34.66 L125.77 34.66 L125.77 34.66 L146.73 34.66 L146.73 34.66 L167.69 34.66 L167.69 34.66 L188.65 34.66 L188.65 34.66 L209.61 34.66 L209.61 34.66 L230.57 34.66 L230.57 104 L251.53 104 L251.53 125.67 L272.5 125.67 L272.5 118.47 L293.46 118.47 L293.46 127.14 L314.42 127.14 L314.42 117 L335.38 117 L335.38 125.67 L356.34 125.67 L356.34 118.47 L377.3 118.47 L377.3 121.33 L398.26 121.33 L398.26 117 L419.23 117 L419.23 125.67 L440.19 125.67 L440.19 118.47 L461.15 118.47 L461.15 115.53 L482.11 115.53 L482.11 112.67 L503.07 112.67" stroke="#DAE1EB" stroke-width="2" stroke-linejoin="round" stroke-linecap="square"></path>
+          </svg>
+          <div class="foot">ПОСЛЕДНИЕ 2 МИНУТЫ · ШКАЛА <svg width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="#7C858F" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M1 5 L5 1 L9 5"></path></svg> 5 <svg width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="#7C858F" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M1 1 L5 5 L9 1"></path></svg> 10 кВт · 553 В</div>
+        </div>
+        <div class="vrule"></div>
+        <div class="right">
+          <div class="temp"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#86909B" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="16" height="10" rx="2"></rect><g stroke="none" fill="#86909B"><rect x="19" y="10" width="2.5" height="4" rx="1"></rect></g><g stroke="none" fill="#DAE1EB"><rect x="4" y="9" width="7" height="6" rx="1"></rect></g></svg><div class="val" style="color:#DAE1EB;">32°</div><div class="track"><div style="position:absolute; left:57.1%; top:0; bottom:0; right:0; background:rgba(255,159,25,0.30);"></div><div style="position:absolute; left:78.6%; top:0; bottom:0; right:0; border-radius:0 3px 3px 0; background:rgba(255,64,70,0.32);"></div><div style="position:absolute; left:0; top:0; bottom:0; width:45.7%; border-radius:3px; background:rgba(218,225,235,0.55);"></div></div></div>          <div class="temp"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#86909B" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2.5" width="10" height="19" rx="3"></rect><rect x="4" y="4.5" width="3" height="5" rx="1.5"></rect><rect x="4" y="14.5" width="3" height="5" rx="1.5"></rect><rect x="17" y="4.5" width="3" height="5" rx="1.5"></rect><rect x="17" y="14.5" width="3" height="5" rx="1.5"></rect><g stroke="none" fill="#DAE1EB"><rect x="8.5" y="5" width="7" height="4.2" rx="0.8"></rect></g></svg><div class="val" style="color:#DAE1EB;">47°</div><div class="track"><div style="position:absolute; left:70%; top:0; bottom:0; right:0; background:rgba(255,159,25,0.30);"></div><div style="position:absolute; left:85%; top:0; bottom:0; right:0; border-radius:0 3px 3px 0; background:rgba(255,64,70,0.32);"></div><div style="position:absolute; left:0; top:0; bottom:0; width:47%; border-radius:3px; background:rgba(218,225,235,0.55);"></div></div></div>          <div class="temp"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#86909B" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2.5" width="10" height="19" rx="3"></rect><rect x="4" y="4.5" width="3" height="5" rx="1.5"></rect><rect x="4" y="14.5" width="3" height="5" rx="1.5"></rect><rect x="17" y="4.5" width="3" height="5" rx="1.5"></rect><rect x="17" y="14.5" width="3" height="5" rx="1.5"></rect><g stroke="none" fill="#DAE1EB"><rect x="8.5" y="14.8" width="3.4" height="4.4" rx="0.8"></rect></g></svg><div class="val" style="color:#DAE1EB;">46°</div><div class="track"><div style="position:absolute; left:70%; top:0; bottom:0; right:0; background:rgba(255,159,25,0.30);"></div><div style="position:absolute; left:85%; top:0; bottom:0; right:0; border-radius:0 3px 3px 0; background:rgba(255,64,70,0.32);"></div><div style="position:absolute; left:0; top:0; bottom:0; width:46%; border-radius:3px; background:rgba(218,225,235,0.55);"></div></div></div>          <div class="temp"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#86909B" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2.5" width="10" height="19" rx="3"></rect><rect x="4" y="4.5" width="3" height="5" rx="1.5"></rect><rect x="4" y="14.5" width="3" height="5" rx="1.5"></rect><rect x="17" y="4.5" width="3" height="5" rx="1.5"></rect><rect x="17" y="14.5" width="3" height="5" rx="1.5"></rect><g stroke="none" fill="#DAE1EB"><rect x="12.1" y="14.8" width="3.4" height="4.4" rx="0.8"></rect></g></svg><div class="val" style="color:#DAE1EB;">44°</div><div class="track"><div style="position:absolute; left:70%; top:0; bottom:0; right:0; background:rgba(255,159,25,0.30);"></div><div style="position:absolute; left:85%; top:0; bottom:0; right:0; border-radius:0 3px 3px 0; background:rgba(255,64,70,0.32);"></div><div style="position:absolute; left:0; top:0; bottom:0; width:44%; border-radius:3px; background:rgba(218,225,235,0.55);"></div></div></div>          <div class="temp"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#86909B" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"></rect><path stroke="#DAE1EB" d="M5.5 12q2.2-4.5 4.4 0t4.4 0t4.4 0"></path></svg><div class="val" style="color:#DAE1EB;">39°</div><div class="track"><div style="position:absolute; left:70%; top:0; bottom:0; right:0; background:rgba(255,159,25,0.30);"></div><div style="position:absolute; left:85%; top:0; bottom:0; right:0; border-radius:0 3px 3px 0; background:rgba(255,64,70,0.32);"></div><div style="position:absolute; left:0; top:0; bottom:0; width:39%; border-radius:3px; background:rgba(218,225,235,0.55);"></div></div></div>
+          <div class="foot">19,4 кВт·ч/100 ЗА 3 КМ</div>
+        </div>
+      </div>
+      <div style="height:20px; flex-shrink:0; display:flex; align-items:center; justify-content:center; gap:8px;"><div style="width:8px; height:8px; border-radius:4px; background:rgba(134,144,155,0.45);"></div><div style="width:8px; height:8px; border-radius:4px; background:#FEEFAB;"></div></div>
+    </div>
+    <div style="width:320px; flex-shrink:0; display:flex; flex-direction:column; justify-content:space-between;">
+      <div class="fig">
+        <div class="cap">В ПУТИ</div>
+        <div class="line">
+          <div class="num">1:42</div>
+          <div class="un">128 км</div>
+        </div>
+      </div>
+      <div class="fig ruled">
+        <div class="cap">ВЫСОТА</div>
+        <div class="line">
+          <div class="num">642</div>
+          <div class="un">м</div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="2.4" stroke-linecap="round"><path d="M12 19V6M6.5 11.5 12 6l5.5 5.5"></path></svg>
+            <div class="rate">1,2</div>
+          </div>
+        </div>
+      </div>
+      <div class="fig ruled">
+        <div class="cap">ЗАКАТ</div>
+        <div class="line">
+          <div class="num">19:44</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+</div>
+<div class="row-band">
+<div class="plate">
+  <div class="plate-name">ЭЛЕКТРОТЯГА · СЦЕНА НЕ СНЯТА, ЗНАК МОЩНОСТИ НЕ ПОДТВЕРЖДЁН</div>
+<div class="frame" style="width:1184px; height:296px; background:#07080A; display:flex; gap:32px;">
+    <div style="width:832px; display:flex; flex-direction:column; min-width:0;">
+      <div class="page split">
+        <div class="left" style="width:503.07px; flex-shrink:0;">
+          <div class="head">
+            <div class="cell">
+              <div class="cap"><span style="color:#86909B;">ИЗ БАТАРЕИ</span></div>
+              <div class="line">
+                <div class="hero" style="color:#DAE1EB;">34</div>
+                <div class="un">кВт</div>
+              </div>
+            </div>
+            <div class="cell">
+              <div class="cap">ДВС · МИН ЗА ПОЕЗДКУ</div>
+              <div class="line"><div class="val">14</div></div>
+            </div>
+          </div>
+          <svg width="503.07" height="130" viewBox="0 0 503.07 130" fill="none">
+            <path d="M0 104 H20.96 V100.75 H0 Z M20.96 104 H41.92 V84.07 H20.96 Z M41.92 104 H62.88 V44.63 H41.92 Z M62.88 104 H83.84 V45.5 H62.88 Z M83.84 104 H104.8 V64.35 H83.84 Z M104.81 104 H125.77 V76.27 H104.81 Z M125.77 104 H146.73 V82.33 H125.77 Z M146.73 104 H167.69 V91 H146.73 Z M230.57 104 H251.53 V96.2 H230.57 Z M251.53 104 H272.49 V78 H251.53 Z M272.5 104 H293.46 V45.5 H272.5 Z M293.46 104 H314.42 V6.93 H293.46 Z M314.42 104 H335.38 V27.95 H314.42 Z M335.38 104 H356.34 V44.85 H335.38 Z M356.34 104 H377.3 V56.77 H356.34 Z M377.3 104 H398.26 V64.13 H377.3 Z M398.26 104 H419.22 V76.7 H398.26 Z M419.23 104 H440.19 V96.85 H419.23 Z M482.11 104 H503.07 V85.15 H482.11 Z" fill="rgba(218,225,235,0.16)"></path>
+            <path d="M167.69 104 H188.65 V106.6 H167.69 Z M188.65 104 H209.61 V127.83 H188.65 Z M209.61 104 H230.57 V118.3 H209.61 Z M440.19 104 H461.15 V125.23 H440.19 Z M461.15 104 H482.11 V130 H461.15 Z" fill="rgba(45,130,215,0.26)"></path>
+            <path d="M0 104 H503.07" stroke="#3F434D" stroke-width="1"></path>
+            <path d="M0 100.75 L20.96 100.75 L20.96 84.07 L41.92 84.07 L41.92 44.63 L62.88 44.63 L62.88 45.5 L83.84 45.5 L83.84 64.35 L104.81 64.35 L104.81 76.27 L125.77 76.27 L125.77 82.33 L146.73 82.33 L146.73 91 L167.69 91 L167.69 106.6 L188.65 106.6 L188.65 127.83 L209.61 127.83 L209.61 118.3 L230.57 118.3 L230.57 96.2 L251.53 96.2 L251.53 78 L272.5 78 L272.5 45.5 L293.46 45.5 L293.46 6.93 L314.42 6.93 L314.42 27.95 L335.38 27.95 L335.38 44.85 L356.34 44.85 L356.34 56.77 L377.3 56.77 L377.3 64.13 L398.26 64.13 L398.26 76.7 L419.23 76.7 L419.23 96.85 L440.19 96.85 L440.19 125.23 L461.15 125.23 L461.15 130 L482.11 130 L482.11 85.15 L503.07 85.15" stroke="#DAE1EB" stroke-width="2" stroke-linejoin="round" stroke-linecap="square"></path>
+          </svg>
+          <div class="foot">ПОСЛЕДНИЕ 2 МИНУТЫ · ШКАЛА <svg width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="#7C858F" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M1 5 L5 1 L9 5"></path></svg> 80 <svg width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="#7C858F" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M1 1 L5 5 L9 1"></path></svg> 20 кВт · 548 В</div>
+        </div>
+        <div class="vrule"></div>
+        <div class="right">
+          <div class="temp"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#86909B" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="16" height="10" rx="2"></rect><g stroke="none" fill="#86909B"><rect x="19" y="10" width="2.5" height="4" rx="1"></rect></g><g stroke="none" fill="#DAE1EB"><rect x="4" y="9" width="7" height="6" rx="1"></rect></g></svg><div class="val" style="color:#DAE1EB;">33°</div><div class="track"><div style="position:absolute; left:57.1%; top:0; bottom:0; right:0; background:rgba(255,159,25,0.30);"></div><div style="position:absolute; left:78.6%; top:0; bottom:0; right:0; border-radius:0 3px 3px 0; background:rgba(255,64,70,0.32);"></div><div style="position:absolute; left:0; top:0; bottom:0; width:47.1%; border-radius:3px; background:rgba(218,225,235,0.55);"></div></div></div>          <div class="temp"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#86909B" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2.5" width="10" height="19" rx="3"></rect><rect x="4" y="4.5" width="3" height="5" rx="1.5"></rect><rect x="4" y="14.5" width="3" height="5" rx="1.5"></rect><rect x="17" y="4.5" width="3" height="5" rx="1.5"></rect><rect x="17" y="14.5" width="3" height="5" rx="1.5"></rect><g stroke="none" fill="#DAE1EB"><rect x="8.5" y="5" width="7" height="4.2" rx="0.8"></rect></g></svg><div class="val" style="color:#DAE1EB;">52°</div><div class="track"><div style="position:absolute; left:70%; top:0; bottom:0; right:0; background:rgba(255,159,25,0.30);"></div><div style="position:absolute; left:85%; top:0; bottom:0; right:0; border-radius:0 3px 3px 0; background:rgba(255,64,70,0.32);"></div><div style="position:absolute; left:0; top:0; bottom:0; width:52%; border-radius:3px; background:rgba(218,225,235,0.55);"></div></div></div>          <div class="temp"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#86909B" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2.5" width="10" height="19" rx="3"></rect><rect x="4" y="4.5" width="3" height="5" rx="1.5"></rect><rect x="4" y="14.5" width="3" height="5" rx="1.5"></rect><rect x="17" y="4.5" width="3" height="5" rx="1.5"></rect><rect x="17" y="14.5" width="3" height="5" rx="1.5"></rect><g stroke="none" fill="#DAE1EB"><rect x="8.5" y="14.8" width="3.4" height="4.4" rx="0.8"></rect></g></svg><div class="val" style="color:#DAE1EB;">51°</div><div class="track"><div style="position:absolute; left:70%; top:0; bottom:0; right:0; background:rgba(255,159,25,0.30);"></div><div style="position:absolute; left:85%; top:0; bottom:0; right:0; border-radius:0 3px 3px 0; background:rgba(255,64,70,0.32);"></div><div style="position:absolute; left:0; top:0; bottom:0; width:51%; border-radius:3px; background:rgba(218,225,235,0.55);"></div></div></div>          <div class="temp"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#86909B" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2.5" width="10" height="19" rx="3"></rect><rect x="4" y="4.5" width="3" height="5" rx="1.5"></rect><rect x="4" y="14.5" width="3" height="5" rx="1.5"></rect><rect x="17" y="4.5" width="3" height="5" rx="1.5"></rect><rect x="17" y="14.5" width="3" height="5" rx="1.5"></rect><g stroke="none" fill="#DAE1EB"><rect x="12.1" y="14.8" width="3.4" height="4.4" rx="0.8"></rect></g></svg><div class="val" style="color:#DAE1EB;">49°</div><div class="track"><div style="position:absolute; left:70%; top:0; bottom:0; right:0; background:rgba(255,159,25,0.30);"></div><div style="position:absolute; left:85%; top:0; bottom:0; right:0; border-radius:0 3px 3px 0; background:rgba(255,64,70,0.32);"></div><div style="position:absolute; left:0; top:0; bottom:0; width:49%; border-radius:3px; background:rgba(218,225,235,0.55);"></div></div></div>          <div class="temp"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#86909B" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"></rect><path stroke="#DAE1EB" d="M5.5 12q2.2-4.5 4.4 0t4.4 0t4.4 0"></path></svg><div class="val" style="color:#DAE1EB;">42°</div><div class="track"><div style="position:absolute; left:70%; top:0; bottom:0; right:0; background:rgba(255,159,25,0.30);"></div><div style="position:absolute; left:85%; top:0; bottom:0; right:0; border-radius:0 3px 3px 0; background:rgba(255,64,70,0.32);"></div><div style="position:absolute; left:0; top:0; bottom:0; width:42%; border-radius:3px; background:rgba(218,225,235,0.55);"></div></div></div>
+          <div class="foot">19,8 кВт·ч/100 ЗА 3 КМ</div>
+        </div>
+      </div>
+      <div style="height:20px; flex-shrink:0; display:flex; align-items:center; justify-content:center; gap:8px;"><div style="width:8px; height:8px; border-radius:4px; background:rgba(134,144,155,0.45);"></div><div style="width:8px; height:8px; border-radius:4px; background:#FEEFAB;"></div></div>
+    </div>
+    <div style="width:320px; flex-shrink:0; display:flex; flex-direction:column; justify-content:space-between;">
+      <div class="fig">
+        <div class="cap">В ПУТИ</div>
+        <div class="line">
+          <div class="num">1:42</div>
+          <div class="un">128 км</div>
+        </div>
+      </div>
+      <div class="fig ruled">
+        <div class="cap">ВЫСОТА</div>
+        <div class="line">
+          <div class="num">642</div>
+          <div class="un">м</div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="2.4" stroke-linecap="round"><path d="M12 19V6M6.5 11.5 12 6l5.5 5.5"></path></svg>
+            <div class="rate">1,2</div>
+          </div>
+        </div>
+      </div>
+      <div class="fig ruled">
+        <div class="cap">ЗАКАТ</div>
+        <div class="line">
+          <div class="num">19:44</div>
+        </div>
+      </div>
+    </div>
+</div>
+</div>
+<div class="plate">
+  <div class="plate-name">ЗАРЯДКА · СНЯТО 22.08 — ДВС НЕ КРУТИТСЯ, ОБОРОТОВ В СТРОКЕ НЕТ</div>
+<div class="frame" style="width:1184px; height:296px; background:#07080A; display:flex; gap:32px;">
+    <div style="width:832px; display:flex; flex-direction:column; min-width:0;">
+      <div class="page split">
+        <div class="left" style="width:503.07px; flex-shrink:0;">
+          <div class="head">
+            <div class="cell">
+              <div class="cap"><span style="color:#2D82D7;">●</span> <span style="color:#86909B;">В БАТАРЕЮ ОТ ЗАРЯДКИ</span></div>
+              <div class="line">
+                <div class="hero" style="color:#4B9BE0;">2,4</div>
+                <div class="un">кВт</div>
+              </div>
+            </div>
+
+          </div>
+          <svg width="503.07" height="130" viewBox="0 0 503.07 130" fill="none">
+            <path d="" fill="rgba(218,225,235,0.16)"></path>
+            <path d="M0 65 H20.96 V96.2 H0 Z M20.96 65 H41.92 V96.2 H20.96 Z M41.92 65 H62.88 V96.2 H41.92 Z M62.88 65 H83.84 V96.2 H62.88 Z M83.84 65 H104.8 V96.2 H83.84 Z M104.81 65 H125.77 V96.2 H104.81 Z M125.77 65 H146.73 V96.2 H125.77 Z M146.73 65 H167.69 V96.2 H146.73 Z M167.69 65 H188.65 V96.2 H167.69 Z M188.65 65 H209.61 V96.2 H188.65 Z M209.61 65 H230.57 V96.2 H209.61 Z M230.57 65 H251.53 V96.2 H230.57 Z M251.53 65 H272.49 V96.2 H251.53 Z M272.5 65 H293.46 V96.2 H272.5 Z M293.46 65 H314.42 V96.2 H293.46 Z M314.42 65 H335.38 V96.2 H314.42 Z M335.38 65 H356.34 V96.2 H335.38 Z M356.34 65 H377.3 V96.2 H356.34 Z M377.3 65 H398.26 V96.2 H377.3 Z M398.26 65 H419.22 V96.2 H398.26 Z M419.23 65 H440.19 V96.2 H419.23 Z M440.19 65 H461.15 V96.2 H440.19 Z M461.15 65 H482.11 V96.2 H461.15 Z M482.11 65 H503.07 V96.2 H482.11 Z" fill="rgba(45,130,215,0.26)"></path>
+            <path d="M0 65 H503.07" stroke="#3F434D" stroke-width="1"></path>
+            <path d="M0 96.2 L20.96 96.2 L20.96 96.2 L41.92 96.2 L41.92 96.2 L62.88 96.2 L62.88 96.2 L83.84 96.2 L83.84 96.2 L104.81 96.2 L104.81 96.2 L125.77 96.2 L125.77 96.2 L146.73 96.2 L146.73 96.2 L167.69 96.2 L167.69 96.2 L188.65 96.2 L188.65 96.2 L209.61 96.2 L209.61 96.2 L230.57 96.2 L230.57 96.2 L251.53 96.2 L251.53 96.2 L272.5 96.2 L272.5 96.2 L293.46 96.2 L293.46 96.2 L314.42 96.2 L314.42 96.2 L335.38 96.2 L335.38 96.2 L356.34 96.2 L356.34 96.2 L377.3 96.2 L377.3 96.2 L398.26 96.2 L398.26 96.2 L419.23 96.2 L419.23 96.2 L440.19 96.2 L440.19 96.2 L461.15 96.2 L461.15 96.2 L482.11 96.2 L482.11 96.2 L503.07 96.2" stroke="#DAE1EB" stroke-width="2" stroke-linejoin="round" stroke-linecap="square"></path>
+          </svg>
+          <div class="foot">ПОСЛЕДНИЕ 2 МИНУТЫ · ШКАЛА <svg width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="#7C858F" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M1 5 L5 1 L9 5"></path></svg> 5 <svg width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="#7C858F" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M1 1 L5 5 L9 1"></path></svg> 5 кВт · 550 В</div>
+        </div>
+        <div class="vrule"></div>
+        <div class="right">
+          <div class="temp"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#86909B" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="16" height="10" rx="2"></rect><g stroke="none" fill="#86909B"><rect x="19" y="10" width="2.5" height="4" rx="1"></rect></g><g stroke="none" fill="#DAE1EB"><rect x="4" y="9" width="7" height="6" rx="1"></rect></g></svg><div class="val" style="color:#DAE1EB;">28°</div><div class="track"><div style="position:absolute; left:57.1%; top:0; bottom:0; right:0; background:rgba(255,159,25,0.30);"></div><div style="position:absolute; left:78.6%; top:0; bottom:0; right:0; border-radius:0 3px 3px 0; background:rgba(255,64,70,0.32);"></div><div style="position:absolute; left:0; top:0; bottom:0; width:40%; border-radius:3px; background:rgba(218,225,235,0.55);"></div></div></div>          <div class="temp"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#86909B" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2.5" width="10" height="19" rx="3"></rect><rect x="4" y="4.5" width="3" height="5" rx="1.5"></rect><rect x="4" y="14.5" width="3" height="5" rx="1.5"></rect><rect x="17" y="4.5" width="3" height="5" rx="1.5"></rect><rect x="17" y="14.5" width="3" height="5" rx="1.5"></rect><g stroke="none" fill="#DAE1EB"><rect x="8.5" y="5" width="7" height="4.2" rx="0.8"></rect></g></svg><div class="val" style="color:#DAE1EB;">31°</div><div class="track"><div style="position:absolute; left:70%; top:0; bottom:0; right:0; background:rgba(255,159,25,0.30);"></div><div style="position:absolute; left:85%; top:0; bottom:0; right:0; border-radius:0 3px 3px 0; background:rgba(255,64,70,0.32);"></div><div style="position:absolute; left:0; top:0; bottom:0; width:31%; border-radius:3px; background:rgba(218,225,235,0.55);"></div></div></div>          <div class="temp"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#86909B" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2.5" width="10" height="19" rx="3"></rect><rect x="4" y="4.5" width="3" height="5" rx="1.5"></rect><rect x="4" y="14.5" width="3" height="5" rx="1.5"></rect><rect x="17" y="4.5" width="3" height="5" rx="1.5"></rect><rect x="17" y="14.5" width="3" height="5" rx="1.5"></rect><g stroke="none" fill="#DAE1EB"><rect x="8.5" y="14.8" width="3.4" height="4.4" rx="0.8"></rect></g></svg><div class="val" style="color:#DAE1EB;">29°</div><div class="track"><div style="position:absolute; left:70%; top:0; bottom:0; right:0; background:rgba(255,159,25,0.30);"></div><div style="position:absolute; left:85%; top:0; bottom:0; right:0; border-radius:0 3px 3px 0; background:rgba(255,64,70,0.32);"></div><div style="position:absolute; left:0; top:0; bottom:0; width:29%; border-radius:3px; background:rgba(218,225,235,0.55);"></div></div></div>          <div class="temp"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#86909B" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2.5" width="10" height="19" rx="3"></rect><rect x="4" y="4.5" width="3" height="5" rx="1.5"></rect><rect x="4" y="14.5" width="3" height="5" rx="1.5"></rect><rect x="17" y="4.5" width="3" height="5" rx="1.5"></rect><rect x="17" y="14.5" width="3" height="5" rx="1.5"></rect><g stroke="none" fill="#DAE1EB"><rect x="12.1" y="14.8" width="3.4" height="4.4" rx="0.8"></rect></g></svg><div class="val" style="color:#DAE1EB;">31°</div><div class="track"><div style="position:absolute; left:70%; top:0; bottom:0; right:0; background:rgba(255,159,25,0.30);"></div><div style="position:absolute; left:85%; top:0; bottom:0; right:0; border-radius:0 3px 3px 0; background:rgba(255,64,70,0.32);"></div><div style="position:absolute; left:0; top:0; bottom:0; width:31%; border-radius:3px; background:rgba(218,225,235,0.55);"></div></div></div>          <div class="temp"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#86909B" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"></rect><path stroke="#DAE1EB" d="M5.5 12q2.2-4.5 4.4 0t4.4 0t4.4 0"></path></svg><div class="val" style="color:#DAE1EB;">26°</div><div class="track"><div style="position:absolute; left:70%; top:0; bottom:0; right:0; background:rgba(255,159,25,0.30);"></div><div style="position:absolute; left:85%; top:0; bottom:0; right:0; border-radius:0 3px 3px 0; background:rgba(255,64,70,0.32);"></div><div style="position:absolute; left:0; top:0; bottom:0; width:26%; border-radius:3px; background:rgba(218,225,235,0.55);"></div></div></div>
+        </div>
+      </div>
+      <div style="height:20px; flex-shrink:0; display:flex; align-items:center; justify-content:center; gap:8px;"><div style="width:8px; height:8px; border-radius:4px; background:rgba(134,144,155,0.45);"></div><div style="width:8px; height:8px; border-radius:4px; background:#FEEFAB;"></div></div>
+    </div>
+    <div style="width:320px; flex-shrink:0; display:flex; flex-direction:column; justify-content:space-between;">
+      <div class="fig">
+        <div class="cap">В ПУТИ</div>
+        <div class="line">
+          <div class="num">1:42</div>
+          <div class="un">128 км</div>
+        </div>
+      </div>
+      <div class="fig ruled">
+        <div class="cap">ВЫСОТА</div>
+        <div class="line">
+          <div class="num">642</div>
+          <div class="un">м</div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="2.4" stroke-linecap="round"><path d="M12 19V6M6.5 11.5 12 6l5.5 5.5"></path></svg>
+            <div class="rate">1,2</div>
+          </div>
+        </div>
+      </div>
+      <div class="fig ruled">
+        <div class="cap">ЗАКАТ</div>
+        <div class="line">
+          <div class="num">19:44</div>
+        </div>
+      </div>
+    </div>
+</div>
+</div>
+<div class="plate">
+  <div class="plate-name">ДЛИННЫЙ ПОДЪЁМ · ПОРОГИ ИЗ ПРИБОРКИ, СЦЕНА НЕ СНЯТА</div>
+<div class="frame" style="width:1184px; height:296px; background:#07080A; display:flex; gap:32px;">
+    <div style="width:832px; display:flex; flex-direction:column; min-width:0;">
+      <div class="page split">
+        <div class="left" style="width:503.07px; flex-shrink:0;">
+          <div class="head">
+            <div class="cell">
+              <div class="cap"><span style="color:#86909B;">ИЗ БАТАРЕИ</span></div>
+              <div class="line">
+                <div class="hero" style="color:#DAE1EB;">62</div>
+                <div class="un">кВт</div>
+              </div>
+            </div>
+            <div class="cell">
+              <div class="cap">ДВС · ОБ/МИН</div>
+              <div class="line"><div class="val">1420</div></div>
+            </div>
+          </div>
+          <svg width="503.07" height="130" viewBox="0 0 503.07 130" fill="none">
+            <path d="M0 122.35 H20.96 V49.7 H0 Z M20.96 122.35 H41.92 V32.12 H20.96 Z M41.92 122.35 H62.88 V50.47 H41.92 Z M62.88 122.35 H83.84 V33.65 H62.88 Z M83.84 122.35 H104.8 V24.47 H83.84 Z M104.81 122.35 H125.77 V47.41 H104.81 Z M125.77 122.35 H146.73 V41.29 H125.77 Z M146.73 122.35 H167.69 V21.41 H146.73 Z M167.69 122.35 H188.65 V32.12 H167.69 Z M188.65 122.35 H209.61 V53.53 H188.65 Z M209.61 122.35 H230.57 V34.15 H209.61 Z M230.57 122.35 H251.53 V22.18 H230.57 Z M251.53 122.35 H272.49 V40.53 H251.53 Z M272.5 122.35 H293.46 V47.41 H272.5 Z M293.46 122.35 H314.42 V23.45 H293.46 Z M314.42 122.35 H335.38 V27.53 H314.42 Z M335.38 122.35 H356.34 V48.18 H335.38 Z M356.34 122.35 H377.3 V38.74 H356.34 Z M377.3 122.35 H398.26 V31.09 H377.3 Z M398.26 122.35 H419.22 V52 H398.26 Z M419.23 122.35 H440.19 V45.88 H419.23 Z M440.19 122.35 H461.15 V27.02 H440.19 Z M461.15 122.35 H482.11 V34.67 H461.15 Z M482.11 122.35 H503.07 V32.12 H482.11 Z" fill="rgba(218,225,235,0.16)"></path>
+            <path d="" fill="rgba(45,130,215,0.26)"></path>
+            <path d="M0 122.35 H503.07" stroke="#3F434D" stroke-width="1"></path>
+            <path d="M0 49.7 L20.96 49.7 L20.96 32.12 L41.92 32.12 L41.92 50.47 L62.88 50.47 L62.88 33.65 L83.84 33.65 L83.84 24.47 L104.81 24.47 L104.81 47.41 L125.77 47.41 L125.77 41.29 L146.73 41.29 L146.73 21.41 L167.69 21.41 L167.69 32.12 L188.65 32.12 L188.65 53.53 L209.61 53.53 L209.61 34.15 L230.57 34.15 L230.57 22.18 L251.53 22.18 L251.53 40.53 L272.5 40.53 L272.5 47.41 L293.46 47.41 L293.46 23.45 L314.42 23.45 L314.42 27.53 L335.38 27.53 L335.38 48.18 L356.34 48.18 L356.34 38.74 L377.3 38.74 L377.3 31.09 L398.26 31.09 L398.26 52 L419.23 52 L419.23 45.88 L440.19 45.88 L440.19 27.02 L461.15 27.02 L461.15 34.67 L482.11 34.67 L482.11 32.12 L503.07 32.12" stroke="#DAE1EB" stroke-width="2" stroke-linejoin="round" stroke-linecap="square"></path>
+          </svg>
+          <div class="foot">ПОСЛЕДНИЕ 2 МИНУТЫ · ШКАЛА <svg width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="#7C858F" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M1 5 L5 1 L9 5"></path></svg> 80 <svg width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="#7C858F" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M1 1 L5 5 L9 1"></path></svg> 5 кВт · 544 В</div>
+        </div>
+        <div class="vrule"></div>
+        <div class="right">
+          <div class="temp"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#86909B" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="16" height="10" rx="2"></rect><g stroke="none" fill="#86909B"><rect x="19" y="10" width="2.5" height="4" rx="1"></rect></g><g stroke="none" fill="#FF9F19"><rect x="4" y="9" width="7" height="6" rx="1"></rect></g></svg><div class="val" style="color:#FF9F19;">42°</div><div class="track"><div style="position:absolute; left:57.1%; top:0; bottom:0; right:0; background:rgba(255,159,25,0.30);"></div><div style="position:absolute; left:78.6%; top:0; bottom:0; right:0; border-radius:0 3px 3px 0; background:rgba(255,64,70,0.32);"></div><div style="position:absolute; left:0; top:0; bottom:0; width:60%; border-radius:3px; background:#FF9F19;"></div></div></div>          <div class="temp"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#86909B" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2.5" width="10" height="19" rx="3"></rect><rect x="4" y="4.5" width="3" height="5" rx="1.5"></rect><rect x="4" y="14.5" width="3" height="5" rx="1.5"></rect><rect x="17" y="4.5" width="3" height="5" rx="1.5"></rect><rect x="17" y="14.5" width="3" height="5" rx="1.5"></rect><g stroke="none" fill="#FF4046"><rect x="8.5" y="5" width="7" height="4.2" rx="0.8"></rect></g></svg><div class="val" style="color:#FF4046;">88°</div><div class="track"><div style="position:absolute; left:70%; top:0; bottom:0; right:0; background:rgba(255,159,25,0.30);"></div><div style="position:absolute; left:85%; top:0; bottom:0; right:0; border-radius:0 3px 3px 0; background:rgba(255,64,70,0.32);"></div><div style="position:absolute; left:0; top:0; bottom:0; width:88%; border-radius:3px; background:#FF4046;"></div></div></div>          <div class="temp"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#86909B" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2.5" width="10" height="19" rx="3"></rect><rect x="4" y="4.5" width="3" height="5" rx="1.5"></rect><rect x="4" y="14.5" width="3" height="5" rx="1.5"></rect><rect x="17" y="4.5" width="3" height="5" rx="1.5"></rect><rect x="17" y="14.5" width="3" height="5" rx="1.5"></rect><g stroke="none" fill="#FF9F19"><rect x="8.5" y="14.8" width="3.4" height="4.4" rx="0.8"></rect></g></svg><div class="val" style="color:#FF9F19;">76°</div><div class="track"><div style="position:absolute; left:70%; top:0; bottom:0; right:0; background:rgba(255,159,25,0.30);"></div><div style="position:absolute; left:85%; top:0; bottom:0; right:0; border-radius:0 3px 3px 0; background:rgba(255,64,70,0.32);"></div><div style="position:absolute; left:0; top:0; bottom:0; width:76%; border-radius:3px; background:#FF9F19;"></div></div></div>          <div class="temp"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#86909B" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2.5" width="10" height="19" rx="3"></rect><rect x="4" y="4.5" width="3" height="5" rx="1.5"></rect><rect x="4" y="14.5" width="3" height="5" rx="1.5"></rect><rect x="17" y="4.5" width="3" height="5" rx="1.5"></rect><rect x="17" y="14.5" width="3" height="5" rx="1.5"></rect><g stroke="none" fill="#FF9F19"><rect x="12.1" y="14.8" width="3.4" height="4.4" rx="0.8"></rect></g></svg><div class="val" style="color:#FF9F19;">74°</div><div class="track"><div style="position:absolute; left:70%; top:0; bottom:0; right:0; background:rgba(255,159,25,0.30);"></div><div style="position:absolute; left:85%; top:0; bottom:0; right:0; border-radius:0 3px 3px 0; background:rgba(255,64,70,0.32);"></div><div style="position:absolute; left:0; top:0; bottom:0; width:74%; border-radius:3px; background:#FF9F19;"></div></div></div>          <div class="temp"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#86909B" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"></rect><path stroke="#FF9F19" d="M5.5 12q2.2-4.5 4.4 0t4.4 0t4.4 0"></path></svg><div class="val" style="color:#FF9F19;">73°</div><div class="track"><div style="position:absolute; left:70%; top:0; bottom:0; right:0; background:rgba(255,159,25,0.30);"></div><div style="position:absolute; left:85%; top:0; bottom:0; right:0; border-radius:0 3px 3px 0; background:rgba(255,64,70,0.32);"></div><div style="position:absolute; left:0; top:0; bottom:0; width:73%; border-radius:3px; background:#FF9F19;"></div></div></div>
+          <div class="foot">27,3 кВт·ч/100 ЗА 3 КМ</div>
+        </div>
+      </div>
+      <div style="height:20px; flex-shrink:0; display:flex; align-items:center; justify-content:center; gap:8px;"><div style="width:8px; height:8px; border-radius:4px; background:rgba(134,144,155,0.45);"></div><div style="width:8px; height:8px; border-radius:4px; background:#FEEFAB;"></div></div>
+    </div>
+    <div style="width:320px; flex-shrink:0; display:flex; flex-direction:column; justify-content:space-between;">
+      <div class="fig">
+        <div class="cap">В ПУТИ</div>
+        <div class="line">
+          <div class="num">1:42</div>
+          <div class="un">128 км</div>
+        </div>
+      </div>
+      <div class="fig ruled">
+        <div class="cap">ВЫСОТА</div>
+        <div class="line">
+          <div class="num">642</div>
+          <div class="un">м</div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="2.4" stroke-linecap="round"><path d="M12 19V6M6.5 11.5 12 6l5.5 5.5"></path></svg>
+            <div class="rate">1,2</div>
+          </div>
+        </div>
+      </div>
+      <div class="fig ruled">
+        <div class="cap">ЗАКАТ</div>
+        <div class="line">
+          <div class="num">19:44</div>
+        </div>
+      </div>
+    </div>
+</div>
+</div>
+</div>
+<div class="row-band">
+<div class="plate">
+  <div class="plate-name">НЕТ ДОСТУПА К МАШИНЕ</div>
+<div class="frame" style="width:1184px; height:296px; background:#07080A; display:flex; gap:32px;">
+    <div style="width:832px; display:flex; flex-direction:column; min-width:0;">
+      <div class="page split">
+        <div class="left" style="flex:1.7; min-width:0; justify-content:center;">
+          <div class="cap">ПИТАНИЕ ОТ МАШИНЫ</div>
+          <div class="instruction">ADB-ключ не подтверждён · Помощь → Диагностика</div>
+        </div>
+        <div class="vrule"></div>
+        <div class="right">
+          <div class="temp"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#86909B" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="16" height="10" rx="2"></rect><g stroke="none" fill="#86909B"><rect x="19" y="10" width="2.5" height="4" rx="1"></rect></g><g stroke="none" fill="#DAE1EB"><rect x="4" y="9" width="7" height="6" rx="1"></rect></g></svg><div class="val" style="color:#86909B;">—</div><div class="track"></div></div>          <div class="temp"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#86909B" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2.5" width="10" height="19" rx="3"></rect><rect x="4" y="4.5" width="3" height="5" rx="1.5"></rect><rect x="4" y="14.5" width="3" height="5" rx="1.5"></rect><rect x="17" y="4.5" width="3" height="5" rx="1.5"></rect><rect x="17" y="14.5" width="3" height="5" rx="1.5"></rect><g stroke="none" fill="#DAE1EB"><rect x="8.5" y="5" width="7" height="4.2" rx="0.8"></rect></g></svg><div class="val" style="color:#86909B;">—</div><div class="track"></div></div>          <div class="temp"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#86909B" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2.5" width="10" height="19" rx="3"></rect><rect x="4" y="4.5" width="3" height="5" rx="1.5"></rect><rect x="4" y="14.5" width="3" height="5" rx="1.5"></rect><rect x="17" y="4.5" width="3" height="5" rx="1.5"></rect><rect x="17" y="14.5" width="3" height="5" rx="1.5"></rect><g stroke="none" fill="#DAE1EB"><rect x="8.5" y="14.8" width="3.4" height="4.4" rx="0.8"></rect></g></svg><div class="val" style="color:#86909B;">—</div><div class="track"></div></div>          <div class="temp"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#86909B" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2.5" width="10" height="19" rx="3"></rect><rect x="4" y="4.5" width="3" height="5" rx="1.5"></rect><rect x="4" y="14.5" width="3" height="5" rx="1.5"></rect><rect x="17" y="4.5" width="3" height="5" rx="1.5"></rect><rect x="17" y="14.5" width="3" height="5" rx="1.5"></rect><g stroke="none" fill="#DAE1EB"><rect x="12.1" y="14.8" width="3.4" height="4.4" rx="0.8"></rect></g></svg><div class="val" style="color:#86909B;">—</div><div class="track"></div></div>          <div class="temp"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#86909B" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"></rect><path stroke="#DAE1EB" d="M5.5 12q2.2-4.5 4.4 0t4.4 0t4.4 0"></path></svg><div class="val" style="color:#86909B;">—</div><div class="track"></div></div>
+        </div>
+      </div>
+      <div style="height:20px; flex-shrink:0; display:flex; align-items:center; justify-content:center; gap:8px;"><div style="width:8px; height:8px; border-radius:4px; background:rgba(134,144,155,0.45);"></div><div style="width:8px; height:8px; border-radius:4px; background:#FEEFAB;"></div></div>
+    </div>
+    <div style="width:320px; flex-shrink:0; display:flex; flex-direction:column; justify-content:space-between;">
+      <div class="fig">
+        <div class="cap">В ПУТИ</div>
+        <div class="line">
+          <div class="num">1:42</div>
+          <div class="un">128 км</div>
+        </div>
+      </div>
+      <div class="fig ruled">
+        <div class="cap">ВЫСОТА</div>
+        <div class="line">
+          <div class="num">642</div>
+          <div class="un">м</div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="2.4" stroke-linecap="round"><path d="M12 19V6M6.5 11.5 12 6l5.5 5.5"></path></svg>
+            <div class="rate">1,2</div>
+          </div>
+        </div>
+      </div>
+      <div class="fig ruled">
+        <div class="cap">ЗАКАТ</div>
+        <div class="line">
+          <div class="num">19:44</div>
+        </div>
+      </div>
+    </div>
+</div>
+</div>
+<div class="plate">
+  <div class="plate-name">2/3 · 828</div>
+<div class="frame" style="width:828px; height:680px; box-sizing:border-box; background:#07080A; display:flex; flex-direction:column;">
+
+  <!-- what the system takes: BYD freeform draws its drag handle here, and safeDrawing reports it -->
+  <div style="height:24px; flex-shrink:0; display:flex; align-items:center; justify-content:center;">
+    <div style="width:80px; height:4px; border-radius:2px; background:rgba(218,225,235,0.22);"></div>
+  </div>
+
+  <div style="flex-grow:1; min-height:0; box-sizing:border-box; display:flex; flex-direction:column; gap:32px; padding:20px 20px 12px 20px;">
+
+    <div style="display:grid; grid-template-columns:repeat(11, minmax(0, 1fr)); gap:12px; flex-shrink:0;">
+
+      <div class="chip on">
+        <svg width="27" height="27" viewBox="1 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.778" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><circle cx="12" cy="12" r="3"></circle><path d="M3.2 10.5 L9.1 10.9 M20.8 10.5 L14.9 10.9 M12 15 L12 21"></path></svg>
+        <div class="dot" style="top:8px; right:8px; width:6.3px; height:6.3px; background:#FEEFAB;"></div>
+      </div>
+      <div class="chip on">
+        <svg width="27" height="27" viewBox="0 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.778" stroke-linecap="round" stroke-linejoin="round"><path d="M2 20h0.01"></path><path d="M2 16a4 4 0 0 1 4 4"></path><path d="M2 12a8 8 0 0 1 8 8"></path><path d="M2 8V6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6"></path></svg>
+        <div class="dot" style="top:8px; right:8px; width:6.3px; height:6.3px; background:#FEEFAB;"></div>
+      </div>
+      <div class="chip on">
+        <svg width="27" height="27" viewBox="0 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.778" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+        <div class="dot" style="top:8px; right:8px; width:6.3px; height:6.3px; background:#FEEFAB;"></div>
+      </div>
+      <div class="chip on">
+        <svg width="27" height="27" viewBox="1 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.778" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="15" rx="2"></rect><path d="M12 4.5v15"></path></svg>
+        <div class="dot" style="top:8px; right:8px; width:6.3px; height:6.3px; background:#FEEFAB;"></div>
+      </div>
+      <div class="chip on">
+        <svg width="27" height="27" viewBox="3 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.778" stroke-linecap="round" stroke-linejoin="round"><path d="M6 13.5l6-6 6 6"></path><path d="M5 19h14"></path></svg>
+        <div class="dot" style="top:8px; right:8px; width:6.3px; height:6.3px; background:#FEEFAB;"></div>
+      </div>
+      <div class="chip on">
+        <svg width="27" height="27" viewBox="0.4 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.778" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="3.2"></circle><path d="M8 2.4v1.4M8 12.2v1.4M2.4 8h1.4M12.2 8h1.4M4.6 4.6l1 1M11.4 4.6l-1 1M4.6 11.4l1-1"></path><path d="M17 20.5H9.5a3.5 3.5 0 0 1 0-7 4.6 4.6 0 0 1 8.7-1 3.9 3.9 0 0 1-1.2 8z"></path></svg>
+        <div class="dot" style="top:8px; right:8px; width:6.3px; height:6.3px; background:#FEEFAB;"></div>
+      </div>
+      <div class="chip on">
+        <svg width="27" height="27" viewBox="4 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.778" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="3" width="12" height="18" rx="2"></rect><circle cx="12" cy="14" r="3.2"></circle><circle cx="12" cy="7" r="1.2"></circle></svg>
+        <div class="dot" style="top:8px; right:8px; width:6.3px; height:6.3px; background:#FEEFAB;"></div>
+      </div>
+      <div class="chip on">
+        <svg width="27" height="27" viewBox="1 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.778" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M3.4 9.5h17.2M3.4 14.5h17.2"></path><path d="M12 3a15 15 0 0 0 0 18 15 15 0 0 0 0-18z"></path></svg>
+        <div class="dot" style="top:8px; right:8px; width:6.3px; height:6.3px; background:#FEEFAB;"></div>
+      </div>
+      <div class="chip off">
+        <svg width="27" height="27" viewBox="3 0 24 24" fill="none" stroke="#86909B" stroke-width="1.778" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2.5" width="14" height="19" rx="2"></rect><path d="M12 6.5v7"></path><path d="M9 10.5l3 3 3-3"></path><path d="M9 17.5h6"></path></svg>
+        <div class="dot" style="top:8px; right:8px; width:6.3px; height:6.3px; background:#7C858F;"></div>
+      </div>
+      <div class="chip on">
+        <svg width="27" height="27" viewBox="0 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="1.778" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="2"></rect><rect x="14" y="3" width="7" height="7" rx="2"></rect><rect x="3" y="14" width="7" height="7" rx="2"></rect><path d="m14.5 17.5 2 2 4-5"></path></svg>
+        <div class="dot" style="top:8px; right:8px; width:6.3px; height:6.3px; background:#FEEFAB;"></div>
+      </div>
+      <div class="chip off">
+        <svg width="27" height="27" viewBox="2 0 24 24" fill="none" stroke="#86909B" stroke-width="1.778" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 12h16M4 17h16"></path><circle cx="15" cy="7" r="2" fill="#15181F"></circle><circle cx="8" cy="12" r="2" fill="#15181F"></circle><circle cx="17" cy="17" r="2" fill="#15181F"></circle></svg>
+        <div class="dot" style="top:8px; right:8px; width:6.3px; height:6.3px; background:#7C858F;"></div>
+      </div>
+
+    </div>
+
+    <div style="flex-grow:1; min-height:0; display:flex; flex-direction:column; justify-content:space-between;">
+    <div style="width:788px; flex-grow:1; min-height:0; display:flex; flex-direction:column; min-width:0;">
+      <div class="page split">
+        <div class="left" style="width:475.37px; flex-shrink:0;">
+          <div class="head">
+            <div class="cell">
+              <div class="cap"><span style="color:#2D82D7;">●</span> <span style="color:#86909B;">В БАТАРЕЮ ОТ ДВС</span></div>
+              <div class="line">
+                <div class="hero" style="color:#4B9BE0;">8</div>
+                <div class="un">кВт</div>
+              </div>
+            </div>
+            <div class="cell">
+              <div class="cap">ДВС · ОБ/МИН</div>
+              <div class="line"><div class="val">1321</div></div>
+            </div>
+          </div>
+          <svg width="475.37" height="130" viewBox="0 0 475.37 130" fill="none">
+            <path d="M0 43.33 H19.81 V34.66 H0 Z M19.81 43.33 H39.62 V34.66 H19.81 Z M39.61 43.33 H59.42 V34.66 H39.61 Z M59.42 43.33 H79.23 V34.66 H59.42 Z M79.23 43.33 H99.04 V34.66 H79.23 Z M99.04 43.33 H118.85 V34.66 H99.04 Z M118.84 43.33 H138.65 V34.66 H118.84 Z M138.65 43.33 H158.46 V34.66 H138.65 Z M158.46 43.33 H178.27 V34.66 H158.46 Z M178.26 43.33 H198.07 V34.66 H178.26 Z M198.07 43.33 H217.88 V34.66 H198.07 Z" fill="rgba(218,225,235,0.16)"></path>
+            <path d="M217.88 43.33 H237.69 V104 H217.88 Z M237.69 43.33 H257.5 V125.67 H237.69 Z M257.49 43.33 H277.3 V118.47 H257.49 Z M277.3 43.33 H297.11 V127.14 H277.3 Z M297.11 43.33 H316.92 V117 H297.11 Z M316.91 43.33 H336.72 V125.67 H316.91 Z M336.72 43.33 H356.53 V118.47 H336.72 Z M356.53 43.33 H376.34 V121.33 H356.53 Z M376.33 43.33 H396.14 V117 H376.33 Z M396.14 43.33 H415.95 V125.67 H396.14 Z M415.95 43.33 H435.76 V118.47 H415.95 Z M435.76 43.33 H455.57 V115.53 H435.76 Z M455.56 43.33 H475.37 V112.67 H455.56 Z" fill="rgba(45,130,215,0.26)"></path>
+            <path d="M0 43.33 H475.37" stroke="#3F434D" stroke-width="1"></path>
+            <path d="M0 34.66 L19.81 34.66 L19.81 34.66 L39.61 34.66 L39.61 34.66 L59.42 34.66 L59.42 34.66 L79.23 34.66 L79.23 34.66 L99.04 34.66 L99.04 34.66 L118.84 34.66 L118.84 34.66 L138.65 34.66 L138.65 34.66 L158.46 34.66 L158.46 34.66 L178.26 34.66 L178.26 34.66 L198.07 34.66 L198.07 34.66 L217.88 34.66 L217.88 104 L237.69 104 L237.69 125.67 L257.49 125.67 L257.49 118.47 L277.3 118.47 L277.3 127.14 L297.11 127.14 L297.11 117 L316.91 117 L316.91 125.67 L336.72 125.67 L336.72 118.47 L356.53 118.47 L356.53 121.33 L376.33 121.33 L376.33 117 L396.14 117 L396.14 125.67 L415.95 125.67 L415.95 118.47 L435.76 118.47 L435.76 115.53 L455.56 115.53 L455.56 112.67 L475.37 112.67" stroke="#DAE1EB" stroke-width="2" stroke-linejoin="round" stroke-linecap="square"></path>
+          </svg>
+          <div class="foot">ПОСЛЕДНИЕ 2 МИНУТЫ · ШКАЛА <svg width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="#7C858F" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M1 5 L5 1 L9 5"></path></svg> 5 <svg width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="#7C858F" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M1 1 L5 5 L9 1"></path></svg> 10 кВт · 553 В</div>
+        </div>
+        <div class="vrule"></div>
+        <div class="right">
+          <div class="temp"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#86909B" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="16" height="10" rx="2"></rect><g stroke="none" fill="#86909B"><rect x="19" y="10" width="2.5" height="4" rx="1"></rect></g><g stroke="none" fill="#DAE1EB"><rect x="4" y="9" width="7" height="6" rx="1"></rect></g></svg><div class="val" style="color:#DAE1EB;">32°</div><div class="track"><div style="position:absolute; left:57.1%; top:0; bottom:0; right:0; background:rgba(255,159,25,0.30);"></div><div style="position:absolute; left:78.6%; top:0; bottom:0; right:0; border-radius:0 3px 3px 0; background:rgba(255,64,70,0.32);"></div><div style="position:absolute; left:0; top:0; bottom:0; width:45.7%; border-radius:3px; background:rgba(218,225,235,0.55);"></div></div></div>          <div class="temp"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#86909B" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2.5" width="10" height="19" rx="3"></rect><rect x="4" y="4.5" width="3" height="5" rx="1.5"></rect><rect x="4" y="14.5" width="3" height="5" rx="1.5"></rect><rect x="17" y="4.5" width="3" height="5" rx="1.5"></rect><rect x="17" y="14.5" width="3" height="5" rx="1.5"></rect><g stroke="none" fill="#DAE1EB"><rect x="8.5" y="5" width="7" height="4.2" rx="0.8"></rect></g></svg><div class="val" style="color:#DAE1EB;">47°</div><div class="track"><div style="position:absolute; left:70%; top:0; bottom:0; right:0; background:rgba(255,159,25,0.30);"></div><div style="position:absolute; left:85%; top:0; bottom:0; right:0; border-radius:0 3px 3px 0; background:rgba(255,64,70,0.32);"></div><div style="position:absolute; left:0; top:0; bottom:0; width:47%; border-radius:3px; background:rgba(218,225,235,0.55);"></div></div></div>          <div class="temp"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#86909B" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2.5" width="10" height="19" rx="3"></rect><rect x="4" y="4.5" width="3" height="5" rx="1.5"></rect><rect x="4" y="14.5" width="3" height="5" rx="1.5"></rect><rect x="17" y="4.5" width="3" height="5" rx="1.5"></rect><rect x="17" y="14.5" width="3" height="5" rx="1.5"></rect><g stroke="none" fill="#DAE1EB"><rect x="8.5" y="14.8" width="3.4" height="4.4" rx="0.8"></rect></g></svg><div class="val" style="color:#DAE1EB;">46°</div><div class="track"><div style="position:absolute; left:70%; top:0; bottom:0; right:0; background:rgba(255,159,25,0.30);"></div><div style="position:absolute; left:85%; top:0; bottom:0; right:0; border-radius:0 3px 3px 0; background:rgba(255,64,70,0.32);"></div><div style="position:absolute; left:0; top:0; bottom:0; width:46%; border-radius:3px; background:rgba(218,225,235,0.55);"></div></div></div>          <div class="temp"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#86909B" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2.5" width="10" height="19" rx="3"></rect><rect x="4" y="4.5" width="3" height="5" rx="1.5"></rect><rect x="4" y="14.5" width="3" height="5" rx="1.5"></rect><rect x="17" y="4.5" width="3" height="5" rx="1.5"></rect><rect x="17" y="14.5" width="3" height="5" rx="1.5"></rect><g stroke="none" fill="#DAE1EB"><rect x="12.1" y="14.8" width="3.4" height="4.4" rx="0.8"></rect></g></svg><div class="val" style="color:#DAE1EB;">44°</div><div class="track"><div style="position:absolute; left:70%; top:0; bottom:0; right:0; background:rgba(255,159,25,0.30);"></div><div style="position:absolute; left:85%; top:0; bottom:0; right:0; border-radius:0 3px 3px 0; background:rgba(255,64,70,0.32);"></div><div style="position:absolute; left:0; top:0; bottom:0; width:44%; border-radius:3px; background:rgba(218,225,235,0.55);"></div></div></div>          <div class="temp"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#86909B" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"></rect><path stroke="#DAE1EB" d="M5.5 12q2.2-4.5 4.4 0t4.4 0t4.4 0"></path></svg><div class="val" style="color:#DAE1EB;">39°</div><div class="track"><div style="position:absolute; left:70%; top:0; bottom:0; right:0; background:rgba(255,159,25,0.30);"></div><div style="position:absolute; left:85%; top:0; bottom:0; right:0; border-radius:0 3px 3px 0; background:rgba(255,64,70,0.32);"></div><div style="position:absolute; left:0; top:0; bottom:0; width:39%; border-radius:3px; background:rgba(218,225,235,0.55);"></div></div></div>
+          <div class="foot">19,4 кВт·ч/100 ЗА 3 КМ</div>
+        </div>
+      </div>
+      <div style="height:20px; flex-shrink:0; display:flex; align-items:center; justify-content:center; gap:8px;"><div style="width:8px; height:8px; border-radius:4px; background:rgba(134,144,155,0.45);"></div><div style="width:8px; height:8px; border-radius:4px; background:#FEEFAB;"></div></div>
+    </div>
+      <div class="across">
+      <div class="fig">
+        <div class="cap">В ПУТИ</div>
+        <div class="line">
+          <div class="num">1:42</div>
+          <div class="un">128 км</div>
+        </div>
+      </div>
+      <div class="rule"></div>
+      <div class="fig">
+        <div class="cap">ВЫСОТА</div>
+        <div class="line">
+          <div class="num">642</div>
+          <div class="un">м</div>
+          <div style="display:flex; align-items:center; gap:8px;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="2.4" stroke-linecap="round"><path d="M12 19V6M6.5 11.5 12 6l5.5 5.5"></path></svg><div class="rate">1,2</div></div>
+        </div>
+      </div>
+      <div class="rule"></div>
+      <div class="fig">
+        <div class="cap">ЗАКАТ</div>
+        <div class="line">
+          <div class="num">19:44</div>
+        </div>
+      </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</div>
+<div class="plate">
+  <div class="plate-name">1/3 · 416 — ГЕРОЙ, ГРАФИК, ЗНАЧКИ НАД ЦИФРАМИ</div>
+<div class="frame" style="width:416px; height:680px; box-sizing:border-box; background:#07080A; display:flex; flex-direction:column;">
+
+  <!-- what the system takes: BYD freeform draws its drag handle here, and safeDrawing reports it -->
+  <div style="height:24px; flex-shrink:0; display:flex; align-items:center; justify-content:center;">
+    <div style="width:80px; height:4px; border-radius:2px; background:rgba(218,225,235,0.22);"></div>
+  </div>
+
+  <div style="flex-grow:1; min-height:0; box-sizing:border-box; display:flex; flex-direction:column; gap:32px; padding:20px 12px 12px 12px;">
+
+    <div style="display:grid; grid-template-columns:repeat(6, minmax(0, 1fr)); gap:12px; flex-shrink:0;">
+
+      <div class="chip on">
+        <svg width="24" height="24" viewBox="1 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><circle cx="12" cy="12" r="3"></circle><path d="M3.2 10.5 L9.1 10.9 M20.8 10.5 L14.9 10.9 M12 15 L12 21"></path></svg>
+        <div class="dot" style="top:7.3px; right:7.3px; width:5.7px; height:5.7px; background:#FEEFAB;"></div>
+      </div>
+      <div class="chip on">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 20h0.01"></path><path d="M2 16a4 4 0 0 1 4 4"></path><path d="M2 12a8 8 0 0 1 8 8"></path><path d="M2 8V6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6"></path></svg>
+        <div class="dot" style="top:7.3px; right:7.3px; width:5.7px; height:5.7px; background:#FEEFAB;"></div>
+      </div>
+      <div class="chip on">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+        <div class="dot" style="top:7.3px; right:7.3px; width:5.7px; height:5.7px; background:#FEEFAB;"></div>
+      </div>
+      <div class="chip on">
+        <svg width="24" height="24" viewBox="1 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="15" rx="2"></rect><path d="M12 4.5v15"></path></svg>
+        <div class="dot" style="top:7.3px; right:7.3px; width:5.7px; height:5.7px; background:#FEEFAB;"></div>
+      </div>
+      <div class="chip on">
+        <svg width="24" height="24" viewBox="3 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 13.5l6-6 6 6"></path><path d="M5 19h14"></path></svg>
+        <div class="dot" style="top:7.3px; right:7.3px; width:5.7px; height:5.7px; background:#FEEFAB;"></div>
+      </div>
+      <div class="chip on">
+        <svg width="24" height="24" viewBox="0.4 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="3.2"></circle><path d="M8 2.4v1.4M8 12.2v1.4M2.4 8h1.4M12.2 8h1.4M4.6 4.6l1 1M11.4 4.6l-1 1M4.6 11.4l1-1"></path><path d="M17 20.5H9.5a3.5 3.5 0 0 1 0-7 4.6 4.6 0 0 1 8.7-1 3.9 3.9 0 0 1-1.2 8z"></path></svg>
+        <div class="dot" style="top:7.3px; right:7.3px; width:5.7px; height:5.7px; background:#FEEFAB;"></div>
+      </div>
+      <div class="chip on">
+        <svg width="24" height="24" viewBox="4 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="3" width="12" height="18" rx="2"></rect><circle cx="12" cy="14" r="3.2"></circle><circle cx="12" cy="7" r="1.2"></circle></svg>
+        <div class="dot" style="top:7.3px; right:7.3px; width:5.7px; height:5.7px; background:#FEEFAB;"></div>
+      </div>
+      <div class="chip on">
+        <svg width="24" height="24" viewBox="1 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M3.4 9.5h17.2M3.4 14.5h17.2"></path><path d="M12 3a15 15 0 0 0 0 18 15 15 0 0 0 0-18z"></path></svg>
+        <div class="dot" style="top:7.3px; right:7.3px; width:5.7px; height:5.7px; background:#FEEFAB;"></div>
+      </div>
+      <div class="chip off">
+        <svg width="24" height="24" viewBox="3 0 24 24" fill="none" stroke="#86909B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2.5" width="14" height="19" rx="2"></rect><path d="M12 6.5v7"></path><path d="M9 10.5l3 3 3-3"></path><path d="M9 17.5h6"></path></svg>
+        <div class="dot" style="top:7.3px; right:7.3px; width:5.7px; height:5.7px; background:#7C858F;"></div>
+      </div>
+      <div class="chip on">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="2"></rect><rect x="14" y="3" width="7" height="7" rx="2"></rect><rect x="3" y="14" width="7" height="7" rx="2"></rect><path d="m14.5 17.5 2 2 4-5"></path></svg>
+        <div class="dot" style="top:7.3px; right:7.3px; width:5.7px; height:5.7px; background:#FEEFAB;"></div>
+      </div>
+      <div class="chip off">
+        <svg width="24" height="24" viewBox="2 0 24 24" fill="none" stroke="#86909B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 12h16M4 17h16"></path><circle cx="15" cy="7" r="2" fill="#15181F"></circle><circle cx="8" cy="12" r="2" fill="#15181F"></circle><circle cx="17" cy="17" r="2" fill="#15181F"></circle></svg>
+        <div class="dot" style="top:7.3px; right:7.3px; width:5.7px; height:5.7px; background:#7C858F;"></div>
+      </div>
+
+    </div>
+
+    <div style="flex-grow:1; min-height:0; display:flex; flex-direction:column; justify-content:space-between;">
+    <div style="width:392px; flex-grow:1; min-height:0; display:flex; flex-direction:column; min-width:0;">
+      <div class="page narrow">
+        <div class="left">
+          <div class="head">
+            <div class="cell">
+              <div class="cap"><span style="color:#2D82D7;">●</span> <span style="color:#86909B;">В БАТАРЕЮ ОТ ДВС</span></div>
+              <div class="line">
+                <div class="hero" style="color:#4B9BE0;">8</div>
+                <div class="un">кВт</div>
+              </div>
+            </div>
+            <div class="cell">
+              <div class="cap">ДВС · ОБ/МИН</div>
+              <div class="line"><div class="val">1321</div></div>
+            </div>
+          </div>
+          <svg width="392" height="60" viewBox="0 0 392 60" fill="none">
+            <path d="M0 20 H16.33 V16 H0 Z M16.33 20 H32.66 V16 H16.33 Z M32.67 20 H49 V16 H32.67 Z M49 20 H65.33 V16 H49 Z M65.33 20 H81.66 V16 H65.33 Z M81.67 20 H98 V16 H81.67 Z M98 20 H114.33 V16 H98 Z M114.33 20 H130.66 V16 H114.33 Z M130.67 20 H147 V16 H130.67 Z M147 20 H163.33 V16 H147 Z M163.33 20 H179.66 V16 H163.33 Z" fill="rgba(218,225,235,0.16)"></path>
+            <path d="M179.67 20 H196 V48 H179.67 Z M196 20 H212.33 V58 H196 Z M212.33 20 H228.66 V54.68 H212.33 Z M228.67 20 H245 V58.68 H228.67 Z M245 20 H261.33 V54 H245 Z M261.33 20 H277.66 V58 H261.33 Z M277.67 20 H294 V54.68 H277.67 Z M294 20 H310.33 V56 H294 Z M310.33 20 H326.66 V54 H310.33 Z M326.67 20 H343 V58 H326.67 Z M343 20 H359.33 V54.68 H343 Z M359.33 20 H375.66 V53.32 H359.33 Z M375.67 20 H392 V52 H375.67 Z" fill="rgba(45,130,215,0.26)"></path>
+            <path d="M0 20 H392" stroke="#3F434D" stroke-width="1"></path>
+            <path d="M0 16 L16.33 16 L16.33 16 L32.67 16 L32.67 16 L49 16 L49 16 L65.33 16 L65.33 16 L81.67 16 L81.67 16 L98 16 L98 16 L114.33 16 L114.33 16 L130.67 16 L130.67 16 L147 16 L147 16 L163.33 16 L163.33 16 L179.67 16 L179.67 48 L196 48 L196 58 L212.33 58 L212.33 54.68 L228.67 54.68 L228.67 58.68 L245 58.68 L245 54 L261.33 54 L261.33 58 L277.67 58 L277.67 54.68 L294 54.68 L294 56 L310.33 56 L310.33 54 L326.67 54 L326.67 58 L343 58 L343 54.68 L359.33 54.68 L359.33 53.32 L375.67 53.32 L375.67 52 L392 52" stroke="#DAE1EB" stroke-width="2" stroke-linejoin="round" stroke-linecap="square"></path>
+          </svg>
+          <div class="foot">2 МИН · ШКАЛА <svg width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="#7C858F" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M1 5 L5 1 L9 5"></path></svg> 5 <svg width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="#7C858F" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M1 1 L5 5 L9 1"></path></svg> 10 кВт</div>
+        </div>
+        <div class="temps"><div class="temp-col stack"><div class="temp stack"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#86909B" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="16" height="10" rx="2"></rect><g stroke="none" fill="#86909B"><rect x="19" y="10" width="2.5" height="4" rx="1"></rect></g><g stroke="none" fill="#DAE1EB"><rect x="4" y="9" width="7" height="6" rx="1"></rect></g></svg><div class="val" style="color:#DAE1EB;">32°</div></div><div class="track"><div style="position:absolute; left:57.1%; top:0; bottom:0; right:0; background:rgba(255,159,25,0.30);"></div><div style="position:absolute; left:78.6%; top:0; bottom:0; right:0; border-radius:0 3px 3px 0; background:rgba(255,64,70,0.32);"></div><div style="position:absolute; left:0; top:0; bottom:0; width:45.7%; border-radius:3px; background:rgba(218,225,235,0.55);"></div></div></div><div class="temp-col stack"><div class="temp stack"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#86909B" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2.5" width="10" height="19" rx="3"></rect><rect x="4" y="4.5" width="3" height="5" rx="1.5"></rect><rect x="4" y="14.5" width="3" height="5" rx="1.5"></rect><rect x="17" y="4.5" width="3" height="5" rx="1.5"></rect><rect x="17" y="14.5" width="3" height="5" rx="1.5"></rect><g stroke="none" fill="#DAE1EB"><rect x="8.5" y="5" width="7" height="4.2" rx="0.8"></rect></g></svg><div class="val" style="color:#DAE1EB;">47°</div></div><div class="track"><div style="position:absolute; left:70%; top:0; bottom:0; right:0; background:rgba(255,159,25,0.30);"></div><div style="position:absolute; left:85%; top:0; bottom:0; right:0; border-radius:0 3px 3px 0; background:rgba(255,64,70,0.32);"></div><div style="position:absolute; left:0; top:0; bottom:0; width:47%; border-radius:3px; background:rgba(218,225,235,0.55);"></div></div></div><div class="temp-col stack"><div class="temp stack"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#86909B" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2.5" width="10" height="19" rx="3"></rect><rect x="4" y="4.5" width="3" height="5" rx="1.5"></rect><rect x="4" y="14.5" width="3" height="5" rx="1.5"></rect><rect x="17" y="4.5" width="3" height="5" rx="1.5"></rect><rect x="17" y="14.5" width="3" height="5" rx="1.5"></rect><g stroke="none" fill="#DAE1EB"><rect x="8.5" y="14.8" width="3.4" height="4.4" rx="0.8"></rect></g></svg><div class="val" style="color:#DAE1EB;">46°</div></div><div class="track"><div style="position:absolute; left:70%; top:0; bottom:0; right:0; background:rgba(255,159,25,0.30);"></div><div style="position:absolute; left:85%; top:0; bottom:0; right:0; border-radius:0 3px 3px 0; background:rgba(255,64,70,0.32);"></div><div style="position:absolute; left:0; top:0; bottom:0; width:46%; border-radius:3px; background:rgba(218,225,235,0.55);"></div></div></div><div class="temp-col stack"><div class="temp stack"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#86909B" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2.5" width="10" height="19" rx="3"></rect><rect x="4" y="4.5" width="3" height="5" rx="1.5"></rect><rect x="4" y="14.5" width="3" height="5" rx="1.5"></rect><rect x="17" y="4.5" width="3" height="5" rx="1.5"></rect><rect x="17" y="14.5" width="3" height="5" rx="1.5"></rect><g stroke="none" fill="#DAE1EB"><rect x="12.1" y="14.8" width="3.4" height="4.4" rx="0.8"></rect></g></svg><div class="val" style="color:#DAE1EB;">44°</div></div><div class="track"><div style="position:absolute; left:70%; top:0; bottom:0; right:0; background:rgba(255,159,25,0.30);"></div><div style="position:absolute; left:85%; top:0; bottom:0; right:0; border-radius:0 3px 3px 0; background:rgba(255,64,70,0.32);"></div><div style="position:absolute; left:0; top:0; bottom:0; width:44%; border-radius:3px; background:rgba(218,225,235,0.55);"></div></div></div><div class="temp-col stack"><div class="temp stack"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#86909B" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"></rect><path stroke="#DAE1EB" d="M5.5 12q2.2-4.5 4.4 0t4.4 0t4.4 0"></path></svg><div class="val" style="color:#DAE1EB;">39°</div></div><div class="track"><div style="position:absolute; left:70%; top:0; bottom:0; right:0; background:rgba(255,159,25,0.30);"></div><div style="position:absolute; left:85%; top:0; bottom:0; right:0; border-radius:0 3px 3px 0; background:rgba(255,64,70,0.32);"></div><div style="position:absolute; left:0; top:0; bottom:0; width:39%; border-radius:3px; background:rgba(218,225,235,0.55);"></div></div></div></div>
+      </div>
+      <div style="height:20px; flex-shrink:0; display:flex; align-items:center; justify-content:center; gap:8px;"><div style="width:8px; height:8px; border-radius:4px; background:rgba(134,144,155,0.45);"></div><div style="width:8px; height:8px; border-radius:4px; background:#FEEFAB;"></div></div>
+    </div>
+      <div class="rows">
+      <div class="row">
+        <div class="cap">В ПУТИ</div>
+        <div class="line">
+          <div class="val">1:42 · 128 км</div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="cap">ВЫСОТА</div>
+        <div class="line">
+          <div class="val">642 м</div>
+          <div style="display:flex; align-items:center; gap:8px;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FEEFAB" stroke-width="2.4" stroke-linecap="round"><path d="M12 19V6M6.5 11.5 12 6l5.5 5.5"></path></svg><div class="rate">1,2</div></div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="cap">ЗАКАТ</div>
+        <div class="line">
+          <div class="val">19:44</div>
+        </div>
+      </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</div>
+</div>
+</div>
+</x-dc>
+<script data-dc-script data-props='{"$preview":{"width":1280,"height":680}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      bars: [
+        {h:27.54,p:11.93},
+        {h:50.49,p:7.34},
+        {h:83.54,p:15.61},
+        {h:122.1,p:5.51},
+        {h:146.89,p:10.1},
+        {h:167.09,p:3.67},
+        {h:150.56,p:12.85},
+        {h:128.53,p:6.43},
+        {h:102.82,p:14.69},
+        {h:80.79,p:9.18},
+        {h:113.84,p:4.59},
+        {h:140.46,p:11.93},
+        {h:162.5,p:3.67},
+        {h:145.97,p:9.18},
+        {h:120.27,p:15.61},
+        {h:89.97,p:6.43},
+        {h:71.61,p:11.02},
+        {h:100.99,p:4.59},
+        {h:124.86,p:12.85},
+        {h:142.3,p:3.67},
+        {h:126.69,p:10.1},
+        {h:99.15,p:14.69},
+        {h:75.28,p:6.43},
+        {h:53.25,p:11.02},
+        {h:75.28,p:4.59},
+        {h:96.4,p:11.93}
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

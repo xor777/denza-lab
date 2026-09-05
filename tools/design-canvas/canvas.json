@@ -273,6 +273,15 @@
       "h": 8330.0,
       "title": "Контур · семнадцать сцен",
       "page": "page-cluster"
+    },
+    {
+      "file": "StripPages.dc.html",
+      "x": 0,
+      "y": 2800,
+      "w": 3872,
+      "h": 2084,
+      "title": "Полоса · две страницы и свайп",
+      "page": "page-screens"
     }
   ],
   "annotations": [
