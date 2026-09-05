@@ -1823,7 +1823,7 @@ CALM = sc(kw=34.0, peak=68.0, volts=552.0, temps=COOL,
 STATES = [
     ('Первые секунды · шина ещё не ответила: скелет ленты, и больше ничего',
      sc(kw=None)),
-    ('Пробка · ДВС отработал раньше и заглох давно: полка — две ячейки, коробки нет',
+    ('Пробка · ДВС отработал раньше и давно выключился: полка — две ячейки, коробки нет',
      sc(kw=2.0, volts=548.0, temps=COOL, ice='slept', ice_minutes=3.0,
         trip=dict(net=5.9, regen=2.2, ice=0.6, km=27),
         bars=consumption_history(21.4), petal='21')),
@@ -1849,7 +1849,7 @@ STATES = [
      sc(kw=28.0, peak=52.0, ice='running', rpm=1780.0, generation=14.0,
         trace=engine_history(82), volts=548.0, temps=WORKED,
         bars=consumption_history(17.4), petal='17')),
-    ('ДВС заглох 40 с назад · коробка ещё здесь, у правого края ступени на нуле; '
+    ('ДВС выключился 40 с назад · коробка ещё здесь, у правого края ступени на нуле; '
      'цифра, «кВт» и её резерв ушли — точка встала к словам',
      sc(kw=34.0, peak=68.0, ice='slept', ice_minutes=6.0,
         trace=engine_history(120, stopped=40), volts=551.0, temps=WORKED,
@@ -1866,7 +1866,7 @@ STATES = [
     # The same P, with the engine's box still warm behind it. Two true things and one
     # shelf: standing still wins, because three numbers is what P is for and the box
     # is about a drive that has ended. It comes back the moment the car moves.
-    ('Стоянка с живой трассой · ДВС заглох 40 с назад, но машина стоит: '
+    ('Стоянка с живой трассой · ДВС выключился 40 с назад, но машина стоит: '
      'три ячейки поездки, коробки нет',
      sc(kw=1.4, volts=558.0, temps=WORKED, parked=True,
         trace=engine_history(120, stopped=40),
