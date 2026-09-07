@@ -1,8 +1,10 @@
 package dev.denza.apps.feature.trip
 
+import dev.denza.apps.feature.cluster.dashboard.ContourPlan
 import dev.denza.apps.feature.cluster.dashboard.ContourReadout
-import dev.denza.apps.feature.vehicle.PowerSpan
-import dev.denza.apps.feature.vehicle.PowerTrace
+import dev.denza.apps.feature.vehicle.ConsumptionChart
+import dev.denza.apps.feature.vehicle.ConsumptionWindow
+import dev.denza.apps.feature.vehicle.EnergyReadouts
 import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -155,67 +157,105 @@ class StripPagesBoardContractTest {
         )
     }
 
+    /**
+     * The shape is the cluster's chart, and both records say so in the same numbers.
+     *
+     * `docs/energy-display-contract.md` §2.3: one history of one quantity on both screens. It
+     * replaced two minutes of pack power - a second history of the quantity the headline already
+     * shows, and the reason the two screens' graphs could not be the same graph.
+     */
     @Test
-    fun theShapeIsTwentyFourStepsOfFiveSeconds() {
+    fun theShapeIsTheClustersOwnTwentyBins() {
         assertEquals(
-            "steps",
-            number("""TRACE_BINS = (\d+)""", GENERATOR).toInt(),
-            PowerTrace.SLOTS / PowerTrace.BIN_SECONDS,
+            "bins",
+            number("""CHART_BINS = (\d+)""", GENERATOR).toInt(),
+            VehiclePageRenderer.CHART_BINS,
         )
+        assertEquals("which is the window over the bin", ConsumptionChart.BINS, VehiclePageRenderer.CHART_BINS)
         assertEquals(
-            "a step's seconds",
-            PowerTrace.BIN_SECONDS,
-            PowerTrace.SLOTS / number("""TRACE_BINS = (\d+)""", GENERATOR).toInt(),
+            "half a kilometre a step",
+            ConsumptionWindow.KM / ConsumptionChart.BIN_KM,
+            VehiclePageRenderer.CHART_BINS.toDouble(),
+            1e-9,
         )
-        assertEquals("the box", number("""TRACE_H = (\d+)""", GENERATOR),
-            VehiclePageRenderer.GRAPH.toDouble(), 1e-6)
-        assertEquals("and in a narrow pane", number("""TRACE_H_NARROW = (\d+)""", GENERATOR),
-            VehiclePageRenderer.GRAPH_NARROW.toDouble(), 1e-6)
-        assertEquals("its edge", number("""TRACE_EDGE = (\d+)""", GENERATOR),
-            VehiclePageRenderer.EDGE.toDouble(), 1e-6)
+        assertEquals("the box", number("""CHART_H = (\d+)""", GENERATOR),
+            VehiclePageRenderer.CHART.toDouble(), 1e-6)
+        assertEquals("and in a narrow pane", number("""CHART_H_NARROW = (\d+)""", GENERATOR),
+            VehiclePageRenderer.CHART_NARROW.toDouble(), 1e-6)
+        assertEquals("its edge", number("""CHART_EDGE = (\d+)""", GENERATOR),
+            VehiclePageRenderer.CHART_EDGE.toDouble(), 1e-6)
     }
 
     /**
-     * The span is written where a chart writes it, on both records.
+     * And the ladder it is drawn on is the petal's own, clamped, with the cut marked.
      *
-     * It was a phrase on the line under the box - `ШКАЛА 5 ↑ 10 ↓ кВт` - and the owner read it and
-     * said «тоже не интуитивно, либо убрать либо починить». Two figures against the edges they
-     * belong to are not a legend; the gutter they stand in is what keeps them off the shape.
+     * Two constants in one place: `ContourPlan` owns them, both screens read them, and the plan
+     * board prints them. If the recording says 40 and 20 are wrong they move once.
      */
     @Test
-    fun theBoxSaysWhatItHoldsInItsOwnGutter() {
-        assertEquals(
-            "the gutter",
-            number("""TRACE_AXIS = (\d+)""", GENERATOR),
-            VehiclePageRenderer.AXIS.toDouble(),
-            1e-6,
-        )
-        assertEquals(
-            "where the top figure sits",
-            number("""TRACE_AXIS_BASELINE = (\d+)""", GENERATOR),
-            VehiclePageRenderer.AXIS_BASELINE.toDouble(),
-            1e-6,
-        )
-        assertTrue(
-            "and the phrase is gone from the board",
-            !BOARD.readText().contains("ШКАЛА"),
-        )
+    fun bothScreensClampOnOneLadder() {
+        assertEquals("the ceiling", number("""CHART_FULL = (\d+)""", GENERATOR),
+            VehiclePageRenderer.CHART_FULL.toDouble(), 1e-6)
+        assertEquals("and the floor", number("""CHART_RETURN_FULL = (\d+)""", GENERATOR),
+            VehiclePageRenderer.CHART_RETURN_FULL.toDouble(), 1e-6)
+        assertEquals("the cluster's own", ContourPlan.PETAL_FULL, VehiclePageRenderer.CHART_FULL)
+        assertEquals(ContourPlan.PETAL_RETURN_FULL, VehiclePageRenderer.CHART_RETURN_FULL)
+        assertEquals("the tick over a cut bin", number("""CHART_TICK = (\d+)""", GENERATOR),
+            VehiclePageRenderer.CHART_TICK.toDouble(), 1e-6)
+        assertEquals(ContourPlan.PETAL_TICK, VehiclePageRenderer.CHART_TICK)
+        // And the board draws the two cases: a bin past the ceiling, and one the log has no
+        // energy for.
+        assertTrue("a launch scene", GENERATOR.readText().contains("history(31.6, launch=True)"))
+        assertTrue("and a hole", GENERATOR.readText().contains("hole=(6, 7)"))
     }
 
     /**
-     * A figure going into the pack carries its sign as well as its colour.
+     * The hero prints a magnitude, and the direction is the word and the colour.
      *
-     * The sign came off on the reasoning that a minus is not a direction anybody reads at a
-     * glance. On the car the owner read the page as «белый разряд, синий заряд… но супер
-     * неинтуитивно» - he was decoding the hue, because it was the only cue that was telling the
-     * truth at that moment. Three cues that agree cost nothing.
+     * The sign went back on for a while, on the owner's «белый разряд, синий заряд… но супер
+     * неинтуитивно» - he was decoding the hue because the sentence above the figure was wrong at
+     * that moment. What was broken was the sentence, not the absence of a minus: the word and the
+     * sign were decided in two places. There is one place now (`EnergyReadouts`), so the two cues
+     * agree by construction and the third one is not needed (contract §2.1).
      */
     @Test
-    fun aFigureGoingIntoThePackIsSigned() {
+    fun theHeroIsUnsignedAndItsDirectionIsTheWordAndTheColour() {
+        val board = BOARD.readText()
+        assertTrue("the generating scene prints 8, not -8", board.contains(">8</div>"))
+        assertTrue("no minus on any hero", !Regex("""class="hero"[^>]*>[-\u2212]""").containsMatchIn(board))
+        // And the word says which way, in the words the code uses.
+        assertTrue(board.contains(EnergyReadouts.WORD_FROM_ENGINE))
+        assertTrue(board.contains(EnergyReadouts.WORD_FROM_CHARGER))
+        assertTrue(board.contains(EnergyReadouts.WORD_FROM_PACK))
+    }
+
+    /**
+     * The foot line is the figure, its unit and its window, and the pane drops only the word.
+     *
+     * «РАСХОД 19,4 кВт·ч/100 км · ЗА 10 КМ» wide, «19,4 кВт·ч/100 км · 10 КМ» at 392 dp. The
+     * consumption used to be the thing that went in a pane, and the contract's §5 says the
+     * opposite: the figure and its window are what the shape above cannot be read without.
+     */
+    @Test
+    fun theFootLineKeepsItsFigureAndItsWindowInAPane() {
+        val board = BOARD.readText()
         assertTrue(
-            "the board signs it",
-            BOARD.readText().contains(">${VehiclePageRenderer.MINUS}8<"),
+            "the wide line",
+            board.contains(
+                "${VehiclePageWords.TITLE_SPEND} <span class=\"spend-figure\">19,4</span> " +
+                    "${VehiclePageRenderer.UNIT_PER_100KM} ${VehiclePageRenderer.SEPARATOR} ЗА 10 КМ",
+            ),
         )
+        assertTrue(
+            "and the pane's, which drops the word and nothing else",
+            board.contains(
+                "<span class=\"spend-figure\">19,4</span> ${VehiclePageRenderer.UNIT_PER_100KM} " +
+                    "${VehiclePageRenderer.SEPARATOR} 10 КМ",
+            ),
+        )
+        // Never a whole-number rounding of a filling window, on either record.
+        assertEquals("ЗА 3,7 КМ", ContourReadout.windowCaps(3.7, ConsumptionWindow.KM, narrow = false))
+        assertEquals("10 КМ", ContourReadout.windowCaps(10.0, ConsumptionWindow.KM, narrow = true))
     }
 
     /**
@@ -245,18 +285,6 @@ class StripPagesBoardContractTest {
         )
     }
 
-    @Test
-    fun bothRecordsClimbTheSameLadder() {
-        val rungs = Regex("""TRACE_RUNGS = \(([\d, ]+)\)""").find(GENERATOR.readText())
-            ?.groupValues?.get(1)
-            ?: error("the generator has no rung ladder")
-        assertEquals(
-            "rungs",
-            rungs.split(",").map { it.trim().toInt() },
-            PowerSpan.RUNGS.toList(),
-        )
-    }
-
     /**
      * The words on the board are the words in the code.
      *
@@ -266,13 +294,11 @@ class StripPagesBoardContractTest {
     @Test
     fun theBoardSaysWhatTheCodeSays() {
         listOf(
-            VehiclePageWords.TITLE_FROM_PACK,
-            VehiclePageWords.TITLE_FROM_ENGINE,
-            VehiclePageWords.TITLE_FROM_CHARGER,
+            EnergyReadouts.WORD_FROM_PACK,
+            EnergyReadouts.WORD_FROM_ENGINE,
+            EnergyReadouts.WORD_FROM_CHARGER,
             VehiclePageWords.TITLE_RPM,
             VehiclePageWords.TITLE_ENGINE_MINUTES,
-            VehiclePageWords.TITLE_WINDOW,
-            VehiclePageWords.TITLE_WINDOW_SHORT,
             VehiclePageWords.TITLE_VOLTS,
             VehiclePageWords.TITLE_SPEND,
             VehiclePageRenderer.TITLE_CLOSED,
@@ -291,7 +317,7 @@ class StripPagesBoardContractTest {
     @Test
     fun neitherRecordPrintsWhatWasStruckOff() {
         val board = BOARD.readText()
-        listOf("Бортсеть", "Запас", "Топливо", "ТОК").forEach {
+        listOf("Бортсеть", "Запас", "Топливо", "ТОК", "ПОСЛЕДНИЕ 2 МИНУТЫ").forEach {
             assertTrue("«$it» is off the board", !board.contains(it))
         }
     }

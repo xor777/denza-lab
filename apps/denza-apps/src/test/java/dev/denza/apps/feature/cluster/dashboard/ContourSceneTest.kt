@@ -1,5 +1,6 @@
 package dev.denza.apps.feature.cluster.dashboard
 
+import dev.denza.apps.feature.vehicle.ConsumptionSample
 import dev.denza.apps.feature.vehicle.EngineTrace
 import dev.denza.apps.feature.vehicle.TripEnergy
 import dev.denza.apps.feature.vehicle.VehicleAccess
@@ -26,7 +27,7 @@ class ContourSceneTest {
 
     private fun ready(
         values: Map<VehicleSignal, Double> = mapOf(VehicleSignal.POWER_KW to 34.0),
-        consumption: List<Double> = listOf(17.0),
+        consumption: List<ConsumptionSample> = listOf(ConsumptionSample(100.1, 0.017, 0.1, 0.1)),
         trip: TripEnergy = TripEnergy(netKwh = 9.3, kilometres = 42.0),
         trace: EngineTrace? = null,
     ) = VehicleTelemetry(
@@ -48,6 +49,17 @@ class ContourSceneTest {
             elapsed += frame
         }
     }
+
+    /** The engine turning and giving, which is the only state the box exists in. */
+    private fun running(trace: EngineTrace) = ready(
+        values = mapOf(
+            VehicleSignal.POWER_KW to 34.0,
+            VehicleSignal.ENGINE_RUNNING to 3.0,
+            VehicleSignal.ENGINE_RPM to 1780.0,
+            VehicleSignal.GENERATION_KW to 14.0,
+        ),
+        trace = trace,
+    )
 
     /** Feeds [seconds] of frames with nothing arriving at all. */
     private fun silence(scene: ContourScene, t: VehicleTelemetry, seconds: Float) {
@@ -265,30 +277,74 @@ class ContourSceneTest {
         assertFalse(scene.stage.charging)
     }
 
+    /**
+     * The engine's box takes two true things at once, and both of them.
+     *
+     * `docs/energy-display-contract.md` §2.5. It used to be «the trace is warm», which drew a box
+     * of zeros in blue for two minutes after the engine had stopped and drew nothing different for
+     * an engine that ran and gave the pack nothing.
+     */
     @Test
-    fun theEngineBoxOwnsTheRightShelfForTheWholeTwoMinutes() {
+    fun theBoxIsUpOnlyWithTheFlagUpAndSomethingGiven() {
         val trace = EngineTrace()
-        var clock = 0L
-        repeat(20) { trace.sample(clock + it * 1_000L, engineRunning = true, generationKw = 14.0) }
-        clock += 20_000L
+        repeat(20) { trace.sample(it * 1_000L, engineRunning = true, generationKw = 14.0) }
 
         val scene = ContourScene()
-        run(scene, ready(trace = trace), 1f)
+        run(scene, running(trace), 1f)
         assertTrue(scene.stage.engineBox)
-
-        // A hundred and nineteen dead seconds, and the box is still there.
-        repeat(119) { trace.sample(clock + it * 1_000L, engineRunning = false, generationKw = 0.0) }
-        run(scene, ready(trace = trace), 1f)
-        assertTrue("the box holds", scene.stage.engineBox)
-
-        // One more, and the last live slot has walked off the left edge.
-        trace.sample(clock + 119_000L, engineRunning = false, generationKw = 0.0)
-        run(scene, ready(trace = trace), 1f)
-        assertFalse("and then it goes, with no timer anywhere", scene.stage.engineBox)
     }
 
     @Test
-    fun aRunningEngineKeepsTheShelfEvenOnPark() {
+    fun aRunningEngineWithAFlatTraceHasNoBoxAtAll() {
+        // The first drive's picture: the engine turned and the generation id read zero for the
+        // whole of it. The panel says exactly that - revolutions in the corner, trip on the shelf.
+        val trace = EngineTrace()
+        repeat(60) { trace.sample(it * 1_000L, engineRunning = true, generationKw = 0.0) }
+
+        val scene = ContourScene()
+        run(scene, running(trace), 1f)
+        assertTrue("the engine is turning", scene.stage.engineRunning)
+        assertFalse("and it is giving nothing, so there is no box", scene.stage.engineBox)
+    }
+
+    @Test
+    fun theBoxHoldsTenSecondsAfterTheFlagDropsAndThenGoes() {
+        val trace = EngineTrace()
+        repeat(20) { trace.sample(it * 1_000L, engineRunning = true, generationKw = 14.0) }
+
+        val scene = ContourScene()
+        run(scene, running(trace), 1f)
+        assertTrue(scene.stage.engineBox)
+
+        // The flag drops. The trace is still warm, and the box holds - against a dropped read.
+        val stopped = ready(
+            values = mapOf(VehicleSignal.POWER_KW to 34.0, VehicleSignal.ENGINE_RUNNING to 0.0),
+            trace = trace,
+        )
+        run(scene, stopped, 8f)
+        assertTrue("nine seconds in, the box is still there", scene.stage.engineBox)
+        run(scene, stopped, 3f)
+        assertFalse("and past ten it goes, with no second history", scene.stage.engineBox)
+    }
+
+    @Test
+    fun theBoxIsNeverUpWithTheFlagDownBeyondItsHold() {
+        // A warm trace and a cold engine: two minutes of blue zeros is not a reading. The trace's
+        // own length is no longer a timer for anything.
+        val trace = EngineTrace()
+        repeat(20) { trace.sample(it * 1_000L, engineRunning = true, generationKw = 14.0) }
+
+        val scene = ContourScene()
+        run(
+            scene,
+            ready(values = mapOf(VehicleSignal.POWER_KW to 34.0), trace = trace),
+            12f,
+        )
+        assertFalse(scene.stage.engineBox)
+    }
+
+    @Test
+    fun theBoxKeepsTheShelfOnParkWhileTheEngineGives() {
         val trace = EngineTrace()
         repeat(20) { trace.sample(it * 1_000L, engineRunning = true, generationKw = 14.0) }
 
@@ -309,40 +365,10 @@ class ContourSceneTest {
         )
 
         // The owner sat on P with the generator charging the pack and the shelf showed him three
-        // frozen trip figures instead of the one live thing on the panel. While the engine turns,
-        // the box is what the shelf is for; the trip's cells wait for the engine to stop.
+        // frozen trip figures instead of the one live thing on the panel.
         assertTrue("the car is standing", scene.stage.parked)
         assertTrue("and the engine is running", scene.stage.engineRunning)
         assertTrue("so the box keeps the shelf", scene.stage.engineBox)
-    }
-
-    @Test
-    fun standingStillOutranksAWarmEngineTraceOnTheRightShelf() {
-        val trace = EngineTrace()
-        repeat(20) { trace.sample(it * 1_000L, engineRunning = true, generationKw = 14.0) }
-
-        val scene = ContourScene()
-        run(
-            scene,
-            ready(
-                values = mapOf(VehicleSignal.POWER_KW to 1.4, VehicleSignal.GEARBOX_PARK to 1.0),
-                trace = trace,
-            ),
-            1f,
-        )
-
-        // Both facts are true and one shelf has to hold them. A car that has stopped is the one
-        // moment its driver can read three numbers instead of glancing at one, and the engine's
-        // box is a shape about the last two minutes of a drive that has ended. The trip wins: the
-        // three cells are what P is for, and the box comes back the moment the car moves.
-        assertTrue("the car is standing", scene.stage.parked)
-        assertFalse("so the box does not take the shelf", scene.stage.engineBox)
-
-        // And it is the standing that does it, not the trace going quiet: the same trace under a
-        // car that is rolling still owns the shelf.
-        run(scene, ready(trace = trace), 1f)
-        assertTrue("the box is back the moment the car moves", scene.stage.engineBox)
-        assertFalse(scene.stage.parked)
     }
 
     @Test

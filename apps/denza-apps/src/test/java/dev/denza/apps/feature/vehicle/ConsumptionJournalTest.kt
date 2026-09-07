@@ -30,7 +30,7 @@ class ConsumptionJournalTest {
     private fun file() = File(folder.root, "consumption.log")
 
     private fun bars(count: Int, from: Double = 1000.0) =
-        List(count) { ConsumptionSample(from + it * 0.1, 18.0 + it) }
+        List(count) { ConsumptionSample(from + it * 0.1, 0.018 + it * 0.001, 0.1, 0.1) }
 
     @Test
     fun whatGoesInComesBackOut() {
@@ -38,7 +38,9 @@ class ConsumptionJournalTest {
         val read = journal().load()
         assertEquals(3, read.size)
         assertEquals(1000.0, read.first().odometerKm, 1e-6)
-        assertEquals(20.0, read.last().value, 1e-3)
+        assertEquals(0.020, read.last().kwh, 1e-5)
+        assertEquals("the road comes back with it", 0.1, read.last().km, 1e-6)
+        assertEquals(0.1, read.last().knownKm, 1e-6)
         assertTrue(wipes.isEmpty())
     }
 
@@ -77,6 +79,29 @@ class ConsumptionJournalTest {
         assertEquals(1, wipes.size)
     }
 
+    /**
+     * The two-column format is refused rather than upgraded.
+     *
+     * A bucket carries its road and its known road now, and neither can be invented from a file
+     * that never held them: guessing one tick of road per line would put an odometer step nobody
+     * watched under a figure as if it had been measured. So a journal written before 2026-09-07 is
+     * a journal this class did not write, and the drive up to now is the whole cost.
+     */
+    @Test
+    fun aJournalInTheOldTwoColumnFormatIsRefusedAndStartsAgain() {
+        file().writeText("1000.0,18.000\n1000.1,19.000\n1000.2,20.000\n")
+        assertTrue(journal().load().isEmpty())
+        assertFalse(file().exists())
+        assertEquals(1, wipes.size)
+    }
+
+    @Test
+    fun aRecordWhoseKnownRoadIsLongerThanItsRoadIsNotOurs() {
+        file().writeText("1000.0,0.02000,0.1000,0.4000\n1000.1,0.02000,0.1000,0.1000\n")
+        assertTrue(journal().load().isEmpty())
+        assertFalse(file().exists())
+    }
+
     @Test
     fun aFileFromSomethingElseEntirelyIsDroppedRatherThanMined() {
         file().writeText("{\"buckets\":[18.0,19.0]}\n")
@@ -87,14 +112,14 @@ class ConsumptionJournalTest {
     @Test
     fun anImplausibleOdometerIsABadParseRatherThanAReading() {
         // Put it first, so it is not excused as a torn tail.
-        file().writeText("99999999.0,19.0\n1000.0,18.0\n")
+        file().writeText("99999999.0,0.02000,0.1000,0.1000\n1000.0,0.02000,0.1000,0.1000\n")
         assertTrue(journal().load().isEmpty())
         assertFalse(file().exists())
     }
 
     @Test
     fun aFileTooBigToBeOursIsDroppedWithoutParsingIt() {
-        file().writeText("1000.0,18.0\n".repeat(20_000))
+        file().writeText("1000.0,0.02000,0.1000,0.1000\n".repeat(20_000))
         assertTrue(journal().load().isEmpty())
         assertFalse(file().exists())
         assertEquals(1, wipes.size)
