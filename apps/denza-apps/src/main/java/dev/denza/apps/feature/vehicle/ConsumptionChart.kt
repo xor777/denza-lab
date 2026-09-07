@@ -12,15 +12,25 @@ import kotlin.math.roundToInt
  *
  * ### Bins are anchored to the odometer's own half kilometre
  *
- * `floor(odometerAtClose / BIN_KM)`, not "group the tail by fives". Grouping from the oldest
- * re-phases every bin the moment a bucket closes, so all twenty heights change every hundred
- * metres and the same road never comes back the same shape. Anchored, a bin's membership is fixed
- * the moment it is closed and the window steps by whole bins.
+ * `floor(odometer / BIN_KM)`, not "group the tail by fives". Grouping from the oldest re-phases
+ * every bin the moment a bucket closes, so all twenty heights change every hundred metres and the
+ * same road never comes back the same shape. Anchored, a bin's membership is fixed the moment it is
+ * closed and the window steps by whole bins.
+ *
+ * **And a bucket is filed by the road it covers rather than by where it stopped.** A bucket that
+ * closed at 100.5 km covers `[100.4, 100.5)`, which is the bin that ends at 100.5 and not the one
+ * that starts there - filing it by its own odometer put every bin's membership one bucket out of
+ * phase, and a bucket carrying two kilometres of a pause vanished into a single bin, taking 1.9 km
+ * of road off the axis with it. So each bucket's road is walked and each bin is given its overlap;
+ * **the energy and the known road go with it pro rata by road**, which is the only division a
+ * bucket supports - it holds one integral over one stretch and no record of where inside it
+ * anything happened.
  *
  * ### A hole is not a zero
  *
  * A bin whose known road is under half its road is `NaN` (§2.6): drawn as nothing, its road still
- * counted for the axis, and out of the figure beside it.
+ * counted for the axis. The *figure* beside the chart is over known buckets (§2.6) rather than over
+ * drawn bins, so a known bucket inside a hole bin is still in it.
  *
  * ### The newest bin is partial
  *
@@ -44,7 +54,7 @@ internal object ConsumptionChart {
     /** Twenty, which is the window over the bin rather than a second statement of either. */
     val BINS: Int = (ConsumptionWindow.KM / BIN_KM).roundToInt()
 
-    /** Which anchored bin a bucket belongs to, by the odometer it closed at. */
+    /** Which anchored bin a metre of road belongs to. */
     fun binOf(odometerKm: Double): Long = floor(odometerKm / BIN_KM).toLong()
 
     /**
@@ -54,7 +64,10 @@ internal object ConsumptionChart {
      */
     fun of(window: List<ConsumptionSample>): ConsumptionChartSnapshot {
         if (window.isEmpty()) return ConsumptionChartSnapshot.EMPTY
-        val newest = binOf(window[window.size - 1].odometerKm)
+        // The newest bin is the one the newest bucket's *last* metre is in. A bucket closing
+        // exactly on a bin edge covers the road behind that edge, and opening an empty bin in
+        // front of it right-anchored the chart against a step nothing had driven yet.
+        val newest = binOf(window[window.size - 1].odometerKm - OdometerGate.KM_EPSILON)
         val base = newest - BINS + 1
 
         val kwh = DoubleArray(BINS)
@@ -62,12 +75,22 @@ internal object ConsumptionChart {
         val known = DoubleArray(BINS)
         for (index in window.indices) {
             val bucket = window[index]
-            val bin = (binOf(bucket.odometerKm) - base).toInt()
-            // Anything older than the box is wide has already left it at the left edge.
-            if (bin < 0 || bin >= BINS) continue
-            kwh[bin] += bucket.kwh
-            km[bin] += bucket.km
-            known[bin] += bucket.knownKm
+            if (bucket.km <= 0.0) continue
+            val end = bucket.odometerKm
+            var at = end - bucket.km
+            while (at < end - OdometerGate.KM_EPSILON) {
+                val bin = binOf(at)
+                val to = minOf(end, (bin + 1) * BIN_KM)
+                val overlap = to - at
+                at = to
+                // Anything older than the box is wide has already left it at the left edge.
+                val slot = (bin - base).toInt()
+                if (slot < 0 || slot >= BINS) continue
+                val share = overlap / bucket.km
+                kwh[slot] += bucket.kwh * share
+                km[slot] += overlap
+                known[slot] += bucket.knownKm * share
+            }
         }
 
         var first = 0
@@ -79,14 +102,10 @@ internal object ConsumptionChart {
         val widths = FloatArray(count)
         for (index in 0 until count) {
             val at = first + index
+            // The coercion is a geometric guard, not arithmetic: a bin cannot be drawn wider than
+            // itself whatever a re-anchor's rounding says its overlap was.
             widths[index] = (km[at] / BIN_KM).toFloat().coerceIn(0f, 1f)
-            values[index] = if (
-                known[at] > 0.0 && known[at] * 2.0 >= km[at] - OdometerGate.KM_EPSILON
-            ) {
-                (kwh[at] / known[at] * 100.0).toFloat()
-            } else {
-                Float.NaN
-            }
+            values[index] = ConsumptionSample.valueOf(kwh[at], km[at], known[at]).toFloat()
         }
         return ConsumptionChartSnapshot(values, widths)
     }
@@ -103,13 +122,17 @@ internal class ConsumptionChartSnapshot(val values: FloatArray, val widths: Floa
 
     val isEmpty: Boolean get() = values.isEmpty()
 
-    /** How wide the whole chart is, in bins - which is what right-anchors it in its box. */
-    val span: Float
-        get() {
-            var total = 0f
-            for (index in widths.indices) total += widths[index]
-            return total
-        }
+    /**
+     * How wide the whole chart is, in bins - which is what right-anchors it in its box.
+     *
+     * Summed here rather than in a draw: both renderers need it in every frame and it cannot
+     * change between them, so it is counted once per sweep like everything else in this object.
+     */
+    val span: Float = run {
+        var total = 0f
+        for (index in widths.indices) total += widths[index]
+        total
+    }
 
     companion object {
         val EMPTY = ConsumptionChartSnapshot(FloatArray(0), FloatArray(0))

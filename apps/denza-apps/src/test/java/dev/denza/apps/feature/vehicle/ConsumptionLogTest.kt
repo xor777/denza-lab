@@ -2,6 +2,7 @@ package dev.denza.apps.feature.vehicle
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -237,6 +238,41 @@ class ConsumptionLogTest {
         )
         assertTrue(restored)
         assertEquals(listOf(939.5, 939.9), log.buckets.map { it.odometerKm })
+    }
+
+    /**
+     * And what it seeds is retention rather than the window: the screens see only today's road.
+     *
+     * The journal keeps thirty kilometres so a restart mid-drive keeps its history. Twenty of those
+     * can be yesterday - the car was driven with the app closed, or shut down at the end of one
+     * drive and started at the beginning of the next - and a window that counted ten kilometres
+     * backwards through them printed «за 10 км» over a road the car is nowhere near.
+     */
+    @Test
+    fun aJournalThatEndsTwentyKilometresBackIsRetainedAndNotShown() {
+        val log = ConsumptionLog()
+        val yesterday = List(100) { ConsumptionSample(900.0 + (it + 1) * 0.1, 0.02, 0.1, 0.1) }
+        assertTrue(log.restore(yesterday, odometerKm = 930.0, windowKm = 30.0))
+        assertEquals("all of it is still retained", 100, log.buckets.size)
+        assertTrue("and none of it is the window", log.window.isEmpty())
+        assertNull("so there is no figure either", ConsumptionWindow.mean(log.window))
+    }
+
+    /** A re-anchor is the same statement one drive later: the road before it is not this road. */
+    @Test
+    fun theBucketsFromBeforeAReanchorAreNotInTheWindow() {
+        val log = ConsumptionLog()
+        log.drive(steps = 20, powerKw = 20.0)
+        assertEquals(20, log.buckets.size)
+        assertEquals("two kilometres of window", 20, log.window.size)
+
+        // Driven forty kilometres with the dashboard closed.
+        log.sample(142.0, 20.0, 6.0)
+        assertTrue("nothing before the jump is the window", log.window.isEmpty())
+
+        log.drive(steps = 3, powerKw = 20.0, fromKm = 142.0)
+        assertEquals("and what the car has driven since is", listOf(142.1, 142.2, 142.3), log.window.map { it.odometerKm })
+        assertEquals("while the retention keeps the lot", 23, log.buckets.size)
     }
 
     @Test

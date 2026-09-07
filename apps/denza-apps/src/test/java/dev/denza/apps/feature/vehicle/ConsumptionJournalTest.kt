@@ -52,6 +52,38 @@ class ConsumptionJournalTest {
         assertEquals(4, journal().load().size)
     }
 
+    /**
+     * The longest bucket the log can close is a re-anchor's jump plus the tick that closed it.
+     *
+     * A bucket already part full when a five-kilometre step arrives closes carrying both, which is
+     * exactly [OdometerGate.MAX_JUMP_KM] + [ConsumptionLog.DEFAULT_BUCKET_KM] one epsilon short of
+     * the boundary. The parser's bound used to be the jump alone, so the longest bucket the app can
+     * write was one the app would refuse to read back.
+     */
+    @Test
+    fun theLongestBucketTheLogCanCloseSurvivesARestart() {
+        val log = ConsumptionLog()
+        var longest = 0.0
+        val kept = mutableListOf<ConsumptionSample>()
+        val almost = ConsumptionLog.DEFAULT_BUCKET_KM - 1e-5
+        log.sample(1000.0, 20.0, 0.0)
+        // A hair short of closing, then the longest step that is still road rather than a jump.
+        log.sample(1000.0 + almost, 20.0, 6.0)
+        log.sample(1000.0 + almost + OdometerGate.MAX_JUMP_KM, 20.0, 6.0)
+        log.buckets.forEach {
+            longest = maxOf(longest, it.km)
+            kept += it
+        }
+        assertTrue("longer than the jump alone: $longest", longest > OdometerGate.MAX_JUMP_KM)
+        assertTrue(
+            "and no longer than the jump and the tick that closed it: $longest",
+            longest <= OdometerGate.MAX_JUMP_KM + ConsumptionLog.DEFAULT_BUCKET_KM + 1e-9,
+        )
+        journal().append(kept)
+        assertEquals("and it reads back", kept.size, journal().load().size)
+        assertTrue(wipes.isEmpty())
+    }
+
     @Test
     fun anAbsentFileIsAnEmptyJournalAndNotAFailure() {
         assertTrue(journal().load().isEmpty())

@@ -46,11 +46,27 @@ internal data class ConsumptionSample(
 
     /** Whether enough of the road is known for this bucket to be a reading rather than a hole. */
     val known: Boolean
-        get() = knownKm > 0.0 && knownKm * 2.0 >= km - OdometerGate.KM_EPSILON
+        get() = isKnown(km, knownKm)
 
     /** kWh per 100 km over the road the energy is known for, or `NaN` where it is a hole. */
     val value: Double
-        get() = if (!known) Double.NaN else kwh / knownKm * 100.0
+        get() = valueOf(kwh, km, knownKm)
+
+    companion object {
+        /**
+         * The half-known rule, stated once.
+         *
+         * A bin of [ConsumptionChart] is the same question asked of a sum rather than of one
+         * record - «is enough of this road known for the figure over it to be a reading» - and it
+         * had a second copy of the arithmetic. One rule, two callers.
+         */
+        fun isKnown(km: Double, knownKm: Double): Boolean =
+            knownKm > 0.0 && knownKm * 2.0 >= km - OdometerGate.KM_EPSILON
+
+        /** kWh per 100 km over known road, or `NaN` where there is not enough of it. */
+        fun valueOf(kwh: Double, km: Double, knownKm: Double): Double =
+            if (!isKnown(km, knownKm)) Double.NaN else kwh / knownKm * 100.0
+    }
 }
 
 internal class ConsumptionLog(
@@ -75,16 +91,17 @@ internal class ConsumptionLog(
      *
      * The tail is measured in **road** rather than in buckets, because a bucket is not always a
      * hundred metres: an odometer step no tick can explain closes one bucket carrying that whole
-     * step. See [ConsumptionWindow.raw], which is the same walk over a list.
+     * step. The walk itself is [ConsumptionWindow.firstIndex], which the snapshot's own reader
+     * shares, so the two records of "the last ten kilometres" cannot disagree.
+     *
+     * **And the odometer bounds it as well as the road does.** A journal restored twenty
+     * kilometres behind the car, or a re-anchor after a drive with the panel closed, leaves buckets
+     * whose road is real and whose *place* is yesterday's; adding them up to ten kilometres printed
+     * a figure over a road the car is nowhere near. The gate's own newest reading is the bound.
      */
     val window: List<ConsumptionSample>
         get() {
-            var km = 0.0
-            var from = closed.size
-            while (from > 0 && km < ConsumptionWindow.KM - KM_EPSILON) {
-                from--
-                km += closed[from].km
-            }
+            val from = ConsumptionWindow.firstIndex(closed, odometer.lastKm)
             val out = ArrayList<ConsumptionSample>(closed.size - from)
             for (index in from until closed.size) out.add(closed[index])
             return out
@@ -151,6 +168,10 @@ internal class ConsumptionLog(
      * of the current odometer means the reading went backwards, which happens on a
      * cluster swap or a journal carried between vehicles, and there is nothing
      * sensible to salvage.
+     *
+     * The gate is anchored on the way out, the way [TripEnergyLedger.restore] anchors it: without
+     * that the log has restored road it cannot place, and [window] would hand a journal that ends
+     * twenty kilometres back to a screen that says «за 10 км».
      */
     fun restore(samples: List<ConsumptionSample>, odometerKm: Double, windowKm: Double): Boolean {
         if (samples.any { it.odometerKm > odometerKm + KM_EPSILON }) return false
@@ -160,6 +181,7 @@ internal class ConsumptionLog(
             .filter { it.odometerKm > floor + KM_EPSILON }
             .toCollection(closed)
         while (closed.size > capacity) closed.removeFirst()
+        odometer.anchor(odometerKm)
         return true
     }
 

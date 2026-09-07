@@ -41,7 +41,30 @@ class ConsumptionWindowTest {
         val long = List(60) { ConsumptionSample(100.0 + (it + 1) * 0.3, 0.06, 0.3, 0.3) }
         val window = ConsumptionWindow.raw(long)
         assertEquals(34, window.size)
-        assertEquals(10.2, ConsumptionWindow.roadKm(long), 1e-9)
+        assertEquals("and the road it holds", 10.2, window.sumOf { it.km }, 1e-9)
+    }
+
+    /**
+     * And the odometer bounds it too, wherever the caller has a reading to bound it with.
+     *
+     * Ten kilometres of buckets from yesterday's road are still ten kilometres of road; what they
+     * are not is the ten kilometres behind the car. A journal restored from behind the retention
+     * window, and everything from before an odometer re-anchor, land here.
+     */
+    @Test
+    fun aTailTheCarIsNowhereNearIsNotTheWindow() {
+        val yesterday = road(100, from = 900.0)
+        assertEquals("by road alone it is the whole window", 0, ConsumptionWindow.firstIndex(yesterday))
+        assertEquals(
+            "and against the car's own reading it is nothing",
+            yesterday.size,
+            ConsumptionWindow.firstIndex(yesterday, lastKm = 930.0),
+        )
+        // The bound is the window's own ten kilometres behind the newest reading, so a tail that
+        // straddles it keeps the half the car has just driven.
+        val straddling = road(100, from = 920.0)
+        val from = ConsumptionWindow.firstIndex(straddling, lastKm = 935.0)
+        assertEquals("the buckets from 925.1 on", 925.1, straddling[from].odometerKm, 1e-9)
     }
 
     @Test
@@ -59,10 +82,30 @@ class ConsumptionWindowTest {
         for (index in 5 until 15) {
             withHole[index] = withHole[index].copy(kwh = 0.0, knownKm = 0.0)
         }
-        assertEquals("the road is all there", 2.0, ConsumptionWindow.roadKm(withHole), 1e-9)
+        assertEquals("the road is all there", 2.0, withHole.sumOf { it.km }, 1e-9)
         assertEquals("the known road is not", 1.0, ConsumptionWindow.coveredKm(withHole), 1e-9)
         // Ten known buckets of 0.02 kWh over one kilometre.
         assertEquals(0.2 / 1.0 * 100.0, ConsumptionWindow.mean(withHole)!!, 1e-9)
+    }
+
+    /**
+     * And a hole's own scrap of known road is in neither the figure nor the unit.
+     *
+     * A bucket that answered for forty of its hundred metres is a hole - [ConsumptionSample.known]
+     * refuses it whole - so counting its 0.04 km under «за 3,7 км» promised road the number beside
+     * it was never taken over. The two had to be the same set of buckets and were not.
+     */
+    @Test
+    fun theRoadUnderTheUnitIsTheRoadTheFigureIsTheMeanOf() {
+        val known = ConsumptionSample(100.1, 0.02, 0.1, 0.1)
+        val nearlyKnown = ConsumptionSample(100.2, 0.008, 0.1, 0.04)
+        assertEquals("the scrap is not in the unit", 0.1, ConsumptionWindow.coveredKm(listOf(known, nearlyKnown)), 1e-9)
+        assertEquals(
+            "nor in the figure",
+            0.02 / 0.1 * 100.0,
+            ConsumptionWindow.mean(listOf(known, nearlyKnown))!!,
+            1e-9,
+        )
     }
 
     @Test

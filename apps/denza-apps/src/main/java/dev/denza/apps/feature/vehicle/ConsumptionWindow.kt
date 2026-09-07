@@ -23,6 +23,29 @@ internal object ConsumptionWindow {
     const val KM = 10.0
 
     /**
+     * Where the window starts inside [all]: the walk both readers of the tail share.
+     *
+     * Two bounds, and a bucket has to clear both. **Road**, because a bucket is not always a
+     * hundred metres and counting records counted the wrong axis. And the **odometer**, when the
+     * caller has one: a journal restored twenty kilometres behind the car, or the buckets from
+     * before an odometer re-anchor, are ten kilometres of real road in the wrong place, and
+     * summing them to [KM] printed a figure over a road the car had left. [lastKm] null means the
+     * caller is holding a tail somebody else has already bounded - the snapshot's, in every frame
+     * either screen draws - and then the road is the whole rule.
+     */
+    fun firstIndex(all: List<ConsumptionSample>, lastKm: Double? = null): Int {
+        val floor = lastKm?.minus(KM)?.plus(OdometerGate.KM_EPSILON)
+        var km = 0.0
+        var from = all.size
+        while (from > 0 && km < KM - OdometerGate.KM_EPSILON) {
+            if (floor != null && all[from - 1].odometerKm <= floor) break
+            from--
+            km += all[from].km
+        }
+        return from
+    }
+
+    /**
      * The buckets visible on the chart, oldest first: the newest tail whose road reaches [KM].
      *
      * A list that is already the window comes back *as itself*, which is what the panel relies on:
@@ -30,33 +53,25 @@ internal object ConsumptionWindow {
      * asks for the window three times allocates nothing to get it. See [ConsumptionLog.window].
      */
     fun raw(all: List<ConsumptionSample>): List<ConsumptionSample> {
-        var km = 0.0
-        var from = all.size
-        while (from > 0 && km < KM - OdometerGate.KM_EPSILON) {
-            from--
-            km += all[from].km
-        }
+        val from = firstIndex(all)
         return if (from == 0) all else all.subList(from, all.size)
-    }
-
-    /** All the road in the window, known energy or not - which is what the axis is. */
-    fun roadKm(all: List<ConsumptionSample>): Double {
-        val window = raw(all)
-        var km = 0.0
-        for (index in window.indices) km += window[index].km
-        return km
     }
 
     /**
      * How much road the figure is actually the mean of, which is what the unit names.
      *
-     * The *known* road rather than the road: a stretch with no power reading is under the chart
-     * and out of the figure, so «за 3,7 км» is a promise about the number beside it.
+     * The *known* road of the buckets that are **in** the figure. A hole's own scrap of known road
+     * - a bucket that answered for forty of its hundred metres - is neither in the mean nor under
+     * the unit, because [mean] skips the bucket whole; counting it here made «за 3,7 км» a promise
+     * about road the number beside it was never taken over.
      */
     fun coveredKm(all: List<ConsumptionSample>): Double {
         val window = raw(all)
         var km = 0.0
-        for (index in window.indices) km += window[index].knownKm
+        for (index in window.indices) {
+            val bucket = window[index]
+            if (bucket.known) km += bucket.knownKm
+        }
         return km
     }
 

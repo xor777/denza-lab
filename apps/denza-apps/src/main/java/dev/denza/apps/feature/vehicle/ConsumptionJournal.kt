@@ -185,9 +185,14 @@ internal class ConsumptionJournal(
         const val COLUMNS = 4
 
         /**
-         * No bucket carries more road than a re-anchor allows, which is [OdometerGate]'s own jump.
+         * No bucket carries more road than a re-anchor allows plus the tick that closed it.
+         *
+         * [OdometerGate.MAX_JUMP_KM] is the longest step that is still road, and a bucket that was
+         * already part full when that step arrived closes carrying both. The bound is stated as
+         * the sum rather than as the jump alone because that is what the accumulation can reach -
+         * exactly, on a bucket one epsilon short of closing.
          */
-        private const val MAX_BUCKET_KM = OdometerGate.MAX_JUMP_KM
+        private const val MAX_BUCKET_KM = OdometerGate.MAX_JUMP_KM + ConsumptionLog.DEFAULT_BUCKET_KM
 
         /** The longest window, in buckets. Anything older is not the last thirty km. */
         const val MAX_LINES = ConsumptionLog.DEFAULT_CAPACITY

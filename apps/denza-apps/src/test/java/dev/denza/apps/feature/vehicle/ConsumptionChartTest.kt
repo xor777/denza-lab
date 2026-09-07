@@ -36,9 +36,15 @@ class ConsumptionChartTest {
         )
     }
 
+    /**
+     * A bucket belongs to the bins its **road** is in, not to the one its odometer stopped on.
+     *
+     * Five hundred-metre buckets closing at 100.1…100.5 cover `[100.0, 100.5)`, which is one bin
+     * exactly. Filing each by its own close put four of them in that bin and opened a second one on
+     * its far edge for the fifth - every bin one bucket out of phase with the road under it.
+     */
     @Test
-    fun aBinIsEnergyOverKnownRoadOverItsOwnFiveBuckets() {
-        // Five buckets whose odometers all floor into one half kilometre.
+    fun aBinIsEnergyOverKnownRoadOverTheRoadItCovers() {
         val buckets = listOf(
             bucket(100.1, 0.010),
             bucket(100.2, 0.020),
@@ -47,10 +53,20 @@ class ConsumptionChartTest {
             bucket(100.5, 0.020),
         )
         val chart = ConsumptionChart.of(buckets)
-        // 100.1…100.4 floor to bin 200 (100.0…100.5); 100.5 opens bin 201.
+        assertEquals(1, chart.values.size)
+        assertEquals((0.010 + 0.020 + 0.030 + 0.010 + 0.020) / 0.5 * 100.0, chart.values[0].toDouble(), 1e-5)
+        assertEquals("a full bin", 1f, chart.widths[0], 1e-6f)
+    }
+
+    /** And the road a hundred metres past that edge opens the next bin, and only that. */
+    @Test
+    fun theBucketAfterAnEdgeIsTheFirstOfTheNextBin() {
+        val chart = ConsumptionChart.of(listOf(bucket(10.5, 0.02), bucket(10.6, 0.03)))
         assertEquals(2, chart.values.size)
-        assertEquals((0.010 + 0.020 + 0.030 + 0.010) / 0.4 * 100.0, chart.values[0].toDouble(), 1e-5)
-        assertEquals(0.020 / 0.1 * 100.0, chart.values[1].toDouble(), 1e-5)
+        assertEquals("10.4→10.5 is bin 20", 20L, ConsumptionChart.binOf(10.4))
+        assertEquals("and 10.5→10.6 is bin 21", 21L, ConsumptionChart.binOf(10.5))
+        assertEquals(0.02 / 0.1 * 100.0, chart.values[0].toDouble(), 1e-5)
+        assertEquals(0.03 / 0.1 * 100.0, chart.values[1].toDouble(), 1e-5)
     }
 
     @Test
@@ -61,10 +77,30 @@ class ConsumptionChartTest {
         assertEquals(0.4f, chart.span, 1e-6f)
 
         val full = ConsumptionChart.of(road(5, toKm = 100.5))
-        // 100.1…100.4 is four buckets of the first bin, 100.5 is the first of the next.
-        assertEquals(2, full.values.size)
-        assertEquals(0.8f, full.widths[0], 1e-6f)
-        assertEquals(0.2f, full.widths[1], 1e-6f)
+        // 100.0…100.5 is one bin, and the five buckets fill it.
+        assertEquals(1, full.values.size)
+        assertEquals(1f, full.widths[0], 1e-6f)
+
+        val over = ConsumptionChart.of(road(6, toKm = 100.6))
+        assertEquals(2, over.values.size)
+        assertEquals(1f, over.widths[0], 1e-6f)
+        assertEquals(0.2f, over.widths[1], 1e-6f)
+    }
+
+    /**
+     * A bucket that carries a pause keeps its whole road on the axis.
+     *
+     * Two kilometres closed inside one record - the panel was away, the odometer moved - is four
+     * bins of road with no energy behind it. Filed by its close it was one bin, and 1.9 km of road
+     * simply left the chart: the shape stepped over a gap it should have drawn as a gap.
+     */
+    @Test
+    fun aBucketCarryingAPauseIsAsManyHoleBinsAsItHasRoad() {
+        val chart = ConsumptionChart.of(listOf(bucket(102.0, 0.0, km = 2.0, knownKm = 0.0)))
+        assertEquals("four half kilometres", 4, chart.values.size)
+        chart.values.forEach { assertTrue("nothing is known here", it.isNaN()) }
+        chart.widths.forEach { assertEquals(1f, it, 1e-6f) }
+        assertEquals(4f, chart.span, 1e-6f)
     }
 
     @Test
@@ -108,27 +144,42 @@ class ConsumptionChartTest {
     }
 
     @Test
-    fun aStepLongerThanOneBucketLandsInTheBinItsOdometerNames() {
-        // 0.3 km closed inside one sample, recorded where the odometer stood at the close.
+    fun aStepLongerThanOneBucketIsSpreadOverTheRoadItCovers() {
+        // 0.3 km closed inside one sample, all of it inside one bin: `[100.0, 100.3)`.
         val chart = ConsumptionChart.of(listOf(bucket(100.3, 0.06, km = 0.3)))
         assertEquals(1, chart.values.size)
         assertEquals(0.06 / 0.3 * 100.0, chart.values[0].toDouble(), 1e-5)
         assertEquals(0.6f, chart.widths[0], 1e-6f)
+
+        // And across an edge it goes to both, energy and known road pro rata by road: `[100.4,
+        // 100.7)` is 0.1 in bin 200 and 0.2 in bin 201, at one rate.
+        val across = ConsumptionChart.of(listOf(bucket(100.7, 0.06, km = 0.3)))
+        assertEquals(2, across.values.size)
+        assertEquals(0.2f, across.widths[0], 1e-6f)
+        assertEquals(0.4f, across.widths[1], 1e-6f)
+        assertEquals(0.06 / 0.3 * 100.0, across.values[0].toDouble(), 1e-5)
+        assertEquals(0.06 / 0.3 * 100.0, across.values[1].toDouble(), 1e-5)
     }
 
     @Test
     fun aBinNeverDrawsWiderThanItself() {
-        // A whole kilometre in one record - a re-anchor's own step - is still one bin wide.
+        // A whole kilometre in one record - a re-anchor's own step - covers two bins and neither
+        // of them is drawn wider than a bin.
         val chart = ConsumptionChart.of(listOf(bucket(100.9, 0.2, km = 0.9)))
+        chart.widths.forEach { assertTrue("a bin is at most itself: $it", it <= 1f) }
         assertEquals(1f, chart.widths[0], 1e-6f)
+        assertEquals(0.8f, chart.widths[1], 1e-6f)
     }
 
     @Test
     fun theChartIsTheNewestTwentyBinsAndNothingOlder() {
-        // Fifteen kilometres of buckets: only the newest ten kilometres of anchored bins are drawn.
+        // Fifteen kilometres of buckets: only the newest ten kilometres of anchored bins are drawn,
+        // and the oldest of those holds only the road that reaches into it.
         val chart = ConsumptionChart.of(road(149, toKm = 114.9))
         assertEquals(ConsumptionChart.BINS, chart.values.size)
-        assertEquals(ConsumptionChart.BINS.toFloat(), chart.span, 1e-4f)
+        // Bins 210…229 span [105.0, 115.0) and the road ends at 114.9.
+        assertEquals(19.8f, chart.span, 1e-4f)
+        assertEquals("the newest is the road it has", 0.8f, chart.widths[ConsumptionChart.BINS - 1], 1e-4f)
     }
 
     @Test
