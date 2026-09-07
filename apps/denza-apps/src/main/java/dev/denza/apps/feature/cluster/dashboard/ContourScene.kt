@@ -79,16 +79,17 @@ internal data class ContourStage(
     val charging: Boolean = false,
     val parked: Boolean = false,
     /**
-     * Whether the engine's box owns the right shelf, which is not the same as the trace being warm.
+     * Whether the engine's box owns the right shelf, which takes **two** true things at once.
      *
-     * One shelf, two true things, and one of them has to give way. **A running engine wins; a
-     * warm trace does not.** While the engine is turning, the box is the only live thing the right
-     * shelf can show - the owner sat on P with the generator charging the pack and saw, instead of
-     * it, three trip figures that the ledger had frozen at the last metre - so it stays up on P as
-     * long as the engine runs. Once the engine stops, standing still wins over the two minutes the
-     * trace keeps: a car that has stopped is the one moment its driver can read three numbers
-     * instead of glancing at one, and the trip's own arithmetic is what P is for. Rolling, the box
-     * owns the shelf for the whole of its trace, engine on or off.
+     * `docs/energy-display-contract.md` §2.5: the flag is up, and the engine gave the pack
+     * something somewhere in the trace's window. Either alone is not the box. A running engine
+     * that gives nothing keeps the trip's cells on the shelf and its revolutions in the corner -
+     * that is the truth the first two drives showed, and a flat blue bar under «В БАТАРЕЮ» was its
+     * caricature. A warm trace behind a stopped engine is a history of a drive that has ended, and
+     * two minutes of zeros drawn in blue is not a reading.
+     *
+     * On P as on the move: the owner sat on P with the generator charging the pack and saw, in the
+     * box's place, three trip figures the ledger had frozen at the last metre.
      */
     val engineBox: Boolean = false,
     val engineRunning: Boolean = false,
@@ -148,6 +149,16 @@ internal class ContourScene {
     private var everAnswered = false
     private var chargeDwell = 0f
 
+    /**
+     * How long the engine's own flag has been down, which is the engine box's only hysteresis.
+     *
+     * [ENGINE_HOLD_SECONDS] of it, and it is against a *dropped read* rather than an afterlife:
+     * the box used to live on the trace's own length, so a stopped engine left two minutes of
+     * zeros drawn in blue on the shelf. It starts at the ceiling, so a panel that has heard
+     * nothing has no box.
+     */
+    private var engineOffFor = Float.MAX_VALUE
+
     var stage: ContourStage = ContourStage()
         private set
 
@@ -177,6 +188,8 @@ internal class ContourScene {
                 reading(telemetry, value)?.let { last[value.ordinal] = it }
             }
         }
+
+        engineOffFor = if (telemetry.engineRunning == true) 0f else add(engineOffFor, step)
 
         chargeDwell = if (telemetry.charging && telemetry.access == VehicleAccess.READY) {
             add(chargeDwell, step)
@@ -214,10 +227,9 @@ internal class ContourScene {
     private fun decide(t: VehicleTelemetry): ContourStage {
         val parked = t.parked == true
         val engineRunning = t.engineRunning == true
-        // A running engine keeps the shelf even on P; a trace that is merely warm after the engine
-        // stopped gives it up to the trip's three cells while the car stands: see
-        // [ContourStage.engineBox].
-        val engineBox = !t.engineTrace.isEmpty && (engineRunning || !parked)
+        // The flag and the giving, and both of them: see [ContourStage.engineBox]. The flag is
+        // held for ten seconds after it drops so one missed read does not swap the shelf.
+        val engineBox = t.engineTrace.gives && engineOffFor < ENGINE_HOLD_SECONDS
         val unavailable = t.access == VehicleAccess.UNAVAILABLE
         // The order the scene name used to carry, kept as the guards on the one flag that needed
         // it: a closed shell, a panel that has heard nothing yet and a bus that has gone quiet all
@@ -301,6 +313,16 @@ internal class ContourScene {
 
         /** How long a gun has to stay in before the panel believes it. */
         const val CHARGE_DWELL_SECONDS = 2f
+
+        /**
+         * And how long the engine's box outlives the flag dropping.
+         *
+         * Ten seconds is two and a half hot horizons: long enough that a dropped `ENGINE_RUNNING`
+         * read cannot swap the right shelf and back, short enough that it is hysteresis rather
+         * than a second history. The 120 seconds it replaces were the trace's own length being
+         * used as a timer, which drew a box of zeros over a cold engine.
+         */
+        const val ENGINE_HOLD_SECONDS = 10f
 
         /** Ages stop counting here rather than drifting toward infinity over a long drive. */
         private const val CEILING = 3_600f

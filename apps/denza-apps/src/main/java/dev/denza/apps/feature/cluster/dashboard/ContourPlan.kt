@@ -3,7 +3,7 @@ package dev.denza.apps.feature.cluster.dashboard
 import dev.denza.apps.design.instrument.EnergyScale
 import dev.denza.apps.design.instrument.InstrumentDensity
 import dev.denza.apps.design.instrument.InstrumentFace
-import dev.denza.apps.feature.vehicle.ConsumptionWindow
+import dev.denza.apps.feature.vehicle.ConsumptionChart
 import dev.denza.apps.feature.vehicle.EngineTrace
 import kotlin.math.abs
 import kotlin.math.max
@@ -113,13 +113,8 @@ internal class ContourPlan(
     val zeroHalf: Float = BAND_BODY
     val zeroWidth: Float = ZERO_WIDTH
 
-    /** The fallback drawing of generation: a separate line under the body, from zero. */
-    val generationLineY: Float = bandY + BAND_BODY / 2f + GENERATION_LINE_H
-    val generationLineHeight: Float = GENERATION_LINE_H
-
     /** Nothing that carries data is thinner than this. */
     val dataLine: Float = DATA_LINE
-    val areaEdge: Float = AREA_EDGE
 
     val glowCentreX: Float = axis
     val glowCentreY: Float = bandY
@@ -304,19 +299,20 @@ internal class ContourPlan(
     val legendShortened: Boolean = shortWindow()
 
     /**
-     * «● 14 кВт В БАТАРЕЮ · ПОСЛЕДНИЕ 1:22», laid out right to left off the shelf's own edge -
-     * and this is the template the phrase is *measured* from, not the string drawn in it.
+     * «ДВС ДАЁТ 14 кВт · ПОСЛЕДНИЕ 1:22», laid out right to left off the shelf's own edge - and
+     * this is the template the phrase is *measured* from, not the string drawn in it.
      *
      * One sentence where the seventh pass had a legend of two words and a figure - the owner could
      * not read the legend, and a display with no room for a key must not need one. The words say
      * what the shape above them is and how far back it goes; the figure says what it is worth now.
      *
      * The figure lives in a reserve field like every other number on this panel, so 9 kW and 14 kW
-     * start the phrase in the same place, and when the engine stops the figure and its unit leave
-     * together while the words stay - the panel's one rule for a stale reading, applied to a number
-     * living inside a sentence. It is the odometer's own arrangement in «42 км · ЗА ПОЕЗДКУ».
+     * start the phrase in the same place. **There is no dot and no quiet anchor**: the blue mark
+     * means «into the pack» everywhere else here and this phrase makes no such claim, and the box
+     * exists only while the engine gives, so the figure is never absent from a box that is up
+     * (`docs/energy-display-contract.md` §2.5).
      *
-     * The window is the box's own reach - «ПОСЛЕДНИЕ 0:40» while the engine has been alive for
+     * The window is the box's own reach - «· ПОСЛЕДНИЕ 0:40» while the engine has been alive for
      * forty seconds - and every value of it is one width, because the figures are tabular and a
      * «м:сс» is always four glyphs and a mark. So one template decides every anchor in the phrase
      * and the drawn duration moves none of them. [ContourReadout.intoPack] is what is drawn.
@@ -327,27 +323,17 @@ internal class ContourPlan(
     val legendWindowX: Float = rightEdge - legendWindowWidth
     val legendUnitX: Float = legendWindowX - smallGap - kilowattWidth
     val legendFigureRight: Float = legendUnitX - smallGap
-    val legendMarkX: Float = legendFigureRight - generationField - markGap - markRadius
+    val legendPrefixX: Float =
+        legendFigureRight - generationField - smallGap - caption(ContourReadout.LEGEND_PREFIX)
 
-    /**
-     * And where the dot stands once the engine has stopped: against the words.
-     *
-     * A reserve field keeps a phrase still while a *number* changes; when the number leaves there is
-     * nothing left for it to reserve, and the eighth pass left it standing anyway - 22 units of hole
-     * between the dot and «В БАТАРЕЮ» for the whole two minutes the box outlives the engine. This is
-     * one shift per engine stop rather than a jitter, and it is the only coordinate on the panel
-     * that depends on whether a value is there rather than on what it is.
-     */
-    val legendMarkQuietX: Float = legendWindowX - markGap - markRadius
+    /** What the whole phrase measures, which is what decides the window. */
+    val legendPhraseWidth: Float = rightEdge - legendPrefixX
 
-    /** What the whole phrase measures, dot included, which is what decides the window. */
-    val legendPhraseWidth: Float = rightEdge - (legendMarkX - markRadius)
-
-    // ---- the petal, and the ten kilometres behind its figure
+    // ---- the petal, and the ten kilometres behind its figure, in twenty steps of 500 m
 
     val petalBaseline: Float = PETAL_BASELINE
     val petalFloor: Float = PETAL_FLOOR
-    val petalBuckets: Int = PETAL_BUCKETS
+    val petalBins: Int = PETAL_BINS
 
     /** «16,8» and «2:15» are both three digits and one mark, so one field holds either. */
     val petalFieldWidth: Float = 3 * type.width("0", InstrumentFace.FIGURE) +
@@ -421,23 +407,32 @@ internal class ContourPlan(
     val petalBoxHeight: Float = petalBoxBottom - petalBoxTop
 
     /**
-     * A fixed ladder, not an autoscale: 0…30 up the cap and 0…10 back down the descender.
+     * A fixed ladder, not an autoscale: 0…40 up the cap and 0…20 back down the descender, clamped,
+     * and a clamp is marked.
      *
-     * Autoscaling to each window's own ceiling meant a bucket changed height when a *different*
-     * bucket changed value, so the shape of the last ten kilometres was never twice the same
-     * shape. On the states board the traffic jam's history is visibly taller than calm driving's,
-     * which under the old autoscale it was not. 30 rather than the fifth pass's 40 because the two
-     * spans no longer share a divisor: what set 40 was a zero line at four fifths of a box, and the
-     * zero line is a baseline now.
+     * Autoscaling to each window's own ceiling meant a bin changed height when a *different* bin
+     * changed value, so the shape of the last ten kilometres was never twice the same shape.
+     *
+     * **40 rather than 30 or 60.** 30 and 10 were the ceilings for hundred-metre buckets and they
+     * flattened every launch and every descent into one silent top. The box is 37 units tall and
+     * what it is for is the difference between 15 and 25 kWh/100 km, which at 40 is 9 units and at
+     * 60 is 6; a 500 m bin past 40 is spirited driving and a launch is far past it. Either is drawn
+     * to the ceiling with [PETAL_TICK] units of tick standing just outside the box, so the reader
+     * sees it was cut. The recording says whether 40 and 20 are right; they are these two numbers
+     * and nothing else, on both screens (`docs/energy-display-contract.md` §2.3).
      */
     val petalFull: Float = PETAL_FULL
     val petalReturnFull: Float = PETAL_RETURN_FULL
 
-    /** Where a spending bucket's step falls. A bucket that gave energy back sits on the zero. */
+    /** How far a cut bin's mark stands outside the box, and how long it is. */
+    val petalTickGap: Float = PETAL_TICK_GAP
+    val petalTick: Float = PETAL_TICK
+
+    /** Where a spending bin's step falls. A bin that gave energy back sits on the zero. */
     fun petalSpendY(value: Float): Float =
         petalZeroY - min(max(value, 0f) / petalFull, 1f) * (petalZeroY - petalBoxTop)
 
-    /** And where a returning one's does. A bucket that spent sits on the zero in this series. */
+    /** And where a returning one's does. A bin that spent sits on the zero in this series. */
     fun petalReturnY(value: Float): Float =
         petalZeroY + min(max(-value, 0f) / petalReturnFull, 1f) * (petalBoxBottom - petalZeroY)
 
@@ -512,8 +507,8 @@ internal class ContourPlan(
      * plus one guard against the width of the box it stands under. Nothing else in it can go.
      */
     private fun shortWindow(): Boolean {
-        val phrase = markWidth + generationField + smallGap + kilowattWidth + smallGap +
-            caption(ContourReadout.LEGEND_INTO_PACK)
+        val phrase = caption(ContourReadout.LEGEND_PREFIX) + smallGap + generationField + smallGap +
+            kilowattWidth + smallGap + caption(ContourReadout.LEGEND_INTO_PACK)
         return phrase + clearance > engineBoxWidth
     }
 
@@ -528,8 +523,6 @@ internal class ContourPlan(
         const val ZERO_WIDTH = 1.8f
         const val HAIRLINE = 1.2f
         const val DATA_LINE = 2.5f
-        const val AREA_EDGE = 1.8f
-        const val GENERATION_LINE_H = 4f
 
         const val GLOW_RX = 340f
         const val GLOW_MAX = 0.18f
@@ -569,16 +562,22 @@ internal class ContourPlan(
         const val PETAL_FLOOR = 410f
 
         /**
-         * Three kilometres of `ConsumptionLog`'s hundred-metre buckets, which is the window's own
-         * count rather than a second statement of it.
+         * Twenty steps of five hundred metres, which is [ConsumptionChart]'s own count rather than
+         * a second statement of it.
          *
-         * A `val` rather than a `const val` because [ConsumptionWindow] derives it from the three
-         * kilometres and the bucket size, and that derivation is the single fact.
+         * A `val` rather than a `const val` because the chart derives it from the ten kilometres
+         * and the bin length, and that derivation is the single fact. A hundred steps of 2.32
+         * units were the first drive's «расчёска»; twenty of 11.6 - 2.5 mm, 10.7′ from 800 mm -
+         * are steps the eye can count.
          */
-        val PETAL_BUCKETS = ConsumptionWindow.buckets
+        val PETAL_BINS = ConsumptionChart.BINS
 
-        const val PETAL_FULL = 30f
-        const val PETAL_RETURN_FULL = 10f
+        const val PETAL_FULL = 40f
+        const val PETAL_RETURN_FULL = 20f
+
+        /** A cut bin's mark: three units of INK just outside the edge it was cut against. */
+        const val PETAL_TICK = 3f
+        const val PETAL_TICK_GAP = 2f
 
         /** The alphas, and every one of them belongs to a fill rather than to a state. */
         const val AREA_ALPHA = 0.55f
@@ -586,7 +585,6 @@ internal class ContourPlan(
 
         /** The petal's return, which is the only blue thing under the axis. */
         const val RETURN_AREA_ALPHA = 0.50f
-        const val GENERATION_AREA_ALPHA = 0.55f
         const val PEAK_ALPHA = 0.85f
     }
 }

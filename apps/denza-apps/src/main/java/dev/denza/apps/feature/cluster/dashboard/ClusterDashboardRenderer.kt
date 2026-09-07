@@ -6,8 +6,7 @@ import dev.denza.apps.design.DenzaPalette
 import dev.denza.apps.design.instrument.EnergyScale
 import dev.denza.apps.design.instrument.InstrumentFace
 import dev.denza.apps.design.instrument.InstrumentPen
-import dev.denza.apps.feature.vehicle.ConsumptionWindow
-import dev.denza.apps.feature.vehicle.VehicleConvention
+import dev.denza.apps.feature.vehicle.EnergyReadouts
 import dev.denza.apps.feature.vehicle.VehicleSignal
 import dev.denza.apps.feature.vehicle.VehicleTelemetry
 import kotlin.math.abs
@@ -70,10 +69,23 @@ internal class ClusterDashboardRenderer {
     private var plan: ContourPlan? = null
     private var planFor: ClusterDashboardLayout? = null
 
-    private val petalYs = FloatArray(ContourPlan.PETAL_BUCKETS)
-    private val returnYs = FloatArray(ContourPlan.PETAL_BUCKETS)
+    /**
+     * Every energy string and shape on this panel, decided once for both screens.
+     *
+     * `docs/energy-display-contract.md` §1. The renderer owns geometry and nothing else; this is
+     * where a word, a figure and the chart's own bins come from, and the car page reads the same
+     * class. Held rather than built per frame, because it memoises its strings.
+     */
+    private val readouts = EnergyReadouts()
+
+    private val steps = max(ContourPlan.ENGINE_BINS, ContourPlan.PETAL_BINS)
+    private val chartXs = FloatArray(ContourPlan.PETAL_BINS + 1)
+    private val chartYs = FloatArray(ContourPlan.PETAL_BINS)
+    private val returnYs = FloatArray(ContourPlan.PETAL_BINS)
+    private val engineXs = FloatArray(ContourPlan.ENGINE_BINS + 1)
     private val generationYs = FloatArray(ContourPlan.ENGINE_BINS)
-    private val span = FloatArray(max(ContourPlan.ENGINE_BINS, ContourPlan.PETAL_BUCKETS))
+    private val spanYs = FloatArray(steps)
+    private val spanXs = FloatArray(steps + 1)
 
     fun draw(
         canvas: Canvas,
@@ -105,9 +117,10 @@ internal class ClusterDashboardRenderer {
         }
 
         val stage = scene.stage
+        readouts.read(telemetry, stage.parked, shortLegend = plan.legendShortened)
         glow(canvas, plan, motion, scene)
         skeleton(canvas, plan)
-        band(canvas, plan, telemetry, motion, scene, stage)
+        band(canvas, plan, motion, scene)
         hero(canvas, plan, motion, scene)
         leftCorner(canvas, plan, telemetry, scene)
         rightCorner(canvas, plan, telemetry, motion, scene, stage)
@@ -164,13 +177,19 @@ internal class ClusterDashboardRenderer {
 
     // ---------------------------------------------------------------- the band
 
+    /**
+     * The one bar left on the panel, and **nothing about the engine is drawn on it.**
+     *
+     * The line under the body on the return span and the seam behind the tip both said whether
+     * `GENERATION_KW` is already inside `POWER_KW`, and neither is known: the two drives so far saw
+     * the engine run with that id flat (`docs/energy-display-contract.md` §2.5). The band is the
+     * pack's; the engine has its box and its corner.
+     */
     private fun band(
         canvas: Canvas,
         plan: ContourPlan,
-        t: VehicleTelemetry,
         motion: ContourMotion,
         scene: ContourScene,
-        stage: ContourStage,
     ) {
         if (!motion.powerReady || !scene.fresh(ContourValue.POWER)) return
         val kilowatts = motion.powerKw
@@ -183,8 +202,6 @@ internal class ClusterDashboardRenderer {
             pen.band(canvas, zeroX, tipX, top, bottom, flowColor(motion.flow), edgeColor(motion.flow))
         }
 
-        generation(canvas, plan, t, scene, stage, kilowatts, tipX, top, bottom)
-
         motion.peakKw?.let { peak ->
             val x = pen.v(plan.bandX(peak))
             pen.line(
@@ -196,56 +213,6 @@ internal class ClusterDashboardRenderer {
                 DenzaPalette.DATA_PEAK,
                 PEAK_WIDTH,
                 ContourPlan.PEAK_ALPHA,
-            )
-        }
-    }
-
-    /**
-     * What the engine is paying, drawn on the band - one of two ways, and the flag decides.
-     *
-     * The jury's second correction reads the band as `wheels = pack + generation`: ink is what the
-     * battery pays, blue is what the engine pays, and the tip is what the wheels asked for. That is
-     * only true if `GENERATION_KW` is not already inside `POWER_KW`, and nobody has logged this car
-     * on a flat cruise with the engine running (VERDICT check 3, CRITIQUE B1).
-     *
-     * So [VehicleConvention.GENERATION_INSIDE_PACK_POWER] is true until somebody does, and the same
-     * fact is drawn without the claim: a separate blue line under the body, from zero. Flipping that
-     * one constant is the whole change, in this one method.
-     *
-     * **The line is scaled on the return side's own span.** It used to take
-     * `sweepFraction(generation)` with a positive argument, which picks the 300 kW discharge span:
-     * 14 kW of generation came out 0.216 of the half-band where 14 kW of regeneration on the band
-     * above it came out 0.374 - two lengths 1.73 times apart, in the same blue, on the same axis,
-     * for the same kilowatts into the same pack. Both are energy arriving, so both are measured on
-     * [EnergyScale.FULL_REGEN_KW] and the same square root.
-     */
-    private fun generation(
-        canvas: Canvas,
-        plan: ContourPlan,
-        t: VehicleTelemetry,
-        scene: ContourScene,
-        stage: ContourStage,
-        kilowatts: Float,
-        tipX: Float,
-        top: Float,
-        bottom: Float,
-    ) {
-        if (!stage.engineRunning || !scene.fresh(ContourValue.GENERATION)) return
-        val generation = (t.generationKw ?: return).toFloat()
-        if (generation <= 0f) return
-        if (!VehicleConvention.GENERATION_INSIDE_PACK_POWER) {
-            val far = pen.v(plan.bandX(kilowatts + generation))
-            pen.rect(canvas, tipX, top, far, bottom, DenzaPalette.RETURN)
-        } else {
-            val far = pen.v(plan.axis + EnergyScale.sweepFraction(-generation) * plan.bandHalf)
-            val lineTop = pen.v(plan.generationLineY)
-            pen.rect(
-                canvas,
-                pen.v(plan.axis),
-                lineTop,
-                far,
-                lineTop + pen.v(plan.generationLineHeight),
-                DenzaPalette.RETURN,
             )
         }
     }
@@ -677,20 +644,24 @@ internal class ClusterDashboardRenderer {
     }
 
     /**
-     * Two minutes of what the engine put back, where the trip's phrase stands otherwise.
+     * What the engine is giving the pack, where the trip's phrase stands otherwise.
      *
-     * **One quantity, one sentence.** It carried two runs until the owner looked at the built panel
-     * and said the legend telling them apart was not understandable - which is the game lost, since
-     * a display read at 90 km/h does not get to need a key. The revolutions went back to being the
-     * number in the corner, where they were being read anyway, and what is left is generation as an
-     * area of twenty-four five-second steps under a sentence that names it.
+     * **One quantity, one sentence, and the sentence claims only what is known.** It carried two
+     * runs until the owner looked at the built panel and said the legend telling them apart was not
+     * understandable - which is the game lost, since a display read at 90 km/h does not get to need
+     * a key. The revolutions went back to being the number in the corner, where they were being
+     * read anyway.
      *
-     * The span is linear to 30 kW and clamped, which is the same verdict's other half: at the 14 kW
-     * this car ordinarily returns, a root over 100 filled a third of the box and read as flat.
+     * Then the first two drives saw the engine run with `GENERATION_KW` flat, and a box of zeros in
+     * blue under «В БАТАРЕЮ» stood on the shelf for two minutes after the engine had stopped. So
+     * (`docs/energy-display-contract.md` §2.5): the box is up only while the flag is up and the id
+     * was above zero somewhere in the window ([ContourScene]), a zero bin draws nothing at all, the
+     * area is the history colour rather than `RETURN` - the same `MUTED_DEEP` under `INK` the petal
+     * has - and the sentence is «ДВС ДАЁТ 14 кВт · ПОСЛЕДНИЕ 1:22», with no dot.
      *
-     * While the box is up the trip's cells are hidden, and that is not "куда делся баланс": the box
-     * only leaves 120 s after the last live sample, so the phrase comes back once rather than once
-     * per engine cycle.
+     * The span is linear to 30 kW and clamped, which is the owner's «сплющен» answered: at the
+     * 14 kW this car ordinarily returns, a root over 100 filled a third of the box and read as
+     * flat.
      */
     private fun engineBox(
         canvas: Canvas,
@@ -709,7 +680,6 @@ internal class ClusterDashboardRenderer {
         val right = plan.engineBoxRight
         val left = right - count * plan.enginePitch
         val bottom = plan.engineBoxBottom
-        val pitch = pen.v(plan.enginePitch)
 
         pen.line(
             canvas,
@@ -723,77 +693,79 @@ internal class ClusterDashboardRenderer {
 
         for (index in 0 until count) {
             val generation = bins[newest + index]
+            engineXs[index] = pen.v(left + index * plan.enginePitch)
             generationYs[index] =
                 if (generation.isNaN()) Float.NaN else pen.v(plan.engineY(generation.toDouble()))
         }
+        engineXs[count] = pen.v(right)
 
-        // A bin nothing answered in breaks the area rather than being drawn through: a step across
-        // a gap would claim the engine held a steady output through five seconds nobody watched.
-        ContourRuns.forEach(count, { !generationYs[it].isNaN() }) { start, length ->
+        // A run is where the engine actually gave something. A bin nothing answered in breaks the
+        // area rather than being drawn through - a step across a gap would claim the engine held a
+        // steady output through five seconds nobody watched - and a bin at zero is drawn as
+        // nothing, because a zero is never drawn on this panel.
+        ContourRuns.forEach(count, { bins[newest + it] > 0f }) { start, length ->
             pen.history(
                 canvas,
-                pen.v(left + start * plan.enginePitch),
-                pitch,
-                spanOf(generationYs, start, length),
+                xSpan(engineXs, start, length),
+                ySpan(generationYs, start, length),
                 length,
                 pen.v(bottom),
-                DenzaPalette.RETURN,
-                1f,
-                plan.areaEdge,
-                DenzaPalette.RETURN,
-                ContourPlan.GENERATION_AREA_ALPHA,
+                DenzaPalette.INK,
+                ContourPlan.LINE_ALPHA,
+                plan.dataLine,
+                DenzaPalette.MUTED_DEEP,
+                ContourPlan.AREA_ALPHA,
             )
         }
 
-        engineLegend(canvas, plan, t, scene, stage)
+        engineLegend(canvas, plan, scene, stage)
     }
 
     /**
-     * «● 14 кВт В БАТАРЕЮ · ПОСЛЕДНИЕ 2 МИН», laid out right to left off the shelf's own edge.
+     * «ДВС ДАЁТ 14 кВт · ПОСЛЕДНИЕ 1:22», laid out right to left off the shelf's own edge.
      *
      * The whole phrase is `MUTED_DEEP`, figure included: this is a number living in a sentence
      * rather than a reading of its own, the same way the odometer's «42» lives inside «42 км · ЗА
-     * ПОЕЗДКУ» one shelf along. The figure sits in a reserve field, so it and its unit leave
-     * together when the engine stops and the words do not move.
+     * ПОЕЗДКУ» one shelf along. The figure sits in a reserve field, so 9 kW and 14 kW start the
+     * sentence in the same place.
      *
-     * **And the reserve leaves with them.** The box outlives the engine by two minutes, and for that
-     * whole time the eighth pass drew `● ⎵⎵ В БАТАРЕЮ · ПОСЛЕДНИЕ 2 МИН` - 22 units of hole after a
-     * dot, which reads as a value that failed to arrive rather than as a field with room in it. With
-     * no figure there is nothing for a reserve to hold a place for, so the dot closes up against the
-     * words. That is one shift per engine stop, not a jitter: what a reserve buys is stillness while
-     * a *number* changes, and by then there is no number left to change.
+     * **The words say what the engine gives, not where it goes**, and there is no dot. «В БАТАРЕЮ»
+     * was a claim about `GENERATION_KW` in motion that no recording supports; «даёт» is true under
+     * either meaning of the id and is the trip cell's own verb. And the box exists only while the
+     * engine gives, so the figure is never absent from a box that is up - which is what retired the
+     * quiet anchor the dot used to close up onto.
      */
     private fun engineLegend(
         canvas: Canvas,
         plan: ContourPlan,
-        t: VehicleTelemetry,
         scene: ContourScene,
         stage: ContourStage,
     ) {
         val y = pen.v(plan.engineLegendBaseline)
-        val dotY = y - pen.v(InstrumentFace.CAPTION.capHeight / 2f)
-        // «ПОСЛЕДНИЕ 0:40» while the box is forty seconds wide. The literal two minutes it used to
-        // print was the box's *capacity*, and the box is never front-padded: the phrase claimed a
-        // window from the first second of an engine run that the shape above it did not have.
-        // Tabular figures make every value of it one width, so no anchor here moves.
         pen.text(
             canvas,
-            figures.intoPack(t.engineTrace.spanSeconds, plan.legendShortened),
+            readouts.enginePrefix,
+            pen.v(plan.legendPrefixX),
+            y,
+            InstrumentFace.CAPTION,
+            DenzaPalette.MUTED_DEEP,
+        )
+        // «· ПОСЛЕДНИЕ 0:40» while the box is forty seconds wide. The literal two minutes it used
+        // to print was the box's *capacity*, and the box is never front-padded. Tabular figures
+        // make every value of it one width, so no anchor here moves.
+        pen.text(
+            canvas,
+            readouts.engineWindow,
             pen.v(plan.legendWindowX),
             y,
             InstrumentFace.CAPTION,
             DenzaPalette.MUTED_DEEP,
         )
-        val generation =
-            if (stage.engineRunning && scene.fresh(ContourValue.GENERATION)) t.generationKw else null
-        if (generation == null) {
-            pen.dot(canvas, pen.v(plan.legendMarkQuietX), dotY, plan.markRadius, DenzaPalette.RETURN)
-            return
-        }
-        pen.dot(canvas, pen.v(plan.legendMarkX), dotY, plan.markRadius, DenzaPalette.RETURN)
+        if (!stage.engineRunning || !scene.fresh(ContourValue.GENERATION)) return
+        val figure = readouts.engineFigure ?: return
         pen.text(
             canvas,
-            figures.whole(ContourFigures.Slot.GENERATION, generation),
+            figure,
             pen.v(plan.legendFigureRight),
             y,
             InstrumentFace.UNIT,
@@ -813,16 +785,20 @@ internal class ClusterDashboardRenderer {
     // ---------------------------------------------------------------- the petal
 
     /**
-     * What the last three kilometres cost - always the last three kilometres.
+     * What the last ten kilometres cost - always the last ten kilometres.
      *
-     * The denominator never changes under the figure: standing on P it is still three kilometres and
+     * The denominator never changes under the figure: standing on P it is still ten kilometres and
      * only the tenth appears, because at 100 km/h a tenth changes three times a second and a figure
-     * that flickers is a figure nobody reads. Since the seventh pass the unit says so, and while a
-     * gun is in the same seat counts down to full instead.
+     * that flickers is a figure nobody reads. The unit says which road, and while a gun is in the
+     * same seat counts down to full instead.
+     *
+     * The figure is **signed**: a long descent returns more than it costs, and that minus is the
+     * one sign on either screen (`docs/energy-display-contract.md` §2.2), drawn in `RETURN_INK`
+     * because it is the same thing the chart's blue is.
      *
      * **While the engine runs the figure is `MUTED` and says nothing else.** `ConsumptionLog`
      * integrates pack power alone and nobody has logged whether `GENERATION_KW` is already inside
-     * `POWER_KW` (B1), so until that log exists this number is the battery's alone - and
+     * `POWER_KW`, so until that log exists this number is the battery's alone - and
      * «кВт·ч/100 км · батарея» was five characters of footnote at 12′ on the one line of the panel
      * that has to be read in a glance. Colour says the same thing without asking anybody to read it.
      */
@@ -860,13 +836,13 @@ internal class ClusterDashboardRenderer {
         }
 
         if (!scene.known(ContourValue.PETAL)) return
-        // «за 1,2 км» until the window is full. Three kilometres is what the log holds when it has
-        // them, and five hundred metres printed under «за 3 км» is the same defect this window was
-        // added to fix, one level down.
-        petalUnit(canvas, plan, figures.perHundredKm(ConsumptionWindow.coveredKm(t.consumption)))
+        // «за 3,7 км» until the window is full, and the road it names is the road the figure is
+        // the mean of - the *known* road, not the bucket count. Ten kilometres printed over three
+        // and a half is the same defect this window was added to fix, one level down.
+        petalUnit(canvas, plan, readouts.window)
         if (!scene.fresh(ContourValue.PETAL)) return
-        val average = t.consumptionMean ?: return
-        petalFigure(canvas, plan, figures.consumption(average, stage.parked), stage)
+        val figure = readouts.consumptionFigure ?: return
+        petalFigure(canvas, plan, figure, stage, readouts.consumptionNegative)
     }
 
     /**
@@ -888,7 +864,7 @@ internal class ClusterDashboardRenderer {
         if (!scene.fresh(ContourValue.CHARGE_LEFT)) return
         val minutes = t.chargeMinutesLeft ?: return
         petalUnit(canvas, plan, ContourReadout.UNIT_CHARGE_LEFT)
-        petalFigure(canvas, plan, figures.chargeLeft(minutes), scene.stage)
+        petalFigure(canvas, plan, figures.chargeLeft(minutes), scene.stage, negative = false)
     }
 
     private fun petalUnit(canvas: Canvas, plan: ContourPlan, unit: String) {
@@ -902,88 +878,143 @@ internal class ClusterDashboardRenderer {
         )
     }
 
-    private fun petalFigure(canvas: Canvas, plan: ContourPlan, text: String, stage: ContourStage) {
+    private fun petalFigure(
+        canvas: Canvas,
+        plan: ContourPlan,
+        text: String,
+        stage: ContourStage,
+        negative: Boolean,
+    ) {
+        val colour = when {
+            stage.engineRunning -> DenzaPalette.MUTED
+            negative -> DenzaPalette.RETURN_INK
+            else -> DenzaPalette.INK
+        }
         pen.text(
             canvas,
             text,
             pen.v(plan.petalFigureRight),
             pen.v(plan.petalBaseline),
             InstrumentFace.FIGURE,
-            if (stage.engineRunning) DenzaPalette.MUTED else DenzaPalette.INK,
+            colour,
             Paint.Align.RIGHT,
         )
     }
 
     /**
-     * Three kilometres of closed buckets, as two series standing on the figure's own baseline.
+     * Ten kilometres as twenty steps of five hundred metres, standing on the figure's own baseline.
      *
-     * The scale is a fixed ladder - 0…30 up the cap, 0…10 back down the descender - rather than an
-     * autoscale, because autoscaling meant one bucket changing value redrew the height of all
-     * thirty, so the same three kilometres never came back the same shape. There is no dashed mean:
-     * the mean is the figure standing next to the box.
+     * One chart, drawn twice: the head unit's car page draws these same bins on this same ladder,
+     * and the pixel height is all that differs (`docs/energy-display-contract.md` §2.3). The bins
+     * are anchored to the odometer's own half kilometre in [ConsumptionChart], so a step that has
+     * closed never changes and the shape does not re-phase every hundred metres.
+     *
+     * The scale is a fixed ladder - 0…40 up the cap, 0…20 back down the descender - rather than an
+     * autoscale, because autoscaling meant one bin changing value redrew the height of all twenty.
+     * There is no dashed mean: the mean is the figure standing next to the box.
+     *
+     * **A bin past a ceiling is drawn to it with a tick standing just outside the box**, so the
+     * reader sees it was cut rather than reading a silent flat top.
+     *
+     * **A hole is drawn as nothing.** No field, no edge, and the zero line continues under it: a
+     * stretch the log had no energy for is not a stretch where nothing was spent.
      *
      * **Two series, and the second one is only where it happened.** Spending is one continuous grey
-     * field across all thirty buckets - on a bucket that gave energy back it lies on the zero line,
-     * because what was spent there is nothing - and the return is a blue shape per run of return
-     * buckets, hanging under the zero on its own posts. Until the eighth pass it was one field
-     * crossing the zero in one colour, with a blue rule along the whole width whether anything had
-     * come back or not: «беспорядочно», which it was.
+     * field per run of known bins - on a bin that gave energy back it lies on the zero line,
+     * because what was spent there is nothing - and the return is a blue shape per run of returning
+     * bins, hanging under the zero on its own posts.
      */
     private fun history(canvas: Canvas, plan: ContourPlan, t: VehicleTelemetry) {
-        val buckets = ConsumptionWindow.raw(t.consumption)
-        if (buckets.isEmpty()) return
-        val count = min(buckets.size, ContourPlan.PETAL_BUCKETS)
-        val zero = plan.petalZeroY
+        val chart = readouts.chart
+        val values = chart.values
+        val count = min(values.size, ContourPlan.PETAL_BINS)
+        if (count <= 0) return
+        val first = values.size - count
+        val zero = pen.v(plan.petalZeroY)
+
+        // The pitch is the box divided by the window rather than by what has arrived, and the run
+        // is anchored at the box's right edge, so a chart that is still filling grows leftward into
+        // its box instead of stretching across it. A partial bin is as wide as the road it has.
+        val pitch = plan.petalBoxWidth / ContourPlan.PETAL_BINS
+        var span = 0f
+        for (index in 0 until count) span += chart.widths[first + index]
+        var x = plan.petalBoxLeft + (ContourPlan.PETAL_BINS - span) * pitch
         for (index in 0 until count) {
-            val value = buckets[buckets.size - count + index].toFloat()
-            petalYs[index] = pen.v(plan.petalSpendY(value))
-            returnYs[index] = pen.v(plan.petalReturnY(value))
+            chartXs[index] = pen.v(x)
+            x += chart.widths[first + index] * pitch
+            val value = values[first + index]
+            chartYs[index] = if (value.isNaN()) Float.NaN else pen.v(plan.petalSpendY(value))
+            returnYs[index] = if (value.isNaN()) Float.NaN else pen.v(plan.petalReturnY(value))
         }
-        // The pitch is the box divided by the window rather than by what has arrived, and the run is
-        // anchored at the box's right edge, so a history that is still filling grows leftward into
-        // its box instead of stretching across it. Stretched, three hundred metres of road would be
-        // drawn as three kilometres; anchored at the left, the newest bucket would sit in the middle
-        // and the right of the box would read as data that ran out.
-        val bucket = plan.petalBoxWidth / ContourPlan.PETAL_BUCKETS
-        val pitch = pen.v(bucket)
-        val left = plan.petalBoxLeft + (ContourPlan.PETAL_BUCKETS - count) * bucket
-        pen.history(
-            canvas,
-            pen.v(left),
-            pitch,
-            petalYs,
-            count,
-            pen.v(zero),
-            DenzaPalette.INK,
-            ContourPlan.LINE_ALPHA,
-            plan.dataLine,
-            DenzaPalette.MUTED_DEEP,
-            ContourPlan.AREA_ALPHA,
-        )
-        val first = buckets.size - count
-        ContourRuns.forEach(count, { buckets[first + it] < 0.0 }) { start, length ->
+        chartXs[count] = pen.v(x)
+
+        ContourRuns.forEach(count, { !values[first + it].isNaN() }) { start, length ->
+            pen.history(
+                canvas,
+                xSpan(chartXs, start, length),
+                ySpan(chartYs, start, length),
+                length,
+                zero,
+                DenzaPalette.INK,
+                ContourPlan.LINE_ALPHA,
+                plan.dataLine,
+                DenzaPalette.MUTED_DEEP,
+                ContourPlan.AREA_ALPHA,
+            )
+        }
+        ContourRuns.forEach(count, { values[first + it] < 0f }) { start, length ->
             pen.steps(
                 canvas,
-                pen.v(left + start * bucket),
-                pitch,
-                spanOf(returnYs, start, length),
+                xSpan(chartXs, start, length),
+                ySpan(returnYs, start, length),
                 length,
-                pen.v(zero),
+                zero,
                 DenzaPalette.RETURN,
                 ContourPlan.RETURN_AREA_ALPHA,
                 DenzaPalette.RETURN_INK,
                 plan.dataLine,
             )
         }
+        clamps(canvas, plan, values, first, count)
         pen.line(
             canvas,
             pen.v(plan.petalBoxLeft),
-            pen.v(zero),
+            zero,
             pen.v(plan.petalBoxLeft + plan.petalBoxWidth),
-            pen.v(zero),
+            zero,
             DenzaPalette.MUTED_DEEP,
             plan.bandHairline,
         )
+    }
+
+    /** The mark over a bin the ladder could not hold: three units, just outside the edge it hit. */
+    private fun clamps(
+        canvas: Canvas,
+        plan: ContourPlan,
+        values: FloatArray,
+        first: Int,
+        count: Int,
+    ) {
+        for (index in 0 until count) {
+            val value = values[first + index]
+            if (value.isNaN()) continue
+            val centre = (chartXs[index] + chartXs[index + 1]) / 2f
+            if (value >= plan.petalFull) {
+                val from = pen.v(plan.petalBoxTop - plan.petalTickGap)
+                pen.line(canvas, centre, from, centre, from - pen.v(plan.petalTick), DenzaPalette.INK, plan.dataLine)
+            } else if (value <= -plan.petalReturnFull) {
+                val from = pen.v(plan.petalBoxBottom + plan.petalTickGap)
+                pen.line(
+                    canvas,
+                    centre,
+                    from,
+                    centre,
+                    from + pen.v(plan.petalTick),
+                    DenzaPalette.RETURN_INK,
+                    plan.dataLine,
+                )
+            }
+        }
     }
 
     // ---------------------------------------------------------------- colour, and spans
@@ -1030,15 +1061,22 @@ internal class ClusterDashboardRenderer {
     }
 
     /**
-     * One span, packed to the front of the scratch buffer the pen reads.
+     * One run's heights, packed to the front of the scratch buffer the pen reads.
      *
-     * It moves the values rather than allocating a view of them, and it is the same buffer both
-     * runs already live in, so a frame allocates nothing here either.
+     * It moves the values rather than allocating a view of them, and the buffer is a field, so a
+     * frame allocates nothing here either.
      */
-    private fun spanOf(ys: FloatArray, start: Int, length: Int): FloatArray {
+    private fun ySpan(ys: FloatArray, start: Int, length: Int): FloatArray {
         if (start == 0) return ys
-        for (index in 0 until length) span[index] = ys[start + index]
-        return span
+        for (index in 0 until length) spanYs[index] = ys[start + index]
+        return spanYs
+    }
+
+    /** And its edges, which are one longer than its heights. */
+    private fun xSpan(xs: FloatArray, start: Int, length: Int): FloatArray {
+        if (start == 0) return xs
+        for (index in 0..length) spanXs[index] = xs[start + index]
+        return spanXs
     }
 
     private companion object {

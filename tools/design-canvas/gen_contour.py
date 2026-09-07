@@ -224,10 +224,10 @@ Closed:
       is what the owner's question killed: **a zero is never drawn now**, and the
       seat it would have taken simply does not exist that trip.
 - M9  the sag line is deleted. «552 В» is what the owner asked for.
-- M11 no small blue text anywhere. Blue is the band's body, the generation seam,
-      the engine box's area, the petal's return runs, and a marker dot the size of
-      a dot at the head of `РЕКУПЕРАЦИЯ` and of the engine's own sentence - the
-      places the car gives something back.
+- M11 no small blue text anywhere. Blue is the band's body, the petal's return
+      runs, and a marker dot the size of a dot at the head of `РЕКУПЕРАЦИЯ` - the
+      places the car gives something back. The engine's box is the history's own
+      grey: what its kilowatts do is not known, so its colour claims nothing.
 - M12 neutral zone of 3 kW: inside it the hero and the band body are `MUTED` and
       carry no colour at all, and the colour changes with 3 kW of hysteresis.
 - M13 the scenes the brief asked for are drawn: a traffic jam, an acceleration, an
@@ -236,7 +236,7 @@ Closed:
 - M15 the petal's history is a stepped line, not thirty bars 0.65 mm wide. The
       fourth board's 30 % field under a 2-unit MUTED line was the flattening the
       owner then found: it is a 55 % field under a 2.5-unit INK line at 70 % now,
-      in a box 56 tall, and the engine box's two runs are the same weight.
+      in twenty steps of 500 m, and the engine box's runs are the same weight.
 - m1  unit symbols are case-sensitive: «БАТАРЕЯ · В», «ДВС · об/мин», «кВт·ч».
 - m2  a dim «ДВС» over an empty corner was furniture. If the engine has not run
       this trip the corner is empty - no heading.
@@ -252,10 +252,9 @@ Closed:
       window; whether it does is a measurement on the car, not a board.
 - m8  an exception is a 34 figure changing colour on a shelf whose figures are all
       34, so it is the same glance as reading the temperature.
-- m9  generation is drawn twice, not three times: the line under the band (the
-      seam, if the log ever says it may be one) and the area in the engine box.
-      Its figure is written once, and since the eighth pass it is written inside
-      the sentence under that area.
+- m9  generation is drawn once: the area in the engine box, while the engine is
+      giving. Its figure is written once too, inside the sentence under that area.
+      Nothing about the engine is on the band any more.
 - m11 closed by the ninth pass, and it took a picture rather than a caption. Three
       motors under one word in `motorTemps` order was learnable and named as such
       for five drawings; the shared degree sign the sixth pass gave them bought the
@@ -1326,16 +1325,16 @@ def skeleton():
 
 
 def band(s):
-    """The one bar left on the panel, and the engine's share drawn behind its tip.
+    """The one bar left on the panel, and it is the pack's alone.
 
-    ink is what the battery pays, blue is what the engine pays, and the tip is
-    what the wheels asked for - the jury's second correction. That reading is only
-    true if `GENERATION_KW` is not already inside `POWER_KW`, which has not been
-    logged on this car, so the default is `seam_on_band` False: the same fact
-    without the claim, as a separate line under the body on the return side's own
-    scale. `VehicleConvention.GENERATION_INSIDE_PACK_POWER` is the same decision in
-    the app and `ContourBoardContractTest` holds the two together; one state below
-    draws the seam so that the alternative is on record.
+    Two drawings of the engine's share lived here: a seam behind the tip reading
+    `wheels = pack + generation`, and a line under the body on the return span.
+    Each was a different answer to whether `GENERATION_KW` is already inside
+    `POWER_KW`, and neither answer has ever been recorded - the two drives so far
+    saw the engine run with that id flat. So **nothing about the engine is drawn on
+    the band** (docs/energy-display-contract.md, §2.5), and
+    `VehicleConvention.GENERATION_INSIDE_PACK_POWER` stays as the recorded
+    assumption that draws nothing. The engine has its box and its corner.
     """
     kw = s.get('kw')
     if kw is None:
