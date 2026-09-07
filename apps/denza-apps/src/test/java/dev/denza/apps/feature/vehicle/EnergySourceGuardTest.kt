@@ -71,12 +71,14 @@ class EnergySourceGuardTest {
         val STRIP = File(MAIN, "feature/trip/VehiclePageRenderer.kt")
 
         /**
-         * The three ways a renderer could print a number of its own.
+         * Every way a renderer could print a number of its own.
          *
-         * `ContourReadout`'s two formatters and Java's, which is what every hand-rolled figure in
-         * this app has been. `ContourReadout.UNIT_KW`, `ContourReadout.whole` inside a `companion`
-         * that names an *axis* rather than a reading (`AXIS_CEILING`) and the glyph constants are
-         * not numbers a snapshot decides, so the ban is on the call rather than on the class.
+         * `ContourReadout`'s formatters and Java's, which is what every hand-rolled figure in this
+         * app has been. What stays legitimately is the *words*: `ContourReadout.UNIT_KW`, the
+         * thermal thresholds a track's zones are drawn from, `ContourPlan`'s two ladder labels.
+         * None of those is a number a snapshot decides, which is why the ban is on the call rather
+         * than on the class - a renderer reading a constant is reading the one record of it, and a
+         * renderer calling a formatter is deciding how a reading looks.
          */
         val BANNED = listOf(
             "ContourReadout.whole(",
