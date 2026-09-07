@@ -248,141 +248,116 @@ def temp_row(kind, value, narrow=False):
 
 # ----------------------------------------------------------------------------------- the scenes
 
-# Two minutes of pack power, one sample every two seconds, positive out of the pack.
+# Ten kilometres of the pack's consumption, in twenty steps of 500 m, positive out of the pack.
 #
-# `generation` is the 2026-08-23 capture itself, placed so that "now" is inside the run: a minute
-# of the car on its battery alone, the engine coming in at −6 and settling at −8 to −10, which is
-# what that session measured second by second. `traction` and `hot` have never been captured -
-# the pack-power sign in motion is still an open item in the findings - and the board says so on
-# the frame rather than here.
-TRACES = {
-    'traction': [
-        2, 3, 6, 14, 26, 38, 47, 52, 49, 41, 33, 28, 24, 21, 19, 18, 17, 15, 12, 8,
-        2, -6, -14, -19, -22, -18, -11, -4, 3, 9, 16, 24, 33, 44, 58, 71, 79, 74, 63, 54,
-        48, 43, 39, 36, 34, 33, 31, 28, 24, 18, 10, 1, -9, -17, -23, -26, -21, -13, -5, 34,
-    ],
-    'generation': [
-        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-        1, 1, 1, 1, 1, 1, 1, 1, -6, -8, -9, -10, -9, -8, -9, -10, -10, -9, -8, -9,
-        -10, -9, -9, -8, -9, -10, -9, -8, -8, -9, -10, -9, -8, -9, -9, -8, -8, -9, -8, -8,
-    ],
-    'hot': [
-        44, 51, 58, 62, 57, 49, 44, 48, 55, 61, 66, 62, 55, 48, 44, 47, 53, 59, 64, 68,
-        63, 55, 47, 42, 46, 52, 58, 63, 67, 64, 57, 50, 45, 48, 54, 60, 65, 69, 66, 58,
-        51, 46, 49, 55, 60, 64, 61, 54, 48, 44, 47, 53, 58, 63, 66, 63, 57, 52, 56, 62,
-    ],
-    'charging': [-2.4] * 60,
-    # A launch and the recovery after it: 200 out, 100 back, which is the pair the owner asked
-    # about. Both halves land on 320 and 160, and the shape keeps its own proportions.
-    'launch': [
-        18, 24, 31, 44, 68, 96, 132, 168, 196, 204, 188, 160, 132, 108, 88, 72, 58, 44, 30, 12,
-        -22, -58, -96, -104, -88, -64, -40, -18, 4, 22, 38, 56, 78, 104, 138, 172, 190, 176, 150, 124,
-        102, 84, 66, 50, 36, 22, 8, -14, -42, -78, -102, -88, -60, -34, -12, 8, 26, 44, 62, 84,
-    ],
-}
-
-TRACE_H = 130
-TRACE_H_NARROW = 60           # what is left at 392 once the head, the foot and the marks are in
-TRACE_BINS = 24               # five seconds each, which is the engine box's own grid on the cluster
-TRACE_EDGE = 2
-TRACE_AXIS = 44               # the gutter on the right where the two axis figures stand
-TRACE_AXIS_BASELINE = 13
-
-# The span steps rather than sliding, and it steps on a ladder.
+# The same chart the cluster's petal draws, in the same bins and on the same scale - the energy
+# display contract (docs/energy-display-contract.md, §2.3): one history of one quantity on both
+# screens, and the pixel height is the only thing that differs. It replaced two minutes of pack
+# power, which was a second history of a quantity the headline already shows and the reason the two
+# screens' graphs could not be the same graph.
 #
-# One fixed span for every scene was the first answer, borrowed from the Contour's engine box - and
-# on this page it is the wrong one, because this box holds a quantity that lives in two different
-# orders of magnitude. Sixty kilowatts out is right for a climb and squashes an eight-kilowatt
-# generation into a sliver against the axis; ten is right for the generation and clamps every
-# acceleration flat. The owner's own words about the first drawing were that the box must not be
-# «сплющен по вертикали» and that space, where there is space, is to be used.
-#
-# So the ceiling is the smallest rung that holds the window, and the floor likewise. A ladder
-# rather than a fit: a span that follows the data continuously redraws the same drive at a new
-# height every second, while four rungs change rarely and visibly, and the foot line says which
-# one is up - a figure names the window it is true over, and a shape names the span it is drawn in.
-TRACE_RUNGS = (5, 10, 20, 40, 80, 160, 320, 640)
+# One deterministic road, written as multiples of the window's own mean so a scene names the figure
+# it wants and the shape and the figure cannot disagree. One run of returning bins - a descent - and
+# nothing else below the zero: the chart needs a zero line rather than a floor.
+CONSUMPTION_SHAPE = [1.26, 1.19, 1.31, 1.22, 1.08, 1.16, 1.34, 1.29, 1.02, 0.82,
+                     0.61, -0.31, -0.44, -0.18, 0.72, 0.94, 1.03, 0.97, 0.88, 0.96]
 
 
-def bins(samples, count=TRACE_BINS):
-    """The window as fixed-duration steps, each the mean of the samples that arrived in it.
+def history(average, launch=False, hole=None):
+    """Twenty closed bins whose spending mean is [average]; a launch bin past the ceiling; a hole."""
+    spending = [m for m in CONSUMPTION_SHAPE if m > 0]
+    norm = sum(spending) / len(spending)
+    bins = [round(average * m / norm, 1) for m in CONSUMPTION_SHAPE]
+    if launch:
+        # A half kilometre of full throttle: past the ceiling, drawn to it with a tick.
+        bins[-3] = round(CHART_FULL * 1.2, 1)
+    if hole is not None:
+        for i in hole:
+            bins[i] = None
+    return bins
 
-    Two minutes of pack power was a line of sixty points, and the cluster settled this question
-    already: a per-sample line across half a metre of glass is 0.9 mm per sample of a quantity
-    that moves faster than the eye follows. Twenty-four steps of five seconds is what the engine
-    box draws, and it is what a glance can actually read.
+
+CHART_H = 130
+CHART_H_NARROW = 60           # what is left at 392 once the head, the foot and the marks are in
+CHART_BINS = 20               # 500 m each: ConsumptionWindow.KM / ConsumptionChart.BIN_KM
+CHART_EDGE = 2
+CHART_AXIS = 44               # the gutter on the right where the two ceilings stand
+CHART_AXIS_BASELINE = 13
+# Linear, clamped, marked: ContourPlan.PETAL_FULL and PETAL_RETURN_FULL, the cluster's own ladder.
+CHART_FULL = 40
+CHART_RETURN_FULL = 20
+CHART_TICK = 3
+
+
+def chart_svg(box_w, bins, height=CHART_H):
+    """The last ten kilometres as steps, the one shape on this page, and it carries a sign.
+
+    Above the zero is what the road cost, below it is what it gave back - the app's own two inks
+    for those and never a third. A step is 500 m; the newest is at the right edge, where new road
+    arrives. A bin the log has no energy for is a hole: nothing is drawn, the road under it is
+    still the road. A bin past the ceiling is drawn to the ceiling with a tick standing over it.
+
+    **The box says what it holds** in two figures against the edges they belong to, «60» and
+    «−20», which are the same two ceilings the cluster's petal clamps at.
     """
-    out = []
-    for i in range(count):
-        lo = round(i * len(samples) / count)
-        hi = max(lo + 1, round((i + 1) * len(samples) / count))
-        window = samples[lo:hi]
-        out.append(round(sum(window) / len(window), 2))
-    return out
+    zero = round(height * CHART_FULL / (CHART_FULL + CHART_RETURN_FULL), 2)
+    plot = box_w - CHART_AXIS
+    w = plot / len(bins)
 
+    def y_spend(v):
+        return round(zero - min(max(v, 0.0) / CHART_FULL, 1.0) * zero, 2)
 
-def trace_span(steps):
-    """The two rungs this window needs, which together are one uniform scale.
+    def y_back(v):
+        return round(zero + min(max(-v, 0.0) / CHART_RETURN_FULL, 1.0) * (height - zero), 2)
 
-    Each half gets the smallest rung that holds it and the axis is placed between them at
-    `top / (top + bottom)`, which makes the kilowatts-per-pixel identical above and below - so
-    reading one half against the other is honest, and the box is full whichever way the pack has
-    been working. A symmetric span would leave half the box empty on a climb, where nothing goes
-    back into the pack for two minutes; a fixed one leaves an eight-kilowatt generation as a
-    sliver against the axis, which is the «сплющен» the Contour was told about twice.
-    """
-    top = next((r for r in TRACE_RUNGS if max(steps) <= r), TRACE_RUNGS[-1])
-    bottom = next((r for r in TRACE_RUNGS if -min(steps) <= r), TRACE_RUNGS[-1])
-    return top, bottom
+    def x(i):
+        return round(i * w, 2)
 
-
-def trace_svg(box_w, samples, height=TRACE_H):
-    """Two minutes of pack power as steps, and the only thing here that carries a sign as a shape.
-
-    Above the axis is what left the pack, below it is what came back - the app's own two inks for
-    those and never a third. A step is five seconds; the newest is at the right edge, where new
-    data arrives, and the oldest is whatever the window has left of its own.
-
-    **The box says what it holds**, in two figures against the edges they belong to. The span was a
-    phrase on the line underneath until the owner read it and said «тоже не интуитивно»: it was a
-    legend, and a legend is what this page spent four drawings getting rid of.
-
-    **And a step past the last rung is drawn flat against the edge.** *«Что будет при расходе 200
-    кВт и заряде 100 кВт?»* - with the ladder stopping at 160 and nothing clamping, the answer was
-    that the box drew them over the figure above it.
-    """
-    steps = bins(samples)
-    top, bottom = trace_span(steps)
-    zero = round(height * top / (top + bottom), 2)
-    plot = box_w - TRACE_AXIS
-    w = plot / len(steps)
-
-    def y_of(kw):
-        held = max(-bottom, min(top, kw))
-        return round(zero - held * (zero if held > 0 else (height - zero)) / (top if held > 0 else bottom), 2)
-
-    def rects(above):
-        out = []
-        for i, kw in enumerate(steps):
-            if (kw > 0) != above or kw == 0:
+    field, edge, back, ticks = [], [], [], []
+    i = 0
+    while i < len(bins):
+        if bins[i] is None:
+            i += 1
+            continue
+        start = i
+        while i < len(bins) and bins[i] is not None:
+            i += 1
+        run = list(range(start, i))
+        # One continuous field and edge across the run; a returning bin lies on the zero.
+        field.append(f'M{x(start):g} {zero:g} ' + ' '.join(
+            f'L{x(j):g} {y_spend(bins[j]):g} L{x(j + 1):g} {y_spend(bins[j]):g}' for j in run)
+            + f' L{x(i):g} {zero:g} Z')
+        edge.append(' '.join(
+            (f'M{x(j):g} {y_spend(bins[j]):g}' if j == start else f'L{x(j):g} {y_spend(bins[j]):g}')
+            + f' L{x(j + 1):g} {y_spend(bins[j]):g}' for j in run))
+        j = start
+        while j < i:
+            if bins[j] >= 0:
+                j += 1
                 continue
-            x = round(i * w, 2)
-            out.append(f'M{x:g} {zero:g} H{round(x + w, 2):g} V{y_of(kw):g} H{x:g} Z')
-        return ' '.join(out)
-
-    edge = []
-    for i, kw in enumerate(steps):
-        y = y_of(kw)
-        x, x2 = round(i * w, 2), round((i + 1) * w, 2)
-        edge.append((f'M{x:g} {y:g}' if not edge else f'L{x:g} {y:g}') + f' L{x2:g} {y:g}')
-
-    return f'''          <svg width="{box_w:g}" height="{height:g}" viewBox="0 0 {box_w:g} {height:g}" fill="none">
-            <path d="{rects(True)}" fill="rgba(218,225,235,0.16)"></path>
-            <path d="{rects(False)}" fill="rgba(45,130,215,0.26)"></path>
+            k = j
+            while k < i and bins[k] < 0:
+                k += 1
+            back.append(f'M{x(j):g} {zero:g} ' + ' '.join(
+                f'L{x(m):g} {y_back(bins[m]):g} L{x(m + 1):g} {y_back(bins[m]):g}' for m in range(j, k))
+                + f' L{x(k):g} {zero:g}')
+            j = k
+        for j in run:
+            if bins[j] >= CHART_FULL:
+                cx = round(x(j) + w / 2, 2)
+                ticks.append(f'M{cx:g} {-2 - CHART_TICK} V-2')
+            elif bins[j] <= -CHART_RETURN_FULL:
+                cx = round(x(j) + w / 2, 2)
+                ticks.append(f'M{cx:g} {height + 2} V{height + 2 + CHART_TICK}')
+    tick_svg = (f'\n            <path d="{" ".join(ticks)}" stroke="{INK}" stroke-width="{CHART_EDGE}"></path>'
+                if ticks else '')
+    return f'''          <svg width="{box_w:g}" height="{height:g}" viewBox="0 -6 {box_w:g} {height + 12:g}" fill="none" style="overflow:visible">
+            <path d="{' '.join(field)}" fill="rgba(218,225,235,0.16)"></path>
+            <path d="{' '.join(back)}" fill="rgba(45,130,215,0.26)" stroke="{RETURN}" stroke-width="{CHART_EDGE}" stroke-linejoin="round"></path>
             <path d="M0 {zero:g} H{plot:g}" stroke="{TRACK_MARK}" stroke-width="1"></path>
-            <path d="{' '.join(edge)}" stroke="{INK}" stroke-width="{TRACE_EDGE}" stroke-linejoin="round" stroke-linecap="square"></path>
-            <text x="{box_w:g}" y="{TRACE_AXIS_BASELINE}" text-anchor="end" font-size="15" font-weight="500" letter-spacing="1.6" fill="{MUTED_DEEP}">{top} кВт</text>
-            <text x="{box_w:g}" y="{height:g}" text-anchor="end" font-size="15" font-weight="500" letter-spacing="1.6" fill="{MUTED_DEEP}">{bottom}</text>
+            <path d="{' '.join(edge)}" stroke="{INK}" stroke-width="{CHART_EDGE}" stroke-linejoin="round" stroke-linecap="square"></path>{tick_svg}
+            <text x="{box_w:g}" y="{CHART_AXIS_BASELINE}" text-anchor="end" font-size="15" font-weight="500" letter-spacing="1.6" fill="{MUTED_DEEP}">{CHART_FULL}</text>
+            <text x="{box_w:g}" y="{height:g}" text-anchor="end" font-size="15" font-weight="500" letter-spacing="1.6" fill="{MUTED_DEEP}">−{CHART_RETURN_FULL}</text>
           </svg>'''
 
 
@@ -396,7 +371,7 @@ def trace_svg(box_w, samples, height=TRACE_H):
 #     move, is kilowatts drawn twice.
 #
 # What is left is what no stock display shows: what the pack is doing now, what it has been doing
-# for two minutes, how warm five components are, and what the last three kilometres cost.
+# over the last ten kilometres, how warm five components are, and what those kilometres cost.
 # `engine` is the cell's whole contract, and it is the Contour's own arrangement one screen along:
 # the unit lives in the caption and the figure is bare, the cell says revolutions while the engine
 # turns and how long it ran this trip once it stops, and it is **absent** when the engine has not
@@ -406,21 +381,21 @@ SCENES = {
         headline='ИЗ БАТАРЕИ', power='34', colour=INK, volts='548',
         engine=('ДВС · МИН ЗА ПОЕЗДКУ', '14'),
         temps=[('pack', 33), ('front', 52), ('rear_l', 51), ('rear_r', 49), ('inverter', 42)],
-        spread=6, spend='19,8', trace='traction',
+        spread=6, spend='19,8', history=history(19.8),
     ),
     'generation': dict(
-        headline='В БАТАРЕЮ ОТ ДВС', power='-8', colour=RETURN_INK, volts='553',
+        headline='В БАТАРЕЮ ОТ ДВС', power='8', colour=RETURN_INK, volts='553',
         engine=('ДВС · ОБ/МИН', '1321'),
         temps=[('pack', 32), ('front', 47), ('rear_l', 46), ('rear_r', 44), ('inverter', 39)],
-        spread=6, spend='19,4', trace='generation',
+        spread=6, spend='19,4', history=history(19.4),
     ),
     'charging': dict(
-        headline='В БАТАРЕЮ ОТ ЗАРЯДКИ', power='-2,4', colour=RETURN_INK, volts='550',
+        headline='В БАТАРЕЮ ОТ ЗАРЯДКИ', power='2,4', colour=RETURN_INK, volts='550',
         engine=None,
         temps=[('pack', 28), ('front', 31), ('rear_l', 29), ('rear_r', 31), ('inverter', 26)],
-        # No consumption cell while the car is standing: kWh/100 km has no value at zero speed,
-        # and a quantity that did not happen is not drawn as a zero.
-        spread=4, spend='', trace='charging',
+        # The road does not leave when the car stops: ten kilometres of history and their figure
+        # stay on P and on charge, to the tenth, as the cluster's petal has them (contract §4).
+        spread=4, spend='18,9', history=history(18.9),
     ),
     # Read against `ContourReadout`'s bands rather than against a number chosen to look alarming:
     # the front motor is past 85 and is DANGER, the other three are past 70 and are WATCH, and the
@@ -433,13 +408,13 @@ SCENES = {
         headline='ИЗ БАТАРЕИ', power='196', colour=INK, volts='531',
         engine=('ДВС · ОБ/МИН', '3980'),
         temps=[('pack', 44), ('front', 79), ('rear_l', 77), ('rear_r', 76), ('inverter', 74)],
-        spread=9, spend='31,6', trace='launch',
+        spread=9, spend='31,6', history=history(31.6, launch=True),
     ),
     'hot': dict(
         headline='ИЗ БАТАРЕИ', power='62', colour=INK, volts='544',
         engine=('ДВС · ОБ/МИН', '1420'),
         temps=[('pack', 42), ('front', 88), ('rear_l', 76), ('rear_r', 74), ('inverter', 73)],
-        spread=28, spend='27,3', trace='hot',
+        spread=28, spend='27,3', history=history(27.3, hole=(6, 7)),
     ),
 }
 
@@ -458,17 +433,20 @@ def headline(text):
     return f'<span style="color:{MUTED};">{text}</span>'
 
 
-def spend_run(scene):
-    """What the last three kilometres cost, hung off the right of the shape's own caption.
+def spend_line(scene, narrow=False):
+    """What the last ten kilometres cost, under the shape that is those ten kilometres.
 
     «Как водитель, не очень интересен… ему больше места где-то под графиком» - so it is here
     rather than on the shelf, where it was the one row that had nothing to do with heat. Named,
-    because a figure with no name and no place is exactly what the voltage was.
+    because a figure with no name and no place is exactly what the voltage was. The window rides
+    on the unit, the cluster's own arrangement for this very figure - «кВт·ч/100 км · за 10 км» -
+    and it is never a whole-number rounding of a filling window; the narrow pane drops the word
+    «РАСХОД», never the figure or its window (contract §5).
     """
-    if not scene['spend']:
-        return ''
-    return ('<span class="spend">РАСХОД <span class="spend-figure">'
-            f'{scene["spend"]}</span> кВт·ч/100 ЗА 10 КМ</span>')
+    figure = f'<span class="spend-figure">{scene["spend"]}</span>'
+    if narrow:
+        return f'<span class="spend">{figure} кВт·ч/100 км · 10 КМ</span>'
+    return f'<span class="spend">РАСХОД {figure} кВт·ч/100 км · ЗА 10 КМ</span>'
 
 
 def vehicle_page(scene='generation', shape='wide', width=FIELD_W):
@@ -482,24 +460,25 @@ def vehicle_page(scene='generation', shape='wide', width=FIELD_W):
         БАТАРЕИ`, `● В БАТАРЕЮ ОТ ДВС · 1321 об/мин` - and the figure under it says how much. A
         minus in front of a number is not a direction anybody reads at a glance, and here the
         direction matters more than the sign;
-      - **a figure names the window it is true over.** `ПОСЛЕДНИЕ 2 МИНУТЫ` under the trace,
-        `ЗА 10 КМ` after the consumption: a number integrated over an interval that does not say
-        which one is read against the interval the reader has in mind, which is never the right
-        one;
+      - **a figure names the window it is true over.** `ЗА 10 КМ` after the consumption, and the
+        shape above it *is* those ten kilometres: a number integrated over an interval that does
+        not say which one is read against the interval the reader has in mind, which is never
+        the right one;
       - **a zero is never drawn, and a quantity that did not happen has no cell.** Revolutions
         appear inside the headline only while the engine turns, consumption is absent while the
         car is standing, and nothing prints a `0` to hold a seat.
 
-    And the page has a shape, which is what the table was missing: two minutes of the same
-    quantity the headline names, so the figure and its history are one object rather than two.
+    And the page has a shape, which is what the table was missing: the last ten kilometres of the
+    pack's consumption, the same twenty bins on the same scale the cluster's petal draws, so the
+    two screens show one history and the figure under it is its mean (contract §2.3).
     """
     s = SCENES[scene]
     narrow = shape == 'narrow'
     temps = ''.join(temp_row(kind, value, narrow) for kind, value in s['temps'])
     if not narrow:
         temps += spread_row(s['spread'])
-    # The trace is drawn at the width the left column will have, which the flex ratio decides.
-    trace_w = width if narrow else round((width - GROUP - 1) * LEFT_SHARE / (LEFT_SHARE + 1), 2)
+    # The chart is drawn at the width the left column will have, which the flex ratio decides.
+    chart_w = width if narrow else round((width - GROUP - 1) * LEFT_SHARE / (LEFT_SHARE + 1), 2)
 
     cells = [f'''            <div class="cell">
               <div class="cap">НАПРЯЖЕНИЕ</div>
@@ -522,21 +501,11 @@ def vehicle_page(scene='generation', shape='wide', width=FIELD_W):
             </div>
 {engine}
           </div>'''
-    # The shape names the span it is drawn in, the way every figure on this page names the window
-    # it is true over. Two rungs and one scale: «5 ↑ 10 ↓» is the box's own ceiling and floor.
-    # The pack's voltage leaves the narrow pane rather than wrapping the line: at 392 dp the
-    # window, the span and a third reading are three lines' worth of words on one line, and of the
-    # three the span is the one the shape above it cannot be read without.
-    # And the window shortens before anything else goes, which is the Contour's own rule for the
-    # same line one screen along: «ПОСЛЕДНИЕ 2 МИНУТЫ» becomes «2 МИН» at 392 dp, and the span
-    # stays, because the shape above cannot be read without it.
-    window = '2 МИН' if narrow else 'ПОСЛЕДНИЕ 2 МИНУТЫ'
-    # The two arrows are drawn rather than typed, on both records. A still in Chrome has a font it
-    # can check and the car does not: this panel's own variometer is three strokes for exactly that
-    # reason, and a board that types what the app draws is a board that cannot be compared with a
-    # photograph of the screen.
-    trace = (f'{trace_svg(trace_w, TRACES[s["trace"]], TRACE_H_NARROW if narrow else TRACE_H)}\n'
-             f'          <div class="foot">{window}{spend_run(s)}</div>')
+    # The shape names its ceilings in the gutter, «60» and «−20», the cluster's own ladder; the
+    # line under it names the figure and its window. At 392 dp the word «РАСХОД» goes and nothing
+    # else: the figure and «10 КМ» are what the shape cannot be read without.
+    chart = (f'{chart_svg(chart_w, s["history"], CHART_H_NARROW if narrow else CHART_H)}\n'
+             f'          <div class="foot">{spend_line(s, narrow)}</div>')
 
     if narrow:
         # `Space.L` between the shape and the marks rather than the group's own 32: at 392 dp the
@@ -545,16 +514,16 @@ def vehicle_page(scene='generation', shape='wide', width=FIELD_W):
         return f'''      <div class="page narrow">
         <div class="left">
 {head}
-{trace}
+{chart}
         </div>
         <div class="temps">{temps}</div>
       </div>'''
 
     spend = ''
     return f'''      <div class="page split">
-        <div class="left" style="width:{trace_w:g}px; flex-shrink:0;">
+        <div class="left" style="width:{chart_w:g}px; flex-shrink:0;">
 {head}
-{trace}
+{chart}
         </div>
         <div class="vrule"></div>
         <div class="right">

@@ -301,7 +301,7 @@ f = g.f
 # ergonomic claim on the first three boards stood on "порядка 25 см (оценка)",
 # which is what CRITIQUE M1 found and what made 104 look necessary.
 GLASS_WIDTH_MM = 320.0
-EYE_DISTANCE_MM = 750.0
+EYE_DISTANCE_MM = 800.0            # the owner, 2026-09-07; the tape said 750 on 2026-09-04
 
 # ---------------------------------------------------------------- the ramp
 
@@ -367,8 +367,13 @@ W_CAPTION = {'РАЗБРОС ЯЧЕЕК': 167.7344, 'РЕКУПЕРАЦИЯ': 15
              # rows above. Every value of it is this wide - the figures are tabular
              # and a «м:сс» is four glyphs and a mark - so the template decides the
              # anchors and the drawn duration moves none of them.
-             'В БАТАРЕЮ · ПОСЛЕДНИЕ 0:00': 315.4375,
-             'В БАТАРЕЮ · 0:00': 180.0156}
+             # The energy display contract (2026-09-07) renamed the phrase: what the
+             # engine *gives*, not where it goes, because what GENERATION_KW is in
+             # motion is not known. Measured 2026-09-07 in the same run as the rows
+             # above; «В БАТАРЕЮ · ПОСЛЕДНИЕ 0:00» was 315.4375 and is off the table.
+             'ДВС ДАЁТ': 104.7812,
+             '· ПОСЛЕДНИЕ 0:00': 192.2656,
+             '· 0:00': 56.8438}
 # Measured and not used: «ВЕРНУЛА РЕКУПЕРАЦИЯ» is 253.5469, which is 102.9 more
 # than the noun alone and 65 more than the shelf has. It is why the middle caption
 # on P keeps its dot instead of taking the verb the other two got.
@@ -474,10 +479,7 @@ BAND_BODY = 14.0
 BAND_HAIRLINE = 1.2
 ZERO_HALF = BAND_BODY
 ZERO_WIDTH = 1.8
-GEN_LINE_Y = BAND_Y + BAND_BODY / 2 + 4.0
-GEN_LINE_H = 4.0
 DATA_LINE = 2.5                         # nothing that carries data is thinner
-AREA_EDGE = 1.8
 
 # One pool of light, and it does not move (M6). Brightness is the magnitude by a
 # square root, hue is the sign, τ = 1.5 s. A pool 73 mm across sliding 50-100 mm
@@ -720,8 +722,9 @@ GEN_FIELD = 2 * DIGIT * CAPTION
 # The window is the box's own reach, «м:сс», and these are what it is measured
 # from. It used to be a literal two minutes - the trace's capacity - printed from
 # the first second of an engine run over a box one step wide.
-LEGEND_WINDOW = 'В БАТАРЕЮ · ПОСЛЕДНИЕ 0:00'
-LEGEND_WINDOW_SHORT = 'В БАТАРЕЮ · 0:00'
+LEGEND_PREFIX = 'ДВС ДАЁТ'
+LEGEND_WINDOW = '· ПОСЛЕДНИЕ 0:00'
+LEGEND_WINDOW_SHORT = '· 0:00'
 
 # ---- the petal, and the three kilometres behind its figure
 
@@ -736,6 +739,15 @@ PETAL_FLOOR = 410.0                     # nothing is drawn below this
 # rather than of the last three traffic lights. The head unit's car page reads
 # the same window through the same object.
 PETAL_BUCKETS = 100                     # 10 km of ConsumptionLog's 100 m buckets
+# And twenty steps of five buckets each are what is drawn (the energy display
+# contract, §2.3). A hundred steps of 2.32 units were the first drive's «расчёска»;
+# 500 m averages the spikes a 100 m bucket showed and a step of 11.6 units - 2.5 mm,
+# 10.7′ from 800 mm - is a step the eye can count, which the owner chose on the
+# fourth board («он как бы дискретный ступеньками»). Bins are anchored to the
+# odometer's own half kilometre in the app, so a closed step never changes; here
+# the buckets are grouped by fives from the oldest and the newest step is partial.
+PETAL_BIN_BUCKETS = 5
+PETAL_BINS = PETAL_BUCKETS // PETAL_BIN_BUCKETS
 # "16,8" and "2:15" are both three digits and one mark, so one field holds either,
 # and two digits is what the panel actually prints while the car is moving.
 PETAL_FIELD_W = 3 * DIGIT * FIGURE + max(COMMA, COLON) * FIGURE
@@ -811,14 +823,20 @@ PETAL_BOX_TOP = PETAL_BASELINE - CAP * FIGURE
 PETAL_ZERO_Y = PETAL_BASELINE
 PETAL_BOX_BOTTOM = PETAL_BASELINE + PETAL_DESCENDER * FIGURE
 PETAL_BOX_H = PETAL_BOX_BOTTOM - PETAL_BOX_TOP
-# A fixed ladder, not an autoscale: 0…30 kW·h/100 km up the cap and 0…10 back down
-# the descender, both clamped. Autoscaling to each window's own ceiling meant a
-# bucket changed height when a *different* bucket changed value, so the shape of
-# the last three kilometres was never twice the same shape. 30 rather than the
-# fifth pass's 40 because the two spans no longer share a divisor: what set 40 was
-# a zero line at four fifths, and the zero line is the baseline now.
-PETAL_FULL = 30.0
-PETAL_RETURN_FULL = 10.0
+# A fixed ladder, not an autoscale: 0…40 kW·h/100 km up the cap and 0…20 back down
+# the descender, both clamped - and a clamp is marked. Autoscaling to each window's
+# own ceiling meant a bucket changed height when a *different* bucket changed
+# value, so the shape was never twice the same shape. 30 and 10 were the tenth
+# pass's ceilings for 100 m buckets, and flattened every launch and every descent
+# into one silent top. 40 rather than 60: the box is 37 units tall and what it is
+# for is the difference between 15 and 25, which at 40 is 9 units and at 60 is 6;
+# a 500 m step past 40 is spirited driving, a launch is far past it, and either is
+# drawn to the ceiling with a three-unit INK tick standing outside the box over
+# it - cut, and seen to be cut. The recording says whether 40 and 20 are right;
+# they are these two numbers and nothing else, on both screens.
+PETAL_FULL = 40.0
+PETAL_RETURN_FULL = 20.0
+PETAL_TICK = 3.0
 # Contrast, and then what the two colours mean. A 30 % field under a 2-unit line at
 # MUTED was a texture; spending is a MUTED_DEEP field at 55 % under the figure's
 # own INK at 70 %, drawn across every bucket so the silhouette is continuous and a
@@ -830,7 +848,6 @@ PETAL_RETURN_FULL = 10.0
 AREA_ALPHA = 0.55
 LINE_ALPHA = 0.70
 RETURN_AREA_ALPHA = 0.50
-GEN_AREA_ALPHA = 0.55
 PEAK_ALPHA = 0.85
 
 # EnergyScale: the band is the dial straightened out, same square root, same spans.
@@ -851,29 +868,25 @@ def trip_cell(index, seats):
 
 def legend_phrase(window):
     """How wide «● 14 кВт [window]» comes out, laid out right to left."""
-    return MARK_W + GEN_FIELD + SMALL_GAP + W_KW + SMALL_GAP + W_CAPTION[window]
+    return (W_CAPTION[LEGEND_PREFIX] + SMALL_GAP + GEN_FIELD + SMALL_GAP + W_KW
+            + SMALL_GAP + W_CAPTION[window])
 
 
 def legend_anchors():
-    """The phrase's anchors, right to left off the shelf's own edge - and both dots.
+    """The phrase's anchors, right to left off the shelf's own edge.
 
-    The words never move. The figure lives in a two-digit reserve so that 9 kW and
-    14 kW start the sentence in the same place, and «кВт» hangs off that field
-    rather than off the string.
-
-    **`quiet` is where the dot stands once the engine has stopped.** The figure and
-    its unit are removed by the staleness rule and the reserve has nothing left to
-    reserve, so it goes with them and the dot closes up against the words:
-    «● В БАТАРЕЮ · ПОСЛЕДНИЕ 2 МИН» rather than 22 units of hole after the dot. It
-    is one shift per engine stop rather than a jitter - a reserve keeps a phrase
-    still while a *number* changes, and there is no number left to change.
+    «ДВС ДАЁТ 14 кВт · ПОСЛЕДНИЕ 1:22»: the window, «кВт», the figure in a two-digit
+    reserve so 9 and 14 start the sentence in the same place, the words in front.
+    The words never move. There is no dot and no quiet anchor any more: the blue
+    mark means «into the pack» everywhere else on the panel and this phrase makes
+    no such claim, and the box only exists while the engine gives, so the figure
+    is never absent from a box that is up (the energy display contract, §2.5).
     """
     window_x = RIGHT_EDGE - W_CAPTION[legend_window()]
     unit_x = window_x - SMALL_GAP - W_KW
     field_right = unit_x - SMALL_GAP
-    return dict(window=window_x, unit=unit_x, field=field_right,
-                mark=field_right - GEN_FIELD - MARK_GAP - MARK_R,
-                quiet=window_x - MARK_GAP - MARK_R)
+    prefix_x = field_right - GEN_FIELD - SMALL_GAP - W_CAPTION[LEGEND_PREFIX]
+    return dict(window=window_x, unit=unit_x, field=field_right, prefix=prefix_x)
 
 
 def legend_window():
@@ -883,7 +896,7 @@ def legend_window():
     of the box it stands under, so a face wider than Chrome's Roboto - which the
     car's may be - drops «ПОСЛЕДНИЕ» rather than running the sentence out past the
     graph it belongs to. Nothing else in the phrase can go: the figure is the
-    reading, the unit is what makes it one, and «В БАТАРЕЮ» is the whole point.
+    reading, the unit is what makes it one, and «ДВС ДАЁТ» is the whole point.
     """
     room = ENGINE_BOX_RIGHT - ENGINE_BOX_FULL_LEFT
     if legend_phrase(LEGEND_WINDOW) + CLEARANCE <= room:
@@ -911,7 +924,7 @@ def per_100(bars):
     is a few hundred metres printed under «за 10 км», which is the same defect the
     seventh pass added this window to fix, one level down.
     """
-    covered = len(bars or []) * 0.1
+    covered = sum(1 for v in (bars or []) if v is not None) * 0.1
     if covered >= PETAL_BUCKETS * 0.1 - 1e-6:
         return f'кВт·ч/100 км · за {PETAL_BUCKETS * 0.1:.0f} км'
     return f'кВт·ч/100 км · за {covered:.1f} км'.replace('.', ',')
@@ -1110,6 +1123,39 @@ def consumption_history(average):
     spending = [m for m in SHAPE if m > 0]
     norm = sum(spending) / len(spending)
     return [round(average * m / norm, 1) for m in SHAPE]
+
+
+def with_launch(bars):
+    """The same road with half a kilometre of full throttle near its end: one step past 60."""
+    out = list(bars)
+    for i in range(len(out) - 15, len(out) - 10):
+        out[i] = round(PETAL_FULL * 1.25, 1)
+    return out
+
+
+def with_hole(bars, start, stop):
+    """The same road with a stretch the log has no energy for: a hole, not a zero."""
+    out = list(bars)
+    for i in range(start, stop):
+        out[i] = None
+    return out
+
+
+def petal_bins(bars):
+    """Buckets grouped by fives into the steps the box draws: (value, share of a step).
+
+    A step whose known road is under half its road is a hole - `None` - and is drawn
+    as nothing while the road under it still counts. The newest step is partial while
+    the log fills it, and its share is the width it is drawn at.
+    """
+    out = []
+    for start in range(0, len(bars), PETAL_BIN_BUCKETS):
+        chunk = bars[start:start + PETAL_BIN_BUCKETS]
+        known = [v for v in chunk if v is not None]
+        share = len(chunk) / PETAL_BIN_BUCKETS
+        value = sum(known) / len(known) if known and len(known) * 2 >= len(chunk) else None
+        out.append((value, share))
+    return out[-PETAL_BINS:]
 
 
 def engine_history(filled, stopped=0, gen_now=14.0):
@@ -1312,27 +1358,11 @@ def band(s):
             f'</linearGradient></defs>')
         out.append(f'<rect x="{f(x0)}" y="{f(top)}" width="{f(x1 - x0)}" '
                    f'height="{f(BAND_BODY)}" fill="url(#{ident})"/>')
-    generation = s.get('generation') if s.get('ice') == 'running' else None
-    if generation:
-        # The seam behind the tip reads `wheels = pack + generation`, which is only
-        # true if GENERATION_KW is not already inside POWER_KW - and nobody has
-        # logged this car on a flat cruise with the engine running. So the default
-        # is the drawing that makes no claim, a separate line under the body, and it
-        # is the same default `VehicleConvention.GENERATION_INSIDE_PACK_POWER` sets:
-        # this flag defaulted the other way for a while and the board's canonical
-        # engine state was the one picture the app never drew.
-        #
-        # The line is measured on the RETURN side's own span, not the discharge one.
-        # `sweep` picks its span from the sign, so a positive argument here put 14 kW
-        # of generation at 0.216 of the half-band while 14 kW of regeneration on the
-        # band above it sat at 0.374 - the same kilowatts into the same pack, in the
-        # same blue, 1.73 times apart.
-        if s.get('seam_on_band', False):
-            far = band_x(kw + generation)
-            out.append(rect(tip, top, far - tip, BAND_BODY, RETURN))
-        else:
-            far = AXIS + sweep(-generation) * BAND_HALF
-            out.append(rect(AXIS, GEN_LINE_Y, far - AXIS, GEN_LINE_H, RETURN))
+    # Nothing about the engine is drawn on the band since the energy display contract
+    # (2026-09-07). The line under the body on the return span and the seam behind
+    # the tip both said whether GENERATION_KW is inside POWER_KW, and neither is
+    # known: the two drives so far saw the engine run with that id flat. The band is
+    # the pack's; the engine has its box and its corner.
     peak = s.get('peak')
     if peak is not None and abs(peak) > NEUTRAL_KW:
         px = band_x(peak)
@@ -1473,34 +1503,29 @@ def left_shelf(s):
 
 
 def engine_box(s):
-    """Two minutes of what the engine put back, where the trip balance stands otherwise.
+    """The engine's own two minutes, while it gives - where the trip's phrase stands otherwise.
 
-    **One quantity, one sentence.** The fourth pass drew two runs in here and the
-    sixth gave them a legend to tell them apart; the owner's verdict on the built
-    panel was that the legend was not understandable, which is the whole game lost -
-    a driver's display that needs a key needs it at 90 km/h. So the second run is
-    gone, to the corner where the same number was already printed, and what is left
-    is generation as an area under a phrase that names it: «● 14 кВт В БАТАРЕЮ ·
-    ПОСЛЕДНИЕ 2 МИН». No word on this panel is «ГЕНЕРАЦИЯ» any more, or «ОБОРОТЫ».
+    **One quantity, one sentence, and the sentence claims only what is known.** The
+    fourth pass drew two runs and a legend; the owner could not read the legend.
+    The eighth drew one run under «● 14 кВт В БАТАРЕЮ · ПОСЛЕДНИЕ 2 МИН»; the first
+    two drives saw the engine run with the generation id flat, and a box of zeros
+    drawn in blue under «В БАТАРЕЮ» for two minutes after the engine had stopped -
+    «плоская синяя полоса», «что в батарею?». What GENERATION_KW is in motion is
+    not known (docs/energy-display-contract.md, §2.5), so:
 
-    The area is **linear to 30 kW, clamped**, which is the second half of the same
-    verdict - «сплющен», said of a box whose height cannot grow: it is both rows of
-    the shelf, the guard above it and the phrase's caps below. A root over 100 kW
-    put this car's ordinary 14 at a third of that height; linear over 30 puts it at
-    a half, and 30 is what this generator does rather than a span borrowed from the
-    band. Twenty-four steps of five seconds, oldest first, growing from the right.
+    - the box exists only while `ENGINE_RUNNING` is up and the id was above zero
+      somewhere in the window. An engine that gives nothing keeps the trip's cells
+      on the shelf and the revolutions in the corner. It leaves ten seconds after
+      the flag drops - hysteresis against a dropped read, not an afterlife;
+    - the phrase is **«ДВС ДАЁТ 14 кВт · ПОСЛЕДНИЕ 1:22»** - what the engine gives,
+      the same verb as the trip's «ДАЛ ДВС», true whether the id is the pack's
+      charge or the generator's output. No dot: blue means «into the pack»;
+    - the area is the history colour, MUTED_DEEP under INK like the petal's, and a
+      step at zero draws nothing - a zero is never drawn.
 
-    While the box is up the trip's cells are hidden. That is not "куда делся
-    баланс": the box only leaves 120 s after the last live sample, so the balance
-    comes back once, not once per engine cycle, and a winter jam that cycles the
-    engine every ninety seconds never gets the swap at all.
-
-    **When the engine stops the sentence closes up.** The figure and its unit are
-    removed by the staleness rule and the reserve that held the figure's place goes
-    with them, so the dot stands against the words rather than 22 units off them.
-    That hole was the ninth pass's second finding, and it is one shift per engine
-    stop: a reserve keeps a phrase still while a number changes, and by then there
-    is no number left to change.
+    Linear to 30 kW, clamped: 30 is what this generator does when it charges the
+    pack parked, the one thing that has been measured. Twenty-four steps of five
+    seconds, oldest first, growing from the right.
     """
     bins = engine_bins(s['trace'])
     x1 = ENGINE_BOX_RIGHT
@@ -1508,28 +1533,26 @@ def engine_box(s):
     top, bottom = ENGINE_BOX_TOP, ENGINE_BOX_BOTTOM
     height = bottom - top
     xs = [x0 + ENGINE_PITCH * i for i in range(len(bins) + 1)]
-    ys = [bottom - height * min(1.0, max(0.0, v / ENGINE_GEN_FULL)) for v in bins]
 
     out = [line(x0, bottom, x1, bottom, MUTED_DEEP, BAND_HAIRLINE)]
-    outline, field = step_path(xs, ys, bottom)
-    out.append(f'<path d="{field}" fill="{RETURN}" opacity="{f(GEN_AREA_ALPHA)}"/>')
-    out.append(f'<path d="{outline}" fill="none" stroke="{RETURN}" '
-               f'stroke-width="{f(AREA_EDGE)}" stroke-linejoin="round"/>')
+    for start, stop in runs(bins, lambda v: v is not None and v > 0):
+        ys = [bottom - height * min(1.0, v / ENGINE_GEN_FULL) for v in bins[start:stop]]
+        outline, field = step_path(xs[start:stop + 1], ys, bottom)
+        out.append(f'<path d="{field}" fill="{MUTED_DEEP}" opacity="{f(AREA_ALPHA)}"/>')
+        out.append(f'<path d="{outline}" fill="none" stroke="{INK}" opacity="{f(LINE_ALPHA)}" '
+                   f'stroke-width="{f(DATA_LINE)}" stroke-linejoin="round"/>')
 
     # The phrase, laid out right to left off the shelf's own edge: the window, «кВт»,
-    # the figure in its reserve field, the dot. The words never move; the figure and
-    # its unit leave together when the engine stops, which is the panel's one rule
+    # the figure in its reserve field, the words. The words never move; the figure
+    # and its unit leave together on a dropped read, which is the panel's one rule
     # for a stale reading applied to a number living inside a sentence.
     at = legend_anchors()
+    out.append(txt('cl', at['prefix'], ENGINE_LEGEND, LEGEND_PREFIX, 'start', MUTED_DEEP))
     out.append(txt('cl', at['window'], ENGINE_LEGEND, legend_text(len(s['trace'])),
                    'start', MUTED_DEEP))
     generation = s.get('generation') if s.get('ice') == 'running' else None
     if generation is None:
-        # No figure, so no field: the dot closes up against the words rather than
-        # standing 22 units off them with the reserve between (the ninth pass).
-        out.append(dot(at['quiet'], ENGINE_LEGEND - CAP * CAPTION / 2))
         return out
-    out.append(dot(at['mark'], ENGINE_LEGEND - CAP * CAPTION / 2))
     out.append(txt('un', at['field'], ENGINE_LEGEND, f'{generation:.0f}',
                    'end', MUTED_DEEP))
     out.append(txt('un', at['unit'], ENGINE_LEGEND, 'кВт', 'start', MUTED_DEEP))
@@ -1603,15 +1626,14 @@ def right_shelf(s):
     cell, and the seats are counted from the shelf's own edge so the one that does
     exist is always in the same place.
     """
-    # One shelf, two true things. A running engine wins, a warm trace does not: the
-    # owner sat on P with the generator charging the pack and the shelf showed him
-    # three trip figures the ledger had frozen at the last metre instead of the one
-    # live thing on the panel. So the box stays up on P for as long as the engine
-    # turns. Once it stops, standing still wins over the two minutes the trace
-    # keeps - three numbers is what P is for - and rolling, the box owns the shelf
-    # for the whole of its trace. `ContourScene.decide` asks the same question in
-    # the same order.
-    if s.get('trace') and (s.get('ice') == 'running' or not s.get('parked')):
+    # One shelf, one question: is the engine running *and giving*? While it is, the
+    # box owns the shelf - on P as on the move, which is what the owner sat in
+    # front of with the generator charging the pack and three frozen trip figures
+    # in its place. Once the flag drops the box leaves (ten seconds later, against
+    # a dropped read) and the trip's cells come back; an engine that runs and gives
+    # nothing never had the shelf. `ContourScene.decide` asks the same question.
+    if s.get('ice') == 'running' and any(
+            v is not None and v > 0 for v in engine_bins(s.get('trace') or [])):
         return engine_box(s)
     if not s['trip_known']:
         return []
@@ -1663,27 +1685,47 @@ def petal_history(bars):
     if not bars:
         return []
     zero, top, bottom = PETAL_ZERO_Y, PETAL_BOX_TOP, PETAL_BOX_BOTTOM
+    steps = petal_bins(bars)
     # The pitch is the box divided by the window rather than by what has arrived, and
     # the run is anchored at the box's right edge, so a history still filling grows
-    # leftward into its box instead of stretching across it. Stretched, three hundred
-    # metres of road would be drawn as three kilometres.
-    pitch = PETAL_BOX_W / PETAL_BUCKETS
-    left = PETAL_BOX_X + (PETAL_BUCKETS - len(bars)) * pitch
-    xs = [left + pitch * i for i in range(len(bars) + 1)]
-    spend = [zero - min(max(v, 0.0) / PETAL_FULL, 1.0) * (zero - top) for v in bars]
-    outline, field = step_path(xs, spend, zero)
-    out = [
-        f'<path d="{field}" fill="{MUTED_DEEP}" opacity="{f(AREA_ALPHA)}"/>',
-        f'<path d="{outline}" fill="none" stroke="{INK}" opacity="{f(LINE_ALPHA)}" '
-        f'stroke-width="{f(DATA_LINE)}" stroke-linejoin="round"/>',
-    ]
-    for start, stop in runs(bars, lambda v: v < 0):
-        back = [zero + min(-bars[i] / PETAL_RETURN_FULL, 1.0) * (bottom - zero)
-                for i in range(start, stop)]
-        d = step_patch(xs[start:stop + 1], back, zero)
+    # leftward into its box instead of stretching across it. A partial newest step is
+    # as wide as the road it has.
+    pitch = PETAL_BOX_W / PETAL_BINS
+    xs = [PETAL_BOX_X + (PETAL_BINS - sum(share for _, share in steps)) * pitch]
+    for _, share in steps:
+        xs.append(xs[-1] + share * pitch)
+
+    def spend_y(v):
+        return zero - min(max(v, 0.0) / PETAL_FULL, 1.0) * (zero - top)
+
+    def back_y(v):
+        return zero + min(max(-v, 0.0) / PETAL_RETURN_FULL, 1.0) * (bottom - zero)
+
+    out = []
+    values = [v for v, _ in steps]
+    # Spending: one continuous field per run of known steps, breaking at a hole; a
+    # returning step lies on the zero, because what was spent there is nothing.
+    for start, stop in runs(values, lambda v: v is not None):
+        outline, field = step_path(xs[start:stop + 1], [spend_y(v) for v in values[start:stop]], zero)
+        out.append(f'<path d="{field}" fill="{MUTED_DEEP}" opacity="{f(AREA_ALPHA)}"/>')
+        out.append(f'<path d="{outline}" fill="none" stroke="{INK}" opacity="{f(LINE_ALPHA)}" '
+                   f'stroke-width="{f(DATA_LINE)}" stroke-linejoin="round"/>')
+    # The return: a blue shape per run of returning steps, standing on the zero on
+    # its own posts, only where it happened.
+    for start, stop in runs(values, lambda v: v is not None and v < 0):
+        d = step_patch(xs[start:stop + 1], [back_y(v) for v in values[start:stop]], zero)
         out.append(f'<path d="{d}" fill="{RETURN}" opacity="{f(RETURN_AREA_ALPHA)}"/>')
         out.append(f'<path d="{d}" fill="none" stroke="{RETURN_INK}" '
                    f'stroke-width="{f(DATA_LINE)}" stroke-linejoin="round"/>')
+    # A step past a ceiling is cut, and the cut is marked: a tick outside the box.
+    for i, v in enumerate(values):
+        if v is None:
+            continue
+        cx = (xs[i] + xs[i + 1]) / 2
+        if v >= PETAL_FULL:
+            out.append(line(cx, top - 2, cx, top - 2 - PETAL_TICK, INK, DATA_LINE))
+        elif v <= -PETAL_RETURN_FULL:
+            out.append(line(cx, bottom + 2, cx, bottom + 2 + PETAL_TICK, RETURN_INK, DATA_LINE))
     out.append(line(PETAL_BOX_X, zero, PETAL_BOX_X + PETAL_BOX_W, zero,
                     MUTED_DEEP, BAND_HAIRLINE))
     return out
@@ -1899,44 +1941,45 @@ STATES = [
      sc(kw=22.0, peak=41.0, volts=549.0, temps=COOL,
         trip=dict(net=1.4, regen=0.4, ice=0.0, km=6),
         bars=consumption_history(18.6)[:37], petal='19')),
-    ('Разгон · 128 кВт, пик-холд стоит впереди кончика и сползает к нему',
+    ('Разгон · 128 кВт, пик-холд стоит впереди кончика и сползает к нему; полкилометра газа '
+     'в пол — ступень выше 40, срезана с меткой над коробкой',
      sc(kw=128.0, peak=163.0, volts=531.0, temps=WORKED,
         trip=dict(net=10.0, regen=3.1, ice=0.0, km=45),
-        bars=consumption_history(20.4), petal='20')),
+        bars=with_launch(consumption_history(20.4)), petal='21')),
     ('Рекуперация · сторона и цвет меняются, не появляется ничего',
      sc(kw=-42.0, peak=-58.0, volts=573.0, temps=COOL,
         trip=dict(net=9.2, regen=3.4, ice=0.0, km=43),
         bars=consumption_history(11.2), petal='11')),
-    ('ДВС генерирует 82 с · генерация отдельной линией под лентой, по шкале возврата; '
-     'коробка выросла справа на 17 ступеней по 5 с',
+    ('ДВС даёт 14 кВт уже 82 с · серая площадь под фразой «ДВС ДАЁТ 14 кВт · ПОСЛЕДНИЕ 1:22», '
+     'на ленте ДВС не рисуется; коробка выросла справа на 17 ступеней по 5 с',
      sc(kw=28.0, peak=52.0, ice='running', rpm=1780.0, generation=14.0,
         trace=engine_history(82), volts=548.0, temps=WORKED,
         bars=consumption_history(17.4), petal='17')),
-    ('ДВС выключился 40 с назад · коробка ещё здесь, у правого края ступени на нуле; '
-     'цифра, «кВт» и её резерв ушли — точка встала к словам',
+    ('ДВС выключился · флаг упал, через 10 с коробка ушла: полка — поездка, в углу минуты',
      sc(kw=34.0, peak=68.0, ice='slept', ice_minutes=6.0,
-        trace=engine_history(120, stopped=40), volts=551.0, temps=WORKED,
+        trip=dict(net=9.0, regen=2.8, ice=1.1, km=40), volts=551.0, temps=WORKED,
         bars=consumption_history(17.1), petal='17')),
-    ('Шов на ленте · как это выглядит, если генерация НЕ входит в мощность пакета',
-     sc(kw=28.0, peak=52.0, ice='running', rpm=1780.0, generation=14.0,
-        seam_on_band=True, trace=engine_history(82), volts=548.0, temps=WORKED,
-        bars=consumption_history(17.4), petal='17')),
+    # The first drive's picture, drawn the honest way. The engine turns and the
+    # generation id reads zero - which is what the two drives saw - and the panel
+    # says exactly that: revolutions in the corner, the trip on the shelf, no box.
+    ('ДВС работает на ходу и батарее ничего не даёт · коробки нет: полка — поездка, '
+     'обороты в углу',
+     sc(kw=34.0, peak=68.0, ice='running', rpm=2150.0, generation=0.0,
+        trace=[0.0] * 60, trip=dict(net=9.3, regen=3.1, ice=0.4, km=42),
+        volts=548.0, temps=WORKED, bars=consumption_history(17.4), petal='17')),
     ('Стоянка на P · полный расклад тремя ячейками, у лепестка появилась десятая',
      sc(kw=1.4, volts=561.0, temps=COOL, parked=True,
         ice='slept', ice_minutes=6.0,
         trip=dict(net=9.3, regen=3.1, ice=1.1, km=42),
         bars=CALM_BARS, petal='16,8')),
-    # The same P, with the engine's box still warm behind it. Two true things and one
-    # shelf: once the engine has stopped, standing still wins, because three numbers
-    # is what P is for and the box is about a drive that has ended. It comes back
-    # the moment the car moves.
-    ('Стоянка с тёплой трассой · ДВС выключился 40 с назад, но машина стоит: '
-     'три ячейки поездки, коробки нет',
-     sc(kw=1.4, volts=558.0, temps=WORKED, parked=True,
-        trace=engine_history(120, stopped=40),
-        ice='slept', ice_minutes=6.0,
-        trip=dict(net=9.3, regen=3.1, ice=1.1, km=42),
-        bars=CALM_BARS, petal='16,8')),
+    # A stretch the log has no energy for - a dropped link on the road - is a hole in
+    # the chart and nothing else: the road under it is still the road, the figure is
+    # the mean of what is known, and nothing is drawn as an invented zero.
+    ('Пропуск связи на дороге · километр без энергии — дыра в графике, дорога под ней '
+     'считается, цифра — среднее по известному',
+     sc(kw=22.0, peak=41.0, volts=549.0, temps=COOL,
+        trip=dict(net=6.1, regen=1.9, ice=0.0, km=29),
+        bars=with_hole(consumption_history(18.2), 60, 70), petal='18')),
     # And the same P with the engine actually running - charging the pack while the
     # car stands. The trip is closed and its figures are frozen at the last metre,
     # so they are not what the shelf should be showing: the live box is, with the
@@ -2106,19 +2149,15 @@ def plan_board():
                                      f'{ENGINE_BINS} ступеней по '
                                      f'{ENGINE_BIN_SECONDS} с, шаг '
                                      f'{ENGINE_PITCH:.2f}, растёт справа'),
-        (right_lane, ENGINE_BOX_TOP, f'только генерация: 0…{ENGINE_GEN_FULL:.0f} кВт '
-                                     f'линейно с ограничением · осей нет · '
-                                     f'14 кВт = {14 / ENGINE_GEN_FULL:.0%} высоты'),
+        (right_lane, ENGINE_BOX_TOP, f'пока ДВС даёт: 0…{ENGINE_GEN_FULL:.0f} кВт, срез · серое, '
+                                     f'ноль не рисуется · 14 кВт = {14 / ENGINE_GEN_FULL:.0%}'),
         (right_lane, ENGINE_LEGEND, f'фраза под коробкой · 18 · базовая '
                                     f'{ENGINE_LEGEND:.2f} = запас {CLEARANCE:.0f} над '
                                     f'лентой'),
-        (right_lane, ENGINE_LEGEND, f'«● 14 кВт {LEGEND_WINDOW}» '
+        (right_lane, ENGINE_LEGEND, f'«{LEGEND_PREFIX} 14 кВт {LEGEND_WINDOW}» '
                                     f'{legend_phrase(LEGEND_WINDOW):.1f} + {CLEARANCE:.0f} '
                                     f'в {ENGINE_BOX_RIGHT - ENGINE_BOX_FULL_LEFT:.1f}; '
-                                    f'уже — «· 2 МИН»'),
-        (right_lane, ENGINE_LEGEND, f'точка на {legend_anchors()["mark"]:.1f} при цифре и '
-                                    f'на {legend_anchors()["quiet"]:.1f} без неё: резерв '
-                                    f'{GEN_FIELD:.1f} уходит вместе с числом, слова стоят'),
+                                    f'слова с {legend_anchors()["prefix"]:.1f}, точки нет'),
         (right_lane, HERO_BASELINE, f'герой · 88 Light · базовая {HERO_BASELINE:.2f} · '
                                     f'поле {HERO_FIELD_LEFT:.1f}…{HERO_FIELD_RIGHT:.1f} · '
                                     f'«кВт» 34 на {HERO_UNIT_X:.1f}'),
@@ -2144,8 +2183,9 @@ def plan_board():
                                  f'по фото 05.09 — {PETAL_BOX_X - RANGE_BADGE_SEEN:.0f}'),
         (right_lane, PETAL_BOX_TOP, f'коробка расхода · {PETAL_BOX_W:.0f} × '
                                     f'{PETAL_BOX_H:.2f} на {PETAL_BOX_X:.1f}…'
-                                    f'{PETAL_BOX_RIGHT:.1f} · {PETAL_BUCKETS} корзин по '
-                                    f'{PETAL_BOX_W / PETAL_BUCKETS:.2f}'),
+                                    f'{PETAL_BOX_RIGHT:.1f} · {PETAL_BINS} ступеней по 500 м, '
+                                    f'{PETAL_BOX_W / PETAL_BINS:.2f} = '
+                                    f'{millimetres(PETAL_BOX_W / PETAL_BINS):.1f} мм'),
         (right_lane, PETAL_BOX_TOP, f'нуль = базовая цифры {PETAL_ZERO_Y:.0f} · вверх '
                                     f'капитель {CAP * FIGURE:.2f} на 0…{PETAL_FULL:.0f}, '
                                     f'вниз выносной {PETAL_DESCENDER * FIGURE:.2f} на 0…'
@@ -2183,8 +2223,9 @@ def plan_legend():
         txt('nt', LEFT_EDGE, 30, f'панель {W:.1f} × {H:.0f} · шаг {STEP:.0f} · поле '
                                  f'{MARGIN:.0f} · лесенка кластера 88 · 52 · 34 · 18'),
         txt('nt', LEFT_EDGE, 52, f'стекло {GLASS_WIDTH_MM:.0f} мм, глаз '
-                                 f'{EYE_DISTANCE_MM:.0f} мм — рулетка владельца '
-                                 f'04.09.2026 → 1 единица = {UNIT_MM:.4f} мм'),
+                                 f'{EYE_DISTANCE_MM:.0f} мм — стекло по рулетке 04.09.2026, '
+                                 f'глаз по слову владельца 07.09.2026 → 1 единица = '
+                                 f'{UNIT_MM:.4f} мм'),
         txt('nt', LEFT_EDGE, 74, f'капитель {CAP:.2f} em · 1′ на {EYE_DISTANCE_MM:.0f} мм '
                                  f'= {ARCMIN_MM:.4f} мм · угловой размер капители = '
                                  f'кегль × {arcminutes(1.0):.3f}′'),
@@ -2317,13 +2358,12 @@ if __name__ == '__main__':
           f'from {ENGINE_LEGEND - CAP * CAPTION:.2f}, box stops '
           f'{ENGINE_LEGEND - CAP * CAPTION - ENGINE_BOX_BOTTOM:.2f} above them; the '
           f'shelf baselines {SHELF_FIGURE:.2f}/{SHELF_CAPTION:.2f} do not move')
-    print(f'          «● 14 кВт {LEGEND_WINDOW}» {legend_phrase(LEGEND_WINDOW):.2f} + '
+    print(f'          «{LEGEND_PREFIX} 14 кВт {LEGEND_WINDOW}» {legend_phrase(LEGEND_WINDOW):.2f} + '
           f'{CLEARANCE:.0f} in {ENGINE_BOX_RIGHT - ENGINE_BOX_FULL_LEFT:.2f} -> '
           f'{legend_window()} (short would be {legend_phrase(LEGEND_WINDOW_SHORT):.2f})')
     _at = legend_anchors()
-    print(f'          dot at {_at["mark"]:.2f} with the figure, {_at["quiet"]:.2f} '
-          f'without it: the {GEN_FIELD:.2f} reserve leaves with the number and the '
-          f'words do not move')
+    print(f'          words from {_at["prefix"]:.2f}, figure ends {_at["field"]:.2f}, '
+          f'no dot: the phrase claims what the engine gives, not where it goes')
     print(f'petal   figure ends {PETAL_FIGURE_RIGHT:.2f}, {PETAL_SHIFT:.0f} right of the axis '
           f'centre and {PETAL_FIGURE_RIGHT - HERO_UNIT_X:+.2f} from where the hero\'s «кВт» '
           f'begins, reserve to {PETAL_FIGURE_RIGHT - PETAL_FIELD_W:.2f}, unit '
