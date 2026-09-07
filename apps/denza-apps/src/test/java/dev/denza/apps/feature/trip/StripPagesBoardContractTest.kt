@@ -166,16 +166,17 @@ class StripPagesBoardContractTest {
      */
     @Test
     fun theShapeIsTheClustersOwnTwentyBins() {
+        // Against the shared constant rather than against a copy of it in this renderer: five
+        // aliases used to stand there and a test asserted each equalled its own initialiser.
         assertEquals(
             "bins",
             number("""CHART_BINS = (\d+)""", GENERATOR).toInt(),
-            VehiclePageRenderer.CHART_BINS,
+            ConsumptionChart.BINS,
         )
-        assertEquals("which is the window over the bin", ConsumptionChart.BINS, VehiclePageRenderer.CHART_BINS)
         assertEquals(
-            "half a kilometre a step",
+            "which is half a kilometre a step over the window",
             ConsumptionWindow.KM / ConsumptionChart.BIN_KM,
-            VehiclePageRenderer.CHART_BINS.toDouble(),
+            ConsumptionChart.BINS.toDouble(),
             1e-9,
         )
         assertEquals("the box", number("""CHART_H = (\d+)""", GENERATOR),
@@ -195,14 +196,16 @@ class StripPagesBoardContractTest {
     @Test
     fun bothScreensClampOnOneLadder() {
         assertEquals("the ceiling", number("""CHART_FULL = (\d+)""", GENERATOR),
-            VehiclePageRenderer.CHART_FULL.toDouble(), 1e-6)
+            ContourPlan.PETAL_FULL.toDouble(), 1e-6)
         assertEquals("and the floor", number("""CHART_RETURN_FULL = (\d+)""", GENERATOR),
-            VehiclePageRenderer.CHART_RETURN_FULL.toDouble(), 1e-6)
-        assertEquals("the cluster's own", ContourPlan.PETAL_FULL, VehiclePageRenderer.CHART_FULL)
-        assertEquals(ContourPlan.PETAL_RETURN_FULL, VehiclePageRenderer.CHART_RETURN_FULL)
+            ContourPlan.PETAL_RETURN_FULL.toDouble(), 1e-6)
         assertEquals("the tick over a cut bin", number("""CHART_TICK = (\d+)""", GENERATOR),
-            VehiclePageRenderer.CHART_TICK.toDouble(), 1e-6)
-        assertEquals(ContourPlan.PETAL_TICK, VehiclePageRenderer.CHART_TICK)
+            ContourPlan.PETAL_TICK.toDouble(), 1e-6)
+        // And the gutter's own labels are those two ceilings written out, on both records.
+        assertEquals("40", ContourPlan.PETAL_FULL_LABEL)
+        assertEquals("−20", ContourPlan.PETAL_RETURN_FULL_LABEL)
+        assertEquals(VehiclePageRenderer.AXIS_CEILING, ContourPlan.PETAL_FULL_LABEL)
+        assertTrue("the board's gutter", BOARD.readText().contains(">${ContourPlan.PETAL_RETURN_FULL_LABEL}<"))
         // And the board draws the two cases: a bin past the ceiling, and one the log has no
         // energy for.
         assertTrue("a launch scene", GENERATOR.readText().contains("history(31.6, launch=True)"))
@@ -243,14 +246,14 @@ class StripPagesBoardContractTest {
             "the wide line",
             board.contains(
                 "${VehiclePageWords.TITLE_SPEND} <span class=\"spend-figure\">19,4</span> " +
-                    "${VehiclePageRenderer.UNIT_PER_100KM} ${VehiclePageRenderer.SEPARATOR} ЗА 10 КМ",
+                    ContourReadout.windowFoot(ConsumptionWindow.KM, ConsumptionWindow.KM, narrow = false),
             ),
         )
         assertTrue(
             "and the pane's, which drops the word and nothing else",
             board.contains(
-                "<span class=\"spend-figure\">19,4</span> ${VehiclePageRenderer.UNIT_PER_100KM} " +
-                    "${VehiclePageRenderer.SEPARATOR} 10 КМ",
+                "<span class=\"spend-figure\">19,4</span> " +
+                    ContourReadout.windowFoot(ConsumptionWindow.KM, ConsumptionWindow.KM, narrow = true),
             ),
         )
         // Never a whole-number rounding of a filling window, on either record.
@@ -297,8 +300,8 @@ class StripPagesBoardContractTest {
             EnergyReadouts.WORD_FROM_PACK,
             EnergyReadouts.WORD_FROM_ENGINE,
             EnergyReadouts.WORD_FROM_CHARGER,
-            VehiclePageWords.TITLE_RPM,
-            VehiclePageWords.TITLE_ENGINE_MINUTES,
+            ContourReadout.TITLE_ENGINE_RPM_CAPS,
+            ContourReadout.TITLE_ENGINE_MINUTES_CAPS,
             VehiclePageWords.TITLE_VOLTS,
             VehiclePageWords.TITLE_SPEND,
             VehiclePageRenderer.TITLE_CLOSED,

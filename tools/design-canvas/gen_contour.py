@@ -876,16 +876,23 @@ def legend_anchors():
 
     «ДВС ДАЁТ 14 кВт · ПОСЛЕДНИЕ 1:22»: the window, «кВт», the figure in a two-digit
     reserve so 9 and 14 start the sentence in the same place, the words in front.
-    The words never move. There is no dot and no quiet anchor any more: the blue
-    mark means «into the pack» everywhere else on the panel and this phrase makes
-    no such claim, and the box only exists while the engine gives, so the figure
-    is never absent from a box that is up (the energy display contract, §2.5).
+    There is no dot: the blue mark means «into the pack» everywhere else on the
+    panel and this phrase makes no such claim (the energy display contract, §2.5).
+
+    There **is** a quiet anchor, and it is the words' own. The box holds ten
+    seconds after the flag drops and `GENERATION_KW` is not printed at zero - which
+    is the state both recorded drives were in - so «ДВС ДАЁТ · ПОСЛЕДНИЕ 1:22» is a
+    sentence this panel says often, and it was drawn with the figure's reserve field
+    standing empty in the middle of it. Closed up it is the same sentence with
+    nothing left out; the figure's own start never moves.
     """
     window_x = RIGHT_EDGE - W_CAPTION[legend_window()]
     unit_x = window_x - SMALL_GAP - W_KW
     field_right = unit_x - SMALL_GAP
     prefix_x = field_right - GEN_FIELD - SMALL_GAP - W_CAPTION[LEGEND_PREFIX]
-    return dict(window=window_x, unit=unit_x, field=field_right, prefix=prefix_x)
+    quiet_x = window_x - SMALL_GAP - W_CAPTION[LEGEND_PREFIX]
+    return dict(window=window_x, unit=unit_x, field=field_right, prefix=prefix_x,
+                quiet=quiet_x)
 
 
 def legend_window():
@@ -2157,6 +2164,8 @@ def plan_board():
                                     f'{legend_phrase(LEGEND_WINDOW):.1f} + {CLEARANCE:.0f} '
                                     f'в {ENGINE_BOX_RIGHT - ENGINE_BOX_FULL_LEFT:.1f}; '
                                     f'слова с {legend_anchors()["prefix"]:.1f}, точки нет'),
+        (right_lane, ENGINE_LEGEND, f'без цифры смыкается: слова с '
+                                    f'{legend_anchors()["quiet"]:.1f}, ноль не печатается'),
         (right_lane, HERO_BASELINE, f'герой · 88 Light · базовая {HERO_BASELINE:.2f} · '
                                     f'поле {HERO_FIELD_LEFT:.1f}…{HERO_FIELD_RIGHT:.1f} · '
                                     f'«кВт» 34 на {HERO_UNIT_X:.1f}'),

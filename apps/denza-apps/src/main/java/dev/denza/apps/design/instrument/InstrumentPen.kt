@@ -423,6 +423,45 @@ class InstrumentPen {
         canvas.drawPath(path, stroke)
     }
 
+    /**
+     * The marks over the bins a ladder could not hold, so a cut is seen to be a cut.
+     *
+     * Three units standing just outside the edge the bin hit, centred on the bin. Here rather than
+     * in either renderer because both consumption charts have to draw the same mark: they had two
+     * copies of the walk, and one of them had put the return's tick in the spending's ink.
+     *
+     * @param edges the bin boundaries, `count + 1` of them, in pixels
+     * @param aboveY where a mark over the ceiling starts, gap already taken
+     * @param belowY and where one under the floor does
+     */
+    fun clampTicks(
+        canvas: Canvas,
+        values: FloatArray,
+        first: Int,
+        count: Int,
+        edges: FloatArray,
+        aboveY: Float,
+        belowY: Float,
+        tickV: Float,
+        widthV: Float,
+        ceiling: Float,
+        returnCeiling: Float,
+        aboveColor: Int,
+        belowColor: Int,
+    ) {
+        val tick = v(tickV)
+        for (index in 0 until count) {
+            val value = values[first + index]
+            if (value.isNaN()) continue
+            val centre = (edges[index] + edges[index + 1]) / 2f
+            if (value >= ceiling) {
+                line(canvas, centre, aboveY, centre, aboveY - tick, aboveColor, widthV)
+            } else if (value <= -returnCeiling) {
+                line(canvas, centre, belowY, centre, belowY + tick, belowColor, widthV)
+            }
+        }
+    }
+
     private fun typefaceFor(weight: InstrumentWeight): Typeface = when (weight) {
         InstrumentWeight.LIGHT -> LIGHT
         InstrumentWeight.REGULAR -> Typeface.SANS_SERIF

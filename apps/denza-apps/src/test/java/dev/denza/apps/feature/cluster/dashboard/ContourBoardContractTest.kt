@@ -542,6 +542,39 @@ class ContourBoardContractTest {
     }
 
     /**
+     * And where the words stand when there is no figure between them and the window.
+     *
+     * «ДВС ДАЁТ · ПОСЛЕДНИЕ 1:22» is a sentence this panel says: the box holds ten seconds after
+     * the flag drops, and `GENERATION_KW` is not printed at zero - which is the state both
+     * recorded drives were in. It was drawn with the figure's two-digit reserve standing empty in
+     * the middle of the phrase, which reads as a word missing rather than as a sentence.
+     *
+     * The board draws no such scene - both of its engine states have a figure - so the number is
+     * read off the plan board's own note, which is where the generator prints the anchors it
+     * computes.
+     */
+    @Test
+    fun theSentenceClosesUpWhenThereIsNoFigureInIt() {
+        assertEquals(
+            "the quiet anchor is the window's, one gap and the words back",
+            plan.legendWindowX - plan.smallGap - ContourType.BOARD.width(
+                ContourReadout.LEGEND_PREFIX,
+                InstrumentFace.CAPTION,
+            ),
+            plan.legendPrefixQuietX,
+            TOLERANCE,
+        )
+        assertTrue(
+            "and it is the phrase's own room given back",
+            plan.legendPrefixQuietX > plan.legendPrefixX,
+        )
+        val printed = Regex("""без цифры смыкается: слова с ([\d.]+)""")
+            .find(planBoard())?.groupValues?.get(1)
+            ?: error("the plan board does not print the quiet anchor")
+        assertEquals("the board's own number", printed.toFloat(), plan.legendPrefixQuietX, TOLERANCE)
+    }
+
+    /**
      * The sentence says what the engine gives, not where it goes - and it carries no dot.
      *
      * «В БАТАРЕЮ» was a claim about `GENERATION_KW` in motion that no recording supports: the two
@@ -562,9 +595,9 @@ class ContourBoardContractTest {
         assertTrue(generator().contains("LEGEND_PREFIX = 'ДВС ДАЁТ'"))
         assertTrue(generator().contains("LEGEND_WINDOW = '· ПОСЛЕДНИЕ 0:00'"))
         assertTrue(generator().contains("LEGEND_WINDOW_SHORT = '· 0:00'"))
-        // The dot and the anchor it used to close up onto are gone from both records: the box
-        // exists only while the engine gives, so its figure is never absent from a box that is up.
-        assertTrue("no quiet anchor in the generator", !generator().contains("quiet="))
+        // The dot is gone from both records. The anchor it used to close up onto is not: the box
+        // holds ten seconds after the flag drops and the figure is not printed at zero, so the
+        // sentence has to close up around a figure that is not there - see the quiet anchor below.
         val marks = DOT.findAll(board).map { it.groupValues[2].toFloat() }.toList()
         assertTrue(
             "and no mark on the engine's own baseline: $marks",

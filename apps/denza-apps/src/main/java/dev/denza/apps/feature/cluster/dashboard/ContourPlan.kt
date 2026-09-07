@@ -326,6 +326,19 @@ internal class ContourPlan(
     val legendPrefixX: Float =
         legendFigureRight - generationField - smallGap - caption(ContourReadout.LEGEND_PREFIX)
 
+    /**
+     * And where the words start when there is no figure between them and the window.
+     *
+     * The box holds ten seconds after the flag drops, and `GENERATION_KW` is not printed at zero,
+     * so «ДВС ДАЁТ · ПОСЛЕДНИЕ 1:22» is a sentence this panel says - it was drawn with the
+     * figure's reserve field standing empty in the middle of it, which reads as a word missing
+     * rather than as a phrase. Closed up, it is the same sentence with nothing left out. This is
+     * the analogue of the quiet anchor the retired dot used to close onto, and it is a *second*
+     * anchor rather than a moving one: the figure's own start never changes.
+     */
+    val legendPrefixQuietX: Float =
+        legendWindowX - smallGap - caption(ContourReadout.LEGEND_PREFIX)
+
     /** What the whole phrase measures, which is what decides the window. */
     val legendPhraseWidth: Float = rightEdge - legendPrefixX
 
@@ -574,6 +587,21 @@ internal class ContourPlan(
 
         const val PETAL_FULL = 40f
         const val PETAL_RETURN_FULL = 20f
+
+        /**
+         * And what a gutter writes them as, which is the car page's axis and nobody else's.
+         *
+         * The cluster's petal has no gutter - the box is 232 units of a shelf and the ladder is
+         * fixed - so these live here with the ladder rather than on the screen that draws them:
+         * they are labels of two constants, printed once, not readings of anything.
+         *
+         * The floor carries a typographic minus, U+2212, rather than the hyphen every figure in
+         * this app is printed with: it is a label on an axis, it is what the board draws, and a
+         * hyphen at 15 px beside «40» reads as a dash between two numbers.
+         */
+        val PETAL_FULL_LABEL: String = ContourReadout.whole(PETAL_FULL.toDouble())
+        val PETAL_RETURN_FULL_LABEL: String =
+            "−" + ContourReadout.whole(PETAL_RETURN_FULL.toDouble())
 
         /** A cut bin's mark: three units of INK just outside the edge it was cut against. */
         const val PETAL_TICK = 3f

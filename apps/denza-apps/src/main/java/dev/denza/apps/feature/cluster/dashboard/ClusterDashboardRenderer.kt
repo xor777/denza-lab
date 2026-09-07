@@ -123,7 +123,7 @@ internal class ClusterDashboardRenderer {
         band(canvas, plan, motion, scene)
         hero(canvas, plan, motion, scene)
         leftCorner(canvas, plan, telemetry, scene)
-        rightCorner(canvas, plan, telemetry, motion, scene, stage)
+        rightCorner(canvas, plan, motion, scene)
         leftShelf(canvas, plan, telemetry, scene)
         rightShelf(canvas, plan, telemetry, scene, stage)
         petal(canvas, plan, telemetry, scene, stage)
@@ -305,24 +305,29 @@ internal class ClusterDashboardRenderer {
     private fun rightCorner(
         canvas: Canvas,
         plan: ContourPlan,
-        t: VehicleTelemetry,
         motion: ContourMotion,
         scene: ContourScene,
-        stage: ContourStage,
     ) {
+        // Which of the three it is, is `EnergyReadouts`': the car page draws the same cell and the
+        // two used to decide it from different things - the trip here, the trace there - so a cold
+        // engine had a corner on one screen and none on the other.
+        val cell = readouts.engineCell
+        if (cell == EnergyReadouts.EngineCell.NONE) return
         val edge = pen.v(plan.rightEdge)
-        val titleY = pen.v(plan.cornerTitleBaseline)
+        pen.text(
+            canvas,
+            readouts.engineCellTitle,
+            edge,
+            pen.v(plan.cornerTitleBaseline),
+            InstrumentFace.HEADING,
+            DenzaPalette.MUTED_DEEP,
+            Paint.Align.RIGHT,
+        )
         val figureY = pen.v(plan.cornerFigureBaseline)
-        if (stage.engineRunning && scene.known(ContourValue.RPM)) {
-            pen.text(
-                canvas,
-                ContourReadout.TITLE_ENGINE_RPM,
-                edge,
-                titleY,
-                InstrumentFace.HEADING,
-                DenzaPalette.MUTED_DEEP,
-                Paint.Align.RIGHT,
-            )
+        if (cell == EnergyReadouts.EngineCell.RPM) {
+            // The revolutions are the one figure in this corner that is *followed*, so the panel
+            // prints its own damped value rather than the readouts' raw one; the freshness gate is
+            // still the scene's.
             if (!scene.fresh(ContourValue.RPM) || !motion.rpmReady) return
             pen.text(
                 canvas,
@@ -335,20 +340,11 @@ internal class ClusterDashboardRenderer {
             )
             return
         }
-        if (!scene.known(ContourValue.ENGINE_MINUTES)) return
-        pen.text(
-            canvas,
-            ContourReadout.TITLE_ENGINE_MINUTES,
-            edge,
-            titleY,
-            InstrumentFace.HEADING,
-            DenzaPalette.MUTED_DEEP,
-            Paint.Align.RIGHT,
-        )
         if (!scene.fresh(ContourValue.ENGINE_MINUTES)) return
+        val minutes = readouts.engineCellFigure ?: return
         pen.text(
             canvas,
-            figures.whole(ContourFigures.Slot.ENGINE_MINUTES, t.trip.engineMinutes),
+            minutes,
             edge,
             figureY,
             InstrumentFace.FIGURE,
@@ -731,9 +727,14 @@ internal class ClusterDashboardRenderer {
      *
      * **The words say what the engine gives, not where it goes**, and there is no dot. «В БАТАРЕЮ»
      * was a claim about `GENERATION_KW` in motion that no recording supports; «даёт» is true under
-     * either meaning of the id and is the trip cell's own verb. And the box exists only while the
-     * engine gives, so the figure is never absent from a box that is up - which is what retired the
-     * quiet anchor the dot used to close up onto.
+     * either meaning of the id and is the trip cell's own verb.
+     *
+     * **And the sentence closes up when there is no figure.** The box holds ten seconds after the
+     * flag drops and the figure is not printed at zero, so the phrase is drawn with a hole in the
+     * middle of it often enough to be the ordinary case: «ДВС ДАЁТ ⎵⎵ · ПОСЛЕДНИЕ 1:22» reads as a
+     * word missing. The words move to [ContourPlan.legendPrefixQuietX] instead, which is the same
+     * sentence with nothing left out. The last reading is **not** held across the hold: a figure
+     * that stopped arriving is not a figure.
      */
     private fun engineLegend(
         canvas: Canvas,
@@ -742,10 +743,13 @@ internal class ClusterDashboardRenderer {
         stage: ContourStage,
     ) {
         val y = pen.v(plan.engineLegendBaseline)
+        val figure =
+            if (stage.engineRunning && scene.fresh(ContourValue.GENERATION)) readouts.engineFigure
+            else null
         pen.text(
             canvas,
             readouts.enginePrefix,
-            pen.v(plan.legendPrefixX),
+            pen.v(if (figure == null) plan.legendPrefixQuietX else plan.legendPrefixX),
             y,
             InstrumentFace.CAPTION,
             DenzaPalette.MUTED_DEEP,
@@ -761,8 +765,7 @@ internal class ClusterDashboardRenderer {
             InstrumentFace.CAPTION,
             DenzaPalette.MUTED_DEEP,
         )
-        if (!stage.engineRunning || !scene.fresh(ContourValue.GENERATION)) return
-        val figure = readouts.engineFigure ?: return
+        if (figure == null) return
         pen.text(
             canvas,
             figure,
@@ -826,9 +829,11 @@ internal class ClusterDashboardRenderer {
         // left «до полной» and its countdown off the panel for an entire charge, because a car
         // standing on P with a gun in has never moved the odometer and a fresh install, a reset
         // journal or a restore behind the retention window all have no closed buckets at all.
-        if (scene.known(ContourValue.PETAL) && scene.fresh(ContourValue.PETAL)) {
-            history(canvas, plan, t)
-        }
+        //
+        // **Known rather than fresh**: the chart is closed road (§2.3, §4) and ten kilometres of
+        // road are still ten kilometres of road two seconds after the bus goes quiet. The staleness
+        // rule is about a *reading*, and the figure beside the box is the reading here.
+        if (scene.known(ContourValue.PETAL)) history(canvas, plan)
 
         if (stage.charging) {
             chargeSeat(canvas, plan, t, scene)
@@ -924,7 +929,7 @@ internal class ClusterDashboardRenderer {
      * because what was spent there is nothing - and the return is a blue shape per run of returning
      * bins, hanging under the zero on its own posts.
      */
-    private fun history(canvas: Canvas, plan: ContourPlan, t: VehicleTelemetry) {
+    private fun history(canvas: Canvas, plan: ContourPlan) {
         val chart = readouts.chart
         val values = chart.values
         val count = min(values.size, ContourPlan.PETAL_BINS)
@@ -936,9 +941,7 @@ internal class ClusterDashboardRenderer {
         // is anchored at the box's right edge, so a chart that is still filling grows leftward into
         // its box instead of stretching across it. A partial bin is as wide as the road it has.
         val pitch = plan.petalBoxWidth / ContourPlan.PETAL_BINS
-        var span = 0f
-        for (index in 0 until count) span += chart.widths[first + index]
-        var x = plan.petalBoxLeft + (ContourPlan.PETAL_BINS - span) * pitch
+        var x = plan.petalBoxLeft + (ContourPlan.PETAL_BINS - chart.span) * pitch
         for (index in 0 until count) {
             chartXs[index] = pen.v(x)
             x += chart.widths[first + index] * pitch
@@ -975,7 +978,21 @@ internal class ClusterDashboardRenderer {
                 plan.dataLine,
             )
         }
-        clamps(canvas, plan, values, first, count)
+        pen.clampTicks(
+            canvas,
+            values,
+            first,
+            count,
+            chartXs,
+            pen.v(plan.petalBoxTop - plan.petalTickGap),
+            pen.v(plan.petalBoxBottom + plan.petalTickGap),
+            plan.petalTick,
+            plan.dataLine,
+            plan.petalFull,
+            plan.petalReturnFull,
+            DenzaPalette.INK,
+            DenzaPalette.RETURN_INK,
+        )
         pen.line(
             canvas,
             pen.v(plan.petalBoxLeft),
@@ -985,36 +1002,6 @@ internal class ClusterDashboardRenderer {
             DenzaPalette.MUTED_DEEP,
             plan.bandHairline,
         )
-    }
-
-    /** The mark over a bin the ladder could not hold: three units, just outside the edge it hit. */
-    private fun clamps(
-        canvas: Canvas,
-        plan: ContourPlan,
-        values: FloatArray,
-        first: Int,
-        count: Int,
-    ) {
-        for (index in 0 until count) {
-            val value = values[first + index]
-            if (value.isNaN()) continue
-            val centre = (chartXs[index] + chartXs[index + 1]) / 2f
-            if (value >= plan.petalFull) {
-                val from = pen.v(plan.petalBoxTop - plan.petalTickGap)
-                pen.line(canvas, centre, from, centre, from - pen.v(plan.petalTick), DenzaPalette.INK, plan.dataLine)
-            } else if (value <= -plan.petalReturnFull) {
-                val from = pen.v(plan.petalBoxBottom + plan.petalTickGap)
-                pen.line(
-                    canvas,
-                    centre,
-                    from,
-                    centre,
-                    from + pen.v(plan.petalTick),
-                    DenzaPalette.RETURN_INK,
-                    plan.dataLine,
-                )
-            }
-        }
     }
 
     // ---------------------------------------------------------------- colour, and spans
