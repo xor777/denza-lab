@@ -24,12 +24,18 @@ internal data class VehicleTelemetry(
     val access: VehicleAccess = VehicleAccess.STARTING,
     val message: String = "",
     val values: Map<VehicleSignal, Double> = emptyMap(),
-    /** Closed consumption bars, oldest first, kWh/100 km. */
-    val consumption: List<Double> = emptyList(),
-    /** The last two minutes of revolutions and generation, on a one-second axis. */
+    /** The closed buckets of the last ten kilometres, oldest first. */
+    val consumption: List<ConsumptionSample> = emptyList(),
+    /**
+     * And those same ten kilometres as the twenty bins both screens draw.
+     *
+     * Built once per sweep by [VehicleTelemetryHub] rather than per frame by whoever is drawing:
+     * one history of one quantity, on the cluster and on the car page alike
+     * (`docs/energy-display-contract.md` §2.3).
+     */
+    val chart: ConsumptionChartSnapshot = ConsumptionChartSnapshot.EMPTY,
+    /** The last two minutes of what the engine put back, on a one-second axis. */
     val engineTrace: EngineTraceSnapshot = EngineTraceSnapshot.EMPTY,
-    /** The same two minutes of what the pack itself was doing, which the head unit's strip draws. */
-    val powerTrace: PowerTraceSnapshot = PowerTraceSnapshot.EMPTY,
     /** What this trip has cost so far, integrated by [TripEnergyLedger]. */
     val trip: TripEnergy = TripEnergy(),
 ) {
@@ -120,12 +126,16 @@ internal data class VehicleTelemetry(
     }
 
     /**
-     * The mean of what the consumption window spent, worked out once here rather than per frame.
+     * The window's own consumption, worked out once here rather than per frame.
      *
      * [consumption] is already the window - the hub puts the tail in the snapshot - so this is one
-     * pass over thirty numbers per sweep instead of a filter, a list and an average per frame.
+     * pass per sweep instead of a filter, a list and an average per frame. Net energy over known
+     * road, signed: see [ConsumptionWindow.mean].
      */
     val consumptionMean: Double? = ConsumptionWindow.mean(consumption)
+
+    /** And the road it is the mean of, which is what the unit beside it names. */
+    val consumptionKm: Double = ConsumptionWindow.coveredKm(consumption)
 
     // ------------------------------------------------------------- combustion
 

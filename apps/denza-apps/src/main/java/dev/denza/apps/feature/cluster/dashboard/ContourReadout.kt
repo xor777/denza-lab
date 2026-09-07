@@ -74,28 +74,38 @@ internal object ContourReadout {
      * shape is, what it is worth now, and how far back it goes, in that order. The words «ГЕНЕРАЦИЯ»
      * and «ОБОРОТЫ» are on no part of this panel any more.
      *
-     * **And the window is the box's own reach rather than a literal.** «ПОСЛЕДНИЕ 2 МИН» was
-     * printed from the first second of an engine run, over a box one step wide: the trace grows
-     * from the right and is never front-padded, so two minutes is what it holds when it is full and
-     * nothing else. The figure beside it was honest about a five-second window and the words were
-     * not. It is written as «м:сс» in the panel's tabular figures, so every value is the same width
-     * and no anchor in the phrase moves - which is how the caption can be a coordinate and a
-     * reading at the same time. See [intoPack].
+     * **And the sentence says «даёт» rather than «В БАТАРЕЮ»** since the energy display contract
+     * (§2.5). Where `GENERATION_KW` goes in motion has never been recorded - the two drives so far
+     * saw the engine run with the id flat - so «В БАТАРЕЮ» was a claim about a signal nobody has
+     * logged. «ДВС ДАЁТ» is true under either meaning and is the same verb the trip's «ДАЛ ДВС»
+     * uses; there is no dot, because the blue mark means «into the pack» everywhere else here.
      */
-    const val LEGEND_PREFIX = "В БАТАРЕЮ · ПОСЛЕДНИЕ "
+    const val LEGEND_PREFIX = "ДВС ДАЁТ"
+
+    /**
+     * **And the window is the box's own reach rather than a literal.**
+     *
+     * «ПОСЛЕДНИЕ 2 МИН» was printed from the first second of an engine run, over a box one step
+     * wide: the trace grows from the right and is never front-padded, so two minutes is what it
+     * holds when it is full and nothing else. The figure beside it was honest about a five-second
+     * window and the words were not. It is written as «м:сс» in the panel's tabular figures, so
+     * every value is one width and no anchor in the phrase moves - which is how the caption can be
+     * a coordinate and a reading at the same time. See [intoPack].
+     */
+    const val LEGEND_WINDOW_PREFIX = "· ПОСЛЕДНИЕ "
 
     /**
      * And what is left of it if the face in use crowds the phrase against its own box.
      *
-     * Only «ПОСЛЕДНИЕ» can go. The figure is the reading, the unit is what makes it one,
-     * «В БАТАРЕЮ» is the half of the sentence that says which direction the energy went, and the
-     * duration is the window the shape above is true over.
+     * Only «ПОСЛЕДНИЕ» can go. The figure is the reading, the unit is what makes it one, «ДВС
+     * ДАЁТ» is the whole point of the sentence, and the duration is the window the shape above it
+     * is true over.
      */
-    const val LEGEND_PREFIX_SHORT = "В БАТАРЕЮ · "
+    const val LEGEND_WINDOW_PREFIX_SHORT = "· "
 
     /** What the phrase is *measured* from: every «м:сс» is four tabular glyphs and one mark. */
-    const val LEGEND_INTO_PACK = LEGEND_PREFIX + "0:00"
-    const val LEGEND_INTO_PACK_SHORT = LEGEND_PREFIX_SHORT + "0:00"
+    const val LEGEND_INTO_PACK = LEGEND_WINDOW_PREFIX + "0:00"
+    const val LEGEND_INTO_PACK_SHORT = LEGEND_WINDOW_PREFIX_SHORT + "0:00"
 
     const val UNIT_KW = "кВт"
     const val UNIT_KWH = "кВт·ч"
@@ -141,6 +151,16 @@ internal object ContourReadout {
 
     /** The petal's unit ends in this, whatever distance it names. */
     const val KM_SUFFIX = " км"
+
+    /**
+     * And the car page's own case of the same window: «ЗА 10 КМ», «ЗА 3,7 КМ», «10 КМ» in a pane.
+     *
+     * One window, two cases, one place. The car page's foot line is a run of capitals and the
+     * petal's unit is not, and that is the whole of the difference: the distance and the rule that
+     * picks it are [perHundredKm]'s.
+     */
+    const val OVER_CAPS = "ЗА "
+    const val KM_SUFFIX_CAPS = " КМ"
 
     /** Past this a «м:сс» gains a glyph and every anchor in front of it would move. */
     const val MAX_WINDOW_SECONDS = 9 * 60 + 59
@@ -195,7 +215,10 @@ internal object ContourReadout {
      * At 100 km/h a tenth of a kilowatt-hour per hundred kilometres changes three times a second,
      * and a figure that flickers is a figure nobody reads (m5). Standing still it is worth the
      * resolution, and the denominator does not change underneath it either way - the window is
-     * always the last three kilometres, and since the seventh pass the unit says so.
+     * always the last ten kilometres, and since the seventh pass the unit says so.
+     *
+     * Signed: a long descent returns more than it costs and prints its minus, which is the one
+     * signed figure on either screen (`docs/energy-display-contract.md` §2.2).
      */
     fun consumption(perHundredKm: Double, parked: Boolean): String =
         if (parked) tenth(perHundredKm) else whole(perHundredKm)
@@ -214,13 +237,31 @@ internal object ContourReadout {
         }
 
     /**
+     * The car page's window, in its own case: «ЗА 10 КМ» once the log has ten kilometres of known
+     * road, «ЗА 3,7 КМ» while it fills, and neither word in a pane.
+     *
+     * **Never a whole-number rounding of a filling window.** «ЗА 4 КМ» over 3.7 km of road is the
+     * same defect the window was added to fix, one level down.
+     *
+     * @param narrow the 416 pane, where «ЗА» is the only thing on this line that may go
+     */
+    fun windowCaps(coveredKm: Double, windowKm: Double, narrow: Boolean): String {
+        val lead = if (narrow) "" else OVER_CAPS
+        return if (coveredKm >= windowKm - KM_EPSILON) {
+            lead + whole(windowKm) + KM_SUFFIX_CAPS
+        } else {
+            lead + tenth(coveredKm) + KM_SUFFIX_CAPS
+        }
+    }
+
+    /**
      * The engine box's sentence, naming how far back the box actually reaches.
      *
      * @param seconds the trace's own span, which is the box's own width in seconds
      * @param short whether the face in use crowds «ПОСЛЕДНИЕ» out of the phrase
      */
     fun intoPack(seconds: Int, short: Boolean): String =
-        (if (short) LEGEND_PREFIX_SHORT else LEGEND_PREFIX) + clock(seconds)
+        (if (short) LEGEND_WINDOW_PREFIX_SHORT else LEGEND_WINDOW_PREFIX) + clock(seconds)
 
     /**
      * A duration as «м:сс», in tabular figures, so that its width is a constant.

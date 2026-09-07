@@ -47,11 +47,11 @@ internal class VehicleTelemetryHub(context: Context) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     /**
-     * The bars on disk, and the batch waiting to join them.
+     * The buckets on disk, and the batch waiting to join them.
      *
      * Batching is not an optimisation, it is the durability decision: everything
      * before the last flush survives the ignition, so the batch size is the size
-     * of the hole a sudden power cut leaves. Ten bars is a kilometre of road,
+     * of the hole a sudden power cut leaves. Ten buckets is a kilometre of road,
      * which at any speed worth measuring is well under a minute.
      */
     private val journal = ConsumptionJournal.of(app.filesDir) { why ->
@@ -81,15 +81,6 @@ internal class VehicleTelemetryHub(context: Context) {
      * two minutes of revolutions is about right now, and a restart is long enough to make it a lie.
      */
     private val trace = EngineTrace()
-
-    /**
-     * And the same two minutes of the pack's own power, for the head unit's second page.
-     *
-     * Kept here rather than beside the strip for the reason every other history is: this is the
-     * one place that sees every sweep, and a trace filled from the panel's frame loop would be a
-     * history of when somebody was looking rather than of what the car did.
-     */
-    private val power = PowerTrace()
 
     @Volatile
     var snapshot: VehicleTelemetry = VehicleTelemetry()
@@ -143,7 +134,7 @@ internal class VehicleTelemetryHub(context: Context) {
     }
 
     /**
-     * A bar closed. Hold it until the batch is worth a write.
+     * A bucket closed. Hold it until the batch is worth a write.
      *
      * Called from the poll loop's own thread, which is the only thread that ever
      * touches the journal.
@@ -160,7 +151,7 @@ internal class VehicleTelemetryHub(context: Context) {
     }
 
     /**
-     * Seed the bars from disk, once, as soon as the car says where it is.
+     * Seed the buckets from disk, once, as soon as the car says where it is.
      *
      * It waits for an odometer rather than doing this at construction because the
      * odometer is the only thing that can say whether a journal describes the last
@@ -260,15 +251,14 @@ internal class VehicleTelemetryHub(context: Context) {
                 val now = SystemClock.elapsedRealtime()
                 val dtSeconds = clock.tick(now)
                 val engineRunning = parsed[VehicleSignal.ENGINE_RUNNING]?.let { it >= 1.0 }
-                // Sampled on every sweep so both traces share one time axis. The engine's box is
-                // up for the slots this flag was true in: the rpm and generation ids used to
-                // decide that and one of them is not zero on an electric drive.
+                // Sampled on every sweep. The engine's box is up for the slots this flag was
+                // true in: the rpm and generation ids used to decide that and one of them is not
+                // zero on an electric drive.
                 trace.sample(
                     atMillis = now,
                     engineRunning = engineRunning,
                     generationKw = parsed[VehicleSignal.GENERATION_KW],
                 )
-                power.sample(now, VehicleConvention.load(parsed[VehicleSignal.POWER_KW]))
                 log.sample(
                     odometerKm = parsed[VehicleSignal.ODOMETER_KM],
                     powerKw = VehicleConvention.load(parsed[VehicleSignal.POWER_KW]),
@@ -301,13 +291,18 @@ internal class VehicleTelemetryHub(context: Context) {
                 val merged = LinkedHashMap<VehicleSignal, Double>(cold)
                 VehicleSignal.HOT.forEach { signal -> parsed[signal]?.let { merged[signal] = it } }
 
+                // The window and its chart are built once here, beside the rest of the snapshot.
+                // Both screens draw the same twenty bins, and a chart grouped inside `onDraw`
+                // would be twenty means allocated sixty times a second over a quantity the car
+                // answers four times a second.
+                val window = log.window
                 snapshot = VehicleTelemetry(
                     access = if (merged.isEmpty()) VehicleAccess.UNAVAILABLE else VehicleAccess.READY,
                     message = if (merged.isEmpty()) NO_ANSWER else "",
                     values = merged,
-                    consumption = log.window,
+                    consumption = window,
+                    chart = ConsumptionChart.of(window),
                     engineTrace = trace.snapshot(),
-                    powerTrace = power.snapshot(),
                     trip = ledger.trip,
                 )
 
@@ -331,18 +326,19 @@ internal class VehicleTelemetryHub(context: Context) {
         // Everything the hub still holds goes with it. The engine trace used to be left out, so a
         // four-second backoff swapped the right shelf out of the box and back - defeating the
         // hundred and twenty seconds of hysteresis the trace's own length exists to give it.
+        val window = log.window
         snapshot = VehicleTelemetry(
             access = VehicleAccess.UNAVAILABLE,
             message = message,
-            consumption = log.window,
+            consumption = window,
+            chart = ConsumptionChart.of(window),
             engineTrace = trace.snapshot(),
-            powerTrace = power.snapshot(),
             trip = ledger.trip,
         )
     }
 
     private companion object {
-        /** Bars per journal write: one kilometre of road. */
+        /** Buckets per journal write: one kilometre of road. */
         const val FLUSH_EVERY = 10
 
         /** How often the trip record is made durable. See [saveTrip]. */
@@ -468,7 +464,7 @@ internal enum class VehicleWatcher {
 /**
  * Process-scoped owner of the vehicle hub, mirroring
  * [dev.denza.apps.feature.trip.TripSession]: the view attaches and detaches, while
- * the hub outlives activity recreation. Closed consumption bars also survive a
+ * the hub outlives activity recreation. Closed consumption buckets also survive a
  * process restart through [ConsumptionJournal]; the short engine trace does not.
  */
 internal object VehicleSession {

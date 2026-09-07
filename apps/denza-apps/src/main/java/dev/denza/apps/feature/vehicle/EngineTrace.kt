@@ -195,6 +195,20 @@ internal class EngineTraceSnapshot(
     /** Whether the engine has been alive inside the retained window at all. */
     val isEmpty: Boolean get() = bins.isEmpty()
 
+    /**
+     * Whether the engine gave the pack anything anywhere in the window.
+     *
+     * The other half of the engine box's rule (`docs/energy-display-contract.md` §2.5): the flag
+     * says the engine is turning, this says it is *giving*, and a box is drawn only when both are
+     * true. A running engine with this false keeps the trip's cells on the shelf and its
+     * revolutions in the corner, which is the truth the first two drives showed and the flat blue
+     * bar was the caricature of.
+     *
+     * Computed once here rather than in `ContourScene.decide`, which is asked sixty times a second
+     * about a snapshot that arrives four.
+     */
+    val gives: Boolean = bins.any { !it.isNaN() && it > 0f }
+
     companion object {
         val EMPTY = EngineTraceSnapshot(FloatArray(0))
     }

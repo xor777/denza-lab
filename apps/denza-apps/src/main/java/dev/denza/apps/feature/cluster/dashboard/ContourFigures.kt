@@ -40,6 +40,10 @@ internal class ContourFigures {
      */
     enum class Slot {
         VOLTS,
+
+        /** The unsigned pack power the car page prints. See `EnergyReadouts`. */
+        POWER,
+
         RPM,
         ENGINE_MINUTES,
         SPREAD,
@@ -63,8 +67,11 @@ internal class ContourFigures {
         PETAL_UNIT,
         CHARGE_LEFT,
 
-        /** The engine box's own window, «ПОСЛЕДНИЕ 1:22». */
+        /** The engine box's own window, «· ПОСЛЕДНИЕ 1:22». */
         WINDOW,
+
+        /** And the car page's case of the petal's window, «ЗА 3,7 КМ». */
+        WINDOW_CAPS,
         ;
     }
 
@@ -105,6 +112,20 @@ internal class ContourFigures {
                 coveredKm,
                 false,
                 ContourReadout.perHundredKm(coveredKm, ConsumptionWindow.KM),
+            )
+
+    /**
+     * The same window in the car page's own case, which is the only thing that differs.
+     *
+     * The flag is the pane, where «ЗА» is the one word on that line allowed to go.
+     */
+    fun windowCaps(coveredKm: Double, narrow: Boolean): String =
+        hit(Slot.WINDOW_CAPS, coveredKm, narrow)
+            ?: keep(
+                Slot.WINDOW_CAPS,
+                coveredKm,
+                narrow,
+                ContourReadout.windowCaps(coveredKm, ConsumptionWindow.KM, narrow),
             )
 
     /** What is left of a charge, in the petal's own seat. */
