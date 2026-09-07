@@ -346,9 +346,12 @@ class ContourSceneTest {
         run(scene, generating, 1f)
         assertTrue(scene.stage.engineBox)
 
-        // The same snapshot, over and over, which is exactly what the view hands back.
-        silence(scene, generating, 12f)
+        // The same snapshot, over and over, which is exactly what the view hands back. The box
+        // goes on the *packet's* age rather than on the flag's ten seconds: a silence removes it
+        // the way it removes the volts and the temperatures, which is the panel's one rule.
+        silence(scene, generating, 3f)
         assertFalse("the box went with the link", scene.stage.engineBox)
+        silence(scene, generating, 9f)
         assertFalse("and the panel stopped claiming the engine turns", scene.stage.engineRunning)
         assertTrue("while the caption rule holds everything else", scene.known(ContourValue.POWER))
 
@@ -434,6 +437,25 @@ class ContourSceneTest {
             1f,
         )
         assertTrue(scene.stage.parked)
+    }
+
+    /**
+     * A window of nothing but holes has road under it and no figure over it.
+     *
+     * The petal's caption used to arrive with the log's first *bucket*, so a stretch the log had no
+     * energy for put «кВт·ч/100 км · за 0 км» on the panel over an empty seat - a caption promising
+     * a reading that cannot come. It arrives with the mean now, which is what it is the unit of.
+     */
+    @Test
+    fun anAllHoleWindowIsRoadWithNoFigureAndNoUnit() {
+        val scene = ContourScene()
+        val holes = List(5) { ConsumptionSample(100.0 + (it + 1) * 0.1, 0.0, 0.1, 0.0) }
+        run(scene, ready(consumption = holes), 1f)
+        assertFalse("no figure, so no unit either", scene.known(ContourValue.PETAL))
+
+        // And one bucket that answered brings both.
+        run(scene, ready(consumption = holes + ConsumptionSample(100.6, 0.017, 0.1, 0.1)), 1f)
+        assertTrue(scene.known(ContourValue.PETAL))
     }
 
     @Test
