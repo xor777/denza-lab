@@ -26,11 +26,12 @@ import kotlin.math.roundToInt
  * bucket supports - it holds one integral over one stretch and no record of where inside it
  * anything happened.
  *
- * ### A hole is not a zero
+ * ### A hole is not a zero, and it is a drawing rule
  *
- * A bin whose known road is under half its road is `NaN` (§2.6): drawn as nothing, its road still
- * counted for the axis. The *figure* beside the chart is over known buckets (§2.6) rather than over
- * drawn bins, so a known bucket inside a hole bin is still in it.
+ * A bin whose known road is under half its road is `NaN`: **drawn as nothing, and its road still
+ * counted for the axis.** That is all it says. The figure beside the chart is over the *buckets*
+ * that are readings (§2.6), which is a different set - a known bucket inside a hole bin is in the
+ * figure, and a hole bucket inside a drawn bin is not.
  *
  * ### The newest bin is partial
  *

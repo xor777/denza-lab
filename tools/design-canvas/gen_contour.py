@@ -147,21 +147,24 @@ by 2. `W_CAPTION`, `W_KWH` and `W_KM` are one `getComputedTextLength()` run of
 **The panel is now measured rather than guessed.** M1 was right that every
 ergonomic claim on the first three boards stood on an estimated 25 cm of glass.
 The owner took a tape to the car on 2026-09-04: the active area of the cluster
-glass is 320 mm wide and his eyes sit 750 mm from it. Both are constants here,
-`GLASS_WIDTH_MM` and `EYE_DISTANCE_MM`, and the whole type ladder falls out of
-them - one board unit is 0.2123 mm, a Roboto cap is 0.71 em, and one arc minute
-at 750 mm is 0.2182 mm, so a cap subtends `size x 0.691` minutes:
+glass is 320 mm wide. The eye distance is **800 mm** (the owner, 2026-09-07; the
+tape had said 750 three days earlier). Both are constants here, `GLASS_WIDTH_MM`
+and `EYE_DISTANCE_MM`, and the whole type ladder falls out of them - one board
+unit is 0.2123 mm, a Roboto cap is 0.71 em, and one arc minute at 800 mm is
+0.2327 mm, so a cap subtends `size x 0.648` minutes:
 
-    88 -> 13.3 mm -> 61'      the hero, read on the move
-    52 ->  7.8 mm -> 36'      comfortable (ISO 15008 comfort is 30')
-    34 ->  5.1 mm -> 23'      legal for a deliberate glance (the floor is 20')
+    88 -> 13.3 mm -> 57'      the hero, read on the move
+    52 ->  7.8 mm -> 34'      comfortable (ISO 15008 comfort is 30')
+    34 ->  5.1 mm -> 22'      legal for a deliberate glance (the floor is 20')
     18 ->  2.7 mm -> 12'      furniture: words that name what is above them
-    13 ->  2.0 mm ->  9'      board furniture only, never on the car
+    13 ->  2.0 mm ->  8'      board furniture only, never on the car
 
 So the cluster's ramp on these boards is **88 - 52 - 34 - 18**. 104 is gone: at
 320 mm it is a 16 mm numeral and it was chosen against an arithmetic that made 52
 look illegal. 88 is 1.69x 52, which clears the ramp's own 1.2x rule, and it still
-reads at 61'. 24 and 13 are not used on the panel at all.
+reads at 57'. The extra 50 mm moved no rung: every cap is 6.7 % smaller to the
+eye and the ladder still clears the standard everywhere it is used. 24 and 13 are
+not used on the panel at all.
 
 **Numbers are Roboto with tabular figures, not Roboto Mono** (M14). Measured in
 headless Chrome in the faces and sizes these boards set: a Roboto digit advances
@@ -731,20 +734,22 @@ PETAL_BASELINE = 384.0
 PETAL_FLOOR = 410.0                     # nothing is drawn below this
 # Ten kilometres, since the first drive. At three the box was thirty steps of a
 # hundred metres, and the owner read it from the seat as «крупные ступеньки» - a
-# road too short to have a shape, redrawn wholesale every few minutes. A hundred
-# buckets in the same 232 units is 2.32 a step, 0.49 mm of glass, which is under
-# the eye's resolution from 750 mm: the history reads as a line with a grain
-# rather than as a staircase, and the figure beside it is the mean of a road
-# rather than of the last three traffic lights. The head unit's car page reads
-# the same window through the same object.
+# road too short to have a shape, redrawn wholesale every few minutes. Ten
+# kilometres of the log's own hundred-metre buckets is what the window holds;
+# what is *drawn* is twenty steps of five hundred metres, because a hundred steps
+# of 2.32 units in the same 232 is 0.49 mm of glass - 2.1' from 800 mm, at the
+# edge of the eye's own resolution - and the owner read the result on the car as
+# «расчёска». The figure beside the box is the mean of a road rather than of the
+# last three traffic lights. The head unit's car page reads the same window
+# through the same object.
 PETAL_BUCKETS = 100                     # 10 km of ConsumptionLog's 100 m buckets
 # And twenty steps of five buckets each are what is drawn (the energy display
-# contract, §2.3). A hundred steps of 2.32 units were the first drive's «расчёска»;
-# 500 m averages the spikes a 100 m bucket showed and a step of 11.6 units - 2.5 mm,
-# 10.7′ from 800 mm - is a step the eye can count, which the owner chose on the
-# fourth board («он как бы дискретный ступеньками»). Bins are anchored to the
-# odometer's own half kilometre in the app, so a closed step never changes; here
-# the buckets are grouped by fives from the oldest and the newest step is partial.
+# contract, §2.3). 500 m averages the spikes a 100 m bucket showed, and a step of
+# 11.6 units - 2.5 mm, 10.7′ from 800 mm - is a step the eye can count, which the
+# owner chose on the fourth board («он как бы дискретный ступеньками»). Bins are
+# anchored to the odometer's own half kilometre in the app and a bucket is filed
+# by the road it covers, so a closed step never changes; here the buckets are
+# grouped by fives from the oldest and the newest step is partial.
 PETAL_BIN_BUCKETS = 5
 PETAL_BINS = PETAL_BUCKETS // PETAL_BIN_BUCKETS
 # "16,8" and "2:15" are both three digits and one mark, so one field holds either,

@@ -52,8 +52,18 @@ side and the hero's colour; the car page says it with the word and the colour.
 The car page printed «В БАТАРЕЮ» over «−25 кВт» because the word and the sign
 were decided in two places; there is one place now.
 
+**While the charger has agreed (`VehicleTelemetry.charging`), `P` is
+`−|CHARGE_KW|` on both screens.** The pack's own id reads zero or a small load on
+a car standing on a charger - the board electronics - so the two would otherwise
+be one event drawn twice: the cluster substituted and the car page printed the
+raw id, and the same charge was 7 kW on one screen and 0 on the other. The
+substitution is `EnergyReadouts.packKilowatts`, and it is the only place either
+screen decides what the pack is doing.
+
 Unavailable is not zero: no figure, the caption stays, exactly as the cluster's
-staleness rule has it (`ContourScene`).
+staleness rule has it (`ContourScene`). And a read that did not land does not
+move the colour's hysteresis: the neutral zone remembers where the screen was,
+and a dropped sample is not a reading of zero.
 
 ### 2.2 Consumption over the last ten kilometres
 
@@ -84,10 +94,21 @@ and never rounds a filling window to a whole number.
 One chart, drawn twice. **Bins of 500 m anchored to the odometer's own half
 kilometre**, so a bin's membership never changes after it closes and the shape
 does not re-phase every hundred metres. Twenty bins are the window; the newest is
-partial and is drawn at the width of the road it has. A bin's value is
-`Σ E / Σ d × 100` over its 100 m buckets. A bin whose known road is under half
-its road is a **hole**: drawn as nothing, counted for the axis, excluded from the
-figure. Nothing is ever drawn as an invented zero.
+partial and is drawn at the width of the road it has.
+
+**A bucket belongs to the bins its road covers**, `[odometer − km, odometer)`,
+not to the bin its closing odometer falls in - a bucket closing at 100.5 covers
+the bin that *ends* there. Its energy and its known road go to those bins pro
+rata by road, which is the only division a bucket supports: it holds one integral
+over one stretch and no record of where inside it anything happened. A bin's
+value is then `Σ E / Σ d × 100` over the road it holds.
+
+A bin whose known road is under half its road is a **hole**, and that is a
+*drawing* rule: it is drawn as nothing, and the road under it is still counted
+for the axis. It says nothing about the figure. The figure's own exclusion is
+§2.6's, one level down and about buckets: the mean is over the closed buckets
+that are readings, so a known bucket inside a hole bin is in the figure and a
+hole bucket inside a drawn bin is not. Nothing is ever drawn as an invented zero.
 
 **Scale: linear, 0…40 up and 0…20 down, clamped, with a mark.** Linear because a
 trend is read as proportion; 40 because what the chart is for is the difference
@@ -167,10 +188,19 @@ none. Either way it is one drive and one decision, not a series of patches.
 An interval with no power reading, or longer than `OdometerGate.MAX_GAP_SECONDS`,
 contributes **unknown** energy over its road. The log carries, per bucket, the
 road and the road with known energy; the bucket's value is energy over known
-road, and a bucket with less than half its road known is a hole (§2.3). An
-odometer step longer than one bucket closes one bucket of that road with that
-road recorded - the axis stays the road, never the record count. Restart
-continuity keeps working through the journal, which gains the road per bucket.
+road, and a bucket with less than half its road known is a hole. **A hole bucket
+is out of the figure whole** - out of the sum, out of the road the unit names -
+which is what makes «за 3,7 км» a promise about the number beside it. An odometer
+step longer than one bucket closes one bucket of that road with that road
+recorded - the axis stays the road, never the record count. Restart continuity
+keeps working through the journal, which gains the road per bucket.
+
+**And the window is bounded by the odometer as well as by the road.** Ten
+kilometres of buckets from yesterday are still ten kilometres of road; what they
+are not is the ten kilometres behind the car. The journal retains thirty for
+restart continuity, and a restore anchors `OdometerGate`, so what the screens see
+is the tail whose own readings are inside `ConsumptionWindow.KM` of the newest
+one. The buckets from before a re-anchor leave the window by the same rule.
 
 ## 3. Words
 

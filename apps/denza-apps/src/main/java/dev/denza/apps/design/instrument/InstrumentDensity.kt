@@ -34,7 +34,7 @@ package dev.denza.apps.design.instrument
  *
  * `104` used to head this ladder and is gone. It was chosen when the glass was an estimate that made
  * 52 look illegal and a doubling look necessary; on the measured 320 mm it is a 16 mm numeral. `88`
- * is `1.69 × 52`, which clears this ramp's own 1.2× rule with room, and it still reads at 61′. The
+ * is `1.69 × 52`, which clears this ramp's own 1.2× rule with room, and it still reads at 57′. The
  * rule is a visible step, not an octave.
  *
  * The full ramp keeps 24, 13 and 11 below the four the Contour draws: they are what a future
