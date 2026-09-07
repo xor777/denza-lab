@@ -8,6 +8,7 @@ Use this folder for durable project knowledge.
 | `governance.md` | Rules for product/prototype/research changes and promotion. |
 | `adb-authorization-recovery.md` | Denza Apps local-ADB startup gate, one-shot authorization flow, stuck-queue boundary, and acceptance status. |
 | `instrument-display-findings.md` | Instrument-display selection, the Contour panel on the driver's display, Mirrors geometry, navigation projection, verification status, and open issues. |
+| `energy-display-contract.md` | Normative energy contract for the cluster's Contour and the head unit's car page: pack power's direction and words, the ten-kilometre consumption, the twenty-bin chart, the trip and the engine's box, and how each is proved. Owns those where it diverges from the findings or the canvas README. |
 | `audio-capture-findings.md` | Verified output-mix spectrum source, calibration, permissions, product adoption, and remaining audio checks. |
 | `speaker-lift-findings.md` | Devialet flip covers; live-proven direct motor edges, the stock-auto latch side effect, Denza Apps app/MediaSession/output-mix automation, and superseded trigger hypotheses. |
 | `vehicle-data-findings.md` | Live-car matrix of usable GNSS/IMU/journey data, blocked DiCar getters, `autoservice` FID protocol, widget allowlist, and product boundaries. |

@@ -32,12 +32,24 @@ internal object ContourReadout {
     const val TITLE_ENGINE_RPM = "ДВС · об/мин"
 
     /**
+     * And the same two headings shouted, which is the car page's own case for them.
+     *
+     * One word, two cases, one place - the arrangement the petal's window already has. The car
+     * page kept its own literals until the engine's cell became one rule for both screens, and a
+     * literal beside a derivation is a second record waiting to disagree.
+     */
+    val TITLE_ENGINE_RPM_CAPS: String = TITLE_ENGINE_RPM.uppercase()
+
+    /**
      * The sleeping engine's heading, and the window is in it.
      *
      * «ДВС · мин» alone was six minutes of *something*: this stop, this hour, this trip, the
      * odometer. The aperture leaves 250.1 units at this baseline and the words take 224.9.
      */
     const val TITLE_ENGINE_MINUTES = "ДВС · мин за поездку"
+
+    /** See [TITLE_ENGINE_RPM_CAPS]. */
+    val TITLE_ENGINE_MINUTES_CAPS: String = TITLE_ENGINE_MINUTES.uppercase()
 
     /**
      * The spread of *what* is exactly the question that started the sixth pass.
@@ -74,28 +86,38 @@ internal object ContourReadout {
      * shape is, what it is worth now, and how far back it goes, in that order. The words «ГЕНЕРАЦИЯ»
      * and «ОБОРОТЫ» are on no part of this panel any more.
      *
-     * **And the window is the box's own reach rather than a literal.** «ПОСЛЕДНИЕ 2 МИН» was
-     * printed from the first second of an engine run, over a box one step wide: the trace grows
-     * from the right and is never front-padded, so two minutes is what it holds when it is full and
-     * nothing else. The figure beside it was honest about a five-second window and the words were
-     * not. It is written as «м:сс» in the panel's tabular figures, so every value is the same width
-     * and no anchor in the phrase moves - which is how the caption can be a coordinate and a
-     * reading at the same time. See [intoPack].
+     * **And the sentence says «даёт» rather than «В БАТАРЕЮ»** since the energy display contract
+     * (§2.5). Where `GENERATION_KW` goes in motion has never been recorded - the two drives so far
+     * saw the engine run with the id flat - so «В БАТАРЕЮ» was a claim about a signal nobody has
+     * logged. «ДВС ДАЁТ» is true under either meaning and is the same verb the trip's «ДАЛ ДВС»
+     * uses; there is no dot, because the blue mark means «into the pack» everywhere else here.
      */
-    const val LEGEND_PREFIX = "В БАТАРЕЮ · ПОСЛЕДНИЕ "
+    const val LEGEND_PREFIX = "ДВС ДАЁТ"
+
+    /**
+     * **And the window is the box's own reach rather than a literal.**
+     *
+     * «ПОСЛЕДНИЕ 2 МИН» was printed from the first second of an engine run, over a box one step
+     * wide: the trace grows from the right and is never front-padded, so two minutes is what it
+     * holds when it is full and nothing else. The figure beside it was honest about a five-second
+     * window and the words were not. It is written as «м:сс» in the panel's tabular figures, so
+     * every value is one width and no anchor in the phrase moves - which is how the caption can be
+     * a coordinate and a reading at the same time. See [intoPack].
+     */
+    const val LEGEND_WINDOW_PREFIX = "· ПОСЛЕДНИЕ "
 
     /**
      * And what is left of it if the face in use crowds the phrase against its own box.
      *
-     * Only «ПОСЛЕДНИЕ» can go. The figure is the reading, the unit is what makes it one,
-     * «В БАТАРЕЮ» is the half of the sentence that says which direction the energy went, and the
-     * duration is the window the shape above is true over.
+     * Only «ПОСЛЕДНИЕ» can go. The figure is the reading, the unit is what makes it one, «ДВС
+     * ДАЁТ» is the whole point of the sentence, and the duration is the window the shape above it
+     * is true over.
      */
-    const val LEGEND_PREFIX_SHORT = "В БАТАРЕЮ · "
+    const val LEGEND_WINDOW_PREFIX_SHORT = "· "
 
     /** What the phrase is *measured* from: every «м:сс» is four tabular glyphs and one mark. */
-    const val LEGEND_INTO_PACK = LEGEND_PREFIX + "0:00"
-    const val LEGEND_INTO_PACK_SHORT = LEGEND_PREFIX_SHORT + "0:00"
+    const val LEGEND_INTO_PACK = LEGEND_WINDOW_PREFIX + "0:00"
+    const val LEGEND_INTO_PACK_SHORT = LEGEND_WINDOW_PREFIX_SHORT + "0:00"
 
     const val UNIT_KW = "кВт"
     const val UNIT_KWH = "кВт·ч"
@@ -122,7 +144,12 @@ internal object ContourReadout {
      * The distance itself is [dev.denza.apps.feature.vehicle.ConsumptionWindow.KM]; this string is
      * what the board measured, and `ContourBoardContractTest` holds the two together.
      */
-    const val UNIT_PER_100KM_PREFIX = "кВт·ч/100 км · за "
+    const val UNIT_PER_100KM_UNIT = "кВт·ч/100 км"
+
+    /** What joins a unit to the window it is true over, on both screens. */
+    const val SEPARATOR = " · "
+
+    const val UNIT_PER_100KM_PREFIX = UNIT_PER_100KM_UNIT + SEPARATOR + "за "
     const val UNIT_PER_100KM = UNIT_PER_100KM_PREFIX + "10 км"
 
     /**
@@ -141,6 +168,16 @@ internal object ContourReadout {
 
     /** The petal's unit ends in this, whatever distance it names. */
     const val KM_SUFFIX = " км"
+
+    /**
+     * And the car page's own case of the same window: «ЗА 10 КМ», «ЗА 3,7 КМ», «10 КМ» in a pane.
+     *
+     * One window, two cases, one place. The car page's foot line is a run of capitals and the
+     * petal's unit is not, and that is the whole of the difference: the distance and the rule that
+     * picks it are [perHundredKm]'s.
+     */
+    const val OVER_CAPS = "ЗА "
+    const val KM_SUFFIX_CAPS = " КМ"
 
     /** Past this a «м:сс» gains a glyph and every anchor in front of it would move. */
     const val MAX_WINDOW_SECONDS = 9 * 60 + 59
@@ -183,11 +220,22 @@ internal object ContourReadout {
     private const val KM_EPSILON = 1e-6
 
     /** A whole number, and never a dash: a value that is not there is not drawn at all. */
-    fun whole(value: Double): String = String.format(Locale.US, "%.0f", value)
+    fun whole(value: Double): String = unsigned(String.format(Locale.US, "%.0f", value))
 
     /** A number with a comma, the way every other panel in this app writes one. */
     fun tenth(value: Double): String =
-        String.format(Locale.US, "%.1f", value).replace('.', ',')
+        unsigned(String.format(Locale.US, "%.1f", value)).replace('.', ',')
+
+    /**
+     * A minus in front of nothing but zeros is not a direction, so it does not get printed.
+     *
+     * `%.0f` of −0.4 is «-0» and `%.1f` of −0.04 is «-0,0», and the one signed figure on either
+     * screen is the consumption - so a hundred metres of coasting downhill printed «-0» in
+     * `RETURN_INK` and said the road had given something back. Rounding a magnitude away is what
+     * makes it zero; the sign is what is left of a quantity that no longer has one.
+     */
+    private fun unsigned(printed: String): String =
+        if (printed.startsWith('-') && printed.none { it in '1'..'9' }) printed.substring(1) else printed
 
     /**
      * The petal's figure: a whole number on the move, a tenth on P.
@@ -195,23 +243,59 @@ internal object ContourReadout {
      * At 100 km/h a tenth of a kilowatt-hour per hundred kilometres changes three times a second,
      * and a figure that flickers is a figure nobody reads (m5). Standing still it is worth the
      * resolution, and the denominator does not change underneath it either way - the window is
-     * always the last three kilometres, and since the seventh pass the unit says so.
+     * always the last ten kilometres, and since the seventh pass the unit says so.
+     *
+     * Signed: a long descent returns more than it costs and prints its minus, which is the one
+     * signed figure on either screen (`docs/energy-display-contract.md` §2.2).
      */
     fun consumption(perHundredKm: Double, parked: Boolean): String =
         if (parked) tenth(perHundredKm) else whole(perHundredKm)
 
     /**
-     * The petal's unit, naming the road the figure beside it is actually the mean of.
+     * The window, as every line that names it prints it: a full one whole, a filling one to a
+     * tenth, and **never a whole-number rounding of a filling window** - «ЗА 4 КМ» over 3.7 km of
+     * road is the defect the window was added to fix, one level down.
      *
-     * @param coveredKm what the closed buckets add up to
+     * One distance, three lines, one rule. The petal's unit, the car page's pane caption and the
+     * car page's whole foot line differ in the words either side of the figure and in nothing
+     * else, and they were three copies of this comparison.
+     *
+     * @param coveredKm the known road the figure beside it is actually the mean of
      * @param windowKm what the window holds once it is full
      */
+    private fun window(coveredKm: Double, windowKm: Double, lead: String, suffix: String): String {
+        val figure =
+            if (coveredKm >= windowKm - KM_EPSILON) whole(windowKm) else tenth(coveredKm)
+        return lead + figure + suffix
+    }
+
+    /** The petal's unit, naming the road the figure beside it is actually the mean of. */
     fun perHundredKm(coveredKm: Double, windowKm: Double): String =
-        if (coveredKm >= windowKm - KM_EPSILON) {
-            UNIT_PER_100KM_PREFIX + whole(windowKm) + KM_SUFFIX
-        } else {
-            UNIT_PER_100KM_PREFIX + tenth(coveredKm) + KM_SUFFIX
-        }
+        window(coveredKm, windowKm, UNIT_PER_100KM_PREFIX, KM_SUFFIX)
+
+    /**
+     * The car page's window, in its own case: «ЗА 10 КМ», «ЗА 3,7 КМ», and neither word in a pane.
+     *
+     * @param narrow the 416 pane, where «ЗА» is the only thing on this line that may go
+     */
+    fun windowCaps(coveredKm: Double, windowKm: Double, narrow: Boolean): String =
+        window(coveredKm, windowKm, if (narrow) "" else OVER_CAPS, KM_SUFFIX_CAPS)
+
+    /**
+     * And the whole of the car page's foot unit: «кВт·ч/100 км · ЗА 10 КМ».
+     *
+     * One string rather than a unit and a window concatenated in the frame that draws them: the
+     * page measures this line to decide whether the word «РАСХОД» fits in front of it, so it was
+     * building and measuring a fresh string sixty times a second over a distance that changes
+     * once every hundred metres.
+     */
+    fun windowFoot(coveredKm: Double, windowKm: Double, narrow: Boolean): String =
+        window(
+            coveredKm,
+            windowKm,
+            UNIT_PER_100KM_UNIT + SEPARATOR + (if (narrow) "" else OVER_CAPS),
+            KM_SUFFIX_CAPS,
+        )
 
     /**
      * The engine box's sentence, naming how far back the box actually reaches.
@@ -220,7 +304,7 @@ internal object ContourReadout {
      * @param short whether the face in use crowds «ПОСЛЕДНИЕ» out of the phrase
      */
     fun intoPack(seconds: Int, short: Boolean): String =
-        (if (short) LEGEND_PREFIX_SHORT else LEGEND_PREFIX) + clock(seconds)
+        (if (short) LEGEND_WINDOW_PREFIX_SHORT else LEGEND_WINDOW_PREFIX) + clock(seconds)
 
     /**
      * A duration as «м:сс», in tabular figures, so that its width is a constant.

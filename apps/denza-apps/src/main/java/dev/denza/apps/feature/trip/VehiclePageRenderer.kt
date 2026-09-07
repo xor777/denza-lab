@@ -5,32 +5,38 @@ import android.graphics.Paint
 import android.graphics.RectF
 import android.graphics.Typeface
 import dev.denza.apps.design.DenzaPalette
+import dev.denza.apps.design.instrument.InstrumentPen
+import dev.denza.apps.feature.cluster.dashboard.ContourFlow
 import dev.denza.apps.feature.cluster.dashboard.ContourGlyphs
+import dev.denza.apps.feature.cluster.dashboard.ContourPlan
 import dev.denza.apps.feature.cluster.dashboard.ContourReadout
+import dev.denza.apps.feature.cluster.dashboard.ContourRuns
 import dev.denza.apps.feature.cluster.dashboard.GlyphSurface
 import dev.denza.apps.feature.panel.PanelPalette
-import dev.denza.apps.feature.vehicle.ConsumptionWindow
-import dev.denza.apps.feature.vehicle.PowerSpan
+import dev.denza.apps.feature.vehicle.ConsumptionChart
+import dev.denza.apps.feature.vehicle.EnergyReadouts
 import dev.denza.apps.feature.vehicle.VehicleAccess
 import dev.denza.apps.feature.vehicle.VehicleSignal
 import dev.denza.apps.feature.vehicle.VehicleTelemetry
-import kotlin.math.abs
 import kotlin.math.max
+import kotlin.math.min
 import kotlin.math.roundToInt
 
 /**
- * The strip's second page: what the pack is doing, has been doing for two minutes, and how warm
- * five components are.
+ * The strip's second page: what the pack is doing, what it has been doing over the last ten
+ * kilometres, and how warm five components are.
  *
  * `tools/design-canvas/StripPages.dc.html` is the board, `StripPagesBoardContractTest` joins the
  * two, and the rules the page is built on are the Contour's own - it went through nine passes to
  * learn them and there is no reason for this screen to learn them again:
  *
  *  - **one quantity, one sentence.** The headline is words - `ИЗ БАТАРЕИ`, `● В БАТАРЕЮ ОТ ДВС` -
- *    and the figure under it says how much. A minus in front of a number is not a direction
- *    anybody reads at a glance, and here the direction matters more than the sign;
- *  - **a figure names the window it is true over**: `ПОСЛЕДНИЕ 2 МИНУТЫ` under the shape,
- *    `ЗА 10 КМ` after the consumption;
+ *    and the figure under it says how much, unsigned, in the colour of its own direction. The word
+ *    and the colour are decided in one place with the cluster's (`EnergyReadouts`), which is what
+ *    the page printing «В БАТАРЕЮ» over «−25 кВт» cost;
+ *  - **a figure names the window it is true over**: `ЗА 10 КМ` after the consumption, and the
+ *    shape above it *is* those ten kilometres - the same twenty bins on the same ladder the
+ *    cluster's petal draws (`docs/energy-display-contract.md` §2.3);
  *  - **a zero is never drawn, and a quantity that did not happen has no cell.** The engine's cell
  *    is absent until the engine has run, the consumption is absent while the car stands;
  *  - **colour marks an exception.** A temperature that crosses its own band takes the figure, the
@@ -66,6 +72,30 @@ internal class VehiclePageRenderer {
     }
     private val box = RectF()
     private val glyphs = ContourGlyphs()
+
+    /**
+     * The cluster's pen, for the one shape both screens draw.
+     *
+     * Its virtual unit is set to this page's own dp on every draw, so `ContourPlan`'s strokes,
+     * ticks and gaps are stated here in the numbers the cluster states them in and the two charts
+     * cannot be two drawings.
+     */
+    private val pen = InstrumentPen()
+
+    /**
+     * Every energy string and shape this page draws, decided once for both screens.
+     *
+     * The renderer owns geometry and nothing else. Held rather than built per draw, because it
+     * memoises its strings and it carries this screen's own neutral-zone hysteresis.
+     */
+    private val readouts = EnergyReadouts()
+
+    /** The chart's bin edges and heights, fields so a draw allocates nothing. */
+    private val chartXs = FloatArray(ConsumptionChart.BINS + 1)
+    private val chartYs = FloatArray(ConsumptionChart.BINS)
+    private val returnYs = FloatArray(ConsumptionChart.BINS)
+    private val spanXs = FloatArray(ConsumptionChart.BINS + 1)
+    private val spanYs = FloatArray(ConsumptionChart.BINS)
     private val surface = CanvasGlyphSurface()
     private val shelf: Array<Row> = Array(SENSORS.size + 1) { index ->
         if (index < SENSORS.size) {
@@ -107,6 +137,10 @@ internal class VehiclePageRenderer {
         val height = (bottom - top) / unit
         if (width <= 0f || height <= 0f) return
 
+        // One read per draw: the word, the figure, the window and the twenty bins, decided where
+        // the cluster decides them.
+        readouts.read(telemetry, telemetry.parked == true, narrow = narrow)
+
         if (narrow) {
             drawNarrow(canvas, telemetry, left, top, width, height, unit)
             return
@@ -118,9 +152,9 @@ internal class VehiclePageRenderer {
         val centre = top + (height - COLUMN) * unit / 2f
 
         drawHead(canvas, telemetry, left, centre, leftWidth, unit)
-        drawTrace(canvas, telemetry, left, centre + (BLOCK + GAP) * unit, leftWidth, GRAPH, unit)
+        drawChart(canvas, left, centre + (BLOCK + GAP) * unit, leftWidth, CHART, unit)
         drawFoot(
-            canvas, telemetry, left, centre + (COLUMN - FOOT_BASELINE_UP) * unit,
+            canvas, left, centre + (COLUMN - FOOT_BASELINE_UP) * unit,
             leftWidth * unit, unit, false,
         )
 
@@ -135,10 +169,15 @@ internal class VehiclePageRenderer {
     /**
      * The 416 pane, where there is no second column.
      *
-     * Not the wide composition scaled down: the marks stand over their figures, the temperatures
-     * take one row under the shape, and the consumption goes - which is the same rule the rest of
-     * this app follows at 416, and the same reason. A column of two beside a 62 figure at 392 dp
-     * is two columns of about 180, and a five-cell shelf does not fit in one of them.
+     * Not the wide composition scaled down: the marks stand over their figures and the temperatures
+     * take one row under the shape, which is the same rule the rest of this app follows at 416. A
+     * column of two beside a 62 figure at 392 dp is two columns of about 180, and a five-cell shelf
+     * does not fit in one of them.
+     *
+     * **The consumption stays.** It used to be the thing that went, and the contract's §5 says the
+     * opposite: the figure and its window are what the shape above cannot be read without, so what
+     * goes is the word «РАСХОД» and nothing else. If the stack still does not fit the pane's own
+     * height, the layout's unit shrinks until it does - nothing is ever drawn past the pane.
      */
     private fun drawNarrow(
         canvas: Canvas,
@@ -149,27 +188,33 @@ internal class VehiclePageRenderer {
         height: Float,
         unit: Float,
     ) {
-        val stack = BLOCK + GAP + GRAPH_NARROW + GAP + CAP_LINE + GAP + STACK
-        val start = top + max(0f, (height - stack) * unit / 2f)
+        val stack = BLOCK + GAP + CHART_NARROW + GAP + CAP_LINE + GAP + STACK
+        val scale = if (stack > height && stack > 0f) height / stack else 1f
+        val u = unit * scale
+        // The same pixels, restated in the smaller unit: a shrunk layout has more room across, not
+        // less.
+        val across = width * unit / u
+        val down = height * unit / u
+        val start = top + max(0f, (down - stack) * u / 2f)
 
-        drawHead(canvas, telemetry, left, start, width, unit)
-        drawTrace(canvas, telemetry, left, start + (BLOCK + GAP) * unit, width, GRAPH_NARROW, unit)
-        val footBaseline = start + (BLOCK + GAP + GRAPH_NARROW + GAP + LABEL_BASELINE) * unit
-        drawFoot(canvas, telemetry, left, footBaseline, width * unit, unit, true)
+        drawHead(canvas, telemetry, left, start, across, u)
+        drawChart(canvas, left, start + (BLOCK + GAP) * u, across, CHART_NARROW, u)
+        val footBaseline = start + (BLOCK + GAP + CHART_NARROW + GAP + LABEL_BASELINE) * u
+        drawFoot(canvas, left, footBaseline, across * u, u, true)
 
-        val rowTop = start + (BLOCK + GAP + GRAPH_NARROW + GAP + CAP_LINE + GAP) * unit
-        val cell = width / SHELF_ROWS
+        val rowTop = start + (BLOCK + GAP + CHART_NARROW + GAP + CAP_LINE + GAP) * u
+        val cell = across / SHELF_ROWS
         readings(telemetry).forEachIndexed { index, reading ->
-            val x = left + index * cell * unit
-            drawGlyph(canvas, reading, x, rowTop + STACK_GLYPH * unit, unit)
+            val x = left + index * cell * u
+            drawGlyph(canvas, reading, x, rowTop + STACK_GLYPH * u, u)
             figure(
-                canvas, reading.text, x, rowTop + (STACK_GLYPH + STACK_GAP + STACK_FIGURE_UP) * unit,
-                STACK_FIGURE * unit, reading.ink,
+                canvas, reading.text, x, rowTop + (STACK_GLYPH + STACK_GAP + STACK_FIGURE_UP) * u,
+                STACK_FIGURE * u, reading.ink,
             )
             drawTrack(
                 canvas, reading,
-                x, rowTop + (STACK - STACK_TRACK) * unit,
-                STACK_TRACK_WIDTH * unit, STACK_TRACK * unit,
+                x, rowTop + (STACK - STACK_TRACK) * u,
+                STACK_TRACK_WIDTH * u, STACK_TRACK * u,
             )
         }
     }
@@ -184,7 +229,6 @@ internal class VehiclePageRenderer {
         width: Float,
         unit: Float,
     ) {
-        val load = telemetry.loadKw
         val closed = telemetry.access == VehicleAccess.UNAVAILABLE
 
         if (closed) {
@@ -200,10 +244,11 @@ internal class VehiclePageRenderer {
             return
         }
 
-        val headline = VehiclePageWords.headline(telemetry)
-        var headWidth = 0f
+        // The word, the mark and the colour all come from one place with the cluster's. The page
+        // printed «В БАТАРЕЮ» over «−25 кВт» because the sentence and the sign were decided
+        // separately; there is one decision now (`docs/energy-display-contract.md` §2.1).
         var x = left
-        if (headline != null && headline.mark) {
+        if (readouts.mark) {
             fill.color = DenzaPalette.RETURN
             canvas.drawCircle(
                 left + MARK_RADIUS * unit,
@@ -213,23 +258,22 @@ internal class VehiclePageRenderer {
             )
             x += (MARK_RADIUS * 2f + MARK_GAP) * unit
         }
-        if (headline != null) {
-            caption(canvas, headline.text, x, top + LABEL_BASELINE * unit, unit)
-            headWidth = x - left + capsWidth(headline.text, unit)
-        }
+        caption(canvas, readouts.word, x, top + LABEL_BASELINE * unit, unit)
+        val headWidth = x - left + capsWidth(readouts.word, unit)
 
-        // The sign is back on the figure, and the words stay.
-        //
-        // It came off on the reasoning that a minus is not a direction anybody reads at a glance -
-        // which is true, and was not the whole truth. On the car the owner worked the page out as
-        // «белый разряд, синий заряд… но супер неинтуитивно»: he was decoding the *hue*, because
-        // the sentence above the figure was wrong at that moment (the gun gate) and colour was the
-        // only thing telling him the truth. Three cues that agree cost nothing and need no
-        // learning; one clever one costs a glance.
-        val into = load != null && load < 0.0
-        val ink = if (into) DenzaPalette.RETURN_INK else PanelPalette.INK
-        val text = load?.let { (if (into) MINUS else "") + ContourReadout.whole(abs(it)) } ?: DASH
-        val figureWidth = figure(canvas, text, left, top + HERO_BASELINE * unit, HERO * unit, ink)
+        // **The magnitude, never the sign.** The direction is the word above the figure and the
+        // colour of the figure itself - two cues that cannot disagree, because one function decides
+        // both. A minus in front of a number is not a direction anybody reads at a glance, and the
+        // one place it survives on either screen is the consumption, which is signed because it is
+        // an exception.
+        val ink = when (readouts.flow) {
+            ContourFlow.OUT -> PanelPalette.INK
+            ContourFlow.BACK -> DenzaPalette.RETURN_INK
+            ContourFlow.NEUTRAL -> PanelPalette.MUTED
+        }
+        val figureWidth = figure(
+            canvas, readouts.powerFigure ?: DASH, left, top + HERO_BASELINE * unit, HERO * unit, ink,
+        )
         units.textSize = UNIT_SIZE * unit
         units.color = PanelPalette.MUTED
         canvas.drawText(
@@ -250,14 +294,19 @@ internal class VehiclePageRenderer {
         // Right to left after that, and each cell is drawn only if it can stand clear of the one
         // before it. A cell drawn over a figure is worse than an absent one, and this row carries
         // three things whose widths all depend on what the car is doing.
+        //
+        // Which of the engine's three cells this is - revolutions, minutes, or nothing at all - is
+        // `EnergyReadouts`', because the cluster's own corner draws the same cell and the two used
+        // to decide it from different things.
         var free = left + width * unit
-        val engine = VehiclePageWords.engineCell(telemetry)
-        if (engine != null) {
-            val engineX = free - capsWidth(engine.first, unit)
+        val engineFigure = readouts.engineCellFigure
+        if (engineFigure != null) {
+            val engineTitle = readouts.engineCellTitleCaps
+            val engineX = free - capsWidth(engineTitle, unit)
             if (engineX > heroRight + GROUP * unit) {
-                caption(canvas, engine.first, engineX, top + LABEL_BASELINE * unit, unit)
+                caption(canvas, engineTitle, engineX, top + LABEL_BASELINE * unit, unit)
                 figure(
-                    canvas, engine.second, engineX, top + SECOND_BASELINE * unit,
+                    canvas, engineFigure, engineX, top + SECOND_BASELINE * unit,
                     SECOND * unit, PanelPalette.INK,
                 )
                 free = engineX - GROUP * unit
@@ -268,18 +317,18 @@ internal class VehiclePageRenderer {
         // that move it - the resting voltage is flat across the whole charge window, and what
         // changes is the sag under load. It used to hang off the end of the shape's caption, where
         // the owner read it as «пришпилили куда-то вниз, непонятно к чему относится».
-        val volts = VehiclePageWords.volts(telemetry) ?: return
+        val voltsFigure = readouts.voltsFigure ?: return
         val voltsX = heroRight + GROUP * unit
-        if (voltsX + capsWidth(volts.caption, unit) > free) return
-        caption(canvas, volts.caption, voltsX, top + LABEL_BASELINE * unit, unit)
+        if (voltsX + capsWidth(VehiclePageWords.TITLE_VOLTS, unit) > free) return
+        caption(canvas, VehiclePageWords.TITLE_VOLTS, voltsX, top + LABEL_BASELINE * unit, unit)
         val voltsWidth = figure(
-            canvas, volts.figure, voltsX, top + SECOND_BASELINE * unit,
+            canvas, voltsFigure, voltsX, top + SECOND_BASELINE * unit,
             SECOND * unit, PanelPalette.INK,
         )
         units.textSize = SECOND_UNIT * unit
         units.color = PanelPalette.MUTED
         canvas.drawText(
-            volts.unit,
+            VehiclePageWords.UNIT_V,
             voltsX + voltsWidth + LEAD * unit,
             top + SECOND_BASELINE * unit,
             units,
@@ -288,127 +337,198 @@ internal class VehiclePageRenderer {
 
     // ------------------------------------------------------------------------------- the shape
 
-    private fun drawTrace(
+    /**
+     * The last ten kilometres, as the twenty steps the cluster's petal draws.
+     *
+     * `docs/energy-display-contract.md` §2.3: one chart on both screens, the same bins on the same
+     * ladder, and the pixel height is the only thing that differs. It replaced two minutes of pack
+     * power - a second history of the quantity the headline already shows, and the reason the two
+     * screens' graphs could not be the same graph.
+     *
+     * Above the zero is what the road cost, below it is what it gave back, on a fixed linear ladder
+     * of 0…40 up and 0…20 down. A bin the log has no energy for is a **hole**: nothing is drawn, the
+     * zero rule continues under it, and the road it covers is still counted. A bin past a ceiling is
+     * drawn to the ceiling with a tick standing outside the box, so a cut is seen to be a cut. The
+     * newest bin is as wide as the road it has, and the run is anchored at the right edge where new
+     * road arrives.
+     *
+     * **Drawn with the cluster's own pen.** The steps, the field under them, the blue patches on
+     * their posts and the marks over a cut bin were all written out a second time here, and the
+     * second copy had already drifted - its return patch was edged in `RETURN` where the cluster
+     * edges it in `RETURN_INK`. [InstrumentPen] speaks a virtual unit, and this page's virtual unit
+     * is the strip's own dp, so one call draws the same shape at a different size.
+     */
+    private fun drawChart(
         canvas: Canvas,
-        telemetry: VehicleTelemetry,
         left: Float,
         top: Float,
         width: Float,
         height: Float,
         unit: Float,
     ) {
-        val steps = telemetry.powerTrace.steps
-        val ceiling = PowerSpan.ceiling(steps)
-        val floor = PowerSpan.floor(steps)
-        val zero = top + height * unit * ceiling / (ceiling + floor).toFloat()
-        val perKw = height * unit / (ceiling + floor).toFloat()
-        val plot = (width - AXIS) * unit
+        val bottom = top + height * unit
+        val zero = top + height * unit * ContourPlan.PETAL_FULL /
+            (ContourPlan.PETAL_FULL + ContourPlan.PETAL_RETURN_FULL)
+        val plot = (width - CHART_AXIS) * unit
+        val pitch = plot / ConsumptionChart.BINS
 
         fill.color = DenzaPalette.TRACK_MARK
         canvas.drawRect(left, zero, left + plot, zero + unit, fill)
-        drawAxis(canvas, ceiling, floor, left + width * unit, top, top + height * unit, unit)
-        if (telemetry.powerTrace.isEmpty) return
+        drawAxis(canvas, left + width * unit, top, bottom, unit)
 
-        val step = plot / steps.size
-        line.strokeWidth = EDGE * unit
-        line.color = PanelPalette.INK
-        var previous = Float.NaN
-        for (index in steps.indices) {
-            val raw = steps[index]
-            // A step nothing answered in is the trace's own line, a unit over the axis.
-            //
-            // Two marks for an absence were tried on the car in one day and both were read as
-            // something else: a plain gap in the filled area as the pack having done nothing
-            // («провалы в ноль»), and a column in the track's colour as «серый квадрат это что?».
-            // The owner's own answer was to stop marking it - «просто светлую линию графика
-            // проведи на пиксель выше линии нуля, и всё» - and he is right that a display read at
-            // arm's length has no room for a symbol that needs explaining. The line stays
-            // unbroken, it never merges with the axis, and nothing claims a reading: there is no
-            // area under it and no riser into it.
-            if (raw.isNaN()) {
-                val x = left + index * step
-                val y = zero - HOLE_LIFT * unit
-                canvas.drawLine(x, y, x + step, y, line)
-                previous = Float.NaN
-                continue
+        val chart = readouts.chart
+        val values = chart.values
+        val count = min(values.size, ConsumptionChart.BINS)
+        if (count <= 0) return
+        val first = values.size - count
+
+        // One virtual unit is one strip dp, which is what lets the cluster's own strokes and ticks
+        // be stated here in the numbers `ContourPlan` states them in.
+        pen.size(plot, bottom - top, height)
+        // The run is anchored at the box's right edge, so a chart that is still filling grows
+        // leftward into its box instead of stretching across it.
+        var x = left + (ConsumptionChart.BINS - chart.span) * pitch
+        for (index in 0 until count) {
+            chartXs[index] = x
+            x += chart.widths[first + index] * pitch
+            val value = values[first + index]
+            chartYs[index] = if (value.isNaN()) {
+                Float.NaN
+            } else {
+                zero - min(max(value, 0f) / ContourPlan.PETAL_FULL, 1f) * (zero - top)
             }
-            // Held inside the box: past the ladder's last rung a step is drawn flat against the
-            // edge, which is what "more than this holds" looks like. Unclamped it was drawn over
-            // the figure above the box, which is the answer the owner's «что будет при 200 кВт»
-            // would have got.
-            val kw = telemetry.powerTrace.clamp(raw, ceiling, floor)
-            val x = left + index * step
-            val y = zero - kw * perKw
-            fill.color = if (kw >= 0f) AREA_OUT else AREA_BACK
-            canvas.drawRect(x, minOf(y, zero), x + step, maxOf(y, zero), fill)
-            canvas.drawLine(x, y, x + step, y, line)
-            // The riser between two steps, and nothing across a bin that never answered: a hole in
-            // the window breaks the shape rather than being drawn through.
-            if (!previous.isNaN()) canvas.drawLine(x, zero - previous * perKw, x, y, line)
-            previous = kw
+            returnYs[index] = if (value.isNaN()) {
+                Float.NaN
+            } else {
+                zero + min(max(-value, 0f) / ContourPlan.PETAL_RETURN_FULL, 1f) * (bottom - zero)
+            }
         }
+        chartXs[count] = x
+
+        ContourRuns.forEach(count, { !values[first + it].isNaN() }) { start, length ->
+            pen.history(
+                canvas,
+                xSpan(start, length),
+                ySpan(chartYs, start, length),
+                length,
+                zero,
+                PanelPalette.INK,
+                1f,
+                CHART_EDGE,
+                PanelPalette.INK,
+                AREA_OUT_ALPHA,
+            )
+        }
+        // The return is a patch per stretch of returning bins, standing on the zero on its own
+        // posts: blue is only where energy actually came back.
+        ContourRuns.forEach(count, { values[first + it] < 0f }) { start, length ->
+            pen.steps(
+                canvas,
+                xSpan(start, length),
+                ySpan(returnYs, start, length),
+                length,
+                zero,
+                DenzaPalette.RETURN,
+                AREA_BACK_ALPHA,
+                DenzaPalette.RETURN_INK,
+                CHART_EDGE,
+            )
+        }
+        pen.clampTicks(
+            canvas,
+            values,
+            first,
+            count,
+            chartXs,
+            top - ContourPlan.PETAL_TICK_GAP * unit,
+            bottom + ContourPlan.PETAL_TICK_GAP * unit,
+            ContourPlan.PETAL_TICK,
+            CHART_EDGE,
+            ContourPlan.PETAL_FULL,
+            ContourPlan.PETAL_RETURN_FULL,
+            PanelPalette.INK,
+            DenzaPalette.RETURN_INK,
+        )
     }
 
     /**
-     * What the box holds, written where a chart writes it.
+     * One run's heights, packed to the front of the scratch buffer the pen reads.
+     *
+     * The cluster's own arrangement: it moves the values rather than allocating a view of them,
+     * and the buffers are fields, so a frame allocates nothing here either.
+     */
+    private fun ySpan(ys: FloatArray, start: Int, length: Int): FloatArray {
+        if (start == 0) return ys
+        for (index in 0 until length) spanYs[index] = ys[start + index]
+        return spanYs
+    }
+
+    /** And its edges, which are one longer than its heights. */
+    private fun xSpan(start: Int, length: Int): FloatArray {
+        if (start == 0) return chartXs
+        for (index in 0..length) spanXs[index] = chartXs[start + index]
+        return spanXs
+    }
+
+    /**
+     * What the box holds, written where a chart writes it: «40» and «−20» in its own gutter.
      *
      * The span used to be a phrase on the line under the box - `ШКАЛА 5 ↑ 10 ↓ кВт` - and the
      * owner's verdict was «тоже не интуитивно, либо убрать либо починить». It was a legend, and a
      * legend is what this page spent four drawings getting rid of. Two numbers against the edges
-     * they belong to are not a legend: the top of the box is what leaves the pack, the bottom is
-     * what comes back, and the unit is said once.
+     * they belong to are not a legend, and they are the cluster's own two ceilings.
      */
-    private fun drawAxis(
-        canvas: Canvas,
-        ceiling: Int,
-        floor: Int,
-        right: Float,
-        top: Float,
-        bottom: Float,
-        unit: Float,
-    ) {
+    private fun drawAxis(canvas: Canvas, right: Float, top: Float, bottom: Float, unit: Float) {
         caps.textSize = LABEL * unit
         caps.color = DenzaPalette.MUTED_DEEP
         caps.textAlign = Paint.Align.RIGHT
-        canvas.drawText("$ceiling $UNIT_KW", right, top + AXIS_BASELINE * unit, caps)
-        canvas.drawText("$floor", right, bottom, caps)
+        canvas.drawText(AXIS_CEILING, right, top + CHART_AXIS_BASELINE * unit, caps)
+        canvas.drawText(AXIS_FLOOR, right, bottom, caps)
         caps.textAlign = Paint.Align.LEFT
     }
 
-    /** The line under the shape: how far back it reaches, and the volts behind it. */
+    /**
+     * The line under the shape: what those ten kilometres cost, and the road they were.
+     *
+     * «Как водитель, не очень интересен… ему больше места где-то под графиком» - so it is here
+     * rather than on the shelf, where it was the one row that had nothing to do with how warm
+     * anything is getting. Named, because a figure with no name and no place is exactly what the
+     * voltage was.
+     *
+     * **The window rides on the unit**, which is the cluster's own arrangement for this very figure
+     * - «кВт·ч/100 км · за 10 км» under the petal - and it is never a whole-number rounding of a
+     * filling window. In a pane the word «РАСХОД» goes and nothing else: the figure and «10 КМ» are
+     * what the shape above cannot be read without (`docs/energy-display-contract.md` §5).
+     */
     private fun drawFoot(
         canvas: Canvas,
-        telemetry: VehicleTelemetry,
         left: Float,
         baseline: Float,
         width: Float,
         unit: Float,
         narrow: Boolean,
     ) {
-        val window = VehiclePageWords.window(telemetry.powerTrace.seconds, narrow)
-        caption(canvas, window, left, baseline, unit, DenzaPalette.MUTED_DEEP)
-        if (narrow) return
-
-        // And what the last three kilometres cost, hung off the right of the same line.
-        //
-        // «Как водитель, не очень интересен… ему больше места где-то под графиком» - so it is here
-        // rather than on the shelf, where it was the one row that had nothing to do with how warm
-        // anything is getting. Named, because the owner's other verdict this evening was about a
-        // figure that had no name and no place: «непонятно, к чему относится».
-        val spend = VehiclePageWords.spend(telemetry) ?: return
+        val figureText = readouts.consumptionFigure ?: return
         units.textSize = LABEL * unit
         figures.textSize = SPEND * unit
-        val unitWidth = units.measureText(spend.unit)
-        val figureWidth = figures.measureText(spend.figure)
-        val right = left + width
-        val captionWidth = capsWidth(spend.caption, unit)
-        val runX = right - unitWidth - LEAD * unit - figureWidth
-        if (runX - LEAD * unit - captionWidth < left + capsWidth(window, unit) + GROUP * unit) return
-        caption(canvas, spend.caption, runX - LEAD * unit - captionWidth, baseline, unit)
-        figures.color = PanelPalette.INK
-        canvas.drawText(spend.figure, runX, baseline, figures)
+        // One string, memoised on the distance behind it, rather than a unit and a window joined
+        // in the frame that measures them: this line is built and measured to decide whether the
+        // word in front of it fits, sixty times a second, over a road that moves every 100 m.
+        val unitText = readouts.windowFoot
+        val figureWidth = figures.measureText(figureText)
+        val unitWidth = units.measureText(unitText)
+        val wordWidth = capsWidth(VehiclePageWords.TITLE_SPEND, unit) + LEAD * unit
+        val run = figureWidth + LEAD * unit + unitWidth
+        var x = left
+        if (!narrow && wordWidth + run <= width) {
+            caption(canvas, VehiclePageWords.TITLE_SPEND, x, baseline, unit)
+            x += wordWidth
+        }
+        figures.color =
+            if (readouts.consumptionNegative) DenzaPalette.RETURN_INK else PanelPalette.INK
+        canvas.drawText(figureText, x, baseline, figures)
         units.color = DenzaPalette.MUTED_DEEP
-        canvas.drawText(spend.unit, right - unitWidth, baseline, units)
+        canvas.drawText(unitText, x + figureWidth + LEAD * unit, baseline, units)
     }
 
     // -------------------------------------------------------------------------- the temperatures
@@ -812,17 +932,25 @@ internal class VehiclePageRenderer {
         const val MARK_GAP = 8f
         const val MARK_RISE = 5f
 
-        const val GRAPH = 130f
-        const val GRAPH_NARROW = 60f
-        const val EDGE = 2f
+        /** The chart's own box, and what is left of it at 392 dp. */
+        const val CHART = 130f
+        const val CHART_NARROW = 60f
+        const val CHART_EDGE = 2f
 
-        /** Where the line runs when nothing answered: clear of the axis, and nowhere near a value. */
-        const val HOLE_LIFT = 2f
-        val AREA_OUT = PanelPalette.alpha(PanelPalette.INK, 0.16f)
-        val AREA_BACK = PanelPalette.alpha(DenzaPalette.RETURN, 0.26f)
+        /**
+         * The chart's own field and the return's patch, as the alphas the pen takes.
+         *
+         * The bin count, the two ceilings, the tick and its gap are **not** restated here: they are
+         * [ConsumptionChart.BINS] and [ContourPlan]'s, read where they are needed. Five aliases
+         * stood here and a test asserted each equalled its own initialiser, which proves nothing
+         * about the board and hides the one thing that matters - that neither screen can move a
+         * number the other draws.
+         */
+        const val AREA_OUT_ALPHA = 0.16f
+        const val AREA_BACK_ALPHA = 0.26f
 
         /** The whole left column, which is what the field centres. */
-        const val COLUMN = BLOCK + GAP + GRAPH + GAP + CAP_LINE
+        const val COLUMN = BLOCK + GAP + CHART + GAP + CAP_LINE
         const val FOOT_BASELINE_UP = CAP_LINE - LABEL_BASELINE
 
         // The shelf: five rows of 30 a neighbour's gap apart, the consumption under them.
@@ -882,17 +1010,16 @@ internal class VehiclePageRenderer {
         const val DASH = "—"
         const val DEGREE = "°"
         const val UNIT_KW = "кВт"
-        const val UNIT_V = "В"
-        const val UP = "↑"
-        const val DOWN = "↓"
 
         const val TITLE_CLOSED = "ПИТАНИЕ ОТ МАШИНЫ"
-        /** The gutter on the right of the box where the two axis figures stand. */
-        const val AXIS = 44f
-        const val AXIS_BASELINE = 13f
 
-        /** ASCII, like every other number this app prints, and for the same reason as the arrows. */
-        const val MINUS = "-"
+        /** The gutter on the right of the box where the two ceilings stand. */
+        const val CHART_AXIS = 44f
+        const val CHART_AXIS_BASELINE = 13f
+
+        /** What the gutter says, which is the ladder's own two labels. */
+        val AXIS_CEILING: String = ContourPlan.PETAL_FULL_LABEL
+        val AXIS_FLOOR: String = ContourPlan.PETAL_RETURN_FULL_LABEL
 
         private val SENSORS = listOf(
             Sensor(VehicleSignal.PACK_TEMP_AVG, ContourGlyphs.Glyph.PACK, ContourReadout.PACK_BAND_HIGH_C.toFloat()),

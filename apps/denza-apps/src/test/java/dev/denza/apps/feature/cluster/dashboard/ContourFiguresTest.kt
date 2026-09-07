@@ -83,10 +83,10 @@ class ContourFiguresTest {
     fun theEngineWindowIsKeyedOnItsSecondsAndOnTheFaceItIsSetIn() {
         val figures = ContourFigures()
         val long = figures.intoPack(82, short = false)
-        assertEquals("В БАТАРЕЮ · ПОСЛЕДНИЕ 1:22", long)
+        assertEquals("· ПОСЛЕДНИЕ 1:22", long)
         assertSame(long, figures.intoPack(82, short = false))
-        assertEquals("В БАТАРЕЮ · 1:22", figures.intoPack(82, short = true))
-        assertEquals("В БАТАРЕЮ · ПОСЛЕДНИЕ 1:23", figures.intoPack(83, short = false))
+        assertEquals("· 1:22", figures.intoPack(82, short = true))
+        assertEquals("· ПОСЛЕДНИЕ 1:23", figures.intoPack(83, short = false))
     }
 
     @Test

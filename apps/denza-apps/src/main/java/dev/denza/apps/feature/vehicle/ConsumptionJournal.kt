@@ -4,21 +4,33 @@ import java.io.File
 import java.util.Locale
 
 /**
- * The consumption bars, on disk, so a window of thirty kilometres means
+ * The consumption buckets, on disk, so a window of thirty kilometres means
  * something after the app has been restarted.
  *
  * ### Why lines and not JSON
  *
- * This file is written while the car is moving - a bar closes every hundred
+ * This file is written while the car is moving - a bucket closes every hundred
  * metres, which at highway speed is every three or four seconds - and the power
  * goes away without warning when the car is switched off. A JSON document has to
  * be rewritten whole to add one entry, so a write cut in half by the ignition
  * takes the entire history with it. A line appended to the end costs the tail and
  * nothing else, and a half-written last line is recognisable and skippable.
  *
- * So: one line per bar, `odometer,value`, appended, never rewritten except to
- * trim. `%.1f` on the odometer is exactly the resolution the vehicle reports it
- * at; `%.3f` on the value is far finer than anything drawn from it.
+ * So: one line per bucket, `odometer,kwh,km,knownKm`, appended, never rewritten
+ * except to trim. `%.1f` on the odometer is exactly the resolution the vehicle
+ * reports it at; the three quantities behind it are written far finer than
+ * anything drawn from them.
+ *
+ * ### The old two-column format is refused rather than upgraded
+ *
+ * Until 2026-09-07 a line was `odometer,value` and a bucket was one number. A
+ * bucket carries its road and its known road now
+ * (`docs/energy-display-contract.md` §2.6), and those two cannot be invented from
+ * a file that never held them: guessing one tick of road per line would put an
+ * odometer step nobody watched under a figure as if it had been measured. So a
+ * short line is a line this class did not write, which ends where every other
+ * kind of wrong here ends - the file goes and the drive up to now is the whole
+ * cost.
  *
  * ### What it does when the file is wrong
  *
@@ -82,13 +94,21 @@ internal class ConsumptionJournal(
     }
 
     private fun parse(row: String): ConsumptionSample? {
-        val comma = row.indexOf(',')
-        if (comma <= 0) return null
-        val odometer = row.substring(0, comma).toDoubleOrNull() ?: return null
-        val value = row.substring(comma + 1).toDoubleOrNull() ?: return null
-        if (!odometer.isFinite() || !value.isFinite()) return null
+        val fields = row.split(',')
+        if (fields.size != COLUMNS) return null
+        val odometer = fields[0].toDoubleOrNull() ?: return null
+        val kwh = fields[1].toDoubleOrNull() ?: return null
+        val km = fields[2].toDoubleOrNull() ?: return null
+        val knownKm = fields[3].toDoubleOrNull() ?: return null
+        if (!odometer.isFinite() || !kwh.isFinite() || !km.isFinite() || !knownKm.isFinite()) {
+            return null
+        }
         if (odometer < 0.0 || odometer > MAX_ODOMETER_KM) return null
-        return ConsumptionSample(odometer, value)
+        // Road is a distance and the known part of it is inside that distance. A file that says
+        // otherwise is not describing a bucket this log ever closed.
+        if (km <= 0.0 || km > MAX_BUCKET_KM) return null
+        if (knownKm < 0.0 || knownKm > km + OdometerGate.KM_EPSILON) return null
+        return ConsumptionSample(odometer, kwh, km, knownKm)
     }
 
     /**
@@ -100,10 +120,8 @@ internal class ConsumptionJournal(
      */
     fun append(samples: List<ConsumptionSample>) {
         if (samples.isEmpty()) return
-        val text = StringBuilder(samples.size * 20)
-        samples.forEach {
-            text.append(String.format(Locale.US, "%.1f,%.3f\n", it.odometerKm, it.value))
-        }
+        val text = StringBuilder(samples.size * LINE_BYTES)
+        samples.forEach { text.append(line(it)) }
         if (!JournalFile.append(file, text.toString())) {
             wipe("запись не удалась")
             return
@@ -126,16 +144,23 @@ internal class ConsumptionJournal(
             wipe("после подрезки ничего не осталось")
             return
         }
-        val text = StringBuilder(kept.size * 20)
-        kept.forEach {
-            text.append(String.format(Locale.US, "%.1f,%.3f\n", it.odometerKm, it.value))
-        }
+        val text = StringBuilder(kept.size * LINE_BYTES)
+        kept.forEach { text.append(line(it)) }
         if (JournalFile.replace(file, text.toString())) {
             lines = kept.size
         } else {
             wipe("подрезка не удалась")
         }
     }
+
+    private fun line(sample: ConsumptionSample): String = String.format(
+        Locale.US,
+        "%.1f,%.5f,%.4f,%.4f\n",
+        sample.odometerKm,
+        sample.kwh,
+        sample.km,
+        sample.knownKm,
+    )
 
     /** Forget everything. Cheap, and the answer to every kind of wrong. */
     fun clear() {
@@ -156,7 +181,20 @@ internal class ConsumptionJournal(
 
         private const val FILE_NAME = "consumption.log"
 
-        /** The longest window, in bars. Anything older is not the last thirty km. */
+        /** Four columns, and a line with any other count is not this class's line. */
+        const val COLUMNS = 4
+
+        /**
+         * No bucket carries more road than a re-anchor allows plus the tick that closed it.
+         *
+         * [OdometerGate.MAX_JUMP_KM] is the longest step that is still road, and a bucket that was
+         * already part full when that step arrived closes carrying both. The bound is stated as
+         * the sum rather than as the jump alone because that is what the accumulation can reach -
+         * exactly, on a bucket one epsilon short of closing.
+         */
+        private const val MAX_BUCKET_KM = OdometerGate.MAX_JUMP_KM + ConsumptionLog.DEFAULT_BUCKET_KM
+
+        /** The longest window, in buckets. Anything older is not the last thirty km. */
         const val MAX_LINES = ConsumptionLog.DEFAULT_CAPACITY
 
         /**
@@ -169,7 +207,10 @@ internal class ConsumptionJournal(
          */
         const val TRIM_SLACK = 200
 
-        /** A line is about twenty bytes; anything past this is not our file. */
+        /** What one line costs, which is what a builder is sized from. */
+        private const val LINE_BYTES = 36
+
+        /** And anything past a generous multiple of that is not our file. */
         private const val MAX_BYTES = (MAX_LINES + TRIM_SLACK) * 64
 
         /** No odometer on this car reaches this; a bigger number is a bad parse. */

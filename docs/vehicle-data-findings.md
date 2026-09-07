@@ -554,12 +554,15 @@ consumer sets `forceCold`, so a page just swiped to arrives with its
 temperatures rather than dashing them for ten seconds. There are still no
 page-dependent signal filters: while polling, the hub reads the same seven hot
 and thirty cold signals for whoever is watching. The consumption history is
-always rendered over the latest **3 km**; no saved head-unit selector is
+always rendered over the latest **10 km**; no saved head-unit selector is
 consulted.
 
-The strip's page adds one series to the snapshot and no signals to the
-allowlist: `PowerTrace` bins the pack power the hub already reads into
-twenty-four five-second steps, the same grid `EngineTrace` uses.
+Both screens draw one chart from that window and no extra signals:
+`ConsumptionChart` bins the closed buckets the hub already keeps into twenty
+steps of 500 m, anchored to the odometer's own half kilometre. The strip's own
+two-minute `PowerTrace` was deleted with it - it was a second history of the
+quantity the page's headline already prints, and the reason the two screens'
+graphs could not be compared (`docs/energy-display-contract.md`, §2.3).
 
 Unit tests cover the command shape, the marker alignment, the proven scales, the
 sentinel and plausibility rules, and the consumption accumulator including the
@@ -841,7 +844,28 @@ What that pins down:
 - Fuel level held `53 %` and the coolant and oil-pressure lamps held `0` across
   the whole cycle.
 
+**What this cycle does not settle, and the recorder that will.** Every line above
+was read with the car **parked**. `GENERATION_KW` mirroring pack power exactly
+while standing is consistent with it being the pack's charge from the engine
+*and* with it being the generator's output, because on a parked car those are the
+same number; the two drives in September saw the engine run at speed with this id
+flat, which is consistent with the first reading and not with the second. The sign
+of `POWER_KW` under acceleration and whether `ENGINE_RPM` reports anything with the
+engine off in motion are open for the same reason.
 
+`tools/vehicle_log.py` is what closes them. It asks this same Binder through the
+same `service call` chain, from the host over ADB, one CSV row a second into
+`captures/vehicle-log/` (git-ignored), reconnecting when the car sleeps; the
+decoding is the app's - the second parcel word, the Binder sentinels, the rpm id's
+own `0x1FFF`, floats by bit pattern - and the **raw words are written beside the
+decoded values**, so a decoding argument can be settled from the file afterwards.
+The drive worth recording is one with **the engine running at speed**: twenty
+minutes of motorway with at least one engine cycle in it, some braking hard enough
+to be unambiguous regeneration, and a full-throttle pull. It also settles what a
+500 m consumption bin looks like on a real road, which is what the chart's
+ceilings are chosen against. `VehicleLogReplayTest` reads whatever the directory
+holds and asserts the invariants that do not depend on what a signal means; it
+passes with the directory empty, which is where it stands today.
 
 ### Engine itself — `com/byd/feature/engine/Engine.java`, dev `1012`
 

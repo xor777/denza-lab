@@ -258,10 +258,11 @@ Any screen that can appear in a pane deserves the same treatment.
 ## The strip is two pages
 
 `StripPages.dc.html` is a contract now: the strip draws it.
-`dev.denza.apps.feature.trip.VehiclePageRenderer` is the page,
-`VehiclePageWords` is what it says, `PowerTrace` is the two minutes behind the
-shape, and `StripPagesBoardContractTest` holds this board and those constants
-against each other so neither can move alone. What the owner asked for is what
+`dev.denza.apps.feature.trip.VehiclePageRenderer` is the page, `EnergyReadouts`
+is what it says about energy (the cluster reads the same object),
+`ConsumptionChart` is the ten kilometres behind the shape, and
+`StripPagesBoardContractTest` holds this board and those constants against each
+other so neither can move alone. What the owner asked for is what
 it is: the analyser, and the car's own readings, reached the way a phone does it
 - **swipe sideways, two dots under the field saying there is a second page**.
 
@@ -280,19 +281,25 @@ has no subject. What fixed it is not new invention but the panel next door - the
 Contour went through nine passes to learn these, and this page inherits them:
 
 - **one quantity, one sentence.** The headline is words - `ИЗ БАТАРЕИ`,
-  `● В БАТАРЕЮ ОТ ДВС · 1321 об/мин` - and the figure under it says how much. A
-  minus in front of a number is not a direction anybody reads at a glance, and on
-  this page the direction matters more than the sign;
-- **a figure names the window it is true over**: `ПОСЛЕДНИЕ 2 МИНУТЫ · 553 В`
-  under the trace, `ЗА 3 КМ` after the consumption;
+  `● В БАТАРЕЮ ОТ ДВС` - and the figure under it says how much, **unsigned**, in
+  the colour of its own direction. The word, the mark and the colour come out of
+  one function with the cluster's (`EnergyReadouts`); the page printed
+  `В БАТАРЕЮ` over `−25 кВт` for as long as the word and the sign were decided in
+  two places;
+- **a figure names the window it is true over**: `ЗА 10 КМ` after the consumption,
+  and the shape above it *is* those ten kilometres;
 - **a zero is never drawn, and a quantity that did not happen has no cell.**
-  Revolutions live inside the headline and only while the engine turns; consumption
-  is absent while the car stands; nothing prints `0` to hold a seat;
-- **the page has a shape**, and it is the same quantity the headline names: two
-  minutes of pack power, out of the pack in ink and back into it in `RETURN`,
-  drawn as **twenty-four steps of five seconds** - the engine box's own grid,
-  because a per-sample line across half a metre of glass is 0.9 mm per sample of
-  something moving faster than the eye follows.
+  Revolutions have a cell only while the engine turns; nothing prints `0` to hold a
+  seat;
+- **the page has a shape**, and since 2026-09-07 it is the *cluster's* shape: the
+  last ten kilometres of the pack's consumption, in the same twenty bins of 500 m
+  on the same ladder the petal clamps at
+  ([docs/energy-display-contract.md](../../docs/energy-display-contract.md), §2.3).
+  Out of the pack in ink, back into it in `RETURN`, holes where the log had no
+  energy, and the pixel height is the only thing that differs between the two
+  screens. It replaced two minutes of pack power - a second history of the quantity
+  the headline already shows, and the reason the two screens' graphs could never be
+  the same graph.
 
 ### The engine has one place, and it says three things
 
@@ -312,25 +319,39 @@ Contour's arrangement one screen along:
 All three are on the board: the generation and climb scenes turning, the electric
 scene stopped after fourteen minutes, the charging scene with no cell at all.
 
-### The graph fills the box it is given
+### The graph says what it holds, in its own gutter
 
 *«Обрати внимание, как график использует вертикальное пространство, чтобы он не
-был сплющен»* - and the fixed span was what flattened it. Sixty kilowatts out is
-right for a climb and turns an eight-kilowatt generation into a sliver against the
-axis; ten is right for the generation and clamps every acceleration flat.
+был сплющен»* - and while this box held two minutes of pack power, that meant a
+ladder of rungs, because the quantity lived in two orders of magnitude at once.
 
-So each half of the box takes **the smallest rung that holds it** - `5 · 10 · 20 ·
-40 · 80 · 160` - and the axis is placed between the two at `top / (top + bottom)`,
-which makes the kilowatts per pixel identical above and below. One scale, both
-halves full, whichever way the pack has been working: a climb with nothing going
-back gets almost the whole box for what leaves the pack, and a standing charge gets
-it for what arrives. A ladder rather than a fit, because a span that follows the
-data continuously redraws the same drive at a new height every second.
+The box holds consumption now, which does not: it is a **fixed linear ladder,
+0…40 kW·h/100 km up and 0…20 back down, clamped**, the cluster's own two constants
+(`ContourPlan.PETAL_FULL`, `PETAL_RETURN_FULL`) read by both screens. A ladder
+rather than a fit for the reason the petal's is one - a span that follows the data
+redraws the same road at a new height every few hundred metres - and a bin past
+either ceiling is drawn to the ceiling **with a three-unit tick standing outside
+the box**, so a cut is seen to be a cut rather than read as a silent flat top.
 
-And the shape names the span it is drawn in, the way every figure here names its
-window: `ПОСЛЕДНИЕ 2 МИНУТЫ · ШКАЛА 5 ↑ 10 ↓ кВт · 553 В`. In a narrow pane the
-window shortens to `2 МИН` and the voltage goes - the Contour's own rule for the
-same line, where the window is the first thing to give and the span may not go.
+The two ceilings are written where a chart writes them: `40` and `−20` against the
+edges they belong to, in a 44 dp gutter on the right. The span used to be a phrase
+on the line underneath - `ШКАЛА 5 ↑ 10 ↓ кВт` - and the verdict on it was *«тоже не
+интуитивно, либо убрать либо починить»*: it was a legend, and a legend is what this
+page spent four drawings getting rid of.
+
+### The line under the shape is the figure and its window
+
+`РАСХОД 19,4 кВт·ч/100 км · ЗА 10 КМ`, left-aligned under the box that is those ten
+kilometres. The window rides on the unit, which is the cluster's own arrangement
+for this very figure, and it is **never a whole-number rounding of a filling
+window** - `ЗА 3,7 КМ` while the log fills, naming the road the figure is actually
+the mean of.
+
+**At 392 dp the word `РАСХОД` goes and nothing else.** The consumption used to be
+the thing that left the pane entirely; the contract's §5 says the opposite - the
+figure and its window are what the shape above cannot be read without. If the pane
+is too short for the stack, the layout's unit shrinks until it fits, so nothing is
+ever drawn past the pane.
 
 ### The temperature track carries the zone
 
@@ -363,8 +384,8 @@ display cannot hold two ideas of "hot" in one car.
   and this page exists for what they do not show.
 
 What is left is exactly that: what the pack is doing now, what it has been doing
-for two minutes, how warm five components are, and what the last ten kilometres
-cost.
+over the last ten kilometres, how warm five components are, and what those
+kilometres cost.
 
 ### What the first drive changed
 
@@ -375,7 +396,7 @@ them mine and one of them a lie the whole app was telling:
 | --- | --- |
 | «в батарею от зарядки» on a discharging pack | `charging` read `gun >= 1`, and this id sits at or above 1 on the road. Three conditions now, and the cluster's countdown hung off the same gate |
 | «ДВС · мин за поездку 3» with a cold engine | the cell followed the trip, which is still yesterday's until the car moves. It follows the engine's own trace now, like the cluster's engine box |
-| «белый разряд, синий заряд… но супер неинтуитивно» | the direction was carried by hue alone, because the sentence above it was wrong at that moment. The sign is back on the figure and the words stay |
+| «белый разряд, синий заряд… но супер неинтуитивно» | the direction was carried by hue alone, because the sentence above it was wrong at that moment. The sign went back on the figure for a day; the second review found that what was broken was the sentence - the word and the sign were decided in two places - and put both in one function. The hero is unsigned again, and the word and the colour cannot disagree |
 | «про шкалу тоже не интуитивно» | `ШКАЛА 5 ↑ 10 ↓ кВт` was a legend. The box says what it holds in its own gutter now |
 | «иконки какие-то размытые» | the marks were painted at the cluster's 2.5-unit stroke, half again the weight of every other icon on this screen |
 
@@ -627,7 +648,7 @@ that concept drawn: three boards, all from the same constants.
 | | |
 | --- | --- |
 | `ClusterContour.dc.html` | calm driving, engine asleep - the state the panel is in most of the time |
-| `ClusterContourStates.dc.html` | seventeen scenes as a column: first seconds, a traffic jam whose engine ran earlier and stopped long ago, calm, the first kilometres with the consumption log twelve buckets in, an acceleration, regeneration, the engine generating both ways it can be drawn, the engine forty seconds dead, standing on P, standing on P with the trace still warm, charging, charging with no consumption history behind it and an estimate too long for the seat, a single null, link lost, an exception, and the missing ADB key |
+| `ClusterContourStates.dc.html` | the scenes as a column: first seconds, a traffic jam whose engine ran earlier and stopped long ago, calm, the first kilometres with the log 3.7 km in, an acceleration with half a kilometre of full throttle cut at the ceiling, regeneration, the engine giving 14 kW for 82 s, the engine stopped and its box gone, an engine running at speed that gives the pack nothing, standing on P, a dropped link on the road drawn as a hole, standing on P with the generator charging, charging, charging with no consumption history behind it and an estimate too long for the seat, a single null, link lost, an exception, and the missing ADB key |
 | `ClusterContourPlan.dc.html` | the skeleton alone, over the three apertures and both cell grids, with every anchor measured - and, under the panel, the physical constants and the ramp they produce |
 
 The panel exists now: `dev.denza.apps.feature.cluster.dashboard` draws these three
@@ -646,6 +667,32 @@ Then the panel was built, put on a live bench, and watched moving - and the
 eighth pass is what came back from that, the ninth from the bench run after it.
 Those nine passes are the reason to read this section rather than only the
 concept.
+
+### What the second review changed (2026-09-07)
+
+The owner drove the built panel twice and came back with «лоскутки латать устал»,
+and the review that followed found one method failure rather than five bugs: two
+screens designed one after the other, each with its own definitions, on signals
+read once with the car parked.
+[docs/energy-display-contract.md](../../docs/energy-display-contract.md) is the
+answer, and it is **normative** - where this page and it describe the same thing
+differently, it wins. What moved on these boards:
+
+- the petal draws **twenty steps of 500 m** instead of a hundred of 100 m,
+  anchored to the odometer's own half kilometre, on **0…40 / 0…20** with a tick
+  over anything cut and holes where the log had no energy;
+- the engine's box exists **only while the engine gives**, is drawn in the
+  history's own grey, and says **«ДВС ДАЁТ 14 кВт · ПОСЛЕДНИЕ 1:22»** with no dot;
+- **nothing about the engine is drawn on the band** - both drawings that were
+  there were claims about `GENERATION_KW` that no recording supports;
+- the strip's car page draws the petal's own chart in place of two minutes of pack
+  power, and its hero is unsigned;
+- the eye distance is **800 mm** (the owner, 2026-09-07; the tape said 750 three
+  days earlier). Every cap is 6.7 % smaller to the eye and no rung moved.
+
+`ContourBoardContractTest` and `StripPagesBoardContractTest` hold both records to
+all of it, and `EnergyReadoutsTest` holds the two screens to one answer about every
+string either of them prints.
 
 ### The test every element now has to pass
 
@@ -742,9 +789,10 @@ saying.
   the return is blue, one shape per run, with its own posts - and only where it
   happened.
 
-Both boxes are steps of a fixed duration as a result: the petal's hundred buckets
-are a hundred metres each and the engine's twenty-four are five seconds each, a bin
-being the mean of the samples that arrived in it.
+Both boxes are steps of a fixed size as a result: the petal's twenty are five
+hundred metres each (a hundred of a hundred metres until the second review read
+them as a comb), the engine's twenty-four are five seconds each, and a bin is the
+mean of what arrived in it.
 
 ### The temperature row is five glyphs, and no words
 
@@ -816,12 +864,16 @@ two minutes the box outlives the engine. 22 units of nothing after a dot reads a
 value that failed to arrive, which is the same defect the seventh pass moved the
 odometer's reserve to fix.
 
-With no figure there is no field: the phrase is assembled without it and the dot
-closes up against the words. **One shift per engine stop, not a jitter** - what a
-reserve buys is stillness while a *number* changes, and by then there is no number
-left to change. The words themselves never move, in either state. `ContourPlan`
-carries both anchors, `legendMarkX` and `legendMarkQuietX`, and the states board
-draws both scenes.
+With no figure there is no field: the phrase was assembled without it and the dot
+closed up against the words - one shift per engine stop rather than a jitter, since
+what a reserve buys is stillness while a *number* changes.
+
+**The second review deleted the problem instead.** The box now exists only while
+the engine is running *and* giving, so there is no state in which a box is up with
+no figure in its sentence: no second anchor, and no dot at all (the blue mark means
+«into the pack», and «ДВС ДАЁТ» makes no such claim). `ContourPlan` carries one
+run of anchors - `legendPrefixX`, `legendFigureRight`, `legendUnitX`,
+`legendWindowX` - and the states board draws the two scenes the box has.
 
 ### And the window a phrase names is the one it actually has
 
@@ -831,7 +883,9 @@ interval it names is the one the shape and the figure beside it were taken over.
 Both of these named a *capacity*.
 
 - **`● 14 кВт В БАТАРЕЮ · ПОСЛЕДНИЕ 2 МИН`** was printed from the first second of
-  an engine run. The box grows from the right and is never front-padded - that is
+  an engine run. (The words in front of the window changed again with the second
+  review: `ДВС ДАЁТ`, because where those kilowatts go is not known. The rule below
+  is about the window and is unchanged.) The box grows from the right and is never front-padded - that is
   M7, deliberate - so five seconds in, the shape is one step wide and the words
   under it claim two minutes of road. The figure was honest and the sentence was
   not. It reads **`ПОСЛЕДНИЕ 0:05`**, then `0:40`, then `2:00` once the box has
@@ -872,18 +926,23 @@ drawn windows against `legendWindowX`.
 
 Every ergonomic claim on the first three boards stood on the brief's "порядка
 25 см (оценка)", which is what the review's M1 found. The owner took a tape to the
-car on 2026-09-04: **the active area of the cluster glass is 320 mm wide and his
-eyes sit 750 mm from it.** Both are constants in the generator, and the whole
-ladder falls out of them - one board unit is 0.2123 mm, a Roboto cap is 0.71 em,
-one arc minute at 750 mm is 0.2182 mm, so a cap subtends `size × 0.691` minutes.
+car on 2026-09-04: **the active area of the cluster glass is 320 mm wide**, and on
+2026-09-07 he corrected the seat: **his eyes sit 800 mm from it**, not the 750 the
+tape had said. Both are constants in the generator, and the whole ladder falls out
+of them - one board unit is 0.2123 mm, a Roboto cap is 0.71 em, one arc minute at
+800 mm is 0.2327 mm, so a cap subtends `size × 0.648` minutes.
 
 | rung | mm | arc min | where |
 | --- | --- | --- | --- |
-| 88 | 13.26 | 61 | the hero |
-| 52 | 7.84 | 36 | the corners, the petal - ISO 15008 calls 30' comfortable |
-| 34 | 5.12 | 23 | both shelves - legal for a deliberate glance, the floor is 20' |
+| 88 | 13.26 | 57 | the hero |
+| 52 | 7.84 | 34 | the corners, the petal - ISO 15008 calls 30' comfortable |
+| 34 | 5.12 | 22 | both shelves - legal for a deliberate glance, the floor is 20' |
 | 18 | 2.71 | 12 | headings, captions, units: furniture |
-| 13 | 1.96 | 9 | board furniture only; never on the car |
+| 13 | 1.96 | 8 | board furniture only; never on the car |
+
+**The extra 50 mm moved no rung.** Every cap is 6.7 % smaller to the eye and the
+ladder still clears the standard everywhere it is used; 18 is furniture read by a
+deliberate look, and no figure the driver needs on the move is set in it.
 
 So the cluster's ramp **on these boards** is `88 · 52 · 34 · 18`, and 24 and 13 are
 not used on the panel at all. What changed with the tape is not one number but the
@@ -915,10 +974,11 @@ on the boards:
   replaces it;
 - **the window is ten kilometres**, on the petal and on the head unit's car page
   alike. Thirty steps read from the seat as «крупные ступеньки»; a hundred
-  buckets in the same 232 units is 2.32 a step, 0.49 mm, under the eye's
-  resolution from 750 mm, so the history reads as a line with a grain. The calm
-  history is a new hundred-bucket shape with one descent in it, and the states
-  board's filling scene closes thirty-seven buckets under «· за 3,7 км».
+  buckets in the same 232 units is 2.32 a step, which the second review then read
+  as a comb of its own - the chart draws **twenty steps of 500 m** over the same
+  window now. The calm history is a hundred-bucket shape with one descent in it,
+  grouped by fives, and the states board's filling scene closes thirty-seven
+  buckets under «· за 3,7 км».
   «кВт·ч/100 км · за 10 км» measures **194.2344** at 18/400 in the same headless
   Chrome run as the seventh pass's strings; every filling form is still 197.7656;
 - **nothing else on the board moved.** The engine's box being keyed on the
@@ -1020,7 +1080,7 @@ get to rewrite ГОСТ 8.417. The odometer's own figure inside `42 км · ЗА
 set in the caption's face for the same reason: it is a number living in a phrase
 rather than a reading of its own.
 
-### Three histories, one rule each
+### Two histories, one rule each
 
 Both boxes were redrawn in the fifth pass. The owner on the fourth: *"Сценарии
 выглядят гораздо лучше... Но графики очень сильно сплющены по вертикали и очень
@@ -1040,6 +1100,19 @@ over a `MUTED_DEEP` field at 55 %, where it was a 2-unit `MUTED` line over 30 %
 and read as a texture. It is **232 wide**, because that is what the petal's own
 cut-out leaves at the box's lower left corner once the 8-unit guard is taken.
 
+**And it is twenty steps of 500 m, anchored to the odometer** (the second review,
+2026-09-07). A hundred hundred-metre buckets in those 232 units were 2.32 a step
+and read from the seat as a comb; twenty steps of 11.6 - 2.5 mm of glass, 10.7′
+from 800 mm - are steps the eye can count, which is what the owner asked for on the
+fourth board («он как бы дискретный ступеньками»), and 500 m averages away the
+spikes a hundred-metre bucket shows. **Anchored** means a bin holds the buckets
+whose odometer floors into its own half kilometre, so a step that has closed never
+changes and the shape does not re-phase every hundred metres; the newest step is as
+wide as the road it has. A step whose known road is under half its road is a
+**hole** - nothing drawn, the zero rule continuing under it, its road still counted
+and its energy out of the figure - because a stretch the log has no energy for is
+not a stretch where nothing was spent.
+
 **Its zero line is the figure's own baseline, and that decides its height.** The
 owner, on the built panel: *«ноль должен быть у цифры»*. The fifth pass had given
 the box 56 units and a zero line four fifths down, and both numbers were the box's
@@ -1047,16 +1120,21 @@ alone - a ladder standing next to a 52 and agreeing with nothing on it. The thre
 lines that bound the history are the three lines of the numeral beside it now: the
 cap top at 347.08, the baseline at 384, and a descender's depth under it at 397.
 The box is 49.92 tall because that is what a 52 occupies, and there is nothing left
-to choose. Its scale is a **fixed ladder, 0…30 kW·h/100 km up the cap and 0…10 back
-down the descender**, both clamped - 30 rather than the fifth pass's 40, because
-what set 40 was the zero line at four fifths and the zero line is a baseline now.
-A bucket does not change height because a *different* bucket changed value, which
-is what the ladder buys: on the states board the traffic jam's history is visibly
-taller than calm driving's, which under the old autoscale it was not. There is no
-dashed mean: the mean is the figure standing next to it.
+to choose. Its scale is a **fixed ladder, 0…40 kW·h/100 km up the cap and 0…20 back
+down the descender**, both clamped, **and a clamp is marked**: a bin past either
+ceiling is drawn to the ceiling with a three-unit tick standing just outside the
+box, so a cut is seen to be a cut. 30 and 10 were the ceilings for hundred-metre
+buckets and they flattened every launch and every descent into one silent top; 40
+rather than 60 because what the box is for is the difference between 15 and 25,
+which at 40 is 9 units of this glass and at 60 is 6. They are two constants in one
+place (`ContourPlan.PETAL_FULL`, `PETAL_RETURN_FULL`), the plan board prints them,
+the head unit's car page reads them, and the recording says whether they are right.
+A bin does not change height because a *different* bin changed value, which is what
+the ladder buys. There is no dashed mean: the mean is the figure standing next to
+it.
 
 **Two series, and the blue one is only where it happened.** Spending is one
-continuous `MUTED_DEEP` field under its `INK` edge, drawn across all thirty
+continuous `MUTED_DEEP` field under its `INK` edge, drawn across all twenty
 buckets: on a bucket that gave energy back it lies on the zero line, because what
 was spent there is nothing. The return is `RETURN` at 50 % with a `RETURN_INK`
 edge, one shape per run of return buckets, standing on the zero line on its own
@@ -1231,7 +1309,7 @@ drawing decision.
 | B1 | consumption and balance undefined under the engine | closed as a data rule; the number waits for one log |
 | B2 | vertical budget exhausted, headings 7 units from the boundary | closed - headings dropped, both guards at 24 |
 | B3 | the P scene contradicts `TripEngine` | closed - the petal is always the last 3 km, and since the seventh pass its unit says so |
-| M1 | the ladder stood on a guessed glass width | closed - measured, 320 mm at 750 mm |
+| M1 | the ladder stood on a guessed glass width | closed - measured, 320 mm at 800 mm (750 by the tape on 2026-09-04, corrected by the owner on 2026-09-07) |
 | M2 | the hero under the stock speedometer, unit unreadable | closed - 88 with its unit at 34; the photograph still waits |
 | M3 | 34 Light on black, a size the concept forbade | closed - 34 is legal at this distance, and Regular |
 | M4 | five equal 52s | closed - colour carries the hierarchy, `INK` is the hero alone |
@@ -1310,7 +1388,7 @@ Kotlin matches:
 | --- | --- |
 | `MainBoardContractTest` | reads `Main.dc.html` - tile height, padding, radius, the `space-between` that hangs the words apart, both text styles with their leading, icon size and stroke, grid columns and gap, page margins |
 | `SpectrumBoardContractTest` | reads the analyser out of the same board - band count, bar width fraction, that the columns add up to the field they are drawn in, peak height, corner radius, gradient stop, reflection crop, opacity, fraction and fade, scanline pitch |
-| `ContourBoardContractTest` | reads `ClusterContour.dc.html`, `ClusterContourStates.dc.html`, `ClusterContourPlan.dc.html` **and `gen_contour.py` itself** against `ContourPlan` - the four rungs with their weights and tracking, the panel, the band's hairline, body and zero mark, the glow's centre, radii and its `0.18·√(P/120)`, the hero's baseline and its field, both corner baselines, both shelf baselines, all six temperature cells with the box each glyph stands in, every rectangle the five glyphs are drawn from - the pack's case, terminal and lit cell, each car's body, four hollow wheels and one block, the inverter's case and the wave inside it - all three trip seats on P and the pair on the move, both history boxes with their scales and their steps, the engine's sentence with every anchor in it including both places its dot stands, that the petal's blue is one patch on the one run of return buckets, both guards drawn in red, and the measured advances every one of those cells is sized from |
+| `ContourBoardContractTest` | reads `ClusterContour.dc.html`, `ClusterContourStates.dc.html`, `ClusterContourPlan.dc.html` **and `gen_contour.py` itself** against `ContourPlan` - the four rungs with their weights and tracking, the panel, the band's hairline, body and zero mark, the glow's centre, radii and its `0.18·√(P/120)`, the hero's baseline and its field, both corner baselines, both shelf baselines, all six temperature cells with the box each glyph stands in, every rectangle the five glyphs are drawn from - the pack's case, terminal and lit cell, each car's body, four hollow wheels and one block, the inverter's case and the wave inside it - all three trip seats on P and the pair on the move, both history boxes with their scales and their steps, the engine's sentence with every anchor in it including the quiet one the words close up onto when there is no figure, that the petal's blue is one patch on the one run of return buckets, both guards drawn in red, and the measured advances every one of those cells is sized from |
 
 The third row reads the generator as well as the boards because a caption is a
 coordinate on the cluster: a cell there is exactly as wide as the wider of its

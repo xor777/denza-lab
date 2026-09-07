@@ -329,13 +329,17 @@ class InstrumentPen {
      * something continuous, and a stepped line says so. Thirty bars 0.65 mm wide were 0.9′ at 750 mm
      * - under the eye's own resolution - which is why this is a line at all (M15).
      *
+     * **The steps are stated as edges rather than as a pitch.** A consumption bin is anchored to
+     * the odometer's own half kilometre and the newest one is as wide as the road it has so far,
+     * so the run's last step is narrower than the rest while it fills. [xs] holds `count + 1`
+     * edges; a uniform box simply hands in a uniform run of them.
+     *
      * [zeroY] is where the field closes, which is not necessarily the box's floor: a descent gives
      * energy back, so a consumption history needs a zero line rather than a floor.
      */
     fun history(
         canvas: Canvas,
-        left: Float,
-        pitch: Float,
+        xs: FloatArray,
         ys: FloatArray,
         count: Int,
         zeroY: Float,
@@ -347,9 +351,9 @@ class InstrumentPen {
     ) {
         if (count <= 0) return
         // The field first, sharing the line's own outline, closed down to the zero line.
-        stepContour(left, pitch, ys, count)
-        path.lineTo(left + pitch * count, zeroY)
-        path.lineTo(left, zeroY)
+        stepContour(xs, ys, count)
+        path.lineTo(xs[count], zeroY)
+        path.lineTo(xs[0], zeroY)
         path.close()
         fill.color = fieldColor
         fill.alpha = (fieldAlpha.coerceIn(0f, 1f) * FULL_ALPHA).toInt()
@@ -358,7 +362,7 @@ class InstrumentPen {
 
         // And the same outline again, open this time, so the line is drawn on top of its own field
         // and along neither the floor nor the two ends.
-        stepContour(left, pitch, ys, count)
+        stepContour(xs, ys, count)
         stroke.color = lineColor
         stroke.alpha = (lineAlpha.coerceIn(0f, 1f) * FULL_ALPHA).toInt()
         stroke.strokeWidth = v(lineWidthV)
@@ -372,12 +376,12 @@ class InstrumentPen {
      * and filled, once open and stroked - and the walk was written out twice with it. Two copies of
      * a contour is two chances for a history whose fill and whose line describe different data.
      */
-    private fun stepContour(left: Float, pitch: Float, ys: FloatArray, count: Int) {
+    private fun stepContour(xs: FloatArray, ys: FloatArray, count: Int) {
         path.rewind()
-        path.moveTo(left, ys[0])
+        path.moveTo(xs[0], ys[0])
         for (index in 0 until count) {
-            path.lineTo(left + pitch * (index + 1), ys[index])
-            if (index + 1 < count) path.lineTo(left + pitch * (index + 1), ys[index + 1])
+            path.lineTo(xs[index + 1], ys[index])
+            if (index + 1 < count) path.lineTo(xs[index + 1], ys[index + 1])
         }
     }
 
@@ -392,8 +396,7 @@ class InstrumentPen {
      */
     fun steps(
         canvas: Canvas,
-        left: Float,
-        pitch: Float,
+        xs: FloatArray,
         ys: FloatArray,
         count: Int,
         zeroY: Float,
@@ -404,12 +407,12 @@ class InstrumentPen {
     ) {
         if (count <= 0) return
         path.rewind()
-        path.moveTo(left, zeroY)
+        path.moveTo(xs[0], zeroY)
         for (index in 0 until count) {
-            path.lineTo(left + pitch * index, ys[index])
-            path.lineTo(left + pitch * (index + 1), ys[index])
+            path.lineTo(xs[index], ys[index])
+            path.lineTo(xs[index + 1], ys[index])
         }
-        path.lineTo(left + pitch * count, zeroY)
+        path.lineTo(xs[count], zeroY)
         fill.color = fieldColor
         fill.alpha = (fieldAlpha.coerceIn(0f, 1f) * FULL_ALPHA).toInt()
         canvas.drawPath(path, fill)
@@ -418,6 +421,45 @@ class InstrumentPen {
         stroke.alpha = FULL_ALPHA
         stroke.strokeWidth = v(edgeWidthV)
         canvas.drawPath(path, stroke)
+    }
+
+    /**
+     * The marks over the bins a ladder could not hold, so a cut is seen to be a cut.
+     *
+     * Three units standing just outside the edge the bin hit, centred on the bin. Here rather than
+     * in either renderer because both consumption charts have to draw the same mark: they had two
+     * copies of the walk, and one of them had put the return's tick in the spending's ink.
+     *
+     * @param edges the bin boundaries, `count + 1` of them, in pixels
+     * @param aboveY where a mark over the ceiling starts, gap already taken
+     * @param belowY and where one under the floor does
+     */
+    fun clampTicks(
+        canvas: Canvas,
+        values: FloatArray,
+        first: Int,
+        count: Int,
+        edges: FloatArray,
+        aboveY: Float,
+        belowY: Float,
+        tickV: Float,
+        widthV: Float,
+        ceiling: Float,
+        returnCeiling: Float,
+        aboveColor: Int,
+        belowColor: Int,
+    ) {
+        val tick = v(tickV)
+        for (index in 0 until count) {
+            val value = values[first + index]
+            if (value.isNaN()) continue
+            val centre = (edges[index] + edges[index + 1]) / 2f
+            if (value >= ceiling) {
+                line(canvas, centre, aboveY, centre, aboveY - tick, aboveColor, widthV)
+            } else if (value <= -returnCeiling) {
+                line(canvas, centre, belowY, centre, belowY + tick, belowColor, widthV)
+            }
+        }
     }
 
     private fun typefaceFor(weight: InstrumentWeight): Typeface = when (weight) {

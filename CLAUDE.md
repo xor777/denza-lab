@@ -31,6 +31,13 @@ still use the historical `denza-gateway` directory name.
   render a board and how to measure one, and the unit tests that fail when a
   board and the app disagree. Read it before changing anything under
   `apps/denza-apps/src/main/java/dev/denza/apps/ui/` or `.../design/`.
+- [docs/energy-display-contract.md](docs/energy-display-contract.md) — normative
+  energy contract for the cluster's Contour and the head unit's car page: one
+  definition, one set of words and one chart on both screens, and how each is
+  proved. It owns pack power's direction, the ten-kilometre consumption, the
+  twenty-bin chart and the engine's box where it diverges from the findings or
+  the canvas README. Read it before touching `feature/vehicle`,
+  `feature/cluster/dashboard` or `VehiclePageRenderer`.
 - [docs/instrument-display-findings.md](docs/instrument-display-findings.md) — cluster scene, the Contour instrument panel, Mirrors, and navigation status.
 - [docs/dishare-api-notes.md](docs/dishare-api-notes.md) — DiShare/HUD findings.
 - [docs/fse-app-installation.md](docs/fse-app-installation.md) — verified passenger-screen app installation path.
@@ -113,8 +120,12 @@ export ANDROID_HOME=/opt/homebrew/share/android-commandlinetools
 - When docs and implementation disagree, follow the code, manifests, and Gradle
   files, then correct the relevant page. A design board is the exception: it and
   the code are both normative, they are joined by `MainBoardContractTest`,
-  `SpectrumBoardContractTest` and `ContourBoardContractTest`, and they move in
-  one change or neither moves.
+  `SpectrumBoardContractTest`, `ContourBoardContractTest` and
+  `StripPagesBoardContractTest`, and they move in one change or neither moves.
+  Energy is joined once more on top of that: `EnergyReadoutsTest` holds the
+  cluster and the car page to one answer about every energy string either of them
+  prints, and `VehicleLogReplayTest` holds the arithmetic to whatever
+  `captures/vehicle-log/` records.
 - Record durable findings in the closest existing doc, not only in chat. Create a
   new `.md` only when the topic has a durable owner. Parked code → `research/`.
 - Never commit APKs, reverse-engineered APKs, or large extracted binaries

@@ -14,22 +14,27 @@ package dev.denza.apps.design.instrument
  *
  * ### Where the rungs come from
  *
- * They are not taste, they are arithmetic on a tape measure. The owner measured the cluster on
- * 2026-09-04: the active area of the glass is 320 mm wide and his eyes sit 750 mm from it. The
- * panel is drawn in a virtual space 424 units tall, which makes one unit 0.2123 mm; a Roboto cap is
- * 0.71 em and one arc minute at 750 mm is 0.2182 mm, so a cap of `size` units subtends
- * `size × 0.691` arc minutes. ISO 15008 puts the floor at 20′ and comfort at 30′:
+ * They are not taste, they are arithmetic on a tape measure. The active area of the glass is
+ * 320 mm wide (the owner's tape, 2026-09-04) and **his eyes sit 800 mm from it** (the owner,
+ * 2026-09-07; the tape had said 750 three days earlier). The panel is drawn in a virtual space 424
+ * units tall, which makes one unit 0.2123 mm; a Roboto cap is 0.71 em and one arc minute at 800 mm
+ * is 0.2327 mm, so a cap of `size` units subtends `size × 0.648` arc minutes. ISO 15008 puts the
+ * floor at 20′ and comfort at 30′:
  *
  * | rung | mm | arc min | where |
  * | --- | --- | --- | --- |
- * | 88 | 13.26 | 61 | the hero, read on the move |
- * | 52 | 7.84 | 36 | the corners and the petal - comfortable |
- * | 34 | 5.12 | 23 | both shelves - legal for a deliberate glance |
+ * | 88 | 13.26 | 57 | the hero, read on the move |
+ * | 52 | 7.84 | 34 | the corners and the petal - comfortable |
+ * | 34 | 5.12 | 22 | both shelves - legal for a deliberate glance |
  * | 18 | 2.71 | 12 | headings, captions, units: furniture |
+ *
+ * **The extra 50 mm moved no rung.** Every cap is 6.7 % smaller to the eye and the ladder still
+ * clears the standard everywhere it is used: 18 is furniture read by a deliberate look, and no
+ * figure the driver needs on the move is set in it (`docs/energy-display-contract.md` §5).
  *
  * `104` used to head this ladder and is gone. It was chosen when the glass was an estimate that made
  * 52 look illegal and a doubling look necessary; on the measured 320 mm it is a 16 mm numeral. `88`
- * is `1.69 × 52`, which clears this ramp's own 1.2× rule with room, and it still reads at 61′. The
+ * is `1.69 × 52`, which clears this ramp's own 1.2× rule with room, and it still reads at 57′. The
  * rule is a visible step, not an octave.
  *
  * The full ramp keeps 24, 13 and 11 below the four the Contour draws: they are what a future

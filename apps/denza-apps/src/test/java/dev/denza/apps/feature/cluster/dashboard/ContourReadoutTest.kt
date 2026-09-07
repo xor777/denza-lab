@@ -118,11 +118,16 @@ class ContourReadoutTest {
     }
 
     @Test
-    fun theEngineBoxSaysWhatItIsInsteadOfNamingItsOwnLines() {
-        // The eighth pass, in two strings. «ОБОРОТЫ · ● ГЕНЕРАЦИЯ 14 кВт» was a key to a picture,
-        // and a panel with no room for a key is not allowed to need one.
-        assertTrue(ContourReadout.LEGEND_INTO_PACK.startsWith("В БАТАРЕЮ"))
-        assertTrue(ContourReadout.LEGEND_INTO_PACK_SHORT.startsWith("В БАТАРЕЮ"))
+    fun theEngineBoxSaysWhatItGivesRatherThanWhereItGoes() {
+        // The eighth pass drew «ОБОРОТЫ · ● ГЕНЕРАЦИЯ 14 кВт», which was a key to a picture, and a
+        // panel with no room for a key is not allowed to need one. The ninth wrote «В БАТАРЕЮ»,
+        // which is a claim about what `GENERATION_KW` is in motion that no recording supports.
+        // «ДВС ДАЁТ» is true under either meaning and is the trip cell's own verb.
+        assertEquals("ДВС ДАЁТ", ContourReadout.LEGEND_PREFIX)
+        assertTrue(
+            "and no mark leads it: blue means «into the pack»",
+            !ContourReadout.LEGEND_PREFIX.contains("●"),
+        )
         assertTrue(
             "only «ПОСЛЕДНИЕ» may be dropped",
             ContourReadout.LEGEND_INTO_PACK_SHORT.length < ContourReadout.LEGEND_INTO_PACK.length,
@@ -137,11 +142,11 @@ class ContourReadoutTest {
         // The ninth pass's own defect. «ПОСЛЕДНИЕ 2 МИН» is the box's *capacity*: the trace grows
         // from the right and is never front-padded, so five seconds after an engine start the
         // shape was one step wide and the words under it claimed two minutes of it.
-        assertEquals("В БАТАРЕЮ · ПОСЛЕДНИЕ 0:05", ContourReadout.intoPack(5, short = false))
-        assertEquals("В БАТАРЕЮ · ПОСЛЕДНИЕ 1:22", ContourReadout.intoPack(82, short = false))
-        assertEquals("В БАТАРЕЮ · ПОСЛЕДНИЕ 2:00", ContourReadout.intoPack(120, short = false))
+        assertEquals("· ПОСЛЕДНИЕ 0:05", ContourReadout.intoPack(5, short = false))
+        assertEquals("· ПОСЛЕДНИЕ 1:22", ContourReadout.intoPack(82, short = false))
+        assertEquals("· ПОСЛЕДНИЕ 2:00", ContourReadout.intoPack(120, short = false))
         // The face that crowds the phrase drops the adverb and keeps the reading.
-        assertEquals("В БАТАРЕЮ · 1:22", ContourReadout.intoPack(82, short = true))
+        assertEquals("· 1:22", ContourReadout.intoPack(82, short = true))
     }
 
     @Test
@@ -183,6 +188,56 @@ class ContourReadoutTest {
         assertEquals("кВт·ч/100 км · за 9,9 км", ContourReadout.perHundredKm(9.9, 10.0))
         // The formatter takes the window as an argument rather than carrying one of its own.
         assertTrue(ContourReadout.perHundredKm(3.0, 3.0).endsWith("за 3 км"))
+    }
+
+    /**
+     * One window, three lines, one rule about when it rounds.
+     *
+     * The petal's unit, the car page's pane caption and the car page's whole foot line differ in
+     * the words either side of the figure and in nothing else, and they were three copies of the
+     * same comparison - each of them free to start rounding a filling window on its own.
+     */
+    @Test
+    fun theThreeLinesThatNameTheWindowAreOneRule() {
+        assertEquals("кВт·ч/100 км · ЗА 10 КМ", ContourReadout.windowFoot(10.0, 10.0, narrow = false))
+        assertEquals("кВт·ч/100 км · 3,7 КМ", ContourReadout.windowFoot(3.7, 10.0, narrow = true))
+        listOf(0.0, 0.5, 3.7, 9.9, 10.0 - 1e-12, 10.0, 12.0).forEach { covered ->
+            // The last number in the line: «кВт·ч/100 км» carries one of its own.
+            val figure =
+                Regex("""\d+(,\d+)?""").findAll(ContourReadout.perHundredKm(covered, 10.0)).last().value
+            assertTrue(
+                "«$figure» is the figure on all three lines",
+                ContourReadout.windowCaps(covered, 10.0, narrow = false).contains(figure) &&
+                    ContourReadout.windowFoot(covered, 10.0, narrow = false).contains(figure),
+            )
+        }
+        // And the unit in front of the foot line is the petal's own, not a second copy of it.
+        assertTrue(ContourReadout.UNIT_PER_100KM.startsWith(ContourReadout.UNIT_PER_100KM_UNIT))
+        assertTrue(
+            ContourReadout.windowFoot(10.0, 10.0, narrow = false)
+                .startsWith(ContourReadout.UNIT_PER_100KM_UNIT + ContourReadout.SEPARATOR),
+        )
+    }
+
+    /**
+     * A minus in front of nothing but zeros is not a direction, so it is not printed.
+     *
+     * The consumption is the one signed figure on either screen and it is signed because it is an
+     * exception - a road that gave back more than it cost. A hundred metres of coasting is −0.4,
+     * which `%.0f` prints as «-0» and the panel drew in `RETURN_INK`: a minus the reader can see
+     * over a magnitude they cannot.
+     */
+    @Test
+    fun aFigureThatRoundedToZeroDoesNotKeepItsMinus() {
+        assertEquals("0", ContourReadout.whole(-0.4))
+        assertEquals("0", ContourReadout.whole(-0.0))
+        assertEquals("0,0", ContourReadout.tenth(-0.04))
+        assertEquals("0", ContourReadout.consumption(-0.4, parked = false))
+        assertEquals("0,0", ContourReadout.consumption(-0.04, parked = true))
+        // And a figure that still has a magnitude keeps it.
+        assertEquals("-15", ContourReadout.whole(-15.0))
+        assertEquals("-0,4", ContourReadout.tenth(-0.4))
+        assertEquals("-1", ContourReadout.whole(-0.6))
     }
 
     @Test

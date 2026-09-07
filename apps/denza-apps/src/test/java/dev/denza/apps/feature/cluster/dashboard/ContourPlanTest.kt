@@ -166,22 +166,6 @@ class ContourPlanTest {
     }
 
     @Test
-    fun theEnginesSentenceClosesUpWhenItsFigureLeaves() {
-        val plan = plan()
-        // The reserve holds a number's place while the number changes. When the engine stops there
-        // is no number, so the field goes with it and the dot closes up against the words - one
-        // shift per engine stop rather than a hole for the two minutes the box outlives the engine.
-        assertEquals(plan.legendWindowX - plan.markGap - plan.markRadius, plan.legendMarkQuietX, 1e-4f)
-        assertEquals(
-            "and what it closes is exactly the field, its unit and both gaps",
-            plan.generationField + plan.smallGap + plan.kilowattWidth + plan.smallGap,
-            plan.legendMarkQuietX - plan.legendMarkX,
-            1e-3f,
-        )
-        assertTrue("it never reaches past the shelf's own edge", plan.legendMarkQuietX < plan.rightEdge)
-    }
-
-    @Test
     fun thePetalsBoxIsTheFiguresOwnThreeLines() {
         val plan = plan()
         // «ноль должен быть у цифры». The zero is the baseline, the top is the cap top, and the
@@ -241,13 +225,21 @@ class ContourPlanTest {
     @Test
     fun bothPetalScalesAreFixedLaddersAndBothAreClamped() {
         val plan = plan()
-        assertEquals("full spending reaches the cap top", plan.petalBoxTop, plan.petalSpendY(30f), 1e-4f)
+        assertEquals("full spending reaches the cap top", plan.petalBoxTop, plan.petalSpendY(40f), 1e-4f)
         assertEquals("and stays there above it", plan.petalBoxTop, plan.petalSpendY(96f), 1e-4f)
-        assertEquals("full return reaches the descender", plan.petalBoxBottom, plan.petalReturnY(-10f), 1e-4f)
-        assertEquals("and stays there below it", plan.petalBoxBottom, plan.petalReturnY(-40f), 1e-4f)
+        assertEquals("full return reaches the descender", plan.petalBoxBottom, plan.petalReturnY(-20f), 1e-4f)
+        assertEquals("and stays there below it", plan.petalBoxBottom, plan.petalReturnY(-60f), 1e-4f)
         // Half the span is half the height, in both directions, which is what "fixed ladder" means.
         val up = plan.petalZeroY - plan.petalBoxTop
-        assertEquals(plan.petalZeroY - up / 2f, plan.petalSpendY(15f), 1e-3f)
+        assertEquals(plan.petalZeroY - up / 2f, plan.petalSpendY(20f), 1e-3f)
+        // The box is 37 units up: what it is for is the difference between 15 and 25, which at 40
+        // is 9 units of glass and at 60 would be 6.
+        assertEquals(
+            "eight or nine units between an ordinary drive and a spirited one",
+            9.2f,
+            plan.petalSpendY(15f) - plan.petalSpendY(25f),
+            0.2f,
+        )
     }
 
     @Test
@@ -304,13 +296,15 @@ class ContourPlanTest {
         assertEquals("«кВт» hangs off the window", plan.legendWindowX - plan.smallGap, plan.legendUnitX + plan.kilowattWidth, 1e-3f)
         assertEquals("the figure hangs off the unit", plan.legendUnitX - plan.smallGap, plan.legendFigureRight, 1e-3f)
         assertEquals(
-            "and the dot leads the phrase",
-            plan.legendFigureRight - plan.generationField - plan.markGap - plan.markRadius,
-            plan.legendMarkX,
+            "and the words lead the phrase, with no dot in front of them",
+            plan.legendFigureRight - plan.generationField - plan.smallGap -
+                ContourType.BOARD.width(ContourReadout.LEGEND_PREFIX, InstrumentFace.CAPTION),
+            plan.legendPrefixX,
             1e-3f,
         )
-        // Two digits of reserve, so 9 kW and 14 kW start the sentence in the same place - and when
-        // the engine stops, the figure and its unit leave and the words do not move.
+        // Two digits of reserve, so 9 kW and 14 kW start the sentence in the same place. The box
+        // exists only while the engine gives, so the figure is never absent from a box that is up
+        // and there is no second anchor for the phrase to close up onto.
         assertEquals(2 * ContourType.BOARD.width("0", InstrumentFace.UNIT), plan.generationField, 1e-4f)
         assertTrue(
             "the phrase and one guard fit its own box: ${plan.legendPhraseWidth} in ${plan.engineBoxWidth}",
@@ -322,8 +316,8 @@ class ContourPlanTest {
     fun aFaceTooWideForTheSentenceDropsTheWindowRatherThanRunningPastTheBox() {
         // The car's Roboto is not Chrome's, and this is the one string long enough for that to
         // matter. Nothing else in the phrase can go: the figure is the reading, the unit is what
-        // makes it one, «В БАТАРЕЮ» is the half that says which way the energy went, and the
-        // duration is the window the shape above is true over.
+        // makes it one, «ДВС ДАЁТ» is the whole point of the sentence, and the duration is the
+        // window the shape above is true over.
         val base = plan()
         assertEquals(ContourReadout.LEGEND_INTO_PACK, base.legendWindow)
         // The factor is derived rather than guessed: whatever the phrase's fixed head costs, the

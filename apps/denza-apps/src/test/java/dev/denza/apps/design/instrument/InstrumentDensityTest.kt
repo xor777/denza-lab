@@ -77,16 +77,16 @@ class InstrumentDensityTest {
 
     @Test
     fun aRungOfTheRampSubtendsTheArcMinutesTheGlassWasMeasuredFor() {
-        // One board unit is 320 mm / 1507.56 units, a cap is 0.71 em, and one arc minute at 750 mm
-        // is 0.2182 mm. ISO 15008 puts the floor at 20' and comfort at 30'.
+        // One board unit is 320 mm / 1507.56 units, a cap is 0.71 em, and one arc minute at the
+        // owner's 800 mm is 0.2327 mm. ISO 15008 puts the floor at 20' and comfort at 30'.
         val unitMm = 320.0 / (424.0 * 2560.0 / 720.0)
-        val arcMinuteMm = 750.0 * Math.tan(Math.toRadians(1.0 / 60.0))
+        val arcMinuteMm = 800.0 * Math.tan(Math.toRadians(1.0 / 60.0))
         fun minutes(size: Float) = size * InstrumentFace.CAP_HEIGHT * unitMm / arcMinuteMm
 
-        assertEquals(60.8, minutes(InstrumentDensity.WIDE.hero), 0.2)
-        assertEquals(35.9, minutes(InstrumentDensity.WIDE.figure), 0.2)
-        assertEquals(23.5, minutes(InstrumentDensity.WIDE.reading), 0.2)
-        assertEquals(12.4, minutes(InstrumentDensity.WIDE.body), 0.2)
+        assertEquals(57.0, minutes(InstrumentDensity.WIDE.hero), 0.2)
+        assertEquals(33.7, minutes(InstrumentDensity.WIDE.figure), 0.2)
+        assertEquals(22.0, minutes(InstrumentDensity.WIDE.reading), 0.2)
+        assertEquals(11.7, minutes(InstrumentDensity.WIDE.body), 0.2)
     }
 
     @Test

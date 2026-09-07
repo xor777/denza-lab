@@ -86,14 +86,20 @@ class VehicleTelemetryTest {
 
     @Test
     fun theWindowsMeanArrivesWithTheSnapshotRatherThanWithEachFrame() {
-        val spending = VehicleTelemetry(
+        val road = VehicleTelemetry(
             access = VehicleAccess.READY,
-            consumption = listOf(10.0, -8.0, 30.0),
+            consumption = listOf(
+                ConsumptionSample(100.1, 0.010, 0.1, 0.1),
+                ConsumptionSample(100.2, -0.008, 0.1, 0.1),
+                ConsumptionSample(100.3, 0.030, 0.1, 0.1),
+            ),
         )
-        assertEquals(20.0, spending.consumptionMean!!, 1e-9)
-        assertNull("and a window of pure return is no consumption", VehicleTelemetry(
+        // Net energy over known road, signed: the returning bucket reduces what the road cost.
+        assertEquals((0.010 - 0.008 + 0.030) / 0.3 * 100.0, road.consumptionMean!!, 1e-9)
+        assertEquals("and the road it is the mean of comes with it", 0.3, road.consumptionKm, 1e-9)
+        assertNull("nothing known is no figure at all", VehicleTelemetry(
             access = VehicleAccess.READY,
-            consumption = listOf(-1.0, -2.0),
+            consumption = listOf(ConsumptionSample(100.1, 0.0, 0.1, 0.0)),
         ).consumptionMean)
         assertNull(VehicleTelemetry().consumptionMean)
     }

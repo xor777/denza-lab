@@ -5,6 +5,7 @@ import dev.denza.apps.design.instrument.InstrumentDensity
 import dev.denza.apps.design.instrument.InstrumentFace
 import dev.denza.apps.design.instrument.InstrumentWeight
 import dev.denza.apps.feature.cluster.ClusterMapPlacement
+import dev.denza.apps.feature.vehicle.ConsumptionChart
 import dev.denza.apps.feature.vehicle.ConsumptionWindow
 import dev.denza.apps.feature.vehicle.EngineTrace
 import dev.denza.apps.feature.vehicle.VehicleConvention
@@ -109,6 +110,7 @@ class ContourBoardContractTest {
             ContourReadout.CAPTION_REGEN,
             ContourReadout.CAPTION_ENGINE_GAVE,
             ContourReadout.CAPTION_TRIP,
+            ContourReadout.LEGEND_PREFIX,
             ContourReadout.LEGEND_INTO_PACK,
             ContourReadout.LEGEND_INTO_PACK_SHORT,
         ).forEach { caption ->
@@ -508,8 +510,8 @@ class ContourBoardContractTest {
     @Test
     fun theEngineBoxSpeaksOneSentenceLaidOutFromTheShelfsEdge() {
         val board = states()
-        // «● 14 кВт В БАТАРЕЮ · ПОСЛЕДНИЕ 1:22»: the window against the edge, the unit and the
-        // figure's reserve field to its left, the dot at the head of the whole phrase. The board's
+        // «ДВС ДАЁТ 14 кВт · ПОСЛЕДНИЕ 1:22»: the window against the edge, the unit and the
+        // figure's reserve field to its left, the words in front of the whole phrase. The board's
         // generating state is 82 seconds in and the phrase says so - it used to say two minutes,
         // which is the box's capacity rather than its reach.
         assertEquals(
@@ -526,8 +528,12 @@ class ContourBoardContractTest {
         )
         assertEquals("«кВт»", plan.legendUnitX, text(board, "un", ContourReadout.UNIT_KW).first, TOLERANCE)
         assertEquals("the figure's field", plan.legendFigureRight, text(board, "un", "14").first, TOLERANCE)
-        val dot = DOT.findAll(board).map { it.groupValues[1].toFloat() }.toList()
-        assertTrue("the marker at ${plan.legendMarkX}: $dot", dot.any { closeTo(it, plan.legendMarkX) })
+        assertEquals(
+            "and the words that lead it",
+            plan.legendPrefixX,
+            text(board, "cl", ContourReadout.LEGEND_PREFIX).first,
+            TOLERANCE,
+        )
         assertEquals(
             "the long window fits this face",
             ContourReadout.LEGEND_INTO_PACK,
@@ -535,17 +541,81 @@ class ContourBoardContractTest {
         )
     }
 
+    /**
+     * And where the words stand when there is no figure between them and the window.
+     *
+     * «ДВС ДАЁТ · ПОСЛЕДНИЕ 1:22» is a sentence this panel says: the box holds ten seconds after
+     * the flag drops, and `GENERATION_KW` is not printed at zero - which is the state both
+     * recorded drives were in. It was drawn with the figure's two-digit reserve standing empty in
+     * the middle of the phrase, which reads as a word missing rather than as a sentence.
+     *
+     * The board draws no such scene - both of its engine states have a figure - so the number is
+     * read off the plan board's own note, which is where the generator prints the anchors it
+     * computes.
+     */
+    @Test
+    fun theSentenceClosesUpWhenThereIsNoFigureInIt() {
+        assertEquals(
+            "the quiet anchor is the window's, one gap and the words back",
+            plan.legendWindowX - plan.smallGap - ContourType.BOARD.width(
+                ContourReadout.LEGEND_PREFIX,
+                InstrumentFace.CAPTION,
+            ),
+            plan.legendPrefixQuietX,
+            TOLERANCE,
+        )
+        assertTrue(
+            "and it is the phrase's own room given back",
+            plan.legendPrefixQuietX > plan.legendPrefixX,
+        )
+        val printed = Regex("""без цифры смыкается: слова с ([\d.]+)""")
+            .find(planBoard())?.groupValues?.get(1)
+            ?: error("the plan board does not print the quiet anchor")
+        assertEquals("the board's own number", printed.toFloat(), plan.legendPrefixQuietX, TOLERANCE)
+    }
+
+    /**
+     * The sentence says what the engine gives, not where it goes - and it carries no dot.
+     *
+     * «В БАТАРЕЮ» was a claim about `GENERATION_KW` in motion that no recording supports: the two
+     * drives so far saw the engine run with the id flat. «ДВС ДАЁТ» is true under either meaning
+     * and is the trip cell's own verb, and the blue mark means «into the pack» everywhere else on
+     * this panel, so the phrase that makes no such claim does not get one.
+     */
+    @Test
+    fun theSentenceNamesWhatTheEngineGivesAndCarriesNoMark() {
+        val board = states()
+        assertEquals("ДВС ДАЁТ", ContourReadout.LEGEND_PREFIX)
+        assertEquals(
+            "«В БАТАРЕЮ» is off the engine's phrase on the board",
+            0,
+            Regex("""ПОСЛЕДНИЕ""").findAll(board).count() -
+                Regex("""· ПОСЛЕДНИЕ""").findAll(board).count(),
+        )
+        assertTrue(generator().contains("LEGEND_PREFIX = 'ДВС ДАЁТ'"))
+        assertTrue(generator().contains("LEGEND_WINDOW = '· ПОСЛЕДНИЕ 0:00'"))
+        assertTrue(generator().contains("LEGEND_WINDOW_SHORT = '· 0:00'"))
+        // The dot is gone from both records. The anchor it used to close up onto is not: the box
+        // holds ten seconds after the flag drops and the figure is not printed at zero, so the
+        // sentence has to close up around a figure that is not there - see the quiet anchor below.
+        val marks = DOT.findAll(board).map { it.groupValues[2].toFloat() }.toList()
+        assertTrue(
+            "and no mark on the engine's own baseline: $marks",
+            marks.none { closeTo(it, plan.engineLegendBaseline - InstrumentFace.CAPTION.capHeight / 2f) },
+        )
+    }
+
     @Test
     fun theWindowIsTheBoxsOwnReachAndItMovesNoAnchorInFrontOfIt() {
-        // The board draws two reaches: 82 seconds under a box seventeen steps wide, and the full
-        // two minutes under a box that has filled. Both are laid out right to left off the shelf's
-        // edge and both land on the same x, because the figures are tabular and a «м:сс» is four
-        // glyphs and a mark - which is what lets one measured template decide every anchor in the
-        // phrase while the duration inside it counts up.
+        // The board draws two reaches: 82 seconds under a box seventeen steps wide, and sixty
+        // under the one on P. Both are laid out right to left off the shelf's edge and both land
+        // on the same x, because the figures are tabular and a «м:сс» is four glyphs and a mark -
+        // which is what lets one measured template decide every anchor in the phrase while the
+        // duration inside it counts up.
         val board = states()
-        assertEquals("the board draws the box's own 82 s", "В БАТАРЕЮ · ПОСЛЕДНИЕ 1:22", RUNNING_WINDOW)
-        assertEquals("and a filled box's two minutes", "В БАТАРЕЮ · ПОСЛЕДНИЕ 2:00", QUIET_WINDOW)
-        listOf(RUNNING_WINDOW, QUIET_WINDOW).forEach { phrase ->
+        assertEquals("the board draws the box's own 82 s", "· ПОСЛЕДНИЕ 1:22", RUNNING_WINDOW)
+        assertEquals("and the minute the generator charges on P", "· ПОСЛЕДНИЕ 1:00", PARKED_WINDOW)
+        listOf(RUNNING_WINDOW, PARKED_WINDOW).forEach { phrase ->
             everyText(board, "cl", phrase).forEach { (x, _) ->
                 assertEquals("«$phrase» is on the window's anchor", plan.legendWindowX, x, TOLERANCE)
             }
@@ -557,60 +627,50 @@ class ContourBoardContractTest {
         )
     }
 
+    /**
+     * And nothing about the engine is drawn on the band.
+     *
+     * The line under the body on the return span and the seam behind the tip both said whether
+     * `GENERATION_KW` is already inside `POWER_KW`. Neither is known - the two drives so far saw
+     * that id flat while the engine ran - so both drawings are gone and
+     * [VehicleConvention.GENERATION_INSIDE_PACK_POWER] stays as the recorded assumption that draws
+     * nothing (`docs/energy-display-contract.md` §2.5).
+     */
     @Test
-    fun theSentenceClosesUpOnceTheFigureLeavesWithTheEngine() {
-        // The states board draws both: the engine generating at 82 s, and the engine forty seconds
-        // dead with its box still up. The words are on the same anchor in both; only the dot moves.
-        val dots = DOT.findAll(states()).map { it.groupValues[1].toFloat() }.toList()
-        assertTrue(
-            "the dot at ${plan.legendMarkX} while the engine runs: $dots",
-            dots.any { closeTo(it, plan.legendMarkX) },
-        )
-        assertTrue(
-            "and at ${plan.legendMarkQuietX} once it has stopped: $dots",
-            dots.any { closeTo(it, plan.legendMarkQuietX) },
-        )
-        assertEquals(
-            "which is exactly the reserve, its unit and both gaps",
-            plan.generationField + plan.smallGap + plan.kilowattWidth + plan.smallGap,
-            plan.legendMarkQuietX - plan.legendMarkX,
-            TOLERANCE,
-        )
-        assertEquals(
-            "the words do not move between the two",
-            plan.legendWindowX,
-            text(states(), "cl", QUIET_WINDOW).first,
-            TOLERANCE,
-        )
-    }
-
-    @Test
-    fun theEnginesShareIsDrawnTheWayTheConventionSaysItMayBe() {
-        // Whether GENERATION_KW is already inside POWER_KW decides whether the engine's share may be
-        // a seam behind the band's tip or has to be a separate line under it, and for a while the
-        // two records disagreed: the renderer said one thing in a private constant and the generator
-        // defaulted the other way, so the board's canonical engine state drew the one picture the app
-        // never draws. There is one decision now, and this is the join.
+    fun nothingAboutTheEngineIsDrawnOnTheBand() {
         val generator = generator()
         assertTrue(
-            "the board's default is the app's assumption",
-            generator.contains("s.get('seam_on_band', False)"),
+            "the seam is off the generator",
+            !generator.contains("seam_on_band"),
         )
         assertTrue(
-            "and the assumption is that generation is already inside pack power",
+            "and so is the line under the band",
+            !generator.contains("GEN_LINE_Y") && !generator.contains("sweep(-generation)"),
+        )
+        assertTrue(
+            "the assumption is kept, and it is only an assumption",
             VehicleConvention.GENERATION_INSIDE_PACK_POWER,
         )
-        // Both drawings are energy arriving at the pack, so both are measured on the return side's
-        // own span: a positive argument to `sweep` picks the 300 kW discharge span and made 14 kW of
-        // generation 1.73 times shorter than 14 kW of regeneration on the band above it.
+        // The two spans really are different, which is what made the drawing wrong when it existed.
+        assertTrue(EnergyScale.sweepFraction(-14f) > EnergyScale.sweepFraction(14f))
+    }
+
+    /**
+     * The engine's own area is the history colour, not `RETURN`, and a zero draws nothing.
+     *
+     * Blue was a claim about where the kilowatts went; grey is the same shape without it, and it
+     * is the petal's own field and edge. A bin at zero is not part of a run at all - a zero is
+     * never drawn on this panel.
+     */
+    @Test
+    fun theEngineBoxIsDrawnInTheHistorysOwnColours() {
+        val generator = generator()
         assertTrue(
-            "the line under the band is on the return scale",
-            generator.contains("far = AXIS + sweep(-generation) * BAND_HALF"),
+            generator.contains("""for start, stop in runs(bins, lambda v: v is not None and v > 0):"""),
         )
-        assertTrue(
-            "and the two spans really are different, which is what made the drawing wrong",
-            EnergyScale.sweepFraction(-14f) > EnergyScale.sweepFraction(14f),
-        )
+        assertTrue(generator.contains("""fill="{MUTED_DEEP}" opacity="{f(AREA_ALPHA)}"""))
+        assertTrue(generator.contains("""stroke="{INK}" opacity="{f(LINE_ALPHA)}"""))
+        assertTrue("the blue field's own alpha is gone", !generator.contains("GEN_AREA_ALPHA"))
     }
 
     @Test
@@ -622,15 +682,17 @@ class ContourBoardContractTest {
         assertEquals(232f, plan.petalBoxWidth, TOLERANCE)
         // The cap of the 52 beside it plus a descender: 36.92 + 13.
         assertEquals(49.92f, plan.petalBoxHeight, TOLERANCE)
-        // And the same for the petal: the window's own count, derived from ten kilometres and
-        // the log's bucket size, rather than a hundred written down twice.
+        // And the steps in it: the window over the bin, derived rather than written down twice.
+        assertEquals("twenty steps of five hundred metres", ConsumptionChart.BINS, plan.petalBins)
+        assertEquals(20, plan.petalBins)
         assertEquals(
-            "a hundred buckets of the log's own hundred metres",
-            ConsumptionWindow.buckets,
-            plan.petalBuckets,
+            "which is ten kilometres over half a kilometre",
+            (ConsumptionWindow.KM / ConsumptionChart.BIN_KM).toInt(),
+            plan.petalBins,
         )
-        assertEquals(100, plan.petalBuckets)
         assertTrue(generator().contains("PETAL_BUCKETS = 100 "))
+        assertTrue(generator().contains("PETAL_BIN_BUCKETS = 5"))
+        assertTrue(generator().contains("PETAL_BINS = PETAL_BUCKETS // PETAL_BIN_BUCKETS"))
     }
 
     @Test
@@ -643,11 +705,40 @@ class ContourBoardContractTest {
             TOLERANCE,
         )
         assertEquals("the zero line is where the figure stands", plan.petalBaseline, plan.petalZeroY, 1e-4f)
-        assertEquals(30f, plan.petalFull, 1e-4f)
-        assertEquals("and the descender holds the return", 10f, plan.petalReturnFull, 1e-4f)
-        assertTrue(generator().contains("PETAL_FULL = 30."))
-        assertTrue(generator().contains("PETAL_RETURN_FULL = 10."))
+        // 0…40 up the cap and 0…20 back down the descender. 30 and 10 were the ceilings for
+        // hundred-metre buckets and they flattened every launch and every descent into one silent
+        // top; a 500 m step past 40 is spirited driving, and either way a cut is marked.
+        assertEquals(40f, plan.petalFull, 1e-4f)
+        assertEquals("and the descender holds the return", 20f, plan.petalReturnFull, 1e-4f)
+        assertEquals("three units of tick outside the box", 3f, plan.petalTick, 1e-4f)
+        assertTrue(generator().contains("PETAL_FULL = 40."))
+        assertTrue(generator().contains("PETAL_RETURN_FULL = 20."))
+        assertTrue(generator().contains("PETAL_TICK = 3."))
         assertTrue("the zero share is gone with the ladder it set", !generator().contains("PETAL_ZERO_SHARE"))
+    }
+
+    /**
+     * A step past a ceiling is drawn to the ceiling with a mark, on both records.
+     *
+     * The states board carries half a kilometre of full throttle. Cut and seen to be cut is the
+     * whole point: a silent flat top is a reading that says the road cost exactly the ceiling.
+     */
+    @Test
+    fun aStepPastTheCeilingIsCutAndTheCutIsMarked() {
+        val generator = generator()
+        assertTrue(generator.contains("if v >= PETAL_FULL:"))
+        assertTrue(generator.contains("elif v <= -PETAL_RETURN_FULL:"))
+        assertTrue(
+            "the launch state exists on the board",
+            generator.contains("bars=with_launch("),
+        )
+        assertTrue(
+            "and so does a stretch with no energy behind it",
+            generator.contains("bars=with_hole("),
+        )
+        // A hole is drawn as nothing and its road is still counted, which is what the generator's
+        // own bin rule says: half the road known or it is not a reading.
+        assertTrue(generator.contains("len(known) * 2 >= len(chunk)"))
     }
 
     @Test
@@ -905,7 +996,7 @@ class ContourBoardContractTest {
          * has filled and gone quiet.
          */
         val RUNNING_WINDOW = ContourReadout.intoPack(82, short = false)
-        val QUIET_WINDOW = ContourReadout.intoPack(120, short = false)
+        val PARKED_WINDOW = ContourReadout.intoPack(60, short = false)
 
         /** And the road the petal's figure is the mean of while the log is still filling. */
         val FILLING_UNIT = ContourReadout.perHundredKm(3.7, ConsumptionWindow.KM)
