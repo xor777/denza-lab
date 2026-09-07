@@ -258,7 +258,20 @@ class EnergyReadoutsTest {
         )
         assertEquals("· 1:22", readouts.engineWindow)
 
-        // Nothing about the engine while it is not turning.
+        // Nothing about the engine while it is not turning - not even a generation reading that
+        // is still on the wire. The flag is what says the engine is there to give anything.
+        readouts.read(
+            snapshot(
+                powerKw = 34.0,
+                values = mapOf(
+                    VehicleSignal.ENGINE_RUNNING to 0.0,
+                    VehicleSignal.GENERATION_KW to 14.0,
+                ),
+                trace = trace(60, 14f),
+            ),
+            parked = false,
+        )
+        assertNull(readouts.engineFigure)
         readouts.read(snapshot(powerKw = 34.0, trace = trace(60, 14f)), parked = false)
         assertNull(readouts.engineFigure)
     }

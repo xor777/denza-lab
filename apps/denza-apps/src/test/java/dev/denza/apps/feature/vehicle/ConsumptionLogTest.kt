@@ -114,6 +114,30 @@ class ConsumptionLogTest {
         assertTrue(bucket.value.isNaN())
     }
 
+    /**
+     * And the boundary is a half, which is where it is decided rather than near it.
+     *
+     * A third known is a hole and a half is a reading; a rule loose enough to accept a third would
+     * print a figure over road most of which nobody watched, which is the defect the known road
+     * exists to prevent, one step milder.
+     */
+    @Test
+    fun theHalfIsTheBoundaryAndAThirdIsAlreadyAHole() {
+        fun bucket(knownSeconds: Double): ConsumptionSample {
+            val log = ConsumptionLog()
+            log.sample(100.0, 20.0, 0.0)
+            log.sample(100.0 + knownSeconds / 60.0, 20.0, knownSeconds)
+            log.sample(100.1, null, 6.0 - knownSeconds)
+            return log.buckets.single()
+        }
+        // 0.1 km at one kilometre a minute: three seconds is half the bucket, two is a third.
+        assertEquals(0.05, bucket(3.0).knownKm, 1e-9)
+        assertTrue("exactly half is a reading", bucket(3.0).known)
+        assertEquals(0.0333, bucket(2.0).knownKm, 1e-3)
+        assertFalse("a third is not", bucket(2.0).known)
+        assertTrue(bucket(2.0).value.isNaN())
+    }
+
     @Test
     fun anOdometerStepLongerThanOneBucketClosesOneBucketOfThatWholeRoad() {
         val log = ConsumptionLog()
