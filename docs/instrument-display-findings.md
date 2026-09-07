@@ -4,6 +4,90 @@ This page tracks the instrument-display scene shared by Mirrors and navigation.
 The implementation summary was last checked against the code on 2026-09-04;
 live-car evidence is current through 2026-09-04.
 
+### Energy display audit (2026-09-05, proposal; not implemented)
+
+The owner's three photographs prompted a joint review of the cluster and the
+head-unit vehicle page at `f9df8ed`. The following are code findings, not a claim
+that the photographed APK has been identified or that new behavior passed on
+the vehicle:
+
+- The cluster draws `ConsumptionWindow.raw` over 10 km; the vehicle page draws
+  `PowerTrace` over two minutes. Only its consumption **number** uses the common
+  distance window, and `VehiclePageRenderer.drawFoot` omits that number in the
+  narrow layout. The requested matching consumption graphs are not implemented.
+- `ConsumptionWindow.mean` excludes negative buckets from both numerator and
+  denominator. For equal-distance buckets `[10, -8, 30]`, the existing test
+  expects `20`, whereas the net battery balance over all three is `10.666…`
+  kWh/100 km. The current figure is a conditional mean of nonnegative buckets,
+  not the net consumption represented by the signed history.
+- `VehiclePageWords` selects directional words, but
+  `VehiclePageRenderer.drawHead` independently prepends a minus on return power.
+  This produces the photographed combination `В БАТАРЕЮ` and `-25 кВт`.
+- The cluster draws 100 individual consumption steps in the small history box;
+  `ContourPlan.petalSpendY` saturates at 30 and `petalReturnY` at -10. Higher
+  readings share a flat cap, with no overflow indication. This supports the
+  reported comb appearance; the photograph alone cannot establish its samples.
+- `engineBox` paints valid zero generation with the same blue history stroke as
+  positive generation. The history can outlive the running engine by two
+  minutes. Its `В БАТАРЕЮ` caption does not explain either zero output or the
+  distinction between generator output and net battery charging.
+- Missing power or an interval over eight seconds contributes zero energy in
+  `ConsumptionLog.sample`, while distance can still close a bucket. A distance
+  increment spanning several 100 m buckets closes only one record. Counting
+  records as distance therefore also needs repair before promising an exact
+  physical 10 km window.
+
+Proposed replacement contract for design discussion: both surfaces render one
+shared presentation snapshot, including signed battery energy, actual distance,
+coverage/gaps, chart bins, scale, mean, and directional labels. The headline is
+an unsigned magnitude with `Батарея · отдаёт` or `Батарея · заряжается`; zero
+and unavailable are distinct states. Name the distance metric `Расход батареи`
+and include returned energy in the net balance; it is not total hybrid fuel and
+electricity consumption. Aggregate the chart into equal 500 m intervals by
+energy/distance, with a partial edge interval, preserving the same 10 km axis
+and scale on both screens. A shared range ladder must accommodate high readings
+without silently flattening them at 30; scale contraction needs a stable policy
+so ordinary updates do not continually resize the graph. Missing intervals
+remain gaps, never invented zeros.
+The current engine state is separate from historical generation. Neither engine
+operation nor a negative battery reading alone establishes the source of charge.
+Moving signal qualification remains open as described under “What still waits
+for the car”. These proposals do not supersede the current boards yet.
+
+Local audit validation: `ConsumptionWindowTest` (6), `VehiclePageWordsTest`
+(11), and `EngineTraceTest` (19) all pass on this revision. They therefore do not
+establish the requested cross-surface behavior. Replacement acceptance needs
+one replay feeding both surfaces: electric drive, return energy, engine running
+with battery discharge and charge separately, engine stopping, standstill,
+partial history, values above the old 30-unit ceiling, a telemetry gap, restart,
+and each head-unit width. Expected
+energy/distance totals must be derived independently of the production helpers;
+rendered pairs must agree in meaning as well as geometry.
+
+#### Whole-panel design correction (2026-09-07; proposal)
+
+The owner rejected the isolated energy-block preview as insufficient context
+for an instrument viewed from **800 mm**. This distance supersedes the 750 mm
+used by the existing design generator for this design review. The recorded
+320 mm active width and 1507.6 x 424-unit composition imply a 320 x 90 mm
+display. The current 232-unit consumption plot is only 49.25 mm wide and about
+10.6 mm tall. An 18-unit Roboto capital is approximately 2.71 mm high, using the
+generator's 0.71 cap-height assumption. These are geometric estimates, not a
+readability certification.
+
+The next proposal must show the entire instrument, including the stock
+speed/status and bottom range/power areas, and the head-unit widget inside the
+actual dashboard composition. Keep the power hero, band, temperature row and
+engine region in context; any redistribution of their space must be explicit.
+Compare a line with quiet area fill against columns in the available physical
+space, using the same distance aggregation on both surfaces. A 500 m display
+interval is a data aggregation proposal, not a commitment to bar rendering.
+Enlarge or shorten essential captions instead of using fine print to explain
+the graph. Screenshot and browser checks establish geometry and consistency;
+they cannot establish glance readability at 800 mm without a physically scaled
+view. A schematic stock underlay must be labelled as such and cannot close the
+outstanding vehicle keep-out measurement.
+
 ## Product architecture
 
 `denza-apps` owns two transparent presentations in one `ClusterSceneService`,
