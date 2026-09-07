@@ -1,10 +1,10 @@
 package dev.denza.apps.feature.cluster.dashboard
 
+import dev.denza.apps.feature.vehicle.EnergyReadouts
 import dev.denza.apps.feature.vehicle.VehicleAccess
 import dev.denza.apps.feature.vehicle.VehiclePoll
 import dev.denza.apps.feature.vehicle.VehicleSignal
 import dev.denza.apps.feature.vehicle.VehicleTelemetry
-import kotlin.math.abs
 
 /**
  * Every quantity the Contour draws, so each one can go stale on its own.
@@ -33,6 +33,16 @@ internal enum class ContourValue(val poll: VehiclePoll, val ledger: Boolean = fa
     INVERTER_TEMP(VehiclePoll.COLD),
     SPREAD(VehiclePoll.COLD),
     RPM(VehiclePoll.HOT),
+
+    /**
+     * The engine's own flag, which is a reading like any other and used not to be one.
+     *
+     * It was read straight off the newest snapshot in every frame, so a hub that stopped answering
+     * with the flag up held the engine's box on the shelf for as long as the panel was open - the
+     * view re-feeds the same object at sixty frames a second, and «the flag has been down for n
+     * seconds» never started counting. As a value it goes stale like the volts.
+     */
+    ENGINE_FLAG(VehiclePoll.HOT),
     ENGINE_MINUTES(VehiclePoll.HOT, ledger = true),
     GENERATION(VehiclePoll.HOT),
     TRIP_NET(VehiclePoll.HOT),
@@ -150,12 +160,18 @@ internal class ContourScene {
     private var chargeDwell = 0f
 
     /**
-     * How long the engine's own flag has been down, which is the engine box's only hysteresis.
+     * How long since a packet last said the engine was running, which is the box's only hysteresis.
      *
      * [ENGINE_HOLD_SECONDS] of it, and it is against a *dropped read* rather than an afterlife:
      * the box used to live on the trace's own length, so a stopped engine left two minutes of
      * zeros drawn in blue on the shelf. It starts at the ceiling, so a panel that has heard
      * nothing has no box.
+     *
+     * **Only an arrived packet resets it.** It used to be read off the newest snapshot in every
+     * frame, and the view hands the same snapshot back sixty times a second while the hub is
+     * stalled - so a link that died with the flag up left the box standing for the rest of the
+     * session. It is a real-time age, exactly like [age]: the clock runs on every frame and only
+     * a sweep that actually said «running» puts it back to zero.
      */
     private var engineOffFor = Float.MAX_VALUE
 
@@ -172,6 +188,7 @@ internal class ContourScene {
         val step = dt.coerceAtLeast(0f)
         for (index in age.indices) age[index] = add(age[index], step)
         packetAge = add(packetAge, step)
+        engineOffFor = add(engineOffFor, step)
 
         if (arrived && telemetry.access == VehicleAccess.READY) {
             everAnswered = true
@@ -187,9 +204,8 @@ internal class ContourScene {
                 seen[value.ordinal] = true
                 reading(telemetry, value)?.let { last[value.ordinal] = it }
             }
+            if (telemetry.engineRunning == true) engineOffFor = 0f
         }
-
-        engineOffFor = if (telemetry.engineRunning == true) 0f else add(engineOffFor, step)
 
         chargeDwell = if (telemetry.charging && telemetry.access == VehicleAccess.READY) {
             add(chargeDwell, step)
@@ -226,11 +242,16 @@ internal class ContourScene {
      */
     private fun decide(t: VehicleTelemetry): ContourStage {
         val parked = t.parked == true
-        val engineRunning = t.engineRunning == true
-        // The flag and the giving, and both of them: see [ContourStage.engineBox]. The flag is
-        // held for ten seconds after it drops so one missed read does not swap the shelf.
-        val engineBox = t.engineTrace.gives && engineOffFor < ENGINE_HOLD_SECONDS
+        // The flag is a value, so it goes stale like one: a panel that has heard nothing for two
+        // seconds does not get to keep saying the engine is turning.
+        val engineRunning = held(ContourValue.ENGINE_FLAG) == FLAG_UP
         val unavailable = t.access == VehicleAccess.UNAVAILABLE
+        // The flag and the giving, and both of them: see [ContourStage.engineBox]. The flag is
+        // held for ten seconds after it drops so one missed read does not swap the shelf - and
+        // the packet's own age is the guard above that, so a silence removes the box the way it
+        // removes every other reading rather than freezing the last one that arrived.
+        val engineBox = t.engineTrace.gives && everAnswered && packetAge < STALE_SECONDS &&
+            engineOffFor < ENGINE_HOLD_SECONDS
         // The order the scene name used to carry, kept as the guards on the one flag that needed
         // it: a closed shell, a panel that has heard nothing yet and a bus that has gone quiet all
         // outrank a gun, because the countdown is a reading and a reading cannot outlive its link.
@@ -264,42 +285,40 @@ internal class ContourScene {
      * that should not exist cannot be drawn by accident.
      */
     private fun present(t: VehicleTelemetry, value: ContourValue): Boolean = when (value) {
-        ContourValue.POWER -> bandKilowatts(t) != null
+        ContourValue.POWER -> EnergyReadouts.packKilowatts(t) != null
         ContourValue.VOLTS -> t[VehicleSignal.PACK_VOLT] != null
         ContourValue.PACK_TEMP -> t[VehicleSignal.PACK_TEMP_AVG] != null
         ContourValue.MOTOR_TEMPS -> t.motorTemps.any { it != null }
         ContourValue.INVERTER_TEMP -> t[VehicleSignal.INVERTER_C] != null
         ContourValue.SPREAD -> t.cellSpreadMv != null
         ContourValue.RPM -> t.engineRunning == true && t.engineRpm != null
+        ContourValue.ENGINE_FLAG -> t.engineRunning != null
         ContourValue.ENGINE_MINUTES -> t.trip.engineRan
         ContourValue.GENERATION -> t.generating && t.generationKw != null
         ContourValue.TRIP_NET -> true
         ContourValue.TRIP_KM -> t.trip.kilometres > 0.0
         ContourValue.TRIP_REGEN -> t.trip.recoveredKwh > 0.0
         ContourValue.TRIP_ENGINE -> t.trip.engineKwh > 0.0
-        ContourValue.PETAL -> t.consumption.isNotEmpty()
+        // The petal is its own figure rather than its own buckets: a window of nothing but holes
+        // has road under it and no mean over it, and a unit standing over that is a caption
+        // promising a reading that cannot come.
+        ContourValue.PETAL -> t.consumptionMean != null
         ContourValue.CHARGE_LEFT -> t.charging && t.chargeMinutesLeft != null
     }
 
     /**
-     * The number behind a quantity the panel follows, for the two that have one.
+     * The number behind a quantity the panel follows, for the three that have one.
      *
      * [ContourValue.POWER] is what the band is drawn from, and a charge reads as energy arriving
      * rather than as a load: a gun in and the pack taking two kilowatts is the same event the band
-     * already draws going the other way, so it is drawn going the other way.
+     * already draws going the other way, so it is drawn going the other way. That substitution is
+     * `EnergyReadouts.packKilowatts`, because the car page prints the same kilowatts.
      */
     private fun reading(t: VehicleTelemetry, value: ContourValue): Float? = when (value) {
-        ContourValue.POWER -> bandKilowatts(t)
+        ContourValue.POWER -> EnergyReadouts.packKilowatts(t)?.toFloat()
         ContourValue.RPM -> t.engineRpm?.toFloat()
+        ContourValue.ENGINE_FLAG -> if (t.engineRunning == true) FLAG_UP else FLAG_DOWN
         else -> null
-    }
-
-    private fun bandKilowatts(t: VehicleTelemetry): Float? {
-        if (t.charging) {
-            val charge = t.chargeKw
-            if (charge != null) return -abs(charge).toFloat()
-        }
-        return t.loadKw?.toFloat()
     }
 
     private fun add(seconds: Float, dt: Float): Float =
@@ -323,6 +342,10 @@ internal class ContourScene {
          * used as a timer, which drew a box of zeros over a cold engine.
          */
         const val ENGINE_HOLD_SECONDS = 10f
+
+        /** A flag is a reading, so it is held as one: the two values it can have. */
+        private const val FLAG_UP = 1f
+        private const val FLAG_DOWN = 0f
 
         /** Ages stop counting here rather than drifting toward infinity over a long drive. */
         private const val CEILING = 3_600f

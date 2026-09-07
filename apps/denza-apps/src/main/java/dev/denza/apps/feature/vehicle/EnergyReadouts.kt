@@ -75,6 +75,10 @@ internal class EnergyReadouts {
     var windowCaps: String = ""
         private set
 
+    /** The car page's whole foot unit, «кВт·ч/100 км · ЗА 10 КМ», which that page measures. */
+    var windowFoot: String = ""
+        private set
+
     /** «ДВС ДАЁТ» - what the engine gives, not where it goes. */
     val enginePrefix: String = ContourReadout.LEGEND_PREFIX
 
@@ -84,6 +88,26 @@ internal class EnergyReadouts {
 
     /** How far back its box reaches: «· ПОСЛЕДНИЕ 1:22», or «· 1:22» where the face crowds it. */
     var engineWindow: String = ""
+        private set
+
+    /** Which of the engine's three cells this snapshot earns, and [EngineCell.NONE] is one of them. */
+    var engineCell: EngineCell = EngineCell.NONE
+        private set
+
+    /** Its heading in the cluster's case, and empty where there is no cell. */
+    var engineCellTitle: String = ""
+        private set
+
+    /** And in the car page's, which is the same words shouted. */
+    var engineCellTitleCaps: String = ""
+        private set
+
+    /** The reading inside it - revolutions or minutes - or null where there is no cell. */
+    var engineCellFigure: String? = null
+        private set
+
+    /** The pack's volts, whole, or null while the read has not landed. */
+    var voltsFigure: String? = null
         private set
 
     /** The twenty bins, which are the same twenty bins on both screens. */
@@ -103,42 +127,108 @@ internal class EnergyReadouts {
         narrow: Boolean = false,
         shortLegend: Boolean = false,
     ) {
-        val load = telemetry.loadKw
-        flow = if (load == null) ContourFlow.NEUTRAL else ContourMotion.flowOf(load.toFloat(), held)
-        held = flow
+        val load = packKilowatts(telemetry)
+        // A read that did not land is not a reading of zero, so it does not get to move the
+        // hysteresis: one dropped sample used to reset the band's colour to grey, and the next
+        // good one came back inside the neutral zone and stayed grey with it.
+        val band = if (load == null) ContourFlow.NEUTRAL else ContourMotion.flowOf(load.toFloat(), held)
+        if (load != null) held = band
         // Unavailable is not zero: no figure, and the words stay.
         powerFigure = load?.let { figures.whole(ContourFigures.Slot.POWER, abs(it)) }
 
         word = when {
             telemetry.charging -> WORD_FROM_CHARGER
-            load == null || flow == ContourFlow.NEUTRAL -> WORD_NEUTRAL
-            flow == ContourFlow.OUT -> WORD_FROM_PACK
+            load == null || band == ContourFlow.NEUTRAL -> WORD_NEUTRAL
+            band == ContourFlow.OUT -> WORD_FROM_PACK
             telemetry.generating -> WORD_FROM_ENGINE
             else -> WORD_TO_PACK
         }
         // The mark leads the two sentences that name where the energy is coming from, and nothing
         // else: it means «into the pack», and «В БАТАРЕЮ» already says that in words.
         mark = word == WORD_FROM_ENGINE || word == WORD_FROM_CHARGER
+        // And a sentence that names a source is blue whatever the magnitude is. «В БАТАРЕЮ ОТ
+        // ЗАРЯДКИ» in grey over a 2 kW wall charge was a word and a colour saying different
+        // things, which is the defect this class exists for - the neutral zone is about a
+        // *direction* nobody can name, and these two sentences have named it.
+        flow = if (mark) ContourFlow.BACK else band
 
         val mean = telemetry.consumptionMean
         consumptionFigure = mean?.let { figures.consumption(it, parked) }
-        consumptionNegative = mean != null && mean < 0.0
+        // Read off the printed figure rather than off the mean: −0,04 rounds to «0,0» and a minus
+        // the reader cannot see is not the exception the blue is for.
+        consumptionNegative = consumptionFigure?.startsWith('-') == true
 
         val covered = telemetry.consumptionKm
         window = figures.perHundredKm(covered)
         windowCaps = figures.windowCaps(covered, narrow)
+        windowFoot = figures.windowFoot(covered, narrow)
 
         val trace = telemetry.engineTrace
         engineWindow = figures.intoPack(trace.spanSeconds, shortLegend)
         val generation = telemetry.generationKw
-        engineFigure = if (telemetry.engineRunning == true && generation != null) {
-            figures.whole(ContourFigures.Slot.GENERATION, generation)
-        } else {
-            null
+        // A figure of «0 кВт» inside «ДВС ДАЁТ … » is the zero this panel does not draw, and it is
+        // the state the two drives so far recorded: the engine running with the id flat.
+        engineFigure =
+            if (telemetry.engineRunning == true &&
+                generation != null &&
+                generation > VehicleTelemetry.GENERATION_FLOOR_KW
+            ) {
+                figures.whole(ContourFigures.Slot.GENERATION, generation)
+            } else {
+                null
+            }
+
+        readEngineCell(telemetry)
+        voltsFigure = telemetry[VehicleSignal.PACK_VOLT]?.let {
+            figures.whole(ContourFigures.Slot.VOLTS, it)
         }
 
         chart = telemetry.chart
     }
+
+    /**
+     * The engine's one cell, and the three things it can say - on both screens.
+     *
+     * Turning, it is the revolutions. Just stopped, it is how long it ran this trip. Otherwise
+     * nothing at all: a zero here would be an accountant's way of saying the engine did not run,
+     * and a run under a minute is a zero with a unit on it.
+     *
+     * **«Just stopped» is the trace, not the trip**, and that is the owner's own finding from the
+     * first drive: he got into the car, had not started the engine, and the cell said «3 мин за
+     * поездку». It was not lying - a trip runs from the first movement after P, so yesterday's
+     * drive was still the trip - but a cell that says «за поездку» beside a cold engine is read as
+     * *this* drive, and being technically right is not an answer. So the cell lives as long as the
+     * trace holds a slot the engine was alive in, which is a hundred and twenty seconds with no
+     * timer of its own.
+     *
+     * The cluster used to decide this from the trip alone and the car page from the trace, so the
+     * same cold engine had a corner on one screen and none on the other.
+     */
+    private fun readEngineCell(t: VehicleTelemetry) {
+        val rpm = t.engineRpm
+        if (t.engineRunning == true && rpm != null && rpm > 0.0) {
+            engineCell = EngineCell.RPM
+            engineCellTitle = ContourReadout.TITLE_ENGINE_RPM
+            engineCellTitleCaps = ContourReadout.TITLE_ENGINE_RPM_CAPS
+            engineCellFigure = figures.whole(ContourFigures.Slot.RPM, rpm)
+            return
+        }
+        val minutes = t.trip.engineMinutes
+        if (!t.engineTrace.isEmpty && t.trip.engineRan && minutes >= 1.0) {
+            engineCell = EngineCell.MINUTES
+            engineCellTitle = ContourReadout.TITLE_ENGINE_MINUTES
+            engineCellTitleCaps = ContourReadout.TITLE_ENGINE_MINUTES_CAPS
+            engineCellFigure = figures.whole(ContourFigures.Slot.ENGINE_MINUTES, minutes)
+            return
+        }
+        engineCell = EngineCell.NONE
+        engineCellTitle = ""
+        engineCellTitleCaps = ""
+        engineCellFigure = null
+    }
+
+    /** What the engine's own cell is saying, and «nothing» is one of the answers. */
+    enum class EngineCell { NONE, RPM, MINUTES }
 
     companion object {
         /** Inside the neutral zone there is no direction to name, so the noun stands alone. */
@@ -155,5 +245,22 @@ internal class EnergyReadouts {
          */
         const val WORD_FROM_ENGINE = "В БАТАРЕЮ ОТ ДВС"
         const val WORD_FROM_CHARGER = "В БАТАРЕЮ ОТ ЗАРЯДКИ"
+
+        /**
+         * Pack power as both screens read it, which is the one place the charger's substitution is.
+         *
+         * `docs/energy-display-contract.md` §2.1: while the charger has agreed, `P` is
+         * `−|CHARGE_KW|`. The pack's own id reads zero or a small load on a car standing on a
+         * charger - the board electronics - and a band that drew *that* while «В БАТАРЕЮ ОТ
+         * ЗАРЯДКИ» stood over it was two readings of one event. The cluster substituted and the
+         * car page did not, so the same charge was 7 kW on one screen and 0 on the other.
+         */
+        fun packKilowatts(t: VehicleTelemetry): Double? {
+            if (t.charging) {
+                val charge = t.chargeKw
+                if (charge != null) return -abs(charge)
+            }
+            return t.loadKw
+        }
     }
 }

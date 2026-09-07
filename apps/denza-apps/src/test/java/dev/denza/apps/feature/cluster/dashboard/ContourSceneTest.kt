@@ -327,6 +327,37 @@ class ContourSceneTest {
         assertFalse("and past ten it goes, with no second history", scene.stage.engineBox)
     }
 
+    /**
+     * And a hub that stops answering with the flag up takes the box with it.
+     *
+     * The defect this test is written for: `engineOffFor` was stepped from whatever snapshot the
+     * frame was handed, and `ClusterDashboardView` re-feeds **the same object** sixty times a
+     * second while it waits for a sweep. So a link that died mid-generation left the flag reading
+     * `running` forever, the ten-second hold never started counting, and the box stood on the
+     * shelf for the rest of the session over a trace nobody was extending.
+     */
+    @Test
+    fun aStalledHubTakesTheBoxAwayLikeEveryOtherReading() {
+        val trace = EngineTrace()
+        repeat(20) { trace.sample(it * 1_000L, engineRunning = true, generationKw = 14.0) }
+
+        val scene = ContourScene()
+        val generating = running(trace)
+        run(scene, generating, 1f)
+        assertTrue(scene.stage.engineBox)
+
+        // The same snapshot, over and over, which is exactly what the view hands back.
+        silence(scene, generating, 12f)
+        assertFalse("the box went with the link", scene.stage.engineBox)
+        assertFalse("and the panel stopped claiming the engine turns", scene.stage.engineRunning)
+        assertTrue("while the caption rule holds everything else", scene.known(ContourValue.POWER))
+
+        // And it comes back with the first packet that says so.
+        run(scene, generating, 0.5f)
+        assertTrue(scene.stage.engineBox)
+        assertTrue(scene.stage.engineRunning)
+    }
+
     @Test
     fun theBoxIsNeverUpWithTheFlagDownBeyondItsHold() {
         // A warm trace and a cold engine: two minutes of blue zeros is not a reading. The trace's

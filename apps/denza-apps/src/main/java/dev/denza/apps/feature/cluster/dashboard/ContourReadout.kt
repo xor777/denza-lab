@@ -32,12 +32,24 @@ internal object ContourReadout {
     const val TITLE_ENGINE_RPM = "ДВС · об/мин"
 
     /**
+     * And the same two headings shouted, which is the car page's own case for them.
+     *
+     * One word, two cases, one place - the arrangement the petal's window already has. The car
+     * page kept its own literals until the engine's cell became one rule for both screens, and a
+     * literal beside a derivation is a second record waiting to disagree.
+     */
+    val TITLE_ENGINE_RPM_CAPS: String = TITLE_ENGINE_RPM.uppercase()
+
+    /**
      * The sleeping engine's heading, and the window is in it.
      *
      * «ДВС · мин» alone was six minutes of *something*: this stop, this hour, this trip, the
      * odometer. The aperture leaves 250.1 units at this baseline and the words take 224.9.
      */
     const val TITLE_ENGINE_MINUTES = "ДВС · мин за поездку"
+
+    /** See [TITLE_ENGINE_RPM_CAPS]. */
+    val TITLE_ENGINE_MINUTES_CAPS: String = TITLE_ENGINE_MINUTES.uppercase()
 
     /**
      * The spread of *what* is exactly the question that started the sixth pass.
@@ -132,7 +144,12 @@ internal object ContourReadout {
      * The distance itself is [dev.denza.apps.feature.vehicle.ConsumptionWindow.KM]; this string is
      * what the board measured, and `ContourBoardContractTest` holds the two together.
      */
-    const val UNIT_PER_100KM_PREFIX = "кВт·ч/100 км · за "
+    const val UNIT_PER_100KM_UNIT = "кВт·ч/100 км"
+
+    /** What joins a unit to the window it is true over, on both screens. */
+    const val SEPARATOR = " · "
+
+    const val UNIT_PER_100KM_PREFIX = UNIT_PER_100KM_UNIT + SEPARATOR + "за "
     const val UNIT_PER_100KM = UNIT_PER_100KM_PREFIX + "10 км"
 
     /**
@@ -203,11 +220,22 @@ internal object ContourReadout {
     private const val KM_EPSILON = 1e-6
 
     /** A whole number, and never a dash: a value that is not there is not drawn at all. */
-    fun whole(value: Double): String = String.format(Locale.US, "%.0f", value)
+    fun whole(value: Double): String = unsigned(String.format(Locale.US, "%.0f", value))
 
     /** A number with a comma, the way every other panel in this app writes one. */
     fun tenth(value: Double): String =
-        String.format(Locale.US, "%.1f", value).replace('.', ',')
+        unsigned(String.format(Locale.US, "%.1f", value)).replace('.', ',')
+
+    /**
+     * A minus in front of nothing but zeros is not a direction, so it does not get printed.
+     *
+     * `%.0f` of −0.4 is «-0» and `%.1f` of −0.04 is «-0,0», and the one signed figure on either
+     * screen is the consumption - so a hundred metres of coasting downhill printed «-0» in
+     * `RETURN_INK` and said the road had given something back. Rounding a magnitude away is what
+     * makes it zero; the sign is what is left of a quantity that no longer has one.
+     */
+    private fun unsigned(printed: String): String =
+        if (printed.startsWith('-') && printed.none { it in '1'..'9' }) printed.substring(1) else printed
 
     /**
      * The petal's figure: a whole number on the move, a tenth on P.
@@ -224,35 +252,50 @@ internal object ContourReadout {
         if (parked) tenth(perHundredKm) else whole(perHundredKm)
 
     /**
-     * The petal's unit, naming the road the figure beside it is actually the mean of.
+     * The window, as every line that names it prints it: a full one whole, a filling one to a
+     * tenth, and **never a whole-number rounding of a filling window** - «ЗА 4 КМ» over 3.7 km of
+     * road is the defect the window was added to fix, one level down.
      *
-     * @param coveredKm what the closed buckets add up to
+     * One distance, three lines, one rule. The petal's unit, the car page's pane caption and the
+     * car page's whole foot line differ in the words either side of the figure and in nothing
+     * else, and they were three copies of this comparison.
+     *
+     * @param coveredKm the known road the figure beside it is actually the mean of
      * @param windowKm what the window holds once it is full
      */
+    private fun window(coveredKm: Double, windowKm: Double, lead: String, suffix: String): String {
+        val figure =
+            if (coveredKm >= windowKm - KM_EPSILON) whole(windowKm) else tenth(coveredKm)
+        return lead + figure + suffix
+    }
+
+    /** The petal's unit, naming the road the figure beside it is actually the mean of. */
     fun perHundredKm(coveredKm: Double, windowKm: Double): String =
-        if (coveredKm >= windowKm - KM_EPSILON) {
-            UNIT_PER_100KM_PREFIX + whole(windowKm) + KM_SUFFIX
-        } else {
-            UNIT_PER_100KM_PREFIX + tenth(coveredKm) + KM_SUFFIX
-        }
+        window(coveredKm, windowKm, UNIT_PER_100KM_PREFIX, KM_SUFFIX)
 
     /**
-     * The car page's window, in its own case: «ЗА 10 КМ» once the log has ten kilometres of known
-     * road, «ЗА 3,7 КМ» while it fills, and neither word in a pane.
-     *
-     * **Never a whole-number rounding of a filling window.** «ЗА 4 КМ» over 3.7 km of road is the
-     * same defect the window was added to fix, one level down.
+     * The car page's window, in its own case: «ЗА 10 КМ», «ЗА 3,7 КМ», and neither word in a pane.
      *
      * @param narrow the 416 pane, where «ЗА» is the only thing on this line that may go
      */
-    fun windowCaps(coveredKm: Double, windowKm: Double, narrow: Boolean): String {
-        val lead = if (narrow) "" else OVER_CAPS
-        return if (coveredKm >= windowKm - KM_EPSILON) {
-            lead + whole(windowKm) + KM_SUFFIX_CAPS
-        } else {
-            lead + tenth(coveredKm) + KM_SUFFIX_CAPS
-        }
-    }
+    fun windowCaps(coveredKm: Double, windowKm: Double, narrow: Boolean): String =
+        window(coveredKm, windowKm, if (narrow) "" else OVER_CAPS, KM_SUFFIX_CAPS)
+
+    /**
+     * And the whole of the car page's foot unit: «кВт·ч/100 км · ЗА 10 КМ».
+     *
+     * One string rather than a unit and a window concatenated in the frame that draws them: the
+     * page measures this line to decide whether the word «РАСХОД» fits in front of it, so it was
+     * building and measuring a fresh string sixty times a second over a distance that changes
+     * once every hundred metres.
+     */
+    fun windowFoot(coveredKm: Double, windowKm: Double, narrow: Boolean): String =
+        window(
+            coveredKm,
+            windowKm,
+            UNIT_PER_100KM_UNIT + SEPARATOR + (if (narrow) "" else OVER_CAPS),
+            KM_SUFFIX_CAPS,
+        )
 
     /**
      * The engine box's sentence, naming how far back the box actually reaches.

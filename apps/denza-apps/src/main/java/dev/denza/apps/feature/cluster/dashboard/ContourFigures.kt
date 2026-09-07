@@ -72,6 +72,9 @@ internal class ContourFigures {
 
         /** And the car page's case of the petal's window, «ЗА 3,7 КМ». */
         WINDOW_CAPS,
+
+        /** With its own unit in front of it, which is the line the car page measures. */
+        WINDOW_FOOT,
         ;
     }
 
@@ -126,6 +129,16 @@ internal class ContourFigures {
                 coveredKm,
                 narrow,
                 ContourReadout.windowCaps(coveredKm, ConsumptionWindow.KM, narrow),
+            )
+
+    /** The car page's whole foot unit, «кВт·ч/100 км · ЗА 3,7 КМ», measured once per distance. */
+    fun windowFoot(coveredKm: Double, narrow: Boolean): String =
+        hit(Slot.WINDOW_FOOT, coveredKm, narrow)
+            ?: keep(
+                Slot.WINDOW_FOOT,
+                coveredKm,
+                narrow,
+                ContourReadout.windowFoot(coveredKm, ConsumptionWindow.KM, narrow),
             )
 
     /** What is left of a charge, in the petal's own seat. */

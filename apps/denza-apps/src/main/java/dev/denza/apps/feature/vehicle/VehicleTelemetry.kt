@@ -162,14 +162,20 @@ internal data class VehicleTelemetry(
         get() = this[VehicleSignal.GENERATION_STATE] == GENERATION_ON ||
             (generationKw ?: 0.0) > GENERATION_FLOOR_KW
 
-    private companion object {
-        /** The one gun value this car has been read at, on AC, with power flowing. */
-        const val GUN_AC_CONNECTED = 2.0
-
-        /** Below this a generation reading is rounding, not the engine working. */
+    companion object {
+        /**
+         * Below this a generation reading is rounding, not the engine working.
+         *
+         * Read by [generating] and by `EnergyReadouts`, which prints the figure: a box whose
+         * sentence says «ДВС ДАЁТ 0 кВт» is the zero this panel does not draw, and the two drives
+         * so far are exactly the case that produces it - the engine running with the id flat.
+         */
         const val GENERATION_FLOOR_KW = 0.5
 
+        /** The one gun value this car has been read at, on AC, with power flowing. */
+        private const val GUN_AC_CONNECTED = 2.0
+
         /** `2` is the shutdown transition, not generation. */
-        const val GENERATION_ON = 1.0
+        private const val GENERATION_ON = 1.0
     }
 }

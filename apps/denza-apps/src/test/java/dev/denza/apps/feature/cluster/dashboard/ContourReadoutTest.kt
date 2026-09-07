@@ -190,6 +190,56 @@ class ContourReadoutTest {
         assertTrue(ContourReadout.perHundredKm(3.0, 3.0).endsWith("за 3 км"))
     }
 
+    /**
+     * One window, three lines, one rule about when it rounds.
+     *
+     * The petal's unit, the car page's pane caption and the car page's whole foot line differ in
+     * the words either side of the figure and in nothing else, and they were three copies of the
+     * same comparison - each of them free to start rounding a filling window on its own.
+     */
+    @Test
+    fun theThreeLinesThatNameTheWindowAreOneRule() {
+        assertEquals("кВт·ч/100 км · ЗА 10 КМ", ContourReadout.windowFoot(10.0, 10.0, narrow = false))
+        assertEquals("кВт·ч/100 км · 3,7 КМ", ContourReadout.windowFoot(3.7, 10.0, narrow = true))
+        listOf(0.0, 0.5, 3.7, 9.9, 10.0 - 1e-12, 10.0, 12.0).forEach { covered ->
+            // The last number in the line: «кВт·ч/100 км» carries one of its own.
+            val figure =
+                Regex("""\d+(,\d+)?""").findAll(ContourReadout.perHundredKm(covered, 10.0)).last().value
+            assertTrue(
+                "«$figure» is the figure on all three lines",
+                ContourReadout.windowCaps(covered, 10.0, narrow = false).contains(figure) &&
+                    ContourReadout.windowFoot(covered, 10.0, narrow = false).contains(figure),
+            )
+        }
+        // And the unit in front of the foot line is the petal's own, not a second copy of it.
+        assertTrue(ContourReadout.UNIT_PER_100KM.startsWith(ContourReadout.UNIT_PER_100KM_UNIT))
+        assertTrue(
+            ContourReadout.windowFoot(10.0, 10.0, narrow = false)
+                .startsWith(ContourReadout.UNIT_PER_100KM_UNIT + ContourReadout.SEPARATOR),
+        )
+    }
+
+    /**
+     * A minus in front of nothing but zeros is not a direction, so it is not printed.
+     *
+     * The consumption is the one signed figure on either screen and it is signed because it is an
+     * exception - a road that gave back more than it cost. A hundred metres of coasting is −0.4,
+     * which `%.0f` prints as «-0» and the panel drew in `RETURN_INK`: a minus the reader can see
+     * over a magnitude they cannot.
+     */
+    @Test
+    fun aFigureThatRoundedToZeroDoesNotKeepItsMinus() {
+        assertEquals("0", ContourReadout.whole(-0.4))
+        assertEquals("0", ContourReadout.whole(-0.0))
+        assertEquals("0,0", ContourReadout.tenth(-0.04))
+        assertEquals("0", ContourReadout.consumption(-0.4, parked = false))
+        assertEquals("0,0", ContourReadout.consumption(-0.04, parked = true))
+        // And a figure that still has a magnitude keeps it.
+        assertEquals("-15", ContourReadout.whole(-15.0))
+        assertEquals("-0,4", ContourReadout.tenth(-0.4))
+        assertEquals("-1", ContourReadout.whole(-0.6))
+    }
+
     @Test
     fun everyCaptionOnThePanelNamesTheWindowItIsTrueOver() {
         // The seventh pass, in four strings. A number integrated over an interval that does not say
