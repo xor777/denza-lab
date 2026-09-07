@@ -210,9 +210,25 @@ glance, by somebody who has never seen it and has no legend?**
 | the left corner | «БАТАРЕЯ · В» over the traction voltage, at 52 |
 | the right corner | «ДВС · об/мин» over the revolutions while the engine runs, «ДВС · мин за поездку» over its minutes once it has stopped, and **empty** if it never started this trip |
 | the left shelf | five temperatures at 34 - pack, front motor, rear left, rear right, inverter - each over a glyph rather than a word, plus a sixth cell «мВ / РАЗБРОС ЯЧЕЕК» that exists only at `WATCH` or `ALERT` |
-| the right shelf | what the trip cost, as a phrase: «9,3 кВт·ч» over «42 км · ЗА ПОЕЗДКУ», plus «ДАЛ ДВС» if the engine ran, plus «● РЕКУПЕРАЦИЯ» at the far end when the car is standing in P |
-| the engine's box | while the engine has been alive in the last two minutes, that shelf is its own history instead: what it put back into the pack, as twenty-four five-second steps linear to 30 kW, under one sentence - «● 14 кВт В БАТАРЕЮ · ПОСЛЕДНИЕ 2 МИН» |
-| the petal | the last ten kilometres of consumption, as a stepped field standing on the figure's own baseline, «кВт·ч/100 км · за 10 км» - or a countdown to full while a gun is in |
+| the right shelf | what the trip cost, as a phrase: «9,3 кВт·ч» over «42 км · ЗА ПОЕЗДКУ», plus «ДАЛ ДВС» if the engine ran, plus «● РЕКУПЕРАЦИЯ» at the far end when the car is standing in P. It keeps the shelf whenever the engine's box does not, which is every state except an engine that is running **and giving** |
+| the engine's box | only while `ENGINE_RUNNING` is up and `GENERATION_KW` was above zero somewhere in the window: what the engine is giving, as twenty-four five-second steps linear to 30 kW in the history's own grey, under one sentence - «ДВС ДАЁТ 14 кВт · ПОСЛЕДНИЕ 1:22», no dot. It leaves ten seconds after the flag drops |
+| the petal | the last ten kilometres of consumption, as **twenty steps of 500 m** anchored to the odometer's own half kilometre, standing on the figure's own baseline, linear 0…40 up and 0…20 back down with a tick over anything cut, holes where the log had no energy - «кВт·ч/100 км · за 10 км», or a countdown to full while a gun is in |
+| the band | nothing about the engine is drawn on it. Both drawings that were - a seam behind the tip, a line under the body - were claims about what `GENERATION_KW` means in motion, and no recording supports either |
+
+**What the second review changed (2026-09-07).** The owner drove the panel twice
+and came back with «лоскутки латать устал», and the review that followed found not
+five bugs but one method failure: two screens designed one after the other, each
+with its own definitions, on signals read once with the car parked.
+[docs/energy-display-contract.md](energy-display-contract.md) is the answer and it
+is **normative** - it owns the definitions of pack power's direction, of the
+ten-kilometre consumption, of the one chart both screens draw, and of the engine's
+box, and where this page and it disagree it wins. What it moved: the consumption
+window became net energy over *known* road (a stretch with no reading is a hole,
+never a zero); the two screens' graphs became one twenty-step chart anchored to
+the odometer, clamped at 40 and −20 with the cut marked; the engine's box stopped
+outliving its engine; the band stopped saying anything about `GENERATION_KW`; and
+the car page's hero stopped carrying a minus. The three open questions the drives
+raised are recorded there and closed by one drive with `tools/vehicle_log.py`.
 
 **What is not on it, and why.** State of charge, range, fuel level and the fuel
 alarm are all on the stock cluster a few centimetres away; spending the best real
@@ -421,23 +437,30 @@ runs and a legend telling them apart - «ОБОРОТЫ · ● ГЕНЕРАЦИ�
 owner's verdict was that the legend was not understandable, which is the game lost:
 a display read at 90 km/h does not get to need a key. The revolutions' line is gone
 to the corner where the same number was already printed, and what is left is what
-the engine put back, under **«● 14 кВт В БАТАРЕЮ · ПОСЛЕДНИЕ 2 МИН»** - what the
-shape is, what it is worth now, how far back it goes. Neither «ГЕНЕРАЦИЯ» nor
-«ОБОРОТЫ» is a word on this panel any more. The sentence is laid out right to left
-off the shelf's edge with the figure in a two-digit reserve, so it and its unit
-leave together when the engine stops while the words stay put; a face too wide for
-the box shortens the window to «· 2 МИН» and nothing else in the phrase may go.
+the engine is giving. Neither «ГЕНЕРАЦИЯ» nor «ОБОРОТЫ» is a word on this panel any
+more. The sentence is laid out right to left off the shelf's edge with the figure
+in a two-digit reserve, so 9 kW and 14 kW start it in the same place; a face too
+wide for the box shortens the window to «· 1:22» and nothing else in the phrase may
+go.
 
-**And the reserve leaves with them.** The box outlives the engine by two minutes,
-and for that whole time the eighth drawing kept the field standing empty:
-«● ⎵⎵ В БАТАРЕЮ · ПОСЛЕДНИЕ 2 МИН», which is 22 units of hole after a dot and
-reads as a value that failed to arrive rather than as a field with room in it. With
-no figure there is nothing for a reserve to reserve, so the phrase is assembled
-without it and the dot closes up against the words. That is **one shift per engine
-stop, not a jitter** - a reserve buys stillness while a *number* changes, and by
-then there is no number left to change. `ContourPlan.legendMarkQuietX` is the
-second anchor, and it is the only coordinate on the panel that depends on whether
-a value is there rather than on what it is.
+**And since the energy display contract it says «ДВС ДАЁТ 14 кВт · ПОСЛЕДНИЕ
+1:22», in grey, with no dot, and only while the engine gives.** The eighth drawing
+said «● 14 кВт В БАТАРЕЮ», which is a claim about where `GENERATION_KW` goes, and
+the first two drives saw the engine run with that id flat - so the panel drew a
+box of zeros in blue under «В БАТАРЕЮ» for two minutes after the engine had
+stopped. Four things moved together (contract §2.5):
+
+- the box exists only while the flag is up **and** the trace holds a bin above
+  zero. A running engine that gives the pack nothing keeps the trip's cells on the
+  shelf and the revolutions in the corner - that is the truth, and the flat bar was
+  its caricature;
+- it leaves ten seconds after the flag drops. That is hysteresis against a dropped
+  read, not the two-minute afterlife the trace's own length used to give it;
+- «даёт» is true whether the id is the pack's charge or the generator's output, and
+  it is the same verb the trip's «ДАЛ ДВС» uses. No dot: the blue mark means «into
+  the pack» everywhere else on the panel;
+- the area is the history colour, `MUTED_DEEP` under `INK` like the petal's, for
+  the same reason - blue would be the claim again in another channel.
 
 **And its scale is linear to 30 kW, clamped.** «Сплющен», said of a box whose
 height had already taken every unit between the two guards, is a verdict on the
@@ -449,8 +472,16 @@ square root over 100 kW filled a third of the box and linear over 30 fills a hal
 on a ladder of its own - 56 units tall with the zero four fifths down - and neither
 number meant anything to anything next to it. Now the three lines bounding the
 history are the three lines of the numeral: cap top, baseline, descender. Spending
-rises through the cap on 0…30, a return hangs under the baseline on 0…10, both
-clamped, and the box is 49.92 tall because that is what a 52 occupies.
+rises through the cap on **0…40**, a return hangs under the baseline on **0…20**,
+both clamped, and the box is 49.92 tall because that is what a 52 occupies.
+
+**And a clamp is marked.** 30 and 10 were the ceilings for hundred-metre buckets
+and they flattened every launch and every descent into one silent top. A 500 m step
+past 40 is spirited driving and a launch is far past it; either is drawn to the
+ceiling with a three-unit tick standing just outside the box, so the reader sees it
+was cut. Whether 40 and 20 are the right two numbers is a question for the
+recording; they are two constants in one place (`ContourPlan`), the plan board
+prints them, and the car page reads them.
 
 **And the return is drawn only where it happened.** One field crossing a zero line
 in one colour drew the same grey above and below it, and the blue rule meant to say
@@ -459,23 +490,37 @@ continuous grey field that lies on the zero on a return bucket, because what was
 spent there is nothing; the return is blue, one shape per run of return buckets,
 standing on the zero on its own posts.
 
-**Both boxes are steps of a fixed duration.** The petal's hundred buckets are a
-hundred metres each; the engine's twenty-four are five seconds each, a bin being
-the mean of the samples that arrived in it, and a bin nothing answered in breaks
-the area rather than being drawn through. `EngineTraceSnapshot.bins` is that
-resampling, and the bin that can be short is the newest one, at the edge where the
-new data arrives.
+**The petal draws twenty steps of five hundred metres, anchored to the odometer.**
+A hundred steps of 2.32 units were the first drive's «расчёска»; twenty of 11.6 -
+2.5 mm of glass, 10.7′ from 800 mm - are steps the eye can count, and 500 m averages
+away the spikes a hundred-metre bucket shows. **Anchored** means a bin's membership
+is `floor(odometerAtClose / 0.5)`, so a step that has closed never changes and the
+shape does not re-phase every hundred metres; the newest step is drawn at the width
+of the road it has so far. A step whose known road is under half its road is a
+**hole**: nothing drawn, the zero rule continuing under it, its road still counted
+for the axis and its energy out of the figure. `ConsumptionChart` is that
+resampling, and the head unit's car page draws the same object.
+
+**The engine's box is twenty-four steps of five seconds**, a bin being the mean of
+the samples that arrived in it, and a bin nothing answered in breaks the area rather
+than being drawn through. `EngineTraceSnapshot.bins` is that resampling, and the bin
+that can be short is the newest one, at the edge where the new data arrives.
 
 ### Why the engine's box does not flicker
 
 `EngineTrace.snapshot()` returns the run from the oldest slot the engine was alive
-in to now, rather than a padded 120. That one property is the box's whole
-behaviour: its right edge is fixed and its width is the list's length, so it grows
-from the right as the history fills, is never drawn empty, holds its width through
-the two minutes after the engine stops, and leaves when the last live slot walks
-off the left edge. **120 seconds of hysteresis with no timer anywhere** - the
-trace's own length is the timer, so a winter jam restarting the engine every
-ninety seconds never swaps the shelf back and forth.
+in to now, rather than a padded 120. That one property is the box's shape: its
+right edge is fixed and its width is the list's length, so it grows from the right
+as the history fills and is never drawn empty.
+
+**What decides whether it is there at all is the flag, not the trace's length.**
+Until 2026-09-07 the trace's own 120 seconds were being used as a timer, and a
+stopped engine therefore left two minutes of zeros drawn in blue on the shelf. The
+box now needs `ENGINE_RUNNING` up and a bin above zero in the window, and it holds
+**ten seconds** after the flag drops - long enough that a dropped read cannot swap
+the shelf and back, short enough that it is hysteresis rather than a second
+history. A winter jam restarting the engine every ninety seconds still does not
+flicker: the shelf changes when the engine does, once per cycle.
 
 The trace keeps one series since the eighth pass, and since the first drive **a
 slot is alive by the engine's own flag**, `ENGINE_RUNNING`, and by nothing else.
@@ -522,11 +567,12 @@ back, three of them his and one of them in his photograph:
    read from the seat as a staircase redrawn every few minutes, and a mean over
    the last three traffic lights is not a consumption anybody plans by. The
    window is **ten kilometres** now, on the cluster's petal and on the head unit's
-   car page alike: `ConsumptionWindow.KM` is the one number, a hundred buckets in
-   the same 232 units is 2.32 a step - 0.49 mm, under the eye's resolution from
-   750 mm - so the history reads as a line with a grain. The unit reads
-   «кВт·ч/100 км · за 10 км», and «· за 3,7 км» while the log is still filling;
-   the journal already kept thirty;
+   car page alike: `ConsumptionWindow.KM` is the one number. A hundred buckets in
+   the same 232 units was 2.32 a step, which the second review then read as a comb
+   of its own; the chart draws **twenty steps of 500 m** over the same window
+   (`ConsumptionChart`), which is 11.6 units - 2.5 mm, 10.7′ - and a step the eye
+   can count. The unit reads «кВт·ч/100 км · за 10 км», and «· за 3,7 км» while the
+   log is still filling; the journal already kept thirty;
 4. **«ДАЛ ДВС» over nothing** - in the photograph the caption stood on the shelf
    with no figure above it. The engine had run on the previous trip; the car moved
    off P, the ledger cleared, and the caption of a quantity now zero stayed for the
@@ -735,10 +781,11 @@ From `CRITIQUE.md` §5 and `VERDICT.md`, in the order they matter to this panel:
    All five concepts named this first;
 2. **the sign of `POWER_KW`** under a known acceleration and a known braking. It is
    inferred from one parked charge, not proven (`VehicleConvention`);
-3. **whether `GENERATION_KW` is inside `POWER_KW`**, from one engine run on a flat
-   cruise. `ClusterDashboardRenderer.GENERATION_ON_BAND` is false until it is
-   answered: the engine's share is drawn as a separate line under the band rather
-   than as a seam behind its tip, which says the same thing without the claim;
+3. **what `GENERATION_KW` is in motion at all**, from one engine run at speed.
+   Nothing about the engine is drawn on the band until it is answered - both
+   drawings that were there were the claim in two different shapes - and
+   `VehicleConvention.GENERATION_INSIDE_PACK_POWER` stays as the recorded
+   assumption that draws nothing;
 4. **a photograph of the hero under the stock speedometer** at 30-40 km/h, to see
    whether «34» and «34 км/ч» merge;
 5. **whether the stock dimmer darkens our window at night.** If it does,
@@ -756,7 +803,19 @@ From `CRITIQUE.md` §5 and `VERDICT.md`, in the order they matter to this panel:
    grows leftward to «120 kW» on the move. The petal's unit ends 50 units short
    of it as photographed showing one digit. The grid photograph of item 1 now has
    two numbers to check against: the range badge's edge at 426.7 and the power
-   figure's at about 1095.
+   figure's at about 1095;
+10. **the distribution of 500 m consumption bins on a real road**, which is what
+   says whether the chart's 40 and −20 are the right ceilings on both screens.
+
+Items 2, 3, 8 and 10 are one drive rather than four. **`tools/vehicle_log.py` is
+the recorder**: it asks the same `autoservice` Binder the app asks, from the host
+over ADB, one CSV row a second into `captures/vehicle-log/`, with the raw parcel
+words kept beside the decoded values so a decoding argument can be settled from
+the file afterwards. It changes nothing in the product and it reconnects when the
+car sleeps. `VehicleLogReplayTest` feeds whatever is in that directory through the
+log, the chart, the ledger and the trace and asserts the invariants that do not
+depend on what a signal means; it passes with the directory empty, which is where
+it stands today.
 
 The panel has been in front of the owner since 2026-09-05: build 44 was installed
 and driven, and the section above is what the first drive said.
