@@ -159,6 +159,15 @@ class ConsumptionChartTest {
         assertEquals(0.4f, across.widths[1], 1e-6f)
         assertEquals(0.06 / 0.3 * 100.0, across.values[0].toDouble(), 1e-5)
         assertEquals(0.06 / 0.3 * 100.0, across.values[1].toDouble(), 1e-5)
+
+        // Pro rata is only visible where the bins are mixtures: the 0.4 km of free-wheeling in
+        // bin 200 takes a third of that bucket's energy, not all of it.
+        val mixed = ConsumptionChart.of(
+            listOf(bucket(100.4, 0.0, km = 0.4), bucket(100.7, 0.06, km = 0.3)),
+        )
+        assertEquals(2, mixed.values.size)
+        assertEquals("a third of 0.06 kWh over half a kilometre", 4.0, mixed.values[0].toDouble(), 1e-5)
+        assertEquals(0.04 / 0.2 * 100.0, mixed.values[1].toDouble(), 1e-5)
     }
 
     @Test
