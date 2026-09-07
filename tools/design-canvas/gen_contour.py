@@ -2380,8 +2380,9 @@ if __name__ == '__main__':
           f'the guard is 8)')
     print(f'  box {PETAL_BOX_X:.2f}…{PETAL_BOX_RIGHT:.2f} x {PETAL_BOX_TOP:.2f}…'
           f'{PETAL_BOX_BOTTOM:.2f} = {PETAL_BOX_W:.0f} x {PETAL_BOX_H:.2f}, gap '
-          f'{PETAL_BOX_GAP:.0f} to the reserve, bucket '
-          f'{PETAL_BOX_W / PETAL_BUCKETS:.2f}, floor leaves '
+          f'{PETAL_BOX_GAP:.0f} to the reserve, {PETAL_BINS} steps of '
+          f'{PETAL_BOX_W / PETAL_BINS:.2f} = {millimetres(PETAL_BOX_W / PETAL_BINS):.1f} mm, '
+          f'floor leaves '
           f'{PETAL_FLOOR - PETAL_BOX_BOTTOM:.2f}')
     print(f'  aperture at the box top {petal_room(PETAL_BOX_TOP):.2f} -> clear by '
           f'{PETAL_BOX_X - petal_room(PETAL_BOX_TOP):.2f}, at its bottom '
