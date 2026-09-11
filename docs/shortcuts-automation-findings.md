@@ -257,6 +257,35 @@ opened, and the accessibility service remained bound with capabilities 9. No old
 APK backup was taken. The physical confirmation above precedes those guard refinements; it is not a
 separate physical acceptance of podcasts or conflicting sessions.
 
+### What the support report says about the key (2026-09-11)
+
+`Log.i` under `DenzaMediaResume` is invisible on a car whose owner has no host
+ADB - this firmware ships a global `log.tag=M` - so the support report carries
+three lines of its own, built from the live controller rather than from a second
+copy of its state. `Кнопка play/pause=` is `слушает` while the filter is attached
+to the session service, `нет доступа к сессиям` when `start()` failed or access
+was lost, and `сервис не подключён` when no bound accessibility service owns a
+controller; `Запомненная сессия=` is the package behind the token the core
+currently remembers, or `нет`; `Последние нажатия=` is the last twelve initial
+DOWNs on one line, oldest first, each `HH:mm:ss <код> ✓|✗ <исход>`, where `✓`
+means we took it - the press was consumed, or a transport command went out.
+The outcome is `<пакет> play|pause|deferred-pause`, or one of the filter's own
+words: `not-media` for a code we never intercept, `not-listening`,
+`already-down`, the guard that refused the press (`audio-mode`, `stream-mute`,
+`vendor-mute`, `in-call`, `unavailable`), or `no-target`, `session-access`,
+`pause-in-flight`, `pause-preparation`, `session-access-after-preparation`,
+`stale-target-after-preparation`, `pause-transport`, `already-paused`. An entry
+with no key code is a deferred pause finishing after its press is over.
+
+To read a remote car, have the owner press the wheel button a few times and send
+the report. No entry at all for those presses means the key never reaches
+`onKeyEvent`; `not-media` names a code we do not intercept - the corpus maps
+vendor 334/335 to explicit Play/Pause, and the reported N9 wheel may well use one
+- and anything else says which of our own steps handed the press back to stock
+routing, whose Play fallback opens the stock local player. The record is
+write-only: nothing in it is read back by the filter, so the key decides exactly
+what it decided before.
+
 ## Where the feature lives
 
 "Shortcuts" is `com.byd.autovoice/.DiyCommandActivity`, a second launcher entry
