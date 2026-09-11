@@ -30,6 +30,7 @@ public final class ClusterProxyMain {
             "ru.yandex.yandexnavi",
             "ru.yandex.yandexmaps",
             "com.google.android.apps.maps",
+            "app.morphe.android.apps.maps",
             "com.waze",
             "ru.dublgis.dgismobile"));
     private static final String RESULT_PREFIX = "DENZA_RESULT:";

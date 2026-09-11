@@ -139,6 +139,7 @@ class NavigationModelsTest {
         assertTrue(NavigationAppPolicy.isAllowed("ru.yandex.yandexnavi"))
         assertTrue(NavigationAppPolicy.isAllowed("ru.yandex.yandexmaps"))
         assertTrue(NavigationAppPolicy.isAllowed("com.google.android.apps.maps"))
+        assertTrue(NavigationAppPolicy.isAllowed("app.morphe.android.apps.maps"))
         assertTrue(NavigationAppPolicy.isAllowed("com.waze"))
         assertTrue(NavigationAppPolicy.isAllowed("ru.dublgis.dgismobile"))
         assertFalse(NavigationAppPolicy.isAllowed("com.android.settings"))

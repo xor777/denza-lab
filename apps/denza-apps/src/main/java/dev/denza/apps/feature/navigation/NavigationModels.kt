@@ -39,6 +39,7 @@ object NavigationAppPolicy {
         NavigationAppDefinition(DEFAULT_PACKAGE, "Яндекс Навигатор"),
         NavigationAppDefinition("ru.yandex.yandexmaps", "Яндекс Карты"),
         NavigationAppDefinition("com.google.android.apps.maps", "Google Maps"),
+        NavigationAppDefinition("app.morphe.android.apps.maps", "Google Maps"),
         NavigationAppDefinition("com.waze", "Waze"),
         NavigationAppDefinition("ru.dublgis.dgismobile", "2ГИС"),
     )
