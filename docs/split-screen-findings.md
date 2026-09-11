@@ -1813,3 +1813,76 @@ Two budgets deliberately stay out of the invariant, each with the reason written
 is. `EDGE` waits on a finger the user is holding on the divider, and killing that at ten seconds
 would be worse than waiting. `RECONCILE` is background work nobody is waiting for; its ceiling
 exists only so a wedged reconcile cannot hold the single worker forever.
+
+## Review of the control logic, 2026-09-11 (code only, not yet on the car)
+
+A read of the whole split package against the contract, asked for by the owner
+with three live symptoms in hand: Yandex sometimes escaping to fullscreen, the
+divider offering "Release to close window" over the hub's pane, and an open
+that once showed two bare pickers with the apps arriving a moment later. Five
+commits (8519d38..d2e9633), 413 split tests, 1390 in the module, 0 failures.
+Nothing here has been run on the car.
+
+**Dead code removed (8519d38).** The app-host era outlived its Activity by
+three weeks: `SplitAppHostActivity` was deleted on 2026-08-23 and a package
+replace removes the old build's tasks, so no task with that base component can
+exist, yet its identity was still matched in seven places (`isDenzaAppHost`,
+`effectivePackageName`, the host branches of `resolvedTopTask`,
+`resolveExpectedCoveredApp`, `removeRecordedTask`, `cleanupLaunchAttempt`, the
+stray-host sweep of the build, the host artefacts of `closePickers`). The
+legacy `SplitPrimaryPickerActivity`/`SplitSecondaryPickerActivity` matches, the
+`focus-task` and `start-in-task` verbs of the shell-UID proxy (no caller), two
+collapse wrappers only tests called, `SplitBounds.width()`, and the two
+automaton facts `OpenRequested`/`SelectionRequested` whose every branch
+returned the same state - a request is not a fact - all went with it.
+
+**A dead end in the gate's state machine (7f5c211, d2e9633).** The suspension
+of the firmware gate had exactly two exits, both explicit: the reveal and a tap
+in a picker. A cover that is not Home goes away by itself - a call ends, the
+reverse camera goes, the app behind a notification is closed with Back - and
+the pair came back on screen with the gate closed. `BuildSceneSucceeded`
+honestly flipped visibility to VISIBLE and the gate did not follow. In that
+state `startIviWindow` answers every new task and every move-to-front of a pane
+member with `startFullWindow` ("which panel a task lands in", above), which is
+a pane's app escaping to fullscreen with nobody asking - the most likely
+mechanism behind the owner's first symptom. The reconcile now resumes a gate it
+holds the lease for once a proof says the scene is on screen again, under the
+same authority the suspension has (a read area, never an event), and the reveal
+over a scene already on screen resumes it too. The rollback inverse of "we
+opened the gate" was read from the lease, which Home keeps while closing the
+gate; a refused reveal or build over Home therefore reopened the gate and
+nothing closed it again (the ADAS/second-window sighting of 1.9.2). It is now
+read from the scene.
+
+**A recipe whose postcondition could not hold (e865fd9).** `evictToFullRoot`
+carried the machine truth of 2026-08-28 in its own doc - root 4 holds no
+background tasks, the evicted window stays visible - and answered it with
+geometry only, then walked into a postcondition that requires area 3. The user
+saw the evicted app fullscreen after a tap (the owner's incident of 2026-08-27
+is this shape). Every eviction now ends with one area read and, when the
+eviction covered the scene, raises it with the reveal's own `am task focus` on
+the top task of a pane.
+
+**"Release to close" over the hub's pane (2699d68).** The 2026-08-24 diagnosis
+stands: the detent map follows the runtime split list, and the product never
+listed itself because tx112 already said yes by manifest. The build's preamble
+now lists `dev.denza.apps` through tx125 in place of the tx112 read whose
+answer the manifest fixed - same one round trip, one "allowlist extended" line
+per build. The placement path does not read that list and tx112 was already
+true for us, so the detent map is the only thing this can change. **Owed
+live:** pull the divider over the hub's pane and confirm resize detents.
+
+**Two bare pickers, apps a moment later - not changed.** No product path
+launches apps after the open commits. The likely reading is a cold restore:
+`awaitScenePlacement` proves the app task is top by `am stack list`, which is
+true before a cold app has drawn a frame, so the waiting window comes down over
+pickers still showing under apps that are still starting. If it matters, the
+fix is to hold the window until the app's window is drawn, which needs a read
+this file does not have yet (`dumpsys window` for the task's surface).
+
+**Left as found, named for the next pass.** The build path journals
+`LeaseEnabled` entries and then records a point of no return immediately after,
+so a rollback never restores a lease there (the adopt path can). The navigation
+return's fullscreen branch settles `HomeConfirmed` for a scene that is on
+screen. `revision` in the durable snapshot is written and never read. None of
+these changes what the user sees.
