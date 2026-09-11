@@ -93,7 +93,6 @@ class SplitAutomatonTest {
 
         val off = SplitAutomaton.reduce(live, SplitFact.ToggleChanged(enabled = false)).state
         val on = SplitAutomaton.reduce(off, SplitFact.ToggleChanged(enabled = true))
-        val open = SplitAutomaton.reduce(on.state, SplitFact.OpenRequested)
         val rebuilt = SplitAutomaton.reduce(
             on.state,
             SplitFact.BuildSceneSucceeded(live.slots),
@@ -105,47 +104,11 @@ class SplitAutomatonTest {
     }
 
     /**
-     * `OpenRequested` не двигает слоты - ни при каком наборе (1.3.2-1.3.4).
-     *
-     * Здесь было четыре теста, и каждый утверждал СОДЕРЖИМОЕ плана `BuildScene`: какую пару
-     * автомат «просит построить». Плана больше нет, и с ним ушло вычисление `desired`, которое его
-     * наполняло: открытие выводит, что строить, самостоятельно - `OpenOperation.prepare` берёт
-     * `working.slot(pane) as? SplitSlot.App`, - и до автомата за этим никогда не ходило. То есть
-     * проверялось второе, параллельное описание намерения: подмени в нём что угодно, продукт вёл
-     * бы себя так же.
-     *
-     * Настоящее поведение - закрытая панель возвращается свежим пикером, живая переживает
-     * открытие - проверяется в `SplitScenarioTest` против самого рецепта (1.3.2, 1.3.4). Здесь
-     * остаётся то, что принадлежит автомату: слоты двигает settled-факт постройки, а не запрос.
+     * Слоты двигает settled-факт постройки, а не запрос: у автомата нет факта «открытие
+     * запрошено» - открытие выводит, что строить, само (`OpenOperation.prepare`), и закрытая
+     * панель возвращается свежим пикером в `SplitScenarioTest` против самого рецепта (1.3.2,
+     * 1.3.4).
      */
-    @Test
-    fun openRequestedNeverMovesASlotByItself() {
-        val fixtures = mapOf(
-            "сохранённая пара" to
-                state(primary = SplitSlot.App(MUSIC), secondary = SplitSlot.App(NAVIGATOR)),
-            "пустой выбор" to state(),
-            "одна закрытая панель" to
-                state(primary = SplitSlot.App(MUSIC), secondary = SplitSlot.Closed),
-        )
-
-        fixtures.forEach { (name, before) ->
-            val result = SplitAutomaton.reduce(before, SplitFact.OpenRequested)
-            assertSame(name, before, result.state)
-            assertFalse(name, result.teardownRequired)
-        }
-    }
-
-    @Test
-    fun openOverALiveSceneOnlyRevealsIt() {
-        // контракт 1.3.5, 1.3.6
-        val covered = split(SplitSlot.App(MUSIC), SplitSlot.App(NAVIGATOR))
-            .copy(visibility = SceneVisibility.COVERED)
-
-        val result = SplitAutomaton.reduce(covered, SplitFact.OpenRequested)
-
-        assertSame(covered, result.state)
-    }
-
     @Test
     fun aSettledBuildDerivesTheSceneFromTheBuiltSlots() {
         // контракт 1.3.4, 2.3
@@ -166,20 +129,15 @@ class SplitAutomatonTest {
     }
 
     @Test
-    fun tappingAnAppLaunchesItAndLeavesTheNeighbourAlone() {
-        // контракт 1.5.1
+    fun aConfirmedLaunchFillsItsPaneAndLeavesTheNeighbourAlone() {
+        // контракт 1.5.1: слот следует за подтверждённым запуском, а не за тапом
         val live = split(SplitSlot.Picker, SplitSlot.App(NAVIGATOR))
 
-        val tapped = SplitAutomaton.reduce(
-            live,
-            SplitFact.SelectionRequested(SplitPane.PRIMARY, MUSIC),
-        )
         val confirmed = SplitAutomaton.reduce(
-            tapped.state,
+            live,
             SplitFact.AppLaunchConfirmed(SplitPane.PRIMARY, MUSIC),
         )
 
-        assertSame("the slot follows the confirmation, not the tap", live, tapped.state)
         assertEquals(SplitSlot.App(MUSIC), confirmed.state.slot(SplitPane.PRIMARY))
         assertEquals(SplitSlot.App(NAVIGATOR), confirmed.state.slot(SplitPane.SECONDARY))
         assertEquals(SplitScene.Split, confirmed.state.scene)
@@ -288,7 +246,6 @@ class SplitAutomatonTest {
         val live = split(SplitSlot.App(MUSIC), SplitSlot.App(NAVIGATOR))
 
         val cleared = SplitAutomaton.reduce(live, SplitFact.SceneEndedSettled).state
-        val reopened = SplitAutomaton.reduce(cleared, SplitFact.OpenRequested)
 
         assertNull(cleared.scene)
     }
@@ -398,12 +355,8 @@ class SplitAutomatonTest {
             live,
             SplitFact.ProjectionStarted(SplitPane.PRIMARY),
         ).state
-        val tapped = SplitAutomaton.reduce(
-            projected,
-            SplitFact.SelectionRequested(SplitPane.PRIMARY, TEMP),
-        )
         val occupied = SplitAutomaton.reduce(
-            tapped.state,
+            projected,
             SplitFact.AppLaunchConfirmed(SplitPane.PRIMARY, TEMP),
         ).state
         val neighbourClosed = SplitAutomaton.reduce(
@@ -489,9 +442,8 @@ class SplitAutomatonTest {
         val sceneless = state(primary = SplitSlot.App(MUSIC), secondary = SplitSlot.App(NAVIGATOR))
 
         val impossible = listOf(
-            live to SplitFact.SelectionRequested(SplitPane.PRIMARY, NAVIGATOR),
             live to SplitFact.AppLaunchConfirmed(SplitPane.PRIMARY, NAVIGATOR),
-            live to SplitFact.SelectionRequested(SplitPane.SECONDARY, " "),
+            live to SplitFact.AppLaunchConfirmed(SplitPane.SECONDARY, " "),
             live to SplitFact.EdgeCommitConfirmed(SplitPane.SECONDARY),
             live to SplitFact.ProjectionStarted(SplitPane.SECONDARY),
             live to SplitFact.ProjectionReturned,
@@ -536,8 +488,6 @@ class SplitAutomatonTest {
 
         fun everyFact(): List<SplitFact> = listOf(
             SplitFact.ToggleChanged(enabled = true),
-            SplitFact.OpenRequested,
-            SplitFact.SelectionRequested(SplitPane.PRIMARY, MUSIC),
             SplitFact.AppLaunchConfirmed(SplitPane.PRIMARY, MUSIC),
             SplitFact.AppClosedSettled(SplitPane.PRIMARY),
             SplitFact.PaneCollapsedSettled(SplitPane.PRIMARY),

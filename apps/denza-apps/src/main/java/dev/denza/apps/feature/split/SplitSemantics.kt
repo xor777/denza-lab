@@ -81,10 +81,11 @@ internal data class SplitState(
 internal sealed interface SplitFact {
     data class ToggleChanged(val enabled: Boolean) : SplitFact
 
-    data object OpenRequested : SplitFact
-
-    data class SelectionRequested(val pane: SplitPane, val packageName: String) : SplitFact
-
+    /**
+     * A tap in a picker is answered by a launch and nothing else; the slot follows the launch the
+     * recipe proved (1.5.1). There is no "selection requested" fact for the same reason there is no
+     * "open requested" one: a request moves no slot, so it is not a fact the automaton can hear.
+     */
     data class AppLaunchConfirmed(val pane: SplitPane, val packageName: String) : SplitFact
 
     /** Back, close gesture, swipe from Recents or a crash: all of them are one closure (1.7.3). */

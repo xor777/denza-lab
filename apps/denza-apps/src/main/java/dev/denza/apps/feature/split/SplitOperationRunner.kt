@@ -12,11 +12,9 @@ package dev.denza.apps.feature.split
 /**
  * One reversible thing an operation did. Task and root ids live here and nowhere durable.
  *
- * The operations record all of these but [TaskMoved]: no recipe reports which task it moved out of
- * which root, and a journal entry the operation would have to guess at is worse than none
- * (invariant 3). The entry stays because [SplitRollback] speaks the whole vocabulary of section
- * 7.6, so an operation that one day can observe a move gets an exact inverse rather than a new
- * special case.
+ * [TaskMoved] is recorded by exactly one recipe: a build that takes a still-living task back into a
+ * pane by reparenting reports the root it came from (`SplitBuiltTask.fromRootId`), and that root is
+ * the honest inverse for a task the build did not create (U2). Nothing else guesses at a move.
  */
 internal sealed interface SplitJournalEntry {
     /** We opened the firmware-global gate; [prevOpen] is what it was before. */

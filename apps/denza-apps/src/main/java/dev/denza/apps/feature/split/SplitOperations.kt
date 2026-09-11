@@ -806,7 +806,6 @@ internal class OpenOperation(
     override fun prepare(op: SplitOperationContext, shell: (String) -> String): SplitOpenPlan? {
         if (!working.enabled) return null
         mark(op, "dequeued")
-        settle(SplitFact.OpenRequested)
         // 1.3.4 is decided here or nowhere: this is the one moment a pane the user closed can be
         // brought back, so it is also the one moment worth asking the car again (правка волны 12).
         settleTheCollapseNobodyRead(op)
@@ -1078,7 +1077,6 @@ internal class SelectOperation(
         )
         placement = settled
         recordCreated(op, preexisting, settled.appTaskId, target.componentName)
-        settle(SplitFact.SelectionRequested(settled.pane, settled.packageName))
         liveScene = liveScene + (
             settled.pane to SplitPickerLivePane(
                 pane = settled.pane,

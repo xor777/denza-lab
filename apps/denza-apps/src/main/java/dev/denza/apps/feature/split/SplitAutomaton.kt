@@ -15,9 +15,7 @@ internal object SplitAutomaton {
         if (!state.enabled && fact !is SplitFact.ToggleChanged) return unchanged(state)
         return when (fact) {
             is SplitFact.ToggleChanged -> toggle(state, fact.enabled)
-            SplitFact.OpenRequested -> open(state)
             is SplitFact.BuildSceneSucceeded -> sceneBuilt(state, fact.slots)
-            is SplitFact.SelectionRequested -> selectionRequested(state, fact)
             is SplitFact.AppLaunchConfirmed -> launchConfirmed(state, fact)
             is SplitFact.AppClosedSettled -> appClosed(state, fact.pane)
             is SplitFact.PaneCollapsedSettled -> paneCollapsed(state, fact.survivor)
@@ -64,18 +62,10 @@ internal object SplitAutomaton {
     /**
      * Contract 1.3. A live scene is only raised (1.3.5, 1.3.6); otherwise the saved selection is
      * rebuilt, every closed pane joining it as a fresh picker (1.3.2-1.3.4). Slots move only once
-     * the build is settled, so a failed or cancelled open leaves the selection untouched.
+     * the build is settled, so a failed or cancelled open leaves the selection untouched - which is
+     * also why an open *request* is not a fact: it moved nothing, and the two request facts the
+     * automaton used to hear returned the very same state on every branch.
      */
-    private fun open(state: SplitState): SplitReduction {
-        // Запрос открытия ничего не решает и ничего не двигает: слоты меняет только settled-факт
-        // постройки. Здесь считалась `desired` - пара, которую «надо построить», с закрытой
-        // панелью, превращённой в пикер, - и уходила в план `BuildScene`, который никто не
-        // исполнял. Открытие выводит это само (`OpenOperation.prepare`), и второй экземпляр той же
-        // мысли стоил ровно столько, сколько стоит любая копия правила: шанс разойтись с
-        // оригиналом молча.
-        return SplitReduction(state)
-    }
-
     private fun sceneBuilt(state: SplitState, slots: Map<SplitPane, SplitSlot>): SplitReduction {
         if (!slots.isWellFormed()) return unchanged(state)
         val scene = sceneFor(slots) ?: return unchanged(state)
@@ -88,20 +78,10 @@ internal object SplitAutomaton {
     }
 
     /**
-     * Contract 1.5. A tap is answered by a launch intent only; the slot follows the confirmation.
-     * The pane must be showing a picker, the one exception being the vacancy left by a projected
-     * navigator (1.10.2), where the picker is scene content rather than slot content.
+     * Contract 1.5. The slot follows the confirmed launch. The pane must be showing a picker, the
+     * one exception being the vacancy left by a projected navigator (1.10.2), where the picker is
+     * scene content rather than slot content.
      */
-    private fun selectionRequested(
-        state: SplitState,
-        fact: SplitFact.SelectionRequested,
-    ): SplitReduction {
-        if (state.scene == null || fact.packageName.isBlank()) return unchanged(state)
-        val selectable = state.slot(fact.pane) == SplitSlot.Picker || fact.pane == state.projectedPane
-        if (!selectable) return unchanged(state)
-        return SplitReduction(state)
-    }
-
     private fun launchConfirmed(
         state: SplitState,
         fact: SplitFact.AppLaunchConfirmed,

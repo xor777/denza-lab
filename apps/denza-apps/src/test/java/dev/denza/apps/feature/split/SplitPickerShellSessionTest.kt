@@ -374,8 +374,8 @@ class SplitPickerShellSessionTest {
 
     /**
      * Тот же класс слепоты в pre-clear тапа (правка W3 волны 8): чужой житель корня выселяется
-     * живым, а удаляется только собственный артефакт по точному компоненту - transparent host
-     * прерванного запуска.
+     * живым, а удаляется только собственный артефакт по точному компоненту - штатный bootstrap,
+     * который прошивка вставила в эту панель и который никто не убрал.
      */
     @Test
     fun aPickerTapEvictsTheForeignOccupantAndRemovesOnlyOurOwnArtifact() {
@@ -383,7 +383,7 @@ class SplitPickerShellSessionTest {
         val split = session(fake)
         val pickers = split.buildPickers()
         fake.addTask(SECONDARY_ROOT, 344, SPLIT_HOST_PACKAGE, "$SPLIT_HOST_PACKAGE.MainActivity")
-        fake.addTask(SECONDARY_ROOT, 345, SPLIT_HOST_PACKAGE, SPLIT_APP_HOST_ACTIVITY)
+        fake.addTask(SECONDARY_ROOT, 345, STOCK_PICKER_PACKAGE, STOCK_PICKER_ACTIVITY)
 
         val placement = split.selectApp(
             pickerTaskId = pickers.getValue(SplitPane.SECONDARY),
@@ -396,7 +396,7 @@ class SplitPickerShellSessionTest {
         assertTrue("чужой житель корня жив", fake.hasTask(344))
         assertEquals(FULL_ROOT, fake.taskRoot(344))
         assertTrue(fake.commands.any { it == "am stack move-task 344 $FULL_ROOT false" })
-        assertFalse("собственный host-артефакт удалён по exact компоненту", fake.hasTask(345))
+        assertFalse("штатный bootstrap удалён по exact компоненту", fake.hasTask(345))
         assertFalse(fake.commands.any { it.contains("remove-task 344 ") })
     }
 
@@ -434,7 +434,6 @@ class SplitPickerShellSessionTest {
         }
         assertFalse(fake.hasPackage(PRIMARY_ROOT, STOCK_PICKER_PACKAGE))
         assertFalse(fake.commands.any { it.startsWith("input swipe ") })
-        assertFalse(fake.commands.any { it.contains("SplitTaskProxyMain start-in-task ") })
         assertFalse(fake.commands.any { it.contains("replace-task-base ") })
     }
 
@@ -1175,7 +1174,7 @@ class SplitPickerShellSessionTest {
         fake.dismissPane(PRIMARY_ROOT)
         fake.commands.clear()
 
-        val collapsed = split.collapsedOwnedSession(
+        val collapsed = split.readCollapsedSession(
             pickerComponents = PICKER_COMPONENTS,
             expectedPanes = mapOf(
                 SplitPane.PRIMARY to SplitPickerObservedPane(
@@ -1187,7 +1186,7 @@ class SplitPickerShellSessionTest {
                     hostTaskId = hosts.getValue(SplitPane.SECONDARY),
                 ),
             ),
-        )
+        ).pane
 
         assertEquals(SplitPane.SECONDARY, collapsed?.pane)
         assertEquals(hosts.getValue(SplitPane.SECONDARY), collapsed?.hostTaskId)
@@ -1211,7 +1210,7 @@ class SplitPickerShellSessionTest {
         fake.dismissPane(PRIMARY_ROOT)
         fake.addTask(FULL_ROOT, vanishedHost, SPLIT_HOST_PACKAGE, PRIMARY_PICKER_ACTIVITY)
 
-        val collapsed = split.collapsedOwnedSession(
+        val collapsed = split.readCollapsedSession(
             pickerComponents = PICKER_COMPONENTS,
             expectedPanes = mapOf(
                 SplitPane.PRIMARY to SplitPickerObservedPane(vanishedHost),
@@ -1219,7 +1218,7 @@ class SplitPickerShellSessionTest {
                     hosts.getValue(SplitPane.SECONDARY),
                 ),
             ),
-        )
+        ).pane
 
         assertEquals(SplitPane.SECONDARY, collapsed?.pane)
         assertEquals(hosts.getValue(SplitPane.SECONDARY), collapsed?.hostTaskId)
@@ -1234,7 +1233,7 @@ class SplitPickerShellSessionTest {
         fake.dismissPane(PRIMARY_ROOT)
         fake.addTask(PRIMARY_ROOT, vanishedHost, SPLIT_HOST_PACKAGE, PRIMARY_PICKER_ACTIVITY)
 
-        val collapsed = split.collapsedOwnedSession(
+        val collapsed = split.readCollapsedSession(
             pickerComponents = PICKER_COMPONENTS,
             expectedPanes = mapOf(
                 SplitPane.PRIMARY to SplitPickerObservedPane(vanishedHost),
@@ -1242,7 +1241,7 @@ class SplitPickerShellSessionTest {
                     hosts.getValue(SplitPane.SECONDARY),
                 ),
             ),
-        )
+        ).pane
 
         assertEquals(null, collapsed)
     }
@@ -1273,7 +1272,7 @@ class SplitPickerShellSessionTest {
         fake.moveTask(music.appTaskId, SECONDARY_ROOT)
         fake.commands.clear()
 
-        val collapsed = split.collapsedOwnedSession(
+        val collapsed = split.readCollapsedSession(
             pickerComponents = PICKER_COMPONENTS,
             expectedPanes = mapOf(
                 SplitPane.PRIMARY to SplitPickerObservedPane(
@@ -1287,7 +1286,7 @@ class SplitPickerShellSessionTest {
                     packageName = navigator.packageName,
                 ),
             ),
-        )
+        ).pane
 
         assertEquals(SplitPane.SECONDARY, collapsed?.pane)
         assertEquals(hosts.getValue(SplitPane.PRIMARY), collapsed?.hostTaskId)
@@ -1324,7 +1323,7 @@ class SplitPickerShellSessionTest {
         fake.moveTask(music.appTaskId, FULL_ROOT)
         fake.commands.clear()
 
-        val collapsed = split.collapsedOwnedSession(
+        val collapsed = split.readCollapsedSession(
             pickerComponents = PICKER_COMPONENTS,
             expectedPanes = mapOf(
                 SplitPane.SECONDARY to SplitPickerObservedPane(
@@ -1333,7 +1332,7 @@ class SplitPickerShellSessionTest {
                     packageName = music.packageName,
                 ),
             ),
-        )
+        ).pane
 
         assertEquals(SplitPane.SECONDARY, collapsed?.pane)
         assertEquals(hosts.getValue(SplitPane.SECONDARY), collapsed?.hostTaskId)
@@ -1382,7 +1381,7 @@ class SplitPickerShellSessionTest {
 
         assertEquals(
             SplitPane.SECONDARY,
-            split.collapsedPaneByExistence(PICKER_COMPONENTS, expected),
+            split.readCollapsedPaneByExistence(PICKER_COMPONENTS, expected).collapsed,
         )
         assertFalse(
             "доказательство по существованию строго read-only",
@@ -1407,7 +1406,7 @@ class SplitPickerShellSessionTest {
 
         // Сигнатура краха 1.7.3: host жив в панельном root - его панель не схлопнута.
         fake.area = 1
-        assertEquals(null, split.collapsedPaneByExistence(PICKER_COMPONENTS, expected))
+        assertEquals(null, split.readCollapsedPaneByExistence(PICKER_COMPONENTS, expected).collapsed)
 
         // Обе панели покинули root'ы под НАКРЫТИЕМ - это конец сцены, и решает его
         // existence-проверка конца, а не collapse (правка W1 волны 9 сюда не дотягивается:
@@ -1415,13 +1414,13 @@ class SplitPickerShellSessionTest {
         fake.detachTask(hosts.getValue(SplitPane.PRIMARY))
         fake.detachTask(hosts.getValue(SplitPane.SECONDARY))
         fake.area = 0
-        assertEquals(null, split.collapsedPaneByExistence(PICKER_COMPONENTS, expected))
+        assertEquals(null, split.readCollapsedPaneByExistence(PICKER_COMPONENTS, expected).collapsed)
         fake.area = 4
-        assertEquals(null, split.collapsedPaneByExistence(PICKER_COMPONENTS, expected))
+        assertEquals(null, split.readCollapsedPaneByExistence(PICKER_COMPONENTS, expected).collapsed)
 
         // Вне area 1/2 факт схлопывания не читается вовсе.
         fake.area = 3
-        assertEquals(null, split.collapsedPaneByExistence(PICKER_COMPONENTS, expected))
+        assertEquals(null, split.readCollapsedPaneByExistence(PICKER_COMPONENTS, expected).collapsed)
     }
 
     /**
@@ -1486,7 +1485,7 @@ class SplitPickerShellSessionTest {
         fake.area = 2
         assertEquals(
             SplitPane.PRIMARY,
-            split.collapsedPaneByExistence(PICKER_COMPONENTS, expected),
+            split.readCollapsedPaneByExistence(PICKER_COMPONENTS, expected).collapsed,
         )
     }
 
@@ -1852,7 +1851,7 @@ class SplitPickerShellSessionTest {
         fake.commands.clear()
 
         val result = runCatching {
-            split.collapsedOwnedSession(
+            split.readCollapsedSession(
                 pickerComponents = PICKER_COMPONENTS,
                 expectedPanes = mapOf(
                     SplitPane.PRIMARY to SplitPickerObservedPane(
@@ -1864,7 +1863,7 @@ class SplitPickerShellSessionTest {
                         hostTaskId = hosts.getValue(SplitPane.SECONDARY),
                     ),
                 ),
-            )
+            ).pane
         }
 
         assertTrue(result.isFailure)
@@ -2016,7 +2015,6 @@ class SplitPickerShellSessionTest {
         }
         assertTrue("обычный выбор переиспользует задачу пакета", appLaunch.contains("-f 0x10200000"))
         assertTrue(appLaunch.contains("byd.intent.category.START_IVI_SECOND"))
-        assertFalse(fake.commands.any { it.contains("SplitTaskProxyMain start-in-task ") })
         assertEquals("$MUSIC.MainActivity", fake.taskBaseActivity(placement.appTaskId))
     }
 
@@ -2091,8 +2089,6 @@ class SplitPickerShellSessionTest {
         assertEquals(WAZE, placement.packageName)
         assertEquals("$WAZE.MainActivity", fake.taskBaseActivity(placement.appTaskId))
         assertTrue(fake.hasPackage(SECONDARY_ROOT, WAZE))
-        assertFalse(fake.hasActivity(PRIMARY_ROOT, SPLIT_APP_HOST_ACTIVITY))
-        assertFalse(fake.hasActivity(SECONDARY_ROOT, SPLIT_APP_HOST_ACTIVITY))
         assertEquals(2, fake.taskCount(SECONDARY_ROOT))
         assertTrue(fake.commands.any { command ->
             command.startsWith("am start ") &&
@@ -2115,8 +2111,6 @@ class SplitPickerShellSessionTest {
 
         assertEquals(MUSIC, placement.packageName)
         assertEquals("$MUSIC.MainActivity", fake.topActivity(SECONDARY_ROOT))
-        assertFalse(fake.hasActivity(PRIMARY_ROOT, SPLIT_APP_HOST_ACTIVITY))
-        assertFalse(fake.hasActivity(SECONDARY_ROOT, SPLIT_APP_HOST_ACTIVITY))
         assertEquals(2, fake.taskCount(SECONDARY_ROOT))
     }
 
@@ -2137,7 +2131,6 @@ class SplitPickerShellSessionTest {
         }.onSuccess { error("Expected direct launch to fail") }
 
         assertEquals(PRIMARY_PICKER_ACTIVITY, fake.topActivity(PRIMARY_ROOT))
-        assertFalse(fake.hasActivity(PRIMARY_ROOT, SPLIT_APP_HOST_ACTIVITY))
         assertFalse(fake.hasPackage(PRIMARY_ROOT, NAVIGATOR))
         assertEquals(1, fake.taskCount(PRIMARY_ROOT))
     }
@@ -2346,12 +2339,7 @@ class SplitPickerShellSessionTest {
                 STOCK_PICKER_PACKAGE,
                 STOCK_PICKER_ACTIVITY,
             )
-            addTask(
-                SECONDARY_ROOT,
-                440,
-                SPLIT_HOST_PACKAGE,
-                SPLIT_APP_HOST_ACTIVITY,
-            )
+            addTask(SECONDARY_ROOT, 440, SPLIT_HOST_PACKAGE, SECONDARY_PICKER_ACTIVITY)
             addTask(SECONDARY_ROOT, 452, NAVIGATOR, "$NAVIGATOR.MainActivity")
         }
 
@@ -2362,7 +2350,7 @@ class SplitPickerShellSessionTest {
         assertEquals(4, fake.area)
         assertTrue(fake.hasPackage(FULL_ROOT, NAVIGATOR))
         assertFalse(fake.hasActivity(PRIMARY_ROOT, STOCK_PICKER_ACTIVITY))
-        assertFalse(fake.hasActivity(SECONDARY_ROOT, SPLIT_APP_HOST_ACTIVITY))
+        assertFalse(fake.hasActivity(SECONDARY_ROOT, SECONDARY_PICKER_ACTIVITY))
         assertFalse(fake.commands.any { it.startsWith("service call activity_task 114 ") })
     }
 
@@ -2379,14 +2367,9 @@ class SplitPickerShellSessionTest {
                 STOCK_PICKER_PACKAGE,
                 STOCK_PICKER_ACTIVITY,
             )
-            // Наш host здесь не декорация: без него мир неотличим от чужого split'а, и тест
+            // Наша база здесь не декорация: без неё мир неотличим от чужого split'а, и тест
             // утверждал бы ровно тот дефект, который чинит [aForeignSplitKeepsItsOwnStockPicker...].
-            addTask(
-                SECONDARY_ROOT,
-                440,
-                SPLIT_HOST_PACKAGE,
-                SPLIT_APP_HOST_ACTIVITY,
-            )
+            addTask(SECONDARY_ROOT, 440, SPLIT_HOST_PACKAGE, SECONDARY_PICKER_ACTIVITY)
             addTask(SECONDARY_ROOT, 452, NAVIGATOR, "$NAVIGATOR.MainActivity")
         }
 
@@ -2862,24 +2845,25 @@ class SplitPickerShellSessionTest {
     }
 
     /**
-     * Invariant 3 and 1.9.2: a build cleans up after the product, and after nobody else.
+     * Invariant 3 and 1.9.2: a build touches nothing outside the panes.
      *
-     * The retired host Activity is the one artefact outside the panes whose ownership a snapshot
-     * can prove, because it carries our own component. An ordinary task of the same package is the
-     * user's application and is never touched on the strength of its package alone.
+     * A task outside the panel roots - the user's own application, or a task of our own package
+     * that is not a picker base - is never moved or removed on the strength of its package.
      */
     @Test
-    fun aBuildRemovesOurOwnStrayHostAndNothingElseOutsideThePanes() {
+    fun aBuildTouchesNothingOutsideThePanes() {
         val fake = FakeShell().apply {
-            addTask(FULL_ROOT, 80, SPLIT_HOST_PACKAGE, SPLIT_APP_HOST_ACTIVITY)
+            addTask(FULL_ROOT, 80, SPLIT_HOST_PACKAGE, "$SPLIT_HOST_PACKAGE.MainActivity")
             addTask(FULL_ROOT, 81, WAZE, "$WAZE.MainActivity")
         }
 
         session(fake).buildPickers()
 
-        assertFalse("огрызок прошлой версии продукта снят", fake.hasTask(80))
+        assertTrue("наша собственная задача-приложение не тронута", fake.hasTask(80))
+        assertEquals(FULL_ROOT, fake.taskRoot(80))
         assertTrue("чужое приложение не тронуто", fake.hasTask(81))
         assertEquals(FULL_ROOT, fake.taskRoot(81))
+        assertFalse(fake.commands.any { it.contains(" remove-task ") })
     }
 
     /**

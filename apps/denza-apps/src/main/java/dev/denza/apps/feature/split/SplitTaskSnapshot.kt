@@ -71,8 +71,6 @@ internal data class SplitBounds(
 
 internal fun SplitBounds.hasArea(): Boolean = right > left && bottom > top
 
-internal fun SplitBounds.width(): Int = right - left
-
 /**
  * Whether this rectangle holds the other one and is strictly larger than it.
  *
@@ -190,7 +188,7 @@ internal data class SplitTaskSnapshot(val roots: List<SplitRootTask>) {
 
 /**
  * `am stack list` repeats the root's top component on every task line. Package
- * equality alone is ambiguous when Denza Apps and its placeholder share a
+ * equality alone is ambiguous when Denza Apps and its own picker base share a
  * root, so prefer the exact component. Package-only fallback is allowed only
  * when exactly one visible task can own that top package (normal internal
  * Activity transitions within one task).
@@ -205,12 +203,5 @@ internal fun SplitRootTask.resolvedTopTask(): SplitTask? {
         task.topActivityName != null && task.activityName == task.topActivityName
     }
     exactCandidates.firstOrNull()?.let { return it }
-    packageCandidates.singleOrNull()?.let { return it }
-    return tasks.singleOrNull { task ->
-        task.visible &&
-            task.packageName == SPLIT_HOST_PACKAGE &&
-            task.activityName == SPLIT_APP_HOST_ACTIVITY &&
-            task.topPackageName != null &&
-            task.topPackageName != task.packageName
-    }
+    return packageCandidates.singleOrNull()
 }

@@ -201,7 +201,7 @@ internal fun SplitDiagnosticLog.log(message: String) = log(message, background =
  * It is deliberately **not** durable (invariant 4): a fresh process starts with none of it, so a
  * reboot or a process death can never make the product act on someone else's numbers. Within a
  * living process it is a hint and nothing more - every recipe that consumes it (`existingOwnedSession`,
- * `reconcileDividerResize`, `collapsedOwnedSession`) re-verifies each id against a fresh snapshot by
+ * `reconcileDividerResize`, `readCollapsedSession`) re-verifies each id against a fresh snapshot by
  * exact component and bounds identity before it moves anything, exactly like `vacancyApp`.
  */
 internal typealias SplitLiveScene = Map<SplitPane, SplitPickerLivePane>

@@ -233,7 +233,7 @@ internal class SplitPickerShellSession(
             if (
                 picker == null ||
                 residents.any { it.isDenzaPickerBase() || it.isNativeSplitBootstrap() } ||
-                residents.distinctBy { it.effectivePackageName() }.size > 1
+                residents.distinctBy { it.packageName }.size > 1
             ) {
                 return SplitSceneRead(
                     null,
@@ -282,7 +282,7 @@ internal class SplitPickerShellSession(
                 pane = pane,
                 hostTaskId = picker.id,
                 appTaskId = app?.id,
-                appPackageName = app?.effectivePackageName(),
+                appPackageName = app?.packageName,
             )
         }
         return SplitSceneRead(panes, "adoptable")
@@ -348,7 +348,7 @@ internal class SplitPickerShellSession(
             val app = mainTasks.singleOrNull { task ->
                 task.id == appTaskId &&
                     task.rootId in nativeRootIds &&
-                    task.effectivePackageName() == packageName
+                    task.packageName == packageName
             } ?: return null
             val root = state.root(app.rootId) ?: return null
             if (app.bounds != root.bounds) return null
@@ -384,7 +384,8 @@ internal class SplitPickerShellSession(
     }
 
     /**
-     * Adopts the one owned root left by a native edge collapse.
+     * Adopts the one owned root left by a native edge collapse, with the reason it refused
+     * (правка W4, U5).
      *
      * Area 1/2 identifies the surviving native pane, but not the previous logical owner. DiLink
      * may move the surviving app across the two native roots and detach both permanent picker
@@ -394,14 +395,6 @@ internal class SplitPickerShellSession(
      * removes only those exact recorded artifacts after adoption.
      * This is deliberately separate from [existingOwnedSession], whose callers require an intact
      * two-root scene.
-     */
-    fun collapsedOwnedSession(
-        pickerComponents: Set<String>,
-        expectedPanes: Map<SplitPane, SplitPickerObservedPane>,
-    ): SplitPickerLivePane? = readCollapsedSession(pickerComponents, expectedPanes).pane
-
-    /**
-     * The same recipe, with the reason it refused (правка W4, U5).
      *
      * Диагноз v21 жил на полной тишине этих веток: во время двухпроходного teardown каждый
      * fail-closed предикат отказывал честно, и ни одна строка нигде не говорила, который. Команды
@@ -450,7 +443,7 @@ internal class SplitPickerShellSession(
             val appMatches = expected.appTaskId?.let { expectedAppTaskId ->
                 root.tasks.any { task ->
                     task.id == expectedAppTaskId &&
-                        task.effectivePackageName() == expected.packageName &&
+                        task.packageName == expected.packageName &&
                         !task.isDenzaPickerBase()
                 }
             } ?: false
@@ -463,7 +456,7 @@ internal class SplitPickerShellSession(
         val liveAppPresent = expected.appTaskId?.let { expectedAppTaskId ->
             root.tasks.any { task ->
                 task.id == expectedAppTaskId &&
-                    task.effectivePackageName() == expected.packageName &&
+                    task.packageName == expected.packageName &&
                     !task.isDenzaPickerBase()
             }
         } == true
@@ -558,7 +551,7 @@ internal class SplitPickerShellSession(
         val app = expected.appTaskId?.let { appTaskId ->
             settledRoot.tasks.singleOrNull { task ->
                 task.id == appTaskId &&
-                    task.effectivePackageName() == expected.packageName &&
+                    task.packageName == expected.packageName &&
                     !task.isDenzaPickerBase() &&
                     !task.isNativeSplitBootstrap() &&
                     task.bounds == settledRoot.bounds
@@ -572,7 +565,7 @@ internal class SplitPickerShellSession(
             pane = survivor,
             hostTaskId = picker.id,
             appTaskId = app?.id,
-            appPackageName = app?.effectivePackageName(),
+            appPackageName = app?.packageName,
         )
     }
 
@@ -583,7 +576,7 @@ internal class SplitPickerShellSession(
      * Прошивочный «Release to close» отвязывает задачи живыми, не убивая, и во время его
      * двухпроходного teardown полный постусловный набор [settledCollapsedPane] честно
      * недоказуем - тот набор остаётся воротами физического reattach выжившего пикера
-     * ([collapsedOwnedSession]), но не воротами чистки памяти. Сам факт схлопывания доказывается
+     * ([readCollapsedSession]), но не воротами чистки памяти. Сам факт схлопывания доказывается
      * существованием: при area 1/2 и записанной двухпанельной сцене схлопнута панель, чьи
      * записанные задачи - host И app, по exact identity - отсутствуют в ОБОИХ панельных root.
      * Выживший - другая панель.
@@ -609,12 +602,6 @@ internal class SplitPickerShellSession(
      * Конец сцены здесь ни при чём: он живёт под накрытием (area 0/4), а до этих строк накрытие
      * не доходит вовсе.
      */
-    fun collapsedPaneByExistence(
-        pickerComponents: Set<String>,
-        expectedPanes: Map<SplitPane, SplitPickerObservedPane>,
-    ): SplitPane? = readCollapsedPaneByExistence(pickerComponents, expectedPanes).collapsed
-
-    /** The same proof, with the reason it refused (правка W4, U5). */
     fun readCollapsedPaneByExistence(
         pickerComponents: Set<String>,
         expectedPanes: Map<SplitPane, SplitPickerObservedPane>,
@@ -644,7 +631,7 @@ internal class SplitPickerShellSession(
             val appPresent = expected.appTaskId?.let { appTaskId ->
                 panelTasks.any { task ->
                     task.id == appTaskId &&
-                        task.effectivePackageName() == expected.packageName &&
+                        task.packageName == expected.packageName &&
                         !task.isDenzaPickerBase()
                 }
             } == true
@@ -775,7 +762,7 @@ internal class SplitPickerShellSession(
             isDenzaPickerBase() &&
             matchesAnyComponent(pickerComponents)
         else -> id == appTaskId &&
-            effectivePackageName() == expected.packageName &&
+            packageName == expected.packageName &&
             !isDenzaPickerBase()
     }
 
@@ -1001,7 +988,7 @@ internal class SplitPickerShellSession(
             val top = root?.resolvedTopTask()
             val covered = root?.resolveExpectedCoveredApp(expectedApps[pane])?.takeIf { task ->
                 task.id != hostTaskIds.getValue(pane) &&
-                    task.effectivePackageName() == target.packageName &&
+                    task.packageName == target.packageName &&
                     !task.isDenzaPickerBase() &&
                     !task.isNativeSplitBootstrap()
             }
@@ -1026,7 +1013,7 @@ internal class SplitPickerShellSession(
                 root != null &&
                     top != null &&
                     top.id != hostTaskIds.getValue(pane) &&
-                    top.effectivePackageName() == target.packageName &&
+                    top.packageName == target.packageName &&
                     top.bounds == root.bounds -> {
                     // U2, 1.3.2: this pane is already showing exactly that app. Nothing is
                     // relaunched over a living one - the postcondition still has to prove it.
@@ -1101,7 +1088,7 @@ internal class SplitPickerShellSession(
                 // переиспользовал задачу вместо перезапуска (U2).
                 if (appTaskIds[pane] == null) {
                     settled.root(rootIds.getValue(pane))?.tasks
-                        ?.filter { task -> task.effectivePackageName() == target }
+                        ?.filter { task -> task.packageName == target }
                         ?.maxByOrNull(SplitTask::id)
                         ?.id
                 } else {
@@ -1119,16 +1106,9 @@ internal class SplitPickerShellSession(
                         task.isEmptyRootMarker() ||
                         (resident != null &&
                             !task.isOwnSplitComponent() &&
-                            task.effectivePackageName() == resident)
+                            task.packageName == resident)
                 }
         }
-        // And our own retired host Activity, wherever an older version of the product left one.
-        // It is the only task outside the panes whose ownership is provable - by our exact
-        // component, never by the package of the app inside it (invariant 3, 1.9.2).
-        val strayHosts = settled.roots.asSequence()
-            .filter { root -> root.displayId == MAIN_DISPLAY_ID }
-            .flatMap { root -> root.tasks.asSequence() }
-            .filter { task -> task.isDenzaAppHost() }
         // Правка W3 волны 8 (инвариант 3, примечание контракта под 1.5; диагноз v23 Д1(б)/Д2):
         // членство в панельном корне - не приговор. Удаляется только доказуемо своё - собственные
         // компоненты по exact identity и задачи, СОЗДАННЫЕ этой операцией по её же журнальному
@@ -1141,7 +1121,7 @@ internal class SplitPickerShellSession(
             task.isOwnSplitComponent() ||
                 (preexistingTaskIds != null && task.id !in preexistingTaskIds)
         }
-        removeTasksSafely((executable + strayHosts).distinctBy(SplitTask::id))
+        removeTasksSafely(executable.distinctBy(SplitTask::id))
         evictToFullRoot(foreign)
         if (launching.isNotEmpty()) {
             launchApps(
@@ -1411,7 +1391,7 @@ internal class SplitPickerShellSession(
         check(before.roots.asSequence()
             .filter { it.displayId != MAIN_DISPLAY_ID }
             .flatMap { it.tasks.asSequence() }
-            .none { it.effectivePackageName() == target.packageName }
+            .none { it.packageName == target.packageName }
         ) {
             "Приложение уже открыто на другом экране"
         }
@@ -1430,12 +1410,10 @@ internal class SplitPickerShellSession(
         // панели носит наш package, и до сих пор она сюда попадала - но пока каталог отдавал про
         // нас `launchMode` трамплина (`standard`), гард молчал и цены у этого не было. С честным
         // `singleTask` самой `MainActivity` тот же набор запретил бы выбор Denza Apps вообще:
-        // соседняя панель всегда держит свою базу (1.5.3, «открылась и работает»). Прозрачный
-        // app-host исключать нельзя - он и есть окно того приложения, чей пакет разворачивает
-        // [effectivePackageName].
+        // соседняя панель всегда держит свою базу (1.5.3, «открылась и работает»).
         val duplicatePeerTasks = before.root(otherRootId)?.tasks.orEmpty()
             .filter { task ->
-                !task.isDenzaPickerBase() && task.effectivePackageName() == target.packageName
+                !task.isDenzaPickerBase() && task.packageName == target.packageName
             }
         check(duplicatePeerTasks.isEmpty() || target.launchMode < LAUNCH_MODE_SINGLE_TASK) {
             "Это приложение не поддерживает два окна"
@@ -1445,11 +1423,10 @@ internal class SplitPickerShellSession(
         // A picker tap is authoritative proof that this pane is being selected. Free its exact
         // permanent base before requiring the picker to be the root top. Правка W3 волны 8
         // (инвариант 3, примечание контракта под 1.5; диагноз v23 Д2): удаляется только своё по
-        // точному компоненту - в частности transparent SplitAppHostActivity прерванного запуска,
-        // чьё input-окно иначе навсегда держит фокус над видимым пикером. Чужая задача в корне -
-        // задача пользователя (нативно втянутый хаб - U3: наш package, не наш компонент) и
-        // выселяется живой в полноэкранный корень; эта операция ещё ничего не создавала, так что
-        // «созданного ею» здесь не бывает.
+        // точному компоненту - вторая база или штатный bootstrap, застрявшие в этом корне. Чужая
+        // задача в корне - задача пользователя (нативно втянутый хаб - U3: наш package, не наш
+        // компонент) и выселяется живой в полноэкранный корень; эта операция ещё ничего не
+        // создавала, так что «созданного ею» здесь не бывает.
         val (ownArtifacts, foreignOccupants) = before.root(targetRootId)?.tasks.orEmpty()
             .filterNot { task -> task.id == pickerHost.id || task.isEmptyRootMarker() }
             .partition { task -> task.isOwnSplitComponent() }
@@ -1475,7 +1452,7 @@ internal class SplitPickerShellSession(
         val preservedTargetTaskRoots = baselineTasks.asSequence()
             .filter { task ->
                 task.rootId == otherRootId &&
-                    task.effectivePackageName() == target.packageName
+                    task.packageName == target.packageName
             }
             .associate { task -> task.id to task.rootId }
 
@@ -1605,8 +1582,8 @@ internal class SplitPickerShellSession(
      *
      * Идентичность приложения пользователя доказывает пакет цели, а собственные компоненты
      * продукта в неё не принимаются (инвариант 3, U3): запуск `dev.denza.apps` - это его
-     * MainActivity, но никогда не пикер-база и не retired host. Слот записывается по фактической
-     * верхней задаче, и она же становится записанной identity панели.
+     * MainActivity, но никогда не пикер-база. Слот записывается по фактической верхней задаче, и
+     * она же становится записанной identity панели.
      */
     private fun selectedAppPlacement(
         pane: SplitPane,
@@ -1628,7 +1605,7 @@ internal class SplitPickerShellSession(
         }
         val top = root.resolvedTopTask()
             ?: error("В выбранном split-окне нет верхней задачи")
-        check(top.effectivePackageName() == target.packageName && !top.isOwnSplitComponent()) {
+        check(top.packageName == target.packageName && !top.isOwnSplitComponent()) {
             "Приложение ${target.packageName} не стало верхним в выбранном окне"
         }
         check(top.bounds == root.bounds) {
@@ -1645,7 +1622,7 @@ internal class SplitPickerShellSession(
                 task.id != pickerHost.id &&
                     !task.isEmptyRootMarker() &&
                     (task.isOwnSplitComponent() ||
-                        task.effectivePackageName() != target.packageName)
+                        task.packageName != target.packageName)
             }
         ) {
             "В split-контейнере осталась посторонняя задача"
@@ -1679,7 +1656,7 @@ internal class SplitPickerShellSession(
             task.id != pickerHostTaskId &&
                 !task.isEmptyRootMarker() &&
                 !task.isOwnSplitComponent() &&
-                task.effectivePackageName() == target.packageName
+                task.packageName == target.packageName
         }
         val top = root.resolvedTopTask()
             ?.id
@@ -1763,12 +1740,7 @@ internal class SplitPickerShellSession(
         snapshot().roots.asSequence()
             .filter { it.displayId == MAIN_DISPLAY_ID }
             .flatMap { it.tasks.asSequence() }
-            .filter { task ->
-                task.id !in baselineTaskIds &&
-                    (task.effectivePackageName() == packageName ||
-                        (task.isDenzaAppHost() && task.topPackageName == packageName)
-                    )
-            }
+            .filter { task -> task.id !in baselineTaskIds && task.packageName == packageName }
             .toList()
             .let(::removeTasksSafely)
         restorePreservedTargetTasks(packageName, preservedTargetTaskRoots)
@@ -1783,7 +1755,7 @@ internal class SplitPickerShellSession(
         preservedTaskRoots.forEach { (taskId, rootId) ->
             val task = current[taskId]
                 ?: error("Не удалось сохранить уже открытое окно $packageName")
-            check(task.effectivePackageName() == packageName) {
+            check(task.packageName == packageName) {
                 "Задача уже открытого окна изменила приложение"
             }
             if (task.rootId != rootId) moveTask(taskId, rootId)
@@ -1801,7 +1773,7 @@ internal class SplitPickerShellSession(
         preservedTaskRoots.forEach { (taskId, rootId) ->
             val task = current[taskId]
                 ?: error("Уже открытое окно $packageName исчезло")
-            check(task.rootId == rootId && task.effectivePackageName() == packageName) {
+            check(task.rootId == rootId && task.packageName == packageName) {
                 "Уже открытое окно $packageName сменило split-контейнер"
             }
         }
@@ -1828,17 +1800,17 @@ internal class SplitPickerShellSession(
         pickerComponents: Set<String>,
     ) {
         val root = snapshot().root(rootId)
-            ?: error("Split-контейнер исчез после неудачного host-запуска")
+            ?: error("Split-контейнер исчез после неудачного запуска")
         val picker = root.tasks.singleOrNull { task ->
             task.id == pickerTaskId &&
                 task.isDenzaPickerBase() &&
                 task.matchesAnyComponent(pickerComponents)
-        } ?: error("Постоянный пикер потерян после неудачного host-запуска")
+        } ?: error("Постоянный пикер потерян после неудачного запуска")
         check(
             root.tasks.size == 1 &&
                 picker.visible &&
                 picker.matchesAnyTopComponent(pickerComponents)
-        ) { "Host-запуск не освободил пикер для безопасного fallback" }
+        ) { "Неудачный запуск не освободил пикер для безопасного fallback" }
     }
 
     /**
@@ -1909,7 +1881,7 @@ internal class SplitPickerShellSession(
             )
         val displacedTasks = before.root(targetRootId)?.tasks.orEmpty()
             .filterNot { it.id == picker.id }
-            .map { task -> SplitDisplacedTask(task.id, task.effectivePackageName()) }
+            .map { task -> SplitDisplacedTask(task.id, task.packageName) }
         return SplitNavigationReturnPlan(
             pane = targetPane,
             rootTaskId = targetRootId,
@@ -1963,7 +1935,7 @@ internal class SplitPickerShellSession(
             ?: error("Навигация не появилась в split-окне")
         check(
             top.id == taskId &&
-                top.effectivePackageName() == packageName &&
+                top.packageName == packageName &&
                 top.bounds == root.bounds,
         ) {
             "Навигация не заняла выбранное split-окно"
@@ -2071,7 +2043,7 @@ internal class SplitPickerShellSession(
                     task.matchesAnyComponent(pickerComponents)
             } && (observed.appTaskId == null || tasks.any { task ->
                 task.id == observed.appTaskId &&
-                    task.effectivePackageName() == observed.appPackageName &&
+                    task.packageName == observed.appPackageName &&
                     !task.isDenzaPickerBase()
             })
         }
@@ -2094,7 +2066,7 @@ internal class SplitPickerShellSession(
         return apps.all { observed ->
             tasks.any { task ->
                 task.id == observed.appTaskId &&
-                    task.effectivePackageName() == observed.appPackageName &&
+                    task.packageName == observed.appPackageName &&
                     !task.isDenzaPickerBase()
             }
         }
@@ -2174,10 +2146,7 @@ internal class SplitPickerShellSession(
         val task = snapshot().roots.asSequence()
             .filter { it.displayId == MAIN_DISPLAY_ID }
             .flatMap { it.tasks.asSequence() }
-            .firstOrNull {
-                it.id == taskId &&
-                    (it.effectivePackageName() == packageName || it.isDenzaAppHost())
-            }
+            .firstOrNull { it.id == taskId && it.packageName == packageName }
             ?: return false
         check(!task.isDenzaPickerBase()) { "Нельзя удалить host-пикер как приложение" }
         removeTaskSafely(task)
@@ -2230,7 +2199,7 @@ internal class SplitPickerShellSession(
         val rootId = nativeRootIds().getValue(pane)
         val candidates = snapshot().root(rootId)?.tasks.orEmpty().filter { task ->
             task.id != pickerTaskId &&
-                task.effectivePackageName() == packageName &&
+                task.packageName == packageName &&
                 !task.isDenzaPickerBase()
         }
         val (created, borrowed) = candidates.partition { task ->
@@ -2302,7 +2271,7 @@ internal class SplitPickerShellSession(
         val task = before.roots.asSequence()
             .filter { it.displayId == MAIN_DISPLAY_ID }
             .flatMap { it.tasks.asSequence() }
-            .firstOrNull { it.id == taskId && it.effectivePackageName() == packageName }
+            .firstOrNull { it.id == taskId && it.packageName == packageName }
             ?: return
         val paneRootId = nativeRootIds().getValue(pane)
         if (task.rootId != paneRootId) return
@@ -2342,9 +2311,7 @@ internal class SplitPickerShellSession(
         // может, а панель, занятая прошивкой в нашей сцене, - вторая наша панель ещё жива.
         //
         // Сторона отказа безопасная: если от нашей сцены не осталось ничего, штатный пикер живёт.
-        val sceneIsOurs = mainDisplayTasks.any { task ->
-            task.isDenzaPickerBase() || task.isDenzaAppHost()
-        }
+        val sceneIsOurs = mainDisplayTasks.any { task -> task.isDenzaPickerBase() }
         // `com.byd.sr` здесь не трогается вовсе. Вставленный прошивкой bootstrap снимается там, где
         // продукт знает его id и только что видел его своими глазами: [attachPicker] →
         // [removeBootstrapIfPresent], сразу после запуска своего пикера в эту панель. К выключению
@@ -2354,8 +2321,7 @@ internal class SplitPickerShellSession(
         val pickerTasks = mainDisplayTasks
             .filter { task ->
                 (task.isStockSplitPicker() && sceneIsOurs) ||
-                    pickerComponents.values.any { component -> task.matchesComponent(component) } ||
-                    LEGACY_PICKER_COMPONENTS.any { component -> task.matchesComponent(component) }
+                    pickerComponents.values.any { component -> task.matchesComponent(component) }
             }
         val pickerTaskIds = pickerTasks.mapTo(mutableSetOf(), SplitTask::id)
         // `am stack list` orders roots by z-order, not by product ownership. A visible picker
@@ -2386,11 +2352,6 @@ internal class SplitPickerShellSession(
         }
         val foreground = focused
             ?: visibleRoots.mapNotNull(SplitRootTask::resolvedTopTask).firstOrNull(eligible)
-        val hostArtifacts = before.roots.asSequence()
-            .filter { it.displayId == MAIN_DISPLAY_ID }
-            .flatMap { it.tasks.asSequence() }
-            .filter { task -> task.isDenzaAppHost() && task.id != foreground?.id }
-            .toList()
 
         closeOwnedGate()
 
@@ -2408,7 +2369,7 @@ internal class SplitPickerShellSession(
 
         val current = snapshot()
         removeTasksSafely(
-            (pickerTasks + hostArtifacts).distinctBy(SplitTask::id).mapNotNull { previous ->
+            pickerTasks.mapNotNull { previous ->
                 current.roots.asSequence()
                     .filter { it.displayId == MAIN_DISPLAY_ID }
                     .flatMap { it.tasks.asSequence() }
@@ -2420,8 +2381,8 @@ internal class SplitPickerShellSession(
         // СВОИ пикеры по exact identity на всём main display, независимо от того, что успело
         // попасть в [pickerTasks] до перемещения foreground. Грязный мир с множественными
         // сиротами добавляет их между снапшотом `before` и уборкой выше, и порядок гонки решал,
-        // выживет ли огрызок. Identity собственного постоянного пикера ([isDenzaPickerBase],
-        // включая legacy-компоненты) не может назвать чужую задачу, поэтому проход безусловен.
+        // выживет ли огрызок. Identity собственного постоянного пикера ([isDenzaPickerBase]) не
+        // может назвать чужую задачу, поэтому проход безусловен.
         removeTasksSafely(
             snapshot().roots.asSequence()
                 .filter { it.displayId == MAIN_DISPLAY_ID }
@@ -2683,7 +2644,7 @@ internal class SplitPickerShellSession(
             // волны 14 на пути выбора) и в счёт не идёт; всё остальное сверх приложения - состав,
             // который рецепт уже закончил менять, а не переходный такт прошивки.
             val resident = appTaskId?.let { id ->
-                root.tasks.firstOrNull { task -> task.id == id }?.effectivePackageName()
+                root.tasks.firstOrNull { task -> task.id == id }?.packageName
             }
             val occupants = root.tasks.count { task ->
                 task.id != hostTaskId &&
@@ -2691,7 +2652,7 @@ internal class SplitPickerShellSession(
                     !(task.id != appTaskId &&
                         resident != null &&
                         !task.isOwnSplitComponent() &&
-                        task.effectivePackageName() == resident)
+                        task.packageName == resident)
             }
             if (occupants > MAX_TASKS_PER_PANE - 1) {
                 // Не переходный такт прошивки, а состав корня, который рецепт уже закончил менять
@@ -2712,7 +2673,7 @@ internal class SplitPickerShellSession(
                 check(top.bounds == root.bounds) {
                     "Приложение не приняло размер ${pane.name}"
                 }
-                SplitPickerLivePane(pane, hostTaskId, top.id, top.effectivePackageName())
+                SplitPickerLivePane(pane, hostTaskId, top.id, top.packageName)
             }
         }
     }
@@ -2829,7 +2790,7 @@ internal class SplitPickerShellSession(
             if (
                 top.id != recorded.id &&
                 !top.isOwnSplitComponent() &&
-                top.effectivePackageName() == recorded.effectivePackageName()
+                top.packageName == recorded.packageName
             ) {
                 appTaskIds[pane] = top.id
             }
@@ -2854,7 +2815,7 @@ internal class SplitPickerShellSession(
             val rootId = rootIds.getValue(pane)
             state.root(rootId)?.tasks
                 ?.firstOrNull { task -> task.id == appTaskId }
-                ?.let { app -> rootId to app.effectivePackageName() }
+                ?.let { app -> rootId to app.packageName }
         }.toMap()
         sweepRootsToBaseAndApp(
             keepByRoot = SplitPane.entries.associate { pane ->
@@ -2898,7 +2859,7 @@ internal class SplitPickerShellSession(
                         task.isEmptyRootMarker() ||
                         (resident != null &&
                             !task.isOwnSplitComponent() &&
-                            task.effectivePackageName() == resident)
+                            task.packageName == resident)
                 }
         }
         if (surplus.isEmpty()) return
@@ -3182,9 +3143,7 @@ internal class SplitPickerShellSession(
         expected ?: return null
         val task = tasks.singleOrNull { candidate -> candidate.id == expected.taskId }
             ?: return null
-        val identityMatches = task.packageName == expected.packageName ||
-            (task.isDenzaAppHost() && task.topPackageName == expected.packageName)
-        return task.takeIf { identityMatches && it.bounds == bounds }
+        return task.takeIf { it.packageName == expected.packageName && it.bounds == bounds }
     }
 
     /**
@@ -3211,7 +3170,7 @@ internal class SplitPickerShellSession(
             ?: return null
         return task.takeIf {
             task.rootId !in nativeRootIds &&
-                task.effectivePackageName() == expected.packageName &&
+                task.packageName == expected.packageName &&
                 !task.isDenzaPickerBase() &&
                 !task.isNativeSplitBootstrap() &&
                 task.bounds == root.bounds
@@ -3226,8 +3185,8 @@ internal class SplitPickerShellSession(
      * принимает. Точность здесь ровно та же, что у самого запуска - пакет, - но исход доказан, а
      * не заказан: при двух задачах пакета запуск приносил вторую копию поверх первой.
      *
-     * Инвариант 3 не ослаблен: собственные компоненты продукта (пикер-база, retired host, штатный
-     * bootstrap) не могут быть «найденным приложением» даже когда запускается пакет продукта.
+     * Инвариант 3 не ослаблен: собственные компоненты продукта (пикер-база, штатный bootstrap)
+     * не могут быть «найденным приложением» даже когда запускается пакет продукта.
      * Из нескольких копий предпочитается записанная этим процессом, иначе - свежайшая.
      */
     private fun residentAppInPane(
@@ -3243,7 +3202,7 @@ internal class SplitPickerShellSession(
             task.id != hostTaskIds.getValue(pane) &&
                 !task.isEmptyRootMarker() &&
                 !task.isOwnSplitComponent() &&
-                task.effectivePackageName() == target.packageName
+                task.packageName == target.packageName
         }
         return candidates.firstOrNull { task -> task.id == expected?.taskId }
             ?: candidates.maxByOrNull(SplitTask::id)
@@ -3251,23 +3210,15 @@ internal class SplitPickerShellSession(
 
     /**
      * Инвариант 3: package сам по себе identity не доказывает. Собственные компоненты продукта -
-     * постоянные пикеры, retired host, штатный bootstrap - не могут быть «найденным приложением»,
-     * даже когда запускается пакет самого продукта (U3). Живая мина v20 P1.2: при self-restore
-     * matcher по одному пакету предпочёл бы свежесозданный пикер пре-существующему таску хаба.
+     * постоянные пикеры и штатный bootstrap - не могут быть «найденным приложением», даже когда
+     * запускается пакет самого продукта (U3). Живая мина v20 P1.2: при self-restore matcher по
+     * одному пакету предпочёл бы свежесозданный пикер пре-существующему таску хаба.
      */
     private fun SplitTask.isOwnSplitComponent(): Boolean =
-        isDenzaPickerBase() || isDenzaAppHost() || isNativeSplitBootstrap()
+        isDenzaPickerBase() || isNativeSplitBootstrap()
 
     private fun SplitTask.isDenzaPickerBase(): Boolean =
-        (packageName == SPLIT_HOST_PACKAGE && activityName == SPLIT_PICKER_ACTIVITY) ||
-            (packageName == LEGACY_PICKER_PACKAGE &&
-                activityName in setOf(LEGACY_PRIMARY_PICKER_ACTIVITY, LEGACY_SECONDARY_PICKER_ACTIVITY))
-
-    private fun SplitTask.isDenzaAppHost(): Boolean =
-        packageName == SPLIT_HOST_PACKAGE && activityName == SPLIT_APP_HOST_ACTIVITY
-
-    private fun SplitTask.effectivePackageName(): String =
-        if (isDenzaAppHost()) topPackageName ?: packageName else packageName
+        packageName == SPLIT_HOST_PACKAGE && activityName == SPLIT_PICKER_ACTIVITY
 
     private fun expectedSelectionArea(
         pane: SplitPane,
@@ -3366,15 +3317,6 @@ internal class SplitPickerShellSession(
         const val STOCK_PICKER_ACTIVITY = "com.android.launcher3.SplitScreenListActivity"
         const val STOCK_BOOTSTRAP_PACKAGE = "com.byd.sr"
         const val STOCK_BOOTSTRAP_ACTIVITY = "com.byd.sr.MainActivity"
-        const val LEGACY_PICKER_PACKAGE = "dev.denza.apps"
-        const val LEGACY_PRIMARY_PICKER_ACTIVITY =
-            "dev.denza.apps.feature.split.SplitPrimaryPickerActivity"
-        const val LEGACY_SECONDARY_PICKER_ACTIVITY =
-            "dev.denza.apps.feature.split.SplitSecondaryPickerActivity"
-        val LEGACY_PICKER_COMPONENTS = setOf(
-            "$LEGACY_PICKER_PACKAGE/$LEGACY_PRIMARY_PICKER_ACTIVITY",
-            "$LEGACY_PICKER_PACKAGE/$LEGACY_SECONDARY_PICKER_ACTIVITY",
-        )
         const val SPLIT_PROXY_CLASS = "dev.denza.apps.feature.split.SplitTaskProxyMain"
         const val SPLIT_PROXY_RESULT_PREFIX = "DENZA_SPLIT_RESULT:"
         val PARCEL_PATTERN = Regex("Parcel\\(([^']+)")

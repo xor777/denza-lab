@@ -130,21 +130,19 @@ class SplitAutomatonAdversarialTest {
     private fun randomFact(random: Random): SplitFact {
         val pane = SplitPane.entries.random(random)
         val packageName = PACKAGES.random(random)
-        return when (random.nextInt(15)) {
+        return when (random.nextInt(13)) {
             0 -> SplitFact.ToggleChanged(enabled = random.nextInt(4) > 0)
-            1 -> SplitFact.OpenRequested
-            2 -> SplitFact.SelectionRequested(pane, packageName)
-            3 -> SplitFact.AppLaunchConfirmed(pane, packageName)
-            4 -> SplitFact.AppClosedSettled(pane)
-            5 -> SplitFact.PaneCollapsedSettled(pane)
-            6 -> SplitFact.PickerPaneClosedSettled(pane)
-            7 -> SplitFact.SceneEndedSettled
-            8 -> SplitFact.HomeConfirmed
-            9 -> SplitFact.SceneRevealed
-            10 -> SplitFact.EdgeCommitConfirmed(pane)
-            11 -> SplitFact.ProjectionStarted(pane)
-            12 -> SplitFact.ProjectionReturned
-            13 -> SplitFact.PackageRemoved(packageName)
+            1 -> SplitFact.AppLaunchConfirmed(pane, packageName)
+            2 -> SplitFact.AppClosedSettled(pane)
+            3 -> SplitFact.PaneCollapsedSettled(pane)
+            4 -> SplitFact.PickerPaneClosedSettled(pane)
+            5 -> SplitFact.SceneEndedSettled
+            6 -> SplitFact.HomeConfirmed
+            7 -> SplitFact.SceneRevealed
+            8 -> SplitFact.EdgeCommitConfirmed(pane)
+            9 -> SplitFact.ProjectionStarted(pane)
+            10 -> SplitFact.ProjectionReturned
+            11 -> SplitFact.PackageRemoved(packageName)
             else -> SplitFact.BuildSceneSucceeded(BUILDS.random(random))
         }
     }

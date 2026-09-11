@@ -1,11 +1,9 @@
 package dev.denza.apps.feature.split;
 
 import android.annotation.SuppressLint;
-import android.app.ActivityOptions;
 import android.app.ActivityManager;
 import android.content.ComponentName;
 import android.content.Context;
-import android.content.Intent;
 import android.os.IBinder;
 import android.os.Looper;
 import android.os.Parcel;
@@ -19,11 +17,15 @@ import java.util.List;
 /**
  * Narrow shell-UID task operations with component postconditions.
  *
- * <p>Two ways in, one set of operations. {@code main} runs one command and exits, which is what
- * the product used for every removal: correct, and 506-681 ms of {@code app_process} start-up per
- * call on this car. {@code serve} boots the same way once and then answers request lines on its
- * own stdin, which costs the car the work and nothing else - measured on this vehicle at 3-9 ms
- * for a whole world read and 0 ms for an {@code activity_task} transaction.
+ * <p>Two ways in, one operation. {@code main} runs one command and exits, which is what the
+ * product used for every removal: correct, and 506-681 ms of {@code app_process} start-up per call
+ * on this car. {@code serve} boots the same way once and then answers request lines on its own
+ * stdin, which costs the car the work and nothing else - measured on this vehicle at 3-9 ms for a
+ * whole world read and 0 ms for an {@code activity_task} transaction.
+ *
+ * <p>The one operation is {@code remove-task}: the product moves and focuses tasks through
+ * {@code am}, and the two verbs that once stood here beside it - a focus and a start into the
+ * retired app host's task - had no caller left in the product.
  *
  * <p>The one-shot path stays exactly as it was, because it is the fallback: anything at all that
  * goes wrong with the resident helper leaves the product doing what it did before.
@@ -31,9 +33,8 @@ import java.util.List;
 public final class SplitTaskProxyMain {
     private static final String RESULT_PREFIX = "DENZA_SPLIT_RESULT:";
     private static final String USAGE =
-            "focus-task <id>, remove-task (<id> <basePkg> <baseActivity> "
-                    + "<topPkg|-> <topActivity|->)+, start-in-task <id> <hostPkg> "
-                    + "<hostActivity> <targetPkg> <targetActivity>, or serve <nonce> required";
+            "remove-task (<id> <basePkg> <baseActivity> <topPkg|-> <topActivity|->)+ "
+                    + "or serve <nonce> required";
 
     private SplitTaskProxyMain() {
     }
@@ -254,11 +255,6 @@ public final class SplitTaskProxyMain {
 
     /** @return whether [args] named an operation at all. */
     private static boolean dispatch(Context context, String[] args, StringBuilder answer) {
-        if (args.length == 2 && "focus-task".equals(args[0])) {
-            int taskId = positiveTaskId(args[1]);
-            result(answer, focusLaunchableTask(context, taskId));
-            return true;
-        }
         // One invocation, any number of tasks. Loading this class costs far more than the removals
         // themselves, so a recipe that clears several tasks asks for them all at once; the answer
         // stays one line per task so the caller still learns exactly which ones went.
@@ -275,22 +271,7 @@ public final class SplitTaskProxyMain {
             }
             return true;
         }
-        if (args.length == 6 && "start-in-task".equals(args[0])) {
-            int taskId = positiveTaskId(args[1]);
-            result(answer, startExactComponentInHostTask(
-                    context,
-                    taskId,
-                    args[2],
-                    args[3],
-                    args[4],
-                    args[5]));
-            return true;
-        }
         return false;
-    }
-
-    private static void result(StringBuilder answer, boolean value) {
-        answer.append(RESULT_PREFIX).append(value).append('\n');
     }
 
     /** One line per task of a batch, so a caller of many learns the fate of each. */
@@ -306,26 +287,6 @@ public final class SplitTaskProxyMain {
 
     private static String optional(String value) {
         return "-".equals(value) ? null : value;
-    }
-
-    private static boolean focusLaunchableTask(Context context, int taskId) {
-        ActivityManager manager = context.getSystemService(ActivityManager.class);
-        if (manager == null) return false;
-        List<ActivityManager.RunningTaskInfo> tasks = manager.getRunningTasks(100);
-        ActivityManager.RunningTaskInfo selected = null;
-        for (ActivityManager.RunningTaskInfo task : tasks) {
-            if (task.taskId == taskId) {
-                selected = task;
-                break;
-            }
-        }
-        if (selected == null) return false;
-        String packageName = packageName(selected.topActivity, selected.baseActivity);
-        if (packageName == null || context.getPackageManager()
-                .getLaunchIntentForPackage(packageName) == null) {
-            return false;
-        }
-        return invokeSetFocusedTask(taskId);
     }
 
     private static boolean removeExactTask(
@@ -347,71 +308,6 @@ public final class SplitTaskProxyMain {
             return false;
         }
         return invokeRemoveTask(taskId);
-    }
-
-    @SuppressLint("BlockedPrivateApi")
-    private static boolean startExactComponentInHostTask(
-            Context context,
-            int taskId,
-            String expectedHostPackage,
-            String expectedHostActivity,
-            String targetPackage,
-            String targetActivity) {
-        ActivityManager.RunningTaskInfo selected = findTask(context, taskId);
-        if (selected == null || !matchesBaseIdentity(
-                selected,
-                expectedHostPackage,
-                expectedHostActivity)) {
-            return false;
-        }
-        ComponentName target = new ComponentName(
-                targetPackage,
-                normalizedActivity(targetPackage, targetActivity));
-        Intent launch = new Intent(Intent.ACTION_MAIN)
-                .addCategory(Intent.CATEGORY_LAUNCHER)
-                .setComponent(target);
-        try {
-            ActivityOptions options = ActivityOptions.makeBasic();
-            Method setLaunchTaskId = ActivityOptions.class
-                    .getDeclaredMethod("setLaunchTaskId", int.class);
-            setLaunchTaskId.setAccessible(true);
-            setLaunchTaskId.invoke(options, taskId);
-            return invokeStartActivity(launch, options.toBundle());
-        } catch (ReflectiveOperationException | RuntimeException error) {
-            return false;
-        }
-    }
-
-    @SuppressLint({"PrivateApi", "BlockedPrivateApi"})
-    private static boolean invokeStartActivity(Intent intent, android.os.Bundle options) {
-        try {
-            Class<?> managerClass = Class.forName("android.app.ActivityTaskManager");
-            Object service = managerClass.getDeclaredMethod("getService").invoke(null);
-            for (Method method : service.getClass().getMethods()) {
-                if (!"startActivity".equals(method.getName())
-                        || method.getParameterTypes().length != 11) {
-                    continue;
-                }
-                method.setAccessible(true);
-                Object result = method.invoke(
-                        service,
-                        null,
-                        "com.android.shell",
-                        null,
-                        intent,
-                        null,
-                        null,
-                        null,
-                        0,
-                        0,
-                        null,
-                        options);
-                return result instanceof Integer && (Integer) result >= 0;
-            }
-            return false;
-        } catch (ReflectiveOperationException | RuntimeException error) {
-            return false;
-        }
     }
 
     /**
@@ -454,25 +350,6 @@ public final class SplitTaskProxyMain {
 
     private static String normalizedActivity(String packageName, String activityName) {
         return activityName.startsWith(".") ? packageName + activityName : activityName;
-    }
-
-    private static String packageName(ComponentName top, ComponentName base) {
-        if (top != null) return top.getPackageName();
-        return base == null ? null : base.getPackageName();
-    }
-
-    @SuppressLint({"PrivateApi", "BlockedPrivateApi"})
-    private static boolean invokeSetFocusedTask(int taskId) {
-        try {
-            Class<?> managerClass = Class.forName("android.app.ActivityTaskManager");
-            Object service = managerClass.getDeclaredMethod("getService").invoke(null);
-            Method method = service.getClass().getMethod("setFocusedTask", int.class);
-            method.setAccessible(true);
-            Object result = method.invoke(service, taskId);
-            return !(result instanceof Boolean) || (Boolean) result;
-        } catch (ReflectiveOperationException | RuntimeException ignored) {
-            return false;
-        }
     }
 
     @SuppressLint({"PrivateApi", "BlockedPrivateApi"})
