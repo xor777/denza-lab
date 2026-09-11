@@ -3005,6 +3005,46 @@ class SplitScenarioTest {
     }
 
     /**
+     * Обратная операция журнальной записи gate (ревью 2026-09-11). Home держит аренду и закрывает
+     * gate, так что «аренда наша» над накрытой сценой называет gate ЗАКРЫТЫМ. Запись `prevOpen`
+     * по аренде заставляла откат неудавшегося подъёма открыть gate над Home заново - и никто его
+     * больше не закрывал: подвеска сверки молчит над сценой, которую продукт считает накрытой, а
+     * автомат считал её накрытой по-прежнему. Следующий запуск из дока прошивка сажала рядом со
+     * скрытой парой (1.9.2).
+     */
+    @Test
+    fun aFailedRevealOverACoveredSceneLeavesTheGateSuspended() {
+        val car = car(FakeShell(initialGate = true).apply { liveProductScene(withApps = true) })
+        val core = car.core(SplitDurable(enabled = true, slots = APP_PAIR))
+        car.gateLease.setOwned(true)
+        core.initialize {}
+        core.openPickerSession()
+        car.barrier()
+        car.fake.area = 0
+        core.homeVisible()
+        car.barrier()
+        assertFalse("Home подвесил gate", car.fake.isGateOpen())
+        car.clearCommands()
+        val results = Collections.synchronizedList(mutableListOf<SplitActionResult>())
+
+        // Подъём срывается на своей команде фокуса: связь оборвалась.
+        car.shells.failOn("am task focus $PRIMARY_APP_TASK")
+        core.openPickerSession(results::add)
+        car.barrier()
+
+        assertFalse("откат вернул gate в подвешенное состояние, а не открыл его над Home", car.fake.isGateOpen())
+        assertEquals(
+            "открыт для подъёма и закрыт откатом - и ничего между",
+            listOf(GATE_OPEN, GATE_CLOSE),
+            car.mutations(),
+        )
+        assertEquals("пользователю не сказано ничего (U5)", listOf(SplitActionResult.SETTLED), results.toList())
+        assertEquals("выбор пользователя цел", APP_PAIR, car.store.load().slots)
+        assertTrue(car.fake.hasTask(PRIMARY_APP_TASK))
+        assertTrue(car.fake.hasTask(SECONDARY_APP_TASK))
+    }
+
+    /**
      * Обратная сторона той же правки: ложное закрытие слота хуже пропущенного.
      *
      * Одна area, назвавшая выжившего, ничего не закрывает сама по себе - закрывает только уход

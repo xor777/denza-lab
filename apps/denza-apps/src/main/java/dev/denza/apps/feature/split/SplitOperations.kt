@@ -896,13 +896,29 @@ internal class OpenOperation(
         if (adopted != null) {
             // Raising a covered scene reopens the gate Home suspended (contract, to 1.12), so the
             // entry goes in before the recipe, exactly as it does on the build path below.
-            op.journal.record(SplitJournalEntry.GateOpened(prevOpen = work.gateOwned()))
+            op.journal.record(SplitJournalEntry.GateOpened(prevOpen = gateIsOpenByUs()))
             adopt(split.revealOwnedSession(adopted, SPLIT_PICKER_COMPONENT_SET))
             mark(op, "revealed")
             return
         }
         build(op, split, plan.restorable)
     }
+
+    /**
+     * What the gate journal entry's inverse has to put back: whether the gate is open by our hand.
+     *
+     * The lease alone does not say that. Home keeps the lease and closes the gate
+     * (`suspendOwnedGateForHome`), so a lease that is ours over a scene the product believes
+     * covered names a gate that is *closed*. Recording the lease as `prevOpen` made the rollback of
+     * a refused reveal or build reopen the gate over Home - and nothing closed it again: the
+     * reconcile's suspension stops asking once the scene is believed covered, and the automaton
+     * still believed it. A dock launch then landed beside the hidden pair (1.9.2). With the
+     * resumption of `finishGateResumption` in place, "lease ours and scene visible" is exactly the
+     * state in which the gate is open by us, and the inverse of opening it is to close it in every
+     * other one.
+     */
+    private fun gateIsOpenByUs(): Boolean =
+        work.gateOwned() && working.visibility != SceneVisibility.COVERED
 
     private fun adopt(revealed: SplitLiveScene) {
         liveScene = revealed
@@ -935,7 +951,7 @@ internal class OpenOperation(
         // is recorded before the recipe, not after, so a failure inside the recipe can still close
         // it; the undo consults the lease, so an entry for a gate the recipe never reached costs
         // nothing (contract, to 1.12).
-        op.journal.record(SplitJournalEntry.GateOpened(prevOpen = work.gateOwned()))
+        op.journal.record(SplitJournalEntry.GateOpened(prevOpen = gateIsOpenByUs()))
         val built = split.buildScene(
             pickerComponents = SPLIT_PICKER_COMPONENTS,
             targets = targets,
