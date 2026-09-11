@@ -28,6 +28,12 @@ class MediaResumeController @JvmOverloads constructor(
     private val accessComponent =
         ComponentName(app, YandexNotificationArtworkListener::class.java)
     private val core = MediaResumeCore(MediaLastPlayedPreferences(app))
+    private val reconnect = MediaResumeReconnect(
+        context = app,
+        handler = handler,
+        onOutcome = { decision -> decide(null, decision) },
+        onController = ::adopt,
+    )
     private val keyInterceptor = MediaResumeKeyInterceptor()
     private val sessions = LinkedHashMap<MediaSession.Token, AndroidTarget>()
     private var listening = false
@@ -61,6 +67,7 @@ class MediaResumeController @JvmOverloads constructor(
         }
         listening = false
         pauseOperation = null
+        reconnect.cancel()
         detachAll()
         keyInterceptor.reset()
     }
@@ -79,9 +86,16 @@ class MediaResumeController @JvmOverloads constructor(
                 decide(
                     event.keyCode,
                     when {
+                        // A bounded operation already owns the driver's intent. The second press
+                        // is consumed so the firmware cannot answer half of it, and says so.
                         pauseOperation != null -> MediaResumeDecision(
                             accepted = true,
                             reason = MediaResumeReason.PAUSE_IN_FLIGHT,
+                        )
+
+                        reconnect.inFlight() -> MediaResumeDecision(
+                            accepted = true,
+                            reason = MediaResumeReason.RESUME_IN_FLIGHT,
                         )
 
                         !refreshBeforeCommand() -> MediaResumeDecision(
@@ -89,7 +103,7 @@ class MediaResumeController @JvmOverloads constructor(
                             reason = MediaResumeReason.SESSION_ACCESS,
                         )
 
-                        else -> core.perform(command, ::deferPause)
+                        else -> core.perform(command, ::deferPause, reconnect::start)
                     },
                 )
             },
@@ -192,6 +206,14 @@ class MediaResumeController @JvmOverloads constructor(
             if (token !in sessions) track(token, controller)
         }
         core.reconcile(current.keys.mapNotNull(sessions::get))
+    }
+
+    /** A session obtained by reconnecting joins the policy before the active list reports it. */
+    private fun adopt(controller: MediaController) {
+        if (!listening) return
+        val token = controller.sessionToken
+        val target = sessions[token] ?: track(token, controller) ?: return
+        core.adopt(target)
     }
 
     /** A session we can command only once its callbacks are ours; a refused registration is not. */

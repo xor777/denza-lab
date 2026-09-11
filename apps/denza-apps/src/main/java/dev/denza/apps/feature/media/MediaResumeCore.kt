@@ -60,6 +60,14 @@ internal object MediaResumeReason {
     const val STALE_AFTER_PREPARATION = "stale-target-after-preparation"
     const val NO_TARGET = "no-target"
     const val STOCK_NO_HISTORY = "stock-no-history"
+    const val RESUME_IN_FLIGHT = "resume-in-flight"
+    const val RECONNECT_STARTED = "reconnect-started"
+    const val RECONNECT_PLAYED = "reconnect-played"
+    const val RECONNECT_FAILED = "reconnect-failed"
+    const val RECONNECT_TIMEOUT = "reconnect-timeout"
+    const val NO_BROWSER_SERVICE = "no-browser-service"
+    const val MEDIA_BUTTON_SENT = "media-button-sent"
+    const val NO_MEDIA_BUTTON_RECEIVER = "no-media-button-receiver"
 }
 
 /** The package whose session was last seen actually playing, and the wall clock at that moment. */
@@ -186,6 +194,9 @@ internal class MediaResumeCore(private val store: MediaLastPlayedStore) {
     fun perform(
         command: MediaResumeCommand,
         deferPause: (MediaResumeTarget, List<MediaResumeTarget>) -> Boolean = { _, _ -> false },
+        reconnect: (String) -> MediaResumeDecision = {
+            MediaResumeDecision(false, MediaResumeReason.NO_BROWSER_SERVICE, it)
+        },
     ): MediaResumeDecision {
         val snapshots = snapshots()
         var remembered = rememberedIdentity
@@ -220,7 +231,9 @@ internal class MediaResumeCore(private val store: MediaLastPlayedStore) {
         val last = lastPlayedPackage()
             ?: return MediaResumeDecision(false, MediaResumeReason.STOCK_NO_HISTORY)
         val candidate = resolve(last, snapshots)
-            ?: return MediaResumeDecision(false, MediaResumeReason.NO_TARGET, last)
+            ?: return runCatching { reconnect(last) }.getOrElse {
+                MediaResumeDecision(false, MediaResumeReason.RECONNECT_FAILED, last)
+            }
         return play(candidate)
     }
 

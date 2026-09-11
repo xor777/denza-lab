@@ -45,11 +45,16 @@ class MediaResumeCoreTest {
 
         var deferredTarget: MediaResumeTarget? = null
         var deferredPredecessors = emptyList<MediaResumeTarget>()
-        assertTrue(core.performed(MediaResumeCommand.TOGGLE) { target, predecessors ->
-            deferredTarget = target
-            deferredPredecessors = predecessors
-            true
-        })
+        assertTrue(
+            core.performed(
+                MediaResumeCommand.TOGGLE,
+                deferPause = { target, predecessors ->
+                    deferredTarget = target
+                    deferredPredecessors = predecessors
+                    true
+                },
+            ),
+        )
         assertEquals(0, remembered.plays)
         assertEquals(current, deferredTarget)
         assertEquals(listOf(remembered), deferredPredecessors)
@@ -219,7 +224,7 @@ class MediaResumeCoreTest {
     }
 
     @Test
-    fun `a destroyed session leaves no target for its package`() {
+    fun `a destroyed session is reconnected by package`() {
         val core = core()
         val session = FakeTarget("yandex", MediaResumePlayback.PLAYING)
         core.reconcile(listOf(session))
@@ -227,14 +232,36 @@ class MediaResumeCoreTest {
 
         core.remove(session.identity)
 
-        val decision = core.perform(MediaResumeCommand.PLAY)
-        assertFalse(decision.accepted)
-        assertEquals("yandex", decision.packageName)
+        val asked = mutableListOf<String>()
+        val decision = core.perform(MediaResumeCommand.PLAY, reconnect = { packageName ->
+            asked += packageName
+            MediaResumeDecision(true, MediaResumeReason.RECONNECT_STARTED, packageName)
+        })
+        assertTrue(decision.accepted)
+        assertEquals(MediaResumeReason.RECONNECT_STARTED, decision.reason)
+        assertEquals(listOf("yandex"), asked)
         assertEquals(0, session.plays)
     }
 
     @Test
-    fun `a live session of another package is never resumed instead`() {
+    fun `a live session is never reconnected`() {
+        val core = core()
+        val session = FakeTarget("yandex", MediaResumePlayback.PLAYING)
+        core.reconcile(listOf(session))
+        session.playback = MediaResumePlayback.PAUSED
+        core.reconcile(emptyList())
+
+        val asked = mutableListOf<String>()
+        assertTrue(core.performed(MediaResumeCommand.PLAY, reconnect = { packageName ->
+            asked += packageName
+            MediaResumeDecision(true, MediaResumeReason.RECONNECT_STARTED, packageName)
+        }))
+        assertEquals(emptyList<String>(), asked)
+        assertEquals(1, session.plays)
+    }
+
+    @Test
+    fun `a live session of another package is never resumed or reconnected instead`() {
         val core = core()
         val gone = FakeTarget("gone", MediaResumePlayback.PLAYING, packageName = "yandex")
         val other = FakeTarget("other", MediaResumePlayback.PLAYING, packageName = "vk")
@@ -244,10 +271,60 @@ class MediaResumeCoreTest {
         gone.playback = MediaResumePlayback.PAUSED
         core.remove(gone.identity)
 
-        val decision = core.perform(MediaResumeCommand.PLAY)
-        assertFalse(decision.accepted)
-        assertEquals("yandex", decision.packageName)
+        val asked = mutableListOf<String>()
+        core.perform(MediaResumeCommand.PLAY, reconnect = { packageName ->
+            asked += packageName
+            MediaResumeDecision(true, MediaResumeReason.RECONNECT_STARTED, packageName)
+        })
+        assertEquals(listOf("yandex"), asked)
         assertEquals(0, other.plays)
+    }
+
+    @Test
+    fun `a refused reconnect leaves the press and invents no fallback`() {
+        val core = core()
+        val gone = FakeTarget("gone", MediaResumePlayback.PLAYING, packageName = "yandex")
+        val other = FakeTarget("other", MediaResumePlayback.PAUSED, packageName = "vk")
+        core.reconcile(listOf(gone, other))
+        core.remove(gone.identity)
+
+        val decision = core.perform(MediaResumeCommand.PLAY, reconnect = { packageName ->
+            MediaResumeDecision(false, MediaResumeReason.NO_BROWSER_SERVICE, packageName)
+        })
+        assertFalse(decision.accepted)
+        assertEquals(MediaResumeReason.NO_BROWSER_SERVICE, decision.reason)
+        assertEquals(0, other.plays)
+        assertEquals(0, gone.plays)
+    }
+
+    @Test
+    fun `a reconnect that throws is a failure and not a fallback`() {
+        val core = core()
+        val gone = FakeTarget("gone", MediaResumePlayback.PLAYING, packageName = "yandex")
+        val other = FakeTarget("other", MediaResumePlayback.PAUSED, packageName = "vk")
+        core.reconcile(listOf(gone, other))
+        core.remove(gone.identity)
+
+        val decision = core.perform(MediaResumeCommand.PLAY, reconnect = { error("browser gone") })
+        assertFalse(decision.accepted)
+        assertEquals(MediaResumeReason.RECONNECT_FAILED, decision.reason)
+        assertEquals(0, other.plays)
+    }
+
+    @Test
+    fun `with nothing ever played no package is reconnected either`() {
+        val core = core()
+        val session = FakeTarget("yandex", MediaResumePlayback.PAUSED)
+        core.reconcile(listOf(session))
+
+        val asked = mutableListOf<String>()
+        val decision = core.perform(MediaResumeCommand.PLAY, reconnect = { packageName ->
+            asked += packageName
+            MediaResumeDecision(true, MediaResumeReason.RECONNECT_STARTED, packageName)
+        })
+        assertFalse(decision.accepted)
+        assertEquals(MediaResumeReason.STOCK_NO_HISTORY, decision.reason)
+        assertEquals(emptyList<String>(), asked)
     }
 
     @Test
@@ -286,7 +363,7 @@ class MediaResumeCoreTest {
         current.playback = MediaResumePlayback.PLAYING
         core.onPlayback(current.identity, MediaResumePlayback.PLAYING)
 
-        val decision = core.perform(MediaResumeCommand.PAUSE) { _, _ -> false }
+        val decision = core.perform(MediaResumeCommand.PAUSE, deferPause = { _, _ -> false })
         assertFalse(decision.accepted)
         assertEquals(MediaResumeReason.PAUSE_PREPARATION, decision.reason)
         assertEquals(0, current.pauses)
@@ -303,7 +380,7 @@ class MediaResumeCoreTest {
         current.playback = MediaResumePlayback.PLAYING
         core.onPlayback(current.identity, MediaResumePlayback.PLAYING)
 
-        assertFalse(core.performed(MediaResumeCommand.PAUSE) { _, _ -> error("helper failed") })
+        assertFalse(core.performed(MediaResumeCommand.PAUSE, deferPause = { _, _ -> error("helper failed") }))
         assertEquals(0, previous.plays)
         assertEquals(0, previous.pauses)
         assertEquals(0, current.pauses)
@@ -319,7 +396,7 @@ class MediaResumeCoreTest {
         current.playback = MediaResumePlayback.PLAYING
         core.onPlayback(current.identity, MediaResumePlayback.PLAYING)
 
-        assertTrue(core.performed(MediaResumeCommand.PAUSE) { _, _ -> true })
+        assertTrue(core.performed(MediaResumeCommand.PAUSE, deferPause = { _, _ -> true }))
         core.reconcile(
             listOf(
                 previous,
@@ -342,7 +419,7 @@ class MediaResumeCoreTest {
         current.playback = MediaResumePlayback.PLAYING
         core.onPlayback(current.identity, MediaResumePlayback.PLAYING)
 
-        assertTrue(core.performed(MediaResumeCommand.PAUSE) { _, _ -> true })
+        assertTrue(core.performed(MediaResumeCommand.PAUSE, deferPause = { _, _ -> true }))
         newer.playback = MediaResumePlayback.PLAYING
         core.onPlayback(newer.identity, MediaResumePlayback.PLAYING)
 
@@ -361,7 +438,7 @@ class MediaResumeCoreTest {
         current.playback = MediaResumePlayback.PLAYING
         core.onPlayback(current.identity, MediaResumePlayback.PLAYING)
 
-        assertTrue(core.performed(MediaResumeCommand.PAUSE) { _, _ -> true })
+        assertTrue(core.performed(MediaResumeCommand.PAUSE, deferPause = { _, _ -> true }))
         current.playback = MediaResumePlayback.PAUSED
 
         assertEquals(
@@ -428,7 +505,10 @@ class MediaResumeCoreTest {
     private fun MediaResumeCore.performed(
         command: MediaResumeCommand,
         deferPause: (MediaResumeTarget, List<MediaResumeTarget>) -> Boolean = { _, _ -> false },
-    ): Boolean = perform(command, deferPause).accepted
+        reconnect: (String) -> MediaResumeDecision = {
+            MediaResumeDecision(false, MediaResumeReason.NO_BROWSER_SERVICE, it)
+        },
+    ): Boolean = perform(command, deferPause, reconnect).accepted
 
     private class FakeStore(private var record: MediaLastPlayed? = null) : MediaLastPlayedStore {
         constructor(packageName: String) : this(MediaLastPlayed(packageName, 1L))
