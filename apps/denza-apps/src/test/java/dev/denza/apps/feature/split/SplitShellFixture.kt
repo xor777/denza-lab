@@ -253,7 +253,13 @@ internal class FakeShell(
     private var disappearOnNextRemove = false
     private var destabilizeAreaOnNextShellMove = false
     private var transientAreaReadsRemaining = 0
-    private val supported = mutableSetOf<String>()
+    /**
+     * Что tx112 называет split-способным. Наш пакет здесь с самого начала: манифест несёт
+     * `BYD_SUPPORT_SPLIT_ACTIVITY=1`, и живьём (2026-08-28) tx112 отвечала про него `1`, ни разу
+     * не побывав в tx125. Runtime-список, который tx125 расширяет, фикстура не отделяет от этой
+     * метки - как и прошивка в tx112.
+     */
+    private val supported = mutableSetOf(SPLIT_HOST_PACKAGE)
     private val tasks = mutableListOf<Task>()
     private val globals = mutableMapOf<String, String>()
     private val secure = mutableMapOf<String, String>()

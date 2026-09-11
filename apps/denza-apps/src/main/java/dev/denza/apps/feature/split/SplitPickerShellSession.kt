@@ -902,7 +902,7 @@ internal class SplitPickerShellSession(
         }
         // Phase 1 - the preamble, once for the whole scene.
         ensureGateOpen()
-        ensureSupported(SPLIT_HOST_PACKAGE)
+        listOwnPackageForTheDivider()
         val failed = mutableSetOf<SplitPane>()
         val wanted = mutableMapOf<SplitPane, SplitLaunchTarget>()
         targets.forEach { (pane, target) ->
@@ -3093,6 +3093,29 @@ internal class SplitPickerShellSession(
         check(callBoolean("service call activity_task 112 s16 $quoted")) {
             "Прошивка не добавила $packageName в split"
         }
+    }
+
+    /**
+     * Наш собственный пакет - в runtime-список прошивки, безусловно, один раз на сборку.
+     *
+     * Здесь стояло `ensureSupported(SPLIT_HOST_PACKAGE)`, и для нашего пакета это было чтение,
+     * которое всегда отвечало «да»: манифест несёт `BYD_SUPPORT_SPLIT_ACTIVITY=1`, tx112 верна по
+     * построению, и tx125 не звалась никогда (живьём 2026-08-28: tx112 = 1, себя в список не
+     * вписываем). Карту детентов дивайдера при этом решает НЕ манифест, а членство пакета
+     * широкой панели в runtime-списке (`isDefaultSecondActivity`, изолирующий эксперимент
+     * dock-split-v19): навигатор, вписанный сюда через tx125, получает полную карту - ужать,
+     * расширить, закрыть; хаб, «уже поддерживаемый» по манифесту, - урезанную, где всё правее
+     * середины «Release to close window». Метка, делающая нас split-способными, лишала нас
+     * прописки в списке, от которого зависит дивайдер.
+     *
+     * Путь размещения (`startIviWindow` → `startSplitWindow`) список не читает вовсе (корпус
+     * 2026-08-28), tx112 для нас и так `1`, так что единственное, что меняет эта транзакция, - та
+     * самая карта детентов. Она стоит один round trip, как стоило чтение, которое она заменила, и
+     * попадает в ринг строкой «allowlist extended» (1.12): след живёт до перезагрузки, как и у
+     * любого выбранного приложения. Проверка tx112 после неё не нужна - манифест наш.
+     */
+    private fun listOwnPackageForTheDivider() {
+        callVoid("service call activity_task 125 s16 ${shellQuote(SPLIT_HOST_PACKAGE)}")
     }
 
     private fun snapshot(): SplitTaskSnapshot = topology.state {

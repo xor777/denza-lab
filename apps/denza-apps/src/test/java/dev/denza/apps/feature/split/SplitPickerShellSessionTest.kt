@@ -461,6 +461,29 @@ class SplitPickerShellSessionTest {
         )
     }
 
+    /**
+     * Карту детентов дивайдера решает runtime-список прошивки, а не манифест (dock-split-v19,
+     * изолирующий эксперимент): пакет широкой панели вне списка получает урезанную карту, где всё
+     * правее середины - «Release to close window». Хаб был вне списка всегда - tx112 отвечала про
+     * него «да» по манифесту, и `ensureSupported` уходил до tx125. Сборка теперь вписывает нас
+     * безусловно, один раз, и это стоит ровно тот round trip, который стоило бесполезное чтение.
+     */
+    @Test
+    fun aBuildListsOurOwnPackageForTheDividerEvenThoughTheManifestAlreadySupportsIt() {
+        val fake = FakeShell()
+
+        session(fake).buildPickers()
+
+        assertEquals(
+            listOf("service call activity_task 125 s16 '$SPLIT_HOST_PACKAGE'"),
+            fake.commands.filter { it.startsWith("service call activity_task 125 ") },
+        )
+        assertFalse(
+            "и не платит за чтение, чей ответ известен по манифесту",
+            fake.commands.any { it == "service call activity_task 112 s16 '$SPLIT_HOST_PACKAGE'" },
+        )
+    }
+
     @Test
     fun explicitOpenPlacesPickersInNativePaneRootsWithoutSyntheticDividerDrag() {
         val fake = FakeShell().apply {
