@@ -400,6 +400,67 @@ class SplitPickerShellSessionTest {
         assertFalse(fake.commands.any { it.contains("remove-task 344 ") })
     }
 
+    /**
+     * Машинная правда 2026-08-28, дочитанная до конца (ревью 2026-09-11): корень 4 фоновых задач
+     * не держит, выселенное окно остаётся видимым и встаёт ПОВЕРХ сцены (инцидент владельца
+     * 2026-08-27). Выселение обязано вернуть сцену на передний план тем же фокусом, которым reveal
+     * поднимает накрытую пару, - иначе следующее постусловие (area 3) валит рецепт, а пользователь
+     * смотрит на выселенное окно во весь экран.
+     */
+    @Test
+    fun anEvictionThatCoversTheSceneRaisesItAgainBeforeTheLaunch() {
+        val fake = FakeShell().apply { evictionCoversTheScene = true }
+        val split = session(fake)
+        val pickers = split.buildPickers()
+        fake.addTask(SECONDARY_ROOT, 344, WAZE, "$WAZE.MainActivity")
+        fake.commands.clear()
+
+        val placement = split.selectApp(
+            pickerTaskId = pickers.getValue(SplitPane.SECONDARY),
+            target = SplitLaunchTarget(MUSIC, "$MUSIC/$MUSIC.MainActivity"),
+            pickerComponents = PICKER_COMPONENTS,
+        )
+
+        assertEquals(MUSIC, placement.packageName)
+        assertTrue("чужой житель корня жив", fake.hasTask(344))
+        assertEquals(FULL_ROOT, fake.taskRoot(344))
+        val evicted = fake.commands.indexOf("am stack move-task 344 $FULL_ROOT false")
+        val raised = fake.commands.indexOfFirst { it.startsWith("am task focus ") }
+        val launched = fake.commands.indexOfFirst { it.startsWith("am start ") }
+        assertTrue("выселение состоялось", evicted >= 0)
+        assertTrue("сцена поднята фокусом сразу после выселения", raised > evicted)
+        assertTrue("и до запуска приложения", launched > raised)
+        assertEquals(
+            "фокус - на верхней задаче панели, порядок в корне не меняется",
+            "am task focus ${pickers.getValue(SplitPane.PRIMARY)}",
+            fake.commands[raised],
+        )
+        assertEquals("сцена снова на экране", 3, fake.area)
+    }
+
+    /** Выселение, которое ничего не накрыло, не стоит ни одной лишней команды. */
+    @Test
+    fun anEvictionThatLeavesTheSceneOnScreenSendsNoFocus() {
+        val fake = FakeShell()
+        val split = session(fake)
+        val pickers = split.buildPickers()
+        fake.addTask(SECONDARY_ROOT, 344, WAZE, "$WAZE.MainActivity")
+        fake.commands.clear()
+
+        split.selectApp(
+            pickerTaskId = pickers.getValue(SplitPane.SECONDARY),
+            target = SplitLaunchTarget(MUSIC, "$MUSIC/$MUSIC.MainActivity"),
+            pickerComponents = PICKER_COMPONENTS,
+        )
+
+        val evicted = fake.commands.indexOf("am stack move-task 344 $FULL_ROOT false")
+        val launched = fake.commands.indexOfFirst { it.startsWith("am start ") }
+        assertTrue(evicted in 0 until launched)
+        assertFalse(
+            fake.commands.subList(evicted, launched).any { it.startsWith("am task focus ") },
+        )
+    }
+
     @Test
     fun explicitOpenPlacesPickersInNativePaneRootsWithoutSyntheticDividerDrag() {
         val fake = FakeShell().apply {

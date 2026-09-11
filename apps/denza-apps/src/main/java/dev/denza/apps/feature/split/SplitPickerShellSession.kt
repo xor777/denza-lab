@@ -2270,7 +2270,38 @@ internal class SplitPickerShellSession(
         tasks.forEach { task -> moveTask(task.id, fullRootId, toTop = false) }
         pause(ROOT_SETTLE_MS)
         normalizeEvictedTasksToTheirRoots(tasks.mapTo(mutableSetOf(), SplitTask::id))
+        raiseSceneOverTheEvicted()
         return true
+    }
+
+    /**
+     * Та же машинная правда, дочитанная до конца: раз выселенное окно остаётся видимым, оно
+     * встаёт ПОВЕРХ сцены (инцидент владельца 2026-08-27, `dev.denza.apps` во весь экран над обеими
+     * панелями), и area отвечает 4. Выселение без этого шага - рецепт, чьё постусловие (area 3)
+     * не может сойтись по построению: следом стоял откат «Нативный split не активировался», а
+     * пользователь смотрел на выселенное окно. Живьём это и есть «приложение вдруг на весь
+     * экран» после тапа в пикере или по кнопке.
+     *
+     * Сцену поднимает тот же live-proven `am task focus`, которым reveal возвращает накрытую пару
+     * поверх чужого полноэкранного окна (1.9.4, приёмка v24 A1: VLC/Brave поверх, 25-60 с). Фокус
+     * идёт на ВЕРХНЮЮ задачу панели: порядок в корне он не меняет, а панельные контейнеры возвращает
+     * на передний план. Читается одна area: сцена, которую выселение не накрыло, не стоит ни одной
+     * команды. Постусловие рецепта судит само - здесь ожидание не бросает.
+     */
+    private fun raiseSceneOverTheEvicted() {
+        if (callInt("service call activity_task 30") != AREA_FULL_IVI) return
+        val roots = nativeRootIds()
+        val state = snapshot()
+        val top = SplitPane.entries.firstNotNullOfOrNull { pane ->
+            val root = state.root(roots.getValue(pane)) ?: return@firstNotNullOfOrNull null
+            // Под накрытием `am stack list` прячет всех детей панели; верхнюю тогда называет
+            // компонент корня, а если и его нет - порядок, в котором прошивка перечисляет детей
+            // (снизу вверх).
+            (root.resolvedTopTask() ?: root.resolvedCoveredTopTask() ?: root.tasks.lastOrNull())
+                ?.takeUnless { task -> task.isEmptyRootMarker() }
+        } ?: return
+        run("am task focus ${top.id}")
+        awaitArea(EXIT_SETTLE_MS) { area -> area != AREA_FULL_IVI }
     }
 
     /**
