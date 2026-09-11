@@ -4,6 +4,8 @@ package dev.denza.apps.feature.media
 internal interface MediaResumeTarget {
     val identity: Any
 
+    val packageName: String
+
     fun playback(): MediaResumePlayback
 
     fun isLive(): Boolean
@@ -26,6 +28,36 @@ internal enum class MediaResumeCommand {
     PLAY,
     PAUSE,
     TOGGLE,
+}
+
+/**
+ * What one media press resolved to, and why.
+ *
+ * `accepted` is the only thing the key interceptor reads: it decides whether this press belongs to
+ * us or to the firmware. `reason` exists so a refusal is never silent - every path out of the
+ * policy names itself from one vocabulary, which is also where a diagnostics record hooks in.
+ */
+internal data class MediaResumeDecision(
+    val accepted: Boolean,
+    val reason: String,
+    val packageName: String? = null,
+)
+
+/** The whole reason vocabulary. Nothing outside this object may invent a reason string. */
+internal object MediaResumeReason {
+    const val PLAY = "play"
+    const val PLAY_TRANSPORT = "play-transport"
+    const val PAUSE = "pause"
+    const val PAUSE_DEFERRED = "pause-deferred"
+    const val PAUSE_IN_FLIGHT = "pause-in-flight"
+    const val PAUSE_COMPLETE = "pause-already-complete"
+    const val PAUSE_PREPARATION = "pause-preparation"
+    const val PAUSE_TRANSPORT = "pause-transport"
+    const val PAUSE_UNSUPPORTED = "pause-unsupported"
+    const val SESSION_ACCESS = "session-access"
+    const val SESSION_ACCESS_AFTER_PREPARATION = "session-access-after-preparation"
+    const val STALE_AFTER_PREPARATION = "stale-target-after-preparation"
+    const val NO_TARGET = "no-target"
 }
 
 /**
@@ -92,7 +124,7 @@ internal class MediaResumeCore {
     fun perform(
         command: MediaResumeCommand,
         deferPause: (MediaResumeTarget, List<MediaResumeTarget>) -> Boolean = { _, _ -> false },
-    ): Boolean {
+    ): MediaResumeDecision {
         val snapshots = targets.values.mapNotNull { target ->
             runCatching { TargetSnapshot(target, target.playback()) }.getOrNull()
         }
@@ -111,7 +143,7 @@ internal class MediaResumeCore {
 
         val selected = playing ?: snapshots.firstOrNull {
             it.target.identity == remembered && it.playback == MediaResumePlayback.PAUSED
-        } ?: return false
+        } ?: return MediaResumeDecision(false, MediaResumeReason.NO_TARGET)
 
         val directCommand = when (command) {
             MediaResumeCommand.TOGGLE -> {
@@ -124,10 +156,11 @@ internal class MediaResumeCore {
             else -> command
         }
 
-        if (selected.target.identity !in targets) return false
-        if (!runCatching { selected.target.isLive() }.getOrDefault(false)) return false
+        val refused = MediaResumeDecision(false, MediaResumeReason.NO_TARGET)
+        if (selected.target.identity !in targets) return refused
+        if (!runCatching { selected.target.isLive() }.getOrDefault(false)) return refused
         if (!runCatching { selected.target.supports(directCommand) }.getOrDefault(false)) {
-            return false
+            return MediaResumeDecision(false, MediaResumeReason.PAUSE_UNSUPPORTED)
         }
 
         if (selected.playback == MediaResumePlayback.PLAYING) {
@@ -148,19 +181,37 @@ internal class MediaResumeCore {
                 }
             }
             if (pausedPredecessors.isNotEmpty()) {
-                return runCatching {
+                val accepted = runCatching {
                     deferPause(selected.target, pausedPredecessors)
                 }.getOrDefault(false)
+                return MediaResumeDecision(
+                    accepted,
+                    if (accepted) {
+                        MediaResumeReason.PAUSE_DEFERRED
+                    } else {
+                        MediaResumeReason.PAUSE_PREPARATION
+                    },
+                )
             }
         }
 
-        return runCatching {
+        val dispatched = runCatching {
             when (directCommand) {
                 MediaResumeCommand.PLAY -> selected.target.play()
                 MediaResumeCommand.PAUSE -> selected.target.pause()
                 MediaResumeCommand.TOGGLE -> error("toggle must resolve before dispatch")
             }
         }.isSuccess
+        val play = directCommand == MediaResumeCommand.PLAY
+        return MediaResumeDecision(
+            dispatched,
+            when {
+                dispatched && play -> MediaResumeReason.PLAY
+                dispatched -> MediaResumeReason.PAUSE
+                play -> MediaResumeReason.PLAY_TRANSPORT
+                else -> MediaResumeReason.PAUSE_TRANSPORT
+            },
+        )
     }
 
     /** Completes an accepted asynchronous pause only if the exact planned target is still current. */

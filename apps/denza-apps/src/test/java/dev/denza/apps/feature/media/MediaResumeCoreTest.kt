@@ -14,7 +14,7 @@ class MediaResumeCoreTest {
         core.reconcile(listOf(session))
         session.playback = MediaResumePlayback.PAUSED
 
-        assertTrue(core.perform(MediaResumeCommand.PLAY))
+        assertTrue(core.performed(MediaResumeCommand.PLAY))
         assertEquals(1, session.plays)
     }
 
@@ -25,7 +25,7 @@ class MediaResumeCoreTest {
 
         core.reconcile(listOf(session))
 
-        assertFalse(core.perform(MediaResumeCommand.PLAY))
+        assertFalse(core.performed(MediaResumeCommand.PLAY))
         assertEquals(0, session.plays)
     }
 
@@ -42,7 +42,7 @@ class MediaResumeCoreTest {
 
         var deferredTarget: MediaResumeTarget? = null
         var deferredPredecessors = emptyList<MediaResumeTarget>()
-        assertTrue(core.perform(MediaResumeCommand.TOGGLE) { target, predecessors ->
+        assertTrue(core.performed(MediaResumeCommand.TOGGLE) { target, predecessors ->
             deferredTarget = target
             deferredPredecessors = predecessors
             true
@@ -60,7 +60,7 @@ class MediaResumeCoreTest {
         assertEquals(listOf("podcast:pause"), commands)
 
         current.playback = MediaResumePlayback.PAUSED
-        assertTrue(core.perform(MediaResumeCommand.PLAY))
+        assertTrue(core.performed(MediaResumeCommand.PLAY))
         assertEquals(1, current.plays)
     }
 
@@ -72,7 +72,7 @@ class MediaResumeCoreTest {
         core.reconcile(listOf(first, latest))
         core.onPlayback(latest.identity, MediaResumePlayback.PLAYING)
 
-        assertTrue(core.perform(MediaResumeCommand.PAUSE))
+        assertTrue(core.performed(MediaResumeCommand.PAUSE))
         assertEquals(0, first.pauses)
         assertEquals(1, latest.pauses)
     }
@@ -86,7 +86,7 @@ class MediaResumeCoreTest {
 
         core.remove(session.identity)
 
-        assertFalse(core.perform(MediaResumeCommand.PLAY))
+        assertFalse(core.performed(MediaResumeCommand.PLAY))
     }
 
     @Test
@@ -96,9 +96,9 @@ class MediaResumeCoreTest {
         core.reconcile(listOf(session))
         session.playback = MediaResumePlayback.ENDED
 
-        assertFalse(core.perform(MediaResumeCommand.PLAY))
+        assertFalse(core.performed(MediaResumeCommand.PLAY))
         session.playback = MediaResumePlayback.PAUSED
-        assertFalse(core.perform(MediaResumeCommand.PLAY))
+        assertFalse(core.performed(MediaResumeCommand.PLAY))
         assertEquals(0, session.plays)
     }
 
@@ -111,7 +111,7 @@ class MediaResumeCoreTest {
         core.onPlayback(session.identity, MediaResumePlayback.ENDED)
         session.playback = MediaResumePlayback.PAUSED
 
-        assertFalse(core.perform(MediaResumeCommand.PLAY))
+        assertFalse(core.performed(MediaResumeCommand.PLAY))
     }
 
     @Test
@@ -121,7 +121,7 @@ class MediaResumeCoreTest {
         val current = FakeTarget("current", MediaResumePlayback.PLAYING)
         core.reconcile(listOf(dormant, current))
 
-        assertTrue(core.perform(MediaResumeCommand.PAUSE))
+        assertTrue(core.performed(MediaResumeCommand.PAUSE))
         assertEquals(1, current.pauses)
     }
 
@@ -136,7 +136,7 @@ class MediaResumeCoreTest {
         current.playback = MediaResumePlayback.PLAYING
         core.onPlayback(current.identity, MediaResumePlayback.PLAYING)
 
-        assertTrue(core.perform(MediaResumeCommand.PAUSE))
+        assertTrue(core.performed(MediaResumeCommand.PAUSE))
         assertEquals(1, current.pauses)
     }
 
@@ -150,7 +150,7 @@ class MediaResumeCoreTest {
         current.playback = MediaResumePlayback.PLAYING
         core.onPlayback(current.identity, MediaResumePlayback.PLAYING)
 
-        assertFalse(core.perform(MediaResumeCommand.PAUSE) { _, _ -> false })
+        assertFalse(core.performed(MediaResumeCommand.PAUSE) { _, _ -> false })
         assertEquals(0, current.pauses)
         assertEquals(0, previous.plays)
     }
@@ -165,7 +165,7 @@ class MediaResumeCoreTest {
         current.playback = MediaResumePlayback.PLAYING
         core.onPlayback(current.identity, MediaResumePlayback.PLAYING)
 
-        assertFalse(core.perform(MediaResumeCommand.PAUSE) { _, _ -> error("helper failed") })
+        assertFalse(core.performed(MediaResumeCommand.PAUSE) { _, _ -> error("helper failed") })
         assertEquals(0, previous.plays)
         assertEquals(0, previous.pauses)
         assertEquals(0, current.pauses)
@@ -181,7 +181,7 @@ class MediaResumeCoreTest {
         current.playback = MediaResumePlayback.PLAYING
         core.onPlayback(current.identity, MediaResumePlayback.PLAYING)
 
-        assertTrue(core.perform(MediaResumeCommand.PAUSE) { _, _ -> true })
+        assertTrue(core.performed(MediaResumeCommand.PAUSE) { _, _ -> true })
         core.reconcile(
             listOf(
                 previous,
@@ -204,7 +204,7 @@ class MediaResumeCoreTest {
         current.playback = MediaResumePlayback.PLAYING
         core.onPlayback(current.identity, MediaResumePlayback.PLAYING)
 
-        assertTrue(core.perform(MediaResumeCommand.PAUSE) { _, _ -> true })
+        assertTrue(core.performed(MediaResumeCommand.PAUSE) { _, _ -> true })
         newer.playback = MediaResumePlayback.PLAYING
         core.onPlayback(newer.identity, MediaResumePlayback.PLAYING)
 
@@ -223,7 +223,7 @@ class MediaResumeCoreTest {
         current.playback = MediaResumePlayback.PLAYING
         core.onPlayback(current.identity, MediaResumePlayback.PLAYING)
 
-        assertTrue(core.perform(MediaResumeCommand.PAUSE) { _, _ -> true })
+        assertTrue(core.performed(MediaResumeCommand.PAUSE) { _, _ -> true })
         current.playback = MediaResumePlayback.PAUSED
 
         assertEquals(
@@ -240,10 +240,10 @@ class MediaResumeCoreTest {
         core.reconcile(listOf(session))
 
         session.live = false
-        assertFalse(core.perform(MediaResumeCommand.PAUSE))
+        assertFalse(core.performed(MediaResumeCommand.PAUSE))
         session.live = true
         session.canPause = false
-        assertFalse(core.perform(MediaResumeCommand.PAUSE))
+        assertFalse(core.performed(MediaResumeCommand.PAUSE))
         assertEquals(0, session.pauses)
     }
 
@@ -254,19 +254,26 @@ class MediaResumeCoreTest {
             throwOnRead = true
         }
         core.reconcile(listOf(unreadable))
-        assertFalse(core.perform(MediaResumeCommand.PAUSE))
+        assertFalse(core.performed(MediaResumeCommand.PAUSE))
 
         val brokenTransport = FakeTarget("broken", MediaResumePlayback.PLAYING).apply {
             throwOnPause = true
         }
         core.reconcile(listOf(brokenTransport))
-        assertFalse(core.perform(MediaResumeCommand.PAUSE))
+        assertFalse(core.performed(MediaResumeCommand.PAUSE))
     }
+
+    /** Most cases only care whether the press was ours; the reason has its own assertions. */
+    private fun MediaResumeCore.performed(
+        command: MediaResumeCommand,
+        deferPause: (MediaResumeTarget, List<MediaResumeTarget>) -> Boolean = { _, _ -> false },
+    ): Boolean = perform(command, deferPause).accepted
 
     private class FakeTarget(
         override val identity: Any,
         var playback: MediaResumePlayback,
         private val commands: MutableList<String>? = null,
+        override val packageName: String = identity.toString(),
     ) : MediaResumeTarget {
         var plays = 0
         var pauses = 0

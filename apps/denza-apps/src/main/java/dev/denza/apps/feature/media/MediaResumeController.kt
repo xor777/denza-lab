@@ -76,19 +76,22 @@ class MediaResumeController @JvmOverloads constructor(
             repeatCount = event.repeatCount,
             allowNewPress = allowNewPress && listening,
             perform = { command ->
-                if (pauseOperation != null) {
-                    Log.i(TAG, "media command deferred key=${event.keyCode} reason=pause-in-flight")
-                    true
-                } else if (!refreshBeforeCommand()) {
-                    Log.i(TAG, "media command skipped key=${event.keyCode} reason=session-access")
-                    false
-                } else {
-                    val dispatched = core.perform(command, ::deferPause)
-                    if (!dispatched) {
-                        Log.i(TAG, "media command skipped key=${event.keyCode} reason=no-target")
-                    }
-                    dispatched
-                }
+                decide(
+                    event.keyCode,
+                    when {
+                        pauseOperation != null -> MediaResumeDecision(
+                            accepted = true,
+                            reason = MediaResumeReason.PAUSE_IN_FLIGHT,
+                        )
+
+                        !refreshBeforeCommand() -> MediaResumeDecision(
+                            accepted = false,
+                            reason = MediaResumeReason.SESSION_ACCESS,
+                        )
+
+                        else -> core.perform(command, ::deferPause)
+                    },
+                )
             },
         )
         if (relevantInitialDown) {
@@ -98,6 +101,22 @@ class MediaResumeController @JvmOverloads constructor(
             )
         }
         return consumed
+    }
+
+    /**
+     * The one place a media press is accepted or refused.
+     *
+     * Every branch of the policy - the key path, the deferred pause completing later - ends here,
+     * so a press never disappears without a named reason in the log.
+     */
+    private fun decide(keyCode: Int?, decision: MediaResumeDecision): Boolean {
+        Log.i(
+            TAG,
+            "media command ${if (decision.accepted) "accepted" else "skipped"} " +
+                "key=${keyCode ?: "-"} reason=${decision.reason} " +
+                "package=${decision.packageName ?: "-"}",
+        )
+        return decision.accepted
     }
 
     private fun deferPause(
@@ -130,23 +149,36 @@ class MediaResumeController @JvmOverloads constructor(
     private fun completeDeferredPause(operation: PauseOperation, prepared: Boolean) {
         if (!listening || pauseOperation !== operation) return
         pauseOperation = null
+        val target = operation.target.packageName
         if (!prepared) {
-            Log.i(TAG, "media command skipped reason=pause-preparation")
+            decide(null, MediaResumeDecision(false, MediaResumeReason.PAUSE_PREPARATION, target))
             return
         }
         if (!refreshBeforeCommand()) {
-            Log.i(TAG, "media command skipped reason=session-access-after-preparation")
+            decide(
+                null,
+                MediaResumeDecision(
+                    false,
+                    MediaResumeReason.SESSION_ACCESS_AFTER_PREPARATION,
+                    target,
+                ),
+            )
             return
         }
-        when (core.completeDeferredPause(operation.target)) {
-            DeferredPauseCompletion.DISPATCHED -> Unit
-            DeferredPauseCompletion.ALREADY_PAUSED ->
-                Log.i(TAG, "media command already complete command=pause")
-            DeferredPauseCompletion.STALE ->
-                Log.i(TAG, "media command skipped reason=stale-target-after-preparation")
-            DeferredPauseCompletion.FAILED ->
-                Log.i(TAG, "media command skipped reason=pause-transport")
-        }
+        val completion = core.completeDeferredPause(operation.target)
+        decide(
+            null,
+            MediaResumeDecision(
+                accepted = completion == DeferredPauseCompletion.DISPATCHED,
+                reason = when (completion) {
+                    DeferredPauseCompletion.DISPATCHED -> MediaResumeReason.PAUSE
+                    DeferredPauseCompletion.ALREADY_PAUSED -> MediaResumeReason.PAUSE_COMPLETE
+                    DeferredPauseCompletion.STALE -> MediaResumeReason.STALE_AFTER_PREPARATION
+                    DeferredPauseCompletion.FAILED -> MediaResumeReason.PAUSE_TRANSPORT
+                },
+                packageName = target,
+            ),
+        )
     }
 
     private fun reconcile(active: List<MediaController>?) {
@@ -176,6 +208,7 @@ class MediaResumeController @JvmOverloads constructor(
         private val controller: MediaController,
     ) : MediaResumeTarget {
         override val identity: Any = controller.sessionToken
+        override val packageName: String = controller.packageName
         val pauseSession: MediaPauseSession? = runCatching {
             MediaPauseSession(
                 packageName = controller.packageName,
