@@ -30,6 +30,9 @@ class MediaResumeController @JvmOverloads constructor(
     private val core = MediaResumeCore()
     private val keyInterceptor = MediaResumeKeyInterceptor()
     private val sessions = LinkedHashMap<MediaSession.Token, AndroidTarget>()
+
+    // Written on the main looper, read by the support report from whatever thread built it.
+    @Volatile
     private var listening = false
     private var pauseOperation: PauseOperation? = null
     private var nextPauseOperationId = 0L
@@ -65,6 +68,12 @@ class MediaResumeController @JvmOverloads constructor(
         keyInterceptor.reset()
     }
 
+    /** The flag the filter itself uses, so the support report cannot disagree with it. */
+    fun isListening(): Boolean = listening
+
+    /** The package behind the token the core remembers. The token never leaves this class. */
+    fun rememberedPackage(): String? = (core.remembered() as? AndroidTarget)?.packageName
+
     fun onKeyEvent(event: KeyEvent, allowNewPress: Boolean): Boolean {
         val relevantInitialDown =
             MediaResumeKeyInterceptor.commandFor(event.keyCode) != null &&
@@ -78,14 +87,17 @@ class MediaResumeController @JvmOverloads constructor(
             perform = { command ->
                 if (pauseOperation != null) {
                     Log.i(TAG, "media command deferred key=${event.keyCode} reason=pause-in-flight")
+                    MediaKeyDiagnostics.note("pause-in-flight")
                     true
                 } else if (!refreshBeforeCommand()) {
                     Log.i(TAG, "media command skipped key=${event.keyCode} reason=session-access")
+                    MediaKeyDiagnostics.note("session-access")
                     false
                 } else {
                     val dispatched = core.perform(command, ::deferPause)
                     if (!dispatched) {
                         Log.i(TAG, "media command skipped key=${event.keyCode} reason=no-target")
+                        MediaKeyDiagnostics.note("no-target")
                     }
                     dispatched
                 }
@@ -95,6 +107,17 @@ class MediaResumeController @JvmOverloads constructor(
             Log.i(
                 TAG,
                 "media key=${event.keyCode} received allow=$allowNewPress consumed=$consumed",
+            )
+        }
+        // Every code, not only the four we intercept: a wheel that emits 334 and a wheel that
+        // emits nothing look the same from a car whose logcat we cannot read.
+        if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) {
+            MediaKeyDiagnostics.recordPress(
+                keyCode = event.keyCode,
+                media = MediaResumeKeyInterceptor.commandFor(event.keyCode) != null,
+                allowed = allowNewPress,
+                listening = listening,
+                consumed = consumed,
             )
         }
         return consumed
@@ -124,6 +147,7 @@ class MediaResumeController @JvmOverloads constructor(
             )
         }.getOrDefault(false)
         if (!accepted && pauseOperation === operation) pauseOperation = null
+        if (accepted) MediaKeyDiagnostics.note("${selectedTarget.packageName} deferred-pause")
         return accepted
     }
 
@@ -132,20 +156,30 @@ class MediaResumeController @JvmOverloads constructor(
         pauseOperation = null
         if (!prepared) {
             Log.i(TAG, "media command skipped reason=pause-preparation")
+            MediaKeyDiagnostics.recordCompletion("pause-preparation")
             return
         }
         if (!refreshBeforeCommand()) {
             Log.i(TAG, "media command skipped reason=session-access-after-preparation")
+            MediaKeyDiagnostics.recordCompletion("session-access-after-preparation")
             return
         }
+        // A pause that finishes after its press is over gets its own entry: there is no key left
+        // to attribute it to, and the press was already recorded as a deferred pause.
         when (core.completeDeferredPause(operation.target)) {
-            DeferredPauseCompletion.DISPATCHED -> Unit
-            DeferredPauseCompletion.ALREADY_PAUSED ->
+            DeferredPauseCompletion.DISPATCHED -> MediaKeyDiagnostics.recordCompletion(null)
+            DeferredPauseCompletion.ALREADY_PAUSED -> {
                 Log.i(TAG, "media command already complete command=pause")
-            DeferredPauseCompletion.STALE ->
+                MediaKeyDiagnostics.recordCompletion("already-paused")
+            }
+            DeferredPauseCompletion.STALE -> {
                 Log.i(TAG, "media command skipped reason=stale-target-after-preparation")
-            DeferredPauseCompletion.FAILED ->
+                MediaKeyDiagnostics.recordCompletion("stale-target-after-preparation")
+            }
+            DeferredPauseCompletion.FAILED -> {
                 Log.i(TAG, "media command skipped reason=pause-transport")
+                MediaKeyDiagnostics.recordCompletion("pause-transport")
+            }
         }
     }
 
@@ -176,6 +210,7 @@ class MediaResumeController @JvmOverloads constructor(
         private val controller: MediaController,
     ) : MediaResumeTarget {
         override val identity: Any = controller.sessionToken
+        val packageName: String = controller.packageName
         val pauseSession: MediaPauseSession? = runCatching {
             MediaPauseSession(
                 packageName = controller.packageName,
@@ -227,12 +262,14 @@ class MediaResumeController @JvmOverloads constructor(
 
         override fun play() {
             controller.transportControls.play()
-            Log.i(TAG, "direct media command package=${controller.packageName} command=play")
+            Log.i(TAG, "direct media command package=$packageName command=play")
+            MediaKeyDiagnostics.note("$packageName play")
         }
 
         override fun pause() {
             controller.transportControls.pause()
-            Log.i(TAG, "direct media command package=${controller.packageName} command=pause")
+            Log.i(TAG, "direct media command package=$packageName command=pause")
+            MediaKeyDiagnostics.note("$packageName pause")
         }
 
         private fun isCurrent(): Boolean =

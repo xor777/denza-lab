@@ -33,6 +33,8 @@ import dev.denza.disharebridge.DiShareScreens;
 import dev.denza.apps.core.DenzaRuntimeCoordinator;
 import dev.denza.apps.feature.hud.HudGuidanceAccessibilityMonitor;
 import dev.denza.apps.feature.media.MediaButtonEnvironment;
+import dev.denza.apps.feature.media.MediaKeyDiagnostics;
+import dev.denza.apps.feature.media.MediaKeySnapshot;
 import dev.denza.apps.feature.media.MediaResumeController;
 import dev.denza.apps.feature.media.MediaFocusPauseBridge;
 import dev.denza.apps.feature.navigation.NavigationSettings;
@@ -132,7 +134,8 @@ public class SimulcastAccessibilityService extends AccessibilityService {
     private boolean dialogObserved;
     private boolean windowOperationsPending;
     private HudGuidanceAccessibilityMonitor hudGuidanceMonitor;
-    private MediaResumeController mediaResumeController;
+    // Published here and read by the support report, which is built off the main looper.
+    private volatile MediaResumeController mediaResumeController;
     private MediaFocusPauseBridge mediaFocusPauseBridge;
     private MediaButtonEnvironment mediaButtonEnvironment;
 
@@ -274,6 +277,18 @@ public class SimulcastAccessibilityService extends AccessibilityService {
 
     static boolean isConnected() {
         return connected;
+    }
+
+    /**
+     * The media key's own state, taken from the live controller rather than from a second copy of
+     * it. No bound service, or a service without a controller, is reported as absent.
+     */
+    static MediaKeySnapshot mediaKeySnapshot() {
+        SimulcastAccessibilityService service = instance;
+        MediaResumeController controller = service == null ? null : service.mediaResumeController;
+        Boolean listening = controller == null ? null : Boolean.valueOf(controller.isListening());
+        String remembered = controller == null ? null : controller.rememberedPackage();
+        return MediaKeyDiagnostics.snapshot(listening, remembered);
     }
 
     static void requestMediaResumeRefresh() {

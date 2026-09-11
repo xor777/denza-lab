@@ -88,6 +88,10 @@ internal class MediaResumeCore {
         forget(identity)
     }
 
+    /** The remembered target itself, so a report can name its package without seeing a token. */
+    @Synchronized
+    fun remembered(): MediaResumeTarget? = rememberedIdentity?.let(targets::get)
+
     @Synchronized
     fun perform(
         command: MediaResumeCommand,
