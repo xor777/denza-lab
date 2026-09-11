@@ -13,7 +13,12 @@ import android.view.KeyEvent
 import dev.denza.apps.feature.hud.YandexNotificationArtworkListener
 
 /**
- * Direct play/pause for the last session observed actually playing.
+ * The steering wheel's play/pause key, answered directly instead of by the firmware's routing.
+ *
+ * This is the Android half: it keeps a [MediaResumeTarget] per session token for as long as the
+ * session lives, feeds the policy in [MediaResumeCore] and carries out what the policy decided -
+ * a direct transport command, a deferred pause through the focus helper, or a reconnect to a
+ * package that has no session left. The policy itself is pure and lives next door.
  *
  * The caller decides whether a new DOWN is safe to intercept. Once accepted, repeats and UP for
  * that press remain consumed even if the caller's guard changes before release.
