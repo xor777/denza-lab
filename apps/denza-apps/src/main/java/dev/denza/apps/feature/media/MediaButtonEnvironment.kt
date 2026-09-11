@@ -14,11 +14,22 @@ class MediaButtonEnvironment(context: Context) {
             .getMethod("get", String::class.java, String::class.java)
     }.getOrNull()
 
-    fun allowsNewPress(): Boolean = runCatching {
-        val manager = audio ?: return false
-        if (manager.mode != AudioManager.MODE_NORMAL) return false
-        if (manager.isStreamMute(AudioManager.STREAM_MUSIC)) return false
-        if (vendorMute?.invoke(manager, 0) == true) return false
-        propertyGet?.invoke(null, "sys.isincall", "false") != "true"
-    }.getOrDefault(false)
+    /**
+     * The one call site the filter has. It notes the reason on the way past, because the press it
+     * is about to refuse is handed to stock routing and leaves no other trace of why.
+     */
+    fun allowsNewPress(): Boolean =
+        pressGuard().also(MediaKeyDiagnostics::noteGuard) == MediaKeyGuard.ALLOWED
+
+    /** The same four readings in the same order, saying which one answered. */
+    fun pressGuard(): MediaKeyGuard = runCatching {
+        val manager = audio ?: return MediaKeyGuard.UNAVAILABLE
+        if (manager.mode != AudioManager.MODE_NORMAL) return MediaKeyGuard.AUDIO_MODE
+        if (manager.isStreamMute(AudioManager.STREAM_MUSIC)) return MediaKeyGuard.STREAM_MUTE
+        if (vendorMute?.invoke(manager, 0) == true) return MediaKeyGuard.VENDOR_MUTE
+        if (propertyGet?.invoke(null, "sys.isincall", "false") == "true") {
+            return MediaKeyGuard.IN_CALL
+        }
+        MediaKeyGuard.ALLOWED
+    }.getOrDefault(MediaKeyGuard.UNAVAILABLE)
 }
