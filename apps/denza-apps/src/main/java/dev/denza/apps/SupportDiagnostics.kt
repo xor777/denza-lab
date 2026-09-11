@@ -56,12 +56,12 @@ object SupportDiagnostics {
                 "Сервис трансляции=" +
                     yesNo(SimulcastAccessibilityService.isConnected()),
             )
-            // Руль сдаёт отказанное нажатие штатной маршрутизации, а её Play открывает штатный
-            // локальный плеер - ровно то, на что жалуется владелец N9. Единственный след этого
-            // был `Log.i` под `DenzaMediaResume`, который прошивка глушит глобальным `log.tag=M`,
-            // и у того владельца нет хостового ADB. Три строки: слышим ли мы кнопку, какую сессию
-            // помним, и что случилось с последней дюжиной нажатий - включая коды, которые мы не
-            // перехватываем.
+            // A refused wheel press goes back to stock routing, whose Play fallback opens the
+            // stock local player - exactly what the N9 owner reports. The only other trace was
+            // `Log.i` under `DenzaMediaResume`, which this firmware silences with a global
+            // `log.tag=M`, and that owner has no host ADB. Three lines: whether we hear the key,
+            // which session we remember, and what became of the last dozen presses, including
+            // codes we never intercept.
             addAll(MediaKeyReport.lines(SimulcastAccessibilityService.mediaKeySnapshot()))
             addAll(SimulcastScreenDiagnostics.diagnosticLines())
             add("Android displays=${displays.size}")
