@@ -1567,6 +1567,9 @@ internal class ReconcileOperation(
     private fun applyReconcile(op: SplitOperationContext, shell: (String) -> String, plan: Boolean) {
         if (!plan) return
         val split = work.split(op)
+        // Whether the product believed the scene covered when this look at the world began: a
+        // proof below may flip the axis to visible, and the gate has to follow that flip.
+        val coveredBefore = working.visibility == SceneVisibility.COVERED
         // Nothing below means anything without a scene axis. A hint that can only come from a live
         // product scene is allowed to prove one first (1.11.3); everything else fails closed here.
         if (working.scene == null && !adoptOwnedScene(split)) return
@@ -1606,7 +1609,41 @@ internal class ReconcileOperation(
         // Contract 1.6: the outcome of Back and of a close is the firmware's, and the product's one
         // duty afterwards is to leave nothing of its own behind - no borrowed firmware setting and
         // no gate we opened - so that the next tap opens cleanly (1.6.4). Nothing is rebuilt here.
-        if (working.scene == null) endSession(op, shell, split) else finishGateSuspension(split)
+        if (working.scene == null) {
+            endSession(op, shell, split)
+        } else {
+            finishGateResumption(split, coveredBefore, proven)
+            finishGateSuspension(split)
+        }
+    }
+
+    /**
+     * Зеркало [finishGateSuspension]: gate, подвешенный под накрытием, возобновляется, когда та же
+     * сверка доказала сцену снова видимой.
+     *
+     * До этой правки у подвески было ровно два выхода, и оба - явное действие: тап по кнопке
+     * (reveal) и тап в пикере (`selectApp`), каждый через `ensureGateOpen`. Накрытие же снимается и
+     * само: звонок закончился, камера заднего хода ушла, приложение уведомления закрыто Back-ом -
+     * и пара, которую пользователь оставил, снова на экране с gate, закрытым под накрытием.
+     * `BuildSceneSucceeded` при этом честно переводил ось видимости в VISIBLE, а gate за ней не
+     * шёл: видимая сцена с закрытым gate - состояние, из которого без OPEN/SELECT выхода нет, и в
+     * нём прошивка отвечает `startFullWindow` на любой новый task и любой move-to-front члена
+     * сцены (findings, «which panel a task lands in»). Пользователь видит это как приложение
+     * панели, «само» ушедшее на весь экран.
+     *
+     * Полномочие то же, что у подвески: прочитанная area, а не событие. Возобновление стоит одну
+     * транзакцию и происходит один раз - следующая сверка застаёт ось уже VISIBLE.
+     */
+    private fun finishGateResumption(
+        split: SplitPickerShellSession,
+        coveredBefore: Boolean,
+        proven: Boolean,
+    ) {
+        if (!coveredBefore || !proven) return
+        if (!work.gateOwned()) return
+        if (!split.resumeOwnedGateIfVisible()) return
+        work.log("gate возобновлён сверкой: накрытая сцена снова на экране без открытия (1.11.5)")
+        settle(SplitFact.SceneRevealed)
     }
 
     /**

@@ -153,6 +153,30 @@ internal class SplitPickerShellSession(
     }
 
     /**
+     * The mirror of [suspendOwnedGateIfCovered]: one read, one decision, no waiting.
+     *
+     * A suspension has exactly two ways back before this existed - the explicit open and the
+     * explicit tap in a picker, both of which run [ensureGateOpen]. A scene covered by something
+     * other than Home comes back by itself: the call ends, the camera goes away, the notification's
+     * app is closed with Back, and the pair the user left is on the screen again with the gate the
+     * product closed under the cover still closed. `startIviWindow` then answers every new task and
+     * every move-to-front of a pane member with `startFullWindow` (findings, "which panel a task
+     * lands in"), which is a member of the scene escaping to fullscreen with nobody having asked.
+     *
+     * Mutation authority is the same as the suspension's: a read area, never an event. Only a gate
+     * this product holds the lease for, and only over a scene the area calls visible (1/2/3).
+     *
+     * @return whether this call is what resumed it.
+     */
+    fun resumeOwnedGateIfVisible(): Boolean {
+        val store = gateLeaseStore ?: return false
+        if (!store.isOwned()) return false
+        if (sceneCovered()) return false
+        callVoid("service call activity_task 126 i32 1")
+        return true
+    }
+
+    /**
      * Какую задачу система считает сфокусированной, если её вообще можно спросить.
      *
      * `dumpsys window` на этой прошивке отвечает `mCurrentFocus=null` и `mFocusedApp=null` - поле,
@@ -790,14 +814,21 @@ internal class SplitPickerShellSession(
         pickerComponents: Set<String>,
     ): Map<SplitPane, SplitPickerLivePane> {
         val area = callInt("service call activity_task 30")
-        if (area == AREA_BALANCED_SPLIT) return existing
+        if (area == AREA_BALANCED_SPLIT) {
+            // A scene already on screen asks the firmware for nothing - with one exception. Its
+            // gate may be one a cover suspended and nothing resumed (a call or a camera over the
+            // pair, gone again by the time of this tap), and the tap is the explicit resumption of
+            // the session either way (to 1.12). Only the lease that suspended it may reopen it: a
+            // gate this session never opened is not its to open, and not its to close later.
+            resumeOwnedGateIfVisible()
+            return existing
+        }
         check(area == AREA_FULL_IVI || area == AREA_HOME) {
             "Split-сессия больше не скрыта: area=$area"
         }
         // Contract 5, to 1.12: raising a covered scene of ours is the explicit resumption of this
         // session, and Home suspends exactly the gate this session opened (1.9.1) - without this
-        // the return from Home would raise a scene the firmware is no longer holding open. A scene
-        // that is already on screen returns above and asks the firmware for nothing at all.
+        // the return from Home would raise a scene the firmware is no longer holding open.
         ensureGateOpen()
 
         val focusTaskId = SplitPane.entries.asSequence()

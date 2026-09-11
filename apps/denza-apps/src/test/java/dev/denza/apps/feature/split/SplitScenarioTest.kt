@@ -2808,11 +2808,19 @@ class SplitScenarioTest {
             car.barrier()
         }
 
+        val gate = car.mutations().filter { it.startsWith("service call activity_task 126 ") }
         assertEquals(
-            "и ни одна задача живой пары не тронута - только подвеска gate самого Home",
+            "и ни одна задача живой пары не тронута - только gate: подвеска на Home и " +
+                "возобновление, когда сцена снова на экране (ревью 2026-09-11)",
             emptyList<String>(),
-            car.mutations().filterNot { it == "service call activity_task 126 i32 0" },
+            car.mutations() - gate.toSet(),
         )
+        assertEquals(
+            "каждая подвеска возобновлена ровно один раз",
+            List(6) { listOf(GATE_CLOSE, GATE_OPEN) }.flatten(),
+            gate,
+        )
+        assertTrue("сцена на экране - gate открыт", car.fake.isGateOpen())
     }
 
     /**
@@ -2914,6 +2922,86 @@ class SplitScenarioTest {
             emptyList<String>(),
             car.mutations(),
         )
+    }
+
+    /**
+     * Зеркало подвески (ревью 2026-09-11). Сцена, накрытая чужим полноэкранным окном - звонок,
+     * камера заднего хода, приложение уведомления (area 4, 1.11.5), - снова на экране без единого
+     * тапа по кнопке, и gate, который сверка подвесила под накрытием, она же возобновляет.
+     *
+     * До правки у подвески было два выхода, оба явные (OPEN и SELECT), а накрытие снимается и
+     * само: `BuildSceneSucceeded` честно возвращал ось в VISIBLE, gate оставался закрытым, и
+     * прошивка отвечала `startFullWindow` на любой move-to-front члена сцены - приложение панели
+     * «само» уходило на весь экран.
+     */
+    @Test
+    fun aSceneUncoveredWithoutAnOpenGetsItsGateBack() {
+        val car = car(FakeShell(initialGate = true).apply { liveProductScene(withApps = true) })
+        val core = car.core(SplitDurable(enabled = true, slots = APP_PAIR))
+        car.gateLease.setOwned(true)
+        core.initialize {}
+        core.openPickerSession()
+        car.barrier()
+
+        // Чужое полноэкранное окно поверх живой пары: сверка подвешивает gate.
+        car.fake.area = 4
+        core.dividerResized()
+        car.barrier()
+        assertFalse("gate подвешен под чужим окном", car.fake.isGateOpen())
+        car.clearCommands()
+
+        // Окно ушло, сцена снова на экране - и никто не нажимал «Разделить экран».
+        car.fake.area = 3
+        core.dividerResized()
+        car.barrier()
+
+        assertTrue("gate видимой сцены снова открыт", car.fake.isGateOpen())
+        assertTrue("аренда осталась нашей", car.gateLease.isOwned())
+        assertEquals(
+            "и это единственная мутация: ни одна задача пары не тронута",
+            listOf(GATE_OPEN),
+            car.mutations(),
+        )
+        assertEquals("выбор пользователя цел", APP_PAIR, car.store.load().slots)
+        assertTrue(car.diagnostics.any { it.startsWith("gate возобновлён сверкой") })
+
+        // Ровно один раз: дальнейший оконный шторм над видимой сценой ничего не шлёт (U1).
+        car.clearCommands()
+        repeat(3) {
+            core.dividerResized()
+            car.barrier()
+        }
+        assertEquals(emptyList<String>(), car.mutations())
+    }
+
+    /**
+     * Та же дыра со стороны кнопки: «Разделить экран» над сценой, которая уже на экране, но чей
+     * gate подвешен, возвращалась до `ensureGateOpen` - подъём над area 3 «ничего не просил у
+     * прошивки», и gate оставался закрытым до первого тапа в пикере.
+     */
+    @Test
+    fun anOpenOverAVisibleSceneWithASuspendedGateReopensIt() {
+        val car = car(FakeShell(initialGate = true).apply { liveProductScene(withApps = true) })
+        val core = car.core(SplitDurable(enabled = true, slots = APP_PAIR))
+        car.gateLease.setOwned(true)
+        core.initialize {}
+        core.openPickerSession()
+        car.barrier()
+        car.fake.area = 4
+        core.dividerResized()
+        car.barrier()
+        assertFalse(car.fake.isGateOpen())
+        // Окно ушло; первым о сцене узнаёт не сверка, а тап по кнопке.
+        car.fake.area = 3
+        car.clearCommands()
+
+        core.openPickerSession()
+        car.barrier()
+
+        assertTrue("подъём - явное возобновление сессии, gate открыт (к 1.12)", car.fake.isGateOpen())
+        assertFalse("и ни одного запуска: сцена та же (1.3.5)", car.commands().any { it.startsWith("am start ") })
+        assertEquals(listOf(GATE_OPEN), car.mutations())
+        assertEquals(APP_PAIR, car.store.load().slots)
     }
 
     /**
@@ -4359,6 +4447,7 @@ class SplitScenarioTest {
 
     private companion object {
         const val GATE_OPEN = "service call activity_task 126 i32 1"
+        const val GATE_CLOSE = "service call activity_task 126 i32 0"
         const val RESIZE_KEY = "force_resizable_activities"
         const val RESIZEABILITY_LEASE_LINE = "firmware resizeability lease:"
         const val ACCESS_KEY = "picker_access_enabled"
