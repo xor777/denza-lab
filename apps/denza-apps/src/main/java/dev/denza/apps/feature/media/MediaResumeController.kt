@@ -27,7 +27,7 @@ class MediaResumeController @JvmOverloads constructor(
     private val manager = app.getSystemService(MediaSessionManager::class.java)
     private val accessComponent =
         ComponentName(app, YandexNotificationArtworkListener::class.java)
-    private val core = MediaResumeCore()
+    private val core = MediaResumeCore(MediaLastPlayedPreferences(app))
     private val keyInterceptor = MediaResumeKeyInterceptor()
     private val sessions = LinkedHashMap<MediaSession.Token, AndroidTarget>()
     private var listening = false
@@ -181,16 +181,28 @@ class MediaResumeController @JvmOverloads constructor(
         )
     }
 
+    /**
+     * Leaving the active list is not death. Only [AndroidTarget.onSessionDestroyed] drops a
+     * session here, so a player that deactivates its session on pause stays addressable.
+     */
     private fun reconcile(active: List<MediaController>?) {
         if (!listening) return
         val current = active.orEmpty().associateBy { it.sessionToken }
-        sessions.keys.filterNot(current::containsKey).forEach(::remove)
         current.forEach { (token, controller) ->
-            if (token !in sessions) {
-                sessions[token] = AndroidTarget(controller).also(AndroidTarget::attach)
-            }
+            if (token !in sessions) track(token, controller)
         }
         core.reconcile(current.keys.mapNotNull(sessions::get))
+    }
+
+    /** A session we can command only once its callbacks are ours; a refused registration is not. */
+    private fun track(token: MediaSession.Token, controller: MediaController): AndroidTarget? {
+        val target = AndroidTarget(controller)
+        if (!target.attach()) {
+            Log.i(TAG, "media session callback refused package=${controller.packageName}")
+            return null
+        }
+        sessions[token] = target
+        return target
     }
 
     private fun remove(token: MediaSession.Token) {
@@ -233,9 +245,9 @@ class MediaResumeController @JvmOverloads constructor(
             }
         }
 
-        fun attach() {
+        fun attach(): Boolean {
             destroyed = false
-            controller.registerCallback(callback, handler)
+            return runCatching { controller.registerCallback(callback, handler) }.isSuccess
         }
 
         fun detach() {
@@ -248,14 +260,14 @@ class MediaResumeController @JvmOverloads constructor(
 
         override fun isLive(): Boolean = !destroyed
 
-        override fun supports(command: MediaResumeCommand): Boolean {
+        /**
+         * Pause keeps its advertised-action gate. It is the half of the toggle that was proven on
+         * the car, and a press this gate refuses goes to the firmware, which pauses harmlessly.
+         * Play has no equivalent gate: there the firmware opens its own player instead.
+         */
+        override fun canPause(): Boolean {
             val actions = controller.playbackState?.actions ?: return false
-            val required = when (command) {
-                MediaResumeCommand.PLAY -> PlaybackState.ACTION_PLAY
-                MediaResumeCommand.PAUSE -> PlaybackState.ACTION_PAUSE
-                MediaResumeCommand.TOGGLE -> return false
-            }
-            return actions and required != 0L
+            return actions and PlaybackState.ACTION_PAUSE != 0L
         }
 
         override fun play() {
