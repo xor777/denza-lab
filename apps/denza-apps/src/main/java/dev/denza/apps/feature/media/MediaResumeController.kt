@@ -13,7 +13,12 @@ import android.view.KeyEvent
 import dev.denza.apps.feature.hud.YandexNotificationArtworkListener
 
 /**
- * Direct play/pause for the last session observed actually playing.
+ * The steering wheel's play/pause key, answered directly instead of by the firmware's routing.
+ *
+ * This is the Android half: it keeps a [MediaResumeTarget] per session token for as long as the
+ * session lives, feeds the policy in [MediaResumeCore] and carries out what the policy decided -
+ * a direct transport command, a deferred pause through the focus helper, or a reconnect to a
+ * package that has no session left. The policy itself is pure and lives next door.
  *
  * The caller decides whether a new DOWN is safe to intercept. Once accepted, repeats and UP for
  * that press remain consumed even if the caller's guard changes before release.
@@ -27,7 +32,13 @@ class MediaResumeController @JvmOverloads constructor(
     private val manager = app.getSystemService(MediaSessionManager::class.java)
     private val accessComponent =
         ComponentName(app, YandexNotificationArtworkListener::class.java)
-    private val core = MediaResumeCore()
+    private val core = MediaResumeCore(MediaLastPlayedPreferences(app))
+    private val reconnect = MediaResumeReconnect(
+        context = app,
+        handler = handler,
+        onOutcome = { decision -> decide(null, decision) },
+        onController = ::adopt,
+    )
     private val keyInterceptor = MediaResumeKeyInterceptor()
     private val sessions = LinkedHashMap<MediaSession.Token, AndroidTarget>()
 
@@ -64,6 +75,7 @@ class MediaResumeController @JvmOverloads constructor(
         }
         listening = false
         pauseOperation = null
+        reconnect.cancel()
         detachAll()
         keyInterceptor.reset()
     }
@@ -71,8 +83,8 @@ class MediaResumeController @JvmOverloads constructor(
     /** The flag the filter itself uses, so the support report cannot disagree with it. */
     fun isListening(): Boolean = listening
 
-    /** The package behind the token the core remembers. The token never leaves this class. */
-    fun rememberedPackage(): String? = (core.remembered() as? AndroidTarget)?.packageName
+    /** The persisted last-played package - what a Play press resolves from. No token leaves here. */
+    fun rememberedPackage(): String? = core.lastPlayed()
 
     fun onKeyEvent(event: KeyEvent, allowNewPress: Boolean): Boolean {
         val relevantInitialDown =
@@ -85,22 +97,29 @@ class MediaResumeController @JvmOverloads constructor(
             repeatCount = event.repeatCount,
             allowNewPress = allowNewPress && listening,
             perform = { command ->
-                if (pauseOperation != null) {
-                    Log.i(TAG, "media command deferred key=${event.keyCode} reason=pause-in-flight")
-                    MediaKeyDiagnostics.note("pause-in-flight")
-                    true
-                } else if (!refreshBeforeCommand()) {
-                    Log.i(TAG, "media command skipped key=${event.keyCode} reason=session-access")
-                    MediaKeyDiagnostics.note("session-access")
-                    false
-                } else {
-                    val dispatched = core.perform(command, ::deferPause)
-                    if (!dispatched) {
-                        Log.i(TAG, "media command skipped key=${event.keyCode} reason=no-target")
-                        MediaKeyDiagnostics.note("no-target")
-                    }
-                    dispatched
-                }
+                decide(
+                    event.keyCode,
+                    when {
+                        // A bounded operation already owns the driver's intent. The second press
+                        // is consumed so the firmware cannot answer half of it, and says so.
+                        pauseOperation != null -> MediaResumeDecision(
+                            accepted = true,
+                            reason = MediaResumeReason.PAUSE_IN_FLIGHT,
+                        )
+
+                        reconnect.inFlight() -> MediaResumeDecision(
+                            accepted = true,
+                            reason = MediaResumeReason.RESUME_IN_FLIGHT,
+                        )
+
+                        !refreshBeforeCommand() -> MediaResumeDecision(
+                            accepted = false,
+                            reason = MediaResumeReason.SESSION_ACCESS,
+                        )
+
+                        else -> core.perform(command, ::deferPause, reconnect::start)
+                    },
+                )
             },
         )
         if (relevantInitialDown) {
@@ -121,6 +140,29 @@ class MediaResumeController @JvmOverloads constructor(
             )
         }
         return consumed
+    }
+
+    /**
+     * The one place a media press is accepted or refused.
+     *
+     * Every branch of the policy - the key path, the deferred pause completing later, a reconnect
+     * ending - ends here, so a press never disappears without a named reason in the log, and the
+     * support report's ring is fed from the same line.
+     */
+    private fun decide(keyCode: Int?, decision: MediaResumeDecision): Boolean {
+        Log.i(
+            TAG,
+            "media command ${if (decision.accepted) "accepted" else "skipped"} " +
+                "key=${keyCode ?: "-"} reason=${decision.reason} " +
+                "package=${decision.packageName ?: "-"}",
+        )
+        val detail = decision.packageName?.let { "$it ${decision.reason}" } ?: decision.reason
+        if (keyCode != null) {
+            MediaKeyDiagnostics.note(detail)
+        } else {
+            MediaKeyDiagnostics.recordCompletion(detail, decision.accepted)
+        }
+        return decision.accepted
     }
 
     private fun deferPause(
@@ -147,52 +189,74 @@ class MediaResumeController @JvmOverloads constructor(
             )
         }.getOrDefault(false)
         if (!accepted && pauseOperation === operation) pauseOperation = null
-        if (accepted) MediaKeyDiagnostics.note("${selectedTarget.packageName} deferred-pause")
         return accepted
     }
 
     private fun completeDeferredPause(operation: PauseOperation, prepared: Boolean) {
         if (!listening || pauseOperation !== operation) return
         pauseOperation = null
+        val target = operation.target.packageName
         if (!prepared) {
-            Log.i(TAG, "media command skipped reason=pause-preparation")
-            MediaKeyDiagnostics.recordCompletion("pause-preparation")
+            decide(null, MediaResumeDecision(false, MediaResumeReason.PAUSE_PREPARATION, target))
             return
         }
         if (!refreshBeforeCommand()) {
-            Log.i(TAG, "media command skipped reason=session-access-after-preparation")
-            MediaKeyDiagnostics.recordCompletion("session-access-after-preparation")
+            decide(
+                null,
+                MediaResumeDecision(
+                    false,
+                    MediaResumeReason.SESSION_ACCESS_AFTER_PREPARATION,
+                    target,
+                ),
+            )
             return
         }
-        // A pause that finishes after its press is over gets its own entry: there is no key left
-        // to attribute it to, and the press was already recorded as a deferred pause.
-        when (core.completeDeferredPause(operation.target)) {
-            DeferredPauseCompletion.DISPATCHED -> MediaKeyDiagnostics.recordCompletion(null)
-            DeferredPauseCompletion.ALREADY_PAUSED -> {
-                Log.i(TAG, "media command already complete command=pause")
-                MediaKeyDiagnostics.recordCompletion("already-paused")
-            }
-            DeferredPauseCompletion.STALE -> {
-                Log.i(TAG, "media command skipped reason=stale-target-after-preparation")
-                MediaKeyDiagnostics.recordCompletion("stale-target-after-preparation")
-            }
-            DeferredPauseCompletion.FAILED -> {
-                Log.i(TAG, "media command skipped reason=pause-transport")
-                MediaKeyDiagnostics.recordCompletion("pause-transport")
-            }
-        }
+        val completion = core.completeDeferredPause(operation.target)
+        decide(
+            null,
+            MediaResumeDecision(
+                accepted = completion == DeferredPauseCompletion.DISPATCHED,
+                reason = when (completion) {
+                    DeferredPauseCompletion.DISPATCHED -> MediaResumeReason.PAUSE
+                    DeferredPauseCompletion.ALREADY_PAUSED -> MediaResumeReason.PAUSE_COMPLETE
+                    DeferredPauseCompletion.STALE -> MediaResumeReason.STALE_AFTER_PREPARATION
+                    DeferredPauseCompletion.FAILED -> MediaResumeReason.PAUSE_TRANSPORT
+                },
+                packageName = target,
+            ),
+        )
     }
 
+    /**
+     * Leaving the active list is not death. Only [AndroidTarget.onSessionDestroyed] drops a
+     * session here, so a player that deactivates its session on pause stays addressable.
+     */
     private fun reconcile(active: List<MediaController>?) {
         if (!listening) return
         val current = active.orEmpty().associateBy { it.sessionToken }
-        sessions.keys.filterNot(current::containsKey).forEach(::remove)
         current.forEach { (token, controller) ->
-            if (token !in sessions) {
-                sessions[token] = AndroidTarget(controller).also(AndroidTarget::attach)
-            }
+            if (token !in sessions) track(token, controller)
         }
         core.reconcile(current.keys.mapNotNull(sessions::get))
+    }
+
+    /** A session obtained by reconnecting joins the policy before the active list reports it. */
+    private fun adopt(controller: MediaController) {
+        if (!listening) return
+        val token = controller.sessionToken
+        val target = sessions[token] ?: track(token, controller) ?: return
+        core.adopt(target)
+    }
+
+    /** A session we can command only once its callbacks are ours; a refused registration is not. */
+    private fun track(token: MediaSession.Token, controller: MediaController): AndroidTarget? {
+        val target = AndroidTarget(controller)
+        if (!target.attach()) {
+            Log.i(TAG, "media session callback refused package=${controller.packageName}")
+            return null
+        }
+        sessions[token] = target
+        return target
     }
 
     private fun remove(token: MediaSession.Token) {
@@ -210,7 +274,7 @@ class MediaResumeController @JvmOverloads constructor(
         private val controller: MediaController,
     ) : MediaResumeTarget {
         override val identity: Any = controller.sessionToken
-        val packageName: String = controller.packageName
+        override val packageName: String = controller.packageName
         val pauseSession: MediaPauseSession? = runCatching {
             MediaPauseSession(
                 packageName = controller.packageName,
@@ -235,9 +299,9 @@ class MediaResumeController @JvmOverloads constructor(
             }
         }
 
-        fun attach() {
+        fun attach(): Boolean {
             destroyed = false
-            controller.registerCallback(callback, handler)
+            return runCatching { controller.registerCallback(callback, handler) }.isSuccess
         }
 
         fun detach() {
@@ -250,26 +314,24 @@ class MediaResumeController @JvmOverloads constructor(
 
         override fun isLive(): Boolean = !destroyed
 
-        override fun supports(command: MediaResumeCommand): Boolean {
+        /**
+         * Pause keeps its advertised-action gate. It is the half of the toggle that was proven on
+         * the car, and a press this gate refuses goes to the firmware, which pauses harmlessly.
+         * Play has no equivalent gate: there the firmware opens its own player instead.
+         */
+        override fun canPause(): Boolean {
             val actions = controller.playbackState?.actions ?: return false
-            val required = when (command) {
-                MediaResumeCommand.PLAY -> PlaybackState.ACTION_PLAY
-                MediaResumeCommand.PAUSE -> PlaybackState.ACTION_PAUSE
-                MediaResumeCommand.TOGGLE -> return false
-            }
-            return actions and required != 0L
+            return actions and PlaybackState.ACTION_PAUSE != 0L
         }
 
         override fun play() {
             controller.transportControls.play()
-            Log.i(TAG, "direct media command package=$packageName command=play")
-            MediaKeyDiagnostics.note("$packageName play")
+            Log.i(TAG, "direct media command package=${controller.packageName} command=play")
         }
 
         override fun pause() {
             controller.transportControls.pause()
-            Log.i(TAG, "direct media command package=$packageName command=pause")
-            MediaKeyDiagnostics.note("$packageName pause")
+            Log.i(TAG, "direct media command package=${controller.packageName} command=pause")
         }
 
         private fun isCurrent(): Boolean =

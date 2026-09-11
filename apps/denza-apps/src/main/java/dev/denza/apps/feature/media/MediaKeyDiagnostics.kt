@@ -180,14 +180,17 @@ object MediaKeyDiagnostics {
         ring.add(MediaKeyPress(System.currentTimeMillis(), keyCode, consumed, detail))
     }
 
-    /** A deferred pause ending. A null [reason] means the transport command went out. */
+    /**
+     * A decision reached after its press is over - a deferred pause completing, a reconnect ending.
+     * [handled] is true when a transport command or a directed media button actually went out.
+     */
     @JvmStatic
-    fun recordCompletion(reason: String?) {
-        val detail = synchronized(lock) {
-            (reason ?: pendingDetail ?: "pause")
-                .also { pendingDetail = null; pendingGuard = null }
+    fun recordCompletion(detail: String, handled: Boolean) {
+        synchronized(lock) {
+            pendingDetail = null
+            pendingGuard = null
         }
-        ring.add(MediaKeyPress(System.currentTimeMillis(), null, reason == null, detail))
+        ring.add(MediaKeyPress(System.currentTimeMillis(), null, handled, detail))
     }
 
     /**

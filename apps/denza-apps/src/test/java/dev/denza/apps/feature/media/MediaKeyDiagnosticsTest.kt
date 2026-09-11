@@ -216,18 +216,41 @@ class MediaKeyDiagnosticsTest {
         assertEquals("in-call", MediaKeyDiagnostics.snapshot(true, null).presses.single().detail)
     }
 
-    /** The pause that finishes after its press has its own entry: there is no key code to name. */
+    /**
+     * A decision reached after its press - a deferred pause completing, a reconnect ending - has
+     * its own entry: there is no key code to name, and it says itself whether anything went out.
+     */
     @Test
-    fun `a deferred pause reports its own ending without a key code`() {
-        MediaKeyDiagnostics.note("com.vk.vkvideo pause")
-        MediaKeyDiagnostics.recordCompletion(null)
-        MediaKeyDiagnostics.recordCompletion("pause-preparation")
+    fun `a decision after the press reports its own ending without a key code`() {
+        MediaKeyDiagnostics.recordCompletion("com.vk.vkvideo pause", handled = true)
+        MediaKeyDiagnostics.recordCompletion("com.vk.vkvideo pause-preparation", handled = false)
+        MediaKeyDiagnostics.recordCompletion("ru.yandex.music reconnect-timeout", handled = false)
 
         val presses = MediaKeyDiagnostics.snapshot(true, null).presses
 
-        assertEquals(listOf(null, null), presses.map { it.keyCode })
-        assertEquals(listOf("com.vk.vkvideo pause", "pause-preparation"), presses.map { it.detail })
-        assertEquals(listOf(true, false), presses.map { it.handled })
+        assertEquals(listOf(null, null, null), presses.map { it.keyCode })
+        assertEquals(
+            listOf(
+                "com.vk.vkvideo pause",
+                "com.vk.vkvideo pause-preparation",
+                "ru.yandex.music reconnect-timeout",
+            ),
+            presses.map { it.detail },
+        )
+        assertEquals(listOf(true, false, false), presses.map { it.handled })
+    }
+
+    /** What a press noted is its own; a later completion never borrows it. */
+    @Test
+    fun `a completion clears a note left behind by an unfinished press`() {
+        MediaKeyDiagnostics.note("stale")
+        MediaKeyDiagnostics.recordCompletion("ru.yandex.music reconnect-played", handled = true)
+        MediaKeyDiagnostics.noteGuard(MediaKeyGuard.ALLOWED)
+        MediaKeyDiagnostics.recordPress(386, media = true, allowed = true, listening = true, consumed = false)
+
+        val presses = MediaKeyDiagnostics.snapshot(true, null).presses
+
+        assertEquals(listOf("ru.yandex.music reconnect-played", "already-down"), presses.map { it.detail })
     }
 
     @Test

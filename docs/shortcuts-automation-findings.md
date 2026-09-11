@@ -130,19 +130,23 @@ No additional service, manifest permission, preference, or UI is introduced.
 
 Only Play/Pause/Toggle (126/127/85 and vendor toggle 386) are intercepted. Other
 buttons, including passenger-specific 334/335, retain their existing route.
-Commands address a real session token through `MediaController`, never through
-global key injection or a placeholder media session. The remembered token stays
-in memory only; an app that was already paused before the observer started is
-not guessed as a resume target.
+Commands address a real session through `MediaController`, never through global
+media-key injection or a placeholder media session. The initial DOWN is consumed
+only when the policy accepts the press; otherwise both DOWN and UP pass through.
+After a consumed DOWN, its repeats and UP remain consumed, even if the target
+disappears meanwhile, so firmware cannot interpret half of an already-handled
+press as a second action. Binder transport submission cannot prove that the
+remote player actually resumed; physical acceptance must also observe playback.
 
-Closed, removed, or ended sessions fall back to normal firmware handling.
-The initial DOWN is consumed only when a suitable live target accepts the direct
-command path; otherwise both DOWN and UP pass through. After a consumed DOWN,
-its repeats and UP remain consumed, even if the target disappears meanwhile,
-so firmware cannot interpret half of an already-handled press as a second action.
-There is no application launch, resurrection, post-hoc stock-player shutdown,
-or correction loop. Binder transport submission cannot prove that the remote
-player actually resumed; physical acceptance must also observe playback.
+**Superseded on 2026-09-11.** The first slice remembered exactly one session
+*token*, only for this process lifetime, and only while that token stayed in
+`getActiveSessions`; it explicitly refused any application launch or
+resurrection and left every other Play to the firmware. All three limits failed
+in ordinary use, and on this firmware a refused Play is a Play that opens the
+stock media center - which is what a second car (Denza N9, same DiLink build,
+0.6.1) reported. The rule in force is
+[Resume contract: the package, not the token](#resume-contract-the-package-not-the-token-2026-09-11)
+below; where the two disagree, that section wins.
 
 `MediaButtonEnvironment` leaves calls and muted audio with the firmware using
 the public audio mode/stream mute state and available BYD mute/call accessors.
@@ -257,6 +261,180 @@ opened, and the accessibility service remained bound with capabilities 9. No old
 APK backup was taken. The physical confirmation above precedes those guard refinements; it is not a
 separate physical acceptance of podcasts or conflicting sessions.
 
+### Resume contract: the package, not the token (2026-09-11)
+
+Normative for `feature/media`. The defect it answers: on the Denza N9 (same
+DiLink build, app release 0.6.1) the wheel pauses correctly and the next Play
+opens the stock player. That is not an N9 quirk. `MediaKeyHandler`'s Play
+policy is "the audio-focus owner's controller, else `com.byd.mediacenter`", so
+**every** press this policy refuses on Play starts the stock local player. Only
+one refusal is legitimate, and it is the one where the stock player is the right
+answer anyway.
+
+**Identity is the package.** A session token dies with the player's process,
+with our own accessibility service (an APK update or a quickboot is enough), and
+sometimes because the player simply rebuilt its session. The driver did not mean
+a token. `AndroidTarget` is still per token - a `MediaController` can be built
+from nothing else - but every policy decision is keyed by package. Where one
+package owns several live sessions, the order is: the one the platform still
+routes keys to, then the one most recently seen playing, then the newest.
+
+**The last-played package is persisted.** Preferences `media_resume`, keys
+`last_played_package` and `last_played_at`, written on every observation of
+PLAYING - reconcile snapshot or callback - for any package, the vehicle's own
+included. The timestamp is written and deliberately never read: after a night's
+parking the driver expects the same thing as after a red light. It is stored so
+that an expiry stays one comparison away in `MediaResumeCore.lastPlayedPackage`
+if a car ever argues for one. `MediaResumeCoreTest` pins the decision with
+"an old record is still honoured because there is no time limit".
+
+**A session that leaves the active list is dormant, not gone.**
+`getActiveSessions` is the platform's key-routing list, not a list of sessions
+that exist; a player that deactivates its session when it pauses disappears from
+it while its session is alive. This vehicle's own corpus settles what that
+costs. In `reverse/speaker-lift/MediaSessionRecord-simple.java`, a controller's
+`play()` reaches `SessionCb.play(pkg, pid, uid)`, which calls
+`tempAllowlistTargetPkgIfPossible(...)` - so the app may still start its
+foreground service - and then `mCb.onPlay(...)`. `mIsActive` is read in exactly
+two places, `isActive()` and `dump()`. An inactive but undestroyed session is
+therefore fully commandable. The controller keeps the target, callbacks
+registered, until `onSessionDestroyed`; a registration the platform refuses is
+not tracked at all.
+
+**Play resolves in one order**, in `MediaResumeCore.perform`:
+
+1. something is PLAYING now, any package - the wheel key is a toggle, so this is
+   the pause path, unchanged: remembered-playing preference, paused predecessors
+   that once played, deferred pause through `MediaFocusPauseBridge`;
+2. a live target, active or dormant, for the last-played package - `play()` on
+   it. There is no `ACTION_PLAY` gate: the platform does not enforce the
+   advertised bits and some players only advertise `ACTION_PLAY_PAUSE`. A Play
+   whose target already reports PLAYING dispatches nothing (`already-playing`);
+3. no live target for that package - reconnect, below;
+4. no record at all, a fresh install or cleared data - the press goes to stock.
+   This is the one case where the stock player is the right answer.
+
+Pause keeps its `ACTION_PAUSE` gate. That half was proven on the car, and a
+press it refuses reaches the firmware's pause handling, which is harmless. An
+explicit Pause key with nothing playing also stays with stock, as before.
+
+**Reconnect (step 3)** uses the platform's own client contract, twice over, and
+names no package in code:
+
+- `MediaResumeReconnect` resolves the package's exported, enabled service for
+  intent action `android.media.browse.MediaBrowserService`, connects
+  `android.media.browse.MediaBrowser` on the main looper, takes
+  `getSessionToken()`, builds a `MediaController`, hands it to the policy as a
+  live target and sends `play()`. That is the good path: the next press is an
+  ordinary direct command. `MediaBrowser` is a client API - no permission, no
+  component, nothing vendor-specific. Package visibility already comes from the
+  app's existing `QUERY_ALL_PACKAGES`.
+- If the package declares no such service, or refuses the connection, the
+  fallback is an explicit `ACTION_MEDIA_BUTTON` with `KEYCODE_MEDIA_PLAY`, down
+  and up, `setComponent` to the **first** exported enabled receiver of that
+  package with a `MEDIA_BUTTON` filter. One receiver only: a package normally
+  declares one, and two would risk two Play commands for one press. This is a
+  directed command to a named component, not a key given back to the firmware's
+  routing, so nothing of ours can reach the stock player.
+
+Both are bounded at 3 s by a handler timeout and consume the DOWN the moment
+they start, on the deferred pause's rule - one press is never split between us
+and the firmware. On failure or timeout the reason is logged and nothing else
+happens: no guessed fallback, no stock injection. A second media press while a
+reconnect or a deferred pause is in flight is consumed and logged
+(`resume-in-flight`, `pause-in-flight`) instead of being silently swallowed.
+
+**Why the second reconnect path is not defensive.** Static reading of Yandex
+Music 2026.07.2 (`reverse/media-resume-yandex/`, `versionCode` 24026371) settles
+it. `ru.yandex.music.common.media.mediabrowser.MusicBrowserService` is exported
+with the browser filter and carries no `android:permission`, but its
+`onGetRoot(int uid, String clientPackageName)` runs a Google UAMP-style
+`PackageValidator` over `res/xml/android_auto_allowed_callers`. A caller is
+accepted only when it is the app's own uid, uid 1000, signed by the platform,
+listed in that XML (`com.google.android.projection.gearhead`,
+`com.google.android.autosimulator`, `com.google.android.carassistant`,
+`com.google.android.googlequicksearchbox`, `com.google.android.wearable.app`,
+`com.yandex.music.sdk.demo`, plus Google signer fingerprints - no
+`com.android.bluetooth`, no `com.android.car`, no `com.byd*`), or holds
+`MEDIA_CONTENT_CONTROL` or `BIND_NOTIFICATION_LISTENER_SERVICE`. Everyone else
+gets `reason="unknown caller"` and a **`null` BrowserRoot**, which is a refused
+connection. Denza Apps holds none of those: its notification listener declares
+`BIND_NOTIFICATION_LISTENER_SERVICE` as the component's own binding guard, which
+is not the same as requesting the permission, and no new permission was added
+for this. The method also takes no `rootHints` bundle, so there is no
+`EXTRA_RECENT`/`EXTRA_SUGGESTED` resumption root to ask for. The one decompiled
+detail worth keeping: `setSessionToken` is not called in `onCreate` - it is
+delivered asynchronously once the player stack produces it - so even an accepted
+connection can arrive with no token yet, which the code treats as a failure and
+falls through to the media-button path.
+
+Two components of that APK declare a `MEDIA_BUTTON` filter:
+`ru.yandex.music.common.service.player.MediaSessionService` (not exported) and
+`ru.yandex.music.common.service.player.DebugMediaButtonReceiver` (**exported**,
+no permission). Despite its name that receiver is not debug-gated: it is
+androidx's `MediaButtonReceiver` and forwards `KEYCODE_MEDIA_PLAY` with
+`ACTION_DOWN`, repeat 0, to the real player service through
+`startForegroundService`. So for Yandex the expected live path is
+browser-refused then media-button-sent. Caveat that only the car can settle: a
+background caller can make that `startForegroundService` throw
+`ForegroundServiceStartNotAllowedException` inside Yandex's own process, where
+it is caught and logged - the press would then be silently lost, and the log
+would show `media-button-sent` for a Play that never happened. The above is
+static reading of a decompiled APK, not a live observation.
+
+**Where the decisions come out.** Every accept and refusal leaves through
+`MediaResumeController.decide` as one `Log.i` line on tag `DenzaMediaResume`:
+`media command accepted|skipped key=<code> reason=<reason> package=<pkg>`. The
+reason vocabulary lives in `MediaResumeReason` and nothing outside it invents a
+reason string: `play`, `play-transport`, `already-playing`, `pause`,
+`pause-deferred`, `pause-in-flight`, `pause-already-complete`,
+`pause-preparation`, `pause-transport`, `pause-unsupported`, `session-access`,
+`session-access-after-preparation`, `stale-target-after-preparation`,
+`no-target`, `stock-no-history`, `resume-in-flight`, `reconnect-started`,
+`reconnect-played`, `reconnect-failed`, `reconnect-timeout`,
+`no-browser-service`, `media-button-sent`, `no-media-button-receiver`.
+
+Local validation: `:denza-apps:testDebugUnitTest`, `:denza-apps:assembleDebug`
+and `:denza-apps:lintDebug` passed; 1401 unit tests, 35 of them media tests, no
+failures or skips. Eight deliberate mutations of the policy - wrong resolution
+order, dormant targets dropped, an hour-long record expiry, the wrong session of
+a package preferred, reconnect on the wrong package, stock chosen despite a
+record, Play re-sent to a playing session, and the record never written - were
+each caught by the suite. No APK was built for the car in this pass.
+
+#### Live acceptance plan (Z9GT, owner)
+
+Nothing below has been run on a car. Narrow logging first: global `log.tag=M`
+suppresses these lines, so raise `DenzaMediaResume` before pressing anything,
+and read `media command …` beside `media key=… received`.
+
+1. **Yandex pause and play from the wheel, session alive.** Yandex playing,
+   press: expect `pause` (or `pause-deferred`), then press again: expect `play`
+   with `package=ru.yandex.music` and audible resume. This is the path that
+   already worked; it must not regress.
+2. **Our service restarted.** Force-stop Denza Apps with Yandex paused, reopen
+   the app so the accessibility service binds again, then press Play. Expect
+   `play` addressed at `ru.yandex.music` - the old build could only answer
+   `no-target` here, and the car would open the stock player.
+3. **The player's process gone.** Force-stop Yandex (or reboot the head unit)
+   and press Play. Expect `no-browser-service` or `reconnect-failed` followed by
+   `media-button-sent`, and Yandex actually starting. If the log says
+   `media-button-sent` and nothing plays, the foreground-service restriction
+   above is the suspect and the finding needs a live correction.
+4. **The VK handover of 2026-09-05 still holds.** Yandex playing, start VK
+   Video (Yandex pauses), press the wheel: VK must pause and Yandex must **not**
+   start. The focus-helper path is unchanged, but dormant sessions are now
+   eligible as paused predecessors, so this is the case that proves the wider
+   candidate set costs nothing.
+5. **Stock or Bluetooth as the last source.** Play something in the stock media
+   center or over a Bluetooth sink, pause it from the wheel, then press Play.
+   Expect that package resumed directly - and with a fresh install, or after
+   clearing app data, expect `stock-no-history` and the firmware's own player,
+   which is correct.
+
+A shell-injected key is not acceptance. Watch playback, not the log line: a
+binder command that was submitted is not a player that resumed.
+
 ### What the support report says about the key (2026-09-11)
 
 `Log.i` under `DenzaMediaResume` is invisible on a car whose owner has no host
@@ -265,17 +443,19 @@ three lines of its own, built from the live controller rather than from a second
 copy of its state. `Кнопка play/pause=` is `слушает` while the filter is attached
 to the session service, `нет доступа к сессиям` when `start()` failed or access
 was lost, and `сервис не подключён` when no bound accessibility service owns a
-controller; `Запомненная сессия=` is the package behind the token the core
-currently remembers, or `нет`; `Последние нажатия=` is the last twelve initial
-DOWNs on one line, oldest first, each `HH:mm:ss <код> ✓|✗ <исход>`, where `✓`
-means we took it - the press was consumed, or a transport command went out.
-The outcome is `<пакет> play|pause|deferred-pause`, or one of the filter's own
-words: `not-media` for a code we never intercept, `not-listening`,
-`already-down`, the guard that refused the press (`audio-mode`, `stream-mute`,
-`vendor-mute`, `in-call`, `unavailable`), or `no-target`, `session-access`,
-`pause-in-flight`, `pause-preparation`, `session-access-after-preparation`,
-`stale-target-after-preparation`, `pause-transport`, `already-paused`. An entry
-with no key code is a deferred pause finishing after its press is over.
+controller; `Запомненная сессия=` is the persisted last-played package - what a
+Play press resolves from - or `нет`; `Последние нажатия=` is the last twelve
+initial DOWNs on one line, oldest first, each `HH:mm:ss <код> ✓|✗ <исход>`,
+where `✓` means we took it - the press was consumed, or a transport command or a
+directed media button went out. The outcome is `<пакет> <reason>` with the
+reason from `MediaResumeReason` above (`play`, `pause`, `pause-deferred`,
+`reconnect-started`, `media-button-sent`, `stock-no-history`, ...), or one of
+the filter's own words: `not-media` for a code we never intercept,
+`not-listening`, `already-down`, or the guard that refused the press
+(`audio-mode`, `stream-mute`, `vendor-mute`, `in-call`, `unavailable`). An
+entry with no key code is a decision reached after its press was over: a
+deferred pause completing, or a reconnect ending (`reconnect-played`,
+`reconnect-failed`, `reconnect-timeout`, `no-browser-service`).
 
 To read a remote car, have the owner press the wheel button a few times and send
 the report. No entry at all for those presses means the key never reaches
