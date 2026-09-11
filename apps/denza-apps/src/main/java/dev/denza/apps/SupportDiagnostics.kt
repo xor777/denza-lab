@@ -17,6 +17,7 @@ import dev.denza.apps.feature.hud.HudGuidanceSettings
 import dev.denza.apps.feature.hud.HudNotificationAccessCoordinator
 import dev.denza.apps.feature.hud.HudNotificationArtworkRuntime
 import dev.denza.apps.feature.hud.HudSomeIpRuntime
+import dev.denza.apps.feature.media.MediaKeyReport
 import dev.denza.apps.feature.mirrors.MirrorSide
 import dev.denza.apps.feature.mirrors.MirrorTurnSignalDiagnostics
 import dev.denza.apps.feature.mirrors.MirrorWindowDiagnostics
@@ -55,6 +56,13 @@ object SupportDiagnostics {
                 "Сервис трансляции=" +
                     yesNo(SimulcastAccessibilityService.isConnected()),
             )
+            // Руль сдаёт отказанное нажатие штатной маршрутизации, а её Play открывает штатный
+            // локальный плеер - ровно то, на что жалуется владелец N9. Единственный след этого
+            // был `Log.i` под `DenzaMediaResume`, который прошивка глушит глобальным `log.tag=M`,
+            // и у того владельца нет хостового ADB. Три строки: слышим ли мы кнопку, какую сессию
+            // помним, и что случилось с последней дюжиной нажатий - включая коды, которые мы не
+            // перехватываем.
+            addAll(MediaKeyReport.lines(SimulcastAccessibilityService.mediaKeySnapshot()))
             addAll(SimulcastScreenDiagnostics.diagnosticLines())
             add("Android displays=${displays.size}")
             val adbRescue = AdbRescueCoordinator.snapshot()
