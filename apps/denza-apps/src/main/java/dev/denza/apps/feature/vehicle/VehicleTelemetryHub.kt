@@ -277,6 +277,10 @@ internal class VehicleTelemetryHub(context: Context) {
                     odometerKm = parsed[VehicleSignal.ODOMETER_KM],
                     powerKw = VehicleConvention.load(parsed[VehicleSignal.POWER_KW]),
                     dtSeconds = dtSeconds,
+                    // This sweep's own reading, out of the same batch as the power it decides the
+                    // fate of. A standing interval's energy is the trip's and not the road's, and
+                    // an absent reading counts as moving (contract §2.2).
+                    speedKmh = parsed[VehicleSignal.VEHICLE_SPEED],
                 )
                 ledger.sample(
                     odometerKm = parsed[VehicleSignal.ODOMETER_KM],

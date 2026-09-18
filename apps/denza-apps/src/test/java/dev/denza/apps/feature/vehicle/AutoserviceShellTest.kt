@@ -145,7 +145,7 @@ class AutoserviceShellTest {
         // The roster is spelled out so that adding a signal is a decision rather than a habit.
         assertEquals(
             setOf(
-                "POWER_KW", "PACK_VOLT", "ODOMETER_KM", "GEARBOX_PARK",
+                "POWER_KW", "PACK_VOLT", "ODOMETER_KM", "GEARBOX_PARK", "VEHICLE_SPEED",
                 "ENGINE_RPM", "ENGINE_RUNNING", "GENERATION_KW",
             ),
             VehicleSignal.HOT.map { it.name }.toSet(),

@@ -55,20 +55,113 @@ class ConsumptionLogTest {
         assertEquals(-20.0, log.buckets.first().value, 0.001)
     }
 
+    /**
+     * Energy while the car stands is the trip's, not the road's.
+     *
+     * `docs/energy-display-contract.md` §2.2. Two minutes of the engine charging on P put 0.33 kWh
+     * into the pack on 2026-09-18, and a log that files standing energy into the next hundred metres
+     * of road draws that as a blue shelf on the cut for the kilometre after it. The road accounting
+     * is untouched by the rule - a standing sample carries no road anyway - so the bucket still
+     * closes on its own hundred metres and still knows the energy over all of it.
+     */
     @Test
-    fun energySpentStandingStillStaysInTheBucketAndAddsNoRoad() {
+    fun energySpentStandingStillIsNotTheRoadsAndTheBucketSaysNothingAboutIt() {
         val log = ConsumptionLog()
-        log.sample(100.0, 0.0, 0.0)
-        log.sample(100.1, 0.0, 6.0)
-        // Thirty seconds of idling at 6 kW, then the bucket closes.
-        repeat(5) { log.sample(100.1, 6.0, 6.0) }
-        log.sample(100.2, 0.0, 6.0)
+        log.sample(100.0, 0.0, 0.0, 40.0)
+        log.sample(100.1, 0.0, 6.0, 40.0)
+        // Thirty seconds at a light, drawing 6 kW, then the car moves off and the bucket closes.
+        repeat(5) { log.sample(100.1, 6.0, 6.0, 0.0) }
+        log.sample(100.2, 0.0, 6.0, 40.0)
         assertEquals(2, log.buckets.size)
-        val idling = log.buckets.last()
-        assertEquals("five intervals of 6 kW", energy(6.0, 30.0), idling.kwh, 1e-12)
-        assertEquals("standing still is no road", 0.1, idling.km, 1e-9)
-        assertEquals(energy(6.0, 30.0) / 0.1 * 100.0, idling.value, 1e-9)
-        assertEquals(50.0, idling.value, 0.01)
+        val standing = log.buckets.last()
+        assertEquals("not one joule of the light is in it", 0.0, standing.kwh, 1e-12)
+        assertEquals("standing still is no road", 0.1, standing.km, 1e-9)
+        assertEquals("and the road it does have is all known", 0.1, standing.knownKm, 1e-9)
+        assertTrue("so it is a reading and a point like any other", standing.known)
+        assertEquals(0.0, standing.value, 1e-9)
+    }
+
+    /** The same thirty seconds while the car is rolling are the road's, to the joule. */
+    @Test
+    fun energySpentMovingIsTheRoadsToTheJoule() {
+        val log = ConsumptionLog()
+        log.sample(100.0, 0.0, 0.0, 40.0)
+        log.sample(100.1, 0.0, 6.0, 40.0)
+        repeat(5) { log.sample(100.1, 6.0, 6.0, 40.0) }
+        log.sample(100.2, 0.0, 6.0, 40.0)
+        val rolling = log.buckets.last()
+        assertEquals("five intervals of 6 kW", energy(6.0, 30.0), rolling.kwh, 1e-12)
+        assertEquals(energy(6.0, 30.0) / 0.1 * 100.0, rolling.value, 1e-9)
+        assertEquals(50.0, rolling.value, 0.01)
+    }
+
+    /**
+     * And the threshold is half a kilometre an hour, not zero.
+     *
+     * The id is a float off the bus and a car held on the brake reports a hair of creep, so the
+     * question the log asks is «is this car moving», not «is this number exactly zero».
+     */
+    @Test
+    fun aHairOfCreepIsStillStandingAndAWalkingPaceIsNot() {
+        fun bucketAt(speedKmh: Double?): ConsumptionSample {
+            val log = ConsumptionLog()
+            log.sample(100.0, 0.0, 0.0, speedKmh)
+            repeat(5) { log.sample(100.0, 6.0, 6.0, speedKmh) }
+            log.sample(100.1, 0.0, 6.0, speedKmh)
+            return log.buckets.single()
+        }
+        assertEquals(0.5, ConsumptionLog.STANDING_KMH, 1e-12)
+        assertEquals("dead still", 0.0, bucketAt(0.0).kwh, 1e-12)
+        assertEquals("creeping on the brake", 0.0, bucketAt(0.4).kwh, 1e-12)
+        assertEquals("and on the threshold itself", 0.0, bucketAt(0.5).kwh, 1e-12)
+        assertEquals("a walking pace is moving", energy(6.0, 30.0), bucketAt(0.6).kwh, 1e-12)
+    }
+
+    /** A speed the car did not answer counts as moving: a missing read is not a stop. */
+    @Test
+    fun aMissingSpeedReadingCountsAsMoving() {
+        val log = ConsumptionLog()
+        log.sample(100.0, 0.0, 0.0, null)
+        repeat(5) { log.sample(100.0, 6.0, 6.0, null) }
+        log.sample(100.1, 0.0, 6.0, null)
+        assertEquals(
+            "the road keeps the energy rather than losing it to a dropped read",
+            energy(6.0, 30.0),
+            log.buckets.single().kwh,
+            1e-12,
+        )
+    }
+
+    /**
+     * And the trip keeps every joule, standing or not: it is the one figure about time as well.
+     *
+     * The ledger is fed by the same sweep and integrates the whole of it, which is why «ЗА ПОЕЗДКУ»
+     * and the ten-kilometre figure are two different quantities and say so in two different words.
+     */
+    @Test
+    fun theTripKeepsTheJoulesTheRoadRefuses() {
+        val log = ConsumptionLog()
+        val ledger = TripEnergyLedger()
+        fun sweep(odometerKm: Double, powerKw: Double, dt: Double, speedKmh: Double) {
+            log.sample(odometerKm, powerKw, dt, speedKmh)
+            ledger.sample(
+                odometerKm = odometerKm,
+                powerKw = powerKw,
+                generationKw = 0.0,
+                engineRunning = false,
+                parked = false,
+                dtSeconds = dt,
+            )
+        }
+        // A hundred metres first, because a trip begins where the car moves.
+        sweep(100.0, 0.0, 0.0, 40.0)
+        sweep(100.1, 0.0, 6.0, 40.0)
+        // Then thirty seconds at a light drawing 6 kW, and off again.
+        repeat(5) { sweep(100.1, 6.0, 6.0, 0.0) }
+        sweep(100.2, 0.0, 6.0, 40.0)
+        assertEquals(2, log.buckets.size)
+        assertEquals("the road's bucket is empty", 0.0, log.buckets.last().kwh, 1e-12)
+        assertEquals("and the trip has all of it", energy(6.0, 30.0), ledger.trip.netKwh, 1e-9)
     }
 
     @Test
