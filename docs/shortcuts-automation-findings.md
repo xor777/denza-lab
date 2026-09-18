@@ -435,6 +435,68 @@ and read `media command …` beside `media key=… received`.
 A shell-injected key is not acceptance. Watch playback, not the log line: a
 binder command that was submitted is not a player that resumed.
 
+### The firmware's self-start gate blocks both reconnect paths (2026-09-18)
+
+Live on the Z9GT, build 47. The owner reported the wheel key doing nothing after
+the car woke up. The trace below is the whole of it, and it is not an N9 quirk:
+
+```text
+18:19:04 am_kill  dev.denza.apps  stop ... due to from pid 5963   (com.byd.recents)
+18:19:49 am_kill  ru.yandex.music stop ... due to quickboot 0     (35 packages)
+18:28:47 am_proc_start dev.denza.apps  next-top-activity DenzaLauncherActivity
+18:28:52 ActivityManager bindServiceLocked 10147 process dev.denza.apps want to bind 10132
+18:28:52 skip            bindServiceLocked 10147 want to bind 10132 package ru.yandex.music ignored !!!
+18:28:52 BroadcastQueue  Self start permission detection: reciever for uid 10132 ... broadcast=android.intent.action.MEDIA_BUTTON
+18:28:52 BroadcastQueue  skip reciever for uid 10132 name = ru.yandex.music ignored !!!
+18:29:01 am_proc_start ru.yandex.music next-top-activity MainScreenActivity   (by hand)
+```
+
+Three presses at 18:28:52, :54 and :56 each produced one refused bind and two
+refused broadcasts. Nothing reached Yandex, the press was consumed, and the
+controller logged `media-button-sent` for a Play that never happened. The
+`ForegroundServiceStartNotAllowedException` suspected on 2026-09-11 is not the
+cause; the press never gets that far.
+
+**The gate.** `ActivityManagerService.isEnableFeature()` arms one BYD check in
+three places of `services.jar`: `ActiveServices.bindServiceLocked`,
+`ActiveServices.startServiceLocked` and `BroadcastQueue` receiver dispatch. Each
+refuses a third-party caller reaching a third-party target unless one of these
+holds: `isCallerAppGranted(callerPackage)`, `isTargetAppEnabledStartedBy3rd(target)`,
+`isContainedByWhitelist(targetPackage)`, or (services only) the target service is
+guarded by `BIND_ACCESSIBILITY_SERVICE`. The check reads lists, not process
+state, so the `MediaBrowser` half of the reconnect could never have worked on
+this firmware, with the player alive or dead. Activity starts carry no such gate.
+`MediaController` commands are unaffected, which is why pause and a live-session
+play keep working: those go to `system_server`, not to the player's process.
+
+**Where the lists live.** System service `byd_datacached`
+(`android.os.appstartup.IAppStartupDataCachedManager`), guarded by
+`android.permission.ACCESS_APPSTARTUPDATA`, `prot=signature`, held by
+`com.byd.appstartmanagement`. Neither shell nor an ordinary app can read or
+write it: a shell `service call` answers `Neither user 2000 nor current process
+has android.permission.ACCESS_APPSTARTUPDATA`. There is no local-ADB path to
+this, unlike the notification-listener and appops grants.
+
+**What the driver can change.** `com.byd.appstartmanagement/.frame.AppStartManagement`,
+exported, reachable with action `android.intent.action.BYD_APPSTARTMANAGEMENT`.
+It lists every non-system package that is not whitelisted, and its per-app switch
+writes `setAppStartupData(String.valueOf(applicationInfo.uid), 1|0)`, reading back
+`checked = getAppStartupData(uid) == 1`. The gate allows when
+`isTargetAppEnabledStartedBy3rd` is true, so a switch that is on should be the
+package that may be started by other apps. Note that
+[adb-authorization-recovery.md](adb-authorization-recovery.md) records the
+opposite polarity for that page ("a checked switch means blocked"); the decompiled
+manager and the gate say a checked switch is the permissive state. One look at the
+live page settles it, and the loser of that comparison must be corrected.
+
+Consequences for `feature/media`, none of them applied yet: a bind refused by the
+gate returns false synchronously and must be recorded as its own refusal rather
+than becoming an accepted `media-button-sent`; the broadcast refusal is invisible
+to the caller and cannot be detected at all; and the only resurrection path that
+the gate does not cover is starting the player's own activity, for which Denza
+Apps is already exempt from background-activity-launch limits through
+`SYSTEM_ALERT_WINDOW`, at the price of the player's window appearing.
+
 ### What the support report says about the key (2026-09-11)
 
 `Log.i` under `DenzaMediaResume` is invisible on a car whose owner has no host
