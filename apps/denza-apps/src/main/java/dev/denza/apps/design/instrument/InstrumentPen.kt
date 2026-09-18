@@ -541,12 +541,7 @@ class InstrumentPen {
         }
     }
 
-    /**
-     * One tick per maximal run of points [clamped] accepts, centred on the run.
-     *
-     * A hole ends a run: a stretch cut at the ceiling, a kilometre nobody knows, and then another
-     * cut stretch is two cuts, and the reader is owed two marks.
-     */
+    /** One tick per maximal run of points [clamped] accepts, centred on the run. */
     private inline fun runTicks(
         canvas: Canvas,
         values: FloatArray,
@@ -559,20 +554,8 @@ class InstrumentPen {
         color: Int,
         clamped: (Float) -> Boolean,
     ) {
-        var index = 0
-        while (index < count) {
-            val value = values[first + index]
-            if (value.isNaN() || !clamped(value)) {
-                index++
-                continue
-            }
-            val start = index
-            while (index < count) {
-                val next = values[first + index]
-                if (next.isNaN() || !clamped(next)) break
-                index++
-            }
-            val centre = (xs[start] + xs[index - 1]) / 2f
+        ClampMarks.forEach(values, first, count, clamped) { start, length ->
+            val centre = ClampMarks.centre(xs, start, length)
             line(canvas, centre, fromY, centre, fromY + reach, color, widthV)
         }
     }
@@ -604,4 +587,58 @@ class InstrumentPen {
         val LIGHT: Typeface = Typeface.create("sans-serif-light", Typeface.NORMAL)
         val MEDIUM: Typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
     }
+}
+
+/**
+ * Where a cut is marked: the runs of clamped points, and the middle of each.
+ *
+ * Out here rather than private to [InstrumentPen] for the reason `ContourRuns` is out of its
+ * renderer - a `Canvas` call is unverifiable by construction in this module, and "a cut is marked
+ * once, in the middle of the stretch that was cut" is a statement about runs rather than pixels.
+ *
+ * **A hole ends a run.** A stretch held at the ceiling, a kilometre nobody knows, and then another
+ * stretch at the ceiling are two cuts, and the reader is owed two marks.
+ */
+internal object ClampMarks {
+
+    /** Calls [block] once per maximal run of clamped points, with its first index and length. */
+    inline fun forEach(
+        values: FloatArray,
+        first: Int,
+        count: Int,
+        clamped: (Float) -> Boolean,
+        block: (start: Int, length: Int) -> Unit,
+    ) {
+        var index = 0
+        while (index < count) {
+            val value = values[first + index]
+            if (value.isNaN() || !clamped(value)) {
+                index++
+                continue
+            }
+            val start = index
+            while (index < count) {
+                val next = values[first + index]
+                if (next.isNaN() || !clamped(next)) break
+                index++
+            }
+            block(start, index - start)
+        }
+    }
+
+    /** The same walk, collected - for a test, and for nothing that draws. */
+    fun of(values: FloatArray, first: Int, count: Int, clamped: (Float) -> Boolean): List<Pair<Int, Int>> {
+        val out = mutableListOf<Pair<Int, Int>>()
+        forEach(values, first, count, clamped) { start, length -> out += start to length }
+        return out
+    }
+
+    /**
+     * And where the mark stands: the middle of the run, not its first point.
+     *
+     * A run of one point is that point, which is what makes the arithmetic one expression rather
+     * than a case.
+     */
+    fun centre(xs: FloatArray, start: Int, length: Int): Float =
+        (xs[start] + xs[start + length - 1]) / 2f
 }
