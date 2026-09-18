@@ -196,9 +196,14 @@ class MediaResumeController @JvmOverloads constructor(
         if (!listening || pauseOperation !== operation) return
         pauseOperation = null
         val target = operation.target.packageName
+        // The press is consumed the moment the preparation starts, so a preparation that fails used
+        // to lose it entirely: the driver pressed pause and nothing whatever happened. That is what
+        // the car showed on 2026-09-18, three presses in a row, with the helper answering
+        // "unchanged" each time. The pause goes out either way now. The most a failed preparation
+        // can cost is the suspended predecessor resuming itself, which is the older and much
+        // smaller fault, and the ring still says the preparation was the part that failed.
         if (!prepared) {
             decide(null, MediaResumeDecision(false, MediaResumeReason.PAUSE_PREPARATION, target))
-            return
         }
         if (!refreshBeforeCommand()) {
             decide(
