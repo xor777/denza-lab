@@ -8,7 +8,7 @@ import org.junit.Test
 
 class ConsumptionWindowTest {
 
-    /** [n] ordinary hundred-metre buckets, each spending [kwh], starting at 100 km. */
+    /** [n] ordinary hundred-metre reading buckets, each spending [kwh], starting at 100 km. */
     private fun road(n: Int, kwh: Double = 0.02, from: Double = 100.0) =
         List(n) { ConsumptionSample(from + (it + 1) * 0.1, kwh, 0.1, 0.1) }
 
@@ -45,26 +45,48 @@ class ConsumptionWindowTest {
     }
 
     /**
-     * And the odometer bounds it too, wherever the caller has a reading to bound it with.
+     * And it is measured in **recorded** road: what is not a reading carries none of it.
      *
-     * Ten kilometres of buckets from yesterday's road are still ten kilometres of road; what they
-     * are not is the ten kilometres behind the car. A journal restored from behind the retention
-     * window, and everything from before an odometer re-anchor, land here.
+     * A kilometre the link was down is a kilometre of road nobody can say anything about, so the
+     * window reaches ten kilometres of readings *past* it. The unit says ten and means ten.
      */
     @Test
-    fun aTailTheCarIsNowhereNearIsNotTheWindow() {
-        val yesterday = road(100, from = 900.0)
-        assertEquals("by road alone it is the whole window", 0, ConsumptionWindow.firstIndex(yesterday))
+    fun theWalkCountsBackOverReadingsAndNothingElse() {
+        val blind = List(10) { ConsumptionSample(105.0 + (it + 1) * 0.1, 0.0, 0.1, 0.0) }
+        val all = road(50) + blind + road(60, from = 106.0)
+        val window = ConsumptionWindow.raw(all)
+        assertEquals("a hundred readings and the ten blind ones between them", 110, window.size)
+        assertEquals("ten kilometres of readings", 10.0, ConsumptionWindow.coveredKm(all), 1e-9)
         assertEquals(
-            "and against the car's own reading it is nothing",
-            yesterday.size,
-            ConsumptionWindow.firstIndex(yesterday, lastKm = 930.0),
+            "which is exactly the chart's own width",
+            ConsumptionChart.of(all).span * ConsumptionChart.PITCH_KM,
+            ConsumptionWindow.coveredKm(all),
+            1e-9,
         )
-        // The bound is the window's own ten kilometres behind the newest reading, so a tail that
-        // straddles it keeps the half the car has just driven.
-        val straddling = road(100, from = 920.0)
-        val from = ConsumptionWindow.firstIndex(straddling, lastKm = 935.0)
-        assertEquals("the buckets from 925.1 on", 925.1, straddling[from].odometerKm, 1e-9)
+    }
+
+    /**
+     * Yesterday's readings are readings, and they stay until today's road pushes them out.
+     *
+     * The odometer floor the second review added - «yesterday's road in the window» - is gone with
+     * the grid it belonged to (contract §2.6). A history that empties itself because the car was
+     * driven somewhere else with the app closed is not a history; the chart is what was recorded,
+     * and a re-anchor in the middle of it is a seam nothing marks.
+     */
+    @Test
+    fun yesterdaysReadingsStayUntilTodaysRoadPushesThemOut() {
+        val yesterday = road(100, from = 900.0)
+        assertEquals("all of it is the window", 0, ConsumptionWindow.firstIndex(yesterday))
+        assertEquals(10.0, ConsumptionWindow.coveredKm(yesterday), 1e-9)
+
+        // Forty kilometres later the car records three hundred metres: the window is those three
+        // hundred metres and the 9.7 km of yesterday in front of them, and not a kilometre more.
+        val andToday = yesterday + road(3, from = 940.0)
+        val window = ConsumptionWindow.raw(andToday)
+        assertEquals(100, window.size)
+        assertEquals("the oldest three are pushed out", 900.4, window.first().odometerKm, 1e-9)
+        assertEquals(940.3, window.last().odometerKm, 1e-9)
+        assertEquals(10.0, ConsumptionWindow.coveredKm(andToday), 1e-9)
     }
 
     @Test
@@ -76,24 +98,25 @@ class ConsumptionWindowTest {
     }
 
     @Test
-    fun theRoadUnderAHoleIsCountedAndTheRoadInTheFigureIsNot() {
-        // A kilometre the log has no energy for: it is under the chart, and out of the figure.
-        val withHole = road(20).toMutableList()
+    fun theRoadUnderAGapIsNotCountedAndTheFigureIsTheMeanOfWhatIsKnown() {
+        // A kilometre the log has no energy for: it is out of the figure and off the axis alike.
+        val withGap = road(20).toMutableList()
         for (index in 5 until 15) {
-            withHole[index] = withHole[index].copy(kwh = 0.0, knownKm = 0.0)
+            withGap[index] = withGap[index].copy(kwh = 0.0, knownKm = 0.0)
         }
-        assertEquals("the road is all there", 2.0, withHole.sumOf { it.km }, 1e-9)
-        assertEquals("the known road is not", 1.0, ConsumptionWindow.coveredKm(withHole), 1e-9)
+        assertEquals("the record still carries the road", 2.0, withGap.sumOf { it.km }, 1e-9)
+        assertEquals("the recorded road is one kilometre", 1.0, ConsumptionWindow.coveredKm(withGap), 1e-9)
         // Ten known buckets of 0.02 kWh over one kilometre.
-        assertEquals(0.2 / 1.0 * 100.0, ConsumptionWindow.mean(withHole)!!, 1e-9)
+        assertEquals(0.2 / 1.0 * 100.0, ConsumptionWindow.mean(withGap)!!, 1e-9)
     }
 
     /**
-     * And a hole's own scrap of known road is in neither the figure nor the unit.
+     * And a bucket's own scrap of known road is in neither the figure nor the unit.
      *
-     * A bucket that answered for forty of its hundred metres is a hole - [ConsumptionSample.known]
-     * refuses it whole - so counting its 0.04 km under «за 3,7 км» promised road the number beside
-     * it was never taken over. The two had to be the same set of buckets and were not.
+     * A bucket that answered for forty of its hundred metres is not a reading -
+     * [ConsumptionSample.known] refuses it whole - so counting its 0.04 km under «за 3,7 км»
+     * promised road the number beside it was never taken over. The two had to be the same set of
+     * buckets and were not.
      */
     @Test
     fun theRoadUnderTheUnitIsTheRoadTheFigureIsTheMeanOf() {
@@ -145,8 +168,8 @@ class ConsumptionWindowTest {
 
     @Test
     fun nothingKnownIsNoFigureAtAll() {
-        val holes = List(5) { ConsumptionSample(100.0 + (it + 1) * 0.1, 0.0, 0.1, 0.0) }
-        assertNull("a chart of holes has no mean", ConsumptionWindow.mean(holes))
+        val blind = List(5) { ConsumptionSample(100.0 + (it + 1) * 0.1, 0.0, 0.1, 0.0) }
+        assertNull("a record with nothing recorded in it has no mean", ConsumptionWindow.mean(blind))
         assertNull(ConsumptionWindow.mean(emptyList()))
     }
 }
