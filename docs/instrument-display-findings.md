@@ -575,17 +575,37 @@ twenty steps of five hundred metres that replaced the first drive's «расчё
 read off the car as «огромные ступеньки», and the owner's own journal of that day
 says why: over 500 m neighbouring steps differ by 20 kW·h/100 km at the median and
 17 % of the road passes 40, so every drive was cut somewhere. Over a kilometre the
-median jump is 9 and 2 % passes 60. So a point stands on **every hundred metres of
-the odometer's own grid** - `floor(odometer / 0.1)`, so a point that has closed
-never changes and the shape does not re-phase - and each point is `Σ kWh / Σ km ×
-100` over the kilometre *ending* at it. Trailing rather than centred, because a
-centred mean ends half a kilometre behind the car; which is why the model is handed
-eleven kilometres of tail (`ConsumptionLog.chartTail`) and draws ten. A point whose
-kilometre has under half its road known is a **hole**, and so is a grid step no
-bucket covers at all: the line breaks, the zero rule continues under it, and the
-road keeps its place on the axis. There are no partial widths anywhere.
+median jump is 9 and 2 % passes 60. So the chart is a hundred points, each of them
+`Σ kWh / Σ knownKm × 100` over the kilometre *ending* at it. Trailing rather than
+centred, because a centred mean ends half a kilometre behind the car.
 `ConsumptionChart` is that resampling, and the head unit's car page draws the same
 object.
+
+**And the axis under it is recorded road (2026-09-18, the same evening).** The
+first build of the paragraph above stood its points on the odometer's own grid -
+`floor(odometer / 0.1)` - and drew the road nobody had recorded as `NaN`; the first
+thing it drew on the car was the 4.7 km the hub had slept through that afternoon, a
+chart that was mostly the absence of a chart. The owner's rule: «есть данные -
+график доливается, нет данных - не доливается». So a point stands on every bucket
+the log has the energy for, in the order they closed, and its value is the ten such
+buckets ending at it - never fewer than five, so a fresh log draws nothing until
+half a kilometre is recorded. A bucket that is not a reading is skipped, its
+neighbours are neighbours, and a seam in the odometer is invisible. There are no
+holes, no `NaN` anywhere, no partial widths, and no tail: the chart reads the same
+buckets the figure does, and its width in points times a hundred metres is the road
+`ConsumptionWindow.coveredKm` names beside the figure - «за 8,6 км» is 86 % of the
+box. What the grid bought - a shape that does not re-phase - this has for free: a
+point settles when its ten readings exist, and a new bucket appends one point and
+moves the rest one pitch left. The window follows the same axis and lost its
+odometer floor with the grid: ten kilometres of readings from yesterday stay until
+today's road pushes them out (`docs/energy-display-contract.md` §2.3, §2.6).
+
+**And the road's energy is the road's alone.** `ConsumptionLog` integrates pack
+power into a bucket only while the car moves - `VEHICLE_SPEED` above 0.5 km/h, with
+a missing read counting as moving - because two minutes of the engine charging on P
+put 0.33 kWh into the pack on 2026-09-18 and a log that files that into the next
+hundred metres draws a blue shelf on the cut for the kilometre after it. The trip's
+ledger keeps every joule; it is the one figure that is about time as well as road.
 
 **And it is one silhouette, with the zero deciding its colour.** One field crossing
 a zero line in one colour drew the same grey above and below it, and the blue rule

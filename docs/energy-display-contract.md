@@ -294,8 +294,10 @@ energy coming back. `WARNING`/`DANGER` are temperature exceptions only.
 - **charging**: the cluster's petal figure becomes the countdown; the car page's
   headline says «ОТ ЗАРЯДКИ» and the chart stays;
 - **window filling**: the chart grows from its right edge, the unit names the
-  known road;
-- **a hole**: a gap in the chart, the road under it still counted.
+  known road, and the two are one number - thirty-seven points and «за 3,7 км»;
+- **a gap in the record**: nothing to see. The chart is shorter by the road
+  nobody recorded, the points either side of it are neighbours, and the figure is
+  the mean of what is known.
 
 ## 5. Layout invariants
 
@@ -315,7 +317,14 @@ energy coming back. `WARNING`/`DANGER` are temperature exceptions only.
 
 `tools/design-canvas/ClusterContour*.dc.html` and `StripPages.dc.html` are the
 drawings of this page: the whole cluster with the stock zones as a labelled
-schematic, and the car page inside the strip at both widths. The stock zones on
+schematic, and the car page inside the strip at both widths. Both draw the
+owner's own road of 2026-09-18, scaled to whatever average a scene names, and
+both have a **filling** scene where they used to have a hole: thirty-seven
+recorded buckets under «за 3,7 км» / «ЗА 3,7 КМ», the run anchored at the right
+edge. The cluster keeps the dropped-link state and draws it the way §2.3 says -
+ninety points and «за 9,0 км», with nothing marking where the kilometre went.
+The plan board prints the smoothing, its floor of five readings and the two
+ceilings. The stock zones on
 the cluster board are a model; the two numbers the model is checked against are
 in the generator (`RANGE_BADGE_SEEN`, `POWER_FIGURE_SEEN`) and the grid
 photograph that replaces the model is still owed. A board can establish geometry
@@ -325,32 +334,38 @@ test.
 
 ## 7. Proof
 
-- **One source.** `EnergyReadouts` (or the name the implementation settles on)
-  turns a `VehicleTelemetry` into every energy string and chart both screens
-  draw: direction word, power figure and colour, consumption figure and colour,
-  window caption, the hundred points and their holes, the engine's sentence.
-  Both renderers call it and format nothing themselves.
+- **One source.** `EnergyReadouts` turns a `VehicleTelemetry` into every energy
+  string and chart both screens draw: direction word, power figure and colour,
+  consumption figure and colour, window caption, the hundred points, the engine's
+  sentence. Both renderers call it and format nothing themselves.
 - **Cross-screen equality.** A test drives both surfaces' readouts from one list
   of snapshots - electric drive, return, engine giving, engine running and
-  giving nothing, engine just stopped, standing, charging, filling window, a
-  hole, a kilometre past 60, link lost - and asserts equal strings, equal points
-  and an equal span.
+  giving nothing, engine just stopped, standing, charging, filling window, a seam
+  in the record, a kilometre past 60, link lost - and asserts equal strings, equal
+  points and an equal span.
+- **The caption is the chart.** The same test asserts, at every filling width from
+  the fifth reading to the full window and across a seam, that the road
+  `ConsumptionWindow.coveredKm` names is the run's own width - `span × 0.1 km`.
+  «за 8,6 км» is 86 % of the box because the two are one number, not because they
+  were compared once.
 - **Independent arithmetic.** The expected consumption figure and point values in
-  those tests are computed in the test from the raw buckets - the overlap of each
-  bucket's road with the kilometre ending at the point, energy pro rata - not
-  through the production helpers.
-- **Replay.** `captures/vehicle-log/*.csv` (the recorder's output) is fed through
-  the hub's own log, ledger and traces in a JVM test; the test asserts the
-  invariants that do not depend on what a signal means: the road under the chart
-  is a point per hundred metres of the road the odometer covered, the figure
-  equals energy over known road, every point equals the trailing kilometre
-  computed a second time and none is drawn where the log had no energy, the
-  engine's box is never up with the flag down.
+  those tests are computed in the test from the raw buckets - the readings picked
+  out by the same half-known rule, the trailing ten of them summed - not through
+  the production helpers.
+- **Replay.** `captures/vehicle-log/*.csv` (the recorder's output, `speed_kmh`
+  included, so the standing rule is replayed too) is fed through the hub's own
+  log, ledger and traces in a JVM test; the test asserts the invariants that do
+  not depend on what a signal means: the road under the chart is a point per
+  reading bucket and equals the road the unit names, the figure equals energy over
+  known road, every point equals the trailing ten readings computed a second time,
+  no point is ever a `NaN`, and the engine's box is never up with the flag down.
 - **The boards.** `ContourBoardContractTest` and `StripPagesBoardContractTest`
   hold the generators to `ContourPlan` and the page's constants, including the
-  point count, the smoothing, the ceilings and the sentence.
+  point count, the smoothing, its floor of five, the ceilings and the sentence -
+  and to the absence of a hole helper on either record.
 - **Mutations** on the arithmetic (§2.2, §2.3, §2.6) before the merge, as on
-  every wave before.
+  every wave before: the smoothing, its floor, the skipping of non-readings, the
+  window's ten kilometres, the standing threshold and the null-speed rule.
 
 ## 8. Open, and what closes each
 

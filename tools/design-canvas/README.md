@@ -260,7 +260,7 @@ Any screen that can appear in a pane deserves the same treatment.
 `StripPages.dc.html` is a contract now: the strip draws it.
 `dev.denza.apps.feature.trip.VehiclePageRenderer` is the page, `EnergyReadouts`
 is what it says about energy (the cluster reads the same object),
-`ConsumptionChart` is the ten kilometres behind the shape, and
+`ConsumptionChart` is the ten kilometres of recorded road behind the shape, and
 `StripPagesBoardContractTest` holds this board and those constants against each
 other so neither can move alone. What the owner asked for is what
 it is: the analyser, and the car's own readings, reached the way a phone does it
@@ -287,7 +287,8 @@ Contour went through nine passes to learn these, and this page inherits them:
   `В БАТАРЕЮ` over `−25 кВт` for as long as the word and the sign were decided in
   two places;
 - **a figure names the window it is true over**: `ЗА 10 КМ` after the consumption,
-  and the shape above it *is* those ten kilometres;
+  and the shape above it *is* that road - the caption and the chart's own width
+  are one number, `ЗА 3,7 КМ` over thirty-seven points;
 - **a zero is never drawn, and a quantity that did not happen has no cell.**
   Revolutions have a cell only while the engine turns; nothing prints `0` to hold a
   seat;
@@ -706,8 +707,8 @@ median jump is 9 and 2 % passes 60. So, on both the petal and the strip's car
 page, and in one change with the code
 ([docs/energy-display-contract.md](../../docs/energy-display-contract.md) §2.3):
 
-- the chart is **a hundred points on the odometer's own 100 m grid**, each the
-  mean of the kilometre ending at it, joined by **a line** rather than stepped -
+- the chart is **a hundred points of 100 m**, each the mean of the kilometre
+  ending at it, joined by **a line** rather than stepped -
   a trailing mean is a continuous function of the road and a line says so. The
   engine's box keeps its steps, because its slots really are closed buckets;
 - **one silhouette crossing the zero**, and the zero decides its colour: grey
@@ -716,15 +717,49 @@ page, and in one change with the code
 - the ceiling is **0…60 / 0…20**, which on the petal's 37 units up and 13 down is
   the same slope either side of the zero, so the line crosses it without a kink;
 - a cut is marked **once per run**, at the run's centre, not once per point;
-- there are **no partial widths** anywhere. A hole is a point drawn as nothing,
-  and a stretch the log has no record of is a stretch of holes rather than a
-  compression of the axis;
+- there are **no partial widths** anywhere. (This board also drew a hole as a
+  point and a stretch with no record as a stretch of holes; the fourth board
+  below took the odometer's grid away and the holes with it);
 - both boards draw **the owner's own road** - the hundred trailing kilometres of
   2026-09-18, scaled to whatever average a scene names - instead of a generated
   shape.
 
 `ContourBoardContractTest` and `StripPagesBoardContractTest` moved with them, and
 `ConsumptionChartTest` computes the same means a second time from the raw buckets.
+
+### What the fourth board changed (2026-09-18, the same evening)
+
+The third board went on the car and the first thing it drew was the 4.7 km the
+hub had slept through that afternoon: a hundred points on the odometer's grid,
+most of them `NaN`, which is a chart that is mostly the absence of a chart. The
+owner's rule settled it - «есть данные - график доливается, нет данных - не
+доливается» - and it moves the axis
+([docs/energy-display-contract.md](../../docs/energy-display-contract.md) §2.3):
+
+- **the axis is recorded road.** One point per bucket the log has the energy for,
+  in the order they closed. The odometer's grid, the pro-rata filing of a bucket
+  across steps and the half-known-kilometre rule went with it;
+- **there are no holes.** A bucket the log knows nothing over is not a point at
+  all, the points either side of it are neighbours, and a seam in the odometer is
+  invisible. So both generators lost `with_hole` / `hole=`, both chart helpers
+  draw **one run**, and the lone-reading circle that used to stand between two
+  gaps has nothing left to stand between;
+- **the chart's width is the unit's road.** A point is a hundred metres and
+  `ConsumptionWindow.coveredKm` counts the same buckets, so «за 8,6 км» is 86 % of
+  the box. The strip's `spend_line` takes its window off the shape's own length
+  for exactly that reason, and a scene cannot print «ЗА 10 КМ» over a filling one;
+- **a filling scene where the hole was.** The car page gains the case it never
+  had - thirty-seven recorded buckets and «ЗА 3,7 КМ», anchored at the right edge
+  - and the cluster's dropped-link state keeps its subject and loses its gap:
+  ninety points and «за 9,0 км», because where the missing kilometre was is the
+  one thing this chart cannot show;
+- **a point is the mean of ten readings, never of fewer than five.** The plan
+  board prints both, with the two ceilings, in two lines - a third walks the
+  floor's own mark off the bottom of the artboard.
+
+The scenes' road is scaled after it is cut, so a shape and the figure beside it
+cannot disagree at any length. `ConsumptionChartTest`, `ConsumptionWindowTest`,
+`EnergyReadoutsTest` and the two board contract tests moved with it.
 
 ### The test every element now has to pass
 
