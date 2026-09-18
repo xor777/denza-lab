@@ -235,81 +235,188 @@ internal class SplitPickerShellSession(
         if (area != AREA_BALANCED_SPLIT && area != AREA_FULL_IVI && area != AREA_HOME) {
             return SplitSceneRead(null, "area=$area")
         }
+        return readOwnedScene(area, pickerComponents, expectedApps)
+    }
+
+    /**
+     * Чем сцена оказывается для ЗАВЕРШАЮЩЕГО ЧТЕНИЯ ВЫБОРА, когда панель на экране одна.
+     *
+     * Правка 2026-09-18 (живая сессия 18:58:27-18:58:36, `read-back: area=2`). Пользователь
+     * схлопнул одну панель («пикер | пикер» → `Full(SECONDARY)`, 1.8.2), затем тапнул Навигатор в
+     * выжившем полноэкранном пикере. Размещение прошло (`startSplitWindow #68 type=32
+     * newMode=102`, area осталась 2, Навигатор виден над пикером), а read-back объявил
+     * `rolled-back reason=read-back failed`: [readOwnedSession] принимает только 0/3/4 и требует
+     * ОБА панельных корня. Слот не записался, и первый же Home после такого выбора показал бы
+     * пикер вместо Навигатора - против 1.3.2 и 1.3.4.
+     *
+     * Одна панель на весь экран - это законная сцена продукта (`FULL(x)`, ось 2.3), и сам
+     * [selectApp] её уже признаёт: при `currentArea == pane.fullArea` и пустом соседнем корне
+     * ожидаемая area остаётся 1/2, и постусловие размещения доказывается именно на ней
+     * (`expectedSelectionArea`). Поэтому чтение выбора смотрит на выжившую панель ровно теми же
+     * предикатами, что [readOwnedSession] применяет к каждой панели живой сцены, - и ничем
+     * слабее: своя база ровно одна, жители - не больше одного приложения, ни чужой базы, ни
+     * штатного bootstrap, пикер по размеру окна, верхняя задача либо этот пикер, либо приложение
+     * в границах корня.
+     *
+     * Соседний корень обязан не держать НАШЕЙ базы: база там - это двухпанельная сцена, за
+     * которой area не успела, и такой мир принадлежит [readOwnedSession], а не этому чтению.
+     * Прочие жители соседнего корня - задачи пользователя, отвязанные прошивкой живыми и
+     * невидимые (1.8.2, инвариант 3); они ничего не доказывают и ничему не мешают.
+     *
+     * Это чтение НЕ подменяет [readOwnedSession]: усыновление на открытии (1.3.4) и сверка
+     * схлопывания по-прежнему обязаны отказывать на area 1/2 - там закрытая панель должна стать
+     * свежим пикером, а не быть усыновлённой как `FULL`.
+     */
+    fun readOwnedSelection(pickerComponents: Set<String>): SplitSceneRead {
+        val area = callInt("service call activity_task 30")
+        if (area == AREA_BALANCED_SPLIT) {
+            return readOwnedScene(area, pickerComponents, emptyMap())
+        }
+        val survivor = SplitPane.entries.firstOrNull { pane -> pane.fullArea == area }
+            ?: return SplitSceneRead(null, "area=$area")
+        val roots = nativeRootIds()
+        val state = snapshot()
+        val other = survivor.other()
+        val otherHoldsOwnBase = state.root(roots.getValue(other))?.tasks.orEmpty().any { task ->
+            task.isDenzaPickerBase() && task.matchesAnyComponent(pickerComponents)
+        }
+        if (otherHoldsOwnBase) {
+            return SplitSceneRead(null, "area=$area, но $other держит базу")
+        }
+        val root = state.root(roots.getValue(survivor))
+            ?: return SplitSceneRead(null, "$survivor: контейнера нет")
+        return readOwnedPane(
+            pane = survivor,
+            root = root,
+            area = area,
+            sceneOnScreen = true,
+            pickerComponents = pickerComponents,
+            expected = null,
+        )
+    }
+
+    /**
+     * Обе панели целой сцены - тело [readOwnedSession] уже с прочитанной area.
+     *
+     * Отдельно от него только ради одного: [readOwnedSelection] на area 3 обязана отвечать тем же
+     * самым чтением, но area она уже спросила, а лишний `activity_task 30` в машине стоит времени
+     * и, хуже, может застать другой мир, чем тот, из которого принято решение о ветке.
+     */
+    private fun readOwnedScene(
+        area: Int,
+        pickerComponents: Set<String>,
+        expectedApps: Map<SplitPane, SplitPickerExpectedApp>,
+    ): SplitSceneRead {
         val roots = nativeRootIds()
         val state = snapshot()
         val panes = mutableMapOf<SplitPane, SplitPickerLivePane>()
         SplitPane.entries.forEach { pane ->
             val root = state.root(roots.getValue(pane))
                 ?: return SplitSceneRead(null, "$pane: контейнера нет")
-            val pickers = root.tasks.filter { task ->
-                task.isDenzaPickerBase() && task.matchesAnyComponent(pickerComponents)
-            }
-            val picker = pickers.singleOrNull()
-            // Панель - это её база и ОДНО приложение; сколькими живыми задачами прошивка это одно
-            // приложение представляет, решает прошивка, а не продукт (1.5.2, машинная правда v28:
-            // тап по Яндекс.Музыке привёл в корень И t316, И t532, обе видимые, и панель на экране
-            // была правильной). Счёт задач вместо счёта приложений объявлял такую панель чужой, а
-            // «чужая панель» - это отказ от адопции: следующее открытие пересобрало бы живую
-            // сцену и перезапустило играющее приложение (U2, 1.3.5).
-            val residents = root.tasks.filterNot { task ->
-                task.id == picker?.id || task.isEmptyRootMarker()
-            }
-            if (
-                picker == null ||
-                residents.any { it.isDenzaPickerBase() || it.isNativeSplitBootstrap() } ||
-                residents.distinctBy { it.packageName }.size > 1
-            ) {
-                return SplitSceneRead(
-                    null,
-                    "$pane: пикеров ${pickers.size}, задач ${root.tasks.size}",
-                )
-            }
-            if (picker.bounds != root.bounds) {
-                return SplitSceneRead(null, "$pane: пикер не по размеру окна")
-            }
-
-            val expected = expectedApps[pane]
-            val top = when {
-                area == AREA_BALANCED_SPLIT -> root.resolvedTopTask()
-                // The scene is covered, so `am stack list` marks every child hidden and repeats
-                // only the old root-top component. The exact task id and package of the app this
-                // process itself recorded is the narrow proof that lets it be raised (invariant 4).
-                expected != null -> root.resolveExpectedCoveredApp(expected)
-                // No app to name. Under a fullscreen window the pane's own picker reporting itself
-                // is still accepted; under Home nothing is guessed at all - the root holding one
-                // task, our picker, is the proof (правка E1, owner decision 2026-08-23).
-                area == AREA_HOME -> picker.takeIf { root.tasks.size == 1 }
-                else -> root.resolvedCoveredTopTask()?.takeIf { task ->
-                    task.isDenzaPickerBase() && task.matchesAnyComponent(pickerComponents)
-                }
-            } ?: return SplitSceneRead(
-                null,
-                "$pane: верхняя задача не подтверждена (area=$area, " +
-                    "ожидалось ${expected?.taskId ?: "-"})",
-            )
-            val app = if (top.id == picker.id) {
-                if (!picker.matchesAnyTopComponent(pickerComponents)) {
-                    return SplitSceneRead(null, "$pane: пикер не верхний")
-                }
-                null
-            } else {
-                if (
-                    top.isDenzaPickerBase() ||
-                    top.isNativeSplitBootstrap() ||
-                    top.bounds != root.bounds
-                ) {
-                    return SplitSceneRead(null, "$pane: верхняя задача ${top.id} чужая")
-                }
-                top
-            }
-            panes[pane] = SplitPickerLivePane(
+            val read = readOwnedPane(
                 pane = pane,
-                hostTaskId = picker.id,
-                appTaskId = app?.id,
-                appPackageName = app?.packageName,
+                root = root,
+                area = area,
+                sceneOnScreen = area == AREA_BALANCED_SPLIT,
+                pickerComponents = pickerComponents,
+                expected = expectedApps[pane],
             )
+            panes += read.scene ?: return read
         }
         return SplitSceneRead(panes, "adoptable")
+    }
+
+    /**
+     * Одна панель теми предикатами, которые делают её НАШЕЙ, - в одном месте на всех читателей.
+     *
+     * Правила здесь существуют ровно один раз: [readOwnedSession] применяет их к обеим панелям
+     * сбалансированной или накрытой сцены, [readOwnedSelection] - к единственной выжившей панели
+     * при area 1/2. Успех - карта из одной записи; отказ называет панель и предикат, который
+     * не сошёлся (U5).
+     *
+     * [sceneOnScreen] - это «панель видно»: тогда верхнюю задачу называет то, что видно
+     * ([SplitRootTask.resolvedTopTask]). Накрытый мир верхнюю задачу не показывает, и её
+     * приходится доказывать записанным id или собственным пикером.
+     */
+    private fun readOwnedPane(
+        pane: SplitPane,
+        root: SplitRootTask,
+        area: Int,
+        sceneOnScreen: Boolean,
+        pickerComponents: Set<String>,
+        expected: SplitPickerExpectedApp?,
+    ): SplitSceneRead {
+        val pickers = root.tasks.filter { task ->
+            task.isDenzaPickerBase() && task.matchesAnyComponent(pickerComponents)
+        }
+        val picker = pickers.singleOrNull()
+        // Панель - это её база и ОДНО приложение; сколькими живыми задачами прошивка это одно
+        // приложение представляет, решает прошивка, а не продукт (1.5.2, машинная правда v28:
+        // тап по Яндекс.Музыке привёл в корень И t316, И t532, обе видимые, и панель на экране
+        // была правильной). Счёт задач вместо счёта приложений объявлял такую панель чужой, а
+        // «чужая панель» - это отказ от адопции: следующее открытие пересобрало бы живую
+        // сцену и перезапустило играющее приложение (U2, 1.3.5).
+        val residents = root.tasks.filterNot { task ->
+            task.id == picker?.id || task.isEmptyRootMarker()
+        }
+        if (
+            picker == null ||
+            residents.any { it.isDenzaPickerBase() || it.isNativeSplitBootstrap() } ||
+            residents.distinctBy { it.packageName }.size > 1
+        ) {
+            return SplitSceneRead(
+                null,
+                "$pane: пикеров ${pickers.size}, задач ${root.tasks.size}",
+            )
+        }
+        if (picker.bounds != root.bounds) {
+            return SplitSceneRead(null, "$pane: пикер не по размеру окна")
+        }
+
+        val top = when {
+            sceneOnScreen -> root.resolvedTopTask()
+            // The scene is covered, so `am stack list` marks every child hidden and repeats
+            // only the old root-top component. The exact task id and package of the app this
+            // process itself recorded is the narrow proof that lets it be raised (invariant 4).
+            expected != null -> root.resolveExpectedCoveredApp(expected)
+            // No app to name. Under a fullscreen window the pane's own picker reporting itself
+            // is still accepted; under Home nothing is guessed at all - the root holding one
+            // task, our picker, is the proof (правка E1, owner decision 2026-08-23).
+            area == AREA_HOME -> picker.takeIf { root.tasks.size == 1 }
+            else -> root.resolvedCoveredTopTask()?.takeIf { task ->
+                task.isDenzaPickerBase() && task.matchesAnyComponent(pickerComponents)
+            }
+        } ?: return SplitSceneRead(
+            null,
+            "$pane: верхняя задача не подтверждена (area=$area, " +
+                "ожидалось ${expected?.taskId ?: "-"})",
+        )
+        val app = if (top.id == picker.id) {
+            if (!picker.matchesAnyTopComponent(pickerComponents)) {
+                return SplitSceneRead(null, "$pane: пикер не верхний")
+            }
+            null
+        } else {
+            if (
+                top.isDenzaPickerBase() ||
+                top.isNativeSplitBootstrap() ||
+                top.bounds != root.bounds
+            ) {
+                return SplitSceneRead(null, "$pane: верхняя задача ${top.id} чужая")
+            }
+            top
+        }
+        return SplitSceneRead(
+            mapOf(
+                pane to SplitPickerLivePane(
+                    pane = pane,
+                    hostTaskId = picker.id,
+                    appTaskId = app?.id,
+                    appPackageName = app?.packageName,
+                ),
+            ),
+            "adoptable",
+        )
     }
 
     /**

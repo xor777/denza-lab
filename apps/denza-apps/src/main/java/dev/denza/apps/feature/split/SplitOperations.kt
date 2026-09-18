@@ -1110,6 +1110,17 @@ internal class SelectOperation(
      * user is looking at is proven again from the car, not remembered, so the pane that just
      * launched an app lands in the durable snapshot even when this process learned about the scene
      * for the first time a moment ago.
+     *
+     * Правка 2026-09-18 (живая сессия 18:58:27-18:58:36): читается
+     * [SplitPickerShellSession.readOwnedSelection], а не строгая сцена. Строгость 2026-08-27
+     * («правка v37») отвечает на вопрос «наш ли это мир целиком», и для ОТКРЫТИЯ и для СВЕРКИ она
+     * верна. Для ВЫБОРА её граница оказалась чужой: пользователь схлопнул панель (`Full(SECONDARY)`,
+     * 1.8.2) и тапнул Навигатор в выжившем полноэкранном пикере - размещение прошло, а read-back
+     * сказал `rolled-back reason=read-back failed` при `read-back: area=2`. Одна панель на весь
+     * экран - законная сцена (ось 2.3), и [SplitPickerShellSession.selectApp] её уже признаёт
+     * (`expectedSelectionArea` держит ожидаемую area на 1/2). Слот при этом записывается по
+     * ФАКТИЧЕСКОЙ стороне (1.5.3): прошивка при каждом схлопывании переносит выжившего в широкую
+     * панель, и записанный продуктом логический выживший может не совпадать с физическим.
      */
     override fun readBack(op: SplitOperationContext, shell: (String) -> String, plan: Unit): Boolean {
         val chosen = placement ?: return false
@@ -1125,13 +1136,13 @@ internal class SelectOperation(
         // Поэтому здесь не ловится ничего: бросок доходит до раннера и операция откатывается с
         // настоящим сообщением.
         //
-        // Отказ - это не бросок. `readOwnedSession` возвращает причину, по которой сцена не наша,
+        // Отказ - это не бросок. `readOwnedSelection` возвращает причину, по которой сцена не наша,
         // и она уходит в журнал до решения, чтобы «read-back failed» было чем объяснить.
         // Отметка ДО чтения, а не только после: если чтение бросит, журнал обязан показывать, что
         // read-back начинался - иначе откат по ошибке связи неотличим от операции, которая до
         // чтения не дошла.
         mark(op, "read-back начат")
-        val read = work.split(op).readOwnedSession(SPLIT_PICKER_COMPONENT_SET)
+        val read = work.split(op).readOwnedSelection(SPLIT_PICKER_COMPONENT_SET)
         mark(op, "read-back: ${read.reason}")
         val settled = read.scene ?: return false
         liveScene = settled

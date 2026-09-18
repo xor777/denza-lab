@@ -1245,6 +1245,141 @@ class SplitPickerShellSessionTest {
         )
     }
 
+    // region чтение выбора: одна панель на весь экран (правка 2026-09-18)
+
+    /**
+     * Живая сессия 2026-09-18, `read-back: area=2`: выживший полноэкранный пикер запустил
+     * приложение, и это - доказуемая сцена из одной панели (1.8.2 → 1.5.1, ось 2.3).
+     */
+    @Test
+    fun theSelectionReadAcceptsTheAppTheSurvivingWidePickerLaunched() {
+        val fake = FakeShell()
+        val split = session(fake)
+        val hosts = split.buildPickers()
+        fake.dismissPane(PRIMARY_ROOT)
+        val navigator = split.selectApp(
+            pickerTaskId = hosts.getValue(SplitPane.SECONDARY),
+            target = SplitLaunchTarget(NAVIGATOR, "$NAVIGATOR/$NAVIGATOR.MainActivity"),
+            pickerComponents = PICKER_COMPONENTS,
+        )
+
+        val read = split.readOwnedSelection(PICKER_COMPONENTS)
+
+        assertEquals("adoptable", read.reason)
+        assertEquals(
+            "сцена - ровно одна панель, та, которую назвала area",
+            setOf(SplitPane.SECONDARY),
+            read.scene?.keys,
+        )
+        assertEquals(
+            SplitPickerLivePane(
+                pane = SplitPane.SECONDARY,
+                hostTaskId = hosts.getValue(SplitPane.SECONDARY),
+                appTaskId = navigator.appTaskId,
+                appPackageName = NAVIGATOR,
+            ),
+            read.scene?.getValue(SplitPane.SECONDARY),
+        )
+    }
+
+    /** Та же панель без приложения: выживший-пикер - нормальный случай, а не ошибка (1.8.2). */
+    @Test
+    fun theSelectionReadAcceptsTheSurvivingWidePickerAlone() {
+        val fake = FakeShell()
+        val split = session(fake)
+        val hosts = split.buildPickers()
+        fake.dismissPane(PRIMARY_ROOT)
+
+        val read = split.readOwnedSelection(PICKER_COMPONENTS)
+
+        assertEquals("adoptable", read.reason)
+        assertEquals(
+            SplitPickerLivePane(
+                pane = SplitPane.SECONDARY,
+                hostTaskId = hosts.getValue(SplitPane.SECONDARY),
+                appTaskId = null,
+                appPackageName = null,
+            ),
+            read.scene?.getValue(SplitPane.SECONDARY),
+        )
+    }
+
+    /** Зеркало: выжила узкая панель, прошивка отвечает area 1. */
+    @Test
+    fun theSelectionReadAcceptsTheSurvivingNarrowPane() {
+        val fake = FakeShell()
+        val split = session(fake)
+        val hosts = split.buildPickers()
+        fake.dismissPane(SECONDARY_ROOT)
+
+        val read = split.readOwnedSelection(PICKER_COMPONENTS)
+
+        assertEquals("adoptable", read.reason)
+        assertEquals(setOf(SplitPane.PRIMARY), read.scene?.keys)
+        assertEquals(
+            hosts.getValue(SplitPane.PRIMARY),
+            read.scene?.getValue(SplitPane.PRIMARY)?.hostTaskId,
+        )
+    }
+
+    /**
+     * Сосед с НАШЕЙ базой - это двухпанельная сцена, за которой area не успела, и такой мир
+     * принадлежит [SplitPickerShellSession.readOwnedSession], а не чтению выбора.
+     */
+    @Test
+    fun theSelectionReadRefusesWhileTheOtherRootStillHoldsOurBase() {
+        val fake = FakeShell()
+        val split = session(fake)
+        split.buildPickers()
+        fake.area = 2
+
+        val read = split.readOwnedSelection(PICKER_COMPONENTS)
+
+        assertEquals(null, read.scene)
+        assertEquals("area=2, но PRIMARY держит базу", read.reason)
+    }
+
+    /**
+     * Накрытый мир (Home, чужое fullscreen-окно) чтению выбора не принадлежит: там верхнюю задачу
+     * панели не видно, и её правила - правила [SplitPickerShellSession.readOwnedSession].
+     */
+    @Test
+    fun theSelectionReadRefusesACoveredWorld() {
+        val fake = FakeShell()
+        val split = session(fake)
+        split.buildPickers()
+
+        fake.area = 0
+        assertEquals("area=0", split.readOwnedSelection(PICKER_COMPONENTS).reason)
+        fake.area = 4
+        assertEquals("area=4", split.readOwnedSelection(PICKER_COMPONENTS).reason)
+    }
+
+    /** А на сбалансированном split это то же самое чтение, слово в слово. */
+    @Test
+    fun theSelectionReadIsTheOwnedSessionReadAtABalancedSplit() {
+        val fake = FakeShell()
+        val split = session(fake)
+        split.buildPickers()
+        split.selectApp(
+            pickerTaskId = split.readOwnedSession(PICKER_COMPONENTS)
+                .scene!!
+                .getValue(SplitPane.PRIMARY)
+                .hostTaskId,
+            target = SplitLaunchTarget(NAVIGATOR, "$NAVIGATOR/$NAVIGATOR.MainActivity"),
+            pickerComponents = PICKER_COMPONENTS,
+        )
+
+        val owned = split.readOwnedSession(PICKER_COMPONENTS)
+        val selection = split.readOwnedSelection(PICKER_COMPONENTS)
+
+        assertEquals(owned.reason, selection.reason)
+        assertEquals(owned.scene, selection.scene)
+        assertEquals(SplitPane.entries.toSet(), selection.scene?.keys)
+    }
+
+    // endregion
+
     @Test
     fun nativeEdgeCollapseAdoptsOnlyTheSurvivingOwnedRoot() {
         val fake = FakeShell()

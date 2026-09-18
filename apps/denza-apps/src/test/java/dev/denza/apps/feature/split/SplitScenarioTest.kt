@@ -1847,18 +1847,25 @@ class SplitScenarioTest {
      * `settleOccupant` писал в durable жильца, которого никто не видел. Путь OPEN тридцатью
      * строками выше делает ровно обратное - и его докстринг называет это инвариантом 9.
      *
-     * Здесь сосед исчезает между постусловием запуска и финальным чтением: сцена перестаёт быть
-     * нашей, read-back отказывает, операция откатывается, durable остаётся прежним.
+     * Здесь между постусловием запуска и финальным чтением в панель приходит ЧУЖАЯ задача: панель
+     * - это база и ОДНО приложение (1.5.2, инвариант 3), и такой мир не наш ни при какой area.
+     * Read-back отказывает, операция откатывается, durable остаётся прежним.
+     *
+     * Правка 2026-09-18: прежде этот же тест ронял соседнюю панель (`dismissPane`), и это было не
+     * «недоказуемо», а доказуемая сцена из ОДНОЙ панели - ровно тот мир, который живьём получил
+     * ложный `rolled-back reason=read-back failed`. Тот случай теперь коммитится и живёт в
+     * [aSelectionWhoseNeighbourCollapsesMidwayCommitsTheSinglePaneItProved]; здесь остался мир,
+     * который не наш по существу.
      */
     @Test
     fun aSelectionWhoseSceneCannotBeProvenCommitsNoOccupant() {
         val car = car(FakeShell().apply { liveProductScene() })
-        var neighbourGone = false
+        var intruderArrived = false
         val core = car.core(SplitDurable(enabled = true, slots = PICKER_PAIR)) { line ->
-            // Ровно между постусловием запуска и финальным чтением сосед исчезает.
-            if (line.contains("read-back начат") && !neighbourGone) {
-                neighbourGone = true
-                car.fake.dismissPane(SECONDARY_ROOT)
+            // Ровно между постусловием запуска и финальным чтением в панель приходит чужое.
+            if (line.contains("read-back начат") && !intruderArrived) {
+                intruderArrived = true
+                car.fake.addTask(PRIMARY_ROOT, 99, MUSIC, "$MUSIC.MainActivity")
             }
         }
         core.initialize {}
@@ -1871,9 +1878,49 @@ class SplitScenarioTest {
         core.selectApp(PRIMARY_PICKER_TASK, NAVIGATOR)
         car.barrier()
 
-        assertTrue("сосед действительно исчез до чтения", neighbourGone)
+        assertTrue("чужая задача действительно пришла до чтения", intruderArrived)
         assertEquals("недоказанная сцена ничего не коммитит", commitsBefore, car.store.commits)
         assertEquals("и прежние слоты остаются прежними", slotsBefore, car.store.load().slots)
+    }
+
+    /**
+     * Та же секунда, но мир доказуем: сосед схлопнулся между запуском и чтением.
+     *
+     * Это и есть живая сессия 2026-09-18 в её самой узкой форме. `dismissPane` - фикстурная модель
+     * жеста «Release to close»: area становится 1, корень выжившего растягивается на весь экран,
+     * в другом панельном корне не остаётся ни одной нашей базы. Пользователь при этом видит
+     * запущенное приложение на весь экран - и записать `{PRIMARY: APP, SECONDARY: CLOSED}` здесь
+     * не нарушение инварианта 9, а его исполнение: сцена доказана целиком, просто она `FULL(x)`
+     * (ось 2.3, 1.8.2). Прежнее ожидание «ничего не коммитить» кодировало строгость 2026-08-27,
+     * из-за которой Home сразу после такого выбора показал бы пикер вместо приложения (1.3.2).
+     */
+    @Test
+    fun aSelectionWhoseNeighbourCollapsesMidwayCommitsTheSinglePaneItProved() {
+        val car = car(FakeShell().apply { liveProductScene() })
+        var neighbourGone = false
+        val core = car.core(SplitDurable(enabled = true, slots = PICKER_PAIR)) { line ->
+            if (line.contains("read-back начат") && !neighbourGone) {
+                neighbourGone = true
+                car.fake.dismissPane(SECONDARY_ROOT)
+            }
+        }
+        core.initialize {}
+        core.openPickerSession()
+        car.barrier()
+
+        core.selectApp(PRIMARY_PICKER_TASK, NAVIGATOR)
+        car.barrier()
+
+        assertTrue("сосед действительно схлопнулся до чтения", neighbourGone)
+        assertEquals(
+            "записана та сцена, которую видит пользователь: одна панель с приложением",
+            mapOf(
+                SplitPane.PRIMARY to SplitSlot.App(NAVIGATOR),
+                SplitPane.SECONDARY to SplitSlot.Closed,
+            ),
+            car.store.load().slots,
+        )
+        assertEquals(SplitScreenPhase.ACTIVE, core.snapshot().phase)
     }
 
     /**
@@ -1909,6 +1956,155 @@ class SplitScenarioTest {
         assertFalse(
             "вставшее окно не казнено ложным rollback'ом",
             car.commands().any { it.contains(" remove-task ") },
+        )
+        assertEquals(SplitScreenPhase.ACTIVE, core.snapshot().phase)
+    }
+
+    /**
+     * Живая сессия 2026-09-18 18:58:27-18:58:36, контракт 1.8.2 → 1.5.1, ось сцены 2.3.
+     *
+     * Владелец схлопнул одну панель из «пикер | пикер»: прошивка ответила area 2, корень выжившего
+     * растянулся на весь экран, продукт записал `Full(SECONDARY)`. Тап по Навигатору в выжившем
+     * полноэкранном пикере прошёл (`startSplitWindow #68 type=32 newMode=102`, Навигатор виден над
+     * пикером), а ринг сказал `select outcome=rolled-back reason=read-back failed` при
+     * `read-back: area=2`: завершающее чтение требовало ОБЕ панели и принимало только area 0/3/4.
+     * Слот не записался, и первый же Home после такого выбора показал бы пикер вместо Навигатора
+     * (против 1.3.2, 1.3.4). Одна панель на весь экран - законная сцена, и сам рецепт выбора её
+     * уже признаёт: ожидаемая area остаётся 2.
+     */
+    @Test
+    fun aSelectionInTheSurvivingFullscreenPickerCommitsItsPane() {
+        val car = car(FakeShell().apply { liveProductScene() })
+        val core = car.core(SplitDurable(enabled = true, slots = PICKER_PAIR))
+        core.initialize {}
+        core.openPickerSession()
+        car.barrier()
+
+        // Жест «Release to close» по узкой панели: остаётся широкая, растянутая на весь экран.
+        car.fake.dismissPane(PRIMARY_ROOT)
+        core.pickerHidden(PRIMARY_PICKER_TASK)
+        car.barrier()
+        assertEquals(
+            "исходная сцена - одна панель на весь экран (1.8.2)",
+            mapOf(
+                SplitPane.PRIMARY to SplitSlot.Closed,
+                SplitPane.SECONDARY to SplitSlot.Picker,
+            ),
+            car.store.load().slots,
+        )
+
+        car.clearCommands()
+        val results = Collections.synchronizedList(mutableListOf<SplitActionResult>())
+        core.selectApp(SECONDARY_PICKER_TASK, NAVIGATOR, results::add)
+        car.barrier()
+
+        assertEquals("тап удался: ни ошибки, ни нотиса", listOf(SplitActionResult.SETTLED), results.toList())
+        assertEquals(
+            "выбор записан в выжившую панель, закрытая осталась закрытой",
+            mapOf(
+                SplitPane.PRIMARY to SplitSlot.Closed,
+                SplitPane.SECONDARY to SplitSlot.App(NAVIGATOR),
+            ),
+            car.store.load().slots,
+        )
+        assertTrue("и приложение стоит в корне выжившей панели", car.fake.hasPackage(SECONDARY_ROOT, NAVIGATOR))
+        assertNotEquals(
+            "сверху в панели именно оно, а не пикер под ним",
+            SECONDARY_PICKER_TASK,
+            car.fake.topTaskId(SECONDARY_ROOT),
+        )
+        assertFalse(
+            "вставшее окно не казнено ложным rollback'ом",
+            car.commands().any { it.contains(" remove-task ") },
+        )
+        assertEquals("мир так и остался одной панелью", 2, car.fake.area)
+        assertEquals(SplitScreenPhase.ACTIVE, core.snapshot().phase)
+    }
+
+    /** То же зеркально: выжила УЗКАЯ панель, прошивка отвечает area 1. */
+    @Test
+    fun aSelectionInTheSurvivingNarrowFullscreenPickerCommitsItsPane() {
+        val car = car(FakeShell().apply { liveProductScene() })
+        val core = car.core(SplitDurable(enabled = true, slots = PICKER_PAIR))
+        core.initialize {}
+        core.openPickerSession()
+        car.barrier()
+
+        car.fake.dismissPane(SECONDARY_ROOT)
+        core.pickerHidden(SECONDARY_PICKER_TASK)
+        car.barrier()
+        assertEquals(
+            mapOf(
+                SplitPane.PRIMARY to SplitSlot.Picker,
+                SplitPane.SECONDARY to SplitSlot.Closed,
+            ),
+            car.store.load().slots,
+        )
+
+        car.clearCommands()
+        val results = Collections.synchronizedList(mutableListOf<SplitActionResult>())
+        core.selectApp(PRIMARY_PICKER_TASK, NAVIGATOR, results::add)
+        car.barrier()
+
+        assertEquals(listOf(SplitActionResult.SETTLED), results.toList())
+        assertEquals(
+            mapOf(
+                SplitPane.PRIMARY to SplitSlot.App(NAVIGATOR),
+                SplitPane.SECONDARY to SplitSlot.Closed,
+            ),
+            car.store.load().slots,
+        )
+        assertTrue(car.fake.hasPackage(PRIMARY_ROOT, NAVIGATOR))
+        assertFalse(
+            "вставшее окно не казнено ложным rollback'ом",
+            car.commands().any { it.contains(" remove-task ") },
+        )
+        assertEquals("мир так и остался одной панелью", 1, car.fake.area)
+        assertEquals(SplitScreenPhase.ACTIVE, core.snapshot().phase)
+    }
+
+    /**
+     * И цена записанного выбора: следующее открытие (1.3.4).
+     *
+     * Записанная одна панель не превращает мир в усыновляемую сцену: открытие над полноэкранным
+     * выжившим по-прежнему СОБИРАЕТ закрытую панель свежим пикером, а приложение выжившей берёт
+     * на месте - без `am start` и без перезапуска (U2, 1.3.2).
+     */
+    @Test
+    fun theOpenAfterASelectionInTheSurvivorRebuildsOnlyTheClosedPane() {
+        val car = car(FakeShell().apply { liveProductScene() })
+        val core = car.core(SplitDurable(enabled = true, slots = PICKER_PAIR))
+        core.initialize {}
+        core.openPickerSession()
+        car.barrier()
+
+        car.fake.dismissPane(PRIMARY_ROOT)
+        core.pickerHidden(PRIMARY_PICKER_TASK)
+        car.barrier()
+        core.selectApp(SECONDARY_PICKER_TASK, NAVIGATOR)
+        car.barrier()
+        val navigatorTask = checkNotNull(car.fake.topTaskId(SECONDARY_ROOT))
+
+        car.clearCommands()
+        core.openPickerSession()
+        car.barrier()
+
+        assertFalse(
+            "живое приложение выжившей панели не перезапущено (U2)",
+            car.commands().any { it.startsWith("am start ") && it.contains(NAVIGATOR) },
+        )
+        assertTrue("это та же самая задача", car.fake.hasTask(navigatorTask))
+        assertEquals(
+            "закрытая панель собрана ровно одним свежим пикером (1.3.4)",
+            1,
+            car.commands().count { it.startsWith("am start ") && it.contains(SPLIT_PICKER_ACTIVITY) },
+        )
+        assertEquals(
+            mapOf(
+                SplitPane.PRIMARY to SplitSlot.Picker,
+                SplitPane.SECONDARY to SplitSlot.App(NAVIGATOR),
+            ),
+            car.store.load().slots,
         )
         assertEquals(SplitScreenPhase.ACTIVE, core.snapshot().phase)
     }
