@@ -43,10 +43,10 @@ class MainActivity : ComponentActivity() {
                         DenzaAppRepository::requestAdbAuthorizationOnce,
                     onAllowNewAdbAuthorizationAttempt =
                         DenzaAppRepository::allowNewAdbAuthorizationAttempt,
-                    onRefreshStockRussianLocale =
-                        DenzaAppRepository::refreshStockRussianLocale,
-                    onSetStockRussianLocaleEnabled =
-                        DenzaAppRepository::setStockRussianLocaleEnabled,
+                    onRefreshSystemLanguage =
+                        DenzaAppRepository::refreshSystemLanguage,
+                    onOpenSystemLanguage =
+                        DenzaAppRepository::openSystemLanguage,
                     onRefreshDefaultApps = DenzaAppRepository::refreshDefaultApps,
                     onSetDefaultAppsEnabled =
                         DenzaAppRepository::setDefaultAppsEnabled,

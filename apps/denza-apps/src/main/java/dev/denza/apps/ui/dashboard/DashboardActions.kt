@@ -38,7 +38,8 @@ data class DashboardActions(
     val onToggleHudGuidance: (Boolean) -> Unit,
     val onToggleSpeakerCovers: (Boolean) -> Unit,
     val onRaiseSpeakerCovers: () -> Unit,
-    val onSetStockRussianLocale: (Boolean) -> Unit,
+    /** Hand the language over to the car's own list; this app does not set it itself. */
+    val onOpenSystemLanguage: () -> Unit,
     val onSetDefaultAppsEnabled: (Boolean) -> Unit,
     val onChooseFseApp: () -> Unit,
     val onOpenClusterPicker: () -> Unit,
@@ -60,6 +61,7 @@ object DashboardPress {
             TileAction.CLUSTER_PROJECT -> actions.onNavigationAction()
             TileAction.SIMULCAST_LAUNCH -> actions.onLaunchSimulcast()
             TileAction.PASSENGER_INSTALL -> actions.onChooseFseApp()
+            TileAction.LANGUAGE_PICK -> actions.onOpenSystemLanguage()
             TileAction.SERVICE_OPEN -> actions.onOpenService()
             TileAction.SETTINGS -> actions.onOpenSettings(tile.id)
             TileAction.SPLIT_LAUNCH -> actions.onLaunchSplitScreen()
@@ -75,15 +77,11 @@ object DashboardPress {
             TileId.HUD -> actions.onToggleHudGuidance(!state.hudGuidance.desiredEnabled)
             TileId.SPEAKERS -> actions.onToggleSpeakerCovers(!state.speakerCovers.desiredEnabled)
             TileId.WEATHER -> actions.onSetWeatherEnabled(!state.weatherEnabled)
-            // Unknown is not off: a locale nobody has read yet is asked to come on, not to stay as
-            // it was, because the driver pressing this tile has said which way they want it.
-            TileId.LOCALE ->
-                actions.onSetStockRussianLocale(state.stockRussianLocale.enabled != true)
             TileId.DEFAULT_APPS ->
                 actions.onSetDefaultAppsEnabled(!state.defaultApps.substituting)
             // None of these is a thing that is on or off, so none can be toggled; the registry
             // never asks, and answering with their settings beats answering with nothing.
-            TileId.CLUSTER, TileId.SPLIT, TileId.PASSENGER, TileId.SERVICE ->
+            TileId.CLUSTER, TileId.SPLIT, TileId.PASSENGER, TileId.SERVICE, TileId.LOCALE ->
                 actions.onOpenSettings(id)
         }
     }
@@ -117,7 +115,8 @@ object DashboardPress {
             TileId.HUD -> actions.onToggleHudGuidance(true)
             TileId.SPEAKERS -> actions.onToggleSpeakerCovers(true)
             TileId.PASSENGER -> actions.onChooseFseApp()
-            // Weather has nothing to retry: it is an alarm, not a handshake.
+            // Weather has nothing to retry: it is an alarm, not a handshake. Nor has the
+            // language: the car's list cannot refuse and so never asks to be tried again.
             TileId.LOCALE, TileId.WEATHER, TileId.DEFAULT_APPS, TileId.SERVICE ->
                 actions.onOpenSettings(id)
         }
@@ -127,15 +126,14 @@ object DashboardPress {
      * What a tile's feature has to say for itself, for the ten that have a snapshot and the one
      * that does not.
      *
-     * The stock language is a switch in somebody else's settings rather than a coordinated feature,
-     * so it has no [FeatureSnapshot] and never will - inventing a [FeatureId] for it is exactly the
-     * fake feature [TileId] exists to avoid. It still fails, and a panel that reads its line off
-     * [snapshotOf] alone showed nothing at all when it did.
+     * The language has no [FeatureSnapshot] and never will - inventing a [FeatureId] for it is
+     * exactly the fake feature [TileId] exists to avoid. It used to need a line here anyway,
+     * because the per-application override could be refused and the refusal had nowhere else to
+     * go. Opening the car's own list cannot be refused, so it has nothing to report and says
+     * nothing.
      */
-    fun messageOf(id: TileId, state: DenzaUiState): String = when (id) {
-        TileId.LOCALE -> state.stockRussianLocale.message
-        else -> snapshotOf(id, state)?.message.orEmpty()
-    }
+    fun messageOf(id: TileId, state: DenzaUiState): String =
+        snapshotOf(id, state)?.message.orEmpty()
 
     /** The runtime snapshot behind a tile, or null for the tiles the runtime does not model. */
     fun snapshotOf(id: TileId, state: DenzaUiState): FeatureSnapshot? = when (id.feature) {

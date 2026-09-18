@@ -46,8 +46,8 @@ class DenzaUiStateStoreTest {
     @Test
     fun conditionalUpdateRejectsAbaBetweenPredicateAndCommit() {
         val store = DenzaUiStateStore()
-        val expectedLocale = store.snapshot().state.stockRussianLocale
-        val runningLocale = expectedLocale.copy(running = true)
+        val expectedLocale = store.snapshot().state.systemLanguage
+        val runningLocale = expectedLocale.copy(name = "Türkçe")
         val completedLocale = expectedLocale.copy()
         val predicateEntered = CountDownLatch(1)
         val releaseStaleCommit = CountDownLatch(1)
@@ -57,15 +57,15 @@ class DenzaUiStateStoreTest {
             val staleUpdate = executor.submit<Boolean> {
                 store.updateIf(
                     predicate = { current ->
-                        val unchanged = current.stockRussianLocale === expectedLocale
+                        val unchanged = current.systemLanguage === expectedLocale
                         predicateEntered.countDown()
                         check(releaseStaleCommit.await(5, TimeUnit.SECONDS))
                         unchanged
                     },
                     transform = { current ->
                         current.copy(
-                            stockRussianLocale = expectedLocale.copy(
-                                message = "Устаревшее значение",
+                            systemLanguage = expectedLocale.copy(
+                                name = "Устаревшее значение",
                             ),
                         )
                     },
@@ -73,14 +73,14 @@ class DenzaUiStateStoreTest {
             }
 
             assertTrue(predicateEntered.await(5, TimeUnit.SECONDS))
-            store.update { current -> current.copy(stockRussianLocale = runningLocale) }
-            store.update { current -> current.copy(stockRussianLocale = completedLocale) }
+            store.update { current -> current.copy(systemLanguage = runningLocale) }
+            store.update { current -> current.copy(systemLanguage = completedLocale) }
             releaseStaleCommit.countDown()
 
             assertFalse(staleUpdate.get(5, TimeUnit.SECONDS))
             assertEquals(expectedLocale, completedLocale)
             assertNotSame(expectedLocale, completedLocale)
-            assertSame(completedLocale, store.state.value.stockRussianLocale)
+            assertSame(completedLocale, store.state.value.systemLanguage)
         } finally {
             releaseStaleCommit.countDown()
             executor.shutdownNow()

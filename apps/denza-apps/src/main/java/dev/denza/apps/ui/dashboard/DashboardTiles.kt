@@ -52,6 +52,9 @@ enum class TileAction {
     /** Choose an application to put on the passenger screen. */
     PASSENGER_INSTALL,
 
+    /** Open the car's own list of languages, which sets the language of the whole system. */
+    LANGUAGE_PICK,
+
     /** Open service: the car's own readings, the app's access, the stock settings it reaches. */
     SERVICE_OPEN,
 
@@ -412,38 +415,29 @@ object DashboardTiles {
         )
     }
     /**
-     * Russian inside the car's own settings, which is a switch in stock firmware rather than
-     * anything this app draws.
+     * The language the whole car speaks, and the door to the car's own list of forty.
+     *
+     * It was a switch - Russian on, Russian off - because all this app could do was override one
+     * stock package's locale, and the switch carried the whole apparatus that needed: a permission
+     * asked for over ADB, a state nobody was allowed to read back, and three ways of saying no
+     * ("Нужен доступ", "Не переключился", "Не проверено"). The firmware's own picker changes the
+     * system locale outright, so none of that is left. The tile names the language the car is
+     * speaking and the press opens the list; there is nothing here that can refuse.
      */
     private fun locale(state: DenzaUiState): DashboardTile {
-        val snapshot = state.stockRussianLocale
         return DashboardTile(
             id = TileId.LOCALE,
             icon = TileIcon.LOCALE,
-            name = "Русский язык",
-            // A refusal is the news, and it used to be the one thing this tile could not report:
-            // the failure wrote a message nobody read and the tile went on saying "Выключен" in
-            // grey, which is what it says when nothing has been asked of it at all.
-            state = when {
-                // Two different refusals, and the difference is the only thing a driver can act
-                // on: the car said no, or nothing has been asked of it yet because the app has no
-                // way in. The sentence-length version of either is in the panel.
-                snapshot.failed && !snapshot.permissionReady -> "Нужен доступ"
-                snapshot.failed -> "Не переключился"
-                snapshot.enabled == true -> "Включён"
-                snapshot.enabled == false -> "Выключен"
-                else -> "Не проверено"
-            },
-            tone = when {
-                snapshot.running -> DenzaTileTone.WORKING
-                // Amber rather than coral: the press retries the change, so this is a decision
-                // still open rather than a feature that has broken.
-                snapshot.failed -> DenzaTileTone.ATTENTION
-                snapshot.enabled == true -> DenzaTileTone.LIVE
-                else -> DenzaTileTone.IDLE
-            },
+            name = "Язык системы",
+            // The language in its own word for itself, which is the word the list the press opens
+            // writes on the row that is selected.
+            state = state.systemLanguage.name,
+            // Quiet, like "Штатные" on the Shortcuts tile: a setting showing its value, not a
+            // feature that is running. There is no "off" to be grey about - the car is always
+            // speaking something - and the subtitle says which.
+            tone = DenzaTileTone.IDLE,
             caption = DenzaTileCaption.SETTING,
-            action = TileAction.TOGGLE,
+            action = TileAction.LANGUAGE_PICK,
         )
     }
 

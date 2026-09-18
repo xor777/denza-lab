@@ -10,7 +10,7 @@ import dev.denza.apps.feature.defaultapps.DefaultAppRole
 import dev.denza.apps.feature.defaultapps.DefaultAppRoleStatus
 import dev.denza.apps.feature.defaultapps.DefaultAppRoleUiState
 import dev.denza.apps.feature.defaultapps.DefaultAppsUiState
-import dev.denza.apps.feature.locale.StockRussianLocaleSnapshot
+import dev.denza.apps.feature.locale.SystemLanguageSnapshot
 import dev.denza.apps.ui.components.DenzaTileCaption
 import dev.denza.apps.ui.components.DenzaTileTone
 import org.junit.Assert.assertEquals
@@ -154,11 +154,7 @@ class DashboardTilesTest {
     fun theDoorCountsEveryTileButItselfAndPrintsTheSameList() {
         val state = DenzaUiState(
             mirrors = snapshot(FeatureStatus.NEEDS_ACTION),
-            stockRussianLocale = StockRussianLocaleSnapshot(
-                enabled = false,
-                permissionReady = true,
-                failed = true,
-            ),
+            speakerCovers = snapshot(FeatureStatus.NEEDS_ACTION),
             defaultApps = configuredDefaults(3).update(DefaultAppRole.VIDEO) { role ->
                 role.copy(status = DefaultAppRoleStatus.ERROR, providerConfirmed = false)
             },
@@ -166,7 +162,7 @@ class DashboardTilesTest {
 
         val needing = DashboardTiles.attentionTiles(state)
         assertEquals(
-            listOf(TileId.MIRRORS, TileId.LOCALE, TileId.DEFAULT_APPS),
+            listOf(TileId.MIRRORS, TileId.SPEAKERS, TileId.DEFAULT_APPS),
             needing.map { it.id },
         )
         // Whatever the door says is the length of that list, said in Russian.
@@ -465,35 +461,30 @@ class DashboardTilesTest {
     }
 
     /**
-     * The stock language has no runtime feature behind it and still has to be able to fail.
+     * The language tile names a language and opens a list; it has no opinion of its own.
      *
-     * Its refusals used to write a message nothing read, over a tile that took its colour from the
-     * saved value alone - so the car saying no looked exactly like a language nobody had asked for.
+     * It used to be a switch over a per-application override, which could be refused, so it wore
+     * amber and joined the service door's list of things needing somebody. The car's own picker
+     * sets the system locale and cannot refuse, so there is nothing left for this tile to report -
+     * and a tile that can never need attention must never appear behind that door.
      */
     @Test
-    fun aLanguageTheCarRefusedIsVisibleOnItsFaceAndInTheDoorsList() {
-        val refused = DenzaUiState(
-            stockRussianLocale = StockRussianLocaleSnapshot(
-                enabled = false,
-                permissionReady = true,
-                failed = true,
-                message = "Язык не переключился",
-            ),
-        )
-        assertEquals("Не переключился", refused.tile(TileId.LOCALE).state)
-        assertEquals(DenzaTileTone.ATTENTION, refused.tile(TileId.LOCALE).tone)
-        assertTrue(DashboardTiles.attentionTiles(refused).any { it.id == TileId.LOCALE })
+    fun theLanguageTileNamesTheLanguageAndNeverAsksForAnything() {
+        val russian = DenzaUiState(systemLanguage = SystemLanguageSnapshot(name = "Русский язык"))
+        assertEquals("Язык системы", russian.tile(TileId.LOCALE).name)
+        assertEquals("Русский язык", russian.tile(TileId.LOCALE).state)
+        assertEquals(DenzaTileTone.IDLE, russian.tile(TileId.LOCALE).tone)
+        assertEquals(TileAction.LANGUAGE_PICK, russian.tile(TileId.LOCALE).action)
 
-        // Nothing was attempted at all: the app has no way into the car yet, which is a different
-        // thing to say and the only one of the two a driver can act on.
-        val blocked = DenzaUiState(
-            stockRussianLocale = StockRussianLocaleSnapshot(failed = true, permissionReady = false),
-        )
-        assertEquals("Нужен доступ", blocked.tile(TileId.LOCALE).state)
+        // The subtitle is the car's word, whatever the car is speaking.
+        val turkish = DenzaUiState(systemLanguage = SystemLanguageSnapshot(name = "Türkçe"))
+        assertEquals("Türkçe", turkish.tile(TileId.LOCALE).state)
 
-        val quiet = DenzaUiState(stockRussianLocale = StockRussianLocaleSnapshot(enabled = true))
-        assertEquals("Включён", quiet.tile(TileId.LOCALE).state)
-        assertEquals(DenzaTileTone.LIVE, quiet.tile(TileId.LOCALE).tone)
+        // Every feature at once cannot put it behind the door, because it is not a feature.
+        assertFalse(
+            DashboardTiles.attentionTiles(everyFeatureAt(FeatureStatus.NEEDS_ACTION))
+                .any { it.id == TileId.LOCALE },
+        )
     }
 
     @Test

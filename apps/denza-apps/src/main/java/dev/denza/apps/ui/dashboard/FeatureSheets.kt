@@ -159,10 +159,9 @@ fun FeatureSheet(
             TileId.HUD -> hudSheet(state, actions, busy)
             TileId.WEATHER -> weatherSheet(state, actions)
             TileId.SPEAKERS -> speakerSheet(state, actions, busy)
-            TileId.LOCALE -> localeSheet(state, actions)
             // Nothing to switch: the paragraph below is the whole panel, and the button at the
             // foot is the one thing there is to do.
-            TileId.PASSENGER, TileId.DEFAULT_APPS, TileId.SERVICE -> Unit
+            TileId.LOCALE, TileId.PASSENGER, TileId.DEFAULT_APPS, TileId.SERVICE -> Unit
         }
         // `details` намеренно не рисуется. Это техническая строка - текст исключения мотора,
         // причина, по которой не взялся аудиоэффект, - и водителю она не сообщение, а мусор
@@ -207,8 +206,8 @@ private fun helpOf(id: TileId): String = when (id) {
             "которые машина своими не считает (${SpeakerCoverApps.EXAMPLES}). Убирает их машина " +
             "сама. «Поднять» выдвигает их снова, если машина убрала их в простое."
     TileId.LOCALE ->
-        "Родной русский язык уже встроен в систему — " +
-            "переключатель включает его в штатных настройках машины."
+        "Язык меняется у всей машины, а не у приложения: список открывает сама машина, " +
+            "в нём сорок языков, и выбранный применяется сразу, без перезагрузки."
     // The tile no longer opens a panel - both of its gestures open the chooser, and the sentence
     // is drawn at the chooser's foot. It stays in this table so the table stays exhaustive and so
     // the one sentence has one owner.
@@ -268,7 +267,7 @@ private fun panelAction(
             isTheTilePress = tile.action == TileAction.SIMULCAST_LAUNCH,
         )
         // Their switch is in the panel, so the foot would only be that switch again.
-        TileId.HUD, TileId.WEATHER, TileId.SPEAKERS, TileId.LOCALE -> PanelAction(
+        TileId.HUD, TileId.WEATHER, TileId.SPEAKERS -> PanelAction(
             label = "",
             onClick = {},
         )
@@ -288,6 +287,7 @@ private fun primaryLabel(tile: DashboardTile, state: DenzaUiState): String {
         TileAction.SIMULCAST_LAUNCH -> "Запустить"
         TileAction.SPLIT_LAUNCH -> "Разделить экран"
         TileAction.PASSENGER_INSTALL -> "Выбрать приложение"
+        TileAction.LANGUAGE_PICK -> "Выбрать язык"
         TileAction.SERVICE_OPEN -> "Открыть сервис"
         TileAction.TOGGLE -> if (on) "Выключить" else "Включить"
         TileAction.RESOLVE -> "Продолжить"
@@ -498,18 +498,6 @@ private fun speakerSheet(state: DenzaUiState, actions: DashboardActions, busy: B
             enabled = !reporting,
         )
     }
-}
-
-/** Russian in the car's own settings, which is a switch in stock firmware and nothing of ours. */
-@Composable
-private fun localeSheet(state: DenzaUiState, actions: DashboardActions) {
-    val locale = state.stockRussianLocale
-    DenzaSwitchRow(
-        title = "Русский язык",
-        checked = locale.enabled == true,
-        onCheckedChange = actions.onSetStockRussianLocale,
-        enabled = locale.permissionReady && !locale.running,
-    )
 }
 
 // The panel's own grid is gone, and with it the panel's own column count. The projection's

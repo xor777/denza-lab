@@ -38,10 +38,8 @@ import dev.denza.apps.feature.fse.FseInstallResult
 import dev.denza.apps.feature.hud.HudGuidanceRuntime
 import dev.denza.apps.feature.hud.HudGuidanceSettings
 import dev.denza.apps.feature.hud.HudNotificationAccessCoordinator
-import dev.denza.apps.feature.locale.StockRussianLocaleChange
-import dev.denza.apps.feature.locale.StockRussianLocaleCoordinator
-import dev.denza.apps.feature.locale.StockRussianLocaleSnapshot
-import dev.denza.apps.feature.locale.StockRussianLocaleStatus
+import dev.denza.apps.feature.locale.SystemLanguage
+import dev.denza.apps.feature.locale.SystemLanguageSnapshot
 import dev.denza.apps.feature.mirrors.MirrorDisplayReadiness
 import dev.denza.apps.feature.mirrors.MirrorsPosition
 import dev.denza.apps.feature.mirrors.MirrorsSettings
@@ -143,7 +141,7 @@ data class DenzaUiState(
     val setupRunning: Boolean = false,
     val adbRescue: AdbRescueSnapshot = AdbRescueSnapshot(),
     val defaultApps: DefaultAppsUiState = DefaultAppsUiState(),
-    val stockRussianLocale: StockRussianLocaleSnapshot = StockRussianLocaleSnapshot(),
+    val systemLanguage: SystemLanguageSnapshot = SystemLanguageSnapshot(),
     val weatherEnabled: Boolean = true,
     val weatherTemperature: Int? = null,
     val weatherUpdatedMillis: Long = 0L,
@@ -161,7 +159,6 @@ data class DenzaUiState(
 object DenzaAppRepository {
     private const val TAG = "DenzaApps.Repository"
     private val executor = Executors.newSingleThreadExecutor()
-    private val localeExecutor = Executors.newSingleThreadExecutor()
     private val defaultAppsExecutor = Executors.newSingleThreadExecutor()
     private val adbRuntimeStarted = AtomicBoolean(false)
     private val adbRuntimePassRunning = AtomicBoolean(false)
@@ -292,11 +289,9 @@ object DenzaAppRepository {
                 clusterDisplayLabel = clusterDisplayLabel,
             )
         }
-        // The stock locale is a tile on the main screen now, so it has to be read like every other
-        // tile's state. It used to be probed only when the diagnostics dialog opened, which was
-        // fine while it lived behind seven taps and is not fine on a tile that would otherwise sit
-        // there saying "не проверено" until somebody happened to open service.
-        refreshStockRussianLocale()
+        // The system language is a tile on the main screen, so it is read like every other tile's
+        // state. It is one call to [Locale.getDefault] and asks the car nothing.
+        refreshSystemLanguage()
     }
 
     fun setSimulcastEnabled(enabled: Boolean) {
@@ -799,33 +794,16 @@ object DenzaAppRepository {
         }
     }
 
-    fun refreshStockRussianLocale() {
-        val context = appContext ?: return
-        val expected = stateStore.snapshot().state.stockRussianLocale
-        if (expected.running) return
-        val result = runCatching { StockRussianLocaleCoordinator.inspect(context) }
-        val permissionReadyOnFailure = result.exceptionOrNull()?.let {
-            StockRussianLocaleCoordinator.hasPermission(context)
-        }
-        stateStore.updateIf(
-            // Unrelated state copies keep this exact slice instance. A locale operation replaces
-            // it, even when it eventually returns to structurally identical values (ABA).
-            predicate = { current -> current.stockRussianLocale === expected },
-            transform = { current ->
-                current.copy(
-                    stockRussianLocale = result.fold(
-                        onSuccess = { status -> localeSnapshot(status) },
-                        onFailure = { error ->
-                            localeFailure(
-                                error = error,
-                                previousEnabled = current.stockRussianLocale.enabled,
-                                permissionReady = permissionReadyOnFailure == true,
-                            )
-                        },
-                    ),
-                )
-            },
-        )
+    /**
+     * What language the car is speaking, read straight.
+     *
+     * No coordinator, no executor and no claim: this is [Locale.getDefault], which cannot fail and
+     * cannot be refused. The machinery the old per-application override needed - a permission
+     * granted over ADB, a running flag, an ABA-safe compare, two shapes of failure - all belonged
+     * to writing somebody else's locale, and nothing here writes anything.
+     */
+    fun refreshSystemLanguage() {
+        stateStore.update { current -> current.copy(systemLanguage = SystemLanguage.read()) }
     }
 
     /**
@@ -859,34 +837,16 @@ object DenzaAppRepository {
         stateStore.update { current -> current.copy(weatherEnabled = enabled) }
     }
 
-    fun setStockRussianLocaleEnabled(enabled: Boolean) {
+    /**
+     * Hand the language over to the car's own list.
+     *
+     * The whole feature. This app does not set the language, does not mirror what was chosen and
+     * does not need to be told afterwards: the car applies it to the system locale, every process
+     * is reconfigured, and this one comes back through [refreshSystemLanguage] like any other.
+     */
+    fun openSystemLanguage() {
         val context = appContext ?: return
-        val permissionReady = StockRussianLocaleCoordinator.hasPermission(context)
-        val start = claimStockRussianLocaleChange(enabled, permissionReady) ?: return
-        localeExecutor.execute {
-            val result = runCatching {
-                StockRussianLocaleCoordinator.setEnabled(context, enabled)
-            }
-            val permissionReadyOnFailure = result.exceptionOrNull()?.let {
-                StockRussianLocaleCoordinator.hasPermission(context)
-            }
-            val completed = result.fold(
-                onSuccess = { (change, override) ->
-                    localeSnapshot(
-                        status = override,
-                        reapplied = change == StockRussianLocaleChange.REAPPLIED,
-                    )
-                },
-                onFailure = { error ->
-                    localeFailure(
-                        error = error,
-                        previousEnabled = start.previousEnabled,
-                        permissionReady = permissionReadyOnFailure == true,
-                    )
-                },
-            )
-            stateStore.update { current -> current.copy(stockRussianLocale = completed) }
-        }
+        SystemLanguage.open(context)
     }
 
     private fun initializeAdbGate(context: Context) {
@@ -1862,97 +1822,8 @@ object DenzaAppRepository {
         }
     }
 
-    private data class LocaleChangeStart(val previousEnabled: Boolean?)
-
-    private fun claimStockRussianLocaleChange(
-        enabled: Boolean,
-        permissionReady: Boolean,
-    ): LocaleChangeStart? {
-        while (true) {
-            val snapshot = stateStore.snapshot()
-            val current = snapshot.state
-            if (current.stockRussianLocale.running) return null
-
-            if (!permissionReady && current.adbRescue.phase != AdbRescuePhase.TRUSTED) {
-                // The one prerequisite this switch has, as a state rather than as a lesson. The
-                // paragraph that used to sit in `details` - what ADB is for and what happens
-                // afterwards - was read by nothing on the screen, and the tile stayed grey while
-                // the press did nothing at all.
-                val blocked = current.copy(
-                    stockRussianLocale = StockRussianLocaleSnapshot(
-                        enabled = current.stockRussianLocale.enabled,
-                        permissionReady = false,
-                        failed = true,
-                        message = "Нужен доступ к машине",
-                    ),
-                )
-                if (stateStore.compareAndSet(snapshot, blocked)) return null
-                continue
-            }
-
-            val started = current.copy(
-                stockRussianLocale = current.stockRussianLocale.copy(
-                    running = true,
-                    message = when {
-                        !permissionReady -> "Один раз подготавливаю доступ…"
-                        enabled -> "Включаю ru-RU напрямую…"
-                        else -> "Возвращаю язык системы напрямую…"
-                    },
-                    details = null,
-                ),
-            )
-            if (stateStore.compareAndSet(snapshot, started)) {
-                return LocaleChangeStart(current.stockRussianLocale.enabled)
-            }
-        }
-    }
-
     private fun supportDiagnostics(context: Context): String =
         SupportDiagnostics.build(context, stateStore.snapshot().state.fseInstaller)
-
-    private fun localeSnapshot(
-        status: StockRussianLocaleStatus,
-        reapplied: Boolean = false,
-    ): StockRussianLocaleSnapshot = StockRussianLocaleSnapshot(
-        enabled = status.enabled,
-        permissionReady = status.permissionReady,
-        message = when {
-            status.enabled == null && status.permissionReady ->
-                "Выберите «Вкл» или «Выкл» один раз"
-            status.enabled == null ->
-                "Первый выбор подготовит системное разрешение"
-            status.enabled && reapplied ->
-                "Русский повторно применён. Переоткройте BYD Настройки"
-            status.enabled ->
-                "Русский включён. Переоткройте BYD Настройки"
-            !status.enabled && reapplied ->
-                "Язык системы повторно применён"
-            else ->
-                "Русский выключен. Используется язык системы"
-        },
-    )
-
-    /**
-     * A language change the car refused, said in a way something reads.
-     *
-     * The message written here used to go nowhere: the tile took its colour from the saved value
-     * alone, so a refusal left "Выключен" in the same grey as a language nobody had ever asked
-     * for, and the exception text under it was read by nothing at all. [failed] is what the tile
-     * and the service door see; the exception goes to logcat.
-     */
-    private fun localeFailure(
-        error: Throwable,
-        previousEnabled: Boolean?,
-        permissionReady: Boolean,
-    ): StockRussianLocaleSnapshot {
-        Log.w(TAG, "Stock Russian locale change failed", error)
-        return StockRussianLocaleSnapshot(
-            enabled = previousEnabled,
-            permissionReady = permissionReady,
-            failed = true,
-            message = "Язык не переключился",
-        )
-    }
 
     private fun loadAppChoices(context: Context): List<SimulcastAppChoice> {
         val selected = SimulcastApps.getSelected(context)

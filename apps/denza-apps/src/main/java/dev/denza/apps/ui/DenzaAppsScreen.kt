@@ -105,8 +105,8 @@ fun DenzaAppsRoot(
     onCheckAdbAccess: () -> Unit,
     onRequestAdbAuthorizationOnce: () -> Unit,
     onAllowNewAdbAuthorizationAttempt: () -> Unit,
-    onRefreshStockRussianLocale: () -> Unit,
-    onSetStockRussianLocaleEnabled: (Boolean) -> Unit,
+    onRefreshSystemLanguage: () -> Unit,
+    onOpenSystemLanguage: () -> Unit,
     onChooseApps: () -> Unit,
     onLoadAppChoices: () -> Unit,
     onCloseAppPicker: () -> Unit,
@@ -136,10 +136,10 @@ fun DenzaAppsRoot(
     // the service tile, and that is precisely when the readings are wanted. They live on the title
     // of [AdbExplainerSheet], which is a window with no other controls in it - a tap that is not the
     // seventh has nothing to hit.
-    val openService = remember(onRefreshScreenDiagnostics, onRefreshStockRussianLocale) {
+    val openService = remember(onRefreshScreenDiagnostics, onRefreshSystemLanguage) {
         {
             onRefreshScreenDiagnostics()
-            onRefreshStockRussianLocale()
+            onRefreshSystemLanguage()
             showDiagnostics = true
         }
     }
@@ -206,7 +206,7 @@ fun DenzaAppsRoot(
         onToggleHudGuidance,
         onToggleSpeakerCovers,
         onRaiseSpeakerCovers,
-        onSetStockRussianLocaleEnabled,
+        onOpenSystemLanguage,
         onSetDefaultAppsEnabled,
         onChooseFseApp,
         openClusterPicker,
@@ -235,7 +235,7 @@ fun DenzaAppsRoot(
             onToggleHudGuidance = onToggleHudGuidance,
             onToggleSpeakerCovers = onToggleSpeakerCovers,
             onRaiseSpeakerCovers = onRaiseSpeakerCovers,
-            onSetStockRussianLocale = onSetStockRussianLocaleEnabled,
+            onOpenSystemLanguage = onOpenSystemLanguage,
             onSetDefaultAppsEnabled = onSetDefaultAppsEnabled,
             onChooseFseApp = onChooseFseApp,
             onOpenClusterPicker = openClusterPicker,
