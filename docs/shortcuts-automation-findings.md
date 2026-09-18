@@ -497,6 +497,60 @@ the gate does not cover is starting the player's own activity, for which Denza
 Apps is already exempt from background-activity-launch limits through
 `SYSTEM_ALERT_WINDOW`, at the price of the player's window appearing.
 
+### The press the preparation swallowed, and what the car taught on 2026-09-18
+
+Live on the Z9GT, builds 48 to 51, read from the support report because this
+firmware's logcat shows nothing: a line written with `log -t DenzaMediaResume`
+never appears at all, even with the tag's own property set.
+
+**The defect.** A press is consumed the moment `MediaFocusPauseBridge` accepts a
+preparation, so a preparation that then failed dropped the press on the floor.
+The ring caught it three times in a row:
+
+```text
+19:49:41 386 ✓ ru.yandex.music pause-deferred
+19:49:42     ✗ focus unchanged com.byd.mediacenter,com.vk.vkvideo
+19:49:42     ✗ ru.yandex.music pause-preparation
+```
+
+Play went out normally, because Play never takes that path; pause and only pause
+did nothing at all, in split and out of it. Build 51 dispatches the pause
+whichever way the preparation went. The worst that costs is the suspended
+predecessor resuming itself, which is the fault the path was built to avoid and
+much the smaller of the two. Verified on the car: the pause landed, and neither
+`com.byd.mediacenter` nor `com.vk.vkvideo` resumed.
+
+**Open: why the helper cannot finish here.** It answered `unchanged` - no
+`DENZA_MEDIA_FOCUS_READY` line, so it threw - with those same two predecessors
+each time, while the focus stack held `com.byd.mediacenter` under
+`ru.yandex.music` and Yandex played through the car. Its guards are strict
+enough that several of them could be the one: every session of a package must
+agree on the state, the current target must be the top of the focus stack, and a
+predecessor must carry a transient loss. Not worth a live experiment until it
+costs something, now that a failed preparation no longer eats the press.
+
+**Remote playback invalidates any media-key reading.** Yandex Music casting to a
+home speaker holds no audio focus in the car and owns no audio track there, while
+its session still counts the track forward. That reads exactly like a broken car:
+an empty focus stack, a focus request surviving 39 ms, silence with a running
+position, and the firmware sending the wheel's keys to the stock player because
+the app that plays owns nothing locally. A first pass on this day blamed our own
+focus helper for all of it. Confirm the player is playing through the car's own
+speakers before reading anything else.
+
+**What the wheel sends.** Play/pause is `386`. Next and previous arrive twice
+each: the vendor code `307` or `308`, and then the standard `87` or `88` that
+`PhoneWindowManager` re-injects. So every skip costs two of the ring's twelve
+slots, and a minute of skipping hides every play/pause that came before.
+
+**Still ours, still unfixed.** Where several sessions report PLAYING at once -
+the audible player, a video paused in another pane, the stock player woken by a
+key we let through - the policy pauses whichever it finds first rather than the
+one the driver means, and any package that reports PLAYING becomes the persisted
+last-played, the stock player included. The report showed
+`Запомненная сессия=com.byd.mediacenter` on a car whose driver had been listening
+to Yandex all evening.
+
 ### What the support report says about the key (2026-09-11)
 
 `Log.i` under `DenzaMediaResume` is invisible on a car whose owner has no host
