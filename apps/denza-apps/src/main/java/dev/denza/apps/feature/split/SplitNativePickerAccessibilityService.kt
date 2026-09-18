@@ -90,7 +90,13 @@ class SplitNativePickerAccessibilityService : AccessibilityService() {
         val packageName = event.packageName?.toString()
         val className = event.className?.toString()
         val target = SplitAccessibilityEventPolicy.target(packageName, className)
-        if (target != SplitAccessibilityEventTarget.IGNORE) {
+        // Only the two pickers are worth a line. HOME matches the stock launcher by package
+        // alone, and in a window storm it printed up to twenty lines a second into an
+        // eleven-second logcat.
+        if (
+            target == SplitAccessibilityEventTarget.STOCK_PICKER ||
+            target == SplitAccessibilityEventTarget.PRODUCT_PICKER
+        ) {
             Log.i(TAG, "window event target=$target package=$packageName class=$className")
         }
         when (target) {
