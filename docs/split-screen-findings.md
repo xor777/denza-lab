@@ -1958,9 +1958,18 @@ drag, a collapse) and each cost a three-second area poll: `home suspend
 unconfirmed: area==0 не подтвердилось за ~3с`. Neither changes what the user
 sees.
 
-**A product question left to the owner.** After collapsing the picker pane
-next to music and reopening after Home, the product restored music into its
-recorded narrow pane and the picker into the wide one (1.3.4 to the letter);
-the owner expected "the app I kept is the main one". The firmware moves every
-collapse survivor into the wide container, so recording the survivor by its
-physical pane would match that expectation. Not decided.
+**The collapse survivor's pane - decided by the owner the same day.** After
+collapsing the picker pane next to music and reopening after Home, the product
+restored music into its recorded narrow pane and the picker into the wide one
+(1.3.4 to the letter); the owner expected "the app I kept is the main one". The
+firmware moves every collapse survivor into the wide container, and the code
+already knew it (the KDoc of `collapsedPaneByPanelBounds`). Reading the three
+settlement paths side by side showed they disagreed: the physical adoption
+(`readCollapsedSession` → `adoptCollapse`) recorded the survivor by the pane
+the area named, while the existence and root-bounds paths - the latter is what
+ran at 18:55:31 under Home - recorded it by the previous logical pane. The
+owner chose the physical pane. The collapse fact now carries both: the logical
+pane that closed and the pane the firmware left the survivor in; the survivor's
+slot, its live record and a projected navigator's pane move with it, on all
+three paths, and the next open puts the survivor in the wide pane with a fresh
+picker in the narrow one (contract 1.8.2, 1.3.4, section 5 "К 1.8").
