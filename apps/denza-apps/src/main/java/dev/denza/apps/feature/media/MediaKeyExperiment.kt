@@ -18,15 +18,18 @@ package dev.denza.apps.feature.media
  *     next and previous may be aimed at a target that stopped moving on 2026-09-05.
  *
  * Turning one switch off per build is the whole experiment, and the report line says which build is
- * on the car. [FOCUS_SURGERY] is off from build 49: on 2026-09-18 at 19:23:23 the helper ran, and
- * from 19:23:35 the vehicle's own `IviVehicleAudioBroker` began abandoning audio focus every 2.2
- * seconds, the focus stack stayed empty, and Yandex Music could hold a focus request for 39 ms and
- * never got an audio track - its session counted a track forward with no sound at all. That is the
- * suspect switched off while the question is open, not a proven verdict.
+ * on the car. Both are on: the first attempt to answer the question, on 2026-09-18, proved nothing
+ * and is worth writing down as a warning. The car showed an empty audio-focus stack, a Yandex focus
+ * request surviving 39 ms, no audio track behind a session that kept counting a track forward, and
+ * the vehicle's own broker abandoning focus every 2.2 seconds; the helper had run at 19:23:23 and
+ * looked guilty of all of it. The player was casting to the owner's home speaker. Remote playback
+ * holds no focus and owns no track in the car, which is every one of those readings, and it also
+ * sends the firmware's key routing to the stock player, which is the reported symptom. The
+ * experiment is only valid while the player is playing through the car's own speakers.
  */
 object MediaKeyExperiment {
     /** The shell helper that rewrites the car's audio-focus stack before a deferred pause. */
-    const val FOCUS_SURGERY = false
+    const val FOCUS_SURGERY = true
 
     /** The accessibility filter taking the wheel's play/pause key at all. */
     const val INTERCEPT_KEYS = true
