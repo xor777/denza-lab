@@ -118,6 +118,11 @@ leaves the feature unavailable instead of guessing a numeric display ID.
 
 ## App-owned instrument dashboard
 
+Definitions belong to [energy-display-contract.md](energy-display-contract.md):
+what an energy number means, in what words it is printed and in what shape it is
+drawn is owned there for both this panel and the head unit's car page, and that
+page wins wherever this section differs from it.
+
 Added 2026-08-25, and run on the car the same evening. The first live run is
 recorded under "What the first live run changed" below. **The composition was
 replaced on 2026-09-04** by the Contour, which won the cluster contest; what is
