@@ -148,10 +148,13 @@ it (`ContourValue.ledger`). Seat order on P: «ЗА ПОЕЗДКУ» at the edge
 
 ### 2.5 The engine
 
-Running = `ENGINE_RUNNING ≥ 1`, proven 0/3 through a full start/stop cycle. The
-revolutions (`ENGINE_RPM`, real rpm on the same cycle) are shown only while it
-runs. `G` = `GENERATION_KW`, proven parked to be kilowatts and to equal the
-pack's charge exactly while parked. **What `G` is in motion is open**: the two
+Running = `ENGINE_RUNNING ≥ 1`, proven 0/3 through a full start/stop cycle on
+2026-08-23 and 0/1/3/0 through the recorded one of 2026-09-18, where `1` was the
+cranking second and the flag fell three seconds after the kilowatts. The
+revolutions (`ENGINE_RPM`, the stepped set-point id; its `_20D` twin is the
+measured figure, within 40 rpm) are shown only while it runs. `G` =
+`GENERATION_KW`, proven parked - twice, the second time on the recorder - to be
+kilowatts and to equal the pack's charge exactly while parked. **What `G` is in motion is open**: the two
 drives so far say the engine ran with this id flat, which is consistent with `G`
 being the pack's charge from the engine (zero while the engine drives the wheels
 or feeds the motor) and inconsistent with it being the generator's output. Until
@@ -296,6 +299,11 @@ test.
 | whether `ENGINE_RPM` reports anything while the engine is off in motion | the same recording |
 | the chart's ceilings, 40 and 20 | the distribution of 500 m bins in the recording |
 | the stock zones' true edges | the grid photograph |
+
+The parked half of §2.5 is closed twice, the second time on the recorder
+(2026-09-18, `captures/vehicle-log/vehicle-20260918-183009.csv`, the first file
+`VehicleLogReplayTest` has run against); none of the rows above moved, because
+the car stood in P.
 
 Until the first three are closed the engine is drawn as §2.5 says and no other
 way.

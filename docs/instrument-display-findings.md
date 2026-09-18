@@ -898,11 +898,17 @@ words kept beside the decoded values so a decoding argument can be settled from
 the file afterwards. It changes nothing in the product and it reconnects when the
 car sleeps. `VehicleLogReplayTest` feeds whatever is in that directory through the
 log, the chart, the ledger and the trace and asserts the invariants that do not
-depend on what a signal means; it passes with the directory empty, which is where
-it stands today.
+depend on what a signal means; it passed with the directory empty until
+2026-09-18, when a parked engine cycle recorded with the Contour on the cluster
+became its first file (`docs/vehicle-data-findings.md`, «Second parked cycle»).
+It passes on that file, and items 2, 3, 8 and 10 still want the drive.
 
 The panel has been in front of the owner since 2026-09-05: build 44 was installed
-and driven, and the section above is what the first drive said.
+and driven, and the section above is what the first drive said. The energy
+contract has been on the car since 2026-09-11 (build 46, then 47 the same
+evening). On 2026-09-18 the owner ran the engine standing for two and a half
+minutes with the dashboard up - the first time §2.5's box could have been seen;
+what it looked like is not yet reported.
 
 ### Telemetry ownership
 

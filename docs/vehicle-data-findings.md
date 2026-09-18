@@ -829,7 +829,8 @@ What that pins down:
   held for a minute, 242 spinning down. `ENGINE_SPEED_20D` and `_GB` track it
   within about 40 rpm, so any of the three will do.
 - **`ENGINE_STATE` is `0` stopped and `3` running**, including through the
-  spin-down. No other value appeared.
+  spin-down. No other value appeared that day; the recorded cycle of 2026-09-18
+  below added `1` for the cranking second.
 - **Generation is in kilowatts.** It mirrored pack power exactly at every
   sample — `8` against `-8`, `10` against `-10` — which is the cross-check that
   settles the unit, and it independently re-confirms the discharge-positive sign
@@ -865,7 +866,63 @@ to be unambiguous regeneration, and a full-throttle pull. It also settles what a
 500 m consumption bin looks like on a real road, which is what the chart's
 ceilings are chosen against. `VehicleLogReplayTest` reads whatever the directory
 holds and asserts the invariants that do not depend on what a signal means; it
-passes with the directory empty, which is where it stands today.
+passed with the directory empty until 2026-09-18, when the parked cycle below
+became its first file.
+
+### Second parked cycle (2026-09-18, recorded, the Contour on the cluster)
+
+The first file `tools/vehicle_log.py` ever filled:
+`captures/vehicle-log/vehicle-20260918-183009.csv`, one row a second, the owner
+starting the engine standing in P with the dashboard already on the cluster
+(`SHOW_DASHBOARD` at 18:31:32, the start at 18:31:43, no cable on the gun). It
+repeats the 2026-08-23 cycle above on a recorder instead of a hand log, and adds
+five things.
+
+| t | `ENGINE_RUNNING` | rpm `0x14400012` | rpm `_20D` | `GENERATION_KW`, state | `POWER_KW` | `0x2ED00010` | pack V |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| before | 0 | 0 | 0 | 0, state 0 | +1 | +1 | 550 |
+| 0 s | **1** | 286 | 975 | 0, state 0 | +1 | +1 | 546 |
+| 1 s | 3 | 1643 | 1623 | 8, state 1 | −8 | −8 | 554 |
+| 2 s | 3 | 1410 | 1400 | 8, state 1 | −8 | −8 | 554 |
+| 3 s … 2:24 | 3 | **1360, flat** | 1323 … 1378 | 8, then 10 for 13 s, then 8; state 1 | −G | −G | 552 … 556 |
+| 2:25 | 3 | 1360 | 1345 | 0, **state 2** | −8 | −7 | 556 |
+| 2:26 | 3 | 1360 | 1339 | 0, state 2 | −4 | −4 | 554 |
+| 2:27 | 3 | 419 | 0 | 0, state 2 | +1 | +1 | 554 |
+| 2:28 | 0 | 0 | 0 | 0, state 2 for two more seconds | +1 | +1 | 554 |
+| 2:30 + | 0 | 0 | 0 | 0, state 0 | +1 | +1 | 553 |
+
+- **`ENGINE_RUNNING` has a third value.** It read `1` for the cranking second
+  (286 rpm on the primary id) before `3`, so «0 stopped and 3 running» above was
+  incomplete and `VehicleTelemetry.engineRunning`'s `≥ 1` is the right test, not
+  `== 3`. The flag fell three seconds after the kilowatts did; the trace's
+  ten-second hold covers that with room.
+- **The primary rpm id is stepped; the `_20D` twin is the measured one.**
+  `0x14400012` held exactly 1360 for 144 consecutive rows while `0x20D00008`
+  moved between 1323 and 1378 on the same rows; on the way in the primary
+  stepped 286 → 1643 → 1410 → 1360, on the way out 419 → 0. That is a set-point,
+  or a coarsely quantised read, and it is what the Contour prints: the calmer
+  figure, and the one that says what the engine is asked for. "Within about
+  40 rpm" above is the width of that difference.
+- **Generation mirrored pack power again**, `8`/`10` against `−8`/`−10`, at every
+  row but the two transitions where the two ids were sampled a second apart.
+  `0x2ED00010` mirrored `POWER_KW` on the same rows, transitions included: it is
+  pack power, twice proven, whatever the catalog calls it. The engine put
+  0.33 kWh into the pack in 2 min 24 s and the pack rose 550 → 556 V under it.
+- **`GENERATION_STATE` outlived the flag.** `2` arrived with the kilowatts at
+  zero, three seconds before the flag fell, and stayed two seconds after it.
+  Only `1` counts as generating - the rule above - and the flag, not the state,
+  says the engine is turning.
+- **`0x34200008`, catalogued as accelerator position, read `100` for the whole
+  run.** It ramped 0 → 75 → 100 in the two seconds before the flag rose and fell
+  to `0` in the same second as the kilowatts, the brake id at `0` throughout.
+  Whether the owner held the pedal to force the start or used the menu decides
+  whether this is a pedal or an engine-load request; asked, not yet answered.
+  The app does not read it.
+
+What the cycle does *not* add is anything about motion: the car stood in P, so
+`GENERATION_KW` and pack power were one number for the same reason as on
+2026-08-23. `VehicleLogReplayTest` runs against this file and passes; the drive
+that closes the open items is still owed.
 
 ### Engine itself — `com/byd/feature/engine/Engine.java`, dev `1012`
 
