@@ -318,6 +318,20 @@ Pause keeps its `ACTION_PAUSE` gate. That half was proven on the car, and a
 press it refuses reaches the firmware's pause handling, which is harmless. An
 explicit Pause key with nothing playing also stays with stock, as before.
 
+**A pause is a pause (2026-09-18, owner's decision).** The shell helper that
+removed suspended predecessors' audio-focus entries before a pause is switched
+off (`MediaKeyExperiment.FOCUS_SURGERY`), and a pause with paused predecessors is
+now dispatched like any other. The evidence is in the live section below: on
+the car the helper threw on six presses out of seven, cost every pause about
+650 ms, and the one time it succeeded it emptied the focus stack, so the next
+wheel press after the pause went to the stock player. The behaviour given up
+with it is the one it was built for: a player paused under a video may resume
+when that video is paused, which is the platform's own rule. The bridge, the
+helper and its proxy stay in the tree until the second step - taking the wheel's
+next and previous keys into the same policy - decides what, if anything, of
+theirs is still wanted. The rule the owner chose fits one sentence: the key
+controls what is audible, and play brings back what was audible last.
+
 **Reconnect (step 3)** uses the platform's own client contract, twice over, and
 names no package in code:
 

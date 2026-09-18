@@ -353,8 +353,14 @@ class MediaResumeCoreTest {
         assertEquals(1, current.pauses)
     }
 
+    /**
+     * The rule since 2026-09-18: a pause is a pause. A refused preparation - and with the focus
+     * helper switched off every preparation is refused - leaves the press with us and sends the
+     * ordinary pause, exactly as it would with no predecessor at all. The predecessor is not
+     * commanded either way; whether it resumes by itself is the platform's business now.
+     */
     @Test
-    fun `rejected pause preparation leaves current session untouched`() {
+    fun `refused pause preparation still pauses the current session`() {
         val core = core()
         val previous = FakeTarget("previous", MediaResumePlayback.PLAYING)
         val current = FakeTarget("current", MediaResumePlayback.TRANSITIONAL)
@@ -364,14 +370,16 @@ class MediaResumeCoreTest {
         core.onPlayback(current.identity, MediaResumePlayback.PLAYING)
 
         val decision = core.perform(MediaResumeCommand.PAUSE, deferPause = { _, _ -> false })
-        assertFalse(decision.accepted)
-        assertEquals(MediaResumeReason.PAUSE_PREPARATION, decision.reason)
-        assertEquals(0, current.pauses)
+        assertTrue(decision.accepted)
+        assertEquals(MediaResumeReason.PAUSE, decision.reason)
+        assertEquals(1, current.pauses)
         assertEquals(0, previous.plays)
+        assertEquals(0, previous.pauses)
     }
 
+    /** With no preparation wired at all - the shipped state - the outcome is the same direct pause. */
     @Test
-    fun `pause preparation exception leaves both sessions untouched`() {
+    fun `without any preparation a pause with predecessors is an ordinary pause`() {
         val core = core()
         val previous = FakeTarget("previous", MediaResumePlayback.PLAYING)
         val current = FakeTarget("current", MediaResumePlayback.TRANSITIONAL)
@@ -380,10 +388,27 @@ class MediaResumeCoreTest {
         current.playback = MediaResumePlayback.PLAYING
         core.onPlayback(current.identity, MediaResumePlayback.PLAYING)
 
-        assertFalse(core.performed(MediaResumeCommand.PAUSE, deferPause = { _, _ -> error("helper failed") }))
+        val decision = core.perform(MediaResumeCommand.PAUSE)
+        assertTrue(decision.accepted)
+        assertEquals(MediaResumeReason.PAUSE, decision.reason)
+        assertEquals(1, current.pauses)
+        assertEquals(0, previous.plays)
+    }
+
+    @Test
+    fun `pause preparation exception still pauses the current session and nothing else`() {
+        val core = core()
+        val previous = FakeTarget("previous", MediaResumePlayback.PLAYING)
+        val current = FakeTarget("current", MediaResumePlayback.TRANSITIONAL)
+        core.reconcile(listOf(previous, current))
+        previous.playback = MediaResumePlayback.PAUSED
+        current.playback = MediaResumePlayback.PLAYING
+        core.onPlayback(current.identity, MediaResumePlayback.PLAYING)
+
+        assertTrue(core.performed(MediaResumeCommand.PAUSE, deferPause = { _, _ -> error("helper failed") }))
         assertEquals(0, previous.plays)
         assertEquals(0, previous.pauses)
-        assertEquals(0, current.pauses)
+        assertEquals(1, current.pauses)
     }
 
     @Test

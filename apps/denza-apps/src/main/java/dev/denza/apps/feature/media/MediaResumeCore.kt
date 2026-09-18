@@ -316,13 +316,13 @@ internal class MediaResumeCore(private val store: MediaLastPlayedStore) {
                     runCatching(it::isLive).getOrDefault(false)
             }
         }
-        if (predecessors.isNotEmpty()) {
-            val accepted = runCatching { deferPause(target, predecessors) }.getOrDefault(false)
-            return MediaResumeDecision(
-                accepted,
-                if (accepted) MediaResumeReason.PAUSE_DEFERRED else MediaResumeReason.PAUSE_PREPARATION,
-                selected.entry.packageName,
-            )
+        // A preparation that is accepted owns the press from here. One that is refused, or absent,
+        // or throws, changes nothing about what the driver asked for: the pause goes out below,
+        // exactly as it would with no predecessor at all. Until 2026-09-18 a refusal handed the
+        // press back to the firmware and a failure after acceptance lost it outright; both made
+        // the same key do different things on different days, which is the one thing it must not.
+        if (predecessors.isNotEmpty() && runCatching { deferPause(target, predecessors) }.getOrDefault(false)) {
+            return MediaResumeDecision(true, MediaResumeReason.PAUSE_DEFERRED, selected.entry.packageName)
         }
 
         val dispatched = runCatching(target::pause).isSuccess
