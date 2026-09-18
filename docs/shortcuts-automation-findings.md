@@ -1115,7 +1115,7 @@ The former hidden automatic Map-mode follower and its
 `DEFAULT_MAP_SWITCH` therefore no longer changes Denza Apps projection state.
 
 Related RF work: the per-app `ru-RU` override for `com.byd.carsettings` in
-[stock-russian-locale.md](stock-russian-locale.md). Shortcuts UI strings stay
+[system-language.md](system-language.md). Shortcuts UI strings stay
 Chinese; that is BYD's catalog, not a Denza Apps translation job.
 
 ## Restore-wrapped live probe

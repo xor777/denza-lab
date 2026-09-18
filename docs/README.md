@@ -12,7 +12,7 @@ Use this folder for durable project knowledge.
 | `audio-capture-findings.md` | Verified output-mix spectrum source, calibration, permissions, product adoption, and remaining audio checks. |
 | `speaker-lift-findings.md` | Devialet flip covers; live-proven direct motor edges, the stock-auto latch side effect, Denza Apps app/MediaSession/output-mix automation, and superseded trigger hypotheses. |
 | `vehicle-data-findings.md` | Live-car matrix of usable GNSS/IMU/journey data, blocked DiCar getters, `autoservice` FID protocol, widget allowlist, and product boundaries. |
-| `stock-russian-locale.md` | Captured BYD Settings locale behavior, stock Russian resources, and the narrow verified Denza Apps toggle. |
+| `system-language.md` | The firmware's forty languages, the unlisted picker that reaches them, the vendor HAL that applies one live, and the Denza Apps tile. |
 | `dishare-api-notes.md` | DiShare/HUD reverse-engineering notes and raw API findings. |
 | `fse-app-installation.md` | Passenger-screen Android discovery, SMB delivery, stock cross-device install trigger, verification, and limitations. |
 | `split-screen-findings.md` | Live-proven BYD split substrate, explicit one-package picker flow, acceptance evidence, and retired approaches. |
