@@ -34,9 +34,11 @@ import kotlin.math.roundToInt
  *
  * ### A hole is a point, and it is a drawing rule
  *
- * A point whose kilometre has under half its road known is `NaN` ([ConsumptionSample.isKnown], one
- * rule asked of a sum): drawn as nothing, the line breaks there, and the road under it is still on
- * the axis. A grid step no bucket covers at all is `NaN` too, for the same reason and more bluntly
+ * A point with under half a kilometre of known road behind it is `NaN` ([ConsumptionSample.isKnown]
+ * asked of the kilometre, not of whatever road happened to be recorded - a point right after a
+ * hole is the mean of a hundred metres, which is the spike this chart exists to be rid of, so the
+ * line resumes half a kilometre after a hole rather than at once): drawn as nothing, the line
+ * breaks there, and the road under it is still on the axis. A grid step no bucket covers at all is `NaN` too, for the same reason and more bluntly
  * - the points stand on the odometer's grid, so a stretch the log has no record of is a stretch of
  * holes and never a compression of the axis. There are no partial widths anywhere: the figure's own
  * exclusion is §2.6's and is a different question.
@@ -151,8 +153,11 @@ internal object ConsumptionChart {
                 trailingKm += km[slot]
                 trailingKnown += known[slot]
             }
+            // The half-known rule is asked of the whole kilometre, not of the road recorded in it:
+            // after a hole the first point is drawn when half a kilometre is known, not after the
+            // first hundred metres.
             values[index] =
-                ConsumptionSample.valueOf(trailingKwh, trailingKm, trailingKnown).toFloat()
+                ConsumptionSample.valueOf(trailingKwh, SMOOTH_KM, trailingKnown).toFloat()
         }
         return ConsumptionChartSnapshot(values)
     }

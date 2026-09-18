@@ -218,8 +218,8 @@ class VehicleLogReplayTest {
      *
      * The value, the hole rule and the grid-step rule, all three against arithmetic this test does
      * itself: a point is `Σ kWh / Σ knownKm × 100` over the kilometre ending at it, `NaN` where
-     * under half of that kilometre's recorded road is known, and `NaN` where no bucket covers its
-     * own hundred metres at all.
+     * under half of that kilometre is known road, and `NaN` where no bucket covers its own hundred
+     * metres at all.
      */
     private fun checkPoints(
         file: File,
@@ -243,7 +243,8 @@ class VehicleLogReplayTest {
                 sumKm += road[step]
                 sumKnown += known[step]
             }
-            val readable = road[slot] > 0.0 && sumKnown > 0.0 && sumKnown * 2.0 >= sumKm - 1e-9
+            val readable = road[slot] > 0.0 && sumKnown > 0.0 &&
+                sumKnown * 2.0 >= ConsumptionChart.SMOOTH_KM - 1e-9
             if (!readable) {
                 assertTrue(
                     "${file.name} at $at s: point $index is drawn over ${road[slot]} km of its own " +

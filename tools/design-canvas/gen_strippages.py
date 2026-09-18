@@ -284,7 +284,9 @@ def history(average, launch=False, hole=None):
         for i in range(70, 80):
             points[i] = round(CHART_FULL * 1.2, 1)
     if hole is not None:
-        for i in hole:
+        # And the four points after it: a point with under half a kilometre of known road behind
+        # it is a hole too, so the line resumes half a kilometre after the road does.
+        for i in range(min(hole), min(max(hole) + 1 + CHART_SMOOTH // 2 - 1, len(points))):
             points[i] = None
     return points
 

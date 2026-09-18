@@ -54,7 +54,8 @@ class ConsumptionChartTest {
             km += overlap
             known += sample.knownKm * share
         }
-        if (known <= 0.0 || known * 2.0 < km - 1e-9) return Double.NaN
+        // Half of the kilometre, not half of the road recorded in it.
+        if (known <= 0.0 || known * 2.0 < ConsumptionChart.SMOOTH_KM - 1e-9) return Double.NaN
         return kwh / known * 100.0
     }
 
@@ -148,9 +149,10 @@ class ConsumptionChartTest {
     fun theNewestPointIsTheStepTheNewestBucketEndsIn() {
         assertEquals("100.4→100.5 is step 1004", 1004L, ConsumptionChart.stepOf(100.45))
         assertEquals("and 100.5 opens 1005", 1005L, ConsumptionChart.stepOf(100.5))
-        val chart = ConsumptionChart.of(listOf(bucket(100.5, 0.02)))
-        assertEquals("one bucket is one point", 1, chart.values.size)
-        assertEquals(0.02 / 0.1 * 100.0, chart.values[0].toDouble(), 1e-4)
+        // Half a kilometre of buckets, so the newest point is a reading and not a hole.
+        val chart = ConsumptionChart.of(road(5, toKm = 100.5))
+        assertEquals("five buckets are five points", 5, chart.values.size)
+        assertEquals(0.02 / 0.1 * 100.0, chart.values.last().toDouble(), 1e-4)
     }
 
     /**
@@ -219,6 +221,32 @@ class ConsumptionChartTest {
         assertMatchesTrailingMeans(buckets)
     }
 
+    /**
+     * After a hole the line waits for half a kilometre of known road.
+     *
+     * The owner's photograph of 2026-09-18 had a bin one fifth wide beside a hole; a point over a
+     * hundred metres of known road would be the same spike drawn as a dot. The rule is asked of
+     * the kilometre, not of the road that happened to be recorded.
+     */
+    @Test
+    fun theLineResumesHalfAKilometreAfterAHole() {
+        val before = (1..10).map { bucket(100.0 + it * 0.1, 0.02) }
+        val after = (1..10).map { bucket(102.0 + it * 0.1, 0.02) }
+        val chart = ConsumptionChart.of(before + after)
+        val known = (0 until chart.values.size).map { !chart.values[it].isNaN() }
+        assertEquals(
+            "holes over the gap and four hundred metres past it",
+            (10 until 24).toList(),
+            known.indices.filter { !known[it] && it >= 10 },
+        )
+        assertEquals(
+            "the first reading after the gap is the mean of half a kilometre",
+            0.1 / 0.5 * 100.0,
+            chart.values[24].toDouble(),
+            1e-4,
+        )
+    }
+
     /** And the boundary is exactly half, which is a reading. */
     @Test
     fun exactlyHalfAKnownKilometreIsStillAReading() {
@@ -256,7 +284,10 @@ class ConsumptionChartTest {
         for (index in 10 until 20) {
             assertTrue("point $index stands on road nobody recorded", chart.values[index].isNaN())
         }
-        assertFalse("and the road resumes", chart.values[20].isNaN())
+        // The road resumes at 102.1, and the line half a kilometre later: a point over a hundred
+        // metres of known road is the spike the chart exists to be rid of.
+        for (index in 20 until 24) assertTrue("point $index has under half a kilometre", chart.values[index].isNaN())
+        assertFalse("and the line resumes at half a kilometre", chart.values[24].isNaN())
         assertFalse(chart.values[9].isNaN())
         assertMatchesTrailingMeans(before + after)
     }
@@ -287,7 +318,10 @@ class ConsumptionChartTest {
         val chart = ConsumptionChart.of(road(30, toKm = 103.0))
         assertEquals(30, chart.values.size)
         assertEquals(30, chart.span)
-        assertTrue("nothing in it is a hole", chart.values.none { it.isNaN() })
+        // The first four points have under half a kilometre behind them and are holes; from the
+        // fifth on the log is a reading.
+        for (index in 0 until 4) assertTrue("point $index", chart.values[index].isNaN())
+        assertTrue("nothing past half a kilometre is a hole", chart.values.drop(4).none { it.isNaN() })
     }
 
     /**
@@ -350,11 +384,15 @@ class ConsumptionChartTest {
     @Test
     fun aBucketEndingOnAGridEdgeIsWalkedOnceAndTerminates() {
         // Every hundred-metre edge from 0.1 to 20.0, one bucket each, and a chart built from each.
+        // A lone hundred metres is a hole under the half-kilometre rule, so the walk is checked by
+        // the point count and then by half a kilometre of buckets ending on the same edge.
         for (tenth in 1..200) {
             val end = tenth / 10.0
             val chart = ConsumptionChart.of(listOf(bucket(end, 0.02)))
             assertEquals("one bucket at $end km is one point", 1, chart.values.size)
-            assertEquals("at $end km", 20.0, chart.values[0].toDouble(), 1e-6)
+            val half = ConsumptionChart.of(List(5) { bucket(end - (4 - it) * 0.1, 0.02) })
+            assertEquals("five buckets to $end km are five points", 5, half.values.size)
+            assertEquals("at $end km", 20.0, half.values.last().toDouble(), 1e-6)
         }
         // And buckets carrying several steps, each ending on an edge: every step gets its own road
         // and nothing gets it twice.
@@ -369,8 +407,12 @@ class ConsumptionChartTest {
                 chart.values.size * ConsumptionChart.PITCH_KM,
                 1e-9,
             )
-            // The whole bucket is one rate, so every point over it reads that rate.
-            chart.values.forEach { assertEquals(20.0, it.toDouble(), 1e-6) }
+            // The whole bucket is one rate, so every point with half a kilometre behind it reads
+            // that rate; the first four have less and are holes.
+            chart.values.forEachIndexed { index, value ->
+                if (index < 4) assertTrue("point $index of $steps", value.isNaN())
+                else assertEquals("point $index of $steps", 20.0, value.toDouble(), 1e-6)
+            }
         }
     }
 

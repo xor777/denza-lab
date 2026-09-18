@@ -126,9 +126,11 @@ retains thirty, so the first point of a full window is backed by road older than
 the window. A log with less shows fewer points, and the run is anchored at the
 right edge as before, where new road arrives.
 
-**A hole is a point, and it is a drawing rule.** A point whose kilometre has under
-half its road known is `NaN`: drawn as nothing, the line breaks there and resumes
-where the road is known again, and the road under it is still on the axis - the
+**A hole is a point, and it is a drawing rule.** A point with under half a
+kilometre of known road behind it is `NaN` - half of the kilometre, not half of
+whatever road was recorded in it, so the line resumes half a kilometre after the
+road does rather than with a hundred-metre mean: drawn as nothing, the line
+breaks there and resumes where the road is known again, and the road under it is still on the axis - the
 points stand on the odometer's grid, so a stretch with no buckets at all is a
 stretch of `NaN` points and never a compression of the axis. There are **no
 partial widths** anywhere any more: the partial newest bin, and with it the spike

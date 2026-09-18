@@ -353,8 +353,15 @@ internal class VehicleTelemetryHub(context: Context) {
     }
 
     private companion object {
-        /** Buckets per journal write: one kilometre of road. */
-        const val FLUSH_EVERY = 10
+        /**
+         * Buckets per journal write: every one.
+         *
+         * It was ten - a kilometre of road a write - and the head unit does not stop the process
+         * politely when the car is switched off, so up to nine hundred metres of the end of every
+         * drive were lost with the batch, which is a hole at the end of every drive on a chart
+         * that now exists to have none. A line of thirty-six bytes per hundred metres is nothing.
+         */
+        const val FLUSH_EVERY = 1
 
         /** How often the trip record is made durable. See [saveTrip]. */
         const val TRIP_SAVE_MS = 10_000L

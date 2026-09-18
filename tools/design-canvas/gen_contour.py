@@ -1155,10 +1155,12 @@ def with_hole(points, start, stop):
     """The same road with a stretch the log has no energy for: a hole, not a zero.
 
     The points either side keep their places on the odometer's grid, so the line
-    breaks and resumes rather than closing the gap up.
+    breaks and resumes rather than closing the gap up - half a kilometre after the
+    road does, because a point with under half a kilometre of known road behind
+    it is a hole too (ConsumptionChart, the half-known rule asked of the kilometre).
     """
     out = list(points)
-    for i in range(start, stop):
+    for i in range(start, min(stop + PETAL_SMOOTH // 2 - 1, len(out))):
         out[i] = None
     return out
 
