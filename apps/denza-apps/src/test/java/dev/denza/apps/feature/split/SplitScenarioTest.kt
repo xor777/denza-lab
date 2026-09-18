@@ -3456,6 +3456,124 @@ class SplitScenarioTest {
     }
 
     /**
+     * Живая гонка 2026-09-18, 19:51:52-19:51:53. Home в 19:51:52.39; оконный хинт запустил сверку
+     * примерно на +0,85 с, и её ПЕРВОЕ чтение area увидело 0. Дальше сверка потратила семь
+     * обращений на рецепты схлопывания и существования и только в самом конце перечитала area ради
+     * подвески - на +1,06 с, через 0,01 с после того, как прошивка ответила `startSplitWindow` на
+     * обычный запуск Denza Apps с рабочего стола (тап на +1,04 с). Area отвечала уже 3,
+     * подвешивать было нечего, и пользователь получил «Split с АДАСом» - против 1.9.2. Решающее
+     * чтение было у продукта на руках за 0,2 с до этого.
+     *
+     * Здесь измеряется ровно это: подвеска стоит ПЕРВЫМ делом сверки, до адопции и до любого
+     * рецепта, и стоит ровно одно чтение area (К 1.12 - полномочие подвески всегда прочитанная
+     * area, а не событие).
+     */
+    @Test
+    fun theReconcileSuspendsTheGateOnItsFirstAreaReadBeforeAnyRecipe() {
+        val car = car(FakeShell(initialGate = true).apply { liveProductScene(withApps = true) })
+        val core = car.core(SplitDurable(enabled = true, slots = APP_PAIR))
+        car.gateLease.setOwned(true)
+        core.initialize {}
+        core.openPickerSession()
+        car.barrier()
+        car.clearCommands()
+
+        car.fake.area = 0
+        core.dividerResized()
+        car.barrier()
+
+        assertFalse("gate снят с накрытой сцены (1.9.2)", car.fake.isGateOpen())
+        val commands = car.commands()
+        val closedAt = commands.indexOf(GATE_CLOSE)
+        assertTrue("подвеска вообще случилась", closedAt >= 0)
+        val firstRecipeRead = commands.indexOfFirst(::isTopologyRead)
+        assertTrue("и сверка вообще читала топологию", firstRecipeRead >= 0)
+        assertTrue(
+            "gate закрыт ДО первого чтения топологии: рецепты стоят обращений, а каждая десятая " +
+                "доля секунды с открытым gate под накрытием - это чужой запуск, втянутый в " +
+                "split (1.9.2); закрытие на позиции $closedAt, первое чтение мира на " +
+                "$firstRecipeRead, журнал $commands",
+            closedAt < firstRecipeRead,
+        )
+        assertEquals(
+            "и предшествует ему ровно одно чтение area - то самое, которым решена подвеска (К 1.12)",
+            1,
+            commands.take(closedAt).count { it == SPLIT_AREA_QUERY },
+        )
+        assertEquals(
+            "живую пару пользователя никто не трогал: подвеска - единственная мутация",
+            listOf(GATE_CLOSE),
+            car.mutations(),
+        )
+        assertEquals("выбор пользователя цел", APP_PAIR, car.store.load().slots)
+    }
+
+    /**
+     * Та же гонка 19:51:53, доигранная до конца: «раскрыто посреди прохода».
+     *
+     * Первое чтение сверки отвечает 0 - Home на экране, - а каждое следующее уже 3, потому что
+     * прошивка успела втянуть в split запуск с рабочего стола. Продукт обязан закрыть gate по
+     * первому чтению (иначе повторяется сам дефект), а потом обязан открыть его обратно: корни
+     * по-прежнему держат нашу пару целиком, рецепт доказывает сцену, ось возвращается в VISIBLE -
+     * и видимая сцена с закрытым gate это состояние, в котором прошивка отвечает
+     * `startFullWindow` на любой move-to-front члена сцены (К 1.12, «gate следует за видимостью
+     * сцены в обе стороны»). Правильный ответ поэтому не «не закрывать», а «закрыть и открыть»:
+     * одно закрытие, одно открытие, и ни одного такта с открытым gate под накрытием.
+     *
+     * `coveredBefore` считается ПОСЛЕ подвески именно ради этого прохода: без этого закрытие
+     * первого чтения осталось бы без своего возобновления.
+     */
+    @Test
+    fun aSceneUncoveredMidPassIsClosedOnTheFirstReadAndReopenedAtTheEnd() {
+        val car = car(FakeShell(initialGate = true).apply { liveProductScene(withApps = true) })
+        val core = car.core(SplitDurable(enabled = true, slots = APP_PAIR))
+        car.gateLease.setOwned(true)
+        core.initialize {}
+        core.openPickerSession()
+        car.barrier()
+        car.clearCommands()
+
+        // Первое чтение застало Home; всё остальное этой сверки читает уже 3.
+        car.fake.area = 3
+        car.fake.areaReadAnswers += 0
+        core.dividerResized()
+        car.barrier()
+
+        val commands = car.commands()
+        val closedAt = commands.indexOf(GATE_CLOSE)
+        val openedAt = commands.indexOf(GATE_OPEN)
+        val firstRecipeRead = commands.indexOfFirst(::isTopologyRead)
+        assertEquals("ровно одна подвеска", 1, commands.count { it == GATE_CLOSE })
+        assertEquals("и ровно одно возобновление", 1, commands.count { it == GATE_OPEN })
+        assertTrue("сверка вообще читала топологию", firstRecipeRead >= 0)
+        assertTrue(
+            "gate закрыт по первому же чтению area, до рецептов (1.9.2): закрытие на позиции " +
+                "$closedAt, первое чтение мира на $firstRecipeRead, журнал $commands",
+            closedAt in 0 until firstRecipeRead,
+        )
+        assertTrue(
+            "и открыт обратно уже после них - сцену доказал рецепт (К 1.12): открытие на позиции " +
+                "$openedAt, журнал $commands",
+            openedAt > firstRecipeRead,
+        )
+        assertTrue("сцена снова на экране - gate открыт", car.fake.isGateOpen())
+        assertEquals(
+            "ось видимости вернулась за доказанной сценой",
+            SceneVisibility.VISIBLE,
+            core.currentState().visibility,
+        )
+        assertTrue("аренда осталась нашей", car.gateLease.isOwned())
+        assertEquals("выбор пользователя цел", APP_PAIR, car.store.load().slots)
+        assertTrue(car.fake.hasTask(PRIMARY_APP_TASK))
+        assertTrue(car.fake.hasTask(SECONDARY_APP_TASK))
+        assertEquals(
+            "и ни одной задачи пары не тронуто - только gate",
+            listOf(GATE_CLOSE, GATE_OPEN),
+            car.mutations(),
+        )
+    }
+
+    /**
      * Доигранная подвеска доигрывается ровно один раз: накрытая сцена больше не спрашивает машину
      * про area, сколько бы оконного шторма ни пришло следом (U1, никаких повторных мутаций).
      */
@@ -5266,6 +5384,14 @@ class SplitScenarioTest {
             override fun run(op: SplitOperationContext): SplitOutcome = SplitOutcome.Committed
         },
     )
+
+    /**
+     * Чем сверка читает мир: список задач и панельные контейнеры. Ни то ни другое не дешевле
+     * одного обращения к машине, и по позиции первого из них видно, до рецептов случилась
+     * подвеска gate или после них.
+     */
+    private fun isTopologyRead(command: String): Boolean =
+        command == "am stack list" || command.startsWith("service call activity_task 118 ")
 
     private companion object {
         const val GATE_OPEN = "service call activity_task 126 i32 1"

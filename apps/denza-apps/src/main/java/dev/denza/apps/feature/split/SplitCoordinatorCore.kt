@@ -408,7 +408,7 @@ internal class SplitCoordinatorCore(
      * log was silent while the orphan picker and the dirty SmartMulti keys stayed behind.
      *
      * Правка 2026-09-18: третий гард читает ось видимости, а не сцену. С перезапуска процесса
-     * накрытие подтверждается и без сцены (`ReconcileOperation.followCoverWithoutAScene`), и
+     * накрытие подтверждается и без сцены (`ReconcileOperation.finishGateSuspension`), и
      * «одна транзакция на одно накрытие» обязана держаться на обоих каналах, а не только на том,
      * который успел записать сцену.
      */

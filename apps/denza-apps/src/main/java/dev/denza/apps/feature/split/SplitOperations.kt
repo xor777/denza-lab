@@ -1611,22 +1611,37 @@ internal class ReconcileOperation(
      * своего трёхсекундного опроса.
      *
      * Сцены в памяти нет - это про сцену, а не про gate: аренда наша, накрытие прочитано, и
-     * обязанность продукта убрать за собой от этого не меняется (1.11, 1.12). Поэтому отказ
-     * адопции уходит не молча, а через ту же подвеску, тем же полномочием и той же ценой.
+     * обязанность продукта убрать за собой от этого не меняется (1.11, 1.12). Поэтому подвеска
+     * стоит выше адопции и её отказ проходит той же ценой и тем же полномочием, что и всегда.
+     *
+     * Правка 2026-09-18 (гонка Home→док в 19:51:53: area 0 прочитана на +0,85 с, подвеска стояла
+     * в конце сверки и перечитала area на +1,06 с, когда прошивка уже вошла в split). Подвеска
+     * переехала в начало: сверка идёт за накрытием ПЕРВЫМ своим чтением area, до адопции и до
+     * любого рецепта. Прежний порядок тратил семь обращений на схлопывание и существование и
+     * только после них спрашивал про gate - решающее чтение у продукта было на руках за 0,2 с до
+     * `startSplitWindow`, и он им не воспользовался; пользователь получил «Split с АДАСом»
+     * (1.9.2).
+     *
+     * `coveredBefore` считается ПОСЛЕ этой подвески и значит теперь «накрыто на момент начала
+     * доказательств»: сцену, которую мир раскрыл посреди того же прохода, доказанный рецепт
+     * возвращает в VISIBLE, и хвостовой [finishGateResumption] открывает gate обратно. Одно
+     * закрытие, одно открытие - и ни одной секунды с открытым gate под накрытием.
      */
     private fun applyReconcile(op: SplitOperationContext, shell: (String) -> String, plan: Boolean) {
         if (!plan) return
         val split = work.split(op)
-        // Whether the product believed the world covered when this look at it began: a proof below
-        // may flip the axis to visible, and the gate has to follow that flip.
+        // Первым делом - gate за накрытием, по первому же чтению area этой сверки. Оно всё равно
+        // будет сделано; вопрос только в том, перед рецептами или после них, а под накрытием
+        // каждая десятая доля секунды с открытым gate - это чужой запуск, втянутый в split.
+        finishGateSuspension(split)
+        // Whether the product believed the world covered when the proofs below began: a proof may
+        // flip the axis to visible, and the gate has to follow that flip.
         val coveredBefore = working.visibility == SceneVisibility.COVERED
         // Nothing below means anything without a scene axis. A hint that can only come from a live
         // product scene is allowed to prove one first (1.11.3); everything else fails closed here -
-        // everything except the gate, which belongs to the session, not to the scene.
-        if (working.scene == null && !adoptOwnedScene(split)) {
-            followCoverWithoutAScene(split)
-            return
-        }
+        // everything except the gate, which belongs to the session, not to the scene, and which the
+        // suspension above has already followed.
+        if (working.scene == null && !adoptOwnedScene(split)) return
         val proven = when (kind) {
             SplitReconcileKind.DividerResized -> reconcileScene(op, split, settleResize = true)
             is SplitReconcileKind.PickerVisible -> pickerVisible(op, split, kind.hostTaskId)
@@ -1668,7 +1683,6 @@ internal class ReconcileOperation(
             endSession(op, shell, split)
         } else {
             finishGateResumption(split, coveredBefore, proven)
-            finishGateSuspension(split)
         }
     }
 
@@ -1725,35 +1739,32 @@ internal class ReconcileOperation(
      *
      * Правка 2026-09-18 (перезапуск процесса над живой сессией: gate остался открыт, запуск с
      * рабочего стола ушёл в split с `com.byd.sr`): то же правило доигрывается и там, где сцены в
-     * памяти нет вовсе - см. [followCoverWithoutAScene]. Само правило живёт в одном месте,
-     * [suspendOwnedGateUnderCover]; эти две точки отличаются только строкой ринга, по которой
-     * читается, какой из двух случаев был.
-     */
-    private fun finishGateSuspension(split: SplitPickerShellSession) {
-        suspendOwnedGateUnderCover(
-            split,
-            "gate подвешен сверкой: Home-хинт не пришёл, накрытие прочитано (1.9.2)",
-        )
-    }
-
-    /**
-     * То же самое для мира, о котором этот процесс не помнит ничего (1.9.2, 1.11, 1.12).
-     *
-     * Перезапуск процесса не закрывает gate и не отдаёт аренду: и то и другое переживает смерть
-     * процесса намеренно - иначе живая пара пользователя осталась бы на экране с чужими правилами
-     * размещения. Значит после перезапуска «накрытый мир + наша аренда + открытый gate» - это
-     * ровно тот gate, который обязан быть подвешен, и доказывается это тем же, чем всегда:
-     * прочитанной area. Сцена здесь ни при чём - её у процесса нет по построению, и ждать, пока
-     * она появится, значит ждать открытия, которого пользователь не просил.
+     * памяти нет вовсе. Перезапуск процесса не закрывает gate и не отдаёт аренду: и то и другое
+     * переживает смерть процесса намеренно - иначе живая пара пользователя осталась бы на экране с
+     * чужими правилами размещения. Значит «накрытый мир + наша аренда + открытый gate» - это ровно
+     * тот gate, который обязан быть подвешен, и сцена здесь ни при чём: её у процесса нет по
+     * построению, и ждать, пока она появится, значит ждать открытия, которого пользователь не
+     * просил. Два случая отличаются только строкой ринга, по которой читается, какой из них был.
      *
      * Видимый мир, который продукту не принадлежит (чужой сплит на area 3, чужой полный экран на
      * 1/2), gate не открывает и не закрывает: возобновление живёт только за доказанной своей
      * сценой ([finishGateResumption]), а закрывать чужой видимый мир не за что.
+     *
+     * Правка 2026-09-18 (гонка Home→док в 19:51:53: area 0 прочитана на +0,85 с, подвеска стояла в
+     * конце сверки и перечитала area на +1,06 с, когда прошивка уже вошла в split). Зовётся это
+     * ПЕРВЫМ делом в [applyReconcile] - до адопции и до любого рецепта, - потому что цена одна и
+     * та же (одно чтение area, одна транзакция на накрытие), а цена опоздания - чужой запуск,
+     * втянутый в split вторым окном (1.9.2). Поэтому же здесь нет и не может быть ожидания: чем
+     * раньше задан вопрос, тем меньше остаётся гонке.
      */
-    private fun followCoverWithoutAScene(split: SplitPickerShellSession) {
+    private fun finishGateSuspension(split: SplitPickerShellSession) {
         suspendOwnedGateUnderCover(
             split,
-            "gate подвешен сверкой без сцены: накрытие прочитано, сцены в памяти нет (1.9.2, 1.11)",
+            if (working.scene == null) {
+                "gate подвешен сверкой без сцены: накрытие прочитано, сцены в памяти нет (1.9.2, 1.11)"
+            } else {
+                "gate подвешен сверкой: Home-хинт не пришёл, накрытие прочитано (1.9.2)"
+            },
         )
     }
 

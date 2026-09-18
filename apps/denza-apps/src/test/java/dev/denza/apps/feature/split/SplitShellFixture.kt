@@ -218,6 +218,17 @@ internal class FakeShell(
     val carChanged = mutableListOf<() -> Unit>()
 
     var area = 4
+
+    /**
+     * Ответы на первые `activity_task 30` этого прогона - по одному на чтение, затем [area].
+     *
+     * Area в машине не кэшируется никем: каждое чтение - свежее обращение, и живой мир вправе
+     * ответить на два соседних чтения РАЗНОЕ. Именно этим кончилась гонка 2026-09-18 19:51:53:
+     * первое чтение сверки увидело 0 (Home), а последнее, через 0,2 с, - уже 3, потому что
+     * прошивка успела втянуть в split запуск с рабочего стола. [area] одна такой мир описать не
+     * может, отсюда очередь: тест диктует последовательность, а не одно значение.
+     */
+    val areaReadAnswers = ArrayDeque<Int>()
     var preserveBoundsOnShellMove = false
 
     /**
@@ -497,7 +508,10 @@ internal class FakeShell(
             command == "service call activity_task 118 i32 2" -> intParcel(SECONDARY_ROOT)
             command == "service call activity_task 118 i32 4" -> intParcel(FULL_ROOT)
             command == "service call activity_task 30" -> {
-                if (transientAreaReadsRemaining > 0) {
+                val dictated = areaReadAnswers.removeFirstOrNull()
+                if (dictated != null) {
+                    intParcel(dictated)
+                } else if (transientAreaReadsRemaining > 0) {
                     transientAreaReadsRemaining -= 1
                     intParcel(2)
                 } else {
