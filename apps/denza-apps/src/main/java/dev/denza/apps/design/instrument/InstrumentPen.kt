@@ -325,14 +325,15 @@ class InstrumentPen {
     /**
      * A history, as a stepped line over a field, both from one outline.
      *
-     * A step rather than a curve because each value is a closed bucket rather than a sample of
-     * something continuous, and a stepped line says so. Thirty bars 0.65 mm wide were 0.9′ at 750 mm
-     * - under the eye's own resolution - which is why this is a line at all (M15).
+     * A step rather than a [curve] because each value is a closed bucket rather than a sample of
+     * something continuous, and a stepped line says so. This is the engine box's shape: its slots
+     * are closed five-second buckets. The consumption chart's points are a trailing kilometre and
+     * are drawn with [curve]. Thirty bars 0.65 mm wide were 0.9′ at 750 mm - under the eye's own
+     * resolution - which is why either of these is a line at all (M15).
      *
-     * **The steps are stated as edges rather than as a pitch.** A consumption bin is anchored to
-     * the odometer's own half kilometre and the newest one is as wide as the road it has so far,
-     * so the run's last step is narrower than the rest while it fills. [xs] holds `count + 1`
-     * edges; a uniform box simply hands in a uniform run of them.
+     * **The steps are stated as edges rather than as a pitch.** [xs] holds `count + 1` edges, so a
+     * run that does not fill its box states where it starts and where it stops; a uniform box
+     * simply hands in a uniform run of them.
      *
      * [zeroY] is where the field closes, which is not necessarily the box's floor: a descent gives
      * energy back, so a consumption history needs a zero line rather than a floor.
@@ -501,51 +502,18 @@ class InstrumentPen {
     }
 
     /**
-     * One stepped shape standing on [zeroY], posts and all, filled and edged from one path.
+     * The marks over the stretches a ladder could not hold, so a cut is seen to be a cut.
      *
-     * Not [history]: that closes its field along a floor and leaves the outline open at both ends,
-     * which is what a *continuous* history wants. This draws a stretch - something that starts and
-     * stops inside the box - so the posts up from the zero line are part of the drawing rather than
-     * the edge of a fill. The path is never closed, so nothing is stroked along the zero line
-     * itself: the panel's own zero rule is drawn once, by whoever owns it.
-     */
-    fun steps(
-        canvas: Canvas,
-        xs: FloatArray,
-        ys: FloatArray,
-        count: Int,
-        zeroY: Float,
-        fieldColor: Int,
-        fieldAlpha: Float,
-        edgeColor: Int,
-        edgeWidthV: Float,
-    ) {
-        if (count <= 0) return
-        path.rewind()
-        path.moveTo(xs[0], zeroY)
-        for (index in 0 until count) {
-            path.lineTo(xs[index], ys[index])
-            path.lineTo(xs[index + 1], ys[index])
-        }
-        path.lineTo(xs[count], zeroY)
-        fill.color = fieldColor
-        fill.alpha = (fieldAlpha.coerceIn(0f, 1f) * FULL_ALPHA).toInt()
-        canvas.drawPath(path, fill)
-        fill.alpha = FULL_ALPHA
-        stroke.color = edgeColor
-        stroke.alpha = FULL_ALPHA
-        stroke.strokeWidth = v(edgeWidthV)
-        canvas.drawPath(path, stroke)
-    }
-
-    /**
-     * The marks over the bins a ladder could not hold, so a cut is seen to be a cut.
+     * **One mark per run of clamped points, at the run's centre.** A mark per point was a mark per
+     * closed bucket when a bucket was what got drawn; a line drawn along a ceiling for a kilometre
+     * is one cut, and twenty ticks over it are a comb saying so twenty times. Three units standing
+     * just outside the edge the run hit, on either ceiling.
      *
-     * Three units standing just outside the edge the bin hit, centred on the bin. Here rather than
-     * in either renderer because both consumption charts have to draw the same mark: they had two
-     * copies of the walk, and one of them had put the return's tick in the spending's ink.
+     * Here rather than in either renderer because both consumption charts have to draw the same
+     * mark: they had two copies of the walk, and one of them had put the return's tick in the
+     * spending's ink.
      *
-     * @param edges the bin boundaries, `count + 1` of them, in pixels
+     * @param xs the points, in pixels - one per value, not an edge
      * @param aboveY where a mark over the ceiling starts, gap already taken
      * @param belowY and where one under the floor does
      */
@@ -554,7 +522,7 @@ class InstrumentPen {
         values: FloatArray,
         first: Int,
         count: Int,
-        edges: FloatArray,
+        xs: FloatArray,
         aboveY: Float,
         belowY: Float,
         tickV: Float,
@@ -565,15 +533,47 @@ class InstrumentPen {
         belowColor: Int,
     ) {
         val tick = v(tickV)
-        for (index in 0 until count) {
+        runTicks(canvas, values, first, count, xs, aboveY, -tick, widthV, aboveColor) {
+            it >= ceiling
+        }
+        runTicks(canvas, values, first, count, xs, belowY, tick, widthV, belowColor) {
+            it <= -returnCeiling
+        }
+    }
+
+    /**
+     * One tick per maximal run of points [clamped] accepts, centred on the run.
+     *
+     * A hole ends a run: a stretch cut at the ceiling, a kilometre nobody knows, and then another
+     * cut stretch is two cuts, and the reader is owed two marks.
+     */
+    private inline fun runTicks(
+        canvas: Canvas,
+        values: FloatArray,
+        first: Int,
+        count: Int,
+        xs: FloatArray,
+        fromY: Float,
+        reach: Float,
+        widthV: Float,
+        color: Int,
+        clamped: (Float) -> Boolean,
+    ) {
+        var index = 0
+        while (index < count) {
             val value = values[first + index]
-            if (value.isNaN()) continue
-            val centre = (edges[index] + edges[index + 1]) / 2f
-            if (value >= ceiling) {
-                line(canvas, centre, aboveY, centre, aboveY - tick, aboveColor, widthV)
-            } else if (value <= -returnCeiling) {
-                line(canvas, centre, belowY, centre, belowY + tick, belowColor, widthV)
+            if (value.isNaN() || !clamped(value)) {
+                index++
+                continue
             }
+            val start = index
+            while (index < count) {
+                val next = values[first + index]
+                if (next.isNaN() || !clamped(next)) break
+                index++
+            }
+            val centre = (xs[start] + xs[index - 1]) / 2f
+            line(canvas, centre, fromY, centre, fromY + reach, color, widthV)
         }
     }
 

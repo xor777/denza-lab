@@ -346,7 +346,7 @@ internal class ContourPlan(
 
     val petalBaseline: Float = PETAL_BASELINE
     val petalFloor: Float = PETAL_FLOOR
-    val petalBins: Int = PETAL_BINS
+    val petalPoints: Int = PETAL_POINTS
 
     /** «16,8» and «2:15» are both three digits and one mark, so one field holds either. */
     val petalFieldWidth: Float = 3 * type.width("0", InstrumentFace.FIGURE) +
@@ -423,8 +423,8 @@ internal class ContourPlan(
      * A fixed ladder, not an autoscale: 0…40 up the cap and 0…20 back down the descender, clamped,
      * and a clamp is marked.
      *
-     * Autoscaling to each window's own ceiling meant a bin changed height when a *different* bin
-     * changed value, so the shape of the last ten kilometres was never twice the same shape.
+     * Autoscaling to each window's own ceiling meant a point changed height when a *different*
+     * point changed value, so the shape of the last ten kilometres was never twice the same shape.
      *
      * **40 rather than 30 or 60.** 30 and 10 were the ceilings for hundred-metre buckets and they
      * flattened every launch and every descent into one silent top. The box is 37 units tall and
@@ -441,13 +441,22 @@ internal class ContourPlan(
     val petalTickGap: Float = PETAL_TICK_GAP
     val petalTick: Float = PETAL_TICK
 
-    /** Where a spending bin's step falls. A bin that gave energy back sits on the zero. */
-    fun petalSpendY(value: Float): Float =
-        petalZeroY - min(max(value, 0f) / petalFull, 1f) * (petalZeroY - petalBoxTop)
-
-    /** And where a returning one's does. A bin that spent sits on the zero in this series. */
-    fun petalReturnY(value: Float): Float =
-        petalZeroY + min(max(-value, 0f) / petalReturnFull, 1f) * (petalBoxBottom - petalZeroY)
+    /**
+     * Where a point stands: up from the zero on what the kilometre cost, down on what it gave back.
+     *
+     * One function rather than two series. The petal used to ask the data twice - once for a
+     * spending height that lay on the zero wherever energy came back, once for a returning height
+     * that lay on it wherever energy was spent - and drew two shapes. A line has one height per
+     * point, and it crosses the zero where the road does.
+     *
+     * The two ceilings are close to the same slope either side ([PETAL_FULL] over the cap,
+     * [PETAL_RETURN_FULL] over the descender), so the line crosses the zero without a kink.
+     */
+    fun petalY(value: Float): Float = if (value >= 0f) {
+        petalZeroY - min(value / petalFull, 1f) * (petalZeroY - petalBoxTop)
+    } else {
+        petalZeroY + min(-value / petalReturnFull, 1f) * (petalBoxBottom - petalZeroY)
+    }
 
     /** Where one step of the engine's box falls, on its own linear span. */
     fun engineY(kilowatts: Double): Float =
@@ -575,15 +584,16 @@ internal class ContourPlan(
         const val PETAL_FLOOR = 410f
 
         /**
-         * Twenty steps of five hundred metres, which is [ConsumptionChart]'s own count rather than
-         * a second statement of it.
+         * A hundred points on the odometer's own hundred metres, which is [ConsumptionChart]'s own
+         * count rather than a second statement of it.
          *
          * A `val` rather than a `const val` because the chart derives it from the ten kilometres
-         * and the bin length, and that derivation is the single fact. A hundred steps of 2.32
-         * units were the first drive's «расчёска»; twenty of 11.6 - 2.5 mm, 10.7′ from 800 mm -
-         * are steps the eye can count.
+         * and the grid's pitch, and that derivation is the single fact. A hundred *steps* of 2.32
+         * units were the first drive's «расчёска» and twenty of 11.6 were the second's «огромные
+         * ступеньки»; a hundred points joined by a line are neither, because every one of them is
+         * the mean of the kilometre ending at it (`docs/energy-display-contract.md` §2.3).
          */
-        val PETAL_BINS = ConsumptionChart.BINS
+        val PETAL_POINTS = ConsumptionChart.POINTS
 
         const val PETAL_FULL = 40f
         const val PETAL_RETURN_FULL = 20f

@@ -256,30 +256,42 @@ def temp_row(kind, value, narrow=False):
 # power, which was a second history of a quantity the headline already shows and the reason the two
 # screens' graphs could not be the same graph.
 #
-# One deterministic road, written as multiples of the window's own mean so a scene names the figure
-# it wants and the shape and the figure cannot disagree. One run of returning bins - a descent - and
-# nothing else below the zero: the chart needs a zero line rather than a floor.
-CONSUMPTION_SHAPE = [1.26, 1.19, 1.31, 1.22, 1.08, 1.16, 1.34, 1.29, 1.02, 0.82,
-                     0.61, -0.31, -0.44, -0.18, 0.72, 0.94, 1.03, 0.97, 0.88, 0.96]
+# The owner's own road, read off the car on 2026-09-18: the hundred trailing kilometres of ten
+# kilometres of the journal, in kW·h/100 km, oldest first, the same road `gen_contour.py` draws. A
+# town run with a descent that gave energy back, a launch past the ceiling, and a second descent at
+# the end. A scene names the average it wants and `history` scales the road to it, so the shape and
+# the figure beside it cannot disagree.
+CONSUMPTION_SHAPE = [30.6, 33.2, 31.0, 25.0, 25.2, 28.1, 26.4, 27.5, 30.0, 26.5,
+                     20.0, 15.1, 12.9, 18.3, 21.0, 15.8, 14.1, 11.1, 15.0, 15.8,
+                     17.1, 20.1, 23.3, 19.2, 14.0, 15.6, 17.1, 19.2, 14.4, 11.0,
+                     13.2, 12.1, 6.3, 13.4, 14.9, 14.7, 14.1, 13.1, 17.9, 19.2,
+                     14.7, 16.3, 23.6, 19.8, 19.7, 23.7, 27.2, 26.4, 28.2, 22.9,
+                     27.0, 27.1, 24.6, 26.3, 27.6, 20.9, 12.7, 11.6, 2.4, 1.7,
+                     -7.8, -5.4, -6.9, -12.3, -18.4, -16.9, -5.8, -1.1, -1.1, 31.6,
+                     50.9, 46.3, 44.3, 46.6, 51.1, 59.1, 58.1, 55.6, 63.5, 37.7,
+                     26.0, 24.7, 26.6, 26.6, 26.8, 20.7, 16.3, 13.7, 11.5, 15.0,
+                     16.3, 17.5, 17.9, 19.0, 15.0, 8.2, -5.8, -5.8, -10.3, -11.9]
+SHAPE_MEAN = sum(CONSUMPTION_SHAPE) / len(CONSUMPTION_SHAPE)
 
 
 def history(average, launch=False, hole=None):
-    """Twenty closed bins whose spending mean is [average]; a launch bin past the ceiling; a hole."""
-    spending = [m for m in CONSUMPTION_SHAPE if m > 0]
-    norm = sum(spending) / len(spending)
-    bins = [round(average * m / norm, 1) for m in CONSUMPTION_SHAPE]
+    """A hundred trailing kilometres whose mean is [average]; a launch past the ceiling; a hole."""
+    points = [round(average * m / SHAPE_MEAN, 1) for m in CONSUMPTION_SHAPE]
     if launch:
-        # A half kilometre of full throttle: past the ceiling, drawn to it with a tick.
-        bins[-3] = round(CHART_FULL * 1.2, 1)
+        # A kilometre of full throttle: past the ceiling, drawn along it with one tick at the
+        # centre of the run - one cut, one mark, however long the run is.
+        for i in range(len(points) - 16, len(points) - 6):
+            points[i] = round(CHART_FULL * 1.2, 1)
     if hole is not None:
         for i in hole:
-            bins[i] = None
-    return bins
+            points[i] = None
+    return points
 
 
 CHART_H = 130
 CHART_H_NARROW = 60           # what is left at 392 once the head, the foot and the marks are in
-CHART_BINS = 20               # 500 m each: ConsumptionWindow.KM / ConsumptionChart.BIN_KM
+CHART_POINTS = 100            # 100 m each: ConsumptionWindow.KM / ConsumptionChart.PITCH_KM
+CHART_SMOOTH = 10             # and every point is the mean of the kilometre ending at it
 CHART_EDGE = 2
 CHART_AXIS = 44               # the gutter on the right where the two ceilings stand
 CHART_AXIS_BASELINE = 13
@@ -289,73 +301,91 @@ CHART_RETURN_FULL = 20
 CHART_TICK = 3
 
 
-def chart_svg(box_w, bins, height=CHART_H):
-    """The last ten kilometres as steps, the one shape on this page, and it carries a sign.
+_CLIPS = [0]
 
-    Above the zero is what the road cost, below it is what it gave back - the app's own two inks
-    for those and never a third. A step is 500 m; the newest is at the right edge, where new road
-    arrives. A bin the log has no energy for is a hole: nothing is drawn, the road under it is
-    still the road. A bin past the ceiling is drawn to the ceiling with a tick standing over it.
 
-    **The box says what it holds** in two figures against the edges they belong to, «60» and
-    «−20», which are the same two ceilings the cluster's petal clamps at.
+def clip_id(prefix):
+    """A document-unique id: this board carries six frames and each clips its own shape."""
+    _CLIPS[0] += 1
+    return f'{prefix}{_CLIPS[0]}'
+
+
+def chart_svg(box_w, points, height=CHART_H):
+    """The last ten kilometres as one line, the one shape on this page, and it carries a sign.
+
+    A point stands on every hundred metres of the odometer's grid and is the mean of the kilometre
+    ending at it, so the shape is a continuous function of the road and a line is what says that.
+    Above the zero is what that kilometre cost, below it is what it gave back - the app's own two
+    inks for those and never a third - and the one silhouette crosses the zero wherever a kilometre
+    gave back more than it took. The newest point is at the right edge, where new road arrives. A
+    point whose kilometre is mostly unknown is a hole: the line breaks, and the road under it keeps
+    its place on the axis. A run held along a ceiling is drawn along it with one tick at the run's
+    centre.
+
+    **The box says what it holds** in two figures against the edges they belong to, which are the
+    same two ceilings the cluster's petal clamps at.
     """
     zero = round(height * CHART_FULL / (CHART_FULL + CHART_RETURN_FULL), 2)
     plot = box_w - CHART_AXIS
-    w = plot / len(bins)
-
-    def y_spend(v):
-        return round(zero - min(max(v, 0.0) / CHART_FULL, 1.0) * zero, 2)
-
-    def y_back(v):
-        return round(zero + min(max(-v, 0.0) / CHART_RETURN_FULL, 1.0) * (height - zero), 2)
+    pitch = plot / CHART_POINTS
+    n = len(points)
 
     def x(i):
-        return round(i * w, 2)
+        return round(plot - (n - 1 - i) * pitch, 2)
 
-    field, edge, back, ticks = [], [], [], []
-    i = 0
-    while i < len(bins):
-        if bins[i] is None:
-            i += 1
-            continue
-        start = i
-        while i < len(bins) and bins[i] is not None:
-            i += 1
-        run = list(range(start, i))
-        # One continuous field and edge across the run; a returning bin lies on the zero.
-        field.append(f'M{x(start):g} {zero:g} ' + ' '.join(
-            f'L{x(j):g} {y_spend(bins[j]):g} L{x(j + 1):g} {y_spend(bins[j]):g}' for j in run)
-            + f' L{x(i):g} {zero:g} Z')
-        edge.append(' '.join(
-            (f'M{x(j):g} {y_spend(bins[j]):g}' if j == start else f'L{x(j):g} {y_spend(bins[j]):g}')
-            + f' L{x(j + 1):g} {y_spend(bins[j]):g}' for j in run))
-        j = start
-        while j < i:
-            if bins[j] >= 0:
-                j += 1
+    def y(v):
+        if v >= 0:
+            return round(zero - min(v / CHART_FULL, 1.0) * zero, 2)
+        return round(zero + min(-v / CHART_RETURN_FULL, 1.0) * (height - zero), 2)
+
+    def stretches(keep):
+        out, i = [], 0
+        while i < n:
+            if not keep(points[i]):
+                i += 1
                 continue
-            k = j
-            while k < i and bins[k] < 0:
-                k += 1
-            back.append(f'M{x(j):g} {zero:g} ' + ' '.join(
-                f'L{x(m):g} {y_back(bins[m]):g} L{x(m + 1):g} {y_back(bins[m]):g}' for m in range(j, k))
-                + f' L{x(k):g} {zero:g}')
-            j = k
-        for j in run:
-            if bins[j] >= CHART_FULL:
-                cx = round(x(j) + w / 2, 2)
-                ticks.append(f'M{cx:g} {-2 - CHART_TICK} V-2')
-            elif bins[j] <= -CHART_RETURN_FULL:
-                cx = round(x(j) + w / 2, 2)
-                ticks.append(f'M{cx:g} {height + 2} V{height + 2 + CHART_TICK}')
+            start = i
+            while i < n and keep(points[i]):
+                i += 1
+            out.append((start, i))
+        return out
+
+    above, below = clip_id('up'), clip_id('down')
+    shapes, ticks = [], []
+    for start, stop in stretches(lambda v: v is not None):
+        ys = [y(v) for v in points[start:stop]]
+        if stop - start == 1:
+            # One reading between two holes: a polyline of one point is nothing at all.
+            colour = INK if points[start] >= 0 else RETURN_INK
+            shapes.append(f'<circle cx="{x(start):g}" cy="{ys[0]:g}" '
+                          f'r="{CHART_EDGE / 2:g}" fill="{colour}"></circle>')
+            continue
+        outline = 'M' + ' L'.join(f'{x(i):g} {ys[i - start]:g}' for i in range(start, stop))
+        field = f'{outline} L{x(stop - 1):g} {zero:g} L{x(start):g} {zero:g} Z'
+        shapes.append(
+            f'<g clip-path="url(#{above})">'
+            f'<path d="{field}" fill="rgba(218,225,235,0.16)"></path>'
+            f'<path d="{outline}" fill="none" stroke="{INK}" stroke-width="{CHART_EDGE}" '
+            f'stroke-linejoin="round"></path></g>')
+        shapes.append(
+            f'<g clip-path="url(#{below})">'
+            f'<path d="{field}" fill="rgba(45,130,215,0.26)"></path>'
+            f'<path d="{outline}" fill="none" stroke="{RETURN_INK}" stroke-width="{CHART_EDGE}" '
+            f'stroke-linejoin="round"></path></g>')
+    for start, stop in stretches(lambda v: v is not None and v >= CHART_FULL):
+        cx = round((x(start) + x(stop - 1)) / 2, 2)
+        ticks.append(f'M{cx:g} {-2 - CHART_TICK} V-2')
+    for start, stop in stretches(lambda v: v is not None and v <= -CHART_RETURN_FULL):
+        cx = round((x(start) + x(stop - 1)) / 2, 2)
+        ticks.append(f'M{cx:g} {height + 2} V{height + 2 + CHART_TICK}')
     tick_svg = (f'\n            <path d="{" ".join(ticks)}" stroke="{INK}" stroke-width="{CHART_EDGE}"></path>'
                 if ticks else '')
+    body = '\n            '.join(shapes)
     return f'''          <svg width="{box_w:g}" height="{height:g}" viewBox="0 -6 {box_w:g} {height + 12:g}" fill="none" style="overflow:visible">
-            <path d="{' '.join(field)}" fill="rgba(218,225,235,0.16)"></path>
-            <path d="{' '.join(back)}" fill="rgba(45,130,215,0.26)" stroke="{RETURN}" stroke-width="{CHART_EDGE}" stroke-linejoin="round"></path>
+            <clipPath id="{above}"><rect x="{-CHART_EDGE:g}" y="{-CHART_EDGE - 6:g}" width="{plot + 2 * CHART_EDGE:g}" height="{zero + CHART_EDGE + 6:g}"></rect></clipPath>
+            <clipPath id="{below}"><rect x="{-CHART_EDGE:g}" y="{zero:g}" width="{plot + 2 * CHART_EDGE:g}" height="{height - zero + CHART_EDGE + 6:g}"></rect></clipPath>
             <path d="M0 {zero:g} H{plot:g}" stroke="{TRACK_MARK}" stroke-width="1"></path>
-            <path d="{' '.join(edge)}" stroke="{INK}" stroke-width="{CHART_EDGE}" stroke-linejoin="round" stroke-linecap="square"></path>{tick_svg}
+            {body}{tick_svg}
             <text x="{box_w:g}" y="{CHART_AXIS_BASELINE}" text-anchor="end" font-size="15" font-weight="500" letter-spacing="1.6" fill="{MUTED_DEEP}">{CHART_FULL}</text>
             <text x="{box_w:g}" y="{height:g}" text-anchor="end" font-size="15" font-weight="500" letter-spacing="1.6" fill="{MUTED_DEEP}">−{CHART_RETURN_FULL}</text>
           </svg>'''
@@ -414,7 +444,7 @@ SCENES = {
         headline='ИЗ БАТАРЕИ', power='62', colour=INK, volts='544',
         engine=('ДВС · ОБ/МИН', '1420'),
         temps=[('pack', 42), ('front', 88), ('rear_l', 76), ('rear_r', 74), ('inverter', 73)],
-        spread=28, spend='27,3', history=history(27.3, hole=(6, 7)),
+        spread=28, spend='27,3', history=history(27.3, hole=range(38, 52)),
     ),
 }
 

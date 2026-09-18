@@ -292,16 +292,17 @@ internal class VehicleTelemetryHub(context: Context) {
                 VehicleSignal.HOT.forEach { signal -> parsed[signal]?.let { merged[signal] = it } }
 
                 // The window and its chart are built once here, beside the rest of the snapshot.
-                // Both screens draw the same twenty bins, and a chart grouped inside `onDraw`
-                // would be twenty means allocated sixty times a second over a quantity the car
-                // answers four times a second.
+                // Both screens draw the same hundred points, and a chart built inside `onDraw`
+                // would be a hundred trailing means allocated sixty times a second over a quantity
+                // the car answers four times a second. The chart reads a longer tail than the
+                // figure does: its oldest point is the mean of the kilometre before the window.
                 val window = log.window
                 snapshot = VehicleTelemetry(
                     access = if (merged.isEmpty()) VehicleAccess.UNAVAILABLE else VehicleAccess.READY,
                     message = if (merged.isEmpty()) NO_ANSWER else "",
                     values = merged,
                     consumption = window,
-                    chart = ConsumptionChart.of(window),
+                    chart = ConsumptionChart.of(log.chartTail),
                     engineTrace = trace.snapshot(),
                     trip = ledger.trip,
                 )
@@ -331,7 +332,7 @@ internal class VehicleTelemetryHub(context: Context) {
             access = VehicleAccess.UNAVAILABLE,
             message = message,
             consumption = window,
-            chart = ConsumptionChart.of(window),
+            chart = ConsumptionChart.of(log.chartTail),
             engineTrace = trace.snapshot(),
             trip = ledger.trip,
         )

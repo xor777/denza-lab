@@ -65,8 +65,8 @@ class EnergyReadoutsTest {
         val hole = road(100).toMutableList().also { list ->
             for (index in 40 until 60) list[index] = list[index].copy(kwh = 0.0, knownKm = 0.0)
         }
-        val past40 = road(100).toMutableList().also { list ->
-            for (index in 90 until 95) list[index] = list[index].copy(kwh = 0.3)
+        val pastCeiling = road(100).toMutableList().also { list ->
+            for (index in 88 until 98) list[index] = list[index].copy(kwh = 0.3)
         }
         return listOf(
             "electric drive" to snapshot(powerKw = 34.0, buckets = electric),
@@ -123,7 +123,7 @@ class EnergyReadoutsTest {
             ),
             "window filling" to snapshot(powerKw = 22.0, buckets = filling),
             "a hole" to snapshot(powerKw = 22.0, buckets = hole),
-            "a bin past 40" to snapshot(powerKw = 128.0, buckets = past40),
+            "a kilometre past the ceiling" to snapshot(powerKw = 128.0, buckets = pastCeiling),
             "link lost" to VehicleTelemetry(access = VehicleAccess.UNAVAILABLE, message = "нет"),
             "a dropped read" to snapshot(powerKw = null, buckets = electric),
         )
@@ -139,7 +139,7 @@ class EnergyReadoutsTest {
             strip.read(telemetry, parked, narrow = false)
 
             // What the cluster's renderer reads: the band's colour and the hero's magnitude, the
-            // engine's corner, the petal's figure, its unit and its twenty bins.
+            // engine's corner, the petal's figure, its unit and its hundred points.
             assertEquals("$name: direction", cluster.flow, strip.flow)
             assertEquals("$name: word", cluster.word, strip.word)
             assertEquals("$name: mark", cluster.mark, strip.mark)
@@ -161,8 +161,8 @@ class EnergyReadoutsTest {
             assertEquals("$name: the window's distance", distance(cluster.window), distance(strip.windowCaps))
             assertEquals("$name: and the foot line's", distance(cluster.window), distance(strip.windowFoot))
             assertEquals("$name: whether there is a chart at all", cluster.chart.isEmpty, strip.chart.isEmpty)
-            assertArrayEquals("$name: the bins", cluster.chart.values, strip.chart.values)
-            assertArrayEquals("$name: their widths", cluster.chart.widths, strip.chart.widths)
+            assertArrayEquals("$name: the points", cluster.chart.values, strip.chart.values)
+            assertEquals("$name: how far the run reaches", cluster.chart.span, strip.chart.span)
         }
     }
 
@@ -536,7 +536,7 @@ class EnergyReadoutsTest {
         val readouts = EnergyReadouts()
         readouts.read(telemetry, parked = false)
         assertNotNull(readouts.chart)
-        assertEquals(ConsumptionChart.BINS, readouts.chart.values.size)
+        assertEquals(ConsumptionChart.POINTS, readouts.chart.values.size)
         assertArrayEquals("the hub's own array", telemetry.chart.values, readouts.chart.values)
     }
 

@@ -15,9 +15,9 @@ import org.junit.Test
  * asserts what the code should say about it; this asserts the things that are true **whatever the
  * signals turn out to mean**, over whatever the car actually did:
  *
- *  - the road under the chart is the road the odometer covered;
+ *  - the road under the chart is the road the odometer covered - a point per hundred metres of it;
  *  - the figure is energy over known road, and nothing else;
- *  - no bin is drawn where the log had no energy;
+ *  - every point is the trailing kilometre, and none is drawn where the log had no energy;
  *  - the engine's box is never up with the running flag down past its own hold.
  *
  * `tools/vehicle_log.py` writes the files, into `captures/vehicle-log/` (git-ignored, so this test
@@ -93,13 +93,14 @@ class VehicleLogReplayTest {
             // scene is stepped on every row regardless: the engine box's invariant is about a
             // frame, and a frame the window did not change in is still a frame.
             val window = if (closed) log.window else emptyList()
+            val tail = if (closed) log.chartTail else emptyList()
             val snapshot = VehicleTelemetry(
                 access = VehicleAccess.READY,
                 values = engineRunning?.let {
                     mapOf(VehicleSignal.ENGINE_RUNNING to if (it) 3.0 else 0.0)
                 } ?: emptyMap(),
                 consumption = window,
-                chart = ConsumptionChart.of(window),
+                chart = ConsumptionChart.of(tail),
                 engineTrace = trace.snapshot(),
                 trip = ledger.trip,
             )
@@ -114,17 +115,18 @@ class VehicleLogReplayTest {
             }
 
             if (!closed) return@forEach
-            checkRoad(file, mono, window, snapshot.chart)
+            checkRoad(file, mono, window, tail, snapshot.chart)
             checkFigure(file, mono, window, snapshot.consumptionMean)
-            checkHoles(file, mono, window, snapshot.chart)
+            checkPoints(file, mono, tail, snapshot.chart)
         }
     }
 
-    /** The chart's own width is the road the odometer covered under it, bin by bin. */
+    /** The chart's own width is the road the odometer covered under it, a point per hundred metres. */
     private fun checkRoad(
         file: File,
         at: Double,
         window: List<ConsumptionSample>,
+        tail: List<ConsumptionSample>,
         chart: ConsumptionChartSnapshot,
     ) {
         if (window.isEmpty()) return
@@ -135,38 +137,55 @@ class VehicleLogReplayTest {
         val recorded = window.sumOf { it.km }
         assertEquals("${file.name} at $at s: the window's road", travelled, recorded, 1e-6)
 
-        // And the chart draws that road, one anchored half kilometre at a time - the road a bucket
-        // *covers*, walked here rather than taken from the production helper.
-        val perBin = perBin(window) { it.km }
-        val expected = perBin.sumOf { minOf(it, ConsumptionChart.BIN_KM) }
-        val drawn = chart.widths.sumOf { it.toDouble() } * ConsumptionChart.BIN_KM
-        assertEquals("${file.name} at $at s: the road under the chart", expected, drawn, 1e-4)
+        // And the chart stands a point on every hundred metres of that road, never fewer: the
+        // axis is the odometer's grid, so a stretch with no record is holes rather than a
+        // shorter chart. The grid is walked here rather than taken from the production helper.
+        val road = perStep(tail) { it.km }
+        var first = 0
+        while (first < ConsumptionChart.POINTS && road[first + ConsumptionChart.SMOOTH_STEPS - 1] <= 0.0) {
+            first++
+        }
+        assertEquals(
+            "${file.name} at $at s: the points under the chart",
+            ConsumptionChart.POINTS - first,
+            chart.span,
+        )
+        assertEquals(
+            "${file.name} at $at s: the road under the chart",
+            (ConsumptionChart.POINTS - first) * ConsumptionChart.PITCH_KM,
+            chart.span * ConsumptionChart.PITCH_KM,
+            1e-9,
+        )
     }
 
     /**
-     * A quantity spread over the bins each bucket's road covers, `[odometer − km, odometer)`.
+     * A quantity spread over the grid steps each bucket's road covers, `[odometer − km, odometer)`.
      *
-     * The independent arithmetic behind the two checks below it: energy and known road go with the
+     * The independent arithmetic behind the two checks around it: energy and known road go with the
      * road pro rata, because a bucket holds one integral over one stretch and no record of where
-     * inside it anything happened.
+     * inside it anything happened. The array reaches a kilometre further back than the first point
+     * does, because that point is a mean over the kilometre ending at it.
      */
-    private fun perBin(
-        window: List<ConsumptionSample>,
+    private fun perStep(
+        tail: List<ConsumptionSample>,
         of: (ConsumptionSample) -> Double,
     ): DoubleArray {
-        val newest = floor((window.last().odometerKm - 1e-6) / ConsumptionChart.BIN_KM).toLong()
-        val base = newest - ConsumptionChart.BINS + 1
-        val out = DoubleArray(ConsumptionChart.BINS)
-        window.forEach { bucket ->
+        val pitch = ConsumptionChart.PITCH_KM
+        val smooth = ConsumptionChart.SMOOTH_STEPS
+        val newest = floor((tail.last().odometerKm - 1e-6) / pitch).toLong()
+        val base = newest - ConsumptionChart.POINTS + 1 - (smooth - 1)
+        val out = DoubleArray(ConsumptionChart.POINTS + smooth - 1)
+        tail.forEach { bucket ->
             if (bucket.km <= 0.0) return@forEach
             val end = bucket.odometerKm
-            var from = end - bucket.km
-            while (from < end - 1e-9) {
-                val bin = floor(from / ConsumptionChart.BIN_KM).toLong()
-                val to = minOf(end, (bin + 1) * ConsumptionChart.BIN_KM)
-                val slot = (bin - base).toInt()
-                if (slot in out.indices) out[slot] += of(bucket) * (to - from) / bucket.km
-                from = to
+            val start = end - bucket.km
+            var step = floor((start + 1e-6) / pitch).toLong()
+            val last = floor((end - 1e-9) / pitch).toLong()
+            while (step <= last) {
+                val overlap = minOf(end, (step + 1) * pitch) - maxOf(start, step * pitch)
+                val slot = (step - base).toInt()
+                if (overlap > 0.0 && slot in out.indices) out[slot] += of(bucket) * overlap / bucket.km
+                step++
             }
         }
         return out
@@ -194,28 +213,51 @@ class VehicleLogReplayTest {
         assertEquals("${file.name} at $at s: the figure", kwh / km * 100.0, mean!!, 1e-6)
     }
 
-    /** Nothing is drawn where the log had no energy, and no bin is an invented zero. */
-    private fun checkHoles(
+    /**
+     * Every point is the trailing kilometre, and nothing is drawn where the log had no energy.
+     *
+     * The value, the hole rule and the grid-step rule, all three against arithmetic this test does
+     * itself: a point is `Σ kWh / Σ knownKm × 100` over the kilometre ending at it, `NaN` where
+     * under half of that kilometre's recorded road is known, and `NaN` where no bucket covers its
+     * own hundred metres at all.
+     */
+    private fun checkPoints(
         file: File,
         at: Double,
-        window: List<ConsumptionSample>,
+        tail: List<ConsumptionSample>,
         chart: ConsumptionChartSnapshot,
     ) {
-        if (window.isEmpty()) return
-        val known = perBin(window) { it.knownKm }
-        val road = perBin(window) { it.km }
-        var first = 0
-        while (first < ConsumptionChart.BINS && road[first] <= 0.0) first++
+        if (tail.isEmpty()) return
+        val smooth = ConsumptionChart.SMOOTH_STEPS
+        val kwh = perStep(tail) { it.kwh }
+        val road = perStep(tail) { it.km }
+        val known = perStep(tail) { it.knownKm }
+        val first = ConsumptionChart.POINTS - chart.values.size
         chart.values.forEachIndexed { index, value ->
-            val bin = first + index
-            if (value.isNaN()) return@forEachIndexed
-            assertTrue(
-                "${file.name} at $at s: bin $bin is drawn over ${known[bin]} km of known road",
-                known[bin] > 0.0 && known[bin] * 2.0 >= road[bin] - 1e-9,
-            )
-            assertTrue(
-                "${file.name} at $at s: bin $bin is not finite",
-                !value.isInfinite() && abs(value) < 1e6f,
+            val slot = first + index + smooth - 1
+            var sumKwh = 0.0
+            var sumKm = 0.0
+            var sumKnown = 0.0
+            for (step in slot - smooth + 1..slot) {
+                sumKwh += kwh[step]
+                sumKm += road[step]
+                sumKnown += known[step]
+            }
+            val readable = road[slot] > 0.0 && sumKnown > 0.0 && sumKnown * 2.0 >= sumKm - 1e-9
+            if (!readable) {
+                assertTrue(
+                    "${file.name} at $at s: point $index is drawn over ${road[slot]} km of its own " +
+                        "road and $sumKnown of $sumKm known",
+                    value.isNaN(),
+                )
+                return@forEachIndexed
+            }
+            assertTrue("${file.name} at $at s: point $index is a hole over known road", !value.isNaN())
+            assertEquals(
+                "${file.name} at $at s: point $index",
+                sumKwh / sumKnown * 100.0,
+                value.toDouble(),
+                1e-4 + abs(sumKwh / sumKnown * 100.0) * 1e-6,
             )
         }
     }

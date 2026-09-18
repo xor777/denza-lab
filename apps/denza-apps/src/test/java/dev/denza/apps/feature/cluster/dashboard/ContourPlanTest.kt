@@ -212,52 +212,52 @@ class ContourPlanTest {
     }
 
     @Test
-    fun aBucketThatGaveEnergyBackSitsOnTheZeroInTheSpendingSeries() {
+    fun aKilometreThatGaveEnergyBackHangsUnderTheZeroOnTheOneLadder() {
         val plan = plan()
-        // The grey field is continuous across all thirty buckets and says nothing about the return:
-        // what was spent on a return bucket is nothing, so the step lies on the zero line. That is
-        // half of «беспорядочно» - the other half is that no blue is drawn where nothing came back.
-        assertEquals(plan.petalZeroY, plan.petalSpendY(-4f), 1e-4f)
-        assertEquals(plan.petalZeroY, plan.petalSpendY(0f), 1e-4f)
-        assertEquals("and the return series is flat where energy was spent", plan.petalZeroY, plan.petalReturnY(18f), 1e-4f)
+        // One height per point, not two series. The line crosses the zero where the road does, and
+        // a point that cost nothing stands on the zero exactly.
+        assertEquals(plan.petalZeroY, plan.petalY(0f), 1e-4f)
+        assertTrue("a returning kilometre hangs under it", plan.petalY(-4f) > plan.petalZeroY)
+        assertTrue("and a spending one stands over it", plan.petalY(4f) < plan.petalZeroY)
     }
 
     @Test
-    fun bothPetalScalesAreFixedLaddersAndBothAreClamped() {
+    fun thePetalScaleIsOneFixedLadderAndBothItsEndsAreClamped() {
         val plan = plan()
-        assertEquals("full spending reaches the cap top", plan.petalBoxTop, plan.petalSpendY(40f), 1e-4f)
-        assertEquals("and stays there above it", plan.petalBoxTop, plan.petalSpendY(96f), 1e-4f)
-        assertEquals("full return reaches the descender", plan.petalBoxBottom, plan.petalReturnY(-20f), 1e-4f)
-        assertEquals("and stays there below it", plan.petalBoxBottom, plan.petalReturnY(-60f), 1e-4f)
+        assertEquals("full spending reaches the cap top", plan.petalBoxTop, plan.petalY(plan.petalFull), 1e-4f)
+        assertEquals("and stays there above it", plan.petalBoxTop, plan.petalY(plan.petalFull * 2.4f), 1e-4f)
+        assertEquals(
+            "full return reaches the descender",
+            plan.petalBoxBottom,
+            plan.petalY(-plan.petalReturnFull),
+            1e-4f,
+        )
+        assertEquals(
+            "and stays there below it",
+            plan.petalBoxBottom,
+            plan.petalY(-plan.petalReturnFull * 3f),
+            1e-4f,
+        )
         // Half the span is half the height, in both directions, which is what "fixed ladder" means.
         val up = plan.petalZeroY - plan.petalBoxTop
-        assertEquals(plan.petalZeroY - up / 2f, plan.petalSpendY(20f), 1e-3f)
-        // The box is 37 units up: what it is for is the difference between 15 and 25, which at 40
-        // is 9 units of glass and at 60 would be 6.
-        assertEquals(
-            "eight or nine units between an ordinary drive and a spirited one",
-            9.2f,
-            plan.petalSpendY(15f) - plan.petalSpendY(25f),
-            0.2f,
-        )
+        val down = plan.petalBoxBottom - plan.petalZeroY
+        assertEquals(plan.petalZeroY - up / 2f, plan.petalY(plan.petalFull / 2f), 1e-3f)
+        assertEquals(plan.petalZeroY + down / 2f, plan.petalY(-plan.petalReturnFull / 2f), 1e-3f)
     }
 
     @Test
-    fun theBlueIsDrawnOnlyOnTheBucketsThatGaveEnergyBack() {
+    fun aHoleBreaksTheLineAndNothingElseDoes() {
         // The renderer walks the same runs this does, so the statement is testable without a Canvas:
-        // one shape per stretch of return buckets, and nothing along the zero line between them.
-        val buckets = listOf(12.0, 9.0, -2.0, -3.0, 8.0, 11.0, -1.0, 7.0)
-        val runs = ContourRuns.of(buckets.size) { buckets[it] < 0.0 }
-        assertEquals(listOf(2 to 2, 6 to 1), runs)
-        assertTrue("nothing blue where nothing came back", runs.all { (start, length) ->
-            (start until start + length).all { buckets[it] < 0.0 }
-        })
+        // one call to the pen per stretch with no hole in it, and the zero is not a boundary.
+        val points = listOf(12.0, 9.0, -2.0, -3.0, 8.0, Double.NaN, -1.0, 7.0)
+        val runs = ContourRuns.of(points.size) { !points[it].isNaN() }
+        assertEquals("the zero does not end a run; a hole does", listOf(0 to 5, 6 to 2), runs)
     }
 
     @Test
-    fun aHistoryWithNoReturnInItDrawsNoBlueAtAll() {
-        val buckets = listOf(12.0, 9.0, 8.0, 0.0)
-        assertTrue(ContourRuns.of(buckets.size) { buckets[it] < 0.0 }.isEmpty())
+    fun aHistoryWithNoHoleInItIsOneShape() {
+        val points = listOf(12.0, 9.0, -8.0, 0.0)
+        assertEquals(listOf(0 to 4), ContourRuns.of(points.size) { !points[it].isNaN() })
     }
 
     @Test
