@@ -39,7 +39,7 @@ experiments live in separate parts of the repository.
 | Lifecycle | Component | Purpose |
 | --- | --- | --- |
 | **Active** | [`apps/car-adb-gateway/`](apps/car-adb-gateway/) | Generic, relay-only remote ADB gateway with one trusted computer and a self-healing Android service. |
-| **Active** | [`apps/denza-apps/`](apps/denza-apps/) | Simulcast, side-camera mirrors, navigation and HUD guidance, Shortcuts default-app roles, explicit stock split-screen sessions, trip/spectrum display, native weather adaptation, and passenger-screen app installation. |
+| **Active** | [`apps/denza-apps/`](apps/denza-apps/) | Simulcast, side-camera mirrors, navigation and HUD guidance, Shortcuts default-app roles, explicit stock split-screen sessions, trip/spectrum display, native weather adaptation, passenger-screen app installation, the Contour instrument dashboard on the driver's display, the speaker-lift playback report, and a tile that opens the car's own language list. |
 | **Legacy** | [`legacy/denza-mirrors/`](legacy/denza-mirrors/) | Frozen hardware-verified camera reference. Its working behavior has moved into Denza Apps and it is no longer in the root Gradle build. |
 | **Legacy** | [`legacy/denza-gateway/`](legacy/denza-gateway/) | Original LAN-only SSH-to-ADB gateway. Kept for maintenance and reference; superseded for new remote-access work. |
 | **Library** | [`libraries/dishare-bridge/`](libraries/dishare-bridge/) | Shared raw DiShare binder integration used by Denza Apps. |
@@ -279,7 +279,12 @@ computer's normal ADB key. Approve it at the vehicle before retrying the command
 - [ADB authorization recovery](docs/adb-authorization-recovery.md) — passive startup gate, one-shot authorization, and stuck-queue boundary.
 - [DiShare API notes](docs/dishare-api-notes.md) — Simulcast and HUD reverse-engineering notes.
 - [FSE app installation](docs/fse-app-installation.md) — verified SMB and cross-device path for passenger-screen APKs.
-- [Split-screen findings](docs/split-screen-findings.md) — explicit one-package picker flow, live acceptance, and retired routes.
+- [Split-screen findings](docs/split-screen-findings.md) — the explicit two-picker flow, live acceptance, and retired routes.
+- [Split-screen product contract](docs/split-screen-product-contract.md) — normative Split Screen contract: user-visible combinatorics, invariants, the single-automaton core, and the live acceptance protocol.
+- [Energy display contract](docs/energy-display-contract.md) — normative energy contract for the cluster's Contour and the head unit's car page: one definition, one set of words, one chart on both screens.
+- [Speaker-lift findings](docs/speaker-lift-findings.md) — the Devialet pop-out covers and the one playback report that raises them.
+- [System language](docs/system-language.md) — the car's forty languages, the unlisted picker that reaches them, and the vendor HAL that applies one live.
+- [Cluster contest](docs/cluster-contest-2026-09/) — the driver-display design contest: brief, five concepts, and the jury verdict that chose «Контур».
 - [Vehicle-data findings](docs/vehicle-data-findings.md) — usable GNSS/IMU inputs and blocked BYD/CAN surfaces.
 - [Audio-capture findings](docs/audio-capture-findings.md) — output-mix spectrum source and product boundaries.
 - [Weather-adapter findings](docs/weather-adapter-findings.md) — native provider contract and MET Norway adapter.

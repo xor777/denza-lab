@@ -10,12 +10,12 @@ Use this folder for durable project knowledge.
 | `instrument-display-findings.md` | Instrument-display selection, the Contour panel on the driver's display, Mirrors geometry, navigation projection, verification status, and open issues. |
 | `energy-display-contract.md` | Normative energy contract for the cluster's Contour and the head unit's car page: pack power's direction and words, the ten-kilometre consumption, the twenty-bin chart, the trip and the engine's box, and how each is proved. Owns those where it diverges from the findings or the canvas README. |
 | `audio-capture-findings.md` | Verified output-mix spectrum source, calibration, permissions, product adoption, and remaining audio checks. |
-| `speaker-lift-findings.md` | Devialet flip covers; live-proven direct motor edges, the stock-auto latch side effect, Denza Apps app/MediaSession/output-mix automation, and superseded trigger hypotheses. |
+| `speaker-lift-findings.md` | Devialet flip covers. Owns the product contract in "Product contract v2" (2026-09-04): the lever is the playback report `INSTRUMENT_MUSIC_STATE_SET` (`0x43E0000A`) = `1`, live-proven on both cars, and the app never writes the stock auto-lift flag `AUDIO_RLSA_STATE_SET` (`0x16300025`). The direct motor edges, the stock-auto latch side effect and the superseded trigger hypotheses are kept as history. |
 | `vehicle-data-findings.md` | Live-car matrix of usable GNSS/IMU/journey data, blocked DiCar getters, `autoservice` FID protocol, widget allowlist, and product boundaries. |
 | `system-language.md` | The firmware's forty languages, the unlisted picker that reaches them, the vendor HAL that applies one live, and the Denza Apps tile. |
 | `dishare-api-notes.md` | DiShare/HUD reverse-engineering notes and raw API findings. |
 | `fse-app-installation.md` | Passenger-screen Android discovery, SMB delivery, stock cross-device install trigger, verification, and limitations. |
-| `split-screen-findings.md` | Live-proven BYD split substrate, explicit one-package picker flow, acceptance evidence, and retired approaches. |
+| `split-screen-findings.md` | Live-proven BYD split substrate, the explicit two-picker flow, acceptance evidence, and retired approaches. |
 | `split-screen-product-contract.md` | Normative Split Screen contract: user-visible combinatorics, invariants, single-automaton core, delete-first policy, test-audit verdict, live acceptance protocol. Owns the product contract where it diverges from findings. |
 | `weather-adapter-findings.md` | Stock BYD weather-provider contract, MET Norway adapter, cache/write behavior, and live proof. |
 | `shortcuts-automation-findings.md` | Shortcuts If/Then catalog, direct PersonBean navigation/music/video roles, live Yandex Navigator/Music and VK Video checks, the retired single-package proxy experiment, the proposed package-replacement recovery path, and the normative steering-wheel Play/Pause resume contract. |
