@@ -682,17 +682,22 @@ class ContourBoardContractTest {
         assertEquals(232f, plan.petalBoxWidth, TOLERANCE)
         // The cap of the 52 beside it plus a descender: 36.92 + 13.
         assertEquals(49.92f, plan.petalBoxHeight, TOLERANCE)
-        // And the steps in it: the window over the bin, derived rather than written down twice.
-        assertEquals("twenty steps of five hundred metres", ConsumptionChart.BINS, plan.petalBins)
-        assertEquals(20, plan.petalBins)
+        // And the points in it: the window over the grid's pitch, derived rather than written twice.
+        assertEquals("a hundred points of a hundred metres", ConsumptionChart.POINTS, plan.petalPoints)
+        assertEquals(100, plan.petalPoints)
         assertEquals(
-            "which is ten kilometres over half a kilometre",
-            (ConsumptionWindow.KM / ConsumptionChart.BIN_KM).toInt(),
-            plan.petalBins,
+            "which is ten kilometres over a hundred metres",
+            (ConsumptionWindow.KM / ConsumptionChart.PITCH_KM).toInt(),
+            plan.petalPoints,
         )
-        assertTrue(generator().contains("PETAL_BUCKETS = 100 "))
-        assertTrue(generator().contains("PETAL_BIN_BUCKETS = 5"))
-        assertTrue(generator().contains("PETAL_BINS = PETAL_BUCKETS // PETAL_BIN_BUCKETS"))
+        assertTrue(generator().contains("PETAL_POINTS = 100 "))
+        assertTrue("and every one of them is a trailing kilometre", generator().contains("PETAL_SMOOTH = 10"))
+        assertEquals(
+            "the smoothing is the same kilometre on both records",
+            ConsumptionChart.SMOOTH_STEPS,
+            10,
+        )
+        assertTrue("the bins are gone from the generator", !generator().contains("PETAL_BIN_BUCKETS"))
     }
 
     @Test
@@ -705,50 +710,61 @@ class ContourBoardContractTest {
             TOLERANCE,
         )
         assertEquals("the zero line is where the figure stands", plan.petalBaseline, plan.petalZeroY, 1e-4f)
-        // 0…40 up the cap and 0…20 back down the descender. 30 and 10 were the ceilings for
-        // hundred-metre buckets and they flattened every launch and every descent into one silent
-        // top; a 500 m step past 40 is spirited driving, and either way a cut is marked.
-        assertEquals(40f, plan.petalFull, 1e-4f)
+        // 0…60 up the cap and 0…20 back down the descender, closed by the owner's own journal of
+        // 2026-09-18: over 500 m, 17 % of that road passed 40 and every drive wore a tick; over the
+        // kilometre this chart draws, 2 % passes 60 and nothing passes −20.
+        assertEquals(60f, plan.petalFull, 1e-4f)
         assertEquals("and the descender holds the return", 20f, plan.petalReturnFull, 1e-4f)
         assertEquals("three units of tick outside the box", 3f, plan.petalTick, 1e-4f)
-        assertTrue(generator().contains("PETAL_FULL = 40."))
+        // And the two ceilings are nearly one slope on 37 units up and 13 down, so the line
+        // crosses the zero without a kink - which is the second thing 60 buys.
+        assertEquals(
+            "one slope either side of the zero",
+            ((plan.petalZeroY - plan.petalBoxTop) / plan.petalFull).toDouble(),
+            ((plan.petalBoxBottom - plan.petalZeroY) / plan.petalReturnFull).toDouble(),
+            0.04,
+        )
+        assertTrue(generator().contains("PETAL_FULL = 60."))
         assertTrue(generator().contains("PETAL_RETURN_FULL = 20."))
         assertTrue(generator().contains("PETAL_TICK = 3."))
         assertTrue("the zero share is gone with the ladder it set", !generator().contains("PETAL_ZERO_SHARE"))
     }
 
     /**
-     * A step past a ceiling is drawn to the ceiling with a mark, on both records.
+     * A run past a ceiling is drawn along it with one mark, on both records.
      *
-     * The states board carries half a kilometre of full throttle. Cut and seen to be cut is the
-     * whole point: a silent flat top is a reading that says the road cost exactly the ceiling.
+     * The states board carries a kilometre of full throttle. Cut and seen to be cut is the whole
+     * point: a silent flat top is a reading that says the road cost exactly the ceiling. One mark
+     * per run rather than per point, because a line held along the ceiling for a kilometre is one
+     * cut and a comb of ticks over it would say so ten times.
      */
     @Test
-    fun aStepPastTheCeilingIsCutAndTheCutIsMarked() {
+    fun aRunPastTheCeilingIsCutAndTheCutIsMarkedOnce() {
         val generator = generator()
-        assertTrue(generator.contains("if v >= PETAL_FULL:"))
-        assertTrue(generator.contains("elif v <= -PETAL_RETURN_FULL:"))
+        assertTrue(generator.contains("lambda v: v is not None and v >= PETAL_FULL"))
+        assertTrue(generator.contains("lambda v: v is not None and v <= -PETAL_RETURN_FULL"))
+        assertTrue(
+            "one tick at the run's centre",
+            generator.contains("cx = (xs[start] + xs[stop - 1]) / 2"),
+        )
         assertTrue(
             "the launch state exists on the board",
-            generator.contains("bars=with_launch("),
+            generator.contains("road=with_launch("),
         )
         assertTrue(
             "and so does a stretch with no energy behind it",
-            generator.contains("bars=with_hole("),
+            generator.contains("road=with_hole("),
         )
-        // A hole is drawn as nothing and its road is still counted, which is what the generator's
-        // own bin rule says: half the road known or it is not a reading.
-        assertTrue(generator.contains("len(known) * 2 >= len(chunk)"))
     }
 
     @Test
-    fun thePetalDrawsItsReturnInBlueOnlyWhereItHappened() {
-        // The board's calm history has one run of return buckets in it, so the drawing carries
-        // exactly one blue patch - filled at 50 % and edged in RETURN_INK - and no blue anywhere
-        // along the zero line. The grey field is drawn once, across all thirty buckets.
+    fun thePetalDrawsOneSilhouetteAndTheZeroDecidesItsColour() {
+        // One shape, drawn twice under a clip: the calm board's history has no holes in it, so the
+        // run is one, and the two halves of it are one grey field under white above the zero and
+        // one blue field under light blue below. Nothing is stroked along the zero itself.
         val board = board()
         val patches = PATH_FILL.findAll(board).filter { it.groupValues[1] == BLUE }.toList()
-        assertEquals("one blue patch for the one run of return buckets", 1, patches.size)
+        assertEquals("one blue field, which is the half of the silhouette under the zero", 1, patches.size)
         assertEquals(
             ContourPlan.RETURN_AREA_ALPHA,
             patches[0].groupValues[2].toFloat(),
@@ -763,6 +779,9 @@ class ContourBoardContractTest {
             1,
             PATH_FILL.findAll(board).count { it.groupValues[1] == DEEP },
         )
+        // And the two halves are one path each, clipped rather than two shapes chosen by the data.
+        assertTrue("the halves are clipped", board.contains("""<g clip-path="url(#petalup"""))
+        assertTrue(board.contains("""<g clip-path="url(#petaldown"""))
     }
 
     @Test

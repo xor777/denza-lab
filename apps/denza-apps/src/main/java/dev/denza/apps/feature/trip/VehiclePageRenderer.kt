@@ -90,12 +90,11 @@ internal class VehiclePageRenderer {
      */
     private val readouts = EnergyReadouts()
 
-    /** The chart's bin edges and heights, fields so a draw allocates nothing. */
-    private val chartXs = FloatArray(ConsumptionChart.BINS + 1)
-    private val chartYs = FloatArray(ConsumptionChart.BINS)
-    private val returnYs = FloatArray(ConsumptionChart.BINS)
-    private val spanXs = FloatArray(ConsumptionChart.BINS + 1)
-    private val spanYs = FloatArray(ConsumptionChart.BINS)
+    /** The chart's points, fields so a draw allocates nothing. */
+    private val chartXs = FloatArray(ConsumptionChart.POINTS)
+    private val chartYs = FloatArray(ConsumptionChart.POINTS)
+    private val spanXs = FloatArray(ConsumptionChart.POINTS)
+    private val spanYs = FloatArray(ConsumptionChart.POINTS)
     private val surface = CanvasGlyphSurface()
     private val shelf: Array<Row> = Array(SENSORS.size + 1) { index ->
         if (index < SENSORS.size) {
@@ -338,25 +337,26 @@ internal class VehiclePageRenderer {
     // ------------------------------------------------------------------------------- the shape
 
     /**
-     * The last ten kilometres, as the twenty steps the cluster's petal draws.
+     * The last ten kilometres, as the hundred trailing kilometres the cluster's petal draws.
      *
-     * `docs/energy-display-contract.md` §2.3: one chart on both screens, the same bins on the same
-     * ladder, and the pixel height is the only thing that differs. It replaced two minutes of pack
-     * power - a second history of the quantity the headline already shows, and the reason the two
-     * screens' graphs could not be the same graph.
+     * `docs/energy-display-contract.md` §2.3: one chart on both screens, the same points on the
+     * same ladder, and the pixel height is the only thing that differs. It replaced two minutes of
+     * pack power - a second history of the quantity the headline already shows, and the reason the
+     * two screens' graphs could not be the same graph.
      *
-     * Above the zero is what the road cost, below it is what it gave back, on a fixed linear ladder
-     * of 0…40 up and 0…20 down. A bin the log has no energy for is a **hole**: nothing is drawn, the
-     * zero rule continues under it, and the road it covers is still counted. A bin past a ceiling is
-     * drawn to the ceiling with a tick standing outside the box, so a cut is seen to be a cut. The
-     * newest bin is as wide as the road it has, and the run is anchored at the right edge where new
-     * road arrives.
+     * A point stands on every hundred metres of the odometer's grid and is the mean of the
+     * kilometre ending at it. Above the zero is what that kilometre cost, below it is what it gave
+     * back, on one fixed linear ladder, and the line crosses the zero where the road does. A point
+     * whose kilometre is mostly unknown is a **hole**: the line breaks, the zero rule continues
+     * under it, and the road it stands on keeps its place. A point past a ceiling is drawn along
+     * the ceiling, with one tick per run standing outside the box, so a cut is seen to be a cut.
+     * The run is anchored at the right edge, where new road arrives.
      *
-     * **Drawn with the cluster's own pen.** The steps, the field under them, the blue patches on
-     * their posts and the marks over a cut bin were all written out a second time here, and the
-     * second copy had already drifted - its return patch was edged in `RETURN` where the cluster
-     * edges it in `RETURN_INK`. [InstrumentPen] speaks a virtual unit, and this page's virtual unit
-     * is the strip's own dp, so one call draws the same shape at a different size.
+     * **Drawn with the cluster's own pen.** The shape, the field under it and the marks over a cut
+     * were all written out a second time here, and the second copy had already drifted - its return
+     * was edged in `RETURN` where the cluster edges it in `RETURN_INK`. [InstrumentPen] speaks a
+     * virtual unit, and this page's virtual unit is the strip's own dp, so one call draws the same
+     * shape at a different size.
      */
     private fun drawChart(
         canvas: Canvas,
@@ -370,7 +370,7 @@ internal class VehiclePageRenderer {
         val zero = top + height * unit * ContourPlan.PETAL_FULL /
             (ContourPlan.PETAL_FULL + ContourPlan.PETAL_RETURN_FULL)
         val plot = (width - CHART_AXIS) * unit
-        val pitch = plot / ConsumptionChart.BINS
+        val pitch = plot / ConsumptionChart.POINTS
 
         fill.color = DenzaPalette.TRACK_MARK
         canvas.drawRect(left, zero, left + plot, zero + unit, fill)
@@ -378,60 +378,45 @@ internal class VehiclePageRenderer {
 
         val chart = readouts.chart
         val values = chart.values
-        val count = min(values.size, ConsumptionChart.BINS)
+        val count = min(values.size, ConsumptionChart.POINTS)
         if (count <= 0) return
         val first = values.size - count
 
         // One virtual unit is one strip dp, which is what lets the cluster's own strokes and ticks
         // be stated here in the numbers `ContourPlan` states them in.
         pen.size(plot, bottom - top, height)
-        // The run is anchored at the box's right edge, so a chart that is still filling grows
-        // leftward into its box instead of stretching across it.
-        var x = left + (ConsumptionChart.BINS - chart.span) * pitch
+        // A point stands at the right edge of its own hundred metres and the run is anchored at the
+        // box's right edge, so a chart that is still filling grows leftward into its box.
+        val right = left + plot
         for (index in 0 until count) {
-            chartXs[index] = x
-            x += chart.widths[first + index] * pitch
+            chartXs[index] = right - (count - 1 - index) * pitch
             val value = values[first + index]
             chartYs[index] = if (value.isNaN()) {
                 Float.NaN
+            } else if (value >= 0f) {
+                zero - min(value / ContourPlan.PETAL_FULL, 1f) * (zero - top)
             } else {
-                zero - min(max(value, 0f) / ContourPlan.PETAL_FULL, 1f) * (zero - top)
-            }
-            returnYs[index] = if (value.isNaN()) {
-                Float.NaN
-            } else {
-                zero + min(max(-value, 0f) / ContourPlan.PETAL_RETURN_FULL, 1f) * (bottom - zero)
+                zero + min(-value / ContourPlan.PETAL_RETURN_FULL, 1f) * (bottom - zero)
             }
         }
-        chartXs[count] = x
 
         ContourRuns.forEach(count, { !values[first + it].isNaN() }) { start, length ->
-            pen.history(
+            pen.curve(
                 canvas,
                 xSpan(start, length),
                 ySpan(chartYs, start, length),
                 length,
                 zero,
+                top,
+                bottom,
                 PanelPalette.INK,
                 1f,
                 CHART_EDGE,
                 PanelPalette.INK,
                 AREA_OUT_ALPHA,
-            )
-        }
-        // The return is a patch per stretch of returning bins, standing on the zero on its own
-        // posts: blue is only where energy actually came back.
-        ContourRuns.forEach(count, { values[first + it] < 0f }) { start, length ->
-            pen.steps(
-                canvas,
-                xSpan(start, length),
-                ySpan(returnYs, start, length),
-                length,
-                zero,
                 DenzaPalette.RETURN,
                 AREA_BACK_ALPHA,
                 DenzaPalette.RETURN_INK,
-                CHART_EDGE,
             )
         }
         pen.clampTicks(
@@ -463,10 +448,10 @@ internal class VehiclePageRenderer {
         return spanYs
     }
 
-    /** And its edges, which are one longer than its heights. */
+    /** And its x's, one per point. */
     private fun xSpan(start: Int, length: Int): FloatArray {
         if (start == 0) return chartXs
-        for (index in 0..length) spanXs[index] = chartXs[start + index]
+        for (index in 0 until length) spanXs[index] = chartXs[start + index]
         return spanXs
     }
 

@@ -49,7 +49,7 @@ import kotlin.math.min
  *
  * This runs inside a `Presentation` over the vehicle's live instruments. An exception out of
  * `onDraw` takes that window down, so the panel draws what it has and leaves out what it does not,
- * and there is no case here that ends in a throw. The three history buffers are fields.
+ * and there is no case here that ends in a throw. The history buffers are fields.
  */
 internal class ClusterDashboardRenderer {
 
@@ -78,10 +78,9 @@ internal class ClusterDashboardRenderer {
      */
     private val readouts = EnergyReadouts()
 
-    private val steps = max(ContourPlan.ENGINE_BINS, ContourPlan.PETAL_BINS)
-    private val chartXs = FloatArray(ContourPlan.PETAL_BINS + 1)
-    private val chartYs = FloatArray(ContourPlan.PETAL_BINS)
-    private val returnYs = FloatArray(ContourPlan.PETAL_BINS)
+    private val steps = max(ContourPlan.ENGINE_BINS, ContourPlan.PETAL_POINTS)
+    private val chartXs = FloatArray(ContourPlan.PETAL_POINTS)
+    private val chartYs = FloatArray(ContourPlan.PETAL_POINTS)
     private val engineXs = FloatArray(ContourPlan.ENGINE_BINS + 1)
     private val generationYs = FloatArray(ContourPlan.ENGINE_BINS)
     private val spanYs = FloatArray(steps)
@@ -702,7 +701,7 @@ internal class ClusterDashboardRenderer {
         ContourRuns.forEach(count, { bins[newest + it] > 0f }) { start, length ->
             pen.history(
                 canvas,
-                xSpan(engineXs, start, length),
+                xSpan(engineXs, start, length + 1),
                 ySpan(generationYs, start, length),
                 length,
                 pen.v(bottom),
@@ -907,75 +906,65 @@ internal class ClusterDashboardRenderer {
     }
 
     /**
-     * Ten kilometres as twenty steps of five hundred metres, standing on the figure's own baseline.
+     * Ten kilometres as a hundred trailing kilometres, standing on the figure's own baseline.
      *
-     * One chart, drawn twice: the head unit's car page draws these same bins on this same ladder,
-     * and the pixel height is all that differs (`docs/energy-display-contract.md` §2.3). The bins
-     * are anchored to the odometer's own half kilometre in [ConsumptionChart], so a step that has
-     * closed never changes and the shape does not re-phase every hundred metres.
+     * One chart, drawn twice: the head unit's car page draws these same points on this same ladder,
+     * and the pixel height is all that differs (`docs/energy-display-contract.md` §2.3). A point
+     * stands on every hundred metres of the odometer's own grid and is the mean of the kilometre
+     * ending at it, so a point that has closed never changes and the shape does not re-phase.
      *
-     * The scale is a fixed ladder - 0…40 up the cap, 0…20 back down the descender - rather than an
-     * autoscale, because autoscaling meant one bin changing value redrew the height of all twenty.
-     * There is no dashed mean: the mean is the figure standing next to the box.
+     * **A line, because a trailing mean is a continuous function of the road.** Twenty steps of
+     * five hundred metres were «огромные ступеньки» from the seat - neighbours 20 kWh/100 km apart
+     * on the owner's own journal - and a hundred steps were the comb before them. The engine's box
+     * keeps its steps; its slots really are closed buckets.
      *
-     * **A bin past a ceiling is drawn to it with a tick standing just outside the box**, so the
-     * reader sees it was cut rather than reading a silent flat top.
+     * The scale is a fixed ladder rather than an autoscale, because autoscaling meant one point
+     * changing value redrew the height of all hundred. There is no dashed mean: the mean is the
+     * figure standing next to the box.
      *
-     * **A hole is drawn as nothing.** No field, no edge, and the zero line continues under it: a
-     * stretch the log had no energy for is not a stretch where nothing was spent.
+     * **A point past a ceiling is drawn along it, with one tick per run standing just outside the
+     * box**, so the reader sees it was cut rather than reading a silent flat top.
      *
-     * **Two series, and the second one is only where it happened.** Spending is one continuous grey
-     * field per run of known bins - on a bin that gave energy back it lies on the zero line,
-     * because what was spent there is nothing - and the return is a blue shape per run of returning
-     * bins, hanging under the zero on its own posts.
+     * **A hole is drawn as nothing.** The line breaks, the zero rule continues under it, and the
+     * road it stands on keeps its place on the axis: a stretch the log had no energy for is not a
+     * stretch where nothing was spent.
      */
     private fun history(canvas: Canvas, plan: ContourPlan) {
         val chart = readouts.chart
         val values = chart.values
-        val count = min(values.size, ContourPlan.PETAL_BINS)
+        val count = min(values.size, ContourPlan.PETAL_POINTS)
         if (count <= 0) return
         val first = values.size - count
         val zero = pen.v(plan.petalZeroY)
 
-        // The pitch is the box divided by the window rather than by what has arrived, and the run
-        // is anchored at the box's right edge, so a chart that is still filling grows leftward into
-        // its box instead of stretching across it. A partial bin is as wide as the road it has.
-        val pitch = plan.petalBoxWidth / ContourPlan.PETAL_BINS
-        var x = plan.petalBoxLeft + (ContourPlan.PETAL_BINS - chart.span) * pitch
+        // The pitch is the box divided by the window rather than by what has arrived, and a point
+        // stands at the right edge of its own hundred metres - so the newest one is on the box's
+        // right edge and a chart that is still filling grows leftward into its box.
+        val pitch = plan.petalBoxWidth / ContourPlan.PETAL_POINTS
+        val right = plan.petalBoxLeft + plan.petalBoxWidth
         for (index in 0 until count) {
-            chartXs[index] = pen.v(x)
-            x += chart.widths[first + index] * pitch
+            chartXs[index] = pen.v(right - (count - 1 - index) * pitch)
             val value = values[first + index]
-            chartYs[index] = if (value.isNaN()) Float.NaN else pen.v(plan.petalSpendY(value))
-            returnYs[index] = if (value.isNaN()) Float.NaN else pen.v(plan.petalReturnY(value))
+            chartYs[index] = if (value.isNaN()) Float.NaN else pen.v(plan.petalY(value))
         }
-        chartXs[count] = pen.v(x)
 
         ContourRuns.forEach(count, { !values[first + it].isNaN() }) { start, length ->
-            pen.history(
+            pen.curve(
                 canvas,
                 xSpan(chartXs, start, length),
                 ySpan(chartYs, start, length),
                 length,
                 zero,
+                pen.v(plan.petalBoxTop),
+                pen.v(plan.petalBoxBottom),
                 DenzaPalette.INK,
                 ContourPlan.LINE_ALPHA,
                 plan.dataLine,
                 DenzaPalette.MUTED_DEEP,
                 ContourPlan.AREA_ALPHA,
-            )
-        }
-        ContourRuns.forEach(count, { values[first + it] < 0f }) { start, length ->
-            pen.steps(
-                canvas,
-                xSpan(chartXs, start, length),
-                ySpan(returnYs, start, length),
-                length,
-                zero,
                 DenzaPalette.RETURN,
                 ContourPlan.RETURN_AREA_ALPHA,
                 DenzaPalette.RETURN_INK,
-                plan.dataLine,
             )
         }
         pen.clampTicks(
@@ -997,7 +986,7 @@ internal class ClusterDashboardRenderer {
             canvas,
             pen.v(plan.petalBoxLeft),
             zero,
-            pen.v(plan.petalBoxLeft + plan.petalBoxWidth),
+            pen.v(right),
             zero,
             DenzaPalette.MUTED_DEEP,
             plan.bandHairline,
@@ -1059,10 +1048,16 @@ internal class ClusterDashboardRenderer {
         return spanYs
     }
 
-    /** And its edges, which are one longer than its heights. */
-    private fun xSpan(xs: FloatArray, start: Int, length: Int): FloatArray {
+    /**
+     * And its x's - [count] of them for a curve's points, one more for a step run's edges.
+     *
+     * The caller says how many it needs rather than this deciding, because the two shapes in this
+     * file no longer count the same things: a step run has an edge on either side of every slot,
+     * and a line has one x per point.
+     */
+    private fun xSpan(xs: FloatArray, start: Int, count: Int): FloatArray {
         if (start == 0) return xs
-        for (index in 0..length) spanXs[index] = xs[start + index]
+        for (index in 0 until count) spanXs[index] = xs[start + index]
         return spanXs
     }
 

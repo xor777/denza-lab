@@ -32,12 +32,21 @@ internal object ConsumptionWindow {
      * summing them to [KM] printed a figure over a road the car had left. [lastKm] null means the
      * caller is holding a tail somebody else has already bounded - the snapshot's, in every frame
      * either screen draws - and then the road is the whole rule.
+     *
+     * [windowKm] is [KM] for everything that is read, and [ConsumptionChart.TAIL_KM] for the one
+     * reader that needs road behind the window: the chart's first point is a mean over the
+     * kilometre before it. The bound is a parameter rather than a second walk because both bounds
+     * are the same two rules.
      */
-    fun firstIndex(all: List<ConsumptionSample>, lastKm: Double? = null): Int {
-        val floor = lastKm?.minus(KM)?.plus(OdometerGate.KM_EPSILON)
+    fun firstIndex(
+        all: List<ConsumptionSample>,
+        lastKm: Double? = null,
+        windowKm: Double = KM,
+    ): Int {
+        val floor = lastKm?.minus(windowKm)?.plus(OdometerGate.KM_EPSILON)
         var km = 0.0
         var from = all.size
-        while (from > 0 && km < KM - OdometerGate.KM_EPSILON) {
+        while (from > 0 && km < windowKm - OdometerGate.KM_EPSILON) {
             if (floor != null && all[from - 1].odometerKm <= floor) break
             from--
             km += all[from].km

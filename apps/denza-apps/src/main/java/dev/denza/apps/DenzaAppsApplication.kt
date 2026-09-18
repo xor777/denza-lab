@@ -9,6 +9,7 @@ import android.util.Log
 import androidx.core.content.ContextCompat
 import dev.denza.apps.core.DenzaRuntimeCoordinator
 import dev.denza.apps.core.RuntimeStartCause
+import dev.denza.apps.feature.vehicle.VehicleSession
 import java.util.concurrent.atomic.AtomicBoolean
 
 /** Starts the product runtime even when BYD autoload opens no activity. */
@@ -17,6 +18,10 @@ class DenzaAppsApplication : Application() {
         super.onCreate()
         if (!DenzaProcessPolicy.shouldBootstrap(packageName, Application.getProcessName())) return
         ScreenOnRuntimeRecovery.register(this)
+        // The road is recorded whether or not anyone looks (the energy display contract, §2.7).
+        // The claim lasts for the life of the process and there is nothing to release; while no
+        // screen holds one of its own the hub sweeps once a second instead of ten times.
+        VehicleSession.record(this)
         DenzaRuntimeCoordinator.bootstrap(this, RuntimeStartCause.PROCESS_START)
     }
 }

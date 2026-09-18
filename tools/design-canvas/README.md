@@ -292,8 +292,8 @@ Contour went through nine passes to learn these, and this page inherits them:
   Revolutions have a cell only while the engine turns; nothing prints `0` to hold a
   seat;
 - **the page has a shape**, and since 2026-09-07 it is the *cluster's* shape: the
-  last ten kilometres of the pack's consumption, in the same twenty bins of 500 m
-  on the same ladder the petal clamps at
+  last ten kilometres of the pack's consumption, as the same hundred trailing
+  kilometres on the same ladder the petal clamps at
   ([docs/energy-display-contract.md](../../docs/energy-display-contract.md), §2.3).
   Out of the pack in ink, back into it in `RETURN`, holes where the log had no
   energy, and the pixel height is the only thing that differs between the two
@@ -326,14 +326,15 @@ scene stopped after fourteen minutes, the charging scene with no cell at all.
 ladder of rungs, because the quantity lived in two orders of magnitude at once.
 
 The box holds consumption now, which does not: it is a **fixed linear ladder,
-0…40 kW·h/100 km up and 0…20 back down, clamped**, the cluster's own two constants
+0…60 kW·h/100 km up and 0…20 back down, clamped**, the cluster's own two constants
 (`ContourPlan.PETAL_FULL`, `PETAL_RETURN_FULL`) read by both screens. A ladder
 rather than a fit for the reason the petal's is one - a span that follows the data
-redraws the same road at a new height every few hundred metres - and a bin past
-either ceiling is drawn to the ceiling **with a three-unit tick standing outside
-the box**, so a cut is seen to be a cut rather than read as a silent flat top.
+redraws the same road at a new height every few hundred metres - and a run past
+either ceiling is drawn along the ceiling **with one three-unit tick standing
+outside the box at the run's centre**, so a cut is seen to be a cut rather than
+read as a silent flat top.
 
-The two ceilings are written where a chart writes them: `40` and `−20` against the
+The two ceilings are written where a chart writes them: `60` and `−20` against the
 edges they belong to, in a 44 dp gutter on the right. The span used to be a phrase
 on the line underneath - `ШКАЛА 5 ↑ 10 ↓ кВт` - and the verdict on it was *«тоже не
 интуитивно, либо убрать либо починить»*: it was a legend, and a legend is what this
@@ -648,7 +649,7 @@ that concept drawn: three boards, all from the same constants.
 | | |
 | --- | --- |
 | `ClusterContour.dc.html` | calm driving, engine asleep - the state the panel is in most of the time |
-| `ClusterContourStates.dc.html` | the scenes as a column: first seconds, a traffic jam whose engine ran earlier and stopped long ago, calm, the first kilometres with the log 3.7 km in, an acceleration with half a kilometre of full throttle cut at the ceiling, regeneration, the engine giving 14 kW for 82 s, the engine stopped and its box gone, an engine running at speed that gives the pack nothing, standing on P, a dropped link on the road drawn as a hole, standing on P with the generator charging, charging, charging with no consumption history behind it and an estimate too long for the seat, a single null, link lost, an exception, and the missing ADB key |
+| `ClusterContourStates.dc.html` | the scenes as a column: first seconds, a traffic jam whose engine ran earlier and stopped long ago, calm, the first kilometres with the log 3.7 km in, an acceleration with a kilometre of full throttle cut at the ceiling, regeneration, the engine giving 14 kW for 82 s, the engine stopped and its box gone, an engine running at speed that gives the pack nothing, standing on P, a dropped link on the road drawn as a hole, standing on P with the generator charging, charging, charging with no consumption history behind it and an estimate too long for the seat, a single null, link lost, an exception, and the missing ADB key |
 | `ClusterContourPlan.dc.html` | the skeleton alone, over the three apertures and both cell grids, with every anchor measured - and, under the panel, the physical constants and the ramp they produce |
 
 The panel exists now: `dev.denza.apps.feature.cluster.dashboard` draws these three
@@ -680,7 +681,8 @@ differently, it wins. What moved on these boards:
 
 - the petal draws **twenty steps of 500 m** instead of a hundred of 100 m,
   anchored to the odometer's own half kilometre, on **0…40 / 0…20** with a tick
-  over anything cut and holes where the log had no energy;
+  over anything cut and holes where the log had no energy (superseded on
+  2026-09-18, below);
 - the engine's box exists **only while the engine gives**, is drawn in the
   history's own grey, and says **«ДВС ДАЁТ 14 кВт · ПОСЛЕДНИЕ 1:22»** with no dot;
 - **nothing about the engine is drawn on the band** - both drawings that were
@@ -693,6 +695,36 @@ differently, it wins. What moved on these boards:
 `ContourBoardContractTest` and `StripPagesBoardContractTest` hold both records to
 all of it, and `EnergyReadoutsTest` holds the two screens to one answer about every
 string either of them prints.
+
+### What the third board changed (2026-09-18)
+
+The owner read the built twenty-step petal off the car and said «огромные
+ступеньки». His own journal of that day says why: over 500 m, neighbouring steps
+differ by 20 kW·h/100 km at the median and 17 % of the road passes 40, so every
+drive wore a tick and no drive ever drew an uncut shape. Over a kilometre the
+median jump is 9 and 2 % passes 60. So, on both the petal and the strip's car
+page, and in one change with the code
+([docs/energy-display-contract.md](../../docs/energy-display-contract.md) §2.3):
+
+- the chart is **a hundred points on the odometer's own 100 m grid**, each the
+  mean of the kilometre ending at it, joined by **a line** rather than stepped -
+  a trailing mean is a continuous function of the road and a line says so. The
+  engine's box keeps its steps, because its slots really are closed buckets;
+- **one silhouette crossing the zero**, and the zero decides its colour: grey
+  under white above, blue under light blue below. The separate blue stretch on
+  its own posts is gone - it was one road drawn twice;
+- the ceiling is **0…60 / 0…20**, which on the petal's 37 units up and 13 down is
+  the same slope either side of the zero, so the line crosses it without a kink;
+- a cut is marked **once per run**, at the run's centre, not once per point;
+- there are **no partial widths** anywhere. A hole is a point drawn as nothing,
+  and a stretch the log has no record of is a stretch of holes rather than a
+  compression of the axis;
+- both boards draw **the owner's own road** - the hundred trailing kilometres of
+  2026-09-18, scaled to whatever average a scene names - instead of a generated
+  shape.
+
+`ContourBoardContractTest` and `StripPagesBoardContractTest` moved with them, and
+`ConsumptionChartTest` computes the same means a second time from the raw buckets.
 
 ### The test every element now has to pass
 
@@ -975,10 +1007,11 @@ on the boards:
 - **the window is ten kilometres**, on the petal and on the head unit's car page
   alike. Thirty steps read from the seat as «крупные ступеньки»; a hundred
   buckets in the same 232 units is 2.32 a step, which the second review then read
-  as a comb of its own - the chart draws **twenty steps of 500 m** over the same
-  window now. The calm history is a hundred-bucket shape with one descent in it,
-  grouped by fives, and the states board's filling scene closes thirty-seven
-  buckets under «· за 3,7 км».
+  as a comb of its own, and the twenty steps of 500 m it answered with were
+  «огромные ступеньки» - the chart draws **a hundred points** over the same
+  window now, each the mean of the kilometre ending at it, joined by a line. The
+  calm history is the owner's own road of 2026-09-18, and the states board's
+  filling scene closes thirty-seven of its points under «· за 3,7 км».
   «кВт·ч/100 км · за 10 км» measures **194.2344** at 18/400 in the same headless
   Chrome run as the seventh pass's strings; every filling form is still 197.7656;
 - **nothing else on the board moved.** The engine's box being keyed on the
@@ -1100,18 +1133,20 @@ over a `MUTED_DEEP` field at 55 %, where it was a 2-unit `MUTED` line over 30 %
 and read as a texture. It is **232 wide**, because that is what the petal's own
 cut-out leaves at the box's lower left corner once the 8-unit guard is taken.
 
-**And it is twenty steps of 500 m, anchored to the odometer** (the second review,
-2026-09-07). A hundred hundred-metre buckets in those 232 units were 2.32 a step
-and read from the seat as a comb; twenty steps of 11.6 - 2.5 mm of glass, 10.7′
-from 800 mm - are steps the eye can count, which is what the owner asked for on the
-fourth board («он как бы дискретный ступеньками»), and 500 m averages away the
-spikes a hundred-metre bucket shows. **Anchored** means a bin holds the buckets
-whose odometer floors into its own half kilometre, so a step that has closed never
-changes and the shape does not re-phase every hundred metres; the newest step is as
-wide as the road it has. A step whose known road is under half its road is a
-**hole** - nothing drawn, the zero rule continuing under it, its road still counted
-and its energy out of the figure - because a stretch the log has no energy for is
-not a stretch where nothing was spent.
+**And it is a line through a hundred trailing kilometres, anchored to the
+odometer** (the third board, 2026-09-18). A hundred hundred-metre *buckets* in
+those 232 units were 2.32 a step and read from the seat as a comb; the twenty steps
+of 500 m that answered them (the second review, 2026-09-07) read as «огромные
+ступеньки», because on the owner's own road neighbouring 500 m steps differ by
+20 kW·h/100 km at the median. A point still stands on every hundred metres, but it
+is the mean of the **kilometre ending at it**, where the median jump is 9 - and a
+trailing mean is a continuous function of the road, so it is drawn as a line rather
+than as steps. **Anchored** means a point belongs to the grid step its road floors
+into, so a point that has closed never changes and the shape does not re-phase.
+There are no widths: a point whose kilometre has under half its road known is a
+**hole**, and so is a grid step no bucket covers at all - nothing drawn, the zero
+rule continuing under it, the road still on the axis - because a stretch the log
+has no energy for is not a stretch where nothing was spent.
 
 **Its zero line is the figure's own baseline, and that decides its height.** The
 owner, on the built panel: *«ноль должен быть у цифры»*. The fifth pass had given
@@ -1120,17 +1155,19 @@ alone - a ladder standing next to a 52 and agreeing with nothing on it. The thre
 lines that bound the history are the three lines of the numeral beside it now: the
 cap top at 347.08, the baseline at 384, and a descender's depth under it at 397.
 The box is 49.92 tall because that is what a 52 occupies, and there is nothing left
-to choose. Its scale is a **fixed ladder, 0…40 kW·h/100 km up the cap and 0…20 back
-down the descender**, both clamped, **and a clamp is marked**: a bin past either
-ceiling is drawn to the ceiling with a three-unit tick standing just outside the
-box, so a cut is seen to be a cut. 30 and 10 were the ceilings for hundred-metre
-buckets and they flattened every launch and every descent into one silent top; 40
-rather than 60 because what the box is for is the difference between 15 and 25,
-which at 40 is 9 units of this glass and at 60 is 6. They are two constants in one
-place (`ContourPlan.PETAL_FULL`, `PETAL_RETURN_FULL`), the plan board prints them,
-the head unit's car page reads them, and the recording says whether they are right.
-A bin does not change height because a *different* bin changed value, which is what
-the ladder buys. There is no dashed mean: the mean is the figure standing next to
+to choose. Its scale is a **fixed ladder, 0…60 kW·h/100 km up the cap and 0…20 back
+down the descender**, both clamped, **and a clamp is marked**: a run past either
+ceiling is drawn along the ceiling with one three-unit tick standing just outside
+the box at the run's centre, so a cut is seen to be a cut and seen once. 30 and 10
+were the ceilings for hundred-metre buckets and 40 and 20 for the five-hundred-metre
+steps after them, and on the owner's own road of 2026-09-18, 17 % of those steps
+passed 40 - a ceiling that cuts a sixth of the road is a flat top. Over the
+kilometre the chart draws now, 2 % passes 60 and nothing passes −20; and on 37 units
+up and 13 down, 60 and 20 are one slope either side of the zero, so the line crosses
+it without a kink. They are two constants in one place
+(`ContourPlan.PETAL_FULL`, `PETAL_RETURN_FULL`), the plan board prints them and the
+head unit's car page reads them. A point does not change height because a
+*different* point changed value, which is what the ladder buys. There is no dashed mean: the mean is the figure standing next to
 it.
 
 **Two series, and the blue one is only where it happened.** Spending is one

@@ -91,51 +91,74 @@ and never rounds a filling window to a whole number.
 
 ### 2.3 The history behind that figure
 
-One chart, drawn twice. **Bins of 500 m anchored to the odometer's own half
-kilometre**, so a bin's membership never changes after it closes and the shape
-does not re-phase every hundred metres. Twenty bins are the window; the newest is
-partial and is drawn at the width of the road it has.
+One chart, drawn twice. **A point every hundred metres, and every point is the
+last kilometre.** On the odometer's own grid of closed 100 m buckets, the point at
+bucket `k` is `Σ E / Σ d × 100` over the buckets whose road lies in the kilometre
+ending there - `(kₖ − 1 km, kₖ]` - a trailing mean, so the newest point is a
+figure with a meaning of its own: what the last kilometre cost. A hundred points
+are the window. Drawn as **one line through the points with the field under it**:
+`MUTED_DEEP` field under an `INK` line above the zero, `RETURN` field under a
+`RETURN_INK` line below it, one silhouette that crosses the zero wherever a
+kilometre gave back more than it took, and nothing stroked along the zero itself.
 
-**A bucket belongs to the bins its road covers**, `[odometer − km, odometer)`,
-not to the bin its closing odometer falls in - a bucket closing at 100.5 covers
-the bin that *ends* there. Its energy and its known road go to those bins pro
-rata by road, which is the only division a bucket supports: it holds one integral
-over one stretch and no record of where inside it anything happened. A bin's
-value is then `Σ E / Σ d × 100` over the road it holds.
+Why a line and why a kilometre. The owner's own 34 km of road, the journal read
+off the car on 2026-09-18, say what the second board's twenty steps of 500 m could
+not: 
 
-A bin whose known road is under half its road is a **hole**, and that is a
-*drawing* rule: it is drawn as nothing, and the road under it is still counted
-for the axis. It says nothing about the figure. The figure's own exclusion is
-§2.6's, one level down and about buckets: the mean is over the closed buckets
-that are readings, so a known bucket inside a hole bin is in the figure and a
-hole bucket inside a drawn bin is not. Nothing is ever drawn as an invented zero.
+| window | p50 | p95 | p98 | max | share past 40 | min | jump between neighbours, p90 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 100 m | 21 | 87 | 133 | 266 | 23 % | −119 | 71 |
+| 500 m | 20 | 68 | 86 | 106 | 17 % | −43 | 20 |
+| 1 km | 22 | 51 | 61 | 76 | 15 % | −18 | 9 |
+| 2 km | 23 | 39 | 43 | 49 | 4 % | 1 | - |
 
-**Scale: linear, 0…40 up and 0…20 down, clamped, with a mark.** Linear because a
-trend is read as proportion; 40 because what the chart is for is the difference
-between 15 and 25 kWh/100 km, which the cluster's 37-unit box shows as 9 units at
-40 and 6 at 60, and a 500 m bin past 40 is spirited driving while a launch is far
-past it; 20 down because a half kilometre of regeneration rarely returns more. A
-bin past either ceiling is drawn to the ceiling with a three-unit `INK` tick
-standing just outside the box over it - the reader sees it was cut. If the
-recording says ordinary driving clamps often, the ceilings move; they are two
-constants in one place and the plan board prints them.
+Twenty steps of 500 m were «огромные ступеньки» (2026-09-18): neighbouring steps
+differ by 20 kWh/100 km at the median and every launch stood cut at 40 with a
+tick over it, so no drive ever drew an uncut shape. A hundred steps of 100 m were
+the comb, and a hundred *points* of 500 m are a comb again - a jump of 20 between
+points 2.3 units apart. At a kilometre the jump is 9, which is a curve; at two the
+return is gone from the road entirely and the shape lags it by a kilometre. A
+trailing kilometre rather than a centred one because a centred mean ends half a
+kilometre behind the car.
 
-**Form: steps**, which the owner chose on the fourth board («он как бы дискретный
-ступеньками»). Twenty steps in the cluster's 232 units are 11.6 units each,
-2.5 mm of glass, 10.7′ from 800 mm - a step the eye can count. A hundred steps of
-2.3 units were the comb. Spending is one continuous `MUTED_DEEP` field under an
-`INK` edge; return is a `RETURN` patch on its own posts, one per run of returning
-bins, standing on the zero line; a hole breaks both.
+The trailing kilometre needs the kilometre before the window: `ConsumptionLog`
+retains thirty, so the first point of a full window is backed by road older than
+the window. A log with less shows fewer points, and the run is anchored at the
+right edge as before, where new road arrives.
 
-**Where.** On the cluster the chart is the petal's history box, unchanged in
-place and size (`ContourPlan.petalBox…`, zero on the figure's baseline, 37 up,
-13 down). On the car page it replaces the two-minute power trace at the trace's
-own size, and the axis gutter names the ceilings, «40» and «−20». Same bins,
-same scale law, same colours; the pixel height differs and nothing else.
+**A hole is a point, and it is a drawing rule.** A point with under half a
+kilometre of known road behind it is `NaN` - half of the kilometre, not half of
+whatever road was recorded in it, so the line resumes half a kilometre after the
+road does rather than with a hundred-metre mean: drawn as nothing, the line
+breaks there and resumes where the road is known again, and the road under it is still on the axis - the
+points stand on the odometer's grid, so a stretch with no buckets at all is a
+stretch of `NaN` points and never a compression of the axis. There are **no
+partial widths** anywhere any more: the partial newest bin, and with it the spike
+the second board drew a bin beside a hole as - one fifth wide on the owner's
+photograph - go. The figure's own exclusion is §2.6's, unchanged. Nothing is ever
+drawn as an invented zero.
 
-The two-minute power trace (`PowerTrace`) leaves the product with this. It was a
-second history of a quantity the headline already shows, and it was the reason
-the two screens' graphs could not be the same graph.
+**Scale: linear, 0…60 up and 0…20 down, clamped, with a mark.** Closed by the same
+34 km: over a kilometre 2 % of the road passes 60 - a launch - and nothing passes
+−20, where over 500 m 17 % passed 40, which is why every drive wore ticks. On the
+cluster's 37 units up and 13 down, 60 and 20 are 1.6 and 1.5 kWh/100 km per unit:
+the same slope either side of the zero, so the line crosses it without a kink. A
+run of points past a ceiling is drawn along the ceiling with one three-unit tick
+standing just outside the box at the run's centre - the reader sees it was cut.
+The two ceilings are two constants in one place (`ContourPlan.PETAL_FULL`,
+`PETAL_RETURN_FULL`) and the plan board prints them.
+
+**Form: a line.** The fourth board's steps («он как бы дискретный ступеньками»)
+were chosen when a step was a closed bucket and a step said so; a trailing mean is
+a continuous function of the road, and a line is what says that. The engine's box
+keeps its steps: its slots are closed five-second buckets and it is not this
+chart.
+
+**Where.** Unchanged: on the cluster the petal's history box (`ContourPlan.
+petalBox…`, zero on the figure's baseline, 37 up, 13 down); on the car page the
+box at the old trace's size with the axis gutter naming the ceilings, «60» and
+«−20». Same points, same scale law, same colours; the pixel height differs and
+nothing else.
 
 ### 2.4 The trip
 
@@ -205,6 +228,23 @@ restart continuity, and a restore anchors `OdometerGate`, so what the screens se
 is the tail whose own readings are inside `ConsumptionWindow.KM` of the newest
 one. The buckets from before a re-anchor leave the window by the same rule.
 
+### 2.7 The road is recorded whether or not anyone looks
+
+The hub polled the car only while a screen watched it - `VehicleWatcher.CLUSTER`
+while the panel was on the driver's display, `VehicleWatcher.STRIP` while the
+strip showed the car's page. The owner's photograph of 2026-09-18 had 1.4 km of
+its ten missing, and 4.7 km more went missing the moment it was taken: the car's
+page was swiped away and the cluster had not been brought up since the build was
+replaced a week earlier. A ten-kilometre history that exists only while it is
+being looked at is not a history.
+
+The hub holds a claim of its own, `VehicleWatcher.LEDGER`, from the application's
+start for the life of the process. Alone, it sweeps once a second - the integral
+needs no more, and a shell round trip is the cost - and the moment a screen claims
+the hub the cadence is the screens' own 100 ms, as now. Unavailable answers back
+off as they do now, so a car asleep costs the backoff and nothing else. The trip's
+ledger (§2.4) is fed by the same sweep and stops losing road for the same reason.
+
 ## 3. Words
 
 | where | says | never |
@@ -269,24 +309,27 @@ test.
 - **One source.** `EnergyReadouts` (or the name the implementation settles on)
   turns a `VehicleTelemetry` into every energy string and chart both screens
   draw: direction word, power figure and colour, consumption figure and colour,
-  window caption, the twenty bins with their widths and holes, the engine's
-  sentence. Both renderers call it and format nothing themselves.
+  window caption, the hundred points and their holes, the engine's sentence.
+  Both renderers call it and format nothing themselves.
 - **Cross-screen equality.** A test drives both surfaces' readouts from one list
   of snapshots - electric drive, return, engine giving, engine running and
   giving nothing, engine just stopped, standing, charging, filling window, a
-  hole, a bin past 60, link lost - and asserts equal strings and equal bins.
-- **Independent arithmetic.** The expected consumption figure and bin values in
-  those tests are computed in the test from the raw buckets, not through the
-  production helpers.
+  hole, a kilometre past 60, link lost - and asserts equal strings, equal points
+  and an equal span.
+- **Independent arithmetic.** The expected consumption figure and point values in
+  those tests are computed in the test from the raw buckets - the overlap of each
+  bucket's road with the kilometre ending at the point, energy pro rata - not
+  through the production helpers.
 - **Replay.** `captures/vehicle-log/*.csv` (the recorder's output) is fed through
   the hub's own log, ledger and traces in a JVM test; the test asserts the
-  invariants that do not depend on what a signal means: road under the chart
-  equals odometer travelled, the figure equals energy over known road, no bin
-  is drawn where the log had no energy, the engine's box is never up with the
-  flag down.
+  invariants that do not depend on what a signal means: the road under the chart
+  is a point per hundred metres of the road the odometer covered, the figure
+  equals energy over known road, every point equals the trailing kilometre
+  computed a second time and none is drawn where the log had no energy, the
+  engine's box is never up with the flag down.
 - **The boards.** `ContourBoardContractTest` and `StripPagesBoardContractTest`
   hold the generators to `ContourPlan` and the page's constants, including the
-  bin count, the ceilings and the sentence.
+  point count, the smoothing, the ceilings and the sentence.
 - **Mutations** on the arithmetic (§2.2, §2.3, §2.6) before the merge, as on
   every wave before.
 
@@ -297,13 +340,15 @@ test.
 | what `GENERATION_KW` is in motion | one recorded drive with the engine running at speed, `tools/vehicle_log.py` |
 | the sign of `POWER_KW` under acceleration | the same recording |
 | whether `ENGINE_RPM` reports anything while the engine is off in motion | the same recording |
-| the chart's ceilings, 40 and 20 | the distribution of 500 m bins in the recording |
 | the stock zones' true edges | the grid photograph |
 
 The parked half of §2.5 is closed twice, the second time on the recorder
 (2026-09-18, `captures/vehicle-log/vehicle-20260918-183009.csv`, the first file
 `VehicleLogReplayTest` has run against); none of the rows above moved, because
 the car stood in P.
+
+The chart's ceilings and its form were closed by the car's own journal on
+2026-09-18 (§2.3).
 
 Until the first three are closed the engine is drawn as §2.5 says and no other
 way.

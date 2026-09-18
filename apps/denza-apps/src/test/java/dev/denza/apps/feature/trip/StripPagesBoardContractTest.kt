@@ -165,19 +165,24 @@ class StripPagesBoardContractTest {
      * shows, and the reason the two screens' graphs could not be the same graph.
      */
     @Test
-    fun theShapeIsTheClustersOwnTwentyBins() {
+    fun theShapeIsTheClustersOwnHundredPoints() {
         // Against the shared constant rather than against a copy of it in this renderer: five
         // aliases used to stand there and a test asserted each equalled its own initialiser.
         assertEquals(
-            "bins",
-            number("""CHART_BINS = (\d+)""", GENERATOR).toInt(),
-            ConsumptionChart.BINS,
+            "points",
+            number("""CHART_POINTS = (\d+)""", GENERATOR).toInt(),
+            ConsumptionChart.POINTS,
         )
         assertEquals(
-            "which is half a kilometre a step over the window",
-            ConsumptionWindow.KM / ConsumptionChart.BIN_KM,
-            ConsumptionChart.BINS.toDouble(),
+            "which is a hundred metres a point over the window",
+            ConsumptionWindow.KM / ConsumptionChart.PITCH_KM,
+            ConsumptionChart.POINTS.toDouble(),
             1e-9,
+        )
+        assertEquals(
+            "and every one of them is the kilometre ending at it",
+            number("""CHART_SMOOTH = (\d+)""", GENERATOR).toInt(),
+            ConsumptionChart.SMOOTH_STEPS,
         )
         assertEquals("the box", number("""CHART_H = (\d+)""", GENERATOR),
             VehiclePageRenderer.CHART.toDouble(), 1e-6)
@@ -191,7 +196,7 @@ class StripPagesBoardContractTest {
      * And the ladder it is drawn on is the petal's own, clamped, with the cut marked.
      *
      * Two constants in one place: `ContourPlan` owns them, both screens read them, and the plan
-     * board prints them. If the recording says 40 and 20 are wrong they move once.
+     * board prints them. The car's own journal moved them from 40 to 60 on 2026-09-18, once.
      */
     @Test
     fun bothScreensClampOnOneLadder() {
@@ -199,17 +204,22 @@ class StripPagesBoardContractTest {
             ContourPlan.PETAL_FULL.toDouble(), 1e-6)
         assertEquals("and the floor", number("""CHART_RETURN_FULL = (\d+)""", GENERATOR),
             ContourPlan.PETAL_RETURN_FULL.toDouble(), 1e-6)
-        assertEquals("the tick over a cut bin", number("""CHART_TICK = (\d+)""", GENERATOR),
+        assertEquals("the tick over a cut run", number("""CHART_TICK = (\d+)""", GENERATOR),
             ContourPlan.PETAL_TICK.toDouble(), 1e-6)
         // And the gutter's own labels are those two ceilings written out, on both records.
-        assertEquals("40", ContourPlan.PETAL_FULL_LABEL)
+        assertEquals("60", ContourPlan.PETAL_FULL_LABEL)
         assertEquals("−20", ContourPlan.PETAL_RETURN_FULL_LABEL)
         assertEquals(VehiclePageRenderer.AXIS_CEILING, ContourPlan.PETAL_FULL_LABEL)
         assertTrue("the board's gutter", BOARD.readText().contains(">${ContourPlan.PETAL_RETURN_FULL_LABEL}<"))
-        // And the board draws the two cases: a bin past the ceiling, and one the log has no
+        // And the board draws the two cases: a run past the ceiling, and a stretch the log has no
         // energy for.
         assertTrue("a launch scene", GENERATOR.readText().contains("history(31.6, launch=True)"))
-        assertTrue("and a hole", GENERATOR.readText().contains("hole=(6, 7)"))
+        assertTrue("and a hole", GENERATOR.readText().contains("hole=range(38, 52)"))
+        // One tick per run of clamped points, at the run's centre, on both records.
+        assertTrue(
+            "the cut is marked once per run",
+            GENERATOR.readText().contains("cx = round((x(start) + x(stop - 1)) / 2, 2)"),
+        )
     }
 
     /**

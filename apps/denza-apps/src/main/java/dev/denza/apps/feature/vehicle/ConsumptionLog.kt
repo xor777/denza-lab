@@ -100,12 +100,24 @@ internal class ConsumptionLog(
      * a figure over a road the car is nowhere near. The gate's own newest reading is the bound.
      */
     val window: List<ConsumptionSample>
-        get() {
-            val from = ConsumptionWindow.firstIndex(closed, odometer.lastKm)
-            val out = ArrayList<ConsumptionSample>(closed.size - from)
-            for (index in from until closed.size) out.add(closed[index])
-            return out
-        }
+        get() = tail(ConsumptionWindow.KM)
+
+    /**
+     * And the chart's own tail, which is the window plus the kilometre behind it.
+     *
+     * The chart draws a hundred points and every one of them is the mean of the kilometre ending
+     * at it (`ConsumptionChart`), so its oldest point is backed by road the window does not reach.
+     * The retention is thirty kilometres, so this costs nothing but the walk.
+     */
+    val chartTail: List<ConsumptionSample>
+        get() = tail(ConsumptionChart.TAIL_KM)
+
+    private fun tail(windowKm: Double): List<ConsumptionSample> {
+        val from = ConsumptionWindow.firstIndex(closed, odometer.lastKm, windowKm)
+        val out = ArrayList<ConsumptionSample>(closed.size - from)
+        for (index in from until closed.size) out.add(closed[index])
+        return out
+    }
 
     /**
      * @param odometerKm the vehicle odometer; null while the read failed
@@ -195,8 +207,9 @@ internal class ConsumptionLog(
         /**
          * One odometer tick per bucket, which is as fine as this car can be asked.
          *
-         * The chart draws half-kilometre bins over it (`ConsumptionChart`), so a tick is the
-         * resolution the bins are averaged from rather than the resolution anybody reads.
+         * It is also the chart's own grid: `ConsumptionChart` stands a point on every one of these
+         * steps and makes it the mean of the kilometre ending there, so a tick is both the
+         * resolution the means are taken from and the pitch anybody reads.
          */
         const val DEFAULT_BUCKET_KM = 0.1
 

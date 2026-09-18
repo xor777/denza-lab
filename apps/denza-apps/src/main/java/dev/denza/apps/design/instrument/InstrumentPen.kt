@@ -325,14 +325,15 @@ class InstrumentPen {
     /**
      * A history, as a stepped line over a field, both from one outline.
      *
-     * A step rather than a curve because each value is a closed bucket rather than a sample of
-     * something continuous, and a stepped line says so. Thirty bars 0.65 mm wide were 0.9′ at 750 mm
-     * - under the eye's own resolution - which is why this is a line at all (M15).
+     * A step rather than a [curve] because each value is a closed bucket rather than a sample of
+     * something continuous, and a stepped line says so. This is the engine box's shape: its slots
+     * are closed five-second buckets. The consumption chart's points are a trailing kilometre and
+     * are drawn with [curve]. Thirty bars 0.65 mm wide were 0.9′ at 750 mm - under the eye's own
+     * resolution - which is why either of these is a line at all (M15).
      *
-     * **The steps are stated as edges rather than as a pitch.** A consumption bin is anchored to
-     * the odometer's own half kilometre and the newest one is as wide as the road it has so far,
-     * so the run's last step is narrower than the rest while it fills. [xs] holds `count + 1`
-     * edges; a uniform box simply hands in a uniform run of them.
+     * **The steps are stated as edges rather than as a pitch.** [xs] holds `count + 1` edges, so a
+     * run that does not fill its box states where it starts and where it stops; a uniform box
+     * simply hands in a uniform run of them.
      *
      * [zeroY] is where the field closes, which is not necessarily the box's floor: a descent gives
      * energy back, so a consumption history needs a zero line rather than a floor.
@@ -386,51 +387,133 @@ class InstrumentPen {
     }
 
     /**
-     * One stepped shape standing on [zeroY], posts and all, filled and edged from one path.
+     * A history as one line through its points, with the field under it, crossing the zero.
      *
-     * Not [history]: that closes its field along a floor and leaves the outline open at both ends,
-     * which is what a *continuous* history wants. This draws a stretch - something that starts and
-     * stops inside the box - so the posts up from the zero line are part of the drawing rather than
-     * the edge of a fill. The path is never closed, so nothing is stroked along the zero line
-     * itself: the panel's own zero rule is drawn once, by whoever owns it.
+     * `docs/energy-display-contract.md` §2.3. [history]'s steps were chosen when a step was a
+     * closed bucket and a step said so; the consumption chart's points are a trailing kilometre -
+     * a continuous function of the road - and a line is what says that. The engine's box keeps its
+     * steps, because its slots really are closed five-second buckets.
+     *
+     * **One silhouette, two colours, decided by the zero and not by the data.** [ys] is the real
+     * height of every point, above the zero where the road cost and below it where it gave energy
+     * back, so the shape crosses the zero wherever a kilometre gave back more than it took. It is
+     * drawn twice under a clip - the half above the zero in [fieldColor] under [lineColor], the
+     * half below in [returnColor] under [returnInkColor] - rather than split into two runs, because
+     * a run is a statement about the data and this is a statement about the zero. Nothing is
+     * stroked along the zero itself: the field closes there and the line does not.
+     *
+     * A run the caller hands in is a stretch with no holes in it ([ys] holds no `NaN`); the holes
+     * are what break one history into several calls.
+     *
+     * [top] and [bottom] bound the box, so a line drawn along a ceiling keeps its whole stroke.
+     * Nothing is allocated here: the path and the paints are the pen's own.
      */
-    fun steps(
+    fun curve(
         canvas: Canvas,
         xs: FloatArray,
         ys: FloatArray,
         count: Int,
         zeroY: Float,
+        top: Float,
+        bottom: Float,
+        lineColor: Int,
+        lineAlpha: Float,
+        lineWidthV: Float,
         fieldColor: Int,
         fieldAlpha: Float,
-        edgeColor: Int,
-        edgeWidthV: Float,
+        returnColor: Int,
+        returnAlpha: Float,
+        returnInkColor: Int,
     ) {
         if (count <= 0) return
-        path.rewind()
-        path.moveTo(xs[0], zeroY)
-        for (index in 0 until count) {
-            path.lineTo(xs[index], ys[index])
-            path.lineTo(xs[index + 1], ys[index])
+        val width = v(lineWidthV)
+        if (count == 1) {
+            // One reading between two holes. A polyline of one point draws nothing at all, and a
+            // kilometre the log does know should not vanish because its neighbours are missing.
+            val y = ys[0]
+            fill.color = if (y > zeroY) returnInkColor else lineColor
+            fill.alpha = FULL_ALPHA
+            canvas.drawCircle(xs[0], y, width / 2f, fill)
+            return
         }
-        path.lineTo(xs[count], zeroY)
+        val left = xs[0] - width
+        val right = xs[count - 1] + width
+        half(
+            canvas, xs, ys, count, zeroY,
+            left, top - width, right, zeroY,
+            fieldColor, fieldAlpha, lineColor, lineAlpha, width,
+        )
+        half(
+            canvas, xs, ys, count, zeroY,
+            left, zeroY, right, bottom + width,
+            returnColor, returnAlpha, returnInkColor, 1f, width,
+        )
+    }
+
+    /** One side of the zero: the field closed down to it, and the same outline stroked over it. */
+    private fun half(
+        canvas: Canvas,
+        xs: FloatArray,
+        ys: FloatArray,
+        count: Int,
+        zeroY: Float,
+        clipLeft: Float,
+        clipTop: Float,
+        clipRight: Float,
+        clipBottom: Float,
+        fieldColor: Int,
+        fieldAlpha: Float,
+        lineColor: Int,
+        lineAlpha: Float,
+        widthPx: Float,
+    ) {
+        if (clipBottom <= clipTop || clipRight <= clipLeft) return
+        val save = canvas.save()
+        canvas.clipRect(clipLeft, clipTop, clipRight, clipBottom)
+
+        curveContour(xs, ys, count)
+        path.lineTo(xs[count - 1], zeroY)
+        path.lineTo(xs[0], zeroY)
+        path.close()
         fill.color = fieldColor
         fill.alpha = (fieldAlpha.coerceIn(0f, 1f) * FULL_ALPHA).toInt()
         canvas.drawPath(path, fill)
         fill.alpha = FULL_ALPHA
-        stroke.color = edgeColor
-        stroke.alpha = FULL_ALPHA
-        stroke.strokeWidth = v(edgeWidthV)
+
+        curveContour(xs, ys, count)
+        stroke.color = lineColor
+        stroke.alpha = (lineAlpha.coerceIn(0f, 1f) * FULL_ALPHA).toInt()
+        stroke.strokeWidth = widthPx
         canvas.drawPath(path, stroke)
+        canvas.restoreToCount(save)
     }
 
     /**
-     * The marks over the bins a ladder could not hold, so a cut is seen to be a cut.
+     * The polyline itself, into [path], left open at both ends.
      *
-     * Three units standing just outside the edge the bin hit, centred on the bin. Here rather than
-     * in either renderer because both consumption charts have to draw the same mark: they had two
-     * copies of the walk, and one of them had put the return's tick in the spending's ink.
+     * The field and the line are the same run of points drawn twice - once closed down to the zero
+     * and filled, once open and stroked - and two copies of the walk would be two chances for a
+     * history whose fill and whose line describe different data.
+     */
+    private fun curveContour(xs: FloatArray, ys: FloatArray, count: Int) {
+        path.rewind()
+        path.moveTo(xs[0], ys[0])
+        for (index in 1 until count) path.lineTo(xs[index], ys[index])
+    }
+
+    /**
+     * The marks over the stretches a ladder could not hold, so a cut is seen to be a cut.
      *
-     * @param edges the bin boundaries, `count + 1` of them, in pixels
+     * **One mark per run of clamped points, at the run's centre.** A mark per point was a mark per
+     * closed bucket when a bucket was what got drawn; a line drawn along a ceiling for a kilometre
+     * is one cut, and twenty ticks over it are a comb saying so twenty times. Three units standing
+     * just outside the edge the run hit, on either ceiling.
+     *
+     * Here rather than in either renderer because both consumption charts have to draw the same
+     * mark: they had two copies of the walk, and one of them had put the return's tick in the
+     * spending's ink.
+     *
+     * @param xs the points, in pixels - one per value, not an edge
      * @param aboveY where a mark over the ceiling starts, gap already taken
      * @param belowY and where one under the floor does
      */
@@ -439,7 +522,7 @@ class InstrumentPen {
         values: FloatArray,
         first: Int,
         count: Int,
-        edges: FloatArray,
+        xs: FloatArray,
         aboveY: Float,
         belowY: Float,
         tickV: Float,
@@ -450,15 +533,30 @@ class InstrumentPen {
         belowColor: Int,
     ) {
         val tick = v(tickV)
-        for (index in 0 until count) {
-            val value = values[first + index]
-            if (value.isNaN()) continue
-            val centre = (edges[index] + edges[index + 1]) / 2f
-            if (value >= ceiling) {
-                line(canvas, centre, aboveY, centre, aboveY - tick, aboveColor, widthV)
-            } else if (value <= -returnCeiling) {
-                line(canvas, centre, belowY, centre, belowY + tick, belowColor, widthV)
-            }
+        runTicks(canvas, values, first, count, xs, aboveY, -tick, widthV, aboveColor) {
+            it >= ceiling
+        }
+        runTicks(canvas, values, first, count, xs, belowY, tick, widthV, belowColor) {
+            it <= -returnCeiling
+        }
+    }
+
+    /** One tick per maximal run of points [clamped] accepts, centred on the run. */
+    private inline fun runTicks(
+        canvas: Canvas,
+        values: FloatArray,
+        first: Int,
+        count: Int,
+        xs: FloatArray,
+        fromY: Float,
+        reach: Float,
+        widthV: Float,
+        color: Int,
+        clamped: (Float) -> Boolean,
+    ) {
+        ClampMarks.forEach(values, first, count, clamped) { start, length ->
+            val centre = ClampMarks.centre(xs, start, length)
+            line(canvas, centre, fromY, centre, fromY + reach, color, widthV)
         }
     }
 
@@ -489,4 +587,58 @@ class InstrumentPen {
         val LIGHT: Typeface = Typeface.create("sans-serif-light", Typeface.NORMAL)
         val MEDIUM: Typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
     }
+}
+
+/**
+ * Where a cut is marked: the runs of clamped points, and the middle of each.
+ *
+ * Out here rather than private to [InstrumentPen] for the reason `ContourRuns` is out of its
+ * renderer - a `Canvas` call is unverifiable by construction in this module, and "a cut is marked
+ * once, in the middle of the stretch that was cut" is a statement about runs rather than pixels.
+ *
+ * **A hole ends a run.** A stretch held at the ceiling, a kilometre nobody knows, and then another
+ * stretch at the ceiling are two cuts, and the reader is owed two marks.
+ */
+internal object ClampMarks {
+
+    /** Calls [block] once per maximal run of clamped points, with its first index and length. */
+    inline fun forEach(
+        values: FloatArray,
+        first: Int,
+        count: Int,
+        clamped: (Float) -> Boolean,
+        block: (start: Int, length: Int) -> Unit,
+    ) {
+        var index = 0
+        while (index < count) {
+            val value = values[first + index]
+            if (value.isNaN() || !clamped(value)) {
+                index++
+                continue
+            }
+            val start = index
+            while (index < count) {
+                val next = values[first + index]
+                if (next.isNaN() || !clamped(next)) break
+                index++
+            }
+            block(start, index - start)
+        }
+    }
+
+    /** The same walk, collected - for a test, and for nothing that draws. */
+    fun of(values: FloatArray, first: Int, count: Int, clamped: (Float) -> Boolean): List<Pair<Int, Int>> {
+        val out = mutableListOf<Pair<Int, Int>>()
+        forEach(values, first, count, clamped) { start, length -> out += start to length }
+        return out
+    }
+
+    /**
+     * And where the mark stands: the middle of the run, not its first point.
+     *
+     * A run of one point is that point, which is what makes the arithmetic one expression rather
+     * than a case.
+     */
+    fun centre(xs: FloatArray, start: Int, length: Int): Float =
+        (xs[start] + xs[start + length - 1]) / 2f
 }

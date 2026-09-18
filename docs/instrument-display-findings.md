@@ -24,9 +24,12 @@ the vehicle:
   `VehiclePageRenderer.drawHead` independently prepends a minus on return power.
   This produces the photographed combination `В БАТАРЕЮ` and `-25 кВт`.
 - The cluster draws 100 individual consumption steps in the small history box;
-  `ContourPlan.petalSpendY` saturates at 30 and `petalReturnY` at -10. Higher
-  readings share a flat cap, with no overflow indication. This supports the
-  reported comb appearance; the photograph alone cannot establish its samples.
+  the petal's two ladders saturate at 30 and -10. Higher readings share a flat
+  cap, with no overflow indication. This supports the reported comb appearance;
+  the photograph alone cannot establish its samples. (Answered twice since: by
+  the twenty 500 m steps of 2026-09-07 and by the hundred trailing kilometres of
+  2026-09-18, below; there is one ladder now, `ContourPlan.petalY`, on 0…60 /
+  0…20 and marked where it cuts.)
 - `engineBox` paints valid zero generation with the same blue history stroke as
   positive generation. The history can outlive the running engine by two
   minutes. Its `В БАТАРЕЮ` caption does not explain either zero output or the
@@ -296,7 +299,7 @@ glance, by somebody who has never seen it and has no legend?**
 | the left shelf | five temperatures at 34 - pack, front motor, rear left, rear right, inverter - each over a glyph rather than a word, plus a sixth cell «мВ / РАЗБРОС ЯЧЕЕК» that exists only at `WATCH` or `ALERT` |
 | the right shelf | what the trip cost, as a phrase: «9,3 кВт·ч» over «42 км · ЗА ПОЕЗДКУ», plus «ДАЛ ДВС» if the engine ran, plus «● РЕКУПЕРАЦИЯ» at the far end when the car is standing in P. It keeps the shelf whenever the engine's box does not, which is every state except an engine that is running **and giving** |
 | the engine's box | only while `ENGINE_RUNNING` is up and `GENERATION_KW` was above zero somewhere in the window: what the engine is giving, as twenty-four five-second steps linear to 30 kW in the history's own grey, under one sentence - «ДВС ДАЁТ 14 кВт · ПОСЛЕДНИЕ 1:22», no dot. It leaves ten seconds after the flag drops |
-| the petal | the last ten kilometres of consumption, as **twenty steps of 500 m** anchored to the odometer's own half kilometre, standing on the figure's own baseline, linear 0…40 up and 0…20 back down with a tick over anything cut, holes where the log had no energy - «кВт·ч/100 км · за 10 км», or a countdown to full while a gun is in |
+| the petal | the last ten kilometres of consumption, as **a line through a hundred points** on the odometer's own 100 m grid, each the mean of the kilometre ending at it, standing on the figure's own baseline, linear 0…60 up and 0…20 back down with one tick over each run it cuts, holes where the log had no energy - «кВт·ч/100 км · за 10 км», or a countdown to full while a gun is in |
 | the band | nothing about the engine is drawn on it. Both drawings that were - a seam behind the tip, a line under the body - were claims about what `GENERATION_KW` means in motion, and no recording supports either |
 
 **What the second review changed (2026-09-07).** The owner drove the panel twice
@@ -556,34 +559,45 @@ square root over 100 kW filled a third of the box and linear over 30 fills a hal
 on a ladder of its own - 56 units tall with the zero four fifths down - and neither
 number meant anything to anything next to it. Now the three lines bounding the
 history are the three lines of the numeral: cap top, baseline, descender. Spending
-rises through the cap on **0…40**, a return hangs under the baseline on **0…20**,
+rises through the cap on **0…60**, a return hangs under the baseline on **0…20**,
 both clamped, and the box is 49.92 tall because that is what a 52 occupies.
 
 **And a clamp is marked.** 30 and 10 were the ceilings for hundred-metre buckets
-and they flattened every launch and every descent into one silent top. A 500 m step
-past 40 is spirited driving and a launch is far past it; either is drawn to the
-ceiling with a three-unit tick standing just outside the box, so the reader sees it
-was cut. Whether 40 and 20 are the right two numbers is a question for the
-recording; they are two constants in one place (`ContourPlan`), the plan board
-prints them, and the car page reads them.
+and they flattened every launch and every descent into one silent top. A run held
+along a ceiling is drawn along it with one three-unit tick standing just outside
+the box **at the run's centre**, so the reader sees it was cut and sees it once.
+The two numbers are **0…60 and 0…20** since 2026-09-18 (below); they are two
+constants in one place (`ContourPlan`), the plan board prints them, and the car
+page reads them.
 
-**And the return is drawn only where it happened.** One field crossing a zero line
-in one colour drew the same grey above and below it, and the blue rule meant to say
-"this came back" ran the whole width whether anything had. Spending is one
-continuous grey field that lies on the zero on a return bucket, because what was
-spent there is nothing; the return is blue, one shape per run of return buckets,
-standing on the zero on its own posts.
+**The petal is a line through a hundred trailing kilometres (2026-09-18).** The
+twenty steps of five hundred metres that replaced the first drive's «расчёска» were
+read off the car as «огромные ступеньки», and the owner's own journal of that day
+says why: over 500 m neighbouring steps differ by 20 kW·h/100 km at the median and
+17 % of the road passes 40, so every drive was cut somewhere. Over a kilometre the
+median jump is 9 and 2 % passes 60. So a point stands on **every hundred metres of
+the odometer's own grid** - `floor(odometer / 0.1)`, so a point that has closed
+never changes and the shape does not re-phase - and each point is `Σ kWh / Σ km ×
+100` over the kilometre *ending* at it. Trailing rather than centred, because a
+centred mean ends half a kilometre behind the car; which is why the model is handed
+eleven kilometres of tail (`ConsumptionLog.chartTail`) and draws ten. A point whose
+kilometre has under half its road known is a **hole**, and so is a grid step no
+bucket covers at all: the line breaks, the zero rule continues under it, and the
+road keeps its place on the axis. There are no partial widths anywhere.
+`ConsumptionChart` is that resampling, and the head unit's car page draws the same
+object.
 
-**The petal draws twenty steps of five hundred metres, anchored to the odometer.**
-A hundred steps of 2.32 units were the first drive's «расчёска»; twenty of 11.6 -
-2.5 mm of glass, 10.7′ from 800 mm - are steps the eye can count, and 500 m averages
-away the spikes a hundred-metre bucket shows. **Anchored** means a bin's membership
-is `floor(odometerAtClose / 0.5)`, so a step that has closed never changes and the
-shape does not re-phase every hundred metres; the newest step is drawn at the width
-of the road it has so far. A step whose known road is under half its road is a
-**hole**: nothing drawn, the zero rule continuing under it, its road still counted
-for the axis and its energy out of the figure. `ConsumptionChart` is that
-resampling, and the head unit's car page draws the same object.
+**And it is one silhouette, with the zero deciding its colour.** One field crossing
+a zero line in one colour drew the same grey above and below it, and the blue rule
+meant to say "this came back" ran the whole width whether anything had; the answer
+to that was two shapes, a continuous grey field and a separate blue stretch on its
+own posts, which is one road drawn twice. Now there is one line with one height per
+point, drawn twice under a clip: grey field under `INK` above the zero, `RETURN`
+field under `RETURN_INK` below it, and nothing stroked along the zero itself. The
+box is 37 units up and 13 down, so at 60 and 20 the two slopes are 0.62 and 0.65
+units per kW·h/100 km and the line crosses the zero without a kink. `InstrumentPen.
+curve` draws it; `InstrumentPen.history` is the engine box's stepped shape and is
+not this.
 
 **The engine's box is twenty-four steps of five seconds**, a bin being the mean of
 the samples that arrived in it, and a bin nothing answered in breaks the area rather
@@ -653,10 +667,12 @@ back, three of them his and one of them in his photograph:
    window is **ten kilometres** now, on the cluster's petal and on the head unit's
    car page alike: `ConsumptionWindow.KM` is the one number. A hundred buckets in
    the same 232 units was 2.32 a step, which the second review then read as a comb
-   of its own; the chart draws **twenty steps of 500 m** over the same window
-   (`ConsumptionChart`), which is 11.6 units - 2.5 mm, 10.7′ - and a step the eye
-   can count. The unit reads «кВт·ч/100 км · за 10 км», and «· за 3,7 км» while the
-   log is still filling; the journal already kept thirty;
+   of its own, and the twenty steps of 500 m it answered with were «огромные
+   ступеньки» on the car; the chart draws **a hundred points** over the same
+   window now (`ConsumptionChart`), each the mean of the kilometre ending at it
+   and joined by a line, which is neither. The unit reads «кВт·ч/100 км · за
+   10 км», and «· за 3,7 км» while the log is still filling; the journal already
+   kept thirty;
 4. **«ДАЛ ДВС» over nothing** - in the photograph the caption stood on the shelf
    with no figure above it. The engine had run on the previous trip; the car moved
    off P, the ledger cleared, and the caption of a quantity now zero stayed for the
