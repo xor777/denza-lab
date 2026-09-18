@@ -15,6 +15,14 @@ restart (below).
 
 ## Verdict
 
+> **The normative part of this page is "Product contract v2: one report, and the
+> flag is the car's (2026-09-04)", far below.** It is what the product
+> implements: one write, the playback report `INSTRUMENT_MUSIC_STATE_SET`
+> (`0x43E0000A`) = `1`, live-proven on the Z9GT and the N9. Everything above it
+> is the investigation that found it, and three of those sections describe
+> levers the product deliberately no longer pulls. Where this page and the
+> contract disagree, the contract wins.
+
 The covers are a **Devialet speaker-flip** mechanism, not Dynaudio RLSA.
 
 | Claim | Result |
@@ -36,6 +44,9 @@ path: it is audible, seizes MediaCenter, cannot retract, and stopped raising the
 covers after the first direct `2` latched the amp's auto-lift setting off.
 
 ## Direct cover control (2026-08-25, live-proven both ways)
+
+*Superseded by Product contract v2 (2026-09-04): the app never writes this
+property, on either car.*
 
 One FID moves the motor in both directions, with nothing playing:
 
@@ -106,6 +117,9 @@ not go into a product manifest, so Denza Apps drives this through
 `DenzaLocalAdb` shell, the same route as the BMS FIDs.
 
 ## Denza Apps automation (implemented 2026-08-26, redesigned 2026-08-28; live acceptance pending)
+
+*Superseded by Product contract v2 (2026-09-04): there is no output-mix layer
+and the product no longer replaces the stock auto-lift.*
 
 The product deliberately replaces the stock auto-lift once enabled. Its
 persistent toggle is off by default and owns a foreground service while on.
@@ -690,6 +704,11 @@ has only `0:Owner` — FSE user 999 is not running; the bodywork flag still make
 `hasFse()` true.
 
 ## The call (RLSA stack — this is the working lever)
+
+*Superseded by Product contract v2 (2026-09-04): the heading names the lever the
+investigation found, not the product's. The product's lever is the playback
+report `0x43E0000A` = `1`; on the N9 this property is the car's own stock
+auto-lift enable flag and the app never writes it.*
 
 Named for Dynaudio RLSA, but on this Devialet amp it is what actually drives the
 flip covers; see "Direct cover control" above for the live proof and the 1/2
