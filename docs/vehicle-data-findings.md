@@ -915,9 +915,12 @@ five things.
 - **`0x34200008`, catalogued as accelerator position, read `100` for the whole
   run.** It ramped 0 → 75 → 100 in the two seconds before the flag rose and fell
   to `0` in the same second as the kilowatts, the brake id at `0` throughout.
-  Whether the owner held the pedal to force the start or used the menu decides
-  whether this is a pedal or an engine-load request; asked, not yet answered.
-  The app does not read it.
+  The owner's answer: he started the engine with the pedal, held to the floor.
+  So the id is the accelerator pedal in percent, and **on this car a floored
+  pedal in P starts the engine**: the flag rose one second after the pedal
+  reached `100`, the engine generated 8-10 kW into the pack for as long as it
+  was held, and stopped the second it was released. The app does not read the
+  id; the trick is a way to record a generation cycle without a drive.
 
 What the cycle does *not* add is anything about motion: the car stood in P, so
 `GENERATION_KW` and pack power were one number for the same reason as on
