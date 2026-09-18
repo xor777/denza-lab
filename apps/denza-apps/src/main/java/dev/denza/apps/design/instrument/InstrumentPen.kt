@@ -386,6 +386,121 @@ class InstrumentPen {
     }
 
     /**
+     * A history as one line through its points, with the field under it, crossing the zero.
+     *
+     * `docs/energy-display-contract.md` §2.3. [history]'s steps were chosen when a step was a
+     * closed bucket and a step said so; the consumption chart's points are a trailing kilometre -
+     * a continuous function of the road - and a line is what says that. The engine's box keeps its
+     * steps, because its slots really are closed five-second buckets.
+     *
+     * **One silhouette, two colours, decided by the zero and not by the data.** [ys] is the real
+     * height of every point, above the zero where the road cost and below it where it gave energy
+     * back, so the shape crosses the zero wherever a kilometre gave back more than it took. It is
+     * drawn twice under a clip - the half above the zero in [fieldColor] under [lineColor], the
+     * half below in [returnColor] under [returnInkColor] - rather than split into two runs, because
+     * a run is a statement about the data and this is a statement about the zero. Nothing is
+     * stroked along the zero itself: the field closes there and the line does not.
+     *
+     * A run the caller hands in is a stretch with no holes in it ([ys] holds no `NaN`); the holes
+     * are what break one history into several calls.
+     *
+     * [top] and [bottom] bound the box, so a line drawn along a ceiling keeps its whole stroke.
+     * Nothing is allocated here: the path and the paints are the pen's own.
+     */
+    fun curve(
+        canvas: Canvas,
+        xs: FloatArray,
+        ys: FloatArray,
+        count: Int,
+        zeroY: Float,
+        top: Float,
+        bottom: Float,
+        lineColor: Int,
+        lineAlpha: Float,
+        lineWidthV: Float,
+        fieldColor: Int,
+        fieldAlpha: Float,
+        returnColor: Int,
+        returnAlpha: Float,
+        returnInkColor: Int,
+    ) {
+        if (count <= 0) return
+        val width = v(lineWidthV)
+        if (count == 1) {
+            // One reading between two holes. A polyline of one point draws nothing at all, and a
+            // kilometre the log does know should not vanish because its neighbours are missing.
+            val y = ys[0]
+            fill.color = if (y > zeroY) returnInkColor else lineColor
+            fill.alpha = FULL_ALPHA
+            canvas.drawCircle(xs[0], y, width / 2f, fill)
+            return
+        }
+        val left = xs[0] - width
+        val right = xs[count - 1] + width
+        half(
+            canvas, xs, ys, count, zeroY,
+            left, top - width, right, zeroY,
+            fieldColor, fieldAlpha, lineColor, lineAlpha, width,
+        )
+        half(
+            canvas, xs, ys, count, zeroY,
+            left, zeroY, right, bottom + width,
+            returnColor, returnAlpha, returnInkColor, 1f, width,
+        )
+    }
+
+    /** One side of the zero: the field closed down to it, and the same outline stroked over it. */
+    private fun half(
+        canvas: Canvas,
+        xs: FloatArray,
+        ys: FloatArray,
+        count: Int,
+        zeroY: Float,
+        clipLeft: Float,
+        clipTop: Float,
+        clipRight: Float,
+        clipBottom: Float,
+        fieldColor: Int,
+        fieldAlpha: Float,
+        lineColor: Int,
+        lineAlpha: Float,
+        widthPx: Float,
+    ) {
+        if (clipBottom <= clipTop || clipRight <= clipLeft) return
+        val save = canvas.save()
+        canvas.clipRect(clipLeft, clipTop, clipRight, clipBottom)
+
+        curveContour(xs, ys, count)
+        path.lineTo(xs[count - 1], zeroY)
+        path.lineTo(xs[0], zeroY)
+        path.close()
+        fill.color = fieldColor
+        fill.alpha = (fieldAlpha.coerceIn(0f, 1f) * FULL_ALPHA).toInt()
+        canvas.drawPath(path, fill)
+        fill.alpha = FULL_ALPHA
+
+        curveContour(xs, ys, count)
+        stroke.color = lineColor
+        stroke.alpha = (lineAlpha.coerceIn(0f, 1f) * FULL_ALPHA).toInt()
+        stroke.strokeWidth = widthPx
+        canvas.drawPath(path, stroke)
+        canvas.restoreToCount(save)
+    }
+
+    /**
+     * The polyline itself, into [path], left open at both ends.
+     *
+     * The field and the line are the same run of points drawn twice - once closed down to the zero
+     * and filled, once open and stroked - and two copies of the walk would be two chances for a
+     * history whose fill and whose line describe different data.
+     */
+    private fun curveContour(xs: FloatArray, ys: FloatArray, count: Int) {
+        path.rewind()
+        path.moveTo(xs[0], ys[0])
+        for (index in 1 until count) path.lineTo(xs[index], ys[index])
+    }
+
+    /**
      * One stepped shape standing on [zeroY], posts and all, filled and edged from one path.
      *
      * Not [history]: that closes its field along a floor and leaves the outline open at both ends,
