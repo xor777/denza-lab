@@ -102,6 +102,15 @@ internal class VehicleTelemetryHub(context: Context) {
     @Volatile
     private var polling = false
 
+    /**
+     * How long the loop waits between sweeps, which is decided by who is watching.
+     *
+     * Read by the loop on its own thread and written by the views on theirs, so it is volatile for
+     * the same reason [polling] is.
+     */
+    @Volatile
+    private var sweepMs = VehicleSweepCadence.LEDGER_INTERVAL_MS
+
     @Volatile
     private var forceCold = false
 
@@ -194,11 +203,16 @@ internal class VehicleTelemetryHub(context: Context) {
      * A consumer that has just appeared asks for a full cold sweep immediately rather than
      * leaving slow-changing rows dashed for ten seconds - it costs one longer batch, and it is
      * what makes a page that has just been swiped to arrive with its temperatures on it.
+     *
+     * [VehicleWatcher.LEDGER] is claimed at the application's start and never released, so the
+     * loop is always running and the cadence is what changes when a screen comes and goes
+     * ([VehicleSweepCadence]).
      */
     fun setActive(watcher: VehicleWatcher, value: Boolean) {
         val changed = if (value) watchers.add(watcher) else watchers.remove(watcher)
         if (!changed) return
         polling = watchers.isNotEmpty()
+        sweepMs = VehicleSweepCadence.intervalMs(watchers)
         if (value) {
             forceCold = true
             start()
@@ -307,7 +321,7 @@ internal class VehicleTelemetryHub(context: Context) {
                     trip = ledger.trip,
                 )
 
-                delay(HOT_INTERVAL_MS)
+                delay(sweepMs)
             }
         } finally {
             flush()
@@ -347,19 +361,6 @@ internal class VehicleTelemetryHub(context: Context) {
 
         const val TAG = "DenzaVehicle"
 
-        /**
-         * Measured on the car: a batch costs about 130 ms of fixed shell and
-         * process overhead plus 4–5 ms per call, so the hot batch takes
-         * roughly 150 ms whatever the interval. The interval is therefore the
-         * only real cost knob. It was 300 ms - a fresh power figure about twice
-         * a second - and the owner, who had driven with the previous panel,
-         * asked for the live figures to answer about twice as fast. At 100 ms
-         * the cycle is about 250 ms, four readings a second, and the shell is
-         * busy some sixty per cent of the time while this dashboard is visible;
-         * nothing else in the app runs it. Whether the car sustains that is the
-         * first thing a drive with this build has to show.
-         */
-        const val HOT_INTERVAL_MS = 100L
         const val COLD_INTERVAL_MS = 10_000L
 
         const val HOT_TIMEOUT_MS = 3_000
@@ -447,19 +448,69 @@ internal class VehiclePollLoopGate {
 }
 
 /**
- * The two things that ask this car for numbers.
+ * The three things that ask this car for numbers.
  *
  * They are named rather than counted because they are not interchangeable: the cluster's claim
- * lasts as long as the driver's display is showing our panel, and the strip's lasts only while its
- * second page is on screen. A reference count would have told the hub how many claims there are
- * and nothing about what to do when one of them misbehaves.
+ * lasts as long as the driver's display is showing our panel, the strip's lasts only while its
+ * second page is on screen, and the ledger's lasts as long as the process. A reference count would
+ * have told the hub how many claims there are and nothing about what to do when one of them
+ * misbehaves - or about how fast to sweep for it.
  */
-internal enum class VehicleWatcher {
+internal enum class VehicleWatcher(
+    /** Whether somebody is looking at these numbers, which is what sets the cadence. */
+    val onScreen: Boolean,
+) {
     /** The instrument panel on the driver's display. */
-    CLUSTER,
+    CLUSTER(onScreen = true),
 
     /** The head unit's strip, while it is drawing the car's page. */
-    STRIP,
+    STRIP(onScreen = true),
+
+    /**
+     * The road, recorded whether or not anyone looks.
+     *
+     * `docs/energy-display-contract.md` §2.7. The hub polled only while a screen watched it, so
+     * the owner's photograph of 2026-09-18 had 1.4 km of its ten missing and 4.7 km more went
+     * missing the moment it was taken - the car's page was swiped away and the cluster had not
+     * been brought up since the build was replaced a week earlier. A ten-kilometre history that
+     * exists only while it is being looked at is not a history, and neither is a trip ledger.
+     *
+     * Claimed by `DenzaAppsApplication` at start and never released.
+     */
+    LEDGER(onScreen = false),
+}
+
+/**
+ * How fast the loop sweeps, which is decided by who is watching and by nothing else.
+ *
+ * One function rather than a branch inside the loop: the cadence is a rule about the watchers, and
+ * the loop is the one place in this file where a rule cannot be read.
+ */
+internal object VehicleSweepCadence {
+
+    /**
+     * Measured on the car: a batch costs about 130 ms of fixed shell and process overhead plus
+     * 4–5 ms per call, so the hot batch takes roughly 150 ms whatever the interval. The interval is
+     * therefore the only real cost knob. It was 300 ms - a fresh power figure about twice a second
+     * - and the owner, who had driven with the previous panel, asked for the live figures to answer
+     * about twice as fast. At 100 ms the cycle is about 250 ms, four readings a second, and the
+     * shell is busy some sixty per cent of the time while a screen is up; nothing else in the app
+     * runs it.
+     */
+    const val HOT_INTERVAL_MS = 100L
+
+    /**
+     * And what the road costs when nobody is looking: one sweep a second.
+     *
+     * The integral needs no more - a kilowatt figure a second over a hundred-metre bucket is
+     * several readings a bucket at any speed - and a shell round trip is the price, so the car
+     * asleep in a garage costs one command a second and then the backoff, which is the same
+     * backoff a screen would meet.
+     */
+    const val LEDGER_INTERVAL_MS = 1_000L
+
+    fun intervalMs(watchers: Set<VehicleWatcher>): Long =
+        if (watchers.any { it.onScreen }) HOT_INTERVAL_MS else LEDGER_INTERVAL_MS
 }
 
 /**
@@ -473,4 +524,15 @@ internal object VehicleSession {
 
     fun hub(context: Context): VehicleTelemetryHub =
         hub ?: VehicleTelemetryHub(context.applicationContext).also { hub = it }
+
+    /**
+     * Start recording the road, for the life of the process.
+     *
+     * `docs/energy-display-contract.md` §2.7. Called once from the application; there is no
+     * release, because the claim is not about a view being on screen. The hub itself decides what
+     * that costs - a sweep a second while nothing is drawn ([VehicleSweepCadence]).
+     */
+    fun record(context: Context) {
+        hub(context).setActive(VehicleWatcher.LEDGER, true)
+    }
 }
