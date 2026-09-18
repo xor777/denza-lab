@@ -10,7 +10,6 @@ import dev.denza.apps.feature.cluster.dashboard.ContourFlow
 import dev.denza.apps.feature.cluster.dashboard.ContourGlyphs
 import dev.denza.apps.feature.cluster.dashboard.ContourPlan
 import dev.denza.apps.feature.cluster.dashboard.ContourReadout
-import dev.denza.apps.feature.cluster.dashboard.ContourRuns
 import dev.denza.apps.feature.cluster.dashboard.GlyphSurface
 import dev.denza.apps.feature.panel.PanelPalette
 import dev.denza.apps.feature.vehicle.ConsumptionChart
@@ -93,8 +92,6 @@ internal class VehiclePageRenderer {
     /** The chart's points, fields so a draw allocates nothing. */
     private val chartXs = FloatArray(ConsumptionChart.POINTS)
     private val chartYs = FloatArray(ConsumptionChart.POINTS)
-    private val spanXs = FloatArray(ConsumptionChart.POINTS)
-    private val spanYs = FloatArray(ConsumptionChart.POINTS)
     private val surface = CanvasGlyphSurface()
     private val shelf: Array<Row> = Array(SENSORS.size + 1) { index ->
         if (index < SENSORS.size) {
@@ -344,13 +341,13 @@ internal class VehiclePageRenderer {
      * pack power - a second history of the quantity the headline already shows, and the reason the
      * two screens' graphs could not be the same graph.
      *
-     * A point stands on every hundred metres of the odometer's grid and is the mean of the
-     * kilometre ending at it. Above the zero is what that kilometre cost, below it is what it gave
-     * back, on one fixed linear ladder, and the line crosses the zero where the road does. A point
-     * whose kilometre is mostly unknown is a **hole**: the line breaks, the zero rule continues
-     * under it, and the road it stands on keeps its place. A point past a ceiling is drawn along
-     * the ceiling, with one tick per run standing outside the box, so a cut is seen to be a cut.
-     * The run is anchored at the right edge, where new road arrives.
+     * A point stands on every hundred metres the log recorded and is the mean of the ten
+     * readings ending at it. Above the zero is what that kilometre cost, below it is what it gave
+     * back, on one fixed linear ladder, and the line crosses the zero where the road does. **There
+     * are no holes**: road nobody recorded is off this axis, so the chart is as wide as the record
+     * and the run is one. A point past a ceiling is drawn along the ceiling, with one tick per run
+     * standing outside the box, so a cut is seen to be a cut. The run is anchored at the right
+     * edge, where new road arrives.
      *
      * **Drawn with the cluster's own pen.** The shape, the field under it and the marks over a cut
      * were all written out a second time here, and the second copy had already drifted - its return
@@ -391,34 +388,33 @@ internal class VehiclePageRenderer {
         for (index in 0 until count) {
             chartXs[index] = right - (count - 1 - index) * pitch
             val value = values[first + index]
-            chartYs[index] = if (value.isNaN()) {
-                Float.NaN
-            } else if (value >= 0f) {
+            chartYs[index] = if (value >= 0f) {
                 zero - min(value / ContourPlan.PETAL_FULL, 1f) * (zero - top)
             } else {
                 zero + min(-value / ContourPlan.PETAL_RETURN_FULL, 1f) * (bottom - zero)
             }
         }
 
-        ContourRuns.forEach(count, { !values[first + it].isNaN() }) { start, length ->
-            pen.curve(
-                canvas,
-                xSpan(start, length),
-                ySpan(chartYs, start, length),
-                length,
-                zero,
-                top,
-                bottom,
-                PanelPalette.INK,
-                1f,
-                CHART_EDGE,
-                PanelPalette.INK,
-                AREA_OUT_ALPHA,
-                DenzaPalette.RETURN,
-                AREA_BACK_ALPHA,
-                DenzaPalette.RETURN_INK,
-            )
-        }
+        // One run, always. This used to cut the history at its `NaN` points, and so did the
+        // cluster; a recorded-road axis has no holes in it, so the shape is one call on both
+        // screens and the walk that found the runs is left to the engine's box.
+        pen.curve(
+            canvas,
+            chartXs,
+            chartYs,
+            count,
+            zero,
+            top,
+            bottom,
+            PanelPalette.INK,
+            1f,
+            CHART_EDGE,
+            PanelPalette.INK,
+            AREA_OUT_ALPHA,
+            DenzaPalette.RETURN,
+            AREA_BACK_ALPHA,
+            DenzaPalette.RETURN_INK,
+        )
         pen.clampTicks(
             canvas,
             values,
@@ -434,25 +430,6 @@ internal class VehiclePageRenderer {
             PanelPalette.INK,
             DenzaPalette.RETURN_INK,
         )
-    }
-
-    /**
-     * One run's heights, packed to the front of the scratch buffer the pen reads.
-     *
-     * The cluster's own arrangement: it moves the values rather than allocating a view of them,
-     * and the buffers are fields, so a frame allocates nothing here either.
-     */
-    private fun ySpan(ys: FloatArray, start: Int, length: Int): FloatArray {
-        if (start == 0) return ys
-        for (index in 0 until length) spanYs[index] = ys[start + index]
-        return spanYs
-    }
-
-    /** And its x's, one per point. */
-    private fun xSpan(start: Int, length: Int): FloatArray {
-        if (start == 0) return chartXs
-        for (index in 0 until length) spanXs[index] = chartXs[start + index]
-        return spanXs
     }
 
     /**
@@ -925,8 +902,8 @@ internal class VehiclePageRenderer {
         /**
          * The chart's own field and the return's patch, as the alphas the pen takes.
          *
-         * The bin count, the two ceilings, the tick and its gap are **not** restated here: they are
-         * [ConsumptionChart.BINS] and [ContourPlan]'s, read where they are needed. Five aliases
+         * The point count, the two ceilings, the tick and its gap are **not** restated here: they
+         * are [ConsumptionChart.POINTS] and [ContourPlan]'s, read where they are needed. Five aliases
          * stood here and a test asserted each equalled its own initialiser, which proves nothing
          * about the board and hides the one thing that matters - that neither screen can move a
          * number the other draws.

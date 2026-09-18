@@ -402,8 +402,10 @@ class InstrumentPen {
      * a run is a statement about the data and this is a statement about the zero. Nothing is
      * stroked along the zero itself: the field closes there and the line does not.
      *
-     * A run the caller hands in is a stretch with no holes in it ([ys] holds no `NaN`); the holes
-     * are what break one history into several calls.
+     * A run the caller hands in is a stretch with no holes in it ([ys] holds no `NaN`). The
+     * consumption history is one such run and always has been one call since its axis became
+     * recorded road; what still arrives in pieces is the engine's box, whose bins really can be
+     * seconds nothing answered in.
      *
      * [top] and [bottom] bound the box, so a line drawn along a ceiling keeps its whole stroke.
      * Nothing is allocated here: the path and the paints are the pen's own.

@@ -906,12 +906,12 @@ internal class ClusterDashboardRenderer {
     }
 
     /**
-     * Ten kilometres as a hundred trailing kilometres, standing on the figure's own baseline.
+     * Ten kilometres of recorded road as a hundred trailing kilometres, on the figure's baseline.
      *
      * One chart, drawn twice: the head unit's car page draws these same points on this same ladder,
      * and the pixel height is all that differs (`docs/energy-display-contract.md` §2.3). A point
-     * stands on every hundred metres of the odometer's own grid and is the mean of the kilometre
-     * ending at it, so a point that has closed never changes and the shape does not re-phase.
+     * stands on every hundred metres the log recorded and is the mean of the ten readings ending at
+     * it, so a point that has settled never changes and the shape does not re-phase.
      *
      * **A line, because a trailing mean is a continuous function of the road.** Twenty steps of
      * five hundred metres were «огромные ступеньки» from the seat - neighbours 20 kWh/100 km apart
@@ -925,9 +925,9 @@ internal class ClusterDashboardRenderer {
      * **A point past a ceiling is drawn along it, with one tick per run standing just outside the
      * box**, so the reader sees it was cut rather than reading a silent flat top.
      *
-     * **A hole is drawn as nothing.** The line breaks, the zero rule continues under it, and the
-     * road it stands on keeps its place on the axis: a stretch the log had no energy for is not a
-     * stretch where nothing was spent.
+     * **There are no holes, so the line is one run.** Road the log did not record is off this axis
+     * entirely: the chart is as wide as the record and no wider, which is the same road the unit
+     * beside the figure names. Nothing is `NaN`.
      */
     private fun history(canvas: Canvas, plan: ContourPlan) {
         val chart = readouts.chart
@@ -944,29 +944,30 @@ internal class ClusterDashboardRenderer {
         val right = plan.petalBoxLeft + plan.petalBoxWidth
         for (index in 0 until count) {
             chartXs[index] = pen.v(right - (count - 1 - index) * pitch)
-            val value = values[first + index]
-            chartYs[index] = if (value.isNaN()) Float.NaN else pen.v(plan.petalY(value))
+            chartYs[index] = pen.v(plan.petalY(values[first + index]))
         }
 
-        ContourRuns.forEach(count, { !values[first + it].isNaN() }) { start, length ->
-            pen.curve(
-                canvas,
-                xSpan(chartXs, start, length),
-                ySpan(chartYs, start, length),
-                length,
-                zero,
-                pen.v(plan.petalBoxTop),
-                pen.v(plan.petalBoxBottom),
-                DenzaPalette.INK,
-                ContourPlan.LINE_ALPHA,
-                plan.dataLine,
-                DenzaPalette.MUTED_DEEP,
-                ContourPlan.AREA_ALPHA,
-                DenzaPalette.RETURN,
-                ContourPlan.RETURN_AREA_ALPHA,
-                DenzaPalette.RETURN_INK,
-            )
-        }
+        // One run, always. The chart used to be cut into runs at its `NaN` points and the two
+        // renderers each carried the walk; there are no holes on a recorded-road axis, so the
+        // history is one call and `ContourRuns` is left to the engine's box, which really does
+        // have bins nothing answered in.
+        pen.curve(
+            canvas,
+            chartXs,
+            chartYs,
+            count,
+            zero,
+            pen.v(plan.petalBoxTop),
+            pen.v(plan.petalBoxBottom),
+            DenzaPalette.INK,
+            ContourPlan.LINE_ALPHA,
+            plan.dataLine,
+            DenzaPalette.MUTED_DEEP,
+            ContourPlan.AREA_ALPHA,
+            DenzaPalette.RETURN,
+            ContourPlan.RETURN_AREA_ALPHA,
+            DenzaPalette.RETURN_INK,
+        )
         pen.clampTicks(
             canvas,
             values,
