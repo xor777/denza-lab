@@ -278,9 +278,10 @@ def history(average, launch=False, hole=None):
     """A hundred trailing kilometres whose mean is [average]; a launch past the ceiling; a hole."""
     points = [round(average * m / SHAPE_MEAN, 1) for m in CONSUMPTION_SHAPE]
     if launch:
-        # A kilometre of full throttle: past the ceiling, drawn along it with one tick at the
-        # centre of the run - one cut, one mark, however long the run is.
-        for i in range(len(points) - 16, len(points) - 6):
+        # A kilometre of full throttle, laid over the road's own launch rather than beside it:
+        # two plateaux a tenth apart would be two cuts and two marks, which is true and
+        # unreadable. Drawn along the ceiling with one tick at the centre of the run.
+        for i in range(70, 80):
             points[i] = round(CHART_FULL * 1.2, 1)
     if hole is not None:
         for i in hole:
@@ -296,7 +297,7 @@ CHART_EDGE = 2
 CHART_AXIS = 44               # the gutter on the right where the two ceilings stand
 CHART_AXIS_BASELINE = 13
 # Linear, clamped, marked: ContourPlan.PETAL_FULL and PETAL_RETURN_FULL, the cluster's own ladder.
-CHART_FULL = 40
+CHART_FULL = 60
 CHART_RETURN_FULL = 20
 CHART_TICK = 3
 

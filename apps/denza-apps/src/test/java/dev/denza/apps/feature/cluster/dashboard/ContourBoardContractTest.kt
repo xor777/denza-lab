@@ -710,13 +710,21 @@ class ContourBoardContractTest {
             TOLERANCE,
         )
         assertEquals("the zero line is where the figure stands", plan.petalBaseline, plan.petalZeroY, 1e-4f)
-        // 0…40 up the cap and 0…20 back down the descender. 30 and 10 were the ceilings for
-        // hundred-metre buckets and they flattened every launch and every descent into one silent
-        // top; either way a cut is marked.
-        assertEquals(40f, plan.petalFull, 1e-4f)
+        // 0…60 up the cap and 0…20 back down the descender, closed by the owner's own journal of
+        // 2026-09-18: over 500 m, 17 % of that road passed 40 and every drive wore a tick; over the
+        // kilometre this chart draws, 2 % passes 60 and nothing passes −20.
+        assertEquals(60f, plan.petalFull, 1e-4f)
         assertEquals("and the descender holds the return", 20f, plan.petalReturnFull, 1e-4f)
         assertEquals("three units of tick outside the box", 3f, plan.petalTick, 1e-4f)
-        assertTrue(generator().contains("PETAL_FULL = 40."))
+        // And the two ceilings are nearly one slope on 37 units up and 13 down, so the line
+        // crosses the zero without a kink - which is the second thing 60 buys.
+        assertEquals(
+            "one slope either side of the zero",
+            ((plan.petalZeroY - plan.petalBoxTop) / plan.petalFull).toDouble(),
+            ((plan.petalBoxBottom - plan.petalZeroY) / plan.petalReturnFull).toDouble(),
+            0.04,
+        )
+        assertTrue(generator().contains("PETAL_FULL = 60."))
         assertTrue(generator().contains("PETAL_RETURN_FULL = 20."))
         assertTrue(generator().contains("PETAL_TICK = 3."))
         assertTrue("the zero share is gone with the ladder it set", !generator().contains("PETAL_ZERO_SHARE"))

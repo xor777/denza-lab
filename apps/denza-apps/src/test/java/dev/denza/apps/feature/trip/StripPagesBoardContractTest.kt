@@ -196,7 +196,7 @@ class StripPagesBoardContractTest {
      * And the ladder it is drawn on is the petal's own, clamped, with the cut marked.
      *
      * Two constants in one place: `ContourPlan` owns them, both screens read them, and the plan
-     * board prints them. If the recording says 40 and 20 are wrong they move once.
+     * board prints them. The car's own journal moved them from 40 to 60 on 2026-09-18, once.
      */
     @Test
     fun bothScreensClampOnOneLadder() {
@@ -207,7 +207,7 @@ class StripPagesBoardContractTest {
         assertEquals("the tick over a cut run", number("""CHART_TICK = (\d+)""", GENERATOR),
             ContourPlan.PETAL_TICK.toDouble(), 1e-6)
         // And the gutter's own labels are those two ceilings written out, on both records.
-        assertEquals("40", ContourPlan.PETAL_FULL_LABEL)
+        assertEquals("60", ContourPlan.PETAL_FULL_LABEL)
         assertEquals("−20", ContourPlan.PETAL_RETURN_FULL_LABEL)
         assertEquals(VehiclePageRenderer.AXIS_CEILING, ContourPlan.PETAL_FULL_LABEL)
         assertTrue("the board's gutter", BOARD.readText().contains(">${ContourPlan.PETAL_RETURN_FULL_LABEL}<"))

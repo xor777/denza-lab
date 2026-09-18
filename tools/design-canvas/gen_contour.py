@@ -823,18 +823,19 @@ PETAL_BOX_TOP = PETAL_BASELINE - CAP * FIGURE
 PETAL_ZERO_Y = PETAL_BASELINE
 PETAL_BOX_BOTTOM = PETAL_BASELINE + PETAL_DESCENDER * FIGURE
 PETAL_BOX_H = PETAL_BOX_BOTTOM - PETAL_BOX_TOP
-# A fixed ladder, not an autoscale: 0…40 kW·h/100 km up the cap and 0…20 back down
+# A fixed ladder, not an autoscale: 0…60 kW·h/100 km up the cap and 0…20 back down
 # the descender, both clamped - and a clamp is marked. Autoscaling to each window's
-# own ceiling meant a bucket changed height when a *different* bucket changed
-# value, so the shape was never twice the same shape. 30 and 10 were the tenth
-# pass's ceilings for 100 m buckets, and flattened every launch and every descent
-# into one silent top. 40 rather than 60: the box is 37 units tall and what it is
-# for is the difference between 15 and 25, which at 40 is 9 units and at 60 is 6;
-# a 500 m step past 40 is spirited driving, a launch is far past it, and either is
-# drawn to the ceiling with a three-unit INK tick standing outside the box over
-# it - cut, and seen to be cut. The recording says whether 40 and 20 are right;
-# they are these two numbers and nothing else, on both screens.
-PETAL_FULL = 40.0
+# own ceiling meant a point changed height when a *different* point changed value,
+# so the shape was never twice the same shape. 30 and 10 were the tenth pass's
+# ceilings for 100 m buckets and 40 and 20 were the eleventh's for 500 m steps; on
+# the owner's road of 2026-09-18, 17 % of the 500 m steps pass 40, so every drive
+# wore a tick and none ever drew an uncut shape. Over the kilometre this chart now
+# draws, 2 % passes 60 and nothing passes −20. And on 37 units up and 13 down, 60
+# and 20 are 1.6 and 1.5 per unit - the same slope either side of the zero, so the
+# line crosses it without a kink. A run past either ceiling is drawn along it with
+# one three-unit tick at the run's centre, standing outside the box - cut, and seen
+# to be cut. They are these two numbers and nothing else, on both screens.
+PETAL_FULL = 60.0
 PETAL_RETURN_FULL = 20.0
 PETAL_TICK = 3.0
 # Contrast, and then what the two colours mean. A 30 % field under a 2-unit line at
@@ -1143,7 +1144,9 @@ def with_launch(points):
     of ticks over it would say so ten times.
     """
     out = list(points)
-    for i in range(len(out) - 16, len(out) - 6):
+    # Over the road's own launch rather than beside it: two plateaux a tenth apart would be two
+    # cuts and two marks, which is true and unreadable. One kilometre held flat out is one cut.
+    for i in range(70, 80):
         out[i] = round(PETAL_FULL * 1.25, 1)
     return out
 
@@ -1961,8 +1964,8 @@ STATES = [
      sc(kw=22.0, peak=41.0, volts=549.0, temps=COOL,
         trip=dict(net=1.4, regen=0.4, ice=0.0, km=6),
         road=consumption_history(18.6)[:37], petal='19')),
-    ('Разгон · 128 кВт, пик-холд стоит впереди кончика и сползает к нему; полкилометра газа '
-     'в пол — ступень выше 40, срезана с меткой над коробкой',
+    ('Разгон · 128 кВт, пик-холд стоит впереди кончика и сползает к нему; километр газа '
+     'в пол — участок выше 60, срезан по потолку с одной меткой над коробкой',
      sc(kw=128.0, peak=163.0, volts=531.0, temps=WORKED,
         trip=dict(net=10.0, regen=3.1, ice=0.0, km=45),
         road=with_launch(consumption_history(20.4)), petal='21')),
