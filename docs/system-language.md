@@ -173,7 +173,8 @@ dedicated executor behind them.
 All of it is deleted: `StockRussianLocaleCoordinator` and its test, the
 repository's snapshot, claim, failure and executor, the switch in the tile's
 panel, and the `CHANGE_CONFIGURATION` grant path. Nothing in the product asks
-for that permission any more.
+for that permission any more, and since 2026-09-18 the manifest no longer
+declares it either.
 
 The third-party switcher that inspired it — `com.wings.translator`, launcher
 label `BYD Настройки`, SHA-256

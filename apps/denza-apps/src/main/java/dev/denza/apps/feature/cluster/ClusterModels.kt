@@ -83,15 +83,6 @@ data class ClusterLayout(
     )
 }
 
-data class ClusterSceneState(
-    val display: ClusterDisplayDescriptor? = null,
-    val layout: ClusterLayout? = null,
-    val mapVisible: Boolean = false,
-    val cameraVisible: Boolean = false,
-    val needsDisplayVerification: Boolean = false,
-    val details: String? = null,
-)
-
 data class ClusterMapLayout(
     val displayWidth: Int,
     val displayHeight: Int,

@@ -31,12 +31,6 @@ object EnergyScale {
      */
     const val FLOOR_KW: Float = 0.5f
 
-    /** Labelled marks on the discharge side. */
-    val DISCHARGE_TICKS_KW: List<Float> = listOf(60f, 150f)
-
-    /** Labelled marks on the regeneration side. */
-    val REGEN_TICKS_KW: List<Float> = listOf(20f)
-
     /**
      * How far along its own side of the arc a reading falls, `0f` at the top and `1f` at the end.
      *

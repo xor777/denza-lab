@@ -114,11 +114,6 @@ internal object DefaultAppsCatalog {
             ).toString()
         }.getOrNull().orEmpty().ifBlank { fallbackLabel(role, packageName) }
 
-    fun isLaunchable(
-        packageName: String,
-        installed: Collection<InstalledDefaultApp>,
-    ): Boolean = installed.any { it.packageName == packageName }
-
     /**
      * The admission rule of [discover], asked about one package and answered against the car now.
      *

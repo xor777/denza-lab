@@ -1701,24 +1701,6 @@ object DenzaAppRepository {
         }
     }
 
-    private fun publishDefaultAppRoleError(
-        role: DefaultAppRole,
-        message: String,
-    ) {
-        stateStore.update { current ->
-            current.copy(
-                defaultApps = current.defaultApps.update(role) { roleState ->
-                    roleState.copy(
-                        status = DefaultAppRoleStatus.ERROR,
-                        message = message,
-                        providerConfirmed = false,
-                        pendingPackageName = null,
-                    )
-                },
-            )
-        }
-    }
-
     private fun publishDefaultAppsUnavailable(message: String) {
         stateStore.update { current ->
             current.copy(

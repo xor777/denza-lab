@@ -59,7 +59,6 @@ class SpectrumRenderer {
     private val gridMatrix = Matrix()
 
     private var barShader: LinearGradient? = null
-    private var reflectShader: LinearGradient? = null
     private var bloomShader: LinearGradient? = null
     private var reflectFadeShader: LinearGradient? = null
     private var idleShader: LinearGradient? = null

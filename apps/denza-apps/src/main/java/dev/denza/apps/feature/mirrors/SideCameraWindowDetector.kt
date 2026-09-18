@@ -11,11 +11,6 @@ data class SideCameraDetection(
 object SideCameraWindowDetector {
     private val blockStart = Regex("\\n(?=\\s*Window #[0-9]+ Window\\{)")
 
-    fun isLeftVisible(windows: String, clusterDisplayId: Int): Boolean =
-        candidateBlocks(windows).any { isLeftBlock(it, clusterDisplayId) }
-
-    fun isRightVisible(windows: String): Boolean = candidateBlocks(windows).any(::isRightBlock)
-
     fun analyze(windows: String, clusterDisplayId: Int): SideCameraDetection {
         val candidates = candidateBlocks(windows)
         val recognized = mutableSetOf<MirrorSide>()

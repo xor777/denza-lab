@@ -30,7 +30,6 @@ object DenzaColors {
     val DataPeak: Color = Color(DenzaPalette.DATA_PEAK)
 
     val Return: Color = Color(DenzaPalette.RETURN)
-    val ReturnInk: Color = Color(DenzaPalette.RETURN_INK)
 
     val Warning: Color = Color(DenzaPalette.WARNING)
     val Danger: Color = Color(DenzaPalette.DANGER)
