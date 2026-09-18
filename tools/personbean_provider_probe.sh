@@ -524,7 +524,7 @@ build_probe() {
     cd "$repo_root"
     JAVA_HOME="${JAVA_HOME:-$default_java_home}" \
       ANDROID_HOME="${ANDROID_HOME:-$default_android_home}" \
-      ./gradlew "$gradle_task"
+      ./gradlew -Pexperiments "$gradle_task"
   )
   [[ -f "$apk_path" ]] || die "build finished but the APK is missing: $apk_path"
   record "apk=$apk_path"

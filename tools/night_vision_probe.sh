@@ -109,7 +109,7 @@ shift || true
 case "$command" in
   build)
     cd "$repo_root"
-    ./gradlew :night-vision-probe:assembleDebug
+    ./gradlew -Pexperiments :night-vision-probe:assembleDebug
     printf '%s\n' "$apk"
     ;;
   install)

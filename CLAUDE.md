@@ -53,14 +53,27 @@ still use the historical `denza-gateway` directory name.
 - [docs/weather-adapter-findings.md](docs/weather-adapter-findings.md) — native weather-provider contract and adapter status.
 - [docs/shortcuts-automation-findings.md](docs/shortcuts-automation-findings.md) — Shortcuts If/Then catalog; the live-proven navigation, music, and video PersonBean roles; and the firmware-specific actions that honor them; PersonBean itself is readable and writable from the app UID through `ContentResolver` (live-proven 2026-09-03). It also owns the normative steering-wheel Play/Pause contract: identity is the package, the last-played package is persisted, a session that leaves the active list stays addressable, and a package with no live session is reconnected through `MediaBrowser` or its own exported media-button receiver. Read it before touching `feature/media`.
 - [docs/speaker-lift-findings.md](docs/speaker-lift-findings.md) — Devialet pop-out covers. On the Z9GT `AUDIO_RLSA_STATE_SET` (`0x16300025`) drives the motor both ways as an edge, `1` out / `2` in, with no audio. On the N9 the same property is the stock auto-lift enable flag: `2` retracts, `1` never raises. The product lever on both cars is the playback report `INSTRUMENT_MUSIC_STATE_SET` (`0x43E0000A`) = `1`, live-proven on the Z9GT (2026-09-03) and the N9 (2026-09-04); the app never touches the flag.
+- [docs/car-adb-gateway-architecture.md](docs/car-adb-gateway-architecture.md) and
+  [docs/car-adb-gateway-decision-log.md](docs/car-adb-gateway-decision-log.md) — the
+  relay-only design of Car ADB Gateway and the decisions behind it. The decision log
+  is a precondition for any change to `:car-adb-gateway` or `platform/relay/`.
 
 ## Modules
+
+The default build configures the products and the library they share:
+
+| Gradle | Path | App id / namespace |
+| --- | --- | --- |
+| `:denza-apps` | `apps/denza-apps/` | `dev.denza.apps` (active consolidation app), depends on `:dishare-bridge` |
+| `:dishare-bridge` | `libraries/dishare-bridge/` | `dev.denza.disharebridge` (library) |
+| `:car-adb-gateway` | `apps/car-adb-gateway/` | `ru.adbgw.gateway` (active product candidate) |
+
+The on-device probes and the frozen legacy app are configured only when the
+`experiments` Gradle property is set (`./gradlew -Pexperiments <task>`):
 
 | Gradle | Path | App id / namespace |
 | --- | --- | --- |
 | `:denza-gateway` | `legacy/denza-gateway/` | `dev.denza.gateway` (legacy/maintenance-only) |
-| `:denza-apps` | `apps/denza-apps/` | `dev.denza.apps` (active consolidation app), depends on `:dishare-bridge` |
-| `:dishare-bridge` | `libraries/dishare-bridge/` | `dev.denza.disharebridge` (library) |
 | `:night-vision-probe` | `experiments/night-vision-probe/` | `dev.denza.nightvision.probe` (isolated front-camera source evaluation) |
 | `:audio-probe` | `experiments/audio-probe/` | `dev.denza.audio.probe` (isolated audio capture path evaluation) |
 | `:display-probe` | `experiments/display-probe/` | `dev.denza.display.probe` (isolated app-owned display evaluation) |
@@ -69,7 +82,6 @@ still use the historical `denza-gateway` directory name.
 | `:speaker-lift-yandex-probe` | `experiments/speaker-lift-yandex-probe/` | `dev.denza.speakerlift.yandexprobe` (disposable Yandex-open → stock LOCAL pulse evaluation) |
 | `:personbean-provider-probe` | `experiments/personbean-provider-probe/` | `dev.denza.personbean.probe` (disposable app-UID PersonBean ContentResolver evaluation) |
 | `:dicar-media-probe` | `experiments/dicar-media-probe/` | `dev.denza.dicarmedia.probe` (disposable app-UID car media service evaluation for the speaker lift) |
-| `:car-adb-gateway` | `apps/car-adb-gateway/` | `ru.adbgw.gateway` (active product candidate) |
 
 The frozen Denza Mirrors source lives at `legacy/denza-mirrors/` and is not
 included in the root Gradle build.
@@ -80,18 +92,21 @@ included in the root Gradle build.
 export JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home
 export ANDROID_HOME=/opt/homebrew/share/android-commandlinetools
 
-./gradlew :denza-gateway:testDebugUnitTest :denza-gateway:assembleDebug
-./gradlew :denza-apps:assembleDebug
-./gradlew :night-vision-probe:assembleDebug
-./gradlew :audio-probe:assembleDebug
-./gradlew :display-probe:assembleDebug
-./gradlew :single-package-split-probe:assembleDebug
-./gradlew :speaker-lift-yandex-probe:assembleDebug
-./gradlew :personbean-provider-probe:assembleDebug
-./gradlew :dicar-media-probe:assembleDebug
-./gradlew :adb-rescue-probe:testDebugUnitTest :adb-rescue-probe:assembleDebug
+./gradlew :denza-apps:testDebugUnitTest :denza-apps:assembleDebug
+./gradlew :dishare-bridge:testDebugUnitTest
 ./gradlew :car-adb-gateway:testDebugUnitTest :car-adb-gateway:assembleDebug
 ```
+
+Probes and the legacy app are not in the default build; ask for them with
+the `experiments` property:
+
+```bash
+./gradlew -Pexperiments :adb-rescue-probe:testDebugUnitTest :adb-rescue-probe:assembleDebug
+./gradlew -Pexperiments :night-vision-probe:assembleDebug
+./gradlew -Pexperiments :denza-gateway:testDebugUnitTest :denza-gateway:assembleDebug
+```
+
+The same form works for every module in the second table above.
 
 ## Conventions
 

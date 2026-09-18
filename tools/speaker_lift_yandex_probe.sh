@@ -36,7 +36,7 @@ build_probe() {
     cd "$repo_root"
     JAVA_HOME="${JAVA_HOME:-$default_java_home}" \
       ANDROID_HOME="${ANDROID_HOME:-$default_android_home}" \
-      ./gradlew :speaker-lift-yandex-probe:assembleDebug
+      ./gradlew -Pexperiments :speaker-lift-yandex-probe:assembleDebug
   )
   [[ -f "$apk_path" ]]
   echo "APK: $apk_path"
