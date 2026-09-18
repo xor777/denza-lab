@@ -123,12 +123,37 @@ Current scripts:
   firing; `run dryrun` resolves every symbol and warns when
   `requestUseVehicleSpeaker` would be a no-op. All three modes were falsified
   as cover motors on 2026-08-25.
-- `speaker_lift_local_pulse.sh`: runs the separately verified stock
-  MediaCenter LOCAL `playById`/pause path. It does extend the covers, but it is
-  superseded: `AUDIO_RLSA_STATE_SET` (`0x16300025`, `1` out / `2` in) moves them
-  both ways silently. Keep this one as the stock-shaped positive control. Its
-  input is an already indexed local track's canonical IVI path or signed
-  MediaCenter music ID.
+- `speaker_lift_local_pulse.sh` + `SpeakerLiftLocalPulse.java`: runs the
+  separately verified stock MediaCenter LOCAL `playById`/pause path. It does
+  extend the covers, and it stays here as the stock-shaped positive control. It
+  is not the product lever, and neither is `AUDIO_RLSA_STATE_SET`
+  (`0x16300025`): on the Z9GT that property drives the motor as an edge, `1` out
+  and `2` in, while on the N9 the same property is the car's own stock auto-lift
+  enable flag, which the app never writes. The lever is the playback report
+  `INSTRUMENT_MUSIC_STATE_SET` (`0x43E0000A`) = `1` — see "Product contract v2"
+  in `docs/speaker-lift-findings.md`. Its input is an already indexed local
+  track's canonical IVI path or signed MediaCenter music ID.
+- `personbean_provider_probe.sh`: restore-wrapped live driver for the app-UID
+  PersonBean ContentResolver probe (`experiments/personbean-provider-probe/`).
+  It mutates exactly one `content://com.byd.autovoice/PersonBean` row, verifies
+  every app-UID write with an independent shell readback, and restores through
+  the shell path from a cleanup trap that also fires on an early exit. It never
+  restarts ADB or AutoVoice, never launches an Activity, never injects input and
+  never clears a logcat buffer. Durable results belong to
+  `docs/shortcuts-automation-findings.md`.
+- `vehicle_log.py`: the host-side recorder behind the energy contract. It asks
+  the same `autoservice` Binder the app asks, over ADB, and writes one CSV row
+  per second into `captures/vehicle-log/`; the decoding is the app's, down to the
+  plausibility gate. `VehicleLogReplayTest` replays what it records, which is
+  what holds the panel's arithmetic to a real drive rather than to a parked
+  start/stop cycle. It changes nothing in the product. See
+  `docs/energy-display-contract.md`.
+- `AudioVisualizerProbe.java`: standalone shell-UID dex probe that holds a
+  visualiser session as `com.byd.mediacenter`. On 2026-08-27 it held one for
+  15 s while Yandex Music played and the product's bars moved for exactly that
+  window. Weigh its side effects before building on it — the same call starts
+  the firmware's own consumers of the effect. See
+  `docs/audio-capture-findings.md`.
 - `speaker_lift_yandex_probe.sh`: builds and owns the disposable normal-UID
   `speaker-lift-yandex-probe` APK. `install` preserves existing accessibility
   services, prepares the exact proven one-second LOCAL chime, and enables a
@@ -173,6 +198,42 @@ read-only, and are safe against a live scene; durable results belong to
   `am stack list`. It closes the stream rather than sending `quit`, because
   dying with the stream is the property the product depends on, and it checks
   that nothing is left running on the car afterwards.
+
+Four more read a capture or compile the real code, and never touch a car at all:
+
+- `analyze_mirrors_startup.py`: offline analyzer for Denza Mirrors startup
+  timing captures. It never infers physical pixel visibility and treats the
+  `TextureView` first-update callback as the end of the measured software path;
+  the two observation origins — the first unambiguous window-timing change and
+  the poll printed on `command: show` — stay deliberately separate.
+  `summary` reads one capture, `compare` reads a control against a candidate.
+- `check_mirrors_startup.py`: compiles the real renderer against a minimal
+  Android host shim and runs `tests/mirrors_startup/RendererContractTest.java`
+  against it. No vehicle timing or firmware behaviour is simulated — the shim
+  supplies only API-shaped objects, controlled callbacks and Binder transaction
+  recording — and no production APK contains it.
+- `check_vehicle_signal_mutations.py`: behavioural mutation checks of the real
+  typed vehicle hub, host-only, on the dependencies the Android build has
+  already resolved. Each mutant compiles in its own temporary directory; a
+  compile error or a timeout is INVALID and never a killed mutant, and the
+  report carries exact source hashes.
+- `test_analyze_can_turn_capture.py` and `test_analyze_mirrors_startup.py`: the
+  unit tests of the two analyzers. Run them from this directory with
+  `python3 -m unittest test_analyze_can_turn_capture test_analyze_mirrors_startup`.
+
+The `*.java` files are the companions of the scripts that carry them. Most are
+compiled to a dex and run under `app_process` with the shell UID, so nothing is
+installed; `FseCrossDeviceProbe.java`, `FseCrossMessageProbe.java` and
+`FseVoiceCommandProbe.java` are the exception — their scripts build and sign a
+throwaway normal-UID APK around them, and the manifests for those three live in
+`fse-cross-device-probe/`, `fse-cross-message-probe/` and
+`fse-voice-command-probe/`.
+
+`design-canvas/` is not a probe. It holds the artboards the head unit and the
+cluster are drawn from, the generators that render them, and `audit.py`, which
+measures a rendered board. Read
+[design-canvas/README.md](design-canvas/README.md) before changing anything
+under the app's `ui/` or `design/` packages.
 
 The small JSON files under `fse-apk-wallpaper/` preserve the FSE resource
 metadata used for the AIMP and Yandex Navigator tests. APK payloads stay outside
