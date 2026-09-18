@@ -104,7 +104,7 @@ android {
         // explicit decision. versionCode is an internal build counter so the car
         // can tell builds apart during acceptance; it never drives the version.
         versionCode = 53
-        versionName = "0.7.0"
+        versionName = "0.6.2"
     }
 
     buildFeatures {
