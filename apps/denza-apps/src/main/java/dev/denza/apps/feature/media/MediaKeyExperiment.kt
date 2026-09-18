@@ -17,14 +17,16 @@ package dev.denza.apps.feature.media
  *     state that handler kept about the current source is no longer refreshed by those presses, so
  *     next and previous may be aimed at a target that stopped moving on 2026-09-05.
  *
- * Turning one switch off per build is the whole experiment. Both stay on here: this build changes
- * no behaviour, it only starts saying what the helper actually removes, which is the first thing
- * worth knowing. Flip [FOCUS_SURGERY] for the first rung, [INTERCEPT_KEYS] for the second, and let
- * the report line say which build is on the car.
+ * Turning one switch off per build is the whole experiment, and the report line says which build is
+ * on the car. [FOCUS_SURGERY] is off from build 49: on 2026-09-18 at 19:23:23 the helper ran, and
+ * from 19:23:35 the vehicle's own `IviVehicleAudioBroker` began abandoning audio focus every 2.2
+ * seconds, the focus stack stayed empty, and Yandex Music could hold a focus request for 39 ms and
+ * never got an audio track - its session counted a track forward with no sound at all. That is the
+ * suspect switched off while the question is open, not a proven verdict.
  */
 object MediaKeyExperiment {
     /** The shell helper that rewrites the car's audio-focus stack before a deferred pause. */
-    const val FOCUS_SURGERY = true
+    const val FOCUS_SURGERY = false
 
     /** The accessibility filter taking the wheel's play/pause key at all. */
     const val INTERCEPT_KEYS = true
