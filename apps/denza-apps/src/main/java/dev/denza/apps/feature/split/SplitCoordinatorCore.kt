@@ -399,13 +399,18 @@ internal class SplitCoordinatorCore(
      * that asked to leave it - Home there is not news, it is the screen the open started from
      * (1.3.9). The second is any Home hint with nothing of ours to suspend: no scene and no gate we
      * borrowed means there is nothing this operation could do but open a shell session and read.
-     * The third is a Home the automaton has already confirmed - the scene is covered, the gate is
+     * The third is a Home the automaton has already confirmed - the world is covered, the gate is
      * suspended, and the launcher keeps emitting window events for as long as it is on screen.
      * Each of those used to submit a fresh `HomeOperation`, and submitting one cancels every
      * queued and in-flight passive hint (section 4) - including the `PICKER_HIDDEN` cleanup that
      * contract 1.6.3 requires to run exactly there, because the wide-Back ending lands *on* Home
      * (ground-v18 B2). A cancelled background operation reports nothing, which is why the product
      * log was silent while the orphan picker and the dirty SmartMulti keys stayed behind.
+     *
+     * Правка 2026-09-18: третий гард читает ось видимости, а не сцену. С перезапуска процесса
+     * накрытие подтверждается и без сцены (`ReconcileOperation.followCoverWithoutAScene`), и
+     * «одна транзакция на одно накрытие» обязана держаться на обоих каналах, а не только на том,
+     * который успел записать сцену.
      */
     fun homeVisible() {
         ready()
@@ -419,8 +424,8 @@ internal class SplitCoordinatorCore(
             log.log("home hint dropped: no live scene and no gate lease of ours (invariant 8)")
             return
         }
-        if (state.scene != null && state.visibility == SceneVisibility.COVERED) {
-            log.log("home hint dropped: the scene is already covered (invariant 8)")
+        if (state.visibility == SceneVisibility.COVERED) {
+            log.log("home hint dropped: the cover is already confirmed (invariant 8)")
             return
         }
         // Правка W2 (волна 7): сабмит Home снимает взведённые повторы сверки ниже, поэтому

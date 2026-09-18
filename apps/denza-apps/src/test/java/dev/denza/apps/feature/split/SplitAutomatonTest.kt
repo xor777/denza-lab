@@ -397,6 +397,43 @@ class SplitAutomatonTest {
         assertSame(home.state, again.state)
     }
 
+    /**
+     * Правка 2026-09-18 (живьём: перезапуск процесса над живой сессией). Ось видимости независима
+     * от оси сцены, и накрытие записывается даже когда сцены в памяти нет: gate, аренду которого
+     * эта сессия держит, следует за накрытием МИРА, а не за тем, что процесс успел запомнить
+     * (1.9.2, 1.12). Записано оно ровно за тем, чтобы подвеска стоила одну транзакцию: вторая
+     * накрытая подсказка не двигает ничего.
+     */
+    @Test
+    fun aCoverIsRecordedEvenWhenThisProcessRemembersNoScene() {
+        val restarted = state(
+            primary = SplitSlot.App(MUSIC),
+            secondary = SplitSlot.App(NAVIGATOR),
+        )
+
+        val covered = SplitAutomaton.reduce(restarted, SplitFact.HomeConfirmed)
+        val again = SplitAutomaton.reduce(covered.state, SplitFact.HomeConfirmed)
+
+        assertEquals(SceneVisibility.COVERED, covered.state.visibility)
+        assertNull("накрытие не выдумывает сцену", covered.state.scene)
+        assertEquals("и не трогает выбор пользователя", restarted.slots, covered.state.slots)
+        assertSame("одно накрытие - одна запись", covered.state, again.state)
+
+        // Вернуть ось в VISIBLE может только доказанная СВОЯ сцена: чужой видимый мир gate не
+        // открывает, и `SceneRevealed` без сцены не значит ничего (1.11, 1.12).
+        assertSame(
+            "видимость без сцены не восстанавливается на слово",
+            covered.state,
+            SplitAutomaton.reduce(covered.state, SplitFact.SceneRevealed).state,
+        )
+        val adopted = SplitAutomaton.reduce(
+            covered.state,
+            SplitFact.BuildSceneSucceeded(restarted.slots),
+        ).state
+        assertEquals(SceneVisibility.VISIBLE, adopted.visibility)
+        assertEquals(SplitScene.Split, adopted.scene)
+    }
+
     @Test
     fun revealingAfterHomeRestoresTheSameScene() {
         // контракт 1.9.4, 1.3.6
@@ -534,7 +571,7 @@ class SplitAutomatonTest {
                 survivorPane = SplitPane.SECONDARY,
             ),
             sceneless to SplitFact.SceneEndedSettled,
-            sceneless to SplitFact.HomeConfirmed,
+            sceneless to SplitFact.SceneRevealed,
             sceneless to SplitFact.AppClosedSettled(SplitPane.PRIMARY),
         )
 

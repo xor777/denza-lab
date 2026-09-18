@@ -37,7 +37,7 @@ internal sealed interface SplitScene {
     data class Full(val pane: SplitPane) : SplitScene
 }
 
-/** Whether an existing scene is on screen or hidden behind Home, Recents or a foreign window. */
+/** Whether the world is on screen or hidden behind Home, Recents or a foreign window. */
 internal enum class SceneVisibility {
     VISIBLE,
     COVERED,
@@ -49,7 +49,10 @@ internal enum class SceneVisibility {
  * @param enabled the user toggle (contract 2.1). While it is off the product is inert.
  * @param slots durable projection of both panes; the single source of truth for pane content.
  * @param scene the live product scene, or `null` when there is none.
- * @param visibility visibility of an existing scene; meaningless while [scene] is `null`.
+ * @param visibility whether the world this product's session lives in is on screen or covered by
+ * Home, Recents or a foreign window. It is an axis of its own: a session that owns the firmware
+ * gate has to follow the cover even in a process that came back with no scene in memory (1.12,
+ * правка 2026-09-18), and `SceneRevealed` is what puts it back once a scene is proven ours again.
  * @param projectedPane pane whose navigator is temporarily on the instrument cluster (1.10).
  * @param vacancyApp ephemeral app occupying a projected pane's vacancy; lost on any restart.
  */
@@ -118,6 +121,13 @@ internal sealed interface SplitFact {
 
     data object SceneEndedSettled : SplitFact
 
+    /**
+     * The world is covered, by the one authority the product accepts for it: a read area (0 or 4).
+     *
+     * It carries no scene, and deliberately so: the gate this session owns follows the cover of the
+     * world, including in a process that restarted over a session it does not remember (1.9.2,
+     * 1.12, правка 2026-09-18).
+     */
     data object HomeConfirmed : SplitFact
 
     data object SceneRevealed : SplitFact

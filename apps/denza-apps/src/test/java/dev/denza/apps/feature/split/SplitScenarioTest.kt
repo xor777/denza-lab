@@ -3566,6 +3566,197 @@ class SplitScenarioTest {
     }
 
     /**
+     * Живой дефект 2026-09-18, 19:45-19:53. Пользователь открыл пару в 19:45:26 - открытие открыло
+     * gate под нашу аренду. В 19:52:51 другая сессия переустановила пакет (`installPackageLI`), и
+     * процесс вернулся в 19:52:52 со `scene == null`, арендой в prefs и ОТКРЫТЫМ gate в прошивке.
+     * В 19:53:29 пользователь нажал Home (area 0). Две сверки в 19:53:30.4 и 19:53:30.7 прочли мир
+     * по четыре обращения каждая - это отказ адопции под Home - и вышли на гарде «сцены нет», не
+     * спросив про gate ничего. В 19:53:30.78 обычный запуск Denza Apps с рабочего стола прошивка
+     * втянула в split с `com.byd.sr` - против 1.9.2. Закрылся gate только в 19:53:34.6, и не
+     * сверкой, а `HomeOperation` после её трёхсекундного опроса.
+     *
+     * Здесь воспроизведён ровно этот мир: сцена на экране, аренда наша, gate открыт - и процесс,
+     * который об этой сессии не помнит ничего, потому что `initialize` строго read-only (1.11, K7)
+     * и `openPickerSession` никто не звал. Адопция под Home отказывает сама, без всякой помощи
+     * фикстуры: панель с пикером И приложением - это две задачи в корне, а накрытый мир верхнюю
+     * задачу не показывает, так что `area == 0` принимает панель только когда задача в корне одна.
+     */
+    @Test
+    fun aRestartedProcessStillSuspendsTheGateItOwnsUnderCover() {
+        val car = car(FakeShell(initialGate = true).apply { liveProductScene(withApps = true) })
+        val core = car.core(SplitDurable(enabled = true, slots = APP_PAIR))
+        car.gateLease.setOwned(true)
+        core.initialize {}
+        car.barrier()
+        car.clearCommands()
+
+        // Home накрыл мир, о котором этот процесс ничего не знает.
+        car.fake.area = 0
+        core.dividerResized()
+        car.barrier()
+
+        assertFalse(
+            "gate, открытый этой сессией, подвешен накрытием - иначе запуск из дока уйдёт в " +
+                "split (1.9.2)",
+            car.fake.isGateOpen(),
+        )
+        assertTrue(
+            "аренда остаётся: следующий явный запуск откроет gate снова (1.12)",
+            car.gateLease.isOwned(),
+        )
+        assertEquals(
+            "одна транзакция на одно накрытие",
+            listOf(GATE_CLOSE),
+            car.commands().filter { it.startsWith("service call activity_task 126 ") },
+        )
+        assertEquals(
+            "и ни одной другой мутации: живую пару пользователя никто не трогал (1.11)",
+            listOf(GATE_CLOSE),
+            car.mutations(),
+        )
+        assertEquals(
+            "строка ринга называет именно этот случай",
+            1,
+            car.diagnostics.count { it.startsWith("gate подвешен сверкой без сцены:") },
+        )
+        assertEquals("выбор пользователя цел", APP_PAIR, car.store.load().slots)
+        assertTrue(car.fake.hasTask(PRIMARY_PICKER_TASK))
+        assertTrue(car.fake.hasTask(SECONDARY_PICKER_TASK))
+        assertTrue(car.fake.hasTask(PRIMARY_APP_TASK))
+        assertTrue(car.fake.hasTask(SECONDARY_APP_TASK))
+
+        // Накрытие записано, и второй такой же подсказке спрашивать машину уже не о чем (U1).
+        car.clearCommands()
+        core.dividerResized()
+        car.barrier()
+
+        assertEquals(
+            "ни одной повторной подвески",
+            emptyList<String>(),
+            car.commands().filter { it.startsWith("service call activity_task 126 ") },
+        )
+        assertEquals(emptyList<String>(), car.mutations())
+        assertEquals(
+            "и ни одной повторной строки",
+            1,
+            car.diagnostics.count { it.startsWith("gate подвешен сверкой без сцены:") },
+        )
+    }
+
+    /**
+     * Продолжение того же мира: пользователь вернул пару на экран сам, ничего не нажимая в нашем
+     * приложении. Сцена доказывается адопцией (1.11.3), и gate идёт за доказанной видимостью тем
+     * же полномочием, что подвесило его, - прочитанной area (1.12).
+     */
+    @Test
+    fun aRestartedProcessGetsItsGateBackWhenTheSceneIsProvenOursAgain() {
+        val car = car(FakeShell(initialGate = true).apply { liveProductScene(withApps = true) })
+        val core = car.core(SplitDurable(enabled = true, slots = APP_PAIR))
+        car.gateLease.setOwned(true)
+        core.initialize {}
+        car.fake.area = 0
+        core.dividerResized()
+        car.barrier()
+        assertFalse(car.fake.isGateOpen())
+        car.clearCommands()
+
+        // Пара снова на экране, и первым о ней узнаёт не кнопка, а оконный шторм.
+        car.fake.area = 3
+        core.dividerResized()
+        car.barrier()
+
+        assertEquals("сцена принята обратно", SplitScreenPhase.ACTIVE, core.snapshot().phase)
+        assertEquals("и выбор пользователя цел", APP_PAIR, car.store.load().slots)
+        assertTrue("gate доказанной своей сцены снова открыт", car.fake.isGateOpen())
+        assertEquals(
+            "ровно одна транзакция возобновления",
+            listOf(GATE_OPEN),
+            car.commands().filter { it.startsWith("service call activity_task 126 ") },
+        )
+        assertEquals(
+            "и ни одна задача пары не тронута: адопция только смотрит (1.11.3)",
+            listOf(GATE_OPEN),
+            car.mutations(),
+        )
+        assertTrue(car.diagnostics.any { it.startsWith("gate возобновлён сверкой") })
+    }
+
+    /**
+     * Обратная сторона правки, и она же её граница: ложное ОТКРЫТИЕ строго хуже пропущенного.
+     *
+     * Видимый мир, который продукту не принадлежит, - чужой сплит на area 3 - сверка не трогает
+     * никак: открыть его gate не за что (сцена не доказана), а закрывать нечего (мир не накрыт).
+     * Подвеска наступает ровно тогда, когда мир накрыт (1.9.2, 1.12).
+     */
+    @Test
+    fun aForeignVisibleWorldNeverOpensTheGateOfARestartedProcess() {
+        val car = car(FakeShell(initialGate = true).apply { stockSplitOfSomeoneElse() })
+        val core = car.core(SplitDurable(enabled = true, slots = APP_PAIR))
+        car.gateLease.setOwned(true)
+        core.initialize {}
+        car.barrier()
+        car.clearCommands()
+
+        repeat(3) {
+            core.dividerResized()
+            car.barrier()
+        }
+
+        assertTrue(
+            "чужой видимый сплит остаётся как есть: своей сцены нет, открывать нечего",
+            car.fake.isGateOpen(),
+        )
+        assertEquals(
+            "и ни одной транзакции gate над видимым миром",
+            emptyList<String>(),
+            car.commands().filter { it.startsWith("service call activity_task 126 ") },
+        )
+        assertEquals(emptyList<String>(), car.mutations())
+
+        // Тот же чужой мир, накрытый Home: наш gate обязан быть подвешен, и ровно один раз.
+        car.fake.area = 0
+        repeat(3) {
+            core.dividerResized()
+            car.barrier()
+        }
+
+        assertFalse(car.fake.isGateOpen())
+        assertEquals(
+            listOf(GATE_CLOSE),
+            car.commands().filter { it.startsWith("service call activity_task 126 ") },
+        )
+        assertTrue(car.gateLease.isOwned())
+    }
+
+    /**
+     * Единственное правило подвески неизменно: gate, который продукт не брал, он и не трогает
+     * (1.12). Перезапущенный процесс без аренды не отправляет ни одной транзакции, сколько бы
+     * накрытий ни прочитал.
+     */
+    @Test
+    fun aRestartedProcessWithoutTheLeaseTouchesNoGateAtAll() {
+        val car = car(FakeShell(initialGate = true).apply { liveProductScene(withApps = true) })
+        val core = car.core(SplitDurable(enabled = true, slots = APP_PAIR))
+        core.initialize {}
+        car.barrier()
+        car.clearCommands()
+
+        car.fake.area = 0
+        repeat(3) {
+            core.dividerResized()
+            car.barrier()
+        }
+
+        assertTrue("чужой gate остаётся открытым", car.fake.isGateOpen())
+        assertEquals(
+            emptyList<String>(),
+            car.commands().filter { it.startsWith("service call activity_task 126 ") },
+        )
+        assertEquals(emptyList<String>(), car.mutations())
+        assertFalse(car.gateLease.isOwned())
+    }
+
+    /**
      * Та же дыра со стороны кнопки: «Разделить экран» над сценой, которая уже на экране, но чей
      * gate подвешен, возвращалась до `ensureGateOpen` - подъём над area 3 «ничего не просил у
      * прошивки», и gate оставался закрытым до первого тапа в пикере.

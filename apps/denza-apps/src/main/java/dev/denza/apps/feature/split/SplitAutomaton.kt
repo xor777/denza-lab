@@ -194,11 +194,22 @@ internal object SplitAutomaton {
         )
     }
 
-    /** Contract 1.9.1 and invariant 5: Home hides the scene, it does not close anything. */
+    /**
+     * Contract 1.9.1 and invariant 5: Home hides the scene, it does not close anything.
+     *
+     * Правка 2026-09-18 (перезапуск процесса над живой сессией): накрытие записывается и тогда,
+     * когда сцены в памяти нет. Ось видимости независима от оси сцены (раздел 2), и у неё есть
+     * собственный смысл без сцены: gate, который держит эта сессия, обязан следовать за накрытием
+     * мира, а не за тем, что процесс успел о нём запомнить (1.12). Живьём gate остался открытым
+     * после переустановки пакета над живой парой, и запуск с рабочего стола ушёл в split с
+     * `com.byd.sr` - против 1.9.2. Записанное накрытие - это то, чем подвеска доказывает себе, что
+     * она уже случилась: следующая накрытая подсказка не отправляет `126 i32 0` второй раз.
+     *
+     * Обратно ось возвращает только доказанная сцена ([sceneBuilt] ставит VISIBLE): видимый мир,
+     * который продукту не принадлежит, gate не открывает.
+     */
     private fun home(state: SplitState): SplitReduction {
-        if (state.scene == null || state.visibility == SceneVisibility.COVERED) {
-            return unchanged(state)
-        }
+        if (state.visibility == SceneVisibility.COVERED) return unchanged(state)
         return settled(
             state,
             state.copy(visibility = SceneVisibility.COVERED),
