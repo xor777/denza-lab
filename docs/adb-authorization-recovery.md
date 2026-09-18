@@ -156,8 +156,10 @@ product's ADB identity and its settings with it.
 Build and install:
 
 ```bash
-./gradlew :adb-rescue-probe:testDebugUnitTest :adb-rescue-probe:assembleDebug
+./gradlew -Pexperiments :adb-rescue-probe:testDebugUnitTest :adb-rescue-probe:assembleDebug
 ```
+
+The probe is not in the default build; `-Pexperiments` is what configures it.
 
 The APK lands at `experiments/adb-rescue-probe/build/outputs/apk/debug/adb-rescue.apk`. On a car
 without ADB it has to reach the head unit the same way Denza Apps did - see

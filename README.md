@@ -125,12 +125,16 @@ export ANDROID_HOME=/opt/homebrew/share/android-commandlinetools
 
 ./gradlew :car-adb-gateway:testDebugUnitTest :car-adb-gateway:assembleDebug
 ./gradlew :denza-apps:testDebugUnitTest :denza-apps:assembleDebug
+./gradlew :dishare-bridge:testDebugUnitTest
 ```
 
-Build the legacy gateway only when working on it:
+The probes under `experiments/` and the legacy gateway are configured only when
+the `experiments` Gradle property is set, so build them only when working on
+them:
 
 ```bash
-./gradlew :denza-gateway:testDebugUnitTest :denza-gateway:assembleDebug
+./gradlew -Pexperiments :denza-gateway:testDebugUnitTest :denza-gateway:assembleDebug
+./gradlew -Pexperiments :adb-rescue-probe:testDebugUnitTest :adb-rescue-probe:assembleDebug
 ```
 
 Build and test the developer CLI:

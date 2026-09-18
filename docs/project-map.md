@@ -224,18 +224,32 @@ useful hardware reference; new camera work belongs in Denza Apps.
 
 Git ignores generated APKs.
 
+The default build configures the product modules and nothing else. The eight
+probes under `experiments/` and the legacy `:denza-gateway` are configured only
+when the `experiments` Gradle property is set, so a probe task needs
+`-Pexperiments` in front of it.
+
 ```bash
-./gradlew :denza-gateway:assembleDebug
 ./gradlew :denza-apps:testDebugUnitTest :denza-apps:assembleDebug
-./gradlew :night-vision-probe:assembleDebug
-./gradlew :audio-probe:assembleDebug
-./gradlew :single-package-split-probe:assembleDebug
-./gradlew :speaker-lift-yandex-probe:assembleDebug
-./gradlew :display-probe:assembleDebug
+./gradlew :dishare-bridge:testDebugUnitTest
 ./gradlew :car-adb-gateway:testDebugUnitTest :car-adb-gateway:assembleDebug
 ```
 
-Useful local APK paths:
+The opt-in modules:
+
+```bash
+./gradlew -Pexperiments :denza-gateway:testDebugUnitTest :denza-gateway:assembleDebug
+./gradlew -Pexperiments :night-vision-probe:assembleDebug
+./gradlew -Pexperiments :audio-probe:assembleDebug
+./gradlew -Pexperiments :display-probe:assembleDebug
+./gradlew -Pexperiments :single-package-split-probe:assembleDebug
+./gradlew -Pexperiments :speaker-lift-yandex-probe:assembleDebug
+./gradlew -Pexperiments :personbean-provider-probe:assembleDebug
+./gradlew -Pexperiments :dicar-media-probe:assembleDebug
+./gradlew -Pexperiments :adb-rescue-probe:testDebugUnitTest :adb-rescue-probe:assembleDebug
+```
+
+Useful local APK paths, which the split did not move:
 
 ```text
 legacy/denza-gateway/build/outputs/apk/debug/denza-gateway.apk
@@ -245,6 +259,9 @@ experiments/audio-probe/build/outputs/apk/debug/audio-probe.apk
 experiments/single-package-split-probe/build/outputs/apk/debug/single-package-split-probe.apk
 experiments/speaker-lift-yandex-probe/build/outputs/apk/debug/speaker-lift-yandex-probe.apk
 experiments/display-probe/build/outputs/apk/debug/display-probe.apk
+experiments/personbean-provider-probe/build/outputs/apk/debug/personbean-provider-probe.apk
+experiments/dicar-media-probe/build/outputs/apk/debug/dicar-media-probe.apk
+experiments/adb-rescue-probe/build/outputs/apk/debug/adb-rescue.apk
 apps/car-adb-gateway/build/outputs/apk/debug/car-adb-gateway.apk
 ```
 

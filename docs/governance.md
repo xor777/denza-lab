@@ -245,7 +245,14 @@ any work that depends on undocumented firmware behavior.
 - Run at least the relevant Gradle build before publishing code changes:
 
 ```bash
-./gradlew :denza-gateway:testDebugUnitTest :denza-gateway:assembleDebug
 ./gradlew :denza-apps:testDebugUnitTest :denza-apps:assembleDebug
+./gradlew :dishare-bridge:testDebugUnitTest
 ./gradlew :car-adb-gateway:testDebugUnitTest :car-adb-gateway:assembleDebug
+```
+
+A probe or the legacy gateway is configured only when the `experiments` Gradle
+property is set:
+
+```bash
+./gradlew -Pexperiments :denza-gateway:testDebugUnitTest :denza-gateway:assembleDebug
 ```
