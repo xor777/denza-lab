@@ -1886,3 +1886,81 @@ so a rollback never restores a lease there (the adopt path can). The navigation
 return's fullscreen branch settles `HomeConfirmed` for a scene that is on
 screen. `revision` in the durable snapshot is written and never read. None of
 these changes what the user sees.
+
+## A narrated live session, mapped to the logs (2026-09-18)
+
+The owner could not reproduce his sense that the split had become less stable
+after the 2026-09-11 rewrite, so the method was inverted: he drove the car's
+screen for six and a half minutes (18:54:57–19:01:31 MSK), dictated what he did
+and what he saw, and the logs were read against that narration afterwards. A
+host-side reconnecting `adb logcat -b main -b system -b events -T 1` kept the
+whole window (the car's own main/system buffers hold about ten minutes, the
+events buffer about twenty-five); the product's ring reaches logcat as
+`Log.i("DenzaSplitScreen")` lines. The build on the car was the one with the
+2026-09-11 changes.
+
+**What the narration and the logs agree on.** Nine opens, every one committed
+(877–4658 ms, the slow one being the first, with the helper's birth in it);
+ten selections, nine committed. No crash, no eviction that covered the scene,
+no Yandex escaping to fullscreen. Every launch from the dock after Home went
+fullscreen (1.9.2), with the gate suspended by the reconcile each time (six
+suspensions) and no Home hint at those moments. The two acceptance points the
+2026-09-11 review owed were paid here: at 18:57:12 the climate overlay went
+away by itself and the ring printed `gate возобновлён сверкой: накрытая сцена
+снова на экране без открытия` - the first live resumption of a suspended gate
+without a tap; and with the hub in the wide pane the divider was dragged four
+times (19:00:26–19:00:57) and resized, with `firmware split allowlist
+extended: 'dev.denza.apps'` at every build and never "Release to close" over
+the hub. The double tap on the button joined one open. Kinopoisk's own
+screens in a pane (profile choice, permissions, an advertising Activity it
+cannot dismiss) are the app's; VK Video resuming playback on the reveal is the
+app answering `am task focus`.
+
+**Defect 1 - one dead app under cover ended the whole scene (18:58:04–12).**
+Navigator (task 68) and Kinopoisk (task 76) were the pair. The owner pressed
+Home, killed Kinopoisk from the task manager and went back to the desktop;
+Navigator stayed alive. The ring: `scene end: якорь мёртв, подтверждаю вторым
+чтением`, then `SceneEndedSettled` - both slots to `Picker`, both picker bases
+(73, 75) removed by `remove-task`, the live Navigator forgotten. The next open
+showed two bare pickers ("у меня точно было какое-то приложение открыто") and
+the build evicted the alive Navigator as a foreign task. The anchor of a
+covered scene's existence was `allRecordedAppsAlive`, all or nothing: one dead
+app read as "all dead". The code called that a deliberate asymmetry kept for
+"Clear all" (1.7.5); it was simply wrong for 1.7.3 under cover. Now the read is
+per pane: a dead app's pane becomes its picker (`AppClosedSettled`, same second
+read before the mutation), the neighbour and its base are not touched, and the
+scene ends only when every recorded app is dead.
+
+**Defect 2 - a selection in the surviving fullscreen picker always rolled back
+(18:58:35).** After swiping one of two pickers away the owner tapped Navigator
+in the fullscreen survivor. The firmware placed it (`startSplitWindow #68
+type=32 newMode=102`, area stayed 2, Navigator visible above the picker) and the
+ring answered `select +1118ms read-back: area=2` / `select
+outcome=rolled-back reason=read-back failed`. The placement recipe accepts a
+single-pane world (`expectedSelectionArea` keeps 1/2 when the other root is
+vacant); the strict read-back of 2026-08-27 accepted only area 0/3/4 and two
+roots each holding a base. The slot was never persisted and the live scene
+stayed stale; the next selection happened to re-read the scene and heal it,
+which is why nothing was visible. A Home right after that tap would have
+reopened a picker instead of Navigator. The selection's read-back now reads
+the single pane the area names, with the same per-pane predicates as the
+two-pane read; the open's adoption and the reconcile keep refusing that world,
+because the open has to rebuild the closed pane as a picker (1.3.4) and the
+reconcile has to prove the collapse through its own path and remove the
+stump.
+
+**Costs seen, not changed.** The wide picker dies with reason
+`recent-task-trimmed` at every fullscreen launch from Home (seven times in
+seven minutes) - the killer named at last, and the reason every open after
+Home stands up a fresh picker. Four Home hints arrived over a visible split
+(window events of `com.byd.mycar` from the dock right after an open, a divider
+drag, a collapse) and each cost a three-second area poll: `home suspend
+unconfirmed: area==0 не подтвердилось за ~3с`. Neither changes what the user
+sees.
+
+**A product question left to the owner.** After collapsing the picker pane
+next to music and reopening after Home, the product restored music into its
+recorded narrow pane and the picker into the wide one (1.3.4 to the letter);
+the owner expected "the app I kept is the main one". The firmware moves every
+collapse survivor into the wide container, so recording the survivor by its
+physical pane would match that expectation. Not decided.
