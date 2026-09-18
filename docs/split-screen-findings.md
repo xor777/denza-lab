@@ -2004,3 +2004,18 @@ session; every move-to-front of Music (three) answered `startSplitWindow`. The
 mechanism behind the old escape - a gate closed under a cover that went away
 by itself - is the one the 2026-09-11 resumption closes, and that resumption
 fired live at 18:57:12.
+
+**The race, first step (owner decision, the same evening).** The reconcile
+that lost the 19:51:53 race by 0.1 s had read area 0 at its first call and
+then spent seven more calls on the collapse and existence recipes before the
+gate follow-up re-read the area at the end. The suspension now runs first, on
+the reconcile's first area read, before adoption and before any other recipe;
+the "covered before" belief that the end-of-pass resumption compares against
+is taken after that suspension, so a scene the world uncovers in the middle of
+the same pass is closed on the first read and reopened on the proof - one
+close, one open. No call was added; over a visible scene the pass costs one
+call less. This turns the observed timing (tap at +1.04 s, first read at
++0.85 s) into a win with a 0.2 s margin; it is not a guarantee for a faster
+tap. The second step, if wanted, is a faster Home hint: the dock's own Home
+button click through the accessibility service, tens of milliseconds after the
+tap, feeding the existing Home operation that verifies by reading the area.
