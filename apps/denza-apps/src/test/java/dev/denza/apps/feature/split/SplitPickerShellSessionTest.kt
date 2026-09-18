@@ -945,6 +945,9 @@ class SplitPickerShellSessionTest {
      * и конец сцены. Выселенная Home-ом база умерла (механизм М2), её приложение отвязано живым:
      * члены не все живы, но каждый записанный app жив по exact identity на всём main display -
      * и наоборот, смерть записанного приложения якорь видит.
+     *
+     * Правка 2026-09-18 (живая сессия, диагноз «два пикера»): якорь отвечает ПОПАНЕЛЬНО, потому
+     * что «мертво одно» и «мертвы все» - разные исходы контракта (1.7.3 против 1.7.5).
      */
     @Test
     fun deadPickerBaseWithLivingRecordedAppsIsABaseLossNotASceneEnd() {
@@ -970,11 +973,27 @@ class SplitPickerShellSessionTest {
         fake.detachTask(SECONDARY_APP_TASK)
         fake.removeActivity(SECONDARY_ROOT, SECONDARY_PICKER_ACTIVITY)
         assertFalse(split.allRecordedMembersAlive(scene, PICKER_COMPONENTS))
-        assertTrue("каждое записанное приложение живо", split.allRecordedAppsAlive(scene))
+        assertEquals(
+            "каждое записанное приложение живо",
+            emptySet<SplitPane>(),
+            split.deadRecordedApps(scene),
+        )
 
-        // А вот смерть записанного приложения якорь обязан увидеть.
+        // А вот смерть записанного приложения якорь обязан увидеть - и назвать его панель.
         fake.removeActivity(DETACHED_ROOT, "$MUSIC.MainActivity")
-        assertFalse(split.allRecordedAppsAlive(scene))
+        assertEquals(
+            "мертва одна панель, и якорь отвечает именно ей (1.7.3)",
+            setOf(SplitPane.SECONDARY),
+            split.deadRecordedApps(scene),
+        )
+
+        // Умерли оба - только тогда мертва вся сцена (1.7.5).
+        fake.removeActivity(PRIMARY_ROOT, "$NAVIGATOR.MainActivity")
+        assertEquals(
+            "мертвы все записанные приложения",
+            setOf(SplitPane.PRIMARY, SplitPane.SECONDARY),
+            split.deadRecordedApps(scene),
+        )
     }
 
     @Test

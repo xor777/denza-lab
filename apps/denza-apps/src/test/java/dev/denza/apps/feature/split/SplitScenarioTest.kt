@@ -2187,6 +2187,172 @@ class SplitScenarioTest {
     }
 
     /**
+     * Контракт 1.7.3 под накрытием; живая сессия 2026-09-18 18:58:04-18:58:12, диагноз «два
+     * пикера».
+     *
+     * Владелец оставил на экране пару «Навигатор|Кинопоиск», нажал Home (area 0), открыл
+     * диспетчер задач и снял ОДИН Кинопоиск. Навигатор продолжал работать. В ринге встало
+     * `scene end: якорь мёртв, подтверждаю вторым чтением` и `SceneEndedSettled`: оба слота
+     * стали пикерами, обе наши базы (73/75) удалены `remove-task`, живой Навигатор забыт - и
+     * следующий тап «Разделить экран» показал два пустых пикера, а Навигатора сборка выселила
+     * как чужую задачу. Виноват был якорь «все записанные приложения живы»: его «нет» вызывающий
+     * читал как конец ВСЕЙ сцены.
+     *
+     * 1.7.3 говорит обратное: панель погибшего приложения показывает свой пикер, сосед живёт
+     * непрерывно. Конец - только когда мертвы ВСЕ (1.7.5, «Очистить всё»).
+     */
+    @Test
+    fun oneAppKilledUnderHomeFreesOnlyItsPaneAndTheSceneContinues() {
+        val car = car(FakeShell().apply { liveProductScene(withApps = true) })
+        val core = car.core(SplitDurable(enabled = true, slots = APP_PAIR))
+        core.initialize {}
+        core.openPickerSession()
+        car.barrier()
+        assertEquals(APP_PAIR, car.store.load().slots)
+
+        // Home накрыл пару: сцена жива-скрыта (1.9.1, инвариант 5).
+        car.fake.area = 0
+        core.homeVisible()
+        car.barrier()
+        val commits = car.store.commits
+        car.clearCommands()
+
+        // Диспетчер задач: снят ОДИН участник пары, сосед продолжает работать.
+        car.fake.removeActivity(SECONDARY_ROOT, "$MUSIC.MainActivity")
+
+        // Накрытую сцену дивайдерная подсказка читает одним чтением area и ничего не сводит
+        // (`reconcileDividerResize` над area 0/4 отвечает `null`) - и именно она доходит до
+        // доказательства существования, того самого, что хоронило сцену целиком.
+        core.dividerResized()
+        car.barrier()
+
+        assertEquals(
+            "освобождена только панель погибшего; сосед остался при своём приложении (1.7.3)",
+            mapOf(
+                SplitPane.PRIMARY to SplitSlot.App(NAVIGATOR),
+                SplitPane.SECONDARY to SplitSlot.Picker,
+            ),
+            car.store.load().slots,
+        )
+        assertEquals("и это одна запись", commits + 1, car.store.commits)
+        assertTrue("живой сосед не забыт и не тронут", car.fake.hasTask(PRIMARY_APP_TASK))
+        assertTrue(
+            "обе базы панелей на месте: пикер - дно панели (1.4.1)",
+            car.fake.hasTask(PRIMARY_PICKER_TASK),
+        )
+        assertTrue(car.fake.hasTask(SECONDARY_PICKER_TASK))
+        listOf(PRIMARY_APP_TASK, PRIMARY_PICKER_TASK, SECONDARY_PICKER_TASK).forEach { taskId ->
+            assertFalse(
+                "ни одна команда не адресовала задачу $taskId",
+                car.commands().any { it.contains(" remove-task ") && it.contains(" $taskId ") },
+            )
+        }
+        assertFalse(
+            "автоперезапуска нет (U1)",
+            car.commands().any { it.startsWith("am start ") },
+        )
+
+        // И возврат кнопкой показывает ту же живую пару, а не два пустых пикера (1.9.4, 1.3.2).
+        car.clearCommands()
+        core.openPickerSession()
+        car.barrier()
+
+        val launches = car.commands().filter { it.startsWith("am start ") }
+        assertFalse("закрытое не воскресает (1.3.4)", launches.any { it.contains(MUSIC) })
+        assertFalse(
+            "а выживший не перезапускается: его показывают, а не запускают заново (U2)",
+            launches.any { it.contains(NAVIGATOR) },
+        )
+        assertEquals(
+            "он на своём месте, сверху своей панели",
+            PRIMARY_APP_TASK,
+            car.fake.topTaskId(PRIMARY_ROOT),
+        )
+        assertEquals(SplitScreenPhase.ACTIVE, core.snapshot().phase)
+    }
+
+    /**
+     * Зеркало предыдущего: умерло приложение другой панели - и освобождается ровно она (1.7.3).
+     */
+    @Test
+    fun theSameDeathInTheOppositePaneFreesTheOppositePaneAlone() {
+        val car = car(FakeShell().apply { liveProductScene(withApps = true) })
+        val core = car.core(SplitDurable(enabled = true, slots = APP_PAIR))
+        core.initialize {}
+        core.openPickerSession()
+        car.barrier()
+
+        car.fake.area = 0
+        core.homeVisible()
+        car.barrier()
+        car.clearCommands()
+
+        car.fake.removeActivity(PRIMARY_ROOT, "$NAVIGATOR.MainActivity")
+        core.dividerResized()
+        car.barrier()
+
+        assertEquals(
+            mapOf(
+                SplitPane.PRIMARY to SplitSlot.Picker,
+                SplitPane.SECONDARY to SplitSlot.App(MUSIC),
+            ),
+            car.store.load().slots,
+        )
+        assertTrue("живой сосед не тронут", car.fake.hasTask(SECONDARY_APP_TASK))
+        assertEquals(
+            "и ни одной мутации: приложение уже мертво, удалять нечего",
+            emptyList<String>(),
+            car.mutations(),
+        )
+    }
+
+    /**
+     * Тот же шов между двумя тактами доказательства, что и у конца сцены
+     * ([aMemberDeadForHalfABeatDoesNotEndTheScene]), только для панели: приложение, «мёртвое» на
+     * полутакте двухпроходного teardown и живое вторым чтением, панель не освобождает.
+     */
+    @Test
+    fun anAppDeadForHalfABeatUnderCoverFreesNoPane() {
+        val fake = FakeShell().apply { liveProductScene(withApps = true) }
+        val car = car(fake)
+        val core = car.core(
+            SplitDurable(enabled = true, slots = APP_PAIR),
+            onDiagnostic = { line ->
+                // К второму чтению прошивка доехала до конца перестройки, и «мёртвое»
+                // приложение снова в своём панельном корне.
+                if (line.startsWith("scene: приложение")) {
+                    fake.addTask(SECONDARY_ROOT, SECONDARY_APP_TASK, MUSIC, "$MUSIC.MainActivity")
+                }
+            },
+        )
+        core.initialize {}
+        core.openPickerSession()
+        car.barrier()
+
+        car.fake.area = 0
+        core.homeVisible()
+        car.barrier()
+        val commits = car.store.commits
+        car.clearCommands()
+
+        car.fake.removeActivity(SECONDARY_ROOT, "$MUSIC.MainActivity")
+        core.dividerResized()
+        car.barrier()
+
+        assertTrue(
+            "первый такт увидел смерть панели - иначе тест ничего не сторожит",
+            car.diagnostics.any { it.contains("мертво под накрытием") },
+        )
+        assertEquals("пара не забыта", APP_PAIR, car.store.load().slots)
+        assertEquals("не доказано - не записано", commits, car.store.commits)
+        assertEquals(emptyList<String>(), car.mutations())
+        assertTrue(
+            "отказ второго чтения назван",
+            car.diagnostics.any { it.contains("не подтвердилась вторым чтением") },
+        )
+    }
+
+    /**
      * Contract 1.12 and the live defect of the vertical slice, rated РАЗДРАЖАЕТ.
      *
      * The firmware records what a split *was* in four `Settings.System` keys and reads them back
@@ -2413,9 +2579,9 @@ class SplitScenarioTest {
      * «пикер|пикер» area=0 наступает мгновенно, оба tx118 честно > 0 (контейнеры прошивки -
      * вечные объекты), а узкий пикер-сирота НИКОГДА сам не покидает свой панельный root. Прежние
      * ворота «записанные задачи ещё в панельных корнях» ждали состояния, которого на этой
-     * прошивке не бывает, и settleSceneEnded не наступал никогда (ядро блокера v22). Конец
-     * доказывается накрытием плюс мёртвым членом, и уборка обязана состояться от первой же
-     * подсказки: сирота убран прямо из панельного корня, ключи возвращены, gate закрыт.
+     * прошивке не бывает, и доказательство существования не наступало никогда (ядро блокера
+     * v22). Конец доказывается накрытием плюс мёртвым членом, и уборка обязана состояться от
+     * первой же подсказки: сирота убран прямо из панельного корня, ключи возвращены, gate закрыт.
      */
     @Test
     fun theWideBackOrphanIsCleanedOutOfItsPanelRootFromTheFirstHint() {

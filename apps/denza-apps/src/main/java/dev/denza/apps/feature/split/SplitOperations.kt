@@ -1605,24 +1605,25 @@ internal class ReconcileOperation(
             is SplitReconcileKind.PickerVisible -> pickerVisible(op, split, kind.hostTaskId)
             is SplitReconcileKind.PickerHidden -> pickerHidden(op, split, kind.hostTaskId)
         }
-        // Only once no recipe could prove anything about this scene is "it is gone" a candidate
+        // Only once no recipe could prove anything about this scene is existence a candidate
         // explanation at all - a collapse, a resize repair and a revealed picker all get to speak
         // first, and each of them proves the scene still exists (1.7.5). A pane-close proof is the
         // one exception: it says nothing about the survivor. The wide-Back ending of 1.6.3 throws
         // the whole scene out of the panel roots at once and may deliver only a single
         // hidden-picker hint (ground-v18 B2), so the remainder is checked by existence anyway - a
-        // survivor still living in a panel root passes untouched (1.6.2).
-        val ended = if (!proven || kind is SplitReconcileKind.PickerHidden) {
-            settleSceneEnded(op, split)
+        // survivor still living in a panel root passes untouched (1.6.2). Existence answers three
+        // things now, not two: nothing, one freed pane (1.7.3) or the whole scene (1.7.5).
+        val settledByExistence = if (!proven || kind is SplitReconcileKind.PickerHidden) {
+            settleByExistence(op, split)
         } else {
-            false
+            SplitExistenceOutcome.NOTHING
         }
         // Правка W3 (диагноз v21 Д1/Д2): после конца перестройки прошивки новых событий нет, и
         // никто не перечитывал мир - отказавшая по недоказуемой топологии сверка молчала вечно.
         // Такая сверка взводит РОВНО ОДИН отложенный коалесцированный повтор своего вида; повтор
         // - обычный HINT, пользовательские операции вытесняют его по §4. Отказавший повтор
         // нового не взводит: никаких цепочек и таймерных циклов (U1).
-        if (proven || ended) unproven.clear()
+        if (proven || settledByExistence != SplitExistenceOutcome.NOTHING) unproven.clear()
         if (unproven.isNotEmpty()) {
             // Правка W4 (U5): каждая недоказанная сверка оставляет в ринге строку с именами
             // отказавших предикатов - v21 диагностировался на полной тишине этих веток. Правка
@@ -1849,7 +1850,7 @@ internal class ReconcileOperation(
      * Над накрытой сценой жеста dismiss не бывает (инвариант 5, ред. 2026-08-24): прошивка на
      * Home сама опустошает корень сфокусированной панели, отвязывая живой пикер в display area,
      * и hidden-хинт здесь - эхо Home. Гард стоит до любых мутаций; жива ли накрытая сцена
-     * целиком, решает existence-проверка [settleSceneEnded]. В v20 этот хинт принимал
+     * целиком, решает existence-проверка [settleByExistence]. В v20 этот хинт принимал
      * Home-накрытие за dismiss и убивал отвязанный пикер - к следующему open ярус выживших
      * был пуст, и возврат шёл полной пересборкой (D1).
      *
@@ -1878,20 +1879,52 @@ internal class ReconcileOperation(
     }
 
     /**
-     * Contract 1.7.5 and scenario 30: "Clear all" in Recents, and every other way a whole scene can
-     * stop existing while this process is not looking at it.
+     * Что решило о сцене доказательство существования (правка 2026-09-18).
+     *
+     * У этой проверки стал возможен ЧАСТИЧНЫЙ исход, и булев ответ с именем `ended` у вызывающего
+     * тогда врёт: панель освобождена, а сцена жива и накрыта. Три исхода - три имени.
+     */
+    private enum class SplitExistenceOutcome {
+        /** Ничего не решено: мир либо цел, либо честно недоказуем прямо сейчас. */
+        NOTHING,
+
+        /** Умерло приложение одной панели: она встала на свой пикер, сцена и сосед живы (1.7.3). */
+        PANE_FREED,
+
+        /** Умер весь якорь: сцены больше нет (1.7.5). */
+        SCENE_ENDED,
+    }
+
+    /**
+     * Contract 1.7.3 and 1.7.5, scenario 30: what a scene under cover looks like when the user
+     * closed one of its applications, all of them, or ended the whole split natively - all of it
+     * seen only by existence, because this process was not looking.
      *
      * Правка W1 волны 7 (b1-CORE, живой протокол 2026-08-25): конец сцены доказывается двумя
      * чтениями - сцена НАКРЫТА ([SplitPickerShellSession.sceneCovered], area 0/4) И мёртв её
      * ЯКОРЬ по exact identity на всём main display. Правка W1 волны 8 (v23 Д1(а)) сузила якорь:
      * у сцены с записанными приложениями это только сами приложения
-     * ([SplitPickerShellSession.allRecordedAppsAlive]) - смерть выселенной пикер-базы при живых
+     * ([SplitPickerShellSession.deadRecordedApps]) - смерть выселенной пикер-базы при живых
      * приложениях сцену не кончает; у сцены «пикер|пикер» якорь - члены, как в волне 7
      * ([SplitPickerShellSession.allRecordedMembersAlive]). Живая накрытая сцена - ВСЕ члены живы -
      * не убирается никогда (инвариант 5): прошивка на Home опустошает корень панели, отвязывая
      * живые задачи, и отвязанный член живой накрытой сцены - не сирота. Мёртвый член под
      * накрытием - нативный конец: Back в широком пикере при «пикер|пикер», свайп, «очистить всё»
      * (ground-v18 B2).
+     *
+     * Правка 2026-09-18 (живая сессия 18:58:04-18:58:12, диагноз «два пикера»). Волна 8 держала
+     * якорь-приложения «всё или ничего» и называла это осознанной асимметрией: смерть ЛЮБОГО
+     * записанного приложения под накрытием засчитывалась концом ВСЕЙ сцены. Асимметрия была
+     * ошибкой. Пользователь оставил пару «Навигатор|Кинопоиск», нажал Home (area 0) и снял из
+     * диспетчера задач ОДИН Кинопоиск; Навигатор продолжал работать. Продукт похоронил сцену
+     * целиком: оба слота стали пикерами, обе базы удалены `remove-task`, живой Навигатор забыт -
+     * и следующий тап «Разделить экран» показал два пустых пикера, а живого Навигатора сборка
+     * выселила как чужую задачу. Контракт говорит ровно обратное: 1.7.3 - панель погибшего
+     * приложения показывает свой пикер, сосед живёт непрерывно; 1.7.1/1.7.2 - исход нативный,
+     * после него чисто. Конец наступает только когда мертвы ВСЕ записанные приложения (1.7.5,
+     * «Очистить всё»), и эта ветка сохранена буква в букву. Частичная смерть под накрытием -
+     * [SplitExistenceOutcome.PANE_FREED]: слот панели `APP → PICKER`, сосед и обе базы не
+     * тронуты, сцена продолжается накрытой.
      *
      * Панельные корни в воротах конца больше не участвуют. Машинная правда волны 7: контейнеры
      * прошивки - вечные объекты, tx118 никогда не отвечает ≤0, а узкий пикер-сирота нативно
@@ -1905,28 +1938,28 @@ internal class ReconcileOperation(
      * scene recorded as its own pickers are removed here, by exact id and component, wherever
      * they ended up - including a panel root they never left (1.6, 1.6.4).
      */
-    private fun settleSceneEnded(
+    private fun settleByExistence(
         op: SplitOperationContext,
         split: SplitPickerShellSession,
-    ): Boolean {
-        if (working.scene == null) return false
+    ): SplitExistenceOutcome {
+        if (working.scene == null) return SplitExistenceOutcome.NOTHING
         val recorded = liveScene.values.flatMapTo(mutableSetOf()) { observed ->
             listOfNotNull(observed.hostTaskId, observed.appTaskId)
         }
-        if (recorded.isEmpty()) return false
+        if (recorded.isEmpty()) return SplitExistenceOutcome.NOTHING
         val covered = probe("конец сцены: area нечитаема") { split.sceneCovered() }
-            ?: return false
+            ?: return SplitExistenceOutcome.NOTHING
         // Нечитаемая машина: не доказано - не убираем.
         val membersAlive = probe("конец сцены: живость членов нечитаема") {
             split.allRecordedMembersAlive(liveScene, SPLIT_PICKER_COMPONENT_SET)
-        } ?: return false
+        } ?: return SplitExistenceOutcome.NOTHING
         if (membersAlive) {
             if (covered) {
                 // Полное позитивное доказательство: каждый член жив под накрытием. Более ранние
                 // отказы этой операции - следствие накрытия, а не подвешенного мира (правка W3).
                 unproven.clear()
             }
-            return false
+            return SplitExistenceOutcome.NOTHING
         }
         // Правка W1 волны 8 (диагноз v23 Д1(а)): у сцены с записанными ПРИЛОЖЕНИЯМИ якорь конца -
         // только они. Выселенная Home-ом пикер-база умирает недетерминированно (механизм М2) при
@@ -1935,24 +1968,28 @@ internal class ReconcileOperation(
         // базы при живых приложениях - «база утрачена», НЕ конец: сцена и слоты живут, базу
         // пересоздаст следующий open/reveal (buildScene это уже умеет), и огрызки живой сцены
         // не трогаются. Сцена «пикер|пикер» (приложений нет) кончается смертью баз, как в
-        // волне 7, - лечение блокера b1-CORE («очистить всё» из пикеров) сохранено буква в
-        // букву. Осознанная асимметрия: смерть записанного ПРИЛОЖЕНИЯ под накрытием остаётся
-        // концом, как и прежде (консервативно; «Clear all» этим живёт).
-        val appsAnchor = liveScene.values.any { observed -> observed.appTaskId != null }
-        if (appsAnchor) {
-            val appsAlive = probe("конец сцены: живость приложений нечитаема") {
-                split.allRecordedAppsAlive(liveScene)
-            } ?: return false
-            if (appsAlive) {
-                unproven += "конец сцены: база утрачена, записанные приложения живы - не конец"
-                return false
-            }
+        // волне 7, - лечение блокера b1-CORE («очистить всё» из пикеров) сохранено буква в букву.
+        val appPanes = liveScene.filterValues { observed -> observed.appTaskId != null }.keys
+        val deadApps = if (appPanes.isEmpty()) {
+            emptySet()
+        } else {
+            probe("конец сцены: живость приложений нечитаема") {
+                split.deadRecordedApps(liveScene)
+            } ?: return SplitExistenceOutcome.NOTHING
+        }
+        if (appPanes.isNotEmpty() && deadApps.isEmpty()) {
+            unproven += "конец сцены: база утрачена, записанные приложения живы - не конец"
+            return SplitExistenceOutcome.NOTHING
         }
         if (!covered) {
             // Мёртвый якорь при видимой или переходной area (1/2/3): collapse и APP→PICKER
             // говорят раньше, а недоказуемый остаток перечитает отложенный повтор.
             unproven += "конец сцены: член мёртв, но сцена не накрыта"
-            return false
+            return SplitExistenceOutcome.NOTHING
+        }
+        // Правка 2026-09-18: мертвы не все записанные приложения - это 1.7.3, а не 1.7.5.
+        if (appPanes.isNotEmpty() && deadApps != appPanes) {
+            return settleDeadAppPanes(op, split, deadApps, appPanes)
         }
         // Правка W2 волны 8: позитивная ветка - и только она - подтверждается вторым чтением
         // через короткую паузу: смерть якоря, увиденная в зубы двухпроходного teardown прошивки,
@@ -1960,22 +1997,90 @@ internal class ReconcileOperation(
         // лога встаёт в ринг ДО второго чтения - это шов между двумя тактами доказательства.
         work.log("scene end: якорь мёртв, подтверждаю вторым чтением (правка W2 волны 8)")
         val confirmed = probe("конец сцены: второе чтение нечитаемо") {
-            split.confirmSceneEndAnchorDead(liveScene, SPLIT_PICKER_COMPONENT_SET, appsAnchor)
-        } ?: return false
+            if (appPanes.isEmpty()) {
+                split.confirmSceneEndMembersDead(liveScene, SPLIT_PICKER_COMPONENT_SET)
+            } else {
+                // Концом второй такт остаётся только пока мертвы ВСЕ записанные приложения:
+                // ожившее к нему приложение делает мир частичным, а частичный мир доводит
+                // отложенный повтор - без уборки, которую уже не откатить.
+                split.confirmDeadRecordedApps(liveScene)
+                    .let { read -> read.covered && read.deadPanes == appPanes }
+            }
+        } ?: return SplitExistenceOutcome.NOTHING
         if (!confirmed) {
             unproven += "конец сцены: смерть якоря не подтвердилась вторым чтением"
-            return false
+            return SplitExistenceOutcome.NOTHING
         }
+        return endScene(op, split)
+    }
 
-        // Правка W2: конец доказан, дальше - мутации. Уборочные runCatching ниже терпят капризы
-        // машины, но отмена - не каприз: raw fence выносит её сюда целой, до полу-исполненного
-        // конца, и catch в [apply] перевзводит повтор.
+    /**
+     * Contract 1.7.3 under cover: the pane whose application died shows its own picker again, and
+     * the neighbour lives on (правка 2026-09-18, живая сессия, диагноз «два пикера»).
+     *
+     * Видимый мир этот исход умеет и без сюда: при area 3 краш ловит хинт `pickerVisible` →
+     * `closeRevealedApp`, при area 1/2 мёртвое приложение с живым пикером в панельном корне
+     * остаётся недоказанным (и это верно - там раньше говорит collapse). Не умел его ровно один
+     * мир - накрытый, где ни один хинт не видит панель, и именно в нём смерть одного приложения
+     * засчитывалась концом всей сцены.
+     *
+     * Не трогается НИЧЕГО: приложение уже мертво (удалять нечего, и оно пользовательское - 1.6.2),
+     * сосед не при чём, а собственная пикер-база мёртвой панели остаётся её дном (1.4.1). Если
+     * Home успел эту базу отвязать или убить, следующий open знает, что делать: «база утрачена»,
+     * и `buildScene` её пересоздаст.
+     */
+    private fun settleDeadAppPanes(
+        op: SplitOperationContext,
+        split: SplitPickerShellSession,
+        dead: Set<SplitPane>,
+        appPanes: Set<SplitPane>,
+    ): SplitExistenceOutcome {
+        // Шов между двумя тактами доказательства - как у конца сцены, и по той же причине:
+        // «мёртвое» на полутакте двухпроходного teardown приложение может быть живым.
+        work.log(
+            "scene: приложение ${dead.joinToString(", ")} мертво под накрытием, " +
+                "подтверждаю вторым чтением (1.7.3)",
+        )
+        val confirmation = probe("панель мёртвого приложения: второе чтение нечитаемо") {
+            split.confirmDeadRecordedApps(liveScene)
+        } ?: return SplitExistenceOutcome.NOTHING
+        if (!confirmation.covered || !confirmation.deadPanes.containsAll(dead)) {
+            unproven += "панель мёртвого приложения: смерть не подтвердилась вторым чтением"
+            return SplitExistenceOutcome.NOTHING
+        }
+        // Второй такт досчитал остальных: это уже 1.7.5, и доказан он теми же двумя чтениями.
+        if (confirmation.deadPanes == appPanes) return endScene(op, split)
+
+        // Доказано, дальше - запись. Мутаций у этого исхода нет вовсе, но отмена обязана вынести
+        // операцию отсюда целой, до полузаписанного факта: catch в [apply] перевзведёт повтор.
+        op.fence()
+        confirmation.deadPanes.forEach { pane ->
+            val observed = liveScene[pane] ?: return@forEach
+            liveScene = liveScene + (pane to observed.copy(appTaskId = null, appPackageName = null))
+            settle(SplitFact.AppClosedSettled(pane))
+        }
+        work.log(
+            "scene: панель ${confirmation.deadPanes.joinToString(", ")} встала на свой пикер, " +
+                "сосед и базы не тронуты (1.7.3)",
+        )
+        return SplitExistenceOutcome.PANE_FREED
+    }
+
+    /**
+     * Правка W2: конец доказан, дальше - мутации. Уборочные runCatching внутри терпят капризы
+     * машины, но отмена - не каприз: raw fence выносит её сюда целой, до полу-исполненного
+     * конца, и catch в [apply] перевзводит повтор.
+     */
+    private fun endScene(
+        op: SplitOperationContext,
+        split: SplitPickerShellSession,
+    ): SplitExistenceOutcome {
         op.fence()
         val ownPickers = liveScene.values.map(SplitPickerLivePane::hostTaskId)
         liveScene = emptyMap()
         settle(SplitFact.SceneEndedSettled)
         removeOwnPickerStumps(op, split, ownPickers)
-        return true
+        return SplitExistenceOutcome.SCENE_ENDED
     }
 
     /**

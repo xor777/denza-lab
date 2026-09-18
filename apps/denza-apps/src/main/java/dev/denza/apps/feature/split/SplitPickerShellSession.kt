@@ -2188,26 +2188,32 @@ internal class SplitPickerShellSession(
     }
 
     /**
-     * Whether every recorded APPLICATION of the scene is still alive on the main display under its
-     * exact recorded identity - task id plus package, never a picker base (правка W1 волны 8,
-     * диагноз v23 Д1(а)).
+     * Панели, чьё записанное ПРИЛОЖЕНИЕ больше не живо на main display под его точной identity -
+     * task id плюс package, никогда не пикер-база (правка W1 волны 8, диагноз v23 Д1(а); правка
+     * 2026-09-18, живая сессия, диагноз «два пикера»).
      *
      * У сцены с записанными приложениями это - якорь её конца. Пикер-базы сознательно не
      * участвуют: выселенная Home-ом база умирает недетерминированно (механизм М2) при живых
      * приложениях пользователя, и её смерть доказывает лишь утрату базы, не конец сцены.
-     * Read-only.
+     *
+     * Ответ ПОПАНЕЛЬНЫЙ, и это - весь смысл правки 2026-09-18. Здесь стоял предикат «все
+     * записанные приложения живы», чьё «нет» вызывающий читал как конец ВСЕЙ сцены: живьём
+     * пользователь снял из диспетчера задач одно приложение пары под Home, второе продолжало
+     * работать, - и продукт хоронил сцену целиком (оба слота в пикеры, обе базы удалены, живой
+     * сосед забыт). Множество мёртвых панелей различает 1.7.3 (умерло одно - освобождается его
+     * панель, сосед живёт) и 1.7.5 (умерли все - кончилась сцена). Read-only.
      */
-    fun allRecordedAppsAlive(scene: Map<SplitPane, SplitPickerLivePane>): Boolean {
-        val apps = scene.values.filter { observed -> observed.appTaskId != null }
+    fun deadRecordedApps(scene: Map<SplitPane, SplitPickerLivePane>): Set<SplitPane> {
+        val apps = scene.filterValues { observed -> observed.appTaskId != null }
         check(apps.isNotEmpty()) { "У записанной сцены нет приложений-якорей" }
         val tasks = mainDisplayTasks()
-        return apps.all { observed ->
-            tasks.any { task ->
+        return apps.filterValues { observed ->
+            tasks.none { task ->
                 task.id == observed.appTaskId &&
                     task.packageName == observed.appPackageName &&
                     !task.isDenzaPickerBase()
             }
-        }
+        }.keys
     }
 
     /**
@@ -2215,20 +2221,37 @@ internal class SplitPickerShellSession(
      * на позитивной ветке, перед мутациями уборки. Смерть якоря, увиденная в зубы двухпроходного
      * teardown прошивки, может быть его полутактом (фазовое доказательство v23: 1119 мс между
      * roots и apps-launched у дефектного open); жизнь и нечитаемость второго чтения не требуют.
-     * Read-only.
+     *
+     * Это - якорь сцены «пикер|пикер», у которой записанных приложений нет вовсе: ответ ему
+     * булев, потому что и вопрос булев - живы ли ЧЛЕНЫ. Read-only, ровно одна пауза и ровно одно
+     * повторное чтение.
      */
-    fun confirmSceneEndAnchorDead(
+    fun confirmSceneEndMembersDead(
         scene: Map<SplitPane, SplitPickerLivePane>,
         pickerComponents: Set<String>,
-        appsAnchor: Boolean,
     ): Boolean {
         pause(SCENE_END_CONFIRM_SETTLE_MS)
-        val anchorAlive = if (appsAnchor) {
-            allRecordedAppsAlive(scene)
-        } else {
-            allRecordedMembersAlive(scene, pickerComponents)
-        }
-        return !anchorAlive && sceneCovered()
+        return !allRecordedMembersAlive(scene, pickerComponents) && sceneCovered()
+    }
+
+    /**
+     * То же второе чтение для якоря-ПРИЛОЖЕНИЙ, но ответ у него попанельный (правка 2026-09-18,
+     * живая сессия, диагноз «два пикера»).
+     *
+     * Булев ответ здесь врал бы дважды: «хоть одно мертво» вызывающий читал как конец всей сцены,
+     * а вопрос «накрыта ли она ещё» после паузы приходится задавать в любом случае - и когда
+     * мертвы все (1.7.5), и когда мертва одна панель (1.7.3). Поэтому наружу отдаётся то, что
+     * второй такт увидел: множество мёртвых панелей И накрытие. Read-only, ровно одна пауза и
+     * ровно одно повторное чтение - как у [confirmSceneEndMembersDead].
+     */
+    fun confirmDeadRecordedApps(
+        scene: Map<SplitPane, SplitPickerLivePane>,
+    ): SplitDeadAppsConfirmation {
+        pause(SCENE_END_CONFIRM_SETTLE_MS)
+        return SplitDeadAppsConfirmation(
+            deadPanes = deadRecordedApps(scene),
+            covered = sceneCovered(),
+        )
     }
 
     /** Resolves a product-picker window hint only when one native root has one visible picker. */
@@ -3527,6 +3550,19 @@ internal data class SplitPickerLivePane(
     val hostTaskId: Int,
     val appTaskId: Int?,
     val appPackageName: String?,
+)
+
+/**
+ * Что увидел второй такт доказательства у якоря-приложений (правка 2026-09-18, живая сессия,
+ * диагноз «два пикера»).
+ *
+ * [deadPanes] - панели, чьи записанные приложения мертвы и на повторном чтении; [covered] - жива
+ * ли ещё причина вообще сюда смотреть (area 0/4, инвариант 5). Пустое [deadPanes] или снятое
+ * накрытие означают полутакт прошивки, а не исход: ни одна мутация по такому ответу не идёт.
+ */
+internal data class SplitDeadAppsConfirmation(
+    val deadPanes: Set<SplitPane>,
+    val covered: Boolean,
 )
 
 /**
