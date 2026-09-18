@@ -58,6 +58,8 @@ object NavigationCoordinator {
     @Volatile private var dashboardOnCluster = false
     private var pendingProjectionAfterOpen = false
     private var projectedOrigin: NavigationProjectionOrigin? = null
+    /** The last uncertain health reading that reached logcat, as (actual display, confirmations). */
+    private var lastUncertainLogged: Pair<Int, Int>? = null
     private val launchFence = NavigationLaunchFence()
     private val projectionHealth = NavigationProjectionHealthTracker()
     private val primaryActionPending = AtomicBoolean(false)
@@ -757,14 +759,23 @@ object NavigationCoordinator {
             return
         }
         when (val decision = projectionHealth.observe(actualDisplay, expectedDisplay)) {
-            NavigationProjectionHealthDecision.Healthy -> Unit
-            is NavigationProjectionHealthDecision.Uncertain -> Log.w(
-                TAG,
-                "projection health uncertain expected=$expectedDisplay " +
-                    "actual=${decision.actualDisplayId} " +
-                    "confirmation=${decision.confirmationCount}; preserving display",
-            )
+            NavigationProjectionHealthDecision.Healthy -> lastUncertainLogged = null
+            is NavigationProjectionHealthDecision.Uncertain -> {
+                // The check runs every five seconds and an unreadable task answers `-1` on each
+                // of them; the same answer is said once, not every five seconds for a whole trip.
+                val observed = decision.actualDisplayId to decision.confirmationCount
+                if (observed != lastUncertainLogged) {
+                    lastUncertainLogged = observed
+                    Log.i(
+                        TAG,
+                        "projection health uncertain expected=$expectedDisplay " +
+                            "actual=${decision.actualDisplayId} " +
+                            "confirmation=${decision.confirmationCount}; preserving display",
+                    )
+                }
+            }
             is NavigationProjectionHealthDecision.ConfirmedElsewhere -> {
+                lastUncertainLogged = null
                 Log.i(
                     TAG,
                     "projection ended externally task=$taskId " +

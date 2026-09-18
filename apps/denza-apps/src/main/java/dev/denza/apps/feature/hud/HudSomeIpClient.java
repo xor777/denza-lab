@@ -54,6 +54,7 @@ final class HudSomeIpClient {
     private HudGuidance pending;
     private HudArGeometry pendingArGeometry;
     private int counter;
+    private String lastPublishedKey;
 
     private final ServiceConnection connection = new ServiceConnection() {
         @Override
@@ -203,15 +204,21 @@ final class HudSomeIpClient {
                 buildPayload(false, guidance, ++counter, icon, arGeometry));
         HudSomeIpRuntime.onFireResult(result);
         if (result == 0) {
-            Log.i(TAG, "published " + guidance.getInstruction() + " "
-                    + guidance.getManeuverDistanceMeters() + "m"
-                    + " route=" + guidance.getRemainingDistanceMeters()
-                    + "m/" + guidance.getRemainingTimeSeconds() + "s"
-                    + " eta=" + guidance.getEta()
-                    + " roundaboutExit=" + guidance.getRoundaboutExitNumber()
-                    + " road=" + guidance.getNextRoadName()
-                    + " ar=" + (arGeometry != null));
+            // One line per manoeuvre, not per poll. Distance, ETA and the road name change on
+            // every 350 ms sample; printing them wrote the whole route into logcat at ~3 lines/s
+            // and pushed everything else, including AVC crashes, out of the ring.
+            String publishedKey = guidance.getManeuver().name()
+                    + ":" + guidance.getRoundaboutExitNumber()
+                    + ":" + (arGeometry != null);
+            if (!publishedKey.equals(lastPublishedKey)) {
+                lastPublishedKey = publishedKey;
+                Log.i(TAG, "publishing " + guidance.getManeuver()
+                        + " roundaboutExit=" + guidance.getRoundaboutExitNumber()
+                        + " ar=" + (arGeometry != null)
+                        + " seq=" + counter);
+            }
         } else {
+            lastPublishedKey = null;
             Log.w(TAG, "publish ret=" + result);
             serviceStarted = false;
             scheduleRecovery("Штатный HUD отклонил подсказку: " + result);

@@ -41,6 +41,8 @@ class MediaResumeController @JvmOverloads constructor(
     )
     private val keyInterceptor = MediaResumeKeyInterceptor()
     private val sessions = LinkedHashMap<MediaSession.Token, AndroidTarget>()
+    /** Sessions whose callback registration was refused; each is reported once, not per reconcile. */
+    private val refusedCallbacks = HashSet<MediaSession.Token>()
 
     // Written on the main looper, read by the support report from whatever thread built it.
     @Volatile
@@ -242,6 +244,7 @@ class MediaResumeController @JvmOverloads constructor(
         current.forEach { (token, controller) ->
             if (token !in sessions) track(token, controller)
         }
+        refusedCallbacks.retainAll(current.keys)
         core.reconcile(current.keys.mapNotNull(sessions::get))
     }
 
@@ -257,7 +260,9 @@ class MediaResumeController @JvmOverloads constructor(
     private fun track(token: MediaSession.Token, controller: MediaController): AndroidTarget? {
         val target = AndroidTarget(controller)
         if (!target.attach()) {
-            Log.i(TAG, "media session callback refused package=${controller.packageName}")
+            if (refusedCallbacks.add(token)) {
+                Log.i(TAG, "media session callback refused package=${controller.packageName}")
+            }
             return null
         }
         sessions[token] = target
@@ -272,6 +277,7 @@ class MediaResumeController @JvmOverloads constructor(
     private fun detachAll() {
         sessions.values.forEach(AndroidTarget::detach)
         sessions.clear()
+        refusedCallbacks.clear()
         core.clear()
     }
 

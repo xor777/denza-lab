@@ -291,7 +291,7 @@ class ClusterSceneService : Service() {
                     }
                 }
                 if (!cameraTeardownBarrier.complete(teardownToken)) {
-                    Log.e(TAG, "ignored stale AVC presentation teardown completion")
+                    Log.i(TAG, "ignored stale AVC presentation teardown completion")
                 }
                 onComplete?.invoke()
             },

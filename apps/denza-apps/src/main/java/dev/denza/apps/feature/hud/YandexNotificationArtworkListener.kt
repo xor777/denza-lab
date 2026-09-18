@@ -89,6 +89,9 @@ class YandexNotificationArtworkListener : NotificationListenerService() {
         super.onDestroy()
     }
 
+    /** The last rejection reason that reached logcat; the same reason is not said twice in a row. */
+    private var lastRejectDetail: String? = null
+
     private fun process(sbn: StatusBarNotification): Boolean {
         val result = runCatching {
             YandexRemoteViewsArtworkExtractor.extract(this, sbn.notification)
@@ -105,22 +108,21 @@ class YandexNotificationArtworkListener : NotificationListenerService() {
         val png = result.png
         if (png == null) {
             HudNotificationArtworkRuntime.reject(sbn.key, result.detail)
-            Log.d(
-                TAG,
-                "artwork rejected key=${sbn.key} reason=${result.detail} " +
-                    "backgroundGuidance=$guidanceUpdated",
-            )
+            if (result.detail != lastRejectDetail) {
+                lastRejectDetail = result.detail
+                Log.i(
+                    TAG,
+                    "artwork rejected key=${sbn.key} reason=${result.detail} " +
+                        "backgroundGuidance=$guidanceUpdated",
+                )
+            }
             return guidanceUpdated
         }
+        lastRejectDetail = null
         HudNotificationArtworkRuntime.update(
             notificationKey = sbn.key,
             png = png,
             capturedAtMs = capturedAtMs,
-        )
-        Log.d(
-            TAG,
-            "artwork captured key=${sbn.key} bytes=${png.size} " +
-                "backgroundGuidance=$guidanceUpdated",
         )
         return true
     }
@@ -130,9 +132,10 @@ class YandexNotificationArtworkListener : NotificationListenerService() {
 
     companion object {
         private const val TAG = "DenzaHudArtwork"
-        private const val YANDEX_PACKAGE = "ru.yandex.yandexnavi"
     }
 }
+
+private const val YANDEX_PACKAGE = "ru.yandex.yandexnavi"
 
 internal data class YandexArtworkExtraction(
     val png: ByteArray?,
@@ -384,8 +387,6 @@ internal object YandexRemoteViewsArtworkExtractor {
 
     private fun Throwable.shortName(): String =
         javaClass.simpleName.ifEmpty { "error" }
-
-    private const val YANDEX_PACKAGE = "ru.yandex.yandexnavi"
 }
 
 private object YandexRemoteViewsActionExtractor {

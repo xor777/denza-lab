@@ -101,9 +101,9 @@ internal class VehicleProgressOverlay(
 
     /** U5: the wait is invisible, so the failure has to be visible somewhere else. Once. */
     private fun reportUnavailable(reason: String) {
-        Log.w(TAG, "$windowTitle overlay unavailable: $reason")
         if (unavailableReported) return
         unavailableReported = true
+        Log.w(TAG, "$windowTitle overlay unavailable: $reason")
         onUnavailable(reason)
     }
 
