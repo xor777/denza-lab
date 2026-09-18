@@ -271,25 +271,6 @@ CONSUMPTION_SHAPE = [30.6, 33.2, 31.0, 25.0, 25.2, 28.1, 26.4, 27.5, 30.0, 26.5,
                      50.9, 46.3, 44.3, 46.6, 51.1, 59.1, 58.1, 55.6, 63.5, 37.7,
                      26.0, 24.7, 26.6, 26.6, 26.8, 20.7, 16.3, 13.7, 11.5, 15.0,
                      16.3, 17.5, 17.9, 19.0, 15.0, 8.2, -5.8, -5.8, -10.3, -11.9]
-SHAPE_MEAN = sum(CONSUMPTION_SHAPE) / len(CONSUMPTION_SHAPE)
-
-
-def history(average, launch=False, hole=None):
-    """A hundred trailing kilometres whose mean is [average]; a launch past the ceiling; a hole."""
-    points = [round(average * m / SHAPE_MEAN, 1) for m in CONSUMPTION_SHAPE]
-    if launch:
-        # A kilometre of full throttle, laid over the road's own launch rather than beside it:
-        # two plateaux a tenth apart would be two cuts and two marks, which is true and
-        # unreadable. Drawn along the ceiling with one tick at the centre of the run.
-        for i in range(70, 80):
-            points[i] = round(CHART_FULL * 1.2, 1)
-    if hole is not None:
-        # And the four points after it: a point with under half a kilometre of known road behind
-        # it is a hole too, so the line resumes half a kilometre after the road does.
-        for i in range(min(hole), min(max(hole) + 1 + CHART_SMOOTH // 2 - 1, len(points))):
-            points[i] = None
-    return points
-
 
 CHART_H = 130
 CHART_H_NARROW = 60           # what is left at 392 once the head, the foot and the marks are in
@@ -304,6 +285,29 @@ CHART_RETURN_FULL = 20
 CHART_TICK = 3
 
 
+
+def history(average, launch=False, points=CHART_POINTS):
+    """The trailing kilometres whose mean is [average]; a launch past the ceiling; [points] of them.
+
+    [points] fewer than a hundred is a log still filling - the first kilometres of a fresh install
+    or a reset journal - and the run is right-anchored where new road arrives while the line under
+    it names the road it actually has. The slice is scaled rather than the whole road, so the shape
+    and the figure under it cannot disagree at any length. There is no hole case any more: road the
+    log did not record is off this axis, so a gap in the record shortens the chart and marks
+    nothing (contract §2.3).
+    """
+    shape = CONSUMPTION_SHAPE[:points]
+    mean = sum(shape) / len(shape)
+    road = [round(average * m / mean, 1) for m in shape]
+    if launch:
+        # A kilometre of full throttle, laid over the road's own launch rather than beside it:
+        # two plateaux a tenth apart would be two cuts and two marks, which is true and
+        # unreadable. Drawn along the ceiling with one tick at the centre of the run.
+        for i in range(70, 80):
+            road[i] = round(CHART_FULL * 1.2, 1)
+    return road
+
+
 _CLIPS = [0]
 
 
@@ -316,14 +320,14 @@ def clip_id(prefix):
 def chart_svg(box_w, points, height=CHART_H):
     """The last ten kilometres as one line, the one shape on this page, and it carries a sign.
 
-    A point stands on every hundred metres of the odometer's grid and is the mean of the kilometre
+    A point stands on every hundred metres the log recorded and is the mean of the ten readings
     ending at it, so the shape is a continuous function of the road and a line is what says that.
     Above the zero is what that kilometre cost, below it is what it gave back - the app's own two
     inks for those and never a third - and the one silhouette crosses the zero wherever a kilometre
-    gave back more than it took. The newest point is at the right edge, where new road arrives. A
-    point whose kilometre is mostly unknown is a hole: the line breaks, and the road under it keeps
-    its place on the axis. A run held along a ceiling is drawn along it with one tick at the run's
-    centre.
+    gave back more than it took. The newest point is at the right edge, where new road arrives.
+    **There are no holes**: road nobody recorded is off this axis, so the line is one run, the box
+    is as wide as the record, and the foot line under it names that same road. A run held along a
+    ceiling is drawn along it with one tick at the run's centre.
 
     **The box says what it holds** in two figures against the edges they belong to, which are the
     same two ceilings the cluster's petal clamps at.
@@ -354,31 +358,27 @@ def chart_svg(box_w, points, height=CHART_H):
         return out
 
     above, below = clip_id('up'), clip_id('down')
-    shapes, ticks = [], []
-    for start, stop in stretches(lambda v: v is not None):
-        ys = [y(v) for v in points[start:stop]]
-        if stop - start == 1:
-            # One reading between two holes: a polyline of one point is nothing at all.
-            colour = INK if points[start] >= 0 else RETURN_INK
-            shapes.append(f'<circle cx="{x(start):g}" cy="{ys[0]:g}" '
-                          f'r="{CHART_EDGE / 2:g}" fill="{colour}"></circle>')
-            continue
-        outline = 'M' + ' L'.join(f'{x(i):g} {ys[i - start]:g}' for i in range(start, stop))
-        field = f'{outline} L{x(stop - 1):g} {zero:g} L{x(start):g} {zero:g} Z'
-        shapes.append(
-            f'<g clip-path="url(#{above})">'
-            f'<path d="{field}" fill="rgba(218,225,235,0.16)"></path>'
-            f'<path d="{outline}" fill="none" stroke="{INK}" stroke-width="{CHART_EDGE}" '
-            f'stroke-linejoin="round"></path></g>')
-        shapes.append(
-            f'<g clip-path="url(#{below})">'
-            f'<path d="{field}" fill="rgba(45,130,215,0.26)"></path>'
-            f'<path d="{outline}" fill="none" stroke="{RETURN_INK}" stroke-width="{CHART_EDGE}" '
-            f'stroke-linejoin="round"></path></g>')
-    for start, stop in stretches(lambda v: v is not None and v >= CHART_FULL):
+    ticks = []
+    # One run. There are no holes to break it - a bucket the log knows no energy over is not a
+    # point at all, and its neighbours close up behind it - so what is left of `stretches` is the
+    # clamp marks, which really are runs of the data.
+    ys = [y(v) for v in points]
+    outline = 'M' + ' L'.join(f'{x(i):g} {ys[i]:g}' for i in range(n))
+    field = f'{outline} L{x(n - 1):g} {zero:g} L{x(0):g} {zero:g} Z'
+    shapes = [
+        f'<g clip-path="url(#{above})">'
+        f'<path d="{field}" fill="rgba(218,225,235,0.16)"></path>'
+        f'<path d="{outline}" fill="none" stroke="{INK}" stroke-width="{CHART_EDGE}" '
+        f'stroke-linejoin="round"></path></g>',
+        f'<g clip-path="url(#{below})">'
+        f'<path d="{field}" fill="rgba(45,130,215,0.26)"></path>'
+        f'<path d="{outline}" fill="none" stroke="{RETURN_INK}" stroke-width="{CHART_EDGE}" '
+        f'stroke-linejoin="round"></path></g>',
+    ]
+    for start, stop in stretches(lambda v: v >= CHART_FULL):
         cx = round((x(start) + x(stop - 1)) / 2, 2)
         ticks.append(f'M{cx:g} {-2 - CHART_TICK} V-2')
-    for start, stop in stretches(lambda v: v is not None and v <= -CHART_RETURN_FULL):
+    for start, stop in stretches(lambda v: v <= -CHART_RETURN_FULL):
         cx = round((x(start) + x(stop - 1)) / 2, 2)
         ticks.append(f'M{cx:g} {height + 2} V{height + 2 + CHART_TICK}')
     tick_svg = (f'\n            <path d="{" ".join(ticks)}" stroke="{INK}" stroke-width="{CHART_EDGE}"></path>'
@@ -447,7 +447,9 @@ SCENES = {
         headline='ИЗ БАТАРЕИ', power='62', colour=INK, volts='544',
         engine=('ДВС · ОБ/МИН', '1420'),
         temps=[('pack', 42), ('front', 88), ('rear_l', 76), ('rear_r', 74), ('inverter', 73)],
-        spread=28, spend='27,3', history=history(27.3, hole=range(38, 52)),
+        # A log still filling: thirty-seven closed readings are 3,7 km, the run is anchored at the
+        # right edge where new road arrives, and the foot line names that road rather than ten.
+        spread=28, spend='27,3', history=history(27.3, points=37),
     ),
 }
 
@@ -467,19 +469,26 @@ def headline(text):
 
 
 def spend_line(scene, narrow=False):
-    """What the last ten kilometres cost, under the shape that is those ten kilometres.
+    """What the recorded road cost, under the shape that *is* that road.
 
     «Как водитель, не очень интересен… ему больше места где-то под графиком» - so it is here
     rather than on the shelf, where it was the one row that had nothing to do with heat. Named,
     because a figure with no name and no place is exactly what the voltage was. The window rides
-    on the unit, the cluster's own arrangement for this very figure - «кВт·ч/100 км · за 10 км» -
+    on the unit, the cluster's own arrangement for this very figure - «кВт·ч/100 км · ЗА 10 КМ» -
     and it is never a whole-number rounding of a filling window; the narrow pane drops the word
     «РАСХОД», never the figure or its window (contract §5).
+
+    **The window is taken off the shape's own length**, one point per hundred metres, which is what
+    `ConsumptionWindow.coveredKm` hands `ContourReadout.windowFoot` on the screen: the caption and
+    the chart above it are one statement, so a scene cannot draw a filling history under «ЗА 10 КМ».
     """
     figure = f'<span class="spend-figure">{scene["spend"]}</span>'
+    covered = len(scene['history']) * 0.1
+    window = ('10' if covered >= CHART_POINTS * 0.1 - 1e-6
+              else f'{covered:.1f}'.replace('.', ','))
     if narrow:
-        return f'<span class="spend">{figure} кВт·ч/100 км · 10 КМ</span>'
-    return f'<span class="spend">РАСХОД {figure} кВт·ч/100 км · ЗА 10 КМ</span>'
+        return f'<span class="spend">{figure} кВт·ч/100 км · {window} КМ</span>'
+    return f'<span class="spend">РАСХОД {figure} кВт·ч/100 км · ЗА {window} КМ</span>'
 
 
 def vehicle_page(scene='generation', shape='wide', width=FIELD_W):
@@ -501,9 +510,9 @@ def vehicle_page(scene='generation', shape='wide', width=FIELD_W):
         appear inside the headline only while the engine turns, consumption is absent while the
         car is standing, and nothing prints a `0` to hold a seat.
 
-    And the page has a shape, which is what the table was missing: the last ten kilometres of the
-    pack's consumption, the same twenty bins on the same scale the cluster's petal draws, so the
-    two screens show one history and the figure under it is its mean (contract §2.3).
+    And the page has a shape, which is what the table was missing: the last ten kilometres of
+    recorded road, the same hundred points on the same scale the cluster's petal draws, so the two
+    screens show one history and the figure under it is its mean (contract §2.3).
     """
     s = SCENES[scene]
     narrow = shape == 'narrow'
@@ -708,7 +717,7 @@ def build():
              band(field(vehicle_page('traction'), 1), src)),
             ('ЗАРЯДКА · СНЯТО 22.08 — ДВС ВЫКЛЮЧЕН, ЯЧЕЙКИ ОБОРОТОВ НЕТ',
              band(field(vehicle_page('charging'), 1), src)),
-            ('ДЛИННЫЙ ПОДЪЁМ · ПОРОГИ ИЗ ПРИБОРКИ, СЦЕНА НЕ СНЯТА',
+            ('ДЛИННЫЙ ПОДЪЁМ · ЖУРНАЛ ЕЩЁ НАПОЛНЯЕТСЯ: 37 ТОЧЕК И «ЗА 3,7 КМ», СЦЕНА НЕ СНЯТА',
              band(field(vehicle_page('hot'), 1), src)),
         ]),
         ('', [

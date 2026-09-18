@@ -83,23 +83,57 @@ Printed whole on the move and to a tenth standing on P, on both screens
 minus in `RETURN_INK`; it is the one signed figure on either screen and it is
 signed because it is an exception.
 
-The window is `ConsumptionWindow.KM` = 10 and the unit names it:
-«кВт·ч/100 км · за 10 км» once ten kilometres of known road are in the log, and
-«· за 3,7 км» while it is still filling - the *known* road, not the bucket count.
-The car page prints the same two forms in its own case, «ЗА 10 КМ» / «ЗА 3,7 КМ»,
-and never rounds a filling window to a whole number.
+**Energy while standing is the trip's, not the road's.** Two minutes of the engine
+charging on P put 0.33 kWh into the pack on 2026-09-18, and a log that files
+standing energy into the next hundred metres of road would have drawn that as a
+blue shelf on the cut for the next kilometre. `ConsumptionLog` integrates `P`
+into the road's bucket only while the car moves - `VehicleSignal.VEHICLE_SPEED`
+(`0x94400008`, dev 1013, tx 7, polled hot so the question is asked of the
+interval and not of a reading ten seconds stale) above
+`ConsumptionLog.STANDING_KMH` = 0.5 - and a sample with no speed reading counts
+as moving, because a missing read is not a stop. The trip (§2.4) keeps every
+joule, standing or not; it is the one figure that is about time as well as road.
+
+The window is the last `ConsumptionWindow.KM` = 10 km of **recorded road**: the
+newest closed buckets that are readings (§2.6), taken back until their road sums
+to ten kilometres, whatever the odometer says about the road between them. The
+unit names it: «кВт·ч/100 км · за 10 км» once ten kilometres of readings are in
+the log, and «· за 3,7 км» while it is still filling - the *known* road, not the
+bucket count. The car page prints the same two forms in its own case,
+«ЗА 10 КМ» / «ЗА 3,7 КМ», and never rounds a filling window to a whole number.
 
 ### 2.3 The history behind that figure
 
-One chart, drawn twice. **A point every hundred metres, and every point is the
-last kilometre.** On the odometer's own grid of closed 100 m buckets, the point at
-bucket `k` is `Σ E / Σ d × 100` over the buckets whose road lies in the kilometre
-ending there - `(kₖ − 1 km, kₖ]` - a trailing mean, so the newest point is a
-figure with a meaning of its own: what the last kilometre cost. A hundred points
-are the window. Drawn as **one line through the points with the field under it**:
+One chart, drawn twice. **The axis is recorded road, and a point is a hundred
+metres of it.** One point per reading bucket (§2.6) - a hundred metres of road
+with known energy - and the value at a point is the mean over the last ten
+reading buckets ending at it, a kilometre of recorded road: `Σ E / Σ d × 100`
+over those ten. A trailing mean rather than a centred one, so the newest point is
+a figure with a meaning of its own: what the last kilometre cost. The newest
+hundred points are the window, and they are the same buckets the figure of §2.2
+is over. Drawn as **one line through the points with the field under it**:
 `MUTED_DEEP` field under an `INK` line above the zero, `RETURN` field under a
 `RETURN_INK` line below it, one silhouette that crosses the zero wherever a
 kilometre gave back more than it took, and nothing stroked along the zero itself.
+
+**There are no holes.** Road the log did not record does not exist on this axis:
+the line is continuous from its first point to its last, a gap in the record is a
+seam nothing marks, and the chart's width says the same thing as the unit -
+«за 8,6 км» is 86 % of the box. The owner's rule, 2026-09-18: «есть данные -
+график доливается, нет данных - не доливается». The third board stood its points
+on the odometer's grid and drew the road nobody recorded as `NaN` points, and the
+first thing it drew on the car was the 4.7 km the hub had slept through that
+afternoon - a chart that was mostly the absence of a chart. What the odometer's
+grid bought - a shape that does not re-phase - a point per bucket has for free:
+a bucket's point is settled when its ten buckets exist, and a new bucket appends
+one point and moves the rest one pitch left. The grid, the pro-rata filing, the
+`NaN` points and the half-known-kilometre rule go with the holes.
+
+**Filling.** While fewer than ten readings stand behind a point the mean is over
+what there is, from five on: a fresh log draws its first point after half a
+kilometre of readings and the run grows a point per hundred metres, right-anchored
+where new road arrives. Nothing is ever drawn as an invented zero, and nothing is
+drawn from fewer than five readings.
 
 Why a line and why a kilometre. The owner's own 34 km of road, the journal read
 off the car on 2026-09-18, say what the second board's twenty steps of 500 m could
@@ -120,23 +154,6 @@ points 2.3 units apart. At a kilometre the jump is 9, which is a curve; at two t
 return is gone from the road entirely and the shape lags it by a kilometre. A
 trailing kilometre rather than a centred one because a centred mean ends half a
 kilometre behind the car.
-
-The trailing kilometre needs the kilometre before the window: `ConsumptionLog`
-retains thirty, so the first point of a full window is backed by road older than
-the window. A log with less shows fewer points, and the run is anchored at the
-right edge as before, where new road arrives.
-
-**A hole is a point, and it is a drawing rule.** A point with under half a
-kilometre of known road behind it is `NaN` - half of the kilometre, not half of
-whatever road was recorded in it, so the line resumes half a kilometre after the
-road does rather than with a hundred-metre mean: drawn as nothing, the line
-breaks there and resumes where the road is known again, and the road under it is still on the axis - the
-points stand on the odometer's grid, so a stretch with no buckets at all is a
-stretch of `NaN` points and never a compression of the axis. There are **no
-partial widths** anywhere any more: the partial newest bin, and with it the spike
-the second board drew a bin beside a hole as - one fifth wide on the owner's
-photograph - go. The figure's own exclusion is §2.6's, unchanged. Nothing is ever
-drawn as an invented zero.
 
 **Scale: linear, 0…60 up and 0…20 down, clamped, with a mark.** Closed by the same
 34 km: over a kilometre 2 % of the road passes 60 - a launch - and nothing passes
@@ -214,19 +231,23 @@ none. Either way it is one drive and one decision, not a series of patches.
 An interval with no power reading, or longer than `OdometerGate.MAX_GAP_SECONDS`,
 contributes **unknown** energy over its road. The log carries, per bucket, the
 road and the road with known energy; the bucket's value is energy over known
-road, and a bucket with less than half its road known is a hole. **A hole bucket
-is out of the figure whole** - out of the sum, out of the road the unit names -
-which is what makes «за 3,7 км» a promise about the number beside it. An odometer
-step longer than one bucket closes one bucket of that road with that road
-recorded - the axis stays the road, never the record count. Restart continuity
-keeps working through the journal, which gains the road per bucket.
+road, and a bucket with less than half its road known is **not a reading**. A
+bucket that is not a reading is out of everything - out of the figure's sum, out
+of the road the unit names, off the chart's axis - which is what makes «за 3,7 км»
+a promise about the number beside it and about the chart beside that. An odometer
+step longer than one bucket closes one bucket of that road, and it is not a
+reading. Restart continuity keeps working through the journal, which carries the
+road per bucket.
 
-**And the window is bounded by the odometer as well as by the road.** Ten
-kilometres of buckets from yesterday are still ten kilometres of road; what they
-are not is the ten kilometres behind the car. The journal retains thirty for
-restart continuity, and a restore anchors `OdometerGate`, so what the screens see
-is the tail whose own readings are inside `ConsumptionWindow.KM` of the newest
-one. The buckets from before a re-anchor leave the window by the same rule.
+**The window is bounded by recorded road alone.** Ten kilometres of readings from
+yesterday are ten kilometres of readings: they stay on the chart and in the
+figure until today's road pushes them out, which is what a history is. The
+journal retains thirty kilometres for restart continuity and a restore anchors
+`OdometerGate`; a journal the gate refuses is dropped whole, as before, and that
+is the only way road leaves other than being pushed out. The odometer floor the
+second review added to the window («yesterday's road in the window») goes: it
+was a rule about the odometer's ten kilometres, and the axis is not the odometer
+any more.
 
 ### 2.7 The road is recorded whether or not anyone looks
 
@@ -275,8 +296,10 @@ energy coming back. `WARNING`/`DANGER` are temperature exceptions only.
 - **charging**: the cluster's petal figure becomes the countdown; the car page's
   headline says «ОТ ЗАРЯДКИ» and the chart stays;
 - **window filling**: the chart grows from its right edge, the unit names the
-  known road;
-- **a hole**: a gap in the chart, the road under it still counted.
+  known road, and the two are one number - thirty-seven points and «за 3,7 км»;
+- **a gap in the record**: nothing to see. The chart is shorter by the road
+  nobody recorded, the points either side of it are neighbours, and the figure is
+  the mean of what is known.
 
 ## 5. Layout invariants
 
@@ -296,7 +319,14 @@ energy coming back. `WARNING`/`DANGER` are temperature exceptions only.
 
 `tools/design-canvas/ClusterContour*.dc.html` and `StripPages.dc.html` are the
 drawings of this page: the whole cluster with the stock zones as a labelled
-schematic, and the car page inside the strip at both widths. The stock zones on
+schematic, and the car page inside the strip at both widths. Both draw the
+owner's own road of 2026-09-18, scaled to whatever average a scene names, and
+both have a **filling** scene where they used to have a hole: thirty-seven
+recorded buckets under «за 3,7 км» / «ЗА 3,7 КМ», the run anchored at the right
+edge. The cluster keeps the dropped-link state and draws it the way §2.3 says -
+ninety points and «за 9,0 км», with nothing marking where the kilometre went.
+The plan board prints the smoothing, its floor of five readings and the two
+ceilings. The stock zones on
 the cluster board are a model; the two numbers the model is checked against are
 in the generator (`RANGE_BADGE_SEEN`, `POWER_FIGURE_SEEN`) and the grid
 photograph that replaces the model is still owed. A board can establish geometry
@@ -306,32 +336,38 @@ test.
 
 ## 7. Proof
 
-- **One source.** `EnergyReadouts` (or the name the implementation settles on)
-  turns a `VehicleTelemetry` into every energy string and chart both screens
-  draw: direction word, power figure and colour, consumption figure and colour,
-  window caption, the hundred points and their holes, the engine's sentence.
-  Both renderers call it and format nothing themselves.
+- **One source.** `EnergyReadouts` turns a `VehicleTelemetry` into every energy
+  string and chart both screens draw: direction word, power figure and colour,
+  consumption figure and colour, window caption, the hundred points, the engine's
+  sentence. Both renderers call it and format nothing themselves.
 - **Cross-screen equality.** A test drives both surfaces' readouts from one list
   of snapshots - electric drive, return, engine giving, engine running and
-  giving nothing, engine just stopped, standing, charging, filling window, a
-  hole, a kilometre past 60, link lost - and asserts equal strings, equal points
-  and an equal span.
+  giving nothing, engine just stopped, standing, charging, filling window, a seam
+  in the record, a kilometre past 60, link lost - and asserts equal strings, equal
+  points and an equal span.
+- **The caption is the chart.** The same test asserts, at every filling width from
+  the fifth reading to the full window and across a seam, that the road
+  `ConsumptionWindow.coveredKm` names is the run's own width - `span × 0.1 km`.
+  «за 8,6 км» is 86 % of the box because the two are one number, not because they
+  were compared once.
 - **Independent arithmetic.** The expected consumption figure and point values in
-  those tests are computed in the test from the raw buckets - the overlap of each
-  bucket's road with the kilometre ending at the point, energy pro rata - not
-  through the production helpers.
-- **Replay.** `captures/vehicle-log/*.csv` (the recorder's output) is fed through
-  the hub's own log, ledger and traces in a JVM test; the test asserts the
-  invariants that do not depend on what a signal means: the road under the chart
-  is a point per hundred metres of the road the odometer covered, the figure
-  equals energy over known road, every point equals the trailing kilometre
-  computed a second time and none is drawn where the log had no energy, the
-  engine's box is never up with the flag down.
+  those tests are computed in the test from the raw buckets - the readings picked
+  out by the same half-known rule, the trailing ten of them summed - not through
+  the production helpers.
+- **Replay.** `captures/vehicle-log/*.csv` (the recorder's output, `speed_kmh`
+  included, so the standing rule is replayed too) is fed through the hub's own
+  log, ledger and traces in a JVM test; the test asserts the invariants that do
+  not depend on what a signal means: the road under the chart is a point per
+  reading bucket and equals the road the unit names, the figure equals energy over
+  known road, every point equals the trailing ten readings computed a second time,
+  no point is ever a `NaN`, and the engine's box is never up with the flag down.
 - **The boards.** `ContourBoardContractTest` and `StripPagesBoardContractTest`
   hold the generators to `ContourPlan` and the page's constants, including the
-  point count, the smoothing, the ceilings and the sentence.
+  point count, the smoothing, its floor of five, the ceilings and the sentence -
+  and to the absence of a hole helper on either record.
 - **Mutations** on the arithmetic (§2.2, §2.3, §2.6) before the merge, as on
-  every wave before.
+  every wave before: the smoothing, its floor, the skipping of non-readings, the
+  window's ten kilometres, the standing threshold and the null-speed rule.
 
 ## 8. Open, and what closes each
 

@@ -6,11 +6,19 @@ package dev.denza.apps.feature.vehicle
  * There is no selector and no alternate runtime window: the wider history exists only in
  * [ConsumptionLog] for restart continuity.
  *
- * ### The window is ten kilometres of road, not a hundred records
+ * ### The window is ten kilometres of recorded road
  *
- * `docs/energy-display-contract.md` §2.2 and §2.6. A bucket is usually one odometer tick, but an
- * odometer step no tick can explain closes one bucket carrying that whole step - so counting
- * records was counting the wrong axis. The tail is taken by road.
+ * `docs/energy-display-contract.md` §2.2 and §2.6. Not a hundred records - a bucket is not always a
+ * hundred metres, and an odometer step no tick can explain closes one bucket carrying that whole
+ * step - and not ten kilometres of odometer either. It is the newest buckets that are **readings**,
+ * taken back until their road sums to [KM], whatever the odometer says about the road between them.
+ *
+ * **The odometer floor is gone.** It bounded the walk at `lastKm − KM` so that a journal restored
+ * twenty kilometres behind the car, or the buckets from before a re-anchor, left the window. That
+ * was a rule about the odometer's ten kilometres, and the axis is not the odometer any more: ten
+ * kilometres of readings from yesterday are ten kilometres of readings, and they stay in the figure
+ * and on the chart until today's road pushes them out, which is what a history is. What leaves other
+ * than by being pushed out is a journal the gate refuses, which is dropped whole.
  *
  * ### And the figure is net energy over known road
  *
@@ -25,31 +33,18 @@ internal object ConsumptionWindow {
     /**
      * Where the window starts inside [all]: the walk both readers of the tail share.
      *
-     * Two bounds, and a bucket has to clear both. **Road**, because a bucket is not always a
-     * hundred metres and counting records counted the wrong axis. And the **odometer**, when the
-     * caller has one: a journal restored twenty kilometres behind the car, or the buckets from
-     * before an odometer re-anchor, are ten kilometres of real road in the wrong place, and
-     * summing them to [KM] printed a figure over a road the car had left. [lastKm] null means the
-     * caller is holding a tail somebody else has already bounded - the snapshot's, in every frame
-     * either screen draws - and then the road is the whole rule.
-     *
-     * [windowKm] is [KM] for everything that is read, and [ConsumptionChart.TAIL_KM] for the one
-     * reader that needs road behind the window: the chart's first point is a mean over the
-     * kilometre before it. The bound is a parameter rather than a second walk because both bounds
-     * are the same two rules.
+     * **Road, and only the road of readings.** A bucket that is not a reading carries no road into
+     * this sum - it is out of the figure, out of the unit and off the chart's axis alike - so what
+     * the walk counts back is exactly what [ConsumptionChart] draws points for, and «за 3,7 км» is a
+     * promise about the number beside it and about the chart beside that.
      */
-    fun firstIndex(
-        all: List<ConsumptionSample>,
-        lastKm: Double? = null,
-        windowKm: Double = KM,
-    ): Int {
-        val floor = lastKm?.minus(windowKm)?.plus(OdometerGate.KM_EPSILON)
+    fun firstIndex(all: List<ConsumptionSample>): Int {
         var km = 0.0
         var from = all.size
-        while (from > 0 && km < windowKm - OdometerGate.KM_EPSILON) {
-            if (floor != null && all[from - 1].odometerKm <= floor) break
+        while (from > 0 && km < KM - OdometerGate.KM_EPSILON) {
             from--
-            km += all[from].km
+            val bucket = all[from]
+            if (bucket.known) km += bucket.km
         }
         return from
     }
@@ -69,10 +64,11 @@ internal object ConsumptionWindow {
     /**
      * How much road the figure is actually the mean of, which is what the unit names.
      *
-     * The *known* road of the buckets that are **in** the figure. A hole's own scrap of known road
-     * - a bucket that answered for forty of its hundred metres - is neither in the mean nor under
-     * the unit, because [mean] skips the bucket whole; counting it here made «за 3,7 км» a promise
-     * about road the number beside it was never taken over.
+     * The *known* road of the buckets that are **in** the figure, which is one reading bucket per
+     * point of [ConsumptionChart] - so the road the unit names and the width of the chart above it
+     * are one statement. A bucket that answered for forty of its hundred metres is not a reading:
+     * it is out of the mean, out of the unit and off the axis alike, and counting its scrap in one
+     * of the three made «за 3,7 км» a promise about road the number beside it was never taken over.
      */
     fun coveredKm(all: List<ConsumptionSample>): Double {
         val window = raw(all)

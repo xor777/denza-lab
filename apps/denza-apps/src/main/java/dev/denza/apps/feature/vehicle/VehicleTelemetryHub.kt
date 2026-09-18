@@ -277,6 +277,10 @@ internal class VehicleTelemetryHub(context: Context) {
                     odometerKm = parsed[VehicleSignal.ODOMETER_KM],
                     powerKw = VehicleConvention.load(parsed[VehicleSignal.POWER_KW]),
                     dtSeconds = dtSeconds,
+                    // This sweep's own reading, out of the same batch as the power it decides the
+                    // fate of. A standing interval's energy is the trip's and not the road's, and
+                    // an absent reading counts as moving (contract §2.2).
+                    speedKmh = parsed[VehicleSignal.VEHICLE_SPEED],
                 )
                 ledger.sample(
                     odometerKm = parsed[VehicleSignal.ODOMETER_KM],
@@ -308,15 +312,16 @@ internal class VehicleTelemetryHub(context: Context) {
                 // The window and its chart are built once here, beside the rest of the snapshot.
                 // Both screens draw the same hundred points, and a chart built inside `onDraw`
                 // would be a hundred trailing means allocated sixty times a second over a quantity
-                // the car answers four times a second. The chart reads a longer tail than the
-                // figure does: its oldest point is the mean of the kilometre before the window.
+                // the car answers four times a second. The chart reads the log's whole retention
+                // rather than the window: its points are the window's own readings, and the ten
+                // readings behind the oldest of them are road the window no longer reaches.
                 val window = log.window
                 snapshot = VehicleTelemetry(
                     access = if (merged.isEmpty()) VehicleAccess.UNAVAILABLE else VehicleAccess.READY,
                     message = if (merged.isEmpty()) NO_ANSWER else "",
                     values = merged,
                     consumption = window,
-                    chart = ConsumptionChart.of(log.chartTail),
+                    chart = ConsumptionChart.of(log.buckets),
                     engineTrace = trace.snapshot(),
                     trip = ledger.trip,
                 )
@@ -346,7 +351,7 @@ internal class VehicleTelemetryHub(context: Context) {
             access = VehicleAccess.UNAVAILABLE,
             message = message,
             consumption = window,
-            chart = ConsumptionChart.of(log.chartTail),
+            chart = ConsumptionChart.of(log.buckets),
             engineTrace = trace.snapshot(),
             trip = ledger.trip,
         )

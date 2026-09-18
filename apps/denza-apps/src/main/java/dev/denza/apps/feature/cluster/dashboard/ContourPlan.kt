@@ -587,14 +587,15 @@ internal class ContourPlan(
         const val PETAL_FLOOR = 410f
 
         /**
-         * A hundred points on the odometer's own hundred metres, which is [ConsumptionChart]'s own
-         * count rather than a second statement of it.
+         * A hundred points on a hundred metres of recorded road each, which is
+         * [ConsumptionChart]'s own count rather than a second statement of it.
          *
          * A `val` rather than a `const val` because the chart derives it from the ten kilometres
-         * and the grid's pitch, and that derivation is the single fact. A hundred *steps* of 2.32
-         * units were the first drive's «расчёска» and twenty of 11.6 were the second's «огромные
-         * ступеньки»; a hundred points joined by a line are neither, because every one of them is
-         * the mean of the kilometre ending at it (`docs/energy-display-contract.md` §2.3).
+         * and the pitch a point stands for, and that derivation is the single fact. A hundred
+         * *steps* of 2.32 units were the first drive's «расчёска» and twenty of 11.6 were the
+         * second's «огромные ступеньки»; a hundred points joined by a line are neither, because
+         * every one of them is the mean of the ten readings ending at it
+         * (`docs/energy-display-contract.md` §2.3).
          */
         val PETAL_POINTS = ConsumptionChart.POINTS
 

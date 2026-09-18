@@ -84,6 +84,12 @@ internal enum class VehicleKind {
     FLAG,
 
     /**
+     * Road speed, km/h. Nothing is drawn from it: it is the one question the consumption log asks
+     * about the car's motion, which is whether it is moving at all.
+     */
+    SPEED_KMH,
+
+    /**
      * A two-state switch. Only `0` and `1` are answers.
      *
      * Narrower than [FLAG] on purpose: a lamp word carries several bits and any of them may be
@@ -105,6 +111,7 @@ internal enum class VehicleKind {
         RPM -> value in 0.0..9000.0
         FLAG -> value in 0.0..255.0
         SWITCH -> value == 0.0 || value == 1.0
+        SPEED_KMH -> value in 0.0..300.0
     }
 }
 
@@ -158,6 +165,25 @@ internal enum class VehicleSignal(
      * place on the petal's figure while the car is standing.
      */
     GEARBOX_PARK(1011, 0x5500030, VehicleTransact.INT, VehiclePoll.HOT, VehicleKind.SWITCH),
+
+    /**
+     * How fast the car is going, which decides whose energy this second is.
+     *
+     * Read live parked on 2026-08-23 - `0.0`, reaching the shell as the float word `-1807745016`
+     * - and recorded every second since by `tools/vehicle_log.py`, whose `speed_kmh` is this same
+     * device and feature id. A float on transact 7, like the charger's kilowatts and unlike every
+     * other hot signal.
+     *
+     * **HOT, because the question is asked of the interval and not of the panel.** Energy is
+     * integrated into the road's bucket only while the car moves (`ConsumptionLog.STANDING_KMH`,
+     * contract §2.2), so a speed ten seconds stale would file a minute of the engine charging on P
+     * into the next hundred metres of road - which is the defect the rule exists to stop, arriving
+     * by the back door. It rides in the batch the sweep already sends past this bus, and a sweep
+     * that did not get an answer for it counts as moving, because a missing read is not a stop.
+     *
+     * Nothing is drawn from it. It is the eighth hot signal and the first one with no readout.
+     */
+    VEHICLE_SPEED(1013, 0x94400008.toInt(), VehicleTransact.FLOAT, VehiclePoll.HOT, VehicleKind.SPEED_KMH),
 
     // ---- cold: pack, drivetrain, charging ----
     PACK_TEMP_AVG(1014, 0x44700038, VehicleTransact.INT, VehiclePoll.COLD, VehicleKind.TEMPERATURE, offset = -40.0),

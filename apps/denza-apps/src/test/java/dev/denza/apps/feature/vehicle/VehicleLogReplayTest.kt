@@ -3,7 +3,6 @@ package dev.denza.apps.feature.vehicle
 import dev.denza.apps.feature.cluster.dashboard.ContourScene
 import java.io.File
 import kotlin.math.abs
-import kotlin.math.floor
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -15,9 +14,11 @@ import org.junit.Test
  * asserts what the code should say about it; this asserts the things that are true **whatever the
  * signals turn out to mean**, over whatever the car actually did:
  *
- *  - the road under the chart is the road the odometer covered - a point per hundred metres of it;
+ *  - the road under the chart is the road the log recorded - a point per reading bucket of it, and
+ *    the same road the unit beside the figure names;
  *  - the figure is energy over known road, and nothing else;
- *  - every point is the trailing kilometre, and none is drawn where the log had no energy;
+ *  - every point is the trailing ten readings, none of them is a `NaN`, and nothing is drawn from
+ *    fewer than five;
  *  - the engine's box is never up with the running flag down past its own hold.
  *
  * `tools/vehicle_log.py` writes the files, into `captures/vehicle-log/` (git-ignored, so this test
@@ -53,6 +54,9 @@ class VehicleLogReplayTest {
         val odometer = header.indexOf("odometer_km")
         val generation = header.indexOf("generation_kw")
         val running = header.indexOf("engine_running")
+        // The recorder has written it since 2026-09-18; a file from before it replays as a car
+        // that never stood still, which is exactly what a missing read means (contract §2.2).
+        val speed = header.indexOf("speed_kmh")
         if (time < 0 || power < 0 || odometer < 0 || running < 0) {
             error("${file.name} is not a vehicle log: its header is ${rows[0]}")
         }
@@ -76,9 +80,10 @@ class VehicleLogReplayTest {
             val generationKw =
                 if (generation < 0) null else cells.getOrNull(generation)?.toDoubleOrNull()
             val engineRunning = cells.getOrNull(running)?.toDoubleOrNull()?.let { it >= 1.0 }
+            val speedKmh = if (speed < 0) null else cells.getOrNull(speed)?.toDoubleOrNull()
 
             closed = false
-            log.sample(odometerKm, powerKw, dt)
+            log.sample(odometerKm, powerKw, dt, speedKmh)
             trace.sample((mono * 1000.0).toLong(), engineRunning, generationKw)
             ledger.sample(
                 odometerKm = odometerKm,
@@ -93,14 +98,14 @@ class VehicleLogReplayTest {
             // scene is stepped on every row regardless: the engine box's invariant is about a
             // frame, and a frame the window did not change in is still a frame.
             val window = if (closed) log.window else emptyList()
-            val tail = if (closed) log.chartTail else emptyList()
+            val all = if (closed) log.buckets else emptyList()
             val snapshot = VehicleTelemetry(
                 access = VehicleAccess.READY,
                 values = engineRunning?.let {
                     mapOf(VehicleSignal.ENGINE_RUNNING to if (it) 3.0 else 0.0)
                 } ?: emptyMap(),
                 consumption = window,
-                chart = ConsumptionChart.of(tail),
+                chart = ConsumptionChart.of(all),
                 engineTrace = trace.snapshot(),
                 trip = ledger.trip,
             )
@@ -115,80 +120,46 @@ class VehicleLogReplayTest {
             }
 
             if (!closed) return@forEach
-            checkRoad(file, mono, window, tail, snapshot.chart)
+            checkRoad(file, mono, window, snapshot.chart)
             checkFigure(file, mono, window, snapshot.consumptionMean)
-            checkPoints(file, mono, tail, snapshot.chart)
+            checkPoints(file, mono, all, snapshot.chart)
         }
     }
 
-    /** The chart's own width is the road the odometer covered under it, a point per hundred metres. */
+    /**
+     * The chart's own width is the road the log recorded under it, a point per reading bucket.
+     *
+     * And that is the same road the unit beside the figure names, which is the promise «за 8,6 км»
+     * makes about the chart beside it: one statement, two places it is printed.
+     */
     private fun checkRoad(
         file: File,
         at: Double,
         window: List<ConsumptionSample>,
-        tail: List<ConsumptionSample>,
         chart: ConsumptionChartSnapshot,
     ) {
         if (window.isEmpty()) return
-        // The road the odometer covered over the window, from the readings rather than from the
-        // records: each bucket's road is the difference it accumulated, so the sum is the trip
-        // between the first bucket's start and the last one's close.
-        val travelled = window.last().odometerKm - window.first().odometerKm + window.first().km
+        // The odometer's own road over the window, from the readings rather than from the records:
+        // each bucket's road is the difference it accumulated, so the sum is the trip between the
+        // first bucket's start and the last one's close - across a seam, whatever the odometer did.
         val recorded = window.sumOf { it.km }
-        assertEquals("${file.name} at $at s: the window's road", travelled, recorded, 1e-6)
+        val readings = window.count { it.known }
+        assertTrue(
+            "${file.name} at $at s: the window holds $recorded km in $readings readings",
+            recorded >= readings * ConsumptionChart.PITCH_KM - 1e-6,
+        )
 
-        // And the chart stands a point on every hundred metres of that road, never fewer: the
-        // axis is the odometer's grid, so a stretch with no record is holes rather than a
-        // shorter chart. The grid is walked here rather than taken from the production helper.
-        val road = perStep(tail) { it.km }
-        var first = 0
-        while (first < ConsumptionChart.POINTS && road[first + ConsumptionChart.SMOOTH_STEPS - 1] <= 0.0) {
-            first++
-        }
         assertEquals(
             "${file.name} at $at s: the points under the chart",
-            ConsumptionChart.POINTS - first,
+            readings,
             chart.span,
         )
         assertEquals(
             "${file.name} at $at s: the road under the chart",
-            (ConsumptionChart.POINTS - first) * ConsumptionChart.PITCH_KM,
+            ConsumptionWindow.coveredKm(window),
             chart.span * ConsumptionChart.PITCH_KM,
-            1e-9,
+            1e-6,
         )
-    }
-
-    /**
-     * A quantity spread over the grid steps each bucket's road covers, `[odometer − km, odometer)`.
-     *
-     * The independent arithmetic behind the two checks around it: energy and known road go with the
-     * road pro rata, because a bucket holds one integral over one stretch and no record of where
-     * inside it anything happened. The array reaches a kilometre further back than the first point
-     * does, because that point is a mean over the kilometre ending at it.
-     */
-    private fun perStep(
-        tail: List<ConsumptionSample>,
-        of: (ConsumptionSample) -> Double,
-    ): DoubleArray {
-        val pitch = ConsumptionChart.PITCH_KM
-        val smooth = ConsumptionChart.SMOOTH_STEPS
-        val newest = floor((tail.last().odometerKm - 1e-6) / pitch).toLong()
-        val base = newest - ConsumptionChart.POINTS + 1 - (smooth - 1)
-        val out = DoubleArray(ConsumptionChart.POINTS + smooth - 1)
-        tail.forEach { bucket ->
-            if (bucket.km <= 0.0) return@forEach
-            val end = bucket.odometerKm
-            val start = end - bucket.km
-            var step = floor((start + 1e-6) / pitch).toLong()
-            val last = floor((end - 1e-9) / pitch).toLong()
-            while (step <= last) {
-                val overlap = minOf(end, (step + 1) * pitch) - maxOf(start, step * pitch)
-                val slot = (step - base).toInt()
-                if (overlap > 0.0 && slot in out.indices) out[slot] += of(bucket) * overlap / bucket.km
-                step++
-            }
-        }
-        return out
     }
 
     /** And the figure beside it is energy over the road that energy is known for. */
@@ -214,48 +185,45 @@ class VehicleLogReplayTest {
     }
 
     /**
-     * Every point is the trailing kilometre, and nothing is drawn where the log had no energy.
+     * Every point is the trailing ten readings, and no point is ever a `NaN`.
      *
-     * The value, the hole rule and the grid-step rule, all three against arithmetic this test does
-     * itself: a point is `Σ kWh / Σ knownKm × 100` over the kilometre ending at it, `NaN` where
-     * under half of that kilometre is known road, and `NaN` where no bucket covers its own hundred
-     * metres at all.
+     * The value and the floor, both against arithmetic this test does itself: a point is
+     * `Σ kWh / Σ knownKm × 100` over the ten reading buckets ending at it, over what there is when
+     * fewer stand behind it, and never over fewer than five - a log with four readings draws
+     * nothing at all.
      */
     private fun checkPoints(
         file: File,
         at: Double,
-        tail: List<ConsumptionSample>,
+        all: List<ConsumptionSample>,
         chart: ConsumptionChartSnapshot,
     ) {
-        if (tail.isEmpty()) return
-        val smooth = ConsumptionChart.SMOOTH_STEPS
-        val kwh = perStep(tail) { it.kwh }
-        val road = perStep(tail) { it.km }
-        val known = perStep(tail) { it.knownKm }
-        val first = ConsumptionChart.POINTS - chart.values.size
+        val readings = all.filter { it.known }
+        if (readings.size < ConsumptionChart.MIN_STEPS) {
+            assertTrue(
+                "${file.name} at $at s: ${readings.size} readings drew a chart",
+                chart.isEmpty,
+            )
+            return
+        }
+        val first = maxOf(0, readings.size - ConsumptionChart.POINTS)
+        assertEquals(
+            "${file.name} at $at s: a point per reading, newest hundred",
+            readings.size - first,
+            chart.values.size,
+        )
         chart.values.forEachIndexed { index, value ->
-            val slot = first + index + smooth - 1
-            var sumKwh = 0.0
-            var sumKm = 0.0
-            var sumKnown = 0.0
-            for (step in slot - smooth + 1..slot) {
-                sumKwh += kwh[step]
-                sumKm += road[step]
-                sumKnown += known[step]
-            }
-            val readable = road[slot] > 0.0 && sumKnown > 0.0 &&
-                sumKnown * 2.0 >= ConsumptionChart.SMOOTH_KM - 1e-9
-            if (!readable) {
-                assertTrue(
-                    "${file.name} at $at s: point $index is drawn over ${road[slot]} km of its own " +
-                        "road and $sumKnown of $sumKm known",
-                    value.isNaN(),
-                )
-                return@forEachIndexed
-            }
-            assertTrue("${file.name} at $at s: point $index is a hole over known road", !value.isNaN())
+            val point = first + index
+            var from = point - ConsumptionChart.SMOOTH_STEPS + 1
+            if (from < 0) from = 0
+            var to = point
+            if (to - from + 1 < ConsumptionChart.MIN_STEPS) to = from + ConsumptionChart.MIN_STEPS - 1
+            val over = readings.subList(from, to + 1)
+            val sumKwh = over.sumOf { it.kwh }
+            val sumKnown = over.sumOf { it.knownKm }
+            assertTrue("${file.name} at $at s: point $index is a NaN", !value.isNaN())
             assertEquals(
-                "${file.name} at $at s: point $index",
+                "${file.name} at $at s: point $index over ${over.size} readings",
                 sumKwh / sumKnown * 100.0,
                 value.toDouble(),
                 1e-4 + abs(sumKwh / sumKnown * 100.0) * 1e-6,

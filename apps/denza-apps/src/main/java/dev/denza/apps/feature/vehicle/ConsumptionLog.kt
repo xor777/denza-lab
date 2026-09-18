@@ -20,8 +20,9 @@ package dev.denza.apps.feature.vehicle
  *
  * So a bucket records four things: where the odometer stood when it closed, the signed energy, the
  * road, and the road the energy is actually known over. [ConsumptionSample.value] is energy over
- * *known* road, and a bucket whose known road is under half its road is a hole - drawn as nothing,
- * counted for the axis, excluded from the figure.
+ * *known* road, and a bucket whose known road is under half its road is not a reading - out of the
+ * figure, out of the road the unit names, and off the chart's axis, where its neighbours close up
+ * behind it rather than a hole being drawn for it.
  *
  * Pure Kotlin, no Android imports: the accumulation rules are unit tested. What happens to a closed
  * bucket afterwards is the caller's business - [onBucketClosed] is how the journal on disk hears
@@ -44,11 +45,11 @@ internal data class ConsumptionSample(
     val knownKm: Double,
 ) {
 
-    /** Whether enough of the road is known for this bucket to be a reading rather than a hole. */
+    /** Whether enough of the road is known for this bucket to be a reading at all. */
     val known: Boolean
         get() = isKnown(km, knownKm)
 
-    /** kWh per 100 km over the road the energy is known for, or `NaN` where it is a hole. */
+    /** kWh per 100 km over the road the energy is known for, or `NaN` where it is not a reading. */
     val value: Double
         get() = valueOf(kwh, km, knownKm)
 
@@ -56,9 +57,10 @@ internal data class ConsumptionSample(
         /**
          * The half-known rule, stated once.
          *
-         * A bin of [ConsumptionChart] is the same question asked of a sum rather than of one
-         * record - «is enough of this road known for the figure over it to be a reading» - and it
-         * had a second copy of the arithmetic. One rule, two callers.
+         * [ConsumptionChart] asks it of every bucket to decide which of them is a point at all,
+         * and [ConsumptionWindow] asks it of the same buckets to decide which of them is in the
+         * figure and under the unit. One rule, three callers, so the three cannot disagree about
+         * what a reading is.
          */
         fun isKnown(km: Double, knownKm: Double): Boolean =
             knownKm > 0.0 && knownKm * 2.0 >= km - OdometerGate.KM_EPSILON
@@ -89,43 +91,39 @@ internal class ConsumptionLog(
     /**
      * And the tail the screens are ever shown, which is what a snapshot carries.
      *
-     * The tail is measured in **road** rather than in buckets, because a bucket is not always a
-     * hundred metres: an odometer step no tick can explain closes one bucket carrying that whole
-     * step. The walk itself is [ConsumptionWindow.firstIndex], which the snapshot's own reader
-     * shares, so the two records of "the last ten kilometres" cannot disagree.
+     * The tail is measured in the **recorded road** of the buckets that are readings, rather than
+     * in buckets: a bucket is not always a hundred metres, and one that is not a reading is off
+     * every axis this window feeds. The walk itself is [ConsumptionWindow.firstIndex], which the
+     * snapshot's own reader shares, so the two records of "the last ten kilometres" cannot disagree.
      *
-     * **And the odometer bounds it as well as the road does.** A journal restored twenty
-     * kilometres behind the car, or a re-anchor after a drive with the panel closed, leaves buckets
-     * whose road is real and whose *place* is yesterday's; adding them up to ten kilometres printed
-     * a figure over a road the car is nowhere near. The gate's own newest reading is the bound.
+     * The odometer used to bound it too, at ten kilometres behind the gate's newest reading. That
+     * bound is gone with the grid it belonged to: ten kilometres of readings are ten kilometres of
+     * readings wherever the car has been since, and they leave when today's road pushes them out
+     * (`docs/energy-display-contract.md` §2.6).
      */
     val window: List<ConsumptionSample>
-        get() = tail(ConsumptionWindow.KM)
-
-    /**
-     * And the chart's own tail, which is the window plus the kilometre behind it.
-     *
-     * The chart draws a hundred points and every one of them is the mean of the kilometre ending
-     * at it (`ConsumptionChart`), so its oldest point is backed by road the window does not reach.
-     * The retention is thirty kilometres, so this costs nothing but the walk.
-     */
-    val chartTail: List<ConsumptionSample>
-        get() = tail(ConsumptionChart.TAIL_KM)
-
-    private fun tail(windowKm: Double): List<ConsumptionSample> {
-        val from = ConsumptionWindow.firstIndex(closed, odometer.lastKm, windowKm)
-        val out = ArrayList<ConsumptionSample>(closed.size - from)
-        for (index in from until closed.size) out.add(closed[index])
-        return out
-    }
+        get() {
+            val from = ConsumptionWindow.firstIndex(closed)
+            val out = ArrayList<ConsumptionSample>(closed.size - from)
+            for (index in from until closed.size) out.add(closed[index])
+            return out
+        }
 
     /**
      * @param odometerKm the vehicle odometer; null while the read failed
      * @param powerKw pack power, positive out of the battery; null makes the interval's energy
      *   unknown rather than zero
      * @param dtSeconds real time since the previous sample
+     * @param speedKmh the car's own speed; at or below [STANDING_KMH] the interval's energy is the
+     *   trip's and not the road's, and **null counts as moving** because a missing read is not a
+     *   stop
      */
-    fun sample(odometerKm: Double?, powerKw: Double?, dtSeconds: Double) {
+    fun sample(
+        odometerKm: Double?,
+        powerKw: Double?,
+        dtSeconds: Double,
+        speedKmh: Double? = null,
+    ) {
         when (odometer.step(odometerKm)) {
             OdometerGate.Step.UNREAD, OdometerGate.Step.SEEDED -> return
             // The car was driven with the dashboard closed, or the reading moved in a
@@ -146,10 +144,18 @@ internal class ConsumptionLog(
         // this log does not know - not energy it knows to be zero.
         val knows = powerKw != null && dtSeconds > 0.0 && dtSeconds <= MAX_GAP_SECONDS
 
+        // And energy while the car stands is the trip's, not the road's. Two minutes of the engine
+        // charging on P put 0.33 kWh into the pack on 2026-09-18, and a log that files standing
+        // energy into the next hundred metres of road draws that as a blue shelf on the cut for the
+        // kilometre after it. The road accounting is untouched - a standing sample carries no road
+        // anyway - so a stop inside a bucket costs that bucket nothing and hides nothing;
+        // `TripEnergyLedger` keeps every joule, which is the figure that is about time as well as
+        // road (contract §2.2).
+        val moving = speedKmh == null || speedKmh > STANDING_KMH
         pendingKm += km
         if (knows) {
             pendingKnownKm += km
-            pendingKwh += powerKw!! * dtSeconds / 3600.0
+            if (moving) pendingKwh += powerKw!! * dtSeconds / 3600.0
         }
         if (pendingKm >= bucketKm - KM_EPSILON) {
             val sample = ConsumptionSample(reading, pendingKwh, pendingKm, pendingKnownKm)
@@ -207,11 +213,20 @@ internal class ConsumptionLog(
         /**
          * One odometer tick per bucket, which is as fine as this car can be asked.
          *
-         * It is also the chart's own grid: `ConsumptionChart` stands a point on every one of these
-         * steps and makes it the mean of the kilometre ending there, so a tick is both the
-         * resolution the means are taken from and the pitch anybody reads.
+         * It is also the chart's own pitch: `ConsumptionChart` stands one point on every bucket
+         * that is a reading and makes it the mean of the ten readings ending there, so a tick is
+         * both the resolution the means are taken from and the road anybody reads a point as.
          */
         const val DEFAULT_BUCKET_KM = 0.1
+
+        /**
+         * At or below this the car is standing, and the energy it spends is not the road's.
+         *
+         * Half a kilometre an hour rather than zero: the id is a float off the bus and a car held
+         * on the brake reports a hair of creep. It is the one threshold in this file that is about
+         * the car's motion rather than about its odometer, which is why it is not [OdometerGate]'s.
+         */
+        const val STANDING_KMH = 0.5
 
         /**
          * Thirty kilometres of road retained for restart continuity.

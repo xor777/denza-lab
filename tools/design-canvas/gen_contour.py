@@ -736,11 +736,12 @@ PETAL_FLOOR = 410.0                     # nothing is drawn below this
 # hundred metres, and the owner read it from the seat as «крупные ступеньки» - a
 # road too short to have a shape, redrawn wholesale every few minutes. Ten
 # kilometres of the log's own hundred-metre buckets is what the window holds, and
-# what is drawn now is a *point on every one of them*, each the mean of the
-# kilometre ending there (the energy display contract, §2.3). The figure beside
+# what is drawn now is a *point on every one it recorded*, each the mean of the ten
+# readings ending there (the energy display contract, §2.3). Road nobody recorded is
+# off the axis, so the box is as wide as the record and never wider. The figure beside
 # the box is the mean of a road rather than of the last three traffic lights. The
 # head unit's car page reads the same window through the same object.
-PETAL_POINTS = 100                      # 10 km of ConsumptionLog's 100 m buckets
+PETAL_POINTS = 100                      # 10 km of the log's own recorded 100 m buckets
 # And every point is a trailing kilometre: ten of those buckets. Twenty steps of
 # five hundred metres came between these two and the owner read them on the car as
 # «огромные ступеньки» - on his own journal of 2026-09-18 neighbouring 500 m steps
@@ -748,6 +749,10 @@ PETAL_POINTS = 100                      # 10 km of ConsumptionLog's 100 m bucket
 # while at a kilometre the median jump is 9 and that is a curve. Trailing rather
 # than centred, because a centred mean ends half a kilometre behind the car.
 PETAL_SMOOTH = 10
+# And the fewest readings a point is ever the mean of: a mean over one bucket is the
+# comb drawn as a dot, so a fresh log draws nothing until half a kilometre of it is
+# recorded. ConsumptionChart.MIN_STEPS.
+PETAL_MIN_STEPS = 5
 # "16,8" and "2:15" are both three digits and one mark, so one field holds either,
 # and two digits is what the panel actually prints while the car is moving.
 PETAL_FIELD_W = 3 * DIGIT * FIGURE + max(COMMA, COLON) * FIGURE
@@ -931,8 +936,12 @@ def per_100(points):
     just started - a fresh install, a reset journal, the first minutes of a drive -
     is a few hundred metres printed under «за 10 км», which is the same defect the
     seventh pass added this window to fix, one level down.
+
+    **Counted off the shape's own length**, one point per recorded hundred metres,
+    which is what `ConsumptionWindow.coveredKm` hands `ContourReadout.perHundredKm`
+    on the glass: the unit and the box above it are one statement about one road.
     """
-    covered = sum(1 for v in (points or []) if v is not None) * 0.1
+    covered = len(points or []) * 0.1
     if covered >= PETAL_POINTS * 0.1 - 1e-6:
         return f'кВт·ч/100 км · за {PETAL_POINTS * 0.1:.0f} км'
     return f'кВт·ч/100 км · за {covered:.1f} км'.replace('.', ',')
@@ -1131,9 +1140,18 @@ SHAPE = [30.6, 33.2, 31.0, 25.0, 25.2, 28.1, 26.4, 27.5, 30.0, 26.5,
 SHAPE_MEAN = sum(SHAPE) / len(SHAPE)
 
 
-def consumption_history(average):
-    """The road above, scaled so its own mean is exactly [average]."""
-    return [round(average * m / SHAPE_MEAN, 1) for m in SHAPE]
+def consumption_history(average, points=PETAL_POINTS):
+    """The first [points] of the road above, scaled so *their* own mean is exactly [average].
+
+    Fewer than a hundred is a log still filling - the first kilometres of a fresh install or a
+    reset journal - and the run is right-anchored where new road arrives while the unit under it
+    names the road the log actually has. The slice is scaled rather than the whole road, so the
+    shape drawn and the figure beside it cannot disagree at any length.
+    """
+    road = SHAPE[:points]
+    mean = sum(road) / len(road)
+    return [round(average * m / mean, 1) for m in road]
+
 
 
 def with_launch(points):
@@ -1148,20 +1166,6 @@ def with_launch(points):
     # cuts and two marks, which is true and unreadable. One kilometre held flat out is one cut.
     for i in range(70, 80):
         out[i] = round(PETAL_FULL * 1.25, 1)
-    return out
-
-
-def with_hole(points, start, stop):
-    """The same road with a stretch the log has no energy for: a hole, not a zero.
-
-    The points either side keep their places on the odometer's grid, so the line
-    breaks and resumes rather than closing the gap up - half a kilometre after the
-    road does, because a point with under half a kilometre of known road behind
-    it is a hole too (ConsumptionChart, the half-known rule asked of the kilometre).
-    """
-    out = list(points)
-    for i in range(start, min(stop + PETAL_SMOOTH // 2 - 1, len(out))):
-        out[i] = None
     return out
 
 
@@ -1696,9 +1700,9 @@ def petal_history(points):
     with one tick per run at the run's centre. There is no dashed mean: the mean is
     the figure standing next to the box.
 
-    A hole breaks the line and keeps its place on the axis: the points stand on the
-    odometer's grid, so a stretch the log has no energy for is a gap and never a
-    compression.
+    There are no holes. Road the log did not record is off this axis, so the line is
+    one run from its first point to its last, the box is as wide as the record and no
+    wider, and the unit beside the figure names that same road.
     """
     if not points:
         return []
@@ -1723,32 +1727,24 @@ def petal_history(points):
         clip_rect(below, PETAL_BOX_X - DATA_LINE, zero,
                   PETAL_BOX_W + 2 * DATA_LINE, bottom - zero + DATA_LINE),
     ]
-    for start, stop in runs(points, lambda v: v is not None):
-        ry = [y(v) for v in points[start:stop]]
-        if stop - start == 1:
-            # One reading between two holes. A polyline of one point is nothing at
-            # all, and a kilometre the log does know should not vanish for the want
-            # of a neighbour.
-            colour = INK if points[start] >= 0 else RETURN_INK
-            out.append(f'<circle cx="{f(xs[start])}" cy="{f(ry[0])}" '
-                       f'r="{f(DATA_LINE / 2)}" fill="{colour}"/>')
-            continue
-        outline, field = curve_path(xs[start:stop], ry, zero)
-        out.append(f'<g clip-path="url(#{above})">')
-        out.append(f'<path d="{field}" fill="{MUTED_DEEP}" opacity="{f(AREA_ALPHA)}"/>')
-        out.append(f'<path d="{outline}" fill="none" stroke="{INK}" opacity="{f(LINE_ALPHA)}" '
-                   f'stroke-width="{f(DATA_LINE)}" stroke-linejoin="round"/>')
-        out.append('</g>')
-        out.append(f'<g clip-path="url(#{below})">')
-        out.append(f'<path d="{field}" fill="{RETURN}" opacity="{f(RETURN_AREA_ALPHA)}"/>')
-        out.append(f'<path d="{outline}" fill="none" stroke="{RETURN_INK}" '
-                   f'stroke-width="{f(DATA_LINE)}" stroke-linejoin="round"/>')
-        out.append('</g>')
+    # One shape, drawn twice under a clip. `runs` is left to the clamp marks below and
+    # to the engine's box, which really does have bins nothing answered in.
+    outline, field = curve_path(xs, [y(v) for v in points], zero)
+    out.append(f'<g clip-path="url(#{above})">')
+    out.append(f'<path d="{field}" fill="{MUTED_DEEP}" opacity="{f(AREA_ALPHA)}"/>')
+    out.append(f'<path d="{outline}" fill="none" stroke="{INK}" opacity="{f(LINE_ALPHA)}" '
+               f'stroke-width="{f(DATA_LINE)}" stroke-linejoin="round"/>')
+    out.append('</g>')
+    out.append(f'<g clip-path="url(#{below})">')
+    out.append(f'<path d="{field}" fill="{RETURN}" opacity="{f(RETURN_AREA_ALPHA)}"/>')
+    out.append(f'<path d="{outline}" fill="none" stroke="{RETURN_INK}" '
+               f'stroke-width="{f(DATA_LINE)}" stroke-linejoin="round"/>')
+    out.append('</g>')
     # A run held along a ceiling is cut, and the cut is marked once, at its centre.
-    for start, stop in runs(points, lambda v: v is not None and v >= PETAL_FULL):
+    for start, stop in runs(points, lambda v: v >= PETAL_FULL):
         cx = (xs[start] + xs[stop - 1]) / 2
         out.append(line(cx, top - 2, cx, top - 2 - PETAL_TICK, INK, DATA_LINE))
-    for start, stop in runs(points, lambda v: v is not None and v <= -PETAL_RETURN_FULL):
+    for start, stop in runs(points, lambda v: v <= -PETAL_RETURN_FULL):
         cx = (xs[start] + xs[stop - 1]) / 2
         out.append(line(cx, bottom + 2, cx, bottom + 2 + PETAL_TICK, RETURN_INK, DATA_LINE))
     out.append(line(PETAL_BOX_X, zero, PETAL_BOX_X + PETAL_BOX_W, zero,
@@ -1958,14 +1954,14 @@ STATES = [
         road=consumption_history(21.4), petal='21')),
     ('Спокойная езда · ДВС не запускался: одна фраза справа, «ДАЛ ДВС» нет вовсе',
      CALM),
-    # The window is what the log has closed, not what it is sized for. Thirty-seven
-    # buckets is 3,7 km of road, the history grows leftward into its box rather
-    # than stretching across it, and the unit says which road the figure is the
-    # mean of.
-    ('Первые километры · закрыто 37 буферов: единица называет 3,7 км, а не 10',
+    # The window is what the log has recorded, not what it is sized for. Thirty-seven
+    # readings are 3,7 km of road, the history grows leftward into its box rather
+    # than stretching across it, and the unit says the same 3,7 the box is wide.
+    ('Первые километры · записано 37 буферов: единица называет 3,7 км, а не 10, '
+     'и ширина коробки — те же 3,7',
      sc(kw=22.0, peak=41.0, volts=549.0, temps=COOL,
         trip=dict(net=1.4, regen=0.4, ice=0.0, km=6),
-        road=consumption_history(18.6)[:37], petal='19')),
+        road=consumption_history(18.6, points=37), petal='19')),
     ('Разгон · 128 кВт, пик-холд стоит впереди кончика и сползает к нему; километр газа '
      'в пол — участок выше 60, срезан по потолку с одной меткой над коробкой',
      sc(kw=128.0, peak=163.0, volts=531.0, temps=WORKED,
@@ -1997,14 +1993,18 @@ STATES = [
         ice='slept', ice_minutes=6.0,
         trip=dict(net=9.3, regen=3.1, ice=1.1, km=42),
         road=CALM_ROAD, petal='16,8')),
-    # A stretch the log has no energy for - a dropped link on the road - is a hole in
-    # the chart and nothing else: the road under it is still the road, the figure is
-    # the mean of what is known, and nothing is drawn as an invented zero.
-    ('Пропуск связи на дороге · километр без энергии — дыра в графике, дорога под ней '
-     'считается, цифра — среднее по известному',
+    # A stretch the log has no energy for - a dropped link, or the four kilometres the
+    # hub slept through on 2026-09-18 - is not on this axis at all. The chart is a
+    # kilometre shorter and there is nothing to draw where the road went missing, which
+    # is why this state is a ninety-point road and not a road with a mark in it: «есть
+    # данные - график доливается, нет данных - не доливается» (the owner, 18.09). The
+    # seam's own place on the road is the one thing this chart cannot show, and that is
+    # the claim rather than an omission.
+    ('Пропуск связи на дороге · километр не записан: график короче на километр, шва не '
+     'видно, точки по обе стороны — соседи',
      sc(kw=22.0, peak=41.0, volts=549.0, temps=COOL,
         trip=dict(net=6.1, regen=1.9, ice=0.0, km=29),
-        road=with_hole(consumption_history(18.2), 60, 70), petal='18')),
+        road=consumption_history(18.2, points=90), petal='18')),
     # And the same P with the engine actually running - charging the pack while the
     # car stands. The trip is closed and its figures are frozen at the last metre,
     # so they are not what the shelf should be showing: the live box is, with the
@@ -2201,9 +2201,13 @@ def plan_board():
         (LEFT_EDGE, GUARD_BOTTOM, f'запас {CLEARANCE:.0f} снизу · stockBottom '
                                   f'{STOCK_BOTTOM:.2f} → {GUARD_BOTTOM:.2f} · низ ленты '
                                   f'{BAND_Y + BAND_BODY / 2:.2f}'),
-        (LEFT_EDGE, PETAL_BOX_TOP, f'точка = среднее за {PETAL_SMOOTH / 10:.0f} км · один '
-                                   'силуэт: выше нуля серое под белым, ниже — '
-                                   'синее под голубым'),
+        # Two lines and no more: the lane stacks from the top of the board, and a third
+        # here walks the floor's own mark off the bottom of the artboard.
+        (LEFT_EDGE, PETAL_BOX_TOP, f'точка = среднее по {PETAL_SMOOTH} записанным буферам '
+                                   f'({PETAL_SMOOTH / 10:.0f} км), минимум {PETAL_MIN_STEPS} · '
+                                   f'потолки {PETAL_FULL:.0f} и −{PETAL_RETURN_FULL:.0f}'),
+        (LEFT_EDGE, PETAL_BOX_TOP, 'ось — записанная дорога, дыр нет · один силуэт: '
+                                   'выше нуля серое, ниже — синее'),
         (LEFT_EDGE, PETAL_FLOOR, f'пол · y {PETAL_FLOOR:.0f} · низ коробки '
                                  f'{PETAL_BOX_BOTTOM:.1f} · до выреза по модели '
                                  f'{PETAL_BOX_X - petal_room(PETAL_BOX_BOTTOM):.1f}, до «km EV» '

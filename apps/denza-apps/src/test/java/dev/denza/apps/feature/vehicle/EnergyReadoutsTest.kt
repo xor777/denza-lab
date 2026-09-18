@@ -62,7 +62,9 @@ class EnergyReadoutsTest {
     private fun cases(): List<Pair<String, VehicleTelemetry>> {
         val electric = road(100)
         val filling = road(37)
-        val hole = road(100).toMutableList().also { list ->
+        // A kilometre the link was down: eighty readings with a seam in the middle of them, which
+        // is eighty points and «за 8,0 км» rather than a gap in the line (contract §2.3).
+        val seam = road(100).toMutableList().also { list ->
             for (index in 40 until 60) list[index] = list[index].copy(kwh = 0.0, knownKm = 0.0)
         }
         val pastCeiling = road(100).toMutableList().also { list ->
@@ -122,7 +124,7 @@ class EnergyReadoutsTest {
                 buckets = electric,
             ),
             "window filling" to snapshot(powerKw = 22.0, buckets = filling),
-            "a hole" to snapshot(powerKw = 22.0, buckets = hole),
+            "a seam in the record" to snapshot(powerKw = 22.0, buckets = seam),
             "a kilometre past the ceiling" to snapshot(powerKw = 128.0, buckets = pastCeiling),
             "link lost" to VehicleTelemetry(access = VehicleAccess.UNAVAILABLE, message = "нет"),
             "a dropped read" to snapshot(powerKw = null, buckets = electric),
@@ -527,6 +529,45 @@ class EnergyReadoutsTest {
         assertEquals("still ink inside the band", ContourFlow.OUT, readouts.flow)
         readouts.read(snapshot(powerKw = 1.0), parked = false)
         assertEquals(ContourFlow.NEUTRAL, readouts.flow)
+    }
+
+    /**
+     * The caption and the chart say one thing: the road the unit names is the run's own width.
+     *
+     * `docs/energy-display-contract.md` §2.2 and §2.3. The unit says «за 3,7 км» off
+     * [ConsumptionWindow.coveredKm] and the chart draws thirty-seven points, each one hundred metres
+     * of recorded road, so «за 8,6 км» is 86 % of the box and a reader can believe both at once.
+     * Before the axis was recorded road the two were different quantities: the unit counted the road
+     * the figure was the mean of and the chart stood on the odometer's grid, and a drive with a gap
+     * in it printed «за 8,6 км» under a hundred points of which fourteen were drawn as nothing.
+     */
+    @Test
+    fun theRoadTheUnitNamesIsTheWidthOfTheChartAboveIt() {
+        val readouts = EnergyReadouts()
+        // Every filling width from the fifth reading to the full window, and a seam in the record.
+        val widths = (ConsumptionChart.MIN_STEPS..100).toList() + listOf(137, 300)
+        widths.forEach { n ->
+            val buckets = road(n)
+            readouts.read(snapshot(powerKw = 22.0, buckets = buckets), parked = false)
+            assertEquals(
+                "$n readings: the unit's road is the chart's width",
+                ConsumptionWindow.coveredKm(buckets),
+                readouts.chart.span * ConsumptionChart.PITCH_KM,
+                1e-9,
+            )
+        }
+        val seam = road(50).toMutableList().also { list ->
+            for (index in 20 until 30) list[index] = list[index].copy(kwh = 0.0, knownKm = 0.0)
+        }
+        readouts.read(snapshot(powerKw = 22.0, buckets = seam), parked = false)
+        assertEquals("forty readings", 40, readouts.chart.span)
+        assertEquals(
+            "and the unit says four kilometres, not five",
+            4.0,
+            ConsumptionWindow.coveredKm(seam),
+            1e-9,
+        )
+        assertEquals("4,0", distance(readouts.window))
     }
 
     @Test

@@ -211,10 +211,12 @@ class StripPagesBoardContractTest {
         assertEquals("−20", ContourPlan.PETAL_RETURN_FULL_LABEL)
         assertEquals(VehiclePageRenderer.AXIS_CEILING, ContourPlan.PETAL_FULL_LABEL)
         assertTrue("the board's gutter", BOARD.readText().contains(">${ContourPlan.PETAL_RETURN_FULL_LABEL}<"))
-        // And the board draws the two cases: a run past the ceiling, and a stretch the log has no
-        // energy for.
+        // And the board draws the two cases it can: a run past the ceiling, and a log still
+        // filling. There is no hole case any more - the axis is recorded road, so a kilometre
+        // nobody recorded shortens the chart and marks nothing (contract §2.3).
         assertTrue("a launch scene", GENERATOR.readText().contains("history(31.6, launch=True)"))
-        assertTrue("and a hole", GENERATOR.readText().contains("hole=range(38, 52)"))
+        assertTrue("a filling scene", GENERATOR.readText().contains("history(27.3, points=37)"))
+        assertTrue("and no hole helper", !GENERATOR.readText().contains("hole="))
         // One tick per run of clamped points, at the run's centre, on both records.
         assertTrue(
             "the cut is marked once per run",
@@ -269,6 +271,33 @@ class StripPagesBoardContractTest {
         // Never a whole-number rounding of a filling window, on either record.
         assertEquals("ЗА 3,7 КМ", ContourReadout.windowCaps(3.7, ConsumptionWindow.KM, narrow = false))
         assertEquals("10 КМ", ContourReadout.windowCaps(10.0, ConsumptionWindow.KM, narrow = true))
+    }
+
+    /**
+     * And the window it names is the width of the shape above it, on the board as in the code.
+     *
+     * `docs/energy-display-contract.md` §2.2 and §2.3: the chart draws one point per recorded
+     * hundred metres and the foot line names that same road off `ConsumptionWindow.coveredKm`, so a
+     * scene with a filling history cannot print «ЗА 10 КМ» under it. The generator takes the window
+     * off the history's own length for exactly that reason, and the filling scene is where it shows.
+     */
+    @Test
+    fun theFootLineNamesTheRoadTheShapeAboveItIsWide() {
+        val board = BOARD.readText()
+        assertTrue(
+            "the generator counts the window off the shape",
+            GENERATOR.readText().contains("covered = len(scene['history']) * 0.1"),
+        )
+        val filling = ContourReadout.windowFoot(
+            37 * ConsumptionChart.PITCH_KM,
+            ConsumptionWindow.KM,
+            narrow = false,
+        )
+        assertEquals("кВт·ч/100 км · ЗА 3,7 КМ", filling)
+        assertTrue(
+            "and the filling scene prints it",
+            board.contains("<span class=\"spend-figure\">27,3</span> $filling"),
+        )
     }
 
     /**
