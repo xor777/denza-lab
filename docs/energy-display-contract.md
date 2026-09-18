@@ -307,24 +307,27 @@ test.
 - **One source.** `EnergyReadouts` (or the name the implementation settles on)
   turns a `VehicleTelemetry` into every energy string and chart both screens
   draw: direction word, power figure and colour, consumption figure and colour,
-  window caption, the twenty bins with their widths and holes, the engine's
-  sentence. Both renderers call it and format nothing themselves.
+  window caption, the hundred points and their holes, the engine's sentence.
+  Both renderers call it and format nothing themselves.
 - **Cross-screen equality.** A test drives both surfaces' readouts from one list
   of snapshots - electric drive, return, engine giving, engine running and
   giving nothing, engine just stopped, standing, charging, filling window, a
-  hole, a bin past 60, link lost - and asserts equal strings and equal bins.
-- **Independent arithmetic.** The expected consumption figure and bin values in
-  those tests are computed in the test from the raw buckets, not through the
-  production helpers.
+  hole, a kilometre past 60, link lost - and asserts equal strings, equal points
+  and an equal span.
+- **Independent arithmetic.** The expected consumption figure and point values in
+  those tests are computed in the test from the raw buckets - the overlap of each
+  bucket's road with the kilometre ending at the point, energy pro rata - not
+  through the production helpers.
 - **Replay.** `captures/vehicle-log/*.csv` (the recorder's output) is fed through
   the hub's own log, ledger and traces in a JVM test; the test asserts the
-  invariants that do not depend on what a signal means: road under the chart
-  equals odometer travelled, the figure equals energy over known road, no bin
-  is drawn where the log had no energy, the engine's box is never up with the
-  flag down.
+  invariants that do not depend on what a signal means: the road under the chart
+  is a point per hundred metres of the road the odometer covered, the figure
+  equals energy over known road, every point equals the trailing kilometre
+  computed a second time and none is drawn where the log had no energy, the
+  engine's box is never up with the flag down.
 - **The boards.** `ContourBoardContractTest` and `StripPagesBoardContractTest`
   hold the generators to `ContourPlan` and the page's constants, including the
-  bin count, the ceilings and the sentence.
+  point count, the smoothing, the ceilings and the sentence.
 - **Mutations** on the arithmetic (§2.2, §2.3, §2.6) before the merge, as on
   every wave before.
 

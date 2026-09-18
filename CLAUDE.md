@@ -35,7 +35,7 @@ still use the historical `denza-gateway` directory name.
   energy contract for the cluster's Contour and the head unit's car page: one
   definition, one set of words and one chart on both screens, and how each is
   proved. It owns pack power's direction, the ten-kilometre consumption, the
-  twenty-bin chart and the engine's box where it diverges from the findings or
+  hundred-point chart and the engine's box where it diverges from the findings or
   the canvas README. Read it before touching `feature/vehicle`,
   `feature/cluster/dashboard` or `VehiclePageRenderer`.
 - [docs/instrument-display-findings.md](docs/instrument-display-findings.md) — cluster scene, the Contour instrument panel, Mirrors, and navigation status.
