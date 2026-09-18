@@ -1973,3 +1973,34 @@ pane that closed and the pane the firmware left the survivor in; the survivor's
 slot, its live record and a projected navigator's pane move with it, on all
 three paths, and the next open puts the survivor in the wide pane with a fresh
 picker in the narrow one (contract 1.8.2, 1.3.4, section 5 "К 1.8").
+
+**A restart over a live session leaves the gate open (19:45–19:53, fixed the
+same evening).** The owner reported "Split с АДАСом": Home, then a tap on
+Denza Apps on the desktop, and the firmware opened it in a split next to
+`com.byd.sr`. The logs show two occurrences with two causes. At 19:51:52 the
+tap came 1.0 s after Home; the product's first area read after Home (a window
+hint at +0.9 s) landed 0.1 s after the firmware had already answered
+`startSplitWindow newMode = 100` and `startSecondActivity: start com.byd.sr to
+mSecondContainer` - with the gate open the firmware puts any launch into split
+and fills the second container with its default second app. That race cannot
+be won with hints; it would take an area poll, which the contract does not
+want. At 19:52:51 another session reinstalled the package (builds 49, 50 and
+51 went on the car at 19:37, 19:41, 19:44 and 19:52, each killing the app and
+the picker process). The process came back with no scene in memory, the lease
+and the firmware gate intact; the reconciles after the next Home (19:53:30,
+four calls each) left at the null-scene guard before any gate follow-up, and
+the gate closed only at 19:53:34 when the `HomeOperation`'s three-second poll
+saw a fullscreen screen cover the world. The reconcile now suspends a gate
+this session owns under a covered world with no scene, once per cover
+(`HomeConfirmed` records the cover without a scene; the Home hint is dropped
+while the cover is confirmed), and a later proof of our scene on screen
+resumes it through the existing resumption; a visible world that is not ours
+never opens it. Two rules for live work follow: one owning session per car
+while an acceptance runs (governance), and a couple of seconds between Home
+and the dock until the race has a real answer.
+
+**Not reproduced: Yandex Music leaving the split.** The owner tried after the
+session; every move-to-front of Music (three) answered `startSplitWindow`. The
+mechanism behind the old escape - a gate closed under a cover that went away
+by itself - is the one the 2026-09-11 resumption closes, and that resumption
+fired live at 18:57:12.
