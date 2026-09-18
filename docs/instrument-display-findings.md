@@ -907,8 +907,12 @@ The panel has been in front of the owner since 2026-09-05: build 44 was installe
 and driven, and the section above is what the first drive said. The energy
 contract has been on the car since 2026-09-11 (build 46, then 47 the same
 evening). On 2026-09-18 the owner ran the engine standing for two and a half
-minutes with the dashboard up - the first time §2.5's box could have been seen;
-what it looked like is not yet reported.
+minutes with the dashboard up - the first time §2.5's box could have been seen.
+His report: the hero blue, the box saying «ДВС ДАЁТ 8 кВт · ПОСЛЕДНИЕ …», the
+revolutions in the corner, and no word about the battery anywhere on the
+cluster - which is the design: the cluster carries direction as colour, and the
+sentence «● В БАТАРЕЮ ОТ ДВС» is the car page's. The parked scene is accepted;
+the drive is still owed.
 
 ### Telemetry ownership
 
