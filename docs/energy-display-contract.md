@@ -87,7 +87,9 @@ signed because it is an exception.
 charging on P put 0.33 kWh into the pack on 2026-09-18, and a log that files
 standing energy into the next hundred metres of road would have drawn that as a
 blue shelf on the cut for the next kilometre. `ConsumptionLog` integrates `P`
-into the road's bucket only while the car moves - `VEHICLE_SPEED` above
+into the road's bucket only while the car moves - `VehicleSignal.VEHICLE_SPEED`
+(`0x94400008`, dev 1013, tx 7, polled hot so the question is asked of the
+interval and not of a reading ten seconds stale) above
 `ConsumptionLog.STANDING_KMH` = 0.5 - and a sample with no speed reading counts
 as moving, because a missing read is not a stop. The trip (§2.4) keeps every
 joule, standing or not; it is the one figure that is about time as well as road.
