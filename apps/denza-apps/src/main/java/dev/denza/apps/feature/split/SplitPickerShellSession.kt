@@ -741,13 +741,13 @@ internal class SplitPickerShellSession(
         val survivorByArea = when (area) {
             AREA_PRIMARY_FULL -> SplitPane.PRIMARY
             AREA_SECONDARY_FULL -> SplitPane.SECONDARY
-            else -> return SplitCollapsedPaneRead(null, "area=$area")
+            else -> return SplitCollapsedPaneRead(null, null, "area=$area")
         }
         if (expectedPanes.keys != SplitPane.entries.toSet()) {
-            return SplitCollapsedPaneRead(null, "сцена не записана двухпанельной")
+            return SplitCollapsedPaneRead(null, null, "сцена не записана двухпанельной")
         }
         if (!expectedPanes.isCompleteTwoPaneRecord()) {
-            return SplitCollapsedPaneRead(null, "запись сцены неполна")
+            return SplitCollapsedPaneRead(null, null, "запись сцены неполна")
         }
         val roots = nativeRootIds()
         val state = snapshot()
@@ -774,13 +774,20 @@ internal class SplitPickerShellSession(
         // ответ на него - отказ: закрыть по нему слот значило бы забыть выбор пользователя.
         val collapsedByArea = survivorByArea.other()
         return when {
-            absent.isEmpty() ->
-                SplitCollapsedPaneRead(null, "ни одна панель не покинула панельные корни целиком")
-            absent.size > 1 ->
-                SplitCollapsedPaneRead(collapsedByArea, "collapsed: выживший назван area=$area")
+            absent.isEmpty() -> SplitCollapsedPaneRead(
+                null,
+                null,
+                "ни одна панель не покинула панельные корни целиком",
+            )
+            absent.size > 1 -> SplitCollapsedPaneRead(
+                collapsedByArea,
+                survivorByArea,
+                "collapsed: выживший назван area=$area",
+            )
             absent.single() == collapsedByArea ->
-                SplitCollapsedPaneRead(collapsedByArea, "collapsed")
+                SplitCollapsedPaneRead(collapsedByArea, survivorByArea, "collapsed")
             else -> SplitCollapsedPaneRead(
+                null,
                 null,
                 "панель, покинувшая корни, названа выжившей area=$area",
             )
@@ -822,26 +829,32 @@ internal class SplitPickerShellSession(
      * панельных `[880,112][2536,1472]` (1.8.2: «выживший-пикер - тоже нормальный случай»).
      * Свежее схлопывание до накрытия растягивает в корне и то и другое (`21-after-dragL`), так
      * что признак «окно панели на границах растянутого корня» верен в обоих измеренных мирах.
+     *
+     * Правка 2026-09-18 (решение владельца, раздел 5 «К 1.8»): чтение отдаёт ОБА имени. `collapsed`
+     * - логическая панель, чей выбор закрыт (`survivor.other()`), `survivorPane` - растянутый
+     * контейнер, то есть панель, в которой выживший физически остался. Раньше продукт знал только
+     * первое и селил выжившего по старой метке: живьём 18:55 музыка узкой панели после закрытия
+     * широкой возвращалась в узкую, хотя прошивка оставила её в широкой.
      */
     fun collapsedPaneByPanelBounds(
         pickerComponents: Set<String>,
         expectedPanes: Map<SplitPane, SplitPickerObservedPane>,
     ): SplitCollapsedPaneRead {
         if (expectedPanes.keys != SplitPane.entries.toSet()) {
-            return SplitCollapsedPaneRead(null, "сцена не записана двухпанельной")
+            return SplitCollapsedPaneRead(null, null, "сцена не записана двухпанельной")
         }
         if (!expectedPanes.isCompleteTwoPaneRecord()) {
-            return SplitCollapsedPaneRead(null, "запись сцены неполна")
+            return SplitCollapsedPaneRead(null, null, "запись сцены неполна")
         }
         val roots = nativeRootIds()
         val state = snapshot()
         val paneBounds = SplitPane.entries.associateWith { pane ->
             state.root(roots.getValue(pane))?.bounds
-                ?: return SplitCollapsedPaneRead(null, "$pane: контейнера нет")
+                ?: return SplitCollapsedPaneRead(null, null, "$pane: контейнера нет")
         }
         val stretched = SplitPane.entries.singleOrNull { pane ->
             paneBounds.getValue(pane).strictlyContains(paneBounds.getValue(pane.other()))
-        } ?: return SplitCollapsedPaneRead(null, "панельные корни не вложены")
+        } ?: return SplitCollapsedPaneRead(null, null, "панельные корни не вложены")
         val stretchedBounds = paneBounds.getValue(stretched)
         val tasks = mainDisplayTasks()
         val survivors = SplitPane.entries.filter { pane ->
@@ -853,6 +866,7 @@ internal class SplitPickerShellSession(
         }
         val survivor = survivors.singleOrNull()
             ?: return SplitCollapsedPaneRead(
+                null,
                 null,
                 "растянутое окно не названо панелью: совпадений ${survivors.size}",
             )
@@ -867,6 +881,7 @@ internal class SplitPickerShellSession(
         ) {
             return SplitCollapsedPaneRead(
                 null,
+                null,
                 "задачи закрытой панели ещё в панельных корнях",
             )
         }
@@ -875,7 +890,9 @@ internal class SplitPickerShellSession(
         } else {
             "приложение выжившего растянуто на весь экран"
         }
-        return SplitCollapsedPaneRead(collapsed, "collapsed: $proof")
+        // Выжившего называет растянутый КОНТЕЙНЕР, а не прежняя метка: он и есть та панель, в
+        // которой прошивка оставила выжившего (решение владельца 2026-09-18).
+        return SplitCollapsedPaneRead(collapsed, stretched, "collapsed: $proof")
     }
 
     /**
@@ -3593,9 +3610,17 @@ internal class SplitCollapseRead(
     val reason: String,
 )
 
-/** The existence proof's edition of [SplitCollapseRead]: which pane fell, or why it is unknown. */
+/**
+ * The existence proof's edition of [SplitCollapseRead]: which pane fell, or why it is unknown.
+ *
+ * [collapsed] - ЛОГИЧЕСКАЯ панель, чей выбор закрыт; [survivorPane] - ФИЗИЧЕСКАЯ панель, в которой
+ * прошивка оставила выжившего, и она непуста ровно тогда, когда непуст [collapsed]. На этой
+ * прошивке они не обязаны быть противоположны: схлопывание переносит выжившего в контейнер
+ * SECONDARY с любой стороны (решение владельца 2026-09-18, раздел 5 «К 1.8»).
+ */
 internal class SplitCollapsedPaneRead(
     val collapsed: SplitPane?,
+    val survivorPane: SplitPane?,
     val reason: String,
 )
 

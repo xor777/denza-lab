@@ -2928,6 +2928,235 @@ class SplitScenarioTest {
     }
 
     /**
+     * Живая сессия 2026-09-18 18:55 и решение владельца того же дня (1.8.2, 1.3.4, раздел 5
+     * «К 1.8»).
+     *
+     * Владелец держал музыку в УЗКОЙ панели, закрыл ШИРОКУЮ и увидел музыку на весь экран. Прошивка
+     * этой машины на схлопывании всегда отвечает area=2 и переносит выжившего в широкий контейнер -
+     * с любой стороны дивайдера. Продукт же селил выжившего по старой метке, и следующее открытие
+     * возвращало музыку обратно в узкую панель: «это не то состояние, в котором я это оставлял».
+     * Теперь слот едет за прошивкой: выживший - житель той панели, в которой она его оставила, а
+     * закрытая получает свежий пикер.
+     *
+     * Доказывает это здесь чтение по границам панельных корней
+     * ([SplitPickerShellSession.collapsedPaneByPanelBounds]): Home накрыл экран, area ушла в 0, и
+     * оба чтения по area слепы.
+     */
+    @Test
+    fun theSurvivorOfACollapseOpensInThePaneTheFirmwareLeftItIn() {
+        val car = car(FakeShell(initialGate = true).apply { liveProductScene(withApps = true) })
+        val core = car.core(SplitDurable(enabled = true, slots = APP_PAIR))
+        car.gateLease.setOwned(true)
+        core.initialize {}
+        core.openPickerSession()
+        car.barrier()
+        car.clearCommands()
+
+        // Жест: закрыта ШИРОКАЯ панель с музыкой; навигатор узкой панели переехал в широкий
+        // контейнер и растянут на весь экран. Затем Home накрыл экран.
+        car.fake.collapseIntoWide(SECONDARY_ROOT)
+        car.fake.area = 0
+        core.homeVisible()
+        car.barrier()
+        core.dividerResized()
+        car.barrier()
+
+        assertEquals(
+            "выживший записан в ту панель, в которой его оставила прошивка",
+            mapOf(
+                SplitPane.PRIMARY to SplitSlot.Closed,
+                SplitPane.SECONDARY to SplitSlot.App(NAVIGATOR),
+            ),
+            car.store.load().slots,
+        )
+        assertTrue(
+            "задача навигатора жива: прошивка её не убивала, продукт не трогает (1.8.2)",
+            car.fake.hasTask(PRIMARY_APP_TASK),
+        )
+        assertFalse(
+            "и ни одна команда её не адресовала",
+            car.commands().any {
+                it.contains(" remove-task ") && it.contains(" $PRIMARY_APP_TASK ")
+            },
+        )
+        assertFalse(
+            "огрызок пикера закрытой панели убран по точной identity",
+            car.fake.hasTask(SECONDARY_PICKER_TASK),
+        )
+        assertTrue(
+            "база выжившего не тронута: она и есть его панель",
+            car.fake.hasTask(PRIMARY_PICKER_TASK),
+        )
+
+        // И следующее открытие поднимает его ТУДА ЖЕ, а узкая панель получает свежий пикер (1.3.4).
+        car.clearCommands()
+        core.openPickerSession()
+        car.barrier()
+
+        assertFalse(
+            "навигатор не перезапущен (U2)",
+            car.commands().any { it.startsWith("am start ") && it.contains(NAVIGATOR) },
+        )
+        assertEquals(
+            "закрытая панель собрана ровно одним свежим пикером",
+            1,
+            car.commands().count {
+                it.startsWith("am start ") && it.contains(SPLIT_PICKER_ACTIVITY)
+            },
+        )
+        assertEquals(
+            "навигатор стоит в ШИРОКОЙ панели, как его оставила прошивка",
+            PRIMARY_APP_TASK,
+            car.fake.topTaskId(SECONDARY_ROOT),
+        )
+        assertEquals(
+            mapOf(
+                SplitPane.PRIMARY to SplitSlot.Picker,
+                SplitPane.SECONDARY to SplitSlot.App(NAVIGATOR),
+            ),
+            car.store.load().slots,
+        )
+        assertEquals(SplitScreenPhase.ACTIVE, core.snapshot().phase)
+    }
+
+    /**
+     * Тот же жест, но подсказка успела до накрытия: area держится 2, и схлопывание доказывает
+     * физическая адопция ([SplitPickerShellSession.readCollapsedSession]) - она называет корень
+     * выжившего, а владельца его постоянной базы находит по exact identity записи.
+     *
+     * Ответ обязан быть тем же самым: путь доказательства не решает, в какой панели живёт выживший
+     * (1.8.2, решение владельца 2026-09-18).
+     */
+    @Test
+    fun theSurvivorMovedAcrossRootsIsAdoptedIntoTheWidePaneBeforeAnyCover() {
+        val car = car(FakeShell().apply { liveProductScene(withApps = true) })
+        val core = car.core(SplitDurable(enabled = true, slots = APP_PAIR))
+        core.initialize {}
+        core.openPickerSession()
+        car.barrier()
+        car.clearCommands()
+
+        car.fake.collapseIntoWide(SECONDARY_ROOT)
+
+        core.dividerResized()
+        car.barrier()
+
+        assertEquals(
+            mapOf(
+                SplitPane.PRIMARY to SplitSlot.Closed,
+                SplitPane.SECONDARY to SplitSlot.App(NAVIGATOR),
+            ),
+            car.store.load().slots,
+        )
+        assertTrue("задача навигатора жива", car.fake.hasTask(PRIMARY_APP_TASK))
+        assertFalse(
+            "и ничего не перезапущено (U2)",
+            car.commands().any { it.startsWith("am start ") && it.contains(NAVIGATOR) },
+        )
+        assertFalse(
+            "огрызок пикера закрытой панели убран",
+            car.fake.hasTask(SECONDARY_PICKER_TASK),
+        )
+    }
+
+    /**
+     * Та же правда на третьем пути: о жесте не сказал никто, и решает само открытие
+     * (`OpenOperation.settleTheCollapseNobodyRead`, правка волны 12). Оно стоит ДО того, как
+     * открытие соберёт восстановимое, - поэтому выживший поднимается в ту панель, в которой его
+     * оставила прошивка (1.3.4).
+     */
+    @Test
+    fun theOpenThatSettlesTheCollapseItselfRestoresTheSurvivorIntoTheWidePane() {
+        val car = car(FakeShell(initialGate = true).apply { liveProductScene(withApps = true) })
+        val core = car.core(SplitDurable(enabled = true, slots = APP_PAIR))
+        car.gateLease.setOwned(true)
+        core.initialize {}
+        core.openPickerSession()
+        car.barrier()
+        car.clearCommands()
+
+        car.fake.collapseIntoWide(SECONDARY_ROOT)
+        car.fake.area = 0
+        core.homeVisible()
+        car.barrier()
+
+        assertEquals(
+            "ни одна сверка ещё ничего не решила",
+            SplitSlot.App(MUSIC),
+            car.store.load().slot(SplitPane.SECONDARY),
+        )
+
+        car.clearCommands()
+        core.openPickerSession()
+        car.barrier()
+
+        assertTrue(
+            "открытие само прочло мир и назвало закрытую панель",
+            car.diagnostics.any { it.contains("collapse settled before the restore: SECONDARY") },
+        )
+        assertEquals(
+            "выживший восстановлен в широкую панель, узкая получила свежий пикер",
+            mapOf(
+                SplitPane.PRIMARY to SplitSlot.Picker,
+                SplitPane.SECONDARY to SplitSlot.App(NAVIGATOR),
+            ),
+            car.store.load().slots,
+        )
+        assertFalse(
+            "навигатор не перезапущен (U2)",
+            car.commands().any { it.startsWith("am start ") && it.contains(NAVIGATOR) },
+        )
+        assertFalse(
+            "и музыка, которую закрыл пользователь, не воскресла",
+            car.commands().any { it.startsWith("am start ") && it.contains(MUSIC) },
+        )
+        assertEquals(
+            "навигатор стоит в широкой панели",
+            PRIMARY_APP_TASK,
+            car.fake.topTaskId(SECONDARY_ROOT),
+        )
+        assertEquals(SplitScreenPhase.ACTIVE, core.snapshot().phase)
+    }
+
+    /**
+     * Обратная сторона того же решения: когда выживший УЖЕ в широкой панели, прошивке нечего
+     * двигать, и ответ ровно прежний (1.8.2). Ту же форму жеста на сцене «пикер | пикер» держит
+     * [aSelectionInTheSurvivingFullscreenPickerCommitsItsPane]; здесь мир с живыми приложениями.
+     */
+    @Test
+    fun aSurvivorAlreadyInTheWidePaneKeepsItsOwnSide() {
+        val car = car(FakeShell().apply { liveProductScene(withApps = true) })
+        val core = car.core(SplitDurable(enabled = true, slots = APP_PAIR))
+        core.initialize {}
+        core.openPickerSession()
+        car.barrier()
+        car.clearCommands()
+
+        // Закрыта УЗКАЯ панель: музыка широкой никуда не переезжает.
+        car.fake.collapseIntoWide(PRIMARY_ROOT)
+
+        core.dividerResized()
+        car.barrier()
+
+        assertEquals(
+            mapOf(
+                SplitPane.PRIMARY to SplitSlot.Closed,
+                SplitPane.SECONDARY to SplitSlot.App(MUSIC),
+            ),
+            car.store.load().slots,
+        )
+        assertTrue("задача музыки жива", car.fake.hasTask(SECONDARY_APP_TASK))
+        assertFalse(
+            "и ничего не перезапущено",
+            car.commands().any { it.startsWith("am start ") && it.contains(MUSIC) },
+        )
+        assertFalse(
+            "огрызок пикера закрытой панели убран",
+            car.fake.hasTask(PRIMARY_PICKER_TASK),
+        )
+    }
+
+    /**
      * Правка волны 12, вторая половина: подсказки о схлопывании может не прийти вовсе.
      *
      * Живой протокол 2026-08-25: одно из схлопываний не оставило в ринге НИ ОДНОЙ строки за 320

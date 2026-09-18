@@ -846,6 +846,11 @@ internal class OpenOperation(
      * два `activity_task 118` и тот же `am stack list`, которые следом читает scene-read, и они
      * общие в пределах операции ([SplitTopologyCache]). Мутаций здесь нет вовсе: огрызок пикера
      * закрытой панели уберёт сама сборка, которая сейчас переложит обе панели заново.
+     *
+     * Правка 2026-09-18 (решение владельца, раздел 5 «К 1.8»): это место стоит ДО того, как
+     * `prepare` соберёт `restorable`/`owed` и `expectedApps(liveScene)`, - потому переложенная
+     * здесь запись живой сцены и есть то, что открытие затем восстанавливает. Выживший поднимается
+     * в ту панель, в которой его оставила прошивка, а закрытая получает свежий пикер (1.3.4).
      */
     private fun settleTheCollapseNobodyRead(op: SplitOperationContext) {
         if (working.scene != SplitScene.Split) return
@@ -860,9 +865,12 @@ internal class OpenOperation(
             mark(op, "collapse before the restore: не прочитано ($error)")
         }.getOrNull() ?: return
         val collapsed = read.collapsed ?: return
+        val survivorPane = read.survivorPane ?: collapsed.other()
         mark(op, "collapse settled before the restore: $collapsed")
-        liveScene = liveScene - collapsed
-        settle(SplitFact.PaneCollapsedSettled(collapsed.other()))
+        liveScene = liveScene[collapsed.other()]
+            ?.let { survivor -> mapOf(survivorPane to survivor.copy(pane = survivorPane)) }
+            ?: (liveScene - collapsed)
+        settle(SplitFact.PaneCollapsedSettled(collapsed = collapsed, survivorPane = survivorPane))
     }
 
     /**
@@ -2162,6 +2170,11 @@ internal class ReconcileOperation(
      * ([SplitPickerShellSession.collapsedPaneByPanelBounds]): растянутый контейнер выжившего
      * переживает и Home, и чужое полноэкранное окно, так что решение пользователя больше не
      * зависит от того, успел ли продукт посмотреть в нужную миллисекунду.
+     *
+     * Правка 2026-09-18 (решение владельца): выживший селится в ту панель, в которой его ОСТАВИЛА
+     * прошивка, - её называет то же чтение, - и запись живой сцены перекладывается туда же. Прежде
+     * факт нёс только логического выжившего, и следующее открытие возвращало его под старую метку
+     * (живьём 18:55: музыка узкой панели после закрытия широкой снова оказывалась в узкой).
      */
     private fun settleCollapseByExistence(
         op: SplitOperationContext,
@@ -2184,7 +2197,9 @@ internal class ReconcileOperation(
                 split.collapsedPaneByPanelBounds(SPLIT_PICKER_COMPONENT_SET, expected)
             }
         }
-        val collapsed = byExistence.getOrNull()?.collapsed ?: byBounds?.getOrNull()?.collapsed
+        val decided = byExistence.getOrNull()?.takeIf { read -> read.collapsed != null }
+            ?: byBounds?.getOrNull()?.takeIf { read -> read.collapsed != null }
+        val collapsed = decided?.collapsed
         if (collapsed == null) {
             // Правка W4 (U5): все ветви collapse отказали - одна строка называет каждый предикат.
             unproven += "collapse: $physicalRefusal" +
@@ -2192,14 +2207,27 @@ internal class ReconcileOperation(
                 "; по границам корней: ${byBounds.refusal()}"
             return false
         }
-        val survivor = collapsed.other()
+        // Решение владельца 2026-09-18 (раздел 5, «К 1.8»): сторону выжившего называет прошивка,
+        // а не прежняя метка. Чтение отдаёт её вместе с именем закрытой панели; `collapsed.other()`
+        // остаётся честным запасным ответом ровно для мира, где они совпадают.
+        val survivorPane = decided.survivorPane ?: collapsed.other()
         pointOfNoReturn(op, "the collapse closed $collapsed for good; its app stays alive")
         previous[collapsed]?.let { pane -> removeCollapsedPicker(op, split, pane.hostTaskId) }
-        liveScene = liveScene - collapsed
-        settle(SplitFact.PaneCollapsedSettled(survivor))
+        liveScene = previous[collapsed.other()]
+            ?.let { survivor -> mapOf(survivorPane to survivor.copy(pane = survivorPane)) }
+            ?: (liveScene - collapsed)
+        settle(SplitFact.PaneCollapsedSettled(collapsed = collapsed, survivorPane = survivorPane))
         return true
     }
 
+    /**
+     * Физическая адопция схлопывания: `collapsed.pane` - панель, в которой прошивка ОСТАВИЛА
+     * выжившего, а владельца его постоянной базы (логическую панель) называет запись сцены.
+     *
+     * Правка 2026-09-18 (решение владельца, раздел 5 «К 1.8»): факт несёт обе панели, и слот
+     * выжившего переезжает за ним сам. [settleOccupant] после него остаётся ровно для одного
+     * случая - приложение выжившей панели не пережило жеста, и её слот обязан стать пикером.
+     */
     private fun adoptCollapse(
         op: SplitOperationContext,
         split: SplitPickerShellSession,
@@ -2220,7 +2248,12 @@ internal class ReconcileOperation(
         pointOfNoReturn(op, "the collapse closed the peer of $survivor for good")
         closed?.let { pane -> removeCollapsedPicker(op, split, pane.hostTaskId) }
         liveScene = mapOf(survivor to collapsed)
-        settle(SplitFact.PaneCollapsedSettled(survivor))
+        settle(
+            SplitFact.PaneCollapsedSettled(
+                collapsed = previousOwner.other(),
+                survivorPane = survivor,
+            ),
+        )
         settleOccupant(survivor, collapsed.appPackageName)
     }
 

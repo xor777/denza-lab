@@ -134,7 +134,12 @@ class SplitAutomatonAdversarialTest {
             0 -> SplitFact.ToggleChanged(enabled = random.nextInt(4) > 0)
             1 -> SplitFact.AppLaunchConfirmed(pane, packageName)
             2 -> SplitFact.AppClosedSettled(pane)
-            3 -> SplitFact.PaneCollapsedSettled(pane)
+            // Обе формы схлопывания: выживший остался в своей панели и выживший, которого
+            // прошивка переставила в другую (решение владельца 2026-09-18).
+            3 -> SplitFact.PaneCollapsedSettled(
+                collapsed = pane,
+                survivorPane = if (random.nextBoolean()) pane.other() else pane,
+            )
             4 -> SplitFact.PickerPaneClosedSettled(pane)
             5 -> SplitFact.SceneEndedSettled
             6 -> SplitFact.HomeConfirmed

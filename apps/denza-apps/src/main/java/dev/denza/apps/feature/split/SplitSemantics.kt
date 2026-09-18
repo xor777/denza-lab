@@ -91,7 +91,28 @@ internal sealed interface SplitFact {
     /** Back, close gesture, swipe from Recents or a crash: all of them are one closure (1.7.3). */
     data class AppClosedSettled(val pane: SplitPane) : SplitFact
 
-    data class PaneCollapsedSettled(val survivor: SplitPane) : SplitFact
+    /**
+     * Схлопывание дивайдером: одна панель закрыта, выживший остался один на экране (1.8.2).
+     *
+     * Факт называет ДВЕ панели, потому что на этой прошивке они расходятся. [collapsed] - панель,
+     * чей ВЫБОР пользователь закрыл: её слот выбрасывается. [survivorPane] - панель, в которой
+     * прошивка ОСТАВИЛА выжившего: с этого момента слот выжившего живёт там, и следующее открытие
+     * восстанавливает его именно туда (1.3.4).
+     *
+     * Machine truth (корпус, [SplitPickerShellSession.collapsedPaneByPanelBounds]): схлопывание
+     * всегда отвечает area=2 и переносит выжившего в контейнер SECONDARY, какой бы стороной он ни
+     * был до жеста. Решение владельца 2026-09-18: состояние, в котором он оставил экран, - это
+     * фактическая топология, а не прежняя метка стороны («это не то состояние, в котором я это
+     * оставлял»: музыка узкой панели, закрытая широкая, - и следующее открытие возвращало музыку
+     * обратно в узкую). Раздел 5, «К 1.8»: привязка логического слота к стороне - по фактической
+     * топологии после settle, не по старым меткам.
+     *
+     * Обычный случай `survivorPane == collapsed.other()` - прежнее поведение слово в слово.
+     */
+    data class PaneCollapsedSettled(
+        val collapsed: SplitPane,
+        val survivorPane: SplitPane,
+    ) : SplitFact
 
     data class PickerPaneClosedSettled(val pane: SplitPane) : SplitFact
 

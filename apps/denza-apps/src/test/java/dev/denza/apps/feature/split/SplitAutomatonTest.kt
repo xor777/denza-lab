@@ -276,16 +276,91 @@ class SplitAutomatonTest {
 
     @Test
     fun collapsingAPaneClosesItAndExpandsTheSurvivor() {
-        // контракт 1.8.2
+        // контракт 1.8.2: выживший остался в своей же панели - прежний и самый частый мир
         val live = split(SplitSlot.App(MUSIC), SplitSlot.App(NAVIGATOR))
 
         val result = SplitAutomaton.reduce(
             live,
-            SplitFact.PaneCollapsedSettled(survivor = SplitPane.SECONDARY),
+            SplitFact.PaneCollapsedSettled(
+                collapsed = SplitPane.PRIMARY,
+                survivorPane = SplitPane.SECONDARY,
+            ),
         )
 
         assertEquals(SplitSlot.Closed, result.state.slot(SplitPane.PRIMARY))
         assertEquals(SplitSlot.App(NAVIGATOR), result.state.slot(SplitPane.SECONDARY))
+        assertEquals(SplitScene.Full(SplitPane.SECONDARY), result.state.scene)
+    }
+
+    /**
+     * Контракт 1.8.2 и раздел 5 «К 1.8», решение владельца 2026-09-18.
+     *
+     * Прошивка этой машины на схлопывании переносит выжившего в широкий контейнер, какой бы
+     * стороной он ни был: закрыли широкую панель - и узкая музыка оказалась широкой. Слот обязан
+     * ехать за ней, иначе следующее открытие вернёт её под старую метку, в узкую («это не то
+     * состояние, в котором я это оставлял»).
+     */
+    @Test
+    fun theSurvivorLivesInThePaneTheFirmwareLeftItIn() {
+        val live = split(SplitSlot.App(MUSIC), SplitSlot.App(NAVIGATOR))
+
+        val result = SplitAutomaton.reduce(
+            live,
+            SplitFact.PaneCollapsedSettled(
+                collapsed = SplitPane.SECONDARY,
+                survivorPane = SplitPane.SECONDARY,
+            ),
+        )
+
+        assertEquals(
+            "выбор закрытой панели выброшен, выживший переехал",
+            SplitSlot.App(MUSIC),
+            result.state.slot(SplitPane.SECONDARY),
+        )
+        assertEquals(SplitSlot.Closed, result.state.slot(SplitPane.PRIMARY))
+        assertEquals(SplitScene.Full(SplitPane.SECONDARY), result.state.scene)
+    }
+
+    /** 1.8.2: закрывать нечего - слот выжившего уже закрыт, и факт ничего не двигает. */
+    @Test
+    fun aCollapseWhoseSurvivorIsAlreadyClosedMovesNothing() {
+        val live = split(SplitSlot.Closed, SplitSlot.App(NAVIGATOR))
+
+        val result = SplitAutomaton.reduce(
+            live,
+            SplitFact.PaneCollapsedSettled(
+                collapsed = SplitPane.SECONDARY,
+                survivorPane = SplitPane.SECONDARY,
+            ),
+        )
+
+        assertSame(live, result.state)
+    }
+
+    /**
+     * Контракт 1.10 и раздел 5 «К 1.10» поверх решения владельца 2026-09-18: проекция
+     * принадлежит ПАНЕЛИ, а не стороне. Навигатор выжившей панели уехал вместе с ней, и
+     * эфемерная запись вакансии переехала на тот же ключ.
+     */
+    @Test
+    fun aProjectionFollowsTheSurvivorIntoThePaneTheFirmwareChose() {
+        val projected = split(SplitSlot.App(NAVIGATOR), SplitSlot.App(MUSIC)).copy(
+            projectedPane = SplitPane.PRIMARY,
+            vacancyApp = mapOf(SplitPane.PRIMARY to TEMP),
+        )
+
+        val result = SplitAutomaton.reduce(
+            projected,
+            SplitFact.PaneCollapsedSettled(
+                collapsed = SplitPane.SECONDARY,
+                survivorPane = SplitPane.SECONDARY,
+            ),
+        )
+
+        assertEquals(SplitPane.SECONDARY, result.state.projectedPane)
+        assertEquals(mapOf(SplitPane.SECONDARY to TEMP), result.state.vacancyApp)
+        assertEquals(SplitSlot.App(NAVIGATOR), result.state.slot(SplitPane.SECONDARY))
+        assertEquals(SplitSlot.Closed, result.state.slot(SplitPane.PRIMARY))
         assertEquals(SplitScene.Full(SplitPane.SECONDARY), result.state.scene)
     }
 
@@ -406,7 +481,10 @@ class SplitAutomatonTest {
 
         val result = SplitAutomaton.reduce(
             projected,
-            SplitFact.PaneCollapsedSettled(survivor = SplitPane.SECONDARY),
+            SplitFact.PaneCollapsedSettled(
+                collapsed = SplitPane.PRIMARY,
+                survivorPane = SplitPane.SECONDARY,
+            ),
         )
 
         assertEquals(SplitSlot.Closed, result.state.slot(SplitPane.PRIMARY))
@@ -451,7 +529,10 @@ class SplitAutomatonTest {
             live to SplitFact.BuildSceneSucceeded(mapOf(SplitPane.PRIMARY to SplitSlot.Picker)),
             fullscreen to SplitFact.PickerPaneClosedSettled(SplitPane.SECONDARY),
             fullscreen to SplitFact.EdgeCommitConfirmed(SplitPane.PRIMARY),
-            sceneless to SplitFact.PaneCollapsedSettled(SplitPane.PRIMARY),
+            sceneless to SplitFact.PaneCollapsedSettled(
+                collapsed = SplitPane.PRIMARY,
+                survivorPane = SplitPane.SECONDARY,
+            ),
             sceneless to SplitFact.SceneEndedSettled,
             sceneless to SplitFact.HomeConfirmed,
             sceneless to SplitFact.AppClosedSettled(SplitPane.PRIMARY),
@@ -490,7 +571,14 @@ class SplitAutomatonTest {
             SplitFact.ToggleChanged(enabled = true),
             SplitFact.AppLaunchConfirmed(SplitPane.PRIMARY, MUSIC),
             SplitFact.AppClosedSettled(SplitPane.PRIMARY),
-            SplitFact.PaneCollapsedSettled(SplitPane.PRIMARY),
+            SplitFact.PaneCollapsedSettled(
+                collapsed = SplitPane.PRIMARY,
+                survivorPane = SplitPane.SECONDARY,
+            ),
+            SplitFact.PaneCollapsedSettled(
+                collapsed = SplitPane.PRIMARY,
+                survivorPane = SplitPane.PRIMARY,
+            ),
             SplitFact.PickerPaneClosedSettled(SplitPane.PRIMARY),
             SplitFact.SceneEndedSettled,
             SplitFact.HomeConfirmed,

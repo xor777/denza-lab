@@ -366,6 +366,35 @@ internal class FakeShell(
     }
 
     /**
+     * «Release to close» в измеренной живой форме: выживший ПЕРЕЕЗЖАЕТ в широкий контейнер.
+     *
+     * Машинная правда этой прошивки (корпус, KDoc `collapsedPaneByPanelBounds`): схлопывание всегда
+     * отвечает area=2 и оставляет выжившего в контейнере SECONDARY, какой бы стороной он ни был до
+     * жеста, - живьём обе стороны дивайдера назвали SECONDARY. [dismissPane] моделирует тот же жест
+     * в форме, где выживший остаётся в своём корне (и потому отвечает area 1 или 2 по стороне), и
+     * там он УДАЛЯЕТ задачи закрытой панели; здесь они отвязываются живыми ([detachTask]), как их и
+     * отвязывает прошивка (1.8.2).
+     *
+     * Порядок переезда - база первой, приложение последним: сверху в панели остаётся приложение.
+     */
+    fun collapseIntoWide(closedRootId: Int) {
+        val survivorRoot = when (closedRootId) {
+            PRIMARY_ROOT -> SECONDARY_ROOT
+            SECONDARY_ROOT -> PRIMARY_ROOT
+            else -> error("Not a split pane: $closedRootId")
+        }
+        tasks.filter { it.rootId == closedRootId }.map(Task::id).forEach(::detachTask)
+        if (survivorRoot == PRIMARY_ROOT) {
+            tasks.filter { it.rootId == PRIMARY_ROOT }
+                .sortedBy { task -> if (task.isPickerBase) 0 else 1 }
+                .map(Task::id)
+                .forEach { taskId -> moveTask(taskId, SECONDARY_ROOT) }
+        }
+        area = 2
+        stretchPanelRoot(SECONDARY_ROOT)
+    }
+
+    /**
      * Прошивка растянула панельный контейнер выжившего на весь экран - жест «Release to close».
      *
      * Отдельно от [dismissPane] потому, что задачи закрытой панели прошивка отвязывает живыми

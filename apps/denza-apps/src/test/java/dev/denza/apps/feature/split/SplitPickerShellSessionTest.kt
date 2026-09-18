@@ -1708,6 +1708,11 @@ class SplitPickerShellSessionTest {
         val read = split.readCollapsedPaneByExistence(PICKER_COMPONENTS, expected)
 
         assertEquals(SplitPane.SECONDARY, read.collapsed)
+        assertEquals(
+            "и выжившую называет та же area (решение владельца 2026-09-18)",
+            SplitPane.PRIMARY,
+            read.survivorPane,
+        )
         assertEquals("collapsed: выживший назван area=1", read.reason)
         assertFalse(
             "доказательство по существованию строго read-only",
@@ -1863,6 +1868,105 @@ class SplitPickerShellSessionTest {
         )
         assertEquals(SplitPane.PRIMARY, mirrorRead.collapsed)
         assertEquals("collapsed: пикер выжившего растянут на весь экран", mirrorRead.reason)
+    }
+
+    /**
+     * Решение владельца 2026-09-18 (раздел 5, «К 1.8»): то же чтение называет и ФИЗИЧЕСКУЮ панель -
+     * ту, в которой прошивка оставила выжившего.
+     *
+     * Машинная правда этой прошивки: схлопывание переносит выжившего в контейнер SECONDARY с любой
+     * стороны дивайдера. Закрыли ШИРОКУЮ панель - и узкий выживший приехал в широкий корень: имя
+     * закрытой панели и имя панели выжившего СОВПАЛИ, и это законный мир, а не противоречие. Именно
+     * его владелец видел живьём 18:55.
+     */
+    @Test
+    fun collapseByPanelBoundsAlsoNamesThePaneTheFirmwareLeftTheSurvivorIn() {
+        val fake = FakeShell()
+        val split = session(fake)
+        val hosts = split.buildPickers()
+        val navigator = split.selectApp(
+            pickerTaskId = hosts.getValue(SplitPane.PRIMARY),
+            target = SplitLaunchTarget(NAVIGATOR, "$NAVIGATOR/$NAVIGATOR.MainActivity"),
+            pickerComponents = PICKER_COMPONENTS,
+        )
+        val music = split.selectApp(
+            pickerTaskId = hosts.getValue(SplitPane.SECONDARY),
+            target = SplitLaunchTarget(MUSIC, "$MUSIC/$MUSIC.MainActivity"),
+            pickerComponents = PICKER_COMPONENTS,
+        )
+        val expected = mapOf(
+            SplitPane.PRIMARY to SplitPickerObservedPane(
+                hostTaskId = hosts.getValue(SplitPane.PRIMARY),
+                appTaskId = navigator.appTaskId,
+                packageName = navigator.packageName,
+            ),
+            SplitPane.SECONDARY to SplitPickerObservedPane(
+                hostTaskId = hosts.getValue(SplitPane.SECONDARY),
+                appTaskId = music.appTaskId,
+                packageName = music.packageName,
+            ),
+        )
+
+        // Закрыта ШИРОКАЯ панель; навигатор узкой переехал в широкий корень и растянут.
+        fake.collapseIntoWide(SECONDARY_ROOT)
+        fake.area = 0
+        fake.commands.clear()
+
+        val read = split.collapsedPaneByPanelBounds(PICKER_COMPONENTS, expected)
+
+        assertEquals("закрыт выбор ШИРОКОЙ панели", SplitPane.SECONDARY, read.collapsed)
+        assertEquals(
+            "и выживший живёт теперь в ней же: его туда перенесла прошивка",
+            SplitPane.SECONDARY,
+            read.survivorPane,
+        )
+        assertEquals("collapsed: приложение выжившего растянуто на весь экран", read.reason)
+        assertFalse(
+            "доказательство строго read-only",
+            fake.commands.any { command ->
+                command.startsWith("am start ") ||
+                    command.startsWith("am stack move-task ") ||
+                    command.startsWith("am task ") ||
+                    command.contains(" remove-task ")
+            },
+        )
+
+        // Зеркально: закрыта УЗКАЯ панель, и широкому выжившему двигаться некуда - имена
+        // противоположны, как и раньше.
+        val mirror = FakeShell()
+        val mirrorSplit = session(mirror)
+        val mirrorHosts = mirrorSplit.buildPickers()
+        val mirrorNavigator = mirrorSplit.selectApp(
+            pickerTaskId = mirrorHosts.getValue(SplitPane.PRIMARY),
+            target = SplitLaunchTarget(NAVIGATOR, "$NAVIGATOR/$NAVIGATOR.MainActivity"),
+            pickerComponents = PICKER_COMPONENTS,
+        )
+        val mirrorMusic = mirrorSplit.selectApp(
+            pickerTaskId = mirrorHosts.getValue(SplitPane.SECONDARY),
+            target = SplitLaunchTarget(MUSIC, "$MUSIC/$MUSIC.MainActivity"),
+            pickerComponents = PICKER_COMPONENTS,
+        )
+        mirror.collapseIntoWide(PRIMARY_ROOT)
+        mirror.area = 0
+
+        val mirrored = mirrorSplit.collapsedPaneByPanelBounds(
+            PICKER_COMPONENTS,
+            mapOf(
+                SplitPane.PRIMARY to SplitPickerObservedPane(
+                    hostTaskId = mirrorHosts.getValue(SplitPane.PRIMARY),
+                    appTaskId = mirrorNavigator.appTaskId,
+                    packageName = mirrorNavigator.packageName,
+                ),
+                SplitPane.SECONDARY to SplitPickerObservedPane(
+                    hostTaskId = mirrorHosts.getValue(SplitPane.SECONDARY),
+                    appTaskId = mirrorMusic.appTaskId,
+                    packageName = mirrorMusic.packageName,
+                ),
+            ),
+        )
+
+        assertEquals(SplitPane.PRIMARY, mirrored.collapsed)
+        assertEquals(SplitPane.SECONDARY, mirrored.survivorPane)
     }
 
     /**

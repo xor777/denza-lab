@@ -18,7 +18,8 @@ internal object SplitAutomaton {
             is SplitFact.BuildSceneSucceeded -> sceneBuilt(state, fact.slots)
             is SplitFact.AppLaunchConfirmed -> launchConfirmed(state, fact)
             is SplitFact.AppClosedSettled -> appClosed(state, fact.pane)
-            is SplitFact.PaneCollapsedSettled -> paneCollapsed(state, fact.survivor)
+            is SplitFact.PaneCollapsedSettled ->
+                paneCollapsed(state, fact.collapsed, fact.survivorPane)
             is SplitFact.PickerPaneClosedSettled -> pickerPaneClosed(state, fact.pane)
             SplitFact.SceneEndedSettled -> sceneEnded(state)
             SplitFact.HomeConfirmed -> home(state)
@@ -114,14 +115,41 @@ internal object SplitAutomaton {
         return settled(state, state.withSlot(pane, SplitSlot.Picker))
     }
 
-    /** Contract 1.8.2: the collapsed pane is closed for good, the survivor fills the screen. */
-    private fun paneCollapsed(state: SplitState, survivor: SplitPane): SplitReduction {
-        if (state.scene == null || state.slot(survivor) == SplitSlot.Closed) return unchanged(state)
+    /**
+     * Contract 1.8.2: the collapsed pane is closed for good, the survivor fills the screen.
+     *
+     * Выживший поселяется в [survivorPane] - панели, в которой его оставила прошивка, - а не в той,
+     * которой он был помечен до жеста (решение владельца 2026-09-18, раздел 5 «К 1.8»). При
+     * `survivorPane == collapsed.other()` это ровно прежнее поведение.
+     */
+    private fun paneCollapsed(
+        state: SplitState,
+        collapsed: SplitPane,
+        survivorPane: SplitPane,
+    ): SplitReduction {
+        val survivorSlot = state.slot(collapsed.other())
+        if (state.scene == null || survivorSlot == SplitSlot.Closed) return unchanged(state)
+        val projected = state.projectedPane
+        val carried = when {
+            projected == null -> state
+            // Проекция принадлежит панели, а не стороне: навигатор ВЫЖИВШЕЙ панели переезжает
+            // вместе с ней, и вместе с ним - эфемерная запись вакансии (1.10, «К 1.10»).
+            projected == collapsed.other() -> state.copy(
+                projectedPane = survivorPane,
+                vacancyApp = state.vacancyApp[projected]
+                    ?.let { occupant -> mapOf(survivorPane to occupant) }
+                    .orEmpty(),
+            )
+            // 1.10.6: схлопнули панель самого навигатора - её место отдано, ничто не воскресает.
+            else -> state.copy(projectedPane = null, vacancyApp = emptyMap())
+        }
         return settled(
             state,
-            state
-                .withSlot(survivor.other(), SplitSlot.Closed)
-                .copy(scene = SplitScene.Full(survivor)),
+            carried
+                .withSlots { pane, _ ->
+                    if (pane == survivorPane) survivorSlot else SplitSlot.Closed
+                }
+                .copy(scene = SplitScene.Full(survivorPane)),
         )
     }
 
