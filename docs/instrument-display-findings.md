@@ -1819,6 +1819,18 @@ arrow: text and distance may continue, but the directional image is omitted.
 
 ## Central IVI split routing
 
+> **Retired. Recorded here as history, kept for the substrate it measured.**
+> The contextual router behind the compact **Split screen** switch was deleted
+> from the tree, not merely switched off; `docs/governance.md`, "IVI
+> Split-Screen Rules", says so in as many words and notes that three separate
+> audits have had to rediscover it from that paragraph. Nothing named *Router*
+> exists under `apps/denza-apps/src`. The product flow that replaced it is the
+> explicit two-picker session, and its normative owner is
+> [split-screen-product-contract.md](split-screen-product-contract.md); the live
+> journal is [split-screen-findings.md](split-screen-findings.md). What stays
+> true below is the firmware substrate — the stock `byd-freeform` scene, its
+> two roots, and the fact that pane identity is not derived from geometry.
+
 The central screen uses BYD's stock `byd-freeform` split scene. On the tested
 firmware it contains a large left root
 anchored by `com.android.launcher3` at `Rect(24, 112 - 1680, 1472)` and a small
@@ -1826,15 +1838,15 @@ right root anchored by `com.byd.launchermap` at
 `Rect(1704, 112 - 2536, 1472)`. Root and task IDs are runtime state and are not
 hard-coded.
 
-The compact **Split screen** switch enables contextual routing through the
-shared local ADB client. Normal launches outside the stock split scene remain
-fullscreen. The stock application picker stays in one root while the other is
-initially empty. Its first selection is moved into the empty root; its second
-selection replaces the picker in the remaining root. The choice is derived
+The compact **Split screen** switch enabled contextual routing through the
+shared local ADB client. Normal launches outside the stock split scene remained
+fullscreen. The stock application picker stayed in one root while the other was
+initially empty. Its first selection was moved into the empty root; its second
+selection replaced the picker in the remaining root. The choice was derived
 from the foreground task transition rather than an application allowlist, so an
-already-running task is handled the same way as a new task. The router accepts
-only the immediate transition from the visible picker session, reparents the
-task with fixed `am stack move-task` and `am task resize` commands, and leaves
+already-running task was handled the same way as a new task. The router accepted
+only the immediate transition from the visible picker session, reparented the
+task with fixed `am stack move-task` and `am task resize` commands, and left
 the stock divider and controls in charge.
 
 On 2026-07-19 this sequence was live-verified with Yandex Navigator selected
@@ -1843,24 +1855,26 @@ root while the picker stayed open in the large left root; RUTUBE then replaced
 the picker on the left. Both applications remained visible and interactive in
 the stock split scene.
 
-Turning the switch off moves routed non-shell tasks back to the fullscreen root
-that contains Denza Apps and restores the stock launcher/map anchors. The toggle
-only changes routing; it does not launch an app. The card keeps this mechanism
-out of its user-facing text.
+Turning the switch off moved routed non-shell tasks back to the fullscreen root
+that contained Denza Apps and restored the stock launcher/map anchors. The
+toggle only changed routing; it did not launch an app. The card kept this
+mechanism out of its user-facing text.
 
-Pane identity is not derived from geometry. The stock divider can expand its
-launcher root to the full `2560 x 1600` display while Android keeps a separate
-fullscreen Home root under the same `com.android.launcher3` package. Denza Apps
-therefore matches the exact stock anchor activities and rejects Home roots by
-activity type; an ambiguous snapshot is left untouched. Already-restored
-anchors are also left in place. On 2026-07-24 this was live-verified with the
+Pane identity is not derived from geometry, and that still holds. The stock
+divider can expand its launcher root to the full `2560 x 1600` display while
+Android keeps a separate fullscreen Home root under the same
+`com.android.launcher3` package. The router therefore matched the exact stock
+anchor activities and rejected Home roots by activity type; an ambiguous
+snapshot was left untouched. Already-restored anchors were also left in place.
+On 2026-07-24 this was live-verified with the
 stock launcher expanded fullscreen: switching routing off preserved root `3`,
 ignored Home root `1`, changed the stored/UI state to off, and produced no task
 move error or `com.byd.avc` crash.
 
-Navigation and Simulcast own their task transitions independently of this
-router. Starting, projecting, returning, or stopping either feature cancels the
-short-lived picker session before issuing task commands. On 2026-07-19 this was
+Navigation and Simulcast owned their task transitions independently of this
+router. Starting, projecting, returning, or stopping either feature cancelled
+the short-lived picker session before issuing task commands. On 2026-07-19 this
+was
 live-verified with Split screen still enabled: 2GIS opened fullscreen, moved to
 the app-owned navigation display, and returned through a new fullscreen task
 without entering either stock split pane. 2GIS exits its process
