@@ -34,6 +34,7 @@ import dev.denza.apps.core.DenzaRuntimeCoordinator;
 import dev.denza.apps.feature.hud.HudGuidanceAccessibilityMonitor;
 import dev.denza.apps.feature.media.MediaButtonEnvironment;
 import dev.denza.apps.feature.media.MediaKeyDiagnostics;
+import dev.denza.apps.feature.media.MediaKeyExperiment;
 import dev.denza.apps.feature.media.MediaKeySnapshot;
 import dev.denza.apps.feature.media.MediaResumeController;
 import dev.denza.apps.feature.media.MediaFocusPauseBridge;
@@ -158,11 +159,17 @@ public class SimulcastAccessibilityService extends AccessibilityService {
         windowReconciler = new SimulcastWindowReconciler(new OverlayWindowHost());
         hudGuidanceMonitor = new HudGuidanceAccessibilityMonitor(this);
         hudGuidanceMonitor.attach();
-        mediaButtonEnvironment = new MediaButtonEnvironment(this);
-        mediaFocusPauseBridge = new MediaFocusPauseBridge(this);
-        mediaFocusPauseBridge.warm();
-        mediaResumeController = new MediaResumeController(this, mediaFocusPauseBridge);
-        mediaResumeController.start();
+        // Both switches are on in a normal build. They exist so one rung of the next/previous
+        // experiment can be taken away without touching anything else; see MediaKeyExperiment.
+        if (MediaKeyExperiment.INTERCEPT_KEYS) {
+            mediaButtonEnvironment = new MediaButtonEnvironment(this);
+            if (MediaKeyExperiment.FOCUS_SURGERY) {
+                mediaFocusPauseBridge = new MediaFocusPauseBridge(this);
+                mediaFocusPauseBridge.warm();
+            }
+            mediaResumeController = new MediaResumeController(this, mediaFocusPauseBridge);
+            mediaResumeController.start();
+        }
         Log.i(TAG, "service connected");
         // The system can recreate this long-lived process without reopening MainActivity
         // (notably after an APK replacement). Recover desired runtimes here so a persisted

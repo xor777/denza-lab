@@ -15,15 +15,19 @@ import org.junit.Test
 /**
  * The media-key lines as the support report actually prints them.
  *
- * Sixty lines of one feature's log were taken out of this report once already; the key gets three
+ * Sixty lines of one feature's log were taken out of this report once already; the key gets four
  * lines and keeps them, whatever the ring holds.
  */
 class MediaKeySupportLinesTest {
     @Test
     fun `the media key lines reach the report verbatim`() {
-        val report = SupportDiagnostics.render(header(), MediaKeyReport.lines(lostAccess(), STAMP))
+        val report = SupportDiagnostics.render(
+            header(),
+            MediaKeyReport.lines(lostAccess(), STAMP, mode = "без правки фокуса (ступень 1)"),
+        )
 
         assertTrue(report, report.contains("Кнопка play/pause=нет доступа к сессиям"))
+        assertTrue(report, report.contains("Режим медиакнопки=без правки фокуса (ступень 1)"))
         assertTrue(report, report.contains("Запомненная сессия=ru.yandex.music"))
         assertTrue(
             report,
@@ -33,13 +37,13 @@ class MediaKeySupportLinesTest {
         )
     }
 
-    /** However many presses the ring holds, the report grows by exactly three lines. */
+    /** However many presses the ring holds, the report grows by exactly four lines. */
     @Test
-    fun `a full ring adds three lines to the report, not thirteen`() {
+    fun `a full ring adds four lines to the report, not fourteen`() {
         val quiet = SupportDiagnostics.render(header(), emptyList())
         val busy = SupportDiagnostics.render(header(), MediaKeyReport.lines(fullRing(), STAMP))
 
-        assertEquals(3, busy.lines().size - quiet.lines().size)
+        assertEquals(4, busy.lines().size - quiet.lines().size)
         assertEquals(1, busy.lines().count { it.startsWith("Последние нажатия=") })
     }
 

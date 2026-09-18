@@ -61,9 +61,23 @@ class MediaFocusPauseBridge(context: Context) : MediaPausePreparation, AutoClose
                         5000,
                     )
                     Log.i(TAG, output.trim())
-                    output.lineSequence().any { it.startsWith("DENZA_MEDIA_FOCUS_READY ") }
+                    val ready = output.lineSequence()
+                        .firstOrNull { it.startsWith(READY) }
+                        ?.removePrefix(READY)
+                        ?.trim()
+                    // The one line of the whole feature that edits the car's own audio-focus stack,
+                    // written where it can be read: whether it ran, and whose focus it took. The
+                    // wheel's next and previous keys are routed by that stack, and this says in one
+                    // entry whether we are the reason they stopped finding the right player.
+                    MediaKeyDiagnostics.recordCompletion(
+                        "focus ${ready ?: "unchanged"} " +
+                            request.predecessors.joinToString(",") { it.packageName },
+                        ready != null,
+                    )
+                    ready != null
                 }.getOrElse { error ->
                     Log.i(TAG, "focus preparation failed", error)
+                    MediaKeyDiagnostics.recordCompletion("focus-helper-failed", false)
                     false
                 }
                 busy.set(false)
@@ -80,6 +94,7 @@ class MediaFocusPauseBridge(context: Context) : MediaPausePreparation, AutoClose
 
     private companion object {
         const val TAG = "DenzaMediaFocus"
+        const val READY = "DENZA_MEDIA_FOCUS_READY "
         val PACKAGE = Regex("[A-Za-z0-9_]+(?:\\.[A-Za-z0-9_]+)+")
     }
 }

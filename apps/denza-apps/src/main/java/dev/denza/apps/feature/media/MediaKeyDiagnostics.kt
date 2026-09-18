@@ -111,8 +111,12 @@ object MediaKeyReport {
     fun lines(
         snapshot: MediaKeySnapshot,
         stamp: (Long) -> String = ::wallClock,
+        mode: String = MediaKeyExperiment.label,
     ): List<String> = listOf(
         "Кнопка play/pause=${snapshot.state.label}",
+        // Which rung of the next/previous experiment this build is, so a screenshot of the report
+        // is enough to know what was switched off when the owner pressed the wheel.
+        "Режим медиакнопки=$mode",
         "Запомненная сессия=${snapshot.rememberedPackage ?: NOTHING}",
         "Последние нажатия=${presses(snapshot.presses, stamp)}",
     )

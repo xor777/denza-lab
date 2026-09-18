@@ -77,7 +77,7 @@ class MediaKeyDiagnosticsTest {
     }
 
     @Test
-    fun `the report is three lines and no more`() {
+    fun `the report is four lines and no more`() {
         val lines = MediaKeyReport.lines(
             MediaKeySnapshot(
                 state = MediaKeyState.LISTENING,
@@ -85,16 +85,30 @@ class MediaKeyDiagnosticsTest {
                 presses = listOf(MediaKeyPress(1L, 386, true, "ru.yandex.music play")),
             ),
             STAMP,
+            mode = "обычный",
         )
 
         assertEquals(
             listOf(
                 "Кнопка play/pause=слушает",
+                "Режим медиакнопки=обычный",
                 "Запомненная сессия=ru.yandex.music",
                 "Последние нажатия=12:03:41 386 ✓ ru.yandex.music play",
             ),
             lines,
         )
+    }
+
+    /** A build with a rung taken away has to say so where the owner can read it. */
+    @Test
+    fun `the mode line names the rung this build is on`() {
+        val lines = MediaKeyReport.lines(
+            MediaKeySnapshot(MediaKeyState.LISTENING, null, emptyList()),
+            STAMP,
+            mode = "без правки фокуса (ступень 1)",
+        )
+
+        assertEquals("Режим медиакнопки=без правки фокуса (ступень 1)", lines[1])
     }
 
     @Test
@@ -104,7 +118,7 @@ class MediaKeyDiagnosticsTest {
             STAMP,
         )
 
-        assertEquals("Запомненная сессия=нет", lines[1])
+        assertEquals("Запомненная сессия=нет", lines[2])
     }
 
     /**
