@@ -741,8 +741,8 @@ class ContourBoardContractTest {
     @Test
     fun aRunPastTheCeilingIsCutAndTheCutIsMarkedOnce() {
         val generator = generator()
-        assertTrue(generator.contains("lambda v: v is not None and v >= PETAL_FULL"))
-        assertTrue(generator.contains("lambda v: v is not None and v <= -PETAL_RETURN_FULL"))
+        assertTrue(generator.contains("lambda v: v >= PETAL_FULL"))
+        assertTrue(generator.contains("lambda v: v <= -PETAL_RETURN_FULL"))
         assertTrue(
             "one tick at the run's centre",
             generator.contains("cx = (xs[start] + xs[stop - 1]) / 2"),
@@ -751,9 +751,43 @@ class ContourBoardContractTest {
             "the launch state exists on the board",
             generator.contains("road=with_launch("),
         )
+    }
+
+    /**
+     * There are no holes on either record, and a short record is a short chart.
+     *
+     * `docs/energy-display-contract.md` §2.3. The board before this one had a «Пропуск связи» state
+     * whose whole subject was a gap drawn as `NaN` points standing on the odometer's grid; the axis
+     * is recorded road now, so what a missing kilometre does is shorten the chart and mark nothing.
+     * The generator has no hole helper left to call, and the two states that used to need one are a
+     * filling log and a log with a kilometre missing out of the middle - which draw the same way,
+     * because that is the claim.
+     */
+    @Test
+    fun aGapInTheRecordShortensTheChartAndMarksNothing() {
+        val generator = generator()
+        assertTrue("no hole helper", !generator.contains("def with_hole"))
+        assertTrue("and nothing calls one", !generator.contains("with_hole("))
         assertTrue(
-            "and so does a stretch with no energy behind it",
-            generator.contains("road=with_hole("),
+            "a filling log is thirty-seven recorded buckets",
+            generator.contains("road=consumption_history(18.6, points=37)"),
+        )
+        assertTrue(
+            "and a kilometre nobody recorded is ninety",
+            generator.contains("road=consumption_history(18.2, points=90)"),
+        )
+        // The board's own smoothing and its floor, against the code's.
+        assertEquals(
+            "nothing is drawn from fewer than five readings, on either record",
+            ConsumptionChart.MIN_STEPS.toFloat(),
+            python(generator, "PETAL_MIN_STEPS"),
+            1e-6f,
+        )
+        assertEquals(
+            "and the smoothing is the same ten on both",
+            ConsumptionChart.SMOOTH_STEPS.toFloat(),
+            python(generator, "PETAL_SMOOTH"),
+            1e-6f,
         )
     }
 
@@ -809,9 +843,17 @@ class ContourBoardContractTest {
     fun theUnitNamesTheRoadTheFigureIsTheMeanOfWhileTheLogIsStillFilling() {
         // «за 10 км» is what the log holds when it *has* ten kilometres. The states board draws a
         // history thirty-seven buckets long, and under it the unit says 3,7 - a figure read against
-        // a road it is not the mean of is the very thing this window was added to stop.
+        // a road it is not the mean of is the very thing this window was added to stop. And the box
+        // above it is thirty-seven points wide, which is the same 3,7 km said in the other place
+        // (contract §2.2, §2.3): the caption and the chart are one statement.
         val board = states()
         assertEquals("кВт·ч/100 км · за 3,7 км", FILLING_UNIT)
+        assertEquals(
+            "the unit's road is the width of the box above it",
+            37 * ConsumptionChart.PITCH_KM,
+            3.7,
+            1e-9,
+        )
         assertEquals(
             "the filling unit is on the full one's anchor",
             plan.petalUnitX,
