@@ -987,6 +987,70 @@ across a start/stop cycle. `FUEL_LOW` was removed after the first cluster run;
 the level and range followed the retired pages on 2026-08-27 because the current
 cluster renderer does not display them and the stock cluster already does.
 
+#### The car's own recorder: `VehicleCapture` (2026-09-22)
+
+`tools/vehicle_log.py` records these ids from the host, which needs a laptop
+attached to a car that is being driven. The drives that close §8 of the energy
+contract - the engine running at speed - are the drives nobody can sit beside
+with a terminal. So the hub writes the sweep down itself.
+
+It is not a new channel and not a probe. `VehicleCapture` is handed the map the
+hub was about to publish to the panel, after the snapshot, on the poll thread; it
+issues no transact, names no feature id and adds nothing to the batch. The car
+cannot tell whether it is on.
+
+**The switch is a marker file**, and there is no UI, no setting and no broadcast:
+
+```bash
+adb -s 127.0.0.1:5555 shell run-as dev.denza.apps mkdir -p files/vehicle-capture
+adb -s 127.0.0.1:5555 shell run-as dev.denza.apps touch files/vehicle-capture/ENABLED
+```
+
+The loop looks at it when it starts and then once a minute, so turning it on
+mid-drive costs at most a minute and a car that never uses it costs one
+`exists()` a minute. Deleting the marker closes the current file; nothing is
+written and the directory is not created while it is absent.
+
+**Rows.** One per second of elapsed realtime whatever the sweep's cadence is, so
+the 100 ms sweep behind a visible screen is downsampled ten to one and the
+ledger's one-second sweep writes every time. Columns: `time` (local ISO-8601
+with milliseconds), `mono_s` (elapsed realtime, three decimals), then one column
+per `VehicleSignal` in declaration order. The eleven the host recorder also
+writes carry **its** names exactly - `power_kw`, `generation_kw`,
+`generation_state`, `engine_running`, `engine_rpm`, `speed_kmh`, `odometer_km`,
+`pack_volt`, `park`, `charge_gun`, `charge_kw` - and the rest are the enum name
+lowercased (`pack_temp_avg`, `motor_rear_left_c`, `charge_minutes`, …). The
+values are the ids' own decoded numbers, not `VehicleConvention.load`'s flipped
+sign: the convention is the reader's, which is the whole point of a recording
+that exists to settle it. A signal that did not answer or was not in this
+sweep's batch is an empty cell, never a zero; cold signals carry the last cold
+sweep's rebuilt value, which is exactly what the snapshot holds. There is no
+`raw_` half - the car has already decoded, and what it writes is what the panel
+drew.
+
+**Bounds.** A new file per enable and per process start, named
+`vehicle-<yyyyMMdd-HHmmss>.csv` with the header as its first line; rotation past
+2 MB, which is some four hours of rows; the newest four files kept and older ones
+deleted on rotation and at enable. Every row is `fsync`ed before the call
+returns ([JournalFile], as both journals are), so an ignition cut loses at most
+the row in flight. Any I/O failure is logged once under `DenzaVehicle` and
+switches the capture off until the next marker check; the poll loop never throws
+because of it.
+
+**Pulling the files:**
+
+```bash
+adb -s 127.0.0.1:5555 shell run-as dev.denza.apps ls files/vehicle-capture
+adb -s 127.0.0.1:5555 shell run-as dev.denza.apps cat files/vehicle-capture/<file> \
+  > captures/vehicle-log/<file>
+```
+
+`VehicleLogReplayTest` reads them unchanged, by the same column lookups it uses
+on the host recorder's files: it never learns which recorder wrote what it is
+replaying, and that is what the shared names buy. `VehicleCaptureTest` reads
+`tools/vehicle_log.py` and asserts each shared name is still a `Signal` in it, so
+a rename on either side is a failing test rather than a column of silence.
+
 ## Mirrors behavior preserved in Denza Apps
 
 The migrated product path preserves the standalone Denza Mirrors renderer as

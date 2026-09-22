@@ -40,6 +40,9 @@ import kotlinx.coroutines.sync.Mutex
  * the renderer reads it from the main thread. [VehiclePollLoopGate] also keeps a
  * cancelled loop inside the single-writer boundary until a blocking shell call
  * has actually returned and its `finally` block has flushed the journal.
+ *
+ * That same thread also writes [VehicleCapture] — this sweep on disk while the host has left a
+ * marker for it, and nothing at all while it has not. It adds no call to the batch.
  */
 internal class VehicleTelemetryHub(context: Context) {
 
@@ -81,6 +84,18 @@ internal class VehicleTelemetryHub(context: Context) {
      * two minutes of revolutions is about right now, and a restart is long enough to make it a lie.
      */
     private val trace = EngineTrace()
+
+    /**
+     * The sweep, written down, on the drives nobody can attach a laptop to.
+     *
+     * Off unless the host has left a marker in `files/vehicle-capture/` ([VehicleCapture]), which
+     * is why it can sit in the loop unconditionally: with no marker it is an `exists()` a minute
+     * and nothing else. It is handed the map that is about to be published and asks the car
+     * nothing of its own.
+     */
+    private val capture = VehicleCapture.of(app.filesDir, SystemClock::elapsedRealtime) { why ->
+        Log.w(TAG, "Запись сигналов машины остановлена: $why")
+    }
 
     @Volatile
     var snapshot: VehicleTelemetry = VehicleTelemetry()
@@ -227,6 +242,9 @@ internal class VehicleTelemetryHub(context: Context) {
         var coldDueAt = 0L
         var backoffMs = FIRST_BACKOFF_MS
         val cold = LinkedHashMap<VehicleSignal, Double>()
+        // A loop that has just started has never looked at the marker, and the minute between
+        // checks would be a lie about a process that came up a moment ago.
+        capture.recheck()
         try {
             while (isActive) {
                 val session = shell ?: DenzaLocalAdb.client(app).openPersistentShell().also { shell = it }
@@ -326,11 +344,17 @@ internal class VehicleTelemetryHub(context: Context) {
                     trip = ledger.trip,
                 )
 
+                // Last, and out of the same map the panel is now reading: a recording of what the
+                // screen showed, not of something computed beside it. It never throws and it never
+                // writes more than a row a second, whatever this cadence is.
+                capture.sample(merged)
+
                 delay(sweepMs)
             }
         } finally {
             flush()
             ledger.record()?.let(tripJournal::save)
+            capture.close()
             shell?.runCatching { close() }
         }
     }

@@ -373,10 +373,16 @@ test.
 
 | open | closes with |
 | --- | --- |
-| what `GENERATION_KW` is in motion | one recorded drive with the engine running at speed, `tools/vehicle_log.py` |
+| what `GENERATION_KW` is in motion | one recorded drive with the engine running at speed, `tools/vehicle_log.py` or the car's own `VehicleCapture` |
 | the sign of `POWER_KW` under acceleration | the same recording |
 | whether `ENGINE_RPM` reports anything while the engine is off in motion | the same recording |
 | the stock zones' true edges | the grid photograph |
+
+The first three want a drive and a drive wants no laptop, so since 2026-09-22 the
+car can record the sweep itself: a marker file turns `VehicleCapture` on, it
+writes the same columns under the same names, and `VehicleLogReplayTest` reads a
+pulled file without knowing which recorder made it
+(`docs/instrument-display-findings.md`, «The car's own recorder»).
 
 The parked half of §2.5 is closed twice, the second time on the recorder
 (2026-09-18, `captures/vehicle-log/vehicle-20260918-183009.csv`, the first file
