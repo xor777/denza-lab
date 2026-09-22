@@ -143,7 +143,9 @@ The same form works for every module in the second table above.
   Energy is joined once more on top of that: `EnergyReadoutsTest` holds the
   cluster and the car page to one answer about every energy string either of them
   prints, and `VehicleLogReplayTest` holds the arithmetic to whatever
-  `captures/vehicle-log/` records.
+  `captures/vehicle-log/` records — files written by the host recorder
+  `tools/vehicle_log.py` or by the car's own `VehicleCapture`, which the replay
+  reads without knowing which of the two made them.
 - Record durable findings in the closest existing doc, not only in chat. Create a
   new `.md` only when the topic has a durable owner. Parked code → `research/`.
 - Never commit APKs, reverse-engineered APKs, or large extracted binaries
