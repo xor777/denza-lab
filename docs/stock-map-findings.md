@@ -105,6 +105,24 @@ here. The head unit's client asks a different backend and gets China.
 So the world map lives in the phone app, the web map and the open platform, not
 in the AutoSDK build BYD ships here.
 
+## The pipeline works; only the data is missing
+
+The strongest test, run last (2026-09-22). In the same session, with `Current
+city` still `To be updated` and `Nearby cities` still `0 cities / 0.00 KB` —
+that is, with **no offline pack downloaded at all** — a Beijing search result was
+opened. The map drew Beijing in full: streets and their names, buildings, water,
+the zoo and the planetarium, metro entrances, traffic-coloured roads, POI icons,
+a photo card with opening hours and two phone numbers.
+
+So the client streams vector map data online and renders it correctly, from this
+car, on this network, with an empty offline store. Nothing about the engine, the
+build, the connection or the missing packs explains the empty canvas at home.
+The one thing that differs between the two places is whether the server has data
+for them.
+
+That also retires the last workaround worth naming: downloading the 55.53 MB
+`Base package` cannot help. Rendering never needed it, and its content is China.
+
 ## The native levers, and where they stop
 
 What the firmware itself offers, and what it does not:
@@ -115,8 +133,14 @@ What the firmware itself offers, and what it does not:
 | `Settings.Global.byd_map_package` | `com.byd.launchermap` | CustomKey action 7 only; this car uses action 1 (APA), so it is inert here |
 | Map Settings → Navigate / Acoustic / Interconnect / Personal | inspected live | route preferences, voice, phone→car destination handoff (BYD app, WeChat, Amap phone, Dianping, Meituan), account, offline map. **No region, country or data-source control anywhere** |
 
-There is no property, setting or account switch that points the stock client at
-the world map. Reaching it would mean patching a signed `/system` app and then
+The one switch in that table never pulled is the Amap account: the map reports
+`Not logged in yet`, and signing in is the owner's to do, not this session's.
+Nothing in the app ties an account to a region — the account page offers
+favourites, offline map and Team — so the expectation is that it changes
+nothing, but it is the last untried control that exists in the UI.
+
+Beyond it there is no property, setting or account switch that points the stock
+client at the world map. Reaching it would mean patching a signed `/system` app and then
 persuading a backend that answers only about China — not a native path, and not
 a reachable one.
 
