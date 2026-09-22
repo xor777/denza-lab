@@ -259,7 +259,8 @@ class VehicleCaptureTest {
      *
      * The file is grown from outside rather than by driving fifteen thousand rows through it: the
      * bound is a length on the disk, and what this has to prove is that the length is the one
-     * written down.
+     * written down. [TWO_MEGABYTES] is written out here rather than read off the class for the
+     * same reason - a padding taken from the constant would follow it wherever it moved.
      */
     @Test
     fun theFileRotatesPastItsBoundAndOnlyFourAreKept() {
@@ -273,13 +274,13 @@ class VehicleCaptureTest {
             sweep(capture, stepMs = 1_000L)
         }
 
-        assertEquals("five files left more than the cap", VehicleCapture.MAX_FILES, files().size)
+        assertEquals("five files left something other than four", FOUR_FILES, files().size)
         assertFalse("the oldest file survived the cap", first.exists())
 
         // And the newest one is the one being written: a rotation opens a file with a header and
         // the next sweep's row goes into it, not into the file that was full.
         sweep(capture, stepMs = 1_000L)
-        assertEquals(VehicleCapture.MAX_FILES, files().size)
+        assertEquals(FOUR_FILES, files().size)
         assertEquals(1, rows(files().last()).size)
         assertTrue(failures.isEmpty())
     }
@@ -289,7 +290,7 @@ class VehicleCaptureTest {
         enable()
         val capture = capture()
         sweep(capture)
-        files().single().appendText("x".repeat((VehicleCapture.MAX_BYTES - 1024L).toInt()))
+        files().single().appendText("x".repeat((TWO_MEGABYTES - 1024L).toInt()))
         sweep(capture, stepMs = 1_000L)
         assertEquals(1, files().size)
     }
@@ -317,6 +318,29 @@ class VehicleCaptureTest {
         sweep(capture)
         assertEquals(2, files().size)
         assertEquals("the second enable appended to the first file", 2, rows(first).size)
+        assertEquals(1, rows(files().last()).size)
+    }
+
+    /**
+     * And a poll loop that ended closes the file: a new file, not a continuation.
+     *
+     * The hub calls this from the same `finally` that flushes the consumption journal. With the
+     * ledger's claim the loop only ends with the process, but a file that silently spanned a gap
+     * where nothing was recorded would be a lie a reader has no way to notice.
+     */
+    @Test
+    fun aLoopThatEndsClosesTheFileAndTheNextOneOpensAnother() {
+        enable()
+        val capture = capture()
+        sweep(capture)
+        val first = files().single()
+
+        capture.close()
+        wall += 1_000L
+        sweep(capture, stepMs = 1_000L)
+
+        assertEquals(2, files().size)
+        assertEquals("the closed file kept taking rows", 1, rows(first).size)
         assertEquals(1, rows(files().last()).size)
     }
 
@@ -413,7 +437,7 @@ class VehicleCaptureTest {
 
     /** Push a file past the bound from outside, the cheap way. */
     private fun fill(file: File) {
-        file.appendText("x".repeat(VehicleCapture.MAX_BYTES.toInt()))
+        file.appendText("x".repeat(TWO_MEGABYTES.toInt()))
     }
 
     /** The repository, found the way `VehicleLogReplayTest` finds it. */
@@ -425,6 +449,15 @@ class VehicleCaptureTest {
     private companion object {
         /** 2026-09-18T18:30:00Z, so the names and moments in this test are somebody's real evening. */
         const val STARTED_AT = 1_789_763_400_000L
+
+        /**
+         * The bound, spelled out, because a padding read off [VehicleCapture.MAX_BYTES] would
+         * follow the constant wherever somebody moved it and prove nothing about where it is.
+         */
+        const val TWO_MEGABYTES = 2L * 1024L * 1024L
+
+        /** And the cap, spelled out for the same reason. */
+        const val FOUR_FILES = 4
 
         val NAME = Regex("""vehicle-\d{8}-\d{6}\.csv""")
         val MOMENT = Regex("""\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}""")
