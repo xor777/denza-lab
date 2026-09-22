@@ -64,22 +64,53 @@ refused per city when that city's pack is missing.
 occur zero times in `resources.arsc` and zero times in `libGbl.so` (control:
 `amap` occurs 201 times in the same binary).
 
-**AutoNavi has no street data here anyway.** Host probe of
-`webrd01.is.autonavi.com` (`style=8`): Moscow at z12 and z15 returns a
-179-byte 1-bit blank PNG; Beijing at the same zooms returns 19 152 and 12 379
-bytes. Moscow at z8 returns 8 335 bytes — a coarse world overview layer exists,
-street level does not. The car reaches the servers (`ping auto.amap.com` ≈ 290 ms
-from the head unit), so this is coverage, not connectivity.
+**The tile services this product family uses stop at Greater China.** Host
+probe at z15 of `webrd01.is.autonavi.com` (`style=8`, roads),
+`webrd02` (`style=7`, base) and `webst01` (`style=6`, satellite), bytes per
+tile:
+
+| | Beijing | Hong Kong | Taipei | Tokyo | Bangkok | Paris | Moscow | Sochi |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| roads | 12 379 | 18 939 | 9 337 | 179 | 179 | 179 | 179 | 179 |
+| base | 13 538 | 20 168 | 12 765 | 124 | 124 | 124 | 124 | 124 |
+| satellite | 16 299 | 13 270 | 16 575 | 4 235 | 4 235 | 4 235 | 4 235 | 4 235 |
+
+The overseas numbers are identical placeholder images. At z8 Moscow does return
+8 335 bytes — a coarse world overview with `莫斯科` and trunk roads — so a world
+layer exists at overview scale and nothing below it. The car reaches the servers
+(`ping auto.amap.com` ≈ 290 ms, `autoapi.amap.com` ≈ 187 ms from the head unit),
+so this is coverage, not connectivity.
+
+## Amap does have a world map — this build does not reach it
+
+Corrected on 2026-09-22 after the owner opened Amap on a phone and saw Moscow
+and their own position. Amap's consumer product does carry a world map: the
+company announced coverage of 200+ countries and regions with driving, cycling,
+walking and transit routing in 78 languages, and the open platform sells a world
+map service. So "Amap has no data here" is wrong as a statement about Amap.
+
+It is right as a statement about **this head unit**. Searching `Moscow` in the
+car's own map (2026-09-22, live) returns Chinese restaurants: tabs `北京`,
+`宁波`, `大连`, `其他城市`, first hit `莫斯科餐厅` in Beijing's 西城区, 5 834 km
+away, cuisine `俄国菜`; the `其他城市` tab offers `莫斯科西餐厅` in 满洲里市,
+5 171 km. The backend answered a Latin query by scanning Chinese cities. Nothing
+in the result space is outside China, and the map's canvas stays empty at the
+car's own position while the same servers answer within 190 ms.
+
+So the world map lives in the phone app and in the open platform, not in the
+AutoSDK build BYD ships here.
 
 ## Verdict
 
 The stock map cannot be made to show Russia. Not by a setting, not by a
 downloaded pack, not by a USB import, not by pointing it at another tile source:
 the renderer consumes Amap's own vector data, the only importable data is Amap's
-own signed version-matched packs, and Amap has no Russian street data to put in
-them. Anything short of replacing the engine — which is a 569 MB closed
-`/system` app that also feeds the cluster map card and the AR HUD — does not
-reach this.
+own China packs — Amap's install page offers exactly `全量地图数据` (full) or
+`分省地图数据` (per-province), and nothing else — and the online services this
+build talks to answer only about China. Amap's world map does exist, but it is
+not sold as an `amapauto9` pack and there is no build here that subscribes to
+it. Anything short of replacing the engine — a 569 MB closed `/system` app that
+also feeds the cluster map card and the AR HUD — does not reach this.
 
 What is left is what this repository already does: keep the stock surfaces and
 put a different navigator behind them. The navigation role (`PersonBean`
@@ -89,6 +120,13 @@ is written by this app rather than read from Amap. See
 [shortcuts-automation-findings.md](shortcuts-automation-findings.md),
 [instrument-display-findings.md](instrument-display-findings.md) and
 [dishare-api-notes.md](dishare-api-notes.md).
+
+One untested option is worth naming, because it is ordinary: Amap's **phone**
+app (`com.autonavi.minimap`) is an ordinary Android app and is not installed on
+this head unit. If it runs here it would carry the world map the owner just saw
+on their phone, and it would be projectable to the cluster the same way Yandex
+Navigator is. That is not the stock map — it is another navigator behind the
+same surfaces.
 
 ## Not checked
 
