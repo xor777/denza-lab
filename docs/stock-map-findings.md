@@ -97,8 +97,28 @@ away, cuisine `俄国菜`; the `其他城市` tab offers `莫斯科西餐厅` in
 in the result space is outside China, and the map's canvas stays empty at the
 car's own position while the same servers answer within 190 ms.
 
-So the world map lives in the phone app and in the open platform, not in the
-AutoSDK build BYD ships here.
+The owner then opened `amap.com/@37.6173,55.7558,14z` in a browser: Moscow is
+drawn in full detail — the ring roads, `M11`, `M12`, `E105`, the airports, all
+labelled in Chinese. So the data exists and Amap serves it to a browser from
+here. The head unit's client asks a different backend and gets China.
+
+So the world map lives in the phone app, the web map and the open platform, not
+in the AutoSDK build BYD ships here.
+
+## The native levers, and where they stop
+
+What the firmware itself offers, and what it does not:
+
+| Lever | State | Reach |
+| --- | --- | --- |
+| `PersonBean.DEFAULT_MAP_SWITCH` | already `ru.yandex.yandexnavi` (read 2026-09-22) | the car's map role: voice, Shortcuts `102000` |
+| `Settings.Global.byd_map_package` | `com.byd.launchermap` | CustomKey action 7 only; this car uses action 1 (APA), so it is inert here |
+| Map Settings → Navigate / Acoustic / Interconnect / Personal | inspected live | route preferences, voice, phone→car destination handoff (BYD app, WeChat, Amap phone, Dianping, Meituan), account, offline map. **No region, country or data-source control anywhere** |
+
+There is no property, setting or account switch that points the stock client at
+the world map. Reaching it would mean patching a signed `/system` app and then
+persuading a backend that answers only about China — not a native path, and not
+a reachable one.
 
 ## Verdict
 
@@ -132,6 +152,10 @@ same surfaces.
 
 - Whether the `Base package` and `Current city` downloads still succeed from
   here; both showed `To be updated` and were not pressed.
-- Whether the map's online search returns anything for a Russian query. The
-  catalog and the blank canvas answer the question; typing into the owner's
-  search history to confirm it was not worth the litter.
+- Whether the engine would draw the coarse world overview layer (the one behind
+  the z8 tile) if the map were zoomed out to country scale. It could not be
+  tested from a shell: the map exposes no zoom control in its view tree,
+  `KEYCODE_ZOOM_OUT` is ignored, and `sendevent` to `/dev/input/event4`
+  (`himax-touchscreen`) is refused for the shell UID, so no pinch can be
+  injected. It would not change the answer — an overview layer carries no
+  routing and no search.
