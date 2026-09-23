@@ -17,10 +17,10 @@ import org.junit.Test
  * So this is a source-level guard, in the style of the board contract tests: it reads the two files
  * and refuses the calls that would put a second formatter in one of them.
  *
- * **What it cannot check.** Whether the strings it does draw came from the right field. A renderer
- * that printed `readouts.windowCaps` where it means `readouts.window` passes this and fails a
- * screenshot; the point of a guard is the class of defect it makes impossible, not the class it
- * makes unlikely.
+ * **What it cannot check.** Whether the strings it does draw came from the right field. A car
+ * page that printed `readouts.engineCellTitle` where it means `readouts.engineCellCaption` passes
+ * this and fails a screenshot; the point of a guard is the class of defect it makes impossible, not
+ * the class it makes unlikely.
  */
 class EnergySourceGuardTest {
 
@@ -82,9 +82,9 @@ class EnergySourceGuardTest {
          *
          * `ContourReadout`'s formatters and Java's, which is what every hand-rolled figure in this
          * app has been. What stays legitimately is the *words*: `ContourReadout.UNIT_KW`, its
-         * degree sign, the thermal thresholds a temperature's colour is judged against.
-         * None of those is a number a snapshot decides, which is why the ban is on the call rather
-         * than on the class - a renderer reading a constant is reading the one record of it, and a
+         * degree sign, the thermal thresholds a temperature's colour is judged against. None of
+         * those is a number a snapshot decides, which is why the ban is on the call rather than on
+         * the class - a renderer reading a constant is reading the one record of it, and a
          * renderer calling a formatter is deciding how a reading looks.
          */
         val BANNED = listOf(
@@ -92,8 +92,6 @@ class EnergySourceGuardTest {
             "ContourReadout.tenth(",
             "ContourReadout.consumption(",
             "ContourReadout.perHundredKm(",
-            "ContourReadout.windowCaps(",
-            "ContourReadout.windowFoot(",
             "String.format(",
         )
     }

@@ -78,16 +78,12 @@ internal class EnergyReadouts {
     var consumptionNegative: Boolean = false
         private set
 
-    /** The cluster's unit: «кВт·ч/100 км · за 10 км», or the road the window actually has. */
+    /**
+     * The consumption's unit and the road it is over: «кВт·ч/100 км · за 10 км», or the road the
+     * window actually has. One string on both screens - the cluster prints it after the petal's
+     * figure, the car page after «Расход» and the same figure over its chart.
+     */
     var window: String = ""
-        private set
-
-    /** And the car page's own case of the same window: «ЗА 10 КМ» / «10 КМ» in a pane. */
-    var windowCaps: String = ""
-        private set
-
-    /** The car page's whole foot unit, «кВт·ч/100 км · ЗА 10 КМ», which that page measures. */
-    var windowFoot: String = ""
         private set
 
     /** «ДВС ДАЁТ» - what the engine gives, not where it goes. */
@@ -161,13 +157,11 @@ internal class EnergyReadouts {
      * One snapshot.
      *
      * @param parked whether the selector is in P, which is what buys the consumption its tenth
-     * @param narrow whether the car page is in a pane, where the window drops its «ЗА»
      * @param shortLegend whether the face in use crowds «ПОСЛЕДНИЕ» out of the engine's sentence
      */
     fun read(
         telemetry: VehicleTelemetry,
         parked: Boolean,
-        narrow: Boolean = false,
         shortLegend: Boolean = false,
     ) {
         val load = packKilowatts(telemetry)
@@ -208,10 +202,7 @@ internal class EnergyReadouts {
         // the reader cannot see is not the exception the blue is for.
         consumptionNegative = consumptionFigure?.startsWith('-') == true
 
-        val covered = telemetry.consumptionKm
-        window = figures.perHundredKm(covered)
-        windowCaps = figures.windowCaps(covered, narrow)
-        windowFoot = figures.windowFoot(covered, narrow)
+        window = figures.perHundredKm(telemetry.consumptionKm)
 
         val trace = telemetry.engineTrace
         engineWindow = figures.intoPack(trace.spanSeconds, shortLegend)

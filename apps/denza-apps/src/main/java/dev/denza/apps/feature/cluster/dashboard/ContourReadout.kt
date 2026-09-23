@@ -56,9 +56,9 @@ internal object ContourReadout {
      * The spread of *what* is exactly the question that started the sixth pass.
      *
      * And since the ninth it is the **only** word in the temperature row: `БАТАРЕЯ`, `МОТОРЫ` and
-     * `ИНВЕРТОР` are gone, replaced by five glyphs (`ThermalGlyphs` since the Luminofor board). Which
-     * means a word there now means the pack is misbehaving, which is worth more than the three
-     * captions cost.
+     * `ИНВЕРТОР` are gone, replaced by five glyphs - `ThermalGlyphs` since the Luminofor board.
+     * Which means a word there now means the pack is misbehaving, which is worth more than the
+     * three captions cost.
      */
     const val CAPTION_SPREAD = "РАЗБРОС ЯЧЕЕК"
 
@@ -166,16 +166,6 @@ internal object ContourReadout {
     /** The petal's unit ends in this, whatever distance it names. */
     const val KM_SUFFIX = " км"
 
-    /**
-     * And the car page's own case of the same window: «ЗА 10 КМ», «ЗА 3,7 КМ», «10 КМ» in a pane.
-     *
-     * One window, two cases, one place. The car page's foot line is a run of capitals and the
-     * petal's unit is not, and that is the whole of the difference: the distance and the rule that
-     * picks it are [perHundredKm]'s.
-     */
-    const val OVER_CAPS = "ЗА "
-    const val KM_SUFFIX_CAPS = " КМ"
-
     /** Past this a «м:сс» gains a glyph and every anchor in front of it would move. */
     const val MAX_WINDOW_SECONDS = 9 * 60 + 59
 
@@ -249,50 +239,21 @@ internal object ContourReadout {
         if (parked) tenth(perHundredKm) else whole(perHundredKm)
 
     /**
-     * The window, as every line that names it prints it: a full one whole, a filling one to a
-     * tenth, and **never a whole-number rounding of a filling window** - «ЗА 4 КМ» over 3.7 km of
-     * road is the defect the window was added to fix, one level down.
+     * The petal's unit, naming the road the figure beside it is actually the mean of - and the car
+     * page's, which prints the same string after «Расход» and the same figure.
      *
-     * One distance, three lines, one rule. The petal's unit, the car page's pane caption and the
-     * car page's whole foot line differ in the words either side of the figure and in nothing
-     * else, and they were three copies of this comparison.
+     * A full window is written whole, a filling one to a tenth, and **never as a whole-number
+     * rounding of a filling window**: «за 4 км» over 3.7 km of road is the defect the window was
+     * added to fix, one level down.
      *
      * @param coveredKm the known road the figure beside it is actually the mean of
      * @param windowKm what the window holds once it is full
      */
-    private fun window(coveredKm: Double, windowKm: Double, lead: String, suffix: String): String {
+    fun perHundredKm(coveredKm: Double, windowKm: Double): String {
         val figure =
             if (coveredKm >= windowKm - KM_EPSILON) whole(windowKm) else tenth(coveredKm)
-        return lead + figure + suffix
+        return UNIT_PER_100KM_PREFIX + figure + KM_SUFFIX
     }
-
-    /** The petal's unit, naming the road the figure beside it is actually the mean of. */
-    fun perHundredKm(coveredKm: Double, windowKm: Double): String =
-        window(coveredKm, windowKm, UNIT_PER_100KM_PREFIX, KM_SUFFIX)
-
-    /**
-     * The car page's window, in its own case: «ЗА 10 КМ», «ЗА 3,7 КМ», and neither word in a pane.
-     *
-     * @param narrow the 416 pane, where «ЗА» is the only thing on this line that may go
-     */
-    fun windowCaps(coveredKm: Double, windowKm: Double, narrow: Boolean): String =
-        window(coveredKm, windowKm, if (narrow) "" else OVER_CAPS, KM_SUFFIX_CAPS)
-
-    /**
-     * And the whole of the car page's foot unit: «кВт·ч/100 км · ЗА 10 КМ».
-     *
-     * One string rather than a unit and a window concatenated in the frame that draws them: the
-     * page measures this line to decide whether the word «РАСХОД» fits in front of it, so it was
-     * building and measuring a fresh string sixty times a second over a distance that changes
-     * once every hundred metres.
-     */
-    fun windowFoot(coveredKm: Double, windowKm: Double, narrow: Boolean): String =
-        window(
-            coveredKm,
-            windowKm,
-            UNIT_PER_100KM_UNIT + SEPARATOR + (if (narrow) "" else OVER_CAPS),
-            KM_SUFFIX_CAPS,
-        )
 
     /**
      * The engine box's sentence, naming how far back the box actually reaches.

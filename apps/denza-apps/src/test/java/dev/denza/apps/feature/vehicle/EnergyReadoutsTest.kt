@@ -2,6 +2,8 @@ package dev.denza.apps.feature.vehicle
 
 import dev.denza.apps.feature.cluster.dashboard.ContourFlow
 import dev.denza.apps.feature.cluster.dashboard.ContourReadout
+import dev.denza.apps.feature.trip.StripModel
+import dev.denza.apps.feature.trip.StripReadings
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -21,7 +23,9 @@ import org.junit.Test
  * `EnergyReadouts` with an `EnergyReadouts`, which agree by construction over any input: what the
  * cluster and the car page read out of this object - the power figure with its charging
  * substitution, the engine's cell, the chart, the window, the consumption - is what is listed here,
- * so a field one screen stopped reading is a field this test stops covering, visibly.
+ * so a field one screen stopped reading is a field this test stops covering, visibly. The window
+ * goes one step further and is read off the car page's own model, as [StripReadings] writes it for
+ * the chart's caption.
  */
 class EnergyReadoutsTest {
 
@@ -135,10 +139,13 @@ class EnergyReadoutsTest {
     fun bothScreensSayTheSameThingAboutEverySnapshot() {
         val cluster = EnergyReadouts()
         val strip = EnergyReadouts()
+        val page = StripReadings()
+        val model = StripModel()
         cases().forEach { (name, telemetry) ->
             val parked = telemetry.parked == true
-            cluster.read(telemetry, parked, narrow = false, shortLegend = false)
-            strip.read(telemetry, parked, narrow = false)
+            cluster.read(telemetry, parked, shortLegend = false)
+            strip.read(telemetry, parked)
+            page.car(model, telemetry)
 
             // What the cluster's renderer reads: the band's colour and the hero's magnitude, the
             // engine's corner, the petal's figure, its unit and its hundred points.
@@ -169,10 +176,13 @@ class EnergyReadoutsTest {
                 words(cluster.engineCellTitle).sorted(),
                 (words(strip.engineCellCaption) + words(strip.engineCellUnit)).sorted(),
             )
-            // The window is one distance printed in three lines: «за 3,7 км», «ЗА 3,7 КМ», and the
-            // car page's whole foot unit.
-            assertEquals("$name: the window's distance", distance(cluster.window), distance(strip.windowCaps))
-            assertEquals("$name: and the foot line's", distance(cluster.window), distance(strip.windowFoot))
+            // The window is one string on both screens: the cluster's unit after the petal's
+            // figure, and the last run of the car page's chart caption - «Расход 16,9 кВт·ч/100 км
+            // · за 10 км». A closed car has no caption, so there is nothing of the page's to compare.
+            if (!model.closed) {
+                assertEquals("$name: the chart caption's window", cluster.window, model.spendWindow)
+                assertEquals("$name: and its figure", cluster.consumptionFigure, model.spendFigure)
+            }
             assertEquals("$name: whether there is a chart at all", cluster.chart.isEmpty, strip.chart.isEmpty)
             assertArrayEquals("$name: the points", cluster.chart.values, strip.chart.values)
             assertEquals("$name: how far the run reaches", cluster.chart.span, strip.chart.span)
@@ -460,23 +470,13 @@ class EnergyReadoutsTest {
     }
 
     @Test
-    fun theWindowNamesTheKnownRoadInBothCasesAndNeverRoundsAFillingOne() {
+    fun theWindowNamesTheKnownRoadAndNeverRoundsAFillingOne() {
         val readouts = EnergyReadouts()
         readouts.read(snapshot(powerKw = 22.0, buckets = road(37)), parked = false)
         assertEquals(ContourReadout.UNIT_PER_100KM_PREFIX + "3,7 км", readouts.window)
-        assertEquals("ЗА 3,7 КМ", readouts.windowCaps)
-        assertEquals("кВт·ч/100 км · ЗА 3,7 КМ", readouts.windowFoot)
 
         readouts.read(snapshot(powerKw = 22.0, buckets = road(100)), parked = false)
         assertEquals(ContourReadout.UNIT_PER_100KM, readouts.window)
-        assertEquals("ЗА 10 КМ", readouts.windowCaps)
-
-        // A pane drops the word and nothing else.
-        readouts.read(snapshot(powerKw = 22.0, buckets = road(100)), parked = false, narrow = true)
-        assertEquals("10 КМ", readouts.windowCaps)
-        assertEquals("кВт·ч/100 км · 10 КМ", readouts.windowFoot)
-        readouts.read(snapshot(powerKw = 22.0, buckets = road(37)), parked = false, narrow = true)
-        assertEquals("3,7 КМ", readouts.windowCaps)
     }
 
     @Test
@@ -687,11 +687,11 @@ class EnergyReadoutsTest {
         assertArrayEquals("the hub's own array", telemetry.chart.values, readouts.chart.values)
     }
 
-    /** The distance a window names, whichever case it is printed in. */
     /** A heading's words without its separator: what the two layouts of it must both say. */
     private fun words(text: String): List<String> =
         text.split(' ').filter { it.isNotEmpty() && it != "·" }
 
+    /** The distance a window names: the last number in it, since «кВт·ч/100 км» carries one too. */
     private fun distance(window: String): String =
         Regex("""\d+(,\d+)?""").findAll(window).lastOrNull()?.value ?: window
 
