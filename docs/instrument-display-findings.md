@@ -1365,6 +1365,11 @@ quarantine rules described above and in vehicle-data-findings.md:
   Turning Mirrors off gives that value back, only if `1` is still set; a choice
   the owner made since is left alone. A car whose AVC keeps its old value after
   the write has no PIP support and is not asked again in that run.
+  Live on 2026-09-23 (main `fe650d0c`, APK `991de1de`, parked): with the owner's
+  stock value set back to `0`, Mirrors off/on wrote `0 → 1` 3 ms after the
+  choice was read and stored `0`; Mirrors off gave back `1 → 0` and cleared it;
+  Mirrors on wrote `0 → 1` again. Each step was read back through the probe
+  (`captures/mirrors-firmware-model/live-3-choice.log`); AVC kept PID `4746`.
 
 Not yet driven on the car at the time of writing.
 
