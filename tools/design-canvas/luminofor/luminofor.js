@@ -617,22 +617,29 @@
     if (mode === 'two') {
       const P = S.head.two, CH = P.chips, L = P.margin, Wd = P.size[0] - 2 * P.margin;
       handle(c, P.size[0]);
-      const g = (Wd - CH.perRow * CH.size) / (CH.perRow - 1);
-      f.tiles.forEach((tl, i) => tileFace(c, tl, L + i * (CH.size + g), CH.top, CH.size, CH.size, CH.radius, false));
+      // One row of every feature. The spec draws perRow of them at `size`, which fixes the gap;
+      // any other count keeps that gap and makes the chip its share of the row, and the strip box -
+      // 24 under the chips - rises or falls by what the chip lost or gained. Inside the box
+      // everything hangs from its top (`anchoring`), so it moves by the same `dy`; the analyser's
+      // floor and the dots keep their distance from the bottom and stay. The app's
+      // DashboardLayoutPolicy.band does this arithmetic for the same count.
+      const g = (Wd - CH.perRow * CH.size) / (CH.perRow - 1), n = f.tiles.length;
+      const cs = (Wd - (n - 1) * g) / n, dy = cs - CH.size;
+      f.tiles.forEach((tl, i) => tileFace(c, tl, L + i * (cs + g), CH.top, cs, cs, CH.radius, false));
       if (page === 'sound') {
         const s = P.sound;
-        trackBlock(c, f, L, s.trackCaption, s.trackValue, s.titleSize, s.labelSize);
-        let x = L; f.trip.forEach(it => { reading(c, it, x, s.caption, s.value, s.valueSize, s.labelSize); x += readingW(c, it, s.valueSize, s.labelSize) + s.gap; });
-        spectrumField(c, f, L, s.spectrumTop, Wd, s.floor, s.bars);
+        trackBlock(c, f, L, s.trackCaption + dy, s.trackValue + dy, s.titleSize, s.labelSize);
+        let x = L; f.trip.forEach(it => { reading(c, it, x, s.caption + dy, s.value + dy, s.valueSize, s.labelSize); x += readingW(c, it, s.valueSize, s.labelSize) + s.gap; });
+        spectrumField(c, f, L, s.spectrumTop + dy, Wd, s.floor, s.bars);
       } else if (f.unavailable) {
-        closedPage(c, f, L, L + Wd, P.car.caption, P.car.value, P.sound.labelSize, P.sound.titleSize);
+        closedPage(c, f, L, L + Wd, P.car.caption + dy, P.car.value + dy, P.sound.labelSize, P.sound.titleSize);
       } else {
         const s = P.car; let x = L;
-        [[f.power, s.heroSize, f.power.col], [f.engine, s.valueSize], [f.tripCell, s.valueSize]].forEach(([it, sz, col]) => { reading(c, it, x, s.caption, s.value, sz, P.sound.labelSize, col); x += readingW(c, it, sz, P.sound.labelSize) + s.gap; });
-        reading(c, f.volts, L, s.row2Caption, s.row2Value, s.voltSize, P.sound.labelSize);
-        tempsRow(c, f, L + readingW(c, f.volts, s.voltSize, P.sound.labelSize) + s.gap, s.row2Caption, s.row2Value, s.tempPitch, s.tempSize);
-        lab(c, cons, L, s.chartCaption, 15, S.head.chart.captionAlpha);
-        carChart(c, f, L, s.chartTop, Wd, s.chartHeight);
+        [[f.power, s.heroSize, f.power.col], [f.engine, s.valueSize], [f.tripCell, s.valueSize]].forEach(([it, sz, col]) => { reading(c, it, x, s.caption + dy, s.value + dy, sz, P.sound.labelSize, col); x += readingW(c, it, sz, P.sound.labelSize) + s.gap; });
+        reading(c, f.volts, L, s.row2Caption + dy, s.row2Value + dy, s.voltSize, P.sound.labelSize);
+        tempsRow(c, f, L + readingW(c, f.volts, s.voltSize, P.sound.labelSize) + s.gap, s.row2Caption + dy, s.row2Value + dy, s.tempPitch, s.tempSize);
+        lab(c, cons, L, s.chartCaption + dy, 15, S.head.chart.captionAlpha);
+        carChart(c, f, L, s.chartTop + dy, Wd, s.chartHeight);
       }
       dots(c, page, P.size[0] / 2, P.dotsY);
       return;

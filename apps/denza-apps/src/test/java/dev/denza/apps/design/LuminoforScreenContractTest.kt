@@ -100,8 +100,10 @@ class LuminoforScreenContractTest {
     @Test
     fun theChipsStandWhereDrawHeadPutsThem() {
         for ((mode, key, bar) in modes.drop(1)) {
-            // drawHead: g = (Wd - perRow size) / (perRow - 1); chip i at L + (i % perRow)(size + g),
-            // top + (i / perRow)(size + rowGap) - one row at 828, two at 416.
+            // drawHead: g = (Wd - perRow size) / (perRow - 1). The narrow pane puts chip i at
+            // L + (i % perRow)(size + g), top + (i / perRow)(size + rowGap), two rows. The
+            // two-thirds pane puts every feature in its one row: the chip is cs = (Wd - (n - 1) g) / n,
+            // which is the spec's size at the spec's perRow, and chip i is at L + i (cs + g).
             val w = num("head", key, "size", "0")
             val margin = num("head", key, "margin")
             val content = w - 2 * margin
@@ -110,18 +112,27 @@ class LuminoforScreenContractTest {
             val rowGap = if (key == "one") num("head", "one", "chips", "rowGap") else 0.0
             val g = (content - perRow * size) / (perRow - 1)
             val top = num("head", key, "chips", "top")
+            val drawnPerRow = if (key == "two") FEATURES else perRow
+            val chip = if (key == "two") twoThirdsChip(FEATURES) else size
 
             val band = DashboardLayoutPolicy.band(mode, FEATURES, content.toFloat())
-            assertEquals("$key columns", perRow, band.columns)
-            near("$key chip", size, band.cellWidth)
-            near("$key chip is square", size, band.cellHeight)
-            near("$key chip at its measured window", size, DashboardLayoutPolicy.chipWidth(mode, FEATURES).value)
+            assertEquals("$key columns", drawnPerRow, band.columns)
+            near("$key chip", chip, band.cellWidth)
+            near("$key chip is square", chip, band.cellHeight)
+            near("$key chip at its measured window", chip, DashboardLayoutPolicy.chipWidth(mode, FEATURES).value)
             val inset = DashboardLayoutPolicy.topInset(mode).value
             for (i in 0 until FEATURES) {
-                near("$key chip $i x", margin + (i % perRow) * (size + g), margin.toFloat() + band.left(i))
-                near("$key chip $i y", top + (i / perRow) * (size + rowGap), (bar + inset + band.top(i)).toFloat())
+                near("$key chip $i x", margin + (i % drawnPerRow) * (chip + g), margin.toFloat() + band.left(i))
+                near("$key chip $i y", top + (i / drawnPerRow) * (chip + rowGap), (bar + inset + band.top(i)).toFloat())
             }
         }
+    }
+
+    @Test
+    fun atTheSpecsOwnCountTheTwoThirdsChipIsTheSpecs() {
+        // The spec's two-thirds row is drawn for perRow features, and that is what fixes its gap.
+        val perRow = num("head", "two", "chips", "perRow").toInt()
+        near("the spec's chip", num("head", "two", "chips", "size"), twoThirdsChip(perRow).toFloat())
     }
 
     @Test
@@ -137,8 +148,11 @@ class LuminoforScreenContractTest {
             val stripTop = bar + DashboardLayoutPolicy.topInset(mode).value +
                 DashboardLayoutPolicy.featureBandHeight(mode, FEATURES, content).value +
                 DashboardLayoutPolicy.bandGap(mode).value
-            near("$key strip box top", box[1], stripTop.toFloat(), 0.05)
-            near("$key strip box height", box[3] - box[1], page.panelHeight.value, 0.05)
+            // The spec's two-thirds box hangs 24 under a row of perRow chips; a row of any other
+            // count moves it by what the chip gained or lost, and drawHead moves what hangs in it.
+            val dy = if (key == "two") twoThirdsChip(FEATURES) - num("head", "two", "chips", "size") else 0.0
+            near("$key strip box top", box[1] + dy, stripTop.toFloat(), 0.05)
+            near("$key strip box height", box[3] - box[1] - dy, page.panelHeight.value, 0.05)
             near("$key strip box width", box[2] - box[0], content)
         }
         near("the full screen's strip is its box's shape", 296.0, DashboardLayoutPolicy.wholeScreenPanelHeight(1184f).value)
@@ -279,12 +293,21 @@ class LuminoforScreenContractTest {
 
     private fun box(key: String): List<Double> = list("head", key, "stripBox").map { (it as Number).toDouble() }
 
+    /** drawHead's two-thirds chip for [n] features: the spec's gap kept, the row shared out. */
+    private fun twoThirdsChip(n: Int): Double {
+        val content = num("head", "two", "size", "0") - 2 * num("head", "two", "margin")
+        val size = num("head", "two", "chips", "size")
+        val perRow = num("head", "two", "chips", "perRow").toInt()
+        val g = (content - perRow * size) / (perRow - 1)
+        return (content - (n - 1) * g) / n
+    }
+
     private fun hex(s: String): Int = (0xFF000000.toInt() or s.removePrefix("#").toInt(16))
 
     private val board: String by lazy { SpecJson.read("luminofor/luminofor.js") }
 
     private companion object {
         /** The features every board draws, and the dashboard's own count today. */
-        const val FEATURES = 11
+        const val FEATURES = 12
     }
 }

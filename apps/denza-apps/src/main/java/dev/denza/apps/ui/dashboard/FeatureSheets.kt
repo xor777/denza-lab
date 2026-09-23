@@ -159,6 +159,7 @@ fun FeatureSheet(
             TileId.HUD -> hudSheet(state, actions, busy)
             TileId.WEATHER -> weatherSheet(state, actions)
             TileId.SPEAKERS -> speakerSheet(state, actions, busy)
+            TileId.CLOUD -> cloudSheet(state, actions)
             // Nothing to switch: the paragraph below is the whole panel, and the button at the
             // foot is the one thing there is to do.
             TileId.LOCALE, TileId.PASSENGER, TileId.DEFAULT_APPS, TileId.SERVICE -> Unit
@@ -205,6 +206,10 @@ private fun helpOf(id: TileId): String = when (id) {
         "Динамики выезжают, когда играет музыка или открыт плеер — в том числе из приложений, " +
             "которые машина своими не считает (${SpeakerCoverApps.EXAMPLES}). Убирает их машина " +
             "сама. «Поднять» выдвигает их снова, если машина убрала их в простое."
+    TileId.CLOUD ->
+        "Машина выходит в облако через Wi-Fi, а не через свою SIM-карту, и приложение Denza " +
+            "на телефоне видит её заряд и запас хода. «Держать Wi-Fi включенным» не даёт машине " +
+            "выключать Wi-Fi, когда она засыпает, — связь остаётся и на стоянке."
     TileId.LOCALE ->
         "Язык меняется у всей машины, а не у приложения: список открывает сама машина, " +
             "в нём сорок языков, и выбранный применяется сразу, без перезагрузки."
@@ -267,7 +272,7 @@ private fun panelAction(
             isTheTilePress = tile.action == TileAction.SIMULCAST_LAUNCH,
         )
         // Their switch is in the panel, so the foot would only be that switch again.
-        TileId.HUD, TileId.WEATHER, TileId.SPEAKERS -> PanelAction(
+        TileId.HUD, TileId.WEATHER, TileId.SPEAKERS, TileId.CLOUD -> PanelAction(
             label = "",
             onClick = {},
         )
@@ -498,6 +503,33 @@ private fun speakerSheet(state: DenzaUiState, actions: DashboardActions, busy: B
             enabled = !reporting,
         )
     }
+}
+
+/**
+ * The link, and the car's own Wi-Fi-in-sleep setting beside it.
+ *
+ * Two switches because they are two decisions: the link can be held while the car is awake with
+ * Wi-Fi left to the car's default, and Wi-Fi can be kept on in sleep for its own sake. The second
+ * reads the car's value rather than a copy of it - the car is what turns Wi-Fi off at ACC-off, so it
+ * is the only one that can say what will happen - and stays grey until the car has answered once.
+ *
+ * Both grey while either is being written: each is one shell round trip and a read-back, and a
+ * second press during it would only queue behind the first.
+ */
+@Composable
+private fun cloudSheet(state: DenzaUiState, actions: DashboardActions) {
+    DenzaSwitchRow(
+        title = "Поддерживать связь с облаком",
+        checked = state.cloudLink.desiredEnabled,
+        onCheckedChange = actions.onToggleCloudLink,
+        enabled = !state.cloudLinkBusy,
+    )
+    DenzaSwitchRow(
+        title = "Держать Wi-Fi включенным",
+        checked = state.cloudWifiRetained == true,
+        onCheckedChange = actions.onSetCloudWifiRetained,
+        enabled = !state.cloudLinkBusy && state.cloudWifiRetained != null,
+    )
 }
 
 // The panel's own grid is gone, and with it the panel's own column count. The projection's

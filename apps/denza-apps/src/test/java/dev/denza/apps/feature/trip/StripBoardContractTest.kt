@@ -209,7 +209,7 @@ class StripBoardContractTest {
         // Silhouette's one inline number: a tick stands one unit clear of the box it was cut at.
         assertDrawn("a cut run's tick", "t.moveTo(xm, o.top - 1); t.lineTo(xm, o.top - 1 - o.tick)")
         assertDrawn("a cut run's tick below", "t.moveTo(xm, o.bottom + 1); t.lineTo(xm, o.bottom + 1 + o.tick)")
-        assertDrawn("the two-thirds pane's caption", "lab(c, cons, L, s.chartCaption, ${js(Head.Full.Car.CHART_CAPTION_SIZE)},")
+        assertDrawn("the two-thirds pane's caption", "lab(c, cons, L, s.chartCaption + dy, ${js(Head.Full.Car.CHART_CAPTION_SIZE)},")
 
         assertDrawn("a column's least height", "h = Math.max(${js(SpectrumRenderer.MIN_HEIGHT)}, lv[si] * fh)")
         assertDrawn("a pane's sampling", "const si = Math.round(i * (NN - 1) / Math.max(1, n - 1))")

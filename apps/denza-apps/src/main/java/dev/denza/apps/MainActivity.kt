@@ -36,6 +36,8 @@ class MainActivity : ComponentActivity() {
                     onToggleHudGuidance = DenzaAppRepository::setHudGuidanceEnabled,
                     onToggleSpeakerCovers = DenzaAppRepository::setSpeakerCoversEnabled,
                     onRaiseSpeakerCovers = DenzaAppRepository::raiseSpeakerCovers,
+                    onToggleCloudLink = DenzaAppRepository::setCloudLinkEnabled,
+                    onSetCloudWifiRetained = DenzaAppRepository::setCloudWifiRetained,
                     onSelectClusterDisplay = DenzaAppRepository::selectClusterDisplay,
                     onRefreshScreenDiagnostics = DenzaAppRepository::refreshScreenDiagnostics,
                     onCheckAdbAccess = DenzaAppRepository::checkAdbAccess,
@@ -68,6 +70,7 @@ class MainActivity : ComponentActivity() {
         NavigationTransferOverlay.setMainActivityResumed(this, true)
         DenzaAppRepository.refresh()
         DenzaAppRepository.refreshDefaultApps()
+        DenzaAppRepository.refreshCloudLink()
         SimulcastOverlayService.hide(this)
     }
 

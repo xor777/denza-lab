@@ -38,6 +38,9 @@ data class DashboardActions(
     val onToggleHudGuidance: (Boolean) -> Unit,
     val onToggleSpeakerCovers: (Boolean) -> Unit,
     val onRaiseSpeakerCovers: () -> Unit,
+    val onToggleCloudLink: (Boolean) -> Unit,
+    /** Keep client Wi-Fi on while the car sleeps; the car's own setting, read back from it. */
+    val onSetCloudWifiRetained: (Boolean) -> Unit,
     /** Hand the language over to the car's own list; this app does not set it itself. */
     val onOpenSystemLanguage: () -> Unit,
     val onSetDefaultAppsEnabled: (Boolean) -> Unit,
@@ -76,6 +79,7 @@ object DashboardPress {
             TileId.MIRRORS -> actions.onToggleMirrors(!state.mirrors.desiredEnabled)
             TileId.HUD -> actions.onToggleHudGuidance(!state.hudGuidance.desiredEnabled)
             TileId.SPEAKERS -> actions.onToggleSpeakerCovers(!state.speakerCovers.desiredEnabled)
+            TileId.CLOUD -> actions.onToggleCloudLink(!state.cloudLink.desiredEnabled)
             TileId.WEATHER -> actions.onSetWeatherEnabled(!state.weatherEnabled)
             TileId.DEFAULT_APPS ->
                 actions.onSetDefaultAppsEnabled(!state.defaultApps.substituting)
@@ -114,6 +118,7 @@ object DashboardPress {
             TileId.SPLIT -> actions.onToggleSplitScreen(true)
             TileId.HUD -> actions.onToggleHudGuidance(true)
             TileId.SPEAKERS -> actions.onToggleSpeakerCovers(true)
+            TileId.CLOUD -> actions.onToggleCloudLink(true)
             TileId.PASSENGER -> actions.onChooseFseApp()
             // Weather has nothing to retry: it is an alarm, not a handshake. Nor has the
             // language: the car's list cannot refuse and so never asks to be tried again.
@@ -144,6 +149,7 @@ object DashboardPress {
         FeatureId.HUD_GUIDANCE -> state.hudGuidance
         FeatureId.SPEAKER_COVERS -> state.speakerCovers
         FeatureId.FSE_INSTALLER -> state.fseInstaller
+        FeatureId.CLOUD_LINK -> state.cloudLink
         null -> null
     }
 }

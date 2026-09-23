@@ -42,6 +42,7 @@
     { name: 'Язык системы', status: 'Русский язык', on: false, icon: [['c', 11, 12, 9], ['p', 'M2.4 9.5h17.2M2.4 14.5h17.2'], ['p', 'M11 3a15 15 0 0 0 0 18 15 15 0 0 0 0-18z']] },
     { name: 'Экран справа', status: 'Не выбрано', on: false, icon: [['r', 2, 2.5, 14, 19, 2], ['p', 'M9 6.5v7'], ['p', 'M6 10.5l3 3 3-3'], ['p', 'M6 17.5h6']] },
     { name: 'Shortcuts', status: '3 настроены', on: true, icon: [['r', 2, 3, 7, 7, 2], ['r', 13, 3, 7, 7, 2], ['r', 2, 14, 7, 7, 2], ['p', 'm13.5 17.5 2 2 4-5']] },
+    { name: 'Облако', status: 'На связи', on: true, icon: [['p', 'M4 14.9A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.24'], ['p', 'M12 13v8'], ['p', 'M8 17l4-4 4 4']] },
     { name: 'Сервис', status: 'Всё в норме', on: false, icon: [['p', 'M2 7h16M2 12h16M2 17h16'], ['k', 13, 7, 2], ['k', 6, 12, 2], ['k', 15, 17, 2]] }
   ];
 
@@ -53,7 +54,8 @@
     tone(TILES[0], 'Google Maps', 'idle'), tone(TILES[1], 'Выбрано 1', 'idle'), tone(TILES[2], 'Выключены', 'idle'),
     tone(TILES[3], 'Выключено', 'idle'), tone(TILES[4], 'Выключены', 'idle'), tone(TILES[5], 'Данных ещё нет', 'working'),
     tone(TILES[6], 'Выключена', 'idle'), tone(TILES[7], 'Русский язык', 'idle'), tone(TILES[8], 'Не выбрано', 'idle'),
-    tone(TILES[9], 'Не проверено', 'broken'), tone(TILES[10], '1 функция ждёт', 'attention')
+    tone(TILES[9], 'Не проверено', 'broken'), tone(TILES[10], 'Выключено', 'idle'),
+    tone(TILES[11], '1 функция ждёт', 'attention')
   ];
 
   const temps = (vals, states) => vals.map((x, i) => ({ value: String(x), state: (states || {})[i] || 'normal' }));

@@ -9,6 +9,7 @@ enum class FeatureId {
     HUD_GUIDANCE,
     SPEAKER_COVERS,
     FSE_INSTALLER,
+    CLOUD_LINK,
 }
 
 /**

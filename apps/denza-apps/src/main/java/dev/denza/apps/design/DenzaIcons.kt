@@ -133,6 +133,21 @@ object DenzaIcons {
     )
 
     /**
+     * The cloud link: the car's report going up to the cloud the phone reads it from.
+     *
+     * A cloud open underneath with an arrow rising through the gap - not the weather's cloud, which
+     * is closed and has the sun behind it, so the two tiles in one row cannot be taken for each
+     * other. Its ink starts at 2, like the board's.
+     */
+    val CloudGlyph = DenzaGlyph(
+        "denza_cloud",
+        inkLeft = 2.0f,
+        "M4 14.9A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.24",
+        "M12 13v8",
+        "M8 17l4-4 4 4",
+    )
+
+    /**
      * Service: the car's own state and the things that keep the app talking to it.
      *
      * Three faders, as the board draws them: three lines and a knob on each. On a tile the knob

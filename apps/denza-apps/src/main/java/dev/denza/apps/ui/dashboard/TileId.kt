@@ -26,6 +26,7 @@ enum class TileId {
     LOCALE,
     PASSENGER,
     DEFAULT_APPS,
+    CLOUD,
     SERVICE,
     ;
 
@@ -44,6 +45,7 @@ enum class TileId {
             HUD -> FeatureId.HUD_GUIDANCE
             SPEAKERS -> FeatureId.SPEAKER_COVERS
             PASSENGER -> FeatureId.FSE_INSTALLER
+            CLOUD -> FeatureId.CLOUD_LINK
             LOCALE, WEATHER, DEFAULT_APPS, SERVICE -> null
         }
 }
