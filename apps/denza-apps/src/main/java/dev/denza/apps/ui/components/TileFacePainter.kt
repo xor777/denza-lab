@@ -30,6 +30,9 @@ import dev.denza.apps.design.luminofor.LightPen
  * top. That is how a knob cuts its line on the board, and it needs the plate's colour, which is why
  * the knob is only a real mask here and an outline everywhere else.
  *
+ * [inkCentred] is a chip's: the glyph's ink is centred in its box rather than hung on the tiles'
+ * shared left edge (see [DenzaGlyph.inkBounds]).
+ *
  * The plate is a plain rectangle filling the draw area, and its corners are the caller's clip: a
  * tile is always drawn inside `clip(RoundedCornerShape)` - the clip is what bounds its ripple - and
  * a rounded plate inside a rounded clip is antialiased twice, which darkens the rim of every corner
@@ -58,6 +61,7 @@ internal class TileFacePainter {
         glyph: DenzaGlyph,
         glyphAt: Offset,
         glyphSize: Float,
+        inkCentred: Boolean = false,
     ) = with(scope) {
         drawRect(color = plate)
         drawIntoCanvas { canvas ->
@@ -65,6 +69,12 @@ internal class TileFacePainter {
             val unit = glyphSize / DenzaIcons.VIEWPORT
             native.save()
             native.translate(glyphAt.x, glyphAt.y)
+            if (inkCentred) {
+                // The drawing's own centre on the box's, not the box's corner on the tile's column.
+                val ink = glyph.inkBounds
+                val half = DenzaIcons.VIEWPORT / 2f
+                native.translate((half - ink.centerX()) * unit, (half - ink.centerY()) * unit)
+            }
             pen.begin(native, unit)
             pen.beam(glyph.strokePath, DenzaMetrics.Stroke.ICON, face.glyph, face.glyphIntensity, face.glyphGlow, face.glyphOver)
             mask.color = plate.toArgb()

@@ -75,6 +75,7 @@ fun DenzaChip(
                     glyph = glyph,
                     glyphAt = Offset((size.width - box) / 2f, (size.height - box) / 2f),
                     glyphSize = box,
+                    inkCentred = true,
                 )
             },
     ) {

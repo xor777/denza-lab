@@ -536,6 +536,31 @@
   // car's orange came out yellow and its red came out pink. Working turns a ring beside the glyph.
   // A tile nothing can be done to is idle, whatever it was.
   const ALARMS = { attention: ORNG, broken: RED };
+  // Where a glyph's ink actually is inside its 24-unit box: every point its stroke covers, asked of
+  // the canvas at a twentieth of a unit. The glyphs hang on one left edge for the tiles, where a
+  // column of words starts under them, so a chip centres this rather than the box - or a narrow
+  // glyph, the speaker's, stands four units left of its chip's middle. The app's
+  // DenzaGlyph.inkBounds rasterises the same stroke at the same resolution.
+  const INK_BOXES = new Map();
+  function inkBox(ops, sw) {
+    if (INK_BOXES.has(ops)) return INK_BOXES.get(ops);
+    const p = new Path2D();
+    ops.forEach(op => {
+      if (op[0] === 'p') p.addPath(new Path2D(op[1]));
+      else if (op[0] === 'r') p.roundRect(op[1], op[2], op[3], op[4], op[5]);
+      else { p.moveTo(op[1] + op[3], op[2]); p.arc(op[1], op[2], op[3], 0, Math.PI * 2); }
+    });
+    const cx = document.createElement('canvas').getContext('2d');
+    cx.lineWidth = sw; cx.lineCap = 'round'; cx.lineJoin = 'round';
+    let x0 = 99, y0 = 99, x1 = -99, y1 = -99;
+    for (let i = -40; i <= 520; i++) for (let j = -40; j <= 520; j++) {
+      const x = (i + 0.5) / 20, y = (j + 0.5) / 20;
+      if (cx.isPointInStroke(p, x, y)) { x0 = Math.min(x0, i); x1 = Math.max(x1, i + 1); y0 = Math.min(y0, j); y1 = Math.max(y1, j + 1); }
+    }
+    const box = [x0 / 20, y0 / 20, x1 / 20, y1 / 20];
+    INK_BOXES.set(ops, box);
+    return box;
+  }
   function tileFace(c, tile, x, y, w, h, r, full) {
     const T = S.head.full.tiles, IC = S.head.icon;
     const tone = tile.tone || (tile.on ? 'live' : 'idle'), on = tone !== 'idle', alarm = ALARMS[tone];
@@ -544,6 +569,7 @@
     const ix = full ? x + T.iconInset[0] : x + (w - isz) / 2, iy = full ? y + T.iconInset[1] : y + (h - isz) / 2;
     const ic = iconPath(tile.icon);
     c.save(); c.translate(ix, iy); c.scale(sc, sc);
+    if (!full) { const k = inkBox(tile.icon, IC.stroke); c.translate(12 - (k[0] + k[2]) / 2, 12 - (k[1] + k[3]) / 2); }
     const col = alarm ? [alarm[0], alarm[0]] : on ? HUB : WHT, I = on ? 1 : IC.offAlpha;
     beam(c, ic.strokes, IC.stroke, col, I, on ? IC.onGlow : 0, !!alarm);
     ic.knobs.forEach(k => {

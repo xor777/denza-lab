@@ -300,7 +300,44 @@ class DenzaGlyph(
         out
     }
 
+    /**
+     * The ink this glyph actually lays down, in grid units after the shift: its strokes and knobs
+     * at [DenzaMetrics.Stroke.ICON] with round ends, rasterised at a twentieth of a unit - the
+     * board's `inkBox()`, which finds the same box by asking the canvas which points the stroke
+     * covers.
+     *
+     * A chip centres this and not the 24-unit box. The glyphs hang on a shared left edge for the
+     * tiles, where a column of words starts under them, so the box's centre is nowhere near the
+     * drawing's for a narrow one: the speaker's ink stood four units left of its chip's centre and
+     * the HUD's three, and the owner saw it across a row of them.
+     */
+    val inkBounds: android.graphics.RectF by lazy {
+        val outline = android.graphics.Path()
+        val all = android.graphics.Path(strokePath)
+        knobs.forEach { all.addCircle(it.cx + shift, it.cy, it.r, android.graphics.Path.Direction.CW) }
+        val scale = android.graphics.Matrix().apply { setScale(INK_RESOLUTION, INK_RESOLUTION) }
+        all.transform(scale)
+        android.graphics.Paint().apply {
+            style = android.graphics.Paint.Style.STROKE
+            strokeWidth = DenzaMetrics.Stroke.ICON * INK_RESOLUTION
+            strokeCap = android.graphics.Paint.Cap.ROUND
+            strokeJoin = android.graphics.Paint.Join.ROUND
+        }.getFillPath(all, outline)
+        val clip = android.graphics.Region(-INK_CLIP, -INK_CLIP, INK_CLIP, INK_CLIP)
+        val bounds = android.graphics.Region().apply { setPath(outline, clip) }.bounds
+        android.graphics.RectF(
+            bounds.left / INK_RESOLUTION,
+            bounds.top / INK_RESOLUTION,
+            bounds.right / INK_RESOLUTION,
+            bounds.bottom / INK_RESOLUTION,
+        )
+    }
+
     companion object {
+        /** Twenty samples to a grid unit, as the board measures. */
+        private const val INK_RESOLUTION = 20f
+        private const val INK_CLIP = 2000
+
         /** A glyph that answers to its own box rather than to a column of text. */
         fun centred(name: String, vararg strokes: String): DenzaGlyph =
             DenzaGlyph(name, DenzaIcons.ALIGNED_INK_LEFT, strokes.toList())
