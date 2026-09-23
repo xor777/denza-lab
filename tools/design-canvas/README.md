@@ -11,8 +11,10 @@ seeded from.
 > `StripBoardContractTest`, `StripGeometryTest`, `ContourGeometryTest`,
 > `ContourFrameBuilderTest` and `ContourFixturesContractTest`, and to their
 > pixels by `luminofor/compare.py` against the debug build's
-> `LuminoforFixtureActivity`. The `Main`, pane, `StripPages` and
-> `ClusterContour*` boards below, the Python generators that emit them, and the
+> `LuminoforFixtureActivity`. Since the same day the settings are Luminofor's
+> too (`sheet-*`, `modal-*`). The `Main`, pane, `StripPages`, `ClusterContour*`,
+> `Config`, `DefaultApps`, `AppChooser`, `Simulcast`, `Attention` and `AdbGate*`
+> boards below, the Python generators that emit them, and the
 > contract tests this page names for them (`MainBoardContractTest`,
 > `PaneBoardContractTest`, `SpectrumBoardContractTest`,
 > `ContourBoardContractTest`, `StripPagesBoardContractTest`) are the record of

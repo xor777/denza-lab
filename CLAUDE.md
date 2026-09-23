@@ -28,10 +28,10 @@ still use the historical `denza-gateway` directory name.
   session).
 - [tools/design-canvas/luminofor/README.md](tools/design-canvas/luminofor/README.md)
   — the Luminofor design (approved 2026-09-23), normative for the head unit's
-  dashboard, both panes, the strip's two pages and the cluster: `spec.json`,
-  the board renderer, the frozen scenes, how to render a board, and how to lay a
-  screenshot of the debug build's `LuminoforFixtureActivity` over it with
-  `compare.py`. Read it before changing anything under
+  dashboard, both panes, the strip's two pages, every settings surface and the
+  cluster: `spec.json`, the board renderer, the frozen scenes, how to render a
+  board, and how to lay a screenshot of the debug build's
+  `LuminoforFixtureActivity` over it with `compare.py`. Read it before changing anything under
   `apps/denza-apps/src/main/java/dev/denza/apps/ui/`, `.../design/`,
   `feature/trip` or `feature/cluster/dashboard`.
 - [tools/design-canvas/README.md](tools/design-canvas/README.md) — the method

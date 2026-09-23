@@ -63,6 +63,10 @@ as `<id>.bare.png` without the keep-out hatching, which is what the app is compa
 | `main-paused` | the track paused: half its light, the pause's bars |
 | `main-car-neutral`, `-charging`, `-closed`, `one-car-closed` | «Батарея» in white; on the charger; the shell closed, at two widths |
 | `two-sound`, `two-car`, `one-sound`, `one-car` | the two-thirds and one-third panes |
+| `sheet-cluster`, `-mirrors`, `-simulcast`, `-speakers`, `-locale`, `-broken` | a tile's settings panel over the dashboard |
+| `sheet-cast-apps`, `sheet-defaults`, `sheet-service` | a panel's page of applications, the default-apps panel, the service panel |
+| `one-sheet-cluster`, `one-sheet-cast-apps` | the same panels filling a one-third pane |
+| `modal-adb`, `one-modal-adb` | the ADB gate asking for the car's permission |
 | `digits` | the wide figures, for the eye |
 
 ## How the app is held to it
@@ -87,8 +91,8 @@ python3 compare.py main-car app.png
 ```
 
 An emulator the car's size is enough (2560 x 1600 at 320 dpi, API 35): the board is drawn in the
-top-left corner at its own pixels. On 2026-09-23 all twenty-seven compared at 0-0.93 % of their
-pixels moved and a mean difference under one level out of 255. What remains is antialiasing and
+top-left corner at its own pixels. On 2026-09-23 the twenty-seven dashboard and cluster boards
+compared at 0-0.93 % of their pixels moved and a mean difference under one level out of 255. What remains is antialiasing and
 Roboto: the board's comes from `fonts/`, the app's is the system's, and a right-aligned figure in
 Roboto lands a pixel or two apart.
 
@@ -101,6 +105,36 @@ over whole** (`beam(..., over)`, `text(..., { over })`): added onto the plate, a
 orange came out yellow and the red pink. Working turns a quarter-circle ring in the glyph's blue
 and weight beside the glyph (`spec.json` → `head.icon.ring`); a board holds it at twelve o'clock,
 and so does the app under `LocalStillFrame`.
+
+## Settings
+
+The panels a long press opens, the pages they turn into, the service panel and the ADB gate are
+the car's own BYD widget kit - read out of CarSettingPlatform's `byd_pvt_*` dark resources - in
+Luminofor's grounds (`spec.json` → `sheet`, `drawSheet()` and `drawModal()`):
+
+- the panel is an idle plate's colour (`#17161B`) 480 dp wide at the right edge, or a pane's whole
+  window under its caption bar; groups stand on a lit plate's colour (`#2C2B33`, radius 12) with
+  hairlines of white at 0.08 between their rows;
+- a row is the stock list row: 64 dp for one line, 72 for a title and the reason under it, 80 for a
+  title over the chosen applications' icons; titles at the stock 90 % white, summaries at 54 %;
+- the stock switch (`#3388FF` track, `#F8F9FA` thumb), the stock tab layout (a white pill at 0.8 on
+  a track at 0.1, the chosen word dark on it), the stock large primary button (`#296DCC`, radius
+  12, 56 dp) and a quiet one at white 0.06; a quiet button that opens a recovery says so in orange;
+- a chosen application wears the stock selection badge (`#1677D9` with a white check), nothing
+  else - no coloured edge, no tinted icon well;
+- words over a group are sentence case at 54 %, never a tracked capital; a panel's glyph is white
+  and centred on its own ink, because it names the panel - its state is the status line's, in the
+  car's orange or red;
+- the ADB gate is the stock dialog: the one action across the card, the quiet ones under it side by
+  side at equal widths, each on its own line in a pane.
+
+Every word is placed by its baseline - Roboto's ascent, descent and centring offset are in the
+spec - so a panel can be laid over its board: the debug build's `SheetFixtures` builds the real
+panel (`FeatureSheet`, `DefaultAppsSheet`, the service panel, the ADB gate) from the scene's
+`state`, over the real dashboard. The applications in the scenes have no icons, and both draw the
+initial in their place. On 2026-09-23 the thirteen settings boards compared at 0.58-1.91 %; the
+residue is a star glyph (`★`) that Roboto does not have and each engine fills from a different
+fallback, and baselines Android snaps to whole pixels.
 
 ## The chart and the engine's box
 
