@@ -13,6 +13,7 @@ import dev.denza.apps.ui.DashboardLayoutMode
 import dev.denza.apps.ui.DashboardLayoutPolicy
 import dev.denza.apps.ui.components.DenzaChip
 import dev.denza.apps.ui.components.DenzaTile
+import kotlin.math.floor
 
 /**
  * The band of features: one tile or one chip per feature, all the same size, all pressed the same
@@ -25,9 +26,9 @@ import dev.denza.apps.ui.components.DenzaTile
  *
  * **Placed, not flowed.** The band used to be rows of `weight(1f)` cells, which lands each tile
  * wherever the row's rounding leaves it. It is laid out by [FeatureBand][dev.denza.apps.ui.FeatureBand]
- * instead - `tileFace`'s own arithmetic, cell `i` at column `i % columns`, row `i / columns` - and
- * each edge is snapped to the pixel nearest the board's, so no face is ever more than half a pixel
- * from where the board draws it and no row accumulates the error of the ones before it. A short last
+ * instead - `tileFace`'s own arithmetic, cell `i` at column `i % columns`, row `i / columns` - at
+ * the board's own fractional position, so no row accumulates the rounding of the ones before it and
+ * a face's glyph and words land where the board draws them to the sub-pixel. A short last
  * row keeps its cells the size of the ones above: the row of six the board draws becomes six and
  * five at eleven features, and six and six at twelve, without any of them changing size.
  *
@@ -75,22 +76,36 @@ internal fun DashboardGrid(
         },
     ) { measurables, constraints ->
         val band = DashboardLayoutPolicy.band(layout, measurables.size, constraints.maxWidth.toDp().value)
-        // Both edges of a cell are rounded, not its position and its width separately: a width
-        // rounded on its own drifts the next cell by the rounding of every cell before it.
-        fun edge(dp: Float): Int = dp.dp.roundToPx()
-        val placeables = measurables.mapIndexed { i, measurable ->
-            val left = band.left(i)
-            val top = band.top(i)
+        val placeables = measurables.map { measurable ->
             measurable.measure(
                 Constraints.fixed(
-                    width = edge(left + band.cellWidth) - edge(left),
-                    height = edge(top + band.cellHeight) - edge(top),
+                    width = band.cellWidth.dp.roundToPx(),
+                    height = band.cellHeight.dp.roundToPx(),
                 ),
             )
         }
-        layout(constraints.maxWidth, edge(band.height)) {
+        layout(constraints.maxWidth, band.height.dp.roundToPx()) {
+            val cellWidth = band.cellWidth.dp.toPx()
+            val cellHeight = band.cellHeight.dp.toPx()
             placeables.forEachIndexed { i, placeable ->
-                placeable.place(edge(band.left(i)), edge(band.top(i)))
+                // A layout position is a whole pixel and the board's is not: the second column
+                // of tiles starts at 494.67 px. The face is placed on the pixel under it and moved
+                // the rest of the way by its layer, so what hangs from it lands where the board
+                // draws it rather than a third of a pixel off. A tile hangs its glyph and its words
+                // from its left edge, so that edge is the one made exact; a chip hangs its glyph
+                // from its centre, and a whole-pixel chip is centred on the board's fractional one.
+                var x = band.left(i).dp.toPx()
+                var y = band.top(i).dp.toPx()
+                if (chips) {
+                    x += (cellWidth - placeable.width) / 2f
+                    y += (cellHeight - placeable.height) / 2f
+                }
+                val px = floor(x)
+                val py = floor(y)
+                placeable.placeWithLayer(px.toInt(), py.toInt()) {
+                    translationX = x - px
+                    translationY = y - py
+                }
             }
         }
     }
