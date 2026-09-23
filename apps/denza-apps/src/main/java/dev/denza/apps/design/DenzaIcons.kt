@@ -168,6 +168,25 @@ object DenzaIcons {
         ),
     )
 
+    /**
+     * This app's own instruments, as one answer among the applications on «Что показывать».
+     *
+     * A dial and its needle, off `Config.dc.html`, where it has stood in the chooser since the
+     * instruments first became a choice; the code drew this app's launcher icon there instead,
+     * which stands for the screen doing the choosing rather than for the dial it puts on the panel.
+     * The board fills the pivot; a tinted vector strokes, so the pivot is a ring small enough for
+     * its stroke to close it.
+     *
+     * Centred rather than hung on the text column: it sits in an application's well and on a
+     * row's value line, where it answers to its box like the icons beside it.
+     */
+    val InstrumentsGlyph = DenzaGlyph.centred(
+        "denza_instruments",
+        "M4 15a8 8 0 0 1 16 0",
+        "M12 15l4.2-4.6",
+        "M12.9 15a0.9 0.9 0 1 1-1.8 0a0.9 0.9 0 1 1 1.8 0",
+    )
+
     /** The mark on a line that explains rather than instructs. */
     val NoteGlyph = DenzaGlyph(
         "denza_note",
@@ -215,6 +234,7 @@ object DenzaIcons {
 
     val Cluster: ImageVector get() = ClusterGlyph.vector
     val Applications: ImageVector get() = ApplicationsGlyph.vector
+    val Instruments: ImageVector get() = InstrumentsGlyph.vector
     val Service: ImageVector get() = ServiceGlyph.vector
     val Note: ImageVector get() = NoteGlyph.vector
     val Close: ImageVector get() = CloseGlyph.vector

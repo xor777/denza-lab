@@ -23,16 +23,10 @@ import java.util.Set;
 
 /**
  * One-shot shell-UID task command. It intentionally exposes only fixed
- * operations for an allowlisted navigation task and always exits.
+ * operations on one task of a projectable application - see
+ * {@link ProjectablePackages} - and always exits.
  */
 public final class ClusterProxyMain {
-    private static final Set<String> ALLOWED_PACKAGES = new HashSet<>(Arrays.asList(
-            "ru.yandex.yandexnavi",
-            "ru.yandex.yandexmaps",
-            "com.google.android.apps.maps",
-            "app.morphe.android.apps.maps",
-            "com.waze",
-            "ru.dublgis.dgismobile"));
     private static final String RESULT_PREFIX = "DENZA_RESULT:";
     private static final String TAG = "DenzaNavProxy";
     // Exact transaction codes from the live DiLink 5.1 framework pulled on
@@ -58,7 +52,7 @@ public final class ClusterProxyMain {
         switch (args[0]) {
             case "find-task":
                 requireCount(args, 2);
-                result(commands.findAllowedTask(args[1]));
+                result(commands.findTask(args[1]));
                 return;
             case "project-task":
                 requireCount(args, 7);
@@ -152,8 +146,8 @@ public final class ClusterProxyMain {
             this.context = context;
         }
 
-        int findAllowedTask(String packageName) {
-            if (!isAllowedPackage(packageName)) return -1;
+        int findTask(String packageName) {
+            if (!isProjectable(packageName)) return -1;
             for (ActivityManager.RunningTaskInfo task : tasks()) {
                 if (belongsToPackage(task, packageName)) return task.taskId;
             }
@@ -419,12 +413,14 @@ public final class ClusterProxyMain {
 
         boolean backgroundTask(String packageName, int taskId) {
             enforceTask(packageName, taskId);
-            // Running tasks are ordered front-to-back. Once the navigation
-            // root returns to display 0, the first non-navigation task is the
-            // central scene that was visible before projection.
+            // Running tasks are ordered front-to-back. Once the returned
+            // task is back on display 0, the first task of any other package
+            // is the central scene that was visible before projection.
             for (ActivityManager.RunningTaskInfo candidate : tasks()) {
                 if (candidate.taskId == taskId || displayIdOf(candidate) != 0) continue;
-                if (belongsToAllowedPackage(candidate) || candidate.topActivity == null) continue;
+                if (belongsToPackage(candidate, packageName) || candidate.topActivity == null) {
+                    continue;
+                }
                 return invokeTaskManager(
                         new String[] {"setFocusedTask"},
                         new Class<?>[] {int.class},
@@ -454,19 +450,12 @@ public final class ClusterProxyMain {
                     || hasPackage(task.baseActivity, packageName);
         }
 
-        private boolean belongsToAllowedPackage(ActivityManager.RunningTaskInfo task) {
-            for (String packageName : ALLOWED_PACKAGES) {
-                if (belongsToPackage(task, packageName)) return true;
-            }
-            return false;
-        }
-
         private boolean hasPackage(ComponentName component, String packageName) {
             return component != null && packageName.equals(component.getPackageName());
         }
 
-        private boolean isAllowedPackage(String packageName) {
-            return ALLOWED_PACKAGES.contains(packageName);
+        private boolean isProjectable(String packageName) {
+            return ProjectablePackages.isProjectable(context.getPackageManager(), packageName);
         }
 
         private int displayIdOf(ActivityManager.RunningTaskInfo task) {
@@ -488,13 +477,13 @@ public final class ClusterProxyMain {
         }
 
         private void enforceTask(String packageName, int taskId) {
-            if (!isAllowedPackage(packageName)) {
-                throw new SecurityException("package is not allowed for navigation");
+            if (!isProjectable(packageName)) {
+                throw new SecurityException("package is not projectable");
             }
             for (ActivityManager.RunningTaskInfo task : tasks()) {
                 if (task.taskId == taskId && belongsToPackage(task, packageName)) return;
             }
-            throw new SecurityException("task is not an allowed navigation task");
+            throw new SecurityException("task does not belong to the package");
         }
 
         private void enforceEmptyProjectionRoot(int rootTaskId, int displayId) {
@@ -748,7 +737,7 @@ public final class ClusterProxyMain {
         }
 
         // This shell-UID helper targets the fixed DiLink 5.1 framework surface;
-        // public SDK APIs cannot move an allowlisted task across vendor displays.
+        // public SDK APIs cannot move a projectable task across vendor displays.
         @SuppressLint({"PrivateApi", "BlockedPrivateApi"})
         private boolean invokeTaskManager(
                 String[] names,

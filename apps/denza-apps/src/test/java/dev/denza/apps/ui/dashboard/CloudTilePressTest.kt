@@ -55,6 +55,7 @@ class CloudTilePressTest {
         onNavigationPlacement = {},
         onNavigationSteeringWheelButton = {},
         onChooseNavigationApp = {},
+        onLoadNavigationAppChoices = {},
         onSelectNavigationApp = {},
         onToggleSplitScreen = {},
         onLaunchSplitScreen = {},

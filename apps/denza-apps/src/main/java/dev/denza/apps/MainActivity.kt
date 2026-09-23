@@ -28,6 +28,7 @@ class MainActivity : ComponentActivity() {
                         DenzaAppRepository::setNavigationSteeringWheelButton,
                     onNavigationPlacement = DenzaAppRepository::setNavigationPlacement,
                     onChooseNavigationApp = DenzaAppRepository::showNavigationAppPicker,
+                    onLoadNavigationAppChoices = DenzaAppRepository::refreshNavigationAppChoices,
                     onCloseNavigationPicker = DenzaAppRepository::hideNavigationAppPicker,
                     onSelectNavigationApp = DenzaAppRepository::selectNavigationApp,
                     onToggleSplitScreen = DenzaAppRepository::setSplitScreenEnabled,

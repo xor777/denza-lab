@@ -135,26 +135,17 @@ class NavigationModelsTest {
     }
 
     @Test
-    fun onlyKnownNavigationAppsAreAllowed() {
-        assertTrue(NavigationAppPolicy.isAllowed("ru.yandex.yandexnavi"))
-        assertTrue(NavigationAppPolicy.isAllowed("ru.yandex.yandexmaps"))
-        assertTrue(NavigationAppPolicy.isAllowed("com.google.android.apps.maps"))
-        assertTrue(NavigationAppPolicy.isAllowed("app.morphe.android.apps.maps"))
-        assertTrue(NavigationAppPolicy.isAllowed("com.waze"))
-        assertTrue(NavigationAppPolicy.isAllowed("ru.dublgis.dgismobile"))
-        assertFalse(NavigationAppPolicy.isAllowed("com.android.settings"))
-    }
-
-    @Test
-    fun ourOwnInstrumentsAreOfferedBesideTheNavigators() {
-        val dashboard = NavigationAppPolicy.dashboard.packageName
+    fun ourOwnInstrumentsAreAddressedByThisAppsRealId() {
+        val dashboard = NavigationAppPolicy.DASHBOARD_PACKAGE
 
         assertTrue(NavigationAppPolicy.isDashboard(dashboard))
-        assertTrue(NavigationAppPolicy.isAllowed(dashboard))
-        assertEquals("Приборы", NavigationAppPolicy.fallbackLabel(dashboard))
-        // It is this app, addressed by its real id - not one of the navigators wearing our name.
+        assertEquals("Приборы", NavigationAppPolicy.DASHBOARD_LABEL)
+        // It is this app, addressed by its real id - not an application wearing our name.
         assertEquals("dev.denza.apps", dashboard)
-        assertFalse(NavigationAppPolicy.supported.any { it.packageName == dashboard })
+        // And never an application: the rule both sides of the shell boundary read leaves it out,
+        // so no path can hand this package to the task proxy.
+        assertTrue(ProjectablePackages.isExcluded(dashboard, null))
+        assertFalse(NavigationAppPolicy.isDashboard("ru.yandex.yandexnavi"))
     }
 
     @Test
@@ -190,7 +181,7 @@ class NavigationModelsTest {
 
     @Test
     fun theDashboardIsNeverLaunchedAsSomebodyElsesTask() {
-        // A navigator with no task of its own is opened first. There is no such step here, so an
+        // An application with no task of its own is opened first. There is no such step here, so an
         // absent task must not turn the button into "Открыть" and send the coordinator hunting for
         // a launch intent that would only re-open this very app.
         listOf(null, 12).forEach { taskId ->
@@ -232,8 +223,8 @@ class NavigationModelsTest {
     }
 
     @Test
-    fun onlyTheNavigatorHasAnywhereElseToGoOnThePanel() {
-        val dashboard = NavigationAppPolicy.dashboard.packageName
+    fun onlyAnApplicationHasAnywhereElseToGoOnThePanel() {
+        val dashboard = NavigationAppPolicy.DASHBOARD_PACKAGE
 
         assertEquals(
             listOf(ClusterMapPlacement.FULL),
@@ -243,14 +234,19 @@ class NavigationModelsTest {
             ClusterMapPlacement.entries.toList(),
             NavigationPlacementPolicy.offered("ru.yandex.yandexnavi"),
         )
+        // Any application, not the navigators alone: placement is a property of a picture.
+        assertEquals(
+            ClusterMapPlacement.entries.toList(),
+            NavigationPlacementPolicy.offered("org.videolan.vlc"),
+        )
     }
 
     @Test
     fun aPlacementTheChoiceDoesNotOfferFallsBackToTheOneItDoes() {
-        val dashboard = NavigationAppPolicy.dashboard.packageName
+        val dashboard = NavigationAppPolicy.DASHBOARD_PACKAGE
 
-        // The navigator's own "Справа" survives being chosen while the dashboard is on the panel:
-        // it is stored untouched, and it is what comes back when a navigator is chosen again.
+        // The applications' own "Справа" survives being chosen while the dashboard is on the panel:
+        // it is stored untouched, and it is what comes back when an application is chosen again.
         assertEquals(
             ClusterMapPlacement.FULL,
             NavigationPlacementPolicy.resolve(dashboard, ClusterMapPlacement.RIGHT),

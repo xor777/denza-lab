@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -24,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.painter.BitmapPainter
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -47,6 +49,9 @@ import dev.denza.apps.design.DenzaMetrics
  *
  * Selection never thickens the edge: it is drawn at the hairline picked or not, so choosing an app
  * does not nudge its neighbours by a pixel.
+ *
+ * [glyph] is for the one answer that is not an application - this app's own instruments on «Что
+ * показывать» - drawn in the same well, tinted like the name under it.
  */
 @Composable
 fun DenzaAppTile(
@@ -57,6 +62,7 @@ fun DenzaAppTile(
     icon: Drawable? = null,
     iconKey: Any? = label,
     enabled: Boolean = true,
+    glyph: ImageVector? = null,
 ) {
     // Keyed by the package alone. A Drawable is a fresh instance on every read of the package
     // manager, so keying on it too re-rasterised every icon in the grid each time the state behind
@@ -90,7 +96,14 @@ fun DenzaAppTile(
                 ),
             contentAlignment = Alignment.Center,
         ) {
-            if (bitmap != null) {
+            if (glyph != null) {
+                Icon(
+                    imageVector = glyph,
+                    contentDescription = null,
+                    tint = if (selected) DenzaColors.Accent else DenzaColors.InkSecondary,
+                    modifier = Modifier.size(DenzaMetrics.Component.TILE_ICON),
+                )
+            } else if (bitmap != null) {
                 Image(
                     painter = BitmapPainter(bitmap),
                     contentDescription = null,

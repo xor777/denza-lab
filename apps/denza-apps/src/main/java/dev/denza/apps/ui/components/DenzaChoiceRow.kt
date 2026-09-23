@@ -24,6 +24,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.painter.BitmapPainter
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.core.graphics.drawable.toBitmap
@@ -31,8 +32,18 @@ import dev.denza.apps.design.DenzaColors
 import dev.denza.apps.design.DenzaIcons
 import dev.denza.apps.design.DenzaMetrics
 
-/** One application on a row's value line: enough to draw it, and the key it is cached under. */
-data class DenzaChoiceIcon(val key: Any, val label: String, val drawable: Drawable?)
+/**
+ * One application on a row's value line: enough to draw it, and the key it is cached under.
+ *
+ * [glyph] stands in for [drawable] when the answer is not an application - this app's own
+ * instruments, which the chooser draws with their glyph and the row draws the same way.
+ */
+data class DenzaChoiceIcon(
+    val key: Any,
+    val label: String,
+    val drawable: Drawable?,
+    val glyph: ImageVector? = null,
+)
 
 /**
  * What is chosen, on one row, with the way to change it.
@@ -155,7 +166,14 @@ private fun ChoiceIcon(icon: DenzaChoiceIcon) {
     val bitmap = remember(icon.key) {
         icon.drawable?.toBitmap(ICON_PX, ICON_PX)?.asImageBitmap()
     }
-    if (bitmap != null) {
+    if (icon.glyph != null) {
+        Icon(
+            imageVector = icon.glyph,
+            contentDescription = icon.label,
+            tint = DenzaColors.InkSecondary,
+            modifier = Modifier.size(DenzaMetrics.Component.CHOICE_ICON),
+        )
+    } else if (bitmap != null) {
         Image(
             painter = BitmapPainter(bitmap),
             contentDescription = icon.label,

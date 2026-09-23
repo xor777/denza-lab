@@ -32,6 +32,8 @@ data class DashboardActions(
     val onNavigationPlacement: (ClusterMapPlacement) -> Unit,
     val onNavigationSteeringWheelButton: (Boolean) -> Unit,
     val onChooseNavigationApp: () -> Unit,
+    /** Read the car for «Что показывать» when the panel's own page opens, without opening a window. */
+    val onLoadNavigationAppChoices: () -> Unit,
     val onSelectNavigationApp: (String) -> Unit,
     val onToggleSplitScreen: (Boolean) -> Unit,
     val onLaunchSplitScreen: () -> Unit,

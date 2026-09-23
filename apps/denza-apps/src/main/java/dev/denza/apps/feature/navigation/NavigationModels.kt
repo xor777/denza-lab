@@ -4,70 +4,57 @@ import dev.denza.apps.BuildConfig
 import dev.denza.apps.core.FeatureResolution
 import dev.denza.apps.feature.cluster.ClusterMapPlacement
 
-data class NavigationAppDefinition(
-    val packageName: String,
-    val fallbackLabel: String,
-)
-
 /**
  * What the card puts on the driver's display.
  *
  * From the driver's side the two are the same shape: one choice, one button, one thing on the
- * cluster. Underneath they have nothing in common. A navigator is somebody else's task - opened on
- * the head unit, given a virtual display, moved onto it, and owed a return afterwards, with a
+ * cluster. Underneath they have nothing in common. An application is somebody else's task - opened
+ * on the head unit, given a virtual display, moved onto it, and owed a return afterwards, with a
  * failure possible at every one of those steps. The dashboard is a view of ours drawn into a window
  * this app already owns: no task, no display, nothing to give back.
  */
 enum class NavigationTarget {
-    NAVIGATOR,
+    APPLICATION,
     DASHBOARD,
 }
 
+/**
+ * The two kinds of answer to "what is on the driver's display".
+ *
+ * This app's own instruments, and any application [ProjectablePackages] admits - which is any the
+ * car can open. The applications used to be six navigators listed here by package, and a map, a
+ * player or a browser the owner installed could not reach the cluster until somebody added a line.
+ * Nothing in the projection was ever about navigation; it moves a task. So there is no list, and a
+ * navigator is simply one of the applications.
+ */
 object NavigationAppPolicy {
-    const val DEFAULT_PACKAGE = "ru.yandex.yandexnavi"
-
     /**
-     * This app's own instruments, offered in the same picker as the navigators.
+     * This app's own instruments, offered in the same chooser as the applications.
      *
-     * It is addressed by the real application id rather than by an invented token so that the
-     * picker can answer every question about it exactly as it does for the others: label, icon and
-     * "is it installed" all come from the same PackageManager it already asks.
+     * It is addressed by the real application id rather than by an invented token, so a saved
+     * choice and every call that carries one stays a package name. It is never looked up as an
+     * application: [ProjectablePackages] leaves this package out, and the chooser draws it with the
+     * instruments' own glyph under a heading of its own.
      */
-    val dashboard = NavigationAppDefinition(BuildConfig.APPLICATION_ID, "Приборы")
+    const val DASHBOARD_PACKAGE: String = BuildConfig.APPLICATION_ID
 
-    val supported = listOf(
-        NavigationAppDefinition(DEFAULT_PACKAGE, "Яндекс Навигатор"),
-        NavigationAppDefinition("ru.yandex.yandexmaps", "Яндекс Карты"),
-        NavigationAppDefinition("com.google.android.apps.maps", "Google Maps"),
-        NavigationAppDefinition("app.morphe.android.apps.maps", "Google Maps"),
-        NavigationAppDefinition("com.waze", "Waze"),
-        NavigationAppDefinition("ru.dublgis.dgismobile", "2ГИС"),
-    )
+    const val DASHBOARD_LABEL = "Приборы"
 
-    fun isDashboard(packageName: String): Boolean = packageName == dashboard.packageName
-
-    fun isAllowed(packageName: String): Boolean =
-        isDashboard(packageName) || supported.any { it.packageName == packageName }
-
-    fun fallbackLabel(packageName: String): String = when {
-        isDashboard(packageName) -> dashboard.fallbackLabel
-        else -> supported.firstOrNull { it.packageName == packageName }?.fallbackLabel
-            ?: "Навигация"
-    }
+    fun isDashboard(packageName: String): Boolean = packageName == DASHBOARD_PACKAGE
 }
 
 /**
  * Where the chosen thing may sit on the driver's display.
  *
- * A navigator is a picture, and a picture can be put wherever the stock shade leaves room. The
+ * An application is a picture, and a picture can be put wherever the stock shade leaves room. The
  * instruments are not a picture: the dial, the two corner blocks and the columns beside them are one
  * composition measured against the whole panel, so a third of it is not a smaller version of this
  * instrument - it is a different instrument, and this product does not offer that one. A choice of
  * one is not a choice, so the card shows no placement row for the dashboard at all rather than a row
  * with three dead cells in it.
  *
- * The navigator's saved placement is left untouched while the dashboard is chosen: it is the
- * navigator's setting, and it is still there when a navigator is chosen again.
+ * The applications' saved placement is left untouched while the dashboard is chosen: it is their
+ * setting, and it is still there when an application is chosen again.
  */
 object NavigationPlacementPolicy {
     fun offered(packageName: String): List<ClusterMapPlacement> =
@@ -96,7 +83,7 @@ enum class NavigationPhase {
 
 data class NavigationSession(
     val phase: NavigationPhase = NavigationPhase.READY,
-    val target: NavigationTarget = NavigationTarget.NAVIGATOR,
+    val target: NavigationTarget = NavigationTarget.APPLICATION,
     val taskId: Int? = null,
     val virtualDisplayId: Int? = null,
     val message: String = "",
@@ -104,7 +91,7 @@ data class NavigationSession(
     val resolution: FeatureResolution? = null,
 ) {
     val buttonLabel: String
-        get() = if (target == NavigationTarget.DASHBOARD) dashboardLabel() else navigatorLabel()
+        get() = if (target == NavigationTarget.DASHBOARD) dashboardLabel() else applicationLabel()
 
     /**
      * The dashboard is not returned anywhere - it is put on the panel or taken off it - and it has
@@ -113,7 +100,7 @@ data class NavigationSession(
     private fun dashboardLabel(): String =
         if (phase == NavigationPhase.PROJECTED) "Убрать" else "На приборку"
 
-    private fun navigatorLabel(): String = when (phase) {
+    private fun applicationLabel(): String = when (phase) {
         NavigationPhase.PROJECTED, NavigationPhase.RETURNING -> "Вернуть"
         NavigationPhase.OPENING, NavigationPhase.PROJECTING, NavigationPhase.RECOVERING ->
             "Проверяю"
@@ -188,7 +175,7 @@ object NavigationRecovery {
         if (session.phase == NavigationPhase.PROJECTED || session.virtualDisplayId != null) {
             session.copy(
                 phase = NavigationPhase.RECOVERING,
-                message = "Безопасно возвращаю навигацию",
+                message = "Безопасно возвращаю приложение",
                 details = "shell proxy disconnected",
                 resolution = null,
             )
