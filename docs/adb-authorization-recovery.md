@@ -27,6 +27,11 @@ Denza Apps has one canonical ADB identity and one owner for authorization prompt
   `service call accmodemanager 1 s16 dev.denza.apps`. Manual launch, `SCREEN_ON`, and
   `MY_PACKAGE_REPLACED` never grant that right. The registration is not `DEVICE_ACC` permission
   inside the APK and is not an ACC lock.
+  **This registration cannot succeed (firmware read 2026-09-23).** `setPkg2AccWhiteList` enforces
+  `DEVICE_ACC`, which the shell does not hold, and the refusal comes back as a hex dump that
+  `AccWhitelistRegistrationPolicy.accepted` reads as success, so diagnostics can show `registered`
+  for a call that was refused. Details in `split-screen-findings.md`, "The self-start switch, and a
+  registrar that never registered".
 - The ACC whitelist belongs to `system_server` memory. A full Android or `system_server` restart
   clears it; the next genuine `BOOT_COMPLETED` is expected to register the package again. On a
   firmware without `accmodemanager`, the current runtime continues and diagnostics record the

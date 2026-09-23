@@ -2502,3 +2502,46 @@ checks no permission, and the notification is step 2 of 10 - before the task
 removal and the kill. But SELinux lets only `platform_app` and `system_server`
 find `accmodemanager_service`; an app UID cannot reach it, the shell can (its
 `find` attribute covers every `service_manager_type` but a few).
+
+### The self-start switch, and a registrar that never registered (live 2026-09-23)
+
+The owner reported Denza Apps "enabled" in the car's app-startup settings. The
+page is `com.byd.appstartmanagement`, titled **Disable self-start**, list
+**Disable background Apps**, and its switch is the deny bit itself: checked is
+`getAppStartupData(uid) == 1` and toggling writes `1`/`0`
+(`AppStartManagement.java:200,303`); `1` is what the self-start gate refuses
+(`ActivityManagerService.java:7889-7907`). A newly installed app is written `1`
+unless it is on `m3rdAppStartDefaultWhiteList`
+(`AppStartupDataCachedService.java:139`); a reinstall over the same uid keeps
+whatever is stored ("has contained uid ... not modify data", `:136`), an
+uninstall deletes the row. So an "enabled" switch there is a blocked app.
+
+Neither the value nor its table is readable from the shell: `byd_datacached`
+tx2 demands `ACCESS_APPSTARTUPDATA`, and `content://appstartup/settings` is not
+exported from uid 1000. The firmware logs the verdict instead, per receiver:
+`BroadcastQueue: skip reciever for uid <uid> name = <pkg> ignored !!!`,
+preceded by `ActivityManager: UID <uid> is not running` - a line that is only
+reached when the stored value is `1` (an ACC-off moment returns before it).
+
+Live today: at 15:06:11 the sleep removed the product's tasks and stopped uid
+10147 (`am_uid_stopped`); at 15:08:52 the wake's `BOOT_COMPLETED` to
+`dev.denza.apps` was skipped by exactly that path, together with
+`org.videolan.vlc`, `ru.vk.store` and `app.morphe.android.apps.maps` in the
+same broadcast.
+
+`AccQuickBootSurvivalRegistrar` (see `adb-authorization-recovery.md`) cannot
+help either way. `setPkg2AccWhiteList` enforces `DEVICE_ACC`
+(`AccModeManagerService.java:457`), and the image's `Shell.apk` (sha256
+`0273ea56...43dd`) requests 420 permissions, none of them `DEVICE_ACC`. From the
+shell the call can only come back as the exception `service call` prints as a
+UTF-16 hex dump (`'N.e.i.t.h.e.r. .u.s.e.r. .2.0.0.0...'`, the same form the
+`byd_datacached` refusal took above), and `AccWhitelistRegistrationPolicy.accepted`
+takes that for success: "exception" and "permission denial" never appear as
+contiguous text, "Result: Parcel" does. It is also only run on a
+`BOOT_COMPLETED`, which the switch withholds. Not called live - tx1 is a write -
+the enforcement and the shell's permission set are enough.
+
+What is left is the switch, and it is the owner's: with it off, every wake's
+`BOOT_COMPLETED` reaches `RuntimeRecoveryReceiver`. The sleep still
+force-stops the product (no exemption is reachable), so each wake is a cold
+start followed by recovery.
