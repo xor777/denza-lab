@@ -8,8 +8,9 @@ import org.junit.Test
 /**
  * What the five marks actually draw, read back off a recording surface.
  *
- * `ContourBoardContractTest` holds the family's arithmetic against the board, and that is a
- * different question from this one: the board proves the *numbers* agree, while every decision the
+ * This family is the car page's now - the Luminofor cluster draws `ThermalGlyphs` - and the old
+ * board's contract test that held its arithmetic went with the cluster's old boards. What stays is
+ * the question a board could never answer: the board proved the *numbers* agree, while every decision the
  * drawing makes with them - which axle a block sits on, whether a wheel is filled, which of the two
  * colours a part is given - used to live inside a `Canvas` call and was therefore invisible. A
  * mutation run put the front motor's block on the rear axle, filled all four wheels and painted the

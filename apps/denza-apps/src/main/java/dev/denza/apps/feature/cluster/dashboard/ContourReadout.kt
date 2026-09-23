@@ -11,9 +11,10 @@ import java.util.Locale
  *
  * ### The strings are the board's strings
  *
- * Every caption here is written exactly as `tools/design-canvas/gen_contour.py` draws it, because
- * the cell widths on both shelves are measured from these words and `ContourBoardContractTest`
- * compares the two records. Changing a caption is a design change and moves the panel.
+ * Every caption here is written exactly as the Luminofor board prints it
+ * (`tools/design-canvas/luminofor/fixtures.js`, exported to the debug build's `fixtures.json`),
+ * and `ContourFixturesContractTest` holds the two records together: a word on the board that the
+ * app does not print, or the other way round, fails there. Changing a caption is a design change.
  *
  * Two rules the words follow. **Units are case-sensitive**: «БАТАРЕЯ · В», «ДВС · об/мин»,
  * «кВт·ч», «км». A tracked capital is a heading, a unit is not one, and a tracked heading does not
@@ -100,18 +101,20 @@ internal object ContourReadout {
      * «ПОСЛЕДНИЕ 2 МИН» was printed from the first second of an engine run, over a box one step
      * wide: the trace grows from the right and is never front-padded, so two minutes is what it
      * holds when it is full and nothing else. The figure beside it was honest about a five-second
-     * window and the words were not. It is written as «м:сс» in the panel's tabular figures, so
-     * every value is one width and no anchor in the phrase moves - which is how the caption can be
-     * a coordinate and a reading at the same time. See [intoPack].
+     * window and the words were not. It is written as «м:сс», so every value is one length. See
+     * [intoPack].
+     *
+     * Since the Luminofor board it is a line of its own under the box - the caption line carries
+     * «ДВС ДАЁТ 14 кВт» over the box and this sits on the detail line under it - so it no longer
+     * leads with the «·» that joined it to the sentence.
      */
-    const val LEGEND_WINDOW_PREFIX = "· ПОСЛЕДНИЕ "
+    const val LEGEND_WINDOW_PREFIX = "ПОСЛЕДНИЕ "
 
     /**
-     * And what is left of it if the face in use crowds the phrase against its own box.
+     * And what was left of it when the face in use crowded the phrase against its own box.
      *
-     * Only «ПОСЛЕДНИЕ» can go. The figure is the reading, the unit is what makes it one, «ДВС
-     * ДАЁТ» is the whole point of the sentence, and the duration is the window the shape above it
-     * is true over.
+     * The Luminofor layout gives the window a line of its own and never asks for this; it stays
+     * because `EnergyReadouts` still takes the flag.
      */
     const val LEGEND_WINDOW_PREFIX_SHORT = "· "
 
@@ -125,12 +128,6 @@ internal object ContourReadout {
     const val UNIT_MILLIVOLT = "мВ"
     const val DEGREE = "°"
 
-    /** What a charge estimate too long for «ч:мм» is written in. See [chargeLeft]. */
-    const val UNIT_HOUR = "ч"
-
-    /** From here the estimate is hours alone: five glyphs do not fit the petal's seat. */
-    const val HOURS_ALONE_FROM = 10
-
     /** Both charging ids are gated to 0…99, so anything past this is a bad read, not a charge. */
     const val MAX_CHARGE_MINUTES = 99 * 60 + 59
 
@@ -142,7 +139,7 @@ internal object ContourReadout {
      * five hundred metres of road printed under «за 10 км», which is the seventh pass's own defect
      * one level down. The drawn form is [perHundredKm]; this is the case where the window is full.
      * The distance itself is [dev.denza.apps.feature.vehicle.ConsumptionWindow.KM]; this string is
-     * what the board measured, and `ContourBoardContractTest` holds the two together.
+     * what the board prints, and `ContourFixturesContractTest` holds the two together.
      */
     const val UNIT_PER_100KM_UNIT = "кВт·ч/100 км"
 
@@ -153,15 +150,14 @@ internal object ContourReadout {
     const val UNIT_PER_100KM = UNIT_PER_100KM_PREFIX + "10 км"
 
     /**
-     * And the widest it ever is, which is any distance still filling the window.
+     * And the widest it ever is, which is a distance still filling the window.
      *
-     * The figures are tabular, so «за 0,3 км» and «за 9,9 км» are one width and this template
-     * measures them all. The unit is left-aligned against the figure's reserve and nothing hangs
-     * off it, so its own width is allowed to change: there is nothing to its right but the petal's
-     * cut-out, which it clears by 57.9 on the modelled ellipse and by 50 against the stock power
-     * figure as photographed - see [ContourPlan.petalFigureRight].
+     * Jura's figures are not tabular - «1» is 0.37 em and «0» 0.64 - so the template is written in
+     * the widest digit rather than in a likely one. Nothing hangs off the unit: it follows the
+     * figure and there is nothing to its right but the petal's cut-out, which
+     * `ContourGeometryTest` holds it inside behind the widest figure the petal prints.
      */
-    const val UNIT_PER_100KM_FILLING = UNIT_PER_100KM_PREFIX + "1,2 км"
+    const val UNIT_PER_100KM_FILLING = UNIT_PER_100KM_PREFIX + "0,0 км"
 
     /** What replaces it while a gun is in, over a figure that is a duration rather than a rate. */
     const val UNIT_CHARGE_LEFT = "до полной"
@@ -318,27 +314,19 @@ internal object ContourReadout {
     }
 
     /**
-     * What is left of a charge, as the petal prints it: «2:15», and «12 ч» once it is hours.
+     * What is left of a charge, as the petal prints it: «2:15», and «12:30» once it is hours.
      *
-     * A colon rather than a decimal, because this is a clock and not a quantity - and the reason
-     * the figures are Roboto with `tnum` rather than Roboto Mono is that a monospaced face gives
-     * that colon a full digit cell and breaks «2:15» into three groups.
+     * A colon rather than a decimal, because this is a clock and not a quantity.
      *
-     * **Above ten hours the minutes go, and that is geometry rather than taste.** The seat reserves
-     * three digits and one mark, 100.27 units, which is exactly «2:15» and exactly «16,8»; «12:30»
-     * is five glyphs and 129.49, and the extra 29.2 has nowhere to come from. The history box hangs
-     * off the widest the field ever gets, its left edge stands 17.3 units clear of the petal's own
-     * cut-out, and widening the field would put that edge 12 units *inside* the vehicle's own
-     * graphics. An estimate of ten hours or more is a wall socket overnight, where the minutes are
-     * noise: «12 ч» measures 99.64 against the field's 100.27 and says the same thing. Anything past
-     * [MAX_CHARGE_MINUTES] is a bad read rather than a charge - both ids are gated to 0…99 - and is
-     * clamped so the field can never be overrun from the other end either.
+     * **Always «ч:мм», through 99:59.** Until the Luminofor board an estimate of ten hours or more
+     * was «12 ч»: the seat reserved three digits and one mark, and a fifth glyph had nowhere to go.
+     * The board's figure is left-aligned with its unit following it, so a fifth glyph is room the
+     * petal has - and the wide figures have no «ч» to print. Anything past [MAX_CHARGE_MINUTES] is
+     * a bad read rather than a charge - both ids are gated to 0…99 - and is clamped.
      */
     fun chargeLeft(minutes: Int): String {
         val bounded = minutes.coerceIn(0, MAX_CHARGE_MINUTES)
-        val hours = bounded / 60
-        if (hours >= HOURS_ALONE_FROM) return "$hours $UNIT_HOUR"
-        return String.format(Locale.US, "%d:%02d", hours, bounded % 60)
+        return String.format(Locale.US, "%d:%02d", bounded / 60, bounded % 60)
     }
 
     // ---- the exceptions, which are the only colour on the shelves

@@ -75,7 +75,14 @@ internal interface GlyphSurface {
  *
  * [K] is the whole trick: every proportion is written in the caption's own units and multiplied up,
  * so the family grows or shrinks with [HEIGHT] alone. `tools/design-canvas/gen_contour.py` states the
- * same numbers the same way and `ContourBoardContractTest` holds the two against each other.
+ * same numbers the same way; the contract test that held the two together went with the cluster's
+ * old boards.
+ *
+ * ### Who still draws it
+ *
+ * The car page. The Luminofor cluster draws `dev.denza.apps.design.luminofor.ThermalGlyphs`, the
+ * board's own version of the same five marks, so this family lives exactly as long as the car
+ * page's renderer reads it.
  */
 internal class ContourGlyphs {
 

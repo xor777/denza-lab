@@ -154,6 +154,12 @@ internal class ContourMotion {
      */
     val peakKw: Float? get() = peak.takeIf { powerKnown && abs(it) > NEUTRAL_KW }
 
+    /**
+     * How long the peak has stood where it is, in seconds: zero when it lands, and it keeps
+     * counting through the decay. The mark fades with it, so a fresh peak is the brighter one.
+     */
+    val peakAge: Float get() = peakHeldFor
+
     /** What the hero prints, in whole kilowatts, or null before the first reading. */
     val figure: Int? get() = figureValue.takeIf { powerKnown }
 

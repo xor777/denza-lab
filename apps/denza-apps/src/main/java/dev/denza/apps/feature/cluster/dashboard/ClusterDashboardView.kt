@@ -33,6 +33,15 @@ import dev.denza.apps.feature.vehicle.VehicleTelemetry
  *
  * Which vsync is worth drawing, what `dt` it carries and whether a sweep is still waiting to be
  * shown are all [ContourPace], which is where they can be tested.
+ *
+ * ### And why it keeps its own clock
+ *
+ * The Luminofor board has two things that move with time and nothing else: the threads that
+ * flicker along the beam and the pool of light breathing behind a hot cell. They are functions of
+ * [clock], which is the sum of the `dt`s the followers were stepped by, and while either is on the
+ * glass the panel counts as moving and stays at the fast pace - a flicker sampled five times a
+ * second is a stutter. So the slow lane is now a panel with the beam at zero and every cell in
+ * line, which is a car standing with nothing drawing on the pack.
  */
 @SuppressLint("ViewConstructor")
 internal class ClusterDashboardView(
@@ -41,10 +50,19 @@ internal class ClusterDashboardView(
 ) : View(context), Choreographer.FrameCallback {
 
     private val hub = VehicleSession.hub(context)
-    private val renderer = ClusterDashboardRenderer()
+    private val renderer = ClusterDashboardRenderer(context)
+    private val builder = ContourFrameBuilder()
+    private val frame = ContourFrame()
     private val motion = ContourMotion()
     private val scene = ContourScene()
     private val pace = ContourPace()
+
+    /**
+     * Seconds of drawn time, wrapped at a whole number of turns: every rate the flicker uses is a
+     * whole number of radians a second, so the wrap is invisible and the float never loses the
+     * precision a long drive would cost it.
+     */
+    private var clock = 0f
 
     private var looping = false
     private var lastSnapshot: VehicleTelemetry? = null
@@ -104,6 +122,7 @@ internal class ClusterDashboardView(
                 scene.held(ContourValue.RPM),
                 pace.dt,
             )
+            clock = (clock + pace.dt) % CLOCK_WRAP_S
             invalidate()
         }
         askAgain()
@@ -122,30 +141,28 @@ internal class ClusterDashboardView(
     }
 
     /**
-     * Whether anything on the panel is still travelling toward a reading.
+     * Whether anything on the panel is still travelling toward a reading, or flickering in time.
      *
      * Cheap and honest: the band is the fastest thing here, so if its follower has arrived, the glow
-     * behind it is the only thing still moving and a fifth of a second of it is invisible.
+     * behind it is the only thing still moving and a fifth of a second of it is invisible. The
+     * flicker is read off the last frame drawn, which is at most one frame old.
      */
     private fun moving(): Boolean =
-        motion.powerReady && kotlin.math.abs(motion.powerKw - motion.glowKw) > STILL_KW
+        (motion.powerReady && kotlin.math.abs(motion.powerKw - motion.glowKw) > STILL_KW) ||
+            ContourGeometry.flickers(frame)
 
     override fun onDraw(canvas: Canvas) {
         if (width <= 0 || height <= 0) return
-        renderer.draw(
-            canvas = canvas,
-            width = width.toFloat(),
-            height = height.toFloat(),
-            layout = layout,
-            telemetry = lastSnapshot ?: hub.snapshot,
-            motion = motion,
-            scene = scene,
-        )
+        builder.build(frame, lastSnapshot ?: hub.snapshot, motion, scene, clock)
+        renderer.draw(canvas, width.toFloat(), height.toFloat(), layout, frame)
     }
 
     private companion object {
         /** Under this the band and its glow are the same picture. */
         const val STILL_KW = 0.25f
+
+        /** Sixty-four whole turns: see [clock]. */
+        val CLOCK_WRAP_S = (2.0 * Math.PI * 64.0).toFloat()
 
         const val CONTENT_DESCRIPTION = "Приборы на экране водителя"
     }

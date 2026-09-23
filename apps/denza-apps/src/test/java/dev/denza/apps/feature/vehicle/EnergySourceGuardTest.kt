@@ -26,7 +26,7 @@ class EnergySourceGuardTest {
 
     @Test
     fun neitherRendererFormatsANumberOfItsOwn() {
-        listOf(CLUSTER, STRIP).forEach { file ->
+        listOf(CLUSTER, CLUSTER_FRAME, STRIP).forEach { file ->
             val source = file.readText()
             BANNED.forEach { call ->
                 assertEquals(
@@ -68,6 +68,9 @@ class EnergySourceGuardTest {
             ?: error("the app's sources are not above ${System.getProperty("user.dir")}")
 
         val CLUSTER = File(MAIN, "feature/cluster/dashboard/ClusterDashboardRenderer.kt")
+
+        /** The cluster draws a frame, and this is where the frame's strings are chosen. */
+        val CLUSTER_FRAME = File(MAIN, "feature/cluster/dashboard/ContourFrameBuilder.kt")
         val STRIP = File(MAIN, "feature/trip/VehiclePageRenderer.kt")
 
         /**
