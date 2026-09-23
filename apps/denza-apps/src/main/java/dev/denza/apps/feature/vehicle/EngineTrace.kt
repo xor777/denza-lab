@@ -167,7 +167,7 @@ internal class EngineTrace(
          *
          * A per-second line across that box was 120 points inside 526 units - 4.4 apart, which is
          * 0.9 mm of glass for one sample of a quantity that moves on the scale of a traffic light.
-         * `ContourPlan` takes its own step size from here so the two cannot drift.
+         * `ContourGeometry.ENGINE_BINS` takes its step count from here so the two cannot drift.
          */
         const val BIN_SECONDS = 5
     }

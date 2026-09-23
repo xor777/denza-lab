@@ -81,8 +81,8 @@ class EnergySourceGuardTest {
          * Every way a renderer could print a number of its own.
          *
          * `ContourReadout`'s formatters and Java's, which is what every hand-rolled figure in this
-         * app has been. What stays legitimately is the *words*: `ContourReadout.UNIT_KW`, the
-         * thermal thresholds a track's zones are drawn from, `ContourPlan`'s two ladder labels.
+         * app has been. What stays legitimately is the *words*: `ContourReadout.UNIT_KW`, its
+         * degree sign, the thermal thresholds a temperature's colour is judged against.
          * None of those is a number a snapshot decides, which is why the ban is on the call rather
          * than on the class - a renderer reading a constant is reading the one record of it, and a
          * renderer calling a formatter is deciding how a reading looks.

@@ -7,6 +7,7 @@ import dev.denza.apps.design.luminofor.LuminoforSpec.Cluster.EngineBox
 import dev.denza.apps.design.luminofor.LuminoforSpec.Cluster.Grid
 import dev.denza.apps.design.luminofor.LuminoforSpec.Cluster.Trace
 import dev.denza.apps.design.luminofor.LuminoforSpec.Digits
+import dev.denza.apps.design.luminofor.LuminoforSpec.Head
 import dev.denza.apps.design.luminofor.Silhouette
 import dev.denza.apps.design.luminofor.SpecJson
 import dev.denza.apps.design.luminofor.WideDigits
@@ -42,13 +43,13 @@ class ContourGeometryTest {
 
     @Test
     fun theTracesLadderIsTheContractsLadder() {
-        // One chart on both screens, on one ladder (`docs/energy-display-contract.md` §2.3).
-        assertEquals(ContourPlan.PETAL_FULL, Trace.UP_TO, 0f)
-        assertEquals(ContourPlan.PETAL_RETURN_FULL, Trace.DOWN_TO, 0f)
+        // One chart on both screens, on one ladder (`docs/energy-display-contract.md` §2.3): the
+        // car page's chart is the head unit's spec block, and it climbs and drops as far as this.
+        assertEquals(Head.Chart.UP_TO, Trace.UP_TO, 0f)
+        assertEquals(Head.Chart.DOWN_TO, Trace.DOWN_TO, 0f)
         assertEquals(60.0, SpecJson.num("cluster", "trace", "upTo"), 0.0)
         assertEquals(20.0, SpecJson.num("cluster", "trace", "downTo"), 0.0)
         assertEquals("a point per hundred metres of the window", ConsumptionChart.POINTS, Trace.POINTS)
-        assertEquals(ContourPlan.PETAL_POINTS, Trace.POINTS)
     }
 
     @Test
