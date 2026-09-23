@@ -1383,6 +1383,20 @@ event outside the capture (the separate left/right lever FIDs of
 us: we follow the flash. No crash, AVC PID `4746`
 (`captures/mirrors-firmware-model/live-4-hazard.log`).
 
+**The head-unit card while our camera holds the renderer (2026-09-23, 17:55).**
+The owner saw "hanging controls" on the main screen. A screenshot of display 0
+(`captures/mirrors-firmware-model/shots/main-175557-1.png`) shows the stock card
+with no picture at all: its `SurfaceView` has no buffer once our `initDisplay`
+takes the one output, so the Denza Apps panel shows through, and AVC's own
+controls (✕, `‹ ›`, the "Left Rear" label, which our first frame switched on
+through AVC's shared first-frame callback) float over it until the card closes.
+Nothing an ordinary app draws can cover it: on this firmware `TYPE_SYSTEM_ALERT`
+from a system app is layer 12 and `TYPE_APPLICATION_OVERLAY` is layer 11
+(`WindowManagerPolicy.getWindowLayerFromTypeLw`); `TYPE_ACCESSIBILITY_OVERLAY`
+is layer 31. Those floating controls are live: `‹ ›` asks AVC for the two-camera
+view `5097`, a window-creating PIP entry, which by the code is the crash path
+while our surface holds the renderer (not tried on the car, and not to be).
+
 Not yet driven on the car at the time of writing.
 
 **Car state changed for the acceptance runs.** On 2026-09-23 at 17:02:01 the
