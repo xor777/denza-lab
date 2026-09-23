@@ -276,7 +276,7 @@ fun DenzaAppsRoot(
         )
 
         DenzaTheme {
-            Surface(modifier = Modifier.fillMaxSize(), color = DenzaColors.Background) {
+            Surface(modifier = Modifier.fillMaxSize(), color = DenzaColors.Ground) {
                 // Правка W8: дашборд всегда вписывается в ширину своего окна. Панельные ширины
                 // (узкая 1/3 и средняя 2/3) перекомпоновывают карточки; горизонтального скролла с
                 // холстом 1280 dp больше нет - в панели 828 dp он прятал ~904 px дашборда за краем.

@@ -4,6 +4,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import dev.denza.apps.design.luminofor.LuminoforSpec
 
 /**
  * Everything the palette does not carry: how far apart things sit, how round they are, how thick a
@@ -114,7 +115,7 @@ object DenzaMetrics {
     }
 
     /**
-     * One border weight, and one optical weight for icons.
+     * One border weight, and one stroke for icons.
      *
      * Selection is carried by fill and ink, never by a thicker edge - a border that thickens on
      * selection moves everything beside it by a pixel, and the eye reads the movement rather than
@@ -123,33 +124,59 @@ object DenzaMetrics {
     object Stroke {
         val HAIRLINE: Dp = 1.dp
 
-        /** An icon's stroke at its drawn size: ICON_WEIGHT * 24 / size. */
-        const val ICON_WEIGHT: Float = 2.0f
+        /**
+         * An icon's stroke, in units of its own 24-unit grid - Luminofor's `head.icon.stroke`.
+         *
+         * A grid stroke and not an optical weight, which is what this used to be: 2.0 dp at
+         * whatever size the glyph was drawn, so 1.6 units at 30 and more on anything smaller. The
+         * approved board strokes every glyph at 1.5 units and lets the stroke scale with the glyph -
+         * 1.875 dp on a tile at 30, 1.625 on a chip at 26 - and the tile draws what the board draws.
+         */
+        const val ICON: Float = LuminoforSpec.Head.Icon.STROKE
+    }
+
+    /**
+     * The dashboard tile's face, as Luminofor's `head.full.tiles` places it.
+     *
+     * Named here rather than read off [LuminoforSpec] inside the tile, so the tile has one record of
+     * its own numbers and `LuminoforScreenContractTest` can hold that record to `spec.json`: the
+     * glyph's box, the two baselines measured from the plate's top edge, the words' left inset, both
+     * sizes and both weights. The words hang on baselines, not on a stack - see
+     * [dev.denza.apps.ui.components.DenzaTile] for why that matters.
+     */
+    object Tile {
+        val RADIUS: Dp = LuminoforSpec.Head.Full.Tiles.RADIUS.dp
+        val GLYPH_LEFT: Dp = LuminoforSpec.Head.Full.Tiles.ICON_INSET_X.dp
+        val GLYPH_TOP: Dp = LuminoforSpec.Head.Full.Tiles.ICON_INSET_Y.dp
+        val TEXT_INSET: Dp = LuminoforSpec.Head.Full.Tiles.TEXT_INSET.dp
+        val NAME_BASELINE: Dp = LuminoforSpec.Head.Full.Tiles.NAME_BASELINE.dp
+        val STATUS_BASELINE: Dp = LuminoforSpec.Head.Full.Tiles.STATUS_BASELINE.dp
+
+        /** In dp, like the board's pixel sizes - the tile pins them against the font scale. */
+        const val NAME_SIZE: Float = LuminoforSpec.Head.Full.Tiles.NAME_SIZE
+        const val STATUS_SIZE: Float = LuminoforSpec.Head.Full.Tiles.STATUS_SIZE
+
+        /** `type.head.strong` and `type.head.weight`: Roboto 500 over Roboto 400. */
+        const val NAME_WEIGHT: Int = LuminoforSpec.Type.HEAD_STRONG
+        const val STATUS_WEIGHT: Int = LuminoforSpec.Type.HEAD_WEIGHT
     }
 
     /** Sizes that belong to one component rather than to the ladders. */
     object Component {
-        /** The dashboard tile, measured off Main.dc.html. */
-        val TILE_HEIGHT: Dp = 164.dp
-
-        /** The tile's icon, at the size the board draws it. */
-        val TILE_ICON: Dp = 30.dp
+        /** The dashboard tile, Luminofor's `head.full.tiles.height`. */
+        val TILE_HEIGHT: Dp = LuminoforSpec.Head.Full.Tiles.HEIGHT.dp
 
         /**
-         * The chip's insides, as fractions of the chip.
-         *
-         * At ten features the chip is 68.0 dp in the two-thirds pane and 68.8 in the narrow one,
-         * and these three come to 30, 7 and 9 - which is what they were written as. They are
-         * ratios because a chip is a fraction of its row, so adding a feature shrinks it: an
-         * eleventh puts it at 60.7, and a fixed 30 dp glyph in a 60.7 chip has its top-right
-         * corner under the dot.
-         *
-         * The dot is the whole of what a chip says beyond which feature it is, so it has to stay
-         * clear of the glyph at every size a chip can be.
+         * The tile's icon, at the size the board draws it - and the size a panel header's glyph is
+         * built at, because every [DenzaIcons] vector is declared at this size.
          */
-        const val CHIP_ICON_RATIO: Float = 30f / 68f
-        const val CHIP_DOT_RATIO: Float = 7f / 68f
-        const val CHIP_DOT_INSET_RATIO: Float = 9f / 68f
+        val TILE_ICON: Dp = LuminoforSpec.Head.Full.Tiles.ICON.dp
+
+        // The chip used to size its glyph, its dot and the dot's inset as fractions of itself. The
+        // Luminofor chip has no dot, and its glyph is a fixed 26 in both panes - the board centres
+        // a 26 box in whatever chip the row gives it - so the three ratios went with the dot. The
+        // chip's own numbers are per window and live with the rest of the window's geometry, in
+        // `DashboardLayoutPolicy`.
 
         /**
          * The smallest chip this design has.
@@ -161,7 +188,7 @@ object DenzaMetrics {
          * Twelve features fit both panes: one row of twelve at 54.7 dp, two rows of six at 55.3.
          * A thirteenth is 49.5 and 45.7, and `DashboardLayoutPolicyTest` fails rather than the
          * screen quietly getting smaller - adding one is a design decision at that point, not an
-         * entry in a registry. `ChipDensity.dc.html` draws all four counts.
+         * entry in a registry. `ChipDensity.dc.html` draws all four counts, on the older chip.
          */
         val CHIP_MIN: Dp = 52.dp
 
@@ -173,7 +200,7 @@ object DenzaMetrics {
          * an ellipsis. Six columns of 1184 is 187.3, and there is no seventh.
          *
          * A pane does not have a seventh either, which is why it has no tiles at all - see
-         * [CHIP_COLUMNS_MEDIUM].
+         * `DashboardLayoutPolicy.columns`.
          */
         const val TILE_COLUMNS_WIDE: Int = 6
 
@@ -200,8 +227,8 @@ object DenzaMetrics {
          * The narrow pane is 392 dp of content and would put ten chips at 26 dp in one row, so it
          * takes two and the same rule applies inside them.
          *
-         * See [dev.denza.apps.ui.components.DenzaChip], `TwoThirds.dc.html`, `OneThird.dc.html`,
-         * `ChipDensity.dc.html`.
+         * See [dev.denza.apps.ui.components.DenzaChip] and Luminofor's `one-sound` board, which
+         * draws `head.one.chips.perRow` of them to a row.
          */
         const val CHIP_ROWS_NARROW: Int = 2
 
@@ -289,14 +316,15 @@ object DenzaMetrics {
         val MODAL_SPINNER_STROKE: Dp = 4.dp
 
         /**
-         * The ring that says a feature is working, on a tile and on a chip alike.
+         * The ring that says a feature is working, on a tile and on a chip.
          *
-         * One thickness, because it is one indicator. The chip drew its at 1.5 dp - under
-         * [Stroke.HAIRLINE], which is the thinnest line this design has - so the same mark was
-         * lighter on a chip than on the tile it compresses, for no reason anybody stated.
+         * Luminofor draws no working state, so this is the app's and not the board's. The ring is
+         * stroked with the glyph's own line - [Stroke.ICON] at the glyph's size - so on each face it
+         * is the same weight as the drawing beside it: one indicator, one line, whatever the face.
+         * A chip has no room for 18 beside a centred 26 and takes the smaller ring in its corner.
          */
         val BUSY_DOT: Dp = 18.dp
-        val BUSY_STROKE: Dp = 2.dp
+        val BUSY_DOT_CHIP: Dp = 10.dp
 
         /** The glyph beside a note, sized against the line of body text it sits on. */
         val NOTE_ICON: Dp = 18.dp

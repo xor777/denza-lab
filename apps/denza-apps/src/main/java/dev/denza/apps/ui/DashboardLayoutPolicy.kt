@@ -3,6 +3,7 @@ package dev.denza.apps.ui
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import dev.denza.apps.design.DenzaMetrics
+import dev.denza.apps.design.luminofor.LuminoforSpec.Head
 import dev.denza.apps.feature.trip.BaseTripRenderer
 import dev.denza.apps.feature.trip.TripPanelLayout
 
@@ -107,6 +108,20 @@ internal object DashboardLayoutPolicy {
 
     /** Whether this width writes a feature out as a tile or compresses it to a chip. */
     fun chips(mode: DashboardLayoutMode): Boolean = mode != DashboardLayoutMode.WIDE
+
+    /** A feature's corner: the tile's 22, the chips' 16 and 14 - one per window, off the spec. */
+    fun cornerRadius(mode: DashboardLayoutMode): Dp = when (mode) {
+        DashboardLayoutMode.WIDE -> Head.Full.Tiles.RADIUS.dp
+        DashboardLayoutMode.MEDIUM -> Head.Two.Chips.RADIUS.dp
+        DashboardLayoutMode.NARROW -> Head.One.Chips.RADIUS.dp
+    }
+
+    /** The glyph on a feature: 30 on a tile, 26 on a chip in either pane. */
+    fun glyphSize(mode: DashboardLayoutMode): Dp = when (mode) {
+        DashboardLayoutMode.WIDE -> Head.Full.Tiles.ICON.dp
+        DashboardLayoutMode.MEDIUM -> Head.Two.Chips.ICON.dp
+        DashboardLayoutMode.NARROW -> Head.One.Chips.ICON.dp
+    }
 
     /**
      * The gap between the band of features and the strip under it.

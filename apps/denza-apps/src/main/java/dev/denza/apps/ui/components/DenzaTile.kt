@@ -2,33 +2,35 @@ package dev.denza.apps.ui.components
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.paddingFromBaseline
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.PlatformTextStyle
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import dev.denza.apps.design.DenzaColors
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.sp
+import dev.denza.apps.design.DenzaGlyph
+import dev.denza.apps.design.DenzaIcons
 import dev.denza.apps.design.DenzaMetrics
+import dev.denza.apps.design.luminofor.LuminoforSpec.HeadInk
 
 /**
  * One feature on the dashboard: what it is, what it is doing, and two ways to touch it.
@@ -42,127 +44,135 @@ import dev.denza.apps.design.DenzaMetrics
  * instruments on the cluster, start the projection, raise the speakers - and a long press opens its
  * settings. Nothing on the face of the tile can be pressed by accident on a moving car.
  *
- * The composition is the board's: the icon at the top edge, the words at the bottom edge, and the
- * slack between them rather than under them. The first cut stacked all three from the top and left
- * the bottom third of every tile empty - the same numbers as the board, in the wrong order, which
- * is how a screen ends up looking nothing like its design while matching it on paper.
+ * **It is Luminofor's `tileFace()`, drawn the same way.** A flat plate with no border - lit or dark,
+ * see [TileFace] - the glyph at `iconInset` added onto it through the board's own beam, and the two
+ * lines of words hung on baselines 116 and 142 from the plate's top edge, 20 in from its left. The
+ * words are placed by their baselines rather than stacked from an edge because that is how the board
+ * places them: the first cut of this tile carried every number off the old board and still looked
+ * nothing like it, because it stacked from the top what the board hung from the bottom. A baseline
+ * cannot be stacked wrong.
  *
- * **The name is one line and so is the state.** Both used to take two if they needed them, and
- * since the block is anchored to the bottom edge, a caption growing to two lines shoved the name
- * upward - so switching the mirrors on moved the word "Зеркала". Eleven tiles able to do that at
- * different moments is a screen that twitches, and it did. Anything longer is elided; the
- * registry writes captions that fit, and the panel behind the long press is where the long version
- * lives.
+ * **The name is one line and so is the state.** Both used to take two if they needed them, and a
+ * caption growing to two lines shoved the name upward - so switching the mirrors on moved the word
+ * "Зеркала". Eleven tiles able to do that at different moments is a screen that twitches, and it
+ * did. Anything longer is elided; the registry writes captions that fit, and the panel behind the
+ * long press is where the long version lives.
  *
- * [tone] carries the state before any word is read; see [DenzaTileTone]. [caption] decides whether
- * the line under the name is worth the accent; see [DenzaTileCaption].
+ * [tone] carries the state before any word is read; see [DenzaTileTone] and [TileFace].
  */
 @Composable
 fun DenzaTile(
-    icon: ImageVector,
+    glyph: DenzaGlyph,
     name: String,
     state: String,
     tone: DenzaTileTone,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier,
-    caption: DenzaTileCaption = DenzaTileCaption.SETTING,
     enabled: Boolean = true,
 ) {
     val shown = DenzaTileTone.shown(tone, enabled)
-    val accent = toneAccent(shown)
-    val background by animateColorAsState(
-        targetValue = if (shown == DenzaTileTone.LIVE) DenzaColors.Surface else DenzaColors.SurfaceQuiet,
-        animationSpec = tween(DenzaMetrics.Motion.TRANSITION_MS),
-        label = "tileBackground",
-    )
-    val edge by animateColorAsState(
-        targetValue = accent.copy(alpha = if (shown == DenzaTileTone.IDLE) 0.10f else 0.30f),
-        animationSpec = tween(DenzaMetrics.Motion.TRANSITION_MS),
-        label = "tileEdge",
-    )
-    val shape = RoundedCornerShape(DenzaMetrics.Radius.L)
+    val face = TileFace.of(shown)
+    val plate by animatedInk(face.plate, "tilePlate")
+    val nameInk by animatedInk(face.name, "tileName")
+    val statusInk by animatedInk(face.status, "tileStatus")
+    val painter = remember { TileFacePainter() }
+    val t = DenzaMetrics.Tile
+    val glyphSize = DenzaMetrics.Component.TILE_ICON
+    val shape = RoundedCornerShape(t.RADIUS)
 
     Box(
         modifier = modifier
-            .height(DenzaMetrics.Component.TILE_HEIGHT)
-            .background(background, shape)
-            .border(BorderStroke(DenzaMetrics.Stroke.HAIRLINE, edge), shape)
+            .clip(shape)
             .combinedClickable(
                 enabled = enabled,
                 onClick = onClick,
                 onLongClick = onLongClick,
-            ),
+            )
+            .drawBehind {
+                painter.draw(
+                    scope = this,
+                    face = face,
+                    plate = plate,
+                    glyph = glyph,
+                    glyphAt = Offset(t.GLYPH_LEFT.toPx(), t.GLYPH_TOP.toPx()),
+                    glyphSize = glyphSize.toPx(),
+                )
+            },
     ) {
-        Column(
-            modifier = Modifier.fillMaxSize().padding(DenzaMetrics.Space.L),
-            verticalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.Top,
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = if (shown == DenzaTileTone.IDLE) DenzaColors.Muted else accent,
-                    modifier = Modifier.size(DenzaMetrics.Component.TILE_ICON),
-                )
-                if (shown == DenzaTileTone.WORKING) {
-                    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(DenzaMetrics.Component.BUSY_DOT),
-                            strokeWidth = DenzaMetrics.Component.BUSY_STROKE,
-                            color = DenzaColors.Accent,
-                        )
-                    }
-                }
-            }
-            Column(verticalArrangement = Arrangement.spacedBy(DenzaMetrics.Space.S)) {
-                Text(
-                    text = name,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = DenzaColors.Ink,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    text = state,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = captionColor(shown, caption),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
+        TileLine(name, FontWeight(t.NAME_WEIGHT), t.NAME_SIZE, t.NAME_BASELINE, nameInk)
+        TileLine(state, FontWeight(t.STATUS_WEIGHT), t.STATUS_SIZE, t.STATUS_BASELINE, statusInk)
+        if (shown == DenzaTileTone.WORKING) {
+            // Centred on the glyph's row and flush with the words' right margin. The board has no
+            // working state; this is the app's, stroked with the glyph's own line.
+            val ring = DenzaMetrics.Component.BUSY_DOT
+            WorkingRing(
+                size = ring,
+                stroke = glyphStroke(glyphSize),
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(top = t.GLYPH_TOP + (glyphSize - ring) / 2, end = t.TEXT_INSET),
+            )
         }
     }
 }
 
 /**
- * The edge and the icon. Amber and coral come from the vehicle, so a warning here is the same
- * warning the car itself would draw.
+ * One of the tile's two lines, on its baseline.
+ *
+ * Set as the board sets it: Roboto - the system sans-serif, which on this car is Roboto - at 500
+ * for the name and 400 for the state, with no tracking. It takes no role from the theme: a role
+ * brings a leading, a size in sp and, in Material's own scale, tracking of 0.15 and 0.25 sp, and
+ * the tile wants none of them - so the style says `letterSpacing = 0` out loud rather than trusting
+ * whatever a theme merges in. The size is pinned to dp rather than sp for the same reason the
+ * board's is a pixel size: the tile is a fixed 164 and its baselines are fixed with it, and a
+ * system font scale would push the words off the plate they are measured against.
  */
-private fun toneAccent(tone: DenzaTileTone): Color = when (tone) {
-    DenzaTileTone.LIVE, DenzaTileTone.WORKING -> DenzaColors.Accent
-    DenzaTileTone.IDLE -> DenzaColors.Ink
-    DenzaTileTone.ATTENTION -> DenzaColors.Warning
-    DenzaTileTone.BROKEN -> DenzaColors.Danger
+@Composable
+private fun TileLine(text: String, weight: FontWeight, size: Float, baseline: Dp, ink: Color) {
+    val fontScale = LocalDensity.current.fontScale
+    Text(
+        text = text,
+        modifier = Modifier
+            .padding(horizontal = DenzaMetrics.Tile.TEXT_INSET)
+            .paddingFromBaseline(top = baseline),
+        color = ink,
+        style = TextStyle(
+            fontFamily = FontFamily.SansSerif,
+            fontWeight = weight,
+            fontSize = (size / fontScale).sp,
+            letterSpacing = 0.sp,
+            platformStyle = PlatformTextStyle(includeFontPadding = false),
+        ),
+        maxLines = 1,
+        softWrap = false,
+        overflow = TextOverflow.Ellipsis,
+    )
 }
 
+/** An ARGB face colour, crossfaded when the tone changes. */
+@Composable
+internal fun animatedInk(argb: Int, label: String) = animateColorAsState(
+    targetValue = Color(argb),
+    animationSpec = tween(DenzaMetrics.Motion.TRANSITION_MS),
+    label = label,
+)
+
+/** The glyph's line at [glyph] size: [DenzaMetrics.Stroke.ICON] grid units, in dp. */
+internal fun glyphStroke(glyph: Dp): Dp = glyph * (DenzaMetrics.Stroke.ICON / DenzaIcons.VIEWPORT)
+
 /**
- * The state line.
- *
- * Only two things earn a colour other than grey here: a live tile whose caption is a reading of
- * what the feature is doing, and a state the driver has to act on. A caption that shouts on a
- * healthy car teaches the driver to stop reading captions, and a screen where most captions shout
- * has no way left to say that one of them matters.
+ * The ring that says a feature is starting or recovering: a turning arc in the lit glyph's own
+ * blue, the same weight as the glyph beside it.
  */
-private fun captionColor(tone: DenzaTileTone, caption: DenzaTileCaption): Color = when (tone) {
-    DenzaTileTone.ATTENTION -> DenzaColors.Warning
-    DenzaTileTone.BROKEN -> DenzaColors.Danger
-    DenzaTileTone.LIVE ->
-        if (caption == DenzaTileCaption.READING) DenzaColors.Accent else DenzaColors.Muted
-    DenzaTileTone.IDLE, DenzaTileTone.WORKING -> DenzaColors.Muted
+@Composable
+internal fun WorkingRing(size: Dp, stroke: Dp, modifier: Modifier = Modifier) {
+    CircularProgressIndicator(
+        modifier = modifier.size(size),
+        strokeWidth = stroke,
+        color = Color(HeadInk.BLUE.core),
+        trackColor = Color.Transparent,
+    )
 }
 
 // The corner mark is gone for the second time, and this grave is the one to read before digging
