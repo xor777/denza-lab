@@ -167,16 +167,6 @@ internal object ContourReadout {
     const val DRIVE_BAND_HIGH_C = 70.0
     const val HOT_MARGIN_C = 15.0
 
-    /**
-     * Generation's ceiling in the engine box: 30 kW, linear, clamped.
-     *
-     * The concept named a square root to 100 kW and the owner read the result as flat twice. At the
-     * 14 kW this car ordinarily generates a root over 100 fills a third of a 50-unit box; linear
-     * over 30 fills a half, and 30 is what this generator does rather than a span borrowed from the
-     * band. What a root buys is resolution near zero, and near zero this quantity is *off*.
-     */
-    const val GENERATION_FULL_KW = 30.0
-
     // ---- the numbers
 
     /** The odometer arrives in tenths and the differences accumulate in doubles. */
@@ -291,15 +281,4 @@ internal object ContourReadout {
      * its cells together is the ordinary case and says nothing worth 167 units of shelf.
      */
     fun spreadIsWorthACell(level: Level): Boolean = level != Level.NORMAL
-
-    /**
-     * Where generation falls in the engine box: linear on [GENERATION_FULL_KW], clamped.
-     *
-     * Clamped rather than autoscaled for the reason the petal's ladder is fixed - a bin that changes
-     * height because a *different* bin changed value never draws the same two minutes twice - and
-     * clamped rather than open-topped because a generation above this span is the same fact as this
-     * span: the engine is giving everything it has.
-     */
-    fun generationFraction(kilowatts: Double): Float =
-        (kilowatts / GENERATION_FULL_KW).coerceIn(0.0, 1.0).toFloat()
 }

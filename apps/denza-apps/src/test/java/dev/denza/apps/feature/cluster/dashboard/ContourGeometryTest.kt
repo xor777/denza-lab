@@ -62,8 +62,8 @@ class ContourGeometryTest {
     }
 
     @Test
-    fun theEngineBoxIsTheTracesTwoMinutesOnTheReadoutsSpan() {
-        assertEquals(ContourReadout.GENERATION_FULL_KW.toFloat(), EngineBox.UP_TO, 0f)
+    fun theEngineBoxIsTheTracesTwoMinutesOnALinearSpanToThirtyKilowatts() {
+        assertEquals(30f, EngineBox.UP_TO, 0f)
         assertEquals("two minutes of five-second steps", 24, g.ENGINE_BINS)
         assertEquals(EngineTrace.SLOTS, g.ENGINE_BINS * EngineTrace.BIN_SECONDS)
         assertEquals(g.ENGINE_BINS, ContourFrame.GENERATION_BINS)
@@ -74,6 +74,9 @@ class ContourGeometryTest {
         assertEquals(g.BOX_ZERO, g.boxY(0f), 0f)
         assertEquals("a zero or a hole draws nothing above the base", g.BOX_ZERO, g.boxY(-4f), 0f)
         assertEquals(g.BOX_TOP, g.boxY(30f), 1e-4f)
+        // Linear: the 14 kW this car ordinarily generates is 0.467 of the box, where the concept's
+        // square root over a hundred made it 0.37 and the owner called it flat twice.
+        assertEquals(0.467f, (g.BOX_ZERO - g.boxY(14f)) / (g.BOX_ZERO - g.BOX_TOP), 1e-3f)
         assertEquals("clamped rather than open-topped", g.BOX_TOP, g.boxY(55f), 1e-4f)
     }
 

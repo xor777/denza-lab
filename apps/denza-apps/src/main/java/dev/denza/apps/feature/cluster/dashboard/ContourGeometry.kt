@@ -168,7 +168,18 @@ internal object ContourGeometry {
      */
     const val BOX_PITCH: Float = EngineBox.WIDTH / ENGINE_BINS
 
-    /** Generation on its linear span to 30 kW, clamped at both ends. */
+    /**
+     * Generation on its linear span to 30 kW ([EngineBox.UP_TO]), clamped at both ends.
+     *
+     * Linear because the concept's square root to 100 kW read as flat to the owner twice: at the
+     * 14 kW this car ordinarily generates, a root over 100 fills a third of the box and linear over
+     * 30 a half - and 30 is what this generator does rather than a span borrowed from the band. A
+     * root buys resolution near zero, and near zero this quantity is *off*. Clamped rather than
+     * autoscaled for the reason the trace's ladder is fixed - a step that changes height because a
+     * *different* step changed value never draws the same two minutes twice - and rather than
+     * open-topped because more than the span is the same fact as the span: the engine is giving
+     * everything it has.
+     */
     fun boxY(kilowatts: Float): Float =
         BOX_ZERO - (BOX_ZERO - BOX_TOP) * min(1f, max(0f, kilowatts) / EngineBox.UP_TO)
 
