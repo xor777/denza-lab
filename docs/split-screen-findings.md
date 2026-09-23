@@ -2555,3 +2555,18 @@ What is left is the switch, and it is the owner's: with it off, every wake's
 `BOOT_COMPLETED` reaches `RuntimeRecoveryReceiver`. The sleep still
 force-stops the product (no exemption is reachable), so each wake is a cold
 start followed by recovery.
+
+The first sleep with the switch off (owner turned it off at 15:37:50, log
+`setAppStartupData key = 10147 value = 0`): at 15:44:50 quickboot killed both
+processes (`am_kill ... stop dev.denza.apps due to quickboot`); at 15:45:14 the
+wake's `BOOT_COMPLETED` passed the gate - no skip line - and started the
+process for it (`am_proc_start ... broadcast
+{dev.denza.apps/.RuntimeRecoveryReceiver}`); `RuntimeRecoveryService` ran
+15:45:15.7-15:45:18.2 and stopped as recovered, well inside its 60 s bound.
+Afterwards both accessibility services were bound with `Crashed services:{}`,
+and the process held its `CLOSE_SYSTEM_DIALOGS` (split Home) and `SCREEN_ON`
+receivers. The sleep lasted seconds and the owner saw no boot logo; it was
+still the quickboot path, the same kill and the same accmode
+`BOOT_COMPLETED`. Not yet seen: a long park that ends in a full power-off (the
+switch lives in the provider table, so it should survive one), and the
+product's own lines - the main buffer rolls over in minutes.
