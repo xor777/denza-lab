@@ -3,7 +3,6 @@ package dev.denza.apps
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
-import dev.denza.apps.core.AccQuickBootSurvivalRegistrar
 import dev.denza.apps.core.FeatureSnapshot
 import dev.denza.apps.feature.cluster.CameraRuntimeSnapshot
 import dev.denza.apps.feature.cluster.ClusterDisplayResolver
@@ -76,7 +75,6 @@ object SupportDiagnostics {
                     "attempts=${adbRescue.attemptCount}",
             )
             add("ADB queue recovery=${AdbRescueCoordinator.QUEUE_RECOVERY_STATUS}")
-            add("ACC quickboot whitelist=${AccQuickBootSurvivalRegistrar.diagnostic()}")
             add("Крышки динамиков=reporting=${if (SpeakerCoverRuntime.reporting) "да" else "нет"}")
             // Анализатор питается тем же захватом, что и автоматика крышек, и когда захвата нет,
             // обе функции молчат одинаково. На экране про это не пишется ни слова (U5), поэтому

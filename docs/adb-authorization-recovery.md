@@ -21,21 +21,13 @@ Denza Apps has one canonical ADB identity and one owner for authorization prompt
   cannot resurrect an application that quickboot already killed. Every enabled feature is
   reconciled independently once ADB is trusted, so a failed Binder call or one failed feature does
   not prevent the remaining features from starting.
-- A real system `BOOT_COMPLETED` is the only event that grants permission to register
-  `dev.denza.apps` in the firmware's in-memory ACC whitelist. Once the existing passive ADB key is
-  confirmed trusted, Denza Apps executes exactly
-  `service call accmodemanager 1 s16 dev.denza.apps`. Manual launch, `SCREEN_ON`, and
-  `MY_PACKAGE_REPLACED` never grant that right. The registration is not `DEVICE_ACC` permission
-  inside the APK and is not an ACC lock.
-  **This registration cannot succeed (firmware read 2026-09-23).** `setPkg2AccWhiteList` enforces
-  `DEVICE_ACC`, which the shell does not hold, and the refusal comes back as a hex dump that
-  `AccWhitelistRegistrationPolicy.accepted` reads as success, so diagnostics can show `registered`
-  for a call that was refused. Details in `split-screen-findings.md`, "The self-start switch, and a
-  registrar that never registered".
-- The ACC whitelist belongs to `system_server` memory. A full Android or `system_server` restart
-  clears it; the next genuine `BOOT_COMPLETED` is expected to register the package again. On a
-  firmware without `accmodemanager`, the current runtime continues and diagnostics record the
-  failure, but quickboot survival is not claimed.
+- Every sleep of the car force-stops the product, and nothing reachable exempts it: the ACC
+  whitelist (`accmodemanager.setPkg2AccWhiteList`) enforces `DEVICE_ACC`, which neither the APK
+  nor the shell holds. Until 2026-09-23 Denza Apps sent that call over ADB on every
+  `BOOT_COMPLETED` and read the refusal's hex dump as success; the registrar was removed once the
+  firmware was read (`split-screen-findings.md`, "The self-start switch, and a registrar that never
+  registered"). Survival across sleep is therefore a cold start on every wake: the wake's
+  `BOOT_COMPLETED` starts the process and this recovery contour.
 - The BYD system page is named **Disable self-start** / **Disable background Apps**. A checked or
   enabled switch on that page means the application is *blocked* from background self-start, not
   allowed. Denza Apps must therefore be absent from that deny-list, or its switch must be off.

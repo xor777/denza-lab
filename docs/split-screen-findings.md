@@ -2539,7 +2539,8 @@ UTF-16 hex dump (`'N.e.i.t.h.e.r. .u.s.e.r. .2.0.0.0...'`, the same form the
 takes that for success: "exception" and "permission denial" never appear as
 contiguous text, "Result: Parcel" does. It is also only run on a
 `BOOT_COMPLETED`, which the switch withholds. Not called live - tx1 is a write -
-the enforcement and the shell's permission set are enough.
+the enforcement and the shell's permission set are enough. The registrar was
+removed the same day.
 
 What is left is the switch, and it is the owner's: with it off, every wake's
 `BOOT_COMPLETED` reaches `RuntimeRecoveryReceiver`. The sleep still
