@@ -2380,6 +2380,22 @@ tenth of a second later that the scene is covered - against a first read at
   owns under a covered world - the heir of a process a quickboot killed.
 - **Every pane app is listed through tx125**, not only those tx112 denies,
   so manifest-capable apps get the full detent map in the wide pane.
+- **A picker outside the pane roots is never taken back** (`buildScene`,
+  phase 2). Home strands the wide pane's picker and a collapse strands the
+  closed pane's; excluded from recents and below Home, each is the firmware's
+  to trim at the first new recents task - usually the tap on the launcher that
+  asked for the open, 0.3 s before the open touches anything. The build used
+  to read such a picker and move it back (правка B1 of wave 4, written before
+  the trim was understood); a trim between that read and the move failed the
+  open (2026-09-18 18:55:35: read 44 ms before the removal). Now the pane
+  gets a fresh picker, the stranded one is kept out of the launch's discovery
+  and left to the trim. The apps are still taken back by exact identity, with
+  no launch (U2). Live 2026-09-23 13:57 showed the cost: the fresh picker was
+  in its root 36 ms after its start, the whole reopen 1.45 s. What remains of
+  the same race is the collapse adoption (`readCollapsedSession`), which still
+  reattaches the survivor's detached picker; a collapse arms no trim by
+  itself, so there the window is open only if a new task appears within the
+  reconcile's first reads.
 
 Contract: invariant 8, §4.2, К 1.9, К 1.11, 1.9.1, the Recents note under
 1.7 and 1.12 carry the same edition.

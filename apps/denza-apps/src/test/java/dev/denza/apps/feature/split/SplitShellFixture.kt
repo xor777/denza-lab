@@ -342,6 +342,15 @@ internal class FakeShell(
         changed()
     }
 
+    /**
+     * `recent-task-trimmed`: the firmware removes a task that is excluded from recents and lies
+     * below Home outside every container, at the first new recents task (findings 2026-09-23).
+     */
+    fun trimTask(taskId: Int) {
+        synchronized(this) { tasks.removeAll { it.id == taskId } }
+        changed()
+    }
+
     fun taskBaseActivity(taskId: Int): String = tasks.first { it.id == taskId }.activityName
 
     fun topActivity(rootId: Int): String? =

@@ -1057,7 +1057,15 @@ internal class SplitPickerShellSession(
             .filterValues { it != null }
             .mapValuesTo(mutableMapOf()) { (_, task) -> task!! }
         val assignedIds = pickerTasks.values.mapTo(mutableSetOf(), SplitTask::id)
-        val reusableTasks = before.roots.asSequence()
+        // A picker outside the pane roots is never taken back (findings, "Why the wide picker
+        // dies, and who kills it"). Home throws the wide pane's tasks out of their container and a
+        // collapse does the same to the closed pane; out there a task that is excluded from
+        // recents and lies below Home is trimmed by the firmware at the first new recents task -
+        // usually the very tap on the launcher that asked for this open. On 2026-09-18 18:55:35 an
+        // open read such a picker 44 ms before it went. It is left to that trim, and the pane
+        // gets a fresh picker; its id is kept out of the launch's discovery so the old one is
+        // never mistaken for the new.
+        val strandedPickerIds = before.roots.asSequence()
             .filter { it.displayId == MAIN_DISPLAY_ID }
             .flatMap { it.tasks.asSequence() }
             .filter { task ->
@@ -1065,22 +1073,14 @@ internal class SplitPickerShellSession(
                     task.isDenzaPickerBase() &&
                     task.matchesAnyComponent(pickerComponents.values.toSet())
             }
-            .sortedByDescending(SplitTask::id)
-            .toMutableList()
+            .mapTo(mutableSetOf(), SplitTask::id)
         var launchedPicker = false
         SplitPane.entries.filterNot(pickerTasks::containsKey).forEach { pane ->
-            // A survivor goes back to its own pane: the panel bounds the firmware preserved on it
-            // name the side it lived on (правка B1, ground-v18). Any remaining survivor still
-            // beats a launch, and only an empty pool launches a fresh picker.
-            val paneBounds = before.root(rootIds.getValue(pane))?.bounds
-            val survivor = reusableTasks.firstOrNull { task -> task.bounds == paneBounds }
-                ?: reusableTasks.firstOrNull()
-            val picker = survivor?.also(reusableTasks::remove)
-                ?: launchPickerTask(
-                    pane = pane,
-                    pickerComponent = pickerComponents.getValue(pane),
-                    excludedTaskIds = assignedIds,
-                ).also { launchedPicker = true }
+            val picker = launchPickerTask(
+                pane = pane,
+                pickerComponent = pickerComponents.getValue(pane),
+                excludedTaskIds = assignedIds + strandedPickerIds,
+            ).also { launchedPicker = true }
             assignedIds += picker.id
             pickerTasks[pane] = picker
         }
