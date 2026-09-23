@@ -245,6 +245,8 @@ private fun helpOf(id: TileId): String = when (id) {
     // the one sentence has one owner.
     TileId.PASSENGER -> FSE_INSTALL_HELP
     TileId.DEFAULT_APPS -> DEFAULT_APPS_SHORTCUTS_HELP
+    // Neither gesture opens a panel for the service any more - both open the service itself - so
+    // like the passenger screen it stays in the table only to keep the table exhaustive.
     TileId.SERVICE ->
         "Показания машины, доступ приложения к ней и штатные настройки, до которых оно дотягивается."
 }

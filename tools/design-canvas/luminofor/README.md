@@ -64,7 +64,9 @@ as `<id>.bare.png` without the keep-out hatching, which is what the app is compa
 | `main-car-neutral`, `-charging`, `-closed`, `one-car-closed` | «Батарея» in white; on the charger; the shell closed, at two widths |
 | `two-sound`, `two-car`, `one-sound`, `one-car` | the two-thirds and one-third panes |
 | `sheet-cluster`, `-mirrors`, `-simulcast`, `-speakers`, `-locale`, `-broken` | a tile's settings panel over the dashboard |
-| `sheet-cast-apps`, `sheet-defaults`, `sheet-service` | a panel's page of applications, the default-apps panel, the service panel |
+| `sheet-cast-apps`, `sheet-defaults` | a panel's page of applications, the default-apps panel |
+| `sheet-service`, `sheet-service-trouble`, `sheet-service-access`, `one-sheet-service-trouble` | the service panel on a healthy car, with two features needing somebody (wide and in the one-third pane), and with no access to the car |
+| `sheet-service-screen`, `sheet-service-technical` | the service's two pages: the instruments' screen, and the technical report with the cloud first |
 | `one-sheet-cluster`, `one-sheet-cast-apps` | the same panels filling a one-third pane |
 | `modal-adb`, `one-modal-adb` | the ADB gate asking for the car's permission |
 | `digits` | the wide figures, for the eye |
@@ -126,7 +128,15 @@ Luminofor's grounds (`spec.json` → `sheet`, `drawSheet()` and `drawModal()`):
   and centred on its own ink, because it names the panel - its state is the status line's, in the
   car's orange or red;
 - the ADB gate is the stock dialog: the one action across the card, the quiet ones under it side by
-  side at equal widths, each on its own line in a pane.
+  side at equal widths, each on its own line in a pane;
+- the service panel answers what is wrong and nothing else: «Все функции работают» and the car's
+  access on a healthy car; otherwise a status line in the service tile's words and one row per
+  feature that needs somebody, its summary in the tile's orange or red (a row's `tone`), opening
+  that feature's panel. The access buttons appear only when there is no access. The instruments'
+  screen is a page of rows with the stock badge on the chosen one (`kind: 'chosen'`), the report is
+  a page of dense key-value rows (`sheet.pair`) one section a feature - `[Раздел]` then `key=value`
+  lines, the rule `techBlocks()` and the app's `TechnicalReadings` share - and the version stands at
+  the panel's foot.
 
 Every word is placed by its baseline - Roboto's ascent, descent and centring offset are in the
 spec - so a panel can be laid over its board: the debug build's `SheetFixtures` builds the real

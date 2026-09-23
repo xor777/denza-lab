@@ -256,6 +256,20 @@ object LuminoforSpec {
             const val CHOICE_GAP: Float = 8f
         }
 
+        /**
+         * A reading on the service's technical page: its key on the left, its value right-aligned
+         * beside it and wrapped in the width the key leaves, the row as tall as the value's lines.
+         */
+        object KeyValue {
+            const val MIN_HEIGHT: Float = 40f
+            const val PAD_Y: Float = 10f
+            const val SIZE: Float = 16f
+            const val KEY_ALPHA: Float = 0.9f
+            const val VALUE_ALPHA: Float = 0.54f
+            const val GAP: Float = 16f
+            const val STEP: Float = 20f
+        }
+
         object Label {
             const val SIZE: Float = 15f
             const val ALPHA: Float = 0.54f

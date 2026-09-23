@@ -94,21 +94,30 @@ fun DenzaAppTile(
             modifier = Modifier.fillMaxWidth().padding(horizontal = NAME_INSET.dp),
         )
         if (selected) {
-            Canvas(
+            SelectionBadge(
                 Modifier
                     .align(Alignment.TopEnd)
-                    .padding(top = a.BADGE_INSET.dp, end = a.BADGE_INSET.dp)
-                    .size(a.BADGE.dp),
-            ) {
-                drawCircle(Color(a.BADGE_COLOR))
-                scale(size.width / a.BADGE, pivot = Offset.Zero) {
-                    drawPath(
-                        check,
-                        Color.White,
-                        style = Stroke(width = CHECK_STROKE, cap = StrokeCap.Round, join = StrokeJoin.Round),
-                    )
-                }
-            }
+                    .padding(top = a.BADGE_INSET.dp, end = a.BADGE_INSET.dp),
+            )
+        }
+    }
+}
+
+/**
+ * The car's own selection badge - the stock tab layout's `focused_icon_circle`, `#1677D9`, with its
+ * white check - on a chosen application and at the end of a chosen row alike.
+ */
+@Composable
+internal fun SelectionBadge(modifier: Modifier = Modifier) {
+    val a = Sheet.Apps
+    Canvas(modifier.size(a.BADGE.dp)) {
+        drawCircle(Color(a.BADGE_COLOR))
+        scale(size.width / a.BADGE, pivot = Offset.Zero) {
+            drawPath(
+                check,
+                Color.White,
+                style = Stroke(width = CHECK_STROKE, cap = StrokeCap.Round, join = StrokeJoin.Round),
+            )
         }
     }
 }

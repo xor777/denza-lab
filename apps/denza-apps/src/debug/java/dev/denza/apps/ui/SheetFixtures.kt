@@ -5,6 +5,8 @@ import dev.denza.apps.DenzaUiState
 import dev.denza.apps.NavigationAppChoice
 import dev.denza.apps.SimulcastAppChoice
 import dev.denza.apps.core.FeatureId
+import dev.denza.apps.core.FeatureReducer
+import dev.denza.apps.core.FeatureResolution
 import dev.denza.apps.core.FeatureSnapshot
 import dev.denza.apps.core.FeatureStatus
 import dev.denza.apps.feature.adb.AdbRescuePhase
@@ -42,14 +44,21 @@ internal object SheetFixtures {
         val s = fixture.getJSONObject("state")
         val tile = TileId.valueOf(s.getString("tile"))
         if (tile == TileId.SERVICE) {
-            DiagnosticsDialog(
+            ServicePanel(
                 state = service(s),
                 compactLayout = compact,
+                onOpenFeature = {},
                 onSelectClusterDisplay = {},
                 onCheckAdbAccess = {},
                 onRequestAdbAuthorizationOnce = {},
                 onAllowNewAdbAuthorizationAttempt = {},
                 onDismiss = {},
+                firstPage = when (s.optString("page")) {
+                    "screen" -> ServicePage.SCREEN
+                    "technical" -> ServicePage.TECHNICAL
+                    else -> ServicePage.MAIN
+                },
+                version = "Denza Apps ${s.getString("version")} · сборка ${s.getInt("build")}",
             )
             return
         }
@@ -91,21 +100,39 @@ internal object SheetFixtures {
         )
     }
 
-    /** The service panel's state: the car's access, the instruments' screen and the displays. */
+    /**
+     * The service panel's state: the car's access, the instruments' screen, the displays and the
+     * report. `trouble` puts two features in the states the app really shows as waiting on the
+     * driver and as broken - HUD guidance that lost its access, a cloud link the car refused.
+     */
     private fun service(s: JSONObject): DenzaUiState {
         val displays = s.optJSONArray("displays") ?: JSONArray()
-        return DenzaUiState(
+        val technical = s.optJSONArray("technical") ?: JSONArray()
+        var state = DenzaUiState(
             adbRescue = AdbRescueSnapshot(
-                phase = AdbRescuePhase.TRUSTED,
+                phase = AdbRescuePhase.valueOf(s.optString("adbPhase", "TRUSTED")),
                 message = s.optString("adb"),
                 details = s.optString("adbDetails").ifEmpty { null },
             ),
             clusterDisplayLabel = s.optString("cluster"),
+            clusterDisplayAutomatic = "Экран 1 · 1920×720",
             clusterCandidates = (0 until displays.length()).map {
                 val d = displays.getJSONArray(it)
                 ClusterDisplayDescriptor(d.getInt(0), "ClusterDisplay", d.getInt(1), d.getInt(2), 160, 0, 0)
             },
+            technicalDetails = (0 until technical.length()).joinToString("\n") { technical.getString(it) },
         )
+        if (s.optBoolean("trouble", false)) {
+            state = state.copy(
+                hudGuidance = FeatureReducer.needsAction(
+                    FeatureReducer.starting(FeatureId.HUD_GUIDANCE),
+                    "Повторите настройку доступа",
+                    resolution = FeatureResolution.RETRY,
+                ),
+                cloudLink = FeatureSnapshot(FeatureId.CLOUD_LINK, true, FeatureStatus.ERROR, message = "Не включилось"),
+            )
+        }
+        return state
     }
 
     private fun state(s: JSONObject): DenzaUiState {

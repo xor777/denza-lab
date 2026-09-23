@@ -3,7 +3,6 @@ package dev.denza.apps.ui.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -23,6 +22,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.layout.LastBaseline
 import androidx.compose.ui.layout.FirstBaseline
 import androidx.compose.ui.layout.Layout
+import kotlin.math.roundToInt
 import dev.denza.apps.design.luminofor.LuminoforSpec.ClusterInk
 import dev.denza.apps.design.luminofor.LuminoforSpec.Sheet
 
@@ -85,6 +85,7 @@ internal fun SheetRow(
     summary: String?,
     enabled: Boolean,
     icons: (@Composable () -> Unit)? = null,
+    tone: DenzaTileTone? = null,
     end: @Composable () -> Unit,
 ) {
     val r = Sheet.Row
@@ -109,7 +110,7 @@ internal fun SheetRow(
                 icons != null -> Box { icons() }
                 two -> Text(
                     text = summary.orEmpty(),
-                    style = SheetInk.style(r.SUMMARY_SIZE, 400, SheetInk.white(r.SUMMARY_ALPHA * dim))
+                    style = SheetInk.style(r.SUMMARY_SIZE, 400, summaryInk(tone, dim))
                         .copy(lineHeight = r.SUMMARY_STEP.sp),
                     maxLines = SUMMARY_LINES,
                     overflow = TextOverflow.Ellipsis,
@@ -151,6 +152,99 @@ internal fun SheetRow(
 
 /** Two lines under a title, no more: a third is a paragraph, and paragraphs go under the plate. */
 private const val SUMMARY_LINES = 2
+
+/**
+ * The line under a row's title: the stock summary grey, or - on a row that names something waiting
+ * on the driver or broken - the car's orange or red, whole, as the tile says it.
+ */
+private fun summaryInk(tone: DenzaTileTone?, dim: Float): Color = when (tone) {
+    DenzaTileTone.ATTENTION -> Color(ClusterInk.ORANGE.halo).copy(alpha = dim)
+    DenzaTileTone.BROKEN -> Color(ClusterInk.RED.halo).copy(alpha = dim)
+    else -> SheetInk.white(Sheet.Row.SUMMARY_ALPHA * dim)
+}
+
+/**
+ * A row that says something and does nothing: a title, and the line under it in the colour its
+ * [tone] deserves. It stands on a [DenzaChoiceGroup] plate beside rows that do.
+ */
+@Composable
+fun DenzaInfoRow(
+    title: String,
+    summary: String? = null,
+    modifier: Modifier = Modifier,
+    tone: DenzaTileTone? = null,
+) {
+    Box(modifier.fillMaxWidth()) {
+        SheetRow(title = title, summary = summary, enabled = true, tone = tone) {}
+    }
+}
+
+/**
+ * One answer of a list where one is chosen: the stock selection badge at the row's end on the chosen
+ * one, nothing on the rest. The whole row is the target.
+ */
+@Composable
+fun DenzaChosenRow(
+    title: String,
+    chosen: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    summary: String? = null,
+) {
+    Box(modifier.fillMaxWidth().clickable(onClick = onClick)) {
+        SheetRow(title = title, summary = summary, enabled = true) {
+            if (chosen) SelectionBadge()
+        }
+    }
+}
+
+/**
+ * A reading on a technical page: the key on the left, the value right-aligned beside it and wrapped
+ * in the width the key leaves - [Sheet.KeyValue], the board's `pair` row. One line centres itself in
+ * the row's [Sheet.KeyValue.MIN_HEIGHT]; more start [Sheet.KeyValue.PAD_Y] from its top and the row
+ * grows a [Sheet.KeyValue.STEP] a line.
+ *
+ * Denser than a settings row because it is read, not pressed: the cloud link alone is fifteen of
+ * them, and a page a tester sends as one screenshot has to hold all fifteen.
+ */
+@Composable
+fun DenzaPairRow(key: String, value: String, modifier: Modifier = Modifier) {
+    val q = Sheet.KeyValue
+    val ro = Sheet.Roboto
+    Layout(
+        modifier = modifier.fillMaxWidth().padding(horizontal = Sheet.Row.PAD_X.dp),
+        content = {
+            Text(
+                text = key,
+                style = SheetInk.style(q.SIZE, 400, SheetInk.white(q.KEY_ALPHA)),
+                maxLines = 1,
+            )
+            Text(
+                text = value,
+                style = SheetInk.style(q.SIZE, 400, SheetInk.white(q.VALUE_ALPHA))
+                    .copy(lineHeight = q.STEP.sp, textAlign = TextAlign.End),
+            )
+        },
+    ) { measurables, constraints ->
+        val keyP = measurables[0].measure(constraints.copy(minWidth = 0, minHeight = 0))
+        val room = (constraints.maxWidth - keyP.width - q.GAP.dp.roundToPx()).coerceAtLeast(0)
+        val valueP = measurables[1].measure(constraints.copy(minWidth = 0, maxWidth = room, minHeight = 0))
+        val keyFirst = keyP[FirstBaseline]
+        val first = valueP[FirstBaseline]
+        val extra = valueP[LastBaseline] - first
+        val text = (q.SIZE * (ro.ASCENT + ro.DESCENT)).dp.toPx()
+        val height = maxOf(q.MIN_HEIGHT.dp.toPx(), 2 * q.PAD_Y.dp.toPx() + extra + text).roundToInt()
+        val baseline = if (extra == 0) {
+            centredBaseline(height / density / 2f, q.SIZE).roundToPx()
+        } else {
+            (q.PAD_Y + q.SIZE * ro.ASCENT).dp.roundToPx()
+        }
+        layout(constraints.maxWidth, height) {
+            keyP.place(0, baseline - keyFirst)
+            valueP.place(constraints.maxWidth - valueP.width, baseline - first)
+        }
+    }
+}
 
 /**
  * A choice of two to four, all visible at once: the stock tab layout - a track of white at 0.1, the
@@ -279,35 +373,6 @@ private fun SheetButton(
             style = SheetInk.style(size, 500, ink),
             baseline = centredBaseline(height / 2f, size),
             modifier = Modifier.align(Alignment.TopCenter),
-        )
-    }
-}
-
-/**
- * A named reading, for the service page and anywhere else a fact needs its label: the label in the
- * summary grey over the value, as the board's `reading` block stacks them. [stacked] is kept for the
- * callers that asked for it; a reading is always stacked now.
- */
-@Composable
-fun DenzaKeyValueRow(
-    label: String,
-    value: String,
-    modifier: Modifier = Modifier,
-    @Suppress("UNUSED_PARAMETER") stacked: Boolean = true,
-) {
-    val r = Sheet.Reading
-    val ro = Sheet.Roboto
-    Column(modifier.fillMaxWidth()) {
-        BaselineText(
-            text = label,
-            style = SheetInk.style(r.LABEL_SIZE, 400, SheetInk.white(r.LABEL_ALPHA)),
-            baseline = (r.LABEL_SIZE * ro.ASCENT).dp,
-        )
-        BaselineText(
-            text = value,
-            style = SheetInk.style(r.VALUE_SIZE, 400, SheetInk.white(r.VALUE_ALPHA)),
-            baseline = (r.GAP + r.VALUE_SIZE * ro.ASCENT).dp,
-            maxLines = 3,
         )
     }
 }

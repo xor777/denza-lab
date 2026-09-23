@@ -31,6 +31,9 @@ object ClusterDisplayResolver {
     /** Whether a screen was chosen by hand, which is the difference the service panel reports. */
     fun hasOverride(context: Context): Boolean = override(context) != null
 
+    /** The screen chosen by hand, which the service's «Приборный экран» page marks as chosen. */
+    fun overrideId(context: Context): Int? = override(context)
+
     private fun override(context: Context): Int? =
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .getInt(PREF_OVERRIDE, Display.INVALID_DISPLAY)

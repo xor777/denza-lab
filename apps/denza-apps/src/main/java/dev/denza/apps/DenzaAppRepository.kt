@@ -178,6 +178,10 @@ data class DenzaUiState(
     val clusterCandidates: List<ClusterDisplayDescriptor> = emptyList(),
     /** Which screen the instruments are going to, said the way the service panel says it. */
     val clusterDisplayLabel: String = "Определяется автоматически",
+    /** The screen chosen by hand on the service's «Приборный экран» page, or null when the app picks. */
+    val clusterDisplayOverride: Int? = null,
+    /** The screen the app would pick by itself, named as the page names it; null when it cannot. */
+    val clusterDisplayAutomatic: String? = null,
     val appPickerVisible: Boolean = false,
     val appChoices: List<SimulcastAppChoice> = emptyList(),
     val fseInstallerPickerVisible: Boolean = false,
@@ -289,6 +293,11 @@ object DenzaAppRepository {
         val technicalDetails = supportDiagnostics(context)
         val clusterCandidates = ClusterDisplayResolver.candidates(context)
         val clusterDisplayLabel = clusterDisplayLabel(context, clusterCandidates)
+        val clusterDisplayOverride = ClusterDisplayResolver.overrideId(context)
+        val clusterDisplayAutomatic = clusterDisplayName(
+            ClusterDisplayResolver.select(clusterCandidates),
+            clusterCandidates,
+        )
         stateStore.update { current ->
             current.copy(
                 simulcast = snapshot,
@@ -328,6 +337,8 @@ object DenzaAppRepository {
                 technicalDetails = technicalDetails,
                 clusterCandidates = clusterCandidates,
                 clusterDisplayLabel = clusterDisplayLabel,
+                clusterDisplayOverride = clusterDisplayOverride,
+                clusterDisplayAutomatic = clusterDisplayAutomatic,
             )
         }
         // The system language is a tile on the main screen, so it is read like every other tile's
@@ -729,21 +740,31 @@ object DenzaAppRepository {
     ): String =
         when (val selection = ClusterDisplayResolver.resolve(context)) {
             is ClusterDisplaySelection.Selected -> {
-                // Named over the same list the picker numbers, so "Экран 2" here is the same
-                // screen the picker calls "Экран 2". Platform display ids are neither stable
-                // across boots nor written anywhere in the car, so they stay out of the label.
-                val choices = ClusterDisplayResolver.choices(candidates)
-                val index = choices.indexOfFirst { it.id == selection.display.id }
-                val name = if (index >= 0) {
-                    ClusterDisplayResolver.choiceName(index, choices[index])
-                } else {
-                    "${selection.display.width}×${selection.display.height}"
-                }
+                val name = clusterDisplayName(selection, candidates).orEmpty()
                 if (ClusterDisplayResolver.hasOverride(context)) name else "Определён сам: $name"
             }
             is ClusterDisplaySelection.NeedsVerification -> "Нужно выбрать экран"
             ClusterDisplaySelection.Missing -> "Не найден"
         }
+
+    /**
+     * A selected screen named over the same list the picker numbers, so "Экран 2" here is the same
+     * screen the picker calls "Экран 2". Platform display ids are neither stable across boots nor
+     * written anywhere in the car, so they stay out of the name. Null for no single screen.
+     */
+    private fun clusterDisplayName(
+        selection: ClusterDisplaySelection,
+        candidates: List<ClusterDisplayDescriptor>,
+    ): String? {
+        val display = (selection as? ClusterDisplaySelection.Selected)?.display ?: return null
+        val choices = ClusterDisplayResolver.choices(candidates)
+        val index = choices.indexOfFirst { it.id == display.id }
+        return if (index >= 0) {
+            ClusterDisplayResolver.choiceName(index, choices[index])
+        } else {
+            "${display.width}×${display.height}"
+        }
+    }
 
     fun selectClusterDisplay(displayId: Int?) {
         val context = appContext ?: return

@@ -55,7 +55,6 @@ import dev.denza.apps.feature.cluster.ClusterDisplayResolver
 import dev.denza.apps.feature.cluster.ClusterMapPlacement
 import dev.denza.apps.feature.defaultapps.DefaultAppRole
 import dev.denza.apps.feature.mirrors.MirrorsPosition
-import dev.denza.apps.ui.components.DenzaKeyValueRow
 import dev.denza.apps.ui.components.DenzaModalCard
 import dev.denza.apps.ui.components.DenzaModalDialog
 import dev.denza.apps.ui.components.DenzaNote
@@ -156,9 +155,12 @@ fun DenzaAppsRoot(
             showClusterPicker = true
         }
     }
-    val openSettings = remember(onRefreshDefaultApps, onChooseFseApp) {
+    val openSettings = remember(onRefreshDefaultApps, onChooseFseApp, openService) {
         { id: TileId ->
             when (id) {
+                // «Сервис» had a panel of one sentence and a blue «Открыть сервис» in front of
+                // the service itself - a door to a door. Both gestures open the service now.
+                TileId.SERVICE -> openService()
                 // Opening the tile asks the car only if the last read has gone stale.
                 TileId.DEFAULT_APPS -> {
                     onRefreshDefaultApps(false)
@@ -317,9 +319,15 @@ fun DenzaAppsRoot(
                 }
             }
             if (showDiagnostics) {
-                DiagnosticsDialog(
+                ServicePanel(
                     state = uiState,
                     compactLayout = compactLayout,
+                    // A row that names a feature in trouble opens that feature's panel, as a
+                    // long press on its tile would: the service says what, the panel fixes it.
+                    onOpenFeature = { id ->
+                        showDiagnostics = false
+                        openSettings(id)
+                    },
                     onSelectClusterDisplay = onSelectClusterDisplay,
                     onCheckAdbAccess = onCheckAdbAccess,
                     onRequestAdbAuthorizationOnce = onRequestAdbAuthorizationOnce,
@@ -568,121 +576,6 @@ private fun AdbRecoveryDialog(
             horizontalArrangement = Arrangement.End,
         ) {
             DenzaSecondaryButton(text = "Закрыть", onClick = onDismiss)
-        }
-    }
-}
-
-@Composable
-internal fun DiagnosticsDialog(
-    state: DenzaUiState,
-    compactLayout: Boolean,
-    onSelectClusterDisplay: (Int?) -> Unit,
-    onCheckAdbAccess: () -> Unit,
-    onRequestAdbAuthorizationOnce: () -> Unit,
-    onAllowNewAdbAuthorizationAttempt: () -> Unit,
-    onDismiss: () -> Unit,
-) {
-    // The service panel was the last thing on this screen still drawn as a centred Material dialog
-    // with its own width, its own header and a "Закрыть" button in the corner - a different
-    // surface for the one door the driver reaches for when something is wrong. It is a panel like
-    // the others now: same edge, same width, same way out.
-    //
-    // What it says has been reordered around the question it is opened with, which is *what is
-    // wrong*. It used to open on a wall: forty readings in key=value, then sixty lines of one
-    // feature's log, then every split APK file of every installable application. The answer was in
-    // there somewhere. Now the panel names the features that need somebody, first and in the words
-    // the tiles use, and the readings are behind a button for the session that wants them.
-    val adbBusy = state.adbRescue.phase == AdbRescuePhase.CHECKING ||
-        state.adbRescue.phase == AdbRescuePhase.REQUESTING
-    var showTechnical by rememberSaveable { mutableStateOf(false) }
-    val needing = remember(state) { DashboardTiles.attentionTiles(state) }
-    // Forty readings in key=value, split apart once per state rather than once per frame.
-    val technical = remember(state.technicalDetails) {
-        state.technicalDetails
-            .lineSequence()
-            .filter { it.isNotBlank() }
-            .map { it.substringBefore('=') to it.substringAfter('=', missingDelimiterValue = "—") }
-            .toList()
-    }
-    DenzaSheet(onDismiss = onDismiss, compact = compactLayout) {
-        DenzaSheetHeader(
-            title = "Сервис",
-            subtitle = "",
-            onDismiss = onDismiss,
-            glyph = DenzaIcons.ServiceGlyph,
-        )
-        DenzaSection(if (needing.isEmpty()) "Состояние" else "Что не так") {
-            if (needing.isEmpty()) {
-                DenzaNote("Все функции работают.")
-            } else {
-                needing.forEach { tile ->
-                    DenzaKeyValueRow(label = tile.name, value = tile.state, stacked = true)
-                }
-            }
-        }
-        DenzaSection("Доступ к машине") {
-            DenzaKeyValueRow(label = "Состояние", value = state.adbRescue.message, stacked = true)
-            state.adbRescue.details?.let { details ->
-                DenzaNote(details)
-            }
-            DenzaSecondaryButton(
-                text = "Проверить доступ",
-                onClick = onCheckAdbAccess,
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !adbBusy,
-            )
-            if (state.adbRescue.canRequest) {
-                DenzaPrimaryButton(
-                    text = "Отправить один запрос",
-                    onClick = onRequestAdbAuthorizationOnce,
-                    modifier = Modifier.fillMaxWidth()
-                        .height(DenzaMetrics.Component.PRIMARY_HEIGHT),
-                    enabled = !adbBusy,
-                )
-            }
-            if (state.adbRescue.canResetAttempt) {
-                DenzaSecondaryButton(
-                    text = "Разрешить новую попытку",
-                    onClick = onAllowNewAdbAuthorizationAttempt,
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = !adbBusy,
-                )
-            }
-        }
-        // A list of unlabelled buttons with nothing saying what any of them were for. The owner
-        // read it out on the car and said he did not understand what the button was, which is the
-        // only review that matters: the panel says which screen is in use and what choosing
-        // another one is for, before offering the choice. The choice itself is the picker's, drawn
-        // by the picker's own composable.
-        DenzaSection("Приборный экран") {
-            DenzaKeyValueRow(
-                label = "Сейчас",
-                value = state.clusterDisplayLabel,
-                stacked = true,
-            )
-            DenzaNote(
-                "Приложение само находит экран за рулём. Выберите другой, если приборы ушли не " +
-                    "туда.",
-            )
-            ClusterDisplayChoices(
-                displays = state.clusterCandidates,
-                onSelect = onSelectClusterDisplay,
-            )
-        }
-        // It only ever opened. "Показать" set a flag nothing could clear, so a session that pressed
-        // it once to read one line was left scrolling forty of them past every other group on the
-        // panel for as long as the panel stayed open.
-        DenzaSection("Технические сведения") {
-            DenzaSecondaryButton(
-                text = if (showTechnical) "Скрыть" else "Показать",
-                onClick = { showTechnical = !showTechnical },
-                modifier = Modifier.fillMaxWidth(),
-            )
-            if (showTechnical) {
-                technical.forEach { (label, value) ->
-                    DenzaKeyValueRow(label = label, value = value, stacked = true)
-                }
-            }
         }
     }
 }

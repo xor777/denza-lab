@@ -300,6 +300,10 @@ class LuminoforSpecContractTest {
         n(r.SUMMARY_SIZE, "sheet", "row", "summarySize"); n(r.SUMMARY_ALPHA, "sheet", "row", "summaryAlpha")
         n(r.SUMMARY_STEP, "sheet", "row", "summaryStep")
         n(r.CHEVRON, "sheet", "row", "chevron"); n(r.CHOICE_ICON, "sheet", "row", "choiceIcon"); n(r.CHOICE_GAP, "sheet", "row", "choiceGap")
+        val pr = LuminoforSpec.Sheet.KeyValue
+        n(pr.MIN_HEIGHT, "sheet", "pair", "minHeight"); n(pr.PAD_Y, "sheet", "pair", "padY"); n(pr.SIZE, "sheet", "pair", "size")
+        n(pr.KEY_ALPHA, "sheet", "pair", "keyAlpha"); n(pr.VALUE_ALPHA, "sheet", "pair", "valueAlpha")
+        n(pr.GAP, "sheet", "pair", "gap"); n(pr.STEP, "sheet", "pair", "step")
         n(LuminoforSpec.Sheet.Label.SIZE, "sheet", "label", "size"); n(LuminoforSpec.Sheet.Label.ALPHA, "sheet", "label", "alpha"); n(LuminoforSpec.Sheet.Label.GAP, "sheet", "label", "gap")
         val w = LuminoforSpec.Sheet.Switch
         n(w.WIDTH, "sheet", "switch", "width"); n(w.HEIGHT, "sheet", "switch", "height"); n(w.THUMB, "sheet", "switch", "thumb")

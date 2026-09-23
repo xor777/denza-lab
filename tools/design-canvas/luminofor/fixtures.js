@@ -264,33 +264,41 @@
     { kind: 'choice', title: 'Технические сведения', summary: 'Версия, прошивка, состояние функций' }
   ] };
   const SVC_ACCESS = { title: 'Доступ к машине', summary: 'ADB-доступ подтверждён' };
-  // The report the technical page is read from: a line is `key=value`; a value of `k=v` parts
-  // joined by '; ' is a section of its own, one row a part; plain lines in a run share a plate.
+  // The report the technical page is read from - SupportDiagnostics, the cloud first: a line
+  // `[Название]` opens a section, every other line is `key=value` in it, split on the first '='.
   // TechnicalReadings.parse in the app is this function.
   const SVC_TECHNICAL = [
-    'Облако=Связь=включена, плитка «На связи»; Отказ=нет; Сеть=Wi-Fi, интернет проверен; Wi-Fi / сотовая=да / нет; SIM=нет; Профиль=double_apn, сборки triple_apn; APN1 выключен=да; Сотовая BYD=нет; cloudmanager=PID 113, TCP 1; Wi-Fi во сне=да; Шлюз=OPENED, попыток 1; Последний ready=4 мин назад; Без связи=—; Запись=нет',
-    'Версия=0.6.2',
-    'SDK=33',
-    'Fingerprint=BYD/IVI/DiLink5_1:13/34.1.33.2605218/1:user/release-keys',
-    'ADB Rescue=phase=trusted; adb_enabled=включено; pending=нет; attempts=0',
-    'DiShare=Доступен',
-    'Доступ поверх окон=Доступен'
+    '[Облако]',
+    'Связь=включена, плитка «На связи»',
+    'Отказ=нет',
+    'Сеть=Wi-Fi, интернет проверен',
+    'Wi-Fi / сотовая=да / нет',
+    'SIM=нет',
+    'Профиль=double_apn, сборки triple_apn, APN1 выключен',
+    'Сотовая BYD=нет',
+    'cloudmanager=PID 113, TCP 1',
+    'Wi-Fi во сне=да',
+    'Шлюз=OPENED, попыток 1',
+    'Последний ready=4 мин назад',
+    'Без связи=—',
+    'Прочитано=12 с назад',
+    '[Приложение]',
+    'Версия=0.6.2 · сборка 53',
+    'Android=13 · SDK 33',
+    'Прошивка=BYD/IVI/DiLink5_1:13/34.1.33.2605218/1:user/release-keys',
+    '[Доступ к машине]',
+    'Состояние=trusted',
+    'Отладка ADB в машине=включено',
+    'Запрос ждёт ответа=нет'
   ];
   const techBlocks = lines => {
-    const blocks = []; let run = null;
+    const blocks = []; let section = null;
     lines.forEach(line => {
+      const m = /^\[(.+)\]$/.exec(line);
+      if (m) { section = null; blocks.push({ t: 'section', label: m[1], body: { t: 'group', rows: [] } }); section = blocks[blocks.length - 1].body; return; }
+      if (!section) { section = { t: 'group', rows: [] }; blocks.push(section); }
       const i = line.indexOf('='), key = i < 0 ? line : line.slice(0, i), value = i < 0 ? '—' : (line.slice(i + 1) || '—');
-      const parts = value.split('; ');
-      if (parts.length > 1 && parts.every(p => p.indexOf('=') > 0)) {
-        run = null;
-        blocks.push({ t: 'section', label: key, body: { t: 'group', rows: parts.map(p => {
-          const j = p.indexOf('=');
-          return { kind: 'pair', title: p.slice(0, j), value: p.slice(j + 1) || '—' };
-        }) } });
-      } else {
-        if (!run) { run = { t: 'group', rows: [] }; blocks.push(run); }
-        run.rows.push({ kind: 'pair', title: key, value });
-      }
+      section.rows.push({ kind: 'pair', title: key, value });
     });
     return blocks;
   };
@@ -307,8 +315,8 @@
       blocks: [
         { t: 'status', tone: 'attention', text: '2 функции ждут' },
         { t: 'group', rows: [
-          { kind: 'choice', title: 'Зеркала', summary: 'Камеры не отвечают', tone: 'broken' },
-          { kind: 'choice', title: 'Облако', summary: 'Нет интернета', tone: 'attention' },
+          { kind: 'choice', title: 'HUD Подсказки', summary: 'Повторите настройку доступа', tone: 'attention' },
+          { kind: 'choice', title: 'Облако', summary: 'Не включилось', tone: 'broken' },
           SVC_ACCESS
         ] },
         SVC_MORE
@@ -328,7 +336,7 @@
         SVC_MORE
       ],
       footer: [SVC_VERSION]
-    }, Object.assign({}, svcState, { page: 'main', adb: 'Нужно разрешение ADB для Denza Apps', adbDetails: 'Можно вручную отправить ровно один запрос', adbPhase: 'AUTHORIZATION_REQUIRED', adbCanRequest: true })),
+    }, Object.assign({}, svcState, { page: 'main', adb: 'Нужно разрешение ADB для Denza Apps', adbDetails: 'Можно вручную отправить ровно один запрос', adbPhase: 'AUTHORIZATION_REQUIRED' })),
     screen: sheetOf(11, {
       title: 'Приборный экран', back: true,
       blocks: [

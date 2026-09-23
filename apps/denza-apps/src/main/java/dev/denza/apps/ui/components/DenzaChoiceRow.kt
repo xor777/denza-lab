@@ -62,6 +62,7 @@ fun DenzaChoiceRow(
     modifier: Modifier = Modifier,
     icons: List<DenzaChoiceIcon> = emptyList(),
     enabled: Boolean = true,
+    tone: DenzaTileTone? = null,
 ) {
     val r = Sheet.Row
     val dim = if (enabled) 1f else DISABLED
@@ -70,6 +71,7 @@ fun DenzaChoiceRow(
             title = title,
             summary = if (icons.isEmpty()) value else null,
             enabled = enabled,
+            tone = tone,
             icons = if (icons.isEmpty()) null else {
                 {
                     Row(horizontalArrangement = Arrangement.spacedBy(r.CHOICE_GAP.dp)) {
