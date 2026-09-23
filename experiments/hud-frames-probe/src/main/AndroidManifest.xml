@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- No permission is requested: the stock SOME/IP service and DiShare's control service
+         both accept an ordinary UID, which is part of what the probe checks. -->
+
+    <application
+        android:allowBackup="false"
+        android:label="HUD frames probe">
+
+        <!-- The launcher Activity is what DiShare starts on BYD-Mirror when this package is cast
+             to screen_hud, so it is the video channel's picture: a moving test pattern. -->
+        <activity
+            android:name=".PatternActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:screenOrientation="landscape"
+            android:theme="@android:style/Theme.DeviceDefault.NoActionBar.Fullscreen">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- Driven from the host with `am start` and extras; the firmware self-start gate drops
+             broadcasts to a UID with no live process, so an Activity is the entry point. -->
+        <activity
+            android:name=".SomeIpFramesActivity"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:taskAffinity="dev.denza.hudframes.probe.someip"
+            android:theme="@android:style/Theme.DeviceDefault.NoActionBar" />
+    </application>
+</manifest>

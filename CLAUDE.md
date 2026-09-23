@@ -46,6 +46,11 @@ still use the historical `denza-gateway` directory name.
   `feature/cluster/dashboard` or `VehiclePageRenderer`.
 - [docs/instrument-display-findings.md](docs/instrument-display-findings.md) — cluster scene, the Contour instrument panel (drawn as Luminofor since 2026-09-23), Mirrors, and navigation status.
 - [docs/dishare-api-notes.md](docs/dishare-api-notes.md) — DiShare/HUD findings.
+- [docs/hud-projection-findings.md](docs/hud-projection-findings.md) — the HUD
+  as a display, read from the firmware and the car: the HUD ECU draws its own
+  picture, the SOME/IP map window (`0x8003`) and DiShare video are the only
+  picture channels, this car's HUD reports no map-window feature, and any
+  motion rule lives in the HUD, not the IVI.
 - [docs/fse-app-installation.md](docs/fse-app-installation.md) — verified passenger-screen app installation path.
 - [docs/audio-capture-findings.md](docs/audio-capture-findings.md) — what a normal app can observe of played audio (spectrum analyser feasibility).
 - [docs/split-screen-findings.md](docs/split-screen-findings.md) — live-proven BYD split substrate, retired router, and the explicit two-picker product flow.
@@ -89,6 +94,7 @@ The on-device probes and the frozen legacy app are configured only when the
 | `:personbean-provider-probe` | `experiments/personbean-provider-probe/` | `dev.denza.personbean.probe` (disposable app-UID PersonBean ContentResolver evaluation) |
 | `:dicar-media-probe` | `experiments/dicar-media-probe/` | `dev.denza.dicarmedia.probe` (disposable app-UID car media service evaluation for the speaker lift) |
 | `:split-events-probe` | `experiments/split-events-probe/` | `dev.denza.splitevents.probe` (disposable app-UID split area push, `homekey` and gate evaluation) |
+| `:hud-frames-probe` | `experiments/hud-frames-probe/` | `dev.denza.hudframes.probe` (disposable moving-frames test of the HUD's picture slots and DiShare video) |
 | `:avc-stock-probe` | `experiments/avc-stock-probe/` | `dev.denza.avcstock.probe` (disposable app-UID read and write of the stock AVC mode and turn-camera choice) |
 
 The frozen Denza Mirrors source lives at `legacy/denza-mirrors/` and is not

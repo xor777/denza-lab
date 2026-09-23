@@ -15,10 +15,12 @@ Use this folder for durable project knowledge.
 | `telematics-findings.md` | Official Denza cloud telemetry over vehicle Wi-Fi: measured 74% SOC uploads, then live stock cloudmanager activation with registration/token and current phone data. Stock connection retained after the Mac observer ended; app integration, sleep/wake and remote command execution remain unproved. Includes firmware decoding, paired network events and host rollback limits. |
 | `system-language.md` | The firmware's forty languages, the unlisted picker that reaches them, the vendor HAL that applies one live, and the Denza Apps tile. |
 | `dishare-api-notes.md` | DiShare/HUD reverse-engineering notes and raw API findings. |
+| `hud-projection-findings.md` | The windshield HUD as a display: who draws it, the two picture channels (SOME/IP map window, DiShare video), their limits, and what a navigator or the turn-signal camera would need. |
 | `fse-app-installation.md` | Passenger-screen Android discovery, SMB delivery, stock cross-device install trigger, verification, and limitations. |
 | `split-screen-findings.md` | Live-proven BYD split substrate, the explicit two-picker flow, acceptance evidence, and retired approaches. |
 | `split-screen-product-contract.md` | Normative Split Screen contract: user-visible combinatorics, invariants, single-automaton core, delete-first policy, test-audit verdict, live acceptance protocol. Owns the product contract where it diverges from findings. |
 | `weather-adapter-findings.md` | Stock BYD weather-provider contract, MET Norway adapter, cache/write behavior, and live proof. |
+| `stock-map-findings.md` | What the car's own map is (Amap AutoSDK `GBL 9.810` inside `com.byd.launchermap`), what it draws in Russia (nothing but the car arrow), and the evidence that no setting, offline pack, USB import or tile source can change that. |
 | `shortcuts-automation-findings.md` | Shortcuts If/Then catalog, direct PersonBean navigation/music/video roles, live Yandex Navigator/Music and VK Video checks, the retired single-package proxy experiment, the proposed package-replacement recovery path, and the normative steering-wheel Play/Pause resume contract. |
 | `carplay-findings.md` | Vehicle hardware/software evidence around CarPlay, PhoneLink/Fission boundaries, and unsupported hypotheses. |
 | `car-adb-gateway-architecture.md` | Normative relay-only Car ADB Gateway design and verification status. |
