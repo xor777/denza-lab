@@ -2512,9 +2512,15 @@ page is `com.byd.appstartmanagement`, titled **Disable self-start**, list
 (`AppStartManagement.java:200,303`); `1` is what the self-start gate refuses
 (`ActivityManagerService.java:7889-7907`). A newly installed app is written `1`
 unless it is on `m3rdAppStartDefaultWhiteList`
-(`AppStartupDataCachedService.java:139`); a reinstall over the same uid keeps
-whatever is stored ("has contained uid ... not modify data", `:136`), an
-uninstall deletes the row. So an "enabled" switch there is a blocked app.
+(`AppStartupDataCachedService.java:139`). **Every update re-blocks it.** The
+service listens to `PACKAGE_REMOVED` and never looks at `EXTRA_REPLACING`, and
+an update is delivered as `PACKAGE_REMOVED` (replacing) → `PACKAGE_ADDED` →
+`PACKAGE_REPLACED`: the first deletes the row, the second writes the default
+`1`, the third finds a row and leaves it ("has contained uid ... not modify
+data", `:136`). Live at 15:35:31 on `adb install -r`, all four log lines in that
+order - after the owner had switched the product off by hand, and build 53 at
+14:10 had quietly switched it back. So an "enabled" switch there is a blocked
+app, and every new build blocks it again.
 
 Neither the value nor its table is readable from the shell: `byd_datacached`
 tx2 demands `ACCESS_APPSTARTUPDATA`, and `content://appstartup/settings` is not

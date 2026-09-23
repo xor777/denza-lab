@@ -31,6 +31,9 @@ Denza Apps has one canonical ADB identity and one owner for authorization prompt
 - The BYD system page is named **Disable self-start** / **Disable background Apps**. A checked or
   enabled switch on that page means the application is *blocked* from background self-start, not
   allowed. Denza Apps must therefore be absent from that deny-list, or its switch must be off.
+  **Every APK update switches it back on**: the firmware treats the update's `PACKAGE_REMOVED` as
+  an uninstall and the following `PACKAGE_ADDED` as a fresh install with the blocked default
+  (live 2026-09-23). After each installed build the switch has to be turned off again.
 - Autoload owns one finite readiness window: passive probes happen at 0, 4, 8, 16, and 32 seconds
   after cycle start. `UNAVAILABLE` and `ERROR` may repeat a passive check inside that window because
   car services can still be coming up; an authorization refusal never submits a key automatically.
