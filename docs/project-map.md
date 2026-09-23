@@ -41,6 +41,7 @@ configured only under the `experiments` property, as "Build Outputs" describes.
 | `experiments/personbean-provider-probe/` | Disposable evaluation of what an ordinary app UID can do with `content://com.byd.autovoice/PersonBean` without ADB. | Research only, question answered. Read, write and a shell-verified restore all work from the app UID in about 2 ms; `ContentObserver` delivers nothing, so a reader re-reads instead of observing. See [shortcuts-automation-findings.md](shortcuts-automation-findings.md). |
 | `experiments/dicar-media-probe/` | Disposable evaluation of the car's own media service from an app UID, as the instrument for the speaker-lift playback report. | Research only. An app UID that requests no permission gets a live `ICarMediaService` handle (Z9GT, 2026-09-03); the amplifier's reaction is what a Z9GT cannot settle. See [speaker-lift-findings.md](speaker-lift-findings.md). |
 | `experiments/split-events-probe/` | Disposable evaluation of the firmware split signals from an app UID: the area push, the `homekey` broadcast and the gate transaction. | Research only, question answered. All three work with no permission and no ADB (2026-09-23): `homekey` +9 ms after the key, the area push +0.1 s, a gate flip 1 ms. See [split-screen-findings.md](split-screen-findings.md). |
+| `experiments/avc-stock-probe/` | Disposable evaluation of the stock AVC's exported Messenger from an app UID: its current mode (`what=35`) and the owner's turn-camera choice (`what=1011`/`1013`). | Research only. Read works with no permission (2026-09-23: bind 23 ms, answers 6–11 ms). See [instrument-display-findings.md](instrument-display-findings.md), "The stock turn-signal camera, read from the firmware". |
 | `research/` | Parked experiments and deprecated modules that stay outside product builds. | Failed or permission-blocked probes live here instead of app source. Current examples are `research/simulcast-aliases/`, `research/vehicle-events/` and `research/navigationbar-control-extension/`. |
 | `reverse/` | Local reverse-engineering input/output, often large. | APKs and extracted binaries must stay untracked. |
 
@@ -258,6 +259,7 @@ The opt-in modules:
 ./gradlew -Pexperiments :personbean-provider-probe:assembleDebug
 ./gradlew -Pexperiments :dicar-media-probe:assembleDebug
 ./gradlew -Pexperiments :split-events-probe:assembleDebug
+./gradlew -Pexperiments :avc-stock-probe:assembleDebug
 ./gradlew -Pexperiments :adb-rescue-probe:testDebugUnitTest :adb-rescue-probe:assembleDebug
 ```
 
@@ -274,6 +276,7 @@ experiments/display-probe/build/outputs/apk/debug/display-probe.apk
 experiments/personbean-provider-probe/build/outputs/apk/debug/personbean-provider-probe.apk
 experiments/dicar-media-probe/build/outputs/apk/debug/dicar-media-probe.apk
 experiments/split-events-probe/build/outputs/apk/debug/split-events-probe.apk
+experiments/avc-stock-probe/build/outputs/apk/debug/avc-stock-probe.apk
 experiments/adb-rescue-probe/build/outputs/apk/debug/adb-rescue.apk
 apps/car-adb-gateway/build/outputs/apk/debug/car-adb-gateway.apk
 ```
