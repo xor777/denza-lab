@@ -62,13 +62,12 @@ class ClusterDashboardLayoutTest {
         assertEquals(Cluster.PETAL_RX, layout.bottomRevealX * w, 1e-3f)
         assertEquals(Cluster.PETAL_RY, layout.bottomRevealY * h, 1e-3f)
         assertEquals(Cluster.PETAL_CY, layout.bottomRevealCentreY * h, 1e-3f)
-        assertEquals("the virtual space is the spec's", Cluster.H, layout.virtualHeight, 0f)
     }
 
     @Test
-    fun thePanelLandsOnTheGlassAtTheScaleTheRampWasMeasuredFor() {
-        // 424 units into 720 pixels. Every rung on the ramp is stated in those units, and it is what
-        // turns a size into a number of arc minutes from the driver's seat.
-        assertEquals(1.70f, full().height / full().virtualHeight, 0.01f)
+    fun thePanelLandsOnTheGlassAtTheScaleItsSizesWereMeasuredFor() {
+        // 424 units into 720 pixels. Every size the spec gives the cluster is stated in those units,
+        // and the factor is what turns a size into a number of arc minutes from the driver's seat.
+        assertEquals(1.70f, full().height / Cluster.H, 0.01f)
     }
 }

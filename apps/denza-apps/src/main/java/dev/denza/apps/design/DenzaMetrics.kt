@@ -17,10 +17,11 @@ import dev.denza.apps.design.luminofor.LuminoforSpec
  * rungs sit closer than about 1.2x, so two of them can never read as the same.
  *
  * These are the head unit's ladders. The driver's cluster is a different screen at a different
- * distance and keeps its own, in [dev.denza.apps.design.instrument.InstrumentDensity]. Both are
- * restated by the design boards in `tools/design-canvas/`, where `audit.py` measures the boards
- * against them; `DenzaMetricsTest` measures this file. A rung is added to one record and the other
- * in the same change, or not at all.
+ * distance and keeps its own sizes, in [LuminoforSpec.Cluster], which `LuminoforSpecContractTest`
+ * holds to the Luminofor board's `spec.json`. These are restated by the design boards in
+ * `tools/design-canvas/`, where `audit.py` measures the boards against them; `DenzaMetricsTest`
+ * measures this file. A rung is added to one record and the other in the same change, or not at
+ * all.
  */
 object DenzaMetrics {
 

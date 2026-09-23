@@ -54,18 +54,6 @@ data class ClusterDashboardLayout(
      */
     val supported: Boolean = placement == ClusterMapPlacement.FULL
 
-    /**
-     * The virtual space the panel is drawn in, matching the design's own boards.
-     *
-     * 424 units into 720 pixels is a factor of 1.70, and every size on the ramp is stated in these
-     * units: at the measured 320 mm of glass one unit is 0.2123 mm, which is what turns a rung into
-     * a number of arc minutes from the driver's seat.
-     *
-     * It lives here rather than on the density because a density is a set of sizes and a space is a
-     * property of the panel.
-     */
-    val virtualHeight: Float = 424f
-
     /** Stock graphics occupy everything above this, except inside the top reveals. */
     val stockTop: Float =
         if (height <= 0) 0f else map.shadeTopRevealHeightPx.toFloat() / height
