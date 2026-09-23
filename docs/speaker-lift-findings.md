@@ -23,6 +23,12 @@ restart (below).
 > levers the product deliberately no longer pulls. Where this page and the
 > contract disagree, the contract wins.
 
+The [2026-09-23 offline HAL/MCU trace](#offline-hal-and-mcu-trace-2026-09-23)
+below reaches the native command and receive tables. It finds a specific raw
+frame candidate for position research, but establishes neither a new independent
+motor command nor a usable Devialet position getter. The product contract is
+unchanged.
+
 The covers are a **Devialet speaker-flip** mechanism, not Dynaudio RLSA.
 
 | Claim | Result |
@@ -1873,3 +1879,118 @@ killed. Twenty-two speaker tests; module green.
 3. What the cluster shows for a `PLAYING` report from a player that only opened
    (source 26, blank metadata), since the eager list reports before any sound.
 
+## Offline HAL and MCU trace (2026-09-23)
+
+Question: can the newly readable firmware supply independent raise/retract
+commands, or at least physical cover position? **Neither is established yet.**
+There is now code-level evidence below the Java APIs and a concrete candidate
+for a labelled passive capture. No vehicle connection, command, installation or
+product-code change was made in this investigation.
+
+### Inputs and extraction proof
+
+Used the owner's local archive
+`Di5.1_34.1.33.2605218.1.34.2.3.2605202.2.zip` and the reader documented in
+[research/telematics-firmware](../research/telematics-firmware/README.md).
+Selected Android files were reconstructed with the reader's per-operation
+SHA-256 checks. Important outputs:
+
+| File | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `system/lib64/hw/auto.default.so` | 1,943,112 | `5d65fd3b430aec7f2e06496ba427e652613fef995c48c2d4066126dec9f446c7` |
+| `system/lib64/libbydautoservice.so` | 378,464 | `98f057b5072844420625a530bc26c16c8ba3731ed29d6ef2a752a58f7a65bd65` |
+| MCU `AppBlock` | 1,933,312 | `6c277d1eb819b765d997554fc727835314b9477cae414aa806ea7cf78eda4d02` |
+
+**The same decoder also opens the MCU package.** Select the `Package` element
+whose `ModuleName` is `Mcu`, feed its text through `package_seed`, and decrypt
+`Mcu/Target/di5.1_ruisa_app_canfd_e_34.2.3.2605202.2.xcd` with `decrypt`.
+The result has valid PKCS7 and parses as XCD XML. `Data/AppBlock` is hex text;
+its decoded size matches `blockSize`, its byte sum is **163529134**, matching
+`checkSum`, and its declared `startAddr` is **262144 (`0x40000`)**. That checksum
+is a byte sum, not CRC32. The code can be disassembled as V850. No updater or
+MCU program was executed.
+
+Native ELF addresses below are virtual addresses within the named library;
+MCU addresses use the XCD load base `0x40000`. The supplied archive has not been
+hash-matched against the currently installed protected files. Selective operation
+hashes and the MCU checksum do not verify vendor authenticity or whole partitions.
+
+Local scripts, extraction reports, compact binaries, table evidence and assembly
+are in ignored `captures/speaker-firmware-20260923/`. The analysis used Capstone
+for ARM64 and [pypcode](https://github.com/angr/pypcode) for V850. Android packed
+relocations were decoded using the
+[AOSP APS2 format](https://android.googlesource.com/platform/bionic/+/refs/heads/aml_con_341810060/linker/linker_reloc_iterators.h).
+
+### The old switch has no hidden motor translation in the traced path
+
+In `auto.default.so`, the CAN-FD feature-table initializer registers
+`0x16300025` at **`0x10AA6C–0x10AAA0`** as a write-only, type-0 property. Its
+converter is **`0xE0BE0`**, which simply returns success without modifying the
+input. `AutoHardwareInterface::setInt` at **`0xB44C0`** takes type 0 through
+`MsgCodec::encodeReqChar` (**`0x1AF570`**) and `AutoInterface::writeDevice`.
+This path encodes the property identifier and supplied byte; it does not turn
+`1`/`2` into another speaker command.
+
+The MCU request table has the same identifier at **`0xC50BC`**, routed to the
+generic handler **`0x16B74A`** with descriptor **`0xAD11C`**. The descriptor's
+coordinates are `[4, 5, 4, 7]` (one-based byte 4, bits 5 through 7). The handler
+assembles the supplied value and calls the generic bit-field writer
+**`0x149F0C`** to place it in the outgoing buffer. There is no speaker-specific
+motor routine in this handler. This explains transport, not the amplifier ECU's
+interpretation of the setting. It does not establish what other numeric values
+mean, and provides no basis for trying them on the car.
+
+The current product report `0x43E0000A` is also present in both layers (HAL
+registration **`0x178678`**, MCU request-table entry **`0xC9214`**). The finding
+does not replace that report with a new independent raise/retract interface.
+
+### What the MCU actually reports
+
+The MCU receive table resolves the known readouts to incoming frame fields:
+
+| Property | Receive frame / record | Payload extraction | Meaning established so far |
+| --- | --- | --- | --- |
+| `0x35A000D8` | `0x35A`, descriptor `0xE5E18` | `(payload[26] >> 0) & 3` | Cover hardware configuration |
+| `0x35A000DA` | `0x35A`, descriptor `0xE5E24` | `(payload[26] >> 2) & 3` | Stock auto-lift setting, not position |
+| `0x4C00000B` | `0x4C0`, descriptor `0xECFAC` | `(payload[0] >> 3) & 7` | RLSA state; not a validated Devialet position signal |
+| `0x4C000010` | `0x4C0`, descriptor `0xECFB8` | `payload[1] & 15` | RLSA configuration |
+
+Payload indexes in the table are zero-based. Receive-frame entries are
+**`0xD6ECC`** (`0xE0035A00`, 17 fields) and **`0xD804C`** (`0xE004C000`,
+3 fields). Each listed descriptor calls the generic receiver **`0x18A09C`**,
+which extracts a field through **`0x149E90`**, updates its cached value through
+**`0x196F94`**, and notifies only on change. Thus the setting is backed by an
+incoming frame, rather than merely being a Java copy of the last requested value.
+That still does not make it a physical position sensor.
+
+The existing paired captures `20260822-203901-baseline-idle` and
+`20260822-204032-stock-local-live` both have `RLSA_STATE=0`, `RLSA_COFIG=0`,
+cover config `1`, and flip setting `1`. Together with the earlier visually
+confirmed movements, they remain evidence against using these readouts as
+Devialet cover position. They are historical observations, not a fresh car test.
+
+### The position candidate and the remaining boundary
+
+`Audio.java` bundled in DiCar contains `AUDIO_SPEAKER_FLIP_COVER_STATUS`
+**`0x3D20001E`** and its SET **`0x4EF52026`**. Neither candidate was found in the
+recovered HAL feature registrations or MCU property/request tables. This is
+consistent with their earlier `-10011` responses; knowing a Java constant does
+not make it implemented on this build.
+
+However, **the MCU does have a receive handler for frame `0x3D2`**: table entry
+**`0xD756C`**, key `0xE003D200`, eight descriptors beginning at **`0xE83F8`**.
+Those descriptors export frame presence and rear/side sunshade configuration,
+thermal protection and position. None exports speaker-cover position. The
+unimplemented speaker constant therefore supplies a specific raw-frame candidate,
+not a working getter. An unused portion of that frame could carry position on
+some hardware, but its existence and meaning here are unproved.
+
+The next discriminating experiment is a **passive**, labelled capture during
+actual cover movement: down, rising, up, falling, repeated, with stock auto-lift
+left unchanged. First establish which of `0x3D2`, `0x35A` and `0x4C0` is actually
+available to a read-only raw stream; the MCU's receive table does not prove that
+Android's existing telemetry collection table publishes those frames. Compare
+raw fields against the visually observed position. Do not turn a last-command
+cache, a timer, or the enable flag into a claimed position sensor. If those
+frames are unavailable, observing the amplifier-side bus is a separate research
+step; this archive contains the IVI MCU, not a demonstrated amplifier firmware.
