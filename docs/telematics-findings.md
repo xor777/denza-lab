@@ -191,16 +191,24 @@ Contract (`CloudLinkCore`, held by `CloudLinkCoreTest`):
   was never on, sends no `-5` and leaves an existing connection up. Taking
   over is the driver's explicit «on». Switching on over a client that already
   reads TCP=1 sends nothing.
+- **Usable internet** (`CloudNetwork`) is a default network with
+  `NET_CAPABILITY_VALIDATED` that is either Wi-Fi, or mobile data from a SIM
+  whose operator code is not Chinese (MCC ≠ 460). A Chinese SIM with service
+  is a roaming SIM on BYD's private APN, so its mobile data is never used.
+  **Only Wi-Fi is proven on a car.** Mobile data from a local SIM was added on
+  2026-09-23 for owners with such a SIM to test (see below).
 - **On**: when the car is not on `double_apn` with APN1 disabled, send the
-  profile broadcast, wait 3 s and read the profile back. Then, with validated
-  Wi-Fi (the default network with `NET_CAPABILITY_VALIDATED`) and TCP≠1, send
-  one `4`.
-- **Paired loss**: when validated Wi-Fi has been gone for 30 s, send `-5`, but
+  profile broadcast, wait 3 s and read the profile back. Then, with usable
+  internet and TCP≠1, send one `4`.
+- **Paired loss**: when usable internet has been gone for 30 s, send `-5`, but
   only under `double_apn` and only if the gate is not already known closed.
-  When Wi-Fi returns after that, send `4` at once.
+  When internet returns after that, send `4` at once. Wi-Fi giving way to
+  mobile data is not a loss: the client's socket drops with the old network,
+  and its own reconnect, or the repeat after the 90 s settle, carries it
+  over.
 - **Repeats**: the stock `BYDMultiApnConnReceiver` sends `-5` on any
   `CONNECTIVITY_CHANGE_FUNCTION` whose APN3 is not CONNECTED. So a car on
-  validated Wi-Fi that reads TCP≠1 is told `4` again, once the disconnection
+  usable internet that reads TCP≠1 is told `4` again, once the disconnection
   has lasted 90 s, with a backoff of 5, 10, 20, 40 and then 60 minutes. The
   backoff resets on TCP=1. A new `cloudmanager` PID gets `4` at once, because
   the framework replays only recorded APN states.
@@ -220,12 +228,12 @@ Contract (`CloudLinkCore`, held by `CloudLinkCoreTest`):
 - `com.byd.tcp.cloud.server.status` is registered as a hint to re-read, never
   as a trigger. Its delivery to an ordinary app is still unproven.
 - **Readings**: on every event; 5, 15, 30 and 60 s after a `4`; then every 60 s
-  while on Wi-Fi without TCP and every 5 min otherwise. Readings run only while
+  while on usable internet without TCP and every 5 min otherwise. Readings run only while
   the foreground `CloudLinkService` runs, and it runs only while the switch is
   on.
 
-The tile says «Выключено», «На связи» (TCP=1), «Нет Wi-Fi» (on and waiting,
-not a fault), «Подключается» (working), or the press the car refused: «Не
+The tile says «Выключено», «На связи» (TCP=1), «Нет интернета» (on and
+waiting, not a fault), «Подключается» (working), or the press the car refused: «Не
 включилось» / «Не выключилось». Pressing a refused tile asks for the same
 thing again rather than reversing it. A refusal clears as soon as the link is
 seen up by any path.
@@ -236,7 +244,11 @@ or boot, `RuntimeRecoveryReceiver` → `startAdbRuntime` restarts the service,
 which reconciles; with the gate unknown it waits the 90 s settle before a
 `4`.
 
-Diagnose with:
+Diagnose with the «Облако=» line of the «Сервис» report, which a screenshot
+can carry from a car nobody here can reach. It gives the switch, the network
+kind, the SIM's operator code (never IMSI or ICCID), the profile, TCP, whether
+a BYD cellular APN is up, Wi-Fi in sleep, the adapter's gate and attempts, and
+any refusal. With ADB:
 
 - `adb logcat -s DenzaCloudLink`
 - `adb shell service call cloudmanager 7`
@@ -265,6 +277,24 @@ Edge cases the code does not close, known and accepted for the first live run:
 - **Other builds.** Off restores `ro.build.byd.apn_type` when it is
   `triple_apn` or `double_apn`, and otherwise `triple_apn`, this car's
   profile. Only this car's build is proven.
+
+#### Mobile data from a local SIM: built, not tested (2026-09-23)
+
+The public profile uses whatever the default network is, so nothing in the
+stock client should care whether the internet is Wi-Fi or a local operator's
+mobile data. `addIPRoute` would add an APN3 route and ignores its own failure.
+Two things are unknown:
+
+- whether this car's modem takes a non-Chinese SIM and brings up data;
+- whether registration and the phone's data behave as they did over Wi-Fi.
+
+The owner has no such car; owners on the forum who have one will test it. A
+test report should include:
+
+- the «Облако=» line before switching on, and one minute after;
+- «На связи» or not after driving away from Wi-Fi, and how long it took;
+- whether the phone app shows fresh charge and range while the car is on
+  mobile data.
 
 Still open:
 
