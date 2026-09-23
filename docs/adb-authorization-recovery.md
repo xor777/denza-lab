@@ -21,19 +21,19 @@ Denza Apps has one canonical ADB identity and one owner for authorization prompt
   cannot resurrect an application that quickboot already killed. Every enabled feature is
   reconciled independently once ADB is trusted, so a failed Binder call or one failed feature does
   not prevent the remaining features from starting.
-- A real system `BOOT_COMPLETED` is the only event that grants permission to register
-  `dev.denza.apps` in the firmware's in-memory ACC whitelist. Once the existing passive ADB key is
-  confirmed trusted, Denza Apps executes exactly
-  `service call accmodemanager 1 s16 dev.denza.apps`. Manual launch, `SCREEN_ON`, and
-  `MY_PACKAGE_REPLACED` never grant that right. The registration is not `DEVICE_ACC` permission
-  inside the APK and is not an ACC lock.
-- The ACC whitelist belongs to `system_server` memory. A full Android or `system_server` restart
-  clears it; the next genuine `BOOT_COMPLETED` is expected to register the package again. On a
-  firmware without `accmodemanager`, the current runtime continues and diagnostics record the
-  failure, but quickboot survival is not claimed.
+- Every sleep of the car force-stops the product, and nothing reachable exempts it: the ACC
+  whitelist (`accmodemanager.setPkg2AccWhiteList`) enforces `DEVICE_ACC`, which neither the APK
+  nor the shell holds. Until 2026-09-23 Denza Apps sent that call over ADB on every
+  `BOOT_COMPLETED` and read the refusal's hex dump as success; the registrar was removed once the
+  firmware was read (`split-screen-findings.md`, "The self-start switch, and a registrar that never
+  registered"). Survival across sleep is therefore a cold start on every wake: the wake's
+  `BOOT_COMPLETED` starts the process and this recovery contour.
 - The BYD system page is named **Disable self-start** / **Disable background Apps**. A checked or
   enabled switch on that page means the application is *blocked* from background self-start, not
   allowed. Denza Apps must therefore be absent from that deny-list, or its switch must be off.
+  **Every APK update switches it back on**: the firmware treats the update's `PACKAGE_REMOVED` as
+  an uninstall and the following `PACKAGE_ADDED` as a fresh install with the blocked default
+  (live 2026-09-23). After each installed build the switch has to be turned off again.
 - Autoload owns one finite readiness window: passive probes happen at 0, 4, 8, 16, and 32 seconds
   after cycle start. `UNAVAILABLE` and `ERROR` may repeat a passive check inside that window because
   car services can still be coming up; an authorization refusal never submits a key automatically.

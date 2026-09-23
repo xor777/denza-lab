@@ -35,8 +35,8 @@ internal object DenzaProcessPolicy {
  * A live-process wake hint, not a resurrection mechanism.
  *
  * The receiver is deliberately dynamic: SCREEN_ON cannot create a process that quickboot killed.
- * Once the ACC whitelist preserves this process, however, the signal gives all enabled features
- * one coalesced reconcile pass without adding a second manifest autostart owner.
+ * When the process did outlive a dark screen, the signal gives all enabled features one
+ * coalesced reconcile pass without adding a second manifest autostart owner.
  */
 internal object ScreenOnRuntimeRecovery {
     private const val TAG = "DenzaScreenOn"

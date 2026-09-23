@@ -1100,12 +1100,14 @@ class SplitScenarioTest {
      * задачи живыми с сохранёнными панельными бордерами. Адопция тогда честно отказывает, и
      * пересборка запускала новый пикер и гнала полный restore-цикл (~7 с, с риском перезапуска).
      *
-     * Сборка теперь возвращает выживших РЕПАРЕНТОМ: пикер - по точному компоненту и панельным
-     * бордерам, приложение - по точной identity из живой сцены (task id + пакет + границы, как
-     * resolveExpectedCoveredApp); поднимает сцену командой reveal. Ни одного запуска.
+     * Сборка теперь возвращает приложение РЕПАРЕНТОМ по точной identity из живой сцены (task
+     * id + пакет + границы, как resolveExpectedCoveredApp) - ни одного запуска приложения. Пикер
+     * вне корня назад не берётся (ред. 2026-09-23): прошивка удаляет его первым новым таском в
+     * recents, и 18.09 18:55:35 открытие прочитало такой пикер за 44 мс до удаления. Панель
+     * получает свежий.
      */
     @Test
-    fun reopeningAfterHomeReassemblesTheSurvivorsWithoutASingleLaunch() {
+    fun reopeningAfterHomeTakesTheAppBackWithoutALaunchAndStandsAFreshPicker() {
         val car = car(FakeShell())
         val core = car.core(SplitDurable(enabled = true, slots = APP_PAIR))
         core.initialize {}
@@ -1130,14 +1132,12 @@ class SplitScenarioTest {
         core.openPickerSession()
         car.barrier()
 
-        assertFalse(
-            "ни одного запуска: выжившие возвращены, а не пересозданы (U2)",
-            car.commands().any { it.startsWith("am start ") },
-        )
+        assertEquals("ни одного запуска приложения: выжившее возвращено (U2)", 0, appLaunches(car))
+        assertEquals("панель выброшенного пикера получила свежий", 1, pickerLaunches(car))
         assertEquals("та же задача приложения в своей панели", PRIMARY_ROOT, car.fake.taskRoot(appP))
         assertEquals(SECONDARY_ROOT, car.fake.taskRoot(appS))
-        assertEquals("и тот же пикер вернулся в свой контейнер", PRIMARY_ROOT, car.fake.taskRoot(pickerP))
-        assertEquals(SECONDARY_ROOT, car.fake.taskRoot(pickerS))
+        assertNotEquals("выброшенный пикер назад не взят", PRIMARY_ROOT, car.fake.taskRoot(pickerP))
+        assertEquals("пикер в своём контейнере остался тем же", SECONDARY_ROOT, car.fake.taskRoot(pickerS))
         assertTrue(
             "выброшенное возвращено live-proven командами: reparent и focus",
             car.commands().any { it.startsWith("am stack move-task $appP ") },
@@ -1150,11 +1150,56 @@ class SplitScenarioTest {
     }
 
     /**
+     * The race of 2026-09-18 18:55:35, by its mechanism: the tap on the launcher is a new recents
+     * task, it arms the firmware's trim, and the trim takes the stranded wide picker a few hundred
+     * milliseconds into our own open. When the build still took stranded pickers back it read this
+     * one, and a move of a task that no longer existed was the open's failure. Now a stranded
+     * picker is nobody's plan, and its going costs the open nothing.
+     */
+    @Test
+    fun theFirmwareTrimmingAStrandedPickerMidOpenCostsTheOpenNothing() {
+        val car = car(FakeShell())
+        var strandedPicker = -1
+        val core = car.core(SplitDurable(enabled = true, slots = APP_PAIR)) { line ->
+            if (strandedPicker > 0 && line.endsWith("roots-started")) {
+                car.fake.trimTask(strandedPicker)
+                strandedPicker = -1
+            }
+        }
+        core.initialize {}
+        core.openPickerSession()
+        car.barrier()
+        val pickerS = car.fake.taskIds(SECONDARY_ROOT).first()
+        val appS = car.fake.taskIds(SECONDARY_ROOT).last()
+        car.fake.area = 0
+        core.homeVisible()
+        car.barrier()
+        // Home выбросил широкую панель из её контейнера (removeIviStack), живой.
+        car.fake.detachTask(pickerS)
+        car.fake.detachTask(appS)
+        strandedPicker = pickerS
+        car.clearCommands()
+
+        val results = Collections.synchronizedList(mutableListOf<SplitActionResult>())
+        core.openPickerSession(results::add)
+        car.barrier()
+
+        assertEquals(listOf(SplitActionResult.SETTLED), results.toList())
+        assertEquals(SplitScreenPhase.ACTIVE, core.snapshot().phase)
+        assertFalse("trim прошивки забрал выброшенный пикер", car.fake.hasTask(pickerS))
+        assertEquals("приложение вернулось без запуска (U2)", 0, appLaunches(car))
+        assertEquals(SECONDARY_ROOT, car.fake.taskRoot(appS))
+        assertEquals(1, pickerLaunches(car))
+        assertEquals(APP_PAIR, car.store.load().slots)
+        assertEquals(3, car.fake.area)
+        assertTrue(car.diagnostics.any { it.startsWith("open outcome=committed") })
+    }
+
+    /**
      * Правка B1, инвариант 4: без точной identity реюза приложений нет. Процесс, который ничего
      * не помнит, находит выброшенные задачи с панельными бордерами - и всё равно идёт через
-     * честный запуск: пусть прошивка сама решит, чью задачу отдать. Пикеры - другое дело: их
-     * identity и есть наш компонент (инвариант 3), выжившие возвращаются в свои панели по
-     * бордерам, а не пересоздаются.
+     * честный запуск: пусть прошивка сама решит, чью задачу отдать. Пикеры вне корней не
+     * возвращаются вовсе (ред. 2026-09-23): это добыча trim прошивки, и панели получают свежие.
      */
     @Test
     fun aProcessThatRemembersNothingDoesNotGuessAtStrandedTasks() {
@@ -1185,19 +1230,9 @@ class SplitScenarioTest {
             },
         )
         // Прошивка сама вправе отдать запуску ту же задачу - это её резолюция, не наша догадка.
-        assertEquals(
-            "а вот пикеры не пересозданы: их identity - наш собственный компонент",
-            0,
-            car.commands().count { command ->
-                command.startsWith("am start ") && command.contains(SPLIT_PICKER_ACTIVITY)
-            },
-        )
-        assertEquals(
-            "и каждый вернулся в панель своих бордеров",
-            PRIMARY_ROOT,
-            car.fake.taskRoot(PRIMARY_PICKER_TASK),
-        )
-        assertEquals(SECONDARY_ROOT, car.fake.taskRoot(SECONDARY_PICKER_TASK))
+        assertEquals("и пикеры тоже свежие: выброшенные - добыча trim", 2, pickerLaunches(car))
+        assertNotEquals(PRIMARY_ROOT, car.fake.taskRoot(PRIMARY_PICKER_TASK))
+        assertNotEquals(SECONDARY_ROOT, car.fake.taskRoot(SECONDARY_PICKER_TASK))
         assertEquals(SplitScreenPhase.ACTIVE, core.snapshot().phase)
     }
 
@@ -4760,16 +4795,16 @@ class SplitScenarioTest {
         assertEquals("слоты панелей не тронуты", commits, car.store.commits)
         assertEquals(SplitSlot.App(MUSIC), car.store.load().slot(SplitPane.SECONDARY))
 
-        // Возврат кнопкой: выживший возвращён в свой корень, ничего не запущено заново (U2).
+        // Возврат кнопкой. Пикер вне корня - добыча trim прошивки (findings 2026-09-23): панель
+        // получает свежий, а выброшенный не трогается - ни переносом, ни удалением.
         car.clearCommands()
         core.openPickerSession()
         car.barrier()
 
-        assertFalse(
-            "ярус выживших сработал: ни одного запуска",
-            car.commands().any { it.startsWith("am start ") },
-        )
-        assertEquals(PRIMARY_ROOT, car.fake.taskRoot(pickerP))
+        assertEquals("приложения не запускались (U2)", 0, appLaunches(car))
+        assertEquals("панель выброшенного пикера получила свежий", 1, pickerLaunches(car))
+        assertNotEquals("выброшенный назад не взят", PRIMARY_ROOT, car.fake.taskRoot(pickerP))
+        assertFalse(car.commands().any { it.contains(" remove-task ") })
         assertEquals(SplitScreenPhase.ACTIVE, core.snapshot().phase)
         assertEquals(3, car.fake.area)
     }
@@ -4778,12 +4813,13 @@ class SplitScenarioTest {
      * Правка W4 (v20 D1, цель «возврат после Home ~2 с»): точная форма живого возврата. Прошивка
      * на Home опустошила ОБА панельных корня до маркеров, отвязав всех четырёх членов с
      * панельными бордерами; эхо возврата приносит hidden- и divider-хинты. Ярус частичного
-     * reveal обязан пережить шум (W1+W3) и собрать сцену обратно одними move/focus: пустой
-     * корень получает своего выжившего пикера move-task'ом, приложение возвращает stray-ярус,
-     * и ни один участник не запускается заново (U2, 1.9.4).
+     * reveal обязан пережить шум (W1+W3) и собрать сцену обратно: приложения возвращает
+     * stray-ярус, и ни одно не запускается заново (U2, 1.9.4). Пикеры - нет (ред. 2026-09-23):
+     * вне корня наш пикер исключён из recents и лежит под Home, и прошивка удаляет его первым же
+     * новым таском в recents - обычно тем самым тапом, что просит открытия. Панели получают свежие.
      */
     @Test
-    fun reopeningAfterAFullDetachTakesEverySurvivorBackWithoutALaunch() {
+    fun reopeningAfterAFullDetachTakesTheAppsBackAndStandsFreshPickers() {
         val car = car(FakeShell(renderEmptyNativeRootMarker = true))
         val core = car.core(SplitDurable(enabled = true, slots = APP_PAIR))
         core.initialize {}
@@ -4817,17 +4853,15 @@ class SplitScenarioTest {
         core.openPickerSession()
         car.barrier()
 
-        assertFalse(
-            "ярус частичного reveal собирает выживших без единого запуска",
-            car.commands().any { it.startsWith("am start ") },
-        )
+        assertEquals("ни одно приложение не запущено заново", 0, appLaunches(car))
+        assertEquals("обе панели получили свежие пикеры", 2, pickerLaunches(car))
         assertFalse(car.commands().any { it.contains(" remove-task ") })
-        assertTrue(
-            "пустой корень получил своего пикера live-proven командой move-task",
-            car.commands().any { it.startsWith("am stack move-task ${pickers.first()} ") },
-        )
-        assertEquals("те же пикеры в своих корнях", PRIMARY_ROOT, car.fake.taskRoot(pickers[0]))
-        assertEquals(SECONDARY_ROOT, car.fake.taskRoot(pickers[1]))
+        pickers.forEach { stranded ->
+            assertFalse(
+                "выброшенный пикер $stranded назад не взят",
+                car.commands().any { it.startsWith("am stack move-task $stranded ") },
+            )
+        }
         assertEquals("те же приложения в своих панелях", PRIMARY_ROOT, car.fake.taskRoot(apps[0]))
         assertEquals(SECONDARY_ROOT, car.fake.taskRoot(apps[1]))
         assertEquals("сцена поднята", 3, car.fake.area)
@@ -5353,6 +5387,16 @@ class SplitScenarioTest {
     // endregion
 
     private fun car(fake: FakeShell): SplitCarFixture = SplitCarFixture(fake).also(cars::add)
+
+    /** Launches of our picker a scenario's commands contain. */
+    private fun pickerLaunches(car: SplitCarFixture): Int = car.commands().count { command ->
+        command.startsWith("am start ") && command.contains(SPLIT_PICKER_ACTIVITY)
+    }
+
+    /** Launches of anything but our picker: an app started again where it should have been kept. */
+    private fun appLaunches(car: SplitCarFixture): Int = car.commands().count { command ->
+        command.startsWith("am start ") && !command.contains(SPLIT_PICKER_ACTIVITY)
+    }
 
     /** The exact launch a build sends for one pane, so a scenario can park the operation on it. */
     private fun appLaunch(category: String, packageName: String): String =

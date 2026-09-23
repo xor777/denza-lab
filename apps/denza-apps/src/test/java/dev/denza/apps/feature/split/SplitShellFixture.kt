@@ -342,6 +342,15 @@ internal class FakeShell(
         changed()
     }
 
+    /**
+     * `recent-task-trimmed`: the firmware removes a task that is excluded from recents and lies
+     * below Home outside every container, at the first new recents task (findings 2026-09-23).
+     */
+    fun trimTask(taskId: Int) {
+        synchronized(this) { tasks.removeAll { it.id == taskId } }
+        changed()
+    }
+
     fun taskBaseActivity(taskId: Int): String = tasks.first { it.id == taskId }.activityName
 
     fun topActivity(rootId: Int): String? =
@@ -1057,6 +1066,8 @@ internal class SplitCarFixture(
         gate: SplitGateSwitch = SplitGateSwitch { open -> fake.flipGateInProcess(open) },
         /** The area read in the app process; by default what the fake firmware says right now. */
         readArea: () -> Int? = { fake.area },
+        /** The BYD transactions an operation answers in-process; by default none, all over ADB. */
+        inProcessCalls: SplitInProcessCalls = SplitInProcessCalls.NONE,
         /**
          * Runs on the worker as each diagnostic line is recorded.
          *
@@ -1086,6 +1097,7 @@ internal class SplitCarFixture(
             ownership = ownership,
             gate = gate,
             readArea = readArea,
+            inProcessCalls = inProcessCalls,
         ).also { core -> built = core }
     }
 

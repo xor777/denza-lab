@@ -35,9 +35,6 @@ class RuntimeRecoveryManifestContractTest {
     @Test
     fun `automatic adb paths remain passive and never enable adb or submit a key`() {
         val localAdb = File("src/main/java/dev/denza/apps/adb/DenzaLocalAdb.kt").readText()
-        val registrar = File(
-            "src/main/java/dev/denza/apps/core/AccQuickBootSurvivalRegistrar.kt",
-        ).readText()
         val repository = File(
             "src/main/java/dev/denza/apps/DenzaAppRepository.kt",
         ).readText()
@@ -48,8 +45,6 @@ class RuntimeRecoveryManifestContractTest {
         assertTrue(autostart.contains("AdbRescueCoordinator.checkAccess"))
         assertFalse(autostart.contains("requestAuthorization"))
         assertFalse(autostart.contains("requestOnce"))
-        assertFalse(registrar.contains("requestAuthorization"))
-        assertFalse(registrar.contains("service call adb 1"))
     }
 
     private fun String.componentBlock(kind: String, componentName: String): String {

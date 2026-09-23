@@ -57,6 +57,8 @@ internal class SplitOperationWorkspace(
     private val proxyClasspath: SplitProxyClasspath = SplitProxyClasspath { apkPath },
     /** The process-wide shell-UID helper, leased for this operation like the transport is. */
     private val resident: SplitResidentProxy? = null,
+    /** The BYD split transactions this process answers itself, in front of both of the above. */
+    private val inProcess: SplitInProcessCalls = SplitInProcessCalls.NONE,
     private val clock: SplitClock,
     private val sleeper: (Long) -> Unit,
     private val diagnostics: SplitDiagnosticLog,
@@ -81,6 +83,7 @@ internal class SplitOperationWorkspace(
 
     private val budgetLock = Any()
     private var shellCalls = 0
+    private var inProcessCalls = 0
     private var shellMs = 0L
     private var pauseMs = 0L
     private var parseMs = 0L
@@ -124,10 +127,21 @@ internal class SplitOperationWorkspace(
         // here rather than inside the session because the leases this operation takes go straight
         // to the raw shell, and a lease that moved a task would otherwise leave a stale read behind.
         if (!SplitTopologyCache.isTopologyRead(command)) topology.invalidate()
+        // The BYD split transactions an app UID may send are sent from this process first: no
+        // round trip and no ADB (findings 2026-09-23). Anything else, or any failure, goes on.
+        inProcessAnswer(command)?.let { answer -> return answer }
         // Правка Ф1 волны 15: a command the resident helper may serve is answered by it, in the
         // words the shell would have used. Anything else, and any failure at all, is sent.
         residentAnswer(command)?.let { answer -> return answer }
         return send(command)
+    }
+
+    private fun inProcessAnswer(command: String): String? {
+        val startedAtMs = clock.nowMs()
+        return inProcess.answer(command)?.also {
+            record(clock.nowMs() - startedAtMs)
+            synchronized(budgetLock) { inProcessCalls += 1 }
+        }
     }
 
     private fun send(command: String): String {
@@ -211,11 +225,13 @@ internal class SplitOperationWorkspace(
      */
     fun reportBudget(label: String) {
         val calls: Int
+        val local: Int
         val shell: Long
         val pause: Long
         val parse: Long
         synchronized(budgetLock) {
             calls = shellCalls
+            local = inProcessCalls
             shell = shellMs
             pause = pauseMs
             parse = parseMs
@@ -229,8 +245,12 @@ internal class SplitOperationWorkspace(
         // The three are named as the transport's own share rather than folded into `в shell`,
         // because they are not the same total: a command the resident helper served never touched
         // this session, and `в shell` is the wall time of every round trip either way.
+        // How many of the calls never left this process (the BYD transactions an app UID may
+        // send): named only when there were any, so the line of an operation without them reads
+        // exactly as it always has.
+        val inProcessShare = if (local > 0) " (в процессе $local)" else ""
         diagnostics.log(
-            "$label: обращений $calls, в shell ${seconds(shell)} с, " +
+            "$label: обращений $calls$inProcessShare, в shell ${seconds(shell)} с, " +
                 "транспорт (очередь ${seconds(spend.queuedMs)}, " +
                 "отправка ${seconds(spend.sentMs)}, ответ ${seconds(spend.answeredMs)}), " +
                 "разбор ${seconds(parse)} с, в паузах ${seconds(pause)} с",

@@ -2380,6 +2380,34 @@ tenth of a second later that the scene is covered - against a first read at
   owns under a covered world - the heir of a process a quickboot killed.
 - **Every pane app is listed through tx125**, not only those tx112 denies,
   so manifest-capable apps get the full detent map in the wide pane.
+- **The BYD split transactions leave the ADB link** (`SplitInProcessCalls`).
+  tx30, tx118, tx112, tx125 and tx126 are recognised letter for letter at the
+  front of the operation funnel, transacted from the app process and answered
+  in `service call`'s own words; anything else, or any failure, goes on to the
+  resident helper and the shell as before. The world read and every task move
+  stay on the shell. Live the same afternoon (build of `02692dc8`): the budget
+  lines read `home: обращений 2 (в процессе 2)`, `reconcile: обращений 7 (в
+  процессе 6)`, `open: обращений 30 (в процессе 16)`. Home and most reconciles
+  no longer touch ADB at all; an open still needs it for the world read and the
+  moves. Times barely moved - the reopen after Home was 1.34-1.56 s against
+  1.45 s - because the resident helper already answered most reads in
+  milliseconds; what changed is that these calls no longer depend on the link.
+- **A picker outside the pane roots is never taken back** (`buildScene`,
+  phase 2). Home strands the wide pane's picker and a collapse strands the
+  closed pane's; excluded from recents and below Home, each is the firmware's
+  to trim at the first new recents task - usually the tap on the launcher that
+  asked for the open, 0.3 s before the open touches anything. The build used
+  to read such a picker and move it back (правка B1 of wave 4, written before
+  the trim was understood); a trim between that read and the move failed the
+  open (2026-09-18 18:55:35: read 44 ms before the removal). Now the pane
+  gets a fresh picker, the stranded one is kept out of the launch's discovery
+  and left to the trim. The apps are still taken back by exact identity, with
+  no launch (U2). Live 2026-09-23 13:57 showed the cost: the fresh picker was
+  in its root 36 ms after its start, the whole reopen 1.45 s. What remains of
+  the same race is the collapse adoption (`readCollapsedSession`), which still
+  reattaches the survivor's detached picker; a collapse arms no trim by
+  itself, so there the window is open only if a new task appears within the
+  reconcile's first reads.
 
 Contract: invariant 8, §4.2, К 1.9, К 1.11, 1.9.1, the Recents note under
 1.7 and 1.12 carry the same edition.
@@ -2408,3 +2436,137 @@ same two tasks (#85, #86) in 1.45 s with no launch. A second Home closed the
 gate 10 ms after the key and was confirmed at +28 ms. The crash buffer stayed
 empty. Not exercised live: a swallowed Home (the undo), a Home without a key,
 and a tap faster than the gate (below about 20 ms, not a human one).
+
+**Seen on the way, not changed.** A tap on the split icon while our scene is on
+screen is itself placed by the firmware: the trampoline task
+(`SplitScreenLauncherAlias`) belongs to our package, which is split-capable by
+its manifest, and with the gate open it lands in split -
+`startSplitWindow #96 … SplitScreenLauncherAlias newMode = 102` (live
+2026-09-23 14:10:40) - before the open rebalances to 100. The trampoline
+finishes at once, so the cost is a mode flip under the waiting window.
+
+### Sleep and wake, read end to end (2026-09-23, corpus)
+
+What `accmodemanager` does, in order, and what could bring the product back
+(file:line in `captures/split-firmware-20260923/reports/` and the agents'
+scratch notes; nothing here was run on a car).
+
+**ACC off** (`Utils.startAccOff`): orientation property;
+`AccStatusChangedToListener(false)` - a oneway `IAccModeListener.onStatusChange`
+to every registered listener; `goToSleep`; quickboot properties; boot-business
+reset; an ordered `ACTION_SHUTDOWN` with `from_quickboot=true`, not awaited;
+Bluetooth and Wi-Fi off; notifications cleared; `clearRecentApps` - `removeTask`
+on every recent and running task outside a short list, which empties both
+panes; then `killApplications`. The kill is `forceStopPackageLockedEx`: it does
+not mark the package stopped (hence `stopped=false` live) and sends no
+`PACKAGE_RESTARTED`, but it kills services without restart and purges the
+package's jobs and alarms. `handleAccState(false)` in the split controller only
+sets a flag and hides the shadow divider; the `handleAccStateOff` Home reason is
+accepted but emitted by nothing. The gate is not touched.
+
+**Exemptions from the kill:** a hard-coded list (`com.byd.sr`, Bluetooth, boot
+guide, ...), the StrategyManager key `AccOffWhite` (24 packages in the seed,
+`com.android.shell` among them), current live-wallpaper packages, persistent
+system apps. None is reachable by a third-party app or by the shell: the
+strategy lives in the native `strategyservice` behind SELinux (only
+`platform_app` and a few daemons may find it) and is refreshed from the cloud;
+`accmodemanager.setPkg2AccWhiteList` needs `DEVICE_ACC` (signature); a live
+wallpaper needs `SET_WALLPAPER_COMPONENT` or the user's own choice in the
+picker.
+
+**Accessibility after the kill.** The death of the bound service puts it in
+`mCrashedServices` while it stays enabled, and nothing in this build rebinds it
+by itself - not a later start of the process, not an activity, not a broadcast.
+It comes out on a package update (why a reinstall healed it), a user switch,
+or when `enabled_accessibility_services` is written first without the
+component and then, about a second later, with it: the first write clears the
+crashed mark (`updateCrashedServicesIfNeededLocked`), the second binds a fresh
+connection, and the BYD self-start gate exempts accessibility binds.
+`am stop-app` reproduces the sleep state on a bench.
+
+**ACC on** (`Utils.startAccOn`): wake; boot animation; radios back; boot
+business `guide` → `activated`, which starts Home (and so `removeIviStack` once
+more); the animation stops; an ordered `BOOT_COMPLETED` with `from_quickboot`
+and `FLAG_RECEIVER_INCLUDE_BACKGROUND`; last, `AccStatusChangedToListener(true)`.
+Nothing restores the last app, a recent task or a split. The `BOOT_COMPLETED`
+reaches a third-party manifest receiver only through BYD's self-start gate
+(`persist.sys.relatestart`, five sites in `com.android.server.am`): a new app's
+uid is stored as blocked (value 1) at install unless it is on a short Chinese
+allow list, and it becomes allowed (0) only from the "App startup management"
+screen - the provider behind it is system-only, the write needs a signature
+permission. An activity start, a job or an alarm is not gated, but the kill
+purged the latter two.
+
+**Who can hear ACC off before the kill.** `accmodemanager.addListener` (tx7)
+checks no permission, and the notification is step 2 of 10 - before the task
+removal and the kill. But SELinux lets only `platform_app` and `system_server`
+find `accmodemanager_service`; an app UID cannot reach it, the shell can (its
+`find` attribute covers every `service_manager_type` but a few).
+
+### The self-start switch, and a registrar that never registered (live 2026-09-23)
+
+The owner reported Denza Apps "enabled" in the car's app-startup settings. The
+page is `com.byd.appstartmanagement`, titled **Disable self-start**, list
+**Disable background Apps**, and its switch is the deny bit itself: checked is
+`getAppStartupData(uid) == 1` and toggling writes `1`/`0`
+(`AppStartManagement.java:200,303`); `1` is what the self-start gate refuses
+(`ActivityManagerService.java:7889-7907`). A newly installed app is written `1`
+unless it is on `m3rdAppStartDefaultWhiteList`
+(`AppStartupDataCachedService.java:139`). **Every update re-blocks it.** The
+service listens to `PACKAGE_REMOVED` and never looks at `EXTRA_REPLACING`, and
+an update is delivered as `PACKAGE_REMOVED` (replacing) → `PACKAGE_ADDED` →
+`PACKAGE_REPLACED`: the first deletes the row, the second writes the default
+`1`, the third finds a row and leaves it ("has contained uid ... not modify
+data", `:136`). Live at 15:35:31 on `adb install -r`, all four log lines in that
+order - after the owner had switched the product off by hand, and build 53 at
+14:10 had quietly switched it back. So an "enabled" switch there is a blocked
+app, and every new build blocks it again.
+
+Neither the value nor its table is readable from the shell: `byd_datacached`
+tx2 demands `ACCESS_APPSTARTUPDATA`, and `content://appstartup/settings` is not
+exported from uid 1000. The firmware logs the verdict instead, per receiver:
+`BroadcastQueue: skip reciever for uid <uid> name = <pkg> ignored !!!`,
+preceded by `ActivityManager: UID <uid> is not running` - a line that is only
+reached when the stored value is `1` (an ACC-off moment returns before it).
+
+Live today: at 15:06:11 the sleep removed the product's tasks and stopped uid
+10147 (`am_uid_stopped`); at 15:08:52 the wake's `BOOT_COMPLETED` to
+`dev.denza.apps` was skipped by exactly that path, together with
+`org.videolan.vlc`, `ru.vk.store` and `app.morphe.android.apps.maps` in the
+same broadcast. The next wake, at 15:23:45, skipped it again. The page itself,
+read the same afternoon through `uiautomator`, shows `checked=true` on every row
+that was read (24; a fling may have skipped some) - Denza Apps, both navigators, the music apps, the probes -
+which is the install default above, not a choice anyone made.
+
+`AccQuickBootSurvivalRegistrar` (see `adb-authorization-recovery.md`) cannot
+help either way. `setPkg2AccWhiteList` enforces `DEVICE_ACC`
+(`AccModeManagerService.java:457`), and the image's `Shell.apk` (sha256
+`0273ea56...43dd`) requests 420 permissions, none of them `DEVICE_ACC`. From the
+shell the call can only come back as the exception `service call` prints as a
+UTF-16 hex dump (`'N.e.i.t.h.e.r. .u.s.e.r. .2.0.0.0...'`, the same form the
+`byd_datacached` refusal took above), and `AccWhitelistRegistrationPolicy.accepted`
+takes that for success: "exception" and "permission denial" never appear as
+contiguous text, "Result: Parcel" does. It is also only run on a
+`BOOT_COMPLETED`, which the switch withholds. Not called live - tx1 is a write -
+the enforcement and the shell's permission set are enough. The registrar was
+removed the same day.
+
+What is left is the switch, and it is the owner's: with it off, every wake's
+`BOOT_COMPLETED` reaches `RuntimeRecoveryReceiver`. The sleep still
+force-stops the product (no exemption is reachable), so each wake is a cold
+start followed by recovery.
+
+The first sleep with the switch off (owner turned it off at 15:37:50, log
+`setAppStartupData key = 10147 value = 0`): at 15:44:50 quickboot killed both
+processes (`am_kill ... stop dev.denza.apps due to quickboot`); at 15:45:14 the
+wake's `BOOT_COMPLETED` passed the gate - no skip line - and started the
+process for it (`am_proc_start ... broadcast
+{dev.denza.apps/.RuntimeRecoveryReceiver}`); `RuntimeRecoveryService` ran
+15:45:15.7-15:45:18.2 and stopped as recovered, well inside its 60 s bound.
+Afterwards both accessibility services were bound with `Crashed services:{}`,
+and the process held its `CLOSE_SYSTEM_DIALOGS` (split Home) and `SCREEN_ON`
+receivers. The sleep lasted seconds and the owner saw no boot logo; it was
+still the quickboot path, the same kill and the same accmode
+`BOOT_COMPLETED`. Not yet seen: a long park that ends in a full power-off (the
+switch lives in the provider table, so it should survive one), and the
+product's own lines - the main buffer rolls over in minutes.

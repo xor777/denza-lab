@@ -20,8 +20,7 @@ object DenzaRuntimeCoordinator {
     /**
      * Enters the one process-wide recovery contour.
      *
-     * Application, manifest-receiver, and SCREEN_ON signals merge while a cycle is active. A real
-     * BOOT_COMPLETED may upgrade that cycle with ACC-whitelist authority; no other cause can.
+     * Application, manifest-receiver, and SCREEN_ON signals merge while a cycle is active.
      */
     internal fun bootstrap(
         context: Context,
@@ -37,7 +36,7 @@ object DenzaRuntimeCoordinator {
         }
 
         val decision = synchronized(lock) {
-            cycleState.enter(cause).also { entered ->
+            cycleState.enter().also { entered ->
                 if (onFinished != null) {
                     completionListeners.getOrPut(entered.generation) { mutableListOf() }
                         .add(onFinished)
@@ -46,16 +45,11 @@ object DenzaRuntimeCoordinator {
         }
         Log.i(
             TAG,
-            "recovery cause=$cause generation=${decision.generation} " +
-                "started=${decision.started} accWhitelist=${decision.mayRegisterAccWhitelist}",
+            "recovery cause=$cause generation=${decision.generation} started=${decision.started}",
         )
 
-        if (!decision.started) {
-            // The Application pass may already have proved trust by the time BOOT_COMPLETED is
-            // delivered. Register immediately without spending a second handshake.
-            onRepositoryChanged(app, decision.generation)
-            return
-        }
+        // A cause that arrives mid-cycle joins it: its listener fires when that cycle finishes.
+        if (!decision.started) return
 
         attemptRecovery(app, decision.generation)
         RuntimeAutostartRetrySchedule.atMillis.drop(1).forEach { atMillis ->
@@ -76,16 +70,9 @@ object DenzaRuntimeCoordinator {
 
     private fun attemptRecovery(context: Context, generation: Long) {
         if (!isActive(generation)) return
-        val runtimeAlreadyReconciled = synchronized(lock) {
-            cycleState.isRuntimeReconciled(generation)
-        }
-        if (runtimeAlreadyReconciled) {
-            onRepositoryChanged(context, generation)
-            return
-        }
         try {
             DenzaAppRepository.recoverAutostart(context) {
-                onRepositoryChanged(context, generation)
+                onRepositoryChanged(generation)
             }
         } catch (error: RuntimeException) {
             // One broken Binder or feature must not abort the finite recovery window.
@@ -93,30 +80,10 @@ object DenzaRuntimeCoordinator {
         }
     }
 
-    private fun onRepositoryChanged(context: Context, generation: Long) {
+    private fun onRepositoryChanged(generation: Long) {
         if (!isActive(generation)) return
         if (AdbRescueCoordinator.snapshot().phase != AdbRescuePhase.TRUSTED) return
-        synchronized(lock) {
-            cycleState.markRuntimeReconciled(generation)
-        }
-
-        val mayRegister = synchronized(lock) {
-            cycleState.mayRegisterAccWhitelist(generation)
-        }
-        if (!mayRegister) {
-            finish(generation, "runtime-ready")
-            return
-        }
-
-        when (AccQuickBootSurvivalRegistrar.state()) {
-            AccWhitelistRegistrationState.REGISTERED -> finish(generation, "runtime-and-acc-ready")
-            AccWhitelistRegistrationState.REGISTERING -> Unit
-            AccWhitelistRegistrationState.NOT_REGISTERED -> {
-                AccQuickBootSurvivalRegistrar.ensureRegistered(context) { registered ->
-                    if (registered) finish(generation, "runtime-and-acc-ready")
-                }
-            }
-        }
+        finish(generation, "runtime-ready")
     }
 
     private fun isActive(generation: Long): Boolean = synchronized(lock) {
