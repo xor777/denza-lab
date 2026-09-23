@@ -1391,6 +1391,14 @@ capture showed the monitor asking AVC its mode 8 times a second for the whole
 reverse episode, because the full-screen activity counted as a card; only the
 turn cards' own windows count now.
 
+**The fix on the car (2026-09-23, 17:31, main `001940ae`, APK `cd4c97de`, with
+the Luminofor design).** Left lamp, then R: we saw `5002` at 11.320, detached our
+surface and skipped the free; AVC's reverse module created its surface at 11.355
+and bound the renderer itself; the owner saw a live reverse picture ("everything
+was correct now"). On leaving R, AVC's module freed its own (14.500) and the idle
+release cleared our claim at 14.654. AVC kept PID `4746`, crash buffer empty.
+The capture is `captures/mirrors-firmware-model/live-2.log`.
+
 ### Startup timing baseline (2026-09-04, instrumentation-only candidate)
 
 The startup worktree starts at `90821f086cd17cd7568dd6f583a38438818b960a`.
