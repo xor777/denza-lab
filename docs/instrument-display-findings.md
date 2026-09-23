@@ -1371,6 +1371,18 @@ quarantine rules described above and in vehicle-data-findings.md:
   Mirrors on wrote `0 → 1` again. Each step was read back through the probe
   (`captures/mirrors-firmware-model/live-3-choice.log`); AVC kept PID `4746`.
 
+**Hazard and the comfort tap (2026-09-23, 17:52, same build).** Hazard is flash
+value `6` on this car. Left on, then hazard: our camera closed 3 ms after the
+`6` and AVC left its card 2.00 s later; hazard off with the lever still latched
+brought the flash back to `2`, AVC opened a new card and ours followed. Hazard
+alone opened nothing. A comfort tap (flash `2` for 2.25 s) showed our camera for
+the blinks and closed it 3 ms after the `1`; AVC's card went only 1.36 s after
+that `1`, so its two-second timer had been armed about 0.64 s earlier by an
+event outside the capture (the separate left/right lever FIDs of
+`AVCBYDAutoLightDevice.java:93-95` are the likely source). It changes nothing for
+us: we follow the flash. No crash, AVC PID `4746`
+(`captures/mirrors-firmware-model/live-4-hazard.log`).
+
 Not yet driven on the car at the time of writing.
 
 **Car state changed for the acceptance runs.** On 2026-09-23 at 17:02:01 the
