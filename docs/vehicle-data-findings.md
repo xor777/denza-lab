@@ -195,6 +195,7 @@ allowed under hidden-API restrictions.
 | Yandex guidance through Denza Apps accessibility | maneuver, next road, remaining route distance/time, optional road text | event-driven; only while validated guidance is visible and fresh | enabled Denza Apps accessibility service | Existing product path | Usable with the current fail-closed/staleness rules |
 | High-level DiCar Binder APIs | battery, energy flow, range, charging, pedals, steering, tires, air quality | getter surface exists; useful calls blocked | signature/privileged BYD permissions | Blocked | Not a product source from app UID |
 | `autoservice` (`android.gui.BYDAutoServer`) | SOC, SoH, pack temps, cell mV, 12V, HV, charge, motors, tyres, climate, PM2.5 | on-demand `service call` from shell | shell UID via local ADB; app UID blocked | Shell/system only | Poll a short allowlist through `DenzaLocalAdb`; never from the app process |
+| Interior ambient light colour (`SET_IAL_FRONT_COLOR` and the palette type, dev `1023`) | palette index 1..127 plus the palette type; RGB only on type `7` | changes only when the driver picks a colour; DiCar pushes changes to listeners | shell UID via `autoservice`; DiCar change listener has no permission check but is untried from app UID | Corpus-read; one live snapshot from a stock log | Not yet a product source; see [Interior ambient light colour](#interior-ambient-light-colour-2026-09-23-in-progress) |
 | Vehicle-id system properties (`persist.sys.AutoType` and mirrors) | which car the head unit is in | static; written at boot | none | Confirmed normal app | Usable; see [Which car is this](#which-car-is-this-2026-08-30) |
 | Raw CAN-FD callback | frames selected by stock `CanDataCollect`; observed on channels 0, 1, and 2 | 2,054 callbacks in 15 s (about 136.9/s) | local ADB shell or system identity; normal-app access unproven | Shell/system only | Confirmed passive diagnostic stream through `0x99000020` |
 | BYDAuto events/system logs | speed logs, bodywork/settings/safety-belt/PM2.5 events, other CAN-derived events | speed log about 1 Hz; other events vary; some logs are high-rate | system log access / protected BYD permissions | Shell/system only | Diagnostics only |
@@ -1958,6 +1959,98 @@ detach a surface, so it now runs after the gate is released. Two review items
 stay open for lack of evidence: the ambiguity rule never fired tonight (none of
 about thirty transitions), and the reopen counter still demands adjacent clean
 polls. The revised build has not been driven yet.
+
+## Interior ambient light colour (2026-09-23, in progress)
+
+Question from the owner: can Denza Apps read the colour of the cabin ambient
+light (BYD calls it the interior atmosphere lamp, `IAL`) and tint the spectrum
+and the blue backdrop to match it. Read from the OTA corpus first
+(`captures/split-firmware-20260923/jadx/framework`, reports under
+`captures/ambient-light-20260923/reports/`); nothing has been read from the car
+yet.
+
+What the framework says (all values are the CAN-FD branch; `isCanFD` follows
+`sys.car.protocol`, which this car reports as `CANFD`):
+
+- The current colour lives in the MCU, not in Android. The legacy getter is
+  `BYDAutoSettingDevice.getIALColor()` on device `1023` (Setting), FID
+  `SET_INTERIOR_ATMOSPHERE_LAMP_COLOR = 283586` (`0x000453C2`). Per zone,
+  `getIALColor(area)` reads `SET_IAL_FRONT_COLOR = 1121976336` (`0x42E00010`),
+  `SET_IAL_BACK_COLOR = 1121976343` and `SET_IAL_ALL_COLOR = 175642`.
+  Brightness is `SET_INTERIOR_ATMOSPHERE_LAMP_BRIGHTNESS = 522414`; the zoned
+  getters report it one higher than the 0..5 level.
+- Whether that number is a colour or an index depends on the car. DiCar's
+  `CarAmbientLightServiceImpl.getLightColor(zone)`
+  (`reverse/speaker-lift/dicar-jadx/.../feature/light/CarAmbientLightServiceImpl.java:602`)
+  first reads `SET_IAL_COLOR_CONFIG = 1072693258`. Type `1` means true RGB: it
+  reads `LIGHT_FRONT/REAR/STAR_RING_AMBIENT_LIGHT_COLOR_R/G/B` (device `1004`,
+  Light) and packs them with `rgbToInt`. Types `2..6` mean a palette: it returns
+  the raw `SET_IAL_FRONT/BACK_COLOR` value, and the table that turns it into a
+  colour belongs to the app that draws the picker. The legacy setter rejects
+  anything outside `0..127`, and the listener guards `1..127`.
+- Themes sit beside the colour: `LIGHTS_AMBIENT_LIGHT_THEME_STATUS =
+  551575595`, `LIGHT_ATMOSPHERE_CUSTOM_COLOR = 657457168` and the main switch
+  `LIGHT_ATMOSPHERE_MAIN_SWITCH = 1060110406`. DiCar's own listener also watches
+  `SETTING_THEME_COLOR_FEEDBACK` and a lamp-linkage switch.
+- No app-UID path is known. `libbydautoservice.so::checkGetPermission` waves
+  through callers with UID ≤ 9999 (`0x270F` at `0x299E4`). Any normal app,
+  UID ≥ 10000, falls through to the `BYDAUTO_SETTING_GET` / `BYDAUTO_LIGHT_GET`
+  check, which is the 20004 recorded in the permission matrix above. Listener
+  registration goes through the same gate. `content://carsettings/config` carries
+  `atmosphere_lamp`, `atmosphere_lamp_multi_color` and
+  `atmosphere_lamp_music_mode`, which are capability switches with no colour
+  among them. The one untested lead is DiCar's `ICarAmbientLightService` from app
+  UID, but it sits on the same `ICarPropertyService` binder that is recorded as
+  blocked.
+- The shell route works the same way as every other `autoservice` read the
+  product makes: `service call autoservice 5 i32 1023 i32 283586`, where the
+  second word of the reply is the value. `VehicleSignals.kt` has no device-1023
+  or device-1004 entry yet.
+- The reverse direction exists and is separate: stock `AmpVisualizerEffect`
+  pushes the FFT to `AUDIO_MCU_AMBIENT_LIGHT_SPECTRUM_DATA` (`0x99000228`,
+  device `1002`) to drive the music-rhythm lights; writing it needs
+  `BYDAUTO_AUDIO_SET`.
+
+What the settings app says (`com.byd.carsettings`, `AmbientLightFragment`;
+report `captures/ambient-light-20260923/reports/settings-ui.md`):
+
+- It never keeps the colour itself. It reads the colour back from the MCU through
+  DiCar's `getLightColor` and `BYDAutoSettingDevice.getIALColor(area)`, and
+  writes nothing to `Settings.*`, `content://carsettings`, broadcasts, system
+  properties or shared files. Widgets are gated on MCU capability flags, not on
+  the `carsettings` config keys.
+- The value is a 1-based index. `SET_IAL_COLOR_CONFIG` picks the table: `3` is
+  seven named presets, `4` is 31 colours, `5` is 64, `6` is 127, and `7` is
+  raw RGB. The colours are hard-coded in `AmbientCarBody.java:36-38` and agree
+  with DiCar's copy; all three tables are dumped to
+  `captures/ambient-light-20260923/reports/palette-settings-ui.{csv,json}`.
+- In the dynamic, flowing and music-rhythm modes only the mode number is
+  readable, not the colour the lamps show at that moment.
+- The one unguarded app-UID surface is DiCar's
+  `registerAmbientLightingListener` (`ICarAmbientLightService` transaction 26,
+  no permission check). On each change the service re-reads the colour under
+  its own identity and pushes `onColorChanged(ColorEventData{mode, colorValue,
+  area})` to every listener. It sends only changes, never the current value.
+  Any client's unregister clears the colour subscriptions for every client
+  until someone registers again. A client that is first to instantiate the
+  service after DiCarServer starts leaves the service's own property
+  subscription running under that client's UID, where it fails silently. Not
+  tried on the car; it would be a probe, not product code.
+- The wallpaper-to-lamp link (`ArtThemeTaskManager`, writes `0x4050003D`) runs
+  one way and is off on this car, so no launcher theme colour mirrors the lamp.
+
+Already read from the car without asking: the account app logs a settings
+snapshot, and at 17:47:38 on 2026-09-23 it showed `SET_IAL_FRONT_COLOR = 5`,
+`SET_IAL_BACK_COLOR = 5`, `SET_INTERIOR_ATMOSPHERE_LAMP_AREA = 3` (all), both
+brightnesses `5`, `LIGHT_DYNAMIC_COLORFUL_SWITHCH_STATE = 2`, and
+`hasThemeAtmosphere = 0` (`captures/hud-live-20260923/video-start.log`, line
+280545). Index 5 is `#02A7FF` in the 31-colour table, violet `#7544D8` in the
+64 and purple `#B123DD` in the 127.
+
+Not yet known: the value of `SET_IAL_COLOR_CONFIG` on this car, which picks the
+table. One shell read settles it (`service call autoservice 5 i32 1023 i32
+1072693258`), or the owner saying which of those three colours the cabin
+shows.
 
 ## Legacy BYDAuto events and system logs
 
