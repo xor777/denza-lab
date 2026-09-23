@@ -272,14 +272,17 @@ class SpectrumSource {
         private val defaultOwner = Any()
 
         /**
-         * Twenty-six columns, which is what the design board draws.
+         * Thirty-six columns, which is what the Luminofor board draws across the full screen.
          *
-         * It was forty-eight, and at the width this panel gets that is a bar about eleven pixels
-         * wide - a picket fence rather than an analyser. Fewer and fatter also means each band
-         * covers more of the spectrum, so a single instrument moves a column instead of
-         * flickering between two.
+         * It was forty-eight, and at the width this panel had then that was a bar about eleven
+         * pixels wide - a picket fence rather than an analyser; then twenty-six, for the analyser
+         * that shared the strip with the trip's figures. The Luminofor analyser has the whole
+         * strip's width and draws each column as a 23 dp group of fine lines, so thirty-six of
+         * them across 1184 dp is the board's own count. The panes draw 24 and 12 and sample these
+         * with the board's index map rather than asking for a capture of their own: one capture,
+         * one set of bands, three widths. The frequency range is unchanged.
          */
-        const val BAND_COUNT = 26
+        const val BAND_COUNT = 36
 
         /** Audio session 0: the whole output mix rather than one app's track. */
         const val GLOBAL_OUTPUT_MIX_SESSION = 0

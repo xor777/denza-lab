@@ -230,6 +230,17 @@ class TripEngine {
         return GuidanceRemaining(guidanceDistance, guidanceTime)
     }
 
+    /**
+     * The same two halves of a route, read without building a [GuidanceRemaining]: the strip asks
+     * thirty times a second and a new object per frame is garbage for an answer that changes once a
+     * minute. `-1` is a half the route does not have, or no route at all.
+     */
+    fun remainingMeters(): Int = if (guidanceValid) guidanceDistance ?: -1 else -1
+
+    fun remainingSeconds(): Int = if (guidanceValid) guidanceTime ?: -1 else -1
+
+    val guiding: Boolean get() = guidanceValid
+
     companion object {
         const val TRIP_START_SPEED = 2.0
         const val TRIP_START_SUSTAIN_SECONDS = 3.0

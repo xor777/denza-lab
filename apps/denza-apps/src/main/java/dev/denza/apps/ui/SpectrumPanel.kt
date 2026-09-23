@@ -2,22 +2,27 @@ package dev.denza.apps.ui
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.layout.layout
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import dev.denza.apps.feature.trip.TripPanelLayout
 import dev.denza.apps.feature.trip.TripPanelView
+import kotlin.math.roundToInt
 
 /**
- * The strip under the dashboard: the spectrum analyser and the journey's figures.
+ * The strip under the dashboard: the sound page and the car page, one swipe apart.
  *
- * This is intentionally one non-interactive view. The former pager and its
- * vehicle pages were retired and deleted.
+ * One view, [TripPanelView], laid over the Luminofor strip box the caller sizes and places this
+ * composable on. It answers one gesture - a horizontal swipe anywhere on it turns the page - and
+ * nothing else: a tap does nothing, and a vertical drag belongs to whatever scrolls above it.
  *
- * It answers no touch at all. It carried the hidden diagnostics gesture for exactly one wave, on
- * the reasoning that it was the largest surface on the screen that did nothing when touched - which
- * is true, and is also the argument for a door being findable rather than for it being here.
- * Service is a tile now.
+ * **The view is a little larger than the box it is given**, by [TripPanelView.OVERHANG_DP] on the
+ * left, the right and the foot, and is placed so the box itself is exactly where the caller put it.
+ * The board draws a few things past the box's edge - the chart's newest point on the right edge
+ * with its glow round it, the analyser's outer glow, the haze - and a view the box's own size cut
+ * them. The layout this reports is still the box: nothing around the strip moves, and the overhang
+ * lands on the page margin, which every composition has at least that wide.
  */
 @Composable
 internal fun SpectrumPanel(
@@ -28,12 +33,15 @@ internal fun SpectrumPanel(
         factory = { context -> TripPanelView(context) },
         update = { view ->
             view.layout = layout
+            // The same whole pixels the layout below adds, so the box lands where it was placed.
+            view.overhang = (TripPanelView.OVERHANG_DP * view.resources.displayMetrics.density).roundToInt().toFloat()
         },
-        // A hosted View is positioned through Compose's own view container, where a parent's clip
-        // does not reach it on its own.
-        modifier = modifier.clipToBounds().layout { measurable, constraints ->
-            val placeable = measurable.measure(constraints)
-            layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+        modifier = modifier.layout { measurable, constraints ->
+            val out = TripPanelView.OVERHANG_DP.dp.roundToPx()
+            val width = if (constraints.hasBoundedWidth) constraints.maxWidth else constraints.minWidth
+            val height = if (constraints.hasBoundedHeight) constraints.maxHeight else constraints.minHeight
+            val placeable = measurable.measure(Constraints.fixed(width + 2 * out, height + out))
+            layout(width, height) { placeable.place(-out, 0) }
         },
     )
 }

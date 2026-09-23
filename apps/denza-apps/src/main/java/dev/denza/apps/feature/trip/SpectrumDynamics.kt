@@ -4,8 +4,7 @@ import kotlin.math.exp
 
 /**
  * The temporal behaviour of the analyser: how a bar rises, how it falls back,
- * how the peak marker above it hangs before dropping, and how the bloom behind
- * the bars breathes.
+ * and how the crown above it hangs before dropping.
  *
  * Kept apart from both the audio maths and the drawing so it can be stepped with
  * an arbitrary `dt` in tests. Every rate is per-second and integrated against the
@@ -17,18 +16,8 @@ class SpectrumDynamics(private val bandCount: Int) {
     /** Current bar heights, 0..1. */
     val bars = FloatArray(bandCount)
 
-    /** Peak-hold markers, 0..1. */
+    /** Peak-hold markers, 0..1: the Luminofor board's crowns. */
     val peaks = FloatArray(bandCount)
-
-    /**
-     * A slow mean of the bars, 0..1: what the bloom behind them is drawn from.
-     *
-     * The bloom used to take the raw per-frame mean, which made the largest lit area on the
-     * panel flicker at the frame rate. A wash of light should breathe with a phrase, not
-     * blink with a hi-hat.
-     */
-    var energy: Float = 0f
-        private set
 
     private val peakVelocity = FloatArray(bandCount)
     private val holdRemaining = FloatArray(bandCount)
@@ -37,7 +26,6 @@ class SpectrumDynamics(private val bandCount: Int) {
         val dt = dtSec.coerceIn(MIN_DT, MAX_DT)
         val attack = (1.0 - exp(-dt / ATTACK_TAU_SEC)).toFloat()
         val release = (1.0 - exp(-dt / RELEASE_TAU_SEC)).toFloat()
-        var sum = 0f
         for (band in 0 until bandCount) {
             val target = targets[band]
             // A short attack rather than an instant one. Each FFT frame is a single
@@ -48,7 +36,6 @@ class SpectrumDynamics(private val bandCount: Int) {
             // frames, and long enough that a single noisy frame reads as a bump.
             val rate = if (target >= bars[band]) attack else release
             bars[band] += (target - bars[band]) * rate
-            sum += bars[band]
 
             if (bars[band] >= peaks[band]) {
                 peaks[band] = bars[band]
@@ -61,8 +48,6 @@ class SpectrumDynamics(private val bandCount: Int) {
                 peaks[band] = (peaks[band] - peakVelocity[band]).coerceAtLeast(bars[band])
             }
         }
-        val bloom = (1.0 - exp(-dt / BLOOM_TAU_SEC)).toFloat()
-        energy += (sum / bandCount - energy) * bloom
     }
 
     /** Collapses everything to rest, for when playback stops. */
@@ -75,7 +60,6 @@ class SpectrumDynamics(private val bandCount: Int) {
             peakVelocity[band] = 0f
             holdRemaining[band] = 0f
         }
-        energy -= energy * decay
     }
 
     private companion object {
@@ -94,6 +78,5 @@ class SpectrumDynamics(private val bandCount: Int) {
         const val SETTLE_TAU_SEC = 0.5
         const val HOLD_SEC = 0.62f
         const val PEAK_GRAVITY = 1.15
-        const val BLOOM_TAU_SEC = 0.4
     }
 }

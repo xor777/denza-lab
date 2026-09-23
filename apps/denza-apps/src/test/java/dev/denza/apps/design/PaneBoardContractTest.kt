@@ -1,7 +1,7 @@
 package dev.denza.apps.design
 
-import dev.denza.apps.feature.trip.SpectrumRenderer
-import dev.denza.apps.feature.trip.TripPanelRenderer
+import dev.denza.apps.feature.trip.StripGeometry
+import dev.denza.apps.feature.trip.TripPanelLayout
 import dev.denza.apps.ui.DashboardLayoutMode
 import dev.denza.apps.ui.DashboardLayoutPolicy
 import java.io.File
@@ -72,9 +72,13 @@ class PaneBoardContractTest {
             val chip = (width - side * 2 - (columns - 1) * DenzaMetrics.Space.M.value) / columns
             val chips = rows * chip + (rows - 1) * DenzaMetrics.Space.M.value
             val strip = WINDOW_H - caption - top - chips - DenzaMetrics.Space.XL.value - bottom
+            // The strip's floor is the Luminofor strip's own now: the least box its two pages fit.
+            val least = StripGeometry.minimumHeight(
+                if (board == MEDIUM) TripPanelLayout.MEDIUM else TripPanelLayout.NARROW,
+            )
             assertTrue(
-                "$board leaves the strip $strip dp, which is under the floor the renderer keeps",
-                strip >= TripPanelRenderer.PANE_MIN_ANALYSER,
+                "$board leaves the strip $strip dp, which is under the $least the strip keeps",
+                strip >= least,
             )
         }
     }
@@ -156,114 +160,6 @@ class PaneBoardContractTest {
             "the full screen draws tiles, not chips",
             !DashboardLayoutPolicy.chips(DashboardLayoutMode.WIDE),
         )
-    }
-
-    @Test
-    fun aPaneIsLaidOutOneUnitToOneDp() {
-        // The whole reason the panes are separate compositions rather than the wide one rescaled.
-        // A virtual width that is not the content width is a scale factor, and a scale factor on
-        // this panel walks its type off the bottom of the ladder: at 828 the wide space put the
-        // strip's captions at 9 dp.
-        assertEquals(
-            "two-thirds content width",
-            828f - DashboardLayoutPolicy.sideMargin(DashboardLayoutMode.MEDIUM).value * 2,
-            TripPanelRenderer.MEDIUM_VIRTUAL_W,
-            1e-4f,
-        )
-        assertEquals(
-            "one-third content width",
-            416f - DashboardLayoutPolicy.sideMargin(DashboardLayoutMode.NARROW).value * 2,
-            TripPanelRenderer.NARROW_VIRTUAL_W,
-            1e-4f,
-        )
-    }
-
-    @Test
-    fun theFiguresAreTheBoardsInBothOfTheirShapes() {
-        assertEquals(
-            "the block band on the two-thirds board",
-            TripPanelRenderer.PANE_BLOCK,
-            px(MEDIUM, ".across", "height"),
-            1e-4f,
-        )
-        assertEquals("block figure", DenzaMetrics.Type.HEADLINE.value, px(MEDIUM, ".num", "font-size"), 1e-4f)
-        assertEquals("block unit", TripPanelRenderer.PANE_VALUE, px(MEDIUM, ".un", "font-size"), 1e-4f)
-        assertEquals(
-            "the rule between two readings is a hairline with the group gap either side",
-            DenzaMetrics.Space.XL.value / 2f,
-            number(MEDIUM, """\.rule \{[^}]*margin:0 ([\d.]+)px"""),
-            1e-4f,
-        )
-        assertEquals("rule weight", TripPanelRenderer.PANE_RULE, px(MEDIUM, ".rule", "width"), 1e-4f)
-
-        assertEquals("row height", TripPanelRenderer.PANE_ROW, px(NARROW, ".row", "height"), 1e-4f)
-        assertEquals("row gap", TripPanelRenderer.PANE_ROW_GAP, px(NARROW, ".rows", "gap"), 1e-4f)
-        assertEquals("row reading", TripPanelRenderer.PANE_VALUE, px(NARROW, ".val", "font-size"), 1e-4f)
-        // The one number that makes three rows comparable rather than three right-hung strings.
-        // The board spends it as a box plus the row's own gap, so that the two rects do not touch.
-        assertEquals(
-            "the label column on the narrow board",
-            TripPanelRenderer.PANE_LABEL_COLUMN,
-            number(NARROW, """\.row \.cap \{[^}]*width:([\d.]+)px""") +
-                number(NARROW, """\.row \{[^}]*gap:([\d.]+)px"""),
-            1e-4f,
-        )
-        // One glyph, one size: the rate is 19 in both shapes, so the arrow beside it is 20 in both.
-        for (board in listOf(MEDIUM, NARROW)) {
-            val arrow = ARROW.find(read(board)) ?: error("no variometer arrow on $board")
-            assertEquals("arrow on $board", TripPanelRenderer.ARROW_SIZE, arrow.groupValues[1].toFloat(), 1e-4f)
-            assertEquals(
-                "arrow optical stroke on $board",
-                DenzaMetrics.Stroke.ICON_WEIGHT * 24f / TripPanelRenderer.ARROW_SIZE,
-                arrow.groupValues[2].toFloat(),
-                1e-3f,
-            )
-        }
-
-        for (board in listOf(MEDIUM, NARROW)) {
-            assertEquals("label on $board", TripPanelRenderer.PANE_LABEL, px(board, ".cap", "font-size"), 1e-4f)
-            assertEquals("rate on $board", TripPanelRenderer.PANE_RATE, px(board, ".rate", "font-size"), 1e-4f)
-        }
-
-        // Every one of those is a rung, which is the point of writing them down twice.
-        val type = DenzaMetrics.Type.RUNGS.map { it.value }
-        assertTrue("label off the ladder", TripPanelRenderer.PANE_LABEL in type)
-        assertTrue("reading off the ladder", TripPanelRenderer.PANE_VALUE in type)
-        assertTrue("rate off the ladder", TripPanelRenderer.PANE_RATE in type)
-        val space = DenzaMetrics.Space.RUNGS.map { it.value }
-        assertTrue("row gap off the ladder", TripPanelRenderer.PANE_ROW_GAP in space)
-        assertTrue("group gap off the ladder", TripPanelRenderer.PANE_GROUP in space)
-    }
-
-    @Test
-    fun theTickerBandAndTheBarFieldAreTheBoards() {
-        for (board in listOf(MEDIUM, NARROW)) {
-            val strip = number(board, """align-items:center; height:([\d.]+)px""")
-            assertEquals("ticker band on $board", SpectrumRenderer.STRIP_UNITS, strip, 1e-4f)
-
-            // Where the baseline falls is the code's, so the board's reflection is the
-            // consequence of its bar field: the field is 0.8319 of the box below the ticker, what
-            // is under the baseline is the rest of it, and the analyser crops that at 40.
-            val field = number(board, """align-items:flex-end; gap:[\d.]+px; height:([\d.]+)px""")
-            val reflect = number(board, """height:([\d.]+)px; overflow:hidden; opacity""")
-            val belowBaseline =
-                field / SpectrumRenderer.BASELINE_FRACTION * (1f - SpectrumRenderer.BASELINE_FRACTION)
-            assertEquals(
-                "reflection on $board",
-                minOf(belowBaseline, SpectrumRenderer.REFLECT_UNITS),
-                reflect,
-                0.5f,
-            )
-
-            val width = number(board, """<div style="width:([\d.]+)px; display:flex""")
-            val gap = number(board, """align-items:flex-end; gap:([\d.]+)px""")
-            assertEquals(
-                "bar width fraction on $board",
-                SpectrumRenderer.BAR_WIDTH_FRACTION,
-                width / (width + gap),
-                1e-3f,
-            )
-        }
     }
 
     @Test

@@ -4,22 +4,23 @@ import android.annotation.SuppressLint
 import android.content.Context
 
 /**
- * The two things the field on the left of the strip can be.
+ * The strip's two pages.
  *
  * Two pages, and not the pager that was here before. `BottomPanelPager` carried four vehicle pages
  * with no indicator and no affordance and was deleted on 2026-08-27 for exactly that: pages nobody
- * could know were there. What is here now is one gesture, two pages, and two dots under the field
- * that are on the screen whether or not anybody swipes.
+ * could know were there. What is here now is one gesture, two pages, and two dots at the foot of
+ * the strip that are on the screen whether or not anybody swipes.
  *
- * The three trip figures on the right of the strip are not a page. They are true on both and never
- * move: a swipe that took away how long, how high and when the sun goes down would cost the one
- * thing the strip is always good for.
+ * **Each page is the whole strip.** The trip's three readings used to stand beside the analyser on
+ * both pages, true on both and never moving; on the Luminofor board they belong to the sound page,
+ * with the track over them and the analyser under them, and the car's page spends the whole strip
+ * on the pack, its temperatures and its ten kilometres.
  */
 enum class StripPage {
-    /** The analyser, which is what the strip has been since the pager went. */
+    /** The track, the trip's readings and the analyser. */
     SOUND,
 
-    /** What the pack is doing, has been doing for two minutes, and how warm five components are. */
+    /** What the pack is doing, how warm five components are, and what the last ten km cost. */
     VEHICLE;
 
     fun next(forward: Boolean): StripPage = when {
