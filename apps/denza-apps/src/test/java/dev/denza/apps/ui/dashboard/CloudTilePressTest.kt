@@ -32,7 +32,7 @@ class CloudTilePressTest {
     }
 
     private fun state(enabled: Boolean, failure: String?) = DenzaUiState(
-        cloudLink = CloudLinkStatus.snapshot(enabled, CloudCarState(connected = false), wifi = true, failure),
+        cloudLink = CloudLinkStatus.snapshot(enabled, CloudCarState(connected = false), network = true, failure),
     )
 
     private fun press(state: DenzaUiState) {

@@ -501,8 +501,8 @@ class DashboardTilesTest {
      */
     @Test
     fun theCloudTileReadsTheLinkNotTheSwitch() {
-        fun cloud(enabled: Boolean, car: CloudCarState?, wifi: Boolean, failure: String? = null) =
-            DenzaUiState(cloudLink = CloudLinkStatus.snapshot(enabled, car, wifi, failure))
+        fun cloud(enabled: Boolean, car: CloudCarState?, network: Boolean, failure: String? = null) =
+            DenzaUiState(cloudLink = CloudLinkStatus.snapshot(enabled, car, network, failure))
                 .tile(TileId.CLOUD)
 
         val off = DenzaUiState().tile(TileId.CLOUD)
@@ -511,26 +511,26 @@ class DashboardTilesTest {
         assertEquals(DenzaTileTone.IDLE, off.tone)
         assertEquals(TileAction.TOGGLE, off.action)
 
-        val connected = cloud(true, CloudCarState(connected = true), wifi = true)
+        val connected = cloud(true, CloudCarState(connected = true), network = true)
         assertEquals("На связи", connected.state)
         assertEquals(DenzaTileTone.LIVE, connected.tone)
         assertEquals(DenzaTileCaption.READING, connected.caption)
 
-        val away = cloud(true, CloudCarState(connected = false), wifi = false)
-        assertEquals("Нет Wi-Fi", away.state)
+        val away = cloud(true, CloudCarState(connected = false), network = false)
+        assertEquals("Нет интернета", away.state)
         assertEquals(DenzaTileTone.LIVE, away.tone)
         assertEquals(DenzaTileCaption.SETTING, away.caption)
 
-        val connecting = cloud(true, CloudCarState(connected = false), wifi = true)
+        val connecting = cloud(true, CloudCarState(connected = false), network = true)
         assertEquals("Подключается", connecting.state)
         assertEquals(DenzaTileTone.WORKING, connecting.tone)
 
         // Not read yet is not offline: on Wi-Fi it is connecting until the car answers.
-        assertEquals("Подключается", cloud(true, car = null, wifi = true).state)
+        assertEquals("Подключается", cloud(true, car = null, network = true).state)
 
         // Off is the app's switch and says so, even over a link somebody else left up: the tile
         // does not claim a connection it is not holding.
-        assertEquals("Выключено", cloud(false, CloudCarState(connected = true), wifi = true).state)
+        assertEquals("Выключено", cloud(false, CloudCarState(connected = true), network = true).state)
     }
 
     /** A press the car did not take is the one thing on this tile that needs somebody. */
@@ -540,7 +540,7 @@ class DashboardTilesTest {
             cloudLink = CloudLinkStatus.snapshot(
                 enabled = true,
                 car = CloudCarState(connected = false),
-                wifi = true,
+                network = true,
                 failure = "Не включилось",
             ),
         )

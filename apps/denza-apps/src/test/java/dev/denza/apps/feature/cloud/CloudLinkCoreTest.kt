@@ -31,10 +31,10 @@ class CloudLinkCoreTest {
     @Test
     fun switchingOnFromStockTakesTheProfileAndSaysReadyOnce() {
         val core = CloudLinkCore()
-        assertEquals(listOf(UseWifiProfile, AnnounceReady), core.switchedOn(stock, wifi = true, nowMs = 0))
+        assertEquals(listOf(UseWifiProfile, AnnounceReady), core.switchedOn(stock, network = true, nowMs = 0))
         core.readySent(0)
         // The follow-up readings while the client logs in say nothing more.
-        assertEquals(emptyList<CloudStep>(), core.reconcile(adapted, wifi = true, nowMs = 30_000))
+        assertEquals(emptyList<CloudStep>(), core.reconcile(adapted, network = true, nowMs = 30_000))
     }
 
     /**
@@ -44,16 +44,16 @@ class CloudLinkCoreTest {
     @Test
     fun switchingOnOverALiveLinkTouchesNothing() {
         val core = CloudLinkCore()
-        assertEquals(emptyList<CloudStep>(), core.switchedOn(online, wifi = true, nowMs = 0))
+        assertEquals(emptyList<CloudStep>(), core.switchedOn(online, network = true, nowMs = 0))
         assertEquals(CloudLinkCore.Gate.OPENED, core.gate)
     }
 
     @Test
     fun switchingOnAwayFromWifiWaitsForIt() {
         val core = CloudLinkCore()
-        assertEquals(emptyList<CloudStep>(), core.switchedOn(stock, wifi = false, nowMs = 0))
+        assertEquals(emptyList<CloudStep>(), core.switchedOn(stock, network = false, nowMs = 0))
         // Wi-Fi comes back: the gate is known closed, so there is nothing to wait for.
-        assertEquals(listOf(UseWifiProfile, AnnounceReady), core.wifiReturned(stock, nowMs = 10_000))
+        assertEquals(listOf(UseWifiProfile, AnnounceReady), core.networkReturned(stock, nowMs = 10_000))
     }
 
     /**
@@ -64,7 +64,7 @@ class CloudLinkCoreTest {
     @Test
     fun aLinkThatDoesNotComeBackIsAskedAgainLessAndLessOften() {
         val core = CloudLinkCore()
-        core.switchedOn(adapted, wifi = true, nowMs = 0)
+        core.switchedOn(adapted, network = true, nowMs = 0)
         core.readySent(0)
 
         var at = 0L
@@ -72,7 +72,7 @@ class CloudLinkCoreTest {
         var last = 0L
         while (gaps.size < 6) {
             at += 1_000
-            if (core.reconcile(adapted, wifi = true, nowMs = at) == listOf(AnnounceReady)) {
+            if (core.reconcile(adapted, network = true, nowMs = at) == listOf(AnnounceReady)) {
                 core.readySent(at)
                 gaps += (at - last) / 60_000
                 last = at
@@ -84,78 +84,78 @@ class CloudLinkCoreTest {
     @Test
     fun seeingTheClientConnectedClearsTheBackoff() {
         val core = CloudLinkCore()
-        core.switchedOn(adapted, wifi = true, nowMs = 0)
+        core.switchedOn(adapted, network = true, nowMs = 0)
         core.readySent(0)
-        core.reconcile(online, wifi = true, nowMs = 40_000)
+        core.reconcile(online, network = true, nowMs = 40_000)
         assertEquals(0, core.attempts)
 
         // Dropped later - by the stock -5 or anything else: settle, then one ready, no backoff.
         val dropAt = 3_600_000L
-        assertEquals(emptyList<CloudStep>(), core.reconcile(adapted, wifi = true, nowMs = dropAt))
-        assertEquals(emptyList<CloudStep>(), core.reconcile(adapted, wifi = true, nowMs = dropAt + SETTLE_MS - 1))
-        assertEquals(listOf(AnnounceReady), core.reconcile(adapted, wifi = true, nowMs = dropAt + SETTLE_MS))
+        assertEquals(emptyList<CloudStep>(), core.reconcile(adapted, network = true, nowMs = dropAt))
+        assertEquals(emptyList<CloudStep>(), core.reconcile(adapted, network = true, nowMs = dropAt + SETTLE_MS - 1))
+        assertEquals(listOf(AnnounceReady), core.reconcile(adapted, network = true, nowMs = dropAt + SETTLE_MS))
     }
 
     /** A TCP of 0 does not say why; the client's own reconnect gets the settle period first. */
     @Test
     fun aFreshProcessDoesNotRaceTheClientsOwnReconnect() {
         val core = CloudLinkCore()
-        assertEquals(emptyList<CloudStep>(), core.reconcile(adapted, wifi = true, nowMs = 0))
-        assertEquals(emptyList<CloudStep>(), core.reconcile(adapted, wifi = true, nowMs = 60_000))
-        assertEquals(listOf(AnnounceReady), core.reconcile(adapted, wifi = true, nowMs = SETTLE_MS))
+        assertEquals(emptyList<CloudStep>(), core.reconcile(adapted, network = true, nowMs = 0))
+        assertEquals(emptyList<CloudStep>(), core.reconcile(adapted, network = true, nowMs = 60_000))
+        assertEquals(listOf(AnnounceReady), core.reconcile(adapted, network = true, nowMs = SETTLE_MS))
     }
 
     /** A restarted native client has a fresh, closed gate; the framework replays only real APNs. */
     @Test
     fun aRestartedClientIsToldAtOnce() {
         val core = CloudLinkCore()
-        core.reconcile(online, wifi = true, nowMs = 0)
+        core.reconcile(online, network = true, nowMs = 0)
         val restarted = adapted.copy(cloudPid = "4711")
-        assertEquals(listOf(AnnounceReady), core.reconcile(restarted, wifi = true, nowMs = 1_000))
+        assertEquals(listOf(AnnounceReady), core.reconcile(restarted, network = true, nowMs = 1_000))
     }
 
     @Test
     fun aCarThatDidNotAnswerIsNotACarThatIsOffline() {
         val core = CloudLinkCore()
-        core.switchedOn(online, wifi = true, nowMs = 0)
+        core.switchedOn(online, network = true, nowMs = 0)
         val unread = CloudCarState()
-        assertEquals(emptyList<CloudStep>(), core.reconcile(unread, wifi = true, nowMs = 10 * 60_000))
+        assertEquals(emptyList<CloudStep>(), core.reconcile(unread, network = true, nowMs = 10 * 60_000))
     }
 
     /** Ready and gone are a pair: Wi-Fi that stays gone closes the gate, and coming back opens it. */
     @Test
     fun wifiThatStaysGoneClosesTheGateAndItsReturnOpensIt() {
         val core = CloudLinkCore()
-        core.switchedOn(online, wifi = true, nowMs = 0)
-        assertEquals(listOf(AnnounceGone), core.wifiGone(online))
+        core.switchedOn(online, network = true, nowMs = 0)
+        assertEquals(listOf(AnnounceGone), core.networkGone(online))
         core.goneSent()
         // Said once.
-        assertEquals(emptyList<CloudStep>(), core.wifiGone(adapted))
+        assertEquals(emptyList<CloudStep>(), core.networkGone(adapted))
         // Back: the gate is known closed, so no settle and no backoff.
-        assertEquals(listOf(AnnounceReady), core.wifiReturned(adapted, nowMs = 20_000))
+        assertEquals(listOf(AnnounceReady), core.networkReturned(adapted, nowMs = 20_000))
     }
 
     /** A gate opened by a previous process is still ours to close. */
     @Test
     fun aFreshProcessStillClosesTheGateItsPredecessorOpened() {
         val core = CloudLinkCore()
-        assertEquals(listOf(AnnounceGone), core.wifiGone(adapted))
+        assertEquals(listOf(AnnounceGone), core.networkGone(adapted))
     }
 
     /** Outside the adapter's profile the gate is not a synthetic APN of ours. */
     @Test
     fun wifiLossOnTheStockProfileSaysNothing() {
         val core = CloudLinkCore()
-        assertEquals(emptyList<CloudStep>(), core.wifiGone(stock))
+        assertEquals(emptyList<CloudStep>(), core.networkGone(stock))
     }
 
     @Test
     fun aBriefFlickerLeavesTheClientsOwnReconnectAlone() {
         val core = CloudLinkCore()
-        core.switchedOn(online, wifi = true, nowMs = 0)
+        core.switchedOn(online, network = true, nowMs = 0)
         // Wi-Fi blinked and came back inside the grace period: no gone was said, the gate is open,
         // and a dropped socket gets the settle period to come back by itself.
-        assertEquals(emptyList<CloudStep>(), core.wifiReturned(adapted, nowMs = 10_000))
+        assertEquals(emptyList<CloudStep>(), core.networkReturned(adapted, nowMs = 10_000))
     }
 
     /** The driver's off: close the gate while the profile still honours it, then the stock profile. */
@@ -179,17 +179,17 @@ class CloudLinkCoreTest {
     @Test
     fun aRefusedAttemptWaitsItsBackoffEvenWithTheGateClosed() {
         val core = CloudLinkCore()
-        assertEquals(listOf(UseWifiProfile, AnnounceReady), core.switchedOn(stock, wifi = true, nowMs = 0))
+        assertEquals(listOf(UseWifiProfile, AnnounceReady), core.switchedOn(stock, network = true, nowMs = 0))
         core.readyFailed(0)
-        assertEquals(emptyList<CloudStep>(), core.reconcile(stock, wifi = true, nowMs = 60_000))
-        assertEquals(emptyList<CloudStep>(), core.reconcile(stock, wifi = true, nowMs = 5 * 60_000 - 1))
-        assertEquals(listOf(UseWifiProfile, AnnounceReady), core.reconcile(stock, wifi = true, nowMs = 5 * 60_000))
+        assertEquals(emptyList<CloudStep>(), core.reconcile(stock, network = true, nowMs = 60_000))
+        assertEquals(emptyList<CloudStep>(), core.reconcile(stock, network = true, nowMs = 5 * 60_000 - 1))
+        assertEquals(listOf(UseWifiProfile, AnnounceReady), core.reconcile(stock, network = true, nowMs = 5 * 60_000))
         core.readyFailed(5 * 60_000)
-        assertEquals(emptyList<CloudStep>(), core.reconcile(stock, wifi = true, nowMs = 14 * 60_000))
-        assertEquals(listOf(UseWifiProfile, AnnounceReady), core.reconcile(stock, wifi = true, nowMs = 15 * 60_000))
+        assertEquals(emptyList<CloudStep>(), core.reconcile(stock, network = true, nowMs = 14 * 60_000))
+        assertEquals(listOf(UseWifiProfile, AnnounceReady), core.reconcile(stock, network = true, nowMs = 15 * 60_000))
 
         // The driver's own press is not held back by any of it.
-        assertEquals(listOf(UseWifiProfile, AnnounceReady), core.switchedOn(stock, wifi = true, nowMs = 15 * 60_000 + 1))
+        assertEquals(listOf(UseWifiProfile, AnnounceReady), core.switchedOn(stock, network = true, nowMs = 15 * 60_000 + 1))
     }
 
     /**
@@ -201,10 +201,10 @@ class CloudLinkCoreTest {
     fun aCarWithItsOwnCellularLinkIsLeftToTheStockFramework() {
         val cellular = stock.copy(cellular = true)
         val core = CloudLinkCore()
-        assertEquals(emptyList<CloudStep>(), core.switchedOn(cellular, wifi = true, nowMs = 0))
-        assertEquals(emptyList<CloudStep>(), core.reconcile(cellular, wifi = true, nowMs = 10 * 60_000))
+        assertEquals(emptyList<CloudStep>(), core.switchedOn(cellular, network = true, nowMs = 0))
+        assertEquals(emptyList<CloudStep>(), core.reconcile(cellular, network = true, nowMs = 10 * 60_000))
         val adaptedCellular = adapted.copy(cellular = true)
-        assertEquals(emptyList<CloudStep>(), core.wifiGone(adaptedCellular))
+        assertEquals(emptyList<CloudStep>(), core.networkGone(adaptedCellular))
         // Off still gives the car its profile back, without closing the gate under a live APN3.
         assertEquals(listOf(RestoreProfile("triple_apn")), core.switchedOff(adaptedCellular))
     }

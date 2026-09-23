@@ -24,14 +24,15 @@ internal sealed interface CloudStep {
  * **What the stock client needs from us.** `cloudmanager` owns identity, telemetry, timers and the
  * whole protocol; the only thing it lacks on this car is a network it believes in. Its gate opens on
  * APN3's «ready» (`notify_nw(4)`) and on nothing Wi-Fi sends it, and closes on APN3's «gone»
- * (`-5`). So the adapter translates: validated Wi-Fi is «ready», Wi-Fi that has stayed gone is
- * «gone» - paired, because a gate opened and never closed is a synthetic APN left standing
- * (docs/telematics-findings.md, "Stock-client Wi-Fi adaptation").
+ * (`-5`). So the adapter translates: usable internet ([CloudNetwork] - Wi-Fi, or mobile data from
+ * a SIM that is not Chinese) is «ready», internet that has stayed gone is «gone» - paired, because
+ * a gate opened and never closed is a synthetic APN left standing (docs/telematics-findings.md,
+ * "Stock-client Wi-Fi adaptation"). Only Wi-Fi is proven on a car.
  *
  * **Why it may have to say «ready» again.** The stock `BYDMultiApnConnReceiver` sends `-5` itself on
  * any `CONNECTIVITY_CHANGE_FUNCTION` whose APN3 is not connected, with no comparison against the
- * previous state - a cellular event that closes the gate the adapter opened over Wi-Fi. So a car
- * that is on Wi-Fi and off the cloud is announced again. But a TCP of 0 does not say *why* - the
+ * previous state - a cellular event that closes the gate the adapter opened. So a car that has
+ * internet and is off the cloud is announced again. But a TCP of 0 does not say *why* - the
  * client may be in the middle of its own reconnect - so a repeat waits for the disconnection to
  * [settle][SETTLE_MS] and then for a [backoff] that doubles with every «ready» that did not bring
  * the connection back, up to an hour. Seeing the client connected clears it.
@@ -72,18 +73,18 @@ internal class CloudLinkCore {
      * Everything the repeat rules hold back is waived: the press is the reason. What is left is the
      * reading - a client already connected is not told again.
      */
-    fun switchedOn(car: CloudCarState, wifi: Boolean, nowMs: Long): List<CloudStep> {
+    fun switchedOn(car: CloudCarState, network: Boolean, nowMs: Long): List<CloudStep> {
         gate = Gate.CLOSED
         attempts = 0
         lastReadyAtMs = null
-        return reconcile(car, wifi, nowMs)
+        return reconcile(car, network, nowMs)
     }
 
     /**
      * A reading while the link is on: the periodic one, the stock client's status broadcast, a
-     * start of the service, validated Wi-Fi coming back.
+     * start of the service, usable internet coming back.
      */
-    fun reconcile(car: CloudCarState, wifi: Boolean, nowMs: Long): List<CloudStep> {
+    fun reconcile(car: CloudCarState, network: Boolean, nowMs: Long): List<CloudStep> {
         car.cloudPid?.let { pid ->
             // A restarted client has a fresh gate, and the framework replays only the APN states
             // it recorded - never ours. Nothing is in doubt about what it needs.
@@ -96,7 +97,7 @@ internal class CloudLinkCore {
             disconnectedSinceMs = null
             return emptyList()
         }
-        if (car.cellular || !wifi) {
+        if (car.cellular || !network) {
             disconnectedSinceMs = null
             return emptyList()
         }
@@ -120,26 +121,28 @@ internal class CloudLinkCore {
     }
 
     /**
-     * Validated Wi-Fi came back. If we closed the gate when it went, it is closed now and the
+     * Usable internet came back. If we closed the gate when it went, it is closed now and the
      * client is waiting for exactly this; if it was a flicker we never answered, the client's own
      * reconnect is already on it.
      */
-    fun wifiReturned(car: CloudCarState, nowMs: Long): List<CloudStep> {
+    fun networkReturned(car: CloudCarState, nowMs: Long): List<CloudStep> {
         if (gate == Gate.CLOSED) {
             attempts = 0
             lastReadyAtMs = null
         }
-        return reconcile(car, wifi = true, nowMs = nowMs)
+        return reconcile(car, network = true, nowMs = nowMs)
     }
 
     /**
-     * Validated Wi-Fi has been gone for [WIFI_LOSS_GRACE_MS]: the other half of the pair.
+     * Usable internet has been gone for [NETWORK_LOSS_GRACE_MS]: the other half of the pair. Moving
+     * from Wi-Fi to mobile data is not a loss - the client's socket drops with the old network and
+     * its own reconnect, or the repeat after the settle, carries it onto the new one.
      *
      * Said while the gate may be ours - including one a previous process opened, which is why
      * [Gate.UNKNOWN] answers too - and only under the profile the adapter put the car on: outside
      * it the gate is not a synthetic APN of ours to close.
      */
-    fun wifiGone(car: CloudCarState): List<CloudStep> =
+    fun networkGone(car: CloudCarState): List<CloudStep> =
         if (gate == Gate.CLOSED || car.cellular || car.profile != CloudLinkProtocol.WIFI_PROFILE) {
             emptyList()
         } else {
@@ -193,8 +196,8 @@ internal class CloudLinkCore {
          */
         const val SETTLE_MS = 90_000L
 
-        /** How long validated Wi-Fi must stay gone before the gate is closed. */
-        const val WIFI_LOSS_GRACE_MS = 30_000L
+        /** How long usable internet must stay gone before the gate is closed. */
+        const val NETWORK_LOSS_GRACE_MS = 30_000L
 
         private const val FIRST_BACKOFF_MS = 5 * 60_000L
         private const val MAX_BACKOFF_MS = 60 * 60_000L

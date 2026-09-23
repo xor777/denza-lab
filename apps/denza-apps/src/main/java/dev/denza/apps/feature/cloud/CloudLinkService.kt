@@ -20,7 +20,8 @@ import dev.denza.apps.MainActivity
 import dev.denza.apps.R
 
 /**
- * Keeps the cloud link's adapter alive while the switch is on, and tells it when Wi-Fi changes.
+ * Keeps the cloud link's adapter alive while the switch is on, and tells it when internet comes and
+ * goes - Wi-Fi, or mobile data from a SIM that is not Chinese ([CloudNetwork]).
  *
  * It decides nothing: [CloudLinkController] reads the car and [CloudLinkCore] says what to send.
  * What only a running component can do is here - hold the process, watch the default network, and
@@ -44,11 +45,12 @@ class CloudLinkService : Service() {
     }
 
     /**
-     * Wi-Fi that stays gone for the grace period, and only that, closes the gate: a network that
-     * blinks while the car roams between access points must not cost a disconnect and a new login.
+     * Internet that stays gone for the grace period, and only that, closes the gate: a network that
+     * blinks - an access point handing over, a tunnel on mobile data, Wi-Fi giving way to mobile -
+     * must not cost a disconnect and a new login.
      */
     private val lossCheck = Runnable {
-        if (!CloudWifi.validated(this)) CloudLinkController.wifiGone(this)
+        if (!CloudNetwork.usable(this)) CloudLinkController.networkGone(this)
     }
 
     private val statusReceiver = object : BroadcastReceiver() {
@@ -61,10 +63,10 @@ class CloudLinkService : Service() {
         super.onCreate()
         createNotificationChannel()
         startForeground(NOTIFICATION_ID, notification())
-        validated = CloudWifi.validated(this)
-        // The default network, because that is what [CloudWifi.validated] asks about. A callback
-        // on Wi-Fi alone fires when Wi-Fi validates, which can be a moment before it becomes the
-        // default - the question then answers «no», the transition is lost, and the link waits
+        validated = CloudNetwork.usable(this)
+        // The default network, because that is what [CloudNetwork.kind] asks about. A callback on
+        // one transport fires when that network validates, which can be a moment before it becomes
+        // the default - the question then answers «no», the transition is lost, and the link waits
         // for the next five-minute reading.
         getSystemService(ConnectivityManager::class.java)
             ?.registerDefaultNetworkCallback(networkCallback)
@@ -101,14 +103,14 @@ class CloudLinkService : Service() {
     /** Callbacks arrive on the connectivity thread and say little; the one question is asked here. */
     private fun changed() {
         handler.post {
-            val now = CloudWifi.validated(this)
+            val now = CloudNetwork.usable(this)
             if (now == validated) return@post
             validated = now
             if (now) {
                 handler.removeCallbacks(lossCheck)
-                CloudLinkController.wifiReturned(this)
+                CloudLinkController.networkReturned(this)
             } else {
-                handler.postDelayed(lossCheck, CloudLinkCore.WIFI_LOSS_GRACE_MS)
+                handler.postDelayed(lossCheck, CloudLinkCore.NETWORK_LOSS_GRACE_MS)
             }
         }
     }
@@ -116,7 +118,7 @@ class CloudLinkService : Service() {
     private fun createNotificationChannel() {
         getSystemService(NotificationManager::class.java)?.createNotificationChannel(
             NotificationChannel(CHANNEL_ID, "Облако", NotificationManager.IMPORTANCE_MIN).apply {
-                description = "Связь машины с облаком через Wi-Fi"
+                description = "Связь машины с облаком через интернет"
                 setShowBadge(false)
             },
         )
