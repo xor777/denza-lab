@@ -199,15 +199,7 @@ object DenzaIcons {
     )
 
     val Cluster: ImageVector get() = ClusterGlyph.vector
-    val Simulcast: ImageVector get() = SimulcastGlyph.vector
-    val Mirrors: ImageVector get() = MirrorsGlyph.vector
-    val Split: ImageVector get() = SplitGlyph.vector
-    val Hud: ImageVector get() = HudGlyph.vector
-    val Speaker: ImageVector get() = SpeakerGlyph.vector
-    val Passenger: ImageVector get() = PassengerGlyph.vector
     val Applications: ImageVector get() = ApplicationsGlyph.vector
-    val Locale: ImageVector get() = LocaleGlyph.vector
-    val Weather: ImageVector get() = WeatherGlyph.vector
     val Service: ImageVector get() = ServiceGlyph.vector
     val Note: ImageVector get() = NoteGlyph.vector
     val Close: ImageVector get() = CloseGlyph.vector

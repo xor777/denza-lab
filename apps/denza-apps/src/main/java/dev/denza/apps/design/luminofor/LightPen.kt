@@ -105,19 +105,6 @@ class LightPen(
         return scratch
     }
 
-    /** A fresh additive paint for a renderer's own gradients and rects. */
-    fun plusFill(): Paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.FILL
-        blendMode = BlendMode.PLUS
-    }
-
-    fun plusStroke(): Paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.STROKE
-        strokeCap = Paint.Cap.ROUND
-        strokeJoin = Paint.Join.ROUND
-        blendMode = BlendMode.PLUS
-    }
-
     /** A stroke drawn by a beam: with [glow] above zero a faint wide halo and a blurred one first. */
     fun beam(path: Path, strokeUnits: Float, light: Light, intensity: Float, glow: Float = 0f) {
         if (intensity <= 0.01f) return

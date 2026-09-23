@@ -57,10 +57,6 @@ object DenzaColors {
      */
     val Scrim: Color = Background.copy(alpha = 0.72f)
 
-    // Track, TrackMark and Hairline were adapters for gauges that draw on a Canvas and take the
-    // palette as Int. No Compose code ever read them; the gauges read DenzaPalette directly, which
-    // is where those three still live.
-
     fun ink(alpha: Float): Color = Ink.copy(alpha = alpha)
 
     fun accent(alpha: Float): Color = Accent.copy(alpha = alpha)

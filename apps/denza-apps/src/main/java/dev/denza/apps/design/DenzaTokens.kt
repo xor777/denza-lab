@@ -1,7 +1,5 @@
 package dev.denza.apps.design
 
-import android.graphics.Color
-
 /**
  * The one palette this app draws with, taken from the vehicle rather than invented.
  *
@@ -67,30 +65,9 @@ object DenzaPalette {
     /** `sys_color_function` in the dark theme. Energy going back into the pack. */
     const val RETURN: Int = 0xFF2D82D7.toInt()
 
-    /** [RETURN] lightened for text, which needs more lift than a stroke does. */
-    const val RETURN_INK: Int = 0xFF4B9BE0.toInt()
-
     /** `sys_color_abnormal`. Something needs a decision. */
     const val WARNING: Int = 0xFFFF9F19.toInt()
 
     /** `sys_color_warning` / `sys_red_400`. Already in this app as the DiShare exit glyph. */
     const val DANGER: Int = 0xFFFF4046.toInt()
-
-    /** The unlit track behind any gauge. */
-    const val TRACK: Int = 0xFF22262E.toInt()
-
-    /** A tick or scale mark on a track. */
-    const val TRACK_MARK: Int = 0xFF3F434D.toInt()
-
-    /** `sys_qs_number_keyboard_divide_line_color_denza`: 12% white, over whatever is behind it. */
-    const val HAIRLINE: Int = 0x1FFFFFFF
-
-    /** [INK] at a given opacity, for the many shades a gauge needs between full and absent. */
-    fun ink(alpha: Float): Int = Color.argb((alpha * 255f).toInt(), 0xDA, 0xE1, 0xEB)
-
-    /** [RETURN] at a given opacity. */
-    fun returned(alpha: Float): Int = Color.argb((alpha * 255f).toInt(), 0x2D, 0x82, 0xD7)
-
-    /** [ACCENT] at a given opacity. */
-    fun accent(alpha: Float): Int = Color.argb((alpha * 255f).toInt(), 0xFE, 0xEF, 0xAB)
 }

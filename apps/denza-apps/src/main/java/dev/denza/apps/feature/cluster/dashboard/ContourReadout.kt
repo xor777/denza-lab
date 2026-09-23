@@ -183,8 +183,8 @@ internal object ContourReadout {
      * A minus in front of nothing but zeros is not a direction, so it does not get printed.
      *
      * `%.0f` of −0.4 is «-0» and `%.1f` of −0.04 is «-0,0», and the one signed figure on either
-     * screen is the consumption - so a hundred metres of coasting downhill printed «-0» in
-     * `RETURN_INK` and said the road had given something back. Rounding a magnitude away is what
+     * screen is the consumption - so a hundred metres of coasting downhill printed «-0» in the
+     * return's blue and said the road had given something back. Rounding a magnitude away is what
      * makes it zero; the sign is what is left of a quantity that no longer has one.
      */
     private fun unsigned(printed: String): String =

@@ -184,8 +184,8 @@ class ContourReadoutTest {
      *
      * The consumption is the one signed figure on either screen and it is signed because it is an
      * exception - a road that gave back more than it cost. A hundred metres of coasting is −0.4,
-     * which `%.0f` prints as «-0» and the panel drew in `RETURN_INK`: a minus the reader can see
-     * over a magnitude they cannot.
+     * which `%.0f` prints as «-0» and the panel drew in the return's blue: a minus the reader can
+     * see over a magnitude they cannot.
      */
     @Test
     fun aFigureThatRoundedToZeroDoesNotKeepItsMinus() {
