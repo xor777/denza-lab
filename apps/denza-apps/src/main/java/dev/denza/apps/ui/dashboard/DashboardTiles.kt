@@ -502,15 +502,15 @@ object DashboardTiles {
     }
 
     /**
-     * The car's own link to the cloud, carried over Wi-Fi - what the Denza app on the phone reads
-     * the car through.
+     * The car's own link to the cloud, carried over ordinary internet - Wi-Fi, or mobile data from a
+     * local SIM - which is what the Denza app on the phone reads the car through.
      *
      * The caption is a reading whenever the switch is on, because that is the question anybody
      * glancing at it is asking: is the phone seeing the car. «На связи» is the stock client holding
-     * its connection; «Подключается» is Wi-Fi without one yet, drawn as working for as long as that
-     * lasts, as weather is before its first forecast; «Нет Wi-Fi» is on and waiting, as the mirrors
-     * wait for a turn signal, and is not a fault. Keeping Wi-Fi on in sleep is a setting and lives
-     * in the panel only.
+     * its connection; «Подключается» is internet without one yet, drawn as working for as long as
+     * that lasts, as weather is before its first forecast; «Нет интернета» is on and waiting, as the
+     * mirrors wait for a turn signal, and is not a fault. Keeping Wi-Fi on in sleep is a setting and
+     * lives in the panel only.
      */
     private fun cloud(state: DenzaUiState): DashboardTile {
         val snapshot = state.cloudLink
@@ -522,7 +522,7 @@ object DashboardTiles {
             state = when (snapshot.status) {
                 FeatureStatus.OFF -> "Выключено"
                 FeatureStatus.ACTIVE -> "На связи"
-                FeatureStatus.READY -> "Нет Wi-Fi"
+                FeatureStatus.READY -> "Нет интернета"
                 FeatureStatus.ERROR, FeatureStatus.UNAVAILABLE ->
                     snapshot.message.ifBlank { "Не переключилось" }
                 else -> "Подключается"

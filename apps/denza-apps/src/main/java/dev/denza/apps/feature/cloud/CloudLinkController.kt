@@ -18,7 +18,7 @@ import java.util.concurrent.atomic.AtomicInteger
  * rather than when it was queued. [CloudLinkCore] decides; this carries the decision out over the
  * local ADB shell, publishes the reading to [CloudLinkRuntime] and asks the dashboard to redraw.
  *
- * [CloudLinkService] is what keeps the process alive and feeds the Wi-Fi events in; the readings
+ * [CloudLinkService] is what keeps the process alive and feeds the network events in; the readings
  * it asks for between events are scheduled here, and stop when it stops.
  */
 object CloudLinkController {
@@ -53,7 +53,7 @@ object CloudLinkController {
         val app = context.applicationContext
         explicit(ENABLE_FAILED) {
             val car = read(app)
-            attempt(app, core.switchedOn(car, CloudWifi.validated(app), now()))
+            attempt(app, core.switchedOn(car, CloudNetwork.usable(app), now()))
         }
     }
 
@@ -96,7 +96,7 @@ object CloudLinkController {
         val app = context.applicationContext
         executor.execute {
             watching = true
-            automatic(app, "service start") { car, wifi -> core.reconcile(car, wifi, now()) }
+            automatic(app, "service start") { car, network -> core.reconcile(car, network, now()) }
         }
     }
 
@@ -108,19 +108,19 @@ object CloudLinkController {
         }
     }
 
-    /** Validated Wi-Fi came back. */
-    fun wifiReturned(context: Context) {
+    /** Usable internet came back. */
+    fun networkReturned(context: Context) {
         val app = context.applicationContext
         executor.execute {
-            automatic(app, "wifi returned") { car, _ -> core.wifiReturned(car, now()) }
+            automatic(app, "network returned") { car, _ -> core.networkReturned(car, now()) }
         }
     }
 
-    /** Validated Wi-Fi has stayed gone for the grace period. */
-    fun wifiGone(context: Context) {
+    /** Usable internet has stayed gone for the grace period. */
+    fun networkGone(context: Context) {
         val app = context.applicationContext
         executor.execute {
-            automatic(app, "wifi gone") { car, wifi -> if (wifi) emptyList() else core.wifiGone(car) }
+            automatic(app, "network gone") { car, network -> if (network) emptyList() else core.networkGone(car) }
         }
     }
 
@@ -131,7 +131,7 @@ object CloudLinkController {
     fun hint(context: Context) {
         val app = context.applicationContext
         executor.execute {
-            automatic(app, "status broadcast") { car, wifi -> core.reconcile(car, wifi, now()) }
+            automatic(app, "status broadcast") { car, network -> core.reconcile(car, network, now()) }
         }
     }
 
@@ -149,9 +149,10 @@ object CloudLinkController {
         try {
             if (!CloudLinkSettings.isEnabled(app)) return
             val car = read(app)
-            val steps = decide(car, CloudWifi.validated(app))
+            val network = CloudNetwork.kind(app)
+            val steps = decide(car, network != CloudNetworkKind.NONE)
             if (steps.isNotEmpty()) {
-                Log.i(TAG, "$reason: $steps gate=${core.gate} attempts=${core.attempts}")
+                Log.i(TAG, "$reason: $steps network=$network gate=${core.gate} attempts=${core.attempts}")
             }
             // A press the car refused earlier is not the news once the link is up by other means:
             // the tile would say «Не включилось» over a car the phone can see.
@@ -272,13 +273,16 @@ object CloudLinkController {
         tick = null
         if (!watching || !CloudLinkSettings.isEnabled(app)) return
         val car = CloudLinkRuntime.car
-        val waiting = car?.connected != true && CloudWifi.validated(app)
+        val waiting = car?.connected != true && CloudNetwork.usable(app)
         tick = executor.schedule({
-            automatic(app, "tick") { reading, wifi -> core.reconcile(reading, wifi, now()) }
+            automatic(app, "tick") { reading, network -> core.reconcile(reading, network, now()) }
         }, if (waiting) WATCH_MS else IDLE_MS, TimeUnit.MILLISECONDS)
     }
 
-    private fun publish() = DenzaAppRepository.refresh()
+    private fun publish() {
+        CloudLinkRuntime.adapter = "gate=${core.gate} attempts=${core.attempts}"
+        DenzaAppRepository.refresh()
+    }
 
     private fun now(): Long = SystemClock.elapsedRealtime()
 }

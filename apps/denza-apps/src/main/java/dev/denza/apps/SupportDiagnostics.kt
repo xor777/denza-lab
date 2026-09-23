@@ -9,6 +9,9 @@ import dev.denza.apps.feature.cluster.ClusterDisplayResolver
 import dev.denza.apps.feature.cluster.ClusterDisplaySelection
 import dev.denza.apps.feature.cluster.ClusterSceneService
 import dev.denza.apps.feature.adb.AdbRescueCoordinator
+import dev.denza.apps.feature.cloud.CloudLinkRuntime
+import dev.denza.apps.feature.cloud.CloudLinkSettings
+import dev.denza.apps.feature.cloud.CloudNetwork
 import dev.denza.apps.feature.speaker.SpeakerCoverRuntime
 import dev.denza.apps.feature.adb.AdbSystemSwitch
 import dev.denza.apps.feature.hud.HudGuidanceRuntime
@@ -76,6 +79,11 @@ object SupportDiagnostics {
             )
             add("ADB queue recovery=${AdbRescueCoordinator.QUEUE_RECOVERY_STATUS}")
             add("Крышки динамиков=reporting=${if (SpeakerCoverRuntime.reporting) "да" else "нет"}")
+            // The cloud link is tested on cars nobody here can reach - mobile data on a local SIM
+            // most of all - so its whole state is one line a screenshot can carry: the switch, the
+            // network it would translate, the SIM's operator code (never its identity), and what
+            // the car's stock client last said.
+            add(cloudLinkLine(context))
             // Анализатор питается тем же захватом, что и автоматика крышек, и когда захвата нет,
             // обе функции молчат одинаково. На экране про это не пишется ни слова (U5), поэтому
             // единственное место, где «столбики не шевелятся» можно отличить от «в машине тихо», -
@@ -230,6 +238,19 @@ object SupportDiagnostics {
             "эффект=${state.effectEnabled?.let { if (it) "включён" else "ВЫКЛЮЧЕН" } ?: "нет"}; " +
             "кадр=${frames?.let { "${it} мс назад" } ?: "не приходил"}; " +
             "ошибка=${state.lastFailure ?: "—"}"
+    }
+
+    private fun cloudLinkLine(context: Context): String {
+        val car = CloudLinkRuntime.car
+        val sim = context.getSystemService(android.telephony.TelephonyManager::class.java)
+            ?.simOperator?.ifBlank { null } ?: "нет"
+        return "Облако=" +
+            "вкл=${if (CloudLinkSettings.isEnabled(context)) "да" else "нет"}; " +
+            "сеть=${CloudNetwork.kind(context).label}; SIM=$sim; " +
+            "профиль=${car?.profile ?: "?"}; TCP=${car?.connected?.let { if (it) 1 else 0 } ?: "?"}; " +
+            "сотовая BYD=${if (car?.cellular == true) "да" else "нет"}; " +
+            "Wi-Fi во сне=${car?.wifiRetained?.let { if (it) "да" else "нет" } ?: "?"}; " +
+            "${CloudLinkRuntime.adapter}; отказ=${CloudLinkRuntime.failure ?: "нет"}"
     }
 
     private fun yesNo(value: Boolean) = if (value) "Доступен" else "Недоступен"

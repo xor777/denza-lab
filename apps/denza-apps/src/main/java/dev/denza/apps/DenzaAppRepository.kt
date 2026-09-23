@@ -43,7 +43,7 @@ import dev.denza.apps.feature.cloud.CloudLinkRuntime
 import dev.denza.apps.feature.cloud.CloudLinkService
 import dev.denza.apps.feature.cloud.CloudLinkSettings
 import dev.denza.apps.feature.cloud.CloudLinkStatus
-import dev.denza.apps.feature.cloud.CloudWifi
+import dev.denza.apps.feature.cloud.CloudNetwork
 import dev.denza.apps.feature.locale.SystemLanguage
 import dev.denza.apps.feature.locale.SystemLanguageSnapshot
 import dev.denza.apps.feature.mirrors.MirrorDisplayReadiness
@@ -282,7 +282,7 @@ object DenzaAppRepository {
         val cloudLink = CloudLinkStatus.snapshot(
             enabled = CloudLinkSettings.isEnabled(context),
             car = cloudCar,
-            wifi = CloudWifi.validated(context),
+            network = CloudNetwork.usable(context),
             failure = CloudLinkRuntime.failure,
         )
         val cloudLinkBusy = CloudLinkRuntime.busy
