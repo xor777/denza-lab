@@ -1,1090 +1,626 @@
 package dev.denza.apps.feature.cluster.dashboard
 
+import android.content.Context
+import android.graphics.BlendMode
 import android.graphics.Canvas
+import android.graphics.LinearGradient
 import android.graphics.Paint
-import dev.denza.apps.design.DenzaPalette
-import dev.denza.apps.design.instrument.EnergyScale
-import dev.denza.apps.design.instrument.InstrumentFace
-import dev.denza.apps.design.instrument.InstrumentPen
-import dev.denza.apps.feature.vehicle.EnergyReadouts
-import dev.denza.apps.feature.vehicle.VehicleSignal
-import dev.denza.apps.feature.vehicle.VehicleTelemetry
+import android.graphics.Path
+import android.graphics.RadialGradient
+import android.graphics.Shader
+import dev.denza.apps.design.luminofor.LightPen
+import dev.denza.apps.design.luminofor.LightPen.Align
+import dev.denza.apps.design.luminofor.LuminoforSpec
+import dev.denza.apps.design.luminofor.LuminoforSpec.Cluster
+import dev.denza.apps.design.luminofor.LuminoforSpec.Cluster.Band
+import dev.denza.apps.design.luminofor.LuminoforSpec.Cluster.EngineBox
+import dev.denza.apps.design.luminofor.LuminoforSpec.Cluster.Grid
+import dev.denza.apps.design.luminofor.LuminoforSpec.Cluster.Trace
+import dev.denza.apps.design.luminofor.LuminoforSpec.ClusterInk
+import dev.denza.apps.design.luminofor.LuminoforSpec.Light
+import dev.denza.apps.design.luminofor.ThermalGlyphs
+import dev.denza.apps.design.luminofor.WideDigits
+import dev.denza.apps.feature.cluster.dashboard.ContourGeometry.AXIS
 import kotlin.math.abs
-import kotlin.math.max
+import kotlin.math.floor
 import kotlin.math.min
+import kotlin.math.roundToInt
+import kotlin.math.sin
+import kotlin.math.sqrt
 
 /**
- * The Contour, drawn.
+ * The Contour, drawn: the Luminofor board's triptych on the driver's display.
  *
- * It won the 2026-09 cluster contest (`docs/cluster-contest-2026-09/`), went to the owner three
- * times, was roasted by an independent review, was redrawn four more times against what came
- * back, and once more against what the owner saw when this file first ran on a bench.
- * `tools/design-canvas/gen_contour.py` is that concept as three boards and this is the same concept
- * as a `Canvas`; `ContourBoardContractTest` is what keeps the two from drifting.
+ * `drawCluster(c, f)` in `tools/design-canvas/luminofor/luminofor.js` is the design - approved by
+ * the owner as a live page on 2026-09-23 and frozen as the `cluster-*` boards - and this is that
+ * function ported line for line onto [LightPen], the board's own four verbs with the board's own
+ * additive compositing. The functions below keep the board's names and order - [centre],
+ * [filament], [trace], [traceFigure], [runLeft] - so the two can be read side by side, and every
+ * number is [LuminoforSpec] or a named literal in [ContourGeometry].
  *
- * Five rules carry the whole panel, and they are worth knowing before changing a line of it.
+ * A picture is a [ContourFrame] and nothing else: [ContourFrameBuilder] fills one from the car
+ * every frame, and the debug build's `ContourFixtures` fills one from a board's fixture, so both go
+ * through [drawFrame] and the second can be laid over the board's PNG pixel for pixel.
  *
- * **One heavy thing.** `INK` belongs to the hero and to the petal's figure and to nothing else. Both
- * corners and both shelves are `MUTED`; headings, captions and units are `MUTED_DEEP`; `WARNING` and
- * `DANGER` are the exception only. Five equal 52s were the owner's original complaint wearing a new
- * suit, and size alone was not enough to separate them (M4).
+ * Three rules from the panel this replaces still hold, and the frame is where they are kept.
+ * **A zero is never drawn** - a quantity that did not happen this trip has no cell. **Alpha is not
+ * a state channel** - a stale figure is removed and its caption stays; nothing dims. **One lit
+ * thing, and it stands still** - the glow sits on zero and says how hard by its brightness.
  *
- * **One lit thing, and it stands still.** The glow is centred on zero, its hue is the sign and its
- * brightness is the magnitude. It used to ride the band's tip, which put a pool of light through a
- * centimetre of travel every time the pedal moved in a jam - precisely what peripheral vision is
- * built to catch (M6).
- *
- * **Alpha is not a state channel.** A stale value is removed after two seconds and its caption
- * stays; link loss is that rule applied to every value at once. Nothing here dims anything, and
- * [ContourScene] is where that is decided (M5).
- *
- * **A zero is never drawn.** A quantity that did not happen this trip has no cell. That is the
- * owner's own question - «что означает 0,0 от ДВС, когда ДВС заглушен?» - and the rule it produced
- * outranks the tidy ones: is this understood at first glance, by somebody who has never seen the
- * panel and has no legend?
- *
- * **No coordinate depends on data.** Every anchor is in [ContourPlan]; this file draws at them.
+ * What the board draws and this does not: the keep-out hatching and its two labels. They are the
+ * board's picture of the vehicle's own instruments, which are really there on the glass.
  *
  * ### Nothing is allocated in a frame, and nothing is thrown out of one
  *
- * This runs inside a `Presentation` over the vehicle's live instruments. An exception out of
- * `onDraw` takes that window down, so the panel draws what it has and leaves out what it does not,
- * and there is no case here that ends in a throw. The history buffers are fields.
+ * This runs inside a `Presentation` over the vehicle's live instruments. Paths and paints are
+ * fields; the gradients are built once per size (and the trace's once per window width) and the
+ * rest of their variation is the paint's alpha; [LightPen] caches its blurs. The blurs are the
+ * board's own: the beam, its head, the zero and peak ticks, the trace's end dot, the park line's
+ * dot and a hot cell's lit part - no more.
  */
-internal class ClusterDashboardRenderer {
+internal class ClusterDashboardRenderer(private val pen: LightPen) {
 
-    private val pen = InstrumentPen()
+    constructor(context: Context) : this(LightPen.create(context))
 
-    /** The temperature row's five marks. Held rather than extended, the way the pen is. */
-    private val glyphs = ContourGlyphs()
+    private val path = Path()
+    private val area = Path()
+    private val down = Path()
+
+    private val shade = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.FILL
+        blendMode = BlendMode.PLUS
+        isDither = true
+    }
+    private val line = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeCap = Paint.Cap.ROUND
+        blendMode = BlendMode.PLUS
+        isDither = true
+    }
+
+    /** The threads: butt-ended, because the board never set a cap for them. */
+    private val thread = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeCap = Paint.Cap.BUTT
+        blendMode = BlendMode.PLUS
+    }
+
+    // The gradients, keyed by the pixel scale and origin they were built for.
+    private var shadedScale = Float.NaN
+    private var shadedOrigin = Float.NaN
+    private var filamentShader: Shader? = null
+    private var glowInk: Shader? = null
+    private var glowBlue: Shader? = null
+    private var hotOrange: Shader? = null
+    private var hotRed: Shader? = null
+    private var boxShader: Shader? = null
+
+    // And the trace's, which also depend on how far the window has filled.
+    private var traceShadedCount = -1
+    private var traceUp: Shader? = null
+    private var traceDown: Shader? = null
+
+    /** The last consumption figure's width, so its unit does not jump while the figure is stale. */
+    private var lastFigureWidth = 0f
 
     /**
-     * And every number on the panel, remembered by the value it was printed from.
-     *
-     * A frame prints about twenty of them and almost none of them have moved since the last one.
-     * See [ContourFigures] for the rule the call sites here owe it: one slot, one format.
+     * The panel in its window. `FULL` alone is offered - see [ClusterDashboardLayout.supported] -
+     * and anything else draws nothing, as it always has.
      */
-    private val figures = ContourFigures()
-
-    private var plan: ContourPlan? = null
-    private var planFor: ClusterDashboardLayout? = null
-
-    /**
-     * Every energy string and shape on this panel, decided once for both screens.
-     *
-     * `docs/energy-display-contract.md` §1. The renderer owns geometry and nothing else; this is
-     * where a word, a figure and the chart's own bins come from, and the car page reads the same
-     * class. Held rather than built per frame, because it memoises its strings.
-     */
-    private val readouts = EnergyReadouts()
-
-    private val steps = max(ContourPlan.ENGINE_BINS, ContourPlan.PETAL_POINTS)
-    private val chartXs = FloatArray(ContourPlan.PETAL_POINTS)
-    private val chartYs = FloatArray(ContourPlan.PETAL_POINTS)
-    private val engineXs = FloatArray(ContourPlan.ENGINE_BINS + 1)
-    private val generationYs = FloatArray(ContourPlan.ENGINE_BINS)
-    private val spanYs = FloatArray(steps)
-    private val spanXs = FloatArray(steps + 1)
-
-    fun draw(
-        canvas: Canvas,
-        width: Float,
-        height: Float,
-        layout: ClusterDashboardLayout,
-        telemetry: VehicleTelemetry,
-        motion: ContourMotion,
-        scene: ContourScene,
-    ) {
+    fun draw(canvas: Canvas, width: Float, height: Float, layout: ClusterDashboardLayout, frame: ContourFrame) {
         if (!layout.supported) return
+        drawFrame(canvas, width.roundToInt(), height.roundToInt(), frame)
+    }
 
-        // Black rather than the design system's near-black `BACKGROUND`: this sits on a panel whose
-        // own ground is black, and three per cent of grey is a visible rectangle there while it is
-        // invisible on the boards, which are viewed in a browser page.
-        canvas.drawColor(BACKGROUND)
+    /**
+     * One frame onto a canvas of [widthPx] × [heightPx] pixels.
+     *
+     * The board's 424 units are the height, so a unit is `heightPx / 424` pixels - 1.698 on the
+     * 2560 × 720 display, the scale `shot.py` renders the boards at - and the board's 1507.56 units
+     * are centred on the canvas, which on that display is exactly its width. This is also the entry
+     * point a debug activity uses to draw a fixture: `ClusterDashboardRenderer(context)`, then
+     * `drawFrame(canvas, 2560, 720, ContourFixtures.frame(json))`.
+     */
+    fun drawFrame(canvas: Canvas, widthPx: Int, heightPx: Int, frame: ContourFrame) {
+        canvas.drawColor(LuminoforSpec.BACKGROUND)
+        if (widthPx <= 0 || heightPx <= 0) return
+        val scale = heightPx / Cluster.H
+        val originX = Cluster.W / 2f - widthPx / (2f * scale)
+        pen.begin(canvas, scale, originX, 0f)
+        shaders(scale, originX)
 
-        // The plan is measured through the car's own face, so it is rebuilt when the window's size
-        // changes and never inside a frame.
-        val moved = pen.size(width, height, layout.virtualHeight)
-        val known = plan
-        val plan = if (known != null && !moved && planFor == layout) {
-            known
-        } else {
-            ContourPlan(layout, ContourType.of(pen)).also {
-                this.plan = it
-                planFor = layout
+        if (frame.unavailable) {
+            // No access: the axis and its zero, and the reason in the ten kilometres' place.
+            filament(Grid.AXIS)
+            pen.text(frame.message, AXIS, Trace.ZERO, Trace.UNIT_SIZE, ClusterInk.GREY, 1f, align = Align.CENTER)
+            return
+        }
+        centre(frame)
+        leftGroup(frame)
+        rightGroup(frame)
+        trace(frame)
+    }
+
+    // ---------------------------------------------------------------- the centre
+
+    private fun centre(f: ContourFrame) {
+        val p = f.powerKw
+        val absP = abs(p)
+        val heroCol = if (f.into) ClusterInk.BLUE else ClusterInk.INK
+        val y = Grid.AXIS
+        val base = Grid.BASELINE
+
+        // The zero's own glow: it stays at zero; brightness and colour say how hard.
+        if (f.powerFresh) {
+            val ga = ContourGeometry.glowAlpha(f.glowKw)
+            if (ga > ContourGeometry.GLOW_MIN) {
+                val c = pen.canvas
+                c.save()
+                c.translate(pen.x(AXIS), pen.y(y))
+                c.scale(1f, ContourGeometry.GLOW_SQUASH)
+                shade.shader = if (f.into) glowBlue else glowInk
+                shade.alpha = unit(ga)
+                c.drawCircle(0f, 0f, pen.px(Band.GLOW_RADIUS), shade)
+                c.restore()
+                shade.shader = null
             }
         }
 
-        val stage = scene.stage
-        readouts.read(telemetry, stage.parked, shortLegend = plan.legendShortened)
-        glow(canvas, plan, motion, scene)
-        skeleton(canvas, plan)
-        band(canvas, plan, motion, scene)
-        hero(canvas, plan, motion, scene)
-        leftCorner(canvas, plan, telemetry, scene)
-        rightCorner(canvas, plan, motion, scene)
-        leftShelf(canvas, plan, telemetry, scene)
-        rightShelf(canvas, plan, telemetry, scene, stage)
-        petal(canvas, plan, telemetry, scene, stage)
-    }
-
-    // ---------------------------------------------------------------- the skeleton
-
-    /**
-     * The two lines that are there in every state, including the ones with no data at all.
-     *
-     * A hairline and a zero mark, and no limit captions: a band whose two directions run on a square
-     * root over two different spans is an ambient, not a scale, and «100 кВт / 300 кВт» were two 12′
-     * lines saying otherwise (M10).
-     */
-    private fun skeleton(canvas: Canvas, plan: ContourPlan) {
-        val y = pen.v(plan.bandY)
-        pen.line(canvas, pen.v(plan.leftEdge), y, pen.v(plan.rightEdge), y, DenzaPalette.MUTED_DEEP, plan.bandHairline)
-        val x = pen.v(plan.axis)
-        pen.line(
-            canvas,
-            x,
-            y - pen.v(plan.zeroHalf),
-            x,
-            y + pen.v(plan.zeroHalf),
-            DenzaPalette.MUTED_DEEP,
-            plan.zeroWidth,
-        )
-    }
-
-    /**
-     * The one pool of light.
-     *
-     * Its hue comes from the band's own flow state rather than from its own follower, so the panel
-     * has one colour at a time: the two are the same reading at two speeds, and during a fast
-     * transition their signs can differ for a few frames.
-     */
-    private fun glow(canvas: Canvas, plan: ContourPlan, motion: ContourMotion, scene: ContourScene) {
-        if (!motion.powerReady || !scene.fresh(ContourValue.POWER)) return
-        val strength = plan.glowAlpha(motion.glowKw) * NIGHT_DIM
-        if (strength <= 0f) return
-        pen.glow(
-            canvas,
-            pen.v(plan.glowCentreX),
-            pen.v(plan.glowCentreY),
-            plan.glowRadiusX,
-            plan.glowRadiusY,
-            flowColor(motion.flow),
-            strength,
-        )
-    }
-
-    // ---------------------------------------------------------------- the band
-
-    /**
-     * The one bar left on the panel, and **nothing about the engine is drawn on it.**
-     *
-     * The line under the body on the return span and the seam behind the tip both said whether
-     * `GENERATION_KW` is already inside `POWER_KW`, and neither is known: the two drives so far saw
-     * the engine run with that id flat (`docs/energy-display-contract.md` §2.5). The band is the
-     * pack's; the engine has its box and its corner.
-     */
-    private fun band(
-        canvas: Canvas,
-        plan: ContourPlan,
-        motion: ContourMotion,
-        scene: ContourScene,
-    ) {
-        if (!motion.powerReady || !scene.fresh(ContourValue.POWER)) return
-        val kilowatts = motion.powerKw
-        val top = pen.v(plan.bandY - plan.bandBody / 2f)
-        val bottom = pen.v(plan.bandY + plan.bandBody / 2f)
-        val zeroX = pen.v(plan.axis)
-        val tipX = pen.v(plan.bandX(kilowatts))
-
-        if (abs(kilowatts) > EnergyScale.FLOOR_KW) {
-            pen.band(canvas, zeroX, tipX, top, bottom, flowColor(motion.flow), edgeColor(motion.flow))
+        // The hero: a three-digit field right-aligned, the field, gap and unit centred on the axis.
+        val unitW = pen.textWidth(ContourReadout.UNIT_KW, Grid.HERO_UNIT_SIZE)
+        val fieldR = ContourGeometry.heroFieldRight(unitW)
+        f.heroFigure?.let {
+            pen.figures(it, fieldR, base, Grid.HERO_SIZE, heroCol, 1f, Align.RIGHT, LuminoforSpec.Digits.HERO_STROKE)
         }
-
-        motion.peakKw?.let { peak ->
-            val x = pen.v(plan.bandX(peak))
-            pen.line(
-                canvas,
-                x,
-                top - pen.v(PEAK_OVERHANG),
-                x,
-                bottom + pen.v(PEAK_OVERHANG),
-                DenzaPalette.DATA_PEAK,
-                PEAK_WIDTH,
-                ContourPlan.PEAK_ALPHA,
-            )
-        }
-    }
-
-    // ---------------------------------------------------------------- the hero
-
-    /**
-     * The one figure read on the move, and the one place a unit has to be readable.
-     *
-     * «кВт» is at 34 - 23′ - because a 12′ unit under the stock speedometer was the only thing
-     * telling the driver that «34» was not 34 km/h (M2). It is drawn as soon as the reading has ever
-     * arrived and stays when it goes, which is the caption rule applied to a unit.
-     */
-    private fun hero(canvas: Canvas, plan: ContourPlan, motion: ContourMotion, scene: ContourScene) {
-        if (!scene.known(ContourValue.POWER)) return
-        pen.text(
-            canvas,
-            ContourReadout.UNIT_KW,
-            pen.v(plan.heroUnitX),
-            pen.v(plan.heroBaseline),
-            InstrumentFace.READING,
-            DenzaPalette.MUTED,
-        )
-        if (!scene.fresh(ContourValue.POWER)) return
-        val figure = motion.figure ?: return
-        pen.text(
-            canvas,
-            figure.toString(),
-            pen.v(plan.heroFieldRight),
-            pen.v(plan.heroBaseline),
-            InstrumentFace.HERO,
-            heroColor(motion.flow),
-            Paint.Align.RIGHT,
-        )
-    }
-
-    // ---------------------------------------------------------------- the corners
-
-    /**
-     * «БАТАРЕЯ · В» over the pack's volts, and nothing else.
-     *
-     * The sag rail is deleted (M9). Its reference was an EWMA of the pack at rest, and on a motorway
-     * there is no rest - the board electronics pull a kilowatt or two permanently, so after half an
-     * hour the reference has aged into the pack's own discharge and «просадка 14 В» is ten per cent
-     * of the state of charge wearing a unit it does not have.
-     */
-    private fun leftCorner(
-        canvas: Canvas,
-        plan: ContourPlan,
-        t: VehicleTelemetry,
-        scene: ContourScene,
-    ) {
-        if (!scene.known(ContourValue.VOLTS)) return
-        pen.text(
-            canvas,
-            ContourReadout.TITLE_PACK,
-            pen.v(plan.leftEdge),
-            pen.v(plan.cornerTitleBaseline),
-            InstrumentFace.HEADING,
-            DenzaPalette.MUTED_DEEP,
-        )
-        if (!scene.fresh(ContourValue.VOLTS)) return
-        val volts = t[VehicleSignal.PACK_VOLT] ?: return
-        pen.text(
-            canvas,
-            figures.whole(ContourFigures.Slot.VOLTS, volts),
-            pen.v(plan.voltsFieldRight),
-            pen.v(plan.cornerFigureBaseline),
-            InstrumentFace.FIGURE,
-            DenzaPalette.MUTED,
-            Paint.Align.RIGHT,
-        )
-    }
-
-    /**
-     * The engine's corner, in the three states it has, one of which is not being there at all.
-     *
-     * Running, it reads «ДВС · об/мин» over the revolutions. Asleep after running, «ДВС · мин за
-     * поездку» over the minutes - the question a hybrid's driver actually asks and the answer
-     * nothing on this panel used to give. Never started this trip: **empty**, because a dimmed
-     * heading over an empty corner is advertising an instrument that is not there (m2).
-     *
-     * There is no third line. «● 14 кВт» used to stand under the revolutions and it was a number
-     * parked away from its own noun: it is inside the engine box's own sentence now.
-     *
-     * Since the eighth pass this is also the *only* place the revolutions are drawn. The line the
-     * box carried for them was half of what made its legend unreadable, and this is where a driver
-     * was reading them anyway.
-     */
-    private fun rightCorner(
-        canvas: Canvas,
-        plan: ContourPlan,
-        motion: ContourMotion,
-        scene: ContourScene,
-    ) {
-        // Which of the three it is, is `EnergyReadouts`': the car page draws the same cell and the
-        // two used to decide it from different things - the trip here, the trace there - so a cold
-        // engine had a corner on one screen and none on the other.
-        val cell = readouts.engineCell
-        if (cell == EnergyReadouts.EngineCell.NONE) return
-        val edge = pen.v(plan.rightEdge)
-        pen.text(
-            canvas,
-            readouts.engineCellTitle,
-            edge,
-            pen.v(plan.cornerTitleBaseline),
-            InstrumentFace.HEADING,
-            DenzaPalette.MUTED_DEEP,
-            Paint.Align.RIGHT,
-        )
-        val figureY = pen.v(plan.cornerFigureBaseline)
-        if (cell == EnergyReadouts.EngineCell.RPM) {
-            // The revolutions are the one figure in this corner that is *followed*, so the panel
-            // prints its own damped value rather than the readouts' raw one; the freshness gate is
-            // still the scene's.
-            if (!scene.fresh(ContourValue.RPM) || !motion.rpmReady) return
+        if (f.heroUnit) {
             pen.text(
-                canvas,
-                figures.whole(ContourFigures.Slot.RPM, motion.rpm.toDouble()),
-                pen.v(plan.rpmFieldRight),
-                figureY,
-                InstrumentFace.FIGURE,
-                DenzaPalette.MUTED,
-                Paint.Align.RIGHT,
+                ContourReadout.UNIT_KW,
+                fieldR + Grid.HERO_UNIT_GAP,
+                base,
+                Grid.HERO_UNIT_SIZE,
+                if (f.into) ClusterInk.BLUE else ClusterInk.GREY,
+                1f,
             )
+        }
+
+        // The axis: one filament across the glass, brightest at zero, dying toward both edges.
+        filament(y)
+        if (!f.powerFresh) return
+
+        val len = ContourGeometry.reach(p)
+        val beamCol = if (p < 0f) ClusterInk.BLUE else ClusterInk.INK
+        if (abs(len) > ContourGeometry.BEAM_MIN) {
+            threads(f.t, len, absP, y, beamCol)
+            path.rewind()
+            path.moveTo(AXIS, y)
+            path.lineTo(AXIS + len, y)
+            pen.beam(path, Band.BEAM_STROKE, beamCol, Band.BEAM_INTENSITY, 1f)
+            path.rewind()
+            path.addCircle(AXIS + len, y, Band.HEAD_RADIUS, Path.Direction.CW)
+            pen.glowFill(path, beamCol, 1f, Band.HEAD_BLUR)
+        }
+        val peak = f.peakKw
+        if (!peak.isNaN()) {
+            val pk = ContourGeometry.reach(peak)
+            if (abs(pk) > ContourGeometry.PEAK_MIN) {
+                path.rewind()
+                path.moveTo(AXIS + pk, y - Band.PEAK_TICK_HALF)
+                path.lineTo(AXIS + pk, y + Band.PEAK_TICK_HALF)
+                val col = if (peak < 0f) ClusterInk.BLUE else ClusterInk.INK
+                pen.beam(path, Band.PEAK_TICK_STROKE, col, ContourGeometry.peakIntensity(f.peakAge), 1f)
+            }
+        }
+    }
+
+    /**
+     * The threads along the beam: a golden-ratio scatter of short verticals that flicker with real
+     * time, denser the further the beam reaches and taller the harder the pack works. Doubles, as
+     * the board computes them, so the scatter lands on the same x's.
+     */
+    private fun threads(t: Float, len: Float, absP: Float, y: Float, col: Light) {
+        val n = (Band.THREADS_BASE + abs(len) * Band.THREADS_PER_UNIT).roundToInt()
+        val amp = Band.THREADS_AMP_BASE + Band.THREADS_AMP_RANGE * sqrt(min(1f, absP / Band.THREADS_AMP_KW))
+        thread.strokeWidth = pen.px(Band.THREADS_WIDTH)
+        val c = pen.canvas
+        for (i in 0 until n) {
+            val u = (i * 0.6180339) % 1.0
+            val x = AXIS + len * u
+            val fl = 0.55 + 0.45 * sin(t * (3.0 + (i % 7)) + i * 1.7)
+            val h = amp * (0.25 + 0.75 * ((i * 0.3819) % 1.0)) * fl * (0.35 + 0.65 * u)
+            thread.color = LightPen.alpha(col.halo, (0.14 + 0.36 * fl * u).toFloat())
+            val px = pen.x(x.toFloat())
+            c.drawLine(px, pen.y((y - h).toFloat()), px, pen.y((y + h * 0.55).toFloat()), thread)
+        }
+    }
+
+    /** The one line that is there in every state: the axis across the glass, and its zero tick. */
+    private fun filament(y: Float) {
+        val c = pen.canvas
+        val left = pen.x(Cluster.MARGIN)
+        val right = pen.x(Cluster.W - Cluster.MARGIN)
+        val py = pen.y(y)
+        line.shader = filamentShader
+        line.strokeWidth = pen.px(Band.FILAMENT_HALO_WIDTH)
+        line.alpha = unit(Band.FILAMENT_HALO_ALPHA * FILAMENT_PEAK)
+        c.drawLine(left, py, right, py, line)
+        line.strokeWidth = pen.px(Band.FILAMENT_CORE_WIDTH)
+        line.alpha = unit(Band.FILAMENT_CORE_ALPHA * FILAMENT_PEAK)
+        c.drawLine(left, py, right, py, line)
+        line.shader = null
+        path.rewind()
+        path.moveTo(AXIS, y - Band.ZERO_TICK_HALF)
+        path.lineTo(AXIS, y + Band.ZERO_TICK_HALF)
+        pen.beam(path, Band.ZERO_TICK_STROKE, ClusterInk.INK, Band.ZERO_TICK_INTENSITY, 1f)
+    }
+
+    // ---------------------------------------------------------------- the left group
+
+    /** The battery: its volts, and five temperatures whose captions are the glyphs over them. */
+    private fun leftGroup(f: ContourFrame) {
+        val left = ContourGeometry.GROUP_LEFT
+        val base = Grid.BASELINE
+        f.batteryCaption?.let {
+            pen.text(it, left, Grid.CAPTION, Grid.CAPTION_SIZE, ClusterInk.GREY, 1f, track = Grid.CAPTION_TRACK)
+        }
+        f.volts?.let { pen.figures(it, left, base, Grid.FIGURE_SIZE, ClusterInk.INK, 1f) }
+
+        for (index in 0 until ContourFrame.CELLS) {
+            val cell = f.temps[index]
+            if (!cell.shown) continue
+            val x = ContourGeometry.tempX(index)
+            val hot = cell.level != ContourReadout.Level.NORMAL
+            val col = levelLight(cell.level)
+            if (hot) hotPool(x, base, cell.level, f.t)
+            ThermalGlyphs.draw(pen, GLYPHS[index], x, Grid.GLYPH_BASE, col, if (hot) 1f else 0.85f, hot)
+            val value = cell.value ?: continue
+            pen.figures(value, x, base, Grid.TEMP_SIZE, col, 1f)
+            pen.figures(ContourReadout.DEGREE, ContourGeometry.degreeX(x, value), base, Grid.TEMP_SIZE, col, 1f)
+        }
+
+        // The cell spread, only while it is out of line: one line under the battery, in its colour.
+        val caption = f.spreadCaption ?: return
+        val value = f.spreadValue ?: return
+        val sc = levelLight(f.spreadLevel)
+        val y = ContourGeometry.DETAIL_BASELINE
+        var x = left + pen.text(caption, left, y, Grid.DETAIL_SIZE, sc, 1f, track = Grid.DETAIL_TRACK) +
+            ContourGeometry.SPREAD_CAPTION_GAP
+        x += pen.figures(value, x, y, ContourGeometry.DETAIL_FIGURE, sc, 1f) + ContourGeometry.SPREAD_UNIT_GAP
+        f.spreadUnit?.let { pen.text(it, x, y, Grid.DETAIL_SIZE, sc, 1f) }
+    }
+
+    /** A hot cell's pool of light, breathing behind its glyph and figure. */
+    private fun hotPool(x: Float, base: Float, level: ContourReadout.Level, t: Float) {
+        val c = pen.canvas
+        c.save()
+        c.translate(pen.x(x + ContourGeometry.HOT_DX), pen.y(base - ContourGeometry.HOT_DY))
+        shade.shader = if (level == ContourReadout.Level.ALERT) hotRed else hotOrange
+        shade.alpha = unit(ContourGeometry.hotAlpha(t))
+        c.drawCircle(0f, 0f, pen.px(ContourGeometry.HOT_RADIUS), shade)
+        c.restore()
+        shade.shader = null
+    }
+
+    // ---------------------------------------------------------------- the right group
+
+    /** The engine at the group's left edge, and the trip - or the engine's box - flush right. */
+    private fun rightGroup(f: ContourFrame) {
+        if (f.engineGiving) engineBox(f) else trip(f)
+        f.iceCaption?.let {
+            pen.text(
+                it,
+                ContourGeometry.GROUP_RIGHT_START,
+                Grid.CAPTION,
+                Grid.CAPTION_SIZE,
+                ClusterInk.GREY,
+                1f,
+                track = Grid.CELL_CAPTION_TRACK,
+            )
+        }
+        f.iceFigure?.let {
+            pen.figures(it, ContourGeometry.GROUP_RIGHT_START, Grid.BASELINE, Grid.FIGURE_SIZE, ClusterInk.INK, 1f)
+        }
+    }
+
+    private fun trip(f: ContourFrame) {
+        val caption = f.tripCaption ?: return
+        val kwh = f.tripKwh
+        val base = Grid.BASELINE
+        val cw = pen.textWidth(caption, Grid.CAPTION_SIZE, track = Grid.CELL_CAPTION_TRACK)
+        val fw = if (kwh == null) 0f else WideDigits.width(kwh, Grid.FIGURE_SIZE)
+        val payload = if (kwh == null) 0f else ContourGeometry.tripPayload(fw, pen.textWidth(f.tripUnit, Grid.UNIT_SIZE))
+        val x = ContourGeometry.tripLeft(cw, payload)
+        pen.text(caption, x, Grid.CAPTION, Grid.CAPTION_SIZE, ClusterInk.GREY, 1f, track = Grid.CELL_CAPTION_TRACK)
+        if (kwh != null) {
+            pen.figures(kwh, x, base, Grid.FIGURE_SIZE, ClusterInk.INK, 1f)
+            pen.text(f.tripUnit, x + fw + Grid.UNIT_GAP, base, Grid.UNIT_SIZE, ClusterInk.GREY, 1f)
+        }
+        runLeft(f)
+    }
+
+    /**
+     * The detail line under the trip, laid right to left off the margin: «1,1 кВт·ч ДАЛ ДВС», then
+     * twenty-eight units, then «● 3,1 кВт·ч РЕКУПЕРАЦИЯ». A seat that does not exist this trip
+     * takes no room, so what is there is packed against the edge; a figure gone stale takes its
+     * unit with it and leaves the words.
+     */
+    private fun runLeft(f: ContourFrame) {
+        val y = ContourGeometry.DETAIL_BASELINE
+        var x = ContourGeometry.GROUP_RIGHT_END
+        var pair = false
+        f.gaveCaption?.let { caption ->
+            x = detailPart(caption, f.gaveKwh, f.tripUnit, x, y, ContourGeometry.DETAIL_AFTER_UNIT, 0f)
+            pair = true
+        }
+        val regen = f.regenCaption ?: return
+        if (pair) x -= ContourGeometry.DETAIL_PAIR_GAP
+        x = detailPart(regen, f.regenKwh, f.tripUnit, x, y, ContourGeometry.DETAIL_AFTER_UNIT, ContourGeometry.DETAIL_AFTER_FIGURE)
+        path.rewind()
+        path.addCircle(x - ContourGeometry.DOT_DX, y - ContourGeometry.DOT_DY, ContourGeometry.DOT_RADIUS, Path.Direction.CW)
+        pen.glowFill(path, ClusterInk.BLUE, ContourGeometry.DOT_INTENSITY, ContourGeometry.DOT_BLUR)
+    }
+
+    /** One caption, its unit and its figure, right to left from [right]; returns where it ended. */
+    private fun detailPart(
+        caption: String,
+        figure: String?,
+        unit: String,
+        right: Float,
+        y: Float,
+        afterUnit: Float,
+        afterFigure: Float,
+    ): Float {
+        var x = right
+        x -= pen.text(caption, x, y, Grid.DETAIL_SIZE, ClusterInk.GREY, 1f, track = Grid.DETAIL_TRACK, align = Align.RIGHT)
+        if (figure == null) return x - afterFigure
+        x -= ContourGeometry.DETAIL_AFTER_CAPTION
+        x -= pen.text(unit, x, y, Grid.DETAIL_SIZE, ClusterInk.GREY, 1f, align = Align.RIGHT) + afterUnit
+        x -= pen.figures(figure, x, y, ContourGeometry.DETAIL_FIGURE, ClusterInk.INK, 1f, Align.RIGHT) + afterFigure
+        return x
+    }
+
+    /**
+     * The engine's box in the trip's place: a blue step trace of what it gave, over the figures'
+     * own height, its sentence on the caption line and its window under it.
+     *
+     * The board draws every bin as one step line; the app draws the runs of bins the engine
+     * actually gave in, because a bin nothing answered in and a bin at zero are not a reading - a
+     * step across a gap would claim a steady output through five seconds nobody watched. With every
+     * bin answered and above zero, which is every fixture, the two are one path.
+     */
+    private fun engineBox(f: ContourFrame) {
+        val count = f.generationCount
+        val right = ContourGeometry.GROUP_RIGHT_END
+        val start = right - count * ContourGeometry.BOX_PITCH
+        val zeroY = ContourGeometry.BOX_ZERO
+        path.rewind()
+        area.rewind()
+        ContourRuns.forEach(count, { f.generation[it] > 0f }) { first, length ->
+            val x0 = start + first * ContourGeometry.BOX_PITCH
+            area.moveTo(x0, zeroY)
+            for (i in first until first + length) {
+                val yy = ContourGeometry.boxY(f.generation[i])
+                val a = start + i * ContourGeometry.BOX_PITCH
+                val b = a + ContourGeometry.BOX_PITCH
+                if (i == first) path.moveTo(a, yy) else path.lineTo(a, yy)
+                path.lineTo(b, yy)
+                area.lineTo(a, yy)
+                area.lineTo(b, yy)
+            }
+            area.lineTo(start + (first + length) * ContourGeometry.BOX_PITCH, zeroY)
+            area.close()
+        }
+        shade.shader = boxShader
+        shade.alpha = OPAQUE
+        pen.canvas.drawPath(pen.toPx(area), shade)
+        shade.shader = null
+        pen.beam(path, EngineBox.STROKE, ClusterInk.BLUE, BOX_EDGE_INTENSITY)
+        path.rewind()
+        path.moveTo(ContourGeometry.BOX_LEFT, zeroY)
+        path.lineTo(right, zeroY)
+        pen.beam(path, EngineBox.BASE_STROKE, ClusterInk.BLUE, BOX_BASE_INTENSITY)
+        pen.text(
+            f.engineCaption,
+            ContourGeometry.BOX_LEFT,
+            Grid.CAPTION,
+            Grid.CAPTION_SIZE,
+            ClusterInk.BLUE,
+            1f,
+            track = Grid.CELL_CAPTION_TRACK,
+        )
+        pen.text(
+            f.engineWindow,
+            ContourGeometry.BOX_LEFT,
+            ContourGeometry.DETAIL_BASELINE,
+            Grid.DETAIL_SIZE,
+            ClusterInk.GREY,
+            1f,
+            track = Grid.CELL_CAPTION_TRACK,
+        )
+    }
+
+    // ---------------------------------------------------------------- the ten kilometres
+
+    /**
+     * The hundred points under the axis, zero on the figure's baseline: spending climbs the cap to
+     * 60, a return hangs a descender to 20 (`docs/energy-display-contract.md` §2.3). One pitch for
+     * the hundred, so a filling window is anchored at the right edge and is as wide as its road.
+     */
+    private fun trace(f: ContourFrame) {
+        val n = f.chartCount
+        if (n <= 0) {
+            traceFigure(f)
             return
         }
-        if (!scene.fresh(ContourValue.ENGINE_MINUTES)) return
-        val minutes = readouts.engineCellFigure ?: return
-        pen.text(
-            canvas,
-            minutes,
-            edge,
-            figureY,
-            InstrumentFace.FIGURE,
-            DenzaPalette.MUTED,
-            Paint.Align.RIGHT,
+        val ch = f.chart
+        val zero = Trace.ZERO
+        val right = ContourGeometry.TRACE_RIGHT
+        val st = ContourGeometry.TRACE_PITCH
+        val x00 = ContourGeometry.traceStart(n)
+        traceShaders(n)
+
+        area.rewind()
+        down.rewind()
+        area.moveTo(x00, zero)
+        down.moveTo(x00, zero)
+        for (i in 0 until n) {
+            val v = ch[i]
+            val x0 = x00 + i * st
+            val x1 = x0 + st
+            val yu = if (v > 0f) ContourGeometry.traceUp(v) else zero
+            val yd = if (v < 0f) ContourGeometry.traceDown(v) else zero
+            area.lineTo(x0, yu)
+            area.lineTo(x1, yu)
+            down.lineTo(x0, yd)
+            down.lineTo(x1, yd)
+        }
+        area.lineTo(right, zero)
+        area.close()
+        down.lineTo(right, zero)
+        down.close()
+        shade.alpha = OPAQUE
+        shade.shader = traceUp
+        pen.canvas.drawPath(pen.toPx(area), shade)
+        shade.shader = traceDown
+        pen.canvas.drawPath(pen.toPx(down), shade)
+        shade.shader = null
+
+        // Ten runs, the older ones dimmer. Spending is one white step line lying on zero through a
+        // return; each return is its own blue shape under zero, and nothing blue runs along zero.
+        val per = n.toDouble() / Trace.RUNS
+        for (r in 0 until Trace.RUNS) {
+            val i0 = floor(r * per).toInt()
+            val i1 = min(n, floor((r + 1) * per).toInt())
+            path.rewind()
+            down.rewind()
+            for (i in i0 until i1) {
+                val v = ch[i]
+                val x0 = x00 + i * st
+                val x1 = x0 + st
+                val yu = ContourGeometry.traceUp(maxOf(0f, v))
+                if (i == i0) path.moveTo(x0, if (i > 0) ContourGeometry.traceUp(maxOf(0f, ch[i - 1])) else yu)
+                path.lineTo(x0, yu)
+                path.lineTo(x1, yu)
+                if (v < 0f) {
+                    val yd = ContourGeometry.traceDown(v)
+                    val prevNeg = i > i0 && ch[i - 1] < 0f
+                    if (!prevNeg) down.moveTo(x0, zero)
+                    down.lineTo(x0, yd)
+                    down.lineTo(x1, yd)
+                    val nextNeg = i + 1 < i1 && ch[i + 1] < 0f
+                    if (!nextNeg) down.lineTo(x1, zero)
+                }
+            }
+            val intensity = ContourGeometry.runIntensity(r)
+            if (i1 > i0) {
+                pen.beam(path, Trace.STROKE, ClusterInk.INK, intensity)
+                pen.beam(down, Trace.STROKE, ClusterInk.BLUE, intensity)
+            }
+        }
+        val last = ch[n - 1]
+        path.rewind()
+        path.addCircle(
+            right,
+            if (last >= 0f) ContourGeometry.traceUp(last) else ContourGeometry.traceDown(last),
+            ContourGeometry.TRACE_DOT,
+            Path.Direction.CW,
         )
+        pen.glowFill(path, if (last < 0f) ClusterInk.BLUE else ClusterInk.INK, 1f, ContourGeometry.TRACE_DOT_BLUR)
+        traceFigure(f)
     }
 
-    // ---------------------------------------------------------------- the left shelf
-
-    /**
-     * Temperatures: five cells named by pictures, and a sixth that only exists on an exception.
-     *
-     * **No words in this row.** Until the ninth pass it was three cells - `БАТАРЕЯ`, `МОТОРЫ`,
-     * `ИНВЕРТОР` - and the middle one carried three figures under one caption, so which motor was
-     * which was something the reader had to learn (m11, left standing for five drawings). Naming the
-     * positions in Russian was tried and the owner threw it out on the sound of it; a drawing of the
-     * car with one axle lit says the same thing in one glance and in no language. See
-     * [ContourGlyphs] for the family and why it is all five or none.
-     *
-     * Each cell is a two-digit figure with its own «°» over a 24-unit glyph standing on the caption
-     * baseline. **The glyph is the caption**, so it obeys the caption rule: it arrives with the first
-     * reading and stays when the reading goes stale (M5). The exception is the figure changing
-     * colour - and the glyph's own component with it, so the cell lights as one object - at the size
-     * every other figure on the shelf already is, so noticing it and reading it are one glance (m8).
-     */
-    private fun leftShelf(
-        canvas: Canvas,
-        plan: ContourPlan,
-        t: VehicleTelemetry,
-        scene: ContourScene,
-    ) {
-        val captionY = pen.v(plan.shelfCaptionBaseline)
-        val figureY = pen.v(plan.shelfFigureBaseline)
-
-        fun cell(
-            index: Int,
-            glyph: ContourGlyphs.Glyph,
-            known: Boolean,
-            celsius: Double?,
-            bandHigh: Double,
-        ) {
-            if (!known) return
-            val left = plan.leftCell(index)
-            val level =
-                if (celsius == null) ContourReadout.Level.NORMAL
-                else ContourReadout.thermalState(celsius, bandHigh)
-            glyphs.draw(
-                pen,
-                canvas,
-                glyph,
-                left + plan.glyphInset,
-                plan.glyphBaseline,
-                DenzaPalette.MUTED,
-                componentColor(level),
-            )
-            if (celsius == null) return
-            pen.text(
-                canvas,
-                figures.cell(index, celsius),
-                pen.v(left + plan.temperatureField),
-                figureY,
-                InstrumentFace.READING,
-                levelColor(level),
-                Paint.Align.RIGHT,
-            )
-            pen.text(
-                canvas,
-                ContourReadout.DEGREE,
-                pen.v(left + plan.temperatureField),
-                figureY,
-                InstrumentFace.READING,
-                DenzaPalette.MUTED,
-            )
+    /** The figure one gap right of the axis on the trace's zero, and its unit after it. */
+    private fun traceFigure(f: ContourFrame) {
+        val x = ContourGeometry.TRACE_FIGURE_X
+        f.consumption?.let {
+            lastFigureWidth = pen.figures(it, x, Trace.ZERO, Trace.FIGURE_SIZE, toneLight(f.consumptionTone), 1f)
         }
-
-        cell(
-            0,
-            ContourGlyphs.Glyph.PACK,
-            scene.known(ContourValue.PACK_TEMP),
-            t[VehicleSignal.PACK_TEMP_AVG].takeIf { scene.fresh(ContourValue.PACK_TEMP) },
-            ContourReadout.PACK_BAND_HIGH_C,
-        )
-
-        // The rear pair is per-side rather than per-axle, so three separate readings is the honest
-        // shape - and since the ninth pass three separate cells, because one of them running hotter
-        // than the others is exactly what this row is there to show.
-        val motors = t.motorTemps
-        val motorsFresh = scene.fresh(ContourValue.MOTOR_TEMPS)
-        val motorsKnown = scene.known(ContourValue.MOTOR_TEMPS)
-        MOTOR_GLYPHS.forEachIndexed { index, glyph ->
-            cell(
-                index + 1,
-                glyph,
-                motorsKnown,
-                motors.getOrNull(index).takeIf { motorsFresh },
-                ContourReadout.DRIVE_BAND_HIGH_C,
-            )
-        }
-
-        cell(
-            4,
-            ContourGlyphs.Glyph.INVERTER,
-            scene.known(ContourValue.INVERTER_TEMP),
-            t[VehicleSignal.INVERTER_C].takeIf { scene.fresh(ContourValue.INVERTER_TEMP) },
-            ContourReadout.INVERTER_WATCH_C,
-        )
-
-        // The last cell is an exception rather than a row: a pack holding its cells together says
-        // nothing worth 167 units of shelf, so it appears with the problem and leaves with it - and
-        // it is the only word in this row, which is what makes a word here mean something.
-        val spread = t.cellSpreadMv ?: return
-        if (!scene.fresh(ContourValue.SPREAD)) return
-        val level = ContourReadout.spreadState(spread)
-        if (!ContourReadout.spreadIsWorthACell(level)) return
-        val left = plan.leftCell(plan.spreadCellIndex)
-        pen.text(
-            canvas,
-            ContourReadout.CAPTION_SPREAD,
-            pen.v(left),
-            captionY,
-            InstrumentFace.CAPTION,
-            DenzaPalette.MUTED_DEEP,
-        )
-        pen.text(
-            canvas,
-            figures.whole(ContourFigures.Slot.SPREAD, spread),
-            pen.v(left + plan.temperatureField),
-            figureY,
-            InstrumentFace.READING,
-            levelColor(level),
-            Paint.Align.RIGHT,
-        )
-        pen.text(
-            canvas,
-            ContourReadout.UNIT_MILLIVOLT,
-            pen.v(left + plan.temperatureField + plan.step),
-            figureY,
-            InstrumentFace.READING,
-            DenzaPalette.MUTED,
-        )
+        val unit = f.consumptionUnit ?: return
+        pen.text(unit, x + lastFigureWidth + Trace.UNIT_GAP, Trace.ZERO, Trace.UNIT_SIZE, ClusterInk.GREY, 1f)
     }
 
-    // ---------------------------------------------------------------- the right shelf
+    // ---------------------------------------------------------------- colour and shaders
 
-    private fun rightShelf(
-        canvas: Canvas,
-        plan: ContourPlan,
-        t: VehicleTelemetry,
-        scene: ContourScene,
-        stage: ContourStage,
-    ) {
-        if (stage.engineBox) {
-            engineBox(canvas, plan, t, scene, stage)
-            return
-        }
-        if (!scene.known(ContourValue.TRIP_NET)) return
+    private fun levelLight(level: ContourReadout.Level): Light = when (level) {
+        ContourReadout.Level.NORMAL -> ClusterInk.INK
+        ContourReadout.Level.WATCH -> ClusterInk.ORANGE
+        ContourReadout.Level.ALERT -> ClusterInk.RED
+    }
 
-        // Packed from the edge: the trip, then the engine's cell if it ran, then - standing only -
-        // the recuperation at the far end. The engine's cell is in the same place in every state
-        // it exists in, and the seat nearest the hero is never its predicate: see
-        // [ContourPlan.parkSeats].
-        val engine = scene.known(ContourValue.TRIP_ENGINE)
-        val regen = stage.parked && scene.known(ContourValue.TRIP_REGEN)
-        val seats = when {
-            regen && engine -> plan.parkSeats
-            regen -> plan.parkSeatsWithoutEngine
-            else -> plan.driveSeats
-        }
-        val trip = t.trip
-
-        // The seat's index is its memo slot as well as its place: the three are drawn through one
-        // function, and one memo between them would be missed by all three in every frame.
-        seat(
-            canvas,
-            plan,
-            seat = 0,
-            left = plan.tripSeat(0, seats),
-            value = trip.netKwh.takeIf { scene.fresh(ContourValue.TRIP_NET) },
-            word = ContourReadout.CAPTION_TRIP,
-            marked = false,
-            odometer = trip.kilometres.takeIf { scene.fresh(ContourValue.TRIP_KM) },
-        )
-        if (engine) {
-            seat(
-                canvas,
-                plan,
-                seat = 1,
-                left = plan.tripSeat(1, seats),
-                value = trip.engineKwh.takeIf { scene.fresh(ContourValue.TRIP_ENGINE) },
-                word = ContourReadout.CAPTION_ENGINE_GAVE,
-                marked = false,
-                odometer = null,
-            )
-        }
-        if (regen) {
-            seat(
-                canvas,
-                plan,
-                seat = 2,
-                left = plan.tripSeat(seats.size - 1, seats),
-                value = trip.recoveredKwh.takeIf { scene.fresh(ContourValue.TRIP_REGEN) },
-                word = ContourReadout.CAPTION_REGEN,
-                marked = true,
-                odometer = null,
-            )
-        }
+    private fun toneLight(tone: ContourFrame.Tone): Light = when (tone) {
+        ContourFrame.Tone.INK -> ClusterInk.INK
+        ContourFrame.Tone.BLUE -> ClusterInk.BLUE
+        ContourFrame.Tone.GREY -> ClusterInk.GREY
     }
 
     /**
-     * One cell of the right shelf: a figure with its unit, over a phrase saying what it is *of*.
-     *
-     * The figure is right-aligned inside its own reserve field and «кВт·ч» hangs off the field's
-     * edge rather than off the string, so a tenth or a second digit moves nothing. Everything is
-     * left-aligned against the cell, because a phrase is read from its left.
-     *
-     * The unit belongs to the figure: if the value has gone stale it leaves with it and the words
-     * stay, which is why the odometer's «42 км» is drawn only when the odometer has answered and the
-     * caption is then «ЗА ПОЕЗДКУ» with nothing in front of it.
+     * The fixed gradients, once per pixel scale. Each is built at full strength and dimmed by the
+     * paint's alpha, which is how the glow and a hot cell's pool can change every frame without a
+     * shader per frame; the two whose ends differ by more than a factor are built at their own
+     * alphas.
      */
-    private fun seat(
-        canvas: Canvas,
-        plan: ContourPlan,
-        seat: Int,
-        left: Float,
-        value: Double?,
-        word: String,
-        marked: Boolean,
-        odometer: Double?,
-    ) {
-        val figureY = pen.v(plan.shelfFigureBaseline)
-        val captionY = pen.v(plan.shelfCaptionBaseline)
-        if (value != null) {
-            pen.text(
-                canvas,
-                figures.seat(seat, value),
-                pen.v(left + plan.tripField),
-                figureY,
-                InstrumentFace.READING,
-                DenzaPalette.MUTED,
-                Paint.Align.RIGHT,
-            )
-            pen.text(
-                canvas,
-                ContourReadout.UNIT_KWH,
-                pen.v(left + plan.tripField + plan.smallGap),
-                figureY,
-                InstrumentFace.UNIT,
-                DenzaPalette.MUTED_DEEP,
-            )
-        }
-        var x = left
-        if (marked) {
-            pen.dot(
-                canvas,
-                pen.v(left + plan.markRadius),
-                captionY - pen.v(InstrumentFace.CAPTION.capHeight / 2f),
-                plan.markRadius,
-                DenzaPalette.RETURN,
-            )
-            x = left + plan.markWidth
-        }
-        if (odometer == null) {
-            val alone = if (word == ContourReadout.CAPTION_TRIP) ContourReadout.CAPTION_TRIP_ALONE else word
-            pen.text(canvas, alone, pen.v(x), captionY, InstrumentFace.CAPTION, DenzaPalette.MUTED_DEEP)
-            return
-        }
-        pen.text(
-            canvas,
-            figures.whole(ContourFigures.Slot.ODOMETER, odometer),
-            pen.v(x + plan.odometerField),
-            captionY,
-            InstrumentFace.UNIT,
-            DenzaPalette.MUTED_DEEP,
-            Paint.Align.RIGHT,
+    private fun shaders(scale: Float, originX: Float) {
+        if (scale == shadedScale && originX == shadedOrigin) return
+        shadedScale = scale
+        shadedOrigin = originX
+        traceShadedCount = -1
+        val clear = { color: Int -> color and 0x00FFFFFF }
+        val ink = ClusterInk.INK.halo
+        filamentShader = LinearGradient(
+            pen.x(Cluster.MARGIN), 0f, pen.x(Cluster.W - Cluster.MARGIN), 0f,
+            intArrayOf(clear(ink), ink, clear(ink)), floatArrayOf(0f, 0.5f, 1f), Shader.TileMode.CLAMP,
         )
-        pen.text(
-            canvas,
-            ContourReadout.UNIT_KM,
-            pen.v(x + plan.odometerField + plan.smallGap),
-            captionY,
-            InstrumentFace.UNIT,
-            DenzaPalette.MUTED_DEEP,
-        )
-        pen.text(
-            canvas,
-            word,
-            pen.v(x + plan.odometerField + plan.smallGap + plan.kilometreWidth + plan.smallGap),
-            captionY,
-            InstrumentFace.CAPTION,
-            DenzaPalette.MUTED_DEEP,
+        val r = pen.px(Band.GLOW_RADIUS)
+        glowInk = RadialGradient(0f, 0f, r, ink, clear(ink), Shader.TileMode.CLAMP)
+        val blue = ClusterInk.BLUE.halo
+        glowBlue = RadialGradient(0f, 0f, r, blue, clear(blue), Shader.TileMode.CLAMP)
+        val hot = pen.px(ContourGeometry.HOT_RADIUS)
+        hotOrange = RadialGradient(0f, 0f, hot, ClusterInk.ORANGE.halo, clear(ClusterInk.ORANGE.halo), Shader.TileMode.CLAMP)
+        hotRed = RadialGradient(0f, 0f, hot, ClusterInk.RED.halo, clear(ClusterInk.RED.halo), Shader.TileMode.CLAMP)
+        boxShader = LinearGradient(
+            0f, pen.y(ContourGeometry.BOX_TOP), 0f, pen.y(ContourGeometry.BOX_ZERO),
+            LightPen.alpha(blue, BOX_FILL_TOP), LightPen.alpha(blue, BOX_FILL_ZERO), Shader.TileMode.CLAMP,
         )
     }
 
-    /**
-     * What the engine is giving the pack, where the trip's phrase stands otherwise.
-     *
-     * **One quantity, one sentence, and the sentence claims only what is known.** It carried two
-     * runs until the owner looked at the built panel and said the legend telling them apart was not
-     * understandable - which is the game lost, since a display read at 90 km/h does not get to need
-     * a key. The revolutions went back to being the number in the corner, where they were being
-     * read anyway.
-     *
-     * Then the first two drives saw the engine run with `GENERATION_KW` flat, and a box of zeros in
-     * blue under «В БАТАРЕЮ» stood on the shelf for two minutes after the engine had stopped. So
-     * (`docs/energy-display-contract.md` §2.5): the box is up only while the flag is up and the id
-     * was above zero somewhere in the window ([ContourScene]), a zero bin draws nothing at all, the
-     * area is the history colour rather than `RETURN` - the same `MUTED_DEEP` under `INK` the petal
-     * has - and the sentence is «ДВС ДАЁТ 14 кВт · ПОСЛЕДНИЕ 1:22», with no dot.
-     *
-     * The span is linear to 30 kW and clamped, which is the owner's «сплющен» answered: at the
-     * 14 kW this car ordinarily returns, a root over 100 filled a third of the box and read as
-     * flat.
-     */
-    private fun engineBox(
-        canvas: Canvas,
-        plan: ContourPlan,
-        t: VehicleTelemetry,
-        scene: ContourScene,
-        stage: ContourStage,
-    ) {
-        // Grouped once per sweep beside the rest of the snapshot. It used to be grouped here, which
-        // allocated a list and boxed twenty-four means thirty times a second.
-        val bins = t.engineTrace.bins
-        val count = min(bins.size, plan.engineBins)
-        if (count <= 0) return
-        val newest = bins.size - count
-
-        val right = plan.engineBoxRight
-        val left = right - count * plan.enginePitch
-        val bottom = plan.engineBoxBottom
-
-        pen.line(
-            canvas,
-            pen.v(left),
-            pen.v(bottom),
-            pen.v(right),
-            pen.v(bottom),
-            DenzaPalette.MUTED_DEEP,
-            plan.bandHairline,
+    /** The trace's two fills run from its oldest point to the right edge, so they follow the window. */
+    private fun traceShaders(count: Int) {
+        if (count == traceShadedCount) return
+        traceShadedCount = count
+        val from = pen.x(ContourGeometry.traceStart(count))
+        val to = pen.x(ContourGeometry.TRACE_RIGHT)
+        val ink = ClusterInk.INK.halo
+        val blue = ClusterInk.BLUE.halo
+        traceUp = LinearGradient(
+            from, 0f, to, 0f,
+            LightPen.alpha(ink, TRACE_UP_OLD), LightPen.alpha(ink, TRACE_UP_NEW), Shader.TileMode.CLAMP,
         )
-
-        for (index in 0 until count) {
-            val generation = bins[newest + index]
-            engineXs[index] = pen.v(left + index * plan.enginePitch)
-            generationYs[index] =
-                if (generation.isNaN()) Float.NaN else pen.v(plan.engineY(generation.toDouble()))
-        }
-        engineXs[count] = pen.v(right)
-
-        // A run is where the engine actually gave something. A bin nothing answered in breaks the
-        // area rather than being drawn through - a step across a gap would claim the engine held a
-        // steady output through five seconds nobody watched - and a bin at zero is drawn as
-        // nothing, because a zero is never drawn on this panel.
-        ContourRuns.forEach(count, { bins[newest + it] > 0f }) { start, length ->
-            pen.history(
-                canvas,
-                xSpan(engineXs, start, length + 1),
-                ySpan(generationYs, start, length),
-                length,
-                pen.v(bottom),
-                DenzaPalette.INK,
-                ContourPlan.LINE_ALPHA,
-                plan.dataLine,
-                DenzaPalette.MUTED_DEEP,
-                ContourPlan.AREA_ALPHA,
-            )
-        }
-
-        engineLegend(canvas, plan, scene, stage)
-    }
-
-    /**
-     * «ДВС ДАЁТ 14 кВт · ПОСЛЕДНИЕ 1:22», laid out right to left off the shelf's own edge.
-     *
-     * The whole phrase is `MUTED_DEEP`, figure included: this is a number living in a sentence
-     * rather than a reading of its own, the same way the odometer's «42» lives inside «42 км · ЗА
-     * ПОЕЗДКУ» one shelf along. The figure sits in a reserve field, so 9 kW and 14 kW start the
-     * sentence in the same place.
-     *
-     * **The words say what the engine gives, not where it goes**, and there is no dot. «В БАТАРЕЮ»
-     * was a claim about `GENERATION_KW` in motion that no recording supports; «даёт» is true under
-     * either meaning of the id and is the trip cell's own verb.
-     *
-     * **And the sentence closes up when there is no figure.** The box holds ten seconds after the
-     * flag drops and the figure is not printed at zero, so the phrase is drawn with a hole in the
-     * middle of it often enough to be the ordinary case: «ДВС ДАЁТ ⎵⎵ · ПОСЛЕДНИЕ 1:22» reads as a
-     * word missing. The words move to [ContourPlan.legendPrefixQuietX] instead, which is the same
-     * sentence with nothing left out. The last reading is **not** held across the hold: a figure
-     * that stopped arriving is not a figure.
-     */
-    private fun engineLegend(
-        canvas: Canvas,
-        plan: ContourPlan,
-        scene: ContourScene,
-        stage: ContourStage,
-    ) {
-        val y = pen.v(plan.engineLegendBaseline)
-        val figure =
-            if (stage.engineRunning && scene.fresh(ContourValue.GENERATION)) readouts.engineFigure
-            else null
-        pen.text(
-            canvas,
-            readouts.enginePrefix,
-            pen.v(if (figure == null) plan.legendPrefixQuietX else plan.legendPrefixX),
-            y,
-            InstrumentFace.CAPTION,
-            DenzaPalette.MUTED_DEEP,
-        )
-        // «· ПОСЛЕДНИЕ 0:40» while the box is forty seconds wide. The literal two minutes it used
-        // to print was the box's *capacity*, and the box is never front-padded. Tabular figures
-        // make every value of it one width, so no anchor here moves.
-        pen.text(
-            canvas,
-            readouts.engineWindow,
-            pen.v(plan.legendWindowX),
-            y,
-            InstrumentFace.CAPTION,
-            DenzaPalette.MUTED_DEEP,
-        )
-        if (figure == null) return
-        pen.text(
-            canvas,
-            figure,
-            pen.v(plan.legendFigureRight),
-            y,
-            InstrumentFace.UNIT,
-            DenzaPalette.MUTED_DEEP,
-            Paint.Align.RIGHT,
-        )
-        pen.text(
-            canvas,
-            ContourReadout.UNIT_KW,
-            pen.v(plan.legendUnitX),
-            y,
-            InstrumentFace.UNIT,
-            DenzaPalette.MUTED_DEEP,
+        traceDown = LinearGradient(
+            from, 0f, to, 0f,
+            LightPen.alpha(blue, TRACE_DOWN_OLD), LightPen.alpha(blue, TRACE_DOWN_NEW), Shader.TileMode.CLAMP,
         )
     }
 
-    // ---------------------------------------------------------------- the petal
-
-    /**
-     * What the last ten kilometres cost - always the last ten kilometres.
-     *
-     * The denominator never changes under the figure: standing on P it is still ten kilometres and
-     * only the tenth appears, because at 100 km/h a tenth changes three times a second and a figure
-     * that flickers is a figure nobody reads. The unit says which road, and while a gun is in the
-     * same seat counts down to full instead.
-     *
-     * The figure is **signed**: a long descent returns more than it costs, and that minus is the
-     * one sign on either screen (`docs/energy-display-contract.md` §2.2), drawn in `RETURN_INK`
-     * because it is the same thing the chart's blue is.
-     *
-     * **While the engine runs the figure is `MUTED` and says nothing else.** `ConsumptionLog`
-     * integrates pack power alone and nobody has logged whether `GENERATION_KW` is already inside
-     * `POWER_KW`, so until that log exists this number is the battery's alone - and
-     * «кВт·ч/100 км · батарея» was five characters of footnote at 12′ on the one line of the panel
-     * that has to be read in a glance. Colour says the same thing without asking anybody to read it.
-     */
-    private fun petal(
-        canvas: Canvas,
-        plan: ContourPlan,
-        t: VehicleTelemetry,
-        scene: ContourScene,
-        stage: ContourStage,
-    ) {
-        if (stage.unavailable) {
-            if (stage.message.isEmpty()) return
-            pen.text(
-                canvas,
-                stage.message,
-                pen.v(plan.axis),
-                pen.v(plan.petalBaseline),
-                InstrumentFace.UNIT,
-                DenzaPalette.MUTED,
-                Paint.Align.CENTER,
-            )
-            return
-        }
-        // The history is the consumption log's, and only the history: gating the whole seat on it
-        // left «до полной» and its countdown off the panel for an entire charge, because a car
-        // standing on P with a gun in has never moved the odometer and a fresh install, a reset
-        // journal or a restore behind the retention window all have no closed buckets at all.
-        //
-        // **Known rather than fresh**: the chart is closed road (§2.3, §4) and ten kilometres of
-        // road are still ten kilometres of road two seconds after the bus goes quiet. The staleness
-        // rule is about a *reading*, and the figure beside the box is the reading here.
-        if (scene.known(ContourValue.PETAL)) history(canvas, plan)
-
-        if (stage.charging) {
-            chargeSeat(canvas, plan, t, scene)
-            return
-        }
-
-        if (!scene.known(ContourValue.PETAL)) return
-        // «за 3,7 км» until the window is full, and the road it names is the road the figure is
-        // the mean of - the *known* road, not the bucket count. Ten kilometres printed over three
-        // and a half is the same defect this window was added to fix, one level down.
-        petalUnit(canvas, plan, readouts.window)
-        if (!scene.fresh(ContourValue.PETAL)) return
-        val figure = readouts.consumptionFigure ?: return
-        petalFigure(canvas, plan, figure, stage, readouts.consumptionNegative)
-    }
-
-    /**
-     * The countdown that takes the petal's seat while a gun is in.
-     *
-     * **The unit comes with the figure here**, which is the one place on the panel where it does.
-     * Everywhere else a caption arrives with the first reading and stays when the reading goes,
-     * because the caption names a quantity the car has answered at least once; «до полной» over
-     * nothing names an estimate the charger may never make - the first ten seconds of a charge, or
-     * an AC feed that never reports one - and a word standing alone over a hole is not the caption
-     * rule, it is a value that failed to arrive.
-     */
-    private fun chargeSeat(
-        canvas: Canvas,
-        plan: ContourPlan,
-        t: VehicleTelemetry,
-        scene: ContourScene,
-    ) {
-        if (!scene.fresh(ContourValue.CHARGE_LEFT)) return
-        val minutes = t.chargeMinutesLeft ?: return
-        petalUnit(canvas, plan, ContourReadout.UNIT_CHARGE_LEFT)
-        petalFigure(canvas, plan, figures.chargeLeft(minutes), scene.stage, negative = false)
-    }
-
-    private fun petalUnit(canvas: Canvas, plan: ContourPlan, unit: String) {
-        pen.text(
-            canvas,
-            unit,
-            pen.v(plan.petalUnitX),
-            pen.v(plan.petalBaseline),
-            InstrumentFace.UNIT,
-            DenzaPalette.MUTED_DEEP,
-        )
-    }
-
-    private fun petalFigure(
-        canvas: Canvas,
-        plan: ContourPlan,
-        text: String,
-        stage: ContourStage,
-        negative: Boolean,
-    ) {
-        val colour = when {
-            stage.engineRunning -> DenzaPalette.MUTED
-            negative -> DenzaPalette.RETURN_INK
-            else -> DenzaPalette.INK
-        }
-        pen.text(
-            canvas,
-            text,
-            pen.v(plan.petalFigureRight),
-            pen.v(plan.petalBaseline),
-            InstrumentFace.FIGURE,
-            colour,
-            Paint.Align.RIGHT,
-        )
-    }
-
-    /**
-     * Ten kilometres of recorded road as a hundred trailing kilometres, on the figure's baseline.
-     *
-     * One chart, drawn twice: the head unit's car page draws these same points on this same ladder,
-     * and the pixel height is all that differs (`docs/energy-display-contract.md` §2.3). A point
-     * stands on every hundred metres the log recorded and is the mean of the ten readings ending at
-     * it, so a point that has settled never changes and the shape does not re-phase.
-     *
-     * **A line, because a trailing mean is a continuous function of the road.** Twenty steps of
-     * five hundred metres were «огромные ступеньки» from the seat - neighbours 20 kWh/100 km apart
-     * on the owner's own journal - and a hundred steps were the comb before them. The engine's box
-     * keeps its steps; its slots really are closed buckets.
-     *
-     * The scale is a fixed ladder rather than an autoscale, because autoscaling meant one point
-     * changing value redrew the height of all hundred. There is no dashed mean: the mean is the
-     * figure standing next to the box.
-     *
-     * **A point past a ceiling is drawn along it, with one tick per run standing just outside the
-     * box**, so the reader sees it was cut rather than reading a silent flat top.
-     *
-     * **There are no holes, so the line is one run.** Road the log did not record is off this axis
-     * entirely: the chart is as wide as the record and no wider, which is the same road the unit
-     * beside the figure names. Nothing is `NaN`.
-     */
-    private fun history(canvas: Canvas, plan: ContourPlan) {
-        val chart = readouts.chart
-        val values = chart.values
-        val count = min(values.size, ContourPlan.PETAL_POINTS)
-        if (count <= 0) return
-        val first = values.size - count
-        val zero = pen.v(plan.petalZeroY)
-
-        // The pitch is the box divided by the window rather than by what has arrived, and a point
-        // stands at the right edge of its own hundred metres - so the newest one is on the box's
-        // right edge and a chart that is still filling grows leftward into its box.
-        val pitch = plan.petalBoxWidth / ContourPlan.PETAL_POINTS
-        val right = plan.petalBoxLeft + plan.petalBoxWidth
-        for (index in 0 until count) {
-            chartXs[index] = pen.v(right - (count - 1 - index) * pitch)
-            chartYs[index] = pen.v(plan.petalY(values[first + index]))
-        }
-
-        // One run, always. The chart used to be cut into runs at its `NaN` points and the two
-        // renderers each carried the walk; there are no holes on a recorded-road axis, so the
-        // history is one call and `ContourRuns` is left to the engine's box, which really does
-        // have bins nothing answered in.
-        pen.curve(
-            canvas,
-            chartXs,
-            chartYs,
-            count,
-            zero,
-            pen.v(plan.petalBoxTop),
-            pen.v(plan.petalBoxBottom),
-            DenzaPalette.INK,
-            ContourPlan.LINE_ALPHA,
-            plan.dataLine,
-            DenzaPalette.MUTED_DEEP,
-            ContourPlan.AREA_ALPHA,
-            DenzaPalette.RETURN,
-            ContourPlan.RETURN_AREA_ALPHA,
-            DenzaPalette.RETURN_INK,
-        )
-        pen.clampTicks(
-            canvas,
-            values,
-            first,
-            count,
-            chartXs,
-            pen.v(plan.petalBoxTop - plan.petalTickGap),
-            pen.v(plan.petalBoxBottom + plan.petalTickGap),
-            plan.petalTick,
-            plan.dataLine,
-            plan.petalFull,
-            plan.petalReturnFull,
-            DenzaPalette.INK,
-            DenzaPalette.RETURN_INK,
-        )
-        pen.line(
-            canvas,
-            pen.v(plan.petalBoxLeft),
-            zero,
-            pen.v(right),
-            zero,
-            DenzaPalette.MUTED_DEEP,
-            plan.bandHairline,
-        )
-    }
-
-    // ---------------------------------------------------------------- colour, and spans
-
-    /** The band's body and the glow: ink out, blue back, nothing inside the dead band. */
-    private fun flowColor(flow: ContourFlow): Int = when (flow) {
-        ContourFlow.OUT -> DenzaPalette.INK
-        ContourFlow.BACK -> DenzaPalette.RETURN
-        ContourFlow.NEUTRAL -> DenzaPalette.MUTED
-    }
-
-    /** The tip is the live edge of the data, which is what `DATA_PEAK` is for on this panel. */
-    private fun edgeColor(flow: ContourFlow): Int = when (flow) {
-        ContourFlow.OUT -> DenzaPalette.DATA_PEAK
-        ContourFlow.BACK -> DenzaPalette.RETURN_INK
-        ContourFlow.NEUTRAL -> DenzaPalette.MUTED
-    }
-
-    /** Text lifts one step where a stroke does not: saturated blue at 12′ on black is unreadable. */
-    private fun heroColor(flow: ContourFlow): Int = when (flow) {
-        ContourFlow.OUT -> DenzaPalette.INK
-        ContourFlow.BACK -> DenzaPalette.RETURN_INK
-        ContourFlow.NEUTRAL -> DenzaPalette.MUTED
-    }
-
-    private fun levelColor(level: ContourReadout.Level): Int = when (level) {
-        ContourReadout.Level.NORMAL -> DenzaPalette.MUTED
-        ContourReadout.Level.WATCH -> DenzaPalette.WARNING
-        ContourReadout.Level.ALERT -> DenzaPalette.DANGER
-    }
-
-    /**
-     * The lit part inside a glyph: one step brighter than the figure above it, and hot with it.
-     *
-     * `INK` on the ordinary shelf is the panel's one exception to "INK is the hero alone", and it is
-     * a deliberate one: the component is what tells the eye *what* the number above is about before
-     * the number is read, and an outline plus a grey blob inside it read as one grey shape. On an
-     * exception it takes the figure's own colour, so the cell lights up as one object.
-     */
-    private fun componentColor(level: ContourReadout.Level): Int = when (level) {
-        ContourReadout.Level.NORMAL -> DenzaPalette.INK
-        ContourReadout.Level.WATCH -> DenzaPalette.WARNING
-        ContourReadout.Level.ALERT -> DenzaPalette.DANGER
-    }
-
-    /**
-     * One run's heights, packed to the front of the scratch buffer the pen reads.
-     *
-     * It moves the values rather than allocating a view of them, and the buffer is a field, so a
-     * frame allocates nothing here either.
-     */
-    private fun ySpan(ys: FloatArray, start: Int, length: Int): FloatArray {
-        if (start == 0) return ys
-        for (index in 0 until length) spanYs[index] = ys[start + index]
-        return spanYs
-    }
-
-    /**
-     * And its x's - [count] of them for a curve's points, one more for a step run's edges.
-     *
-     * The caller says how many it needs rather than this deciding, because the two shapes in this
-     * file no longer count the same things: a step run has an edge on either side of every slot,
-     * and a line has one x per point.
-     */
-    private fun xSpan(xs: FloatArray, start: Int, count: Int): FloatArray {
-        if (start == 0) return xs
-        for (index in 0 until count) spanXs[index] = xs[start + index]
-        return spanXs
-    }
+    private fun unit(a: Float): Int = (a.coerceIn(0f, 1f) * 255f).roundToInt()
 
     private companion object {
-        /** The panel's own ground: opaque, and the same black the glass around it is. */
-        const val BACKGROUND = 0xFF000000.toInt()
+        /** `ThermalGlyphs`' cells in the frame's order: pack, front, rear left, rear right, inverter. */
+        val GLYPHS = ThermalGlyphs.Cell.entries.toTypedArray()
 
-        /** The three cars, in `VehicleTelemetry.motorTemps` order: front, rear left, rear right. */
-        val MOTOR_GLYPHS = arrayOf(
-            ContourGlyphs.Glyph.MOTOR_FRONT,
-            ContourGlyphs.Glyph.MOTOR_REAR_LEFT,
-            ContourGlyphs.Glyph.MOTOR_REAR_RIGHT,
-        )
+        const val OPAQUE = 255
 
-        /** How far the peak's mark stands out of the band's body, top and bottom. */
-        const val PEAK_OVERHANG = 3f
-        const val PEAK_WIDTH = 3f
+        /** The filament's centre stop is 0.85 of the alpha spec.json gives it. */
+        const val FILAMENT_PEAK = 0.85f
 
-        /**
-         * The night hook, and it is 1.0.
-         *
-         * There is no night scene: the cluster's own dimmer already darkens our window, and whether
-         * it does is a measurement on the car rather than a decision on a board (m7). The multiplier
-         * is here so that the answer, when somebody takes it, lands in one place - and so that
-         * nobody reaches for alpha again, which used to mean seven things at once.
-         */
-        const val NIGHT_DIM = 1f
+        /** The engine box: its edge, its base line and its fill, top to zero. */
+        const val BOX_EDGE_INTENSITY = 0.95f
+        const val BOX_BASE_INTENSITY = 0.35f
+        const val BOX_FILL_TOP = 0.2f
+        const val BOX_FILL_ZERO = 0.02f
+
+        /** The trace's fills, oldest point to newest. */
+        const val TRACE_UP_OLD = 0.03f
+        const val TRACE_UP_NEW = 0.16f
+        const val TRACE_DOWN_OLD = 0.05f
+        const val TRACE_DOWN_NEW = 0.3f
     }
 }
