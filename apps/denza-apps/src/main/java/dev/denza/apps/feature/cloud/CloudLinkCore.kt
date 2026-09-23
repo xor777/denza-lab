@@ -67,6 +67,13 @@ internal class CloudLinkCore {
     private var disconnectedSinceMs: Long? = null
     private var cloudPid: String? = null
 
+    /** What the service report prints of the adapter's clocks; nothing decides on these. */
+    val lastReadyAt: Long? get() = lastReadyAtMs
+    val disconnectedSince: Long? get() = disconnectedSinceMs
+
+    /** The earliest the backoff lets the next unasked «ready» go, while one is being held back. */
+    val nextReadyAt: Long? get() = lastReadyAtMs?.takeIf { attempts > 0 }?.plus(backoff(attempts))
+
     /**
      * The driver switched the link on, or asked for it again.
      *

@@ -54,9 +54,13 @@ object CloudLinkRuntime {
     @Volatile
     var failure: String? = null
 
-    /** What the adapter believes about the gate, for the service report: `gate=OPENED attempts=0`. */
+    /** What the adapter believes about the gate and its clocks, for the service report. */
     @Volatile
-    var adapter: String = ""
+    var adapter: CloudLinkReport.Adapter? = null
+
+    /** When the car was last read (elapsedRealtime), so a report can say how old [car] is. */
+    @Volatile
+    var readAtMs: Long? = null
 }
 
 /** The kind of internet the car is on, as far as the cloud link is concerned. */
@@ -82,17 +86,20 @@ enum class CloudNetworkKind(val label: String) {
 object CloudNetwork {
     fun usable(context: Context): Boolean = kind(context) != CloudNetworkKind.NONE
 
-    fun kind(context: Context): CloudNetworkKind {
+    fun kind(context: Context): CloudNetworkKind = reading(context).kind
+
+    /** The default network as the rule sees it, raw, for the rule and for the service report. */
+    fun reading(context: Context): CloudNetworkReading {
+        // No permission needed: the operator code of the SIM, never its identity.
+        val sim = context.getSystemService(TelephonyManager::class.java)?.simOperator
         val connectivity = context.getSystemService(ConnectivityManager::class.java)
-            ?: return CloudNetworkKind.NONE
-        val network = connectivity.activeNetwork ?: return CloudNetworkKind.NONE
-        val capabilities = connectivity.getNetworkCapabilities(network) ?: return CloudNetworkKind.NONE
-        return kindOf(
+        val capabilities = connectivity?.activeNetwork?.let(connectivity::getNetworkCapabilities)
+            ?: return CloudNetworkReading(validated = false, wifi = false, cellular = false, simOperator = sim)
+        return CloudNetworkReading(
             validated = capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED),
             wifi = capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI),
             cellular = capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR),
-            // No permission needed: the operator code of the SIM, never its identity.
-            simOperator = context.getSystemService(TelephonyManager::class.java)?.simOperator,
+            simOperator = sim,
         )
     }
 
@@ -113,6 +120,17 @@ object CloudNetwork {
     internal fun chineseSim(simOperator: String?): Boolean = simOperator?.startsWith("460") == true
 }
 
+/** The default network's facts the rule reads, before the rule reads them. */
+data class CloudNetworkReading(
+    val validated: Boolean,
+    val wifi: Boolean,
+    val cellular: Boolean,
+    val simOperator: String?,
+) {
+    val kind: CloudNetworkKind
+        get() = CloudNetwork.kindOf(validated, wifi, cellular, simOperator)
+}
+
 /**
  * The tile's status, read from the wish and the last reading - never from what the controller is
  * doing this second.
@@ -131,6 +149,18 @@ object CloudNetwork {
  * true, as weather is before its first forecast.
  */
 object CloudLinkStatus {
+    /**
+     * The tile's words for a snapshot - here rather than on the tile so the service report says the
+     * link's state in the same words the tile does, from the one place they are written.
+     */
+    fun words(snapshot: FeatureSnapshot): String = when (snapshot.status) {
+        FeatureStatus.OFF -> "Выключено"
+        FeatureStatus.ACTIVE -> "На связи"
+        FeatureStatus.READY -> "Нет интернета"
+        FeatureStatus.ERROR, FeatureStatus.UNAVAILABLE -> snapshot.message.ifBlank { "Не переключилось" }
+        else -> "Подключается"
+    }
+
     fun snapshot(
         enabled: Boolean,
         car: CloudCarState?,

@@ -779,12 +779,30 @@
     if (lines.length > 2) { let l = lines[1]; while (wordsW(c, l + '…', R.summarySize) > room && l.length) l = l.slice(0, -1); lines.splice(1, lines.length - 1, l + '…'); }
     return lines;
   }
+  // A reading on the technical page: the key on the left, the value right-aligned beside it and
+  // wrapped in what the key leaves, the row as tall as the value's lines.
+  function pairLines(c, r) {
+    const Q = SH.pair, R = SH.row;
+    const room = ROW_W - 2 * R.padX - wordsW(c, r.title, Q.size) - Q.gap;
+    return wrap(c, r.value, Q.size, 400, room);
+  }
   function rowHeight(r, c) {
+    if (r.kind === 'pair') {
+      const Q = SH.pair, n = c ? pairLines(c, r).length : 1;
+      return Math.max(Q.minHeight, 2 * Q.padY + (n - 1) * Q.step + Q.size * (RB.ascent + RB.descent));
+    }
     if (r.icons && r.icons.length) return R3[0];
     const n = c ? summaryLines(c, r).length : (r.summary ? 1 : 0);
     return n ? R2[0] + (n - 1) * SH.row.summaryStep : R1[0];
   }
   function drawRow(c, r, x, y, w) {
+    if (r.kind === 'pair') {
+      const Q = SH.pair, R = SH.row, h = rowHeight(r, c), lines = pairLines(c, r);
+      const b0 = lines.length > 1 ? y + Q.padY + Q.size * RB.ascent : centred(y + h / 2, Q.size);
+      words(c, r.title, x + R.padX, b0, Q.size, Q.keyAlpha);
+      lines.forEach((l, i) => words(c, l, x + w - R.padX, b0 + i * Q.step, Q.size, Q.valueAlpha, { align: 'right' }));
+      return h;
+    }
     const R = SH.row, h = rowHeight(r, c), dim = r.enabled === false ? 0.5 : 1;
     const right = x + w - R.padX;
     const icons = r.icons && r.icons.length, lines = icons ? [] : summaryLines(c, r), two = lines.length > 0;
@@ -793,9 +811,19 @@
       let ix = x + R.padX;
       r.icons.forEach(n => { letterIcon(c, n.name || n, ix, y + R3[2], R.choiceIcon, n.glyph); ix += R.choiceIcon + R.choiceGap; });
       if (r.value) words(c, r.value, ix, y + R3[3], R.summarySize, R.summaryAlpha * dim);
-    } else lines.forEach((l, i) => words(c, l, x + R.padX, y + R2[2] + i * R.summaryStep, R.summarySize, R.summaryAlpha * dim));
+    } else {
+      const tc = r.tone === 'attention' ? [hex('#FF9F19'), hex('#FF9F19')] : r.tone === 'broken' ? [hex('#FF4046'), hex('#FF4046')] : null;
+      lines.forEach((l, i) => words(c, l, x + R.padX, y + R2[2] + i * R.summaryStep, R.summarySize, tc ? dim : R.summaryAlpha * dim, tc ? { col: tc } : {}));
+    }
     if (r.kind === 'switch') toggle(c, right - SH.switch.width, y + (h - SH.switch.height) / 2, r.on, r.enabled);
     if (r.kind === 'choice') lineGlyph(c, FORWARD, right - R.chevron, y + (h - R.chevron) / 2, R.chevron, SH.header.closeAlpha);
+    if (r.kind === 'chosen' && r.chosen) {
+      const A = SH.apps, bx = right - A.badge, by = y + (h - A.badge) / 2;
+      over(c, () => {
+        c.fillStyle = A.badgeColor; c.beginPath(); c.arc(bx + A.badge / 2, by + A.badge / 2, A.badge / 2, 0, Math.PI * 2); c.fill();
+        c.translate(bx, by); c.lineWidth = 2; c.lineCap = 'round'; c.lineJoin = 'round'; c.strokeStyle = '#FFFFFF'; c.stroke(CHECK);
+      });
+    }
     return h;
   }
   function plate(c, rows, x, y, w) {

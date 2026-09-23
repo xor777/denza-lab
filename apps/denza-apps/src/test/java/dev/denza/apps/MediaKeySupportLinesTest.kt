@@ -1,13 +1,9 @@
 package dev.denza.apps
 
-import dev.denza.apps.feature.cluster.CameraRuntimePhase
-import dev.denza.apps.feature.cluster.CameraRuntimeSnapshot
 import dev.denza.apps.feature.media.MediaKeyPress
 import dev.denza.apps.feature.media.MediaKeyReport
 import dev.denza.apps.feature.media.MediaKeySnapshot
 import dev.denza.apps.feature.media.MediaKeyState
-import dev.denza.apps.feature.mirrors.MirrorSide
-import dev.denza.apps.feature.mirrors.SideCameraDetection
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -21,9 +17,12 @@ import org.junit.Test
 class MediaKeySupportLinesTest {
     @Test
     fun `the media key lines reach the report verbatim`() {
-        val report = SupportDiagnostics.render(
-            header(),
-            MediaKeyReport.lines(lostAccess(), STAMP, mode = "без правки фокуса (ступень 1)"),
+        val report = TechnicalReadings.render(
+            listOf(
+                SupportDiagnostics.mediaKeySection(
+                    MediaKeyReport.lines(lostAccess(), STAMP, mode = "без правки фокуса (ступень 1)"),
+                ),
+            ),
         )
 
         assertTrue(report, report.contains("Кнопка play/pause=нет доступа к сессиям"))
@@ -37,14 +36,13 @@ class MediaKeySupportLinesTest {
         )
     }
 
-    /** However many presses the ring holds, the report grows by exactly four lines. */
+    /** However many presses the ring holds, the key's section is exactly four readings. */
     @Test
-    fun `a full ring adds four lines to the report, not fourteen`() {
-        val quiet = SupportDiagnostics.render(header(), emptyList())
-        val busy = SupportDiagnostics.render(header(), MediaKeyReport.lines(fullRing(), STAMP))
+    fun `a full ring is four readings in the report, not fourteen`() {
+        val rows = SupportDiagnostics.mediaKeySection(MediaKeyReport.lines(fullRing(), STAMP)).rows
 
-        assertEquals(4, busy.lines().size - quiet.lines().size)
-        assertEquals(1, busy.lines().count { it.startsWith("Последние нажатия=") })
+        assertEquals(4, rows.size)
+        assertEquals(1, rows.count { it.key == "Последние нажатия" })
     }
 
     private fun lostAccess() = MediaKeySnapshot(
@@ -60,24 +58,6 @@ class MediaKeySupportLinesTest {
         state = MediaKeyState.LISTENING,
         rememberedPackage = "ru.yandex.music",
         presses = (1..12).map { MediaKeyPress(it.toLong(), 386, true, "ru.yandex.music play") },
-    )
-
-    private fun header() = SupportDiagnosticsHeader(
-        versionName = "0.6.1",
-        sdkLevel = 33,
-        fingerprint = "denza/test/fingerprint",
-        cameraRuntime = CameraRuntimeSnapshot(
-            phase = CameraRuntimePhase.READY,
-            side = MirrorSide.RIGHT,
-            generation = 1,
-            details = "",
-        ),
-        mirrorDetection = SideCameraDetection(
-            recognizedSide = MirrorSide.RIGHT,
-            avcCandidateBlocks = 0,
-            unrecognizedCandidates = 0,
-        ),
-        simulcastRuntime = SimulcastRuntimeSnapshot(),
     )
 
     private companion object {

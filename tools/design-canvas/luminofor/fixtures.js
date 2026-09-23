@@ -252,30 +252,95 @@
       ],
       footer: [{ t: 'button', text: 'Проверить камеры' }]
     }, { tile: 'MIRRORS', mirrors: true, position: 'SIDES', processing: false, error: 'Камеры не отвечают: штатный вид занял видеопоток' }),
-    // the service panel on a healthy car: its state first - on a car with something wrong, the
-    // tiles that need somebody, in their own words - then the car's access and the instruments'
-    // screen, and the readings behind a button
-    service: sheetOf(11, {
+  };
+
+  // The service panel answers one question - what is wrong - and keeps the rest a row away. On a
+  // healthy car it is two quiet rows; a feature that needs somebody is a row in its tile's colour
+  // that opens its panel; the car's access grows its buttons only when there is no access. The
+  // instruments' screen and the technical readings are pages, and the version is the foot.
+  const SVC_VERSION = { t: 'footnote', text: 'Denza Apps 0.6.2 · сборка 53' };
+  const SVC_MORE = { t: 'group', rows: [
+    { kind: 'choice', title: 'Приборный экран', summary: 'Определён сам: Экран 1 · 1920×720' },
+    { kind: 'choice', title: 'Технические сведения', summary: 'Версия, прошивка, состояние функций' }
+  ] };
+  const SVC_ACCESS = { title: 'Доступ к машине', summary: 'ADB-доступ подтверждён' };
+  // The report the technical page is read from: a line is `key=value`; a value of `k=v` parts
+  // joined by '; ' is a section of its own, one row a part; plain lines in a run share a plate.
+  // TechnicalReadings.parse in the app is this function.
+  const SVC_TECHNICAL = [
+    'Облако=Связь=включена, плитка «На связи»; Отказ=нет; Сеть=Wi-Fi, интернет проверен; Wi-Fi / сотовая=да / нет; SIM=нет; Профиль=double_apn, сборки triple_apn; APN1 выключен=да; Сотовая BYD=нет; cloudmanager=PID 113, TCP 1; Wi-Fi во сне=да; Шлюз=OPENED, попыток 1; Последний ready=4 мин назад; Без связи=—; Запись=нет',
+    'Версия=0.6.2',
+    'SDK=33',
+    'Fingerprint=BYD/IVI/DiLink5_1:13/34.1.33.2605218/1:user/release-keys',
+    'ADB Rescue=phase=trusted; adb_enabled=включено; pending=нет; attempts=0',
+    'DiShare=Доступен',
+    'Доступ поверх окон=Доступен'
+  ];
+  const techBlocks = lines => {
+    const blocks = []; let run = null;
+    lines.forEach(line => {
+      const i = line.indexOf('='), key = i < 0 ? line : line.slice(0, i), value = i < 0 ? '—' : (line.slice(i + 1) || '—');
+      const parts = value.split('; ');
+      if (parts.length > 1 && parts.every(p => p.indexOf('=') > 0)) {
+        run = null;
+        blocks.push({ t: 'section', label: key, body: { t: 'group', rows: parts.map(p => {
+          const j = p.indexOf('=');
+          return { kind: 'pair', title: p.slice(0, j), value: p.slice(j + 1) || '—' };
+        }) } });
+      } else {
+        if (!run) { run = { t: 'group', rows: [] }; blocks.push(run); }
+        run.rows.push({ kind: 'pair', title: key, value });
+      }
+    });
+    return blocks;
+  };
+  const svcState = { tile: 'SERVICE', adb: 'ADB-доступ подтверждён', adbDetails: 'Denza Apps использует уже доверенный ключ',
+    cluster: 'Определён сам: Экран 1 · 1920×720', displays: [[2, 1920, 720]], version: '0.6.2', build: 53, technical: SVC_TECHNICAL };
+  const service = {
+    ok: sheetOf(11, {
+      title: 'Сервис',
+      blocks: [{ t: 'group', rows: [{ title: 'Все функции работают' }, SVC_ACCESS] }, SVC_MORE],
+      footer: [SVC_VERSION]
+    }, Object.assign({}, svcState, { page: 'main' })),
+    trouble: sheetOf(11, {
       title: 'Сервис',
       blocks: [
-        { t: 'section', label: 'Состояние', body: [{ t: 'note', text: 'Все функции работают.' }] },
-        { t: 'section', label: 'Доступ к машине', body: [
-          { t: 'reading', label: 'Состояние', value: 'ADB-доступ подтверждён' },
-          { t: 'note', text: 'Denza Apps использует уже доверенный ключ' },
+        { t: 'status', tone: 'attention', text: '2 функции ждут' },
+        { t: 'group', rows: [
+          { kind: 'choice', title: 'Зеркала', summary: 'Камеры не отвечают', tone: 'broken' },
+          { kind: 'choice', title: 'Облако', summary: 'Нет интернета', tone: 'attention' },
+          SVC_ACCESS
+        ] },
+        SVC_MORE
+      ],
+      footer: [SVC_VERSION]
+    }, Object.assign({}, svcState, { page: 'main', trouble: true })),
+    access: sheetOf(11, {
+      title: 'Сервис',
+      blocks: [
+        { t: 'status', tone: 'broken', text: 'Нет доступа к машине, без него большинство функций не работает' },
+        { t: 'group', rows: [{ title: 'Доступ к машине', summary: 'Нужно разрешение ADB для Denza Apps', tone: 'broken' }] },
+        { t: 'note', text: 'Можно вручную отправить ровно один запрос' },
+        { t: 'stack', gap: 12, items: [
+          { t: 'button', text: 'Отправить один запрос' },
           { t: 'button', kind: 'secondary', text: 'Проверить доступ' }
         ] },
-        { t: 'section', label: 'Приборный экран', body: [
-          { t: 'reading', label: 'Сейчас', value: 'Экран 1 · 1920×720' },
-          { t: 'note', text: 'Приложение само находит экран за рулём. Выберите другой, если приборы ушли не туда.' },
-          { t: 'stack', gap: 12, items: [
-            { t: 'button', kind: 'secondary', text: 'Экран 1 · 1920×720' },
-            { t: 'button', kind: 'secondary', text: 'Определять автоматически' }
-          ] }
+        SVC_MORE
+      ],
+      footer: [SVC_VERSION]
+    }, Object.assign({}, svcState, { page: 'main', adb: 'Нужно разрешение ADB для Denza Apps', adbDetails: 'Можно вручную отправить ровно один запрос', adbPhase: 'AUTHORIZATION_REQUIRED', adbCanRequest: true })),
+    screen: sheetOf(11, {
+      title: 'Приборный экран', back: true,
+      blocks: [
+        { t: 'group', rows: [
+          { kind: 'chosen', title: 'Определять автоматически', summary: 'Сейчас: Экран 1 · 1920×720', chosen: true },
+          { kind: 'chosen', title: 'Экран 1 · 1920×720' }
         ] },
-        { t: 'section', label: 'Технические сведения', body: [{ t: 'button', kind: 'secondary', text: 'Показать' }] }
+        { t: 'note', text: 'Приложение само находит экран за рулём. Выберите другой, если приборы ушли не туда.' }
       ]
-    }, { tile: 'SERVICE', adb: 'ADB-доступ подтверждён', adbDetails: 'Denza Apps использует уже доверенный ключ',
-         cluster: 'Экран 1 · 1920×720', displays: [[2, 1920, 720]] })
+    }, Object.assign({}, svcState, { page: 'screen' })),
+    tech: sheetOf(11, { title: 'Технические сведения', back: true, subtitle: 'Denza Apps 0.6.2 · сборка 53', blocks: techBlocks(SVC_TECHNICAL) },
+      Object.assign({}, svcState, { page: 'technical' }))
   };
 
   // the ADB gate asking for the car's permission: the service's glyph in orange because there is a
@@ -340,7 +405,12 @@
     'sheet-defaults':  [{ kind: 'sheet', mode: 'full' }, sheets.defaults],
     'sheet-locale':    [{ kind: 'sheet', mode: 'full' }, sheets.locale],
     'sheet-broken':    [{ kind: 'sheet', mode: 'full' }, sheets.broken],
-    'sheet-service':   [{ kind: 'sheet', mode: 'full' }, sheets.service],
+    'sheet-service':          [{ kind: 'sheet', mode: 'full' }, service.ok],
+    'sheet-service-trouble':  [{ kind: 'sheet', mode: 'full' }, service.trouble],
+    'sheet-service-access':   [{ kind: 'sheet', mode: 'full' }, service.access],
+    'sheet-service-screen':   [{ kind: 'sheet', mode: 'full' }, service.screen],
+    'sheet-service-technical': [{ kind: 'sheet', mode: 'full' }, service.tech],
+    'one-sheet-service-trouble': [{ kind: 'sheet', mode: 'one' }, service.trouble],
     'modal-adb':       [{ kind: 'modal', mode: 'full' }, gate],
     'one-modal-adb':   [{ kind: 'modal', mode: 'one' }, gate],
     'sheet-cloud':     [{ kind: 'sheet', mode: 'full' }, sheets.cloud],

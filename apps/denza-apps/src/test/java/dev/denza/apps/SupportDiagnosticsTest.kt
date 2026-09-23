@@ -11,42 +11,73 @@ import org.junit.Test
 
 class SupportDiagnosticsTest {
     @Test
-    fun `renders injected package build runtime and detector values`() {
-        val report = SupportDiagnostics.render(
-            SupportDiagnosticsHeader(
-                versionName = "9.8.7-test",
-                sdkLevel = 33,
-                fingerprint = "denza/test/fingerprint",
-                cameraRuntime = CameraRuntimeSnapshot(
-                    phase = CameraRuntimePhase.READY,
-                    side = MirrorSide.RIGHT,
-                    generation = 12,
-                    details = "avc ready",
-                ),
-                mirrorDetection = SideCameraDetection(
-                    recognizedSide = MirrorSide.RIGHT,
-                    avcCandidateBlocks = 4,
-                    unrecognizedCandidates = 2,
-                ),
-                simulcastRuntime = SimulcastRuntimeSnapshot(
-                    rootsFound = 10,
-                    rootsMissing = 3,
-                    geometryParseMisses = 2,
-                    unstableSamples = 7,
-                    appliedRelayouts = 5,
-                    semanticWindowRebuilds = 1,
-                ),
+    fun `the app section and the camera rows carry the injected values`() {
+        val header = SupportDiagnosticsHeader(
+            versionName = "9.8.7-test",
+            versionCode = 54,
+            androidRelease = "13",
+            sdkLevel = 33,
+            fingerprint = "denza/test/fingerprint",
+            cameraRuntime = CameraRuntimeSnapshot(
+                phase = CameraRuntimePhase.READY,
+                side = MirrorSide.RIGHT,
+                generation = 12,
+                details = "avc ready",
             ),
-            bodyLines = listOf("Проверка=готова"),
+            mirrorDetection = SideCameraDetection(
+                recognizedSide = MirrorSide.RIGHT,
+                avcCandidateBlocks = 4,
+                unrecognizedCandidates = 2,
+            ),
+            simulcastRuntime = SimulcastRuntimeSnapshot(
+                rootsFound = 10,
+                rootsMissing = 3,
+                geometryParseMisses = 2,
+                unstableSamples = 7,
+                appliedRelayouts = 5,
+                semanticWindowRebuilds = 1,
+            ),
         )
 
-        assertTrue(report.contains("Версия=9.8.7-test"))
-        assertTrue(report.contains("SDK=33"))
-        assertTrue(report.contains("Fingerprint=denza/test/fingerprint"))
-        assertTrue(report.contains("AVC runtime=phase=READY; side=RIGHT; generation=12; details=avc ready"))
-        assertTrue(report.contains("AVC detector=side=RIGHT; candidates=4; unrecognized=2"))
-        assertTrue(report.contains("Simulcast counters=roots found=10; roots missing=3"))
-        assertTrue(report.contains("relayouts=5; semantic rebuilds=1"))
+        val app = SupportDiagnostics.appSection(header)
+        assertEquals("Приложение", app.title)
+        assertEquals(
+            listOf(
+                TechnicalRow("Версия", "9.8.7-test · сборка 54"),
+                TechnicalRow("Android", "13 · SDK 33"),
+                TechnicalRow("Прошивка", "denza/test/fingerprint"),
+            ),
+            app.rows,
+        )
+        assertEquals(
+            listOf(
+                TechnicalRow("Камера AVC", "READY, сторона RIGHT, поколение 12"),
+                TechnicalRow("Камера AVC, подробно", "avc ready"),
+                TechnicalRow("Окна AVC", "сторона RIGHT, кандидатов 4, нераспознанных 2"),
+            ),
+            SupportDiagnostics.avcRows(header),
+        )
+        assertEquals(
+            "найдено 10, потеряно 3, промахов геометрии 2, нестабильных 7, перекладок 5, пересборок 1",
+            SupportDiagnostics.simulcastCounters(header.simulcastRuntime),
+        )
+    }
+
+    @Test
+    fun `the analyser's line is one reading a row, and a closed panel one row saying so`() {
+        val rows = SupportDiagnostics.spectrumRows("разрешение=есть; захват=запрошен; кадр=40 мс назад")
+        assertEquals(
+            listOf(
+                TechnicalRow("разрешение", "есть"),
+                TechnicalRow("захват", "запрошен"),
+                TechnicalRow("кадр", "40 мс назад"),
+            ),
+            rows,
+        )
+        assertEquals(
+            listOf(TechnicalRow("Состояние", "панель не открывалась")),
+            SupportDiagnostics.spectrumRows("панель не открывалась"),
+        )
     }
 
     /**

@@ -252,6 +252,7 @@ object CloudLinkController {
     private fun read(app: Context): CloudCarState =
         CloudLinkProtocol.parseRead(shell(app, CloudLinkProtocol.readCommand())).also {
             CloudLinkRuntime.car = it
+            CloudLinkRuntime.readAtMs = now()
         }
 
     private fun shell(app: Context, command: String): String =
@@ -280,7 +281,13 @@ object CloudLinkController {
     }
 
     private fun publish() {
-        CloudLinkRuntime.adapter = "gate=${core.gate} attempts=${core.attempts}"
+        CloudLinkRuntime.adapter = CloudLinkReport.Adapter(
+            gate = core.gate.name,
+            attempts = core.attempts,
+            lastReadyAtMs = core.lastReadyAt,
+            disconnectedSinceMs = core.disconnectedSince,
+            nextReadyAtMs = core.nextReadyAt,
+        )
         DenzaAppRepository.refresh()
     }
 

@@ -3,15 +3,20 @@ package dev.denza.apps
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
+import android.os.SystemClock
 import dev.denza.apps.core.FeatureSnapshot
 import dev.denza.apps.feature.cluster.CameraRuntimeSnapshot
+import dev.denza.apps.feature.cluster.ClusterDisplayDescriptor
 import dev.denza.apps.feature.cluster.ClusterDisplayResolver
 import dev.denza.apps.feature.cluster.ClusterDisplaySelection
 import dev.denza.apps.feature.cluster.ClusterSceneService
 import dev.denza.apps.feature.adb.AdbRescueCoordinator
+import dev.denza.apps.feature.cloud.CloudLinkReport
 import dev.denza.apps.feature.cloud.CloudLinkRuntime
 import dev.denza.apps.feature.cloud.CloudLinkSettings
+import dev.denza.apps.feature.cloud.CloudLinkStatus
 import dev.denza.apps.feature.cloud.CloudNetwork
+import dev.denza.apps.feature.cloud.CloudNetworkKind
 import dev.denza.apps.feature.speaker.SpeakerCoverRuntime
 import dev.denza.apps.feature.adb.AdbSystemSwitch
 import dev.denza.apps.feature.hud.HudGuidanceRuntime
@@ -33,6 +38,8 @@ import dev.denza.apps.feature.trip.TripSession
 
 data class SupportDiagnosticsHeader(
     val versionName: String,
+    val versionCode: Long,
+    val androidRelease: String,
     val sdkLevel: Int,
     val fingerprint: String,
     val cameraRuntime: CameraRuntimeSnapshot,
@@ -40,184 +47,230 @@ data class SupportDiagnosticsHeader(
     val simulcastRuntime: SimulcastRuntimeSnapshot,
 )
 
-/** Builds the support report outside the UI state facade. */
+/**
+ * Builds the support report outside the UI state facade: the service's «Технические сведения»,
+ * one section a feature, in the words the page shows (see [TechnicalReadings]).
+ *
+ * The cloud comes first. It is the feature tested on cars nobody here can reach, by owners who
+ * send a screenshot of this page, and the first screen of the page is the screenshot.
+ */
 object SupportDiagnostics {
     fun build(context: Context, fseInstaller: FeatureSnapshot): String {
+        val header = SupportDiagnosticsHeader(
+            versionName = installedVersionName(context),
+            versionCode = installedVersionCode(context),
+            androidRelease = Build.VERSION.RELEASE,
+            sdkLevel = Build.VERSION.SDK_INT,
+            fingerprint = Build.FINGERPRINT,
+            cameraRuntime = ClusterSceneService.cameraRuntimeSnapshot(),
+            mirrorDetection = MirrorWindowDiagnostics.snapshot(),
+            simulcastRuntime = SimulcastRuntimeDiagnostics.snapshot(),
+        )
         val displays = ClusterDisplayResolver.candidates(context)
-        val bodyLines = buildList {
-            add(
-                "DiShare=" +
-                    yesNo(isInstalled(context.packageManager, SimulcastCoordinator.DISHARE_PACKAGE)),
-            )
-            add("Доступ поверх окон=${yesNo(SimulcastCoordinator.hasOverlayPermission(context))}")
-            add(
-                "Управление интерфейсом=" +
-                    yesNo(SimulcastCoordinator.isAccessibilityEnabled(context)),
-            )
-            add(
-                "Сервис трансляции=" +
-                    yesNo(SimulcastAccessibilityService.isConnected()),
-            )
-            // A refused wheel press goes back to stock routing, whose Play fallback opens the
-            // stock local player - exactly what the N9 owner reports. The only other trace was
-            // `Log.i` under `DenzaMediaResume`, which this firmware silences with a global
-            // `log.tag=M`, and that owner has no host ADB. Three lines: whether we hear the key,
-            // which session we remember, and what became of the last dozen presses, including
-            // codes we never intercept.
-            addAll(MediaKeyReport.lines(SimulcastAccessibilityService.mediaKeySnapshot()))
-            addAll(SimulcastScreenDiagnostics.diagnosticLines())
-            add("Android displays=${displays.size}")
-            val adbRescue = AdbRescueCoordinator.snapshot()
-            add(
-                "ADB Rescue=" +
-                    "phase=${adbRescue.phase.name.lowercase().replace('_', '-')}; " +
-                    // The reading that chose that phase. Without it a screenshot of the wrong
-                    // state cannot be told from a screenshot of the right one.
-                    "adb_enabled=${adbSwitchLabel(adbRescue.systemSwitch)}; " +
-                    "pending=${if (adbRescue.requestPending) "да" else "нет"}; " +
-                    "attempts=${adbRescue.attemptCount}",
-            )
-            add("ADB queue recovery=${AdbRescueCoordinator.QUEUE_RECOVERY_STATUS}")
-            add("Крышки динамиков=reporting=${if (SpeakerCoverRuntime.reporting) "да" else "нет"}")
-            // The cloud link is tested on cars nobody here can reach - mobile data on a local SIM
-            // most of all - so its whole state is one line a screenshot can carry: the switch, the
-            // network it would translate, the SIM's operator code (never its identity), and what
-            // the car's stock client last said.
-            add(cloudLinkLine(context))
-            // Анализатор питается тем же захватом, что и автоматика крышек, и когда захвата нет,
-            // обе функции молчат одинаково. На экране про это не пишется ни слова (U5), поэтому
-            // единственное место, где «столбики не шевелятся» можно отличить от «в машине тихо», -
-            // здесь. Живой разбор 27.08.2026 пришлось вести дампами `media.audio_flinger` ровно
-            // потому, что этой строки не было.
-            add("Анализатор спектра=${spectrumLabel(context)}")
-            displays.forEach { display ->
-                add(
-                    "Android display #${display.id}=" +
-                        "name=${display.name.ifBlank { "—" }}; " +
-                        "size=${display.width}×${display.height}; " +
-                        "dpi=${display.densityDpi}; " +
-                        "type=${display.type}; " +
-                        "flags=0x${Integer.toHexString(display.flags)}; " +
-                        "Denza virtual=${if (display.isOwnVirtualDisplay) "да" else "нет"}",
-                )
-            }
-            add("Трансляция=${enabledLabel(SimulcastIntegration.isEnabled(context))}")
-            add("Выбрано приложений=${SimulcastApps.selectedCount(context)}")
-            add("Зеркала=${enabledLabel(MirrorsSettings.isEnabled(context))}")
-            add(
-                "Расположение зеркал=" +
-                    if (MirrorsSettings.position(context) == MirrorsPosition.CENTER) {
-                        "По центру"
-                    } else {
-                        "По сторонам"
-                    },
-            )
-            add(
-                "Улучшение изображения=" +
-                    enabledLabel(MirrorsSettings.processingEnabled(context)),
-            )
-            add("Состояние зеркал=${mirrorRuntimeLabel(MirrorsSettings.statusDetails(context))}")
-            add("Сигнал поворотников=${MirrorTurnSignalDiagnostics.snapshot().compact()}")
-            add(
-                "Экран приборки=" +
-                    clusterSelectionLabel(ClusterDisplayResolver.resolve(context)),
-            )
-            val navigation = NavigationCoordinator.snapshot()
-            add("Навигация=${navigation.message.ifBlank { navigation.phase.name.lowercase() }}")
-            val split = SplitScreenCoordinator.snapshot()
-            add("Split screen=${split.message.ifBlank { split.phase.name.lowercase() }}")
-            // Sixty lines of the split screen's own log used to be spliced in here, on the
-            // reasoning that a diagnostic nobody can read is a silent failure - `Log.i` from this
-            // application cannot be proven to reach logcat on this firmware. True, and it made this
-            // report a log file: the panel a driver opens when something is wrong buried its forty
-            // readings under a scrolling transcript of one feature's background work.
-            // `SplitDiagnostics.recent` is still there for a session that needs it.
-            add("HUD-подсказки=${enabledLabel(HudGuidanceSettings.isEnabled(context))}")
-            val hudNotificationAccess = HudNotificationAccessCoordinator.diagnostics(context)
-            add(
-                "Доступ к уведомлениям HUD=" +
-                    yesNo(hudNotificationAccess.accessEnabled),
-            )
-            add(
-                "Восстановление доступа HUD=" +
-                    hudNotificationAccess.phase.name.lowercase().replace('_', '-'),
-            )
-            hudNotificationAccess.lastFailure?.let {
-                add("Последняя ошибка доступа HUD=$it")
-            }
-            val hudArtwork = HudNotificationArtworkRuntime.diagnostics()
-            add("Графика HUD из уведомления=${enabledLabel(hudArtwork.flagEnabled)}")
-            add("Слушатель уведомлений HUD=${yesNo(hudArtwork.listenerConnected)}")
-            add("Стрелка HUD=${hudArtwork.source.name.lowercase().replace('_', '-')}")
-            add("Состояние графики HUD=${hudArtwork.detail}")
-            hudArtwork.lastFailure?.let { add("Последний fallback HUD=$it") }
-            val hudDelivery = HudSomeIpRuntime.snapshot()
-            add(
-                "Доставка HUD=" +
-                    "phase=${hudDelivery.phase.name.lowercase()}; " +
-                    "start=${hudDelivery.lastStartResult ?: "—"}; " +
-                    "fire=${hudDelivery.lastFireResult ?: "—"}; " +
-                    "recovery=${hudDelivery.recoveryAttempts}; " +
-                    "details=${hudDelivery.detail}",
-            )
-            add(
-                "Установка FSE=" +
-                    fseInstaller.message.ifBlank { fseInstaller.status.name.lowercase() },
-            )
-            fseInstaller.details?.let { add("Детали FSE=$it") }
-            // And the other wall: `FseAppInstaller.diagnosticLines` names every split APK file of
-            // every installable application, one line each, sizes and all. That is a question about
-            // one install, asked once, and it was being answered on every open.
-            add("Данные HUD=${HudGuidanceRuntime.details()}")
-        }
-        return render(
-            SupportDiagnosticsHeader(
-                versionName = installedVersionName(context),
-                sdkLevel = Build.VERSION.SDK_INT,
-                fingerprint = Build.FINGERPRINT,
-                cameraRuntime = ClusterSceneService.cameraRuntimeSnapshot(),
-                mirrorDetection = MirrorWindowDiagnostics.snapshot(),
-                simulcastRuntime = SimulcastRuntimeDiagnostics.snapshot(),
+        return TechnicalReadings.render(
+            listOf(
+                section("Облако", cloudRows(context)),
+                appSection(header),
+                section("Доступ к машине", accessRows()),
+                section("Трансляция", simulcastRows(context, header)),
+                section("Зеркала", mirrorsRows(context, header)),
+                section("Экран водителя", driverScreenRows(context)),
+                section("Разделение экрана", splitRows()),
+                section("HUD", hudRows(context)),
+                // A refused wheel press goes back to stock routing, whose Play fallback opens the
+                // stock local player - exactly what the N9 owner reports. The only other trace was
+                // `Log.i` under `DenzaMediaResume`, which this firmware silences with a global
+                // `log.tag=M`, and that owner has no host ADB. Whether we hear the key, which
+                // session we remember, and what became of the last dozen presses.
+                mediaKeySection(MediaKeyReport.lines(SimulcastAccessibilityService.mediaKeySnapshot())),
+                section("Динамики", listOf(row("Отчёт о воспроизведении", yesNo(SpeakerCoverRuntime.reporting)))),
+                // Анализатор питается тем же захватом, что и автоматика крышек, и когда захвата нет,
+                // обе функции молчат одинаково. На экране про это не пишется ни слова (U5), поэтому
+                // единственное место, где «столбики не шевелятся» можно отличить от «в машине тихо», -
+                // здесь. Живой разбор 27.08.2026 пришлось вести дампами `media.audio_flinger` ровно
+                // потому, что этой строки не было.
+                section("Анализатор спектра", spectrumRows(spectrumLabel(context))),
+                section("Экран справа", fseRows(fseInstaller)),
+                section("Экраны Android", displayRows(displays)),
             ),
-            bodyLines,
         )
     }
 
-    fun render(header: SupportDiagnosticsHeader, bodyLines: List<String>): String = buildString {
-        appendLine("Версия=${header.versionName}")
-        appendLine("SDK=${header.sdkLevel}")
-        appendLine("Fingerprint=${header.fingerprint}")
+    /** The steering-wheel key's lines, verbatim, one reading each. */
+    internal fun mediaKeySection(lines: List<String>): TechnicalSection =
+        section("Кнопка play/pause на руле", lines.map(TechnicalReadings::row))
+
+    /** The version as the service's foot prints it, the Android under it, and the firmware's build. */
+    internal fun appSection(header: SupportDiagnosticsHeader): TechnicalSection = section(
+        "Приложение",
+        listOf(
+            row("Версия", "${header.versionName} · сборка ${header.versionCode}"),
+            row("Android", "${header.androidRelease} · SDK ${header.sdkLevel}"),
+            row("Прошивка", header.fingerprint),
+        ),
+    )
+
+    /**
+     * The cloud link's whole state. Read from what the link's own thread last published, never from
+     * the car: this runs on whatever thread asked for a redraw.
+     */
+    private fun cloudRows(context: Context): List<TechnicalRow> {
+        val enabled = CloudLinkSettings.isEnabled(context)
+        val network = CloudNetwork.reading(context)
+        val car = CloudLinkRuntime.car
+        val tile = CloudLinkStatus.words(
+            CloudLinkStatus.snapshot(
+                enabled = enabled,
+                car = car,
+                network = network.kind != CloudNetworkKind.NONE,
+                failure = CloudLinkRuntime.failure,
+            ),
+        )
+        return CloudLinkReport.rows(
+            enabled = enabled,
+            tile = tile,
+            failure = CloudLinkRuntime.failure,
+            network = network,
+            car = car,
+            readAtMs = CloudLinkRuntime.readAtMs,
+            adapter = CloudLinkRuntime.adapter,
+            busy = CloudLinkRuntime.busy,
+            nowMs = SystemClock.elapsedRealtime(),
+        ).map { (key, value) -> row(key, value) }
+    }
+
+    private fun accessRows(): List<TechnicalRow> {
+        val adbRescue = AdbRescueCoordinator.snapshot()
+        return listOf(
+            row("Состояние", adbRescue.phase.name.lowercase().replace('_', '-')),
+            // The reading that chose that phase. Without it a screenshot of the wrong state cannot
+            // be told from a screenshot of the right one.
+            row("Отладка ADB в машине", adbSwitchLabel(adbRescue.systemSwitch)),
+            row("Запрос ждёт ответа", yesNo(adbRescue.requestPending)),
+            row("Отправлено запросов", adbRescue.attemptCount.toString()),
+            row("Восстановление очереди", AdbRescueCoordinator.QUEUE_RECOVERY_STATUS),
+        )
+    }
+
+    private fun simulcastRows(context: Context, header: SupportDiagnosticsHeader): List<TechnicalRow> =
+        listOf(
+            row("Включена", yesNo(SimulcastIntegration.isEnabled(context))),
+            row("Выбрано приложений", SimulcastApps.selectedCount(context).toString()),
+            row("DiShare установлен", yesNo(isInstalled(context.packageManager, SimulcastCoordinator.DISHARE_PACKAGE))),
+            row("Доступ поверх окон", yesNo(SimulcastCoordinator.hasOverlayPermission(context))),
+            row("Управление интерфейсом", yesNo(SimulcastCoordinator.isAccessibilityEnabled(context))),
+            row("Служба трансляции подключена", yesNo(SimulcastAccessibilityService.isConnected())),
+        ) + SimulcastScreenDiagnostics.diagnosticLines().map(TechnicalReadings::row) +
+            row("Счётчики окон", simulcastCounters(header.simulcastRuntime))
+
+    internal fun simulcastCounters(counters: SimulcastRuntimeSnapshot): String =
+        "найдено ${counters.rootsFound}, потеряно ${counters.rootsMissing}, " +
+            "промахов геометрии ${counters.geometryParseMisses}, нестабильных ${counters.unstableSamples}, " +
+            "перекладок ${counters.appliedRelayouts}, пересборок ${counters.semanticWindowRebuilds}"
+
+    private fun mirrorsRows(context: Context, header: SupportDiagnosticsHeader): List<TechnicalRow> = listOf(
+        row("Включены", yesNo(MirrorsSettings.isEnabled(context))),
+        row(
+            "Расположение",
+            if (MirrorsSettings.position(context) == MirrorsPosition.CENTER) "По центру" else "По сторонам",
+        ),
+        row("Улучшение изображения", yesNo(MirrorsSettings.processingEnabled(context))),
+        row("Состояние", mirrorRuntimeLabel(MirrorsSettings.statusDetails(context))),
+        row("Сигнал поворотников", MirrorTurnSignalDiagnostics.snapshot().compact()),
+    ) + avcRows(header)
+
+    /** What the stock camera app is doing, and what we recognise of its windows. */
+    internal fun avcRows(header: SupportDiagnosticsHeader): List<TechnicalRow> {
         val runtime = header.cameraRuntime
-        appendLine(
-            "AVC runtime=" +
-                "phase=${runtime.phase.name}; " +
-                "side=${runtime.side.diagnosticName()}; " +
-                "generation=${runtime.generation}; " +
-                "details=${runtime.details.ifBlank { "—" }}",
-        )
         val detection = header.mirrorDetection
-        appendLine(
-            "AVC detector=" +
-                "side=${detection.recognizedSide.diagnosticName()}; " +
-                "candidates=${detection.avcCandidateBlocks}; " +
-                "unrecognized=${detection.unrecognizedCandidates}",
+        return listOf(
+            row(
+                "Камера AVC",
+                "${runtime.phase.name}, сторона ${runtime.side.diagnosticName()}, поколение ${runtime.generation}",
+            ),
+            row("Камера AVC, подробно", runtime.details),
+            row(
+                "Окна AVC",
+                "сторона ${detection.recognizedSide.diagnosticName()}, кандидатов ${detection.avcCandidateBlocks}, " +
+                    "нераспознанных ${detection.unrecognizedCandidates}",
+            ),
         )
-        val counters = header.simulcastRuntime
-        appendLine(
-            "Simulcast counters=" +
-                "roots found=${counters.rootsFound}; " +
-                "roots missing=${counters.rootsMissing}; " +
-                "geometry misses=${counters.geometryParseMisses}; " +
-                "unstable=${counters.unstableSamples}; " +
-                "relayouts=${counters.appliedRelayouts}; " +
-                "semantic rebuilds=${counters.semanticWindowRebuilds}",
+    }
+
+    private fun driverScreenRows(context: Context): List<TechnicalRow> {
+        val navigation = NavigationCoordinator.snapshot()
+        return listOf(
+            row("Навигация", navigation.message.ifBlank { navigation.phase.name.lowercase() }),
+            row("Экран приборки", clusterSelectionLabel(ClusterDisplayResolver.resolve(context))),
         )
-        bodyLines.forEach(::appendLine)
-    }.trimEnd()
+    }
+
+    // Sixty lines of the split screen's own log used to be spliced in here, on the reasoning that a
+    // diagnostic nobody can read is a silent failure - `Log.i` from this application cannot be
+    // proven to reach logcat on this firmware. True, and it made this report a log file.
+    // `SplitDiagnostics.recent` is still there for a session that needs it.
+    private fun splitRows(): List<TechnicalRow> {
+        val split = SplitScreenCoordinator.snapshot()
+        return listOf(row("Состояние", split.message.ifBlank { split.phase.name.lowercase() }))
+    }
+
+    private fun hudRows(context: Context): List<TechnicalRow> = buildList {
+        add(row("Подсказки", yesNo(HudGuidanceSettings.isEnabled(context))))
+        val access = HudNotificationAccessCoordinator.diagnostics(context)
+        add(row("Доступ к уведомлениям", yesNo(access.accessEnabled)))
+        add(row("Восстановление доступа", access.phase.name.lowercase().replace('_', '-')))
+        access.lastFailure?.let { add(row("Последняя ошибка доступа", it)) }
+        val artwork = HudNotificationArtworkRuntime.diagnostics()
+        add(row("Графика из уведомления", yesNo(artwork.flagEnabled)))
+        add(row("Слушатель уведомлений", yesNo(artwork.listenerConnected)))
+        add(row("Стрелка", artwork.source.name.lowercase().replace('_', '-')))
+        add(row("Состояние графики", artwork.detail))
+        artwork.lastFailure?.let { add(row("Последний fallback", it)) }
+        val delivery = HudSomeIpRuntime.snapshot()
+        add(
+            row(
+                "Доставка",
+                "${delivery.phase.name.lowercase()}, start ${delivery.lastStartResult ?: "—"}, " +
+                    "fire ${delivery.lastFireResult ?: "—"}, восстановлений ${delivery.recoveryAttempts}",
+            ),
+        )
+        add(row("Доставка, подробно", delivery.detail))
+        add(row("Данные", HudGuidanceRuntime.details()))
+    }
+
+    /** The analyser's line, one reading a row; the panel that never opened is one row saying so. */
+    internal fun spectrumRows(label: String): List<TechnicalRow> =
+        if ('=' in label) label.split("; ").map(TechnicalReadings::row) else listOf(row("Состояние", label))
+
+    // And the other wall: `FseAppInstaller.diagnosticLines` names every split APK file of every
+    // installable application, one line each, sizes and all. That is a question about one install,
+    // asked once, and it was being answered on every open.
+    private fun fseRows(fseInstaller: FeatureSnapshot): List<TechnicalRow> = buildList {
+        add(row("Установка", fseInstaller.message.ifBlank { fseInstaller.status.name.lowercase() }))
+        fseInstaller.details?.let { add(row("Подробно", it)) }
+    }
+
+    private fun displayRows(displays: List<ClusterDisplayDescriptor>): List<TechnicalRow> =
+        listOf(row("Всего", displays.size.toString())) + displays.map { display ->
+            row(
+                "Экран #${display.id}",
+                "${display.name.ifBlank { "—" }} · ${display.width}×${display.height} · dpi ${display.densityDpi} · " +
+                    "type ${display.type} · flags 0x${Integer.toHexString(display.flags)}" +
+                    if (display.isOwnVirtualDisplay) " · наш виртуальный" else "",
+            )
+        }
+
+    private fun section(title: String, rows: List<TechnicalRow>) = TechnicalSection(title, rows)
+
+    private fun row(key: String, value: String) = TechnicalRow(key, value.ifBlank { "—" })
 
     private fun installedVersionName(context: Context): String = runCatching {
         context.packageManager.getPackageInfo(context.packageName, 0).versionName
     }.getOrNull()?.ifBlank { null } ?: "—"
+
+    private fun installedVersionCode(context: Context): Long = runCatching {
+        context.packageManager.getPackageInfo(context.packageName, 0).longVersionCode
+    }.getOrDefault(0L)
 
     private fun spectrumLabel(context: Context): String =
         spectrumLabel(TripSession.existingHub()?.spectrum?.diagnostics(context))
@@ -240,22 +293,8 @@ object SupportDiagnostics {
             "ошибка=${state.lastFailure ?: "—"}"
     }
 
-    private fun cloudLinkLine(context: Context): String {
-        val car = CloudLinkRuntime.car
-        val sim = context.getSystemService(android.telephony.TelephonyManager::class.java)
-            ?.simOperator?.ifBlank { null } ?: "нет"
-        return "Облако=" +
-            "вкл=${if (CloudLinkSettings.isEnabled(context)) "да" else "нет"}; " +
-            "сеть=${CloudNetwork.kind(context).label}; SIM=$sim; " +
-            "профиль=${car?.profile ?: "?"}; TCP=${car?.connected?.let { if (it) 1 else 0 } ?: "?"}; " +
-            "сотовая BYD=${if (car?.cellular == true) "да" else "нет"}; " +
-            "Wi-Fi во сне=${car?.wifiRetained?.let { if (it) "да" else "нет" } ?: "?"}; " +
-            "${CloudLinkRuntime.adapter}; отказ=${CloudLinkRuntime.failure ?: "нет"}"
-    }
 
-    private fun yesNo(value: Boolean) = if (value) "Доступен" else "Недоступен"
-
-    private fun enabledLabel(value: Boolean) = if (value) "Включено" else "Выключено"
+    private fun yesNo(value: Boolean) = if (value) "да" else "нет"
 
     private fun adbSwitchLabel(value: AdbSystemSwitch) = when (value) {
         AdbSystemSwitch.ENABLED -> "включено"

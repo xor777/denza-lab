@@ -4,6 +4,7 @@ import dev.denza.apps.DenzaUiState
 import dev.denza.apps.core.FeatureResolution
 import dev.denza.apps.core.FeatureSnapshot
 import dev.denza.apps.core.FeatureStatus
+import dev.denza.apps.feature.cloud.CloudLinkStatus
 import dev.denza.apps.ui.components.DenzaTileCaption
 import dev.denza.apps.ui.components.DenzaTileTone
 
@@ -519,14 +520,7 @@ object DashboardTiles {
             id = TileId.CLOUD,
             icon = TileIcon.CLOUD,
             name = "Облако",
-            state = when (snapshot.status) {
-                FeatureStatus.OFF -> "Выключено"
-                FeatureStatus.ACTIVE -> "На связи"
-                FeatureStatus.READY -> "Нет интернета"
-                FeatureStatus.ERROR, FeatureStatus.UNAVAILABLE ->
-                    snapshot.message.ifBlank { "Не переключилось" }
-                else -> "Подключается"
-            },
+            state = CloudLinkStatus.words(snapshot),
             tone = toneOf(snapshot),
             caption = if (connected) DenzaTileCaption.READING else DenzaTileCaption.SETTING,
             action = actionOf(snapshot, TileAction.TOGGLE),
