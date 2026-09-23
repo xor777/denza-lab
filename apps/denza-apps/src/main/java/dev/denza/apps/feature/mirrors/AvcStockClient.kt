@@ -33,6 +33,32 @@ enum class AvcTurnCameraChoice(val wire: Int) {
     }
 }
 
+/**
+ * Mirrors take over AVC's turn card, so they need one to exist, and the head-unit card is the one
+ * AVC switches sides on without rebuilding (no crash path on a fast left-to-right). Turning Mirrors
+ * on sets the stock choice to [WANTED] and remembers what the owner had; turning them off gives
+ * that back, unless the owner has chosen something else since.
+ */
+object MirrorStockChoicePolicy {
+    val WANTED = AvcTurnCameraChoice.PIP_ON_HEAD_UNIT
+
+    data class Step(
+        val write: AvcTurnCameraChoice? = null,
+        /** Store this as the owner's choice to give back; null leaves the stored one alone. */
+        val remember: AvcTurnCameraChoice? = null,
+        val forget: Boolean = false,
+    )
+
+    fun onEnable(current: AvcTurnCameraChoice, remembered: AvcTurnCameraChoice?): Step =
+        if (current == WANTED) Step() else Step(write = WANTED, remember = remembered ?: current)
+
+    fun onDisable(current: AvcTurnCameraChoice, remembered: AvcTurnCameraChoice?): Step = when {
+        remembered == null -> Step()
+        current == WANTED && remembered != WANTED -> Step(write = remembered, forget = true)
+        else -> Step(forget = true)
+    }
+}
+
 /** The stock AVC mode ids that matter here (`com.byd.avc.util.Event`). */
 object AvcStockMode {
     const val IDLE = 5000
@@ -101,9 +127,17 @@ internal class AvcStockClient(
     fun turnCameraChoice(): AvcTurnCameraChoice? =
         ask(WHAT_LIGHT_READ, WHAT_LIGHT_STATE)?.let { AvcTurnCameraChoice.fromWire(it.arg2) }
 
+    /**
+     * Writes the owner's stock choice, as the stock settings page would (`what=1013`; AVC persists
+     * it in `/collect2/autovideo/initSettingParam.json`). Returns the choice AVC reports after the
+     * write, which is the old one on a car whose AVC has no PIP.
+     */
+    fun writeTurnCameraChoice(choice: AvcTurnCameraChoice): AvcTurnCameraChoice? =
+        ask(WHAT_LIGHT_WRITE, WHAT_LIGHT_STATE, choice.wire)?.let { AvcTurnCameraChoice.fromWire(it.arg2) }
+
     /** A late answer to an earlier, timed-out question is skipped by its `what`, not taken. */
     @Synchronized
-    private fun ask(what: Int, answer: Int): Message? {
+    private fun ask(what: Int, answer: Int, arg1: Int = 0): Message? {
         if (closed) return null
         val messenger = service ?: run {
             ensureBound()
@@ -111,7 +145,7 @@ internal class AvcStockClient(
         }
         replies.clear()
         return try {
-            messenger.send(Message.obtain(null, what).also { it.replyTo = replyTo })
+            messenger.send(Message.obtain(null, what, arg1, 0).also { it.replyTo = replyTo })
             val deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeoutMs)
             var reply: Message? = null
             while (reply == null) {
@@ -159,6 +193,7 @@ internal class AvcStockClient(
         private const val WHAT_MODE = 35
         private const val WHAT_LIGHT_READ = 1011
         private const val WHAT_LIGHT_STATE = 1012
+        private const val WHAT_LIGHT_WRITE = 1013
         private const val REPLY_TIMEOUT_MS = 150L
     }
 }

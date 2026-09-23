@@ -19,6 +19,7 @@ object MirrorsSettings {
     private const val PROCESSING = "processing"
     private const val OBSERVED_SIDE = "observed_side"
     private const val STATUS_DETAILS = "status_details"
+    private const val STOCK_CHOICE_BEFORE = "stock_turn_camera_before"
 
     fun isEnabled(context: Context): Boolean = prefs(context).getBoolean(ENABLED, false)
 
@@ -56,6 +57,17 @@ object MirrorsSettings {
         prefs(context).edit().apply {
             if (side == null) remove(OBSERVED_SIDE) else putString(OBSERVED_SIDE, side.name)
             putString(STATUS_DETAILS, details)
+        }.apply()
+    }
+
+    /** The stock turn-camera choice the owner had before Mirrors changed it, if they did. */
+    fun stockChoiceBefore(context: Context): AvcTurnCameraChoice? =
+        AvcTurnCameraChoice.fromWire(prefs(context).getInt(STOCK_CHOICE_BEFORE, -1))
+
+    @SuppressLint("UseKtx")
+    fun setStockChoiceBefore(context: Context, choice: AvcTurnCameraChoice?) {
+        prefs(context).edit().apply {
+            if (choice == null) remove(STOCK_CHOICE_BEFORE) else putInt(STOCK_CHOICE_BEFORE, choice.wire)
         }.apply()
     }
 

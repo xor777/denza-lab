@@ -1356,6 +1356,15 @@ quarantine rules described above and in vehicle-data-findings.md:
   set before `initDisplay` and cleared after our free, marks a surface of ours
   that may still sit in AVC's field (a skipped free, or this process dying in a
   session); the monitor frees it once AVC answers idle and shows no card.
+- **The stock choice belongs to Mirrors while they are on.** Our camera needs
+  AVC's card, and the head-unit card is the one AVC switches sides on without
+  rebuilding it. At every monitor start (turning Mirrors on, a boot, an update),
+  with no card up, the monitor writes choice `1` (both images on the head unit)
+  over the Messenger when AVC reports anything else, and stores the owner's
+  previous value in the `mirrors` preferences (`stock_turn_camera_before`).
+  Turning Mirrors off gives that value back, only if `1` is still set; a choice
+  the owner made since is left alone. A car whose AVC keeps its old value after
+  the write has no PIP support and is not asked again in that run.
 
 Not yet driven on the car at the time of writing.
 
