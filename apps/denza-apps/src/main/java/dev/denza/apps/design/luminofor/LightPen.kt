@@ -112,13 +112,18 @@ class LightPen(
         return scratch
     }
 
-    /** A stroke drawn by a beam: with [glow] above zero a faint wide halo and a blurred one first. */
-    fun beam(path: Path, strokeUnits: Float, light: Light, intensity: Float, glow: Float = 0f) {
+    /**
+     * A stroke drawn by a beam: with [glow] above zero a faint wide halo and a blurred one first.
+     *
+     * [over] lays the core on rather than adding it - the board's `beam(..., over)`, for a colour
+     * that has to reach the glass as itself: the car's orange added onto a plate comes out yellow.
+     */
+    fun beam(path: Path, strokeUnits: Float, light: Light, intensity: Float, glow: Float = 0f, over: Boolean = false) {
         if (intensity <= 0.01f) return
-        beamPx(toPx(path), px(strokeUnits), light, intensity, glow)
+        beamPx(toPx(path), px(strokeUnits), light, intensity, glow, over)
     }
 
-    private fun beamPx(p: Path, sw: Float, light: Light, intensity: Float, glow: Float) {
+    private fun beamPx(p: Path, sw: Float, light: Light, intensity: Float, glow: Float, over: Boolean) {
         val c = canvas
         stroke.maskFilter = null
         if (glow > 0f) {
@@ -133,7 +138,9 @@ class LightPen(
         }
         stroke.strokeWidth = sw
         stroke.color = alpha(light.core, intensity)
+        if (over) stroke.blendMode = BlendMode.SRC_OVER
         c.drawPath(p, stroke)
+        stroke.blendMode = BlendMode.PLUS
     }
 
     /** An emissive fill: its blurred halo, the halo itself, then the core. */
@@ -237,7 +244,7 @@ class LightPen(
                 glyphMatrix.postTranslate(cx, baseline - LuminoforSpec.Digits.CAP * k)
                 glyphMatrix.postConcat(unitMatrix)
                 path.transform(glyphMatrix, scratch)
-                if (intensity > 0.01f) beamPx(scratch, sw, light, intensity, 0f)
+                if (intensity > 0.01f) beamPx(scratch, sw, light, intensity, 0f, false)
             }
             cx += (WideDigits.advance(glyph) + LuminoforSpec.Digits.TRACK) * k
         }

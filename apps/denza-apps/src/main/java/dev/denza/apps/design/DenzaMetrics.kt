@@ -316,17 +316,6 @@ object DenzaMetrics {
         val MODAL_SPINNER: Dp = 42.dp
         val MODAL_SPINNER_STROKE: Dp = 4.dp
 
-        /**
-         * The ring that says a feature is working, on a tile and on a chip.
-         *
-         * Luminofor draws no working state, so this is the app's and not the board's. The ring is
-         * stroked with the glyph's own line - [Stroke.ICON] at the glyph's size - so on each face it
-         * is the same weight as the drawing beside it: one indicator, one line, whatever the face.
-         * A chip has no room for 18 beside a centred 26 and takes the smaller ring in its corner.
-         */
-        val BUSY_DOT: Dp = 18.dp
-        val BUSY_DOT_CHIP: Dp = 10.dp
-
         /** The glyph beside a note, sized against the line of body text it sits on. */
         val NOTE_ICON: Dp = 18.dp
 

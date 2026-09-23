@@ -58,7 +58,7 @@ object StripFixtures {
         fixture.optJSONObject("track")?.let { track ->
             model.title = track.getString("title")
             model.artist = track.optString("artist")
-            model.playing = true
+            model.playing = track.optBoolean("playing", true)
         }
         fixture.optJSONArray("trip")?.let { trip ->
             val count = minOf(trip.length(), StripModel.TRIP_READINGS)
@@ -142,6 +142,10 @@ object StripFixtures {
     }
 
     private fun reading(into: StripReading, o: JSONObject) {
+        if (o.optBoolean("hint", false)) {
+            into.setHint(o.getString("cap"))
+            return
+        }
         into.set(
             caption = o.getString("cap"),
             figure = if (o.has("fig")) o.getString("fig") else null,

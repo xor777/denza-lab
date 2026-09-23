@@ -66,7 +66,7 @@ class StripReadingsTest {
         assertEquals("Из батареи", model.power.caption)
         assertEquals("34", model.power.figure)
         assertEquals("кВт", model.power.unit)
-        assertFalse(model.power.dot || model.power.blue || model.power.dim)
+        assertFalse(model.power.dot || model.power.blue)
 
         assertEquals("Напряжение", model.volts.caption)
         assertEquals("549", model.volts.figure)
@@ -129,12 +129,12 @@ class StripReadingsTest {
     }
 
     @Test
-    fun aPackWithNoDirectionIsDrawnDim() {
+    fun aPackWithNoDirectionIsNamedAndDrawnCalm() {
         val model = car(snapshot(powerKw = 1.4))
         assertEquals("Батарея", model.power.caption)
         assertEquals("1", model.power.figure)
-        assertTrue(model.power.dim)
         assertFalse(model.power.blue)
+        assertFalse(model.power.dot)
     }
 
     @Test

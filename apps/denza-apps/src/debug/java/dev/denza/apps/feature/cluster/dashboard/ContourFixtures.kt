@@ -42,11 +42,11 @@ internal object ContourFixtures {
 
         // the centre
         val power = f.optDouble("power", 0.0)
-        frame.powerFresh = true
+        frame.powerFresh = f.optBoolean("powerFresh", true)
         frame.powerKw = power.toFloat()
         frame.glowKw = power.toFloat()
         frame.into = power <= INTO_KW
-        frame.heroUnit = true
+        frame.heroUnit = f.optBoolean("heroUnit", true)
         if (f.optBoolean("powerKnown", true)) frame.heroFigure = abs(power).roundToInt().toString()
         frame.peakKw = f.optDouble("peak", Double.NaN).toFloat()
         frame.peakAge = f.optDouble("peakAge", 0.0).toFloat()
@@ -81,16 +81,16 @@ internal object ContourFixtures {
         frame.tripCaption = f.text("tripCaption")
         frame.tripKwh = f.text("tripKwh")
         f.text("tripUnit")?.let { frame.tripUnit = it }
-        if (f.optBoolean("parked", false)) {
-            frame.gaveCaption = f.text("gaveCaption")
-            frame.gaveKwh = f.text("gaveKwh")
-            frame.regenCaption = f.text("regenCaption")
-            frame.regenKwh = f.text("regenKwh")
-        }
+        // What the fixture carries is what is printed: «ДАЛ ДВС» on the move too, as the app has it.
+        frame.gaveCaption = f.text("gaveCaption")
+        frame.gaveKwh = f.text("gaveKwh")
+        frame.regenCaption = f.text("regenCaption")
+        frame.regenKwh = f.text("regenKwh")
 
         // the ten kilometres
         frame.chartCount = floats(f.optJSONArray("chart"), frame.chart)
         frame.consumption = f.text("consumption")
+        frame.consumptionHeld = f.text("consumptionHeld")
         frame.consumptionUnit = f.text("consumptionUnit")
         frame.consumptionTone =
             if (frame.consumption?.startsWith('-') == true) ContourFrame.Tone.BLUE else ContourFrame.Tone.INK

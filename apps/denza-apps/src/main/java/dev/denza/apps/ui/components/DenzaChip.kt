@@ -13,8 +13,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import dev.denza.apps.design.DenzaGlyph
 import dev.denza.apps.design.DenzaMetrics
+import dev.denza.apps.design.luminofor.LuminoforSpec
 
 /**
  * One feature in a pane: the tile with its words taken away.
@@ -79,7 +81,7 @@ fun DenzaChip(
         if (shown == DenzaTileTone.WORKING) {
             // In the corner the dot used to hold, clear of a 26 glyph in a chip down to 52.
             WorkingRing(
-                size = DenzaMetrics.Component.BUSY_DOT_CHIP,
+                size = LuminoforSpec.Head.Icon.Ring.CHIP_SIZE.dp,
                 stroke = glyphStroke(glyphSize),
                 modifier = Modifier.align(Alignment.TopEnd).padding(CHIP_RING_INSET),
             )
@@ -88,4 +90,4 @@ fun DenzaChip(
 }
 
 /** How far the chip's working ring stands in from its corner - clear of a 14 or 16 dp radius. */
-private val CHIP_RING_INSET = DenzaMetrics.Space.S
+private val CHIP_RING_INSET = LuminoforSpec.Head.Icon.Ring.CHIP_INSET.dp

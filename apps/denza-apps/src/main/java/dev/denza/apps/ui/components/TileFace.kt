@@ -36,6 +36,8 @@ internal class TileFace private constructor(
     val glyphIntensity: Float,
     /** The halo's share; zero draws the stroke alone. */
     val glyphGlow: Float,
+    /** Whether the glyph's line is laid over the plate rather than added to it: an alarm's. */
+    val glyphOver: Boolean,
     /** The name and the status line, already added onto the plate. */
     val name: Int,
     val status: Int,
@@ -61,14 +63,15 @@ internal class TileFace private constructor(
         const val KNOB_MASK: Float = 1.1f
 
         private val LIVE = lit(glyph = HeadInk.BLUE, status = HeadInk.WHITE)
-        private val ATTENTION = lit(glyph = ClusterInk.ORANGE, status = ClusterInk.ORANGE)
-        private val BROKEN = lit(glyph = ClusterInk.RED, status = ClusterInk.RED)
+        private val ATTENTION = alarm(ClusterInk.ORANGE)
+        private val BROKEN = alarm(ClusterInk.RED)
         private val IDLE = TileFace(
             lit = false,
             plate = HeadInk.CARD_OFF,
             glyph = HeadInk.WHITE,
             glyphIntensity = Head.Icon.OFF_ALPHA,
             glyphGlow = 0f,
+            glyphOver = false,
             name = lighter(HeadInk.CARD_OFF, HeadInk.WHITE.core, NAME_UNLIT),
             status = lighter(HeadInk.CARD_OFF, HeadInk.WHITE.core, STATUS_UNLIT),
         )
@@ -102,8 +105,26 @@ internal class TileFace private constructor(
             glyph = glyph,
             glyphIntensity = 1f,
             glyphGlow = Head.Icon.ON_GLOW,
+            glyphOver = false,
             name = lighter(HeadInk.CARD_ON, HeadInk.WHITE.core, NAME_LIT),
             status = if (status === HeadInk.WHITE) lighter(HeadInk.CARD_ON, status.core, STATUS_LIT) else status.halo,
+        )
+
+        /**
+         * The lit plate with its glyph and its status in an alarm's own colour, whole: the glyph's
+         * line is the light's halo laid over the plate, its glow still added round it. Added, as the
+         * live glyph is, the car's orange came out yellow on the plate and its red came out pink -
+         * the tile's `tileFace()` on the board draws both the same way.
+         */
+        private fun alarm(light: Light) = TileFace(
+            lit = true,
+            plate = HeadInk.CARD_ON,
+            glyph = Light(light.halo, light.halo),
+            glyphIntensity = 1f,
+            glyphGlow = Head.Icon.ON_GLOW,
+            glyphOver = true,
+            name = lighter(HeadInk.CARD_ON, HeadInk.WHITE.core, NAME_LIT),
+            status = light.halo,
         )
 
         /**

@@ -249,6 +249,9 @@ class LuminoforSpecContractTest {
         n(r.UNIT_ALPHA, "head", "reading", "unitAlpha")
         n(Head.Icon.STROKE, "head", "icon", "stroke"); n(Head.Icon.ON_GLOW, "head", "icon", "onGlow")
         n(Head.Icon.OFF_ALPHA, "head", "icon", "offAlpha")
+        val ring = Head.Icon.Ring
+        n(ring.SIZE, "head", "icon", "ring", "size"); n(ring.CHIP_SIZE, "head", "icon", "ring", "chipSize")
+        n(ring.CHIP_INSET, "head", "icon", "ring", "chipInset"); n(ring.SWEEP, "head", "icon", "ring", "sweep")
         val sp = Head.Spectrum
         n(sp.BAR_WIDTH, "head", "spectrum", "barWidth"); n(sp.LINE_WIDTH, "head", "spectrum", "lineWidth")
         n(sp.LINE_PITCH, "head", "spectrum", "linePitch"); n(sp.CROWN_HEIGHT, "head", "spectrum", "crownHeight")

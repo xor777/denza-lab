@@ -36,7 +36,8 @@ internal class StripInk(val pen: LightPen) {
      *
      * The unit takes the figure's colour at 0.9 and a size of 0.42 of it, 0.2 of it away; the
      * arrow and the rate are white whichever way the road goes. A [StripReading.hint] is drawn
-     * fainter, and a [StripReading.dim] figure - a pack with no direction to name - at [DIM].
+     * fainter. A pack with no direction to name is white like any calm figure (`main-car-neutral`):
+     * «Батарея» over it already says there is no direction, and the cluster's hero is ink there too.
      */
     fun reading(r: StripReading, x: Float, capY: Float, valY: Float, size: Float, lpx: Float) {
         if (!r.present) return
@@ -50,14 +51,13 @@ internal class StripInk(val pen: LightPen) {
         }
         val figure = r.figure ?: return
         val light: Light = if (r.blue) HeadInk.BLUE else HeadInk.WHITE
-        val intensity = if (r.dim) DIM else 1f
-        var ux = x + pen.figures(figure, x, valY, size, light, intensity)
+        var ux = x + pen.figures(figure, x, valY, size, light, 1f)
         val unit = r.unit
         if (unit != null) {
             val gap = size * Head.Reading.UNIT_GAP_RATIO
             ux += gap + pen.text(
                 unit, ux + gap, valY, StripGeometry.unitSize(size), light,
-                Head.Reading.UNIT_ALPHA * intensity, LightPen.Face.SANS,
+                Head.Reading.UNIT_ALPHA, LightPen.Face.SANS,
             )
         }
         val rate = r.rate ?: return
@@ -186,11 +186,7 @@ internal class StripInk(val pen: LightPen) {
         const val ARROW_STROKE = 1.8f
         const val RATE_INTENSITY = 0.9f
 
-        /**
-         * A figure with no direction to be drawn in - the pack inside the neutral zone - and a hint
-         * standing where a reading would be. The board has neither; both are the white at less.
-         */
-        const val DIM = 0.55f
+        /** A hint standing where a reading would be: the location's, at `reading()`'s 0.6. */
         const val HINT = 0.6f
 
         const val ELLIPSIS = "…"

@@ -45,6 +45,17 @@
     { name: 'Сервис', status: 'Всё в норме', on: false, icon: [['p', 'M2 7h16M2 12h16M2 17h16'], ['k', 13, 7, 2], ['k', 6, 12, 2], ['k', 15, 17, 2]] }
   ];
 
+  // A first run on a car that has not been set up: what the emulator shows on a fresh install.
+  // Weather is fetching (working), Shortcuts could not be checked (broken), Service has a
+  // function waiting on the driver (attention); the rest are off.
+  const tone = (t, status, k) => Object.assign({}, t, { status, on: k !== 'idle', tone: k });
+  const TILES_FIRST = [
+    tone(TILES[0], 'Google Maps', 'idle'), tone(TILES[1], 'Выбрано 1', 'idle'), tone(TILES[2], 'Выключены', 'idle'),
+    tone(TILES[3], 'Выключено', 'idle'), tone(TILES[4], 'Выключены', 'idle'), tone(TILES[5], 'Данных ещё нет', 'working'),
+    tone(TILES[6], 'Выключена', 'idle'), tone(TILES[7], 'Русский язык', 'idle'), tone(TILES[8], 'Не выбрано', 'idle'),
+    tone(TILES[9], 'Не проверено', 'broken'), tone(TILES[10], '1 функция ждёт', 'attention')
+  ];
+
   const temps = (vals, states) => vals.map((x, i) => ({ value: String(x), state: (states || {})[i] || 'normal' }));
 
   // what the cluster prints, scene by scene
@@ -82,6 +93,15 @@
     // a window still filling after a reset: 37 points, «за 3,7 км»
     filling: Object.assign({}, clusterBase, { power: 22, peak: 30, peakAge: 1.0, volts: '550', temps: temps([28, 31, 29, 31, 32]),
                                               chart: chart.slice(63), consumptionUnit: 'кВт·ч/100 км · за 3,7 км' }),
+    // the link lost past every horizon: the figures have left and their captions stayed, the
+    // glyphs stand without their degrees, the beam is gone and the ten kilometres are still there -
+    // closed road does not go stale - with their unit where the last figure left it
+    stale: Object.assign({}, clusterBase, { power: 0, peak: 0, peakAge: 9, powerFresh: false, powerKnown: false,
+                                            volts: null, temps: [0, 1, 2, 3, 4].map(() => ({ value: null, state: 'normal' })),
+                                            iceFigure: null, tripCaption: 'ЗА ПОЕЗДКУ', tripKwh: null,
+                                            consumption: null, consumptionHeld: '17' }),
+    // the first seconds: nothing has answered yet, so there is nothing to caption - the axis alone
+    waking: { t: 1.3, power: 0, peak: 0, peakAge: 9, powerFresh: false, powerKnown: false, heroUnit: false, temps: [], chart: [] },
     // no access to the car: the skeleton and the message in the petal's place, nothing else
     unavailable: { t: 1.3, unavailable: true, message: 'ADB-ключ не подтверждён · Помощь → Диагностика', power: 0, peak: 0, peakAge: 9, chart: [] }
   };
@@ -116,6 +136,26 @@
     temps: temps([36, 88, 61, 63, 74], { 1: 'danger', 4: 'warning' })
   });
 
+  // the analyser with nothing playing: every band on the floor, every crown down with it
+  const silence = { levels: levels.map(() => 0), crowns: crowns.map(() => 0) };
+  // first run: no track, silence, the trip just started and no location access
+  const headFirst = Object.assign({}, head, {
+    tiles: TILES_FIRST, track: null, spectrum: silence,
+    trip: [{ cap: 'В пути', fig: '0:00', unit: '0 м' }, { cap: 'Нет доступа к геолокации', hint: true }]
+  });
+  // the track paused: its block at half its light behind the pause's bars, and the analyser down
+  const headPaused = Object.assign({}, head, { track: { artist: 'M83', title: 'Midnight City', playing: false }, spectrum: silence });
+  // coasting: no direction to name, so «Батарея» - and the figure stays white, as calm is
+  const headNeutral = Object.assign({}, head, { power: { cap: 'Батарея', fig: '1', unit: 'кВт' } });
+  // on an AC charger, parked
+  const headCharging = Object.assign({}, head, {
+    power: { cap: 'В батарею от зарядки', fig: '7', unit: 'кВт', dot: true, col: 'blue' },
+    volts: { cap: 'Напряжение', fig: '561', unit: 'В' },
+    temps: temps([27, 26, 25, 25, 29])
+  });
+  // the shell closed to us
+  const headClosed = Object.assign({}, head, { unavailable: true, message: 'ADB-ключ не подтверждён · Помощь → Диагностика' });
+
   // board id -> [board, fixture]; px sizes are the displays' own
   root.LUMINOFOR_BOARDS = {
     'cluster-city':   [{ kind: 'cluster' }, scenes.city],
@@ -127,11 +167,20 @@
     'cluster-charging':    [{ kind: 'cluster' }, scenes.charging],
     'cluster-spread':      [{ kind: 'cluster' }, scenes.spread],
     'cluster-filling':     [{ kind: 'cluster' }, scenes.filling],
+    'cluster-stale':       [{ kind: 'cluster' }, scenes.stale],
+    'cluster-waking':      [{ kind: 'cluster' }, scenes.waking],
     'cluster-unavailable': [{ kind: 'cluster' }, scenes.unavailable],
     'main-sound':      [{ kind: 'head', mode: 'full', page: 'sound' }, head],
     'main-car':        [{ kind: 'head', mode: 'full', page: 'car' }, head],
     'main-car-engine': [{ kind: 'head', mode: 'full', page: 'car' }, headEngine],
     'main-car-hot':    [{ kind: 'head', mode: 'full', page: 'car' }, headHot],
+    'main-first':      [{ kind: 'head', mode: 'full', page: 'sound' }, headFirst],
+    'main-paused':     [{ kind: 'head', mode: 'full', page: 'sound' }, headPaused],
+    'main-car-neutral':  [{ kind: 'head', mode: 'full', page: 'car' }, headNeutral],
+    'main-car-charging': [{ kind: 'head', mode: 'full', page: 'car' }, headCharging],
+    'main-car-closed':   [{ kind: 'head', mode: 'full', page: 'car' }, headClosed],
+    'two-first':      [{ kind: 'head', mode: 'two', page: 'sound' }, headFirst],
+    'one-car-closed': [{ kind: 'head', mode: 'one', page: 'car' }, headClosed],
     'two-sound':      [{ kind: 'head', mode: 'two', page: 'sound' }, head],
     'two-car':        [{ kind: 'head', mode: 'two', page: 'car' }, head],
     'one-sound':      [{ kind: 'head', mode: 'one', page: 'sound' }, head],

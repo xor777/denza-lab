@@ -6,12 +6,14 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dev.denza.apps.DenzaUiState
 import dev.denza.apps.design.DenzaColors
 import dev.denza.apps.design.luminofor.LuminoforSpec.Head
 import dev.denza.apps.ui.components.DenzaTileTone
+import dev.denza.apps.ui.components.LocalStillFrame
 import dev.denza.apps.ui.dashboard.DashboardTile
 import dev.denza.apps.ui.dashboard.DashboardTiles
 import org.json.JSONObject
@@ -28,7 +30,8 @@ import org.json.JSONObject
  * The icon ops are not read. The registry's tile at the same position already names the glyph -
  * the board's eleven are the registry's eleven, in [DashboardTiles.of]'s order - and the app draws
  * its own [dev.denza.apps.design.DenzaIcons], which is the thing a screenshot laid over the board is
- * checking. `on` is the lit face and off the dark one; the board has no other.
+ * checking. A tile's `tone` - live, idle, working, attention, broken - is its face; a scene that
+ * names none has `on` for live and off for idle.
  */
 object TileFixtures {
 
@@ -43,9 +46,19 @@ object TileFixtures {
             tile.copy(
                 name = board.getString("name"),
                 state = board.getString("status"),
-                tone = if (board.getBoolean("on")) DenzaTileTone.LIVE else DenzaTileTone.IDLE,
+                tone = tone(board),
             )
         }
+    }
+
+    /** `tone` when the scene names one - `working`, `attention`, `broken` - or else `on`. */
+    private fun tone(board: JSONObject): DenzaTileTone = when (board.optString("tone")) {
+        "working" -> DenzaTileTone.WORKING
+        "attention" -> DenzaTileTone.ATTENTION
+        "broken" -> DenzaTileTone.BROKEN
+        "idle" -> DenzaTileTone.IDLE
+        "live" -> DenzaTileTone.LIVE
+        else -> if (board.getBoolean("on")) DenzaTileTone.LIVE else DenzaTileTone.IDLE
     }
 
     /** The window a board is drawn in: `full`, `two` or `one`, from `board.mode`. */
@@ -80,15 +93,18 @@ internal fun DashboardFixtureFrame(
         DashboardLayoutMode.MEDIUM -> Head.Two.WIDTH to Head.Two.CAPTION_BAR
         DashboardLayoutMode.NARROW -> Head.One.WIDTH to Head.One.CAPTION_BAR
     }
-    Box(Modifier.size(width.dp, Head.Full.HEIGHT.dp).background(DenzaColors.Ground)) {
-        DashboardBody(
-            tiles = TileFixtures.tiles(fixture),
-            layout = layout,
-            enabled = true,
-            onPress = {},
-            onHold = {},
-            strip = strip,
-            modifier = Modifier.fillMaxSize().padding(top = bar.dp),
-        )
+    // A board is a still: the working ring holds at twelve o'clock, where the board draws it.
+    CompositionLocalProvider(LocalStillFrame provides true) {
+        Box(Modifier.size(width.dp, Head.Full.HEIGHT.dp).background(DenzaColors.Ground)) {
+            DashboardBody(
+                tiles = TileFixtures.tiles(fixture),
+                layout = layout,
+                enabled = true,
+                onPress = {},
+                onHold = {},
+                strip = strip,
+                modifier = Modifier.fillMaxSize().padding(top = bar.dp),
+            )
+        }
     }
 }

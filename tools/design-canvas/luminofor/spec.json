@@ -163,7 +163,7 @@
     "handle": { "width": 44, "height": 4, "top": 9, "about": "The freeform caption bar's own drag handle - the system draws it; the boards draw it so a pane reads as a pane." },
     "anchoring": "Positions are window dp. Inside a strip box everything hangs from the box top, except the spectrum floor and the page dots, which keep their distance from the box bottom.",
     "reading": { "unitRatio": 0.42, "unitGapRatio": 0.2, "rateRatio": 0.45, "rateGapRatio": 0.3, "unitAlpha": 0.9 },
-    "icon": { "stroke": 1.5, "onGlow": 0.35, "offAlpha": 0.42 },
+    "icon": { "stroke": 1.5, "onGlow": 0.35, "offAlpha": 0.42, "ring": { "size": 18, "chipSize": 10, "chipInset": 8, "sweep": 90 } },
     "spectrum": {
       "barWidth": 22.97,
       "lineWidth": 2,

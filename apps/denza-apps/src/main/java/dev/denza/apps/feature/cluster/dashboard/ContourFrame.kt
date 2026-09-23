@@ -138,6 +138,12 @@ internal class ContourFrame {
 
     /** The figure beside the trace: the consumption, or the charge countdown in its seat. */
     var consumption: String? = null
+    /**
+     * The last figure printed while the consumption is stale: not drawn, only measured, so the unit
+     * stays where that figure left it instead of sliding onto the empty seat.
+     */
+    var consumptionHeld: String? = null
+
     var consumptionUnit: String? = null
     var consumptionTone: Tone = Tone.INK
 
@@ -176,6 +182,7 @@ internal class ContourFrame {
         regenKwh = null
         chartCount = 0
         consumption = null
+        consumptionHeld = null
         consumptionUnit = null
         consumptionTone = Tone.INK
     }

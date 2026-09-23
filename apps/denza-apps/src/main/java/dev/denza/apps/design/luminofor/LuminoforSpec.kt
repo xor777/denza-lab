@@ -346,6 +346,14 @@ object LuminoforSpec {
             const val STROKE: Float = 1.5f
             const val ON_GLOW: Float = 0.35f
             const val OFF_ALPHA: Float = 0.42f
+
+            /** The working ring: its box on a tile and on a chip, the chip's inset, and its arc. */
+            object Ring {
+                const val SIZE: Float = 18f
+                const val CHIP_SIZE: Float = 10f
+                const val CHIP_INSET: Float = 8f
+                const val SWEEP: Float = 90f
+            }
         }
 
         object Spectrum {

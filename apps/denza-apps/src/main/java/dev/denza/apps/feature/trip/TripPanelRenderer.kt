@@ -164,8 +164,8 @@ class TripPanelRenderer {
      * 500 on the value line. Both are cut to [room] with an ellipsis - on the full screen that is
      * the room the readings leave, so a long title stops a reading gap short of them.
      *
-     * Nothing playing, no block. A paused track is the same block at [PAUSED]: the ticker it
-     * replaces dimmed the same way, and the board has no paused scene to say otherwise.
+     * Nothing playing, no block. A paused track is the same block at [PAUSED], and its mark is
+     * the pause's two bars: the mark says what the player is doing (`main-paused`).
      */
     private fun track(
         model: StripModel,
@@ -179,11 +179,19 @@ class TripPanelRenderer {
         val name = model.title ?: return
         val intensity = if (model.playing) 1f else PAUSED
         play.reset()
-        play.moveTo(x + 1f, capY - lpx * PLAY_TOP)
-        play.lineTo(x + lpx * PLAY_TIP, capY - lpx * PLAY_MIDDLE)
-        play.lineTo(x + 1f, capY - 1f)
-        play.close()
-        pen.beam(play, PLAY_STROKE, HeadInk.WHITE, PLAY_INTENSITY * intensity)
+        if (model.playing) {
+            play.moveTo(x + 1f, capY - lpx * PLAY_TOP)
+            play.lineTo(x + lpx * PLAY_TIP, capY - lpx * PLAY_MIDDLE)
+            play.lineTo(x + 1f, capY - 1f)
+            play.close()
+            pen.beam(play, PLAY_STROKE, HeadInk.WHITE, PLAY_INTENSITY)
+        } else {
+            for (bar in PAUSE_BARS) {
+                play.moveTo(x + lpx * bar, capY - lpx * PAUSE_TOP)
+                play.lineTo(x + lpx * bar, capY - lpx * PAUSE_FOOT)
+            }
+            pen.beam(play, PAUSE_STROKE, HeadInk.WHITE, PLAY_INTENSITY * intensity)
+        }
         val artistX = x + lpx * ARTIST_INDENT
         val by = ink.fit(artist, model.artist, lpx, false, room - lpx * ARTIST_INDENT)
         pen.text(by, artistX, capY, lpx, HeadInk.WHITE, intensity, LightPen.Face.SANS)
@@ -264,8 +272,12 @@ class TripPanelRenderer {
         const val PLAY_INTENSITY = 0.9f
         const val ARTIST_INDENT = 0.95f
 
-        /** A paused track, which the board does not draw. */
+        /** A paused track: the block at half its light, and the pause's two bars for the mark. */
         const val PAUSED = 0.5f
+        val PAUSE_BARS = floatArrayOf(0.14f, 0.46f)
+        const val PAUSE_TOP = 0.68f
+        const val PAUSE_FOOT = 0.04f
+        const val PAUSE_STROKE = 2f
 
         /** The one-third rows: the caption at 0.85, the arrow a 12 dp shaft with 4 dp wings. */
         const val ROW_LABEL = 0.85f

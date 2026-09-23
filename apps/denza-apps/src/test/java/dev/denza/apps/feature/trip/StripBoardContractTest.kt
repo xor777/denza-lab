@@ -160,7 +160,16 @@ class StripBoardContractTest {
                 "play.lineTo(x + 1, capY - 1)",
         )
         assertDrawn("the play mark's beam", "beam(c, play, ${js(r.PLAY_STROKE)}, WHT, ${js(r.PLAY_INTENSITY)}, 0)")
-        assertDrawn("the artist", "lab(c, f.track.artist, x + lpx * ${js(r.ARTIST_INDENT)}, capY, lpx)")
+        assertDrawn("the artist", "lab(c, f.track.artist, x + lpx * ${js(r.ARTIST_INDENT)}, capY, lpx, I)")
+        assertDrawn("a paused track's light", "f.track.playing === false ? ${js(r.PAUSED)} : 1")
+        assertDrawn(
+            "the pause's bars",
+            "[${r.PAUSE_BARS.joinToString(", ") { js(it) }}].forEach(u => { " +
+                "pause.moveTo(x + lpx * u, capY - lpx * ${js(r.PAUSE_TOP)}); " +
+                "pause.lineTo(x + lpx * u, capY - lpx * ${js(r.PAUSE_FOOT)}); })",
+        )
+        assertDrawn("the pause's beam", "beam(c, pause, ${js(r.PAUSE_STROKE)}, WHT, ${js(r.PLAY_INTENSITY)} * I, 0)")
+        assertDrawn("the location hint", "lab(c, it.cap, x, capY, lpx, ${js(StripInk.HINT)})")
 
         val i = StripInk
         assertDrawn(
@@ -172,7 +181,7 @@ class StripBoardContractTest {
         assertDrawn("the arrow", "beam(c, ar, ${js(i.ARROW_STROKE)}, WHT, ${js(i.RATE_INTENSITY)}, 0)")
         assertDrawn("the rate", "num(c, it.rate, ax + ${js(StripGeometry.ARROW_ROOM)}, valY,")
 
-        assertDrawn("a one-third caption", "lab(c, it.cap, L, y, s.labelSize, ${js(r.ROW_LABEL)})")
+        assertDrawn("a one-third caption", "lab(c, it.cap, L, y, s.labelSize, it.hint ? ${js(StripInk.HINT)} : ${js(r.ROW_LABEL)})")
         assertDrawn(
             "a one-third unit",
             "text(c, it.unit, ux + ${js(StripGeometry.ROW_UNIT_GAP)}, y, ${js(StripGeometry.ROW_SMALL)}, WHT, 0.9,",

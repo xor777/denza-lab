@@ -66,14 +66,14 @@ internal class TileFacePainter {
             native.save()
             native.translate(glyphAt.x, glyphAt.y)
             pen.begin(native, unit)
-            pen.beam(glyph.strokePath, DenzaMetrics.Stroke.ICON, face.glyph, face.glyphIntensity, face.glyphGlow)
+            pen.beam(glyph.strokePath, DenzaMetrics.Stroke.ICON, face.glyph, face.glyphIntensity, face.glyphGlow, face.glyphOver)
             mask.color = plate.toArgb()
             glyph.knobs.forEach { k ->
                 val cx = k.cx + glyph.shift
                 native.drawCircle(cx * unit, k.cy * unit, (k.r + TileFace.KNOB_MASK) * unit, mask)
                 knob.rewind()
                 knob.addCircle(cx, k.cy, k.r, Path.Direction.CW)
-                pen.beam(knob, DenzaMetrics.Stroke.ICON, face.glyph, face.glyphIntensity, 0f)
+                pen.beam(knob, DenzaMetrics.Stroke.ICON, face.glyph, face.glyphIntensity, 0f, face.glyphOver)
             }
             native.restore()
         }

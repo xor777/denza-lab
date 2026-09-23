@@ -28,7 +28,7 @@
 
   /* ------------------------------------------------------------ primitives */
   // A stroke drawn by a beam: optional halo (g > 0), then the core.
-  function beam(ctx, path, sw, col, I, g) {
+  function beam(ctx, path, sw, col, I, g, over) {
     if (I <= 0.01) return;
     g = g || 0;
     const sc = ctx.getTransform().a;
@@ -41,6 +41,7 @@
       ctx.shadowColor = rgba(col[0], 0.7 * I * g); ctx.shadowBlur = Math.min(30, sw * 2.8 * sc); ctx.stroke(path);
       ctx.shadowBlur = 0;
     }
+    if (over) ctx.globalCompositeOperation = 'source-over';
     ctx.lineWidth = sw; ctx.strokeStyle = rgba(col[1], I); ctx.stroke(path);
     ctx.restore();
   }
@@ -59,7 +60,7 @@
     o = o || {};
     if (I <= 0.01 || !str) return 0;
     ctx.save();
-    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalCompositeOperation = o.over ? 'source-over' : 'lighter';
     font(ctx, px, o);
     ctx.textBaseline = 'alphabetic';
     const track = (o.track || 0) * px;
@@ -193,7 +194,8 @@
     const y = CG.axis, base = CG.baseline;
     // the zero's own glow: it stays at zero; brightness and colour say how hard
     const ga = CB.glow.max * Math.sqrt(Math.min(1, absP / CB.glow.fullKw));
-    if (ga > 0.005) {
+    const fresh = f.powerFresh !== false;
+    if (fresh && ga > 0.005) {
       const r = CB.glow.radius;
       c.save(); c.globalCompositeOperation = 'lighter';
       c.translate(AX, y); c.scale(1, (CS.bottom - y + CB.glow.reachBelow) / r);
@@ -208,9 +210,10 @@
     const groupW = fieldW + CG.heroUnitGap + unitW;
     const fieldR = AX + groupW / 2 - CG.heroUnitGap - unitW;
     if (f.powerKnown !== false) num(c, String(Math.round(absP)), fieldR, base, CG.heroSize, heroCol, 1, 'right', D.heroStroke);
-    text(c, 'кВт', fieldR + CG.heroUnitGap, base, CG.heroUnitSize, into ? BLUE : GREY, 1);
+    if (f.heroUnit !== false) text(c, 'кВт', fieldR + CG.heroUnitGap, base, CG.heroUnitSize, into ? BLUE : GREY, 1);
     // the axis: one filament across the glass, brightest at zero, dying toward both edges
     filament(c, y);
+    if (!fresh) return;
     const len = reach(P), beamCol = P < 0 ? BLUE : INK;
     if (Math.abs(len) > 2) {
       const T = CB.threads;
@@ -315,8 +318,10 @@
   function traceFigure(c, f) {
     const zero = CT.zero;
     const fx = AX + CT.gapFromAxis;
-    const fw = num(c, f.consumption, fx, zero, CT.figureSize, INK, 1, 'left');
-    text(c, f.consumptionUnit, fx + fw + CT.unitGap, zero, CT.unitSize, GREY, 1);
+    // a figure that stopped arriving leaves, and its unit stays where the last one put it
+    const fw = f.consumption ? num(c, f.consumption, fx, zero, CT.figureSize, INK, 1, 'left')
+      : f.consumptionHeld ? numWidth(f.consumptionHeld, CT.figureSize) : 0;
+    if (f.consumptionUnit) text(c, f.consumptionUnit, fx + fw + CT.unitGap, zero, CT.unitSize, GREY, 1);
   }
 
   function runLeft(c, xRight, y, parts) {
@@ -345,7 +350,7 @@
 
     // left group: the battery; the five glyphs are the temperatures' captions
     text(c, f.batteryCaption, GL, CG.caption, CG.captionSize, GREY, 1, { track: CG.captionTrack });
-    num(c, f.volts, GL, base, CG.figureSize, INK, 1, 'left');
+    if (f.volts) num(c, f.volts, GL, base, CG.figureSize, INK, 1, 'left');
     const tx0 = GR - numWidth('00°', CG.tempSize) - 4 * CG.tempPitch;
     f.temps.forEach((cell, i) => {
       const x = tx0 + i * CG.tempPitch;
@@ -358,7 +363,7 @@
         c.fillStyle = g; c.fillRect(x - 30, base - 80, 110, 110); c.restore();
       }
       glyph(c, KINDS[i], x, CG.glyphBase, col, hot ? 1 : 0.85, hot);
-      num(c, cell.value + '°', x, base, CG.tempSize, col, 1, 'left');
+      if (cell.value != null) num(c, cell.value + '°', x, base, CG.tempSize, col, 1, 'left');
     });
 
     // the cell spread, only while it is out of line: one line under the battery, in its colour
@@ -389,13 +394,15 @@
       const b0 = new Path2D(); b0.moveTo(bx0, zeroY); b0.lineTo(RE, zeroY); beam(c, b0, E.baseStroke, INK, 0.35, 0);
       text(c, f.engineCaption, bx0, CG.caption, CG.captionSize, GREY, 1, { track: CG.cellCaptionTrack });
       text(c, f.engineWindow, bx0, base + CG.detailDrop, CG.detailSize, GREY, 1, { track: CG.cellCaptionTrack });
-    } else {
+    } else if (f.tripCaption) {
       const uw = textWidth(c, f.tripUnit, CG.unitSize), cw = textWidth(c, f.tripCaption, CG.captionSize, { track: CG.cellCaptionTrack });
-      const fw = numWidth(f.tripKwh, CG.figureSize);
-      const x = RE - Math.max(cw, fw + CG.unitGap + uw);
+      const fw = f.tripKwh ? numWidth(f.tripKwh, CG.figureSize) : 0;
+      const x = RE - Math.max(cw, f.tripKwh ? fw + CG.unitGap + uw : 0);
       text(c, f.tripCaption, x, CG.caption, CG.captionSize, GREY, 1, { track: CG.cellCaptionTrack });
-      num(c, f.tripKwh, x, base, CG.figureSize, INK, 1, 'left');
-      text(c, f.tripUnit, x + fw + CG.unitGap, base, CG.unitSize, GREY, 1);
+      if (f.tripKwh) {
+        num(c, f.tripKwh, x, base, CG.figureSize, INK, 1, 'left');
+        text(c, f.tripUnit, x + fw + CG.unitGap, base, CG.unitSize, GREY, 1);
+      }
       // the trip's detail: «ДАЛ ДВС» whenever the engine gave this trip (the contract keeps that
       // seat on the move), recuperation on P; one line under the trip, in the fixture's order
       const parts = [];
@@ -405,7 +412,7 @@
       if (parts.length) runLeft(c, RE, base + CG.detailDrop, parts);
     }
     text(c, f.iceCaption, HR, CG.caption, CG.captionSize, GREY, 1, { track: CG.cellCaptionTrack });
-    num(c, f.iceFigure, HR, base, CG.figureSize, INK, 1, 'left');
+    if (f.iceFigure) num(c, f.iceFigure, HR, base, CG.figureSize, INK, 1, 'left');
 
     trace(c, f);
   }
@@ -416,12 +423,15 @@
   const RD = S.head.reading;
 
   function readingW(c, it, size, lpx) {
+    if (it.hint) return labW(c, it.cap, lpx);
     let w = numWidth(it.fig, size);
     if (it.unit) w += size * RD.unitGapRatio + labW(c, it.unit, Math.round(size * RD.unitRatio));
     if (it.rate) w += size * RD.rateGapRatio + 14 + numWidth(it.rate, Math.round(size * RD.rateRatio));
     return Math.max(w, labW(c, it.cap, lpx));
   }
   function reading(c, it, x, capY, valY, size, lpx, col) {
+    // a caption with no reading under it and none coming - the location hint - at 0.6, alone
+    if (it.hint) { lab(c, it.cap, x, capY, lpx, 0.6); return; }
     if (it.dot) { const d = new Path2D(); d.arc(x + 4, capY - lpx * 0.35, 3.4, 0, Math.PI * 2); glowFill(c, d, HUB, 1, 6); lab(c, it.cap, x + 14, capY, lpx); }
     else lab(c, it.cap, x, capY, lpx);
     const colour = col === 'blue' ? HUB : WHT;
@@ -434,11 +444,21 @@
       num(c, it.rate, ax + 14, valY, Math.round(size * RD.rateRatio), WHT, 0.9, 'left');
     }
   }
+  // Nothing playing, no block. Paused, the same block at half its light, and the mark is the
+  // pause's two bars: the mark says what the player is doing, as the car's own media card does.
   function trackBlock(c, f, x, capY, valY, tpx, lpx) {
-    const play = new Path2D(); play.moveTo(x + 1, capY - lpx * 0.72); play.lineTo(x + lpx * 0.6, capY - lpx * 0.38); play.lineTo(x + 1, capY - 1); play.closePath();
-    beam(c, play, 1.2, WHT, 0.9, 0);
-    lab(c, f.track.artist, x + lpx * 0.95, capY, lpx);
-    text(c, f.track.title, x, valY, tpx, WHT, 1, { font: ROBOTO, w: 500 });
+    if (!f.track) return;
+    const I = f.track.playing === false ? 0.5 : 1;
+    if (I < 1) {
+      const pause = new Path2D();
+      [0.14, 0.46].forEach(u => { pause.moveTo(x + lpx * u, capY - lpx * 0.68); pause.lineTo(x + lpx * u, capY - lpx * 0.04); });
+      beam(c, pause, 2, WHT, 0.9 * I, 0);
+    } else {
+      const play = new Path2D(); play.moveTo(x + 1, capY - lpx * 0.72); play.lineTo(x + lpx * 0.6, capY - lpx * 0.38); play.lineTo(x + 1, capY - 1); play.closePath();
+      beam(c, play, 1.2, WHT, 0.9, 0);
+    }
+    lab(c, f.track.artist, x + lpx * 0.95, capY, lpx, I);
+    text(c, f.track.title, x, valY, tpx, WHT, I, { font: ROBOTO, w: 500 });
   }
 
   // the analyser, drawn the way the car draws its charging bars: fine vertical lines, colour, a haze
@@ -510,24 +530,55 @@
     });
     return { strokes, knobs };
   }
+  // A tile's tone. Live and working are the lit plate with the dock's blue glyph, idle the dark
+  // plate. Waiting on the driver and broken keep the lit plate and light the glyph and the status
+  // in the car's own two alarm colours, laid over whole rather than added: added onto the plate the
+  // car's orange came out yellow and its red came out pink. Working turns a ring beside the glyph.
+  // A tile nothing can be done to is idle, whatever it was.
+  const ALARMS = { attention: ORNG, broken: RED };
   function tileFace(c, tile, x, y, w, h, r, full) {
-    const T = S.head.full.tiles, IC = S.head.icon, on = tile.on;
+    const T = S.head.full.tiles, IC = S.head.icon;
+    const tone = tile.tone || (tile.on ? 'live' : 'idle'), on = tone !== 'idle', alarm = ALARMS[tone];
     c.save(); c.fillStyle = on ? HD.cardOn : HD.cardOff; c.beginPath(); c.roundRect(x, y, w, h, r); c.fill(); c.restore();
     const isz = full ? T.icon : S.head.two.chips.icon, sc = isz / 24;
     const ix = full ? x + T.iconInset[0] : x + (w - isz) / 2, iy = full ? y + T.iconInset[1] : y + (h - isz) / 2;
     const ic = iconPath(tile.icon);
     c.save(); c.translate(ix, iy); c.scale(sc, sc);
-    const col = on ? HUB : WHT, I = on ? 1 : IC.offAlpha;
-    beam(c, ic.strokes, IC.stroke, col, I, on ? IC.onGlow : 0);
+    const col = alarm ? [alarm[0], alarm[0]] : on ? HUB : WHT, I = on ? 1 : IC.offAlpha;
+    beam(c, ic.strokes, IC.stroke, col, I, on ? IC.onGlow : 0, !!alarm);
     ic.knobs.forEach(k => {
       c.save(); c.fillStyle = on ? HD.cardOn : HD.cardOff; c.beginPath(); c.arc(k[1], k[2], k[3] + 1.1, 0, Math.PI * 2); c.fill(); c.restore();
-      const p = new Path2D(); p.arc(k[1], k[2], k[3], 0, Math.PI * 2); beam(c, p, IC.stroke, col, I, 0);
+      const p = new Path2D(); p.arc(k[1], k[2], k[3], 0, Math.PI * 2); beam(c, p, IC.stroke, col, I, 0, !!alarm);
     });
     c.restore();
+    if (tone === 'working') {
+      const R = IC.ring, d = full ? R.size : R.chipSize, sw = IC.stroke * sc;
+      if (full) ring(c, x + w - T.textInset - d / 2, iy + isz / 2, d, sw);
+      else ring(c, x + w - R.chipInset - d / 2, y + R.chipInset + d / 2, d, sw);
+    }
     if (full) {
       lab(c, tile.name, x + T.textInset, y + T.nameBaseline, T.nameSize, on ? 1 : 0.7, { w: 500 });
-      lab(c, tile.status, x + T.textInset, y + T.statusBaseline, T.statusSize, on ? 0.62 : 0.4);
+      if (alarm) text(c, tile.status, x + T.textInset, y + T.statusBaseline, T.statusSize, col, 1, { font: ROBOTO, w: 400, over: true });
+      else lab(c, tile.status, x + T.textInset, y + T.statusBaseline, T.statusSize, on ? 0.62 : 0.4);
     }
+  }
+  // The working ring: a quarter of a circle in the glyph's blue and weight, inside a d-square box.
+  // A board holds it at twelve o'clock; the app turns it once a second.
+  function ring(c, cx, cy, d, sw) {
+    const p = new Path2D(); p.arc(cx, cy, (d - sw) / 2, -Math.PI / 2, -Math.PI / 2 + S.head.icon.ring.sweep * Math.PI / 180);
+    beam(c, p, sw, HUB, 1, 0);
+  }
+  // The car's page when the shell is closed to us: what the page would have shown, and under it
+  // the instruction in the page's title size, broken at its spaces to the strip's width.
+  function closedPage(c, f, L, R, capY, valY, label, size) {
+    lab(c, 'Питание от машины', L, capY, label);
+    const lines = []; let line = '';
+    String(f.message).split(' ').forEach(word => {
+      const next = line ? line + ' ' + word : word;
+      if (line && labW(c, next, size) > R - L) { lines.push(line); line = word; } else line = next;
+    });
+    if (line) lines.push(line);
+    lines.forEach((ln, i) => lab(c, ln, L, valY + i * size * 1.25, size));
   }
   function handle(c, width) {
     const Hn = S.head.handle;
@@ -546,6 +597,8 @@
         let x = R;
         for (let k = f.trip.length - 1; k >= 0; k--) { const w = readingW(c, f.trip[k], ST.valueSize, ST.labelSize); reading(c, f.trip[k], x - w, ST.caption, ST.value, ST.valueSize, ST.labelSize); x -= w + ST.readingGap; }
         spectrumField(c, f, L, ST.spectrumTop, R - L, ST.floor, ST.bars);
+      } else if (f.unavailable) {
+        closedPage(c, f, L, R, ST.caption, ST.value, ST.labelSize, ST.titleSize);
       } else {
         const Cc = F.car, mid = F.size[0] / 2;
         const pw = readingW(c, f.power, Cc.heroSize, ST.labelSize);
@@ -571,6 +624,8 @@
         trackBlock(c, f, L, s.trackCaption, s.trackValue, s.titleSize, s.labelSize);
         let x = L; f.trip.forEach(it => { reading(c, it, x, s.caption, s.value, s.valueSize, s.labelSize); x += readingW(c, it, s.valueSize, s.labelSize) + s.gap; });
         spectrumField(c, f, L, s.spectrumTop, Wd, s.floor, s.bars);
+      } else if (f.unavailable) {
+        closedPage(c, f, L, L + Wd, P.car.caption, P.car.value, P.sound.labelSize, P.sound.titleSize);
       } else {
         const s = P.car; let x = L;
         [[f.power, s.heroSize, f.power.col], [f.engine, s.valueSize], [f.tripCell, s.valueSize]].forEach(([it, sz, col]) => { reading(c, it, x, s.caption, s.value, sz, P.sound.labelSize, col); x += readingW(c, it, sz, P.sound.labelSize) + s.gap; });
@@ -591,7 +646,8 @@
       trackBlock(c, f, L, s.trackCaption, s.trackValue, s.titleSize, s.labelSize);
       f.trip.forEach((it, k) => {
         const y = s.rowsTop + k * s.rowPitch;
-        lab(c, it.cap, L, y, s.labelSize, 0.85);
+        lab(c, it.cap, L, y, s.labelSize, it.hint ? 0.6 : 0.85);
+        if (it.hint) return;
         const vx = L + s.valueX;
         const ux = vx + num(c, it.fig, vx, y, s.valueSize, WHT, 1, 'left');
         if (it.unit) text(c, it.unit, ux + 6, y, 14, WHT, 0.9, { font: ROBOTO, w: 400 });
@@ -601,6 +657,8 @@
         }
       });
       spectrumField(c, f, L, s.spectrumTop, Wd, s.floor, s.bars);
+    } else if (f.unavailable) {
+      closedPage(c, f, L, L + Wd, P.car.caption, P.car.value, P.sound.labelSize, P.sound.titleSize);
     } else {
       const s = P.car;
       reading(c, f.power, L, s.caption, s.value, s.heroSize, P.sound.labelSize, f.power.col);

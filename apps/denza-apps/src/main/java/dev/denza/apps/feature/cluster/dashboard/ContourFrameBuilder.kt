@@ -42,6 +42,9 @@ internal class ContourFrameBuilder {
     private var odometerFor: String? = null
     private var tripCaption: String = ""
     private var generationFor: String? = null
+
+    /** The consumption figure last printed, for [ContourFrame.consumptionHeld]. */
+    private var heldConsumption: String? = null
     private var engineCaption: String = ""
 
     /**
@@ -238,8 +241,12 @@ internal class ContourFrameBuilder {
         if (!scene.known(ContourValue.PETAL)) return
         // «за 3,7 км» until the window is full: the road the figure is the mean of.
         frame.consumptionUnit = readouts.window
-        if (!scene.fresh(ContourValue.PETAL)) return
+        if (!scene.fresh(ContourValue.PETAL)) {
+            frame.consumptionHeld = heldConsumption
+            return
+        }
         frame.consumption = readouts.consumptionFigure
+        heldConsumption = frame.consumption
         // While the engine runs the figure is the battery's alone - `ConsumptionLog` integrates pack
         // power, and whether `GENERATION_KW` is inside it is not recorded - so it goes grey rather
         // than carry a footnote. Otherwise a minus is the one signed figure on either screen, and

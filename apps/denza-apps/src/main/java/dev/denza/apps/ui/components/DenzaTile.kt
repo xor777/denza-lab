@@ -1,24 +1,33 @@
 package dev.denza.apps.ui.components
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.paddingFromBaseline
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.TextStyle
@@ -27,10 +36,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextMotion
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.denza.apps.design.DenzaGlyph
 import dev.denza.apps.design.DenzaIcons
 import dev.denza.apps.design.DenzaMetrics
+import dev.denza.apps.design.luminofor.LuminoforSpec
 import dev.denza.apps.design.luminofor.LuminoforSpec.HeadInk
 
 /**
@@ -104,9 +115,9 @@ fun DenzaTile(
         TileLine(name, FontWeight(t.NAME_WEIGHT), t.NAME_SIZE, t.NAME_BASELINE, nameInk)
         TileLine(state, FontWeight(t.STATUS_WEIGHT), t.STATUS_SIZE, t.STATUS_BASELINE, statusInk)
         if (shown == DenzaTileTone.WORKING) {
-            // Centred on the glyph's row and flush with the words' right margin. The board has no
-            // working state; this is the app's, stroked with the glyph's own line.
-            val ring = DenzaMetrics.Component.BUSY_DOT
+            // Centred on the glyph's row and flush with the words' right margin, stroked with the
+            // glyph's own line - the board's `ring()` on a tile.
+            val ring = LuminoforSpec.Head.Icon.Ring.SIZE.dp
             WorkingRing(
                 size = ring,
                 stroke = glyphStroke(glyphSize),
@@ -166,18 +177,55 @@ internal fun animatedInk(argb: Int, label: String) = animateColorAsState(
 internal fun glyphStroke(glyph: Dp): Dp = glyph * (DenzaMetrics.Stroke.ICON / DenzaIcons.VIEWPORT)
 
 /**
- * The ring that says a feature is starting or recovering: a turning arc in the lit glyph's own
- * blue, the same weight as the glyph beside it.
+ * The ring that says a feature is starting or recovering: `ring()` on the board - a quarter of a
+ * circle in the lit glyph's own blue and weight, added onto the plate as the glyph is, turning once
+ * a second. Material's spinner grew and shrank its arc and drew source-over; this is one arc that
+ * only turns, because the tile is saying "busy", not counting anything.
+ *
+ * [LocalStillFrame] holds it at twelve o'clock, where the board draws it.
  */
 @Composable
 internal fun WorkingRing(size: Dp, stroke: Dp, modifier: Modifier = Modifier) {
-    CircularProgressIndicator(
-        modifier = modifier.size(size),
-        strokeWidth = stroke,
-        color = Color(HeadInk.BLUE.core),
-        trackColor = Color.Transparent,
-    )
+    val still = LocalStillFrame.current
+    val turn = if (still) {
+        0f
+    } else {
+        val turning by rememberInfiniteTransition(label = "workingRing").animateFloat(
+            initialValue = 0f,
+            targetValue = FULL_TURN,
+            animationSpec = infiniteRepeatable(tween(RING_TURN_MS, easing = LinearEasing)),
+            label = "workingRingTurn",
+        )
+        turning
+    }
+    val ink = Color(HeadInk.BLUE.core)
+    Canvas(modifier.size(size)) {
+        val sw = stroke.toPx()
+        val inset = sw / 2f
+        drawArc(
+            color = ink,
+            startAngle = RING_START + turn,
+            sweepAngle = LuminoforSpec.Head.Icon.Ring.SWEEP,
+            useCenter = false,
+            topLeft = Offset(inset, inset),
+            size = Size(this.size.width - sw, this.size.height - sw),
+            style = Stroke(width = sw, cap = StrokeCap.Round),
+            blendMode = BlendMode.Plus,
+        )
+    }
 }
+
+/**
+ * Whether what is drawn should hold still: true in the debug build's fixture mode, so a screenshot
+ * of a moving thing - the working ring - can be laid over the board's still of it.
+ */
+val LocalStillFrame = staticCompositionLocalOf { false }
+
+private const val FULL_TURN = 360f
+private const val RING_TURN_MS = 1000
+
+/** Twelve o'clock, where the board starts the arc. */
+private const val RING_START = -90f
 
 // The corner mark is gone for the second time, and this grave is the one to read before digging
 // it up. Attempt one was an 8 dp wedge floating 8 dp off the corner: rolled back off the car as

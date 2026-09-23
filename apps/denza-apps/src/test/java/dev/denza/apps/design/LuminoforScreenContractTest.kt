@@ -200,10 +200,17 @@ class LuminoforScreenContractTest {
             ?: error("tileFace no longer masks a knob")
         near("knob mask", mask.groupValues[1].toDouble(), TileFace.KNOB_MASK)
         assertTrue(
-            "tileFace should light its glyph blue at 1 and grey at offAlpha",
-            board.contains("const col = on ? HUB : WHT, I = on ? 1 : IC.offAlpha;"),
+            "tileFace should light its glyph blue at 1, an alarm in its own colour, and grey at offAlpha",
+            board.contains("const col = alarm ? [alarm[0], alarm[0]] : on ? HUB : WHT, I = on ? 1 : IC.offAlpha;"),
         )
-        assertTrue(board.contains("beam(c, ic.strokes, IC.stroke, col, I, on ? IC.onGlow : 0);"))
+        assertTrue(
+            "and lay an alarm's line over rather than add it",
+            board.contains("beam(c, ic.strokes, IC.stroke, col, I, on ? IC.onGlow : 0, !!alarm);"),
+        )
+        assertTrue(
+            "an alarm's status is its colour laid over, whole",
+            board.contains("text(c, tile.status, x + T.textInset, y + T.statusBaseline, T.statusSize, col, 1, { font: ROBOTO, w: 400, over: true })"),
+        )
         assertTrue("a chip centres its glyph's box", board.contains("x + (w - isz) / 2"))
 
         val lit = TileFace.of(DenzaTileTone.LIVE)
@@ -245,13 +252,15 @@ class LuminoforScreenContractTest {
         assertEquals(0xFFCAC9D1.toInt(), lit.status)
         assertEquals(0xFFCAC9CE.toInt(), dark.name)
         assertEquals(0xFF7D7C81.toInt(), dark.status)
-        // The two tones the board has no scene for keep the lit plate and change only the light.
-        val orange = hex(list("colors", "cluster", "orange")[1] as String)
-        val red = hex(list("colors", "cluster", "red")[1] as String)
+        // The two alarms (`main-first`) keep the lit plate and light the glyph and the status in
+        // the car's own colour, whole: the line is the halo, laid over.
+        val orange = hex(list("colors", "cluster", "orange")[0] as String)
+        val red = hex(list("colors", "cluster", "red")[0] as String)
         for ((tone, light) in listOf(DenzaTileTone.ATTENTION to orange, DenzaTileTone.BROKEN to red)) {
             val face = TileFace.of(tone)
             assertEquals("$tone plate", on, face.plate)
             assertEquals("$tone glyph", light, face.glyph.core)
+            assertTrue("$tone glyph is laid over", face.glyphOver)
             assertEquals("$tone name", 0xFFFFFFFF.toInt(), face.name)
             assertEquals("$tone glyph halo", if (tone == DenzaTileTone.ATTENTION) ClusterInk.ORANGE.halo else ClusterInk.RED.halo, face.glyph.halo)
             // a status that says something is wrong is the car's own colour for it, whole

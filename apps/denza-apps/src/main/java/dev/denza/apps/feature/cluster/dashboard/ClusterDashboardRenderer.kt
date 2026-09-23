@@ -105,8 +105,6 @@ internal class ClusterDashboardRenderer(private val pen: LightPen) {
         downFill = floatArrayOf(TRACE_DOWN_OLD, TRACE_DOWN_NEW),
     )
 
-    /** The last consumption figure's width, so its unit does not jump while the figure is stale. */
-    private var lastFigureWidth = 0f
 
     /**
      * The panel in its window. `FULL` alone is offered - see [ClusterDashboardLayout.supported] -
@@ -478,11 +476,15 @@ internal class ClusterDashboardRenderer(private val pen: LightPen) {
     /** The figure one gap right of the axis on the trace's zero, and its unit after it. */
     private fun traceFigure(f: ContourFrame) {
         val x = ContourGeometry.TRACE_FIGURE_X
-        f.consumption?.let {
-            lastFigureWidth = pen.figures(it, x, Trace.ZERO, Trace.FIGURE_SIZE, toneLight(f.consumptionTone), 1f)
+        val figure = f.consumption
+        val held = f.consumptionHeld
+        val width = when {
+            figure != null -> pen.figures(figure, x, Trace.ZERO, Trace.FIGURE_SIZE, toneLight(f.consumptionTone), 1f)
+            held != null -> WideDigits.width(held, Trace.FIGURE_SIZE)
+            else -> 0f
         }
         val unit = f.consumptionUnit ?: return
-        pen.text(unit, x + lastFigureWidth + Trace.UNIT_GAP, Trace.ZERO, Trace.UNIT_SIZE, ClusterInk.GREY, 1f)
+        pen.text(unit, x + width + Trace.UNIT_GAP, Trace.ZERO, Trace.UNIT_SIZE, ClusterInk.GREY, 1f)
     }
 
     // ---------------------------------------------------------------- colour and shaders

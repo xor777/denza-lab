@@ -45,13 +45,6 @@ class StripReading {
         private set
 
     /**
-     * The figure dimmed, because it has no direction to be drawn in: the pack inside its neutral
-     * zone (`ContourMotion.NEUTRAL_KW`). The board has no such scene; the contract draws it `MUTED`.
-     */
-    var dim: Boolean = false
-        private set
-
-    /**
      * A caption with no reading under it and none coming - the location hint, standing in a
      * reading's place. Drawn fainter than a caption, so it does not read as one whose figure is late.
      */
@@ -66,7 +59,6 @@ class StripReading {
         rateUp: Boolean = true,
         dot: Boolean = false,
         blue: Boolean = false,
-        dim: Boolean = false,
     ) {
         present = true
         hint = false
@@ -77,7 +69,6 @@ class StripReading {
         this.rateUp = rateUp
         this.dot = dot
         this.blue = blue
-        this.dim = dim
     }
 
     fun setHint(text: String) {
@@ -94,7 +85,6 @@ class StripReading {
         rate = null
         dot = false
         blue = false
-        dim = false
     }
 }
 

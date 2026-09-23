@@ -152,7 +152,6 @@ internal class StripReadings {
             ContourReadout.UNIT_KW,
             dot = readouts.mark,
             blue = readouts.flow == ContourFlow.BACK,
-            dim = readouts.flow == ContourFlow.NEUTRAL,
         )
         model.volts.set(VehiclePageWords.VOLTS, readouts.voltsFigure, VehiclePageWords.UNIT_V)
 
