@@ -43,6 +43,10 @@ class SideCameraMonitorService : Service() {
     private lateinit var adb: LocalAdbClient.PersistentShellSession
     private var turnSignalLease: VehicleSignalLease? = null
     private var switchSubscription: VehicleSignalEventSubscription? = null
+    private var lampSubscription: VehicleSignalEventSubscription? = null
+    private var avcStock: AvcStockClient? = null
+    private var stockChoice: AvcTurnCameraChoice? = null
+    private var stockCardVisible = false
     private val transitionGate = MirrorTransitionGate()
     private var transitionState = MirrorTransitionState()
     private val preemptInFlight = AtomicBoolean()
@@ -53,6 +57,7 @@ class SideCameraMonitorService : Service() {
     private var lastShadowStatus = ""
     // Timing only; these observations never participate in the reducer or CAN policy.
     private var timingLastWindowSide: MirrorSide? = null
+    private var lastLoggedStockSide: MirrorSide? = null
     private var timingLastAmbiguous = false
     private var timingPreviousReadStartedMs = -1L
 
@@ -90,8 +95,10 @@ class SideCameraMonitorService : Service() {
             Thread(runnable, "denza-mirror-signal-guard").apply { isDaemon = true }
         }
         signalExecutor = eventExecutor
-        // Existing leases only: mode feeds diagnostics and surviving-same-side rearm; raw phase
-        // feeds movement/teardown. Neither can request a camera without a recognized stock window.
+        avcStock = AvcStockClient(this)
+        // The lamps (flash mode) are what the stock camera itself follows; the raw lever phase
+        // only warns of a side change early enough to tear our surface down first. Neither can
+        // open a camera without AVC's own card of that side.
         turnSignalLease = runCatching {
             DenzaVehicleSignals.hub(this).acquire(
                 VehicleSignalConsumerId("mirrors"),
@@ -118,6 +125,15 @@ class SideCameraMonitorService : Service() {
         }.onFailure { error ->
             Log.w(TAG, "turn-switch events unavailable", error)
         }.getOrNull()
+        lampSubscription = runCatching {
+            turnSignalLease?.subscribeEvents(
+                VehicleSignalKeys.TurnIndicatorMode,
+                eventExecutor,
+                ::onLampNotice,
+            )
+        }.onFailure { error ->
+            Log.w(TAG, "turn-lamp events unavailable", error)
+        }.getOrNull()
         executor = Executors.newSingleThreadScheduledExecutor().also { scheduler ->
             scheduler.execute(::grantOverlayPermission)
             scheduler.scheduleWithFixedDelay(::poll, 0L, POLL_MS, TimeUnit.MILLISECONDS)
@@ -139,10 +155,16 @@ class SideCameraMonitorService : Service() {
         turnSignalLease = null
         switchSubscription?.close()
         switchSubscription = null
+        lampSubscription?.close()
+        lampSubscription = null
         signalExecutor?.shutdownNow()
         signalExecutor = null
         executor?.shutdownNow()
         executor = null
+        avcStock?.close()
+        avcStock = null
+        stockChoice = null
+        stockCardVisible = false
         // Signal teardown cannot stand between a stop request and hiding the camera.
         signalLease?.close()
     }
@@ -182,23 +204,72 @@ class SideCameraMonitorService : Service() {
             }
             timingPreviousReadStartedMs = readStartedMs
             if (!transitionGate.isRunning) return
-            val mode = recordTurnSignalState(detection.recognizedSide, now)
-            applyTransition(detection.recognizedSide, now, ambiguous, mode)
+            val stockSide = observeStock(detection, now)
+            val mode = recordTurnSignalState(stockSide, now)
+            applyTransition(stockSide, now, mode)
+            releaseStaleClaimWhenIdle(detection)
         } catch (error: Exception) {
             setStatus(observedSide(), "ADB monitor error: ${shortError(error)}")
             updateNotification("ADB access needs attention")
         }
     }
 
-    /** One cached read feeds diagnostics and the narrow surviving-same-side recovery check. */
-    private fun recordTurnSignalState(windowSide: MirrorSide?, now: Long): VehicleSignalState<TurnIndicatorMode> {
+    /**
+     * The stock card a camera may take over. AVC is asked only while one of its cards is up or a
+     * camera of ours is active: its Messenger runs on the thread that rebuilds the card.
+     */
+    private fun observeStock(detection: SideCameraDetection, now: Long): MirrorSide? {
+        val cardVisible = detection.meterPipWindow || detection.hostPipWindow ||
+            detection.unrecognizedCandidates > 0
+        val active = transitionGate.read { transitionState.phase != MirrorTransitionPhase.IDLE } ||
+            ClusterSceneService.cameraRuntimeSnapshot().phase.let {
+                it == CameraRuntimePhase.STARTING || it == CameraRuntimePhase.READY
+            }
+        val stock = avcStock
+        if (stockChoice == null || (cardVisible && !stockCardVisible)) {
+            // Where the owner put the card: once connected, then again at each new stock episode.
+            stock?.turnCameraChoice()?.let { choice ->
+                if (choice != stockChoice) Log.i(TAG, "stock turn camera choice=$choice")
+                stockChoice = choice
+            }
+        }
+        stockCardVisible = cardVisible
+        val mode = if (cardVisible || active) stock?.mode() else AvcStockMode.IDLE
+        val side = MirrorStockPip.side(detection, mode, stockChoice)
+        if (side != lastLoggedStockSide) {
+            Log.i(
+                TAG,
+                "stock card; side=$side mode=$mode choice=$stockChoice meter=${detection.meterPipWindow}" +
+                    " host=${detection.hostPipWindow} observed_ms=$now",
+            )
+            lastLoggedStockSide = side
+        }
+        return side
+    }
+
+    /**
+     * A surface of ours may still sit in AVC's owner field (we skipped a free because AVC had taken
+     * its renderer back, or this process died holding it). Free it only when AVC answers idle and
+     * shows no card: then nothing of AVC's can freeze.
+     */
+    private fun releaseStaleClaimWhenIdle(detection: SideCameraDetection) {
+        if (!AvcDisplayClaim.isClaimed(this) || detection.avcCandidateBlocks > 0) return
+        val runtime = ClusterSceneService.cameraRuntimeSnapshot().phase
+        if (runtime != CameraRuntimePhase.IDLE && runtime != CameraRuntimePhase.FAILED) return
+        if (transitionGate.read { transitionState.phase != MirrorTransitionPhase.IDLE }) return
+        if (avcStock?.mode() != AvcStockMode.IDLE) return
+        AvcIdleRelease.release(this)
+    }
+
+    /** One cached read feeds diagnostics and the lamps the reducer follows. */
+    private fun recordTurnSignalState(stockSide: MirrorSide?, now: Long): VehicleSignalState<TurnIndicatorMode> {
         val state = runCatching {
             turnSignalLease?.read(VehicleSignalKeys.TurnIndicatorMode, now)
                 ?: MirrorTurnSignalDiagnostics.unavailable("listener not active")
         }.onFailure { error ->
             Log.w(TAG, "turn-signal observation failed", error)
         }.getOrElse { MirrorTurnSignalDiagnostics.unavailable(shortError(it)) }
-        val snapshot = MirrorTurnSignalDiagnostics.record(state, windowSide, now)
+        val snapshot = MirrorTurnSignalDiagnostics.record(state, stockSide, now)
         val status = "${snapshot.state}/${snapshot.windowSide}/${snapshot.agreement}"
         if (status != lastShadowStatus) {
             lastShadowStatus = status
@@ -224,12 +295,11 @@ class SideCameraMonitorService : Service() {
                             "same-side lever onset ignored; phase=${event.value.rawValue}" +
                                 " side=$activeSide sequence=${event.sequence}",
                         )
-                        MirrorSwitchPreemptionDecision.PREEMPT -> preemptActiveCameraLocked(
+                        MirrorSwitchPreemptionDecision.PREEMPT -> teardownActiveCameraLocked(
                             "lever moved " +
                                 MirrorSwitchPreemption.onsetSide(event.value)?.name?.lowercase(),
                             event.observedAtElapsedMs,
-                            MirrorQuarantineRecovery.STOCK_WINDOW_AFTER_TEARDOWN,
-                            activeSide,
+                            blockSide = activeSide,
                         )
                     }
                 }
@@ -243,12 +313,41 @@ class SideCameraMonitorService : Service() {
         }
     }
 
-    /** Must run under [transitionGate]. */
-    private fun preemptActiveCameraLocked(
+    /**
+     * The lamps are the stock camera's own trigger. When they leave the side on screen (off,
+     * hazard, the other side) our camera closes at once instead of waiting for AVC's two-second
+     * tail: it never outlives the lamps, and never holds AVC's renderer into AVC's idle.
+     */
+    private fun onLampNotice(notice: VehicleSignalEventNotice<TurnIndicatorMode>) {
+        if (!transitionGate.isRunning) return
+        val event = (notice as? VehicleSignalEventNotice.Event)?.event ?: return
+        val (lamp, _) = MirrorLamp.of(
+            VehicleSignalState.Fresh(event.value, event.observedAtElapsedMs, event.observedAtElapsedMs),
+        )
+        transitionGate.runIfRunning {
+            val activeSide = MirrorSwitchPreemption.activeCameraSide(
+                transitionState,
+                ClusterSceneService.cameraRuntimeSnapshot(),
+            )
+            if (MirrorTransitionReducer.lampsLeftSide(lamp, activeSide)) {
+                teardownActiveCameraLocked(
+                    "lamps ${lamp.name.lowercase()}",
+                    event.observedAtElapsedMs,
+                    blockSide = null,
+                )
+            }
+        }
+        publishPending()
+    }
+
+    /**
+     * Must run under [transitionGate]. [blockSide] is set for a lever onset: the torn-down side's
+     * stock card outlives a cancellation and is not a new request.
+     */
+    private fun teardownActiveCameraLocked(
         reason: String,
         observedAtMs: Long,
-        recovery: MirrorQuarantineRecovery,
-        preemptedSide: MirrorSide?,
+        blockSide: MirrorSide?,
     ) {
         val runtime = ClusterSceneService.cameraRuntimeSnapshot()
         val active = transitionState.phase == MirrorTransitionPhase.STARTING ||
@@ -258,20 +357,17 @@ class SideCameraMonitorService : Service() {
         if (!active || preemptInFlight.get()) return
 
         val acceptedAt = SystemClock.elapsedRealtime()
-        transitionState = MirrorTransitionReducer.quarantine(
-            transitionState,
-            runtime,
-            acceptedAt,
-            reason,
-            recovery,
-            preemptedSide,
-        )
+        transitionState = if (blockSide != null) {
+            MirrorTransitionReducer.preempted(transitionState, runtime, acceptedAt, blockSide, reason)
+        } else {
+            MirrorTransitionReducer.lampsLeft(transitionState, runtime, acceptedAt, reason)
+        }
         preemptInFlight.set(true)
         val commandGeneration = ClusterSceneService.preemptCamera(
             onLocalSurfaceDetached = {
                 Log.i(
                     TAG,
-                    "CAN preempt local surface detached; reason=$reason" +
+                    "early teardown local surface detached; reason=$reason" +
                         " age=${SystemClock.elapsedRealtime() - observedAtMs}ms",
                 )
             },
@@ -279,14 +375,14 @@ class SideCameraMonitorService : Service() {
                 preemptInFlight.set(false)
                 Log.i(
                     TAG,
-                    "CAN preempt vendor free completed; reason=$reason" +
+                    "early teardown vendor free completed; reason=$reason" +
                         " age=${SystemClock.elapsedRealtime() - observedAtMs}ms",
                 )
             },
         )
         Log.i(
             TAG,
-            "CAN preempt accepted; reason=$reason age=${acceptedAt - observedAtMs}ms" +
+            "early teardown accepted; reason=$reason age=${acceptedAt - observedAtMs}ms" +
                 " commandGeneration=$commandGeneration runtime=${runtime.phase}",
         )
         queuePublicationLocked()
@@ -314,50 +410,38 @@ class SideCameraMonitorService : Service() {
     }
 
     private fun applyTransition(
-        stockWindowSide: MirrorSide?,
+        stockSide: MirrorSide?,
         now: Long,
-        runtimeWindowAmbiguous: Boolean,
         mode: VehicleSignalState<TurnIndicatorMode>,
     ) {
-        transitionGate.runIfRunning { applyTransitionLocked(stockWindowSide, now, runtimeWindowAmbiguous, mode) }
+        transitionGate.runIfRunning { applyTransitionLocked(stockSide, now, mode) }
         publishPending()
     }
 
     private fun applyTransitionLocked(
-        stockWindowSide: MirrorSide?,
+        stockSide: MirrorSide?,
         now: Long,
-        runtimeWindowAmbiguous: Boolean,
         mode: VehicleSignalState<TurnIndicatorMode>,
     ) {
         val runtime = ClusterSceneService.cameraRuntimeSnapshot()
-        // The stock AVC window is the only authority for Show. The retained raw lever phase is
-        // read for one narrow purpose: it tells the reducer to wait through transient stock
-        // window ambiguity instead of quarantining. It can never open a camera.
-        val leverEngaged = runCatching {
-            turnSignalLease?.read(VehicleSignalKeys.TurnSwitchPhase, now)
-        }.getOrNull()
-            .let { it as? VehicleSignalState.Fresh }
-            ?.value
-            ?.let(MirrorSwitchPreemption::isTransitionInProgress)
-            ?: false
+        val (lamp, lampObservedAt) = MirrorLamp.of(mode)
         val result = MirrorTransitionReducer.reduce(
             transitionState,
             MirrorTransitionObservation(
-                requestedSide = stockWindowSide,
+                stockSide = stockSide,
+                lamp = lamp,
+                lampObservedAtMs = lampObservedAt,
                 runtime = runtime,
                 nowMs = now,
-                runtimeWindowAmbiguous = runtimeWindowAmbiguous,
                 preemptionInFlight = preemptInFlight.get(),
-                leverEngaged = leverEngaged,
-                sameSideRearmObservedAtMs = MirrorSameSideRearm.observedAtMs(mode, stockWindowSide, now),
+                frameAgeMs = MirrorFrameWatch.ageMs(now),
             ),
         )
-        if (result.state.phase != transitionState.phase) {
+        if (result.state.phase != transitionState.phase || result.command != MirrorTransitionCommand.None) {
             Log.i(
                 TAG,
                 "transition ${transitionState.phase} -> ${result.state.phase}" +
-                    " (${result.state.details}); requested=$stockWindowSide" +
-                    " ambiguous=$runtimeWindowAmbiguous runtime=${runtime.phase}",
+                    " (${result.state.details}); stock=$stockSide lamp=$lamp runtime=${runtime.phase}",
             )
         }
         transitionState = result.state
@@ -390,10 +474,11 @@ class SideCameraMonitorService : Service() {
         try {
             ClusterSceneService.showCamera(this, config)
         } catch (error: RuntimeException) {
-            transitionState = MirrorTransitionReducer.quarantine(
+            transitionState = MirrorTransitionReducer.failed(
                 transitionState,
                 runtime,
                 now,
+                side,
                 "camera dispatch failed: ${shortError(error)}",
             )
         }
@@ -418,10 +503,6 @@ class SideCameraMonitorService : Service() {
         val notification = when (transitionState.phase) {
             MirrorTransitionPhase.STARTING -> "Starting $mirror mirror"
             MirrorTransitionPhase.SHOWING -> "Showing $mirror mirror"
-            MirrorTransitionPhase.QUARANTINED -> when (transitionState.quarantineRecovery) {
-                MirrorQuarantineRecovery.STOCK_WINDOW_AFTER_TEARDOWN -> "Mirror waiting for the stock camera"
-                MirrorQuarantineRecovery.NEUTRAL_ONLY -> "Mirror waiting for neutral"
-            }
             MirrorTransitionPhase.IDLE -> "Mirrors are ready"
         }
         pendingPublication.set(StatusPublication(side, details, notification))

@@ -33,10 +33,15 @@ internal object TurnSignalDecoder {
     const val TURN_SWITCH_FID = 0x1330002C
     const val TURN_MODE_FID = 0x38A0002C
 
+    /**
+     * `3` and `5` are the fast flash of a side (the framework's `LEFT_FLASH_FAST`,
+     * `RIGHT_FLASH_FAULT`, e.g. a failed bulb). The stock camera reads them as that side, so do we:
+     * `com.byd.avc` `LightUtil.isLeftLightTurnOn` is `2 || 3`, `isRightLightTurnOn` is `4 || 5`.
+     */
     fun indicatorMode(value: Int): TurnIndicatorMode = when (value) {
         1 -> TurnIndicatorMode.OFF
-        2 -> TurnIndicatorMode.LEFT
-        4 -> TurnIndicatorMode.RIGHT
+        2, 3 -> TurnIndicatorMode.LEFT
+        4, 5 -> TurnIndicatorMode.RIGHT
         6 -> TurnIndicatorMode.HAZARD
         else -> TurnIndicatorMode.VendorDefined(value)
     }

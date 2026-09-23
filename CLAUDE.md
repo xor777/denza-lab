@@ -89,6 +89,7 @@ The on-device probes and the frozen legacy app are configured only when the
 | `:personbean-provider-probe` | `experiments/personbean-provider-probe/` | `dev.denza.personbean.probe` (disposable app-UID PersonBean ContentResolver evaluation) |
 | `:dicar-media-probe` | `experiments/dicar-media-probe/` | `dev.denza.dicarmedia.probe` (disposable app-UID car media service evaluation for the speaker lift) |
 | `:split-events-probe` | `experiments/split-events-probe/` | `dev.denza.splitevents.probe` (disposable app-UID split area push, `homekey` and gate evaluation) |
+| `:avc-stock-probe` | `experiments/avc-stock-probe/` | `dev.denza.avcstock.probe` (disposable app-UID read and write of the stock AVC mode and turn-camera choice) |
 
 The frozen Denza Mirrors source lives at `legacy/denza-mirrors/` and is not
 included in the root Gradle build.

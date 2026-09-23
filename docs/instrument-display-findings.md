@@ -1152,6 +1152,213 @@ re-engaged lever 125 ms after the stock closed its window, is fixed by the
 recovery rule above and that revision has not been driven yet. Details are in
 vehicle-data-findings.md under "First drive of the window-only contract".
 
+### The stock turn-signal camera, read from the firmware (2026-09-23)
+
+Everything above was learned from the outside: window dumps, logcat and live
+turns. On 2026-09-23 the stock camera was read from the owner's OTA
+`Di5.1_34.1.33…` (the reader is `research/split-firmware/extract_system_files.py`).
+The image is the car: `/system/app/AutoVideo/AutoVideo.apk` (package
+`com.byd.avc`, SHA-256 `524b0381…`) and
+`/system/priv-app/BydClusterApp/BydClusterApp.apk` (`com.byd.cluster`,
+`4dbdf71f…`) hash the same on the car byte for byte, and the car reports
+`sys.car.protocol=CANFD`. Decompiled sources stay in the ignored scratch of
+that session; file references below are relative to the jadx `sources` root.
+
+**One render target.** The AIDL service our renderer binds
+(`com/byd/avc/aidlserver/AVCAIDLService.java`) is a thin pass-through:
+`initDisplay(surface)` and `freeDisplay()` go straight to
+`IPanoAPIFactory.getIPanoAPI()`, the same renderer object the stock PIP draws
+through, and it has no callback of any kind (tx 1–16: name, pid, empty
+`addCamTexture`/`rmCamTexture` stubs, viewpoint, buffer type, init/free display,
+camera surface, U-turn flag, parking POI). The renderer keeps exactly one
+output surface, `getSurface()`. Our `initDisplay` therefore does not add a
+second view of the camera: it takes the only one away from the stock PIP.
+
+**Why the fast switch crashed.** `PIPViewAlertController.modeChange`
+(`com/byd/avc/ui/uiImpl/PIP/PIPViewAlertController.java:352`) compares the
+renderer's surface with the surface of its own PIP holder and, when they
+differ during a PIP mode, calls `initDisplay` again with its holder's surface
+to take the output back. Its `surfaceDestroyed` frees the renderer only when
+the renderer's surface is its own (`:634`), so while our surface held the
+output the stock never freed on teardown and later re-initialised with
+whatever its holder then held. That is the frame of the 2026-09-04 tombstone
+(`TSAPI.createDisplay ← PIPViewAlertController.modeChange`). The mechanism,
+not only the timing, makes "our surface holds the renderer while the stock
+changes side" the crash condition; the early onset teardown works because it
+hands the renderer back before `modeChange` looks.
+
+**The stock rule.** Turn lights reach AVC as rule-manager messages;
+`com/byd/avc/rule/ruleImpl/process/light/Process3DLightMsg.java` maps them to
+modes `5095` PIP left, `5096` PIP right (landscape), `5000` exit; the setting
+`LightActiveType` chooses PIP (`1`) or full-screen AVM (`2`), and
+`LightActivePIPType` puts the left PIP on the meter (`1`) or on the head unit
+(`2`). Only the left side can go to the meter
+(`PIPViewAlertController.isShowOnMeterAlert`, `:471`): it needs a big
+instrument, `LightActivePIPType == 1` and a display named `fission_*`; the
+right side is always `PIP2HostAlert`, a `TYPE_SYSTEM_ALERT` window on the
+head unit. On the CANFD branch the PIP side is read from AVC's cached
+`LIGHT_TURN_SIGNAL_LIGHT` value, `2`/`3` left and `4`/`5` right
+(`com/byd/avc/util/devicestates/LightUtil.java:176`,
+`LightDeviceUtil.isLeftTurnLightPIP`) - the same FID `0x38A0002C` our helper
+already reads as the confirmed flash mode.
+
+**The tail is a timer.** `LightUtil.onLightOff` (`:97`) does not exit: it arms
+`sendEmptyMessageDelayed(1000, 2000L)`, and only when that fires does the mode
+manager get the light-off message `1022`. `LightUtil.onLightOn` (`:82`) first
+clears that pending exit. So the stock camera stays exactly two seconds after
+the lamps go off, and a lever re-engaged inside those two seconds keeps the
+same PIP without a new window. That is the 2.18–3.06 s "cancellation tail"
+measured on 2026-09-04 (two seconds after the mode event, plus the lamp and
+window latencies), and it is why a surviving same-side window after a
+cancellation onset cannot be told apart from a re-engaged lever by the window
+alone: in the stock's own model it is the same PIP. The timer is armed by the
+first non-left/right flash value only (hazard `6` counts as off); repeated off
+values do not restart it.
+
+**Gates.** The flash FID is the only trigger (`AVCBYDAutoLightDevice.java:195-223`):
+the raw lever FID `0x1330002C` feeds only the full-screen mode and the lamp
+icons, which is why its pulses and the opposite onset of a cancellation never
+flip the stock camera. A PIP opens only from idle mode `5000`, with
+`LightActiveType == 1`, a PIP-capable model, gear D/M/S at the moment of the
+event, power on and no U-turn/crab/PSS; shifting into D with a lamp already
+flashing opens it too. **There is no speed gate for the PIP** in either
+direction; the 15 and 30 km/h thresholds in `LightUtil` belong to the
+full-screen setting (`2`). Exits besides the timer: P, ACC off, the card's ✕,
+a radar alarm, R (the full-screen rear view takes over). A direct left↔right
+with `LightActivePIPType == 1` destroys one window and creates the other with
+the camera kept open; with `2` (both on the head unit) the window is kept and
+only the camera switches (`PIPViewAlertController.java:377-387`).
+
+**What the stock publishes.** Nothing is pushed: no broadcast, `Settings` key or
+system property accompanies an idle↔PIP change; the FIDs it writes
+(`0x1E000017`, `0xAA000048`, `0x32B0E035`, `0x4E10003E`) need BYD permissions to
+read. The exported `com.byd.avc/.AutoVideoService` (action
+`com.byd.action.AVCSERVICE`, no permission, no caller check) answers a
+Messenger: `what=35` replies with the current mode in `arg2` (`5095`/`5096`/`5099`
+= light PIP, `5000` = idle), `what=1011` replies `1012` with the user's setting
+in `arg2` (`0` PIP, left on the meter; `1` PIP on the head unit; `2`
+full-screen; `3` off), `what=1013` writes it and `what=52` closes the PIP. The
+settings live only in AVC's memory and `/collect2/autovideo/initSettingParam.json`
+(unreadable to shell on the car, checked 2026-09-23). Binding it from an ordinary
+app UID works: `experiments/avc-stock-probe` (UID 10126) bound in 23 ms and got
+`mode=5000`, choice `0` (left on the meter) in 6–11 ms per answer on 2026-09-23.
+Choice `1` (both on the head unit) is the one the stock UI no longer offers on
+this firmware; the Messenger still accepts it. The handler runs on
+AVC's main thread, the same thread that rebuilds the PIP, so it is a one-shot
+check per transition, not something to poll at 10 Hz.
+
+**Who owns the renderer, precisely.** This car's renderer is the TS SDK
+(`IPanoAPIFactory` type `8` → `TSAPI` → `com.ts.avm.bydsdk.AvmController`; the
+tombstone frames and our live buffer type `1` both say so). Ownership is one plain
+field, `AbsAPI.mCurrentSurface`: `initDisplay` writes it first and then spends the
+150–230 ms stopping and rebuilding the pipeline, always returning `true`;
+`freeDisplay` nulls it and stops the pipeline without checking whose surface it
+was. The stock frees only a surface that is its own, re-binds on a PIP
+`modeChange` whenever the field is non-null and differs from its holder, and never
+checks that the holder's surface exists. In a fast left→right the flash FID goes
+2→4 inside the two-second hold, so the stock goes straight `5095`→`5096`: in one
+main-thread turn it hides the meter card, adds the `PIP2HostAlert` window whose
+`SurfaceView` has not been laid out yet, finds our surface in the field and calls
+`initDisplay` with its own uncreated surface. The NULL window of the tombstone is
+the stock's, not ours; ours only defeats the `surface2 == null` guard. Consequences
+read from the code:
+
+- The crash fires on any window-creating PIP entry while the field is foreign:
+  idle→right, idle→left on the head unit, left(meter)→right, and entries into the
+  radar (`5098`) or CMS-fault (`5097`) views. Right→left with the left on the meter
+  is a harmless steal (the meter activity creates no alert in that turn). With
+  `LightActivePIPType == 2` (both sides on the head unit) left↔right keeps the
+  window and is a steal as well, not a crash.
+- Holding the renderer while the stock is idle is the most exposed state, not the
+  safest: the next turn, radar or reverse PIP crashes AVC.
+- Nothing clears our surface if our process dies: `onUnbind` only calls the TS
+  no-op `setuTurnEnable(false)` and there is no death link. A force-stop, crash or
+  `install -r` of Denza Apps during a camera session leaves AVC armed until its next
+  window-creating PIP crashes it once.
+- The stock takes the renderer back without telling anyone: every PIP surface
+  creation, the same-mode and type-2 re-binds, GL out-of-memory recovery, the
+  full-screen AVM (reverse included, whose teardown calls `freeDisplay`
+  unconditionally) and a camera-service reconnect. A `freeDisplay` from us after
+  such a steal freezes the stock's own PIP or reverse picture for that episode,
+  because the stock's re-bind guards return on a null field.
+- There is no second target: no second output in the native layer, the texture
+  calls are empty, and tx 8 is the renderer's input (see dishare-api-notes.md).
+  The only raw source outside AVC is the framework's `android.hardware.AVMCamera`,
+  whose access control is not in the image and whose use could pre-empt the stock
+  camera; it needs an isolated probe before anything else.
+- While we hold, the stock window keeps its last buffer, and our first frame is
+  fanned out to the stock's first-frame callback (the meter activity then reports
+  its card visible). The viewpoint is global: the stock left PIP uses `3203`
+  (`VIEW_PIP_SINGLE_L`) and `3204`; Denza Apps asks `3205` (`VIEW_PIP_DOUBLE`) for
+  left, and a stock re-bind through `modeChange` inherits whatever we set.
+
+No ordering of our own calls makes the crash impossible while we borrow the
+renderer; early release wins a race against the stock's handling of the same
+flash event, which is why the onset teardown works and why it has to stay.
+
+**Where the left card comes from.** `com.byd.cluster` has no turn-signal or
+camera logic. The left card is started by `BydProjectionService` (in
+`com.example.amapservice`) when the instrument reports
+`INSTRUMENT_REVERSE_PICTURE_IN_PICTURE_NEED_DISPLAY` (`0x40C0B024`) = 1; AVC's own
+`startContentProjection` request is stored and never read. The service launches
+`com.byd.avc/.PIP2MeterActivity` on `shared_fission_bg_XDJAScreenProjection_1`,
+the display Denza Apps draws its camera on, and reports
+`INSTRUMENT_LEFT_PROJECTION_SET` (`0x40C0C013`) = 2 after the first frame. The
+projection service checks the caller's package against a fixed list, so a
+third-party app cannot claim a card. The cluster picture itself is composed by
+`BydClusterManager` in the XDJA fission host on the same SoC, with the IVI
+Android as a container cell, rather than by a separate ECU.
+
+**Native events a normal app can have.** Nothing pushes the PIP state, but two
+framework channels see its windows: an `AccessibilityService` (both sides;
+`shared_…_1` is a public display, and our non-touchable Presentation does not
+mask the stock window; +30/35 ms right and +71 ms left were measured on
+2026-07-24), and this firmware's permissionless
+`IActivityManager.registerActivityTopListenerMultiDisplay` (tx `238`, left card
+only, via a raw transact like the split feature's). Neither is yet a product
+source.
+
+### The firmware-model contract (2026-09-23)
+
+The reducer no longer guesses the stock camera from its windows; it follows the
+two inputs AVC itself acts on, and it supersedes the window-only contract and its
+quarantine rules described above and in vehicle-data-findings.md:
+
+- **Side.** AVC's own mode, asked over its Messenger only while one of its cards
+  is up or a camera of ours is active: `5095` left, `5096`/`5099` right; idle,
+  full-screen, radar (`5098`) and CMS (`5097`) are never a side. A window only
+  says the card is built, so the renderer is ready to be taken: the meter
+  activity for a left card with the stock default, the head-unit alert for a
+  right card and for a left card when both images stay on the head unit (the
+  two alerts have the same 720x450 geometry, so the geometry alone cannot name a
+  side). When AVC does not answer, the old window signature is used alone.
+- **Show** side X when AVC's card of X is built, the lamps flash X (`2`/`3`
+  left, `4`/`5` right, the stock's own reading), our runtime is idle and no
+  teardown is in flight. With the lamp feed down the card alone opens it.
+- **Close** at once when the lamps leave X (off, hazard, the other side: an
+  event, not a poll), when AVC's card of X ends, or on a raw lever onset toward
+  the other side (unchanged, the crash guard). The camera never outlives the
+  lamps, so it never holds AVC's renderer into AVC's idle.
+- **After an onset** the torn-down side stays closed while its card survives,
+  until the lamps say what the onset was: any lamp change after it (a
+  cancellation turns them off; a re-engaged lever turns them on again), or the
+  lamps still on that side 1.5 s later (a bumped lever). This replaces the
+  five-poll and renewed-mode rules; the 2026-09-04 cancellation replay (35 polls
+  on a surviving card) still opens nothing.
+- **After any teardown** a reopen waits for two clean polls of one side; a poll
+  with no card at all ends that wait, so the next turn opens at once.
+- **Our failures** (start timeout, AVC failure, lost runtime, no picture within
+  2 s of READY, frames stopped for 700 ms) close the camera and latch that side
+  until its card or its lamps end.
+- **Free only our own.** Frames stopping after they started mean AVC took its
+  renderer back (its own card, the reverse view); `freeDisplay` is then skipped,
+  because it would null AVC's field and freeze that picture. A persisted claim,
+  set before `initDisplay` and cleared after our free, marks a surface of ours
+  that may still sit in AVC's field (a skipped free, or this process dying in a
+  session); the monitor frees it once AVC answers idle and shows no card.
+
+Not yet driven on the car at the time of writing.
+
 ### Startup timing baseline (2026-09-04, instrumentation-only candidate)
 
 The startup worktree starts at `90821f086cd17cd7568dd6f583a38438818b960a`.
