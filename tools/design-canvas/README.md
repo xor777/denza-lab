@@ -22,6 +22,11 @@ seeded from.
 > still current here is the method - boards computed from the code's constants,
 > measured rather than eyeballed - and the boards for surfaces Luminofor does not
 > draw.
+>
+> The split shield's wait, «Бригада сплита», was approved the same day and is
+> [`split-crew/`](split-crew/README.md): the page itself, held to the app's
+> `SplitCrewScene` by `SplitCrewBoardContractTest` and to its pixels by
+> `split-crew/compare.py`.
 
 ## Why this is in the repo
 

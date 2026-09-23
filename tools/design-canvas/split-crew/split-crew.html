@@ -1,0 +1,727 @@
+<title>Бригада сплита</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&family=Roboto+Mono:wght@400&display=swap">
+<style>
+  :root {
+    color-scheme: dark;
+    --ground: #06080b;
+    --stage: #000000;
+    --ink: #e8eef6;
+    --ink-2: #8793a4;
+    --ink-3: #56627a;
+    --rule: #182130;
+    --rule-2: #223047;
+    --blue: #439ffc;
+    --blue-core: #80beff;
+    --crown: #c8e4ff;
+    --sans: "Roboto", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: "Roboto Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  html, body { background: var(--ground); color: var(--ink); }
+  body { font-family: var(--sans); font-size: 15px; line-height: 1.5; }
+  .wrap {
+    max-width: 1320px;
+    margin: 0 auto;
+    padding-inline: 16px;
+    padding-block: 28px 48px;
+    display: grid;
+    gap: 18px;
+  }
+  header { display: grid; gap: 4px; }
+  h1 { margin: 0; font-weight: 500; font-size: 22px; letter-spacing: 0.01em; text-wrap: balance; }
+  .sub { margin: 0; color: var(--ink-2); font-size: 14px; }
+  .sub b { color: var(--ink); font-weight: 400; font-variant-numeric: tabular-nums; }
+
+  .stage {
+    position: relative;
+    width: 100%;
+    max-width: 100%;
+    aspect-ratio: 16 / 10;
+    background: var(--stage);
+    border: 1px solid var(--rule);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .stage canvas { display: block; width: 100%; height: 100%; }
+
+  .bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px 20px;
+  }
+  .group { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .label { color: var(--ink-2); font-size: 13px; letter-spacing: 0.02em; }
+  .seg { display: inline-flex; border: 1px solid var(--rule-2); border-radius: 8px; overflow: hidden; }
+  .seg input { position: absolute; opacity: 0; pointer-events: none; }
+  .seg label {
+    padding: 6px 12px;
+    font-size: 14px;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink-2);
+    cursor: pointer;
+    border-left: 1px solid var(--rule-2);
+    user-select: none;
+  }
+  .seg label:first-of-type { border-left: 0; }
+  .seg input:checked + label { color: var(--crown); background: rgba(67, 159, 252, 0.16); }
+  .seg input:focus-visible + label { outline: 2px solid var(--blue); outline-offset: -2px; }
+  .check { display: inline-flex; align-items: center; gap: 8px; color: var(--ink-2); font-size: 14px; cursor: pointer; }
+  .check input { accent-color: var(--blue); width: 16px; height: 16px; margin: 0; }
+  button {
+    font: inherit;
+    font-size: 14px;
+    color: var(--ink);
+    background: transparent;
+    border: 1px solid var(--rule-2);
+    border-radius: 8px;
+    padding: 6px 14px;
+    cursor: pointer;
+  }
+  button:hover { border-color: var(--blue); color: var(--crown); }
+  button:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+  .readout {
+    margin-left: auto;
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--ink-2);
+    font-variant-numeric: tabular-nums;
+    min-width: 17ch;
+    text-align: right;
+  }
+  .readout .on { color: var(--blue-core); }
+
+  .track-wrap { overflow-x: auto; }
+  .track { position: relative; min-width: 560px; height: 74px; }
+  .lane { position: absolute; left: 0; right: 0; height: 14px; }
+  .seg-bar {
+    position: absolute;
+    top: 0;
+    height: 14px;
+    border-radius: 2px;
+    background: rgba(67, 159, 252, 0.22);
+    border-left: 2px solid var(--blue);
+    font-size: 11px;
+    line-height: 14px;
+    color: var(--crown);
+    padding-left: 6px;
+    white-space: nowrap;
+    overflow: visible;
+  }
+  .seg-bar.wave {
+    background: linear-gradient(90deg, rgba(67, 159, 252, 0.22), rgba(67, 159, 252, 0));
+  }
+  .axis { position: absolute; left: 0; right: 0; top: 56px; height: 18px; border-top: 1px solid var(--rule-2); }
+  .tick { position: absolute; top: 0; height: 5px; border-left: 1px solid var(--rule-2); }
+  .tick span {
+    position: absolute;
+    top: 4px;
+    left: 0;
+    transform: translateX(-50%);
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--ink-3);
+  }
+  .end { position: absolute; top: -2px; bottom: 16px; border-left: 1px dashed var(--ink-3); }
+  .end span {
+    position: absolute;
+    top: -1px;
+    left: 5px;
+    font-size: 11px;
+    color: var(--ink-2);
+    white-space: nowrap;
+  }
+  .head { position: absolute; top: -4px; bottom: 14px; width: 0; border-left: 1px solid var(--crown); }
+
+  .notes { display: grid; gap: 8px; max-width: 68ch; color: var(--ink-2); }
+  .notes p { margin: 0; }
+  .notes strong { color: var(--ink); font-weight: 500; }
+
+  @media (max-width: 640px) {
+    .readout { margin-left: 0; text-align: left; }
+  }
+</style>
+
+<style>
+  .notes a { color: var(--blue-core); text-underline-offset: 3px; }
+  .notes a:hover { color: var(--crown); }
+</style>
+<div class="wrap">
+  <header>
+    <h1>Бригада сплита</h1>
+    <p class="sub">Второй вариант экрана ожидания после «Разделить экран» — весь дисплей машины, <b>2560 × 1600</b></p>
+  </header>
+
+  <div class="stage" id="stage">
+    <canvas id="screen" role="img" aria-label="Анимация ожидания: рабочие в касках толкают перегородку между панелями, слева кран переносит блоки, справа рабочие заколачивают раму"></canvas>
+  </div>
+
+  <div class="bar">
+    <div class="group" role="radiogroup" aria-labelledby="dur-label">
+      <span class="label" id="dur-label">Запуск длится</span>
+      <div class="seg">
+        <input type="radio" name="dur" id="dur-03" value="300"><label for="dur-03">0,3 с</label>
+        <input type="radio" name="dur" id="dur-15" value="1500"><label for="dur-15">1,5 с</label>
+        <input type="radio" name="dur" id="dur-4" value="4000"><label for="dur-4">4 с</label>
+        <input type="radio" name="dur" id="dur-inf" value="0" checked><label for="dur-inf">дольше</label>
+      </div>
+    </div>
+    <label class="check"><input type="checkbox" id="slow"> Медленно ×4</label>
+    <button type="button" id="replay">С начала</button>
+    <div class="readout" id="readout" aria-live="off">ожидание · 0,00 с</div>
+  </div>
+
+  <div class="track-wrap">
+    <div class="track" id="track" aria-hidden="true">
+      <div class="lane" style="top:0"><div class="seg-bar" data-from="0" data-to="650">раскрывается</div><div class="seg-bar wave" data-from="1000" data-to="6000">перегородку толкают ⅓ → ½ → ⅔ → ½, круг за 4 с</div></div>
+      <div class="lane" style="top:18px"><div class="seg-bar wave" data-from="0" data-to="6000">кран: блок из штабеля в стопку за 4,4 с</div></div>
+      <div class="lane" style="top:36px"><div class="seg-bar wave" data-from="0" data-to="6000">молоток: удар каждые 0,6 с, рама за 3,6 с</div></div>
+      <div class="axis" id="axis"></div>
+      <div class="end" id="end"><span>сцена</span></div>
+      <div class="head" id="head"></div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <p><strong>Границу между панелями двигает бригада.</strong> Перегородка висит на тележке портального крана, у её основания двое рабочих в касках: один толкает, другой пятится. Она ходит ⅓ → ½ → ⅔ → ½ за 4 секунды, так что экран не обещает, какой сплит соберётся.</p>
+    <p>Слева башенный кран переносит блоки из штабеля в стопку, а сигнальщик командует ему рукой. Справа один рабочий держит раму, второй с лестницы её заколачивает: с каждым ударом появляется новая сторона, летят искры.</p>
+    <p>Всё нарисовано тонкими линиями в синем спектра: ярче в центре экрана и тусклее к краям. Сцена раскрывается кругом из центра. Первый вариант — <a href="https://claude.ai/artifact/PvqPFBCxCCpagL3C91kb6A" target="_blank" rel="noopener">«Сборка сплита»</a> с проволочными фигурами.</p>
+  </div>
+</div>
+
+<script>
+(() => {
+  // ---- The car's screen, in dp (2560 x 1600 px at density 2). ----
+  const W = 1280, H = 800;
+  const FLOOR = 660, RAIL_T = 92, RAIL_B = 102;
+  const CX = 640, CY = 400;
+  const NARROW_LEFT = 434, NARROW_RIGHT = 846;       // the firmware's narrow pane on either side
+  const CAPTION = "Запускаем разделение экрана…";
+
+  const HALO = [67, 159, 252], CORE = [128, 190, 255], CROWN = [200, 228, 255];
+  const rgb = (c, k = 1) => `rgb(${Math.round(c[0] * k)},${Math.round(c[1] * k)},${Math.round(c[2] * k)})`;
+  const rgba = (c, a) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
+  const mix = (a, b, t) => a.map((v, i) => v + (b[i] - v) * t);
+  const clamp01 = v => Math.max(0, Math.min(1, v));
+  const smooth = x => { x = clamp01(x); return x * x * (3 - 2 * x); };
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const hash = n => { const s = Math.sin(n * 12.9898) * 43758.5453; return s - Math.floor(s); };
+
+  function cubicBezier(x1, y1, x2, y2) {
+    const cx = 3 * x1, bx = 3 * (x2 - x1) - cx, ax = 1 - cx - bx;
+    const cy = 3 * y1, by = 3 * (y2 - y1) - cy, ay = 1 - cy - by;
+    const sx = t => ((ax * t + bx) * t + cx) * t;
+    const sy = t => ((ay * t + by) * t + cy) * t;
+    return x => {
+      if (x <= 0) return 0;
+      if (x >= 1) return 1;
+      let lo = 0, hi = 1, t = x;
+      for (let i = 0; i < 28; i++) { if (sx(t) < x) lo = t; else hi = t; t = (lo + hi) / 2; }
+      return sy(t);
+    };
+  }
+  const standard = cubicBezier(0.4, 0, 0.2, 1);
+  const decelerate = cubicBezier(0.05, 0.7, 0.1, 1);
+  const prog = (t, t0, d, ease = standard) => ease(clamp01((t - t0) / d));
+
+  const HALF_DIAG = Math.hypot(W / 2, H / 2);
+  const fieldAt = (x, y) => 1 - 0.7 * clamp01(Math.hypot(x - W / 2, y - H / 2) / HALF_DIAG);
+
+  // ---- The divider: born in the middle, then ⅓ → ½ → ⅔ → ½ every four seconds. ----
+  const T_MOVE = 1000, CYCLE = 4000;
+  function dividerAt(t) {
+    if (t < T_MOVE) return CX;
+    const u = (t - T_MOVE) % CYCLE;
+    const leg = (a, b, t0, d) => a + (b - a) * standard(clamp01((u - t0) / d));
+    if (u < 900) return leg(CX, NARROW_LEFT, 0, 900);
+    if (u < 1100) return NARROW_LEFT;
+    if (u < 2900) return leg(NARROW_LEFT, NARROW_RIGHT, 1100, 1800);
+    if (u < 3100) return NARROW_RIGHT;
+    return leg(NARROW_RIGHT, CX, 3100, 900);
+  }
+
+  // ---- Canvas. ----
+  const canvas = document.getElementById("screen");
+  const ctx = canvas.getContext("2d");
+  let field, haze, scale = 1;
+
+  function resize() {
+    const r = canvas.getBoundingClientRect();
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    canvas.width = Math.max(1, Math.round(r.width * dpr));
+    canvas.height = Math.max(1, Math.round(r.height * dpr));
+    scale = canvas.width / W;
+    field = ctx.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, HALF_DIAG);
+    field.addColorStop(0, rgb(CORE, 1));
+    field.addColorStop(0.3, rgb(mix(CORE, HALO, 0.5), 0.92));
+    field.addColorStop(0.6, rgb(HALO, 0.62));
+    field.addColorStop(1, rgb(HALO, 0.3));
+    haze = ctx.createRadialGradient(0, 0, 0, 0, 0, 720);
+    haze.addColorStop(0, rgba(HALO, 0.2));
+    haze.addColorStop(0.55, rgba(HALO, 0.07));
+    haze.addColorStop(1, rgba(HALO, 0));
+  }
+  new ResizeObserver(resize).observe(canvas);
+  resize();
+
+  // ---- Drawing verbs. ----
+  function line(x0, y0, x1, y1) { ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); }
+  function stroke(alpha, width) {
+    ctx.globalAlpha = alpha;
+    ctx.lineWidth = width;
+    ctx.strokeStyle = field;
+    ctx.stroke();
+  }
+  /** A lattice girder in an axis-aligned box: two chords along the long side, a zigzag between. */
+  function truss(x0, y0, x1, y1, pitch) {
+    ctx.beginPath();
+    const horiz = (x1 - x0) >= (y1 - y0);
+    ctx.rect(x0, y0, x1 - x0, y1 - y0);
+    if (horiz) {
+      const n = Math.max(1, Math.round((x1 - x0) / pitch));
+      ctx.moveTo(x0, y1);
+      for (let i = 1; i <= n; i++) ctx.lineTo(x0 + (x1 - x0) * i / n, i % 2 ? y0 : y1);
+    } else {
+      const n = Math.max(1, Math.round((y1 - y0) / pitch));
+      ctx.moveTo(x0, y0);
+      for (let i = 1; i <= n; i++) ctx.lineTo(i % 2 ? x1 : x0, y0 + (y1 - y0) * i / n);
+    }
+  }
+  /** A block: a rectangle with a cross brace. */
+  function block(x, y, w, h) {
+    ctx.rect(x, y, w, h);
+    line(x, y, x + w, y + h);
+    line(x + w, y, x, y + h);
+  }
+
+  // ---- People: stick figures in hard hats. ----
+  const U = 104;
+  const THIGH = 0.25 * U, SHIN = 0.24 * U, TORSO = 0.3 * U, NECK = 0.045 * U, HEAD_R = 0.075 * U;
+  const UPPER = 0.17 * U, FORE = 0.17 * U, REACH = UPPER + FORE;
+
+  function ik(sx, sy, tx, ty, bend) {
+    let dx = tx - sx, dy = ty - sy, d = Math.hypot(dx, dy);
+    const max = REACH - 0.2;
+    if (d > max) { tx = sx + dx / d * max; ty = sy + dy / d * max; d = max; }
+    if (d < 1e-3) d = 1e-3;
+    const ang = Math.atan2(ty - sy, tx - sx);
+    const A = Math.acos(Math.max(-1, Math.min(1, (UPPER * UPPER + d * d - FORE * FORE) / (2 * UPPER * d))));
+    const e = ang + bend * A;
+    return [sx + UPPER * Math.cos(e), sy + UPPER * Math.sin(e), tx, ty];
+  }
+
+  /** Joints of a figure: hip at x, feet on `surface`, leaning `lean` rad forward, legs in gait `walk` × `amp`. */
+  function pose(o) {
+    const f = o.f, amp = o.amp || 0, walk = o.walk || 0;
+    const legs = [0, Math.PI].map(off => ({
+      th: 0.48 * amp * Math.sin(walk + off),
+      kn: 0.8 * amp * Math.max(0, Math.sin(walk + off + 1.2)),
+    }));
+    const drop = l => THIGH * Math.cos(l.th) + SHIN * Math.cos(l.th - l.kn);
+    const surface = o.surface ?? FLOOR;
+    const hx = o.x, hy = surface - Math.max(drop(legs[0]), drop(legs[1])) + (o.bob || 0);
+    const lean = o.lean || 0;
+    const nx = hx + TORSO * Math.sin(lean) * f, ny = hy - TORSO * Math.cos(lean);
+    const hd = lean + (o.nod || 0);
+    return {
+      o, f, legs, hx, hy, nx, ny, lean,
+      sx: nx, sy: ny + 0.035 * U,
+      cx: nx + (NECK + HEAD_R) * Math.sin(hd) * f, cy: ny - (NECK + HEAD_R) * Math.cos(hd),
+    };
+  }
+
+  function drawPerson(P, hands) {
+    const { f, hx, hy } = P, walk = P.o.walk || 0, amp = P.o.amp || 0;
+    ctx.beginPath();
+    for (const l of P.legs) {
+      const kx = hx + THIGH * Math.sin(l.th) * f, ky = hy + THIGH * Math.cos(l.th);
+      const fx = kx + SHIN * Math.sin(l.th - l.kn) * f, fy = ky + SHIN * Math.cos(l.th - l.kn);
+      ctx.moveTo(hx, hy); ctx.lineTo(kx, ky); ctx.lineTo(fx, fy); ctx.lineTo(fx + 0.07 * U * f, fy);
+    }
+    line(hx, hy, P.nx, P.ny);
+    [0, 1].forEach(i => {
+      let h = hands && hands[i];
+      if (!h) {
+        const sw = Math.sin(walk + (i ? 0 : Math.PI)) * 0.4 * amp + 0.1;
+        h = [P.sx + Math.sin(sw) * f * REACH * 0.94, P.sy + Math.cos(sw) * REACH * 0.94];
+      }
+      const j = ik(P.sx, P.sy, h[0], h[1], h[2] ?? f);
+      ctx.moveTo(P.sx, P.sy); ctx.lineTo(j[0], j[1]); ctx.lineTo(j[2], j[3]);
+    });
+    stroke(1, 2.2);
+    // Head and hard hat.
+    ctx.beginPath();
+    ctx.arc(P.cx, P.cy, HEAD_R, 0, 2 * Math.PI);
+    stroke(1, 2);
+    const up = P.lean + (P.o.nod || 0);
+    ctx.save();
+    ctx.translate(P.cx, P.cy);
+    ctx.rotate(up * f);
+    ctx.beginPath();
+    ctx.arc(0, -0.25 * HEAD_R, HEAD_R + 1.6, Math.PI, 2 * Math.PI);
+    line(-(HEAD_R + 3) * f, -0.25 * HEAD_R, (HEAD_R + 6) * f, -0.25 * HEAD_R);
+    ctx.restore();
+    stroke(1, 2.2);
+  }
+
+  // ---- The gantry and the divider hanging from it. ----
+  function drawGantry() {
+    truss(12, RAIL_T, 1268, RAIL_B, 16); stroke(0.7, 1.1);
+    truss(12, RAIL_B, 24, FLOOR, 16); stroke(0.6, 1.1);
+    truss(1256, RAIL_B, 1268, FLOOR, 16); stroke(0.6, 1.1);
+    // Ground: a line and the drawing's hatching under it.
+    ctx.beginPath();
+    line(0, FLOOR, W, FLOOR);
+    for (let x = 4; x < W; x += 14) line(x, FLOOR + 1, x - 8, FLOOR + 9);
+    stroke(0.55, 1);
+  }
+
+  function drawDivider(xd) {
+    ctx.beginPath();
+    ctx.rect(xd - 16, RAIL_B + 2, 32, 8);
+    ctx.moveTo(xd - 6, RAIL_B); ctx.arc(xd - 9, RAIL_B, 3, 0, 2 * Math.PI);
+    ctx.moveTo(xd + 12, RAIL_B); ctx.arc(xd + 9, RAIL_B, 3, 0, 2 * Math.PI);
+    stroke(0.9, 1.3);
+    truss(xd - 6, RAIL_B + 10, xd + 6, FLOOR - 6, 16);
+    stroke(0.95, 1.5);
+  }
+
+  function drawPushers(t, xd) {
+    const v = (dividerAt(t + 8) - dividerAt(t - 8)) / 16;
+    const amp = smooth(Math.abs(v) / 0.15);
+    for (const f of [1, -1]) {
+      const pushing = Math.sign(v) === f;
+      const lean = amp * (pushing ? 0.45 : -0.2);
+      const face = xd - f * 6;
+      const x = face - f * (0.24 * U + TORSO * Math.sin(lean));
+      const P = pose({ x, f, lean, amp, walk: f * xd / 14, bob: 0 });
+      const hy = FLOOR - 0.6 * U;
+      drawPerson(P, [[face, hy], [face, hy + 8]]);
+    }
+  }
+
+  // ---- The tower crane on the left and its signalman. ----
+  const PILE_X = 335, STACK_X = 150, BW = 64, BH = 40, SLING = 22, HOOK_TOP = 290;
+  const JIB_T = 200, JIB_B = 212, MAST = 64;
+  const CRANE_LEAD = 1100, CRANE_CYCLE = 4400;
+
+  function crane(t) {
+    const tc = t + CRANE_LEAD, c = Math.floor(tc / CRANE_CYCLE), u = tc % CRANE_CYCLE;
+    const onStack = c % 3;
+    const pickY = FLOOR - BH - SLING - 6, placeY = FLOOR - BH * (onStack + 1) - SLING - 6;
+    let tx = PILE_X, hy = HOOK_TOP;
+    const seg = (a, b, t0, d) => lerp(a, b, standard(clamp01((u - t0) / d)));
+    if (u < 600) hy = seg(HOOK_TOP, pickY, 0, 600);
+    else if (u < 800) hy = pickY;
+    else if (u < 1400) hy = seg(pickY, HOOK_TOP, 800, 600);
+    else if (u < 2300) tx = seg(PILE_X, STACK_X, 1400, 900);
+    else if (u < 3100) { tx = STACK_X; hy = u < 2900 ? seg(HOOK_TOP, placeY, 2300, 600) : placeY; }
+    else if (u < 3600) { tx = STACK_X; hy = seg(placeY, HOOK_TOP, 3100, 500); }
+    else tx = seg(STACK_X, PILE_X, 3600, 800);
+    const carrying = u >= 700 && u < 3000;
+    return { c, u, onStack, tx, hy, carrying };
+  }
+
+  function drawCrane(t) {
+    const k = crane(t);
+    // Mast, jib, counter-jib, apex and ties, counterweight, cab.
+    truss(MAST - 7, JIB_B, MAST + 7, FLOOR, 14); stroke(0.75, 1.1);
+    truss(28, JIB_T, 400, JIB_B, 14); stroke(0.75, 1.1);
+    ctx.beginPath();
+    line(MAST, 160, MAST - 7, JIB_T); line(MAST, 160, MAST + 7, JIB_T);
+    line(MAST, 160, 400, JIB_T); line(MAST, 160, 28, JIB_T);
+    ctx.rect(30, JIB_B, 22, 18);
+    ctx.rect(MAST + 7, JIB_B, 16, 14);
+    stroke(0.7, 1.1);
+    // Trolley, cable, hook.
+    ctx.beginPath();
+    ctx.rect(k.tx - 8, JIB_B, 16, 6);
+    line(k.tx, JIB_B + 6, k.tx, k.hy);
+    line(k.tx, k.hy, k.tx, k.hy + 4);
+    ctx.moveTo(k.tx + 3, k.hy + 7); ctx.arc(k.tx, k.hy + 7, 3, 0, Math.PI);
+    stroke(0.9, 1.2);
+    // Load, slings, pile and stack.
+    ctx.beginPath();
+    if (k.carrying) {
+      const by = k.hy + 6 + SLING;
+      line(k.tx, k.hy + 6, k.tx - BW / 2, by); line(k.tx, k.hy + 6, k.tx + BW / 2, by);
+      block(k.tx - BW / 2, by, BW, BH);
+    }
+    const settled = k.u >= 3000 ? k.onStack + 1 : k.onStack;
+    for (let i = 0; i < settled; i++) block(STACK_X - BW / 2, FLOOR - BH * (i + 1), BW, BH);
+    stroke(0.95, 1.4);
+    if (k.u < 700) { ctx.beginPath(); block(PILE_X - BW / 2, FLOOR - BH, BW, BH); stroke(0.95, 1.4); }
+    else if (k.u > 3600) { ctx.beginPath(); block(PILE_X - BW / 2, FLOOR - BH, BW, BH); stroke(0.95 * clamp01((k.u - 3600) / 400), 1.4); }
+    // The previous stack of three, fading as the next round begins.
+    if (k.onStack === 0 && k.c > 0 && k.u < 600) {
+      ctx.beginPath();
+      for (let i = 0; i < 3; i++) block(STACK_X - BW / 2, FLOOR - BH * (i + 1), BW, BH);
+      stroke(0.95 * (1 - k.u / 600), 1.4);
+    }
+    // A thud where the block lands.
+    const thud = k.u - 2900;
+    if (thud >= 0 && thud < 320) {
+      const y = FLOOR - BH * k.onStack, s = decelerate(thud / 320);
+      ctx.beginPath();
+      for (const d of [-1, 1]) {
+        line(STACK_X + d * (BW / 2 + 4 + 14 * s), y - 2, STACK_X + d * (BW / 2 + 12 + 14 * s), y - 6 - 4 * s);
+        line(STACK_X + d * (BW / 2 + 4 + 18 * s), y - 1, STACK_X + d * (BW / 2 + 14 + 18 * s), y - 1);
+      }
+      ctx.globalAlpha = 0.9 * (1 - thud / 320);
+      ctx.strokeStyle = rgb(CROWN);
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+    }
+    return k;
+  }
+
+  function drawSignalman(t, k) {
+    const u = k.u;
+    const towardStack = u >= 1400 && u < 2300;
+    const f = towardStack ? -1 : 1;
+    const P = pose({ x: 245, f, lean: 0, nod: -0.12 });
+    let a;
+    if ((u < 600) || (u >= 2300 && u < 2900)) a = 1.0 + 0.18 * Math.sin(t / 80);               // down, down
+    else if ((u >= 600 && u < 800) || (u >= 2900 && u < 3100)) a = -1.45;                       // hold
+    else if ((u >= 800 && u < 1400) || (u >= 3100 && u < 3600)) a = -1.25 + 0.35 * Math.sin(t / 70); // up, up
+    else a = -0.25 + 0.2 * Math.sin(t / 110);                                                    // this way
+    const hand = [P.sx + Math.cos(a) * f * REACH * 0.95, P.sy + Math.sin(a) * REACH * 0.95];
+    drawPerson(P, [hand, null]);
+  }
+
+  // ---- The frame on the right: one holds it, one hammers it from a ladder. ----
+  const LADDER_X = 1170, LADDER_TOP = 500, RUNG = 530, LADDER_HALF = 30;
+  const T_HAM = -250, HAM_PERIOD = 600;
+  const B_HIT = 0.35, B_UP = -2.1, HAND_R = 0.29 * U, HANDLE = 0.22 * U;
+
+  function hammerAngle(t) {
+    const ph = (((t - T_HAM) % HAM_PERIOD) + HAM_PERIOD) % HAM_PERIOD / HAM_PERIOD;
+    return ph < 0.7 ? lerp(B_HIT, B_UP, standard(ph / 0.7)) : lerp(B_UP, B_HIT, Math.pow((ph - 0.7) / 0.3, 2));
+  }
+
+  function drawRightCrew(t) {
+    const f = -1;
+    const P = pose({ x: LADDER_X, f, surface: RUNG, lean: 0.12 });
+    const at = b => [P.sx + Math.cos(b) * f * HAND_R, P.sy + Math.sin(b) * HAND_R];
+    const tip = b => [P.sx + Math.cos(b) * f * (HAND_R + HANDLE), P.sy + Math.sin(b) * (HAND_R + HANDLE)];
+    const impact = tip(B_HIT);
+    const right = impact[0] - 3, fw = 150, fb = pose({ x: 0, f: 1 }).sy - REACH * 0.92, ft = fb - 150, left = right - fw;
+
+    // Ladder.
+    ctx.beginPath();
+    line(LADDER_X - LADDER_HALF, FLOOR, LADDER_X, LADDER_TOP); line(LADDER_X + LADDER_HALF, FLOOR, LADDER_X, LADDER_TOP);
+    for (const y of [640, 618, 596, 574, 552, RUNG]) {
+      const s = LADDER_HALF * (y - LADDER_TOP) / (FLOOR - LADDER_TOP);
+      line(LADDER_X - s, y, LADDER_X + s, y);
+    }
+    stroke(0.8, 1.2);
+
+    // Hits so far, and the frame they have built this round.
+    const n = Math.floor((t - T_HAM) / HAM_PERIOD);
+    const hitAt = m => T_HAM + m * HAM_PERIOD;
+    const lastHit = hitAt(n);
+    ctx.beginPath();
+    ctx.rect(left, fb, fw, 6);
+    stroke(0.95, 1.4);
+    if (n >= 1) {
+      const c = Math.floor((n - 1) / 6), k = n - 6 * c;
+      const fade = k === 6 ? 1 - clamp01((t - hitAt(6 * c + 6)) / 400) : 1;
+      const flash = k === 6 ? Math.exp(-(t - hitAt(6 * c + 6)) / 120) : 0;
+      const edges = [
+        [right, fb, right, ft], [right, ft, left, ft], [left, ft, left, fb], [left, fb, right, ft],
+      ];
+      ctx.beginPath();
+      edges.forEach((e, i) => {
+        if (i >= Math.min(k, 4)) return;
+        const p = prog(t, hitAt(6 * c + 1 + i), 180, decelerate);
+        line(e[0], e[1], lerp(e[0], e[2], p), lerp(e[1], e[3], p));
+      });
+      stroke(fade * (0.95 + 0.05 * flash), 1.6 + 1.4 * flash);
+    }
+
+    // The holder, under the frame, jolted by each blow.
+    const jolt = 2.5 * Math.exp(-(t - lastHit) / 70);
+    const H = pose({ x: (left + right) / 2 - 4, f: 1, nod: -0.25 });
+    drawPerson(H, [[(left + right) / 2 - 12, fb + 3 + jolt, 1], [(left + right) / 2 + 6, fb + 3 + jolt, 1]]);
+
+    // The hammerer: the swing, the handle and the head.
+    const b = hammerAngle(t), hand = at(b), end = tip(b);
+    drawPerson(P, [hand, [LADDER_X + 6, LADDER_TOP + 6]]);
+    const nx = -Math.sin(b) * f, ny = Math.cos(b);   // perpendicular to the handle, for the head
+    ctx.beginPath();
+    line(hand[0], hand[1], end[0], end[1]);
+    stroke(1, 1.8);
+    ctx.beginPath();
+    line(end[0] - nx * 6, end[1] - ny * 6, end[0] + nx * 6, end[1] + ny * 6);
+    stroke(1, 4);
+
+    // Sparks from the last two blows.
+    for (const m of [n, n - 1]) {
+      const age = t - hitAt(m);
+      if (m < 1 || age < 0 || age > 480) continue;
+      ctx.beginPath();
+      for (let i = 0; i < 11; i++) {
+        const a = -0.8 + (hash(m * 17 + i) - 0.5) * 2.4;
+        const sp = 0.08 + 0.16 * hash(m * 31 + i * 7);
+        const vx = Math.cos(a) * sp, vy = Math.sin(a) * sp, g = 0.0009;
+        const px = impact[0] + vx * age, py = impact[1] + vy * age + 0.5 * g * age * age;
+        const qa = Math.max(0, age - 28);
+        line(impact[0] + vx * qa, impact[1] + vy * qa + 0.5 * g * qa * qa, px, py);
+      }
+      ctx.globalAlpha = Math.pow(1 - age / 480, 1.5);
+      ctx.strokeStyle = rgb(CROWN);
+      ctx.lineWidth = 1.3;
+      ctx.stroke();
+    }
+  }
+
+  function drawShield(t) {
+    const xd = dividerAt(t);
+    ctx.setTransform(scale, 0, 0, scale, 0, 0);
+    ctx.globalCompositeOperation = "source-over";
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = "#000";
+    ctx.fillRect(0, 0, W, H);
+    ctx.globalCompositeOperation = "lighter";
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+
+    ctx.save();
+    ctx.globalAlpha = prog(t, 0, 600, decelerate);
+    ctx.translate(W / 2, H / 2);
+    ctx.scale(1, 0.64);
+    ctx.fillStyle = haze;
+    ctx.fillRect(-720, -720, 1440, 1440);
+    ctx.restore();
+
+    // The site opens as a circle from the centre of the screen.
+    const open = prog(t, 0, 650, decelerate), rr = 40 + 860 * open;
+    ctx.save();
+    if (open < 1) {
+      ctx.beginPath();
+      ctx.arc(CX, CY, rr, 0, 2 * Math.PI);
+      ctx.clip();
+    }
+    drawGantry();
+    const k = drawCrane(t);
+    drawSignalman(t, k);
+    drawRightCrew(t);
+    drawDivider(xd);
+    drawPushers(t, xd);
+    ctx.restore();
+    if (open < 1) {
+      ctx.beginPath();
+      ctx.arc(CX, CY, rr, 0, 2 * Math.PI);
+      ctx.globalAlpha = 0.8 * (1 - open);
+      ctx.strokeStyle = rgb(CROWN);
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
+
+    ctx.globalCompositeOperation = "source-over";
+    ctx.globalAlpha = prog(t, 0, 160);
+    ctx.fillStyle = "rgba(255,255,255,0.9)";
+    ctx.font = '400 18px Roboto, system-ui, sans-serif';
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(CAPTION, W / 2, 748);
+    ctx.globalAlpha = 1;
+  }
+
+  // Where the shield comes down: the scene itself, whatever it is, is not drawn here.
+  function drawScene() {
+    ctx.setTransform(scale, 0, 0, scale, 0, 0);
+    ctx.globalCompositeOperation = "source-over";
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = "#0b0e13";
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = "rgba(255,255,255,0.28)";
+    ctx.font = '400 18px Roboto, system-ui, sans-serif';
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("здесь появляется сцена", W / 2, H / 2);
+  }
+
+  // ---- Playback. ----
+  const readout = document.getElementById("readout");
+  const head = document.getElementById("head");
+  const endMark = document.getElementById("end");
+  const TRACK_MS = 6000;
+  const pct = ms => `${(100 * Math.min(ms, TRACK_MS) / TRACK_MS).toFixed(3)}%`;
+
+  document.querySelectorAll(".seg-bar").forEach(el => {
+    const from = +el.dataset.from, to = +el.dataset.to;
+    el.style.left = pct(from);
+    el.style.width = `calc(${pct(to)} - ${pct(from)})`;
+  });
+  const axis = document.getElementById("axis");
+  for (let ms = 0; ms <= TRACK_MS; ms += 500) {
+    const tk = document.createElement("div");
+    tk.className = "tick";
+    tk.style.left = pct(ms);
+    if (ms % 1000 === 0) tk.innerHTML = `<span>${ms / 1000} с</span>`;
+    axis.appendChild(tk);
+  }
+
+  const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let duration = 0, slow = false, phase = "shield", t = 0, sceneT = 0, last = null, playing = !reduced;
+  const SCENE_HOLD = 1400;
+
+  function placeEnd() {
+    endMark.hidden = duration === 0 || duration > TRACK_MS;
+    endMark.style.left = pct(duration);
+  }
+  placeEnd();
+
+  const fmt = ms => (ms / 1000).toFixed(2).replace(".", ",");
+  function frame(now) {
+    if (last === null) last = now;
+    const dt = Math.min(64, now - last) * (slow ? 0.25 : 1);
+    last = now;
+    if (playing) {
+      if (phase === "shield") {
+        t += dt;
+        if (duration > 0 && t >= duration) { t = duration; phase = "scene"; sceneT = 0; }
+      } else {
+        sceneT += dt;
+        if (sceneT >= SCENE_HOLD) { phase = "shield"; t = 0; }
+      }
+    }
+    if (phase === "shield") {
+      drawShield(t);
+      readout.innerHTML = `<span class="on">ожидание</span> · ${fmt(t)} с`;
+    } else {
+      drawScene();
+      readout.textContent = `сцена · через ${fmt(duration)} с`;
+    }
+    const shown = phase === "shield" ? t : duration;
+    head.style.left = pct(shown <= TRACK_MS ? shown : T_MOVE + ((shown - T_MOVE) % CYCLE));
+    requestAnimationFrame(frame);
+  }
+  if (reduced) t = 2000;
+  const pin = /^#t(\d+)$/.exec(location.hash);
+  if (pin) { t = +pin[1]; playing = false; }
+  // The bare frame (the one addition to the approved page, for shot.py): #bare-t<ms> pins the time
+  // as #t<ms> does and shows the canvas alone, filling the window - 1280 x 800 CSS px, the car's
+  // screen in dp. Nothing the canvas draws changes; only the page around it goes.
+  const bare = /^#bare-t(\d+)$/.exec(location.hash);
+  if (bare) {
+    t = +bare[1]; playing = false;
+    const css = document.createElement("style");
+    css.textContent = "html,body{margin:0;background:#000;overflow:hidden}" +
+      ".wrap{display:block;max-width:none;padding:0}.wrap>:not(.stage){display:none}" +
+      ".stage{position:fixed;inset:0;width:100vw;height:100vh;aspect-ratio:auto;border:0;border-radius:0}";
+    document.head.appendChild(css);
+  }
+  requestAnimationFrame(frame);
+
+  document.querySelectorAll('input[name="dur"]').forEach(r => r.addEventListener("change", () => {
+    duration = +r.value;
+    placeEnd();
+    phase = "shield"; t = 0; playing = true;
+  }));
+  document.getElementById("slow").addEventListener("change", e => { slow = e.target.checked; });
+  document.getElementById("replay").addEventListener("click", () => { phase = "shield"; t = 0; playing = true; });
+})();
+</script>
