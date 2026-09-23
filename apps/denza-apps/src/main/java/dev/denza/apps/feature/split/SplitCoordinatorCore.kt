@@ -114,6 +114,23 @@ internal fun interface SplitOverlayOwner {
 }
 
 /**
+ * The firmware split gate (tx126 `setStartToSplit`), flipped in this process rather than over ADB.
+ *
+ * The firmware checks no permission for it and takes no lock (findings 2026-09-23), so an app UID
+ * flips it in a millisecond; the shell recipes keep their own `service call` for everything that is
+ * part of an operation. This seam exists for the one moment a round trip is too slow: the gate
+ * between a Home and the next tap in the dock (К 1.9). It throws when the call did not go through.
+ */
+internal fun interface SplitGateSwitch {
+    fun set(open: Boolean)
+
+    companion object {
+        /** No in-process gate: every flip fails, so nothing is ever closed ahead of the area. */
+        val ABSENT = SplitGateSwitch { error("no in-process gate") }
+    }
+}
+
+/**
  * What an explicit action of the user ended as, in the only terms a surface may act on (U5).
  *
  * The product has no channel for telling the user that something inside it failed: after a tap the
@@ -235,10 +252,16 @@ internal class SplitCoordinatorCore(
      * тесте - это состояние, текущее между тестами, а тут его молча получил бы каждый забывший.
      */
     private val ownership: TaskMoveOwnership,
+    /** The firmware gate flipped in this process, for the moments ADB is too slow (К 1.9). */
+    private val gate: SplitGateSwitch = SplitGateSwitch.ABSENT,
+    /** The firmware area read in this process; `null` when it cannot be read here. */
+    private val readArea: () -> Int? = { null },
 ) {
     private val stateLock = Any()
     private val recheckLock = Any()
     private val residentLock = Any()
+    private val gateCheckLock = Any()
+    private var gateCheck: SplitCancellable? = null
 
     private var state = SplitState()
     private var live: SplitLiveScene = emptyMap()
@@ -450,6 +473,113 @@ internal class SplitCoordinatorCore(
 
     // endregion
 
+    // region firmware signals (contract 1.9, К 1.9; findings "The three calls, live")
+
+    /**
+     * The firmware's own Home key: `CLOSE_SYSTEM_DIALOGS` with `reason=homekey`, which reaches this
+     * process nine milliseconds after the key and before Home has even started (live 2026-09-23).
+     *
+     * It says the user pressed Home, not that Home covered the scene, and it is allowed one thing
+     * ahead of the area: to close a gate this session owns over a scene it still believes visible.
+     * That is the whole race of 2026-09-18 19:51:52 - a tap in the dock a second after Home, pulled
+     * into split next to `com.byd.sr` while the product's first area read was still 0.1 s away
+     * (1.9.2). The area settles the rest. Home becomes the ordinary Home input, which confirms the
+     * cover by its own read and cancels the scene work the user walked away from (§4); and one
+     * second later a read puts the gate back if the scene is still on screen (a Home the firmware
+     * swallowed).
+     *
+     * An `OPEN`, a navigation return and `DISABLE` keep the gate: each of them is using it this
+     * very moment (1.3.9, 1.10), or is about to close it itself.
+     */
+    fun homeKeyPressed() {
+        ready()
+        if (!currentState().enabled) return
+        val owners = actor.pendingPriorities().filter { it in GATE_KEEPERS }
+        if (owners.isEmpty()) {
+            closeGateAhead("homekey")
+        } else {
+            log.log("homekey: gate оставлен операции ${owners.joinToString()}", background = true)
+        }
+        homeVisible()
+    }
+
+    /**
+     * The firmware's area, pushed on every change (tx120) - the same authority a tx30 read is, one
+     * tenth of a second after Home instead of the 0.85-0.9 s the first read used to land at.
+     *
+     * Unlike a read it reports every intermediate value, and the product's own operations walk the
+     * firmware through area 0 for a moment (the `no-focusable-task` Home inside an open). So while
+     * anything of ours is queued or running, the push is left to that work: it reads the world
+     * itself, and a Home it did not cause arrives as `homekey` anyway. On an idle actor a covered
+     * area (0 Home, 4 a fullscreen window) closes the gate ahead and becomes the Home input - this
+     * is how a Home without a key is heard: Back or the last finish in the wide pane, a caption
+     * dragged out (findings, "Home, read end to end"). A visible area (1, 2, 3) is a topology hint:
+     * only the reconcile may prove the scene ours again and resume a suspended gate.
+     */
+    fun areaChanged(area: Int) {
+        ready()
+        if (!currentState().enabled) return
+        val pending = actor.pendingPriorities()
+        if (pending.isNotEmpty()) {
+            log.log("area push $area: мир у операции ${pending.joinToString()}", background = true)
+            return
+        }
+        if (area.isCoveredArea()) {
+            closeGateAhead("area=$area")
+            homeVisible()
+        } else {
+            dividerResized()
+        }
+    }
+
+    /**
+     * One in-process transaction on the gate, and only on ours: a gate this session never opened is
+     * not its to close (to 1.12), and a cover already recorded has suspended it already.
+     */
+    private fun closeGateAhead(cause: String) {
+        if (!gateLeaseStore.isOwned()) return
+        if (currentState().visibility == SceneVisibility.COVERED) return
+        val startedAtMs = clock.nowMs()
+        val closed = runCatching { gate.set(open = false) }
+            .onFailure { error -> log.log("gate на опережение не закрылся ($cause): $error") }
+            .isSuccess
+        if (!closed) return
+        log.log("gate закрыт на опережение ($cause) за ${clock.nowMs() - startedAtMs} мс")
+        synchronized(gateCheckLock) {
+            gateCheck?.cancel()
+            gateCheck = clock.schedule(GATE_AHEAD_CHECK_MS) { checkGateAhead(cause) }
+        }
+    }
+
+    /**
+     * The undo of [closeGateAhead], decided by one area read. A covered area means the close was
+     * right and the Home input owns the rest. A visible one with no cover recorded means the Home
+     * never happened - the firmware swallowed the key, or a push was one of the transients - and a
+     * visible scene with our gate closed is a pane app escaping to fullscreen on its next screen
+     * (findings, "Placement, read end to end"), so the gate goes back.
+     */
+    private fun checkGateAhead(cause: String) {
+        synchronized(gateCheckLock) { gateCheck = null }
+        val area = runCatching(readArea).getOrNull() ?: return
+        if (area.isCoveredArea()) return
+        if (!gateLeaseStore.isOwned()) return
+        if (currentState().visibility == SceneVisibility.COVERED) return
+        val owners = actor.pendingPriorities().filter { it in GATE_KEEPERS }
+        if (owners.isNotEmpty()) return
+        runCatching { gate.set(open = true) }
+            .onSuccess { log.log("gate возвращён: $cause без накрытия, area=$area") }
+            .onFailure { error -> log.log("gate не возвращён после $cause: $error") }
+    }
+
+    private fun cancelGateCheck() {
+        synchronized(gateCheckLock) {
+            gateCheck?.cancel()
+            gateCheck = null
+        }
+    }
+
+    // endregion
+
     // region navigation (contract 1.10, priority NAV)
 
     /**
@@ -528,6 +658,7 @@ internal class SplitCoordinatorCore(
     /** The worker is joined first, so nothing is still holding the transport when it closes. */
     fun shutdown() {
         cancelReconcileRechecks()
+        cancelGateCheck()
         disarmResidentRelease()
         actor.shutdown()
         (shellFactory as? AutoCloseable)?.let { closeable -> runCatching(closeable::close) }
@@ -748,6 +879,28 @@ internal class SplitCoordinatorCore(
     internal companion object {
         /** Ф4: how long the shell-UID helper may stand about with no operation needing it. */
         const val RESIDENT_IDLE_MS = 30_000L
+
+        /**
+         * When a gate closed ahead of the area is checked against it. The push of a real Home
+         * arrived 111 ms after the key live, and flip to delivery was at most 145 ms over six
+         * captured Homes (findings 2026-09-23); a second is several times that, and short enough
+         * that a swallowed Home leaves a visible scene with a closed gate for no longer than it.
+         */
+        const val GATE_AHEAD_CHECK_MS = 1_000L
+
+        /**
+         * The operations that are using the gate at this instant and may not have it closed under
+         * them: the `OPEN` Home does not cancel (§4.2, 1.3.9), the navigator's move back into its
+         * pane (1.10) and `DISABLE`, which closes it itself (1.2).
+         */
+        val GATE_KEEPERS = setOf(
+            SplitInputPriority.OPEN,
+            SplitInputPriority.NAV,
+            SplitInputPriority.DISABLE,
+        )
+
+        /** Area 0 (Home on top) and 4 (a fullscreen window on top) cover the scene (1.9.1, 1.11.5). */
+        fun Int.isCoveredArea(): Boolean = this == 0 || this == 4
 
         const val ENABLE_LABEL = "enable"
         const val DISABLE_LABEL = "disable"

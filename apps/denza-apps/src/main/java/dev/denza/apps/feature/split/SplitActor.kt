@@ -321,6 +321,18 @@ internal class SplitActor(
         queued.any { entry -> entry.spec.priority in USER_INPUT_PRIORITIES }
     }
 
+    /**
+     * The priorities of everything queued or running right now. Read-only and advisory, like
+     * [userInputWaiting]: a firmware signal consults it to learn whether one of our own operations
+     * owns the world at this instant, and cancels nothing by asking.
+     */
+    fun pendingPriorities(): Set<SplitInputPriority> = lock.withLock {
+        buildSet {
+            queued.forEach { entry -> add(entry.spec.priority) }
+            inFlight?.let { entry -> add(entry.spec.priority) }
+        }
+    }
+
     /** Stops the worker and cancels everything still owed. For tests and for process teardown. */
     fun shutdown() {
         var abandoned: List<Entry> = emptyList()

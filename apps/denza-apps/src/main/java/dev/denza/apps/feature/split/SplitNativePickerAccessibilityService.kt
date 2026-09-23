@@ -7,7 +7,15 @@ import android.view.accessibility.AccessibilityEvent
 import dev.denza.apps.AccessibilityServiceSettings
 import dev.denza.apps.AccessibilitySettingsMutationLock
 
-internal enum class SplitAccessibilityEventTarget { STOCK_PICKER, PRODUCT_PICKER, HOME, IGNORE }
+/**
+ * What a window event of the split observer is about.
+ *
+ * Home is not among them any more. `com.byd.mycar` is the Home app, and its window events are
+ * focus changes - sent on focus loss as well as gain - which is where the false Home hints over a
+ * visible split came from; the dock's Home button produces no click at all (findings,
+ * "Home, read end to end"). Home is heard from the firmware instead ([SplitFirmwareSignals]).
+ */
+internal enum class SplitAccessibilityEventTarget { STOCK_PICKER, PRODUCT_PICKER, IGNORE }
 
 internal object SplitAccessibilityEventPolicy {
     fun isTopologyHint(eventType: Int): Boolean =
@@ -18,7 +26,6 @@ internal object SplitAccessibilityEventPolicy {
             SplitAccessibilityEventTarget.STOCK_PICKER
         packageName == PRODUCT_PICKER_PACKAGE && className == PRODUCT_PICKER_ACTIVITY ->
             SplitAccessibilityEventTarget.PRODUCT_PICKER
-        packageName == HOME_PACKAGE -> SplitAccessibilityEventTarget.HOME
         else -> SplitAccessibilityEventTarget.IGNORE
     }
 
@@ -27,7 +34,6 @@ internal object SplitAccessibilityEventPolicy {
     private const val PRODUCT_PICKER_PACKAGE = "dev.denza.apps"
     private const val PRODUCT_PICKER_ACTIVITY =
         "dev.denza.apps.feature.split.SplitPickerActivity"
-    private const val HOME_PACKAGE = "com.byd.mycar"
 }
 
 internal object SplitNativePickerAccessibilityAccess {
@@ -52,7 +58,7 @@ internal object SplitNativePickerAccessibilityAccess {
     }
 }
 
-/** Exact event source for the stock picker and an authority-checked Home gate suspension. */
+/** Exact event source for the two pickers and the window-topology hint of the reconcile. */
 class SplitNativePickerAccessibilityService : AccessibilityService() {
     override fun onServiceConnected() {
         connected = true
@@ -90,13 +96,9 @@ class SplitNativePickerAccessibilityService : AccessibilityService() {
         val packageName = event.packageName?.toString()
         val className = event.className?.toString()
         val target = SplitAccessibilityEventPolicy.target(packageName, className)
-        // Only the two pickers are worth a line. HOME matches the stock launcher by package
-        // alone, and in a window storm it printed up to twenty lines a second into an
-        // eleven-second logcat.
-        if (
-            target == SplitAccessibilityEventTarget.STOCK_PICKER ||
-            target == SplitAccessibilityEventTarget.PRODUCT_PICKER
-        ) {
+        // Only the two pickers are worth a line: in a window storm anything broader printed up
+        // to twenty lines a second into an eleven-second logcat.
+        if (target != SplitAccessibilityEventTarget.IGNORE) {
             Log.i(TAG, "window event target=$target package=$packageName class=$className")
         }
         when (target) {
@@ -104,8 +106,6 @@ class SplitNativePickerAccessibilityService : AccessibilityService() {
                 SplitScreenCoordinator.onNativePickerVisible(this)
             SplitAccessibilityEventTarget.PRODUCT_PICKER ->
                 SplitScreenCoordinator.onProductPickerVisible(this)
-            SplitAccessibilityEventTarget.HOME ->
-                SplitScreenCoordinator.onHomeVisible(this)
             SplitAccessibilityEventTarget.IGNORE -> Unit
         }
         // Hidden picker Activities do not consistently receive a configuration callback when BYD

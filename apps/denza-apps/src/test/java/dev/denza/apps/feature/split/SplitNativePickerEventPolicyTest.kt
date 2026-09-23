@@ -26,8 +26,13 @@ class SplitNativePickerEventPolicyTest {
         )
     }
 
+    /**
+     * The Home app's window events are focus changes, sent on loss as well as gain, and they were
+     * the false Home hints over a visible split (findings, "Home, read end to end"). Home is heard
+     * from the firmware now; the observer answers only for the two pickers.
+     */
     @Test
-    fun stockPickerAndHomeAreRoutedToDifferentAuthoritativeChecks() {
+    fun theStockPickerIsRoutedAndTheHomeAppIsNot() {
         assertEquals(
             SplitAccessibilityEventTarget.STOCK_PICKER,
             SplitAccessibilityEventPolicy.target(
@@ -36,14 +41,14 @@ class SplitNativePickerEventPolicyTest {
             ),
         )
         assertEquals(
-            SplitAccessibilityEventTarget.HOME,
+            SplitAccessibilityEventTarget.IGNORE,
             SplitAccessibilityEventPolicy.target(
                 packageName = "com.byd.mycar",
                 className = "com.byd.mycar.CarMainActivity",
             ),
         )
         assertEquals(
-            SplitAccessibilityEventTarget.HOME,
+            SplitAccessibilityEventTarget.IGNORE,
             SplitAccessibilityEventPolicy.target(
                 packageName = "com.byd.mycar",
                 className = null,

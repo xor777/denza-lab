@@ -2357,3 +2357,29 @@ An app that owns the gate can therefore close it within about ten milliseconds
 of the key, with no ADB and no shell, and learn from the firmware itself one
 tenth of a second later that the scene is covered - against a first read at
 0.85-0.9 s and a lost tap at 1.0 s on 2026-09-18.
+
+### What the product does with it (2026-09-23, code, not yet on the car)
+
+- **Home and the area are heard in the app process.** `SplitFirmwareSignals`
+  registers the `homekey` receiver and the `UnionActivityManager` area listener
+  on one thread of the main process while the toggle is on, and
+  `BinderSplitGateSwitch` flips the gate with tx126 from the same process. On
+  `homekey` the coordinator closes a gate it owns over a scene it believes
+  visible, at once, and then submits the ordinary Home input, which confirms
+  the cover by its own read; `OPEN`, a navigation return and `DISABLE` keep
+  the gate. A covered push (0/4) over an idle actor does the same - this is how
+  a Home without a key is heard; a visible push (1/2/3) is a topology hint for
+  the reconcile, which alone resumes a suspended gate on proof. While anything
+  of ours is queued or running the push is left to it: our own operations walk
+  the firmware through a transient area 0. Every close ahead of the area is
+  checked by one in-process read a second later and undone if the scene is
+  still on screen.
+- **The accessibility Home hint is gone.** `com.byd.mycar` window events no
+  longer mean Home; the 3-second area poll now only ever runs on a real Home.
+- **A process that starts reads the area once** and suspends a gate it still
+  owns under a covered world - the heir of a process a quickboot killed.
+- **Every pane app is listed through tx125**, not only those tx112 denies,
+  so manifest-capable apps get the full detent map in the wide pane.
+
+Contract: invariant 8, §4.2, К 1.9, К 1.11, 1.9.1, the Recents note under
+1.7 and 1.12 carry the same edition.

@@ -351,6 +351,17 @@ internal class FakeShell(
 
     fun isGateOpen(): Boolean = gate
 
+    /** Every gate flip that came through the in-process binder instead of the shell, in order. */
+    val binderGateFlips: MutableList<Boolean> = Collections.synchronizedList(mutableListOf())
+
+    /** tx126 sent by the app process itself ([SplitGateSwitch]): same firmware gate, no command. */
+    fun flipGateInProcess(open: Boolean) {
+        synchronized(this) {
+            binderGateFlips += open
+            gate = open
+        }
+    }
+
     /**
      * A package whose own manifest carries `BYD_SUPPORT_SPLIT_ACTIVITY=1`: tx112 says yes before
      * anybody listed it, while the runtime list the divider reads still does not hold it.
@@ -1042,6 +1053,10 @@ internal class SplitCarFixture(
         resident: SplitResidentProxy? = null,
         /** Каталог запусков этого мира; по умолчанию - общий [FakeCatalog] всех сценариев. */
         catalog: SplitLaunchCatalog = FakeCatalog,
+        /** The gate flipped in the app process; by default the fake firmware's own gate. */
+        gate: SplitGateSwitch = SplitGateSwitch { open -> fake.flipGateInProcess(open) },
+        /** The area read in the app process; by default what the fake firmware says right now. */
+        readArea: () -> Int? = { fake.area },
         /**
          * Runs on the worker as each diagnostic line is recorded.
          *
@@ -1069,6 +1084,8 @@ internal class SplitCarFixture(
                 onDiagnostic(line)
             },
             ownership = ownership,
+            gate = gate,
+            readArea = readArea,
         ).also { core -> built = core }
     }
 

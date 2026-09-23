@@ -41,7 +41,6 @@ import dev.denza.apps.feature.media.MediaFocusPauseBridge;
 import dev.denza.apps.feature.navigation.NavigationSettings;
 import dev.denza.apps.feature.navigation.SteeringWheelKeyInterceptor;
 import dev.denza.apps.feature.speaker.SpeakerCoverService;
-import dev.denza.apps.feature.split.SplitScreenCoordinator;
 import dev.denza.apps.feature.weather.WeatherAdapterScheduler;
 
 import java.util.ArrayList;
@@ -187,15 +186,6 @@ public class SimulcastAccessibilityService extends AccessibilityService {
         int type = event.getEventType();
         if (type == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED && eventPackage != null) {
             SpeakerCoverService.onForegroundPackage(eventPackage.toString());
-        }
-        if ((type == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
-                || type == AccessibilityEvent.TYPE_WINDOWS_CHANGED)) {
-            // This already-global observer is an update-stable fallback for the dedicated split
-            // observer. The coordinator still requires an owned gate and firmware area 0 before
-            // it mutates SmartMulti state, so forwarding the hint cannot open or close split.
-            SplitScreenCoordinator.onGlobalAccessibilityWindowChanged(
-                    this,
-                    eventPackage == null ? null : eventPackage.toString());
         }
         if (eventPackage != null && "com.byd.weatherdata".contentEquals(eventPackage)) {
             WeatherAdapterScheduler.onNativeWeatherVisible(this);

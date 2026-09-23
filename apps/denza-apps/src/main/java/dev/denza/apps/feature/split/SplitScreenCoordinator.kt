@@ -1,6 +1,7 @@
 package dev.denza.apps.feature.split
 
 import android.annotation.SuppressLint
+import android.app.Application
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
@@ -59,9 +60,14 @@ object SplitScreenCoordinator {
 
     @Volatile private var core: SplitCoordinatorCore? = null
 
+    /** The firmware's Home and area, heard in the main process; `null` elsewhere. */
+    @Volatile private var signals: SplitFirmwareSignals? = null
+
     fun initialize(context: Context, onStateChanged: () -> Unit) {
         // Read-only by construction: the core loads one durable snapshot, publishes the session and
-        // stops. No scene is restored, no lease is taken, no command is sent (K7, invariant 1).
+        // stops. No scene is restored, no lease is taken, no command is sent (K7, invariant 1) -
+        // with the one exception К 1.11 names: a gate this session still owns under a covered world
+        // is suspended, because a process that starts may be the heir of one the car force-stopped.
         core(context).initialize(onStateChanged)
         // Not a command and not a mutation: a PackageManager read on a background thread, so the
         // first tap does not have to wait for it (1.13.1).
@@ -113,23 +119,6 @@ object SplitScreenCoordinator {
         core(context).packageRemoved(packageName)
     }
 
-    /** Accepts only Home from the app-wide observer; all other global window traffic is ignored. */
-    @JvmStatic
-    fun onGlobalAccessibilityWindowChanged(context: Context, packageName: String?) {
-        if (
-            SplitAccessibilityEventPolicy.target(packageName, className = null) ==
-            SplitAccessibilityEventTarget.HOME
-        ) {
-            onHomeVisible(context)
-        }
-    }
-
-    /** A Home accessibility event is only a hint; firmware area 0 is the mutation authority. */
-    @JvmStatic
-    fun onHomeVisible(context: Context) {
-        core(context).homeVisible()
-    }
-
     /** Accessibility event for the stock picker created by dragging a fullscreen pane open. */
     @JvmStatic
     fun onNativePickerVisible(context: Context): Boolean = core(context).nativePickerVisible()
@@ -158,18 +147,47 @@ object SplitScreenCoordinator {
     }
 
     fun setEnabled(enabled: Boolean) {
-        core?.setEnabled(enabled)
+        val live = core ?: return
+        live.setEnabled(enabled)
+        if (enabled) armSignals(live) else signals?.disarm()
     }
 
     private fun core(context: Context): SplitCoordinatorCore {
         core?.let { return it }
-        return synchronized(lock) {
-            core ?: build(context.applicationContext).also { built -> core = built }
+        val built = synchronized(lock) {
+            core?.let { return it }
+            build(context.applicationContext).also { fresh -> core = fresh }
         }
+        if (SplitScreenSettings.isEnabled(context.applicationContext)) armSignals(built)
+        return built
+    }
+
+    /**
+     * Home and the split area, heard from the firmware in this process while the toggle is on
+     * (К 1.9, U4). Only the main process listens: the pickers live in `:picker` and reach the
+     * coordinator through [SplitCommandProvider], and the firmware keeps one callback per process.
+     *
+     * The push carries no first value, and a process that starts is exactly the moment the gate may
+     * have been left open by one that died - every sleep of the car force-stops this package while
+     * the gate survives in `system_server` (findings, "Every sleep of the car force-stops the
+     * product"). So the area is read once, and a covered one is handed over as if it had just been
+     * pushed: that is the gate duty of К 1.11 and nothing else. A visible world is left to the hints
+     * that arrive anyway; a cold start does not go and reconcile it by itself (K7).
+     */
+    private fun armSignals(live: SplitCoordinatorCore) {
+        val listening = signals ?: return
+        listening.arm(
+            onHomeKey = live::homeKeyPressed,
+            onArea = live::areaChanged,
+        )
+        listening.readArea()?.takeIf { area -> area == 0 || area == 4 }?.let(live::areaChanged)
     }
 
     private fun build(app: Context): SplitCoordinatorCore {
         val clock = SystemSplitClock()
+        val heard = SplitFirmwareSignals(app) { message -> SplitDiagnostics.record(message) }
+            .takeIf { Application.getProcessName() == app.packageName }
+        signals = heard
         return SplitCoordinatorCore(
             // One handshake for the process, not one per operation (1.13.3).
             shellFactory = SplitPersistentShell { persistentShell(app) },
@@ -193,6 +211,8 @@ object SplitScreenCoordinator {
             log = SplitDiagnosticLog(SplitDiagnostics::record),
             post = { action -> mainHandler.post(action) },
             ownership = TaskMoveOwnership.shared,
+            gate = BinderSplitGateSwitch,
+            readArea = { heard?.readArea() },
         )
     }
 
