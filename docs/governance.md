@@ -179,9 +179,13 @@ any work that depends on undocumented firmware behavior.
   diagnostics and leave the feature unavailable.
 - Navigation owns the full-size base surface. Side cameras are overlays and must
   not resize, restart, or duplicate the Yandex task.
-- Navigation shell commands are internal, fixed, short-lived operations. Keep
-  the package allowlist, never pass app-owned Binder objects across processes,
-  and never expose arbitrary commands to the UI.
+- Navigation shell commands are internal, fixed, short-lived operations. They
+  act only on a package `ProjectablePackages` admits - any application the car
+  can open, never this app and never the home screen - and check task identity
+  before every mutation. There is no package list (owner's decision,
+  2026-09-23): do not reintroduce one, on either side of the shell boundary.
+  Never pass app-owned Binder objects across processes, and never expose
+  arbitrary commands to the UI.
 - Navigation sessions stay in memory and never resume after boot. When a
   command, display, or task disappears, release the virtual display and return
   the task to display `0` when possible.

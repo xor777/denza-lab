@@ -182,20 +182,23 @@ The resolver picked display **`4`** for this run, not `3`.
 
 ### How the driver reaches it
 
-Wired into the product on 2026-08-25. The dashboard is **one of the choices in
-the navigation picker**, beside Яндекс Навигатор and the rest, under the label
-`Приборы`. That is the honest place for it: the picker answers one question -
-what the driver's display shows - and this is one more answer to it, not a
-second feature that would have to explain how it relates to the first.
+Wired into the product on 2026-08-25. The dashboard is **one of the answers on
+«Что показывать»**, under the label `Приборы`. That is the honest place for it:
+the page answers one question - what the driver's display shows - and this is
+one more answer to it, not a second feature that would have to explain how it
+relates to the first. Since 2026-09-23 it stands first, under its own heading
+«Функции приборов», above every application the car can open («Приложения»);
+see "Any application, not six navigators" under "Navigation projection".
 
-It is addressed by this app's own application id (`BuildConfig.APPLICATION_ID`,
-which is why `buildConfig` is enabled for the module) rather than by an invented
-token, so the picker resolves its label, its icon and its "is it installed"
-through the same `PackageManager` call it already makes for every other tile. It
-is deliberately *not* part of `NavigationSettings.installedApps`, which is what
-the fallback in `selectedPackage` reads: a car with no navigator installed should
-still say so and ask for one, rather than quietly settling on our instruments
-because they cannot be missing.
+It is addressed by this app's own application id
+(`NavigationAppPolicy.DASHBOARD_PACKAGE` = `BuildConfig.APPLICATION_ID`, which is
+why `buildConfig` is enabled for the module) rather than by an invented token, so
+a saved choice is always a package name. It is never looked up as an
+application: `ProjectablePackages` leaves this package out, and the chooser draws
+it with the instruments' glyph. It is also the fallback when nothing is saved or
+the saved application has left the car - it cannot go missing and works on the
+first press. Until 2026-09-23 the fallback was the first installed navigator,
+and before that Яндекс Навигатор by name.
 
 One thing is on the cluster at a time, and it comes off the way it was put
 there. Choosing the dashboard while a navigator is projected returns that
@@ -1791,11 +1794,13 @@ behavior passes.
 Denza Apps owns the navigation `VirtualDisplay` and its `Surface` in the app
 process. Short-lived `app_process` commands run under shell UID through the
 shared local ADB client and exit after one fixed operation. They can only find,
-move, resize, focus, or background a task from the closed navigation allowlist:
-Yandex Navigator, Yandex Maps, Google Maps, Waze, and 2GIS. Package identity is
-checked again inside the shell-UID boundary before every task mutation. Binder
-objects and `Surface` stay in the app process; the shell side exposes only the
-fixed task operations listed above.
+move, resize, focus, or background one task of a package `ProjectablePackages`
+admits - any application the car can open, never this app and never the home
+screen (see "Any application, not six navigators" below). Until 2026-09-23 this
+was a closed allowlist of six navigators. Package admission and task identity
+are checked again inside the shell-UID boundary before every task mutation.
+Binder objects and `Surface` stay in the app process; the shell side exposes
+only the fixed task operations listed above.
 
 The persisted map placement has four live-switchable layouts on the verified
 `2560x720` instrument display:
@@ -1818,6 +1823,67 @@ Changing a placement button while navigation is already projected returns the
 task without focusing it, recreates the virtual display, and projects the same
 task into the new geometry. Camera gradients are a separate layer and keep
 their already verified Mirrors parameters.
+
+### Any application, not six navigators
+
+Decided by the owner on 2026-09-23: the driver's display takes **any
+application the car has, or this app's instruments**, and the code carries no
+filter. Built and unit-tested the same day; **not run on the car**.
+
+**What the list was.** Six navigator packages - Яндекс Навигатор, Яндекс Карты,
+Google Maps (and its Morphe build), Waze, 2ГИС - written out twice: once in
+`NavigationAppPolicy.supported` for the picker, once in
+`ClusterProxyMain.ALLOWED_PACKAGES` for the shell side. Nothing in the
+projection depends on the task being a navigator; it moves a task.
+
+**What replaced it.** `ProjectablePackages`, one Java class both sides of the
+shell boundary read:
+
+- a package is projectable when `getLaunchIntentForPackage` answers for it -
+  the platform's own "can be opened", and exactly what the one-tap path uses to
+  open a missing task;
+- this app is left out (its instruments are drawn into the scene, never a task
+  to move, and offered as an application it would move the screen doing the
+  choosing onto the cluster);
+- the package that answers `HOME` is left out (its task is the one every other
+  returns to).
+
+The proxy asks it in `findTask` and in `enforceTask` before every mutation, so
+the old defence in depth stands without the list. `backgroundTask` used to skip
+every allowlisted navigator when it looked for the scene to focus after a quiet
+return; it now skips the returned package's own tasks only.
+`DriverScreenChoicesTest` holds the two exclusions to two and fails if any of the
+six package names reappears in the proxy, the policy, the settings or the
+coordinator.
+
+**The chooser.** The panel names the choice on a row («Что показывать», its icon
+or the instruments' glyph, and its name); the row opens a page of the panel with
+two groups in one grid - «Функции приборов» (`Приборы`) and «Приложения», every
+launchable application by name, from the launcher catalog the default-app roles
+already cache. The boards are `Config.dc.html` (the panel) and
+`DriverScreen.dc.html` (the page); the debug build's
+`DriverScreenSheetFixtureActivity` draws both over the device's own applications
+and matched them on an emulator on 2026-09-23.
+
+**What this car offers.** A read-only query on 2026-09-23 (`cmd package
+query-activities -a MAIN -c LAUNCHER`) listed 58 launchable packages; `HOME`
+resolves to `com.byd.mycar/.CarMainActivity`, which is not among them. The list
+includes stock applications no navigator list would have named - among them
+`com.byd.launchermap` (the stock map), `com.byd.carsettings`, `com.byd.avc` (the
+cameras) and `com.byd.dishare`.
+
+**Not verified live, and where the risk is.**
+
+- No non-navigator application has been projected on this firmware. Waze's
+  `CENTER` and `LEFT` already rendered black (above), so a picture in the wrong
+  geometry is a known outcome, not a new one.
+- `com.byd.avc` is offered like any other. A `com.byd.avc` crash is an
+  escalation alert in this repository; the first projection of the cameras'
+  application belongs to one owning session, from a documented reset, with
+  `logcat -b crash -v time` captured.
+- An application already shown elsewhere - on the passenger screen or through
+  DiShare - takes the existing task path unchanged; this has not been exercised
+  with a non-navigator.
 
 ### Capturing navigation and the Waze layout experiment
 
@@ -1918,7 +1984,7 @@ missing task, return, and warm re-projection. The installed APK hash remained
 the same, the app and AVC processes stayed unchanged, and the final crash buffer
 was empty. Selection changes and launch-discovery timeout paths have not been
 exercised live, so this is not acceptance of every navigation scenario. The
-picker re-reads the installed allowlist whenever it opens, the selected package
+chooser reads the car's launcher catalog whenever it opens, the selected package
 is saved, and projection sessions stay in memory and end with the process. The
 automatic **Map mode** implementation also remains in code, but its unfinished
 UI switch is hidden in the current build.
