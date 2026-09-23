@@ -55,7 +55,7 @@ class MirrorTurnSignalShadowTest {
     fun unqualifiedVendorModeNeverCountsAsAgreement() {
         assertEquals(
             MirrorTurnAgreement.SIGNAL_UNAVAILABLE,
-            compare(TurnIndicatorMode.VendorDefined(3), null),
+            compare(TurnIndicatorMode.VendorDefined(7), null),
         )
     }
 

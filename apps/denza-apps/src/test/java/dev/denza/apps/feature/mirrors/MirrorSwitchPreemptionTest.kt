@@ -4,7 +4,6 @@ import dev.denza.apps.feature.cluster.CameraRuntimePhase
 import dev.denza.apps.feature.cluster.CameraRuntimeSnapshot
 import dev.denza.apps.feature.vehicle.signal.TurnSwitchPhase
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -88,15 +87,6 @@ class MirrorSwitchPreemptionTest {
         )
     }
 
-    @Test
-    fun retainedOnsetAndFollowThroughIdentifyAnActiveTransition() {
-        listOf(2, 3, 4, 5).forEach { raw ->
-            assertTrue(MirrorSwitchPreemption.isTransitionInProgress(TurnSwitchPhase(raw)))
-        }
-        listOf(1, 6).forEach { raw ->
-            assertFalse(MirrorSwitchPreemption.isTransitionInProgress(TurnSwitchPhase(raw)))
-        }
-    }
 
     @Test
     fun activeCameraSidePrefersOurOwnTransition() {
@@ -118,7 +108,7 @@ class MirrorSwitchPreemptionTest {
                 "runtime $phase",
                 MirrorSide.RIGHT,
                 MirrorSwitchPreemption.activeCameraSide(
-                    MirrorTransitionState(phase = MirrorTransitionPhase.QUARANTINED),
+                    MirrorTransitionState(phase = MirrorTransitionPhase.IDLE),
                     runtime(phase, MirrorSide.RIGHT),
                 ),
             )
@@ -142,7 +132,7 @@ class MirrorSwitchPreemptionTest {
 
     @Test
     fun activeCameraSideIsNoneWhenNothingIsUp() {
-        listOf(MirrorTransitionPhase.IDLE, MirrorTransitionPhase.QUARANTINED).forEach { phase ->
+        listOf(MirrorTransitionPhase.IDLE).forEach { phase ->
             listOf(
                 CameraRuntimePhase.IDLE,
                 CameraRuntimePhase.STOPPING,

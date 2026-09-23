@@ -13,6 +13,7 @@ import android.os.IBinder;
 import android.os.Parcel;
 import android.os.RemoteException;
 import android.os.SystemClock;
+import android.util.Log;
 import android.view.Surface;
 import android.view.TextureView;
 import android.view.View;
@@ -27,6 +28,7 @@ public final class AvcCameraRenderer implements TextureView.SurfaceTextureListen
         default void onFirstFrame(String details) { }
     }
 
+    private static final String TAG = "DenzaAvcRenderer";
     private static final float COLOR_CONTRAST_SCALE = 1.62f;
     private static final float COLOR_BRIGHTNESS_OFFSET = 28.0f;
     private static final float COLOR_SATURATION = 0.80f;
@@ -89,6 +91,7 @@ public final class AvcCameraRenderer implements TextureView.SurfaceTextureListen
 
     public void start(int viewpoint, boolean processingEnabled) {
         stop();
+        MirrorFrameWatch.reset();
         startupTiming = new AvcStartupTiming(SystemClock.elapsedRealtime());
         this.viewpoint = viewpoint;
         applyImageEnhancement(processingEnabled);
@@ -114,12 +117,21 @@ public final class AvcCameraRenderer implements TextureView.SurfaceTextureListen
         startupTiming = null;
         boolean hadLocalSurface = surface != null;
         if (client != null) {
-            try {
-                client.freeDisplay();
-            } catch (RemoteException | RuntimeException ignored) {
-                // The vendor service may already be gone; local cleanup must still finish.
+            if (MirrorFrameWatch.stolen(SystemClock.elapsedRealtime())) {
+                // AVC already draws elsewhere (its own card, the reverse view): its owner field
+                // holds its surface, and freeDisplay would null it and freeze that picture. The
+                // persisted claim stays, and the monitor frees once AVC reports idle.
+                Log.i(TAG, "freeDisplay skipped: AVC took its renderer back");
+            } else {
+                try {
+                    client.freeDisplay();
+                    AvcDisplayClaim.release(context);
+                } catch (RemoteException | RuntimeException ignored) {
+                    // The vendor service may already be gone; local cleanup must still finish.
+                }
             }
         }
+        MirrorFrameWatch.reset();
         if (bound || bindingRequested) {
             try {
                 context.unbindService(connection);
@@ -167,10 +179,12 @@ public final class AvcCameraRenderer implements TextureView.SurfaceTextureListen
 
     @Override
     public void onSurfaceTextureUpdated(SurfaceTexture texture) {
+        if (texture != textureView.getSurfaceTexture()) return;
+        // One clock read per frame: frames stopping is how we learn AVC took its renderer back.
+        MirrorFrameWatch.frame(SystemClock.elapsedRealtime());
         AvcStartupTiming timing = startupTiming;
-        if (timing == null || timing.readyAtMs < 0
-                || texture != textureView.getSurfaceTexture()) return;
-        // Bounded: no clock reads or metric allocation on subsequent video frames.
+        if (timing == null || timing.readyAtMs < 0) return;
+        // Bounded: no metric allocation on subsequent video frames.
         startupTiming = null;
         listener.onFirstFrame(timing.firstFrameDetails(SystemClock.elapsedRealtime()));
     }
@@ -194,6 +208,8 @@ public final class AvcCameraRenderer implements TextureView.SurfaceTextureListen
             AvcInitializationGate.run(new AvcInitializationGate.Attempt() {
                 @Override
                 public boolean initDisplay() throws RemoteException {
+                    // AVC stores our surface in its owner field before this call returns.
+                    AvcDisplayClaim.claim(context);
                     long startedAt = SystemClock.elapsedRealtime();
                     boolean accepted = client.initDisplay(surface);
                     if (timing != null) timing.initDisplayMs = SystemClock.elapsedRealtime() - startedAt;

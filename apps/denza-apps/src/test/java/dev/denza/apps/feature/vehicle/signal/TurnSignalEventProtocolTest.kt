@@ -6,14 +6,17 @@ import org.junit.Test
 
 class TurnSignalEventProtocolTest {
     @Test
-    fun onlyLiveConfirmedLightValuesGetSemanticNames() {
+    fun lightValuesAreNamedTheWayTheStockCameraReadsThem() {
         assertEquals(TurnIndicatorMode.OFF, TurnSignalDecoder.indicatorMode(1))
         assertEquals(TurnIndicatorMode.LEFT, TurnSignalDecoder.indicatorMode(2))
         assertEquals(TurnIndicatorMode.RIGHT, TurnSignalDecoder.indicatorMode(4))
         assertEquals(TurnIndicatorMode.HAZARD, TurnSignalDecoder.indicatorMode(6))
+        // Fast flash (a failed bulb) is still that side for com.byd.avc (LightUtil.java:176-184).
+        assertEquals(TurnIndicatorMode.LEFT, TurnSignalDecoder.indicatorMode(3))
+        assertEquals(TurnIndicatorMode.RIGHT, TurnSignalDecoder.indicatorMode(5))
         assertEquals(
-            TurnIndicatorMode.VendorDefined(3),
-            TurnSignalDecoder.indicatorMode(3),
+            TurnIndicatorMode.VendorDefined(7),
+            TurnSignalDecoder.indicatorMode(7),
         )
         assertEquals(
             TurnIndicatorMode.VendorDefined(99),

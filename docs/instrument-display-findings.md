@@ -1278,6 +1278,47 @@ mask the stock window; +30/35 ms right and +71 ms left were measured on
 only, via a raw transact like the split feature's). Neither is yet a product
 source.
 
+### The firmware-model contract (2026-09-23)
+
+The reducer no longer guesses the stock camera from its windows; it follows the
+two inputs AVC itself acts on, and it supersedes the window-only contract and its
+quarantine rules described above and in vehicle-data-findings.md:
+
+- **Side.** AVC's own mode, asked over its Messenger only while one of its cards
+  is up or a camera of ours is active: `5095` left, `5096`/`5099` right; idle,
+  full-screen, radar (`5098`) and CMS (`5097`) are never a side. A window only
+  says the card is built, so the renderer is ready to be taken: the meter
+  activity for a left card with the stock default, the head-unit alert for a
+  right card and for a left card when both images stay on the head unit (the
+  two alerts have the same 720x450 geometry, so the geometry alone cannot name a
+  side). When AVC does not answer, the old window signature is used alone.
+- **Show** side X when AVC's card of X is built, the lamps flash X (`2`/`3`
+  left, `4`/`5` right, the stock's own reading), our runtime is idle and no
+  teardown is in flight. With the lamp feed down the card alone opens it.
+- **Close** at once when the lamps leave X (off, hazard, the other side: an
+  event, not a poll), when AVC's card of X ends, or on a raw lever onset toward
+  the other side (unchanged, the crash guard). The camera never outlives the
+  lamps, so it never holds AVC's renderer into AVC's idle.
+- **After an onset** the torn-down side stays closed while its card survives,
+  until the lamps say what the onset was: any lamp change after it (a
+  cancellation turns them off; a re-engaged lever turns them on again), or the
+  lamps still on that side 1.5 s later (a bumped lever). This replaces the
+  five-poll and renewed-mode rules; the 2026-09-04 cancellation replay (35 polls
+  on a surviving card) still opens nothing.
+- **After any teardown** a reopen waits for two clean polls of one side; a poll
+  with no card at all ends that wait, so the next turn opens at once.
+- **Our failures** (start timeout, AVC failure, lost runtime, no picture within
+  2 s of READY, frames stopped for 700 ms) close the camera and latch that side
+  until its card or its lamps end.
+- **Free only our own.** Frames stopping after they started mean AVC took its
+  renderer back (its own card, the reverse view); `freeDisplay` is then skipped,
+  because it would null AVC's field and freeze that picture. A persisted claim,
+  set before `initDisplay` and cleared after our free, marks a surface of ours
+  that may still sit in AVC's field (a skipped free, or this process dying in a
+  session); the monitor frees it once AVC answers idle and shows no card.
+
+Not yet driven on the car at the time of writing.
+
 ### Startup timing baseline (2026-09-04, instrumentation-only candidate)
 
 The startup worktree starts at `90821f086cd17cd7568dd6f583a38438818b960a`.
