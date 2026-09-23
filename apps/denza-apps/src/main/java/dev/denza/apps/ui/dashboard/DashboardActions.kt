@@ -4,6 +4,7 @@ import dev.denza.apps.DenzaUiState
 import dev.denza.apps.core.FeatureId
 import dev.denza.apps.core.FeatureResolution
 import dev.denza.apps.core.FeatureSnapshot
+import dev.denza.apps.core.FeatureStatus
 import dev.denza.apps.feature.cluster.ClusterMapPlacement
 import dev.denza.apps.feature.mirrors.MirrorsPosition
 
@@ -79,7 +80,16 @@ object DashboardPress {
             TileId.MIRRORS -> actions.onToggleMirrors(!state.mirrors.desiredEnabled)
             TileId.HUD -> actions.onToggleHudGuidance(!state.hudGuidance.desiredEnabled)
             TileId.SPEAKERS -> actions.onToggleSpeakerCovers(!state.speakerCovers.desiredEnabled)
-            TileId.CLOUD -> actions.onToggleCloudLink(!state.cloudLink.desiredEnabled)
+            // A press the car refused is asked again, not reversed. The tile says «Не включилось»
+            // over a wish that is still on, and a press that answered it by switching off would do
+            // the opposite of what its own words offer.
+            TileId.CLOUD -> actions.onToggleCloudLink(
+                if (state.cloudLink.status == FeatureStatus.ERROR) {
+                    state.cloudLink.desiredEnabled
+                } else {
+                    !state.cloudLink.desiredEnabled
+                },
+            )
             TileId.WEATHER -> actions.onSetWeatherEnabled(!state.weatherEnabled)
             TileId.DEFAULT_APPS ->
                 actions.onSetDefaultAppsEnabled(!state.defaultApps.substituting)

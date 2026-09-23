@@ -96,7 +96,7 @@ internal class CloudLinkCore {
             disconnectedSinceMs = null
             return emptyList()
         }
-        if (!wifi) {
+        if (car.cellular || !wifi) {
             disconnectedSinceMs = null
             return emptyList()
         }
@@ -104,11 +104,13 @@ internal class CloudLinkCore {
         if (car.connected == null) return emptyList()
 
         val since = disconnectedSinceMs ?: nowMs.also { disconnectedSinceMs = it }
+        val backedOff = lastReadyAtMs.let { it == null || nowMs - it >= backoff(attempts) }
         val due = when (gate) {
-            // Closed by us or by a restart: nothing to wait for.
-            Gate.CLOSED -> true
-            Gate.UNKNOWN, Gate.OPENED -> nowMs - since >= SETTLE_MS &&
-                lastReadyAtMs.let { it == null || nowMs - it >= backoff(attempts) }
+            // Closed by us or by a restart: nothing to settle. Only an attempt the car refused -
+            // a profile that did not take, a shell that failed - holds it back, on the backoff,
+            // or a car that keeps refusing is sent the profile broadcast once a minute for ever.
+            Gate.CLOSED -> backedOff
+            Gate.UNKNOWN, Gate.OPENED -> nowMs - since >= SETTLE_MS && backedOff
         }
         if (!due) return emptyList()
         return buildList {
@@ -138,7 +140,7 @@ internal class CloudLinkCore {
      * it the gate is not a synthetic APN of ours to close.
      */
     fun wifiGone(car: CloudCarState): List<CloudStep> =
-        if (gate == Gate.CLOSED || car.profile != CloudLinkProtocol.WIFI_PROFILE) {
+        if (gate == Gate.CLOSED || car.cellular || car.profile != CloudLinkProtocol.WIFI_PROFILE) {
             emptyList()
         } else {
             listOf(CloudStep.AnnounceGone)
@@ -149,7 +151,7 @@ internal class CloudLinkCore {
      * give the car its own profile back. Each half only when the reading says it is needed.
      */
     fun switchedOff(car: CloudCarState): List<CloudStep> = buildList {
-        if (car.profile == CloudLinkProtocol.WIFI_PROFILE) add(CloudStep.AnnounceGone)
+        if (car.profile == CloudLinkProtocol.WIFI_PROFILE && !car.cellular) add(CloudStep.AnnounceGone)
         if (!car.onStockProfile) add(CloudStep.RestoreProfile(car.stockProfile))
     }
 
@@ -159,6 +161,16 @@ internal class CloudLinkCore {
         attempts += 1
         lastReadyAtMs = nowMs
         // The settle clock starts again: the next repeat is measured from this one.
+        disconnectedSinceMs = nowMs
+    }
+
+    /**
+     * A «ready» that did not happen: the profile did not take, the Binder refused, or the shell
+     * failed on the way. Counted like one that did, so the next try waits its backoff.
+     */
+    fun readyFailed(nowMs: Long) {
+        attempts += 1
+        lastReadyAtMs = nowMs
         disconnectedSinceMs = nowMs
     }
 

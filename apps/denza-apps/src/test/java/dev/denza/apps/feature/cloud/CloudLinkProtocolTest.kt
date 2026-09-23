@@ -25,6 +25,10 @@ class CloudLinkProtocolTest {
             triple_apn
             @@apn1
             1
+            @@apn1state
+            disconnected
+            @@apn3state
+            disconnected
             @@pid
             113
             @@tcp
@@ -34,6 +38,7 @@ class CloudLinkProtocolTest {
         """.trimIndent()
 
         val car = CloudLinkProtocol.parseRead(output)
+        assertFalse("the unregistered SIM carries nothing", car.cellular)
         assertEquals("double_apn", car.profile)
         assertEquals("triple_apn", car.buildProfile)
         assertEquals(true, car.apn1Disabled)
@@ -95,6 +100,19 @@ class CloudLinkProtocolTest {
         assertTrue(car.wifiProfile)
     }
 
+    /** The stock receiver's own test for a live APN3 is the word `connect`. */
+    @Test
+    fun aLiveCellularApnIsReadAsTheStockReceiverReadsIt() {
+        val output = """
+            @@apn1state
+            disconnected
+            @@apn3state
+            connect
+        """.trimIndent()
+        assertTrue(CloudLinkProtocol.parseRead(output).cellular)
+        assertFalse(CloudLinkProtocol.parseRead("@@apn3state").cellular)
+    }
+
     @Test
     fun theTcpGetterIsItsSecondWordAndOnlyWithoutAnException() {
         assertEquals(true, CloudLinkProtocol.tcpConnected("Result: Parcel(00000000 00000001   '........')"))
@@ -144,7 +162,7 @@ class CloudLinkProtocolTest {
     @Test
     fun oneReadAsksEverythingOnceAndTagsEachAnswer() {
         val command = CloudLinkProtocol.readCommand()
-        listOf("@@profile", "@@build", "@@apn1", "@@pid", "@@tcp", "@@wifi").forEach { tag ->
+        listOf("@@profile", "@@build", "@@apn1", "@@apn1state", "@@apn3state", "@@pid", "@@tcp", "@@wifi").forEach { tag ->
             assertEquals("$tag once", 1, Regex(Regex.escape("echo $tag;")).findAll(command).count())
         }
         // Reads only: the one round trip the tile makes changes nothing on the car.

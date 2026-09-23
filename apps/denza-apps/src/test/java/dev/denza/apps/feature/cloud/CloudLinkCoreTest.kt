@@ -172,6 +172,43 @@ class CloudLinkCoreTest {
         )
     }
 
+    /**
+     * A car that refuses - the profile broadcast answered but the property never written, or a
+     * shell that failed - is not sent the same thing once a minute for ever.
+     */
+    @Test
+    fun aRefusedAttemptWaitsItsBackoffEvenWithTheGateClosed() {
+        val core = CloudLinkCore()
+        assertEquals(listOf(UseWifiProfile, AnnounceReady), core.switchedOn(stock, wifi = true, nowMs = 0))
+        core.readyFailed(0)
+        assertEquals(emptyList<CloudStep>(), core.reconcile(stock, wifi = true, nowMs = 60_000))
+        assertEquals(emptyList<CloudStep>(), core.reconcile(stock, wifi = true, nowMs = 5 * 60_000 - 1))
+        assertEquals(listOf(UseWifiProfile, AnnounceReady), core.reconcile(stock, wifi = true, nowMs = 5 * 60_000))
+        core.readyFailed(5 * 60_000)
+        assertEquals(emptyList<CloudStep>(), core.reconcile(stock, wifi = true, nowMs = 14 * 60_000))
+        assertEquals(listOf(UseWifiProfile, AnnounceReady), core.reconcile(stock, wifi = true, nowMs = 15 * 60_000))
+
+        // The driver's own press is not held back by any of it.
+        assertEquals(listOf(UseWifiProfile, AnnounceReady), core.switchedOn(stock, wifi = true, nowMs = 15 * 60_000 + 1))
+    }
+
+    /**
+     * A car whose own SIM works - not this one, but the app ships to others - has the network the
+     * stock client was built for. The adapter stays out of it: no profile switch, no ready, and
+     * above all no gone that would close a real APN3.
+     */
+    @Test
+    fun aCarWithItsOwnCellularLinkIsLeftToTheStockFramework() {
+        val cellular = stock.copy(cellular = true)
+        val core = CloudLinkCore()
+        assertEquals(emptyList<CloudStep>(), core.switchedOn(cellular, wifi = true, nowMs = 0))
+        assertEquals(emptyList<CloudStep>(), core.reconcile(cellular, wifi = true, nowMs = 10 * 60_000))
+        val adaptedCellular = adapted.copy(cellular = true)
+        assertEquals(emptyList<CloudStep>(), core.wifiGone(adaptedCellular))
+        // Off still gives the car its profile back, without closing the gate under a live APN3.
+        assertEquals(listOf(RestoreProfile("triple_apn")), core.switchedOff(adaptedCellular))
+    }
+
     @Test
     fun theBackoffIsFiveMinutesDoublingToAnHour() {
         assertEquals(0L, CloudLinkCore.backoff(0))

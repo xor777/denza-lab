@@ -12,7 +12,6 @@ import android.content.IntentFilter
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
-import android.net.NetworkRequest
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
@@ -63,12 +62,12 @@ class CloudLinkService : Service() {
         createNotificationChannel()
         startForeground(NOTIFICATION_ID, notification())
         validated = CloudWifi.validated(this)
-        getSystemService(ConnectivityManager::class.java)?.registerNetworkCallback(
-            NetworkRequest.Builder()
-                .addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
-                .build(),
-            networkCallback,
-        )
+        // The default network, because that is what [CloudWifi.validated] asks about. A callback
+        // on Wi-Fi alone fires when Wi-Fi validates, which can be a moment before it becomes the
+        // default - the question then answers «no», the transition is lost, and the link waits
+        // for the next five-minute reading.
+        getSystemService(ConnectivityManager::class.java)
+            ?.registerDefaultNetworkCallback(networkCallback)
         // Sent by system_server with no permission and no package, so it has to be exported to
         // arrive at all. Whether it does arrive at an ordinary app is unproven; nothing waits on it.
         registerReceiver(statusReceiver, IntentFilter(TCP_STATUS_ACTION), Context.RECEIVER_EXPORTED)

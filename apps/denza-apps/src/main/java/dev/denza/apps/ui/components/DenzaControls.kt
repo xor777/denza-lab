@@ -77,11 +77,14 @@ fun DenzaSwitchRow(
             horizontalArrangement = Arrangement.spacedBy(DenzaMetrics.Space.M),
         ) {
             Column(Modifier.weight(1f)) {
+                // Two lines, not one. In the narrow pane a switch row leaves its words 248 dp, and at
+                // 19/500 «Автоуправление динамиками» is 268 and «Поддерживать связь с облаком» 290:
+                // on one line the name of the setting ended in an ellipsis before its last word.
                 Text(
                     text = title,
                     style = MaterialTheme.typography.titleMedium,
                     color = if (enabled) DenzaColors.Ink else DenzaColors.Muted,
-                    maxLines = 1,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
                 if (subtitle != null) {

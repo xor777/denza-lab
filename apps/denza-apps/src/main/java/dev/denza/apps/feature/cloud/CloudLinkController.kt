@@ -53,7 +53,7 @@ object CloudLinkController {
         val app = context.applicationContext
         explicit(ENABLE_FAILED) {
             val car = read(app)
-            run(app, core.switchedOn(car, CloudWifi.validated(app), now())).also { followUp(app) }
+            attempt(app, core.switchedOn(car, CloudWifi.validated(app), now()))
         }
     }
 
@@ -152,8 +152,11 @@ object CloudLinkController {
             val steps = decide(car, CloudWifi.validated(app))
             if (steps.isNotEmpty()) {
                 Log.i(TAG, "$reason: $steps gate=${core.gate} attempts=${core.attempts}")
-                run(app, steps)
-                if (CloudStep.AnnounceReady in steps) followUp(app)
+            }
+            // A press the car refused earlier is not the news once the link is up by other means:
+            // the tile would say «Не включилось» over a car the phone can see.
+            if (car.connected == true || (steps.isNotEmpty() && attempt(app, steps))) {
+                CloudLinkRuntime.failure = null
             }
         } catch (error: Exception) {
             Log.i(TAG, "$reason failed", error)
@@ -185,6 +188,20 @@ object CloudLinkController {
                 publish()
             }
         }
+    }
+
+    /**
+     * [run], with a «ready» that did not happen counted against the backoff, and the readings that
+     * catch one that did. Never throws: a shell that failed is a step the car did not take.
+     */
+    private fun attempt(app: Context, steps: List<CloudStep>): Boolean {
+        val taken = runCatching { run(app, steps) }
+            .onFailure { Log.w(TAG, "steps $steps failed", it) }
+            .getOrDefault(false)
+        if (CloudStep.AnnounceReady in steps) {
+            if (taken) followUp(app) else core.readyFailed(now())
+        }
+        return taken
     }
 
     /**

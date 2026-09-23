@@ -513,6 +513,9 @@ private fun speakerSheet(state: DenzaUiState, actions: DashboardActions, busy: B
  * reads the car's value rather than a copy of it - the car is what turns Wi-Fi off at ACC-off, so it
  * is the only one that can say what will happen - and stays grey until the car has answered once.
  *
+ * The second carries its cost under it, because it is the one that changes what the car does
+ * when nobody is in it.
+ *
  * Both grey while either is being written: each is one shell round trip and a read-back, and a
  * second press during it would only queue behind the first.
  */
@@ -526,6 +529,10 @@ private fun cloudSheet(state: DenzaUiState, actions: DashboardActions) {
     )
     DenzaSwitchRow(
         title = "Держать Wi-Fi включенным",
+        // The price, where the switch is: the car stops turning its radio off when it parks, and
+        // how much that costs overnight has not been measured. Two lines in the narrow pane, cut at
+        // the same word in both widths.
+        subtitle = "Если машина долго стоит, может разрядиться аккумулятор",
         checked = state.cloudWifiRetained == true,
         onCheckedChange = actions.onSetCloudWifiRetained,
         enabled = !state.cloudLinkBusy && state.cloudWifiRetained != null,

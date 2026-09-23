@@ -36,6 +36,9 @@ internal object CloudLinkProtocol {
         "profile" to "getprop persist.sys.byd.apn_type",
         "build" to "getprop ro.build.byd.apn_type",
         "apn1" to "getprop persist.radio.net.lte.apn1.disable",
+        // The car's own cellular links, as the stock receiver reads them: `connect` while up.
+        "apn1state" to "getprop net.lte.apn1.state",
+        "apn3state" to "getprop net.lte.apn3.state",
         "pid" to "pidof cloudmanager",
         // The stock TCP client's own getter: the second word is 1 while it holds a connection.
         "tcp" to "service call cloudmanager 7",
@@ -70,6 +73,7 @@ internal object CloudLinkProtocol {
                 "0" -> false
                 else -> null
             },
+            cellular = values["apn1state"].isConnected() || values["apn3state"].isConnected(),
             cloudPid = values["pid"]?.split(' ')?.singleOrNull()?.takeIf { it.all(Char::isDigit) },
             connected = values["tcp"]?.let(::tcpConnected),
             wifiRetained = when (values["wifi"]) {
@@ -81,6 +85,12 @@ internal object CloudLinkProtocol {
             },
         )
     }
+
+    /**
+     * `BYDMultiApnConnReceiver.getApn3Status` counts APN3 as up on exactly `connect`; the live run
+     * read `disconnected` on both. `connected` is accepted too, as the spelling nobody has seen yet.
+     */
+    private fun String?.isConnected(): Boolean = this == "connect" || this == "connected"
 
     /** `Result: Parcel(00000000 00000001 ...)`: no exception, and the client holds a connection. */
     fun tcpConnected(line: String): Boolean? {
@@ -137,6 +147,12 @@ data class CloudCarState(
     val profile: String? = null,
     val buildProfile: String? = null,
     val apn1Disabled: Boolean? = null,
+    /**
+     * A cellular APN of the car's own is up. Then the car has the network the stock client was
+     * built for - a car with a working SIM - and the gate is the stock framework's to open and
+     * close: the adapter says nothing, above all no «gone» that would close a real APN3.
+     */
+    val cellular: Boolean = false,
     val cloudPid: String? = null,
     val connected: Boolean? = null,
     val wifiRetained: Boolean? = null,
