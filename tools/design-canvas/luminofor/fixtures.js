@@ -42,6 +42,7 @@
     { name: 'Язык системы', status: 'Русский язык', on: false, icon: [['c', 11, 12, 9], ['p', 'M2.4 9.5h17.2M2.4 14.5h17.2'], ['p', 'M11 3a15 15 0 0 0 0 18 15 15 0 0 0 0-18z']] },
     { name: 'Экран справа', status: 'Не выбрано', on: false, icon: [['r', 2, 2.5, 14, 19, 2], ['p', 'M9 6.5v7'], ['p', 'M6 10.5l3 3 3-3'], ['p', 'M6 17.5h6']] },
     { name: 'Shortcuts', status: '3 настроены', on: true, icon: [['r', 2, 3, 7, 7, 2], ['r', 13, 3, 7, 7, 2], ['r', 2, 14, 7, 7, 2], ['p', 'm13.5 17.5 2 2 4-5']] },
+    { name: 'Облако', status: 'На связи', on: true, icon: [['p', 'M4 14.9A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.24'], ['p', 'M12 13v8'], ['p', 'M8 17l4-4 4 4']] },
     { name: 'Сервис', status: 'Всё в норме', on: false, icon: [['p', 'M2 7h16M2 12h16M2 17h16'], ['k', 13, 7, 2], ['k', 6, 12, 2], ['k', 15, 17, 2]] }
   ];
 
@@ -53,7 +54,8 @@
     tone(TILES[0], 'Google Maps', 'idle'), tone(TILES[1], 'Выбрано 1', 'idle'), tone(TILES[2], 'Выключены', 'idle'),
     tone(TILES[3], 'Выключено', 'idle'), tone(TILES[4], 'Выключены', 'idle'), tone(TILES[5], 'Данных ещё нет', 'working'),
     tone(TILES[6], 'Выключена', 'idle'), tone(TILES[7], 'Русский язык', 'idle'), tone(TILES[8], 'Не выбрано', 'idle'),
-    tone(TILES[9], 'Не проверено', 'broken'), tone(TILES[10], '1 функция ждёт', 'attention')
+    tone(TILES[9], 'Не проверено', 'broken'), tone(TILES[10], 'Выключено', 'idle'),
+    tone(TILES[11], '1 функция ждёт', 'attention')
   ];
 
   const temps = (vals, states) => vals.map((x, i) => ({ value: String(x), state: (states || {})[i] || 'normal' }));
@@ -161,17 +163,20 @@
   // `state` - the two are one scene, and compare.py is what says so.
   const TAP = 'Короткое нажатие на плитку делает то же самое';
   const sheetOf = (tile, sheet, state) => Object.assign({}, head, { sheet: Object.assign({ icon: TILES[tile].icon, tone: 'live' }, sheet), state });
-  const NAV = [{ name: 'Яндекс', selected: true }, { name: 'Waze' }, { name: '2ГИС' }, { name: 'Приборы' }];
+  // the driver's screen: this app's instruments, then every application the car can open
+  const DIAL = [['p', 'M4 15a8 8 0 0 1 16 0'], ['p', 'M12 15l4.2-4.6'], ['p', 'M12.9 15a0.9 0.9 0 1 1-1.8 0a0.9 0.9 0 1 1 1.8 0']];
+  const NAV = [{ name: 'Приборы', instruments: true, glyph: DIAL }, { name: 'Яндекс Навигатор', selected: true },
+    { name: '2ГИС' }, { name: 'Waze' }, { name: 'Google Maps' }, { name: 'VK Видео' }, { name: 'Telegram' }];
   const CAST = [{ name: 'VK Видео', selected: true }, { name: 'Rutube', selected: true }, { name: 'YouTube' },
     { name: 'Кинопоиск' }, { name: 'Okko' }, { name: 'Wink' }, { name: 'Telegram' }, { name: 'Яндекс Музыка' }];
   const sheets = {
     cluster: sheetOf(0, {
       title: 'Экран водителя',
       blocks: [
-        { t: 'section', label: 'Что показывать', body: { t: 'apps', columns: 4, items: NAV } },
+        { t: 'group', rows: [{ kind: 'choice', title: 'Что показывать', icons: ['Яндекс Навигатор'], value: 'Яндекс Навигатор' }] },
         { t: 'section', label: 'Размещение', body: { t: 'segmented', labels: ['Полный', 'Слева', 'Центр', 'Справа'], selected: 0 } },
         { t: 'switch', title: 'Кнопка ★ на руле', on: true },
-        { t: 'note', text: 'Выбранное приложение занимает приборную панель за рулём. Короткое нажатие на плитку ставит его туда и убирает обратно.' }
+        { t: 'note', text: 'На приборную панель за рулём встаёт что-то одно: приборы или любое приложение с машины. Короткое нажатие на плитку ставит его туда и убирает обратно.' }
       ],
       footer: [{ t: 'button', text: 'На приборку' }, { t: 'footnote', text: TAP }]
     }, { tile: 'CLUSTER', navigation: NAV, placements: ['FULL', 'LEFT', 'CENTER', 'RIGHT'], placement: 'FULL', wheel: true, buttonLabel: 'На приборку' }),
@@ -194,6 +199,16 @@
       ],
       footer: [{ t: 'button', text: 'Запустить' }, { t: 'footnote', text: TAP }]
     }, { tile: 'SIMULCAST', simulcast: true, apps: CAST }),
+    // «Что показывать», the page the driver's screen row opens: the instruments over the car's
+    // applications, one grid, a name over each run
+    driverApps: sheetOf(0, {
+      title: 'Что показывать', back: true,
+      blocks: [{ t: 'appSections', runs: [
+        { label: 'Функции приборов', items: NAV.filter(n => n.instruments) },
+        { label: 'Приложения', items: NAV.filter(n => !n.instruments) }
+      ] }]
+      // no «Готово»: one answer at a time, and the tap that chooses is the tap that returns
+    }, { tile: 'CLUSTER', navigation: NAV, placements: ['FULL', 'LEFT', 'CENTER', 'RIGHT'], placement: 'FULL', wheel: true, buttonLabel: 'На приборку', page: 'apps' }),
     castApps: sheetOf(1, {
       title: 'Что транслировать', back: true, subtitle: 'Можно выбрать до 6 · выбрано 2',
       blocks: [{ t: 'apps', items: CAST }],
@@ -240,7 +255,7 @@
     // the service panel on a healthy car: its state first - on a car with something wrong, the
     // tiles that need somebody, in their own words - then the car's access and the instruments'
     // screen, and the readings behind a button
-    service: sheetOf(10, {
+    service: sheetOf(11, {
       title: 'Сервис',
       blocks: [
         { t: 'section', label: 'Состояние', body: [{ t: 'note', text: 'Все функции работают.' }] },
@@ -267,7 +282,7 @@
   // recovery to offer, the request across the card, the recovery and the explainer under it
   const gate = Object.assign({}, head, {
     modal: {
-      icon: TILES[10].icon, tone: 'attention', title: 'Подтвердите доступ к ADB',
+      icon: TILES[11].icon, tone: 'attention', title: 'Подтвердите доступ к ADB',
       message: 'Для работы Denza Apps разрешите системный запрос ADB на экране автомобиля',
       details: 'Отладка по ADB включена в системе автомобиля',
       primary: 'Запросить доступ',
@@ -275,6 +290,16 @@
     },
     state: { gate: 'AUTHORIZATION_REQUIRED', systemSwitch: 'ENABLED' }
   });
+
+  // the cloud link: a switch whose reason is a warning, on two lines rather than cut short
+  sheets.cloud = sheetOf(10, {
+    title: 'Облако',
+    blocks: [
+      { t: 'switch', title: 'Поддерживать связь с облаком', on: true },
+      { t: 'switch', title: 'Держать Wi-Fi включенным', summary: 'Если машина долго стоит, может разрядиться аккумулятор', on: false },
+      { t: 'note', text: 'Машина выходит в облако через Wi-Fi, а не через свою SIM-карту, и приложение Denza на телефоне видит её заряд и запас хода. «Держать Wi-Fi включенным» не даёт машине выключать Wi-Fi, когда она засыпает, — связь остаётся и на стоянке.' }
+    ]
+  }, { tile: 'CLOUD', cloud: true, wifi: false });
 
   // board id -> [board, fixture]; px sizes are the displays' own
   root.LUMINOFOR_BOARDS = {
@@ -309,6 +334,8 @@
     'sheet-mirrors':   [{ kind: 'sheet', mode: 'full' }, sheets.mirrors],
     'sheet-simulcast': [{ kind: 'sheet', mode: 'full' }, sheets.simulcast],
     'sheet-cast-apps': [{ kind: 'sheet', mode: 'full' }, sheets.castApps],
+    'sheet-driver-apps': [{ kind: 'sheet', mode: 'full' }, sheets.driverApps],
+    'one-sheet-driver-apps': [{ kind: 'sheet', mode: 'one' }, sheets.driverApps],
     'sheet-speakers':  [{ kind: 'sheet', mode: 'full' }, sheets.speakers],
     'sheet-defaults':  [{ kind: 'sheet', mode: 'full' }, sheets.defaults],
     'sheet-locale':    [{ kind: 'sheet', mode: 'full' }, sheets.locale],
@@ -316,6 +343,8 @@
     'sheet-service':   [{ kind: 'sheet', mode: 'full' }, sheets.service],
     'modal-adb':       [{ kind: 'modal', mode: 'full' }, gate],
     'one-modal-adb':   [{ kind: 'modal', mode: 'one' }, gate],
+    'sheet-cloud':     [{ kind: 'sheet', mode: 'full' }, sheets.cloud],
+    'one-sheet-cloud': [{ kind: 'sheet', mode: 'one' }, sheets.cloud],
     'one-sheet-cluster':   [{ kind: 'sheet', mode: 'one' }, sheets.cluster],
     'one-sheet-cast-apps': [{ kind: 'sheet', mode: 'one' }, sheets.castApps],
     'digits':         [{ kind: 'digits' }, {}]

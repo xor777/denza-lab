@@ -38,6 +38,12 @@ import dev.denza.apps.feature.fse.FseInstallResult
 import dev.denza.apps.feature.hud.HudGuidanceRuntime
 import dev.denza.apps.feature.hud.HudGuidanceSettings
 import dev.denza.apps.feature.hud.HudNotificationAccessCoordinator
+import dev.denza.apps.feature.cloud.CloudLinkController
+import dev.denza.apps.feature.cloud.CloudLinkRuntime
+import dev.denza.apps.feature.cloud.CloudLinkService
+import dev.denza.apps.feature.cloud.CloudLinkSettings
+import dev.denza.apps.feature.cloud.CloudLinkStatus
+import dev.denza.apps.feature.cloud.CloudWifi
 import dev.denza.apps.feature.locale.SystemLanguage
 import dev.denza.apps.feature.locale.SystemLanguageSnapshot
 import dev.denza.apps.feature.mirrors.MirrorDisplayReadiness
@@ -93,11 +99,19 @@ data class SimulcastAppChoice(
     val selectable: Boolean = true,
 )
 
+/**
+ * One answer on «Что показывать»: an application, or this app's own instruments.
+ *
+ * [instruments] is what the chooser groups by and what draws the instruments with their glyph
+ * rather than an application's icon; they have none of their own worth showing - the launcher icon
+ * of this app would stand for the screen doing the choosing, not for the dial it puts on the panel.
+ */
 data class NavigationAppChoice(
     val packageName: String,
     val label: String,
     val icon: Drawable?,
     val selected: Boolean,
+    val instruments: Boolean = false,
 )
 
 data class DenzaUiState(
@@ -118,6 +132,15 @@ data class DenzaUiState(
      * separately because the button answers with the switch off too.
      */
     val speakerCoversReporting: Boolean = false,
+    /** The car's link to the cloud over Wi-Fi: the driver's wish and the stock client's last reading. */
+    val cloudLink: FeatureSnapshot = FeatureReducer.disabled(FeatureId.CLOUD_LINK),
+    /**
+     * Whether the car keeps client Wi-Fi on while it sleeps - the car's own setting, read from the
+     * car, so the panel's switch can only ever say what the car will do. Null until it answers.
+     */
+    val cloudWifiRetained: Boolean? = null,
+    /** A cloud switch is on the wire; the panel greys both until the car answers. */
+    val cloudLinkBusy: Boolean = false,
     val fseInstaller: FeatureSnapshot = FeatureSnapshot(
         id = FeatureId.FSE_INSTALLER,
         desiredEnabled = false,
@@ -130,7 +153,13 @@ data class DenzaUiState(
     val navigationPlacement: ClusterMapPlacement = ClusterMapPlacement.FULL,
     /** Placements the current choice actually has; a single entry means there is nothing to pick. */
     val navigationPlacements: List<ClusterMapPlacement> = ClusterMapPlacement.entries,
-    val navigationAppLabel: String = "Яндекс Навигатор",
+    val navigationAppLabel: String = NavigationAppPolicy.DASHBOARD_LABEL,
+    /** What is chosen, as the panel's row draws it; the page's whole list is [navigationAppChoices]. */
+    val navigationAppChoice: NavigationAppChoice = NavigationAppChoices.instruments(selected = true),
+    /**
+     * Everything «Что показывать» offers, read when the page opens rather than on every refresh:
+     * it is the car's whole launcher catalog, icons and all, and nothing but that page draws it.
+     */
     val navigationAppChoices: List<NavigationAppChoice> = emptyList(),
     val navigationPickerVisible: Boolean = false,
     val selectedAppCount: Int = 0,
@@ -235,8 +264,7 @@ object DenzaAppRepository {
             NavigationCoordinator.placement(),
         )
         val navigationPlacements = NavigationPlacementPolicy.offered(navigationPackage)
-        val navigationAppLabel = NavigationAppPolicy.fallbackLabel(navigationPackage)
-        val navigationAppChoices = navigationAppChoices(context, navigationPackage)
+        val navigationAppChoice = NavigationAppChoices.chosen(context, navigationPackage)
         val appChoices = loadAppChoices(context)
         val splitScreen = splitScreenSnapshot(
             launcherVisible = splitLauncherVisible,
@@ -248,6 +276,16 @@ object DenzaAppRepository {
             sessionsObservable = HudNotificationAccessCoordinator.isAccessEnabled(context),
         )
         val speakerCoversReporting = SpeakerCoverRuntime.reporting
+        // The last reading, never a fresh one: this runs on whatever thread asked for a redraw,
+        // and the car is asked on the cloud link's own thread.
+        val cloudCar = CloudLinkRuntime.car
+        val cloudLink = CloudLinkStatus.snapshot(
+            enabled = CloudLinkSettings.isEnabled(context),
+            car = cloudCar,
+            wifi = CloudWifi.validated(context),
+            failure = CloudLinkRuntime.failure,
+        )
+        val cloudLinkBusy = CloudLinkRuntime.busy
         val technicalDetails = supportDiagnostics(context)
         val clusterCandidates = ClusterDisplayResolver.candidates(context)
         val clusterDisplayLabel = clusterDisplayLabel(context, clusterCandidates)
@@ -272,8 +310,8 @@ object DenzaAppRepository {
                 navigationSteeringWheelButtonRepairing = navigationSteeringWheelButtonRepairing,
                 navigationPlacement = navigationPlacement,
                 navigationPlacements = navigationPlacements,
-                navigationAppLabel = navigationAppLabel,
-                navigationAppChoices = navigationAppChoices,
+                navigationAppLabel = navigationAppChoice.label,
+                navigationAppChoice = navigationAppChoice,
                 // Loaded here rather than when a picker asks for it. The projection panel offers
                 // this list inline, and a panel that says "which applications" over an empty space
                 // until some other flow happens to have run is a panel that lies about what it is
@@ -283,6 +321,9 @@ object DenzaAppRepository {
                 hudGuidance = hudGuidance,
                 speakerCovers = speakerCovers,
                 speakerCoversReporting = speakerCoversReporting,
+                cloudLink = cloudLink,
+                cloudWifiRetained = cloudCar?.wifiRetained,
+                cloudLinkBusy = cloudLinkBusy,
                 adbRescue = adbRescue,
                 technicalDetails = technicalDetails,
                 clusterCandidates = clusterCandidates,
@@ -511,7 +552,7 @@ object DenzaAppRepository {
     fun showNavigationAppPicker() {
         val context = appContext ?: return
         val selected = NavigationCoordinator.selectedPackage()
-        val choices = navigationAppChoices(context, selected)
+        val choices = NavigationAppChoices.all(context, selected)
         stateStore.update { current ->
             current.copy(
                 navigationAppChoices = choices,
@@ -520,14 +561,23 @@ object DenzaAppRepository {
         }
     }
 
+    /**
+     * Read the car for «Что показывать» without opening a window: the panel's own page asks for
+     * this when it opens, the way the projection's page does.
+     */
+    fun refreshNavigationAppChoices() {
+        val context = appContext ?: return
+        val choices = NavigationAppChoices.all(context, NavigationCoordinator.selectedPackage())
+        stateStore.update { current -> current.copy(navigationAppChoices = choices) }
+    }
+
     fun hideNavigationAppPicker() {
         stateStore.update { current -> current.copy(navigationPickerVisible = false) }
     }
 
     fun selectNavigationApp(packageName: String) {
         val context = appContext ?: return
-        if (!NavigationAppPolicy.isAllowed(packageName)) return
-        if (!NavigationSettings.isInstalled(context, packageName)) return
+        if (!NavigationSettings.isOffered(context, packageName)) return
         stateStore.update { current -> current.copy(navigationPickerVisible = false) }
         NavigationCoordinator.selectPackage(packageName)
     }
@@ -574,7 +624,7 @@ object DenzaAppRepository {
         stateStore.update { current ->
             current.copy(hudGuidance = FeatureReducer.starting(FeatureId.HUD_GUIDANCE))
         }
-        if (!isInstalled(context.packageManager, NavigationAppPolicy.DEFAULT_PACKAGE)) {
+        if (!isInstalled(context.packageManager, HudGuidanceSettings.NAVIGATOR_PACKAGE)) {
             refresh()
             return
         }
@@ -635,6 +685,36 @@ object DenzaAppRepository {
      */
     fun raiseSpeakerCovers() {
         appContext?.let(SpeakerCoverService::raise)
+    }
+
+    /**
+     * Hold the car's cloud link over Wi-Fi, or hand it back.
+     *
+     * On takes the link over - the profile the stock client needs and one «ready», if it is not
+     * connected already - and starts the adapter that keeps translating Wi-Fi for it. Off is the
+     * only thing that closes the gate and restores the car's own profile. Neither happens at any
+     * other time: a switch that has never been on leaves the car's connection as it found it.
+     */
+    fun setCloudLinkEnabled(enabled: Boolean) {
+        val context = appContext ?: return
+        CloudLinkSettings.setEnabled(context, enabled)
+        if (enabled) CloudLinkController.switchOn(context) else CloudLinkController.switchOff(context)
+        CloudLinkService.reconcile(context)
+        refresh()
+    }
+
+    /** Keep client Wi-Fi on through sleep; written to the car and read back from it. */
+    fun setCloudWifiRetained(retain: Boolean) {
+        val context = appContext ?: return
+        CloudLinkController.setWifiRetained(context, retain)
+    }
+
+    /** Read the cloud link's state from the car for the screen. Changes nothing. */
+    fun refreshCloudLink() {
+        val context = appContext ?: return
+        // The shell is the one thing it needs, and the startup gate owns it until it is trusted.
+        if (!adbRuntimeStarted.get()) return
+        CloudLinkController.refresh(context)
     }
 
     /**
@@ -916,6 +996,10 @@ object DenzaAppRepository {
             }
             runtimeStep("HUD reconcile") { reconcileHudNotificationAccess(app) }
             runtimeStep("speaker covers reconcile") { SpeakerCoverService.reconcile(app) }
+            runtimeStep("cloud link reconcile") {
+                CloudLinkService.reconcile(app)
+                CloudLinkController.refresh(app)
+            }
         } finally {
             adbRuntimePassRunning.set(false)
         }
@@ -1042,7 +1126,7 @@ object DenzaAppRepository {
         if (!HudGuidanceSettings.isEnabled(context)) {
             return FeatureReducer.disabled(FeatureId.HUD_GUIDANCE)
         }
-        if (!isInstalled(context.packageManager, NavigationAppPolicy.DEFAULT_PACKAGE)) {
+        if (!isInstalled(context.packageManager, HudGuidanceSettings.NAVIGATOR_PACKAGE)) {
             return FeatureSnapshot(
                 id = FeatureId.HUD_GUIDANCE,
                 desiredEnabled = true,
@@ -1748,20 +1832,6 @@ object DenzaAppRepository {
     private fun defaultAppsFailure(prefix: String, error: Throwable): String {
         Log.w(TAG, "$prefix (default applications)", error)
         return prefix
-    }
-
-    private fun navigationAppChoices(
-        context: Context,
-        selectedPackage: String,
-    ): List<NavigationAppChoice> = NavigationSettings.choices(context).map { definition ->
-        NavigationAppChoice(
-            packageName = definition.packageName,
-            label = definition.fallbackLabel,
-            icon = runCatching {
-                context.packageManager.getApplicationIcon(definition.packageName)
-            }.getOrNull(),
-            selected = definition.packageName == selectedPackage,
-        )
     }
 
     /**

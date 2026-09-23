@@ -643,22 +643,29 @@
     if (mode === 'two') {
       const P = S.head.two, CH = P.chips, L = P.margin, Wd = P.size[0] - 2 * P.margin;
       handle(c, P.size[0]);
-      const g = (Wd - CH.perRow * CH.size) / (CH.perRow - 1);
-      f.tiles.forEach((tl, i) => tileFace(c, tl, L + i * (CH.size + g), CH.top, CH.size, CH.size, CH.radius, false));
+      // One row of every feature. The spec draws perRow of them at `size`, which fixes the gap;
+      // any other count keeps that gap and makes the chip its share of the row, and the strip box -
+      // 24 under the chips - rises or falls by what the chip lost or gained. Inside the box
+      // everything hangs from its top (`anchoring`), so it moves by the same `dy`; the analyser's
+      // floor and the dots keep their distance from the bottom and stay. The app's
+      // DashboardLayoutPolicy.band does this arithmetic for the same count.
+      const g = (Wd - CH.perRow * CH.size) / (CH.perRow - 1), n = f.tiles.length;
+      const cs = (Wd - (n - 1) * g) / n, dy = cs - CH.size;
+      f.tiles.forEach((tl, i) => tileFace(c, tl, L + i * (cs + g), CH.top, cs, cs, CH.radius, false));
       if (page === 'sound') {
         const s = P.sound;
-        trackBlock(c, f, L, s.trackCaption, s.trackValue, s.titleSize, s.labelSize);
-        let x = L; f.trip.forEach(it => { reading(c, it, x, s.caption, s.value, s.valueSize, s.labelSize); x += readingW(c, it, s.valueSize, s.labelSize) + s.gap; });
-        spectrumField(c, f, L, s.spectrumTop, Wd, s.floor, s.bars);
+        trackBlock(c, f, L, s.trackCaption + dy, s.trackValue + dy, s.titleSize, s.labelSize);
+        let x = L; f.trip.forEach(it => { reading(c, it, x, s.caption + dy, s.value + dy, s.valueSize, s.labelSize); x += readingW(c, it, s.valueSize, s.labelSize) + s.gap; });
+        spectrumField(c, f, L, s.spectrumTop + dy, Wd, s.floor, s.bars);
       } else if (f.unavailable) {
-        closedPage(c, f, L, L + Wd, P.car.caption, P.car.value, P.sound.labelSize, P.sound.titleSize);
+        closedPage(c, f, L, L + Wd, P.car.caption + dy, P.car.value + dy, P.sound.labelSize, P.sound.titleSize);
       } else {
         const s = P.car; let x = L;
-        [[f.power, s.heroSize, f.power.col], [f.engine, s.valueSize], [f.tripCell, s.valueSize]].forEach(([it, sz, col]) => { reading(c, it, x, s.caption, s.value, sz, P.sound.labelSize, col); x += readingW(c, it, sz, P.sound.labelSize) + s.gap; });
-        reading(c, f.volts, L, s.row2Caption, s.row2Value, s.voltSize, P.sound.labelSize);
-        tempsRow(c, f, L + readingW(c, f.volts, s.voltSize, P.sound.labelSize) + s.gap, s.row2Caption, s.row2Value, s.tempPitch, s.tempSize);
-        lab(c, cons, L, s.chartCaption, 15, S.head.chart.captionAlpha);
-        carChart(c, f, L, s.chartTop, Wd, s.chartHeight);
+        [[f.power, s.heroSize, f.power.col], [f.engine, s.valueSize], [f.tripCell, s.valueSize]].forEach(([it, sz, col]) => { reading(c, it, x, s.caption + dy, s.value + dy, sz, P.sound.labelSize, col); x += readingW(c, it, sz, P.sound.labelSize) + s.gap; });
+        reading(c, f.volts, L, s.row2Caption + dy, s.row2Value + dy, s.voltSize, P.sound.labelSize);
+        tempsRow(c, f, L + readingW(c, f.volts, s.voltSize, P.sound.labelSize) + s.gap, s.row2Caption + dy, s.row2Value + dy, s.tempPitch, s.tempSize);
+        lab(c, cons, L, s.chartCaption + dy, 15, S.head.chart.captionAlpha);
+        carChart(c, f, L, s.chartTop + dy, Wd, s.chartHeight);
       }
       dots(c, page, P.size[0] / 2, P.dotsY);
       return;
@@ -749,31 +756,52 @@
     const pad = (W.height - W.thumb) / 2, tx = on ? x + W.width - pad - W.thumb : x + pad;
     over(c, () => { c.fillStyle = hexA(W.thumbColor, a); c.beginPath(); c.arc(tx + W.thumb / 2, y + W.height / 2, W.thumb / 2, 0, Math.PI * 2); c.fill(); });
   }
-  function letterIcon(c, name, x, y, size) {
-    fillRound(c, x, y, size, size, size * 0.27, rgba([255, 255, 255], 0.1));
-    words(c, name.slice(0, 1).toUpperCase(), x + size / 2, centred(y + size / 2, size * 0.45), size * 0.45, 0.9, { w: 500, align: 'center' });
+  // an application without an icon: its initial on a square of white at 0.1; an answer that is not
+  // an application - this app's instruments - its glyph on the same square, centred on its ink
+  function letterIcon(c, name, x, y, size, glyph, a) {
+    a = a == null ? 1 : a;
+    fillRound(c, x, y, size, size, size * 0.27, rgba([255, 255, 255], 0.1 * a));
+    if (glyph) {
+      const g = size * 0.6;
+      glyphAt(c, glyph, x + (size - g) / 2, y + (size - g) / 2, g, 0.9 * a, null, SH.plate.color);
+    } else words(c, name.slice(0, 1).toUpperCase(), x + size / 2, centred(y + size / 2, size * 0.45), size * 0.45, 0.9 * a, { w: 500, align: 'center' });
   }
   // the rows of one plate: a switch, a choice, or a reading
   const RB = SH.roboto, R1 = SH.row.single, R2 = SH.row.twoLine, R3 = SH.row.withIcons;
   const centred = (cy, px) => cy + RB.centre * px;
-  function rowHeight(r) { return r.icons && r.icons.length ? R3[0] : r.summary || (r.kind === 'choice' && r.value) ? R2[0] : R1[0]; }
+  let ROW_W = 0;
+  // the lines a row's summary takes: two at most, in the room the switch leaves
+  function summaryLines(c, r) {
+    const R = SH.row, room = ROW_W - 2 * R.padX - SH.switch.width - R.padX;
+    const s = r.summary || (r.kind === 'choice' && !(r.icons && r.icons.length) ? r.value : null);
+    if (!s) return [];
+    const lines = wrap(c, s, R.summarySize, 400, room);
+    if (lines.length > 2) { let l = lines[1]; while (wordsW(c, l + '…', R.summarySize) > room && l.length) l = l.slice(0, -1); lines.splice(1, lines.length - 1, l + '…'); }
+    return lines;
+  }
+  function rowHeight(r, c) {
+    if (r.icons && r.icons.length) return R3[0];
+    const n = c ? summaryLines(c, r).length : (r.summary ? 1 : 0);
+    return n ? R2[0] + (n - 1) * SH.row.summaryStep : R1[0];
+  }
   function drawRow(c, r, x, y, w) {
-    const R = SH.row, h = rowHeight(r), dim = r.enabled === false ? 0.5 : 1;
+    const R = SH.row, h = rowHeight(r, c), dim = r.enabled === false ? 0.5 : 1;
     const right = x + w - R.padX;
-    const icons = r.icons && r.icons.length, two = r.summary || (r.kind === 'choice' && r.value);
+    const icons = r.icons && r.icons.length, lines = icons ? [] : summaryLines(c, r), two = lines.length > 0;
     words(c, r.title, x + R.padX, y + (icons ? R3[1] : two ? R2[1] : R1[1]), R.titleSize, R.titleAlpha * dim);
     if (icons) {
       let ix = x + R.padX;
-      r.icons.forEach(n => { letterIcon(c, n, ix, y + R3[2], R.choiceIcon); ix += R.choiceIcon + R.choiceGap; });
+      r.icons.forEach(n => { letterIcon(c, n.name || n, ix, y + R3[2], R.choiceIcon, n.glyph); ix += R.choiceIcon + R.choiceGap; });
       if (r.value) words(c, r.value, ix, y + R3[3], R.summarySize, R.summaryAlpha * dim);
-    } else if (two) words(c, r.summary || r.value, x + R.padX, y + R2[2], R.summarySize, R.summaryAlpha * dim);
+    } else lines.forEach((l, i) => words(c, l, x + R.padX, y + R2[2] + i * R.summaryStep, R.summarySize, R.summaryAlpha * dim));
     if (r.kind === 'switch') toggle(c, right - SH.switch.width, y + (h - SH.switch.height) / 2, r.on, r.enabled);
     if (r.kind === 'choice') lineGlyph(c, FORWARD, right - R.chevron, y + (h - R.chevron) / 2, R.chevron, SH.header.closeAlpha);
     return h;
   }
   function plate(c, rows, x, y, w) {
     const P = SH.plate;
-    const hs = rows.map(rowHeight), total = hs.reduce((a, b) => a + b, 0);
+    ROW_W = w;
+    const hs = rows.map(r => rowHeight(r, c)), total = hs.reduce((a, b) => a + b, 0);
     fillRound(c, x, y, w, total, P.radius, P.color);
     let yy = y;
     rows.forEach((r, i) => {
@@ -805,7 +833,7 @@
       const tx = x + (i % cols) * (cw + A.gap), ty = y + Math.floor(i / cols) * (A.tile + A.gap);
       const dim = it.enabled === false ? 0.5 : 1;
       fillRound(c, tx, ty, cw, A.tile, A.radius, SH.plate.color);
-      letterIcon(c, it.name, tx + (cw - A.icon) / 2, ty + 14, A.icon);
+      letterIcon(c, it.name, tx + (cw - A.icon) / 2, ty + 14, A.icon, it.glyph, dim);
       let nm = it.name;
       while (wordsW(c, nm, A.nameSize, 500) > cw - 12 && nm.length > 1) nm = nm.slice(0, -2) + '…';
       words(c, nm, tx + cw / 2, ty + 82, A.nameSize, A.nameAlpha * dim, { w: 500, align: 'center' });
@@ -859,6 +887,16 @@
       }
       case 'segmented': return segmented(c, b, x, y, w);
       case 'apps': return apps(c, b, x, y, w, COMPACT);
+      case 'appSections': {
+        let yy = y;
+        b.runs.forEach((run, i) => {
+          if (i) yy += SH.apps.gap + 20;
+          words(c, run.label, x, yy + SH.label.size * RB.ascent, SH.label.size, SH.label.alpha, { w: 500 });
+          yy += SH.label.size * (RB.ascent + RB.descent) + SH.apps.gap;
+          yy += apps(c, { items: run.items }, x, yy, w, COMPACT);
+        });
+        return yy - y;
+      }
       case 'note': return paragraph(c, b.text, x, y, w, SH.note.size, SH.note.leading, SH.note.alpha);
       case 'button': return button(c, b, x, y, w);
       case 'footnote':

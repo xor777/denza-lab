@@ -64,7 +64,7 @@ class DashboardLayoutPolicyTest {
         assertEquals(DenzaMetrics.Space.M, DashboardLayoutPolicy.sideMargin(DashboardLayoutMode.NARROW))
 
         assertEquals(6, DashboardLayoutPolicy.columns(DashboardLayoutMode.WIDE, FEATURES))
-        assertEquals(11, DashboardLayoutPolicy.columns(DashboardLayoutMode.MEDIUM, FEATURES))
+        assertEquals(12, DashboardLayoutPolicy.columns(DashboardLayoutMode.MEDIUM, FEATURES))
         assertEquals(6, DashboardLayoutPolicy.columns(DashboardLayoutMode.NARROW, FEATURES))
 
         // A feature is written out on the full screen and compressed to a chip in a pane.
@@ -95,6 +95,10 @@ class DashboardLayoutPolicyTest {
         assertEquals(60.7f, DashboardLayoutPolicy.chipWidth(DashboardLayoutMode.MEDIUM, 11).value, 0.05f)
         assertEquals(68.8f, DashboardLayoutPolicy.chipWidth(DashboardLayoutMode.NARROW, 10).value, 0.05f)
         assertEquals(55.3f, DashboardLayoutPolicy.chipWidth(DashboardLayoutMode.NARROW, 11).value, 0.05f)
+        // The twelfth - the cloud link - is the same rule once more: six dp off every chip in the
+        // two-thirds row, and nothing at all in the narrow pane, where it fills the second row.
+        assertEquals(54.64f, DashboardLayoutPolicy.chipWidth(DashboardLayoutMode.MEDIUM, 12).value, 0.05f)
+        assertEquals(55.3f, DashboardLayoutPolicy.chipWidth(DashboardLayoutMode.NARROW, 12).value, 0.05f)
     }
 
     @Test
@@ -236,7 +240,7 @@ class DashboardLayoutPolicyTest {
 
     private companion object {
         /** What the dashboard actually carries today; DashboardTilesTest owns the list itself. */
-        const val FEATURES = 11
+        const val FEATURES = 12
 
         /** The app's window: what the car leaves it, measured. The page lays itself out inside. */
         const val WINDOW_DP = 680f

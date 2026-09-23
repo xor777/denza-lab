@@ -36,7 +36,7 @@ fun <T> ColumnScope.DenzaAppChooser(
     onDismiss: () -> Unit,
     onBack: (() -> Unit)? = null,
     emptyText: String = "Ничего не найдено",
-    columns: Int = DenzaMetrics.Component.PICKER_COLUMNS,
+    section: ((T) -> String)? = null,
     item: @Composable (T) -> Unit,
 ) {
     DenzaSheetHeader(
@@ -55,8 +55,8 @@ fun <T> ColumnScope.DenzaAppChooser(
             key = key,
             compact = compact,
             modifier = Modifier.weight(1f),
-            columns = columns,
             bounded = false,
+            section = section,
             item = item,
         )
     }
@@ -78,8 +78,8 @@ fun <T> DenzaAppChooserSheet(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
     emptyText: String = "Ничего не найдено",
-    columns: Int = DenzaMetrics.Component.PICKER_COLUMNS,
     footer: @Composable () -> Unit = {},
+    section: ((T) -> String)? = null,
     item: @Composable (T) -> Unit,
 ) {
     DenzaSheet(
@@ -97,7 +97,7 @@ fun <T> DenzaAppChooserSheet(
             compact = compact,
             onDismiss = onDismiss,
             emptyText = emptyText,
-            columns = columns,
+            section = section,
             item = item,
         )
     }

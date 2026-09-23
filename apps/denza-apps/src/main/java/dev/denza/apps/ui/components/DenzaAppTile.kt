@@ -30,6 +30,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
+import dev.denza.apps.design.DenzaGlyph
 import dev.denza.apps.design.luminofor.LuminoforSpec.Sheet
 
 /**
@@ -39,6 +40,9 @@ import dev.denza.apps.design.luminofor.LuminoforSpec.Sheet
  *
  * Selection is the badge and nothing else: a coloured edge round the chosen one made its neighbours
  * look unchosen by comparison, and a tinted icon well made the icon lie about its own colours.
+ *
+ * [glyph] is for the one answer that is not an application - this app's own instruments on «Что
+ * показывать» - drawn on the square an application without an icon gets its initial on.
  */
 @Composable
 fun DenzaAppTile(
@@ -49,6 +53,7 @@ fun DenzaAppTile(
     icon: Drawable? = null,
     iconKey: Any? = label,
     enabled: Boolean = true,
+    glyph: DenzaGlyph? = null,
 ) {
     // Keyed by the package, not by the Drawable: the package manager hands out a fresh instance on
     // every read, and keying on it re-rasterised every icon whenever the state was republished.
@@ -64,7 +69,12 @@ fun DenzaAppTile(
             .clickable(enabled = enabled, onClick = onClick),
     ) {
         Box(Modifier.align(Alignment.TopCenter).padding(top = ICON_TOP.dp)) {
-            if (bitmap != null) {
+            if (glyph != null) {
+                // The one answer that is not an application - this app's own instruments on «Что
+                // показывать» - on the same square an initial stands on, its glyph where the letter
+                // would be.
+                GlyphSquare(glyph, a.ICON, dim)
+            } else if (bitmap != null) {
                 Image(
                     painter = BitmapPainter(bitmap),
                     contentDescription = null,

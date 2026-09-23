@@ -47,6 +47,7 @@ class SideCameraMonitorService : Service() {
     private var avcStock: AvcStockClient? = null
     private var stockChoice: AvcTurnCameraChoice? = null
     private var stockCardVisible = false
+    private var stockChoiceSettled = false
     @Volatile private var lastStockMode: Int? = null
     private val transitionGate = MirrorTransitionGate()
     private var transitionState = MirrorTransitionState()
@@ -162,9 +163,24 @@ class SideCameraMonitorService : Service() {
         signalExecutor = null
         executor?.shutdownNow()
         executor = null
-        avcStock?.close()
+        val stock = avcStock
         avcStock = null
+        if (stock != null) {
+            if (disableDesired) {
+                // Binder round trips stay off the main thread; the client closes when done.
+                Thread({
+                    try {
+                        restoreStockChoice(stock)
+                    } finally {
+                        stock.close()
+                    }
+                }, "denza-mirrors-restore").start()
+            } else {
+                stock.close()
+            }
+        }
         stockChoice = null
+        stockChoiceSettled = false
         stockCardVisible = false
         // Signal teardown cannot stand between a stop request and hiding the camera.
         signalLease?.close()
@@ -236,6 +252,7 @@ class SideCameraMonitorService : Service() {
             }
         }
         stockCardVisible = cardVisible
+        if (!cardVisible && !active) settleStockChoice(stock)
         val mode = if (cardVisible || active) stock?.mode() else AvcStockMode.IDLE
         lastStockMode = mode
         val side = MirrorStockPip.side(detection, mode, stockChoice)
@@ -248,6 +265,45 @@ class SideCameraMonitorService : Service() {
             lastLoggedStockSide = side
         }
         return side
+    }
+
+    /**
+     * Once per monitor start, with no stock card up: Mirrors need the head-unit card
+     * ([MirrorStockChoicePolicy]). This runs on every start, so a stock choice reset by a factory
+     * reset or an update is put back too.
+     */
+    private fun settleStockChoice(stock: AvcStockClient?) {
+        if (stockChoiceSettled) return
+        val current = stockChoice ?: return
+        val step = MirrorStockChoicePolicy.onEnable(current, MirrorsSettings.stockChoiceBefore(this))
+        val write = step.write
+        if (write == null) {
+            stockChoiceSettled = true
+            return
+        }
+        val after = stock?.writeTurnCameraChoice(write) ?: return
+        Log.i(TAG, "stock turn camera choice $current -> $after (wanted $write)")
+        if (after == write) {
+            step.remember?.let { MirrorsSettings.setStockChoiceBefore(this, it) }
+            stockChoice = after
+        }
+        // A car whose AVC keeps the old value has no PIP support: do not ask again this run.
+        stockChoiceSettled = true
+    }
+
+    /** The owner turned Mirrors off: give back the stock choice they had, if we changed it. */
+    private fun restoreStockChoice(stock: AvcStockClient) {
+        val remembered = MirrorsSettings.stockChoiceBefore(this) ?: return
+        val current = stock.turnCameraChoice() ?: return
+        val step = MirrorStockChoicePolicy.onDisable(current, remembered)
+        step.write?.let { choice ->
+            // Turned back on meanwhile: the new monitor owns the choice now.
+            if (MirrorsSettings.isEnabled(this)) return
+            val after = stock.writeTurnCameraChoice(choice)
+            Log.i(TAG, "stock turn camera choice given back: $current -> $after (had $choice)")
+            if (after != choice) return
+        }
+        if (step.forget) MirrorsSettings.setStockChoiceBefore(this, null)
     }
 
     /**

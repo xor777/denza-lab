@@ -298,6 +298,7 @@ class LuminoforSpecContractTest {
         n(r.ICONS_TOP, "sheet", "row", "withIcons", "2"); n(r.ICONS_VALUE, "sheet", "row", "withIcons", "3")
         n(r.PAD_X, "sheet", "row", "padX"); n(r.TITLE_SIZE, "sheet", "row", "titleSize"); n(r.TITLE_ALPHA, "sheet", "row", "titleAlpha")
         n(r.SUMMARY_SIZE, "sheet", "row", "summarySize"); n(r.SUMMARY_ALPHA, "sheet", "row", "summaryAlpha")
+        n(r.SUMMARY_STEP, "sheet", "row", "summaryStep")
         n(r.CHEVRON, "sheet", "row", "chevron"); n(r.CHOICE_ICON, "sheet", "row", "choiceIcon"); n(r.CHOICE_GAP, "sheet", "row", "choiceGap")
         n(LuminoforSpec.Sheet.Label.SIZE, "sheet", "label", "size"); n(LuminoforSpec.Sheet.Label.ALPHA, "sheet", "label", "alpha"); n(LuminoforSpec.Sheet.Label.GAP, "sheet", "label", "gap")
         val w = LuminoforSpec.Sheet.Switch

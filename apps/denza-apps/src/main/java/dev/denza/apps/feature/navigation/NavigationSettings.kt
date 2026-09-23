@@ -3,6 +3,7 @@ package dev.denza.apps.feature.navigation
 import android.annotation.SuppressLint
 import android.content.Context
 import dev.denza.apps.feature.cluster.ClusterMapPlacement
+import dev.denza.apps.feature.defaultapps.InstalledDefaultApp
 
 object NavigationSettings {
     private const val PREFS = "denza_navigation"
@@ -10,20 +11,24 @@ object NavigationSettings {
     private const val MAP_PLACEMENT = "map_placement"
     private const val STEERING_WHEEL_BUTTON = "steering_wheel_button"
 
+    /**
+     * The saved choice while the car can still show it, and the instruments otherwise.
+     *
+     * The instruments are the fallback because they are the one answer that cannot go missing and
+     * that works on the first press. It used to be the first installed navigator, and before that
+     * Яндекс Навигатор by name - a preference written into the code for every car it would ever
+     * run on. A choice the owner made survives an update untouched: whatever it names is still an
+     * application the car can open.
+     */
     fun selectedPackage(context: Context): String {
         val saved = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .getString(SELECTED_PACKAGE, null)
-        return saved
-            ?.takeIf(NavigationAppPolicy::isAllowed)
-            ?.takeIf { isInstalled(context, it) }
-            ?: installedApps(context).firstOrNull()?.packageName
-            ?: NavigationAppPolicy.DEFAULT_PACKAGE
+        return saved?.takeIf { isOffered(context, it) } ?: NavigationAppPolicy.DASHBOARD_PACKAGE
     }
 
-    // Keep validated preference writes explicit at the navigation policy boundary.
+    /** Stores a choice its caller has already checked with [isOffered]. */
     @SuppressLint("UseKtx")
     fun setSelectedPackage(context: Context, packageName: String) {
-        require(NavigationAppPolicy.isAllowed(packageName)) { "unsupported navigation package" }
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .edit()
             .putString(SELECTED_PACKAGE, packageName)
@@ -58,27 +63,26 @@ object NavigationSettings {
             .apply()
     }
 
-    fun installedApps(context: Context): List<NavigationAppDefinition> =
-        NavigationAppPolicy.supported.filter { isInstalled(context, it.packageName) }
+    /** Whether [packageName] is an answer the driver's display can take right now. */
+    fun isOffered(context: Context, packageName: String): Boolean =
+        NavigationAppPolicy.isDashboard(packageName) ||
+            ProjectablePackages.isProjectable(context.packageManager, packageName)
+}
 
-    /**
-     * What the picker offers: every navigator actually installed, and then our own instruments.
-     *
-     * The dashboard is last on purpose. It is always available - it cannot be uninstalled without
-     * uninstalling the picker showing it - so putting it first would move whichever navigator the
-     * driver actually uses one tile along for no reason.
-     *
-     * It is deliberately not part of [installedApps], which is also what the fallback in
-     * [selectedPackage] reads. A car with no navigator on it should still say so and ask for one,
-     * rather than silently settling on our instruments because they happen to be installable-proof.
-     */
-    fun choices(context: Context): List<NavigationAppDefinition> =
-        installedApps(context) + NavigationAppPolicy.dashboard
-
-    fun isInstalled(context: Context, packageName: String): Boolean = try {
-        context.packageManager.getApplicationInfo(packageName, 0)
-        true
-    } catch (_: android.content.pm.PackageManager.NameNotFoundException) {
-        false
-    }
+/**
+ * The chooser's applications: the car's launcher catalog, less what [ProjectablePackages] leaves
+ * out, by name.
+ *
+ * By name alone, the order the projection's chooser uses, so one application sits in the same place
+ * on both pages. The chosen one is marked where it stands rather than moved to the front: a list
+ * that reorders itself around the last tap loses the tile from under the finger.
+ */
+internal object NavigationApplications {
+    fun of(launchable: List<InstalledDefaultApp>, homePackage: String?): List<InstalledDefaultApp> =
+        launchable
+            .filterNot { ProjectablePackages.isExcluded(it.packageName, homePackage) }
+            .sortedWith(
+                compareBy(String.CASE_INSENSITIVE_ORDER, InstalledDefaultApp::label)
+                    .thenBy(InstalledDefaultApp::packageName),
+            )
 }

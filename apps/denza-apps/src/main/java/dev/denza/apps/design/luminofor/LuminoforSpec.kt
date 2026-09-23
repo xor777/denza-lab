@@ -248,6 +248,9 @@ object LuminoforSpec {
             const val TITLE_ALPHA: Float = 0.9f
             const val SUMMARY_SIZE: Float = 14f
             const val SUMMARY_ALPHA: Float = 0.54f
+
+            /** A summary's second line stands this far under its first, and the row grows by it. */
+            const val SUMMARY_STEP: Float = 20f
             const val CHEVRON: Float = 20f
             const val CHOICE_ICON: Float = 24f
             const val CHOICE_GAP: Float = 8f

@@ -28,7 +28,7 @@ class NavigationOneTapSourceContractTest {
         assertTrue(discovery.contains("val packageName = launchAttempt.packageName"))
         assertTrue(
             discovery.indexOf("launchFence.accepts(launchAttempt, selectedPackage)") in
-                0 until discovery.indexOf("NavigationProxyClient.findAllowedTask"),
+                0 until discovery.indexOf("NavigationProxyClient.findTask"),
         )
     }
 

@@ -234,16 +234,6 @@ object DenzaMetrics {
         const val CHIP_ROWS_NARROW: Int = 2
 
         /**
-         * The driver-screen picker's row.
-         *
-         * Fewer and larger than the app picker's [PICKER_COLUMNS], because it lists the navigators
-         * on the car rather than everything installed. It used to read the dashboard's pane
-         * column count, which happened to be three as well - so a pane's layout and this picker
-         * were one constant, and moving either moved the other for no reason anybody had stated.
-         */
-        const val NAVIGATION_PICKER_COLUMNS: Int = 3
-
-        /**
          * An application offered for choosing: 12 + 44 + 8 + one line of 15 + 12, off the board.
          */
         val APP_TILE: Dp = 96.dp

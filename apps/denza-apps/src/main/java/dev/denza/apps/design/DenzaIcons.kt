@@ -133,6 +133,21 @@ object DenzaIcons {
     )
 
     /**
+     * The cloud link: the car's report going up to the cloud the phone reads it from.
+     *
+     * A cloud open underneath with an arrow rising through the gap - not the weather's cloud, which
+     * is closed and has the sun behind it, so the two tiles in one row cannot be taken for each
+     * other. Its ink starts at 2, like the board's.
+     */
+    val CloudGlyph = DenzaGlyph(
+        "denza_cloud",
+        inkLeft = 2.0f,
+        "M4 14.9A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.24",
+        "M12 13v8",
+        "M8 17l4-4 4 4",
+    )
+
+    /**
      * Service: the car's own state and the things that keep the app talking to it.
      *
      * Three faders, as the board draws them: three lines and a knob on each. On a tile the knob
@@ -151,6 +166,25 @@ object DenzaIcons {
             DenzaGlyph.Knob(8f, 12f, 2f),
             DenzaGlyph.Knob(17f, 17f, 2f),
         ),
+    )
+
+    /**
+     * This app's own instruments, as one answer among the applications on «Что показывать».
+     *
+     * A dial and its needle, off `Config.dc.html`, where it has stood in the chooser since the
+     * instruments first became a choice; the code drew this app's launcher icon there instead,
+     * which stands for the screen doing the choosing rather than for the dial it puts on the panel.
+     * The board fills the pivot; a tinted vector strokes, so the pivot is a ring small enough for
+     * its stroke to close it.
+     *
+     * Centred rather than hung on the text column: it sits in an application's well and on a
+     * row's value line, where it answers to its box like the icons beside it.
+     */
+    val InstrumentsGlyph = DenzaGlyph.centred(
+        "denza_instruments",
+        "M4 15a8 8 0 0 1 16 0",
+        "M12 15l4.2-4.6",
+        "M12.9 15a0.9 0.9 0 1 1-1.8 0a0.9 0.9 0 1 1 1.8 0",
     )
 
     /** The mark on a line that explains rather than instructs. */
@@ -200,6 +234,7 @@ object DenzaIcons {
 
     val Cluster: ImageVector get() = ClusterGlyph.vector
     val Applications: ImageVector get() = ApplicationsGlyph.vector
+    val Instruments: ImageVector get() = InstrumentsGlyph.vector
     val Service: ImageVector get() = ServiceGlyph.vector
     val Note: ImageVector get() = NoteGlyph.vector
     val Close: ImageVector get() = CloseGlyph.vector

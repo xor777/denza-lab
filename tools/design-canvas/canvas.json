@@ -68,6 +68,15 @@
       "page": "page-screens"
     },
     {
+      "file": "DriverScreen.dc.html",
+      "x": 4080,
+      "y": 2700,
+      "w": 1776,
+      "h": 680,
+      "title": "Экран водителя · что показывать, полный и узкий",
+      "page": "page-screens"
+    },
+    {
       "file": "Simulcast.dc.html",
       "x": 4080,
       "y": 1800,

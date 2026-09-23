@@ -53,7 +53,7 @@ object NavigationCoordinator {
     @Volatile private var session = NavigationSession()
     @Volatile private var onStateChanged: (() -> Unit)? = null
     @Volatile private var initialized = false
-    @Volatile private var selectedPackage = NavigationAppPolicy.DEFAULT_PACKAGE
+    @Volatile private var selectedPackage = NavigationAppPolicy.DASHBOARD_PACKAGE
     @Volatile private var selectedPlacement = ClusterMapPlacement.FULL
     @Volatile private var dashboardOnCluster = false
     private var pendingProjectionAfterOpen = false
@@ -116,8 +116,7 @@ object NavigationCoordinator {
 
     fun selectPackage(packageName: String) {
         val app = context ?: return
-        if (!NavigationAppPolicy.isAllowed(packageName)) return
-        if (!NavigationSettings.isInstalled(app, packageName)) return
+        if (!NavigationSettings.isOffered(app, packageName)) return
         executor.execute {
             if (selectedPackage == packageName) {
                 onStateChanged?.invoke()
@@ -141,7 +140,7 @@ object NavigationCoordinator {
 
     fun performPrimaryAction(): Boolean {
         val app = context ?: return false
-        val selectedAppInstalled = NavigationSettings.isInstalled(app, selectedPackage)
+        val selectedAppInstalled = NavigationSettings.isOffered(app, selectedPackage)
         if (NavigationPrimaryActionPolicy.action(
             initialized = initialized,
             hasContext = true,
@@ -274,18 +273,18 @@ object NavigationCoordinator {
             return
         }
         val packageName = selectedPackage
-        if (!NavigationSettings.isInstalled(app, packageName)) {
+        if (!NavigationSettings.isOffered(app, packageName)) {
             update(
                 NavigationSession(
                     phase = NavigationPhase.NEEDS_ACTION,
-                    message = "Выберите установленный навигатор",
+                    message = "Выберите, что показывать",
                     resolution = FeatureResolution.SELECT_NAVIGATION_APP,
                 ),
             )
             return
         }
         try {
-            val task = NavigationProxyClient.findAllowedTask(app, packageName)
+            val task = NavigationProxyClient.findTask(app, packageName)
             update(NavigationSession(taskId = task.takeIf { it >= 0 }))
         } catch (error: Exception) {
             val problem = friendlyProxyProblem(error)
@@ -312,7 +311,7 @@ object NavigationCoordinator {
             update(
                 NavigationSession(
                     phase = NavigationPhase.NEEDS_ACTION,
-                    message = "Выберите установленный навигатор",
+                    message = "Выберите, что показывать",
                     resolution = FeatureResolution.SELECT_NAVIGATION_APP,
                 ),
             )
@@ -341,7 +340,7 @@ object NavigationCoordinator {
             update(
                 session.copy(
                     phase = NavigationPhase.NEEDS_ACTION,
-                    message = "Повторите запуск навигатора",
+                    message = "Повторите запуск приложения",
                     details = error.toString(),
                     resolution = FeatureResolution.RETRY,
                 ),
@@ -358,7 +357,7 @@ object NavigationCoordinator {
         if (!launchFence.accepts(launchAttempt, selectedPackage)) return
         val packageName = launchAttempt.packageName
         try {
-            val task = NavigationProxyClient.findAllowedTask(app, packageName)
+            val task = NavigationProxyClient.findTask(app, packageName)
             if (task >= 0) {
                 update(NavigationSession(taskId = task))
                 if (pendingProjectionAfterOpen) {
@@ -379,7 +378,7 @@ object NavigationCoordinator {
                 update(
                     NavigationSession(
                         phase = NavigationPhase.NEEDS_ACTION,
-                        message = "Дождитесь запуска навигатора и повторите",
+                        message = "Дождитесь запуска приложения и повторите",
                         resolution = FeatureResolution.RETRY,
                     ),
                 )
@@ -407,7 +406,7 @@ object NavigationCoordinator {
         beginTransfer(app)
         val packageName = selectedPackage
         val taskId = try {
-            NavigationProxyClient.findAllowedTask(app, packageName)
+            NavigationProxyClient.findTask(app, packageName)
         } catch (error: Exception) {
             val problem = friendlyProxyProblem(error)
             update(
@@ -423,7 +422,7 @@ object NavigationCoordinator {
         }
         if (taskId < 0) {
             pendingProjectionAfterOpen = true
-            update(NavigationSession(message = "Повторно открываю навигатор"))
+            update(NavigationSession(message = "Повторно открываю приложение"))
             openSelectedApp()
             return
         }
@@ -622,7 +621,7 @@ object NavigationCoordinator {
             update(
                 session.copy(
                     phase = NavigationPhase.NEEDS_ACTION,
-                    message = "Повторите возврат навигации",
+                    message = "Повторите возврат приложения",
                     details = error.toString(),
                     resolution = FeatureResolution.RETRY,
                 ),
@@ -695,7 +694,7 @@ object NavigationCoordinator {
             return
         }
         val liveTask = try {
-            NavigationProxyClient.findAllowedTask(app, packageName)
+            NavigationProxyClient.findTask(app, packageName)
         } catch (error: Exception) {
             val problem = friendlyProxyProblem(error)
             update(
@@ -727,7 +726,7 @@ object NavigationCoordinator {
             return
         }
         pendingProjectionAfterOpen = reprojectAfterReturn
-        update(NavigationSession(message = "Повторно открываю навигатор"))
+        update(NavigationSession(message = "Повторно открываю приложение"))
         openSelectedApp()
     }
 
@@ -859,7 +858,7 @@ object NavigationCoordinator {
                     phase = NavigationPhase.PROJECTED,
                     taskId = taskId,
                     virtualDisplayId = ownedDisplayId,
-                    message = "Навигация сохранена на приборке; повторите возврат",
+                    message = "Приложение осталось на приборке; повторите возврат",
                     details = error.toString(),
                     resolution = FeatureResolution.RETRY,
                 ),
@@ -878,7 +877,7 @@ object NavigationCoordinator {
             NavigationSession(
                 phase = NavigationPhase.NEEDS_ACTION,
                 taskId = taskId,
-                message = "Повторите перенос навигации",
+                message = "Повторите перенос приложения",
                 details = error.toString(),
                 resolution = FeatureResolution.RETRY,
             ),
@@ -889,14 +888,14 @@ object NavigationCoordinator {
     /**
      * The target is a property of the selection, not of the step being reported, so it is stamped
      * once here instead of being repeated at every call site that builds a fresh session - and no
-     * future one can forget it and quietly hand the driver a navigator's button.
+     * future one can forget it and quietly hand the driver an application's button.
      */
     private fun update(next: NavigationSession) {
         session = next.copy(
             target = if (dashboardSelected()) {
                 NavigationTarget.DASHBOARD
             } else {
-                NavigationTarget.NAVIGATOR
+                NavigationTarget.APPLICATION
             },
         )
         onStateChanged?.invoke()
@@ -950,7 +949,7 @@ object NavigationCoordinator {
                 )
             else ->
                 NavigationProblem(
-                    "Повторите подключение навигации",
+                    "Повторите подключение",
                     FeatureResolution.RETRY,
                 )
         }
@@ -958,7 +957,7 @@ object NavigationCoordinator {
 }
 
 /**
- * Долгое владение задачами на время переброса навигатора на приборку и обратно.
+ * Долгое владение задачами на время переброса приложения на приборку и обратно.
  *
  * Раньше это был `hold`/`release` внутри ядра split, то есть на незапущенном split - тихий no-op
  * (`core?.`), и без срока: потерянный `release` держал сверку выключенной до конца процесса. Теперь

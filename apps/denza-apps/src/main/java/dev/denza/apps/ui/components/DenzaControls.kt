@@ -19,6 +19,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.layout.LastBaseline
+import androidx.compose.ui.layout.FirstBaseline
+import androidx.compose.ui.layout.Layout
 import dev.denza.apps.design.luminofor.LuminoforSpec.ClusterInk
 import dev.denza.apps.design.luminofor.LuminoforSpec.Sheet
 
@@ -70,6 +74,10 @@ fun DenzaSwitchRow(
  * One row of a plate - a title, the line under it, and whatever stands at its end - at the board's
  * heights and baselines. Shared by the switch row and the choice row, so the two kinds of setting in
  * one column are one kind of line.
+ *
+ * The line under the title may take two lines at [Sheet.Row.SUMMARY_STEP] apart, and the row grows
+ * by the second: some of these are warnings - Wi-Fi kept on can flatten the battery - and a warning
+ * cut off after «может разрядиться ак…» is not a warning.
  */
 @Composable
 internal fun SheetRow(
@@ -82,37 +90,67 @@ internal fun SheetRow(
     val r = Sheet.Row
     val dim = if (enabled) 1f else DISABLED
     val two = !summary.isNullOrBlank()
-    val height = when {
-        icons != null -> r.ICONS_HEIGHT
-        two -> r.TWO_HEIGHT
-        else -> r.SINGLE_HEIGHT
+    val titleBaseline = when {
+        icons != null -> r.ICONS_TITLE
+        two -> r.TWO_TITLE
+        else -> r.SINGLE_BASELINE
     }
-    Box(Modifier.fillMaxWidth().height(height.dp).padding(horizontal = r.PAD_X.dp)) {
-        val titleBaseline = when {
-            icons != null -> r.ICONS_TITLE
-            two -> r.TWO_TITLE
-            else -> r.SINGLE_BASELINE
-        }
-        Column(Modifier.fillMaxWidth().padding(end = (Sheet.Switch.WIDTH + r.PAD_X).dp)) {
+    val room = Modifier.padding(end = (Sheet.Switch.WIDTH + r.PAD_X).dp)
+    Layout(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = r.PAD_X.dp),
+        content = {
             BaselineText(
                 text = title,
                 style = SheetInk.style(r.TITLE_SIZE, 400, SheetInk.white(r.TITLE_ALPHA * dim)),
                 baseline = titleBaseline.dp,
+                modifier = room,
             )
-        }
+            when {
+                icons != null -> Box { icons() }
+                two -> Text(
+                    text = summary.orEmpty(),
+                    style = SheetInk.style(r.SUMMARY_SIZE, 400, SheetInk.white(r.SUMMARY_ALPHA * dim))
+                        .copy(lineHeight = r.SUMMARY_STEP.sp),
+                    maxLines = SUMMARY_LINES,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = room,
+                )
+                else -> Box {}
+            }
+            Box { end() }
+        },
+    ) { measurables, constraints ->
+        val loose = constraints.copy(minWidth = 0, minHeight = 0)
+        val titleP = measurables[0].measure(loose)
+        val lineP = measurables[1].measure(loose)
+        val endP = measurables[2].measure(loose)
+        // The summary's first baseline on the board's line; each further line a step lower, and
+        // the row as much taller.
+        var extra = 0
+        var lineTop = 0
         if (icons != null) {
-            Box(Modifier.padding(top = r.ICONS_TOP.dp)) { icons() }
+            lineTop = r.ICONS_TOP.dp.roundToPx()
         } else if (two) {
-            BaselineText(
-                text = summary.orEmpty(),
-                style = SheetInk.style(r.SUMMARY_SIZE, 400, SheetInk.white(r.SUMMARY_ALPHA * dim)),
-                baseline = r.TWO_SUMMARY.dp,
-                modifier = Modifier.padding(end = (Sheet.Switch.WIDTH + r.PAD_X).dp),
-            )
+            val first = lineP[FirstBaseline]
+            val last = lineP[LastBaseline]
+            lineTop = r.TWO_SUMMARY.dp.roundToPx() - first
+            extra = last - first
         }
-        Box(Modifier.align(Alignment.CenterEnd)) { end() }
+        val height = when {
+            icons != null -> r.ICONS_HEIGHT
+            two -> r.TWO_HEIGHT
+            else -> r.SINGLE_HEIGHT
+        }.dp.roundToPx() + extra
+        layout(constraints.maxWidth, height) {
+            titleP.place(0, 0)
+            lineP.place(0, lineTop)
+            endP.place(constraints.maxWidth - endP.width, (height - endP.height) / 2)
+        }
     }
 }
+
+/** Two lines under a title, no more: a third is a paragraph, and paragraphs go under the plate. */
+private const val SUMMARY_LINES = 2
 
 /**
  * A choice of two to four, all visible at once: the stock tab layout - a track of white at 0.1, the

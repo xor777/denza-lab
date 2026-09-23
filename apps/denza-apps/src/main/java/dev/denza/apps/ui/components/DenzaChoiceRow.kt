@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
@@ -26,10 +27,21 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
+import dev.denza.apps.design.DenzaGlyph
 import dev.denza.apps.design.luminofor.LuminoforSpec.Sheet
 
-/** One application on a row's value line: enough to draw it, and the key it is cached under. */
-data class DenzaChoiceIcon(val key: Any, val label: String, val drawable: Drawable?)
+/**
+ * One application on a row's value line: enough to draw it, and the key it is cached under.
+ *
+ * [glyph] stands in for [drawable] when the answer is not an application - this app's own
+ * instruments, which the chooser draws with their glyph and the row draws the same way.
+ */
+data class DenzaChoiceIcon(
+    val key: Any,
+    val label: String,
+    val drawable: Drawable?,
+    val glyph: DenzaGlyph? = null,
+)
 
 /**
  * What is chosen, on one row, with the way to change it.
@@ -125,7 +137,11 @@ private fun ChoiceIcon(icon: DenzaChoiceIcon) {
         icon.drawable?.toBitmap(ICON_PX, ICON_PX)?.asImageBitmap()
     }
     val size = Sheet.Row.CHOICE_ICON
-    if (bitmap != null) {
+    val glyph = icon.glyph
+    if (glyph != null) {
+        // This app's own instruments on a value line: their glyph on the initial's square.
+        GlyphSquare(glyph, size)
+    } else if (bitmap != null) {
         Image(
             painter = BitmapPainter(bitmap),
             contentDescription = icon.label,
@@ -160,8 +176,32 @@ internal fun LetterIcon(label: String, size: Float, alpha: Float = 1f) {
     }
 }
 
+/**
+ * An answer that is not an application - this app's instruments - on the square an initial stands
+ * on: white at 0.1, rounded at 0.27 of its side, the glyph at 0.6 of it, white at 0.9 and centred on
+ * its own ink (the dial sits high in its 24-unit box).
+ */
+@Composable
+internal fun GlyphSquare(glyph: DenzaGlyph, size: Float, alpha: Float = 1f) {
+    Box(
+        Modifier
+            .size(size.dp)
+            .clip(RoundedCornerShape((size * LETTER_RADIUS).dp))
+            .background(SheetInk.white(LETTER_GROUND * alpha)),
+        contentAlignment = Alignment.Center,
+    ) {
+        NamedGlyph(
+            glyph = glyph,
+            size = (size * GLYPH_ON_SQUARE).dp,
+            alpha = LETTER_INK * alpha,
+            ground = Color(Sheet.Plate.COLOR),
+        )
+    }
+}
+
 private const val ICON_PX = 128
 private const val LETTER_RADIUS = 0.27f
 private const val LETTER_SIZE = 0.45f
 private const val LETTER_GROUND = 0.1f
 private const val LETTER_INK = 0.9f
+private const val GLYPH_ON_SQUARE = 0.6f

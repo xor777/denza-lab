@@ -123,6 +123,7 @@ internal fun tileGlyph(icon: TileIcon): DenzaGlyph = when (icon) {
     TileIcon.LOCALE -> DenzaIcons.LocaleGlyph
     TileIcon.PASSENGER -> DenzaIcons.PassengerGlyph
     TileIcon.DEFAULT_APPS -> DenzaIcons.ApplicationsGlyph
+    TileIcon.CLOUD -> DenzaIcons.CloudGlyph
     TileIcon.SERVICE -> DenzaIcons.ServiceGlyph
 }
 

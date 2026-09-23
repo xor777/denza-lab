@@ -13,7 +13,8 @@ import dev.denza.disharebridge.LocalAdbClient
  * The car strips Binder objects from manifest broadcasts and rejects bound
  * services from a bare app_process caller. Keeping the Surface and
  * VirtualDisplay in the app removes that cross-process Binder handshake; short
- * shell-UID commands perform only the allowlisted task operations below.
+ * shell-UID commands perform only the fixed task operations below, on a package
+ * [ProjectablePackages] admits.
  */
 object NavigationProxyClient {
     private const val MAIN_CLASS = "dev.denza.apps.feature.navigation.ClusterProxyMain"
@@ -28,7 +29,7 @@ object NavigationProxyClient {
     @Volatile private var virtualDisplay: VirtualDisplay? = null
     @Volatile private var adbShell: LocalAdbClient.PersistentShellSession? = null
 
-    fun findAllowedTask(context: Context, packageName: String): Int =
+    fun findTask(context: Context, packageName: String): Int =
         intResult(run(context, "find-task", packageName))
 
     fun projectTask(

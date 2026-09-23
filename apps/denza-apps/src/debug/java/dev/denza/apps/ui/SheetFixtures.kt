@@ -111,10 +111,16 @@ internal object SheetFixtures {
     private fun state(s: JSONObject): DenzaUiState {
         var state = DenzaUiState()
         s.optJSONArray("navigation")?.let { nav ->
+            val choices = (0 until nav.length()).map { i ->
+                val o = nav.getJSONObject(i)
+                NavigationAppChoice(
+                    "fixture.navigation.$i", o.getString("name"), null,
+                    o.optBoolean("selected", false), instruments = o.optBoolean("instruments", false),
+                )
+            }
             state = state.copy(
-                navigationAppChoices = names(nav).mapIndexed { i, (label, selected) ->
-                    NavigationAppChoice("fixture.navigation.$i", label, null, selected)
-                },
+                navigationAppChoices = choices,
+                navigationAppChoice = choices.firstOrNull { it.selected } ?: state.navigationAppChoice,
                 navigationPlacements = s.optJSONArray("placements")?.let { p ->
                     (0 until p.length()).map { ClusterMapPlacement.valueOf(p.getString(it)) }
                 } ?: ClusterMapPlacement.entries,
@@ -140,6 +146,12 @@ internal object SheetFixtures {
                 selectedApps = apps.filter { it.selected },
                 selectedAppCount = apps.count { it.selected },
                 selectedAppLabels = apps.filter { it.selected }.map { it.label },
+            )
+        }
+        if (s.has("cloud")) {
+            state = state.copy(
+                cloudLink = snapshot(FeatureId.CLOUD_LINK, s.getBoolean("cloud"), s),
+                cloudWifiRetained = if (s.has("wifi")) s.getBoolean("wifi") else null,
             )
         }
         if (s.has("speakers")) {
@@ -191,6 +203,6 @@ internal object SheetFixtures {
         onToggleSplitScreen = {}, onLaunchSplitScreen = {}, onSetWeatherEnabled = {}, onToggleHudGuidance = {},
         onToggleSpeakerCovers = {}, onRaiseSpeakerCovers = {}, onOpenSystemLanguage = {},
         onSetDefaultAppsEnabled = {}, onChooseFseApp = {}, onOpenClusterPicker = {}, onOpenService = {},
-        onOpenSettings = {},
+        onOpenSettings = {}, onLoadNavigationAppChoices = {}, onToggleCloudLink = {}, onSetCloudWifiRetained = {},
     )
 }

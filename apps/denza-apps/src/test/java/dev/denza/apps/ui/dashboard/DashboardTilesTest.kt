@@ -5,6 +5,8 @@ import dev.denza.apps.core.FeatureId
 import dev.denza.apps.core.FeatureResolution
 import dev.denza.apps.core.FeatureSnapshot
 import dev.denza.apps.core.FeatureStatus
+import dev.denza.apps.feature.cloud.CloudCarState
+import dev.denza.apps.feature.cloud.CloudLinkStatus
 import dev.denza.apps.feature.defaultapps.DefaultAppChoice
 import dev.denza.apps.feature.defaultapps.DefaultAppRole
 import dev.denza.apps.feature.defaultapps.DefaultAppRoleStatus
@@ -28,9 +30,10 @@ import org.junit.Test
 class DashboardTilesTest {
 
     @Test
-    fun theMainScreenCarriesTheElevenReachableTilesAndNothingElse() {
-        // Shortcuts is a settings door rather than a runtime feature, immediately before
-        // the service door so it remains reachable without inventing a fake FeatureId.
+    fun theMainScreenCarriesTheTwelveReachableTilesAndNothingElse() {
+        // Shortcuts is a settings door rather than a runtime feature, so it remains reachable
+        // without inventing a fake FeatureId. The cloud link follows it, and the service door is
+        // last - two full rows of six on the full screen.
         assertEquals(
             listOf(
                 TileId.CLUSTER,
@@ -43,6 +46,7 @@ class DashboardTilesTest {
                 TileId.LOCALE,
                 TileId.PASSENGER,
                 TileId.DEFAULT_APPS,
+                TileId.CLOUD,
                 TileId.SERVICE,
             ),
             DashboardTiles.of(DenzaUiState()).map { it.id },
@@ -487,6 +491,70 @@ class DashboardTilesTest {
         )
     }
 
+    /**
+     * The cloud tile reads the link, not the switch.
+     *
+     * Once it is on, the question anybody glancing at it is asking is whether the phone sees the
+     * car, and the stock client's own getter answers it: «На связи» in the accent. Without Wi-Fi it
+     * is on and waiting, like mirrors without a turn signal - lit, and not a fault. On Wi-Fi and not
+     * yet connected it is working for as long as that lasts.
+     */
+    @Test
+    fun theCloudTileReadsTheLinkNotTheSwitch() {
+        fun cloud(enabled: Boolean, car: CloudCarState?, wifi: Boolean, failure: String? = null) =
+            DenzaUiState(cloudLink = CloudLinkStatus.snapshot(enabled, car, wifi, failure))
+                .tile(TileId.CLOUD)
+
+        val off = DenzaUiState().tile(TileId.CLOUD)
+        assertEquals("Облако", off.name)
+        assertEquals("Выключено", off.state)
+        assertEquals(DenzaTileTone.IDLE, off.tone)
+        assertEquals(TileAction.TOGGLE, off.action)
+
+        val connected = cloud(true, CloudCarState(connected = true), wifi = true)
+        assertEquals("На связи", connected.state)
+        assertEquals(DenzaTileTone.LIVE, connected.tone)
+        assertEquals(DenzaTileCaption.READING, connected.caption)
+
+        val away = cloud(true, CloudCarState(connected = false), wifi = false)
+        assertEquals("Нет Wi-Fi", away.state)
+        assertEquals(DenzaTileTone.LIVE, away.tone)
+        assertEquals(DenzaTileCaption.SETTING, away.caption)
+
+        val connecting = cloud(true, CloudCarState(connected = false), wifi = true)
+        assertEquals("Подключается", connecting.state)
+        assertEquals(DenzaTileTone.WORKING, connecting.tone)
+
+        // Not read yet is not offline: on Wi-Fi it is connecting until the car answers.
+        assertEquals("Подключается", cloud(true, car = null, wifi = true).state)
+
+        // Off is the app's switch and says so, even over a link somebody else left up: the tile
+        // does not claim a connection it is not holding.
+        assertEquals("Выключено", cloud(false, CloudCarState(connected = true), wifi = true).state)
+    }
+
+    /** A press the car did not take is the one thing on this tile that needs somebody. */
+    @Test
+    fun aCloudPressTheCarRefusedIsBrokenAndBehindTheDoor() {
+        val refused = DenzaUiState(
+            cloudLink = CloudLinkStatus.snapshot(
+                enabled = true,
+                car = CloudCarState(connected = false),
+                wifi = true,
+                failure = "Не включилось",
+            ),
+        )
+        assertEquals("Не включилось", refused.tile(TileId.CLOUD).state)
+        assertEquals(DenzaTileTone.BROKEN, refused.tile(TileId.CLOUD).tone)
+        assertTrue(DashboardTiles.attentionTiles(refused).any { it.id == TileId.CLOUD })
+
+        // Waiting for Wi-Fi and connecting are not faults and never reach the door.
+        val waiting = DenzaUiState(
+            cloudLink = CloudLinkStatus.snapshot(true, CloudCarState(connected = false), false, null),
+        )
+        assertFalse(DashboardTiles.attentionTiles(waiting).any { it.id == TileId.CLOUD })
+    }
+
     @Test
     fun aWaitingFeatureSaysWhatItIsWaitingFor() {
         val waiting = DenzaUiState(
@@ -551,6 +619,7 @@ class DashboardTilesTest {
         hudGuidance = snapshot(status),
         speakerCovers = snapshot(status),
         fseInstaller = snapshot(status),
+        cloudLink = snapshot(status),
     )
 
     /** Every role read, every one of them on the car's own application, catalog still installed. */

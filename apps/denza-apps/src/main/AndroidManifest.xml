@@ -3,6 +3,9 @@
     xmlns:tools="http://schemas.android.com/tools">
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Cloud link: whether the car is on validated Wi-Fi, which the adapter translates for the
+         stock cloud client. A normal permission; the car-side calls go through the local shell. -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <!-- Trip panel: standard Android GNSS only (position/altitude).
          Speed is used internally and never displayed. Missing permission
          degrades gracefully. -->
@@ -135,6 +138,9 @@
             android:process=":weather" />
         <service
             android:name=".feature.speaker.SpeakerCoverService"
+            android:exported="false" />
+        <service
+            android:name=".feature.cloud.CloudLinkService"
             android:exported="false" />
         <service
             android:name=".RuntimeRecoveryService"

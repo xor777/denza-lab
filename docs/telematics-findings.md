@@ -152,19 +152,158 @@ sleep/wake recovery or cold-boot persistence. Evidence:
 `guard-output.txt` in the run directory. Do not describe this as a verified
 rollback or leave the old run labelled active.
 
-### Intended Denza Apps integration
+### Denza Apps «Облако» tile: implemented, not yet on the car (2026-09-23)
 
-The proposed product runs entirely on the vehicle, without a Mac in the data
-path or as its supervisor. A component in Denza Apps would adapt validated
-Wi-Fi connect/disconnect events to the stock client's paired network events,
-handle startup/wake/service restart, and expose an explicit enable/disable
-control. Factory cloudmanager continues to own identity, telemetry and cloud
-protocol handling. This is a design direction, not an implemented product.
-The experiment has demonstrated shell-UID access only; ordinary application
-permissions and, if necessary, an entirely local ADB path must be validated.
-Sleep/wake, Wi-Fi reconnection and the effect of continuous diagnostics on
-suspend are still unmeasured. A powered-off head unit cannot be assumed to
-run this component or remain remotely reachable.
+The on-vehicle adapter this experiment pointed to is built as the twelfth
+dashboard tile, «Облако», in `apps/denza-apps/.../feature/cloud/`. It is
+unit-tested and matched against the Luminofor board. **It has not been
+installed on the car or live-tested.** Factory `cloudmanager` still owns
+identity, telemetry, timers and the cloud protocol; the tile only translates
+Wi-Fi for it and holds the car's Wi-Fi-in-sleep setting.
+
+The short press toggles the link. The long press opens a panel with two
+independent switches:
+
+- **«Поддерживать связь с облаком»** — the app's own wish, stored in
+  SharedPreferences `cloud_link`, absent meaning off.
+- **«Держать Wi-Fi включенным»** — the car's `Settings.Global`
+  `byd_off_wifi_switch`, always read back from the car. On is
+  `settings put global byd_off_wifi_switch 1`. Off is
+  `settings delete global byd_off_wifi_switch`, which restores the absent
+  stock default rather than writing a zero. The panel prints its cost under
+  it: «Если машина долго стоит, может разрядиться аккумулятор».
+  The 12V draw has not been measured.
+
+Every car call goes through the app's passive local ADB shell
+(`DenzaLocalAdb`) and uses the commands the held run used:
+
+- the `RADIO_CONFIG` profile broadcast;
+- `service call cloudmanager 1 i32 4|-5`;
+- one tagged read of `persist.sys.byd.apn_type`, `ro.build.byd.apn_type`,
+  `persist.radio.net.lte.apn1.disable`, `pidof cloudmanager`,
+  `service call cloudmanager 7` and the retention key.
+
+The app UID itself only gains `ACCESS_NETWORK_STATE`, a normal permission.
+
+Contract (`CloudLinkCore`, held by `CloudLinkCoreTest`):
+
+- **Off never touches the car on its own.** A new install, or a switch that
+  was never on, sends no `-5` and leaves an existing connection up. Taking
+  over is the driver's explicit «on». Switching on over a client that already
+  reads TCP=1 sends nothing.
+- **On**: when the car is not on `double_apn` with APN1 disabled, send the
+  profile broadcast, wait 3 s and read the profile back. Then, with validated
+  Wi-Fi (the default network with `NET_CAPABILITY_VALIDATED`) and TCP≠1, send
+  one `4`.
+- **Paired loss**: when validated Wi-Fi has been gone for 30 s, send `-5`, but
+  only under `double_apn` and only if the gate is not already known closed.
+  When Wi-Fi returns after that, send `4` at once.
+- **Repeats**: the stock `BYDMultiApnConnReceiver` sends `-5` on any
+  `CONNECTIVITY_CHANGE_FUNCTION` whose APN3 is not CONNECTED. So a car on
+  validated Wi-Fi that reads TCP≠1 is told `4` again, once the disconnection
+  has lasted 90 s, with a backoff of 5, 10, 20, 40 and then 60 minutes. The
+  backoff resets on TCP=1. A new `cloudmanager` PID gets `4` at once, because
+  the framework replays only recorded APN states.
+- **Refusals wait too**: a `4` that did not happen counts against the same
+  backoff. That covers a profile the car did not write back, a Binder that
+  refused, and a shell that failed. Without this, a car that keeps refusing
+  would get the profile broadcast once a minute. Only the driver's own press
+  skips the wait.
+- **A car with its own cellular link is left alone**: when
+  `net.lte.apn1.state` or `net.lte.apn3.state` reads `connect`, which is the
+  stock receiver's own test, the adapter sends no profile, no `4` and no `-5`.
+  Explicit off still restores the build profile. This matters for other cars
+  with a working SIM, not this one.
+- **Explicit off**: `-5` if on `double_apn`, 1 s, then the build profile
+  (`ro.build.byd.apn_type`, `triple_apn` here), read back. This is the only
+  path that restores the profile.
+- `com.byd.tcp.cloud.server.status` is registered as a hint to re-read, never
+  as a trigger. Its delivery to an ordinary app is still unproven.
+- **Readings**: on every event; 5, 15, 30 and 60 s after a `4`; then every 60 s
+  while on Wi-Fi without TCP and every 5 min otherwise. Readings run only while
+  the foreground `CloudLinkService` runs, and it runs only while the switch is
+  on.
+
+The tile says «Выключено», «На связи» (TCP=1), «Нет Wi-Fi» (on and waiting,
+not a fault), «Подключается» (working), or the press the car refused: «Не
+включилось» / «Не выключилось». Pressing a refused tile asks for the same
+thing again rather than reversing it. A refusal clears as soon as the link is
+seen up by any path.
+
+Lifecycle: ACC-off terminates the app. While parked, the link belongs to the
+stock client, and the Wi-Fi switch decides whether it stays reachable. On wake
+or boot, `RuntimeRecoveryReceiver` → `startAdbRuntime` restarts the service,
+which reconciles; with the gate unknown it waits the 90 s settle before a
+`4`.
+
+Diagnose with:
+
+- `adb logcat -s DenzaCloudLink`
+- `adb shell service call cloudmanager 7`
+- `adb shell getprop persist.sys.byd.apn_type`
+
+Stop with the panel switch, or by stopping the service. Stopping the service
+leaves the gate as it is.
+
+Edge cases the code does not close, known and accepted for the first live run:
+
+- **Link on, Wi-Fi retention off.** At ACC-off the radio policy turns Wi-Fi off
+  and the app is terminated within seconds, before the 30 s grace can send
+  `-5`. The gate stays open while the car is parked with no network. The stock
+  client retries, and the keepalive counts ticks without TCP towards the
+  reboot described below. This is the same state the car was in before the
+  feature. On wake the adapter recovers within its 90 s settle.
+- **Wi-Fi retention on, parked out of range.** Wi-Fi stays on and scans with
+  nothing to join. That costs charge and brings no link, and the reboot
+  counter runs.
+- **BYD's self-start switch.** «Disable background Apps» is reset by every APK
+  install. While it blocks the app, nothing restarts the adapter after a
+  wake, and the link rests on the stock client and Wi-Fi retention alone.
+- **Remote commands.** A connected stock client also receives the official
+  app's commands and processes them through its own checks. That is the stock
+  design; the adapter neither adds nor filters anything.
+- **Other builds.** Off restores `ro.build.byd.apn_type` when it is
+  `triple_apn` or `double_apn`, and otherwise `triple_apn`, this car's
+  profile. Only this car's build is proven.
+
+Still open:
+
+- the first live run of the adapter;
+- broadcast delivery to an ordinary app;
+- recovery across a cold boot and across a native restart;
+- long-term stability;
+- 12V draw with Wi-Fi retained.
+
+### Stock keepalive reboots a parked head unit after ~3.5 h without TCP (firmware, 2026-09-23)
+
+Read from the matching `services.jar`; not observed live. Paths are under
+`captures/split-firmware-20260923/jadx/services/sources/com/byd/connectmanager/`.
+
+`BYDConnectManager.initConfigure` starts the 250-second keepalive alarm at
+boot unconditionally (`BYDConnectManager.java:139-160`). Each tick runs
+`BYDTCPConnectService.do_keep_alive` → `network_repair()`
+(`BYDTCPConnectService.java:2616-2638`):
+
+- While `tcp_status != 1`, `tcp_disconnect_times` counts up. `tcp_status == 1`
+  resets it, and resets `persist.sys.cloud_reboot_num`.
+- At 50 counts (11 with `persist.sys.cloudtest=1`), the service reboots the
+  head unit when all of the following hold:
+  - ACC is off;
+  - `getAutoSystemState() == 2`;
+  - the car is not charging;
+  - `sys.tcp_reg_errcode` is 0 or 1;
+  - fewer than three such reboots are recorded in `cloud_reboot_num`;
+  - the VIN is real (17 characters starting `L`).
+- `setDeviceReboot()` then broadcasts
+  `android.cloudmanager.action_cloud_reboot_action` (reason 50) and calls
+  `IPowerManager.reboot(false, "bydcloud", false)`. It skips the reboot while
+  a vehicle, pad or OTA update flag is set, or while `sys.gb.connect_type != 0`.
+
+So a stock client without TCP, which is this car on its unregistered SIM, is
+eligible for up to three reboots in a row, each after about 50 × 250 s of
+keepalive ticks while parked. Whether the alarm fires in deep sleep is
+unmeasured. A held cloud link keeps the counter at zero; a parked car that
+loses Wi-Fi resumes the count.
 
 The Mac observer only collected logs, sampled state and coordinated
 restoration. It sent one ready event; it did not repeatedly publish telemetry

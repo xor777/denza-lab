@@ -2570,3 +2570,31 @@ still the quickboot path, the same kill and the same accmode
 `BOOT_COMPLETED`. Not yet seen: a long park that ends in a full power-off (the
 switch lives in the provider table, so it should survive one), and the
 product's own lines - the main buffer rolls over in minutes.
+
+### A resize between two panes of one package moves them instead (live 2026-09-23)
+
+The owner, with the hub in the narrow pane and a Denza picker in the wide one,
+dragged the divider to the other detent three times (17:57:49, :52, :55); each
+time the hub stayed narrow and jumped to the other side. The firmware said why
+each time: `return for newPrimaryPkgName.equals(primaryActivitySnapshot) =
+true`. `changePrimaryAppAndPosition` (IVI:1608-1705) flips `mIsPrimaryLeft` and
+the container bounds first, then compares the wide pane's task package with
+`mPrimaryActivity` and returns before the task swap when they are equal. The
+hub and the picker are both `dev.denza.apps`, and `mPrimaryActivity` is
+`dev.denza.apps` whenever one of ours is primary - which the product keeps on
+purpose, so the firmware's auto-fill of an empty pane is our picker. So in any
+pair of two Denza tasks (hub + picker, picker + picker) the stock resize
+degenerates into a side swap; a pair with any other package resizes normally.
+Left as the firmware does it, by the owner's decision (2026-09-23): two pickers
+look alike, so only the hub next to a still-empty pane shows it, and completing
+the skipped swap from the product would make every such resize move twice.
+
+The same capture holds two native gestures that also read as "it jumped by
+itself": a tap on the divider under 400 ms swaps the panes (17:54:36 and
+17:54:38, hub and Yandex Music), and a drag past the far detent into "Release to
+close window" closes the other pane (17:57:29, Yandex Music closed, the hub
+survived full screen).
+
+The product's own lines for these minutes are gone: the spectrum analyser's
+`Visualizer` makes the platform log `AudioEffect: command()` from our process
+every 50 ms, which turns the main buffer over in a few minutes.

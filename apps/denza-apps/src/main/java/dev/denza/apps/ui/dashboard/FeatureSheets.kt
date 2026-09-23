@@ -19,8 +19,10 @@ import dev.denza.apps.feature.cluster.ClusterMapPlacement
 import dev.denza.apps.feature.mirrors.MirrorsPosition
 import dev.denza.apps.feature.speaker.SpeakerCoverApps
 import dev.denza.apps.ui.FSE_INSTALL_HELP
-import dev.denza.apps.ui.NavigationAppChoices
+import dev.denza.apps.ui.NAVIGATION_CHOICE_TITLE
+import dev.denza.apps.ui.NavigationAppChooser
 import dev.denza.apps.ui.SimulcastAppChooser
+import dev.denza.apps.ui.navigationChoiceIcon
 import dev.denza.apps.ui.simulcastChoiceValue
 import dev.denza.apps.ui.components.DenzaChoiceGroup
 import dev.denza.apps.ui.components.DenzaChoiceIcon
@@ -74,31 +76,40 @@ fun FeatureSheet(
         snapshot?.status == FeatureStatus.RECOVERING
 
     // The panel turns into a page when a row on it is pressed, rather than opening a second window
-    // over itself. Projection is the only tile with a choice large enough to earn one; every other
-    // panel here has switches and a segmented row, which fit in the panel and belong in it.
-    // [choosingAppsFirst] opens the panel on its page - the debug build's board of that page.
-    var choosingApps by remember { mutableStateOf(choosingAppsFirst) }
+    // over itself. Projection and the driver's screen are the tiles with a choice large enough to
+    // earn one - every application on the car; every other panel here has switches and a segmented
+    // row, which fit in the panel and belong in it. [choosingAppsFirst] opens the panel on its page -
+    // the debug build's board of that page.
+    var choosing by remember { mutableStateOf(choosingAppsFirst) }
     // The car is asked when the page opens, not when the panel does. The list is every application
-    // installed, icons and all, and reading it to draw the six the panel already knows about would
-    // be paying for the whole catalog to answer a question the state has answered.
-    LaunchedEffect(choosingApps) {
-        if (choosingApps) actions.onLoadAppChoices()
+    // installed, icons and all, and reading it to draw the one or six the panel already knows about
+    // would be paying for the whole catalog to answer a question the state has answered.
+    LaunchedEffect(choosing) {
+        if (!choosing) return@LaunchedEffect
+        when (id) {
+            TileId.CLUSTER -> actions.onLoadNavigationAppChoices()
+            else -> actions.onLoadAppChoices()
+        }
     }
 
     val action = panelAction(tile, state, actions, onDismiss)
     DenzaSheet(
-        onDismiss = { if (choosingApps) choosingApps = false else onDismiss() },
+        onDismiss = { if (choosing) choosing = false else onDismiss() },
         compact = compact,
         // A page whose body is a grid scrolls in the grid alone; see [DenzaAppChooser].
-        scrolls = !choosingApps,
+        scrolls = !choosing,
         footer = {
-            if (choosingApps) {
-                DenzaPrimaryButton(
-                    text = "Готово",
-                    onClick = { choosingApps = false },
-                    modifier = Modifier.fillMaxWidth()
-                        .height(DenzaMetrics.Component.PRIMARY_HEIGHT),
-                )
+            // Several at once has no closing tap of its own, so its page needs a way out that reads
+            // as "finished". One at a time has none: the tap that chooses is the tap that returns.
+            if (choosing) {
+                if (id == TileId.SIMULCAST) {
+                    DenzaPrimaryButton(
+                        text = "Готово",
+                        onClick = { choosing = false },
+                        modifier = Modifier.fillMaxWidth()
+                            .height(DenzaMetrics.Component.PRIMARY_HEIGHT),
+                    )
+                }
             } else if (action.label.isNotBlank()) {
                 Column(verticalArrangement = Arrangement.spacedBy(DenzaMetrics.Space.M)) {
                     DenzaPrimaryButton(
@@ -115,15 +126,28 @@ fun FeatureSheet(
             }
         },
     ) {
-        if (choosingApps) {
-            SimulcastAppChooser(
-                apps = state.appChoices,
-                compact = compact,
-                selectedCount = state.selectedAppCount,
-                onToggle = actions.onToggleApp,
-                onBack = { choosingApps = false },
-                onDismiss = onDismiss,
-            )
+        if (choosing) {
+            if (id == TileId.CLUSTER) {
+                NavigationAppChooser(
+                    apps = state.navigationAppChoices,
+                    compact = compact,
+                    onSelect = { packageName ->
+                        actions.onSelectNavigationApp(packageName)
+                        choosing = false
+                    },
+                    onBack = { choosing = false },
+                    onDismiss = onDismiss,
+                )
+            } else {
+                SimulcastAppChooser(
+                    apps = state.appChoices,
+                    compact = compact,
+                    selectedCount = state.selectedAppCount,
+                    onToggle = actions.onToggleApp,
+                    onBack = { choosing = false },
+                    onDismiss = onDismiss,
+                )
+            }
             return@DenzaSheet
         }
         // No subtitle. The panel says what it is at the bottom, in a sentence, once.
@@ -154,13 +178,14 @@ fun FeatureSheet(
             tone = tile.tone,
         )
         when (id) {
-            TileId.CLUSTER -> clusterSheet(state, actions, busy, compact)
-            TileId.SIMULCAST -> simulcastSheet(state, actions, busy) { choosingApps = true }
+            TileId.CLUSTER -> clusterSheet(state, actions, busy) { choosing = true }
+            TileId.SIMULCAST -> simulcastSheet(state, actions, busy) { choosing = true }
             TileId.MIRRORS -> mirrorsSheet(state, actions, busy)
             TileId.SPLIT -> splitSheet(state, actions, busy)
             TileId.HUD -> hudSheet(state, actions, busy)
             TileId.WEATHER -> weatherSheet(state, actions)
             TileId.SPEAKERS -> speakerSheet(state, actions, busy)
+            TileId.CLOUD -> cloudSheet(state, actions)
             // Nothing to switch: the paragraph below is the whole panel, and the button at the
             // foot is the one thing there is to do.
             TileId.LOCALE, TileId.PASSENGER, TileId.DEFAULT_APPS, TileId.SERVICE -> Unit
@@ -187,8 +212,8 @@ fun FeatureSheet(
  */
 private fun helpOf(id: TileId): String = when (id) {
     TileId.CLUSTER ->
-        "Выбранное приложение занимает приборную панель за рулём. " +
-            "Короткое нажатие на плитку ставит его туда и убирает обратно."
+        "На приборную панель за рулём встаёт что-то одно: приборы или любое приложение " +
+            "с машины. Короткое нажатие на плитку ставит его туда и убирает обратно."
     TileId.SIMULCAST ->
         "Выбранные приложения показываются на пассажирском экране и на экране сзади. " +
             "Запуск открывает их там сразу."
@@ -207,6 +232,10 @@ private fun helpOf(id: TileId): String = when (id) {
         "Динамики выезжают, когда играет музыка или открыт плеер — в том числе из приложений, " +
             "которые машина своими не считает (${SpeakerCoverApps.EXAMPLES}). Убирает их машина " +
             "сама. «Поднять» выдвигает их снова, если машина убрала их в простое."
+    TileId.CLOUD ->
+        "Машина выходит в облако через Wi-Fi, а не через свою SIM-карту, и приложение Denza " +
+            "на телефоне видит её заряд и запас хода. «Держать Wi-Fi включенным» не даёт машине " +
+            "выключать Wi-Fi, когда она засыпает, — связь остаётся и на стоянке."
     TileId.LOCALE ->
         "Язык меняется у всей машины, а не у приложения: список открывает сама машина, " +
             "в нём сорок языков, и выбранный применяется сразу, без перезагрузки."
@@ -269,7 +298,7 @@ private fun panelAction(
             isTheTilePress = tile.action == TileAction.SIMULCAST_LAUNCH,
         )
         // Their switch is in the panel, so the foot would only be that switch again.
-        TileId.HUD, TileId.WEATHER, TileId.SPEAKERS -> PanelAction(
+        TileId.HUD, TileId.WEATHER, TileId.SPEAKERS, TileId.CLOUD -> PanelAction(
             label = "",
             onClick = {},
         )
@@ -300,26 +329,26 @@ private fun primaryLabel(tile: DashboardTile, state: DenzaUiState): String {
 /**
  * What goes on the driver's screen, where it goes, and whether the wheel button reaches it.
  *
- * The applications are chosen here rather than behind another dialog. A settings panel whose first
- * control opens a second panel over itself is two surfaces asking one question, and on the board
- * there is only ever one.
+ * What is chosen is a row - its icon or the instruments' glyph, and its name - and the choosing is
+ * a page of this panel, opened by the row. The panel used to hold the navigators themselves in a
+ * grid under a heading, which was right while there were never more than six; the choice is every
+ * application on the car now, and a grid of the whole catalog in a panel beside a switch is the
+ * nested scroll [dev.denza.apps.ui.components.DenzaAppChooser] describes.
  */
 @Composable
 private fun clusterSheet(
     state: DenzaUiState,
     actions: DashboardActions,
     busy: Boolean,
-    compact: Boolean,
+    onChoose: () -> Unit,
 ) {
-    DenzaSection("Что показывать") {
-        // The same choice the RESOLVE press opens as a sheet of its own, drawn by the same
-        // function. Two grids of the same four navigators - four fixed columns here, three lazy
-        // ones there - were two answers to one question, and on a narrow pane this one measured
-        // 79 dp a tile and elided every name.
-        NavigationAppChoices(
-            apps = state.navigationAppChoices,
-            compact = compact,
-            onSelect = { packageName -> actions.onSelectNavigationApp(packageName) },
+    DenzaChoiceGroup(listOf(state.navigationAppChoice)) { choice ->
+        DenzaChoiceRow(
+            title = NAVIGATION_CHOICE_TITLE,
+            value = choice.label,
+            icons = listOf(navigationChoiceIcon(choice)),
+            onClick = onChoose,
+            enabled = !busy,
         )
     }
     // Our own instruments are drawn for the whole panel and have one placement, so the row is
@@ -500,6 +529,40 @@ private fun speakerSheet(state: DenzaUiState, actions: DashboardActions, busy: B
             enabled = !reporting,
         )
     }
+}
+
+/**
+ * The link, and the car's own Wi-Fi-in-sleep setting beside it.
+ *
+ * Two switches because they are two decisions: the link can be held while the car is awake with
+ * Wi-Fi left to the car's default, and Wi-Fi can be kept on in sleep for its own sake. The second
+ * reads the car's value rather than a copy of it - the car is what turns Wi-Fi off at ACC-off, so it
+ * is the only one that can say what will happen - and stays grey until the car has answered once.
+ *
+ * The second carries its cost under it, because it is the one that changes what the car does
+ * when nobody is in it.
+ *
+ * Both grey while either is being written: each is one shell round trip and a read-back, and a
+ * second press during it would only queue behind the first.
+ */
+@Composable
+private fun cloudSheet(state: DenzaUiState, actions: DashboardActions) {
+    DenzaSwitchRow(
+        title = "Поддерживать связь с облаком",
+        checked = state.cloudLink.desiredEnabled,
+        onCheckedChange = actions.onToggleCloudLink,
+        enabled = !state.cloudLinkBusy,
+    )
+    DenzaSwitchRow(
+        title = "Держать Wi-Fi включенным",
+        // The price, where the switch is: the car stops turning its radio off when it parks, and
+        // how much that costs overnight has not been measured. Two lines in the narrow pane, cut at
+        // the same word in both widths.
+        subtitle = "Если машина долго стоит, может разрядиться аккумулятор",
+        checked = state.cloudWifiRetained == true,
+        onCheckedChange = actions.onSetCloudWifiRetained,
+        enabled = !state.cloudLinkBusy && state.cloudWifiRetained != null,
+    )
 }
 
 // The panel's own grid is gone, and with it the panel's own column count. The projection's

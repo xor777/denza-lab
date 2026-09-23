@@ -7,6 +7,12 @@
             android:exported="true"
             android:screenOrientation="landscape"
             android:theme="@android:style/Theme.DeviceDefault.NoActionBar" />
+        <!-- Draws the «Экран водителя» panel and its chooser, for a look beside their boards. -->
+        <activity
+            android:name=".debug.DriverScreenSheetFixtureActivity"
+            android:exported="true"
+            android:screenOrientation="landscape"
+            android:theme="@android:style/Theme.DeviceDefault.NoActionBar" />
         <receiver
             android:name=".SimulcastDebugReceiver"
             android:enabled="true"

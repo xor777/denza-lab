@@ -182,20 +182,23 @@ The resolver picked display **`4`** for this run, not `3`.
 
 ### How the driver reaches it
 
-Wired into the product on 2026-08-25. The dashboard is **one of the choices in
-the navigation picker**, beside Яндекс Навигатор and the rest, under the label
-`Приборы`. That is the honest place for it: the picker answers one question -
-what the driver's display shows - and this is one more answer to it, not a
-second feature that would have to explain how it relates to the first.
+Wired into the product on 2026-08-25. The dashboard is **one of the answers on
+«Что показывать»**, under the label `Приборы`. That is the honest place for it:
+the page answers one question - what the driver's display shows - and this is
+one more answer to it, not a second feature that would have to explain how it
+relates to the first. Since 2026-09-23 it stands first, under its own heading
+«Функции приборов», above every application the car can open («Приложения»);
+see "Any application, not six navigators" under "Navigation projection".
 
-It is addressed by this app's own application id (`BuildConfig.APPLICATION_ID`,
-which is why `buildConfig` is enabled for the module) rather than by an invented
-token, so the picker resolves its label, its icon and its "is it installed"
-through the same `PackageManager` call it already makes for every other tile. It
-is deliberately *not* part of `NavigationSettings.installedApps`, which is what
-the fallback in `selectedPackage` reads: a car with no navigator installed should
-still say so and ask for one, rather than quietly settling on our instruments
-because they cannot be missing.
+It is addressed by this app's own application id
+(`NavigationAppPolicy.DASHBOARD_PACKAGE` = `BuildConfig.APPLICATION_ID`, which is
+why `buildConfig` is enabled for the module) rather than by an invented token, so
+a saved choice is always a package name. It is never looked up as an
+application: `ProjectablePackages` leaves this package out, and the chooser draws
+it with the instruments' glyph. It is also the fallback when nothing is saved or
+the saved application has left the car - it cannot go missing and works on the
+first press. Until 2026-09-23 the fallback was the first installed navigator,
+and before that Яндекс Навигатор by name.
 
 One thing is on the cluster at a time, and it comes off the way it was put
 there. Choosing the dashboard while a navigator is projected returns that
@@ -1356,6 +1359,46 @@ quarantine rules described above and in vehicle-data-findings.md:
   set before `initDisplay` and cleared after our free, marks a surface of ours
   that may still sit in AVC's field (a skipped free, or this process dying in a
   session); the monitor frees it once AVC answers idle and shows no card.
+- **The stock choice belongs to Mirrors while they are on.** Our camera needs
+  AVC's card, and the head-unit card is the one AVC switches sides on without
+  rebuilding it. At every monitor start (turning Mirrors on, a boot, an update),
+  with no card up, the monitor writes choice `1` (both images on the head unit)
+  over the Messenger when AVC reports anything else, and stores the owner's
+  previous value in the `mirrors` preferences (`stock_turn_camera_before`).
+  Turning Mirrors off gives that value back, only if `1` is still set; a choice
+  the owner made since is left alone. A car whose AVC keeps its old value after
+  the write has no PIP support and is not asked again in that run.
+  Live on 2026-09-23 (main `fe650d0c`, APK `991de1de`, parked): with the owner's
+  stock value set back to `0`, Mirrors off/on wrote `0 → 1` 3 ms after the
+  choice was read and stored `0`; Mirrors off gave back `1 → 0` and cleared it;
+  Mirrors on wrote `0 → 1` again. Each step was read back through the probe
+  (`captures/mirrors-firmware-model/live-3-choice.log`); AVC kept PID `4746`.
+
+**Hazard and the comfort tap (2026-09-23, 17:52, same build).** Hazard is flash
+value `6` on this car. Left on, then hazard: our camera closed 3 ms after the
+`6` and AVC left its card 2.00 s later; hazard off with the lever still latched
+brought the flash back to `2`, AVC opened a new card and ours followed. Hazard
+alone opened nothing. A comfort tap (flash `2` for 2.25 s) showed our camera for
+the blinks and closed it 3 ms after the `1`; AVC's card went only 1.36 s after
+that `1`, so its two-second timer had been armed about 0.64 s earlier by an
+event outside the capture (the separate left/right lever FIDs of
+`AVCBYDAutoLightDevice.java:93-95` are the likely source). It changes nothing for
+us: we follow the flash. No crash, AVC PID `4746`
+(`captures/mirrors-firmware-model/live-4-hazard.log`).
+
+**The head-unit card while our camera holds the renderer (2026-09-23, 17:55).**
+The owner saw "hanging controls" on the main screen. A screenshot of display 0
+(`captures/mirrors-firmware-model/shots/main-175557-1.png`) shows the stock card
+with no picture at all: its `SurfaceView` has no buffer once our `initDisplay`
+takes the one output, so the Denza Apps panel shows through, and AVC's own
+controls (✕, `‹ ›`, the "Left Rear" label, which our first frame switched on
+through AVC's shared first-frame callback) float over it until the card closes.
+Nothing an ordinary app draws can cover it: on this firmware `TYPE_SYSTEM_ALERT`
+from a system app is layer 12 and `TYPE_APPLICATION_OVERLAY` is layer 11
+(`WindowManagerPolicy.getWindowLayerFromTypeLw`); `TYPE_ACCESSIBILITY_OVERLAY`
+is layer 31. Those floating controls are live: `‹ ›` asks AVC for the two-camera
+view `5097`, a window-creating PIP entry, which by the code is the crash path
+while our surface holds the renderer (not tried on the car, and not to be).
 
 Not yet driven on the car at the time of writing.
 
@@ -1390,6 +1433,14 @@ a surface of ours left in the field is cleared by the idle release. The same
 capture showed the monitor asking AVC its mode 8 times a second for the whole
 reverse episode, because the full-screen activity counted as a card; only the
 turn cards' own windows count now.
+
+**The fix on the car (2026-09-23, 17:31, main `001940ae`, APK `cd4c97de`, with
+the Luminofor design).** Left lamp, then R: we saw `5002` at 11.320, detached our
+surface and skipped the free; AVC's reverse module created its surface at 11.355
+and bound the renderer itself; the owner saw a live reverse picture ("everything
+was correct now"). On leaving R, AVC's module freed its own (14.500) and the idle
+release cleared our claim at 14.654. AVC kept PID `4746`, crash buffer empty.
+The capture is `captures/mirrors-firmware-model/live-2.log`.
 
 ### Startup timing baseline (2026-09-04, instrumentation-only candidate)
 
@@ -1743,11 +1794,13 @@ behavior passes.
 Denza Apps owns the navigation `VirtualDisplay` and its `Surface` in the app
 process. Short-lived `app_process` commands run under shell UID through the
 shared local ADB client and exit after one fixed operation. They can only find,
-move, resize, focus, or background a task from the closed navigation allowlist:
-Yandex Navigator, Yandex Maps, Google Maps, Waze, and 2GIS. Package identity is
-checked again inside the shell-UID boundary before every task mutation. Binder
-objects and `Surface` stay in the app process; the shell side exposes only the
-fixed task operations listed above.
+move, resize, focus, or background one task of a package `ProjectablePackages`
+admits - any application the car can open, never this app and never the home
+screen (see "Any application, not six navigators" below). Until 2026-09-23 this
+was a closed allowlist of six navigators. Package admission and task identity
+are checked again inside the shell-UID boundary before every task mutation.
+Binder objects and `Surface` stay in the app process; the shell side exposes
+only the fixed task operations listed above.
 
 The persisted map placement has four live-switchable layouts on the verified
 `2560x720` instrument display:
@@ -1770,6 +1823,67 @@ Changing a placement button while navigation is already projected returns the
 task without focusing it, recreates the virtual display, and projects the same
 task into the new geometry. Camera gradients are a separate layer and keep
 their already verified Mirrors parameters.
+
+### Any application, not six navigators
+
+Decided by the owner on 2026-09-23: the driver's display takes **any
+application the car has, or this app's instruments**, and the code carries no
+filter. Built and unit-tested the same day; **not run on the car**.
+
+**What the list was.** Six navigator packages - Яндекс Навигатор, Яндекс Карты,
+Google Maps (and its Morphe build), Waze, 2ГИС - written out twice: once in
+`NavigationAppPolicy.supported` for the picker, once in
+`ClusterProxyMain.ALLOWED_PACKAGES` for the shell side. Nothing in the
+projection depends on the task being a navigator; it moves a task.
+
+**What replaced it.** `ProjectablePackages`, one Java class both sides of the
+shell boundary read:
+
+- a package is projectable when `getLaunchIntentForPackage` answers for it -
+  the platform's own "can be opened", and exactly what the one-tap path uses to
+  open a missing task;
+- this app is left out (its instruments are drawn into the scene, never a task
+  to move, and offered as an application it would move the screen doing the
+  choosing onto the cluster);
+- the package that answers `HOME` is left out (its task is the one every other
+  returns to).
+
+The proxy asks it in `findTask` and in `enforceTask` before every mutation, so
+the old defence in depth stands without the list. `backgroundTask` used to skip
+every allowlisted navigator when it looked for the scene to focus after a quiet
+return; it now skips the returned package's own tasks only.
+`DriverScreenChoicesTest` holds the two exclusions to two and fails if any of the
+six package names reappears in the proxy, the policy, the settings or the
+coordinator.
+
+**The chooser.** The panel names the choice on a row («Что показывать», its icon
+or the instruments' glyph, and its name); the row opens a page of the panel with
+two groups in one grid - «Функции приборов» (`Приборы`) and «Приложения», every
+launchable application by name, from the launcher catalog the default-app roles
+already cache. The boards are `Config.dc.html` (the panel) and
+`DriverScreen.dc.html` (the page); the debug build's
+`DriverScreenSheetFixtureActivity` draws both over the device's own applications
+and matched them on an emulator on 2026-09-23.
+
+**What this car offers.** A read-only query on 2026-09-23 (`cmd package
+query-activities -a MAIN -c LAUNCHER`) listed 58 launchable packages; `HOME`
+resolves to `com.byd.mycar/.CarMainActivity`, which is not among them. The list
+includes stock applications no navigator list would have named - among them
+`com.byd.launchermap` (the stock map), `com.byd.carsettings`, `com.byd.avc` (the
+cameras) and `com.byd.dishare`.
+
+**Not verified live, and where the risk is.**
+
+- No non-navigator application has been projected on this firmware. Waze's
+  `CENTER` and `LEFT` already rendered black (above), so a picture in the wrong
+  geometry is a known outcome, not a new one.
+- `com.byd.avc` is offered like any other. A `com.byd.avc` crash is an
+  escalation alert in this repository; the first projection of the cameras'
+  application belongs to one owning session, from a documented reset, with
+  `logcat -b crash -v time` captured.
+- An application already shown elsewhere - on the passenger screen or through
+  DiShare - takes the existing task path unchanged; this has not been exercised
+  with a non-navigator.
 
 ### Capturing navigation and the Waze layout experiment
 
@@ -1870,7 +1984,7 @@ missing task, return, and warm re-projection. The installed APK hash remained
 the same, the app and AVC processes stayed unchanged, and the final crash buffer
 was empty. Selection changes and launch-discovery timeout paths have not been
 exercised live, so this is not acceptance of every navigation scenario. The
-picker re-reads the installed allowlist whenever it opens, the selected package
+chooser reads the car's launcher catalog whenever it opens, the selected package
 is saved, and projection sessions stay in memory and end with the process. The
 automatic **Map mode** implementation also remains in code, but its unfinished
 UI switch is hidden in the current build.

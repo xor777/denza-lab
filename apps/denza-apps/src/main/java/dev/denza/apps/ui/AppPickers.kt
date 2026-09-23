@@ -8,13 +8,13 @@ import androidx.compose.ui.Modifier
 import dev.denza.apps.NavigationAppChoice
 import dev.denza.apps.SIMULCAST_MAX_SELECTED
 import dev.denza.apps.SimulcastAppChoice
+import dev.denza.apps.design.DenzaIcons
 import dev.denza.apps.design.DenzaMetrics
-import dev.denza.apps.design.luminofor.LuminoforSpec.Sheet
 import dev.denza.apps.feature.fse.FseInstallApp
 import dev.denza.apps.ui.components.DenzaAppChooser
 import dev.denza.apps.ui.components.DenzaAppChooserSheet
-import dev.denza.apps.ui.components.DenzaAppGrid
 import dev.denza.apps.ui.components.DenzaAppTile
+import dev.denza.apps.ui.components.DenzaChoiceIcon
 import dev.denza.apps.ui.components.DenzaNote
 import dev.denza.apps.ui.components.DenzaPrimaryButton
 import dev.denza.apps.ui.dashboard.DashboardTiles
@@ -23,7 +23,7 @@ import dev.denza.apps.ui.dashboard.DashboardTiles
  * The three lists of applications this app asks the driver to choose from.
  *
  * They were three dialogs and three tiles; they are three calls now, because once the chooser and
- * the tile are shared there is nothing left of a picker but its words and how many fit in a row.
+ * the tile are shared there is nothing left of a picker but its words.
  *
  * All three are the whole sheet, and that is what a tile's own press earns: the driver pressed a
  * feature that is waiting on this answer, so there is nothing behind the page to go back to. The
@@ -130,7 +130,13 @@ internal fun simulcastChooserSubtitle(selectedCount: Int): String =
 internal fun simulcastChoiceValue(selected: List<SimulcastAppChoice>): String =
     if (selected.isEmpty()) "Ничего не выбрано" else ""
 
-/** What goes on the driver's screen. One at a time, so choosing closes the sheet. */
+/**
+ * What goes on the driver's screen, opened straight from the tile. One at a time, so choosing
+ * closes the sheet.
+ *
+ * The tile opens this when it has nothing it can put across - the chosen application has gone from
+ * the car. It is the same page as [NavigationAppChooser], without the way back.
+ */
 @Composable
 internal fun NavigationPickerDialog(
     apps: List<NavigationAppChoice>,
@@ -140,64 +146,88 @@ internal fun NavigationPickerDialog(
 ) {
     DenzaAppChooserSheet(
         title = "Экран водителя",
-        subtitle = "Что показывать за рулём",
+        subtitle = NAVIGATION_CHOICE_TITLE,
         items = apps,
         key = NavigationAppChoice::packageName,
         compact = compactLayout,
         onDismiss = onDismiss,
-        emptyText = "Поддерживаемые навигаторы не найдены",
-        columns = DenzaMetrics.Component.NAVIGATION_PICKER_COLUMNS,
-    ) { app ->
-        DenzaAppTile(
-            label = app.label,
-            selected = app.selected,
-            onClick = { onSelect(app.packageName) },
-            icon = app.icon,
-            iconKey = app.packageName,
-        )
-    }
+        emptyText = NAVIGATION_CHOICES_LOADING,
+        section = ::navigationChoiceSection,
+    ) { app -> NavigationChoiceTile(app, onSelect) }
 }
 
 /**
- * The navigators this car has, drawn inline for the one panel that holds them inline.
+ * «Что показывать» inside the driver's-screen panel, with the way back to it.
  *
- * There are two doors to this choice - the cluster's settings panel holds it under a heading, and
- * a feature waiting on it opens [NavigationPickerDialog] - and until now each door drew its own
- * grid: four columns of the dashboard's old row-of-weights grid in the panel against three
- * lazy ones in the sheet, with different gaps and a different empty state.
+ * It used to be a grid of the navigators hung in the panel itself, under a heading, because there
+ * were never more than six and one row usually held them. The choice is anything the car can open
+ * now - fifty-odd tiles on this car - and a grid of the whole catalog belongs on a page of its own,
+ * the one every other chooser in the app already is. The panel says what is chosen on a row.
  *
- * This one stays bounded, because here the grid genuinely is one child of a panel that scrolls.
- * There are four navigators at most - one row, sometimes two - so the cap is never reached and the
- * nesting never bites; a page for a choice that fits under its own heading would be a second
- * surface asking one question.
+ * Two groups in one grid: the instruments first, and then every application by name. First,
+ * because they are one tile that would otherwise stand somewhere after «Яндекс Музыка»; and under
+ * a heading of their own, because they are a different kind of answer - drawn by this app for the
+ * whole panel, not an application's picture put there - and the page should say so before the
+ * finger finds out.
  */
 @Composable
-internal fun NavigationAppChoices(
+internal fun ColumnScope.NavigationAppChooser(
     apps: List<NavigationAppChoice>,
     compact: Boolean,
     onSelect: (String) -> Unit,
-    modifier: Modifier = Modifier,
+    onBack: () -> Unit,
+    onDismiss: () -> Unit,
 ) {
-    if (apps.isEmpty()) {
-        DenzaNote("Поддерживаемые навигаторы не найдены", modifier)
-        return
-    }
-    DenzaAppGrid(
+    DenzaAppChooser(
+        title = NAVIGATION_CHOICE_TITLE,
+        subtitle = "",
         items = apps,
         key = NavigationAppChoice::packageName,
         compact = compact,
-        modifier = modifier,
-        columns = Sheet.Apps.COLUMNS,
-    ) { app ->
-        DenzaAppTile(
-            label = app.label,
-            selected = app.selected,
-            onClick = { onSelect(app.packageName) },
-            icon = app.icon,
-            iconKey = app.packageName,
-        )
-    }
+        onDismiss = onDismiss,
+        onBack = onBack,
+        emptyText = NAVIGATION_CHOICES_LOADING,
+        section = ::navigationChoiceSection,
+    ) { app -> NavigationChoiceTile(app, onSelect) }
 }
+
+@Composable
+private fun NavigationChoiceTile(app: NavigationAppChoice, onSelect: (String) -> Unit) {
+    DenzaAppTile(
+        label = app.label,
+        selected = app.selected,
+        onClick = { onSelect(app.packageName) },
+        icon = app.icon,
+        iconKey = app.packageName,
+        glyph = if (app.instruments) DenzaIcons.InstrumentsGlyph else null,
+    )
+}
+
+/** The group a choice is drawn under: this app's instruments, or the car's applications. */
+internal fun navigationChoiceSection(choice: NavigationAppChoice): String =
+    if (choice.instruments) NAVIGATION_INSTRUMENTS_SECTION else NAVIGATION_APPLICATIONS_SECTION
+
+/**
+ * The chosen answer on the panel's row: the application's own icon, or the instruments' glyph.
+ */
+internal fun navigationChoiceIcon(choice: NavigationAppChoice): DenzaChoiceIcon = DenzaChoiceIcon(
+    key = choice.packageName,
+    label = choice.label,
+    drawable = choice.icon,
+    glyph = if (choice.instruments) DenzaIcons.InstrumentsGlyph else null,
+)
+
+/** One question, two doors: the panel's row and the page it opens must not name it differently. */
+internal const val NAVIGATION_CHOICE_TITLE = "Что показывать"
+
+internal const val NAVIGATION_INSTRUMENTS_SECTION = "Функции приборов"
+internal const val NAVIGATION_APPLICATIONS_SECTION = "Приложения"
+
+/**
+ * The instruments are always there, so the page is empty only for the moment before the car's
+ * catalog is read; a wait, not a verdict.
+ */
+private const val NAVIGATION_CHOICES_LOADING = "Ищем приложения…"
 
 /**
  * Which application to put across on the passenger's screen.

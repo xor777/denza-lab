@@ -25,6 +25,7 @@ enum class TileIcon {
     LOCALE,
     PASSENGER,
     DEFAULT_APPS,
+    CLOUD,
     SERVICE,
 }
 
@@ -104,10 +105,11 @@ data class DashboardTile(
 object DashboardTiles {
 
     /**
-     * Every tile on the main screen, in the order `Config.dc.html` places them.
+     * Every tile on the main screen, in the order the Luminofor boards place them.
      *
-     * Eleven, with Shortcuts immediately before the service door. The Shortcuts tile
-     * is not a runtime feature: it is the settings entry for the three stock Shortcuts roles.
+     * Twelve - two full rows of six - with the service door last. The Shortcuts tile is not a
+     * runtime feature: it is the settings entry for the three stock Shortcuts roles. The cloud link
+     * stands between it and the door, the last of the things the car is set to do.
      */
     fun of(state: DenzaUiState): List<DashboardTile> {
         // The door is built from the tiles in front of it rather than from the state again. It used
@@ -124,6 +126,7 @@ object DashboardTiles {
             locale(state),
             passenger(state),
             defaultApps(state),
+            cloud(state),
         )
         return features + service(features)
     }
@@ -495,6 +498,38 @@ object DashboardTiles {
             } else {
                 TileAction.SETTINGS
             },
+        )
+    }
+
+    /**
+     * The car's own link to the cloud, carried over Wi-Fi - what the Denza app on the phone reads
+     * the car through.
+     *
+     * The caption is a reading whenever the switch is on, because that is the question anybody
+     * glancing at it is asking: is the phone seeing the car. «На связи» is the stock client holding
+     * its connection; «Подключается» is Wi-Fi without one yet, drawn as working for as long as that
+     * lasts, as weather is before its first forecast; «Нет Wi-Fi» is on and waiting, as the mirrors
+     * wait for a turn signal, and is not a fault. Keeping Wi-Fi on in sleep is a setting and lives
+     * in the panel only.
+     */
+    private fun cloud(state: DenzaUiState): DashboardTile {
+        val snapshot = state.cloudLink
+        val connected = snapshot.status == FeatureStatus.ACTIVE
+        return DashboardTile(
+            id = TileId.CLOUD,
+            icon = TileIcon.CLOUD,
+            name = "Облако",
+            state = when (snapshot.status) {
+                FeatureStatus.OFF -> "Выключено"
+                FeatureStatus.ACTIVE -> "На связи"
+                FeatureStatus.READY -> "Нет Wi-Fi"
+                FeatureStatus.ERROR, FeatureStatus.UNAVAILABLE ->
+                    snapshot.message.ifBlank { "Не переключилось" }
+                else -> "Подключается"
+            },
+            tone = toneOf(snapshot),
+            caption = if (connected) DenzaTileCaption.READING else DenzaTileCaption.SETTING,
+            action = actionOf(snapshot, TileAction.TOGGLE),
         )
     }
 

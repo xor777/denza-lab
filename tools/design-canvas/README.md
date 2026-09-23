@@ -582,10 +582,11 @@ screenful, which is what a still can show of a scroll and is not a shorter note.
 
 ## Choosing an application
 
-Three boards, one component. `DefaultApps.dc.html` draws the «Приложения» panel
+Four boards, one component. `DefaultApps.dc.html` draws the «Приложения» panel
 as three rows; `AppChooser.dc.html` draws the page a row opens, at 1280 and at
 416; `Simulcast.dc.html` draws the projection panel with its row and the
-multi-choice page that row opens.
+multi-choice page that row opens; `DriverScreen.dc.html` draws «Что показывать»,
+the driver's-screen page, whose panel is `Config.dc.html`.
 
 **What was wrong.** Both panels put the same grid - `DenzaAppGrid`, capped at
 `PICKER_HEIGHT` - inside a sheet whose content column scrolls. That is a nested
@@ -654,11 +655,43 @@ as the head unit draws them, adaptive-icon shaping and all. The code was never a
 fault here: `DenzaAppTile` has always taken a `Drawable` from the PackageManager
 and only falls back to the initial when there is genuinely no icon.
 
-Comparing the two also settled an order. The board put our own instruments first;
-the app puts them last, on the reasoning that they are the one choice that can
-never be missing, so leading with them pushes whichever navigator the driver
-actually uses one tile along. That is an argument about the driver's hand rather
-than about implementation, so the board gave way.
+Comparing the two also settled an order, for a while. The board put our own
+instruments first; the app put them last, on the reasoning that they are the one
+choice that can never be missing, so leading with them pushed whichever navigator
+the driver actually used one tile along. That held while the choice was four
+navigators. Since 2026-09-23 it is every application on the car, by name, and
+«last» means after «Яндекс Музыка» - so the instruments lead again, under a
+heading of their own; see "The driver's screen takes any application" below.
+
+## The driver's screen takes any application
+
+The owner's rule, 2026-09-23: the driver's screen shows this app's instruments or
+any application the car has, with no filter in the code. Two boards changed.
+
+**The panel** (`Config.dc.html`). It held the navigators themselves in a grid
+under «ЧТО ПОКАЗЫВАТЬ», which was right while there were never more than six. A
+grid of the whole catalog in a panel beside a switch is the nested scroll the
+section above describes, so the panel says the choice as a `DenzaChoiceRow` -
+«Что показывать» over the instruments' glyph or the application's icon and its
+name - on the switch row's surface. The panel is drawn with the instruments
+chosen, so it has no placement row, as the code has none; the switch row moved
+from `#1C2028` to the `#323538` the code gives it, and the button says «Убрать»,
+the code's word.
+
+**The page** (`DriverScreen.dc.html`). One grid, two groups: «ФУНКЦИИ ПРИБОРОВ»
+with `Приборы`, then «ПРИЛОЖЕНИЯ» with every launchable application in the
+projection chooser's order (`String.CASE_INSENSITIVE_ORDER`: digits, Latin,
+Cyrillic). A group label is `DenzaSectionLabel` spanning the grid; the second
+stands the grid's 12 plus the label's 20 below the first group's last row - a
+section's 32. The instruments are the dial and needle this board has always
+drawn for them, at the dashboard glyph's 30 in the tile's well and at 24 on the
+row; the code used to draw this app's launcher icon there. Single choice: a tap
+chooses and returns to the panel. The wide frame shows a navigator chosen, the
+narrow one the instruments.
+
+The debug build's `DriverScreenSheetFixtureActivity` draws the real panel and
+page over the device's own applications (`--es choice <package>` picks one), for
+a look beside these two boards.
 
 ## The Contour boards
 

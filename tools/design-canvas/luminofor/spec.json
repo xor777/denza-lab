@@ -139,7 +139,7 @@
     "header": { "height": 40, "glyph": 26, "glyphAlpha": 0.9, "glyphGap": 14, "titleSize": 24, "close": 24, "closeAlpha": 0.54, "subtitleSize": 14, "subtitleAlpha": 0.54 },
     "plate": { "color": "#2C2B33", "radius": 12, "hairlineAlpha": 0.08, "hairlineInset": 16 },
     "roboto": { "ascent": 0.928, "descent": 0.244, "centre": 0.342 },
-    "row": { "single": [64, 38], "twoLine": [72, 30, 52], "withIcons": [80, 30, 42, 59], "minHeight": 64, "padX": 16, "titleSize": 18, "titleAlpha": 0.9, "summarySize": 14, "summaryAlpha": 0.54, "lineGap": 4, "chevron": 20, "choiceIcon": 24, "choiceGap": 8 },
+    "row": { "single": [64, 38], "twoLine": [72, 30, 52], "withIcons": [80, 30, 42, 59], "minHeight": 64, "padX": 16, "titleSize": 18, "titleAlpha": 0.9, "summarySize": 14, "summaryAlpha": 0.54, "summaryStep": 20, "lineGap": 4, "chevron": 20, "choiceIcon": 24, "choiceGap": 8 },
     "label": { "size": 15, "alpha": 0.54, "gap": 10 },
     "switch": { "width": 48, "height": 28, "thumb": 22, "on": "#3388FF", "off": "#DEE5F0", "offAlpha": 0.2, "thumbColor": "#F8F9FA", "disabledAlpha": 0.5 },
     "segmented": { "height": 48, "radius": 10, "pad": 4, "trackAlpha": 0.1, "pillAlpha": 0.8, "onTextAlpha": 0.8, "offTextAlpha": 0.85, "size": 16 },
