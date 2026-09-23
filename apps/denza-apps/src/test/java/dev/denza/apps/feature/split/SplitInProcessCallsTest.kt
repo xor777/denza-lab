@@ -120,6 +120,10 @@ class SplitInProcessCallsTest {
         assertEquals(3, car.fake.area)
         assertTrue(car.fake.isGateOpen())
         assertTrue(
+            "строка бюджета называет, сколько обращений не покидали процесс",
+            car.diagnostics.any { it.matches(Regex("open: обращений \\d+ \\(в процессе \\d+\\), .*")) },
+        )
+        assertTrue(
             "tx125 всё так же в ринге (1.12)",
             car.diagnostics.any { it.startsWith("firmware split allowlist extended: '$MUSIC'") },
         )

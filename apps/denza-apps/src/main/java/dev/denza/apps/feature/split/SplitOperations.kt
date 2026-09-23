@@ -83,6 +83,7 @@ internal class SplitOperationWorkspace(
 
     private val budgetLock = Any()
     private var shellCalls = 0
+    private var inProcessCalls = 0
     private var shellMs = 0L
     private var pauseMs = 0L
     private var parseMs = 0L
@@ -137,7 +138,10 @@ internal class SplitOperationWorkspace(
 
     private fun inProcessAnswer(command: String): String? {
         val startedAtMs = clock.nowMs()
-        return inProcess.answer(command)?.also { record(clock.nowMs() - startedAtMs) }
+        return inProcess.answer(command)?.also {
+            record(clock.nowMs() - startedAtMs)
+            synchronized(budgetLock) { inProcessCalls += 1 }
+        }
     }
 
     private fun send(command: String): String {
@@ -221,11 +225,13 @@ internal class SplitOperationWorkspace(
      */
     fun reportBudget(label: String) {
         val calls: Int
+        val local: Int
         val shell: Long
         val pause: Long
         val parse: Long
         synchronized(budgetLock) {
             calls = shellCalls
+            local = inProcessCalls
             shell = shellMs
             pause = pauseMs
             parse = parseMs
@@ -239,8 +245,12 @@ internal class SplitOperationWorkspace(
         // The three are named as the transport's own share rather than folded into `в shell`,
         // because they are not the same total: a command the resident helper served never touched
         // this session, and `в shell` is the wall time of every round trip either way.
+        // How many of the calls never left this process (the BYD transactions an app UID may
+        // send): named only when there were any, so the line of an operation without them reads
+        // exactly as it always has.
+        val inProcessShare = if (local > 0) " (в процессе $local)" else ""
         diagnostics.log(
-            "$label: обращений $calls, в shell ${seconds(shell)} с, " +
+            "$label: обращений $calls$inProcessShare, в shell ${seconds(shell)} с, " +
                 "транспорт (очередь ${seconds(spend.queuedMs)}, " +
                 "отправка ${seconds(spend.sentMs)}, ответ ${seconds(spend.answeredMs)}), " +
                 "разбор ${seconds(parse)} с, в паузах ${seconds(pause)} с",

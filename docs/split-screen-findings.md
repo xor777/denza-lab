@@ -2380,6 +2380,18 @@ tenth of a second later that the scene is covered - against a first read at
   owns under a covered world - the heir of a process a quickboot killed.
 - **Every pane app is listed through tx125**, not only those tx112 denies,
   so manifest-capable apps get the full detent map in the wide pane.
+- **The BYD split transactions leave the ADB link** (`SplitInProcessCalls`).
+  tx30, tx118, tx112, tx125 and tx126 are recognised letter for letter at the
+  front of the operation funnel, transacted from the app process and answered
+  in `service call`'s own words; anything else, or any failure, goes on to the
+  resident helper and the shell as before. The world read and every task move
+  stay on the shell. Live the same afternoon (build of `02692dc8`): the budget
+  lines read `home: обращений 2 (в процессе 2)`, `reconcile: обращений 7 (в
+  процессе 6)`, `open: обращений 30 (в процессе 16)`. Home and most reconciles
+  no longer touch ADB at all; an open still needs it for the world read and the
+  moves. Times barely moved - the reopen after Home was 1.34-1.56 s against
+  1.45 s - because the resident helper already answered most reads in
+  milliseconds; what changed is that these calls no longer depend on the link.
 - **A picker outside the pane roots is never taken back** (`buildScene`,
   phase 2). Home strands the wide pane's picker and a collapse strands the
   closed pane's; excluded from recents and below Home, each is the firmware's
@@ -2424,3 +2436,11 @@ same two tasks (#85, #86) in 1.45 s with no launch. A second Home closed the
 gate 10 ms after the key and was confirmed at +28 ms. The crash buffer stayed
 empty. Not exercised live: a swallowed Home (the undo), a Home without a key,
 and a tap faster than the gate (below about 20 ms, not a human one).
+
+**Seen on the way, not changed.** A tap on the split icon while our scene is on
+screen is itself placed by the firmware: the trampoline task
+(`SplitScreenLauncherAlias`) belongs to our package, which is split-capable by
+its manifest, and with the gate open it lands in split -
+`startSplitWindow #96 … SplitScreenLauncherAlias newMode = 102` (live
+2026-09-23 14:10:40) - before the open rebalances to 100. The trampoline
+finishes at once, so the cost is a mode flip under the waiting window.
