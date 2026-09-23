@@ -221,8 +221,9 @@ class LightPen(
         }
         val sw = px(strokeUnits)
         for (ch in str) {
-            val glyph = LuminoforSpec.Digits.GLYPHS[ch] ?: continue
-            val path = WideDigits.path(ch)
+            val glyph = WideDigits.glyph(ch)
+            if (glyph == WideDigits.NONE) continue
+            val path = WideDigits.path(glyph)
             if (path != null) {
                 glyphMatrix.setScale(k, k)
                 glyphMatrix.postTranslate(cx, baseline - LuminoforSpec.Digits.CAP * k)
@@ -230,7 +231,7 @@ class LightPen(
                 path.transform(glyphMatrix, scratch)
                 if (intensity > 0.01f) beamPx(scratch, sw, light, intensity, 0f)
             }
-            cx += (glyph.first + LuminoforSpec.Digits.TRACK) * k
+            cx += (WideDigits.advance(glyph) + LuminoforSpec.Digits.TRACK) * k
         }
         return w
     }
