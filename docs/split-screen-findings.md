@@ -2585,6 +2585,9 @@ hub and the picker are both `dev.denza.apps`, and `mPrimaryActivity` is
 purpose, so the firmware's auto-fill of an empty pane is our picker. So in any
 pair of two Denza tasks (hub + picker, picker + picker) the stock resize
 degenerates into a side swap; a pair with any other package resizes normally.
+Left as the firmware does it, by the owner's decision (2026-09-23): two pickers
+look alike, so only the hub next to a still-empty pane shows it, and completing
+the skipped swap from the product would make every such resize move twice.
 
 The same capture holds two native gestures that also read as "it jumped by
 itself": a tap on the divider under 400 ms swaps the panes (17:54:36 and
