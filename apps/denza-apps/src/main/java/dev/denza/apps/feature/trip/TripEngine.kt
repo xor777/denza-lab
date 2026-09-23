@@ -225,15 +225,10 @@ class TripEngine {
     fun distanceMeters(): Double = gnss.distanceMeters
     fun sunInfo(): SunInfo = sun
 
-    fun guidance(): GuidanceRemaining? {
-        if (!guidanceValid) return null
-        return GuidanceRemaining(guidanceDistance, guidanceTime)
-    }
-
     /**
-     * The same two halves of a route, read without building a [GuidanceRemaining]: the strip asks
-     * thirty times a second and a new object per frame is garbage for an answer that changes once a
-     * minute. `-1` is a half the route does not have, or no route at all.
+     * The two halves of a route the strip prints, read as plain numbers: the strip asks thirty
+     * times a second and an object per frame is garbage for an answer that changes once a minute.
+     * `-1` is a half the route does not have, or no route at all.
      */
     fun remainingMeters(): Int = if (guidanceValid) guidanceDistance ?: -1 else -1
 

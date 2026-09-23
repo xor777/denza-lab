@@ -238,13 +238,6 @@ class TripPanelRenderer {
     }
 
     companion object {
-        /**
-         * The full screen's strip box, in the size the dashboard's layout policy asks for it by:
-         * 1184 x 296, which is [Head.Full.STRIP_BOX].
-         */
-        val WIDE_VIRTUAL_W: Float = Head.Full.STRIP_BOX.right - Head.Full.STRIP_BOX.left
-        val WIDE_VIRTUAL_H: Float = Head.Full.STRIP_BOX.bottom - Head.Full.STRIP_BOX.top
-
         /** Where the strip stands in the window, which is where its view is laid. */
         fun box(layout: TripPanelLayout): Head.Box = when (layout) {
             TripPanelLayout.WIDE -> Head.Full.STRIP_BOX

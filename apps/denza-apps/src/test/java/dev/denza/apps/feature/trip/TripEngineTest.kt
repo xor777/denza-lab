@@ -2,8 +2,6 @@ package dev.denza.apps.feature.trip
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -130,15 +128,18 @@ class TripEngineTest {
     fun guidanceIsFailClosed() {
         val engine = TripEngine()
         engine.onGuidance(distanceMeters = null, timeSeconds = null, valid = false, nowElapsedMs = 100L)
-        assertNull(engine.guidance())
+        assertFalse(engine.guiding)
+        assertEquals(-1, engine.remainingMeters())
+        assertEquals(-1, engine.remainingSeconds())
 
         engine.onGuidance(distanceMeters = 4200, timeSeconds = 600, valid = true, nowElapsedMs = 200L)
-        val guidance = engine.guidance()
-        assertNotNull(guidance)
-        assertEquals(4200, guidance!!.distanceMeters)
-        assertEquals(600, guidance.timeSeconds)
+        assertTrue(engine.guiding)
+        assertEquals(4200, engine.remainingMeters())
+        assertEquals(600, engine.remainingSeconds())
 
         engine.onGuidance(distanceMeters = null, timeSeconds = null, valid = false, nowElapsedMs = 300L)
-        assertNull(engine.guidance())
+        assertFalse(engine.guiding)
+        assertEquals(-1, engine.remainingMeters())
+        assertEquals(-1, engine.remainingSeconds())
     }
 }
