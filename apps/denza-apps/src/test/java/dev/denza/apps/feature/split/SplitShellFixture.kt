@@ -220,6 +220,19 @@ internal class FakeShell(
     var area = 4
 
     /**
+     * `mSplitWindowMode` прошивки: 100 - split, 101 - одна узкая панель, 102 - одна широкая.
+     *
+     * Он решает только запуск с панельной категорией и только в двух одиночных режимах, где
+     * прошивка - уже не тот split, что рисует остальная фикстура (`startSplitWindow`,
+     * IVI:463-503, прочитано 2026-09-23): в 101 она сначала переходит в 102 и уносит верхнюю
+     * задачу узкого контейнера в широкий; в 102 split раскрывает только START_IVI_PRIMARY, а
+     * START_IVI_SECOND остаётся в одной широкой панели. Тени дивайдера в одиночном режиме нет,
+     * и синтетическому жесту тянуть нечего (живьём 19:30:14). Тест, который режим не назвал,
+     * остаётся в 100.
+     */
+    var firmwareSplitMode = 100
+
+    /**
      * Ответы на первые `activity_task 30` этого прогона - по одному на чтение, затем [area].
      *
      * Area в машине не кэшируется никем: каждое чтение - свежее обращение, и живой мир вправе
@@ -580,7 +593,11 @@ internal class FakeShell(
                     else -> null
                 }
                 if (pickerRoot != null) {
-                    if (area != fullArea(pickerRoot)) area = 3
+                    if (firmwareSplitMode == 101 || firmwareSplitMode == 102) {
+                        placeInSinglePaneMode(pickerRoot)
+                    } else if (area != fullArea(pickerRoot)) {
+                        area = 3
+                    }
                     tasks.removeAll {
                         it.rootId == pickerRoot &&
                             (it.packageName == STOCK_PICKER_PACKAGE ||
@@ -824,7 +841,7 @@ internal class FakeShell(
             command == "dumpsys input" ->
                 "name='Embedded{multi-divider-shadow}', frame=[-67,0][108,1600]"
             command.startsWith("input swipe ") -> {
-                area = 3
+                if (firmwareSplitMode == 100) area = 3
                 ""
             }
             command == "input keyevent KEYCODE_HOME" -> {
@@ -937,6 +954,26 @@ internal class FakeShell(
         rootId == PRIMARY_ROOT -> if (area == 1) FULL else primaryPaneBounds
         rootId == SECONDARY_ROOT -> if (area == 2) FULL else secondaryPaneBounds
         else -> FULL
+    }
+
+    /** [firmwareSplitMode] 101 or 102 meeting a pane category, as `startSplitWindow` does it. */
+    private fun placeInSinglePaneMode(pickerRoot: Int) {
+        if (firmwareSplitMode == 101) {
+            firmwareSplitMode = 102
+            tasks.lastOrNull { it.rootId == PRIMARY_ROOT }?.let { top ->
+                tasks.remove(top)
+                top.rootId = SECONDARY_ROOT
+                tasks += top
+            }
+        }
+        if (pickerRoot == PRIMARY_ROOT) {
+            firmwareSplitMode = 100
+            area = 3
+        } else {
+            area = 2
+        }
+        tasks.filter { it.rootId == PRIMARY_ROOT || it.rootId == SECONDARY_ROOT }
+            .forEach { task -> task.bounds = bounds(task.rootId) }
     }
 
     /**

@@ -2605,3 +2605,32 @@ survived full screen).
 The product's own lines for these minutes are gone: the spectrum analyser's
 `Visualizer` makes the platform log `AudioEffect: command()` from our process
 every 50 ms, which turns the main buffer over in a few minutes.
+
+### An open over a single-pane firmware, after the navigator came back (live 2026-09-23)
+
+The owner sent the narrow pane's Yandex Navigator to the cluster while the scene
+was hidden (19:22:10) and brought it back six seconds later. The return put the
+task back into its own narrow container (1.10.3), and the firmware took it for a
+lone window: `changeSplitScreenMode: newMode: 101`, `PrimaryActivity
+ru.yandex.yandexnavi`. Home does not empty the narrow container, so the next
+open found our old picker there under the navigator, adopted it, and launched
+only the wide picker - `START_IVI_SECOND`, `type = 32`. In a single-pane mode
+that placement stays single (`startSplitWindow`, IVI:463-503): 101 first turns
+102 and carries the narrow container's top into the wide one, and in 102 only
+`type 16` re-splits. The picker landed full screen over the navigator (area 2),
+the synthetic divider drag had nothing to drag - no divider shadow in 102, and
+the injected touch went to our own "Denza split launch" overlay - and the open
+rolled back, leaving the navigator full screen. Twice, 19:24:07 and 19:30:13.
+
+The mode is published in `Settings.System byd_smart_multi_split_window_mode`,
+but that copy is not the firmware's memory: the SmartMulti lease writes it back
+at the end of a session. The area is honest, so the open reads it once the
+pickers are launched: area 1 or 2 with the narrow picker adopted means a
+single-pane firmware, and the narrow side gets a fresh `START_IVI_PRIMARY`
+picker - the one launch that re-splits. The unit fixture now models modes 101
+and 102 for pane launches and no longer opens a split from a divider drag in
+them.
+
+Open: the synthetic divider drag (`dragDividerToBalanced`) sends its injected
+touch while our launch overlay is up, and on the car that touch went to the
+overlay.

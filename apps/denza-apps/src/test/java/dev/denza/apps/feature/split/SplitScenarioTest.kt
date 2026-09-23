@@ -1150,6 +1150,57 @@ class SplitScenarioTest {
     }
 
     /**
+     * Живьём 2026-09-23 19:24 и 19:30: навигатор узкой панели съездил на приборку, пока сцена была
+     * скрыта, и вернулся в свой узкий контейнер (1.10.3). Прошивка приняла вернувшуюся задачу за
+     * одиночное окно - режим 101, - и в одиночном режиме панельный запуск широкой стороны split
+     * не раскрывает: пикер лёг в одну широкую панель поверх навигатора, тени дивайдера для жеста
+     * не было, и открытие откатывалось, оставляя навигатор на весь экран. Из одиночного режима
+     * split раскрывает только START_IVI_PRIMARY (IVI:483-488), и открытие делает именно его.
+     */
+    @Test
+    fun anOpenOverASinglePaneFirmwareResplitsThroughThePrimaryLaunch() {
+        val car = car(FakeShell())
+        val core = car.core(SplitDurable(enabled = true, slots = APP_PAIR))
+        core.initialize {}
+        core.openPickerSession()
+        car.barrier()
+        val appP = car.fake.taskIds(PRIMARY_ROOT).last()
+        val pickerS = car.fake.taskIds(SECONDARY_ROOT).first()
+        val appS = car.fake.taskIds(SECONDARY_ROOT).last()
+
+        car.fake.area = 0
+        core.homeVisible()
+        car.barrier()
+        // Home вынес широкую панель; узкая, куда вернулся навигатор, осталась, а прошивка держит
+        // одиночный режим.
+        car.fake.detachTask(pickerS)
+        car.fake.detachTask(appS)
+        car.fake.firmwareSplitMode = 101
+        car.clearCommands()
+
+        core.openPickerSession()
+        car.barrier()
+
+        assertEquals("сцена поднята", 3, car.fake.area)
+        assertEquals("прошивка снова в split", 100, car.fake.firmwareSplitMode)
+        assertEquals("навигатор в своей панели", PRIMARY_ROOT, car.fake.taskRoot(appP))
+        assertEquals("сосед в своей", SECONDARY_ROOT, car.fake.taskRoot(appS))
+        assertEquals(SplitScreenPhase.ACTIVE, core.snapshot().phase)
+        assertEquals(APP_PAIR, car.store.load().slots)
+        val pickerStarts = car.commands().filter { command ->
+            command.startsWith("am start ") && command.contains(SPLIT_PICKER_ACTIVITY)
+        }
+        assertTrue(
+            "split раскрыл запуск узкой стороны: $pickerStarts",
+            pickerStarts.last().contains("START_IVI_PRIMARY"),
+        )
+        assertFalse(
+            "жест по дивайдеру, которого нет, не отправлялся",
+            car.commands().any { it.startsWith("input swipe ") },
+        )
+    }
+
+    /**
      * The race of 2026-09-18 18:55:35, by its mechanism: the tap on the launcher is a new recents
      * task, it arms the firmware's trim, and the trim takes the stranded wide picker a few hundred
      * milliseconds into our own open. When the build still took stranded pickers back it read this

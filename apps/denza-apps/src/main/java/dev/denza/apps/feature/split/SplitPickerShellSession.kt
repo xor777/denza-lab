@@ -1074,16 +1074,38 @@ internal class SplitPickerShellSession(
                     task.matchesAnyComponent(pickerComponents.values.toSet())
             }
             .mapTo(mutableSetOf(), SplitTask::id)
-        var launchedPicker = false
+        val launchedPanes = mutableSetOf<SplitPane>()
         SplitPane.entries.filterNot(pickerTasks::containsKey).forEach { pane ->
             val picker = launchPickerTask(
                 pane = pane,
                 pickerComponent = pickerComponents.getValue(pane),
                 excludedTaskIds = assignedIds + strandedPickerIds,
-            ).also { launchedPicker = true }
+            ).also { launchedPanes += pane }
             assignedIds += picker.id
             pickerTasks[pane] = picker
         }
+        // A firmware left in a single-pane mode (101/102) keeps a pane launch in its one pane:
+        // only START_IVI_PRIMARY re-splits (IVI:463-503). It is how a navigator returned from the
+        // cluster into a hidden scene leaves it (live 2026-09-23 19:24): the narrow picker it
+        // stands on was adopted above, the wide launch landed full screen, and there is no divider
+        // shadow for a gesture. The narrow side gets a fresh picker, the one launch that re-splits;
+        // the adopted one stays under it.
+        if (
+            launchedPanes.isNotEmpty() &&
+            SplitPane.PRIMARY !in launchedPanes &&
+            callInt("service call activity_task 30") in SINGLE_PANE_AREAS
+        ) {
+            val picker = launchPickerTask(
+                pane = SplitPane.PRIMARY,
+                pickerComponent = pickerComponents.getValue(SplitPane.PRIMARY),
+                excludedTaskIds = assignedIds + strandedPickerIds,
+            )
+            launchedPanes += SplitPane.PRIMARY
+            assignedIds += picker.id
+            pickerTasks[SplitPane.PRIMARY] = picker
+            onPhase("resplit-from-single-pane")
+        }
+        val launchedPicker = launchedPanes.isNotEmpty()
         pickerTasks.forEach { (pane, picker) ->
             onTask(
                 SplitBuiltTask(
@@ -3496,6 +3518,8 @@ internal class SplitPickerShellSession(
         const val AREA_SECONDARY_FULL = 2
         const val AREA_BALANCED_SPLIT = 3
         const val AREA_FULL_IVI = 4
+        /** The areas of the firmware's single-pane modes, 101 and 102: one pane, no split. */
+        val SINGLE_PANE_AREAS = setOf(AREA_PRIMARY_FULL, AREA_SECONDARY_FULL)
         const val EXPAND_PRIMARY_MODE = 101
         const val EXPAND_SECONDARY_MODE = 102
         /** `NEW_TASK | RESET_TASK_IF_NEEDED`: the package's own task, whichever one that is. */
