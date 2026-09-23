@@ -44,6 +44,9 @@ internal class ContourFigures {
         /** The unsigned pack power the car page prints. See `EnergyReadouts`. */
         POWER,
 
+        /** And the hero's own figure, which is the *followed* magnitude at 4 Hz, not the reading. */
+        HERO,
+
         RPM,
         ENGINE_MINUTES,
         SPREAD,

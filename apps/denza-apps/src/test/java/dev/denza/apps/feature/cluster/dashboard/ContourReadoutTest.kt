@@ -10,8 +10,8 @@ import org.junit.Test
 /**
  * Every number and every word the Contour prints, decided away from the canvas.
  *
- * The strings matter as much as the formats here: both shelves are laid out by measuring these
- * captions, so a caption is a coordinate. `ContourBoardContractTest` holds them against the board.
+ * The strings matter as much as the formats here: the Luminofor board prints these words, and
+ * `ContourFixturesContractTest` holds them against its fixtures.
  */
 class ContourReadoutTest {
 
@@ -44,19 +44,22 @@ class ContourReadoutTest {
         assertEquals("2:15", ContourReadout.chargeLeft(135))
         assertEquals("0:45", ContourReadout.chargeLeft(45))
         assertEquals("0:00", ContourReadout.chargeLeft(-3))
-        assertEquals("the last one that fits the seat", "9:59", ContourReadout.chargeLeft(599))
+        assertEquals("9:59", ContourReadout.chargeLeft(599))
     }
 
     @Test
-    fun anEstimateTooLongForTheSeatIsHoursAlone() {
-        // «12:30» is five glyphs against a field of three and a mark, and the history box hangs off
-        // that field: widening it would put the box's left edge inside the vehicle's own graphics.
-        // A wall socket overnight is the case, and the minutes in it are noise.
-        assertEquals("10 ч", ContourReadout.chargeLeft(600))
-        assertEquals("12 ч", ContourReadout.chargeLeft(12 * 60 + 30))
-        assertEquals("28 ч", ContourReadout.chargeLeft(28 * 60))
+    fun anEstimateOfHoursIsStillAClock() {
+        // Until the Luminofor board ten hours and more were «12 ч», because the seat was a field of
+        // three digits and a mark. The board's figure is followed by its unit rather than boxed,
+        // and the wide figures have no «ч» to print, so a wall socket overnight reads «12:30».
+        assertEquals("10:00", ContourReadout.chargeLeft(600))
+        assertEquals("12:30", ContourReadout.chargeLeft(12 * 60 + 30))
         // Both ids are gated to 0..99, so 99:59 is as far as an estimate can legally read.
-        assertEquals("99 ч", ContourReadout.chargeLeft(9_999))
+        assertEquals("99:59", ContourReadout.chargeLeft(9_999))
+        assertTrue(
+            "every character is one the wide figures draw",
+            ContourReadout.chargeLeft(9_999).all { it.isDigit() || it == ':' },
+        )
     }
 
     @Test
@@ -142,10 +145,12 @@ class ContourReadoutTest {
         // The ninth pass's own defect. «ПОСЛЕДНИЕ 2 МИН» is the box's *capacity*: the trace grows
         // from the right and is never front-padded, so five seconds after an engine start the
         // shape was one step wide and the words under it claimed two minutes of it.
-        assertEquals("· ПОСЛЕДНИЕ 0:05", ContourReadout.intoPack(5, short = false))
-        assertEquals("· ПОСЛЕДНИЕ 1:22", ContourReadout.intoPack(82, short = false))
-        assertEquals("· ПОСЛЕДНИЕ 2:00", ContourReadout.intoPack(120, short = false))
-        // The face that crowds the phrase drops the adverb and keeps the reading.
+        assertEquals("ПОСЛЕДНИЕ 0:05", ContourReadout.intoPack(5, short = false))
+        assertEquals("ПОСЛЕДНИЕ 1:22", ContourReadout.intoPack(82, short = false))
+        // The Luminofor board's own words under its box, with no «·» since the window has a line
+        // of its own.
+        assertEquals("ПОСЛЕДНИЕ 2:00", ContourReadout.intoPack(120, short = false))
+        // The short form is what the old layout fell back to; nothing asks for it now.
         assertEquals("· 1:22", ContourReadout.intoPack(82, short = true))
     }
 

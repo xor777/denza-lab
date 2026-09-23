@@ -80,12 +80,11 @@ data class ClusterDashboardLayout(
     /**
      * The three apertures, as fractions of the panel.
      *
-     * Public because the Contour is placed against them rather than against the panel edge: the two
-     * corners are quarter-ellipses anchored at `y = 0` with these as their horizontal radii and
-     * [stockTop] as their vertical one, and the petal is a half-ellipse centred at
-     * [bottomRevealCentreY]. Every anchor the panel has is either a guard off [stockTop] /
-     * [stockBottom] or a clearance from one of these curves, and [ContourPlan] is where that
-     * arithmetic lives.
+     * The two corners are quarter-ellipses anchored at `y = 0` with these as their horizontal radii
+     * and [stockTop] as their vertical one, and the petal is a half-ellipse centred at
+     * [bottomRevealCentreY]. The Luminofor spec states the same five numbers in the cluster's own
+     * units (`cluster.stock` in spec.json), and `ClusterDashboardLayoutTest` holds the two records
+     * together; `ContourGeometryTest` measures the panel against them.
      */
     val topLeftRevealX: Float =
         if (width <= 0) 0f else map.shadeTopLeftRevealRadiusPx.toFloat() / width
@@ -107,9 +106,9 @@ data class ClusterDashboardLayout(
 
     // There was an `isClear(x, y)` here, answering whether a point falls inside the clear band or
     // one of the three apertures, and its own documentation said `ContourPlanTest` measured the
-    // panel's boxes against it. Nothing did. The plan clears the curves by taking a guard off
-    // [stockTop] and [stockBottom] and a clearance from an aperture's own radius, which is a
-    // different and stronger statement than a point test - it is about the box's corner, and about
-    // the descender under a baseline - so the predicate had no production reader and one test
+    // panel's boxes against it. Nothing did. The panel is held inside the curves by asking where
+    // its widest strings end against the petal's own ellipse (`ContourGeometryTest`), which is a
+    // different and stronger statement than a point test - it is about the unit's last glyph, and
+    // about the descender under a baseline - so the predicate had no production reader and one test
     // checking that it agreed with itself.
 }

@@ -389,7 +389,7 @@ class EnergyReadoutsTest {
         )
         assertEquals("ДВС ДАЁТ", readouts.enginePrefix)
         assertEquals("14", readouts.engineFigure)
-        assertEquals("· ПОСЛЕДНИЕ 1:22", readouts.engineWindow)
+        assertEquals("ПОСЛЕДНИЕ 1:22", readouts.engineWindow)
 
         readouts.read(
             snapshot(
