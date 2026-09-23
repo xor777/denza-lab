@@ -149,6 +149,13 @@ class VehicleLogReplayTest {
             recorded >= readings * ConsumptionChart.PITCH_KM - 1e-6,
         )
 
+        // Under five readings nothing is drawn at all (§2.3, «Filling»): every file starts a fresh
+        // log, so the first four hundred metres of every capture are the floor, not a lost point.
+        // The first real drive the test ever read, 2026-09-22, is the one that said so.
+        if (readings < ConsumptionChart.MIN_STEPS) {
+            assertEquals("${file.name} at $at s: nothing under five readings", 0, chart.span)
+            return
+        }
         assertEquals(
             "${file.name} at $at s: the points under the chart",
             readings,

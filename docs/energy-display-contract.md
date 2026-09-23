@@ -374,9 +374,29 @@ test.
 | open | closes with |
 | --- | --- |
 | what `GENERATION_KW` is in motion | one recorded drive with the engine running at speed, `tools/vehicle_log.py` or the car's own `VehicleCapture` |
-| the sign of `POWER_KW` under acceleration | the same recording |
-| whether `ENGINE_RPM` reports anything while the engine is off in motion | the same recording |
+| whether a DC charge (`CHARGE_GUN` = 3) reads «● В БАТАРЕЮ ОТ ЗАРЯДКИ» | the owner's word, and a second DC stop recorded |
 | the stock zones' true edges | the grid photograph |
+
+**Closed by the first recorded drive, 2026-09-22** -
+`captures/vehicle-log/vehicle-20260922-172447-car.csv`, written on the car by a
+shell loop while the head unit was out of the home Wi-Fi: two drives, 3.2 km and
+3.5 km, up to 71 km/h, the engine never started, and a six-minute DC stop.
+
+| question | answer |
+| --- | --- |
+| the sign of `POWER_KW` in motion | **positive out of the pack, proven**: 27 samples accelerating above 0.7 m/s² with the pedal past 20 % read 10…61 kW, median 29, none below zero; 41 decelerating with the pedal up read median −12, 73 % below zero. `VehicleConvention`'s discharge-positive sign holds at speed, not only on a charger |
+| whether `ENGINE_RPM` reports anything with the engine off in motion | **no**: over 748 moving samples the primary id answered `0x1FFF` - the invalid pattern the decode already refuses - and its `_20D` twin, `GENERATION_KW` and `GENERATION_STATE` all read `0`. Neither is the id that stood the box up on 2026-09-05 in this build's decoding |
+| does `0x2ED00010` mean anything of its own | no, a third time: it equals `POWER_KW` on 65 % of rows and differs only where the two reads were a second apart |
+| what the road cost | 23.5 and 30.2 kWh/100 km moving; the standing energy of the second drive, −3.76 kWh, is the DC stop, and the standing rule of §2.2 kept it off the road |
+
+The DC stop is the new question. `CHARGE_GUN` read `3` for six minutes with the
+car in P, `POWER_KW` −46…−57 kW, 3.9 kWh into the pack, and `CHARGE_KW` - the AC
+charger's own figure - read 24.6…25 over the same minutes. `VehicleTelemetry.
+charging` is the AC gun (`2`) alone, so the car page said «В БАТАРЕЮ» over the
+true −50 kW of `POWER_KW`, which is honest. What a DC stop must not do is
+substitute `CHARGE_KW`: it would print 25 over a 50 kW charge. The word
+«ОТ ЗАРЯДКИ» for gun `3` is a one-line change once the owner says the stop was a
+DC charger and a second stop agrees.
 
 The first three want a drive and a drive wants no laptop, so since 2026-09-22 the
 car can record the sweep itself: a marker file turns `VehicleCapture` on, it

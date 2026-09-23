@@ -904,8 +904,9 @@ From `CRITIQUE.md` §5 and `VERDICT.md`, in the order they matter to this panel:
    the whole cluster, one photograph, and a second with the bulb check lit,
    indicators on and ADAS active, because the corner apertures may be lamp zones.
    All five concepts named this first;
-2. **the sign of `POWER_KW`** under a known acceleration and a known braking. It is
-   inferred from one parked charge, not proven (`VehicleConvention`);
+2. ~~**the sign of `POWER_KW`** under a known acceleration and a known braking~~ -
+   closed by the drive of 2026-09-22: positive out of the pack at speed
+   (`docs/energy-display-contract.md` §8);
 3. **what `GENERATION_KW` is in motion at all**, from one engine run at speed.
    Nothing about the engine is drawn on the band until it is answered - both
    drawings that were there were the claim in two different shapes - and
@@ -919,7 +920,9 @@ From `CRITIQUE.md` §5 and `VERDICT.md`, in the order they matter to this panel:
    whether 120 s of shelf hysteresis is enough;
 7. **frames per second inside the `Presentation`**, and whether the vendor
    composites over our edges;
-8. **which of `ENGINE_RPM` and `GENERATION_KW` is not zero on an electric drive**
+8. ~~**which of `ENGINE_RPM` and `GENERATION_KW` is not zero on an electric drive**~~ -
+   neither, on the drive of 2026-09-22: the primary rpm id answers `0x1FFF`, which
+   the decode refuses, and the rest read `0`;
    - the first drive proved one of them is (the engine's box was up for half a
    trip with the engine off), and the panel is keyed on `ENGINE_RUNNING` alone
    now; a log of both ids against speed with the engine off says which, and
