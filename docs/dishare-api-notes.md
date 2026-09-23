@@ -507,9 +507,14 @@ Not working as an ordinary `/data/app` debug APK:
 - `com.byd.avc` runs as `android.uid.system` and has `BYDAUTO_VIDEO_*` and
   `BYDAUTO_PANORAMA_*` permissions. Our package runs as a normal app uid and does not.
 - `com.byd.avc.aidl.IAVCAidlInterface` has `getCameraSurface()`, `addCamTexture()`, and
-  `rmCamTexture()`, but on this firmware `getSupportPushBufferType()` returns `1`,
-  `BYDAPI.getCameraSurface()` returns null, and `addCamTexture/rmCamTexture` are no-op
-  stubs.
+  `rmCamTexture()`, but on this firmware `getSupportPushBufferType()` returns `1`
+  and `addCamTexture/rmCamTexture` are no-op stubs. The live renderer is the TS SDK
+  (`TSAPI`), not `BYDAPI`: `getCameraSurface()` (tx 8) returns the renderer's camera
+  **input**, and the AIDL stub writes it with `PARCELABLE_WRITE_RETURN_VALUE`, which
+  releases AVC's own copy of that Surface. **Never call tx 8** - one call can break
+  the stock camera feed until AVC restarts (read from the OTA image on 2026-09-23;
+  see instrument-display-findings.md, "The stock turn-signal camera, read from the
+  firmware").
 - `PIP2MeterActivity`/`PIP2MeterAlert` create a `SurfaceView` and on first frame call
   `AVCBYDAutoPanoramaDevice.startPanoramaProjection2Ins()`, which sets
   `PANORAMA_SCREEN_PROJECTION_STATUS_IVI_TO_INS_SET=1`. That is the stock projection path
